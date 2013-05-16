@@ -1,84 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 620EF6B0032
-	for <linux-mm@kvack.org>; Thu, 16 May 2013 10:29:48 -0400 (EDT)
-Date: Thu, 16 May 2013 15:29:42 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 2/4] mm: pagevec: Defer deciding what LRU to add a page
- to until pagevec drain time
-Message-ID: <20130516142941.GK11497@suse.de>
-References: <1368440482-27909-1-git-send-email-mgorman@suse.de>
- <1368440482-27909-3-git-send-email-mgorman@suse.de>
- <20130515155330.35036978515a6d8e0fe98feb@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id 144D56B0032
+	for <linux-mm@kvack.org>; Thu, 16 May 2013 10:32:52 -0400 (EDT)
+Date: Thu, 16 May 2013 15:32:36 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [RFC PATCH v2 09/11] ARM64: mm: HugeTLB support.
+Message-ID: <20130516143236.GD18308@arm.com>
+References: <1368006763-30774-1-git-send-email-steve.capper@linaro.org>
+ <1368006763-30774-10-git-send-email-steve.capper@linaro.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130515155330.35036978515a6d8e0fe98feb@linux-foundation.org>
+In-Reply-To: <1368006763-30774-10-git-send-email-steve.capper@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Alexey Lyahkov <alexey.lyashkov@gmail.com>, Andrew Perepechko <anserper@ya.ru>, Robin Dong <sanbai@taobao.com>, Theodore Tso <tytso@mit.edu>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Bernd Schubert <bernd.schubert@fastmail.fm>, David Howells <dhowells@redhat.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux-ext4 <linux-ext4@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>
+To: Steve Capper <steve.capper@linaro.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Michal Hocko <mhocko@suse.cz>, Ken Chen <kenchen@google.com>, Mel Gorman <mgorman@suse.de>, Will Deacon <Will.Deacon@arm.com>, "patches@linaro.org" <patches@linaro.org>
 
-On Wed, May 15, 2013 at 03:53:30PM -0700, Andrew Morton wrote:
-> On Mon, 13 May 2013 11:21:20 +0100 Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > mark_page_accessed cannot activate an inactive page that is located on
-> > an inactive LRU pagevec. Hints from filesystems may be ignored as a
-> > result. In preparation for fixing that problem, this patch removes the
-> > per-LRU pagevecs and leaves just one pagevec. The final LRU the page is
-> > added to is deferred until the pagevec is drained.
-> > 
-> > This means that fewer pagevecs are available and potentially there is
-> > greater contention on the LRU lock. However, this only applies in the case
-> > where there is an almost perfect mix of file, anon, active and inactive
-> > pages being added to the LRU. In practice I expect that we are adding
-> > stream of pages of a particular time and that the changes in contention
-> > will barely be measurable.
-> > 
-> > ...
-> >
-> > index c612a6a..0911579 100644
-> > --- a/mm/swap.c
-> > +++ b/mm/swap.c
-> > @@ -39,7 +39,7 @@
-> >  /* How many pages do we try to swap or page in/out together? */
-> >  int page_cluster;
-> >  
-> > -static DEFINE_PER_CPU(struct pagevec[NR_LRU_LISTS], lru_add_pvecs);
-> > +static DEFINE_PER_CPU(struct pagevec, lru_add_pvec);
-> >  static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs);
-> >  static DEFINE_PER_CPU(struct pagevec, lru_deactivate_pvecs);
-> >  
-> > @@ -460,13 +460,18 @@ EXPORT_SYMBOL(mark_page_accessed);
-> >   */
-> 
-> The comment preceding __lru_cache_add() needs an update.
-> 
+On Wed, May 08, 2013 at 10:52:41AM +0100, Steve Capper wrote:
+> --- /dev/null
+> +++ b/arch/arm64/include/asm/hugetlb.h
+...
+> +static inline int pud_large(pud_t pud)
+> +{
+> +	return !(pud_val(pud) & PUD_TABLE_BIT);
+> +}
 
-This?
+I already commented on this - do we really need pud_large() which is
+the same as pud_huge()? It's only defined on x86 and can be safely
+replaced with pud_huge().
 
----8<---
-diff --git a/mm/swap.c b/mm/swap.c
-index 05944d4..ac23602 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -489,12 +489,10 @@ void mark_page_accessed(struct page *page)
- EXPORT_SYMBOL(mark_page_accessed);
- 
- /*
-- * Order of operations is important: flush the pagevec when it's already
-- * full, not when adding the last page, to make sure that last page is
-- * not added to the LRU directly when passed to this function. Because
-- * mark_page_accessed() (called after this when writing) only activates
-- * pages that are on the LRU, linear writes in subpage chunks would see
-- * every PAGEVEC_SIZE page activated, which is unexpected.
-+ * Queue the page for addition to the LRU via pagevec. The decision on whether
-+ * to add the page to the [in]active [file|anon] list is deferred until the
-+ * pagevec is drained. This gives a chance for the caller of __lru_cache_add()
-+ * have the page added to the active list using mark_page_accessed().
-  */
- void __lru_cache_add(struct page *page)
- {
+> --- /dev/null
+> +++ b/arch/arm64/mm/hugetlbpage.c
+> @@ -0,0 +1,70 @@
+...
+> +int pmd_huge(pmd_t pmd)
+> +{
+> +	return !(pmd_val(pmd) & PMD_TABLE_BIT);
+> +}
+> +
+> +int pud_huge(pud_t pud)
+> +{
+> +	return !(pud_val(pud) & PUD_TABLE_BIT);
+> +}
+
+You could even go further and make pud/pmd_huge static inline functions
+for slightly better efficiency (needs changing in the linux/hugetlb.h
+header).
+
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
