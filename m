@@ -1,147 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 900466B0032
-	for <linux-mm@kvack.org>; Thu, 16 May 2013 04:02:48 -0400 (EDT)
-Message-ID: <519492D2.9060406@parallels.com>
-Date: Thu, 16 May 2013 12:03:30 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id BC6586B0032
+	for <linux-mm@kvack.org>; Thu, 16 May 2013 04:20:05 -0400 (EDT)
+From: Oskar Andero <oskar.andero@sonymobile.com>
+Date: Thu, 16 May 2013 10:20:00 +0200
+Subject: Re: [RFC PATCH 0/2] return value from shrinkers
+Message-ID: <20130516082000.GE24072@caracas.corpusers.net>
+References: <1368454595-5121-1-git-send-email-oskar.andero@sonymobile.com>
+ <5192523B.7030805@parallels.com>
+ <20130515141057.GA24072@caracas.corpusers.net>
+ <51939948.3040307@parallels.com>
+ <20130515144704.GC24072@caracas.corpusers.net>
+ <5193A085.3020309@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v6 12/31] fs: convert inode and dentry shrinking to be
- node aware
-References: <1368382432-25462-1-git-send-email-glommer@openvz.org> <1368382432-25462-13-git-send-email-glommer@openvz.org> <20130514095200.GI29466@dastard> <5193A95E.70205@parallels.com> <20130516000216.GC24635@dastard>
-In-Reply-To: <20130516000216.GC24635@dastard>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <5193A085.3020309@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, Dave Chinner <dchinner@redhat.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Lekanovic, Radovan" <Radovan.Lekanovic@sonymobile.com>, David Rientjes <rientjes@google.com>, Dave Chinner <david@fromorbit.com>, Mel Gorman <mgorman@suse.de>
 
-On 05/16/2013 04:02 AM, Dave Chinner wrote:
-> On Wed, May 15, 2013 at 07:27:26PM +0400, Glauber Costa wrote:
->> On 05/14/2013 01:52 PM, Dave Chinner wrote:
->>> kswapd0-632 1210443.469309: mm_shrink_slab_start: cache items 600456 delta 1363 total_scan 300228
->>> kswapd3-635 1210443.510311: mm_shrink_slab_start: cache items 514885 delta 1250 total_scan 101025
->>> kswapd1-633 1210443.517440: mm_shrink_slab_start: cache items 613824 delta 1357 total_scan 97727
->>> kswapd2-634 1210443.527026: mm_shrink_slab_start: cache items 568610 delta 1331 total_scan 259185
->>> kswapd3-635 1210443.573165: mm_shrink_slab_start: cache items 486408 delta 1277 total_scan 243204
->>> kswapd1-633 1210443.697012: mm_shrink_slab_start: cache items 550827 delta 1224 total_scan 82231
->>>
->>> in the space of 230ms, I can see why the caches are getting
->>> completely emptied. kswapds are making multiple, large scale scan
->>> passes on the caches. Looks like our problem is an impedence
->>> mismatch: global windup counter, per-node cache scan calculations.
->>>
->>> So, that's the mess we really need to cleaning up before going much
->>> further with this patchset. We need stable behaviour from the
->>> shrinkers - I'll look into this a bit deeper tomorrow.
->>
->> That doesn't totally make sense to me.
->>
->> Both our scan and count functions will be per-node now. This means we
->> will always try to keep ourselves within reasonable maximums on a
->> per-node basis as well.
-> 
-> Right, but if we have a bunch of GFP_NOFS reclaims on multiple nodes
-> at the same time, we get:
-> 
-> 	max_pass = shr->count_objects;
-> 	nr = shr->nr_in_batch
-> 	shr->nr_in_batch = 0
-> 	/* total_scan has new delta added */
-> 	/* nothing scanned */
-> 	shr->nr_in_batch += total_scan;
-> 
-> And then the next node does the same, and so on.
-> 
-> What I cut from the above output was the shr->nr_in_batch values.
-> They were:
-> 
->  kswapd1-633   [001] 1210443.500045: objects to shrink 4077
-> 	 gfp_flags GFP_KERNEL pgs_scanned 32 lru_pgs 7096 cache
-> 	 items 623079 delta 1404 total_scan 5481
->  kswapd1-633   [001] 1210443.504315: objects to shrink 15138
-> 	 gfp_flags GFP_KERNEL pgs_scanned 32 lru_pgs 7224 cache
-> 	 items 620936 delta 1375 total_scan 16513
->  kswapd3-635   [007] 1210443.510311: objects to shrink 99775
-> 	 gfp_flags GFP_KERNEL pgs_scanned 32 lru_pgs 6587 cache
-> 	 items 514885 delta 1250 total_scan 101025
->  kswapd1-633   [001] 1210443.517440: objects to shrink 96370
-> 	 gfp_flags GFP_KERNEL pgs_scanned 32 lru_pgs 7236 cache
-> 	 items 613824 delta 1357 total_scan 97727
->  kswapd2-634   [006] 1210443.527026: objects to shrink 257854
-> 	 gfp_flags GFP_KERNEL pgs_scanned 32 lru_pgs 6831 cache
-> 	 items 568610 delta 1331 total_scan 259185
->  kswapd3-635   [007] 1210443.573165: objects to shrink 1034342
-> 	 gfp_flags GFP_KERNEL pgs_scanned 32 lru_pgs 6089 cache
-> 	 items 486408 delta 1277 total_scan 243204
-> 
-> So you can see that the number of objects being deferred is driving
-> the total_scan count completely in these cases.
-> 
-> This is over a period of 70ms - shr->nr_in_batch has gone from
-> roughly zero to 1034342 because of deferred work. Between these
-> traces are hundreds of GFP_NOFS reclaims from all 8 cpus (i.e.
-> direct reclaim, every 300-400us on *each* CPU), each adding ~1200 to
-> shr->nr_in_batch, and the only thing able to reclaim memory is
-> kswapd as it does GFP_KERNEL context reclaim.
-> 
-> IOWs, each kswapd is taking the global windup and applying it to
-> each per-node list, when in fact the windup is not distributed that
-> way. The trace leading up to this kswapd scan:
-> 
->  kswapd1-633   [001] 1210443.517440: objects to shrink 96370
-> 	 gfp_flags GFP_KERNEL pgs_scanned 32 lru_pgs 7236 cache
-> 	 items 613824 delta 1357 total_scan 97727
-> 
-> Shows that most of the deferred work has come from CPUs 2, 3, 4 and
-> a little from CPU 5. The cpu->node map shows that only CPU 5 is on
-> node 1 (cpus 1 and 5 are on node 1), so this means that less than a
-> quarter of the work that this node 1 shrinker is being asked to do
-> was deferred from node 1. Most of it was deferred from nodes 0, 2
-> and 3, and so this work the shrinker is doing is doing nothing to
-> relieve the memory pressure on those nodes. So direct reclaim on
-> those nodes continues to wind up the nr_in_batch count.
-> 
-> And look at where the per-node cache count and windup is getting to
-> at times in this process:
-> 
-> fs_mark-5561  [002] 1210443.555528: objects to shrink 2914436
-> 	gfp_flags GFP_NOFS|GFP_NOWARN|GFP_NORETRY|GFP_COMP|GFP_RECLAIMABLE|GFP_NOTRACK
-> 	pgs_scanned 32 lru_pgs 26591
-> 	cache items 2085764 delta 1254 total_scan 1042882
-> 
-> What we see here is a node with more than 2 million filesystem items cached on
-> it. The other nodes are around 500,000 at this point, indicating
-> that we definitely have a per-node reclaim imbalance....
-> 
-> IOWs, shr->nr_in_batch can grow much larger than any single node LRU
-> list, and the deffered count is only limited to (2 * max_pass).
-> Hence if the same node is the one that keeps stealing the global
-> shr->nr_in_batch calculation, it will always be a number related to
-> the size of the cache on that node. All the other nodes will simply
-> keep adding their delta counts to it.
-> 
-> Hence if you've got a node with less cache in it than others, and
-> kswapd comes along, it will see a gigantic amount of deferred work
-> in nr_in_batch, and then we end up removing a large amount of the
-> cache on that node, even though it hasn't had a significant amount
-> of pressure. And the node that has pressure continues to wind up
-> nr_in_batch until it's the one that gets hit by a kswapd run with
-> that wound up nr_in_batch....
-> 
+On 16:49 Wed 15 May     , Glauber Costa wrote:
+> On 05/15/2013 06:47 PM, Oskar Andero wrote:
+> > On 16:18 Wed 15 May     , Glauber Costa wrote:
+> >> On 05/15/2013 06:10 PM, Oskar Andero wrote:
+> >>> On 17:03 Tue 14 May     , Glauber Costa wrote:
+> >>>> On 05/13/2013 06:16 PM, Oskar Andero wrote:
+> >>>>> Hi,
+> >>>>>
+> >>>>> In a previous discussion on lkml it was noted that the shrinkers use the
+> >>>>> magic value "-1" to signal that something went wrong.
+> >>>>>
+> >>>>> This patch-set implements the suggestion of instead using errno.h values
+> >>>>> to return something more meaningful.
+> >>>>>
+> >>>>> The first patch simply changes the check from -1 to any negative value and
+> >>>>> updates the comment accordingly.
+> >>>>>
+> >>>>> The second patch updates the shrinkers to return an errno.h value instead
+> >>>>> of -1. Since this one spans over many different areas I need input on what is
+> >>>>> a meaningful return value. Right now I used -EBUSY on everything for consitency.
+> >>>>>
+> >>>>> What do you say? Is this a good idea or does it make no sense at all?
+> >>>>>
+> >>>>> Thanks!
+> >>>>>
+> >>>>
+> >>>> Right now me and Dave are completely reworking the way shrinkers
+> >>>> operate. I suggest, first of all, that you take a look at that cautiously.
+> >>>
+> >>> Sounds good. Where can one find the code for that?
+> >>>
+> >> linux-mm, linux-fsdevel
+> >>
+> >> Subject is "kmemcg shrinkers", but only the second part is memcg related.
+> >>
+> >>>> On the specifics of what you are doing here, what would be the benefit
+> >>>> of returning something other than -1 ? Is there anything we would do
+> >>>> differently for a return value lesser than 1?
+> >>>
+> >>> Firstly, what bugs me is the magic and unintuitiveness of using -1 rather than a
+> >>> more descriptive error code. IMO, even a #define SHRINK_ERROR -1 in some header
+> >>> file would be better.
+> >>>
+> >>> Expanding the test to <0 will open up for more granular error checks,
+> >>> like -EAGAIN, -EBUSY and so on. Currently, they would all be treated the same,
+> >>> but maybe in the future we would like to handle them differently?
+> >>>
+> >>
+> >> Then in the future we change it.
+> >> This is not a user visible API, we are free to change it at any time,
+> >> under any conditions. There is only value in supporting different error
+> >> codes if we intend to do something different about it. Otherwise, it is
+> >> just churn.
+> >>
+> >> Moreover, -1 does not necessarily mean error. It means "stop shrinking".
+> >> There are many non-error conditions in which it could happen.
+> >>
+> > 
+> > Sure, maybe errno.h is not the right way to go. So, why not add the #define
+> > instead? E.g. STOP_SHRINKING or something better than -1.
+> > 
+> >>> Finally, looking at the code:
+> >>>                         if (shrink_ret == -1)
+> >>>                                 break;
+> >>>                         if (shrink_ret < nr_before)
+> >>>                                 ret += nr_before - shrink_ret;
+> >>>
+> >>> This piece of code will only function if shrink_ret is either greater than zero
+> >>> or -1. If shrink_ret is -2 this will lead to undefined behaviour.
+> >>>
+> >> Except it never is. But since we are touching this code anyway, I see no
+> >> problems in expanding the test. What I don't see the point for, is the
+> >> other patch in your series in which you return error codes.
+> >>
+> >>>> So far, shrink_slab behaves the same, you are just expanding the test.
+> >>>> If you really want to push this through, I would suggest coming up with
+> >>>> a more concrete reason for why this is wanted.
+> >>>
+> >>> I don't know how well this patch is aligned with your current rework, but
+> >>> based on my comments above, I don't see a reason for not taking it.
+> >>>
+> >> I see no objections for PATCH #1 that expands the check, as a cautionary
+> >> measure. But I will oppose returning error codes from shrinkers without
+> >> a solid reason for doing so (meaning a use case in which we really
+> >> threat one of the errors differently)
+> > 
+> > Sorry for being over-zealous about the return codes and I understand
+> > that it is really a minor thing and possibly also a philosophical
+> > question. My only "solid" reasons are unintuiveness and readability.
+> > That is how I came across it in the first place.
+> > 
+> > If no-one backs me up on this I will drop the second patch and resend
+> > the first patch without RFC prefix.
+> > 
+> If you are willing to wait a bit until it finally gets merged, please
+> send it against my memcg.git in kernel.org (branch
+> kmemcg-lru-shrinkers). I can carry your patch in our series.
 
-That makes sense now, thanks. It doesn't seem, however, that any deep
-black magic is required to fix this here.
+Alright. I will apply PATCH 1/2 ontop of your kmemcg-lru-shrinker branch
+and send it to you offline.
 
-Any reason why proportional scanning wouldn't work ?
+Thanks!
 
-If we have a very large nr_in_batch, and many nodes to scan, we can try
-dividing them among present nodes in the proportion of existing objects
-in the cache.
-
-Or maybe even better, we can make deferring work node aware, so when you
-defer, you don't defer to a global pool, but rather to a node copy.
+-Oskar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
