@@ -1,51 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id CF2E86B0033
-	for <linux-mm@kvack.org>; Thu, 16 May 2013 23:36:13 -0400 (EDT)
-Message-ID: <5195A574.3080106@jp.fujitsu.com>
-Date: Fri, 17 May 2013 12:35:16 +0900
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 3B12F6B0033
+	for <linux-mm@kvack.org>; Thu, 16 May 2013 23:41:57 -0400 (EDT)
+Message-ID: <5195A6DF.4080403@jp.fujitsu.com>
+Date: Fri, 17 May 2013 12:41:19 +0900
 From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] memcg: update TODO list in Documentation
-References: <5195A41D.7050507@huawei.com>
-In-Reply-To: <5195A41D.7050507@huawei.com>
-Content-Type: text/plain; charset=GB2312
+Subject: Re: [PATCH 2/9] mm: vmscan: Obey proportional scanning requirements
+ for kswapd
+References: <1368432760-21573-1-git-send-email-mgorman@suse.de> <1368432760-21573-3-git-send-email-mgorman@suse.de>
+In-Reply-To: <1368432760-21573-3-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Zefan <lizefan@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Michal Hocko <mhocko@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-(2013/05/17 12:29), Li Zefan wrote:
-> hugetlb cgroup has already been implemented.
+(2013/05/13 17:12), Mel Gorman wrote:
+> Simplistically, the anon and file LRU lists are scanned proportionally
+> depending on the value of vm.swappiness although there are other factors
+> taken into account by get_scan_count().  The patch "mm: vmscan: Limit
+> the number of pages kswapd reclaims" limits the number of pages kswapd
+> reclaims but it breaks this proportional scanning and may evenly shrink
+> anon/file LRUs regardless of vm.swappiness.
 > 
-> Signed-off-by: Li Zefan <lizefan@huawei.com>
+> This patch preserves the proportional scanning and reclaim. It does mean
+> that kswapd will reclaim more than requested but the number of pages will
+> be related to the high watermark.
+> 
+> [mhocko@suse.cz: Correct proportional reclaim for memcg and simplify]
+> [kamezawa.hiroyu@jp.fujitsu.com: Recalculate scan based on target]
+> [hannes@cmpxchg.org: Account for already scanned pages properly]
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> Acked-by: Rik van Riel <riel@redhat.com>
 
 Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-> ---
->   Documentation/cgroups/memory.txt | 7 +++----
->   1 file changed, 3 insertions(+), 4 deletions(-)
-> 
-> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-> index ddf4f93..327acec 100644
-> --- a/Documentation/cgroups/memory.txt
-> +++ b/Documentation/cgroups/memory.txt
-> @@ -834,10 +834,9 @@ Test:
->   
->   12. TODO
->   
-> -1. Add support for accounting huge pages (as a separate controller)
-> -2. Make per-cgroup scanner reclaim not-shared pages first
-> -3. Teach controller to account for shared-pages
-> -4. Start reclamation in the background when the limit is
-> +1. Make per-cgroup scanner reclaim not-shared pages first
-> +2. Teach controller to account for shared-pages
-> +3. Start reclamation in the background when the limit is
->      not yet hit but the usage is getting closer
->   
->   Summary
-> 
 
 
 --
