@@ -1,89 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id A47EF6B0032
-	for <linux-mm@kvack.org>; Fri, 17 May 2013 01:57:43 -0400 (EDT)
-Received: by mail-lb0-f173.google.com with SMTP id t10so3971793lbi.18
-        for <linux-mm@kvack.org>; Thu, 16 May 2013 22:57:41 -0700 (PDT)
-Message-ID: <5195C6D1.6040005@openvz.org>
-Date: Fri, 17 May 2013 09:57:37 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id DB8B96B0032
+	for <linux-mm@kvack.org>; Fri, 17 May 2013 02:33:47 -0400 (EDT)
+Date: Fri, 17 May 2013 16:33:40 +1000
+From: Dave Chinner <dchinner@redhat.com>
+Subject: Re: [PATCH] mm: vmscan: handle any negative return value from
+ scan_objects
+Message-ID: <20130517063340.GE11167@devil.localdomain>
+References: <1368693736-15486-1-git-send-email-oskar.andero@sonymobile.com>
+ <20130516115212.GC11167@devil.localdomain>
+ <20130516122752.GG24072@caracas.corpusers.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH V2 0/3] memcg: simply lock of page stat accounting
-References: <1368421410-4795-1-git-send-email-handai.szj@taobao.com> <519380FC.1040504@openvz.org> <20130515134110.GD5455@dhcp22.suse.cz> <51946071.4030101@openvz.org> <20130516132846.GE13848@dhcp22.suse.cz>
-In-Reply-To: <20130516132846.GE13848@dhcp22.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130516122752.GG24072@caracas.corpusers.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Sha Zhengju <handai.szj@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, hughd@google.com, gthelen@google.com, Sha Zhengju <handai.szj@taobao.com>
+To: Oskar Andero <oskar.andero@sonymobile.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Lekanovic, Radovan" <Radovan.Lekanovic@sonymobile.com>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-Michal Hocko wrote:
-> On Thu 16-05-13 08:28:33, Konstantin Khlebnikov wrote:
->> Michal Hocko wrote:
->>> On Wed 15-05-13 16:35:08, Konstantin Khlebnikov wrote:
->>>> Sha Zhengju wrote:
->>>>> Hi,
->>>>>
->>>>> This is my second attempt to make memcg page stat lock simpler, the
->>>>> first version: http://www.spinics.net/lists/linux-mm/msg50037.html.
->>>>>
->>>>> In this version I investigate the potential race conditions among
->>>>> page stat, move_account, charge, uncharge and try to prove it race
->>>>> safe of my proposing lock scheme. The first patch is the basis of
->>>>> the patchset, so if I've made some stupid mistake please do not
->>>>> hesitate to point it out.
->>>>
->>>> I have a provocational question. Who needs these numbers? I mean
->>>> per-cgroup nr_mapped and so on.
->>>
->>> Well, I guess it makes some sense to know how much page cache and anon
->>> memory is charged to the group. I am using that to monitor the per-group
->>> memory usage. I can imagine a even better coverage - something
->>> /proc/meminfo like.
->>>
->>
->> I think page counters from lru-vectors can give enough information for that.
->
-> not for dirty and writeback data which is the next step.
+On Thu, May 16, 2013 at 02:27:52PM +0200, Oskar Andero wrote:
+> On 13:52 Thu 16 May     , Dave Chinner wrote:
+> > On Thu, May 16, 2013 at 10:42:16AM +0200, Oskar Andero wrote:
+> > > The shrinkers must return -1 to indicate that it is busy. Instead, treat
+> > > any negative value as busy.
+> > 
+> > Why? The API defines return condition for aborting a scan and gives
+> > a specific value for doing that. i.e. explain why should change the
+> > API to over-specify the 'abort scan" return value like this.
+> 
+> As I pointed out earlier, looking in to the code (from master):
+> 	if (shrink_ret == -1)
+> 		break;
+> 	if (shrink_ret < nr_before)
+> 		ret += nr_before - shrink_ret;
+> 
+> This piece of code lacks a sanity check and will only function if shrink_ret
+> is either greater than zero or exactly -1. If shrink_ret is e.g. -2 this will
+> lead to undefined behaviour.
 
-I think tracking dirty and writeback pages in per-inode manner is much more useful.
-If there is only one cgroup per inode who responds for all dirtied pages we can use this
-hint during writeback process to account disk operations and throttle tasks in that cgroup.
+If a shrinker is returning -2 then the shrinker is broken and needs
+fixing.
 
-This approach allows to easily implement effective IO bandwidth controller in the VFS layer.
-Actually we did this in our commercial product, feature called 'iolimits' works exactly in this
-way. Unlike to blkcg this disk bandwidth controller doesn't suffer from priority inversion
-bugs related to fs journal, and it works for non-disk filesystems like NFS and FUSE.
-This is something like 'balance-dirty-pages' on steroids which also can handle read
-operations and can take IOPS counters into account.
+> > FWIW, using "any" negative number for "abort scan" is a bad API
+> > design decision. It means that in future we can't introduce
+> > different negative return values in the API if we have a new to.
+> > i.e. each specific negative return value needs to have the potential
+> > for defining a different behaviour. 
+> 
+> An alternative to my patch would be to add:
+> if (shrink_ret < -1)
+>    /* handle illegal return code in some way */
 
->
->> If somebody needs more detailed information there are enough ways to get it.
->> Amount of mapped pages can be estimated via summing rss counters from mm-structs.
->> Exact numbers can be obtained via examining /proc/pid/pagemap.
->
-> How do you find out whether given pages were charged to the group of
-> interest - e.g. shared data or taks that has moved from a different
-> group without move_at_immigrate?
+How? We have one valid negative return code. WTF are we supposed to
+do if a shrinker is passing undefined return values? IOWs, the only
+sane thing to do is:
 
-For example we can export pages ownership and charging state via single file in proc,
-something similar to /proc/kpageflags
+	BUG_ON(shrink_ret < -1);
 
-BTW
-In our kernel the memory controller tries to change page's ownership at first mmap and
-at each page activation, probably it's worth to add this into mainline memcg too.
+> > So if any change needs to be made, it is to change the -1 return
+> > value to an enum and have the shrinkers return that enum when they
+> > want an abort.
+> 
+> I am all for an enum, but I still believe we should handle the case where
+> the shrinkers return something wicked.
 
->
->> I don't think that simulating 'Mapped' line in /proc/mapfile is a worth reason
->> for adding such weird stuff into the rmap code on map/unmap paths.
->
-> The accounting code is trying to be not intrusive as much as possible.
-> This patchset makes it more complicated without a good reason and that
-> is why it has been Nacked by me.
+Which bit of "broken shrinkers need to be fixed" don't you
+understand? A BUG_ON() will make sure they get fixed - anything else
+that allows broken shrinkers to continue functioning is a completely
+unacceptible solution.
 
-I think we can remove it or replace it with something different but much less intrusive,
-if nobody strictly requires exactly this approach in managing 'mapped' pages counters.
+-Dave.
+-- 
+Dave Chinner
+dchinner@redhat.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
