@@ -1,72 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id F13706B0032
-	for <linux-mm@kvack.org>; Fri, 17 May 2013 04:38:09 -0400 (EDT)
-Date: Fri, 17 May 2013 10:38:06 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH V2 0/3] memcg: simply lock of page stat accounting
-Message-ID: <20130517083806.GB5048@dhcp22.suse.cz>
-References: <1368421410-4795-1-git-send-email-handai.szj@taobao.com>
- <519380FC.1040504@openvz.org>
- <20130515134110.GD5455@dhcp22.suse.cz>
- <51946071.4030101@openvz.org>
- <20130516132846.GE13848@dhcp22.suse.cz>
- <5195C6D1.6040005@openvz.org>
+	by kanga.kvack.org (Postfix) with SMTP id 2207D6B0032
+	for <linux-mm@kvack.org>; Fri, 17 May 2013 04:41:36 -0400 (EDT)
+Received: by mail-ee0-f47.google.com with SMTP id t10so2335843eei.20
+        for <linux-mm@kvack.org>; Fri, 17 May 2013 01:41:34 -0700 (PDT)
+Date: Fri, 17 May 2013 09:41:25 +0100
+From: Steve Capper <steve.capper@linaro.org>
+Subject: Re: [RFC PATCH v2 09/11] ARM64: mm: HugeTLB support.
+Message-ID: <20130517084124.GA22241@linaro.org>
+References: <1368006763-30774-1-git-send-email-steve.capper@linaro.org>
+ <1368006763-30774-10-git-send-email-steve.capper@linaro.org>
+ <20130516143236.GD18308@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5195C6D1.6040005@openvz.org>
+In-Reply-To: <20130516143236.GD18308@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Sha Zhengju <handai.szj@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, hughd@google.com, gthelen@google.com, Sha Zhengju <handai.szj@taobao.com>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Michal Hocko <mhocko@suse.cz>, Ken Chen <kenchen@google.com>, Mel Gorman <mgorman@suse.de>, Will Deacon <Will.Deacon@arm.com>, "patches@linaro.org" <patches@linaro.org>
 
-On Fri 17-05-13 09:57:37, Konstantin Khlebnikov wrote:
-> Michal Hocko wrote:
-> >On Thu 16-05-13 08:28:33, Konstantin Khlebnikov wrote:
-[...]
-> >>If somebody needs more detailed information there are enough ways to get it.
-> >>Amount of mapped pages can be estimated via summing rss counters from mm-structs.
-> >>Exact numbers can be obtained via examining /proc/pid/pagemap.
-> >
-> >How do you find out whether given pages were charged to the group of
-> >interest - e.g. shared data or taks that has moved from a different
-> >group without move_at_immigrate?
+On Thu, May 16, 2013 at 03:32:36PM +0100, Catalin Marinas wrote:
+> On Wed, May 08, 2013 at 10:52:41AM +0100, Steve Capper wrote:
+> > --- /dev/null
+> > +++ b/arch/arm64/include/asm/hugetlb.h
+> ...
+> > +static inline int pud_large(pud_t pud)
+> > +{
+> > +	return !(pud_val(pud) & PUD_TABLE_BIT);
+> > +}
 > 
-> For example we can export pages ownership and charging state via
-> single file in proc, something similar to /proc/kpageflags
-
-So you would like to add a new interface with cryptic api (I consider
-kpageflags to be a devel tool not an admin aid) to replace something
-that is easy to use? Doesn't make much sense to me.
-
-> BTW
-> In our kernel the memory controller tries to change page's ownership
-> at first mmap and at each page activation, probably it's worth to add
-> this into mainline memcg too.
-
-Dunno, there are different approaches for this. I haven't evalueted them
-so I don't know all the pros and cons. Why not just unmap&uncharge the
-page when the charging process dies. This should be more lightweight
-wrt. recharge on re-activation.
- 
-> >>I don't think that simulating 'Mapped' line in /proc/mapfile is a worth reason
-> >>for adding such weird stuff into the rmap code on map/unmap paths.
-> >
-> >The accounting code is trying to be not intrusive as much as possible.
-> >This patchset makes it more complicated without a good reason and that
-> >is why it has been Nacked by me.
+> I already commented on this - do we really need pud_large() which is
+> the same as pud_huge()? It's only defined on x86 and can be safely
+> replaced with pud_huge().
 > 
-> I think we can remove it or replace it with something different but
-> much less intrusive, if nobody strictly requires exactly this approach
-> in managing 'mapped' pages counters.
 
-Do you have any numbers on the intrusiveness? I do not mind to change
-the internal implementation but the file is a part of the user space API
-so we cannot get rid of it.
+Thanks, yes, sorry this one slipped through the cracks.
+I'll update this to use pud_huge.
+
+> > --- /dev/null
+> > +++ b/arch/arm64/mm/hugetlbpage.c
+> > @@ -0,0 +1,70 @@
+> ...
+> > +int pmd_huge(pmd_t pmd)
+> > +{
+> > +	return !(pmd_val(pmd) & PMD_TABLE_BIT);
+> > +}
+> > +
+> > +int pud_huge(pud_t pud)
+> > +{
+> > +	return !(pud_val(pud) & PUD_TABLE_BIT);
+> > +}
+> 
+> You could even go further and make pud/pmd_huge static inline functions
+> for slightly better efficiency (needs changing in the linux/hugetlb.h
+> header).
+
+I'll have to have a think about this and a tinker :-). 
+
+Cheers,
 -- 
-Michal Hocko
-SUSE Labs
+Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
