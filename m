@@ -1,61 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 1562C6B0034
-	for <linux-mm@kvack.org>; Fri, 17 May 2013 12:03:07 -0400 (EDT)
-Date: Fri, 17 May 2013 12:02:47 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch v3 -mm 1/3] memcg: integrate soft reclaim tighter with
- zone shrinking code
-Message-ID: <20130517160247.GA10023@cmpxchg.org>
-References: <1368431172-6844-1-git-send-email-mhocko@suse.cz>
- <1368431172-6844-2-git-send-email-mhocko@suse.cz>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 9DBBC6B0037
+	for <linux-mm@kvack.org>; Fri, 17 May 2013 12:04:38 -0400 (EDT)
+Date: Fri, 17 May 2013 17:04:31 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCHv11 4/4] zswap: add documentation
+Message-ID: <20130517160431.GO11497@suse.de>
+References: <1368448803-2089-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <1368448803-2089-5-git-send-email-sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1368431172-6844-2-git-send-email-mhocko@suse.cz>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1368448803-2089-5-git-send-email-sjenning@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Glauber Costa <glommer@parallels.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On Mon, May 13, 2013 at 09:46:10AM +0200, Michal Hocko wrote:
-> Memcg soft reclaim has been traditionally triggered from the global
-> reclaim paths before calling shrink_zone. mem_cgroup_soft_limit_reclaim
-> then picked up a group which exceeds the soft limit the most and
-> reclaimed it with 0 priority to reclaim at least SWAP_CLUSTER_MAX pages.
+On Mon, May 13, 2013 at 07:40:03AM -0500, Seth Jennings wrote:
+> This patch adds the documentation file for the zswap functionality
 > 
-> The infrastructure requires per-node-zone trees which hold over-limit
-> groups and keep them up-to-date (via memcg_check_events) which is not
-> cost free. Although this overhead hasn't turned out to be a bottle neck
-> the implementation is suboptimal because mem_cgroup_update_tree has no
-> idea which zones consumed memory over the limit so we could easily end
-> up having a group on a node-zone tree having only few pages from that
-> node-zone.
+> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+> ---
+>  Documentation/vm/zswap.txt |   72 ++++++++++++++++++++++++++++++++++++++++++++
+>  1 file changed, 72 insertions(+)
+>  create mode 100644 Documentation/vm/zswap.txt
 > 
-> This patch doesn't try to fix node-zone trees management because it
-> seems that integrating soft reclaim into zone shrinking sounds much
-> easier and more appropriate for several reasons.
-> First of all 0 priority reclaim was a crude hack which might lead to
-> big stalls if the group's LRUs are big and hard to reclaim (e.g. a lot
-> of dirty/writeback pages).
-> Soft reclaim should be applicable also to the targeted reclaim which is
-> awkward right now without additional hacks.
-> Last but not least the whole infrastructure eats quite some code.
-> 
-> After this patch shrink_zone is done in 2 passes. First it tries to do the
-> soft reclaim if appropriate (only for global reclaim for now to keep
-> compatible with the original state) and fall back to ignoring soft limit
-> if no group is eligible to soft reclaim or nothing has been scanned
-> during the first pass. Only groups which are over their soft limit or
-> any of their parents up the hierarchy is over the limit are considered
-> eligible during the first pass.
+> diff --git a/Documentation/vm/zswap.txt b/Documentation/vm/zswap.txt
+> new file mode 100644
+> index 0000000..88384b3
+> --- /dev/null
+> +++ b/Documentation/vm/zswap.txt
+> @@ -0,0 +1,72 @@
+> +Overview:
+> +
+> +Zswap is a lightweight compressed cache for swap pages. It takes pages that are
+> +in the process of being swapped out and attempts to compress them into a
+> +dynamically allocated RAM-based memory pool.  If this process is successful,
+> +the writeback to the swap device is deferred and, in many cases, avoided
+> +completely.  This results in a significant I/O reduction and performance gains
+> +for systems that are swapping.
+> +
 
-There are setups with thousands of groups that do not even use soft
-limits.  Having them pointlessly iterate over all of them for every
-couple of pages reclaimed is just not acceptable.
+*Potentially* reduces IO and *potentially* shows performance gains. If the
+system is swap trashing, this may make things worse as you're generating
+the same amount of IO but having to compress/decompress as well. If there
+is less physical memory available because zswap pool is fragmented then an
+application may be pushed to swap prematurely and again, the performance
+is worse. Don't oversell this and the comment applies throughout the
+documentation.
 
-This is not the first time this implementation was proposed, either,
-I'm afraid we have now truly gone full circle on this stuff.
+I also think it should be marked with a bit fat warning that it's a WIP
+and an additional warning that the performance characteristics are very
+heavily workload dependant.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
