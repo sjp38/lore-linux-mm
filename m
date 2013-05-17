@@ -1,79 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id DB8B96B0032
-	for <linux-mm@kvack.org>; Fri, 17 May 2013 02:33:47 -0400 (EDT)
-Date: Fri, 17 May 2013 16:33:40 +1000
-From: Dave Chinner <dchinner@redhat.com>
-Subject: Re: [PATCH] mm: vmscan: handle any negative return value from
- scan_objects
-Message-ID: <20130517063340.GE11167@devil.localdomain>
-References: <1368693736-15486-1-git-send-email-oskar.andero@sonymobile.com>
- <20130516115212.GC11167@devil.localdomain>
- <20130516122752.GG24072@caracas.corpusers.net>
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 29B3C6B0032
+	for <linux-mm@kvack.org>; Fri, 17 May 2013 03:03:40 -0400 (EDT)
+Message-ID: <5195D5F8.7000609@huawei.com>
+Date: Fri, 17 May 2013 15:02:16 +0800
+From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130516122752.GG24072@caracas.corpusers.net>
+Subject: [PATCH 0/12][V3] memcg: make memcg's life cycle the same as cgroup
+Content-Type: text/plain; charset="GB2312"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oskar Andero <oskar.andero@sonymobile.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Lekanovic, Radovan" <Radovan.Lekanovic@sonymobile.com>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-On Thu, May 16, 2013 at 02:27:52PM +0200, Oskar Andero wrote:
-> On 13:52 Thu 16 May     , Dave Chinner wrote:
-> > On Thu, May 16, 2013 at 10:42:16AM +0200, Oskar Andero wrote:
-> > > The shrinkers must return -1 to indicate that it is busy. Instead, treat
-> > > any negative value as busy.
-> > 
-> > Why? The API defines return condition for aborting a scan and gives
-> > a specific value for doing that. i.e. explain why should change the
-> > API to over-specify the 'abort scan" return value like this.
-> 
-> As I pointed out earlier, looking in to the code (from master):
-> 	if (shrink_ret == -1)
-> 		break;
-> 	if (shrink_ret < nr_before)
-> 		ret += nr_before - shrink_ret;
-> 
-> This piece of code lacks a sanity check and will only function if shrink_ret
-> is either greater than zero or exactly -1. If shrink_ret is e.g. -2 this will
-> lead to undefined behaviour.
+Hi Andrew,
 
-If a shrinker is returning -2 then the shrinker is broken and needs
-fixing.
+All the patches in this patchset has been acked by Michal and Kamezawa-san, and
+it's ready to be merged into -mm.
 
-> > FWIW, using "any" negative number for "abort scan" is a bad API
-> > design decision. It means that in future we can't introduce
-> > different negative return values in the API if we have a new to.
-> > i.e. each specific negative return value needs to have the potential
-> > for defining a different behaviour. 
-> 
-> An alternative to my patch would be to add:
-> if (shrink_ret < -1)
->    /* handle illegal return code in some way */
+Changes since v2:
 
-How? We have one valid negative return code. WTF are we supposed to
-do if a shrinker is passing undefined return values? IOWs, the only
-sane thing to do is:
+- rebased to 3.10-rc1
+- collected some acks
+- the two memcg bug fixes has been merged into mainline
+- the cgroup core patch has been merged into mainline
 
-	BUG_ON(shrink_ret < -1);
+Changes since v1:
 
-> > So if any change needs to be made, it is to change the -1 return
-> > value to an enum and have the shrinkers return that enum when they
-> > want an abort.
-> 
-> I am all for an enum, but I still believe we should handle the case where
-> the shrinkers return something wicked.
+- wrote better changelog and added acked-by and reviewed-by tags
+- revised some comments as suggested by Michal
+- added a wmb() in kmem_cgroup_css_offline(), pointed out by Michal
+- fixed a bug which causes a css_put() never be called
 
-Which bit of "broken shrinkers need to be fixed" don't you
-understand? A BUG_ON() will make sure they get fixed - anything else
-that allows broken shrinkers to continue functioning is a completely
-unacceptible solution.
 
--Dave.
--- 
-Dave Chinner
-dchinner@redhat.com
+Now memcg has its own refcnt, so when a cgroup is destroyed, the memcg can
+still be alive. This patchset converts memcg to always use css_get/put, so
+memcg will have the same life cycle as its corresponding cgroup.
+
+The historical reason that memcg didn't use css_get in some cases, is that
+cgroup couldn't be removed if there're still css refs. The situation has
+changed so that rmdir a cgroup will succeed regardless css refs, but won't
+be freed until css refs goes down to 0.
+
+Since the introduction of kmemcg, the memcg refcnt handling grows even more
+complicated. This patchset greately simplifies memcg's life cycle management.
+
+Also, after those changes, we can convert memcg to use cgroup->id, and then
+we can kill css_id.
+
+The first 2 patches are bug fixes that can go into 3.10, and the rest are
+for 3.10.
+
+Li Zefan (7):
+      memcg: use css_get() in sock_update_memcg()
+      memcg: don't use mem_cgroup_get() when creating a kmemcg cache
+      memcg: use css_get/put when charging/uncharging kmem
+      memcg: use css_get/put for swap memcg
+      memcg: don't need to get a reference to the parent
+      memcg: kill memcg refcnt
+      memcg: don't need to free memcg via RCU or workqueue
+
+Michal Hocko (2):
+      Revert "memcg: avoid dangling reference count in creation failure."
+      memcg, kmem: fix reference count handling on the error path
+
+---
+ mm/memcontrol.c | 204 ++++++++++++++++++++++--------------------------------------
+ 1 file changed, 73 insertions(+), 131 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
