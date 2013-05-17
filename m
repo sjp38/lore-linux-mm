@@ -1,86 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Date: Fri, 17 May 2013 10:37:18 -0400
-From: Benjamin LaHaise <bcrl@kvack.org>
-Subject: Re: [WiP]: aio support for migrating pages (Re: [PATCH V2 1/2] mm: hotplug: implement non-movable version of get_user_pages() called get_user_pages_non_movable())
-Message-ID: <20130517143718.GK1008@kvack.org>
-References: <20130205120137.GG21389@suse.de> <20130206004234.GD11197@blaptop> <20130206095617.GN21389@suse.de> <5190AE4F.4000103@cn.fujitsu.com> <20130513091902.GP11497@suse.de> <5191B5B3.7080406@cn.fujitsu.com> <20130515132453.GB11497@suse.de> <5194748A.5070700@cn.fujitsu.com> <20130517002349.GI1008@kvack.org> <5195A3F4.70803@cn.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5195A3F4.70803@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 7F89B6B0033
+	for <linux-mm@kvack.org>; Fri, 17 May 2013 10:48:53 -0400 (EDT)
+Message-ID: <51964381.8010406@parallels.com>
+Date: Fri, 17 May 2013 18:49:37 +0400
+From: Glauber Costa <glommer@parallels.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v6 12/31] fs: convert inode and dentry shrinking to be
+ node aware
+References: <1368382432-25462-1-git-send-email-glommer@openvz.org> <1368382432-25462-13-git-send-email-glommer@openvz.org> <20130514095200.GI29466@dastard> <5193A95E.70205@parallels.com> <20130516000216.GC24635@dastard> <5195302A.2090406@parallels.com> <20130517005134.GK24635@dastard> <5195DC59.8000205@parallels.com>
+In-Reply-To: <5195DC59.8000205@parallels.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Lin Feng <linfeng@cn.fujitsu.com>, akpm@linux-foundation.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, zab@redhat.com, jmoyer@redhat.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, Dave Chinner <dchinner@redhat.com>
 
-On Fri, May 17, 2013 at 11:28:52AM +0800, Tang Chen wrote:
-> Hi Benjamin,
+On 05/17/2013 11:29 AM, Glauber Costa wrote:
+> Except that shrink_slab_node would also defer work, right?
 > 
-> Thank you very much for your idea. :)
-> 
-> I have no objection to your idea, but seeing from your patch, this only
-> works for aio subsystem because you changed the way to allocate the aio
-> ring pages, with a file mapping.
+>> > The only thing I don't like about this is the extra nodemask needed,
+>> > which, like the scan control, would have to sit on the stack.
+>> > Suggestions for avoiding that problem are welcome.. :)
+>> >
+> I will try to come up with a patch to do all this, and then we can
+> concretely discuss.
+> You are also of course welcome to do so as well =)
 
-That is correct.  There is no way you're going to be able to solve this 
-problem without dealing with the issue on a subsystem by subsystem basis.
 
-> So far as I know, not only aio, but also other subsystems, such CMA, will
-> also have problem like this. The page cannot be migrated because it is
-> pinned in memory. So I think we should work out a common way to solve how
-> to migrate pinned pages.
+All right.
 
-A generic approach would require hardware support, but I doubt that is 
-going to happen.
+I played a bit today with variations of this patch that will keep the
+deferred count per node. I will rebase the whole series ontop of it (the
+changes can get quite disruptive) and post. I want to believe that
+after this, all our regression problems will be gone (famous last words).
 
-> I'm working in the way Mel has said, migrate_unpin() and migrate_pin()
-> callbacks. But as you saw, I met some problems, like I don't where to put
-> these two callbacks. And discussed with you guys, I want to try this:
-> 
-> 1. Add a new member to struct page, used to remember the pin holders of
->    this page, including the pin and unpin callbacks and the necessary data.
->    This is more like a callback chain.
->    (I'm worry about this step, I'm not sure if it is good enough. After 
-> all,
->     we need a good place to put the callbacks.)
+As I have told you, I wasn't seeing problems like you are, and
+speculated that this was due to the disk speeds. While this is true,
+the patch I came up with makes my workload actually a lot better.
+While my caches weren't being emptied, they were being slightly depleted
+and then slowly filled again. With my new patch, it is almost
+a straight line throughout the whole find run. There is a dent here and
+there eventually, but it recovers quickly. It takes some time as well
+for steady state to be reached, but once it is, we have all variables
+in the equation (dentries, inodes, etc) basically flat. So I guess it
+works, and I am confident that it will make your workload better.
 
-Putting function pointers into struct page is not going to happen.  You'd 
-be adding a significant amount of memory overhead for something that is 
-never going to be used on the vast majority of systems (2 function pointers 
-would be 16 bytes per page on a 64 bit system).  Keep in mind that distro 
-kernels tend to enable almost all config options on their kernels, so the 
-overhead of any approach has to make sense for the users of the kernel that 
-will never make use of this kind of migration.
+My strategy is to modify the shrinker structure like this:
 
-> And then, like Mel said,
-> 
-> 2. Implement the callbacks in the subsystems, and register them to the
->    new member in struct page.
+struct shrinker {
+        int (*shrink)(struct shrinker *, struct shrink_control *sc);
+        long (*count_objects)(struct shrinker *, struct shrink_control *sc);
+        long (*scan_objects)(struct shrinker *, struct shrink_control *sc);
 
-No, the hook should be in the address_space_operations.  We already have 
-a pointer to an address space in struct page.  This avoids adding more 
-overhead to struct page.
+        int seeks;      /* seeks to recreate an obj */
+        long batch;     /* reclaim batch size, 0 = default */
+        unsigned long flags;
 
-> 3. Call these callbacks before and after migration.
+        /* These are for internal use */
+        struct list_head list;
+        atomic_long_t *nr_deferred; /* objs pending delete, per node */
 
-How is that better than using the existing hook in address_space_operations?
+        /* nodes being currently shrunk, only makes sense for NUMA
+shrinkers */
+        nodemask_t *nodes_shrinking;
 
-> I think I'll send a RFC patch next week when I finished the outline. I'm
-> just thinking of finding a common way to solve this problem that all the
-> other subsystems will benefit.
+};
 
-Before pursuing this approach, make sure you've got buy-in for all of the 
-overhead you're adding to the system.  I don't think that growing struct 
-page is going to be an acceptable design choice given the amount of 
-overhead it will incur.
+We need memory allocation now for nr_deferred and nodes_shrinking, but
+OTOH we use no stack, and can keep the size of this to be dynamically
+adjusted depending on whether or not your shrinker is NUMA aware.
 
-> Thanks. :)
+Guess that is it. Expect news soon.
 
-Cheers,
 
-		-ben
--- 
-"Thought is the essence of where you are now."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
