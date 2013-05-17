@@ -1,91 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 0991E6B0032
-	for <linux-mm@kvack.org>; Fri, 17 May 2013 05:48:13 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 9E12A6B0033
+	for <linux-mm@kvack.org>; Fri, 17 May 2013 05:48:14 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 0/5] Obey mark_page_accessed hint given by filesystems v3r1
-Date: Fri, 17 May 2013 10:48:02 +0100
-Message-Id: <1368784087-956-1-git-send-email-mgorman@suse.de>
+Subject: [PATCH 1/5] mm: Add tracepoints for LRU activation and insertions
+Date: Fri, 17 May 2013 10:48:03 +0100
+Message-Id: <1368784087-956-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1368784087-956-1-git-send-email-mgorman@suse.de>
+References: <1368784087-956-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Alexey Lyahkov <alexey.lyashkov@gmail.com>, Andrew Perepechko <anserper@ya.ru>, Robin Dong <sanbai@taobao.com>
 Cc: Theodore Tso <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Bernd Schubert <bernd.schubert@fastmail.fm>, David Howells <dhowells@redhat.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux-ext4 <linux-ext4@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>
 
-This series could still do with some Tested-by's from the original bug
-reporters. Andrew Perepechko?
+Using these tracepoints it is possible to model LRU activity and the
+average residency of pages of different types. This can be used to
+debug problems related to premature reclaim of pages of particular
+types.
 
-Changelog since V2
-o Beef up the comments in a number of places			(akpm)
-o Remove lru parameter from __lru_cache_add, lru_cache_add_lru	(akpm)
-o Use congestion_wait instead of wait_on_page_writeback in case
-  of storage disconnects					(akpm)
-
-Changelog since V1
-o Add tracepoint to model age of page types			(mel)
-
-Andrew Perepechko reported a problem whereby pages are being prematurely
-evicted as the mark_page_accessed() hint is ignored for pages that are
-currently on a pagevec -- http://www.spinics.net/lists/linux-ext4/msg37340.html .
-Alexey Lyahkov and Robin Dong have also reported problems recently that
-could be due to hot pages reaching the end of the inactive list too quickly
-and be reclaimed.
-
-Rather than addressing this on a per-filesystem basis, this series aims
-to fix the mark_page_accessed() interface by deferring what LRU a page
-is added to pagevec drain time and allowing mark_page_accessed() to call
-SetPageActive on a pagevec page.
-
-Patch 1 adds two tracepoints for LRU page activation and insertion. Using
-	these processes it's possible to build a model of pages in the
-	LRU that can be processed offline.
-
-Patch 2 defers making the decision on what LRU to add a page to until when
-	the pagevec is drained.
-
-Patch 3 searches the local pagevec for pages to mark PageActive on
-	mark_page_accessed. The changelog explains why only the local
-	pagevec is examined.
-
-Patches 4 and 5 tidy up the API.
-
-postmark, a dd-based test and fs-mark both single and threaded mode were
-run but none of them showed any performance degradation or gain as a result
-of the patch.
-
-Using patch 1, I built a *very* basic model of the LRU to examine
-offline what the average age of different page types on the LRU were in
-milliseconds. Of course, capturing the trace distorts the test as it's
-written to local disk but it does not matter for the purposes of this test.
-The average age of pages in milliseconds were
-
-				    vanilla deferdrain
-Average age mapped anon:               1454       1250
-Average age mapped file:             127841     155552
-Average age unmapped anon:               85        235
-Average age unmapped file:            73633      38884
-Average age unmapped buffers:         74054     116155
-
-The LRU activity was mostly files which you'd expect for a dd-based
-workload. Note that the average age of buffer pages is increased by the
-series and it is expected this is due to the fact that the buffer pages are
-now getting added to the active list when drained from the pagevecs. Note
-that the average age of the unmapped file data is decreased as they are
-still added to the inactive list and are reclaimed before the buffers. There
-is no guarantee this is a universal win for all workloads and it would be
-nice if the filesystem people gave some thought as to whether this decision
-is generally a win or a loss.
-
- fs/cachefiles/rdwr.c           |  30 +++---------
- fs/nfs/dir.c                   |   7 +--
- include/linux/pagevec.h        |  34 +-------------
- include/linux/swap.h           |  11 +++--
- include/trace/events/pagemap.h |  89 +++++++++++++++++++++++++++++++++++
- mm/rmap.c                      |   7 +--
- mm/swap.c                      | 103 ++++++++++++++++++++++++++---------------
- mm/vmscan.c                    |   4 +-
- 8 files changed, 176 insertions(+), 109 deletions(-)
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+---
+ include/trace/events/pagemap.h | 89 ++++++++++++++++++++++++++++++++++++++++++
+ mm/swap.c                      |  5 +++
+ 2 files changed, 94 insertions(+)
  create mode 100644 include/trace/events/pagemap.h
 
+diff --git a/include/trace/events/pagemap.h b/include/trace/events/pagemap.h
+new file mode 100644
+index 0000000..1c9fabd
+--- /dev/null
++++ b/include/trace/events/pagemap.h
+@@ -0,0 +1,89 @@
++#undef TRACE_SYSTEM
++#define TRACE_SYSTEM pagemap
++
++#if !defined(_TRACE_PAGEMAP_H) || defined(TRACE_HEADER_MULTI_READ)
++#define _TRACE_PAGEMAP_H
++
++#include <linux/tracepoint.h>
++#include <linux/mm.h>
++
++#define	PAGEMAP_MAPPED		0x0001u
++#define PAGEMAP_ANONYMOUS	0x0002u
++#define PAGEMAP_FILE		0x0004u
++#define PAGEMAP_SWAPCACHE	0x0008u
++#define PAGEMAP_SWAPBACKED	0x0010u
++#define PAGEMAP_MAPPEDDISK	0x0020u
++#define PAGEMAP_BUFFERS		0x0040u
++
++#define trace_pagemap_flags(page) ( \
++	(PageAnon(page)		? PAGEMAP_ANONYMOUS  : PAGEMAP_FILE) | \
++	(page_mapped(page)	? PAGEMAP_MAPPED     : 0) | \
++	(PageSwapCache(page)	? PAGEMAP_SWAPCACHE  : 0) | \
++	(PageSwapBacked(page)	? PAGEMAP_SWAPBACKED : 0) | \
++	(PageMappedToDisk(page)	? PAGEMAP_MAPPEDDISK : 0) | \
++	(page_has_private(page) ? PAGEMAP_BUFFERS    : 0) \
++	)
++
++TRACE_EVENT(mm_lru_insertion,
++
++	TP_PROTO(
++		struct page *page,
++		unsigned long pfn,
++		int lru,
++		unsigned long flags
++	),
++
++	TP_ARGS(page, pfn, lru, flags),
++
++	TP_STRUCT__entry(
++		__field(struct page *,	page	)
++		__field(unsigned long,	pfn	)
++		__field(int,		lru	)
++		__field(unsigned long,	flags	)
++	),
++
++	TP_fast_assign(
++		__entry->page	= page;
++		__entry->pfn	= pfn;
++		__entry->lru	= lru;
++		__entry->flags	= flags;
++	),
++
++	/* Flag format is based on page-types.c formatting for pagemap */
++	TP_printk("page=%p pfn=%lu lru=%d flags=%s%s%s%s%s%s",
++			__entry->page,
++			__entry->pfn,
++			__entry->lru,
++			__entry->flags & PAGEMAP_MAPPED		? "M" : " ",
++			__entry->flags & PAGEMAP_ANONYMOUS	? "a" : "f",
++			__entry->flags & PAGEMAP_SWAPCACHE	? "s" : " ",
++			__entry->flags & PAGEMAP_SWAPBACKED	? "b" : " ",
++			__entry->flags & PAGEMAP_MAPPEDDISK	? "d" : " ",
++			__entry->flags & PAGEMAP_BUFFERS	? "B" : " ")
++);
++
++TRACE_EVENT(mm_lru_activate,
++
++	TP_PROTO(struct page *page, unsigned long pfn),
++
++	TP_ARGS(page, pfn),
++
++	TP_STRUCT__entry(
++		__field(struct page *,	page	)
++		__field(unsigned long,	pfn	)
++	),
++
++	TP_fast_assign(
++		__entry->page	= page;
++		__entry->pfn	= pfn;
++	),
++
++	/* Flag format is based on page-types.c formatting for pagemap */
++	TP_printk("page=%p pfn=%lu", __entry->page, __entry->pfn)
++
++);
++
++#endif /* _TRACE_PAGEMAP_H */
++
++/* This part must be outside protection */
++#include <trace/define_trace.h>
+diff --git a/mm/swap.c b/mm/swap.c
+index dfd7d71..53c9ceb 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -34,6 +34,9 @@
+ 
+ #include "internal.h"
+ 
++#define CREATE_TRACE_POINTS
++#include <trace/events/pagemap.h>
++
+ /* How many pages do we try to swap or page in/out together? */
+ int page_cluster;
+ 
+@@ -384,6 +387,7 @@ static void __activate_page(struct page *page, struct lruvec *lruvec,
+ 		SetPageActive(page);
+ 		lru += LRU_ACTIVE;
+ 		add_page_to_lru_list(page, lruvec, lru);
++		trace_mm_lru_activate(page, page_to_pfn(page));
+ 
+ 		__count_vm_event(PGACTIVATE);
+ 		update_page_reclaim_stat(lruvec, file, 1);
+@@ -808,6 +812,7 @@ static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
+ 		SetPageActive(page);
+ 	add_page_to_lru_list(page, lruvec, lru);
+ 	update_page_reclaim_stat(lruvec, file, active);
++	trace_mm_lru_insertion(page, page_to_pfn(page), lru, trace_pagemap_flags(page));
+ }
+ 
+ /*
 -- 
 1.8.1.4
 
