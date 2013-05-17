@@ -1,43 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id BE3636B0032
-	for <linux-mm@kvack.org>; Fri, 17 May 2013 03:16:56 -0400 (EDT)
-Date: Fri, 17 May 2013 09:16:55 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch v3 -mm 1/3] memcg: integrate soft reclaim tighter with
- zone shrinking code
-Message-ID: <20130517071655.GD25158@dhcp22.suse.cz>
-References: <1368431172-6844-1-git-send-email-mhocko@suse.cz>
- <1368431172-6844-2-git-send-email-mhocko@suse.cz>
- <20130516221200.GF7171@mtj.dyndns.org>
- <20130516221501.GG7171@mtj.dyndns.org>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 152476B0032
+	for <linux-mm@kvack.org>; Fri, 17 May 2013 03:28:50 -0400 (EDT)
+Message-ID: <5195DC59.8000205@parallels.com>
+Date: Fri, 17 May 2013 11:29:29 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130516221501.GG7171@mtj.dyndns.org>
+Subject: Re: [PATCH v6 12/31] fs: convert inode and dentry shrinking to be
+ node aware
+References: <1368382432-25462-1-git-send-email-glommer@openvz.org> <1368382432-25462-13-git-send-email-glommer@openvz.org> <20130514095200.GI29466@dastard> <5193A95E.70205@parallels.com> <20130516000216.GC24635@dastard> <5195302A.2090406@parallels.com> <20130517005134.GK24635@dastard>
+In-Reply-To: <20130517005134.GK24635@dastard>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Glauber Costa <glommer@parallels.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>, Balbir Singh <bsingharora@gmail.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, Dave Chinner <dchinner@redhat.com>
 
-On Thu 16-05-13 15:15:01, Tejun Heo wrote:
-> One more thing,
+On 05/17/2013 04:51 AM, Dave Chinner wrote:
+>> +		total_scan /= nr_active_nodes;
+>> > +		for_each_node_mask(nid, shrinkctl->nodes_to_scan) {
+>> > +			if (total_scan > 0)
+>> > +				new_nr += atomic_long_add_return(total_scan / nr_active_nodes,
+>> > +						&shrinker->nr_in_batch[nid]);
+> (you do the total_scan / nr_active_nodes twice here)
 > 
-> Given that this is a rather significant behavior change, it probably
-> is a good idea to include the the benchmark results from the head
-> message?
 
-The testing I have done was on top of the complete series. The last
-patch should be irrelevant as I have tested the global reclaim but the
-second patch might still influence figures a tiny bit (we still do the
-soft limit tree thing). That's why I haven't pushed the numbers here.
+Thanks. Indeed. As I told you, I boot tested this, but since I haven't
+seen the behavior you are seeing, I didn't give it a lot of testing.
 
-I can add that information if people prefer or just ask Andrew to squash
-the leader email into the first patch as he tend to do quite often in
-other cases as well.
--- 
-Michal Hocko
-SUSE Labs
+I am a lot more interested in finding out if this approach is worth it.
+So if you could give something like this a go, that would be awesome.
+
+
+>> > +			else
+>> > +				new_nr += atomic_long_read(&shrinker->nr_in_batch[nid]);
+>> >  
+>> > +		}
+> I don't think this solves the problem entirely - it still aggregates
+> multiple nodes together into the one count. It might be better, but
+> it will still bleed the deferred count from a single node into other
+> nodes that have no deferred count.
+> 
+
+Yes, but only the nodes that are being scan in this moment, no?
+If the shrinker is deferring because we returned -1, this means that
+nobody was able to shrink anything.
+
+> Perhaps we need to factor this code a little first - separate the
+> calculation from the per-shrinker loop, so we can do something like:
+> 
+> shrink_slab_node(shr, sc, nid)
+> {
+> 	nodemask_clear(sc->nodemask);
+> 	nodemask_set(sc->nodemask, nid)
+> 	for each shrinker {
+> 		deferred_count = atomic_long_xchg(&shr->deferred_scan[nid], 0);
+> 
+> 		deferred_count = __shrink_slab(shr, sc, deferred_count);
+> 
+> 		atomic_long_add(deferred_count, &shr->deferred_scan[nid]);
+> 	}
+> }
+> 
+> And the existing shrink_slab function becomes something like:
+> 
+> shrink_slab(shr, sc, nodemask)
+> {
+> 	if (shr->flags & SHRINKER_NUMA_AWARE) {
+> 		for_each_node_mask(nid, nodemask)
+> 			shrink_slab_node(shr, sc, nid)
+> 		return;
+> 	}
+I am fine with a numa aware flag.
+
+> 
+> 	for each shrinker {
+> 		deferred_count = atomic_long_xchg(&shr->deferred_scan[0], 0);
+> 
+> 		deferred_count = __shrink_slab(shr, sc, deferred_count);
+> 
+> 		atomic_long_add(deferred_count, &shr->deferred_scan[0]);
+> 	}
+> }
+> 
+> This then makes the deferred count properly node aware when the
+> underlying shrinker needs it to be, and prevents bleed from one node
+> to another. I'd much prefer to see us move to an explicitly node
+> based iteration like this than try to hack more stuff into
+> shrink_slab() and confuse it further.
+> 
+
+Except that shrink_slab_node would also defer work, right?
+
+> The only thing I don't like about this is the extra nodemask needed,
+> which, like the scan control, would have to sit on the stack.
+> Suggestions for avoiding that problem are welcome.. :)
+>
+
+I will try to come up with a patch to do all this, and then we can
+concretely discuss.
+You are also of course welcome to do so as well =)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
