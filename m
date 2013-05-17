@@ -1,106 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 152476B0032
-	for <linux-mm@kvack.org>; Fri, 17 May 2013 03:28:50 -0400 (EDT)
-Message-ID: <5195DC59.8000205@parallels.com>
-Date: Fri, 17 May 2013 11:29:29 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 6380E6B0032
+	for <linux-mm@kvack.org>; Fri, 17 May 2013 03:34:15 -0400 (EDT)
+Date: Fri, 17 May 2013 09:34:13 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch v3 -mm 3/3] vmscan, memcg: Do softlimit reclaim also for
+ targeted reclaim
+Message-ID: <20130517073413.GE25158@dhcp22.suse.cz>
+References: <1368431172-6844-1-git-send-email-mhocko@suse.cz>
+ <1368431172-6844-4-git-send-email-mhocko@suse.cz>
+ <20130516231238.GA15025@mtj.dyndns.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v6 12/31] fs: convert inode and dentry shrinking to be
- node aware
-References: <1368382432-25462-1-git-send-email-glommer@openvz.org> <1368382432-25462-13-git-send-email-glommer@openvz.org> <20130514095200.GI29466@dastard> <5193A95E.70205@parallels.com> <20130516000216.GC24635@dastard> <5195302A.2090406@parallels.com> <20130517005134.GK24635@dastard>
-In-Reply-To: <20130517005134.GK24635@dastard>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130516231238.GA15025@mtj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, Dave Chinner <dchinner@redhat.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Glauber Costa <glommer@parallels.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>, Balbir Singh <bsingharora@gmail.com>
 
-On 05/17/2013 04:51 AM, Dave Chinner wrote:
->> +		total_scan /= nr_active_nodes;
->> > +		for_each_node_mask(nid, shrinkctl->nodes_to_scan) {
->> > +			if (total_scan > 0)
->> > +				new_nr += atomic_long_add_return(total_scan / nr_active_nodes,
->> > +						&shrinker->nr_in_batch[nid]);
-> (you do the total_scan / nr_active_nodes twice here)
+On Thu 16-05-13 16:12:38, Tejun Heo wrote:
+> On Mon, May 13, 2013 at 09:46:12AM +0200, Michal Hocko wrote:
+> > Soft reclaim has been done only for the global reclaim (both background
+> > and direct). Since "memcg: integrate soft reclaim tighter with zone
+> > shrinking code" there is no reason for this limitation anymore as the
+> > soft limit reclaim doesn't use any special code paths and it is a
+> > part of the zone shrinking code which is used by both global and
+> > targeted reclaims.
+> ...
+> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
 > 
+>  Reviewed-by: Tejun Heo <tj@kernel.org>
 
-Thanks. Indeed. As I told you, I boot tested this, but since I haven't
-seen the behavior you are seeing, I didn't give it a lot of testing.
-
-I am a lot more interested in finding out if this approach is worth it.
-So if you could give something like this a go, that would be awesome.
-
-
->> > +			else
->> > +				new_nr += atomic_long_read(&shrinker->nr_in_batch[nid]);
->> >  
->> > +		}
-> I don't think this solves the problem entirely - it still aggregates
-> multiple nodes together into the one count. It might be better, but
-> it will still bleed the deferred count from a single node into other
-> nodes that have no deferred count.
-> 
-
-Yes, but only the nodes that are being scan in this moment, no?
-If the shrinker is deferring because we returned -1, this means that
-nobody was able to shrink anything.
-
-> Perhaps we need to factor this code a little first - separate the
-> calculation from the per-shrinker loop, so we can do something like:
-> 
-> shrink_slab_node(shr, sc, nid)
-> {
-> 	nodemask_clear(sc->nodemask);
-> 	nodemask_set(sc->nodemask, nid)
-> 	for each shrinker {
-> 		deferred_count = atomic_long_xchg(&shr->deferred_scan[nid], 0);
-> 
-> 		deferred_count = __shrink_slab(shr, sc, deferred_count);
-> 
-> 		atomic_long_add(deferred_count, &shr->deferred_scan[nid]);
-> 	}
-> }
-> 
-> And the existing shrink_slab function becomes something like:
-> 
-> shrink_slab(shr, sc, nodemask)
-> {
-> 	if (shr->flags & SHRINKER_NUMA_AWARE) {
-> 		for_each_node_mask(nid, nodemask)
-> 			shrink_slab_node(shr, sc, nid)
-> 		return;
-> 	}
-I am fine with a numa aware flag.
+Thanks
 
 > 
-> 	for each shrinker {
-> 		deferred_count = atomic_long_xchg(&shr->deferred_scan[0], 0);
+> Some nitpicks follow.
 > 
-> 		deferred_count = __shrink_slab(shr, sc, deferred_count);
+> >  /*
+> > - * A group is eligible for the soft limit reclaim if it is
+> > - * 	a) is over its soft limit
+> > + * A group is eligible for the soft limit reclaim under the given root
+> > + * hierarchy if
+> > + * 	a) it is over its soft limit
+> >   * 	b) any parent up the hierarchy is over its soft limit
 > 
-> 		atomic_long_add(deferred_count, &shr->deferred_scan[0]);
-> 	}
-> }
-> 
-> This then makes the deferred count properly node aware when the
-> underlying shrinker needs it to be, and prevents bleed from one node
-> to another. I'd much prefer to see us move to an explicitly node
-> based iteration like this than try to hack more stuff into
-> shrink_slab() and confuse it further.
-> 
+> This was added before but in general I think the use of parent for
+> ancestor is a bit confusing.  Not a big deal but no reason to continue
+> it.
 
-Except that shrink_slab_node would also defer work, right?
+$ git grep ancestor mm/memcontrol.c | wc -l
+4
+$ git grep
+parent mm/memcontrol.c | wc -l
+80
 
-> The only thing I don't like about this is the extra nodemask needed,
-> which, like the scan control, would have to sit on the stack.
-> Suggestions for avoiding that problem are welcome.. :)
->
+Yeah, we are used to use parent much more. Maybe it is worth a clean up
+on its own but I will stick with the majority in this patch
 
-I will try to come up with a patch to do all this, and then we can
-concretely discuss.
-You are also of course welcome to do so as well =)
+> >  	/*
+> > -	 * If any parent up the hierarchy is over its soft limit then we
+> > -	 * have to obey and reclaim from this group as well.
+> > +	 * If any parent up to the root in the hierarchy is over its soft limit
+> > +	 * then we have to obey and reclaim from this group as well.
+> 
+> Prolly using terms ancestors and subtree would make the explanation
+> clearer?
+
+As I said earlier we should be explicit about hierarchy as
+ancestor/parent (what ever we call it) might or might not be part of the
+hierarchy. Yeah, we have that use_hierarchy thingy which we love so
+much.
+
+> >  static bool mem_cgroup_should_soft_reclaim(struct scan_control *sc)
+> >  {
+> > -	return global_reclaim(sc);
+> > +	return true;
+> 
+> Kinda silly after this change, maybe just modify shrink_zone() like
+> the following?
+> 
+>         if (IS_ENABLED(CONFIG_MEMCG)) {
+> 		__shrink_zone(zone, sc, true);
+> 		if (sc->nr_scanned == nr_scanned)
+> 			__shrink_zone(zone, sc, false);
+> 	} else {
+> 		__shrink_zone(zone, sc, false);
+>         }
+
+I plan to build on top of this where mem_cgroup_should_soft_reclaim
+would do more than just return true. So I will keep it this way if you
+do not mind.
+
+> > @@ -1974,7 +1974,7 @@ __shrink_zone(struct zone *zone, struct scan_control *sc, bool soft_reclaim)
+> >  			struct lruvec *lruvec;
+> >  
+> >  			if (soft_reclaim &&
+> > -					!mem_cgroup_soft_reclaim_eligible(memcg)) {
+> > +					!mem_cgroup_soft_reclaim_eligible(memcg, root)) {
+> 
+> Weird indentation which breaks line and goes over 80 col, why not do
+> the following?
+> 
+> 		if (soft_reclaim &&
+> 		    !mem_cgroup_soft_reclaim_eligible(memcg, root)) {
+> 			memcg = mem_cgroup_iter(root, memcg, &reclaim);
+> 			continue;
+> 		}
+
+Hmm, I rely on vim doing the_right_thing usually. I definitely do not
+mind to change the formatting. I have fixed this in the first patch
+where the code has been introduced and refreshed this patch on top of
+that.
+
+I will repost the whole series with reviewed-bys and other acks later
+
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
