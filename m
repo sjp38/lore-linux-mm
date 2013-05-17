@@ -1,129 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 533536B0032
-	for <linux-mm@kvack.org>; Fri, 17 May 2013 09:35:31 -0400 (EDT)
-Date: Fri, 17 May 2013 14:35:27 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFCv2][PATCH 5/5] batch shrink_page_list() locking operations
-Message-ID: <20130517133527.GM11497@suse.de>
-References: <20130516203427.E3386936@viggo.jf.intel.com>
- <20130516203434.41DFD429@viggo.jf.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Date: Fri, 17 May 2013 10:37:18 -0400
+From: Benjamin LaHaise <bcrl@kvack.org>
+Subject: Re: [WiP]: aio support for migrating pages (Re: [PATCH V2 1/2] mm: hotplug: implement non-movable version of get_user_pages() called get_user_pages_non_movable())
+Message-ID: <20130517143718.GK1008@kvack.org>
+References: <20130205120137.GG21389@suse.de> <20130206004234.GD11197@blaptop> <20130206095617.GN21389@suse.de> <5190AE4F.4000103@cn.fujitsu.com> <20130513091902.GP11497@suse.de> <5191B5B3.7080406@cn.fujitsu.com> <20130515132453.GB11497@suse.de> <5194748A.5070700@cn.fujitsu.com> <20130517002349.GI1008@kvack.org> <5195A3F4.70803@cn.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130516203434.41DFD429@viggo.jf.intel.com>
+In-Reply-To: <5195A3F4.70803@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, tim.c.chen@linux.intel.com
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Lin Feng <linfeng@cn.fujitsu.com>, akpm@linux-foundation.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, zab@redhat.com, jmoyer@redhat.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>
 
-On Thu, May 16, 2013 at 01:34:34PM -0700, Dave Hansen wrote:
+On Fri, May 17, 2013 at 11:28:52AM +0800, Tang Chen wrote:
+> Hi Benjamin,
 > 
-> From: Dave Hansen <dave.hansen@linux.intel.com>
-> changes for v2:
->  * remove batch_has_same_mapping() helper.  A local varible makes
->    the check cheaper and cleaner
->  * Move batch draining later to where we already know
->    page_mapping().  This probably fixes a truncation race anyway
->  * rename batch_for_mapping_removal -> batch_for_mapping_rm.  It
->    caused a line over 80 chars and needed shortening anyway.
->  * Note: we only set 'batch_mapping' when there are pages in the
->    batch_for_mapping_rm list
+> Thank you very much for your idea. :)
 > 
-> --
-> 
-> We batch like this so that several pages can be freed with a
-> single mapping->tree_lock acquisition/release pair.  This reduces
-> the number of atomic operations and ensures that we do not bounce
-> cachelines around.
-> 
-> Tim Chen's earlier version of these patches just unconditionally
-> created large batches of pages, even if they did not share a
-> page_mapping().  This is a bit suboptimal for a few reasons:
-> 1. if we can not consolidate lock acquisitions, it makes little
->    sense to batch
-> 2. The page locks are held for long periods of time, so we only
->    want to do this when we are sure that we will gain a
->    substantial throughput improvement because we pay a latency
->    cost by holding the locks.
-> 
-> This patch makes sure to only batch when all the pages on
-> 'batch_for_mapping_rm' continue to share a page_mapping().
-> This only happens in practice in cases where pages in the same
-> file are close to each other on the LRU.  That seems like a
-> reasonable assumption.
-> 
-> In a 128MB virtual machine doing kernel compiles, the average
-> batch size when calling __remove_mapping_batch() is around 5,
-> so this does seem to do some good in practice.
-> 
-> On a 160-cpu system doing kernel compiles, I still saw an
-> average batch length of about 2.8.  One promising feature:
-> as the memory pressure went up, the average batches seem to
-> have gotten larger.
-> 
-> It has shown some substantial performance benefits on
-> microbenchmarks.
-> 
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
->
-> <SNIP>
->
-> @@ -718,6 +775,7 @@ static unsigned long shrink_page_list(st
->  		cond_resched();
->  
->  		page = lru_to_page(page_list);
-> +
->  		list_del(&page->lru);
->  
->  		if (!trylock_page(page))
+> I have no objection to your idea, but seeing from your patch, this only
+> works for aio subsystem because you changed the way to allocate the aio
+> ring pages, with a file mapping.
 
-Can drop this hunk :/
+That is correct.  There is no way you're going to be able to solve this 
+problem without dealing with the issue on a subsystem by subsystem basis.
 
-> @@ -776,6 +834,10 @@ static unsigned long shrink_page_list(st
->  				nr_writeback++;
->  				goto keep_locked;
->  			}
-> +			/*
-> +			 * batch_for_mapping_rm could be drained here
-> +			 * if its lock_page()s hurt latency elsewhere.
-> +			 */
->  			wait_on_page_writeback(page);
->  		}
->  
-> @@ -805,6 +867,18 @@ static unsigned long shrink_page_list(st
->  		}
->  
->  		mapping = page_mapping(page);
-> +		/*
-> +		 * batching only makes sense when we can save lock
-> +		 * acquisitions, so drain the previously-batched
-> +		 * pages when we move over to a different mapping
-> +		 */
-> +		if (batch_mapping && (batch_mapping != mapping)) {
-> +			nr_reclaimed +=
-> +				__remove_mapping_batch(&batch_for_mapping_rm,
-> +							&ret_pages,
-> +							&free_pages);
-> +			batch_mapping = NULL;
-> +		}
->  
->  		/*
->  		 * The page is mapped into the page tables of one or more
+> So far as I know, not only aio, but also other subsystems, such CMA, will
+> also have problem like this. The page cannot be migrated because it is
+> pinned in memory. So I think we should work out a common way to solve how
+> to migrate pinned pages.
 
-As a heads-up, Andrew picked up a reclaim-related series from me. It
-adds a new wait_on_page_writeback() with a revised patch making it a
-congestion_wait() inside shrink_page_list. Watch when these two series
-are integrated because you almost certainly want to do a follow-up patch
-that drains before that congestion_wait too. 
+A generic approach would require hardware support, but I doubt that is 
+going to happen.
 
-Otherwise
+> I'm working in the way Mel has said, migrate_unpin() and migrate_pin()
+> callbacks. But as you saw, I met some problems, like I don't where to put
+> these two callbacks. And discussed with you guys, I want to try this:
+> 
+> 1. Add a new member to struct page, used to remember the pin holders of
+>    this page, including the pin and unpin callbacks and the necessary data.
+>    This is more like a callback chain.
+>    (I'm worry about this step, I'm not sure if it is good enough. After 
+> all,
+>     we need a good place to put the callbacks.)
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+Putting function pointers into struct page is not going to happen.  You'd 
+be adding a significant amount of memory overhead for something that is 
+never going to be used on the vast majority of systems (2 function pointers 
+would be 16 bytes per page on a 64 bit system).  Keep in mind that distro 
+kernels tend to enable almost all config options on their kernels, so the 
+overhead of any approach has to make sense for the users of the kernel that 
+will never make use of this kind of migration.
 
+> And then, like Mel said,
+> 
+> 2. Implement the callbacks in the subsystems, and register them to the
+>    new member in struct page.
+
+No, the hook should be in the address_space_operations.  We already have 
+a pointer to an address space in struct page.  This avoids adding more 
+overhead to struct page.
+
+> 3. Call these callbacks before and after migration.
+
+How is that better than using the existing hook in address_space_operations?
+
+> I think I'll send a RFC patch next week when I finished the outline. I'm
+> just thinking of finding a common way to solve this problem that all the
+> other subsystems will benefit.
+
+Before pursuing this approach, make sure you've got buy-in for all of the 
+overhead you're adding to the system.  I don't think that growing struct 
+page is going to be an acceptable design choice given the amount of 
+overhead it will incur.
+
+> Thanks. :)
+
+Cheers,
+
+		-ben
 -- 
-Mel Gorman
-SUSE Labs
+"Thought is the essence of where you are now."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
