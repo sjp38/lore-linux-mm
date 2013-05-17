@@ -1,33 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 599C76B0032
-	for <linux-mm@kvack.org>; Fri, 17 May 2013 18:26:41 -0400 (EDT)
-Message-ID: <5196AE9D.2030902@sr71.net>
-Date: Fri, 17 May 2013 15:26:37 -0700
-From: Dave Hansen <dave@sr71.net>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id AFE2E6B0033
+	for <linux-mm@kvack.org>; Fri, 17 May 2013 18:53:36 -0400 (EDT)
+Message-ID: <5196B51F.5030508@parallels.com>
+Date: Sat, 18 May 2013 02:54:23 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCHv10 1/4] debugfs: add get/set for atomic types
-References: <1368052661-27143-1-git-send-email-sjenning@linux.vnet.ibm.com> <1368052661-27143-2-git-send-email-sjenning@linux.vnet.ibm.com>
-In-Reply-To: <1368052661-27143-2-git-send-email-sjenning@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH v6 12/31] fs: convert inode and dentry shrinking to be
+ node aware
+References: <1368382432-25462-1-git-send-email-glommer@openvz.org> <1368382432-25462-13-git-send-email-glommer@openvz.org> <20130514095200.GI29466@dastard> <5193A95E.70205@parallels.com> <20130516000216.GC24635@dastard> <5195302A.2090406@parallels.com> <20130517005134.GK24635@dastard> <5195DC59.8000205@parallels.com> <51964381.8010406@parallels.com>
+In-Reply-To: <51964381.8010406@parallels.com>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, Heesub Shin <heesub.shin@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, Dave Chinner <dchinner@redhat.com>
 
-On 05/08/2013 03:37 PM, Seth Jennings wrote:
-> +struct dentry *debugfs_create_atomic_t(const char *name, umode_t mode,
-> +				 struct dentry *parent, atomic_t *value)
-> +{
+On 05/17/2013 06:49 PM, Glauber Costa wrote:
+> On 05/17/2013 11:29 AM, Glauber Costa wrote:
+>> Except that shrink_slab_node would also defer work, right?
+>>
+>>>> The only thing I don't like about this is the extra nodemask needed,
+>>>> which, like the scan control, would have to sit on the stack.
+>>>> Suggestions for avoiding that problem are welcome.. :)
+>>>>
+>> I will try to come up with a patch to do all this, and then we can
+>> concretely discuss.
+>> You are also of course welcome to do so as well =)
+> 
+> 
+> All right.
+> 
+> I played a bit today with variations of this patch that will keep the
+> deferred count per node. I will rebase the whole series ontop of it (the
+> changes can get quite disruptive) and post. I want to believe that
+> after this, all our regression problems will be gone (famous last words).
+> 
+> As I have told you, I wasn't seeing problems like you are, and
+> speculated that this was due to the disk speeds. While this is true,
+> the patch I came up with makes my workload actually a lot better.
+> While my caches weren't being emptied, they were being slightly depleted
+> and then slowly filled again. With my new patch, it is almost
+> a straight line throughout the whole find run. There is a dent here and
+> there eventually, but it recovers quickly. It takes some time as well
+> for steady state to be reached, but once it is, we have all variables
+> in the equation (dentries, inodes, etc) basically flat. So I guess it
+> works, and I am confident that it will make your workload better.
+> 
+> My strategy is to modify the shrinker structure like this:
+> 
+> struct shrinker {
+>         int (*shrink)(struct shrinker *, struct shrink_control *sc);
+>         long (*count_objects)(struct shrinker *, struct shrink_control *sc);
+>         long (*scan_objects)(struct shrinker *, struct shrink_control *sc);
+> 
+>         int seeks;      /* seeks to recreate an obj */
+>         long batch;     /* reclaim batch size, 0 = default */
+>         unsigned long flags;
+> 
+>         /* These are for internal use */
+>         struct list_head list;
+>         atomic_long_t *nr_deferred; /* objs pending delete, per node */
+> 
+>         /* nodes being currently shrunk, only makes sense for NUMA
+> shrinkers */
+>         nodemask_t *nodes_shrinking;
+> 
+> };
+> 
+> We need memory allocation now for nr_deferred and nodes_shrinking, but
+> OTOH we use no stack, and can keep the size of this to be dynamically
+> adjusted depending on whether or not your shrinker is NUMA aware.
+> 
+> Guess that is it. Expect news soon.
+> 
 
-lib/fault_inject.c has something that looks pretty similar:
+Except of course that struct shrinker is obviously shared between runs,
+and this won't cut.
 
-static struct dentry *debugfs_create_atomic_t(const char *name, umode_t
- mode, struct dentry *parent, atomic_t *value)
-
-should add even more of an argument to merge this patch _now_, and
-separately from the rest of zswap.
+Right now I am inclined to really just put this in the stack. The
+alternative, if it becomes a problem, can be to extend the lru apis
+to allow us to go for a single node. This way we only need to use 1
+extra word in the stack.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
