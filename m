@@ -1,95 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 5FADC6B0034
-	for <linux-mm@kvack.org>; Fri, 17 May 2013 04:00:58 -0400 (EDT)
-From: Oskar Andero <oskar.andero@sonymobile.com>
-Date: Fri, 17 May 2013 10:00:54 +0200
-Subject: Re: [PATCH] mm: vmscan: handle any negative return value from
- scan_objects
-Message-ID: <20130517080054.GH24072@caracas.corpusers.net>
-References: <1368693736-15486-1-git-send-email-oskar.andero@sonymobile.com>
- <20130516115212.GC11167@devil.localdomain>
- <20130516122752.GG24072@caracas.corpusers.net>
- <20130517063340.GE11167@devil.localdomain>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id F13706B0032
+	for <linux-mm@kvack.org>; Fri, 17 May 2013 04:38:09 -0400 (EDT)
+Date: Fri, 17 May 2013 10:38:06 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH V2 0/3] memcg: simply lock of page stat accounting
+Message-ID: <20130517083806.GB5048@dhcp22.suse.cz>
+References: <1368421410-4795-1-git-send-email-handai.szj@taobao.com>
+ <519380FC.1040504@openvz.org>
+ <20130515134110.GD5455@dhcp22.suse.cz>
+ <51946071.4030101@openvz.org>
+ <20130516132846.GE13848@dhcp22.suse.cz>
+ <5195C6D1.6040005@openvz.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130517063340.GE11167@devil.localdomain>
+In-Reply-To: <5195C6D1.6040005@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <dchinner@redhat.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Lekanovic, Radovan" <Radovan.Lekanovic@sonymobile.com>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Sha Zhengju <handai.szj@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, hughd@google.com, gthelen@google.com, Sha Zhengju <handai.szj@taobao.com>
 
-On 08:33 Fri 17 May     , Dave Chinner wrote:
-> On Thu, May 16, 2013 at 02:27:52PM +0200, Oskar Andero wrote:
-> > On 13:52 Thu 16 May     , Dave Chinner wrote:
-> > > On Thu, May 16, 2013 at 10:42:16AM +0200, Oskar Andero wrote:
-> > > > The shrinkers must return -1 to indicate that it is busy. Instead, treat
-> > > > any negative value as busy.
-> > > 
-> > > Why? The API defines return condition for aborting a scan and gives
-> > > a specific value for doing that. i.e. explain why should change the
-> > > API to over-specify the 'abort scan" return value like this.
-> > 
-> > As I pointed out earlier, looking in to the code (from master):
-> > 	if (shrink_ret == -1)
-> > 		break;
-> > 	if (shrink_ret < nr_before)
-> > 		ret += nr_before - shrink_ret;
-> > 
-> > This piece of code lacks a sanity check and will only function if shrink_ret
-> > is either greater than zero or exactly -1. If shrink_ret is e.g. -2 this will
-> > lead to undefined behaviour.
+On Fri 17-05-13 09:57:37, Konstantin Khlebnikov wrote:
+> Michal Hocko wrote:
+> >On Thu 16-05-13 08:28:33, Konstantin Khlebnikov wrote:
+[...]
+> >>If somebody needs more detailed information there are enough ways to get it.
+> >>Amount of mapped pages can be estimated via summing rss counters from mm-structs.
+> >>Exact numbers can be obtained via examining /proc/pid/pagemap.
+> >
+> >How do you find out whether given pages were charged to the group of
+> >interest - e.g. shared data or taks that has moved from a different
+> >group without move_at_immigrate?
 > 
-> If a shrinker is returning -2 then the shrinker is broken and needs
-> fixing.
+> For example we can export pages ownership and charging state via
+> single file in proc, something similar to /proc/kpageflags
 
-The point is: returning -2 is just as magical and meaningful as returning -1.
+So you would like to add a new interface with cryptic api (I consider
+kpageflags to be a devel tool not an admin aid) to replace something
+that is easy to use? Doesn't make much sense to me.
 
-Usually, returning a negative means "failure" (Chapter 16 CodingStyle), not
-a perfectly valid "abort scan" as in this piece of code.
+> BTW
+> In our kernel the memory controller tries to change page's ownership
+> at first mmap and at each page activation, probably it's worth to add
+> this into mainline memcg too.
 
-> > > FWIW, using "any" negative number for "abort scan" is a bad API
-> > > design decision. It means that in future we can't introduce
-> > > different negative return values in the API if we have a new to.
-> > > i.e. each specific negative return value needs to have the potential
-> > > for defining a different behaviour. 
-> > 
-> > An alternative to my patch would be to add:
-> > if (shrink_ret < -1)
-> >    /* handle illegal return code in some way */
+Dunno, there are different approaches for this. I haven't evalueted them
+so I don't know all the pros and cons. Why not just unmap&uncharge the
+page when the charging process dies. This should be more lightweight
+wrt. recharge on re-activation.
+ 
+> >>I don't think that simulating 'Mapped' line in /proc/mapfile is a worth reason
+> >>for adding such weird stuff into the rmap code on map/unmap paths.
+> >
+> >The accounting code is trying to be not intrusive as much as possible.
+> >This patchset makes it more complicated without a good reason and that
+> >is why it has been Nacked by me.
 > 
-> How? We have one valid negative return code. WTF are we supposed to
-> do if a shrinker is passing undefined return values? IOWs, the only
-> sane thing to do is:
-> 
-> 	BUG_ON(shrink_ret < -1);
+> I think we can remove it or replace it with something different but
+> much less intrusive, if nobody strictly requires exactly this approach
+> in managing 'mapped' pages counters.
 
-Yes, of course! BUG_ON() is the proper way to handle an illegal value.
-Now we are getting somewhere!
-
-> > > So if any change needs to be made, it is to change the -1 return
-> > > value to an enum and have the shrinkers return that enum when they
-> > > want an abort.
-> > 
-> > I am all for an enum, but I still believe we should handle the case where
-> > the shrinkers return something wicked.
-> 
-> Which bit of "broken shrinkers need to be fixed" don't you
-> understand? A BUG_ON() will make sure they get fixed - anything else
-> that allows broken shrinkers to continue functioning is a completely
-> unacceptible solution.
-
-BUG_ON() is perfect IMO and if everyone is ok with that I will send
-version 2 of my patch.
-
-Now there is just the matter of returning hardcoded -1. Would an enum in
-shrinker.h add any value? I have gotten different feedback on this - some
-say yea, others nay.
-I think I have motivated it enough in this thread, so I am not going to
-repeat myself.
-
--Oskar
+Do you have any numbers on the intrusiveness? I do not mind to change
+the internal implementation but the file is a part of the user space API
+so we cannot get rid of it.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
