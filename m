@@ -1,161 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id DDC636B0039
-	for <linux-mm@kvack.org>; Fri, 17 May 2013 05:48:20 -0400 (EDT)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 5/5] mm: Remove lru parameter from __lru_cache_add and lru_cache_add_lru
-Date: Fri, 17 May 2013 10:48:07 +0100
-Message-Id: <1368784087-956-6-git-send-email-mgorman@suse.de>
-In-Reply-To: <1368784087-956-1-git-send-email-mgorman@suse.de>
-References: <1368784087-956-1-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 2F5DD6B0032
+	for <linux-mm@kvack.org>; Fri, 17 May 2013 06:29:38 -0400 (EDT)
+Received: by mail-la0-f54.google.com with SMTP id eg20so1453579lab.13
+        for <linux-mm@kvack.org>; Fri, 17 May 2013 03:29:36 -0700 (PDT)
+Message-ID: <5196068D.2050608@openvz.org>
+Date: Fri, 17 May 2013 14:29:33 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH V2 0/3] memcg: simply lock of page stat accounting
+References: <1368421410-4795-1-git-send-email-handai.szj@taobao.com> <519380FC.1040504@openvz.org> <20130515134110.GD5455@dhcp22.suse.cz> <51946071.4030101@openvz.org> <20130516132846.GE13848@dhcp22.suse.cz> <5195C6D1.6040005@openvz.org> <20130517083806.GB5048@dhcp22.suse.cz>
+In-Reply-To: <20130517083806.GB5048@dhcp22.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexey Lyahkov <alexey.lyashkov@gmail.com>, Andrew Perepechko <anserper@ya.ru>, Robin Dong <sanbai@taobao.com>
-Cc: Theodore Tso <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Bernd Schubert <bernd.schubert@fastmail.fm>, David Howells <dhowells@redhat.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux-ext4 <linux-ext4@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Sha Zhengju <handai.szj@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, hughd@google.com, gthelen@google.com, Sha Zhengju <handai.szj@taobao.com>
 
-Similar to __pagevec_lru_add, this patch removes the LRU parameter
-from __lru_cache_add and lru_cache_add_lru as the caller does not
-control the exact LRU the page gets added to. lru_cache_add_lru gets
-renamed to lru_cache_add the name is silly without the lru parameter.
-With the parameter removed, it is required that the caller indicate
-if they want the page added to the active or inactive list by setting
-or clearing PageActive respectively.
+Michal Hocko wrote:
+> On Fri 17-05-13 09:57:37, Konstantin Khlebnikov wrote:
+>> Michal Hocko wrote:
+>>> On Thu 16-05-13 08:28:33, Konstantin Khlebnikov wrote:
+> [...]
+>>>> If somebody needs more detailed information there are enough ways to get it.
+>>>> Amount of mapped pages can be estimated via summing rss counters from mm-structs.
+>>>> Exact numbers can be obtained via examining /proc/pid/pagemap.
+>>>
+>>> How do you find out whether given pages were charged to the group of
+>>> interest - e.g. shared data or taks that has moved from a different
+>>> group without move_at_immigrate?
+>>
+>> For example we can export pages ownership and charging state via
+>> single file in proc, something similar to /proc/kpageflags
+>
+> So you would like to add a new interface with cryptic api (I consider
+> kpageflags to be a devel tool not an admin aid) to replace something
+> that is easy to use? Doesn't make much sense to me.
 
-[akpm@linux-foundation.org: Suggested the patch]
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- include/linux/swap.h | 11 +++++++----
- mm/rmap.c            |  7 ++++---
- mm/swap.c            | 14 ++++----------
- mm/vmscan.c          |  4 +---
- 4 files changed, 16 insertions(+), 20 deletions(-)
+Hmm. Kernel api is just api. It's not supposed to be a tool itself.
+It must be usable for making tools which admins can use.
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 1701ce4..85d7437 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -10,6 +10,7 @@
- #include <linux/node.h>
- #include <linux/fs.h>
- #include <linux/atomic.h>
-+#include <linux/page-flags.h>
- #include <asm/page.h>
- 
- struct notifier_block;
-@@ -233,8 +234,8 @@ extern unsigned long nr_free_pagecache_pages(void);
- 
- 
- /* linux/mm/swap.c */
--extern void __lru_cache_add(struct page *, enum lru_list lru);
--extern void lru_cache_add_lru(struct page *, enum lru_list lru);
-+extern void __lru_cache_add(struct page *);
-+extern void lru_cache_add(struct page *);
- extern void lru_add_page_tail(struct page *page, struct page *page_tail,
- 			 struct lruvec *lruvec, struct list_head *head);
- extern void activate_page(struct page *);
-@@ -254,12 +255,14 @@ extern void add_page_to_unevictable_list(struct page *page);
-  */
- static inline void lru_cache_add_anon(struct page *page)
- {
--	__lru_cache_add(page, LRU_INACTIVE_ANON);
-+	ClearPageActive(page);
-+	__lru_cache_add(page);
- }
- 
- static inline void lru_cache_add_file(struct page *page)
- {
--	__lru_cache_add(page, LRU_INACTIVE_FILE);
-+	ClearPageActive(page);
-+	__lru_cache_add(page);
- }
- 
- /* linux/mm/vmscan.c */
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 6280da8..e22ceeb 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1093,9 +1093,10 @@ void page_add_new_anon_rmap(struct page *page,
- 	else
- 		__inc_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
- 	__page_set_anon_rmap(page, vma, address, 1);
--	if (!mlocked_vma_newpage(vma, page))
--		lru_cache_add_lru(page, LRU_ACTIVE_ANON);
--	else
-+	if (!mlocked_vma_newpage(vma, page)) {
-+		SetPageActive(page);
-+		lru_cache_add(page);
-+	} else
- 		add_page_to_unevictable_list(page);
- }
- 
-diff --git a/mm/swap.c b/mm/swap.c
-index 6a9d0c4..ac23602 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -494,15 +494,10 @@ EXPORT_SYMBOL(mark_page_accessed);
-  * pagevec is drained. This gives a chance for the caller of __lru_cache_add()
-  * have the page added to the active list using mark_page_accessed().
-  */
--void __lru_cache_add(struct page *page, enum lru_list lru)
-+void __lru_cache_add(struct page *page)
- {
- 	struct pagevec *pvec = &get_cpu_var(lru_add_pvec);
- 
--	if (is_active_lru(lru))
--		SetPageActive(page);
--	else
--		ClearPageActive(page);
--
- 	page_cache_get(page);
- 	if (!pagevec_space(pvec))
- 		__pagevec_lru_add(pvec);
-@@ -512,11 +507,10 @@ void __lru_cache_add(struct page *page, enum lru_list lru)
- EXPORT_SYMBOL(__lru_cache_add);
- 
- /**
-- * lru_cache_add_lru - add a page to a page list
-+ * lru_cache_add - add a page to a page list
-  * @page: the page to be added to the LRU.
-- * @lru: the LRU list to which the page is added.
-  */
--void lru_cache_add_lru(struct page *page, enum lru_list lru)
-+void lru_cache_add(struct page *page)
- {
- 	if (PageActive(page)) {
- 		VM_BUG_ON(PageUnevictable(page));
-@@ -525,7 +519,7 @@ void lru_cache_add_lru(struct page *page, enum lru_list lru)
- 	}
- 
- 	VM_BUG_ON(PageLRU(page));
--	__lru_cache_add(page, lru);
-+	__lru_cache_add(page);
- }
- 
- /**
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index fa6a853..50088ba 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -546,7 +546,6 @@ int remove_mapping(struct address_space *mapping, struct page *page)
- void putback_lru_page(struct page *page)
- {
- 	int lru;
--	int active = !!TestClearPageActive(page);
- 	int was_unevictable = PageUnevictable(page);
- 
- 	VM_BUG_ON(PageLRU(page));
-@@ -561,8 +560,7 @@ redo:
- 		 * unevictable page on [in]active list.
- 		 * We know how to handle that.
- 		 */
--		lru = active + page_lru_base_type(page);
--		lru_cache_add_lru(page, lru);
-+		lru_cache_add(page);
- 	} else {
- 		/*
- 		 * Put unevictable pages directly on zone's unevictable
--- 
-1.8.1.4
+>
+>> BTW
+>> In our kernel the memory controller tries to change page's ownership
+>> at first mmap and at each page activation, probably it's worth to add
+>> this into mainline memcg too.
+>
+> Dunno, there are different approaches for this. I haven't evalueted them
+> so I don't know all the pros and cons. Why not just unmap&uncharge the
+> page when the charging process dies. This should be more lightweight
+> wrt. recharge on re-activation.
+
+On activation it's mostly free, because we need to lock lru anyway.
+If memcg charge/uncharge isn't fast enough for that it should be optimized.
+
+
+So, you propose to uncharge pages at unmap and charge them to who?
+To the next mm in rmap?
+
+What if next map will happens from different memcg, but after that unmap:
+
+A:map
+<pages owned by A>
+A:unmap
+<no new owner in rmap>
+B:map
+<pages still owned by A>
+
+Anyway this is difficult question and I bring this just to show that currently
+used logic isn't perfect in many ways. Switching ownership lazily in particular
+places is a best solution which I can see now. So, page will be owned by its last
+active user.
+
+>
+>>>> I don't think that simulating 'Mapped' line in /proc/mapfile is a worth reason
+>>>> for adding such weird stuff into the rmap code on map/unmap paths.
+>>>
+>>> The accounting code is trying to be not intrusive as much as possible.
+>>> This patchset makes it more complicated without a good reason and that
+>>> is why it has been Nacked by me.
+>>
+>> I think we can remove it or replace it with something different but
+>> much less intrusive, if nobody strictly requires exactly this approach
+>> in managing 'mapped' pages counters.
+>
+> Do you have any numbers on the intrusiveness? I do not mind to change
+> the internal implementation but the file is a part of the user space API
+> so we cannot get rid of it.
+
+Main problem here that it increases complexity of switching pages' ownership.
+We need not just charge/uncharge page and move it to the different LRU, but
+also synchronize with map/unmap paths in rmap to update nr-mapped counters
+carefully. If you want to add per-page dirty/writeback counters it will
+increase that complexity even further.
+
+I haven't started yet migrating our product to mainline memory controller,
+so I don't have any numbers. But my old code completely lockless on charging
+and uncharging fast paths. LRU lock is the only lock on changing page's owner,
+LRU isolation itself protects page ownership reference.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
