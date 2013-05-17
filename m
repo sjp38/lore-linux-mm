@@ -1,65 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Date: Fri, 17 May 2013 14:30:03 -0400
-From: Benjamin LaHaise <bcrl@kvack.org>
-Subject: Re: [WiP]: aio support for migrating pages (Re: [PATCH V2 1/2] mm: hotplug: implement non-movable version of get_user_pages() called get_user_pages_non_movable())
-Message-ID: <20130517183003.GL1008@kvack.org>
-References: <20130205120137.GG21389@suse.de> <20130206004234.GD11197@blaptop> <20130206095617.GN21389@suse.de> <5190AE4F.4000103@cn.fujitsu.com> <20130513091902.GP11497@suse.de> <5191B5B3.7080406@cn.fujitsu.com> <20130515132453.GB11497@suse.de> <5194748A.5070700@cn.fujitsu.com> <20130517002349.GI1008@kvack.org> <20130517181708.GG318@lenny.home.zabbo.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130517181708.GG318@lenny.home.zabbo.net>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id EE3F76B0032
+	for <linux-mm@kvack.org>; Fri, 17 May 2013 14:36:24 -0400 (EDT)
+Message-ID: <519678A2.5040509@ya.ru>
+Date: Fri, 17 May 2013 22:36:18 +0400
+From: Andrew Perepechko <anserper@ya.ru>
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/5] Obey mark_page_accessed hint given by filesystems
+ v3r1
+References: <1368784087-956-1-git-send-email-mgorman@suse.de>
+In-Reply-To: <1368784087-956-1-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zach Brown <zab@redhat.com>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Lin Feng <linfeng@cn.fujitsu.com>, akpm@linux-foundation.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, jmoyer@redhat.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Alexey Lyahkov <alexey.lyashkov@gmail.com>, Robin Dong <sanbai@taobao.com>, Theodore Tso <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Bernd Schubert <bernd.schubert@fastmail.fm>, David Howells <dhowells@redhat.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux-ext4 <linux-ext4@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>
 
-On Fri, May 17, 2013 at 11:17:08AM -0700, Zach Brown wrote:
-> > I ended up working on this a bit today, and managed to cobble together 
-> > something that somewhat works -- please see the patch below.
-> 
-> Just some quick observations:
-> 
-> > +	ctx->ctx_file = anon_inode_getfile("[aio]", &aio_ctx_fops, ctx, O_RDWR);
-> > +	if (IS_ERR(ctx->ctx_file)) {
-> > +		ctx->ctx_file = NULL;
-> > +		return -EAGAIN;
-> > +	}
-> 
-> It's too bad that aio contexts will now be accounted against the filp
-> limits (get_empty_filp -> files_stat.max_files, etc). 
+Mel, thank you very much for the patches!
 
-Yeah, that is a downside of this approach.  It would be possible to to 
-do it with only an inode/address_space, but that would mean bypassing 
-do_mmap(), which is not worth considering.  If it is really an issue, we 
-could add a flag to bypass that limit since aio has its own.  
-anon_inode_getfile() as it stands is a major problem.
+Unfortunately, it may take some time for us to test them,
+because currently we depend very much on an older (2.6.32-based)
+kernel.
 
-> > +	for (i=0; i<nr_pages; i++) {
-> > +		struct page *page;
-> > +		void *ptr;
-> > +		page = find_or_create_page(ctx->ctx_file->f_inode->i_mapping,
-> > +					   i, GFP_KERNEL);
-> > +		if (!page) {
-> > +			break;
-> > +		}
-> > +		ptr = kmap(page);
-> > +		clear_page(ptr);
-> > +		kunmap(page);
-> > +		SetPageUptodate(page);
-> > +		SetPageDirty(page);
-> > +		unlock_page(page);
-> > +	}
-> 
-> If they're GFP_KERNEL then you don't need to kmap them.  But we probably
-> want to allocate with GFP_HIGHUSER and then use clear_user_highpage() to
-> zero them?
+Andrew
 
-Adding __GFP_ZERO would fix that too. The next respin will include that 
-change.  I also have to properly handle the mremap() case as well.
-
-		-ben
--- 
-"Thought is the essence of where you are now."
+On 05/17/2013 01:48 PM, Mel Gorman wrote:
+> This series could still do with some Tested-by's from the original bug
+> reporters. Andrew Perepechko?
+>
+> Changelog since V2
+> o Beef up the comments in a number of places			(akpm)
+> o Remove lru parameter from __lru_cache_add, lru_cache_add_lru	(akpm)
+> o Use congestion_wait instead of wait_on_page_writeback in case
+>    of storage disconnects					(akpm)
+>
+> Changelog since V1
+> o Add tracepoint to model age of page types			(mel)
+>
+> Andrew Perepechko reported a problem whereby pages are being prematurely
+> evicted as the mark_page_accessed() hint is ignored for pages that are
+> currently on a pagevec -- http://www.spinics.net/lists/linux-ext4/msg37340.html .
+> Alexey Lyahkov and Robin Dong have also reported problems recently that
+> could be due to hot pages reaching the end of the inactive list too quickly
+> and be reclaimed.
+>
+> Rather than addressing this on a per-filesystem basis, this series aims
+> to fix the mark_page_accessed() interface by deferring what LRU a page
+> is added to pagevec drain time and allowing mark_page_accessed() to call
+> SetPageActive on a pagevec page.
+>
+> Patch 1 adds two tracepoints for LRU page activation and insertion. Using
+> 	these processes it's possible to build a model of pages in the
+> 	LRU that can be processed offline.
+>
+> Patch 2 defers making the decision on what LRU to add a page to until when
+> 	the pagevec is drained.
+>
+> Patch 3 searches the local pagevec for pages to mark PageActive on
+> 	mark_page_accessed. The changelog explains why only the local
+> 	pagevec is examined.
+>
+> Patches 4 and 5 tidy up the API.
+>
+> postmark, a dd-based test and fs-mark both single and threaded mode were
+> run but none of them showed any performance degradation or gain as a result
+> of the patch.
+>
+> Using patch 1, I built a *very* basic model of the LRU to examine
+> offline what the average age of different page types on the LRU were in
+> milliseconds. Of course, capturing the trace distorts the test as it's
+> written to local disk but it does not matter for the purposes of this test.
+> The average age of pages in milliseconds were
+>
+> 				    vanilla deferdrain
+> Average age mapped anon:               1454       1250
+> Average age mapped file:             127841     155552
+> Average age unmapped anon:               85        235
+> Average age unmapped file:            73633      38884
+> Average age unmapped buffers:         74054     116155
+>
+> The LRU activity was mostly files which you'd expect for a dd-based
+> workload. Note that the average age of buffer pages is increased by the
+> series and it is expected this is due to the fact that the buffer pages are
+> now getting added to the active list when drained from the pagevecs. Note
+> that the average age of the unmapped file data is decreased as they are
+> still added to the inactive list and are reclaimed before the buffers. There
+> is no guarantee this is a universal win for all workloads and it would be
+> nice if the filesystem people gave some thought as to whether this decision
+> is generally a win or a loss.
+>
+>   fs/cachefiles/rdwr.c           |  30 +++---------
+>   fs/nfs/dir.c                   |   7 +--
+>   include/linux/pagevec.h        |  34 +-------------
+>   include/linux/swap.h           |  11 +++--
+>   include/trace/events/pagemap.h |  89 +++++++++++++++++++++++++++++++++++
+>   mm/rmap.c                      |   7 +--
+>   mm/swap.c                      | 103 ++++++++++++++++++++++++++---------------
+>   mm/vmscan.c                    |   4 +-
+>   8 files changed, 176 insertions(+), 109 deletions(-)
+>   create mode 100644 include/trace/events/pagemap.h
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
