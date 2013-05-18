@@ -1,68 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 9D5936B0032
-	for <linux-mm@kvack.org>; Fri, 17 May 2013 21:47:00 -0400 (EDT)
-Date: Fri, 17 May 2013 21:46:37 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1368841597-8mnfve1j-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <519693B8.10600@gmail.com>
-References: <20130508143411.GD30955@pd.tnic>
- <1368029552-dzvitovl-mutt-n-horiguchi@ah.jp.nec.com>
- <20130508184524.GF30955@pd.tnic>
- <1368046093-mpzcumyb-mutt-n-horiguchi@ah.jp.nec.com>
- <519693B8.10600@gmail.com>
-Subject: Re: [PATCH] ipc/shm.c: don't use auto variable hs in newseg()
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 92F046B0032
+	for <linux-mm@kvack.org>; Fri, 17 May 2013 23:39:45 -0400 (EDT)
+Date: Sat, 18 May 2013 13:39:41 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v6 12/31] fs: convert inode and dentry shrinking to be
+ node aware
+Message-ID: <20130518033941.GB6495@dastard>
+References: <1368382432-25462-1-git-send-email-glommer@openvz.org>
+ <1368382432-25462-13-git-send-email-glommer@openvz.org>
+ <20130514095200.GI29466@dastard>
+ <5193A95E.70205@parallels.com>
+ <20130516000216.GC24635@dastard>
+ <5195302A.2090406@parallels.com>
+ <20130517005134.GK24635@dastard>
+ <5195DC59.8000205@parallels.com>
+ <51964381.8010406@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <51964381.8010406@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Borislav Petkov <bp@alien8.de>, lkml <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, Dave Chinner <dchinner@redhat.com>
 
-On Fri, May 17, 2013 at 04:31:52PM -0400, KOSAKI Motohiro wrote:
-> > From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > Date: Wed, 8 May 2013 11:48:01 -0400
-> > Subject: [PATCH] ipc/shm.c: don't use auto variable hs in newseg()
+On Fri, May 17, 2013 at 06:49:37PM +0400, Glauber Costa wrote:
+> On 05/17/2013 11:29 AM, Glauber Costa wrote:
+> > Except that shrink_slab_node would also defer work, right?
 > > 
-> > This patch fixes "warning: unused variable 'hs'" when !CONFIG_HUGETLB_PAGE
-> > introduced by commit af73e4d9506d "hugetlbfs: fix mmap failure in unaligned
-> > size request".
-> > 
-> > Reported-by: Borislav Petkov <bp@alien8.de>
-> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > ---
-> >  ipc/shm.c | 5 ++---
-> >  1 file changed, 2 insertions(+), 3 deletions(-)
-> > 
-> > diff --git a/ipc/shm.c b/ipc/shm.c
-> > index e316cb9..9ff741a 100644
-> > --- a/ipc/shm.c
-> > +++ b/ipc/shm.c
-> > @@ -491,9 +491,8 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
-> >  
-> >  	sprintf (name, "SYSV%08x", key);
-> >  	if (shmflg & SHM_HUGETLB) {
-> > -		struct hstate *hs = hstate_sizelog((shmflg >> SHM_HUGE_SHIFT)
-> > -						& SHM_HUGE_MASK);
-> > -		size_t hugesize = ALIGN(size, huge_page_size(hs));
-> > +		size_t hugesize = ALIGN(size, huge_page_size(hstate_sizelog(
-> > +				(shmflg >> SHM_HUGE_SHIFT) & SHM_HUGE_MASK)));
+> >> > The only thing I don't like about this is the extra nodemask needed,
+> >> > which, like the scan control, would have to sit on the stack.
+> >> > Suggestions for avoiding that problem are welcome.. :)
+> >> >
+> > I will try to come up with a patch to do all this, and then we can
+> > concretely discuss.
+> > You are also of course welcome to do so as well =)
 > 
-> NAK. This is uglier than before.
-> You should change !CONFIG_HUGETLB_PAGE specific code instead.
+> 
+> All right.
+> 
+> I played a bit today with variations of this patch that will keep the
+> deferred count per node. I will rebase the whole series ontop of it (the
+> changes can get quite disruptive) and post. I want to believe that
+> after this, all our regression problems will be gone (famous last words).
+> 
+> As I have told you, I wasn't seeing problems like you are, and
+> speculated that this was due to the disk speeds. While this is true,
+> the patch I came up with makes my workload actually a lot better.
+> While my caches weren't being emptied, they were being slightly depleted
+> and then slowly filled again. With my new patch, it is almost
+> a straight line throughout the whole find run. There is a dent here and
+> there eventually, but it recovers quickly. It takes some time as well
+> for steady state to be reached, but once it is, we have all variables
+> in the equation (dentries, inodes, etc) basically flat. So I guess it
+> works, and I am confident that it will make your workload better.
 
-This patch was dropped and replaced with Li Zefan's one which is
-available in current upstream.
+Sounds promising. A non-numa system gives dead flat linesonthat
+workload, and that's how I want a numa system to behave as well when
+there is even pressure applied across all nodes.
 
-  commit 091d0d55b286c9340201b4ed4470be87fc568228
-  Author: Li Zefan <lizefan@huawei.com>
-  Date:   Thu May 9 15:08:15 2013 +0800
+Sorry for not doing more here - I've been flat out the last couple
+of days with XFS CRC stuff. Let me know when you have a tree rebased
+as far as this patch and I'll run some tests here....
 
-Thanks,
-Naoya Horiguchi
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
