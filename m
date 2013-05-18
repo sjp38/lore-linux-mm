@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 176A46B0033
-	for <linux-mm@kvack.org>; Sat, 18 May 2013 19:27:09 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 1413D6B0037
+	for <linux-mm@kvack.org>; Sat, 18 May 2013 19:27:10 -0400 (EDT)
 From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: [PATCH 4/5] ACPI / scan: Add second pass of companion offlining to hot-remove code
-Date: Sun, 19 May 2013 01:34:14 +0200
-Message-ID: <3662688.5fMZaG7XgD@vostro.rjw.lan>
+Subject: [PATCH 3/5] Driver core / MM: Drop offline_memory_block()
+Date: Sun, 19 May 2013 01:33:02 +0200
+Message-ID: <2529630.QGJsLhExPp@vostro.rjw.lan>
 In-Reply-To: <2250271.rGYN6WlBxf@vostro.rjw.lan>
 References: <2250271.rGYN6WlBxf@vostro.rjw.lan>
 MIME-Version: 1.0
@@ -18,129 +18,74 @@ Cc: LKML <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundat
 
 From: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 
-As indicated by comments in mm/memory_hotplug.c:remove_memory(),
-if CONFIG_MEMCG is set, it may not be possible to offline all of the
-memory blocks held by one module (FRU) in one pass (because one of
-them may be used by the others to store page cgroup in that case
-and that block has to be offlined before the other ones).
-
-To handle that arguably corner case, add a second pass of companion
-device offlining to acpi_scan_hot_remove() and make it ignore errors
-returned in the first pass (and make it skip the second pass if the
-first one is successful).
+Since offline_memory_block(mem) is functionally equivalent to
+device_offline(&mem->dev), make the only caller of the former use
+the latter instead and drop offline_memory_block() entirely.
 
 Signed-off-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 ---
- drivers/acpi/scan.c |   67 ++++++++++++++++++++++++++++++++++++++--------------
- 1 file changed, 50 insertions(+), 17 deletions(-)
+ drivers/base/memory.c          |   21 ---------------------
+ include/linux/memory_hotplug.h |    1 -
+ mm/memory_hotplug.c            |    2 +-
+ 3 files changed, 1 insertion(+), 23 deletions(-)
 
-Index: linux-pm/drivers/acpi/scan.c
+Index: linux-pm/drivers/base/memory.c
 ===================================================================
---- linux-pm.orig/drivers/acpi/scan.c
-+++ linux-pm/drivers/acpi/scan.c
-@@ -131,6 +131,7 @@ static acpi_status acpi_bus_offline_comp
- {
- 	struct acpi_device *device = NULL;
- 	struct acpi_device_physical_node *pn;
-+	bool second_pass = (bool)data;
- 	acpi_status status = AE_OK;
+--- linux-pm.orig/drivers/base/memory.c
++++ linux-pm/drivers/base/memory.c
+@@ -735,27 +735,6 @@ int unregister_memory_section(struct mem
+ }
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
  
- 	if (acpi_bus_get_device(handle, &device))
-@@ -141,15 +142,26 @@ static acpi_status acpi_bus_offline_comp
- 	list_for_each_entry(pn, &device->physical_node_list, node) {
- 		int ret;
- 
-+		if (second_pass) {
-+			/* Skip devices offlined by the first pass. */
-+			if (pn->put_online)
-+				continue;
-+		} else {
-+			pn->put_online = false;
-+		}
- 		ret = device_offline(pn->dev);
- 		if (acpi_force_hot_remove)
- 			continue;
- 
--		if (ret < 0) {
--			status = AE_ERROR;
--			break;
-+		if (ret >= 0) {
-+			pn->put_online = !ret;
-+		} else {
-+			*ret_p = pn->dev;
-+			if (second_pass) {
-+				status = AE_ERROR;
-+				break;
-+			}
- 		}
--		pn->put_online = !ret;
- 	}
- 
- 	mutex_unlock(&device->physical_node_lock);
-@@ -185,6 +197,7 @@ static int acpi_scan_hot_remove(struct a
- 	acpi_handle not_used;
- 	struct acpi_object_list arg_list;
- 	union acpi_object arg;
-+	struct device *errdev;
- 	acpi_status status;
- 	unsigned long long sta;
- 
-@@ -197,22 +210,42 @@ static int acpi_scan_hot_remove(struct a
- 
- 	lock_device_hotplug();
- 
--	status = acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
--				     NULL, acpi_bus_offline_companions, NULL,
--				     NULL);
--	if (ACPI_SUCCESS(status) || acpi_force_hot_remove)
--		status = acpi_bus_offline_companions(handle, 0, NULL, NULL);
+-/*
+- * offline one memory block. If the memory block has been offlined, do nothing.
+- *
+- * Call under device_hotplug_lock.
+- */
+-int offline_memory_block(struct memory_block *mem)
+-{
+-	int ret = 0;
 -
--	if (ACPI_FAILURE(status) && !acpi_force_hot_remove) {
--		acpi_bus_online_companions(handle, 0, NULL, NULL);
-+	/*
-+	 * Carry out two passes here and ignore errors in the first pass,
-+	 * because if the devices in question are memory blocks and
-+	 * CONFIG_MEMCG is set, one of the blocks may hold data structures
-+	 * that the other blocks depend on, but it is not known in advance which
-+	 * block holds them.
-+	 *
-+	 * If the first pass is successful, the second one isn't needed, though.
-+	 */
-+	errdev = NULL;
-+	acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
-+			    NULL, acpi_bus_offline_companions,
-+			    (void *)false, (void **)&errdev);
-+	acpi_bus_offline_companions(handle, 0, (void *)false, (void **)&errdev);
-+	if (errdev) {
-+		errdev = NULL;
- 		acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
--				    acpi_bus_online_companions, NULL, NULL,
--				    NULL);
-+				    NULL, acpi_bus_offline_companions,
-+				    (void *)true , (void **)&errdev);
-+		if (!errdev || acpi_force_hot_remove)
-+			acpi_bus_offline_companions(handle, 0, (void *)true,
-+						    (void **)&errdev);
-+
-+		if (errdev && !acpi_force_hot_remove) {
-+			dev_warn(errdev, "Offline failed.\n");
-+			acpi_bus_online_companions(handle, 0, NULL, NULL);
-+			acpi_walk_namespace(ACPI_TYPE_ANY, handle,
-+					    ACPI_UINT32_MAX,
-+					    acpi_bus_online_companions, NULL,
-+					    NULL, NULL);
+-	mutex_lock(&mem->state_mutex);
+-	if (mem->state != MEM_OFFLINE) {
+-		ret = __memory_block_change_state_uevent(mem, MEM_OFFLINE,
+-							 MEM_ONLINE, -1);
+-		if (!ret)
+-			mem->dev.offline = true;
+-	}
+-	mutex_unlock(&mem->state_mutex);
+-
+-	return ret;
+-}
+-
+ /* return true if the memory block is offlined, otherwise, return false */
+ bool is_memblock_offlined(struct memory_block *mem)
+ {
+Index: linux-pm/include/linux/memory_hotplug.h
+===================================================================
+--- linux-pm.orig/include/linux/memory_hotplug.h
++++ linux-pm/include/linux/memory_hotplug.h
+@@ -251,7 +251,6 @@ extern int mem_online_node(int nid);
+ extern int add_memory(int nid, u64 start, u64 size);
+ extern int arch_add_memory(int nid, u64 start, u64 size);
+ extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
+-extern int offline_memory_block(struct memory_block *mem);
+ extern bool is_memblock_offlined(struct memory_block *mem);
+ extern int remove_memory(int nid, u64 start, u64 size);
+ extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
+Index: linux-pm/mm/memory_hotplug.c
+===================================================================
+--- linux-pm.orig/mm/memory_hotplug.c
++++ linux-pm/mm/memory_hotplug.c
+@@ -1680,7 +1680,7 @@ int walk_memory_range(unsigned long star
+ static int offline_memory_block_cb(struct memory_block *mem, void *arg)
+ {
+ 	int *ret = arg;
+-	int error = offline_memory_block(mem);
++	int error = device_offline(&mem->dev);
  
--		unlock_device_hotplug();
-+			unlock_device_hotplug();
- 
--		put_device(&device->dev);
--		return -EBUSY;
-+			put_device(&device->dev);
-+			return -EBUSY;
-+		}
- 	}
- 
- 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+ 	if (error != 0 && *ret == 0)
+ 		*ret = error;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
