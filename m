@@ -1,422 +1,412 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id B1FED6B0036
-	for <linux-mm@kvack.org>; Sun, 19 May 2013 16:52:31 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id A7BFD6B0037
+	for <linux-mm@kvack.org>; Sun, 19 May 2013 19:33:30 -0400 (EDT)
 Received: from /spool/local
-	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Sun, 19 May 2013 16:52:30 -0400
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 86CD2C90042
-	for <linux-mm@kvack.org>; Sun, 19 May 2013 16:52:27 -0400 (EDT)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4JKqRaA44892268
-	for <linux-mm@kvack.org>; Sun, 19 May 2013 16:52:27 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4JKqQcG031934
-	for <linux-mm@kvack.org>; Sun, 19 May 2013 16:52:27 -0400
-Date: Sun, 19 May 2013 15:52:19 -0500
+	Sun, 19 May 2013 17:33:29 -0600
+Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 5C5183E4003F
+	for <linux-mm@kvack.org>; Sun, 19 May 2013 17:33:10 -0600 (MDT)
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4JNXQhF126068
+	for <linux-mm@kvack.org>; Sun, 19 May 2013 17:33:26 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4JNXPAV031656
+	for <linux-mm@kvack.org>; Sun, 19 May 2013 17:33:26 -0600
+Date: Sun, 19 May 2013 18:33:18 -0500
 From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: Re: [PATCHv11 2/4] zbud: add to mm/
-Message-ID: <20130519205219.GA3252@cerebellum>
+Subject: Re: [PATCHv11 3/4] zswap: add to mm/
+Message-ID: <20130519233318.GB3252@cerebellum>
 References: <1368448803-2089-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <1368448803-2089-3-git-send-email-sjenning@linux.vnet.ibm.com>
- <20130517154837.GN11497@suse.de>
+ <1368448803-2089-4-git-send-email-sjenning@linux.vnet.ibm.com>
+ <20130517165418.GP11497@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130517154837.GN11497@suse.de>
+In-Reply-To: <20130517165418.GP11497@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On Fri, May 17, 2013 at 04:48:37PM +0100, Mel Gorman wrote:
-> On Mon, May 13, 2013 at 07:40:01AM -0500, Seth Jennings wrote:
-> > zbud is an special purpose allocator for storing compressed pages. It is
-> > designed to store up to two compressed pages per physical page.  While this
-> > design limits storage density, it has simple and deterministic reclaim
-> > properties that make it preferable to a higher density approach when reclaim
-> > will be used.
+On Fri, May 17, 2013 at 05:54:18PM +0100, Mel Gorman wrote:
+> On Mon, May 13, 2013 at 07:40:02AM -0500, Seth Jennings wrote:
+> > zswap is a thin compression backend for frontswap. It receives pages from
+> > frontswap and attempts to store them in a compressed memory pool, resulting in
+> > an effective partial memory reclaim and dramatically reduced swap device I/O.
 > > 
-> > zbud works by storing compressed pages, or "zpages", together in pairs in a
-> > single memory page called a "zbud page".  The first buddy is "left
-> > justifed" at the beginning of the zbud page, and the last buddy is "right
-> > justified" at the end of the zbud page.  The benefit is that if either
-> > buddy is freed, the freed buddy space, coalesced with whatever slack space
-> > that existed between the buddies, results in the largest possible free region
-> > within the zbud page.
-> > 
-> > zbud also provides an attractive lower bound on density. The ratio of zpages
-> > to zbud pages can not be less than 1.  This ensures that zbud can never "do
-> > harm" by using more pages to store zpages than the uncompressed zpages would
-> > have used on their own.
-> > 
-> > This patch adds zbud to mm/ for later use by zswap.
-> > 
-> > Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
 > 
-> I'm not familiar with the code in staging/zcache/zbud.c and this looks
-> like a rewrite but I'm curious, why was an almost complete rewrite
-> necessary? The staging code looks like it had debugfs statistics and
-> the like that would help figure how well the packing was working and so
-> on. I guess it was probably because it was integrated tightly with other
-> components in staging but could that not be torn out? I'm guessing you
-> have a good reason but it'd be nice to see that in the changelog.
+> potentially reduces IO. No guarantees.
 
-I'll add a bit about that.
+Sorry, I was in marketing mode I guess.
+
+> > Additionally, in most cases, pages can be retrieved from this compressed store
+> > much more quickly than reading from tradition swap devices resulting in faster
+> > performance for many workloads.
+> > 
+> 
+> While this is likely, it's also not necessarily true if the swap device
+> is particularly fast. Also, swap devices can be asynchronously written,
+> is the same true for zswap? I doubt it as I would expect the compression
+> operation to slow down pages being added to swap cache.
+
+Same here.
+
+The compression happens synchronously at pageout() time, more precisely the
+frontswap_store() in swap_writepage().  The advantage here is that pages
+synchronously stored in zswap can be immediately reclaimed in
+shrink_page_list().
+
+> 
+> > It also has support for evicting swap pages that are currently compressed in
+> > zswap to the swap device on an LRU(ish) basis.
+> 
+> I know I initially suggested an LRU but don't worry about this thing
+> being an LRU too much. A FIFO list would be just fine as the pages are
+> presumably idle if they ended up in zswap in the first place.
+
+The LRU stuff is already in zbud and doesn't add much complexity.  It is
+cheap and understandable so may as well do it I figure.  You'll have to
+select a page one way or another.  May as well be consistent with the
+rest of the MM.
 
 <snip>
-> >  4 files changed, 597 insertions(+)
-> > + * zbud pages are divided into "chunks".  The size of the chunks is fixed at
-> > + * compile time and determined by NCHUNKS_ORDER below.  Dividing zbud pages
-> > + * into chunks allows organizing unbuddied zbud pages into a manageable number
-> > + * of unbuddied lists according to the number of free chunks available in the
-> > + * zbud page.
-> > + *
+> > +/*********************************
+> > +* statistics
+> > +**********************************/
+> > +/* Number of memory pages used by the compressed pool */
+> > +static atomic_t zswap_pool_pages = ATOMIC_INIT(0);
 > 
-> Fixing the size of the chunks at compile time is a very strict
-> limitation! Distributions will have to make that decision for all workloads
-> that might conceivably use zswap. Having the allocator only deal with pairs
-> of pages limits the worst-case behaviour where reclaim can generate lots of
-> IO to free a single physical page. However, the chunk size directly affects
-> the fragmentation properties, both internal and external, of this thing.
+> They underlying allocator should be tracking the number of physical
+> pages used, not this layer.
 
-> Once NCHUNKS is > 2 it is possible to create a workload that externally
-> fragments this allocator such that each physical page only holds one
-> compressed page. If this is a problem for a user then their only option
-> is to rebuild the kernel which is not always possible.
+zbud does track the number of pool pages.  This variable just mirrors the zbud
+value when it has the potential to change so that it is accessible in the zswap
+debugfs.
 
-You lost me here.  Do you mean NCHUNKS > 2 or NCHUNKS_ORDER > 2?
-
-My first guess is that the external fragmentation situation you are referring to
-is a workload in which all pages compress to greater than half a page.  If so,
-then it doesn't matter what NCHUCNKS_ORDER is, there won't be any pages the
-compress enough to fit in the < PAGE_SIZE/2 free space that remains in the
-unbuddied zbud pages.
-
-You might also be referring to the fact that if you set NCHUNKS_ORDER to 2
-(i.e. there are 4 chunks per zbud page) and you receive an allocation for size
-(3/4 * PAGE_SIZE) + 1, the allocator will use all 4 chunks for that allocation
-and the rest of the zbud page is lost to internal fragmentation.
-
-That is simply an argument for not choosing a small NCHUNKS_ORDER.
+However, since the conversion to zbud, this atomic isn't inc/dec anymore,
+just set, so no need to be atomic.
 
 > 
-> Please make this configurable by a kernel boot parameter at least. At
-> a glance it looks like only problem would be that you have to kmalloc
-> unbuddied[NCHUNKS] in the pool structure but that is hardly of earth
-> shattering difficulty. Make the variables read_mostly to avoid cache-line
-> bouncing problems.
-
-I am hesitant to make this a tunable without understanding why anyone would
-want to tune it.  It's hard to convey to a user what this tunable would do and
-what effect it might have.  I'm not saying that isn't such a situation.
-I just don't see one didn't understand your case above.
-
-> 
-> Finally, because a review would never be complete without a bitching
-> session about names -- I don't like the name zbud. Buddy allocators take
-> a large block of memory and split it iteratively (by halves for binary
-> buddy allocators but there are variations) until it's a best fit for the
-> allocation request. A key advantage of such schemes is fast searching for
-> free holes. That's not what this allocator does and as the page allocator
-> is a binary buddy allocator in Linux, calling this this a buddy allocator
-> is a bit misleading. Looks like the existing zbud.c also has this problem
-> but hey.  This thing is a first-fit segmented free list allocator with
-> sub-allocator properties in that it takes fixed-sized blocks as inputs and
-> splits them into pairs, not a buddy allocator. That characterisation does
-> not lend itself to a snappy name but calling it zpair or something would
-> be slightly less misleading than calling it a buddy allocator.
-
-I agree that is it not a buddy allocator and the name is misleading.
-zpair is fine with me.
-
-> 
-> First Fit Segmented-list Allocator for in-Kernel comprEssion (FFSAKE)? :/
-
-Well played :)  For real though, I think that First Fit Segmented-List is
-the most accurate description.  ffsl.c?  Just a thought.  I'm fine with
-zpair too.
-
-<snip> 
-> > +struct zbud_pool {
-> > +	spinlock_t lock;
-> > +	struct list_head unbuddied[NCHUNKS];
-> > +	struct list_head buddied;
-> > +	struct list_head lru;
-> > +	atomic_t pages_nr;
-> 
-> There is no need for pages_nr to be atomic. It's always manipulated
-> under the lock. I see that the atomic is exported so someone can read it
-> that is outside the lock but they are goign to have to deal with races
-> anyway. atomic does not magically protect them
-
-True.  I'll change it.
-
-> 
-> Also, pages_nr does not appear to be the number of zbud pages in the pool,
-> it's the number of zpages. You may want to report both for debugging
-> purposes as if nr_zpages != 2 * nr_zbud_pages then zswap is using more
-> physical pages than it should be.
-
-No, pages_nr is the number of pool pages, not zpages.  The number of zpages (or
-allocations from zbud's point of view) is easily trackable by the user as it
-does each allocation.  What the user can not know is how many pages are in the
-pool.  Hence why zbud tracks this stat and makes it accessible via
-zbud_get_pool_size().
-
-In the case of zswap, the debugfs attributes stored_pages/pool_pages will give
-you the density metric, albeit in a non-atomic way.
-
-<snip>
-> > +/* Initializes a zbud page from a newly allocated page */
-> > +static inline struct zbud_page *init_zbud_page(struct page *page)
-> > +{
-> > +	struct zbud_page *zbpage = (struct zbud_page *)page;
-> > +	zbpage->first_chunks = 0;
-> > +	zbpage->last_chunks = 0;
-> > +	INIT_LIST_HEAD(&zbpage->buddy);
-> > +	INIT_LIST_HEAD(&zbpage->lru);
-> > +	return zbpage;
-> > +}
-> 
-> No need to inline. Only has one caller so the compiler will figure it
-> out.
-
-Ok.
-
-> 
-> > +
-> > +/* Resets a zbud page so that it can be properly freed  */
-> > +static inline struct page *reset_zbud_page(struct zbud_page *zbpage)
-> > +{
-> > +	struct page *page = &zbpage->page;
-> > +	set_page_private(page, 0);
-> > +	page->mapping = NULL;
-> > +	page->index = 0;
-> > +	page_mapcount_reset(page);
-> > +	init_page_count(page);
-> > +	INIT_LIST_HEAD(&page->lru);
-> > +	return page;
-> > +}
-> 
-> This is only used for freeing so call it free_zbud_page and have it call
-> __free_page for clarity. Also, this is a bit long for inlining.
-
-Ah yes, much cleaner.
-
-> 
+> > +/* The number of compressed pages currently stored in zswap */
+> > +static atomic_t zswap_stored_pages = ATOMIC_INIT(0);
 > > +
 > > +/*
-> > + * Encodes the handle of a particular buddy within a zbud page
-> > + * Pool lock should be held as this function accesses first|last_chunks
-> > + */
-> > +static inline unsigned long encode_handle(struct zbud_page *zbpage,
-> > +					enum buddy bud)
-> > +{
-> > +	unsigned long handle;
+> > + * The statistics below are not protected from concurrent access for
+> > + * performance reasons so they may not be a 100% accurate.  However,
+> > + * they do provide useful information on roughly how many times a
+> > + * certain event is occurring.
+> > +*/
+> > +static u64 zswap_pool_limit_hit;
+> > +static u64 zswap_written_back_pages;
+> > +static u64 zswap_reject_reclaim_fail;
+> > +static u64 zswap_reject_compress_poor;
+> > +static u64 zswap_reject_alloc_fail;
+> > +static u64 zswap_reject_kmemcache_fail;
+> > +static u64 zswap_duplicate_entry;
 > > +
-> > +	/*
-> > +	 * For now, the encoded handle is actually just the pointer to the data
-> > +	 * but this might not always be the case.  A little information hiding.
-> > +	 */
-> > +	handle = (unsigned long)page_address(&zbpage->page);
-> > +	if (bud == FIRST)
-> > +		return handle;
-> > +	handle += PAGE_SIZE - (zbpage->last_chunks  << CHUNK_SHIFT);
-> > +	return handle;
-> > +}
 > 
-> Your handles are unsigned long and are addresses. Consider making it an
-> opaque type so someone deferencing it would take a special kind of
-> stupid.
+> Document what these mean.
 
-My argument for keeping the handles as unsigned longs is a forward-looking
-to the implementation of the pluggable allocator interface in zswap.
-Typing the handles prevents the creation of an allocator neutral function
-signature.
+Will do.
 
-Maybe I'm overlooking an easy solution here.
+> 
+> > +/*********************************
+> > +* tunables
+> > +**********************************/
+> > +/* Enable/disable zswap (disabled by default, fixed at boot for now) */
+> > +static bool zswap_enabled;
+> 
+> read_mostly
 
-<snip>
-> > + * zbud_create_pool() - create a new zbud pool
-> > + * @gfp:	gfp flags when allocating the zbud pool structure
-> > + * @ops:	user-defined operations for the zbud pool
+Yep.
+
+> 
+> > +module_param_named(enabled, zswap_enabled, bool, 0);
+> > +
+> > +/* Compressor to be used by zswap (fixed at boot for now) */
+> > +#define ZSWAP_COMPRESSOR_DEFAULT "lzo"
+> > +static char *zswap_compressor = ZSWAP_COMPRESSOR_DEFAULT;
+> > +module_param_named(compressor, zswap_compressor, charp, 0);
+> > +
+> > +/* The maximum percentage of memory that the compressed pool can occupy */
+> > +static unsigned int zswap_max_pool_percent = 20;
+> > +module_param_named(max_pool_percent,
+> > +			zswap_max_pool_percent, uint, 0644);
+> > +
+> 
+> This will need additional love in the future. If you have an 8 node machine
+> then zswap pool could completely exhaust a single NUMA node with this
+> parameter. This is pretty much a big fat hammer that stops zswap getting
+> compltely out of control and taking over the system but it'll need some
+> sort of sensible automatic resizing based on system activity in the future.
+> It's not an obstacle to merging because you have to start somewhere but
+> the fixed-pool size thing is fugly and you should plan on putting it down
+> in the future.
+
+Agreed, it is a starting point and making this policy better and NUMA-aware
+is at the top of my TODO list.
+
+> 
+> > +/*
+> > + * Maximum compression ratio, as as percentage, for an acceptable
+> > + * compressed page. Any pages that do not compress by at least
+> > + * this ratio will be rejected.
+> > +*/
+> > +static unsigned int zswap_max_compression_ratio = 80;
+> > +module_param_named(max_compression_ratio,
+> > +			zswap_max_compression_ratio, uint, 0644);
+> > +
+> 
+> I would be very surprised if a user wanted to tune this. What is a sensible
+> recommendation for it? I don't think you can give one because it depends
+> entirely on the workload and the current system state. A good value for
+> one day may be a bad choice the next day if a backup takes place or the
+> workload changes pattern frequently.  As there is no sensible recommendation
+> for this value, just don't expose it to userspace at all.
+
+Agreed, this mattered more for zsmalloc.  Upon reexamination, this should
+be done in the allocator.  If the allocator can't (optimally) store the
+compressed page, it can just return -E2BIG and zswap will increment
+zswap_reject_compress_poor.
+
+> 
+> I guess you could apply the same critism to the suggestion that NCHUNKS
+> be tunable but that has only two settings really. The default and 2 if
+> the pool is continually fragmented.
+
+I think you might be misunderstanding NCHUNKS.  NCHUNKS is the number of
+chunks per zbud page.  If you set NCHUNKS to 2, zbud basically won't be
+able to pair and buddy that is larger than PAGE_SIZE/2.
+
+> 
+> > +/*********************************
+> > +* compression functions
+> > +**********************************/
+> > <SNIP>
+> 
+> I'm glossed over a lot of this. It looks fairly similar to what was reviewed
+> before and I'm assuming there are no major changes. Much of it is in the
+> category of "it'll either work or fail spectacularly early in the lifetime
+> of the system" and I'm assuming you tested this. Note that the comments
+> are out of sync with the structures. Fix that.
+
+Yes, you said this before and I forgot to pick it up.  Sorry :-/
+> 
+> > +/*********************************
+> > +* helpers
+> > +**********************************/
+> > +static inline bool zswap_is_full(void)
+> > +{
+> > +	int pool_pages = atomic_read(&zswap_pool_pages);
+> 
+> Does this thing really have to be an atomic? Why not move it into the tree
+> structure, protect it with the tree lock and then sum the individual counts
+> when checking if zswap_is_full? It'll be a little race but not much more
+> so than using atomics outside of a lock like this.
+
+When zswap was doing the accounting with zsmalloc it did need to be atomic
+but not anymore. I'll fix it up.
+
+> > + * zswap_get_swap_cache_page
 > > + *
-> > + * Return: pointer to the new zbud pool or NULL if the metadata allocation
-> > + * failed.
+> > + * This is an adaption of read_swap_cache_async()
+> > + *
+> > + * This function tries to find a page with the given swap entry
+> > + * in the swapper_space address space (the swap cache).  If the page
+> > + * is found, it is returned in retpage.  Otherwise, a page is allocated,
+> > + * added to the swap cache, and returned in retpage.
+> > + *
+> > + * If success, the swap cache page is returned in retpage
+> > + * Returns 0 if page was already in the swap cache, page is not locked
+> > + * Returns 1 if the new page needs to be populated, page is locked
+> > + * Returns <0 on error
 > > + */
-> > +struct zbud_pool *zbud_create_pool(gfp_t gfp, struct zbud_ops *ops)
-> > +{
-> > +	struct zbud_pool *pool;
-> > +	int i;
+> 
+> Still not massively happy that this is duplicating code from
+> read_swap_cache_async(). It's just begging for trouble. I do not have
+> suggestions on how it can be done cleanly at this time because I haven't
+> put the effort in.
+
+Yes, how to reuse the code here isn't a trivial thing, but I can look
+again how if and how it could be done cleanly.
+
+<snip>
+> > +	};
 > > +
-> > +	pool = kmalloc(sizeof(struct zbud_pool), gfp);
-> > +	if (!pool)
-> > +		return NULL;
-> > +	spin_lock_init(&pool->lock);
-> > +	for_each_unbuddied_list(i, 0)
-> > +		INIT_LIST_HEAD(&pool->unbuddied[i]);
-> > +	INIT_LIST_HEAD(&pool->buddied);
-> > +	INIT_LIST_HEAD(&pool->lru);
-> > +	atomic_set(&pool->pages_nr, 0);
-> > +	pool->ops = ops;
-> > +	return pool;
-> > +}
-> > +EXPORT_SYMBOL_GPL(zbud_create_pool);
+> > +	/* extract swpentry from data */
+> > +	zhdr = zbud_map(pool, handle);
+> > +	swpentry = zhdr->swpentry; /* here */
+> > +	zbud_unmap(pool, handle);
+> > +	tree = zswap_trees[swp_type(swpentry)];
+> 
+> This is going to further solidify the use of PTEs to store the swap file
+> and offset for swap pages that Hugh complained about at LSF/MM. It's
+> unfortunate but it's not like there is queue of people waiting to fix
+> that particular problem :(
+
+Yes, but there are a lot of places that will have to be updated I imagine.
+This will just be one more.  I for one, wouldn't mind undertaking that
+improvement (swap entry abstraction layer). But that's for another day.
+
+ 
+> > +	offset = swp_offset(swpentry);
+> > +	BUG_ON(pool != tree->pool);
+> > +
+> > +	/* find and ref zswap entry */
+> > +	spin_lock(&tree->lock);
+> > +	entry = zswap_rb_search(&tree->rbroot, offset);
+> > +	if (!entry) {
+> > +		/* entry was invalidated */
+> > +		spin_unlock(&tree->lock);
+> > +		return 0;
+> > +	}
+> > +	zswap_entry_get(entry);
+> > +	spin_unlock(&tree->lock);
+> > +	BUG_ON(offset != entry->offset);
+> > +
+> > +	/* try to allocate swap cache page */
+> > +	switch (zswap_get_swap_cache_page(swpentry, &page)) {
+> > +	case ZSWAP_SWAPCACHE_NOMEM: /* no memory */
+> > +		ret = -ENOMEM;
+> > +		goto fail;
 > > +
 > 
-> Why the export? It doesn't look like this thing is going to be consumed
-> by modules.
+> Yikes. So it's possible to fail a zpage writeback? Can this livelock? I
+> expect you are protected by a combination of the 20% memory limitation
+> and that it is likely that *some* file pages can be reclaimed but this
+> is going to cause a bug report eventually. Consider using a mempool to
+> guarantee that some writeback progress can always be made.
 
-This is true for now,  I'll remove them.  Can always add them back later
-and save additions to the KABI in the meantime.
+If the reclaim fails here, then the overall store operation just fails and the
+page is written to swap as if zswap wasn't there But this happens VERY rarely
+since we are using GFP_KERNEL.
 
-<snip> 
-> > +int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
-> > +			unsigned long *handle)
-> > +{
-> > +	int chunks, i, freechunks;
-> > +	struct zbud_page *zbpage = NULL;
-> > +	enum buddy bud;
-> > +	struct page *page;
+If you are talking about the allocation in zswap_get_swap_cache_page()
+resulting in a swap_writepage() that calls back down this path I've never seen
+that but can't explain exactly why it isn't possible.
+
+What if we used GFP_NOIO, that way shrink_page_list() wouldn't swap out
+addition pages in response to an allocation for zswap writeback?  If the zone
+is congested with dirty pages then this might fail more often.  I'd have to try
+it out.
+
+What do you think?  Or have I completely misunderstood your concern?
+
+> > +	case ZSWAP_SWAPCACHE_EXIST: /* page is unlocked */
+> > +		/* page is already in the swap cache, ignore for now */
+> > +		page_cache_release(page);
+> > +		ret = -EEXIST;
+> > +		goto fail;
 > > +
-> > +	if (size <= 0 || size > PAGE_SIZE || gfp & __GFP_HIGHMEM)
-> > +		return -EINVAL;
-> > +	chunks = size_to_chunks(size);
-> > +	spin_lock(&pool->lock);
+> > +	case ZSWAP_SWAPCACHE_NEW: /* page is locked */
+> > +		/* decompress */
+> > +		dlen = PAGE_SIZE;
+> > +		src = (u8 *)zbud_map(tree->pool, entry->handle) +
+> > +			sizeof(struct zswap_header);
+> > +		dst = kmap_atomic(page);
+> > +		ret = zswap_comp_op(ZSWAP_COMPOP_DECOMPRESS, src,
+> > +				entry->length, dst, &dlen);
+> > +		kunmap_atomic(dst);
+> > +		zbud_unmap(tree->pool, entry->handle);
+> > +		BUG_ON(ret);
+> > +		BUG_ON(dlen != PAGE_SIZE);
 > > +
-> > +	/*
-> > +	 * First, try to use the zbpage we last used (at the head of the
-> > +	 * LRU) to increase LRU locality of the buddies. This is first fit.
-> > +	 */
-> > +	if (!list_empty(&pool->lru)) {
-> > +		zbpage = list_first_entry(&pool->lru, struct zbud_page, lru);
-> > +		if (num_free_chunks(zbpage) >= chunks) {
-> > +			if (zbpage->first_chunks == 0) {
-> > +				list_del(&zbpage->buddy);
-> > +				bud = FIRST;
-> > +				goto found;
-> > +			}
-> > +			if (zbpage->last_chunks == 0) {
-> > +				list_del(&zbpage->buddy);
-> > +				bud = LAST;
-> > +				goto found;
-> > +			}
+> > +		/* page is up to date */
+> > +		SetPageUptodate(page);
+> > +	}
+> > +
+> > +	/* start writeback */
+> > +	SetPageReclaim(page);
+> > +	__swap_writepage(page, &wbc, end_swap_bio_write);
+> > +	page_cache_release(page);
+> > +	zswap_written_back_pages++;
+> > +
+> 
+> SetPageReclaim? Why?. If the page is under writeback then why do you not
+> mark it as that? Do not free pages that are currently under writeback
+> obviously.
+
+You're right, no need to set Reclaim here.  Not sure why I had that there.
+__swap_writeback() sets the writeback flag.
+
+> It's likely that it was PageWriteback you wanted in zbud.c too.
+
+In zbud, the reclaim flag is just being repurposed for internal use.
+
+<snip>
+> > +	/* reclaim space if needed */
+> > +	if (zswap_is_full()) {
+> > +		zswap_pool_limit_hit++;
+> > +		if (zbud_reclaim_page(tree->pool, 8)) {
+> > +			zswap_reject_reclaim_fail++;
+> > +			ret = -ENOMEM;
+> > +			goto reject;
 > > +		}
 > > +	}
 > > +
-> > +	/* Second, try to find an unbuddied zbpage. This is best fit. */
 > 
-> No it isn't, it's also first fit.
+> If the allocator layer handled the sizing limitations then you could defer
+> the size checks until it calls alloc_page. From a layering perspective
+> this would be a hell of a lot cleaner. As it is, this layer has excessive
+> knowledge of the zbud layer which feels wrong.
 
-Ok.
+Ok.  I responded to this in the zbud patch thread.  Short rehash, yes it could
+work.  Just how will the limit be expressed (and updated if needed)?
 
-> 
-> Give for_each_unbuddied_list() additional smarts to always start with
-> the last zbpage that was used and collapse these two block of code
-> together and call it first-fit.
-
-I've removed the try the "last page used" logic since I am, at this
-time, not able to demonstrate that it improves anything.
-
-Without the contrast, I'll just refrain from any comment about the
-fit type.
-
-> > +	zbpage = NULL;
-> > +	for_each_unbuddied_list(i, chunks) {
-> > +		if (!list_empty(&pool->unbuddied[i])) {
-> > +			zbpage = list_first_entry(&pool->unbuddied[i],
-> > +					struct zbud_page, buddy);
-> > +			list_del(&zbpage->buddy);
-> > +			if (zbpage->first_chunks == 0)
-> > +				bud = FIRST;
-> > +			else
-> > +				bud = LAST;
-> > +			goto found;
-> > +		}
+> > +	/* allocate entry */
+> > +	entry = zswap_entry_cache_alloc(GFP_KERNEL);
+> > +	if (!entry) {
+> > +		zswap_reject_kmemcache_fail++;
+> > +		ret = -ENOMEM;
+> > +		goto reject;
 > > +	}
 > > +
-> > +	/* Lastly, couldn't find unbuddied zbpage, create new one */
-> > +	spin_unlock(&pool->lock);
-> > +	page = alloc_page(gfp);
-> > +	if (!page)
-> > +		return -ENOMEM;
-> > +	spin_lock(&pool->lock);
-> > +	atomic_inc(&pool->pages_nr);
-> > +	zbpage = init_zbud_page(page);
-> > +	bud = FIRST;
-> > +
-> 
-> What bounds the size of the pool? Maybe a higher layer does but should the
-> higher layer set the maximum size and enforce it here instead? That way the
-> higher layer does not need to know that the allocator is dealing with pages.
-
-I see your point.  The higher layer would have to set the limit in some
-units, likely pages, so it would be aware that zbud is using pages.
-
-However, zswap (or any user) would probably make an initial determination of
-the limit in pages.  Then would have to register a notifier for anything that
-could change the memory size (i.e. memory add/remove) and adjust the zbud
-limit.
-
-I guess a different way would be to set the zbud limit as a percentage, then
-zbud could automatically adjust when the amount of ram changes, doing a
-per-allocation limit check.
-
-Any thoughts about those options?
-
-<snip>
-> > +	spin_lock(&pool->lock);
-> > +	zbpage = handle_to_zbud_page(handle);
-> > +
-> > +	/* If first buddy, handle will be page aligned */
-> > +	if (handle & ~PAGE_MASK)
-> > +		zbpage->last_chunks = 0;
-> > +	else
-> > +		zbpage->first_chunks = 0;
-> > +
-> > +	if (PageReclaim(&zbpage->page)) {
-> > +		/* zbpage is under reclaim, reclaim will free */
-> > +		spin_unlock(&pool->lock);
-> > +		return;
+> > +	/* compress */
+> > +	dst = get_cpu_var(zswap_dstmem);
+> > +	src = kmap_atomic(page);
+> > +	ret = zswap_comp_op(ZSWAP_COMPOP_COMPRESS, src, PAGE_SIZE, dst, &dlen);
+> > +	kunmap_atomic(src);
+> > +	if (ret) {
+> > +		ret = -EINVAL;
+> > +		goto freepage;
+> > +	}
+> > +	len = dlen + sizeof(struct zswap_header);
+> > +	if ((len * 100 / PAGE_SIZE) > zswap_max_compression_ratio) {
+> > +		zswap_reject_compress_poor++;
+> > +		ret = -E2BIG;
+> > +		goto freepage;
 > > +	}
 > > +
+> > +	/* store */
+> > +	ret = zbud_alloc(tree->pool, len, __GFP_NORETRY | __GFP_NOWARN,
+> > +		&handle);
 > 
-> This implies that it is possible for a zpage to get freed twice. That
-> sounds wrong. It sounds like a page being reclaimed should be isolated
-> from other lists that makes it accessible similar to how normal pages are
-> isolated from the LRU and then freed.
+> You do all the compression work and then check if you can store it?
+> It's harmless, but it's a little silly. Do the alloc work first and push
+> the sizing checks down a layer to the time you call alloc_pages.
 
-No, a zpage will not be freed twice.
-
-The problem is that even if zbud isolates the page in it's structures,
-which it does now removing from the buddied/unbuddied and lru list, there is no
-way to isolate it in the _users_ data structures.  Once we release the pool
-lock, a free could still come in from the user.
-
-However, the user should have protections in place in it's eviction handler that
-prevent two cases:
-
-1) If the user entry associated with the allocation being evicted has already
-been freed, the eviction handler should just return 0 (already freed)
-
-2) If the user entry lookup in the eviction handler is successful, some
-lock/refcount must protect the entry and its associated zbud allocation from
-being freed while it is being evicted.
+You don't know how large the zbud allocation needs to be until after you've
+actually compressed the page.
 
 <snip>
-> > +	for (i = 0; i < retries; i++) {
-> > +		zbpage = list_tail_entry(&pool->lru, struct zbud_page, lru);
-> > +		list_del(&zbpage->lru);
-> > +		list_del(&zbpage->buddy);
-> > +		/* Protect zbpage against free */
-> > +		SetPageReclaim(&zbpage->page);
+> > +MODULE_LICENSE("GPL");
+> > +MODULE_AUTHOR("Seth Jennings <sjenning@linux.vnet.ibm.com>");
+> > +MODULE_DESCRIPTION("Compressed cache for swap pages");
 > 
-> Why not isolated it instead of using a page flag?
+> I think there is still a lot of ugly in here so see what you can fix up
+> quickly. It's not mandatory to me that you get all this fixed up prior
+> to merging because it's long gone past the point where dealing with it
+> out-of-tree or in staging is going to work. By the time you address all the
+> concerns, it will have reached the point where it's too complex to review
+> and back to square one. At least if it's in mm/ it can be incrementally
+> developed but it should certainly start with a big fat warning that it's
+> a WIP. I wouldn't slap "ready for production" sticker on this just yet :/
 
-Same reason as above, can't isolate in the user structure.
+We are in agreement on all points.  I'll send out the revised patchset
+ASAP.
 
 Thanks for the review!
 
