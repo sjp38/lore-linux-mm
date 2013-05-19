@@ -1,86 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id 9A0C56B0038
-	for <linux-mm@kvack.org>; Sun, 19 May 2013 16:09:09 -0400 (EDT)
-From: Glauber Costa <glommer@openvz.org>
-Subject: [PATCH v7 30/34] vmscan: take at least one pass with shrinkers
-Date: Mon, 20 May 2013 00:07:23 +0400
-Message-Id: <1368994047-5997-31-git-send-email-glommer@openvz.org>
-In-Reply-To: <1368994047-5997-1-git-send-email-glommer@openvz.org>
-References: <1368994047-5997-1-git-send-email-glommer@openvz.org>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 6CA106B0036
+	for <linux-mm@kvack.org>; Sun, 19 May 2013 16:23:27 -0400 (EDT)
+Message-ID: <1368995002.6828.117.camel@gandalf.local.home>
+Subject: Re: [PATCH v2 10/10] kernel: might_fault does not imply might_sleep
+From: Steven Rostedt <rostedt@goodmis.org>
+Date: Sun, 19 May 2013 16:23:22 -0400
+In-Reply-To: <20130519164009.GA2434@redhat.com>
+References: <cover.1368702323.git.mst@redhat.com>
+	 <1f85dc8e6a0149677563a2dfb4cef9a9c7eaa391.1368702323.git.mst@redhat.com>
+	 <20130516184041.GP19669@dyad.programming.kicks-ass.net>
+	 <20130519093526.GD19883@redhat.com>
+	 <1368966844.6828.111.camel@gandalf.local.home>
+	 <20130519133418.GA24381@redhat.com>
+	 <1368979579.6828.114.camel@gandalf.local.home>
+	 <20130519164009.GA2434@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, Dave Chinner <david@fromorbit.com>, hughd@google.com, Glauber Costa <glommer@openvz.org>, Carlos Maiolino <cmaiolino@redhat.com>, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, David Howells <dhowells@redhat.com>, Hirokazu Takata <takata@linux-m32r.org>, Michal Simek <monstr@monstr.eu>, Koichi Yasutake <yasutake.koichi@jp.panasonic.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Chris Metcalf <cmetcalf@tilera.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Arnd Bergmann <arnd@arndb.de>, linux-arm-kernel@lists.infradead.org, linux-m32r@ml.linux-m32r.org, linux-m32r-ja@ml.linux-m32r.org, microblaze-uclinux@itee.uq.edu.au, linux-am33-list@redhat.com, linuxppc-dev@lists.ozlabs.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org
 
-In very low free kernel memory situations, it may be the case that we
-have less objects to free than our initial batch size. If this is the
-case, it is better to shrink those, and open space for the new workload
-then to keep them and fail the new allocations.
+On Sun, 2013-05-19 at 19:40 +0300, Michael S. Tsirkin wrote:
 
-In particular, we are concerned with the direct reclaim case for memcg.
-Although this same technique can be applied to other situations just as well,
-we will start conservative and apply it for that case, which is the one
-that matters the most.
+> OK I get it. So let me correct myself. The simple code
+> that does something like this under a spinlock:
+> >       preempt_disable
+> >       pagefault_disable
+> >       error = copy_to_user
+> >       pagefault_enable
+> >       preempt_enable
+> >
+> is not doing anything wrong and should not get a warning,
+> as long as error is handled correctly later.
+> Right?
 
-[ v6: only do it per memcg ]
-[ v5: differentiate no-scan case, don't do this for kswapd ]
+I came in mid thread and I don't know the context. Anyway, the above
+looks to me as you just don't want to sleep. If you try to copy data to
+user space that happens not to be currently mapped for any reason, you
+will get an error. Even if the address space is completely valid. Is
+that what you want?
 
-Signed-off-by: Glauber Costa <glommer@openvz.org>
-CC: Dave Chinner <david@fromorbit.com>
-CC: Carlos Maiolino <cmaiolino@redhat.com>
-CC: "Theodore Ts'o" <tytso@mit.edu>
-CC: Al Viro <viro@zeniv.linux.org.uk>
----
- mm/vmscan.c | 23 ++++++++++++++++++-----
- 1 file changed, 18 insertions(+), 5 deletions(-)
+-- Steve
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 3c67f36..2a94ef6 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -297,21 +297,34 @@ shrink_slab_node(struct shrink_control *shrinkctl, struct shrinker *shrinker,
- 				nr_pages_scanned, lru_pages,
- 				max_pass, delta, total_scan);
- 
--	while (total_scan >= batch_size) {
-+	do {
- 		long ret;
-+		unsigned long nr_to_scan = min(batch_size, total_scan);
-+		struct mem_cgroup *memcg = shrinkctl->target_mem_cgroup;
-+
-+		/*
-+		 * Differentiate between "few objects" and "no objects"
-+		 * as returned by the count step.
-+		 */
-+		if (!total_scan)
-+			break;
-+
-+		if ((total_scan < batch_size) &&
-+		   !(memcg && memcg_kmem_is_active(memcg)))
-+			break;
- 
--		shrinkctl->nr_to_scan = batch_size;
-+		shrinkctl->nr_to_scan = nr_to_scan;
- 		ret = shrinker->scan_objects(shrinker, shrinkctl);
- 
- 		if (ret == -1)
- 			break;
- 		freed += ret;
- 
--		count_vm_events(SLABS_SCANNED, batch_size);
--		total_scan -= batch_size;
-+		count_vm_events(SLABS_SCANNED, nr_to_scan);
-+		total_scan -= nr_to_scan;
- 
- 		cond_resched();
--	}
-+	} while (total_scan >= batch_size);
- 
- 	/*
- 	 * move the unused scan count back into the shrinker in a
--- 
-1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
