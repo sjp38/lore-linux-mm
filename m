@@ -1,231 +1,180 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id D39F46B00A4
-	for <linux-mm@kvack.org>; Sun, 19 May 2013 16:08:49 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 767C46B0002
+	for <linux-mm@kvack.org>; Sun, 19 May 2013 16:08:55 -0400 (EDT)
 From: Glauber Costa <glommer@openvz.org>
-Subject: [PATCH v7 31/34] super: targeted memcg reclaim
-Date: Mon, 20 May 2013 00:07:24 +0400
-Message-Id: <1368994047-5997-32-git-send-email-glommer@openvz.org>
+Subject: [PATCH v7 33/34] vmpressure: in-kernel notifications
+Date: Mon, 20 May 2013 00:07:26 +0400
+Message-Id: <1368994047-5997-34-git-send-email-glommer@openvz.org>
 In-Reply-To: <1368994047-5997-1-git-send-email-glommer@openvz.org>
 References: <1368994047-5997-1-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, Dave Chinner <david@fromorbit.com>, hughd@google.com, Glauber Costa <glommer@openvz.org>, Dave Chinner <dchinner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
+Cc: cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, Dave Chinner <david@fromorbit.com>, hughd@google.com, Glauber Costa <glommer@openvz.org>, John Stultz <john.stultz@linaro.org>, Joonsoo Kim <js1304@gmail.com>
 
-We now have all our dentries and inodes placed in memcg-specific LRU
-lists. All we have to do is restrict the reclaim to the said lists in
-case of memcg pressure.
+From: Glauber Costa <glommer@parallels.com>
 
-That can't be done so easily for the fs_objects part of the equation,
-since this is heavily fs-specific. What we do is pass on the context,
-and let the filesystems decide if they ever chose or want to. At this
-time, we just don't shrink them in memcg pressure (none is supported),
-leaving that for global pressure only.
+During the past weeks, it became clear to us that the shrinker interface
+we have right now works very well for some particular types of users,
+but not that well for others. The later are usually people interested in
+one-shot notifications, that were forced to adapt themselves to the
+count+scan behavior of shrinkers. To do so, they had no choice than to
+greatly abuse the shrinker interface producing little monsters all over.
 
-Marking the superblock shrinker and its LRUs as memcg-aware will
-guarantee that the shrinkers will get invoked during targetted reclaim.
+During LSF/MM, one of the proposals that popped out during our session
+was to reuse Anton Voronstsov's vmpressure for this. They are designed
+for userspace consumption, but also provide a well-stablished,
+cgroup-aware entry point for notifications.
+
+This patch extends that to also support in-kernel users. Events that
+should be generated for in-kernel consumption will be marked as such,
+and for those, we will call a registered function instead of triggering
+an eventfd notification.
+
+Please note that due to my lack of understanding of each shrinker user,
+I will stay away from converting the actual users, you are all welcome
+to do so.
 
 Signed-off-by: Glauber Costa <glommer@openvz.org>
-Cc: Dave Chinner <dchinner@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Acked-by: Anton Vorontsov <anton@enomsg.org>
+Acked-by: Pekka Enberg <penberg@kernel.org>
+Reviewed-by: Greg Thelen <gthelen@google.com>
+Cc: Dave Chinner <david@fromorbit.com>
+Cc: John Stultz <john.stultz@linaro.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Joonsoo Kim <js1304@gmail.com>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
 ---
- fs/dcache.c   |  7 ++++---
- fs/inode.c    |  7 ++++---
- fs/internal.h |  5 +++--
- fs/super.c    | 39 ++++++++++++++++++++++++++-------------
- 4 files changed, 37 insertions(+), 21 deletions(-)
+ include/linux/vmpressure.h |  6 ++++++
+ mm/vmpressure.c            | 52 +++++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 55 insertions(+), 3 deletions(-)
 
-diff --git a/fs/dcache.c b/fs/dcache.c
-index e07aa73..cace5cd 100644
---- a/fs/dcache.c
-+++ b/fs/dcache.c
-@@ -889,13 +889,14 @@ dentry_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
-  * use.
-  */
- long prune_dcache_sb(struct super_block *sb, unsigned long nr_to_scan,
--		     int nid)
-+		     int nid, struct mem_cgroup *memcg)
- {
- 	LIST_HEAD(dispose);
- 	long freed;
+diff --git a/include/linux/vmpressure.h b/include/linux/vmpressure.h
+index 76be077..3131e72 100644
+--- a/include/linux/vmpressure.h
++++ b/include/linux/vmpressure.h
+@@ -19,6 +19,9 @@ struct vmpressure {
+ 	/* Have to grab the lock on events traversal or modifications. */
+ 	struct mutex events_lock;
  
--	freed = list_lru_walk_node(&sb->s_dentry_lru, nid, dentry_lru_isolate,
--				       &dispose, &nr_to_scan);
-+	freed = list_lru_walk_node_memcg(&sb->s_dentry_lru, nid,
-+					dentry_lru_isolate, &dispose,
-+					&nr_to_scan, memcg);
- 	shrink_dentry_list(&dispose);
- 	return freed;
++	/* False if only kernel users want to be notified, true otherwise. */
++	bool notify_userspace;
++
+ 	struct work_struct work;
+ };
+ 
+@@ -36,6 +39,9 @@ extern struct vmpressure *css_to_vmpressure(struct cgroup_subsys_state *css);
+ extern int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
+ 				     struct eventfd_ctx *eventfd,
+ 				     const char *args);
++
++extern int vmpressure_register_kernel_event(struct cgroup *cg,
++					    void (*fn)(void));
+ extern void vmpressure_unregister_event(struct cgroup *cg, struct cftype *cft,
+ 					struct eventfd_ctx *eventfd);
+ #else
+diff --git a/mm/vmpressure.c b/mm/vmpressure.c
+index 736a601..e16256e 100644
+--- a/mm/vmpressure.c
++++ b/mm/vmpressure.c
+@@ -135,8 +135,12 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
  }
-diff --git a/fs/inode.c b/fs/inode.c
-index 00b804e..b9a8125 100644
---- a/fs/inode.c
-+++ b/fs/inode.c
-@@ -747,13 +747,14 @@ inode_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
-  * then are freed outside inode_lock by dispose_list().
-  */
- long prune_icache_sb(struct super_block *sb, unsigned long nr_to_scan,
--		     int nid)
-+		     int nid, struct mem_cgroup *memcg)
- {
- 	LIST_HEAD(freeable);
- 	long freed;
  
--	freed = list_lru_walk_node(&sb->s_inode_lru, nid, inode_lru_isolate,
--				       &freeable, &nr_to_scan);
-+	freed = list_lru_walk_node_memcg(&sb->s_inode_lru, nid,
-+					inode_lru_isolate, &freeable,
-+					&nr_to_scan, memcg);
- 	dispose_list(&freeable);
- 	return freed;
- }
-diff --git a/fs/internal.h b/fs/internal.h
-index 8902d56..601bd15 100644
---- a/fs/internal.h
-+++ b/fs/internal.h
-@@ -16,6 +16,7 @@ struct file_system_type;
- struct linux_binprm;
- struct path;
- struct mount;
-+struct mem_cgroup;
+ struct vmpressure_event {
+-	struct eventfd_ctx *efd;
++	union {
++		struct eventfd_ctx *efd;
++		void (*fn)(void);
++	};
+ 	enum vmpressure_levels level;
++	bool kernel_event;
+ 	struct list_head node;
+ };
  
- /*
-  * block_dev.c
-@@ -111,7 +112,7 @@ extern int open_check_o_direct(struct file *f);
-  */
- extern spinlock_t inode_sb_list_lock;
- extern long prune_icache_sb(struct super_block *sb, unsigned long nr_to_scan,
--			    int nid);
-+			    int nid, struct mem_cgroup *memcg);
- extern void inode_add_lru(struct inode *inode);
+@@ -152,12 +156,15 @@ static bool vmpressure_event(struct vmpressure *vmpr,
+ 	mutex_lock(&vmpr->events_lock);
  
- /*
-@@ -128,7 +129,7 @@ extern int invalidate_inodes(struct super_block *, bool);
-  */
- extern struct dentry *__d_alloc(struct super_block *, const struct qstr *);
- extern long prune_dcache_sb(struct super_block *sb, unsigned long nr_to_scan,
--			    int nid);
-+			    int nid, struct mem_cgroup *memcg);
- 
- /*
-  * read_write.c
-diff --git a/fs/super.c b/fs/super.c
-index caf7639..b5c2a4d 100644
---- a/fs/super.c
-+++ b/fs/super.c
-@@ -34,6 +34,7 @@
- #include <linux/cleancache.h>
- #include <linux/fsnotify.h>
- #include <linux/lockdep.h>
-+#include <linux/memcontrol.h>
- #include "internal.h"
- 
- 
-@@ -56,6 +57,7 @@ static char *sb_writers_name[SB_FREEZE_LEVELS] = {
- static long super_cache_scan(struct shrinker *shrink, struct shrink_control *sc)
- {
- 	struct super_block *sb;
-+	struct mem_cgroup *memcg = sc->target_mem_cgroup;
- 	long	fs_objects = 0;
- 	long	total_objects;
- 	long	freed = 0;
-@@ -74,11 +76,12 @@ static long super_cache_scan(struct shrinker *shrink, struct shrink_control *sc)
- 	if (!grab_super_passive(sb))
- 		return -1;
- 
--	if (sb->s_op && sb->s_op->nr_cached_objects)
-+	if (sb->s_op && sb->s_op->nr_cached_objects && !memcg)
- 		fs_objects = sb->s_op->nr_cached_objects(sb, sc->nid);
- 
--	inodes = list_lru_count_node(&sb->s_inode_lru, sc->nid);
--	dentries = list_lru_count_node(&sb->s_dentry_lru, sc->nid);
-+	inodes = list_lru_count_node_memcg(&sb->s_inode_lru, sc->nid, memcg);
-+	dentries = list_lru_count_node_memcg(&sb->s_dentry_lru, sc->nid, memcg);
-+
- 	total_objects = dentries + inodes + fs_objects + 1;
- 
- 	/* proportion the scan between the caches */
-@@ -89,8 +92,8 @@ static long super_cache_scan(struct shrinker *shrink, struct shrink_control *sc)
- 	 * prune the dcache first as the icache is pinned by it, then
- 	 * prune the icache, followed by the filesystem specific caches
- 	 */
--	freed = prune_dcache_sb(sb, dentries, sc->nid);
--	freed += prune_icache_sb(sb, inodes, sc->nid);
-+	freed = prune_dcache_sb(sb, dentries, sc->nid, memcg);
-+	freed += prune_icache_sb(sb, inodes, sc->nid, memcg);
- 
- 	if (fs_objects) {
- 		fs_objects = mult_frac(sc->nr_to_scan, fs_objects,
-@@ -107,20 +110,26 @@ static long super_cache_count(struct shrinker *shrink, struct shrink_control *sc
- {
- 	struct super_block *sb;
- 	long	total_objects = 0;
-+	struct mem_cgroup *memcg = sc->target_mem_cgroup;
- 
- 	sb = container_of(shrink, struct super_block, s_shrink);
- 
- 	if (!grab_super_passive(sb))
- 		return -1;
- 
--	if (sb->s_op && sb->s_op->nr_cached_objects)
-+	/*
-+	 * Ideally we would pass memcg to nr_cached_objects, and
-+	 * let the underlying filesystem decide. Most likely the
-+	 * path will be if (!memcg) return;, but even then.
-+	 */
-+	if (sb->s_op && sb->s_op->nr_cached_objects && !memcg)
- 		total_objects = sb->s_op->nr_cached_objects(sb,
- 						 sc->nid);
- 
--	total_objects += list_lru_count_node(&sb->s_dentry_lru,
--						 sc->nid);
--	total_objects += list_lru_count_node(&sb->s_inode_lru,
--						 sc->nid);
-+	total_objects += list_lru_count_node_memcg(&sb->s_dentry_lru,
-+						 sc->nid, memcg);
-+	total_objects += list_lru_count_node_memcg(&sb->s_inode_lru,
-+						 sc->nid, memcg);
- 
- 	total_objects = vfs_pressure_ratio(total_objects);
- 	drop_super(sb);
-@@ -199,8 +208,10 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
- 		INIT_HLIST_NODE(&s->s_instances);
- 		INIT_HLIST_BL_HEAD(&s->s_anon);
- 		INIT_LIST_HEAD(&s->s_inodes);
--		list_lru_init(&s->s_dentry_lru);
--		list_lru_init(&s->s_inode_lru);
-+
-+		list_lru_init_memcg(&s->s_dentry_lru);
-+		list_lru_init_memcg(&s->s_inode_lru);
-+
- 		INIT_LIST_HEAD(&s->s_mounts);
- 		init_rwsem(&s->s_umount);
- 		lockdep_set_class(&s->s_umount, &type->s_umount_key);
-@@ -236,7 +247,7 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
- 		s->s_shrink.scan_objects = super_cache_scan;
- 		s->s_shrink.count_objects = super_cache_count;
- 		s->s_shrink.batch = 1024;
--		s->s_shrink.flags = SHRINKER_NUMA_AWARE;
-+		s->s_shrink.flags = SHRINKER_NUMA_AWARE | SHRINKER_MEMCG_AWARE;
+ 	list_for_each_entry(ev, &vmpr->events, node) {
+-		if (level >= ev->level) {
++		if (ev->kernel_event) {
++			ev->fn();
++		} else if (vmpr->notify_userspace && level >= ev->level) {
+ 			eventfd_signal(ev->efd, 1);
+ 			signalled = true;
+ 		}
  	}
- out:
- 	return s;
-@@ -319,6 +330,8 @@ void deactivate_locked_super(struct super_block *s)
  
- 		/* caches are now gone, we can safely kill the shrinker now */
- 		unregister_shrinker(&s->s_shrink);
-+		list_lru_destroy(&s->s_dentry_lru);
-+		list_lru_destroy(&s->s_inode_lru);
- 		put_filesystem(fs);
- 		put_super(s);
- 	} else {
++	vmpr->notify_userspace = false;
+ 	mutex_unlock(&vmpr->events_lock);
+ 
+ 	return signalled;
+@@ -227,7 +234,7 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
+ 	 * we account it too.
+ 	 */
+ 	if (!(gfp & (__GFP_HIGHMEM | __GFP_MOVABLE | __GFP_IO | __GFP_FS)))
+-		return;
++		goto schedule;
+ 
+ 	/*
+ 	 * If we got here with no pages scanned, then that is an indicator
+@@ -244,8 +251,15 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
+ 	vmpr->scanned += scanned;
+ 	vmpr->reclaimed += reclaimed;
+ 	scanned = vmpr->scanned;
++	/*
++	 * If we didn't reach this point, only kernel events will be triggered.
++	 * It is the job of the worker thread to clean this up once the
++	 * notifications are all delivered.
++	 */
++	vmpr->notify_userspace = true;
+ 	mutex_unlock(&vmpr->sr_lock);
+ 
++schedule:
+ 	if (scanned < vmpressure_win || work_pending(&vmpr->work))
+ 		return;
+ 	schedule_work(&vmpr->work);
+@@ -328,6 +342,38 @@ int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
+ }
+ 
+ /**
++ * vmpressure_register_kernel_event() - Register kernel-side notification
++ * @cg:		cgroup that is interested in vmpressure notifications
++ * @fn:		function to be called when pressure happens
++ *
++ * This function register in-kernel users interested in receiving notifications
++ * about pressure conditions. Pressure notifications will be triggered at the
++ * same time as userspace notifications (with no particular ordering relative
++ * to it).
++ *
++ * Pressure notifications are a alternative method to shrinkers and will serve
++ * well users that are interested in a one-shot notification, with a
++ * well-defined cgroup aware interface.
++ */
++int vmpressure_register_kernel_event(struct cgroup *cg, void (*fn)(void))
++{
++	struct vmpressure *vmpr = cg_to_vmpressure(cg);
++	struct vmpressure_event *ev;
++
++	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
++	if (!ev)
++		return -ENOMEM;
++
++	ev->kernel_event = true;
++	ev->fn = fn;
++
++	mutex_lock(&vmpr->events_lock);
++	list_add(&ev->node, &vmpr->events);
++	mutex_unlock(&vmpr->events_lock);
++	return 0;
++}
++
++/**
+  * vmpressure_unregister_event() - Unbind eventfd from vmpressure
+  * @cg:		cgroup handle
+  * @cft:	cgroup control files handle
 -- 
 1.8.1.4
 
