@@ -1,58 +1,217 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id F31A36B0002
-	for <linux-mm@kvack.org>; Sun, 19 May 2013 12:40:52 -0400 (EDT)
-Date: Sun, 19 May 2013 19:40:09 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v2 10/10] kernel: might_fault does not imply might_sleep
-Message-ID: <20130519164009.GA2434@redhat.com>
-References: <cover.1368702323.git.mst@redhat.com>
- <1f85dc8e6a0149677563a2dfb4cef9a9c7eaa391.1368702323.git.mst@redhat.com>
- <20130516184041.GP19669@dyad.programming.kicks-ass.net>
- <20130519093526.GD19883@redhat.com>
- <1368966844.6828.111.camel@gandalf.local.home>
- <20130519133418.GA24381@redhat.com>
- <1368979579.6828.114.camel@gandalf.local.home>
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 2140D6B0002
+	for <linux-mm@kvack.org>; Sun, 19 May 2013 16:07:08 -0400 (EDT)
+From: Glauber Costa <glommer@openvz.org>
+Subject: [PATCH v7 00/34] kmemcg shrinkers
+Date: Mon, 20 May 2013 00:06:53 +0400
+Message-Id: <1368994047-5997-1-git-send-email-glommer@openvz.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1368979579.6828.114.camel@gandalf.local.home>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, David Howells <dhowells@redhat.com>, Hirokazu Takata <takata@linux-m32r.org>, Michal Simek <monstr@monstr.eu>, Koichi Yasutake <yasutake.koichi@jp.panasonic.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Chris Metcalf <cmetcalf@tilera.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Arnd Bergmann <arnd@arndb.de>, linux-arm-kernel@lists.infradead.org, linux-m32r@ml.linux-m32r.org, linux-m32r-ja@ml.linux-m32r.org, microblaze-uclinux@itee.uq.edu.au, linux-am33-list@redhat.com, linuxppc-dev@lists.ozlabs.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, Dave Chinner <david@fromorbit.com>, hughd@google.com
 
-On Sun, May 19, 2013 at 12:06:19PM -0400, Steven Rostedt wrote:
-> On Sun, 2013-05-19 at 16:34 +0300, Michael S. Tsirkin wrote:
-> 
-> > Right but we need to keep it working on upstream as well.
-> > If I do preempt_enable under a spinlock upstream won't it
-> > try to sleep under spinlock?
-> 
-> No it wont. A spinlock calls preempt_disable implicitly, and a
-> preempt_enable() will not schedule unless preempt_count is zero, which
-> it wont be under a spinlock.
-> 
-> If it did, there would be lots of bugs all over the place because this
-> is done throughout the kernel (a preempt_enable() under a spinlock).
-> 
-> In other words, don't ever use preempt_enable_no_resched().
-> 
-> -- Steve
-> 
+Initial notes:
+==============
 
+Please pay attention to new patches that are debuting in this series. Patch1
+changes our unused countries for int to long, since Dave noticed that it wasn't
+being enough in some cases. Aside from that, the major change is that we now
+compute and keep deferred work per-node (Patch13). The biggest effect of this,
+is that to avoid storing a new nodemask in the stack, I am passing only the
+node id down to the API. This means that the lru API *does not* take a nodemask
+any longer, which in turn, makes it simpler.
 
-OK I get it. So let me correct myself. The simple code
-that does something like this under a spinlock:
->       preempt_disable
->       pagefault_disable
->       error = copy_to_user
->       pagefault_enable
->       preempt_enable
->
-is not doing anything wrong and should not get a warning,
-as long as error is handled correctly later.
-Right?
+I deeply considered this matter, and decided this would be the best way to go.
+It is not different from what I have already done for memcgs: Only a single one
+is passed down, and the complexity of scanning them is moved upwards to the
+caller, where all the scanning logic should belong anyway.
+
+If you want, you can also grab from branch "kmemcg-lru-shrinker" at:
+
+	git://git.kernel.org/pub/scm/linux/kernel/git/glommer/memcg.git
+
+I hope the performance problems are all gone. My testing now shows a smoother
+and steady state for the objects during the lifetime of the workload, and
+postmark numbers are closer to base, although we do deviate a bit.
+
+Main changes from *v6:
+* Change nr_unused_dentry to long, Dave reported an int not being enough
+* Fixed shrink_list leak, by Dave
+* LRU API now gets a node id, instead of a node mask.
+* per-node deferred work, leading to smoother behavior
+
+Hi,
+
+This patchset implements targeted shrinking for memcg when kmem limits are
+present. So far, we've been accounting kernel objects but failing allocations
+when short of memory. This is because our only option would be to call the
+global shrinker, depleting objects from all caches and breaking isolation.
+
+The main idea is to associate per-memcg lists with each of the LRUs. The main
+LRU still provides a single entry point and when adding or removing an element
+from the LRU, we use the page information to figure out which memcg it belongs
+to and relay it to the right list.
+
+Base work:
+==========
+
+Please note that this builds upon the recent work from Dave Chinner that
+sanitizes the LRU shrinking API and make the shrinkers node aware. Node
+awareness is not *strictly* needed for my work, but I still perceive it
+as an advantage. The API unification is a major need, and I build upon it
+heavily. That allows us to manipulate the LRUs without knowledge of the
+underlying objects with ease. This time, I am including that work here as
+a baseline.
+
+Main changes from *v6:
+* Change nr_unused_dentry to long, Dave reported an int not being enough
+* Fixed shrink_list leak, by Dave
+* LRU API now gets a node id, instead of a node mask.
+* per-node deferred work, leading to smoother behavior
+
+Main changes from *v5:
+* Rebased to linux-next, and fix the conflicts with the dcache.
+* Make sure LRU_RETRY only retry once
+* Prevent the bcache shrinker to scan the caches when disabled (by returning
+  0 in the count function)
+* Fix i915 return code when mutex cannot be acquired.
+* Only scan less-than-batch objects in memcg scenarios
+
+Main changes from *v4:
+* Fixed a bug in user-generated memcg pressure
+* Fixed overly-agressive slab shrinker behavior spotted by Mel Gorman
+* Various other fixes and comments by Mel Gorman
+
+Main changes from *v3:
+* Merged suggestions from mailing list.
+* Removed the memcg-walking code from LRU. vmscan now drives all the hierarchy
+  decisions, which makes more sense
+* lazily free the old memcg arrays (needs now to be saved in struct lru). Since
+  we need to call synchronize_rcu, calling it for every LRU can become expensive
+* Moved the dead memcg shrinker to vmpressure. Already independently sent to
+  linux-mm for review.
+* Changed locking convention for LRU_RETRY. It now needs to return locked, which
+  silents warnings about possible lock unbalance (although previous code was
+  correct)
+
+Main changes from *v2:
+* shrink dead memcgs when global pressure kicks in. Uses the new lru API.
+* bugfixes and comments from the mailing list.
+* proper hierarchy-aware walk in shrink_slab.
+
+Main changes from *v1:
+* merged comments from the mailing list
+* reworked lru-memcg API
+* effective proportional shrinking
+* sanitized locking on the memcg side
+* bill user memory first when kmem == umem
+* various bugfixes
+
+Dave Chinner (17):
+  dcache: convert dentry_stat.nr_unused to per-cpu counters
+  dentry: move to per-sb LRU locks
+  dcache: remove dentries from LRU before putting on dispose list
+  mm: new shrinker API
+  shrinker: convert superblock shrinkers to new API
+  list: add a new LRU list type
+  inode: convert inode lru list to generic lru list code.
+  dcache: convert to use new lru list infrastructure
+  list_lru: per-node list infrastructure
+  shrinker: add node awareness
+  fs: convert inode and dentry shrinking to be node aware
+  xfs: convert buftarg LRU to generic code
+  xfs: convert dquot cache lru to list_lru
+  fs: convert fs shrinkers to new scan/count API
+  drivers: convert shrinkers to new count/scan API
+  shrinker: convert remaining shrinkers to count/scan API
+  shrinker: Kill old ->shrink API.
+
+Glauber Costa (17):
+  fs: bump inode and dentry counters to long
+  super: fix calculation of shrinkable objects for small numbers
+  vmscan: per-node deferred work
+  list_lru: per-node API
+  i915: bail out earlier when shrinker cannot acquire mutex
+  hugepage: convert huge zero page shrinker to new shrinker API
+  vmscan: also shrink slab in memcg pressure
+  memcg,list_lru: duplicate LRUs upon kmemcg creation
+  lru: add an element to a memcg list
+  list_lru: per-memcg walks
+  memcg: per-memcg kmem shrinking
+  memcg: scan cache objects hierarchically
+  vmscan: take at least one pass with shrinkers
+  super: targeted memcg reclaim
+  memcg: move initialization to memcg creation
+  vmpressure: in-kernel notifications
+  memcg: reap dead memcgs upon global memory pressure.
+
+ arch/x86/kvm/mmu.c                        |  28 +-
+ drivers/gpu/drm/i915/i915_dma.c           |   4 +-
+ drivers/gpu/drm/i915/i915_gem.c           |  71 +++--
+ drivers/gpu/drm/ttm/ttm_page_alloc.c      |  48 ++--
+ drivers/gpu/drm/ttm/ttm_page_alloc_dma.c  |  55 ++--
+ drivers/md/bcache/btree.c                 |  43 +--
+ drivers/md/bcache/sysfs.c                 |   2 +-
+ drivers/md/dm-bufio.c                     |  65 +++--
+ drivers/staging/android/ashmem.c          |  46 +++-
+ drivers/staging/android/lowmemorykiller.c |  40 +--
+ drivers/staging/zcache/zcache-main.c      |  29 +-
+ fs/dcache.c                               | 259 +++++++++++-------
+ fs/drop_caches.c                          |   1 +
+ fs/ext4/extents_status.c                  |  30 ++-
+ fs/gfs2/glock.c                           |  30 ++-
+ fs/gfs2/main.c                            |   3 +-
+ fs/gfs2/quota.c                           |  14 +-
+ fs/gfs2/quota.h                           |   4 +-
+ fs/inode.c                                | 194 ++++++--------
+ fs/internal.h                             |   7 +-
+ fs/mbcache.c                              |  53 ++--
+ fs/nfs/dir.c                              |  20 +-
+ fs/nfs/internal.h                         |   4 +-
+ fs/nfs/super.c                            |   3 +-
+ fs/nfsd/nfscache.c                        |  31 ++-
+ fs/quota/dquot.c                          |  39 ++-
+ fs/super.c                                | 104 +++++---
+ fs/ubifs/shrinker.c                       |  20 +-
+ fs/ubifs/super.c                          |   3 +-
+ fs/ubifs/ubifs.h                          |   3 +-
+ fs/xfs/xfs_buf.c                          | 170 ++++++------
+ fs/xfs/xfs_buf.h                          |   5 +-
+ fs/xfs/xfs_dquot.c                        |   7 +-
+ fs/xfs/xfs_icache.c                       |   4 +-
+ fs/xfs/xfs_icache.h                       |   2 +-
+ fs/xfs/xfs_qm.c                           | 277 +++++++++----------
+ fs/xfs/xfs_qm.h                           |   4 +-
+ fs/xfs/xfs_super.c                        |  12 +-
+ include/linux/dcache.h                    |  14 +-
+ include/linux/fs.h                        |  25 +-
+ include/linux/list_lru.h                  | 162 +++++++++++
+ include/linux/memcontrol.h                |  45 ++++
+ include/linux/shrinker.h                  |  72 ++++-
+ include/linux/swap.h                      |   2 +
+ include/linux/vmpressure.h                |   6 +
+ include/trace/events/vmscan.h             |   4 +-
+ include/uapi/linux/fs.h                   |   6 +-
+ kernel/sysctl.c                           |   6 +-
+ lib/Makefile                              |   2 +-
+ lib/list_lru.c                            | 396 +++++++++++++++++++++++++++
+ mm/huge_memory.c                          |  17 +-
+ mm/memcontrol.c                           | 430 ++++++++++++++++++++++++++----
+ mm/memory-failure.c                       |   2 +
+ mm/slab_common.c                          |   1 -
+ mm/vmpressure.c                           |  52 +++-
+ mm/vmscan.c                               | 378 +++++++++++++++++++-------
+ net/sunrpc/auth.c                         |  45 +++-
+ 57 files changed, 2438 insertions(+), 961 deletions(-)
+ create mode 100644 include/linux/list_lru.h
+ create mode 100644 lib/list_lru.c
+
+-- 
+1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
