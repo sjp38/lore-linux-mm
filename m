@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 55B036B005A
-	for <linux-mm@kvack.org>; Sun, 19 May 2013 16:07:40 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 38C1C6B005A
+	for <linux-mm@kvack.org>; Sun, 19 May 2013 16:07:44 -0400 (EDT)
 From: Glauber Costa <glommer@openvz.org>
-Subject: [PATCH v7 13/34] vmscan: per-node deferred work
-Date: Mon, 20 May 2013 00:07:06 +0400
-Message-Id: <1368994047-5997-14-git-send-email-glommer@openvz.org>
+Subject: [PATCH v7 14/34] list_lru: per-node API
+Date: Mon, 20 May 2013 00:07:07 +0400
+Message-Id: <1368994047-5997-15-git-send-email-glommer@openvz.org>
 In-Reply-To: <1368994047-5997-1-git-send-email-glommer@openvz.org>
 References: <1368994047-5997-1-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
@@ -13,368 +13,136 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, Dave Chinner <david@fromorbit.com>, hughd@google.com, Glauber Costa <glommer@openvz.org>, Dave Chinner <dchinner@redhat.com>, Mel Gorman <mgorman@suse.de>
 
-We already keep per-node LRU lists for objects being shrunk, but the
-work that is deferred from one run to another is kept global. This
-creates an impedance problem, where upon node pressure, work deferred
-will accumulate and end up being flushed in other nodes.
-
-In large machines, many nodes can accumulate at the same time, all
-adding to the global counter.  As we accumulate more and more, we start
-to ask for the caches to flush even bigger numbers. The result is that
-the caches are depleted and do not stabilize. To achieve stable steady
-state behavior, we need to tackle it differently.
-
-In this patch we keep the deferred count per-node, and will never
-accumulate that to other nodes.
+This patch adapts the list_lru API to accept an optional node argument,
+to be used by NUMA aware shrinking functions. Code that does not care
+about the NUMA placement of objects can still call into the very same
+functions as before. They will simply iterate over all nodes.
 
 Signed-off-by: Glauber Costa <glommer@openvz.org>
 Cc: Dave Chinner <dchinner@redhat.com>
 Cc: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/shrinker.h |  30 +++++-
- mm/vmscan.c              | 245 ++++++++++++++++++++++++++++-------------------
- 2 files changed, 175 insertions(+), 100 deletions(-)
+ include/linux/list_lru.h | 34 +++++++++++++++++++++++++++++++++-
+ lib/list_lru.c           | 41 +++++++++--------------------------------
+ 2 files changed, 42 insertions(+), 33 deletions(-)
 
-diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
-index 98be3ab..d70b123 100644
---- a/include/linux/shrinker.h
-+++ b/include/linux/shrinker.h
-@@ -19,6 +19,8 @@ struct shrink_control {
- 
- 	/* shrink from these nodes */
- 	nodemask_t nodes_to_scan;
-+	/* current node being shrunk (for NUMA aware shrinkers) */
+diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
+index 668f1f1..4ff148c 100644
+--- a/include/linux/list_lru.h
++++ b/include/linux/list_lru.h
+@@ -42,13 +42,45 @@ struct list_lru {
+ int list_lru_init(struct list_lru *lru);
+ int list_lru_add(struct list_lru *lru, struct list_head *item);
+ int list_lru_del(struct list_lru *lru, struct list_head *item);
+-unsigned long list_lru_count(struct list_lru *lru);
++
++unsigned long list_lru_count_node(struct list_lru *lru, int nid);
++static unsigned long list_lru_count(struct list_lru *lru)
++{
++	long count = 0;
 +	int nid;
- };
- 
- /*
-@@ -42,6 +44,8 @@ struct shrink_control {
-  * objects freed during the scan, or -1 if progress cannot be made due to
-  * potential deadlocks. If -1 is returned, then no further attempts to call the
-  * @scan_objects will be made from the current reclaim context.
-+ *
-+ * @flags determine the shrinker abilities, like numa awareness 
-  */
- struct shrinker {
- 	int (*shrink)(struct shrinker *, struct shrink_control *sc);
-@@ -50,12 +54,34 @@ struct shrinker {
- 
- 	int seeks;	/* seeks to recreate an obj */
- 	long batch;	/* reclaim batch size, 0 = default */
-+	unsigned long flags;
- 
- 	/* These are for internal use */
- 	struct list_head list;
--	atomic_long_t nr_in_batch; /* objs pending delete */
-+	/*
-+	 * We would like to avoid allocating memory when registering a new
-+	 * shrinker. All shrinkers will need to keep track of deferred objects,
-+	 * and we need a counter for this. If the shrinkers are not NUMA aware,
-+	 * this is a small and bounded space that fits into an atomic_long_t.
-+	 * This is because that the deferring decisions are global, and we will
-+	 * not allocate in this case.
-+	 *
-+	 * When the shrinker is NUMA aware, we will need this to be a per-node
-+	 * array. Numerically speaking, the minority of shrinkers are NUMA
-+	 * aware, so this saves quite a bit.
-+	 */
-+	union {
-+		/* objs pending delete */
-+		atomic_long_t nr_deferred;
-+		/* objs pending delete, per node */
-+		atomic_long_t *nr_deferred_node;
-+	};
- };
- #define DEFAULT_SEEKS 2 /* A good number if you don't know better. */
--extern void register_shrinker(struct shrinker *);
 +
-+/* Flags */
-+#define SHRINKER_NUMA_AWARE (1 << 0)
++	for_each_node_mask(nid, lru->active_nodes)
++		count += list_lru_count_node(lru, nid);
 +
-+extern int register_shrinker(struct shrinker *);
- extern void unregister_shrinker(struct shrinker *);
- #endif
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 35a6a9b..374d2b6 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -155,14 +155,36 @@ static unsigned long get_lru_size(struct lruvec *lruvec, enum lru_list lru)
- }
++	return count;
++}
  
- /*
-- * Add a shrinker callback to be called from the vm
-+ * Add a shrinker callback to be called from the vm.
-+ *
-+ * It cannot fail, unless the flag SHRINKER_NUMA_AWARE is specified.
-+ * With this flag set, this function will allocate memory and may fail.
-  */
--void register_shrinker(struct shrinker *shrinker)
-+int register_shrinker(struct shrinker *shrinker)
- {
--	atomic_long_set(&shrinker->nr_in_batch, 0);
-+	/*
-+	 * If we only have one possible node in the system anyway, save
-+	 * ourselves the trouble and disable NUMA aware behavior. This way we
-+	 * will allocate nothing and save memory and some small loop time
-+	 * later.
-+	 */
-+	if (nr_node_ids == 1)
-+		shrinker->flags &= ~SHRINKER_NUMA_AWARE;
-+
-+	if (shrinker->flags & SHRINKER_NUMA_AWARE) {
-+		size_t size;
-+
-+		size = sizeof(*shrinker->nr_deferred_node) * nr_node_ids;
-+		shrinker->nr_deferred_node = kzalloc(size, GFP_KERNEL);
-+		if (!shrinker->nr_deferred_node)
-+			return -ENOMEM;
-+	} else
-+		atomic_long_set(&shrinker->nr_deferred, 0);
-+
- 	down_write(&shrinker_rwsem);
- 	list_add_tail(&shrinker->list, &shrinker_list);
- 	up_write(&shrinker_rwsem);
-+	return 0;
- }
- EXPORT_SYMBOL(register_shrinker);
+ typedef enum lru_status
+ (*list_lru_walk_cb)(struct list_head *item, spinlock_t *lock, void *cb_arg);
  
-@@ -186,6 +208,116 @@ static inline int do_shrinker_shrink(struct shrinker *shrinker,
- }
+ typedef void (*list_lru_dispose_cb)(struct list_head *dispose_list);
  
- #define SHRINK_BATCH 128
++
++unsigned long list_lru_walk_node(struct list_lru *lru, int nid,
++				 list_lru_walk_cb isolate, void *cb_arg,
++				 unsigned long *nr_to_walk);
 +
 +static unsigned long
-+shrink_slab_node(struct shrink_control *shrinkctl, struct shrinker *shrinker,
-+		 unsigned long nr_pages_scanned, unsigned long lru_pages,
-+		 atomic_long_t *deferred)
++list_lru_walk(struct list_lru *lru, list_lru_walk_cb isolate,
++	      void *cb_arg, unsigned long nr_to_walk)
 +{
-+	unsigned long freed = 0;
-+	unsigned long long delta;
-+	long total_scan;
-+	long max_pass;
-+	long nr;
-+	long new_nr;
-+	long batch_size = shrinker->batch ? shrinker->batch
-+					  : SHRINK_BATCH;
++	long isolated = 0;
++	int nid;
 +
-+	if (shrinker->scan_objects) {
-+		max_pass = shrinker->count_objects(shrinker, shrinkctl);
-+		WARN_ON(max_pass < 0);
-+	} else
-+		max_pass = do_shrinker_shrink(shrinker, shrinkctl, 0);
-+	if (max_pass <= 0)
-+		return 0;
-+
-+	/*
-+	 * copy the current shrinker scan count into a local variable
-+	 * and zero it so that other concurrent shrinker invocations
-+	 * don't also do this scanning work.
-+	 */
-+	nr = atomic_long_xchg(deferred, 0);
-+
-+	total_scan = nr;
-+	delta = (4 * nr_pages_scanned) / shrinker->seeks;
-+	delta *= max_pass;
-+	do_div(delta, lru_pages + 1);
-+	total_scan += delta;
-+	if (total_scan < 0) {
-+		printk(KERN_ERR
-+		"shrink_slab: %pF negative objects to delete nr=%ld\n",
-+		       shrinker->shrink, total_scan);
-+		total_scan = max_pass;
++	for_each_node_mask(nid, lru->active_nodes) {
++		isolated += list_lru_walk_node(lru, nid, isolate,
++					       cb_arg, &nr_to_walk);
++		if (nr_to_walk <= 0)
++			break;
 +	}
-+
-+	/*
-+	 * We need to avoid excessive windup on filesystem shrinkers
-+	 * due to large numbers of GFP_NOFS allocations causing the
-+	 * shrinkers to return -1 all the time. This results in a large
-+	 * nr being built up so when a shrink that can do some work
-+	 * comes along it empties the entire cache due to nr >>>
-+	 * max_pass.  This is bad for sustaining a working set in
-+	 * memory.
-+	 *
-+	 * Hence only allow the shrinker to scan the entire cache when
-+	 * a large delta change is calculated directly.
-+	 */
-+	if (delta < max_pass / 4)
-+		total_scan = min(total_scan, max_pass / 2);
-+
-+	/*
-+	 * Avoid risking looping forever due to too large nr value:
-+	 * never try to free more than twice the estimate number of
-+	 * freeable entries.
-+	 */
-+	if (total_scan > max_pass * 2)
-+		total_scan = max_pass * 2;
-+
-+	trace_mm_shrink_slab_start(shrinker, shrinkctl, nr,
-+				nr_pages_scanned, lru_pages,
-+				max_pass, delta, total_scan);
-+
-+	while (total_scan >= batch_size) {
-+		long ret;
-+
-+		if (shrinker->scan_objects) {
-+			shrinkctl->nr_to_scan = batch_size;
-+			ret = shrinker->scan_objects(shrinker, shrinkctl);
-+
-+			if (ret == -1)
-+				break;
-+			freed += ret;
-+		} else {
-+			int nr_before;
-+			nr_before = do_shrinker_shrink(shrinker, shrinkctl, 0);
-+			ret = do_shrinker_shrink(shrinker, shrinkctl,
-+							batch_size);
-+			if (ret == -1)
-+				break;
-+			if (ret < nr_before)
-+				freed += nr_before - ret;
-+		}
-+
-+		count_vm_events(SLABS_SCANNED, batch_size);
-+		total_scan -= batch_size;
-+
-+		cond_resched();
-+	}
-+
-+	/*
-+	 * move the unused scan count back into the shrinker in a
-+	 * manner that handles concurrent updates. If we exhausted the
-+	 * scan, there is no need to do an update.
-+	 */
-+	if (total_scan > 0)
-+		new_nr = atomic_long_add_return(total_scan, deferred);
-+	else
-+		new_nr = atomic_long_read(deferred);
-+
-+	trace_mm_shrink_slab_end(shrinker, freed, nr, new_nr);
-+	return freed;
++	return isolated;
 +}
 +
- /*
-  * Call the shrink functions to age shrinkable caches
-  *
-@@ -222,107 +354,24 @@ unsigned long shrink_slab(struct shrink_control *shrinkctl,
- 	}
+ unsigned long list_lru_walk(struct list_lru *lru, list_lru_walk_cb isolate,
+ 		   void *cb_arg, unsigned long nr_to_walk);
  
- 	list_for_each_entry(shrinker, &shrinker_list, list) {
--		unsigned long long delta;
--		long total_scan;
--		long max_pass;
--		long nr;
--		long new_nr;
--		long batch_size = shrinker->batch ? shrinker->batch
--						  : SHRINK_BATCH;
+diff --git a/lib/list_lru.c b/lib/list_lru.c
+index 7611df7..dae13d6 100644
+--- a/lib/list_lru.c
++++ b/lib/list_lru.c
+@@ -54,25 +54,21 @@ list_lru_del(
+ EXPORT_SYMBOL_GPL(list_lru_del);
  
--		if (shrinker->scan_objects) {
--			max_pass = shrinker->count_objects(shrinker, shrinkctl);
--			WARN_ON(max_pass < 0);
--		} else
--			max_pass = do_shrinker_shrink(shrinker, shrinkctl, 0);
--		if (max_pass <= 0)
--			continue;
-+		if (!(shrinker->flags & SHRINKER_NUMA_AWARE)) {
-+			shrinkctl->nid = 0;
+ unsigned long
+-list_lru_count(struct list_lru *lru)
++list_lru_count_node(struct list_lru *lru, int nid)
+ {
+ 	long count = 0;
+-	int nid;
+-
+-	for_each_node_mask(nid, lru->active_nodes) {
+-		struct list_lru_node *nlru = &lru->node[nid];
++	struct list_lru_node *nlru = &lru->node[nid];
  
--		/*
--		 * copy the current shrinker scan count into a local variable
--		 * and zero it so that other concurrent shrinker invocations
--		 * don't also do this scanning work.
--		 */
--		nr = atomic_long_xchg(&shrinker->nr_in_batch, 0);
--
--		total_scan = nr;
--		delta = (4 * nr_pages_scanned) / shrinker->seeks;
--		delta *= max_pass;
--		do_div(delta, lru_pages + 1);
--		total_scan += delta;
--		if (total_scan < 0) {
--			printk(KERN_ERR
--			"shrink_slab: %pF negative objects to delete nr=%ld\n",
--			       shrinker->shrink, total_scan);
--			total_scan = max_pass;
-+			freed += shrink_slab_node(shrinkctl, shrinker,
-+				 nr_pages_scanned, lru_pages,
-+				 &shrinker->nr_deferred);
-+			continue;
- 		}
+-		spin_lock(&nlru->lock);
+-		BUG_ON(nlru->nr_items < 0);
+-		count += nlru->nr_items;
+-		spin_unlock(&nlru->lock);
+-	}
++	spin_lock(&nlru->lock);
++	BUG_ON(nlru->nr_items < 0);
++	count += nlru->nr_items;
++	spin_unlock(&nlru->lock);
  
--		/*
--		 * We need to avoid excessive windup on filesystem shrinkers
--		 * due to large numbers of GFP_NOFS allocations causing the
--		 * shrinkers to return -1 all the time. This results in a large
--		 * nr being built up so when a shrink that can do some work
--		 * comes along it empties the entire cache due to nr >>>
--		 * max_pass.  This is bad for sustaining a working set in
--		 * memory.
--		 *
--		 * Hence only allow the shrinker to scan the entire cache when
--		 * a large delta change is calculated directly.
--		 */
--		if (delta < max_pass / 4)
--			total_scan = min(total_scan, max_pass / 2);
--
--		/*
--		 * Avoid risking looping forever due to too large nr value:
--		 * never try to free more than twice the estimate number of
--		 * freeable entries.
--		 */
--		if (total_scan > max_pass * 2)
--			total_scan = max_pass * 2;
--
--		trace_mm_shrink_slab_start(shrinker, shrinkctl, nr,
--					nr_pages_scanned, lru_pages,
--					max_pass, delta, total_scan);
--
--		while (total_scan >= batch_size) {
--			long ret;
--
--			if (shrinker->scan_objects) {
--				shrinkctl->nr_to_scan = batch_size;
--				ret = shrinker->scan_objects(shrinker, shrinkctl);
--
--				if (ret == -1)
--					break;
--				freed += ret;
--			} else {
--				int nr_before;
--				nr_before = do_shrinker_shrink(shrinker, shrinkctl, 0);
--				ret = do_shrinker_shrink(shrinker, shrinkctl,
--								batch_size);
--				if (ret == -1)
--					break;
--				if (ret < nr_before)
--					freed += nr_before - ret;
--			}
--
--			count_vm_events(SLABS_SCANNED, batch_size);
--			total_scan -= batch_size;
-+		for_each_node_mask(shrinkctl->nid, shrinkctl->nodes_to_scan) {
-+			if (!node_online(shrinkctl->nid))
-+				continue;
+ 	return count;
+ }
+-EXPORT_SYMBOL_GPL(list_lru_count);
++EXPORT_SYMBOL_GPL(list_lru_count_node);
  
--			cond_resched();
-+			freed += shrink_slab_node(shrinkctl, shrinker,
-+				 nr_pages_scanned, lru_pages,
-+				 &shrinker->nr_deferred_node[shrinkctl->nid]);
- 		}
+-static unsigned long
++unsigned long
+ list_lru_walk_node(
+ 	struct list_lru		*lru,
+ 	int			nid,
+@@ -118,26 +114,7 @@ restart:
+ 	spin_unlock(&nlru->lock);
+ 	return isolated;
+ }
 -
--		/*
--		 * move the unused scan count back into the shrinker in a
--		 * manner that handles concurrent updates. If we exhausted the
--		 * scan, there is no need to do an update.
--		 */
--		if (total_scan > 0)
--			new_nr = atomic_long_add_return(total_scan,
--					&shrinker->nr_in_batch);
--		else
--			new_nr = atomic_long_read(&shrinker->nr_in_batch);
+-unsigned long
+-list_lru_walk(
+-	struct list_lru	*lru,
+-	list_lru_walk_cb isolate,
+-	void		*cb_arg,
+-	unsigned long	nr_to_walk)
+-{
+-	long isolated = 0;
+-	int nid;
 -
--		trace_mm_shrink_slab_end(shrinker, freed, nr, new_nr);
- 	}
- 	up_read(&shrinker_rwsem);
- out:
+-	for_each_node_mask(nid, lru->active_nodes) {
+-		isolated += list_lru_walk_node(lru, nid, isolate,
+-					       cb_arg, &nr_to_walk);
+-		if (nr_to_walk <= 0)
+-			break;
+-	}
+-	return isolated;
+-}
+-EXPORT_SYMBOL_GPL(list_lru_walk);
++EXPORT_SYMBOL_GPL(list_lru_walk_node);
+ 
+ static unsigned long
+ list_lru_dispose_all_node(
 -- 
 1.8.1.4
 
