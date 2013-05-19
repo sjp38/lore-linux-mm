@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 5E5B56B0095
-	for <linux-mm@kvack.org>; Sun, 19 May 2013 16:08:23 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 2C9286B0098
+	for <linux-mm@kvack.org>; Sun, 19 May 2013 16:08:27 -0400 (EDT)
 From: Glauber Costa <glommer@openvz.org>
-Subject: [PATCH v7 24/34] vmscan: also shrink slab in memcg pressure
-Date: Mon, 20 May 2013 00:07:17 +0400
-Message-Id: <1368994047-5997-25-git-send-email-glommer@openvz.org>
+Subject: [PATCH v7 25/34] memcg,list_lru: duplicate LRUs upon kmemcg creation
+Date: Mon, 20 May 2013 00:07:18 +0400
+Message-Id: <1368994047-5997-26-git-send-email-glommer@openvz.org>
 In-Reply-To: <1368994047-5997-1-git-send-email-glommer@openvz.org>
 References: <1368994047-5997-1-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
@@ -13,13 +13,13 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, Dave Chinner <david@fromorbit.com>, hughd@google.com, Glauber Costa <glommer@openvz.org>, Dave Chinner <dchinner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
 
-Without the surrounding infrastructure, this patch is a bit of a hammer:
-it will basically shrink objects from all memcgs under memcg pressure.
-At least, however, we will keep the scan limited to the shrinkers marked
-as per-memcg.
-
-Future patches will implement the in-shrinker logic to filter objects
-based on its memcg association.
+When a new memcg is created, we need to open up room for its descriptors
+in all of the list_lrus that are marked per-memcg. The process is quite
+similar to the one we are using for the kmem caches: we initialize the
+new structures in an array indexed by kmemcg_id, and grow the array if
+needed. Key data like the size of the array will be shared between the
+kmem cache code and the list_lru code (they basically describe the same
+thing)
 
 Signed-off-by: Glauber Costa <glommer@openvz.org>
 Cc: Dave Chinner <dchinner@redhat.com>
@@ -31,210 +31,441 @@ Cc: Hugh Dickins <hughd@google.com>
 Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- include/linux/memcontrol.h | 17 +++++++++++++++++
- include/linux/shrinker.h   |  6 +++++-
- mm/memcontrol.c            | 16 +++++++++++++++-
- mm/vmscan.c                | 46 +++++++++++++++++++++++++++++++++++++++++++---
- 4 files changed, 80 insertions(+), 5 deletions(-)
+ include/linux/list_lru.h   |  48 +++++++++++++-
+ include/linux/memcontrol.h |  12 ++++
+ lib/list_lru.c             | 102 +++++++++++++++++++++++++++---
+ mm/memcontrol.c            | 151 +++++++++++++++++++++++++++++++++++++++++++--
+ mm/slab_common.c           |   1 -
+ 5 files changed, 297 insertions(+), 17 deletions(-)
 
+diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
+index 4ff148c..5b498cc 100644
+--- a/include/linux/list_lru.h
++++ b/include/linux/list_lru.h
+@@ -24,6 +24,23 @@ struct list_lru_node {
+ 	long			nr_items;
+ } ____cacheline_aligned_in_smp;
+ 
++/*
++ * This is supposed to be M x N matrix, where M is kmem-limited memcg, and N is
++ * the number of nodes. Both dimensions are likely to be very small, but are
++ * potentially very big. Therefore we will allocate or grow them dynamically.
++ *
++ * The size of M will increase as new memcgs appear and can be 0 if no memcgs
++ * are being used. This is done in mm/memcontrol.c in a way quite similar than
++ * the way we use for the slab cache management.
++ *
++ * The size o N can't be determined at compile time, but won't increase once we
++ * determine it. It is nr_node_ids, the firmware-provided maximum number of
++ * nodes in a system.
++ */
++struct list_lru_array {
++	struct list_lru_node node[1];
++};
++
+ struct list_lru {
+ 	/*
+ 	 * Because we use a fixed-size array, this struct can be very big if
+@@ -37,9 +54,38 @@ struct list_lru {
+ 	 */
+ 	struct list_lru_node	node[MAX_NUMNODES];
+ 	nodemask_t		active_nodes;
++#ifdef CONFIG_MEMCG_KMEM
++	/* All memcg-aware LRUs will be chained in the lrus list */
++	struct list_head	lrus;
++	/* M x N matrix as described above */
++	struct list_lru_array	**memcg_lrus;
++#endif
+ };
+ 
+-int list_lru_init(struct list_lru *lru);
++struct mem_cgroup;
++#ifdef CONFIG_MEMCG_KMEM
++struct list_lru_array *lru_alloc_array(void);
++int memcg_update_all_lrus(unsigned long num);
++void list_lru_destroy(struct list_lru *lru);
++void list_lru_destroy_memcg(struct mem_cgroup *memcg);
++int __memcg_init_lru(struct list_lru *lru);
++#else
++static inline void list_lru_destroy(struct list_lru *lru)
++{
++}
++#endif
++
++int __list_lru_init(struct list_lru *lru, bool memcg_enabled);
++static inline int list_lru_init(struct list_lru *lru)
++{
++	return __list_lru_init(lru, false);
++}
++
++static inline int list_lru_init_memcg(struct list_lru *lru)
++{
++	return __list_lru_init(lru, true);
++}
++
+ int list_lru_add(struct list_lru *lru, struct list_head *item);
+ int list_lru_del(struct list_lru *lru, struct list_head *item);
+ 
 diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 7b4d9d7..489c6d7 100644
+index 489c6d7..3442eb9 100644
 --- a/include/linux/memcontrol.h
 +++ b/include/linux/memcontrol.h
-@@ -200,6 +200,9 @@ void mem_cgroup_split_huge_fixup(struct page *head);
- bool mem_cgroup_bad_page_check(struct page *page);
- void mem_cgroup_print_bad_page(struct page *page);
- #endif
-+
-+unsigned long
-+memcg_zone_reclaimable_pages(struct mem_cgroup *memcg, struct zone *zone);
- #else /* CONFIG_MEMCG */
- struct mem_cgroup;
+@@ -23,6 +23,7 @@
+ #include <linux/vm_event_item.h>
+ #include <linux/hardirq.h>
+ #include <linux/jump_label.h>
++#include <linux/list_lru.h>
  
-@@ -378,6 +381,12 @@ static inline void mem_cgroup_replace_page_cache(struct page *oldpage,
- 				struct page *newpage)
+ struct mem_cgroup;
+ struct page_cgroup;
+@@ -470,6 +471,12 @@ void memcg_update_array_size(int num_groups);
+ struct kmem_cache *
+ __memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp);
+ 
++int memcg_new_lru(struct list_lru *lru);
++int memcg_init_lru(struct list_lru *lru);
++
++int memcg_kmem_update_lru_size(struct list_lru *lru, int num_groups,
++			       bool new_lru);
++
+ void mem_cgroup_destroy_cache(struct kmem_cache *cachep);
+ void kmem_cache_destroy_memcg_children(struct kmem_cache *s);
+ 
+@@ -633,6 +640,11 @@ memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
+ static inline void kmem_cache_destroy_memcg_children(struct kmem_cache *s)
  {
  }
 +
-+static inline unsigned long
-+memcg_zone_reclaimable_pages(struct mem_cgroup *memcg, struct zone *zone)
++static inline int memcg_init_lru(struct list_lru *lru)
 +{
 +	return 0;
 +}
- #endif /* CONFIG_MEMCG */
+ #endif /* CONFIG_MEMCG_KMEM */
+ #endif /* _LINUX_MEMCONTROL_H */
  
- #if !defined(CONFIG_MEMCG) || !defined(CONFIG_DEBUG_VM)
-@@ -430,6 +439,8 @@ static inline bool memcg_kmem_enabled(void)
- 	return static_key_false(&memcg_kmem_enabled_key);
+diff --git a/lib/list_lru.c b/lib/list_lru.c
+index dae13d6..8ceeee0 100644
+--- a/lib/list_lru.c
++++ b/lib/list_lru.c
+@@ -2,12 +2,17 @@
+  * Copyright (c) 2010-2012 Red Hat, Inc. All rights reserved.
+  * Author: David Chinner
+  *
++ * Memcg Awareness
++ * Copyright (C) 2013 Parallels Inc.
++ * Author: Glauber Costa
++ *
+  * Generic LRU infrastructure
+  */
+ #include <linux/kernel.h>
+ #include <linux/module.h>
+ #include <linux/mm.h>
+ #include <linux/list_lru.h>
++#include <linux/memcontrol.h>
+ 
+ int
+ list_lru_add(
+@@ -163,18 +168,97 @@ list_lru_dispose_all(
+ 	return total;
  }
  
-+bool memcg_kmem_is_active(struct mem_cgroup *memcg);
+-int
+-list_lru_init(
+-	struct list_lru	*lru)
++/*
++ * This protects the list of all LRU in the system. One only needs
++ * to take when registering an LRU, or when duplicating the list of lrus.
++ * Transversing an LRU can and should be done outside the lock
++ */
++static DEFINE_MUTEX(all_memcg_lrus_mutex);
++static LIST_HEAD(all_memcg_lrus);
 +
- /*
-  * In general, we'll do everything in our power to not incur in any overhead
-  * for non-memcg users for the kmem functions. Not even a function call, if we
-@@ -563,6 +574,12 @@ memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
- 	return __memcg_kmem_get_cache(cachep, gfp);
- }
- #else
-+
-+static inline bool memcg_kmem_is_active(struct mem_cgroup *memcg)
-+{
-+	return false;
++static void list_lru_init_one(struct list_lru_node *lru)
+ {
++	spin_lock_init(&lru->lock);
++	INIT_LIST_HEAD(&lru->list);
++	lru->nr_items = 0;
 +}
 +
- #define for_each_memcg_cache_index(_idx)	\
- 	for (; NULL; )
++struct list_lru_array *lru_alloc_array(void)
++{
++	struct list_lru_array *lru_array;
+ 	int i;
  
-diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
-index 0786394..bfa9666 100644
---- a/include/linux/shrinker.h
-+++ b/include/linux/shrinker.h
-@@ -22,6 +22,9 @@ struct shrink_control {
- 	nodemask_t nodes_to_scan;
- 	/* current node being shrunk (for NUMA aware shrinkers) */
- 	int nid;
+-	nodes_clear(lru->active_nodes);
+-	for (i = 0; i < MAX_NUMNODES; i++) {
+-		spin_lock_init(&lru->node[i].lock);
+-		INIT_LIST_HEAD(&lru->node[i].list);
+-		lru->node[i].nr_items = 0;
++	lru_array = kzalloc(nr_node_ids * sizeof(struct list_lru_node),
++				GFP_KERNEL);
++	if (!lru_array)
++		return NULL;
 +
-+	/* reclaim from this memcg only (if not NULL) */
-+	struct mem_cgroup *target_mem_cgroup;
- };
- 
- /*
-@@ -75,7 +78,8 @@ struct shrinker {
- #define DEFAULT_SEEKS 2 /* A good number if you don't know better. */
- 
- /* Flags */
--#define SHRINKER_NUMA_AWARE (1 << 0)
-+#define SHRINKER_NUMA_AWARE	(1 << 0)
-+#define SHRINKER_MEMCG_AWARE	(1 << 1)
- 
- extern int register_shrinker(struct shrinker *);
- extern void unregister_shrinker(struct shrinker *);
++	for (i = 0; i < nr_node_ids; i++)
++		list_lru_init_one(&lru_array->node[i]);
++
++	return lru_array;
++}
++
++#ifdef CONFIG_MEMCG_KMEM
++int __memcg_init_lru(struct list_lru *lru)
++{
++	int ret;
++
++	INIT_LIST_HEAD(&lru->lrus);
++	mutex_lock(&all_memcg_lrus_mutex);
++	list_add(&lru->lrus, &all_memcg_lrus);
++	ret = memcg_new_lru(lru);
++	mutex_unlock(&all_memcg_lrus_mutex);
++	return ret;
++}
++
++int memcg_update_all_lrus(unsigned long num)
++{
++	int ret = 0;
++	struct list_lru *lru;
++
++	mutex_lock(&all_memcg_lrus_mutex);
++	list_for_each_entry(lru, &all_memcg_lrus, lrus) {
++		ret = memcg_kmem_update_lru_size(lru, num, false);
++		if (ret)
++			goto out;
++	}
++out:
++	mutex_unlock(&all_memcg_lrus_mutex);
++	return ret;
++}
++
++void list_lru_destroy(struct list_lru *lru)
++{
++	mutex_lock(&all_memcg_lrus_mutex);
++	list_del(&lru->lrus);
++	mutex_unlock(&all_memcg_lrus_mutex);
++}
++
++void list_lru_destroy_memcg(struct mem_cgroup *memcg)
++{
++	struct list_lru *lru;
++	mutex_lock(&all_memcg_lrus_mutex);
++	list_for_each_entry(lru, &all_memcg_lrus, lrus) {
++		kfree(lru->memcg_lrus[memcg_cache_id(memcg)]);
++		lru->memcg_lrus[memcg_cache_id(memcg)] = NULL;
++		/* everybody must beaware that this memcg is no longer valid */
++		wmb();
+ 	}
++	mutex_unlock(&all_memcg_lrus_mutex);
++}
++#endif
++
++int __list_lru_init(struct list_lru *lru, bool memcg_enabled)
++{
++	int i;
++
++	nodes_clear(lru->active_nodes);
++	for (i = 0; i < MAX_NUMNODES; i++)
++		list_lru_init_one(&lru->node[i]);
++
++	if (memcg_enabled)
++		return memcg_init_lru(lru);
+ 	return 0;
+ }
+-EXPORT_SYMBOL_GPL(list_lru_init);
++EXPORT_SYMBOL_GPL(__list_lru_init);
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index e34da3c..980bd2d 100644
+index 980bd2d..d6f4b5e 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -465,7 +465,7 @@ static inline void memcg_kmem_set_active(struct mem_cgroup *memcg)
- 	set_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags);
+@@ -3163,16 +3163,30 @@ int memcg_update_cache_sizes(struct mem_cgroup *memcg)
+ 	memcg_kmem_set_activated(memcg);
+ 
+ 	ret = memcg_update_all_caches(num+1);
+-	if (ret) {
+-		ida_simple_remove(&kmem_limited_groups, num);
+-		memcg_kmem_clear_activated(memcg);
+-		return ret;
+-	}
++	if (ret)
++		goto out;
++
++	/*
++	 * We should make sure that the array size is not updated until we are
++	 * done; otherwise we have no easy way to know whether or not we should
++	 * grow the array.
++	 */
++	ret = memcg_update_all_lrus(num + 1);
++	if (ret)
++		goto out;
+ 
+ 	memcg->kmemcg_id = num;
++
++	memcg_update_array_size(num + 1);
++
+ 	INIT_LIST_HEAD(&memcg->memcg_slab_caches);
+ 	mutex_init(&memcg->slab_caches_mutex);
++
+ 	return 0;
++out:
++	ida_simple_remove(&kmem_limited_groups, num);
++	memcg_kmem_clear_activated(memcg);
++	return ret;
  }
  
--static bool memcg_kmem_is_active(struct mem_cgroup *memcg)
-+bool memcg_kmem_is_active(struct mem_cgroup *memcg)
- {
- 	return test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags);
- }
-@@ -1044,6 +1044,20 @@ mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg, int nid, int zid,
- 	return ret;
+ static size_t memcg_caches_array_size(int num_groups)
+@@ -3256,6 +3270,129 @@ int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
+ 	return 0;
  }
  
-+unsigned long
-+memcg_zone_reclaimable_pages(struct mem_cgroup *memcg, struct zone *zone)
++/*
++ * memcg_kmem_update_lru_size - fill in kmemcg info into a list_lru
++ *
++ * @lru: the lru we are operating with
++ * @num_groups: how many kmem-limited cgroups we have
++ * @new_lru: true if this is a new_lru being created, false if this
++ * was triggered from the memcg side
++ *
++ * Returns 0 on success, and an error code otherwise.
++ *
++ * This function can be called either when a new kmem-limited memcg appears,
++ * or when a new list_lru is created. The work is roughly the same in two cases,
++ * but in the later we never have to expand the array size.
++ *
++ * This is always protected by the all_lrus_mutex from the list_lru side.  But
++ * a race can still exists if a new memcg becomes kmem limited at the same time
++ * that we are registering a new memcg. Creation is protected by the
++ * memcg_mutex, so the creation of a new lru have to be protected by that as
++ * well.
++ *
++ * The lock ordering is that the memcg_mutex needs to be acquired before the
++ * lru-side mutex.
++ */
++int memcg_kmem_update_lru_size(struct list_lru *lru, int num_groups,
++			       bool new_lru)
 +{
-+	int nid = zone_to_nid(zone);
-+	int zid = zone_idx(zone);
-+	unsigned long val;
++	struct list_lru_array **new_lru_array;
++	struct list_lru_array *lru_array;
 +
-+	val = mem_cgroup_zone_nr_lru_pages(memcg, nid, zid, LRU_ALL_FILE);
-+	if (do_swap_account)
-+		val += mem_cgroup_zone_nr_lru_pages(memcg, nid, zid,
-+						    LRU_ALL_ANON);
-+	return val;
++	lru_array = lru_alloc_array();
++	if (!lru_array)
++		return -ENOMEM;
++
++	/*
++	 * When a new LRU is created, we still need to update all data for that
++	 * LRU. The procedure for late LRUs and new memcgs are quite similar, we
++	 * only need to make sure we get into the loop even if num_groups <
++	 * memcg_limited_groups_array_size.
++	 */
++	if ((num_groups > memcg_limited_groups_array_size) || new_lru) {
++		int i;
++		struct list_lru_array **old_array;
++		size_t size = memcg_caches_array_size(num_groups);
++		int num_memcgs = memcg_limited_groups_array_size;
++
++		new_lru_array = kzalloc(size * sizeof(void *), GFP_KERNEL);
++		if (!new_lru_array) {
++			kfree(lru_array);
++			return -ENOMEM;
++		}
++
++		for (i = 0; lru->memcg_lrus && (i < num_memcgs); i++) {
++			if (lru->memcg_lrus && lru->memcg_lrus[i])
++				continue;
++			new_lru_array[i] =  lru->memcg_lrus[i];
++		}
++
++		old_array = lru->memcg_lrus;
++		lru->memcg_lrus = new_lru_array;
++		/*
++		 * We don't need a barrier here because we are just copying
++		 * information over. Anybody operating in memcg_lrus will
++		 * either follow the new array or the old one and they contain
++		 * exactly the same information. The new space in the end is
++		 * always empty anyway.
++		 */
++		if (lru->memcg_lrus)
++			kfree(old_array);
++	}
++
++	if (lru->memcg_lrus) {
++		lru->memcg_lrus[num_groups - 1] = lru_array;
++		/*
++		 * Here we do need the barrier, because of the state transition
++		 * implied by the assignment of the array. All users should be
++		 * able to see it
++		 */
++		wmb();
++	}
++	return 0;
 +}
-+
- static unsigned long
- mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
- 			int nid, unsigned int lru_mask)
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index d5003fa..4daffb5 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -139,11 +139,42 @@ static bool global_reclaim(struct scan_control *sc)
- {
- 	return !sc->target_mem_cgroup;
- }
 +
 +/*
-+ * kmem reclaim should usually not be triggered when we are doing targetted
-+ * reclaim. It is only valid when global reclaim is triggered, or when the
-+ * underlying memcg has kmem objects.
++ * This is called with the LRU-mutex being held.
 + */
-+static bool has_kmem_reclaim(struct scan_control *sc)
++int memcg_new_lru(struct list_lru *lru)
 +{
-+	return !sc->target_mem_cgroup ||
-+		memcg_kmem_is_active(sc->target_mem_cgroup);
++	struct mem_cgroup *iter;
++
++	if (!memcg_kmem_enabled())
++		return 0;
++
++	for_each_mem_cgroup(iter) {
++		int ret;
++		int memcg_id = memcg_cache_id(iter);
++		if (memcg_id < 0)
++			continue;
++
++		ret = memcg_kmem_update_lru_size(lru, memcg_id + 1, true);
++		if (ret) {
++			mem_cgroup_iter_break(root_mem_cgroup, iter);
++			return ret;
++		}
++	}
++	return 0;
 +}
 +
-+static unsigned long
-+zone_nr_reclaimable_pages(struct scan_control *sc, struct zone *zone)
++/*
++ * We need to call back and forth from memcg to LRU because of the lock
++ * ordering.  This complicates the flow a little bit, but since the memcg mutex
++ * is held through the whole duration of memcg creation, we need to hold it
++ * before we hold the LRU-side mutex in the case of a new list creation as
++ * well.
++ */
++int memcg_init_lru(struct list_lru *lru)
 +{
-+	if (global_reclaim(sc))
-+		return zone_reclaimable_pages(zone);
-+	return memcg_zone_reclaimable_pages(sc->target_mem_cgroup, zone);
++	int ret;
++	mutex_lock(&memcg_create_mutex);
++	ret = __memcg_init_lru(lru);
++	mutex_unlock(&memcg_create_mutex);
++	return ret;
 +}
 +
- #else
- static bool global_reclaim(struct scan_control *sc)
+ int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
+ 			 struct kmem_cache *root_cache)
  {
- 	return true;
+@@ -6065,8 +6202,10 @@ static void kmem_cgroup_destroy(struct mem_cgroup *memcg)
+ 	 * possible that the charges went down to 0 between mark_dead and the
+ 	 * res_counter read, so in that case, we don't need the put
+ 	 */
+-	if (memcg_kmem_test_and_clear_dead(memcg))
++	if (memcg_kmem_test_and_clear_dead(memcg)) {
++		list_lru_destroy_memcg(memcg);
+ 		mem_cgroup_put(memcg);
++	}
  }
-+
-+static bool has_kmem_reclaim(struct scan_control *sc)
-+{
-+	return true;
-+}
-+
-+static unsigned long
-+zone_nr_reclaimable_pages(struct scan_control *sc, struct zone *zone)
-+{
-+	return zone_reclaimable_pages(zone);
-+}
- #endif
- 
- static unsigned long get_lru_size(struct lruvec *lruvec, enum lru_list lru)
-@@ -332,6 +363,14 @@ unsigned long shrink_slab(struct shrink_control *shrinkctl,
+ #else
+ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index ff3218a..b729c53 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -102,7 +102,6 @@ int memcg_update_all_caches(int num_memcgs)
+ 			goto out;
  	}
  
- 	list_for_each_entry(shrinker, &shrinker_list, list) {
-+		/*
-+		 * If we don't have a target mem cgroup, we scan them all.
-+		 * Otherwise we will limit our scan to shrinkers marked as
-+		 * memcg aware
-+		 */
-+		if (shrinkctl->target_mem_cgroup &&
-+		    !(shrinker->flags & SHRINKER_MEMCG_AWARE))
-+			continue;
- 
- 		if (!(shrinker->flags & SHRINKER_NUMA_AWARE)) {
- 			shrinkctl->nid = 0;
-@@ -2221,9 +2260,9 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
- 
- 		/*
- 		 * Don't shrink slabs when reclaiming memory from
--		 * over limit cgroups
-+		 * over limit cgroups, unless we know they have kmem objects
- 		 */
--		if (global_reclaim(sc)) {
-+		if (has_kmem_reclaim(sc)) {
- 			unsigned long lru_pages = 0;
- 
- 			nodes_clear(shrink->nodes_to_scan);
-@@ -2232,7 +2271,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
- 				if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
- 					continue;
- 
--				lru_pages += zone_reclaimable_pages(zone);
-+				lru_pages += zone_nr_reclaimable_pages(sc, zone);
- 				node_set(zone_to_nid(zone),
- 					 shrink->nodes_to_scan);
- 			}
-@@ -2501,6 +2540,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
- 	};
- 	struct shrink_control shrink = {
- 		.gfp_mask = sc.gfp_mask,
-+		.target_mem_cgroup = memcg,
- 	};
- 
- 	/*
+-	memcg_update_array_size(num_memcgs);
+ out:
+ 	mutex_unlock(&slab_mutex);
+ 	return ret;
 -- 
 1.8.1.4
 
