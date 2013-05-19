@@ -1,178 +1,380 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 95F236B003D
-	for <linux-mm@kvack.org>; Sun, 19 May 2013 16:07:36 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id 55B036B005A
+	for <linux-mm@kvack.org>; Sun, 19 May 2013 16:07:40 -0400 (EDT)
 From: Glauber Costa <glommer@openvz.org>
-Subject: [PATCH v7 02/34] super: fix calculation of shrinkable objects for small numbers
-Date: Mon, 20 May 2013 00:06:55 +0400
-Message-Id: <1368994047-5997-3-git-send-email-glommer@openvz.org>
+Subject: [PATCH v7 13/34] vmscan: per-node deferred work
+Date: Mon, 20 May 2013 00:07:06 +0400
+Message-Id: <1368994047-5997-14-git-send-email-glommer@openvz.org>
 In-Reply-To: <1368994047-5997-1-git-send-email-glommer@openvz.org>
 References: <1368994047-5997-1-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, Dave Chinner <david@fromorbit.com>, hughd@google.com, Glauber Costa <glommer@openvz.org>, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
+Cc: cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, Dave Chinner <david@fromorbit.com>, hughd@google.com, Glauber Costa <glommer@openvz.org>, Dave Chinner <dchinner@redhat.com>, Mel Gorman <mgorman@suse.de>
 
-The sysctl knob sysctl_vfs_cache_pressure is used to determine which
-percentage of the shrinkable objects in our cache we should actively try
-to shrink.
+We already keep per-node LRU lists for objects being shrunk, but the
+work that is deferred from one run to another is kept global. This
+creates an impedance problem, where upon node pressure, work deferred
+will accumulate and end up being flushed in other nodes.
 
-It works great in situations in which we have many objects (at least
-more than 100), because the aproximation errors will be negligible. But
-if this is not the case, specially when total_objects < 100, we may end
-up concluding that we have no objects at all (total / 100 = 0,  if total
-< 100).
+In large machines, many nodes can accumulate at the same time, all
+adding to the global counter.  As we accumulate more and more, we start
+to ask for the caches to flush even bigger numbers. The result is that
+the caches are depleted and do not stabilize. To achieve stable steady
+state behavior, we need to tackle it differently.
 
-This is certainly not the biggest killer in the world, but may matter in
-very low kernel memory situations.
-
-[ v2: fix it for all occurrences of sysctl_vfs_cache_pressure ]
+In this patch we keep the deferred count per-node, and will never
+accumulate that to other nodes.
 
 Signed-off-by: Glauber Costa <glommer@openvz.org>
-Reviewed-by: Carlos Maiolino <cmaiolino@redhat.com>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Acked-by: Mel Gorman <mgorman@suse.de>
-CC: Dave Chinner <david@fromorbit.com>
-CC: "Theodore Ts'o" <tytso@mit.edu>
-CC: Al Viro <viro@zeniv.linux.org.uk>
+Cc: Dave Chinner <dchinner@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>
 ---
- fs/gfs2/glock.c        |  2 +-
- fs/gfs2/quota.c        |  2 +-
- fs/mbcache.c           |  2 +-
- fs/nfs/dir.c           |  2 +-
- fs/quota/dquot.c       |  5 ++---
- fs/super.c             | 14 +++++++-------
- fs/xfs/xfs_qm.c        |  2 +-
- include/linux/dcache.h |  4 ++++
- 8 files changed, 18 insertions(+), 15 deletions(-)
+ include/linux/shrinker.h |  30 +++++-
+ mm/vmscan.c              | 245 ++++++++++++++++++++++++++++-------------------
+ 2 files changed, 175 insertions(+), 100 deletions(-)
 
-diff --git a/fs/gfs2/glock.c b/fs/gfs2/glock.c
-index 9435384..3bd2748 100644
---- a/fs/gfs2/glock.c
-+++ b/fs/gfs2/glock.c
-@@ -1463,7 +1463,7 @@ static int gfs2_shrink_glock_memory(struct shrinker *shrink,
- 		gfs2_scan_glock_lru(sc->nr_to_scan);
- 	}
+diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
+index 98be3ab..d70b123 100644
+--- a/include/linux/shrinker.h
++++ b/include/linux/shrinker.h
+@@ -19,6 +19,8 @@ struct shrink_control {
  
--	return (atomic_read(&lru_count) / 100) * sysctl_vfs_cache_pressure;
-+	return vfs_pressure_ratio(atomic_read(&lru_count));
- }
+ 	/* shrink from these nodes */
+ 	nodemask_t nodes_to_scan;
++	/* current node being shrunk (for NUMA aware shrinkers) */
++	int nid;
+ };
  
- static struct shrinker glock_shrinker = {
-diff --git a/fs/gfs2/quota.c b/fs/gfs2/quota.c
-index c7c840e..5c14206 100644
---- a/fs/gfs2/quota.c
-+++ b/fs/gfs2/quota.c
-@@ -114,7 +114,7 @@ int gfs2_shrink_qd_memory(struct shrinker *shrink, struct shrink_control *sc)
- 	spin_unlock(&qd_lru_lock);
+ /*
+@@ -42,6 +44,8 @@ struct shrink_control {
+  * objects freed during the scan, or -1 if progress cannot be made due to
+  * potential deadlocks. If -1 is returned, then no further attempts to call the
+  * @scan_objects will be made from the current reclaim context.
++ *
++ * @flags determine the shrinker abilities, like numa awareness 
+  */
+ struct shrinker {
+ 	int (*shrink)(struct shrinker *, struct shrink_control *sc);
+@@ -50,12 +54,34 @@ struct shrinker {
  
- out:
--	return (atomic_read(&qd_lru_count) * sysctl_vfs_cache_pressure) / 100;
-+	return vfs_pressure_ratio(atomic_read(&qd_lru_count));
- }
+ 	int seeks;	/* seeks to recreate an obj */
+ 	long batch;	/* reclaim batch size, 0 = default */
++	unsigned long flags;
  
- static u64 qd2index(struct gfs2_quota_data *qd)
-diff --git a/fs/mbcache.c b/fs/mbcache.c
-index 8c32ef3..5eb0476 100644
---- a/fs/mbcache.c
-+++ b/fs/mbcache.c
-@@ -189,7 +189,7 @@ mb_cache_shrink_fn(struct shrinker *shrink, struct shrink_control *sc)
- 	list_for_each_entry_safe(entry, tmp, &free_list, e_lru_list) {
- 		__mb_cache_entry_forget(entry, gfp_mask);
- 	}
--	return (count / 100) * sysctl_vfs_cache_pressure;
-+	return vfs_pressure_ratio(count);
- }
- 
- 
-diff --git a/fs/nfs/dir.c b/fs/nfs/dir.c
-index e093e73..54d7c47 100644
---- a/fs/nfs/dir.c
-+++ b/fs/nfs/dir.c
-@@ -1998,7 +1998,7 @@ remove_lru_entry:
- 	}
- 	spin_unlock(&nfs_access_lru_lock);
- 	nfs_access_free_list(&head);
--	return (atomic_long_read(&nfs_access_nr_entries) / 100) * sysctl_vfs_cache_pressure;
-+	return vfs_pressure_ratio(atomic_long_read(&nfs_access_nr_entries));
- }
- 
- static void __nfs_access_zap_cache(struct nfs_inode *nfsi, struct list_head *head)
-diff --git a/fs/quota/dquot.c b/fs/quota/dquot.c
-index 3e64169..762b09c 100644
---- a/fs/quota/dquot.c
-+++ b/fs/quota/dquot.c
-@@ -719,9 +719,8 @@ static int shrink_dqcache_memory(struct shrinker *shrink,
- 		prune_dqcache(nr);
- 		spin_unlock(&dq_list_lock);
- 	}
--	return ((unsigned)
--		percpu_counter_read_positive(&dqstats.counter[DQST_FREE_DQUOTS])
--		/100) * sysctl_vfs_cache_pressure;
-+	return vfs_pressure_ratio(
-+	percpu_counter_read_positive(&dqstats.counter[DQST_FREE_DQUOTS]));
- }
- 
- static struct shrinker dqcache_shrinker = {
-diff --git a/fs/super.c b/fs/super.c
-index 7465d43..2a37fd6 100644
---- a/fs/super.c
-+++ b/fs/super.c
-@@ -82,13 +82,13 @@ static int prune_super(struct shrinker *shrink, struct shrink_control *sc)
- 		int	inodes;
- 
- 		/* proportion the scan between the caches */
--		dentries = (sc->nr_to_scan * sb->s_nr_dentry_unused) /
--							total_objects;
--		inodes = (sc->nr_to_scan * sb->s_nr_inodes_unused) /
--							total_objects;
-+		dentries = mult_frac(sc->nr_to_scan, sb->s_nr_dentry_unused,
-+							total_objects);
-+		inodes = mult_frac(sc->nr_to_scan, sb->s_nr_inodes_unused,
-+							total_objects);
- 		if (fs_objects)
--			fs_objects = (sc->nr_to_scan * fs_objects) /
--							total_objects;
-+			fs_objects = mult_frac(sc->nr_to_scan, fs_objects,
-+							total_objects);
- 		/*
- 		 * prune the dcache first as the icache is pinned by it, then
- 		 * prune the icache, followed by the filesystem specific caches
-@@ -104,7 +104,7 @@ static int prune_super(struct shrinker *shrink, struct shrink_control *sc)
- 				sb->s_nr_inodes_unused + fs_objects;
- 	}
- 
--	total_objects = (total_objects / 100) * sysctl_vfs_cache_pressure;
-+	total_objects = vfs_pressure_ratio(total_objects);
- 	drop_super(sb);
- 	return total_objects;
- }
-diff --git a/fs/xfs/xfs_qm.c b/fs/xfs/xfs_qm.c
-index f41702b..7ade175 100644
---- a/fs/xfs/xfs_qm.c
-+++ b/fs/xfs/xfs_qm.c
-@@ -1585,7 +1585,7 @@ xfs_qm_shake(
- 	}
- 
- out:
--	return (qi->qi_lru_count / 100) * sysctl_vfs_cache_pressure;
-+	return vfs_pressure_ratio(qi->qi_lru_count);
+ 	/* These are for internal use */
+ 	struct list_head list;
+-	atomic_long_t nr_in_batch; /* objs pending delete */
++	/*
++	 * We would like to avoid allocating memory when registering a new
++	 * shrinker. All shrinkers will need to keep track of deferred objects,
++	 * and we need a counter for this. If the shrinkers are not NUMA aware,
++	 * this is a small and bounded space that fits into an atomic_long_t.
++	 * This is because that the deferring decisions are global, and we will
++	 * not allocate in this case.
++	 *
++	 * When the shrinker is NUMA aware, we will need this to be a per-node
++	 * array. Numerically speaking, the minority of shrinkers are NUMA
++	 * aware, so this saves quite a bit.
++	 */
++	union {
++		/* objs pending delete */
++		atomic_long_t nr_deferred;
++		/* objs pending delete, per node */
++		atomic_long_t *nr_deferred_node;
++	};
+ };
+ #define DEFAULT_SEEKS 2 /* A good number if you don't know better. */
+-extern void register_shrinker(struct shrinker *);
++
++/* Flags */
++#define SHRINKER_NUMA_AWARE (1 << 0)
++
++extern int register_shrinker(struct shrinker *);
+ extern void unregister_shrinker(struct shrinker *);
+ #endif
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 35a6a9b..374d2b6 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -155,14 +155,36 @@ static unsigned long get_lru_size(struct lruvec *lruvec, enum lru_list lru)
  }
  
  /*
-diff --git a/include/linux/dcache.h b/include/linux/dcache.h
-index 1a82bdb..bd08285 100644
---- a/include/linux/dcache.h
-+++ b/include/linux/dcache.h
-@@ -411,4 +411,8 @@ static inline bool d_mountpoint(struct dentry *dentry)
+- * Add a shrinker callback to be called from the vm
++ * Add a shrinker callback to be called from the vm.
++ *
++ * It cannot fail, unless the flag SHRINKER_NUMA_AWARE is specified.
++ * With this flag set, this function will allocate memory and may fail.
+  */
+-void register_shrinker(struct shrinker *shrinker)
++int register_shrinker(struct shrinker *shrinker)
+ {
+-	atomic_long_set(&shrinker->nr_in_batch, 0);
++	/*
++	 * If we only have one possible node in the system anyway, save
++	 * ourselves the trouble and disable NUMA aware behavior. This way we
++	 * will allocate nothing and save memory and some small loop time
++	 * later.
++	 */
++	if (nr_node_ids == 1)
++		shrinker->flags &= ~SHRINKER_NUMA_AWARE;
++
++	if (shrinker->flags & SHRINKER_NUMA_AWARE) {
++		size_t size;
++
++		size = sizeof(*shrinker->nr_deferred_node) * nr_node_ids;
++		shrinker->nr_deferred_node = kzalloc(size, GFP_KERNEL);
++		if (!shrinker->nr_deferred_node)
++			return -ENOMEM;
++	} else
++		atomic_long_set(&shrinker->nr_deferred, 0);
++
+ 	down_write(&shrinker_rwsem);
+ 	list_add_tail(&shrinker->list, &shrinker_list);
+ 	up_write(&shrinker_rwsem);
++	return 0;
+ }
+ EXPORT_SYMBOL(register_shrinker);
  
- extern int sysctl_vfs_cache_pressure;
+@@ -186,6 +208,116 @@ static inline int do_shrinker_shrink(struct shrinker *shrinker,
+ }
  
-+static inline unsigned long vfs_pressure_ratio(unsigned long val)
+ #define SHRINK_BATCH 128
++
++static unsigned long
++shrink_slab_node(struct shrink_control *shrinkctl, struct shrinker *shrinker,
++		 unsigned long nr_pages_scanned, unsigned long lru_pages,
++		 atomic_long_t *deferred)
 +{
-+	return mult_frac(val, sysctl_vfs_cache_pressure, 100);
++	unsigned long freed = 0;
++	unsigned long long delta;
++	long total_scan;
++	long max_pass;
++	long nr;
++	long new_nr;
++	long batch_size = shrinker->batch ? shrinker->batch
++					  : SHRINK_BATCH;
++
++	if (shrinker->scan_objects) {
++		max_pass = shrinker->count_objects(shrinker, shrinkctl);
++		WARN_ON(max_pass < 0);
++	} else
++		max_pass = do_shrinker_shrink(shrinker, shrinkctl, 0);
++	if (max_pass <= 0)
++		return 0;
++
++	/*
++	 * copy the current shrinker scan count into a local variable
++	 * and zero it so that other concurrent shrinker invocations
++	 * don't also do this scanning work.
++	 */
++	nr = atomic_long_xchg(deferred, 0);
++
++	total_scan = nr;
++	delta = (4 * nr_pages_scanned) / shrinker->seeks;
++	delta *= max_pass;
++	do_div(delta, lru_pages + 1);
++	total_scan += delta;
++	if (total_scan < 0) {
++		printk(KERN_ERR
++		"shrink_slab: %pF negative objects to delete nr=%ld\n",
++		       shrinker->shrink, total_scan);
++		total_scan = max_pass;
++	}
++
++	/*
++	 * We need to avoid excessive windup on filesystem shrinkers
++	 * due to large numbers of GFP_NOFS allocations causing the
++	 * shrinkers to return -1 all the time. This results in a large
++	 * nr being built up so when a shrink that can do some work
++	 * comes along it empties the entire cache due to nr >>>
++	 * max_pass.  This is bad for sustaining a working set in
++	 * memory.
++	 *
++	 * Hence only allow the shrinker to scan the entire cache when
++	 * a large delta change is calculated directly.
++	 */
++	if (delta < max_pass / 4)
++		total_scan = min(total_scan, max_pass / 2);
++
++	/*
++	 * Avoid risking looping forever due to too large nr value:
++	 * never try to free more than twice the estimate number of
++	 * freeable entries.
++	 */
++	if (total_scan > max_pass * 2)
++		total_scan = max_pass * 2;
++
++	trace_mm_shrink_slab_start(shrinker, shrinkctl, nr,
++				nr_pages_scanned, lru_pages,
++				max_pass, delta, total_scan);
++
++	while (total_scan >= batch_size) {
++		long ret;
++
++		if (shrinker->scan_objects) {
++			shrinkctl->nr_to_scan = batch_size;
++			ret = shrinker->scan_objects(shrinker, shrinkctl);
++
++			if (ret == -1)
++				break;
++			freed += ret;
++		} else {
++			int nr_before;
++			nr_before = do_shrinker_shrink(shrinker, shrinkctl, 0);
++			ret = do_shrinker_shrink(shrinker, shrinkctl,
++							batch_size);
++			if (ret == -1)
++				break;
++			if (ret < nr_before)
++				freed += nr_before - ret;
++		}
++
++		count_vm_events(SLABS_SCANNED, batch_size);
++		total_scan -= batch_size;
++
++		cond_resched();
++	}
++
++	/*
++	 * move the unused scan count back into the shrinker in a
++	 * manner that handles concurrent updates. If we exhausted the
++	 * scan, there is no need to do an update.
++	 */
++	if (total_scan > 0)
++		new_nr = atomic_long_add_return(total_scan, deferred);
++	else
++		new_nr = atomic_long_read(deferred);
++
++	trace_mm_shrink_slab_end(shrinker, freed, nr, new_nr);
++	return freed;
 +}
- #endif	/* __LINUX_DCACHE_H */
++
+ /*
+  * Call the shrink functions to age shrinkable caches
+  *
+@@ -222,107 +354,24 @@ unsigned long shrink_slab(struct shrink_control *shrinkctl,
+ 	}
+ 
+ 	list_for_each_entry(shrinker, &shrinker_list, list) {
+-		unsigned long long delta;
+-		long total_scan;
+-		long max_pass;
+-		long nr;
+-		long new_nr;
+-		long batch_size = shrinker->batch ? shrinker->batch
+-						  : SHRINK_BATCH;
+ 
+-		if (shrinker->scan_objects) {
+-			max_pass = shrinker->count_objects(shrinker, shrinkctl);
+-			WARN_ON(max_pass < 0);
+-		} else
+-			max_pass = do_shrinker_shrink(shrinker, shrinkctl, 0);
+-		if (max_pass <= 0)
+-			continue;
++		if (!(shrinker->flags & SHRINKER_NUMA_AWARE)) {
++			shrinkctl->nid = 0;
+ 
+-		/*
+-		 * copy the current shrinker scan count into a local variable
+-		 * and zero it so that other concurrent shrinker invocations
+-		 * don't also do this scanning work.
+-		 */
+-		nr = atomic_long_xchg(&shrinker->nr_in_batch, 0);
+-
+-		total_scan = nr;
+-		delta = (4 * nr_pages_scanned) / shrinker->seeks;
+-		delta *= max_pass;
+-		do_div(delta, lru_pages + 1);
+-		total_scan += delta;
+-		if (total_scan < 0) {
+-			printk(KERN_ERR
+-			"shrink_slab: %pF negative objects to delete nr=%ld\n",
+-			       shrinker->shrink, total_scan);
+-			total_scan = max_pass;
++			freed += shrink_slab_node(shrinkctl, shrinker,
++				 nr_pages_scanned, lru_pages,
++				 &shrinker->nr_deferred);
++			continue;
+ 		}
+ 
+-		/*
+-		 * We need to avoid excessive windup on filesystem shrinkers
+-		 * due to large numbers of GFP_NOFS allocations causing the
+-		 * shrinkers to return -1 all the time. This results in a large
+-		 * nr being built up so when a shrink that can do some work
+-		 * comes along it empties the entire cache due to nr >>>
+-		 * max_pass.  This is bad for sustaining a working set in
+-		 * memory.
+-		 *
+-		 * Hence only allow the shrinker to scan the entire cache when
+-		 * a large delta change is calculated directly.
+-		 */
+-		if (delta < max_pass / 4)
+-			total_scan = min(total_scan, max_pass / 2);
+-
+-		/*
+-		 * Avoid risking looping forever due to too large nr value:
+-		 * never try to free more than twice the estimate number of
+-		 * freeable entries.
+-		 */
+-		if (total_scan > max_pass * 2)
+-			total_scan = max_pass * 2;
+-
+-		trace_mm_shrink_slab_start(shrinker, shrinkctl, nr,
+-					nr_pages_scanned, lru_pages,
+-					max_pass, delta, total_scan);
+-
+-		while (total_scan >= batch_size) {
+-			long ret;
+-
+-			if (shrinker->scan_objects) {
+-				shrinkctl->nr_to_scan = batch_size;
+-				ret = shrinker->scan_objects(shrinker, shrinkctl);
+-
+-				if (ret == -1)
+-					break;
+-				freed += ret;
+-			} else {
+-				int nr_before;
+-				nr_before = do_shrinker_shrink(shrinker, shrinkctl, 0);
+-				ret = do_shrinker_shrink(shrinker, shrinkctl,
+-								batch_size);
+-				if (ret == -1)
+-					break;
+-				if (ret < nr_before)
+-					freed += nr_before - ret;
+-			}
+-
+-			count_vm_events(SLABS_SCANNED, batch_size);
+-			total_scan -= batch_size;
++		for_each_node_mask(shrinkctl->nid, shrinkctl->nodes_to_scan) {
++			if (!node_online(shrinkctl->nid))
++				continue;
+ 
+-			cond_resched();
++			freed += shrink_slab_node(shrinkctl, shrinker,
++				 nr_pages_scanned, lru_pages,
++				 &shrinker->nr_deferred_node[shrinkctl->nid]);
+ 		}
+-
+-		/*
+-		 * move the unused scan count back into the shrinker in a
+-		 * manner that handles concurrent updates. If we exhausted the
+-		 * scan, there is no need to do an update.
+-		 */
+-		if (total_scan > 0)
+-			new_nr = atomic_long_add_return(total_scan,
+-					&shrinker->nr_in_batch);
+-		else
+-			new_nr = atomic_long_read(&shrinker->nr_in_batch);
+-
+-		trace_mm_shrink_slab_end(shrinker, freed, nr, new_nr);
+ 	}
+ 	up_read(&shrinker_rwsem);
+ out:
 -- 
 1.8.1.4
 
