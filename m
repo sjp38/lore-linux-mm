@@ -1,68 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id DE41F6B0002
-	for <linux-mm@kvack.org>; Mon, 20 May 2013 11:42:42 -0400 (EDT)
-Received: from /spool/local
-	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Mon, 20 May 2013 11:42:41 -0400
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 4F1B16E8028
-	for <linux-mm@kvack.org>; Mon, 20 May 2013 11:42:36 -0400 (EDT)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4KFgdgJ39059490
-	for <linux-mm@kvack.org>; Mon, 20 May 2013 11:42:39 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4KFgTXo027265
-	for <linux-mm@kvack.org>; Mon, 20 May 2013 11:42:30 -0400
-Date: Mon, 20 May 2013 10:42:25 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: Re: [PATCHv11 2/4] zbud: add to mm/
-Message-ID: <20130520154225.GA25536@cerebellum>
-References: <1368448803-2089-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <1368448803-2089-3-git-send-email-sjenning@linux.vnet.ibm.com>
- <20130517154837.GN11497@suse.de>
- <20130519205219.GA3252@cerebellum>
- <20130520135439.GR11497@suse.de>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id D2B776B0002
+	for <linux-mm@kvack.org>; Mon, 20 May 2013 11:52:00 -0400 (EDT)
 MIME-Version: 1.0
+Message-ID: <c064ee79-6fa0-4833-b3f1-ca712b029a83@default>
+Date: Mon, 20 May 2013 08:51:47 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: Bye bye Mr tmem guy
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130520135439.GR11497@suse.de>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com
+Cc: Konrad Wilk <konrad.wilk@oracle.com>, Bob Liu <bob.liu@oracle.com>, linux-mm@kvack.org
 
-On Mon, May 20, 2013 at 02:54:39PM +0100, Mel Gorman wrote:
-> On Sun, May 19, 2013 at 03:52:19PM -0500, Seth Jennings wrote:
-> > My first guess is that the external fragmentation situation you are referring to
-> > is a workload in which all pages compress to greater than half a page.  If so,
-> > then it doesn't matter what NCHUCNKS_ORDER is, there won't be any pages the
-> > compress enough to fit in the < PAGE_SIZE/2 free space that remains in the
-> > unbuddied zbud pages.
-> > 
-> 
-> There are numerous aspects to this, too many to write them all down.
-> Modelling the external fragmentation one and how it affects swap IO
-> would be a complete pain in the ass so lets consider the following
-> example instead as it's a bit clearer.
-> 
-> Three processes. Process A compresses by 75%, Process B compresses to 15%,
-> Process C pages compress to 15%. They are all adding to zswap in lockstep.
-> Lets say that zswap can hold 100 physical pages.
-> 
-> NCHUNKS == 2
-> 	All Process A pages get rejected.
+Hi Linux kernel folks and Xen folks --
 
-Ah, I think this is our disconnect.  Process A pages will not be rejected.
-They will be stored in a zbud page, and that zbud page will be added
-to the 0th unbuddied list.  This list maintains a list of zbud pages
-that will never be buddied because there are no free chunks.
+Effective July 5, I will be resigning from Oracle and "retiring"
+for a minimum of 12-18 months and probably/hopefully much longer.
+Between now and July 5, I will be tying up loose ends related to
+my patches but also using up accrued vacation days.  If you have
+a loose end you'd like to see tied, please let me know ASAP and
+I will do my best.
 
-In other words, changing NCHUNKS has no effect on the acceptable size
-of allocations.
+After July 5, any email to me via first DOT last AT oracle DOT com
+will go undelivered and may bounce.  Please send email related to
+my open source patches and contributions to Konrad Wilk and/or Bob Liu.
+Personal email directed to me can be sent to first AT last DOT com.
 
-Seth
+Thanks much to everybody for the many educational opportunities,
+the technical and political jousting, and the great times at
+conferences and summits!  I wish you all the best of luck!
+Or to quote Douglas Adams: "So long and thanks for all the fish!"
+
+Cheers,
+Dan Magenheimer
+The Transcendent Memory ("tmem") guy
+
+Tmem-related historical webography:
+http://lwn.net/Articles/454795/=20
+http://lwn.net/Articles/475681/
+http://lwn.net/Articles/545244/=20
+https://oss.oracle.com/projects/tmem/=20
+http://www.linux-kvm.org/wiki/images/d/d7/TmemNotVirt-Linuxcon2011-Final.pd=
+f=20
+http://lwn.net/Articles/465317/=20
+http://lwn.net/Articles/340080/=20
+http://lwn.net/Articles/386090/=20
+http://www.xen.org/files/xensummit_oracle09/xensummit_transmemory.pdf=20
+https://oss.oracle.com/projects/tmem/dist/documentation/presentations/Trans=
+cendentMemoryXenSummit2010.pdf=20
+https://blogs.oracle.com/wim/entry/example_of_transcendent_memory_and=20
+https://blogs.oracle.com/wim/entry/another_feature_hit_mainline_linux=20
+https://blogs.oracle.com/wim/entry/from_the_research_department_ramster=20
+http://streaming.oracle.com/ebn/podcasts/media/11663326_VM_Linux_042512.mp3=
+=20
+https://oss.oracle.com/projects/tmem/dist/documentation/papers/overcommit.p=
+df=20
+http://static.usenix.org/event/wiov08/tech/full_papers/magenheimer/magenhei=
+mer_html/=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
