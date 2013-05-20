@@ -1,197 +1,398 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id E8A5A6B0002
-	for <linux-mm@kvack.org>; Mon, 20 May 2013 10:44:41 -0400 (EDT)
-Date: Mon, 20 May 2013 16:44:38 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch v3 -mm 1/3] memcg: integrate soft reclaim tighter with
- zone shrinking code
-Message-ID: <20130520144438.GB24689@dhcp22.suse.cz>
-References: <1368431172-6844-1-git-send-email-mhocko@suse.cz>
- <1368431172-6844-2-git-send-email-mhocko@suse.cz>
- <20130517160247.GA10023@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130517160247.GA10023@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id B789B6B0034
+	for <linux-mm@kvack.org>; Mon, 20 May 2013 10:52:21 -0400 (EDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: [PATCH] staging: ramster: add how-to document
+Date: Mon, 20 May 2013 07:52:17 -0700
+Message-Id: <1369061537-20205-1-git-send-email-dan.magenheimer@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Glauber Costa <glommer@parallels.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>
+To: devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, linux-mm@kvack.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, liwanp@linux.vnet.ibm.com, bob.liu@oracle.com
 
-On Fri 17-05-13 12:02:47, Johannes Weiner wrote:
-> On Mon, May 13, 2013 at 09:46:10AM +0200, Michal Hocko wrote:
-> > Memcg soft reclaim has been traditionally triggered from the global
-> > reclaim paths before calling shrink_zone. mem_cgroup_soft_limit_reclaim
-> > then picked up a group which exceeds the soft limit the most and
-> > reclaimed it with 0 priority to reclaim at least SWAP_CLUSTER_MAX pages.
-> > 
-> > The infrastructure requires per-node-zone trees which hold over-limit
-> > groups and keep them up-to-date (via memcg_check_events) which is not
-> > cost free. Although this overhead hasn't turned out to be a bottle neck
-> > the implementation is suboptimal because mem_cgroup_update_tree has no
-> > idea which zones consumed memory over the limit so we could easily end
-> > up having a group on a node-zone tree having only few pages from that
-> > node-zone.
-> > 
-> > This patch doesn't try to fix node-zone trees management because it
-> > seems that integrating soft reclaim into zone shrinking sounds much
-> > easier and more appropriate for several reasons.
-> > First of all 0 priority reclaim was a crude hack which might lead to
-> > big stalls if the group's LRUs are big and hard to reclaim (e.g. a lot
-> > of dirty/writeback pages).
-> > Soft reclaim should be applicable also to the targeted reclaim which is
-> > awkward right now without additional hacks.
-> > Last but not least the whole infrastructure eats quite some code.
-> > 
-> > After this patch shrink_zone is done in 2 passes. First it tries to do the
-> > soft reclaim if appropriate (only for global reclaim for now to keep
-> > compatible with the original state) and fall back to ignoring soft limit
-> > if no group is eligible to soft reclaim or nothing has been scanned
-> > during the first pass. Only groups which are over their soft limit or
-> > any of their parents up the hierarchy is over the limit are considered
-> > eligible during the first pass.
-> 
-> There are setups with thousands of groups that do not even use soft
-> limits.  Having them pointlessly iterate over all of them for every
-> couple of pages reclaimed is just not acceptable.
+Add how-to documentation that provides a step-by-step guide
+for configuring and trying out a ramster cluster.
 
-OK, that is a fair point. The soft reclaim pass should not be done if
-we know that every group is below the limit. This can be fixed easily.
-mem_cgroup_should_soft_reclaim could check a counter of over limit
-groups. This still doesn't solve the problem if there are relatively few
-groups over the limit wrt. those that are under the limit.
+Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+---
+ drivers/staging/zcache/ramster/ramster-howto.txt |  366 ++++++++++++++++++++++
+ 1 files changed, 366 insertions(+), 0 deletions(-)
+ create mode 100644 drivers/staging/zcache/ramster/ramster-howto.txt
 
-You are proposing a simple list in the follow up email. I have
-considered this approach as well but then I decided not to go that
-way because the list iteration doesn't respect per-node-zone-priority
-tree walk which makes it tricky to prevent from over-reclaim with many
-parallel reclaimers. I rather wanted to integrate the soft reclaim into
-the reclaim tree walk. There is also a problem when all groups are in
-excess then the whole tree collapses into a linked list which is not
-nice either (hmm, this could be mitigated if only a group in excess
-which is highest in the hierarchy would be in the list)
-
-I was playing with the huge number of groups a bit and my conclusion
-was that although the System time for the workload was higher with more
-groups, the Elapsed time was still better/comparable with the original
-kernel. I do not know how many groups are used in practice but I have
-never heard of configurations with more than thousands memcgs but even
-for 8k groups results didn't look too crazy.
-
-I had one group (call it A) with the streaming IO load (dd if=/dev/zero
-of=file with 4*TotalRam size) and a parallel hierarchy with 2 groups
-with up to 12 levels each (512, 1024, 4096, 8192 groups) and no limit
-set.  I have compared the results with the same configuration with the
-base kernel.
-Two configurations have been tested. `A' group without any soft limit and
-with limit set to 0. The first configuration measures overhead of an
-additional pass as there is no soft reclaim done in both the base kernel
-and the rework. The second configuration compares the effectiveness of
-the reworked implementation wrt. the base kernel.
-
-* No soft limit set 
-Elapsed
-500-no-limit/base: min: 16.32 max: 18.03 avg: 17.37 std: 0.75 runs: 3
-500-no-limit/rework: min: 15.76 [96.6%] max: 19.72 [109.4%] avg: 17.49 [100.7%] std: 1.66 runs: 3
-User
-500-no-limit/base: min: 1.53 max: 1.60 avg: 1.57 std: 0.03 runs: 3
-500-no-limit/rework: min: 1.18 [77.1%] max: 1.45 [90.6%] avg: 1.33 [84.7%] std: 0.11 runs: 3
-System
-500-no-limit/base: min: 38.60 max: 41.54 avg: 39.95 std: 1.21 runs: 3
-500-no-limit/rework: min: 39.78 [103.1%] max: 42.93 [103.3%] avg: 41.06 [102.8%] std: 1.35 runs: 3
-
-Elapsed
-1k-no-limit/base: min: 37.04 max: 43.36 avg: 40.26 std: 2.58 runs: 3
-1k-no-limit/rework: min: 16.38 [44.2%] max: 17.82 [41.1%] avg: 17.22 [42.8%] std: 0.61 runs: 3
-User
-1k-no-limit/base: min: 1.12 max: 1.38 avg: 1.24 std: 0.11 runs: 3
-1k-no-limit/rework: min: 1.11 [99.1%] max: 1.26 [91.3%] avg: 1.20 [96.8%] std: 0.07 runs: 3
-System
-1k-no-limit/base: min: 33.51 max: 36.29 avg: 34.99 std: 1.14 runs: 3
-1k-no-limit/rework: min: 45.09 [134.6%] max: 49.52 [136.5%] avg: 47.99 [137.2%] std: 2.05 runs: 3
-
-Elapsed
-4k-no-limit/base: min: 40.04 max: 47.14 avg: 44.46 std: 3.15 runs: 3
-4k-no-limit/rework: min: 30.38 [75.9%] max: 37.66 [79.9%] avg: 34.24 [77.0%] std: 2.99 runs: 3
-User
-4k-no-limit/base: min: 1.16 max: 1.33 avg: 1.25 std: 0.07 runs: 3
-4k-no-limit/rework: min: 0.70 [60.3%] max: 0.82 [61.7%] avg: 0.77 [61.6%] std: 0.05 runs: 3
-System
-4k-no-limit/base: min: 37.91 max: 39.91 avg: 39.19 std: 0.91 runs: 3
-4k-no-limit/rework: min: 130.35 [343.8%] max: 133.26 [333.9%] avg: 131.63 [335.9%] std: 1.21 runs: 3
-
-Elapsed
-8k-no-limit/base: min: 41.27 max: 50.60 avg: 45.51 std: 3.86 runs: 3
-8k-no-limit/rework: min: 39.56 [95.9%] max: 52.12 [103.0%] avg: 44.49 [97.8%] std: 5.47 runs: 3
-User
-8k-no-limit/base: min: 1.26 max: 1.38 avg: 1.32 std: 0.05 runs: 3
-8k-no-limit/rework: min: 0.68 [54.0%] max: 0.82 [59.4%] avg: 0.73 [55.3%] std: 0.06 runs: 3
-System
-8k-no-limit/base: min: 39.93 max: 40.73 avg: 40.25 std: 0.34 runs: 3
-8k-no-limit/rework: min: 228.74 [572.9%] max: 238.43 [585.4%] avg: 232.57 [577.8%] std: 4.21 runs: 3
-
-* Soft limit set to 0 for the group with the dd load
-Elapsed
-500-0-limit/base: min: 30.29 max: 38.91 avg: 34.83 std: 3.53 runs: 3
-500-0-limit/rework: min: 14.34 [47.3%] max: 17.18 [44.2%] avg: 16.01 [46.0%] std: 1.21 runs: 3
-User
-500-0-limit/base: min: 1.14 max: 1.29 avg: 1.24 std: 0.07 runs: 3
-500-0-limit/rework: min: 1.42 [124.6%] max: 1.47 [114.0%] avg: 1.44 [116.1%] std: 0.02 runs: 3
-System
-500-0-limit/base: min: 31.94 max: 35.66 avg: 33.77 std: 1.52 runs: 3
-500-0-limit/rework: min: 45.25 [141.7%] max: 47.43 [133.0%] avg: 46.27 [137.0%] std: 0.89 runs: 3
-
-Elapsed
-1k-0-limit/base: min: 37.23 max: 45.11 avg: 40.48 std: 3.36 runs: 3
-1k-0-limit/rework: min: 15.18 [40.8%] max: 18.69 [41.4%] avg: 16.99 [42.0%] std: 1.44 runs: 3
-User
-1k-0-limit/base: min: 1.33 max: 1.56 avg: 1.44 std: 0.09 runs: 3
-1k-0-limit/rework: min: 1.31 [98.5%] max: 1.55 [99.4%] avg: 1.44 [100.0%] std: 0.10 runs: 3
-System
-1k-0-limit/base: min: 33.21 max: 34.44 avg: 33.77 std: 0.51 runs: 3
-1k-0-limit/rework: min: 45.52 [137.1%] max: 50.82 [147.6%] avg: 48.76 [144.4%] std: 2.32 runs: 3
-
-Elapsed
-4k-0-limit/base: min: 42.71 max: 47.83 avg: 45.45 std: 2.11 runs: 3
-4k-0-limit/rework: min: 34.24 [80.2%] max: 34.99 [73.2%] avg: 34.56 [76.0%] std: 0.32 runs: 3
-User
-4k-0-limit/base: min: 1.11 max: 1.34 avg: 1.21 std: 0.10 runs: 3
-4k-0-limit/rework: min: 0.80 [72.1%] max: 0.87 [64.9%] avg: 0.83 [68.6%] std: 0.03 runs: 3
-System
-4k-0-limit/base: min: 37.08 max: 40.28 avg: 38.91 std: 1.35 runs: 3
-4k-0-limit/rework: min: 131.08 [353.5%] max: 132.33 [328.5%] avg: 131.66 [338.4%] std: 0.51 runs: 3
-
-Elapsed
-8k-0-limit/base: min: 35.71 max: 47.18 avg: 43.19 std: 5.29 runs: 3
-8k-0-limit/rework: min: 43.95 [123.1%] max: 59.77 [126.7%] avg: 50.48 [116.9%] std: 6.75 runs: 3
-User
-8k-0-limit/base: min: 1.18 max: 1.21 avg: 1.19 std: 0.01 runs: 3
-8k-0-limit/rework: min: 0.72 [61.0%] max: 0.85 [70.2%] avg: 0.77 [64.7%] std: 0.06 runs: 3
-System
-8k-0-limit/base: min: 38.34 max: 39.91 avg: 39.24 std: 0.66 runs: 3
-8k-0-limit/rework: min: 196.90 [513.6%] max: 235.32 [589.6%] avg: 222.34 [566.6%] std: 17.99 runs: 3
-
-As we can see the System time climbs really high but the Elapsed time
-is better than in the base kernel (except for 8k-0-limit). If we had
-more reclaimers then the system time should be amortized more because
-the reclaim tree walk is shared.
-
-I think that the numbers can be improved even without introducing
-the list of groups in excess. One way to go could be introducing a
-conditional (callback) to the memcg iterator so the groups under the
-limit would be excluded during the walk without playing with css
-references and other things. My quick and dirty patch shows that
-4k-0-limit System time was reduced by 40% wrt. this patchset. With a
-proper tagging we can make the walk close to free.
-
-Nevertheless, I guess I can live with the excess list as well if the
-above sounds like a no-go for you.
-
-[...]
+diff --git a/drivers/staging/zcache/ramster/ramster-howto.txt b/drivers/staging/zcache/ramster/ramster-howto.txt
+new file mode 100644
+index 0000000..7b1ee3b
+--- /dev/null
++++ b/drivers/staging/zcache/ramster/ramster-howto.txt
+@@ -0,0 +1,366 @@
++			RAMSTER HOW-TO
++
++Author: Dan Magenheimer
++Ramster maintainer: Konrad Wilk <konrad.wilk@oracle.com>
++
++This is a HOWTO document for ramster which, as of this writing, is in
++the kernel as a subdirectory of zcache in drivers/staging, called ramster.
++(Zcache can be built with or without ramster functionality.)  If enabled
++and properly configured, ramster allows memory capacity load balancing
++across multiple machines in a cluster.  Further, the ramster code serves
++as an example of asynchronous access for zcache (as well as cleancache and
++frontswap) that may prove useful for future transcendent memory
++implementations, such as KVM and NVRAM.  While ramster works today on
++any network connection that supports kernel sockets, its features may
++become more interesting on future high-speed fabrics/interconnects.
++
++Ramster requires both kernel and userland support.  The userland support,
++called ramster-tools, is known to work with EL6-based distros, but is a
++set of poorly-hacked slightly-modified cluster tools based on ocfs2, which
++includes an init file, a config file, and a userland binary that interfaces
++to the kernel.  This state of userland support reflects the abysmal userland
++skills of this suitably-embarrassed author; any help/patches to turn
++ramster-tools into more distributable rpms/debs useful for a wider range
++of distros would be appreciated.  The source RPM that can be used as a
++starting point is available at:
++    http://oss.oracle.com/projects/tmem/files/RAMster/ 
++
++As a result of this author's ignorance, userland setup described in this
++HOWTO assumes an EL6 distro and is described in EL6 syntax.  Apologies
++if this offends anyone!
++
++Kernel support has only been tested on x86_64.  Systems with an active
++ocfs2 filesystem should work, but since ramster leverages a lot of
++code from ocfs2, there may be latent issues.  A kernel configuration that
++includes CONFIG_OCFS2_FS should build OK, and should certainly run OK
++if no ocfs2 filesystem is mounted.
++
++This HOWTO demonstrates memory capacity load balancing for a two-node
++cluster, where one node called the "local" node becomes overcommitted
++and the other node called the "remote" node provides additional RAM
++capacity for use by the local node.  Ramster is capable of more complex
++topologies; see the last section titled "ADVANCED RAMSTER TOPOLOGIES".
++
++If you find any terms in this HOWTO unfamiliar or don't understand the
++motivation for ramster, the following LWN reading is recommended:
++-- Transcendent Memory in a Nutshell (lwn.net/Articles/454795)
++-- The future calculus of memory management (lwn.net/Articles/475681)
++And since ramster is built on top of zcache, this article may be helpful:
++-- In-kernel memory compression (lwn.net/Articles/545244)
++
++Now that you've memorized the contents of those articles, let's get started!
++
++A. PRELIMINARY
++
++1) Install two x86_64 Linux systems that are known to work when
++   upgraded to a recent upstream Linux kernel version.
++
++On each system:
++
++2) Configure, build and install, then boot Linux, just to ensure it
++   can be done with an unmodified upstream kernel.  Confirm you booted
++   the upstream kernel with "uname -a".
++
++3) If you plan to do any performance testing or unless you plan to
++   test only swapping, the "WasActive" patch is also highly recommended.
++   (Search lkml.org for WasActive, apply the patch, rebuild your kernel.)
++   For a demo or simple testing, the patch can be ignored.
++
++4) Install ramster-tools as root.  An x86_64 rpm for EL6-based systems
++   can be found at:
++    http://oss.oracle.com/projects/tmem/files/RAMster/ 
++   (Sorry but for now, non-EL6 users must recreate ramster-tools on
++   their own from source.  See above.)
++
++5) Ensure that debugfs is mounted at each boot.  Examples below assume it
++   is mounted at /sys/kernel/debug.
++
++B. BUILDING RAMSTER INTO THE KERNEL
++
++Do the following on each system:
++
++1) Using the kernel configuration mechanism of your choice, change
++   your config to include:
++
++	CONFIG_CLEANCACHE=y
++	CONFIG_FRONTSWAP=y
++	CONFIG_STAGING=y
++	CONFIG_CONFIGFS_FS=y # NOTE: MUST BE y, not m
++	CONFIG_ZCACHE=y
++	CONFIG_RAMSTER=y
++
++   For a linux-3.10 or later kernel, you should also set:
++
++	CONFIG_ZCACHE_DEBUG=y
++	CONFIG_RAMSTER_DEBUG=y
++
++   Before building the kernel please doublecheck your kernel config
++   file to ensure all of the settings are correct.
++
++2) Build this kernel and change your boot file (e.g. /etc/grub.conf)
++   so that the new kernel will boot.
++
++3) Add "zcache" and "ramster" as kernel boot parameters for the new kernel.
++
++4) Reboot each system approximately simultaneously.
++
++5) Check dmesg to ensure there are some messages from ramster, prefixed
++   by "ramster:"
++
++	# dmesg | grep ramster
++
++   You should also see a lot of files in:
++
++	# ls /sys/kernel/debug/zcache
++	# ls /sys/kernel/debug/ramster
++
++   These are mostly counters for various zcache and ramster activities.
++   You should also see files in:
++
++	# ls /sys/kernel/mm/ramster
++
++   These are sysfs files that control ramster as we shall see.
++
++   Ramster now will act as a single-system zcache on each system
++   but doesn't yet know anything about the cluster so can't yet do
++   anything remotely.
++
++C. CONFIGURING THE RAMSTER CLUSTER
++
++This part can be error prone unless you are familiar with clustering
++filesystems.  We need to describe the cluster in a /etc/ramster.conf
++file and the init scripts that parse it are extremely picky about
++the syntax.
++
++1) Create a /etc/ramster.conf file and ensure it is identical on both
++   systems.  This file mimics the ocfs2 format and there is a good amount
++   of documentation that can be searched for ocfs2.conf, but you can use:
++
++	cluster:
++		name = ramster
++		node_count = 2
++	node:
++		name = system1
++		cluster = ramster
++		number = 0
++		ip_address = my.ip.ad.r1
++		ip_port = 7777
++	node:
++		name = system2
++		cluster = ramster
++		number = 1
++		ip_address = my.ip.ad.r2
++		ip_port = 7777
++
++   You must ensure that the "name" field in the file exactly matches
++   the output of "hostname" on each system; if "hostname" shows a
++   fully-qualified hostname, ensure the name is fully qualified in
++   /etc/ramster.conf.  Obviously, substitute my.ip.ad.rx with proper
++   ip addresses.
++
++2) Enable the ramster service and configure it.  If you used the
++   EL6 ramster-tools, this would be:
++
++	# chkconfig --add ramster
++	# service ramster configure
++
++   Set "load on boot" to "y", cluster to start is "ramster" (or whatever
++   name you chose in ramster.conf), heartbeat dead threshold as "500",
++   network idle timeout as "1000000".  Leave the others as default.
++
++3) Reboot both systems.  After reboot, try (assuming EL6 ramster-tools):
++
++	# service ramster status
++
++   You should see "Checking RAMSTER cluster "ramster": Online".  If you do
++   not, something is wrong and ramster will not work.  Note that you
++   should also see that the driver for "configfs" is loaded and mounted,
++   the driver for ocfs2_dlmfs is not loaded, and some numbers for network
++   parameters.  You will also see "Checking RAMSTER heartbeat: Not active".
++   That's all OK.
++
++4) Now you need to start the cluster heartbeat; the cluster is not "up"
++   until all nodes detect a heartbeat.  In a real cluster, heartbeat detection
++   is done via a cluster filesystem, but ramster doesn't require one.  Some
++   hack-y kernel code in ramster can start the heartbeat for you though if
++   you tell it what nodes are "up".  To enable the heartbeat, do:
++
++	# echo 0 > /sys/kernel/mm/ramster/manual_node_up
++	# echo 1 > /sys/kernel/mm/ramster/manual_node_up
++
++   This must be done on BOTH nodes and, to avoid timeouts, must be done
++   approximately concurrently on both nodes.  On an EL6 system, it is
++   convenient to put these lines in /etc/rc.local.  To confirm that the
++   cluster is now up, on both systems do:
++
++	# dmesg | grep ramster
++
++   You should see ramster "Accepted connection" messages in dmesg on both
++   nodes after this.  Note that if you check userland status again with
++
++	# service ramster status
++
++   you will still see "Checking RAMSTER heartbeat: Not active".  That's
++   still OK... the ramster kernel heartbeat hack doesn't communicate to
++   userland.
++
++5) You now must tell each node the node to which it should "remotify" pages.
++   On this two node cluster, we will assume the "local" node, node 0, has
++   memory overcommitted and will use ramster to utilize RAM capacity on
++   the "remote node", node 1.  To configure this, on node 0, you do:
++
++	# echo 1 > /sys/kernel/mm/ramster/remote_target_nodenum
++
++   You should see "ramster: node 1 set as remotification target" in dmesg
++   on node 0.  Again, on EL6, /etc/rc.local is a good place to put this
++   on node 0 so you don't forget to do it at each boot.
++
++6) One more step:  By default, the ramster code does not "remotify" any
++   pages; this is primarily for testing purposes, but sometimes it is
++   useful.  This may change in the future, but for now, on node 0, you do:
++
++	# echo 1 > /sys/kernel/mm/ramster/pers_remotify_enable
++	# echo 1 > /sys/kernel/mm/ramster/eph_remotify_enable
++
++   The first enables remotifying swap (persistent, aka frontswap) pages,
++   the second enables remotifying of page cache (ephemeral, cleancache)
++   pages.
++
++   On EL6, these lines can also be put in /etc/rc.local (AFTER the
++   node_up lines), or at the beginning of a script that runs a workload.
++
++7) Note that most testing has been done with both/all machines booted
++   roughly simultaneously to avoid cluster timeouts.  Ideally, you should
++   do this too unless you are trying to break ramster rather than just
++   use it. ;-)
++
++D. TESTING RAMSTER
++
++1) Note that ramster has no value unless pages get "remotified".  For
++   swap/frontswap/persistent pages, this doesn't happen unless/until
++   the workload would cause swapping to occur, at which point pages
++   are put into frontswap/zcache, and the remotification thread starts
++   working.  To get to the point where the system swaps, you either
++   need a workload for which the working set exceeds the RAM in the
++   system; or you need to somehow reduce the amount of RAM one of
++   the system sees.  This latter is easy when testing in a VM, but
++   harder on physical systems.  In some cases, "mem=xxxM" on the
++   kernel command line restricts memory, but for some values of xxx
++   the kernel may fail to boot.  One may also try creating a fixed
++   RAMdisk, doing nothing with it, but ensuring that it eats up a fixed
++   amount of RAM.
++
++2) To see if ramster is working, on the "remote node", node 1, try:
++
++	# grep . /sys/kernel/debug/ramster/foreign_*
++        # # note, that is space-dot-space between grep and the pathname
++
++   to monitor the number (and max) ephemeral and persistent pages
++   that ramster has sent.  If these stay at zero, ramster is not working
++   either because the workload on the local node (node 0) isn't creating
++   enough memory pressure or because "remotifying" isn't working.  On the
++   local system, node 0, you can watch lots of useful information also.
++   Try:
++
++	grep . /sys/kernel/debug/zcache/*pageframes* \
++		/sys/kernel/debug/zcache/*zbytes* \
++		/sys/kernel/debug/zcache/*zpages* \
++		/sys/kernel/debug/ramster/*remote*
++
++   Of particular note are the remote_*_pages_succ_get counters.  These
++   show how many disk reads and/or disk writes have been avoided on the
++   overcommitted local system by storing pages remotely using ramster.
++
++   At the risk of information overload, you can also grep:
++
++        /sys/kernel/debug/cleancache/* and /sys/kernel/debug/frontswap/*
++
++   These show, for example, how many disk reads and/or disk writes have
++   been avoided by using zcache to optimize RAM on the local system.
++
++
++AUTOMATIC SWAP REPATRIATION
++
++You may notice that while the systems are idle, the foreign persistent
++page count on the remote machine slowly decreases.  This is because
++ramster implements "frontswap selfshrinking":  When possible, swap
++pages that have been remotified are slowly repatriated to the local
++machine.  This is so that local RAM can be used when possible and
++so that, in case of remote machine crash, the probability of loss
++of data is reduced.
++
++REBOOTING / POWEROFF
++
++If a system is shut down while some of its swap pages still reside
++on a remote system, the system may lock up during the shutdown
++sequence.  This will occur if the network is shut down before the
++swap mechansim is shut down, which is the default ordering on many
++distros.  To avoid this annoying problem, simply shut off the swap
++subsystem before starting the shutdown sequence, e.g.:
++
++	# swapoff -a
++	# reboot
++
++Ideally, this swapoff-before-ifdown ordering should be enforced permanently
++using shutdown scripts.
++
++KNOWN PROBLEMS
++
++1) You may periodically see messages such as:
++
++    ramster_r2net, message length problem
++
++   This is harmless but indicates that a node is sending messages
++   containing compressed pages that exceed the maximum for zcache
++   (PAGE_SIZE*15/16).  The sender side needs to be fixed.
++
++2) If you see a "No longer connected to node..." message or a "No connection
++   established with node X after N seconds", it is possible you may
++   be in an unrecoverable state.  If you are certain all of the
++   appropriate cluster configuration steps described above have been
++   performed, try rebooting the two servers concurrently to see if
++   the cluster starts.
++
++   Note that "Connection to node... shutdown, state 7" is an intermediate
++   connection state.  As long as you later see "Accepted connection", the
++   intermediate states are harmless.
++
++3) There are known issues in counting certain values.  As a result
++   you may see periodic warnings from the kernel.  Almost always you
++   will see "ramster: bad accounting for XXX".  There are also "WARN_ONCE"
++   messages.  If you see kernel warnings with a tombstone, please report
++   them.  They are harmless but reflect bugs that need to be eventually fixed.
++
++ADVANCED RAMSTER TOPOLOGIES
++
++The kernel code for ramster can support up to eight nodes in a cluster,
++but no testing has been done with more than three nodes.
++
++In the example described above, the "remote" node serves as a RAM
++overflow for the "local" node.  This can be made symmetric by appropriate
++settings of the sysfs remote_target_nodenum file.  For example, by setting:
++
++	# echo 1 > /sys/kernel/mm/ramster/remote_target_nodenum
++
++on node 0, and
++
++	# echo 0 > /sys/kernel/mm/ramster/remote_target_nodenum
++
++on node 1, each node can serve as a RAM overflow for the other.
++
++For more than two nodes, a "RAM server" can be configured.  For a
++three node system, set:
++
++	# echo 0 > /sys/kernel/mm/ramster/remote_target_nodenum
++
++on node 1, and
++
++	# echo 0 > /sys/kernel/mm/ramster/remote_target_nodenum
++
++on node 2.  Then node 0 is a RAM server for node 1 and node 2.
++
++In this implementation of ramster, any remote node is potentially a single
++point of failure (SPOF).  Though the probability of failure is reduced
++by automatic swap repatriation (see above), a proposed future enhancement
++to ramster improves high-availability for the cluster by sending a copy
++of each page of date to two other nodes.  Patches welcome!
 -- 
-Michal Hocko
-SUSE Labs
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
