@@ -1,31 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 0E50F6B0033
-	for <linux-mm@kvack.org>; Mon, 20 May 2013 09:56:16 -0400 (EDT)
-Date: Mon, 20 May 2013 06:56:35 -0700
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH] mm: vmscan: add BUG_ON on illegal return values from
- scan_objects
-Message-ID: <20130520135635.GA18693@kroah.com>
-References: <1369041267-26424-1-git-send-email-oskar.andero@sonymobile.com>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 8A91F6B0002
+	for <linux-mm@kvack.org>; Mon, 20 May 2013 10:38:40 -0400 (EDT)
+Date: Mon, 20 May 2013 15:38:33 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 4/5] mm: Remove lru parameter from __pagevec_lru_add and
+ remove parts of pagevec API
+Message-ID: <20130520143833.GS11497@suse.de>
+References: <1368784087-956-1-git-send-email-mgorman@suse.de>
+ <1368784087-956-5-git-send-email-mgorman@suse.de>
+ <20130517204452.GC15721@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1369041267-26424-1-git-send-email-oskar.andero@sonymobile.com>
+In-Reply-To: <20130517204452.GC15721@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oskar Andero <oskar.andero@sonymobile.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Radovan Lekanovic <radovan.lekanovic@sonymobile.com>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@openvz.org>, Dave Chinner <dchinner@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Alexey Lyahkov <alexey.lyashkov@gmail.com>, Andrew Perepechko <anserper@ya.ru>, Robin Dong <sanbai@taobao.com>, Theodore Tso <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Bernd Schubert <bernd.schubert@fastmail.fm>, David Howells <dhowells@redhat.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux-ext4 <linux-ext4@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>
 
-On Mon, May 20, 2013 at 11:14:27AM +0200, Oskar Andero wrote:
-> Add a BUG_ON to catch any illegal value from the shrinkers. This fixes a
-> potential bug if scan_objects returns a negative other than -1, which
-> would lead to undefined behaviour.
+On Fri, May 17, 2013 at 04:44:52PM -0400, Johannes Weiner wrote:
+> On Fri, May 17, 2013 at 10:48:06AM +0100, Mel Gorman wrote:
+> > Now that the LRU to add a page to is decided at LRU-add time, remove the
+> > misleading lru parameter from __pagevec_lru_add. A consequence of this is
+> > that the pagevec_lru_add_file, pagevec_lru_add_anon and similar helpers
+> > are misleading as the caller no longer has direct control over what LRU
+> > the page is added to. Unused helpers are removed by this patch and existing
+> > users of pagevec_lru_add_file() are converted to use lru_cache_add_file()
+> > directly and use the per-cpu pagevecs instead of creating their own pagevec.
+> > 
+> > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> > Reviewed-by: Jan Kara <jack@suse.cz>
+> > Reviewed-by: Rik van Riel <riel@redhat.com>
+> 
+> > @@ -452,8 +448,7 @@ int cachefiles_read_or_alloc_page(struct fscache_retrieval *op,
+> >  	if (block) {
+> >  		/* submit the apparently valid page to the backing fs to be
+> >  		 * read from disk */
+> > -		ret = cachefiles_read_backing_file_one(object, op, page,
+> > -						       &pagevec);
+> > +		ret = cachefiles_read_backing_file_one(object, op, page);
+> 
+> Also remove the declaration and pagevec_init a few lines up?  Minor
+> detail, though.
+> 
 
-So it's better to crash a machine and keep anyone from using it?
-Instead of recovering from an error you found?  Not good.
+It's still used and passed to fscache_mark_pages_cached
 
-greg k-h
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+
+Thanks
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
