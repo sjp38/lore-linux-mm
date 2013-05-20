@@ -1,73 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 1228F6B0002
-	for <linux-mm@kvack.org>; Mon, 20 May 2013 17:55:53 -0400 (EDT)
-Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Mon, 20 May 2013 17:55:51 -0400
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id AEE8E6E8028
-	for <linux-mm@kvack.org>; Mon, 20 May 2013 17:55:44 -0400 (EDT)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4KLtlgV332120
-	for <linux-mm@kvack.org>; Mon, 20 May 2013 17:55:47 -0400
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4KLtk2f025724
-	for <linux-mm@kvack.org>; Mon, 20 May 2013 15:55:46 -0600
-Date: Mon, 20 May 2013 16:55:42 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: Re: [RFCv2][PATCH 0/5] mm: Batch page reclamation under
- shink_page_list
-Message-ID: <20130520215542.GC25536@cerebellum>
-References: <20130516203427.E3386936@viggo.jf.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130516203427.E3386936@viggo.jf.intel.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 4F9F36B0002
+	for <linux-mm@kvack.org>; Mon, 20 May 2013 18:09:28 -0400 (EDT)
+Date: Mon, 20 May 2013 15:09:26 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 3/4] mm: Activate !PageLRU pages on mark_page_accessed
+ if page is on local pagevec
+Message-Id: <20130520150926.9c374888290246f683272330@linux-foundation.org>
+In-Reply-To: <20130516134104.GH11497@suse.de>
+References: <1368440482-27909-1-git-send-email-mgorman@suse.de>
+	<1368440482-27909-4-git-send-email-mgorman@suse.de>
+	<20130515155500.ffe53764d9018c80572544cc@linux-foundation.org>
+	<20130516134104.GH11497@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de, tim.c.chen@linux.intel.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: Alexey Lyahkov <alexey.lyashkov@gmail.com>, Andrew Perepechko <anserper@ya.ru>, Robin Dong <sanbai@taobao.com>, Theodore Tso <tytso@mit.edu>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Bernd Schubert <bernd.schubert@fastmail.fm>, David Howells <dhowells@redhat.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux-ext4 <linux-ext4@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>
 
-On Thu, May 16, 2013 at 01:34:27PM -0700, Dave Hansen wrote:
-> These are an update of Tim Chen's earlier work:
+On Thu, 16 May 2013 14:41:04 +0100 Mel Gorman <mgorman@suse.de> wrote:
+
+> On Wed, May 15, 2013 at 03:55:00PM -0700, Andrew Morton wrote:
+> > > @@ -441,8 +462,17 @@ void activate_page(struct page *page)
+> > >  void mark_page_accessed(struct page *page)
+> > >  {
+> > >  	if (!PageActive(page) && !PageUnevictable(page) &&
+> > > -			PageReferenced(page) && PageLRU(page)) {
+> > > -		activate_page(page);
+> > > +			PageReferenced(page)) {
+> > > +
+> > > +		/*
+> > > +		 * If the page is on the LRU, promote immediately. Otherwise,
+> > > +		 * assume the page is on a pagevec, mark it active and it'll
+> > > +		 * be moved to the active LRU on the next drain
+> > > +		 */
+> > > +		if (PageLRU(page))
+> > > +			activate_page(page);
+> > > +		else
+> > > +			__lru_cache_activate_page(page);
+> > >  		ClearPageReferenced(page);
+> > >  	} else if (!PageReferenced(page)) {
+> > >  		SetPageReferenced(page);
+> > 
+> > For starters, activate_page() doesn't "promote immediately".  It sticks
+> > the page into yet another pagevec for deferred activation.
+> > 
 > 
-> 	http://lkml.kernel.org/r/1347293960.9977.70.camel@schen9-DESK
+> True, comment updated.
 > 
-> I broke the patches up a bit more, and tried to incorporate some
-> changes based on some feedback from Mel and Andrew.
+> > Also, I really worry about the fact that
+> > activate_page()->drain->__activate_page() will simply skip over the
+> > page if it has PageActive set!  So PageActive does something useful if
+> > the page is in the add-to-lru pagevec but nothing useful if the page is
+> > in the activate-it-soon pagevec.  This is a confusing, unobvious bug
+> > attractant.
+> > 
 > 
-> Changes for v2:
->  * use page_mapping() accessor instead of direct access
->    to page->mapping (could cause crashes when running in
->    to swap cache pages.
->  * group the batch function's introduction patch with
->    its first use
->  * rename a few functions as suggested by Mel
->  * Ran some single-threaded tests to look for regressions
->    caused by the batching.  If there is overhead, it is only
->    in the worst-case scenarios, and then only in hundreths of
->    a percent of CPU time.
-> 
-> If you're curious how effective the batching is, I have a quick
-> and dirty patch to keep some stats:
-> 
-> 	https://www.sr71.net/~dave/intel/rmb-stats-only.patch
+> >From mark_page_accessed, we only call activate_page() for !PageActive
+> and PageLRU. The PageLRU is key, if it's set, the pages *must* be on the
+> inactive list or they'd trigger BUG_ON(PageActive) checks within
+> vmscan.c. Am I missing your point?
+
+I've forgotten what my point was.  I'll ramp back up when looking at
+v2.  But this code is at the stage where it needs a state transition
+diagram, or table.  Which makes on wonder if it's too damn complex.
+
+Testing PageLRU while not holding lru_lock is always ... interesting.
+
+> ...
 >
+> > Secondly, I really don't see how this code avoids the races.  Suppose
+> > the page gets spilled from the to-add-to-lru pagevec and onto the real
+> > LRU while mark_page_accessed() is concurrently executing. 
+> 
+> Good question. The key here is that __lru_cache_activate_page only
+> searches the pagevec for the local CPU. If the current CPU is draining the
+> to_add_to_lru pagevec, it cannot also be simultaneously setting PageActive
+> in mark_page_accessed. It was discussed in the changelog here.
+> 
+> "Note that only pages on the local pagevec are considered on purpose. A
+> !PageLRU page could be in the process of being released, reclaimed,
+> migrated or on a remote pagevec that is currently being drained. Marking
+> it PageActive is vunerable to races where PageLRU and Active bits are
+> checked at the wrong time."
+> 
+> Subtle comments on the code belong in the changelog, right?
 
-Didn't do any performance comparison but did a kernel build with 2 make threads
-per core in a memory constrained situation w/ zswap add got an average batch
-size of 6.6 pages with the batch being empty on ~10% of calls.
+Not if you want anyone to read them ;)
 
-rmb call:   423464
-rmb pages:   2790332
-rmb empty:   41408
-
-The WARN_ONCE only gave me one stack for the first empty batch and, for what
-it's worth, it was from kswapd.
-
-Tested-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
