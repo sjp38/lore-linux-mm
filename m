@@ -1,39 +1,26 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [Qemu-devel] QEMU NUMA and memory allocation problem
+Subject: Re: QEMU NUMA and memory allocation problem
 Date: Mon, 20 May 2013 11:03:43 +0800
-Message-ID: <5433.34281906045$1369019044@news.gmane.org>
+Message-ID: <24921.0344547921$1369019055@news.gmane.org>
 References: <5194ABFD.8040200@cn.fujitsu.com>
  <51998489.804@cn.fujitsu.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Return-path: <owner-linux-mm@kvack.org>
-Received: from kanga.kvack.org ([205.233.56.17])
-	by plane.gmane.org with esmtp (Exim 4.69)
-	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1UeGOC-0008BA-HX
-	for glkm-linux-mm-2@m.gmane.org; Mon, 20 May 2013 05:03:56 +0200
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id B310A6B0002
-	for <linux-mm@kvack.org>; Sun, 19 May 2013 23:03:53 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 20 May 2013 08:27:17 +0530
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 75715E0058
-	for <linux-mm@kvack.org>; Mon, 20 May 2013 08:36:17 +0530 (IST)
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4K33cxY1769790
-	for <linux-mm@kvack.org>; Mon, 20 May 2013 08:33:39 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4K33jMK003221
-	for <linux-mm@kvack.org>; Mon, 20 May 2013 03:03:45 GMT
+Return-path: <qemu-devel-bounces+gceq-qemu-devel=gmane.org@nongnu.org>
 Content-Disposition: inline
 In-Reply-To: <51998489.804@cn.fujitsu.com>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-Cc: mgorman@suse.de, mingo@kernel.org, a.p.zijlstra@chello.nl, aarcange@redhat.com, linux-mm <linux-mm@kvack.org>, qemu-devel <qemu-devel@nongnu.org>, Paolo Bonzini <pbonzini@redhat.com>, ehabkost@redhat.com, Wanlong Gao <gaowanlong@cn.fujitsu.com>
+List-Unsubscribe: <https://lists.nongnu.org/mailman/options/qemu-devel>,
+	<mailto:qemu-devel-request@nongnu.org?subject=unsubscribe>
+List-Archive: <http://lists.nongnu.org/archive/html/qemu-devel>
+List-Post: <mailto:qemu-devel@nongnu.org>
+List-Help: <mailto:qemu-devel-request@nongnu.org?subject=help>
+List-Subscribe: <https://lists.nongnu.org/mailman/listinfo/qemu-devel>,
+	<mailto:qemu-devel-request@nongnu.org?subject=subscribe>
+Errors-To: qemu-devel-bounces+gceq-qemu-devel=gmane.org@nongnu.org
+Sender: qemu-devel-bounces+gceq-qemu-devel=gmane.org@nongnu.org
+Cc: aarcange@redhat.com, a.p.zijlstra@chello.nl, qemu-devel <qemu-devel@nongnu.org>, linux-mm <linux-mm@kvack.org>, mgorman@suse.de, Paolo Bonzini <pbonzini@redhat.com>, mingo@kernel.org, Wanlong Gao <gaowanlong@cn.fujitsu.com>, ehabkost@redhat.com
+List-Id: linux-mm.kvack.org
 
 On Mon, May 20, 2013 at 10:03:53AM +0800, Wanlong Gao wrote:
 >Adding CC AutoNUMA folks:
@@ -202,9 +189,3 @@ Wanpeng Li
 >the body to majordomo@kvack.org.  For more info on Linux MM,
 >see: http://www.linux-mm.org/ .
 >Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
