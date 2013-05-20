@@ -1,71 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 5AFAF6B0002
-	for <linux-mm@kvack.org>; Mon, 20 May 2013 04:11:10 -0400 (EDT)
-Message-ID: <5199DA6A.3010902@asianux.com>
-Date: Mon, 20 May 2013 16:10:18 +0800
-From: Chen Gang <gang.chen@asianux.com>
-MIME-Version: 1.0
-Subject: [Suggestion] mm/bootmem.c: need return failure code when BUG()  neither
- CONFIG_BUG nor HAVE_ARCH_BUG is defined.
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 16A126B0034
+	for <linux-mm@kvack.org>; Mon, 20 May 2013 04:27:30 -0400 (EDT)
+Subject: Re: [PATCH v7 18/34] fs: convert fs shrinkers to new scan/count API
+From: Steven Whitehouse <swhiteho@redhat.com>
+In-Reply-To: <1368994047-5997-19-git-send-email-glommer@openvz.org>
+References: <1368994047-5997-1-git-send-email-glommer@openvz.org>
+	 <1368994047-5997-19-git-send-email-glommer@openvz.org>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 20 May 2013 09:25:04 +0100
+Message-ID: <1369038304.2728.37.camel@menhir>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hannes@cmpxchg.org, Tejun Heo <tj@kernel.org>, js1304@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>
+To: Glauber Costa <glommer@openvz.org>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, Dave Chinner <david@fromorbit.com>, hughd@google.com, Dave Chinner <dchinner@redhat.com>, Adrian Hunter <adrian.hunter@intel.com>
 
-Hello Maintainers:
+Hi,
 
-If neither CONFIG_BUG nor HAVE_ARCH_BUG is defined, the BUG() will
-defined as empty (e.g. randconfig with MMU for arm s5pv210)
+On Mon, 2013-05-20 at 00:07 +0400, Glauber Costa wrote:
+> From: Dave Chinner <dchinner@redhat.com>
+> 
+> Convert the filesystem shrinkers to use the new API, and standardise
+> some of the behaviours of the shrinkers at the same time. For
+> example, nr_to_scan means the number of objects to scan, not the
+> number of objects to free.
+> 
+> I refactored the CIFS idmap shrinker a little - it really needs to
+> be broken up into a shrinker per tree and keep an item count with
+> the tree root so that we don't need to walk the tree every time the
+> shrinker needs to count the number of objects in the tree (i.e.
+> all the time under memory pressure).
+> 
+> [ glommer: fixes for ext4, ubifs, nfs, cifs and glock. Fixes are
+>   needed mainly due to new code merged in the tree ]
+> Signed-off-by: Dave Chinner <dchinner@redhat.com>
+> Signed-off-by: Glauber Costa <glommer@openvz.org>
+> Acked-by: Mel Gorman <mgorman@suse.de>
+> Acked-by: Artem Bityutskiy <artem.bityutskiy@linux.intel.com>
+> Acked-by: Jan Kara <jack@suse.cz>
+> CC: Steven Whitehouse <swhiteho@redhat.com>
+> CC: Adrian Hunter <adrian.hunter@intel.com>
+> ---
+>  fs/ext4/extents_status.c | 30 ++++++++++++++++------------
+>  fs/gfs2/glock.c          | 28 +++++++++++++++-----------
+>  fs/gfs2/main.c           |  3 ++-
+>  fs/gfs2/quota.c          | 12 +++++++-----
+>  fs/gfs2/quota.h          |  4 +++-
+>  fs/mbcache.c             | 51 ++++++++++++++++++++++++++++--------------------
+>  fs/nfs/dir.c             | 18 ++++++++++++++---
+>  fs/nfs/internal.h        |  4 +++-
+>  fs/nfs/super.c           |  3 ++-
+>  fs/nfsd/nfscache.c       | 31 ++++++++++++++++++++---------
+>  fs/quota/dquot.c         | 34 +++++++++++++++-----------------
+>  fs/ubifs/shrinker.c      | 20 +++++++++++--------
+>  fs/ubifs/super.c         |  3 ++-
+>  fs/ubifs/ubifs.h         |  3 ++-
+>  14 files changed, 151 insertions(+), 93 deletions(-)
+[snip]
+>  		return 0;
+> diff --git a/fs/gfs2/glock.c b/fs/gfs2/glock.c
+> index 3bd2748..4ddbccb 100644
+> --- a/fs/gfs2/glock.c
+> +++ b/fs/gfs2/glock.c
+> @@ -1428,21 +1428,22 @@ __acquires(&lru_lock)
+>   * gfs2_dispose_glock_lru() above.
+>   */
+>  
+> -static void gfs2_scan_glock_lru(int nr)
+> +static long gfs2_scan_glock_lru(int nr)
+>  {
+>  	struct gfs2_glock *gl;
+>  	LIST_HEAD(skipped);
+>  	LIST_HEAD(dispose);
+> +	long freed = 0;
+>  
+>  	spin_lock(&lru_lock);
+> -	while(nr && !list_empty(&lru_list)) {
+> +	while ((nr-- >= 0) && !list_empty(&lru_list)) {
+>  		gl = list_entry(lru_list.next, struct gfs2_glock, gl_lru);
+>  
+>  		/* Test for being demotable */
+>  		if (!test_and_set_bit(GLF_LOCK, &gl->gl_flags)) {
+>  			list_move(&gl->gl_lru, &dispose);
+>  			atomic_dec(&lru_count);
+> -			nr--;
+> +			freed++;
+>  			continue;
+>  		}
+>  
 
-As a function, it need return an error code to upper caller, but excuse
-me, I can not find the suitable error code for return (it seems only
-'return -1' is not suitable).
+This seems to change behaviour so that nr is no longer the number of
+items to be demoted, but instead the max number of items to scan in
+order to look for items to be demoted. Does that mean that nr has
+changed its meaning now?
 
-Please help check, thanks.
-
-
-356 static int __init mark_bootmem(unsigned long start, unsigned long end,
-357                                 int reserve, int flags)
-358 {
-359         unsigned long pos;
-360         bootmem_data_t *bdata;
-361 
-362         pos = start;
-363         list_for_each_entry(bdata, &bdata_list, list) {
-364                 int err;
-365                 unsigned long max;
-366 
-367                 if (pos < bdata->node_min_pfn ||
-368                     pos >= bdata->node_low_pfn) {
-369                         BUG_ON(pos != start);
-370                         continue;
-371                 }
-372 
-373                 max = min(bdata->node_low_pfn, end);
-374 
-375                 err = mark_bootmem_node(bdata, pos, max, reserve, flags);
-376                 if (reserve && err) {
-377                         mark_bootmem(start, pos, 0, 0);
-378                         return err;
-379                 }
-380 
-381                 if (max == end)
-382                         return 0;
-383                 pos = bdata->node_low_pfn;
-384         }
-385         BUG();
-386 }
+Steve.
 
 
-
-Thanks.
--- 
-Chen Gang
-
-Asianux Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
