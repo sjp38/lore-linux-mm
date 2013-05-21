@@ -1,39 +1,26 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Subject: Re: Bye bye Mr tmem guy
 Date: Tue, 21 May 2013 08:09:29 +0800
-Message-ID: <32268.1708065376$1369094986@news.gmane.org>
+Message-ID: <34341.3773611703$1369120122@news.gmane.org>
 References: <c064ee79-6fa0-4833-b3f1-ca712b029a83@default>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Return-path: <owner-linux-mm@kvack.org>
-Received: from kanga.kvack.org ([205.233.56.17])
-	by plane.gmane.org with esmtp (Exim 4.69)
-	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1Uea96-0001V0-Mm
-	for glkm-linux-mm-2@m.gmane.org; Tue, 21 May 2013 02:09:41 +0200
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id 768F06B0034
-	for <linux-mm@kvack.org>; Mon, 20 May 2013 20:09:38 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 21 May 2013 05:34:33 +0530
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 32DBA1258051
-	for <linux-mm@kvack.org>; Tue, 21 May 2013 05:41:28 +0530 (IST)
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4L09OM21769944
-	for <linux-mm@kvack.org>; Tue, 21 May 2013 05:39:24 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4L09URs018263
-	for <linux-mm@kvack.org>; Tue, 21 May 2013 10:09:31 +1000
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Return-path: <xen-devel-bounces@lists.xen.org>
 Content-Disposition: inline
 In-Reply-To: <c064ee79-6fa0-4833-b3f1-ca712b029a83@default>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
+List-Unsubscribe: <http://lists.xen.org/cgi-bin/mailman/options/xen-devel>,
+	<mailto:xen-devel-request@lists.xen.org?subject=unsubscribe>
+List-Post: <mailto:xen-devel@lists.xen.org>
+List-Help: <mailto:xen-devel-request@lists.xen.org?subject=help>
+List-Subscribe: <http://lists.xen.org/cgi-bin/mailman/listinfo/xen-devel>,
+	<mailto:xen-devel-request@lists.xen.org?subject=subscribe>
+Sender: xen-devel-bounces@lists.xen.org
+Errors-To: xen-devel-bounces@lists.xen.org
 To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, Konrad Wilk <konrad.wilk@oracle.com>, Bob Liu <bob.liu@oracle.com>, linux-mm@kvack.org
+Cc: linux-mm@kvack.org, Bob Liu <bob.liu@oracle.com>, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, Konrad Wilk <konrad.wilk@oracle.com>
+List-Id: linux-mm.kvack.org
 
 On Mon, May 20, 2013 at 08:51:47AM -0700, Dan Magenheimer wrote:
 >Hi Linux kernel folks and Xen folks --
@@ -85,9 +72,3 @@ Thanks for your great contributions, enjoy your time. ;-)
 >the body to majordomo@kvack.org.  For more info on Linux MM,
 >see: http://www.linux-mm.org/ .
 >Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
