@@ -1,56 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id B314C6B0002
-	for <linux-mm@kvack.org>; Tue, 21 May 2013 06:13:11 -0400 (EDT)
-Date: Tue, 21 May 2013 12:13:02 +0200
-From: Karel Zak <kzak@redhat.com>
-Subject: Re: [RFC PATCH 02/02] swapon: add "cluster-discard" support
-Message-ID: <20130521101302.GA11774@x2.net.home>
-References: <cover.1369092449.git.aquini@redhat.com>
- <398ace0dd3ca1283372b3aad3fceeee59f6897d7.1369084886.git.aquini@redhat.com>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id BEFB46B0033
+	for <linux-mm@kvack.org>; Tue, 21 May 2013 06:13:51 -0400 (EDT)
+Message-ID: <20130521101349.30660.qmail@stuge.se>
+Date: Tue, 21 May 2013 12:13:49 +0200
+From: Peter Stuge <peter@stuge.se>
+Subject: Re: [PATCH] Finally eradicate CONFIG_HOTPLUG
+References: <20130521134935.d18c3f5c23485fb5ddabc365@canb.auug.org.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="ibTvN161/egqYuK8"
 Content-Disposition: inline
-In-Reply-To: <398ace0dd3ca1283372b3aad3fceeee59f6897d7.1369084886.git.aquini@redhat.com>
+In-Reply-To: <20130521134935.d18c3f5c23485fb5ddabc365@canb.auug.org.au>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, shli@kernel.org, jmoyer@redhat.com, riel@redhat.com, lwoodman@redhat.com, mgorman@suse.de
+To: Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-arch@vger.kernel.org, "Rafael J. Wysocki" <rjw@sisk.pl>, Russell King <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, linux-pm@vger.kernel.org, linux-pci@vger.kernel.org, linux-pcmcia@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>, cluster-devel@redhat.com, linux-mm@kvack.org, Hans Verkuil <hans.verkuil@cisco.com>, Pavel Machek <pavel@ucw.cz>, Doug Thompson <dougthompson@xmission.com>, Bjorn Helgaas <bhelgaas@google.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Whitehouse <swhiteho@redhat.com>, linux-arm-kernel@lists.infradead.org, linux-edac@vger.kernel.org
 
-On Mon, May 20, 2013 at 09:04:25PM -0300, Rafael Aquini wrote:
-> -	while ((c = getopt_long(argc, argv, "ahdefp:svVL:U:",
-> +	while ((c = getopt_long(argc, argv, "ahcdefp:svVL:U:",
->  				long_opts, NULL)) != -1) {
->  		switch (c) {
->  		case 'a':		/* all */
-> @@ -738,8 +753,11 @@ int main(int argc, char *argv[])
->  		case 'U':
->  			add_uuid(optarg);
->  			break;
-> +		case 'c':
-> +			discard += 2;
-> +			break;
->  		case 'd':
-> -			discard = 1;
-> +			discard += 1;
 
- this is fragile, it would be better to use
+--ibTvN161/egqYuK8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-        case 'c':
-            discard |= SWAP_FLAG_DISCARD_CLUSTER;
-            break;
-        case 'd':
-            discard |= SWAP_FLAG_DISCARD;
-            break;
+Are you changing the code to have HOTPLUG always -on- or -off- ?
 
- and use directly the flags everywhere in the code than use magical
- numbers '1' and '2' etc.
+=46rom the commit message I had expected always -on-.
 
-    Karel
 
--- 
- Karel Zak  <kzak@redhat.com>
- http://karelzak.blogspot.com
+Stephen Rothwell wrote:
+> --- a/include/asm-generic/vmlinux.lds.h
+> +++ b/include/asm-generic/vmlinux.lds.h
+> @@ -68,14 +68,6 @@
+>   * are handled as text/data or they can be discarded (which
+>   * often happens at runtime)
+>   */
+> -#ifdef CONFIG_HOTPLUG
+> -#define DEV_KEEP(sec)    *(.dev##sec)
+> -#define DEV_DISCARD(sec)
+> -#else
+> -#define DEV_KEEP(sec)
+> -#define DEV_DISCARD(sec) *(.dev##sec)
+> -#endif
+> -
+>  #ifdef CONFIG_HOTPLUG_CPU
+>  #define CPU_KEEP(sec)    *(.cpu##sec)
+>  #define CPU_DISCARD(sec)
+> @@ -182,8 +174,6 @@
+>  	*(.data)							\
+>  	*(.ref.data)							\
+>  	*(.data..shared_aligned) /* percpu related */			\
+> -	DEV_KEEP(init.data)						\
+> -	DEV_KEEP(exit.data)						\
+=2E.
+> @@ -503,7 +489,6 @@
+>  /* init and exit section handling */
+>  #define INIT_DATA							\
+>  	*(.init.data)							\
+> -	DEV_DISCARD(init.data)						\
+
+Shouldn't the effect of one of the above remain?
+
+
+//Peter
+
+--ibTvN161/egqYuK8
+Content-Type: application/pgp-signature
+Content-Disposition: inline
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+
+iD8DBQFRm0jdhR3Q0dhIfEgRAtAtAKDxeofcdUGqWjn2AyXb/CxbZP4X8ACgvEte
+zomgM5roARu65KybTU/PIcM=
+=bMNu
+-----END PGP SIGNATURE-----
+
+--ibTvN161/egqYuK8--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
