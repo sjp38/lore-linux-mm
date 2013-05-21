@@ -1,77 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id DB82E6B0036
-	for <linux-mm@kvack.org>; Tue, 21 May 2013 14:57:36 -0400 (EDT)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Tue, 21 May 2013 14:57:34 -0400
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 5A0116E8039
-	for <linux-mm@kvack.org>; Tue, 21 May 2013 14:57:29 -0400 (EDT)
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4LIvWp9286038
-	for <linux-mm@kvack.org>; Tue, 21 May 2013 14:57:32 -0400
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4LIvSxu010624
-	for <linux-mm@kvack.org>; Tue, 21 May 2013 12:57:29 -0600
-Date: Tue, 21 May 2013 13:57:20 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH] zswap: add zswap shrinker
-Message-ID: <20130521185720.GA3398@medulla>
-References: <1369117567-26704-1-git-send-email-bob.liu@oracle.com>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 51ADB6B0033
+	for <linux-mm@kvack.org>; Tue, 21 May 2013 14:58:08 -0400 (EDT)
+Message-ID: <519BC3BE.3070702@sr71.net>
+Date: Tue, 21 May 2013 11:58:06 -0700
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1369117567-26704-1-git-send-email-bob.liu@oracle.com>
+Subject: Re: [PATCHv4 04/39] radix-tree: implement preload for multiple contiguous
+ elements
+References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com> <1368321816-17719-5-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1368321816-17719-5-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, ngupta@vflare.org, minchan@kernel.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, rcj@linux.vnet.ibm.com, mgorman@suse.de, riel@redhat.com, dave@sr71.net, hughd@google.com, Bob Liu <bob.liu@oracle.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, May 21, 2013 at 02:26:07PM +0800, Bob Liu wrote:
-> In my understanding, currenlty zswap have a few problems.
-> 1. The zswap pool size is 20% of total memory that's too random and once it
-> gets full the performance may even worse because everytime pageout() an anon
-> page two disk-io write ops may happend instead of one.
+On 05/11/2013 06:23 PM, Kirill A. Shutemov wrote:
+> Currently radix_tree_preload() only guarantees enough nodes to insert
+> one element. It's a hard limit. For transparent huge page cache we want
+> to insert HPAGE_PMD_NR (512 on x86-64) entires to address_space at once.
 
-Just to clarify, 20% is a default maximum amount that zswap can occupy.
+                                       ^^entries
 
-Also, in the steady over-the-limit state, the average number of writebacks is
-equal to the number of pages coming into zswap.  The description above makes it
-sound like there is a reclaim amplification effect (two writebacks per zswap
-store) when, on average, there is none. The 2:1 effect only happens on one or
-two store operations right after the pool becomes full.
+> This patch introduces radix_tree_preload_count(). It allows to
+> preallocate nodes enough to insert a number of *contiguous* elements.
 
-This is unclear though, mostly because the pool limit is enforced in
-zswap.  A situation exists where there might be an unbuddied zbud page with
-room for the upcoming allocation but, because we are over the pool limit,
-reclaim is done during that store anyway. I'm working on a clean way to fix
-that up, probably by moving the limit enforcement into zbud as suggested by
-Mel.
+Would radix_tree_preload_contig() be a better name, then?
 
-> 2. The reclaim hook will only be triggered in frontswap_store().
-> It may be result that the zswap pool size can't be adjusted in time which may
-> caused 20% memory lose for other users.
+...
+> On 64-bit system:
+> For RADIX_TREE_MAP_SHIFT=3, old array size is 43, new is 107.
+> For RADIX_TREE_MAP_SHIFT=4, old array size is 31, new is 63.
+> For RADIX_TREE_MAP_SHIFT=6, old array size is 21, new is 30.
 > 
-> This patch introduce a zswap shrinker, it make the balance that the zswap
-> pool size will be the same as anon pages in use.
+> On 32-bit system:
+> For RADIX_TREE_MAP_SHIFT=3, old array size is 21, new is 84.
+> For RADIX_TREE_MAP_SHIFT=4, old array size is 15, new is 46.
+> For RADIX_TREE_MAP_SHIFT=6, old array size is 11, new is 19.
+> 
+> On most machines we will have RADIX_TREE_MAP_SHIFT=6.
 
-Using zbud, with 2 zpages per zbud page, that would mean that up to 2/3 of anon
-pages could be compressed while 1/3 remain uncompressed.
+Thanks for adding that to the description.  The array you're talking
+about is just pointers, right?
 
-How did you conclude that this is the right balance?
+107-43 = 64.  So, we have 64 extra pointers * NR_CPUS, plus 64 extra
+radix tree nodes that we will keep around most of the time.  On x86_64,
+that's 512 bytes plus 64*560 bytes of nodes which is ~35k of memory per CPU.
 
-If nr_reclaim in the shrinker became very large due to global_anon_pages_inuse
-suddenly dropping, we could be writing back a LOT of pages all at once.
+That's not bad I guess, but I do bet it's something that some folks want
+to configure out.  Please make sure to call out the actual size cost in
+bytes per CPU in future patch postings, at least for the common case
+(64-bit non-CONFIG_BASE_SMALL).
 
-Having already looked at the patch, I can say that this isn't going to be the
-way to do this.  I agree that there should be some sort of dynamic sizing, but
-IMHO using a shrinker isn't the way.  Dave Chinner would not be happy about
-this since it is based on the zcache shrinker logic and he didn't have many
-kind words to say about it: https://lkml.org/lkml/2012/11/27/552
+> Since only THP uses batched preload at the , we disable (set max preload
+> to 1) it if !CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE. This can be changed
+> in the future.
 
-Seth
+"at the..."  Is there something missing in that sentence?
+
+No major nits, so:
+
+Acked-by: Dave Hansen <dave.hansen@linux.intel.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
