@@ -1,148 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 003436B0002
-	for <linux-mm@kvack.org>; Tue, 21 May 2013 09:29:44 -0400 (EDT)
-Date: Tue, 21 May 2013 16:28:59 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v2 10/10] kernel: might_fault does not imply might_sleep
-Message-ID: <20130521132859.GA3730@redhat.com>
-References: <cover.1368702323.git.mst@redhat.com>
- <1f85dc8e6a0149677563a2dfb4cef9a9c7eaa391.1368702323.git.mst@redhat.com>
- <20130516184041.GP19669@dyad.programming.kicks-ass.net>
- <20130519093526.GD19883@redhat.com>
- <20130521115734.GA9554@twins.programming.kicks-ass.net>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 54DED6B0002
+	for <linux-mm@kvack.org>; Tue, 21 May 2013 10:34:34 -0400 (EDT)
+Date: Tue, 21 May 2013 16:34:25 +0200 (CEST)
+From: =?ISO-8859-15?Q?Luk=E1=A8_Czerner?= <lczerner@redhat.com>
+Subject: Re: [PATCH v4 00/20] change invalidatepage prototype to accept
+ length
+In-Reply-To: <1368549454-8930-1-git-send-email-lczerner@redhat.com>
+Message-ID: <alpine.LFD.2.00.1305211622330.2469@localhost>
+References: <1368549454-8930-1-git-send-email-lczerner@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130521115734.GA9554@twins.programming.kicks-ass.net>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: linux-kernel@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, David Howells <dhowells@redhat.com>, Hirokazu Takata <takata@linux-m32r.org>, Michal Simek <monstr@monstr.eu>, Koichi Yasutake <yasutake.koichi@jp.panasonic.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Chris Metcalf <cmetcalf@tilera.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Arnd Bergmann <arnd@arndb.de>, linux-arm-kernel@lists.infradead.org, linux-m32r@ml.linux-m32r.org, linux-m32r-ja@ml.linux-m32r.org, microblaze-uclinux@itee.uq.edu.au, linux-am33-list@redhat.com, linuxppc-dev@lists.ozlabs.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, rostedt@goodmis.org
+To: Lukas Czerner <lczerner@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, akpm@linux-foundation.org, hughd@google.com
 
-On Tue, May 21, 2013 at 01:57:34PM +0200, Peter Zijlstra wrote:
-> On Sun, May 19, 2013 at 12:35:26PM +0300, Michael S. Tsirkin wrote:
-> > > > --- a/include/linux/kernel.h
-> > > > +++ b/include/linux/kernel.h
-> > > > @@ -198,7 +198,6 @@ void might_fault(void);
-> > > >  #else
-> > > >  static inline void might_fault(void)
-> > > >  {
-> > > > -	might_sleep();
-> > > 
-> > > This removes potential resched points for PREEMPT_VOLUNTARY -- was that
-> > > intentional?
-> > 
-> > No it's a bug. Thanks for pointing this out.
-> > OK so I guess it should be might_sleep_if(!in_atomic())
-> > and this means might_fault would have to move from linux/kernel.h to
-> > linux/uaccess.h, since in_atomic() is in linux/hardirq.h
-> > 
-> > Makes sense?
+On Tue, 14 May 2013, Lukas Czerner wrote:
+
+> Date: Tue, 14 May 2013 18:37:14 +0200
+> From: Lukas Czerner <lczerner@redhat.com>
+> To: linux-mm@kvack.org
+> Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+>     linux-ext4@vger.kernel.org, akpm@linux-foundation.org, hughd@google.com,
+>     lczerner@redhat.com
+> Subject: [PATCH v4 00/20] change invalidatepage prototype to accept length
+
+Hi Ted,
+
+you've mentioned that you'll carry the changed in the ext4 tree. Are
+you going to take it for the next merge window ?
+
+However I still need some review on the mm part of the series,
+Andrew, Hugh, anyone ?
+
+Thanks!
+-Lukas
+
 > 
-> So the only difference between PROVE_LOCKING and not should be the
-> might_lock_read() thing; so how about something like this?
-
-I was drafting something like this, yes.
-There are a bunch of trivial fixes in all arches
-to make this work, will post soon.
-
-> ---
->  include/linux/kernel.h  |  7 ++-----
->  include/linux/uaccess.h | 26 ++++++++++++++++++++++++++
->  mm/memory.c             | 14 ++------------
->  3 files changed, 30 insertions(+), 17 deletions(-)
+> Hi,
 > 
-> diff --git a/include/linux/kernel.h b/include/linux/kernel.h
-> index e96329c..70812f4 100644
-> --- a/include/linux/kernel.h
-> +++ b/include/linux/kernel.h
-> @@ -194,12 +194,9 @@ extern int _cond_resched(void);
->  	})
->  
->  #ifdef CONFIG_PROVE_LOCKING
-> -void might_fault(void);
-> +void might_fault_lockdep(void);
->  #else
-> -static inline void might_fault(void)
-> -{
-> -	might_sleep();
-> -}
-> +static inline void might_fault_lockdep(void) { }
->  #endif
->  
->  extern struct atomic_notifier_head panic_notifier_list;
-> diff --git a/include/linux/uaccess.h b/include/linux/uaccess.h
-> index 5ca0951..50a2cc9 100644
-> --- a/include/linux/uaccess.h
-> +++ b/include/linux/uaccess.h
-> @@ -38,6 +38,32 @@ static inline void pagefault_enable(void)
->  	preempt_check_resched();
->  }
->  
-> +static inline bool __can_fault(void)
-> +{
-> +	/*
-> +	 * Some code (nfs/sunrpc) uses socket ops on kernel memory while
-> +	 * holding the mmap_sem, this is safe because kernel memory doesn't
-> +	 * get paged out, therefore we'll never actually fault, and the
-> +	 * below annotations will generate false positives.
-> +	 */
-> +	if (segment_eq(get_fs(), KERNEL_DS))
-> +		return false;
-> +
-> +	if (in_atomic() /* || pagefault_disabled() */)
-> +		return false;
-> +
-> +	return true;
-> +}
-> +
-> +static inline void might_fault(void)
-> +{
-> +	if (!__can_fault())
-> +		return;
-> +
-> +	might_sleep();
-> +	might_fault_lockdep();
-> +}
-> +
->  #ifndef ARCH_HAS_NOCACHE_UACCESS
->  
->  static inline unsigned long __copy_from_user_inatomic_nocache(void *to,
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 6dc1882..266610c 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -4211,19 +4211,9 @@ void print_vma_addr(char *prefix, unsigned long ip)
->  }
->  
->  #ifdef CONFIG_PROVE_LOCKING
-> -void might_fault(void)
-> +void might_fault_lockdep(void)
->  {
->  	/*
-> -	 * Some code (nfs/sunrpc) uses socket ops on kernel memory while
-> -	 * holding the mmap_sem, this is safe because kernel memory doesn't
-> -	 * get paged out, therefore we'll never actually fault, and the
-> -	 * below annotations will generate false positives.
-> -	 */
-> -	if (segment_eq(get_fs(), KERNEL_DS))
-> -		return;
-> -
-> -	might_sleep();
-> -	/*
->  	 * it would be nicer only to annotate paths which are not under
->  	 * pagefault_disable, however that requires a larger audit and
->  	 * providing helpers like get_user_atomic.
-> @@ -4231,7 +4221,7 @@ void might_fault(void)
->  	if (!in_atomic() && current->mm)
->  		might_lock_read(&current->mm->mmap_sem);
->  }
-> -EXPORT_SYMBOL(might_fault);
-> +EXPORT_SYMBOL(might_fault_lockdep);
->  #endif
->  
->  #if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
+> This set of patches are aimed to allow truncate_inode_pages_range() handle
+> ranges which are not aligned at the end of the page. Currently it will
+> hit BUG_ON() when the end of the range is not aligned. Punch hole feature
+> however can benefit from this ability saving file systems some work not
+> forcing them to implement their own invalidate code to handle unaligned
+> ranges.
+> 
+> In order for this to woke we need change ->invalidatepage() address space
+> operation to to accept range to invalidate by adding 'length' argument in
+> addition to 'offset'. This is different from my previous attempt to create
+> new aop ->invalidatepage_range (http://lwn.net/Articles/514828/) which I
+> reconsidered to be unnecessary.
+> 
+> It would be for the best if this series could go through ext4 branch since
+> there are a lot of ext4 changes which are based on dev branch of ext4 
+> (git://git.kernel.org/pub/scm/linux/kernel/git/tytso/ext4.git)
+> 
+> For description purposes this patch set can be divided into following
+> groups:
+> 
+> patch 0001:    Change ->invalidatepage() prototype adding 'length' argument
+> 	and changing all the instances. In very simple cases file
+> 	system methods are completely adapted, otherwise only
+> 	prototype is changed and the rest will follow. This patch
+> 	also implement the 'range' invalidation in
+> 	block_invalidatepage().
+> 
+> patch 0002 - 0009:
+> 	Make the use of new 'length' argument in the file system
+> 	itself. Some file systems can take advantage of it trying
+> 	to invalidate only portion of the page if possible, some
+> 	can't, however none of the file systems currently attempt
+> 	to truncate non page aligned ranges.
+> 
+> 
+> patch 0010:    Teach truncate_inode_pages_range() to handle non page aligned
+> 	ranges.
+> 
+> patch 0011 - 0020:
+> 	Ext4 changes build on top of previous changes, simplifying
+> 	punch hole code. Not all changes are realated specifically
+> 	to invalidatepage() change, but all are related to the punch
+> 	hole feature.
+> 
+> Even though this patch set would mainly affect functionality of the file
+> file systems implementing punch hole I've tested all the following file
+> system using xfstests without noticing any bugs related to this change.
+> 
+> ext3, ext4, xfs, btrfs, gfs2 and reiserfs
+> 
+> I've also tested block size < page size on ext4 with xfstests and fsx.
+> 
+> 
+> v3 -> v4: Some minor changes based on the reviews. Added two ext4 patches
+> 	  as suggested by Jan Kara.
+> 
+> Thanks!
+> -Lukas
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
