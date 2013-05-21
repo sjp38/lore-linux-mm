@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 3BA996B0036
-	for <linux-mm@kvack.org>; Tue, 21 May 2013 15:59:05 -0400 (EDT)
-Message-ID: <519BD206.3040603@sr71.net>
-Date: Tue, 21 May 2013 12:59:02 -0700
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id CA9916B0037
+	for <linux-mm@kvack.org>; Tue, 21 May 2013 16:14:15 -0400 (EDT)
+Message-ID: <519BD595.5040405@sr71.net>
+Date: Tue, 21 May 2013 13:14:13 -0700
 From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Subject: Re: [PATCHv4 12/39] thp, mm: rewrite add_to_page_cache_locked() to
+Subject: Re: [PATCHv4 14/39] thp, mm: rewrite delete_from_page_cache() to
  support huge pages
-References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com> <1368321816-17719-13-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1368321816-17719-13-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com> <1368321816-17719-15-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1368321816-17719-15-git-send-email-kirill.shutemov@linux.intel.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -20,138 +20,112 @@ Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation
 On 05/11/2013 06:23 PM, Kirill A. Shutemov wrote:
 > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 > 
-> For huge page we add to radix tree HPAGE_CACHE_NR pages at once: head
-> page for the specified index and HPAGE_CACHE_NR-1 tail pages for
-> following indexes.
-
-The really nice way to do these patches is refactor them, first, with no
-behavior change, in one patch, the introduce the new support in the
-second one.
-
+> As with add_to_page_cache_locked() we handle HPAGE_CACHE_NR pages a
+> time.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  mm/filemap.c |   31 +++++++++++++++++++++++++------
+>  1 file changed, 25 insertions(+), 6 deletions(-)
+> 
 > diff --git a/mm/filemap.c b/mm/filemap.c
-> index 61158ac..b0c7c8c 100644
+> index b0c7c8c..657ce82 100644
 > --- a/mm/filemap.c
 > +++ b/mm/filemap.c
-> @@ -460,39 +460,62 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
->  		pgoff_t offset, gfp_t gfp_mask)
+> @@ -115,6 +115,9 @@
+>  void __delete_from_page_cache(struct page *page)
 >  {
->  	int error;
-> +	int i, nr;
+>  	struct address_space *mapping = page->mapping;
+> +	bool thp = PageTransHuge(page) &&
+> +		IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE);
+> +	int nr;
+
+Is that check for the config option really necessary?  How would we get
+a page with PageTransHuge() set without it being enabled?
+
+>  	trace_mm_filemap_delete_from_page_cache(page);
+>  	/*
+> @@ -127,13 +130,29 @@ void __delete_from_page_cache(struct page *page)
+>  	else
+>  		cleancache_invalidate_page(mapping, page);
 >  
->  	VM_BUG_ON(!PageLocked(page));
->  	VM_BUG_ON(PageSwapBacked(page));
->  
-> +	/* memory cgroup controller handles thp pages on its side */
->  	error = mem_cgroup_cache_charge(page, current->mm,
->  					gfp_mask & GFP_RECLAIM_MASK);
->  	if (error)
-> -		goto out;
-> -
-> -	error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
-> -	if (error == 0) {
-> -		page_cache_get(page);
-> -		page->mapping = mapping;
-> -		page->index = offset;
-> +		return error;
->  
-> -		spin_lock_irq(&mapping->tree_lock);
-> -		error = radix_tree_insert(&mapping->page_tree, offset, page);
-> -		if (likely(!error)) {
-> -			mapping->nrpages++;
-> -			__inc_zone_page_state(page, NR_FILE_PAGES);
-> -			spin_unlock_irq(&mapping->tree_lock);
-> -			trace_mm_filemap_add_to_page_cache(page);
-> -		} else {
-> -			page->mapping = NULL;
-> -			/* Leave page->index set: truncation relies upon it */
-> -			spin_unlock_irq(&mapping->tree_lock);
-> -			mem_cgroup_uncharge_cache_page(page);
-> -			page_cache_release(page);
-> -		}
-> -		radix_tree_preload_end();
-> -	} else
-> +	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE)) {
-> +		BUILD_BUG_ON(HPAGE_CACHE_NR > RADIX_TREE_PRELOAD_NR);
-> +		nr = hpage_nr_pages(page);
+> -	radix_tree_delete(&mapping->page_tree, page->index);
+> +	if (thp) {
+> +		int i;
+> +
+> +		nr = HPAGE_CACHE_NR;
+> +		radix_tree_delete(&mapping->page_tree, page->index);
+> +		for (i = 1; i < HPAGE_CACHE_NR; i++) {
+> +			radix_tree_delete(&mapping->page_tree, page->index + i);
+> +			page[i].mapping = NULL;
+> +			page_cache_release(page + i);
+> +		}
+> +		__dec_zone_page_state(page, NR_FILE_TRANSPARENT_HUGEPAGES);
 > +	} else {
 > +		BUG_ON(PageTransHuge(page));
 > +		nr = 1;
+> +		radix_tree_delete(&mapping->page_tree, page->index);
 > +	}
+>  	page->mapping = NULL;
 
-Why can't this just be
+I like to rewrite your code. :)
 
-		nr = hpage_nr_pages(page);
+	nr = hpage_nr_pages(page);
+	for (i = 0; i < nr; i++) {
+		page[i].mapping = NULL;
+		radix_tree_delete(&mapping->page_tree, page->index + i);
+		/* tail pages: */
+		if (i)
+			page_cache_release(page + i);
+	}
+	if (thp)
+	     __dec_zone_page_state(page, NR_FILE_TRANSPARENT_HUGEPAGES);
 
-Are you trying to optimize for the THP=y, but THP-pagecache=n case?
+I like this because it explicitly calls out the logic that tail pages
+are different from head pages.  We handle their reference counts
+differently.
 
-> +	error = radix_tree_preload_count(nr, gfp_mask & ~__GFP_HIGHMEM);
-> +	if (error) {
->  		mem_cgroup_uncharge_cache_page(page);
-> -out:
-> +		return error;
-> +	}
-> +
-> +	spin_lock_irq(&mapping->tree_lock);
-> +	for (i = 0; i < nr; i++) {
-> +		page_cache_get(page + i);
-> +		page[i].index = offset + i;
-> +		page[i].mapping = mapping;
-> +		error = radix_tree_insert(&mapping->page_tree,
-> +				offset + i, page + i);
-> +		if (error)
-> +			goto err;
+Which reminds me...  Why do we handle their reference counts differently? :)
 
-I know it's not a super-common thing in the kernel, but could you call
-this "insert_err" or something?
+It seems like we could easily put a for loop in delete_from_page_cache()
+that will release their reference counts along with the head page.
+Wouldn't that make the code less special-cased for tail pages?
 
-> +	}
-> +	__mod_zone_page_state(page_zone(page), NR_FILE_PAGES, nr);
-> +	if (PageTransHuge(page))
-> +		__inc_zone_page_state(page, NR_FILE_TRANSPARENT_HUGEPAGES);
-> +	mapping->nrpages += nr;
-> +	spin_unlock_irq(&mapping->tree_lock);
-> +	radix_tree_preload_end();
-> +	trace_mm_filemap_add_to_page_cache(page);
-> +	return 0;
-> +err:
-> +	if (i != 0)
-> +		error = -ENOSPC; /* no space for a huge page */
-> +	page_cache_release(page + i);
-> +	page[i].mapping = NULL;
+>  	/* Leave page->index set: truncation lookup relies upon it */
+> -	mapping->nrpages--;
+> -	__dec_zone_page_state(page, NR_FILE_PAGES);
+> +	mapping->nrpages -= nr;
+> +	__mod_zone_page_state(page_zone(page), NR_FILE_PAGES, -nr);
+>  	if (PageSwapBacked(page))
+> -		__dec_zone_page_state(page, NR_SHMEM);
+> +		__mod_zone_page_state(page_zone(page), NR_SHMEM, -nr);
+>  	BUG_ON(page_mapped(page));
 
-I guess it's a slight behaviour change (I think it's harmless) but if
-you delay doing the page_cache_get() and page[i].mapping= until after
-the radix tree insertion, you can avoid these two lines.
+Man, we suck:
 
-> +	for (i--; i >= 0; i--) {
+	__dec_zone_page_state()
+and
+	__mod_zone_page_state()
 
-I kinda glossed over that initial "i--".  It might be worth a quick
-comment to call it out.
+take a differently-typed first argument.  <sigh>
 
-> +		/* Leave page->index set: truncation relies upon it */
-> +		page[i].mapping = NULL;
-> +		radix_tree_delete(&mapping->page_tree, offset + i);
-> +		page_cache_release(page + i);
-> +	}
-> +	spin_unlock_irq(&mapping->tree_lock);
-> +	radix_tree_preload_end();
-> +	mem_cgroup_uncharge_cache_page(page);
->  	return error;
+Would there be any good to making __dec_zone_page_state() check to see
+if the page we passed in _is_ a compound page, and adjusting its
+behaviour accordingly?
+
+>  	/*
+> @@ -144,8 +163,8 @@ void __delete_from_page_cache(struct page *page)
+>  	 * having removed the page entirely.
+>  	 */
+>  	if (PageDirty(page) && mapping_cap_account_dirty(mapping)) {
+> -		dec_zone_page_state(page, NR_FILE_DIRTY);
+> -		dec_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
+> +		mod_zone_page_state(page_zone(page), NR_FILE_DIRTY, -nr);
+> +		add_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE, -nr);
+>  	}
 >  }
 
-FWIW, I think you can move the radix_tree_preload_end() up a bit.  I
-guess it won't make any practical difference since you're holding a
-spinlock, but it at least makes the point that you're not depending on
-it any more.
-
-I'm also trying to figure out how and when you'd actually have to unroll
-a partial-huge-page worth of radix_tree_insert().  In the small-page
-case, you can collide with another guy inserting in to the page cache.
-But, can that happen in the _middle_ of a THP?
-
-Despite my nits, the code still looks correct here, so:
-
-Acked-by: Dave Hansen <dave.hansen@linux.intel.com>
+Ahh, I see now why you didn't need a dec_bdi_stat().  Oh well...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
