@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id C0F096B0002
-	for <linux-mm@kvack.org>; Tue, 21 May 2013 14:22:32 -0400 (EDT)
-Message-ID: <519BBB66.4080008@sr71.net>
-Date: Tue, 21 May 2013 11:22:30 -0700
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 79A1C6B0002
+	for <linux-mm@kvack.org>; Tue, 21 May 2013 14:25:31 -0400 (EDT)
+Message-ID: <519BBC19.7020509@sr71.net>
+Date: Tue, 21 May 2013 11:25:29 -0700
 From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Subject: Re: [PATCHv4 01/39] mm: drop actor argument of do_generic_file_read()
-References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com> <1368321816-17719-2-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1368321816-17719-2-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCHv4 02/39] block: implement add_bdi_stat()
+References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com> <1368321816-17719-3-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1368321816-17719-3-git-send-email-kirill.shutemov@linux.intel.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -19,12 +19,13 @@ Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation
 On 05/11/2013 06:22 PM, Kirill A. Shutemov wrote:
 > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 > 
-> There's only one caller of do_generic_file_read() and the only actor is
-> file_read_actor(). No reason to have a callback parameter.
+> We're going to add/remove a number of page cache entries at once. This
+> patch implements add_bdi_stat() which adjusts bdi stats by arbitrary
+> amount. It's required for batched page cache manipulations.
 
-Looks sane.  This can and should go up separately from the rest of the set.
+Add, but no dec?
 
-Acked-by: Dave Hansen <dave.hansen@linux.intel.com>
+I'd also move this closer to where it gets used in the series.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
