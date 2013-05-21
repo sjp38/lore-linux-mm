@@ -1,147 +1,243 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 5FDFE6B0034
-	for <linux-mm@kvack.org>; Mon, 20 May 2013 23:50:38 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id 10so172679pdc.25
-        for <linux-mm@kvack.org>; Mon, 20 May 2013 20:50:37 -0700 (PDT)
-Message-ID: <519AEF09.4050302@linaro.org>
-Date: Mon, 20 May 2013 20:50:33 -0700
-From: John Stultz <john.stultz@linaro.org>
-MIME-Version: 1.0
-Subject: Re: Summary of LSF-MM Volatile Ranges Discussion
-References: <516EE256.2070303@linaro.org> <5175FBEB.4020809@linaro.org> <20130516172400.GQ5181@redhat.com>
-In-Reply-To: <20130516172400.GQ5181@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id 9CC726B0002
+	for <linux-mm@kvack.org>; Tue, 21 May 2013 02:26:19 -0400 (EDT)
+Received: by mail-pb0-f54.google.com with SMTP id ro12so286278pbb.13
+        for <linux-mm@kvack.org>; Mon, 20 May 2013 23:26:18 -0700 (PDT)
+From: Bob Liu <lliubbo@gmail.com>
+Subject: [RFC PATCH] zswap: add zswap shrinker
+Date: Tue, 21 May 2013 14:26:07 +0800
+Message-Id: <1369117567-26704-1-git-send-email-bob.liu@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: lsf@lists.linux-foundation.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Paul Turner <pjt@google.com>, Robert Love <rlove@google.com>, Dave Hansen <dave@sr71.net>, Taras Glek <tglek@mozilla.com>, Mike Hommey <mh@glandium.org>, Kostya Serebryany <kcc@google.com>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, gthelen@google.com, Rik van Riel <riel@redhat.com>, glommer@parallels.com, mhocko@suse.deTaras Glek <tglek@mozilla.com>Mike Hommey <mh@glandium.org>
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, sjenning@linux.vnet.ibm.com, ngupta@vflare.org, minchan@kernel.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, rcj@linux.vnet.ibm.com, mgorman@suse.de, riel@redhat.com, dave@sr71.net, hughd@google.com, Bob Liu <bob.liu@oracle.com>
 
-On 05/16/2013 10:24 AM, Andrea Arcangeli wrote:
-> Hi John,
->
-> On Mon, Apr 22, 2013 at 08:11:39PM -0700, John Stultz wrote:
->> with that range mapped).  I re-iterated the example of a large circular
->> buffer in a shared file, which is initialized as entirely volatile. Then
->> a producer process would mark a region after the head as non-volatile,
->> then fill it with data. And a consumer process, then consumes data from
->> the tail, and mark those consumed ranges as volatile.
-> If the backing filesystem isn't tmpfs: what is the point of shrinking
-> the pagecache of the circular buffer before other pagecache? How can
-> you be sure the LRU isn't going to do a better job?
-So, tmpfs is really the main target for shared volatile ranges in my 
-mind. But if you were using non-tmpfs files, you could end up possibly 
-saving disk writes by purging dirty data instead of writing it out. Now, 
-we'd still need to punch a hole in the file in order to be consistent 
-(don't want to old data to persist there if we purged it), but depending 
-on the fs it may be cheaper to punch a hole then write out lots of dirty 
-data.
+In my understanding, currenlty zswap have a few problems.
+1. The zswap pool size is 20% of total memory that's too random and once it
+gets full the performance may even worse because everytime pageout() an anon
+page two disk-io write ops may happend instead of one.
 
-But again, tmpfs is really the main target here.
+2. The reclaim hook will only be triggered in frontswap_store().
+It may be result that the zswap pool size can't be adjusted in time which may
+caused 20% memory lose for other users.
 
+This patch introduce a zswap shrinker, it make the balance that the zswap
+pool size will be the same as anon pages in use.
+It's more flexiable and the size of zswap pool can be dynamically changed
+during different memory situation.
 
-> If the pagecache of the circular buffer is evicted, the next time the
-> circular buffer overflows and you restart from the head of the buffer,
-> you risk to hit a page-in from disk, instead of working in RAM without
-> page-ins.
->
-> Or do you trigger a sigbus for filebacked pages too, and somehow avoid
-> the suprious page-in caused by the volatile pagecache eviction?
+This patch was based on Seth's zswap v12. It's very draft and only compile
+tested now.
 
-There would be a SIGBUS, but after the range is marked non-volatile, if 
-a read is done immediately after, that could trigger a page-in. If it 
-was written to immediately, I suspect we'd avoid it. But this example 
-isn't one I've looked at in particular.
+Signed-off-by: Bob Liu <bob.liu@oracle.com>
+---
+ include/linux/zbud.h |    2 +-
+ mm/zbud.c            |   17 ++++++++--
+ mm/zswap.c           |   84 +++++++++++++++++++++++++++++++++++---------------
+ 3 files changed, 74 insertions(+), 29 deletions(-)
 
-
-> And if this is tmpfs and you keep the semantics the same for all
-> filesystems: unmapping the page won't free memory and it won't provide
-> any relevant benefit. It might help a bit if you drop the dirty bit
-> but only during swapping.
->
-> It would be a whole lot different if you created an _hole_ in the
-> file.
-Right. When we purge pages it should be the same as punching a hole 
-(we're using truncate_inode_pages_range).
-
-
-> It also would make more sense if you only worked at the
-> pagetable/process level (not at the inode/pagecache level) and you
-> didn't really control which pages are evicted, but you only unmapped
-> the pages and let the LRU decide later, just like if it was anonymous
-> memory.
->
-> If you only unmap the filebacked pages without worrying about their
-> freeing, then it behaves the same as MADV_DONTNEED, and it'd drop the
-> dirty bit, the mapping and that's it. After the pagecache is unmapped,
-> it is also freed much quicker than mapped pagecache, so it would make
-> sense for your objectives.
-
-Hmmm. I'll have to consider this further. Ideally I think we'd like the 
-purging to be done by the LRU (the one problem is that anonymous pages 
-aren't normally aged off the lru when we don't have swap - thus 
-Minchan's use of a shrinker to force anonymous page purging). But it 
-sounds like you're suggesting we do it in two steps. One, purge via 
-shrinker and unmap the pages, then allow the eviction to be done by the 
-LRU.  I'm not sure how that would work with the hole-punching, but I'll 
-have to look closer.
-
-
-> If you associate the volatility to the inode and not to the process
-> "mm", I think you need to create an hole when the pagecache is
-> evicted, so it becomes more useful with tmpfs and the above circular
-> buffer example.
-So, for shared volatility, we do associate it with the address_space. 
-For private volatility, its associated with the mm.
-
-
-> If you don't create an hole in the file, and you alter the LRU order
-> in actually freeing the pagecache, this becomes an userland hint to
-> the VM, that overrides the LRU order of pagecache shrinking which may
-> backfire. I doubt userland knows better which pagecache should be
-> evicted first to avoid spurious page-ins on next fault. I mean you at
-> least need to be sure the next fault won't trigger a spurious swap-in.
->
->> I noted that first of all, the shared volatility is needed to match the
->> Android ashmem semantics. So there's at least an existing user. And that
->> while this method pointed out could be used, I still felt it is fairly
-> Could you get in more detail of how Android is using the file
-> volatility?
->
-> The MADV_USERFAULT feature to offload anonymous memory to remote nodes
-> in combination with remap_anon_pages (to insert/remove memory)
-> resembles somewhat the sigbus fault triggered by evicted volatile
-> pages. So ideally the sigbus entry points should be shared by both
-> missing volatile pages and MADV_USERFAULT, to have a single branch in
-> the fast paths.
->
-> You can see the MADV_USERFAULT page fault entry points here in 1/4:
->
->      http://thread.gmane.org/gmane.comp.emulators.qemu/210231
-
-As far as the entry-points, I suspect you mean just the vma_flag check? 
-I'm somewhat skeptical. Minchan's trick of checking a pte flag on fault 
-to see if the page was purged seems pretty nice to me (though I haven't 
-managed to work out the flag for file pages yet - currently using a 
-stupid lookup on fault instead for now, as we work out the interface 
-semantics). Though maybe Minchan's pte flag approach might work for your 
-case?
-
-But I'll have to look closer at this. Taras @ Mozilla pointed me to it 
-earlier and I thought the notification was vaguely similar.
-
-MikeH: Do you have any thoughts as to if the file polling done in the 
-description below make sense instead of using SIGBUS?
-http://lists.gnu.org/archive/html/qemu-devel/2012-10/msg05274.html
-
-I worry the handling is somewhat cross-process w/ the poling method, it 
-might make it too complex, esp with private volatility on anonymous 
-pages (ie: what backs that isn't going to be known by a different process).
-
-thanks
--john
-
+diff --git a/include/linux/zbud.h b/include/linux/zbud.h
+index 2571a5c..afd2eb2 100644
+--- a/include/linux/zbud.h
++++ b/include/linux/zbud.h
+@@ -14,7 +14,7 @@ void zbud_destroy_pool(struct zbud_pool *pool);
+ int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
+ 	unsigned long *handle);
+ void zbud_free(struct zbud_pool *pool, unsigned long handle);
+-int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries);
++int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries, struct page *page);
+ void *zbud_map(struct zbud_pool *pool, unsigned long handle);
+ void zbud_unmap(struct zbud_pool *pool, unsigned long handle);
+ u64 zbud_get_pool_size(struct zbud_pool *pool);
+diff --git a/mm/zbud.c b/mm/zbud.c
+index b10a1f1..3045bfb 100644
+--- a/mm/zbud.c
++++ b/mm/zbud.c
+@@ -294,8 +294,15 @@ int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
+ 	/* Couldn't find unbuddied zbpage, create new one */
+ 	spin_unlock(&pool->lock);
+ 	page = alloc_page(gfp);
++	if (!page) {
++		/* Couldn't alloc new page, try to direct reclaim */
++		if (zbud_reclaim_page(pool, 16, page))
++			return -ENOMEM;
++	}
++
+ 	if (!page)
+ 		return -ENOMEM;
++
+ 	spin_lock(&pool->lock);
+ 	pool->pages_nr++;
+ 	zbpage = init_zbud_page(page);
+@@ -412,7 +419,7 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle)
+  * no pages to evict or an eviction handler is not registered, -EAGAIN if
+  * the retry limit was hit.
+  */
+-int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
++int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries, struct page *page)
+ {
+ 	int i, ret, freechunks;
+ 	struct zbud_page *zbpage;
+@@ -461,8 +468,12 @@ next:
+ 			 * Both buddies are now free, free the zbpage and
+ 			 * return success.
+ 			 */
+-			free_zbud_page(zbpage);
+-			pool->pages_nr--;
++			if (page)
++				page = &zbpage->page;
++			else {
++				free_zbud_page(zbpage);
++				pool->pages_nr--;
++			}
+ 			spin_unlock(&pool->lock);
+ 			return 0;
+ 		} else if (zbpage->first_chunks == 0 ||
+diff --git a/mm/zswap.c b/mm/zswap.c
+index 22cc034..9703bb5 100644
+--- a/mm/zswap.c
++++ b/mm/zswap.c
+@@ -84,11 +84,6 @@ module_param_named(enabled, zswap_enabled, bool, 0);
+ static char *zswap_compressor = ZSWAP_COMPRESSOR_DEFAULT;
+ module_param_named(compressor, zswap_compressor, charp, 0);
+ 
+-/* The maximum percentage of memory that the compressed pool can occupy */
+-static unsigned int zswap_max_pool_percent = 20;
+-module_param_named(max_pool_percent,
+-			zswap_max_pool_percent, uint, 0644);
+-
+ /*********************************
+ * compression functions
+ **********************************/
+@@ -362,15 +357,6 @@ cleanup:
+ 	return -ENOMEM;
+ }
+ 
+-/*********************************
+-* helpers
+-**********************************/
+-static inline bool zswap_is_full(void)
+-{
+-	return (totalram_pages * zswap_max_pool_percent / 100 <
+-		zswap_pool_pages);
+-}
+-
+ /*
+  * Carries out the common pattern of freeing and entry's zsmalloc allocation,
+  * freeing the entry itself, and decrementing the number of stored pages.
+@@ -430,6 +416,9 @@ static int zswap_get_swap_cache_page(swp_entry_t entry,
+ 		 * Get a new page to read into from swap.
+ 		 */
+ 		if (!new_page) {
++			/* Need more agressive here to alloc memory so that pages in
++			 * zswap pool can be written out to disk and finally can shrink
++			 * zswap pool size.*/
+ 			new_page = alloc_page(GFP_KERNEL);
+ 			if (!new_page)
+ 				break; /* Out of memory */
+@@ -620,16 +609,6 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+ 		goto reject;
+ 	}
+ 
+-	/* reclaim space if needed */
+-	if (zswap_is_full()) {
+-		zswap_pool_limit_hit++;
+-		if (zbud_reclaim_page(tree->pool, 8)) {
+-			zswap_reject_reclaim_fail++;
+-			ret = -ENOMEM;
+-			goto reject;
+-		}
+-	}
+-
+ 	/* allocate entry */
+ 	entry = zswap_entry_cache_alloc(GFP_KERNEL);
+ 	if (!entry) {
+@@ -650,7 +629,9 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+ 
+ 	/* store */
+ 	len = dlen + sizeof(struct zswap_header);
+-	ret = zbud_alloc(tree->pool, len, __GFP_NORETRY | __GFP_NOWARN,
++	/* Don't use reserve memory so that system won't enter very bad memory
++	 * situation becasue of zswap*/
++	ret = zbud_alloc(tree->pool, len, __GFP_NORETRY | __GFP_NOWARN | __GFP_NOMEMALLOC,
+ 		&handle);
+ 	if (ret == -E2BIG) {
+ 		zswap_reject_compress_poor++;
+@@ -907,11 +888,60 @@ static inline int __init zswap_debugfs_init(void)
+ static inline void __exit zswap_debugfs_exit(void) { }
+ #endif
+ 
++/*
++ * This zswap shrinker interface reduces the number of pageframes
++ * used by zswap to approximately the same as the total number of LRU_ANON
++ * pageframes in use which means 1:1
++ * The policy can be changed if there is better scale proved in future.
++ */
++static int shrink_zswap_memory(struct shrinker *shrink,
++				struct shrink_control *sc)
++{
++	static bool in_progress;
++	int nr_evict = 0;
++	int nr_reclaim = 0;
++	int  global_anon_pages_inuse;
++	struct zswap_tree *tree;
++	int tree_type;
++
++	if (!sc->nr_to_scan)
++		goto skip_evict;
++	/* don't allow more than one eviction thread at a time */
++	if (in_progress)
++		goto skip_evict;
++	in_progress = true;
++
++	global_anon_pages_inuse = global_page_state(NR_LRU_BASE + LRU_ACTIVE_ANON) +
++		global_page_state(NR_LRU_BASE + LRU_INACTIVE_ANON);
++
++	if (zswap_pool_pages > global_anon_pages_inuse)
++		nr_reclaim = zswap_pool_pages - global_anon_pages_inuse;
++	else
++		nr_reclaim = 0;
++
++	while (nr_reclaim > 0)
++		for (tree_type = 0; tree_type < MAX_SWAPFILES; tree_type++) {
++			tree = zswap_trees[tree_type];
++			if (tree) {
++				if (zbud_reclaim_page(tree->pool, 8, NULL))
++					zswap_reject_reclaim_fail++;
++				else {
++					nr_evict++;
++					nr_reclaim--;
++				}
++			}
++		}
++	in_progress = false;
++skip_evict:
++	return nr_evict;
++}
++
+ /*********************************
+ * module init and exit
+ **********************************/
+ static int __init init_zswap(void)
+ {
++	struct shrinker zswap_shrinker;
+ 	if (!zswap_enabled)
+ 		return 0;
+ 
+@@ -931,6 +961,10 @@ static int __init init_zswap(void)
+ 	frontswap_register_ops(&zswap_frontswap_ops);
+ 	if (zswap_debugfs_init())
+ 		pr_warn("debugfs initialization failed\n");
++
++	zswap_shrinker.shrink = shrink_zswap_memory;
++	zswap_shrinker.seeks = DEFAULT_SEEKS;
++	register_shrinker(&zswap_shrinker);
+ 	return 0;
+ pcpufail:
+ 	zswap_comp_exit();
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
