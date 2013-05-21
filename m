@@ -1,82 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id BEFB46B0033
-	for <linux-mm@kvack.org>; Tue, 21 May 2013 06:13:51 -0400 (EDT)
-Message-ID: <20130521101349.30660.qmail@stuge.se>
-Date: Tue, 21 May 2013 12:13:49 +0200
-From: Peter Stuge <peter@stuge.se>
-Subject: Re: [PATCH] Finally eradicate CONFIG_HOTPLUG
-References: <20130521134935.d18c3f5c23485fb5ddabc365@canb.auug.org.au>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="ibTvN161/egqYuK8"
-Content-Disposition: inline
-In-Reply-To: <20130521134935.d18c3f5c23485fb5ddabc365@canb.auug.org.au>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-arch@vger.kernel.org, "Rafael J. Wysocki" <rjw@sisk.pl>, Russell King <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, linux-pm@vger.kernel.org, linux-pci@vger.kernel.org, linux-pcmcia@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>, cluster-devel@redhat.com, linux-mm@kvack.org, Hans Verkuil <hans.verkuil@cisco.com>, Pavel Machek <pavel@ucw.cz>, Doug Thompson <dougthompson@xmission.com>, Bjorn Helgaas <bhelgaas@google.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Whitehouse <swhiteho@redhat.com>, linux-arm-kernel@lists.infradead.org, linux-edac@vger.kernel.org
-
-
---ibTvN161/egqYuK8
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 075416B0002
+	for <linux-mm@kvack.org>; Tue, 21 May 2013 06:20:53 -0400 (EDT)
+Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
+	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
+	id S1660717Ab3EUKUu (ORCPT <rfc822;linux-mm@kvack.org>);
+	Tue, 21 May 2013 12:20:50 +0200
+Date: Tue, 21 May 2013 12:20:50 +0200
+From: Daniel Kiper <dkiper@net-space.pl>
+Subject: Re: [Xen-devel] Bye bye Mr tmem guy
+Message-ID: <20130521102050.GA545@router-fw-old.local.net-space.pl>
+References: <c064ee79-6fa0-4833-b3f1-ca712b029a83@default>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <c064ee79-6fa0-4833-b3f1-ca712b029a83@default>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, linux-mm@kvack.org, Bob Liu <bob.liu@oracle.com>, Konrad Wilk <konrad.wilk@oracle.com>
 
-Are you changing the code to have HOTPLUG always -on- or -off- ?
+On Mon, May 20, 2013 at 08:51:47AM -0700, Dan Magenheimer wrote:
+> Hi Linux kernel folks and Xen folks --
+> 
+> Effective July 5, I will be resigning from Oracle and "retiring"
+> for a minimum of 12-18 months and probably/hopefully much longer.
+> Between now and July 5, I will be tying up loose ends related to
+> my patches but also using up accrued vacation days.  If you have
+> a loose end you'd like to see tied, please let me know ASAP and
+> I will do my best.
+> 
+> After July 5, any email to me via first DOT last AT oracle DOT com
+> will go undelivered and may bounce.  Please send email related to
+> my open source patches and contributions to Konrad Wilk and/or Bob Liu.
+> Personal email directed to me can be sent to first AT last DOT com.
+> 
+> Thanks much to everybody for the many educational opportunities,
+> the technical and political jousting, and the great times at
+> conferences and summits!  I wish you all the best of luck!
+> Or to quote Douglas Adams: "So long and thanks for all the fish!"
 
-=46rom the commit message I had expected always -on-.
+We will miss you! It was very nice to work with you.
+Have a fun during your free time...
 
-
-Stephen Rothwell wrote:
-> --- a/include/asm-generic/vmlinux.lds.h
-> +++ b/include/asm-generic/vmlinux.lds.h
-> @@ -68,14 +68,6 @@
->   * are handled as text/data or they can be discarded (which
->   * often happens at runtime)
->   */
-> -#ifdef CONFIG_HOTPLUG
-> -#define DEV_KEEP(sec)    *(.dev##sec)
-> -#define DEV_DISCARD(sec)
-> -#else
-> -#define DEV_KEEP(sec)
-> -#define DEV_DISCARD(sec) *(.dev##sec)
-> -#endif
-> -
->  #ifdef CONFIG_HOTPLUG_CPU
->  #define CPU_KEEP(sec)    *(.cpu##sec)
->  #define CPU_DISCARD(sec)
-> @@ -182,8 +174,6 @@
->  	*(.data)							\
->  	*(.ref.data)							\
->  	*(.data..shared_aligned) /* percpu related */			\
-> -	DEV_KEEP(init.data)						\
-> -	DEV_KEEP(exit.data)						\
-=2E.
-> @@ -503,7 +489,6 @@
->  /* init and exit section handling */
->  #define INIT_DATA							\
->  	*(.init.data)							\
-> -	DEV_DISCARD(init.data)						\
-
-Shouldn't the effect of one of the above remain?
-
-
-//Peter
-
---ibTvN161/egqYuK8
-Content-Type: application/pgp-signature
-Content-Disposition: inline
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
-
-iD8DBQFRm0jdhR3Q0dhIfEgRAtAtAKDxeofcdUGqWjn2AyXb/CxbZP4X8ACgvEte
-zomgM5roARu65KybTU/PIcM=
-=bMNu
------END PGP SIGNATURE-----
-
---ibTvN161/egqYuK8--
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
