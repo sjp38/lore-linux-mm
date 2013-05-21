@@ -1,111 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id C79D06B0033
-	for <linux-mm@kvack.org>; Mon, 20 May 2013 20:04:39 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 708426B0034
+	for <linux-mm@kvack.org>; Mon, 20 May 2013 20:04:40 -0400 (EDT)
 From: Rafael Aquini <aquini@redhat.com>
-Subject: [RFC PATCH 01/02] swap: discard while swapping only if SWAP_FLAG_DISCARD_CLUSTER
-Date: Mon, 20 May 2013 21:04:24 -0300
-Message-Id: <e3ae11727f13e1580ae66ce80845e9002ec90ea6.1369092449.git.aquini@redhat.com>
-In-Reply-To: <cover.1369092449.git.aquini@redhat.com>
-References: <cover.1369092449.git.aquini@redhat.com>
-In-Reply-To: <cover.1369092449.git.aquini@redhat.com>
-References: <cover.1369092449.git.aquini@redhat.com>
+Subject: [RFC PATCH 00/02] swap: allowing a more flexible DISCARD policy
+Date: Mon, 20 May 2013 21:04:23 -0300
+Message-Id: <cover.1369092449.git.aquini@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, shli@kernel.org, kzak@redhat.com, jmoyer@redhat.com, riel@redhat.com, lwoodman@redhat.com, mgorman@suse.de
 
-Intruduce a new flag to make page-cluster fine-grained discards while swapping
-conditional, as they can be considered detrimental to some setups. However,
-keep allowing batched discards at sys_swapon() time, when enabled by the
-system administrator. 
+Howdy folks,
 
-Signed-off-by: Rafael Aquini <aquini@redhat.com>
----
- include/linux/swap.h |  8 +++++---
- mm/swapfile.c        | 12 ++++++++----
- 2 files changed, 13 insertions(+), 7 deletions(-)
+While working on a backport for the following changes:
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 1701ce4..ab2e742 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -19,10 +19,11 @@ struct bio;
- #define SWAP_FLAG_PREFER	0x8000	/* set if swap priority specified */
- #define SWAP_FLAG_PRIO_MASK	0x7fff
- #define SWAP_FLAG_PRIO_SHIFT	0
--#define SWAP_FLAG_DISCARD	0x10000 /* discard swap cluster after use */
-+#define SWAP_FLAG_DISCARD	0x10000 /* enable discard for swap areas */
-+#define SWAP_FLAG_DISCARD_CLUSTER 0x20000 /* discard swap clusters after use */
- 
- #define SWAP_FLAGS_VALID	(SWAP_FLAG_PRIO_MASK | SWAP_FLAG_PREFER | \
--				 SWAP_FLAG_DISCARD)
-+				 SWAP_FLAG_DISCARD | SWAP_FLAG_DISCARD_CLUSTER)
- 
- static inline int current_is_kswapd(void)
- {
-@@ -152,8 +153,9 @@ enum {
- 	SWP_CONTINUED	= (1 << 5),	/* swap_map has count continuation */
- 	SWP_BLKDEV	= (1 << 6),	/* its a block device */
- 	SWP_FILE	= (1 << 7),	/* set after swap_activate success */
-+	SWP_CLUSTERDISCARD = (1 << 8),	/* discard swap cluster after usage */
- 					/* add others here before... */
--	SWP_SCANNING	= (1 << 8),	/* refcount in scan_swap_map */
-+	SWP_SCANNING	= (1 << 9),	/* refcount in scan_swap_map */
- };
- 
- #define SWAP_CLUSTER_MAX 32UL
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 6c340d9..197461f 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -212,7 +212,7 @@ static unsigned long scan_swap_map(struct swap_info_struct *si,
- 			si->cluster_nr = SWAPFILE_CLUSTER - 1;
- 			goto checks;
- 		}
--		if (si->flags & SWP_DISCARDABLE) {
-+		if (si->flags & SWP_CLUSTERDISCARD) {
- 			/*
- 			 * Start range check on racing allocations, in case
- 			 * they overlap the cluster we eventually decide on
-@@ -322,7 +322,7 @@ checks:
- 
- 	if (si->lowest_alloc) {
- 		/*
--		 * Only set when SWP_DISCARDABLE, and there's a scan
-+		 * Only set when SWP_CLUSTERDISCARD, and there's a scan
- 		 * for a free cluster in progress or just completed.
- 		 */
- 		if (found_free_cluster) {
-@@ -2123,8 +2123,11 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 			p->flags |= SWP_SOLIDSTATE;
- 			p->cluster_next = 1 + (prandom_u32() % p->highest_bit);
- 		}
--		if ((swap_flags & SWAP_FLAG_DISCARD) && discard_swap(p) == 0)
-+		if ((swap_flags & SWAP_FLAG_DISCARD) && discard_swap(p) == 0) {
- 			p->flags |= SWP_DISCARDABLE;
-+			if (swap_flags & SWAP_FLAG_DISCARD_CLUSTER)
-+				p->flags |= SWP_CLUSTERDISCARD;
-+		}
- 	}
- 
- 	mutex_lock(&swapon_mutex);
-@@ -2135,11 +2138,12 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	enable_swap_info(p, prio, swap_map, frontswap_map);
- 
- 	printk(KERN_INFO "Adding %uk swap on %s.  "
--			"Priority:%d extents:%d across:%lluk %s%s%s\n",
-+			"Priority:%d extents:%d across:%lluk %s%s%s%s\n",
- 		p->pages<<(PAGE_SHIFT-10), name->name, p->prio,
- 		nr_extents, (unsigned long long)span<<(PAGE_SHIFT-10),
- 		(p->flags & SWP_SOLIDSTATE) ? "SS" : "",
- 		(p->flags & SWP_DISCARDABLE) ? "D" : "",
-+		(p->flags & SWP_CLUSTERDISCARD) ? "C" : "",
- 		(frontswap_map) ? "FS" : "");
- 
- 	mutex_unlock(&swapon_mutex);
--- 
-1.7.11.7
+3399446 swap: discard while swapping only if SWAP_FLAG_DISCARD
+052b198 swap: don't do discard if no discard option added
+
+We found ourselves around an interesting discussion on how limiting 
+the behavior with regard to user-visible swap areas configuration has become
+after applying the aforementioned changesets.
+
+Before commit 3399446, if the swap backing device supported DISCARD,
+then a batched discard was issued at swapon(8) time, and fine-grained DISCARDs
+were issued in between freeing swap page-clusters and re-writing to them.
+As noticed at 3399446's commit message, the fine-grained discards often
+didn't help on improving performance as expected, and were potentially causing
+more trouble than desired. So, commit 3399446 introduced a new swapon flag,
+to make the fine-grained discards while swapping conditional.
+However a batched discard would have been issued everytime swapon(8) was
+turning a new swap area available.
+
+This batched operation that remained at sys_swapon was considered troublesome
+for some setups, and specially because a sysadmin was not flagging swapon(8)
+to do discards -- http://www.spinics.net/lists/linux-mm/msg31741.html 
+then, commit 052b198 got merged to address the scenario described above.
+After this last commit, now we can either only do both batched and fine-grained
+discards for swap, or none of them.
+
+As depicted above, this seems to be not very flexible as it could be,
+and the whole discussion we had (internally) left us wondering if does upstream
+feel it would be useful to allow for both a batched discard as well as a
+fine-grained discard option for swap? (By batched, here, it could mean just
+the one time operation at swapon, or something similar to what fstrim does).
+
+In fact, we all agreed with having no discards sent down at all as the default
+behaviour. But thinking a little more about the use cases where device supports
+discard:
+a) and can do it quickly;
+b) but it's slow to do in small granularities (or concurrent with other
+   I/O);
+c) but the implementation is so horrendous that you don't even want to
+   send one down;
+
+And assuming that the sysadmin considers it useful to send the discards down
+at all, we would (probably) want the following solutions:
+
+1) do the fine-grained discards if swap device is capable of doing so;
+2) do batched discards, either at swapon or via something like fstrim; or
+3) turn it off completely (default behavior nowadays)
+
+
+i.e.: Today, if we have a swap device like (b), we cannot perform (2) even if
+it might be regardeed as interesting, or necessary to the workload because it
+would imply (1), and the device cannot do that and perform optimally.
+
+
+With all that in mind, and in order to attempt to sort out the (un)flexibility
+problem exposed above, I came up with the following patches:
+
+01 (kernel)     swap: discard while swapping only if SWAP_FLAG_DISCARD_CLUSTER
+02 (util-linux) swapon: add "cluster-discard" support
+
+
+Sorry for the long email.
+
+Your feedback is very much appreciated!
+-- Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
