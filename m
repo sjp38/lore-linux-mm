@@ -1,15 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 98EAE6B0033
-	for <linux-mm@kvack.org>; Tue, 21 May 2013 15:34:52 -0400 (EDT)
-Message-ID: <519BCC59.10607@sr71.net>
-Date: Tue, 21 May 2013 12:34:49 -0700
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 460926B0034
+	for <linux-mm@kvack.org>; Tue, 21 May 2013 15:35:54 -0400 (EDT)
+Message-ID: <519BCC97.1090307@sr71.net>
+Date: Tue, 21 May 2013 12:35:51 -0700
 From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Subject: Re: [PATCHv4 11/39] thp: represent file thp pages in meminfo and
- friends
-References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com> <1368321816-17719-12-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1368321816-17719-12-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCHv4 13/39] mm: trace filemap: dump page order
+References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com> <1368321816-17719-14-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1368321816-17719-14-git-send-email-kirill.shutemov@linux.intel.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -20,13 +19,8 @@ Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation
 On 05/11/2013 06:23 PM, Kirill A. Shutemov wrote:
 > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 > 
-> The patch adds new zone stat to count file transparent huge pages and
-> adjust related places.
-> 
-> For now we don't count mapped or dirty file thp pages separately.
-
-You need to call out that this depends on the previous "NR_ANON_PAGES"
-behaviour change to make sense.  Otherwise,
+> Dump page order to trace to be able to distinguish between small page
+> and huge page in page cache.
 
 Acked-by: Dave Hansen <dave.hansen@linux.intel.com>
 
