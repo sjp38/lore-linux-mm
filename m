@@ -1,9 +1,9 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 7C3336B0098
-	for <linux-mm@kvack.org>; Tue, 21 May 2013 19:23:06 -0400 (EDT)
-Message-ID: <519C01D8.4040301@sr71.net>
-Date: Tue, 21 May 2013 16:23:04 -0700
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id AE8836B009B
+	for <linux-mm@kvack.org>; Tue, 21 May 2013 19:23:26 -0400 (EDT)
+Message-ID: <519C01EC.5060909@sr71.net>
+Date: Tue, 21 May 2013 16:23:24 -0700
 From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
 Subject: Re: [PATCHv4 29/39] thp: move maybe_pmd_mkwrite() out of mk_huge_pmd()
@@ -25,23 +25,7 @@ On 05/11/2013 06:23 PM, Kirill A. Shutemov wrote:
 > Let's move maybe_pmd_mkwrite() out of mk_huge_pmd() and adjust
 > prototype to match mk_pte().
 
-Was there a motivation to do this beyond adding consistency?  Do you use
-this later or something?
-
-> @@ -746,7 +745,8 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
->  		pte_free(mm, pgtable);
->  	} else {
->  		pmd_t entry;
-> -		entry = mk_huge_pmd(page, vma);
-> +		entry = mk_huge_pmd(page, vma->vm_page_prot);
-> +		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
->  		page_add_new_anon_rmap(page, vma, haddr);
->  		set_pmd_at(mm, haddr, pmd, entry);
-
-I'm not the biggest fan since this does add lines of code, but I do
-appreciate the consistency it adds, so:
-
-Acked-by: Dave Hansen <dave.hansen@linux.intel.com>
+Oh, and please stick this in your queue of stuff to go upstream, first.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
