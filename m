@@ -1,191 +1,93 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: QEMU NUMA and memory allocation problem
-Date: Mon, 20 May 2013 11:03:43 +0800
-Message-ID: <24921.0344547921$1369019055@news.gmane.org>
-References: <5194ABFD.8040200@cn.fujitsu.com>
- <51998489.804@cn.fujitsu.com>
+Subject: Re: Bye bye Mr tmem guy
+Date: Tue, 21 May 2013 08:09:29 +0800
+Message-ID: <32268.1708065376$1369094986@news.gmane.org>
+References: <c064ee79-6fa0-4833-b3f1-ca712b029a83@default>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Return-path: <qemu-devel-bounces+gceq-qemu-devel=gmane.org@nongnu.org>
+Return-path: <owner-linux-mm@kvack.org>
+Received: from kanga.kvack.org ([205.233.56.17])
+	by plane.gmane.org with esmtp (Exim 4.69)
+	(envelope-from <owner-linux-mm@kvack.org>)
+	id 1Uea96-0001V0-Mm
+	for glkm-linux-mm-2@m.gmane.org; Tue, 21 May 2013 02:09:41 +0200
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 768F06B0034
+	for <linux-mm@kvack.org>; Mon, 20 May 2013 20:09:38 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Tue, 21 May 2013 05:34:33 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 32DBA1258051
+	for <linux-mm@kvack.org>; Tue, 21 May 2013 05:41:28 +0530 (IST)
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4L09OM21769944
+	for <linux-mm@kvack.org>; Tue, 21 May 2013 05:39:24 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4L09URs018263
+	for <linux-mm@kvack.org>; Tue, 21 May 2013 10:09:31 +1000
 Content-Disposition: inline
-In-Reply-To: <51998489.804@cn.fujitsu.com>
-List-Unsubscribe: <https://lists.nongnu.org/mailman/options/qemu-devel>,
-	<mailto:qemu-devel-request@nongnu.org?subject=unsubscribe>
-List-Archive: <http://lists.nongnu.org/archive/html/qemu-devel>
-List-Post: <mailto:qemu-devel@nongnu.org>
-List-Help: <mailto:qemu-devel-request@nongnu.org?subject=help>
-List-Subscribe: <https://lists.nongnu.org/mailman/listinfo/qemu-devel>,
-	<mailto:qemu-devel-request@nongnu.org?subject=subscribe>
-Errors-To: qemu-devel-bounces+gceq-qemu-devel=gmane.org@nongnu.org
-Sender: qemu-devel-bounces+gceq-qemu-devel=gmane.org@nongnu.org
-Cc: aarcange@redhat.com, a.p.zijlstra@chello.nl, qemu-devel <qemu-devel@nongnu.org>, linux-mm <linux-mm@kvack.org>, mgorman@suse.de, Paolo Bonzini <pbonzini@redhat.com>, mingo@kernel.org, Wanlong Gao <gaowanlong@cn.fujitsu.com>, ehabkost@redhat.com
-List-Id: linux-mm.kvack.org
+In-Reply-To: <c064ee79-6fa0-4833-b3f1-ca712b029a83@default>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, Konrad Wilk <konrad.wilk@oracle.com>, Bob Liu <bob.liu@oracle.com>, linux-mm@kvack.org
 
-On Mon, May 20, 2013 at 10:03:53AM +0800, Wanlong Gao wrote:
->Adding CC AutoNUMA folks:
+On Mon, May 20, 2013 at 08:51:47AM -0700, Dan Magenheimer wrote:
+>Hi Linux kernel folks and Xen folks --
 >
->Paolo said that:
->
->> Pinning memory to host NUMA nodes is not implemented.  Something like
->> AutoNUMA would be able to balance the memory the right way.
->> 
->> Paolo
->
->And Eduardo said that:
->> I had plans to implement a mechanism to allow external tools to
->> implement manual pinning, but it is not one of my top priorities. It's
->> the kind of mechanism that may be obsolete since birth, if we have
->> AutoNUMA working and doing the right thing.
->> 
->> -- Eduardo 
+>Effective July 5, I will be resigning from Oracle and "retiring"
+>for a minimum of 12-18 months and probably/hopefully much longer.
+>Between now and July 5, I will be tying up loose ends related to
+>my patches but also using up accrued vacation days.  If you have
+>a loose end you'd like to see tied, please let me know ASAP and
+>I will do my best.
 >
 
-Hi Wanlong,
+Thanks for your great contributions, enjoy your time. ;-)
 
->But I didn't see any change when I enabled the AutoNUMA on my host.
->Can AutoNUMA folks teach me why?
->Or any plans to handle this problem in AutoNUMA? 
+>After July 5, any email to me via first DOT last AT oracle DOT com
+>will go undelivered and may bounce.  Please send email related to
+>my open source patches and contributions to Konrad Wilk and/or Bob Liu.
+>Personal email directed to me can be sent to first AT last DOT com.
 >
-
-AutoNUMA is not merged currently, the foundation(automatic NUMA
-balancing) that either the policy for schednuma or autonuma can be
-rebased on implemented by Mel has already merged.
-
-Regards,
-Wanpeng Li 
-
+>Thanks much to everybody for the many educational opportunities,
+>the technical and political jousting, and the great times at
+>conferences and summits!  I wish you all the best of luck!
+>Or to quote Douglas Adams: "So long and thanks for all the fish!"
 >
->Thanks,
->Wanlong Gao
+>Cheers,
+>Dan Magenheimer
+>The Transcendent Memory ("tmem") guy
 >
->
->
->> Hi,
->> 
->> We just met a problem of QEMU memory allocation.
->> Here is the description:
->> 
->> On my host, I have two nodes,
->> # numactl -H
->> available: 2 nodes (0-1)
->> node 0 cpus: 0 2
->> node 0 size: 4010 MB
->> node 0 free: 3021 MB
->> node 1 cpus: 1 3
->> node 1 size: 4030 MB
->> node 1 free: 2881 MB
->> node distances:
->> node   0   1 
->>   0:  10  20 
->>   1:  20  10 
->> 
->> 
->> 
->> I created a guest using the following XML:
->> 
->> ...
->>   <memory unit='KiB'>1048576</memory>
->>   <currentMemory unit='KiB'>1048576</currentMemory>
->>   <vcpu placement='static'>2</vcpu>
->>   <cputune>
->>     <vcpupin vcpu='0' cpuset='2'/>
->>     <vcpupin vcpu='1' cpuset='3'/>
->>   </cputune>
->>   <numatune>
->>     <memory mode='strict' nodeset='0-1'/>
->>   </numatune>
->>   <cpu>
->>     <topology sockets='2' cores='1' threads='1'/>
->>     <numa>
->>       <cell cpus='0' memory='524288'/>
->>       <cell cpus='1' memory='524288'/>
->>     </numa>
->>   </cpu>
->> ...
->> 
->> As you can see, I assigned 1G memory to this guest, pined vcpu0 to the host CPU 2,
->> it's in host node0, pined vcpu1 to the host CPU 3 that is in host node1.
->> The guest also has two nodes, each node contains 512M memory.
->> 
->> Now, I started the guest, then printed the host numa state :
->> # numactl -H
->> available: 2 nodes (0-1)
->> node 0 cpus: 0 2
->> node 0 size: 4010 MB
->> node 0 free: 2647 MB  <=== freecell of node0
->> node 1 cpus: 1 3
->> node 1 size: 4030 MB
->> node 1 free: 2746 MB
->> node distances:
->> node   0   1 
->>   0:  10  20 
->>   1:  20  10 
->> 
->> Then I tried to allocate memory from guest node0 using the following code:
->>> #include <memory.h>
->>> #include <numa.h>
->>>
->>> #define MEM (1024*1024*300)
->>>
->>> int main(void)
->>> {
->>> 	char *p = numa_alloc_onnode(MEM, 0);
->>> 	memset(p, 0, MEM);
->>> 	sleep(1000);
->>> 	numa_free(p, MEM);
->>> 	return 0;
->>> }
->> 
->> And printed the host numa state, it shows that this 300M memory is allocated from host node0,
->> 
->> # numactl -H
->> available: 2 nodes (0-1)
->> node 0 cpus: 0 2
->> node 0 size: 4010 MB
->> node 0 free: 2345 MB	<===== reduced ~300M
->> node 1 cpus: 1 3
->> node 1 size: 4030 MB
->> node 1 free: 2767 MB
->> node distances:
->> node   0   1 
->>   0:  10  20 
->>   1:  20  10 
->> 
->> 
->> Then, I tried the same method to allocate 300M memory from guest node1, and printed the host
->> numa state:
->> 
->> # numactl -H
->> available: 2 nodes (0-1)
->> node 0 cpus: 0 2
->> node 0 size: 4010 MB
->> node 0 free: 2059 MB	<=== reduced ~300M
->> node 1 cpus: 1 3
->> node 1 size: 4030 MB
->> node 1 free: 2767 MB	<=== no change
->> node distances:
->> node   0   1 
->>   0:  10  20 
->>   1:  20  10 
->> 
->> 
->> To see that this 300M memory is allocated from host node0 again, but not host node1 as
->> I expected.
->> 
->> We think that QEMU can't handled this numa memory allocation well, and it will cause the
->> cross node memory access performance regression.
->> 
->> Any thoughts? Or, am I missing something?
->> 
->> 
->> Thanks,
->> Wanlong Gao
->> 
->> 
+>Tmem-related historical webography:
+>http://lwn.net/Articles/454795/ 
+>http://lwn.net/Articles/475681/
+>http://lwn.net/Articles/545244/ 
+>https://oss.oracle.com/projects/tmem/ 
+>http://www.linux-kvm.org/wiki/images/d/d7/TmemNotVirt-Linuxcon2011-Final.pdf 
+>http://lwn.net/Articles/465317/ 
+>http://lwn.net/Articles/340080/ 
+>http://lwn.net/Articles/386090/ 
+>http://www.xen.org/files/xensummit_oracle09/xensummit_transmemory.pdf 
+>https://oss.oracle.com/projects/tmem/dist/documentation/presentations/TranscendentMemoryXenSummit2010.pdf 
+>https://blogs.oracle.com/wim/entry/example_of_transcendent_memory_and 
+>https://blogs.oracle.com/wim/entry/another_feature_hit_mainline_linux 
+>https://blogs.oracle.com/wim/entry/from_the_research_department_ramster 
+>http://streaming.oracle.com/ebn/podcasts/media/11663326_VM_Linux_042512.mp3 
+>https://oss.oracle.com/projects/tmem/dist/documentation/papers/overcommit.pdf 
+>http://static.usenix.org/event/wiov08/tech/full_papers/magenheimer/magenheimer_html/ 
 >
 >--
 >To unsubscribe, send a message with 'unsubscribe linux-mm' in
 >the body to majordomo@kvack.org.  For more info on Linux MM,
 >see: http://www.linux-mm.org/ .
 >Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
