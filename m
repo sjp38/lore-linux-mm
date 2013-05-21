@@ -1,68 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id F1B1A6B0002
-	for <linux-mm@kvack.org>; Tue, 21 May 2013 06:34:57 -0400 (EDT)
-Date: Tue, 21 May 2013 20:34:39 +1000
-From: Dave Chinner <dchinner@redhat.com>
-Subject: Re: [PATCH] mm: vmscan: add BUG_ON on illegal return values from
- scan_objects
-Message-ID: <20130521103439.GH11167@devil.localdomain>
-References: <1369041267-26424-1-git-send-email-oskar.andero@sonymobile.com>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id E80C46B0002
+	for <linux-mm@kvack.org>; Tue, 21 May 2013 06:50:31 -0400 (EDT)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [PATCH 4/5] ACPI / scan: Add second pass of companion offlining to hot-remove code
+Date: Tue, 21 May 2013 12:59:13 +0200
+Message-ID: <5594351.7bIW5J5bfS@vostro.rjw.lan>
+In-Reply-To: <519B238D.3070900@huawei.com>
+References: <2250271.rGYN6WlBxf@vostro.rjw.lan> <3662688.5fMZaG7XgD@vostro.rjw.lan> <519B238D.3070900@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1369041267-26424-1-git-send-email-oskar.andero@sonymobile.com>
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oskar Andero <oskar.andero@sonymobile.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Radovan Lekanovic <radovan.lekanovic@sonymobile.com>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: ACPI Devel Maling List <linux-acpi@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Toshi Kani <toshi.kani@hp.com>, Wen Congyang <wency@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Jiang Liu <liuj97@gmail.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, linux-mm@kvack.org
 
-On Mon, May 20, 2013 at 11:14:27AM +0200, Oskar Andero wrote:
-> Add a BUG_ON to catch any illegal value from the shrinkers. This fixes a
-> potential bug if scan_objects returns a negative other than -1, which
-> would lead to undefined behaviour.
+On Tuesday, May 21, 2013 03:34:37 PM Xishi Qiu wrote:
+> On 2013/5/19 7:34, Rafael J. Wysocki wrote:
 > 
-> Cc: Glauber Costa <glommer@openvz.org>
-> Cc: Dave Chinner <dchinner@redhat.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> Signed-off-by: Oskar Andero <oskar.andero@sonymobile.com>
-> ---
->  mm/vmscan.c | 1 +
->  1 file changed, 1 insertion(+)
+> > From: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+> > 
+> > As indicated by comments in mm/memory_hotplug.c:remove_memory(),
+> > if CONFIG_MEMCG is set, it may not be possible to offline all of the
+> > memory blocks held by one module (FRU) in one pass (because one of
+> > them may be used by the others to store page cgroup in that case
+> > and that block has to be offlined before the other ones).
+> > 
+> > To handle that arguably corner case, add a second pass of companion
+> > device offlining to acpi_scan_hot_remove() and make it ignore errors
+> > returned in the first pass (and make it skip the second pass if the
+> > first one is successful).
+> > 
+> > Signed-off-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+> > ---
+> >  drivers/acpi/scan.c |   67 ++++++++++++++++++++++++++++++++++++++--------------
+> >  1 file changed, 50 insertions(+), 17 deletions(-)
+> > 
+> > Index: linux-pm/drivers/acpi/scan.c
+> > ===================================================================
+> > --- linux-pm.orig/drivers/acpi/scan.c
+> > +++ linux-pm/drivers/acpi/scan.c
+> > @@ -131,6 +131,7 @@ static acpi_status acpi_bus_offline_comp
+> >  {
+> >  	struct acpi_device *device = NULL;
+> >  	struct acpi_device_physical_node *pn;
+> > +	bool second_pass = (bool)data;
+> >  	acpi_status status = AE_OK;
+> >  
+> >  	if (acpi_bus_get_device(handle, &device))
+> > @@ -141,15 +142,26 @@ static acpi_status acpi_bus_offline_comp
+> >  	list_for_each_entry(pn, &device->physical_node_list, node) {
+> >  		int ret;
+> >  
+> > +		if (second_pass) {
+> > +			/* Skip devices offlined by the first pass. */
+> > +			if (pn->put_online)
 > 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 6bac41e..fbe6742 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -293,6 +293,7 @@ shrink_slab_one(struct shrinker *shrinker, struct shrink_control *shrinkctl,
->  		ret = shrinker->scan_objects(shrinker, shrinkctl);
->  		if (ret == -1)
->  			break;
-> +		BUG_ON(ret < -1);
->  		freed += ret;
->  
->  		count_vm_events(SLABS_SCANNED, nr_to_scan);
+> should it be "if (!pn->put_online)" ?
 
-NACK. we've got to fix the damn shrinkers first.
+No, I don't think so.
 
-If you want this sort of guard added to the patchset Glauber and I
-are working on that does this, then discuss it in the context of
-that patch set.
+pn->put_online set means that the device has been offlined by the first pass,
+so we don't need to try it in the second one.
 
-Even if you do, you'll get the same answer: we need to first all the
-busted shrinkers before we even consider being nasty about enforcing
-the API constraints to prevent furture breakage.
+Thanks,
+Rafael
 
-If you want to do something useful, look at all the comments about
-broken shrinkers in Glauber's patch set and work with the owners of
-the code to understand what they really need and get them fixed.
 
--Dave.
+> > +				continue;
+> > +		} else {
+> > +			pn->put_online = false;
+> > +		}
+> >  		ret = device_offline(pn->dev);
+> >  		if (acpi_force_hot_remove)
+> >  			continue;
+> >  
+> > -		if (ret < 0) {
+> > -			status = AE_ERROR;
+> > -			break;
+> > +		if (ret >= 0) {
+> > +			pn->put_online = !ret;
+> > +		} else {
+> > +			*ret_p = pn->dev;
+> > +			if (second_pass) {
+> > +				status = AE_ERROR;
+> > +				break;
+> > +			}
+> >  		}
+> > -		pn->put_online = !ret;
+> >  	}
+> >  
+> >  	mutex_unlock(&device->physical_node_lock);
+> 
+> 
+> 
 -- 
-Dave Chinner
-dchinner@redhat.com
+I speak only for myself.
+Rafael J. Wysocki, Intel Open Source Technology Center.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
