@@ -1,60 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id DCC7A6B0088
-	for <linux-mm@kvack.org>; Tue, 21 May 2013 19:14:29 -0400 (EDT)
-Date: Wed, 22 May 2013 09:13:58 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 0/9] Reduce system disruption due to kswapd V4
-Message-ID: <20130521231358.GV29466@dastard>
-References: <1368432760-21573-1-git-send-email-mgorman@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1368432760-21573-1-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id DF0B46B0087
+	for <linux-mm@kvack.org>; Tue, 21 May 2013 19:16:58 -0400 (EDT)
+Date: Tue, 21 May 2013 16:16:56 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v5 0/7] Per process reclaim
+Message-Id: <20130521161656.d6d24d1ce226b0034e02abdf@linux-foundation.org>
+In-Reply-To: <1368084089-24576-1-git-send-email-minchan@kernel.org>
+References: <1368084089-24576-1-git-send-email-minchan@kernel.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Namhyung Kim <namhyung@kernel.org>, Minkyung Kim <minkyung88@lge.com>
 
-On Mon, May 13, 2013 at 09:12:31AM +0100, Mel Gorman wrote:
-> This series does not fix all the current known problems with reclaim but
-> it addresses one important swapping bug when there is background IO.
+On Thu,  9 May 2013 16:21:22 +0900 Minchan Kim <minchan@kernel.org> wrote:
 
-....
+> These day, there are many platforms avaiable in the embedded market
+> and they are smarter than kernel which has very limited information
+> about working set so they want to involve memory management more heavily
+> like android's lowmemory killer and ashmem or recent many lowmemory
+> notifier(there was several trial for various company NOKIA, SAMSUNG,
+> Linaro, Google ChromeOS, Redhat).
 > 
->                             3.10.0-rc1  3.10.0-rc1
->                                vanilla lessdisrupt-v4
-> Page Ins                       1234608      101892
-> Page Outs                     12446272    11810468
-> Swap Ins                        283406           0
-> Swap Outs                       698469       27882
-> Direct pages scanned                 0      136480
-> Kswapd pages scanned           6266537     5369364
-> Kswapd pages reclaimed         1088989      930832
-> Direct pages reclaimed               0      120901
-> Kswapd efficiency                  17%         17%
-> Kswapd velocity               5398.371    4635.115
-> Direct efficiency                 100%         88%
-> Direct velocity                  0.000     117.817
-> Percentage direct scans             0%          2%
-> Page writes by reclaim         1655843     4009929
-> Page writes file                957374     3982047
+> One of the simple imagine scenario about userspace's intelligence is that
+> platform can manage tasks as forground and backgroud so it would be
+> better to reclaim background's task pages for end-user's *responsibility*
+> although it has frequent referenced pages.
+> 
+> The patch[1] prepares that force_reclaim in shrink_page_list can
+> handle anonymous pages as well as file-backed pages.
+> 
+> The patch[2] adds new knob "reclaim under proc/<pid>/" so task manager
+> can reclaim any target process anytime, anywhere. It could give another
+> method to platform for using memory efficiently.
+> 
+> It can avoid process killing for getting free memory, which was really
+> terrible experience because I lost my best score of game I had ever
+> after I switch the phone call while I enjoyed the game.
+> 
+> Reclaim file-backed pages only.
+> 	echo file > /proc/PID/reclaim
+> Reclaim anonymous pages only.
+> 	echo anon > /proc/PID/reclaim
+> Reclaim all pages
+> 	echo all > /proc/PID/reclaim
 
-Lots more file pages are written by reclaim. Is this from kswapd
-or direct reclaim? If it's direct reclaim, what happens when you run
-on a filesystem that doesn't allow writeback from direct reclaim?
+Oh boy.  I think I do agree with the overall intent, but there are so
+many ways of doing this.
 
-Also, what does this do to IO patterns and allocation? This tends
-to indicate that the background flusher thread is not doing the
-writeback work fast enough when memory is low - can you comment on
-this at all, Mel?
+- Do we reclaim the pages altogether, or should we just give them one
+  round of aging?  If the latter then you'd need to run "echo anon >
+  /proc/PID/reclaim" four times to firmly whack the pages, but that's
+  more flexible.
 
-Cheers,
+- Why do it via the pid at all?  Would it be better to instead do
+  this to a memcg and require that the admin put these processes into
+  memcgs?  In fact existing memcg controls could get us at least
+  partway to this feature.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+- I don't understand the need for "Enhance per process reclaim to
+  consider shared pages".  If "echo file > /proc/PID/reclaim" causes
+  PID's mm's file-backed pte's to be unmapped (which seems to be the
+  correct effect) then we get this automatically: unshared file pages
+  will be freed and shared file pages will remain in core until the
+  other sharing process's also unmap them.
+
+
+Overall, I'm unsure whether/how to proceed with this.  I'd like to hear
+from a lot of the potential users, and hear them say "yes, we can use
+this".
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
