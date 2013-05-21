@@ -1,51 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 4F4C86B0002
-	for <linux-mm@kvack.org>; Tue, 21 May 2013 06:23:37 -0400 (EDT)
-Date: Tue, 21 May 2013 07:21:49 -0300
-From: Mauro Carvalho Chehab <mchehab@redhat.com>
-Subject: Re: [PATCH] Finally eradicate CONFIG_HOTPLUG
-Message-ID: <20130521072149.0dac0d9e@redhat.com>
-In-Reply-To: <20130521134935.d18c3f5c23485fb5ddabc365@canb.auug.org.au>
-References: <20130521134935.d18c3f5c23485fb5ddabc365@canb.auug.org.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 727996B0002
+	for <linux-mm@kvack.org>; Tue, 21 May 2013 06:26:53 -0400 (EDT)
+Date: Tue, 21 May 2013 12:26:48 +0200
+From: Karel Zak <kzak@redhat.com>
+Subject: Re: [RFC PATCH 02/02] swapon: add "cluster-discard" support
+Message-ID: <20130521102648.GB11774@x2.net.home>
+References: <cover.1369092449.git.aquini@redhat.com>
+ <398ace0dd3ca1283372b3aad3fceeee59f6897d7.1369084886.git.aquini@redhat.com>
+ <519AC7B3.5060902@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <519AC7B3.5060902@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-arch@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Doug Thompson <dougthompson@xmission.com>, linux-edac@vger.kernel.org, Bjorn Helgaas <bhelgaas@google.com>, linux-pci@vger.kernel.org, linux-pcmcia@lists.infradead.org, Hans Verkuil <hans.verkuil@cisco.com>, Steven Whitehouse <swhiteho@redhat.com>, cluster-devel@redhat.com, Arnd Bergmann <arnd@arndb.de>, Pavel Machek <pavel@ucw.cz>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-pm@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Russell King <linux@arm.linux.org.uk>, linux-arm-kernel@lists.infradead.org
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Rafael Aquini <aquini@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, shli@kernel.org, jmoyer@redhat.com, riel@redhat.com, lwoodman@redhat.com, mgorman@suse.de
 
-Em Tue, 21 May 2013 13:49:35 +1000
-Stephen Rothwell <sfr@canb.auug.org.au> escreveu:
-
-> Ever since commit 45f035ab9b8f ("CONFIG_HOTPLUG should be always on"),
-> it has been basically impossible to build a kernel with CONFIG_HOTPLUG
-> turned off.  Remove all the remaining references to it.
+On Mon, May 20, 2013 at 09:02:43PM -0400, KOSAKI Motohiro wrote:
+> > -	if (fl_discard)
+> > +	if (fl_discard) {
+> >  		flags |= SWAP_FLAG_DISCARD;
+> > +		if (fl_discard > 1)
+> > +			flags |= SWAP_FLAG_DISCARD_CLUSTER;
 > 
-> Cc: linux-arch@vger.kernel.org
-> Cc: Russell King <linux@arm.linux.org.uk>
-> Cc: linux-arm-kernel@lists.infradead.org
-> Cc: Doug Thompson <dougthompson@xmission.com>
-> Cc: linux-edac@vger.kernel.org
-> Cc: Bjorn Helgaas <bhelgaas@google.com>
-> Cc: linux-pci@vger.kernel.org
-> Cc: linux-pcmcia@lists.infradead.org
-> Cc: Hans Verkuil <hans.verkuil@cisco.com>
-> Cc: Steven Whitehouse <swhiteho@redhat.com>
-> Cc: cluster-devel@redhat.com
-> Cc: Arnd Bergmann <arnd@arndb.de>
-> Cc: Pavel Machek <pavel@ucw.cz>
-> Cc: "Rafael J. Wysocki" <rjw@sisk.pl>
-> Cc: linux-pm@vger.kernel.org
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: linux-mm@kvack.org
-> Signed-off-by: Stephen Rothwell <sfr@canb.auug.org.au>
+> This is not enough, IMHO. When running this code on old kernel, swapon() return EINVAL.
+> At that time, we should fall back swapon(0x10000).
 
-Acked-by: Mauro Carvalho Chehab <mchehab@redhat.com>
+ Hmm.. currently we don't use any fallback for any swap flag (e.g.
+ 0x10000) for compatibility with old kernels. Maybe it's better to
+ keep it simple and stupid and return an error message than introduce
+ any super-smart semantic to hide incompatible fstab configuration.
 
-Cheers,
-Mauro
+    Karel
+ 
+-- 
+ Karel Zak  <kzak@redhat.com>
+ http://karelzak.blogspot.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
