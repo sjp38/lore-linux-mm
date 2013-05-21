@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id E8F176B0002
-	for <linux-mm@kvack.org>; Mon, 20 May 2013 23:32:13 -0400 (EDT)
-Message-ID: <519AEA9C.8010002@oracle.com>
-Date: Tue, 21 May 2013 11:31:40 +0800
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 325896B0002
+	for <linux-mm@kvack.org>; Mon, 20 May 2013 23:37:22 -0400 (EDT)
+Message-ID: <519AEBDF.6040806@oracle.com>
+Date: Tue, 21 May 2013 11:37:03 +0800
 From: Bob Liu <bob.liu@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCHv12 3/4] zswap: add to mm/
-References: <1369067168-12291-1-git-send-email-sjenning@linux.vnet.ibm.com> <1369067168-12291-4-git-send-email-sjenning@linux.vnet.ibm.com>
-In-Reply-To: <1369067168-12291-4-git-send-email-sjenning@linux.vnet.ibm.com>
+Subject: Re: [PATCHv12 2/4] zbud: add to mm/
+References: <1369067168-12291-1-git-send-email-sjenning@linux.vnet.ibm.com> <1369067168-12291-3-git-send-email-sjenning@linux.vnet.ibm.com>
+In-Reply-To: <1369067168-12291-3-git-send-email-sjenning@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,717 +17,443 @@ To: Seth Jennings <sjenning@linux.vnet.ibm.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, Heesub Shin <heesub.shin@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
 
+
 On 05/21/2013 12:26 AM, Seth Jennings wrote:
-> zswap is a thin backend for frontswap that takes pages that are in the process
-> of being swapped out and attempts to compress them and store them in a
-> RAM-based memory pool.  This can result in a significant I/O reduction on the
-> swap device and, in the case where decompressing from RAM is faster than
-> reading from the swap device, can also improve workload performance.
+> zbud is an special purpose allocator for storing compressed pages. It is
+> designed to store up to two compressed pages per physical page.  While this
+> design limits storage density, it has simple and deterministic reclaim
+> properties that make it preferable to a higher density approach when reclaim
+> will be used.
 > 
-> It also has support for evicting swap pages that are currently compressed in
-> zswap to the swap device on an LRU(ish) basis. This functionality makes zswap a
-> true cache in that, once the cache is full, the oldest pages can be moved out
-> of zswap to the swap device so newer pages can be compressed and stored in
-> zswap.
+> zbud works by storing compressed pages, or "zpages", together in pairs in a
+> single memory page called a "zbud page".  The first buddy is "left
+> justifed" at the beginning of the zbud page, and the last buddy is "right
+> justified" at the end of the zbud page.  The benefit is that if either
+> buddy is freed, the freed buddy space, coalesced with whatever slack space
+> that existed between the buddies, results in the largest possible free region
+> within the zbud page.
 > 
-> This patch adds the zswap driver to mm/
+> zbud also provides an attractive lower bound on density. The ratio of zpages
+> to zbud pages can not be less than 1.  This ensures that zbud can never "do
+> harm" by using more pages to store zpages than the uncompressed zpages would
+> have used on their own.
+> 
+> This implementation is a rewrite of the zbud allocator internally used
+> by zcache in the driver/staging tree.  The rewrite was necessary to
+> remove some of the zcache specific elements that were ingrained throughout
+> and provide a generic allocation interface that can later be used by
+> zsmalloc and others.
+> 
+> This patch adds zbud to mm/ for later use by zswap.
 > 
 > Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
 > Acked-by: Rik van Riel <riel@redhat.com>
 > ---
->  mm/Kconfig  |  22 +-
->  mm/Makefile |   1 +
->  mm/zswap.c  | 947 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
->  3 files changed, 969 insertions(+), 1 deletion(-)
->  create mode 100644 mm/zswap.c
+>  include/linux/zbud.h |  22 +++
+>  mm/Kconfig           |  10 +
+>  mm/Makefile          |   1 +
+>  mm/zbud.c            | 543 +++++++++++++++++++++++++++++++++++++++++++++++++++
+>  4 files changed, 576 insertions(+)
+>  create mode 100644 include/linux/zbud.h
+>  create mode 100644 mm/zbud.c
 > 
+> diff --git a/include/linux/zbud.h b/include/linux/zbud.h
+> new file mode 100644
+> index 0000000..2571a5c
+> --- /dev/null
+> +++ b/include/linux/zbud.h
+> @@ -0,0 +1,22 @@
+> +#ifndef _ZBUD_H_
+> +#define _ZBUD_H_
+> +
+> +#include <linux/types.h>
+> +
+> +struct zbud_pool;
+> +
+> +struct zbud_ops {
+> +	int (*evict)(struct zbud_pool *pool, unsigned long handle);
+> +};
+> +
+> +struct zbud_pool *zbud_create_pool(gfp_t gfp, struct zbud_ops *ops);
+> +void zbud_destroy_pool(struct zbud_pool *pool);
+> +int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
+> +	unsigned long *handle);
+> +void zbud_free(struct zbud_pool *pool, unsigned long handle);
+> +int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries);
+> +void *zbud_map(struct zbud_pool *pool, unsigned long handle);
+> +void zbud_unmap(struct zbud_pool *pool, unsigned long handle);
+> +u64 zbud_get_pool_size(struct zbud_pool *pool);
+> +
+> +#endif /* _ZBUD_H_ */
 > diff --git a/mm/Kconfig b/mm/Kconfig
-> index 45ec90d..eec97f2 100644
+> index e742d06..45ec90d 100644
 > --- a/mm/Kconfig
 > +++ b/mm/Kconfig
-> @@ -486,4 +486,24 @@ config ZBUD
->  	  It is designed to store up to two compressed pages per physical
->  	  page.  While this design limits storage density, it has simple and
->  	  deterministic reclaim properties that make it preferable to a higher
-> -	  density approach when reclaim will be used.  
-> +	  density approach when reclaim will be used.
+> @@ -477,3 +477,13 @@ config FRONTSWAP
+>  	  and swap data is stored as normal on the matching swap device.
+>  
+>  	  If unsure, say Y to enable frontswap.
 > +
-> +config ZSWAP
-> +	bool "Compressed cache for swap pages (EXPERIMENTAL)"
-> +	depends on FRONTSWAP && CRYPTO
-> +	select CRYPTO_LZO
-> +	select ZBUD
+> +config ZBUD
+> +	tristate
 > +	default n
 > +	help
-> +	  A lightweight compressed cache for swap pages.  It takes
-> +	  pages that are in the process of being swapped out and attempts to
-> +	  compress them into a dynamically allocated RAM-based memory pool.
-> +	  This can result in a significant I/O reduction on swap device and,
-> +	  in the case where decompressing from RAM is faster that swap device
-> +	  reads, can also improve workload performance.
-> +
-> +	  This is marked experimental because it is a new feature (as of
-> +	  v3.11) that interacts heavily with memory reclaim.  While these
-> +	  interactions don't cause any known issues on simple memory setups,
-> +	  they have not be fully explored on the large set of potential
-> +	  configurations and workloads that exist.
+> +	  A special purpose allocator for storing compressed pages.
+> +	  It is designed to store up to two compressed pages per physical
+> +	  page.  While this design limits storage density, it has simple and
+> +	  deterministic reclaim properties that make it preferable to a higher
+> +	  density approach when reclaim will be used.  
 > diff --git a/mm/Makefile b/mm/Makefile
-> index 95f0197..f008033 100644
+> index 72c5acb..95f0197 100644
 > --- a/mm/Makefile
 > +++ b/mm/Makefile
-> @@ -32,6 +32,7 @@ obj-$(CONFIG_HAVE_MEMBLOCK) += memblock.o
->  obj-$(CONFIG_BOUNCE)	+= bounce.o
->  obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o
->  obj-$(CONFIG_FRONTSWAP)	+= frontswap.o
-> +obj-$(CONFIG_ZSWAP)	+= zswap.o
->  obj-$(CONFIG_HAS_DMA)	+= dmapool.o
->  obj-$(CONFIG_HUGETLBFS)	+= hugetlb.o
->  obj-$(CONFIG_NUMA) 	+= mempolicy.o
-> diff --git a/mm/zswap.c b/mm/zswap.c
+> @@ -58,3 +58,4 @@ obj-$(CONFIG_DEBUG_KMEMLEAK) += kmemleak.o
+>  obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
+>  obj-$(CONFIG_CLEANCACHE) += cleancache.o
+>  obj-$(CONFIG_MEMORY_ISOLATION) += page_isolation.o
+> +obj-$(CONFIG_ZBUD)	+= zbud.o
+> diff --git a/mm/zbud.c b/mm/zbud.c
 > new file mode 100644
-> index 0000000..22cc034
+> index 0000000..b10a1f1
 > --- /dev/null
-> +++ b/mm/zswap.c
-> @@ -0,0 +1,947 @@
+> +++ b/mm/zbud.c
+> @@ -0,0 +1,543 @@
 > +/*
-> + * zswap.c - zswap driver file
+> + * zbud.c
 > + *
-> + * zswap is a backend for frontswap that takes pages that are in the process
-> + * of being swapped out and attempts to compress and store them in a
-> + * RAM-based memory pool.  This can result in a significant I/O reduction on
-> + * the swap device and, in the case where decompressing from RAM is faster
-> + * than reading from the swap device, can also improve workload performance.
+> + * Copyright (C) 2013, Seth Jennings, IBM
 > + *
-> + * Copyright (C) 2012  Seth Jennings <sjenning@linux.vnet.ibm.com>
+> + * Concepts based on zcache internal zbud allocator by Dan Magenheimer.
 > + *
-> + * This program is free software; you can redistribute it and/or
-> + * modify it under the terms of the GNU General Public License
-> + * as published by the Free Software Foundation; either version 2
-> + * of the License, or (at your option) any later version.
+> + * zbud is an special purpose allocator for storing compressed pages.  Contrary
+> + * to what its name may suggest, zbud is not a buddy allocator, but rather an
+> + * allocator that "buddies" two compressed pages together in a single memory
+> + * page.
 > + *
-> + * This program is distributed in the hope that it will be useful,
-> + * but WITHOUT ANY WARRANTY; without even the implied warranty of
-> + * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-> + * GNU General Public License for more details.
-> +*/
+> + * While this design limits storage density, it has simple and deterministic
+> + * reclaim properties that make it preferable to a higher density approach when
+> + * reclaim will be used.
+> + *
+> + * zbud works by storing compressed pages, or "zpages", together in pairs in a
+> + * single memory page called a "zbud page".  The first buddy is "left
+> + * justifed" at the beginning of the zbud page, and the last buddy is "right
+> + * justified" at the end of the zbud page.  The benefit is that if either
+> + * buddy is freed, the freed buddy space, coalesced with whatever slack space
+> + * that existed between the buddies, results in the largest possible free region
+> + * within the zbud page.
+> + *
+> + * zbud also provides an attractive lower bound on density. The ratio of zpages
+> + * to zbud pages can not be less than 1.  This ensures that zbud can never "do
+> + * harm" by using more pages to store zpages than the uncompressed zpages would
+> + * have used on their own.
+> + *
+> + * zbud pages are divided into "chunks".  The size of the chunks is fixed at
+> + * compile time and determined by NCHUNKS_ORDER below.  Dividing zbud pages
+> + * into chunks allows organizing unbuddied zbud pages into a manageable number
+> + * of unbuddied lists according to the number of free chunks available in the
+> + * zbud page.
+> + *
+> + * The zbud API differs from that of conventional allocators in that the
+> + * allocation function, zbud_alloc(), returns an opaque handle to the user,
+> + * not a dereferenceable pointer.  The user must map the handle using
+> + * zbud_map() in order to get a usable pointer by which to access the
+> + * allocation data and unmap the handle with zbud_unmap() when operations
+> + * on the allocation data are complete.
+> + */
 > +
 > +#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 > +
+> +#include <linux/atomic.h>
+> +#include <linux/list.h>
+> +#include <linux/mm.h>
 > +#include <linux/module.h>
-> +#include <linux/cpu.h>
-> +#include <linux/highmem.h>
+> +#include <linux/preempt.h>
 > +#include <linux/slab.h>
 > +#include <linux/spinlock.h>
-> +#include <linux/types.h>
-> +#include <linux/atomic.h>
-> +#include <linux/frontswap.h>
-> +#include <linux/rbtree.h>
-> +#include <linux/swap.h>
-> +#include <linux/crypto.h>
-> +#include <linux/mempool.h>
 > +#include <linux/zbud.h>
 > +
-> +#include <linux/mm_types.h>
-> +#include <linux/page-flags.h>
-> +#include <linux/swapops.h>
-> +#include <linux/writeback.h>
-> +#include <linux/pagemap.h>
-> +
-> +/*********************************
-> +* statistics
-> +**********************************/
-> +/* Number of memory pages used by the compressed pool */
-> +static u64 zswap_pool_pages;
-> +/* The number of compressed pages currently stored in zswap */
-> +static atomic_t zswap_stored_pages = ATOMIC_INIT(0);
-> +
-> +/*
-> + * The statistics below are not protected from concurrent access for
-> + * performance reasons so they may not be a 100% accurate.  However,
-> + * they do provide useful information on roughly how many times a
-> + * certain event is occurring.
-> +*/
-> +
-> +/* Pool limit was hit (see zswap_max_pool_percent) */
-> +static u64 zswap_pool_limit_hit;
-> +/* Pages written back when pool limit was reached */
-> +static u64 zswap_written_back_pages;
-> +/* Store failed due to a reclaim failure after pool limit was reached */
-> +static u64 zswap_reject_reclaim_fail;
-> +/* Compressed page was too big for the allocator to (optimally) store */
-> +static u64 zswap_reject_compress_poor;
-> +/* Store failed because underlying allocator could not get memory */
-> +static u64 zswap_reject_alloc_fail;
-> +/* Store failed because the entry metadata could not be allocated (rare) */
-> +static u64 zswap_reject_kmemcache_fail;
-> +/* Duplicate store was encountered (rare) */
-> +static u64 zswap_duplicate_entry;
-> +
-> +/*********************************
-> +* tunables
-> +**********************************/
-> +/* Enable/disable zswap (disabled by default, fixed at boot for now) */
-> +static bool zswap_enabled __read_mostly;
-> +module_param_named(enabled, zswap_enabled, bool, 0);
-> +
-> +/* Compressor to be used by zswap (fixed at boot for now) */
-> +#define ZSWAP_COMPRESSOR_DEFAULT "lzo"
-> +static char *zswap_compressor = ZSWAP_COMPRESSOR_DEFAULT;
-> +module_param_named(compressor, zswap_compressor, charp, 0);
-> +
-> +/* The maximum percentage of memory that the compressed pool can occupy */
-> +static unsigned int zswap_max_pool_percent = 20;
-> +module_param_named(max_pool_percent,
-> +			zswap_max_pool_percent, uint, 0644);
-> +
-> +/*********************************
-> +* compression functions
-> +**********************************/
-> +/* per-cpu compression transforms */
-> +static struct crypto_comp * __percpu *zswap_comp_pcpu_tfms;
-> +
-> +enum comp_op {
-> +	ZSWAP_COMPOP_COMPRESS,
-> +	ZSWAP_COMPOP_DECOMPRESS
-> +};
-> +
-> +static int zswap_comp_op(enum comp_op op, const u8 *src, unsigned int slen,
-> +				u8 *dst, unsigned int *dlen)
-> +{
-> +	struct crypto_comp *tfm;
-> +	int ret;
-> +
-> +	tfm = *per_cpu_ptr(zswap_comp_pcpu_tfms, get_cpu());
-> +	switch (op) {
-> +	case ZSWAP_COMPOP_COMPRESS:
-> +		ret = crypto_comp_compress(tfm, src, slen, dst, dlen);
-> +		break;
-> +	case ZSWAP_COMPOP_DECOMPRESS:
-> +		ret = crypto_comp_decompress(tfm, src, slen, dst, dlen);
-> +		break;
-> +	default:
-> +		ret = -EINVAL;
-> +	}
-> +
-> +	put_cpu();
-> +	return ret;
-> +}
-> +
-> +static int __init zswap_comp_init(void)
-> +{
-> +	if (!crypto_has_comp(zswap_compressor, 0, 0)) {
-> +		pr_info("%s compressor not available\n", zswap_compressor);
-> +		/* fall back to default compressor */
-> +		zswap_compressor = ZSWAP_COMPRESSOR_DEFAULT;
-> +		if (!crypto_has_comp(zswap_compressor, 0, 0))
-> +			/* can't even load the default compressor */
-> +			return -ENODEV;
-> +	}
-> +	pr_info("using %s compressor\n", zswap_compressor);
-> +
-> +	/* alloc percpu transforms */
-> +	zswap_comp_pcpu_tfms = alloc_percpu(struct crypto_comp *);
-> +	if (!zswap_comp_pcpu_tfms)
-> +		return -ENOMEM;
-> +	return 0;
-> +}
-> +
-> +static void zswap_comp_exit(void)
-> +{
-> +	/* free percpu transforms */
-> +	if (zswap_comp_pcpu_tfms)
-> +		free_percpu(zswap_comp_pcpu_tfms);
-> +}
-> +
-> +/*********************************
-> +* data structures
-> +**********************************/
-> +/*
-> + * struct zswap_entry
+> +/*****************
+> + * Structures
+> +*****************/
+> +/**
+> + * struct zbud_page - zbud page metadata overlay
+> + * @page:	typed reference to the underlying struct page
+> + * @donotuse:	this overlays the page flags and should not be used
+> + * @first_chunks:	the size of the first buddy in chunks, 0 if free
+> + * @last_chunks:	the size of the last buddy in chunks, 0 if free
+> + * @buddy:	links the zbud page into the unbuddied/buddied lists in the pool
+> + * @lru:	links the zbud page into the lru list in the pool
 > + *
-> + * This structure contains the metadata for tracking a single compressed
-> + * page within zswap.
+> + * This structure overlays the struct page to store metadata needed for a
+> + * single storage page in for zbud.  There is a BUILD_BUG_ON in zbud_init()
+> + * that ensures this structure is not larger that struct page.
 > + *
-> + * rbnode - links the entry into red-black tree for the appropriate swap type
-> + * refcount - the number of outstanding reference to the entry. This is needed
-> + *            to protect against premature freeing of the entry by code
-> + *            concurent calls to load, invalidate, and writeback.  The lock
-> + *            for the zswap_tree structure that contains the entry must
-> + *            be held while changing the refcount.  Since the lock must
-> + *            be held, there is no reason to also make refcount atomic.
-> + * offset - the swap offset for the entry.  Index into the red-black tree.
-> + * handle - zsmalloc allocation handle that stores the compressed page data
-> + * length - the length in bytes of the compressed page data.  Needed during
-> + *           decompression
+> + * The PG_reclaim flag of the underlying page is used for indicating
+> + * that this zbud page is under reclaim (see zbud_reclaim_page())
 > + */
-> +struct zswap_entry {
-> +	struct rb_node rbnode;
-> +	pgoff_t offset;
-> +	int refcount;
-> +	unsigned int length;
-> +	unsigned long handle;
-> +};
-> +
-> +struct zswap_header {
-> +	swp_entry_t swpentry;
-> +};
-> +
-> +/*
-> + * The tree lock in the zswap_tree struct protects a few things:
-> + * - the rbtree
-> + * - the refcount field of each entry in the tree
-> + */
-> +struct zswap_tree {
-> +	struct rb_root rbroot;
-> +	spinlock_t lock;
-> +	struct zbud_pool *pool;
-> +};
-> +
-> +static struct zswap_tree *zswap_trees[MAX_SWAPFILES];
-> +
-> +/*********************************
-> +* zswap entry functions
-> +**********************************/
-> +#define ZSWAP_KMEM_CACHE_NAME "zswap_entry_cache"
-> +static struct kmem_cache *zswap_entry_cache;
-> +
-> +static inline int zswap_entry_cache_create(void)
-> +{
-> +	zswap_entry_cache =
-> +		kmem_cache_create(ZSWAP_KMEM_CACHE_NAME,
-> +			sizeof(struct zswap_entry), 0, 0, NULL);
-> +	return (zswap_entry_cache == NULL);
-> +}
-> +
-> +static inline void zswap_entry_cache_destory(void)
-> +{
-> +	kmem_cache_destroy(zswap_entry_cache);
-> +}
-> +
-> +static inline struct zswap_entry *zswap_entry_cache_alloc(gfp_t gfp)
-> +{
-> +	struct zswap_entry *entry;
-> +	entry = kmem_cache_alloc(zswap_entry_cache, gfp);
-> +	if (!entry)
-> +		return NULL;
-> +	entry->refcount = 1;
-> +	return entry;
-> +}
-> +
-> +static inline void zswap_entry_cache_free(struct zswap_entry *entry)
-> +{
-> +	kmem_cache_free(zswap_entry_cache, entry);
-> +}
-> +
-> +/* caller must hold the tree lock */
-> +static inline void zswap_entry_get(struct zswap_entry *entry)
-> +{
-> +	entry->refcount++;
-> +}
-> +
-> +/* caller must hold the tree lock */
-> +static inline int zswap_entry_put(struct zswap_entry *entry)
-> +{
-> +	entry->refcount--;
-> +	return entry->refcount;
-> +}
-> +
-> +/*********************************
-> +* rbtree functions
-> +**********************************/
-> +static struct zswap_entry *zswap_rb_search(struct rb_root *root, pgoff_t offset)
-> +{
-> +	struct rb_node *node = root->rb_node;
-> +	struct zswap_entry *entry;
-> +
-> +	while (node) {
-> +		entry = rb_entry(node, struct zswap_entry, rbnode);
-> +		if (entry->offset > offset)
-> +			node = node->rb_left;
-> +		else if (entry->offset < offset)
-> +			node = node->rb_right;
-> +		else
-> +			return entry;
-> +	}
-> +	return NULL;
-> +}
-> +
-> +/*
-> + * In the case that a entry with the same offset is found, it a pointer to
-> + * the existing entry is stored in dupentry and the function returns -EEXIST
-> +*/
-> +static int zswap_rb_insert(struct rb_root *root, struct zswap_entry *entry,
-> +			struct zswap_entry **dupentry)
-> +{
-> +	struct rb_node **link = &root->rb_node, *parent = NULL;
-> +	struct zswap_entry *myentry;
-> +
-> +	while (*link) {
-> +		parent = *link;
-> +		myentry = rb_entry(parent, struct zswap_entry, rbnode);
-> +		if (myentry->offset > entry->offset)
-> +			link = &(*link)->rb_left;
-> +		else if (myentry->offset < entry->offset)
-> +			link = &(*link)->rb_right;
-> +		else {
-> +			*dupentry = myentry;
-> +			return -EEXIST;
-> +		}
-> +	}
-> +	rb_link_node(&entry->rbnode, parent, link);
-> +	rb_insert_color(&entry->rbnode, root);
-> +	return 0;
-> +}
-> +
-> +/*********************************
-> +* per-cpu code
-> +**********************************/
-> +static DEFINE_PER_CPU(u8 *, zswap_dstmem);
-> +
-> +static int __zswap_cpu_notifier(unsigned long action, unsigned long cpu)
-> +{
-> +	struct crypto_comp *tfm;
-> +	u8 *dst;
-> +
-> +	switch (action) {
-> +	case CPU_UP_PREPARE:
-> +		tfm = crypto_alloc_comp(zswap_compressor, 0, 0);
-> +		if (IS_ERR(tfm)) {
-> +			pr_err("can't allocate compressor transform\n");
-> +			return NOTIFY_BAD;
-> +		}
-> +		*per_cpu_ptr(zswap_comp_pcpu_tfms, cpu) = tfm;
-> +		dst = kmalloc(PAGE_SIZE * 2, GFP_KERNEL);
-> +		if (!dst) {
-> +			pr_err("can't allocate compressor buffer\n");
-> +			crypto_free_comp(tfm);
-> +			*per_cpu_ptr(zswap_comp_pcpu_tfms, cpu) = NULL;
-> +			return NOTIFY_BAD;
-> +		}
-> +		per_cpu(zswap_dstmem, cpu) = dst;
-> +		break;
-> +	case CPU_DEAD:
-> +	case CPU_UP_CANCELED:
-> +		tfm = *per_cpu_ptr(zswap_comp_pcpu_tfms, cpu);
-> +		if (tfm) {
-> +			crypto_free_comp(tfm);
-> +			*per_cpu_ptr(zswap_comp_pcpu_tfms, cpu) = NULL;
-> +		}
-> +		dst = per_cpu(zswap_dstmem, cpu);
-> +		kfree(dst);
-> +		per_cpu(zswap_dstmem, cpu) = NULL;
-> +		break;
-> +	default:
-> +		break;
-> +	}
-> +	return NOTIFY_OK;
-> +}
-> +
-> +static int zswap_cpu_notifier(struct notifier_block *nb,
-> +				unsigned long action, void *pcpu)
-> +{
-> +	unsigned long cpu = (unsigned long)pcpu;
-> +	return __zswap_cpu_notifier(action, cpu);
-> +}
-> +
-> +static struct notifier_block zswap_cpu_notifier_block = {
-> +	.notifier_call = zswap_cpu_notifier
-> +};
-> +
-> +static int zswap_cpu_init(void)
-> +{
-> +	unsigned long cpu;
-> +
-> +	get_online_cpus();
-> +	for_each_online_cpu(cpu)
-> +		if (__zswap_cpu_notifier(CPU_UP_PREPARE, cpu) != NOTIFY_OK)
-> +			goto cleanup;
-> +	register_cpu_notifier(&zswap_cpu_notifier_block);
-> +	put_online_cpus();
-> +	return 0;
-> +
-> +cleanup:
-> +	for_each_online_cpu(cpu)
-> +		__zswap_cpu_notifier(CPU_UP_CANCELED, cpu);
-> +	put_online_cpus();
-> +	return -ENOMEM;
-> +}
-> +
-> +/*********************************
-> +* helpers
-> +**********************************/
-> +static inline bool zswap_is_full(void)
-> +{
-> +	return (totalram_pages * zswap_max_pool_percent / 100 <
-> +		zswap_pool_pages);
-> +}
-> +
-> +/*
-> + * Carries out the common pattern of freeing and entry's zsmalloc allocation,
-> + * freeing the entry itself, and decrementing the number of stored pages.
-> + */
-> +static void zswap_free_entry(struct zswap_tree *tree, struct zswap_entry *entry)
-> +{
-> +	zbud_free(tree->pool, entry->handle);
-> +	zswap_entry_cache_free(entry);
-> +	atomic_dec(&zswap_stored_pages);
-> +	zswap_pool_pages = zbud_get_pool_size(tree->pool);
-> +}
-> +
-> +/*********************************
-> +* writeback code
-> +**********************************/
-> +/* return enum for zswap_get_swap_cache_page */
-> +enum zswap_get_swap_ret {
-> +	ZSWAP_SWAPCACHE_NEW,
-> +	ZSWAP_SWAPCACHE_EXIST,
-> +	ZSWAP_SWAPCACHE_NOMEM
-> +};
-> +
-> +/*
-> + * zswap_get_swap_cache_page
-> + *
-> + * This is an adaption of read_swap_cache_async()
-> + *
-> + * This function tries to find a page with the given swap entry
-> + * in the swapper_space address space (the swap cache).  If the page
-> + * is found, it is returned in retpage.  Otherwise, a page is allocated,
-> + * added to the swap cache, and returned in retpage.
-> + *
-> + * If success, the swap cache page is returned in retpage
-> + * Returns 0 if page was already in the swap cache, page is not locked
-> + * Returns 1 if the new page needs to be populated, page is locked
-> + * Returns <0 on error
-> + */
-> +static int zswap_get_swap_cache_page(swp_entry_t entry,
-> +				struct page **retpage)
-> +{
-> +	struct page *found_page, *new_page = NULL;
-> +	struct address_space *swapper_space = &swapper_spaces[swp_type(entry)];
-> +	int err;
-> +
-> +	*retpage = NULL;
-> +	do {
-> +		/*
-> +		 * First check the swap cache.  Since this is normally
-> +		 * called after lookup_swap_cache() failed, re-calling
-> +		 * that would confuse statistics.
-> +		 */
-> +		found_page = find_get_page(swapper_space, entry.val);
-> +		if (found_page)
-> +			break;
-> +
-> +		/*
-> +		 * Get a new page to read into from swap.
-> +		 */
-> +		if (!new_page) {
-> +			new_page = alloc_page(GFP_KERNEL);
-> +			if (!new_page)
-> +				break; /* Out of memory */
-> +		}
-> +
-> +		/*
-> +		 * call radix_tree_preload() while we can wait.
-> +		 */
-> +		err = radix_tree_preload(GFP_KERNEL);
-> +		if (err)
-> +			break;
-> +
-> +		/*
-> +		 * Swap entry may have been freed since our caller observed it.
-> +		 */
-> +		err = swapcache_prepare(entry);
-> +		if (err == -EEXIST) { /* seems racy */
-> +			radix_tree_preload_end();
-> +			continue;
-> +		}
-> +		if (err) { /* swp entry is obsolete ? */
-> +			radix_tree_preload_end();
-> +			break;
-> +		}
-> +
-> +		/* May fail (-ENOMEM) if radix-tree node allocation failed. */
-> +		__set_page_locked(new_page);
-> +		SetPageSwapBacked(new_page);
-> +		err = __add_to_swap_cache(new_page, entry);
-> +		if (likely(!err)) {
-> +			radix_tree_preload_end();
-> +			lru_cache_add_anon(new_page);
-> +			*retpage = new_page;
-> +			return ZSWAP_SWAPCACHE_NEW;
-> +		}
-> +		radix_tree_preload_end();
-> +		ClearPageSwapBacked(new_page);
-> +		__clear_page_locked(new_page);
-> +		/*
-> +		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
-> +		 * clear SWAP_HAS_CACHE flag.
-> +		 */
-> +		swapcache_free(entry, NULL);
-> +	} while (err != -ENOMEM);
-> +
-> +	if (new_page)
-> +		page_cache_release(new_page);
-> +	if (!found_page)
-> +		return ZSWAP_SWAPCACHE_NOMEM;
-> +	*retpage = found_page;
-> +	return ZSWAP_SWAPCACHE_EXIST;
-> +}
-> +
-> +/*
-> + * Attempts to free and entry by adding a page to the swap cache,
-> + * decompressing the entry data into the page, and issuing a
-> + * bio write to write the page back to the swap device.
-> + *
-> + * This can be thought of as a "resumed writeback" of the page
-> + * to the swap device.  We are basically resuming the same swap
-> + * writeback path that was intercepted with the frontswap_store()
-> + * in the first place.  After the page has been decompressed into
-> + * the swap cache, the compressed version stored by zswap can be
-> + * freed.
-> + */
-> +static int zswap_writeback_entry(struct zbud_pool *pool, unsigned long handle)
-> +{
-> +	struct zswap_header *zhdr;
-> +	swp_entry_t swpentry;
-> +	struct zswap_tree *tree;
-> +	pgoff_t offset;
-> +	struct zswap_entry *entry;
-> +	struct page *page;
-> +	u8 *src, *dst;
-> +	unsigned int dlen;
-> +	int ret, refcount;
-> +	struct writeback_control wbc = {
-> +		.sync_mode = WB_SYNC_NONE,
+> +struct zbud_page {
+> +	union {
+> +		struct page page;
+> +		struct {
+> +			unsigned long donotuse;
+> +			u16 first_chunks;
+> +			u16 last_chunks;
+> +			struct list_head buddy;
+> +			struct list_head lru;
+> +		};
 > +	};
+> +};
 > +
-> +	/* extract swpentry from data */
-> +	zhdr = zbud_map(pool, handle);
-> +	swpentry = zhdr->swpentry; /* here */
-> +	zbud_unmap(pool, handle);
-> +	tree = zswap_trees[swp_type(swpentry)];
-> +	offset = swp_offset(swpentry);
-> +	BUG_ON(pool != tree->pool);
+> +/*
+> + * NCHUNKS_ORDER determines the internal allocation granularity, effectively
+> + * adjusting internal fragmentation.  It also determines the number of
+> + * freelists maintained in each pool. NCHUNKS_ORDER of 6 means that the
+> + * allocation granularity will be in chunks of size PAGE_SIZE/64, and there
+> + * will be 64 freelists per pool.
+> + */
+> +#define NCHUNKS_ORDER	6
 > +
-> +	/* find and ref zswap entry */
-> +	spin_lock(&tree->lock);
-> +	entry = zswap_rb_search(&tree->rbroot, offset);
-> +	if (!entry) {
-> +		/* entry was invalidated */
-> +		spin_unlock(&tree->lock);
-> +		return 0;
-> +	}
-> +	zswap_entry_get(entry);
-> +	spin_unlock(&tree->lock);
-> +	BUG_ON(offset != entry->offset);
+> +#define CHUNK_SHIFT	(PAGE_SHIFT - NCHUNKS_ORDER)
+> +#define CHUNK_SIZE	(1 << CHUNK_SHIFT)
+> +#define NCHUNKS		(PAGE_SIZE >> CHUNK_SHIFT)
 > +
-> +	/* try to allocate swap cache page */
-> +	switch (zswap_get_swap_cache_page(swpentry, &page)) {
-> +	case ZSWAP_SWAPCACHE_NOMEM: /* no memory */
-> +		ret = -ENOMEM;
-> +		goto fail;
+> +/**
+> + * struct zbud_pool - stores metadata for each zbud pool
+> + * @lock:	protects all pool fields and first|last_chunk fields of any
+> + *		zbud page in the pool
+> + * @unbuddied:	array of lists tracking zbud pages that only contain one buddy;
+> + *		the lists each zbud page is added to depends on the size of
+> + *		its free region.
+> + * @buddied:	list tracking the zbud pages that contain two buddies;
+> + *		these zbud pages are full
+> + * @lru:	list tracking the zbud pages in LRU order by most recently
+> + *		added buddy.
+> + * @pages_nr:	number of zbud pages in the pool.
+> + * @ops:	pointer to a structure of user defined operations specified at
+> + *		pool creation time.
+> + *
+> + * This structure is allocated at pool creation time and maintains metadata
+> + * pertaining to a particular zbud pool.
+> + */
+> +struct zbud_pool {
+> +	spinlock_t lock;
+> +	struct list_head unbuddied[NCHUNKS];
+> +	struct list_head buddied;
+> +	struct list_head lru;
+> +	u64 pages_nr;
+> +	struct zbud_ops *ops;
+> +};
 > +
-> +	case ZSWAP_SWAPCACHE_EXIST: /* page is unlocked */
-> +		/* page is already in the swap cache, ignore for now */
-> +		page_cache_release(page);
-> +		ret = -EEXIST;
-> +		goto fail;
+> +/*****************
+> + * Helpers
+> +*****************/
+> +/* Just to make the code easier to read */
+> +enum buddy {
+> +	FIRST,
+> +	LAST
+> +};
 > +
-> +	case ZSWAP_SWAPCACHE_NEW: /* page is locked */
-> +		/* decompress */
-> +		dlen = PAGE_SIZE;
-> +		src = (u8 *)zbud_map(tree->pool, entry->handle) +
-> +			sizeof(struct zswap_header);
-> +		dst = kmap_atomic(page);
-> +		ret = zswap_comp_op(ZSWAP_COMPOP_DECOMPRESS, src,
-> +				entry->length, dst, &dlen);
-> +		kunmap_atomic(dst);
-> +		zbud_unmap(tree->pool, entry->handle);
-> +		BUG_ON(ret);
-> +		BUG_ON(dlen != PAGE_SIZE);
+> +/* Converts an allocation size in bytes to size in zbud chunks */
+> +static int size_to_chunks(int size)
+> +{
+> +	return (size + CHUNK_SIZE - 1) >> CHUNK_SHIFT;
+> +}
 > +
-> +		/* page is up to date */
-> +		SetPageUptodate(page);
-> +	}
+> +#define for_each_unbuddied_list(_iter, _begin) \
+> +	for ((_iter) = (_begin); (_iter) < NCHUNKS; (_iter)++)
 > +
-> +	/* start writeback */
-> +	__swap_writepage(page, &wbc, end_swap_bio_write);
-> +	page_cache_release(page);
-> +	zswap_written_back_pages++;
+> +/* Initializes a zbud page from a newly allocated page */
+> +static struct zbud_page *init_zbud_page(struct page *page)
+> +{
+> +	struct zbud_page *zbpage = (struct zbud_page *)page;
+> +	zbpage->first_chunks = 0;
+> +	zbpage->last_chunks = 0;
+> +	INIT_LIST_HEAD(&zbpage->buddy);
+> +	INIT_LIST_HEAD(&zbpage->lru);
+> +	return zbpage;
+> +}
 > +
-> +	spin_lock(&tree->lock);
+> +/* Resets the struct page fields and frees the page */
+> +static void free_zbud_page(struct zbud_page *zbpage)
+> +{
+> +	struct page *page = &zbpage->page;
+> +	set_page_private(page, 0);
+> +	page->mapping = NULL;
+> +	page->index = 0;
+> +	page_mapcount_reset(page);
+> +	init_page_count(page);
+> +	INIT_LIST_HEAD(&page->lru);
+> +	__free_page(page);
+> +}
 > +
-> +	/* drop local reference */
-> +	zswap_entry_put(entry);
-> +	/* drop the initial reference from entry creation */
-> +	refcount = zswap_entry_put(entry);
+> +/*
+> + * Encodes the handle of a particular buddy within a zbud page
+> + * Pool lock should be held as this function accesses first|last_chunks
+> + */
+> +static unsigned long encode_handle(struct zbud_page *zbpage,
+> +					enum buddy bud)
+> +{
+> +	unsigned long handle;
 > +
 > +	/*
-> +	 * There are three possible values for refcount here:
-> +	 * (1) refcount is 1, load is in progress, unlink from rbtree,
-> +	 *     load will free
-> +	 * (2) refcount is 0, (normal case) entry is valid,
-> +	 *     remove from rbtree and free entry
-> +	 * (3) refcount is -1, invalidate happened during writeback,
-> +	 *     free entry
+> +	 * For now, the encoded handle is actually just the pointer to the data
+> +	 * but this might not always be the case.  A little information hiding.
 > +	 */
-> +	if (refcount >= 0) {
-> +		/* no invalidate yet, remove from rbtree */
-> +		rb_erase(&entry->rbnode, &tree->rbroot);
-> +	}
-> +	spin_unlock(&tree->lock);
-> +	if (refcount <= 0) {
-> +		/* free the entry */
-> +		zswap_free_entry(tree, entry);
-> +		return 0;
-> +	}
-> +	return -EAGAIN;
-> +
-> +fail:
-> +	spin_lock(&tree->lock);
-> +	zswap_entry_put(entry);
-> +	spin_unlock(&tree->lock);
-> +	return ret;
+> +	handle = (unsigned long)page_address(&zbpage->page);
+> +	if (bud == FIRST)
+> +		return handle;
+> +	handle += PAGE_SIZE - (zbpage->last_chunks  << CHUNK_SHIFT);
+> +	return handle;
 > +}
 > +
-> +/*********************************
-> +* frontswap hooks
-> +**********************************/
-> +/* attempts to compress and store an single page */
-> +static int zswap_frontswap_store(unsigned type, pgoff_t offset,
-> +				struct page *page)
+> +/* Returns the zbud page where a given handle is stored */
+> +static struct zbud_page *handle_to_zbud_page(unsigned long handle)
 > +{
-> +	struct zswap_tree *tree = zswap_trees[type];
-> +	struct zswap_entry *entry, *dupentry;
-> +	int ret;
-> +	unsigned int dlen = PAGE_SIZE, len;
-> +	unsigned long handle;
-> +	char *buf;
-> +	u8 *src, *dst;
-> +	struct zswap_header *zhdr;
+> +	return (struct zbud_page *)(virt_to_page(handle));
+> +}
 > +
-> +	if (!tree) {
-> +		ret = -ENODEV;
-> +		goto reject;
-> +	}
+> +/* Returns the number of free chunks in a zbud page */
+> +static int num_free_chunks(struct zbud_page *zbpage)
+> +{
+> +	/*
+> +	 * Rather than branch for different situations, just use the fact that
+> +	 * free buddies have a length of zero to simplify everything.
+> +	 */
+> +	return NCHUNKS - zbpage->first_chunks - zbpage->last_chunks;
+> +}
 > +
-> +	/* reclaim space if needed */
-> +	if (zswap_is_full()) {
-> +		zswap_pool_limit_hit++;
-> +		if (zbud_reclaim_page(tree->pool, 8)) {
-
-So once the zswap is full, the performance will drop worse?
-There maybe two writeback disk-IO instead of one compared with disable
-zswap.
-Every time frontswap_store() entered there will be two pages need to be
-written out to disk.
-In this case, the performance of zswap is worse than disable it?
-
-> +			zswap_reject_reclaim_fail++;
-> +			ret = -ENOMEM;
-> +			goto reject;
+> +/*****************
+> + * API Functions
+> +*****************/
+> +/**
+> + * zbud_create_pool() - create a new zbud pool
+> + * @gfp:	gfp flags when allocating the zbud pool structure
+> + * @ops:	user-defined operations for the zbud pool
+> + *
+> + * Return: pointer to the new zbud pool or NULL if the metadata allocation
+> + * failed.
+> + */
+> +struct zbud_pool *zbud_create_pool(gfp_t gfp, struct zbud_ops *ops)
+> +{
+> +	struct zbud_pool *pool;
+> +	int i;
+> +
+> +	pool = kmalloc(sizeof(struct zbud_pool), gfp);
+> +	if (!pool)
+> +		return NULL;
+> +	spin_lock_init(&pool->lock);
+> +	for_each_unbuddied_list(i, 0)
+> +		INIT_LIST_HEAD(&pool->unbuddied[i]);
+> +	INIT_LIST_HEAD(&pool->buddied);
+> +	INIT_LIST_HEAD(&pool->lru);
+> +	pool->pages_nr = 0;
+> +	pool->ops = ops;
+> +	return pool;
+> +}
+> +
+> +/**
+> + * zbud_destroy_pool() - destroys an existing zbud pool
+> + * @pool:	the zbud pool to be destroyed
+> + *
+> + * The pool should be emptied before this function is called.
+> + */
+> +void zbud_destroy_pool(struct zbud_pool *pool)
+> +{
+> +	kfree(pool);
+> +}
+> +
+> +/**
+> + * zbud_alloc() - allocates a region of a given size
+> + * @pool:	zbud pool from which to allocate
+> + * @size:	size in bytes of the desired allocation
+> + * @gfp:	gfp flags used if the pool needs to grow
+> + * @handle:	handle of the new allocation
+> + *
+> + * This function will attempt to find a free region in the pool large enough to
+> + * satisfy the allocation request.  A search of the unbuddied lists is
+> + * performed first. If no suitable free region is found, then a new page is
+> + * allocated and added to the pool to satisfy the request.
+> + *
+> + * gfp should not set __GFP_HIGHMEM as highmem pages cannot be used
+> + * as zbud pool pages.
+> + *
+> + * Return: 0 if success and handle is set, otherwise -EINVAL is the size or
+> + * gfp arguments are invalid or -ENOMEM if the pool was unable to allocate
+> + * a new page.
+> + */
+> +int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
+> +			unsigned long *handle)
+> +{
+> +	int chunks, i, freechunks;
+> +	struct zbud_page *zbpage = NULL;
+> +	enum buddy bud;
+> +	struct page *page;
+> +
+> +	if (size <= 0 || gfp & __GFP_HIGHMEM)
+> +		return -EINVAL;
+> +	if (size > PAGE_SIZE)
+> +		return -E2BIG;
+> +	chunks = size_to_chunks(size);
+> +	spin_lock(&pool->lock);
+> +
+> +	/* First, try to find an unbuddied zbpage. */
+> +	zbpage = NULL;
+> +	for_each_unbuddied_list(i, chunks) {
+> +		if (!list_empty(&pool->unbuddied[i])) {
+> +			zbpage = list_first_entry(&pool->unbuddied[i],
+> +					struct zbud_page, buddy);
+> +			list_del(&zbpage->buddy);
+> +			if (zbpage->first_chunks == 0)
+> +				bud = FIRST;
+> +			else
+> +				bud = LAST;
+> +			goto found;
 > +		}
 > +	}
+> +
+> +	/* Couldn't find unbuddied zbpage, create new one */
+
+How about try a direct reclaim at first?
+Call zbud_reclaim_page() here instead of frontswap_store().
+And reuse the reclaimed zbud page directly.
+
+If failed then go to alloc_page()...
+
+> +	spin_unlock(&pool->lock);
+> +	page = alloc_page(gfp);
+> +	if (!page)
+> +		return -ENOMEM;
+> +	spin_lock(&pool->lock);
+> +	pool->pages_nr++;
+> +	zbpage = init_zbud_page(page);
+> +	bud = FIRST;
+> +
+> +found:
+> +	if (bud == FIRST)
+> +		zbpage->first_chunks = chunks;
+> +	else
+> +		zbpage->last_chunks = chunks;
+> +
+> +	if (zbpage->first_chunks == 0 || zbpage->last_chunks == 0) {
+> +		/* Add to unbuddied list */
+> +		freechunks = num_free_chunks(zbpage);
+> +		list_add(&zbpage->buddy, &pool->unbuddied[freechunks]);
+> +	} else {
+> +		/* Add to buddied list */
+> +		list_add(&zbpage->buddy, &pool->buddied);
+> +	}
+> +
+> +	/* Add/move zbpage to beginning of LRU */
+> +	if (!list_empty(&zbpage->lru))
+> +		list_del(&zbpage->lru);
+> +	list_add(&zbpage->lru, &pool->lru);
+> +
+> +	*handle = encode_handle(zbpage, bud);
+> +	spin_unlock(&pool->lock);
+> +
+> +	return 0;
+> +}
+
 
 -- 
 Regards,
