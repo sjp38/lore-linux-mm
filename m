@@ -1,43 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 727996B0002
-	for <linux-mm@kvack.org>; Tue, 21 May 2013 06:26:53 -0400 (EDT)
-Date: Tue, 21 May 2013 12:26:48 +0200
-From: Karel Zak <kzak@redhat.com>
-Subject: Re: [RFC PATCH 02/02] swapon: add "cluster-discard" support
-Message-ID: <20130521102648.GB11774@x2.net.home>
-References: <cover.1369092449.git.aquini@redhat.com>
- <398ace0dd3ca1283372b3aad3fceeee59f6897d7.1369084886.git.aquini@redhat.com>
- <519AC7B3.5060902@gmail.com>
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id F1B1A6B0002
+	for <linux-mm@kvack.org>; Tue, 21 May 2013 06:34:57 -0400 (EDT)
+Date: Tue, 21 May 2013 20:34:39 +1000
+From: Dave Chinner <dchinner@redhat.com>
+Subject: Re: [PATCH] mm: vmscan: add BUG_ON on illegal return values from
+ scan_objects
+Message-ID: <20130521103439.GH11167@devil.localdomain>
+References: <1369041267-26424-1-git-send-email-oskar.andero@sonymobile.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <519AC7B3.5060902@gmail.com>
+In-Reply-To: <1369041267-26424-1-git-send-email-oskar.andero@sonymobile.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Rafael Aquini <aquini@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, shli@kernel.org, jmoyer@redhat.com, riel@redhat.com, lwoodman@redhat.com, mgorman@suse.de
+To: Oskar Andero <oskar.andero@sonymobile.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Radovan Lekanovic <radovan.lekanovic@sonymobile.com>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-On Mon, May 20, 2013 at 09:02:43PM -0400, KOSAKI Motohiro wrote:
-> > -	if (fl_discard)
-> > +	if (fl_discard) {
-> >  		flags |= SWAP_FLAG_DISCARD;
-> > +		if (fl_discard > 1)
-> > +			flags |= SWAP_FLAG_DISCARD_CLUSTER;
+On Mon, May 20, 2013 at 11:14:27AM +0200, Oskar Andero wrote:
+> Add a BUG_ON to catch any illegal value from the shrinkers. This fixes a
+> potential bug if scan_objects returns a negative other than -1, which
+> would lead to undefined behaviour.
 > 
-> This is not enough, IMHO. When running this code on old kernel, swapon() return EINVAL.
-> At that time, we should fall back swapon(0x10000).
+> Cc: Glauber Costa <glommer@openvz.org>
+> Cc: Dave Chinner <dchinner@redhat.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> Signed-off-by: Oskar Andero <oskar.andero@sonymobile.com>
+> ---
+>  mm/vmscan.c | 1 +
+>  1 file changed, 1 insertion(+)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 6bac41e..fbe6742 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -293,6 +293,7 @@ shrink_slab_one(struct shrinker *shrinker, struct shrink_control *shrinkctl,
+>  		ret = shrinker->scan_objects(shrinker, shrinkctl);
+>  		if (ret == -1)
+>  			break;
+> +		BUG_ON(ret < -1);
+>  		freed += ret;
+>  
+>  		count_vm_events(SLABS_SCANNED, nr_to_scan);
 
- Hmm.. currently we don't use any fallback for any swap flag (e.g.
- 0x10000) for compatibility with old kernels. Maybe it's better to
- keep it simple and stupid and return an error message than introduce
- any super-smart semantic to hide incompatible fstab configuration.
+NACK. we've got to fix the damn shrinkers first.
 
-    Karel
- 
+If you want this sort of guard added to the patchset Glauber and I
+are working on that does this, then discuss it in the context of
+that patch set.
+
+Even if you do, you'll get the same answer: we need to first all the
+busted shrinkers before we even consider being nasty about enforcing
+the API constraints to prevent furture breakage.
+
+If you want to do something useful, look at all the comments about
+broken shrinkers in Glauber's patch set and work with the owners of
+the code to understand what they really need and get them fixed.
+
+-Dave.
 -- 
- Karel Zak  <kzak@redhat.com>
- http://karelzak.blogspot.com
+Dave Chinner
+dchinner@redhat.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
