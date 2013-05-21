@@ -1,38 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id AAA2C6B0082
-	for <linux-mm@kvack.org>; Tue, 21 May 2013 18:02:01 -0400 (EDT)
-Received: by mail-gg0-f180.google.com with SMTP id q4so373907ggn.25
-        for <linux-mm@kvack.org>; Tue, 21 May 2013 15:02:00 -0700 (PDT)
-Message-ID: <519BEED7.6030605@gmail.com>
-Date: Tue, 21 May 2013 18:01:59 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 8A7AC6B0085
+	for <linux-mm@kvack.org>; Tue, 21 May 2013 18:05:36 -0400 (EDT)
+Message-ID: <519BEFAE.1080800@sr71.net>
+Date: Tue, 21 May 2013 15:05:34 -0700
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 02/02] swapon: add "cluster-discard" support
-References: <cover.1369092449.git.aquini@redhat.com> <398ace0dd3ca1283372b3aad3fceeee59f6897d7.1369084886.git.aquini@redhat.com> <519AC7B3.5060902@gmail.com> <20130521102648.GB11774@x2.net.home> <519BD640.4040102@gmail.com> <20130521211300.GE20178@optiplex.redhat.com>
-In-Reply-To: <20130521211300.GE20178@optiplex.redhat.com>
+Subject: Re: [PATCHv4 23/39] thp: wait_split_huge_page(): serialize over i_mmap_mutex
+ too
+References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com> <1368321816-17719-24-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1368321816-17719-24-git-send-email-kirill.shutemov@linux.intel.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Karel Zak <kzak@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, shli@kernel.org, jmoyer@redhat.com, riel@redhat.com, lwoodman@redhat.com, mgorman@suse.de
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-> Instead of reverting and renaming --discard, what about making it accept an
-> optional argument, so we could use --discard (to enable all thing and keep
-> backward compatibility); --discard=cluster & --discard=batch (or whatever we
-> think it should be named). I'll try to sort this approach out if you folks think
-> it's worthwhile. 
+On 05/11/2013 06:23 PM, Kirill A. Shutemov wrote:
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> 
+> Since we're going to have huge pages backed by files,
+> wait_split_huge_page() has to serialize not only over anon_vma_lock,
+> but over i_mmap_mutex too.
+...
+> -#define wait_split_huge_page(__anon_vma, __pmd)				\
+> +#define wait_split_huge_page(__vma, __pmd)				\
+>  	do {								\
+>  		pmd_t *____pmd = (__pmd);				\
+> -		anon_vma_lock_write(__anon_vma);			\
+> -		anon_vma_unlock_write(__anon_vma);			\
+> +		struct address_space *__mapping =			\
+> +					vma->vm_file->f_mapping;	\
+> +		struct anon_vma *__anon_vma = (__vma)->anon_vma;	\
+> +		if (__mapping)						\
+> +			mutex_lock(&__mapping->i_mmap_mutex);		\
+> +		if (__anon_vma) {					\
+> +			anon_vma_lock_write(__anon_vma);		\
+> +			anon_vma_unlock_write(__anon_vma);		\
+> +		}							\
+> +		if (__mapping)						\
+> +			mutex_unlock(&__mapping->i_mmap_mutex);		\
+>  		BUG_ON(pmd_trans_splitting(*____pmd) ||			\
+>  		       pmd_trans_huge(*____pmd));			\
+>  	} while (0)
 
-Optional argument looks nice, at least to me. 
+Kirill, I asked about this patch in the previous series, and you wrote
+some very nice, detailed answers to my stupid questions.  But, you
+didn't add any comments or update the patch description.  So, if a
+reviewer or anybody looking at the changelog in the future has my same
+stupid questions, they're unlikely to find the very nice description
+that you wrote up.
 
-But hmm.. 
+I'd highly suggest that you go back through the comments you've received
+before and make sure that you both answered the questions, *and* made
+sure to cover those questions either in the code or in the patch
+descriptions.
 
-"cluster" and "batch" describes current kernel implementation, not user visible effect. 
-Usually I suggest to pick up a word from man pages because it describe user visible action.
-e.g. --discard=freed-pages or --discard=io or --discard=swapon or --discard=once, etc..
-
-But this is not strong opinion. You can ignore it. I don't think I have good English sense. :-)
+Could you also describe the lengths to which you've gone to try and keep
+this macro from growing in to any larger of an abomination.  Is it truly
+_impossible_ to turn this in to a normal function?  Or will it simply be
+a larger amount of work that you can do right now?  What would it take?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
