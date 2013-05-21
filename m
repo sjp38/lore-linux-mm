@@ -1,131 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id CA9916B0037
-	for <linux-mm@kvack.org>; Tue, 21 May 2013 16:14:15 -0400 (EDT)
-Message-ID: <519BD595.5040405@sr71.net>
-Date: Tue, 21 May 2013 13:14:13 -0700
-From: Dave Hansen <dave@sr71.net>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 586F46B003A
+	for <linux-mm@kvack.org>; Tue, 21 May 2013 16:17:07 -0400 (EDT)
+Received: by mail-gh0-f170.google.com with SMTP id z10so349689ghb.29
+        for <linux-mm@kvack.org>; Tue, 21 May 2013 13:17:06 -0700 (PDT)
+Message-ID: <519BD640.4040102@gmail.com>
+Date: Tue, 21 May 2013 16:17:04 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCHv4 14/39] thp, mm: rewrite delete_from_page_cache() to
- support huge pages
-References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com> <1368321816-17719-15-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1368321816-17719-15-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: Re: [RFC PATCH 02/02] swapon: add "cluster-discard" support
+References: <cover.1369092449.git.aquini@redhat.com> <398ace0dd3ca1283372b3aad3fceeee59f6897d7.1369084886.git.aquini@redhat.com> <519AC7B3.5060902@gmail.com> <20130521102648.GB11774@x2.net.home>
+In-Reply-To: <20130521102648.GB11774@x2.net.home>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Karel Zak <kzak@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Rafael Aquini <aquini@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, shli@kernel.org, jmoyer@redhat.com, riel@redhat.com, lwoodman@redhat.com, mgorman@suse.de
 
-On 05/11/2013 06:23 PM, Kirill A. Shutemov wrote:
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+(5/21/13 6:26 AM), Karel Zak wrote:
+> On Mon, May 20, 2013 at 09:02:43PM -0400, KOSAKI Motohiro wrote:
+>>> -	if (fl_discard)
+>>> +	if (fl_discard) {
+>>>  		flags |= SWAP_FLAG_DISCARD;
+>>> +		if (fl_discard > 1)
+>>> +			flags |= SWAP_FLAG_DISCARD_CLUSTER;
+>>
+>> This is not enough, IMHO. When running this code on old kernel, swapon() return EINVAL.
+>> At that time, we should fall back swapon(0x10000).
 > 
-> As with add_to_page_cache_locked() we handle HPAGE_CACHE_NR pages a
-> time.
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->  mm/filemap.c |   31 +++++++++++++++++++++++++------
->  1 file changed, 25 insertions(+), 6 deletions(-)
-> 
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index b0c7c8c..657ce82 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -115,6 +115,9 @@
->  void __delete_from_page_cache(struct page *page)
->  {
->  	struct address_space *mapping = page->mapping;
-> +	bool thp = PageTransHuge(page) &&
-> +		IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE);
-> +	int nr;
+>  Hmm.. currently we don't use any fallback for any swap flag (e.g.
+>  0x10000) for compatibility with old kernels. Maybe it's better to
+>  keep it simple and stupid and return an error message than introduce
+>  any super-smart semantic to hide incompatible fstab configuration.
 
-Is that check for the config option really necessary?  How would we get
-a page with PageTransHuge() set without it being enabled?
+Hm. If so, I'd propose to revert the following change. 
 
->  	trace_mm_filemap_delete_from_page_cache(page);
->  	/*
-> @@ -127,13 +130,29 @@ void __delete_from_page_cache(struct page *page)
->  	else
->  		cleancache_invalidate_page(mapping, page);
->  
-> -	radix_tree_delete(&mapping->page_tree, page->index);
-> +	if (thp) {
-> +		int i;
-> +
-> +		nr = HPAGE_CACHE_NR;
-> +		radix_tree_delete(&mapping->page_tree, page->index);
-> +		for (i = 1; i < HPAGE_CACHE_NR; i++) {
-> +			radix_tree_delete(&mapping->page_tree, page->index + i);
-> +			page[i].mapping = NULL;
-> +			page_cache_release(page + i);
-> +		}
-> +		__dec_zone_page_state(page, NR_FILE_TRANSPARENT_HUGEPAGES);
-> +	} else {
-> +		BUG_ON(PageTransHuge(page));
-> +		nr = 1;
-> +		radix_tree_delete(&mapping->page_tree, page->index);
-> +	}
->  	page->mapping = NULL;
+> .B "\-d, \-\-discard"
+>-Discard freed swap pages before they are reused, if the swap
+>-device supports the discard or trim operation.  This may improve
+>-performance on some Solid State Devices, but often it does not.
+>+Enables swap discards, if the swap device supports that, and performs
+>+a batch discard operation for the swap device at swapon time.
 
-I like to rewrite your code. :)
 
-	nr = hpage_nr_pages(page);
-	for (i = 0; i < nr; i++) {
-		page[i].mapping = NULL;
-		radix_tree_delete(&mapping->page_tree, page->index + i);
-		/* tail pages: */
-		if (i)
-			page_cache_release(page + i);
-	}
-	if (thp)
-	     __dec_zone_page_state(page, NR_FILE_TRANSPARENT_HUGEPAGES);
+And instead, I suggest to make --discard-on-swapon like the following.
+(better name idea is welcome) 
 
-I like this because it explicitly calls out the logic that tail pages
-are different from head pages.  We handle their reference counts
-differently.
++--discard-on-swapon
++Enables swap discards, if the swap device supports that, and performs
++a batch discard operation for the swap device at swapon time.
 
-Which reminds me...  Why do we handle their reference counts differently? :)
+I mean, preserving flags semantics removes the reason we need make a fallback.
 
-It seems like we could easily put a for loop in delete_from_page_cache()
-that will release their reference counts along with the head page.
-Wouldn't that make the code less special-cased for tail pages?
-
->  	/* Leave page->index set: truncation lookup relies upon it */
-> -	mapping->nrpages--;
-> -	__dec_zone_page_state(page, NR_FILE_PAGES);
-> +	mapping->nrpages -= nr;
-> +	__mod_zone_page_state(page_zone(page), NR_FILE_PAGES, -nr);
->  	if (PageSwapBacked(page))
-> -		__dec_zone_page_state(page, NR_SHMEM);
-> +		__mod_zone_page_state(page_zone(page), NR_SHMEM, -nr);
->  	BUG_ON(page_mapped(page));
-
-Man, we suck:
-
-	__dec_zone_page_state()
-and
-	__mod_zone_page_state()
-
-take a differently-typed first argument.  <sigh>
-
-Would there be any good to making __dec_zone_page_state() check to see
-if the page we passed in _is_ a compound page, and adjusting its
-behaviour accordingly?
-
->  	/*
-> @@ -144,8 +163,8 @@ void __delete_from_page_cache(struct page *page)
->  	 * having removed the page entirely.
->  	 */
->  	if (PageDirty(page) && mapping_cap_account_dirty(mapping)) {
-> -		dec_zone_page_state(page, NR_FILE_DIRTY);
-> -		dec_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
-> +		mod_zone_page_state(page_zone(page), NR_FILE_DIRTY, -nr);
-> +		add_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE, -nr);
->  	}
->  }
-
-Ahh, I see now why you didn't need a dec_bdi_stat().  Oh well...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
