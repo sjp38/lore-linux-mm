@@ -1,77 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 7889E6B0071
-	for <linux-mm@kvack.org>; Tue, 21 May 2013 17:28:15 -0400 (EDT)
-Message-ID: <519BE6ED.8030202@sr71.net>
-Date: Tue, 21 May 2013 14:28:13 -0700
-From: Dave Hansen <dave@sr71.net>
-MIME-Version: 1.0
-Subject: Re: [PATCHv4 20/39] thp, mm: naive support of thp in generic read/write
- routines
-References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com> <1368321816-17719-21-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1368321816-17719-21-git-send-email-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id E8B106B007B
+	for <linux-mm@kvack.org>; Tue, 21 May 2013 17:34:06 -0400 (EDT)
+From: Toshi Kani <toshi.kani@hp.com>
+Subject: [PATCH] mm: Change normal message to use pr_debug
+Date: Tue, 21 May 2013 15:33:54 -0600
+Message-Id: <1369172034-17267-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, tangchen@cn.fujitsu.com, Toshi Kani <toshi.kani@hp.com>
 
-On 05/11/2013 06:23 PM, Kirill A. Shutemov wrote:
-> +		if (PageTransHuge(page))
-> +			offset = pos & ~HPAGE_PMD_MASK;
-> +
->  		pagefault_disable();
-> -		copied = iov_iter_copy_from_user_atomic(page, i, offset, bytes);
-> +		copied = iov_iter_copy_from_user_atomic(
-> +				page + (offset >> PAGE_CACHE_SHIFT),
-> +				i, offset & ~PAGE_CACHE_MASK, bytes);
->  		pagefault_enable();
->  		flush_dcache_page(page);
+During early boot-up, iomem_resource is set up from the boot
+descriptor table, such as EFI Memory Table and e820.  Later,
+acpi_memory_device_add() calls add_memory() for each ACPI
+memory device object as it enumerates ACPI namespace.  This
+add_memory() call is expected to fail in register_memory_resource()
+at boot since iomem_resource has been set up from EFI/e820.
+As a result, add_memory() returns -EEXIST, which
+acpi_memory_device_add() handles as the normal case.
 
-I think there's enough voodoo in there to warrant a comment or adding
-some temporary variables.  There are three things going on that you wan
-to convey:
+This scheme works fine, but the following error message is
+logged for every ACPI memory device object during boot-up.
 
-1. Offset is normally <PAGE_SIZE, but you make it <HPAGE_PMD_SIZE if
-   you are dealing with a huge page
-2. (offset >> PAGE_CACHE_SHIFT) is always 0 for small pages since
-    offset < PAGE_SIZE
-3. "offset & ~PAGE_CACHE_MASK" does nothing for small-page offsets, but
-   it turns a large-page offset back in to a small-page-offset.
+  "System RAM resource %pR cannot be added\n"
 
-I think you can do it with something like this:
+This patch changes register_memory_resource() to use pr_debug()
+for the message as it shows up under the normal case.
 
- 	int subpage_nr = 0;
-	off_t smallpage_offset = offset;
-	if (PageTransHuge(page)) {
-		// we transform 'offset' to be offset in to the huge
-		// page instead of inside the PAGE_SIZE page
-		offset = pos & ~HPAGE_PMD_MASK;
-		subpage_nr = (offset >> PAGE_CACHE_SHIFT);
-	}
-	
-> +		copied = iov_iter_copy_from_user_atomic(
-> +				page + subpage_nr,
-> +				i, smallpage_offset, bytes);
+Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+---
+ mm/memory_hotplug.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-
-> @@ -2437,6 +2453,7 @@ again:
->  			 * because not all segments in the iov can be copied at
->  			 * once without a pagefault.
->  			 */
-> +			offset = pos & ~PAGE_CACHE_MASK;
-
-Urg, and now it's *BACK* in to a small-page offset?
-
-This means that 'offset' has two _different_ meanings and it morphs
-between them during the function a couple of times.  That seems very
-error-prone to me.
-
->  			bytes = min_t(unsigned long, PAGE_CACHE_SIZE - offset,
->  						iov_iter_single_seg_count(i));
->  			goto again;
-> 
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 5ea1287..90ebc91 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -75,7 +75,7 @@ static struct resource *register_memory_resource(u64 start, u64 size)
+ 	res->end = start + size - 1;
+ 	res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+ 	if (request_resource(&iomem_resource, res) < 0) {
+-		printk("System RAM resource %pR cannot be added\n", res);
++		pr_debug("System RAM resource %pR cannot be added\n", res);
+ 		kfree(res);
+ 		res = NULL;
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
