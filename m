@@ -1,63 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id C65D76B0034
-	for <linux-mm@kvack.org>; Tue, 21 May 2013 03:17:16 -0400 (EDT)
-Received: by mail-we0-f171.google.com with SMTP id t59so135493wes.2
-        for <linux-mm@kvack.org>; Tue, 21 May 2013 00:17:15 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 1B2526B0036
+	for <linux-mm@kvack.org>; Tue, 21 May 2013 03:18:11 -0400 (EDT)
+Date: Tue, 21 May 2013 17:18:00 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v7 00/34] kmemcg shrinkers
+Message-ID: <20130521071800.GN24543@dastard>
+References: <1368994047-5997-1-git-send-email-glommer@openvz.org>
+ <519B1C45.5090201@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <1369120410-18180-1-git-send-email-oskar.andero@sonymobile.com>
-References: <1369120410-18180-1-git-send-email-oskar.andero@sonymobile.com>
-Date: Tue, 21 May 2013 10:17:15 +0300
-Message-ID: <CAOJsxLGivq0p1j4Axykdz-O8FtYfn=M1BfLEnc=q-fjxA2Yonw@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: vmscan: add VM_BUG_ON on illegal return values
- from scan_objects
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <519B1C45.5090201@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oskar Andero <oskar.andero@sonymobile.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Radovan Lekanovic <radovan.lekanovic@sonymobile.com>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@openvz.org>, Dave Chinner <dchinner@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Glauber Costa <glommer@openvz.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, hughd@google.com
 
-On Tue, May 21, 2013 at 10:13 AM, Oskar Andero
-<oskar.andero@sonymobile.com> wrote:
-> Add a VM_BUG_ON to catch any illegal value from the shrinkers. It's a
-> potential bug if scan_objects returns a negative other than -1 and
-> would lead to undefined behaviour.
->
-> Cc: Glauber Costa <glommer@openvz.org>
-> Cc: Dave Chinner <dchinner@redhat.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> Signed-off-by: Oskar Andero <oskar.andero@sonymobile.com>
-> ---
->  mm/vmscan.c | 1 +
->  1 file changed, 1 insertion(+)
->
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 6bac41e..63fec86 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -293,6 +293,7 @@ shrink_slab_one(struct shrinker *shrinker, struct shrink_control *shrinkctl,
->                 ret = shrinker->scan_objects(shrinker, shrinkctl);
->                 if (ret == -1)
->                         break;
-> +               VM_BUG_ON(ret < -1);
+On Tue, May 21, 2013 at 11:03:33AM +0400, Glauber Costa wrote:
+> On 05/20/2013 12:06 AM, Glauber Costa wrote:
+> > Initial notes:
+> > ==============
+> > 
+> > Please pay attention to new patches that are debuting in this series. Patch1
+> > changes our unused countries for int to long, since Dave noticed that it wasn't
+> > being enough in some cases. Aside from that, the major change is that we now
+> > compute and keep deferred work per-node (Patch13). The biggest effect of this,
+> > is that to avoid storing a new nodemask in the stack, I am passing only the
+> > node id down to the API. This means that the lru API *does not* take a nodemask
+> > any longer, which in turn, makes it simpler.
+> > 
+> > I deeply considered this matter, and decided this would be the best way to go.
+> > It is not different from what I have already done for memcgs: Only a single one
+> > is passed down, and the complexity of scanning them is moved upwards to the
+> > caller, where all the scanning logic should belong anyway.
+> > 
+> > If you want, you can also grab from branch "kmemcg-lru-shrinker" at:
+> > 
+> > 	git://git.kernel.org/pub/scm/linux/kernel/git/glommer/memcg.git
+> > 
+> > I hope the performance problems are all gone. My testing now shows a smoother
+> > and steady state for the objects during the lifetime of the workload, and
+> > postmark numbers are closer to base, although we do deviate a bit.
+> > 
+> 
+> Mel, Dave, et. al.
+> 
+> I have applied some more fixes for things I have found here and there as
+> a result of a new round of testing. I won't post the result here until
+> Thursday or Friday, to avoid patchbombing you guys. In the meantime I
+> will be merging comments I receive from this version.
+> 
+> My git tree is up to date, so if you want to test it further, please
+> pick that up.
 
-It seems to me relaxing the shrinker API restrictions and changing the
-"ret == -1" to "ret < 0" would be a much more robust approach...
+Will do. I hope to do some testing of it tommorrow.
 
->                 freed += ret;
->
->                 count_vm_events(SLABS_SCANNED, nr_to_scan);
-> --
-> 1.8.1.5
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> I am attaching the result of my postmark run. I think the results look
+> really good now.
+
+What's version and command line you are using - I'll see if i can
+reproduce the same results on my test system....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
