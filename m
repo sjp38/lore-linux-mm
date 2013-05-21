@@ -1,51 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id E8B106B007B
-	for <linux-mm@kvack.org>; Tue, 21 May 2013 17:34:06 -0400 (EDT)
-From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH] mm: Change normal message to use pr_debug
-Date: Tue, 21 May 2013 15:33:54 -0600
-Message-Id: <1369172034-17267-1-git-send-email-toshi.kani@hp.com>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 270AD6B0080
+	for <linux-mm@kvack.org>; Tue, 21 May 2013 17:49:44 -0400 (EDT)
+Message-ID: <519BEBF5.4060309@sr71.net>
+Date: Tue, 21 May 2013 14:49:41 -0700
+From: Dave Hansen <dave@sr71.net>
+MIME-Version: 1.0
+Subject: Re: [PATCHv4 21/39] thp, libfs: initial support of thp in simple_read/write_begin/write_end
+References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com> <1368321816-17719-22-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1368321816-17719-22-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, tangchen@cn.fujitsu.com, Toshi Kani <toshi.kani@hp.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-During early boot-up, iomem_resource is set up from the boot
-descriptor table, such as EFI Memory Table and e820.  Later,
-acpi_memory_device_add() calls add_memory() for each ACPI
-memory device object as it enumerates ACPI namespace.  This
-add_memory() call is expected to fail in register_memory_resource()
-at boot since iomem_resource has been set up from EFI/e820.
-As a result, add_memory() returns -EEXIST, which
-acpi_memory_device_add() handles as the normal case.
+On 05/11/2013 06:23 PM, Kirill A. Shutemov wrote:
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> 
+> For now we try to grab a huge cache page if gfp_mask has __GFP_COMP.
+> It's probably to weak condition and need to be reworked later.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  fs/libfs.c              |   50 ++++++++++++++++++++++++++++++++++++-----------
+>  include/linux/pagemap.h |    8 ++++++++
+>  2 files changed, 47 insertions(+), 11 deletions(-)
+> 
+> diff --git a/fs/libfs.c b/fs/libfs.c
+> index 916da8c..ce807fe 100644
+> --- a/fs/libfs.c
+> +++ b/fs/libfs.c
+> @@ -383,7 +383,7 @@ EXPORT_SYMBOL(simple_setattr);
+>  
+>  int simple_readpage(struct file *file, struct page *page)
+>  {
+> -	clear_highpage(page);
+> +	clear_pagecache_page(page);
+>  	flush_dcache_page(page);
+>  	SetPageUptodate(page);
+>  	unlock_page(page);
+> @@ -394,21 +394,44 @@ int simple_write_begin(struct file *file, struct address_space *mapping,
+>  			loff_t pos, unsigned len, unsigned flags,
+>  			struct page **pagep, void **fsdata)
+>  {
+> -	struct page *page;
+> +	struct page *page = NULL;
+>  	pgoff_t index;
 
-This scheme works fine, but the following error message is
-logged for every ACPI memory device object during boot-up.
+I know ramfs uses simple_write_begin(), but it's not the only one.  I
+think you probably want to create a new ->write_begin() function just
+for ramfs rather than modifying this one.
 
-  "System RAM resource %pR cannot be added\n"
+The optimization that you just put in a few patches ago:
 
-This patch changes register_memory_resource() to use pr_debug()
-for the message as it shows up under the normal case.
+>> +static inline struct page *grab_cache_page_write_begin(
+>> +{
+>> +	if (!transparent_hugepage_pagecache() && (flags & AOP_FLAG_TRANSHUGE))
+>> +		return NULL;
+>> +	return __grab_cache_page_write_begin(mapping, index, flags);
 
-Signed-off-by: Toshi Kani <toshi.kani@hp.com>
----
- mm/memory_hotplug.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 5ea1287..90ebc91 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -75,7 +75,7 @@ static struct resource *register_memory_resource(u64 start, u64 size)
- 	res->end = start + size - 1;
- 	res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
- 	if (request_resource(&iomem_resource, res) < 0) {
--		printk("System RAM resource %pR cannot be added\n", res);
-+		pr_debug("System RAM resource %pR cannot be added\n", res);
- 		kfree(res);
- 		res = NULL;
- 	}
+is now worthless for any user of simple_readpage().
+
+>  	index = pos >> PAGE_CACHE_SHIFT;
+>  
+> -	page = grab_cache_page_write_begin(mapping, index, flags);
+> +	/* XXX: too weak condition? */
+
+Why would it be too weak?
+
+> +	if (mapping_can_have_hugepages(mapping)) {
+> +		page = grab_cache_page_write_begin(mapping,
+> +				index & ~HPAGE_CACHE_INDEX_MASK,
+> +				flags | AOP_FLAG_TRANSHUGE);
+> +		/* fallback to small page */
+> +		if (!page) {
+> +			unsigned long offset;
+> +			offset = pos & ~PAGE_CACHE_MASK;
+> +			len = min_t(unsigned long,
+> +					len, PAGE_CACHE_SIZE - offset);
+> +		}
+
+Why does this have to muck with 'len'?  It doesn't appear to be undoing
+anything from earlier in the function.  What is it fixing up?
+
+> +		BUG_ON(page && !PageTransHuge(page));
+> +	}
+
+So, those semantics for AOP_FLAG_TRANSHUGE are actually pretty strong.
+They mean that you can only return a transparent pagecache page, but you
+better not return a small page.
+
+Would it have been possible for a huge page to get returned from
+grab_cache_page_write_begin(), but had it split up between there and the
+BUG_ON()?
+
+Which reminds me... under what circumstances _do_ we split these huge
+pages?  How are those circumstances different from the anonymous ones?
+
+> +	if (!page)
+> +		page = grab_cache_page_write_begin(mapping, index, flags);
+>  	if (!page)
+>  		return -ENOMEM;
+> -
+>  	*pagep = page;
+>  
+> -	if (!PageUptodate(page) && (len != PAGE_CACHE_SIZE)) {
+> -		unsigned from = pos & (PAGE_CACHE_SIZE - 1);
+> -
+> -		zero_user_segments(page, 0, from, from + len, PAGE_CACHE_SIZE);
+> +	if (!PageUptodate(page)) {
+> +		unsigned from;
+> +
+> +		if (PageTransHuge(page) && len != HPAGE_PMD_SIZE) {
+> +			from = pos & ~HPAGE_PMD_MASK;
+> +			zero_huge_user_segment(page, 0, from);
+> +			zero_huge_user_segment(page,
+> +					from + len, HPAGE_PMD_SIZE);
+> +		} else if (len != PAGE_CACHE_SIZE) {
+> +			from = pos & ~PAGE_CACHE_MASK;
+> +			zero_user_segments(page, 0, from,
+> +					from + len, PAGE_CACHE_SIZE);
+> +		}
+>  	}
+>  	return 0;
+>  }
+> @@ -443,9 +466,14 @@ int simple_write_end(struct file *file, struct address_space *mapping,
+>  
+>  	/* zero the stale part of the page if we did a short copy */
+>  	if (copied < len) {
+> -		unsigned from = pos & (PAGE_CACHE_SIZE - 1);
+> -
+> -		zero_user(page, from + copied, len - copied);
+> +		unsigned from;
+> +		if (PageTransHuge(page)) {
+> +			from = pos & ~HPAGE_PMD_MASK;
+> +			zero_huge_user(page, from + copied, len - copied);
+> +		} else {
+> +			from = pos & ~PAGE_CACHE_MASK;
+> +			zero_user(page, from + copied, len - copied);
+> +		}
+>  	}
+
+When I see stuff going in to the simple_* functions, I fear that this
+code will end up getting copied in to each and every one of the
+filesystems that implement these on their own.
+
+I guess this works for now, but I'm worried that the the next fs is just
+going to copy-and-paste these.  Guess I'll yell at them when they do it. :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
