@@ -1,66 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 148BC6B006E
-	for <linux-mm@kvack.org>; Tue, 21 May 2013 17:06:53 -0400 (EDT)
-Date: Tue, 21 May 2013 18:06:32 -0300
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 136736B0073
+	for <linux-mm@kvack.org>; Tue, 21 May 2013 17:13:19 -0400 (EDT)
+Date: Tue, 21 May 2013 18:13:00 -0300
 From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [RFC PATCH 01/02] swap: discard while swapping only if
- SWAP_FLAG_DISCARD_CLUSTER
-Message-ID: <20130521210628.GD20178@optiplex.redhat.com>
+Subject: Re: [RFC PATCH 02/02] swapon: add "cluster-discard" support
+Message-ID: <20130521211300.GE20178@optiplex.redhat.com>
 References: <cover.1369092449.git.aquini@redhat.com>
- <e3ae11727f13e1580ae66ce80845e9002ec90ea6.1369092449.git.aquini@redhat.com>
- <519AC605.4070709@gmail.com>
+ <398ace0dd3ca1283372b3aad3fceeee59f6897d7.1369084886.git.aquini@redhat.com>
+ <519AC7B3.5060902@gmail.com>
+ <20130521102648.GB11774@x2.net.home>
+ <519BD640.4040102@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <519AC605.4070709@gmail.com>
+In-Reply-To: <519BD640.4040102@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, shli@kernel.org, kzak@redhat.com, jmoyer@redhat.com, riel@redhat.com, lwoodman@redhat.com, mgorman@suse.de
+Cc: Karel Zak <kzak@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, shli@kernel.org, jmoyer@redhat.com, riel@redhat.com, lwoodman@redhat.com, mgorman@suse.de
 
-Howdy Kosaki-san,
+Karel, Motohiro,
 
-Thanks for your time over this one :)
+Thanks a lot for your time reviewing this patch and providing me with valuable
+feedback.
 
-On Mon, May 20, 2013 at 08:55:33PM -0400, KOSAKI Motohiro wrote:
-> (5/20/13 8:04 PM), Rafael Aquini wrote:
-> > Intruduce a new flag to make page-cluster fine-grained discards while swapping
-> > conditional, as they can be considered detrimental to some setups. However,
-> > keep allowing batched discards at sys_swapon() time, when enabled by the
-> > system administrator. 
+On Tue, May 21, 2013 at 04:17:04PM -0400, KOSAKI Motohiro wrote:
+> (5/21/13 6:26 AM), Karel Zak wrote:
+> > On Mon, May 20, 2013 at 09:02:43PM -0400, KOSAKI Motohiro wrote:
+> >>> -	if (fl_discard)
+> >>> +	if (fl_discard) {
+> >>>  		flags |= SWAP_FLAG_DISCARD;
+> >>> +		if (fl_discard > 1)
+> >>> +			flags |= SWAP_FLAG_DISCARD_CLUSTER;
+> >>
+> >> This is not enough, IMHO. When running this code on old kernel, swapon() return EINVAL.
+> >> At that time, we should fall back swapon(0x10000).
 > > 
-> > Signed-off-by: Rafael Aquini <aquini@redhat.com>
-> > ---
-> >  include/linux/swap.h |  8 +++++---
-> >  mm/swapfile.c        | 12 ++++++++----
-> >  2 files changed, 13 insertions(+), 7 deletions(-)
-> > 
-> > diff --git a/include/linux/swap.h b/include/linux/swap.h
-> > index 1701ce4..ab2e742 100644
-> > --- a/include/linux/swap.h
-> > +++ b/include/linux/swap.h
-> > @@ -19,10 +19,11 @@ struct bio;
-> >  #define SWAP_FLAG_PREFER	0x8000	/* set if swap priority specified */
-> >  #define SWAP_FLAG_PRIO_MASK	0x7fff
-> >  #define SWAP_FLAG_PRIO_SHIFT	0
-> > -#define SWAP_FLAG_DISCARD	0x10000 /* discard swap cluster after use */
-> > +#define SWAP_FLAG_DISCARD	0x10000 /* enable discard for swap areas */
-> > +#define SWAP_FLAG_DISCARD_CLUSTER 0x20000 /* discard swap clusters after use */
+> >  Hmm.. currently we don't use any fallback for any swap flag (e.g.
+> >  0x10000) for compatibility with old kernels. Maybe it's better to
+> >  keep it simple and stupid and return an error message than introduce
+> >  any super-smart semantic to hide incompatible fstab configuration.
 > 
-> From point of backward compatibility view, 0x10000 should be disable both discarding
-> when mount and when IO.
+> Hm. If so, I'd propose to revert the following change. 
+> 
+> > .B "\-d, \-\-discard"
+> >-Discard freed swap pages before they are reused, if the swap
+> >-device supports the discard or trim operation.  This may improve
+> >-performance on some Solid State Devices, but often it does not.
+> >+Enables swap discards, if the swap device supports that, and performs
+> >+a batch discard operation for the swap device at swapon time.
+> 
+> 
+> And instead, I suggest to make --discard-on-swapon like the following.
+> (better name idea is welcome) 
+> 
+> +--discard-on-swapon
+> +Enables swap discards, if the swap device supports that, and performs
+> +a batch discard operation for the swap device at swapon time.
+> 
+> I mean, preserving flags semantics removes the reason we need make a fallback.
+> 
+>
 
-I think you mean 0x10000 should be enable both here, then. That's a nice catch. I'll
-try to think a way to accomplish it in a simple fashion.
+Instead of reverting and renaming --discard, what about making it accept an
+optional argument, so we could use --discard (to enable all thing and keep
+backward compatibility); --discard=cluster & --discard=batch (or whatever we
+think it should be named). I'll try to sort this approach out if you folks think
+it's worthwhile. 
 
-
-> And, introducing new two flags, enable mount time discard and enable IO time discard.
-> 
-> IOW, Please consider newer kernel and older swapon(8) conbination.
-> Other than that, looks good to me.
-> 
-> 
+-- Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
