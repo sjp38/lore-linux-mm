@@ -1,63 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 26C2A6B0002
-	for <linux-mm@kvack.org>; Tue, 21 May 2013 04:15:40 -0400 (EDT)
-Message-ID: <1369124129.12423.2.camel@Solace>
-Subject: Re: [Xen-devel] Bye bye Mr tmem guy
-From: Dario Faggioli <dario.faggioli@citrix.com>
-Date: Tue, 21 May 2013 10:15:29 +0200
-In-Reply-To: <c064ee79-6fa0-4833-b3f1-ca712b029a83@default>
-References: <c064ee79-6fa0-4833-b3f1-ca712b029a83@default>
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="=-ip5UBVwBE0EqHQbIvEb/"
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id B314C6B0002
+	for <linux-mm@kvack.org>; Tue, 21 May 2013 06:13:11 -0400 (EDT)
+Date: Tue, 21 May 2013 12:13:02 +0200
+From: Karel Zak <kzak@redhat.com>
+Subject: Re: [RFC PATCH 02/02] swapon: add "cluster-discard" support
+Message-ID: <20130521101302.GA11774@x2.net.home>
+References: <cover.1369092449.git.aquini@redhat.com>
+ <398ace0dd3ca1283372b3aad3fceeee59f6897d7.1369084886.git.aquini@redhat.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <398ace0dd3ca1283372b3aad3fceeee59f6897d7.1369084886.git.aquini@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, linux-mm@kvack.org, Bob Liu <bob.liu@oracle.com>, Konrad Wilk <konrad.wilk@oracle.com>
+To: Rafael Aquini <aquini@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, shli@kernel.org, jmoyer@redhat.com, riel@redhat.com, lwoodman@redhat.com, mgorman@suse.de
 
---=-ip5UBVwBE0EqHQbIvEb/
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+On Mon, May 20, 2013 at 09:04:25PM -0300, Rafael Aquini wrote:
+> -	while ((c = getopt_long(argc, argv, "ahdefp:svVL:U:",
+> +	while ((c = getopt_long(argc, argv, "ahcdefp:svVL:U:",
+>  				long_opts, NULL)) != -1) {
+>  		switch (c) {
+>  		case 'a':		/* all */
+> @@ -738,8 +753,11 @@ int main(int argc, char *argv[])
+>  		case 'U':
+>  			add_uuid(optarg);
+>  			break;
+> +		case 'c':
+> +			discard += 2;
+> +			break;
+>  		case 'd':
+> -			discard = 1;
+> +			discard += 1;
 
-On lun, 2013-05-20 at 08:51 -0700, Dan Magenheimer wrote:
-> Hi Linux kernel folks and Xen folks --
->=20
-> Effective July 5, I will be resigning from Oracle and "retiring"
-> for a minimum of 12-18 months and probably/hopefully much longer.
-> Between now and July 5, I will be tying up loose ends related to
-> my patches but also using up accrued vacation days.  If you have
-> a loose end you'd like to see tied, please let me know ASAP and
-> I will do my best.
->=20
-Hey Dan! We haven't had the chance to personally meet, but I really
-appreciated your interest and your very useful comments on my work.
+ this is fragile, it would be better to use
 
-All the best for the future! :-)
+        case 'c':
+            discard |= SWAP_FLAG_DISCARD_CLUSTER;
+            break;
+        case 'd':
+            discard |= SWAP_FLAG_DISCARD;
+            break;
 
-Dario
+ and use directly the flags everywhere in the code than use magical
+ numbers '1' and '2' etc.
 
---=20
-<<This happens because I choose it to happen!>> (Raistlin Majere)
------------------------------------------------------------------
-Dario Faggioli, Ph.D, http://about.me/dario.faggioli
-Senior Software Engineer, Citrix Systems R&D Ltd., Cambridge (UK)
+    Karel
 
-
---=-ip5UBVwBE0EqHQbIvEb/
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.13 (GNU/Linux)
-
-iEYEABECAAYFAlGbLSEACgkQk4XaBE3IOsQxmwCfbbGr5vBBQcz1qvH0ZeRAXYVb
-JOcAn2/8vxQfeHWB/HNzvPkgtySPPhfx
-=lRbd
------END PGP SIGNATURE-----
-
---=-ip5UBVwBE0EqHQbIvEb/--
+-- 
+ Karel Zak  <kzak@redhat.com>
+ http://karelzak.blogspot.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
