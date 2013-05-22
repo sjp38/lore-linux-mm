@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 816156B0072
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 05:29:49 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 81F536B0075
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 05:29:51 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 22 May 2013 14:55:51 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id A69CD1258052
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 15:01:41 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4M9TZbV11796866
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 14:59:35 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4M9TgXP016075
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 19:29:43 +1000
+	Thu, 23 May 2013 06:27:03 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 43EAA2BB0050
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 19:29:39 +1000 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4M9FU4021233898
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 19:15:30 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4M9TbG5001231
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 19:29:38 +1000
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH 4/4] mm/hugetlb: use already exist interface huge_page_shift
-Date: Wed, 22 May 2013 17:29:30 +0800
-Message-Id: <1369214970-1526-4-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH 2/4] mm/pageblock: remove get/set_pageblock_flags 
+Date: Wed, 22 May 2013 17:29:28 +0800
+Message-Id: <1369214970-1526-2-git-send-email-liwanp@linux.vnet.ibm.com>
 In-Reply-To: <1369214970-1526-1-git-send-email-liwanp@linux.vnet.ibm.com>
 References: <1369214970-1526-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,26 +26,29 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Use already exist interface huge_page_shift instead of h->order + PAGE_SHIFT.
+get_pageblock_flags and set_pageblock_flags are not used any 
+more, this patch remove them.
 
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- mm/hugetlb.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ include/linux/pageblock-flags.h | 6 ------
+ 1 file changed, 6 deletions(-)
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index f8feeec..b6ff0ee 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -319,7 +319,7 @@ unsigned long vma_kernel_pagesize(struct vm_area_struct *vma)
+diff --git a/include/linux/pageblock-flags.h b/include/linux/pageblock-flags.h
+index be655e4..2ee8cd2 100644
+--- a/include/linux/pageblock-flags.h
++++ b/include/linux/pageblock-flags.h
+@@ -80,10 +80,4 @@ void set_pageblock_flags_group(struct page *page, unsigned long flags,
+ 							PB_migrate_skip)
+ #endif /* CONFIG_COMPACTION */
  
- 	hstate = hstate_vma(vma);
- 
--	return 1UL << (hstate->order + PAGE_SHIFT);
-+	return 1UL << huge_page_shift(hstate);
- }
- EXPORT_SYMBOL_GPL(vma_kernel_pagesize);
- 
+-#define get_pageblock_flags(page) \
+-			get_pageblock_flags_group(page, 0, PB_migrate_end)
+-#define set_pageblock_flags(page, flags) \
+-			set_pageblock_flags_group(page, flags,	\
+-						  0, PB_migrate_end)
+-
+ #endif	/* PAGEBLOCK_FLAGS_H */
 -- 
 1.8.1.2
 
