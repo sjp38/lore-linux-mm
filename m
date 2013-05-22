@@ -1,68 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id B88056B00C1
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 10:07:48 -0400 (EDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCH v2 00/10] uaccess: better might_sleep/might_fault behavior
-Date: Wed, 22 May 2013 16:04:48 +0200
-References: <cover.1368702323.git.mst@redhat.com> <201305221125.36284.arnd@arndb.de> <20130522134124.GD18614@n2100.arm.linux.org.uk>
-In-Reply-To: <20130522134124.GD18614@n2100.arm.linux.org.uk>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 377E56B00C4
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 10:08:28 -0400 (EDT)
+Received: from /spool/local
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Wed, 22 May 2013 08:08:27 -0600
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id EEA77C9003E
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 10:08:22 -0400 (EDT)
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4ME8NRN269378
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 10:08:23 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4ME8MHm025861
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 11:08:23 -0300
+Date: Wed, 22 May 2013 09:08:15 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Subject: Re: [RFC PATCH] zswap: add zswap shrinker
+Message-ID: <20130522140815.GA3589@cerebellum>
+References: <1369117567-26704-1-git-send-email-bob.liu@oracle.com>
+ <20130521185720.GA3398@medulla>
+ <519C4377.8020206@oracle.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201305221604.49185.arnd@arndb.de>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <519C4377.8020206@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, linux-m32r-ja@ml.linux-m32r.org, kvm@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, David Howells <dhowells@redhat.com>, linux-mm@kvack.org, Paul Mackerras <paulus@samba.org>, "H. Peter Anvin" <hpa@zytor.com>, linux-arch@vger.kernel.org, linux-am33-list@redhat.com, Hirokazu Takata <takata@linux-m32r.org>, x86@kernel.org, Ingo Molnar <mingo@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, microblaze-uclinux@itee.uq.edu.au, Chris Metcalf <cmetcalf@tilera.com>, Thomas Gleixner <tglx@linutronix.de>, linux-arm-kernel@lists.infradead.org, Michal Simek <monstr@monstr.eu>, linux-m32r@ml.linux-m32r.org, linux-kernel@vger.kernel.org, Koichi Yasutake <yasutake.koichi@jp.panasonic.com>, linuxppc-dev@lists.ozlabs.org
+To: Bob Liu <bob.liu@oracle.com>
+Cc: Bob Liu <lliubbo@gmail.com>, linux-mm@kvack.org, akpm@linux-foundation.org, ngupta@vflare.org, minchan@kernel.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, rcj@linux.vnet.ibm.com, mgorman@suse.de, riel@redhat.com, dave@sr71.net, hughd@google.com
 
-On Wednesday 22 May 2013, Russell King - ARM Linux wrote:
-> On Wed, May 22, 2013 at 11:25:36AM +0200, Arnd Bergmann wrote:
-> > Given the most commonly used functions and a couple of architectures
-> > I'm familiar with, these are the ones that currently call might_fault()
-> > 
-> >                       x86-32  x86-64  arm     arm64   powerpc s390    generic
-> > copy_to_user          -       x       -       -       -       x       x
-> > copy_from_user        -       x       -       -       -       x       x
-> > put_user              x       x       x       x       x       x       x
-> > get_user              x       x       x       x       x       x       x
-> > __copy_to_user        x       x       -       -       x       -       -
-> > __copy_from_user      x       x       -       -       x       -       -
-> > __put_user            -       -       x       -       x       -       -
-> > __get_user            -       -       x       -       x       -       -
-> > 
-> > WTF?
+On Wed, May 22, 2013 at 12:03:03PM +0800, Bob Liu wrote:
 > 
-> I think your table is rather screwed - especially on ARM.  Tell me -
-> how can __copy_to_user() use might_fault() but copy_to_user() not when
-> copy_to_user() is implemented using __copy_to_user() ?  Same for
-> copy_from_user() but the reverse argument - there's nothing special
-> in our copy_from_user() which would make it do might_fault() when
-> __copy_from_user() wouldn't.
+> On 05/22/2013 02:57 AM, Seth Jennings wrote:
+> > On Tue, May 21, 2013 at 02:26:07PM +0800, Bob Liu wrote:
+> >> In my understanding, currenlty zswap have a few problems.
+> >> 1. The zswap pool size is 20% of total memory that's too random and once it
+> >> gets full the performance may even worse because everytime pageout() an anon
+> >> page two disk-io write ops may happend instead of one.
+> > 
+> > Just to clarify, 20% is a default maximum amount that zswap can occupy.
+> > 
+> > Also, in the steady over-the-limit state, the average number of writebacks is
+> > equal to the number of pages coming into zswap.  The description above makes it
+> > sound like there is a reclaim amplification effect (two writebacks per zswap
+> > store) when, on average, there is none. The 2:1 effect only happens on one or
+> > two store operations right after the pool becomes full.
+> 
+> I don't think it only happens on one or two store operations.
+> 
+> When the system enter a situation or run a workload which have many anon
+> pages, the zswap pool will be full easily and most of the time.
 
-I think something went wrong with formatting of the tabstobs in
-the table. I've tried to correct it above to the same version I
-see on the mailing list.
+I think the part missing here is the just because a page is reclaimed on a
+particular store because we are over the zswap limit doesn't necessarily mean
+that page will be reallocated to the pool on the next zbud_alloc().  The
+reclaimed page is only reallocated if there is no unbuddied page in the pool
+with enough free space to hold the requested allocation.
 
-> The correct position for ARM is: our (__)?(pu|ge)t_user all use
-> might_fault(), but (__)?copy_(to|from)_user do not.  Neither does
-> (__)?clear_user.  We might want to fix those to use might_fault().
+In the case that the reclaimed page is not reallocated to the pool, we will be
+under the pool limit on the next zswap store and not do reclaim.
 
-Yes, that sounds like a good idea, especially since they are all
-implemented out-of-line.
+> 
+> But after it's full there are still many anon pages need to be reclaimed
+> and frontswap_store() will be entered and call zbud_reclaim_page() to
+> writeout two pages every time.
+> 
+> The effect to the user will be after the zswap is full, the disk IO is
+> always twice than disable it.
+> 
+> > 
+> > This is unclear though, mostly because the pool limit is enforced in
+> > zswap.  A situation exists where there might be an unbuddied zbud page with
+> > room for the upcoming allocation but, because we are over the pool limit,
+> > reclaim is done during that store anyway. I'm working on a clean way to fix
+> 
+> Yes, but always reclaim by writing out two pages.
+> So after the pool is full, there will be always more disk IO than normal
+> which can cause performance drop and make the user surprise.
+> 
+> > that up, probably by moving the limit enforcement into zbud as suggested by
+> > Mel.
+> 
+> Nice :)
+> 
+> > 
+> >> 2. The reclaim hook will only be triggered in frontswap_store().
+> >> It may be result that the zswap pool size can't be adjusted in time which may
+> >> caused 20% memory lose for other users.
+> >>
+> >> This patch introduce a zswap shrinker, it make the balance that the zswap
+> >> pool size will be the same as anon pages in use.
+> > 
+> > Using zbud, with 2 zpages per zbud page, that would mean that up to 2/3 of anon
+> > pages could be compressed while 1/3 remain uncompressed.
+> > 
+> > How did you conclude that this is the right balance?
+> > 
+> 
+> It may not, but at least it can be changed dynamically for different
+> workloads. It can be higher than 20%*total_mem if there are too many
+> anon pages and can be shrinked easily.
+> 
+> > If nr_reclaim in the shrinker became very large due to global_anon_pages_inuse
+> > suddenly dropping, we could be writing back a LOT of pages all at once.
+> > 
+> 
+> Hmm, that's a problem.
+> 
+> > Having already looked at the patch, I can say that this isn't going to be the
+> > way to do this.  I agree that there should be some sort of dynamic sizing, but
+> 
+> Yes, that's what I'm looking forward to see. A policy to manage/balance
+> the size of zswap pool dynamically.
+> Maybe you have better idea to implement it.
 
-For __get_user()/__put_user(), I would probably do the reverse and make
-them not call might_fault() though, like we do on most other architectures:
+I think we first have to figure out "what the policy should be" for a dynamic
+approach, then figure out how to implement it, the latter being the
+easier part of the exercise.  I haven't come up with a good answer to the
+policy question yet.  Otherwise I would have implemented it already :)
 
-Look at the object code produced for setup_sigframe for instance, it calls
-might_fault() around 25 times where one should really be enough. Using
-__put_user() instead of put_user() is normally an indication that the
-author of that function has made performance considerations and move the
-(trivial) access_ok() call out, but now we add a more expensive
-call instead.
-
-	Arnd
+Thanks,
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
