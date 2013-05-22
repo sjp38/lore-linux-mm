@@ -1,75 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 4CA9C6B006E
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 05:26:07 -0400 (EDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCH v2 00/10] uaccess: better might_sleep/might_fault behavior
-Date: Wed, 22 May 2013 11:25:36 +0200
-References: <cover.1368702323.git.mst@redhat.com>
-In-Reply-To: <cover.1368702323.git.mst@redhat.com>
-MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201305221125.36284.arnd@arndb.de>
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 394AA6B0071
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 05:29:47 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Wed, 22 May 2013 19:24:10 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 02DD22BB0023
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 19:29:37 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4M9TT0s12845296
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 19:29:29 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4M9TZl7010951
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 19:29:36 +1000
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: [PATCH 1/4] mm/memory-hotplug: fix lowmem count overflow when offline pages 
+Date: Wed, 22 May 2013 17:29:27 +0800
+Message-Id: <1369214970-1526-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, David Howells <dhowells@redhat.com>, Hirokazu Takata <takata@linux-m32r.org>, Michal Simek <monstr@monstr.eu>, Koichi Yasutake <yasutake.koichi@jp.panasonic.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Chris Metcalf <cmetcalf@tilera.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-arm-kernel@lists.infradead.org, linux-m32r@ml.linux-m32r.org, linux-m32r-ja@ml.linux-m32r.org, microblaze-uclinux@itee.uq.edu.au, linux-am33-list@redhat.com, linuxppc-dev@lists.ozlabs.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Thursday 16 May 2013, Michael S. Tsirkin wrote:
-> This improves the might_fault annotations used
-> by uaccess routines:
-> 
-> 1. The only reason uaccess routines might sleep
->    is if they fault. Make this explicit for
->    all architectures.
-> 2. Accesses (e.g through socket ops) to kernel memory
->    with KERNEL_DS like net/sunrpc does will never sleep.
->    Remove an unconditinal might_sleep in the inline
->    might_fault in kernel.h
->    (used when PROVE_LOCKING is not set).
-> 3. Accesses with pagefault_disable return EFAULT
->    but won't cause caller to sleep.
->    Check for that and avoid might_sleep when
->    PROVE_LOCKING is set.
-> 
-> I'd like these changes to go in for the benefit of
-> the vhost driver where we want to call socket ops
-> under a spinlock, and fall back on slower thread handler
-> on error.
+Logic memory-remove code fails to correctly account the Total High Memory 
+when a memory block which contains High Memory is offlined as shown in the
+example below. The following patch fixes it.
 
-Hi Michael,
+cat /proc/meminfo 
+MemTotal:        7079452 kB
+MemFree:         5805976 kB
+Buffers:           94372 kB
+Cached:           872000 kB
+SwapCached:            0 kB
+Active:           626936 kB
+Inactive:         519236 kB
+Active(anon):     180780 kB
+Inactive(anon):   222944 kB
+Active(file):     446156 kB
+Inactive(file):   296292 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+HighTotal:       7294672 kB
+HighFree:        5181024 kB
+LowTotal:       4294752076 kB
+LowFree:          624952 kB
 
-I have recently stumbled over a related topic, which is the highly
-inconsistent placement of might_fault() or might_sleep() in certain
-classes of uaccess functions. Your patches seem completely reasonable,
-but it would be good to also fix the other problem, at least on
-the architectures we most care about.
+Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+---
+ mm/page_alloc.c | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-Given the most commonly used functions and a couple of architectures
-I'm familiar with, these are the ones that currently call might_fault()
-
-			x86-32	x86-64	arm	arm64	powerpc	s390	generic
-copy_to_user		-	x	-	-	-	x	x
-copy_from_user		-	x	-	-	-	x	x
-put_user		x	x	x	x	x	x	x
-get_user		x	x	x	x	x	x	x
-__copy_to_user		x	x	-	-	x	-	-
-__copy_from_user	x	x	-	-	x	-	-
-__put_user		-	-	x	-	x	-	-
-__get_user		-	-	x	-	x	-	-
-
-WTF?
-
-Calling might_fault() for every __get_user/__put_user is rather expensive
-because it turns what should be a single instruction (plus fixup) into an
-external function call.
-
-My feeling is that we should do might_fault() only in access_ok() to get
-the right balance.
-
-	Arnd
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 98cbdf6..80474b2 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6140,6 +6140,10 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+ 		list_del(&page->lru);
+ 		rmv_page_order(page);
+ 		zone->free_area[order].nr_free--;
++#ifdef CONFIG_HIGHMEM
++		if (PageHighMem(page))
++			totalhigh_pages -= 1 << order;
++#endif
+ 		for (i = 0; i < (1 << order); i++)
+ 			SetPageReserved((page+i));
+ 		pfn += (1 << order);
+-- 
+1.8.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
