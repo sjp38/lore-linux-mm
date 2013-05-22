@@ -1,96 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 021286B0002
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 00:42:42 -0400 (EDT)
-Message-ID: <519C4D6E.6080902@cn.fujitsu.com>
-Date: Wed, 22 May 2013 12:45:34 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 16D196B0033
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 02:05:57 -0400 (EDT)
+Message-ID: <519C6031.7080205@oracle.com>
+Date: Wed, 22 May 2013 14:05:37 +0800
+From: Bob Liu <bob.liu@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2 v2, RFC] Driver core: Introduce offline/online callbacks
- for memory blocks
-References: <1576321.HU0tZ4cGWk@vostro.rjw.lan> <19540491.PRsM4lKIYM@vostro.rjw.lan> <519B1641.1020906@cn.fujitsu.com> <1824290.fKsAJTo9gA@vostro.rjw.lan>
-In-Reply-To: <1824290.fKsAJTo9gA@vostro.rjw.lan>
+Subject: Re: [RFC PATCH] zswap: add zswap shrinker
+References: <1369117567-26704-1-git-send-email-bob.liu@oracle.com> <20130521185720.GA3398@medulla> <519C4377.8020206@oracle.com>
+In-Reply-To: <519C4377.8020206@oracle.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Toshi Kani <toshi.kani@hp.com>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, isimatu.yasuaki@jp.fujitsu.com, vasilis.liaskovitis@profitbricks.com, Len Brown <lenb@kernel.org>, linux-mm@kvack.org
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Bob Liu <lliubbo@gmail.com>, linux-mm@kvack.org, akpm@linux-foundation.org, ngupta@vflare.org, minchan@kernel.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, rcj@linux.vnet.ibm.com, mgorman@suse.de, riel@redhat.com, dave@sr71.net, hughd@google.com
 
-Hi Rafael,
+On 05/22/2013 12:03 PM, Bob Liu wrote:
+> 
+> On 05/22/2013 02:57 AM, Seth Jennings wrote:
+>> On Tue, May 21, 2013 at 02:26:07PM +0800, Bob Liu wrote:
+>>> In my understanding, currenlty zswap have a few problems.
+>>> 1. The zswap pool size is 20% of total memory that's too random and once it
+>>> gets full the performance may even worse because everytime pageout() an anon
+>>> page two disk-io write ops may happend instead of one.
+>>
+>> Just to clarify, 20% is a default maximum amount that zswap can occupy.
+>>
+>> Also, in the steady over-the-limit state, the average number of writebacks is
+>> equal to the number of pages coming into zswap.  The description above makes it
+>> sound like there is a reclaim amplification effect (two writebacks per zswap
+>> store) when, on average, there is none. The 2:1 effect only happens on one or
+>> two store operations right after the pool becomes full.
+> 
+> I don't think it only happens on one or two store operations.
+> 
+> When the system enter a situation or run a workload which have many anon
+> pages, the zswap pool will be full easily and most of the time.
+> 
+> But after it's full there are still many anon pages need to be reclaimed
+> and frontswap_store() will be entered and call zbud_reclaim_page() to
+> writeout two pages every time.
+> 
+> The effect to the user will be after the zswap is full, the disk IO is
+> always twice than disable it.
+> 
+>>
+>> This is unclear though, mostly because the pool limit is enforced in
+>> zswap.  A situation exists where there might be an unbuddied zbud page with
+>> room for the upcoming allocation but, because we are over the pool limit,
+>> reclaim is done during that store anyway. I'm working on a clean way to fix
+> 
+> Yes, but always reclaim by writing out two pages.
+> So after the pool is full, there will be always more disk IO than normal
+> which can cause performance drop and make the user surprise.
+> 
 
-On 05/21/2013 07:15 PM, Rafael J. Wysocki wrote:
-......
->>> +		mem->state = to_state;
->>> +		if (to_state == MEM_ONLINE)
->>> +			mem->last_online = online_type;
->>
->> Why do we need to remember last online type ?
->>
->> And as far as I know, we can obtain which zone a page was in last time it
->> was onlined by check page->flags, just like online_pages() does. If we
->> use online_kernel or online_movable, the zone boundary will be
->> recalculated.
->> So we don't need to remember the last online type.
->>
->> Seeing from your patch, I guess memory_subsys_online() can only handle
->> online and offline. So mem->last_online is used to remember what user has
->> done through the original way to trigger memory hot-remove, right ? And
->> when
->> user does it in this new way, it just does the same thing as user does last
->> time.
->>
->> But I still think we don't need to remember it because if finally you call
->> online_pages(), it just does the same thing as last time by default.
->>
->> online_pages()
->> {
->> 	......
->> 	if (online_type == ONLINE_KERNEL ......
->>
->> 	if (online_type == ONLINE_MOVABLE......
->>
->> 	zone = page_zone(pfn_to_page(pfn));
->>
->> 	/* Here, the page will be put into the zone which it belong to last
->> time. */
->
-> To be honest, it wasn't entirely clear to me that online_pages() would do the
-> same thing as last time by default.  Suppose, for example, that the previous
-> online_type was ONLINE_MOVABLE.  How online_pages() is supposed to know that
-> it should do the move_pfn_zone_right() if we don't tell it to do that?  Or
-> is that unnecessary, because it's already been done previously?
+I found my concern is the same as Mel mentioned about nchunks.
+Setting nchunks=2 is a way to workaround this issue.
 
-Yes, it is unnecessary. move_pfn_zone_right/left() will modify the zone 
-related
-bits in page->flags. But when the page is offline, the zone related bits in
-page->flags will not change. So when it is online again, by dafault, it 
-will
-be in the zone which it was in last time.
+But what I'm trying to do is dynamically change the pool size hoping to
+reduce zswap_is_full() happen. And do the writeback in background in a
+shrinker instead of the direct path pageout() > frontswap_store().
 
-......
-
->>
->> I just thought of it. Maybe I missed something in your design. Please tell
->> me if I'm wrong.
->
-> Well, so what should be passed to __memory_block_change_state() in
-> memory_subsys_online()?  -1?
-
-If you want to keep the last time status, you can pass ONLINE_KEEP.
-Or -1 is all right.
-
-Thanks. :)
-
->
->> Reviewed-by: Tang Chen<tangchen@cn.fujitsu.com>
->>
->> Thanks. :)
->
-> Thanks for your comments,
-> Rafael
->
->
+-- 
+Regards,
+-Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
