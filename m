@@ -1,121 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 003026B0002
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 03:20:41 -0400 (EDT)
-Date: Wed, 22 May 2013 00:20:20 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 1/2] Make the batch size of the percpu_counter
- configurable
-Message-Id: <20130522002020.60c3808f.akpm@linux-foundation.org>
-In-Reply-To: <1369183390.27102.337.camel@schen9-DESK>
-References: <8584b08e57e97ecc4769859b751ad459d038a730.1367574872.git.tim.c.chen@linux.intel.com>
-	<20130521134122.4d8ea920c0f851fc2d97abc9@linux-foundation.org>
-	<1369178849.27102.330.camel@schen9-DESK>
-	<20130521164154.bed705c6e117ceb76205cd65@linux-foundation.org>
-	<1369183390.27102.337.camel@schen9-DESK>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 01C766B0034
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 03:26:40 -0400 (EDT)
+Received: by mail-ob0-f176.google.com with SMTP id wp18so1835442obc.21
+        for <linux-mm@kvack.org>; Wed, 22 May 2013 00:26:40 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1368321816-17719-29-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
+	<1368321816-17719-29-git-send-email-kirill.shutemov@linux.intel.com>
+Date: Wed, 22 May 2013 15:26:40 +0800
+Message-ID: <CAJd=RBDvY965A2eD_V5Zg=o0mnG+4s_X55tBFVbAda=2yWt27g@mail.gmail.com>
+Subject: Re: [PATCHv4 28/39] thp: prepare zap_huge_pmd() to uncharge file pages
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Eric Dumazet <eric.dumazet@gmail.com>, Ric Mason <ric.masonn@gmail.com>, Simon Jeons <simon.jeons@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <ak@linux.intel.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Dave Hansen <dave@sr71.net>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, 21 May 2013 17:43:10 -0700 Tim Chen <tim.c.chen@linux.intel.com> wrote:
-
-> 
-> I'll spin off another version of the patch later to add the
-> memory-hotplug notifier.  In the mean time, does the following looks
-> good to you?
-> 
-> ...
+On Sun, May 12, 2013 at 9:23 AM, Kirill A. Shutemov
+<kirill.shutemov@linux.intel.com> wrote:
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 >
-> --- a/include/linux/mman.h
-> +++ b/include/linux/mman.h
-> @@ -10,12 +10,30 @@
->  extern int sysctl_overcommit_memory;
->  extern int sysctl_overcommit_ratio;
->  extern struct percpu_counter vm_committed_as;
-> +#ifdef CONFIG_SMP
-> +extern int vm_committed_as_batch;
-> +
-> +static inline void mm_compute_batch(void)
-> +{
-> +        int nr = num_present_cpus();
-> +        int batch = max(32, nr*2);
-> +
-> +        /* batch size set to 0.4% of (total memory/#cpus) */
-> +        vm_committed_as_batch = max((int) (totalram_pages/nr) / 256, batch);
+> Uncharge pages from correct counter.
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  mm/huge_memory.c |    4 +++-
+>  1 file changed, 3 insertions(+), 1 deletion(-)
+>
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 7ad458d..a88f9b2 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -1385,10 +1385,12 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+>                         spin_unlock(&tlb->mm->page_table_lock);
+>                         put_huge_zero_page();
+>                 } else {
+> +                       int member;
+>                         page = pmd_page(orig_pmd);
 
-Use max_t() here.
+Better _if_ member is determined before we touch rmap, conceptually?
 
-That expression will overflow when the machine has two exabytes of RAM ;)
-
-> +}
-> +#else
-> +#define vm_committed_as_batch 0
-> +
-> +static inline void mm_compute_batch(void)
-> +{
-> +}
-> +#endif
-
-I think it would be better if all the above was not inlined.  There's
-no particular reason to inline it, and putting it here requires that
-mman.h include a bunch more header files (which the patch forgot to
-do).
-
->  unsigned long vm_memory_committed(void);
->  
->  static inline void vm_acct_memory(long pages)
->  {
-> -	percpu_counter_add(&vm_committed_as, pages);
-> +	__percpu_counter_add(&vm_committed_as, pages, vm_committed_as_batch);
->  }
->  
->  static inline void vm_unacct_memory(long pages)
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index f681e18..55c8773 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -3145,11 +3145,15 @@ void mm_drop_all_locks(struct mm_struct *mm)
->  /*
->   * initialise the VMA slab
->   */
-> +
-> +int vm_committed_as_batch;
-> +
->  void __init mmap_init(void)
->  {
->  	int ret;
->  
->  	ret = percpu_counter_init(&vm_committed_as, 0);
-> +	mm_compute_batch();
->  	VM_BUG_ON(ret);
->  }
->  
-> diff --git a/mm/nommu.c b/mm/nommu.c
-> index 298884d..9ad16ba 100644
-> --- a/mm/nommu.c
-> +++ b/mm/nommu.c
-> @@ -527,11 +527,15 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
->  /*
->   * initialise the VMA and region record slabs
->   */
-> +
-> +int vm_committed_as_batch;
-
-This definition duplicates the one in mmap.c?
-
->  void __init mmap_init(void)
->  {
->  	int ret;
->  
->  	ret = percpu_counter_init(&vm_committed_as, 0);
-> +	mm_compute_batch();
->  	VM_BUG_ON(ret);
->  	vm_region_jar = KMEM_CACHE(vm_region, SLAB_PANIC);
->  }
+>                         page_remove_rmap(page);
+>                         VM_BUG_ON(page_mapcount(page) < 0);
+> -                       add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
+> +                       member = PageAnon(page) ? MM_ANONPAGES : MM_FILEPAGES;
+> +                       add_mm_counter(tlb->mm, member, -HPAGE_PMD_NR);
+>                         VM_BUG_ON(!PageHead(page));
+>                         tlb->mm->nr_ptes--;
+>                         spin_unlock(&tlb->mm->page_table_lock);
+> --
+> 1.7.10.4
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
