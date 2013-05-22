@@ -1,53 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 379766B00A1
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 07:08:08 -0400 (EDT)
-Date: Wed, 22 May 2013 14:07:29 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v2 00/10] uaccess: better might_sleep/might_fault behavior
-Message-ID: <20130522110729.GB5643@redhat.com>
-References: <cover.1368702323.git.mst@redhat.com>
- <201305221125.36284.arnd@arndb.de>
- <20130522101916.GM18810@twins.programming.kicks-ass.net>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id D1B476B00A3
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 07:19:12 -0400 (EDT)
+Received: by mail-ob0-f173.google.com with SMTP id eh20so2120077obb.18
+        for <linux-mm@kvack.org>; Wed, 22 May 2013 04:19:12 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130522101916.GM18810@twins.programming.kicks-ass.net>
+In-Reply-To: <1368321816-17719-9-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
+	<1368321816-17719-9-git-send-email-kirill.shutemov@linux.intel.com>
+Date: Wed, 22 May 2013 19:19:11 +0800
+Message-ID: <CAJd=RBCOGY6Si+uORbqtFxLCD4fs3tyGvtS_y5hQTP6Y_6CeAg@mail.gmail.com>
+Subject: Re: [PATCHv4 08/39] thp: compile-time and sysfs knob for thp pagecache
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Arnd Bergmann <arnd@arndb.de>, linux-kernel@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, David Howells <dhowells@redhat.com>, Hirokazu Takata <takata@linux-m32r.org>, Michal Simek <monstr@monstr.eu>, Koichi Yasutake <yasutake.koichi@jp.panasonic.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Chris Metcalf <cmetcalf@tilera.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-arm-kernel@lists.infradead.org, linux-m32r@ml.linux-m32r.org, linux-m32r-ja@ml.linux-m32r.org, microblaze-uclinux@itee.uq.edu.au, linux-am33-list@redhat.com, linuxppc-dev@lists.ozlabs.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Dave Hansen <dave@sr71.net>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, May 22, 2013 at 12:19:16PM +0200, Peter Zijlstra wrote:
-> On Wed, May 22, 2013 at 11:25:36AM +0200, Arnd Bergmann wrote:
-> > Calling might_fault() for every __get_user/__put_user is rather expensive
-> > because it turns what should be a single instruction (plus fixup) into an
-> > external function call.
-> 
-> We could hide it all behind CONFIG_DEBUG_ATOMIC_SLEEP just like
-> might_sleep() is. I'm not sure there's a point to might_fault() when
-> might_sleep() is a NOP.
-
-The patch that you posted gets pretty close.
-E.g. I'm testing this now:
-+#define might_fault() do { \
-+       if (_might_fault()) \
-+               __might_sleep(__FILE__, __LINE__, 0); \
-+       might_resched(); \
-+} while(0)
-
-So if might_sleep is a NOP, __might_sleep and might_resched are NOPs
-so compiler will optimize this all out.
-
-However, in a related thread, you pointed out that might_sleep is not a NOP if
-CONFIG_PREEMPT_VOLUNTARY is set, even without CONFIG_DEBUG_ATOMIC_SLEEP.
-
-Do you think we should drop the preemption point in might_fault?
-Only copy_XX_user?
-Only __copy_XXX_user ?
-
--- 
-MST
+On Sun, May 12, 2013 at 9:23 AM, Kirill A. Shutemov
+<kirill.shutemov@linux.intel.com> wrote:
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+>
+> For now, TRANSPARENT_HUGEPAGE_PAGECACHE is only implemented for X86_64.
+>
+How about THPC, TRANSPARENT_HUGEPAGE_CACHE?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
