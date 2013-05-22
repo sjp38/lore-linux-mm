@@ -1,79 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 7FF106B004D
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 04:49:05 -0400 (EDT)
-Date: Wed, 22 May 2013 09:48:59 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 0/9] Reduce system disruption due to kswapd V4
-Message-ID: <20130522083722.GU11497@suse.de>
-References: <1368432760-21573-1-git-send-email-mgorman@suse.de>
- <20130521231358.GV29466@dastard>
+	by kanga.kvack.org (Postfix) with SMTP id B14BB6B0062
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 05:02:32 -0400 (EDT)
+Date: Wed, 22 May 2013 04:55:53 -0400
+From: Chen Gong <gong.chen@linux.intel.com>
+Subject: Re: [PATCH v2 01/13] x86: get pg_data_t's memory from other node
+Message-ID: <20130522085553.GB25406@gchen.bj.intel.com>
+References: <1367313683-10267-1-git-send-email-tangchen@cn.fujitsu.com>
+ <1367313683-10267-2-git-send-email-tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="eAbsdosE1cNLO4uF"
 Content-Disposition: inline
-In-Reply-To: <20130521231358.GV29466@dastard>
+In-Reply-To: <1367313683-10267-2-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, tj@kernel.org, laijs@cn.fujitsu.com, davem@davemloft.net, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, May 22, 2013 at 09:13:58AM +1000, Dave Chinner wrote:
-> On Mon, May 13, 2013 at 09:12:31AM +0100, Mel Gorman wrote:
-> > This series does not fix all the current known problems with reclaim but
-> > it addresses one important swapping bug when there is background IO.
-> 
-> ....
-> > 
-> >                             3.10.0-rc1  3.10.0-rc1
-> >                                vanilla lessdisrupt-v4
-> > Page Ins                       1234608      101892
-> > Page Outs                     12446272    11810468
-> > Swap Ins                        283406           0
-> > Swap Outs                       698469       27882
-> > Direct pages scanned                 0      136480
-> > Kswapd pages scanned           6266537     5369364
-> > Kswapd pages reclaimed         1088989      930832
-> > Direct pages reclaimed               0      120901
-> > Kswapd efficiency                  17%         17%
-> > Kswapd velocity               5398.371    4635.115
-> > Direct efficiency                 100%         88%
-> > Direct velocity                  0.000     117.817
-> > Percentage direct scans             0%          2%
-> > Page writes by reclaim         1655843     4009929
-> > Page writes file                957374     3982047
-> 
-> Lots more file pages are written by reclaim. Is this from kswapd
-> or direct reclaim? If it's direct reclaim, what happens when you run
-> on a filesystem that doesn't allow writeback from direct reclaim?
-> 
 
-It's from kswapd. There is a check in shrink_page_list that prevents direct
-reclaim writing pages out for exactly the reason that some filesystems
-ignore it.
+--eAbsdosE1cNLO4uF
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> Also, what does this do to IO patterns and allocation? This tends
-> to indicate that the background flusher thread is not doing the
-> writeback work fast enough when memory is low - can you comment on
-> this at all, Mel?
-> 
+On Tue, Apr 30, 2013 at 05:21:11PM +0800, Tang Chen wrote:
+> Date: Tue, 30 Apr 2013 17:21:11 +0800
+> From: Tang Chen <tangchen@cn.fujitsu.com>
+> To: mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org,
+>  yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com,
+>  isimatu.yasuaki@jp.fujitsu.com, tj@kernel.org, laijs@cn.fujitsu.com,
+>  davem@davemloft.net, mgorman@suse.de, minchan@kernel.org,
+>  mina86@mina86.com
+> Cc: x86@kernel.org, linux-doc@vger.kernel.org,
+>  linux-kernel@vger.kernel.org, linux-mm@kvack.org
+> Subject: [PATCH v2 01/13] x86: get pg_data_t's memory from other node
+> X-Mailer: git-send-email 1.7.10.1
+>=20
+> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>=20
+> If system can create movable node which all memory of the
+> node is allocated as ZONE_MOVABLE, setup_node_data() cannot
+> allocate memory for the node's pg_data_t.
+> So, use memblock_alloc_try_nid() instead of memblock_alloc_nid()
+> to retry when the first allocation fails.
+>=20
+> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+> Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
+> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+> ---
+>  arch/x86/mm/numa.c |    5 ++---
+>  1 files changed, 2 insertions(+), 3 deletions(-)
+>=20
+> diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+> index 11acdf6..4f754e6 100644
+> --- a/arch/x86/mm/numa.c
+> +++ b/arch/x86/mm/numa.c
+> @@ -214,10 +214,9 @@ static void __init setup_node_data(int nid, u64 star=
+t, u64 end)
+>  	 * Allocate node data.  Try node-local memory and then any node.
+>  	 * Never allocate in DMA zone.
+>  	 */
+> -	nd_pa =3D memblock_alloc_nid(nd_size, SMP_CACHE_BYTES, nid);
+> +	nd_pa =3D memblock_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
 
-There are two aspects to it. As processes are not longer being pushed
-to swap but kswapd is still reclaiming a similar number of pages, it is
-scanning through the file LRUs faster before flushers have a chance to
-flush pages. kswapd starts writing pages if the zone gets marked "reclaim
-dirty" which happens if enough dirty pages are encountered at the end of
-the LRU that are !PageWriteback. If this flag is set too early then more
-writes from kswapd context occur -- I'll look into it.
+go through the implementation of memblock_alloc_try_nid, it will call
+panic when allocation fails(a.k.a alloc =3D 0), if so, below information
+will be never printed. Do we really need this?
 
-On a related note, I've found with Jan Kara that the PageWriteback check
-does not work in all cases. Some filesystems will have buffer pages that
-are PageDirty with all clean buffers or with buffers locked for IO that are
-!PageWriteback which will also confuse when "reclaim dirty" gets set. The
-patches are still being a work in progress.
+>  	if (!nd_pa) {
+> -		pr_err("Cannot find %zu bytes in node %d\n",
+> -		       nd_size, nid);
+> +		pr_err("Cannot find %zu bytes in any node\n", nd_size);
+>  		return;
+>  	}
+>  	nd =3D __va(nd_pa);
+> --=20
+> 1.7.1
+>=20
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
 
--- 
-Mel Gorman
-SUSE Labs
+--eAbsdosE1cNLO4uF
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iQIcBAEBAgAGBQJRnIgZAAoJEI01n1+kOSLH/CsP/16GGe0N5L1uTc8i48q7KelX
+NUyty60GuYFGWxxKjbWTCniPqUUV6PMSMKfVvUOQOnuaKrnAgoLbuZQeyXrscscc
+h4sCSwIrE3opJuOyFbEaPmIaSmo0BkzFWP8Sepqvi+lJEsBYvEryy8RZeaVw8NBN
+GGfq0Uu793G9bFXZ+qK4B+GAZD9XE2k26qG2GAhSCNZKYxVquTtoayTE91XwbDFg
+TU/vXNodk5ufJ4udjNBM/cyd1Z52uB1DDoHCnrKflXCAfle1OwWFvG6O/TD7xwVC
++7L+fJnSg6v+fA+s+zE1s+4ndzLfCLss+sjdjrNXScLBksnhhoMAO6ZDQLpGIeGB
+IT7HNaUWV4GzP1tB6LQe0rGLCeFMlDu/9ecxVvymBGwIflkSuG7opCTzo9E/WOh3
+MPkDMTT5RG/DpRMr3yH3Qdcw9T2TVbuNDYzcgYkcIQCj7IddlFwDg3Dt9dBUlGqg
+90YkQ73T8xHcBEUf20MEMDdGLH8ckpjqya8ylTPv/CkQ5Ic5xQl0knvk9bOEbG8M
+R/IqcP+IbRYerPhywzSIQ6EfowqESPC1y9OHWSOJkOIU4WAAtdYKQdBTqcK1F5SJ
+mGrF1jK8tJ0hmxFwmaRKOBFNWt+C4o63fwu6DnPwCJM+oo6Hul/S/OP/5WE2cnd1
+HXCotahlUMaG1MyDQZpr
+=xxwK
+-----END PGP SIGNATURE-----
+
+--eAbsdosE1cNLO4uF--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
