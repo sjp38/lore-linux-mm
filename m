@@ -1,63 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 401846B009E
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 06:52:49 -0400 (EDT)
-Date: Wed, 22 May 2013 12:52:46 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 4/4] mm/hugetlb: use already exist interface
- huge_page_shift
-Message-ID: <20130522105246.GF19989@dhcp22.suse.cz>
-References: <1369214970-1526-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1369214970-1526-4-git-send-email-liwanp@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1369214970-1526-4-git-send-email-liwanp@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 771B16B00A0
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 07:03:39 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <519BBC19.7020509@sr71.net>
+References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1368321816-17719-3-git-send-email-kirill.shutemov@linux.intel.com>
+ <519BBC19.7020509@sr71.net>
+Subject: Re: [PATCHv4 02/39] block: implement add_bdi_stat()
+Content-Transfer-Encoding: 7bit
+Message-Id: <20130522110603.4B729E0090@blue.fi.intel.com>
+Date: Wed, 22 May 2013 14:06:03 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave@sr71.net>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed 22-05-13 17:29:30, Wanpeng Li wrote:
-> Use already exist interface huge_page_shift instead of h->order + PAGE_SHIFT.
-
-alloc_bootmem_huge_page in powerpc uses the same construct so maybe you
-want to udpate that one as well.
-
+Dave Hansen wrote:
+> On 05/11/2013 06:22 PM, Kirill A. Shutemov wrote:
+> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> > 
+> > We're going to add/remove a number of page cache entries at once. This
+> > patch implements add_bdi_stat() which adjusts bdi stats by arbitrary
+> > amount. It's required for batched page cache manipulations.
 > 
-> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+> Add, but no dec?
 
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
+'sub', I guess, not 'dec'. For that we use add_bdi_stat(m, item, -nr).
+It's consistent with __add_bdi_stat() usage.
 
-> ---
->  mm/hugetlb.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index f8feeec..b6ff0ee 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -319,7 +319,7 @@ unsigned long vma_kernel_pagesize(struct vm_area_struct *vma)
->  
->  	hstate = hstate_vma(vma);
->  
-> -	return 1UL << (hstate->order + PAGE_SHIFT);
-> +	return 1UL << huge_page_shift(hstate);
->  }
->  EXPORT_SYMBOL_GPL(vma_kernel_pagesize);
->  
-> -- 
-> 1.8.1.2
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> I'd also move this closer to where it gets used in the series.
+
+Okay.
 
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
