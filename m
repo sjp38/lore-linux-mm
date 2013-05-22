@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 077126B00D8
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 11:11:36 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id AE43A6B00DB
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 11:23:51 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <CAJd=RBB-LdPFpC-V07FYKEH7OXMwDgVr4RASqcrvPmcaKv+P5w@mail.gmail.com>
+In-Reply-To: <CAJd=RBAwi6mUv0GqTobfPS7X4kpaRVD_NFg6WvCodkSmy+7uKA@mail.gmail.com>
 References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
  <1368321816-17719-34-git-send-email-kirill.shutemov@linux.intel.com>
- <CAJd=RBB-LdPFpC-V07FYKEH7OXMwDgVr4RASqcrvPmcaKv+P5w@mail.gmail.com>
+ <CAJd=RBAwi6mUv0GqTobfPS7X4kpaRVD_NFg6WvCodkSmy+7uKA@mail.gmail.com>
 Subject: Re: [PATCHv4 33/39] thp, mm: implement do_huge_linear_fault()
 Content-Transfer-Encoding: 7bit
-Message-Id: <20130522151401.E69EDE0090@blue.fi.intel.com>
-Date: Wed, 22 May 2013 18:14:01 +0300 (EEST)
+Message-Id: <20130522152615.A4E22E0090@blue.fi.intel.com>
+Date: Wed, 22 May 2013 18:26:15 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hillf Danton <dhillf@gmail.com>
@@ -19,21 +19,27 @@ Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aa
 Hillf Danton wrote:
 > On Sun, May 12, 2013 at 9:23 AM, Kirill A. Shutemov
 > <kirill.shutemov@linux.intel.com> wrote:
-> > @@ -3316,17 +3361,25 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-> >                 if (unlikely(anon_vma_prepare(vma)))
-> >                         return VM_FAULT_OOM;
-> >
-> > -               cow_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
-> > +               cow_page = alloc_fault_page_vma(vma, address, flags);
-> >                 if (!cow_page)
-> > -                       return VM_FAULT_OOM;
-> > +                       return VM_FAULT_OOM | VM_FAULT_FALLBACK;
-> >
-> 
-> Fallback makes sense with !thp ?
+> >         page = vmf.page;
+> > +
+> > +       /*
+> > +        * If we asked for huge page we expect to get it or VM_FAULT_FALLBACK.
+> > +        * If we don't ask for huge page it must be splitted in ->fault().
+> > +        */
+> > +       BUG_ON(PageTransHuge(page) != thp);
+> > +
+> Based on the log message in 34/39(
+> If the area of page cache required to create huge is empty, we create a
+> new huge page and return it.), the above trap looks bogus.
 
-No, it's nop. handle_pte_fault() will notice only VM_FAULT_OOM. That's
-what we need.
+The statement in 34/39 is true for (flags & FAULT_FLAG_TRANSHUGE).
+For !(flags & FAULT_FLAG_TRANSHUGE) huge page must be split in ->fault.
+
+The BUG_ON() above is shortcut for two checks:
+
+if (thp)
+	BUG_ON(!PageTransHuge(page));
+if (!thp)
+	BUG_ON(PageTransHuge(page));
 
 -- 
  Kirill A. Shutemov
