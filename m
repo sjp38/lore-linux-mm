@@ -1,47 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id CFCAB6B00BF
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 10:02:07 -0400 (EDT)
-Date: Wed, 22 May 2013 10:01:42 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH v7 2/8] vmcore: allocate buffer for ELF headers on
- page-size alignment
-Message-ID: <20130522140142.GD5332@redhat.com>
-References: <20130522025410.12215.16793.stgit@localhost6.localdomain6>
- <20130522025543.12215.27624.stgit@localhost6.localdomain6>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id B88056B00C1
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 10:07:48 -0400 (EDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCH v2 00/10] uaccess: better might_sleep/might_fault behavior
+Date: Wed, 22 May 2013 16:04:48 +0200
+References: <cover.1368702323.git.mst@redhat.com> <201305221125.36284.arnd@arndb.de> <20130522134124.GD18614@n2100.arm.linux.org.uk>
+In-Reply-To: <20130522134124.GD18614@n2100.arm.linux.org.uk>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130522025543.12215.27624.stgit@localhost6.localdomain6>
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201305221604.49185.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
-Cc: ebiederm@xmission.com, akpm@linux-foundation.org, cpw@sgi.com, kumagai-atsushi@mxc.nes.nec.co.jp, lisa.mitchell@hp.com, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, zhangyanfei@cn.fujitsu.com, jingbai.ma@hp.com, linux-mm@kvack.org, riel@redhat.com, walken@google.com, hughd@google.com, kosaki.motohiro@jp.fujitsu.com
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, linux-m32r-ja@ml.linux-m32r.org, kvm@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, David Howells <dhowells@redhat.com>, linux-mm@kvack.org, Paul Mackerras <paulus@samba.org>, "H. Peter Anvin" <hpa@zytor.com>, linux-arch@vger.kernel.org, linux-am33-list@redhat.com, Hirokazu Takata <takata@linux-m32r.org>, x86@kernel.org, Ingo Molnar <mingo@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, microblaze-uclinux@itee.uq.edu.au, Chris Metcalf <cmetcalf@tilera.com>, Thomas Gleixner <tglx@linutronix.de>, linux-arm-kernel@lists.infradead.org, Michal Simek <monstr@monstr.eu>, linux-m32r@ml.linux-m32r.org, linux-kernel@vger.kernel.org, Koichi Yasutake <yasutake.koichi@jp.panasonic.com>, linuxppc-dev@lists.ozlabs.org
 
-On Wed, May 22, 2013 at 11:55:43AM +0900, HATAYAMA Daisuke wrote:
+On Wednesday 22 May 2013, Russell King - ARM Linux wrote:
+> On Wed, May 22, 2013 at 11:25:36AM +0200, Arnd Bergmann wrote:
+> > Given the most commonly used functions and a couple of architectures
+> > I'm familiar with, these are the ones that currently call might_fault()
+> > 
+> >                       x86-32  x86-64  arm     arm64   powerpc s390    generic
+> > copy_to_user          -       x       -       -       -       x       x
+> > copy_from_user        -       x       -       -       -       x       x
+> > put_user              x       x       x       x       x       x       x
+> > get_user              x       x       x       x       x       x       x
+> > __copy_to_user        x       x       -       -       x       -       -
+> > __copy_from_user      x       x       -       -       x       -       -
+> > __put_user            -       -       x       -       x       -       -
+> > __get_user            -       -       x       -       x       -       -
+> > 
+> > WTF?
+> 
+> I think your table is rather screwed - especially on ARM.  Tell me -
+> how can __copy_to_user() use might_fault() but copy_to_user() not when
+> copy_to_user() is implemented using __copy_to_user() ?  Same for
+> copy_from_user() but the reverse argument - there's nothing special
+> in our copy_from_user() which would make it do might_fault() when
+> __copy_from_user() wouldn't.
 
-[..]
->  /* Sets offset fields of vmcore elements. */
-> -static void __init set_vmcore_list_offsets_elf64(char *elfptr,
-> +static void __init set_vmcore_list_offsets_elf64(char *elfptr, size_t elfsz,
->  						struct list_head *vc_list)
->  {
->  	loff_t vmcore_off;
-> @@ -469,8 +472,7 @@ static void __init set_vmcore_list_offsets_elf64(char *elfptr,
->  	ehdr_ptr = (Elf64_Ehdr *)elfptr;
->  
->  	/* Skip Elf header and program headers. */
-> -	vmcore_off = sizeof(Elf64_Ehdr) +
-> -			(ehdr_ptr->e_phnum) * sizeof(Elf64_Phdr);
-> +	vmcore_off = elfsz;
+I think something went wrong with formatting of the tabstobs in
+the table. I've tried to correct it above to the same version I
+see on the mailing list.
 
-As you are passing in size of elf headers, I think some of the code
-has become redundant in this function. (ehdr_ptr = (Elf64_Ehdr *)elfptr;).
-We can remove it and now we should be able to merge
-set_vmcore_list_offsets_elf32() and set_vmcore_list_offsets_elf64()
-functions.
+> The correct position for ARM is: our (__)?(pu|ge)t_user all use
+> might_fault(), but (__)?copy_(to|from)_user do not.  Neither does
+> (__)?clear_user.  We might want to fix those to use might_fault().
 
-Vivek
+Yes, that sounds like a good idea, especially since they are all
+implemented out-of-line.
+
+For __get_user()/__put_user(), I would probably do the reverse and make
+them not call might_fault() though, like we do on most other architectures:
+
+Look at the object code produced for setup_sigframe for instance, it calls
+might_fault() around 25 times where one should really be enough. Using
+__put_user() instead of put_user() is normally an indication that the
+author of that function has made performance considerations and move the
+(trivial) access_ok() call out, but now we add a more expensive
+call instead.
+
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
