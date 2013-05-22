@@ -1,51 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 251C16B00DE
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 11:31:41 -0400 (EDT)
-Message-ID: <519CE4DB.9070303@sr71.net>
-Date: Wed, 22 May 2013 08:31:39 -0700
-From: Dave Hansen <dave@sr71.net>
-MIME-Version: 1.0
-Subject: Re: [PATCHv4 09/39] thp, mm: introduce mapping_can_have_hugepages()
- predicate
-References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com> <1368321816-17719-10-git-send-email-kirill.shutemov@linux.intel.com> <519BCACD.4020106@sr71.net> <20130522135112.32C3EE0090@blue.fi.intel.com>
-In-Reply-To: <20130522135112.32C3EE0090@blue.fi.intel.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 98F476B00DF
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 11:32:23 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <CAJd=RBDChGT0i_fsnqW7RvQkJhQaTv7k+=HNTzjx7Rg+6uTNPA@mail.gmail.com>
+References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1368321816-17719-35-git-send-email-kirill.shutemov@linux.intel.com>
+ <CAJd=RBDChGT0i_fsnqW7RvQkJhQaTv7k+=HNTzjx7Rg+6uTNPA@mail.gmail.com>
+Subject: Re: [PATCHv4 34/39] thp, mm: handle huge pages in filemap_fault()
 Content-Transfer-Encoding: 7bit
+Message-Id: <20130522153448.04D7DE0090@blue.fi.intel.com>
+Date: Wed, 22 May 2013 18:34:47 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Hillf Danton <dhillf@gmail.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Dave Hansen <dave@sr71.net>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 05/22/2013 06:51 AM, Kirill A. Shutemov wrote:
-> Dave Hansen wrote:
->> Also, what happens if "transparent_hugepage_flags &
->> (1<<TRANSPARENT_HUGEPAGE_PAGECACHE)" becomes false at runtime and you
->> have some already-instantiated huge page cache mappings around?  Will
->> things like mapping_align_mask() break?
-> 
-> We will not touch existing huge pages in existing VMAs. The userspace can
-> use them until they will be unmapped or split. It's consistent with anon
-> THP pages.
-> 
-> If anybody mmap() the file after disabling the feature, we will not
-> setup huge pages anymore: transparent_hugepage_enabled() check in
-> handle_mm_fault will fail and the page fill be split.
-> 
-> mapping_align_mask() is part of mmap() call path, so there's only chance
-> that we will get VMA aligned more strictly then needed. Nothing to worry
-> about.
+Hillf Danton wrote:
+> On Sun, May 12, 2013 at 9:23 AM, Kirill A. Shutemov
+> <kirill.shutemov@linux.intel.com> wrote:
+> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> >
+> > If caller asks for huge page (flags & FAULT_FLAG_TRANSHUGE),
+> > filemap_fault() return it if there's a huge page already by the offset.
+> >
+> > If the area of page cache required to create huge is empty, we create a
+> > new huge page and return it.
+> >
+> > Otherwise we return VM_FAULT_FALLBACK to indicate that fallback to small
+> > pages is required.
+> >
+> s/small/regular/g ?
 
-Could we get a little blurb along those lines somewhere?  Maybe even in
-your docs that you've added to Documentation/.  Oh, wait, you don't have
-any documentation? :)
+% git log --oneline -p -i --grep 'small.\?page' | wc -l
+5962
+% git log --oneline -p -i --grep 'regular.\?page' | wc -l
+3623
 
-You did add a sysfs knob, so you do owe us some docs for it.
-
-"If the THP-cache sysfs tunable is disabled, huge pages will no longer
-be mapped with new mmap()s, but they will remain in place in the page
-cache.  You might still see some benefits from read/write operations,
-etc..."
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
