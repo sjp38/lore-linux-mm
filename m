@@ -1,40 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 771B16B00A0
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 07:03:39 -0400 (EDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <519BBC19.7020509@sr71.net>
-References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1368321816-17719-3-git-send-email-kirill.shutemov@linux.intel.com>
- <519BBC19.7020509@sr71.net>
-Subject: Re: [PATCHv4 02/39] block: implement add_bdi_stat()
-Content-Transfer-Encoding: 7bit
-Message-Id: <20130522110603.4B729E0090@blue.fi.intel.com>
-Date: Wed, 22 May 2013 14:06:03 +0300 (EEST)
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 379766B00A1
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 07:08:08 -0400 (EDT)
+Date: Wed, 22 May 2013 14:07:29 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH v2 00/10] uaccess: better might_sleep/might_fault behavior
+Message-ID: <20130522110729.GB5643@redhat.com>
+References: <cover.1368702323.git.mst@redhat.com>
+ <201305221125.36284.arnd@arndb.de>
+ <20130522101916.GM18810@twins.programming.kicks-ass.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130522101916.GM18810@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Arnd Bergmann <arnd@arndb.de>, linux-kernel@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, David Howells <dhowells@redhat.com>, Hirokazu Takata <takata@linux-m32r.org>, Michal Simek <monstr@monstr.eu>, Koichi Yasutake <yasutake.koichi@jp.panasonic.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Chris Metcalf <cmetcalf@tilera.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-arm-kernel@lists.infradead.org, linux-m32r@ml.linux-m32r.org, linux-m32r-ja@ml.linux-m32r.org, microblaze-uclinux@itee.uq.edu.au, linux-am33-list@redhat.com, linuxppc-dev@lists.ozlabs.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org
 
-Dave Hansen wrote:
-> On 05/11/2013 06:22 PM, Kirill A. Shutemov wrote:
-> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> > 
-> > We're going to add/remove a number of page cache entries at once. This
-> > patch implements add_bdi_stat() which adjusts bdi stats by arbitrary
-> > amount. It's required for batched page cache manipulations.
+On Wed, May 22, 2013 at 12:19:16PM +0200, Peter Zijlstra wrote:
+> On Wed, May 22, 2013 at 11:25:36AM +0200, Arnd Bergmann wrote:
+> > Calling might_fault() for every __get_user/__put_user is rather expensive
+> > because it turns what should be a single instruction (plus fixup) into an
+> > external function call.
 > 
-> Add, but no dec?
+> We could hide it all behind CONFIG_DEBUG_ATOMIC_SLEEP just like
+> might_sleep() is. I'm not sure there's a point to might_fault() when
+> might_sleep() is a NOP.
 
-'sub', I guess, not 'dec'. For that we use add_bdi_stat(m, item, -nr).
-It's consistent with __add_bdi_stat() usage.
+The patch that you posted gets pretty close.
+E.g. I'm testing this now:
++#define might_fault() do { \
++       if (_might_fault()) \
++               __might_sleep(__FILE__, __LINE__, 0); \
++       might_resched(); \
++} while(0)
 
-> I'd also move this closer to where it gets used in the series.
+So if might_sleep is a NOP, __might_sleep and might_resched are NOPs
+so compiler will optimize this all out.
 
-Okay.
+However, in a related thread, you pointed out that might_sleep is not a NOP if
+CONFIG_PREEMPT_VOLUNTARY is set, even without CONFIG_DEBUG_ATOMIC_SLEEP.
+
+Do you think we should drop the preemption point in might_fault?
+Only copy_XX_user?
+Only __copy_XXX_user ?
 
 -- 
- Kirill A. Shutemov
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
