@@ -1,26 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 8FEBE6B0002
-	for <linux-mm@kvack.org>; Tue, 21 May 2013 22:55:35 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 5D8553EE0BC
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 11:55:33 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4DE2045DEB7
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 11:55:33 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 369F745DEB5
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 11:55:33 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 265B41DB803B
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 11:55:33 +0900 (JST)
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 0D4D06B0032
+	for <linux-mm@kvack.org>; Tue, 21 May 2013 22:55:40 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 88A5A3EE0C1
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 11:55:39 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6DAA745DE4E
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 11:55:39 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1F11A45DE53
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 11:55:39 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0B2D7E08001
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 11:55:39 +0900 (JST)
 Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id BFB1A1DB8038
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 11:55:32 +0900 (JST)
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8A3111DB8037
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 11:55:38 +0900 (JST)
 From: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
-Subject: [PATCH v7 0/8] kdump, vmcore: support mmap() on /proc/vmcore
-Date: Wed, 22 May 2013 11:55:31 +0900
-Message-ID: <20130522025410.12215.16793.stgit@localhost6.localdomain6>
+Subject: [PATCH v7 1/8] vmcore: clean up read_vmcore()
+Date: Wed, 22 May 2013 11:55:37 +0900
+Message-ID: <20130522025537.12215.30169.stgit@localhost6.localdomain6>
+In-Reply-To: <20130522025410.12215.16793.stgit@localhost6.localdomain6>
+References: <20130522025410.12215.16793.stgit@localhost6.localdomain6>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
@@ -29,119 +31,112 @@ List-ID: <linux-mm.kvack.org>
 To: vgoyal@redhat.com, ebiederm@xmission.com, akpm@linux-foundation.org
 Cc: cpw@sgi.com, kumagai-atsushi@mxc.nes.nec.co.jp, lisa.mitchell@hp.com, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, zhangyanfei@cn.fujitsu.com, jingbai.ma@hp.com, linux-mm@kvack.org, riel@redhat.com, walken@google.com, hughd@google.com, kosaki.motohiro@jp.fujitsu.com
 
-Currently, read to /proc/vmcore is done by read_oldmem() that uses
-ioremap/iounmap per a single page. For example, if memory is 1GB,
-ioremap/iounmap is called (1GB / 4KB)-times, that is, 262144
-times. This causes big performance degradation due to repeated page
-table changes, TLB flush and build-up of VM related objects.
+Rewrite part of read_vmcore() that reads objects in vmcore_list in the
+same way as part reading ELF headers, by which some duplicated and
+redundant codes are removed.
 
-In particular, the current main user of this mmap() is makedumpfile,
-which not only reads memory from /proc/vmcore but also does other
-processing like filtering, compression and IO work.
-
-To address the issue, this patch implements mmap() on /proc/vmcore to
-improve read performance.
-
-Benchmark
-=========
-
-You can see two benchmarks on terabyte memory system. Both show about
-40 seconds on 2TB system. This is almost equal to performance by
-experimental kernel-side memory filtering.
-
-- makedumpfile mmap() benchmark, by Jingbai Ma
-  https://lkml.org/lkml/2013/3/27/19
-
-- makedumpfile: benchmark on mmap() with /proc/vmcore on 2TB memory system
-  https://lkml.org/lkml/2013/3/26/914
-
-ChangeLog
-=========
-
-v6 => v7)
-
-- Rebase 3.10-rc2.
-- Move roundup operation to note segment from patch 2/8 to patch 6/8.
-- Rewrite get_note_number_and_size_elf{64,32} and
-  copy_notes_elf{64,32} in patch 6/8.
-
-v5 => v6)
-
-- Change patch order: clenaup patch => PT_LOAD change patch =>
-  vmalloc-related patch => mmap patch.
-- Some cleanups: improve symbol names simply, add helper functoins for
-  processing ELF note segment and add comments for the helper
-  functions.
-- Fix patch description of patch 7/8.
-
-v4 => v5)
-
-- Rebase 3.10-rc1.
-- Introduce remap_vmalloc_range_partial() in order to remap vmalloc
-  memory in a part of vma area.
-- Allocate buffer for ELF note segment at 2nd kernel by vmalloc(). Use
-  remap_vmalloc_range_partial() to remap the memory to userspace.
-
-v3 => v4)
-
-- Rebase 3.9-rc7.
-- Drop clean-up patches orthogonal to the main topic of this patch set.
-- Copy ELF note segments in the 2nd kernel just as in v1. Allocate
-  vmcore objects per pages. => See [PATCH 5/8]
-- Map memory referenced by PT_LOAD entry directly even if the start or
-  end of the region doesn't fit inside page boundary, no longer copy
-  them as the previous v3. Then, holes, outside OS memory, are visible
-  from /proc/vmcore. => See [PATCH 7/8]
-
-v2 => v3)
-
-- Rebase 3.9-rc3.
-- Copy program headers separately from e_phoff in ELF note segment
-  buffer. Now there's no risk to allocate huge memory if program
-  header table positions after memory segment.
-- Add cleanup patch that removes unnecessary variable.
-- Fix wrongly using the variable that is buffer size configurable at
-  runtime. Instead, use the variable that has original buffer size.
-
-v1 => v2)
-
-- Clean up the existing codes: use e_phoff, and remove the assumption
-  on PT_NOTE entries.
-- Fix potential bug that ELF header size is not included in exported
-  vmcoreinfo size.
-- Divide patch modifying read_vmcore() into two: clean-up and primary
-  code change.
-- Put ELF note segments in page-size boundary on the 1st kernel
-  instead of copying them into the buffer on the 2nd kernel.
-
-Test
-====
-
-This patch set is composed based on v3.10-rc2, tested on x86_64,
-x86_32 both with 1GB and with 5GB (over 4GB) memory configurations.
-
+Signed-off-by: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
+Acked-by: Vivek Goyal <vgoyal@redhat.com>
 ---
 
-HATAYAMA Daisuke (8):
-      vmcore: support mmap() on /proc/vmcore
-      vmcore: calculate vmcore file size from buffer size and total size of vmcore objects
-      vmcore: allocate ELF note segment in the 2nd kernel vmalloc memory
-      vmalloc: introduce remap_vmalloc_range_partial
-      vmalloc: make find_vm_area check in range
-      vmcore: treat memory chunks referenced by PT_LOAD program header entries in page-size boundary in vmcore_list
-      vmcore: allocate buffer for ELF headers on page-size alignment
-      vmcore: clean up read_vmcore()
+ fs/proc/vmcore.c |   68 ++++++++++++++++--------------------------------------
+ 1 files changed, 20 insertions(+), 48 deletions(-)
 
-
- fs/proc/vmcore.c        |  595 +++++++++++++++++++++++++++++++++++------------
- include/linux/vmalloc.h |    4 
- mm/vmalloc.c            |   65 ++++-
- 3 files changed, 494 insertions(+), 170 deletions(-)
-
--- 
-
-Thanks.
-HATAYAMA, Daisuke
+diff --git a/fs/proc/vmcore.c b/fs/proc/vmcore.c
+index 17f7e08..ab0c92e 100644
+--- a/fs/proc/vmcore.c
++++ b/fs/proc/vmcore.c
+@@ -118,27 +118,6 @@ static ssize_t read_from_oldmem(char *buf, size_t count,
+ 	return read;
+ }
+ 
+-/* Maps vmcore file offset to respective physical address in memroy. */
+-static u64 map_offset_to_paddr(loff_t offset, struct list_head *vc_list,
+-					struct vmcore **m_ptr)
+-{
+-	struct vmcore *m;
+-	u64 paddr;
+-
+-	list_for_each_entry(m, vc_list, list) {
+-		u64 start, end;
+-		start = m->offset;
+-		end = m->offset + m->size - 1;
+-		if (offset >= start && offset <= end) {
+-			paddr = m->paddr + offset - start;
+-			*m_ptr = m;
+-			return paddr;
+-		}
+-	}
+-	*m_ptr = NULL;
+-	return 0;
+-}
+-
+ /* Read from the ELF header and then the crash dump. On error, negative value is
+  * returned otherwise number of bytes read are returned.
+  */
+@@ -147,8 +126,8 @@ static ssize_t read_vmcore(struct file *file, char __user *buffer,
+ {
+ 	ssize_t acc = 0, tmp;
+ 	size_t tsz;
+-	u64 start, nr_bytes;
+-	struct vmcore *curr_m = NULL;
++	u64 start;
++	struct vmcore *m = NULL;
+ 
+ 	if (buflen == 0 || *fpos >= vmcore_size)
+ 		return 0;
+@@ -174,33 +153,26 @@ static ssize_t read_vmcore(struct file *file, char __user *buffer,
+ 			return acc;
+ 	}
+ 
+-	start = map_offset_to_paddr(*fpos, &vmcore_list, &curr_m);
+-	if (!curr_m)
+-        	return -EINVAL;
+-
+-	while (buflen) {
+-		tsz = min_t(size_t, buflen, PAGE_SIZE - (start & ~PAGE_MASK));
+-
+-		/* Calculate left bytes in current memory segment. */
+-		nr_bytes = (curr_m->size - (start - curr_m->paddr));
+-		if (tsz > nr_bytes)
+-			tsz = nr_bytes;
+-
+-		tmp = read_from_oldmem(buffer, tsz, &start, 1);
+-		if (tmp < 0)
+-			return tmp;
+-		buflen -= tsz;
+-		*fpos += tsz;
+-		buffer += tsz;
+-		acc += tsz;
+-		if (start >= (curr_m->paddr + curr_m->size)) {
+-			if (curr_m->list.next == &vmcore_list)
+-				return acc;	/*EOF*/
+-			curr_m = list_entry(curr_m->list.next,
+-						struct vmcore, list);
+-			start = curr_m->paddr;
++	list_for_each_entry(m, &vmcore_list, list) {
++		if (*fpos < m->offset + m->size) {
++			tsz = m->offset + m->size - *fpos;
++			if (buflen < tsz)
++				tsz = buflen;
++			start = m->paddr + *fpos - m->offset;
++			tmp = read_from_oldmem(buffer, tsz, &start, 1);
++			if (tmp < 0)
++				return tmp;
++			buflen -= tsz;
++			*fpos += tsz;
++			buffer += tsz;
++			acc += tsz;
++
++			/* leave now if filled buffer already */
++			if (buflen == 0)
++				return acc;
+ 		}
+ 	}
++
+ 	return acc;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
