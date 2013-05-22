@@ -1,74 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 59CD46B0002
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 00:40:27 -0400 (EDT)
-Message-ID: <519C4CE2.4030204@cn.fujitsu.com>
-Date: Wed, 22 May 2013 12:43:14 +0800
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 021286B0002
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 00:42:42 -0400 (EDT)
+Message-ID: <519C4D6E.6080902@cn.fujitsu.com>
+Date: Wed, 22 May 2013 12:45:34 +0800
 From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 12/13] x86, numa, acpi, memory-hotplug: Make movablecore=acpi
- have higher priority.
-References: <1367313683-10267-1-git-send-email-tangchen@cn.fujitsu.com> <1367313683-10267-13-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1367313683-10267-13-git-send-email-tangchen@cn.fujitsu.com>
+Subject: Re: [PATCH 2/2 v2, RFC] Driver core: Introduce offline/online callbacks
+ for memory blocks
+References: <1576321.HU0tZ4cGWk@vostro.rjw.lan> <19540491.PRsM4lKIYM@vostro.rjw.lan> <519B1641.1020906@cn.fujitsu.com> <1824290.fKsAJTo9gA@vostro.rjw.lan>
+In-Reply-To: <1824290.fKsAJTo9gA@vostro.rjw.lan>
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "vasilis.liaskovitis@profitbricks.com >> Vasilis Liaskovitis" <vasilis.liaskovitis@profitbricks.com>
-Cc: mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, tj@kernel.org, laijs@cn.fujitsu.com, davem@davemloft.net, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Toshi Kani <toshi.kani@hp.com>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, isimatu.yasuaki@jp.fujitsu.com, vasilis.liaskovitis@profitbricks.com, Len Brown <lenb@kernel.org>, linux-mm@kvack.org
 
-Hi Vasilis,
+Hi Rafael,
 
-Maybe the following two problems are the cause of the reboot panic
-problem in qemu you mentioned.
-
-On 04/30/2013 05:21 PM, Tang Chen wrote:
+On 05/21/2013 07:15 PM, Rafael J. Wysocki wrote:
 ......
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index b9ea143..2fe9ebf 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -4793,9 +4793,31 @@ static void __init find_zone_movable_pfns_for_nodes(void)
->   	nodemask_t saved_node_state = node_states[N_MEMORY];
->   	unsigned long totalpages = early_calculate_totalpages();
->   	int usable_nodes = nodes_weight(node_states[N_MEMORY]);
-> +	struct memblock_type *reserved =&memblock.reserved;
+>>> +		mem->state = to_state;
+>>> +		if (to_state == MEM_ONLINE)
+>>> +			mem->last_online = online_type;
+>>
+>> Why do we need to remember last online type ?
+>>
+>> And as far as I know, we can obtain which zone a page was in last time it
+>> was onlined by check page->flags, just like online_pages() does. If we
+>> use online_kernel or online_movable, the zone boundary will be
+>> recalculated.
+>> So we don't need to remember the last online type.
+>>
+>> Seeing from your patch, I guess memory_subsys_online() can only handle
+>> online and offline. So mem->last_online is used to remember what user has
+>> done through the original way to trigger memory hot-remove, right ? And
+>> when
+>> user does it in this new way, it just does the same thing as user does last
+>> time.
+>>
+>> But I still think we don't need to remember it because if finally you call
+>> online_pages(), it just does the same thing as last time by default.
+>>
+>> online_pages()
+>> {
+>> 	......
+>> 	if (online_type == ONLINE_KERNEL ......
+>>
+>> 	if (online_type == ONLINE_MOVABLE......
+>>
+>> 	zone = page_zone(pfn_to_page(pfn));
+>>
+>> 	/* Here, the page will be put into the zone which it belong to last
+>> time. */
 >
+> To be honest, it wasn't entirely clear to me that online_pages() would do the
+> same thing as last time by default.  Suppose, for example, that the previous
+> online_type was ONLINE_MOVABLE.  How online_pages() is supposed to know that
+> it should do the move_pfn_zone_right() if we don't tell it to do that?  Or
+> is that unnecessary, because it's already been done previously?
 
-Need to call find_usable_zone_for_movable() here before goto out.
+Yes, it is unnecessary. move_pfn_zone_right/left() will modify the zone 
+related
+bits in page->flags. But when the page is offline, the zone related bits in
+page->flags will not change. So when it is online again, by dafault, it 
+will
+be in the zone which it was in last time.
 
->   	/*
-> -	 * If movablecore was specified, calculate what size of
-> +	 * If movablecore=acpi was specified, then zone_movable_pfn[] has been
-> +	 * initialized, and no more work needs to do.
-> +	 * NOTE: In this case, we ignore kernelcore option.
-> +	 */
-> +	if (movablecore_enable_srat) {
-> +		for (i = 0; i<  reserved->cnt; i++) {
-> +			if (!memblock_is_hotpluggable(&reserved->regions[i]))
-> +				continue;
-> +
-> +			nid = reserved->regions[i].nid;
-> +
-> +			usable_startpfn = reserved->regions[i].base;
+......
 
-Here, it should be PFN_DOWN(reserved->regions[i].base).
+>>
+>> I just thought of it. Maybe I missed something in your design. Please tell
+>> me if I'm wrong.
+>
+> Well, so what should be passed to __memory_block_change_state() in
+> memory_subsys_online()?  -1?
+
+If you want to keep the last time status, you can pass ONLINE_KEEP.
+Or -1 is all right.
 
 Thanks. :)
 
-> +			zone_movable_pfn[nid] = zone_movable_pfn[nid] ?
-> +				min(usable_startpfn, zone_movable_pfn[nid]) :
-> +				usable_startpfn;
-> +		}
-> +
-> +		goto out;
-> +	}
-> +
-> +	/*
-> +	 * If movablecore=nn[KMG] was specified, calculate what size of
->   	 * kernelcore that corresponds so that memory usable for
->   	 * any allocation type is evenly spread. If both kernelcore
->   	 * and movablecore are specified, then the value of kernelcore
+>
+>> Reviewed-by: Tang Chen<tangchen@cn.fujitsu.com>
+>>
+>> Thanks. :)
+>
+> Thanks for your comments,
+> Rafael
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
