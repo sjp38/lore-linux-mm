@@ -1,160 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 080C46B00A7
-	for <linux-mm@kvack.org>; Tue, 21 May 2013 20:43:06 -0400 (EDT)
-Subject: Re: [PATCH v2 1/2] Make the batch size of the percpu_counter
- configurable
-From: Tim Chen <tim.c.chen@linux.intel.com>
-In-Reply-To: <20130521164154.bed705c6e117ceb76205cd65@linux-foundation.org>
-References: 
-	 <8584b08e57e97ecc4769859b751ad459d038a730.1367574872.git.tim.c.chen@linux.intel.com>
-	 <20130521134122.4d8ea920c0f851fc2d97abc9@linux-foundation.org>
-	 <1369178849.27102.330.camel@schen9-DESK>
-	 <20130521164154.bed705c6e117ceb76205cd65@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 21 May 2013 17:43:10 -0700
-Message-ID: <1369183390.27102.337.camel@schen9-DESK>
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 8FEBE6B0002
+	for <linux-mm@kvack.org>; Tue, 21 May 2013 22:55:35 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 5D8553EE0BC
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 11:55:33 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4DE2045DEB7
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 11:55:33 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 369F745DEB5
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 11:55:33 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 265B41DB803B
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 11:55:33 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id BFB1A1DB8038
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 11:55:32 +0900 (JST)
+From: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
+Subject: [PATCH v7 0/8] kdump, vmcore: support mmap() on /proc/vmcore
+Date: Wed, 22 May 2013 11:55:31 +0900
+Message-ID: <20130522025410.12215.16793.stgit@localhost6.localdomain6>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Eric Dumazet <eric.dumazet@gmail.com>, Ric Mason <ric.masonn@gmail.com>, Simon Jeons <simon.jeons@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <ak@linux.intel.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: vgoyal@redhat.com, ebiederm@xmission.com, akpm@linux-foundation.org
+Cc: cpw@sgi.com, kumagai-atsushi@mxc.nes.nec.co.jp, lisa.mitchell@hp.com, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, zhangyanfei@cn.fujitsu.com, jingbai.ma@hp.com, linux-mm@kvack.org, riel@redhat.com, walken@google.com, hughd@google.com, kosaki.motohiro@jp.fujitsu.com
 
-On Tue, 2013-05-21 at 16:41 -0700, Andrew Morton wrote:
+Currently, read to /proc/vmcore is done by read_oldmem() that uses
+ioremap/iounmap per a single page. For example, if memory is 1GB,
+ioremap/iounmap is called (1GB / 4KB)-times, that is, 262144
+times. This causes big performance degradation due to repeated page
+table changes, TLB flush and build-up of VM related objects.
 
-> I think we could use __percpu_counter_add() unconditionally here and
-> just do
-> 
-> #ifdef CONFIG_SMP
-> #define vm_committed_as_batch 0
-> #else
-> int vm_committed_as_batch;
-> #endif
-> 
-> The EXPORT_SYMBOL(vm_committed_as_batch) is unneeded.
-> 
+In particular, the current main user of this mmap() is makedumpfile,
+which not only reads memory from /proc/vmcore but also does other
+processing like filtering, compression and IO work.
 
-Thanks.  I've made the changes suggested.
+To address the issue, this patch implements mmap() on /proc/vmcore to
+improve read performance.
 
-> >  void __init mmap_init(void)
-> >  {
-> >  	int ret;
-> >  
-> >  	ret = percpu_counter_init(&vm_committed_as, 0);
-> > +	vm_committed_as_batch = mm_compute_batch();
-> >  	VM_BUG_ON(ret);
-> >  	vm_region_jar = KMEM_CACHE(vm_region, SLAB_PANIC);
-> 
-> I'm not sure that CONFIG_MMU=n && CONFIG_SMP=y even exists.  Perhaps it
-> does.  But there's no point in ruling out that option here.
-> 
-> The nommu code becomes identical to the mmu code so we should put it in
-> a shared file.  I suppose mmap.c would be as good a place as any.
-> 
+Benchmark
+=========
 
-I've consolidated things in mman.h.
+You can see two benchmarks on terabyte memory system. Both show about
+40 seconds on 2TB system. This is almost equal to performance by
+experimental kernel-side memory filtering.
 
-> We could make mm_compute_batch() __init and call it from mm_init(). 
-> But really it should be __meminit and there should be a memory-hotplug
-> notifier handler which adjusts vm_committed_as_batch's value.
-> 
+- makedumpfile mmap() benchmark, by Jingbai Ma
+  https://lkml.org/lkml/2013/3/27/19
 
-I'll spin off another version of the patch later to add the
-memory-hotplug notifier.  In the mean time, does the following looks
-good to you?
+- makedumpfile: benchmark on mmap() with /proc/vmcore on 2TB memory system
+  https://lkml.org/lkml/2013/3/26/914
+
+ChangeLog
+=========
+
+v6 => v7)
+
+- Rebase 3.10-rc2.
+- Move roundup operation to note segment from patch 2/8 to patch 6/8.
+- Rewrite get_note_number_and_size_elf{64,32} and
+  copy_notes_elf{64,32} in patch 6/8.
+
+v5 => v6)
+
+- Change patch order: clenaup patch => PT_LOAD change patch =>
+  vmalloc-related patch => mmap patch.
+- Some cleanups: improve symbol names simply, add helper functoins for
+  processing ELF note segment and add comments for the helper
+  functions.
+- Fix patch description of patch 7/8.
+
+v4 => v5)
+
+- Rebase 3.10-rc1.
+- Introduce remap_vmalloc_range_partial() in order to remap vmalloc
+  memory in a part of vma area.
+- Allocate buffer for ELF note segment at 2nd kernel by vmalloc(). Use
+  remap_vmalloc_range_partial() to remap the memory to userspace.
+
+v3 => v4)
+
+- Rebase 3.9-rc7.
+- Drop clean-up patches orthogonal to the main topic of this patch set.
+- Copy ELF note segments in the 2nd kernel just as in v1. Allocate
+  vmcore objects per pages. => See [PATCH 5/8]
+- Map memory referenced by PT_LOAD entry directly even if the start or
+  end of the region doesn't fit inside page boundary, no longer copy
+  them as the previous v3. Then, holes, outside OS memory, are visible
+  from /proc/vmcore. => See [PATCH 7/8]
+
+v2 => v3)
+
+- Rebase 3.9-rc3.
+- Copy program headers separately from e_phoff in ELF note segment
+  buffer. Now there's no risk to allocate huge memory if program
+  header table positions after memory segment.
+- Add cleanup patch that removes unnecessary variable.
+- Fix wrongly using the variable that is buffer size configurable at
+  runtime. Instead, use the variable that has original buffer size.
+
+v1 => v2)
+
+- Clean up the existing codes: use e_phoff, and remove the assumption
+  on PT_NOTE entries.
+- Fix potential bug that ELF header size is not included in exported
+  vmcoreinfo size.
+- Divide patch modifying read_vmcore() into two: clean-up and primary
+  code change.
+- Put ELF note segments in page-size boundary on the 1st kernel
+  instead of copying them into the buffer on the 2nd kernel.
+
+Test
+====
+
+This patch set is composed based on v3.10-rc2, tested on x86_64,
+x86_32 both with 1GB and with 5GB (over 4GB) memory configurations.
+
+---
+
+HATAYAMA Daisuke (8):
+      vmcore: support mmap() on /proc/vmcore
+      vmcore: calculate vmcore file size from buffer size and total size of vmcore objects
+      vmcore: allocate ELF note segment in the 2nd kernel vmalloc memory
+      vmalloc: introduce remap_vmalloc_range_partial
+      vmalloc: make find_vm_area check in range
+      vmcore: treat memory chunks referenced by PT_LOAD program header entries in page-size boundary in vmcore_list
+      vmcore: allocate buffer for ELF headers on page-size alignment
+      vmcore: clean up read_vmcore()
+
+
+ fs/proc/vmcore.c        |  595 +++++++++++++++++++++++++++++++++++------------
+ include/linux/vmalloc.h |    4 
+ mm/vmalloc.c            |   65 ++++-
+ 3 files changed, 494 insertions(+), 170 deletions(-)
+
+-- 
 
 Thanks.
-
-Tim
-
-Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
----
- include/linux/mman.h | 20 +++++++++++++++++++-
- mm/mmap.c            |  4 ++++
- mm/nommu.c           |  4 ++++
- 3 files changed, 27 insertions(+), 1 deletion(-)
-
-diff --git a/include/linux/mman.h b/include/linux/mman.h
-index 9aa863d..443bcae 100644
---- a/include/linux/mman.h
-+++ b/include/linux/mman.h
-@@ -10,12 +10,30 @@
- extern int sysctl_overcommit_memory;
- extern int sysctl_overcommit_ratio;
- extern struct percpu_counter vm_committed_as;
-+#ifdef CONFIG_SMP
-+extern int vm_committed_as_batch;
-+
-+static inline void mm_compute_batch(void)
-+{
-+        int nr = num_present_cpus();
-+        int batch = max(32, nr*2);
-+
-+        /* batch size set to 0.4% of (total memory/#cpus) */
-+        vm_committed_as_batch = max((int) (totalram_pages/nr) / 256, batch);
-+}
-+#else
-+#define vm_committed_as_batch 0
-+
-+static inline void mm_compute_batch(void)
-+{
-+}
-+#endif
- 
- unsigned long vm_memory_committed(void);
- 
- static inline void vm_acct_memory(long pages)
- {
--	percpu_counter_add(&vm_committed_as, pages);
-+	__percpu_counter_add(&vm_committed_as, pages, vm_committed_as_batch);
- }
- 
- static inline void vm_unacct_memory(long pages)
-diff --git a/mm/mmap.c b/mm/mmap.c
-index f681e18..55c8773 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -3145,11 +3145,15 @@ void mm_drop_all_locks(struct mm_struct *mm)
- /*
-  * initialise the VMA slab
-  */
-+
-+int vm_committed_as_batch;
-+
- void __init mmap_init(void)
- {
- 	int ret;
- 
- 	ret = percpu_counter_init(&vm_committed_as, 0);
-+	mm_compute_batch();
- 	VM_BUG_ON(ret);
- }
- 
-diff --git a/mm/nommu.c b/mm/nommu.c
-index 298884d..9ad16ba 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -527,11 +527,15 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
- /*
-  * initialise the VMA and region record slabs
-  */
-+
-+int vm_committed_as_batch;
-+
- void __init mmap_init(void)
- {
- 	int ret;
- 
- 	ret = percpu_counter_init(&vm_committed_as, 0);
-+	mm_compute_batch();
- 	VM_BUG_ON(ret);
- 	vm_region_jar = KMEM_CACHE(vm_region, SLAB_PANIC);
- }
--- 
-1.7.11.7
-
-
+HATAYAMA, Daisuke
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
