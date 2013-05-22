@@ -1,86 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id C8CC46B003C
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 04:11:37 -0400 (EDT)
-From: Andrey Vagin <avagin@openvz.org>
-Subject: [PATCH] memcg: don't initialize kmem-cache destroying work for root caches
-Date: Wed, 22 May 2013 12:09:19 +0400
-Message-Id: <1369210159-18735-1-git-send-email-avagin@openvz.org>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id C51096B0044
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 04:38:10 -0400 (EDT)
+Message-ID: <519C838B.9060609@huawei.com>
+Date: Wed, 22 May 2013 16:36:27 +0800
+From: Li Zefan <lizefan@huawei.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 5/9] memcg: use css_get/put when charging/uncharging kmem
+References: <5195D5F8.7000609@huawei.com> <5195D666.6030408@huawei.com> <20130517180822.GC12632@mtj.dyndns.org>
+In-Reply-To: <20130517180822.GC12632@mtj.dyndns.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Andrey Vagin <avagin@openvz.org>, stable@vger.kernel.org.#.3.9, Konstantin Khlebnikov <khlebnikov@openvz.org>, Glauber Costa <glommer@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-struct memcg_cache_params has a union. Different parts of this union are
-used for root and non-root caches. A part with destroying work is used only
-for non-root caches.
+On 2013/5/18 2:08, Tejun Heo wrote:
+> Hey,
+> 
+> On Fri, May 17, 2013 at 03:04:06PM +0800, Li Zefan wrote:
+>> +	/*
+>> +	 * Releases a reference taken in kmem_cgroup_css_offline in case
+>> +	 * this last uncharge is racing with the offlining code or it is
+>> +	 * outliving the memcg existence.
+>> +	 *
+>> +	 * The memory barrier imposed by test&clear is paired with the
+>> +	 * explicit one in kmem_cgroup_css_offline.
+> 
+> Paired with the wmb to achieve what?
+> 
+>> +	 */
+>>  	if (memcg_kmem_test_and_clear_dead(memcg))
+>> -		mem_cgroup_put(memcg);
+>> +		css_put(&memcg->css);
+> 
+> The other side is wmb, so there gotta be something which wants to read
+> which were written before wmb here but the only thing after the
+> barrier is css_put() which doesn't need such thing, so I'm lost on
+> what the barrier pair is achieving here.
+> 
+> In general, please be *very* explicit about what's going on whenever
+> something is depending on barrier pairs.  It'll make it easier for
+> both the author and reviewers to actually understand what's going on
+> and why it's necessary.
+> 
+> ...
+>> @@ -5858,23 +5856,39 @@ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
+>>  	return mem_cgroup_sockets_init(memcg, ss);
+>>  }
+>>  
+>> -static void kmem_cgroup_destroy(struct mem_cgroup *memcg)
+>> +static void kmem_cgroup_css_offline(struct mem_cgroup *memcg)
+>>  {
+>> -	mem_cgroup_sockets_destroy(memcg);
+>> +	if (!memcg_kmem_is_active(memcg))
+>> +		return;
+>>  
+>> +	/*
+>> +	 * kmem charges can outlive the cgroup. In the case of slab
+>> +	 * pages, for instance, a page contain objects from various
+>> +	 * processes. As we prevent from taking a reference for every
+>> +	 * such allocation we have to be careful when doing uncharge
+>> +	 * (see memcg_uncharge_kmem) and here during offlining.
+>> +	 *
+>> +	 * The idea is that that only the _last_ uncharge which sees
+>> +	 * the dead memcg will drop the last reference. An additional
+>> +	 * reference is taken here before the group is marked dead
+>> +	 * which is then paired with css_put during uncharge resp. here.
+>> +	 *
+>> +	 * Although this might sound strange as this path is called when
+>> +	 * the reference has already dropped down to 0 and shouldn't be
+>> +	 * incremented anymore (css_tryget would fail) we do not have
+> 
+> Hmmm?  offline is called on cgroup destruction regardless of css
+> refcnt.  The above comment seems a bit misleading.
+> 
 
-[  115.096202] BUG: unable to handle kernel paging request at 0000000fffffffe0
-[  115.096785] IP: [<ffffffff8116b641>] kmem_cache_alloc+0x41/0x1f0
-[  115.097024] PGD 7ace1067 PUD 0
-[  115.097024] Oops: 0000 [#4] SMP
-[  115.097024] Modules linked in: netlink_diag af_packet_diag udp_diag tcp_diag inet_diag unix_diag ip6table_filter ip6_tables i2c_piix4 virtio_net virtio_balloon microcode i2c_core pcspkr floppy
-[  115.097024] CPU: 0 PID: 1929 Comm: lt-vzctl Tainted: G      D      3.10.0-rc1+ #2
-[  115.097024] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
-[  115.097024] task: ffff88007b5aaee0 ti: ffff88007bf0c000 task.ti: ffff88007bf0c000
-[  115.097024] RIP: 0010<ffffffff8116b641>]  [<ffffffff8116b641>] kmem_cache_alloc+0x41/0x1f0
-[  115.097024] RSP: 0018:ffff88007bf0de68  EFLAGS: 00010202
-[  115.097024] RAX: 0000000fffffffe0 RBX: 00007fff4014f200 RCX: 0000000000000300
-[  115.097024] RDX: 0000000000000005 RSI: 00000000000000d0 RDI: ffff88007d001300
-[  115.097024] RBP: ffff88007bf0dea8 R08: 00007f849c3141b7 R09: ffffffff8118e100
-[  115.097024] R10: 0000000000000001 R11: 0000000000000246 R12: 00000000000000d0
-[  115.097024] R13: 0000000fffffffe0 R14: ffff88007d001300 R15: 0000000000001000
-[  115.097024] FS:  00007f849cbb8b40(0000) GS:ffff88007fc00000(0000) knlGS:0000000000000000
-[  115.097024] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[  115.097024] CR2: 0000000fffffffe0 CR3: 000000007bc38000 CR4: 00000000000006f0
-[  115.097024] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-[  115.097024] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-[  115.097024] Stack:
-[  115.097024]  ffffffff8118e100 ffffffff81149ea1 0000000000000008 00007fff4014f200
-[  115.097024]  00007fff4014f200 0000000000000000 0000000000000000 0000000000001000
-[  115.097024]  ffff88007bf0dee8 ffffffff8118e100 ffff880037598e00 00007fff4014f200
-[  115.097024] Call Trace:
-[  115.097024]  [<ffffffff8118e100>] ? getname_flags.part.34+0x30/0x140
-[  115.097024]  [<ffffffff81149ea1>] ? vma_rb_erase+0x121/0x210
-[  115.097024]  [<ffffffff8118e100>] getname_flags.part.34+0x30/0x140
-[  115.097024]  [<ffffffff8118e248>] getname+0x38/0x60
-[  115.097024]  [<ffffffff81181d55>] do_sys_open+0xc5/0x1e0
-[  115.097024]  [<ffffffff81181e92>] SyS_open+0x22/0x30
-[  115.097024]  [<ffffffff8161cb82>] system_call_fastpath+0x16/0x1b
-[  115.097024] Code: f4 53 48 83 ec 18 8b 05 8e 53 b7 00 4c 8b 4d 08 21 f0 a8 10 74 0d 4c 89 4d c0 e8 1b 76 4a 00 4c 8b 4d c0 e9 92 00 00 00 4d 89 f5 <4d> 8b 45 00 65 4c 03 04 25 48 cd 00 00 49 8b 50 08 4d 8b 38 49
-[  115.097024] RIP  [<ffffffff8116b641>] kmem_cache_alloc+0x41/0x1f0
-[  115.097024]  RSP <ffff88007bf0de68>
-[  115.097024] CR2: 0000000fffffffe0
-[  115.121352] ---[ end trace 16bb8e8408b97d0e ]---
+The comment is wrong. I'll fix it.
 
-Cc: stable@vger.kernel.org # 3.9
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Glauber Costa <glommer@parallels.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Balbir Singh <bsingharora@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
-Signed-off-by: Andrey Vagin <avagin@openvz.org>
----
- mm/memcontrol.c | 2 --
- 1 file changed, 2 deletions(-)
+>> +	 * other options because of the kmem allocations lifetime.
+>> +	 */
+>> +	css_get(&memcg->css);
+>> +
+>> +	/* see comment in memcg_uncharge_kmem() */
+>> +	wmb();
+>>  	memcg_kmem_mark_dead(memcg);
+> 
+> Is the wmb() trying to prevent reordering between css_get() and
+> memcg_kmem_mark_dead()?  If so, it isn't necessary - the compiler
+> isn't allowed to reorder two atomic ops (they're all asm volatiles)
+> and the visibility order is guaranteed by the nature of the two
+> operations going on here - both perform modify-and-test on one end of
+> the operations.
+> 
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index cb1c9de..764b9e4 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3141,8 +3141,6 @@ int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
- 			return -ENOMEM;
- 		}
- 
--		INIT_WORK(&s->memcg_params->destroy,
--				kmem_cache_destroy_work_func);
- 		s->memcg_params->is_root_cache = true;
- 
- 		/*
--- 
-1.8.1.4
+Yeah, I think you're right.
+
+> It could be argued that having memory barriers is better for
+> completeness of mark/test interface but then those barriers should
+> really moved into memcg_kmem_mark_dead() and its clearing counterpart.
+> 
+> While it's all clever and dandy, my recommendation would be just using
+> a lock for synchronization.  It isn't a hot path.  Why be clever?
+> 
+
+I don't quite like adding a lock not to protect data but just ensure code
+orders.
+
+Michal, what's your preference? I want to be sure that everyone is happy
+so the next version will hopefully be the last version.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
