@@ -1,60 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 7FA776B0074
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 05:29:51 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Thu, 23 May 2013 06:27:04 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id C38A12BB0051
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 19:29:40 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4M9FWDT21102716
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 19:15:32 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4M9TdNY011111
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 19:29:40 +1000
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH 3/4] mm/hugetlb: remove hugetlb_prefault 
-Date: Wed, 22 May 2013 17:29:29 +0800
-Message-Id: <1369214970-1526-3-git-send-email-liwanp@linux.vnet.ibm.com>
-In-Reply-To: <1369214970-1526-1-git-send-email-liwanp@linux.vnet.ibm.com>
-References: <1369214970-1526-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 30ACD6B0080
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 05:47:40 -0400 (EDT)
+Date: Wed, 22 May 2013 12:47:09 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH v2 10/10] kernel: might_fault does not imply might_sleep
+Message-ID: <20130522094709.GA26451@redhat.com>
+References: <cover.1368702323.git.mst@redhat.com>
+ <1f85dc8e6a0149677563a2dfb4cef9a9c7eaa391.1368702323.git.mst@redhat.com>
+ <20130516184041.GP19669@dyad.programming.kicks-ass.net>
+ <20130519093526.GD19883@redhat.com>
+ <20130521115734.GA9554@twins.programming.kicks-ass.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130521115734.GA9554@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: linux-kernel@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, David Howells <dhowells@redhat.com>, Hirokazu Takata <takata@linux-m32r.org>, Michal Simek <monstr@monstr.eu>, Koichi Yasutake <yasutake.koichi@jp.panasonic.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Chris Metcalf <cmetcalf@tilera.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Arnd Bergmann <arnd@arndb.de>, linux-arm-kernel@lists.infradead.org, linux-m32r@ml.linux-m32r.org, linux-m32r-ja@ml.linux-m32r.org, microblaze-uclinux@itee.uq.edu.au, linux-am33-list@redhat.com, linuxppc-dev@lists.ozlabs.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, rostedt@goodmis.org
 
-hugetlb_prefault are not used any more, this patch remove it.
+On Tue, May 21, 2013 at 01:57:34PM +0200, Peter Zijlstra wrote:
+> On Sun, May 19, 2013 at 12:35:26PM +0300, Michael S. Tsirkin wrote:
+> > > > --- a/include/linux/kernel.h
+> > > > +++ b/include/linux/kernel.h
+> > > > @@ -198,7 +198,6 @@ void might_fault(void);
+> > > >  #else
+> > > >  static inline void might_fault(void)
+> > > >  {
+> > > > -	might_sleep();
+> > > 
+> > > This removes potential resched points for PREEMPT_VOLUNTARY -- was that
+> > > intentional?
+> > 
+> > No it's a bug. Thanks for pointing this out.
+> > OK so I guess it should be might_sleep_if(!in_atomic())
+> > and this means might_fault would have to move from linux/kernel.h to
+> > linux/uaccess.h, since in_atomic() is in linux/hardirq.h
+> > 
+> > Makes sense?
+> 
+> So the only difference between PROVE_LOCKING and not should be the
+> might_lock_read() thing; so how about something like this?
+> 
+> ---
+>  include/linux/kernel.h  |  7 ++-----
+>  include/linux/uaccess.h | 26 ++++++++++++++++++++++++++
+>  mm/memory.c             | 14 ++------------
+>  3 files changed, 30 insertions(+), 17 deletions(-)
+> 
+> diff --git a/include/linux/kernel.h b/include/linux/kernel.h
+> index e96329c..70812f4 100644
+> --- a/include/linux/kernel.h
+> +++ b/include/linux/kernel.h
+> @@ -194,12 +194,9 @@ extern int _cond_resched(void);
+>  	})
+>  
+>  #ifdef CONFIG_PROVE_LOCKING
+> -void might_fault(void);
+> +void might_fault_lockdep(void);
+>  #else
+> -static inline void might_fault(void)
+> -{
+> -	might_sleep();
+> -}
+> +static inline void might_fault_lockdep(void) { }
+>  #endif
+>  
+>  extern struct atomic_notifier_head panic_notifier_list;
+> diff --git a/include/linux/uaccess.h b/include/linux/uaccess.h
+> index 5ca0951..50a2cc9 100644
+> --- a/include/linux/uaccess.h
+> +++ b/include/linux/uaccess.h
+> @@ -38,6 +38,32 @@ static inline void pagefault_enable(void)
+>  	preempt_check_resched();
+>  }
+>  
+> +static inline bool __can_fault(void)
+> +{
+> +	/*
+> +	 * Some code (nfs/sunrpc) uses socket ops on kernel memory while
+> +	 * holding the mmap_sem, this is safe because kernel memory doesn't
+> +	 * get paged out, therefore we'll never actually fault, and the
+> +	 * below annotations will generate false positives.
+> +	 */
+> +	if (segment_eq(get_fs(), KERNEL_DS))
+> +		return false;
+> +
+> +	if (in_atomic() /* || pagefault_disabled() */)
 
-Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
----
- include/linux/hugetlb.h | 2 --
- 1 file changed, 2 deletions(-)
+One question here: I'm guessing you put this comment here
+for illustrative purposes, implying code that will
+be enabled in -rt?
+We don't want it upstream I think, right?
 
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 6b4890f..a811149 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -55,7 +55,6 @@ void __unmap_hugepage_range_final(struct mmu_gather *tlb,
- void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 				unsigned long start, unsigned long end,
- 				struct page *ref_page);
--int hugetlb_prefault(struct address_space *, struct vm_area_struct *);
- void hugetlb_report_meminfo(struct seq_file *);
- int hugetlb_report_node_meminfo(int, char *);
- void hugetlb_show_meminfo(void);
-@@ -110,7 +109,6 @@ static inline unsigned long hugetlb_total_pages(void)
- #define follow_hugetlb_page(m,v,p,vs,a,b,i,w)	({ BUG(); 0; })
- #define follow_huge_addr(mm, addr, write)	ERR_PTR(-EINVAL)
- #define copy_hugetlb_page_range(src, dst, vma)	({ BUG(); 0; })
--#define hugetlb_prefault(mapping, vma)		({ BUG(); 0; })
- static inline void hugetlb_report_meminfo(struct seq_file *m)
- {
- }
--- 
-1.8.1.2
+
+> +		return false;
+> +
+> +	return true;
+> +}
+> +
+> +static inline void might_fault(void)
+> +{
+> +	if (!__can_fault())
+> +		return;
+> +
+> +	might_sleep();
+> +	might_fault_lockdep();
+> +}
+> +
+>  #ifndef ARCH_HAS_NOCACHE_UACCESS
+>  
+>  static inline unsigned long __copy_from_user_inatomic_nocache(void *to,
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 6dc1882..266610c 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -4211,19 +4211,9 @@ void print_vma_addr(char *prefix, unsigned long ip)
+>  }
+>  
+>  #ifdef CONFIG_PROVE_LOCKING
+> -void might_fault(void)
+> +void might_fault_lockdep(void)
+>  {
+>  	/*
+> -	 * Some code (nfs/sunrpc) uses socket ops on kernel memory while
+> -	 * holding the mmap_sem, this is safe because kernel memory doesn't
+> -	 * get paged out, therefore we'll never actually fault, and the
+> -	 * below annotations will generate false positives.
+> -	 */
+> -	if (segment_eq(get_fs(), KERNEL_DS))
+> -		return;
+> -
+> -	might_sleep();
+> -	/*
+>  	 * it would be nicer only to annotate paths which are not under
+>  	 * pagefault_disable, however that requires a larger audit and
+>  	 * providing helpers like get_user_atomic.
+> @@ -4231,7 +4221,7 @@ void might_fault(void)
+>  	if (!in_atomic() && current->mm)
+>  		might_lock_read(&current->mm->mmap_sem);
+>  }
+> -EXPORT_SYMBOL(might_fault);
+> +EXPORT_SYMBOL(might_fault_lockdep);
+>  #endif
+>  
+>  #if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
