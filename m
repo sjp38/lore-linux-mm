@@ -1,74 +1,122 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: Bye bye Mr tmem guy
-Date: Tue, 21 May 2013 08:09:29 +0800
-Message-ID: <34341.3773611703$1369120122@news.gmane.org>
-References: <c064ee79-6fa0-4833-b3f1-ca712b029a83@default>
+Subject: Re: [PATCH 1/4] mm/memory-hotplug: fix lowmem count overflow when
+ offline pages
+Date: Thu, 23 May 2013 07:38:54 +0800
+Message-ID: <47559.6518525437$1369265964@news.gmane.org>
+References: <1369214970-1526-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <20130522104937.GC19989@dhcp22.suse.cz>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Return-path: <xen-devel-bounces@lists.xen.org>
+Content-Type: text/plain; charset=us-ascii
+Return-path: <owner-linux-mm@kvack.org>
+Received: from kanga.kvack.org ([205.233.56.17])
+	by plane.gmane.org with esmtp (Exim 4.69)
+	(envelope-from <owner-linux-mm@kvack.org>)
+	id 1UfIcn-0004xf-2c
+	for glkm-linux-mm-2@m.gmane.org; Thu, 23 May 2013 01:39:17 +0200
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 46B9F6B0002
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 19:39:07 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Thu, 23 May 2013 09:32:31 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id BC7852BB0051
+	for <linux-mm@kvack.org>; Thu, 23 May 2013 09:38:57 +1000 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4MNOdWk11534390
+	for <linux-mm@kvack.org>; Thu, 23 May 2013 09:24:39 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4MNctF8004129
+	for <linux-mm@kvack.org>; Thu, 23 May 2013 09:38:56 +1000
 Content-Disposition: inline
-In-Reply-To: <c064ee79-6fa0-4833-b3f1-ca712b029a83@default>
-List-Unsubscribe: <http://lists.xen.org/cgi-bin/mailman/options/xen-devel>,
-	<mailto:xen-devel-request@lists.xen.org?subject=unsubscribe>
-List-Post: <mailto:xen-devel@lists.xen.org>
-List-Help: <mailto:xen-devel-request@lists.xen.org?subject=help>
-List-Subscribe: <http://lists.xen.org/cgi-bin/mailman/listinfo/xen-devel>,
-	<mailto:xen-devel-request@lists.xen.org?subject=subscribe>
-Sender: xen-devel-bounces@lists.xen.org
-Errors-To: xen-devel-bounces@lists.xen.org
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: linux-mm@kvack.org, Bob Liu <bob.liu@oracle.com>, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, Konrad Wilk <konrad.wilk@oracle.com>
-List-Id: linux-mm.kvack.org
+In-Reply-To: <20130522104937.GC19989@dhcp22.suse.cz>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, May 20, 2013 at 08:51:47AM -0700, Dan Magenheimer wrote:
->Hi Linux kernel folks and Xen folks --
+On Wed, May 22, 2013 at 12:49:37PM +0200, Michal Hocko wrote:
+>On Wed 22-05-13 17:29:27, Wanpeng Li wrote:
+>> Logic memory-remove code fails to correctly account the Total High Memory 
+>> when a memory block which contains High Memory is offlined as shown in the
+>> example below. The following patch fixes it.
+>> 
+>> cat /proc/meminfo 
+>> MemTotal:        7079452 kB
+>> MemFree:         5805976 kB
+>> Buffers:           94372 kB
+>> Cached:           872000 kB
+>> SwapCached:            0 kB
+>> Active:           626936 kB
+>> Inactive:         519236 kB
+>> Active(anon):     180780 kB
+>> Inactive(anon):   222944 kB
+>> Active(file):     446156 kB
+>> Inactive(file):   296292 kB
+>> Unevictable:           0 kB
+>> Mlocked:               0 kB
+>> HighTotal:       7294672 kB
+>> HighFree:        5181024 kB
+>> LowTotal:       4294752076 kB
+>> LowFree:          624952 kB
 >
->Effective July 5, I will be resigning from Oracle and "retiring"
->for a minimum of 12-18 months and probably/hopefully much longer.
->Between now and July 5, I will be tying up loose ends related to
->my patches but also using up accrued vacation days.  If you have
->a loose end you'd like to see tied, please let me know ASAP and
->I will do my best.
+>Ok, so the HighTotal is higher than MemTotal but it would have been more
+>straightforward to show number of HighTotal before hotremove, show how
+>much memory has been removed and the number after.
+>
+>It is not clear which stable kernels need this fix as well.
 >
 
-Thanks for your great contributions, enjoy your time. ;-)
+THanks for your review, Michal, I will update soon. ;-)
 
->After July 5, any email to me via first DOT last AT oracle DOT com
->will go undelivered and may bounce.  Please send email related to
->my open source patches and contributions to Konrad Wilk and/or Bob Liu.
->Personal email directed to me can be sent to first AT last DOT com.
+>> 
+>> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 >
->Thanks much to everybody for the many educational opportunities,
->the technical and political jousting, and the great times at
->conferences and summits!  I wish you all the best of luck!
->Or to quote Douglas Adams: "So long and thanks for all the fish!"
+>Anyway
+>Reviewed-by: Michal Hocko <mhocko@suse.cz>
 >
->Cheers,
->Dan Magenheimer
->The Transcendent Memory ("tmem") guy
+>with a nit pick bellow
 >
->Tmem-related historical webography:
->http://lwn.net/Articles/454795/ 
->http://lwn.net/Articles/475681/
->http://lwn.net/Articles/545244/ 
->https://oss.oracle.com/projects/tmem/ 
->http://www.linux-kvm.org/wiki/images/d/d7/TmemNotVirt-Linuxcon2011-Final.pdf 
->http://lwn.net/Articles/465317/ 
->http://lwn.net/Articles/340080/ 
->http://lwn.net/Articles/386090/ 
->http://www.xen.org/files/xensummit_oracle09/xensummit_transmemory.pdf 
->https://oss.oracle.com/projects/tmem/dist/documentation/presentations/TranscendentMemoryXenSummit2010.pdf 
->https://blogs.oracle.com/wim/entry/example_of_transcendent_memory_and 
->https://blogs.oracle.com/wim/entry/another_feature_hit_mainline_linux 
->https://blogs.oracle.com/wim/entry/from_the_research_department_ramster 
->http://streaming.oracle.com/ebn/podcasts/media/11663326_VM_Linux_042512.mp3 
->https://oss.oracle.com/projects/tmem/dist/documentation/papers/overcommit.pdf 
->http://static.usenix.org/event/wiov08/tech/full_papers/magenheimer/magenheimer_html/ 
+>> ---
+>>  mm/page_alloc.c | 4 ++++
+>>  1 file changed, 4 insertions(+)
+>> 
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index 98cbdf6..80474b2 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -6140,6 +6140,10 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+>>  		list_del(&page->lru);
+>>  		rmv_page_order(page);
+>>  		zone->free_area[order].nr_free--;
+>> +#ifdef CONFIG_HIGHMEM
+>> +		if (PageHighMem(page))
+>> +			totalhigh_pages -= 1 << order;
+>> +#endif
 >
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>ifdef shouldn't be necessary as PageHighMem should default to false for
+>!CONFIG_HIGHMEM AFAICS.
+>
+>>  		for (i = 0; i < (1 << order); i++)
+>>  			SetPageReserved((page+i));
+>>  		pfn += (1 << order);
+>> -- 
+>> 1.8.1.2
+>> 
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
+>-- 
+>Michal Hocko
+>SUSE Labs
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
