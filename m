@@ -1,65 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id E2D126B00C7
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 10:20:11 -0400 (EDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <519BF8A0.5000103@sr71.net>
-References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1368321816-17719-27-git-send-email-kirill.shutemov@linux.intel.com>
- <519BF8A0.5000103@sr71.net>
-Subject: Re: [PATCHv4 26/39] ramfs: enable transparent huge page cache
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 35D106B00C8
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 10:20:24 -0400 (EDT)
+Message-ID: <519CD42C.6040600@sr71.net>
+Date: Wed, 22 May 2013 07:20:28 -0700
+From: Dave Hansen <dave@sr71.net>
+MIME-Version: 1.0
+Subject: Re: [PATCHv4 04/39] radix-tree: implement preload for multiple contiguous
+ elements
+References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com> <1368321816-17719-5-git-send-email-kirill.shutemov@linux.intel.com> <519BC3BE.3070702@sr71.net> <20130522120356.9CB12E0090@blue.fi.intel.com>
+In-Reply-To: <20130522120356.9CB12E0090@blue.fi.intel.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Message-Id: <20130522142236.315C7E0090@blue.fi.intel.com>
-Date: Wed, 22 May 2013 17:22:36 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Dave Hansen wrote:
-> On 05/11/2013 06:23 PM, Kirill A. Shutemov wrote:
-> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> > 
-> > ramfs is the most simple fs from page cache point of view. Let's start
-> > transparent huge page cache enabling here.
-> > 
-> > For now we allocate only non-movable huge page. ramfs pages cannot be
-> > moved yet.
-> > 
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > ---
-> >  fs/ramfs/inode.c |    6 +++++-
-> >  1 file changed, 5 insertions(+), 1 deletion(-)
-> > 
-> > diff --git a/fs/ramfs/inode.c b/fs/ramfs/inode.c
-> > index c24f1e1..54d69c7 100644
-> > --- a/fs/ramfs/inode.c
-> > +++ b/fs/ramfs/inode.c
-> > @@ -61,7 +61,11 @@ struct inode *ramfs_get_inode(struct super_block *sb,
-> >  		inode_init_owner(inode, dir, mode);
-> >  		inode->i_mapping->a_ops = &ramfs_aops;
-> >  		inode->i_mapping->backing_dev_info = &ramfs_backing_dev_info;
-> > -		mapping_set_gfp_mask(inode->i_mapping, GFP_HIGHUSER);
-> > +		/*
-> > +		 * TODO: make ramfs pages movable
-> > +		 */
-> > +		mapping_set_gfp_mask(inode->i_mapping,
-> > +				GFP_TRANSHUGE & ~__GFP_MOVABLE);
+On 05/22/2013 05:03 AM, Kirill A. Shutemov wrote:
+> On most machines we will have RADIX_TREE_MAP_SHIFT=6. In this case,
+> on 64-bit system the per-CPU feature overhead is
+>  for preload array:
+>    (30 - 21) * sizeof(void*) = 72 bytes
+>  plus, if the preload array is full
+>    (30 - 21) * sizeof(struct radix_tree_node) = 9 * 560 = 5040 bytes
+>  total: 5112 bytes
 > 
-> So, before these patches, ramfs was movable.  Now, even on architectures
-> or configurations that have no chance of using THP-pagecache, ramfs
-> pages are no longer movable.  Right?
+> on 32-bit system the per-CPU feature overhead is
+>  for preload array:
+>    (19 - 11) * sizeof(void*) = 32 bytes
+>  plus, if the preload array is full
+>    (19 - 11) * sizeof(struct radix_tree_node) = 8 * 296 = 2368 bytes
+>  total: 2400 bytes
+> ---
+> 
+> Is it good enough?
 
-No, it wasn't movable. GFP_HIGHUSER is not GFP_HIGHUSER_MOVABLE (yeah,
-names of gfp constants could be more consistent).
-
-ramfs should be fixed to use movable pages, but it's outside the scope of the
-patchset.
-
-See more details: http://lkml.org/lkml/2013/4/2/720
-
--- 
- Kirill A. Shutemov
+Yup, just stick the calculations way down in the commit message.  You
+can put the description that it "eats about 5k more memory per-cpu than
+existing code" up in the very beginning.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
