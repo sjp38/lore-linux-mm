@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 255876B00D3
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 10:55:47 -0400 (EDT)
-Message-ID: <519CDC70.7010308@sr71.net>
-Date: Wed, 22 May 2013 07:55:44 -0700
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 24D2D6B00D4
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 10:57:02 -0400 (EDT)
+Message-ID: <519CDCBB.7050807@sr71.net>
+Date: Wed, 22 May 2013 07:56:59 -0700
 From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Subject: Re: [PATCHv4 26/39] ramfs: enable transparent huge page cache
-References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com> <1368321816-17719-27-git-send-email-kirill.shutemov@linux.intel.com> <519BF8A0.5000103@sr71.net> <20130522142236.315C7E0090@blue.fi.intel.com>
-In-Reply-To: <20130522142236.315C7E0090@blue.fi.intel.com>
+Subject: Re: [PATCHv4 29/39] thp: move maybe_pmd_mkwrite() out of mk_huge_pmd()
+References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com> <1368321816-17719-30-git-send-email-kirill.shutemov@linux.intel.com> <519C01D8.4040301@sr71.net> <20130522143746.A7CE5E0090@blue.fi.intel.com>
+In-Reply-To: <20130522143746.A7CE5E0090@blue.fi.intel.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -16,30 +16,25 @@ List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 05/22/2013 07:22 AM, Kirill A. Shutemov wrote:
+On 05/22/2013 07:37 AM, Kirill A. Shutemov wrote:
 > Dave Hansen wrote:
->>> +		/*
->>> +		 * TODO: make ramfs pages movable
->>> +		 */
->>> +		mapping_set_gfp_mask(inode->i_mapping,
->>> +				GFP_TRANSHUGE & ~__GFP_MOVABLE);
+>> On 05/11/2013 06:23 PM, Kirill A. Shutemov wrote:
+>>> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+>>>
+>>> It's confusing that mk_huge_pmd() has sematics different from mk_pte()
+>>> or mk_pmd().
+>>>
+>>> Let's move maybe_pmd_mkwrite() out of mk_huge_pmd() and adjust
+>>> prototype to match mk_pte().
 >>
->> So, before these patches, ramfs was movable.  Now, even on architectures
->> or configurations that have no chance of using THP-pagecache, ramfs
->> pages are no longer movable.  Right?
+>> Was there a motivation to do this beyond adding consistency?  Do you use
+>> this later or something?
 > 
-> No, it wasn't movable. GFP_HIGHUSER is not GFP_HIGHUSER_MOVABLE (yeah,
-> names of gfp constants could be more consistent).
-> 
-> ramfs should be fixed to use movable pages, but it's outside the scope of the
-> patchset.
-> 
-> See more details: http://lkml.org/lkml/2013/4/2/720
+> I spent some time on debugging problem caused by this inconsistency, so at
+> that point I was motivated to fix it. :)
 
-Please make sure this is clear from the patch description.
-
-Personally, I wouldn't be adding TODO's to the code that I'm not
-planning to go fix, lest I would get tagged with _doing_ it. :)
+A little anecdote that this bit you in practice to help indicate this
+isn't just random code churn would be nice.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
