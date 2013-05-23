@@ -1,113 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id C84DA6B0032
-	for <linux-mm@kvack.org>; Thu, 23 May 2013 12:45:36 -0400 (EDT)
-Message-ID: <1369327533.5673.75.camel@misato.fc.hp.com>
-Subject: Re: [PATCH *5/5] Memory hotplug / ACPI: Simplify memory removal
- (was: Re: [PATCH 5/5] ACPI / memhotplug: Drop unnecessary code)
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Thu, 23 May 2013 10:45:33 -0600
-In-Reply-To: <13857057.cWE1koxP0r@vostro.rjw.lan>
-References: <2250271.rGYN6WlBxf@vostro.rjw.lan>
-	 <1726699.Z30ifEcQDQ@vostro.rjw.lan>
-	 <1369079733.5673.58.camel@misato.fc.hp.com>
-	 <13857057.cWE1koxP0r@vostro.rjw.lan>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id CE2066B0032
+	for <linux-mm@kvack.org>; Thu, 23 May 2013 13:08:09 -0400 (EDT)
+Received: by mail-we0-f172.google.com with SMTP id w62so2289209wes.17
+        for <linux-mm@kvack.org>; Thu, 23 May 2013 10:08:08 -0700 (PDT)
+From: Steve Capper <steve.capper@linaro.org>
+Subject: [PATCH 00/11] HugeTLB and THP support for ARM64.
+Date: Thu, 23 May 2013 18:07:47 +0100
+Message-Id: <1369328878-11706-1-git-send-email-steve.capper@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: ACPI Devel Maling List <linux-acpi@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Wen Congyang <wency@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Jiang Liu <liuj97@gmail.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+Cc: Michal Hocko <mhocko@suse.cz>, Ken Chen <kenchen@google.com>, Mel Gorman <mgorman@suse.de>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, patches@linaro.org, Steve Capper <steve.capper@linaro.org>
 
-On Thu, 2013-05-23 at 00:09 +0200, Rafael J. Wysocki wrote:
-> On Monday, May 20, 2013 01:55:33 PM Toshi Kani wrote:
-> > On Mon, 2013-05-20 at 21:47 +0200, Rafael J. Wysocki wrote:
-> > > On Monday, May 20, 2013 11:27:56 AM Toshi Kani wrote:
-> > > > On Sun, 2013-05-19 at 01:34 +0200, Rafael J. Wysocki wrote:
-> > > > > From: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
-> > 
-> >  :
-> > 
-> > > > > -	lock_memory_hotplug();
-> > > > > -
-> > > > > -	/*
-> > > > > -	 * we have offlined all memory blocks like this:
-> > > > > -	 *   1. lock memory hotplug
-> > > > > -	 *   2. offline a memory block
-> > > > > -	 *   3. unlock memory hotplug
-> > > > > -	 *
-> > > > > -	 * repeat step1-3 to offline the memory block. All memory blocks
-> > > > > -	 * must be offlined before removing memory. But we don't hold the
-> > > > > -	 * lock in the whole operation. So we should check whether all
-> > > > > -	 * memory blocks are offlined.
-> > > > > -	 */
-> > > > > -
-> > > > > -	ret = walk_memory_range(start_pfn, end_pfn, NULL,
-> > > > > -				is_memblock_offlined_cb);
-> > > > > -	if (ret) {
-> > > > > -		unlock_memory_hotplug();
-> > > > > -		return ret;
-> > > > > -	}
-> > > > > -
-> > > > 
-> > > > I think the above procedure is still useful for safe guard.
-> > > 
-> > > But then it shoud to BUG_ON() instead of returning an error (which isn't very
-> > > useful for anything now).
-> > 
-> > Right since we cannot fail at that state.
-> > 
-> > > > > -	/* remove memmap entry */
-> > > > > -	firmware_map_remove(start, start + size, "System RAM");
-> > > > > -
-> > > > > -	arch_remove_memory(start, size);
-> > > > > -
-> > > > > -	try_offline_node(nid);
-> > > > 
-> > > > The above procedure performs memory hot-delete specific operations and
-> > > > is necessary.
-> > > 
-> > > OK, I see.  I'll replace this patch with something simpler, then.
-> > 
-> > Thanks.
-> 
-> The replacement patch is appended.
+This series brings huge pages and transparent huge pages to ARM64.
+The functionality is very similar to x86, and a lot of code that can
+be used by both ARM64 and x86 is brought into mm to avoid the need
+for code duplication.
 
-The updated patch looks good.
+One notable difference from x86 is that ARM64 supports normal pages
+that are 64KB. When 64KB pages are enabled, huge page and
+transparent huge pages are 512MB only, otherwise the sizes match
+x86.
 
-Reviewed-by: Toshi Kani <toshi.kani@hp.com>
+This series applies to 3.10-rc2.
 
-Thanks,
--Toshi
+I've tested this under the ARMv8 Fast model and the x86 code has
+been tested in a KVM guest. libhugetlbfs was used for testing under
+both architectures.
 
+Changelog:
+Patch:
+   * pud_large usage replaced with pud_huge for general hugetlb
+     code imported into mm.
+   * comments tidied up for bit swap of PTE_FILE, PTE_PROT_NONE.
 
-> 
-> Thanks,
-> Rafael
-> 
-> ---
-> From: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
-> Subject: Memory hotplug / ACPI: Simplify memory removal
-> 
-> Now that the memory offlining should be taken care of by the
-> companion device offlining code in acpi_scan_hot_remove(), the
-> ACPI memory hotplug driver doesn't need to offline it in
-> remove_memory() any more.  Moreover, since the return value of
-> remove_memory() is not used, it's better to make it be a void
-> function and trigger a BUG() if the memory scheduled for removal is
-> not offline.
-> 
-> Change the code in accordance with the above observations.
-> 
-> Signed-off-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
-> ---
->  drivers/acpi/acpi_memhotplug.c |   13 +------
->  include/linux/memory_hotplug.h |    2 -
->  mm/memory_hotplug.c            |   71 ++++-------------------------------------
->  3 files changed, 12 insertions(+), 74 deletions(-)
+RFC v2:
+   * PROT_NONE support added for HugeTLB and THP.
+   * pmd_modify implementation fixed.
+   * Superfluous huge dcache flushing code removed.
+   * Simplified (and corrected) MAX_ORDER raise for THP && 64KB
+     pages.
+   * The MAX_ORDER check in huge_mm.h has been corrected.
 
+---
 
+Steve Capper (11):
+  mm: hugetlb: Copy huge_pmd_share from x86 to mm.
+  x86: mm: Remove x86 version of huge_pmd_share.
+  mm: hugetlb: Copy general hugetlb code from x86 to mm.
+  x86: mm: Remove general hugetlb code from x86.
+  mm: thp: Correct the HPAGE_PMD_ORDER check.
+  ARM64: mm: Restore memblock limit when map_mem finished.
+  ARM64: mm: Make PAGE_NONE pages read only and no-execute.
+  ARM64: mm: Swap PTE_FILE and PTE_PROT_NONE bits.
+  ARM64: mm: HugeTLB support.
+  ARM64: mm: Raise MAX_ORDER for 64KB pages and THP.
+  ARM64: mm: THP support.
+
+ arch/arm64/Kconfig                     |  17 +++
+ arch/arm64/include/asm/hugetlb.h       | 117 ++++++++++++++++++
+ arch/arm64/include/asm/pgtable-hwdef.h |  12 ++
+ arch/arm64/include/asm/pgtable.h       |  84 +++++++++++--
+ arch/arm64/include/asm/tlb.h           |   6 +
+ arch/arm64/include/asm/tlbflush.h      |   2 +
+ arch/arm64/mm/Makefile                 |   1 +
+ arch/arm64/mm/fault.c                  |  19 +--
+ arch/arm64/mm/hugetlbpage.c            |  70 +++++++++++
+ arch/arm64/mm/mmu.c                    |  19 ++-
+ arch/x86/Kconfig                       |   6 +
+ arch/x86/mm/hugetlbpage.c              | 187 ----------------------------
+ include/linux/huge_mm.h                |   2 +-
+ include/linux/hugetlb.h                |   4 +
+ mm/hugetlb.c                           | 219 +++++++++++++++++++++++++++++++--
+ 15 files changed, 537 insertions(+), 228 deletions(-)
+ create mode 100644 arch/arm64/include/asm/hugetlb.h
+ create mode 100644 arch/arm64/mm/hugetlbpage.c
+
+-- 
+1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
