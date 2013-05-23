@@ -1,168 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id CFC406B003B
-	for <linux-mm@kvack.org>; Thu, 23 May 2013 01:25:50 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 615B53EE0C7
-	for <linux-mm@kvack.org>; Thu, 23 May 2013 14:25:49 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 51E8245DEBE
-	for <linux-mm@kvack.org>; Thu, 23 May 2013 14:25:49 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2FCE345DEB6
-	for <linux-mm@kvack.org>; Thu, 23 May 2013 14:25:49 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 208A2E18002
-	for <linux-mm@kvack.org>; Thu, 23 May 2013 14:25:49 +0900 (JST)
-Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id BA8AB1DB8038
-	for <linux-mm@kvack.org>; Thu, 23 May 2013 14:25:48 +0900 (JST)
-From: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
-Subject: [PATCH v8 9/9] vmcore: support mmap() on /proc/vmcore
-Date: Thu, 23 May 2013 14:25:48 +0900
-Message-ID: <20130523052547.13864.83306.stgit@localhost6.localdomain6>
-In-Reply-To: <20130523052421.13864.83978.stgit@localhost6.localdomain6>
-References: <20130523052421.13864.83978.stgit@localhost6.localdomain6>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id EED2A6B0002
+	for <linux-mm@kvack.org>; Thu, 23 May 2013 04:43:00 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Thu, 23 May 2013 14:06:59 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 200FD1258056
+	for <linux-mm@kvack.org>; Thu, 23 May 2013 14:14:54 +0530 (IST)
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4N8gohC11534684
+	for <linux-mm@kvack.org>; Thu, 23 May 2013 14:12:50 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4N8gsXr018846
+	for <linux-mm@kvack.org>; Thu, 23 May 2013 18:42:55 +1000
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v2 1/4] mm/memory-hotplug: fix lowmem count overflow when offline pages 
+Date: Thu, 23 May 2013 16:42:45 +0800
+Message-Id: <1369298568-20094-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: vgoyal@redhat.com, ebiederm@xmission.com, akpm@linux-foundation.org
-Cc: cpw@sgi.com, kumagai-atsushi@mxc.nes.nec.co.jp, lisa.mitchell@hp.com, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, zhangyanfei@cn.fujitsu.com, jingbai.ma@hp.com, linux-mm@kvack.org, riel@redhat.com, walken@google.com, hughd@google.com, kosaki.motohiro@jp.fujitsu.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-This patch introduces mmap_vmcore().
+Changelog:
+ v1 -> v2:
+	* show number of HighTotal before hotremove 
+	* remove CONFIG_HIGHMEM
+	* cc stable kernels
+	* add Michal reviewed-by
 
-Don't permit writable nor executable mapping even with mprotect()
-because this mmap() is aimed at reading crash dump memory.
-Non-writable mapping is also requirement of remap_pfn_range() when
-mapping linear pages on non-consecutive physical pages; see
-is_cow_mapping().
+Logic memory-remove code fails to correctly account the Total High Memory 
+when a memory block which contains High Memory is offlined as shown in the
+example below. The following patch fixes it.
 
-Set VM_MIXEDMAP flag to remap memory by remap_pfn_range and by
-remap_vmalloc_range_pertial at the same time for a single
-vma. do_munmap() can correctly clean partially remapped vma with two
-functions in abnormal case. See zap_pte_range(), vm_normal_page() and
-their comments for details.
+Stable for 2.6.24+.
 
-On x86-32 PAE kernels, mmap() supports at most 16TB memory only. This
-limitation comes from the fact that the third argument of
-remap_pfn_range(), pfn, is of 32-bit length on x86-32: unsigned long.
+Before logic memory remove:
 
-Signed-off-by: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
-Acked-by: Vivek Goyal <vgoyal@redhat.com>
+MemTotal:        7603740 kB
+MemFree:         6329612 kB
+Buffers:           94352 kB
+Cached:           872008 kB
+SwapCached:            0 kB
+Active:           626932 kB
+Inactive:         519216 kB
+Active(anon):     180776 kB
+Inactive(anon):   222944 kB
+Active(file):     446156 kB
+Inactive(file):   296272 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+HighTotal:       7294672 kB
+HighFree:        5704696 kB
+LowTotal:         309068 kB
+LowFree:          624916 kB
+
+After logic memory remove:
+
+MemTotal:        7079452 kB
+MemFree:         5805976 kB
+Buffers:           94372 kB
+Cached:           872000 kB
+SwapCached:            0 kB
+Active:           626936 kB
+Inactive:         519236 kB
+Active(anon):     180780 kB
+Inactive(anon):   222944 kB
+Active(file):     446156 kB
+Inactive(file):   296292 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+HighTotal:       7294672 kB
+HighFree:        5181024 kB
+LowTotal:       4294752076 kB
+LowFree:          624952 kB
+
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
+ mm/page_alloc.c | 2 ++
+ 1 file changed, 2 insertions(+)
 
- fs/proc/vmcore.c |   86 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 files changed, 86 insertions(+), 0 deletions(-)
-
-diff --git a/fs/proc/vmcore.c b/fs/proc/vmcore.c
-index f71157d..80221d7 100644
---- a/fs/proc/vmcore.c
-+++ b/fs/proc/vmcore.c
-@@ -20,6 +20,7 @@
- #include <linux/init.h>
- #include <linux/crash_dump.h>
- #include <linux/list.h>
-+#include <linux/vmalloc.h>
- #include <asm/uaccess.h>
- #include <asm/io.h>
- #include "internal.h"
-@@ -200,9 +201,94 @@ static ssize_t read_vmcore(struct file *file, char __user *buffer,
- 	return acc;
- }
- 
-+static int mmap_vmcore(struct file *file, struct vm_area_struct *vma)
-+{
-+	size_t size = vma->vm_end - vma->vm_start;
-+	u64 start, end, len, tsz;
-+	struct vmcore *m;
-+
-+	start = (u64)vma->vm_pgoff << PAGE_SHIFT;
-+	end = start + size;
-+
-+	if (size > vmcore_size || end > vmcore_size)
-+		return -EINVAL;
-+
-+	if (vma->vm_flags & (VM_WRITE | VM_EXEC))
-+		return -EPERM;
-+
-+	vma->vm_flags &= ~(VM_MAYWRITE | VM_MAYEXEC);
-+	vma->vm_flags |= VM_MIXEDMAP;
-+
-+	len = 0;
-+
-+	if (start < elfcorebuf_sz) {
-+		u64 pfn;
-+
-+		tsz = elfcorebuf_sz - start;
-+		if (size < tsz)
-+			tsz = size;
-+		pfn = __pa(elfcorebuf + start) >> PAGE_SHIFT;
-+		if (remap_pfn_range(vma, vma->vm_start, pfn, tsz,
-+				    vma->vm_page_prot))
-+			return -EAGAIN;
-+		size -= tsz;
-+		start += tsz;
-+		len += tsz;
-+
-+		if (size == 0)
-+			return 0;
-+	}
-+
-+	if (start < elfcorebuf_sz + elfnotes_sz) {
-+		void *kaddr;
-+
-+		tsz = elfcorebuf_sz + elfnotes_sz - start;
-+		if (size < tsz)
-+			tsz = size;
-+		kaddr = elfnotes_buf + start - elfcorebuf_sz;
-+		if (remap_vmalloc_range_partial(vma, vma->vm_start + len,
-+						kaddr, tsz)) {
-+			do_munmap(vma->vm_mm, vma->vm_start, len);
-+			return -EAGAIN;
-+		}
-+		size -= tsz;
-+		start += tsz;
-+		len += tsz;
-+
-+		if (size == 0)
-+			return 0;
-+	}
-+
-+	list_for_each_entry(m, &vmcore_list, list) {
-+		if (start < m->offset + m->size) {
-+			u64 paddr = 0;
-+
-+			tsz = m->offset + m->size - start;
-+			if (size < tsz)
-+				tsz = size;
-+			paddr = m->paddr + start - m->offset;
-+			if (remap_pfn_range(vma, vma->vm_start + len,
-+					    paddr >> PAGE_SHIFT, tsz,
-+					    vma->vm_page_prot)) {
-+				do_munmap(vma->vm_mm, vma->vm_start, len);
-+				return -EAGAIN;
-+			}
-+			size -= tsz;
-+			start += tsz;
-+			len += tsz;
-+
-+			if (size == 0)
-+				return 0;
-+		}
-+	}
-+
-+	return 0;
-+}
-+
- static const struct file_operations proc_vmcore_operations = {
- 	.read		= read_vmcore,
- 	.llseek		= default_llseek,
-+	.mmap		= mmap_vmcore,
- };
- 
- static struct vmcore* __init get_new_element(void)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 98cbdf6..23b921f 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6140,6 +6140,8 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+ 		list_del(&page->lru);
+ 		rmv_page_order(page);
+ 		zone->free_area[order].nr_free--;
++		if (PageHighMem(page))
++			totalhigh_pages -= 1 << order;
+ 		for (i = 0; i < (1 << order); i++)
+ 			SetPageReserved((page+i));
+ 		pfn += (1 << order);
+-- 
+1.8.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
