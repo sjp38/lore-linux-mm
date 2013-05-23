@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id AB1546B0039
-	for <linux-mm@kvack.org>; Thu, 23 May 2013 13:08:18 -0400 (EDT)
-Received: by mail-we0-f180.google.com with SMTP id t60so1262542wes.11
-        for <linux-mm@kvack.org>; Thu, 23 May 2013 10:08:17 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 6338F6B003B
+	for <linux-mm@kvack.org>; Thu, 23 May 2013 13:08:20 -0400 (EDT)
+Received: by mail-wg0-f46.google.com with SMTP id l18so2176273wgh.13
+        for <linux-mm@kvack.org>; Thu, 23 May 2013 10:08:18 -0700 (PDT)
 From: Steve Capper <steve.capper@linaro.org>
-Subject: [PATCH 05/11] mm: thp: Correct the HPAGE_PMD_ORDER check.
-Date: Thu, 23 May 2013 18:07:52 +0100
-Message-Id: <1369328878-11706-6-git-send-email-steve.capper@linaro.org>
+Subject: [PATCH 06/11] ARM64: mm: Restore memblock limit when map_mem finished.
+Date: Thu, 23 May 2013 18:07:53 +0100
+Message-Id: <1369328878-11706-7-git-send-email-steve.capper@linaro.org>
 In-Reply-To: <1369328878-11706-1-git-send-email-steve.capper@linaro.org>
 References: <1369328878-11706-1-git-send-email-steve.capper@linaro.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,36 +15,71 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 Cc: Michal Hocko <mhocko@suse.cz>, Ken Chen <kenchen@google.com>, Mel Gorman <mgorman@suse.de>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, patches@linaro.org, Steve Capper <steve.capper@linaro.org>
 
-All Transparent Huge Pages are allocated by the buddy allocator.
+In paging_init the memblock limit is set to restrict any addresses
+returned by early_alloc to fit within the initial direct kernel
+mapping in swapper_pg_dir. This allows map_mem to allocate puds,
+pmds and ptes from the initial direct kernel mapping.
 
-A compile time check is in place that fails when the order of a
-transparent huge page is too large to be allocated by the buddy
-allocator. Unfortunately that compile time check passes when:
-HPAGE_PMD_ORDER == MAX_ORDER
-( which is incorrect as the buddy allocator can only allocate
-memory of order strictly less than MAX_ORDER. )
+The limit stays low after paging_init() though, meaning any
+bootmem allocations will be from a restricted subset of memory.
+Gigabyte huge pages, for instance, are normally allocated from
+bootmem as their order (18) is too large for the default buddy
+allocator (MAX_ORDER = 11).
 
-This patch updates the compile time check to fail in the above
-case.
+This patch restores the memblock limit when map_mem has finished,
+allowing gigabyte huge pages (and other objects) to be allocated
+from all of bootmem.
 
 Signed-off-by: Steve Capper <steve.capper@linaro.org>
+Acked-by: Catalin Marinas <catalin.marinas@arm.com>
 ---
- include/linux/huge_mm.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ arch/arm64/mm/mmu.c | 19 +++++++++++++------
+ 1 file changed, 13 insertions(+), 6 deletions(-)
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 528454c..26ee56c 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -123,7 +123,7 @@ extern void __split_huge_page_pmd(struct vm_area_struct *vma,
- 	} while (0)
- extern void split_huge_page_pmd_mm(struct mm_struct *mm, unsigned long address,
- 		pmd_t *pmd);
--#if HPAGE_PMD_ORDER > MAX_ORDER
-+#if HPAGE_PMD_ORDER >= MAX_ORDER
- #error "hugepages can't be allocated by the buddy allocator"
- #endif
- extern int hugepage_madvise(struct vm_area_struct *vma,
+diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
+index eeecc9c..9fa027b 100644
+--- a/arch/arm64/mm/mmu.c
++++ b/arch/arm64/mm/mmu.c
+@@ -297,6 +297,16 @@ static void __init map_mem(void)
+ {
+ 	struct memblock_region *reg;
+ 
++	/*
++	 * Temporarily limit the memblock range. We need to do this as
++	 * create_mapping requires puds, pmds and ptes to be allocated from
++	 * memory addressable from the initial direct kernel mapping.
++	 *
++	 * The initial direct kernel mapping, located at swapper_pg_dir,
++	 * gives us PGDIR_SIZE memory starting from PHYS_OFFSET (aligned).
++	 */
++	memblock_set_current_limit((PHYS_OFFSET & PGDIR_MASK) + PGDIR_SIZE);
++
+ 	/* map all the memory banks */
+ 	for_each_memblock(memory, reg) {
+ 		phys_addr_t start = reg->base;
+@@ -307,6 +317,9 @@ static void __init map_mem(void)
+ 
+ 		create_mapping(start, __phys_to_virt(start), end - start);
+ 	}
++
++	/* Limit no longer required. */
++	memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
+ }
+ 
+ /*
+@@ -317,12 +330,6 @@ void __init paging_init(void)
+ {
+ 	void *zero_page;
+ 
+-	/*
+-	 * Maximum PGDIR_SIZE addressable via the initial direct kernel
+-	 * mapping in swapper_pg_dir.
+-	 */
+-	memblock_set_current_limit((PHYS_OFFSET & PGDIR_MASK) + PGDIR_SIZE);
+-
+ 	init_mem_pgprot();
+ 	map_mem();
+ 
 -- 
 1.8.1.4
 
