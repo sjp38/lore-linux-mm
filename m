@@ -1,16 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 01E946B0002
-	for <linux-mm@kvack.org>; Thu, 23 May 2013 06:36:39 -0400 (EDT)
-Received: by mail-ob0-f181.google.com with SMTP id dn14so3668415obc.26
-        for <linux-mm@kvack.org>; Thu, 23 May 2013 03:36:39 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id A6C656B0002
+	for <linux-mm@kvack.org>; Thu, 23 May 2013 07:01:05 -0400 (EDT)
+Received: by mail-oa0-f42.google.com with SMTP id i10so4197328oag.15
+        for <linux-mm@kvack.org>; Thu, 23 May 2013 04:01:04 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1368321816-17719-8-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1368321816-17719-39-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<1368321816-17719-8-git-send-email-kirill.shutemov@linux.intel.com>
-Date: Thu, 23 May 2013 18:36:39 +0800
-Message-ID: <CAJd=RBAQzDi3RT5e6Kq3MwQPna1tRUETEjLbFka6P2QRZVWMVA@mail.gmail.com>
-Subject: Re: [PATCHv4 07/39] thp, mm: basic defines for transparent huge page cache
+	<1368321816-17719-39-git-send-email-kirill.shutemov@linux.intel.com>
+Date: Thu, 23 May 2013 19:01:04 +0800
+Message-ID: <CAJd=RBDHD9Ov+Bdk1JfiHNYh0+RJmcpej+27HcTFtwnee2Rw5w@mail.gmail.com>
+Subject: Re: [PATCHv4 38/39] thp: vma_adjust_trans_huge(): adjust file-backed
+ VMA too
 From: Hillf Danton <dhillf@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -22,41 +23,65 @@ On Sun, May 12, 2013 at 9:23 AM, Kirill A. Shutemov
 <kirill.shutemov@linux.intel.com> wrote:
 > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 >
-
-Better if one or two sentences are prepared to show that the following
-defines are necessary.
-
+> Since we're going to have huge pages in page cache, we need to call
+> adjust file-backed VMA, which potentially can contain huge pages.
+>
+> For now we call it for all VMAs.
+>
+> Probably later we will need to introduce a flag to indicate that the VMA
+> has huge pages.
+>
 > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 > ---
->  include/linux/huge_mm.h |    8 ++++++++
->  1 file changed, 8 insertions(+)
+
+Acked-by: Hillf Danton <dhillf@gmail.com>
+
+>  include/linux/huge_mm.h |   11 +----------
+>  mm/huge_memory.c        |    2 +-
+>  2 files changed, 2 insertions(+), 11 deletions(-)
 >
 > diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-> index 528454c..6b4c9b2 100644
+> index b20334a..f4d6626 100644
 > --- a/include/linux/huge_mm.h
 > +++ b/include/linux/huge_mm.h
-> @@ -64,6 +64,10 @@ extern pmd_t *page_check_address_pmd(struct page *page,
->  #define HPAGE_PMD_MASK HPAGE_MASK
->  #define HPAGE_PMD_SIZE HPAGE_SIZE
+> @@ -139,7 +139,7 @@ extern void split_huge_page_pmd_mm(struct mm_struct *mm, unsigned long address,
+>  #endif
+>  extern int hugepage_madvise(struct vm_area_struct *vma,
+>                             unsigned long *vm_flags, int advice);
+> -extern void __vma_adjust_trans_huge(struct vm_area_struct *vma,
+> +extern void vma_adjust_trans_huge(struct vm_area_struct *vma,
+>                                     unsigned long start,
+>                                     unsigned long end,
+>                                     long adjust_next);
+> @@ -155,15 +155,6 @@ static inline int pmd_trans_huge_lock(pmd_t *pmd,
+>         else
+>                 return 0;
+>  }
+> -static inline void vma_adjust_trans_huge(struct vm_area_struct *vma,
+> -                                        unsigned long start,
+> -                                        unsigned long end,
+> -                                        long adjust_next)
+> -{
+> -       if (!vma->anon_vma || vma->vm_ops)
+> -               return;
+> -       __vma_adjust_trans_huge(vma, start, end, adjust_next);
+> -}
+>  static inline int hpage_nr_pages(struct page *page)
+>  {
+>         if (unlikely(PageTransHuge(page)))
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index d7c9df5..9c3815b 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -2783,7 +2783,7 @@ static void split_huge_page_address(struct mm_struct *mm,
+>         split_huge_page_pmd_mm(mm, address, pmd);
+>  }
 >
-> +#define HPAGE_CACHE_ORDER      (HPAGE_SHIFT - PAGE_CACHE_SHIFT)
-> +#define HPAGE_CACHE_NR         (1L << HPAGE_CACHE_ORDER)
-> +#define HPAGE_CACHE_INDEX_MASK (HPAGE_CACHE_NR - 1)
-> +
->  extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
->
->  #define transparent_hugepage_enabled(__vma)                            \
-> @@ -185,6 +189,10 @@ extern int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vm
->  #define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })
->  #define HPAGE_PMD_SIZE ({ BUILD_BUG(); 0; })
->
-> +#define HPAGE_CACHE_ORDER      ({ BUILD_BUG(); 0; })
-> +#define HPAGE_CACHE_NR         ({ BUILD_BUG(); 0; })
-> +#define HPAGE_CACHE_INDEX_MASK ({ BUILD_BUG(); 0; })
-> +
->  #define hpage_nr_pages(x) 1
->
->  #define transparent_hugepage_enabled(__vma) 0
+> -void __vma_adjust_trans_huge(struct vm_area_struct *vma,
+> +void vma_adjust_trans_huge(struct vm_area_struct *vma,
+>                              unsigned long start,
+>                              unsigned long end,
+>                              long adjust_next)
 > --
 > 1.7.10.4
 >
