@@ -1,60 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 5B1F06B0033
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 22:00:32 -0400 (EDT)
-Message-ID: <519D7827.80607@oracle.com>
-Date: Thu, 23 May 2013 10:00:07 +0800
-From: Bob Liu <bob.liu@oracle.com>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 8C7166B0002
+	for <linux-mm@kvack.org>; Thu, 23 May 2013 00:34:50 -0400 (EDT)
+Message-ID: <519D9D04.9090403@cn.fujitsu.com>
+Date: Thu, 23 May 2013 12:37:24 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCHv11 2/4] zbud: add to mm/
-References: <1368448803-2089-1-git-send-email-sjenning@linux.vnet.ibm.com> <1368448803-2089-3-git-send-email-sjenning@linux.vnet.ibm.com> <20130517154837.GN11497@suse.de> <20130519205219.GA3252@cerebellum> <20130520135439.GR11497@suse.de> <20130520154225.GA25536@cerebellum> <20130521081020.GT11497@suse.de>
-In-Reply-To: <20130521081020.GT11497@suse.de>
-Content-Type: text/plain; charset=ISO-8859-15
+Subject: Re: [PATCH] Driver core / memory: Simplify __memory_block_change_state()
+References: <1576321.HU0tZ4cGWk@vostro.rjw.lan> <1824290.fKsAJTo9gA@vostro.rjw.lan> <519C4D6E.6080902@cn.fujitsu.com> <1594596.DcsjzgnrZI@vostro.rjw.lan>
+In-Reply-To: <1594596.DcsjzgnrZI@vostro.rjw.lan>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Toshi Kani <toshi.kani@hp.com>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, isimatu.yasuaki@jp.fujitsu.com, vasilis.liaskovitis@profitbricks.com, Len Brown <lenb@kernel.org>, linux-mm@kvack.org
 
-Hi Mel & Seth,
+Reviewed-by: Tang Chen <tangchen@cn.fujitsu.com>
 
-On 05/21/2013 04:10 PM, Mel Gorman wrote:
-> On Mon, May 20, 2013 at 10:42:25AM -0500, Seth Jennings wrote:
->> On Mon, May 20, 2013 at 02:54:39PM +0100, Mel Gorman wrote:
->>> On Sun, May 19, 2013 at 03:52:19PM -0500, Seth Jennings wrote:
->>>> My first guess is that the external fragmentation situation you are referring to
->>>> is a workload in which all pages compress to greater than half a page.  If so,
->>>> then it doesn't matter what NCHUCNKS_ORDER is, there won't be any pages the
->>>> compress enough to fit in the < PAGE_SIZE/2 free space that remains in the
->>>> unbuddied zbud pages.
->>>>
->>>
->>> There are numerous aspects to this, too many to write them all down.
->>> Modelling the external fragmentation one and how it affects swap IO
->>> would be a complete pain in the ass so lets consider the following
->>> example instead as it's a bit clearer.
->>>
->>> Three processes. Process A compresses by 75%, Process B compresses to 15%,
->>> Process C pages compress to 15%. They are all adding to zswap in lockstep.
->>> Lets say that zswap can hold 100 physical pages.
->>>
->>> NCHUNKS == 2
->>> 	All Process A pages get rejected.
->>
->> Ah, I think this is our disconnect.  Process A pages will not be rejected.
->> They will be stored in a zbud page, and that zbud page will be added
->> to the 0th unbuddied list.  This list maintains a list of zbud pages
->> that will never be buddied because there are no free chunks.
->>
-> 
-> D'oh, good point. Unfortunately, the problem then still exists at the
-> writeback end which I didn't bring up in the previous mail. 
+Thanks. :)
 
-What's your opinion if we write back the whole compressed page to swap disk?
-
--- 
-Regards,
--Bob
+On 05/23/2013 06:06 AM, Rafael J. Wysocki wrote:
+> From: Rafael J. Wysocki<rafael.j.wysocki@intel.com>
+>
+> As noted by Tang Chen, the last_online field in struct memory_block
+> introduced by commit 4960e05 (Driver core: Introduce offline/online
+> callbacks for memory blocks) is not really necessary, because
+> online_pages() restores the previous state if passed ONLINE_KEEP as
+> the last argument.  Therefore, remove that field along with the code
+> referring to it.
+>
+> References: http://marc.info/?l=linux-kernel&m=136919777305599&w=2
+> Signed-off-by: Rafael J. Wysocki<rafael.j.wysocki@intel.com>
+> ---
+>
+> Hi,
+>
+> The patch is on top (and the commit mentioned in the changelog is present in)
+> the acpi-hotplug branch of the linux-pm.git tree.
+>
+> Thanks,
+> Rafael
+>
+> ---
+>   drivers/base/memory.c  |   11 ++---------
+>   include/linux/memory.h |    1 -
+>   2 files changed, 2 insertions(+), 10 deletions(-)
+>
+> Index: linux-pm/drivers/base/memory.c
+> ===================================================================
+> --- linux-pm.orig/drivers/base/memory.c
+> +++ linux-pm/drivers/base/memory.c
+> @@ -291,13 +291,7 @@ static int __memory_block_change_state(s
+>   		mem->state = MEM_GOING_OFFLINE;
+>
+>   	ret = memory_block_action(mem->start_section_nr, to_state, online_type);
+> -	if (ret) {
+> -		mem->state = from_state_req;
+> -	} else {
+> -		mem->state = to_state;
+> -		if (to_state == MEM_ONLINE)
+> -			mem->last_online = online_type;
+> -	}
+> +	mem->state = ret ? from_state_req : to_state;
+>   	return ret;
+>   }
+>
+> @@ -310,7 +304,7 @@ static int memory_subsys_online(struct d
+>
+>   	ret = mem->state == MEM_ONLINE ? 0 :
+>   		__memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE,
+> -					    mem->last_online);
+> +					    ONLINE_KEEP);
+>
+>   	mutex_unlock(&mem->state_mutex);
+>   	return ret;
+> @@ -618,7 +612,6 @@ static int init_memory_block(struct memo
+>   			base_memory_block_id(scn_nr) * sections_per_block;
+>   	mem->end_section_nr = mem->start_section_nr + sections_per_block - 1;
+>   	mem->state = state;
+> -	mem->last_online = ONLINE_KEEP;
+>   	mem->section_count++;
+>   	mutex_init(&mem->state_mutex);
+>   	start_pfn = section_nr_to_pfn(mem->start_section_nr);
+> Index: linux-pm/include/linux/memory.h
+> ===================================================================
+> --- linux-pm.orig/include/linux/memory.h
+> +++ linux-pm/include/linux/memory.h
+> @@ -26,7 +26,6 @@ struct memory_block {
+>   	unsigned long start_section_nr;
+>   	unsigned long end_section_nr;
+>   	unsigned long state;
+> -	int last_online;
+>   	int section_count;
+>
+>   	/*
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
