@@ -1,89 +1,291 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 8271A6B0069
-	for <linux-mm@kvack.org>; Thu, 23 May 2013 13:08:30 -0400 (EDT)
-Received: by mail-we0-f169.google.com with SMTP id q55so2298565wes.14
-        for <linux-mm@kvack.org>; Thu, 23 May 2013 10:08:28 -0700 (PDT)
-From: Steve Capper <steve.capper@linaro.org>
-Subject: [PATCH 08/11] ARM64: mm: Swap PTE_FILE and PTE_PROT_NONE bits.
-Date: Thu, 23 May 2013 18:07:55 +0100
-Message-Id: <1369328878-11706-9-git-send-email-steve.capper@linaro.org>
-In-Reply-To: <1369328878-11706-1-git-send-email-steve.capper@linaro.org>
-References: <1369328878-11706-1-git-send-email-steve.capper@linaro.org>
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 49A9E6B0032
+	for <linux-mm@kvack.org>; Thu, 23 May 2013 17:46:58 -0400 (EDT)
+Date: Thu, 23 May 2013 14:46:55 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v8 2/9] vmcore: allocate buffer for ELF headers on
+ page-size alignment
+Message-Id: <20130523144655.80cf1fd9622aae3fc7ec4161@linux-foundation.org>
+In-Reply-To: <20130523052507.13864.61820.stgit@localhost6.localdomain6>
+References: <20130523052421.13864.83978.stgit@localhost6.localdomain6>
+	<20130523052507.13864.61820.stgit@localhost6.localdomain6>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-arm-kernel@lists.infradead.org
-Cc: Michal Hocko <mhocko@suse.cz>, Ken Chen <kenchen@google.com>, Mel Gorman <mgorman@suse.de>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, patches@linaro.org, Steve Capper <steve.capper@linaro.org>
+To: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
+Cc: vgoyal@redhat.com, ebiederm@xmission.com, cpw@sgi.com, kumagai-atsushi@mxc.nes.nec.co.jp, lisa.mitchell@hp.com, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, zhangyanfei@cn.fujitsu.com, jingbai.ma@hp.com, linux-mm@kvack.org, riel@redhat.com, walken@google.com, hughd@google.com, kosaki.motohiro@jp.fujitsu.com
 
-Under ARM64, PTEs can be broadly categorised as follows:
-   - Present and valid: Bit #0 is set. The PTE is valid and memory
-     access to the region may fault.
+On Thu, 23 May 2013 14:25:07 +0900 HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com> wrote:
 
-   - Present and invalid: Bit #0 is clear and bit #1 is set.
-     Represents present memory with PROT_NONE protection. The PTE
-     is an invalid entry, and the user fault handler will raise a
-     SIGSEGV.
+> Allocate ELF headers on page-size boundary using __get_free_pages()
+> instead of kmalloc().
+> 
+> Later patch will merge PT_NOTE entries into a single unique one and
+> decrease the buffer size actually used. Keep original buffer size in
+> variable elfcorebuf_sz_orig to kfree the buffer later and actually
+> used buffer size with rounded up to page-size boundary in variable
+> elfcorebuf_sz separately.
+> 
+> The size of part of the ELF buffer exported from /proc/vmcore is
+> elfcorebuf_sz.
+> 
+> The merged, removed PT_NOTE entries, i.e. the range [elfcorebuf_sz,
+> elfcorebuf_sz_orig], is filled with 0.
+> 
+> Use size of the ELF headers as an initial offset value in
+> set_vmcore_list_offsets_elf{64,32} and
+> process_ptload_program_headers_elf{64,32} in order to indicate that
+> the offset includes the holes towards the page boundary.
+> 
+> As a result, both set_vmcore_list_offsets_elf{64,32} have the same
+> definition. Merge them as set_vmcore_list_offsets.
+> 
+> ...
+>
+> @@ -526,30 +505,35 @@ static int __init parse_crash_elf64_headers(void)
+>  	}
+>  
+>  	/* Read in all elf headers. */
+> -	elfcorebuf_sz = sizeof(Elf64_Ehdr) + ehdr.e_phnum * sizeof(Elf64_Phdr);
+> -	elfcorebuf = kmalloc(elfcorebuf_sz, GFP_KERNEL);
+> +	elfcorebuf_sz_orig = sizeof(Elf64_Ehdr) + ehdr.e_phnum * sizeof(Elf64_Phdr);
+> +	elfcorebuf_sz = elfcorebuf_sz_orig;
+> +	elfcorebuf = (void *) __get_free_pages(GFP_KERNEL | __GFP_ZERO,
+> +					       get_order(elfcorebuf_sz_orig));
+>  	if (!elfcorebuf)
+>  		return -ENOMEM;
+>  	addr = elfcorehdr_addr;
+> -	rc = read_from_oldmem(elfcorebuf, elfcorebuf_sz, &addr, 0);
+> +	rc = read_from_oldmem(elfcorebuf, elfcorebuf_sz_orig, &addr, 0);
+>  	if (rc < 0) {
+> -		kfree(elfcorebuf);
+> +		free_pages((unsigned long)elfcorebuf,
+> +			   get_order(elfcorebuf_sz_orig));
+>  		return rc;
+>  	}
+>  
+>  	/* Merge all PT_NOTE headers into one. */
+>  	rc = merge_note_headers_elf64(elfcorebuf, &elfcorebuf_sz, &vmcore_list);
+>  	if (rc) {
+> -		kfree(elfcorebuf);
+> +		free_pages((unsigned long)elfcorebuf,
+> +			   get_order(elfcorebuf_sz_orig));
+>  		return rc;
+>  	}
+>  	rc = process_ptload_program_headers_elf64(elfcorebuf, elfcorebuf_sz,
+>  							&vmcore_list);
+>  	if (rc) {
+> -		kfree(elfcorebuf);
+> +		free_pages((unsigned long)elfcorebuf,
+> +			   get_order(elfcorebuf_sz_orig));
+>  		return rc;
+>  	}
+> -	set_vmcore_list_offsets_elf64(elfcorebuf, &vmcore_list);
+> +	set_vmcore_list_offsets(elfcorebuf_sz, &vmcore_list);
+>  	return 0;
+>  }
+>  
+> @@ -581,30 +565,35 @@ static int __init parse_crash_elf32_headers(void)
+>  	}
+>  
+>  	/* Read in all elf headers. */
+> -	elfcorebuf_sz = sizeof(Elf32_Ehdr) + ehdr.e_phnum * sizeof(Elf32_Phdr);
+> -	elfcorebuf = kmalloc(elfcorebuf_sz, GFP_KERNEL);
+> +	elfcorebuf_sz_orig = sizeof(Elf32_Ehdr) + ehdr.e_phnum * sizeof(Elf32_Phdr);
+> +	elfcorebuf_sz = elfcorebuf_sz_orig;
+> +	elfcorebuf = (void *) __get_free_pages(GFP_KERNEL | __GFP_ZERO,
+> +					       get_order(elfcorebuf_sz_orig));
+>  	if (!elfcorebuf)
+>  		return -ENOMEM;
+>  	addr = elfcorehdr_addr;
+> -	rc = read_from_oldmem(elfcorebuf, elfcorebuf_sz, &addr, 0);
+> +	rc = read_from_oldmem(elfcorebuf, elfcorebuf_sz_orig, &addr, 0);
+>  	if (rc < 0) {
+> -		kfree(elfcorebuf);
+> +		free_pages((unsigned long)elfcorebuf,
+> +			   get_order(elfcorebuf_sz_orig));
+>  		return rc;
+>  	}
+>  
+>  	/* Merge all PT_NOTE headers into one. */
+>  	rc = merge_note_headers_elf32(elfcorebuf, &elfcorebuf_sz, &vmcore_list);
+>  	if (rc) {
+> -		kfree(elfcorebuf);
+> +		free_pages((unsigned long)elfcorebuf,
+> +			   get_order(elfcorebuf_sz_orig));
+>  		return rc;
+>  	}
+>  	rc = process_ptload_program_headers_elf32(elfcorebuf, elfcorebuf_sz,
+>  								&vmcore_list);
+>  	if (rc) {
+> -		kfree(elfcorebuf);
+> +		free_pages((unsigned long)elfcorebuf,
+> +			   get_order(elfcorebuf_sz_orig));
+>  		return rc;
+>  	}
+> -	set_vmcore_list_offsets_elf32(elfcorebuf, &vmcore_list);
+> +	set_vmcore_list_offsets(elfcorebuf_sz, &vmcore_list);
+>  	return 0;
+>  }
+>  
+> @@ -629,14 +618,14 @@ static int __init parse_crash_elf_headers(void)
+>  			return rc;
+>  
+>  		/* Determine vmcore size. */
+> -		vmcore_size = get_vmcore_size_elf64(elfcorebuf);
+> +		vmcore_size = get_vmcore_size_elf64(elfcorebuf, elfcorebuf_sz);
+>  	} else if (e_ident[EI_CLASS] == ELFCLASS32) {
+>  		rc = parse_crash_elf32_headers();
+>  		if (rc)
+>  			return rc;
+>  
+>  		/* Determine vmcore size. */
+> -		vmcore_size = get_vmcore_size_elf32(elfcorebuf);
+> +		vmcore_size = get_vmcore_size_elf32(elfcorebuf, elfcorebuf_sz);
+>  	} else {
+>  		pr_warn("Warning: Core image elf header is not sane\n");
+>  		return -EINVAL;
+> @@ -683,7 +672,8 @@ void vmcore_cleanup(void)
+>  		list_del(&m->list);
+>  		kfree(m);
+>  	}
+> -	kfree(elfcorebuf);
+> +	free_pages((unsigned long)elfcorebuf,
+> +		   get_order(elfcorebuf_sz_orig));
+>  	elfcorebuf = NULL;
+>  }
 
-   - Not present (file): Bits #0 and #1 are clear, bit #2 is set.
-     Memory represented has been paged out. The PTE is an invalid
-     entry, and the fault handler will try and re-populate the
-     memory where necessary.
+- the amount of code duplication is excessive
 
-Huge PTEs are block descriptors that have bit #1 clear. If we wish
-to represent PROT_NONE huge PTEs we then run into a problem as
-there is no way to distinguish between regular and huge PTEs if we
-set bit #1.
+- the code sometimes leaves elfcorebuf==NULL and sometimes doesn't.
 
-As huge PTEs are always present, the meaning of bits #1 and #2 can
-be swapped for invalid PTEs. This patch swaps the PTE_FILE and
-PTE_PROT_NONE constants, allowing us to represent PROT_NONE huge
-PTEs.
+Please review and test this cleanup:
 
-Signed-off-by: Steve Capper <steve.capper@linaro.org>
-Acked-by: Catalin Marinas <catalin.marinas@arm.com>
----
- arch/arm64/include/asm/pgtable.h | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
-
-diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
-index 77b09d6..8867282 100644
---- a/arch/arm64/include/asm/pgtable.h
-+++ b/arch/arm64/include/asm/pgtable.h
-@@ -25,8 +25,8 @@
-  * Software defined PTE bits definition.
-  */
- #define PTE_VALID		(_AT(pteval_t, 1) << 0)
--#define PTE_PROT_NONE		(_AT(pteval_t, 1) << 1)	/* only when !PTE_VALID */
--#define PTE_FILE		(_AT(pteval_t, 1) << 2)	/* only when !pte_present() */
-+#define PTE_FILE		(_AT(pteval_t, 1) << 1)	/* only when !pte_present() */
-+#define PTE_PROT_NONE		(_AT(pteval_t, 1) << 2)	/* only when !PTE_VALID */
- #define PTE_DIRTY		(_AT(pteval_t, 1) << 55)
- #define PTE_SPECIAL		(_AT(pteval_t, 1) << 56)
+--- a/fs/proc/vmcore.c~vmcore-allocate-buffer-for-elf-headers-on-page-size-alignment-fix
++++ a/fs/proc/vmcore.c
+@@ -477,6 +477,12 @@ static void __init set_vmcore_list_offse
+ 	}
+ }
  
-@@ -281,8 +281,8 @@ extern pgd_t idmap_pg_dir[PTRS_PER_PGD];
++static void free_elfcorebuf(void)
++{
++	free_pages((unsigned long)elfcorebuf, get_order(elfcorebuf_sz_orig));
++	elfcorebuf = NULL;
++}
++
+ static int __init parse_crash_elf64_headers(void)
+ {
+ 	int rc=0;
+@@ -505,36 +511,31 @@ static int __init parse_crash_elf64_head
+ 	}
  
- /*
-  * Encode and decode a swap entry:
-- *	bits 0-1:	present (must be zero)
-- *	bit  2:		PTE_FILE
-+ *	bits 0, 2:	present (must both be zero)
-+ *	bit  1:		PTE_FILE
-  *	bits 3-8:	swap type
-  *	bits 9-63:	swap offset
-  */
-@@ -306,8 +306,8 @@ extern pgd_t idmap_pg_dir[PTRS_PER_PGD];
+ 	/* Read in all elf headers. */
+-	elfcorebuf_sz_orig = sizeof(Elf64_Ehdr) + ehdr.e_phnum * sizeof(Elf64_Phdr);
++	elfcorebuf_sz_orig = sizeof(Elf64_Ehdr) +
++				ehdr.e_phnum * sizeof(Elf64_Phdr);
+ 	elfcorebuf_sz = elfcorebuf_sz_orig;
+-	elfcorebuf = (void *) __get_free_pages(GFP_KERNEL | __GFP_ZERO,
+-					       get_order(elfcorebuf_sz_orig));
++	elfcorebuf = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
++					      get_order(elfcorebuf_sz_orig));
+ 	if (!elfcorebuf)
+ 		return -ENOMEM;
+ 	addr = elfcorehdr_addr;
+ 	rc = read_from_oldmem(elfcorebuf, elfcorebuf_sz_orig, &addr, 0);
+-	if (rc < 0) {
+-		free_pages((unsigned long)elfcorebuf,
+-			   get_order(elfcorebuf_sz_orig));
+-		return rc;
+-	}
++	if (rc < 0)
++		goto fail;
  
- /*
-  * Encode and decode a file entry:
-- *	bits 0-1:	present (must be zero)
-- *	bit  2:		PTE_FILE
-+ *	bits 0, 2:	present (must both be zero)
-+ *	bit  1:		PTE_FILE
-  *	bits 3-63:	file offset / PAGE_SIZE
-  */
- #define pte_file(pte)		(pte_val(pte) & PTE_FILE)
--- 
-1.8.1.4
+ 	/* Merge all PT_NOTE headers into one. */
+ 	rc = merge_note_headers_elf64(elfcorebuf, &elfcorebuf_sz, &vmcore_list);
+-	if (rc) {
+-		free_pages((unsigned long)elfcorebuf,
+-			   get_order(elfcorebuf_sz_orig));
+-		return rc;
+-	}
++	if (rc)
++		goto fail;
+ 	rc = process_ptload_program_headers_elf64(elfcorebuf, elfcorebuf_sz,
+ 							&vmcore_list);
+-	if (rc) {
+-		free_pages((unsigned long)elfcorebuf,
+-			   get_order(elfcorebuf_sz_orig));
+-		return rc;
+-	}
++	if (rc)
++		goto fail;
+ 	set_vmcore_list_offsets(elfcorebuf_sz, &vmcore_list);
+ 	return 0;
++fail:
++	free_elfcorebuf();
++	return rc;
+ }
+ 
+ static int __init parse_crash_elf32_headers(void)
+@@ -567,34 +568,28 @@ static int __init parse_crash_elf32_head
+ 	/* Read in all elf headers. */
+ 	elfcorebuf_sz_orig = sizeof(Elf32_Ehdr) + ehdr.e_phnum * sizeof(Elf32_Phdr);
+ 	elfcorebuf_sz = elfcorebuf_sz_orig;
+-	elfcorebuf = (void *) __get_free_pages(GFP_KERNEL | __GFP_ZERO,
+-					       get_order(elfcorebuf_sz_orig));
++	elfcorebuf = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
++					      get_order(elfcorebuf_sz_orig));
+ 	if (!elfcorebuf)
+ 		return -ENOMEM;
+ 	addr = elfcorehdr_addr;
+ 	rc = read_from_oldmem(elfcorebuf, elfcorebuf_sz_orig, &addr, 0);
+-	if (rc < 0) {
+-		free_pages((unsigned long)elfcorebuf,
+-			   get_order(elfcorebuf_sz_orig));
+-		return rc;
+-	}
++	if (rc < 0)
++		goto fail;
+ 
+ 	/* Merge all PT_NOTE headers into one. */
+ 	rc = merge_note_headers_elf32(elfcorebuf, &elfcorebuf_sz, &vmcore_list);
+-	if (rc) {
+-		free_pages((unsigned long)elfcorebuf,
+-			   get_order(elfcorebuf_sz_orig));
+-		return rc;
+-	}
++	if (rc)
++		goto fail;
+ 	rc = process_ptload_program_headers_elf32(elfcorebuf, elfcorebuf_sz,
+ 								&vmcore_list);
+-	if (rc) {
+-		free_pages((unsigned long)elfcorebuf,
+-			   get_order(elfcorebuf_sz_orig));
+-		return rc;
+-	}
++	if (rc)
++		goto fail;
+ 	set_vmcore_list_offsets(elfcorebuf_sz, &vmcore_list);
+ 	return 0;
++fail:
++	free_elfcorebuf();
++	return rc;
+ }
+ 
+ static int __init parse_crash_elf_headers(void)
+@@ -672,8 +667,6 @@ void vmcore_cleanup(void)
+ 		list_del(&m->list);
+ 		kfree(m);
+ 	}
+-	free_pages((unsigned long)elfcorebuf,
+-		   get_order(elfcorebuf_sz_orig));
+-	elfcorebuf = NULL;
++	free_elfcorebuf();
+ }
+ EXPORT_SYMBOL_GPL(vmcore_cleanup);
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
