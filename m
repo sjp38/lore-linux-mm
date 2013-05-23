@@ -1,90 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id A6C656B0002
-	for <linux-mm@kvack.org>; Thu, 23 May 2013 07:01:05 -0400 (EDT)
-Received: by mail-oa0-f42.google.com with SMTP id i10so4197328oag.15
-        for <linux-mm@kvack.org>; Thu, 23 May 2013 04:01:04 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1368321816-17719-39-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 6C8A66B0002
+	for <linux-mm@kvack.org>; Thu, 23 May 2013 07:30:32 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <CAJd=RBA+yzrKOzZt_DL5JRgzd2H25DgEBF-JEqxuCxgdwHTWmg@mail.gmail.com>
 References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<1368321816-17719-39-git-send-email-kirill.shutemov@linux.intel.com>
-Date: Thu, 23 May 2013 19:01:04 +0800
-Message-ID: <CAJd=RBDHD9Ov+Bdk1JfiHNYh0+RJmcpej+27HcTFtwnee2Rw5w@mail.gmail.com>
-Subject: Re: [PATCHv4 38/39] thp: vma_adjust_trans_huge(): adjust file-backed
- VMA too
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+ <1368321816-17719-4-git-send-email-kirill.shutemov@linux.intel.com>
+ <CAJd=RBA+yzrKOzZt_DL5JRgzd2H25DgEBF-JEqxuCxgdwHTWmg@mail.gmail.com>
+Subject: Re: [PATCHv4 03/39] mm: implement zero_huge_user_segment and friends
+Content-Transfer-Encoding: 7bit
+Message-Id: <20130523113255.E0B3AE0090@blue.fi.intel.com>
+Date: Thu, 23 May 2013 14:32:55 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Dave Hansen <dave@sr71.net>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Hillf Danton <dhillf@gmail.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Dave Hansen <dave@sr71.net>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Sun, May 12, 2013 at 9:23 AM, Kirill A. Shutemov
-<kirill.shutemov@linux.intel.com> wrote:
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
->
-> Since we're going to have huge pages in page cache, we need to call
-> adjust file-backed VMA, which potentially can contain huge pages.
->
-> For now we call it for all VMAs.
->
-> Probably later we will need to introduce a flag to indicate that the VMA
-> has huge pages.
->
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
+Hillf Danton wrote:
+> On Sun, May 12, 2013 at 9:23 AM, Kirill A. Shutemov
+> <kirill.shutemov@linux.intel.com> wrote:
+> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> >
+> > Let's add helpers to clear huge page segment(s). They provide the same
+> > functionallity as zero_user_segment and zero_user, but for huge pages.
+> >
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > ---
+> >  include/linux/mm.h |    7 +++++++
+> >  mm/memory.c        |   36 ++++++++++++++++++++++++++++++++++++
+> >  2 files changed, 43 insertions(+)
+> >
+> > diff --git a/include/linux/mm.h b/include/linux/mm.h
+> > index c05d7cf..5e156fb 100644
+> > --- a/include/linux/mm.h
+> > +++ b/include/linux/mm.h
+> > @@ -1797,6 +1797,13 @@ extern void dump_page(struct page *page);
+> >  extern void clear_huge_page(struct page *page,
+> >                             unsigned long addr,
+> >                             unsigned int pages_per_huge_page);
+> > +extern void zero_huge_user_segment(struct page *page,
+> > +               unsigned start, unsigned end);
+> > +static inline void zero_huge_user(struct page *page,
+> > +               unsigned start, unsigned len)
+> > +{
+> > +       zero_huge_user_segment(page, start, start + len);
+> > +}
+> >  extern void copy_user_huge_page(struct page *dst, struct page *src,
+> >                                 unsigned long addr, struct vm_area_struct *vma,
+> >                                 unsigned int pages_per_huge_page);
+> > diff --git a/mm/memory.c b/mm/memory.c
+> > index f7a1fba..f02a8be 100644
+> > --- a/mm/memory.c
+> > +++ b/mm/memory.c
+> > @@ -4266,6 +4266,42 @@ void clear_huge_page(struct page *page,
+> >         }
+> >  }
+> >
+> > +void zero_huge_user_segment(struct page *page, unsigned start, unsigned end)
+> > +{
+> > +       int i;
+> > +       unsigned start_idx, end_idx;
+> > +       unsigned start_off, end_off;
+> > +
+> > +       BUG_ON(end < start);
+> > +
+> > +       might_sleep();
+> > +
+> > +       if (start == end)
+> > +               return;
+> > +
+> > +       start_idx = start >> PAGE_SHIFT;
+> > +       start_off = start & ~PAGE_MASK;
+> > +       end_idx = (end - 1) >> PAGE_SHIFT;
+> > +       end_off = ((end - 1) & ~PAGE_MASK) + 1;
+> > +
+> > +       /*
+> > +        * if start and end are on the same small page we can call
+> > +        * zero_user_segment() once and save one kmap_atomic().
+> > +        */
+> > +       if (start_idx == end_idx)
+> > +               return zero_user_segment(page + start_idx, start_off, end_off);
+> > +
+> > +       /* zero the first (possibly partial) page */
+> > +       zero_user_segment(page + start_idx, start_off, PAGE_SIZE);
+> > +       for (i = start_idx + 1; i < end_idx; i++) {
+> > +               cond_resched();
+> > +               clear_highpage(page + i);
+> > +               flush_dcache_page(page + i);
+> 
+> Can we use the function again?
+> 	zero_user_segment(page + i, 0, PAGE_SIZE);
 
-Acked-by: Hillf Danton <dhillf@gmail.com>
+No. zero_user_segment() is memset()-based. clear_highpage() is higly
+optimized for page clearing on many architectures.
 
->  include/linux/huge_mm.h |   11 +----------
->  mm/huge_memory.c        |    2 +-
->  2 files changed, 2 insertions(+), 11 deletions(-)
->
-> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-> index b20334a..f4d6626 100644
-> --- a/include/linux/huge_mm.h
-> +++ b/include/linux/huge_mm.h
-> @@ -139,7 +139,7 @@ extern void split_huge_page_pmd_mm(struct mm_struct *mm, unsigned long address,
->  #endif
->  extern int hugepage_madvise(struct vm_area_struct *vma,
->                             unsigned long *vm_flags, int advice);
-> -extern void __vma_adjust_trans_huge(struct vm_area_struct *vma,
-> +extern void vma_adjust_trans_huge(struct vm_area_struct *vma,
->                                     unsigned long start,
->                                     unsigned long end,
->                                     long adjust_next);
-> @@ -155,15 +155,6 @@ static inline int pmd_trans_huge_lock(pmd_t *pmd,
->         else
->                 return 0;
->  }
-> -static inline void vma_adjust_trans_huge(struct vm_area_struct *vma,
-> -                                        unsigned long start,
-> -                                        unsigned long end,
-> -                                        long adjust_next)
-> -{
-> -       if (!vma->anon_vma || vma->vm_ops)
-> -               return;
-> -       __vma_adjust_trans_huge(vma, start, end, adjust_next);
-> -}
->  static inline int hpage_nr_pages(struct page *page)
->  {
->         if (unlikely(PageTransHuge(page)))
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index d7c9df5..9c3815b 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -2783,7 +2783,7 @@ static void split_huge_page_address(struct mm_struct *mm,
->         split_huge_page_pmd_mm(mm, address, pmd);
->  }
->
-> -void __vma_adjust_trans_huge(struct vm_area_struct *vma,
-> +void vma_adjust_trans_huge(struct vm_area_struct *vma,
->                              unsigned long start,
->                              unsigned long end,
->                              long adjust_next)
-> --
-> 1.7.10.4
->
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
