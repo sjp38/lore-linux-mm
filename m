@@ -1,216 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 7D7886B0034
-	for <linux-mm@kvack.org>; Thu, 23 May 2013 10:34:34 -0400 (EDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <519BD206.3040603@sr71.net>
-References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1368321816-17719-13-git-send-email-kirill.shutemov@linux.intel.com>
- <519BD206.3040603@sr71.net>
-Subject: Re: [PATCHv4 12/39] thp, mm: rewrite add_to_page_cache_locked() to
- support huge pages
-Content-Transfer-Encoding: 7bit
-Message-Id: <20130523143656.B8B73E0090@blue.fi.intel.com>
-Date: Thu, 23 May 2013 17:36:56 +0300 (EEST)
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 3880E6B0036
+	for <linux-mm@kvack.org>; Thu, 23 May 2013 10:35:36 -0400 (EDT)
+Date: Thu, 23 May 2013 10:35:28 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH v8 0/9] kdump, vmcore: support mmap() on /proc/vmcore
+Message-ID: <20130523143528.GH2779@redhat.com>
+References: <20130523052421.13864.83978.stgit@localhost6.localdomain6>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130523052421.13864.83978.stgit@localhost6.localdomain6>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
+Cc: ebiederm@xmission.com, akpm@linux-foundation.org, cpw@sgi.com, kumagai-atsushi@mxc.nes.nec.co.jp, lisa.mitchell@hp.com, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, zhangyanfei@cn.fujitsu.com, jingbai.ma@hp.com, linux-mm@kvack.org, riel@redhat.com, walken@google.com, hughd@google.com, kosaki.motohiro@jp.fujitsu.com
 
-Dave Hansen wrote:
-> On 05/11/2013 06:23 PM, Kirill A. Shutemov wrote:
-> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> > 
-> > For huge page we add to radix tree HPAGE_CACHE_NR pages at once: head
-> > page for the specified index and HPAGE_CACHE_NR-1 tail pages for
-> > following indexes.
+On Thu, May 23, 2013 at 02:24:55PM +0900, HATAYAMA Daisuke wrote:
+> Currently, read to /proc/vmcore is done by read_oldmem() that uses
+> ioremap/iounmap per a single page. For example, if memory is 1GB,
+> ioremap/iounmap is called (1GB / 4KB)-times, that is, 262144
+> times. This causes big performance degradation due to repeated page
+> table changes, TLB flush and build-up of VM related objects.
 > 
-> The really nice way to do these patches is refactor them, first, with no
-> behavior change, in one patch, the introduce the new support in the
-> second one.
-
-I've split it into two patches.
-
-> > diff --git a/mm/filemap.c b/mm/filemap.c
-> > index 61158ac..b0c7c8c 100644
-> > --- a/mm/filemap.c
-> > +++ b/mm/filemap.c
-> > @@ -460,39 +460,62 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
-> >  		pgoff_t offset, gfp_t gfp_mask)
-> >  {
-> >  	int error;
-> > +	int i, nr;
-> >  
-> >  	VM_BUG_ON(!PageLocked(page));
-> >  	VM_BUG_ON(PageSwapBacked(page));
-> >  
-> > +	/* memory cgroup controller handles thp pages on its side */
-> >  	error = mem_cgroup_cache_charge(page, current->mm,
-> >  					gfp_mask & GFP_RECLAIM_MASK);
-> >  	if (error)
-> > -		goto out;
-> > -
-> > -	error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
-> > -	if (error == 0) {
-> > -		page_cache_get(page);
-> > -		page->mapping = mapping;
-> > -		page->index = offset;
-> > +		return error;
-> >  
-> > -		spin_lock_irq(&mapping->tree_lock);
-> > -		error = radix_tree_insert(&mapping->page_tree, offset, page);
-> > -		if (likely(!error)) {
-> > -			mapping->nrpages++;
-> > -			__inc_zone_page_state(page, NR_FILE_PAGES);
-> > -			spin_unlock_irq(&mapping->tree_lock);
-> > -			trace_mm_filemap_add_to_page_cache(page);
-> > -		} else {
-> > -			page->mapping = NULL;
-> > -			/* Leave page->index set: truncation relies upon it */
-> > -			spin_unlock_irq(&mapping->tree_lock);
-> > -			mem_cgroup_uncharge_cache_page(page);
-> > -			page_cache_release(page);
-> > -		}
-> > -		radix_tree_preload_end();
-> > -	} else
-> > +	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE)) {
-> > +		BUILD_BUG_ON(HPAGE_CACHE_NR > RADIX_TREE_PRELOAD_NR);
-> > +		nr = hpage_nr_pages(page);
-> > +	} else {
-> > +		BUG_ON(PageTransHuge(page));
-> > +		nr = 1;
-> > +	}
+> To address the issue, this patch implements mmap() on /proc/vmcore to
+> improve read performance under sufficiently large mapping size.
 > 
-> Why can't this just be
+> In particular, the current main user of this mmap() is makedumpfile,
+> which not only reads memory from /proc/vmcore but also does other
+> processing like filtering, compression and I/O work.
 > 
-> 		nr = hpage_nr_pages(page);
+
+Thanks hatayam,
+
+Thanks for the patches. This series looks good to me. I think we just
+need an ack from mm folks on patch 5 which introduces
+remap_vmalloc_range_partial().
+
+Thanks
+Vivek
+
+> Benchmark
+> =========
 > 
-> Are you trying to optimize for the THP=y, but THP-pagecache=n case?
-
-Yes, I try to optimize for the case.
-
-> > +		if (error)
-> > +			goto err;
+> You can see two benchmarks on terabyte memory system. Both show about
+> 40 seconds on 2TB system. This is almost equal to performance by
+> experimental kernel-side memory filtering.
 > 
-> I know it's not a super-common thing in the kernel, but could you call
-> this "insert_err" or something?
-
-I've changed it to err_insert.
-
-> > +	}
-> > +	__mod_zone_page_state(page_zone(page), NR_FILE_PAGES, nr);
-> > +	if (PageTransHuge(page))
-> > +		__inc_zone_page_state(page, NR_FILE_TRANSPARENT_HUGEPAGES);
-> > +	mapping->nrpages += nr;
-> > +	spin_unlock_irq(&mapping->tree_lock);
-> > +	radix_tree_preload_end();
-> > +	trace_mm_filemap_add_to_page_cache(page);
-> > +	return 0;
-> > +err:
-> > +	if (i != 0)
-> > +		error = -ENOSPC; /* no space for a huge page */
-> > +	page_cache_release(page + i);
-> > +	page[i].mapping = NULL;
+> - makedumpfile mmap() benchmark, by Jingbai Ma
+>   https://lkml.org/lkml/2013/3/27/19
 > 
-> I guess it's a slight behaviour change (I think it's harmless) but if
-> you delay doing the page_cache_get() and page[i].mapping= until after
-> the radix tree insertion, you can avoid these two lines.
-
-Hm. I don't think it's safe. The spinlock protects radix-tree against
-modification, but find_get_page() can see it just after
-radix_tree_insert().
-
-The page is locked and IIUC never uptodate at this point, so nobody will
-be able to do much with it, but leave it without valid ->mapping is a bad
-idea.
-
-> > +	for (i--; i >= 0; i--) {
+> - makedumpfile: benchmark on mmap() with /proc/vmcore on 2TB memory system
+>   https://lkml.org/lkml/2013/3/26/914
 > 
-> I kinda glossed over that initial "i--".  It might be worth a quick
-> comment to call it out.
-
-Okay.
-
-> > +		/* Leave page->index set: truncation relies upon it */
-> > +		page[i].mapping = NULL;
-> > +		radix_tree_delete(&mapping->page_tree, offset + i);
-> > +		page_cache_release(page + i);
-> > +	}
-> > +	spin_unlock_irq(&mapping->tree_lock);
-> > +	radix_tree_preload_end();
-> > +	mem_cgroup_uncharge_cache_page(page);
-> >  	return error;
-> >  }
+> ChangeLog
+> =========
 > 
-> FWIW, I think you can move the radix_tree_preload_end() up a bit.  I
-> guess it won't make any practical difference since you're holding a
-> spinlock, but it at least makes the point that you're not depending on
-> it any more.
-
-Good point.
-
-> I'm also trying to figure out how and when you'd actually have to unroll
-> a partial-huge-page worth of radix_tree_insert().  In the small-page
-> case, you can collide with another guy inserting in to the page cache.
-> But, can that happen in the _middle_ of a THP?
-
-E.g. if you enable THP after some uptime, the mapping can contain small pages
-already.
-Or if a process map the file with bad alignement (MAP_FIXED) and touch the
-area, it will get small pages.
-
-> Despite my nits, the code still looks correct here, so:
+> v7 => v8)
 > 
-> Acked-by: Dave Hansen <dave.hansen@linux.intel.com>
-
-The incremental diff for the patch is below. I guess it's still valid to
-use your ack, right?
-
-diff --git a/mm/filemap.c b/mm/filemap.c
-index f643062..d004331 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -492,29 +492,33 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
- 		error = radix_tree_insert(&mapping->page_tree,
- 				offset + i, page + i);
- 		if (error)
--			goto err;
-+			goto err_insert;
- 	}
-+	radix_tree_preload_end();
- 	__mod_zone_page_state(page_zone(page), NR_FILE_PAGES, nr);
- 	if (PageTransHuge(page))
- 		__inc_zone_page_state(page, NR_FILE_TRANSPARENT_HUGEPAGES);
- 	mapping->nrpages += nr;
- 	spin_unlock_irq(&mapping->tree_lock);
--	radix_tree_preload_end();
- 	trace_mm_filemap_add_to_page_cache(page);
- 	return 0;
--err:
-+err_insert:
-+	radix_tree_preload_end();
- 	if (i != 0)
- 		error = -ENOSPC; /* no space for a huge page */
-+
-+	/* page[i] was not inserted to tree, handle separately */
- 	page_cache_release(page + i);
- 	page[i].mapping = NULL;
--	for (i--; i >= 0; i--) {
-+	i--;
-+
-+	for (; i >= 0; i--) {
- 		/* Leave page->index set: truncation relies upon it */
- 		page[i].mapping = NULL;
- 		radix_tree_delete(&mapping->page_tree, offset + i);
- 		page_cache_release(page + i);
- 	}
- 	spin_unlock_irq(&mapping->tree_lock);
--	radix_tree_preload_end();
- 	mem_cgroup_uncharge_cache_page(page);
- 	return error;
- }
--- 
- Kirill A. Shutemov
+> - Unify set_vmcore_list_offsets_elf{64,32} as set_vmcore_list_offsets.
+>   [Patch 2/9]
+> - Introduce update_note_header_size_elf{64,32} and cleanup
+>   get_note_number_and_size_elf{64,32} and copy_notes_elf{64,32}.
+>   [Patch 6/9]
+> - Create new patch that sets VM_USERMAP flag in VM object for ELF note
+>   segment buffer.
+>   [Patch 7/9]
+> - Unify get_vmcore_size_elf{64,32} as get_vmcore_size.
+>   [Patch 8/9]
+> 
+> v6 => v7)
+> 
+> - Rebase 3.10-rc2.
+> - Move roundup operation to note segment from patch 2/8 to patch 6/8.
+> - Rewrite get_note_number_and_size_elf{64,32} and
+>   copy_notes_elf{64,32} in patch 6/8.
+> 
+> v5 => v6)
+> 
+> - Change patch order: clenaup patch => PT_LOAD change patch =>
+>   vmalloc-related patch => mmap patch.
+> - Some cleanups: improve symbol names simply, add helper functoins for
+>   processing ELF note segment and add comments for the helper
+>   functions.
+> - Fix patch description of patch 7/8.
+> 
+> v4 => v5)
+> 
+> - Rebase 3.10-rc1.
+> - Introduce remap_vmalloc_range_partial() in order to remap vmalloc
+>   memory in a part of vma area.
+> - Allocate buffer for ELF note segment at 2nd kernel by vmalloc(). Use
+>   remap_vmalloc_range_partial() to remap the memory to userspace.
+> 
+> v3 => v4)
+> 
+> - Rebase 3.9-rc7.
+> - Drop clean-up patches orthogonal to the main topic of this patch set.
+> - Copy ELF note segments in the 2nd kernel just as in v1. Allocate
+>   vmcore objects per pages. => See [PATCH 5/8]
+> - Map memory referenced by PT_LOAD entry directly even if the start or
+>   end of the region doesn't fit inside page boundary, no longer copy
+>   them as the previous v3. Then, holes, outside OS memory, are visible
+>   from /proc/vmcore. => See [PATCH 7/8]
+> 
+> v2 => v3)
+> 
+> - Rebase 3.9-rc3.
+> - Copy program headers separately from e_phoff in ELF note segment
+>   buffer. Now there's no risk to allocate huge memory if program
+>   header table positions after memory segment.
+> - Add cleanup patch that removes unnecessary variable.
+> - Fix wrongly using the variable that is buffer size configurable at
+>   runtime. Instead, use the variable that has original buffer size.
+> 
+> v1 => v2)
+> 
+> - Clean up the existing codes: use e_phoff, and remove the assumption
+>   on PT_NOTE entries.
+> - Fix potential bug that ELF header size is not included in exported
+>   vmcoreinfo size.
+> - Divide patch modifying read_vmcore() into two: clean-up and primary
+>   code change.
+> - Put ELF note segments in page-size boundary on the 1st kernel
+>   instead of copying them into the buffer on the 2nd kernel.
+> 
+> Test
+> ====
+> 
+> This patch set is composed based on v3.10-rc2, tested on x86_64,
+> x86_32 both with 1GB and with 5GB (over 4GB) memory configurations.
+> 
+> ---
+> 
+> HATAYAMA Daisuke (9):
+>       vmcore: support mmap() on /proc/vmcore
+>       vmcore: calculate vmcore file size from buffer size and total size of vmcore objects
+>       vmcore: Allow user process to remap ELF note segment buffer
+>       vmcore: allocate ELF note segment in the 2nd kernel vmalloc memory
+>       vmalloc: introduce remap_vmalloc_range_partial
+>       vmalloc: make find_vm_area check in range
+>       vmcore: treat memory chunks referenced by PT_LOAD program header entries in page-size boundary in vmcore_list
+>       vmcore: allocate buffer for ELF headers on page-size alignment
+>       vmcore: clean up read_vmcore()
+> 
+> 
+>  fs/proc/vmcore.c        |  657 +++++++++++++++++++++++++++++++++--------------
+>  include/linux/vmalloc.h |    4 
+>  mm/vmalloc.c            |   65 +++--
+>  3 files changed, 515 insertions(+), 211 deletions(-)
+> 
+> -- 
+> 
+> Thanks.
+> HATAYAMA, Daisuke
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
