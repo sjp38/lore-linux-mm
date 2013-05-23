@@ -1,159 +1,301 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 8729A6B0002
-	for <linux-mm@kvack.org>; Thu, 23 May 2013 09:12:56 -0400 (EDT)
-Date: Thu, 23 May 2013 14:12:49 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 2/2] mm: vmscan: Take page buffers dirty and locked state
- into account
-Message-ID: <20130523131248.GW11497@suse.de>
-References: <1369301187-24934-1-git-send-email-mgorman@suse.de>
- <1369301187-24934-3-git-send-email-mgorman@suse.de>
- <20130523095315.GC22466@quack.suse.cz>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 7605A6B0002
+	for <linux-mm@kvack.org>; Thu, 23 May 2013 10:22:40 -0400 (EDT)
+Date: Thu, 23 May 2013 10:22:26 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH v8 2/9] vmcore: allocate buffer for ELF headers on
+ page-size alignment
+Message-ID: <20130523142226.GD2779@redhat.com>
+References: <20130523052421.13864.83978.stgit@localhost6.localdomain6>
+ <20130523052507.13864.61820.stgit@localhost6.localdomain6>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130523095315.GC22466@quack.suse.cz>
+In-Reply-To: <20130523052507.13864.61820.stgit@localhost6.localdomain6>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Michal Hocko <mhocko@suse.cz>, Dave Chinner <david@fromorbit.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
+Cc: ebiederm@xmission.com, akpm@linux-foundation.org, cpw@sgi.com, kumagai-atsushi@mxc.nes.nec.co.jp, lisa.mitchell@hp.com, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, zhangyanfei@cn.fujitsu.com, jingbai.ma@hp.com, linux-mm@kvack.org, riel@redhat.com, walken@google.com, hughd@google.com, kosaki.motohiro@jp.fujitsu.com
 
-On Thu, May 23, 2013 at 11:53:15AM +0200, Jan Kara wrote:
-> On Thu 23-05-13 10:26:27, Mel Gorman wrote:
-> > Page reclaim keeps track of dirty and under writeback pages and uses it to
-> > determine if wait_iff_congested() should stall or if kswapd should begin
-> > writing back pages. This fails to account for buffer pages that can be
-> > under writeback but not PageWriteback which is the case for filesystems
-> > like ext3. Furthermore, PageDirty buffer pages can have all the buffers
-> > clean and writepage does no IO so it should not be accounted as congested.
-> > 
-> > This patch adds an address_space operation that filesystems may
-> > optionally use to check if a page is really dirty or really under
-> > writeback. An implementation is provided for filesystems that use
-> > buffer_heads. By default, the page flags are obeyed.
-> > 
-> > Credit goes to Jan Kara for identifying that the page flags alone are
-> > not sufficient for ext3 and sanity checking a number of ideas on how
-> > the problem could be addressed.
-> > 
-> > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> > ---
-> >  fs/buffer.c                 | 34 ++++++++++++++++++++++++++++++++++
-> >  fs/ext2/inode.c             |  1 +
-> >  fs/ext3/inode.c             |  3 +++
-> >  fs/ext4/inode.c             |  2 ++
-> >  fs/gfs2/aops.c              |  2 ++
-> >  fs/ntfs/aops.c              |  1 +
-> >  fs/ocfs2/aops.c             |  1 +
-> >  fs/xfs/xfs_aops.c           |  1 +
-> >  include/linux/buffer_head.h |  3 +++
-> >  include/linux/fs.h          |  1 +
-> >  mm/vmscan.c                 | 33 +++++++++++++++++++++++++++++++--
-> >  11 files changed, 80 insertions(+), 2 deletions(-)
-> > 
-> > diff --git a/fs/buffer.c b/fs/buffer.c
-> > index 1aa0836..4247aa9 100644
-> > --- a/fs/buffer.c
-> > +++ b/fs/buffer.c
-> > @@ -91,6 +91,40 @@ void unlock_buffer(struct buffer_head *bh)
-> >  EXPORT_SYMBOL(unlock_buffer);
-> >  
-> >  /*
-> > + * Returns if the page has dirty or writeback buffers. If all the buffers
-> > + * are unlocked and clean then the PageDirty information is stale. If
-> > + * any of the pages are locked, it is assumed they are locked for IO.
-> > + */
-> > +void buffer_check_dirty_writeback(struct page *page,
-> > +				     bool *dirty, bool *writeback)
-> > +{
-> > +	struct buffer_head *head, *bh;
-> > +	*dirty = false;
-> > +	*writeback = false;
-> > +
-> > +	BUG_ON(!PageLocked(page));
-> > +
-> > +	if (!page_has_buffers(page))
-> > +		return;
-> > +
-> > +	if (PageWriteback(page))
-> > +		*writeback = true;
-> > +
-> > +	head = page_buffers(page);
-> > +	bh = head;
-> > +	do {
-> > +		if (buffer_locked(bh))
-> > +			*writeback = true;
-> > +
-> > +		if (buffer_dirty(bh))
-> > +			*dirty = true;
-> > +
-> > +		bh = bh->b_this_page;
-> > +	} while (bh != head);
-> > +}
-> > +EXPORT_SYMBOL(buffer_check_dirty_writeback);
-> > +
-> > +/*
-> >   * Block until a buffer comes unlocked.  This doesn't stop it
-> >   * from becoming locked again - you have to lock it yourself
-> >   * if you want to preserve its state.
-> > diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
-> > index 0a87bb1..2fc3593 100644
-> > --- a/fs/ext2/inode.c
-> > +++ b/fs/ext2/inode.c
-> > @@ -880,6 +880,7 @@ const struct address_space_operations ext2_aops = {
-> >  	.writepages		= ext2_writepages,
-> >  	.migratepage		= buffer_migrate_page,
-> >  	.is_partially_uptodate	= block_is_partially_uptodate,
-> > +	.is_dirty_writeback	= buffer_check_dirty_writeback,
-> >  	.error_remove_page	= generic_error_remove_page,
-> >  };
->
->   Hum, actually from what I know, it should be enough to set
-> .is_dirty_writeback to buffer_check_dirty_writeback() only for
-> ext3_ordered_aops and maybe def_blk_aops (fs/block_dev.c).
-
-Hmm, ok. I had thought that even where the generic write pages were used
-that set PageWriteback that it should still benefit from checking if the
-buffers were clean. I'll back it out.
-
-I'll add it to def_blk_aops, thanks for pointing that out.
-
-> I also realized
-> that data=journal mode of ext3 & ext4 also needs a special treatment but
-> there we have to have a special function (likely provided by jbd/jbd2). But
-> this mode isn't used very much so it's not pressing to fix that.
+On Thu, May 23, 2013 at 02:25:07PM +0900, HATAYAMA Daisuke wrote:
+> Allocate ELF headers on page-size boundary using __get_free_pages()
+> instead of kmalloc().
 > 
-
-And thanks for catching that
-
-> Also I was thinking about how does this work NFS? It's page state logic is
-> more complex with page going from PageDirty -> PageWriteback -> Unstable ->
-> Clean. Unstable is a state where the page appears as clean to MM but it
-> still cannot be reclaimed (we are waiting for the server to write the
-> page). You need an inode wide commit operation to transform pages from
-> Unstable to Clean state.
->   
-
-I expect they'll be skipped and not accounted for because try_to_release_page
-will fail. The pages will move to the active list and do another cycle
-through the LRU. If there a lot of these pages then kswapd usage may get
-high as it'll not stall. It'll need additional help.
-
-That said, I also notice now that the PageWriteback check in the wrong
-place. Pages have their dirty flag cleared under the lock before queueing
-for IO until they are either redirtied or under writeback but the accounting
-is within a PageDirty check. That needs fixing.
-
-> I guess it would be worth testing this - something like your largedd test
-> but over NFS.
+> Later patch will merge PT_NOTE entries into a single unique one and
+> decrease the buffer size actually used. Keep original buffer size in
+> variable elfcorebuf_sz_orig to kfree the buffer later and actually
+> used buffer size with rounded up to page-size boundary in variable
+> elfcorebuf_sz separately.
 > 
+> The size of part of the ELF buffer exported from /proc/vmcore is
+> elfcorebuf_sz.
+> 
+> The merged, removed PT_NOTE entries, i.e. the range [elfcorebuf_sz,
+> elfcorebuf_sz_orig], is filled with 0.
+> 
+> Use size of the ELF headers as an initial offset value in
+> set_vmcore_list_offsets_elf{64,32} and
+> process_ptload_program_headers_elf{64,32} in order to indicate that
+> the offset includes the holes towards the page boundary.
+> 
+> As a result, both set_vmcore_list_offsets_elf{64,32} have the same
+> definition. Merge them as set_vmcore_list_offsets.
+> 
+> Signed-off-by: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
 
-I will add it.
+Looks good to me.
 
--- 
-Mel Gorman
-SUSE Labs
+Acked-by: Vivek Goyal <vgoyal@redhat.com>
+
+Vivek
+
+> ---
+> 
+>  fs/proc/vmcore.c |   94 ++++++++++++++++++++++++------------------------------
+>  1 files changed, 42 insertions(+), 52 deletions(-)
+> 
+> diff --git a/fs/proc/vmcore.c b/fs/proc/vmcore.c
+> index ab0c92e..80fea97 100644
+> --- a/fs/proc/vmcore.c
+> +++ b/fs/proc/vmcore.c
+> @@ -32,6 +32,7 @@ static LIST_HEAD(vmcore_list);
+>  /* Stores the pointer to the buffer containing kernel elf core headers. */
+>  static char *elfcorebuf;
+>  static size_t elfcorebuf_sz;
+> +static size_t elfcorebuf_sz_orig;
+>  
+>  /* Total size of vmcore file. */
+>  static u64 vmcore_size;
+> @@ -186,7 +187,7 @@ static struct vmcore* __init get_new_element(void)
+>  	return kzalloc(sizeof(struct vmcore), GFP_KERNEL);
+>  }
+>  
+> -static u64 __init get_vmcore_size_elf64(char *elfptr)
+> +static u64 __init get_vmcore_size_elf64(char *elfptr, size_t elfsz)
+>  {
+>  	int i;
+>  	u64 size;
+> @@ -195,7 +196,7 @@ static u64 __init get_vmcore_size_elf64(char *elfptr)
+>  
+>  	ehdr_ptr = (Elf64_Ehdr *)elfptr;
+>  	phdr_ptr = (Elf64_Phdr*)(elfptr + sizeof(Elf64_Ehdr));
+> -	size = sizeof(Elf64_Ehdr) + ((ehdr_ptr->e_phnum) * sizeof(Elf64_Phdr));
+> +	size = elfsz;
+>  	for (i = 0; i < ehdr_ptr->e_phnum; i++) {
+>  		size += phdr_ptr->p_memsz;
+>  		phdr_ptr++;
+> @@ -203,7 +204,7 @@ static u64 __init get_vmcore_size_elf64(char *elfptr)
+>  	return size;
+>  }
+>  
+> -static u64 __init get_vmcore_size_elf32(char *elfptr)
+> +static u64 __init get_vmcore_size_elf32(char *elfptr, size_t elfsz)
+>  {
+>  	int i;
+>  	u64 size;
+> @@ -212,7 +213,7 @@ static u64 __init get_vmcore_size_elf32(char *elfptr)
+>  
+>  	ehdr_ptr = (Elf32_Ehdr *)elfptr;
+>  	phdr_ptr = (Elf32_Phdr*)(elfptr + sizeof(Elf32_Ehdr));
+> -	size = sizeof(Elf32_Ehdr) + ((ehdr_ptr->e_phnum) * sizeof(Elf32_Phdr));
+> +	size = elfsz;
+>  	for (i = 0; i < ehdr_ptr->e_phnum; i++) {
+>  		size += phdr_ptr->p_memsz;
+>  		phdr_ptr++;
+> @@ -294,6 +295,8 @@ static int __init merge_note_headers_elf64(char *elfptr, size_t *elfsz,
+>  	i = (nr_ptnote - 1) * sizeof(Elf64_Phdr);
+>  	*elfsz = *elfsz - i;
+>  	memmove(tmp, tmp+i, ((*elfsz)-sizeof(Elf64_Ehdr)-sizeof(Elf64_Phdr)));
+> +	memset(elfptr + *elfsz, 0, i);
+> +	*elfsz = roundup(*elfsz, PAGE_SIZE);
+>  
+>  	/* Modify e_phnum to reflect merged headers. */
+>  	ehdr_ptr->e_phnum = ehdr_ptr->e_phnum - nr_ptnote + 1;
+> @@ -375,6 +378,8 @@ static int __init merge_note_headers_elf32(char *elfptr, size_t *elfsz,
+>  	i = (nr_ptnote - 1) * sizeof(Elf32_Phdr);
+>  	*elfsz = *elfsz - i;
+>  	memmove(tmp, tmp+i, ((*elfsz)-sizeof(Elf32_Ehdr)-sizeof(Elf32_Phdr)));
+> +	memset(elfptr + *elfsz, 0, i);
+> +	*elfsz = roundup(*elfsz, PAGE_SIZE);
+>  
+>  	/* Modify e_phnum to reflect merged headers. */
+>  	ehdr_ptr->e_phnum = ehdr_ptr->e_phnum - nr_ptnote + 1;
+> @@ -398,8 +403,7 @@ static int __init process_ptload_program_headers_elf64(char *elfptr,
+>  	phdr_ptr = (Elf64_Phdr*)(elfptr + sizeof(Elf64_Ehdr)); /* PT_NOTE hdr */
+>  
+>  	/* First program header is PT_NOTE header. */
+> -	vmcore_off = sizeof(Elf64_Ehdr) +
+> -			(ehdr_ptr->e_phnum) * sizeof(Elf64_Phdr) +
+> +	vmcore_off = elfsz +
+>  			phdr_ptr->p_memsz; /* Note sections */
+>  
+>  	for (i = 0; i < ehdr_ptr->e_phnum; i++, phdr_ptr++) {
+> @@ -435,8 +439,7 @@ static int __init process_ptload_program_headers_elf32(char *elfptr,
+>  	phdr_ptr = (Elf32_Phdr*)(elfptr + sizeof(Elf32_Ehdr)); /* PT_NOTE hdr */
+>  
+>  	/* First program header is PT_NOTE header. */
+> -	vmcore_off = sizeof(Elf32_Ehdr) +
+> -			(ehdr_ptr->e_phnum) * sizeof(Elf32_Phdr) +
+> +	vmcore_off = elfsz +
+>  			phdr_ptr->p_memsz; /* Note sections */
+>  
+>  	for (i = 0; i < ehdr_ptr->e_phnum; i++, phdr_ptr++) {
+> @@ -459,38 +462,14 @@ static int __init process_ptload_program_headers_elf32(char *elfptr,
+>  }
+>  
+>  /* Sets offset fields of vmcore elements. */
+> -static void __init set_vmcore_list_offsets_elf64(char *elfptr,
+> -						struct list_head *vc_list)
+> +static void __init set_vmcore_list_offsets(size_t elfsz,
+> +					   struct list_head *vc_list)
+>  {
+>  	loff_t vmcore_off;
+> -	Elf64_Ehdr *ehdr_ptr;
+>  	struct vmcore *m;
+>  
+> -	ehdr_ptr = (Elf64_Ehdr *)elfptr;
+> -
+> -	/* Skip Elf header and program headers. */
+> -	vmcore_off = sizeof(Elf64_Ehdr) +
+> -			(ehdr_ptr->e_phnum) * sizeof(Elf64_Phdr);
+> -
+> -	list_for_each_entry(m, vc_list, list) {
+> -		m->offset = vmcore_off;
+> -		vmcore_off += m->size;
+> -	}
+> -}
+> -
+> -/* Sets offset fields of vmcore elements. */
+> -static void __init set_vmcore_list_offsets_elf32(char *elfptr,
+> -						struct list_head *vc_list)
+> -{
+> -	loff_t vmcore_off;
+> -	Elf32_Ehdr *ehdr_ptr;
+> -	struct vmcore *m;
+> -
+> -	ehdr_ptr = (Elf32_Ehdr *)elfptr;
+> -
+>  	/* Skip Elf header and program headers. */
+> -	vmcore_off = sizeof(Elf32_Ehdr) +
+> -			(ehdr_ptr->e_phnum) * sizeof(Elf32_Phdr);
+> +	vmcore_off = elfsz;
+>  
+>  	list_for_each_entry(m, vc_list, list) {
+>  		m->offset = vmcore_off;
+> @@ -526,30 +505,35 @@ static int __init parse_crash_elf64_headers(void)
+>  	}
+>  
+>  	/* Read in all elf headers. */
+> -	elfcorebuf_sz = sizeof(Elf64_Ehdr) + ehdr.e_phnum * sizeof(Elf64_Phdr);
+> -	elfcorebuf = kmalloc(elfcorebuf_sz, GFP_KERNEL);
+> +	elfcorebuf_sz_orig = sizeof(Elf64_Ehdr) + ehdr.e_phnum * sizeof(Elf64_Phdr);
+> +	elfcorebuf_sz = elfcorebuf_sz_orig;
+> +	elfcorebuf = (void *) __get_free_pages(GFP_KERNEL | __GFP_ZERO,
+> +					       get_order(elfcorebuf_sz_orig));
+>  	if (!elfcorebuf)
+>  		return -ENOMEM;
+>  	addr = elfcorehdr_addr;
+> -	rc = read_from_oldmem(elfcorebuf, elfcorebuf_sz, &addr, 0);
+> +	rc = read_from_oldmem(elfcorebuf, elfcorebuf_sz_orig, &addr, 0);
+>  	if (rc < 0) {
+> -		kfree(elfcorebuf);
+> +		free_pages((unsigned long)elfcorebuf,
+> +			   get_order(elfcorebuf_sz_orig));
+>  		return rc;
+>  	}
+>  
+>  	/* Merge all PT_NOTE headers into one. */
+>  	rc = merge_note_headers_elf64(elfcorebuf, &elfcorebuf_sz, &vmcore_list);
+>  	if (rc) {
+> -		kfree(elfcorebuf);
+> +		free_pages((unsigned long)elfcorebuf,
+> +			   get_order(elfcorebuf_sz_orig));
+>  		return rc;
+>  	}
+>  	rc = process_ptload_program_headers_elf64(elfcorebuf, elfcorebuf_sz,
+>  							&vmcore_list);
+>  	if (rc) {
+> -		kfree(elfcorebuf);
+> +		free_pages((unsigned long)elfcorebuf,
+> +			   get_order(elfcorebuf_sz_orig));
+>  		return rc;
+>  	}
+> -	set_vmcore_list_offsets_elf64(elfcorebuf, &vmcore_list);
+> +	set_vmcore_list_offsets(elfcorebuf_sz, &vmcore_list);
+>  	return 0;
+>  }
+>  
+> @@ -581,30 +565,35 @@ static int __init parse_crash_elf32_headers(void)
+>  	}
+>  
+>  	/* Read in all elf headers. */
+> -	elfcorebuf_sz = sizeof(Elf32_Ehdr) + ehdr.e_phnum * sizeof(Elf32_Phdr);
+> -	elfcorebuf = kmalloc(elfcorebuf_sz, GFP_KERNEL);
+> +	elfcorebuf_sz_orig = sizeof(Elf32_Ehdr) + ehdr.e_phnum * sizeof(Elf32_Phdr);
+> +	elfcorebuf_sz = elfcorebuf_sz_orig;
+> +	elfcorebuf = (void *) __get_free_pages(GFP_KERNEL | __GFP_ZERO,
+> +					       get_order(elfcorebuf_sz_orig));
+>  	if (!elfcorebuf)
+>  		return -ENOMEM;
+>  	addr = elfcorehdr_addr;
+> -	rc = read_from_oldmem(elfcorebuf, elfcorebuf_sz, &addr, 0);
+> +	rc = read_from_oldmem(elfcorebuf, elfcorebuf_sz_orig, &addr, 0);
+>  	if (rc < 0) {
+> -		kfree(elfcorebuf);
+> +		free_pages((unsigned long)elfcorebuf,
+> +			   get_order(elfcorebuf_sz_orig));
+>  		return rc;
+>  	}
+>  
+>  	/* Merge all PT_NOTE headers into one. */
+>  	rc = merge_note_headers_elf32(elfcorebuf, &elfcorebuf_sz, &vmcore_list);
+>  	if (rc) {
+> -		kfree(elfcorebuf);
+> +		free_pages((unsigned long)elfcorebuf,
+> +			   get_order(elfcorebuf_sz_orig));
+>  		return rc;
+>  	}
+>  	rc = process_ptload_program_headers_elf32(elfcorebuf, elfcorebuf_sz,
+>  								&vmcore_list);
+>  	if (rc) {
+> -		kfree(elfcorebuf);
+> +		free_pages((unsigned long)elfcorebuf,
+> +			   get_order(elfcorebuf_sz_orig));
+>  		return rc;
+>  	}
+> -	set_vmcore_list_offsets_elf32(elfcorebuf, &vmcore_list);
+> +	set_vmcore_list_offsets(elfcorebuf_sz, &vmcore_list);
+>  	return 0;
+>  }
+>  
+> @@ -629,14 +618,14 @@ static int __init parse_crash_elf_headers(void)
+>  			return rc;
+>  
+>  		/* Determine vmcore size. */
+> -		vmcore_size = get_vmcore_size_elf64(elfcorebuf);
+> +		vmcore_size = get_vmcore_size_elf64(elfcorebuf, elfcorebuf_sz);
+>  	} else if (e_ident[EI_CLASS] == ELFCLASS32) {
+>  		rc = parse_crash_elf32_headers();
+>  		if (rc)
+>  			return rc;
+>  
+>  		/* Determine vmcore size. */
+> -		vmcore_size = get_vmcore_size_elf32(elfcorebuf);
+> +		vmcore_size = get_vmcore_size_elf32(elfcorebuf, elfcorebuf_sz);
+>  	} else {
+>  		pr_warn("Warning: Core image elf header is not sane\n");
+>  		return -EINVAL;
+> @@ -683,7 +672,8 @@ void vmcore_cleanup(void)
+>  		list_del(&m->list);
+>  		kfree(m);
+>  	}
+> -	kfree(elfcorebuf);
+> +	free_pages((unsigned long)elfcorebuf,
+> +		   get_order(elfcorebuf_sz_orig));
+>  	elfcorebuf = NULL;
+>  }
+>  EXPORT_SYMBOL_GPL(vmcore_cleanup);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
