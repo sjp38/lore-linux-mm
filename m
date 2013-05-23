@@ -1,82 +1,178 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id CE2066B0032
-	for <linux-mm@kvack.org>; Thu, 23 May 2013 13:08:09 -0400 (EDT)
-Received: by mail-we0-f172.google.com with SMTP id w62so2289209wes.17
-        for <linux-mm@kvack.org>; Thu, 23 May 2013 10:08:08 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id A20E96B0033
+	for <linux-mm@kvack.org>; Thu, 23 May 2013 13:08:11 -0400 (EDT)
+Received: by mail-we0-f173.google.com with SMTP id p57so2155839wes.32
+        for <linux-mm@kvack.org>; Thu, 23 May 2013 10:08:10 -0700 (PDT)
 From: Steve Capper <steve.capper@linaro.org>
-Subject: [PATCH 00/11] HugeTLB and THP support for ARM64.
-Date: Thu, 23 May 2013 18:07:47 +0100
-Message-Id: <1369328878-11706-1-git-send-email-steve.capper@linaro.org>
+Subject: [PATCH 02/11] x86: mm: Remove x86 version of huge_pmd_share.
+Date: Thu, 23 May 2013 18:07:49 +0100
+Message-Id: <1369328878-11706-3-git-send-email-steve.capper@linaro.org>
+In-Reply-To: <1369328878-11706-1-git-send-email-steve.capper@linaro.org>
+References: <1369328878-11706-1-git-send-email-steve.capper@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 Cc: Michal Hocko <mhocko@suse.cz>, Ken Chen <kenchen@google.com>, Mel Gorman <mgorman@suse.de>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, patches@linaro.org, Steve Capper <steve.capper@linaro.org>
 
-This series brings huge pages and transparent huge pages to ARM64.
-The functionality is very similar to x86, and a lot of code that can
-be used by both ARM64 and x86 is brought into mm to avoid the need
-for code duplication.
+The huge_pmd_share code has been copied over to mm/hugetlb.c to
+make it accessible to other architectures.
 
-One notable difference from x86 is that ARM64 supports normal pages
-that are 64KB. When 64KB pages are enabled, huge page and
-transparent huge pages are 512MB only, otherwise the sizes match
-x86.
+Remove the x86 copy of the huge_pmd_share code and enable the
+ARCH_WANT_HUGE_PMD_SHARE config flag. That way we reference the
+general one.
 
-This series applies to 3.10-rc2.
-
-I've tested this under the ARMv8 Fast model and the x86 code has
-been tested in a KVM guest. libhugetlbfs was used for testing under
-both architectures.
-
-Changelog:
-Patch:
-   * pud_large usage replaced with pud_huge for general hugetlb
-     code imported into mm.
-   * comments tidied up for bit swap of PTE_FILE, PTE_PROT_NONE.
-
-RFC v2:
-   * PROT_NONE support added for HugeTLB and THP.
-   * pmd_modify implementation fixed.
-   * Superfluous huge dcache flushing code removed.
-   * Simplified (and corrected) MAX_ORDER raise for THP && 64KB
-     pages.
-   * The MAX_ORDER check in huge_mm.h has been corrected.
-
+Signed-off-by: Steve Capper <steve.capper@linaro.org>
 ---
+ arch/x86/Kconfig          |   3 ++
+ arch/x86/mm/hugetlbpage.c | 120 ----------------------------------------------
+ 2 files changed, 3 insertions(+), 120 deletions(-)
 
-Steve Capper (11):
-  mm: hugetlb: Copy huge_pmd_share from x86 to mm.
-  x86: mm: Remove x86 version of huge_pmd_share.
-  mm: hugetlb: Copy general hugetlb code from x86 to mm.
-  x86: mm: Remove general hugetlb code from x86.
-  mm: thp: Correct the HPAGE_PMD_ORDER check.
-  ARM64: mm: Restore memblock limit when map_mem finished.
-  ARM64: mm: Make PAGE_NONE pages read only and no-execute.
-  ARM64: mm: Swap PTE_FILE and PTE_PROT_NONE bits.
-  ARM64: mm: HugeTLB support.
-  ARM64: mm: Raise MAX_ORDER for 64KB pages and THP.
-  ARM64: mm: THP support.
-
- arch/arm64/Kconfig                     |  17 +++
- arch/arm64/include/asm/hugetlb.h       | 117 ++++++++++++++++++
- arch/arm64/include/asm/pgtable-hwdef.h |  12 ++
- arch/arm64/include/asm/pgtable.h       |  84 +++++++++++--
- arch/arm64/include/asm/tlb.h           |   6 +
- arch/arm64/include/asm/tlbflush.h      |   2 +
- arch/arm64/mm/Makefile                 |   1 +
- arch/arm64/mm/fault.c                  |  19 +--
- arch/arm64/mm/hugetlbpage.c            |  70 +++++++++++
- arch/arm64/mm/mmu.c                    |  19 ++-
- arch/x86/Kconfig                       |   6 +
- arch/x86/mm/hugetlbpage.c              | 187 ----------------------------
- include/linux/huge_mm.h                |   2 +-
- include/linux/hugetlb.h                |   4 +
- mm/hugetlb.c                           | 219 +++++++++++++++++++++++++++++++--
- 15 files changed, 537 insertions(+), 228 deletions(-)
- create mode 100644 arch/arm64/include/asm/hugetlb.h
- create mode 100644 arch/arm64/mm/hugetlbpage.c
-
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 685692c..476f786 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -207,6 +207,9 @@ config ARCH_HIBERNATION_POSSIBLE
+ config ARCH_SUSPEND_POSSIBLE
+ 	def_bool y
+ 
++config ARCH_WANT_HUGE_PMD_SHARE
++	def_bool y
++
+ config ZONE_DMA32
+ 	bool
+ 	default X86_64
+diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
+index ae1aa71..7e522a3 100644
+--- a/arch/x86/mm/hugetlbpage.c
++++ b/arch/x86/mm/hugetlbpage.c
+@@ -16,126 +16,6 @@
+ #include <asm/tlbflush.h>
+ #include <asm/pgalloc.h>
+ 
+-static unsigned long page_table_shareable(struct vm_area_struct *svma,
+-				struct vm_area_struct *vma,
+-				unsigned long addr, pgoff_t idx)
+-{
+-	unsigned long saddr = ((idx - svma->vm_pgoff) << PAGE_SHIFT) +
+-				svma->vm_start;
+-	unsigned long sbase = saddr & PUD_MASK;
+-	unsigned long s_end = sbase + PUD_SIZE;
+-
+-	/* Allow segments to share if only one is marked locked */
+-	unsigned long vm_flags = vma->vm_flags & ~VM_LOCKED;
+-	unsigned long svm_flags = svma->vm_flags & ~VM_LOCKED;
+-
+-	/*
+-	 * match the virtual addresses, permission and the alignment of the
+-	 * page table page.
+-	 */
+-	if (pmd_index(addr) != pmd_index(saddr) ||
+-	    vm_flags != svm_flags ||
+-	    sbase < svma->vm_start || svma->vm_end < s_end)
+-		return 0;
+-
+-	return saddr;
+-}
+-
+-static int vma_shareable(struct vm_area_struct *vma, unsigned long addr)
+-{
+-	unsigned long base = addr & PUD_MASK;
+-	unsigned long end = base + PUD_SIZE;
+-
+-	/*
+-	 * check on proper vm_flags and page table alignment
+-	 */
+-	if (vma->vm_flags & VM_MAYSHARE &&
+-	    vma->vm_start <= base && end <= vma->vm_end)
+-		return 1;
+-	return 0;
+-}
+-
+-/*
+- * Search for a shareable pmd page for hugetlb. In any case calls pmd_alloc()
+- * and returns the corresponding pte. While this is not necessary for the
+- * !shared pmd case because we can allocate the pmd later as well, it makes the
+- * code much cleaner. pmd allocation is essential for the shared case because
+- * pud has to be populated inside the same i_mmap_mutex section - otherwise
+- * racing tasks could either miss the sharing (see huge_pte_offset) or select a
+- * bad pmd for sharing.
+- */
+-static pte_t *
+-huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
+-{
+-	struct vm_area_struct *vma = find_vma(mm, addr);
+-	struct address_space *mapping = vma->vm_file->f_mapping;
+-	pgoff_t idx = ((addr - vma->vm_start) >> PAGE_SHIFT) +
+-			vma->vm_pgoff;
+-	struct vm_area_struct *svma;
+-	unsigned long saddr;
+-	pte_t *spte = NULL;
+-	pte_t *pte;
+-
+-	if (!vma_shareable(vma, addr))
+-		return (pte_t *)pmd_alloc(mm, pud, addr);
+-
+-	mutex_lock(&mapping->i_mmap_mutex);
+-	vma_interval_tree_foreach(svma, &mapping->i_mmap, idx, idx) {
+-		if (svma == vma)
+-			continue;
+-
+-		saddr = page_table_shareable(svma, vma, addr, idx);
+-		if (saddr) {
+-			spte = huge_pte_offset(svma->vm_mm, saddr);
+-			if (spte) {
+-				get_page(virt_to_page(spte));
+-				break;
+-			}
+-		}
+-	}
+-
+-	if (!spte)
+-		goto out;
+-
+-	spin_lock(&mm->page_table_lock);
+-	if (pud_none(*pud))
+-		pud_populate(mm, pud, (pmd_t *)((unsigned long)spte & PAGE_MASK));
+-	else
+-		put_page(virt_to_page(spte));
+-	spin_unlock(&mm->page_table_lock);
+-out:
+-	pte = (pte_t *)pmd_alloc(mm, pud, addr);
+-	mutex_unlock(&mapping->i_mmap_mutex);
+-	return pte;
+-}
+-
+-/*
+- * unmap huge page backed by shared pte.
+- *
+- * Hugetlb pte page is ref counted at the time of mapping.  If pte is shared
+- * indicated by page_count > 1, unmap is achieved by clearing pud and
+- * decrementing the ref count. If count == 1, the pte page is not shared.
+- *
+- * called with vma->vm_mm->page_table_lock held.
+- *
+- * returns: 1 successfully unmapped a shared pte page
+- *	    0 the underlying pte page is not shared, or it is the last user
+- */
+-int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
+-{
+-	pgd_t *pgd = pgd_offset(mm, *addr);
+-	pud_t *pud = pud_offset(pgd, *addr);
+-
+-	BUG_ON(page_count(virt_to_page(ptep)) == 0);
+-	if (page_count(virt_to_page(ptep)) == 1)
+-		return 0;
+-
+-	pud_clear(pud);
+-	put_page(virt_to_page(ptep));
+-	*addr = ALIGN(*addr, HPAGE_SIZE * PTRS_PER_PTE) - HPAGE_SIZE;
+-	return 1;
+-}
+-
+ pte_t *huge_pte_alloc(struct mm_struct *mm,
+ 			unsigned long addr, unsigned long sz)
+ {
 -- 
 1.8.1.4
 
