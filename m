@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 8F37C6B0068
-	for <linux-mm@kvack.org>; Thu, 23 May 2013 13:08:28 -0400 (EDT)
-Received: by mail-we0-f176.google.com with SMTP id p58so2148947wes.7
-        for <linux-mm@kvack.org>; Thu, 23 May 2013 10:08:27 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 8271A6B0069
+	for <linux-mm@kvack.org>; Thu, 23 May 2013 13:08:30 -0400 (EDT)
+Received: by mail-we0-f169.google.com with SMTP id q55so2298565wes.14
+        for <linux-mm@kvack.org>; Thu, 23 May 2013 10:08:28 -0700 (PDT)
 From: Steve Capper <steve.capper@linaro.org>
-Subject: [PATCH 11/11] ARM64: mm: THP support.
-Date: Thu, 23 May 2013 18:07:58 +0100
-Message-Id: <1369328878-11706-12-git-send-email-steve.capper@linaro.org>
+Subject: [PATCH 08/11] ARM64: mm: Swap PTE_FILE and PTE_PROT_NONE bits.
+Date: Thu, 23 May 2013 18:07:55 +0100
+Message-Id: <1369328878-11706-9-git-send-email-steve.capper@linaro.org>
 In-Reply-To: <1369328878-11706-1-git-send-email-steve.capper@linaro.org>
 References: <1369328878-11706-1-git-send-email-steve.capper@linaro.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,146 +15,73 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 Cc: Michal Hocko <mhocko@suse.cz>, Ken Chen <kenchen@google.com>, Mel Gorman <mgorman@suse.de>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, patches@linaro.org, Steve Capper <steve.capper@linaro.org>
 
-Bring Transparent HugePage support to ARM. The size of a
-transparent huge page depends on the normal page size. A
-transparent huge page is always represented as a pmd.
+Under ARM64, PTEs can be broadly categorised as follows:
+   - Present and valid: Bit #0 is set. The PTE is valid and memory
+     access to the region may fault.
 
-If PAGE_SIZE is 4KB, THPs are 2MB.
-If PAGE_SIZE is 64KB, THPs are 512MB.
+   - Present and invalid: Bit #0 is clear and bit #1 is set.
+     Represents present memory with PROT_NONE protection. The PTE
+     is an invalid entry, and the user fault handler will raise a
+     SIGSEGV.
+
+   - Not present (file): Bits #0 and #1 are clear, bit #2 is set.
+     Memory represented has been paged out. The PTE is an invalid
+     entry, and the fault handler will try and re-populate the
+     memory where necessary.
+
+Huge PTEs are block descriptors that have bit #1 clear. If we wish
+to represent PROT_NONE huge PTEs we then run into a problem as
+there is no way to distinguish between regular and huge PTEs if we
+set bit #1.
+
+As huge PTEs are always present, the meaning of bits #1 and #2 can
+be swapped for invalid PTEs. This patch swaps the PTE_FILE and
+PTE_PROT_NONE constants, allowing us to represent PROT_NONE huge
+PTEs.
 
 Signed-off-by: Steve Capper <steve.capper@linaro.org>
 Acked-by: Catalin Marinas <catalin.marinas@arm.com>
 ---
- arch/arm64/Kconfig                     |  3 ++
- arch/arm64/include/asm/pgtable-hwdef.h |  4 +++
- arch/arm64/include/asm/pgtable.h       | 55 ++++++++++++++++++++++++++++++++++
- arch/arm64/include/asm/tlb.h           |  6 ++++
- arch/arm64/include/asm/tlbflush.h      |  2 ++
- 5 files changed, 70 insertions(+)
+ arch/arm64/include/asm/pgtable.h | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
 
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 10607d6..308a556 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -189,6 +189,9 @@ config ARCH_WANT_GENERAL_HUGETLB
- config ARCH_WANT_HUGE_PMD_SHARE
- 	def_bool y if !ARM64_64K_PAGES
- 
-+config HAVE_ARCH_TRANSPARENT_HUGEPAGE
-+	def_bool y
-+
- source "mm/Kconfig"
- 
- config FORCE_MAX_ZONEORDER
-diff --git a/arch/arm64/include/asm/pgtable-hwdef.h b/arch/arm64/include/asm/pgtable-hwdef.h
-index e6e0a0d..63c9d0d 100644
---- a/arch/arm64/include/asm/pgtable-hwdef.h
-+++ b/arch/arm64/include/asm/pgtable-hwdef.h
-@@ -42,6 +42,10 @@
- /*
-  * Section
-  */
-+#define PMD_SECT_VALID		(_AT(pmdval_t, 1) << 0)
-+#define PMD_SECT_PROT_NONE	(_AT(pmdval_t, 1) << 2)
-+#define PMD_SECT_USER		(_AT(pmdval_t, 1) << 6)		/* AP[1] */
-+#define PMD_SECT_RDONLY		(_AT(pmdval_t, 1) << 7)		/* AP[2] */
- #define PMD_SECT_S		(_AT(pmdval_t, 3) << 8)
- #define PMD_SECT_AF		(_AT(pmdval_t, 1) << 10)
- #define PMD_SECT_NG		(_AT(pmdval_t, 1) << 11)
 diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
-index 7476896..33a0d31 100644
+index 77b09d6..8867282 100644
 --- a/arch/arm64/include/asm/pgtable.h
 +++ b/arch/arm64/include/asm/pgtable.h
-@@ -188,6 +188,61 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
- #define __HAVE_ARCH_PTE_SPECIAL
+@@ -25,8 +25,8 @@
+  * Software defined PTE bits definition.
+  */
+ #define PTE_VALID		(_AT(pteval_t, 1) << 0)
+-#define PTE_PROT_NONE		(_AT(pteval_t, 1) << 1)	/* only when !PTE_VALID */
+-#define PTE_FILE		(_AT(pteval_t, 1) << 2)	/* only when !pte_present() */
++#define PTE_FILE		(_AT(pteval_t, 1) << 1)	/* only when !pte_present() */
++#define PTE_PROT_NONE		(_AT(pteval_t, 1) << 2)	/* only when !PTE_VALID */
+ #define PTE_DIRTY		(_AT(pteval_t, 1) << 55)
+ #define PTE_SPECIAL		(_AT(pteval_t, 1) << 56)
+ 
+@@ -281,8 +281,8 @@ extern pgd_t idmap_pg_dir[PTRS_PER_PGD];
  
  /*
-+ * Software PMD bits for THP
-+ */
-+
-+#define PMD_SECT_DIRTY		(_AT(pmdval_t, 1) << 55)
-+#define PMD_SECT_SPLITTING	(_AT(pmdval_t, 1) << 57)
-+
-+/*
-+ * THP definitions.
-+ */
-+#define pmd_young(pmd)		(pmd_val(pmd) & PMD_SECT_AF)
-+
-+#define __HAVE_ARCH_PMD_WRITE
-+#define pmd_write(pmd)		(!(pmd_val(pmd) & PMD_SECT_RDONLY))
-+
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#define pmd_trans_huge(pmd)	(pmd_val(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT))
-+#define pmd_trans_splitting(pmd) (pmd_val(pmd) & PMD_SECT_SPLITTING)
-+#endif
-+
-+#define PMD_BIT_FUNC(fn,op) \
-+static inline pmd_t pmd_##fn(pmd_t pmd) { pmd_val(pmd) op; return pmd; }
-+
-+PMD_BIT_FUNC(wrprotect,	|= PMD_SECT_RDONLY);
-+PMD_BIT_FUNC(mkold,	&= ~PMD_SECT_AF);
-+PMD_BIT_FUNC(mksplitting, |= PMD_SECT_SPLITTING);
-+PMD_BIT_FUNC(mkwrite,   &= ~PMD_SECT_RDONLY);
-+PMD_BIT_FUNC(mkdirty,   |= PMD_SECT_DIRTY);
-+PMD_BIT_FUNC(mkyoung,   |= PMD_SECT_AF);
-+PMD_BIT_FUNC(mknotpresent, &= ~PMD_TYPE_MASK);
-+
-+#define pmd_mkhuge(pmd)		(__pmd(pmd_val(pmd) & ~PMD_TABLE_BIT))
-+
-+#define pmd_pfn(pmd)		(((pmd_val(pmd) & PMD_MASK) & PHYS_MASK) >> PAGE_SHIFT)
-+#define pfn_pmd(pfn,prot)	(__pmd(((phys_addr_t)(pfn) << PAGE_SHIFT) | pgprot_val(prot)))
-+#define mk_pmd(page,prot)	pfn_pmd(page_to_pfn(page),prot)
-+
-+#define pmd_page(pmd)           pfn_to_page(__phys_to_pfn(pmd_val(pmd) & PHYS_MASK))
-+
-+static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
-+{
-+	const pmdval_t mask = PMD_SECT_USER | PMD_SECT_PXN | PMD_SECT_UXN |
-+			      PMD_SECT_RDONLY | PMD_SECT_PROT_NONE |
-+			      PMD_SECT_VALID;
-+	pmd_val(pmd) = (pmd_val(pmd) & ~mask) | (pgprot_val(newprot) & mask);
-+	return pmd;
-+}
-+
-+#define set_pmd_at(mm, addr, pmdp, pmd)	set_pmd(pmdp, pmd)
-+
-+static inline int has_transparent_hugepage(void)
-+{
-+	return 1;
-+}
-+
-+/*
-  * Mark the prot value as uncacheable and unbufferable.
+  * Encode and decode a swap entry:
+- *	bits 0-1:	present (must be zero)
+- *	bit  2:		PTE_FILE
++ *	bits 0, 2:	present (must both be zero)
++ *	bit  1:		PTE_FILE
+  *	bits 3-8:	swap type
+  *	bits 9-63:	swap offset
   */
- #define pgprot_noncached(prot) \
-diff --git a/arch/arm64/include/asm/tlb.h b/arch/arm64/include/asm/tlb.h
-index 654f096..46b3beb 100644
---- a/arch/arm64/include/asm/tlb.h
-+++ b/arch/arm64/include/asm/tlb.h
-@@ -187,4 +187,10 @@ static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmdp,
+@@ -306,8 +306,8 @@ extern pgd_t idmap_pg_dir[PTRS_PER_PGD];
  
- #define tlb_migrate_finish(mm)		do { } while (0)
- 
-+static inline void
-+tlb_remove_pmd_tlb_entry(struct mmu_gather *tlb, pmd_t *pmdp, unsigned long addr)
-+{
-+	tlb_add_flush(tlb, addr);
-+}
-+
- #endif
-diff --git a/arch/arm64/include/asm/tlbflush.h b/arch/arm64/include/asm/tlbflush.h
-index 122d632..8b48203 100644
---- a/arch/arm64/include/asm/tlbflush.h
-+++ b/arch/arm64/include/asm/tlbflush.h
-@@ -117,6 +117,8 @@ static inline void update_mmu_cache(struct vm_area_struct *vma,
- 	dsb();
- }
- 
-+#define update_mmu_cache_pmd(vma, address, pmd) do { } while (0)
-+
- #endif
- 
- #endif
+ /*
+  * Encode and decode a file entry:
+- *	bits 0-1:	present (must be zero)
+- *	bit  2:		PTE_FILE
++ *	bits 0, 2:	present (must both be zero)
++ *	bit  1:		PTE_FILE
+  *	bits 3-63:	file offset / PAGE_SIZE
+  */
+ #define pte_file(pte)		(pte_val(pte) & PTE_FILE)
 -- 
 1.8.1.4
 
