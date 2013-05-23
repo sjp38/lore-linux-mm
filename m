@@ -1,60 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id BEF546B0002
-	for <linux-mm@kvack.org>; Wed, 22 May 2013 21:56:50 -0400 (EDT)
-Message-ID: <519D7753.2070801@oracle.com>
-Date: Thu, 23 May 2013 09:56:35 +0800
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 5B1F06B0033
+	for <linux-mm@kvack.org>; Wed, 22 May 2013 22:00:32 -0400 (EDT)
+Message-ID: <519D7827.80607@oracle.com>
+Date: Thu, 23 May 2013 10:00:07 +0800
 From: Bob Liu <bob.liu@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH] zswap: add zswap shrinker
-References: <1369117567-26704-1-git-send-email-bob.liu@oracle.com> <20130521185720.GA3398@medulla> <519C4377.8020206@oracle.com> <20130522140815.GA3589@cerebellum>
-In-Reply-To: <20130522140815.GA3589@cerebellum>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCHv11 2/4] zbud: add to mm/
+References: <1368448803-2089-1-git-send-email-sjenning@linux.vnet.ibm.com> <1368448803-2089-3-git-send-email-sjenning@linux.vnet.ibm.com> <20130517154837.GN11497@suse.de> <20130519205219.GA3252@cerebellum> <20130520135439.GR11497@suse.de> <20130520154225.GA25536@cerebellum> <20130521081020.GT11497@suse.de>
+In-Reply-To: <20130521081020.GT11497@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Bob Liu <lliubbo@gmail.com>, linux-mm@kvack.org, akpm@linux-foundation.org, ngupta@vflare.org, minchan@kernel.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, rcj@linux.vnet.ibm.com, mgorman@suse.de, riel@redhat.com, dave@sr71.net, hughd@google.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
+Hi Mel & Seth,
 
-On 05/22/2013 10:08 PM, Seth Jennings wrote:
-> On Wed, May 22, 2013 at 12:03:03PM +0800, Bob Liu wrote:
->>
->> On 05/22/2013 02:57 AM, Seth Jennings wrote:
->>> On Tue, May 21, 2013 at 02:26:07PM +0800, Bob Liu wrote:
->>>> In my understanding, currenlty zswap have a few problems.
->>>> 1. The zswap pool size is 20% of total memory that's too random and once it
->>>> gets full the performance may even worse because everytime pageout() an anon
->>>> page two disk-io write ops may happend instead of one.
+On 05/21/2013 04:10 PM, Mel Gorman wrote:
+> On Mon, May 20, 2013 at 10:42:25AM -0500, Seth Jennings wrote:
+>> On Mon, May 20, 2013 at 02:54:39PM +0100, Mel Gorman wrote:
+>>> On Sun, May 19, 2013 at 03:52:19PM -0500, Seth Jennings wrote:
+>>>> My first guess is that the external fragmentation situation you are referring to
+>>>> is a workload in which all pages compress to greater than half a page.  If so,
+>>>> then it doesn't matter what NCHUCNKS_ORDER is, there won't be any pages the
+>>>> compress enough to fit in the < PAGE_SIZE/2 free space that remains in the
+>>>> unbuddied zbud pages.
+>>>>
 >>>
->>> Just to clarify, 20% is a default maximum amount that zswap can occupy.
+>>> There are numerous aspects to this, too many to write them all down.
+>>> Modelling the external fragmentation one and how it affects swap IO
+>>> would be a complete pain in the ass so lets consider the following
+>>> example instead as it's a bit clearer.
 >>>
->>> Also, in the steady over-the-limit state, the average number of writebacks is
->>> equal to the number of pages coming into zswap.  The description above makes it
->>> sound like there is a reclaim amplification effect (two writebacks per zswap
->>> store) when, on average, there is none. The 2:1 effect only happens on one or
->>> two store operations right after the pool becomes full.
+>>> Three processes. Process A compresses by 75%, Process B compresses to 15%,
+>>> Process C pages compress to 15%. They are all adding to zswap in lockstep.
+>>> Lets say that zswap can hold 100 physical pages.
+>>>
+>>> NCHUNKS == 2
+>>> 	All Process A pages get rejected.
 >>
->> I don't think it only happens on one or two store operations.
+>> Ah, I think this is our disconnect.  Process A pages will not be rejected.
+>> They will be stored in a zbud page, and that zbud page will be added
+>> to the 0th unbuddied list.  This list maintains a list of zbud pages
+>> that will never be buddied because there are no free chunks.
 >>
->> When the system enter a situation or run a workload which have many anon
->> pages, the zswap pool will be full easily and most of the time.
 > 
-> I think the part missing here is the just because a page is reclaimed on a
-> particular store because we are over the zswap limit doesn't necessarily mean
-> that page will be reallocated to the pool on the next zbud_alloc().  The
-> reclaimed page is only reallocated if there is no unbuddied page in the pool
-> with enough free space to hold the requested allocation.
-> 
-> In the case that the reclaimed page is not reallocated to the pool, we will be
-> under the pool limit on the next zswap store and not do reclaim.
-> 
+> D'oh, good point. Unfortunately, the problem then still exists at the
+> writeback end which I didn't bring up in the previous mail. 
 
-That's true, I see your idea here.
-But it's probably that there will be no suitable unbuddied pages in the
-pool.
-Mel gave a very good and detail example about nchunks in thread:
-Re: [PATCHv11 2/4] zbud: add to mm/
+What's your opinion if we write back the whole compressed page to swap disk?
 
 -- 
 Regards,
