@@ -1,14 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 6CD816B0032
-	for <linux-mm@kvack.org>; Thu, 23 May 2013 18:00:37 -0400 (EDT)
-Date: Thu, 23 May 2013 15:00:35 -0700
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id E565A6B0032
+	for <linux-mm@kvack.org>; Thu, 23 May 2013 18:17:16 -0400 (EDT)
+Date: Thu, 23 May 2013 15:17:14 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v8 5/9] vmalloc: introduce remap_vmalloc_range_partial
-Message-Id: <20130523150035.73dc8457e895155897ef8781@linux-foundation.org>
-In-Reply-To: <20130523052524.13864.11784.stgit@localhost6.localdomain6>
+Subject: Re: [PATCH v8 6/9] vmcore: allocate ELF note segment in the 2nd
+ kernel vmalloc memory
+Message-Id: <20130523151714.a4096553280794de47d0fdb6@linux-foundation.org>
+In-Reply-To: <20130523052530.13864.7616.stgit@localhost6.localdomain6>
 References: <20130523052421.13864.83978.stgit@localhost6.localdomain6>
-	<20130523052524.13864.11784.stgit@localhost6.localdomain6>
+	<20130523052530.13864.7616.stgit@localhost6.localdomain6>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -17,84 +18,98 @@ List-ID: <linux-mm.kvack.org>
 To: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
 Cc: vgoyal@redhat.com, ebiederm@xmission.com, cpw@sgi.com, kumagai-atsushi@mxc.nes.nec.co.jp, lisa.mitchell@hp.com, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, zhangyanfei@cn.fujitsu.com, jingbai.ma@hp.com, linux-mm@kvack.org, riel@redhat.com, walken@google.com, hughd@google.com, kosaki.motohiro@jp.fujitsu.com
 
-On Thu, 23 May 2013 14:25:24 +0900 HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com> wrote:
+On Thu, 23 May 2013 14:25:30 +0900 HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com> wrote:
 
-> We want to allocate ELF note segment buffer on the 2nd kernel in
-> vmalloc space and remap it to user-space in order to reduce the risk
-> that memory allocation fails on system with huge number of CPUs and so
-> with huge ELF note segment that exceeds 11-order block size.
+> The reasons why we don't allocate ELF note segment in the 1st kernel
+> (old memory) on page boundary is to keep backward compatibility for
+> old kernels, and that if doing so, we waste not a little memory due to
+> round-up operation to fit the memory to page boundary since most of
+> the buffers are in per-cpu area.
 > 
-> Although there's already remap_vmalloc_range for the purpose of
-> remapping vmalloc memory to user-space, we need to specify user-space
-> range via vma. Mmap on /proc/vmcore needs to remap range across
-> multiple objects, so the interface that requires vma to cover full
-> range is problematic.
+> ELF notes are per-cpu, so total size of ELF note segments depends on
+> number of CPUs. The current maximum number of CPUs on x86_64 is 5192,
+> and there's already system with 4192 CPUs in SGI, where total size
+> amounts to 1MB. This can be larger in the near future or possibly even
+> now on another architecture that has larger size of note per a single
+> cpu. Thus, to avoid the case where memory allocation for large block
+> fails, we allocate vmcore objects on vmalloc memory.
 > 
-> This patch introduces remap_vmalloc_range_partial that receives
-> user-space range as a pair of base address and size and can be used
-> for mmap on /proc/vmcore case.
-> 
-> remap_vmalloc_range is rewritten using remap_vmalloc_range_partial.
+> This patch adds elfnotes_buf and elfnotes_sz variables to keep pointer
+> to the ELF note segment buffer and its size. There's no longer the
+> vmcore object that corresponds to the ELF note segment in
+> vmcore_list. Accordingly, read_vmcore() has new case for ELF note
+> segment and set_vmcore_list_offsets_elf{64,32}() and other helper
+> functions starts calculating offset from sum of size of ELF headers
+> and size of ELF note segment.
 > 
 > ...
 >
-> +int remap_vmalloc_range_partial(struct vm_area_struct *vma, unsigned long uaddr,
-> +				void *kaddr, unsigned long size)
->  {
->  	struct vm_struct *area;
-> -	unsigned long uaddr = vma->vm_start;
-> -	unsigned long usize = vma->vm_end - vma->vm_start;
+> @@ -154,6 +157,26 @@ static ssize_t read_vmcore(struct file *file, char __user *buffer,
+>  			return acc;
+>  	}
 >  
-> -	if ((PAGE_SIZE-1) & (unsigned long)addr)
-> +	size = PAGE_ALIGN(size);
+> +	/* Read Elf note segment */
+> +	if (*fpos < elfcorebuf_sz + elfnotes_sz) {
+> +		void *kaddr;
 > +
-> +	if (((PAGE_SIZE-1) & (unsigned long)uaddr) ||
-> +	    ((PAGE_SIZE-1) & (unsigned long)kaddr))
->  		return -EINVAL;
+> +		tsz = elfcorebuf_sz + elfnotes_sz - *fpos;
+> +		if (buflen < tsz)
+> +			tsz = buflen;
 
-hm, that's ugly.
+We have min().
 
+>
+> ...
+>
+> +/* Merges all the PT_NOTE headers into one. */
+> +static int __init merge_note_headers_elf64(char *elfptr, size_t *elfsz,
+> +					   char **notes_buf, size_t *notes_sz)
+> +{
+> +	int i, nr_ptnote=0, rc=0;
+> +	char *tmp;
+> +	Elf64_Ehdr *ehdr_ptr;
+> +	Elf64_Phdr phdr;
+> +	u64 phdr_sz = 0, note_off;
+> +
+> +	ehdr_ptr = (Elf64_Ehdr *)elfptr;
+> +
+> +	rc = update_note_header_size_elf64(ehdr_ptr);
+> +	if (rc < 0)
+> +		return rc;
+> +
+> +	rc = get_note_number_and_size_elf64(ehdr_ptr, &nr_ptnote, &phdr_sz);
+> +	if (rc < 0)
+> +		return rc;
+> +
+> +	*notes_sz = roundup(phdr_sz, PAGE_SIZE);
+> +	*notes_buf = vzalloc(*notes_sz);
 
-Why don't we do this:
+I think this gets leaked in a number of places.
+
+> +	if (!*notes_buf)
+> +		return -ENOMEM;
+> +
+> +	rc = copy_notes_elf64(ehdr_ptr, *notes_buf);
+> +	if (rc < 0)
+> +		return rc;
+> +
+>  	/* Prepare merged PT_NOTE program header. */
+>  	phdr.p_type    = PT_NOTE;
+>  	phdr.p_flags   = 0;
+>  	note_off = sizeof(Elf64_Ehdr) +
+>  			(ehdr_ptr->e_phnum - nr_ptnote +1) * sizeof(Elf64_Phdr);
+> -	phdr.p_offset  = note_off;
+> +	phdr.p_offset  = roundup(note_off, PAGE_SIZE);
+>  	phdr.p_vaddr   = phdr.p_paddr = 0;
+>  	phdr.p_filesz  = phdr.p_memsz = phdr_sz;
+>  	phdr.p_align   = 0;
+
+Please review and test:
 
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: include/linux/mm.h: add PAGE_ALIGNED() helper
+Subject: vmcore-allocate-elf-note-segment-in-the-2nd-kernel-vmalloc-memory-fix
 
-To test whether an address is aligned to PAGE_SIZE.
-
-Cc: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, 
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- include/linux/mm.h |    3 +++
- 1 file changed, 3 insertions(+)
-
-diff -puN include/linux/mm.h~a include/linux/mm.h
---- a/include/linux/mm.h~a
-+++ a/include/linux/mm.h
-@@ -52,6 +52,9 @@ extern unsigned long sysctl_admin_reserv
- /* to align the pointer to the (next) page boundary */
- #define PAGE_ALIGN(addr) ALIGN(addr, PAGE_SIZE)
- 
-+/* test whether an address (unsigned long or pointer) is aligned to PAGE_SIZE */
-+#define PAGE_ALIGNED(addr)	IS_ALIGNED((unsigned long)addr, PAGE_SIZE)
-+
- /*
-  * Linux kernel virtual memory manager primitives.
-  * The idea being to have a "virtual" mm in the same way
-_
-
-
-(I'd have thought we already had such a thing, but we don't seem to)
-
-
-Then this:
-
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: vmalloc-introduce-remap_vmalloc_range_partial-fix
-
-use PAGE_ALIGNED()
+use min(), fix error-path vzalloc() leaks
 
 Cc: Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>
 Cc: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
@@ -105,36 +120,63 @@ Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
 
- mm/vmalloc.c |    8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
+ fs/proc/vmcore.c |   16 +++++-----------
+ 1 file changed, 5 insertions(+), 11 deletions(-)
 
-diff -puN include/linux/vmalloc.h~vmalloc-introduce-remap_vmalloc_range_partial-fix include/linux/vmalloc.h
-diff -puN mm/vmalloc.c~vmalloc-introduce-remap_vmalloc_range_partial-fix mm/vmalloc.c
---- a/mm/vmalloc.c~vmalloc-introduce-remap_vmalloc_range_partial-fix
-+++ a/mm/vmalloc.c
-@@ -1476,10 +1476,9 @@ static void __vunmap(const void *addr, i
- 	if (!addr)
- 		return;
+diff -puN fs/proc/vmcore.c~vmcore-allocate-elf-note-segment-in-the-2nd-kernel-vmalloc-memory-fix fs/proc/vmcore.c
+--- a/fs/proc/vmcore.c~vmcore-allocate-elf-note-segment-in-the-2nd-kernel-vmalloc-memory-fix
++++ a/fs/proc/vmcore.c
+@@ -142,9 +142,7 @@ static ssize_t read_vmcore(struct file *
  
--	if ((PAGE_SIZE-1) & (unsigned long)addr) {
--		WARN(1, KERN_ERR "Trying to vfree() bad address (%p)\n", addr);
-+	if (WARN(!PAGE_ALIGNED(addr), "Trying to vfree() bad address (%p)\n",
-+			addr));
- 		return;
--	}
+ 	/* Read ELF core header */
+ 	if (*fpos < elfcorebuf_sz) {
+-		tsz = elfcorebuf_sz - *fpos;
+-		if (buflen < tsz)
+-			tsz = buflen;
++		tsz = min(elfcorebuf_sz - (size_t)*fpos, buflen);
+ 		if (copy_to_user(buffer, elfcorebuf + *fpos, tsz))
+ 			return -EFAULT;
+ 		buflen -= tsz;
+@@ -161,9 +159,7 @@ static ssize_t read_vmcore(struct file *
+ 	if (*fpos < elfcorebuf_sz + elfnotes_sz) {
+ 		void *kaddr;
  
- 	area = remove_vm_area(addr);
- 	if (unlikely(!area)) {
-@@ -2170,8 +2169,7 @@ int remap_vmalloc_range_partial(struct v
+-		tsz = elfcorebuf_sz + elfnotes_sz - *fpos;
+-		if (buflen < tsz)
+-			tsz = buflen;
++		tsz = min(elfcorebuf_sz + elfnotes_sz - (size_t)*fpos, buflen);
+ 		kaddr = elfnotes_buf + *fpos - elfcorebuf_sz;
+ 		if (copy_to_user(buffer, kaddr, tsz))
+ 			return -EFAULT;
+@@ -179,9 +175,7 @@ static ssize_t read_vmcore(struct file *
  
- 	size = PAGE_ALIGN(size);
+ 	list_for_each_entry(m, &vmcore_list, list) {
+ 		if (*fpos < m->offset + m->size) {
+-			tsz = m->offset + m->size - *fpos;
+-			if (buflen < tsz)
+-				tsz = buflen;
++			tsz = min_t(size_t, m->offset + m->size - *fpos, buflen);
+ 			start = m->paddr + *fpos - m->offset;
+ 			tmp = read_from_oldmem(buffer, tsz, &start, 1);
+ 			if (tmp < 0)
+@@ -710,6 +704,8 @@ static void free_elfcorebuf(void)
+ {
+ 	free_pages((unsigned long)elfcorebuf, get_order(elfcorebuf_sz_orig));
+ 	elfcorebuf = NULL;
++	vfree(elfnotes_buf);
++	elfnotes_buf = NULL;
+ }
  
--	if (((PAGE_SIZE-1) & (unsigned long)uaddr) ||
--	    ((PAGE_SIZE-1) & (unsigned long)kaddr))
-+	if (!PAGE_ALIGNED(uaddr) || !PAGE_ALIGNED(kaddr))
- 		return -EINVAL;
- 
- 	area = find_vm_area(kaddr);
+ static int __init parse_crash_elf64_headers(void)
+@@ -898,8 +894,6 @@ void vmcore_cleanup(void)
+ 		list_del(&m->list);
+ 		kfree(m);
+ 	}
+-	vfree(elfnotes_buf);
+-	elfnotes_buf = NULL;
+ 	free_elfcorebuf();
+ }
+ EXPORT_SYMBOL_GPL(vmcore_cleanup);
 _
 
 --
