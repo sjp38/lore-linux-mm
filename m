@@ -1,101 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 6C8A66B0002
-	for <linux-mm@kvack.org>; Thu, 23 May 2013 07:30:32 -0400 (EDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <CAJd=RBA+yzrKOzZt_DL5JRgzd2H25DgEBF-JEqxuCxgdwHTWmg@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 1E9EA6B0002
+	for <linux-mm@kvack.org>; Thu, 23 May 2013 07:36:44 -0400 (EDT)
+Received: by mail-oa0-f47.google.com with SMTP id m1so4272086oag.34
+        for <linux-mm@kvack.org>; Thu, 23 May 2013 04:36:43 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1368321816-17719-40-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1368321816-17719-4-git-send-email-kirill.shutemov@linux.intel.com>
- <CAJd=RBA+yzrKOzZt_DL5JRgzd2H25DgEBF-JEqxuCxgdwHTWmg@mail.gmail.com>
-Subject: Re: [PATCHv4 03/39] mm: implement zero_huge_user_segment and friends
-Content-Transfer-Encoding: 7bit
-Message-Id: <20130523113255.E0B3AE0090@blue.fi.intel.com>
-Date: Thu, 23 May 2013 14:32:55 +0300 (EEST)
+	<1368321816-17719-40-git-send-email-kirill.shutemov@linux.intel.com>
+Date: Thu, 23 May 2013 19:36:43 +0800
+Message-ID: <CAJd=RBCP+YvA46j8K7pXDGBLdLgh2+Db9RDrHU4DP7JHsv_Qcw@mail.gmail.com>
+Subject: Re: [PATCHv4 39/39] thp: map file-backed huge pages on fault
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Dave Hansen <dave@sr71.net>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Dave Hansen <dave@sr71.net>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hillf Danton wrote:
-> On Sun, May 12, 2013 at 9:23 AM, Kirill A. Shutemov
-> <kirill.shutemov@linux.intel.com> wrote:
-> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> >
-> > Let's add helpers to clear huge page segment(s). They provide the same
-> > functionallity as zero_user_segment and zero_user, but for huge pages.
-> >
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > ---
-> >  include/linux/mm.h |    7 +++++++
-> >  mm/memory.c        |   36 ++++++++++++++++++++++++++++++++++++
-> >  2 files changed, 43 insertions(+)
-> >
-> > diff --git a/include/linux/mm.h b/include/linux/mm.h
-> > index c05d7cf..5e156fb 100644
-> > --- a/include/linux/mm.h
-> > +++ b/include/linux/mm.h
-> > @@ -1797,6 +1797,13 @@ extern void dump_page(struct page *page);
-> >  extern void clear_huge_page(struct page *page,
-> >                             unsigned long addr,
-> >                             unsigned int pages_per_huge_page);
-> > +extern void zero_huge_user_segment(struct page *page,
-> > +               unsigned start, unsigned end);
-> > +static inline void zero_huge_user(struct page *page,
-> > +               unsigned start, unsigned len)
-> > +{
-> > +       zero_huge_user_segment(page, start, start + len);
-> > +}
-> >  extern void copy_user_huge_page(struct page *dst, struct page *src,
-> >                                 unsigned long addr, struct vm_area_struct *vma,
-> >                                 unsigned int pages_per_huge_page);
-> > diff --git a/mm/memory.c b/mm/memory.c
-> > index f7a1fba..f02a8be 100644
-> > --- a/mm/memory.c
-> > +++ b/mm/memory.c
-> > @@ -4266,6 +4266,42 @@ void clear_huge_page(struct page *page,
-> >         }
-> >  }
-> >
-> > +void zero_huge_user_segment(struct page *page, unsigned start, unsigned end)
-> > +{
-> > +       int i;
-> > +       unsigned start_idx, end_idx;
-> > +       unsigned start_off, end_off;
-> > +
-> > +       BUG_ON(end < start);
-> > +
-> > +       might_sleep();
-> > +
-> > +       if (start == end)
-> > +               return;
-> > +
-> > +       start_idx = start >> PAGE_SHIFT;
-> > +       start_off = start & ~PAGE_MASK;
-> > +       end_idx = (end - 1) >> PAGE_SHIFT;
-> > +       end_off = ((end - 1) & ~PAGE_MASK) + 1;
-> > +
-> > +       /*
-> > +        * if start and end are on the same small page we can call
-> > +        * zero_user_segment() once and save one kmap_atomic().
-> > +        */
-> > +       if (start_idx == end_idx)
-> > +               return zero_user_segment(page + start_idx, start_off, end_off);
-> > +
-> > +       /* zero the first (possibly partial) page */
-> > +       zero_user_segment(page + start_idx, start_off, PAGE_SIZE);
-> > +       for (i = start_idx + 1; i < end_idx; i++) {
-> > +               cond_resched();
-> > +               clear_highpage(page + i);
-> > +               flush_dcache_page(page + i);
-> 
-> Can we use the function again?
-> 	zero_user_segment(page + i, 0, PAGE_SIZE);
+On Sun, May 12, 2013 at 9:23 AM, Kirill A. Shutemov
+<kirill.shutemov@linux.intel.com> wrote:
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+>
+> Look like all pieces are in place, we can map file-backed huge-pages
+> now.
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  include/linux/huge_mm.h |    4 +++-
+>  mm/memory.c             |    5 ++++-
+>  2 files changed, 7 insertions(+), 2 deletions(-)
+>
+> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+> index f4d6626..903f097 100644
+> --- a/include/linux/huge_mm.h
+> +++ b/include/linux/huge_mm.h
+> @@ -78,7 +78,9 @@ extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
+>            (1<<TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG) &&                   \
+>            ((__vma)->vm_flags & VM_HUGEPAGE))) &&                       \
+>          !((__vma)->vm_flags & VM_NOHUGEPAGE) &&                        \
+> -        !is_vma_temporary_stack(__vma))
+> +        !is_vma_temporary_stack(__vma) &&                              \
+> +        (!(__vma)->vm_ops ||                                           \
+> +                 mapping_can_have_hugepages((__vma)->vm_file->f_mapping)))
 
-No. zero_user_segment() is memset()-based. clear_highpage() is higly
-optimized for page clearing on many architectures.
+Redefine, why?
 
--- 
- Kirill A. Shutemov
+>  #define transparent_hugepage_defrag(__vma)                             \
+>         ((transparent_hugepage_flags &                                  \
+>           (1<<TRANSPARENT_HUGEPAGE_DEFRAG_FLAG)) ||                     \
+> diff --git a/mm/memory.c b/mm/memory.c
+> index ebff552..7fe9752 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -3939,10 +3939,13 @@ retry:
+>         if (!pmd)
+>                 return VM_FAULT_OOM;
+>         if (pmd_none(*pmd) && transparent_hugepage_enabled(vma)) {
+> -               int ret = 0;
+> +               int ret;
+>                 if (!vma->vm_ops)
+>                         ret = do_huge_pmd_anonymous_page(mm, vma, address,
+>                                         pmd, flags);
+
+Ah vma->vm_ops is checked here, so
+		else if (mapping_can_have_hugepages())
+
+> +               else
+> +                       ret = do_huge_linear_fault(mm, vma, address,
+> +                                       pmd, flags);
+>                 if ((ret & VM_FAULT_FALLBACK) == 0)
+>                         return ret;
+>         } else {
+> --
+> 1.7.10.4
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
