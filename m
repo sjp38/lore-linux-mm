@@ -1,114 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id A2A036B0068
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id E9E316B0070
 	for <linux-mm@kvack.org>; Fri, 24 May 2013 05:37:34 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH 2/4] mem-hotplug: Skip LOCAL_NODE_DATA pages in memory offline procedure.
-Date: Fri, 24 May 2013 17:30:05 +0800
-Message-Id: <1369387807-17956-3-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1369387807-17956-1-git-send-email-tangchen@cn.fujitsu.com>
-References: <1369387807-17956-1-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH 0/4] Support hot-remove local pagetable pages.
+Date: Fri, 24 May 2013 17:30:03 +0800
+Message-Id: <1369387807-17956-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, mgorman@suse.de, mingo@redhat.com, hpa@zytor.com, minchan@kernel.org, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, yinghai@kernel.org, jiang.liu@huawei.com, tj@kernel.org, liwanp@linux.vnet.ibm.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-In memory offline procedure, skip pages marked as LOCAL_NODE_DATA.
-For now, this kind of pages are used to store local node pagetables.
+The following patch-set from Yinghai allocates pagetables to local nodes.
+v1: https://lkml.org/lkml/2013/3/7/642
+v2: https://lkml.org/lkml/2013/3/10/47
+v3: https://lkml.org/lkml/2013/4/4/639
+v4: https://lkml.org/lkml/2013/4/11/829
 
-The minimum unit of memory online/offline is a memory block. In a
-block, the movable pages will be offlined as usual (unmapped and
-isolated), and the pagetable pages will be skipped. After the iteration
-of all page, the block will be set as offline, but the kernel can
-still access the pagetable pages. This is user transparent.
+Since pagetable pages are used by the kernel, they cannot be offlined.
+As a result, they cannot be hot-remove.
 
-Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
----
- mm/page_alloc.c     |   18 ++++++++++++++++--
- mm/page_isolation.c |    6 ++++++
- 2 files changed, 22 insertions(+), 2 deletions(-)
+This patch fix this problem with the following solution:
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 557b21b..73b8f0b 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5701,11 +5701,18 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
- 	pfn = page_to_pfn(page);
- 	for (found = 0, iter = 0; iter < pageblock_nr_pages; iter++) {
- 		unsigned long check = pfn + iter;
-+		unsigned long magic;
- 
- 		if (!pfn_valid_within(check))
- 			continue;
- 
- 		page = pfn_to_page(check);
-+
-+		/* Skip pages storing local node kernel data. */
-+		magic = (unsigned long)page->lru.next;
-+		if (magic == LOCAL_NODE_DATA)
-+			continue;
-+
- 		/*
- 		 * We can't use page_count without pin a page
- 		 * because another CPU can free compound page.
-@@ -6029,8 +6036,7 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
- 	struct page *page;
- 	struct zone *zone;
- 	int order, i;
--	unsigned long pfn;
--	unsigned long flags;
-+	unsigned long pfn, flags, magic;
- 	/* find the first valid pfn */
- 	for (pfn = start_pfn; pfn < end_pfn; pfn++)
- 		if (pfn_valid(pfn))
-@@ -6046,6 +6052,14 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
- 			continue;
- 		}
- 		page = pfn_to_page(pfn);
-+
-+		/* Skip pages storing local node kernel data. */
-+		magic = (unsigned long)page->lru.next;
-+		if (magic == LOCAL_NODE_DATA) {
-+			pfn++;
-+			continue;
-+		}
-+
- 		/*
- 		 * The HWPoisoned page may be not in buddy system, and
- 		 * page_count() is not 0.
-diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-index 383bdbb..fb60a27 100644
---- a/mm/page_isolation.c
-+++ b/mm/page_isolation.c
-@@ -174,6 +174,7 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
- 				  bool skip_hwpoisoned_pages)
- {
- 	struct page *page;
-+	unsigned long magic;
- 
- 	while (pfn < end_pfn) {
- 		if (!pfn_valid_within(pfn)) {
-@@ -181,6 +182,8 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
- 			continue;
- 		}
- 		page = pfn_to_page(pfn);
-+		magic = (unsigned long)page->lru.next;
-+
- 		if (PageBuddy(page)) {
- 			/*
- 			 * If race between isolatation and allocation happens,
-@@ -208,6 +211,9 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
- 			 */
- 			pfn++;
- 			continue;
-+		} else if (magic == LOCAL_NODE_DATA) {
-+			pfn++;
-+			continue;
- 		}
- 		else
- 			break;
--- 
-1.7.1
+     1.   Introduce a new bootmem type LOCA_NODE_DATAL, and register local 
+          pagetable pages as LOCA_NODE_DATAL by setting page->lru.next to
+          LOCA_NODE_DATAL, just like we register SECTION_INFO pages.
+
+     2.   Skip LOCA_NODE_DATAL pages in offline/online procedures. When the 
+          whole memory block they reside in is offlined, the kernel can 
+          still access the pagetables.
+          (This changes the semantics of offline/online a little bit.)
+
+     3.   Do not free LOCA_NODE_DATAL pages to buddy system because they 
+          were skipped when in offline/online procedures. The memory block 
+          they reside in could have been offlined.
+
+Anyway, this problem should be fixed. Any better idea is welcome.
+
+Tang Chen (4):
+  bootmem, mem-hotplug: Register local pagetable pages with
+    LOCAL_NODE_DATA when freeing bootmem.
+  mem-hotplug: Skip LOCAL_NODE_DATA pages in memory offline procedure.
+  mem-hotplug: Skip LOCAL_NODE_DATA pages in memory online procedure.
+  mem-hotplug: Do not free LOCAL_NODE_DATA pages to buddy system in
+    hot-remove procedure.
+
+ arch/x86/mm/init_64.c          |    2 +
+ include/linux/memblock.h       |   22 +++++++++++++++++
+ include/linux/memory_hotplug.h |   13 ++++++++-
+ mm/memblock.c                  |   52 ++++++++++++++++++++++++++++++++++++++++
+ mm/memory_hotplug.c            |   42 +++++++++++++++++++++++++++++++-
+ mm/page_alloc.c                |   18 ++++++++++++-
+ mm/page_isolation.c            |    6 ++++
+ 7 files changed, 150 insertions(+), 5 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
