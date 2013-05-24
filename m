@@ -1,118 +1,227 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 5384B6B0071
-	for <linux-mm@kvack.org>; Fri, 24 May 2013 05:37:36 -0400 (EDT)
-From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v3 12/13] x86, numa, acpi, memory-hotplug: Make movablecore=acpi have higher priority.
-Date: Fri, 24 May 2013 17:29:21 +0800
-Message-Id: <1369387762-17865-13-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1369387762-17865-1-git-send-email-tangchen@cn.fujitsu.com>
-References: <1369387762-17865-1-git-send-email-tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 20D976B0034
+	for <linux-mm@kvack.org>; Fri, 24 May 2013 06:32:06 -0400 (EDT)
+From: Glauber Costa <glommer@openvz.org>
+Subject: [PATCH v8 01/34] fs: bump inode and dentry counters to long
+Date: Fri, 24 May 2013 15:58:55 +0530
+Message-Id: <1369391368-31562-2-git-send-email-glommer@openvz.org>
+In-Reply-To: <1369391368-31562-1-git-send-email-glommer@openvz.org>
+References: <1369391368-31562-1-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, tj@kernel.org, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com
-Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-fsdevel@vger.kernel.org
+Cc: Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@openvz.org>, Dave Chinner <dchinner@redhat.com>
 
-Arrange hotpluggable memory as ZONE_MOVABLE will cause NUMA performance decreased
-because the kernel cannot use movable memory.
+There are situations in very large machines in which we can have a large
+quantity of dirty inodes, unused dentries, etc. This is particularly
+true when umounting a filesystem, where eventually since every live
+object will eventually be discarded.
 
-For users who don't use memory hotplug and who don't want to lose their NUMA
-performance, they need a way to disable this functionality.
+Dave Chinner reported a problem with this while experimenting with the
+shrinker revamp patchset. So we believe it is time for a change. This
+patch just moves int to longs. Machines where it matters should have a
+big long anyway.
 
-So, if users specify "movablecore=acpi" in kernel commandline, the kernel will
-use SRAT to arrange ZONE_MOVABLE, and it has higher priority then original
-movablecore and kernelcore boot option.
-
-For those who don't want this, just specify nothing.
-
-Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+Signed-off-by: Glauber Costa <glommer@openvz.org>
+CC: Dave Chinner <dchinner@redhat.com>
 ---
- include/linux/memblock.h |    1 +
- mm/memblock.c            |    5 +++++
- mm/page_alloc.c          |   31 +++++++++++++++++++++++++++++--
- 3 files changed, 35 insertions(+), 2 deletions(-)
+ fs/dcache.c             |  8 ++++----
+ fs/inode.c              | 18 +++++++++---------
+ fs/internal.h           |  2 +-
+ include/linux/dcache.h  | 10 +++++-----
+ include/linux/fs.h      |  4 ++--
+ include/uapi/linux/fs.h |  6 +++---
+ kernel/sysctl.c         |  6 +++---
+ 7 files changed, 27 insertions(+), 27 deletions(-)
 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 08c761d..5528e8f 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -69,6 +69,7 @@ int memblock_free(phys_addr_t base, phys_addr_t size);
- int memblock_reserve(phys_addr_t base, phys_addr_t size);
- int memblock_reserve_local_node(phys_addr_t base, phys_addr_t size, int nid);
- int memblock_reserve_hotpluggable(phys_addr_t base, phys_addr_t size, int nid);
-+bool memblock_is_hotpluggable(struct memblock_region *region);
- void memblock_free_hotpluggable(void);
- void memblock_trim_memory(phys_addr_t align);
- void memblock_mark_kernel_nodes(void);
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 54de398..8b9a13c 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -623,6 +623,11 @@ int __init_memblock memblock_reserve_hotpluggable(phys_addr_t base,
- 	return memblock_reserve_region(base, size, nid, flags);
+diff --git a/fs/dcache.c b/fs/dcache.c
+index f09b908..aca4e4b 100644
+--- a/fs/dcache.c
++++ b/fs/dcache.c
+@@ -117,13 +117,13 @@ struct dentry_stat_t dentry_stat = {
+ 	.age_limit = 45,
+ };
+ 
+-static DEFINE_PER_CPU(unsigned int, nr_dentry);
++static DEFINE_PER_CPU(long, nr_dentry);
+ 
+ #if defined(CONFIG_SYSCTL) && defined(CONFIG_PROC_FS)
+-static int get_nr_dentry(void)
++static long get_nr_dentry(void)
+ {
+ 	int i;
+-	int sum = 0;
++	long sum = 0;
+ 	for_each_possible_cpu(i)
+ 		sum += per_cpu(nr_dentry, i);
+ 	return sum < 0 ? 0 : sum;
+@@ -133,7 +133,7 @@ int proc_nr_dentry(ctl_table *table, int write, void __user *buffer,
+ 		   size_t *lenp, loff_t *ppos)
+ {
+ 	dentry_stat.nr_dentry = get_nr_dentry();
+-	return proc_dointvec(table, write, buffer, lenp, ppos);
++	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
+ }
+ #endif
+ 
+diff --git a/fs/inode.c b/fs/inode.c
+index 00d5fc3..ff29765 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -70,33 +70,33 @@ EXPORT_SYMBOL(empty_aops);
+  */
+ struct inodes_stat_t inodes_stat;
+ 
+-static DEFINE_PER_CPU(unsigned int, nr_inodes);
+-static DEFINE_PER_CPU(unsigned int, nr_unused);
++static DEFINE_PER_CPU(unsigned long, nr_inodes);
++static DEFINE_PER_CPU(unsigned long, nr_unused);
+ 
+ static struct kmem_cache *inode_cachep __read_mostly;
+ 
+-static int get_nr_inodes(void)
++static long get_nr_inodes(void)
+ {
+ 	int i;
+-	int sum = 0;
++	long sum = 0;
+ 	for_each_possible_cpu(i)
+ 		sum += per_cpu(nr_inodes, i);
+ 	return sum < 0 ? 0 : sum;
  }
  
-+bool __init_memblock memblock_is_hotpluggable(struct memblock_region *region)
-+{
-+	return region->flags & (1 << MEMBLK_HOTPLUGGABLE);
-+}
-+
- /**
-  * __next_free_mem_range - next function for for_each_free_mem_range()
-  * @idx: pointer to u64 loop variable
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index b9ea143..557b21b 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4793,9 +4793,37 @@ static void __init find_zone_movable_pfns_for_nodes(void)
- 	nodemask_t saved_node_state = node_states[N_MEMORY];
- 	unsigned long totalpages = early_calculate_totalpages();
- 	int usable_nodes = nodes_weight(node_states[N_MEMORY]);
-+	struct memblock_type *reserved = &memblock.reserved;
+-static inline int get_nr_inodes_unused(void)
++static inline long get_nr_inodes_unused(void)
+ {
+ 	int i;
+-	int sum = 0;
++	long sum = 0;
+ 	for_each_possible_cpu(i)
+ 		sum += per_cpu(nr_unused, i);
+ 	return sum < 0 ? 0 : sum;
+ }
  
- 	/*
--	 * If movablecore was specified, calculate what size of
-+	 * Need to find movable_zone earlier in case movablecore=acpi is
-+	 * specified.
-+	 */
-+	find_usable_zone_for_movable();
-+
-+	/*
-+	 * If movablecore=acpi was specified, then zone_movable_pfn[] has been
-+	 * initialized, and no more work needs to do.
-+	 * NOTE: In this case, we ignore kernelcore option.
-+	 */
-+	if (movablecore_enable_srat) {
-+		for (i = 0; i < reserved->cnt; i++) {
-+			if (!memblock_is_hotpluggable(&reserved->regions[i]))
-+				continue;
-+
-+			nid = reserved->regions[i].nid;
-+
-+			usable_startpfn = PFN_DOWN(reserved->regions[i].base);
-+			zone_movable_pfn[nid] = zone_movable_pfn[nid] ?
-+				min(usable_startpfn, zone_movable_pfn[nid]) :
-+				usable_startpfn;
-+		}
-+
-+		goto out;
-+	}
-+
-+	/*
-+	 * If movablecore=nn[KMG] was specified, calculate what size of
- 	 * kernelcore that corresponds so that memory usable for
- 	 * any allocation type is evenly spread. If both kernelcore
- 	 * and movablecore are specified, then the value of kernelcore
-@@ -4821,7 +4849,6 @@ static void __init find_zone_movable_pfns_for_nodes(void)
- 		goto out;
+-int get_nr_dirty_inodes(void)
++long get_nr_dirty_inodes(void)
+ {
+ 	/* not actually dirty inodes, but a wild approximation */
+-	int nr_dirty = get_nr_inodes() - get_nr_inodes_unused();
++	long nr_dirty = get_nr_inodes() - get_nr_inodes_unused();
+ 	return nr_dirty > 0 ? nr_dirty : 0;
+ }
  
- 	/* usable_startpfn is the lowest possible pfn ZONE_MOVABLE can be at */
--	find_usable_zone_for_movable();
- 	usable_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
+@@ -109,7 +109,7 @@ int proc_nr_inodes(ctl_table *table, int write,
+ {
+ 	inodes_stat.nr_inodes = get_nr_inodes();
+ 	inodes_stat.nr_unused = get_nr_inodes_unused();
+-	return proc_dointvec(table, write, buffer, lenp, ppos);
++	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
+ }
+ #endif
  
- restart:
+diff --git a/fs/internal.h b/fs/internal.h
+index eaa75f7..cd5009f 100644
+--- a/fs/internal.h
++++ b/fs/internal.h
+@@ -117,7 +117,7 @@ extern void inode_add_lru(struct inode *inode);
+  */
+ extern void inode_wb_list_del(struct inode *inode);
+ 
+-extern int get_nr_dirty_inodes(void);
++extern long get_nr_dirty_inodes(void);
+ extern void evict_inodes(struct super_block *);
+ extern int invalidate_inodes(struct super_block *, bool);
+ 
+diff --git a/include/linux/dcache.h b/include/linux/dcache.h
+index 1a6bb81..1a82bdb 100644
+--- a/include/linux/dcache.h
++++ b/include/linux/dcache.h
+@@ -54,11 +54,11 @@ struct qstr {
+ #define hashlen_len(hashlen)  ((u32)((hashlen) >> 32))
+ 
+ struct dentry_stat_t {
+-	int nr_dentry;
+-	int nr_unused;
+-	int age_limit;          /* age in seconds */
+-	int want_pages;         /* pages requested by system */
+-	int dummy[2];
++	long nr_dentry;
++	long nr_unused;
++	long age_limit;          /* age in seconds */
++	long want_pages;         /* pages requested by system */
++	long dummy[2];
+ };
+ extern struct dentry_stat_t dentry_stat;
+ 
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 0a9a6766..34036c0 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -1265,12 +1265,12 @@ struct super_block {
+ 	struct list_head	s_mounts;	/* list of mounts; _not_ for fs use */
+ 	/* s_dentry_lru, s_nr_dentry_unused protected by dcache.c lru locks */
+ 	struct list_head	s_dentry_lru;	/* unused dentry lru */
+-	int			s_nr_dentry_unused;	/* # of dentry on lru */
++	long			s_nr_dentry_unused;	/* # of dentry on lru */
+ 
+ 	/* s_inode_lru_lock protects s_inode_lru and s_nr_inodes_unused */
+ 	spinlock_t		s_inode_lru_lock ____cacheline_aligned_in_smp;
+ 	struct list_head	s_inode_lru;		/* unused inode lru */
+-	int			s_nr_inodes_unused;	/* # of inodes on lru */
++	long			s_nr_inodes_unused;	/* # of inodes on lru */
+ 
+ 	struct block_device	*s_bdev;
+ 	struct backing_dev_info *s_bdi;
+diff --git a/include/uapi/linux/fs.h b/include/uapi/linux/fs.h
+index a4ed56c..6c28b61 100644
+--- a/include/uapi/linux/fs.h
++++ b/include/uapi/linux/fs.h
+@@ -49,9 +49,9 @@ struct files_stat_struct {
+ };
+ 
+ struct inodes_stat_t {
+-	int nr_inodes;
+-	int nr_unused;
+-	int dummy[5];		/* padding for sysctl ABI compatibility */
++	long nr_inodes;
++	long nr_unused;
++	long dummy[5];		/* padding for sysctl ABI compatibility */
+ };
+ 
+ 
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index 9edcf45..fb90f7c 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -1456,14 +1456,14 @@ static struct ctl_table fs_table[] = {
+ 	{
+ 		.procname	= "inode-nr",
+ 		.data		= &inodes_stat,
+-		.maxlen		= 2*sizeof(int),
++		.maxlen		= 2*sizeof(long),
+ 		.mode		= 0444,
+ 		.proc_handler	= proc_nr_inodes,
+ 	},
+ 	{
+ 		.procname	= "inode-state",
+ 		.data		= &inodes_stat,
+-		.maxlen		= 7*sizeof(int),
++		.maxlen		= 7*sizeof(long),
+ 		.mode		= 0444,
+ 		.proc_handler	= proc_nr_inodes,
+ 	},
+@@ -1493,7 +1493,7 @@ static struct ctl_table fs_table[] = {
+ 	{
+ 		.procname	= "dentry-state",
+ 		.data		= &dentry_stat,
+-		.maxlen		= 6*sizeof(int),
++		.maxlen		= 6*sizeof(long),
+ 		.mode		= 0444,
+ 		.proc_handler	= proc_nr_dentry,
+ 	},
 -- 
-1.7.1
+1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
