@@ -1,45 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
-	by kanga.kvack.org (Postfix) with SMTP id 90F5F6B0062
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 945746B0069
 	for <linux-mm@kvack.org>; Fri, 24 May 2013 05:37:33 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v3 13/13] doc, page_alloc, acpi, mem-hotplug: Add doc for movablecore=acpi boot option.
-Date: Fri, 24 May 2013 17:29:22 +0800
-Message-Id: <1369387762-17865-14-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1369387762-17865-1-git-send-email-tangchen@cn.fujitsu.com>
-References: <1369387762-17865-1-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH 3/4] mem-hotplug: Skip LOCAL_NODE_DATA pages in memory online procedure.
+Date: Fri, 24 May 2013 17:30:06 +0800
+Message-Id: <1369387807-17956-4-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1369387807-17956-1-git-send-email-tangchen@cn.fujitsu.com>
+References: <1369387807-17956-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, tj@kernel.org, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com
-Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org, mgorman@suse.de, mingo@redhat.com, hpa@zytor.com, minchan@kernel.org, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, yinghai@kernel.org, jiang.liu@huawei.com, tj@kernel.org, liwanp@linux.vnet.ibm.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Since we modify movablecore boot option to support
-"movablecore=acpi", this patch adds doc for it.
+Pages marked as LOCAL_NODE_DATA are skipped when we do memory offline.
+So we have to skip them again when we do memory online.
 
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 ---
- Documentation/kernel-parameters.txt |    8 ++++++++
- 1 files changed, 8 insertions(+), 0 deletions(-)
+ mm/memory_hotplug.c |    8 +++++++-
+ 1 files changed, 7 insertions(+), 1 deletions(-)
 
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index 4609e81..a1c515b 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -1649,6 +1649,14 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
- 			that the amount of memory usable for all allocations
- 			is not too small.
- 
-+	movablecore=acpi	[KNL,X86] This parameter will enable the
-+			kernel to arrange ZONE_MOVABLE with the help of
-+			Hot-Pluggable Field in SRAT. All the hotpluggable
-+			memory will be arranged in ZONE_MOVABLE.
-+			NOTE: Any node which the kernel resides in will
-+			      always be un-hotpluggable so that the kernel
-+			      will always have enough memory to boot.
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 075d412..21d6fcb 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -825,12 +825,18 @@ static void generic_online_page(struct page *page)
+ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
+ 			void *arg)
+ {
+-	unsigned long i;
++	unsigned long i, magic;
+ 	unsigned long onlined_pages = *(unsigned long *)arg;
+ 	struct page *page;
+ 	if (PageReserved(pfn_to_page(start_pfn)))
+ 		for (i = 0; i < nr_pages; i++) {
+ 			page = pfn_to_page(start_pfn + i);
++			magic = (unsigned long)page->lru.next;
 +
- 	MTD_Partition=	[MTD]
- 			Format: <name>,<region-number>,<size>,<offset>
- 
++			/* Skip pages storing local node kernel data. */
++			if (magic == LOCAL_NODE_DATA)
++				continue;
++
+ 			(*online_page_callback)(page);
+ 			onlined_pages++;
+ 		}
 -- 
 1.7.1
 
