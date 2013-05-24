@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id DE7EC6B0038
-	for <linux-mm@kvack.org>; Fri, 24 May 2013 05:37:28 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 7DAA66B003C
+	for <linux-mm@kvack.org>; Fri, 24 May 2013 05:37:29 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v3 01/13] x86: get pg_data_t's memory from other node
-Date: Fri, 24 May 2013 17:29:10 +0800
-Message-Id: <1369387762-17865-2-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v3 03/13] page_alloc, mem-hotplug: Improve movablecore to {en|dis}able using SRAT.
+Date: Fri, 24 May 2013 17:29:12 +0800
+Message-Id: <1369387762-17865-4-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1369387762-17865-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1369387762-17865-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,44 +13,79 @@ List-ID: <linux-mm.kvack.org>
 To: mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, tj@kernel.org, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+The Hot-Pluggable Fired in SRAT specified which memory ranges are hotpluggable.
+We will arrange hotpluggable memory as ZONE_MOVABLE for users who want to use
+memory hotplug functionality. But this will cause NUMA performance decreased
+because kernel cannot use ZONE_MOVABLE.
 
-If system can create movable node which all memory of the
-node is allocated as ZONE_MOVABLE, setup_node_data() cannot
-allocate memory for the node's pg_data_t.
-So, use memblock_alloc_try_nid() instead of memblock_alloc_nid()
-to retry when the first allocation fails.
+So we improve movablecore boot option to allow those who want to use memory
+hotplug functionality to enable using SRAT info to arrange movable memory.
 
-As noticed by Chen Gong <gong.chen@linux.intel.com>, memblock_alloc_try_nid()
-will call panic() if it fails to allocate memory. So we don't need to
-check the return value.
+Users can specify "movablecore=acpi" in kernel commandline to enable this
+functionality.
 
-Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
+For those who don't use memory hotplug or who don't want to lose their NUMA
+performance, just don't specify anything. The kernel will work as before.
+
+Suggested-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
 ---
- arch/x86/mm/numa.c |    7 +------
- 1 files changed, 1 insertions(+), 6 deletions(-)
+ include/linux/memory_hotplug.h |    3 +++
+ mm/page_alloc.c                |   13 +++++++++++++
+ 2 files changed, 16 insertions(+), 0 deletions(-)
 
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index 11acdf6..af18b18 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -214,12 +214,7 @@ static void __init setup_node_data(int nid, u64 start, u64 end)
- 	 * Allocate node data.  Try node-local memory and then any node.
- 	 * Never allocate in DMA zone.
- 	 */
--	nd_pa = memblock_alloc_nid(nd_size, SMP_CACHE_BYTES, nid);
--	if (!nd_pa) {
--		pr_err("Cannot find %zu bytes in node %d\n",
--		       nd_size, nid);
--		return;
--	}
-+	nd_pa = memblock_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
- 	nd = __va(nd_pa);
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index b6a3be7..18fe2a3 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -33,6 +33,9 @@ enum {
+ 	ONLINE_MOVABLE,
+ };
  
- 	/* report and initialize */
++/* Enable/disable SRAT in movablecore boot option */
++extern bool movablecore_enable_srat;
++
+ /*
+  * pgdat resizing functions
+  */
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index f368db4..b9ea143 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -208,6 +208,8 @@ static unsigned long __initdata required_kernelcore;
+ static unsigned long __initdata required_movablecore;
+ static unsigned long __meminitdata zone_movable_pfn[MAX_NUMNODES];
+ 
++bool __initdata movablecore_enable_srat = false;
++
+ /* movable_zone is the "real" zone pages in ZONE_MOVABLE are taken from */
+ int movable_zone;
+ EXPORT_SYMBOL(movable_zone);
+@@ -5025,6 +5027,12 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
+ 	}
+ }
+ 
++static void __init cmdline_movablecore_srat(char *p)
++{
++	if (p && !strcmp(p, "acpi"))
++		movablecore_enable_srat = true;
++}
++
+ static int __init cmdline_parse_core(char *p, unsigned long *core)
+ {
+ 	unsigned long long coremem;
+@@ -5055,6 +5063,11 @@ static int __init cmdline_parse_kernelcore(char *p)
+  */
+ static int __init cmdline_parse_movablecore(char *p)
+ {
++	cmdline_movablecore_srat(p);
++
++	if (movablecore_enable_srat)
++		return 0;
++
+ 	return cmdline_parse_core(p, &required_movablecore);
+ }
+ 
 -- 
 1.7.1
 
