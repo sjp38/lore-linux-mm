@@ -1,126 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 1CC456B0032
-	for <linux-mm@kvack.org>; Thu, 23 May 2013 18:24:47 -0400 (EDT)
-Date: Thu, 23 May 2013 15:24:45 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v8 9/9] vmcore: support mmap() on /proc/vmcore
-Message-Id: <20130523152445.17549682ae45b5aab3f3cde0@linux-foundation.org>
-In-Reply-To: <20130523052547.13864.83306.stgit@localhost6.localdomain6>
-References: <20130523052421.13864.83978.stgit@localhost6.localdomain6>
-	<20130523052547.13864.83306.stgit@localhost6.localdomain6>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 9F8F96B0034
+	for <linux-mm@kvack.org>; Fri, 24 May 2013 03:54:24 -0400 (EDT)
+Date: Fri, 24 May 2013 09:54:20 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 5/9] memcg: use css_get/put when charging/uncharging kmem
+Message-ID: <20130524075420.GA24813@dhcp22.suse.cz>
+References: <5195D5F8.7000609@huawei.com>
+ <5195D666.6030408@huawei.com>
+ <20130517180822.GC12632@mtj.dyndns.org>
+ <519C838B.9060609@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <519C838B.9060609@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
-Cc: vgoyal@redhat.com, ebiederm@xmission.com, cpw@sgi.com, kumagai-atsushi@mxc.nes.nec.co.jp, lisa.mitchell@hp.com, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, zhangyanfei@cn.fujitsu.com, jingbai.ma@hp.com, linux-mm@kvack.org, riel@redhat.com, walken@google.com, hughd@google.com, kosaki.motohiro@jp.fujitsu.com
+To: Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-On Thu, 23 May 2013 14:25:48 +0900 HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com> wrote:
+Sorry, I have missed this. CCing would help. Anyway putting myself to CC
+now :P
 
-> This patch introduces mmap_vmcore().
+On Wed 22-05-13 16:36:27, Li Zefan wrote:
+> On 2013/5/18 2:08, Tejun Heo wrote:
+> > Hey,
+> > 
+> > On Fri, May 17, 2013 at 03:04:06PM +0800, Li Zefan wrote:
+> >> +	/*
+> >> +	 * Releases a reference taken in kmem_cgroup_css_offline in case
+> >> +	 * this last uncharge is racing with the offlining code or it is
+> >> +	 * outliving the memcg existence.
+> >> +	 *
+> >> +	 * The memory barrier imposed by test&clear is paired with the
+> >> +	 * explicit one in kmem_cgroup_css_offline.
+> > 
+> > Paired with the wmb to achieve what?
+
+https://lkml.org/lkml/2013/4/4/190
+"
+! > +	css_get(&memcg->css);
+! I think that you need a write memory barrier here because css_get
+! nor memcg_kmem_mark_dead implies it. memcg_uncharge_kmem uses
+! memcg_kmem_test_and_clear_dead which imply a full memory barrier but it
+! should see the elevated reference count. No?
+! 
+! > +	/*
+! > +	 * We need to call css_get() first, because memcg_uncharge_kmem()
+! > +	 * will call css_put() if it sees the memcg is dead.
+! > +	 */
+! >  	memcg_kmem_mark_dead(memcg);
+"
+
+Does it make sense to you Tejun?
+
+> > 
+> >> +	 */
+> >>  	if (memcg_kmem_test_and_clear_dead(memcg))
+> >> -		mem_cgroup_put(memcg);
+> >> +		css_put(&memcg->css);
+> > 
+> > The other side is wmb, so there gotta be something which wants to read
+> > which were written before wmb here but the only thing after the
+> > barrier is css_put() which doesn't need such thing, so I'm lost on
+> > what the barrier pair is achieving here.
+
+> > 
+> > In general, please be *very* explicit about what's going on whenever
+> > something is depending on barrier pairs.  It'll make it easier for
+> > both the author and reviewers to actually understand what's going on
+> > and why it's necessary.
+> > 
+> > ...
+> >> @@ -5858,23 +5856,39 @@ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
+> >>  	return mem_cgroup_sockets_init(memcg, ss);
+> >>  }
+> >>  
+> >> -static void kmem_cgroup_destroy(struct mem_cgroup *memcg)
+> >> +static void kmem_cgroup_css_offline(struct mem_cgroup *memcg)
+> >>  {
+> >> -	mem_cgroup_sockets_destroy(memcg);
+> >> +	if (!memcg_kmem_is_active(memcg))
+> >> +		return;
+> >>  
+> >> +	/*
+> >> +	 * kmem charges can outlive the cgroup. In the case of slab
+> >> +	 * pages, for instance, a page contain objects from various
+> >> +	 * processes. As we prevent from taking a reference for every
+> >> +	 * such allocation we have to be careful when doing uncharge
+> >> +	 * (see memcg_uncharge_kmem) and here during offlining.
+> >> +	 *
+> >> +	 * The idea is that that only the _last_ uncharge which sees
+> >> +	 * the dead memcg will drop the last reference. An additional
+> >> +	 * reference is taken here before the group is marked dead
+> >> +	 * which is then paired with css_put during uncharge resp. here.
+> >> +	 *
+> >> +	 * Although this might sound strange as this path is called when
+> >> +	 * the reference has already dropped down to 0 and shouldn't be
+> >> +	 * incremented anymore (css_tryget would fail) we do not have
+> > 
+> > Hmmm?  offline is called on cgroup destruction regardless of css
+> > refcnt.  The above comment seems a bit misleading.
+> > 
 > 
-> Don't permit writable nor executable mapping even with mprotect()
-> because this mmap() is aimed at reading crash dump memory.
-> Non-writable mapping is also requirement of remap_pfn_range() when
-> mapping linear pages on non-consecutive physical pages; see
-> is_cow_mapping().
+> The comment is wrong. I'll fix it.
+
+Ohh, right. "Althouth this might sound strange as this path is called from
+css_offline when the reference might have dropped down to 0 and shouldn't ..."
+
+Sounds better?
+ 
+> >> +	 * other options because of the kmem allocations lifetime.
+> >> +	 */
+> >> +	css_get(&memcg->css);
+> >> +
+> >> +	/* see comment in memcg_uncharge_kmem() */
+> >> +	wmb();
+> >>  	memcg_kmem_mark_dead(memcg);
+> > 
+> > Is the wmb() trying to prevent reordering between css_get() and
+> > memcg_kmem_mark_dead()?  If so, it isn't necessary - the compiler
+> > isn't allowed to reorder two atomic ops (they're all asm volatiles)
+> > and the visibility order is guaranteed by the nature of the two
+> > operations going on here - both perform modify-and-test on one end of
+> > the operations.
+
+As I have copied my comment from the earlier thread above.
+css_get does atomic_add which doesn't imply any barrier AFAIK and
+memcg_kmem_mark_dead uses a simple set_bit which doesn't imply it
+either. What am I missing?
+
+> > 
 > 
-> Set VM_MIXEDMAP flag to remap memory by remap_pfn_range and by
-> remap_vmalloc_range_pertial at the same time for a single
-> vma. do_munmap() can correctly clean partially remapped vma with two
-> functions in abnormal case. See zap_pte_range(), vm_normal_page() and
-> their comments for details.
+> Yeah, I think you're right.
 > 
-> On x86-32 PAE kernels, mmap() supports at most 16TB memory only. This
-> limitation comes from the fact that the third argument of
-> remap_pfn_range(), pfn, is of 32-bit length on x86-32: unsigned long.
+> > It could be argued that having memory barriers is better for
+> > completeness of mark/test interface but then those barriers should
+> > really moved into memcg_kmem_mark_dead() and its clearing counterpart.
+> > 
+> > While it's all clever and dandy, my recommendation would be just using
+> > a lock for synchronization.  It isn't a hot path.  Why be clever?
+> > 
+> 
+> I don't quite like adding a lock not to protect data but just ensure code
+> orders.
 
-More reviewing and testing, please.
+Agreed.
 
+> Michal, what's your preference? I want to be sure that everyone is happy
+> so the next version will hopefully be the last version.
 
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: vmcore-support-mmap-on-proc-vmcore-fix
+I still do not see why the barrier is not needed and the lock seems too
+big hammer.
 
-use min(), switch to conventional error-unwinding approach
-
-Cc: Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>
-Cc: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Lisa Mitchell <lisa.mitchell@hp.com>
-Cc: Vivek Goyal <vgoyal@redhat.com>
-Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- fs/proc/vmcore.c |   27 ++++++++++-----------------
- 1 file changed, 10 insertions(+), 17 deletions(-)
-
-diff -puN fs/proc/vmcore.c~vmcore-support-mmap-on-proc-vmcore-fix fs/proc/vmcore.c
---- a/fs/proc/vmcore.c~vmcore-support-mmap-on-proc-vmcore-fix
-+++ a/fs/proc/vmcore.c
-@@ -218,9 +218,7 @@ static int mmap_vmcore(struct file *file
- 	if (start < elfcorebuf_sz) {
- 		u64 pfn;
- 
--		tsz = elfcorebuf_sz - start;
--		if (size < tsz)
--			tsz = size;
-+		tsz = min(elfcorebuf_sz - (size_t)start, size);
- 		pfn = __pa(elfcorebuf + start) >> PAGE_SHIFT;
- 		if (remap_pfn_range(vma, vma->vm_start, pfn, tsz,
- 				    vma->vm_page_prot))
-@@ -236,15 +234,11 @@ static int mmap_vmcore(struct file *file
- 	if (start < elfcorebuf_sz + elfnotes_sz) {
- 		void *kaddr;
- 
--		tsz = elfcorebuf_sz + elfnotes_sz - start;
--		if (size < tsz)
--			tsz = size;
-+		tsz = min(elfcorebuf_sz + elfnotes_sz - (size_t)start, size);
- 		kaddr = elfnotes_buf + start - elfcorebuf_sz;
- 		if (remap_vmalloc_range_partial(vma, vma->vm_start + len,
--						kaddr, tsz)) {
--			do_munmap(vma->vm_mm, vma->vm_start, len);
--			return -EAGAIN;
--		}
-+						kaddr, tsz))
-+			goto fail;
- 		size -= tsz;
- 		start += tsz;
- 		len += tsz;
-@@ -257,16 +251,12 @@ static int mmap_vmcore(struct file *file
- 		if (start < m->offset + m->size) {
- 			u64 paddr = 0;
- 
--			tsz = m->offset + m->size - start;
--			if (size < tsz)
--				tsz = size;
-+			tsz = min_t(size_t, m->offset + m->size - start, size);
- 			paddr = m->paddr + start - m->offset;
- 			if (remap_pfn_range(vma, vma->vm_start + len,
- 					    paddr >> PAGE_SHIFT, tsz,
--					    vma->vm_page_prot)) {
--				do_munmap(vma->vm_mm, vma->vm_start, len);
--				return -EAGAIN;
--			}
-+					    vma->vm_page_prot))
-+				goto fail;
- 			size -= tsz;
- 			start += tsz;
- 			len += tsz;
-@@ -277,6 +267,9 @@ static int mmap_vmcore(struct file *file
- 	}
- 
- 	return 0;
-+fail:
-+	do_munmap(vma->vm_mm, vma->vm_start, len);
-+	return -EAGAIN;
- }
- 
- static const struct file_operations proc_vmcore_operations = {
-_
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
