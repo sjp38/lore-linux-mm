@@ -1,37 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id C44DC6B008C
-	for <linux-mm@kvack.org>; Fri, 24 May 2013 07:24:03 -0400 (EDT)
-Date: Fri, 24 May 2013 12:23:46 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH 09/11] ARM64: mm: HugeTLB support.
-Message-ID: <20130524112346.GK18272@arm.com>
-References: <1369328878-11706-1-git-send-email-steve.capper@linaro.org>
- <1369328878-11706-10-git-send-email-steve.capper@linaro.org>
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 489A76B0039
+	for <linux-mm@kvack.org>; Fri, 24 May 2013 09:01:39 -0400 (EDT)
+Date: Fri, 24 May 2013 16:00:32 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH v2 07/10] powerpc: uaccess s/might_sleep/might_fault/
+Message-ID: <20130524130032.GA10167@redhat.com>
+References: <cover.1368702323.git.mst@redhat.com>
+ <2aa6c3da21a28120126732b5e0b4ecd6cba8ca3b.1368702323.git.mst@redhat.com>
+ <201305221559.01806.arnd@arndb.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1369328878-11706-10-git-send-email-steve.capper@linaro.org>
+In-Reply-To: <201305221559.01806.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steve Capper <steve.capper@linaro.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Michal Hocko <mhocko@suse.cz>, Ken Chen <kenchen@google.com>, Mel Gorman <mgorman@suse.de>, Will Deacon <Will.Deacon@arm.com>, "patches@linaro.org" <patches@linaro.org>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: linux-kernel@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, David Howells <dhowells@redhat.com>, Hirokazu Takata <takata@linux-m32r.org>, Michal Simek <monstr@monstr.eu>, Koichi Yasutake <yasutake.koichi@jp.panasonic.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Chris Metcalf <cmetcalf@tilera.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-arm-kernel@lists.infradead.org, linux-m32r@ml.linux-m32r.org, linux-m32r-ja@ml.linux-m32r.org, microblaze-uclinux@itee.uq.edu.au, linux-am33-list@redhat.com, linuxppc-dev@lists.ozlabs.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org
 
-On Thu, May 23, 2013 at 06:07:56PM +0100, Steve Capper wrote:
-> Add huge page support to ARM64, different huge page sizes are
-> supported depending on the size of normal pages:
+On Wed, May 22, 2013 at 03:59:01PM +0200, Arnd Bergmann wrote:
+> On Thursday 16 May 2013, Michael S. Tsirkin wrote:
+> > @@ -178,7 +178,7 @@ do {                                                                \
+> >         long __pu_err;                                          \
+> >         __typeof__(*(ptr)) __user *__pu_addr = (ptr);           \
+> >         if (!is_kernel_addr((unsigned long)__pu_addr))          \
+> > -               might_sleep();                                  \
+> > +               might_fault();                                  \
+> >         __chk_user_ptr(ptr);                                    \
+> >         __put_user_size((x), __pu_addr, (size), __pu_err);      \
+> >         __pu_err;                                               \
+> > 
 > 
-> PAGE_SIZE is 4KB:
->    2MB - (pmds) these can be allocated at any time.
-> 1024MB - (puds) usually allocated on bootup with the command line
->          with something like: hugepagesz=1G hugepages=6
+> Another observation:
 > 
-> PAGE_SIZE is 64KB:
->  512MB - (pmds) usually allocated on bootup via command line.
+> 	if (!is_kernel_addr((unsigned long)__pu_addr))
+> 		might_sleep();
 > 
-> Signed-off-by: Steve Capper <steve.capper@linaro.org>
+> is almost the same as
+> 
+> 	might_fault();
+> 
+> except that it does not call might_lock_read().
+> 
+> The version above may have been put there intentionally and correctly, but
+> if you want to replace it with might_fault(), you should remove the
+> "if ()" condition.
+> 
+> 	Arnd
 
-Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+Well not exactly. The non-inline might_fault checks the
+current segment, not the address.
+I'm guessing this is trying to do the same just without
+pulling in segment_eq, but I'd like a confirmation
+from more PPC maintainers.
+
+Guys would you ack
+
+- 	if (!is_kernel_addr((unsigned long)__pu_addr))
+- 		might_fault();
++ 	might_fault();
+
+on top of this patch?
+
+Also, any volunteer to test this (not just test-build)?
+
+-- 
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
