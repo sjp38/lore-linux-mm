@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 48ACF6B0037
-	for <linux-mm@kvack.org>; Fri, 24 May 2013 05:37:27 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 2D4066B0038
+	for <linux-mm@kvack.org>; Fri, 24 May 2013 05:37:28 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v3 05/13] x86, numa, acpi, memory-hotplug: Consider hotplug info when cleanup numa_meminfo.
-Date: Fri, 24 May 2013 17:29:14 +0800
-Message-Id: <1369387762-17865-6-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v3 08/13] x86, numa: Move memory_add_physaddr_to_nid() to CONFIG_NUMA.
+Date: Fri, 24 May 2013 17:29:17 +0800
+Message-Id: <1369387762-17865-9-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1369387762-17865-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1369387762-17865-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,61 +13,34 @@ List-ID: <linux-mm.kvack.org>
 To: mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, tj@kernel.org, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Since we have introduced hotplug info into struct numa_meminfo, we need
-to consider it when cleanup numa_meminfo.
+memory_add_physaddr_to_nid() is declared in include/linux/memory_hotplug.h,
+protected by CONFIG_NUMA. And in x86, the definitions are protected by
+CONFIG_MEMORY_HOTPLUG.
 
-The original logic in numa_cleanup_meminfo() is:
-Merge blocks on the same node, holes between which don't overlap with
-memory on other nodes.
+memory_add_physaddr_to_nid() uses numa_meminfo to find the physical address's
+nid. It has nothing to do with memory hotplug. And also, it can be used by
+alloc_low_pages() to obtain nid of the allocated memory.
 
-This patch modifies numa_cleanup_meminfo() logic like this:
-Merge blocks with the same hotpluggable type on the same node, holes
-between which don't overlap with memory on other nodes.
+So in x86, also use CONFIG_NUMA to protect it.
 
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 ---
- arch/x86/mm/numa.c |   13 +++++++++----
- 1 files changed, 9 insertions(+), 4 deletions(-)
+ arch/x86/mm/numa.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
 diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index 892729b..fec5ff8 100644
+index 8357c75..b28baf3 100644
 --- a/arch/x86/mm/numa.c
 +++ b/arch/x86/mm/numa.c
-@@ -292,18 +292,22 @@ int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
- 			}
+@@ -955,7 +955,7 @@ EXPORT_SYMBOL(cpumask_of_node);
  
- 			/*
--			 * Join together blocks on the same node, holes
--			 * between which don't overlap with memory on other
--			 * nodes.
-+			 * Join together blocks on the same node, with the same
-+			 * hotpluggable flags, holes between which don't overlap
-+			 * with memory on other nodes.
- 			 */
- 			if (bi->nid != bj->nid)
- 				continue;
-+			if (bi->hotpluggable != bj->hotpluggable)
-+				continue;
-+
- 			start = min(bi->start, bj->start);
- 			end = max(bi->end, bj->end);
- 			for (k = 0; k < mi->nr_blks; k++) {
- 				struct numa_memblk *bk = &mi->blk[k];
+ #endif	/* !CONFIG_DEBUG_PER_CPU_MAPS */
  
--				if (bi->nid == bk->nid)
-+				if (bi->nid == bk->nid &&
-+				    bi->hotpluggable == bk->hotpluggable)
- 					continue;
- 				if (start < bk->end && end > bk->start)
- 					break;
-@@ -323,6 +327,7 @@ int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
- 	for (i = mi->nr_blks; i < ARRAY_SIZE(mi->blk); i++) {
- 		mi->blk[i].start = mi->blk[i].end = 0;
- 		mi->blk[i].nid = NUMA_NO_NODE;
-+		mi->blk[i].hotpluggable = false;
- 	}
- 
- 	return 0;
+-#ifdef CONFIG_MEMORY_HOTPLUG
++#ifdef CONFIG_NUMA
+ int memory_add_physaddr_to_nid(u64 start)
+ {
+ 	struct numa_meminfo *mi = &numa_meminfo;
 -- 
 1.7.1
 
