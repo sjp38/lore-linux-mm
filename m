@@ -1,161 +1,332 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 9F8F96B0034
-	for <linux-mm@kvack.org>; Fri, 24 May 2013 03:54:24 -0400 (EDT)
-Date: Fri, 24 May 2013 09:54:20 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 5/9] memcg: use css_get/put when charging/uncharging kmem
-Message-ID: <20130524075420.GA24813@dhcp22.suse.cz>
-References: <5195D5F8.7000609@huawei.com>
- <5195D666.6030408@huawei.com>
- <20130517180822.GC12632@mtj.dyndns.org>
- <519C838B.9060609@huawei.com>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id B0E376B0034
+	for <linux-mm@kvack.org>; Fri, 24 May 2013 05:02:33 -0400 (EDT)
+Received: by mail-wi0-f178.google.com with SMTP id hj6so1343028wib.5
+        for <linux-mm@kvack.org>; Fri, 24 May 2013 02:02:32 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <519C838B.9060609@huawei.com>
+In-Reply-To: <20130523152445.17549682ae45b5aab3f3cde0@linux-foundation.org>
+References: <20130523052421.13864.83978.stgit@localhost6.localdomain6>
+	<20130523052547.13864.83306.stgit@localhost6.localdomain6>
+	<20130523152445.17549682ae45b5aab3f3cde0@linux-foundation.org>
+Date: Fri, 24 May 2013 13:02:30 +0400
+Message-ID: <CAJGZr0LwivLTH+E7WAR1B9_6B4e=jv04KgCUL_PdVpi9JjDpBw@mail.gmail.com>
+Subject: Re: [PATCH v8 9/9] vmcore: support mmap() on /proc/vmcore
+From: Maxim Uvarov <muvarov@gmail.com>
+Content-Type: multipart/alternative; boundary=e89a8f234ce515854f04dd730f9a
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>, riel@redhat.com, hughd@google.com, jingbai.ma@hp.com, "kexec@lists.infradead.org" <kexec@lists.infradead.org>, linux-kernel@vger.kernel.org, lisa.mitchell@hp.com, linux-mm@kvack.org, Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>, "Eric W. Biederman" <ebiederm@xmission.com>, kosaki.motohiro@jp.fujitsu.com, zhangyanfei@cn.fujitsu.com, walken@google.com, Cliff Wickman <cpw@sgi.com>, Vivek Goyal <vgoyal@redhat.com>
 
-Sorry, I have missed this. CCing would help. Anyway putting myself to CC
-now :P
+--e89a8f234ce515854f04dd730f9a
+Content-Type: text/plain; charset=ISO-8859-1
 
-On Wed 22-05-13 16:36:27, Li Zefan wrote:
-> On 2013/5/18 2:08, Tejun Heo wrote:
-> > Hey,
-> > 
-> > On Fri, May 17, 2013 at 03:04:06PM +0800, Li Zefan wrote:
-> >> +	/*
-> >> +	 * Releases a reference taken in kmem_cgroup_css_offline in case
-> >> +	 * this last uncharge is racing with the offlining code or it is
-> >> +	 * outliving the memcg existence.
-> >> +	 *
-> >> +	 * The memory barrier imposed by test&clear is paired with the
-> >> +	 * explicit one in kmem_cgroup_css_offline.
-> > 
-> > Paired with the wmb to achieve what?
+2013/5/24 Andrew Morton <akpm@linux-foundation.org>
 
-https://lkml.org/lkml/2013/4/4/190
-"
-! > +	css_get(&memcg->css);
-! I think that you need a write memory barrier here because css_get
-! nor memcg_kmem_mark_dead implies it. memcg_uncharge_kmem uses
-! memcg_kmem_test_and_clear_dead which imply a full memory barrier but it
-! should see the elevated reference count. No?
-! 
-! > +	/*
-! > +	 * We need to call css_get() first, because memcg_uncharge_kmem()
-! > +	 * will call css_put() if it sees the memcg is dead.
-! > +	 */
-! >  	memcg_kmem_mark_dead(memcg);
-"
+> On Thu, 23 May 2013 14:25:48 +0900 HATAYAMA Daisuke <
+> d.hatayama@jp.fujitsu.com> wrote:
+>
+> > This patch introduces mmap_vmcore().
+> >
+> > Don't permit writable nor executable mapping even with mprotect()
+> > because this mmap() is aimed at reading crash dump memory.
+> > Non-writable mapping is also requirement of remap_pfn_range() when
+> > mapping linear pages on non-consecutive physical pages; see
+> > is_cow_mapping().
+> >
+> > Set VM_MIXEDMAP flag to remap memory by remap_pfn_range and by
+> > remap_vmalloc_range_pertial at the same time for a single
+> > vma. do_munmap() can correctly clean partially remapped vma with two
+> > functions in abnormal case. See zap_pte_range(), vm_normal_page() and
+> > their comments for details.
+> >
+> > On x86-32 PAE kernels, mmap() supports at most 16TB memory only. This
+> > limitation comes from the fact that the third argument of
+> > remap_pfn_range(), pfn, is of 32-bit length on x86-32: unsigned long.
+>
+> More reviewing and testing, please.
+>
+>
+Do you have git pull for both kernel and userland changes? I would like to
+do some more testing on my machines.
 
-Does it make sense to you Tejun?
+Maxim.
 
-> > 
-> >> +	 */
-> >>  	if (memcg_kmem_test_and_clear_dead(memcg))
-> >> -		mem_cgroup_put(memcg);
-> >> +		css_put(&memcg->css);
-> > 
-> > The other side is wmb, so there gotta be something which wants to read
-> > which were written before wmb here but the only thing after the
-> > barrier is css_put() which doesn't need such thing, so I'm lost on
-> > what the barrier pair is achieving here.
 
-> > 
-> > In general, please be *very* explicit about what's going on whenever
-> > something is depending on barrier pairs.  It'll make it easier for
-> > both the author and reviewers to actually understand what's going on
-> > and why it's necessary.
-> > 
-> > ...
-> >> @@ -5858,23 +5856,39 @@ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
-> >>  	return mem_cgroup_sockets_init(memcg, ss);
-> >>  }
-> >>  
-> >> -static void kmem_cgroup_destroy(struct mem_cgroup *memcg)
-> >> +static void kmem_cgroup_css_offline(struct mem_cgroup *memcg)
-> >>  {
-> >> -	mem_cgroup_sockets_destroy(memcg);
-> >> +	if (!memcg_kmem_is_active(memcg))
-> >> +		return;
-> >>  
-> >> +	/*
-> >> +	 * kmem charges can outlive the cgroup. In the case of slab
-> >> +	 * pages, for instance, a page contain objects from various
-> >> +	 * processes. As we prevent from taking a reference for every
-> >> +	 * such allocation we have to be careful when doing uncharge
-> >> +	 * (see memcg_uncharge_kmem) and here during offlining.
-> >> +	 *
-> >> +	 * The idea is that that only the _last_ uncharge which sees
-> >> +	 * the dead memcg will drop the last reference. An additional
-> >> +	 * reference is taken here before the group is marked dead
-> >> +	 * which is then paired with css_put during uncharge resp. here.
-> >> +	 *
-> >> +	 * Although this might sound strange as this path is called when
-> >> +	 * the reference has already dropped down to 0 and shouldn't be
-> >> +	 * incremented anymore (css_tryget would fail) we do not have
-> > 
-> > Hmmm?  offline is called on cgroup destruction regardless of css
-> > refcnt.  The above comment seems a bit misleading.
-> > 
-> 
-> The comment is wrong. I'll fix it.
+>
+> From: Andrew Morton <akpm@linux-foundation.org>
+> Subject: vmcore-support-mmap-on-proc-vmcore-fix
+>
+> use min(), switch to conventional error-unwinding approach
+>
+> Cc: Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>
+> Cc: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Lisa Mitchell <lisa.mitchell@hp.com>
+> Cc: Vivek Goyal <vgoyal@redhat.com>
+> Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+>
+>  fs/proc/vmcore.c |   27 ++++++++++-----------------
+>  1 file changed, 10 insertions(+), 17 deletions(-)
+>
+> diff -puN fs/proc/vmcore.c~vmcore-support-mmap-on-proc-vmcore-fix
+> fs/proc/vmcore.c
+> --- a/fs/proc/vmcore.c~vmcore-support-mmap-on-proc-vmcore-fix
+> +++ a/fs/proc/vmcore.c
+> @@ -218,9 +218,7 @@ static int mmap_vmcore(struct file *file
+>         if (start < elfcorebuf_sz) {
+>                 u64 pfn;
+>
+> -               tsz = elfcorebuf_sz - start;
+> -               if (size < tsz)
+> -                       tsz = size;
+> +               tsz = min(elfcorebuf_sz - (size_t)start, size);
+>                 pfn = __pa(elfcorebuf + start) >> PAGE_SHIFT;
+>                 if (remap_pfn_range(vma, vma->vm_start, pfn, tsz,
+>                                     vma->vm_page_prot))
+> @@ -236,15 +234,11 @@ static int mmap_vmcore(struct file *file
+>         if (start < elfcorebuf_sz + elfnotes_sz) {
+>                 void *kaddr;
+>
+> -               tsz = elfcorebuf_sz + elfnotes_sz - start;
+> -               if (size < tsz)
+> -                       tsz = size;
+> +               tsz = min(elfcorebuf_sz + elfnotes_sz - (size_t)start,
+> size);
+>                 kaddr = elfnotes_buf + start - elfcorebuf_sz;
+>                 if (remap_vmalloc_range_partial(vma, vma->vm_start + len,
+> -                                               kaddr, tsz)) {
+> -                       do_munmap(vma->vm_mm, vma->vm_start, len);
+> -                       return -EAGAIN;
+> -               }
+> +                                               kaddr, tsz))
+> +                       goto fail;
+>                 size -= tsz;
+>                 start += tsz;
+>                 len += tsz;
+> @@ -257,16 +251,12 @@ static int mmap_vmcore(struct file *file
+>                 if (start < m->offset + m->size) {
+>                         u64 paddr = 0;
+>
+> -                       tsz = m->offset + m->size - start;
+> -                       if (size < tsz)
+> -                               tsz = size;
+> +                       tsz = min_t(size_t, m->offset + m->size - start,
+> size);
+>                         paddr = m->paddr + start - m->offset;
+>                         if (remap_pfn_range(vma, vma->vm_start + len,
+>                                             paddr >> PAGE_SHIFT, tsz,
+> -                                           vma->vm_page_prot)) {
+> -                               do_munmap(vma->vm_mm, vma->vm_start, len);
+> -                               return -EAGAIN;
+> -                       }
+> +                                           vma->vm_page_prot))
+> +                               goto fail;
+>                         size -= tsz;
+>                         start += tsz;
+>                         len += tsz;
+> @@ -277,6 +267,9 @@ static int mmap_vmcore(struct file *file
+>         }
+>
+>         return 0;
+> +fail:
+> +       do_munmap(vma->vm_mm, vma->vm_start, len);
+> +       return -EAGAIN;
+>  }
+>
+>  static const struct file_operations proc_vmcore_operations = {
+> _
+>
+>
+> _______________________________________________
+> kexec mailing list
+> kexec@lists.infradead.org
+> http://lists.infradead.org/mailman/listinfo/kexec
+>
 
-Ohh, right. "Althouth this might sound strange as this path is called from
-css_offline when the reference might have dropped down to 0 and shouldn't ..."
 
-Sounds better?
- 
-> >> +	 * other options because of the kmem allocations lifetime.
-> >> +	 */
-> >> +	css_get(&memcg->css);
-> >> +
-> >> +	/* see comment in memcg_uncharge_kmem() */
-> >> +	wmb();
-> >>  	memcg_kmem_mark_dead(memcg);
-> > 
-> > Is the wmb() trying to prevent reordering between css_get() and
-> > memcg_kmem_mark_dead()?  If so, it isn't necessary - the compiler
-> > isn't allowed to reorder two atomic ops (they're all asm volatiles)
-> > and the visibility order is guaranteed by the nature of the two
-> > operations going on here - both perform modify-and-test on one end of
-> > the operations.
-
-As I have copied my comment from the earlier thread above.
-css_get does atomic_add which doesn't imply any barrier AFAIK and
-memcg_kmem_mark_dead uses a simple set_bit which doesn't imply it
-either. What am I missing?
-
-> > 
-> 
-> Yeah, I think you're right.
-> 
-> > It could be argued that having memory barriers is better for
-> > completeness of mark/test interface but then those barriers should
-> > really moved into memcg_kmem_mark_dead() and its clearing counterpart.
-> > 
-> > While it's all clever and dandy, my recommendation would be just using
-> > a lock for synchronization.  It isn't a hot path.  Why be clever?
-> > 
-> 
-> I don't quite like adding a lock not to protect data but just ensure code
-> orders.
-
-Agreed.
-
-> Michal, what's your preference? I want to be sure that everyone is happy
-> so the next version will hopefully be the last version.
-
-I still do not see why the barrier is not needed and the lock seems too
-big hammer.
 
 -- 
-Michal Hocko
-SUSE Labs
+Best regards,
+Maxim Uvarov
+
+--e89a8f234ce515854f04dd730f9a
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><br><div class=3D"gmail_extra"><br><br><div class=3D"gmail=
+_quote">2013/5/24 Andrew Morton <span dir=3D"ltr">&lt;<a href=3D"mailto:akp=
+m@linux-foundation.org" target=3D"_blank">akpm@linux-foundation.org</a>&gt;=
+</span><br>
+<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex"><div class=3D"im">On Thu, 23 May 2013 14:25:=
+48 +0900 HATAYAMA Daisuke &lt;<a href=3D"mailto:d.hatayama@jp.fujitsu.com">=
+d.hatayama@jp.fujitsu.com</a>&gt; wrote:<br>
+
+<br>
+&gt; This patch introduces mmap_vmcore().<br>
+&gt;<br>
+&gt; Don&#39;t permit writable nor executable mapping even with mprotect()<=
+br>
+&gt; because this mmap() is aimed at reading crash dump memory.<br>
+&gt; Non-writable mapping is also requirement of remap_pfn_range() when<br>
+&gt; mapping linear pages on non-consecutive physical pages; see<br>
+&gt; is_cow_mapping().<br>
+&gt;<br>
+&gt; Set VM_MIXEDMAP flag to remap memory by remap_pfn_range and by<br>
+&gt; remap_vmalloc_range_pertial at the same time for a single<br>
+&gt; vma. do_munmap() can correctly clean partially remapped vma with two<b=
+r>
+&gt; functions in abnormal case. See zap_pte_range(), vm_normal_page() and<=
+br>
+&gt; their comments for details.<br>
+&gt;<br>
+&gt; On x86-32 PAE kernels, mmap() supports at most 16TB memory only. This<=
+br>
+&gt; limitation comes from the fact that the third argument of<br>
+&gt; remap_pfn_range(), pfn, is of 32-bit length on x86-32: unsigned long.<=
+br>
+<br>
+</div>More reviewing and testing, please.<br>
+<br></blockquote><div><br></div><div>Do you have git pull for both kernel a=
+nd userland changes? I would like to do some more testing on my machines.<b=
+r><br></div><div>Maxim.<br></div><div>=A0</div><blockquote class=3D"gmail_q=
+uote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1e=
+x">
+
+<br>
+From: Andrew Morton &lt;<a href=3D"mailto:akpm@linux-foundation.org">akpm@l=
+inux-foundation.org</a>&gt;<br>
+Subject: vmcore-support-mmap-on-proc-vmcore-fix<br>
+<br>
+use min(), switch to conventional error-unwinding approach<br>
+<br>
+Cc: Atsushi Kumagai &lt;<a href=3D"mailto:kumagai-atsushi@mxc.nes.nec.co.jp=
+">kumagai-atsushi@mxc.nes.nec.co.jp</a>&gt;<br>
+Cc: HATAYAMA Daisuke &lt;<a href=3D"mailto:d.hatayama@jp.fujitsu.com">d.hat=
+ayama@jp.fujitsu.com</a>&gt;<br>
+Cc: KOSAKI Motohiro &lt;<a href=3D"mailto:kosaki.motohiro@jp.fujitsu.com">k=
+osaki.motohiro@jp.fujitsu.com</a>&gt;<br>
+Cc: Lisa Mitchell &lt;<a href=3D"mailto:lisa.mitchell@hp.com">lisa.mitchell=
+@hp.com</a>&gt;<br>
+Cc: Vivek Goyal &lt;<a href=3D"mailto:vgoyal@redhat.com">vgoyal@redhat.com<=
+/a>&gt;<br>
+Cc: Zhang Yanfei &lt;<a href=3D"mailto:zhangyanfei@cn.fujitsu.com">zhangyan=
+fei@cn.fujitsu.com</a>&gt;<br>
+Signed-off-by: Andrew Morton &lt;<a href=3D"mailto:akpm@linux-foundation.or=
+g">akpm@linux-foundation.org</a>&gt;<br>
+---<br>
+<br>
+=A0fs/proc/vmcore.c | =A0 27 ++++++++++-----------------<br>
+=A01 file changed, 10 insertions(+), 17 deletions(-)<br>
+<br>
+diff -puN fs/proc/vmcore.c~vmcore-support-mmap-on-proc-vmcore-fix fs/proc/v=
+mcore.c<br>
+--- a/fs/proc/vmcore.c~vmcore-support-mmap-on-proc-vmcore-fix<br>
++++ a/fs/proc/vmcore.c<br>
+@@ -218,9 +218,7 @@ static int mmap_vmcore(struct file *file<br>
+=A0 =A0 =A0 =A0 if (start &lt; elfcorebuf_sz) {<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 u64 pfn;<br>
+<div class=3D"im"><br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 tsz =3D elfcorebuf_sz - start;<br>
+</div>- =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (size &lt; tsz)<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 tsz =3D size;<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 tsz =3D min(elfcorebuf_sz - (size_t)start, si=
+ze);<br>
+<div class=3D"im">=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 pfn =3D __pa(elfcorebuf +=
+ start) &gt;&gt; PAGE_SHIFT;<br>
+</div><div class=3D"im">=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (remap_pfn_range=
+(vma, vma-&gt;vm_start, pfn, tsz,<br>
+</div>=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 vma-&gt;vm_page_prot))<br>
+@@ -236,15 +234,11 @@ static int mmap_vmcore(struct file *file<br>
+<div class=3D"im">=A0 =A0 =A0 =A0 if (start &lt; elfcorebuf_sz + elfnotes_s=
+z) {<br>
+</div>=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 void *kaddr;<br>
+<div class=3D"im"><br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 tsz =3D elfcorebuf_sz + elfnotes_sz - start;<=
+br>
+</div>- =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (size &lt; tsz)<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 tsz =3D size;<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 tsz =3D min(elfcorebuf_sz + elfnotes_sz - (si=
+ze_t)start, size);<br>
+<div class=3D"im">=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 kaddr =3D elfnotes_buf + =
+start - elfcorebuf_sz;<br>
+</div><div class=3D"im">=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (remap_vmalloc_r=
+ange_partial(vma, vma-&gt;vm_start + len,<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 kaddr, tsz)) {<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 do_munmap(vma-&gt;vm_mm, vma-=
+&gt;vm_start, len);<br>
+</div>- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -EAGAIN;<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 }<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 kaddr, tsz))<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto fail;<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 size -=3D tsz;<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 start +=3D tsz;<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 len +=3D tsz;<br>
+@@ -257,16 +251,12 @@ static int mmap_vmcore(struct file *file<br>
+<div class=3D"im">=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (start &lt; m-&gt;offs=
+et + m-&gt;size) {<br>
+</div>=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 u64 paddr =3D 0;<br>
+<div class=3D"im"><br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 tsz =3D m-&gt;offset + m-&gt;=
+size - start;<br>
+</div>- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (size &lt; tsz)<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 tsz =3D size;=
+<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 tsz =3D min_t(size_t, m-&gt;o=
+ffset + m-&gt;size - start, size);<br>
+<div class=3D"im">=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 paddr =3D=
+ m-&gt;paddr + start - m-&gt;offset;<br>
+</div><div class=3D"im">=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if =
+(remap_pfn_range(vma, vma-&gt;vm_start + len,<br>
+</div>=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 paddr &gt;&gt; PAGE_SHIFT, tsz,<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 vma-&gt;vm_page_prot)) {<br>
+<div class=3D"im">- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 do_munmap(vma-&gt;vm_mm, vma-&gt;vm_start, len);<br>
+</div>- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return =
+-EAGAIN;<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 vma-&gt;vm_page_prot))<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto fail;<br=
+>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 size -=3D tsz;<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 start +=3D tsz;<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 len +=3D tsz;<br>
+@@ -277,6 +267,9 @@ static int mmap_vmcore(struct file *file<br>
+=A0 =A0 =A0 =A0 }<br>
+<br>
+=A0 =A0 =A0 =A0 return 0;<br>
++fail:<br>
+<div class=3D"im HOEnZb">+ =A0 =A0 =A0 do_munmap(vma-&gt;vm_mm, vma-&gt;vm_=
+start, len);<br>
++ =A0 =A0 =A0 return -EAGAIN;<br>
+=A0}<br>
+<br>
+</div><div class=3D"im HOEnZb">=A0static const struct file_operations proc_=
+vmcore_operations =3D {<br>
+</div><div class=3D"HOEnZb"><div class=3D"h5">_<br>
+<br>
+<br>
+_______________________________________________<br>
+kexec mailing list<br>
+<a href=3D"mailto:kexec@lists.infradead.org">kexec@lists.infradead.org</a><=
+br>
+<a href=3D"http://lists.infradead.org/mailman/listinfo/kexec" target=3D"_bl=
+ank">http://lists.infradead.org/mailman/listinfo/kexec</a><br>
+</div></div></blockquote></div><br><br clear=3D"all"><br>-- <br>Best regard=
+s,<br>Maxim Uvarov
+</div></div>
+
+--e89a8f234ce515854f04dd730f9a--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
