@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
-	by kanga.kvack.org (Postfix) with SMTP id 213C86B003D
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 3CFCD6B004D
 	for <linux-mm@kvack.org>; Fri, 24 May 2013 05:37:30 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v3 10/13] x86, acpi, numa, mem-hotplug: Introduce MEMBLK_HOTPLUGGABLE to mark and reserve hotpluggable memory.
-Date: Fri, 24 May 2013 17:29:19 +0800
-Message-Id: <1369387762-17865-11-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v3 04/13] x86, numa, acpi, memory-hotplug: Introduce hotplug info into struct numa_meminfo.
+Date: Fri, 24 May 2013 17:29:13 +0800
+Message-Id: <1369387762-17865-5-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1369387762-17865-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1369387762-17865-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,140 +13,154 @@ List-ID: <linux-mm.kvack.org>
 To: mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, tj@kernel.org, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-We mark out movable memory ranges and reserve them with MEMBLK_HOTPLUGGABLE flag in
-memblock.reserved. This should be done after the memory mapping is initialized
-because the kernel now supports allocate pagetable pages on local node, which
-are kernel pages.
+Since Yinghai has implement "Allocate pagetable pages in local node", for a
+node with hotpluggable memory, we have to allocate pagetable pages first, and
+then reserve the rest as hotpluggable memory in memblock.
 
-The reserved hotpluggable will be freed to buddy when memory initialization
-is done.
+But the kernel parse SRAT first, and then initialize memory mapping. So we have
+to remember the which memory ranges are hotpluggable for future usage.
 
-And also, ensure all the nodes which the kernel resides in are un-hotpluggable.
+When parsing SRAT, we added each memory range to numa_meminfo. So we can store
+hotpluggable info in numa_meminfo.
 
-This idea is from Wen Congyang <wency@cn.fujitsu.com> and Jiang Liu <jiang.liu@huawei.com>.
+This patch introduces a "bool hotpluggable" member into struct
+numa_meminfo.
 
-Suggested-by: Jiang Liu <jiang.liu@huawei.com>
-Suggested-by: Wen Congyang <wency@cn.fujitsu.com>
+And modifies the following APIs' prototypes to support it:
+   - numa_add_memblk()
+   - numa_add_memblk_to()
+
+And the following callers:
+   - numaq_register_node()
+   - dummy_numa_init()
+   - amd_numa_init()
+   - acpi_numa_memory_affinity_init() in x86
+
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Reviewed-by: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
 ---
- arch/x86/mm/numa.c       |   29 +++++++++++++++++++++++++++++
- include/linux/memblock.h |    3 +++
- mm/memblock.c            |   19 +++++++++++++++++++
- 3 files changed, 51 insertions(+), 0 deletions(-)
+ arch/x86/include/asm/numa.h     |    3 ++-
+ arch/x86/kernel/apic/numaq_32.c |    2 +-
+ arch/x86/mm/amdtopology.c       |    3 ++-
+ arch/x86/mm/numa.c              |   10 +++++++---
+ arch/x86/mm/numa_internal.h     |    1 +
+ arch/x86/mm/srat.c              |    2 +-
+ 6 files changed, 14 insertions(+), 7 deletions(-)
 
+diff --git a/arch/x86/include/asm/numa.h b/arch/x86/include/asm/numa.h
+index 1b99ee5..73096b2 100644
+--- a/arch/x86/include/asm/numa.h
++++ b/arch/x86/include/asm/numa.h
+@@ -31,7 +31,8 @@ extern int numa_off;
+ extern s16 __apicid_to_node[MAX_LOCAL_APIC];
+ extern nodemask_t numa_nodes_parsed __initdata;
+ 
+-extern int __init numa_add_memblk(int nodeid, u64 start, u64 end);
++extern int __init numa_add_memblk(int nodeid, u64 start, u64 end,
++				  bool hotpluggable);
+ extern void __init numa_set_distance(int from, int to, int distance);
+ 
+ static inline void set_apicid_to_node(int apicid, s16 node)
+diff --git a/arch/x86/kernel/apic/numaq_32.c b/arch/x86/kernel/apic/numaq_32.c
+index d661ee9..7a9c542 100644
+--- a/arch/x86/kernel/apic/numaq_32.c
++++ b/arch/x86/kernel/apic/numaq_32.c
+@@ -82,7 +82,7 @@ static inline void numaq_register_node(int node, struct sys_cfg_data *scd)
+ 	int ret;
+ 
+ 	node_set(node, numa_nodes_parsed);
+-	ret = numa_add_memblk(node, start, end);
++	ret = numa_add_memblk(node, start, end, false);
+ 	BUG_ON(ret < 0);
+ }
+ 
+diff --git a/arch/x86/mm/amdtopology.c b/arch/x86/mm/amdtopology.c
+index 5247d01..d521471 100644
+--- a/arch/x86/mm/amdtopology.c
++++ b/arch/x86/mm/amdtopology.c
+@@ -167,7 +167,8 @@ int __init amd_numa_init(void)
+ 			nodeid, base, limit);
+ 
+ 		prevbase = base;
+-		numa_add_memblk(nodeid, base, limit);
++		/* Do not support memory hotplug for AMD cpu. */
++		numa_add_memblk(nodeid, base, limit, false);
+ 		node_set(nodeid, numa_nodes_parsed);
+ 	}
+ 
 diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index b28baf3..73f9ade 100644
+index af18b18..892729b 100644
 --- a/arch/x86/mm/numa.c
 +++ b/arch/x86/mm/numa.c
-@@ -727,6 +727,33 @@ static void __init early_x86_numa_init_mapping(void)
+@@ -134,6 +134,7 @@ void __init setup_node_to_cpumask_map(void)
  }
- #endif
  
-+#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-+static void __init early_mem_hotplug_init()
-+{
-+	int i, nid;
-+	phys_addr_t start, end;
-+
-+	if (!movablecore_enable_srat)
-+		return;
-+
-+	for (i = 0; i < numa_meminfo.nr_blks; i++) {
-+		nid = numa_meminfo.blk[i].nid;
-+		start = numa_meminfo.blk[i].start;
-+		end = numa_meminfo.blk[i].end;
-+
-+		if (!numa_meminfo.blk[i].hotpluggable ||
-+		    memblock_is_kernel_node(nid))
-+			continue;
-+
-+		memblock_reserve_hotpluggable(start, end - start, nid);
-+	}
-+}
-+#else		/* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
-+static inline void early_mem_hotplug_init()
-+{
-+}
-+#endif		/* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
-+
- void __init early_initmem_init(void)
+ static int __init numa_add_memblk_to(int nid, u64 start, u64 end,
++				     bool hotpluggable,
+ 				     struct numa_meminfo *mi)
  {
- 	early_x86_numa_init();
-@@ -736,6 +763,8 @@ void __init early_initmem_init(void)
- 	load_cr3(swapper_pg_dir);
- 	__flush_tlb_all();
- 
-+	early_mem_hotplug_init();
-+
- 	early_memtest(0, max_pfn_mapped<<PAGE_SHIFT);
+ 	/* ignore zero length blks */
+@@ -155,6 +156,7 @@ static int __init numa_add_memblk_to(int nid, u64 start, u64 end,
+ 	mi->blk[mi->nr_blks].start = start;
+ 	mi->blk[mi->nr_blks].end = end;
+ 	mi->blk[mi->nr_blks].nid = nid;
++	mi->blk[mi->nr_blks].hotpluggable = hotpluggable;
+ 	mi->nr_blks++;
+ 	return 0;
+ }
+@@ -179,15 +181,17 @@ void __init numa_remove_memblk_from(int idx, struct numa_meminfo *mi)
+  * @nid: NUMA node ID of the new memblk
+  * @start: Start address of the new memblk
+  * @end: End address of the new memblk
++ * @hotpluggable: True if memblk is hotpluggable
+  *
+  * Add a new memblk to the default numa_meminfo.
+  *
+  * RETURNS:
+  * 0 on success, -errno on failure.
+  */
+-int __init numa_add_memblk(int nid, u64 start, u64 end)
++int __init numa_add_memblk(int nid, u64 start, u64 end,
++			   bool hotpluggable)
+ {
+-	return numa_add_memblk_to(nid, start, end, &numa_meminfo);
++	return numa_add_memblk_to(nid, start, end, hotpluggable, &numa_meminfo);
  }
  
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 3b2d1c4..0f01930 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -24,6 +24,7 @@
- /* Definition of memblock flags. */
- enum memblock_flags {
- 	MEMBLK_LOCAL_NODE,	/* node-life-cycle data */
-+	MEMBLK_HOTPLUGGABLE,	/* hotpluggable region */
- 	__NR_MEMBLK_FLAGS,	/* number of flags */
+ /* Initialize NODE_DATA for a node on the local memory */
+@@ -627,7 +631,7 @@ static int __init dummy_numa_init(void)
+ 	       0LLU, PFN_PHYS(max_pfn) - 1);
+ 
+ 	node_set(0, numa_nodes_parsed);
+-	numa_add_memblk(0, 0, PFN_PHYS(max_pfn));
++	numa_add_memblk(0, 0, PFN_PHYS(max_pfn), false);
+ 
+ 	return 0;
+ }
+diff --git a/arch/x86/mm/numa_internal.h b/arch/x86/mm/numa_internal.h
+index bb2fbcc..1ce4e6b 100644
+--- a/arch/x86/mm/numa_internal.h
++++ b/arch/x86/mm/numa_internal.h
+@@ -8,6 +8,7 @@ struct numa_memblk {
+ 	u64			start;
+ 	u64			end;
+ 	int			nid;
++	bool			hotpluggable;
  };
  
-@@ -67,8 +68,10 @@ int memblock_remove(phys_addr_t base, phys_addr_t size);
- int memblock_free(phys_addr_t base, phys_addr_t size);
- int memblock_reserve(phys_addr_t base, phys_addr_t size);
- int memblock_reserve_local_node(phys_addr_t base, phys_addr_t size, int nid);
-+int memblock_reserve_hotpluggable(phys_addr_t base, phys_addr_t size, int nid);
- void memblock_trim_memory(phys_addr_t align);
- void memblock_mark_kernel_nodes(void);
-+bool memblock_is_kernel_node(int nid);
+ struct numa_meminfo {
+diff --git a/arch/x86/mm/srat.c b/arch/x86/mm/srat.c
+index 5055fa7..f7f6fd4 100644
+--- a/arch/x86/mm/srat.c
++++ b/arch/x86/mm/srat.c
+@@ -171,7 +171,7 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
+ 		goto out_err_bad_srat;
+ 	}
  
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
-diff --git a/mm/memblock.c b/mm/memblock.c
-index edde4c2..0c55588 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -596,6 +596,13 @@ int __init_memblock memblock_reserve_local_node(phys_addr_t base,
- 	return memblock_reserve_region(base, size, nid, flags);
- }
+-	if (numa_add_memblk(node, start, end) < 0)
++	if (numa_add_memblk(node, start, end, hotpluggable) < 0)
+ 		goto out_err_bad_srat;
  
-+int __init_memblock memblock_reserve_hotpluggable(phys_addr_t base,
-+					phys_addr_t size, int nid)
-+{
-+	unsigned long flags = 1 << MEMBLK_HOTPLUGGABLE;
-+	return memblock_reserve_region(base, size, nid, flags);
-+}
-+
- /**
-  * __next_free_mem_range - next function for for_each_free_mem_range()
-  * @idx: pointer to u64 loop variable
-@@ -809,11 +816,23 @@ void __init_memblock memblock_mark_kernel_nodes()
- 			node_set(nid, memblock_kernel_nodemask);
- 		}
- }
-+
-+bool __init_memblock memblock_is_kernel_node(int nid)
-+{
-+	if (node_isset(nid, memblock_kernel_nodemask))
-+		return true;
-+	return false;
-+}
- #else
- void __init_memblock memblock_mark_kernel_nodes()
- {
- 	node_set(0, memblock_kernel_nodemask);
- }
-+
-+bool __init_memblock memblock_is_kernel_node(int nid)
-+{
-+	return true;
-+}
- #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
- 
- static phys_addr_t __init memblock_alloc_base_nid(phys_addr_t size,
+ 	node_set(node, numa_nodes_parsed);
 -- 
 1.7.1
 
