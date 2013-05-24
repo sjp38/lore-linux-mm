@@ -1,103 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 0A6496B0032
-	for <linux-mm@kvack.org>; Fri, 24 May 2013 16:23:35 -0400 (EDT)
-Message-ID: <519FCC46.2000703@codeaurora.org>
-Date: Fri, 24 May 2013 13:23:34 -0700
-From: Laura Abbott <lauraa@codeaurora.org>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 376216B0032
+	for <linux-mm@kvack.org>; Fri, 24 May 2013 17:57:14 -0400 (EDT)
+Received: by mail-ea0-f180.google.com with SMTP id g10so2616471eak.25
+        for <linux-mm@kvack.org>; Fri, 24 May 2013 14:57:12 -0700 (PDT)
+Date: Fri, 24 May 2013 23:57:08 +0200
+From: Daniel Vetter <daniel@ffwll.ch>
+Subject: Re: [PATCH v8 20/34] i915: bail out earlier when shrinker cannot
+ acquire mutex
+Message-ID: <20130524215708.GK15743@phenom.ffwll.local>
+References: <1369391368-31562-1-git-send-email-glommer@openvz.org>
+ <1369391368-31562-21-git-send-email-glommer@openvz.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: page_alloc: fix watermark check in __zone_watermark_ok()
-References: <518B5556.4010005@samsung.com>
-In-Reply-To: <518B5556.4010005@samsung.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1369391368-31562-21-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tomasz Stanislawski <t.stanislaws@samsung.com>
-Cc: linux-mm@kvack.org, =?UTF-8?B?J+uwleqyveuvvCc=?= <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, minchan@kernel.org, mgorman@suse.de, 'Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+To: Glauber Costa <glommer@openvz.org>
+Cc: linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, Dave Chinner <dchinner@redhat.com>, Daniel Vetter <daniel.vetter@ffwll.ch>, Kent Overstreet <koverstreet@google.com>
 
-On 5/9/2013 12:50 AM, Tomasz Stanislawski wrote:
-> The watermark check consists of two sub-checks.
-> The first one is:
->
-> 	if (free_pages <= min + lowmem_reserve)
-> 		return false;
->
-> The check assures that there is minimal amount of RAM in the zone.  If CMA is
-> used then the free_pages is reduced by the number of free pages in CMA prior
-> to the over-mentioned check.
->
-> 	if (!(alloc_flags & ALLOC_CMA))
-> 		free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
->
-> This prevents the zone from being drained from pages available for non-movable
-> allocations.
->
-> The second check prevents the zone from getting too fragmented.
->
-> 	for (o = 0; o < order; o++) {
-> 		free_pages -= z->free_area[o].nr_free << o;
-> 		min >>= 1;
-> 		if (free_pages <= min)
-> 			return false;
-> 	}
->
-> The field z->free_area[o].nr_free is equal to the number of free pages
-> including free CMA pages.  Therefore the CMA pages are subtracted twice.  This
-> may cause a false positive fail of __zone_watermark_ok() if the CMA area gets
-> strongly fragmented.  In such a case there are many 0-order free pages located
-> in CMA. Those pages are subtracted twice therefore they will quickly drain
-> free_pages during the check against fragmentation.  The test fails even though
-> there are many free non-cma pages in the zone.
->
-> This patch fixes this issue by subtracting CMA pages only for a purpose of
-> (free_pages <= min + lowmem_reserve) check.
->
-> Signed-off-by: Tomasz Stanislawski <t.stanislaws@samsung.com>
-> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+On Fri, May 24, 2013 at 03:59:14PM +0530, Glauber Costa wrote:
+> The main shrinker driver will keep trying for a while to free objects if
+> the returned value from the shrink scan procedure is 0.  That means "no
+> objects now", but a retry could very well succeed.
+> 
+> A negative value has a different meaning. It means it is impossible to
+> shrink, and we would better bail out soon. We find this behavior more
+> appropriate for the case where the lock cannot be taken. Specially given
+> the hammer behavior of the i915: if another thread is already shrinking,
+> we are likely not to be able to shrink anything anyway when we finally
+> acquire the mutex.
+> 
+> Signed-off-by: Glauber Costa <glommer@openvz.org>
+> CC: Dave Chinner <dchinner@redhat.com>
+> CC: Mel Gorman <mgorman@suse.de>
+> CC: Daniel Vetter <daniel.vetter@ffwll.ch>
+> CC: Kent Overstreet <koverstreet@google.com>
+
+Acked-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
 > ---
->   mm/page_alloc.c |    6 ++++--
->   1 file changed, 4 insertions(+), 2 deletions(-)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 8fcced7..0d4fef2 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1626,6 +1626,7 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
->   	long min = mark;
->   	long lowmem_reserve = z->lowmem_reserve[classzone_idx];
->   	int o;
-> +	long free_cma = 0;
->
->   	free_pages -= (1 << order) - 1;
->   	if (alloc_flags & ALLOC_HIGH)
-> @@ -1635,9 +1636,10 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
->   #ifdef CONFIG_CMA
->   	/* If allocation can't use CMA areas don't use free CMA pages */
->   	if (!(alloc_flags & ALLOC_CMA))
-> -		free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
-> +		free_cma = zone_page_state(z, NR_FREE_CMA_PAGES);
->   #endif
-> -	if (free_pages <= min + lowmem_reserve)
-> +
-> +	if (free_pages - free_cma <= min + lowmem_reserve)
->   		return false;
->   	for (o = 0; o < order; o++) {
->   		/* At the next order, this order's pages become unavailable */
->
+>  drivers/gpu/drm/i915/i915_gem.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/drivers/gpu/drm/i915/i915_gem.c b/drivers/gpu/drm/i915/i915_gem.c
+> index 6b17122..52b3ac1 100644
+> --- a/drivers/gpu/drm/i915/i915_gem.c
+> +++ b/drivers/gpu/drm/i915/i915_gem.c
+> @@ -4448,10 +4448,10 @@ i915_gem_inactive_count(struct shrinker *shrinker, struct shrink_control *sc)
+>  
+>  	if (!mutex_trylock(&dev->struct_mutex)) {
+>  		if (!mutex_is_locked_by(&dev->struct_mutex, current))
+> -			return 0;
+> +			return -1;
+>  
+>  		if (dev_priv->mm.shrinker_no_lock_stealing)
+> -			return 0;
+> +			return -1;
+>  
+>  		unlock = false;
+>  	}
+> -- 
+> 1.8.1.4
+> 
 
-I haven't seen any response to this patch but it has been of some 
-benefit to some of our use cases. You're welcome to add
-
-Tested-by: Laura Abbott <lauraa@codeaurora.org>
-
-if the patch hasn't been  picked up yet.
-
-Thanks,
-Laura
 -- 
-Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
-hosted by The Linux Foundation
+Daniel Vetter
+Software Engineer, Intel Corporation
++41 (0) 79 365 57 48 - http://blog.ffwll.ch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
