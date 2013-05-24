@@ -1,180 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id A378C6B00AC
-	for <linux-mm@kvack.org>; Fri, 24 May 2013 06:35:42 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id EFB1B6B00AF
+	for <linux-mm@kvack.org>; Fri, 24 May 2013 06:35:44 -0400 (EDT)
 From: Glauber Costa <glommer@openvz.org>
-Subject: [PATCH v8 33/34] vmpressure: in-kernel notifications
-Date: Fri, 24 May 2013 15:59:27 +0530
-Message-Id: <1369391368-31562-34-git-send-email-glommer@openvz.org>
+Subject: [PATCH v8 30/34] vmscan: take at least one pass with shrinkers
+Date: Fri, 24 May 2013 15:59:24 +0530
+Message-Id: <1369391368-31562-31-git-send-email-glommer@openvz.org>
 In-Reply-To: <1369391368-31562-1-git-send-email-glommer@openvz.org>
 References: <1369391368-31562-1-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org
-Cc: Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@openvz.org>, John Stultz <john.stultz@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>
+Cc: Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@openvz.org>, Carlos Maiolino <cmaiolino@redhat.com>, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
 
-From: Glauber Costa <glommer@parallels.com>
+In very low free kernel memory situations, it may be the case that we
+have less objects to free than our initial batch size. If this is the
+case, it is better to shrink those, and open space for the new workload
+then to keep them and fail the new allocations.
 
-During the past weeks, it became clear to us that the shrinker interface
-we have right now works very well for some particular types of users,
-but not that well for others. The later are usually people interested in
-one-shot notifications, that were forced to adapt themselves to the
-count+scan behavior of shrinkers. To do so, they had no choice than to
-greatly abuse the shrinker interface producing little monsters all over.
+In particular, we are concerned with the direct reclaim case for memcg.
+Although this same technique can be applied to other situations just as well,
+we will start conservative and apply it for that case, which is the one
+that matters the most.
 
-During LSF/MM, one of the proposals that popped out during our session
-was to reuse Anton Voronstsov's vmpressure for this. They are designed
-for userspace consumption, but also provide a well-stablished,
-cgroup-aware entry point for notifications.
-
-This patch extends that to also support in-kernel users. Events that
-should be generated for in-kernel consumption will be marked as such,
-and for those, we will call a registered function instead of triggering
-an eventfd notification.
-
-Please note that due to my lack of understanding of each shrinker user,
-I will stay away from converting the actual users, you are all welcome
-to do so.
+[ v6: only do it per memcg ]
+[ v5: differentiate no-scan case, don't do this for kswapd ]
 
 Signed-off-by: Glauber Costa <glommer@openvz.org>
-Acked-by: Anton Vorontsov <anton@enomsg.org>
-Acked-by: Pekka Enberg <penberg@kernel.org>
-Reviewed-by: Greg Thelen <gthelen@google.com>
-Cc: Dave Chinner <david@fromorbit.com>
-Cc: John Stultz <john.stultz@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Joonsoo Kim <js1304@gmail.com>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
+CC: Dave Chinner <david@fromorbit.com>
+CC: Carlos Maiolino <cmaiolino@redhat.com>
+CC: "Theodore Ts'o" <tytso@mit.edu>
+CC: Al Viro <viro@zeniv.linux.org.uk>
 ---
- include/linux/vmpressure.h |  6 ++++++
- mm/vmpressure.c            | 52 +++++++++++++++++++++++++++++++++++++++++++---
- 2 files changed, 55 insertions(+), 3 deletions(-)
+ mm/vmscan.c | 23 ++++++++++++++++++-----
+ 1 file changed, 18 insertions(+), 5 deletions(-)
 
-diff --git a/include/linux/vmpressure.h b/include/linux/vmpressure.h
-index 76be077..3131e72 100644
---- a/include/linux/vmpressure.h
-+++ b/include/linux/vmpressure.h
-@@ -19,6 +19,9 @@ struct vmpressure {
- 	/* Have to grab the lock on events traversal or modifications. */
- 	struct mutex events_lock;
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index fd0482b..3fe1b9b 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -297,21 +297,34 @@ shrink_slab_node(struct shrink_control *shrinkctl, struct shrinker *shrinker,
+ 				nr_pages_scanned, lru_pages,
+ 				max_pass, delta, total_scan);
  
-+	/* False if only kernel users want to be notified, true otherwise. */
-+	bool notify_userspace;
+-	while (total_scan >= batch_size) {
++	do {
+ 		long ret;
++		unsigned long nr_to_scan = min(batch_size, total_scan);
++		struct mem_cgroup *memcg = shrinkctl->target_mem_cgroup;
 +
- 	struct work_struct work;
- };
- 
-@@ -36,6 +39,9 @@ extern struct vmpressure *css_to_vmpressure(struct cgroup_subsys_state *css);
- extern int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
- 				     struct eventfd_ctx *eventfd,
- 				     const char *args);
++		/*
++		 * Differentiate between "few objects" and "no objects"
++		 * as returned by the count step.
++		 */
++		if (!total_scan)
++			break;
 +
-+extern int vmpressure_register_kernel_event(struct cgroup *cg,
-+					    void (*fn)(void));
- extern void vmpressure_unregister_event(struct cgroup *cg, struct cftype *cft,
- 					struct eventfd_ctx *eventfd);
- #else
-diff --git a/mm/vmpressure.c b/mm/vmpressure.c
-index 736a601..e16256e 100644
---- a/mm/vmpressure.c
-+++ b/mm/vmpressure.c
-@@ -135,8 +135,12 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
- }
++		if ((total_scan < batch_size) &&
++		   !(memcg && memcg_kmem_is_active(memcg)))
++			break;
  
- struct vmpressure_event {
--	struct eventfd_ctx *efd;
-+	union {
-+		struct eventfd_ctx *efd;
-+		void (*fn)(void);
-+	};
- 	enum vmpressure_levels level;
-+	bool kernel_event;
- 	struct list_head node;
- };
+-		shrinkctl->nr_to_scan = batch_size;
++		shrinkctl->nr_to_scan = nr_to_scan;
+ 		ret = shrinker->scan_objects(shrinker, shrinkctl);
  
-@@ -152,12 +156,15 @@ static bool vmpressure_event(struct vmpressure *vmpr,
- 	mutex_lock(&vmpr->events_lock);
+ 		if (ret == -1)
+ 			break;
+ 		freed += ret;
  
- 	list_for_each_entry(ev, &vmpr->events, node) {
--		if (level >= ev->level) {
-+		if (ev->kernel_event) {
-+			ev->fn();
-+		} else if (vmpr->notify_userspace && level >= ev->level) {
- 			eventfd_signal(ev->efd, 1);
- 			signalled = true;
- 		}
- 	}
+-		count_vm_events(SLABS_SCANNED, batch_size);
+-		total_scan -= batch_size;
++		count_vm_events(SLABS_SCANNED, nr_to_scan);
++		total_scan -= nr_to_scan;
  
-+	vmpr->notify_userspace = false;
- 	mutex_unlock(&vmpr->events_lock);
- 
- 	return signalled;
-@@ -227,7 +234,7 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
- 	 * we account it too.
- 	 */
- 	if (!(gfp & (__GFP_HIGHMEM | __GFP_MOVABLE | __GFP_IO | __GFP_FS)))
--		return;
-+		goto schedule;
+ 		cond_resched();
+-	}
++	} while (total_scan >= batch_size);
  
  	/*
- 	 * If we got here with no pages scanned, then that is an indicator
-@@ -244,8 +251,15 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
- 	vmpr->scanned += scanned;
- 	vmpr->reclaimed += reclaimed;
- 	scanned = vmpr->scanned;
-+	/*
-+	 * If we didn't reach this point, only kernel events will be triggered.
-+	 * It is the job of the worker thread to clean this up once the
-+	 * notifications are all delivered.
-+	 */
-+	vmpr->notify_userspace = true;
- 	mutex_unlock(&vmpr->sr_lock);
- 
-+schedule:
- 	if (scanned < vmpressure_win || work_pending(&vmpr->work))
- 		return;
- 	schedule_work(&vmpr->work);
-@@ -328,6 +342,38 @@ int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
- }
- 
- /**
-+ * vmpressure_register_kernel_event() - Register kernel-side notification
-+ * @cg:		cgroup that is interested in vmpressure notifications
-+ * @fn:		function to be called when pressure happens
-+ *
-+ * This function register in-kernel users interested in receiving notifications
-+ * about pressure conditions. Pressure notifications will be triggered at the
-+ * same time as userspace notifications (with no particular ordering relative
-+ * to it).
-+ *
-+ * Pressure notifications are a alternative method to shrinkers and will serve
-+ * well users that are interested in a one-shot notification, with a
-+ * well-defined cgroup aware interface.
-+ */
-+int vmpressure_register_kernel_event(struct cgroup *cg, void (*fn)(void))
-+{
-+	struct vmpressure *vmpr = cg_to_vmpressure(cg);
-+	struct vmpressure_event *ev;
-+
-+	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
-+	if (!ev)
-+		return -ENOMEM;
-+
-+	ev->kernel_event = true;
-+	ev->fn = fn;
-+
-+	mutex_lock(&vmpr->events_lock);
-+	list_add(&ev->node, &vmpr->events);
-+	mutex_unlock(&vmpr->events_lock);
-+	return 0;
-+}
-+
-+/**
-  * vmpressure_unregister_event() - Unbind eventfd from vmpressure
-  * @cg:		cgroup handle
-  * @cft:	cgroup control files handle
+ 	 * move the unused scan count back into the shrinker in a
 -- 
 1.8.1.4
 
