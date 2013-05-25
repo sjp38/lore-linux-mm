@@ -1,250 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 0C7C76B0032
-	for <linux-mm@kvack.org>; Sat, 25 May 2013 00:32:02 -0400 (EDT)
-Received: by mail-ie0-f172.google.com with SMTP id 16so14216234iea.17
-        for <linux-mm@kvack.org>; Fri, 24 May 2013 21:32:02 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 744A46B0032
+	for <linux-mm@kvack.org>; Sat, 25 May 2013 09:25:48 -0400 (EDT)
+Received: by mail-oa0-f42.google.com with SMTP id i10so7336471oag.1
+        for <linux-mm@kvack.org>; Sat, 25 May 2013 06:25:47 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <519FCC46.2000703@codeaurora.org>
-References: <518B5556.4010005@samsung.com>
-	<519FCC46.2000703@codeaurora.org>
-Date: Sat, 25 May 2013 13:32:02 +0900
-Message-ID: <CAH9JG2U7787jzqdnr1Z7kZbyEUvHZJG_XZiPENGJQVENsqVDTA@mail.gmail.com>
-Subject: Re: [PATCH] mm: page_alloc: fix watermark check in __zone_watermark_ok()
-From: Kyungmin Park <kmpark@infradead.org>
-Content-Type: multipart/alternative; boundary=089e01182f669ee7b204dd83659a
+In-Reply-To: <1368028298-7401-17-git-send-email-jiang.liu@huawei.com>
+References: <1368028298-7401-1-git-send-email-jiang.liu@huawei.com>
+	<1368028298-7401-17-git-send-email-jiang.liu@huawei.com>
+Date: Sat, 25 May 2013 21:25:47 +0800
+Message-ID: <CAJxxZ0Ous_4_QCM7dyDkDHyHiLiib3Gr70Z22-ac0u275shfSQ@mail.gmail.com>
+Subject: Re: [PATCH v5, part4 16/41] mm/blackfin: prepare for removing
+ num_physpages and simplify mem_init()
+From: Sonic Zhang <sonic.adi@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <lauraa@codeaurora.org>
-Cc: Tomasz Stanislawski <t.stanislaws@samsung.com>, linux-mm@kvack.org, Marek Szyprowski <m.szyprowski@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, minchan@kernel.org, mgorman@suse.de, 'Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+To: Jiang Liu <liuj97@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@hansenpartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, Linux Kernel <linux-kernel@vger.kernel.org>, Mike Frysinger <vapier@gentoo.org>, Bob Liu <lliubbo@gmail.com>, uclinux-dist-devel <uclinux-dist-devel@blackfin.uclinux.org>
 
---089e01182f669ee7b204dd83659a
-Content-Type: text/plain; charset=ISO-8859-1
+Hi Jiang
 
-On Sat, May 25, 2013 at 5:23 AM, Laura Abbott <lauraa@codeaurora.org> wrote:
-
-> On 5/9/2013 12:50 AM, Tomasz Stanislawski wrote:
+On Wed, May 8, 2013 at 11:51 PM, Jiang Liu <liuj97@gmail.com> wrote:
+> Prepare for removing num_physpages and simplify mem_init().
 >
->> The watermark check consists of two sub-checks.
->> The first one is:
->>
->>         if (free_pages <= min + lowmem_reserve)
->>                 return false;
->>
->> The check assures that there is minimal amount of RAM in the zone.  If
->> CMA is
->> used then the free_pages is reduced by the number of free pages in CMA
->> prior
->> to the over-mentioned check.
->>
->>         if (!(alloc_flags & ALLOC_CMA))
->>                 free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
->>
->> This prevents the zone from being drained from pages available for
->> non-movable
->> allocations.
->>
->> The second check prevents the zone from getting too fragmented.
->>
->>         for (o = 0; o < order; o++) {
->>                 free_pages -= z->free_area[o].nr_free << o;
->>                 min >>= 1;
->>                 if (free_pages <= min)
->>                         return false;
->>         }
->>
->> The field z->free_area[o].nr_free is equal to the number of free pages
->> including free CMA pages.  Therefore the CMA pages are subtracted twice.
->>  This
->> may cause a false positive fail of __zone_watermark_ok() if the CMA area
->> gets
->> strongly fragmented.  In such a case there are many 0-order free pages
->> located
->> in CMA. Those pages are subtracted twice therefore they will quickly drain
->> free_pages during the check against fragmentation.  The test fails even
->> though
->> there are many free non-cma pages in the zone.
->>
->> This patch fixes this issue by subtracting CMA pages only for a purpose of
->> (free_pages <= min + lowmem_reserve) check.
->>
->> Signed-off-by: Tomasz Stanislawski <t.stanislaws@samsung.com>
->> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
->> ---
->>   mm/page_alloc.c |    6 ++++--
->>   1 file changed, 4 insertions(+), 2 deletions(-)
->>
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index 8fcced7..0d4fef2 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -1626,6 +1626,7 @@ static bool __zone_watermark_ok(struct zone *z, int
->> order, unsigned long mark,
->>         long min = mark;
->>         long lowmem_reserve = z->lowmem_reserve[classzone_**idx];
->>         int o;
->> +       long free_cma = 0;
->>
->>         free_pages -= (1 << order) - 1;
->>         if (alloc_flags & ALLOC_HIGH)
->> @@ -1635,9 +1636,10 @@ static bool __zone_watermark_ok(struct zone *z,
->> int order, unsigned long mark,
->>   #ifdef CONFIG_CMA
->>         /* If allocation can't use CMA areas don't use free CMA pages */
->>         if (!(alloc_flags & ALLOC_CMA))
->> -               free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
->> +               free_cma = zone_page_state(z, NR_FREE_CMA_PAGES);
->>   #endif
->> -       if (free_pages <= min + lowmem_reserve)
->> +
->> +       if (free_pages - free_cma <= min + lowmem_reserve)
->>                 return false;
->>         for (o = 0; o < order; o++) {
->>                 /* At the next order, this order's pages become
->> unavailable */
->>
->>
-> I haven't seen any response to this patch but it has been of some benefit
-> to some of our use cases. You're welcome to add
+> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+> Cc: Mike Frysinger <vapier@gentoo.org>
+> Cc: Bob Liu <lliubbo@gmail.com>
+> Cc: uclinux-dist-devel@blackfin.uclinux.org
+> Cc: linux-kernel@vger.kernel.org
+> ---
+>  arch/blackfin/mm/init.c |   38 ++++++--------------------------------
+>  1 file changed, 6 insertions(+), 32 deletions(-)
 >
-> Tested-by: Laura Abbott <lauraa@codeaurora.org>
+> diff --git a/arch/blackfin/mm/init.c b/arch/blackfin/mm/init.c
+> index 1cc8607..e4b6e11 100644
+> --- a/arch/blackfin/mm/init.c
+> +++ b/arch/blackfin/mm/init.c
+> @@ -90,43 +90,17 @@ asmlinkage void __init init_pda(void)
 >
-
-Thanks Laura,
-We already got mail from Andrew, it's merged mm tree.
-
-Thank you,
-Kyungmin Park
-
-
+>  void __init mem_init(void)
+>  {
+> -       unsigned int codek = 0, datak = 0, initk = 0;
+> -       unsigned int reservedpages = 0, freepages = 0;
+> -       unsigned long tmp;
+> -       unsigned long start_mem = memory_start;
+> -       unsigned long end_mem = memory_end;
+> +       char buf[64];
 >
-> if the patch hasn't been  picked up yet.
+> -       end_mem &= PAGE_MASK;
+> -       high_memory = (void *)end_mem;
+> -
+> -       start_mem = PAGE_ALIGN(start_mem);
+> -       max_mapnr = num_physpages = MAP_NR(high_memory);
+> -       printk(KERN_DEBUG "Kernel managed physical pages: %lu\n", num_physpages);
+> +       high_memory = (void *)(memory_end & PAGE_MASK);
+> +       max_mapnr = MAP_NR(high_memory);
+> +       printk(KERN_DEBUG "Kernel managed physical pages: %lu\n", max_mapnr);
 >
+>         /* This will put all low memory onto the freelists. */
+>         free_all_bootmem();
 >
+> -       reservedpages = 0;
+> -       for (tmp = ARCH_PFN_OFFSET; tmp < max_mapnr; tmp++)
+> -               if (PageReserved(pfn_to_page(tmp)))
+> -                       reservedpages++;
+> -       freepages =  max_mapnr - ARCH_PFN_OFFSET - reservedpages;
+> -
+> -       /* do not count in kernel image between _rambase and _ramstart */
+> -       reservedpages -= (_ramstart - _rambase) >> PAGE_SHIFT;
+> -#if (defined(CONFIG_BFIN_EXTMEM_ICACHEABLE) && ANOMALY_05000263)
+> -       reservedpages += (_ramend - memory_end - DMA_UNCACHED_REGION) >> PAGE_SHIFT;
+> -#endif
+> -
+> -       codek = (_etext - _stext) >> 10;
+> -       initk = (__init_end - __init_begin) >> 10;
+> -       datak = ((_ramstart - _rambase) >> 10) - codek - initk;
+> -
+> -       printk(KERN_INFO
+> -            "Memory available: %luk/%luk RAM, "
+> -               "(%uk init code, %uk kernel code, %uk data, %uk dma, %uk reserved)\n",
+> -               (unsigned long) freepages << (PAGE_SHIFT-10), (_ramend - CONFIG_PHY_RAM_BASE_ADDRESS) >> 10,
+> -               initk, codek, datak, DMA_UNCACHED_REGION >> 10, (reservedpages << (PAGE_SHIFT-10)));
 
---089e01182f669ee7b204dd83659a
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+You can't remove all these memory information for blackfin. They are
+useful on blackfin platform.
 
-<br><br><div class=3D"gmail_quote">On Sat, May 25, 2013 at 5:23 AM, Laura A=
-bbott <span dir=3D"ltr">&lt;<a href=3D"mailto:lauraa@codeaurora.org" target=
-=3D"_blank">lauraa@codeaurora.org</a>&gt;</span> wrote:<br><blockquote styl=
-e=3D"margin:0px 0px 0px 0.8ex;padding-left:1ex;border-left-color:rgb(204,20=
-4,204);border-left-width:1px;border-left-style:solid" class=3D"gmail_quote"=
->
-<div class=3D"HOEnZb"><div class=3D"h5">On 5/9/2013 12:50 AM, Tomasz Stanis=
-lawski wrote:<br>
-<blockquote style=3D"margin:0px 0px 0px 0.8ex;padding-left:1ex;border-left-=
-color:rgb(204,204,204);border-left-width:1px;border-left-style:solid" class=
-=3D"gmail_quote">
-The watermark check consists of two sub-checks.<br>
-The first one is:<br>
-<br>
-=A0 =A0 =A0 =A0 if (free_pages &lt;=3D min + lowmem_reserve)<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return false;<br>
-<br>
-The check assures that there is minimal amount of RAM in the zone. =A0If CM=
-A is<br>
-used then the free_pages is reduced by the number of free pages in CMA prio=
-r<br>
-to the over-mentioned check.<br>
-<br>
-=A0 =A0 =A0 =A0 if (!(alloc_flags &amp; ALLOC_CMA))<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 free_pages -=3D zone_page_state(z, NR_FREE_=
-CMA_PAGES);<br>
-<br>
-This prevents the zone from being drained from pages available for non-mova=
-ble<br>
-allocations.<br>
-<br>
-The second check prevents the zone from getting too fragmented.<br>
-<br>
-=A0 =A0 =A0 =A0 for (o =3D 0; o &lt; order; o++) {<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 free_pages -=3D z-&gt;free_area[o].nr_free =
-&lt;&lt; o;<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 min &gt;&gt;=3D 1;<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (free_pages &lt;=3D min)<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return false;<br>
-=A0 =A0 =A0 =A0 }<br>
-<br>
-The field z-&gt;free_area[o].nr_free is equal to the number of free pages<b=
-r>
-including free CMA pages. =A0Therefore the CMA pages are subtracted twice. =
-=A0This<br>
-may cause a false positive fail of __zone_watermark_ok() if the CMA area ge=
-ts<br>
-strongly fragmented. =A0In such a case there are many 0-order free pages lo=
-cated<br>
-in CMA. Those pages are subtracted twice therefore they will quickly drain<=
-br>
-free_pages during the check against fragmentation. =A0The test fails even t=
-hough<br>
-there are many free non-cma pages in the zone.<br>
-<br>
-This patch fixes this issue by subtracting CMA pages only for a purpose of<=
-br>
-(free_pages &lt;=3D min + lowmem_reserve) check.<br>
-<br>
-Signed-off-by: Tomasz Stanislawski &lt;<a href=3D"mailto:t.stanislaws@samsu=
-ng.com" target=3D"_blank">t.stanislaws@samsung.com</a>&gt;<br>
-Signed-off-by: Kyungmin Park &lt;<a href=3D"mailto:kyungmin.park@samsung.co=
-m" target=3D"_blank">kyungmin.park@samsung.com</a>&gt;<br>
----<br>
-=A0 mm/page_alloc.c | =A0 =A06 ++++--<br>
-=A0 1 file changed, 4 insertions(+), 2 deletions(-)<br>
-<br>
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c<br>
-index 8fcced7..0d4fef2 100644<br>
---- a/mm/page_alloc.c<br>
-+++ b/mm/page_alloc.c<br>
-@@ -1626,6 +1626,7 @@ static bool __zone_watermark_ok(struct zone *z, int o=
-rder, unsigned long mark,<br>
-=A0 =A0 =A0 =A0 long min =3D mark;<br>
-=A0 =A0 =A0 =A0 long lowmem_reserve =3D z-&gt;lowmem_reserve[classzone_<u><=
-/u>idx];<br>
-=A0 =A0 =A0 =A0 int o;<br>
-+ =A0 =A0 =A0 long free_cma =3D 0;<br>
-<br>
-=A0 =A0 =A0 =A0 free_pages -=3D (1 &lt;&lt; order) - 1;<br>
-=A0 =A0 =A0 =A0 if (alloc_flags &amp; ALLOC_HIGH)<br>
-@@ -1635,9 +1636,10 @@ static bool __zone_watermark_ok(struct zone *z, int =
-order, unsigned long mark,<br>
-=A0 #ifdef CONFIG_CMA<br>
-=A0 =A0 =A0 =A0 /* If allocation can&#39;t use CMA areas don&#39;t use free=
- CMA pages */<br>
-=A0 =A0 =A0 =A0 if (!(alloc_flags &amp; ALLOC_CMA))<br>
-- =A0 =A0 =A0 =A0 =A0 =A0 =A0 free_pages -=3D zone_page_state(z, NR_FREE_CM=
-A_PAGES);<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 free_cma =3D zone_page_state(z, NR_FREE_CMA_P=
-AGES);<br>
-=A0 #endif<br>
-- =A0 =A0 =A0 if (free_pages &lt;=3D min + lowmem_reserve)<br>
-+<br>
-+ =A0 =A0 =A0 if (free_pages - free_cma &lt;=3D min + lowmem_reserve)<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return false;<br>
-=A0 =A0 =A0 =A0 for (o =3D 0; o &lt; order; o++) {<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* At the next order, this order&#39;s page=
-s become unavailable */<br>
-<br>
-</blockquote>
-<br></div></div>
-I haven&#39;t seen any response to this patch but it has been of some benef=
-it to some of our use cases. You&#39;re welcome to add<br>
-<br>
-Tested-by: Laura Abbott &lt;<a href=3D"mailto:lauraa@codeaurora.org" target=
-=3D"_blank">lauraa@codeaurora.org</a>&gt;<br></blockquote><div>=A0</div><di=
-v>Thanks Laura,</div><div>We already got mail from Andrew, it&#39;s merged =
-mm tree. </div>
-<div>=A0</div><div>Thank you,</div><div>Kyungmin Park</div><div>=A0</div><b=
-lockquote style=3D"margin:0px 0px 0px 0.8ex;padding-left:1ex;border-left-co=
-lor:rgb(204,204,204);border-left-width:1px;border-left-style:solid" class=
-=3D"gmail_quote">
+Regards,
 
-<br>
-if the patch hasn&#39;t been =A0picked up yet.<br>
-<div class=3D"HOEnZb"><div class=3D"h5">=A0</div></div></blockquote></div>
-
---089e01182f669ee7b204dd83659a--
+Sonic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
