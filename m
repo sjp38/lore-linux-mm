@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 2DD826B0032
-	for <linux-mm@kvack.org>; Fri, 24 May 2013 22:15:16 -0400 (EDT)
-Message-ID: <51A01DBE.2090201@huawei.com>
-Date: Sat, 25 May 2013 10:11:10 +0800
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id A24D96B0032
+	for <linux-mm@kvack.org>; Fri, 24 May 2013 22:26:39 -0400 (EDT)
+Message-ID: <51A02074.3020202@huawei.com>
+Date: Sat, 25 May 2013 10:22:44 +0800
 From: Jianguo Wu <wujianguo@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/4] mem-hotplug: Skip LOCAL_NODE_DATA pages in memory
- offline procedure.
-References: <1369387807-17956-1-git-send-email-tangchen@cn.fujitsu.com> <1369387807-17956-3-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1369387807-17956-3-git-send-email-tangchen@cn.fujitsu.com>
+Subject: Re: [PATCH 4/4] mem-hotplug: Do not free LOCAL_NODE_DATA pages to
+ buddy system in hot-remove procedure.
+References: <1369387807-17956-1-git-send-email-tangchen@cn.fujitsu.com> <1369387807-17956-5-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1369387807-17956-5-git-send-email-tangchen@cn.fujitsu.com>
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -19,110 +19,57 @@ Cc: akpm@linux-foundation.org, mgorman@suse.de, mingo@redhat.com, hpa@zytor.com,
 
 On 2013/5/24 17:30, Tang Chen wrote:
 
-> In memory offline procedure, skip pages marked as LOCAL_NODE_DATA.
-> For now, this kind of pages are used to store local node pagetables.
-> 
-> The minimum unit of memory online/offline is a memory block. In a
-> block, the movable pages will be offlined as usual (unmapped and
-> isolated), and the pagetable pages will be skipped. After the iteration
-> of all page, the block will be set as offline, but the kernel can
-> still access the pagetable pages. This is user transparent.
+> In memory hot-remove procedure, we free pagetable pages to buddy system.
+> But for local pagetable pages, do not free them to buddy system because
+> they were skipped in offline procedure. The memory block they reside in
+> could have been offlined, and we won't offline it again.
 > 
 > Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 > ---
->  mm/page_alloc.c     |   18 ++++++++++++++++--
->  mm/page_isolation.c |    6 ++++++
->  2 files changed, 22 insertions(+), 2 deletions(-)
+>  mm/memory_hotplug.c |    8 ++++++++
+>  1 files changed, 8 insertions(+), 0 deletions(-)
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 557b21b..73b8f0b 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -5701,11 +5701,18 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
->  	pfn = page_to_pfn(page);
->  	for (found = 0, iter = 0; iter < pageblock_nr_pages; iter++) {
->  		unsigned long check = pfn + iter;
-> +		unsigned long magic;
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 21d6fcb..c30e819 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -119,6 +119,14 @@ void __ref put_page_bootmem(struct page *page)
+>  		INIT_LIST_HEAD(&page->lru);
 >  
->  		if (!pfn_valid_within(check))
->  			continue;
->  
->  		page = pfn_to_page(check);
-> +
-> +		/* Skip pages storing local node kernel data. */
-
-
-> +		magic = (unsigned long)page->lru.next;
-> +		if (magic == LOCAL_NODE_DATA)
+>  		/*
+> +		 * Do not free pages with local node kernel data (for now, just
+> +		 * local pagetables) to the buddy system because we skipped
+> +		 * these pages when offlining the corresponding block.
+> +		 */
+> +		if (type == LOCAL_NODE_DATA)
+> +			return;
 
 Hi Tang,
 
-I think can define this as a macro, and can be reused in the other places.
+I think this should be check in free_pagetable(), like:
+
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 474e28f..08fe80e 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -725,7 +725,7 @@ static void __meminit free_pagetable(struct page *page, int order)
+                if (magic == SECTION_INFO || magic == MIX_SECTION_INFO) {
+                        while (nr_pages--)
+                                put_page_bootmem(page++);
+-           } else
++         } else if (magic != LOCAL_NODE_DATA)
+                        __free_pages_bootmem(page, order);
+        } else
+                free_pages((unsigned long)page_address(page), order);
 
 Thanks,
 Jianguo Wu.
 
-> +			continue;
 > +
->  		/*
->  		 * We can't use page_count without pin a page
->  		 * because another CPU can free compound page.
-> @@ -6029,8 +6036,7 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
->  	struct page *page;
->  	struct zone *zone;
->  	int order, i;
-> -	unsigned long pfn;
-> -	unsigned long flags;
-> +	unsigned long pfn, flags, magic;
->  	/* find the first valid pfn */
->  	for (pfn = start_pfn; pfn < end_pfn; pfn++)
->  		if (pfn_valid(pfn))
-> @@ -6046,6 +6052,14 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
->  			continue;
->  		}
->  		page = pfn_to_page(pfn);
-> +
-> +		/* Skip pages storing local node kernel data. */
-> +		magic = (unsigned long)page->lru.next;
-> +		if (magic == LOCAL_NODE_DATA) {
-> +			pfn++;
-> +			continue;
-> +		}
-> +
->  		/*
->  		 * The HWPoisoned page may be not in buddy system, and
->  		 * page_count() is not 0.
-> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> index 383bdbb..fb60a27 100644
-> --- a/mm/page_isolation.c
-> +++ b/mm/page_isolation.c
-> @@ -174,6 +174,7 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
->  				  bool skip_hwpoisoned_pages)
->  {
->  	struct page *page;
-> +	unsigned long magic;
->  
->  	while (pfn < end_pfn) {
->  		if (!pfn_valid_within(pfn)) {
-> @@ -181,6 +182,8 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
->  			continue;
->  		}
->  		page = pfn_to_page(pfn);
-> +		magic = (unsigned long)page->lru.next;
-> +
->  		if (PageBuddy(page)) {
->  			/*
->  			 * If race between isolatation and allocation happens,
-> @@ -208,6 +211,9 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
->  			 */
->  			pfn++;
->  			continue;
-> +		} else if (magic == LOCAL_NODE_DATA) {
-> +			pfn++;
-> +			continue;
->  		}
->  		else
->  			break;
+> +		/*
+>  		 * Please refer to comment for __free_pages_bootmem()
+>  		 * for why we serialize here.
+>  		 */
 
 
 
