@@ -1,94 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 744A46B0032
-	for <linux-mm@kvack.org>; Sat, 25 May 2013 09:25:48 -0400 (EDT)
-Received: by mail-oa0-f42.google.com with SMTP id i10so7336471oag.1
-        for <linux-mm@kvack.org>; Sat, 25 May 2013 06:25:47 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id DCE366B0034
+	for <linux-mm@kvack.org>; Sat, 25 May 2013 21:11:42 -0400 (EDT)
+Received: by mail-oa0-f45.google.com with SMTP id j6so7673250oag.18
+        for <linux-mm@kvack.org>; Sat, 25 May 2013 18:11:41 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1368028298-7401-17-git-send-email-jiang.liu@huawei.com>
-References: <1368028298-7401-1-git-send-email-jiang.liu@huawei.com>
-	<1368028298-7401-17-git-send-email-jiang.liu@huawei.com>
-Date: Sat, 25 May 2013 21:25:47 +0800
-Message-ID: <CAJxxZ0Ous_4_QCM7dyDkDHyHiLiib3Gr70Z22-ac0u275shfSQ@mail.gmail.com>
-Subject: Re: [PATCH v5, part4 16/41] mm/blackfin: prepare for removing
- num_physpages and simplify mem_init()
-From: Sonic Zhang <sonic.adi@gmail.com>
+In-Reply-To: <0000013ed732b615-748f574f-ccb8-4de7-bbe4-d85d1cbf0c9d-000000@email.amazonses.com>
+References: <alpine.DEB.2.10.1305221523420.9944@vincent-weaver-1.um.maine.edu>
+ <alpine.DEB.2.10.1305221953370.11450@vincent-weaver-1.um.maine.edu>
+ <alpine.DEB.2.10.1305222344060.12929@vincent-weaver-1.um.maine.edu>
+ <20130523044803.GA25399@ZenIV.linux.org.uk> <20130523104154.GA23650@twins.programming.kicks-ass.net>
+ <0000013ed1b8d0cc-ad2bb878-51bd-430c-8159-629b23ed1b44-000000@email.amazonses.com>
+ <20130523152458.GD23650@twins.programming.kicks-ass.net> <0000013ed2297ba8-467d474a-7068-45b3-9fa3-82641e6aa363-000000@email.amazonses.com>
+ <20130523163901.GG23650@twins.programming.kicks-ass.net> <0000013ed28b638a-066d7dc7-b590-49f8-9423-badb9537b8b6-000000@email.amazonses.com>
+ <20130524140114.GK23650@twins.programming.kicks-ass.net> <0000013ed732b615-748f574f-ccb8-4de7-bbe4-d85d1cbf0c9d-000000@email.amazonses.com>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Sat, 25 May 2013 21:11:21 -0400
+Message-ID: <CAHGf_=r4sqQKELPh48z=KPyuyAM3uz5Az9RpssUwnK4QRoamHQ@mail.gmail.com>
+Subject: Re: [RFC][PATCH] mm: Fix RLIMIT_MEMLOCK
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <liuj97@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@hansenpartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, Linux Kernel <linux-kernel@vger.kernel.org>, Mike Frysinger <vapier@gentoo.org>, Bob Liu <lliubbo@gmail.com>, uclinux-dist-devel <uclinux-dist-devel@blackfin.uclinux.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Al Viro <viro@zeniv.linux.org.uk>, Vince Weaver <vincent.weaver@maine.edu>, LKML <linux-kernel@vger.kernel.org>, Paul Mackerras <paulus@samba.org>, Ingo Molnar <mingo@redhat.com>, Arnaldo Carvalho de Melo <acme@ghostprotocols.net>, trinity@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Roland Dreier <roland@kernel.org>, infinipath@qlogic.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-rdma@vger.kernel.org, Or Gerlitz <or.gerlitz@gmail.com>
 
-Hi Jiang
+On Fri, May 24, 2013 at 11:40 AM, Christoph Lameter <cl@linux.com> wrote:
+> On Fri, 24 May 2013, Peter Zijlstra wrote:
+>
+>> Patch bc3e53f682 ("mm: distinguish between mlocked and pinned pages")
+>> broke RLIMIT_MEMLOCK.
+>
+> Nope the patch fixed a problem with double accounting.
+>
+> The problem that we seem to have is to define what mlocked and pinned mean
+> and how this relates to RLIMIT_MEMLOCK.
+>
+> mlocked pages are pages that are movable (not pinned!!!) and that are
+> marked in some way by user space actions as mlocked (POSIX semantics).
+> They are marked with a special page flag (PG_mlocked).
+>
+> Pinned pages are pages that have an elevated refcount because the hardware
+> needs to use these pages for I/O. The elevated refcount may be temporary
+> (then we dont care about this) or for a longer time (such as the memory
+> registration of the IB subsystem). That is when we account the memory as
+> pinned. The elevated refcount stops page migration and other things from
+> trying to move that memory.
+>
+> Pages can be both pinned and mlocked. Before my patch some pages those two
+> issues were conflated since the same counter was used and therefore these
+>
+pages were counted twice. If an RDMA application was running using
+> mlockall() and was performing large scale I/O then the counters could show
+> extraordinary large numbers and the VM would start to behave erratically.
+>
+> It is important for the VM to know which pages cannot be evicted but that
+> involves many more pages due to dirty pages etc etc.
+>
+> So far the assumption has been that RLIMIT_MEMLOCK is a limit on the pages
+> that userspace has mlocked.
+>
+> You want the counter to mean something different it seems. What is it?
+>
+> I think we need to be first clear on what we want to accomplish and what
+> these counters actually should count before changing things.
 
-On Wed, May 8, 2013 at 11:51 PM, Jiang Liu <liuj97@gmail.com> wrote:
-> Prepare for removing num_physpages and simplify mem_init().
->
-> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-> Cc: Mike Frysinger <vapier@gentoo.org>
-> Cc: Bob Liu <lliubbo@gmail.com>
-> Cc: uclinux-dist-devel@blackfin.uclinux.org
-> Cc: linux-kernel@vger.kernel.org
-> ---
->  arch/blackfin/mm/init.c |   38 ++++++--------------------------------
->  1 file changed, 6 insertions(+), 32 deletions(-)
->
-> diff --git a/arch/blackfin/mm/init.c b/arch/blackfin/mm/init.c
-> index 1cc8607..e4b6e11 100644
-> --- a/arch/blackfin/mm/init.c
-> +++ b/arch/blackfin/mm/init.c
-> @@ -90,43 +90,17 @@ asmlinkage void __init init_pda(void)
->
->  void __init mem_init(void)
->  {
-> -       unsigned int codek = 0, datak = 0, initk = 0;
-> -       unsigned int reservedpages = 0, freepages = 0;
-> -       unsigned long tmp;
-> -       unsigned long start_mem = memory_start;
-> -       unsigned long end_mem = memory_end;
-> +       char buf[64];
->
-> -       end_mem &= PAGE_MASK;
-> -       high_memory = (void *)end_mem;
-> -
-> -       start_mem = PAGE_ALIGN(start_mem);
-> -       max_mapnr = num_physpages = MAP_NR(high_memory);
-> -       printk(KERN_DEBUG "Kernel managed physical pages: %lu\n", num_physpages);
-> +       high_memory = (void *)(memory_end & PAGE_MASK);
-> +       max_mapnr = MAP_NR(high_memory);
-> +       printk(KERN_DEBUG "Kernel managed physical pages: %lu\n", max_mapnr);
->
->         /* This will put all low memory onto the freelists. */
->         free_all_bootmem();
->
-> -       reservedpages = 0;
-> -       for (tmp = ARCH_PFN_OFFSET; tmp < max_mapnr; tmp++)
-> -               if (PageReserved(pfn_to_page(tmp)))
-> -                       reservedpages++;
-> -       freepages =  max_mapnr - ARCH_PFN_OFFSET - reservedpages;
-> -
-> -       /* do not count in kernel image between _rambase and _ramstart */
-> -       reservedpages -= (_ramstart - _rambase) >> PAGE_SHIFT;
-> -#if (defined(CONFIG_BFIN_EXTMEM_ICACHEABLE) && ANOMALY_05000263)
-> -       reservedpages += (_ramend - memory_end - DMA_UNCACHED_REGION) >> PAGE_SHIFT;
-> -#endif
-> -
-> -       codek = (_etext - _stext) >> 10;
-> -       initk = (__init_end - __init_begin) >> 10;
-> -       datak = ((_ramstart - _rambase) >> 10) - codek - initk;
-> -
-> -       printk(KERN_INFO
-> -            "Memory available: %luk/%luk RAM, "
-> -               "(%uk init code, %uk kernel code, %uk data, %uk dma, %uk reserved)\n",
-> -               (unsigned long) freepages << (PAGE_SHIFT-10), (_ramend - CONFIG_PHY_RAM_BASE_ADDRESS) >> 10,
-> -               initk, codek, datak, DMA_UNCACHED_REGION >> 10, (reservedpages << (PAGE_SHIFT-10)));
+Hm.
+If pinned and mlocked are totally difference intentionally, why IB uses
+RLIMIT_MEMLOCK. Why don't IB uses IB specific limit and why only IB raise up
+number of pinned pages and other gup users don't.
+I can't guess IB folk's intent.
 
-You can't remove all these memory information for blackfin. They are
-useful on blackfin platform.
+And now ever IB code has duplicated RLIMIT_MEMLOCK
+check and at least __ipath_get_user_pages() forget to check
+capable(CAP_IPC_LOCK).
+That's bad.
 
-Regards,
 
-Sonic
+> Certainly would appreciate improvements in this area but resurrecting the
+> conflation between mlocked and pinned pages is not the way to go.
+>
+>> This patch proposes to properly fix the problem by introducing
+>> VM_PINNED. This also provides the groundwork for a possible mpin()
+>> syscall or MADV_PIN -- although these are not included.
+>
+> Maybe add a new PIN page flag? Pages are not pinned per vma as the patch
+> seems to assume.
+
+Generically, you are right. But if VM_PINNED is really only for IB,
+this is acceptable
+limitation. They can split vma for their own purpose.
+
+Anyway, I agree we should clearly understand the semantics of IB pinning and
+the userland usage and assumption.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
