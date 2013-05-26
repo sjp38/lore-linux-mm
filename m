@@ -1,64 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 9586B6B0081
-	for <linux-mm@kvack.org>; Sun, 26 May 2013 04:59:42 -0400 (EDT)
-Received: by mail-we0-f182.google.com with SMTP id q57so3383159wes.41
-        for <linux-mm@kvack.org>; Sun, 26 May 2013 01:59:40 -0700 (PDT)
-Date: Sun, 26 May 2013 10:59:38 +0200
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id D7FE16B0083
+	for <linux-mm@kvack.org>; Sun, 26 May 2013 05:00:58 -0400 (EDT)
+Received: by mail-wg0-f50.google.com with SMTP id k13so3550535wgh.17
+        for <linux-mm@kvack.org>; Sun, 26 May 2013 02:00:57 -0700 (PDT)
+Date: Sun, 26 May 2013 11:00:54 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v3 2/6] mm/memory_hotplug: remove
- memory_add_physaddr_to_nid
-Message-ID: <20130526085938.GD10651@dhcp22.suse.cz>
+Subject: Re: [patch v2 3/6] mm/memory_hotplug: Disable memory hotremove for
+ 32bit
+Message-ID: <20130526090054.GE10651@dhcp22.suse.cz>
 References: <1369547921-24264-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1369547921-24264-2-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1369547921-24264-3-git-send-email-liwanp@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1369547921-24264-2-git-send-email-liwanp@linux.vnet.ibm.com>
+In-Reply-To: <1369547921-24264-3-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org
 
-On Sun 26-05-13 13:58:37, Wanpeng Li wrote:
-> memory_add_physaddr_to_nid is not used any more, this patch remove it.
+On Sun 26-05-13 13:58:38, Wanpeng Li wrote:
+> As KOSAKI Motohiro mentioned, memory hotplug don't support 32bit since 
+> it was born, 
 
-git grep disagrees.
-git grep "= *\<memory_add_physaddr_to_nid\>" mmotm
-mmotm:drivers/acpi/acpi_memhotplug.c:                   node = memory_add_physaddr_to_nid(info->start_addr);
-mmotm:drivers/acpi/acpi_memhotplug.c:                   nid = memory_add_physaddr_to_nid(info->start_addr);
-mmotm:drivers/base/memory.c:            nid = memory_add_physaddr_to_nid(phys_addr);
-mmotm:drivers/xen/balloon.c:    nid = memory_add_physaddr_to_nid(hotplug_start_paddr);
+Why? any reference? This reasoning is really weak.
 
+> this patch disable memory hotremove when 32bit at compile 
+> time.
 > 
+> Suggested-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 > Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 > ---
->  arch/x86/mm/numa.c | 15 ---------------
->  1 file changed, 15 deletions(-)
+>  mm/Kconfig | 1 +
+>  1 file changed, 1 insertion(+)
 > 
-> diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-> index a71c4e2..d470a54 100644
-> --- a/arch/x86/mm/numa.c
-> +++ b/arch/x86/mm/numa.c
-> @@ -803,18 +803,3 @@ const struct cpumask *cpumask_of_node(int node)
->  EXPORT_SYMBOL(cpumask_of_node);
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index e742d06..ada9569 100644
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -184,6 +184,7 @@ config MEMORY_HOTREMOVE
+>  	bool "Allow for memory hot remove"
+>  	select MEMORY_ISOLATION
+>  	select HAVE_BOOTMEM_INFO_NODE if X86_64
+> +	depends on 64BIT
+>  	depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
+>  	depends on MIGRATION
 >  
->  #endif	/* !CONFIG_DEBUG_PER_CPU_MAPS */
-> -
-> -#ifdef CONFIG_MEMORY_HOTPLUG
-> -int memory_add_physaddr_to_nid(u64 start)
-> -{
-> -	struct numa_meminfo *mi = &numa_meminfo;
-> -	int nid = mi->blk[0].nid;
-> -	int i;
-> -
-> -	for (i = 0; i < mi->nr_blks; i++)
-> -		if (mi->blk[i].start <= start && mi->blk[i].end > start)
-> -			nid = mi->blk[i].nid;
-> -	return nid;
-> -}
-> -EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
-> -#endif
 > -- 
 > 1.8.1.2
 > 
