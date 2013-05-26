@@ -1,76 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 967B16B0089
-	for <linux-mm@kvack.org>; Sun, 26 May 2013 05:06:26 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Sun, 26 May 2013 18:53:11 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 96C952BB0050
-	for <linux-mm@kvack.org>; Sun, 26 May 2013 19:06:20 +1000 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4Q8q7QO19923010
-	for <linux-mm@kvack.org>; Sun, 26 May 2013 18:52:07 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4Q96Jcd004082
-	for <linux-mm@kvack.org>; Sun, 26 May 2013 19:06:19 +1000
-Date: Sun, 26 May 2013 17:06:17 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [patch v2 3/6] mm/memory_hotplug: Disable memory hotremove for
- 32bit
-Message-ID: <20130526090617.GA28604@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1369547921-24264-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1369547921-24264-3-git-send-email-liwanp@linux.vnet.ibm.com>
- <20130526090054.GE10651@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 1FD3F6B008C
+	for <linux-mm@kvack.org>; Sun, 26 May 2013 07:45:18 -0400 (EDT)
+Received: by mail-ob0-f171.google.com with SMTP id ef5so7063146obb.2
+        for <linux-mm@kvack.org>; Sun, 26 May 2013 04:45:17 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130526090054.GE10651@dhcp22.suse.cz>
+In-Reply-To: <537407790857e8a5d4db5fb294a909a61be29687.1369529143.git.aquini@redhat.com>
+References: <cover.1369529143.git.aquini@redhat.com> <537407790857e8a5d4db5fb294a909a61be29687.1369529143.git.aquini@redhat.com>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Sun, 26 May 2013 07:44:56 -0400
+Message-ID: <CAHGf_=qU5nBeya=God5AyG2szvtJJCDd4VOt0TJZBgiEX27Njw@mail.gmail.com>
+Subject: Re: [PATCH 01/02] swap: discard while swapping only if SWAP_FLAG_DISCARD_PAGES
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org
+To: Rafael Aquini <aquini@redhat.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, shli@kernel.org, kzak@redhat.com, Jeff Moyer <jmoyer@redhat.com>, "riel@redhat.com" <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Mel Gorman <mgorman@suse.de>
 
-On Sun, May 26, 2013 at 11:00:54AM +0200, Michal Hocko wrote:
->On Sun 26-05-13 13:58:38, Wanpeng Li wrote:
->> As KOSAKI Motohiro mentioned, memory hotplug don't support 32bit since 
->> it was born, 
->
->Why? any reference? This reasoning is really weak.
->
+> +                       /*
+> +                        * By flagging sys_swapon, a sysadmin can tell us to
+> +                        * either do sinle-time area discards only, or to just
+> +                        * perform discards for released swap page-clusters.
+> +                        * Now it's time to adjust the p->flags accordingly.
+> +                        */
+> +                       if (swap_flags & SWAP_FLAG_DISCARD_ONCE)
+> +                               p->flags &= ~SWP_PAGE_DISCARD;
+> +                       else if (swap_flags & SWAP_FLAG_DISCARD_PAGES)
+> +                               p->flags &= ~SWP_AREA_DISCARD;
 
-http://marc.info/?l=linux-mm&m=136953099010171&w=2
-
->> this patch disable memory hotremove when 32bit at compile 
->> time.
->> 
->> Suggested-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->> ---
->>  mm/Kconfig | 1 +
->>  1 file changed, 1 insertion(+)
->> 
->> diff --git a/mm/Kconfig b/mm/Kconfig
->> index e742d06..ada9569 100644
->> --- a/mm/Kconfig
->> +++ b/mm/Kconfig
->> @@ -184,6 +184,7 @@ config MEMORY_HOTREMOVE
->>  	bool "Allow for memory hot remove"
->>  	select MEMORY_ISOLATION
->>  	select HAVE_BOOTMEM_INFO_NODE if X86_64
->> +	depends on 64BIT
->>  	depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
->>  	depends on MIGRATION
->>  
->> -- 
->> 1.8.1.2
->> 
->
->-- 
->Michal Hocko
->SUSE Labs
+When using old swapon(8), this code turn off both flags, right?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
