@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id EB2DB6B0070
-	for <linux-mm@kvack.org>; Sun, 26 May 2013 01:58:57 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 173376B0071
+	for <linux-mm@kvack.org>; Sun, 26 May 2013 01:58:58 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Sun, 26 May 2013 11:24:53 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 24FBA125804F
-	for <linux-mm@kvack.org>; Sun, 26 May 2013 11:30:53 +0530 (IST)
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4Q5wimu10748208
-	for <linux-mm@kvack.org>; Sun, 26 May 2013 11:28:44 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4Q5wppW008487
-	for <linux-mm@kvack.org>; Sun, 26 May 2013 05:58:52 GMT
+	Sun, 26 May 2013 11:22:51 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 6A54D3940053
+	for <linux-mm@kvack.org>; Sun, 26 May 2013 11:28:52 +0530 (IST)
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4Q5wgBL7340492
+	for <linux-mm@kvack.org>; Sun, 26 May 2013 11:28:43 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4Q5wmrC004150
+	for <linux-mm@kvack.org>; Sun, 26 May 2013 15:58:49 +1000
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v3 4/6] mm/hugetlb: use already exist interface huge_page_shift
-Date: Sun, 26 May 2013 13:58:39 +0800
-Message-Id: <1369547921-24264-4-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v3 2/6] mm/memory_hotplug: remove memory_add_physaddr_to_nid
+Date: Sun, 26 May 2013 13:58:37 +0800
+Message-Id: <1369547921-24264-2-git-send-email-liwanp@linux.vnet.ibm.com>
 In-Reply-To: <1369547921-24264-1-git-send-email-liwanp@linux.vnet.ibm.com>
 References: <1369547921-24264-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,46 +26,36 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Changelog:
- v1 -> v2:
-	* update alloc_bootmem_huge_page in powerpc 
-	* add Michal reviewed-by 
+memory_add_physaddr_to_nid is not used any more, this patch remove it.
 
-Use already exist interface huge_page_shift instead of h->order + PAGE_SHIFT.
-
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- arch/powerpc/mm/hugetlbpage.c | 2 +-
- mm/hugetlb.c                  | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ arch/x86/mm/numa.c | 15 ---------------
+ 1 file changed, 15 deletions(-)
 
-diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
-index 237c8e5..cafec93 100644
---- a/arch/powerpc/mm/hugetlbpage.c
-+++ b/arch/powerpc/mm/hugetlbpage.c
-@@ -357,7 +357,7 @@ void add_gpage(u64 addr, u64 page_size, unsigned long number_of_pages)
- int alloc_bootmem_huge_page(struct hstate *hstate)
- {
- 	struct huge_bootmem_page *m;
--	int idx = shift_to_mmu_psize(hstate->order + PAGE_SHIFT);
-+	int idx = shift_to_mmu_psize(huge_page_shift(hstate));
- 	int nr_gpages = gpage_freearray[idx].nr_gpages;
+diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+index a71c4e2..d470a54 100644
+--- a/arch/x86/mm/numa.c
++++ b/arch/x86/mm/numa.c
+@@ -803,18 +803,3 @@ const struct cpumask *cpumask_of_node(int node)
+ EXPORT_SYMBOL(cpumask_of_node);
  
- 	if (nr_gpages == 0)
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index f8feeec..b6ff0ee 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -319,7 +319,7 @@ unsigned long vma_kernel_pagesize(struct vm_area_struct *vma)
- 
- 	hstate = hstate_vma(vma);
- 
--	return 1UL << (hstate->order + PAGE_SHIFT);
-+	return 1UL << huge_page_shift(hstate);
- }
- EXPORT_SYMBOL_GPL(vma_kernel_pagesize);
- 
+ #endif	/* !CONFIG_DEBUG_PER_CPU_MAPS */
+-
+-#ifdef CONFIG_MEMORY_HOTPLUG
+-int memory_add_physaddr_to_nid(u64 start)
+-{
+-	struct numa_meminfo *mi = &numa_meminfo;
+-	int nid = mi->blk[0].nid;
+-	int i;
+-
+-	for (i = 0; i < mi->nr_blks; i++)
+-		if (mi->blk[i].start <= start && mi->blk[i].end > start)
+-			nid = mi->blk[i].nid;
+-	return nid;
+-}
+-EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
+-#endif
 -- 
 1.8.1.2
 
