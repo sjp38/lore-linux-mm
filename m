@@ -1,98 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id A436B6B0093
-	for <linux-mm@kvack.org>; Sun, 26 May 2013 07:49:54 -0400 (EDT)
-Received: by mail-ob0-f178.google.com with SMTP id v19so7071371obq.37
-        for <linux-mm@kvack.org>; Sun, 26 May 2013 04:49:53 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 095126B0095
+	for <linux-mm@kvack.org>; Sun, 26 May 2013 07:59:02 -0400 (EDT)
+Received: by mail-ob0-f182.google.com with SMTP id va7so186022obc.41
+        for <linux-mm@kvack.org>; Sun, 26 May 2013 04:59:02 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1369547921-24264-1-git-send-email-liwanp@linux.vnet.ibm.com>
+In-Reply-To: <20130526090054.GE10651@dhcp22.suse.cz>
 References: <1369547921-24264-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1369547921-24264-3-git-send-email-liwanp@linux.vnet.ibm.com> <20130526090054.GE10651@dhcp22.suse.cz>
 From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Sun, 26 May 2013 07:49:33 -0400
-Message-ID: <CAHGf_=rOLAYrpkLQiM53jn-bHAuxw=rRZP0+pNV-8EUinJzP7w@mail.gmail.com>
-Subject: Re: [PATCH v3 1/6] mm/memory-hotplug: fix lowmem count overflow when
- offline pages
+Date: Sun, 26 May 2013 07:58:42 -0400
+Message-ID: <CAHGf_=otK_LNgd6S09Fjjo0PfTSF3X0kj+=kGNyaTAze7m-b8w@mail.gmail.com>
+Subject: Re: [patch v2 3/6] mm/memory_hotplug: Disable memory hotremove for 32bit
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org
 
-On Sun, May 26, 2013 at 1:58 AM, Wanpeng Li <liwanp@linux.vnet.ibm.com> wrote:
-> Changelog:
->  v1 -> v2:
->         * show number of HighTotal before hotremove
->         * remove CONFIG_HIGHMEM
->         * cc stable kernels
->         * add Michal reviewed-by
+>> As KOSAKI Motohiro mentioned, memory hotplug don't support 32bit since
+>> it was born,
 >
-> Logic memory-remove code fails to correctly account the Total High Memory
-> when a memory block which contains High Memory is offlined as shown in the
-> example below. The following patch fixes it.
->
-> Stable for 2.6.24+.
->
-> Before logic memory remove:
->
-> MemTotal:        7603740 kB
-> MemFree:         6329612 kB
-> Buffers:           94352 kB
-> Cached:           872008 kB
-> SwapCached:            0 kB
-> Active:           626932 kB
-> Inactive:         519216 kB
-> Active(anon):     180776 kB
-> Inactive(anon):   222944 kB
-> Active(file):     446156 kB
-> Inactive(file):   296272 kB
-> Unevictable:           0 kB
-> Mlocked:               0 kB
-> HighTotal:       7294672 kB
-> HighFree:        5704696 kB
-> LowTotal:         309068 kB
-> LowFree:          624916 kB
->
-> After logic memory remove:
->
-> MemTotal:        7079452 kB
-> MemFree:         5805976 kB
-> Buffers:           94372 kB
-> Cached:           872000 kB
-> SwapCached:            0 kB
-> Active:           626936 kB
-> Inactive:         519236 kB
-> Active(anon):     180780 kB
-> Inactive(anon):   222944 kB
-> Active(file):     446156 kB
-> Inactive(file):   296292 kB
-> Unevictable:           0 kB
-> Mlocked:               0 kB
-> HighTotal:       7294672 kB
-> HighFree:        5181024 kB
-> LowTotal:       4294752076 kB
-> LowFree:          624952 kB
->
-> Reviewed-by: Michal Hocko <mhocko@suse.cz>
-> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-> ---
->  mm/page_alloc.c | 2 ++
->  1 file changed, 2 insertions(+)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 98cbdf6..23b921f 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -6140,6 +6140,8 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
->                 list_del(&page->lru);
->                 rmv_page_order(page);
->                 zone->free_area[order].nr_free--;
-> +               if (PageHighMem(page))
-> +                       totalhigh_pages -= 1 << order;
->                 for (i = 0; i < (1 << order); i++)
->                         SetPageReserved((page+i));
->                 pfn += (1 << order);
+> Why? any reference? This reasoning is really weak.
 
-Hm. I already NAKed and you didn't answered my question. isn't it?
+I have no seen any highmem support in memory hotplug code and I don't think this
+patch fixes all 32bit highmem issue. If anybody are interesting to
+support it, it is good thing. But in fact, _now_ it is broken when
+enable HIGHMEM.
+So, I just want to mark broken until someone want to support highmem
+and verify overall.
+
+And, yes, this patch is no good. Kconfig doesn't describe why disable
+when highmem.
+So,
+
+depends on 64BIT || !HIGHMEM || BROKEN
+
+maybe clear documentation more.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
