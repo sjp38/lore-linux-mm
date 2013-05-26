@@ -1,60 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 432376B003D
-	for <linux-mm@kvack.org>; Sat, 25 May 2013 22:50:47 -0400 (EDT)
-Received: by mail-ob0-f171.google.com with SMTP id ef5so6897710obb.30
-        for <linux-mm@kvack.org>; Sat, 25 May 2013 19:50:46 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAMo8BfL4QfJrfejNKmBDhAVdmE=_Ys6MVUH5Xa3w_mU41hwx0A@mail.gmail.com>
-References: <CAMo8BfL4QfJrfejNKmBDhAVdmE=_Ys6MVUH5Xa3w_mU41hwx0A@mail.gmail.com>
-Date: Sun, 26 May 2013 06:50:46 +0400
-Message-ID: <CAMo8BfJie1Y49QeSJ+JTQb9WsYJkMMkb1BkKz2Gzy3T7V6ogHA@mail.gmail.com>
-Subject: TLB and PTE coherency during munmap
-From: Max Filippov <jcmvbkbc@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 7D55C6B004D
+	for <linux-mm@kvack.org>; Sun, 26 May 2013 00:32:12 -0400 (EDT)
+From: Rafael Aquini <aquini@redhat.com>
+Subject: [PATCH 00/02] swap: allowing a more flexible DISCARD policy V2
+Date: Sun, 26 May 2013 01:31:54 -0300
+Message-Id: <cover.1369529143.git.aquini@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-xtensa@linux-xtensa.org
-Cc: Chris Zankel <chris@zankel.net>, Marc Gauthier <Marc.Gauthier@tensilica.com>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, shli@kernel.org, kzak@redhat.com, jmoyer@redhat.com, kosaki.motohiro@gmail.com, riel@redhat.com, lwoodman@redhat.com, mgorman@suse.de
 
-Hello arch and mm people.
+Considering the use cases where the swap device supports discard:
+a) and can do it quickly;
+b) but it's slow to do in small granularities (or concurrent with other
+   I/O);
+c) but the implementation is so horrendous that you don't even want to
+   send one down;
 
-Is it intentional that threads of a process that invoked munmap syscall
-can see TLB entries pointing to already freed pages, or it is a bug?
+And assuming that the sysadmin considers it useful to send the discards down
+at all, we would (probably) want the following solutions:
 
-I'm talking about zap_pmd_range and zap_pte_range:
+  i. do the fine-grained discards for freed swap pages, if device is 
+     capable of doing so optimally;
+ ii. do single-time (batched) swap area discards, either at swapon 
+     or via something like fstrim (not implemented yet);
+iii. allow doing both single-time and fine-grained discards; or
+ iv. turn it off completely (default behavior)
 
-      zap_pmd_range
-        zap_pte_range
-          arch_enter_lazy_mmu_mode
-            ptep_get_and_clear_full
-            tlb_remove_tlb_entry
-            __tlb_remove_page
-          arch_leave_lazy_mmu_mode
-        cond_resched
 
-With the default arch_{enter,leave}_lazy_mmu_mode, tlb_remove_tlb_entry
-and __tlb_remove_page there is a loop in the zap_pte_range that clears
-PTEs and frees corresponding pages, but doesn't flush TLB, and
-surrounding loop in the zap_pmd_range that calls cond_resched. If a thread
-of the same process gets scheduled then it is able to see TLB entries
-pointing to already freed physical pages.
+As implemented today, one can only enable/disable discards for swap, but 
+one cannot select, for instance, solution (ii) on a swap device like (b)
+even though the single-time discard is regarded to be interesting, or
+necessary to the workload because it would imply (1), and the device
+is not capable of performing it optimally.
 
-I've noticed that with xtensa arch when I added a test before returning to
-userspace checking that TLB contents agrees with page tables of the
-current mm. This check reliably fires with the LTP test mtest05 that
-maps, unmaps and accesses memory from multiple threads.
+This patchset addresses the scenario depicted above by introducing a
+way to ensure the (probably) wanted solutions (i, ii, iii and iv) can
+be flexibly flagged through swapon(8) to allow a sysadmin to select
+the best suitable swap discard policy accordingly to system constraints.
 
-Is there anything wrong in my description, maybe something specific to
-my arch, or this issue really exists?
+Changeset from V1:
+01 (kernel)       swap: discard while swapping only if SWAP_FLAG_DISCARD_PAGES
+* ensure backwards compatibility with older swapon(8) releases;      (mkosaki)
 
-I've also noticed that there are a lot of arches with default implementations
-of the involved functions, does that mean that any/all of them have this
-issue too?
-
--- 
-Thanks.
--- Max
+02 (util-linux) swapon: allow a more flexible swap discard policy
+* introduce discard policy selector as an optional argument of --discard option;
+* rename user-visible discard policy names;           (mkosaki, karel, jmoyer) 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
