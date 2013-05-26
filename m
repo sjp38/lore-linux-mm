@@ -1,110 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id ABDA76B00BE
-	for <linux-mm@kvack.org>; Sun, 26 May 2013 09:55:44 -0400 (EDT)
-Received: by mail-pb0-f47.google.com with SMTP id rr4so5897347pbb.34
-        for <linux-mm@kvack.org>; Sun, 26 May 2013 06:55:43 -0700 (PDT)
-Message-ID: <51A21456.50400@gmail.com>
-Date: Sun, 26 May 2013 21:55:34 +0800
-From: Liu Jiang <liuj97@gmail.com>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id C8AE06B00C0
+	for <linux-mm@kvack.org>; Sun, 26 May 2013 10:21:49 -0400 (EDT)
+Date: Sun, 26 May 2013 17:21:30 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: [PATCH v3-resend 00/11] uaccess: better might_sleep/might_fault
+ behavior
+Message-ID: <1369575487-26176-1-git-send-email-mst@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5, part4 16/41] mm/blackfin: prepare for removing num_physpages
- and simplify mem_init()
-References: <1368028298-7401-1-git-send-email-jiang.liu@huawei.com> <1368028298-7401-17-git-send-email-jiang.liu@huawei.com> <CAJxxZ0Ous_4_QCM7dyDkDHyHiLiib3Gr70Z22-ac0u275shfSQ@mail.gmail.com>
-In-Reply-To: <CAJxxZ0Ous_4_QCM7dyDkDHyHiLiib3Gr70Z22-ac0u275shfSQ@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sonic Zhang <sonic.adi@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <james.bottomley@hansenpartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, Linux Kernel <linux-kernel@vger.kernel.org>, Mike Frysinger <vapier@gentoo.org>, Bob Liu <lliubbo@gmail.com>, uclinux-dist-devel <uclinux-dist-devel@blackfin.uclinux.org>
+To: linux-kernel@vger.kernel.org
+Cc: Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Arnd Bergmann <arnd@arndb.de>, linux-arch@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org
 
-On Sat 25 May 2013 09:25:47 PM CST, Sonic Zhang wrote:
-> Hi Jiang
->
-> On Wed, May 8, 2013 at 11:51 PM, Jiang Liu <liuj97@gmail.com> wrote:
->> Prepare for removing num_physpages and simplify mem_init().
->>
->> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
->> Cc: Mike Frysinger <vapier@gentoo.org>
->> Cc: Bob Liu <lliubbo@gmail.com>
->> Cc: uclinux-dist-devel@blackfin.uclinux.org
->> Cc: linux-kernel@vger.kernel.org
->> ---
->>  arch/blackfin/mm/init.c |   38 ++++++--------------------------------
->>  1 file changed, 6 insertions(+), 32 deletions(-)
->>
->> diff --git a/arch/blackfin/mm/init.c b/arch/blackfin/mm/init.c
->> index 1cc8607..e4b6e11 100644
->> --- a/arch/blackfin/mm/init.c
->> +++ b/arch/blackfin/mm/init.c
->> @@ -90,43 +90,17 @@ asmlinkage void __init init_pda(void)
->>
->>  void __init mem_init(void)
->>  {
->> -       unsigned int codek = 0, datak = 0, initk = 0;
->> -       unsigned int reservedpages = 0, freepages = 0;
->> -       unsigned long tmp;
->> -       unsigned long start_mem = memory_start;
->> -       unsigned long end_mem = memory_end;
->> +       char buf[64];
->>
->> -       end_mem &= PAGE_MASK;
->> -       high_memory = (void *)end_mem;
->> -
->> -       start_mem = PAGE_ALIGN(start_mem);
->> -       max_mapnr = num_physpages = MAP_NR(high_memory);
->> -       printk(KERN_DEBUG "Kernel managed physical pages: %lu\n", num_physpages);
->> +       high_memory = (void *)(memory_end & PAGE_MASK);
->> +       max_mapnr = MAP_NR(high_memory);
->> +       printk(KERN_DEBUG "Kernel managed physical pages: %lu\n", max_mapnr);
->>
->>         /* This will put all low memory onto the freelists. */
->>         free_all_bootmem();
->>
->> -       reservedpages = 0;
->> -       for (tmp = ARCH_PFN_OFFSET; tmp < max_mapnr; tmp++)
->> -               if (PageReserved(pfn_to_page(tmp)))
->> -                       reservedpages++;
->> -       freepages =  max_mapnr - ARCH_PFN_OFFSET - reservedpages;
->> -
->> -       /* do not count in kernel image between _rambase and _ramstart */
->> -       reservedpages -= (_ramstart - _rambase) >> PAGE_SHIFT;
->> -#if (defined(CONFIG_BFIN_EXTMEM_ICACHEABLE) && ANOMALY_05000263)
->> -       reservedpages += (_ramend - memory_end - DMA_UNCACHED_REGION) >> PAGE_SHIFT;
->> -#endif
->> -
->> -       codek = (_etext - _stext) >> 10;
->> -       initk = (__init_end - __init_begin) >> 10;
->> -       datak = ((_ramstart - _rambase) >> 10) - codek - initk;
->> -
->> -       printk(KERN_INFO
->> -            "Memory available: %luk/%luk RAM, "
->> -               "(%uk init code, %uk kernel code, %uk data, %uk dma, %uk reserved)\n",
->> -               (unsigned long) freepages << (PAGE_SHIFT-10), (_ramend - CONFIG_PHY_RAM_BASE_ADDRESS) >> 10,
->> -               initk, codek, datak, DMA_UNCACHED_REGION >> 10, (reservedpages << (PAGE_SHIFT-10)));
->
-> You can't remove all these memory information for blackfin. They are
-> useful on blackfin platform.
->
-> Regards,
->
-> Sonic
+I seem to have mis-sent v3.  Trying again with same patches after
+fixing the message id for the cover letter. I hope the duplicates
+that are thus created don't inconvenience people too much.
+If they do, I apologize.
+I have pared down the Cc list to reduce the noise.
+sched maintainers are Cc'd on all patches since that's
+the tree I aim for with these patches.
 
-Hi Sonic,
-           Thanks for review!
-           We are not trying to remove these code, but replacing it 
-with a generic
-helper function mem_init_print_info(), which will print similar (actual 
-more info)
-boot message. I have no blackfin platforms to generate a real boot 
-message,
-so could only share an example boot messages on x86:
-Memory: 7744624K/8074824K available (6969K kernel code, 1011K data, 
-2828K rodata, 1016K init, 9640K bss, 330200K reserved)
+This improves the might_fault annotations used
+by uaccess routines:
 
-Regards!
-Gerry
+1. The only reason uaccess routines might sleep
+   is if they fault. Make this explicit for
+   all architectures.
+2. a voluntary preempt point in uaccess functions
+   means compiler can't inline them efficiently,
+   this breaks assumptions that they are very
+   fast and small that e.g. net code seems to make.
+   remove this preempt point so behaviour
+   matches what callers assume.
+3. Accesses (e.g through socket ops) to kernel memory
+   with KERNEL_DS like net/sunrpc does will never sleep.
+   Remove an unconditinal might_sleep in the inline
+   might_fault in kernel.h
+   (used when PROVE_LOCKING is not set).
+4. Accesses with pagefault_disable return EFAULT
+   but won't cause caller to sleep.
+   Check for that and avoid might_sleep when
+   PROVE_LOCKING is set.
+
+I'd like these changes to go in for 3.11:
+besides a general benefit of improved
+consistency and performance, I would also like them
+for the vhost driver where we want to call socket ops
+under a spinlock, and fall back on slower thread handler
+on error.
+
+If the changes look good, would sched maintainers
+please consider merging them through sched/core because of the
+interaction with the scheduler?
+
+Please review, and consider for 3.11.
+
+Note on arch code updates:
+I tested x86_64 code.
+Other architectures were build-tested.
+I don't have cross-build environment for arm64, tile, microblaze and
+mn10300 architectures. arm64 and tile got acks.
+The arch changes look generally safe enough
+but would appreciate review/acks from arch maintainers.
+core changes naturally need acks from sched maintainers.
+
+Version 1 of this change was titled
+	x86: uaccess s/might_sleep/might_fault/
+
+Changes from v2:
+	add a patch removing a colunatry preempt point
+	in uaccess functions when PREEMPT_VOLUNATRY is set.
+		Addresses comments by Arnd Bergmann,
+		and Peter Zijlstra.
+	comment on future possible simplifications in the git log
+		for the powerpc patch. Addresses a comment
+		by Arnd Bergmann.
+	
+Changes from v1:
+	add more architectures
+	fix might_fault() scheduling differently depending
+	on CONFIG_PROVE_LOCKING, as suggested by Ingo
+
+Michael S. Tsirkin (11):
+  asm-generic: uaccess s/might_sleep/might_fault/
+  arm64: uaccess s/might_sleep/might_fault/
+  frv: uaccess s/might_sleep/might_fault/
+  m32r: uaccess s/might_sleep/might_fault/
+  microblaze: uaccess s/might_sleep/might_fault/
+  mn10300: uaccess s/might_sleep/might_fault/
+  powerpc: uaccess s/might_sleep/might_fault/
+  tile: uaccess s/might_sleep/might_fault/
+  x86: uaccess s/might_sleep/might_fault/
+  kernel: drop voluntary schedule from might_fault
+  kernel: uaccess in atomic with pagefault_disable
+
+ arch/arm64/include/asm/uaccess.h      |  4 ++--
+ arch/frv/include/asm/uaccess.h        |  4 ++--
+ arch/m32r/include/asm/uaccess.h       | 12 ++++++------
+ arch/microblaze/include/asm/uaccess.h |  6 +++---
+ arch/mn10300/include/asm/uaccess.h    |  4 ++--
+ arch/powerpc/include/asm/uaccess.h    | 16 ++++++++--------
+ arch/tile/include/asm/uaccess.h       |  2 +-
+ arch/x86/include/asm/uaccess_64.h     |  2 +-
+ include/asm-generic/uaccess.h         | 10 +++++-----
+ include/linux/kernel.h                |  7 ++-----
+ mm/memory.c                           | 10 +++++++---
+ 11 files changed, 39 insertions(+), 38 deletions(-)
+
+-- 
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
