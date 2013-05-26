@@ -1,11 +1,10 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [patch v2 3/6] mm/memory_hotplug: Disable memory hotremove for
- 32bit
-Date: Sun, 26 May 2013 17:06:17 +0800
-Message-ID: <45172.4534541883$1369559196@news.gmane.org>
+Subject: Re: [PATCH v3 1/6] mm/memory-hotplug: fix lowmem count overflow when
+ offline pages
+Date: Mon, 27 May 2013 07:44:20 +0800
+Message-ID: <7219.30533550239$1369611880@news.gmane.org>
 References: <1369547921-24264-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1369547921-24264-3-git-send-email-liwanp@linux.vnet.ibm.com>
- <20130526090054.GE10651@dhcp22.suse.cz>
+ <51A21B9A.1090206@gmail.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -13,69 +12,120 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1UgWuK-000624-Mr
-	for glkm-linux-mm-2@m.gmane.org; Sun, 26 May 2013 11:06:29 +0200
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 967B16B0089
-	for <linux-mm@kvack.org>; Sun, 26 May 2013 05:06:26 -0400 (EDT)
+	id 1Ugkc5-0003rZ-5M
+	for glkm-linux-mm-2@m.gmane.org; Mon, 27 May 2013 01:44:33 +0200
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 2AB436B00DB
+	for <linux-mm@kvack.org>; Sun, 26 May 2013 19:44:30 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Sun, 26 May 2013 18:53:11 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 96C952BB0050
-	for <linux-mm@kvack.org>; Sun, 26 May 2013 19:06:20 +1000 (EST)
+	Mon, 27 May 2013 20:41:38 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 74D912CE8054
+	for <linux-mm@kvack.org>; Mon, 27 May 2013 09:44:23 +1000 (EST)
 Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4Q8q7QO19923010
-	for <linux-mm@kvack.org>; Sun, 26 May 2013 18:52:07 +1000
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4QNTxe524641618
+	for <linux-mm@kvack.org>; Mon, 27 May 2013 09:30:00 +1000
 Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4Q96Jcd004082
-	for <linux-mm@kvack.org>; Sun, 26 May 2013 19:06:19 +1000
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4QNiLh3008827
+	for <linux-mm@kvack.org>; Mon, 27 May 2013 09:44:22 +1000
 Content-Disposition: inline
-In-Reply-To: <20130526090054.GE10651@dhcp22.suse.cz>
+In-Reply-To: <51A21B9A.1090206@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org
+To: Liu Jiang <liuj97@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org
 
-On Sun, May 26, 2013 at 11:00:54AM +0200, Michal Hocko wrote:
->On Sun 26-05-13 13:58:38, Wanpeng Li wrote:
->> As KOSAKI Motohiro mentioned, memory hotplug don't support 32bit since 
->> it was born, 
->
->Why? any reference? This reasoning is really weak.
->
-
-http://marc.info/?l=linux-mm&m=136953099010171&w=2
-
->> this patch disable memory hotremove when 32bit at compile 
->> time.
->> 
->> Suggested-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+On Sun, May 26, 2013 at 10:26:34PM +0800, Liu Jiang wrote:
+>On Sun 26 May 2013 01:58:36 PM CST, Wanpeng Li wrote:
+>> Changelog:
+>>  v1 -> v2:
+>> 	* show number of HighTotal before hotremove
+>> 	* remove CONFIG_HIGHMEM
+>> 	* cc stable kernels
+>> 	* add Michal reviewed-by
+>>
+>> Logic memory-remove code fails to correctly account the Total High Memory
+>> when a memory block which contains High Memory is offlined as shown in the
+>> example below. The following patch fixes it.
+>>
+>> Stable for 2.6.24+.
+>>
+>> Before logic memory remove:
+>>
+>> MemTotal:        7603740 kB
+>> MemFree:         6329612 kB
+>> Buffers:           94352 kB
+>> Cached:           872008 kB
+>> SwapCached:            0 kB
+>> Active:           626932 kB
+>> Inactive:         519216 kB
+>> Active(anon):     180776 kB
+>> Inactive(anon):   222944 kB
+>> Active(file):     446156 kB
+>> Inactive(file):   296272 kB
+>> Unevictable:           0 kB
+>> Mlocked:               0 kB
+>> HighTotal:       7294672 kB
+>> HighFree:        5704696 kB
+>> LowTotal:         309068 kB
+>> LowFree:          624916 kB
+>>
+>> After logic memory remove:
+>>
+>> MemTotal:        7079452 kB
+>> MemFree:         5805976 kB
+>> Buffers:           94372 kB
+>> Cached:           872000 kB
+>> SwapCached:            0 kB
+>> Active:           626936 kB
+>> Inactive:         519236 kB
+>> Active(anon):     180780 kB
+>> Inactive(anon):   222944 kB
+>> Active(file):     446156 kB
+>> Inactive(file):   296292 kB
+>> Unevictable:           0 kB
+>> Mlocked:               0 kB
+>> HighTotal:       7294672 kB
+>> HighFree:        5181024 kB
+>> LowTotal:       4294752076 kB
+>> LowFree:          624952 kB
+>>
+>> Reviewed-by: Michal Hocko <mhocko@suse.cz>
 >> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 >> ---
->>  mm/Kconfig | 1 +
->>  1 file changed, 1 insertion(+)
->> 
->> diff --git a/mm/Kconfig b/mm/Kconfig
->> index e742d06..ada9569 100644
->> --- a/mm/Kconfig
->> +++ b/mm/Kconfig
->> @@ -184,6 +184,7 @@ config MEMORY_HOTREMOVE
->>  	bool "Allow for memory hot remove"
->>  	select MEMORY_ISOLATION
->>  	select HAVE_BOOTMEM_INFO_NODE if X86_64
->> +	depends on 64BIT
->>  	depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
->>  	depends on MIGRATION
->>  
->> -- 
->> 1.8.1.2
->> 
+>>  mm/page_alloc.c | 2 ++
+>>  1 file changed, 2 insertions(+)
+>>
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index 98cbdf6..23b921f 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -6140,6 +6140,8 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+>>  		list_del(&page->lru);
+>>  		rmv_page_order(page);
+>>  		zone->free_area[order].nr_free--;
+>> +		if (PageHighMem(page))
+>> +			totalhigh_pages -= 1 << order;
+>>  		for (i = 0; i < (1 << order); i++)
+>>  			SetPageReserved((page+i));
+>>  		pfn += (1 << order);
 >
->-- 
->Michal Hocko
->SUSE Labs
+>Hi Wanpeng,
+>         The memory hotplug code adjusts totalram_pages, 
+>totalhigh_pages,  zone->present_pages
+>and zone->managed_pages all in memory_hotplug.c, so suggest to move 
+>this into memory_hotplug.c
+>too.
+>          One of my patch fixes this issue in another way, please refer 
+>to:
+>http://marc.info/?l=linux-mm&m=136957578620221&w=2
+
+Greate to see your effort. ;-)
+
+>Regards!
+>Gerry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
