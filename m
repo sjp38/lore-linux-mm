@@ -1,117 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id C8AE06B00C0
-	for <linux-mm@kvack.org>; Sun, 26 May 2013 10:21:49 -0400 (EDT)
-Date: Sun, 26 May 2013 17:21:30 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: [PATCH v3-resend 00/11] uaccess: better might_sleep/might_fault
- behavior
-Message-ID: <1369575487-26176-1-git-send-email-mst@redhat.com>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id EE6066B00C2
+	for <linux-mm@kvack.org>; Sun, 26 May 2013 10:26:48 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id xb12so5914915pbc.0
+        for <linux-mm@kvack.org>; Sun, 26 May 2013 07:26:48 -0700 (PDT)
+Message-ID: <51A21B9A.1090206@gmail.com>
+Date: Sun, 26 May 2013 22:26:34 +0800
+From: Liu Jiang <liuj97@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: Re: [PATCH v3 1/6] mm/memory-hotplug: fix lowmem count overflow when
+ offline pages
+References: <1369547921-24264-1-git-send-email-liwanp@linux.vnet.ibm.com>
+In-Reply-To: <1369547921-24264-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Arnd Bergmann <arnd@arndb.de>, linux-arch@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-I seem to have mis-sent v3.  Trying again with same patches after
-fixing the message id for the cover letter. I hope the duplicates
-that are thus created don't inconvenience people too much.
-If they do, I apologize.
-I have pared down the Cc list to reduce the noise.
-sched maintainers are Cc'd on all patches since that's
-the tree I aim for with these patches.
+On Sun 26 May 2013 01:58:36 PM CST, Wanpeng Li wrote:
+> Changelog:
+>  v1 -> v2:
+> 	* show number of HighTotal before hotremove
+> 	* remove CONFIG_HIGHMEM
+> 	* cc stable kernels
+> 	* add Michal reviewed-by
+>
+> Logic memory-remove code fails to correctly account the Total High Memory
+> when a memory block which contains High Memory is offlined as shown in the
+> example below. The following patch fixes it.
+>
+> Stable for 2.6.24+.
+>
+> Before logic memory remove:
+>
+> MemTotal:        7603740 kB
+> MemFree:         6329612 kB
+> Buffers:           94352 kB
+> Cached:           872008 kB
+> SwapCached:            0 kB
+> Active:           626932 kB
+> Inactive:         519216 kB
+> Active(anon):     180776 kB
+> Inactive(anon):   222944 kB
+> Active(file):     446156 kB
+> Inactive(file):   296272 kB
+> Unevictable:           0 kB
+> Mlocked:               0 kB
+> HighTotal:       7294672 kB
+> HighFree:        5704696 kB
+> LowTotal:         309068 kB
+> LowFree:          624916 kB
+>
+> After logic memory remove:
+>
+> MemTotal:        7079452 kB
+> MemFree:         5805976 kB
+> Buffers:           94372 kB
+> Cached:           872000 kB
+> SwapCached:            0 kB
+> Active:           626936 kB
+> Inactive:         519236 kB
+> Active(anon):     180780 kB
+> Inactive(anon):   222944 kB
+> Active(file):     446156 kB
+> Inactive(file):   296292 kB
+> Unevictable:           0 kB
+> Mlocked:               0 kB
+> HighTotal:       7294672 kB
+> HighFree:        5181024 kB
+> LowTotal:       4294752076 kB
+> LowFree:          624952 kB
+>
+> Reviewed-by: Michal Hocko <mhocko@suse.cz>
+> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+> ---
+>  mm/page_alloc.c | 2 ++
+>  1 file changed, 2 insertions(+)
+>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 98cbdf6..23b921f 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -6140,6 +6140,8 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+>  		list_del(&page->lru);
+>  		rmv_page_order(page);
+>  		zone->free_area[order].nr_free--;
+> +		if (PageHighMem(page))
+> +			totalhigh_pages -= 1 << order;
+>  		for (i = 0; i < (1 << order); i++)
+>  			SetPageReserved((page+i));
+>  		pfn += (1 << order);
 
-This improves the might_fault annotations used
-by uaccess routines:
-
-1. The only reason uaccess routines might sleep
-   is if they fault. Make this explicit for
-   all architectures.
-2. a voluntary preempt point in uaccess functions
-   means compiler can't inline them efficiently,
-   this breaks assumptions that they are very
-   fast and small that e.g. net code seems to make.
-   remove this preempt point so behaviour
-   matches what callers assume.
-3. Accesses (e.g through socket ops) to kernel memory
-   with KERNEL_DS like net/sunrpc does will never sleep.
-   Remove an unconditinal might_sleep in the inline
-   might_fault in kernel.h
-   (used when PROVE_LOCKING is not set).
-4. Accesses with pagefault_disable return EFAULT
-   but won't cause caller to sleep.
-   Check for that and avoid might_sleep when
-   PROVE_LOCKING is set.
-
-I'd like these changes to go in for 3.11:
-besides a general benefit of improved
-consistency and performance, I would also like them
-for the vhost driver where we want to call socket ops
-under a spinlock, and fall back on slower thread handler
-on error.
-
-If the changes look good, would sched maintainers
-please consider merging them through sched/core because of the
-interaction with the scheduler?
-
-Please review, and consider for 3.11.
-
-Note on arch code updates:
-I tested x86_64 code.
-Other architectures were build-tested.
-I don't have cross-build environment for arm64, tile, microblaze and
-mn10300 architectures. arm64 and tile got acks.
-The arch changes look generally safe enough
-but would appreciate review/acks from arch maintainers.
-core changes naturally need acks from sched maintainers.
-
-Version 1 of this change was titled
-	x86: uaccess s/might_sleep/might_fault/
-
-Changes from v2:
-	add a patch removing a colunatry preempt point
-	in uaccess functions when PREEMPT_VOLUNATRY is set.
-		Addresses comments by Arnd Bergmann,
-		and Peter Zijlstra.
-	comment on future possible simplifications in the git log
-		for the powerpc patch. Addresses a comment
-		by Arnd Bergmann.
-	
-Changes from v1:
-	add more architectures
-	fix might_fault() scheduling differently depending
-	on CONFIG_PROVE_LOCKING, as suggested by Ingo
-
-Michael S. Tsirkin (11):
-  asm-generic: uaccess s/might_sleep/might_fault/
-  arm64: uaccess s/might_sleep/might_fault/
-  frv: uaccess s/might_sleep/might_fault/
-  m32r: uaccess s/might_sleep/might_fault/
-  microblaze: uaccess s/might_sleep/might_fault/
-  mn10300: uaccess s/might_sleep/might_fault/
-  powerpc: uaccess s/might_sleep/might_fault/
-  tile: uaccess s/might_sleep/might_fault/
-  x86: uaccess s/might_sleep/might_fault/
-  kernel: drop voluntary schedule from might_fault
-  kernel: uaccess in atomic with pagefault_disable
-
- arch/arm64/include/asm/uaccess.h      |  4 ++--
- arch/frv/include/asm/uaccess.h        |  4 ++--
- arch/m32r/include/asm/uaccess.h       | 12 ++++++------
- arch/microblaze/include/asm/uaccess.h |  6 +++---
- arch/mn10300/include/asm/uaccess.h    |  4 ++--
- arch/powerpc/include/asm/uaccess.h    | 16 ++++++++--------
- arch/tile/include/asm/uaccess.h       |  2 +-
- arch/x86/include/asm/uaccess_64.h     |  2 +-
- include/asm-generic/uaccess.h         | 10 +++++-----
- include/linux/kernel.h                |  7 ++-----
- mm/memory.c                           | 10 +++++++---
- 11 files changed, 39 insertions(+), 38 deletions(-)
-
--- 
-MST
+Hi Wanpeng,
+         The memory hotplug code adjusts totalram_pages, 
+totalhigh_pages,  zone->present_pages
+and zone->managed_pages all in memory_hotplug.c, so suggest to move 
+this into memory_hotplug.c
+too.
+          One of my patch fixes this issue in another way, please refer 
+to:
+http://marc.info/?l=linux-mm&m=136957578620221&w=2
+Regards!
+Gerry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
