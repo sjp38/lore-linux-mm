@@ -1,242 +1,595 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 45A1C6B00B4
-	for <linux-mm@kvack.org>; Sun, 26 May 2013 09:43:04 -0400 (EDT)
-Received: by mail-pb0-f47.google.com with SMTP id rr4so5843346pbb.6
-        for <linux-mm@kvack.org>; Sun, 26 May 2013 06:43:03 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
+	by kanga.kvack.org (Postfix) with SMTP id 53A3D6B00B6
+	for <linux-mm@kvack.org>; Sun, 26 May 2013 09:43:10 -0400 (EDT)
+Received: by mail-pb0-f50.google.com with SMTP id wy17so5823111pbc.23
+        for <linux-mm@kvack.org>; Sun, 26 May 2013 06:43:09 -0700 (PDT)
 From: Jiang Liu <liuj97@gmail.com>
-Subject: [PATCH v8, part3 12/14] mm: correctly update zone->mamaged_pages
-Date: Sun, 26 May 2013 21:38:40 +0800
-Message-Id: <1369575522-26405-13-git-send-email-jiang.liu@huawei.com>
+Subject: [PATCH v8, part3 13/14] mm: concentrate modification of totalram_pages into the mm core
+Date: Sun, 26 May 2013 21:38:41 +0800
+Message-Id: <1369575522-26405-14-git-send-email-jiang.liu@huawei.com>
 In-Reply-To: <1369575522-26405-1-git-send-email-jiang.liu@huawei.com>
 References: <1369575522-26405-1-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Tang Chen <tangchen@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, virtualization@lists.linux-foundation.org, xen-devel@lists.xensource.com
+Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Enhance adjust_managed_page_count() to adjust totalhigh_pages for
-highmem pages. And change code which directly adjusts totalram_pages
-to use adjust_managed_page_count() because it adjusts totalram_pages,
-totalhigh_pages and zone->managed_pages altogether in a safe way.
+Concentrate code to modify totalram_pages into the mm core, so the arch
+memory initialized code doesn't need to take care of it. With these
+changes applied, only following functions from mm core modify global
+variable totalram_pages:
+free_bootmem_late(), free_all_bootmem(), free_all_bootmem_node(),
+adjust_managed_page_count().
 
-Remove inc_totalhigh_pages() and dec_totalhigh_pages() from xen/balloon
-driver bacause adjust_managed_page_count() has already adjusted
-totalhigh_pages.
-
-This patch also fixes two bugs:
-1) enhances virtio_balloon driver to adjust totalhigh_pages when
-   reserve/unreserve pages.
-2) enhance memory_hotplug.c to adjust totalhigh_pages when hot-removing
-   memory.
-
-We still need to deal with modifications of totalram_pages in file
-arch/powerpc/platforms/pseries/cmm.c, but need help from PPC experts.
+With this patch applied, it will be much more easier for us to keep
+totalram_pages and zone->managed_pages in consistence.
 
 Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-Cc: Chris Metcalf <cmetcalf@tilera.com>
-Cc: Rusty Russell <rusty@rustcorp.com.au>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Wen Congyang <wency@cn.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: linux-kernel@vger.kernel.org
-Cc: virtualization@lists.linux-foundation.org
-Cc: xen-devel@lists.xensource.com
-Cc: linux-mm@kvack.org
+Acked-by: David Howells <dhowells@redhat.com>
 ---
- drivers/virtio/virtio_balloon.c |  8 +++++---
- drivers/xen/balloon.c           | 23 +++++------------------
- mm/hugetlb.c                    |  2 +-
- mm/memory_hotplug.c             | 16 +++-------------
- mm/page_alloc.c                 | 10 +++++-----
- 5 files changed, 19 insertions(+), 40 deletions(-)
+ arch/alpha/mm/init.c             | 2 +-
+ arch/alpha/mm/numa.c             | 2 +-
+ arch/arc/mm/init.c               | 2 +-
+ arch/arm/mm/init.c               | 3 +--
+ arch/arm64/mm/init.c             | 2 +-
+ arch/avr32/mm/init.c             | 2 --
+ arch/blackfin/mm/init.c          | 2 +-
+ arch/c6x/mm/init.c               | 2 +-
+ arch/cris/mm/init.c              | 2 +-
+ arch/frv/mm/init.c               | 2 +-
+ arch/h8300/mm/init.c             | 2 +-
+ arch/hexagon/mm/init.c           | 2 +-
+ arch/ia64/mm/init.c              | 2 +-
+ arch/m32r/mm/init.c              | 2 +-
+ arch/m68k/mm/init.c              | 4 ++--
+ arch/metag/mm/init.c             | 5 +----
+ arch/microblaze/mm/init.c        | 2 +-
+ arch/mips/mm/init.c              | 2 +-
+ arch/mips/sgi-ip27/ip27-memory.c | 2 +-
+ arch/mn10300/mm/init.c           | 2 +-
+ arch/openrisc/mm/init.c          | 2 +-
+ arch/parisc/mm/init.c            | 4 ++--
+ arch/powerpc/mm/mem.c            | 5 ++---
+ arch/s390/mm/init.c              | 2 +-
+ arch/score/mm/init.c             | 2 +-
+ arch/sh/mm/init.c                | 2 +-
+ arch/sparc/mm/init_32.c          | 3 +--
+ arch/sparc/mm/init_64.c          | 2 +-
+ arch/tile/mm/init.c              | 2 +-
+ arch/um/kernel/mem.c             | 2 +-
+ arch/unicore32/mm/init.c         | 2 +-
+ arch/x86/mm/init_32.c            | 2 +-
+ arch/x86/mm/init_64.c            | 2 +-
+ arch/xtensa/mm/init.c            | 2 +-
+ mm/bootmem.c                     | 9 ++++++++-
+ mm/nobootmem.c                   | 7 ++++++-
+ 36 files changed, 50 insertions(+), 46 deletions(-)
 
-diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-index bd3ae32..6649968 100644
---- a/drivers/virtio/virtio_balloon.c
-+++ b/drivers/virtio/virtio_balloon.c
-@@ -148,7 +148,7 @@ static void fill_balloon(struct virtio_balloon *vb, size_t num)
- 		}
- 		set_page_pfns(vb->pfns + vb->num_pfns, page);
- 		vb->num_pages += VIRTIO_BALLOON_PAGES_PER_PAGE;
--		totalram_pages--;
-+		adjust_managed_page_count(page, -1);
- 	}
- 
- 	/* Did we get any? */
-@@ -160,11 +160,13 @@ static void fill_balloon(struct virtio_balloon *vb, size_t num)
- static void release_pages_by_pfn(const u32 pfns[], unsigned int num)
+diff --git a/arch/alpha/mm/init.c b/arch/alpha/mm/init.c
+index 218c29c..eee47a4 100644
+--- a/arch/alpha/mm/init.c
++++ b/arch/alpha/mm/init.c
+@@ -309,7 +309,7 @@ void __init
+ mem_init(void)
  {
- 	unsigned int i;
-+	struct page *page;
+ 	max_mapnr = num_physpages = max_low_pfn;
+-	totalram_pages += free_all_bootmem();
++	free_all_bootmem();
+ 	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
  
- 	/* Find pfns pointing at start of each page, get pages and free them. */
- 	for (i = 0; i < num; i += VIRTIO_BALLOON_PAGES_PER_PAGE) {
--		balloon_page_free(balloon_pfn_to_page(pfns[i]));
--		totalram_pages++;
-+		page = balloon_pfn_to_page(pfns[i]);
-+		balloon_page_free(page);
-+		adjust_managed_page_count(page, 1);
- 	}
- }
- 
-diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
-index 930fb68..c8aab4e 100644
---- a/drivers/xen/balloon.c
-+++ b/drivers/xen/balloon.c
-@@ -89,14 +89,6 @@ EXPORT_SYMBOL_GPL(balloon_stats);
- /* We increase/decrease in batches which fit in a page */
- static xen_pfn_t frame_list[PAGE_SIZE / sizeof(unsigned long)];
- 
--#ifdef CONFIG_HIGHMEM
--#define inc_totalhigh_pages() (totalhigh_pages++)
--#define dec_totalhigh_pages() (totalhigh_pages--)
--#else
--#define inc_totalhigh_pages() do {} while (0)
--#define dec_totalhigh_pages() do {} while (0)
--#endif
--
- /* List of ballooned pages, threaded through the mem_map array. */
- static LIST_HEAD(ballooned_pages);
- 
-@@ -132,9 +124,7 @@ static void __balloon_append(struct page *page)
- static void balloon_append(struct page *page)
- {
- 	__balloon_append(page);
--	if (PageHighMem(page))
--		dec_totalhigh_pages();
--	totalram_pages--;
-+	adjust_managed_page_count(page, -1);
- }
- 
- /* balloon_retrieve: rescue a page from the balloon, if it is not empty. */
-@@ -151,13 +141,12 @@ static struct page *balloon_retrieve(bool prefer_highmem)
- 		page = list_entry(ballooned_pages.next, struct page, lru);
- 	list_del(&page->lru);
- 
--	if (PageHighMem(page)) {
-+	if (PageHighMem(page))
- 		balloon_stats.balloon_high--;
--		inc_totalhigh_pages();
--	} else
-+	else
- 		balloon_stats.balloon_low--;
- 
--	totalram_pages++;
-+	adjust_managed_page_count(page, 1);
- 
- 	return page;
- }
-@@ -372,9 +361,7 @@ static enum bp_state increase_reservation(unsigned long nr_pages)
- #endif
- 
- 		/* Relinquish the page back to the allocator. */
--		ClearPageReserved(page);
--		init_page_count(page);
--		__free_page(page);
-+		__free_reserved_page(page);
- 	}
- 
- 	balloon_stats.current_pages += rc;
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index f8feeec..95c5a6b 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1246,7 +1246,7 @@ static void __init gather_bootmem_prealloc(void)
- 		 * side-effects, like CommitLimit going negative.
+ 	printk_memory_info();
+diff --git a/arch/alpha/mm/numa.c b/arch/alpha/mm/numa.c
+index 3388504..857452c 100644
+--- a/arch/alpha/mm/numa.c
++++ b/arch/alpha/mm/numa.c
+@@ -334,7 +334,7 @@ void __init mem_init(void)
+ 		/*
+ 		 * This will free up the bootmem, ie, slot 0 memory
  		 */
- 		if (h->order > (MAX_ORDER - 1))
--			totalram_pages += 1 << h->order;
-+			adjust_managed_page_count(page, 1 << h->order);
- 	}
- }
+-		totalram_pages += free_all_bootmem_node(NODE_DATA(nid));
++		free_all_bootmem_node(NODE_DATA(nid));
  
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 1a16ea0..7244e67 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -772,20 +772,13 @@ EXPORT_SYMBOL_GPL(__online_page_set_limits);
+ 		pfn = NODE_DATA(nid)->node_start_pfn;
+ 		for (i = 0; i < node_spanned_pages(nid); i++, pfn++)
+diff --git a/arch/arc/mm/init.c b/arch/arc/mm/init.c
+index f9c7077..c668a60 100644
+--- a/arch/arc/mm/init.c
++++ b/arch/arc/mm/init.c
+@@ -111,7 +111,7 @@ void __init mem_init(void)
  
- void __online_page_increment_counters(struct page *page)
- {
--	totalram_pages++;
+ 	high_memory = (void *)(CONFIG_LINUX_LINK_BASE + arc_mem_sz);
+ 
+-	totalram_pages = free_all_bootmem();
++	free_all_bootmem();
+ 
+ 	/* count all reserved pages [kernel code/data/mem_map..] */
+ 	reserved_pages = 0;
+diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
+index f223394..4ca7c1a 100644
+--- a/arch/arm/mm/init.c
++++ b/arch/arm/mm/init.c
+@@ -595,8 +595,7 @@ void __init mem_init(void)
+ 
+ 	/* this will put all unused low memory onto the freelists */
+ 	free_unused_memmap(&meminfo);
 -
--#ifdef CONFIG_HIGHMEM
--	if (PageHighMem(page))
--		totalhigh_pages++;
--#endif
-+	adjust_managed_page_count(page, 1);
- }
- EXPORT_SYMBOL_GPL(__online_page_increment_counters);
+-	totalram_pages += free_all_bootmem();
++	free_all_bootmem();
  
- void __online_page_free(struct page *page)
- {
--	ClearPageReserved(page);
--	init_page_count(page);
--	__free_page(page);
-+	__free_reserved_page(page);
- }
- EXPORT_SYMBOL_GPL(__online_page_free);
- 
-@@ -983,7 +976,6 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
- 		return ret;
- 	}
- 
--	zone->managed_pages += onlined_pages;
- 	zone->present_pages += onlined_pages;
- 
- 	pgdat_resize_lock(zone->zone_pgdat, &flags);
-@@ -1572,15 +1564,13 @@ repeat:
- 	/* reset pagetype flags and makes migrate type to be MOVABLE */
- 	undo_isolate_page_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
- 	/* removal success */
--	zone->managed_pages -= offlined_pages;
-+	adjust_managed_page_count(pfn_to_page(start_pfn), -offlined_pages);
- 	zone->present_pages -= offlined_pages;
- 
- 	pgdat_resize_lock(zone->zone_pgdat, &flags);
- 	zone->zone_pgdat->node_present_pages -= offlined_pages;
- 	pgdat_resize_unlock(zone->zone_pgdat, &flags);
- 
--	totalram_pages -= offlined_pages;
--
- 	init_per_zone_wmark_min();
- 
- 	if (!populated_zone(zone)) {
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 403afa6..5b27db4 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -783,11 +783,7 @@ void __init init_cma_reserved_pageblock(struct page *page)
- 	set_page_refcounted(page);
- 	set_pageblock_migratetype(page, MIGRATE_CMA);
- 	__free_pages(page, pageblock_order);
--	totalram_pages += pageblock_nr_pages;
--#ifdef CONFIG_HIGHMEM
--	if (PageHighMem(page))
--		totalhigh_pages += pageblock_nr_pages;
--#endif
-+	adjust_managed_page_count(page, pageblock_nr_pages);
- }
+ #ifdef CONFIG_SA1111
+ 	/* now that our DMA memory is actually so designated, we can free it */
+diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
+index a398eb9..93de98a 100644
+--- a/arch/arm64/mm/init.c
++++ b/arch/arm64/mm/init.c
+@@ -284,7 +284,7 @@ void __init mem_init(void)
+ 	free_unused_memmap();
  #endif
  
-@@ -5232,6 +5228,10 @@ void adjust_managed_page_count(struct page *page, long count)
- 	spin_lock(&managed_page_count_lock);
- 	page_zone(page)->managed_pages += count;
- 	totalram_pages += count;
-+#ifdef	CONFIG_HIGHMEM
-+	if (PageHighMem(page))
-+		totalhigh_pages += count;
-+#endif
- 	spin_unlock(&managed_page_count_lock);
+-	totalram_pages += free_all_bootmem();
++	free_all_bootmem();
+ 
+ 	reserved_pages = free_pages = 0;
+ 
+diff --git a/arch/avr32/mm/init.c b/arch/avr32/mm/init.c
+index b079e04..af6890f 100644
+--- a/arch/avr32/mm/init.c
++++ b/arch/avr32/mm/init.c
+@@ -117,8 +117,6 @@ void __init mem_init(void)
+ 		if (pgdat->node_spanned_pages != 0)
+ 			node_pages = free_all_bootmem_node(pgdat);
+ 
+-		totalram_pages += node_pages;
+-
+ 		for (i = 0; i < node_pages; i++)
+ 			if (PageReserved(pgdat->node_mem_map + i))
+ 				reservedpages++;
+diff --git a/arch/blackfin/mm/init.c b/arch/blackfin/mm/init.c
+index fa241f5..c73d80e 100644
+--- a/arch/blackfin/mm/init.c
++++ b/arch/blackfin/mm/init.c
+@@ -104,7 +104,7 @@ void __init mem_init(void)
+ 	printk(KERN_DEBUG "Kernel managed physical pages: %lu\n", num_physpages);
+ 
+ 	/* This will put all low memory onto the freelists. */
+-	totalram_pages = free_all_bootmem();
++	free_all_bootmem();
+ 
+ 	reservedpages = 0;
+ 	for (tmp = ARCH_PFN_OFFSET; tmp < max_mapnr; tmp++)
+diff --git a/arch/c6x/mm/init.c b/arch/c6x/mm/init.c
+index 7f25bef..df3714b 100644
+--- a/arch/c6x/mm/init.c
++++ b/arch/c6x/mm/init.c
+@@ -64,7 +64,7 @@ void __init mem_init(void)
+ 	high_memory = (void *)(memory_end & PAGE_MASK);
+ 
+ 	/* this will put all memory onto the freelists */
+-	totalram_pages = free_all_bootmem();
++	free_all_bootmem();
+ 
+ 	codek = (_etext - _stext) >> 10;
+ 	datak = (_end - _sdata) >> 10;
+diff --git a/arch/cris/mm/init.c b/arch/cris/mm/init.c
+index 8fec263..52b8b56 100644
+--- a/arch/cris/mm/init.c
++++ b/arch/cris/mm/init.c
+@@ -33,7 +33,7 @@ mem_init(void)
+ 	max_mapnr = num_physpages = max_low_pfn - min_low_pfn;
+  
+ 	/* this will put all memory onto the freelists */
+-        totalram_pages = free_all_bootmem();
++        free_all_bootmem();
+ 
+ 	reservedpages = 0;
+ 	for (tmp = 0; tmp < max_mapnr; tmp++) {
+diff --git a/arch/frv/mm/init.c b/arch/frv/mm/init.c
+index 8ba9d22..3dcc888 100644
+--- a/arch/frv/mm/init.c
++++ b/arch/frv/mm/init.c
+@@ -123,7 +123,7 @@ void __init mem_init(void)
+ 	int codek = 0, datak = 0;
+ 
+ 	/* this will put all low memory onto the freelists */
+-	totalram_pages = free_all_bootmem();
++	free_all_bootmem();
+ 
+ #ifdef CONFIG_MMU
+ 	for (loop = 0 ; loop < npages ; loop++)
+diff --git a/arch/h8300/mm/init.c b/arch/h8300/mm/init.c
+index c831f1d..a506dd4 100644
+--- a/arch/h8300/mm/init.c
++++ b/arch/h8300/mm/init.c
+@@ -140,7 +140,7 @@ void __init mem_init(void)
+ 	max_mapnr = num_physpages = MAP_NR(high_memory);
+ 
+ 	/* this will put all low memory onto the freelists */
+-	totalram_pages = free_all_bootmem();
++	free_all_bootmem();
+ 
+ 	codek = (_etext - _stext) >> 10;
+ 	datak = (__bss_stop - _sdata) >> 10;
+diff --git a/arch/hexagon/mm/init.c b/arch/hexagon/mm/init.c
+index 2561d25..0ab5b43 100644
+--- a/arch/hexagon/mm/init.c
++++ b/arch/hexagon/mm/init.c
+@@ -70,7 +70,7 @@ unsigned long long kmap_generation;
+ void __init mem_init(void)
+ {
+ 	/*  No idea where this is actually declared.  Seems to evade LXR.  */
+-	totalram_pages += free_all_bootmem();
++	free_all_bootmem();
+ 	num_physpages = bootmem_lastpg-ARCH_PFN_OFFSET;
+ 
+ 	printk(KERN_INFO "totalram_pages = %ld\n", totalram_pages);
+diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
+index f8a4f38..d141f7e 100644
+--- a/arch/ia64/mm/init.c
++++ b/arch/ia64/mm/init.c
+@@ -622,7 +622,7 @@ mem_init (void)
+ 
+ 	for_each_online_pgdat(pgdat)
+ 		if (pgdat->bdata->node_bootmem_map)
+-			totalram_pages += free_all_bootmem_node(pgdat);
++			free_all_bootmem_node(pgdat);
+ 
+ 	reserved_pages = 0;
+ 	efi_memmap_walk(count_reserved_pages, &reserved_pages);
+diff --git a/arch/m32r/mm/init.c b/arch/m32r/mm/init.c
+index cca87d9..a501838 100644
+--- a/arch/m32r/mm/init.c
++++ b/arch/m32r/mm/init.c
+@@ -158,7 +158,7 @@ void __init mem_init(void)
+ 
+ 	/* this will put all low memory onto the freelists */
+ 	for_each_online_node(nid)
+-		totalram_pages += free_all_bootmem_node(NODE_DATA(nid));
++		free_all_bootmem_node(NODE_DATA(nid));
+ 
+ 	reservedpages = reservedpages_count() - hole_pages;
+ 	codesize = (unsigned long) &_etext - (unsigned long)&_text;
+diff --git a/arch/m68k/mm/init.c b/arch/m68k/mm/init.c
+index ab0b54c..614c60a 100644
+--- a/arch/m68k/mm/init.c
++++ b/arch/m68k/mm/init.c
+@@ -155,11 +155,11 @@ void __init mem_init(void)
+ 	int i;
+ 
+ 	/* this will put all memory onto the freelists */
+-	totalram_pages = num_physpages = 0;
++	num_physpages = 0;
+ 	for_each_online_pgdat(pgdat) {
+ 		num_physpages += pgdat->node_present_pages;
+ 
+-		totalram_pages += free_all_bootmem_node(pgdat);
++		free_all_bootmem_node(pgdat);
+ 		for (i = 0; i < pgdat->node_spanned_pages; i++) {
+ 			struct page *page = pgdat->node_mem_map + i;
+ 			char *addr = page_to_virt(page);
+diff --git a/arch/metag/mm/init.c b/arch/metag/mm/init.c
+index d7595f5..ce81d7c 100644
+--- a/arch/metag/mm/init.c
++++ b/arch/metag/mm/init.c
+@@ -393,14 +393,11 @@ void __init mem_init(void)
+ 
+ 	for_each_online_node(nid) {
+ 		pg_data_t *pgdat = NODE_DATA(nid);
+-		unsigned long node_pages = 0;
+ 
+ 		num_physpages += pgdat->node_present_pages;
+ 
+ 		if (pgdat->node_spanned_pages)
+-			node_pages = free_all_bootmem_node(pgdat);
+-
+-		totalram_pages += node_pages;
++			free_all_bootmem_node(pgdat);
+ 	}
+ 
+ 	pr_info("Memory: %luk/%luk available\n",
+diff --git a/arch/microblaze/mm/init.c b/arch/microblaze/mm/init.c
+index d149e0e..b384cbc 100644
+--- a/arch/microblaze/mm/init.c
++++ b/arch/microblaze/mm/init.c
+@@ -252,7 +252,7 @@ void __init mem_init(void)
+ 	high_memory = (void *)__va(memory_start + lowmem_size - 1);
+ 
+ 	/* this will put all memory onto the freelists */
+-	totalram_pages += free_all_bootmem();
++	free_all_bootmem();
+ 
+ 	for_each_online_pgdat(pgdat) {
+ 		unsigned long i;
+diff --git a/arch/mips/mm/init.c b/arch/mips/mm/init.c
+index 268f2a9..e7333f1 100644
+--- a/arch/mips/mm/init.c
++++ b/arch/mips/mm/init.c
+@@ -374,7 +374,7 @@ void __init mem_init(void)
+ #endif
+ 	high_memory = (void *) __va(max_low_pfn << PAGE_SHIFT);
+ 
+-	totalram_pages += free_all_bootmem();
++	free_all_bootmem();
+ 	setup_zero_pages();	/* Setup zeroed pages.  */
+ 
+ 	reservedpages = ram = 0;
+diff --git a/arch/mips/sgi-ip27/ip27-memory.c b/arch/mips/sgi-ip27/ip27-memory.c
+index 1230f56..aecac4a 100644
+--- a/arch/mips/sgi-ip27/ip27-memory.c
++++ b/arch/mips/sgi-ip27/ip27-memory.c
+@@ -489,7 +489,7 @@ void __init mem_init(void)
+ 		/*
+ 		 * This will free up the bootmem, ie, slot 0 memory.
+ 		 */
+-		totalram_pages += free_all_bootmem_node(NODE_DATA(node));
++		free_all_bootmem_node(NODE_DATA(node));
+ 	}
+ 
+ 	setup_zero_pages();	/* This comes from node 0 */
+diff --git a/arch/mn10300/mm/init.c b/arch/mn10300/mm/init.c
+index e19049d..7590d91 100644
+--- a/arch/mn10300/mm/init.c
++++ b/arch/mn10300/mm/init.c
+@@ -114,7 +114,7 @@ void __init mem_init(void)
+ 	memset(empty_zero_page, 0, PAGE_SIZE);
+ 
+ 	/* this will put all low memory onto the freelists */
+-	totalram_pages += free_all_bootmem();
++	free_all_bootmem();
+ 
+ 	reservedpages = 0;
+ 	for (tmp = 0; tmp < num_physpages; tmp++)
+diff --git a/arch/openrisc/mm/init.c b/arch/openrisc/mm/init.c
+index c371e4a..16c1e13 100644
+--- a/arch/openrisc/mm/init.c
++++ b/arch/openrisc/mm/init.c
+@@ -207,7 +207,7 @@ static int __init free_pages_init(void)
+ 	int reservedpages, pfn;
+ 
+ 	/* this will put all low memory onto the freelists */
+-	totalram_pages = free_all_bootmem();
++	free_all_bootmem();
+ 
+ 	reservedpages = 0;
+ 	for (pfn = 0; pfn < max_low_pfn; pfn++) {
+diff --git a/arch/parisc/mm/init.c b/arch/parisc/mm/init.c
+index e6ad98d..74608f7 100644
+--- a/arch/parisc/mm/init.c
++++ b/arch/parisc/mm/init.c
+@@ -593,13 +593,13 @@ void __init mem_init(void)
+ 
+ #ifndef CONFIG_DISCONTIGMEM
+ 	max_mapnr = page_to_pfn(virt_to_page(high_memory - 1)) + 1;
+-	totalram_pages += free_all_bootmem();
++	free_all_bootmem();
+ #else
+ 	{
+ 		int i;
+ 
+ 		for (i = 0; i < npmem_ranges; i++)
+-			totalram_pages += free_all_bootmem_node(NODE_DATA(i));
++			free_all_bootmem_node(NODE_DATA(i));
+ 	}
+ #endif
+ 
+diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
+index 7f47a05..3bcfc0d 100644
+--- a/arch/powerpc/mm/mem.c
++++ b/arch/powerpc/mm/mem.c
+@@ -318,13 +318,12 @@ void __init mem_init(void)
+         for_each_online_node(nid) {
+ 		if (NODE_DATA(nid)->node_spanned_pages != 0) {
+ 			printk("freeing bootmem node %d\n", nid);
+-			totalram_pages +=
+-				free_all_bootmem_node(NODE_DATA(nid));
++			free_all_bootmem_node(NODE_DATA(nid));
+ 		}
+ 	}
+ #else
+ 	max_mapnr = max_pfn;
+-	totalram_pages += free_all_bootmem();
++	free_all_bootmem();
+ #endif
+ 	for_each_online_pgdat(pgdat) {
+ 		for (i = 0; i < pgdat->node_spanned_pages; i++) {
+diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
+index bf01d18..a2aafe1 100644
+--- a/arch/s390/mm/init.c
++++ b/arch/s390/mm/init.c
+@@ -144,7 +144,7 @@ void __init mem_init(void)
+ 	cmma_init();
+ 
+ 	/* this will put all low memory onto the freelists */
+-	totalram_pages += free_all_bootmem();
++	free_all_bootmem();
+ 	setup_zero_pages();	/* Setup zeroed pages. */
+ 
+ 	reservedpages = 0;
+diff --git a/arch/score/mm/init.c b/arch/score/mm/init.c
+index 3d79ecb..c1601da 100644
+--- a/arch/score/mm/init.c
++++ b/arch/score/mm/init.c
+@@ -81,7 +81,7 @@ void __init mem_init(void)
+ 	unsigned long tmp, ram = 0;
+ 
+ 	high_memory = (void *) __va(max_low_pfn << PAGE_SHIFT);
+-	totalram_pages += free_all_bootmem();
++	free_all_bootmem();
+ 	setup_zero_page();	/* Setup zeroed pages. */
+ 	reservedpages = 0;
+ 
+diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
+index d3af56b..fc0c8e1 100644
+--- a/arch/sh/mm/init.c
++++ b/arch/sh/mm/init.c
+@@ -422,7 +422,7 @@ void __init mem_init(void)
+ 		num_physpages += pgdat->node_present_pages;
+ 
+ 		if (pgdat->node_spanned_pages)
+-			totalram_pages += free_all_bootmem_node(pgdat);
++			free_all_bootmem_node(pgdat);
+ 
+ 
+ 		node_high_memory = (void *)__va((pgdat->node_start_pfn +
+diff --git a/arch/sparc/mm/init_32.c b/arch/sparc/mm/init_32.c
+index d5f9c02..a438abb 100644
+--- a/arch/sparc/mm/init_32.c
++++ b/arch/sparc/mm/init_32.c
+@@ -323,8 +323,7 @@ void __init mem_init(void)
+ 
+ 	max_mapnr = last_valid_pfn - pfn_base;
+ 	high_memory = __va(max_low_pfn << PAGE_SHIFT);
+-
+-	totalram_pages = free_all_bootmem();
++	free_all_bootmem();
+ 
+ 	for (i = 0; sp_banks[i].num_bytes != 0; i++) {
+ 		unsigned long start_pfn = sp_banks[i].base_addr >> PAGE_SHIFT;
+diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
+index a54cdcd..ee6deda 100644
+--- a/arch/sparc/mm/init_64.c
++++ b/arch/sparc/mm/init_64.c
+@@ -2054,7 +2054,7 @@ void __init mem_init(void)
+ 	high_memory = __va(last_valid_pfn << PAGE_SHIFT);
+ 
+ 	register_page_bootmem_info();
+-	totalram_pages = free_all_bootmem();
++	free_all_bootmem();
+ 
+ 	/* We subtract one to account for the mem_map_zero page
+ 	 * allocated below.
+diff --git a/arch/tile/mm/init.c b/arch/tile/mm/init.c
+index ccfeb3f..45ce26d 100644
+--- a/arch/tile/mm/init.c
++++ b/arch/tile/mm/init.c
+@@ -846,7 +846,7 @@ void __init mem_init(void)
+ 	set_max_mapnr_init();
+ 
+ 	/* this will put all bootmem onto the freelists */
+-	totalram_pages += free_all_bootmem();
++	free_all_bootmem();
+ 
+ #ifndef CONFIG_64BIT
+ 	/* count all remaining LOWMEM and give all HIGHMEM to page allocator */
+diff --git a/arch/um/kernel/mem.c b/arch/um/kernel/mem.c
+index 8ff0b7a..b0c7630 100644
+--- a/arch/um/kernel/mem.c
++++ b/arch/um/kernel/mem.c
+@@ -65,7 +65,7 @@ void __init mem_init(void)
+ 	uml_reserved = brk_end;
+ 
+ 	/* this will put all low memory onto the freelists */
+-	totalram_pages = free_all_bootmem();
++	free_all_bootmem();
+ 	max_low_pfn = totalram_pages;
+ #ifdef CONFIG_HIGHMEM
+ 	setup_highmem(end_iomem, highmem);
+diff --git a/arch/unicore32/mm/init.c b/arch/unicore32/mm/init.c
+index df9b8ab..7d1356c 100644
+--- a/arch/unicore32/mm/init.c
++++ b/arch/unicore32/mm/init.c
+@@ -392,7 +392,7 @@ void __init mem_init(void)
+ 	free_unused_memmap(&meminfo);
+ 
+ 	/* this will put all unused low memory onto the freelists */
+-	totalram_pages += free_all_bootmem();
++	free_all_bootmem();
+ 
+ 	reserved_pages = free_pages = 0;
+ 
+diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
+index 3ac7e31..9fa46ba 100644
+--- a/arch/x86/mm/init_32.c
++++ b/arch/x86/mm/init_32.c
+@@ -759,7 +759,7 @@ void __init mem_init(void)
+ 	set_highmem_pages_init();
+ 
+ 	/* this will put all low memory onto the freelists */
+-	totalram_pages += free_all_bootmem();
++	free_all_bootmem();
+ 
+ 	reservedpages = 0;
+ 	for (tmp = 0; tmp < max_low_pfn; tmp++)
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 3bdf32b..7d27958 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -1054,7 +1054,7 @@ void __init mem_init(void)
+ 	register_page_bootmem_info();
+ 
+ 	/* this will put all memory onto the freelists */
+-	totalram_pages = free_all_bootmem();
++	free_all_bootmem();
+ 
+ 	absent_pages = absent_pages_in_range(0, max_pfn);
+ 	reservedpages = max_pfn - totalram_pages - absent_pages;
+diff --git a/arch/xtensa/mm/init.c b/arch/xtensa/mm/init.c
+index 026d29b..663c161 100644
+--- a/arch/xtensa/mm/init.c
++++ b/arch/xtensa/mm/init.c
+@@ -184,7 +184,7 @@ void __init mem_init(void)
+ #error HIGHGMEM not implemented in init.c
+ #endif
+ 
+-	totalram_pages += free_all_bootmem();
++	free_all_bootmem();
+ 
+ 	reservedpages = ram = 0;
+ 	for (tmp = 0; tmp < max_mapnr; tmp++) {
+diff --git a/mm/bootmem.c b/mm/bootmem.c
+index eb792323..58609bb 100644
+--- a/mm/bootmem.c
++++ b/mm/bootmem.c
+@@ -271,9 +271,14 @@ void __init reset_all_zones_managed_pages(void)
+  */
+ unsigned long __init free_all_bootmem_node(pg_data_t *pgdat)
+ {
++	unsigned long pages;
++
+ 	register_page_bootmem_info_node(pgdat);
+ 	reset_node_managed_pages(pgdat);
+-	return free_all_bootmem_core(pgdat->bdata);
++	pages = free_all_bootmem_core(pgdat->bdata);
++	totalram_pages += pages;
++
++	return pages;
  }
- EXPORT_SYMBOL(adjust_managed_page_count);
+ 
+ /**
+@@ -291,6 +296,8 @@ unsigned long __init free_all_bootmem(void)
+ 	list_for_each_entry(bdata, &bdata_list, list)
+ 		total_pages += free_all_bootmem_core(bdata);
+ 
++	totalram_pages += total_pages;
++
+ 	return total_pages;
+ }
+ 
+diff --git a/mm/nobootmem.c b/mm/nobootmem.c
+index 0ae8d91..61107cf 100644
+--- a/mm/nobootmem.c
++++ b/mm/nobootmem.c
+@@ -165,6 +165,8 @@ void __init reset_all_zones_managed_pages(void)
+  */
+ unsigned long __init free_all_bootmem(void)
+ {
++	unsigned long pages;
++
+ 	reset_all_zones_managed_pages();
+ 
+ 	/*
+@@ -172,7 +174,10 @@ unsigned long __init free_all_bootmem(void)
+ 	 *  because in some case like Node0 doesn't have RAM installed
+ 	 *  low ram will be on Node1
+ 	 */
+-	return free_low_memory_core_early();
++	pages = free_low_memory_core_early();
++	totalram_pages += pages;
++
++	return pages;
+ }
+ 
+ /**
 -- 
 1.8.1.2
 
