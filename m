@@ -1,34 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 1FD3F6B008C
-	for <linux-mm@kvack.org>; Sun, 26 May 2013 07:45:18 -0400 (EDT)
-Received: by mail-ob0-f171.google.com with SMTP id ef5so7063146obb.2
-        for <linux-mm@kvack.org>; Sun, 26 May 2013 04:45:17 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id A436B6B0093
+	for <linux-mm@kvack.org>; Sun, 26 May 2013 07:49:54 -0400 (EDT)
+Received: by mail-ob0-f178.google.com with SMTP id v19so7071371obq.37
+        for <linux-mm@kvack.org>; Sun, 26 May 2013 04:49:53 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <537407790857e8a5d4db5fb294a909a61be29687.1369529143.git.aquini@redhat.com>
-References: <cover.1369529143.git.aquini@redhat.com> <537407790857e8a5d4db5fb294a909a61be29687.1369529143.git.aquini@redhat.com>
+In-Reply-To: <1369547921-24264-1-git-send-email-liwanp@linux.vnet.ibm.com>
+References: <1369547921-24264-1-git-send-email-liwanp@linux.vnet.ibm.com>
 From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Sun, 26 May 2013 07:44:56 -0400
-Message-ID: <CAHGf_=qU5nBeya=God5AyG2szvtJJCDd4VOt0TJZBgiEX27Njw@mail.gmail.com>
-Subject: Re: [PATCH 01/02] swap: discard while swapping only if SWAP_FLAG_DISCARD_PAGES
+Date: Sun, 26 May 2013 07:49:33 -0400
+Message-ID: <CAHGf_=rOLAYrpkLQiM53jn-bHAuxw=rRZP0+pNV-8EUinJzP7w@mail.gmail.com>
+Subject: Re: [PATCH v3 1/6] mm/memory-hotplug: fix lowmem count overflow when
+ offline pages
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, shli@kernel.org, kzak@redhat.com, Jeff Moyer <jmoyer@redhat.com>, "riel@redhat.com" <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Mel Gorman <mgorman@suse.de>
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org
 
-> +                       /*
-> +                        * By flagging sys_swapon, a sysadmin can tell us to
-> +                        * either do sinle-time area discards only, or to just
-> +                        * perform discards for released swap page-clusters.
-> +                        * Now it's time to adjust the p->flags accordingly.
-> +                        */
-> +                       if (swap_flags & SWAP_FLAG_DISCARD_ONCE)
-> +                               p->flags &= ~SWP_PAGE_DISCARD;
-> +                       else if (swap_flags & SWAP_FLAG_DISCARD_PAGES)
-> +                               p->flags &= ~SWP_AREA_DISCARD;
+On Sun, May 26, 2013 at 1:58 AM, Wanpeng Li <liwanp@linux.vnet.ibm.com> wrote:
+> Changelog:
+>  v1 -> v2:
+>         * show number of HighTotal before hotremove
+>         * remove CONFIG_HIGHMEM
+>         * cc stable kernels
+>         * add Michal reviewed-by
+>
+> Logic memory-remove code fails to correctly account the Total High Memory
+> when a memory block which contains High Memory is offlined as shown in the
+> example below. The following patch fixes it.
+>
+> Stable for 2.6.24+.
+>
+> Before logic memory remove:
+>
+> MemTotal:        7603740 kB
+> MemFree:         6329612 kB
+> Buffers:           94352 kB
+> Cached:           872008 kB
+> SwapCached:            0 kB
+> Active:           626932 kB
+> Inactive:         519216 kB
+> Active(anon):     180776 kB
+> Inactive(anon):   222944 kB
+> Active(file):     446156 kB
+> Inactive(file):   296272 kB
+> Unevictable:           0 kB
+> Mlocked:               0 kB
+> HighTotal:       7294672 kB
+> HighFree:        5704696 kB
+> LowTotal:         309068 kB
+> LowFree:          624916 kB
+>
+> After logic memory remove:
+>
+> MemTotal:        7079452 kB
+> MemFree:         5805976 kB
+> Buffers:           94372 kB
+> Cached:           872000 kB
+> SwapCached:            0 kB
+> Active:           626936 kB
+> Inactive:         519236 kB
+> Active(anon):     180780 kB
+> Inactive(anon):   222944 kB
+> Active(file):     446156 kB
+> Inactive(file):   296292 kB
+> Unevictable:           0 kB
+> Mlocked:               0 kB
+> HighTotal:       7294672 kB
+> HighFree:        5181024 kB
+> LowTotal:       4294752076 kB
+> LowFree:          624952 kB
+>
+> Reviewed-by: Michal Hocko <mhocko@suse.cz>
+> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+> ---
+>  mm/page_alloc.c | 2 ++
+>  1 file changed, 2 insertions(+)
+>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 98cbdf6..23b921f 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -6140,6 +6140,8 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+>                 list_del(&page->lru);
+>                 rmv_page_order(page);
+>                 zone->free_area[order].nr_free--;
+> +               if (PageHighMem(page))
+> +                       totalhigh_pages -= 1 << order;
+>                 for (i = 0; i < (1 << order); i++)
+>                         SetPageReserved((page+i));
+>                 pfn += (1 << order);
 
-When using old swapon(8), this code turn off both flags, right?
+Hm. I already NAKed and you didn't answered my question. isn't it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
