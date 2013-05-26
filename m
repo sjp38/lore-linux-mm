@@ -1,111 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id C50DA6B00C8
-	for <linux-mm@kvack.org>; Sun, 26 May 2013 10:32:26 -0400 (EDT)
-Date: Sun, 26 May 2013 17:32:23 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: [PATCH v3-resend 11/11] kernel: uaccess in atomic with
- pagefault_disable
-Message-ID: <1369577426-26721-11-git-send-email-mst@redhat.com>
-References: <1369575487-26176-1-git-send-email-mst@redhat.com>
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 85D896B00CB
+	for <linux-mm@kvack.org>; Sun, 26 May 2013 10:55:53 -0400 (EDT)
+Received: by mail-ob0-f176.google.com with SMTP id wp18so7140400obc.35
+        for <linux-mm@kvack.org>; Sun, 26 May 2013 07:55:52 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1369575487-26176-1-git-send-email-mst@redhat.com>
+In-Reply-To: <20130526135237.GA2333@x61.redhat.com>
+References: <cover.1369529143.git.aquini@redhat.com> <537407790857e8a5d4db5fb294a909a61be29687.1369529143.git.aquini@redhat.com>
+ <CAHGf_=qU5nBeya=God5AyG2szvtJJCDd4VOt0TJZBgiEX27Njw@mail.gmail.com> <20130526135237.GA2333@x61.redhat.com>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Sun, 26 May 2013 10:55:32 -0400
+Message-ID: <CAHGf_=rpO=5HmZzTYsdPwCkA_rUaBEFG1dtThPMTQSmR1=7-fg@mail.gmail.com>
+Subject: Re: [PATCH 01/02] swap: discard while swapping only if SWAP_FLAG_DISCARD_PAGES
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org
+To: Rafael Aquini <aquini@redhat.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, shli@kernel.org, Karel Zak <kzak@redhat.com>, Jeff Moyer <jmoyer@redhat.com>, "riel@redhat.com" <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Mel Gorman <mgorman@suse.de>
 
-This changes might_fault so that it does not
-trigger a false positive diagnostic for e.g. the following
-sequence:
-	spin_lock_irqsave
-	pagefault_disable
-	copy_to_user
-	pagefault_enable
-	spin_unlock_irqrestore
+On Sun, May 26, 2013 at 9:52 AM, Rafael Aquini <aquini@redhat.com> wrote:
+> On Sun, May 26, 2013 at 07:44:56AM -0400, KOSAKI Motohiro wrote:
+>> > +                       /*
+>> > +                        * By flagging sys_swapon, a sysadmin can tell us to
+>> > +                        * either do sinle-time area discards only, or to just
+>> > +                        * perform discards for released swap page-clusters.
+>> > +                        * Now it's time to adjust the p->flags accordingly.
+>> > +                        */
+>> > +                       if (swap_flags & SWAP_FLAG_DISCARD_ONCE)
+>> > +                               p->flags &= ~SWP_PAGE_DISCARD;
+>> > +                       else if (swap_flags & SWAP_FLAG_DISCARD_PAGES)
+>> > +                               p->flags &= ~SWP_AREA_DISCARD;
+>>
+>> When using old swapon(8), this code turn off both flags, right
+>
+ > As the flag that enables swap discards SWAP_FLAG_DISCARD remains meaning the
+> same it meant before, when using old swapon(8) (SWP_PAGE_DISCARD|SWP_AREA_DISCARD)
 
-In particular vhost wants to do this, to call
-socket ops from under a lock.
+But old swapon(8) don't use neigher SWAP_FLAG_DISCARD_ONCE nor
+SWAP_FLAG_DISCARD_PAGES.  It uses only SWAP_FLAG_DISCARD. So, this
+condition disables both SWP_PAGE_DISCARD and SWP_AREA_DISCARD.
 
-There are 3 cases to consider:
-CONFIG_PROVE_LOCKING - might_fault is non-inline
-so it's easy to move the in_atomic test to fix
-up the false positive warning.
+And you changed that SWP_DISCARDABLE is not checked in IO path  at all.
 
-CONFIG_DEBUG_ATOMIC_SLEEP - might_fault
-is currently inline, but we are calling a
-non-inline __might_sleep anyway,
-so let's use the non-line version of might_fault
-that does the right thing.
+>-               if (si->flags & SWP_DISCARDABLE) {
+>+               if (si->flags & SWP_PAGE_DISCARD) {
 
-!CONFIG_DEBUG_ATOMIC_SLEEP && !CONFIG_PROVE_LOCKING
-__might_sleep is a nop so might_fault is a nop.
-Make this explicit.
+I suggest new swapon(8) don't pass SWP_DISCARDABLE and kernel handle
+SWP_DISCARDABLE as (SWAP_FLAG_DISCARD_ONCE | SWAP_FLAG_DISCARD_PAGES).
 
-Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
----
- include/linux/kernel.h |  7 ++-----
- mm/memory.c            | 11 +++++++----
- 2 files changed, 9 insertions(+), 9 deletions(-)
+Optionally, warn SWP_DISCARDABLE is a good idea.
 
-diff --git a/include/linux/kernel.h b/include/linux/kernel.h
-index c514c06..0153be1 100644
---- a/include/linux/kernel.h
-+++ b/include/linux/kernel.h
-@@ -193,13 +193,10 @@ extern int _cond_resched(void);
- 		(__x < 0) ? -__x : __x;		\
- 	})
- 
--#ifdef CONFIG_PROVE_LOCKING
-+#if defined(CONFIG_PROVE_LOCKING) || defined(CONFIG_DEBUG_ATOMIC_SLEEP)
- void might_fault(void);
- #else
--static inline void might_fault(void)
--{
--	__might_sleep(__FILE__, __LINE__, 0);
--}
-+static inline void might_fault(void) { }
- #endif
- 
- extern struct atomic_notifier_head panic_notifier_list;
-diff --git a/mm/memory.c b/mm/memory.c
-index c1f190f..d7d54a1 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -4210,7 +4210,7 @@ void print_vma_addr(char *prefix, unsigned long ip)
- 	up_read(&mm->mmap_sem);
- }
- 
--#ifdef CONFIG_PROVE_LOCKING
-+#if defined(CONFIG_PROVE_LOCKING) || defined(CONFIG_DEBUG_ATOMIC_SLEEP)
- void might_fault(void)
- {
- 	/*
-@@ -4222,14 +4222,17 @@ void might_fault(void)
- 	if (segment_eq(get_fs(), KERNEL_DS))
- 		return;
- 
--	__might_sleep(__FILE__, __LINE__, 0);
--
- 	/*
- 	 * it would be nicer only to annotate paths which are not under
- 	 * pagefault_disable, however that requires a larger audit and
- 	 * providing helpers like get_user_atomic.
- 	 */
--	if (!in_atomic() && current->mm)
-+	if (in_atomic())
-+		return;
-+
-+	__might_sleep(__FILE__, __LINE__, 0);
-+
-+	if (current->mm)
- 		might_lock_read(&current->mm->mmap_sem);
- }
- EXPORT_SYMBOL(might_fault);
--- 
-MST
+
+> will remain flagged when discard is enabled, so we keep doing discards the same way
+> we did before (at swapon, and for every released page-cluster).
+> The flags are removed orthogonally only when the new swapon(8) selects one of the
+> particular discard policy available by using either SWAP_FLAG_DISCARD_ONCE,
+> or SWAP_FLAG_DISCARD_PAGES flags.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
