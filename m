@@ -1,66 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 36D106B00BA
-	for <linux-mm@kvack.org>; Sun, 26 May 2013 09:43:16 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id wp1so3363204pac.17
-        for <linux-mm@kvack.org>; Sun, 26 May 2013 06:43:15 -0700 (PDT)
-From: Jiang Liu <liuj97@gmail.com>
-Subject: [PATCH v8, part3 14/14] mm: report available pages as "MemTotal" for each NUMA node
-Date: Sun, 26 May 2013 21:38:42 +0800
-Message-Id: <1369575522-26405-15-git-send-email-jiang.liu@huawei.com>
-In-Reply-To: <1369575522-26405-1-git-send-email-jiang.liu@huawei.com>
-References: <1369575522-26405-1-git-send-email-jiang.liu@huawei.com>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 82A596B00BA
+	for <linux-mm@kvack.org>; Sun, 26 May 2013 09:49:31 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id rl6so5972867pac.0
+        for <linux-mm@kvack.org>; Sun, 26 May 2013 06:49:30 -0700 (PDT)
+Message-ID: <51A212E1.40806@gmail.com>
+Date: Sun, 26 May 2013 21:49:21 +0800
+From: Hush Bensen <hush.bensen@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [patch v2 3/6] mm/memory_hotplug: Disable memory hotremove for
+ 32bit
+References: <1369547921-24264-1-git-send-email-liwanp@linux.vnet.ibm.com> <1369547921-24264-3-git-send-email-liwanp@linux.vnet.ibm.com> <20130526090054.GE10651@dhcp22.suse.cz> <CAHGf_=otK_LNgd6S09Fjjo0PfTSF3X0kj+=kGNyaTAze7m-b8w@mail.gmail.com> <51A203D4.6080001@gmail.com> <CAHGf_=pTEvunQ6fJQZ0MGwGmT31LryGmmfRUgC5T3AMzXQmx2w@mail.gmail.com>
+In-Reply-To: <CAHGf_=pTEvunQ6fJQZ0MGwGmT31LryGmmfRUgC5T3AMzXQmx2w@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org
 
-As reported by https://bugzilla.kernel.org/show_bug.cgi?id=53501,
-"MemTotal" from /proc/meminfo means memory pages managed by the buddy
-system (managed_pages), but "MemTotal" from /sys/.../node/nodex/meminfo
-means physical pages present (present_pages) within the NUMA node.
-There's a difference between managed_pages and present_pages due to
-bootmem allocator and reserved pages.
-
-And Documentation/filesystems/proc.txt says
-    MemTotal: Total usable ram (i.e. physical ram minus a few reserved
-              bits and the kernel binary code)
-
-So change /sys/.../node/nodex/meminfo to report available pages within
-the node as "MemTotal".
-
-Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-Reported-by: sworddragon2@aol.com
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
----
- mm/page_alloc.c | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 5b27db4..c9568aa 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2930,9 +2930,13 @@ EXPORT_SYMBOL(si_meminfo);
- #ifdef CONFIG_NUMA
- void si_meminfo_node(struct sysinfo *val, int nid)
- {
-+	int zone_type;		/* needs to be signed */
-+	unsigned long managed_pages = 0;
- 	pg_data_t *pgdat = NODE_DATA(nid);
- 
--	val->totalram = pgdat->node_present_pages;
-+	for (zone_type = 0; zone_type < MAX_NR_ZONES; zone_type++)
-+		managed_pages += pgdat->node_zones[zone_type].managed_pages;
-+	val->totalram = managed_pages;
- 	val->freeram = node_page_state(nid, NR_FREE_PAGES);
- #ifdef CONFIG_HIGHMEM
- 	val->totalhigh = pgdat->node_zones[ZONE_HIGHMEM].managed_pages;
--- 
-1.8.1.2
+ao? 2013/5/26 21:06, KOSAKI Motohiro a??e??:
+> On Sun, May 26, 2013 at 8:45 AM, Hush Bensen <hush.bensen@gmail.com> wrote:
+>> ao? 2013/5/26 19:58, KOSAKI Motohiro a??e??:
+>>
+>>>>> As KOSAKI Motohiro mentioned, memory hotplug don't support 32bit since
+>>>>> it was born,
+>>>> Why? any reference? This reasoning is really weak.
+>>> I have no seen any highmem support in memory hotplug code and I don't
+>>> think this
+>>> patch fixes all 32bit highmem issue. If anybody are interesting to
+>>> support it, it is good thing. But in fact, _now_ it is broken when
+>>> enable HIGHMEM.
+>>
+>> But online/offline memory can work well when enable HIGHMEM, isn't it?
+> If you are lucky.
+I think it can work well on my x86_32 with highmem enable box.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
