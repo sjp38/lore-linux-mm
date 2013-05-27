@@ -1,47 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 636FE6B0036
-	for <linux-mm@kvack.org>; Mon, 27 May 2013 12:24:59 -0400 (EDT)
-Received: by mail-oa0-f50.google.com with SMTP id l20so8767803oag.23
-        for <linux-mm@kvack.org>; Mon, 27 May 2013 09:24:58 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id C8DEC6B0036
+	for <linux-mm@kvack.org>; Mon, 27 May 2013 12:35:34 -0400 (EDT)
+Date: Mon, 27 May 2013 18:35:30 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v3-resend 00/11] uaccess: better might_sleep/might_fault
+ behavior
+Message-ID: <20130527163530.GB19373@twins.programming.kicks-ass.net>
+References: <1369575487-26176-1-git-send-email-mst@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <1369668984-2787-1-git-send-email-dserrg@gmail.com>
-References: <1369668984-2787-1-git-send-email-dserrg@gmail.com>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Mon, 27 May 2013 12:24:38 -0400
-Message-ID: <CAHGf_=pyEP=zJ80HSKAojymSmW=S1s+1QFN663OXD8RtonLVmA@mail.gmail.com>
-Subject: Re: [PATCH][trivial] memcg: Kconfig info update
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1369575487-26176-1-git-send-email-mst@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Dyasly <dserrg@gmail.com>
-Cc: cgroups@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, linux-arch@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org
 
-On Mon, May 27, 2013 at 11:36 AM, Sergey Dyasly <dserrg@gmail.com> wrote:
-> Now there are only 2 members in struct page_cgroup.
-> Update config MEMCG description accordingly.
->
-> Signed-off-by: Sergey Dyasly <dserrg@gmail.com>
-> ---
->  init/Kconfig | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/init/Kconfig b/init/Kconfig
-> index 9d3a788..16d1502 100644
-> --- a/init/Kconfig
-> +++ b/init/Kconfig
-> @@ -876,7 +876,7 @@ config MEMCG
->
->           Note that setting this option increases fixed memory overhead
->           associated with each page of memory in the system. By this,
-> -         20(40)bytes/PAGE_SIZE on 32(64)bit system will be occupied by memory
-> +         8(16)bytes/PAGE_SIZE on 32(64)bit system will be occupied by memory
->           usage tracking struct at boot. Total amount of this is printed out
->           at boot.
+On Sun, May 26, 2013 at 05:21:30PM +0300, Michael S. Tsirkin wrote:
+> If the changes look good, would sched maintainers
+> please consider merging them through sched/core because of the
+> interaction with the scheduler?
+> 
+> Please review, and consider for 3.11.
 
-Yes, kernel developers often foget to update documentations. Nice catch!
-
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+I'll stick them in my queue, we'll see if anything falls over ;-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
