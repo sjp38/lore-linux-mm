@@ -1,74 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 81F266B00EB
-	for <linux-mm@kvack.org>; Sun, 26 May 2013 21:49:47 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 982823EE0BC
-	for <linux-mm@kvack.org>; Mon, 27 May 2013 10:49:45 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8807845DE55
-	for <linux-mm@kvack.org>; Mon, 27 May 2013 10:49:45 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F85445DE4F
-	for <linux-mm@kvack.org>; Mon, 27 May 2013 10:49:45 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C3C3E08005
-	for <linux-mm@kvack.org>; Mon, 27 May 2013 10:49:45 +0900 (JST)
-Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id EF0DBE08001
-	for <linux-mm@kvack.org>; Mon, 27 May 2013 10:49:44 +0900 (JST)
-Message-ID: <51A2BBA7.50607@jp.fujitsu.com>
-Date: Mon, 27 May 2013 10:49:27 +0900
-From: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v8 9/9] vmcore: support mmap() on /proc/vmcore
-References: <20130523052421.13864.83978.stgit@localhost6.localdomain6> <20130523052547.13864.83306.stgit@localhost6.localdomain6> <20130523152445.17549682ae45b5aab3f3cde0@linux-foundation.org> <CAJGZr0LwivLTH+E7WAR1B9_6B4e=jv04KgCUL_PdVpi9JjDpBw@mail.gmail.com>
-In-Reply-To: <CAJGZr0LwivLTH+E7WAR1B9_6B4e=jv04KgCUL_PdVpi9JjDpBw@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 945AC6B00ED
+	for <linux-mm@kvack.org>; Sun, 26 May 2013 23:15:46 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id lf10so5333786pab.10
+        for <linux-mm@kvack.org>; Sun, 26 May 2013 20:15:45 -0700 (PDT)
+From: Bob Liu <lliubbo@gmail.com>
+Subject: [PATCH] drivers: staging: zcache: fix compile error
+Date: Mon, 27 May 2013 11:15:40 +0800
+Message-Id: <1369624540-21824-1-git-send-email-bob.liu@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Maxim Uvarov <muvarov@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, hughd@google.com, jingbai.ma@hp.com, "kexec@lists.infradead.org" <kexec@lists.infradead.org>, linux-kernel@vger.kernel.org, lisa.mitchell@hp.com, linux-mm@kvack.org, Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>, "Eric W. Biederman" <ebiederm@xmission.com>, kosaki.motohiro@jp.fujitsu.com, zhangyanfei@cn.fujitsu.com, walken@google.com, Cliff Wickman <cpw@sgi.com>, Vivek Goyal <vgoyal@redhat.com>
+To: akpm@linux-foundation.org
+Cc: dan.magenheimer@oracle.com, fengguang.wu@intel.com, konrad.wilk@oracle.com, gregkh@linuxfoundation.org, linux-mm@kvack.org, Bob Liu <bob.liu@oracle.com>
 
-(2013/05/24 18:02), Maxim Uvarov wrote:
->
->
->
-> 2013/5/24 Andrew Morton <akpm@linux-foundation.org <mailto:akpm@linux-foundation.org>>
->
->     On Thu, 23 May 2013 14:25:48 +0900 HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com <mailto:d.hatayama@jp.fujitsu.com>> wrote:
->
->      > This patch introduces mmap_vmcore().
->      >
->      > Don't permit writable nor executable mapping even with mprotect()
->      > because this mmap() is aimed at reading crash dump memory.
->      > Non-writable mapping is also requirement of remap_pfn_range() when
->      > mapping linear pages on non-consecutive physical pages; see
->      > is_cow_mapping().
->      >
->      > Set VM_MIXEDMAP flag to remap memory by remap_pfn_range and by
->      > remap_vmalloc_range_pertial at the same time for a single
->      > vma. do_munmap() can correctly clean partially remapped vma with two
->      > functions in abnormal case. See zap_pte_range(), vm_normal_page() and
->      > their comments for details.
->      >
->      > On x86-32 PAE kernels, mmap() supports at most 16TB memory only. This
->      > limitation comes from the fact that the third argument of
->      > remap_pfn_range(), pfn, is of 32-bit length on x86-32: unsigned long.
->
->     More reviewing and testing, please.
->
->
-> Do you have git pull for both kernel and userland changes? I would like to do some more testing on my machines.
->
-> Maxim.
+Fix below compile error:
+drivers/built-in.o: In function `zcache_pampd_free':
+>> zcache-main.c:(.text+0xb1c8a): undefined reference to `ramster_pampd_free'
+>> zcache-main.c:(.text+0xb1cbc): undefined reference to `ramster_count_foreign_pages'
+drivers/built-in.o: In function `zcache_pampd_get_data_and_free':
+>> zcache-main.c:(.text+0xb1f05): undefined reference to `ramster_count_foreign_pages'
+drivers/built-in.o: In function `zcache_cpu_notifier':
+>> zcache-main.c:(.text+0xb228d): undefined reference to `ramster_cpu_up'
+>> zcache-main.c:(.text+0xb2339): undefined reference to `ramster_cpu_down'
+drivers/built-in.o: In function `zcache_pampd_create':
+>> (.text+0xb26ce): undefined reference to `ramster_count_foreign_pages'
+drivers/built-in.o: In function `zcache_pampd_create':
+>> (.text+0xb27ef): undefined reference to `ramster_count_foreign_pages'
+drivers/built-in.o: In function `zcache_put_page':
+>> (.text+0xb299f): undefined reference to `ramster_do_preload_flnode'
+drivers/built-in.o: In function `zcache_flush_page':
+>> (.text+0xb2ea3): undefined reference to `ramster_do_preload_flnode'
+drivers/built-in.o: In function `zcache_flush_object':
+>> (.text+0xb307c): undefined reference to `ramster_do_preload_flnode'
+drivers/built-in.o: In function `zcache_init':
+>> zcache-main.c:(.text+0xb3629): undefined reference to `ramster_register_pamops'
+>> zcache-main.c:(.text+0xb3868): undefined reference to `ramster_init'
+>> drivers/built-in.o:(.rodata+0x15058): undefined reference to `ramster_foreign_eph_pages'
+>> drivers/built-in.o:(.rodata+0x15078): undefined reference to `ramster_foreign_pers_pages'
 
-Thanks! That's very helpful.
+Signed-off-by: Bob Liu <bob.liu@oracle.com>
+---
+ drivers/staging/zcache/ramster.h         |    4 ----
+ drivers/staging/zcache/ramster/debug.c   |    2 ++
+ drivers/staging/zcache/ramster/ramster.c |    6 ++++--
+ 3 files changed, 6 insertions(+), 6 deletions(-)
 
+diff --git a/drivers/staging/zcache/ramster.h b/drivers/staging/zcache/ramster.h
+index e1f91d5..a858666 100644
+--- a/drivers/staging/zcache/ramster.h
++++ b/drivers/staging/zcache/ramster.h
+@@ -11,10 +11,6 @@
+ #ifndef _ZCACHE_RAMSTER_H_
+ #define _ZCACHE_RAMSTER_H_
+ 
+-#ifdef CONFIG_RAMSTER_MODULE
+-#define CONFIG_RAMSTER
+-#endif
+-
+ #ifdef CONFIG_RAMSTER
+ #include "ramster/ramster.h"
+ #else
+diff --git a/drivers/staging/zcache/ramster/debug.c b/drivers/staging/zcache/ramster/debug.c
+index 327e4f0..5b26ee9 100644
+--- a/drivers/staging/zcache/ramster/debug.c
++++ b/drivers/staging/zcache/ramster/debug.c
+@@ -1,6 +1,8 @@
+ #include <linux/atomic.h>
+ #include "debug.h"
+ 
++ssize_t ramster_foreign_eph_pages;
++ssize_t ramster_foreign_pers_pages;
+ #ifdef CONFIG_DEBUG_FS
+ #include <linux/debugfs.h>
+ 
+diff --git a/drivers/staging/zcache/ramster/ramster.c b/drivers/staging/zcache/ramster/ramster.c
+index b18b887..a937ce1 100644
+--- a/drivers/staging/zcache/ramster/ramster.c
++++ b/drivers/staging/zcache/ramster/ramster.c
+@@ -66,8 +66,6 @@ static int ramster_remote_target_nodenum __read_mostly = -1;
+ 
+ /* Used by this code. */
+ long ramster_flnodes;
+-ssize_t ramster_foreign_eph_pages;
+-ssize_t ramster_foreign_pers_pages;
+ /* FIXME frontswap selfshrinking knobs in debugfs? */
+ 
+ static LIST_HEAD(ramster_rem_op_list);
+@@ -399,14 +397,18 @@ void ramster_count_foreign_pages(bool eph, int count)
+ 			inc_ramster_foreign_eph_pages();
+ 		} else {
+ 			dec_ramster_foreign_eph_pages();
++#ifdef CONFIG_RAMSTER_DEBUG
+ 			WARN_ON_ONCE(ramster_foreign_eph_pages < 0);
++#endif
+ 		}
+ 	} else {
+ 		if (count > 0) {
+ 			inc_ramster_foreign_pers_pages();
+ 		} else {
+ 			dec_ramster_foreign_pers_pages();
++#ifdef CONFIG_RAMSTER_DEBUG
+ 			WARN_ON_ONCE(ramster_foreign_pers_pages < 0);
++#endif
+ 		}
+ 	}
+ }
 -- 
-Thanks.
-HATAYAMA, Daisuke
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
