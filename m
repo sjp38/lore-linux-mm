@@ -1,116 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 551AF6B00E4
-	for <linux-mm@kvack.org>; Sun, 26 May 2013 20:02:51 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 27 May 2013 09:54:02 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id A3A1C2BB0023
-	for <linux-mm@kvack.org>; Mon, 27 May 2013 10:02:46 +1000 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4QNmWxW23068886
-	for <linux-mm@kvack.org>; Mon, 27 May 2013 09:48:32 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4R02jlH001867
-	for <linux-mm@kvack.org>; Mon, 27 May 2013 10:02:45 +1000
-Date: Mon, 27 May 2013 08:02:44 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v3 1/6] mm/memory-hotplug: fix lowmem count overflow when
- offline pages
-Message-ID: <20130527000243.GA5834@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1369547921-24264-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <CAHGf_=rOLAYrpkLQiM53jn-bHAuxw=rRZP0+pNV-8EUinJzP7w@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id EDC626B00E7
+	for <linux-mm@kvack.org>; Sun, 26 May 2013 20:14:04 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id F41883EE0B6
+	for <linux-mm@kvack.org>; Mon, 27 May 2013 09:14:02 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E08B03A62C4
+	for <linux-mm@kvack.org>; Mon, 27 May 2013 09:14:02 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C5BD61EF08D
+	for <linux-mm@kvack.org>; Mon, 27 May 2013 09:14:02 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B1A70E08005
+	for <linux-mm@kvack.org>; Mon, 27 May 2013 09:14:02 +0900 (JST)
+Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 61C361DB8050
+	for <linux-mm@kvack.org>; Mon, 27 May 2013 09:14:02 +0900 (JST)
+Message-ID: <51A2A524.4080303@jp.fujitsu.com>
+Date: Mon, 27 May 2013 09:13:24 +0900
+From: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAHGf_=rOLAYrpkLQiM53jn-bHAuxw=rRZP0+pNV-8EUinJzP7w@mail.gmail.com>
+Subject: Re: [PATCH v8 3/9] vmcore: treat memory chunks referenced by PT_LOAD
+ program header entries in page-size boundary in vmcore_list
+References: <20130523052421.13864.83978.stgit@localhost6.localdomain6> <20130523052513.13864.85440.stgit@localhost6.localdomain6> <20130523144928.0328bb3ad7ccc1ff2da9558d@linux-foundation.org> <20130524131217.GA18218@redhat.com>
+In-Reply-To: <20130524131217.GA18218@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vivek Goyal <vgoyal@redhat.com>, ebiederm@xmission.com, cpw@sgi.com, kumagai-atsushi@mxc.nes.nec.co.jp, lisa.mitchell@hp.com, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, zhangyanfei@cn.fujitsu.com, jingbai.ma@hp.com, linux-mm@kvack.org, riel@redhat.com, walken@google.com, hughd@google.com, kosaki.motohiro@jp.fujitsu.com
 
-On Sun, May 26, 2013 at 07:49:33AM -0400, KOSAKI Motohiro wrote:
->On Sun, May 26, 2013 at 1:58 AM, Wanpeng Li <liwanp@linux.vnet.ibm.com> wrote:
->> Changelog:
->>  v1 -> v2:
->>         * show number of HighTotal before hotremove
->>         * remove CONFIG_HIGHMEM
->>         * cc stable kernels
->>         * add Michal reviewed-by
+(2013/05/24 22:12), Vivek Goyal wrote:
+> On Thu, May 23, 2013 at 02:49:28PM -0700, Andrew Morton wrote:
+>> On Thu, 23 May 2013 14:25:13 +0900 HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com> wrote:
 >>
->> Logic memory-remove code fails to correctly account the Total High Memory
->> when a memory block which contains High Memory is offlined as shown in the
->> example below. The following patch fixes it.
+>>> Treat memory chunks referenced by PT_LOAD program header entries in
+>>> page-size boundary in vmcore_list. Formally, for each range [start,
+>>> end], we set up the corresponding vmcore object in vmcore_list to
+>>> [rounddown(start, PAGE_SIZE), roundup(end, PAGE_SIZE)].
+>>>
+>>> This change affects layout of /proc/vmcore.
 >>
->> Stable for 2.6.24+.
+>> Well, changing a userspace interface is generally unacceptable because
+>> it can break existing userspace code.
 >>
->> Before logic memory remove:
->>
->> MemTotal:        7603740 kB
->> MemFree:         6329612 kB
->> Buffers:           94352 kB
->> Cached:           872008 kB
->> SwapCached:            0 kB
->> Active:           626932 kB
->> Inactive:         519216 kB
->> Active(anon):     180776 kB
->> Inactive(anon):   222944 kB
->> Active(file):     446156 kB
->> Inactive(file):   296272 kB
->> Unevictable:           0 kB
->> Mlocked:               0 kB
->> HighTotal:       7294672 kB
->> HighFree:        5704696 kB
->> LowTotal:         309068 kB
->> LowFree:          624916 kB
->>
->> After logic memory remove:
->>
->> MemTotal:        7079452 kB
->> MemFree:         5805976 kB
->> Buffers:           94372 kB
->> Cached:           872000 kB
->> SwapCached:            0 kB
->> Active:           626936 kB
->> Inactive:         519236 kB
->> Active(anon):     180780 kB
->> Inactive(anon):   222944 kB
->> Active(file):     446156 kB
->> Inactive(file):   296292 kB
->> Unevictable:           0 kB
->> Mlocked:               0 kB
->> HighTotal:       7294672 kB
->> HighFree:        5181024 kB
->> LowTotal:       4294752076 kB
->> LowFree:          624952 kB
->>
->> Reviewed-by: Michal Hocko <mhocko@suse.cz>
->> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->> ---
->>  mm/page_alloc.c | 2 ++
->>  1 file changed, 2 insertions(+)
->>
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index 98cbdf6..23b921f 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -6140,6 +6140,8 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
->>                 list_del(&page->lru);
->>                 rmv_page_order(page);
->>                 zone->free_area[order].nr_free--;
->> +               if (PageHighMem(page))
->> +                       totalhigh_pages -= 1 << order;
->>                 for (i = 0; i < (1 << order); i++)
->>                         SetPageReserved((page+i));
->>                 pfn += (1 << order);
+>> If you think the risk is acceptable then please do explain why.  In
+>> great detail!
 >
->Hm. I already NAKed and you didn't answered my question. isn't it?
+> I think it should not be a problem as /proc/vmcore is useful only when
+> one parses the elf headers and then accesses the contents of file based
+> on the header information. This patch just introduces additional areas
+> in /proc/vmcore file and ELF headers still point to right contents. So
+> any tool parsing ELF headers and then accessing file contents based on
+> that info should still be fine.
+>
+> AFAIK, no user space tool should be broken there.
+>
+> Thanks
+> Vivek
+>
 
-Jiang makes his effort to support highmem for memory hotremove, he also
-fix this bug, http://marc.info/?l=linux-mm&m=136957578620221&w=2
+Yes, the changes are new introduction of holes between components of ELF
+and tools doesn't reach the holes as long as by looking up program header
+table and other tables. cp command touches the holes but trivially works
+well.
+
+-- 
+Thanks.
+HATAYAMA, Daisuke
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
