@@ -1,10 +1,9 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v3 1/6] mm/memory-hotplug: fix lowmem count overflow when
- offline pages
-Date: Mon, 27 May 2013 08:02:44 +0800
-Message-ID: <15573.2332416394$1369612981@news.gmane.org>
-References: <1369547921-24264-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <CAHGf_=rOLAYrpkLQiM53jn-bHAuxw=rRZP0+pNV-8EUinJzP7w@mail.gmail.com>
+Subject: Re: [PATCH v8, part3 12/14] mm: correctly update zone->mamaged_pages
+Date: Mon, 27 May 2013 08:52:31 +0800
+Message-ID: <5556.69651735133$1369615980@news.gmane.org>
+References: <1369575522-26405-1-git-send-email-jiang.liu@huawei.com>
+ <1369575522-26405-13-git-send-email-jiang.liu@huawei.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -12,110 +11,268 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1Ugktp-0008B9-H6
-	for glkm-linux-mm-2@m.gmane.org; Mon, 27 May 2013 02:02:53 +0200
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 551AF6B00E4
-	for <linux-mm@kvack.org>; Sun, 26 May 2013 20:02:51 -0400 (EDT)
+	id 1Uglg5-0001WX-T3
+	for glkm-linux-mm-2@m.gmane.org; Mon, 27 May 2013 02:52:46 +0200
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id B82436B00E9
+	for <linux-mm@kvack.org>; Sun, 26 May 2013 20:52:42 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 27 May 2013 09:54:02 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id A3A1C2BB0023
-	for <linux-mm@kvack.org>; Mon, 27 May 2013 10:02:46 +1000 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4QNmWxW23068886
-	for <linux-mm@kvack.org>; Mon, 27 May 2013 09:48:32 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4R02jlH001867
-	for <linux-mm@kvack.org>; Mon, 27 May 2013 10:02:45 +1000
+	Mon, 27 May 2013 21:49:53 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id BFF342BB0055
+	for <linux-mm@kvack.org>; Mon, 27 May 2013 10:52:35 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4R0cBs024051714
+	for <linux-mm@kvack.org>; Mon, 27 May 2013 10:38:12 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4R0qWqi031636
+	for <linux-mm@kvack.org>; Mon, 27 May 2013 10:52:34 +1000
 Content-Disposition: inline
-In-Reply-To: <CAHGf_=rOLAYrpkLQiM53jn-bHAuxw=rRZP0+pNV-8EUinJzP7w@mail.gmail.com>
+In-Reply-To: <1369575522-26405-13-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org
+To: Jiang Liu <liuj97@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Tang
 
-On Sun, May 26, 2013 at 07:49:33AM -0400, KOSAKI Motohiro wrote:
->On Sun, May 26, 2013 at 1:58 AM, Wanpeng Li <liwanp@linux.vnet.ibm.com> wrote:
->> Changelog:
->>  v1 -> v2:
->>         * show number of HighTotal before hotremove
->>         * remove CONFIG_HIGHMEM
->>         * cc stable kernels
->>         * add Michal reviewed-by
->>
->> Logic memory-remove code fails to correctly account the Total High Memory
->> when a memory block which contains High Memory is offlined as shown in the
->> example below. The following patch fixes it.
->>
->> Stable for 2.6.24+.
->>
->> Before logic memory remove:
->>
->> MemTotal:        7603740 kB
->> MemFree:         6329612 kB
->> Buffers:           94352 kB
->> Cached:           872008 kB
->> SwapCached:            0 kB
->> Active:           626932 kB
->> Inactive:         519216 kB
->> Active(anon):     180776 kB
->> Inactive(anon):   222944 kB
->> Active(file):     446156 kB
->> Inactive(file):   296272 kB
->> Unevictable:           0 kB
->> Mlocked:               0 kB
->> HighTotal:       7294672 kB
->> HighFree:        5704696 kB
->> LowTotal:         309068 kB
->> LowFree:          624916 kB
->>
->> After logic memory remove:
->>
->> MemTotal:        7079452 kB
->> MemFree:         5805976 kB
->> Buffers:           94372 kB
->> Cached:           872000 kB
->> SwapCached:            0 kB
->> Active:           626936 kB
->> Inactive:         519236 kB
->> Active(anon):     180780 kB
->> Inactive(anon):   222944 kB
->> Active(file):     446156 kB
->> Inactive(file):   296292 kB
->> Unevictable:           0 kB
->> Mlocked:               0 kB
->> HighTotal:       7294672 kB
->> HighFree:        5181024 kB
->> LowTotal:       4294752076 kB
->> LowFree:          624952 kB
->>
->> Reviewed-by: Michal Hocko <mhocko@suse.cz>
->> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->> ---
->>  mm/page_alloc.c | 2 ++
->>  1 file changed, 2 insertions(+)
->>
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index 98cbdf6..23b921f 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -6140,6 +6140,8 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
->>                 list_del(&page->lru);
->>                 rmv_page_order(page);
->>                 zone->free_area[order].nr_free--;
->> +               if (PageHighMem(page))
->> +                       totalhigh_pages -= 1 << order;
->>                 for (i = 0; i < (1 << order); i++)
->>                         SetPageReserved((page+i));
->>                 pfn += (1 << order);
+On Sun, May 26, 2013 at 09:38:40PM +0800, Jiang Liu wrote:
+>Enhance adjust_managed_page_count() to adjust totalhigh_pages for
+>highmem pages. And change code which directly adjusts totalram_pages
+>to use adjust_managed_page_count() because it adjusts totalram_pages,
+>totalhigh_pages and zone->managed_pages altogether in a safe way.
 >
->Hm. I already NAKed and you didn't answered my question. isn't it?
+>Remove inc_totalhigh_pages() and dec_totalhigh_pages() from xen/balloon
+>driver bacause adjust_managed_page_count() has already adjusted
+>totalhigh_pages.
+>
+>This patch also fixes two bugs:
+>1) enhances virtio_balloon driver to adjust totalhigh_pages when
+>   reserve/unreserve pages.
+>2) enhance memory_hotplug.c to adjust totalhigh_pages when hot-removing
+>   memory.
+>
+>We still need to deal with modifications of totalram_pages in file
+>arch/powerpc/platforms/pseries/cmm.c, but need help from PPC experts.
+>
+>Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+>Cc: Chris Metcalf <cmetcalf@tilera.com>
+>Cc: Rusty Russell <rusty@rustcorp.com.au>
+>Cc: "Michael S. Tsirkin" <mst@redhat.com>
+>Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+>Cc: Jeremy Fitzhardinge <jeremy@goop.org>
+>Cc: Wen Congyang <wency@cn.fujitsu.com>
+>Cc: Andrew Morton <akpm@linux-foundation.org>
+>Cc: Tang Chen <tangchen@cn.fujitsu.com>
+>Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>Cc: Mel Gorman <mgorman@suse.de>
+>Cc: Minchan Kim <minchan@kernel.org>
+>Cc: linux-kernel@vger.kernel.org
+>Cc: virtualization@lists.linux-foundation.org
+>Cc: xen-devel@lists.xensource.com
+>Cc: linux-mm@kvack.org
+>---
+> drivers/virtio/virtio_balloon.c |  8 +++++---
+> drivers/xen/balloon.c           | 23 +++++------------------
+> mm/hugetlb.c                    |  2 +-
+> mm/memory_hotplug.c             | 16 +++-------------
+> mm/page_alloc.c                 | 10 +++++-----
+> 5 files changed, 19 insertions(+), 40 deletions(-)
+>
+>diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+>index bd3ae32..6649968 100644
+>--- a/drivers/virtio/virtio_balloon.c
+>+++ b/drivers/virtio/virtio_balloon.c
+>@@ -148,7 +148,7 @@ static void fill_balloon(struct virtio_balloon *vb, size_t num)
+> 		}
+> 		set_page_pfns(vb->pfns + vb->num_pfns, page);
+> 		vb->num_pages += VIRTIO_BALLOON_PAGES_PER_PAGE;
+>-		totalram_pages--;
+>+		adjust_managed_page_count(page, -1);
+> 	}
+>
+> 	/* Did we get any? */
+>@@ -160,11 +160,13 @@ static void fill_balloon(struct virtio_balloon *vb, size_t num)
+> static void release_pages_by_pfn(const u32 pfns[], unsigned int num)
+> {
+> 	unsigned int i;
+>+	struct page *page;
+>
+> 	/* Find pfns pointing at start of each page, get pages and free them. */
+> 	for (i = 0; i < num; i += VIRTIO_BALLOON_PAGES_PER_PAGE) {
+>-		balloon_page_free(balloon_pfn_to_page(pfns[i]));
+>-		totalram_pages++;
+>+		page = balloon_pfn_to_page(pfns[i]);
+>+		balloon_page_free(page);
+>+		adjust_managed_page_count(page, 1);
+> 	}
+> }
+>
+>diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
+>index 930fb68..c8aab4e 100644
+>--- a/drivers/xen/balloon.c
+>+++ b/drivers/xen/balloon.c
+>@@ -89,14 +89,6 @@ EXPORT_SYMBOL_GPL(balloon_stats);
+> /* We increase/decrease in batches which fit in a page */
+> static xen_pfn_t frame_list[PAGE_SIZE / sizeof(unsigned long)];
+>
+>-#ifdef CONFIG_HIGHMEM
+>-#define inc_totalhigh_pages() (totalhigh_pages++)
+>-#define dec_totalhigh_pages() (totalhigh_pages--)
+>-#else
+>-#define inc_totalhigh_pages() do {} while (0)
+>-#define dec_totalhigh_pages() do {} while (0)
+>-#endif
+>-
+> /* List of ballooned pages, threaded through the mem_map array. */
+> static LIST_HEAD(ballooned_pages);
+>
+>@@ -132,9 +124,7 @@ static void __balloon_append(struct page *page)
+> static void balloon_append(struct page *page)
+> {
+> 	__balloon_append(page);
+>-	if (PageHighMem(page))
+>-		dec_totalhigh_pages();
+>-	totalram_pages--;
+>+	adjust_managed_page_count(page, -1);
+> }
+>
+> /* balloon_retrieve: rescue a page from the balloon, if it is not empty. */
+>@@ -151,13 +141,12 @@ static struct page *balloon_retrieve(bool prefer_highmem)
+> 		page = list_entry(ballooned_pages.next, struct page, lru);
+> 	list_del(&page->lru);
+>
+>-	if (PageHighMem(page)) {
+>+	if (PageHighMem(page))
+> 		balloon_stats.balloon_high--;
+>-		inc_totalhigh_pages();
+>-	} else
+>+	else
+> 		balloon_stats.balloon_low--;
+>
+>-	totalram_pages++;
+>+	adjust_managed_page_count(page, 1);
+>
+> 	return page;
+> }
+>@@ -372,9 +361,7 @@ static enum bp_state increase_reservation(unsigned long nr_pages)
+> #endif
+>
+> 		/* Relinquish the page back to the allocator. */
+>-		ClearPageReserved(page);
+>-		init_page_count(page);
+>-		__free_page(page);
+>+		__free_reserved_page(page);
+> 	}
+>
+> 	balloon_stats.current_pages += rc;
+>diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+>index f8feeec..95c5a6b 100644
+>--- a/mm/hugetlb.c
+>+++ b/mm/hugetlb.c
+>@@ -1246,7 +1246,7 @@ static void __init gather_bootmem_prealloc(void)
+> 		 * side-effects, like CommitLimit going negative.
+> 		 */
+> 		if (h->order > (MAX_ORDER - 1))
+>-			totalram_pages += 1 << h->order;
+>+			adjust_managed_page_count(page, 1 << h->order);
+> 	}
+> }
+>
+>diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>index 1a16ea0..7244e67 100644
+>--- a/mm/memory_hotplug.c
+>+++ b/mm/memory_hotplug.c
+>@@ -772,20 +772,13 @@ EXPORT_SYMBOL_GPL(__online_page_set_limits);
+>
+> void __online_page_increment_counters(struct page *page)
+> {
+>-	totalram_pages++;
+>-
+>-#ifdef CONFIG_HIGHMEM
+>-	if (PageHighMem(page))
+>-		totalhigh_pages++;
+>-#endif
+>+	adjust_managed_page_count(page, 1);
+> }
+> EXPORT_SYMBOL_GPL(__online_page_increment_counters);
+>
+> void __online_page_free(struct page *page)
+> {
+>-	ClearPageReserved(page);
+>-	init_page_count(page);
+>-	__free_page(page);
+>+	__free_reserved_page(page);
+> }
+> EXPORT_SYMBOL_GPL(__online_page_free);
+>
+>@@ -983,7 +976,6 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+> 		return ret;
+> 	}
+>
+>-	zone->managed_pages += onlined_pages;
+> 	zone->present_pages += onlined_pages;
+>
+> 	pgdat_resize_lock(zone->zone_pgdat, &flags);
+>@@ -1572,15 +1564,13 @@ repeat:
+> 	/* reset pagetype flags and makes migrate type to be MOVABLE */
+> 	undo_isolate_page_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
+> 	/* removal success */
+>-	zone->managed_pages -= offlined_pages;
+>+	adjust_managed_page_count(pfn_to_page(start_pfn), -offlined_pages);
+> 	zone->present_pages -= offlined_pages;
+>
+> 	pgdat_resize_lock(zone->zone_pgdat, &flags);
+> 	zone->zone_pgdat->node_present_pages -= offlined_pages;
+> 	pgdat_resize_unlock(zone->zone_pgdat, &flags);
+>
+>-	totalram_pages -= offlined_pages;
+>-
+> 	init_per_zone_wmark_min();
+>
+> 	if (!populated_zone(zone)) {
+>diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>index 403afa6..5b27db4 100644
+>--- a/mm/page_alloc.c
+>+++ b/mm/page_alloc.c
+>@@ -783,11 +783,7 @@ void __init init_cma_reserved_pageblock(struct page *page)
+> 	set_page_refcounted(page);
+> 	set_pageblock_migratetype(page, MIGRATE_CMA);
+> 	__free_pages(page, pageblock_order);
+>-	totalram_pages += pageblock_nr_pages;
+>-#ifdef CONFIG_HIGHMEM
+>-	if (PageHighMem(page))
+>-		totalhigh_pages += pageblock_nr_pages;
+>-#endif
+>+	adjust_managed_page_count(page, pageblock_nr_pages);
+> }
+> #endif
+>
+>@@ -5232,6 +5228,10 @@ void adjust_managed_page_count(struct page *page, long count)
+> 	spin_lock(&managed_page_count_lock);
+> 	page_zone(page)->managed_pages += count;
+> 	totalram_pages += count;
+>+#ifdef	CONFIG_HIGHMEM
 
-Jiang makes his effort to support highmem for memory hotremove, he also
-fix this bug, http://marc.info/?l=linux-mm&m=136957578620221&w=2
+Don't need CONFIG_HIGHMEM here.
+
+Regards,
+Wanpeng Li 
+
+>+	if (PageHighMem(page))
+>+		totalhigh_pages += count;
+>+#endif
+> 	spin_unlock(&managed_page_count_lock);
+> }
+> EXPORT_SYMBOL(adjust_managed_page_count);
+>-- 
+>1.8.1.2
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
