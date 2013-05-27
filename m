@@ -1,83 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 7686D6B00F9
-	for <linux-mm@kvack.org>; Mon, 27 May 2013 04:24:15 -0400 (EDT)
-Date: Mon, 27 May 2013 17:24:13 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v5 6/7] mm: Support address range reclaim
-Message-ID: <20130527082413.GC5157@blaptop>
-References: <1368084089-24576-1-git-send-email-minchan@kernel.org>
- <1368084089-24576-7-git-send-email-minchan@kernel.org>
- <20130521173332.637942da.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130521173332.637942da.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 2C9276B00FC
+	for <linux-mm@kvack.org>; Mon, 27 May 2013 09:03:04 -0400 (EDT)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 1/4] mm: vmscan: Block kswapd if it is encountering pages under writeback -fix
+Date: Mon, 27 May 2013 14:02:55 +0100
+Message-Id: <1369659778-6772-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1369659778-6772-1-git-send-email-mgorman@suse.de>
+References: <1369659778-6772-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Namhyung Kim <namhyung@kernel.org>, Minkyung Kim <minkyung88@lge.com>
+Cc: Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Michal Hocko <mhocko@suse.cz>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-On Tue, May 21, 2013 at 05:33:32PM -0700, Andrew Morton wrote:
-> On Thu,  9 May 2013 16:21:28 +0900 Minchan Kim <minchan@kernel.org> wrote:
-> 
-> > This patch adds address range reclaim of a process.
-> > The requirement is following as,
-> > 
-> > Like webkit1, it uses a address space for handling multi tabs.
-> > IOW, it uses *one* process model so all tabs shares address space
-> > of the process. In such scenario, per-process reclaim is rather
-> > coarse-grained so this patch supports more fine-grained reclaim
-> > for being able to reclaim target address range of the process.
-> > For reclaim target range, you should use following format.
-> > 
-> > 	echo [addr] [size-byte] > /proc/pid/reclaim
-> > 
-> > The addr should be page-aligned.
-> > 
-> > So now reclaim konb's interface is following as.
-> > 
-> > echo file > /proc/pid/reclaim
-> > 	reclaim file-backed pages only
-> > 
-> > echo anon > /proc/pid/reclaim
-> > 	reclaim anonymous pages only
-> > 
-> > echo all > /proc/pid/reclaim
-> > 	reclaim all pages
-> > 
-> > echo 0x100000 8K > /proc/pid/reclaim
-> > 	reclaim pages in (0x100000 - 0x102000)
-> 
-> This might be going a bit far.  The application itself can be modified
-> to use fadvise/madvise/whatever to release unused pages and that's a
-> better interface.
+The patch "mm: vmscan: Block kswapd if it is encountering pages
+under writeback" stalls in congestion_wait it encounters a page under
+writeback that is marked for immediate reclaim. Initially this was a
+wait_on_page_writeback() but after the switch to congestion_wait(),
+there is no guarantee the page has completed writeback and it can
+be placed on a list for freeing.
 
-I agree. The webkit should be smarter and it's going on afaik but
-let's think another usecase that makes snapshot image scenario
-I mentioned in previous reply.
+This is a fix for
+mm-vmscan-block-kswapd-if-it-is-encountering-pages-under-writeback.patch
 
-Admin should discard NOT-IMPORTANT pages without modifying application's
-code.
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ mm/vmscan.c | 2 ++
+ 1 file changed, 2 insertions(+)
 
-In addition, maybe we need madvise(MADV_SWAPOUT_NOT_DONTNEED) for
-anonymous pages if we don't have such feature.
-
-> 
-> Athough it's a bit of a pipe-dream, I do think we should encourage
-> userspace to go this path, rather than providing ways for hacky admin
-> tools to go poking around in /proc/pid/maps and whacking apps
-> externally.
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index b1b38ad..4a43c28 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -766,8 +766,10 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 			if (current_is_kswapd() &&
+ 			    PageReclaim(page) &&
+ 			    zone_is_reclaim_writeback(zone)) {
++				unlock_page(page);
+ 				congestion_wait(BLK_RW_ASYNC, HZ/10);
+ 				zone_clear_flag(zone, ZONE_WRITEBACK);
++				goto keep;
+ 
+ 			/* Case 2 above */
+ 			} else if (global_reclaim(sc) ||
 -- 
-Kind regards,
-Minchan Kim
+1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
