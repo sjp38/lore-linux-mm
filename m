@@ -1,112 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 945AC6B00ED
-	for <linux-mm@kvack.org>; Sun, 26 May 2013 23:15:46 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id lf10so5333786pab.10
-        for <linux-mm@kvack.org>; Sun, 26 May 2013 20:15:45 -0700 (PDT)
-From: Bob Liu <lliubbo@gmail.com>
-Subject: [PATCH] drivers: staging: zcache: fix compile error
-Date: Mon, 27 May 2013 11:15:40 +0800
-Message-Id: <1369624540-21824-1-git-send-email-bob.liu@oracle.com>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 3FD386B00EF
+	for <linux-mm@kvack.org>; Mon, 27 May 2013 02:42:27 -0400 (EDT)
+Received: by mail-ve0-f171.google.com with SMTP id m1so4808511ves.2
+        for <linux-mm@kvack.org>; Sun, 26 May 2013 23:42:26 -0700 (PDT)
+Message-ID: <51A30052.5090206@gmail.com>
+Date: Mon, 27 May 2013 02:42:26 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v3 1/6] mm/memory-hotplug: fix lowmem count overflow when
+ offline pages
+References: <1369547921-24264-1-git-send-email-liwanp@linux.vnet.ibm.com> <CAHGf_=rOLAYrpkLQiM53jn-bHAuxw=rRZP0+pNV-8EUinJzP7w@mail.gmail.com> <51a2a2ab.a2f6420a.33bb.ffffda23SMTPIN_ADDED_BROKEN@mx.google.com>
+In-Reply-To: <51a2a2ab.a2f6420a.33bb.ffffda23SMTPIN_ADDED_BROKEN@mx.google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: dan.magenheimer@oracle.com, fengguang.wu@intel.com, konrad.wilk@oracle.com, gregkh@linuxfoundation.org, linux-mm@kvack.org, Bob Liu <bob.liu@oracle.com>
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org
 
-Fix below compile error:
-drivers/built-in.o: In function `zcache_pampd_free':
->> zcache-main.c:(.text+0xb1c8a): undefined reference to `ramster_pampd_free'
->> zcache-main.c:(.text+0xb1cbc): undefined reference to `ramster_count_foreign_pages'
-drivers/built-in.o: In function `zcache_pampd_get_data_and_free':
->> zcache-main.c:(.text+0xb1f05): undefined reference to `ramster_count_foreign_pages'
-drivers/built-in.o: In function `zcache_cpu_notifier':
->> zcache-main.c:(.text+0xb228d): undefined reference to `ramster_cpu_up'
->> zcache-main.c:(.text+0xb2339): undefined reference to `ramster_cpu_down'
-drivers/built-in.o: In function `zcache_pampd_create':
->> (.text+0xb26ce): undefined reference to `ramster_count_foreign_pages'
-drivers/built-in.o: In function `zcache_pampd_create':
->> (.text+0xb27ef): undefined reference to `ramster_count_foreign_pages'
-drivers/built-in.o: In function `zcache_put_page':
->> (.text+0xb299f): undefined reference to `ramster_do_preload_flnode'
-drivers/built-in.o: In function `zcache_flush_page':
->> (.text+0xb2ea3): undefined reference to `ramster_do_preload_flnode'
-drivers/built-in.o: In function `zcache_flush_object':
->> (.text+0xb307c): undefined reference to `ramster_do_preload_flnode'
-drivers/built-in.o: In function `zcache_init':
->> zcache-main.c:(.text+0xb3629): undefined reference to `ramster_register_pamops'
->> zcache-main.c:(.text+0xb3868): undefined reference to `ramster_init'
->> drivers/built-in.o:(.rodata+0x15058): undefined reference to `ramster_foreign_eph_pages'
->> drivers/built-in.o:(.rodata+0x15078): undefined reference to `ramster_foreign_pers_pages'
+(5/26/13 8:02 PM), Wanpeng Li wrote:
+> On Sun, May 26, 2013 at 07:49:33AM -0400, KOSAKI Motohiro wrote:
+>> On Sun, May 26, 2013 at 1:58 AM, Wanpeng Li <liwanp@linux.vnet.ibm.com> wrote:
+>>> Changelog:
+>>>  v1 -> v2:
+>>>         * show number of HighTotal before hotremove
+>>>         * remove CONFIG_HIGHMEM
+>>>         * cc stable kernels
+>>>         * add Michal reviewed-by
+>>>
+>>> Logic memory-remove code fails to correctly account the Total High Memory
+>>> when a memory block which contains High Memory is offlined as shown in the
+>>> example below. The following patch fixes it.
+>>>
+>>> Stable for 2.6.24+.
+>>>
+>>> Before logic memory remove:
+>>>
+>>> MemTotal:        7603740 kB
+>>> MemFree:         6329612 kB
+>>> Buffers:           94352 kB
+>>> Cached:           872008 kB
+>>> SwapCached:            0 kB
+>>> Active:           626932 kB
+>>> Inactive:         519216 kB
+>>> Active(anon):     180776 kB
+>>> Inactive(anon):   222944 kB
+>>> Active(file):     446156 kB
+>>> Inactive(file):   296272 kB
+>>> Unevictable:           0 kB
+>>> Mlocked:               0 kB
+>>> HighTotal:       7294672 kB
+>>> HighFree:        5704696 kB
+>>> LowTotal:         309068 kB
+>>> LowFree:          624916 kB
+>>>
+>>> After logic memory remove:
+>>>
+>>> MemTotal:        7079452 kB
+>>> MemFree:         5805976 kB
+>>> Buffers:           94372 kB
+>>> Cached:           872000 kB
+>>> SwapCached:            0 kB
+>>> Active:           626936 kB
+>>> Inactive:         519236 kB
+>>> Active(anon):     180780 kB
+>>> Inactive(anon):   222944 kB
+>>> Active(file):     446156 kB
+>>> Inactive(file):   296292 kB
+>>> Unevictable:           0 kB
+>>> Mlocked:               0 kB
+>>> HighTotal:       7294672 kB
+>>> HighFree:        5181024 kB
+>>> LowTotal:       4294752076 kB
+>>> LowFree:          624952 kB
+>>>
+>>> Reviewed-by: Michal Hocko <mhocko@suse.cz>
+>>> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+>>> ---
+>>>  mm/page_alloc.c | 2 ++
+>>>  1 file changed, 2 insertions(+)
+>>>
+>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>>> index 98cbdf6..23b921f 100644
+>>> --- a/mm/page_alloc.c
+>>> +++ b/mm/page_alloc.c
+>>> @@ -6140,6 +6140,8 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+>>>                 list_del(&page->lru);
+>>>                 rmv_page_order(page);
+>>>                 zone->free_area[order].nr_free--;
+>>> +               if (PageHighMem(page))
+>>> +                       totalhigh_pages -= 1 << order;
+>>>                 for (i = 0; i < (1 << order); i++)
+>>>                         SetPageReserved((page+i));
+>>>                 pfn += (1 << order);
+>>
+>> Hm. I already NAKed and you didn't answered my question. isn't it?
+> 
+> Jiang makes his effort to support highmem for memory hotremove, he also
+> fix this bug, http://marc.info/?l=linux-mm&m=136957578620221&w=2
 
-Signed-off-by: Bob Liu <bob.liu@oracle.com>
----
- drivers/staging/zcache/ramster.h         |    4 ----
- drivers/staging/zcache/ramster/debug.c   |    2 ++
- drivers/staging/zcache/ramster/ramster.c |    6 ++++--
- 3 files changed, 6 insertions(+), 6 deletions(-)
+OK, go ahead.
 
-diff --git a/drivers/staging/zcache/ramster.h b/drivers/staging/zcache/ramster.h
-index e1f91d5..a858666 100644
---- a/drivers/staging/zcache/ramster.h
-+++ b/drivers/staging/zcache/ramster.h
-@@ -11,10 +11,6 @@
- #ifndef _ZCACHE_RAMSTER_H_
- #define _ZCACHE_RAMSTER_H_
- 
--#ifdef CONFIG_RAMSTER_MODULE
--#define CONFIG_RAMSTER
--#endif
--
- #ifdef CONFIG_RAMSTER
- #include "ramster/ramster.h"
- #else
-diff --git a/drivers/staging/zcache/ramster/debug.c b/drivers/staging/zcache/ramster/debug.c
-index 327e4f0..5b26ee9 100644
---- a/drivers/staging/zcache/ramster/debug.c
-+++ b/drivers/staging/zcache/ramster/debug.c
-@@ -1,6 +1,8 @@
- #include <linux/atomic.h>
- #include "debug.h"
- 
-+ssize_t ramster_foreign_eph_pages;
-+ssize_t ramster_foreign_pers_pages;
- #ifdef CONFIG_DEBUG_FS
- #include <linux/debugfs.h>
- 
-diff --git a/drivers/staging/zcache/ramster/ramster.c b/drivers/staging/zcache/ramster/ramster.c
-index b18b887..a937ce1 100644
---- a/drivers/staging/zcache/ramster/ramster.c
-+++ b/drivers/staging/zcache/ramster/ramster.c
-@@ -66,8 +66,6 @@ static int ramster_remote_target_nodenum __read_mostly = -1;
- 
- /* Used by this code. */
- long ramster_flnodes;
--ssize_t ramster_foreign_eph_pages;
--ssize_t ramster_foreign_pers_pages;
- /* FIXME frontswap selfshrinking knobs in debugfs? */
- 
- static LIST_HEAD(ramster_rem_op_list);
-@@ -399,14 +397,18 @@ void ramster_count_foreign_pages(bool eph, int count)
- 			inc_ramster_foreign_eph_pages();
- 		} else {
- 			dec_ramster_foreign_eph_pages();
-+#ifdef CONFIG_RAMSTER_DEBUG
- 			WARN_ON_ONCE(ramster_foreign_eph_pages < 0);
-+#endif
- 		}
- 	} else {
- 		if (count > 0) {
- 			inc_ramster_foreign_pers_pages();
- 		} else {
- 			dec_ramster_foreign_pers_pages();
-+#ifdef CONFIG_RAMSTER_DEBUG
- 			WARN_ON_ONCE(ramster_foreign_pers_pages < 0);
-+#endif
- 		}
- 	}
- }
--- 
-1.7.10.4
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
