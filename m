@@ -1,90 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 764906B0032
-	for <linux-mm@kvack.org>; Tue, 28 May 2013 03:11:40 -0400 (EDT)
-Received: by mail-lb0-f174.google.com with SMTP id u10so7271953lbi.5
-        for <linux-mm@kvack.org>; Tue, 28 May 2013 00:11:38 -0700 (PDT)
-Message-ID: <51A45861.1010008@gmail.com>
-Date: Tue, 28 May 2013 11:10:25 +0400
-From: Max Filippov <jcmvbkbc@gmail.com>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id E52436B0032
+	for <linux-mm@kvack.org>; Tue, 28 May 2013 03:16:18 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Tue, 28 May 2013 12:40:51 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 6C6B91258051
+	for <linux-mm@kvack.org>; Tue, 28 May 2013 12:48:13 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4S7G5KN5898718
+	for <linux-mm@kvack.org>; Tue, 28 May 2013 12:46:06 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4S7G6tW028296
+	for <linux-mm@kvack.org>; Tue, 28 May 2013 17:16:09 +1000
+Date: Tue, 28 May 2013 15:16:01 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH v3 1/6] mm/memory-hotplug: fix lowmem count overflow when
+ offline pages
+Message-ID: <20130528071601.GA11936@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <1369547921-24264-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1369712253.3469.426.camel@deadeye.wl.decadent.org.uk>
 MIME-Version: 1.0
-Subject: Re: TLB and PTE coherency during munmap
-References: <CAMo8BfL4QfJrfejNKmBDhAVdmE=_Ys6MVUH5Xa3w_mU41hwx0A@mail.gmail.com> <CAMo8BfJie1Y49QeSJ+JTQb9WsYJkMMkb1BkKz2Gzy3T7V6ogHA@mail.gmail.com>
-In-Reply-To: <CAMo8BfJie1Y49QeSJ+JTQb9WsYJkMMkb1BkKz2Gzy3T7V6ogHA@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1369712253.3469.426.camel@deadeye.wl.decadent.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org
-Cc: Ralf Baechle <ralf@linux-mips.org>, Chris Zankel <chris@zankel.net>, Marc Gauthier <Marc.Gauthier@tensilica.com>, linux-xtensa@linux-xtensa.org, Hugh Dickins <hughd@google.com>
+To: Ben Hutchings <ben@decadent.org.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org
 
-On Sun, May 26, 2013 at 6:50 AM, Max Filippov <jcmvbkbc@gmail.com> wrote:
-> Hello arch and mm people.
+On Tue, May 28, 2013 at 04:37:33AM +0100, Ben Hutchings wrote:
+>On Sun, 2013-05-26 at 13:58 +0800, Wanpeng Li wrote:
+>> Changelog:
+>>  v1 -> v2:
+>> 	* show number of HighTotal before hotremove 
+>> 	* remove CONFIG_HIGHMEM
+>> 	* cc stable kernels
+>> 	* add Michal reviewed-by
+>> 
+>> Logic memory-remove code fails to correctly account the Total High Memory 
+>> when a memory block which contains High Memory is offlined as shown in the
+>> example below. The following patch fixes it.
+>> 
+>> Stable for 2.6.24+.
+>[...]
+>> Reviewed-by: Michal Hocko <mhocko@suse.cz>
+>> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+>> ---
+>[...]
 >
-> Is it intentional that threads of a process that invoked munmap syscall
-> can see TLB entries pointing to already freed pages, or it is a bug?
+>This is not the correct way to request changes for stable.  See
+>Documentation/stable_kernel_rules.txt
+
+Ok, I will resend it. 
+
 >
-> I'm talking about zap_pmd_range and zap_pte_range:
+>Ben.
 >
->       zap_pmd_range
->         zap_pte_range
->           arch_enter_lazy_mmu_mode
->             ptep_get_and_clear_full
->             tlb_remove_tlb_entry
->             __tlb_remove_page
->           arch_leave_lazy_mmu_mode
->         cond_resched
->
-> With the default arch_{enter,leave}_lazy_mmu_mode, tlb_remove_tlb_entry
-> and __tlb_remove_page there is a loop in the zap_pte_range that clears
-> PTEs and frees corresponding pages, but doesn't flush TLB, and
-> surrounding loop in the zap_pmd_range that calls cond_resched. If a thread
-> of the same process gets scheduled then it is able to see TLB entries
-> pointing to already freed physical pages.
->
-> I've noticed that with xtensa arch when I added a test before returning to
-> userspace checking that TLB contents agrees with page tables of the
-> current mm. This check reliably fires with the LTP test mtest05 that
-> maps, unmaps and accesses memory from multiple threads.
->
-> Is there anything wrong in my description, maybe something specific to
-> my arch, or this issue really exists?
-
-Hi,
-
-I've made similar checking function for MIPS (because qemu is my only choice
-and it simulates MIPS TLB) and ran my tests on mips-malta machine in qemu.
-With MIPS I can also see this issue. I hope I did it right, the patch at the
-bottom is for the reference. The test I run and the diagnostic output are as
-follows:
-
-# ./runltp -p -q -T 100 -s mtest05
-...
-mmstress    0  TINFO  :  test2: Test case tests the race condition between simultaneous write faults in the same address space.
-[  439.010000] 14: 70d68000: 03178000/00000000
-mmstress    2  TPASS  :  TEST 2 Passed
-...
-mmstress    0  TINFO  :  test2: Test case tests the race condition between simultaneous write faults in the same address space.
-[  947.390000] 10: 6f9d2000: 03639000/00000000
-[  947.390000] 10: 6f9d3000: 03638000/00000000
-mmstress    2  TPASS  :  TEST 2 Passed
-...
-mmstress    0  TINFO  :  test1: Test case tests the race condition between simultaneous read faults in the same address space.
-[ 1922.680000] 10: 68e12000: 03b59000/00000000
-[ 1922.680000] 10: 68e13000: 03b58000/00000000
-mmstress    1  TPASS  :  TEST 1 Passed
-...
-
-To me it looks like the cond_resched in the zap_pmd_range is the root cause
-of this issue (let alone SMP case for now). It was introduced in the commit
-
-commit 97a894136f29802da19a15541de3c019e1ca147e
-Author: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date:   Tue May 24 17:12:04 2011 -0700
-
-    mm: Remove i_mmap_lock lockbreak
-
-Peter, Kamezawa, other reviewers of that commit, could you please comment?
+>-- 
+>Ben Hutchings
+>If at first you don't succeed, you're doing about average.
 
 
-------8<------
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
