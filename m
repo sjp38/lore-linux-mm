@@ -1,30 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id CF98D6B003B
-	for <linux-mm@kvack.org>; Tue, 28 May 2013 10:53:30 -0400 (EDT)
-Date: Tue, 28 May 2013 10:53:21 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH][trivial] memcg: Kconfig info update
-Message-ID: <20130528145321.GA15576@cmpxchg.org>
-References: <1369668984-2787-1-git-send-email-dserrg@gmail.com>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 649546B003C
+	for <linux-mm@kvack.org>; Tue, 28 May 2013 11:16:37 -0400 (EDT)
+Date: Tue, 28 May 2013 17:16:34 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: TLB and PTE coherency during munmap
+Message-ID: <20130528151634.GA30672@dhcp22.suse.cz>
+References: <CAMo8BfL4QfJrfejNKmBDhAVdmE=_Ys6MVUH5Xa3w_mU41hwx0A@mail.gmail.com>
+ <CAMo8BfJie1Y49QeSJ+JTQb9WsYJkMMkb1BkKz2Gzy3T7V6ogHA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1369668984-2787-1-git-send-email-dserrg@gmail.com>
+In-Reply-To: <CAMo8BfJie1Y49QeSJ+JTQb9WsYJkMMkb1BkKz2Gzy3T7V6ogHA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Dyasly <dserrg@gmail.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Max Filippov <jcmvbkbc@gmail.com>
+Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-xtensa@linux-xtensa.org, Chris Zankel <chris@zankel.net>, Marc Gauthier <Marc.Gauthier@tensilica.com>
 
-On Mon, May 27, 2013 at 07:36:24PM +0400, Sergey Dyasly wrote:
-> Now there are only 2 members in struct page_cgroup.
-> Update config MEMCG description accordingly.
+On Sun 26-05-13 06:50:46, Max Filippov wrote:
+> Hello arch and mm people.
 > 
-> Signed-off-by: Sergey Dyasly <dserrg@gmail.com>
+> Is it intentional that threads of a process that invoked munmap syscall
+> can see TLB entries pointing to already freed pages, or it is a bug?
+> 
+> I'm talking about zap_pmd_range and zap_pte_range:
+> 
+>       zap_pmd_range
+>         zap_pte_range
+>           arch_enter_lazy_mmu_mode
+>             ptep_get_and_clear_full
+>             tlb_remove_tlb_entry
+>             __tlb_remove_page
+>           arch_leave_lazy_mmu_mode
+>         cond_resched
+> 
+> With the default arch_{enter,leave}_lazy_mmu_mode, tlb_remove_tlb_entry
+> and __tlb_remove_page there is a loop in the zap_pte_range that clears
+> PTEs and frees corresponding pages,
 
-Thanks for catching that!
-
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+The page is not freed at that time (at least not for the generic
+mmu_gather implementation). It is stored into mmu_gather and then freed
+along with the tlb flush in tlb_flush_mmu.
+[...]
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
