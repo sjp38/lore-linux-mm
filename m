@@ -1,108 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 875C36B0034
-	for <linux-mm@kvack.org>; Tue, 28 May 2013 10:21:03 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id 6so7352159pdd.34
-        for <linux-mm@kvack.org>; Tue, 28 May 2013 07:21:02 -0700 (PDT)
-Message-ID: <51A4BD38.2040302@gmail.com>
-Date: Tue, 28 May 2013 22:20:40 +0800
-From: Liu Jiang <liuj97@gmail.com>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 7653D6B0036
+	for <linux-mm@kvack.org>; Tue, 28 May 2013 10:35:05 -0400 (EDT)
+Date: Tue, 28 May 2013 10:34:59 -0400
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: TLB and PTE coherency during munmap
+Message-ID: <20130528143459.GN724@phenom.dumpdata.com>
+References: <CAMo8BfL4QfJrfejNKmBDhAVdmE=_Ys6MVUH5Xa3w_mU41hwx0A@mail.gmail.com>
+ <CAMo8BfJie1Y49QeSJ+JTQb9WsYJkMMkb1BkKz2Gzy3T7V6ogHA@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v8, part3 12/14] mm: correctly update zone->mamaged_pages
-References: <1369575522-26405-1-git-send-email-jiang.liu@huawei.com> <1369575522-26405-13-git-send-email-jiang.liu@huawei.com> <51A36633.2030905@cogentembedded.com>
-In-Reply-To: <51A36633.2030905@cogentembedded.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAMo8BfJie1Y49QeSJ+JTQb9WsYJkMMkb1BkKz2Gzy3T7V6ogHA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Tang Chen <tangchen@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, virtualization@lists.linux-foundation.org, xen-devel@lists.xensource.com
+To: Max Filippov <jcmvbkbc@gmail.com>
+Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-xtensa@linux-xtensa.org, Chris Zankel <chris@zankel.net>, Marc Gauthier <Marc.Gauthier@tensilica.com>
 
-Hi Sergei,
-	Thanks for review!
+On Sun, May 26, 2013 at 06:50:46AM +0400, Max Filippov wrote:
+> Hello arch and mm people.
+> 
+> Is it intentional that threads of a process that invoked munmap syscall
+> can see TLB entries pointing to already freed pages, or it is a bug?
+> 
+> I'm talking about zap_pmd_range and zap_pte_range:
+> 
+>       zap_pmd_range
+>         zap_pte_range
+>           arch_enter_lazy_mmu_mode
+>             ptep_get_and_clear_full
+>             tlb_remove_tlb_entry
+>             __tlb_remove_page
+>           arch_leave_lazy_mmu_mode
+>         cond_resched
+> 
+> With the default arch_{enter,leave}_lazy_mmu_mode, tlb_remove_tlb_entry
+> and __tlb_remove_page there is a loop in the zap_pte_range that clears
+> PTEs and frees corresponding pages, but doesn't flush TLB, and
+> surrounding loop in the zap_pmd_range that calls cond_resched. If a thread
+> of the same process gets scheduled then it is able to see TLB entries
+> pointing to already freed physical pages.
 
-On 05/27/2013 09:57 PM, Sergei Shtylyov wrote:
-> On 26-05-2013 17:38, Jiang Liu wrote:
-> 
->    Typo in the subject: s/mamaged_pages/managed_pages/.
-Will fix it in next version.
+The idea behind the lazy MMU subsystem is that it does not need to flush
+the TLB all the time and allow one to do PTE manipulations in a "batch mode".
+Meaning there are stray entries - and one has to be diligient about not using them.
 
-> 
->> Enhance adjust_managed_page_count() to adjust totalhigh_pages for
->> highmem pages. And change code which directly adjusts totalram_pages
->> to use adjust_managed_page_count() because it adjusts totalram_pages,
->> totalhigh_pages and zone->managed_pages altogether in a safe way.
-> 
->> Remove inc_totalhigh_pages() and dec_totalhigh_pages() from xen/balloon
->> driver bacause adjust_managed_page_count() has already adjusted
->> totalhigh_pages.
-> 
->> This patch also fixes two bugs:
->> 1) enhances virtio_balloon driver to adjust totalhigh_pages when
->>     reserve/unreserve pages.
->> 2) enhance memory_hotplug.c to adjust totalhigh_pages when hot-removing
->>     memory.
-> 
->> We still need to deal with modifications of totalram_pages in file
->> arch/powerpc/platforms/pseries/cmm.c, but need help from PPC experts.
-> 
->> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
->> Cc: Chris Metcalf <cmetcalf@tilera.com>
->> Cc: Rusty Russell <rusty@rustcorp.com.au>
->> Cc: "Michael S. Tsirkin" <mst@redhat.com>
->> Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
->> Cc: Jeremy Fitzhardinge <jeremy@goop.org>
->> Cc: Wen Congyang <wency@cn.fujitsu.com>
->> Cc: Andrew Morton <akpm@linux-foundation.org>
->> Cc: Tang Chen <tangchen@cn.fujitsu.com>
->> Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
->> Cc: Mel Gorman <mgorman@suse.de>
->> Cc: Minchan Kim <minchan@kernel.org>
->> Cc: linux-kernel@vger.kernel.org
->> Cc: virtualization@lists.linux-foundation.org
->> Cc: xen-devel@lists.xensource.com
->> Cc: linux-mm@kvack.org
->> ---
->>   drivers/virtio/virtio_balloon.c |  8 +++++---
->>   drivers/xen/balloon.c           | 23 +++++------------------
->>   mm/hugetlb.c                    |  2 +-
->>   mm/memory_hotplug.c             | 16 +++-------------
->>   mm/page_alloc.c                 | 10 +++++-----
->>   5 files changed, 19 insertions(+), 40 deletions(-)
-> 
->> diff --git a/drivers/virtio/virtio_balloon.c
->> b/drivers/virtio/virtio_balloon.c
->> index bd3ae32..6649968 100644
->> --- a/drivers/virtio/virtio_balloon.c
->> +++ b/drivers/virtio/virtio_balloon.c
-> [...]
->> @@ -160,11 +160,13 @@ static void fill_balloon(struct virtio_balloon
->> *vb, size_t num)
->>   static void release_pages_by_pfn(const u32 pfns[], unsigned int num)
->>   {
->>       unsigned int i;
->> +    struct page *page;
-> 
->    Why not declare it right in the *for* loop? You could use intializer
-> then...
-Good suggestion, will change it in next version.
+Here is the relvant comment from the Linux header:
+                                                                            
+/*                                                                              
+ * A facility to provide lazy MMU batching.  This allows PTE updates and        
+ * page invalidations to be delayed until a call to leave lazy MMU mode         
+ * is issued.  Some architectures may benefit from doing this, and it is        
+ * beneficial for both shadow and direct mode hypervisors, which may batch      
+ * the PTE updates which happen during this window.  Note that using this       
+ * interface requires that read hazards be removed from the code.  A read       
+ * hazard could result in the direct mode hypervisor case, since the actual     
+ * write to the page tables may not yet have taken place, so reads though       
+ * a raw PTE pointer after it has been modified are not guaranteed to be        
+ * up to date.  This mode can only be entered and left under the protection of  
+ * the page table locks for all page tables which may be modified.  In the UP   
+ * case, this is required so that preemption is disabled, and in the SMP case,  
+ * it must synchronize the delayed page table writes properly on other CPUs.    
+ */                                      
+
+This means that eventually when arch_leave_lazy_mmu_mode or
+arch_flush_lazy_mmu_mode is called, the PTE updates _should_ be flushed
+(aka, TLB flush if needed on the altered PTE entries).
 
 > 
->>
->>       /* Find pfns pointing at start of each page, get pages and free
->> them. */
->>       for (i = 0; i < num; i += VIRTIO_BALLOON_PAGES_PER_PAGE) {
->> -        balloon_page_free(balloon_pfn_to_page(pfns[i]));
->> -        totalram_pages++;
->> +        page = balloon_pfn_to_page(pfns[i]);
->> +        balloon_page_free(page);
->> +        adjust_managed_page_count(page, 1);
->>       }
->>   }
->>
-> [...]
+> I've noticed that with xtensa arch when I added a test before returning to
+> userspace checking that TLB contents agrees with page tables of the
+> current mm. This check reliably fires with the LTP test mtest05 that
+> maps, unmaps and accesses memory from multiple threads.
 > 
-> WBR, Sergei
+> Is there anything wrong in my description, maybe something specific to
+> my arch, or this issue really exists?
+> 
+> I've also noticed that there are a lot of arches with default implementations
+> of the involved functions, does that mean that any/all of them have this
+> issue too?
+> 
+> -- 
+> Thanks.
+> -- Max
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > 
 
 --
