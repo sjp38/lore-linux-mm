@@ -1,36 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 5894C6B003C
-	for <linux-mm@kvack.org>; Tue, 28 May 2013 12:19:27 -0400 (EDT)
-Date: Tue, 28 May 2013 16:19:25 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC][PATCH] mm: Fix RLIMIT_MEMLOCK
-In-Reply-To: <CAHGf_=r4sqQKELPh48z=KPyuyAM3uz5Az9RpssUwnK4QRoamHQ@mail.gmail.com>
-Message-ID: <0000013eebefddd4-ace0f251-cfba-41cf-b48e-266cb13bcebd-000000@email.amazonses.com>
-References: <alpine.DEB.2.10.1305221523420.9944@vincent-weaver-1.um.maine.edu> <alpine.DEB.2.10.1305221953370.11450@vincent-weaver-1.um.maine.edu> <alpine.DEB.2.10.1305222344060.12929@vincent-weaver-1.um.maine.edu> <20130523044803.GA25399@ZenIV.linux.org.uk>
- <20130523104154.GA23650@twins.programming.kicks-ass.net> <0000013ed1b8d0cc-ad2bb878-51bd-430c-8159-629b23ed1b44-000000@email.amazonses.com> <20130523152458.GD23650@twins.programming.kicks-ass.net> <0000013ed2297ba8-467d474a-7068-45b3-9fa3-82641e6aa363-000000@email.amazonses.com>
- <20130523163901.GG23650@twins.programming.kicks-ass.net> <0000013ed28b638a-066d7dc7-b590-49f8-9423-badb9537b8b6-000000@email.amazonses.com> <20130524140114.GK23650@twins.programming.kicks-ass.net> <0000013ed732b615-748f574f-ccb8-4de7-bbe4-d85d1cbf0c9d-000000@email.amazonses.com>
- <CAHGf_=r4sqQKELPh48z=KPyuyAM3uz5Az9RpssUwnK4QRoamHQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 3D99D6B003C
+	for <linux-mm@kvack.org>; Tue, 28 May 2013 12:33:40 -0400 (EDT)
+Message-ID: <51A4DC5F.7050406@sr71.net>
+Date: Tue, 28 May 2013 09:33:35 -0700
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCHv4 15/39] thp, mm: trigger bug in replace_page_cache_page()
+ on THP
+References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com> <1368321816-17719-16-git-send-email-kirill.shutemov@linux.intel.com> <519BD65C.1050709@sr71.net> <20130528125328.5385CE0090@blue.fi.intel.com>
+In-Reply-To: <20130528125328.5385CE0090@blue.fi.intel.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Al Viro <viro@zeniv.linux.org.uk>, Vince Weaver <vincent.weaver@maine.edu>, LKML <linux-kernel@vger.kernel.org>, Paul Mackerras <paulus@samba.org>, Ingo Molnar <mingo@redhat.com>, Arnaldo Carvalho de Melo <acme@ghostprotocols.net>, trinity@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Roland Dreier <roland@kernel.org>, infinipath@qlogic.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-rdma@vger.kernel.org, Or Gerlitz <or.gerlitz@gmail.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Sat, 25 May 2013, KOSAKI Motohiro wrote:
+On 05/28/2013 05:53 AM, Kirill A. Shutemov wrote:
+> Dave Hansen wrote:
+>> On 05/11/2013 06:23 PM, Kirill A. Shutemov wrote:
+>>> +	VM_BUG_ON(PageTransHuge(old));
+>>> +	VM_BUG_ON(PageTransHuge(new));
+>>>  	VM_BUG_ON(!PageLocked(old));
+>>>  	VM_BUG_ON(!PageLocked(new));
+>>>  	VM_BUG_ON(new->mapping);
+>>
+>> The code calling replace_page_cache_page() has a bunch of fallback and
+>> error returning code.  It seems a little bit silly to bring the whole
+>> machine down when you could just WARN_ONCE() and return an error code
+>> like fuse already does:
+> 
+> What about:
+> 
+> 	if (WARN_ONCE(PageTransHuge(old) || PageTransHuge(new),
+> 		     "%s: unexpected huge page\n", __func__))
+> 		return -EINVAL;
 
-> If pinned and mlocked are totally difference intentionally, why IB uses
-> RLIMIT_MEMLOCK. Why don't IB uses IB specific limit and why only IB raise up
-> number of pinned pages and other gup users don't.
-> I can't guess IB folk's intent.
+That looks sane to me.  But, please do make sure to differentiate in the
+error message between thp and hugetlbfs (if you have the room).
 
-True another limit would be better. The reason that IB raises the
-pinned pages is because IB permanently pins those pages. Other users of
-gup do that temporarily.
-
-If there are other users that pin pages permanently should also account
-for it.
+BTW, I'm also not sure you need to print the function name.  The
+WARN_ON() register dump usually has the function name.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
