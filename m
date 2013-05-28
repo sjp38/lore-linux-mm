@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id DA5DE6B0036
-	for <linux-mm@kvack.org>; Tue, 28 May 2013 08:25:43 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 318C56B0036
+	for <linux-mm@kvack.org>; Tue, 28 May 2013 08:51:00 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <519BD595.5040405@sr71.net>
+In-Reply-To: <519BD65C.1050709@sr71.net>
 References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1368321816-17719-15-git-send-email-kirill.shutemov@linux.intel.com>
- <519BD595.5040405@sr71.net>
-Subject: Re: [PATCHv4 14/39] thp, mm: rewrite delete_from_page_cache() to
- support huge pages
+ <1368321816-17719-16-git-send-email-kirill.shutemov@linux.intel.com>
+ <519BD65C.1050709@sr71.net>
+Subject: Re: [PATCHv4 15/39] thp, mm: trigger bug in replace_page_cache_page()
+ on THP
 Content-Transfer-Encoding: 7bit
-Message-Id: <20130528122812.0D624E0090@blue.fi.intel.com>
-Date: Tue, 28 May 2013 15:28:12 +0300 (EEST)
+Message-Id: <20130528125328.5385CE0090@blue.fi.intel.com>
+Date: Tue, 28 May 2013 15:53:28 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dave Hansen <dave@sr71.net>
@@ -21,72 +21,38 @@ Dave Hansen wrote:
 > On 05/11/2013 06:23 PM, Kirill A. Shutemov wrote:
 > > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 > > 
-> > As with add_to_page_cache_locked() we handle HPAGE_CACHE_NR pages a
-> > time.
+> > replace_page_cache_page() is only used by FUSE. It's unlikely that we
+> > will support THP in FUSE page cache any soon.
 > > 
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > ---
-> >  mm/filemap.c |   31 +++++++++++++++++++++++++------
-> >  1 file changed, 25 insertions(+), 6 deletions(-)
-> > 
+> > Let's pospone implemetation of THP handling in replace_page_cache_page()
+> > until any will use it.
+> ...
 > > diff --git a/mm/filemap.c b/mm/filemap.c
-> > index b0c7c8c..657ce82 100644
+> > index 657ce82..3a03426 100644
 > > --- a/mm/filemap.c
 > > +++ b/mm/filemap.c
-> > @@ -115,6 +115,9 @@
-> >  void __delete_from_page_cache(struct page *page)
+> > @@ -428,6 +428,8 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
 > >  {
-> >  	struct address_space *mapping = page->mapping;
-> > +	bool thp = PageTransHuge(page) &&
-> > +		IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE);
-> > +	int nr;
+> >  	int error;
+> >  
+> > +	VM_BUG_ON(PageTransHuge(old));
+> > +	VM_BUG_ON(PageTransHuge(new));
+> >  	VM_BUG_ON(!PageLocked(old));
+> >  	VM_BUG_ON(!PageLocked(new));
+> >  	VM_BUG_ON(new->mapping);
 > 
-> Is that check for the config option really necessary?  How would we get
-> a page with PageTransHuge() set without it being enabled?
+> The code calling replace_page_cache_page() has a bunch of fallback and
+> error returning code.  It seems a little bit silly to bring the whole
+> machine down when you could just WARN_ONCE() and return an error code
+> like fuse already does:
 
-I'll drop it and use hpagecache_nr_page() instead.
+What about:
 
-> I like to rewrite your code. :)
+	if (WARN_ONCE(PageTransHuge(old) || PageTransHuge(new),
+		     "%s: unexpected huge page\n", __func__))
+		return -EINVAL;
 
-It's nice. Thanks.
-
-> Which reminds me...  Why do we handle their reference counts differently? :)
-> 
-> It seems like we could easily put a for loop in delete_from_page_cache()
-> that will release their reference counts along with the head page.
-> Wouldn't that make the code less special-cased for tail pages?
-
-delete_from_page_cache() is not the only user of
-__delete_from_page_cache()...
-
-It seems I did it wrong in add_to_page_cache_locked(). We shouldn't take
-references on tail pages there, only one on head. On split it will be
-distributed properly.
-
-> >  	/* Leave page->index set: truncation lookup relies upon it */
-> > -	mapping->nrpages--;
-> > -	__dec_zone_page_state(page, NR_FILE_PAGES);
-> > +	mapping->nrpages -= nr;
-> > +	__mod_zone_page_state(page_zone(page), NR_FILE_PAGES, -nr);
-> >  	if (PageSwapBacked(page))
-> > -		__dec_zone_page_state(page, NR_SHMEM);
-> > +		__mod_zone_page_state(page_zone(page), NR_SHMEM, -nr);
-> >  	BUG_ON(page_mapped(page));
-> 
-> Man, we suck:
-> 
-> 	__dec_zone_page_state()
-> and
-> 	__mod_zone_page_state()
-> 
-> take a differently-typed first argument.  <sigh>
-> 
-> Would there be any good to making __dec_zone_page_state() check to see
-> if the page we passed in _is_ a compound page, and adjusting its
-> behaviour accordingly?
-
-Yeah, it would be better but I think it outside the scope of the patchset.
-Probably, later.
+?
 
 -- 
  Kirill A. Shutemov
