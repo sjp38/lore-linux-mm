@@ -1,133 +1,235 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 7C92B6B0032
-	for <linux-mm@kvack.org>; Tue, 28 May 2013 11:30:06 -0400 (EDT)
-Date: Tue, 28 May 2013 11:29:57 -0400
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCH] drivers: staging: zcache: fix compile error
-Message-ID: <20130528152957.GC4695@phenom.dumpdata.com>
-References: <1369624540-21824-1-git-send-email-bob.liu@oracle.com>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id C112B6B003B
+	for <linux-mm@kvack.org>; Tue, 28 May 2013 11:56:38 -0400 (EDT)
+Message-ID: <51A4D3B5.6060802@parallels.com>
+Date: Tue, 28 May 2013 21:26:37 +0530
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1369624540-21824-1-git-send-email-bob.liu@oracle.com>
+Subject: Re: [PATCH v8 16/34] xfs: convert buftarg LRU to generic code
+References: <1369391368-31562-1-git-send-email-glommer@openvz.org> <1369391368-31562-17-git-send-email-glommer@openvz.org> <20130525002759.GK24543@dastard>
+In-Reply-To: <20130525002759.GK24543@dastard>
+Content-Type: multipart/mixed;
+	boundary="------------030802010600060907070709"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>, gregkh@linuxfoundation.org, devel@driverdev.osuosl.org
-Cc: akpm@linux-foundation.org, dan.magenheimer@oracle.com, fengguang.wu@intel.com, linux-mm@kvack.org, Bob Liu <bob.liu@oracle.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel
+ Gorman <mgorman@suse.de>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, Dave Chinner <dchinner@redhat.com>
 
-On Mon, May 27, 2013 at 11:15:40AM +0800, Bob Liu wrote:
-> Fix below compile error:
-> drivers/built-in.o: In function `zcache_pampd_free':
-> >> zcache-main.c:(.text+0xb1c8a): undefined reference to `ramster_pampd_free'
-> >> zcache-main.c:(.text+0xb1cbc): undefined reference to `ramster_count_foreign_pages'
-> drivers/built-in.o: In function `zcache_pampd_get_data_and_free':
-> >> zcache-main.c:(.text+0xb1f05): undefined reference to `ramster_count_foreign_pages'
-> drivers/built-in.o: In function `zcache_cpu_notifier':
-> >> zcache-main.c:(.text+0xb228d): undefined reference to `ramster_cpu_up'
-> >> zcache-main.c:(.text+0xb2339): undefined reference to `ramster_cpu_down'
-> drivers/built-in.o: In function `zcache_pampd_create':
-> >> (.text+0xb26ce): undefined reference to `ramster_count_foreign_pages'
-> drivers/built-in.o: In function `zcache_pampd_create':
-> >> (.text+0xb27ef): undefined reference to `ramster_count_foreign_pages'
-> drivers/built-in.o: In function `zcache_put_page':
-> >> (.text+0xb299f): undefined reference to `ramster_do_preload_flnode'
-> drivers/built-in.o: In function `zcache_flush_page':
-> >> (.text+0xb2ea3): undefined reference to `ramster_do_preload_flnode'
-> drivers/built-in.o: In function `zcache_flush_object':
-> >> (.text+0xb307c): undefined reference to `ramster_do_preload_flnode'
-> drivers/built-in.o: In function `zcache_init':
-> >> zcache-main.c:(.text+0xb3629): undefined reference to `ramster_register_pamops'
-> >> zcache-main.c:(.text+0xb3868): undefined reference to `ramster_init'
-> >> drivers/built-in.o:(.rodata+0x15058): undefined reference to `ramster_foreign_eph_pages'
-> >> drivers/built-in.o:(.rodata+0x15078): undefined reference to `ramster_foreign_pers_pages'
+--------------030802010600060907070709
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
+
+On 05/25/2013 05:57 AM, Dave Chinner wrote:
+> On Fri, May 24, 2013 at 03:59:10PM +0530, Glauber Costa wrote:
+>> From: Dave Chinner <dchinner@redhat.com>
+>>
+>> Convert the buftarg LRU to use the new generic LRU list and take
+>> advantage of the functionality it supplies to make the buffer cache
+>> shrinker node aware.
+>>
+>> * v7: Add NUMA aware flag
 > 
-
-Looks good, but I think you are missing two things:
-
-Reported-by: Fengguang Wu <fengguang.wu@intel.com>
-
-and CC:devel@driverdev.osuosl.org
-
-
-> Signed-off-by: Bob Liu <bob.liu@oracle.com>
-
-Acked-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-> ---
->  drivers/staging/zcache/ramster.h         |    4 ----
->  drivers/staging/zcache/ramster/debug.c   |    2 ++
->  drivers/staging/zcache/ramster/ramster.c |    6 ++++--
->  3 files changed, 6 insertions(+), 6 deletions(-)
+> I know what is wrong with this patch that causes the unmount hang -
+> it's the handling of the _XBF_LRU_DISPOSE flag no longer being
+> modified atomically with the LRU lock. Hence there is a race where
+> we can either lose the _XBF_LRU_DISPOSE or not see it and hence we
+> can end up with code not detecting what list the buffer is on
+> correctly.
 > 
-> diff --git a/drivers/staging/zcache/ramster.h b/drivers/staging/zcache/ramster.h
-> index e1f91d5..a858666 100644
-> --- a/drivers/staging/zcache/ramster.h
-> +++ b/drivers/staging/zcache/ramster.h
-> @@ -11,10 +11,6 @@
->  #ifndef _ZCACHE_RAMSTER_H_
->  #define _ZCACHE_RAMSTER_H_
->  
-> -#ifdef CONFIG_RAMSTER_MODULE
-> -#define CONFIG_RAMSTER
-> -#endif
-> -
->  #ifdef CONFIG_RAMSTER
->  #include "ramster/ramster.h"
->  #else
-> diff --git a/drivers/staging/zcache/ramster/debug.c b/drivers/staging/zcache/ramster/debug.c
-> index 327e4f0..5b26ee9 100644
-> --- a/drivers/staging/zcache/ramster/debug.c
-> +++ b/drivers/staging/zcache/ramster/debug.c
-> @@ -1,6 +1,8 @@
->  #include <linux/atomic.h>
->  #include "debug.h"
->  
-> +ssize_t ramster_foreign_eph_pages;
-> +ssize_t ramster_foreign_pers_pages;
->  #ifdef CONFIG_DEBUG_FS
->  #include <linux/debugfs.h>
->  
-> diff --git a/drivers/staging/zcache/ramster/ramster.c b/drivers/staging/zcache/ramster/ramster.c
-> index b18b887..a937ce1 100644
-> --- a/drivers/staging/zcache/ramster/ramster.c
-> +++ b/drivers/staging/zcache/ramster/ramster.c
-> @@ -66,8 +66,6 @@ static int ramster_remote_target_nodenum __read_mostly = -1;
->  
->  /* Used by this code. */
->  long ramster_flnodes;
-> -ssize_t ramster_foreign_eph_pages;
-> -ssize_t ramster_foreign_pers_pages;
->  /* FIXME frontswap selfshrinking knobs in debugfs? */
->  
->  static LIST_HEAD(ramster_rem_op_list);
-> @@ -399,14 +397,18 @@ void ramster_count_foreign_pages(bool eph, int count)
->  			inc_ramster_foreign_eph_pages();
->  		} else {
->  			dec_ramster_foreign_eph_pages();
-> +#ifdef CONFIG_RAMSTER_DEBUG
->  			WARN_ON_ONCE(ramster_foreign_eph_pages < 0);
-> +#endif
->  		}
->  	} else {
->  		if (count > 0) {
->  			inc_ramster_foreign_pers_pages();
->  		} else {
->  			dec_ramster_foreign_pers_pages();
-> +#ifdef CONFIG_RAMSTER_DEBUG
->  			WARN_ON_ONCE(ramster_foreign_pers_pages < 0);
-> +#endif
->  		}
->  	}
->  }
-> -- 
-> 1.7.10.4
+> I haven't had a chance to work out a fix for it yet. If this ends up
+> likely to hold up the patch set, Glauber, then feel free to drop it
+> from the series and I'll push a fixed version through the XFS tree
+> in due course....
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Cheers,
 > 
+> Dave.
+> 
+Please let me know what you think about the following two (very coarse)
+patches. My idea is to expose more of the raw structures so XFS can do
+the locking itself when needed.
+
+The memcg parts need to be rebased on top of that. If you agree with the
+approach, I will proceed with doing this.
+
+
+--------------030802010600060907070709
+Content-Type: text/x-patch; name="for-xfs-raw-api.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename="for-xfs-raw-api.patch"
+
+diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
+index cf59a8a..95a73ea 100644
+--- a/include/linux/list_lru.h
++++ b/include/linux/list_lru.h
+@@ -40,8 +40,37 @@ struct list_lru {
+ };
+ 
+ int list_lru_init(struct list_lru *lru);
+-int list_lru_add(struct list_lru *lru, struct list_head *item);
+-int list_lru_del(struct list_lru *lru, struct list_head *item);
++
++struct list_lru_node *list_lru_to_node(struct list_lru *lru,
++				       struct list_head *item);
++int list_lru_add_node(struct list_lru *lru, struct list_lru_node *nlru,
++		      struct list_head *item);
++int list_lru_del_node(struct list_lru *lru, struct list_lru_node *nlru,
++		      struct list_head *item);
++
++static inline int list_lru_add(struct list_lru *lru, struct list_head *item)
++{
++	int ret;
++	struct list_lru_node *nlru = list_lru_to_node(lru, item);
++
++	spin_lock(&nlru->lock);
++	ret = list_lru_add_node(lru, nlru, item);
++	spin_unlock(&nlru->lock);
++
++	return ret;
++}
++
++static inline int list_lru_del(struct list_lru *lru, struct list_head *item)
++{
++	int ret;
++	struct list_lru_node *nlru = list_lru_to_node(lru, item);
++
++	spin_lock(&nlru->lock);
++	ret = list_lru_del_node(lru, nlru, item);
++	spin_unlock(&nlru->lock);
++
++	return ret;
++}
+ 
+ unsigned long list_lru_count_node(struct list_lru *lru, int nid);
+ static inline unsigned long list_lru_count(struct list_lru *lru)
+diff --git a/lib/list_lru.c b/lib/list_lru.c
+index dae13d6..f72029d 100644
+--- a/lib/list_lru.c
++++ b/lib/list_lru.c
+@@ -9,49 +9,53 @@
+ #include <linux/mm.h>
+ #include <linux/list_lru.h>
+ 
+-int
+-list_lru_add(
++struct list_lru_node *
++list_lru_to_node(
+ 	struct list_lru	*lru,
+ 	struct list_head *item)
+ {
+ 	int nid = page_to_nid(virt_to_page(item));
+-	struct list_lru_node *nlru = &lru->node[nid];
++	return &lru->node[nid];
++}
++EXPORT_SYMBOL_GPL(list_lru_to_node);
++
++int
++list_lru_add_node(
++	struct list_lru		*lru,
++	struct list_lru_node	*nlru,
++	struct list_head	*item)
++{
++	int nid = page_to_nid(virt_to_page(item));
+ 
+-	spin_lock(&nlru->lock);
+ 	BUG_ON(nlru->nr_items < 0);
+ 	if (list_empty(item)) {
+ 		list_add_tail(item, &nlru->list);
+ 		if (nlru->nr_items++ == 0)
+ 			node_set(nid, lru->active_nodes);
+-		spin_unlock(&nlru->lock);
+ 		return 1;
+ 	}
+-	spin_unlock(&nlru->lock);
+ 	return 0;
+ }
+-EXPORT_SYMBOL_GPL(list_lru_add);
++EXPORT_SYMBOL_GPL(list_lru_add_node);
+ 
+ int
+-list_lru_del(
+-	struct list_lru	*lru,
+-	struct list_head *item)
++list_lru_del_node(
++	struct list_lru		*lru,
++	struct list_lru_node	*nlru,
++	struct list_head	*item)
+ {
+ 	int nid = page_to_nid(virt_to_page(item));
+-	struct list_lru_node *nlru = &lru->node[nid];
+ 
+-	spin_lock(&nlru->lock);
+ 	if (!list_empty(item)) {
+ 		list_del_init(item);
+ 		if (--nlru->nr_items == 0)
+ 			node_clear(nid, lru->active_nodes);
+ 		BUG_ON(nlru->nr_items < 0);
+-		spin_unlock(&nlru->lock);
+ 		return 1;
+ 	}
+-	spin_unlock(&nlru->lock);
+ 	return 0;
+ }
+-EXPORT_SYMBOL_GPL(list_lru_del);
++EXPORT_SYMBOL_GPL(list_lru_del_node);
+ 
+ unsigned long
+ list_lru_count_node(struct list_lru *lru, int nid)
+
+--------------030802010600060907070709
+Content-Type: text/x-patch; name="xfs-buf-fix.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename="xfs-buf-fix.patch"
+
+diff --git a/fs/xfs/xfs_buf.c b/fs/xfs/xfs_buf.c
+index f7212c1..3e179f2 100644
+--- a/fs/xfs/xfs_buf.c
++++ b/fs/xfs/xfs_buf.c
+@@ -89,10 +89,15 @@ static void
+ xfs_buf_lru_add(
+ 	struct xfs_buf	*bp)
+ {
+-	if (list_lru_add(&bp->b_target->bt_lru, &bp->b_lru)) {
++	struct list_lru_node *nlru;
++	nlru = list_lru_to_node(&bp->b_target->bt_lru, &bp->b_lru);
++
++	spin_lock(&nlru->lock);
++	if (list_lru_add_node(&bp->b_target->bt_lru, nlru, &bp->b_lru)) {
+ 		bp->b_lru_flags &= ~_XBF_LRU_DISPOSE;
+ 		atomic_inc(&bp->b_hold);
+ 	}
++	spin_unlock(&nlru->lock);
+ }
+ 
+ /*
+@@ -122,6 +127,9 @@ void
+ xfs_buf_stale(
+ 	struct xfs_buf	*bp)
+ {
++	struct list_lru_node *nlru;
++	nlru = list_lru_to_node(&bp->b_target->bt_lru, &bp->b_lru);
++
+ 	ASSERT(xfs_buf_islocked(bp));
+ 
+ 	bp->b_flags |= XBF_STALE;
+@@ -133,10 +141,12 @@ xfs_buf_stale(
+ 	 */
+ 	bp->b_flags &= ~_XBF_DELWRI_Q;
+ 
++	spin_lock(&nlru->lock);
+ 	atomic_set(&(bp)->b_lru_ref, 0);
+ 	if (!(bp->b_lru_flags & _XBF_LRU_DISPOSE) &&
+-	    (list_lru_del(&bp->b_target->bt_lru, &bp->b_lru)))
++	    (list_lru_del_node(&bp->b_target->bt_lru, nlru, &bp->b_lru)))
+ 		atomic_dec(&bp->b_hold);
++	spin_unlock(&nlru->lock);
+ 
+ 	ASSERT(atomic_read(&bp->b_hold) >= 1);
+ }
+
+--------------030802010600060907070709--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
