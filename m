@@ -1,57 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id EAA5A6B0081
-	for <linux-mm@kvack.org>; Tue, 28 May 2013 18:53:28 -0400 (EDT)
-Date: Tue, 28 May 2013 15:53:26 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] memcg: don't initialize kmem-cache destroying work for
- root caches
-Message-Id: <20130528155326.0a8b66a7711746e827d5fdea@linux-foundation.org>
-In-Reply-To: <1368535118-27369-1-git-send-email-avagin@openvz.org>
-References: <1368535118-27369-1-git-send-email-avagin@openvz.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with SMTP id 941686B0089
+	for <linux-mm@kvack.org>; Tue, 28 May 2013 19:23:57 -0400 (EDT)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: [PATCH] Memory hotplug: Move alternative function definitions to header
+Date: Wed, 29 May 2013 01:32:39 +0200
+Message-ID: <3399422.RK6bMrAa5x@vostro.rjw.lan>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Vagin <avagin@openvz.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Konstantin Khlebnikov <khlebnikov@openvz.org>, Glauber Costa <glommer@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: ACPI Devel Maling List <linux-acpi@vger.kernel.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Toshi Kani <toshi.kani@hp.com>, Wen Congyang <wency@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Jiang Liu <liuj97@gmail.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, linux-mm@kvack.org
 
-On Tue, 14 May 2013 16:38:38 +0400 Andrey Vagin <avagin@openvz.org> wrote:
+From: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 
-> struct memcg_cache_params has a union. Different parts of this union are
-> used for root and non-root caches. A part with destroying work is used only
-> for non-root caches.
+Move the definitions of offline_pages() and remove_memory()
+for CONFIG_MEMORY_HOTREMOVE to memory_hotplug.h, where they belong,
+and make them static inline.
 
-That union is a bit dangerous.  Perhaps it would be better to do
-something like
+Signed-off-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+---
 
---- a/include/linux/slab.h~a
-+++ a/include/linux/slab.h
-@@ -337,15 +337,17 @@ static __always_inline int kmalloc_size(
- struct memcg_cache_params {
- 	bool is_root_cache;
- 	union {
--		struct kmem_cache *memcg_caches[0];
--		struct {
-+		struct memcg_root_cache {
-+			struct kmem_cache *caches[0];
-+		} memcg_root_cache;
-+		struct memcg_child_cache {
- 			struct mem_cgroup *memcg;
- 			struct list_head list;
- 			struct kmem_cache *root_cache;
- 			bool dead;
- 			atomic_t nr_pages;
- 			struct work_struct destroy;
--		};
-+		} memcg_child_cache;
- 	};
- };
+On top of the linux-next branch of the linux-pm.git tree.
 
-And then adopt the convention of selecting either memcg_root_cache or
-memcg_child_cache at the highest level then passing the more strongly
-typed pointer to callees.
+Please let me know if there are any objections.
+
+Thanks,
+Rafael
+
+---
+ include/linux/memory_hotplug.h |    9 +++++++++
+ mm/memory_hotplug.c            |    8 +-------
+ 2 files changed, 10 insertions(+), 7 deletions(-)
+
+Index: linux-pm/include/linux/memory_hotplug.h
+===================================================================
+--- linux-pm.orig/include/linux/memory_hotplug.h
++++ linux-pm/include/linux/memory_hotplug.h
+@@ -234,6 +234,8 @@ static inline void unlock_memory_hotplug
+ 
+ extern int is_mem_section_removable(unsigned long pfn, unsigned long nr_pages);
+ extern void try_offline_node(int nid);
++extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
++extern void remove_memory(int nid, u64 start, u64 size);
+ 
+ #else
+ static inline int is_mem_section_removable(unsigned long pfn,
+@@ -243,6 +245,13 @@ static inline int is_mem_section_removab
+ }
+ 
+ static inline void try_offline_node(int nid) {}
++
++static inline int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
++{
++	return -EINVAL;
++}
++
++static inline void remove_memory(int nid, u64 start, u64 size) {}
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+ 
+ extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
+Index: linux-pm/mm/memory_hotplug.c
+===================================================================
+--- linux-pm.orig/mm/memory_hotplug.c
++++ linux-pm/mm/memory_hotplug.c
+@@ -1825,11 +1825,5 @@ void __ref remove_memory(int nid, u64 st
+ 
+ 	unlock_memory_hotplug();
+ }
+-#else
+-int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
+-{
+-	return -EINVAL;
+-}
+-void remove_memory(int nid, u64 start, u64 size) {}
+-#endif /* CONFIG_MEMORY_HOTREMOVE */
+ EXPORT_SYMBOL_GPL(remove_memory);
++#endif /* CONFIG_MEMORY_HOTREMOVE */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
