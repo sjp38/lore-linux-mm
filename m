@@ -1,83 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 552536B0032
-	for <linux-mm@kvack.org>; Mon, 27 May 2013 23:38:04 -0400 (EDT)
-Message-ID: <1369712253.3469.426.camel@deadeye.wl.decadent.org.uk>
-Subject: Re: [PATCH v3 1/6] mm/memory-hotplug: fix lowmem count overflow
- when offline pages
-From: Ben Hutchings <ben@decadent.org.uk>
-Date: Tue, 28 May 2013 04:37:33 +0100
-In-Reply-To: <1369547921-24264-1-git-send-email-liwanp@linux.vnet.ibm.com>
-References: <1369547921-24264-1-git-send-email-liwanp@linux.vnet.ibm.com>
-Content-Type: multipart/signed; micalg="pgp-sha512";
-	protocol="application/pgp-signature"; boundary="=-TOzbzShQt1fbFomBxQ3Y"
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 764906B0032
+	for <linux-mm@kvack.org>; Tue, 28 May 2013 03:11:40 -0400 (EDT)
+Received: by mail-lb0-f174.google.com with SMTP id u10so7271953lbi.5
+        for <linux-mm@kvack.org>; Tue, 28 May 2013 00:11:38 -0700 (PDT)
+Message-ID: <51A45861.1010008@gmail.com>
+Date: Tue, 28 May 2013 11:10:25 +0400
+From: Max Filippov <jcmvbkbc@gmail.com>
+MIME-Version: 1.0
+Subject: Re: TLB and PTE coherency during munmap
+References: <CAMo8BfL4QfJrfejNKmBDhAVdmE=_Ys6MVUH5Xa3w_mU41hwx0A@mail.gmail.com> <CAMo8BfJie1Y49QeSJ+JTQb9WsYJkMMkb1BkKz2Gzy3T7V6ogHA@mail.gmail.com>
+In-Reply-To: <CAMo8BfJie1Y49QeSJ+JTQb9WsYJkMMkb1BkKz2Gzy3T7V6ogHA@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org
+Cc: Ralf Baechle <ralf@linux-mips.org>, Chris Zankel <chris@zankel.net>, Marc Gauthier <Marc.Gauthier@tensilica.com>, linux-xtensa@linux-xtensa.org, Hugh Dickins <hughd@google.com>
+
+On Sun, May 26, 2013 at 6:50 AM, Max Filippov <jcmvbkbc@gmail.com> wrote:
+> Hello arch and mm people.
+>
+> Is it intentional that threads of a process that invoked munmap syscall
+> can see TLB entries pointing to already freed pages, or it is a bug?
+>
+> I'm talking about zap_pmd_range and zap_pte_range:
+>
+>       zap_pmd_range
+>         zap_pte_range
+>           arch_enter_lazy_mmu_mode
+>             ptep_get_and_clear_full
+>             tlb_remove_tlb_entry
+>             __tlb_remove_page
+>           arch_leave_lazy_mmu_mode
+>         cond_resched
+>
+> With the default arch_{enter,leave}_lazy_mmu_mode, tlb_remove_tlb_entry
+> and __tlb_remove_page there is a loop in the zap_pte_range that clears
+> PTEs and frees corresponding pages, but doesn't flush TLB, and
+> surrounding loop in the zap_pmd_range that calls cond_resched. If a thread
+> of the same process gets scheduled then it is able to see TLB entries
+> pointing to already freed physical pages.
+>
+> I've noticed that with xtensa arch when I added a test before returning to
+> userspace checking that TLB contents agrees with page tables of the
+> current mm. This check reliably fires with the LTP test mtest05 that
+> maps, unmaps and accesses memory from multiple threads.
+>
+> Is there anything wrong in my description, maybe something specific to
+> my arch, or this issue really exists?
+
+Hi,
+
+I've made similar checking function for MIPS (because qemu is my only choice
+and it simulates MIPS TLB) and ran my tests on mips-malta machine in qemu.
+With MIPS I can also see this issue. I hope I did it right, the patch at the
+bottom is for the reference. The test I run and the diagnostic output are as
+follows:
+
+# ./runltp -p -q -T 100 -s mtest05
+...
+mmstress    0  TINFO  :  test2: Test case tests the race condition between simultaneous write faults in the same address space.
+[  439.010000] 14: 70d68000: 03178000/00000000
+mmstress    2  TPASS  :  TEST 2 Passed
+...
+mmstress    0  TINFO  :  test2: Test case tests the race condition between simultaneous write faults in the same address space.
+[  947.390000] 10: 6f9d2000: 03639000/00000000
+[  947.390000] 10: 6f9d3000: 03638000/00000000
+mmstress    2  TPASS  :  TEST 2 Passed
+...
+mmstress    0  TINFO  :  test1: Test case tests the race condition between simultaneous read faults in the same address space.
+[ 1922.680000] 10: 68e12000: 03b59000/00000000
+[ 1922.680000] 10: 68e13000: 03b58000/00000000
+mmstress    1  TPASS  :  TEST 1 Passed
+...
+
+To me it looks like the cond_resched in the zap_pmd_range is the root cause
+of this issue (let alone SMP case for now). It was introduced in the commit
+
+commit 97a894136f29802da19a15541de3c019e1ca147e
+Author: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Date:   Tue May 24 17:12:04 2011 -0700
+
+    mm: Remove i_mmap_lock lockbreak
+
+Peter, Kamezawa, other reviewers of that commit, could you please comment?
 
 
---=-TOzbzShQt1fbFomBxQ3Y
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-On Sun, 2013-05-26 at 13:58 +0800, Wanpeng Li wrote:
-> Changelog:
->  v1 -> v2:
-> 	* show number of HighTotal before hotremove=20
-> 	* remove CONFIG_HIGHMEM
-> 	* cc stable kernels
-> 	* add Michal reviewed-by
->=20
-> Logic memory-remove code fails to correctly account the Total High Memory=
-=20
-> when a memory block which contains High Memory is offlined as shown in th=
-e
-> example below. The following patch fixes it.
->=20
-> Stable for 2.6.24+.
-[...]
-> Reviewed-by: Michal Hocko <mhocko@suse.cz>
-> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-> ---
-[...]
-
-This is not the correct way to request changes for stable.  See
-Documentation/stable_kernel_rules.txt
-
-Ben.
-
---=20
-Ben Hutchings
-If at first you don't succeed, you're doing about average.
-
---=-TOzbzShQt1fbFomBxQ3Y
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIVAwUAUaQmfee/yOyVhhEJAQogSw//SSffy01Q+MbGAuMdzn3v5tOEtbUSnag7
-R5mM/VHrt+wg+IlcUYSHvL20H7O+CDpk7Rg68U+B37x0Nnk/00YgE+lsQrnl4KW7
-1SkvvnXLw1J8wT70mbggOUVKPLPNhW2+wGTdpXJnxeGExneEiJC09nD8rqhgdCXx
-CzTcnPCI8bKpIAQ6dKvf1d4xeaL6xf4EujxItNLVNg0hKeoJ3mDfd6Rz7GG3IiTi
-NB7XIqsQgf3ATmbt8Mje6uaC0Er/K/Lt4EmwOFZG//30y+kfeoa6jY0b8VLvF0/b
-NQYW55cR4uj2LM0oL0iEsziB7tVh4Q3Z+C9htp3GC31HejknpPow++BUP3Kpw6Cn
-LlNQRWZszAgZjPWWUJahRjrNpD/UAM8PI1VZyHtw+oVHxX7cl7oRXvHntvdp2MF7
-lerBRldIfBRh9nV9HyyWXLyxWLuf0qvWdfp+Q5g8wXn8I+tDSucIQ/lYs2yhjNnK
-EYfVCTrVZSZG+Ppe370cD4EQCZ2qpf3J0t1upcY6p4aOHcbfrt0DT9r4Q9GDZFeo
-ob1xjHD3BuqxR3Sl+ngDg8eDEX0U2L8JNth6z476Giw+/gFreidgbAoFkmJHJYUN
-DhZd2tIU6Sw6YHctDxp56WgOsWGKLMUK/4mG/J9lFj9+2f9+EAR7yl/I3hqoTRN0
-sUsUZKi2Sz0=
-=oad5
------END PGP SIGNATURE-----
-
---=-TOzbzShQt1fbFomBxQ3Y--
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+------8<------
