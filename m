@@ -1,76 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id F22306B0129
-	for <linux-mm@kvack.org>; Wed, 29 May 2013 10:45:52 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id bj1so4113595pad.29
-        for <linux-mm@kvack.org>; Wed, 29 May 2013 07:45:52 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 9377C6B012B
+	for <linux-mm@kvack.org>; Wed, 29 May 2013 10:45:56 -0400 (EDT)
+Received: by mail-pb0-f42.google.com with SMTP id uo1so9290930pbc.1
+        for <linux-mm@kvack.org>; Wed, 29 May 2013 07:45:55 -0700 (PDT)
 From: Jiang Liu <liuj97@gmail.com>
-Subject: [PATCH, v2 11/13] mm: kill free_all_bootmem_node()
-Date: Wed, 29 May 2013 22:44:50 +0800
-Message-Id: <1369838692-26860-12-git-send-email-jiang.liu@huawei.com>
+Subject: [PATCH, v2 12/13] mm/alpha: unify mem_init() for both UMA and NUMA architectures
+Date: Wed, 29 May 2013 22:44:51 +0800
+Message-Id: <1369838692-26860-13-git-send-email-jiang.liu@huawei.com>
 In-Reply-To: <1369838692-26860-1-git-send-email-jiang.liu@huawei.com>
 References: <1369838692-26860-1-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, "David S. Miller" <davem@davemloft.net>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>
+Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, linux-alpha@vger.kernel.org
 
-Now nobody makes use of free_all_bootmem_node(), kill it.
+Now mem_init() for both Alpha UMA and Alpha NUMA are the same,
+so unify it to reduce duplicated code.
 
 Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: "David S. Miller" <davem@davemloft.net>
-Cc: Yinghai Lu <yinghai@kernel.org>
-Cc: Tejun Heo <tj@kernel.org>
+Cc: Richard Henderson <rth@twiddle.net>
+Cc: Ivan Kokshaysky <ink@jurassic.park.msu.ru>
+Cc: Matt Turner <mattst88@gmail.com>
+Cc: linux-alpha@vger.kernel.org
 Cc: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
 ---
- include/linux/bootmem.h |  1 -
- mm/bootmem.c            | 18 ------------------
- 2 files changed, 19 deletions(-)
+ arch/alpha/mm/init.c |  7 ++-----
+ arch/alpha/mm/numa.c | 10 ----------
+ 2 files changed, 2 insertions(+), 15 deletions(-)
 
-diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
-index 0e48c32..f1f07d3 100644
---- a/include/linux/bootmem.h
-+++ b/include/linux/bootmem.h
-@@ -44,7 +44,6 @@ extern unsigned long init_bootmem_node(pg_data_t *pgdat,
- 				       unsigned long endpfn);
- extern unsigned long init_bootmem(unsigned long addr, unsigned long memend);
- 
--extern unsigned long free_all_bootmem_node(pg_data_t *pgdat);
- extern unsigned long free_all_bootmem(void);
- extern void reset_all_zones_managed_pages(void);
- 
-diff --git a/mm/bootmem.c b/mm/bootmem.c
-index 58609bb..6ab7744 100644
---- a/mm/bootmem.c
-+++ b/mm/bootmem.c
-@@ -264,24 +264,6 @@ void __init reset_all_zones_managed_pages(void)
+diff --git a/arch/alpha/mm/init.c b/arch/alpha/mm/init.c
+index af91010..a1bea91 100644
+--- a/arch/alpha/mm/init.c
++++ b/arch/alpha/mm/init.c
+@@ -276,17 +276,14 @@ srm_paging_stop (void)
  }
+ #endif
  
- /**
-- * free_all_bootmem_node - release a node's free pages to the buddy allocator
-- * @pgdat: node to be released
-- *
-- * Returns the number of pages actually released.
-- */
--unsigned long __init free_all_bootmem_node(pg_data_t *pgdat)
+-#ifndef CONFIG_DISCONTIGMEM
+ void __init
+ mem_init(void)
+ {
+-	max_mapnr = max_low_pfn;
+-	free_all_bootmem();
++	set_max_mapnr(max_low_pfn);
+ 	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
+-
++	free_all_bootmem();
+ 	mem_init_print_info(NULL);
+ }
+-#endif /* CONFIG_DISCONTIGMEM */
+ 
+ void
+ free_initmem(void)
+diff --git a/arch/alpha/mm/numa.c b/arch/alpha/mm/numa.c
+index 0894b3a8..d543d71 100644
+--- a/arch/alpha/mm/numa.c
++++ b/arch/alpha/mm/numa.c
+@@ -319,13 +319,3 @@ void __init paging_init(void)
+ 	/* Initialize the kernel's ZERO_PGE. */
+ 	memset((void *)ZERO_PGE, 0, PAGE_SIZE);
+ }
+-
+-void __init mem_init(void)
 -{
--	unsigned long pages;
--
--	register_page_bootmem_info_node(pgdat);
--	reset_node_managed_pages(pgdat);
--	pages = free_all_bootmem_core(pgdat->bdata);
--	totalram_pages += pages;
--
--	return pages;
+-	high_memory = (void *) __va(max_low_pfn << PAGE_SHIFT);
+-	free_all_bootmem();
+-	mem_init_print_info(NULL);
+-#if 0
+-	mem_stress();
+-#endif
 -}
--
--/**
-  * free_all_bootmem - release free pages to the buddy allocator
-  *
-  * Returns the number of pages actually released.
 -- 
 1.8.1.2
 
