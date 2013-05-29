@@ -1,93 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 5F3356B0110
-	for <linux-mm@kvack.org>; Wed, 29 May 2013 10:00:48 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id fa1so1836374pad.5
-        for <linux-mm@kvack.org>; Wed, 29 May 2013 07:00:47 -0700 (PDT)
-From: Jiang Liu <liuj97@gmail.com>
-Subject: [PATCH v6, part4 41/41] mm: kill global variable num_physpages
-Date: Wed, 29 May 2013 21:57:59 +0800
-Message-Id: <1369835879-23553-42-git-send-email-jiang.liu@huawei.com>
-In-Reply-To: <1369835879-23553-1-git-send-email-jiang.liu@huawei.com>
-References: <1369835879-23553-1-git-send-email-jiang.liu@huawei.com>
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 016606B0112
+	for <linux-mm@kvack.org>; Wed, 29 May 2013 10:03:51 -0400 (EDT)
+Date: Wed, 29 May 2013 15:03:19 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH] mm: Fix the TLB range flushed when __tlb_remove_page()
+ runs out of slots
+Message-ID: <20130529140319.GK17767@MacBook-Pro.local>
+References: <1369832173-15088-1-git-send-email-vgupta@synopsys.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1369832173-15088-1-git-send-email-vgupta@synopsys.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Al Viro <viro@zeniv.linux.org.uk>, Konstantin Khlebnikov <khlebnikov@openvz.org>
+To: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Peter Zijlstra <peterz@infradead.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Max Filippov <jcmvbkbc@gmail.com>
 
-Now all references to num_physpages have been removed, so kill it.
+On Wed, May 29, 2013 at 01:56:13PM +0100, Vineet Gupta wrote:
+> zap_pte_range loops from @addr to @end. In the middle, if it runs out of
+> batching slots, TLB entries needs to be flushed for @start to @interim,
+> NOT @interim to @end.
+> 
+> Since ARC port doesn't use page free batching I can't test it myself but
+> this seems like the right thing to do.
+> Observed this when working on a fix for the issue at thread:
+> 	http://www.spinics.net/lists/linux-arch/msg21736.html
+> 
+> Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Peter Zijlstra <peterz@infradead.org>
+> Cc: linux-mm@kvack.org
+> Cc: linux-arch@vger.kernel.org <linux-arch@vger.kernel.org>
+> Cc: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: Max Filippov <jcmvbkbc@gmail.com>
+> ---
+>  mm/memory.c |    9 ++++++---
+>  1 file changed, 6 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 6dc1882..d9d5fd9 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1110,6 +1110,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
+>  	spinlock_t *ptl;
+>  	pte_t *start_pte;
+>  	pte_t *pte;
+> +	unsigned long range_start = addr;
+>  
+>  again:
+>  	init_rss_vec(rss);
+> @@ -1215,12 +1216,14 @@ again:
+>  		force_flush = 0;
+>  
+>  #ifdef HAVE_GENERIC_MMU_GATHER
+> -		tlb->start = addr;
+> -		tlb->end = end;
+> +		tlb->start = range_start;
+> +		tlb->end = addr;
+>  #endif
+>  		tlb_flush_mmu(tlb);
+> -		if (addr != end)
+> +		if (addr != end) {
+> +			range_start = addr;
+>  			goto again;
+> +		}
+>  	}
 
-Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Michel Lespinasse <walken@google.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Jiang Liu <jiang.liu@huawei.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Al Viro <viro@zeniv.linux.org.uk>
-Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
----
- include/linux/mm.h | 1 -
- mm/memory.c        | 2 --
- mm/nommu.c         | 2 --
- 3 files changed, 5 deletions(-)
+Isn't this code only run if force_flush != 0? force_flush is set to
+!__tlb_remove_page() and this function always returns 1 on (generic TLB)
+UP since tlb_fast_mode() is 1. There is no batching on UP with the
+generic TLB code.
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 8e4f0ed..7e39aa1 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -29,7 +29,6 @@ struct writeback_control;
- extern unsigned long max_mapnr;
- #endif
- 
--extern unsigned long num_physpages;
- extern unsigned long totalram_pages;
- extern void * high_memory;
- extern int page_cluster;
-diff --git a/mm/memory.c b/mm/memory.c
-index 44bb67b..26fa5ad 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -82,7 +82,6 @@ EXPORT_SYMBOL(max_mapnr);
- EXPORT_SYMBOL(mem_map);
- #endif
- 
--unsigned long num_physpages;
- /*
-  * A number of key systems in x86 including ioremap() rely on the assumption
-  * that high_memory defines the upper bound on direct map memory, then end
-@@ -92,7 +91,6 @@ unsigned long num_physpages;
-  */
- void * high_memory;
- 
--EXPORT_SYMBOL(num_physpages);
- EXPORT_SYMBOL(high_memory);
- 
- /*
-diff --git a/mm/nommu.c b/mm/nommu.c
-index 886e07c..0c42c9e 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -56,7 +56,6 @@
- void *high_memory;
- struct page *mem_map;
- unsigned long max_mapnr;
--unsigned long num_physpages;
- unsigned long highest_memmap_pfn;
- struct percpu_counter vm_committed_as;
- int sysctl_overcommit_memory = OVERCOMMIT_GUESS; /* heuristic overcommit */
-@@ -85,7 +84,6 @@ unsigned long vm_memory_committed(void)
- EXPORT_SYMBOL_GPL(vm_memory_committed);
- 
- EXPORT_SYMBOL(mem_map);
--EXPORT_SYMBOL(num_physpages);
- 
- /* list of mapped, potentially shareable regions */
- static struct kmem_cache *vm_region_jar;
 -- 
-1.8.1.2
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
