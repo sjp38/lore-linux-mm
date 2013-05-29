@@ -1,91 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id C12F36B0154
-	for <linux-mm@kvack.org>; Wed, 29 May 2013 13:43:47 -0400 (EDT)
-Received: by mail-la0-f41.google.com with SMTP id ee20so8980021lab.28
-        for <linux-mm@kvack.org>; Wed, 29 May 2013 10:43:45 -0700 (PDT)
-Message-ID: <51A63E51.2060202@cogentembedded.com>
-Date: Wed, 29 May 2013 21:43:45 +0400
-From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 2036E6B0156
+	for <linux-mm@kvack.org>; Wed, 29 May 2013 13:51:35 -0400 (EDT)
+Date: Wed, 29 May 2013 19:51:25 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: TLB and PTE coherency during munmap
+Message-ID: <20130529175125.GJ12193@twins.programming.kicks-ass.net>
+References: <CAMo8BfL4QfJrfejNKmBDhAVdmE=_Ys6MVUH5Xa3w_mU41hwx0A@mail.gmail.com>
+ <CAMo8BfJie1Y49QeSJ+JTQb9WsYJkMMkb1BkKz2Gzy3T7V6ogHA@mail.gmail.com>
+ <51A45861.1010008@gmail.com>
+ <20130529122728.GA27176@twins.programming.kicks-ass.net>
+ <51A5F7A7.5020604@synopsys.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH, v2 13/13] mm/m68k: fix build warning of unused variable
-References: <1369838692-26860-1-git-send-email-jiang.liu@huawei.com> <1369838692-26860-14-git-send-email-jiang.liu@huawei.com>
-In-Reply-To: <1369838692-26860-14-git-send-email-jiang.liu@huawei.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51A5F7A7.5020604@synopsys.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <liuj97@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Geert Uytterhoeven <geert@linux-m68k.org>, Greg Ungerer <gerg@uclinux.org>, Thadeu Lima de Souza Cascardo <cascardo@holoscopio.com>, linux-m68k@lists.linux-m68k.org
+To: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Cc: Max Filippov <jcmvbkbc@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, Ralf Baechle <ralf@linux-mips.org>, Chris Zankel <chris@zankel.net>, Marc Gauthier <Marc.Gauthier@tensilica.com>, linux-xtensa@linux-xtensa.org, Hugh Dickins <hughd@google.com>
 
-Hello.
+What about something like this?
 
-On 05/29/2013 06:44 PM, Jiang Liu wrote:
+---
+ include/asm-generic/tlb.h | 11 ++++++++++-
+ mm/memory.c               | 17 ++++++++++++++++-
+ 2 files changed, 26 insertions(+), 2 deletions(-)
 
-> Fix build warning of unused variable:
-> arch/m68k/mm/init.c: In function 'mem_init':
-> arch/m68k/mm/init.c:151:6: warning: unused variable 'i' [-Wunused-variable]
->
-> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-> Cc: Geert Uytterhoeven <geert@linux-m68k.org>
-> Cc: Greg Ungerer <gerg@uclinux.org>
-> Cc: Thadeu Lima de Souza Cascardo <cascardo@holoscopio.com>
-> Cc: linux-m68k@lists.linux-m68k.org
-> Cc: linux-kernel@vger.kernel.org
-> ---
->   arch/m68k/mm/init.c | 13 ++++++++-----
->   1 file changed, 8 insertions(+), 5 deletions(-)
->
-> diff --git a/arch/m68k/mm/init.c b/arch/m68k/mm/init.c
-> index 6e0a938..6b4baa6 100644
-> --- a/arch/m68k/mm/init.c
-> +++ b/arch/m68k/mm/init.c
-> @@ -146,14 +146,11 @@ void __init print_memmap(void)
->   		MLK_ROUNDUP(__bss_start, __bss_stop));
->   }
->   
-> -void __init mem_init(void)
-> +static inline void init_pointer_tables(void)
->   {
-> +#if defined(CONFIG_MMU) && !defined(CONFIG_SUN3) && !defined(CONFIG_COLDFIRE)
+diff --git a/include/asm-generic/tlb.h b/include/asm-generic/tlb.h
+index b1b1fa6..651b1cf 100644
+--- a/include/asm-generic/tlb.h
++++ b/include/asm-generic/tlb.h
+@@ -116,6 +116,7 @@ struct mmu_gather {
+ 
+ static inline int tlb_fast_mode(struct mmu_gather *tlb)
+ {
++#ifndef CONFIG_PREEMPT
+ #ifdef CONFIG_SMP
+ 	return tlb->fast_mode;
+ #else
+@@ -124,7 +125,15 @@ static inline int tlb_fast_mode(struct mmu_gather *tlb)
+ 	 * and page free order so much..
+ 	 */
+ 	return 1;
+-#endif
++#endif /* CONFIG_SMP */
++#else  /* CONFIG_PREEMPT */
++	/*
++	 * Since mmu_gather is preemptible, preemptible kernels are like SMP
++	 * kernels, we must batch to make sure we invalidate TLBs before we
++	 * free the pages.
++	 */
++	return 0;
++#endif /* CONFIG_PREEMPT */
+ }
+ 
+ void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, bool fullmm);
+diff --git a/mm/memory.c b/mm/memory.c
+index 6dc1882..e915af2 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -384,6 +384,21 @@ void tlb_remove_table(struct mmu_gather *tlb, void *table)
+ 
+ #endif /* CONFIG_HAVE_RCU_TABLE_FREE */
+ 
++static inline void cond_resched_tlb(struct mmu_gather *tlb)
++{
++#ifndef CONFIG_PREEMPT
++	/*
++	 * For full preempt kernels we must do regular batching like
++	 * SMP, see tlb_fast_mode(). For !PREEMPT we can 'cheat' and
++	 * do a flush before our voluntary 'yield'.
++	 */
++	if (need_resched()) {
++		tlb_flush_mmu(tlb);
++		cond_resched();
++	}
++#endif
++}
++
+ /*
+  * If a p?d_bad entry is found while walking page tables, report
+  * the error, before resetting entry to p?d_none.  Usually (but
+@@ -1264,7 +1279,7 @@ static inline unsigned long zap_pmd_range(struct mmu_gather *tlb,
+ 			goto next;
+ 		next = zap_pte_range(tlb, vma, pmd, addr, next, details);
+ next:
+-		cond_resched();
++		cond_resched_tlb(tlb);
+ 	} while (pmd++, addr = next, addr != end);
+ 
+ 	return addr;
 
-    #ifdef's in the function bodies are frowned upon, this should better be:
-
-#if defined(CONFIG_MMU) && !defined(CONFIG_SUN3) && !defined(CONFIG_COLDFIRE)
-
-static inline void init_pointer_tables(void)
-{
-[...]
-}
-#else
-static inline void init_pointer_tables(void) {}
-#endif
-
->   	int i;
->   
-> -	/* this will put all memory onto the freelists */
-> -	free_all_bootmem();
-> -
-> -#if defined(CONFIG_MMU) && !defined(CONFIG_SUN3) && !defined(CONFIG_COLDFIRE)
->   	/* insert pointer tables allocated so far into the tablelist */
->   	init_pointer_table((unsigned long)kernel_pg_dir);
->   	for (i = 0; i < PTRS_PER_PGD; i++) {
-> @@ -165,7 +162,13 @@ void __init mem_init(void)
->   	if (zero_pgtable)
->   		init_pointer_table((unsigned long)zero_pgtable);
->   #endif
-> +}
->   
-> +void __init mem_init(void)
-> +{
-> +	/* this will put all memory onto the freelists */
-> +	free_all_bootmem();
-> +	init_pointer_tables();
->   	mem_init_print_info(NULL);
->   	print_memmap();
->   }
-
-WBR, Sergei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
