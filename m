@@ -1,81 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id AC48A6B0159
-	for <linux-mm@kvack.org>; Wed, 29 May 2013 13:52:35 -0400 (EDT)
-Date: Wed, 29 May 2013 19:52:23 +0200
-From: Andres Freund <andres@2ndquadrant.com>
-Subject: Re: [patch 1/2] mm: fincore()
-Message-ID: <20130529175222.GC4678@awork2.anarazel.de>
-References: <87a9rbh7b4.fsf@rustcorp.com.au>
- <20130211162701.GB13218@cmpxchg.org>
- <20130211141239.f4decf03.akpm@linux-foundation.org>
- <20130215063450.GA24047@cmpxchg.org>
- <20130215132738.c85c9eda.akpm@linux-foundation.org>
- <20130215231304.GB23930@cmpxchg.org>
- <20130215154235.0fb36f53.akpm@linux-foundation.org>
- <87621skhtc.fsf@rustcorp.com.au>
- <20130529145312.GE3955@alap2.anarazel.de>
- <20130529173223.GE15721@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130529173223.GE15721@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 989A66B015B
+	for <linux-mm@kvack.org>; Wed, 29 May 2013 14:29:32 -0400 (EDT)
+Date: Wed, 29 May 2013 11:29:29 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCHv12 3/4] zswap: add to mm/
+Message-Id: <20130529112929.24005ae9cf1d9d636b2ea42f@linux-foundation.org>
+In-Reply-To: <20130529145720.GA428@cerebellum>
+References: <1369067168-12291-1-git-send-email-sjenning@linux.vnet.ibm.com>
+	<1369067168-12291-4-git-send-email-sjenning@linux.vnet.ibm.com>
+	<20130528145918.acbd84df00313e527cf04d1b@linux-foundation.org>
+	<20130529145720.GA428@cerebellum>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Rusty Russell <rusty@rustcorp.com.au>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@kernel.dk>, Stewart Smith <stewart@flamingspork.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, Heesub Shin <heesub.shin@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On 2013-05-29 13:32:23 -0400, Johannes Weiner wrote:
-> On Wed, May 29, 2013 at 04:53:12PM +0200, Andres Freund wrote:
-> > On 2013-02-16 14:53:43 +1030, Rusty Russell wrote:
-> > > Andrew Morton <akpm@linux-foundation.org> writes:
-> > > > On Fri, 15 Feb 2013 18:13:04 -0500
-> > > > Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > > >> I dunno.  The byte vector might not be optimal but its worst cases
-> > > >> seem more attractive, is just as extensible, and dead simple to use.
-> > > >
-> > > > But I think "which pages from this 4TB file are in core" will not be an
-> > > > uncommon usage, and writing a gig of memory to find three pages is just
-> > > > awful.
-> > > 
-> > > Actually, I don't know of any usage for this call.
+On Wed, 29 May 2013 09:57:20 -0500 Seth Jennings <sjenning@linux.vnet.ibm.com> wrote:
+
+> > > +/*********************************
+> > > +* helpers
+> > > +**********************************/
+> > > +static inline bool zswap_is_full(void)
+> > > +{
+> > > +	return (totalram_pages * zswap_max_pool_percent / 100 <
+> > > +		zswap_pool_pages);
+> > > +}
 > > 
-> > [months later, catching up]
-> > 
-> > I do. Postgres' could really use something like that for making saner
-> > assumptions about the cost of doing an index/heap scan. postgres doesn't
-> > use mmap() and mmaping larger files into memory isn't all that cheap
-> > (32bit...) so having fincore would be nice.
+> > We have had issues in the past where percentage-based tunables were too
+> > coarse on very large machines.  For example, a terabyte machine where 0
+> > bytes is too small and 10GB is too large.
+> 
+> Yes, this is known limitation of the code right now and it is a high priority
+> to come up with something better.  It isn't clear what dynamic sizing policy
+> should be used so, until such time as that policy can be determined, this is a
+> simple stop-gap that works well enough for simple setups.
 
-> How much of the areas you want to use it against is usually cached?
-> I.e. are those 4TB files with 3 cached pages?
+It's a module parameter and hence is part of the userspace interface. 
+It's undesirable that the interface be changed, and it would be rather
+dumb to merge it as-is when we *know* that it will be changed.
 
-Hard to say in general. The point is exactly that we don't know. If
-there's nothing of a large index in memory and we estimate that we want
-20% of a table we sure won't do an indexscan. If its all in memory?
-Different story.
-For that usecase its not actually important that we get a 100% accurate
-result although I, from my limited understanding, don't really see that
-helping much.
+I don't think we can remove the parameter altogether (or can we?), so I
+suggest we finalise it ASAP.  Perhaps rename it to
+zswap_max_pool_ratio, with a range 1..999999.  Better ideas needed :(
 
-(Yes, there are some problems with cache warming here)
-
-> I do wonder if we should just have two separate interfaces.  Ugly, but
-> I don't really see how the two requirements (dense but many holes
-> vs. huge sparse areas) could be acceptably met with one interface.
-
-The difference would be how the information would be encoded, right? Not
-sure how the passed in memory could be sized in some run length encoded
-scheme. What I could imagine is specifying the granularity we want
-information about, but thats probably too specific.
-
-Greetings,
-
-Andres Freund
-
--- 
- Andres Freund	                   http://www.2ndQuadrant.com/
- PostgreSQL Development, 24x7 Support, Training & Services
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
