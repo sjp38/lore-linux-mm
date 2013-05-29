@@ -1,53 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id 9EEAE6B0131
-	for <linux-mm@kvack.org>; Wed, 29 May 2013 18:04:56 -0400 (EDT)
-Received: by mail-pb0-f47.google.com with SMTP id rr4so9879355pbb.20
-        for <linux-mm@kvack.org>; Wed, 29 May 2013 15:04:55 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20130529175125.GJ12193@twins.programming.kicks-ass.net>
-References: <CAMo8BfL4QfJrfejNKmBDhAVdmE=_Ys6MVUH5Xa3w_mU41hwx0A@mail.gmail.com>
- <CAMo8BfJie1Y49QeSJ+JTQb9WsYJkMMkb1BkKz2Gzy3T7V6ogHA@mail.gmail.com>
- <51A45861.1010008@gmail.com> <20130529122728.GA27176@twins.programming.kicks-ass.net>
- <51A5F7A7.5020604@synopsys.com> <20130529175125.GJ12193@twins.programming.kicks-ass.net>
-From: Catalin Marinas <catalin.marinas@arm.com>
-Date: Wed, 29 May 2013 23:04:35 +0100
-Message-ID: <CAHkRjk7GeAyuMWM2B-sxDZL5qZ6Lgmh_v+vuf98+6hdro5B7ng@mail.gmail.com>
-Subject: Re: TLB and PTE coherency during munmap
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id C5BA16B0132
+	for <linux-mm@kvack.org>; Wed, 29 May 2013 18:08:13 -0400 (EDT)
+Date: Wed, 29 May 2013 15:08:11 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: page_alloc: fix watermark check in
+ __zone_watermark_ok()
+Message-Id: <20130529150811.3d4d9a55f704e95be64c7b52@linux-foundation.org>
+In-Reply-To: <CAH9JG2U7787jzqdnr1Z7kZbyEUvHZJG_XZiPENGJQVENsqVDTA@mail.gmail.com>
+References: <518B5556.4010005@samsung.com>
+	<519FCC46.2000703@codeaurora.org>
+	<CAH9JG2U7787jzqdnr1Z7kZbyEUvHZJG_XZiPENGJQVENsqVDTA@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Vineet Gupta <Vineet.Gupta1@synopsys.com>, Max Filippov <jcmvbkbc@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Ralf Baechle <ralf@linux-mips.org>, Chris Zankel <chris@zankel.net>, Marc Gauthier <Marc.Gauthier@tensilica.com>, linux-xtensa@linux-xtensa.org, Hugh Dickins <hughd@google.com>
+To: Kyungmin Park <kmpark@infradead.org>
+Cc: Laura Abbott <lauraa@codeaurora.org>, Tomasz Stanislawski <t.stanislaws@samsung.com>, linux-mm@kvack.org, Marek Szyprowski <m.szyprowski@samsung.com>, minchan@kernel.org, mgorman@suse.de, 'Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 
-On 29 May 2013 18:51, Peter Zijlstra <peterz@infradead.org> wrote:
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -384,6 +384,21 @@ void tlb_remove_table(struct mmu_gather *tlb, void *table)
->
->  #endif /* CONFIG_HAVE_RCU_TABLE_FREE */
->
-> +static inline void cond_resched_tlb(struct mmu_gather *tlb)
-> +{
-> +#ifndef CONFIG_PREEMPT
-> +       /*
-> +        * For full preempt kernels we must do regular batching like
-> +        * SMP, see tlb_fast_mode(). For !PREEMPT we can 'cheat' and
-> +        * do a flush before our voluntary 'yield'.
-> +        */
-> +       if (need_resched()) {
-> +               tlb_flush_mmu(tlb);
-> +               cond_resched();
-> +       }
-> +#endif
-> +}
+On Sat, 25 May 2013 13:32:02 +0900 Kyungmin Park <kmpark@infradead.org> wrote:
 
-Does it matter that in the CONFIG_PREEMPT case, you no longer call
-cond_resched()? I guess we can just rely on the kernel full preemption
-to reschedule as needed.
+> > I haven't seen any response to this patch but it has been of some benefit
+> > to some of our use cases. You're welcome to add
+> >
+> > Tested-by: Laura Abbott <lauraa@codeaurora.org>
+> >
+> 
+> Thanks Laura,
+> We already got mail from Andrew, it's merged mm tree.
 
---
-Catalin
+Yes, but I have it scheduled for 3.11 with no -stable backport.
+
+This is because the patch changelog didn't tell me about the
+userspace-visible impact of the bug.  Judging from Laura's comments, this
+was a mistake.
+
+So please: details.  What problems were observable to Laura and do we
+think this bug should be fixed in 3.10 and earlier?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
