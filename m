@@ -1,52 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 87CB16B0140
-	for <linux-mm@kvack.org>; Wed, 29 May 2013 11:09:17 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id kx1so9416061pab.13
-        for <linux-mm@kvack.org>; Wed, 29 May 2013 08:09:16 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id CEB9C6B0142
+	for <linux-mm@kvack.org>; Wed, 29 May 2013 11:09:20 -0400 (EDT)
+Received: by mail-pb0-f44.google.com with SMTP id wz12so9336800pbc.3
+        for <linux-mm@kvack.org>; Wed, 29 May 2013 08:09:20 -0700 (PDT)
 From: Jiang Liu <liuj97@gmail.com>
-Subject: [PATCH, v2 2/5] mm/ARM: fix stale comment about VALID_PAGE()
-Date: Wed, 29 May 2013 23:08:53 +0800
-Message-Id: <1369840136-1491-3-git-send-email-jiang.liu@huawei.com>
+Subject: [PATCH, v2 3/5] mm/CRIS: clean up unused VALID_PAGE()
+Date: Wed, 29 May 2013 23:08:54 +0800
+Message-Id: <1369840136-1491-4-git-send-email-jiang.liu@huawei.com>
 In-Reply-To: <1369840136-1491-1-git-send-email-jiang.liu@huawei.com>
 References: <1369840136-1491-1-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Russell King <linux@arm.linux.org.uk>, Will Deacon <will.deacon@arm.com>, Nicolas Pitre <nico@linaro.org>, Stephen Boyd <sboyd@codeaurora.org>, Giancarlo Asnaghi <giancarlo.asnaghi@st.com>, linux-arm-kernel@lists.infradead.org
+Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Mikael Starvik <starvik@axis.com>, linux-cris-kernel@axis.com
 
-VALID_PAGE() has been removed from kernel long time ago,
-so fix the comment.
+VALID_PAGE() has been removed from kernel long time ago, so clean up it.
 
 Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-Cc: Russell King <linux@arm.linux.org.uk>
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: Nicolas Pitre <nico@linaro.org>
-Cc: Stephen Boyd <sboyd@codeaurora.org>
-Cc: Giancarlo Asnaghi <giancarlo.asnaghi@st.com>
-Cc: linux-arm-kernel@lists.infradead.org
+Acked-by: Jesper Nilsson <jesper.nilsson@axis.com>
+Cc: Mikael Starvik <starvik@axis.com>
+Cc: Jiang Liu <jiang.liu@huawei.com>
+Cc: linux-cris-kernel@axis.com
 Cc: linux-kernel@vger.kernel.org
 ---
- arch/arm/include/asm/memory.h | 6 ------
- 1 file changed, 6 deletions(-)
+ arch/cris/include/asm/page.h | 1 -
+ 1 file changed, 1 deletion(-)
 
-diff --git a/arch/arm/include/asm/memory.h b/arch/arm/include/asm/memory.h
-index 57870ab..0cd2a3d 100644
---- a/arch/arm/include/asm/memory.h
-+++ b/arch/arm/include/asm/memory.h
-@@ -260,12 +260,6 @@ static inline __deprecated void *bus_to_virt(unsigned long x)
- /*
-  * Conversion between a struct page and a physical address.
-  *
-- * Note: when converting an unknown physical address to a
-- * struct page, the resulting pointer must be validated
-- * using VALID_PAGE().  It must return an invalid struct page
-- * for any physical address not corresponding to a system
-- * RAM address.
-- *
-  *  page_to_pfn(page)	convert a struct page * to a PFN number
-  *  pfn_to_page(pfn)	convert a _valid_ PFN number to struct page *
-  *
+diff --git a/arch/cris/include/asm/page.h b/arch/cris/include/asm/page.h
+index be45ee3..dfc53f9 100644
+--- a/arch/cris/include/asm/page.h
++++ b/arch/cris/include/asm/page.h
+@@ -51,7 +51,6 @@ typedef struct page *pgtable_t;
+  */ 
+ 
+ #define virt_to_page(kaddr)    (mem_map + (((unsigned long)(kaddr) - PAGE_OFFSET) >> PAGE_SHIFT))
+-#define VALID_PAGE(page)       (((page) - mem_map) < max_mapnr)
+ #define virt_addr_valid(kaddr)	pfn_valid((unsigned)(kaddr) >> PAGE_SHIFT)
+ 
+ /* convert a page (based on mem_map and forward) to a physical address
 -- 
 1.8.1.2
 
