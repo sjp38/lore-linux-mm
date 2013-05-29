@@ -1,97 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id C267D6B00B1
-	for <linux-mm@kvack.org>; Wed, 29 May 2013 08:25:23 -0400 (EDT)
-Date: Wed, 29 May 2013 22:25:12 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v8 16/34] xfs: convert buftarg LRU to generic code
-Message-ID: <20130529122512.GB29466@dastard>
-References: <1369391368-31562-1-git-send-email-glommer@openvz.org>
- <1369391368-31562-17-git-send-email-glommer@openvz.org>
- <20130525002759.GK24543@dastard>
- <51A4D3B5.6060802@parallels.com>
- <20130529101519.GA29466@dastard>
- <51A5DDCE.509@parallels.com>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 6357A6B00B3
+	for <linux-mm@kvack.org>; Wed, 29 May 2013 08:27:45 -0400 (EDT)
+Date: Wed, 29 May 2013 14:27:28 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: TLB and PTE coherency during munmap
+Message-ID: <20130529122728.GA27176@twins.programming.kicks-ass.net>
+References: <CAMo8BfL4QfJrfejNKmBDhAVdmE=_Ys6MVUH5Xa3w_mU41hwx0A@mail.gmail.com>
+ <CAMo8BfJie1Y49QeSJ+JTQb9WsYJkMMkb1BkKz2Gzy3T7V6ogHA@mail.gmail.com>
+ <51A45861.1010008@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51A5DDCE.509@parallels.com>
+In-Reply-To: <51A45861.1010008@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, Dave Chinner <dchinner@redhat.com>
+To: Max Filippov <jcmvbkbc@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, Ralf Baechle <ralf@linux-mips.org>, Chris Zankel <chris@zankel.net>, Marc Gauthier <Marc.Gauthier@tensilica.com>, linux-xtensa@linux-xtensa.org, Hugh Dickins <hughd@google.com>
 
-On Wed, May 29, 2013 at 02:51:58PM +0400, Glauber Costa wrote:
-> On 05/29/2013 02:15 PM, Dave Chinner wrote:
-> > On Tue, May 28, 2013 at 09:26:37PM +0530, Glauber Costa wrote:
-> >> On 05/25/2013 05:57 AM, Dave Chinner wrote:
-> >>> On Fri, May 24, 2013 at 03:59:10PM +0530, Glauber Costa wrote:
-> >>>> From: Dave Chinner <dchinner@redhat.com>
-> >>>>
-> >>>> Convert the buftarg LRU to use the new generic LRU list and take
-> >>>> advantage of the functionality it supplies to make the buffer cache
-> >>>> shrinker node aware.
-> >>>>
-> >>>> * v7: Add NUMA aware flag
-> >>>
-> >>> I know what is wrong with this patch that causes the unmount hang -
-> >>> it's the handling of the _XBF_LRU_DISPOSE flag no longer being
-> >>> modified atomically with the LRU lock. Hence there is a race where
-> >>> we can either lose the _XBF_LRU_DISPOSE or not see it and hence we
-> >>> can end up with code not detecting what list the buffer is on
-> >>> correctly.
-> >>>
-> >>> I haven't had a chance to work out a fix for it yet. If this ends up
-> >>> likely to hold up the patch set, Glauber, then feel free to drop it
-> >>> from the series and I'll push a fixed version through the XFS tree
-> >>> in due course....
-> >>>
-> >>> Cheers,
-> >>>
-> >>> Dave.
-> >>>
-> >> Please let me know what you think about the following two (very coarse)
-> >> patches. My idea is to expose more of the raw structures so XFS can do
-> >> the locking itself when needed.
-> > 
-> > No, I'd prefer not to do that.  There's a big difference between a
-> > callback that passes a pointer to an internal lock that protects the
-> > list that the item being passed is on and exposing the guts of the
-> > per node list and lock implementation to everyone....
-> > 
-> > As it is, the XFS buffer LRU reclaimation is modelled on the
-> > inode/dentry cache lru reclaimation where the "on dispose list" flag
-> > is managed by a lock in the inode/dentry and wraps around the
-> > outside of the LRU locks. The simplest fix to XFS is to add a
-> > spinlock to the buffer to handle this in the same way as inodes and
-> > dentries. I think I might be able to do it in a way that avoids
-> > the spin lock but I just haven't had time to look at it that closely.
-> > 
-> > Cheers,
-> > 
-> Ok. In the interest of having the series merged - we seem to be running
-> out of problems - I see two courses of action:
+On Tue, May 28, 2013 at 11:10:25AM +0400, Max Filippov wrote:
+> On Sun, May 26, 2013 at 6:50 AM, Max Filippov <jcmvbkbc@gmail.com> wrote:
+> > Hello arch and mm people.
+> >
+> > Is it intentional that threads of a process that invoked munmap syscall
+> > can see TLB entries pointing to already freed pages, or it is a bug?
+> >
+> > I'm talking about zap_pmd_range and zap_pte_range:
+> >
+> >       zap_pmd_range
+> >         zap_pte_range
+> >           arch_enter_lazy_mmu_mode
+> >             ptep_get_and_clear_full
+> >             tlb_remove_tlb_entry
+> >             __tlb_remove_page
+> >           arch_leave_lazy_mmu_mode
+> >         cond_resched
+> >
+> > With the default arch_{enter,leave}_lazy_mmu_mode, tlb_remove_tlb_entry
+> > and __tlb_remove_page there is a loop in the zap_pte_range that clears
+> > PTEs and frees corresponding pages, but doesn't flush TLB, and
+> > surrounding loop in the zap_pmd_range that calls cond_resched. If a thread
+> > of the same process gets scheduled then it is able to see TLB entries
+> > pointing to already freed physical pages.
+> >
+> > I've noticed that with xtensa arch when I added a test before returning to
+> > userspace checking that TLB contents agrees with page tables of the
+> > current mm. This check reliably fires with the LTP test mtest05 that
+> > maps, unmaps and accesses memory from multiple threads.
+> >
+> > Is there anything wrong in my description, maybe something specific to
+> > my arch, or this issue really exists?
 > 
-> 1) Don't convert this to LRU at all, just convert to the new count/ scan
-> interface,
+> Hi,
 > 
-> 2) Use a temporary spinlock, and you fix that later.
+> I've made similar checking function for MIPS (because qemu is my only choice
+> and it simulates MIPS TLB) and ran my tests on mips-malta machine in qemu.
+> With MIPS I can also see this issue. I hope I did it right, the patch at the
+> bottom is for the reference. The test I run and the diagnostic output are as
+> follows:
 > 
-> I would actually prefer 2). Reason is that this patch actually do both,
-> meaning I would have to rewrite the patch to do this scan / count loop
-> without the new list_lru aid. Besides being more error-prone, it is of
-> course a lot more work.
+> To me it looks like the cond_resched in the zap_pmd_range is the root cause
+> of this issue (let alone SMP case for now). It was introduced in the commit
 > 
-> Which one you prefer?
+> commit 97a894136f29802da19a15541de3c019e1ca147e
+> Author: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> Date:   Tue May 24 17:12:04 2011 -0700
+> 
+>     mm: Remove i_mmap_lock lockbreak
+> 
+> Peter, Kamezawa, other reviewers of that commit, could you please comment?
 
-3) I'll fix it tomorrow and send you the patch.
+Are you all running UP systems? I suppose the preemptible muck
+invalidated the assumption that UP systems are 'easy'.
 
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+If you make tlb_fast_mode() return an unconditional false, does it all
+work again?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
