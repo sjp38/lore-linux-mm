@@ -1,99 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 5637F6B015F
-	for <linux-mm@kvack.org>; Wed, 29 May 2013 14:45:13 -0400 (EDT)
-Received: from itwm2.itwm.fhg.de (itwm2.itwm.fhg.de [131.246.191.3])
-	by mailgw1.uni-kl.de (8.14.3/8.14.3/Debian-9.4) with ESMTP id r4TIj79D016532
-	(version=TLSv1/SSLv3 cipher=EDH-RSA-DES-CBC3-SHA bits=168 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 29 May 2013 20:45:08 +0200
-Received: from mail2.itwm.fhg.de ([131.246.191.79]:59990)
-	by itwm2.itwm.fhg.de with esmtps (TLSv1:DES-CBC3-SHA:168)
-	(/C=DE/ST=Rheinland-Pfalz/L=Kaiserslautern/O=Fraunhofer ITWM/OU=SLG/CN=mail2.itwm.fhg.de)(verified=1)
-	 (Exim 4.74 #1)
-	id 1UhlMx-0004yM-1B
-	for linux-mm@kvack.org; Wed, 29 May 2013 20:45:07 +0200
-Message-ID: <51A64CB2.9070503@itwm.fraunhofer.de>
-Date: Wed, 29 May 2013 20:45:06 +0200
-From: Bernd Schubert <bernd.schubert@itwm.fraunhofer.de>
-MIME-Version: 1.0
-Subject: spin_lock contention in shrink_inactive_list
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 72B0D6B00D8
+	for <linux-mm@kvack.org>; Wed, 29 May 2013 15:26:07 -0400 (EDT)
+Date: Wed, 29 May 2013 12:26:05 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2 1/2] Make the batch size of the percpu_counter
+ configurable
+Message-Id: <20130529122605.082cbb1ad8f5cbc9e82e7b16@linux-foundation.org>
+In-Reply-To: <1369265838.27102.351.camel@schen9-DESK>
+References: <8584b08e57e97ecc4769859b751ad459d038a730.1367574872.git.tim.c.chen@linux.intel.com>
+	<20130521134122.4d8ea920c0f851fc2d97abc9@linux-foundation.org>
+	<1369178849.27102.330.camel@schen9-DESK>
+	<20130521164154.bed705c6e117ceb76205cd65@linux-foundation.org>
+	<1369183390.27102.337.camel@schen9-DESK>
+	<20130522002020.60c3808f.akpm@linux-foundation.org>
+	<1369265838.27102.351.camel@schen9-DESK>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Eric Dumazet <eric.dumazet@gmail.com>, Ric Mason <ric.masonn@gmail.com>, Simon Jeons <simon.jeons@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <ak@linux.intel.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-Hi all,
+On Wed, 22 May 2013 16:37:18 -0700 Tim Chen <tim.c.chen@linux.intel.com> wrote:
 
-we got a report about a system where fhgfs has a rather high latency 
-(fhgfs is running on top of xfs) and while investigating the system I 
-noticed that the system was rather cpu bound.
-I'm not sure, but somehow CPU usage went down after disabling swap.
-Is the lock contention a known issue?
+> Currently the per cpu counter's batch size for memory accounting is
+> configured as twice the number of cpus in the system.  However,
+> for system with very large memory, it is more appropriate to make it
+> proportional to the memory size per cpu in the system.
+> 
+> For example, for a x86_64 system with 64 cpus and 128 GB of memory,
+> the batch size is only 2*64 pages (0.5 MB).  So any memory accounting
+> changes of more than 0.5MB will overflow the per cpu counter into
+> the global counter.  Instead, for the new scheme, the batch size
+> is configured to be 0.4% of the memory/cpu = 8MB (128 GB/64 /256),
+> which is more inline with the memory size.
 
-kernel version: 3.8.2
+I renamed the patch to "mm: tune vm_committed_as percpu_counter
+batching size".
 
-
-> spin_lock
-
-> # Overhead          Command                                                                                  Shared Object                                                                                                                          Symbol
-> # ........  ...............  .............................................................................................  ..............................................................................................................................
-> #
->     63.93%  fhgfs-storage/M  [kernel.kallsyms]                                                                              0xffffffff815d31bd k [k] _raw_spin_lock_irq
->             |
->             --- _raw_spin_lock_irq
->                |
->                |--99.44%-- shrink_inactive_list
->                |          shrink_lruvec
->                |          shrink_zone
->                |          shrink_zones
->                |          do_try_to_free_pages
->                |          try_to_free_pages
->                |          __alloc_pages_slowpath
->                |          __alloc_pages_nodemask
->                |          |
->                |          |--99.98%-- alloc_pages_current
->                |          |          |
->                |          |          |--100.00%-- __page_cache_alloc
->                |          |          |          |
->                |          |          |          |--100.00%-- grab_cache_page_write_begin
->                |          |          |          |          xfs_vm_write_begin
->                |          |          |          |          generic_perform_write
->                |          |          |          |          generic_file_buffered_write
->                |          |          |          |          xfs_file_buffered_aio_write
->                |          |          |          |          xfs_file_aio_write
->                |          |          |          |          do_sync_write
->                |          |          |          |          vfs_write
->                |          |          |          |          sys_write
->                |          |          |          |          system_call_fastpath
->                |          |          |          |          0x2aaaaba8f4ed
->                |          |          |           --0.00%-- [...]
->                |          |           --0.00%-- [...]
->                |           --0.02%-- [...]
->                 --0.56%-- [...]
->
->      3.73%  fhgfs-storage/M  [kernel.kallsyms]                                                                              0xffffffff815d3533 k [k] _raw_spin_lock_irqsave
->             |
->             --- _raw_spin_lock_irqsave
->                |
->                |--97.82%-- pagevec_lru_move_fn
->                |          |
->                |          |--91.28%-- __pagevec_lru_add
->                |          |          |
->                |          |          |--86.17%-- __lru_cache_add
->                |          |          |          add_to_page_cache_lru
->                |          |          |          grab_cache_page_write_begin
->                |          |          |          xfs_vm_write_begin
->                |          |          |          generic_perform_write
->                |          |          |          generic_file_buffered_write
->                |          |          |          xfs_file_buffered_aio_write
->                |          |          |          xfs_file_aio_write
->                |          |          |          do_sync_write
->                |          |          |          vfs_write
-
-
-Thanks,
-Bernd
+Do we have any performance testing results?  They're pretty important
+for a performance-improvement patch ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
