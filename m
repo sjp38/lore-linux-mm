@@ -1,69 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id A461C6B0092
-	for <linux-mm@kvack.org>; Wed, 29 May 2013 15:57:50 -0400 (EDT)
-Date: Wed, 29 May 2013 12:57:47 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCHv12 3/4] zswap: add to mm/
-Message-Id: <20130529125747.23a6a26cdcb013842bf31644@linux-foundation.org>
-In-Reply-To: <20130529195027.GC428@cerebellum>
-References: <1369067168-12291-1-git-send-email-sjenning@linux.vnet.ibm.com>
-	<1369067168-12291-4-git-send-email-sjenning@linux.vnet.ibm.com>
-	<20130528145918.acbd84df00313e527cf04d1b@linux-foundation.org>
-	<20130529145720.GA428@cerebellum>
-	<20130529112929.24005ae9cf1d9d636b2ea42f@linux-foundation.org>
-	<20130529195027.GC428@cerebellum>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 633A76B0099
+	for <linux-mm@kvack.org>; Wed, 29 May 2013 16:02:14 -0400 (EDT)
+Date: Wed, 29 May 2013 16:01:54 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch v3 -mm 1/3] memcg: integrate soft reclaim tighter with
+ zone shrinking code
+Message-ID: <20130529200154.GF15721@cmpxchg.org>
+References: <20130517160247.GA10023@cmpxchg.org>
+ <1369674791-13861-1-git-send-email-mhocko@suse.cz>
+ <20130529130538.GD10224@dhcp22.suse.cz>
+ <20130529155756.GH10224@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130529155756.GH10224@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, Heesub Shin <heesub.shin@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Glauber Costa <glommer@parallels.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 29 May 2013 14:50:27 -0500 Seth Jennings <sjenning@linux.vnet.ibm.com> wrote:
-
-> On Wed, May 29, 2013 at 11:29:29AM -0700, Andrew Morton wrote:
-> > On Wed, 29 May 2013 09:57:20 -0500 Seth Jennings <sjenning@linux.vnet.ibm.com> wrote:
+On Wed, May 29, 2013 at 05:57:56PM +0200, Michal Hocko wrote:
+> On Wed 29-05-13 15:05:38, Michal Hocko wrote:
+> > On Mon 27-05-13 19:13:08, Michal Hocko wrote:
+> > [...]
+> > > Nevertheless I have encountered an issue while testing the huge number
+> > > of groups scenario. And the issue is not limitted to only to this
+> > > scenario unfortunately. As memcg iterators use per node-zone-priority
+> > > cache to prevent from over reclaim it might quite easily happen that
+> > > the walk will not visit all groups and will terminate the loop either
+> > > prematurely or skip some groups. An example could be the direct reclaim
+> > > racing with kswapd. This might cause that the loop misses over limit
+> > > groups so no pages are scanned and so we will fall back to all groups
+> > > reclaim.
 > > 
-> > > > > +/*********************************
-> > > > > +* helpers
-> > > > > +**********************************/
-> > > > > +static inline bool zswap_is_full(void)
-> > > > > +{
-> > > > > +	return (totalram_pages * zswap_max_pool_percent / 100 <
-> > > > > +		zswap_pool_pages);
-> > > > > +}
-> > > > 
-> > > > We have had issues in the past where percentage-based tunables were too
-> > > > coarse on very large machines.  For example, a terabyte machine where 0
-> > > > bytes is too small and 10GB is too large.
-> > > 
-> > > Yes, this is known limitation of the code right now and it is a high priority
-> > > to come up with something better.  It isn't clear what dynamic sizing policy
-> > > should be used so, until such time as that policy can be determined, this is a
-> > > simple stop-gap that works well enough for simple setups.
-> > 
-> > It's a module parameter and hence is part of the userspace interface. 
-> > It's undesirable that the interface be changed, and it would be rather
-> > dumb to merge it as-is when we *know* that it will be changed.
-> > 
-> > I don't think we can remove the parameter altogether (or can we?), so I
-> > suggest we finalise it ASAP.  Perhaps rename it to
-> > zswap_max_pool_ratio, with a range 1..999999.  Better ideas needed :(
+> > And after some more testing and head scratching it turned out that
+> > fallbacks to pass#2 I was seeing are caused by something else. It is
+> > not race between iterators but rather reclaiming from zone DMA which
+> > has troubles to scan anything despite there are pages on LRU and so we
+> > fall back. I have to look into that more but what-ever the issue is it
+> > shouldn't be related to the patch series.
 > 
-> zswap_max_pool_ratio is fine with me.  I'm not entirely clear on the change
-> though.  Would that just be a name change or a change in meaning?
+> Think I know what is going on. get_scan_count sees relatively small
+> amount of pages in the lists (around 2k). This means that get_scan_count
+> will tell us to scan nothing for DEF_PRIORITY (as the DMA32 is usually
+> ~16M) then the DEF_PRIORITY is basically no-op and we have to wait and
+> fall down to a priority which actually let us scan something.
+> 
+> Hmm, maybe ignoring soft reclaim for DMA zone would help to reduce
+> one pointless loop over groups.
 
-It would be a change in behaviour.  The problem which I'm suggesting we
-address is that a 1% increment is too coarse.
+If you have a small group in excess of its soft limit and bigger
+groups that are not, you may reclaim something in the regular reclaim
+cycle before reclaiming anything in the soft limit cycle with the way
+the code is structured.
 
-> Also, we can keep the tunable as I imagine there will always be some use for a
-> manual override of the (future) dynamic policy.  When the dynamic policy is
-> available, we can just say that zswap_max_pool_ratio = 0 means "use dynamic
-> policy" and change the default to 0.  Does that sounds reasonable?
-
-Sounds OK.
+The soft limit cycle probably needs to sit outside of the priority
+loop, not inside the loop, so that the soft limit reclaim cycle
+descends priority levels until it makes progress BEFORE it exits to
+the regular reclaim cycle.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
