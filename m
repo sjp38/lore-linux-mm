@@ -1,117 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 080536B0118
-	for <linux-mm@kvack.org>; Wed, 29 May 2013 10:36:21 -0400 (EDT)
-Message-ID: <51A61252.9040508@synopsys.com>
-Date: Wed, 29 May 2013 20:06:02 +0530
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm: Fix the TLB range flushed when __tlb_remove_page()
- runs out of slots
-References: <1369832173-15088-1-git-send-email-vgupta@synopsys.com> <20130529140319.GK17767@MacBook-Pro.local> <51A60BE5.7010905@synopsys.com> <20130529142907.GM17767@MacBook-Pro.local>
-In-Reply-To: <20130529142907.GM17767@MacBook-Pro.local>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 717DF6B011A
+	for <linux-mm@kvack.org>; Wed, 29 May 2013 10:45:14 -0400 (EDT)
+Received: by mail-pd0-f176.google.com with SMTP id r11so8917345pdi.7
+        for <linux-mm@kvack.org>; Wed, 29 May 2013 07:45:13 -0700 (PDT)
+From: Jiang Liu <liuj97@gmail.com>
+Subject: [PATCH, v2 00/13] kill free_all_bootmem_node() for all architectures
+Date: Wed, 29 May 2013 22:44:39 +0800
+Message-Id: <1369838692-26860-1-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Peter Zijlstra <peterz@infradead.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Max Filippov <jcmvbkbc@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 05/29/2013 07:59 PM, Catalin Marinas wrote:
-> On Wed, May 29, 2013 at 03:08:37PM +0100, Vineet Gupta wrote:
->> On 05/29/2013 07:33 PM, Catalin Marinas wrote:
->>> On Wed, May 29, 2013 at 01:56:13PM +0100, Vineet Gupta wrote:
->>>> zap_pte_range loops from @addr to @end. In the middle, if it runs out of
->>>> batching slots, TLB entries needs to be flushed for @start to @interim,
->>>> NOT @interim to @end.
->>>>
->>>> Since ARC port doesn't use page free batching I can't test it myself but
->>>> this seems like the right thing to do.
->>>> Observed this when working on a fix for the issue at thread:
->>>> 	http://www.spinics.net/lists/linux-arch/msg21736.html
->>>>
->>>> Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
->>>> Cc: Andrew Morton <akpm@linux-foundation.org>
->>>> Cc: Mel Gorman <mgorman@suse.de>
->>>> Cc: Hugh Dickins <hughd@google.com>
->>>> Cc: Rik van Riel <riel@redhat.com>
->>>> Cc: David Rientjes <rientjes@google.com>
->>>> Cc: Peter Zijlstra <peterz@infradead.org>
->>>> Cc: linux-mm@kvack.org
->>>> Cc: linux-arch@vger.kernel.org <linux-arch@vger.kernel.org>
->>>> Cc: Catalin Marinas <catalin.marinas@arm.com>
->>>> Cc: Max Filippov <jcmvbkbc@gmail.com>
->>>> ---
->>>>  mm/memory.c |    9 ++++++---
->>>>  1 file changed, 6 insertions(+), 3 deletions(-)
->>>>
->>>> diff --git a/mm/memory.c b/mm/memory.c
->>>> index 6dc1882..d9d5fd9 100644
->>>> --- a/mm/memory.c
->>>> +++ b/mm/memory.c
->>>> @@ -1110,6 +1110,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
->>>>  	spinlock_t *ptl;
->>>>  	pte_t *start_pte;
->>>>  	pte_t *pte;
->>>> +	unsigned long range_start = addr;
->>>>  
->>>>  again:
->>>>  	init_rss_vec(rss);
->>>> @@ -1215,12 +1216,14 @@ again:
->>>>  		force_flush = 0;
->>>>  
->>>>  #ifdef HAVE_GENERIC_MMU_GATHER
->>>> -		tlb->start = addr;
->>>> -		tlb->end = end;
->>>> +		tlb->start = range_start;
->>>> +		tlb->end = addr;
->>>>  #endif
->>>>  		tlb_flush_mmu(tlb);
->>>> -		if (addr != end)
->>>> +		if (addr != end) {
->>>> +			range_start = addr;
->>>>  			goto again;
->>>> +		}
->>>>  	}
->>> Isn't this code only run if force_flush != 0? force_flush is set to
->>> !__tlb_remove_page() and this function always returns 1 on (generic TLB)
->>> UP since tlb_fast_mode() is 1. There is no batching on UP with the
->>> generic TLB code.
->> Correct ! That's why the changelog says I couldn't test it on ARC port itself :-)
->>
->> However based on the other discussion (Max's TLB/PTE inconsistency), as I started
->> writing code to reuse this block to flush the TLB even for non forced case, I
->> realized that what this is doing is incorrect and won't work for the general flushing.
-> An alternative would be to make sure the above block is always called
-> when tlb_fast_mode():
->
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 6dc1882..f8b1f30 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1211,7 +1211,7 @@ again:
->  	 * the PTE lock to avoid doing the potential expensive TLB invalidate
->  	 * and page-free while holding it.
->  	 */
-> -	if (force_flush) {
-> +	if (force_flush || tlb_fast_mode(tlb)) {
->  		force_flush = 0;
+This is an effort to simplify arch mm initialization code by killing
+free_all_bootmem_node().
 
-I agree with tlb_fast_mode() addition (to solve Max's issue). The problem however
-is that when we hit this at the end of loop - @addr is already pointing to @end so
-range flush gets start = end - not what we really intended.
+It's applied on top of
+	http://marc.info/?l=linux-mm&m=136983589203930&w=2
 
->> Ignoring all other threads, do we agree that the exiting code - if used in any
->> situations is incorrect semantically ?
-> It is incorrect unless there are requirements for
-> arch_leave_lazy_mmu_mode() to handle the TLB invalidation (it doesn't
-> look like it's widely implemented though).
+You may access the patch series at:
+	git://github.com/jiangliu/linux.git mem_init_v6
 
-This patch is preparatory - independent of Max's issue. It is fixing just the
-forced flush case - whoever uses it right now (ofcourse UP + generic TLB doesn't).
+Jiang Liu (13):
+  mm: introduce accessor function set_max_mapnr()
+  mm/AVR32: prepare for killing free_all_bootmem_node()
+  mm/IA64: prepare for killing free_all_bootmem_node()
+  mm/m32r: prepare for killing free_all_bootmem_node()
+  mm/m68k: prepare for killing free_all_bootmem_node()
+  mm/metag: prepare for killing free_all_bootmem_node()
+  mm/MIPS: prepare for killing free_all_bootmem_node()
+  mm/PARISC: prepare for killing free_all_bootmem_node()
+  mm/PPC: prepare for killing free_all_bootmem_node()
+  mm/SH: prepare for killing free_all_bootmem_node()
+  mm: kill free_all_bootmem_node()
+  mm/alpha: unify mem_init() for both UMA and NUMA architectures
+  mm/m68k: fix build warning of unused variable
 
-Thx,
--Vineet
+ arch/alpha/mm/init.c             |  7 ++-----
+ arch/alpha/mm/numa.c             | 10 ----------
+ arch/avr32/mm/init.c             | 21 +++++----------------
+ arch/ia64/mm/init.c              |  9 ++-------
+ arch/m32r/mm/init.c              | 17 ++++-------------
+ arch/m68k/mm/init.c              | 15 ++++++++-------
+ arch/metag/mm/init.c             | 14 ++------------
+ arch/mips/sgi-ip27/ip27-memory.c | 12 +-----------
+ arch/parisc/mm/init.c            | 12 +-----------
+ arch/powerpc/mm/mem.c            | 16 +---------------
+ arch/sh/mm/init.c                | 16 ++++------------
+ include/linux/bootmem.h          |  1 -
+ include/linux/mm.h               |  9 ++++++++-
+ mm/bootmem.c                     | 18 ------------------
+ 14 files changed, 38 insertions(+), 139 deletions(-)
+
+-- 
+1.8.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
