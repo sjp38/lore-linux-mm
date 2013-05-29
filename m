@@ -1,64 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 633A76B0099
-	for <linux-mm@kvack.org>; Wed, 29 May 2013 16:02:14 -0400 (EDT)
-Date: Wed, 29 May 2013 16:01:54 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch v3 -mm 1/3] memcg: integrate soft reclaim tighter with
- zone shrinking code
-Message-ID: <20130529200154.GF15721@cmpxchg.org>
-References: <20130517160247.GA10023@cmpxchg.org>
- <1369674791-13861-1-git-send-email-mhocko@suse.cz>
- <20130529130538.GD10224@dhcp22.suse.cz>
- <20130529155756.GH10224@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 7B6E36B00D5
+	for <linux-mm@kvack.org>; Wed, 29 May 2013 16:42:46 -0400 (EDT)
+Received: from /spool/local
+	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Wed, 29 May 2013 16:42:44 -0400
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 6BE166E8040
+	for <linux-mm@kvack.org>; Wed, 29 May 2013 16:42:38 -0400 (EDT)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4TKgfoR321724
+	for <linux-mm@kvack.org>; Wed, 29 May 2013 16:42:41 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4TKgeq8026129
+	for <linux-mm@kvack.org>; Wed, 29 May 2013 17:42:41 -0300
+Date: Wed, 29 May 2013 15:42:36 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Subject: Re: [PATCHv12 2/4] zbud: add to mm/
+Message-ID: <20130529204236.GD428@cerebellum>
+References: <1369067168-12291-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <1369067168-12291-3-git-send-email-sjenning@linux.vnet.ibm.com>
+ <20130528145911.bd484cbb0bb7a27c1623c520@linux-foundation.org>
+ <20130529154500.GB428@cerebellum>
+ <20130529113434.b2ced4cc1e66c7a0a520d908@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130529155756.GH10224@dhcp22.suse.cz>
+In-Reply-To: <20130529113434.b2ced4cc1e66c7a0a520d908@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Glauber Costa <glommer@parallels.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, Heesub Shin <heesub.shin@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On Wed, May 29, 2013 at 05:57:56PM +0200, Michal Hocko wrote:
-> On Wed 29-05-13 15:05:38, Michal Hocko wrote:
-> > On Mon 27-05-13 19:13:08, Michal Hocko wrote:
-> > [...]
-> > > Nevertheless I have encountered an issue while testing the huge number
-> > > of groups scenario. And the issue is not limitted to only to this
-> > > scenario unfortunately. As memcg iterators use per node-zone-priority
-> > > cache to prevent from over reclaim it might quite easily happen that
-> > > the walk will not visit all groups and will terminate the loop either
-> > > prematurely or skip some groups. An example could be the direct reclaim
-> > > racing with kswapd. This might cause that the loop misses over limit
-> > > groups so no pages are scanned and so we will fall back to all groups
-> > > reclaim.
+On Wed, May 29, 2013 at 11:34:34AM -0700, Andrew Morton wrote:
+> On Wed, 29 May 2013 10:45:00 -0500 Seth Jennings <sjenning@linux.vnet.ibm.com> wrote:
+> 
+> > > > +struct zbud_page {
+> > > > +	union {
+> > > > +		struct page page;
+> > > > +		struct {
+> > > > +			unsigned long donotuse;
+> > > > +			u16 first_chunks;
+> > > > +			u16 last_chunks;
+> > > > +			struct list_head buddy;
+> > > > +			struct list_head lru;
+> > > > +		};
+> > > > +	};
+> > > > +};
+> > > 
+> > > Whoa.  So zbud scribbles on existing pageframes?
 > > 
-> > And after some more testing and head scratching it turned out that
-> > fallbacks to pass#2 I was seeing are caused by something else. It is
-> > not race between iterators but rather reclaiming from zone DMA which
-> > has troubles to scan anything despite there are pages on LRU and so we
-> > fall back. I have to look into that more but what-ever the issue is it
-> > shouldn't be related to the patch series.
+> > Yes.
+> > 
+> > > 
+> > > Please tell us about this, in some detail.  How is it done and why is
+> > > this necessary?
+> > > 
+> > > Presumably the pageframe must be restored at some stage, so this code
+> > > has to be kept in sync with external unrelated changes to core MM?
+> > 
+> > Yes, this is done in free_zbud_page().
+> > 
+> > > 
+> > > Why was it implemented in this fashion rather than going into the main
+> > > `struct page' definition and adding the appropriate unionised fields?
+> > 
+> > Yes, modifying the struct page is the cleaner way.  I thought that adding more
+> > convolution to struct page would create more friction on the path to getting
+> > this merged.  Plus overlaying the struct page was the approach used by zsmalloc
+> > and so I was thinking more along these lines.
 > 
-> Think I know what is going on. get_scan_count sees relatively small
-> amount of pages in the lists (around 2k). This means that get_scan_count
-> will tell us to scan nothing for DEF_PRIORITY (as the DMA32 is usually
-> ~16M) then the DEF_PRIORITY is basically no-op and we have to wait and
-> fall down to a priority which actually let us scan something.
+> I'd be interested in seeing what the modifications to struct page look
+> like.  It really is the better way.
+
+I'll do it then.
+
 > 
-> Hmm, maybe ignoring soft reclaim for DMA zone would help to reduce
-> one pointless loop over groups.
+> > If you'd rather add the zbud fields directly into unions in struct page,
+> > I'm ok with that if you are.
+> > 
+> > Of course, this doesn't avoid having to reset the fields for the page allocator
+> > before we free them.  Even slub/slob reset the mapcount before calling
+> > __free_page(), for example.
+> > 
+> > > 
+> > > I worry about any code which independently looks at the pageframe
+> > > tables and expects to find page struts there.  One example is probably
+> > > memory_failure() but there are probably others.
+> 
+> ^^ this, please.  It could be kinda fatal.
 
-If you have a small group in excess of its soft limit and bigger
-groups that are not, you may reclaim something in the regular reclaim
-cycle before reclaiming anything in the soft limit cycle with the way
-the code is structured.
+I'll look into this.
 
-The soft limit cycle probably needs to sit outside of the priority
-loop, not inside the loop, so that the soft limit reclaim cycle
-descends priority levels until it makes progress BEFORE it exits to
-the regular reclaim cycle.
+The expected behavior is that memory_failure() should handle zbud pages in the
+same way that it handles in-use slub/slab/slob pages and return -EBUSY.
+
+> 
+> > > > 
+> > > > ...
+> > > >
+> > > > +int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
+> > > > +			unsigned long *handle)
+> > > > +{
+> > > > +	int chunks, i, freechunks;
+> > > > +	struct zbud_page *zbpage = NULL;
+> > > > +	enum buddy bud;
+> > > > +	struct page *page;
+> > > > +
+> > > > +	if (size <= 0 || gfp & __GFP_HIGHMEM)
+> > > > +		return -EINVAL;
+> > > > +	if (size > PAGE_SIZE)
+> > > > +		return -E2BIG;
+> > > 
+> > > Means "Argument list too long" and isn't appropriate here.
+> > 
+> > Ok, I need a return value other than -EINVAL to convey to the user that the
+> > allocation is larger than what the allocator can hold. I don't see an existing
+> > errno that would be more suited for that.  Do you have a suggestion?
+> 
+> ENOMEM perhaps.  That's also somewhat misleading, but I guess there's
+> precedent for ENOMEM meaning "allocation too large" as well as "out
+> of memory".
+
+Works for me.
+
+> 
+> > > > +int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
+> > > > +{
+> > > > +	int i, ret, freechunks;
+> > > > +	struct zbud_page *zbpage;
+> > > > +	unsigned long first_handle = 0, last_handle = 0;
+> > > > +
+> > > > +	spin_lock(&pool->lock);
+> > > > +	if (!pool->ops || !pool->ops->evict || list_empty(&pool->lru) ||
+> > > > +			retries == 0) {
+> > > > +		spin_unlock(&pool->lock);
+> > > > +		return -EINVAL;
+> > > > +	}
+> > > > +	for (i = 0; i < retries; i++) {
+> > > > +		zbpage = list_tail_entry(&pool->lru, struct zbud_page, lru);
+> > > > +		list_del(&zbpage->lru);
+> > > > +		list_del(&zbpage->buddy);
+> > > > +		/* Protect zbpage against free */
+> > > 
+> > > Against free by who?  What other code paths can access this page at
+> > > this time?
+> > 
+> > zbud has no way of serializing with the user (zswap) to prevent it calling
+> > zbud_free() during zbud reclaim.  To prevent the zbud page from being freed
+> > while reclaim is operating on it, we set the reclaim flag in the struct page.
+> > zbud_free() checks this flag and, if set, only sets the chunk length of the
+> > allocation to 0, but does not actually free the zbud page.  That is left to
+> > this reclaim path.
+> 
+> Sounds strange.  Page refcounting is a well-established protocol and
+> works well in other places?
+
+Yes, refcounting seemed like overkill for this situation since the refcount
+will only ever be 1 or 2 (2 if under reclaim) which basically reduces it to a
+boolean. I'm also not sure if there is room left in the struct page for a
+refcount with all the existing zbud metadata.
+
+However, if you really don't like this, I can look at doing it via refcounts.
+
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
