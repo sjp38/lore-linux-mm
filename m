@@ -1,74 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 304D56B00B9
-	for <linux-mm@kvack.org>; Wed, 29 May 2013 08:56:40 -0400 (EDT)
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Subject: [PATCH] mm: Fix the TLB range flushed when __tlb_remove_page() runs out of slots
-Date: Wed, 29 May 2013 18:26:13 +0530
-Message-ID: <1369832173-15088-1-git-send-email-vgupta@synopsys.com>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id DF8A06B00BB
+	for <linux-mm@kvack.org>; Wed, 29 May 2013 09:05:41 -0400 (EDT)
+Date: Wed, 29 May 2013 15:05:38 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch v3 -mm 1/3] memcg: integrate soft reclaim tighter with
+ zone shrinking code
+Message-ID: <20130529130538.GD10224@dhcp22.suse.cz>
+References: <20130517160247.GA10023@cmpxchg.org>
+ <1369674791-13861-1-git-send-email-mhocko@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1369674791-13861-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Vineet Gupta <Vineet.Gupta1@synopsys.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Peter Zijlstra <peterz@infradead.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, Max Filippov <jcmvbkbc@gmail.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Glauber Costa <glommer@parallels.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-zap_pte_range loops from @addr to @end. In the middle, if it runs out of
-batching slots, TLB entries needs to be flushed for @start to @interim,
-NOT @interim to @end.
+On Mon 27-05-13 19:13:08, Michal Hocko wrote:
+[...]
+> Nevertheless I have encountered an issue while testing the huge number
+> of groups scenario. And the issue is not limitted to only to this
+> scenario unfortunately. As memcg iterators use per node-zone-priority
+> cache to prevent from over reclaim it might quite easily happen that
+> the walk will not visit all groups and will terminate the loop either
+> prematurely or skip some groups. An example could be the direct reclaim
+> racing with kswapd. This might cause that the loop misses over limit
+> groups so no pages are scanned and so we will fall back to all groups
+> reclaim.
 
-Since ARC port doesn't use page free batching I can't test it myself but
-this seems like the right thing to do.
-Observed this when working on a fix for the issue at thread:
-	http://www.spinics.net/lists/linux-arch/msg21736.html
-
-Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: linux-mm@kvack.org
-Cc: linux-arch@vger.kernel.org <linux-arch@vger.kernel.org>
-Cc: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Max Filippov <jcmvbkbc@gmail.com>
----
- mm/memory.c |    9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
-
-diff --git a/mm/memory.c b/mm/memory.c
-index 6dc1882..d9d5fd9 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1110,6 +1110,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
- 	spinlock_t *ptl;
- 	pte_t *start_pte;
- 	pte_t *pte;
-+	unsigned long range_start = addr;
- 
- again:
- 	init_rss_vec(rss);
-@@ -1215,12 +1216,14 @@ again:
- 		force_flush = 0;
- 
- #ifdef HAVE_GENERIC_MMU_GATHER
--		tlb->start = addr;
--		tlb->end = end;
-+		tlb->start = range_start;
-+		tlb->end = addr;
- #endif
- 		tlb_flush_mmu(tlb);
--		if (addr != end)
-+		if (addr != end) {
-+			range_start = addr;
- 			goto again;
-+		}
- 	}
- 
- 	return addr;
+And after some more testing and head scratching it turned out that
+fallbacks to pass#2 I was seeing are caused by something else. It is
+not race between iterators but rather reclaiming from zone DMA which
+has troubles to scan anything despite there are pages on LRU and so we
+fall back. I have to look into that more but what-ever the issue is it
+shouldn't be related to the patch series.
 -- 
-1.7.10.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
