@@ -1,38 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id B637C6B00B6
-	for <linux-mm@kvack.org>; Wed, 29 May 2013 08:47:46 -0400 (EDT)
-Date: Wed, 29 May 2013 14:47:40 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: TLB and PTE coherency during munmap
-Message-ID: <20130529124740.GB27176@twins.programming.kicks-ass.net>
-References: <CAMo8BfL4QfJrfejNKmBDhAVdmE=_Ys6MVUH5Xa3w_mU41hwx0A@mail.gmail.com>
- <CAMo8BfJie1Y49QeSJ+JTQb9WsYJkMMkb1BkKz2Gzy3T7V6ogHA@mail.gmail.com>
- <51A45861.1010008@gmail.com>
- <20130529122728.GA27176@twins.programming.kicks-ass.net>
- <51A5F7A7.5020604@synopsys.com>
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 304D56B00B9
+	for <linux-mm@kvack.org>; Wed, 29 May 2013 08:56:40 -0400 (EDT)
+From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Subject: [PATCH] mm: Fix the TLB range flushed when __tlb_remove_page() runs out of slots
+Date: Wed, 29 May 2013 18:26:13 +0530
+Message-ID: <1369832173-15088-1-git-send-email-vgupta@synopsys.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <51A5F7A7.5020604@synopsys.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Cc: Max Filippov <jcmvbkbc@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, Ralf Baechle <ralf@linux-mips.org>, Chris Zankel <chris@zankel.net>, Marc Gauthier <Marc.Gauthier@tensilica.com>, linux-xtensa@linux-xtensa.org, Hugh Dickins <hughd@google.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Vineet Gupta <Vineet.Gupta1@synopsys.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Peter Zijlstra <peterz@infradead.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, Max Filippov <jcmvbkbc@gmail.com>
 
-On Wed, May 29, 2013 at 06:12:15PM +0530, Vineet Gupta wrote:
-> It seems tlb_fast_mode() only affects the page free batching and won't affect the
-> TLB flush themselves unless ofcourse the batching runs out of space.
+zap_pte_range loops from @addr to @end. In the middle, if it runs out of
+batching slots, TLB entries needs to be flushed for @start to @interim,
+NOT @interim to @end.
 
-It does, it will keep the pages around until after a flush. So you'll no
-longer free pages before having done a TLB flush.
+Since ARC port doesn't use page free batching I can't test it myself but
+this seems like the right thing to do.
+Observed this when working on a fix for the issue at thread:
+	http://www.spinics.net/lists/linux-arch/msg21736.html
 
-> FWIW, prior to your commit d16dfc550f5326 "mm: mmu_gather rework"
-> tlb_finish_mmu() right before the need_resced() which would have handled the
-> current situation. My proposal - please see my earlier email in thread is to reuse
-> the force_flush logic in zap_pte_range() to do this.
+Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: linux-mm@kvack.org
+Cc: linux-arch@vger.kernel.org <linux-arch@vger.kernel.org>
+Cc: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Max Filippov <jcmvbkbc@gmail.com>
+---
+ mm/memory.c |    9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
 
-I don't have earlier emails as my lkml folder is somewhat broken atm :/
+diff --git a/mm/memory.c b/mm/memory.c
+index 6dc1882..d9d5fd9 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1110,6 +1110,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
+ 	spinlock_t *ptl;
+ 	pte_t *start_pte;
+ 	pte_t *pte;
++	unsigned long range_start = addr;
+ 
+ again:
+ 	init_rss_vec(rss);
+@@ -1215,12 +1216,14 @@ again:
+ 		force_flush = 0;
+ 
+ #ifdef HAVE_GENERIC_MMU_GATHER
+-		tlb->start = addr;
+-		tlb->end = end;
++		tlb->start = range_start;
++		tlb->end = addr;
+ #endif
+ 		tlb_flush_mmu(tlb);
+-		if (addr != end)
++		if (addr != end) {
++			range_start = addr;
+ 			goto again;
++		}
+ 	}
+ 
+ 	return addr;
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
