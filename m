@@ -1,33 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 405106B0092
-	for <linux-mm@kvack.org>; Tue, 28 May 2013 21:42:51 -0400 (EDT)
-Received: by mail-la0-f48.google.com with SMTP id fs12so8137280lab.35
-        for <linux-mm@kvack.org>; Tue, 28 May 2013 18:42:49 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id CD2296B0089
+	for <linux-mm@kvack.org>; Tue, 28 May 2013 22:47:14 -0400 (EDT)
+Message-ID: <51A56C60.9030306@parallels.com>
+Date: Wed, 29 May 2013 08:18:00 +0530
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Tue, 28 May 2013 18:42:28 -0700
-Message-ID: <CALCETrV-6_Uk=OMc6XZv61tFCKgAM77TzNs21FeOXExavUoSiw@mail.gmail.com>
-Subject: SIGBUS accessing MAP_HUGETLB space w/ nr_overcommit == 0
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH] memcg: don't initialize kmem-cache destroying work for
+ root caches
+References: <1368535118-27369-1-git-send-email-avagin@openvz.org> <20130528155326.0a8b66a7711746e827d5fdea@linux-foundation.org>
+In-Reply-To: <20130528155326.0a8b66a7711746e827d5fdea@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrey Vagin <avagin@openvz.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Konstantin Khlebnikov <khlebnikov@openvz.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-I switched a system from Linux 3.5 to 3.9.4, and I have some crashes
-that I didn't have before.  The cause is a SIGBUS w/ code BUS_ADRERR
-on what I presume is the first access to a MAP_HUGETLB | MAP_PRIVATE
-page.  I have nr_overcommit_hugepages == 0, so this shouldn't happen.
-There are no kernel log messages at all.
+On 05/29/2013 04:23 AM, Andrew Morton wrote:
+> On Tue, 14 May 2013 16:38:38 +0400 Andrey Vagin <avagin@openvz.org> wrote:
+> 
+>> struct memcg_cache_params has a union. Different parts of this union are
+>> used for root and non-root caches. A part with destroying work is used only
+>> for non-root caches.
+> 
+> That union is a bit dangerous.  Perhaps it would be better to do
+> something like
+> 
+> --- a/include/linux/slab.h~a
+> +++ a/include/linux/slab.h
+> @@ -337,15 +337,17 @@ static __always_inline int kmalloc_size(
+>  struct memcg_cache_params {
+>  	bool is_root_cache;
+>  	union {
+> -		struct kmem_cache *memcg_caches[0];
+> -		struct {
+> +		struct memcg_root_cache {
+> +			struct kmem_cache *caches[0];
+> +		} memcg_root_cache;
+> +		struct memcg_child_cache {
+>  			struct mem_cgroup *memcg;
+>  			struct list_head list;
+>  			struct kmem_cache *root_cache;
+>  			bool dead;
+>  			atomic_t nr_pages;
+>  			struct work_struct destroy;
+> -		};
+> +		} memcg_child_cache;
+>  	};
+>  };
+> 
+> And then adopt the convention of selecting either memcg_root_cache or
+> memcg_child_cache at the highest level then passing the more strongly
+> typed pointer to callees.
+> 
 
-Is there possibly a regression here?  Nothing seems to be asserting
-any invariants with respect to the freelist size and the number of
-accounted free hugepages.
+Since it is already creating problems, yes, I agree.
 
-I do not have CONFIG_CGROUP_HUGETLB set.
-
-Thanks,
-Andy
+I will try to cook up something soon.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
