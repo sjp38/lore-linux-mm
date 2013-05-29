@@ -1,98 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 84C6B6B00AF
-	for <linux-mm@kvack.org>; Wed, 29 May 2013 08:00:51 -0400 (EDT)
-Message-ID: <51A5EDE2.2040603@synopsys.com>
-Date: Wed, 29 May 2013 17:30:34 +0530
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id C267D6B00B1
+	for <linux-mm@kvack.org>; Wed, 29 May 2013 08:25:23 -0400 (EDT)
+Date: Wed, 29 May 2013 22:25:12 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v8 16/34] xfs: convert buftarg LRU to generic code
+Message-ID: <20130529122512.GB29466@dastard>
+References: <1369391368-31562-1-git-send-email-glommer@openvz.org>
+ <1369391368-31562-17-git-send-email-glommer@openvz.org>
+ <20130525002759.GK24543@dastard>
+ <51A4D3B5.6060802@parallels.com>
+ <20130529101519.GA29466@dastard>
+ <51A5DDCE.509@parallels.com>
 MIME-Version: 1.0
-Subject: Re: TLB and PTE coherency during munmap
-References: <CAMo8BfL4QfJrfejNKmBDhAVdmE=_Ys6MVUH5Xa3w_mU41hwx0A@mail.gmail.com> <CAHkRjk4ZNwZvf_Cv+HqfMManodCkEpCPdZokPQ68z3nVG8-+wg@mail.gmail.com>
-In-Reply-To: <CAHkRjk4ZNwZvf_Cv+HqfMManodCkEpCPdZokPQ68z3nVG8-+wg@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51A5DDCE.509@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Max Filippov <jcmvbkbc@gmail.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm@kvack.org, linux-xtensa@linux-xtensa.org, Chris Zankel <chris@zankel.net>, Marc
- Gauthier <Marc.Gauthier@tensilica.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, Dave Chinner <dchinner@redhat.com>
 
-[Resending with fixed linux-mm address]
-
-On 05/28/2013 08:05 PM, Catalin Marinas wrote:
-> Max,
+On Wed, May 29, 2013 at 02:51:58PM +0400, Glauber Costa wrote:
+> On 05/29/2013 02:15 PM, Dave Chinner wrote:
+> > On Tue, May 28, 2013 at 09:26:37PM +0530, Glauber Costa wrote:
+> >> On 05/25/2013 05:57 AM, Dave Chinner wrote:
+> >>> On Fri, May 24, 2013 at 03:59:10PM +0530, Glauber Costa wrote:
+> >>>> From: Dave Chinner <dchinner@redhat.com>
+> >>>>
+> >>>> Convert the buftarg LRU to use the new generic LRU list and take
+> >>>> advantage of the functionality it supplies to make the buffer cache
+> >>>> shrinker node aware.
+> >>>>
+> >>>> * v7: Add NUMA aware flag
+> >>>
+> >>> I know what is wrong with this patch that causes the unmount hang -
+> >>> it's the handling of the _XBF_LRU_DISPOSE flag no longer being
+> >>> modified atomically with the LRU lock. Hence there is a race where
+> >>> we can either lose the _XBF_LRU_DISPOSE or not see it and hence we
+> >>> can end up with code not detecting what list the buffer is on
+> >>> correctly.
+> >>>
+> >>> I haven't had a chance to work out a fix for it yet. If this ends up
+> >>> likely to hold up the patch set, Glauber, then feel free to drop it
+> >>> from the series and I'll push a fixed version through the XFS tree
+> >>> in due course....
+> >>>
+> >>> Cheers,
+> >>>
+> >>> Dave.
+> >>>
+> >> Please let me know what you think about the following two (very coarse)
+> >> patches. My idea is to expose more of the raw structures so XFS can do
+> >> the locking itself when needed.
+> > 
+> > No, I'd prefer not to do that.  There's a big difference between a
+> > callback that passes a pointer to an internal lock that protects the
+> > list that the item being passed is on and exposing the guts of the
+> > per node list and lock implementation to everyone....
+> > 
+> > As it is, the XFS buffer LRU reclaimation is modelled on the
+> > inode/dentry cache lru reclaimation where the "on dispose list" flag
+> > is managed by a lock in the inode/dentry and wraps around the
+> > outside of the LRU locks. The simplest fix to XFS is to add a
+> > spinlock to the buffer to handle this in the same way as inodes and
+> > dentries. I think I might be able to do it in a way that avoids
+> > the spin lock but I just haven't had time to look at it that closely.
+> > 
+> > Cheers,
+> > 
+> Ok. In the interest of having the series merged - we seem to be running
+> out of problems - I see two courses of action:
 > 
-> On 26 May 2013 03:42, Max Filippov <jcmvbkbc@gmail.com> wrote:
->> Hello arch and mm people.
->>
->> Is it intentional that threads of a process that invoked munmap syscall
->> can see TLB entries pointing to already freed pages, or it is a bug?
+> 1) Don't convert this to LRU at all, just convert to the new count/ scan
+> interface,
 > 
-> If it happens, this would be a bug. It means that a process can access
-> a physical page that has been allocated to something else, possibly
-> kernel data.
+> 2) Use a temporary spinlock, and you fix that later.
 > 
->> I'm talking about zap_pmd_range and zap_pte_range:
->>
->>       zap_pmd_range
->>         zap_pte_range
->>           arch_enter_lazy_mmu_mode
->>             ptep_get_and_clear_full
->>             tlb_remove_tlb_entry
->>             __tlb_remove_page
->>           arch_leave_lazy_mmu_mode
->>         cond_resched
->>
->> With the default arch_{enter,leave}_lazy_mmu_mode, tlb_remove_tlb_entry
->> and __tlb_remove_page there is a loop in the zap_pte_range that clears
->> PTEs and frees corresponding pages, but doesn't flush TLB, and
->> surrounding loop in the zap_pmd_range that calls cond_resched. If a thread
->> of the same process gets scheduled then it is able to see TLB entries
->> pointing to already freed physical pages.
+> I would actually prefer 2). Reason is that this patch actually do both,
+> meaning I would have to rewrite the patch to do this scan / count loop
+> without the new list_lru aid. Besides being more error-prone, it is of
+> course a lot more work.
 > 
-> It looks to me like cond_resched() here introduces a possible bug but
-> it depends on the actual arch code, especially the
-> __tlb_remove_tlb_entry() function. On ARM we record the range in
-> tlb_remove_tlb_entry() and queue the pages to be removed in
-> __tlb_remove_page(). It pretty much acts like tlb_fast_mode() == 0
-> even for the UP case (which is also needed for hardware speculative
-> TLB loads). The tlb_finish_mmu() takes care of whatever pages are left
-> to be freed.
-> 
-> With a dummy __tlb_remove_tlb_entry() and tlb_fast_mode() == 1,
-> cond_resched() in zap_pmd_range() would cause problems.
-> 
-> I think possible workarounds:
-> 
-> 1. tlb_fast_mode() always returning 0.
+> Which one you prefer?
 
-This might add needless page free batching logic so not very lucrative.
+3) I'll fix it tomorrow and send you the patch.
 
-> 2. add a tlb_flush_mmu(tlb) before cond_resched() in zap_pmd_range().
+Cheers,
 
-For !fullmm flushes it might be no-op on some arches (atleast on ARC) as we use
-tlb_end_vma() to do TLB range flush. And flushing the entire TLB would be
-excessive though.
-
-Actually zap_pte_range() already has logic to flush the TLB range (if batching
-runs out of space). Can we re-use that infrastructure to make sure zap_pte_range()
-does it's share of TLB flushing before returning and going into cond_resched().
-
-However with that, we need to prevent tlb_end_vma()/tlb_finish_mmu() from
-duplicating the range flush - which can be done by clearing tlb->need_flush.
-
-Now simplistically this will cause even the fullmm flushes (simple ASID increment
-on ARC/ARM..) to become TLB walks to flush the individual entries so we can do
-this for only for !fullmm, assuming that cond_resched() can potentially cause an
-exit'ing task's thread to be scheduled in and reuse the entries.
-
-Let me go off cook a patch to see if this might work.
-
--Vineet
-
-
-
-
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
