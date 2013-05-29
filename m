@@ -1,144 +1,225 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 59A2E6B00BC
-	for <linux-mm@kvack.org>; Wed, 29 May 2013 09:05:49 -0400 (EDT)
-Received: by mail-pb0-f45.google.com with SMTP id mc17so9170342pbc.18
-        for <linux-mm@kvack.org>; Wed, 29 May 2013 06:05:48 -0700 (PDT)
-Message-ID: <51A5FD27.5080903@gmail.com>
-Date: Wed, 29 May 2013 21:05:43 +0800
-From: Liu Jiang <liuj97@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v5, part4 12/41] mm/ARC: prepare for removing num_physpages
- and simplify mem_init()
-References: <1368028298-7401-1-git-send-email-jiang.liu@huawei.com> <1368028298-7401-13-git-send-email-jiang.liu@huawei.com> <51A5BF3A.2070108@synopsys.com>
-In-Reply-To: <51A5BF3A.2070108@synopsys.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id CDECA6B00BF
+	for <linux-mm@kvack.org>; Wed, 29 May 2013 09:58:10 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id xb12so9298231pbc.28
+        for <linux-mm@kvack.org>; Wed, 29 May 2013 06:58:09 -0700 (PDT)
+From: Jiang Liu <liuj97@gmail.com>
+Subject: [PATCH v6, part4 00/41] Simplify mem_init() implementations and kill num_physpages
+Date: Wed, 29 May 2013 21:57:18 +0800
+Message-Id: <1369835879-23553-1-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vineet Gupta <vineet.gupta1@synopsys.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <james.bottomley@hansenpartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, James Hogan <james.hogan@imgtec.com>, Rob Herring <rob.herring@calxeda.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed 29 May 2013 04:41:30 PM CST, Vineet Gupta wrote:
-> Hi Jiang,
->
-> On 05/08/2013 09:21 PM, Jiang Liu wrote:
->> Prepare for removing num_physpages and simplify mem_init().
->>
->> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
->> Cc: Vineet Gupta <vgupta@synopsys.com>
->> Cc: James Hogan <james.hogan@imgtec.com>
->> Cc: Rob Herring <rob.herring@calxeda.com>
->> Cc: linux-kernel@vger.kernel.org
->> ---
->>  arch/arc/mm/init.c |   36 +++---------------------------------
->>  1 file changed, 3 insertions(+), 33 deletions(-)
->>
->> diff --git a/arch/arc/mm/init.c b/arch/arc/mm/init.c
->> index 78d8c31..8ba6562 100644
->> --- a/arch/arc/mm/init.c
->> +++ b/arch/arc/mm/init.c
->> @@ -74,7 +74,7 @@ void __init setup_arch_memory(void)
->>  	/* Last usable page of low mem (no HIGHMEM yet for ARC port) */
->>  	max_low_pfn = max_pfn = PFN_DOWN(end_mem);
->>
->> -	max_mapnr = num_physpages = max_low_pfn - min_low_pfn;
->> +	max_mapnr = max_low_pfn - min_low_pfn;
->>
->>  	/*------------- reserve kernel image -----------------------*/
->>  	memblock_reserve(CONFIG_LINUX_LINK_BASE,
->> @@ -84,7 +84,7 @@ void __init setup_arch_memory(void)
->>
->>  	/*-------------- node setup --------------------------------*/
->>  	memset(zones_size, 0, sizeof(zones_size));
->> -	zones_size[ZONE_NORMAL] = num_physpages;
->> +	zones_size[ZONE_NORMAL] = max_low_pfn - min_low_pfn;
->>
->>  	/*
->>  	 * We can't use the helper free_area_init(zones[]) because it uses
->> @@ -106,39 +106,9 @@ void __init setup_arch_memory(void)
->>   */
->>  void __init mem_init(void)
->>  {
->> -	int codesize, datasize, initsize, reserved_pages, free_pages;
->> -	int tmp;
->> -
->>  	high_memory = (void *)(CONFIG_LINUX_LINK_BASE + arc_mem_sz);
->> -
->>  	free_all_bootmem();
->> -
->
-> What baseline is this code against, since mainline looks like following:
->
->        high_memory = (void *)(CONFIG_LINUX_LINK_BASE + arc_mem_sz);
->
->        totalram_pages = free_all_bootmem();
->
-> So I would handve expected the following
->
-> -       totalram_pages = free_all_bootmem();
-> +	free_all_bootmem();
->
-> Aha, you missed out CCing all maintainers on "[PATCH v7, part3 14/16]" or rather
-> "[PATCH v8, part3 13/14]" - and it is difficult to dig this out from all the
-> patches that fly by on linux-arch.
->
-> Same goes for "[PATCH v8, part3 01/14]" and "[PATCH v8, part3 02/14]"
-Hi Vineet,
-      This patchset is based on Andrew's mmotm tree, there are some 
-differences
-between mmotm and the upstream kernel, sorry for the inconvenience.
-      Once I sent those common patches to all related maintainers, but 
-the CC list
-is too long and also caused other troubles. Next time I will send all 
-patches to
-linux-arch maillist.
+This patchset applies to
+git://git.cmpxchg.org/linux-mmotm.git v3.10-rc2-mmotm-2013-05-22-16-40
 
->
->> -	/* count all reserved pages [kernel code/data/mem_map..] */
->> -	reserved_pages = 0;
->> -	for (tmp = 0; tmp < max_mapnr; tmp++)
->> -		if (PageReserved(mem_map + tmp))
->> -			reserved_pages++;
->> -
->> -	/* XXX: nr_free_pages() is equivalent */
->> -	free_pages = max_mapnr - reserved_pages;
->> -
->> -	/*
->> -	 * For the purpose of display below, split the "reserve mem"
->> -	 * kernel code/data is already shown explicitly,
->> -	 * Show any other reservations (mem_map[ ] et al)
->> -	 */
->> -	reserved_pages -= (((unsigned int)_end - CONFIG_LINUX_LINK_BASE) >>
->> -								PAGE_SHIFT);
->> -
->> -	codesize = _etext - _text;
->> -	datasize = _end - _etext;
->> -	initsize = __init_end - __init_begin;
->> -
->> -	pr_info("Memory Available: %dM / %ldM (%dK code, %dK data, %dK init, %dK reserv)\n",
->> -		PAGES_TO_MB(free_pages),
->> -		TO_MB(arc_mem_sz),
->> -		TO_KB(codesize), TO_KB(datasize), TO_KB(initsize),
->> -		PAGES_TO_KB(reserved_pages));
->> +	mem_init_print_info(NULL);
->>  }
->>
->>  /*
->>
->
-> The Changes look OK though. I managed to build your github tree (mem_init_v5
-> branch). And it seems to work ok.
->
-> Acked-by: Vineet Gupta <vgupta@synopsys.com>   # for arch/arc
-Thanks for review and tests!
+You may access the patch seriea at:
+	git://github.com/jiangliu/linux.git mem_init_v6
+
+Great thanks to Vineet Gupta <vgupta@synopsys.com> for testing on ARC.
+
+The original goal of this patchset is to fix the bug reported by
+https://bugzilla.kernel.org/show_bug.cgi?id=53501
+Now it has also been expanded to reduce common code used by memory
+initializion.
+
+This is the last part, previous three patch sets could be accessed at:
+http://marc.info/?l=linux-mm&m=136289696323825&w=2
+http://marc.info/?l=linux-mm&m=136290291524901&w=2
+http://marc.info/?l=linux-mm&m=136957567120179&w=2
+
+V5->V6:
+1) address review comments
+2) rebase to v3.10-rc2-mmotm-2013-05-22-16-40
+
+V4->V5:
+1) rebase to v3.9-rc8-mmotm-2013-04-25-16-24
+2) address comments from previous round  of review
+
+V3->V4:
+1) rebase to git://git.cmpxchg.org/linux-mmotm.git
+2) add support for ARC and metag architectures
+3) minor code refinement
+
+Patch 1-7: 
+	1) add comments for global variables exported by vmlinux.lds
+	2) normalize global variables exported by vmlinux.lds
+Patch 8:
+	Introduce helper functions mem_init_print_info() and
+	get_num_physpages()
+Patch 9:
+	Avoid using global variable num_physpages at runtime
+Patch 10:
+	Don't update num_physpages in memory_hotplug.c
+Patch 11-40:
+	Modify arch mm initialization code to:
+	1) Simplify mem_init() by using mem_init_print_info()
+	2) Prepare for killing global variable num_physpages
+Patch 41:
+	Kill the global variable num_physpages
+
+With all patches applied, mem_init(), free_initmem(), free_initrd_mem()
+could be as simple as below. This patch series has reduced about 1.2K
+lines of code in total.
+
+#ifndef CONFIG_DISCONTIGMEM
+void __init
+mem_init(void)
+{
+	max_mapnr = max_low_pfn;
+	free_all_bootmem();
+	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
+
+	mem_init_print_info(NULL);
+}
+#endif /* CONFIG_DISCONTIGMEM */
+
+void
+free_initmem(void)
+{
+	free_initmem_default(-1);
+}
+
+#ifdef CONFIG_BLK_DEV_INITRD
+void
+free_initrd_mem(unsigned long start, unsigned long end)
+{
+	free_reserved_area(start, end, -1, "initrd");
+}
+#endif
+
+Due to hardware resource limitations, I have only tested this on x86_64.
+And the messages reported on an x86_64 system are:
+Log message before applying patches:
+Memory: 7745676k/8910848k available (6934k kernel code, 836024k absent, 329148k reserved, 6343k data, 1012k init)
+Log message after applying patches:
+Memory: 7744624K/8074824K available (6969K kernel code, 1011K data, 2828K rodata, 1016K init, 9640K bss, 330200K reserved)
+
+Any help to review or test these patch series are welcomed!
+
 Regards!
 Gerry
 
->
-> Thx
-> -Vineet
+Jiang Liu (41):
+  vmlinux.lds: add comments for global variables and clean up useless
+    declarations
+  avr32: normalize global variables exported by vmlinux.lds
+  c6x: normalize global variables exported by vmlinux.lds
+  h8300: normalize global variables exported by vmlinux.lds
+  score: normalize global variables exported by vmlinux.lds
+  tile: normalize global variables exported by vmlinux.lds
+  UML: normalize global variables exported by vmlinux.lds
+  mm: introduce helper function mem_init_print_info() to simplify
+    mem_init()
+  mm: use totalram_pages instead of num_physpages at runtime
+  mm/hotplug: prepare for removing num_physpages
+  mm/alpha: prepare for removing num_physpages and simplify mem_init()
+  mm/ARC: prepare for removing num_physpages and simplify mem_init()
+  mm/ARM: prepare for removing num_physpages and simplify mem_init()
+  mm/ARM64: prepare for removing num_physpages and simplify mem_init()
+  mm/AVR32: prepare for removing num_physpages and simplify mem_init()
+  mm/blackfin: prepare for removing num_physpages and simplify
+    mem_init()
+  mm/c6x: prepare for removing num_physpages and simplify mem_init()
+  mm/cris: prepare for removing num_physpages and simplify mem_init()
+  mm/frv: prepare for removing num_physpages and simplify mem_init()
+  mm/h8300: prepare for removing num_physpages and simplify mem_init()
+  mm/hexagon: prepare for removing num_physpages and simplify mem_init()
+  mm/IA64: prepare for removing num_physpages and simplify mem_init()
+  mm/m32r: prepare for removing num_physpages and simplify mem_init()
+  mm/m68k: prepare for removing num_physpages and simplify mem_init()
+  mm/metag: prepare for removing num_physpages and simplify mem_init()
+  mm/microblaze: prepare for removing num_physpages and simplify
+    mem_init()
+  mm/MIPS: prepare for removing num_physpages and simplify mem_init()
+  mm/mn10300: prepare for removing num_physpages and simplify mem_init()
+  mm/openrisc: prepare for removing num_physpages and simplify
+    mem_init()
+  mm/PARISC: prepare for removing num_physpages and simplify mem_init()
+  mm/ppc: prepare for removing num_physpages and simplify mem_init()
+  mm/s390: prepare for removing num_physpages and simplify mem_init()
+  mm/score: prepare for removing num_physpages and simplify mem_init()
+  mm/SH: prepare for removing num_physpages and simplify mem_init()
+  mm/SPARC: prepare for removing num_physpages and simplify mem_init()
+  mm/tile: prepare for removing num_physpages and simplify mem_init()
+  mm/um: prepare for removing num_physpages and simplify mem_init()
+  mm/unicore32: prepare for removing num_physpages and simplify
+    mem_init()
+  mm/x86: prepare for removing num_physpages and simplify mem_init()
+  mm/xtensa: prepare for removing num_physpages and simplify mem_init()
+  mm: kill global variable num_physpages
 
+ arch/alpha/mm/init.c              | 32 ++--------------------
+ arch/alpha/mm/numa.c              | 34 ++---------------------
+ arch/arc/mm/init.c                | 36 +++----------------------
+ arch/arm/mm/init.c                | 47 ++------------------------------
+ arch/arm64/mm/init.c              | 48 +++------------------------------
+ arch/avr32/kernel/setup.c         |  2 +-
+ arch/avr32/kernel/vmlinux.lds.S   |  4 +--
+ arch/avr32/mm/init.c              | 29 +++-----------------
+ arch/blackfin/mm/init.c           | 38 +++++---------------------
+ arch/c6x/kernel/vmlinux.lds.S     |  4 +--
+ arch/c6x/mm/init.c                | 11 +-------
+ arch/cris/mm/init.c               | 33 ++---------------------
+ arch/frv/kernel/setup.c           | 13 ++++-----
+ arch/frv/mm/init.c                | 49 ++++++++++-----------------------
+ arch/h8300/boot/compressed/misc.c |  1 -
+ arch/h8300/kernel/vmlinux.lds.S   |  2 ++
+ arch/h8300/mm/init.c              | 36 ++++++-------------------
+ arch/hexagon/mm/init.c            |  4 +--
+ arch/ia64/mm/contig.c             | 11 --------
+ arch/ia64/mm/discontig.c          |  3 ---
+ arch/ia64/mm/init.c               | 27 +------------------
+ arch/m32r/mm/discontig.c          |  6 +----
+ arch/m32r/mm/init.c               | 49 ++++-----------------------------
+ arch/m68k/mm/init.c               | 31 ++-------------------
+ arch/metag/mm/init.c              |  8 +-----
+ arch/microblaze/mm/init.c         | 51 +++++------------------------------
+ arch/mips/mm/init.c               | 57 +++++++++++++--------------------------
+ arch/mips/pci/pci-lantiq.c        |  2 +-
+ arch/mips/sgi-ip27/ip27-memory.c  | 21 ++-------------
+ arch/mn10300/mm/init.c            | 26 ++----------------
+ arch/openrisc/mm/init.c           | 44 +++---------------------------
+ arch/parisc/mm/init.c             | 47 +++-----------------------------
+ arch/powerpc/mm/mem.c             | 56 +++++++++-----------------------------
+ arch/s390/mm/init.c               | 17 ++----------
+ arch/score/kernel/vmlinux.lds.S   |  1 +
+ arch/score/mm/init.c              | 26 ++----------------
+ arch/sh/mm/init.c                 | 25 +++--------------
+ arch/sparc/kernel/leon_smp.c      |  3 ---
+ arch/sparc/mm/init_32.c           | 34 +++--------------------
+ arch/sparc/mm/init_64.c           | 24 +++--------------
+ arch/tile/include/asm/sections.h  |  2 +-
+ arch/tile/kernel/setup.c          | 20 +++++++-------
+ arch/tile/kernel/vmlinux.lds.S    |  4 ++-
+ arch/tile/mm/init.c               | 17 ++----------
+ arch/um/include/asm/common.lds.S  |  1 -
+ arch/um/kernel/dyn.lds.S          |  6 +++--
+ arch/um/kernel/mem.c              |  4 +--
+ arch/um/kernel/uml.lds.S          |  7 +++--
+ arch/unicore32/mm/init.c          | 49 ++-------------------------------
+ arch/x86/kernel/cpu/amd.c         |  2 +-
+ arch/x86/kernel/setup.c           |  2 --
+ arch/x86/mm/init_32.c             | 30 ++-------------------
+ arch/x86/mm/init_64.c             | 20 +-------------
+ arch/x86/mm/numa_32.c             |  2 --
+ arch/xtensa/mm/init.c             | 27 ++-----------------
+ fs/fuse/inode.c                   |  2 +-
+ include/asm-generic/sections.h    | 21 ++++++++++++++-
+ include/linux/mm.h                | 13 ++++++++-
+ kernel/power/snapshot.c           |  4 +--
+ mm/memory.c                       |  2 --
+ mm/memory_hotplug.c               |  4 ---
+ mm/nommu.c                        |  2 --
+ mm/page_alloc.c                   | 52 +++++++++++++++++++++++++++++++++++
+ net/ipv4/inet_fragment.c          |  2 +-
+ 64 files changed, 258 insertions(+), 1029 deletions(-)
+
+-- 
+1.8.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
