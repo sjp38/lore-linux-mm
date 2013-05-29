@@ -1,63 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id CD2296B0089
-	for <linux-mm@kvack.org>; Tue, 28 May 2013 22:47:14 -0400 (EDT)
-Message-ID: <51A56C60.9030306@parallels.com>
-Date: Wed, 29 May 2013 08:18:00 +0530
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 69C796B0096
+	for <linux-mm@kvack.org>; Tue, 28 May 2013 23:23:53 -0400 (EDT)
+Received: by mail-oa0-f43.google.com with SMTP id o6so10954035oag.2
+        for <linux-mm@kvack.org>; Tue, 28 May 2013 20:23:52 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH] memcg: don't initialize kmem-cache destroying work for
- root caches
-References: <1368535118-27369-1-git-send-email-avagin@openvz.org> <20130528155326.0a8b66a7711746e827d5fdea@linux-foundation.org>
-In-Reply-To: <20130528155326.0a8b66a7711746e827d5fdea@linux-foundation.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20130528143459.GN724@phenom.dumpdata.com>
+References: <CAMo8BfL4QfJrfejNKmBDhAVdmE=_Ys6MVUH5Xa3w_mU41hwx0A@mail.gmail.com>
+	<CAMo8BfJie1Y49QeSJ+JTQb9WsYJkMMkb1BkKz2Gzy3T7V6ogHA@mail.gmail.com>
+	<20130528143459.GN724@phenom.dumpdata.com>
+Date: Wed, 29 May 2013 07:23:52 +0400
+Message-ID: <CAMo8BfLNt07PM87eV-xT+VnLVvmxrryWw4QBX6G4p-gy1Wb70w@mail.gmail.com>
+Subject: Re: TLB and PTE coherency during munmap
+From: Max Filippov <jcmvbkbc@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrey Vagin <avagin@openvz.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Konstantin Khlebnikov <khlebnikov@openvz.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-xtensa@linux-xtensa.org, Chris Zankel <chris@zankel.net>, Marc Gauthier <Marc.Gauthier@tensilica.com>
 
-On 05/29/2013 04:23 AM, Andrew Morton wrote:
-> On Tue, 14 May 2013 16:38:38 +0400 Andrey Vagin <avagin@openvz.org> wrote:
-> 
->> struct memcg_cache_params has a union. Different parts of this union are
->> used for root and non-root caches. A part with destroying work is used only
->> for non-root caches.
-> 
-> That union is a bit dangerous.  Perhaps it would be better to do
-> something like
-> 
-> --- a/include/linux/slab.h~a
-> +++ a/include/linux/slab.h
-> @@ -337,15 +337,17 @@ static __always_inline int kmalloc_size(
->  struct memcg_cache_params {
->  	bool is_root_cache;
->  	union {
-> -		struct kmem_cache *memcg_caches[0];
-> -		struct {
-> +		struct memcg_root_cache {
-> +			struct kmem_cache *caches[0];
-> +		} memcg_root_cache;
-> +		struct memcg_child_cache {
->  			struct mem_cgroup *memcg;
->  			struct list_head list;
->  			struct kmem_cache *root_cache;
->  			bool dead;
->  			atomic_t nr_pages;
->  			struct work_struct destroy;
-> -		};
-> +		} memcg_child_cache;
->  	};
->  };
-> 
-> And then adopt the convention of selecting either memcg_root_cache or
-> memcg_child_cache at the highest level then passing the more strongly
-> typed pointer to callees.
-> 
+On Tue, May 28, 2013 at 6:34 PM, Konrad Rzeszutek Wilk
+<konrad.wilk@oracle.com> wrote:
+> On Sun, May 26, 2013 at 06:50:46AM +0400, Max Filippov wrote:
+>> Hello arch and mm people.
+>>
+>> Is it intentional that threads of a process that invoked munmap syscall
+>> can see TLB entries pointing to already freed pages, or it is a bug?
+>>
+>> I'm talking about zap_pmd_range and zap_pte_range:
+>>
+>>       zap_pmd_range
+>>         zap_pte_range
+>>           arch_enter_lazy_mmu_mode
+>>             ptep_get_and_clear_full
+>>             tlb_remove_tlb_entry
+>>             __tlb_remove_page
+>>           arch_leave_lazy_mmu_mode
+>>         cond_resched
+>>
+>> With the default arch_{enter,leave}_lazy_mmu_mode, tlb_remove_tlb_entry
+>> and __tlb_remove_page there is a loop in the zap_pte_range that clears
+>> PTEs and frees corresponding pages, but doesn't flush TLB, and
+>> surrounding loop in the zap_pmd_range that calls cond_resched. If a thread
+>> of the same process gets scheduled then it is able to see TLB entries
+>> pointing to already freed physical pages.
+>
+> The idea behind the lazy MMU subsystem is that it does not need to flush
+> the TLB all the time and allow one to do PTE manipulations in a "batch mode".
+> Meaning there are stray entries - and one has to be diligient about not using them.
 
-Since it is already creating problems, yes, I agree.
+Yes, I got it, IOW TLB entries must either be flushed before userspace can
+see them, or the underlying pages must not be freed.
 
-I will try to cook up something soon.
+> Here is the relvant comment from the Linux header:
+>
+> /*
+>  * A facility to provide lazy MMU batching.  This allows PTE updates and
+>  * page invalidations to be delayed until a call to leave lazy MMU mode
+>  * is issued.  Some architectures may benefit from doing this, and it is
+>  * beneficial for both shadow and direct mode hypervisors, which may batch
+>  * the PTE updates which happen during this window.  Note that using this
+>  * interface requires that read hazards be removed from the code.  A read
+>  * hazard could result in the direct mode hypervisor case, since the actual
+>  * write to the page tables may not yet have taken place, so reads though
+>  * a raw PTE pointer after it has been modified are not guaranteed to be
+>  * up to date.  This mode can only be entered and left under the protection of
+>  * the page table locks for all page tables which may be modified.  In the UP
+>  * case, this is required so that preemption is disabled, and in the SMP case,
+>  * it must synchronize the delayed page table writes properly on other CPUs.
+>  */
+>
+> This means that eventually when arch_leave_lazy_mmu_mode or
+> arch_flush_lazy_mmu_mode is called, the PTE updates _should_ be flushed
+> (aka, TLB flush if needed on the altered PTE entries).
+
+Should (: But I only see powerpc, sparc and x86 defining
+__HAVE_ARCH_ENTER_LAZY_MMU_MODE, so this does not apply to all
+remaining arches.
+
+-- 
+Thanks.
+-- Max
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
