@@ -1,60 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id A4A936B0123
-	for <linux-mm@kvack.org>; Wed, 29 May 2013 17:20:11 -0400 (EDT)
-Subject: Re: [PATCH v2 1/2] Make the batch size of the percpu_counter
- configurable
-From: Tim Chen <tim.c.chen@linux.intel.com>
-In-Reply-To: <20130529122605.082cbb1ad8f5cbc9e82e7b16@linux-foundation.org>
-References: 
-	 <8584b08e57e97ecc4769859b751ad459d038a730.1367574872.git.tim.c.chen@linux.intel.com>
-	 <20130521134122.4d8ea920c0f851fc2d97abc9@linux-foundation.org>
-	 <1369178849.27102.330.camel@schen9-DESK>
-	 <20130521164154.bed705c6e117ceb76205cd65@linux-foundation.org>
-	 <1369183390.27102.337.camel@schen9-DESK>
-	 <20130522002020.60c3808f.akpm@linux-foundation.org>
-	 <1369265838.27102.351.camel@schen9-DESK>
-	 <20130529122605.082cbb1ad8f5cbc9e82e7b16@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 29 May 2013 14:20:12 -0700
-Message-ID: <1369862412.27102.368.camel@schen9-DESK>
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id D494C6B012A
+	for <linux-mm@kvack.org>; Wed, 29 May 2013 17:27:56 -0400 (EDT)
+Received: from /spool/local
+	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
+	Wed, 29 May 2013 15:27:55 -0600
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id E39183E40052
+	for <linux-mm@kvack.org>; Wed, 29 May 2013 15:27:34 -0600 (MDT)
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4TLRg0w068112
+	for <linux-mm@kvack.org>; Wed, 29 May 2013 15:27:45 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4TLRgRu025759
+	for <linux-mm@kvack.org>; Wed, 29 May 2013 15:27:42 -0600
+Message-ID: <51A672CC.9020403@linux.vnet.ibm.com>
+Date: Wed, 29 May 2013 14:27:40 -0700
+From: Cody P Schafer <cody@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH updated] drivers/base: Use attribute groups to create
+ sysfs memory files
+References: <51A58F4D.3020804@linux.vnet.ibm.com>
+In-Reply-To: <51A58F4D.3020804@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Eric Dumazet <eric.dumazet@gmail.com>, Ric Mason <ric.masonn@gmail.com>, Simon Jeons <simon.jeons@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <ak@linux.intel.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Nathan Fontenot <nfont@linux.vnet.ibm.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 2013-05-29 at 12:26 -0700, Andrew Morton wrote:
-> On Wed, 22 May 2013 16:37:18 -0700 Tim Chen <tim.c.chen@linux.intel.com> wrote:
-> 
-> > Currently the per cpu counter's batch size for memory accounting is
-> > configured as twice the number of cpus in the system.  However,
-> > for system with very large memory, it is more appropriate to make it
-> > proportional to the memory size per cpu in the system.
-> > 
-> > For example, for a x86_64 system with 64 cpus and 128 GB of memory,
-> > the batch size is only 2*64 pages (0.5 MB).  So any memory accounting
-> > changes of more than 0.5MB will overflow the per cpu counter into
-> > the global counter.  Instead, for the new scheme, the batch size
-> > is configured to be 0.4% of the memory/cpu = 8MB (128 GB/64 /256),
-> > which is more inline with the memory size.
-> 
-> I renamed the patch to "mm: tune vm_committed_as percpu_counter
-> batching size".
-> 
-> Do we have any performance testing results?  They're pretty important
-> for a performance-improvement patch ;)
-> 
+On 05/28/2013 10:17 PM, Nathan Fontenot wrote:
+> Update the sysfs memory code to create/delete files at the time of device
+> and subsystem registration.
+>
+> The current code creates files in the root memory directory explicitly
+> through
+> the use of init_* routines. The files for each memory block are created and
+> deleted explicitly using the mem_[create|delete]_simple_file macros.
+>
+> This patch creates attribute groups for the memory root files and files in
+> each memory block directory so that they are created and deleted implicitly
+> at subsys and device register and unregister time.
+>
+> This did necessitate moving the register_memory() routine and update
+> it to set the dev.groups field.
+>
+> Signed-off-by: Nathan Fontenot <nfont@linux.vnet.ibm.com>
+>
+> Updated to apply cleanly to rc2.
+>
+> Please cc me on responses/comments.
+> ---
+>   drivers/base/memory.c |  143
+> +++++++++++++++++++++-----------------------------
+>   1 file changed, 62 insertions(+), 81 deletions(-)
+>
+> Index: linux/drivers/base/memory.c
+> ===================================================================
+> --- linux.orig/drivers/base/memory.c    2013-05-28 22:53:58.000000000 -0500
+> +++ linux/drivers/base/memory.c 2013-05-28 22:56:49.000000000 -0500
 
-I've done a repeated brk test of 800KB (from will-it-scale test suite)
-with 80 concurrent processes on a 4 socket Westmere machine with a 
-total of 40 cores.  Without the patch, about 80% of cpu is spent on
-spin-lock contention within the vm_committed_as counter. With the patch,
-there's a 73x speedup on the benchmark and the lock contention drops off
-almost entirely.
+These changes look good, but this email doesn't play nice with `git am`. ex:
 
-Tim
+	"fatal: corrupt patch at line 80"
+
+There is nothing particularly bad about line 80. Please fix and resend 
+(git format-patch generally gets this right, maybe use that?)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
