@@ -1,92 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 4627E6B0119
-	for <linux-mm@kvack.org>; Wed, 29 May 2013 17:16:33 -0400 (EDT)
-Date: Wed, 29 May 2013 14:16:30 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCHv12 3/4] zswap: add to mm/
-Message-Id: <20130529141630.8f2d1aa9b16d05e60e4a7ada@linux-foundation.org>
-In-Reply-To: <20130529210820.GF428@cerebellum>
-References: <1369067168-12291-1-git-send-email-sjenning@linux.vnet.ibm.com>
-	<1369067168-12291-4-git-send-email-sjenning@linux.vnet.ibm.com>
-	<20130528145918.acbd84df00313e527cf04d1b@linux-foundation.org>
-	<20130529145720.GA428@cerebellum>
-	<20130529112929.24005ae9cf1d9d636b2ea42f@linux-foundation.org>
-	<20130529195027.GC428@cerebellum>
-	<20130529125747.23a6a26cdcb013842bf31644@linux-foundation.org>
-	<20130529210820.GF428@cerebellum>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id A4A936B0123
+	for <linux-mm@kvack.org>; Wed, 29 May 2013 17:20:11 -0400 (EDT)
+Subject: Re: [PATCH v2 1/2] Make the batch size of the percpu_counter
+ configurable
+From: Tim Chen <tim.c.chen@linux.intel.com>
+In-Reply-To: <20130529122605.082cbb1ad8f5cbc9e82e7b16@linux-foundation.org>
+References: 
+	 <8584b08e57e97ecc4769859b751ad459d038a730.1367574872.git.tim.c.chen@linux.intel.com>
+	 <20130521134122.4d8ea920c0f851fc2d97abc9@linux-foundation.org>
+	 <1369178849.27102.330.camel@schen9-DESK>
+	 <20130521164154.bed705c6e117ceb76205cd65@linux-foundation.org>
+	 <1369183390.27102.337.camel@schen9-DESK>
+	 <20130522002020.60c3808f.akpm@linux-foundation.org>
+	 <1369265838.27102.351.camel@schen9-DESK>
+	 <20130529122605.082cbb1ad8f5cbc9e82e7b16@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 29 May 2013 14:20:12 -0700
+Message-ID: <1369862412.27102.368.camel@schen9-DESK>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, Heesub Shin <heesub.shin@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Eric Dumazet <eric.dumazet@gmail.com>, Ric Mason <ric.masonn@gmail.com>, Simon Jeons <simon.jeons@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <ak@linux.intel.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On Wed, 29 May 2013 16:08:20 -0500 Seth Jennings <sjenning@linux.vnet.ibm.com> wrote:
-
-> On Wed, May 29, 2013 at 12:57:47PM -0700, Andrew Morton wrote:
-> > On Wed, 29 May 2013 14:50:27 -0500 Seth Jennings <sjenning@linux.vnet.ibm.com> wrote:
-> > 
-> > > On Wed, May 29, 2013 at 11:29:29AM -0700, Andrew Morton wrote:
-> > > > On Wed, 29 May 2013 09:57:20 -0500 Seth Jennings <sjenning@linux.vnet.ibm.com> wrote:
-> > > > 
-> > > > > > > +/*********************************
-> > > > > > > +* helpers
-> > > > > > > +**********************************/
-> > > > > > > +static inline bool zswap_is_full(void)
-> > > > > > > +{
-> > > > > > > +	return (totalram_pages * zswap_max_pool_percent / 100 <
-> > > > > > > +		zswap_pool_pages);
-> > > > > > > +}
-> > > > > > 
-> > > > > > We have had issues in the past where percentage-based tunables were too
-> > > > > > coarse on very large machines.  For example, a terabyte machine where 0
-> > > > > > bytes is too small and 10GB is too large.
-> > > > > 
-> > > > > Yes, this is known limitation of the code right now and it is a high priority
-> > > > > to come up with something better.  It isn't clear what dynamic sizing policy
-> > > > > should be used so, until such time as that policy can be determined, this is a
-> > > > > simple stop-gap that works well enough for simple setups.
-> > > > 
-> > > > It's a module parameter and hence is part of the userspace interface. 
-> > > > It's undesirable that the interface be changed, and it would be rather
-> > > > dumb to merge it as-is when we *know* that it will be changed.
-> > > > 
-> > > > I don't think we can remove the parameter altogether (or can we?), so I
-> > > > suggest we finalise it ASAP.  Perhaps rename it to
-> > > > zswap_max_pool_ratio, with a range 1..999999.  Better ideas needed :(
-> > > 
-> > > zswap_max_pool_ratio is fine with me.  I'm not entirely clear on the change
-> > > though.  Would that just be a name change or a change in meaning?
-> > 
-> > It would be a change in behaviour.  The problem which I'm suggesting we
-> > address is that a 1% increment is too coarse.
+On Wed, 2013-05-29 at 12:26 -0700, Andrew Morton wrote:
+> On Wed, 22 May 2013 16:37:18 -0700 Tim Chen <tim.c.chen@linux.intel.com> wrote:
 > 
-> Sorry, but I'm not getting this.  This zswap_max_pool_ratio is a ratio of what
-> to what?  Maybe if you wrote out the calculation of the max pool size using
-> this ratio I'll get it.
+> > Currently the per cpu counter's batch size for memory accounting is
+> > configured as twice the number of cpus in the system.  However,
+> > for system with very large memory, it is more appropriate to make it
+> > proportional to the memory size per cpu in the system.
+> > 
+> > For example, for a x86_64 system with 64 cpus and 128 GB of memory,
+> > the batch size is only 2*64 pages (0.5 MB).  So any memory accounting
+> > changes of more than 0.5MB will overflow the per cpu counter into
+> > the global counter.  Instead, for the new scheme, the batch size
+> > is configured to be 0.4% of the memory/cpu = 8MB (128 GB/64 /256),
+> > which is more inline with the memory size.
+> 
+> I renamed the patch to "mm: tune vm_committed_as percpu_counter
+> batching size".
+> 
+> Do we have any performance testing results?  They're pretty important
+> for a performance-improvement patch ;)
 > 
 
-This:
+I've done a repeated brk test of 800KB (from will-it-scale test suite)
+with 80 concurrent processes on a 4 socket Westmere machine with a 
+total of 40 cores.  Without the patch, about 80% of cpu is spent on
+spin-lock contention within the vm_committed_as counter. With the patch,
+there's a 73x speedup on the benchmark and the lock contention drops off
+almost entirely.
 
-	totalram_pages * zswap_max_pool_percent / 100
-
-means that we have are able to control the pool size in 10GB increments
-on a 1TB machine.  Past experience with other tunables tells us that
-this can be a problem.  Hence my (lame) suggestion that we replace it
-with
-
-	totalram_pages * zswap_max_pool_ratio / 1000000
-
-
-Another approach would be to stop using a ratio altogether, and make the
-tunable specify an absolute number of bytes.  That's how we approached
-this problem in the case of /proc/sys/vm/dirty_background_ratio.  See
-https://lkml.org/lkml/2008/11/23/160.
-
-(And it's "bytes", not "pages" because PAGE_SIZE can vary by a factor
-of 16, which is a lot). 
+Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
