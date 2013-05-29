@@ -1,73 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id D494C6B012A
-	for <linux-mm@kvack.org>; Wed, 29 May 2013 17:27:56 -0400 (EDT)
-Received: from /spool/local
-	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Wed, 29 May 2013 15:27:55 -0600
-Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id E39183E40052
-	for <linux-mm@kvack.org>; Wed, 29 May 2013 15:27:34 -0600 (MDT)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4TLRg0w068112
-	for <linux-mm@kvack.org>; Wed, 29 May 2013 15:27:45 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4TLRgRu025759
-	for <linux-mm@kvack.org>; Wed, 29 May 2013 15:27:42 -0600
-Message-ID: <51A672CC.9020403@linux.vnet.ibm.com>
-Date: Wed, 29 May 2013 14:27:40 -0700
-From: Cody P Schafer <cody@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH updated] drivers/base: Use attribute groups to create
- sysfs memory files
-References: <51A58F4D.3020804@linux.vnet.ibm.com>
-In-Reply-To: <51A58F4D.3020804@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 8799E6B012C
+	for <linux-mm@kvack.org>; Wed, 29 May 2013 17:29:07 -0400 (EDT)
+Date: Wed, 29 May 2013 14:29:04 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCHv12 2/4] zbud: add to mm/
+Message-Id: <20130529142904.ace2a29b90a9076d0ee251fd@linux-foundation.org>
+In-Reply-To: <754ae8a0-23af-4c87-953f-d608cba84191@default>
+References: <1369067168-12291-1-git-send-email-sjenning@linux.vnet.ibm.com>
+	<1369067168-12291-3-git-send-email-sjenning@linux.vnet.ibm.com>
+	<20130528145911.bd484cbb0bb7a27c1623c520@linux-foundation.org>
+	<20130529154500.GB428@cerebellum>
+	<20130529113434.b2ced4cc1e66c7a0a520d908@linux-foundation.org>
+	<20130529204236.GD428@cerebellum>
+	<20130529134835.58dd89774f47205da4a06202@linux-foundation.org>
+	<754ae8a0-23af-4c87-953f-d608cba84191@default>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nathan Fontenot <nfont@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, Heesub Shin <heesub.shin@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On 05/28/2013 10:17 PM, Nathan Fontenot wrote:
-> Update the sysfs memory code to create/delete files at the time of device
-> and subsystem registration.
->
-> The current code creates files in the root memory directory explicitly
-> through
-> the use of init_* routines. The files for each memory block are created and
-> deleted explicitly using the mem_[create|delete]_simple_file macros.
->
-> This patch creates attribute groups for the memory root files and files in
-> each memory block directory so that they are created and deleted implicitly
-> at subsys and device register and unregister time.
->
-> This did necessitate moving the register_memory() routine and update
-> it to set the dev.groups field.
->
-> Signed-off-by: Nathan Fontenot <nfont@linux.vnet.ibm.com>
->
-> Updated to apply cleanly to rc2.
->
-> Please cc me on responses/comments.
-> ---
->   drivers/base/memory.c |  143
-> +++++++++++++++++++++-----------------------------
->   1 file changed, 62 insertions(+), 81 deletions(-)
->
-> Index: linux/drivers/base/memory.c
-> ===================================================================
-> --- linux.orig/drivers/base/memory.c    2013-05-28 22:53:58.000000000 -0500
-> +++ linux/drivers/base/memory.c 2013-05-28 22:56:49.000000000 -0500
+On Wed, 29 May 2013 14:09:02 -0700 (PDT) Dan Magenheimer <dan.magenheimer@oracle.com> wrote:
 
-These changes look good, but this email doesn't play nice with `git am`. ex:
+> > memory_failure() is merely an example of a general problem: code which
+> > reads from the memmap[] array and expects its elements to be of type
+> > `struct page'.  Other examples might be memory hotplugging, memory leak
+> > checkers etc.  I have vague memories of out-of-tree patches
+> > (bigphysarea?) doing this as well.
+> > 
+> > It's a general problem to which we need a general solution.
+> 
+> <Obi-tmem Kenobe slowly materializes... "use the force, Luke!">
+> 
+> One could reasonably argue that any code that makes incorrect
+> assumptions about the contents of a struct page structure is buggy
+> and should be fixed.
 
-	"fatal: corrupt patch at line 80"
+Well it has type "struct page" and all code has a right to expect the
+contents to match that type.
 
-There is nothing particularly bad about line 80. Please fix and resend 
-(git format-patch generally gets this right, maybe use that?)
+>  Isn't the "general solution" already described
+> in the following comment, excerpted from include/linux/mm.h, which
+> implies that "scribbling on existing pageframes" [carefully], is fine?
+> (And, if not, shouldn't that comment be fixed, or am I misreading
+> it?)
+> 
+> <start excerpt>
+>  * For the non-reserved pages, page_count(page) denotes a reference count.
+>  *   page_count() == 0 means the page is free. page->lru is then used for
+>  *   freelist management in the buddy allocator.
+>  *   page_count() > 0  means the page has been allocated.
 
+Well kinda maybe.  How all the random memmap-peekers handle this I do
+not know.  Setting PageReserved is a big hammer which should keep other
+little paws out of there, although I guess it's abusive of whatever
+PageReserved is supposed to mean.
+
+It's what we used to call a variant record.  The tag is page.flags and
+the protocol is, umm,
+
+PageReserved: doesn't refer to a page at all - don't touch
+PageSlab: belongs to slab or slub
+!PageSlab: regular kernel/user/pagecache page
+
+Are there any more?
+
+So what to do here?  How about
+
+- Position the zbud fields within struct page via the preferred
+  means: editing its definition.
+
+- Decide upon and document the means by which the zbud variant is tagged
+
+- Demonstrate how this is safe against existing memmap-peekers
+
+- Do all this without consuming another page flag :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
