@@ -1,45 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id CFAE26B00A3
-	for <linux-mm@kvack.org>; Wed, 29 May 2013 05:15:37 -0400 (EDT)
-Date: Wed, 29 May 2013 10:15:30 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: mmotm-2013-05-22: Bad page state
-Message-ID: <20130529091530.GA29426@suse.de>
-References: <51A526D9.3020803@sr71.net>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 0272D6B00A9
+	for <linux-mm@kvack.org>; Wed, 29 May 2013 06:15:26 -0400 (EDT)
+Date: Wed, 29 May 2013 20:15:19 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v8 16/34] xfs: convert buftarg LRU to generic code
+Message-ID: <20130529101519.GA29466@dastard>
+References: <1369391368-31562-1-git-send-email-glommer@openvz.org>
+ <1369391368-31562-17-git-send-email-glommer@openvz.org>
+ <20130525002759.GK24543@dastard>
+ <51A4D3B5.6060802@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51A526D9.3020803@sr71.net>
+In-Reply-To: <51A4D3B5.6060802@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Anton Vorontsov <anton.vorontsov@linaro.org>, Minchan Kim <minchan@kernel.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, Dave Chinner <dchinner@redhat.com>
 
-On Tue, May 28, 2013 at 02:51:21PM -0700, Dave Hansen wrote:
-> I was rebasing my mapping->radix_tree lock batching patches on top of
-> Mel's stuff.  It looks like something is jumping the gun and freeing a
-> page before it has been written out.  Somebody probably did an extra
-> put_page() or something.
-> 
-> I'm running 3.10.0-rc2-mm1-00322-g8d4c612 from
-> 
-> 	git://git.cmpxchg.org/linux-mmotm.git
-> 
-> This is pretty reproducible.  I'll go try and test plain 3.10-rc2 next
-> to make sure it's not coming from Linus's stuff.
-> 
+On Tue, May 28, 2013 at 09:26:37PM +0530, Glauber Costa wrote:
+> On 05/25/2013 05:57 AM, Dave Chinner wrote:
+> > On Fri, May 24, 2013 at 03:59:10PM +0530, Glauber Costa wrote:
+> >> From: Dave Chinner <dchinner@redhat.com>
+> >>
+> >> Convert the buftarg LRU to use the new generic LRU list and take
+> >> advantage of the functionality it supplies to make the buffer cache
+> >> shrinker node aware.
+> >>
+> >> * v7: Add NUMA aware flag
+> > 
+> > I know what is wrong with this patch that causes the unmount hang -
+> > it's the handling of the _XBF_LRU_DISPOSE flag no longer being
+> > modified atomically with the LRU lock. Hence there is a race where
+> > we can either lose the _XBF_LRU_DISPOSE or not see it and hence we
+> > can end up with code not detecting what list the buffer is on
+> > correctly.
+> > 
+> > I haven't had a chance to work out a fix for it yet. If this ends up
+> > likely to hold up the patch set, Glauber, then feel free to drop it
+> > from the series and I'll push a fixed version through the XFS tree
+> > in due course....
+> > 
+> > Cheers,
+> > 
+> > Dave.
+> > 
+> Please let me know what you think about the following two (very coarse)
+> patches. My idea is to expose more of the raw structures so XFS can do
+> the locking itself when needed.
 
-Patch 1 from the follow-up series "mm: vmscan: Block kswapd if it is
-encountering pages under writeback -fix"
+No, I'd prefer not to do that.  There's a big difference between a
+callback that passes a pointer to an internal lock that protects the
+list that the item being passed is on and exposing the guts of the
+per node list and lock implementation to everyone....
 
-The rest of that follow-up series needs further work and I'm still
-working on it but patch 1 is what fixes this particular problem.
-Changelog says why.
+As it is, the XFS buffer LRU reclaimation is modelled on the
+inode/dentry cache lru reclaimation where the "on dispose list" flag
+is managed by a lock in the inode/dentry and wraps around the
+outside of the LRU locks. The simplest fix to XFS is to add a
+spinlock to the buffer to handle this in the same way as inodes and
+dentries. I think I might be able to do it in a way that avoids
+the spin lock but I just haven't had time to look at it that closely.
 
+Cheers,
+
+Dave.
 -- 
-Mel Gorman
-SUSE Labs
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
