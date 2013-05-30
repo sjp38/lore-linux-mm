@@ -1,59 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 52D8B6B0032
-	for <linux-mm@kvack.org>; Thu, 30 May 2013 16:47:34 -0400 (EDT)
-Received: by mail-pb0-f52.google.com with SMTP id xa12so1011055pbc.39
-        for <linux-mm@kvack.org>; Thu, 30 May 2013 13:47:33 -0700 (PDT)
-Date: Thu, 30 May 2013 13:47:30 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, memcg: add oom killer delay
-In-Reply-To: <20130530150539.GA18155@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.02.1305301338430.20389@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1305291817280.520@chino.kir.corp.google.com> <20130530150539.GA18155@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 748E86B0033
+	for <linux-mm@kvack.org>; Thu, 30 May 2013 17:01:18 -0400 (EDT)
+Received: by mail-ob0-f177.google.com with SMTP id ta17so1606507obb.36
+        for <linux-mm@kvack.org>; Thu, 30 May 2013 14:01:17 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20130524140114.GK23650@twins.programming.kicks-ass.net>
+References: <alpine.DEB.2.10.1305221523420.9944@vincent-weaver-1.um.maine.edu>
+ <alpine.DEB.2.10.1305221953370.11450@vincent-weaver-1.um.maine.edu>
+ <alpine.DEB.2.10.1305222344060.12929@vincent-weaver-1.um.maine.edu>
+ <20130523044803.GA25399@ZenIV.linux.org.uk> <20130523104154.GA23650@twins.programming.kicks-ass.net>
+ <0000013ed1b8d0cc-ad2bb878-51bd-430c-8159-629b23ed1b44-000000@email.amazonses.com>
+ <20130523152458.GD23650@twins.programming.kicks-ass.net> <0000013ed2297ba8-467d474a-7068-45b3-9fa3-82641e6aa363-000000@email.amazonses.com>
+ <20130523163901.GG23650@twins.programming.kicks-ass.net> <0000013ed28b638a-066d7dc7-b590-49f8-9423-badb9537b8b6-000000@email.amazonses.com>
+ <20130524140114.GK23650@twins.programming.kicks-ass.net>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Thu, 30 May 2013 17:00:55 -0400
+Message-ID: <CAHGf_=oL+8n1aFx1T-7iH0gw9f95yY9doAdE+PZd4biSUTzstw@mail.gmail.com>
+Subject: Re: [RFC][PATCH] mm: Fix RLIMIT_MEMLOCK
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Christoph Lameter <cl@linux.com>, Al Viro <viro@zeniv.linux.org.uk>, Vince Weaver <vincent.weaver@maine.edu>, LKML <linux-kernel@vger.kernel.org>, Paul Mackerras <paulus@samba.org>, Ingo Molnar <mingo@redhat.com>, Arnaldo Carvalho de Melo <acme@ghostprotocols.net>, trinity@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Roland Dreier <roland@kernel.org>, infinipath@qlogic.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Thu, 30 May 2013, Michal Hocko wrote:
+> diff --git a/drivers/infiniband/core/umem.c b/drivers/infiniband/core/umem.c
+> index a841123..f8f47dc 100644
+> --- a/drivers/infiniband/core/umem.c
+> +++ b/drivers/infiniband/core/umem.c
+> @@ -137,17 +137,22 @@ struct ib_umem *ib_umem_get (struct ib_ucontext *context, unsigned long addr,
+>
+>         down_write(&current->mm->mmap_sem);
+>
+> -       locked     = npages + current->mm->pinned_vm;
+> +       locked     = npages + mm_locked_pages(current->mm);
+>         lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+>
+>         if ((locked > lock_limit) && !capable(CAP_IPC_LOCK)) {
+>                 ret = -ENOMEM;
+> -               goto out;
+> +               goto err;
+>         }
+>
+>         cur_base = addr & PAGE_MASK;
+> +       umem->start_addr = cur_base;
+> +       umem->end_addr   = cur_base + npages;
+> +
+> +       ret = mm_mpin(umem->start_addr, umem->end_addr);
+> +       if (ret)
+> +               goto err;
 
-> > Completely disabling the oom killer for a memcg is problematic if
-> > userspace is unable to address the condition itself, usually because it
-> > is unresponsive. 
-> 
-> Isn't this a bug in the userspace oom handler? Why is it unresponsive? It
-> shouldn't allocated any memory so nothing should prevent it from running (if
-> other tasks are preempting it permanently then the priority of the handler
-> should be increased).
-> 
+I believe RLIMIT_MEMLOCK should be checked within mm_mpin().
 
-Unresponsiveness isn't necessarily only because of memory constraints, you 
-may have your oom notifier in a parent cgroup that isn't oom.  If a 
-process is stuck on mm->mmap_sem in the oom cgroup, though, the oom 
-notifier may not be able to scrape /proc/pid and attain necessary 
-information in making an oom kill decision.  If the oom notifier is in the 
-oom cgroup, it may not be able to successfully read the memcg "tasks" 
-file to even determine the set of eligible processes.  There is also no 
-guarantee that the userspace oom handler will have the necessary memory to 
-even re-enable the oom killer in the memcg under oom which would allow the 
-kernel to make forward progress.
 
-We've used this for a few years as a complement to oom notifiers so that a 
-process would have a grace period to deal with the oom condition itself 
-before allowing the kernel to terminate a process and free memory.  We've 
-simply had no alternative in the presence of kernel constraints that 
-prevent it from being done in any other way.  We _want_ userspace to deal 
-with the issue but when it cannot collect the necessary information (and 
-we're not tracing every fork() that every process in a potentially oom 
-memcg does) to deal with the condition, we want the kernel to step in 
-instead of relying on an admin to login or a global oom condition.
+> +static inline unsigned long mm_locked_pages(struct mm_struct *mm)
+> +{
+> +       return mm->pinned_vm + mm->locked_vm;
+> +}
 
-If you'd like to debate this issue, I'd be more than happy to do so and 
-show why this patch is absolutely necessary for inclusion, but I'd ask 
-that you'd present the code from your userspace oom handler so I can 
-understand how it works without needing such backup support.
+This is acceptable. but if we create mm_locked_pages(), /proc should
+also use this.
+Otherwise pinning operation magically decrease VmLck field in
+/proc/pid/status and people
+get a confusion.
+
+
+
+> @@ -310,9 +309,49 @@ static int mlock_fixup(struct vm_area_struct *vma, struct vm_area_struct **prev,
+>          * Keep track of amount of locked VM.
+>          */
+>         nr_pages = (end - start) >> PAGE_SHIFT;
+> -       if (!lock)
+> -               nr_pages = -nr_pages;
+> -       mm->locked_vm += nr_pages;
+> +
+> +       /*
+> +        * We should only account pages once, if VM_PINNED is set pages are
+> +        * accounted in mm_struct::pinned_vm, otherwise if VM_LOCKED is set,
+> +        * we'll account them in mm_struct::locked_vm.
+> +        *
+> +        * PL  := vma->vm_flags
+> +        * PL' := newflags
+> +        * PLd := {pinned,locked}_vm delta
+> +        *
+> +        * PL->PL' PLd
+> +        * -----------
+> +        * 00  01  0+
+> +        * 00  10  +0
+> +        * 01  11  +-
+> +        * 01  00  0-
+> +        * 10  00  -0
+> +        * 10  11  00
+> +        * 11  01  -+
+> +        * 11  10  00
+> +        */
+
+This comment is too cryptic. :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
