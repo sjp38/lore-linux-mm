@@ -1,128 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 114CD6B0037
-	for <linux-mm@kvack.org>; Thu, 30 May 2013 09:18:06 -0400 (EDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <519BE3B6.6070902@sr71.net>
-References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1368321816-17719-20-git-send-email-kirill.shutemov@linux.intel.com>
- <519BE3B6.6070902@sr71.net>
-Subject: Re: [PATCHv4 19/39] thp, mm: allocate huge pages in
- grab_cache_page_write_begin()
-Content-Transfer-Encoding: 7bit
-Message-Id: <20130530132035.BFE0FE0090@blue.fi.intel.com>
-Date: Thu, 30 May 2013 16:20:35 +0300 (EEST)
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 36B006B0032
+	for <linux-mm@kvack.org>; Thu, 30 May 2013 10:40:42 -0400 (EDT)
+Date: Thu, 30 May 2013 15:40:28 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH 2/3] mm/kmemleak.c: Use list_for_each_entry_safe to
+ reconstruct function scan_gray_list
+Message-ID: <20130530144028.GF23631@arm.com>
+References: <519224D8.5090704@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <519224D8.5090704@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: majianpeng <majianpeng@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-Dave Hansen wrote:
-> On 05/11/2013 06:23 PM, Kirill A. Shutemov wrote:
-> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> > 
-> > Try to allocate huge page if flags has AOP_FLAG_TRANSHUGE.
+On Tue, May 14, 2013 at 12:49:44PM +0100, majianpeng wrote:
+> Signed-off-by: Jianpeng Ma <majianpeng@gmail.com>
+> ---
+>  mm/kmemleak.c | 8 +-------
+>  1 file changed, 1 insertion(+), 7 deletions(-)
 > 
-> Why do we need this flag?
+> diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+> index b1525db..f0ece93 100644
+> --- a/mm/kmemleak.c
+> +++ b/mm/kmemleak.c
+> @@ -1225,22 +1225,16 @@ static void scan_gray_list(void)
+>  	 * from inside the loop. The kmemleak objects cannot be freed from
+>  	 * outside the loop because their use_count was incremented.
+>  	 */
+> -	object = list_entry(gray_list.next, typeof(*object), gray_list);
+> -	while (&object->gray_list != &gray_list) {
+> +	list_for_each_entry_safe(object, tmp, &gray_list, gray_list) {
+>  		cond_resched();
+>  
+>  		/* may add new objects to the list */
+>  		if (!scan_should_stop())
+>  			scan_object(object);
+>  
+> -		tmp = list_entry(object->gray_list.next, typeof(*object),
+> -				 gray_list);
+> -
+>  		/* remove the object from the list and release it */
+>  		list_del(&object->gray_list);
+>  		put_object(object);
+> -
+> -		object = tmp;
+>  	}
+>  	WARN_ON(!list_empty(&gray_list));
 
-I don't see other way to indicate grab_cache_page_write_begin(), that we
-want THP here.
+I tried this patch for a few days and I hit the WARN_ON after the loop.
+During scanning, new entries may be added at the end of the loop but we
+need to loop until all the entries have been removed. I probably had a
+reason why I had the 'while' loop.
 
-> When might we set it, and when would we not set it?  What kinds of
-> callers need to check for and act on it?
+The key difference is that list_for_each_entry_safe() gets the next
+entry (n or tmp above) before scan_object() and it may hit the end of
+the list. However, scan_object() may do a list_add_tail(&gray_list)
+hence we need to get the next entry after this function.
 
-The decision whether allocate huge page or not is up to filesystem. In
-ramfs case we just use mapping_can_have_hugepages(), on other filesystem
-check might be more complicated.
+Basically list_for_each_entry_safe() is not safe with tail additions.
+I'll revert this patch (hasn't reached mainline anyway).
 
-> Some of this, at least, needs to make it in to the comment by the #define.
-
-Sorry, I fail to see what kind of comment you want me to add there.
-
-> > --- a/include/linux/huge_mm.h
-> > +++ b/include/linux/huge_mm.h
-> > @@ -194,6 +194,9 @@ extern int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vm
-> >  #define HPAGE_CACHE_NR         ({ BUILD_BUG(); 0; })
-> >  #define HPAGE_CACHE_INDEX_MASK ({ BUILD_BUG(); 0; })
-> >  
-> > +#define THP_WRITE_ALLOC		({ BUILD_BUG(); 0; })
-> > +#define THP_WRITE_ALLOC_FAILED	({ BUILD_BUG(); 0; })
-> 
-> Doesn't this belong in the previous patch?
-
-Yes. Fixed.
-
-> >  #define hpage_nr_pages(x) 1
-> >  
-> >  #define transparent_hugepage_enabled(__vma) 0
-> > diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-> > index 2e86251..8feeecc 100644
-> > --- a/include/linux/pagemap.h
-> > +++ b/include/linux/pagemap.h
-> > @@ -270,8 +270,15 @@ unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t start,
-> >  unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
-> >  			int tag, unsigned int nr_pages, struct page **pages);
-> >  
-> > -struct page *grab_cache_page_write_begin(struct address_space *mapping,
-> > +struct page *__grab_cache_page_write_begin(struct address_space *mapping,
-> >  			pgoff_t index, unsigned flags);
-> > +static inline struct page *grab_cache_page_write_begin(
-> > +		struct address_space *mapping, pgoff_t index, unsigned flags)
-> > +{
-> > +	if (!transparent_hugepage_pagecache() && (flags & AOP_FLAG_TRANSHUGE))
-> > +		return NULL;
-> > +	return __grab_cache_page_write_begin(mapping, index, flags);
-> > +}
-> 
-> OK, so there's some of the behavior.
-> 
-> Could you also call out why you refactored this code?  It seems like
-> you're trying to optimize for the case where AOP_FLAG_TRANSHUGE isn't
-> set and where the compiler knows that it isn't set.
-> 
-> Could you talk a little bit about the cases that you're thinking of here?
-
-I just tried to make it cheaper for !CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE
-case, but it seems not worth it: the only user call it from
-'if (mapping_can_have_hugepages())', so I'll drop this.
-
-> >  /*
-> >   * Returns locked page at given index in given cache, creating it if needed.
-> > diff --git a/mm/filemap.c b/mm/filemap.c
-> > index 9ea46a4..e086ef0 100644
-> > --- a/mm/filemap.c
-> > +++ b/mm/filemap.c
-> > @@ -2309,25 +2309,44 @@ EXPORT_SYMBOL(generic_file_direct_write);
-> >   * Find or create a page at the given pagecache position. Return the locked
-> >   * page. This function is specifically for buffered writes.
-> >   */
-> > -struct page *grab_cache_page_write_begin(struct address_space *mapping,
-> > -					pgoff_t index, unsigned flags)
-> > +struct page *__grab_cache_page_write_begin(struct address_space *mapping,
-> > +		pgoff_t index, unsigned flags)
-> >  {
-> >  	int status;
-> >  	gfp_t gfp_mask;
-> >  	struct page *page;
-> >  	gfp_t gfp_notmask = 0;
-> > +	bool thp = (flags & AOP_FLAG_TRANSHUGE) &&
-> > +		IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE);
-> 
-> Instead of 'thp', how about 'must_use_thp'?  The flag seems to be a
-> pretty strong edict rather than a hint, so it should be reflected in the
-> variables derived from it.
-
-Ok.
-
-> "IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE)" has also popped up
-> enough times in the code that it's probably time to start thinking about
-> shortening it up.  It's a wee bit verbose.
-
-I'll leave it as is for now. Probably come back later.
-
+Thanks.
 
 -- 
- Kirill A. Shutemov
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
