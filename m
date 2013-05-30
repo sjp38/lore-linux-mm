@@ -1,151 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 792FC6B00A8
-	for <linux-mm@kvack.org>; Thu, 30 May 2013 06:37:43 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 5F4A26B00A8
+	for <linux-mm@kvack.org>; Thu, 30 May 2013 06:37:50 -0400 (EDT)
 From: Glauber Costa <glommer@openvz.org>
-Subject: [PATCH v9 35/35] memcg: reap dead memcgs upon global memory pressure.
-Date: Thu, 30 May 2013 14:36:21 +0400
-Message-Id: <1369910181-20026-36-git-send-email-glommer@openvz.org>
+Subject: [PATCH v9 31/35] vmscan: take at least one pass with shrinkers
+Date: Thu, 30 May 2013 14:36:17 +0400
+Message-Id: <1369910181-20026-32-git-send-email-glommer@openvz.org>
 In-Reply-To: <1369910181-20026-1-git-send-email-glommer@openvz.org>
 References: <1369910181-20026-1-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@openvz.org>, Dave Chinner <dchinner@redhat.com>, Rik van Riel <riel@redhat.com>
+Cc: linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@openvz.org>, Carlos Maiolino <cmaiolino@redhat.com>, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
 
-When we delete kmem-enabled memcgs, they can still be zombieing
-around for a while. The reason is that the objects may still be alive,
-and we won't be able to delete them at destruction time.
+In very low free kernel memory situations, it may be the case that we
+have less objects to free than our initial batch size. If this is the
+case, it is better to shrink those, and open space for the new workload
+then to keep them and fail the new allocations.
 
-The only entry point for that, though, are the shrinkers. The
-shrinker interface, however, is not exactly tailored to our needs. It
-could be a little bit better by using the API Dave Chinner proposed, but
-it is still not ideal since we aren't really a count-and-scan event, but
-more a one-off flush-all-you-can event that would have to abuse that
-somehow.
+In particular, we are concerned with the direct reclaim case for memcg.
+Although this same technique can be applied to other situations just as well,
+we will start conservative and apply it for that case, which is the one
+that matters the most.
+
+[ v6: only do it per memcg ]
+[ v5: differentiate no-scan case, don't do this for kswapd ]
 
 Signed-off-by: Glauber Costa <glommer@openvz.org>
-Cc: Dave Chinner <dchinner@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
+CC: Dave Chinner <david@fromorbit.com>
+CC: Carlos Maiolino <cmaiolino@redhat.com>
+CC: "Theodore Ts'o" <tytso@mit.edu>
+CC: Al Viro <viro@zeniv.linux.org.uk>
 ---
- mm/memcontrol.c | 52 ++++++++++++++++++++++++++++++++++++++++++++++------
- 1 file changed, 46 insertions(+), 6 deletions(-)
+ mm/vmscan.c | 23 ++++++++++++++++++-----
+ 1 file changed, 18 insertions(+), 5 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index c0e1113f..919fb24b 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -400,7 +400,6 @@ static size_t memcg_size(void)
- 		nr_node_ids * sizeof(struct mem_cgroup_per_node);
- }
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index a42c742..1067b1c 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -297,21 +297,34 @@ shrink_slab_node(struct shrink_control *shrinkctl, struct shrinker *shrinker,
+ 				nr_pages_scanned, lru_pages,
+ 				max_pass, delta, total_scan);
  
--#ifdef CONFIG_MEMCG_DEBUG_ASYNC_DESTROY
- static LIST_HEAD(dangling_memcgs);
- static DEFINE_MUTEX(dangling_memcgs_mutex);
+-	while (total_scan >= batch_size) {
++	do {
+ 		long ret;
++		unsigned long nr_to_scan = min(batch_size, total_scan);
++		struct mem_cgroup *memcg = shrinkctl->target_mem_cgroup;
++
++		/*
++		 * Differentiate between "few objects" and "no objects"
++		 * as returned by the count step.
++		 */
++		if (!total_scan)
++			break;
++
++		if ((total_scan < batch_size) &&
++		   !(memcg && memcg_kmem_is_active(memcg)))
++			break;
  
-@@ -409,11 +408,14 @@ static inline void memcg_dangling_free(struct mem_cgroup *memcg)
- 	mutex_lock(&dangling_memcgs_mutex);
- 	list_del(&memcg->dead);
- 	mutex_unlock(&dangling_memcgs_mutex);
-+#ifdef CONFIG_MEMCG_DEBUG_ASYNC_DESTROY
- 	free_pages((unsigned long)memcg->memcg_name, 0);
-+#endif
- }
+-		shrinkctl->nr_to_scan = batch_size;
++		shrinkctl->nr_to_scan = nr_to_scan;
+ 		ret = shrinker->scan_objects(shrinker, shrinkctl);
  
- static inline void memcg_dangling_add(struct mem_cgroup *memcg)
- {
-+#ifdef CONFIG_MEMCG_DEBUG_ASYNC_DESTROY
+ 		if (ret == -1)
+ 			break;
+ 		freed += ret;
+ 
+-		count_vm_events(SLABS_SCANNED, batch_size);
+-		total_scan -= batch_size;
++		count_vm_events(SLABS_SCANNED, nr_to_scan);
++		total_scan -= nr_to_scan;
+ 
+ 		cond_resched();
+-	}
++	} while (total_scan >= batch_size);
+ 
  	/*
- 	 * cgroup.c will do page-sized allocations most of the time,
- 	 * so we'll just follow the pattern. Also, __get_free_pages
-@@ -439,15 +441,12 @@ static inline void memcg_dangling_add(struct mem_cgroup *memcg)
- 	}
- 
- add_list:
-+#endif
- 	INIT_LIST_HEAD(&memcg->dead);
- 	mutex_lock(&dangling_memcgs_mutex);
- 	list_add(&memcg->dead, &dangling_memcgs);
- 	mutex_unlock(&dangling_memcgs_mutex);
- }
--#else
--static inline void memcg_dangling_free(struct mem_cgroup *memcg) {}
--static inline void memcg_dangling_add(struct mem_cgroup *memcg) {}
--#endif
- 
- static DEFINE_MUTEX(set_limit_mutex);
- 
-@@ -6313,6 +6312,41 @@ static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
- }
- 
- #ifdef CONFIG_MEMCG_KMEM
-+static void memcg_vmpressure_shrink_dead(void)
-+{
-+	struct memcg_cache_params *params, *tmp;
-+	struct kmem_cache *cachep;
-+	struct mem_cgroup *memcg;
-+
-+	mutex_lock(&dangling_memcgs_mutex);
-+	list_for_each_entry(memcg, &dangling_memcgs, dead) {
-+		mutex_lock(&memcg->slab_caches_mutex);
-+		/* The element may go away as an indirect result of shrink */
-+		list_for_each_entry_safe(params, tmp,
-+					 &memcg->memcg_slab_caches, list) {
-+			cachep = memcg_params_to_cache(params);
-+			/*
-+			 * the cpu_hotplug lock is taken in kmem_cache_create
-+			 * outside the slab_caches_mutex manipulation. It will
-+			 * be taken by kmem_cache_shrink to flush the cache.
-+			 * So we need to drop the lock. It is all right because
-+			 * the lock only protects elements moving in and out the
-+			 * list.
-+			 */
-+			mutex_unlock(&memcg->slab_caches_mutex);
-+			kmem_cache_shrink(cachep);
-+			mutex_lock(&memcg->slab_caches_mutex);
-+		}
-+		mutex_unlock(&memcg->slab_caches_mutex);
-+	}
-+	mutex_unlock(&dangling_memcgs_mutex);
-+}
-+
-+static void memcg_register_kmem_events(struct cgroup *cont)
-+{
-+	vmpressure_register_kernel_event(cont, memcg_vmpressure_shrink_dead);
-+}
-+
- static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
- {
- 	int ret;
-@@ -6348,6 +6382,10 @@ static void kmem_cgroup_destroy(struct mem_cgroup *memcg)
- 	}
- }
- #else
-+static inline void memcg_register_kmem_events(struct cgroup *cont)
-+{
-+}
-+
- static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
- {
- 	return 0;
-@@ -6733,8 +6771,10 @@ mem_cgroup_css_online(struct cgroup *cont)
- 	struct mem_cgroup *memcg, *parent;
- 	int error = 0;
- 
--	if (!cont->parent)
-+	if (!cont->parent) {
-+		memcg_register_kmem_events(cont);
- 		return 0;
-+	}
- 
- 	mutex_lock(&memcg_create_mutex);
- 	memcg = mem_cgroup_from_cont(cont);
+ 	 * move the unused scan count back into the shrinker in a
 -- 
 1.8.1.4
 
