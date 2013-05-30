@@ -1,196 +1,178 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 8DBF66B0089
-	for <linux-mm@kvack.org>; Thu, 30 May 2013 06:37:01 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 3E04A6B0088
+	for <linux-mm@kvack.org>; Thu, 30 May 2013 06:37:02 -0400 (EDT)
 From: Glauber Costa <glommer@openvz.org>
-Subject: [PATCH v9 22/35] shrinker: convert remaining shrinkers to count/scan API
-Date: Thu, 30 May 2013 14:36:08 +0400
-Message-Id: <1369910181-20026-23-git-send-email-glommer@openvz.org>
+Subject: [PATCH v9 02/35] super: fix calculation of shrinkable objects for small numbers
+Date: Thu, 30 May 2013 14:35:48 +0400
+Message-Id: <1369910181-20026-3-git-send-email-glommer@openvz.org>
 In-Reply-To: <1369910181-20026-1-git-send-email-glommer@openvz.org>
 References: <1369910181-20026-1-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>, Glauber Costa <glommer@openvz.org>, Marcelo Tosatti <mtosatti@redhat.com>, Gleb Natapov <gleb@redhat.com>, Chuck Lever <chuck.lever@oracle.com>, "J. Bruce Fields" <bfields@redhat.com>, Trond Myklebust <Trond.Myklebust@netapp.com>
+Cc: linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@openvz.org>, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
 
-From: Dave Chinner <dchinner@redhat.com>
+The sysctl knob sysctl_vfs_cache_pressure is used to determine which
+percentage of the shrinkable objects in our cache we should actively try
+to shrink.
 
-Convert the remaining couple of random shrinkers in the tree to the
-new API.
+It works great in situations in which we have many objects (at least
+more than 100), because the aproximation errors will be negligible. But
+if this is not the case, specially when total_objects < 100, we may end
+up concluding that we have no objects at all (total / 100 = 0,  if total
+< 100).
 
-Signed-off-by: Dave Chinner <dchinner@redhat.com>
+This is certainly not the biggest killer in the world, but may matter in
+very low kernel memory situations.
+
+[ v2: fix it for all occurrences of sysctl_vfs_cache_pressure ]
+
 Signed-off-by: Glauber Costa <glommer@openvz.org>
-CC: Marcelo Tosatti <mtosatti@redhat.com>
-CC: Gleb Natapov <gleb@redhat.com>
-CC: Chuck Lever <chuck.lever@oracle.com>
-CC: J. Bruce Fields <bfields@redhat.com>
-CC: Trond Myklebust <Trond.Myklebust@netapp.com>
+Reviewed-by: Carlos Maiolino <cmaiolino@redhat.com>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Acked-by: Mel Gorman <mgorman@suse.de>
+CC: Dave Chinner <david@fromorbit.com>
+CC: "Theodore Ts'o" <tytso@mit.edu>
+CC: Al Viro <viro@zeniv.linux.org.uk>
 ---
- arch/x86/kvm/mmu.c | 28 +++++++++++++++++++++-------
- net/sunrpc/auth.c  | 45 +++++++++++++++++++++++++++++++--------------
- 2 files changed, 52 insertions(+), 21 deletions(-)
+ fs/gfs2/glock.c        |  2 +-
+ fs/gfs2/quota.c        |  2 +-
+ fs/mbcache.c           |  2 +-
+ fs/nfs/dir.c           |  2 +-
+ fs/quota/dquot.c       |  5 ++---
+ fs/super.c             | 14 +++++++-------
+ fs/xfs/xfs_qm.c        |  2 +-
+ include/linux/dcache.h |  4 ++++
+ 8 files changed, 18 insertions(+), 15 deletions(-)
 
-diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
-index f8ca2f3..d2ce14c 100644
---- a/arch/x86/kvm/mmu.c
-+++ b/arch/x86/kvm/mmu.c
-@@ -4213,13 +4213,14 @@ restart:
- 	spin_unlock(&kvm->mmu_lock);
- }
- 
--static int mmu_shrink(struct shrinker *shrink, struct shrink_control *sc)
-+static long
-+mmu_shrink_scan(
-+	struct shrinker		*shrink,
-+	struct shrink_control	*sc)
- {
- 	struct kvm *kvm;
- 	int nr_to_scan = sc->nr_to_scan;
--
--	if (nr_to_scan == 0)
--		goto out;
-+	long freed = 0;
- 
- 	raw_spin_lock(&kvm_lock);
- 
-@@ -4247,24 +4248,37 @@ static int mmu_shrink(struct shrinker *shrink, struct shrink_control *sc)
- 		idx = srcu_read_lock(&kvm->srcu);
- 		spin_lock(&kvm->mmu_lock);
- 
--		prepare_zap_oldest_mmu_page(kvm, &invalid_list);
-+		freed += prepare_zap_oldest_mmu_page(kvm, &invalid_list);
- 		kvm_mmu_commit_zap_page(kvm, &invalid_list);
- 
- 		spin_unlock(&kvm->mmu_lock);
- 		srcu_read_unlock(&kvm->srcu, idx);
- 
-+		/*
-+		 * unfair on small ones
-+		 * per-vm shrinkers cry out
-+		 * sadness comes quickly
-+		 */
- 		list_move_tail(&kvm->vm_list, &vm_list);
- 		break;
+diff --git a/fs/gfs2/glock.c b/fs/gfs2/glock.c
+index 9435384..3bd2748 100644
+--- a/fs/gfs2/glock.c
++++ b/fs/gfs2/glock.c
+@@ -1463,7 +1463,7 @@ static int gfs2_shrink_glock_memory(struct shrinker *shrink,
+ 		gfs2_scan_glock_lru(sc->nr_to_scan);
  	}
  
- 	raw_spin_unlock(&kvm_lock);
-+	return freed;
- 
--out:
-+}
-+
-+static long
-+mmu_shrink_count(
-+	struct shrinker		*shrink,
-+	struct shrink_control	*sc)
-+{
- 	return percpu_counter_read_positive(&kvm_total_used_mmu_pages);
+-	return (atomic_read(&lru_count) / 100) * sysctl_vfs_cache_pressure;
++	return vfs_pressure_ratio(atomic_read(&lru_count));
  }
  
- static struct shrinker mmu_shrinker = {
--	.shrink = mmu_shrink,
-+	.count_objects = mmu_shrink_count,
-+	.scan_objects = mmu_shrink_scan,
- 	.seeks = DEFAULT_SEEKS * 10,
- };
+ static struct shrinker glock_shrinker = {
+diff --git a/fs/gfs2/quota.c b/fs/gfs2/quota.c
+index c253b13..f9f4077 100644
+--- a/fs/gfs2/quota.c
++++ b/fs/gfs2/quota.c
+@@ -114,7 +114,7 @@ int gfs2_shrink_qd_memory(struct shrinker *shrink, struct shrink_control *sc)
+ 	spin_unlock(&qd_lru_lock);
  
-diff --git a/net/sunrpc/auth.c b/net/sunrpc/auth.c
-index ed2fdd2..9ce0976 100644
---- a/net/sunrpc/auth.c
-+++ b/net/sunrpc/auth.c
-@@ -413,12 +413,13 @@ EXPORT_SYMBOL_GPL(rpcauth_destroy_credcache);
- /*
-  * Remove stale credentials. Avoid sleeping inside the loop.
-  */
--static int
-+static long
- rpcauth_prune_expired(struct list_head *free, int nr_to_scan)
- {
- 	spinlock_t *cache_lock;
- 	struct rpc_cred *cred, *next;
- 	unsigned long expired = jiffies - RPC_AUTH_EXPIRY_MORATORIUM;
-+	long freed = 0;
+ out:
+-	return (atomic_read(&qd_lru_count) * sysctl_vfs_cache_pressure) / 100;
++	return vfs_pressure_ratio(atomic_read(&qd_lru_count));
+ }
  
- 	list_for_each_entry_safe(cred, next, &cred_unused, cr_lru) {
- 
-@@ -430,10 +431,11 @@ rpcauth_prune_expired(struct list_head *free, int nr_to_scan)
- 		 */
- 		if (time_in_range(cred->cr_expire, expired, jiffies) &&
- 		    test_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags) != 0)
--			return 0;
-+			break;
- 
- 		list_del_init(&cred->cr_lru);
- 		number_cred_unused--;
-+		freed++;
- 		if (atomic_read(&cred->cr_count) != 0)
- 			continue;
- 
-@@ -446,29 +448,43 @@ rpcauth_prune_expired(struct list_head *free, int nr_to_scan)
- 		}
- 		spin_unlock(cache_lock);
+ static u64 qd2index(struct gfs2_quota_data *qd)
+diff --git a/fs/mbcache.c b/fs/mbcache.c
+index 8c32ef3..5eb0476 100644
+--- a/fs/mbcache.c
++++ b/fs/mbcache.c
+@@ -189,7 +189,7 @@ mb_cache_shrink_fn(struct shrinker *shrink, struct shrink_control *sc)
+ 	list_for_each_entry_safe(entry, tmp, &free_list, e_lru_list) {
+ 		__mb_cache_entry_forget(entry, gfp_mask);
  	}
--	return (number_cred_unused / 100) * sysctl_vfs_cache_pressure;
-+	return freed;
+-	return (count / 100) * sysctl_vfs_cache_pressure;
++	return vfs_pressure_ratio(count);
+ }
+ 
+ 
+diff --git a/fs/nfs/dir.c b/fs/nfs/dir.c
+index c662ff6..a6a3d05 100644
+--- a/fs/nfs/dir.c
++++ b/fs/nfs/dir.c
+@@ -1978,7 +1978,7 @@ remove_lru_entry:
+ 	}
+ 	spin_unlock(&nfs_access_lru_lock);
+ 	nfs_access_free_list(&head);
+-	return (atomic_long_read(&nfs_access_nr_entries) / 100) * sysctl_vfs_cache_pressure;
++	return vfs_pressure_ratio(atomic_long_read(&nfs_access_nr_entries));
+ }
+ 
+ static void __nfs_access_zap_cache(struct nfs_inode *nfsi, struct list_head *head)
+diff --git a/fs/quota/dquot.c b/fs/quota/dquot.c
+index 3e64169..762b09c 100644
+--- a/fs/quota/dquot.c
++++ b/fs/quota/dquot.c
+@@ -719,9 +719,8 @@ static int shrink_dqcache_memory(struct shrinker *shrink,
+ 		prune_dqcache(nr);
+ 		spin_unlock(&dq_list_lock);
+ 	}
+-	return ((unsigned)
+-		percpu_counter_read_positive(&dqstats.counter[DQST_FREE_DQUOTS])
+-		/100) * sysctl_vfs_cache_pressure;
++	return vfs_pressure_ratio(
++	percpu_counter_read_positive(&dqstats.counter[DQST_FREE_DQUOTS]));
+ }
+ 
+ static struct shrinker dqcache_shrinker = {
+diff --git a/fs/super.c b/fs/super.c
+index 7465d43..2a37fd6 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -82,13 +82,13 @@ static int prune_super(struct shrinker *shrink, struct shrink_control *sc)
+ 		int	inodes;
+ 
+ 		/* proportion the scan between the caches */
+-		dentries = (sc->nr_to_scan * sb->s_nr_dentry_unused) /
+-							total_objects;
+-		inodes = (sc->nr_to_scan * sb->s_nr_inodes_unused) /
+-							total_objects;
++		dentries = mult_frac(sc->nr_to_scan, sb->s_nr_dentry_unused,
++							total_objects);
++		inodes = mult_frac(sc->nr_to_scan, sb->s_nr_inodes_unused,
++							total_objects);
+ 		if (fs_objects)
+-			fs_objects = (sc->nr_to_scan * fs_objects) /
+-							total_objects;
++			fs_objects = mult_frac(sc->nr_to_scan, fs_objects,
++							total_objects);
+ 		/*
+ 		 * prune the dcache first as the icache is pinned by it, then
+ 		 * prune the icache, followed by the filesystem specific caches
+@@ -104,7 +104,7 @@ static int prune_super(struct shrinker *shrink, struct shrink_control *sc)
+ 				sb->s_nr_inodes_unused + fs_objects;
+ 	}
+ 
+-	total_objects = (total_objects / 100) * sysctl_vfs_cache_pressure;
++	total_objects = vfs_pressure_ratio(total_objects);
+ 	drop_super(sb);
+ 	return total_objects;
+ }
+diff --git a/fs/xfs/xfs_qm.c b/fs/xfs/xfs_qm.c
+index f41702b..7ade175 100644
+--- a/fs/xfs/xfs_qm.c
++++ b/fs/xfs/xfs_qm.c
+@@ -1585,7 +1585,7 @@ xfs_qm_shake(
+ 	}
+ 
+ out:
+-	return (qi->qi_lru_count / 100) * sysctl_vfs_cache_pressure;
++	return vfs_pressure_ratio(qi->qi_lru_count);
  }
  
  /*
-  * Run memory cache shrinker.
-  */
--static int
--rpcauth_cache_shrinker(struct shrinker *shrink, struct shrink_control *sc)
-+static long
-+rpcauth_cache_shrink_scan(
-+	struct shrinker		*shrink,
-+	struct shrink_control	*sc)
-+
- {
- 	LIST_HEAD(free);
--	int res;
--	int nr_to_scan = sc->nr_to_scan;
--	gfp_t gfp_mask = sc->gfp_mask;
-+	long freed;
-+
-+	if ((sc->gfp_mask & GFP_KERNEL) != GFP_KERNEL)
-+		return -1;
+diff --git a/include/linux/dcache.h b/include/linux/dcache.h
+index 1a82bdb..bd08285 100644
+--- a/include/linux/dcache.h
++++ b/include/linux/dcache.h
+@@ -411,4 +411,8 @@ static inline bool d_mountpoint(struct dentry *dentry)
  
--	if ((gfp_mask & GFP_KERNEL) != GFP_KERNEL)
--		return (nr_to_scan == 0) ? 0 : -1;
-+	/* nothing left, don't come back */
- 	if (list_empty(&cred_unused))
--		return 0;
-+		return -1;
-+
- 	spin_lock(&rpc_credcache_lock);
--	res = rpcauth_prune_expired(&free, nr_to_scan);
-+	freed = rpcauth_prune_expired(&free, sc->nr_to_scan);
- 	spin_unlock(&rpc_credcache_lock);
- 	rpcauth_destroy_credlist(&free);
--	return res;
-+
-+	return freed;
-+}
-+
-+static long
-+rpcauth_cache_shrink_count(
-+	struct shrinker		*shrink,
-+	struct shrink_control	*sc)
-+
+ extern int sysctl_vfs_cache_pressure;
+ 
++static inline unsigned long vfs_pressure_ratio(unsigned long val)
 +{
-+	return (number_cred_unused / 100) * sysctl_vfs_cache_pressure;
- }
- 
- /*
-@@ -784,7 +800,8 @@ rpcauth_uptodatecred(struct rpc_task *task)
- }
- 
- static struct shrinker rpc_cred_shrinker = {
--	.shrink = rpcauth_cache_shrinker,
-+	.count_objects = rpcauth_cache_shrink_count,
-+	.scan_objects = rpcauth_cache_shrink_scan,
- 	.seeks = DEFAULT_SEEKS,
- };
- 
++	return mult_frac(val, sysctl_vfs_cache_pressure, 100);
++}
+ #endif	/* __LINUX_DCACHE_H */
 -- 
 1.8.1.4
 
