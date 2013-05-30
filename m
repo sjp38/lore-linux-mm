@@ -1,88 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id D7E4D6B0038
-	for <linux-mm@kvack.org>; Thu, 30 May 2013 04:45:58 -0400 (EDT)
-Date: Thu, 30 May 2013 10:45:56 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch v3 -mm 1/3] memcg: integrate soft reclaim tighter with
- zone shrinking code
-Message-ID: <20130530084556.GC3582@dhcp22.suse.cz>
-References: <20130517160247.GA10023@cmpxchg.org>
- <1369674791-13861-1-git-send-email-mhocko@suse.cz>
- <20130529130538.GD10224@dhcp22.suse.cz>
- <20130529155756.GH10224@dhcp22.suse.cz>
- <20130529200154.GF15721@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 9CF946B0034
+	for <linux-mm@kvack.org>; Thu, 30 May 2013 05:14:08 -0400 (EDT)
+Received: by mail-ob0-f171.google.com with SMTP id dn14so6176obc.16
+        for <linux-mm@kvack.org>; Thu, 30 May 2013 02:14:07 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130529200154.GF15721@cmpxchg.org>
+In-Reply-To: <51A2BBA7.50607@jp.fujitsu.com>
+References: <20130523052421.13864.83978.stgit@localhost6.localdomain6>
+	<20130523052547.13864.83306.stgit@localhost6.localdomain6>
+	<20130523152445.17549682ae45b5aab3f3cde0@linux-foundation.org>
+	<CAJGZr0LwivLTH+E7WAR1B9_6B4e=jv04KgCUL_PdVpi9JjDpBw@mail.gmail.com>
+	<51A2BBA7.50607@jp.fujitsu.com>
+Date: Thu, 30 May 2013 13:14:07 +0400
+Message-ID: <CAJGZr0LmsFXEgb3UXVb+rqo1aq5KJyNxyNAD+DG+3KnJm_ZncQ@mail.gmail.com>
+Subject: Re: [PATCH v8 9/9] vmcore: support mmap() on /proc/vmcore
+From: Maxim Uvarov <muvarov@gmail.com>
+Content-Type: multipart/alternative; boundary=001a11c238a8a96d1204ddebebd7
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Glauber Costa <glommer@parallels.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, hughd@google.com, jingbai.ma@hp.com, "kexec@lists.infradead.org" <kexec@lists.infradead.org>, linux-kernel@vger.kernel.org, lisa.mitchell@hp.com, linux-mm@kvack.org, Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>, "Eric W. Biederman" <ebiederm@xmission.com>, kosaki.motohiro@jp.fujitsu.com, zhangyanfei@cn.fujitsu.com, walken@google.com, Cliff Wickman <cpw@sgi.com>, Vivek Goyal <vgoyal@redhat.com>
 
-On Wed 29-05-13 16:01:54, Johannes Weiner wrote:
-> On Wed, May 29, 2013 at 05:57:56PM +0200, Michal Hocko wrote:
-> > On Wed 29-05-13 15:05:38, Michal Hocko wrote:
-> > > On Mon 27-05-13 19:13:08, Michal Hocko wrote:
-> > > [...]
-> > > > Nevertheless I have encountered an issue while testing the huge number
-> > > > of groups scenario. And the issue is not limitted to only to this
-> > > > scenario unfortunately. As memcg iterators use per node-zone-priority
-> > > > cache to prevent from over reclaim it might quite easily happen that
-> > > > the walk will not visit all groups and will terminate the loop either
-> > > > prematurely or skip some groups. An example could be the direct reclaim
-> > > > racing with kswapd. This might cause that the loop misses over limit
-> > > > groups so no pages are scanned and so we will fall back to all groups
-> > > > reclaim.
-> > > 
-> > > And after some more testing and head scratching it turned out that
-> > > fallbacks to pass#2 I was seeing are caused by something else. It is
-> > > not race between iterators but rather reclaiming from zone DMA which
-> > > has troubles to scan anything despite there are pages on LRU and so we
-> > > fall back. I have to look into that more but what-ever the issue is it
-> > > shouldn't be related to the patch series.
-> > 
-> > Think I know what is going on. get_scan_count sees relatively small
-> > amount of pages in the lists (around 2k). This means that get_scan_count
-> > will tell us to scan nothing for DEF_PRIORITY (as the DMA32 is usually
-> > ~16M) then the DEF_PRIORITY is basically no-op and we have to wait and
-> > fall down to a priority which actually let us scan something.
-> > 
-> > Hmm, maybe ignoring soft reclaim for DMA zone would help to reduce
-> > one pointless loop over groups.
-> 
-> If you have a small group in excess of its soft limit and bigger
-> groups that are not, you may reclaim something in the regular reclaim
-> cycle before reclaiming anything in the soft limit cycle with the way
-> the code is structured.
+--001a11c238a8a96d1204ddebebd7
+Content-Type: text/plain; charset=ISO-8859-1
 
-Yes the way how get_scan_count works might really cause this. Although
-tageted reclaim is protected from this the global reclaim can really
-suffer from this. I am not sure this is necessarily a problem though. If
-we are under the global reclaim then a small group which doesn't have at
-least 1<<DEF_PRIORITY pages probably doesn't matter that much. The soft
-limit is not a guarantee anyway so we can sacrifice some pages from all
-groups in such a case.
-I also think that the force_scan logic should be enhanced a bit.
-Especially for cases like DMA zone. The zone is clearly under watermaks
-but we have to wait few priority cycles to reclaim something. But this
-is a different issue in depended on the soft reclaim rework.
- 
-> The soft limit cycle probably needs to sit outside of the priority
-> loop, not inside the loop, so that the soft limit reclaim cycle
-> descends priority levels until it makes progress BEFORE it exits to
-> the regular reclaim cycle.
+2013/5/27 HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
 
-I do not like this to be honest. shrink_zone is an ideal place as it is
-shared among all reclaimers and we really want to obey priority in the
-soft reclaim as well. The corner case mentioned above is probably
-fixable on the get_scan_count layer and even if not then I wouldn't call
-it a disaster.
+> (2013/05/24 18:02), Maxim Uvarov wrote:
+>
+>>
+>>
+>>
+>> 2013/5/24 Andrew Morton <akpm@linux-foundation.org <mailto:
+>> akpm@linux-foundation.**org <akpm@linux-foundation.org>>>
+>>
+>>
+>>     On Thu, 23 May 2013 14:25:48 +0900 HATAYAMA Daisuke <
+>> d.hatayama@jp.fujitsu.com <mailto:d.hatayama@jp.fujitsu.**com<d.hatayama@jp.fujitsu.com>>>
+>> wrote:
+>>
+>>      > This patch introduces mmap_vmcore().
+>>      >
+>>      > Don't permit writable nor executable mapping even with mprotect()
+>>      > because this mmap() is aimed at reading crash dump memory.
+>>      > Non-writable mapping is also requirement of remap_pfn_range() when
+>>      > mapping linear pages on non-consecutive physical pages; see
+>>      > is_cow_mapping().
+>>      >
+>>      > Set VM_MIXEDMAP flag to remap memory by remap_pfn_range and by
+>>      > remap_vmalloc_range_pertial at the same time for a single
+>>      > vma. do_munmap() can correctly clean partially remapped vma with
+>> two
+>>      > functions in abnormal case. See zap_pte_range(), vm_normal_page()
+>> and
+>>      > their comments for details.
+>>      >
+>>      > On x86-32 PAE kernels, mmap() supports at most 16TB memory only.
+>> This
+>>      > limitation comes from the fact that the third argument of
+>>      > remap_pfn_range(), pfn, is of 32-bit length on x86-32: unsigned
+>> long.
+>>
+>>     More reviewing and testing, please.
+>>
+>>
+>> Do you have git pull for both kernel and userland changes? I would like
+>> to do some more testing on my machines.
+>>
+>> Maxim.
+>>
+>
+> Thanks! That's very helpful.
+>
+> --
+> Thanks.
+> HATAYAMA, Daisuke
+>
+> Any update for this? Where can I checkout all sources?
 
 -- 
-Michal Hocko
-SUSE Labs
+Best regards,
+Maxim Uvarov
+
+--001a11c238a8a96d1204ddebebd7
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><br><div class=3D"gmail_extra"><br><br><div class=3D"gmail=
+_quote">2013/5/27 HATAYAMA Daisuke <span dir=3D"ltr">&lt;<a href=3D"mailto:=
+d.hatayama@jp.fujitsu.com" target=3D"_blank">d.hatayama@jp.fujitsu.com</a>&=
+gt;</span><br>
+<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex">(2013/05/24 18:02), Maxim Uvarov wrote:<br>
+<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex">
+<br>
+<br>
+<br>
+2013/5/24 Andrew Morton &lt;<a href=3D"mailto:akpm@linux-foundation.org" ta=
+rget=3D"_blank">akpm@linux-foundation.org</a> &lt;mailto:<a href=3D"mailto:=
+akpm@linux-foundation.org" target=3D"_blank">akpm@linux-foundation.<u></u>o=
+rg</a>&gt;&gt;<div class=3D"im">
+<br>
+<br>
+=A0 =A0 On Thu, 23 May 2013 14:25:48 +0900 HATAYAMA Daisuke &lt;<a href=3D"=
+mailto:d.hatayama@jp.fujitsu.com" target=3D"_blank">d.hatayama@jp.fujitsu.c=
+om</a> &lt;mailto:<a href=3D"mailto:d.hatayama@jp.fujitsu.com" target=3D"_b=
+lank">d.hatayama@jp.fujitsu.<u></u>com</a>&gt;&gt; wrote:<br>
+
+<br>
+=A0 =A0 =A0&gt; This patch introduces mmap_vmcore().<br>
+=A0 =A0 =A0&gt;<br>
+=A0 =A0 =A0&gt; Don&#39;t permit writable nor executable mapping even with =
+mprotect()<br>
+=A0 =A0 =A0&gt; because this mmap() is aimed at reading crash dump memory.<=
+br>
+=A0 =A0 =A0&gt; Non-writable mapping is also requirement of remap_pfn_range=
+() when<br>
+=A0 =A0 =A0&gt; mapping linear pages on non-consecutive physical pages; see=
+<br>
+=A0 =A0 =A0&gt; is_cow_mapping().<br>
+=A0 =A0 =A0&gt;<br>
+=A0 =A0 =A0&gt; Set VM_MIXEDMAP flag to remap memory by remap_pfn_range and=
+ by<br>
+=A0 =A0 =A0&gt; remap_vmalloc_range_pertial at the same time for a single<b=
+r>
+=A0 =A0 =A0&gt; vma. do_munmap() can correctly clean partially remapped vma=
+ with two<br>
+=A0 =A0 =A0&gt; functions in abnormal case. See zap_pte_range(), vm_normal_=
+page() and<br>
+=A0 =A0 =A0&gt; their comments for details.<br>
+=A0 =A0 =A0&gt;<br>
+=A0 =A0 =A0&gt; On x86-32 PAE kernels, mmap() supports at most 16TB memory =
+only. This<br>
+=A0 =A0 =A0&gt; limitation comes from the fact that the third argument of<b=
+r>
+=A0 =A0 =A0&gt; remap_pfn_range(), pfn, is of 32-bit length on x86-32: unsi=
+gned long.<br>
+<br>
+=A0 =A0 More reviewing and testing, please.<br>
+<br>
+<br>
+Do you have git pull for both kernel and userland changes? I would like to =
+do some more testing on my machines.<br>
+<br>
+Maxim.<br>
+</div></blockquote>
+<br>
+Thanks! That&#39;s very helpful.<span class=3D"HOEnZb"><font color=3D"#8888=
+88"><br>
+<br>
+-- <br>
+Thanks.<br>
+HATAYAMA, Daisuke<br>
+<br>
+</font></span></blockquote></div>Any update for this? Where can I checkout =
+all sources? <br></div><div class=3D"gmail_extra"><br>-- <br>Best regards,<=
+br>Maxim Uvarov
+</div></div>
+
+--001a11c238a8a96d1204ddebebd7--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
