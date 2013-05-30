@@ -1,215 +1,211 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id F32466B0032
-	for <linux-mm@kvack.org>; Thu, 30 May 2013 06:30:02 -0400 (EDT)
-Received: by mail-ob0-f172.google.com with SMTP id wo10so147522obc.17
-        for <linux-mm@kvack.org>; Thu, 30 May 2013 03:30:02 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
+	by kanga.kvack.org (Postfix) with SMTP id 483B96B0034
+	for <linux-mm@kvack.org>; Thu, 30 May 2013 06:35:44 -0400 (EDT)
+From: Glauber Costa <glommer@openvz.org>
+Subject: [PATCH v9 00/35] kmemcg shrinkers
+Date: Thu, 30 May 2013 14:35:46 +0400
+Message-Id: <1369910181-20026-1-git-send-email-glommer@openvz.org>
 MIME-Version: 1.0
-In-Reply-To: <51A71B49.3070003@cn.fujitsu.com>
-References: <20130523052421.13864.83978.stgit@localhost6.localdomain6>
-	<20130523052547.13864.83306.stgit@localhost6.localdomain6>
-	<20130523152445.17549682ae45b5aab3f3cde0@linux-foundation.org>
-	<CAJGZr0LwivLTH+E7WAR1B9_6B4e=jv04KgCUL_PdVpi9JjDpBw@mail.gmail.com>
-	<51A2BBA7.50607@jp.fujitsu.com>
-	<CAJGZr0LmsFXEgb3UXVb+rqo1aq5KJyNxyNAD+DG+3KnJm_ZncQ@mail.gmail.com>
-	<51A71B49.3070003@cn.fujitsu.com>
-Date: Thu, 30 May 2013 14:30:01 +0400
-Message-ID: <CAJGZr0Ld6Q4a4f-VObAbvqCp=+fTFNEc6M-Fdnhh28GTcSm1=w@mail.gmail.com>
-Subject: Re: [PATCH v8 9/9] vmcore: support mmap() on /proc/vmcore
-From: Maxim Uvarov <muvarov@gmail.com>
-Content-Type: multipart/alternative; boundary=001a11c2fbd0208b6404ddecfb4e
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-Cc: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, hughd@google.com, jingbai.ma@hp.com, "kexec@lists.infradead.org" <kexec@lists.infradead.org>, linux-kernel@vger.kernel.org, lisa.mitchell@hp.com, linux-mm@kvack.org, Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>, "Eric W. Biederman" <ebiederm@xmission.com>, kosaki.motohiro@jp.fujitsu.com, walken@google.com, Cliff Wickman <cpw@sgi.com>, Vivek Goyal <vgoyal@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>
 
---001a11c2fbd0208b6404ddecfb4e
-Content-Type: text/plain; charset=ISO-8859-1
+With Dave having fixed the xfs umount problem, we ran out of known bugs.
+We would very much like to get this into an upstream tree so that the unknown
+start appearing =)
 
-2013/5/30 Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+If you want, you can also grab from branch "kmemcg-lru-shrinker" at:
 
-> On 05/30/2013 05:14 PM, Maxim Uvarov wrote:
-> >
-> >
-> >
-> > 2013/5/27 HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com <mailto:
-> d.hatayama@jp.fujitsu.com>>
-> >
-> >     (2013/05/24 18:02), Maxim Uvarov wrote:
-> >
-> >
-> >
-> >
-> >         2013/5/24 Andrew Morton <akpm@linux-foundation.org <mailto:
-> akpm@linux-foundation.org> <mailto:akpm@linux-foundation.__org <mailto:
-> akpm@linux-foundation.org>>>
-> >
-> >
-> >             On Thu, 23 May 2013 14:25:48 +0900 HATAYAMA Daisuke <
-> d.hatayama@jp.fujitsu.com <mailto:d.hatayama@jp.fujitsu.com> <mailto:
-> d.hatayama@jp.fujitsu.__com <mailto:d.hatayama@jp.fujitsu.com>>> wrote:
-> >
-> >              > This patch introduces mmap_vmcore().
-> >              >
-> >              > Don't permit writable nor executable mapping even with
-> mprotect()
-> >              > because this mmap() is aimed at reading crash dump memory.
-> >              > Non-writable mapping is also requirement of
-> remap_pfn_range() when
-> >              > mapping linear pages on non-consecutive physical pages;
-> see
-> >              > is_cow_mapping().
-> >              >
-> >              > Set VM_MIXEDMAP flag to remap memory by remap_pfn_range
-> and by
-> >              > remap_vmalloc_range_pertial at the same time for a single
-> >              > vma. do_munmap() can correctly clean partially remapped
-> vma with two
-> >              > functions in abnormal case. See zap_pte_range(),
-> vm_normal_page() and
-> >              > their comments for details.
-> >              >
-> >              > On x86-32 PAE kernels, mmap() supports at most 16TB
-> memory only. This
-> >              > limitation comes from the fact that the third argument of
-> >              > remap_pfn_range(), pfn, is of 32-bit length on x86-32:
-> unsigned long.
-> >
-> >             More reviewing and testing, please.
-> >
-> >
-> >         Do you have git pull for both kernel and userland changes? I
-> would like to do some more testing on my machines.
-> >
-> >         Maxim.
-> >
-> >
-> >     Thanks! That's very helpful.
-> >
-> >     --
-> >     Thanks.
-> >     HATAYAMA, Daisuke
-> >
-> > Any update for this? Where can I checkout all sources?
->
-> This series is now in Andrew Morton's -mm tree.
->
-> Ok, and what about makedumpfile changes? Is it possible to fetch them from
-somewhere?
+	git://git.kernel.org/pub/scm/linux/kernel/git/glommer/memcg.git
 
+The performance seems to be fine. Performance seems to be fine in my
+benchmarks, but independent runs are welcome. I am basically not seeing
+significant difference in 1-node postmark and fsmark. For multi-node,
+the behavior is obviously different since it is the very goal of the
+first half of this patchset to improve multi-node performance.
 
-> --
-> Thanks.
-> Zhang Yanfei
->
+Hi,
 
+This patchset implements targeted shrinking for memcg when kmem limits are
+present. So far, we've been accounting kernel objects but failing allocations
+when short of memory. This is because our only option would be to call the
+global shrinker, depleting objects from all caches and breaking isolation.
 
+The main idea is to associate per-memcg lists with each of the LRUs. The main
+LRU still provides a single entry point and when adding or removing an element
+from the LRU, we use the page information to figure out which memcg it belongs
+to and relay it to the right list.
+
+Base work:
+==========
+
+Please note that this builds upon the recent work from Dave Chinner that
+sanitizes the LRU shrinking API and make the shrinkers node aware. Node
+awareness is not *strictly* needed for my work, but I still perceive it
+as an advantage. The API unification is a major need, and I build upon it
+heavily. That allows us to manipulate the LRUs without knowledge of the
+underlying objects with ease. This time, I am including that work here as
+a baseline.
+
+Main changes from *v8
+* fixed xfs umount bug
+* rebase to current linux-next
+
+Main changes from *v7:
+* Fixed races for memcg
+* Enhanced memcg hierarchy walks during global pressure (we were walking only
+  the global list, not all memcgs)
+
+Main changes from *v6:
+* Change nr_unused_dentry to long, Dave reported an int not being enough
+* Fixed shrink_list leak, by Dave
+* LRU API now gets a node id, instead of a node mask.
+* per-node deferred work, leading to smoother behavior
+
+Main changes from *v5:
+* Rebased to linux-next, and fix the conflicts with the dcache.
+* Make sure LRU_RETRY only retry once
+* Prevent the bcache shrinker to scan the caches when disabled (by returning
+  0 in the count function)
+* Fix i915 return code when mutex cannot be acquired.
+* Only scan less-than-batch objects in memcg scenarios
+
+Main changes from *v4:
+* Fixed a bug in user-generated memcg pressure
+* Fixed overly-agressive slab shrinker behavior spotted by Mel Gorman
+* Various other fixes and comments by Mel Gorman
+
+Main changes from *v3:
+* Merged suggestions from mailing list.
+* Removed the memcg-walking code from LRU. vmscan now drives all the hierarchy
+  decisions, which makes more sense
+* lazily free the old memcg arrays (needs now to be saved in struct lru). Since
+  we need to call synchronize_rcu, calling it for every LRU can become expensive
+* Moved the dead memcg shrinker to vmpressure. Already independently sent to
+  linux-mm for review.
+* Changed locking convention for LRU_RETRY. It now needs to return locked, which
+  silents warnings about possible lock unbalance (although previous code was
+  correct)
+
+Main changes from *v2:
+* shrink dead memcgs when global pressure kicks in. Uses the new lru API.
+* bugfixes and comments from the mailing list.
+* proper hierarchy-aware walk in shrink_slab.
+
+Main changes from *v1:
+* merged comments from the mailing list
+* reworked lru-memcg API
+* effective proportional shrinking
+* sanitized locking on the memcg side
+* bill user memory first when kmem == umem
+* various bugfixes
+
+Dave Chinner (18):
+  dcache: convert dentry_stat.nr_unused to per-cpu counters
+  dentry: move to per-sb LRU locks
+  dcache: remove dentries from LRU before putting on dispose list
+  mm: new shrinker API
+  shrinker: convert superblock shrinkers to new API
+  list: add a new LRU list type
+  inode: convert inode lru list to generic lru list code.
+  dcache: convert to use new lru list infrastructure
+  list_lru: per-node list infrastructure
+  shrinker: add node awareness
+  fs: convert inode and dentry shrinking to be node aware
+  xfs: convert buftarg LRU to generic code
+  xfs: rework buffer dispose list tracking
+  xfs: convert dquot cache lru to list_lru
+  fs: convert fs shrinkers to new scan/count API
+  drivers: convert shrinkers to new count/scan API
+  shrinker: convert remaining shrinkers to count/scan API
+  shrinker: Kill old ->shrink API.
+
+Glauber Costa (17):
+  fs: bump inode and dentry counters to long
+  super: fix calculation of shrinkable objects for small numbers
+  vmscan: per-node deferred work
+  list_lru: per-node API
+  i915: bail out earlier when shrinker cannot acquire mutex
+  hugepage: convert huge zero page shrinker to new shrinker API
+  vmscan: also shrink slab in memcg pressure
+  memcg,list_lru: duplicate LRUs upon kmemcg creation
+  lru: add an element to a memcg list
+  list_lru: per-memcg walks
+  memcg: per-memcg kmem shrinking
+  memcg: scan cache objects hierarchically
+  vmscan: take at least one pass with shrinkers
+  super: targeted memcg reclaim
+  memcg: move initialization to memcg creation
+  vmpressure: in-kernel notifications
+  memcg: reap dead memcgs upon global memory pressure.
+
+ arch/x86/kvm/mmu.c                        |  28 +-
+ drivers/gpu/drm/i915/i915_dma.c           |   4 +-
+ drivers/gpu/drm/i915/i915_gem.c           |  71 +++--
+ drivers/gpu/drm/ttm/ttm_page_alloc.c      |  48 ++--
+ drivers/gpu/drm/ttm/ttm_page_alloc_dma.c  |  55 ++--
+ drivers/md/bcache/btree.c                 |  43 +--
+ drivers/md/bcache/sysfs.c                 |   2 +-
+ drivers/md/dm-bufio.c                     |  65 +++--
+ drivers/staging/android/ashmem.c          |  46 +++-
+ drivers/staging/android/lowmemorykiller.c |  40 +--
+ drivers/staging/zcache/zcache-main.c      |  29 +-
+ fs/dcache.c                               | 259 +++++++++++-------
+ fs/drop_caches.c                          |   1 +
+ fs/ext4/extents_status.c                  |  30 ++-
+ fs/gfs2/glock.c                           |  30 ++-
+ fs/gfs2/main.c                            |   3 +-
+ fs/gfs2/quota.c                           |  14 +-
+ fs/gfs2/quota.h                           |   4 +-
+ fs/inode.c                                | 194 ++++++-------
+ fs/internal.h                             |   7 +-
+ fs/mbcache.c                              |  53 ++--
+ fs/nfs/dir.c                              |  20 +-
+ fs/nfs/internal.h                         |   4 +-
+ fs/nfs/super.c                            |   3 +-
+ fs/nfsd/nfscache.c                        |  31 ++-
+ fs/quota/dquot.c                          |  39 ++-
+ fs/super.c                                | 104 ++++---
+ fs/ubifs/shrinker.c                       |  20 +-
+ fs/ubifs/super.c                          |   3 +-
+ fs/ubifs/ubifs.h                          |   3 +-
+ fs/xfs/xfs_buf.c                          | 249 ++++++++---------
+ fs/xfs/xfs_buf.h                          |  17 +-
+ fs/xfs/xfs_dquot.c                        |   7 +-
+ fs/xfs/xfs_icache.c                       |   4 +-
+ fs/xfs/xfs_icache.h                       |   2 +-
+ fs/xfs/xfs_qm.c                           | 277 +++++++++----------
+ fs/xfs/xfs_qm.h                           |   4 +-
+ fs/xfs/xfs_super.c                        |  12 +-
+ include/linux/dcache.h                    |  14 +-
+ include/linux/fs.h                        |  25 +-
+ include/linux/list_lru.h                  | 162 +++++++++++
+ include/linux/memcontrol.h                |  45 ++++
+ include/linux/shrinker.h                  |  72 ++++-
+ include/linux/swap.h                      |   2 +
+ include/linux/vmpressure.h                |   6 +
+ include/trace/events/vmscan.h             |   4 +-
+ include/uapi/linux/fs.h                   |   6 +-
+ kernel/sysctl.c                           |   6 +-
+ lib/Makefile                              |   2 +-
+ lib/list_lru.c                            | 404 ++++++++++++++++++++++++++++
+ mm/huge_memory.c                          |  17 +-
+ mm/memcontrol.c                           | 433 ++++++++++++++++++++++++++----
+ mm/memory-failure.c                       |   2 +
+ mm/slab_common.c                          |   1 -
+ mm/vmpressure.c                           |  52 +++-
+ mm/vmscan.c                               | 380 +++++++++++++++++++-------
+ net/sunrpc/auth.c                         |  45 +++-
+ 57 files changed, 2510 insertions(+), 993 deletions(-)
+ create mode 100644 include/linux/list_lru.h
+ create mode 100644 lib/list_lru.c
 
 -- 
-Best regards,
-Maxim Uvarov
-
---001a11c2fbd0208b6404ddecfb4e
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr"><br><div class=3D"gmail_extra"><br><br><div class=3D"gmail=
-_quote">2013/5/30 Zhang Yanfei <span dir=3D"ltr">&lt;<a href=3D"mailto:zhan=
-gyanfei@cn.fujitsu.com" target=3D"_blank">zhangyanfei@cn.fujitsu.com</a>&gt=
-;</span><br>
-<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
-x #ccc solid;padding-left:1ex">On 05/30/2013 05:14 PM, Maxim Uvarov wrote:<=
-br>
-&gt;<br>
-&gt;<br>
-&gt;<br>
-&gt; 2013/5/27 HATAYAMA Daisuke &lt;<a href=3D"mailto:d.hatayama@jp.fujitsu=
-.com">d.hatayama@jp.fujitsu.com</a> &lt;mailto:<a href=3D"mailto:d.hatayama=
-@jp.fujitsu.com">d.hatayama@jp.fujitsu.com</a>&gt;&gt;<br>
-<div class=3D"im">&gt;<br>
-&gt; =A0 =A0 (2013/05/24 18:02), Maxim Uvarov wrote:<br>
-&gt;<br>
-&gt;<br>
-&gt;<br>
-&gt;<br>
-</div>&gt; =A0 =A0 =A0 =A0 2013/5/24 Andrew Morton &lt;<a href=3D"mailto:ak=
-pm@linux-foundation.org">akpm@linux-foundation.org</a> &lt;mailto:<a href=
-=3D"mailto:akpm@linux-foundation.org">akpm@linux-foundation.org</a>&gt; &lt=
-;mailto:<a href=3D"mailto:akpm@linux-foundation.">akpm@linux-foundation.</a=
->__org &lt;mailto:<a href=3D"mailto:akpm@linux-foundation.org">akpm@linux-f=
-oundation.org</a>&gt;&gt;&gt;<br>
-
-<div class=3D"im">&gt;<br>
-&gt;<br>
-&gt; =A0 =A0 =A0 =A0 =A0 =A0 On Thu, 23 May 2013 14:25:48 +0900 HATAYAMA Da=
-isuke &lt;<a href=3D"mailto:d.hatayama@jp.fujitsu.com">d.hatayama@jp.fujits=
-u.com</a> &lt;mailto:<a href=3D"mailto:d.hatayama@jp.fujitsu.com">d.hatayam=
-a@jp.fujitsu.com</a>&gt; &lt;mailto:<a href=3D"mailto:d.hatayama@jp.fujitsu=
-.">d.hatayama@jp.fujitsu.</a>__com &lt;mailto:<a href=3D"mailto:d.hatayama@=
-jp.fujitsu.com">d.hatayama@jp.fujitsu.com</a>&gt;&gt;&gt; wrote:<br>
-
-&gt;<br>
-&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; This patch introduces mmap_vmcore().<b=
-r>
-&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt;<br>
-&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; Don&#39;t permit writable nor executab=
-le mapping even with mprotect()<br>
-&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; because this mmap() is aimed at readin=
-g crash dump memory.<br>
-&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; Non-writable mapping is also requireme=
-nt of remap_pfn_range() when<br>
-&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; mapping linear pages on non-consecutiv=
-e physical pages; see<br>
-&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; is_cow_mapping().<br>
-&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt;<br>
-&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; Set VM_MIXEDMAP flag to remap memory b=
-y remap_pfn_range and by<br>
-&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; remap_vmalloc_range_pertial at the sam=
-e time for a single<br>
-&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; vma. do_munmap() can correctly clean p=
-artially remapped vma with two<br>
-&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; functions in abnormal case. See zap_pt=
-e_range(), vm_normal_page() and<br>
-&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; their comments for details.<br>
-&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt;<br>
-&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; On x86-32 PAE kernels, mmap() supports=
- at most 16TB memory only. This<br>
-&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; limitation comes from the fact that th=
-e third argument of<br>
-&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; remap_pfn_range(), pfn, is of 32-bit l=
-ength on x86-32: unsigned long.<br>
-&gt;<br>
-&gt; =A0 =A0 =A0 =A0 =A0 =A0 More reviewing and testing, please.<br>
-&gt;<br>
-&gt;<br>
-&gt; =A0 =A0 =A0 =A0 Do you have git pull for both kernel and userland chan=
-ges? I would like to do some more testing on my machines.<br>
-&gt;<br>
-&gt; =A0 =A0 =A0 =A0 Maxim.<br>
-&gt;<br>
-&gt;<br>
-&gt; =A0 =A0 Thanks! That&#39;s very helpful.<br>
-&gt;<br>
-&gt; =A0 =A0 --<br>
-&gt; =A0 =A0 Thanks.<br>
-&gt; =A0 =A0 HATAYAMA, Daisuke<br>
-&gt;<br>
-&gt; Any update for this? Where can I checkout all sources?<br>
-<br>
-</div>This series is now in Andrew Morton&#39;s -mm tree.<br>
-<span class=3D"HOEnZb"><font color=3D"#888888"><br></font></span></blockquo=
-te><div>Ok, and what about makedumpfile changes? Is it possible to fetch th=
-em from somewhere?<br></div><div>=A0</div><blockquote class=3D"gmail_quote"=
- style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
-<span class=3D"HOEnZb"><font color=3D"#888888">
---<br>
-Thanks.<br>
-Zhang Yanfei<br>
-</font></span></blockquote></div><br><br clear=3D"all"><br>-- <br>Best rega=
-rds,<br>Maxim Uvarov
-</div></div>
-
---001a11c2fbd0208b6404ddecfb4e--
+1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
