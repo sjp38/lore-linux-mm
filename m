@@ -1,86 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 5F4A26B00A8
-	for <linux-mm@kvack.org>; Thu, 30 May 2013 06:37:50 -0400 (EDT)
-From: Glauber Costa <glommer@openvz.org>
-Subject: [PATCH v9 31/35] vmscan: take at least one pass with shrinkers
-Date: Thu, 30 May 2013 14:36:17 +0400
-Message-Id: <1369910181-20026-32-git-send-email-glommer@openvz.org>
-In-Reply-To: <1369910181-20026-1-git-send-email-glommer@openvz.org>
-References: <1369910181-20026-1-git-send-email-glommer@openvz.org>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 29DDB6B0078
+	for <linux-mm@kvack.org>; Thu, 30 May 2013 06:58:46 -0400 (EDT)
+Message-ID: <51A73115.3080605@parallels.com>
+Date: Thu, 30 May 2013 14:59:33 +0400
+From: Glauber Costa <glommer@parallels.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] memcg: don't initialize kmem-cache destroying work for
+ root caches
+References: <1368535118-27369-1-git-send-email-avagin@openvz.org> <20130528155326.0a8b66a7711746e827d5fdea@linux-foundation.org> <51A56C60.9030306@parallels.com>
+In-Reply-To: <51A56C60.9030306@parallels.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@openvz.org>, Carlos Maiolino <cmaiolino@redhat.com>, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
+Cc: Andrey Vagin <avagin@openvz.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Konstantin Khlebnikov <khlebnikov@openvz.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>
 
-In very low free kernel memory situations, it may be the case that we
-have less objects to free than our initial batch size. If this is the
-case, it is better to shrink those, and open space for the new workload
-then to keep them and fail the new allocations.
+On 05/29/2013 06:48 AM, Glauber Costa wrote:
+> On 05/29/2013 04:23 AM, Andrew Morton wrote:
+>> On Tue, 14 May 2013 16:38:38 +0400 Andrey Vagin <avagin@openvz.org> wrote:
+>>
+>>> struct memcg_cache_params has a union. Different parts of this union are
+>>> used for root and non-root caches. A part with destroying work is used only
+>>> for non-root caches.
+>>
+>> That union is a bit dangerous.  Perhaps it would be better to do
+>> something like
+>>
+>> --- a/include/linux/slab.h~a
+>> +++ a/include/linux/slab.h
+>> @@ -337,15 +337,17 @@ static __always_inline int kmalloc_size(
+>>  struct memcg_cache_params {
+>>  	bool is_root_cache;
+>>  	union {
+>> -		struct kmem_cache *memcg_caches[0];
+>> -		struct {
+>> +		struct memcg_root_cache {
+>> +			struct kmem_cache *caches[0];
+>> +		} memcg_root_cache;
+>> +		struct memcg_child_cache {
+>>  			struct mem_cgroup *memcg;
+>>  			struct list_head list;
+>>  			struct kmem_cache *root_cache;
+>>  			bool dead;
+>>  			atomic_t nr_pages;
+>>  			struct work_struct destroy;
+>> -		};
+>> +		} memcg_child_cache;
+>>  	};
+>>  };
+>>
+>> And then adopt the convention of selecting either memcg_root_cache or
+>> memcg_child_cache at the highest level then passing the more strongly
+>> typed pointer to callees.
+>>
+> 
+> Since it is already creating problems, yes, I agree.
+> 
+> I will try to cook up something soon.
+> 
 
-In particular, we are concerned with the direct reclaim case for memcg.
-Although this same technique can be applied to other situations just as well,
-we will start conservative and apply it for that case, which is the one
-that matters the most.
-
-[ v6: only do it per memcg ]
-[ v5: differentiate no-scan case, don't do this for kswapd ]
-
-Signed-off-by: Glauber Costa <glommer@openvz.org>
-CC: Dave Chinner <david@fromorbit.com>
-CC: Carlos Maiolino <cmaiolino@redhat.com>
-CC: "Theodore Ts'o" <tytso@mit.edu>
-CC: Al Viro <viro@zeniv.linux.org.uk>
----
- mm/vmscan.c | 23 ++++++++++++++++++-----
- 1 file changed, 18 insertions(+), 5 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index a42c742..1067b1c 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -297,21 +297,34 @@ shrink_slab_node(struct shrink_control *shrinkctl, struct shrinker *shrinker,
- 				nr_pages_scanned, lru_pages,
- 				max_pass, delta, total_scan);
- 
--	while (total_scan >= batch_size) {
-+	do {
- 		long ret;
-+		unsigned long nr_to_scan = min(batch_size, total_scan);
-+		struct mem_cgroup *memcg = shrinkctl->target_mem_cgroup;
-+
-+		/*
-+		 * Differentiate between "few objects" and "no objects"
-+		 * as returned by the count step.
-+		 */
-+		if (!total_scan)
-+			break;
-+
-+		if ((total_scan < batch_size) &&
-+		   !(memcg && memcg_kmem_is_active(memcg)))
-+			break;
- 
--		shrinkctl->nr_to_scan = batch_size;
-+		shrinkctl->nr_to_scan = nr_to_scan;
- 		ret = shrinker->scan_objects(shrinker, shrinkctl);
- 
- 		if (ret == -1)
- 			break;
- 		freed += ret;
- 
--		count_vm_events(SLABS_SCANNED, batch_size);
--		total_scan -= batch_size;
-+		count_vm_events(SLABS_SCANNED, nr_to_scan);
-+		total_scan -= nr_to_scan;
- 
- 		cond_resched();
--	}
-+	} while (total_scan >= batch_size);
- 
- 	/*
- 	 * move the unused scan count back into the shrinker in a
--- 
-1.8.1.4
+There are other cleanups being requested as well. (Tejun claims that we
+would be better off with locks than with barriers for the destruction
+path). To avoid conflicting with the current shrinkers work - that is
+very massive, and since none of those are pressing, I will try to tackle
+both next week (on top of that, if possible)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
