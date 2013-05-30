@@ -1,29 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 7BACA6B0033
-	for <linux-mm@kvack.org>; Thu, 30 May 2013 17:58:47 -0400 (EDT)
-Date: Thu, 30 May 2013 14:58:44 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v8, part3 06/14] mm, acornfb: use free_reserved_area()
- to simplify code
-Message-Id: <20130530145844.902b3a947c1f7430c1c2ecf5@linux-foundation.org>
-In-Reply-To: <1369575522-26405-7-git-send-email-jiang.liu@huawei.com>
-References: <1369575522-26405-1-git-send-email-jiang.liu@huawei.com>
-	<1369575522-26405-7-git-send-email-jiang.liu@huawei.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id A223D6B0033
+	for <linux-mm@kvack.org>; Thu, 30 May 2013 18:02:24 -0400 (EDT)
+Received: by mail-pd0-f180.google.com with SMTP id 14so1090786pdc.25
+        for <linux-mm@kvack.org>; Thu, 30 May 2013 15:02:23 -0700 (PDT)
+Date: Thu, 30 May 2013 15:02:22 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] swap: avoid read_swap_cache_async() race to deadlock
+ while waiting on discard I/O compeletion
+In-Reply-To: <2434dea05a7fda7e7ccf48f70124bd65f2556b2d.1369935749.git.aquini@redhat.com>
+Message-ID: <alpine.LNX.2.00.1305301458100.11425@eggly.anvils>
+References: <2434dea05a7fda7e7ccf48f70124bd65f2556b2d.1369935749.git.aquini@redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <liuj97@gmail.com>
-Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Florian Tobias Schandinat <FlorianSchandinat@gmx.de>, linux-fbdev@vger.kernel.org
+To: Rafael Aquini <aquini@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, shli@kernel.org, riel@redhat.com, lwoodman@redhat.com, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, stable@vger.kernel.org
 
-On Sun, 26 May 2013 21:38:34 +0800 Jiang Liu <liuj97@gmail.com> wrote:
+On Thu, 30 May 2013, Rafael Aquini wrote:
 
-> Use common help function free_reserved_area() to simplify code.
+> read_swap_cache_async() can race against get_swap_page(), and stumble across
+> a SWAP_HAS_CACHE entry in the swap map whose page wasn't brought into the
+> swapcache yet. This transient swap_map state is expected to be transitory,
+> but the actual placement of discard at scan_swap_map() inserts a wait for
+> I/O completion thus making the thread at read_swap_cache_async() to loop
+> around its -EEXIST case, while the other end at get_swap_page()
+> is scheduled away at scan_swap_map(). This can leave the system deadlocked
+> if the I/O completion happens to be waiting on the CPU workqueue where
+> read_swap_cache_async() is busy looping and !CONFIG_PREEMPT.
+> 
+> This patch introduces a cond_resched() call to make the aforementioned
+> read_swap_cache_async() busy loop condition to bail out when necessary,
+> thus avoiding the subtle race window.
 
-http://ozlabs.org/~akpm/mmots/broken-out/drivers-video-acornfbc-remove-dead-code.patch
-removes all the code which your patch alters.
+Yes, I never realized this at the time I inserted discard there.
+As you know, Shaohua has a better swap discard implementation, which
+avoids the problem by using SWAP_MAP_BAD, but this cond_resched() is
+a good simple workaround for now - thanks.
+
+> 
+> Signed-off-by: Rafael Aquini <aquini@redhat.com>
+
+Acked-by: Hugh Dickins <hughd@google.com>
+Cc: stable@vger.kernel.org
+
+> ---
+>  mm/swap_state.c | 14 +++++++++++++-
+>  1 file changed, 13 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/swap_state.c b/mm/swap_state.c
+> index b3d40dc..9ad9e3b 100644
+> --- a/mm/swap_state.c
+> +++ b/mm/swap_state.c
+> @@ -336,8 +336,20 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+>  		 * Swap entry may have been freed since our caller observed it.
+>  		 */
+>  		err = swapcache_prepare(entry);
+> -		if (err == -EEXIST) {	/* seems racy */
+> +		if (err == -EEXIST) {
+>  			radix_tree_preload_end();
+> +			/*
+> +			 * We might race against get_swap_page() and stumble
+> +			 * across a SWAP_HAS_CACHE swap_map entry whose page
+> +			 * has not been brought into the swapcache yet, while
+> +			 * the other end is scheduled away waiting on discard
+> +			 * I/O completion.
+> +			 * In order to avoid turning this transitory state
+> +			 * into a permanent loop around this -EEXIST case,
+> +			 * lets just conditionally invoke the scheduler,
+> +			 * if there are some more important tasks to run.
+> +			 */
+> +			cond_resched();
+>  			continue;
+>  		}
+>  		if (err) {		/* swp entry is obsolete ? */
+> -- 
+> 1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
