@@ -1,101 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 748E86B0033
-	for <linux-mm@kvack.org>; Thu, 30 May 2013 17:01:18 -0400 (EDT)
-Received: by mail-ob0-f177.google.com with SMTP id ta17so1606507obb.36
-        for <linux-mm@kvack.org>; Thu, 30 May 2013 14:01:17 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 907936B0033
+	for <linux-mm@kvack.org>; Thu, 30 May 2013 17:39:13 -0400 (EDT)
+Received: from /spool/local
+	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Thu, 30 May 2013 15:39:12 -0600
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id E86F61FF002B
+	for <linux-mm@kvack.org>; Thu, 30 May 2013 15:16:14 -0600 (MDT)
+Received: from d03av05.boulder.ibm.com (d03av05.boulder.ibm.com [9.17.195.85])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4ULLChb091930
+	for <linux-mm@kvack.org>; Thu, 30 May 2013 15:21:12 -0600
+Received: from d03av05.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av05.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4ULLApG023759
+	for <linux-mm@kvack.org>; Thu, 30 May 2013 15:21:11 -0600
+Date: Thu, 30 May 2013 16:20:17 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Subject: Re: [PATCHv12 2/4] zbud: add to mm/
+Message-ID: <20130530212017.GB15837@medulla>
+References: <1369067168-12291-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <1369067168-12291-3-git-send-email-sjenning@linux.vnet.ibm.com>
+ <20130528145911.bd484cbb0bb7a27c1623c520@linux-foundation.org>
+ <20130529154500.GB428@cerebellum>
+ <20130529113434.b2ced4cc1e66c7a0a520d908@linux-foundation.org>
+ <20130529204236.GD428@cerebellum>
+ <20130529134835.58dd89774f47205da4a06202@linux-foundation.org>
+ <754ae8a0-23af-4c87-953f-d608cba84191@default>
+ <20130529142904.ace2a29b90a9076d0ee251fd@linux-foundation.org>
+ <20130530174344.GA15837@medulla>
 MIME-Version: 1.0
-In-Reply-To: <20130524140114.GK23650@twins.programming.kicks-ass.net>
-References: <alpine.DEB.2.10.1305221523420.9944@vincent-weaver-1.um.maine.edu>
- <alpine.DEB.2.10.1305221953370.11450@vincent-weaver-1.um.maine.edu>
- <alpine.DEB.2.10.1305222344060.12929@vincent-weaver-1.um.maine.edu>
- <20130523044803.GA25399@ZenIV.linux.org.uk> <20130523104154.GA23650@twins.programming.kicks-ass.net>
- <0000013ed1b8d0cc-ad2bb878-51bd-430c-8159-629b23ed1b44-000000@email.amazonses.com>
- <20130523152458.GD23650@twins.programming.kicks-ass.net> <0000013ed2297ba8-467d474a-7068-45b3-9fa3-82641e6aa363-000000@email.amazonses.com>
- <20130523163901.GG23650@twins.programming.kicks-ass.net> <0000013ed28b638a-066d7dc7-b590-49f8-9423-badb9537b8b6-000000@email.amazonses.com>
- <20130524140114.GK23650@twins.programming.kicks-ass.net>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Thu, 30 May 2013 17:00:55 -0400
-Message-ID: <CAHGf_=oL+8n1aFx1T-7iH0gw9f95yY9doAdE+PZd4biSUTzstw@mail.gmail.com>
-Subject: Re: [RFC][PATCH] mm: Fix RLIMIT_MEMLOCK
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130530174344.GA15837@medulla>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Christoph Lameter <cl@linux.com>, Al Viro <viro@zeniv.linux.org.uk>, Vince Weaver <vincent.weaver@maine.edu>, LKML <linux-kernel@vger.kernel.org>, Paul Mackerras <paulus@samba.org>, Ingo Molnar <mingo@redhat.com>, Arnaldo Carvalho de Melo <acme@ghostprotocols.net>, trinity@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Roland Dreier <roland@kernel.org>, infinipath@qlogic.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, Heesub Shin <heesub.shin@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-> diff --git a/drivers/infiniband/core/umem.c b/drivers/infiniband/core/umem.c
-> index a841123..f8f47dc 100644
-> --- a/drivers/infiniband/core/umem.c
-> +++ b/drivers/infiniband/core/umem.c
-> @@ -137,17 +137,22 @@ struct ib_umem *ib_umem_get (struct ib_ucontext *context, unsigned long addr,
->
->         down_write(&current->mm->mmap_sem);
->
-> -       locked     = npages + current->mm->pinned_vm;
-> +       locked     = npages + mm_locked_pages(current->mm);
->         lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
->
->         if ((locked > lock_limit) && !capable(CAP_IPC_LOCK)) {
->                 ret = -ENOMEM;
-> -               goto out;
-> +               goto err;
->         }
->
->         cur_base = addr & PAGE_MASK;
-> +       umem->start_addr = cur_base;
-> +       umem->end_addr   = cur_base + npages;
-> +
-> +       ret = mm_mpin(umem->start_addr, umem->end_addr);
-> +       if (ret)
-> +               goto err;
+Andrew, Mel,
 
-I believe RLIMIT_MEMLOCK should be checked within mm_mpin().
+This struct page stuffing is taking a lot of time to work out and _might_ be
+fraught with peril when memmap peekers are considered.
 
+What do you think about just storing the zbud page metadata inline in the
+memory page in the first zbud page chunk?
 
-> +static inline unsigned long mm_locked_pages(struct mm_struct *mm)
-> +{
-> +       return mm->pinned_vm + mm->locked_vm;
-> +}
+Mel, this kinda hurts you plans for making NCHUNKS = 2, since there would
+only be one chunk available for storage and would make zbud useless.
 
-This is acceptable. but if we create mm_locked_pages(), /proc should
-also use this.
-Otherwise pinning operation magically decrease VmLck field in
-/proc/pid/status and people
-get a confusion.
+Just a way to sidestep this whole issue.  What do you think?
 
-
-
-> @@ -310,9 +309,49 @@ static int mlock_fixup(struct vm_area_struct *vma, struct vm_area_struct **prev,
->          * Keep track of amount of locked VM.
->          */
->         nr_pages = (end - start) >> PAGE_SHIFT;
-> -       if (!lock)
-> -               nr_pages = -nr_pages;
-> -       mm->locked_vm += nr_pages;
-> +
-> +       /*
-> +        * We should only account pages once, if VM_PINNED is set pages are
-> +        * accounted in mm_struct::pinned_vm, otherwise if VM_LOCKED is set,
-> +        * we'll account them in mm_struct::locked_vm.
-> +        *
-> +        * PL  := vma->vm_flags
-> +        * PL' := newflags
-> +        * PLd := {pinned,locked}_vm delta
-> +        *
-> +        * PL->PL' PLd
-> +        * -----------
-> +        * 00  01  0+
-> +        * 00  10  +0
-> +        * 01  11  +-
-> +        * 01  00  0-
-> +        * 10  00  -0
-> +        * 10  11  00
-> +        * 11  01  -+
-> +        * 11  10  00
-> +        */
-
-This comment is too cryptic. :-)
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
