@@ -1,133 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id BE63A6B0167
-	for <linux-mm@kvack.org>; Thu, 30 May 2013 01:05:12 -0400 (EDT)
-Message-ID: <51A6DDF5.2000406@synopsys.com>
-Date: Thu, 30 May 2013 10:34:53 +0530
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id C54726B0169
+	for <linux-mm@kvack.org>; Thu, 30 May 2013 01:48:57 -0400 (EDT)
+Received: by mail-pb0-f43.google.com with SMTP id ma3so10472760pbc.30
+        for <linux-mm@kvack.org>; Wed, 29 May 2013 22:48:57 -0700 (PDT)
+Date: Thu, 30 May 2013 14:48:52 +0900
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 5/9] memcg: use css_get/put when charging/uncharging kmem
+Message-ID: <20130530054852.GA9305@mtj.dyndns.org>
+References: <5195D5F8.7000609@huawei.com>
+ <5195D666.6030408@huawei.com>
+ <20130517180822.GC12632@mtj.dyndns.org>
+ <519C838B.9060609@huawei.com>
+ <20130524075420.GA24813@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: TLB and PTE coherency during munmap
-References: <CAMo8BfL4QfJrfejNKmBDhAVdmE=_Ys6MVUH5Xa3w_mU41hwx0A@mail.gmail.com> <CAMo8BfJie1Y49QeSJ+JTQb9WsYJkMMkb1BkKz2Gzy3T7V6ogHA@mail.gmail.com> <51A45861.1010008@gmail.com> <20130529122728.GA27176@twins.programming.kicks-ass.net> <51A5F7A7.5020604@synopsys.com> <20130529175125.GJ12193@twins.programming.kicks-ass.net>
-In-Reply-To: <20130529175125.GJ12193@twins.programming.kicks-ass.net>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130524075420.GA24813@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Max Filippov <jcmvbkbc@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, Ralf Baechle <ralf@linux-mips.org>, Chris Zankel <chris@zankel.net>, Marc Gauthier <Marc.Gauthier@tensilica.com>, linux-xtensa@linux-xtensa.org, Hugh Dickins <hughd@google.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Li Zefan <lizefan@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-On 05/29/2013 11:21 PM, Peter Zijlstra wrote:
-> What about something like this?
->
-> ---
->  include/asm-generic/tlb.h | 11 ++++++++++-
->  mm/memory.c               | 17 ++++++++++++++++-
->  2 files changed, 26 insertions(+), 2 deletions(-)
->
-> diff --git a/include/asm-generic/tlb.h b/include/asm-generic/tlb.h
-> index b1b1fa6..651b1cf 100644
-> --- a/include/asm-generic/tlb.h
-> +++ b/include/asm-generic/tlb.h
-> @@ -116,6 +116,7 @@ struct mmu_gather {
->  
->  static inline int tlb_fast_mode(struct mmu_gather *tlb)
->  {
-> +#ifndef CONFIG_PREEMPT
->  #ifdef CONFIG_SMP
->  	return tlb->fast_mode;
->  #else
-> @@ -124,7 +125,15 @@ static inline int tlb_fast_mode(struct mmu_gather *tlb)
->  	 * and page free order so much..
->  	 */
->  	return 1;
-> -#endif
-> +#endif /* CONFIG_SMP */
-> +#else  /* CONFIG_PREEMPT */
-> +	/*
-> +	 * Since mmu_gather is preemptible, preemptible kernels are like SMP
-> +	 * kernels, we must batch to make sure we invalidate TLBs before we
-> +	 * free the pages.
-> +	 */
-> +	return 0;
-> +#endif /* CONFIG_PREEMPT */
->  }
+Hello,
 
-So this adds the page batching logic to small/simpler UP systems - but it's
-necessary evil :-(
+Sorry about the delay.  Have been and still am traveling.
 
->  void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, bool fullmm);
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 6dc1882..e915af2 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -384,6 +384,21 @@ void tlb_remove_table(struct mmu_gather *tlb, void *table)
->  
->  #endif /* CONFIG_HAVE_RCU_TABLE_FREE */
->  
-> +static inline void cond_resched_tlb(struct mmu_gather *tlb)
-> +{
-> +#ifndef CONFIG_PREEMPT
-> +	/*
-> +	 * For full preempt kernels we must do regular batching like
-> +	 * SMP, see tlb_fast_mode(). For !PREEMPT we can 'cheat' and
-> +	 * do a flush before our voluntary 'yield'.
-> +	 */
-> +	if (need_resched()) {
+On Fri, May 24, 2013 at 09:54:20AM +0200, Michal Hocko wrote:
+> > > On Fri, May 17, 2013 at 03:04:06PM +0800, Li Zefan wrote:
+> > >> +	/*
+> > >> +	 * Releases a reference taken in kmem_cgroup_css_offline in case
+> > >> +	 * this last uncharge is racing with the offlining code or it is
+> > >> +	 * outliving the memcg existence.
+> > >> +	 *
+> > >> +	 * The memory barrier imposed by test&clear is paired with the
+> > >> +	 * explicit one in kmem_cgroup_css_offline.
+> > > 
+> > > Paired with the wmb to achieve what?
+> 
+> https://lkml.org/lkml/2013/4/4/190
+> "
+> ! > +	css_get(&memcg->css);
+> ! I think that you need a write memory barrier here because css_get
+> ! nor memcg_kmem_mark_dead implies it. memcg_uncharge_kmem uses
+> ! memcg_kmem_test_and_clear_dead which imply a full memory barrier but it
+> ! should see the elevated reference count. No?
+> ! 
+> ! > +	/*
+> ! > +	 * We need to call css_get() first, because memcg_uncharge_kmem()
+> ! > +	 * will call css_put() if it sees the memcg is dead.
+> ! > +	 */
+> ! >  	memcg_kmem_mark_dead(memcg);
+> "
+> 
+> Does it make sense to you Tejun?
 
-This is really neat: w/o this check, a @fullmm flush (exit/execve) would have
-suffered multiple full TLB flushes in the loop, now you do that only if a
-scheduling was needed - meaning only in the case when we have the potential race
-condition which Max was seeing. Cool !
+Yeah, you're right.  We need them.  It's still a bummer that mark_dead
+has the appearance of proper encapsulation while not really taking
+care of synchronization.  I think it'd make more sense for mark_dead
+to have the barrier (which BTW should probably be smp_wmb() instead of
+wmb()) inside it or for the function to be just open-coded.  More on
+this topic later.
 
-> +		tlb_flush_mmu(tlb);
-> +		cond_resched();
-> +	}
-> +#endif
-> +}
-> +
->  /*
->   * If a p?d_bad entry is found while walking page tables, report
->   * the error, before resetting entry to p?d_none.  Usually (but
-> @@ -1264,7 +1279,7 @@ static inline unsigned long zap_pmd_range(struct mmu_gather *tlb,
->  			goto next;
->  		next = zap_pte_range(tlb, vma, pmd, addr, next, details);
->  next:
-> -		cond_resched();
-> +		cond_resched_tlb(tlb);
->  	} while (pmd++, addr = next, addr != end);
->  
->  	return addr;
+> > The comment is wrong. I'll fix it.
+> 
+> Ohh, right. "Althouth this might sound strange as this path is called from
+> css_offline when the reference might have dropped down to 0 and shouldn't ..."
+> 
+> Sounds better?
 
-BTW, since we are on the topic, it seems that we are missing tlb_fast_mode() in
-one spot - unless it is tied to rcu table free stuff.
+Yeap.
 
--------------->
-From: Vineet Gupta <vgupta@synopsys.com>
-Date: Thu, 30 May 2013 10:25:30 +0530
-Subject: [PATCH] mm: tlb_fast_mode check missing in tlb_finish_mmu()
+> > I don't quite like adding a lock not to protect data but just ensure code
+> > orders.
+> 
+> Agreed.
+> 
+> > Michal, what's your preference? I want to be sure that everyone is happy
+> > so the next version will hopefully be the last version.
+> 
+> I still do not see why the barrier is not needed and the lock seems too
+> big hammer.
 
-Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
----
- mm/memory.c |    3 +++
- 1 file changed, 3 insertions(+)
+Yes, the barrier is necessary but I still think it's unnecessarily
+elaborate.  Among the locking constructs, the barriesr are the worst -
+they don't enforce any structures, people often misunderstand / make
+mistakes about them, bugs from misusages are extremely difficult to
+trigger and reproduce especially on x86.  It's a horrible construct
+and should only be used if no other options can meet the performance
+requirements required for the path.
 
-diff --git a/mm/memory.c b/mm/memory.c
-index d9d5fd9..569ffe1 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -269,6 +269,9 @@ void tlb_finish_mmu(struct mmu_gather *tlb, unsigned long
-start, unsigned long e
-     /* keep the page table cache within bounds */
-     check_pgt_cache();
- 
-+    if (tlb_fast_mode(tlb))
-+        return;
-+
-     for (batch = tlb->local.next; batch; batch = next) {
-         next = batch->next;
-         free_pages((unsigned long)batch, 0);
+So, to me, "lock is too big a hammer" looks to be approaching the
+problem from the completely wrong direction when the code path clearly
+isn't hot enough to justify memory barrier tricks.  We don't and
+shouldn't try to choose the mechanism with the lowest possible
+overhead for the given situation.  We should be as simple and
+straight-forward as the situation allows.  That's the only way to
+sustain long-term maintainability.
+
+So, let's please do something which is apparent.  I don't really care
+what it is - a shared spinlock, test_and_lock bitops, whatever.  It's
+not gonna show up in any profile anyway.  There's absolutely no reason
+to mess with memory barriers.
+
+Thanks.
+
 -- 
-1.7.10.4
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
