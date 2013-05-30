@@ -1,178 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 3E04A6B0088
-	for <linux-mm@kvack.org>; Thu, 30 May 2013 06:37:02 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id B89336B0088
+	for <linux-mm@kvack.org>; Thu, 30 May 2013 06:37:03 -0400 (EDT)
 From: Glauber Costa <glommer@openvz.org>
-Subject: [PATCH v9 02/35] super: fix calculation of shrinkable objects for small numbers
-Date: Thu, 30 May 2013 14:35:48 +0400
-Message-Id: <1369910181-20026-3-git-send-email-glommer@openvz.org>
+Subject: [PATCH v9 23/35] hugepage: convert huge zero page shrinker to new shrinker API
+Date: Thu, 30 May 2013 14:36:09 +0400
+Message-Id: <1369910181-20026-24-git-send-email-glommer@openvz.org>
 In-Reply-To: <1369910181-20026-1-git-send-email-glommer@openvz.org>
 References: <1369910181-20026-1-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@openvz.org>, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
+Cc: linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@openvz.org>, Dave Chinner <dchinner@redhat.com>
 
-The sysctl knob sysctl_vfs_cache_pressure is used to determine which
-percentage of the shrinkable objects in our cache we should actively try
-to shrink.
+It consists of:
 
-It works great in situations in which we have many objects (at least
-more than 100), because the aproximation errors will be negligible. But
-if this is not the case, specially when total_objects < 100, we may end
-up concluding that we have no objects at all (total / 100 = 0,  if total
-< 100).
-
-This is certainly not the biggest killer in the world, but may matter in
-very low kernel memory situations.
-
-[ v2: fix it for all occurrences of sysctl_vfs_cache_pressure ]
+* returning long instead of int
+* separating count from scan
+* returning the number of freed entities in scan
 
 Signed-off-by: Glauber Costa <glommer@openvz.org>
-Reviewed-by: Carlos Maiolino <cmaiolino@redhat.com>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Acked-by: Mel Gorman <mgorman@suse.de>
-CC: Dave Chinner <david@fromorbit.com>
-CC: "Theodore Ts'o" <tytso@mit.edu>
-CC: Al Viro <viro@zeniv.linux.org.uk>
+Reviewed-by: Greg Thelen <gthelen@google.com>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+CC: Dave Chinner <dchinner@redhat.com>
 ---
- fs/gfs2/glock.c        |  2 +-
- fs/gfs2/quota.c        |  2 +-
- fs/mbcache.c           |  2 +-
- fs/nfs/dir.c           |  2 +-
- fs/quota/dquot.c       |  5 ++---
- fs/super.c             | 14 +++++++-------
- fs/xfs/xfs_qm.c        |  2 +-
- include/linux/dcache.h |  4 ++++
- 8 files changed, 18 insertions(+), 15 deletions(-)
+ mm/huge_memory.c | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)
 
-diff --git a/fs/gfs2/glock.c b/fs/gfs2/glock.c
-index 9435384..3bd2748 100644
---- a/fs/gfs2/glock.c
-+++ b/fs/gfs2/glock.c
-@@ -1463,7 +1463,7 @@ static int gfs2_shrink_glock_memory(struct shrinker *shrink,
- 		gfs2_scan_glock_lru(sc->nr_to_scan);
- 	}
- 
--	return (atomic_read(&lru_count) / 100) * sysctl_vfs_cache_pressure;
-+	return vfs_pressure_ratio(atomic_read(&lru_count));
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 243e710..8dc36f5 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -211,24 +211,29 @@ static void put_huge_zero_page(void)
+ 	BUG_ON(atomic_dec_and_test(&huge_zero_refcount));
  }
  
- static struct shrinker glock_shrinker = {
-diff --git a/fs/gfs2/quota.c b/fs/gfs2/quota.c
-index c253b13..f9f4077 100644
---- a/fs/gfs2/quota.c
-+++ b/fs/gfs2/quota.c
-@@ -114,7 +114,7 @@ int gfs2_shrink_qd_memory(struct shrinker *shrink, struct shrink_control *sc)
- 	spin_unlock(&qd_lru_lock);
- 
- out:
--	return (atomic_read(&qd_lru_count) * sysctl_vfs_cache_pressure) / 100;
-+	return vfs_pressure_ratio(atomic_read(&qd_lru_count));
- }
- 
- static u64 qd2index(struct gfs2_quota_data *qd)
-diff --git a/fs/mbcache.c b/fs/mbcache.c
-index 8c32ef3..5eb0476 100644
---- a/fs/mbcache.c
-+++ b/fs/mbcache.c
-@@ -189,7 +189,7 @@ mb_cache_shrink_fn(struct shrinker *shrink, struct shrink_control *sc)
- 	list_for_each_entry_safe(entry, tmp, &free_list, e_lru_list) {
- 		__mb_cache_entry_forget(entry, gfp_mask);
- 	}
--	return (count / 100) * sysctl_vfs_cache_pressure;
-+	return vfs_pressure_ratio(count);
- }
- 
- 
-diff --git a/fs/nfs/dir.c b/fs/nfs/dir.c
-index c662ff6..a6a3d05 100644
---- a/fs/nfs/dir.c
-+++ b/fs/nfs/dir.c
-@@ -1978,7 +1978,7 @@ remove_lru_entry:
- 	}
- 	spin_unlock(&nfs_access_lru_lock);
- 	nfs_access_free_list(&head);
--	return (atomic_long_read(&nfs_access_nr_entries) / 100) * sysctl_vfs_cache_pressure;
-+	return vfs_pressure_ratio(atomic_long_read(&nfs_access_nr_entries));
- }
- 
- static void __nfs_access_zap_cache(struct nfs_inode *nfsi, struct list_head *head)
-diff --git a/fs/quota/dquot.c b/fs/quota/dquot.c
-index 3e64169..762b09c 100644
---- a/fs/quota/dquot.c
-+++ b/fs/quota/dquot.c
-@@ -719,9 +719,8 @@ static int shrink_dqcache_memory(struct shrinker *shrink,
- 		prune_dqcache(nr);
- 		spin_unlock(&dq_list_lock);
- 	}
--	return ((unsigned)
--		percpu_counter_read_positive(&dqstats.counter[DQST_FREE_DQUOTS])
--		/100) * sysctl_vfs_cache_pressure;
-+	return vfs_pressure_ratio(
-+	percpu_counter_read_positive(&dqstats.counter[DQST_FREE_DQUOTS]));
- }
- 
- static struct shrinker dqcache_shrinker = {
-diff --git a/fs/super.c b/fs/super.c
-index 7465d43..2a37fd6 100644
---- a/fs/super.c
-+++ b/fs/super.c
-@@ -82,13 +82,13 @@ static int prune_super(struct shrinker *shrink, struct shrink_control *sc)
- 		int	inodes;
- 
- 		/* proportion the scan between the caches */
--		dentries = (sc->nr_to_scan * sb->s_nr_dentry_unused) /
--							total_objects;
--		inodes = (sc->nr_to_scan * sb->s_nr_inodes_unused) /
--							total_objects;
-+		dentries = mult_frac(sc->nr_to_scan, sb->s_nr_dentry_unused,
-+							total_objects);
-+		inodes = mult_frac(sc->nr_to_scan, sb->s_nr_inodes_unused,
-+							total_objects);
- 		if (fs_objects)
--			fs_objects = (sc->nr_to_scan * fs_objects) /
--							total_objects;
-+			fs_objects = mult_frac(sc->nr_to_scan, fs_objects,
-+							total_objects);
- 		/*
- 		 * prune the dcache first as the icache is pinned by it, then
- 		 * prune the icache, followed by the filesystem specific caches
-@@ -104,7 +104,7 @@ static int prune_super(struct shrinker *shrink, struct shrink_control *sc)
- 				sb->s_nr_inodes_unused + fs_objects;
- 	}
- 
--	total_objects = (total_objects / 100) * sysctl_vfs_cache_pressure;
-+	total_objects = vfs_pressure_ratio(total_objects);
- 	drop_super(sb);
- 	return total_objects;
- }
-diff --git a/fs/xfs/xfs_qm.c b/fs/xfs/xfs_qm.c
-index f41702b..7ade175 100644
---- a/fs/xfs/xfs_qm.c
-+++ b/fs/xfs/xfs_qm.c
-@@ -1585,7 +1585,7 @@ xfs_qm_shake(
- 	}
- 
- out:
--	return (qi->qi_lru_count / 100) * sysctl_vfs_cache_pressure;
-+	return vfs_pressure_ratio(qi->qi_lru_count);
- }
- 
- /*
-diff --git a/include/linux/dcache.h b/include/linux/dcache.h
-index 1a82bdb..bd08285 100644
---- a/include/linux/dcache.h
-+++ b/include/linux/dcache.h
-@@ -411,4 +411,8 @@ static inline bool d_mountpoint(struct dentry *dentry)
- 
- extern int sysctl_vfs_cache_pressure;
- 
-+static inline unsigned long vfs_pressure_ratio(unsigned long val)
-+{
-+	return mult_frac(val, sysctl_vfs_cache_pressure, 100);
+-static int shrink_huge_zero_page(struct shrinker *shrink,
+-		struct shrink_control *sc)
++static long shrink_huge_zero_page_count(struct shrinker *shrink,
++					struct shrink_control *sc)
+ {
+-	if (!sc->nr_to_scan)
+-		/* we can free zero page only if last reference remains */
+-		return atomic_read(&huge_zero_refcount) == 1 ? HPAGE_PMD_NR : 0;
++	/* we can free zero page only if last reference remains */
++	return atomic_read(&huge_zero_refcount) == 1 ? HPAGE_PMD_NR : 0;
 +}
- #endif	/* __LINUX_DCACHE_H */
+ 
++static long shrink_huge_zero_page_scan(struct shrinker *shrink,
++				       struct shrink_control *sc)
++{
+ 	if (atomic_cmpxchg(&huge_zero_refcount, 1, 0) == 1) {
+ 		struct page *zero_page = xchg(&huge_zero_page, NULL);
+ 		BUG_ON(zero_page == NULL);
+ 		__free_page(zero_page);
++		return HPAGE_PMD_NR;
+ 	}
+ 
+ 	return 0;
+ }
+ 
+ static struct shrinker huge_zero_page_shrinker = {
+-	.shrink = shrink_huge_zero_page,
++	.count_objects = shrink_huge_zero_page_count,
++	.scan_objects = shrink_huge_zero_page_scan,
+ 	.seeks = DEFAULT_SEEKS,
+ };
+ 
 -- 
 1.8.1.4
 
