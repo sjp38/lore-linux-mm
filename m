@@ -1,49 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 49E576B0033
-	for <linux-mm@kvack.org>; Thu, 30 May 2013 15:59:48 -0400 (EDT)
-Received: by mail-we0-f177.google.com with SMTP id n57so601361wev.22
-        for <linux-mm@kvack.org>; Thu, 30 May 2013 12:59:46 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id D153E6B0033
+	for <linux-mm@kvack.org>; Thu, 30 May 2013 16:00:14 -0400 (EDT)
+Received: by mail-ob0-f172.google.com with SMTP id wo10so1476626obc.31
+        for <linux-mm@kvack.org>; Thu, 30 May 2013 13:00:13 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <0000013eec0006ee-0f8caf7b-cc94-4f54-ae38-0ca6623b7841-000000@email.amazonses.com>
-References: <alpine.DEB.2.10.1305222344060.12929@vincent-weaver-1.um.maine.edu>
-	<20130523044803.GA25399@ZenIV.linux.org.uk>
-	<20130523104154.GA23650@twins.programming.kicks-ass.net>
-	<0000013ed1b8d0cc-ad2bb878-51bd-430c-8159-629b23ed1b44-000000@email.amazonses.com>
-	<20130523152458.GD23650@twins.programming.kicks-ass.net>
-	<0000013ed2297ba8-467d474a-7068-45b3-9fa3-82641e6aa363-000000@email.amazonses.com>
-	<20130523163901.GG23650@twins.programming.kicks-ass.net>
-	<0000013ed28b638a-066d7dc7-b590-49f8-9423-badb9537b8b6-000000@email.amazonses.com>
-	<20130524140114.GK23650@twins.programming.kicks-ass.net>
-	<0000013ed732b615-748f574f-ccb8-4de7-bbe4-d85d1cbf0c9d-000000@email.amazonses.com>
-	<20130527064834.GA2781@laptop>
-	<0000013eec0006ee-0f8caf7b-cc94-4f54-ae38-0ca6623b7841-000000@email.amazonses.com>
-Date: Thu, 30 May 2013 22:59:46 +0300
-Message-ID: <CAOJsxLEXgO3bMek8Mus9K6_vA5-H7wnoPyhVqCkm8uO9z526BQ@mail.gmail.com>
-Subject: Re: [RFC][PATCH] mm: Fix RLIMIT_MEMLOCK
-From: Pekka Enberg <penberg@kernel.org>
+In-Reply-To: <2434dea05a7fda7e7ccf48f70124bd65f2556b2d.1369935749.git.aquini@redhat.com>
+References: <2434dea05a7fda7e7ccf48f70124bd65f2556b2d.1369935749.git.aquini@redhat.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Thu, 30 May 2013 15:59:53 -0400
+Message-ID: <CAHGf_=qdow5GNHG+AQyfoKgga=Bqf5-x8ir4JmHrzaJs9pX2NQ@mail.gmail.com>
+Subject: Re: [PATCH] swap: avoid read_swap_cache_async() race to deadlock
+ while waiting on discard I/O compeletion
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Al Viro <viro@zeniv.linux.org.uk>, Vince Weaver <vincent.weaver@maine.edu>, LKML <linux-kernel@vger.kernel.org>, Paul Mackerras <paulus@samba.org>, Ingo Molnar <mingo@redhat.com>, Arnaldo Carvalho de Melo <acme@ghostprotocols.net>, trinity@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, roland@kernel.org, infinipath@qlogic.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-rdma@vger.kernel.org, Or Gerlitz <or.gerlitz@gmail.com>, Hugh Dickins <hughd@google.com>
+To: Rafael Aquini <aquini@redhat.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, shli@kernel.org, "riel@redhat.com" <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, stable@vger.kernel.org
 
-On Mon, 27 May 2013, Peter Zijlstra wrote:
->> Before your patch pinned was included in locked and thus RLIMIT_MEMLOCK
->> had a single resource counter. After your patch RLIMIT_MEMLOCK is
->> applied separately to both -- more or less.
+On Thu, May 30, 2013 at 2:05 PM, Rafael Aquini <aquini@redhat.com> wrote:
+> read_swap_cache_async() can race against get_swap_page(), and stumble across
+> a SWAP_HAS_CACHE entry in the swap map whose page wasn't brought into the
+> swapcache yet. This transient swap_map state is expected to be transitory,
+> but the actual placement of discard at scan_swap_map() inserts a wait for
+> I/O completion thus making the thread at read_swap_cache_async() to loop
+> around its -EEXIST case, while the other end at get_swap_page()
+> is scheduled away at scan_swap_map(). This can leave the system deadlocked
+> if the I/O completion happens to be waiting on the CPU workqueue where
+> read_swap_cache_async() is busy looping and !CONFIG_PREEMPT.
+>
+> This patch introduces a cond_resched() call to make the aforementioned
+> read_swap_cache_async() busy loop condition to bail out when necessary,
+> thus avoiding the subtle race window.
+>
+> Signed-off-by: Rafael Aquini <aquini@redhat.com>
 
-On Tue, May 28, 2013 at 7:37 PM, Christoph Lameter <cl@linux.com> wrote:
-> Before the patch the count was doubled since a single page was counted
-> twice: Once because it was mlocked (marked with PG_mlock) and then again
-> because it was also pinned (the refcount was increased). Two different things.
-
-Pinned vs. mlocked counting isn't the problem here. You changed
-RLIMIT_MEMLOCK userspace ABI and that needs to be restored. So the
-question is how can we preserve the old RLIMIT_MEMLOCK semantics while
-avoiding the double accounting issue.
-
-                        Pekka
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
