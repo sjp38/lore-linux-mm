@@ -1,61 +1,180 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 7495A6B003A
-	for <linux-mm@kvack.org>; Thu, 30 May 2013 06:37:37 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 281096B00A6
+	for <linux-mm@kvack.org>; Thu, 30 May 2013 06:37:42 -0400 (EDT)
 From: Glauber Costa <glommer@openvz.org>
-Subject: [PATCH v9 33/35] memcg: move initialization to memcg creation
-Date: Thu, 30 May 2013 14:36:19 +0400
-Message-Id: <1369910181-20026-34-git-send-email-glommer@openvz.org>
+Subject: [PATCH v9 34/35] vmpressure: in-kernel notifications
+Date: Thu, 30 May 2013 14:36:20 +0400
+Message-Id: <1369910181-20026-35-git-send-email-glommer@openvz.org>
 In-Reply-To: <1369910181-20026-1-git-send-email-glommer@openvz.org>
 References: <1369910181-20026-1-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@openvz.org>, Dave Chinner <dchinner@redhat.com>, Rik van Riel <riel@redhat.com>
+Cc: linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@openvz.org>, John Stultz <john.stultz@linaro.org>, Joonsoo Kim <js1304@gmail.com>
 
-Those structures are only used for memcgs that are effectively using
-kmemcg. However, in a later patch I intend to use scan that list
-inconditionally (list empty meaning no kmem caches present), which
-simplifies the code a lot.
+From: Glauber Costa <glommer@parallels.com>
 
-So move the initialization to early kmem creation.
+During the past weeks, it became clear to us that the shrinker interface
+we have right now works very well for some particular types of users,
+but not that well for others. The later are usually people interested in
+one-shot notifications, that were forced to adapt themselves to the
+count+scan behavior of shrinkers. To do so, they had no choice than to
+greatly abuse the shrinker interface producing little monsters all over.
+
+During LSF/MM, one of the proposals that popped out during our session
+was to reuse Anton Voronstsov's vmpressure for this. They are designed
+for userspace consumption, but also provide a well-stablished,
+cgroup-aware entry point for notifications.
+
+This patch extends that to also support in-kernel users. Events that
+should be generated for in-kernel consumption will be marked as such,
+and for those, we will call a registered function instead of triggering
+an eventfd notification.
+
+Please note that due to my lack of understanding of each shrinker user,
+I will stay away from converting the actual users, you are all welcome
+to do so.
 
 Signed-off-by: Glauber Costa <glommer@openvz.org>
-Cc: Dave Chinner <dchinner@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Acked-by: Anton Vorontsov <anton@enomsg.org>
+Acked-by: Pekka Enberg <penberg@kernel.org>
+Reviewed-by: Greg Thelen <gthelen@google.com>
+Cc: Dave Chinner <david@fromorbit.com>
+Cc: John Stultz <john.stultz@linaro.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Joonsoo Kim <js1304@gmail.com>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/memcontrol.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ include/linux/vmpressure.h |  6 ++++++
+ mm/vmpressure.c            | 52 +++++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 55 insertions(+), 3 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index aa6853f..c0e1113f 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3326,9 +3326,7 @@ int memcg_update_cache_sizes(struct mem_cgroup *memcg)
+diff --git a/include/linux/vmpressure.h b/include/linux/vmpressure.h
+index 76be077..3131e72 100644
+--- a/include/linux/vmpressure.h
++++ b/include/linux/vmpressure.h
+@@ -19,6 +19,9 @@ struct vmpressure {
+ 	/* Have to grab the lock on events traversal or modifications. */
+ 	struct mutex events_lock;
  
- 	memcg_update_array_size(num + 1);
++	/* False if only kernel users want to be notified, true otherwise. */
++	bool notify_userspace;
++
+ 	struct work_struct work;
+ };
  
--	INIT_LIST_HEAD(&memcg->memcg_slab_caches);
- 	INIT_WORK(&memcg->kmemcg_shrink_work, kmemcg_shrink_work_fn);
--	mutex_init(&memcg->slab_caches_mutex);
+@@ -36,6 +39,9 @@ extern struct vmpressure *css_to_vmpressure(struct cgroup_subsys_state *css);
+ extern int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
+ 				     struct eventfd_ctx *eventfd,
+ 				     const char *args);
++
++extern int vmpressure_register_kernel_event(struct cgroup *cg,
++					    void (*fn)(void));
+ extern void vmpressure_unregister_event(struct cgroup *cg, struct cftype *cft,
+ 					struct eventfd_ctx *eventfd);
+ #else
+diff --git a/mm/vmpressure.c b/mm/vmpressure.c
+index 736a601..e16256e 100644
+--- a/mm/vmpressure.c
++++ b/mm/vmpressure.c
+@@ -135,8 +135,12 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
+ }
  
- 	return 0;
- out:
-@@ -6319,6 +6317,8 @@ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
- {
- 	int ret;
+ struct vmpressure_event {
+-	struct eventfd_ctx *efd;
++	union {
++		struct eventfd_ctx *efd;
++		void (*fn)(void);
++	};
+ 	enum vmpressure_levels level;
++	bool kernel_event;
+ 	struct list_head node;
+ };
  
-+	INIT_LIST_HEAD(&memcg->memcg_slab_caches);
-+	mutex_init(&memcg->slab_caches_mutex);
- 	memcg->kmemcg_id = -1;
- 	ret = memcg_propagate_kmem(memcg);
- 	if (ret)
+@@ -152,12 +156,15 @@ static bool vmpressure_event(struct vmpressure *vmpr,
+ 	mutex_lock(&vmpr->events_lock);
+ 
+ 	list_for_each_entry(ev, &vmpr->events, node) {
+-		if (level >= ev->level) {
++		if (ev->kernel_event) {
++			ev->fn();
++		} else if (vmpr->notify_userspace && level >= ev->level) {
+ 			eventfd_signal(ev->efd, 1);
+ 			signalled = true;
+ 		}
+ 	}
+ 
++	vmpr->notify_userspace = false;
+ 	mutex_unlock(&vmpr->events_lock);
+ 
+ 	return signalled;
+@@ -227,7 +234,7 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
+ 	 * we account it too.
+ 	 */
+ 	if (!(gfp & (__GFP_HIGHMEM | __GFP_MOVABLE | __GFP_IO | __GFP_FS)))
+-		return;
++		goto schedule;
+ 
+ 	/*
+ 	 * If we got here with no pages scanned, then that is an indicator
+@@ -244,8 +251,15 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
+ 	vmpr->scanned += scanned;
+ 	vmpr->reclaimed += reclaimed;
+ 	scanned = vmpr->scanned;
++	/*
++	 * If we didn't reach this point, only kernel events will be triggered.
++	 * It is the job of the worker thread to clean this up once the
++	 * notifications are all delivered.
++	 */
++	vmpr->notify_userspace = true;
+ 	mutex_unlock(&vmpr->sr_lock);
+ 
++schedule:
+ 	if (scanned < vmpressure_win || work_pending(&vmpr->work))
+ 		return;
+ 	schedule_work(&vmpr->work);
+@@ -328,6 +342,38 @@ int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
+ }
+ 
+ /**
++ * vmpressure_register_kernel_event() - Register kernel-side notification
++ * @cg:		cgroup that is interested in vmpressure notifications
++ * @fn:		function to be called when pressure happens
++ *
++ * This function register in-kernel users interested in receiving notifications
++ * about pressure conditions. Pressure notifications will be triggered at the
++ * same time as userspace notifications (with no particular ordering relative
++ * to it).
++ *
++ * Pressure notifications are a alternative method to shrinkers and will serve
++ * well users that are interested in a one-shot notification, with a
++ * well-defined cgroup aware interface.
++ */
++int vmpressure_register_kernel_event(struct cgroup *cg, void (*fn)(void))
++{
++	struct vmpressure *vmpr = cg_to_vmpressure(cg);
++	struct vmpressure_event *ev;
++
++	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
++	if (!ev)
++		return -ENOMEM;
++
++	ev->kernel_event = true;
++	ev->fn = fn;
++
++	mutex_lock(&vmpr->events_lock);
++	list_add(&ev->node, &vmpr->events);
++	mutex_unlock(&vmpr->events_lock);
++	return 0;
++}
++
++/**
+  * vmpressure_unregister_event() - Unbind eventfd from vmpressure
+  * @cg:		cgroup handle
+  * @cft:	cgroup control files handle
 -- 
 1.8.1.4
 
