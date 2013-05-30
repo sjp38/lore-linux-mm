@@ -1,110 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 6F3306B0034
-	for <linux-mm@kvack.org>; Thu, 30 May 2013 11:12:25 -0400 (EDT)
-Received: by mail-wi0-f173.google.com with SMTP id hi5so4666852wib.12
-        for <linux-mm@kvack.org>; Thu, 30 May 2013 08:12:23 -0700 (PDT)
-Date: Thu, 30 May 2013 17:12:20 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 5/9] memcg: use css_get/put when charging/uncharging kmem
-Message-ID: <20130530151220.GB18155@dhcp22.suse.cz>
-References: <5195D5F8.7000609@huawei.com>
- <5195D666.6030408@huawei.com>
- <20130517180822.GC12632@mtj.dyndns.org>
- <519C838B.9060609@huawei.com>
- <20130524075420.GA24813@dhcp22.suse.cz>
- <20130530054852.GA9305@mtj.dyndns.org>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 4BD7E6B0033
+	for <linux-mm@kvack.org>; Thu, 30 May 2013 12:36:15 -0400 (EDT)
+Received: from /spool/local
+	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
+	Thu, 30 May 2013 12:36:13 -0400
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id C1CA3C90045
+	for <linux-mm@kvack.org>; Thu, 30 May 2013 12:36:10 -0400 (EDT)
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4UGaA3I218874
+	for <linux-mm@kvack.org>; Thu, 30 May 2013 12:36:11 -0400
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4UGdF6h022840
+	for <linux-mm@kvack.org>; Thu, 30 May 2013 10:39:16 -0600
+Message-ID: <51A77FF7.5090908@linux.vnet.ibm.com>
+Date: Thu, 30 May 2013 09:36:07 -0700
+From: Cody P Schafer <cody@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130530054852.GA9305@mtj.dyndns.org>
+Subject: Re: [PATCH] mm: sparse: use __aligned() instead of manual padding
+ in mem_section
+References: <1369869279-20155-1-git-send-email-cody@linux.vnet.ibm.com> <51A6A34B.6020907@gmail.com>
+In-Reply-To: <51A6A34B.6020907@gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Li Zefan <lizefan@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
+To: Jiang Liu <liuj97@gmail.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu 30-05-13 14:48:52, Tejun Heo wrote:
-> Hello,
-> 
-> Sorry about the delay.  Have been and still am traveling.
-> 
-> On Fri, May 24, 2013 at 09:54:20AM +0200, Michal Hocko wrote:
-> > > > On Fri, May 17, 2013 at 03:04:06PM +0800, Li Zefan wrote:
-> > > >> +	/*
-> > > >> +	 * Releases a reference taken in kmem_cgroup_css_offline in case
-> > > >> +	 * this last uncharge is racing with the offlining code or it is
-> > > >> +	 * outliving the memcg existence.
-> > > >> +	 *
-> > > >> +	 * The memory barrier imposed by test&clear is paired with the
-> > > >> +	 * explicit one in kmem_cgroup_css_offline.
-> > > > 
-> > > > Paired with the wmb to achieve what?
-> > 
-> > https://lkml.org/lkml/2013/4/4/190
-> > "
-> > ! > +	css_get(&memcg->css);
-> > ! I think that you need a write memory barrier here because css_get
-> > ! nor memcg_kmem_mark_dead implies it. memcg_uncharge_kmem uses
-> > ! memcg_kmem_test_and_clear_dead which imply a full memory barrier but it
-> > ! should see the elevated reference count. No?
-> > ! 
-> > ! > +	/*
-> > ! > +	 * We need to call css_get() first, because memcg_uncharge_kmem()
-> > ! > +	 * will call css_put() if it sees the memcg is dead.
-> > ! > +	 */
-> > ! >  	memcg_kmem_mark_dead(memcg);
-> > "
-> > 
-> > Does it make sense to you Tejun?
-> 
-> Yeah, you're right.  We need them.  It's still a bummer that mark_dead
-> has the appearance of proper encapsulation while not really taking
-> care of synchronization. 
+On 05/29/2013 05:54 PM, Jiang Liu wrote:
+> On Thu 30 May 2013 07:14:39 AM CST, Cody P Schafer wrote:
+>> Also, does anyone know what causes this alignment to be required here? I found
+>> this was breaking things in a patchset I'm working on (WARNs in sysfs code
+>> about duplicate filenames when initing mem_sections). Adding some documentation
+>> for the reason would be appreciated.
+> Hi Cody,
+>          I think the alignment requirement is caused by the way the
+> mem_section array is
+> organized. Basically it requires that PAGE_SIZE could be divided by
+> sizeof(struct mem_section).
+> So your change seems risky too because it should be aligned to power of
+> two instead
+> of 2 * sizeof(long).
 
-No objection to put barrier there. You are right it is more natural.
-
-> I think it'd make more sense for mark_dead to have the barrier (which
-> BTW should probably be smp_wmb() instead of wmb())
-
-Yes, smp_wmb sounds like a better fit.
-
-> inside it or for the function to be just open-coded.  More on this
-> topic later.
->
-> > > The comment is wrong. I'll fix it.
-> > 
-> > Ohh, right. "Althouth this might sound strange as this path is called from
-> > css_offline when the reference might have dropped down to 0 and shouldn't ..."
-> > 
-> > Sounds better?
-> 
-> Yeap.
-> 
-> > > I don't quite like adding a lock not to protect data but just ensure code
-> > > orders.
-> > 
-> > Agreed.
-> > 
-> > > Michal, what's your preference? I want to be sure that everyone is happy
-> > > so the next version will hopefully be the last version.
-> > 
-> > I still do not see why the barrier is not needed and the lock seems too
-> > big hammer.
-> 
-> Yes, the barrier is necessary but I still think it's unnecessarily
-> elaborate.  Among the locking constructs, the barriesr are the worst -
-> they don't enforce any structures, people often misunderstand / make
-> mistakes about them, bugs from misusages are extremely difficult to
-> trigger and reproduce especially on x86.  It's a horrible construct
-> and should only be used if no other options can meet the performance
-> requirements required for the path.
-
-I am all for simplifying the code. I guess it deserves a separate patch
-though and it is a bit unrelated to the scope of the series.
-
--- 
-Michal Hocko
-SUSE Labs
+Well, if that's the case then this patch is wrong, and manual padding 
+may be the only way to go. :(
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
