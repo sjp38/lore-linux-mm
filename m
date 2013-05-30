@@ -1,43 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 685A26B0032
-	for <linux-mm@kvack.org>; Thu, 30 May 2013 16:42:36 -0400 (EDT)
-Received: by mail-ob0-f178.google.com with SMTP id fb19so1570588obc.9
-        for <linux-mm@kvack.org>; Thu, 30 May 2013 13:42:35 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with SMTP id 52D8B6B0032
+	for <linux-mm@kvack.org>; Thu, 30 May 2013 16:47:34 -0400 (EDT)
+Received: by mail-pb0-f52.google.com with SMTP id xa12so1011055pbc.39
+        for <linux-mm@kvack.org>; Thu, 30 May 2013 13:47:33 -0700 (PDT)
+Date: Thu, 30 May 2013 13:47:30 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm, memcg: add oom killer delay
+In-Reply-To: <20130530150539.GA18155@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.02.1305301338430.20389@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1305291817280.520@chino.kir.corp.google.com> <20130530150539.GA18155@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20130530063205.GA5310@gmail.com>
-References: <20130523152458.GD23650@twins.programming.kicks-ass.net>
- <0000013ed2297ba8-467d474a-7068-45b3-9fa3-82641e6aa363-000000@email.amazonses.com>
- <20130523163901.GG23650@twins.programming.kicks-ass.net> <0000013ed28b638a-066d7dc7-b590-49f8-9423-badb9537b8b6-000000@email.amazonses.com>
- <20130524140114.GK23650@twins.programming.kicks-ass.net> <0000013ed732b615-748f574f-ccb8-4de7-bbe4-d85d1cbf0c9d-000000@email.amazonses.com>
- <20130527064834.GA2781@laptop> <0000013eec0006ee-0f8caf7b-cc94-4f54-ae38-0ca6623b7841-000000@email.amazonses.com>
- <20130529075845.GA24506@gmail.com> <51A65CC0.3050800@gmail.com> <20130530063205.GA5310@gmail.com>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Thu, 30 May 2013 16:42:15 -0400
-Message-ID: <CAHGf_=qkJWEhwKRY4gu0wL4OLU1PhOW3=n6JNmAocSK-T0PhmA@mail.gmail.com>
-Subject: Re: [RFC][PATCH] mm: Fix RLIMIT_MEMLOCK
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, Peter Zijlstra <peterz@infradead.org>, Al Viro <viro@zeniv.linux.org.uk>, Vince Weaver <vincent.weaver@maine.edu>, LKML <linux-kernel@vger.kernel.org>, Paul Mackerras <paulus@samba.org>, Ingo Molnar <mingo@redhat.com>, Arnaldo Carvalho de Melo <acme@ghostprotocols.net>, trinity@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Roland Dreier <roland@kernel.org>, infinipath@qlogic.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-rdma@vger.kernel.org, Or Gerlitz <or.gerlitz@gmail.com>, Hugh Dickins <hughd@google.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
->> I'm unhappy you guys uses offensive word so much. Please cool down all
->> you guys. :-/ In fact, _BOTH_ the behavior before and after Cristoph's
->> patch doesn't have cleaner semantics.
->
-> Erm, this feature _regressed_ after the patch. All other concerns are
-> secondary. What's so difficult to understand about that?
+On Thu, 30 May 2013, Michal Hocko wrote:
 
-Because it is not new commit at all. Christoph's patch was introduced
-10 releases before.
+> > Completely disabling the oom killer for a memcg is problematic if
+> > userspace is unable to address the condition itself, usually because it
+> > is unresponsive. 
+> 
+> Isn't this a bug in the userspace oom handler? Why is it unresponsive? It
+> shouldn't allocated any memory so nothing should prevent it from running (if
+> other tasks are preempting it permanently then the priority of the handler
+> should be increased).
+> 
 
-$ git describe bc3e53f682
-v3.1-7235-gbc3e53f
+Unresponsiveness isn't necessarily only because of memory constraints, you 
+may have your oom notifier in a parent cgroup that isn't oom.  If a 
+process is stuck on mm->mmap_sem in the oom cgroup, though, the oom 
+notifier may not be able to scrape /proc/pid and attain necessary 
+information in making an oom kill decision.  If the oom notifier is in the 
+oom cgroup, it may not be able to successfully read the memcg "tasks" 
+file to even determine the set of eligible processes.  There is also no 
+guarantee that the userspace oom handler will have the necessary memory to 
+even re-enable the oom killer in the memcg under oom which would allow the 
+kernel to make forward progress.
 
-If we just revert it, we may get another and opposite regression
-report. I'm worried
-about it. Moreover, I don't think discussion better fix is too difficult for us.
+We've used this for a few years as a complement to oom notifiers so that a 
+process would have a grace period to deal with the oom condition itself 
+before allowing the kernel to terminate a process and free memory.  We've 
+simply had no alternative in the presence of kernel constraints that 
+prevent it from being done in any other way.  We _want_ userspace to deal 
+with the issue but when it cannot collect the necessary information (and 
+we're not tracing every fork() that every process in a potentially oom 
+memcg does) to deal with the condition, we want the kernel to step in 
+instead of relying on an admin to login or a global oom condition.
+
+If you'd like to debate this issue, I'd be more than happy to do so and 
+show why this patch is absolutely necessary for inclusion, but I'd ask 
+that you'd present the code from your userspace oom handler so I can 
+understand how it works without needing such backup support.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
