@@ -1,76 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 51EF66B0032
-	for <linux-mm@kvack.org>; Thu, 30 May 2013 15:55:54 -0400 (EDT)
-Date: Thu, 30 May 2013 15:55:39 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] swap: avoid read_swap_cache_async() race to deadlock
- while waiting on discard I/O compeletion
-Message-ID: <20130530195539.GA27226@cmpxchg.org>
-References: <2434dea05a7fda7e7ccf48f70124bd65f2556b2d.1369935749.git.aquini@redhat.com>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 49E576B0033
+	for <linux-mm@kvack.org>; Thu, 30 May 2013 15:59:48 -0400 (EDT)
+Received: by mail-we0-f177.google.com with SMTP id n57so601361wev.22
+        for <linux-mm@kvack.org>; Thu, 30 May 2013 12:59:46 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <2434dea05a7fda7e7ccf48f70124bd65f2556b2d.1369935749.git.aquini@redhat.com>
+In-Reply-To: <0000013eec0006ee-0f8caf7b-cc94-4f54-ae38-0ca6623b7841-000000@email.amazonses.com>
+References: <alpine.DEB.2.10.1305222344060.12929@vincent-weaver-1.um.maine.edu>
+	<20130523044803.GA25399@ZenIV.linux.org.uk>
+	<20130523104154.GA23650@twins.programming.kicks-ass.net>
+	<0000013ed1b8d0cc-ad2bb878-51bd-430c-8159-629b23ed1b44-000000@email.amazonses.com>
+	<20130523152458.GD23650@twins.programming.kicks-ass.net>
+	<0000013ed2297ba8-467d474a-7068-45b3-9fa3-82641e6aa363-000000@email.amazonses.com>
+	<20130523163901.GG23650@twins.programming.kicks-ass.net>
+	<0000013ed28b638a-066d7dc7-b590-49f8-9423-badb9537b8b6-000000@email.amazonses.com>
+	<20130524140114.GK23650@twins.programming.kicks-ass.net>
+	<0000013ed732b615-748f574f-ccb8-4de7-bbe4-d85d1cbf0c9d-000000@email.amazonses.com>
+	<20130527064834.GA2781@laptop>
+	<0000013eec0006ee-0f8caf7b-cc94-4f54-ae38-0ca6623b7841-000000@email.amazonses.com>
+Date: Thu, 30 May 2013 22:59:46 +0300
+Message-ID: <CAOJsxLEXgO3bMek8Mus9K6_vA5-H7wnoPyhVqCkm8uO9z526BQ@mail.gmail.com>
+Subject: Re: [RFC][PATCH] mm: Fix RLIMIT_MEMLOCK
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, shli@kernel.org, riel@redhat.com, lwoodman@redhat.com, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, stable@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Al Viro <viro@zeniv.linux.org.uk>, Vince Weaver <vincent.weaver@maine.edu>, LKML <linux-kernel@vger.kernel.org>, Paul Mackerras <paulus@samba.org>, Ingo Molnar <mingo@redhat.com>, Arnaldo Carvalho de Melo <acme@ghostprotocols.net>, trinity@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, roland@kernel.org, infinipath@qlogic.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-rdma@vger.kernel.org, Or Gerlitz <or.gerlitz@gmail.com>, Hugh Dickins <hughd@google.com>
 
-On Thu, May 30, 2013 at 03:05:00PM -0300, Rafael Aquini wrote:
-> read_swap_cache_async() can race against get_swap_page(), and stumble across
-> a SWAP_HAS_CACHE entry in the swap map whose page wasn't brought into the
-> swapcache yet. This transient swap_map state is expected to be transitory,
-> but the actual placement of discard at scan_swap_map() inserts a wait for
-> I/O completion thus making the thread at read_swap_cache_async() to loop
-> around its -EEXIST case, while the other end at get_swap_page()
-> is scheduled away at scan_swap_map(). This can leave the system deadlocked
-> if the I/O completion happens to be waiting on the CPU workqueue where
+On Mon, 27 May 2013, Peter Zijlstra wrote:
+>> Before your patch pinned was included in locked and thus RLIMIT_MEMLOCK
+>> had a single resource counter. After your patch RLIMIT_MEMLOCK is
+>> applied separately to both -- more or less.
 
-waitqueue?
+On Tue, May 28, 2013 at 7:37 PM, Christoph Lameter <cl@linux.com> wrote:
+> Before the patch the count was doubled since a single page was counted
+> twice: Once because it was mlocked (marked with PG_mlock) and then again
+> because it was also pinned (the refcount was increased). Two different things.
 
-> read_swap_cache_async() is busy looping and !CONFIG_PREEMPT.
-> 
-> This patch introduces a cond_resched() call to make the aforementioned
-> read_swap_cache_async() busy loop condition to bail out when necessary,
-> thus avoiding the subtle race window.
-> 
-> Signed-off-by: Rafael Aquini <aquini@redhat.com>
-> ---
->  mm/swap_state.c | 14 +++++++++++++-
->  1 file changed, 13 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/swap_state.c b/mm/swap_state.c
-> index b3d40dc..9ad9e3b 100644
-> --- a/mm/swap_state.c
-> +++ b/mm/swap_state.c
-> @@ -336,8 +336,20 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
->  		 * Swap entry may have been freed since our caller observed it.
->  		 */
->  		err = swapcache_prepare(entry);
-> -		if (err == -EEXIST) {	/* seems racy */
-> +		if (err == -EEXIST) {
->  			radix_tree_preload_end();
-> +			/*
-> +			 * We might race against get_swap_page() and stumble
-> +			 * across a SWAP_HAS_CACHE swap_map entry whose page
-> +			 * has not been brought into the swapcache yet, while
-> +			 * the other end is scheduled away waiting on discard
-> +			 * I/O completion.
-> +			 * In order to avoid turning this transitory state
-> +			 * into a permanent loop around this -EEXIST case,
-> +			 * lets just conditionally invoke the scheduler,
-> +			 * if there are some more important tasks to run.
-> +			 */
-> +			cond_resched();
+Pinned vs. mlocked counting isn't the problem here. You changed
+RLIMIT_MEMLOCK userspace ABI and that needs to be restored. So the
+question is how can we preserve the old RLIMIT_MEMLOCK semantics while
+avoiding the double accounting issue.
 
-Might be worth mentioning the !CONFIG_PREEMPT deadlock scenario here,
-especially since under CONFIG_PREEMPT the radix_tree_preload_end() is
-already a scheduling point through the preempt_enable().
-
-Other than that, the patch looks good to me!
-
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
