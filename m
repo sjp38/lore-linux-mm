@@ -1,71 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 4FB766B0078
-	for <linux-mm@kvack.org>; Thu, 30 May 2013 07:03:29 -0400 (EDT)
-Date: Thu, 30 May 2013 13:03:21 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: TLB and PTE coherency during munmap
-Message-ID: <20130530110321.GO12193@twins.programming.kicks-ass.net>
-References: <CAMo8BfL4QfJrfejNKmBDhAVdmE=_Ys6MVUH5Xa3w_mU41hwx0A@mail.gmail.com>
- <CAMo8BfJie1Y49QeSJ+JTQb9WsYJkMMkb1BkKz2Gzy3T7V6ogHA@mail.gmail.com>
- <51A45861.1010008@gmail.com>
- <20130529122728.GA27176@twins.programming.kicks-ass.net>
- <51A5F7A7.5020604@synopsys.com>
- <20130529175125.GJ12193@twins.programming.kicks-ass.net>
- <51A6DDF5.2000406@synopsys.com>
- <20130530065627.GL12193@twins.programming.kicks-ass.net>
- <51A6F923.6010709@synopsys.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <51A6F923.6010709@synopsys.com>
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 114CD6B0037
+	for <linux-mm@kvack.org>; Thu, 30 May 2013 09:18:06 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <519BE3B6.6070902@sr71.net>
+References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1368321816-17719-20-git-send-email-kirill.shutemov@linux.intel.com>
+ <519BE3B6.6070902@sr71.net>
+Subject: Re: [PATCHv4 19/39] thp, mm: allocate huge pages in
+ grab_cache_page_write_begin()
+Content-Transfer-Encoding: 7bit
+Message-Id: <20130530132035.BFE0FE0090@blue.fi.intel.com>
+Date: Thu, 30 May 2013 16:20:35 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Cc: Max Filippov <jcmvbkbc@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, Ralf Baechle <ralf@linux-mips.org>, Chris Zankel <chris@zankel.net>, Marc Gauthier <Marc.Gauthier@tensilica.com>, linux-xtensa@linux-xtensa.org, Hugh Dickins <hughd@google.com>
+To: Dave Hansen <dave@sr71.net>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, May 30, 2013 at 12:30:51PM +0530, Vineet Gupta wrote:
-> On 05/30/2013 12:26 PM, Peter Zijlstra wrote:
-> > On Thu, May 30, 2013 at 10:34:53AM +0530, Vineet Gupta wrote:
-> >> On 05/29/2013 11:21 PM, Peter Zijlstra wrote:
-> >>
-> >> BTW, since we are on the topic, it seems that we are missing tlb_fast_mode() in
-> >> one spot - unless it is tied to rcu table free stuff.
-> >>
-> >> -------------->
-> >> From: Vineet Gupta <vgupta@synopsys.com>
-> >> Date: Thu, 30 May 2013 10:25:30 +0530
-> >> Subject: [PATCH] mm: tlb_fast_mode check missing in tlb_finish_mmu()
-> >>
-> >> Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
-> >> ---
-> >>  mm/memory.c |    3 +++
-> >>  1 file changed, 3 insertions(+)
-> >>
-> >> diff --git a/mm/memory.c b/mm/memory.c
-> >> index d9d5fd9..569ffe1 100644
-> >> --- a/mm/memory.c
-> >> +++ b/mm/memory.c
-> >> @@ -269,6 +269,9 @@ void tlb_finish_mmu(struct mmu_gather *tlb, unsigned long
-> >> start, unsigned long e
-> >>      /* keep the page table cache within bounds */
-> >>      check_pgt_cache();
-> >>  
-> >> +    if (tlb_fast_mode(tlb))
-> >> +        return;
-> >> +
-> >>      for (batch = tlb->local.next; batch; batch = next) {
-> >>          next = batch->next;
-> >>          free_pages((unsigned long)batch, 0);
-> > Yes I think that is possible. It would shrink the code a little when
-> > fast_mode was unconditionally 1 -- ie. simple UP ;-).
+Dave Hansen wrote:
+> On 05/11/2013 06:23 PM, Kirill A. Shutemov wrote:
+> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> > 
+> > Try to allocate huge page if flags has AOP_FLAG_TRANSHUGE.
 > 
-> Exactly ! Can you please revert with a Reviewed-by/Acked-by so I can formally send
-> it over to linux-mm list.
+> Why do we need this flag?
 
-s/revert/reply/?
+I don't see other way to indicate grab_cache_page_write_begin(), that we
+want THP here.
 
-Acked-by: Peter Zijlstra <peterz@infradead.org>
+> When might we set it, and when would we not set it?  What kinds of
+> callers need to check for and act on it?
+
+The decision whether allocate huge page or not is up to filesystem. In
+ramfs case we just use mapping_can_have_hugepages(), on other filesystem
+check might be more complicated.
+
+> Some of this, at least, needs to make it in to the comment by the #define.
+
+Sorry, I fail to see what kind of comment you want me to add there.
+
+> > --- a/include/linux/huge_mm.h
+> > +++ b/include/linux/huge_mm.h
+> > @@ -194,6 +194,9 @@ extern int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vm
+> >  #define HPAGE_CACHE_NR         ({ BUILD_BUG(); 0; })
+> >  #define HPAGE_CACHE_INDEX_MASK ({ BUILD_BUG(); 0; })
+> >  
+> > +#define THP_WRITE_ALLOC		({ BUILD_BUG(); 0; })
+> > +#define THP_WRITE_ALLOC_FAILED	({ BUILD_BUG(); 0; })
+> 
+> Doesn't this belong in the previous patch?
+
+Yes. Fixed.
+
+> >  #define hpage_nr_pages(x) 1
+> >  
+> >  #define transparent_hugepage_enabled(__vma) 0
+> > diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+> > index 2e86251..8feeecc 100644
+> > --- a/include/linux/pagemap.h
+> > +++ b/include/linux/pagemap.h
+> > @@ -270,8 +270,15 @@ unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t start,
+> >  unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
+> >  			int tag, unsigned int nr_pages, struct page **pages);
+> >  
+> > -struct page *grab_cache_page_write_begin(struct address_space *mapping,
+> > +struct page *__grab_cache_page_write_begin(struct address_space *mapping,
+> >  			pgoff_t index, unsigned flags);
+> > +static inline struct page *grab_cache_page_write_begin(
+> > +		struct address_space *mapping, pgoff_t index, unsigned flags)
+> > +{
+> > +	if (!transparent_hugepage_pagecache() && (flags & AOP_FLAG_TRANSHUGE))
+> > +		return NULL;
+> > +	return __grab_cache_page_write_begin(mapping, index, flags);
+> > +}
+> 
+> OK, so there's some of the behavior.
+> 
+> Could you also call out why you refactored this code?  It seems like
+> you're trying to optimize for the case where AOP_FLAG_TRANSHUGE isn't
+> set and where the compiler knows that it isn't set.
+> 
+> Could you talk a little bit about the cases that you're thinking of here?
+
+I just tried to make it cheaper for !CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE
+case, but it seems not worth it: the only user call it from
+'if (mapping_can_have_hugepages())', so I'll drop this.
+
+> >  /*
+> >   * Returns locked page at given index in given cache, creating it if needed.
+> > diff --git a/mm/filemap.c b/mm/filemap.c
+> > index 9ea46a4..e086ef0 100644
+> > --- a/mm/filemap.c
+> > +++ b/mm/filemap.c
+> > @@ -2309,25 +2309,44 @@ EXPORT_SYMBOL(generic_file_direct_write);
+> >   * Find or create a page at the given pagecache position. Return the locked
+> >   * page. This function is specifically for buffered writes.
+> >   */
+> > -struct page *grab_cache_page_write_begin(struct address_space *mapping,
+> > -					pgoff_t index, unsigned flags)
+> > +struct page *__grab_cache_page_write_begin(struct address_space *mapping,
+> > +		pgoff_t index, unsigned flags)
+> >  {
+> >  	int status;
+> >  	gfp_t gfp_mask;
+> >  	struct page *page;
+> >  	gfp_t gfp_notmask = 0;
+> > +	bool thp = (flags & AOP_FLAG_TRANSHUGE) &&
+> > +		IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE);
+> 
+> Instead of 'thp', how about 'must_use_thp'?  The flag seems to be a
+> pretty strong edict rather than a hint, so it should be reflected in the
+> variables derived from it.
+
+Ok.
+
+> "IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE)" has also popped up
+> enough times in the code that it's probably time to start thinking about
+> shortening it up.  It's a wee bit verbose.
+
+I'll leave it as is for now. Probably come back later.
+
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
