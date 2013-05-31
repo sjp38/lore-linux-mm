@@ -1,88 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 2A9156B0033
-	for <linux-mm@kvack.org>; Thu, 30 May 2013 21:26:29 -0400 (EDT)
-Received: by mail-vb0-f41.google.com with SMTP id p14so670220vbm.0
-        for <linux-mm@kvack.org>; Thu, 30 May 2013 18:26:28 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 5BD7A6B0033
+	for <linux-mm@kvack.org>; Thu, 30 May 2013 21:40:30 -0400 (EDT)
+Received: by mail-vb0-f52.google.com with SMTP id p12so652085vbe.39
+        for <linux-mm@kvack.org>; Thu, 30 May 2013 18:40:29 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20130529101533.GF17767@MacBook-Pro.local>
+In-Reply-To: <20130529122728.GA27176@twins.programming.kicks-ass.net>
 References: <CAMo8BfL4QfJrfejNKmBDhAVdmE=_Ys6MVUH5Xa3w_mU41hwx0A@mail.gmail.com>
-	<CAHkRjk4ZNwZvf_Cv+HqfMManodCkEpCPdZokPQ68z3nVG8-+wg@mail.gmail.com>
-	<51A580E0.10300@gmail.com>
-	<20130529101533.GF17767@MacBook-Pro.local>
-Date: Fri, 31 May 2013 05:26:27 +0400
-Message-ID: <CAMo8BfJt3dnx8NYT66dKfkLyjwPzHAhe0Rs21+Q-pG6OXA2GLA@mail.gmail.com>
+	<CAMo8BfJie1Y49QeSJ+JTQb9WsYJkMMkb1BkKz2Gzy3T7V6ogHA@mail.gmail.com>
+	<51A45861.1010008@gmail.com>
+	<20130529122728.GA27176@twins.programming.kicks-ass.net>
+Date: Fri, 31 May 2013 05:40:29 +0400
+Message-ID: <CAMo8BfLO21hORMPoYofyibVeioAw=vzXjjD9EPnjdn2Duvb+WQ@mail.gmail.com>
 Subject: Re: TLB and PTE coherency during munmap
 From: Max Filippov <jcmvbkbc@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-xtensa@linux-xtensa.org" <linux-xtensa@linux-xtensa.org>, Chris Zankel <chris@zankel.net>, Marc Gauthier <Marc.Gauthier@tensilica.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, Ralf Baechle <ralf@linux-mips.org>, Chris Zankel <chris@zankel.net>, Marc Gauthier <Marc.Gauthier@tensilica.com>, linux-xtensa@linux-xtensa.org, Hugh Dickins <hughd@google.com>
 
-On Wed, May 29, 2013 at 2:15 PM, Catalin Marinas
-<catalin.marinas@arm.com> wrote:
-> On Wed, May 29, 2013 at 05:15:28AM +0100, Max Filippov wrote:
->> On Tue, May 28, 2013 at 6:35 PM, Catalin Marinas <catalin.marinas@arm.com> wrote:
->> > On 26 May 2013 03:42, Max Filippov <jcmvbkbc@gmail.com> wrote:
->> >> Is it intentional that threads of a process that invoked munmap syscall
->> >> can see TLB entries pointing to already freed pages, or it is a bug?
+On Wed, May 29, 2013 at 4:27 PM, Peter Zijlstra <peterz@infradead.org> wrote:
+> On Tue, May 28, 2013 at 11:10:25AM +0400, Max Filippov wrote:
+>> On Sun, May 26, 2013 at 6:50 AM, Max Filippov <jcmvbkbc@gmail.com> wrote:
+>> > Hello arch and mm people.
 >> >
->> > If it happens, this would be a bug. It means that a process can access
->> > a physical page that has been allocated to something else, possibly
->> > kernel data.
+>> > Is it intentional that threads of a process that invoked munmap syscall
+>> > can see TLB entries pointing to already freed pages, or it is a bug?
 >> >
->> >> I'm talking about zap_pmd_range and zap_pte_range:
->> >>
->> >>       zap_pmd_range
->> >>         zap_pte_range
->> >>           arch_enter_lazy_mmu_mode
->> >>             ptep_get_and_clear_full
->> >>             tlb_remove_tlb_entry
->> >>             __tlb_remove_page
->> >>           arch_leave_lazy_mmu_mode
->> >>         cond_resched
->> >>
->> >> With the default arch_{enter,leave}_lazy_mmu_mode, tlb_remove_tlb_entry
->> >> and __tlb_remove_page there is a loop in the zap_pte_range that clears
->> >> PTEs and frees corresponding pages, but doesn't flush TLB, and
->> >> surrounding loop in the zap_pmd_range that calls cond_resched. If a thread
->> >> of the same process gets scheduled then it is able to see TLB entries
->> >> pointing to already freed physical pages.
+>> > I'm talking about zap_pmd_range and zap_pte_range:
 >> >
->> > It looks to me like cond_resched() here introduces a possible bug but
->> > it depends on the actual arch code, especially the
->> > __tlb_remove_tlb_entry() function. On ARM we record the range in
->> > tlb_remove_tlb_entry() and queue the pages to be removed in
->> > __tlb_remove_page(). It pretty much acts like tlb_fast_mode() == 0
->> > even for the UP case (which is also needed for hardware speculative
->> > TLB loads). The tlb_finish_mmu() takes care of whatever pages are left
->> > to be freed.
+>> >       zap_pmd_range
+>> >         zap_pte_range
+>> >           arch_enter_lazy_mmu_mode
+>> >             ptep_get_and_clear_full
+>> >             tlb_remove_tlb_entry
+>> >             __tlb_remove_page
+>> >           arch_leave_lazy_mmu_mode
+>> >         cond_resched
 >> >
->> > With a dummy __tlb_remove_tlb_entry() and tlb_fast_mode() == 1,
->> > cond_resched() in zap_pmd_range() would cause problems.
+>> > With the default arch_{enter,leave}_lazy_mmu_mode, tlb_remove_tlb_entry
+>> > and __tlb_remove_page there is a loop in the zap_pte_range that clears
+>> > PTEs and frees corresponding pages, but doesn't flush TLB, and
+>> > surrounding loop in the zap_pmd_range that calls cond_resched. If a thread
+>> > of the same process gets scheduled then it is able to see TLB entries
+>> > pointing to already freed physical pages.
+>> >
+>> > I've noticed that with xtensa arch when I added a test before returning to
+>> > userspace checking that TLB contents agrees with page tables of the
+>> > current mm. This check reliably fires with the LTP test mtest05 that
+>> > maps, unmaps and accesses memory from multiple threads.
+>> >
+>> > Is there anything wrong in my description, maybe something specific to
+>> > my arch, or this issue really exists?
 >>
->> So, looks like most architectures in the UP configuration should have
->> this issue (unless they flush TLB in the switch_mm, even when switching
->> to the same mm):
+>> Hi,
+>>
+>> I've made similar checking function for MIPS (because qemu is my only choice
+>> and it simulates MIPS TLB) and ran my tests on mips-malta machine in qemu.
+>> With MIPS I can also see this issue. I hope I did it right, the patch at the
+>> bottom is for the reference. The test I run and the diagnostic output are as
+>> follows:
+>>
+>> To me it looks like the cond_resched in the zap_pmd_range is the root cause
+>> of this issue (let alone SMP case for now). It was introduced in the commit
+>>
+>> commit 97a894136f29802da19a15541de3c019e1ca147e
+>> Author: Peter Zijlstra <a.p.zijlstra@chello.nl>
+>> Date:   Tue May 24 17:12:04 2011 -0700
+>>
+>>     mm: Remove i_mmap_lock lockbreak
+>>
+>> Peter, Kamezawa, other reviewers of that commit, could you please comment?
 >
-> switch_mm() wouldn't be called if switching to the same mm. You could do
+> Are you all running UP systems? I suppose the preemptible muck
 
-Hmm... Strange, but as far as I can tell from the context_switch it would.
+Yes, xtensa SMP support is in the middle of forward porting/cleanup process.
 
-> it in switch_to() but it's not efficient (or before returning to user
-> space on the same processor).
+> invalidated the assumption that UP systems are 'easy'.
 >
-> Do you happen to have a user-space test for this? Something like one
+> If you make tlb_fast_mode() return an unconditional false, does it all
+> work again?
 
-I only had mtest05 from LTP that triggered TLB/PTE inconsistency, but
-not anything that would really try to peek at the freed page. I can make
-such test though.
-
-> thread does an mmap(), writes some poison value, munmap(). The other
-> thread keeps checking the poison value while trapping and ignoring any
-> SIGSEGV. If it's working correctly, the second thread should either get
-> a SIGSEGV or read the poison value.
+Actually the only thing that was visibly broken is the test for
+TLB/PTE coherency,
+but that incoherency appears to be intentional (and the test is too
+simple for that).
+Unconditionally returning false from tlb_fast_mode() doesn't fix that test, but
+AFAICS it fixes underlying page freeing.
 
 -- 
 Thanks.
