@@ -1,78 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 89D416B0033
-	for <linux-mm@kvack.org>; Thu, 30 May 2013 18:50:05 -0400 (EDT)
-From: Rafael Aquini <aquini@redhat.com>
-Subject: [PATCH v2] swap: avoid read_swap_cache_async() race to deadlock while waiting on discard I/O completion
-Date: Thu, 30 May 2013 19:49:34 -0300
-Message-Id: <c217bcf6114e2af059488dc93d06b472077c5d74.1369953156.git.aquini@redhat.com>
-In-Reply-To: <2434dea05a7fda7e7ccf48f70124bd65f2556b2d.1369935749.git.aquini@redhat.com>
-References: <2434dea05a7fda7e7ccf48f70124bd65f2556b2d.1369935749.git.aquini@redhat.com>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 2A9156B0033
+	for <linux-mm@kvack.org>; Thu, 30 May 2013 21:26:29 -0400 (EDT)
+Received: by mail-vb0-f41.google.com with SMTP id p14so670220vbm.0
+        for <linux-mm@kvack.org>; Thu, 30 May 2013 18:26:28 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20130529101533.GF17767@MacBook-Pro.local>
+References: <CAMo8BfL4QfJrfejNKmBDhAVdmE=_Ys6MVUH5Xa3w_mU41hwx0A@mail.gmail.com>
+	<CAHkRjk4ZNwZvf_Cv+HqfMManodCkEpCPdZokPQ68z3nVG8-+wg@mail.gmail.com>
+	<51A580E0.10300@gmail.com>
+	<20130529101533.GF17767@MacBook-Pro.local>
+Date: Fri, 31 May 2013 05:26:27 +0400
+Message-ID: <CAMo8BfJt3dnx8NYT66dKfkLyjwPzHAhe0Rs21+Q-pG6OXA2GLA@mail.gmail.com>
+Subject: Re: TLB and PTE coherency during munmap
+From: Max Filippov <jcmvbkbc@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, shli@kernel.org, riel@redhat.com, lwoodman@redhat.com, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-xtensa@linux-xtensa.org" <linux-xtensa@linux-xtensa.org>, Chris Zankel <chris@zankel.net>, Marc Gauthier <Marc.Gauthier@tensilica.com>
 
-read_swap_cache_async() can race against get_swap_page(), and stumble across
-a SWAP_HAS_CACHE entry in the swap map whose page wasn't brought into the
-swapcache yet. This transient swap_map state is expected to be transitory,
-but the actual placement of discard at scan_swap_map() inserts a wait for
-I/O completion thus making the thread at read_swap_cache_async() to loop
-around its -EEXIST case, while the other end at get_swap_page()
-is scheduled away at scan_swap_map(). This can leave the system deadlocked
-if the I/O completion happens to be waiting on the CPU waitqueue where
-read_swap_cache_async() is busy looping and !CONFIG_PREEMPT.
+On Wed, May 29, 2013 at 2:15 PM, Catalin Marinas
+<catalin.marinas@arm.com> wrote:
+> On Wed, May 29, 2013 at 05:15:28AM +0100, Max Filippov wrote:
+>> On Tue, May 28, 2013 at 6:35 PM, Catalin Marinas <catalin.marinas@arm.com> wrote:
+>> > On 26 May 2013 03:42, Max Filippov <jcmvbkbc@gmail.com> wrote:
+>> >> Is it intentional that threads of a process that invoked munmap syscall
+>> >> can see TLB entries pointing to already freed pages, or it is a bug?
+>> >
+>> > If it happens, this would be a bug. It means that a process can access
+>> > a physical page that has been allocated to something else, possibly
+>> > kernel data.
+>> >
+>> >> I'm talking about zap_pmd_range and zap_pte_range:
+>> >>
+>> >>       zap_pmd_range
+>> >>         zap_pte_range
+>> >>           arch_enter_lazy_mmu_mode
+>> >>             ptep_get_and_clear_full
+>> >>             tlb_remove_tlb_entry
+>> >>             __tlb_remove_page
+>> >>           arch_leave_lazy_mmu_mode
+>> >>         cond_resched
+>> >>
+>> >> With the default arch_{enter,leave}_lazy_mmu_mode, tlb_remove_tlb_entry
+>> >> and __tlb_remove_page there is a loop in the zap_pte_range that clears
+>> >> PTEs and frees corresponding pages, but doesn't flush TLB, and
+>> >> surrounding loop in the zap_pmd_range that calls cond_resched. If a thread
+>> >> of the same process gets scheduled then it is able to see TLB entries
+>> >> pointing to already freed physical pages.
+>> >
+>> > It looks to me like cond_resched() here introduces a possible bug but
+>> > it depends on the actual arch code, especially the
+>> > __tlb_remove_tlb_entry() function. On ARM we record the range in
+>> > tlb_remove_tlb_entry() and queue the pages to be removed in
+>> > __tlb_remove_page(). It pretty much acts like tlb_fast_mode() == 0
+>> > even for the UP case (which is also needed for hardware speculative
+>> > TLB loads). The tlb_finish_mmu() takes care of whatever pages are left
+>> > to be freed.
+>> >
+>> > With a dummy __tlb_remove_tlb_entry() and tlb_fast_mode() == 1,
+>> > cond_resched() in zap_pmd_range() would cause problems.
+>>
+>> So, looks like most architectures in the UP configuration should have
+>> this issue (unless they flush TLB in the switch_mm, even when switching
+>> to the same mm):
+>
+> switch_mm() wouldn't be called if switching to the same mm. You could do
 
-This patch introduces a cond_resched() call to make the aforementioned
-read_swap_cache_async() busy loop condition to bail out when necessary,
-thus avoiding the subtle race window.
+Hmm... Strange, but as far as I can tell from the context_switch it would.
 
-Signed-off-by: Rafael Aquini <aquini@redhat.com>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Acked-by: Hugh Dickins <hughd@google.com>
-Cc: stable@vger.kernel.org
----
-Changelog:
-* fixed typos in commit message;			(hannes)
-* enhanced the commentary on the deadlock scenario;	(hannes)
-* include the received ACKs and Cc: stable
+> it in switch_to() but it's not efficient (or before returning to user
+> space on the same processor).
+>
+> Do you happen to have a user-space test for this? Something like one
 
- mm/swap_state.c | 18 +++++++++++++++++-
- 1 file changed, 17 insertions(+), 1 deletion(-)
+I only had mtest05 from LTP that triggered TLB/PTE inconsistency, but
+not anything that would really try to peek at the freed page. I can make
+such test though.
 
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index b3d40dc..f24ab0d 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -336,8 +336,24 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
- 		 * Swap entry may have been freed since our caller observed it.
- 		 */
- 		err = swapcache_prepare(entry);
--		if (err == -EEXIST) {	/* seems racy */
-+		if (err == -EEXIST) {
- 			radix_tree_preload_end();
-+			/*
-+			 * We might race against get_swap_page() and stumble
-+			 * across a SWAP_HAS_CACHE swap_map entry whose page
-+			 * has not been brought into the swapcache yet, while
-+			 * the other end is scheduled away waiting on discard
-+			 * I/O completion at scan_swap_map().
-+			 *
-+			 * In order to avoid turning this transitory state
-+			 * into a permanent loop around this -EEXIST case
-+			 * if !CONFIG_PREEMPT and the I/O completion happens
-+			 * to be waiting on the CPU waitqueue where we are now
-+			 * busy looping, we just conditionally invoke the
-+			 * scheduler here, if there are some more important
-+			 * tasks to run.
-+			 */
-+			cond_resched();
- 			continue;
- 		}
- 		if (err) {		/* swp entry is obsolete ? */
+> thread does an mmap(), writes some poison value, munmap(). The other
+> thread keeps checking the poison value while trapping and ignoring any
+> SIGSEGV. If it's working correctly, the second thread should either get
+> a SIGSEGV or read the poison value.
+
 -- 
-1.8.1.4
+Thanks.
+-- Max
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
