@@ -1,97 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 5BD7A6B0033
-	for <linux-mm@kvack.org>; Thu, 30 May 2013 21:40:30 -0400 (EDT)
-Received: by mail-vb0-f52.google.com with SMTP id p12so652085vbe.39
-        for <linux-mm@kvack.org>; Thu, 30 May 2013 18:40:29 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 6C0F26B0033
+	for <linux-mm@kvack.org>; Thu, 30 May 2013 21:48:40 -0400 (EDT)
+Message-ID: <51A8015C.6020402@oracle.com>
+Date: Fri, 31 May 2013 09:48:12 +0800
+From: Bob Liu <bob.liu@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <20130529122728.GA27176@twins.programming.kicks-ass.net>
-References: <CAMo8BfL4QfJrfejNKmBDhAVdmE=_Ys6MVUH5Xa3w_mU41hwx0A@mail.gmail.com>
-	<CAMo8BfJie1Y49QeSJ+JTQb9WsYJkMMkb1BkKz2Gzy3T7V6ogHA@mail.gmail.com>
-	<51A45861.1010008@gmail.com>
-	<20130529122728.GA27176@twins.programming.kicks-ass.net>
-Date: Fri, 31 May 2013 05:40:29 +0400
-Message-ID: <CAMo8BfLO21hORMPoYofyibVeioAw=vzXjjD9EPnjdn2Duvb+WQ@mail.gmail.com>
-Subject: Re: TLB and PTE coherency during munmap
-From: Max Filippov <jcmvbkbc@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCHv12 2/4] zbud: add to mm/
+References: <1369067168-12291-1-git-send-email-sjenning@linux.vnet.ibm.com> <1369067168-12291-3-git-send-email-sjenning@linux.vnet.ibm.com> <20130528145911.bd484cbb0bb7a27c1623c520@linux-foundation.org> <20130529154500.GB428@cerebellum> <20130529113434.b2ced4cc1e66c7a0a520d908@linux-foundation.org> <20130529204236.GD428@cerebellum> <20130529134835.58dd89774f47205da4a06202@linux-foundation.org> <754ae8a0-23af-4c87-953f-d608cba84191@default> <20130529142904.ace2a29b90a9076d0ee251fd@linux-foundation.org> <20130530174344.GA15837@medulla> <20130530212017.GB15837@medulla>
+In-Reply-To: <20130530212017.GB15837@medulla>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, Ralf Baechle <ralf@linux-mips.org>, Chris Zankel <chris@zankel.net>, Marc Gauthier <Marc.Gauthier@tensilica.com>, linux-xtensa@linux-xtensa.org, Hugh Dickins <hughd@google.com>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Dan Magenheimer <dan.magenheimer@oracle.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, Heesub Shin <heesub.shin@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On Wed, May 29, 2013 at 4:27 PM, Peter Zijlstra <peterz@infradead.org> wrote:
-> On Tue, May 28, 2013 at 11:10:25AM +0400, Max Filippov wrote:
->> On Sun, May 26, 2013 at 6:50 AM, Max Filippov <jcmvbkbc@gmail.com> wrote:
->> > Hello arch and mm people.
->> >
->> > Is it intentional that threads of a process that invoked munmap syscall
->> > can see TLB entries pointing to already freed pages, or it is a bug?
->> >
->> > I'm talking about zap_pmd_range and zap_pte_range:
->> >
->> >       zap_pmd_range
->> >         zap_pte_range
->> >           arch_enter_lazy_mmu_mode
->> >             ptep_get_and_clear_full
->> >             tlb_remove_tlb_entry
->> >             __tlb_remove_page
->> >           arch_leave_lazy_mmu_mode
->> >         cond_resched
->> >
->> > With the default arch_{enter,leave}_lazy_mmu_mode, tlb_remove_tlb_entry
->> > and __tlb_remove_page there is a loop in the zap_pte_range that clears
->> > PTEs and frees corresponding pages, but doesn't flush TLB, and
->> > surrounding loop in the zap_pmd_range that calls cond_resched. If a thread
->> > of the same process gets scheduled then it is able to see TLB entries
->> > pointing to already freed physical pages.
->> >
->> > I've noticed that with xtensa arch when I added a test before returning to
->> > userspace checking that TLB contents agrees with page tables of the
->> > current mm. This check reliably fires with the LTP test mtest05 that
->> > maps, unmaps and accesses memory from multiple threads.
->> >
->> > Is there anything wrong in my description, maybe something specific to
->> > my arch, or this issue really exists?
->>
->> Hi,
->>
->> I've made similar checking function for MIPS (because qemu is my only choice
->> and it simulates MIPS TLB) and ran my tests on mips-malta machine in qemu.
->> With MIPS I can also see this issue. I hope I did it right, the patch at the
->> bottom is for the reference. The test I run and the diagnostic output are as
->> follows:
->>
->> To me it looks like the cond_resched in the zap_pmd_range is the root cause
->> of this issue (let alone SMP case for now). It was introduced in the commit
->>
->> commit 97a894136f29802da19a15541de3c019e1ca147e
->> Author: Peter Zijlstra <a.p.zijlstra@chello.nl>
->> Date:   Tue May 24 17:12:04 2011 -0700
->>
->>     mm: Remove i_mmap_lock lockbreak
->>
->> Peter, Kamezawa, other reviewers of that commit, could you please comment?
->
-> Are you all running UP systems? I suppose the preemptible muck
+Hi Seth,
 
-Yes, xtensa SMP support is in the middle of forward porting/cleanup process.
+On 05/31/2013 05:20 AM, Seth Jennings wrote:
+> Andrew, Mel,
+> 
+> This struct page stuffing is taking a lot of time to work out and _might_ be
+> fraught with peril when memmap peekers are considered.
+> 
+> What do you think about just storing the zbud page metadata inline in the
+> memory page in the first zbud page chunk?
 
-> invalidated the assumption that UP systems are 'easy'.
->
-> If you make tlb_fast_mode() return an unconditional false, does it all
-> work again?
+How about making zswap based on SLAB? Create a PAGE_SIZE slab and when
+zswap need to alloc_page() using kmem_cache_alloc() instead.
 
-Actually the only thing that was visibly broken is the test for
-TLB/PTE coherency,
-but that incoherency appears to be intentional (and the test is too
-simple for that).
-Unconditionally returning false from tlb_fast_mode() doesn't fix that test, but
-AFAICS it fixes underlying page freeing.
+So that leave SLAB layer to handler the NUMA problem and do the
+dynamical pool size for us.
+
+In this way, an extra struct need to manage the zbud page metadate
+instead of using struct page.
+But I think it's easy and won't occupy many memory.
+
+> 
+> Mel, this kinda hurts you plans for making NCHUNKS = 2, since there would
+> only be one chunk available for storage and would make zbud useless.
+> 
+> Just a way to sidestep this whole issue.  What do you think?
+> 
+> Seth
+> 
 
 -- 
-Thanks.
--- Max
+Regards,
+-Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
