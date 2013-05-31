@@ -1,66 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 76B8D6B0033
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 7B3F36B0034
 	for <linux-mm@kvack.org>; Fri, 31 May 2013 14:39:00 -0400 (EDT)
-Subject: [v4][PATCH 0/6] mm: vmscan: Batch page reclamation under shink_page_list
+Subject: [v4][PATCH 1/6] mm: swap: defer clearing of page_private() for swap cache pages
 From: Dave Hansen <dave@sr71.net>
-Date: Fri, 31 May 2013 11:38:55 -0700
-Message-Id: <20130531183855.44DDF928@viggo.jf.intel.com>
+Date: Fri, 31 May 2013 11:38:56 -0700
+References: <20130531183855.44DDF928@viggo.jf.intel.com>
+In-Reply-To: <20130531183855.44DDF928@viggo.jf.intel.com>
+Message-Id: <20130531183856.1D7D75AD@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de, tim.c.chen@linux.intel.com, Dave Hansen <dave@sr71.net>
 
-These are an update of Tim Chen's earlier work:
 
-	http://lkml.kernel.org/r/1347293960.9977.70.camel@schen9-DESK
+From: Dave Hansen <dave.hansen@linux.intel.com>
 
-I broke the patches up a bit more, and tried to incorporate some
-changes based on some feedback from Mel and Andrew.
+This patch defers the destruction of swapcache-specific data in
+'struct page'.  This simplifies the code because we do not have
+to keep extra copies of the data during the removal of a page
+from the swap cache.
 
-Changes for v4:
- * generated on top of linux-next-20130530, plus Mel's vmscan
-   fixes:
-	http://lkml.kernel.org/r/1369659778-6772-2-git-send-email-mgorman@suse.de
- * added some proper vmscan/swap: prefixes to the subjects
+There are only two callers of swapcache_free() which actually
+pass in a non-NULL 'struct page'.  Both of them (__remove_mapping
+and delete_from_swap_cache())  create a temporary on-stack
+'swp_entry_t' and set entry.val to page_private().
 
-Changes for v3:
- * Add batch draining before congestion_wait()
- * minor merge conflicts with Mel's vmscan work
+They need to do this since __delete_from_swap_cache() does
+set_page_private(page, 0) and destroys the information.
 
-Changes for v2:
- * use page_mapping() accessor instead of direct access
-   to page->mapping (could cause crashes when running in
-   to swap cache pages.
- * group the batch function's introduction patch with
-   its first use
- * rename a few functions as suggested by Mel
- * Ran some single-threaded tests to look for regressions
-   caused by the batching.  If there is overhead, it is only
-   in the worst-case scenarios, and then only in hundreths of
-   a percent of CPU time.
+However, I'd like to batch a few of these operations on several
+pages together in a new version of __remove_mapping(), and I
+would prefer not to have to allocate temporary storage for each
+page.  The code is pretty ugly, and it's a bit silly to create
+these on-stack 'swp_entry_t's when it is so easy to just keep the
+information around in 'struct page'.
 
-If you're curious how effective the batching is, I have a quick
-and dirty patch to keep some stats:
+There should not be any danger in doing this since we are
+absolutely on the path of freeing these page.  There is no
+turning back, and no other rerferences can be obtained after it
+comes out of the radix tree.
 
-	https://www.sr71.net/~dave/intel/rmb-stats-only.patch
+Note: This patch is separate from the next one since it
+introduces the behavior change.  I've seen issues with this patch
+by itself in various forms and I think having it separate like
+this aids bisection.
 
---
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Acked-by: Mel Gorman <mgorman@suse.de>
+---
 
-To do page reclamation in shrink_page_list function, there are
-two locks taken on a page by page basis.  One is the tree lock
-protecting the radix tree of the page mapping and the other is
-the mapping->i_mmap_mutex protecting the mapped pages.  This set
-deals only with mapping->tree_lock.
+ linux.git-davehans/mm/swap_state.c |    4 ++--
+ linux.git-davehans/mm/vmscan.c     |    2 ++
+ 2 files changed, 4 insertions(+), 2 deletions(-)
 
-Tim managed to get 14% throughput improvement when with a workload
-putting heavy pressure of page cache by reading many large mmaped
-files simultaneously on a 8 socket Westmere server.
-
-I've been testing these by running large parallel kernel compiles
-on systems that are under memory pressure.  During development,
-I caught quite a few races on smaller setups, and it's being
-quite stable that large (160 logical CPU / 1TB) system.
+diff -puN mm/swap_state.c~__delete_from_swap_cache-dont-clear-page-private mm/swap_state.c
+--- linux.git/mm/swap_state.c~__delete_from_swap_cache-dont-clear-page-private	2013-05-30 16:07:50.630079404 -0700
++++ linux.git-davehans/mm/swap_state.c	2013-05-30 16:07:50.635079624 -0700
+@@ -148,8 +148,6 @@ void __delete_from_swap_cache(struct pag
+ 	entry.val = page_private(page);
+ 	address_space = swap_address_space(entry);
+ 	radix_tree_delete(&address_space->page_tree, page_private(page));
+-	set_page_private(page, 0);
+-	ClearPageSwapCache(page);
+ 	address_space->nrpages--;
+ 	__dec_zone_page_state(page, NR_FILE_PAGES);
+ 	INC_CACHE_INFO(del_total);
+@@ -226,6 +224,8 @@ void delete_from_swap_cache(struct page
+ 	spin_unlock_irq(&address_space->tree_lock);
+ 
+ 	swapcache_free(entry, page);
++	set_page_private(page, 0);
++	ClearPageSwapCache(page);
+ 	page_cache_release(page);
+ }
+ 
+diff -puN mm/vmscan.c~__delete_from_swap_cache-dont-clear-page-private mm/vmscan.c
+--- linux.git/mm/vmscan.c~__delete_from_swap_cache-dont-clear-page-private	2013-05-30 16:07:50.632079492 -0700
++++ linux.git-davehans/mm/vmscan.c	2013-05-30 16:07:50.637079712 -0700
+@@ -494,6 +494,8 @@ static int __remove_mapping(struct addre
+ 		__delete_from_swap_cache(page);
+ 		spin_unlock_irq(&mapping->tree_lock);
+ 		swapcache_free(swap, page);
++		set_page_private(page, 0);
++		ClearPageSwapCache(page);
+ 	} else {
+ 		void (*freepage)(struct page *);
+ 
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
