@@ -1,52 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 9F84F6B0033
-	for <linux-mm@kvack.org>; Fri, 31 May 2013 06:57:13 -0400 (EDT)
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Subject: [PATCH 2/2] mm: tlb_fast_mode check missing in tlb_finish_mmu()
-Date: Fri, 31 May 2013 16:23:50 +0530
-Message-ID: <1369997630-6522-3-git-send-email-vgupta@synopsys.com>
-In-Reply-To: <1369997630-6522-1-git-send-email-vgupta@synopsys.com>
-References: <1369997630-6522-1-git-send-email-vgupta@synopsys.com>
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 119DD6B0033
+	for <linux-mm@kvack.org>; Fri, 31 May 2013 07:02:05 -0400 (EDT)
+Date: Fri, 31 May 2013 13:02:02 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch] mm, memcg: add oom killer delay
+Message-ID: <20130531110202.GB32491@dhcp22.suse.cz>
+References: <alpine.DEB.2.02.1305291817280.520@chino.kir.corp.google.com>
+ <20130530150539.GA18155@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1305301338430.20389@chino.kir.corp.google.com>
+ <20130531081052.GA32491@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1305310316210.27716@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1305310316210.27716@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Max Filippov <jcmvbkbc@gmail.com>, Vineet  Gupta <Vineet.Gupta1@synopsys.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Peter Zijlstra <peterz@infradead.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-This removes some unused generated code for tlb_fast_mode() == true
+On Fri 31-05-13 03:22:59, David Rientjes wrote:
+> On Fri, 31 May 2013, Michal Hocko wrote:
+[...]
+> > > If the oom notifier is in the oom cgroup, it may not be able to       
+> > > successfully read the memcg "tasks" file to even determine the set of 
+> > > eligible processes.
+> > 
+> > It would have to use preallocated buffer and have mlocked all the memory
+> > that will be used during oom event.
+> > 
+> 
+> Wrong, the kernel itself allocates memory when reading this information 
+> and that would fail in an oom memcg.
 
-Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
-Acked-by: Peter Zijlstra <peterz@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: linux-mm@kvack.org
-Cc: linux-arch@vger.kernel.org <linux-arch@vger.kernel.org>
----
- mm/memory.c |    3 +++
- 1 file changed, 3 insertions(+)
+But that memory is not charged to a memcg, is it? So unless you are
+heading towards global OOM you should be safe.
 
-diff --git a/mm/memory.c b/mm/memory.c
-index d9d5fd9..569ffe1 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -269,6 +269,9 @@ void tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long e
- 	/* keep the page table cache within bounds */
- 	check_pgt_cache();
- 
-+	if (tlb_fast_mode(tlb))
-+		return;
-+
- 	for (batch = tlb->local.next; batch; batch = next) {
- 		next = batch->next;
- 		free_pages((unsigned long)batch, 0);
 -- 
-1.7.10.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
