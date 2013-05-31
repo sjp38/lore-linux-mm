@@ -1,69 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 6EB1F6B0033
-	for <linux-mm@kvack.org>; Fri, 31 May 2013 07:41:11 -0400 (EDT)
-From: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Subject: [PATCH] mm: mremap: validate input before taking lock
-Date: Fri, 31 May 2013 11:40:43 +0000
-Message-Id: <1370000443-5906-1-git-send-email-linux@rasmusvillemoes.dk>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id D6D126B0032
+	for <linux-mm@kvack.org>; Fri, 31 May 2013 11:14:58 -0400 (EDT)
+Date: Fri, 31 May 2013 11:14:54 -0400
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: [PATCH v4 20/20] ext4: Allow punch hole with bigalloc enabled
+Message-ID: <20130531151454.GB19561@thunk.org>
+References: <1368549454-8930-1-git-send-email-lczerner@redhat.com>
+ <1368549454-8930-21-git-send-email-lczerner@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1368549454-8930-21-git-send-email-lczerner@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rasmus Villemoes <linux@rasmusvillemoes.dk>
+To: Lukas Czerner <lczerner@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, akpm@linux-foundation.org, hughd@google.com
 
-This patch is very similar to 84d96d897671: Perform some basic
-validation of the input to mremap() before taking the
-&current->mm->mmap_sem lock. This also makes the MREMAP_FIXED =>
-MREMAP_MAYMOVE dependency slightly more explicit.
+On Tue, May 14, 2013 at 06:37:34PM +0200, Lukas Czerner wrote:
+> In commits 5f95d21fb6f2aaa52830e5b7fb405f6c71d3ab85 and
+> 30bc2ec9598a1b156ad75217f2e7d4560efdeeab we've reworked punch_hole
+> implementation and there is noting holding us back from using punch hole
+> on file system with bigalloc feature enabled.
+> 
+> This has been tested with fsx and xfstests.
+> 
+> Signed-off-by: Lukas Czerner <lczerner@redhat.com>
+> Reviewed-by: Jan Kara <jack@suse.cz>
 
-Signed-off-by: Rasmus Villemoes <linux@rasmusvillemoes.dk>
----
- mm/mremap.c |   18 ++++++++++--------
- 1 file changed, 10 insertions(+), 8 deletions(-)
+This patch is causing a test failure with bigalloc enabled with the
+xfstests shared/298.
 
-diff --git a/mm/mremap.c b/mm/mremap.c
-index 463a257..00b6905 100644
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -456,13 +456,14 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
- 	unsigned long charged = 0;
- 	bool locked = false;
- 
--	down_write(&current->mm->mmap_sem);
--
- 	if (flags & ~(MREMAP_FIXED | MREMAP_MAYMOVE))
--		goto out;
-+		return ret;
-+
-+	if (flags & MREMAP_FIXED && !(flags & MREMAP_MAYMOVE))
-+		return ret;
- 
- 	if (addr & ~PAGE_MASK)
--		goto out;
-+		return ret;
- 
- 	old_len = PAGE_ALIGN(old_len);
- 	new_len = PAGE_ALIGN(new_len);
-@@ -473,12 +474,13 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
- 	 * a zero new-len is nonsensical.
- 	 */
- 	if (!new_len)
--		goto out;
-+		return ret;
-+
-+	down_write(&current->mm->mmap_sem);
- 
- 	if (flags & MREMAP_FIXED) {
--		if (flags & MREMAP_MAYMOVE)
--			ret = mremap_to(addr, old_len, new_addr, new_len,
--					&locked);
-+		ret = mremap_to(addr, old_len, new_addr, new_len,
-+				&locked);
- 		goto out;
- 	}
- 
--- 
-1.7.9.5
+Since it's at the end of the invalidate page range tests, I'm going to
+drop this patch for now.  Could you take a look at this?
+
+Thanks!!
+
+					- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
