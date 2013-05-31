@@ -1,59 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id AEEEF6B0033
-	for <linux-mm@kvack.org>; Fri, 31 May 2013 17:45:59 -0400 (EDT)
-Received: from /spool/local
-	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Fri, 31 May 2013 15:45:58 -0600
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 732873E4006C
-	for <linux-mm@kvack.org>; Fri, 31 May 2013 15:45:38 -0600 (MDT)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4VLjsjE147878
-	for <linux-mm@kvack.org>; Fri, 31 May 2013 15:45:55 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4VLjsj5023039
-	for <linux-mm@kvack.org>; Fri, 31 May 2013 15:45:54 -0600
-Message-ID: <51A91A0F.4020408@linux.vnet.ibm.com>
-Date: Fri, 31 May 2013 14:45:51 -0700
-From: Cody P Schafer <cody@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2]  drivers/base: Use attribute groups to create sysfs
- memory files
-References: <51A908A3.7010006@linux.vnet.ibm.com>
-In-Reply-To: <51A908A3.7010006@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id E6BBA6B0034
+	for <linux-mm@kvack.org>; Fri, 31 May 2013 17:46:38 -0400 (EDT)
+Date: Fri, 31 May 2013 14:46:36 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch] mm, memcg: add oom killer delay
+Message-Id: <20130531144636.6b34c6ba48105482d1241a40@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.02.1305291817280.520@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1305291817280.520@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nathan Fontenot <nfont@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On 05/31/2013 01:31 PM, Nathan Fontenot wrote:
-> Update the sysfs memory code to create/delete files at the time of device
-> and subsystem registration.
->
-> The current code creates files in the root memory directory explicitly through
-> the use of init_* routines. The files for each memory block are created and
-> deleted explicitly using the mem_[create|delete]_simple_file macros.
->
-> This patch creates attribute groups for the memory root files and files in
-> each memory block directory so that they are created and deleted implicitly
-> at subsys and device register and unregister time.
->
-> This did necessitate moving the register_memory() updating it to set the
-> dev.groups field.
->
-> Signed-off-by: Nathan Fontenot <nfont@linux.vnet.ibm.com>
->
-> Please cc me on responses/comments.
->
-> v2: refreshed the patch, previous version was corrupted. There is no difference
-> otherwise between this patch and the previous one sent out.
+On Wed, 29 May 2013 18:18:10 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
 
-Still looks broken. Tabs have been converted into spaces, and the top of 
-the patch is whitespace padded to 80 characters.
+> Completely disabling the oom killer for a memcg is problematic if
+> userspace is unable to address the condition itself, usually because it
+> is unresponsive.  This scenario creates a memcg deadlock: tasks are
+> sitting in TASK_KILLABLE waiting for the limit to be increased, a task to
+> exit or move, or the oom killer reenabled and userspace is unable to do
+> so.
+> 
+> An additional possible use case is to defer oom killing within a memcg
+> for a set period of time, probably to prevent unnecessary kills due to
+> temporary memory spikes, before allowing the kernel to handle the
+> condition.
+> 
+> This patch adds an oom killer delay so that a memcg may be configured to
+> wait at least a pre-defined number of milliseconds before calling the oom
+> killer.  If the oom condition persists for this number of milliseconds,
+> the oom killer will be called the next time the memory controller
+> attempts to charge a page (and memory.oom_control is set to 0).  This
+> allows userspace to have a short period of time to respond to the
+> condition before deferring to the kernel to kill a task.
+> 
+> Admins may set the oom killer delay using the new interface:
+> 
+> 	# echo 60000 > memory.oom_delay_millisecs
+> 
+> This will defer oom killing to the kernel only after 60 seconds has
+> elapsed by putting the task to sleep for 60 seconds.
+
+How often is that delay actually useful, in the real world?
+
+IOW, in what proportion of cases does the system just remain stuck for
+60 seconds and then get an oom-killing?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
