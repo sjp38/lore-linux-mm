@@ -1,68 +1,283 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 9F0636B0033
-	for <linux-mm@kvack.org>; Fri, 31 May 2013 15:46:41 -0400 (EDT)
-Date: Fri, 31 May 2013 15:46:24 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1370029584-qjpvbow1-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20130531123003.1baf00c89bb25514de63c4f6@linux-foundation.org>
-References: <1369770771-8447-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1369770771-8447-3-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20130531123003.1baf00c89bb25514de63c4f6@linux-foundation.org>
-Subject: Re: [PATCH v3 2/2] migrate: add migrate_entry_wait_huge()
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 53D616B0036
+	for <linux-mm@kvack.org>; Fri, 31 May 2013 16:31:43 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nfont@linux.vnet.ibm.com>;
+	Sat, 1 Jun 2013 01:54:39 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id AFF653940057
+	for <linux-mm@kvack.org>; Sat,  1 Jun 2013 02:01:37 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4VKVUYb7733718
+	for <linux-mm@kvack.org>; Sat, 1 Jun 2013 02:01:31 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4VKVYAq026523
+	for <linux-mm@kvack.org>; Sat, 1 Jun 2013 06:31:34 +1000
+Message-ID: <51A908A3.7010006@linux.vnet.ibm.com>
+Date: Fri, 31 May 2013 15:31:31 -0500
+From: Nathan Fontenot <nfont@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: [PATCH v2]  drivers/base: Use attribute groups to create sysfs memory
+ files
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-> That changelog is not suitable for a -stable patch.  People who
-> maintain and utilize the stable trees need to know in some detail what
-> is the end-user impact of the patch (or, equivalently, of the bug
-> which the patch fixes).
+Update the sysfs memory code to create/delete files at the time of device
+and subsystem registration.
 
-OK. So, could you insert the following sentence?
+The current code creates files in the root memory directory explicitly through
+the use of init_* routines. The files for each memory block are created and
+deleted explicitly using the mem_[create|delete]_simple_file macros.
 
-On Fri, May 31, 2013 at 12:30:03PM -0700, Andrew Morton wrote:
-> On Tue, 28 May 2013 15:52:51 -0400 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
-> 
-> > When we have a page fault for the address which is backed by a hugepage
-> > under migration, the kernel can't wait correctly and do busy looping on
-> > hugepage fault until the migration finishes.
+This patch creates attribute groups for the memory root files and files in
+each memory block directory so that they are created and deleted implicitly
+at subsys and device register and unregister time.
+ 
+This did necessitate moving the register_memory() updating it to set the
+dev.groups field.            
+                                                                                
+Signed-off-by: Nathan Fontenot <nfont@linux.vnet.ibm.com>                       
+                                                                                
+Please cc me on responses/comments.                                             
 
-As a result, users who try to kick hugepage migration (via soft offlining,
-for example) occasionally experience long delay or soft lockup.
+v2: refreshed the patch, previous version was corrupted. There is no difference
+otherwise between this patch and the previous one sent out.
 
-Thanks,
-Naoya
-
-> > This is because pte_offset_map_lock() can't get a correct migration entry
-> > or a correct page table lock for hugepage.
-> > This patch introduces migration_entry_wait_huge() to solve this.
-> > 
-> > Note that the caller, hugetlb_fault(), gets the pointer to the "leaf"
-> > entry with huge_pte_offset() inside which all the arch-dependency of
-> > the page table structure are. So migration_entry_wait_huge() and
-> > __migration_entry_wait() are free from arch-dependency.
-> > 
-> > ChangeLog v3:
-> >  - use huge_pte_lockptr
-> > 
-> > ChangeLog v2:
-> >  - remove dup in migrate_entry_wait_huge()
-> > 
-> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > Reviewed-by: Rik van Riel <riel@redhat.com>
-> > Cc: stable@vger.kernel.org # 2.6.35
-> 
-> That changelog is not suitable for a -stable patch.  People who
-> maintain and utilize the stable trees need to know in some detail what
-> is the end-user impact of the patch (or, equivalently, of the bug
-> which the patch fixes).
+---                                                                             
+ drivers/base/memory.c |  143 +++++++++++++++++++++-----------------------------
+ 1 file changed, 62 insertions(+), 81 deletions(-)                              
+                                                                                
+Index: linux/drivers/base/memory.c                                              
+===================================================================             
+--- linux.orig/drivers/base/memory.c    2013-05-31 14:14:40.000000000 -0500     
++++ linux/drivers/base/memory.c 2013-05-31 14:15:05.000000000 -0500             
+@@ -77,22 +77,6 @@                                                              
+        kfree(mem);                                                             
+ }                                                                              
+                                                                                
+-/*                                                                             
+- * register_memory - Setup a sysfs device for a memory block
+- */
+-static
+-int register_memory(struct memory_block *memory)
+-{
+-       int error;
+-
+-       memory->dev.bus = &memory_subsys;
+-       memory->dev.id = memory->start_section_nr / sections_per_block;
+-       memory->dev.release = memory_block_release;
+-
+-       error = device_register(&memory->dev);
+-       return error;
+-}
+-
+ unsigned long __weak memory_block_size_bytes(void)
+ {
+        return MIN_MEMORY_BLOCK_SIZE;
+@@ -371,11 +355,6 @@
+ static DEVICE_ATTR(phys_device, 0444, show_phys_device, NULL);
+ static DEVICE_ATTR(removable, 0444, show_mem_removable, NULL);
+ 
+-#define mem_create_simple_file(mem, attr_name) \
+-       device_create_file(&mem->dev, &dev_attr_##attr_name)
+-#define mem_remove_simple_file(mem, attr_name) \
+-       device_remove_file(&mem->dev, &dev_attr_##attr_name)
+-
+ /*
+  * Block size attribute stuff
+  */
+@@ -388,12 +367,6 @@
+ 
+ static DEVICE_ATTR(block_size_bytes, 0444, print_block_size, NULL);
+ 
+-static int block_size_init(void)
+-{
+-       return device_create_file(memory_subsys.dev_root,
+-                                 &dev_attr_block_size_bytes);
+-}
+-
+ /*
+  * Some architectures will have custom drivers to do this, and
+  * will not need to do it from userspace.  The fake hot-add code
+@@ -429,17 +402,8 @@
+ out:
+        return ret;
+ }
+-static DEVICE_ATTR(probe, S_IWUSR, NULL, memory_probe_store);
+ 
+-static int memory_probe_init(void)
+-{
+-       return device_create_file(memory_subsys.dev_root, &dev_attr_probe);
+-}
+-#else
+-static inline int memory_probe_init(void)
+-{
+-       return 0;
+-}
++static DEVICE_ATTR(probe, S_IWUSR, NULL, memory_probe_store);
+ #endif
+ 
+ #ifdef CONFIG_MEMORY_FAILURE
+@@ -485,23 +449,6 @@
+ 
+ static DEVICE_ATTR(soft_offline_page, S_IWUSR, NULL, store_soft_offline_page);
+ static DEVICE_ATTR(hard_offline_page, S_IWUSR, NULL, store_hard_offline_page);
+-
+-static __init int memory_fail_init(void)
+-{
+-       int err;
+-
+-       err = device_create_file(memory_subsys.dev_root,
+-                               &dev_attr_soft_offline_page);
+-       if (!err)
+-               err = device_create_file(memory_subsys.dev_root,
+-                               &dev_attr_hard_offline_page);
+-       return err;
+-}
+-#else
+-static inline int memory_fail_init(void)
+-{
+-       return 0;
+-}
+ #endif
+ 
+ /*
+@@ -546,6 +493,41 @@
+        return find_memory_block_hinted(section, NULL);
+ }
+ 
++static struct attribute *memory_memblk_attrs[] = {
++       &dev_attr_phys_index.attr,
++       &dev_attr_end_phys_index.attr,
++       &dev_attr_state.attr,
++       &dev_attr_phys_device.attr,
++       &dev_attr_removable.attr,
++       NULL
++};
++
++static struct attribute_group memory_memblk_attr_group = {
++       .attrs = memory_memblk_attrs,
++};
++
++static const struct attribute_group *memory_memblk_attr_groups[] = {
++       &memory_memblk_attr_group,
++       NULL,
++};
++
++/*
++ * register_memory - Setup a sysfs device for a memory block
++ */
++static
++int register_memory(struct memory_block *memory)
++{
++       int error;
++
++       memory->dev.bus = &memory_subsys;
++       memory->dev.id = memory->start_section_nr / sections_per_block;
++       memory->dev.release = memory_block_release;
++       memory->dev.groups = memory_memblk_attr_groups;
++
++       error = device_register(&memory->dev);
++       return error;
++}
++
+ static int init_memory_block(struct memory_block **memory,
+                             struct mem_section *section, unsigned long state)
+ {
+@@ -569,16 +551,6 @@
+        mem->phys_device = arch_get_memory_phys_device(start_pfn);
+ 
+        ret = register_memory(mem);
+-       if (!ret)
+-               ret = mem_create_simple_file(mem, phys_index);
+-       if (!ret)
+-               ret = mem_create_simple_file(mem, end_phys_index);
+-       if (!ret)
+-               ret = mem_create_simple_file(mem, state);
+-       if (!ret)
+-               ret = mem_create_simple_file(mem, phys_device);
+-       if (!ret)
+-               ret = mem_create_simple_file(mem, removable);
+ 
+        *memory = mem;
+        return ret;
+@@ -656,14 +628,9 @@
+        unregister_mem_sect_under_nodes(mem, __section_nr(section));
+ 
+        mem->section_count--;
+-       if (mem->section_count == 0) {
+-               mem_remove_simple_file(mem, phys_index);
+-               mem_remove_simple_file(mem, end_phys_index);
+-               mem_remove_simple_file(mem, state);
+-               mem_remove_simple_file(mem, phys_device);
+-               mem_remove_simple_file(mem, removable);
++       if (mem->section_count == 0)
+                unregister_memory(mem);
+-       } else
++       else
+                kobject_put(&mem->dev.kobj);
+ 
+        mutex_unlock(&mem_sysfs_mutex);
+@@ -700,6 +667,29 @@
+        return mem->state == MEM_OFFLINE;
+ }
+ 
++static struct attribute *memory_root_attrs[] = {
++#ifdef CONFIG_ARCH_MEMORY_PROBE
++       &dev_attr_probe.attr,
++#endif
++
++#ifdef CONFIG_MEMORY_FAILURE
++       &dev_attr_soft_offline_page.attr,
++       &dev_attr_hard_offline_page.attr,
++#endif
++
++       &dev_attr_block_size_bytes.attr,
++       NULL
++};
++
++static struct attribute_group memory_root_attr_group = {
++       .attrs = memory_root_attrs,
++};
++
++static const struct attribute_group *memory_root_attr_groups[] = {
++       &memory_root_attr_group,
++       NULL,
++};
++
+ /*
+  * Initialize the sysfs support for memory devices...
+  */
+@@ -711,7 +701,7 @@
+        unsigned long block_sz;
+        struct memory_block *mem = NULL;
+ 
+-       ret = subsys_system_register(&memory_subsys, NULL);
++       ret = subsys_system_register(&memory_subsys, memory_root_attr_groups);
+        if (ret)
+                goto out;
+ 
+@@ -734,15 +724,6 @@
+                        ret = err;
+        }
+ 
+-       err = memory_probe_init();
+-       if (!ret)
+-               ret = err;
+-       err = memory_fail_init();
+-       if (!ret)
+-               ret = err;
+-       err = block_size_init();
+-       if (!ret)
+-               ret = err;
+ out:
+        if (ret)
+                printk(KERN_ERR "%s() failed: %d\n", __func__, ret);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
