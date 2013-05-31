@@ -1,71 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 779216B003B
-	for <linux-mm@kvack.org>; Fri, 31 May 2013 14:39:05 -0400 (EDT)
-Subject: [v4][PATCH 6/6] mm: vmscan: drain batch list during long operations
-From: Dave Hansen <dave@sr71.net>
-Date: Fri, 31 May 2013 11:39:04 -0700
-References: <20130531183855.44DDF928@viggo.jf.intel.com>
-In-Reply-To: <20130531183855.44DDF928@viggo.jf.intel.com>
-Message-Id: <20130531183904.76C2B57D@viggo.jf.intel.com>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 6ACE36B0033
+	for <linux-mm@kvack.org>; Fri, 31 May 2013 15:29:20 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id xb12so2734431pbc.28
+        for <linux-mm@kvack.org>; Fri, 31 May 2013 12:29:19 -0700 (PDT)
+Date: Fri, 31 May 2013 12:29:17 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm, memcg: add oom killer delay
+In-Reply-To: <20130531112116.GC32491@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.02.1305311224330.3434@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1305291817280.520@chino.kir.corp.google.com> <20130530150539.GA18155@dhcp22.suse.cz> <alpine.DEB.2.02.1305301338430.20389@chino.kir.corp.google.com> <20130531081052.GA32491@dhcp22.suse.cz> <alpine.DEB.2.02.1305310316210.27716@chino.kir.corp.google.com>
+ <20130531112116.GC32491@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de, tim.c.chen@linux.intel.com, Dave Hansen <dave@sr71.net>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
+On Fri, 31 May 2013, Michal Hocko wrote:
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+> > We allow users to control their own memcgs by chowning them, so they must 
+> > be run in the same hierarchy if they want to run their own userspace oom 
+> > handler.  There's nothing in the kernel that prevents that and the user 
+> > has no other option but to run in a parent cgroup.
+> 
+> If the access to the oom_control file is controlled by the file
+> permissions then the oom handler can live inside root cgroup. Why do you
+> need "must be in the same hierarchy" requirement?
+> 
 
-This was a suggestion from Mel:
+Users obviously don't have the ability to attach processes to the root 
+memcg.  They are constrained to their own subtree of memcgs.
 
-	http://lkml.kernel.org/r/20120914085634.GM11157@csn.ul.ie
+> > It's too easy to simply do even a "ps ax" in an oom memcg and make that 
+> > thread completely unresponsive because it allocates memory.
+> 
+> Yes, but we are talking about oom handler and that one has to be really
+> careful about what it does. So doing something that simply allocates is
+> dangerous.
+> 
 
-Any pages we collect on 'batch_for_mapping_removal' will have
-their lock_page() held during the duration of their stay on the
-list.  If some other user is trying to get at them during this
-time, they might end up having to wait.
+Show me a userspace oom handler that doesn't get notified of every fork() 
+in a memcg, causing a performance degradation of its own for a complete 
+and utter slowpath, that will know the entire process tree of its own 
+memcg or a child memcg.
 
-This ensures that we drain the batch if we are about to perform a
-pageout() or congestion_wait(), either of which will take some
-time.  We expect this to help mitigate the worst of the latency
-increase that the batching could cause.
+This discussion is all fine and good from a theoretical point of view 
+until you actually have to implement one of these yourself.  Multiple 
+users are going to be running their own oom notifiers and without some 
+sort of failsafe, such as memory.oom_delay_millisecs, a memcg can too 
+easily deadlock looking for memory.  If that user is constrained to his or 
+her own subtree, as previously stated, there's also no way to login and 
+rectify the situation at that point and requires admin intervention or a 
+reboot.
 
-I added some statistics to the __remove_mapping_batch() code to
-track how large the lists are that we pass in to it.  With this
-patch, the average list length drops about 10% (from about 4.1 to
-3.8).  The workload here was a make -j4 kernel compile on a VM
-with 200MB of RAM.
+> > Then perhaps I'm raising constraints that you've never worked with, I 
+> > don't know.  We choose to have a priority-based approach that is inherited 
+> > by children; this priority is kept in userspace and and the oom handler 
+> > would naturally need to know the set of tasks in the oom memcg at the time 
+> > of oom and their parent-child relationship.  These priorities are 
+> > completely independent of memory usage.
+> 
+> OK, but both reading tasks file and readdir should be doable without
+> userspace (aka charged) allocations. Moreover if you run those oom
+> handlers under the root cgroup then it should be even easier.
 
-I've still got the statistics patch around if anyone is
-interested.
+Then why does "cat tasks" stall when my memcg is totally depleted of all 
+memory?
 
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
----
-
- linux.git-davehans/mm/vmscan.c |   10 ++++++++++
- 1 file changed, 10 insertions(+)
-
-diff -puN mm/vmscan.c~drain-batch-list-during-long-operations mm/vmscan.c
---- linux.git/mm/vmscan.c~drain-batch-list-during-long-operations	2013-05-30 16:07:51.962138013 -0700
-+++ linux.git-davehans/mm/vmscan.c	2013-05-30 16:07:51.966138189 -0700
-@@ -1003,6 +1003,16 @@ static unsigned long shrink_page_list(st
- 			if (!sc->may_writepage)
- 				goto keep_locked;
- 
-+			/*
-+			 * We hold a bunch of page locks on the batch.
-+			 * pageout() can take a while, so drain the
-+			 * batch before we perform pageout.
-+			 */
-+			nr_reclaimed +=
-+		               __remove_mapping_batch(&batch_for_mapping_rm,
-+		                                      &ret_pages,
-+		                                      &free_pages);
-+
- 			/* Page is dirty, try to write it out here */
- 			switch (pageout(page, mapping, sc)) {
- 			case PAGE_KEEP:
-_
+This isn't even the argument because memory.oom_delay_millisecs isn't 
+going to help that situation.  I'm talking about a failsafe that ensures a 
+memcg can't deadlock.  The global oom killer will always have to exist in 
+the kernel, at least in the most simplistic of forms, solely for this 
+reason; you can't move all of the logic to userspace and expect it to 
+react 100% of the time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
