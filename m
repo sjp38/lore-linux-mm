@@ -1,125 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id B05616B0033
-	for <linux-mm@kvack.org>; Fri, 31 May 2013 00:09:18 -0400 (EDT)
-Received: by mail-vc0-f179.google.com with SMTP id hz10so747839vcb.10
-        for <linux-mm@kvack.org>; Thu, 30 May 2013 21:09:17 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id A53CE6B0033
+	for <linux-mm@kvack.org>; Fri, 31 May 2013 00:31:20 -0400 (EDT)
+Received: by mail-pb0-f45.google.com with SMTP id mc17so1546993pbc.18
+        for <linux-mm@kvack.org>; Thu, 30 May 2013 21:31:19 -0700 (PDT)
+Message-ID: <51A82793.4080204@gmail.com>
+Date: Fri, 31 May 2013 12:31:15 +0800
+From: Jiang Liu <liuj97@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20130529175125.GJ12193@twins.programming.kicks-ass.net>
-References: <CAMo8BfL4QfJrfejNKmBDhAVdmE=_Ys6MVUH5Xa3w_mU41hwx0A@mail.gmail.com>
-	<CAMo8BfJie1Y49QeSJ+JTQb9WsYJkMMkb1BkKz2Gzy3T7V6ogHA@mail.gmail.com>
-	<51A45861.1010008@gmail.com>
-	<20130529122728.GA27176@twins.programming.kicks-ass.net>
-	<51A5F7A7.5020604@synopsys.com>
-	<20130529175125.GJ12193@twins.programming.kicks-ass.net>
-Date: Fri, 31 May 2013 08:09:17 +0400
-Message-ID: <CAMo8BfJtkEtf9RKsGRnOnZ5zbJQz5tW4HeDfydFq_ZnrFr8opw@mail.gmail.com>
-Subject: Re: TLB and PTE coherency during munmap
-From: Max Filippov <jcmvbkbc@gmail.com>
+Subject: Re: [PATCH v8, part3 06/14] mm, acornfb: use free_reserved_area()
+ to simplify code
+References: <1369575522-26405-1-git-send-email-jiang.liu@huawei.com> <1369575522-26405-7-git-send-email-jiang.liu@huawei.com> <20130530145844.902b3a947c1f7430c1c2ecf5@linux-foundation.org>
+In-Reply-To: <20130530145844.902b3a947c1f7430c1c2ecf5@linux-foundation.org>
 Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Vineet Gupta <Vineet.Gupta1@synopsys.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, Ralf Baechle <ralf@linux-mips.org>, Chris Zankel <chris@zankel.net>, Marc Gauthier <Marc.Gauthier@tensilica.com>, linux-xtensa@linux-xtensa.org, Hugh Dickins <hughd@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <james.bottomley@hansenpartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Florian Tobias Schandinat <florianschandinat@gmx.de>, linux-fbdev@vger.kernel.org
 
-Hi Peter,
-
-On Wed, May 29, 2013 at 9:51 PM, Peter Zijlstra <peterz@infradead.org> wrote:
-> What about something like this?
-
-With that patch I still get mtest05 firing my TLB/PTE incoherency check
-in the UP PREEMPT_VOLUNTARY configuration. This happens after
-zap_pte_range completion in the end of unmap_region because of
-rescheduling called in the following call chain:
-
-unmap_region
-  free_pgtables
-    unlink_anon_vmas
-      lock_anon_vma_root
-        down_write
-          might_sleep
-            might_resched
-              _cond_resched
-
-
+On Fri 31 May 2013 05:58:44 AM CST, Andrew Morton wrote:
+> On Sun, 26 May 2013 21:38:34 +0800 Jiang Liu <liuj97@gmail.com> wrote:
 >
-> ---
->  include/asm-generic/tlb.h | 11 ++++++++++-
->  mm/memory.c               | 17 ++++++++++++++++-
->  2 files changed, 26 insertions(+), 2 deletions(-)
+>> Use common help function free_reserved_area() to simplify code.
 >
-> diff --git a/include/asm-generic/tlb.h b/include/asm-generic/tlb.h
-> index b1b1fa6..651b1cf 100644
-> --- a/include/asm-generic/tlb.h
-> +++ b/include/asm-generic/tlb.h
-> @@ -116,6 +116,7 @@ struct mmu_gather {
->
->  static inline int tlb_fast_mode(struct mmu_gather *tlb)
->  {
-> +#ifndef CONFIG_PREEMPT
->  #ifdef CONFIG_SMP
->         return tlb->fast_mode;
->  #else
-> @@ -124,7 +125,15 @@ static inline int tlb_fast_mode(struct mmu_gather *tlb)
->          * and page free order so much..
->          */
->         return 1;
-> -#endif
-> +#endif /* CONFIG_SMP */
-> +#else  /* CONFIG_PREEMPT */
-> +       /*
-> +        * Since mmu_gather is preemptible, preemptible kernels are like SMP
-> +        * kernels, we must batch to make sure we invalidate TLBs before we
-> +        * free the pages.
-> +        */
-> +       return 0;
-> +#endif /* CONFIG_PREEMPT */
->  }
->
->  void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, bool fullmm);
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 6dc1882..e915af2 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -384,6 +384,21 @@ void tlb_remove_table(struct mmu_gather *tlb, void *table)
->
->  #endif /* CONFIG_HAVE_RCU_TABLE_FREE */
->
-> +static inline void cond_resched_tlb(struct mmu_gather *tlb)
-> +{
-> +#ifndef CONFIG_PREEMPT
-> +       /*
-> +        * For full preempt kernels we must do regular batching like
-> +        * SMP, see tlb_fast_mode(). For !PREEMPT we can 'cheat' and
-> +        * do a flush before our voluntary 'yield'.
-> +        */
-> +       if (need_resched()) {
-> +               tlb_flush_mmu(tlb);
-> +               cond_resched();
-> +       }
-> +#endif
-> +}
-> +
->  /*
->   * If a p?d_bad entry is found while walking page tables, report
->   * the error, before resetting entry to p?d_none.  Usually (but
-> @@ -1264,7 +1279,7 @@ static inline unsigned long zap_pmd_range(struct mmu_gather *tlb,
->                         goto next;
->                 next = zap_pte_range(tlb, vma, pmd, addr, next, details);
->  next:
-> -               cond_resched();
-> +               cond_resched_tlb(tlb);
->         } while (pmd++, addr = next, addr != end);
->
->         return addr;
->
->
-
-
-
--- 
-Thanks.
--- Max
+> http://ozlabs.org/~akpm/mmots/broken-out/drivers-video-acornfbc-remove-dead-code.patch
+> removes all the code which your patch alters.
+Thanks Andrew, please just drop that patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
