@@ -1,95 +1,178 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 1CDEC6B0034
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 15:30:36 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 7EE506B0034
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 15:30:41 -0400 (EDT)
 From: Glauber Costa <glommer@openvz.org>
-Subject: [PATCH v10 03/35] dcache: convert dentry_stat.nr_unused to per-cpu counters
-Date: Mon,  3 Jun 2013 23:29:32 +0400
-Message-Id: <1370287804-3481-4-git-send-email-glommer@openvz.org>
+Subject: [PATCH v10 02/35] super: fix calculation of shrinkable objects for small numbers
+Date: Mon,  3 Jun 2013 23:29:31 +0400
+Message-Id: <1370287804-3481-3-git-send-email-glommer@openvz.org>
 In-Reply-To: <1370287804-3481-1-git-send-email-glommer@openvz.org>
 References: <1370287804-3481-1-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>
+Cc: linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@openvz.org>, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
 
-From: Dave Chinner <dchinner@redhat.com>
+The sysctl knob sysctl_vfs_cache_pressure is used to determine which
+percentage of the shrinkable objects in our cache we should actively try
+to shrink.
 
-Before we split up the dcache_lru_lock, the unused dentry counter
-needs to be made independent of the global dcache_lru_lock. Convert
-it to per-cpu counters to do this.
+It works great in situations in which we have many objects (at least
+more than 100), because the aproximation errors will be negligible. But
+if this is not the case, specially when total_objects < 100, we may end
+up concluding that we have no objects at all (total / 100 = 0,  if total
+< 100).
 
-[ v5: comment about possible cpus ]
-Signed-off-by: Dave Chinner <dchinner@redhat.com>
-Reviewed-by: Christoph Hellwig <hch@lst.de>
+This is certainly not the biggest killer in the world, but may matter in
+very low kernel memory situations.
+
+[ v2: fix it for all occurrences of sysctl_vfs_cache_pressure ]
+
+Signed-off-by: Glauber Costa <glommer@openvz.org>
+Reviewed-by: Carlos Maiolino <cmaiolino@redhat.com>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Acked-by: Mel Gorman <mgorman@suse.de>
+CC: Dave Chinner <david@fromorbit.com>
+CC: "Theodore Ts'o" <tytso@mit.edu>
+CC: Al Viro <viro@zeniv.linux.org.uk>
 ---
- fs/dcache.c | 18 +++++++++++++++---
- 1 file changed, 15 insertions(+), 3 deletions(-)
+ fs/gfs2/glock.c        |  2 +-
+ fs/gfs2/quota.c        |  2 +-
+ fs/mbcache.c           |  2 +-
+ fs/nfs/dir.c           |  2 +-
+ fs/quota/dquot.c       |  5 ++---
+ fs/super.c             | 14 +++++++-------
+ fs/xfs/xfs_qm.c        |  2 +-
+ include/linux/dcache.h |  4 ++++
+ 8 files changed, 18 insertions(+), 15 deletions(-)
 
-diff --git a/fs/dcache.c b/fs/dcache.c
-index aca4e4b..9f2aa96 100644
---- a/fs/dcache.c
-+++ b/fs/dcache.c
-@@ -118,8 +118,10 @@ struct dentry_stat_t dentry_stat = {
- };
- 
- static DEFINE_PER_CPU(long, nr_dentry);
-+static DEFINE_PER_CPU(long, nr_dentry_unused);
- 
- #if defined(CONFIG_SYSCTL) && defined(CONFIG_PROC_FS)
-+/* scan possible cpus instead of online and avoid worrying about CPU hotplug. */
- static long get_nr_dentry(void)
- {
- 	int i;
-@@ -129,10 +131,20 @@ static long get_nr_dentry(void)
- 	return sum < 0 ? 0 : sum;
- }
- 
-+static long get_nr_dentry_unused(void)
-+{
-+	int i;
-+	long sum = 0;
-+	for_each_possible_cpu(i)
-+		sum += per_cpu(nr_dentry_unused, i);
-+	return sum < 0 ? 0 : sum;
-+}
-+
- int proc_nr_dentry(ctl_table *table, int write, void __user *buffer,
- 		   size_t *lenp, loff_t *ppos)
- {
- 	dentry_stat.nr_dentry = get_nr_dentry();
-+	dentry_stat.nr_unused = get_nr_dentry_unused();
- 	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
- }
- #endif
-@@ -312,7 +324,7 @@ static void dentry_lru_add(struct dentry *dentry)
- 		spin_lock(&dcache_lru_lock);
- 		list_add(&dentry->d_lru, &dentry->d_sb->s_dentry_lru);
- 		dentry->d_sb->s_nr_dentry_unused++;
--		dentry_stat.nr_unused++;
-+		this_cpu_inc(nr_dentry_unused);
- 		spin_unlock(&dcache_lru_lock);
+diff --git a/fs/gfs2/glock.c b/fs/gfs2/glock.c
+index 9435384..3bd2748 100644
+--- a/fs/gfs2/glock.c
++++ b/fs/gfs2/glock.c
+@@ -1463,7 +1463,7 @@ static int gfs2_shrink_glock_memory(struct shrinker *shrink,
+ 		gfs2_scan_glock_lru(sc->nr_to_scan);
  	}
+ 
+-	return (atomic_read(&lru_count) / 100) * sysctl_vfs_cache_pressure;
++	return vfs_pressure_ratio(atomic_read(&lru_count));
  }
-@@ -322,7 +334,7 @@ static void __dentry_lru_del(struct dentry *dentry)
- 	list_del_init(&dentry->d_lru);
- 	dentry->d_flags &= ~DCACHE_SHRINK_LIST;
- 	dentry->d_sb->s_nr_dentry_unused--;
--	dentry_stat.nr_unused--;
-+	this_cpu_dec(nr_dentry_unused);
+ 
+ static struct shrinker glock_shrinker = {
+diff --git a/fs/gfs2/quota.c b/fs/gfs2/quota.c
+index c253b13..f9f4077 100644
+--- a/fs/gfs2/quota.c
++++ b/fs/gfs2/quota.c
+@@ -114,7 +114,7 @@ int gfs2_shrink_qd_memory(struct shrinker *shrink, struct shrink_control *sc)
+ 	spin_unlock(&qd_lru_lock);
+ 
+ out:
+-	return (atomic_read(&qd_lru_count) * sysctl_vfs_cache_pressure) / 100;
++	return vfs_pressure_ratio(atomic_read(&qd_lru_count));
+ }
+ 
+ static u64 qd2index(struct gfs2_quota_data *qd)
+diff --git a/fs/mbcache.c b/fs/mbcache.c
+index 8c32ef3..5eb0476 100644
+--- a/fs/mbcache.c
++++ b/fs/mbcache.c
+@@ -189,7 +189,7 @@ mb_cache_shrink_fn(struct shrinker *shrink, struct shrink_control *sc)
+ 	list_for_each_entry_safe(entry, tmp, &free_list, e_lru_list) {
+ 		__mb_cache_entry_forget(entry, gfp_mask);
+ 	}
+-	return (count / 100) * sysctl_vfs_cache_pressure;
++	return vfs_pressure_ratio(count);
+ }
+ 
+ 
+diff --git a/fs/nfs/dir.c b/fs/nfs/dir.c
+index c662ff6..a6a3d05 100644
+--- a/fs/nfs/dir.c
++++ b/fs/nfs/dir.c
+@@ -1978,7 +1978,7 @@ remove_lru_entry:
+ 	}
+ 	spin_unlock(&nfs_access_lru_lock);
+ 	nfs_access_free_list(&head);
+-	return (atomic_long_read(&nfs_access_nr_entries) / 100) * sysctl_vfs_cache_pressure;
++	return vfs_pressure_ratio(atomic_long_read(&nfs_access_nr_entries));
+ }
+ 
+ static void __nfs_access_zap_cache(struct nfs_inode *nfsi, struct list_head *head)
+diff --git a/fs/quota/dquot.c b/fs/quota/dquot.c
+index 3e64169..762b09c 100644
+--- a/fs/quota/dquot.c
++++ b/fs/quota/dquot.c
+@@ -719,9 +719,8 @@ static int shrink_dqcache_memory(struct shrinker *shrink,
+ 		prune_dqcache(nr);
+ 		spin_unlock(&dq_list_lock);
+ 	}
+-	return ((unsigned)
+-		percpu_counter_read_positive(&dqstats.counter[DQST_FREE_DQUOTS])
+-		/100) * sysctl_vfs_cache_pressure;
++	return vfs_pressure_ratio(
++	percpu_counter_read_positive(&dqstats.counter[DQST_FREE_DQUOTS]));
+ }
+ 
+ static struct shrinker dqcache_shrinker = {
+diff --git a/fs/super.c b/fs/super.c
+index 7465d43..2a37fd6 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -82,13 +82,13 @@ static int prune_super(struct shrinker *shrink, struct shrink_control *sc)
+ 		int	inodes;
+ 
+ 		/* proportion the scan between the caches */
+-		dentries = (sc->nr_to_scan * sb->s_nr_dentry_unused) /
+-							total_objects;
+-		inodes = (sc->nr_to_scan * sb->s_nr_inodes_unused) /
+-							total_objects;
++		dentries = mult_frac(sc->nr_to_scan, sb->s_nr_dentry_unused,
++							total_objects);
++		inodes = mult_frac(sc->nr_to_scan, sb->s_nr_inodes_unused,
++							total_objects);
+ 		if (fs_objects)
+-			fs_objects = (sc->nr_to_scan * fs_objects) /
+-							total_objects;
++			fs_objects = mult_frac(sc->nr_to_scan, fs_objects,
++							total_objects);
+ 		/*
+ 		 * prune the dcache first as the icache is pinned by it, then
+ 		 * prune the icache, followed by the filesystem specific caches
+@@ -104,7 +104,7 @@ static int prune_super(struct shrinker *shrink, struct shrink_control *sc)
+ 				sb->s_nr_inodes_unused + fs_objects;
+ 	}
+ 
+-	total_objects = (total_objects / 100) * sysctl_vfs_cache_pressure;
++	total_objects = vfs_pressure_ratio(total_objects);
+ 	drop_super(sb);
+ 	return total_objects;
+ }
+diff --git a/fs/xfs/xfs_qm.c b/fs/xfs/xfs_qm.c
+index f41702b..7ade175 100644
+--- a/fs/xfs/xfs_qm.c
++++ b/fs/xfs/xfs_qm.c
+@@ -1585,7 +1585,7 @@ xfs_qm_shake(
+ 	}
+ 
+ out:
+-	return (qi->qi_lru_count / 100) * sysctl_vfs_cache_pressure;
++	return vfs_pressure_ratio(qi->qi_lru_count);
  }
  
  /*
-@@ -343,7 +355,7 @@ static void dentry_lru_move_list(struct dentry *dentry, struct list_head *list)
- 	if (list_empty(&dentry->d_lru)) {
- 		list_add_tail(&dentry->d_lru, list);
- 		dentry->d_sb->s_nr_dentry_unused++;
--		dentry_stat.nr_unused++;
-+		this_cpu_inc(nr_dentry_unused);
- 	} else {
- 		list_move_tail(&dentry->d_lru, list);
- 	}
+diff --git a/include/linux/dcache.h b/include/linux/dcache.h
+index 1a82bdb..bd08285 100644
+--- a/include/linux/dcache.h
++++ b/include/linux/dcache.h
+@@ -411,4 +411,8 @@ static inline bool d_mountpoint(struct dentry *dentry)
+ 
+ extern int sysctl_vfs_cache_pressure;
+ 
++static inline unsigned long vfs_pressure_ratio(unsigned long val)
++{
++	return mult_frac(val, sysctl_vfs_cache_pressure, 100);
++}
+ #endif	/* __LINUX_DCACHE_H */
 -- 
 1.8.1.4
 
