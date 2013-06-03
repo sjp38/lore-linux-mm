@@ -1,333 +1,210 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 994D06B0002
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 10:59:42 -0400 (EDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <519BEFAE.1080800@sr71.net>
-References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1368321816-17719-24-git-send-email-kirill.shutemov@linux.intel.com>
- <519BEFAE.1080800@sr71.net>
-Subject: Re: [PATCHv4 23/39] thp: wait_split_huge_page(): serialize over
- i_mmap_mutex too
-Content-Transfer-Encoding: 7bit
-Message-Id: <20130603150214.54C34E0090@blue.fi.intel.com>
-Date: Mon,  3 Jun 2013 18:02:14 +0300 (EEST)
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 174D56B0002
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 11:02:10 -0400 (EDT)
+Date: Mon, 3 Jun 2013 11:01:54 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 10/10] mm: workingset: keep shadow entries in check
+Message-ID: <20130603150154.GE15576@cmpxchg.org>
+References: <1369937046-27666-1-git-send-email-hannes@cmpxchg.org>
+ <1369937046-27666-11-git-send-email-hannes@cmpxchg.org>
+ <20130603082209.GG5910@twins.programming.kicks-ass.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130603082209.GG5910@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, metin d <metdos@yahoo.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
 
-Dave Hansen wrote:
-> On 05/11/2013 06:23 PM, Kirill A. Shutemov wrote:
-> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> > 
-> > Since we're going to have huge pages backed by files,
-> > wait_split_huge_page() has to serialize not only over anon_vma_lock,
-> > but over i_mmap_mutex too.
-> ...
-> > -#define wait_split_huge_page(__anon_vma, __pmd)				\
-> > +#define wait_split_huge_page(__vma, __pmd)				\
-> >  	do {								\
-> >  		pmd_t *____pmd = (__pmd);				\
-> > -		anon_vma_lock_write(__anon_vma);			\
-> > -		anon_vma_unlock_write(__anon_vma);			\
-> > +		struct address_space *__mapping =			\
-> > +					vma->vm_file->f_mapping;	\
-> > +		struct anon_vma *__anon_vma = (__vma)->anon_vma;	\
-> > +		if (__mapping)						\
-> > +			mutex_lock(&__mapping->i_mmap_mutex);		\
-> > +		if (__anon_vma) {					\
-> > +			anon_vma_lock_write(__anon_vma);		\
-> > +			anon_vma_unlock_write(__anon_vma);		\
-> > +		}							\
-> > +		if (__mapping)						\
-> > +			mutex_unlock(&__mapping->i_mmap_mutex);		\
-> >  		BUG_ON(pmd_trans_splitting(*____pmd) ||			\
-> >  		       pmd_trans_huge(*____pmd));			\
-> >  	} while (0)
+On Mon, Jun 03, 2013 at 10:22:09AM +0200, Peter Zijlstra wrote:
+> On Thu, May 30, 2013 at 02:04:06PM -0400, Johannes Weiner wrote:
+> > 2. a list of files that contain shadow entries is maintained.  If the
+> >    global number of shadows exceeds a certain threshold, a shrinker is
+> >    activated that reclaims old entries from the mappings.  This is
+> >    heavy-handed but it should not be a common case and is only there
+> >    to protect from accidentally/maliciously induced OOM kills.
 > 
-> Kirill, I asked about this patch in the previous series, and you wrote
-> some very nice, detailed answers to my stupid questions.  But, you
-> didn't add any comments or update the patch description.  So, if a
-> reviewer or anybody looking at the changelog in the future has my same
-> stupid questions, they're unlikely to find the very nice description
-> that you wrote up.
+> Grrr.. another global files list. We've been trying rather hard to get
+> rid of the first one :/
 > 
-> I'd highly suggest that you go back through the comments you've received
-> before and make sure that you both answered the questions, *and* made
-> sure to cover those questions either in the code or in the patch
-> descriptions.
+> I see why you want it but ugh.
 
-Will do.
+I'll try to make it per-SB like the inode list.  It probably won't be
+per-SB shrinkers because of the global nature of the shadow limit, but
+at least per-SB inode lists should be doable.
 
-> Could you also describe the lengths to which you've gone to try and keep
-> this macro from growing in to any larger of an abomination.  Is it truly
-> _impossible_ to turn this in to a normal function?  Or will it simply be
-> a larger amount of work that you can do right now?  What would it take?
+> I have similar worries for your global time counter, large machines
+> might thrash on that one cacheline.
 
-Okay, I've tried once again. The patch is below. It looks too invasive for
-me. What do you think?
+Fair enough.
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 19c8c14..7ed4412 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -1,6 +1,8 @@
- #ifndef _LINUX_HUGE_MM_H
- #define _LINUX_HUGE_MM_H
- 
-+#include <linux/fs.h>
-+
- extern int do_huge_pmd_anonymous_page(struct mm_struct *mm,
- 				      struct vm_area_struct *vma,
- 				      unsigned long address, pmd_t *pmd,
-@@ -114,23 +116,22 @@ extern void __split_huge_page_pmd(struct vm_area_struct *vma,
- 			__split_huge_page_pmd(__vma, __address,		\
- 					____pmd);			\
- 	}  while (0)
--#define wait_split_huge_page(__vma, __pmd)				\
--	do {								\
--		pmd_t *____pmd = (__pmd);				\
--		struct address_space *__mapping =			\
--					vma->vm_file->f_mapping;	\
--		struct anon_vma *__anon_vma = (__vma)->anon_vma;	\
--		if (__mapping)						\
--			mutex_lock(&__mapping->i_mmap_mutex);		\
--		if (__anon_vma) {					\
--			anon_vma_lock_write(__anon_vma);		\
--			anon_vma_unlock_write(__anon_vma);		\
--		}							\
--		if (__mapping)						\
--			mutex_unlock(&__mapping->i_mmap_mutex);		\
--		BUG_ON(pmd_trans_splitting(*____pmd) ||			\
--		       pmd_trans_huge(*____pmd));			\
--	} while (0)
-+static inline void wait_split_huge_page(struct vm_area_struct *vma,
-+		pmd_t *pmd)
-+{
-+	struct address_space *mapping = vma->vm_file->f_mapping;
-+
-+	if (mapping)
-+		mutex_lock(&mapping->i_mmap_mutex);
-+	if (vma->anon_vma) {
-+		anon_vma_lock_write(vma->anon_vma);
-+		anon_vma_unlock_write(vma->anon_vma);
-+	}
-+	if (mapping)
-+		mutex_unlock(&mapping->i_mmap_mutex);
-+	BUG_ON(pmd_trans_splitting(*pmd));
-+	BUG_ON(pmd_trans_huge(*pmd));
-+}
- extern void split_huge_page_pmd_mm(struct mm_struct *mm, unsigned long address,
- 		pmd_t *pmd);
- #if HPAGE_PMD_ORDER > MAX_ORDER
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 0a60f28..9fc126e 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -19,7 +19,6 @@
- #include <linux/shrinker.h>
- 
- struct mempolicy;
--struct anon_vma;
- struct anon_vma_chain;
- struct file_ra_state;
- struct user_struct;
-@@ -260,7 +259,6 @@ static inline int get_freepage_migratetype(struct page *page)
-  * files which need it (119 of them)
+So I'm trying the following idea: instead of the global time counter,
+have per-zone time counters and store the zone along with those local
+timestamps in the shadow entries (nid | zid | time).  On refault, we
+can calculate the zone-local distance first and then use the inverse
+of the zone's eviction proportion to scale it to a global distance.
+
+Delta for 9/10:
+
+---
+ include/linux/mmzone.h |  1 +
+ mm/workingset.c        | 74 ++++++++++++++++++++++++++++++--------------------
+ 2 files changed, 46 insertions(+), 29 deletions(-)
+
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 505bd80..24e9805 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -206,6 +206,7 @@ struct zone_reclaim_stat {
+ struct lruvec {
+ 	struct list_head lists[NR_LRU_LISTS];
+ 	struct zone_reclaim_stat reclaim_stat;
++	atomic_long_t workingset_time;
+ 	struct prop_local_percpu evictions;
+ 	long shrink_active;
+ #ifdef CONFIG_MEMCG
+diff --git a/mm/workingset.c b/mm/workingset.c
+index 7986aa4..5fd7277 100644
+--- a/mm/workingset.c
++++ b/mm/workingset.c
+@@ -85,27 +85,10 @@
   */
- #include <linux/page-flags.h>
--#include <linux/huge_mm.h>
  
  /*
-  * Methods to modify the page usage count.
-@@ -1475,6 +1473,28 @@ void anon_vma_interval_tree_verify(struct anon_vma_chain *node);
- 	for (avc = anon_vma_interval_tree_iter_first(root, start, last); \
- 	     avc; avc = anon_vma_interval_tree_iter_next(avc, start, last))
- 
-+static inline void anon_vma_lock_write(struct anon_vma *anon_vma)
-+{
-+	down_write(&anon_vma->root->rwsem);
-+}
-+
-+static inline void anon_vma_unlock_write(struct anon_vma *anon_vma)
-+{
-+	up_write(&anon_vma->root->rwsem);
-+}
-+
-+static inline void anon_vma_lock_read(struct anon_vma *anon_vma)
-+{
-+	down_read(&anon_vma->root->rwsem);
-+}
-+
-+static inline void anon_vma_unlock_read(struct anon_vma *anon_vma)
-+{
-+	up_read(&anon_vma->root->rwsem);
-+}
-+
-+#include <linux/huge_mm.h>
-+
- /* mmap.c */
- extern int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin);
- extern int vma_adjust(struct vm_area_struct *vma, unsigned long start,
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index fb425aa..9805e55 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -453,4 +453,41 @@ static inline cpumask_t *mm_cpumask(struct mm_struct *mm)
- 	return mm->cpu_vm_mask_var;
- }
- 
-+/*
-+ * The anon_vma heads a list of private "related" vmas, to scan if
-+ * an anonymous page pointing to this anon_vma needs to be unmapped:
-+ * the vmas on the list will be related by forking, or by splitting.
-+ *
-+ * Since vmas come and go as they are split and merged (particularly
-+ * in mprotect), the mapping field of an anonymous page cannot point
-+ * directly to a vma: instead it points to an anon_vma, on whose list
-+ * the related vmas can be easily linked or unlinked.
-+ *
-+ * After unlinking the last vma on the list, we must garbage collect
-+ * the anon_vma object itself: we're guaranteed no page can be
-+ * pointing to this anon_vma once its vma list is empty.
-+ */
-+struct anon_vma {
-+	struct anon_vma *root;		/* Root of this anon_vma tree */
-+	struct rw_semaphore rwsem;	/* W: modification, R: walking the list */
-+	/*
-+	 * The refcount is taken on an anon_vma when there is no
-+	 * guarantee that the vma of page tables will exist for
-+	 * the duration of the operation. A caller that takes
-+	 * the reference is responsible for clearing up the
-+	 * anon_vma if they are the last user on release
-+	 */
-+	atomic_t refcount;
-+
-+	/*
-+	 * NOTE: the LSB of the rb_root.rb_node is set by
-+	 * mm_take_all_locks() _after_ taking the above lock. So the
-+	 * rb_root must only be read/written after taking the above lock
-+	 * to be sure to see a valid next pointer. The LSB bit itself
-+	 * is serialized by a system wide lock only visible to
-+	 * mm_take_all_locks() (mm_all_locks_mutex).
-+	 */
-+	struct rb_root rb_root;	/* Interval tree of private "related" vmas */
-+};
-+
- #endif /* _LINUX_MM_TYPES_H */
-diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-index 6dacb93..22c7278 100644
---- a/include/linux/rmap.h
-+++ b/include/linux/rmap.h
-@@ -11,43 +11,6 @@
- #include <linux/memcontrol.h>
- 
- /*
-- * The anon_vma heads a list of private "related" vmas, to scan if
-- * an anonymous page pointing to this anon_vma needs to be unmapped:
-- * the vmas on the list will be related by forking, or by splitting.
+- * Monotonic workingset clock for non-resident pages.
 - *
-- * Since vmas come and go as they are split and merged (particularly
-- * in mprotect), the mapping field of an anonymous page cannot point
-- * directly to a vma: instead it points to an anon_vma, on whose list
-- * the related vmas can be easily linked or unlinked.
+- * The refault distance of a page is the number of ticks that occurred
+- * between that page's eviction and subsequent refault.
 - *
-- * After unlinking the last vma on the list, we must garbage collect
-- * the anon_vma object itself: we're guaranteed no page can be
-- * pointing to this anon_vma once its vma list is empty.
+- * Every page slot that is taken away from the inactive list is one
+- * more slot the inactive list would have to grow again in order to
+- * hold the current non-resident pages in memory as well.
+- *
+- * As the refault distance needs to reflect the space missing on the
+- * inactive list, the workingset time is advanced every time the
+- * inactive list is shrunk.  This means eviction, but also activation.
 - */
--struct anon_vma {
--	struct anon_vma *root;		/* Root of this anon_vma tree */
--	struct rw_semaphore rwsem;	/* W: modification, R: walking the list */
--	/*
--	 * The refcount is taken on an anon_vma when there is no
--	 * guarantee that the vma of page tables will exist for
--	 * the duration of the operation. A caller that takes
--	 * the reference is responsible for clearing up the
--	 * anon_vma if they are the last user on release
--	 */
--	atomic_t refcount;
--
--	/*
--	 * NOTE: the LSB of the rb_root.rb_node is set by
--	 * mm_take_all_locks() _after_ taking the above lock. So the
--	 * rb_root must only be read/written after taking the above lock
--	 * to be sure to see a valid next pointer. The LSB bit itself
--	 * is serialized by a system wide lock only visible to
--	 * mm_take_all_locks() (mm_all_locks_mutex).
--	 */
--	struct rb_root rb_root;	/* Interval tree of private "related" vmas */
--};
+-static atomic_long_t workingset_time;
 -
 -/*
-  * The copy-on-write semantics of fork mean that an anon_vma
-  * can become associated with multiple processes. Furthermore,
-  * each child process will have its own anon_vma, where new
-@@ -118,27 +81,6 @@ static inline void vma_unlock_anon_vma(struct vm_area_struct *vma)
- 		up_write(&anon_vma->root->rwsem);
+  * Workingset clock snapshots are stored in the page cache radix tree
+  * as exceptional entries (shadows).
+  */
+ #define EV_SHIFT	RADIX_TREE_EXCEPTIONAL_SHIFT
+-#define EV_MASK		(~0UL >> EV_SHIFT)
+ 
+ /*
+  * Per-zone proportional eviction counter to keep track of recent zone
+@@ -115,12 +98,12 @@ static struct prop_descriptor global_evictions;
+ 
+ void *workingset_eviction(struct address_space *mapping, struct page *page)
+ {
++	struct zone *zone = page_zone(page);
+ 	struct lruvec *lruvec;
+ 	unsigned long time;
+ 
+-	time = atomic_long_inc_return(&workingset_time);
+-
+-	lruvec = mem_cgroup_zone_lruvec(page_zone(page), NULL);
++	lruvec = mem_cgroup_zone_lruvec(zone, NULL);
++	time = atomic_long_inc_return(&lruvec->workingset_time);
+ 	prop_inc_percpu(&global_evictions, &lruvec->evictions);
+ 
+ 	/*
+@@ -132,21 +115,57 @@ void *workingset_eviction(struct address_space *mapping, struct page *page)
+ 	if (mapping_exiting(mapping))
+ 		return NULL;
+ 
++	time = (time << NODES_SHIFT) | zone->node;
++	time = (time << ZONES_SHIFT) | zone_idx(zone);
++
+ 	return (void *)((time << EV_SHIFT) | RADIX_TREE_EXCEPTIONAL_ENTRY);
  }
  
--static inline void anon_vma_lock_write(struct anon_vma *anon_vma)
--{
--	down_write(&anon_vma->root->rwsem);
--}
--
--static inline void anon_vma_unlock_write(struct anon_vma *anon_vma)
--{
--	up_write(&anon_vma->root->rwsem);
--}
--
--static inline void anon_vma_lock_read(struct anon_vma *anon_vma)
--{
--	down_read(&anon_vma->root->rwsem);
--}
--
--static inline void anon_vma_unlock_read(struct anon_vma *anon_vma)
--{
--	up_read(&anon_vma->root->rwsem);
--}
--
--
- /*
-  * anon_vma helper functions.
-  */
-diff --git a/mm/memory.c b/mm/memory.c
-index c845cf2..2f4fb39 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -589,7 +589,7 @@ int __pte_alloc(struct mm_struct *mm, struct vm_area_struct *vma,
- 		pmd_t *pmd, unsigned long address)
+-unsigned long workingset_refault_distance(struct page *page)
++static void lruvec_refault_distance(unsigned long shadow,
++				    struct lruvec **lruvec,
++				    unsigned long *distance)
  {
- 	pgtable_t new = pte_alloc_one(mm, address);
--	int wait_split_huge_page;
-+	int wait_split;
- 	if (!new)
- 		return -ENOMEM;
+ 	unsigned long time_of_eviction;
++	struct zone *zone;
+ 	unsigned long now;
++	int zid, nid;
++
++	shadow >>= EV_SHIFT;
++	zid = shadow & ((1UL << ZONES_SHIFT) - 1);
++	shadow >>= ZONES_SHIFT;
++	nid = shadow & ((1UL << NODES_SHIFT) - 1);
++	shadow >>= NODES_SHIFT;
++	time_of_eviction = shadow;
++	zone = NODE_DATA(nid)->node_zones + zid;
++
++	*lruvec = mem_cgroup_zone_lruvec(zone, NULL);
++
++	now = atomic_long_read(&(*lruvec)->workingset_time);
++
++	*distance = (now - time_of_eviction) &
++		(~0UL >> (EV_SHIFT + ZONES_SHIFT + NODES_SHIFT));
++}
++
++unsigned long workingset_refault_distance(struct page *page)
++{
++	unsigned long refault_distance;
++	unsigned long lruvec_distance;
++	struct lruvec *lruvec;
++	long denominator;
++	long numerator;
  
-@@ -609,17 +609,17 @@ int __pte_alloc(struct mm_struct *mm, struct vm_area_struct *vma,
- 	smp_wmb(); /* Could be smp_wmb__xxx(before|after)_spin_lock */
+ 	if (!page)
+ 		return ~0UL;
  
- 	spin_lock(&mm->page_table_lock);
--	wait_split_huge_page = 0;
-+	wait_split = 0;
- 	if (likely(pmd_none(*pmd))) {	/* Has another populated it ? */
- 		mm->nr_ptes++;
- 		pmd_populate(mm, pmd, new);
- 		new = NULL;
- 	} else if (unlikely(pmd_trans_splitting(*pmd)))
--		wait_split_huge_page = 1;
-+		wait_split = 1;
- 	spin_unlock(&mm->page_table_lock);
- 	if (new)
- 		pte_free(mm, new);
--	if (wait_split_huge_page)
-+	if (wait_split)
- 		wait_split_huge_page(vma, pmd);
- 	return 0;
+ 	BUG_ON(!radix_tree_exceptional_entry(page));
+-	time_of_eviction = (unsigned long)page >> EV_SHIFT;
+-	now = atomic_long_read(&workingset_time);
+-	return (now - time_of_eviction) & EV_MASK;
++	lruvec_refault_distance((unsigned long)page,
++				&lruvec, &lruvec_distance);
++	prop_fraction_percpu(&global_evictions, &lruvec->evictions,
++			     &numerator, &denominator);
++	if (!numerator)
++		numerator = 1;
++	refault_distance = mult_frac(lruvec_distance, denominator, numerator);
++	return refault_distance;
+ }
+ EXPORT_SYMBOL(workingset_refault_distance);
+ 
+@@ -187,8 +206,7 @@ void workingset_zone_balance(struct zone *zone, unsigned long refault_distance)
+ 	 */
+ 	prop_fraction_percpu(&global_evictions, &lruvec->evictions,
+ 			     &numerator, &denominator);
+-	missing = refault_distance * numerator;
+-	do_div(missing, denominator);
++	missing = mult_frac(refault_distance, numerator, denominator);
+ 
+ 	/*
+ 	 * Protected pages should be challenged when the refault
+@@ -207,9 +225,6 @@ void workingset_zone_balance(struct zone *zone, unsigned long refault_distance)
+ void workingset_activation(struct page *page)
+ {
+ 	struct lruvec *lruvec;
+-
+-	atomic_long_inc(&workingset_time);
+-
+ 	/*
+ 	 * The lists are rebalanced when the inactive list is observed
+ 	 * to be too small for activations.  An activation means that
+@@ -217,6 +232,7 @@ void workingset_activation(struct page *page)
+ 	 * page, so back off further deactivation.
+ 	 */
+ 	lruvec = mem_cgroup_zone_lruvec(page_zone(page), NULL);
++	atomic_long_inc(&lruvec->workingset_time);
+ 	if (lruvec->shrink_active > 0)
+ 		lruvec->shrink_active--;
  }
 -- 
- Kirill A. Shutemov
+1.8.2.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
