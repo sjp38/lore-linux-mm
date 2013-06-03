@@ -1,97 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 4E7E96B0068
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 05:16:48 -0400 (EDT)
-Received: by mail-oa0-f43.google.com with SMTP id o6so893365oag.16
-        for <linux-mm@kvack.org>; Mon, 03 Jun 2013 02:16:47 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id C05B76B006C
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 06:02:00 -0400 (EDT)
+Received: by mail-pd0-f173.google.com with SMTP id v10so422433pde.4
+        for <linux-mm@kvack.org>; Mon, 03 Jun 2013 03:01:59 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAMo8BfJt3dnx8NYT66dKfkLyjwPzHAhe0Rs21+Q-pG6OXA2GLA@mail.gmail.com>
+In-Reply-To: <20130603091621.GA23320@gmail.com>
 References: <CAMo8BfL4QfJrfejNKmBDhAVdmE=_Ys6MVUH5Xa3w_mU41hwx0A@mail.gmail.com>
-	<CAHkRjk4ZNwZvf_Cv+HqfMManodCkEpCPdZokPQ68z3nVG8-+wg@mail.gmail.com>
-	<51A580E0.10300@gmail.com>
-	<20130529101533.GF17767@MacBook-Pro.local>
-	<CAMo8BfJt3dnx8NYT66dKfkLyjwPzHAhe0Rs21+Q-pG6OXA2GLA@mail.gmail.com>
-Date: Mon, 3 Jun 2013 13:16:47 +0400
-Message-ID: <CAMo8BfKQTKCTuMFfhAhAe3OeeT47MZALW9NnH073VC+EGiUUTQ@mail.gmail.com>
+ <CAMo8BfJie1Y49QeSJ+JTQb9WsYJkMMkb1BkKz2Gzy3T7V6ogHA@mail.gmail.com>
+ <51A45861.1010008@gmail.com> <20130529122728.GA27176@twins.programming.kicks-ass.net>
+ <51A5F7A7.5020604@synopsys.com> <20130529175125.GJ12193@twins.programming.kicks-ass.net>
+ <CAMo8BfJtkEtf9RKsGRnOnZ5zbJQz5tW4HeDfydFq_ZnrFr8opw@mail.gmail.com>
+ <20130603090501.GI5910@twins.programming.kicks-ass.net> <20130603091621.GA23320@gmail.com>
+From: Catalin Marinas <catalin.marinas@arm.com>
+Date: Mon, 3 Jun 2013 11:01:39 +0100
+Message-ID: <CAHkRjk7D=PAMgaqjGQ0t3e5Ftob2Z248uexvKGb0tWpycEMK6Q@mail.gmail.com>
 Subject: Re: TLB and PTE coherency during munmap
-From: Max Filippov <jcmvbkbc@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-xtensa@linux-xtensa.org" <linux-xtensa@linux-xtensa.org>, Chris Zankel <chris@zankel.net>, Marc Gauthier <Marc.Gauthier@tensilica.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Max Filippov <jcmvbkbc@gmail.com>, Vineet Gupta <Vineet.Gupta1@synopsys.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Ralf Baechle <ralf@linux-mips.org>, Chris Zankel <chris@zankel.net>, Marc Gauthier <Marc.Gauthier@tensilica.com>, linux-xtensa@linux-xtensa.org, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, May 31, 2013 at 5:26 AM, Max Filippov <jcmvbkbc@gmail.com> wrote:
-> On Wed, May 29, 2013 at 2:15 PM, Catalin Marinas
-> <catalin.marinas@arm.com> wrote:
->> On Wed, May 29, 2013 at 05:15:28AM +0100, Max Filippov wrote:
->>> On Tue, May 28, 2013 at 6:35 PM, Catalin Marinas <catalin.marinas@arm.com> wrote:
->>> > On 26 May 2013 03:42, Max Filippov <jcmvbkbc@gmail.com> wrote:
->>> >> Is it intentional that threads of a process that invoked munmap syscall
->>> >> can see TLB entries pointing to already freed pages, or it is a bug?
->>> >
->>> > If it happens, this would be a bug. It means that a process can access
->>> > a physical page that has been allocated to something else, possibly
->>> > kernel data.
->>> >
->>> >> I'm talking about zap_pmd_range and zap_pte_range:
->>> >>
->>> >>       zap_pmd_range
->>> >>         zap_pte_range
->>> >>           arch_enter_lazy_mmu_mode
->>> >>             ptep_get_and_clear_full
->>> >>             tlb_remove_tlb_entry
->>> >>             __tlb_remove_page
->>> >>           arch_leave_lazy_mmu_mode
->>> >>         cond_resched
->>> >>
->>> >> With the default arch_{enter,leave}_lazy_mmu_mode, tlb_remove_tlb_entry
->>> >> and __tlb_remove_page there is a loop in the zap_pte_range that clears
->>> >> PTEs and frees corresponding pages, but doesn't flush TLB, and
->>> >> surrounding loop in the zap_pmd_range that calls cond_resched. If a thread
->>> >> of the same process gets scheduled then it is able to see TLB entries
->>> >> pointing to already freed physical pages.
->>> >
->>> > It looks to me like cond_resched() here introduces a possible bug but
->>> > it depends on the actual arch code, especially the
->>> > __tlb_remove_tlb_entry() function. On ARM we record the range in
->>> > tlb_remove_tlb_entry() and queue the pages to be removed in
->>> > __tlb_remove_page(). It pretty much acts like tlb_fast_mode() == 0
->>> > even for the UP case (which is also needed for hardware speculative
->>> > TLB loads). The tlb_finish_mmu() takes care of whatever pages are left
->>> > to be freed.
->>> >
->>> > With a dummy __tlb_remove_tlb_entry() and tlb_fast_mode() == 1,
->>> > cond_resched() in zap_pmd_range() would cause problems.
->>>
->>> So, looks like most architectures in the UP configuration should have
->>> this issue (unless they flush TLB in the switch_mm, even when switching
->>> to the same mm):
+On 3 June 2013 10:16, Ingo Molnar <mingo@kernel.org> wrote:
+>
+> * Peter Zijlstra <peterz@infradead.org> wrote:
+>
+>> On Fri, May 31, 2013 at 08:09:17AM +0400, Max Filippov wrote:
+>> > Hi Peter,
+>> >
+>> > On Wed, May 29, 2013 at 9:51 PM, Peter Zijlstra <peterz@infradead.org> wrote:
+>> > > What about something like this?
+>> >
+>> > With that patch I still get mtest05 firing my TLB/PTE incoherency
+>> > check in the UP PREEMPT_VOLUNTARY configuration. This happens after
+>> > zap_pte_range completion in the end of unmap_region because of
+>> > rescheduling called in the following call chain:
 >>
->> switch_mm() wouldn't be called if switching to the same mm. You could do
->
-> Hmm... Strange, but as far as I can tell from the context_switch it would.
->
->> it in switch_to() but it's not efficient (or before returning to user
->> space on the same processor).
+>> OK, so there two options; completely kill off fast-mode or something
+>> like the below where we add magic to the scheduler :/
 >>
->> Do you happen to have a user-space test for this? Something like one
+>> I'm aware people might object to something like the below -- but since
+>> its a possibility I thought we ought to at least mention it.
+>>
+>> For those new to the thread; the problem is that since the introduction
+>> of preemptible mmu_gather the traditional UP fast-mode is broken.
+>> Fast-mode is where we free the pages first and flush TLBs later. This is
+>> not a problem if there's no concurrency, but obviously if you can
+>> preempt there now is.
+>>
+>> I think I prefer completely killing off fast-mode esp. since UP seems to
+>> go the way of the Dodo and it does away with an exception in the
+>> mmu_gather code.
+>>
+>> Anyway; opinions? Linus, Thomas, Ingo?
 >
-> I only had mtest05 from LTP that triggered TLB/PTE inconsistency, but
-> not anything that would really try to peek at the freed page. I can make
-> such test though.
+> Since UP kernels have not been packaged up by major distros for years, and
+> since the live-patching of SMP kernels (the SMP alternative-instructions
+> patching machinery) does away with a big chunk of the SMP cost, I guess UP
+> kernels are slowly becoming like TINY_RCU: interesting but not really a
+> primary design goal?
 >
->> thread does an mmap(), writes some poison value, munmap(). The other
->> thread keeps checking the poison value while trapping and ignoring any
->> SIGSEGV. If it's working correctly, the second thread should either get
->> a SIGSEGV or read the poison value.
+> ( Another reason for reducing SMP vs. UP complexity in this area would be
+>   the fact that we had a few bad regressions lately - the TLB code is not
+>   getting simpler, and bugs are getting discovered and fixed slower. )
+>
+> At least that's the x86 perspective. ARM might still see it differently?
 
-I've made a number of such tests and had them running for a couple of
-days. Checking thread never read anything other than poison value so far.
+On ARM there is a lot of ongoing work on single zImage for multiple
+SoCs and this implies SMP kernels. There is an SMP_ON_UP feature which
+does run-time code patching to optimise the UP case in a few places.
 
--- 
-Thanks.
--- Max
+Regarding tlb_fast_mode(), the ARM-specific implementation is always 0
+on ARMv7 even if UP because of speculative TLB loads (the MMU could
+pretty much act as a separate processor).
+
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
