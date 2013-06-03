@@ -1,71 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 35DD96B0037
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 16:02:19 -0400 (EDT)
-Subject: [v5][PATCH 6/6] mm: vmscan: drain batch list during long operations
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id BEA266B0037
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 16:02:22 -0400 (EDT)
+Subject: [v5][PATCH 0/6] mm: vmscan: Batch page reclamation under shink_page_list
 From: Dave Hansen <dave@sr71.net>
-Date: Mon, 03 Jun 2013 13:02:10 -0700
-References: <20130603200202.7F5FDE07@viggo.jf.intel.com>
-In-Reply-To: <20130603200202.7F5FDE07@viggo.jf.intel.com>
-Message-Id: <20130603200210.259954C3@viggo.jf.intel.com>
+Date: Mon, 03 Jun 2013 13:02:02 -0700
+Message-Id: <20130603200202.7F5FDE07@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de, tim.c.chen@linux.intel.com, minchan@kernel.org, Dave Hansen <dave@sr71.net>
 
+These are an update of Tim Chen's earlier work:
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+	http://lkml.kernel.org/r/1347293960.9977.70.camel@schen9-DESK
 
-This was a suggestion from Mel:
+I broke the patches up a bit more, and tried to incorporate some
+changes based on some feedback from Mel and Andrew.
 
-	http://lkml.kernel.org/r/20120914085634.GM11157@csn.ul.ie
+Changes for v5:
+ * fix description in about the costs of moving around the code
+   under delete_from_swap_cache() in patch 2.
+ * Minor formatting (remove unnecessary newlines), thanks
+   Minchan!
 
-Any pages we collect on 'batch_for_mapping_removal' will have
-their lock_page() held during the duration of their stay on the
-list.  If some other user is trying to get at them during this
-time, they might end up having to wait.
+Changes for v4:
+ * generated on top of linux-next-20130530, plus Mel's vmscan
+   fixes:
+	http://lkml.kernel.org/r/1369659778-6772-2-git-send-email-mgorman@suse.de
+ * added some proper vmscan/swap: prefixes to the subjects
 
-This ensures that we drain the batch if we are about to perform a
-pageout() or congestion_wait(), either of which will take some
-time.  We expect this to help mitigate the worst of the latency
-increase that the batching could cause.
+Changes for v3:
+ * Add batch draining before congestion_wait()
+ * minor merge conflicts with Mel's vmscan work
 
-I added some statistics to the __remove_mapping_batch() code to
-track how large the lists are that we pass in to it.  With this
-patch, the average list length drops about 10% (from about 4.1 to
-3.8).  The workload here was a make -j4 kernel compile on a VM
-with 200MB of RAM.
+Changes for v2:
+ * use page_mapping() accessor instead of direct access
+   to page->mapping (could cause crashes when running in
+   to swap cache pages.
+ * group the batch function's introduction patch with
+   its first use
+ * rename a few functions as suggested by Mel
+ * Ran some single-threaded tests to look for regressions
+   caused by the batching.  If there is overhead, it is only
+   in the worst-case scenarios, and then only in hundreths of
+   a percent of CPU time.
 
-I've still got the statistics patch around if anyone is
-interested.
+If you're curious how effective the batching is, I have a quick
+and dirty patch to keep some stats:
 
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
----
+	https://www.sr71.net/~dave/intel/rmb-stats-only.patch
 
- linux.git-davehans/mm/vmscan.c |   10 ++++++++++
- 1 file changed, 10 insertions(+)
+--
 
-diff -puN mm/vmscan.c~drain-batch-list-during-long-operations mm/vmscan.c
---- linux.git/mm/vmscan.c~drain-batch-list-during-long-operations	2013-06-03 12:41:31.661762522 -0700
-+++ linux.git-davehans/mm/vmscan.c	2013-06-03 12:41:31.665762700 -0700
-@@ -1001,6 +1001,16 @@ static unsigned long shrink_page_list(st
- 			if (!sc->may_writepage)
- 				goto keep_locked;
- 
-+			/*
-+			 * We hold a bunch of page locks on the batch.
-+			 * pageout() can take a while, so drain the
-+			 * batch before we perform pageout.
-+			 */
-+			nr_reclaimed +=
-+		               __remove_mapping_batch(&batch_for_mapping_rm,
-+		                                      &ret_pages,
-+		                                      &free_pages);
-+
- 			/* Page is dirty, try to write it out here */
- 			switch (pageout(page, mapping, sc)) {
- 			case PAGE_KEEP:
-_
+To do page reclamation in shrink_page_list function, there are
+two locks taken on a page by page basis.  One is the tree lock
+protecting the radix tree of the page mapping and the other is
+the mapping->i_mmap_mutex protecting the mapped pages.  This set
+deals only with mapping->tree_lock.
+
+Tim managed to get 14% throughput improvement when with a workload
+putting heavy pressure of page cache by reading many large mmaped
+files simultaneously on a 8 socket Westmere server.
+
+I've been testing these by running large parallel kernel compiles
+on systems that are under memory pressure.  During development,
+I caught quite a few races on smaller setups, and it's being
+quite stable that large (160 logical CPU / 1TB) system.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
