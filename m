@@ -1,76 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 60DE96B0039
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 04:28:43 -0400 (EDT)
-Date: Mon, 3 Jun 2013 17:28:41 +0900
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 2C32F6B003B
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 04:35:42 -0400 (EDT)
+Date: Mon, 3 Jun 2013 17:35:40 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [v4][PATCH 3/6] mm: vmscan: break up __remove_mapping()
-Message-ID: <20130603082841.GB2795@blaptop>
+Subject: Re: [v4][PATCH 4/6] mm: vmscan: break out mapping "freepage" code
+Message-ID: <20130603083540.GC2795@blaptop>
 References: <20130531183855.44DDF928@viggo.jf.intel.com>
- <20130531183859.F179225E@viggo.jf.intel.com>
+ <20130531183901.375FE758@viggo.jf.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130531183859.F179225E@viggo.jf.intel.com>
+In-Reply-To: <20130531183901.375FE758@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dave Hansen <dave@sr71.net>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de, tim.c.chen@linux.intel.com
 
-On Fri, May 31, 2013 at 11:38:59AM -0700, Dave Hansen wrote:
+On Fri, May 31, 2013 at 11:39:01AM -0700, Dave Hansen wrote:
 > 
 > From: Dave Hansen <dave.hansen@linux.intel.com>
 > 
-> Our goal here is to eventually reduce the number of repetitive
-> acquire/release operations on mapping->tree_lock.
+> __remove_mapping() only deals with pages with mappings, meaning
+> page cache and swap cache.
 > 
-> Logically, this patch has two steps:
-> 1. rename __remove_mapping() to lock_remove_mapping() since
->    "__" usually means "this us the unlocked version.
-> 2. Recreate __remove_mapping() to _be_ the lock_remove_mapping()
->    but without the locks.
+> At this point, the page has been removed from the mapping's radix
+> tree, and we need to ensure that any fs-specific (or swap-
+> specific) resources are freed up.
 > 
-> I think this actually makes the code flow around the locking
-> _much_ more straighforward since the locking just becomes:
-> 
-> 	spin_lock_irq(&mapping->tree_lock);
-> 	ret = __remove_mapping(mapping, page);
-> 	spin_unlock_irq(&mapping->tree_lock);
-> 
-> One non-obvious part of this patch: the
-> 
-> 	freepage = mapping->a_ops->freepage;
-> 
-> used to happen under the mapping->tree_lock, but this patch
-> moves it to outside of the lock.  All of the other
-> a_ops->freepage users do it outside the lock, and we only
-> assign it when we create inodes, so that makes it safe.
+> We will be using this function from a second location in a
+> following patch.
 > 
 > Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 > Acked-by: Mel Gorman <mgorman@suse.de>
 
-Reviewed-by: Minchan Kin <minchan@kernel.org>
+Reviewed-by: Minchan Kim <minchan@kernel.org>
 
-Just a nitpick below.
+Again, a nitpick. Sorry.
 
-> 
 > ---
 > 
->  linux.git-davehans/mm/vmscan.c |   43 ++++++++++++++++++++++++-----------------
->  1 file changed, 26 insertions(+), 17 deletions(-)
+>  linux.git-davehans/mm/vmscan.c |   28 +++++++++++++++++++---------
+>  1 file changed, 19 insertions(+), 9 deletions(-)
 > 
-> diff -puN mm/vmscan.c~make-remove-mapping-without-locks mm/vmscan.c
-> --- linux.git/mm/vmscan.c~make-remove-mapping-without-locks	2013-05-30 16:07:51.210104924 -0700
-> +++ linux.git-davehans/mm/vmscan.c	2013-05-30 16:07:51.214105100 -0700
-> @@ -450,12 +450,12 @@ static pageout_t pageout(struct page *pa
->   * Same as remove_mapping, but if the page is removed from the mapping, it
->   * gets returned with a refcount of 0.
->   */
-> -static int __remove_mapping(struct address_space *mapping, struct page *page)
-> +static int __remove_mapping(struct address_space *mapping,
-> +			    struct page *page)
+> diff -puN mm/vmscan.c~free_mapping_page mm/vmscan.c
+> --- linux.git/mm/vmscan.c~free_mapping_page	2013-05-30 16:07:51.461115968 -0700
+> +++ linux.git-davehans/mm/vmscan.c	2013-05-30 16:07:51.465116144 -0700
+> @@ -497,6 +497,24 @@ static int __remove_mapping(struct addre
+>  	return 1;
+>  }
+>  
+> +/*
+> + * Release any resources the mapping had tied up in
+> + * the page.
 
-Unnecessary change.
+It could be a one line.
+
+
+> + */
+> +static void mapping_release_page(struct address_space *mapping,
+> +				 struct page *page)
+> +{
+> +	if (PageSwapCache(page)) {
+> +		swapcache_free_page_entry(page);
+> +	} else {
+> +		void (*freepage)(struct page *);
+> +		freepage = mapping->a_ops->freepage;
+> +		mem_cgroup_uncharge_cache_page(page);
+> +		if (freepage != NULL)
+> +			freepage(page);
+> +	}
+> +}
+> +
+>  static int lock_remove_mapping(struct address_space *mapping, struct page *page)
+>  {
+>  	int ret;
+> @@ -510,15 +528,7 @@ static int lock_remove_mapping(struct ad
+>  	if (!ret)
+>  		return 0;
+>  
+> -	if (PageSwapCache(page)) {
+> -		swapcache_free_page_entry(page);
+> -	} else {
+> -		void (*freepage)(struct page *);
+> -		freepage = mapping->a_ops->freepage;
+> -		mem_cgroup_uncharge_cache_page(page);
+> -		if (freepage != NULL)
+> -			freepage(page);
+> -	}
+> +	mapping_release_page(mapping, page);
+>  	return ret;
+>  }
+>  
+> _
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
 Kind regards,
