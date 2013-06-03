@@ -1,180 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 7E58B6B0082
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 15:42:39 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 778786B0089
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 15:43:00 -0400 (EDT)
 From: Glauber Costa <glommer@openvz.org>
-Subject: [PATCH v10 34/35] vmpressure: in-kernel notifications
-Date: Mon,  3 Jun 2013 23:30:03 +0400
-Message-Id: <1370287804-3481-35-git-send-email-glommer@openvz.org>
+Subject: [PATCH v10 35/35] memcg: reap dead memcgs upon global memory pressure.
+Date: Mon,  3 Jun 2013 23:30:04 +0400
+Message-Id: <1370287804-3481-36-git-send-email-glommer@openvz.org>
 In-Reply-To: <1370287804-3481-1-git-send-email-glommer@openvz.org>
 References: <1370287804-3481-1-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@openvz.org>, John Stultz <john.stultz@linaro.org>, Joonsoo Kim <js1304@gmail.com>
+Cc: linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@openvz.org>, Dave Chinner <dchinner@redhat.com>, Rik van Riel <riel@redhat.com>
 
-From: Glauber Costa <glommer@parallels.com>
+When we delete kmem-enabled memcgs, they can still be zombieing
+around for a while. The reason is that the objects may still be alive,
+and we won't be able to delete them at destruction time.
 
-During the past weeks, it became clear to us that the shrinker interface
-we have right now works very well for some particular types of users,
-but not that well for others. The later are usually people interested in
-one-shot notifications, that were forced to adapt themselves to the
-count+scan behavior of shrinkers. To do so, they had no choice than to
-greatly abuse the shrinker interface producing little monsters all over.
-
-During LSF/MM, one of the proposals that popped out during our session
-was to reuse Anton Voronstsov's vmpressure for this. They are designed
-for userspace consumption, but also provide a well-stablished,
-cgroup-aware entry point for notifications.
-
-This patch extends that to also support in-kernel users. Events that
-should be generated for in-kernel consumption will be marked as such,
-and for those, we will call a registered function instead of triggering
-an eventfd notification.
-
-Please note that due to my lack of understanding of each shrinker user,
-I will stay away from converting the actual users, you are all welcome
-to do so.
+The only entry point for that, though, are the shrinkers. The
+shrinker interface, however, is not exactly tailored to our needs. It
+could be a little bit better by using the API Dave Chinner proposed, but
+it is still not ideal since we aren't really a count-and-scan event, but
+more a one-off flush-all-you-can event that would have to abuse that
+somehow.
 
 Signed-off-by: Glauber Costa <glommer@openvz.org>
-Acked-by: Anton Vorontsov <anton@enomsg.org>
-Acked-by: Pekka Enberg <penberg@kernel.org>
-Reviewed-by: Greg Thelen <gthelen@google.com>
-Cc: Dave Chinner <david@fromorbit.com>
-Cc: John Stultz <john.stultz@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Joonsoo Kim <js1304@gmail.com>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Dave Chinner <dchinner@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Rik van Riel <riel@redhat.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- include/linux/vmpressure.h |  6 ++++++
- mm/vmpressure.c            | 52 +++++++++++++++++++++++++++++++++++++++++++---
- 2 files changed, 55 insertions(+), 3 deletions(-)
+ mm/memcontrol.c | 52 ++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 46 insertions(+), 6 deletions(-)
 
-diff --git a/include/linux/vmpressure.h b/include/linux/vmpressure.h
-index 76be077..3131e72 100644
---- a/include/linux/vmpressure.h
-+++ b/include/linux/vmpressure.h
-@@ -19,6 +19,9 @@ struct vmpressure {
- 	/* Have to grab the lock on events traversal or modifications. */
- 	struct mutex events_lock;
- 
-+	/* False if only kernel users want to be notified, true otherwise. */
-+	bool notify_userspace;
-+
- 	struct work_struct work;
- };
- 
-@@ -36,6 +39,9 @@ extern struct vmpressure *css_to_vmpressure(struct cgroup_subsys_state *css);
- extern int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
- 				     struct eventfd_ctx *eventfd,
- 				     const char *args);
-+
-+extern int vmpressure_register_kernel_event(struct cgroup *cg,
-+					    void (*fn)(void));
- extern void vmpressure_unregister_event(struct cgroup *cg, struct cftype *cft,
- 					struct eventfd_ctx *eventfd);
- #else
-diff --git a/mm/vmpressure.c b/mm/vmpressure.c
-index 736a601..e16256e 100644
---- a/mm/vmpressure.c
-+++ b/mm/vmpressure.c
-@@ -135,8 +135,12 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index c0e1113f..919fb24b 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -400,7 +400,6 @@ static size_t memcg_size(void)
+ 		nr_node_ids * sizeof(struct mem_cgroup_per_node);
  }
  
- struct vmpressure_event {
--	struct eventfd_ctx *efd;
-+	union {
-+		struct eventfd_ctx *efd;
-+		void (*fn)(void);
-+	};
- 	enum vmpressure_levels level;
-+	bool kernel_event;
- 	struct list_head node;
- };
+-#ifdef CONFIG_MEMCG_DEBUG_ASYNC_DESTROY
+ static LIST_HEAD(dangling_memcgs);
+ static DEFINE_MUTEX(dangling_memcgs_mutex);
  
-@@ -152,12 +156,15 @@ static bool vmpressure_event(struct vmpressure *vmpr,
- 	mutex_lock(&vmpr->events_lock);
+@@ -409,11 +408,14 @@ static inline void memcg_dangling_free(struct mem_cgroup *memcg)
+ 	mutex_lock(&dangling_memcgs_mutex);
+ 	list_del(&memcg->dead);
+ 	mutex_unlock(&dangling_memcgs_mutex);
++#ifdef CONFIG_MEMCG_DEBUG_ASYNC_DESTROY
+ 	free_pages((unsigned long)memcg->memcg_name, 0);
++#endif
+ }
  
- 	list_for_each_entry(ev, &vmpr->events, node) {
--		if (level >= ev->level) {
-+		if (ev->kernel_event) {
-+			ev->fn();
-+		} else if (vmpr->notify_userspace && level >= ev->level) {
- 			eventfd_signal(ev->efd, 1);
- 			signalled = true;
- 		}
+ static inline void memcg_dangling_add(struct mem_cgroup *memcg)
+ {
++#ifdef CONFIG_MEMCG_DEBUG_ASYNC_DESTROY
+ 	/*
+ 	 * cgroup.c will do page-sized allocations most of the time,
+ 	 * so we'll just follow the pattern. Also, __get_free_pages
+@@ -439,15 +441,12 @@ static inline void memcg_dangling_add(struct mem_cgroup *memcg)
  	}
  
-+	vmpr->notify_userspace = false;
- 	mutex_unlock(&vmpr->events_lock);
+ add_list:
++#endif
+ 	INIT_LIST_HEAD(&memcg->dead);
+ 	mutex_lock(&dangling_memcgs_mutex);
+ 	list_add(&memcg->dead, &dangling_memcgs);
+ 	mutex_unlock(&dangling_memcgs_mutex);
+ }
+-#else
+-static inline void memcg_dangling_free(struct mem_cgroup *memcg) {}
+-static inline void memcg_dangling_add(struct mem_cgroup *memcg) {}
+-#endif
  
- 	return signalled;
-@@ -227,7 +234,7 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
- 	 * we account it too.
- 	 */
- 	if (!(gfp & (__GFP_HIGHMEM | __GFP_MOVABLE | __GFP_IO | __GFP_FS)))
--		return;
-+		goto schedule;
+ static DEFINE_MUTEX(set_limit_mutex);
  
- 	/*
- 	 * If we got here with no pages scanned, then that is an indicator
-@@ -244,8 +251,15 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
- 	vmpr->scanned += scanned;
- 	vmpr->reclaimed += reclaimed;
- 	scanned = vmpr->scanned;
-+	/*
-+	 * If we didn't reach this point, only kernel events will be triggered.
-+	 * It is the job of the worker thread to clean this up once the
-+	 * notifications are all delivered.
-+	 */
-+	vmpr->notify_userspace = true;
- 	mutex_unlock(&vmpr->sr_lock);
- 
-+schedule:
- 	if (scanned < vmpressure_win || work_pending(&vmpr->work))
- 		return;
- 	schedule_work(&vmpr->work);
-@@ -328,6 +342,38 @@ int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
+@@ -6313,6 +6312,41 @@ static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
  }
  
- /**
-+ * vmpressure_register_kernel_event() - Register kernel-side notification
-+ * @cg:		cgroup that is interested in vmpressure notifications
-+ * @fn:		function to be called when pressure happens
-+ *
-+ * This function register in-kernel users interested in receiving notifications
-+ * about pressure conditions. Pressure notifications will be triggered at the
-+ * same time as userspace notifications (with no particular ordering relative
-+ * to it).
-+ *
-+ * Pressure notifications are a alternative method to shrinkers and will serve
-+ * well users that are interested in a one-shot notification, with a
-+ * well-defined cgroup aware interface.
-+ */
-+int vmpressure_register_kernel_event(struct cgroup *cg, void (*fn)(void))
+ #ifdef CONFIG_MEMCG_KMEM
++static void memcg_vmpressure_shrink_dead(void)
 +{
-+	struct vmpressure *vmpr = cg_to_vmpressure(cg);
-+	struct vmpressure_event *ev;
++	struct memcg_cache_params *params, *tmp;
++	struct kmem_cache *cachep;
++	struct mem_cgroup *memcg;
 +
-+	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
-+	if (!ev)
-+		return -ENOMEM;
-+
-+	ev->kernel_event = true;
-+	ev->fn = fn;
-+
-+	mutex_lock(&vmpr->events_lock);
-+	list_add(&ev->node, &vmpr->events);
-+	mutex_unlock(&vmpr->events_lock);
-+	return 0;
++	mutex_lock(&dangling_memcgs_mutex);
++	list_for_each_entry(memcg, &dangling_memcgs, dead) {
++		mutex_lock(&memcg->slab_caches_mutex);
++		/* The element may go away as an indirect result of shrink */
++		list_for_each_entry_safe(params, tmp,
++					 &memcg->memcg_slab_caches, list) {
++			cachep = memcg_params_to_cache(params);
++			/*
++			 * the cpu_hotplug lock is taken in kmem_cache_create
++			 * outside the slab_caches_mutex manipulation. It will
++			 * be taken by kmem_cache_shrink to flush the cache.
++			 * So we need to drop the lock. It is all right because
++			 * the lock only protects elements moving in and out the
++			 * list.
++			 */
++			mutex_unlock(&memcg->slab_caches_mutex);
++			kmem_cache_shrink(cachep);
++			mutex_lock(&memcg->slab_caches_mutex);
++		}
++		mutex_unlock(&memcg->slab_caches_mutex);
++	}
++	mutex_unlock(&dangling_memcgs_mutex);
 +}
 +
-+/**
-  * vmpressure_unregister_event() - Unbind eventfd from vmpressure
-  * @cg:		cgroup handle
-  * @cft:	cgroup control files handle
++static void memcg_register_kmem_events(struct cgroup *cont)
++{
++	vmpressure_register_kernel_event(cont, memcg_vmpressure_shrink_dead);
++}
++
+ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
+ {
+ 	int ret;
+@@ -6348,6 +6382,10 @@ static void kmem_cgroup_destroy(struct mem_cgroup *memcg)
+ 	}
+ }
+ #else
++static inline void memcg_register_kmem_events(struct cgroup *cont)
++{
++}
++
+ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
+ {
+ 	return 0;
+@@ -6733,8 +6771,10 @@ mem_cgroup_css_online(struct cgroup *cont)
+ 	struct mem_cgroup *memcg, *parent;
+ 	int error = 0;
+ 
+-	if (!cont->parent)
++	if (!cont->parent) {
++		memcg_register_kmem_events(cont);
+ 		return 0;
++	}
+ 
+ 	mutex_lock(&memcg_create_mutex);
+ 	memcg = mem_cgroup_from_cont(cont);
 -- 
 1.8.1.4
 
