@@ -1,61 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 6A6016B0032
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 10:34:59 -0400 (EDT)
-Date: Mon, 03 Jun 2013 10:34:41 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1370270081-pv4wkd99-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20130603132641.GB18588@dhcp22.suse.cz>
-References: <1369770771-8447-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1369770771-8447-3-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20130603132641.GB18588@dhcp22.suse.cz>
-Subject: Re: [PATCH v3 2/2] migrate: add migrate_entry_wait_huge()
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 0C0D56B0002
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 10:53:03 -0400 (EDT)
+Message-ID: <51ACADCD.70904@sr71.net>
+Date: Mon, 03 Jun 2013 07:53:01 -0700
+From: Dave Hansen <dave@sr71.net>
+MIME-Version: 1.0
+Subject: Re: [v4][PATCH 1/6] mm: swap: defer clearing of page_private() for
+ swap cache pages
+References: <20130531183855.44DDF928@viggo.jf.intel.com> <20130531183856.1D7D75AD@viggo.jf.intel.com> <20130603054048.GA27858@blaptop>
+In-Reply-To: <20130603054048.GA27858@blaptop>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andi Kleen <andi@firstfloor.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de, tim.c.chen@linux.intel.com
 
-On Mon, Jun 03, 2013 at 03:26:41PM +0200, Michal Hocko wrote:
-> On Tue 28-05-13 15:52:51, Naoya Horiguchi wrote:
-> > When we have a page fault for the address which is backed by a hugepage
-> > under migration, the kernel can't wait correctly and do busy looping on
-> > hugepage fault until the migration finishes.
-> > This is because pte_offset_map_lock() can't get a correct migration entry
-> > or a correct page table lock for hugepage.
-> > This patch introduces migration_entry_wait_huge() to solve this.
-> > 
-> > Note that the caller, hugetlb_fault(), gets the pointer to the "leaf"
-> > entry with huge_pte_offset() inside which all the arch-dependency of
-> > the page table structure are. So migration_entry_wait_huge() and
-> > __migration_entry_wait() are free from arch-dependency.
-> > 
-> > ChangeLog v3:
-> >  - use huge_pte_lockptr
-> > 
-> > ChangeLog v2:
-> >  - remove dup in migrate_entry_wait_huge()
-> > 
-> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > Reviewed-by: Rik van Riel <riel@redhat.com>
-> > Cc: stable@vger.kernel.org # 2.6.35
-> 
-> OK, this looks good to me and I guess you can safely replace
-> huge_pte_lockptr by &(mm)->page_table_lock so you can implement this
-> even without risky 1/2 of this series. The patch should be as simple as
-> possible especially when it goes to the stable.
+On 06/02/2013 10:40 PM, Minchan Kim wrote:
+>> > diff -puN mm/vmscan.c~__delete_from_swap_cache-dont-clear-page-private mm/vmscan.c
+>> > --- linux.git/mm/vmscan.c~__delete_from_swap_cache-dont-clear-page-private	2013-05-30 16:07:50.632079492 -0700
+>> > +++ linux.git-davehans/mm/vmscan.c	2013-05-30 16:07:50.637079712 -0700
+>> > @@ -494,6 +494,8 @@ static int __remove_mapping(struct addre
+>> >  		__delete_from_swap_cache(page);
+>> >  		spin_unlock_irq(&mapping->tree_lock);
+>> >  		swapcache_free(swap, page);
+>> > +		set_page_private(page, 0);
+>> > +		ClearPageSwapCache(page);
+> It it worth to support non-atomic version of ClearPageSwapCache?
 
-Yes, I agree.
+Just for this, probably not.
 
-> > Without 1/2 dependency
-> Reviewed-by: Michal Hocko <mhocko@suse.cz>
+It does look like a site where it would be theoretically safe to use
+non-atomic flag operations since the page is on a one-way trip to the
+allocator at this point and the __clear_page_locked() now happens _just_
+after this code.
 
-Thanks,
-Naoya
+But, personally, I'm happy to leave it as-is.  The atomic vs. non-atomic
+flags look to me like a micro-optimization that we should use when we
+_know_ there will be some tangible benefit.  Otherwise, they're just
+something extra for developers to trip over and cause very subtle bugs.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
