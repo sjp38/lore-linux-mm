@@ -1,122 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 98A136B0036
-	for <linux-mm@kvack.org>; Sun,  2 Jun 2013 20:53:06 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 3 Jun 2013 10:42:18 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 96E182CE8051
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 10:53:01 +1000 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r530cUkm25231376
-	for <linux-mm@kvack.org>; Mon, 3 Jun 2013 10:38:30 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r530r0Dn024042
-	for <linux-mm@kvack.org>; Mon, 3 Jun 2013 10:53:01 +1000
-Date: Mon, 3 Jun 2013 08:52:59 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v3 03/13] page_alloc, mem-hotplug: Improve movablecore to
- {en|dis}able using SRAT.
-Message-ID: <20130603005259.GD20478@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1369387762-17865-1-git-send-email-tangchen@cn.fujitsu.com>
- <1369387762-17865-4-git-send-email-tangchen@cn.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1369387762-17865-4-git-send-email-tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id C03B76B0036
+	for <linux-mm@kvack.org>; Sun,  2 Jun 2013 20:58:55 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id kq13so650543pab.12
+        for <linux-mm@kvack.org>; Sun, 02 Jun 2013 17:58:55 -0700 (PDT)
+Date: Mon, 3 Jun 2013 08:58:49 +0800
+From: majianpeng <majianpeng@gmail.com>
+Reply-To: majianpeng <majianpeng@gmail.com>
+Subject: Re: Re: [PATCH 2/3] mm/kmemleak.c: Use list_for_each_entry_safe to reconstruct function scan_gray_list
+References: <519224D8.5090704@gmail.com>,
+	<20130530144028.GF23631@arm.com>
+Mime-Version: 1.0
+Message-ID: <201306030858459339090@gmail.com>
+Content-Type: text/plain;
+	charset="gb2312"
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, tj@kernel.org, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Fri, May 24, 2013 at 05:29:12PM +0800, Tang Chen wrote:
->The Hot-Pluggable Fired in SRAT specified which memory ranges are hotpluggable.
->We will arrange hotpluggable memory as ZONE_MOVABLE for users who want to use
->memory hotplug functionality. But this will cause NUMA performance decreased
->because kernel cannot use ZONE_MOVABLE.
->
->So we improve movablecore boot option to allow those who want to use memory
->hotplug functionality to enable using SRAT info to arrange movable memory.
->
->Users can specify "movablecore=acpi" in kernel commandline to enable this
->functionality.
->
->For those who don't use memory hotplug or who don't want to lose their NUMA
->performance, just don't specify anything. The kernel will work as before.
->
-
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-
->Suggested-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
->---
-> include/linux/memory_hotplug.h |    3 +++
-> mm/page_alloc.c                |   13 +++++++++++++
-> 2 files changed, 16 insertions(+), 0 deletions(-)
->
->diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
->index b6a3be7..18fe2a3 100644
->--- a/include/linux/memory_hotplug.h
->+++ b/include/linux/memory_hotplug.h
->@@ -33,6 +33,9 @@ enum {
-> 	ONLINE_MOVABLE,
-> };
->
->+/* Enable/disable SRAT in movablecore boot option */
->+extern bool movablecore_enable_srat;
->+
-> /*
->  * pgdat resizing functions
->  */
->diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->index f368db4..b9ea143 100644
->--- a/mm/page_alloc.c
->+++ b/mm/page_alloc.c
->@@ -208,6 +208,8 @@ static unsigned long __initdata required_kernelcore;
-> static unsigned long __initdata required_movablecore;
-> static unsigned long __meminitdata zone_movable_pfn[MAX_NUMNODES];
->
->+bool __initdata movablecore_enable_srat = false;
->+
-> /* movable_zone is the "real" zone pages in ZONE_MOVABLE are taken from */
-> int movable_zone;
-> EXPORT_SYMBOL(movable_zone);
->@@ -5025,6 +5027,12 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
-> 	}
-> }
->
->+static void __init cmdline_movablecore_srat(char *p)
->+{
->+	if (p && !strcmp(p, "acpi"))
->+		movablecore_enable_srat = true;
->+}
->+
-> static int __init cmdline_parse_core(char *p, unsigned long *core)
-> {
-> 	unsigned long long coremem;
->@@ -5055,6 +5063,11 @@ static int __init cmdline_parse_kernelcore(char *p)
->  */
-> static int __init cmdline_parse_movablecore(char *p)
-> {
->+	cmdline_movablecore_srat(p);
->+
->+	if (movablecore_enable_srat)
->+		return 0;
->+
-> 	return cmdline_parse_core(p, &required_movablecore);
-> }
->
->-- 
->1.7.1
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Pk9uIFR1ZSwgTWF5IDE0LCAyMDEzIGF0IDEyOjQ5OjQ0UE0gKzAxMDAsIG1hamlhbnBlbmcgd3Jv
+dGU6DQo+PiBTaWduZWQtb2ZmLWJ5OiBKaWFucGVuZyBNYSA8bWFqaWFucGVuZ0BnbWFpbC5jb20+
+DQo+PiAtLS0NCj4+ICBtbS9rbWVtbGVhay5jIHwgOCArLS0tLS0tLQ0KPj4gIDEgZmlsZSBjaGFu
+Z2VkLCAxIGluc2VydGlvbigrKSwgNyBkZWxldGlvbnMoLSkNCj4+IA0KPj4gZGlmZiAtLWdpdCBh
+L21tL2ttZW1sZWFrLmMgYi9tbS9rbWVtbGVhay5jDQo+PiBpbmRleCBiMTUyNWRiLi5mMGVjZTkz
+IDEwMDY0NA0KPj4gLS0tIGEvbW0va21lbWxlYWsuYw0KPj4gKysrIGIvbW0va21lbWxlYWsuYw0K
+Pj4gQEAgLTEyMjUsMjIgKzEyMjUsMTYgQEAgc3RhdGljIHZvaWQgc2Nhbl9ncmF5X2xpc3Qodm9p
+ZCkNCj4+ICAJICogZnJvbSBpbnNpZGUgdGhlIGxvb3AuIFRoZSBrbWVtbGVhayBvYmplY3RzIGNh
+bm5vdCBiZSBmcmVlZCBmcm9tDQo+PiAgCSAqIG91dHNpZGUgdGhlIGxvb3AgYmVjYXVzZSB0aGVp
+ciB1c2VfY291bnQgd2FzIGluY3JlbWVudGVkLg0KPj4gIAkgKi8NCj4+IC0Jb2JqZWN0ID0gbGlz
+dF9lbnRyeShncmF5X2xpc3QubmV4dCwgdHlwZW9mKCpvYmplY3QpLCBncmF5X2xpc3QpOw0KPj4g
+LQl3aGlsZSAoJm9iamVjdC0+Z3JheV9saXN0ICE9ICZncmF5X2xpc3QpIHsNCj4+ICsJbGlzdF9m
+b3JfZWFjaF9lbnRyeV9zYWZlKG9iamVjdCwgdG1wLCAmZ3JheV9saXN0LCBncmF5X2xpc3QpIHsN
+Cj4+ICAJCWNvbmRfcmVzY2hlZCgpOw0KPj4gIA0KPj4gIAkJLyogbWF5IGFkZCBuZXcgb2JqZWN0
+cyB0byB0aGUgbGlzdCAqLw0KPj4gIAkJaWYgKCFzY2FuX3Nob3VsZF9zdG9wKCkpDQo+PiAgCQkJ
+c2Nhbl9vYmplY3Qob2JqZWN0KTsNCj4+ICANCj4+IC0JCXRtcCA9IGxpc3RfZW50cnkob2JqZWN0
+LT5ncmF5X2xpc3QubmV4dCwgdHlwZW9mKCpvYmplY3QpLA0KPj4gLQkJCQkgZ3JheV9saXN0KTsN
+Cj4+IC0NCj4+ICAJCS8qIHJlbW92ZSB0aGUgb2JqZWN0IGZyb20gdGhlIGxpc3QgYW5kIHJlbGVh
+c2UgaXQgKi8NCj4+ICAJCWxpc3RfZGVsKCZvYmplY3QtPmdyYXlfbGlzdCk7DQo+PiAgCQlwdXRf
+b2JqZWN0KG9iamVjdCk7DQo+PiAtDQo+PiAtCQlvYmplY3QgPSB0bXA7DQo+PiAgCX0NCj4+ICAJ
+V0FSTl9PTighbGlzdF9lbXB0eSgmZ3JheV9saXN0KSk7DQo+DQo+SSB0cmllZCB0aGlzIHBhdGNo
+IGZvciBhIGZldyBkYXlzIGFuZCBJIGhpdCB0aGUgV0FSTl9PTiBhZnRlciB0aGUgbG9vcC4NCj5E
+dXJpbmcgc2Nhbm5pbmcsIG5ldyBlbnRyaWVzIG1heSBiZSBhZGRlZCBhdCB0aGUgZW5kIG9mIHRo
+ZSBsb29wIGJ1dCB3ZQ0KPm5lZWQgdG8gbG9vcCB1bnRpbCBhbGwgdGhlIGVudHJpZXMgaGF2ZSBi
+ZWVuIHJlbW92ZWQuIEkgcHJvYmFibHkgaGFkIGENCj5yZWFzb24gd2h5IEkgaGFkIHRoZSAnd2hp
+bGUnIGxvb3AuDQo+DQo+VGhlIGtleSBkaWZmZXJlbmNlIGlzIHRoYXQgbGlzdF9mb3JfZWFjaF9l
+bnRyeV9zYWZlKCkgZ2V0cyB0aGUgbmV4dA0KPmVudHJ5IChuIG9yIHRtcCBhYm92ZSkgYmVmb3Jl
+IHNjYW5fb2JqZWN0KCkgYW5kIGl0IG1heSBoaXQgdGhlIGVuZCBvZg0KPnRoZSBsaXN0LiBIb3dl
+dmVyLCBzY2FuX29iamVjdCgpIG1heSBkbyBhIGxpc3RfYWRkX3RhaWwoJmdyYXlfbGlzdCkNCj5o
+ZW5jZSB3ZSBuZWVkIHRvIGdldCB0aGUgbmV4dCBlbnRyeSBhZnRlciB0aGlzIGZ1bmN0aW9uLg0K
+Pg0KPkJhc2ljYWxseSBsaXN0X2Zvcl9lYWNoX2VudHJ5X3NhZmUoKSBpcyBub3Qgc2FmZSB3aXRo
+IHRhaWwgYWRkaXRpb25zLg0KPkknbGwgcmV2ZXJ0IHRoaXMgcGF0Y2ggKGhhc24ndCByZWFjaGVk
+IG1haW5saW5lIGFueXdheSkuDQo+DQpPaywgaSBzZWUuIA0KVGhhbmtzIQ0KPlRoYW5rcy4NCj4N
+Cj4tLSANCj5DYXRhbGlu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
