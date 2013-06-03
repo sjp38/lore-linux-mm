@@ -1,143 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id C22726B0034
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 14:03:21 -0400 (EDT)
-Received: by mail-ee0-f44.google.com with SMTP id c13so399093eek.17
-        for <linux-mm@kvack.org>; Mon, 03 Jun 2013 11:03:20 -0700 (PDT)
-Date: Mon, 3 Jun 2013 20:03:16 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] mm, memcg: add oom killer delay
-Message-ID: <20130603180316.GA23659@dhcp22.suse.cz>
-References: <alpine.DEB.2.02.1305291817280.520@chino.kir.corp.google.com>
- <20130530150539.GA18155@dhcp22.suse.cz>
- <alpine.DEB.2.02.1305301338430.20389@chino.kir.corp.google.com>
- <20130531081052.GA32491@dhcp22.suse.cz>
- <alpine.DEB.2.02.1305310316210.27716@chino.kir.corp.google.com>
- <20130531112116.GC32491@dhcp22.suse.cz>
- <alpine.DEB.2.02.1305311224330.3434@chino.kir.corp.google.com>
- <20130601061151.GC15576@cmpxchg.org>
- <20130603153432.GC18588@dhcp22.suse.cz>
- <20130603164839.GG15576@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 479576B0034
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 14:12:19 -0400 (EDT)
+Date: Mon, 3 Jun 2013 14:12:02 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 10/10] mm: workingset: keep shadow entries in check
+Message-ID: <20130603181202.GI15576@cmpxchg.org>
+References: <1369937046-27666-1-git-send-email-hannes@cmpxchg.org>
+ <1369937046-27666-11-git-send-email-hannes@cmpxchg.org>
+ <20130603082533.GH5910@twins.programming.kicks-ass.net>
+ <20130603152032.GF15576@cmpxchg.org>
+ <20130603171558.GE8923@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130603164839.GG15576@cmpxchg.org>
+In-Reply-To: <20130603171558.GE8923@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, metin d <metdos@yahoo.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
 
-On Mon 03-06-13 12:48:39, Johannes Weiner wrote:
-> On Mon, Jun 03, 2013 at 05:34:32PM +0200, Michal Hocko wrote:
-> > On Sat 01-06-13 02:11:51, Johannes Weiner wrote:
-> > [...]
-> > > From: Johannes Weiner <hannes@cmpxchg.org>
-> > > Subject: [PATCH] memcg: more robust oom handling
+On Mon, Jun 03, 2013 at 07:15:58PM +0200, Peter Zijlstra wrote:
+> On Mon, Jun 03, 2013 at 11:20:32AM -0400, Johannes Weiner wrote:
+> > On Mon, Jun 03, 2013 at 10:25:33AM +0200, Peter Zijlstra wrote:
+> > > On Thu, May 30, 2013 at 02:04:06PM -0400, Johannes Weiner wrote:
+> > > > Previously, page cache radix tree nodes were freed after reclaim
+> > > > emptied out their page pointers.  But now reclaim stores shadow
+> > > > entries in their place, which are only reclaimed when the inodes
+> > > > themselves are reclaimed.  This is problematic for bigger files that
+> > > > are still in use after they have a significant amount of their cache
+> > > > reclaimed, without any of those pages actually refaulting.  The shadow
+> > > > entries will just sit there and waste memory.  In the worst case, the
+> > > > shadow entries will accumulate until the machine runs out of memory.
+> > > > 
 > > > 
-> > > The memcg OOM handling is incredibly fragile because once a memcg goes
-> > > OOM, one task (kernel or userspace) is responsible for resolving the
-> > > situation.  Every other task that gets caught trying to charge memory
-> > > gets stuck in a waitqueue while potentially holding various filesystem
-> > > and mm locks on which the OOM handling task may now deadlock.
-> > > 
-> > > Do two things to charge attempts under OOM:
-> > > 
-> > > 1. Do not trap system calls (buffered IO and friends), just return
-> > >    -ENOMEM.  Userspace should be able to handle this... right?
-> > > 
-> > > 2. Do not trap page faults directly in the charging context.  Instead,
-> > >    remember the OOMing memcg in the task struct and fully unwind the
-> > >    page fault stack first.  Then synchronize the memcg OOM from
-> > >    pagefault_out_of_memory()
+> > > Can't we simply prune all refault entries that have a distance larger
+> > > than the memory size? Then we must assume that no refault entry means
+> > > its too old, which I think is a fair assumption.
 > > 
-> > I think this should work and I really like it! Nice work Johannes, I
-> > never dared to go that deep and my opposite approach was also much more
-> > fragile.
-> > 
-> > I am just afraid about all the other archs that do not support (from
-> > quick grep it looks like: blackfin, c6x, h8300, metag, mn10300,
-> > openrisc, score and tile). What would be an alternative for them?
-> > #ifdefs for the old code (something like ARCH_HAS_FAULT_OOM_RETRY)? This
-> > would be acceptable for me.
+> > Two workloads bound to two nodes might not push pages through the LRUs
+> > at the same pace, so a distance might be bigger than memory due to the
+> > faster moving node, yet still be a hit in the slower moving one.  We
+> > can't really know until we evaluate it on a per-zone basis.
 > 
-> blackfin is NOMMU but I guess the others should be converted to the
-> proper OOM protocol anyway and not just kill the faulting task.  I can
-> update them in the next version of the patch (series).
+> But wasn't patch 1 of this series about making sure each zone is scanned
+> proportionally to its size?
 
-OK, if you are willing to convert them all then even better.
+Only within any given zonelist.  It's just so that pages used together
+are aged fairly.  But if the tasks are isolated from each other their
+pages may age at different paces without it being unfair since the
+tasks do not contend for the same memory.
 
-> > > Not-quite-signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> > > ---
-> > >  arch/x86/mm/fault.c        |   2 +
-> > >  include/linux/memcontrol.h |   6 +++
-> > >  include/linux/sched.h      |   6 +++
-> > >  mm/memcontrol.c            | 104 +++++++++++++++++++++++++--------------------
-> > >  mm/oom_kill.c              |   7 ++-
-> > >  5 files changed, 78 insertions(+), 47 deletions(-)
-> > > 
-> > [...]
-> > > diff --git a/include/linux/sched.h b/include/linux/sched.h
-> > > index e692a02..cf60aef 100644
-> > > --- a/include/linux/sched.h
-> > > +++ b/include/linux/sched.h
-> > > @@ -1282,6 +1282,8 @@ struct task_struct {
-> > >  				 * execve */
-> > >  	unsigned in_iowait:1;
-> > >  
-> > > +	unsigned in_userfault:1;
-> > > +
-> > 
-> > [This is more a nit pick but before I forget while I am reading through
-> > the rest of the patch.]
-> > 
-> > OK there is a lot of room around those bit fields but as this is only
-> > for memcg and you are enlarging the structure by the pointer then you
-> > can reuse bottom bit of memcg pointer.
-> 
-> I just didn't want to put anything in the arch code that looks too
-> memcgish, even though it's the only user right now.  But granted, it
-> will also probably remain the only user for a while.
+> But given that, sure maybe 1 memory size is a bit strict, but surely we
+> can put a limit on things at about 2 memory sizes?
 
-OK, no objection. I would just use a more generic name. Something like
-memcg_oom_can_block.
+That's what this 10/10 patch does (prune everything older than 2 *
+global_dirtyable_memory()), so I think we're talking past each other.
 
-[...`]
-> > >  	if (locked)
-> > >  		mem_cgroup_oom_notify(memcg);
-> > >  	spin_unlock(&memcg_oom_lock);
-> > >  
-> > >  	if (need_to_kill) {
-> > > -		finish_wait(&memcg_oom_waitq, &owait.wait);
-> > >  		mem_cgroup_out_of_memory(memcg, mask, order);
-> > > -	} else {
-> > > -		schedule();
-> > > -		finish_wait(&memcg_oom_waitq, &owait.wait);
-> > > +		memcg_oom_recover(memcg);
-> > 
-> > Why do we need to call memcg_oom_recover here? We do not know that any
-> > charges have been released. Say mem_cgroup_out_of_memory selected a task
-> > which migrated to our group (without its charges) so we would kill the
-> > poor guy and free no memory from this group.
-> > Now you wake up oom waiters to refault but they will end up in the same
-> > situation. I think it should be sufficient to wait for memcg_oom_recover
-> > until the memory is uncharged (which we do already).
-> 
-> It's a leftover from how it was before (see the memcg_wakeup_oom
-> below), but you are right, we can get rid of it.
-
-right, I have missed that. Then it would deserve a note in the
-changelog. Something like
-"
-memcg_wakeup_oom should be removed because there is no guarantee that
-mem_cgroup_out_of_memory was able to free any memory. It could have
-killed a task which doesn't have any charges from the group. Waiters
-should be woken up by memcg_oom_recover during uncharge or a limit
-change.
-"
-[...]
--- 
-Michal Hocko
-SUSE Labs
+Maybe the wording of the changelog was confusing?  The paragraph you
+quoted above explains the problem resulting from 9/10 but which this
+patch 10/10 fixes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
