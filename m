@@ -1,108 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 2C32F6B003B
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 04:35:42 -0400 (EDT)
-Date: Mon, 3 Jun 2013 17:35:40 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [v4][PATCH 4/6] mm: vmscan: break out mapping "freepage" code
-Message-ID: <20130603083540.GC2795@blaptop>
-References: <20130531183855.44DDF928@viggo.jf.intel.com>
- <20130531183901.375FE758@viggo.jf.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130531183901.375FE758@viggo.jf.intel.com>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id D3B366B003D
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 05:04:17 -0400 (EDT)
+Date: Mon, 3 Jun 2013 17:43:51 +0900
+From: Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>
+Subject: Re: [PATCH v8 9/9] vmcore: support mmap() on /proc/vmcore
+Message-Id: <20130603174351.d04b2ac71d1bab0df242e0ba@mxc.nes.nec.co.jp>
+In-Reply-To: <CAJGZr0Ld6Q4a4f-VObAbvqCp=+fTFNEc6M-Fdnhh28GTcSm1=w@mail.gmail.com>
+References: <20130523052421.13864.83978.stgit@localhost6.localdomain6>
+	<20130523052547.13864.83306.stgit@localhost6.localdomain6>
+	<20130523152445.17549682ae45b5aab3f3cde0@linux-foundation.org>
+	<CAJGZr0LwivLTH+E7WAR1B9_6B4e=jv04KgCUL_PdVpi9JjDpBw@mail.gmail.com>
+	<51A2BBA7.50607@jp.fujitsu.com>
+	<CAJGZr0LmsFXEgb3UXVb+rqo1aq5KJyNxyNAD+DG+3KnJm_ZncQ@mail.gmail.com>
+	<51A71B49.3070003@cn.fujitsu.com>
+	<CAJGZr0Ld6Q4a4f-VObAbvqCp=+fTFNEc6M-Fdnhh28GTcSm1=w@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de, tim.c.chen@linux.intel.com
+To: muvarov@gmail.com
+Cc: zhangyanfei@cn.fujitsu.com, d.hatayama@jp.fujitsu.com, akpm@linux-foundation.org, riel@redhat.com, hughd@google.com, jingbai.ma@hp.com, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, lisa.mitchell@hp.com, linux-mm@kvack.org, ebiederm@xmission.com, kosaki.motohiro@jp.fujitsu.com, walken@google.com, cpw@sgi.com, vgoyal@redhat.com
 
-On Fri, May 31, 2013 at 11:39:01AM -0700, Dave Hansen wrote:
-> 
-> From: Dave Hansen <dave.hansen@linux.intel.com>
-> 
-> __remove_mapping() only deals with pages with mappings, meaning
-> page cache and swap cache.
-> 
-> At this point, the page has been removed from the mapping's radix
-> tree, and we need to ensure that any fs-specific (or swap-
-> specific) resources are freed up.
-> 
-> We will be using this function from a second location in a
-> following patch.
-> 
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-> Acked-by: Mel Gorman <mgorman@suse.de>
+Hello Maxim,
 
-Reviewed-by: Minchan Kim <minchan@kernel.org>
+On Thu, 30 May 2013 14:30:01 +0400
+Maxim Uvarov <muvarov@gmail.com> wrote:
 
-Again, a nitpick. Sorry.
-
-> ---
+> 2013/5/30 Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 > 
->  linux.git-davehans/mm/vmscan.c |   28 +++++++++++++++++++---------
->  1 file changed, 19 insertions(+), 9 deletions(-)
-> 
-> diff -puN mm/vmscan.c~free_mapping_page mm/vmscan.c
-> --- linux.git/mm/vmscan.c~free_mapping_page	2013-05-30 16:07:51.461115968 -0700
-> +++ linux.git-davehans/mm/vmscan.c	2013-05-30 16:07:51.465116144 -0700
-> @@ -497,6 +497,24 @@ static int __remove_mapping(struct addre
->  	return 1;
->  }
->  
-> +/*
-> + * Release any resources the mapping had tied up in
-> + * the page.
+> > On 05/30/2013 05:14 PM, Maxim Uvarov wrote:
+> > >
+> > >
+> > >
+> > > 2013/5/27 HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com <mailto:
+> > d.hatayama@jp.fujitsu.com>>
+> > >
+> > >     (2013/05/24 18:02), Maxim Uvarov wrote:
+> > >
+> > >
+> > >
+> > >
+> > >         2013/5/24 Andrew Morton <akpm@linux-foundation.org <mailto:
+> > akpm@linux-foundation.org> <mailto:akpm@linux-foundation.__org <mailto:
+> > akpm@linux-foundation.org>>>
+> > >
+> > >
+> > >             On Thu, 23 May 2013 14:25:48 +0900 HATAYAMA Daisuke <
+> > d.hatayama@jp.fujitsu.com <mailto:d.hatayama@jp.fujitsu.com> <mailto:
+> > d.hatayama@jp.fujitsu.__com <mailto:d.hatayama@jp.fujitsu.com>>> wrote:
+> > >
+> > >              > This patch introduces mmap_vmcore().
+> > >              >
+> > >              > Don't permit writable nor executable mapping even with
+> > mprotect()
+> > >              > because this mmap() is aimed at reading crash dump memory.
+> > >              > Non-writable mapping is also requirement of
+> > remap_pfn_range() when
+> > >              > mapping linear pages on non-consecutive physical pages;
+> > see
+> > >              > is_cow_mapping().
+> > >              >
+> > >              > Set VM_MIXEDMAP flag to remap memory by remap_pfn_range
+> > and by
+> > >              > remap_vmalloc_range_pertial at the same time for a single
+> > >              > vma. do_munmap() can correctly clean partially remapped
+> > vma with two
+> > >              > functions in abnormal case. See zap_pte_range(),
+> > vm_normal_page() and
+> > >              > their comments for details.
+> > >              >
+> > >              > On x86-32 PAE kernels, mmap() supports at most 16TB
+> > memory only. This
+> > >              > limitation comes from the fact that the third argument of
+> > >              > remap_pfn_range(), pfn, is of 32-bit length on x86-32:
+> > unsigned long.
+> > >
+> > >             More reviewing and testing, please.
+> > >
+> > >
+> > >         Do you have git pull for both kernel and userland changes? I
+> > would like to do some more testing on my machines.
+> > >
+> > >         Maxim.
+> > >
+> > >
+> > >     Thanks! That's very helpful.
+> > >
+> > >     --
+> > >     Thanks.
+> > >     HATAYAMA, Daisuke
+> > >
+> > > Any update for this? Where can I checkout all sources?
+> >
+> > This series is now in Andrew Morton's -mm tree.
+> >
+> > Ok, and what about makedumpfile changes? Is it possible to fetch them from
+> somewhere?
 
-It could be a one line.
+You can fetch them from here, "mmap" branch is the change:
+
+  git://git.code.sf.net/p/makedumpfile/code
+
+And they will be merged into v1.5.4.
 
 
-> + */
-> +static void mapping_release_page(struct address_space *mapping,
-> +				 struct page *page)
-> +{
-> +	if (PageSwapCache(page)) {
-> +		swapcache_free_page_entry(page);
-> +	} else {
-> +		void (*freepage)(struct page *);
-> +		freepage = mapping->a_ops->freepage;
-> +		mem_cgroup_uncharge_cache_page(page);
-> +		if (freepage != NULL)
-> +			freepage(page);
-> +	}
-> +}
-> +
->  static int lock_remove_mapping(struct address_space *mapping, struct page *page)
->  {
->  	int ret;
-> @@ -510,15 +528,7 @@ static int lock_remove_mapping(struct ad
->  	if (!ret)
->  		return 0;
->  
-> -	if (PageSwapCache(page)) {
-> -		swapcache_free_page_entry(page);
-> -	} else {
-> -		void (*freepage)(struct page *);
-> -		freepage = mapping->a_ops->freepage;
-> -		mem_cgroup_uncharge_cache_page(page);
-> -		if (freepage != NULL)
-> -			freepage(page);
-> -	}
-> +	mapping_release_page(mapping, page);
->  	return ret;
->  }
->  
-> _
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+Thanks
+Atsushi Kumagai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
