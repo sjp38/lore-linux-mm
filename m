@@ -1,65 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 579A96B0037
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 11:53:17 -0400 (EDT)
-Message-ID: <51ACBBEA.2040804@sr71.net>
-Date: Mon, 03 Jun 2013 08:53:14 -0700
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 7BF356B0037
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 11:55:10 -0400 (EDT)
+Message-ID: <51ACBC5C.9020701@sr71.net>
+Date: Mon, 03 Jun 2013 08:55:08 -0700
 From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Subject: Re: [PATCHv4 23/39] thp: wait_split_huge_page(): serialize over i_mmap_mutex
- too
-References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com> <1368321816-17719-24-git-send-email-kirill.shutemov@linux.intel.com> <519BEFAE.1080800@sr71.net> <20130603150214.54C34E0090@blue.fi.intel.com>
-In-Reply-To: <20130603150214.54C34E0090@blue.fi.intel.com>
+Subject: Re: [v4][PATCH 2/6] mm: swap: make 'struct page' and swp_entry_t
+ variants of swapcache_free().
+References: <20130531183855.44DDF928@viggo.jf.intel.com> <20130531183858.3C8C10C7@viggo.jf.intel.com> <20130603061320.GA2795@blaptop>
+In-Reply-To: <20130603061320.GA2795@blaptop>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de, tim.c.chen@linux.intel.com
 
-
-On 06/03/2013 08:02 AM, Kirill A. Shutemov wrote:
-> Dave Hansen wrote:
->> On 05/11/2013 06:23 PM, Kirill A. Shutemov wrote:
->>> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com
->>> -#define wait_split_huge_page(__anon_vma, __pmd)				\
->>> +#define wait_split_huge_page(__vma, __pmd)				\
->>>  	do {								\
->>>  		pmd_t *____pmd = (__pmd);				\
->>> -		anon_vma_lock_write(__anon_vma);			\
->>> -		anon_vma_unlock_write(__anon_vma);			\
->>> +		struct address_space *__mapping =			\
->>> +					vma->vm_file->f_mapping;	\
->>> +		struct anon_vma *__anon_vma = (__vma)->anon_vma;	\
->>> +		if (__mapping)						\
->>> +			mutex_lock(&__mapping->i_mmap_mutex);		\
->>> +		if (__anon_vma) {					\
->>> +			anon_vma_lock_write(__anon_vma);		\
->>> +			anon_vma_unlock_write(__anon_vma);		\
->>> +		}							\
->>> +		if (__mapping)						\
->>> +			mutex_unlock(&__mapping->i_mmap_mutex);		\
->>>  		BUG_ON(pmd_trans_splitting(*____pmd) ||			\
->>>  		       pmd_trans_huge(*____pmd));			\
->>>  	} while (0)
-...
->> Could you also describe the lengths to which you've gone to try and keep
->> this macro from growing in to any larger of an abomination.  Is it truly
->> _impossible_ to turn this in to a normal function?  Or will it simply be
->> a larger amount of work that you can do right now?  What would it take?
+On 06/02/2013 11:13 PM, Minchan Kim wrote:
+> I lost from this description.
 > 
-> Okay, I've tried once again. The patch is below. It looks too invasive for
-> me. What do you think?
+> Old behavior
+> 
+> delete_from_swap_cache
+>         swap_address_space
+>         __delete_from_swap_cache
+>                 swap_address_space
+> 
+> 
+> New behavior
+> 
+> delete_from_swap_cache
+>         __delete_from_swap_cache
+>                 swap_address_space
+>                 
+> So you removes a swap_address_space, not adding a extra call.
+> Am I missing something?
 
-That patch looks great to me, actually.  It really looks to just be
-superficially moving code around.  The diffstat is even too:
+I think I got the page->swp_entry_t lookup confused with the
+page->swap_address_space lookup when I was writing the description.  The
+bit that you missed is that I _added_ a page_mapping() call, which calls
+swap_address_space() internally:
 
->  include/linux/huge_mm.h  |   35 ++++++++++++++--------------
->  include/linux/mm.h       |   24 +++++++++++++++++--
->  include/linux/mm_types.h |   37 +++++++++++++++++++++++++++++
->  include/linux/rmap.h     |   58 -----------------------------------------------
->  mm/memory.c              |    8 +++---
->  5 files changed, 81 insertions(+), 81 deletions(-)
+Old behavior:
+
+delete_from_swap_cache
+        swap_address_space
+        __delete_from_swap_cache
+                swap_address_space
+
+New behavior:
+
+delete_from_swap_cache
+	page_mapping
+		swap_address_space
+        __delete_from_swap_cache
+                swap_address_space
+
+--
+
+New description (last paragraph changed).  Andrew, I'll resend the
+series since there are a few of these cleanups.
+
+From: Dave Hansen <dave.hansen@linux.intel.com>
+
+swapcache_free() takes two arguments:
+
+	void swapcache_free(swp_entry_t entry, struct page *page)
+
+Most of its callers (5/7) are from error handling paths haven't even
+instantiated a page, so they pass page=NULL.  Both of the callers
+that call in with a 'struct page' create and pass in a temporary
+swp_entry_t.
+
+Now that we are deferring clearing page_private() until after
+swapcache_free() has been called, we can just create a variant
+that takes a 'struct page' and does the temporary variable in
+the helper.
+
+That leaves all the other callers doing
+
+	swapcache_free(entry, NULL)
+
+so create another helper for them that makes it clear that they
+need only pass in a swp_entry_t.
+
+One downside here is that delete_from_swap_cache() now calls
+swap_address_space() via page_mapping() instead of calling
+swap_address_space() directly.  In doing so, it removes one more
+case of the swap cache code being special-cased, which is a good
+thing in my book.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
