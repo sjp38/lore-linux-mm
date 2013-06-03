@@ -1,67 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 99C766B0032
-	for <linux-mm@kvack.org>; Sat,  1 Jun 2013 19:53:28 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id x10so3989969pdj.1
-        for <linux-mm@kvack.org>; Sat, 01 Jun 2013 16:53:27 -0700 (PDT)
-From: Akinobu Mita <akinobu.mita@gmail.com>
-Subject: [PATCH] frontswap: fix incorrect zeroing and allocation size for frontswap_map
-Date: Sun,  2 Jun 2013 08:52:57 +0900
-Message-Id: <1370130777-6707-1-git-send-email-akinobu.mita@gmail.com>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id C4E126B0032
+	for <linux-mm@kvack.org>; Sun,  2 Jun 2013 20:31:27 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Mon, 3 Jun 2013 05:57:08 +0530
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 1CDA21258054
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 06:03:22 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r530V8wu52691168
+	for <linux-mm@kvack.org>; Mon, 3 Jun 2013 06:01:08 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r530VBem007193
+	for <linux-mm@kvack.org>; Mon, 3 Jun 2013 00:31:13 GMT
+Date: Mon, 3 Jun 2013 08:31:09 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH v3 01/13] x86: get pg_data_t's memory from other node
+Message-ID: <20130603003109.GA20478@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <1369387762-17865-1-git-send-email-tangchen@cn.fujitsu.com>
+ <1369387762-17865-2-git-send-email-tangchen@cn.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1369387762-17865-2-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org
-Cc: Akinobu Mita <akinobu.mita@gmail.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, tj@kernel.org, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-The bitmap accessed by bitops must have enough size to hold the required
-numbers of bits rounded up to a multiple of BITS_PER_LONG.  And the bitmap
-must not be zeroed by memset() if the number of bits cleared is not
-a multiple of BITS_PER_LONG.
+On Fri, May 24, 2013 at 05:29:10PM +0800, Tang Chen wrote:
+>From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>
+>If system can create movable node which all memory of the
+>node is allocated as ZONE_MOVABLE, setup_node_data() cannot
+>allocate memory for the node's pg_data_t.
+>So, use memblock_alloc_try_nid() instead of memblock_alloc_nid()
+>to retry when the first allocation fails.
+>
+>As noticed by Chen Gong <gong.chen@linux.intel.com>, memblock_alloc_try_nid()
+>will call panic() if it fails to allocate memory. So we don't need to
+>check the return value.
+>
 
-This fixes incorrect zeroing and allocation size for frontswap_map.
-The incorrect zeroing part doesn't cause any problem because
-frontswap_map is freed just after zeroing.  But the wrongly calculated
-allocation size may cause the problem.
+Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-For 32bit systems, the allocation size of frontswap_map is about twice as
-large as required size.  For 64bit systems, the allocation size is smaller
-than requeired if the number of bits is not a multiple of BITS_PER_LONG.
-
-Signed-off-by: Akinobu Mita <akinobu.mita@gmail.com>
-Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
----
- mm/frontswap.c | 2 +-
- mm/swapfile.c  | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/frontswap.c b/mm/frontswap.c
-index 538367e..1b24bdc 100644
---- a/mm/frontswap.c
-+++ b/mm/frontswap.c
-@@ -319,7 +319,7 @@ void __frontswap_invalidate_area(unsigned type)
- 			return;
- 		frontswap_ops->invalidate_area(type);
- 		atomic_set(&sis->frontswap_pages, 0);
--		memset(sis->frontswap_map, 0, sis->max / sizeof(long));
-+		bitmap_zero(sis->frontswap_map, sis->max);
- 	}
- 	clear_bit(type, need_init);
- }
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 6c340d9..746af55b 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -2116,7 +2116,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	}
- 	/* frontswap enabled? set up bit-per-page map for frontswap */
- 	if (frontswap_enabled)
--		frontswap_map = vzalloc(maxpages / sizeof(long));
-+		frontswap_map = vzalloc(BITS_TO_LONGS(maxpages) * sizeof(long));
- 
- 	if (p->bdev) {
- 		if (blk_queue_nonrot(bdev_get_queue(p->bdev))) {
--- 
-1.8.1.4
+>Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
+>Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+>Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+>---
+> arch/x86/mm/numa.c |    7 +------
+> 1 files changed, 1 insertions(+), 6 deletions(-)
+>
+>diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+>index 11acdf6..af18b18 100644
+>--- a/arch/x86/mm/numa.c
+>+++ b/arch/x86/mm/numa.c
+>@@ -214,12 +214,7 @@ static void __init setup_node_data(int nid, u64 start, u64 end)
+> 	 * Allocate node data.  Try node-local memory and then any node.
+> 	 * Never allocate in DMA zone.
+> 	 */
+>-	nd_pa = memblock_alloc_nid(nd_size, SMP_CACHE_BYTES, nid);
+>-	if (!nd_pa) {
+>-		pr_err("Cannot find %zu bytes in node %d\n",
+>-		       nd_size, nid);
+>-		return;
+>-	}
+>+	nd_pa = memblock_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
+> 	nd = __va(nd_pa);
+>
+> 	/* report and initialize */
+>-- 
+>1.7.1
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
