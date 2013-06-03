@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 47EC76B0034
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 16:02:07 -0400 (EDT)
-Subject: [v5][PATCH 3/6] mm: vmscan: break up __remove_mapping()
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 61BC76B0034
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 16:02:18 -0400 (EDT)
+Subject: [v5][PATCH 5/6] mm: vmscan: batch shrink_page_list() locking operations
 From: Dave Hansen <dave@sr71.net>
-Date: Mon, 03 Jun 2013 13:02:06 -0700
+Date: Mon, 03 Jun 2013 13:02:08 -0700
 References: <20130603200202.7F5FDE07@viggo.jf.intel.com>
 In-Reply-To: <20130603200202.7F5FDE07@viggo.jf.intel.com>
-Message-Id: <20130603200206.644A9EC3@viggo.jf.intel.com>
+Message-Id: <20130603200208.6F71D31F@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
@@ -15,120 +15,208 @@ Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de, ti
 
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
+changes for v2:
+ * remove batch_has_same_mapping() helper.  A local varible makes
+   the check cheaper and cleaner
+ * Move batch draining later to where we already know
+   page_mapping().  This probably fixes a truncation race anyway
+ * rename batch_for_mapping_removal -> batch_for_mapping_rm.  It
+   caused a line over 80 chars and needed shortening anyway.
+ * Note: we only set 'batch_mapping' when there are pages in the
+   batch_for_mapping_rm list
 
-Our goal here is to eventually reduce the number of repetitive
-acquire/release operations on mapping->tree_lock.
+--
 
-Logically, this patch has two steps:
-1. rename __remove_mapping() to lock_remove_mapping() since
-   "__" usually means "this us the unlocked version.
-2. Recreate __remove_mapping() to _be_ the lock_remove_mapping()
-   but without the locks.
+We batch like this so that several pages can be freed with a
+single mapping->tree_lock acquisition/release pair.  This reduces
+the number of atomic operations and ensures that we do not bounce
+cachelines around.
 
-I think this actually makes the code flow around the locking
-_much_ more straighforward since the locking just becomes:
+Tim Chen's earlier version of these patches just unconditionally
+created large batches of pages, even if they did not share a
+page_mapping().  This is a bit suboptimal for a few reasons:
+1. if we can not consolidate lock acquisitions, it makes little
+   sense to batch
+2. The page locks are held for long periods of time, so we only
+   want to do this when we are sure that we will gain a
+   substantial throughput improvement because we pay a latency
+   cost by holding the locks.
 
-	spin_lock_irq(&mapping->tree_lock);
-	ret = __remove_mapping(mapping, page);
-	spin_unlock_irq(&mapping->tree_lock);
+This patch makes sure to only batch when all the pages on
+'batch_for_mapping_rm' continue to share a page_mapping().
+This only happens in practice in cases where pages in the same
+file are close to each other on the LRU.  That seems like a
+reasonable assumption.
 
-One non-obvious part of this patch: the
+In a 128MB virtual machine doing kernel compiles, the average
+batch size when calling __remove_mapping_batch() is around 5,
+so this does seem to do some good in practice.
 
-	freepage = mapping->a_ops->freepage;
+On a 160-cpu system doing kernel compiles, I still saw an
+average batch length of about 2.8.  One promising feature:
+as the memory pressure went up, the average batches seem to
+have gotten larger.
 
-used to happen under the mapping->tree_lock, but this patch
-moves it to outside of the lock.  All of the other
-a_ops->freepage users do it outside the lock, and we only
-assign it when we create inodes, so that makes it safe.
+It has shown some substantial performance benefits on
+microbenchmarks.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Acked-by: Mel Gorman <mgorman@suse.de>
-Reviewed-by: Minchan Kin <minchan@kernel.org>
-
 ---
 
- linux.git-davehans/mm/vmscan.c |   40 ++++++++++++++++++++++++----------------
- 1 file changed, 24 insertions(+), 16 deletions(-)
+ linux.git-davehans/mm/vmscan.c |   95 +++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 86 insertions(+), 9 deletions(-)
 
-diff -puN mm/vmscan.c~make-remove-mapping-without-locks mm/vmscan.c
---- linux.git/mm/vmscan.c~make-remove-mapping-without-locks	2013-06-03 12:41:30.903728970 -0700
-+++ linux.git-davehans/mm/vmscan.c	2013-06-03 12:41:30.907729146 -0700
-@@ -455,7 +455,6 @@ static int __remove_mapping(struct addre
- 	BUG_ON(!PageLocked(page));
- 	BUG_ON(mapping != page_mapping(page));
- 
--	spin_lock_irq(&mapping->tree_lock);
- 	/*
- 	 * The non racy check for a busy page.
- 	 *
-@@ -482,35 +481,44 @@ static int __remove_mapping(struct addre
- 	 * and thus under tree_lock, then this ordering is not required.
- 	 */
- 	if (!page_freeze_refs(page, 2))
--		goto cannot_free;
-+		return 0;
- 	/* note: atomic_cmpxchg in page_freeze_refs provides the smp_rmb */
- 	if (unlikely(PageDirty(page))) {
- 		page_unfreeze_refs(page, 2);
--		goto cannot_free;
-+		return 0;
- 	}
- 
- 	if (PageSwapCache(page)) {
- 		__delete_from_swap_cache(page);
--		spin_unlock_irq(&mapping->tree_lock);
-+	} else {
-+		__delete_from_page_cache(page);
-+	}
-+	return 1;
-+}
-+
-+static int lock_remove_mapping(struct address_space *mapping, struct page *page)
-+{
-+	int ret;
-+	BUG_ON(!PageLocked(page));
-+
-+	spin_lock_irq(&mapping->tree_lock);
-+	ret = __remove_mapping(mapping, page);
-+	spin_unlock_irq(&mapping->tree_lock);
-+
-+	/* unable to free */
-+	if (!ret)
-+		return 0;
-+
-+	if (PageSwapCache(page)) {
- 		swapcache_free_page_entry(page);
- 	} else {
- 		void (*freepage)(struct page *);
--
- 		freepage = mapping->a_ops->freepage;
--
--		__delete_from_page_cache(page);
--		spin_unlock_irq(&mapping->tree_lock);
- 		mem_cgroup_uncharge_cache_page(page);
--
- 		if (freepage != NULL)
- 			freepage(page);
- 	}
--
--	return 1;
--
--cannot_free:
--	spin_unlock_irq(&mapping->tree_lock);
--	return 0;
-+	return ret;
+diff -puN mm/vmscan.c~create-remove_mapping_batch mm/vmscan.c
+--- linux.git/mm/vmscan.c~create-remove_mapping_batch	2013-06-03 12:41:31.408751324 -0700
++++ linux.git-davehans/mm/vmscan.c	2013-06-03 12:41:31.412751500 -0700
+@@ -550,6 +550,61 @@ int remove_mapping(struct address_space
+ 	return 0;
  }
  
- /*
-@@ -521,7 +529,7 @@ cannot_free:
-  */
- int remove_mapping(struct address_space *mapping, struct page *page)
++/*
++ * pages come in here (via remove_list) locked and leave unlocked
++ * (on either ret_pages or free_pages)
++ *
++ * We do this batching so that we free batches of pages with a
++ * single mapping->tree_lock acquisition/release.  This optimization
++ * only makes sense when the pages on remove_list all share a
++ * page_mapping().  If this is violated you will BUG_ON().
++ */
++static int __remove_mapping_batch(struct list_head *remove_list,
++				  struct list_head *ret_pages,
++				  struct list_head *free_pages)
++{
++	int nr_reclaimed = 0;
++	struct address_space *mapping;
++	struct page *page;
++	LIST_HEAD(need_free_mapping);
++
++	if (list_empty(remove_list))
++		return 0;
++
++	mapping = page_mapping(lru_to_page(remove_list));
++	spin_lock_irq(&mapping->tree_lock);
++	while (!list_empty(remove_list)) {
++		page = lru_to_page(remove_list);
++		BUG_ON(!PageLocked(page));
++		BUG_ON(page_mapping(page) != mapping);
++		list_del(&page->lru);
++
++		if (!__remove_mapping(mapping, page)) {
++			unlock_page(page);
++			list_add(&page->lru, ret_pages);
++			continue;
++		}
++		list_add(&page->lru, &need_free_mapping);
++	}
++	spin_unlock_irq(&mapping->tree_lock);
++
++	while (!list_empty(&need_free_mapping)) {
++		page = lru_to_page(&need_free_mapping);
++		list_move(&page->list, free_pages);
++		mapping_release_page(mapping, page);
++		/*
++		 * At this point, we have no other references and there is
++		 * no way to pick any more up (removed from LRU, removed
++		 * from pagecache). Can use non-atomic bitops now (and
++		 * we obviously don't have to worry about waking up a process
++		 * waiting on the page lock, because there are no references.
++		 */
++		__clear_page_locked(page);
++		nr_reclaimed++;
++	}
++	return nr_reclaimed;
++}
++
+ /**
+  * putback_lru_page - put previously isolated page onto appropriate LRU list
+  * @page: page to be put back to appropriate lru list
+@@ -728,6 +783,8 @@ static unsigned long shrink_page_list(st
  {
--	if (__remove_mapping(mapping, page)) {
-+	if (lock_remove_mapping(mapping, page)) {
+ 	LIST_HEAD(ret_pages);
+ 	LIST_HEAD(free_pages);
++	LIST_HEAD(batch_for_mapping_rm);
++	struct address_space *batch_mapping = NULL;
+ 	int pgactivate = 0;
+ 	unsigned long nr_unqueued_dirty = 0;
+ 	unsigned long nr_dirty = 0;
+@@ -749,6 +806,7 @@ static unsigned long shrink_page_list(st
+ 		cond_resched();
+ 
+ 		page = lru_to_page(page_list);
++
+ 		list_del(&page->lru);
+ 
+ 		if (!trylock_page(page))
+@@ -851,6 +909,10 @@ static unsigned long shrink_page_list(st
+ 
+ 			/* Case 3 above */
+ 			} else {
++				/*
++				 * batch_for_mapping_rm could be drained here
++				 * if its lock_page()s hurt latency elsewhere.
++				 */
+ 				wait_on_page_writeback(page);
+ 			}
+ 		}
+@@ -881,6 +943,18 @@ static unsigned long shrink_page_list(st
+ 		}
+ 
+ 		mapping = page_mapping(page);
++		/*
++		 * batching only makes sense when we can save lock
++		 * acquisitions, so drain the previously-batched
++		 * pages when we move over to a different mapping
++		 */
++		if (batch_mapping && (batch_mapping != mapping)) {
++			nr_reclaimed +=
++				__remove_mapping_batch(&batch_for_mapping_rm,
++							&ret_pages,
++							&free_pages);
++			batch_mapping = NULL;
++		}
+ 
  		/*
- 		 * Unfreezing the refcount with 1 rather than 2 effectively
- 		 * drops the pagecache ref for us without requiring another
+ 		 * The page is mapped into the page tables of one or more
+@@ -996,17 +1070,18 @@ static unsigned long shrink_page_list(st
+ 			}
+ 		}
+ 
+-		if (!mapping || !__remove_mapping(mapping, page))
++		if (!mapping)
+ 			goto keep_locked;
+-
+ 		/*
+-		 * At this point, we have no other references and there is
+-		 * no way to pick any more up (removed from LRU, removed
+-		 * from pagecache). Can use non-atomic bitops now (and
+-		 * we obviously don't have to worry about waking up a process
+-		 * waiting on the page lock, because there are no references.
++		 * This list contains pages all in the same mapping, but
++		 * in effectively random order and we hold lock_page()
++		 * on *all* of them.  This can potentially cause lock
++		 * ordering issues, but the reclaim code only trylocks
++		 * them which saves us.
+ 		 */
+-		__clear_page_locked(page);
++		list_add(&page->lru, &batch_for_mapping_rm);
++		batch_mapping = mapping;
++		continue;
+ free_it:
+ 		nr_reclaimed++;
+ 
+@@ -1037,7 +1112,9 @@ keep:
+ 		list_add(&page->lru, &ret_pages);
+ 		VM_BUG_ON(PageLRU(page) || PageUnevictable(page));
+ 	}
+-
++	nr_reclaimed += __remove_mapping_batch(&batch_for_mapping_rm,
++						&ret_pages,
++						&free_pages);
+ 	/*
+ 	 * Tag a zone as congested if all the dirty pages encountered were
+ 	 * backed by a congested BDI. In this case, reclaimers should just
 _
 
 --
