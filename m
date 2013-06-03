@@ -1,53 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 751826B009B
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 09:19:36 -0400 (EDT)
-Date: Mon, 3 Jun 2013 15:19:32 +0200
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 452106B009C
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 09:26:44 -0400 (EDT)
+Date: Mon, 3 Jun 2013 15:26:41 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/2] hugetlbfs: support split page table lock
-Message-ID: <20130603131932.GA18588@dhcp22.suse.cz>
+Subject: Re: [PATCH v3 2/2] migrate: add migrate_entry_wait_huge()
+Message-ID: <20130603132641.GB18588@dhcp22.suse.cz>
 References: <1369770771-8447-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1369770771-8447-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1369770771-8447-3-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1369770771-8447-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1369770771-8447-3-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andi Kleen <andi@firstfloor.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org
 
-On Tue 28-05-13 15:52:50, Naoya Horiguchi wrote:
-> Currently all of page table handling by hugetlbfs code are done under
-> mm->page_table_lock. This is not optimal because there can be lock
-> contentions between unrelated components using this lock.
-
-While I agree with such a change in general I am a bit afraid of all
-subtle tweaks in the mm code that make hugetlb special. Maybe there are
-none for page_table_lock but I am not 100% sure. So this might be
-really tricky and it is not necessary for your further patches, is it?
-
-How have you tested this?
-
-> This patch makes hugepage support split page table lock so that
-> we use page->ptl of the leaf node of page table tree which is pte for
-> normal pages but can be pmd and/or pud for hugepages of some architectures.
+On Tue 28-05-13 15:52:51, Naoya Horiguchi wrote:
+> When we have a page fault for the address which is backed by a hugepage
+> under migration, the kernel can't wait correctly and do busy looping on
+> hugepage fault until the migration finishes.
+> This is because pte_offset_map_lock() can't get a correct migration entry
+> or a correct page table lock for hugepage.
+> This patch introduces migration_entry_wait_huge() to solve this.
+> 
+> Note that the caller, hugetlb_fault(), gets the pointer to the "leaf"
+> entry with huge_pte_offset() inside which all the arch-dependency of
+> the page table structure are. So migration_entry_wait_huge() and
+> __migration_entry_wait() are free from arch-dependency.
+> 
+> ChangeLog v3:
+>  - use huge_pte_lockptr
+> 
+> ChangeLog v2:
+>  - remove dup in migrate_entry_wait_huge()
 > 
 > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> ---
->  arch/x86/mm/hugetlbpage.c |  6 ++--
->  include/linux/hugetlb.h   | 18 ++++++++++
->  mm/hugetlb.c              | 84 ++++++++++++++++++++++++++++-------------------
+> Reviewed-by: Rik van Riel <riel@redhat.com>
+> Cc: stable@vger.kernel.org # 2.6.35
 
-This doesn't seem to be the complete story. At least not from the
-trivial:
-$ find arch/ -name "*hugetlb*" | xargs git grep "page_table_lock" -- 
-arch/powerpc/mm/hugetlbpage.c:  spin_lock(&mm->page_table_lock);
-arch/powerpc/mm/hugetlbpage.c:  spin_unlock(&mm->page_table_lock);
-arch/tile/mm/hugetlbpage.c:             spin_lock(&mm->page_table_lock);
-arch/tile/mm/hugetlbpage.c:
-spin_unlock(&mm->page_table_lock);
-arch/x86/mm/hugetlbpage.c: * called with vma->vm_mm->page_table_lock held.
+OK, this looks good to me and I guess you can safely replace
+huge_pte_lockptr by &(mm)->page_table_lock so you can implement this
+even without risky 1/2 of this series. The patch should be as simple as
+possible especially when it goes to the stable.
+
+Without 1/2 dependency
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+
+> ---
+>  include/linux/swapops.h |  3 +++
+>  mm/hugetlb.c            |  2 +-
+>  mm/migrate.c            | 23 ++++++++++++++++++-----
+>  3 files changed, 22 insertions(+), 6 deletions(-)
+> 
+> diff --git v3.10-rc3.orig/include/linux/swapops.h v3.10-rc3/include/linux/swapops.h
+> index 47ead51..c5fd30d 100644
+> --- v3.10-rc3.orig/include/linux/swapops.h
+> +++ v3.10-rc3/include/linux/swapops.h
+> @@ -137,6 +137,7 @@ static inline void make_migration_entry_read(swp_entry_t *entry)
+>  
+>  extern void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
+>  					unsigned long address);
+> +extern void migration_entry_wait_huge(struct mm_struct *mm, pte_t *pte);
+>  #else
+>  
+>  #define make_migration_entry(page, write) swp_entry(0, 0)
+> @@ -148,6 +149,8 @@ static inline int is_migration_entry(swp_entry_t swp)
+>  static inline void make_migration_entry_read(swp_entry_t *entryp) { }
+>  static inline void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
+>  					 unsigned long address) { }
+> +static inline void migration_entry_wait_huge(struct mm_struct *mm,
+> +					pte_t *pte) { }
+>  static inline int is_write_migration_entry(swp_entry_t entry)
+>  {
+>  	return 0;
+> diff --git v3.10-rc3.orig/mm/hugetlb.c v3.10-rc3/mm/hugetlb.c
+> index 8e1af32..d91a438 100644
+> --- v3.10-rc3.orig/mm/hugetlb.c
+> +++ v3.10-rc3/mm/hugetlb.c
+> @@ -2877,7 +2877,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>  	if (ptep) {
+>  		entry = huge_ptep_get(ptep);
+>  		if (unlikely(is_hugetlb_entry_migration(entry))) {
+> -			migration_entry_wait(mm, (pmd_t *)ptep, address);
+> +			migration_entry_wait_huge(mm, ptep);
+>  			return 0;
+>  		} else if (unlikely(is_hugetlb_entry_hwpoisoned(entry)))
+>  			return VM_FAULT_HWPOISON_LARGE |
+> diff --git v3.10-rc3.orig/mm/migrate.c v3.10-rc3/mm/migrate.c
+> index 6f2df6e..64ff118 100644
+> --- v3.10-rc3.orig/mm/migrate.c
+> +++ v3.10-rc3/mm/migrate.c
+> @@ -204,15 +204,14 @@ static void remove_migration_ptes(struct page *old, struct page *new)
+>   * get to the page and wait until migration is finished.
+>   * When we return from this function the fault will be retried.
+>   */
+> -void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
+> -				unsigned long address)
+> +static void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
+> +				spinlock_t *ptl)
+>  {
+> -	pte_t *ptep, pte;
+> -	spinlock_t *ptl;
+> +	pte_t pte;
+>  	swp_entry_t entry;
+>  	struct page *page;
+>  
+> -	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
+> +	spin_lock(ptl);
+>  	pte = *ptep;
+>  	if (!is_swap_pte(pte))
+>  		goto out;
+> @@ -240,6 +239,20 @@ void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
+>  	pte_unmap_unlock(ptep, ptl);
+>  }
+>  
+> +void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
+> +				unsigned long address)
+> +{
+> +	spinlock_t *ptl = pte_lockptr(mm, pmd);
+> +	pte_t *ptep = pte_offset_map(pmd, address);
+> +	__migration_entry_wait(mm, ptep, ptl);
+> +}
+> +
+> +void migration_entry_wait_huge(struct mm_struct *mm, pte_t *pte)
+> +{
+> +	spinlock_t *ptl = huge_pte_lockptr(mm, pte);
+> +	__migration_entry_wait(mm, pte, ptl);
+> +}
+> +
+>  #ifdef CONFIG_BLOCK
+>  /* Returns true if all buffers are successfully locked */
+>  static bool buffer_migrate_lock_buffers(struct buffer_head *head,
+> -- 
+> 1.7.11.7
+> 
 
 -- 
 Michal Hocko
