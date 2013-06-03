@@ -1,67 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 41C0A6B0002
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 12:09:52 -0400 (EDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <51ACBBEA.2040804@sr71.net>
-References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1368321816-17719-24-git-send-email-kirill.shutemov@linux.intel.com>
- <519BEFAE.1080800@sr71.net>
- <20130603150214.54C34E0090@blue.fi.intel.com>
- <51ACBBEA.2040804@sr71.net>
-Subject: Re: [PATCHv4 23/39] thp: wait_split_huge_page(): serialize over
- i_mmap_mutex too
-Content-Transfer-Encoding: 7bit
-Message-Id: <20130603160920.737A1E0090@blue.fi.intel.com>
-Date: Mon,  3 Jun 2013 19:09:20 +0300 (EEST)
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 91ED06B0002
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 12:13:36 -0400 (EDT)
+Received: by mail-wg0-f48.google.com with SMTP id f12so3397497wgh.27
+        for <linux-mm@kvack.org>; Mon, 03 Jun 2013 09:13:35 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <51ACB6DB.6040809@gmail.com>
+References: <51ACB6DB.6040809@gmail.com>
+Date: Tue, 4 Jun 2013 01:13:34 +0900
+Message-ID: <CAAmzW4MiDzUv4v=ZtGcvOW0e-i9Po0EBJDoLSVeXg9oYXpzDnw@mail.gmail.com>
+Subject: Re: [PATCH 1/3] mm, vmalloc: Only call setup_vmalloc_vm only in __get_vm_area_node
+From: JoonSoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Zhang Yanfei <zhangyanfei.yes@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Dave Hansen wrote:
-> 
-> On 06/03/2013 08:02 AM, Kirill A. Shutemov wrote:
-> > Dave Hansen wrote:
-> >> On 05/11/2013 06:23 PM, Kirill A. Shutemov wrote:
-> >>> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com
-> >>> -#define wait_split_huge_page(__anon_vma, __pmd)				\
-> >>> +#define wait_split_huge_page(__vma, __pmd)				\
-> >>>  	do {								\
-> >>>  		pmd_t *____pmd = (__pmd);				\
-> >>> -		anon_vma_lock_write(__anon_vma);			\
-> >>> -		anon_vma_unlock_write(__anon_vma);			\
-> >>> +		struct address_space *__mapping =			\
-> >>> +					vma->vm_file->f_mapping;	\
-> >>> +		struct anon_vma *__anon_vma = (__vma)->anon_vma;	\
-> >>> +		if (__mapping)						\
-> >>> +			mutex_lock(&__mapping->i_mmap_mutex);		\
-> >>> +		if (__anon_vma) {					\
-> >>> +			anon_vma_lock_write(__anon_vma);		\
-> >>> +			anon_vma_unlock_write(__anon_vma);		\
-> >>> +		}							\
-> >>> +		if (__mapping)						\
-> >>> +			mutex_unlock(&__mapping->i_mmap_mutex);		\
-> >>>  		BUG_ON(pmd_trans_splitting(*____pmd) ||			\
-> >>>  		       pmd_trans_huge(*____pmd));			\
-> >>>  	} while (0)
-> ...
-> >> Could you also describe the lengths to which you've gone to try and keep
-> >> this macro from growing in to any larger of an abomination.  Is it truly
-> >> _impossible_ to turn this in to a normal function?  Or will it simply be
-> >> a larger amount of work that you can do right now?  What would it take?
-> > 
-> > Okay, I've tried once again. The patch is below. It looks too invasive for
-> > me. What do you think?
-> 
-> That patch looks great to me, actually.  It really looks to just be
-> superficially moving code around.  The diffstat is even too:
+Hello, Zhang.
 
-One of blocker I see is new dependency <linux/mm.h> -> <linux/fs.h>.
-It makes header files nightmare worse.
+2013/6/4 Zhang Yanfei <zhangyanfei.yes@gmail.com>:
+> From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+>
+> Now for insert_vmalloc_vm, it only calls the two functions:
+> - setup_vmalloc_vm: fill vm_struct and vmap_area instances
+> - clear_vm_unlist: clear VM_UNLIST bit in vm_struct->flags
+>
+> So in function __get_vm_area_node, if VM_UNLIST bit unset
+> in flags, that is the else branch here, we don't need to
+> clear VM_UNLIST bit for vm->flags since this bit is obviously
+> not set. That is to say, we could only call setup_vmalloc_vm
+> instead of insert_vmalloc_vm here. And then we could even
+> remove the if test here.
+>
+> Signed-off-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
--- 
- Kirill A. Shutemov
+For all three patches,
+Acked-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+
+> ---
+>  mm/vmalloc.c |   11 +----------
+>  1 files changed, 1 insertions(+), 10 deletions(-)
+>
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index d365724..6580c76 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -1367,16 +1367,7 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
+>                 return NULL;
+>         }
+>
+> -       /*
+> -        * When this function is called from __vmalloc_node_range,
+> -        * we add VM_UNLIST flag to avoid accessing uninitialized
+> -        * members of vm_struct such as pages and nr_pages fields.
+> -        * They will be set later.
+> -        */
+> -       if (flags & VM_UNLIST)
+> -               setup_vmalloc_vm(area, va, flags, caller);
+> -       else
+> -               insert_vmalloc_vm(area, va, flags, caller);
+> +       setup_vmalloc_vm(area, va, flags, caller);
+>
+>         return area;
+>  }
+> --
+> 1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
