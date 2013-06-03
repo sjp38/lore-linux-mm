@@ -1,82 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 5D71B6B0002
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 02:13:22 -0400 (EDT)
-Date: Mon, 3 Jun 2013 15:13:20 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [v4][PATCH 2/6] mm: swap: make 'struct page' and swp_entry_t
- variants of swapcache_free().
-Message-ID: <20130603061320.GA2795@blaptop>
-References: <20130531183855.44DDF928@viggo.jf.intel.com>
- <20130531183858.3C8C10C7@viggo.jf.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130531183858.3C8C10C7@viggo.jf.intel.com>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 7F8D36B0002
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 03:15:49 -0400 (EDT)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout3.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0MNT0050M2RPNJ00@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 03 Jun 2013 08:15:47 +0100 (BST)
+Message-id: <51AC429A.3030104@samsung.com>
+Date: Mon, 03 Jun 2013 09:15:38 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+MIME-version: 1.0
+Subject: Re: [PATCH] mm: page_alloc: fix watermark check in
+ __zone_watermark_ok()
+References: <518B5556.4010005@samsung.com> <519FCC46.2000703@codeaurora.org>
+ <CAH9JG2U7787jzqdnr1Z7kZbyEUvHZJG_XZiPENGJQVENsqVDTA@mail.gmail.com>
+ <20130529150811.3d4d9a55f704e95be64c7b52@linux-foundation.org>
+In-reply-to: <20130529150811.3d4d9a55f704e95be64c7b52@linux-foundation.org>
+Content-type: text/plain; charset=UTF-8; format=flowed
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de, tim.c.chen@linux.intel.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Kyungmin Park <kmpark@infradead.org>, Laura Abbott <lauraa@codeaurora.org>, Tomasz Stanislawski <t.stanislaws@samsung.com>, linux-mm@kvack.org, minchan@kernel.org, mgorman@suse.de, 'Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 
-Hello Dave,
+Hello,
 
-On Fri, May 31, 2013 at 11:38:58AM -0700, Dave Hansen wrote:
-> 
-> From: Dave Hansen <dave.hansen@linux.intel.com>
-> 
-> swapcache_free() takes two arguments:
-> 
-> 	void swapcache_free(swp_entry_t entry, struct page *page)
-> 
-> Most of its callers (5/7) are from error handling paths haven't even
-> instantiated a page, so they pass page=NULL.  Both of the callers
-> that call in with a 'struct page' create and pass in a temporary
-> swp_entry_t.
-> 
-> Now that we are deferring clearing page_private() until after
-> swapcache_free() has been called, we can just create a variant
-> that takes a 'struct page' and does the temporary variable in
-> the helper.
-> 
-> That leaves all the other callers doing
-> 
-> 	swapcache_free(entry, NULL)
-> 
-> so create another helper for them that makes it clear that they
-> need only pass in a swp_entry_t.
-> 
-> One downside here is that delete_from_swap_cache() now does
-> an extra swap_address_space() call.  But, those are pretty
-> cheap (just some array index arithmetic).
+On 5/30/2013 12:08 AM, Andrew Morton wrote:
+> On Sat, 25 May 2013 13:32:02 +0900 Kyungmin Park <kmpark@infradead.org> wrote:
+>
+> > > I haven't seen any response to this patch but it has been of some benefit
+> > > to some of our use cases. You're welcome to add
+> > >
+> > > Tested-by: Laura Abbott <lauraa@codeaurora.org>
+> > >
+> >
+> > Thanks Laura,
+> > We already got mail from Andrew, it's merged mm tree.
+>
+> Yes, but I have it scheduled for 3.11 with no -stable backport.
+>
+> This is because the patch changelog didn't tell me about the
+> userspace-visible impact of the bug.  Judging from Laura's comments, this
+> was a mistake.
+>
+> So please: details.  What problems were observable to Laura and do we
+> think this bug should be fixed in 3.10 and earlier?
 
-I lost from this description.
+This patch fixes issue introduced in commit 
+d95ea5d18e699515468368415c93ed49b1a3221b,
+so if possible, I suggest to get it backported to v3.7-v3.10 releases as 
+well.
 
-Old behavior
-
-delete_from_swap_cache
-        swap_address_space
-        __delete_from_swap_cache
-                swap_address_space
-
-
-New behavior
-
-delete_from_swap_cache
-        __delete_from_swap_cache
-                swap_address_space
-                
-So you removes a swap_address_space, not adding a extra call.
-Am I missing something?
-
-> 
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-
-Otherwise, looks good to me
-Reviewed-by: Minchan Kim <minchan@kernel.org>
-
+Best regards
 -- 
-Kind regards,
-Minchan Kim
+Marek Szyprowski
+Samsung R&D Institute Poland
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
