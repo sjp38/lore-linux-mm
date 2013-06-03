@@ -1,53 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 0C97F6B0031
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 13:16:12 -0400 (EDT)
-Date: Mon, 3 Jun 2013 19:15:58 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [patch 10/10] mm: workingset: keep shadow entries in check
-Message-ID: <20130603171558.GE8923@twins.programming.kicks-ass.net>
-References: <1369937046-27666-1-git-send-email-hannes@cmpxchg.org>
- <1369937046-27666-11-git-send-email-hannes@cmpxchg.org>
- <20130603082533.GH5910@twins.programming.kicks-ass.net>
- <20130603152032.GF15576@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 3EC586B0031
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 14:00:12 -0400 (EDT)
+Received: by mail-pa0-f49.google.com with SMTP id lj1so990436pab.22
+        for <linux-mm@kvack.org>; Mon, 03 Jun 2013 11:00:11 -0700 (PDT)
+Date: Mon, 3 Jun 2013 11:00:08 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm, memcg: add oom killer delay
+In-Reply-To: <20130531144636.6b34c6ba48105482d1241a40@linux-foundation.org>
+Message-ID: <alpine.DEB.2.02.1306031049070.7956@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1305291817280.520@chino.kir.corp.google.com> <20130531144636.6b34c6ba48105482d1241a40@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130603152032.GF15576@cmpxchg.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, metin d <metdos@yahoo.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On Mon, Jun 03, 2013 at 11:20:32AM -0400, Johannes Weiner wrote:
-> On Mon, Jun 03, 2013 at 10:25:33AM +0200, Peter Zijlstra wrote:
-> > On Thu, May 30, 2013 at 02:04:06PM -0400, Johannes Weiner wrote:
-> > > Previously, page cache radix tree nodes were freed after reclaim
-> > > emptied out their page pointers.  But now reclaim stores shadow
-> > > entries in their place, which are only reclaimed when the inodes
-> > > themselves are reclaimed.  This is problematic for bigger files that
-> > > are still in use after they have a significant amount of their cache
-> > > reclaimed, without any of those pages actually refaulting.  The shadow
-> > > entries will just sit there and waste memory.  In the worst case, the
-> > > shadow entries will accumulate until the machine runs out of memory.
-> > > 
+On Fri, 31 May 2013, Andrew Morton wrote:
+
+> > Admins may set the oom killer delay using the new interface:
 > > 
-> > Can't we simply prune all refault entries that have a distance larger
-> > than the memory size? Then we must assume that no refault entry means
-> > its too old, which I think is a fair assumption.
+> > 	# echo 60000 > memory.oom_delay_millisecs
+> > 
+> > This will defer oom killing to the kernel only after 60 seconds has
+> > elapsed by putting the task to sleep for 60 seconds.
 > 
-> Two workloads bound to two nodes might not push pages through the LRUs
-> at the same pace, so a distance might be bigger than memory due to the
-> faster moving node, yet still be a hit in the slower moving one.  We
-> can't really know until we evaluate it on a per-zone basis.
+> How often is that delay actually useful, in the real world?
+> 
+> IOW, in what proportion of cases does the system just remain stuck for
+> 60 seconds and then get an oom-killing?
+> 
 
-But wasn't patch 1 of this series about making sure each zone is scanned
-proportionally to its size?
+It wouldn't be the system, it would just be the oom memcg that would be 
+stuck.  We actually use 10s by default, but it's adjustable for users in 
+their own memcg hierarchies.  It gives just enough time for userspace to 
+deal with the situation and then defer to the kernel if it's unresponsive, 
+this tends to happen quite regularly when you have many, many servers.  
+Same situation if the userspace oom handler has died and isn't running, 
+perhaps because of its own memory constraints (everything on our systems 
+is memory constrained).  Obviously it isn't going to reenable the oom 
+killer before it dies from SIGSEGV.
 
-But given that, sure maybe 1 memory size is a bit strict, but surely we
-can put a limit on things at about 2 memory sizes?
+I'd argue that the current functionality that allows users to disable the 
+oom killer for a memcg indefinitely is a bit ridiculous.  It requires 
+admin intervention to fix such a state and it would be pointless to have 
+an oom memcg for a week, a month, a year, just completely deadlocked on 
+making forward progress and consuming resources.
 
+memory.oom_delay_millisecs in my patch is limited to MAX_SCHEDULE_TIMEOUT 
+just as a sanity check since we currently allow indefinite oom killer 
+disabling.  I think if we were to rethink disabling the oom killer 
+entirely via memory.oom_control and realize such a condition over a 
+prolonged period is insane then this memory.oom_delay_millisecs ceiling 
+would be better defined as something in minutes.
 
+At the same time, we really like userspace oom notifications so users can 
+implement their own handlers.  So where's the compromise between instantly 
+oom killing something and waiting forever for userspace to respond?  My 
+suggestion is memory.oom_delay_millisecs.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
