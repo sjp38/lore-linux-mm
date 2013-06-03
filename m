@@ -1,36 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 2CEE36B0037
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 04:25:44 -0400 (EDT)
-Date: Mon, 3 Jun 2013 10:25:33 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [patch 10/10] mm: workingset: keep shadow entries in check
-Message-ID: <20130603082533.GH5910@twins.programming.kicks-ass.net>
-References: <1369937046-27666-1-git-send-email-hannes@cmpxchg.org>
- <1369937046-27666-11-git-send-email-hannes@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 60DE96B0039
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 04:28:43 -0400 (EDT)
+Date: Mon, 3 Jun 2013 17:28:41 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [v4][PATCH 3/6] mm: vmscan: break up __remove_mapping()
+Message-ID: <20130603082841.GB2795@blaptop>
+References: <20130531183855.44DDF928@viggo.jf.intel.com>
+ <20130531183859.F179225E@viggo.jf.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1369937046-27666-11-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <20130531183859.F179225E@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, metin d <metdos@yahoo.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
+To: Dave Hansen <dave@sr71.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de, tim.c.chen@linux.intel.com
 
-On Thu, May 30, 2013 at 02:04:06PM -0400, Johannes Weiner wrote:
-> Previously, page cache radix tree nodes were freed after reclaim
-> emptied out their page pointers.  But now reclaim stores shadow
-> entries in their place, which are only reclaimed when the inodes
-> themselves are reclaimed.  This is problematic for bigger files that
-> are still in use after they have a significant amount of their cache
-> reclaimed, without any of those pages actually refaulting.  The shadow
-> entries will just sit there and waste memory.  In the worst case, the
-> shadow entries will accumulate until the machine runs out of memory.
+On Fri, May 31, 2013 at 11:38:59AM -0700, Dave Hansen wrote:
 > 
+> From: Dave Hansen <dave.hansen@linux.intel.com>
+> 
+> Our goal here is to eventually reduce the number of repetitive
+> acquire/release operations on mapping->tree_lock.
+> 
+> Logically, this patch has two steps:
+> 1. rename __remove_mapping() to lock_remove_mapping() since
+>    "__" usually means "this us the unlocked version.
+> 2. Recreate __remove_mapping() to _be_ the lock_remove_mapping()
+>    but without the locks.
+> 
+> I think this actually makes the code flow around the locking
+> _much_ more straighforward since the locking just becomes:
+> 
+> 	spin_lock_irq(&mapping->tree_lock);
+> 	ret = __remove_mapping(mapping, page);
+> 	spin_unlock_irq(&mapping->tree_lock);
+> 
+> One non-obvious part of this patch: the
+> 
+> 	freepage = mapping->a_ops->freepage;
+> 
+> used to happen under the mapping->tree_lock, but this patch
+> moves it to outside of the lock.  All of the other
+> a_ops->freepage users do it outside the lock, and we only
+> assign it when we create inodes, so that makes it safe.
+> 
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+> Acked-by: Mel Gorman <mgorman@suse.de>
 
-Can't we simply prune all refault entries that have a distance larger
-than the memory size? Then we must assume that no refault entry means
-its too old, which I think is a fair assumption.
+Reviewed-by: Minchan Kin <minchan@kernel.org>
+
+Just a nitpick below.
+
+> 
+> ---
+> 
+>  linux.git-davehans/mm/vmscan.c |   43 ++++++++++++++++++++++++-----------------
+>  1 file changed, 26 insertions(+), 17 deletions(-)
+> 
+> diff -puN mm/vmscan.c~make-remove-mapping-without-locks mm/vmscan.c
+> --- linux.git/mm/vmscan.c~make-remove-mapping-without-locks	2013-05-30 16:07:51.210104924 -0700
+> +++ linux.git-davehans/mm/vmscan.c	2013-05-30 16:07:51.214105100 -0700
+> @@ -450,12 +450,12 @@ static pageout_t pageout(struct page *pa
+>   * Same as remove_mapping, but if the page is removed from the mapping, it
+>   * gets returned with a refcount of 0.
+>   */
+> -static int __remove_mapping(struct address_space *mapping, struct page *page)
+> +static int __remove_mapping(struct address_space *mapping,
+> +			    struct page *page)
+
+Unnecessary change.
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
