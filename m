@@ -1,153 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 778786B0089
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 15:43:00 -0400 (EDT)
-From: Glauber Costa <glommer@openvz.org>
-Subject: [PATCH v10 35/35] memcg: reap dead memcgs upon global memory pressure.
-Date: Mon,  3 Jun 2013 23:30:04 +0400
-Message-Id: <1370287804-3481-36-git-send-email-glommer@openvz.org>
-In-Reply-To: <1370287804-3481-1-git-send-email-glommer@openvz.org>
-References: <1370287804-3481-1-git-send-email-glommer@openvz.org>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 03A6A6B0082
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 15:50:04 -0400 (EDT)
+Date: Mon, 3 Jun 2013 14:50:03 -0500
+From: Daniel Forrest <dan.forrest@ssec.wisc.edu>
+Subject: Re: [RFC PATCH] Re: Repeated fork() causes SLAB to grow without bound
+Message-ID: <20130603195003.GA31275@evergreen.ssec.wisc.edu>
+Reply-To: Daniel Forrest <dan.forrest@ssec.wisc.edu>
+References: <20120816024610.GA5350@evergreen.ssec.wisc.edu> <502D42E5.7090403@redhat.com> <20120818000312.GA4262@evergreen.ssec.wisc.edu> <502F100A.1080401@redhat.com> <alpine.LSU.2.00.1208200032450.24855@eggly.anvils> <CANN689Ej7XLh8VKuaPrTttDrtDGQbXuYJgS2uKnZL2EYVTM3Dg@mail.gmail.com> <20120822032057.GA30871@google.com> <50345232.4090002@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50345232.4090002@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@openvz.org>, Dave Chinner <dchinner@redhat.com>, Rik van Riel <riel@redhat.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-When we delete kmem-enabled memcgs, they can still be zombieing
-around for a while. The reason is that the objects may still be alive,
-and we won't be able to delete them at destruction time.
+On Tue, Aug 21, 2012 at 11:29:54PM -0400, Rik van Riel wrote:
+> On 08/21/2012 11:20 PM, Michel Lespinasse wrote:
+> >On Mon, Aug 20, 2012 at 02:39:26AM -0700, Michel Lespinasse wrote:
+> >>Instead of adding an atomic count for page references, we could limit
+> >>the anon_vma stacking depth. In fork, we would only clone anon_vmas
+> >>that have a low enough generation count. I think that's not great
+> >>(adds a special case for the deep-fork-without-exec behavior), but
+> >>still better than the atomic page reference counter.
+> >
+> >Here is an attached patch to demonstrate the idea.
+> >
+> >anon_vma_clone() is modified to return the length of the existing same_vma
+> >anon vma chain, and we create a new anon_vma in the child only on the first
+> >fork (this could be tweaked to allow up to a set number of forks, but
+> >I think the first fork would cover all the common forking server cases).
+> 
+> I suspect we need 2 or 3.
+> 
+> Some forking servers first fork off one child, and have
+> the original parent exit, in order to "background the server".
+> That first child then becomes the parent to the real child
+> processes that do the work.
+> 
+> It is conceivable that we might need an extra level for
+> processes that do something special with privilege dropping,
+> namespace changing, etc...
+> 
+> Even setting the threshold to 5 should be totally harmless,
+> since the problem does not kick in until we have really
+> long chains, like in Dan's bug report.
 
-The only entry point for that, though, are the shrinkers. The
-shrinker interface, however, is not exactly tailored to our needs. It
-could be a little bit better by using the API Dave Chinner proposed, but
-it is still not ideal since we aren't really a count-and-scan event, but
-more a one-off flush-all-you-can event that would have to abuse that
-somehow.
+I have been running with Michel's patch (with the threshold set to 5)
+for quite a few months now and can confirm that it does indeed solve
+my problem.  I am not a kernel developer, so I would appreciate if one
+of you could push this into the kernel tree.
 
-Signed-off-by: Glauber Costa <glommer@openvz.org>
-Cc: Dave Chinner <dchinner@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
+NOTE: I have attached Michel's patch with "(length > 1)" modified to
+"(length > 5)" and added a "Tested-by:".
+
 ---
- mm/memcontrol.c | 52 ++++++++++++++++++++++++++++++++++++++++++++++------
- 1 file changed, 46 insertions(+), 6 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index c0e1113f..919fb24b 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -400,7 +400,6 @@ static size_t memcg_size(void)
- 		nr_node_ids * sizeof(struct mem_cgroup_per_node);
- }
- 
--#ifdef CONFIG_MEMCG_DEBUG_ASYNC_DESTROY
- static LIST_HEAD(dangling_memcgs);
- static DEFINE_MUTEX(dangling_memcgs_mutex);
- 
-@@ -409,11 +408,14 @@ static inline void memcg_dangling_free(struct mem_cgroup *memcg)
- 	mutex_lock(&dangling_memcgs_mutex);
- 	list_del(&memcg->dead);
- 	mutex_unlock(&dangling_memcgs_mutex);
-+#ifdef CONFIG_MEMCG_DEBUG_ASYNC_DESTROY
- 	free_pages((unsigned long)memcg->memcg_name, 0);
-+#endif
- }
- 
- static inline void memcg_dangling_add(struct mem_cgroup *memcg)
- {
-+#ifdef CONFIG_MEMCG_DEBUG_ASYNC_DESTROY
- 	/*
- 	 * cgroup.c will do page-sized allocations most of the time,
- 	 * so we'll just follow the pattern. Also, __get_free_pages
-@@ -439,15 +441,12 @@ static inline void memcg_dangling_add(struct mem_cgroup *memcg)
+On Mon, Aug 20, 2012 at 02:39:26AM -0700, Michel Lespinasse wrote:
+> Instead of adding an atomic count for page references, we could limit
+> the anon_vma stacking depth. In fork, we would only clone anon_vmas
+> that have a low enough generation count. I think that's not great
+> (adds a special case for the deep-fork-without-exec behavior), but
+> still better than the atomic page reference counter.
+
+Here is an attached patch to demonstrate the idea.
+
+anon_vma_clone() is modified to return the length of the existing same_vma
+anon vma chain, and we create a new anon_vma in the child only on the first
+fork (this could be tweaked to allow up to a set number of forks, but
+I think the first fork would cover all the common forking server cases).
+
+Signed-off-by: Michel Lespinasse <walken@google.com>
+Tested-by: Daniel Forrest <dan.forrest@ssec.wisc.edu>
+---
+ mm/mmap.c |    6 +++---
+ mm/rmap.c |   18 ++++++++++++++----
+ 2 files changed, 17 insertions(+), 7 deletions(-)
+
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 3edfcdfa42d9..e14b19a838cb 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -539,7 +539,7 @@ again:			remove_next = 1 + (end > next->vm_end);
+ 		 * shrinking vma had, to cover any anon pages imported.
+ 		 */
+ 		if (exporter && exporter->anon_vma && !importer->anon_vma) {
+-			if (anon_vma_clone(importer, exporter))
++			if (anon_vma_clone(importer, exporter) < 0)
+ 				return -ENOMEM;
+ 			importer->anon_vma = exporter->anon_vma;
+ 		}
+@@ -1988,7 +1988,7 @@ static int __split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
  	}
+ 	vma_set_policy(new, pol);
  
- add_list:
-+#endif
- 	INIT_LIST_HEAD(&memcg->dead);
- 	mutex_lock(&dangling_memcgs_mutex);
- 	list_add(&memcg->dead, &dangling_memcgs);
- 	mutex_unlock(&dangling_memcgs_mutex);
- }
--#else
--static inline void memcg_dangling_free(struct mem_cgroup *memcg) {}
--static inline void memcg_dangling_add(struct mem_cgroup *memcg) {}
--#endif
+-	if (anon_vma_clone(new, vma))
++	if (anon_vma_clone(new, vma) < 0)
+ 		goto out_free_mpol;
  
- static DEFINE_MUTEX(set_limit_mutex);
+ 	if (new->vm_file) {
+@@ -2409,7 +2409,7 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
+ 			if (IS_ERR(pol))
+ 				goto out_free_vma;
+ 			INIT_LIST_HEAD(&new_vma->anon_vma_chain);
+-			if (anon_vma_clone(new_vma, vma))
++			if (anon_vma_clone(new_vma, vma) < 0)
+ 				goto out_free_mempol;
+ 			vma_set_policy(new_vma, pol);
+ 			new_vma->vm_start = addr;
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 0f3b7cda2a24..ba8a726aaee6 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -238,12 +238,13 @@ static inline void unlock_anon_vma_root(struct anon_vma *root)
  
-@@ -6313,6 +6312,41 @@ static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
- }
- 
- #ifdef CONFIG_MEMCG_KMEM
-+static void memcg_vmpressure_shrink_dead(void)
-+{
-+	struct memcg_cache_params *params, *tmp;
-+	struct kmem_cache *cachep;
-+	struct mem_cgroup *memcg;
-+
-+	mutex_lock(&dangling_memcgs_mutex);
-+	list_for_each_entry(memcg, &dangling_memcgs, dead) {
-+		mutex_lock(&memcg->slab_caches_mutex);
-+		/* The element may go away as an indirect result of shrink */
-+		list_for_each_entry_safe(params, tmp,
-+					 &memcg->memcg_slab_caches, list) {
-+			cachep = memcg_params_to_cache(params);
-+			/*
-+			 * the cpu_hotplug lock is taken in kmem_cache_create
-+			 * outside the slab_caches_mutex manipulation. It will
-+			 * be taken by kmem_cache_shrink to flush the cache.
-+			 * So we need to drop the lock. It is all right because
-+			 * the lock only protects elements moving in and out the
-+			 * list.
-+			 */
-+			mutex_unlock(&memcg->slab_caches_mutex);
-+			kmem_cache_shrink(cachep);
-+			mutex_lock(&memcg->slab_caches_mutex);
-+		}
-+		mutex_unlock(&memcg->slab_caches_mutex);
-+	}
-+	mutex_unlock(&dangling_memcgs_mutex);
-+}
-+
-+static void memcg_register_kmem_events(struct cgroup *cont)
-+{
-+	vmpressure_register_kernel_event(cont, memcg_vmpressure_shrink_dead);
-+}
-+
- static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
+ /*
+  * Attach the anon_vmas from src to dst.
+- * Returns 0 on success, -ENOMEM on failure.
++ * Returns length of the anon_vma chain on success, -ENOMEM on failure.
+  */
+ int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
  {
- 	int ret;
-@@ -6348,6 +6382,10 @@ static void kmem_cgroup_destroy(struct mem_cgroup *memcg)
+ 	struct anon_vma_chain *avc, *pavc;
+ 	struct anon_vma *root = NULL;
++	int length = 0;
+ 
+ 	list_for_each_entry_reverse(pavc, &src->anon_vma_chain, same_vma) {
+ 		struct anon_vma *anon_vma;
+@@ -259,9 +260,10 @@ int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
+ 		anon_vma = pavc->anon_vma;
+ 		root = lock_anon_vma_root(root, anon_vma);
+ 		anon_vma_chain_link(dst, avc, anon_vma);
++		length++;
  	}
- }
- #else
-+static inline void memcg_register_kmem_events(struct cgroup *cont)
-+{
-+}
-+
- static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
+ 	unlock_anon_vma_root(root);
+-	return 0;
++	return length;
+ 
+  enomem_failure:
+ 	unlink_anon_vmas(dst);
+@@ -322,6 +324,7 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
  {
- 	return 0;
-@@ -6733,8 +6771,10 @@ mem_cgroup_css_online(struct cgroup *cont)
- 	struct mem_cgroup *memcg, *parent;
- 	int error = 0;
+ 	struct anon_vma_chain *avc;
+ 	struct anon_vma *anon_vma;
++	int length;
  
--	if (!cont->parent)
-+	if (!cont->parent) {
-+		memcg_register_kmem_events(cont);
- 		return 0;
-+	}
+ 	/* Don't bother if the parent process has no anon_vma here. */
+ 	if (!pvma->anon_vma)
+@@ -331,10 +334,17 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
+ 	 * First, attach the new VMA to the parent VMA's anon_vmas,
+ 	 * so rmap can find non-COWed pages in child processes.
+ 	 */
+-	if (anon_vma_clone(vma, pvma))
++	length = anon_vma_clone(vma, pvma);
++	if (length < 0)
+ 		return -ENOMEM;
++	else if (length > 5)
++		return 0;
  
- 	mutex_lock(&memcg_create_mutex);
- 	memcg = mem_cgroup_from_cont(cont);
+-	/* Then add our own anon_vma. */
++	/*
++	 * Then add our own anon_vma. We do this only on the first fork after
++	 * the anon_vma is created, as we don't want the same_vma chain to
++	 * grow arbitrarily large.
++	 */
+ 	anon_vma = anon_vma_alloc();
+ 	if (!anon_vma)
+ 		goto out_error;
+
 -- 
-1.8.1.4
+Daniel K. Forrest		Space Science and
+dan.forrest@ssec.wisc.edu	Engineering Center
+(608) 890 - 0558		University of Wisconsin, Madison
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
