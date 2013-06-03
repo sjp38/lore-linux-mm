@@ -1,43 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 731136B0002
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 11:20:42 -0400 (EDT)
-Date: Mon, 3 Jun 2013 11:20:32 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 10/10] mm: workingset: keep shadow entries in check
-Message-ID: <20130603152032.GF15576@cmpxchg.org>
-References: <1369937046-27666-1-git-send-email-hannes@cmpxchg.org>
- <1369937046-27666-11-git-send-email-hannes@cmpxchg.org>
- <20130603082533.GH5910@twins.programming.kicks-ass.net>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 996C86B0002
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 11:31:48 -0400 (EDT)
+Received: by mail-pb0-f46.google.com with SMTP id rq2so5836270pbb.5
+        for <linux-mm@kvack.org>; Mon, 03 Jun 2013 08:31:47 -0700 (PDT)
+Message-ID: <51ACB6DB.6040809@gmail.com>
+Date: Mon, 03 Jun 2013 23:31:39 +0800
+From: Zhang Yanfei <zhangyanfei.yes@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130603082533.GH5910@twins.programming.kicks-ass.net>
+Subject: [PATCH 1/3] mm, vmalloc: Only call setup_vmalloc_vm only in __get_vm_area_node
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, metin d <metdos@yahoo.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Joonsoo Kim <js1304@gmail.com>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Mon, Jun 03, 2013 at 10:25:33AM +0200, Peter Zijlstra wrote:
-> On Thu, May 30, 2013 at 02:04:06PM -0400, Johannes Weiner wrote:
-> > Previously, page cache radix tree nodes were freed after reclaim
-> > emptied out their page pointers.  But now reclaim stores shadow
-> > entries in their place, which are only reclaimed when the inodes
-> > themselves are reclaimed.  This is problematic for bigger files that
-> > are still in use after they have a significant amount of their cache
-> > reclaimed, without any of those pages actually refaulting.  The shadow
-> > entries will just sit there and waste memory.  In the worst case, the
-> > shadow entries will accumulate until the machine runs out of memory.
-> > 
-> 
-> Can't we simply prune all refault entries that have a distance larger
-> than the memory size? Then we must assume that no refault entry means
-> its too old, which I think is a fair assumption.
+From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-Two workloads bound to two nodes might not push pages through the LRUs
-at the same pace, so a distance might be bigger than memory due to the
-faster moving node, yet still be a hit in the slower moving one.  We
-can't really know until we evaluate it on a per-zone basis.
+Now for insert_vmalloc_vm, it only calls the two functions:
+- setup_vmalloc_vm: fill vm_struct and vmap_area instances
+- clear_vm_unlist: clear VM_UNLIST bit in vm_struct->flags
+
+So in function __get_vm_area_node, if VM_UNLIST bit unset
+in flags, that is the else branch here, we don't need to
+clear VM_UNLIST bit for vm->flags since this bit is obviously
+not set. That is to say, we could only call setup_vmalloc_vm
+instead of insert_vmalloc_vm here. And then we could even
+remove the if test here.
+
+Signed-off-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+---
+ mm/vmalloc.c |   11 +----------
+ 1 files changed, 1 insertions(+), 10 deletions(-)
+
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index d365724..6580c76 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1367,16 +1367,7 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
+ 		return NULL;
+ 	}
+ 
+-	/*
+-	 * When this function is called from __vmalloc_node_range,
+-	 * we add VM_UNLIST flag to avoid accessing uninitialized
+-	 * members of vm_struct such as pages and nr_pages fields.
+-	 * They will be set later.
+-	 */
+-	if (flags & VM_UNLIST)
+-		setup_vmalloc_vm(area, va, flags, caller);
+-	else
+-		insert_vmalloc_vm(area, va, flags, caller);
++	setup_vmalloc_vm(area, va, flags, caller);
+ 
+ 	return area;
+ }
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
