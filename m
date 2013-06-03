@@ -1,80 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id EECD46B0096
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 08:36:38 -0400 (EDT)
-Date: Mon, 3 Jun 2013 08:36:34 -0400
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCH] frontswap: fix incorrect zeroing and allocation size for
- frontswap_map
-Message-ID: <20130603123634.GE6893@phenom.dumpdata.com>
-References: <1370130777-6707-1-git-send-email-akinobu.mita@gmail.com>
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id CF8156B0099
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 09:18:28 -0400 (EDT)
+Received: by mail-bk0-f44.google.com with SMTP id r7so288937bkg.31
+        for <linux-mm@kvack.org>; Mon, 03 Jun 2013 06:18:27 -0700 (PDT)
+Date: Mon, 3 Jun 2013 15:18:23 +0200
+From: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
+Subject: Re: [PATCH v3 07/13] x86, numa, mem-hotplug: Mark nodes which the
+ kernel resides in.
+Message-ID: <20130603131823.GA4729@dhcp-192-168-178-175.profitbricks.localdomain>
+References: <1369387762-17865-1-git-send-email-tangchen@cn.fujitsu.com>
+ <1369387762-17865-8-git-send-email-tangchen@cn.fujitsu.com>
+ <20130531162401.GA31139@dhcp-192-168-178-175.profitbricks.localdomain>
+ <51AC4759.6090101@cn.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1370130777-6707-1-git-send-email-akinobu.mita@gmail.com>
+In-Reply-To: <51AC4759.6090101@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Akinobu Mita <akinobu.mita@gmail.com>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, tj@kernel.org, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sun, Jun 02, 2013 at 08:52:57AM +0900, Akinobu Mita wrote:
-> The bitmap accessed by bitops must have enough size to hold the required
-> numbers of bits rounded up to a multiple of BITS_PER_LONG.  And the bitmap
-> must not be zeroed by memset() if the number of bits cleared is not
-> a multiple of BITS_PER_LONG.
-> 
-> This fixes incorrect zeroing and allocation size for frontswap_map.
-> The incorrect zeroing part doesn't cause any problem because
-> frontswap_map is freed just after zeroing.  But the wrongly calculated
-> allocation size may cause the problem.
-> 
-> For 32bit systems, the allocation size of frontswap_map is about twice as
-> large as required size.  For 64bit systems, the allocation size is smaller
-> than requeired if the number of bits is not a multiple of BITS_PER_LONG.
-       ^^^^^^^^^
-       required.
+Hi Tang,
 
-Looks OK to me. Thanks for catching this. I will test it out and if it
-does not break any regression tests should go for the next rc.
+On Mon, Jun 03, 2013 at 03:35:53PM +0800, Tang Chen wrote:
+> Hi Vasilis,
+>
+[...]
+> >The ranges above belong to node 0, but the node's bit is never marked.
+> >
+> >With a buggy bios that marks all memory as hotpluggable, this results in a
+> >panic, because both checks against hotpluggable bit and memblock_kernel_bitmask
+> >(in early_mem_hotplug_init) fail, the numa regions have all been merged together
+> >and memblock_reserve_hotpluggable is called for all memory.
+> >
+> >With a correct bios (some part of initial memory is not hotplug-able) the kernel
+> >can boot since the hotpluggable bit check works ok, but extra dimms on node 0
+> >will still be allowed to be in MOVABLE_ZONE.
+> >
+> 
+> OK, I see the problem. But would you please give me a call trace
+> that can show
+> how this could happen. I think the memory block info should be the same as
+> numa_meminfo. Can we fix the caller to make it set nid correctly ?
 
-Thanks!
+memblock_reserve() calls memblock_add_region with nid == MAX_NUMNODES. So
+all calls of memblock_reserve() in arch/x86/kernel/setup.c will cause memblock
+additions with this non-specific node id I think.
+
+Call sites I have seen in practice in my tests are trim_low_memory_range,
+early_reserve_initrd, reserve_brk, all from setup_arch.
+
+The MAX_NUMNODES case also happens when setup_arch adds memblocks for e820 map
+entries:
+
+setup_arch
+  memblock_x86_fill
+    memblock_add <--(calls memblock_add_region with nid == MAX_NUMNODES)
+
+The problem is that these functions are called before numa/srat discovery in
+early_initmem_init. So we don't have the numa_meminfo yet when these memblocks
+are added/reserved. If calls can be re-ordered that would work, otherwise we should
+update nid memblock fields after numa_meminfo has been setup.
+
 > 
-> Signed-off-by: Akinobu Mita <akinobu.mita@gmail.com>
-> Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-> ---
->  mm/frontswap.c | 2 +-
->  mm/swapfile.c  | 2 +-
->  2 files changed, 2 insertions(+), 2 deletions(-)
+> >Actually this behaviour (being able to have MOVABLE memory on nodes with kernel
+> >reserved memblocks) sort of matches the policy I requested in v2 :). But i
+> >suspect that is not your intent i.e. you want memblock_kernel_nodemask_bitmap to
+> >prevent movable reservations for the whole node where kernel has reserved
+> >memblocks.
 > 
-> diff --git a/mm/frontswap.c b/mm/frontswap.c
-> index 538367e..1b24bdc 100644
-> --- a/mm/frontswap.c
-> +++ b/mm/frontswap.c
-> @@ -319,7 +319,7 @@ void __frontswap_invalidate_area(unsigned type)
->  			return;
->  		frontswap_ops->invalidate_area(type);
->  		atomic_set(&sis->frontswap_pages, 0);
-> -		memset(sis->frontswap_map, 0, sis->max / sizeof(long));
-> +		bitmap_zero(sis->frontswap_map, sis->max);
->  	}
->  	clear_bit(type, need_init);
->  }
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index 6c340d9..746af55b 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -2116,7 +2116,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
->  	}
->  	/* frontswap enabled? set up bit-per-page map for frontswap */
->  	if (frontswap_enabled)
-> -		frontswap_map = vzalloc(maxpages / sizeof(long));
-> +		frontswap_map = vzalloc(BITS_TO_LONGS(maxpages) * sizeof(long));
->  
->  	if (p->bdev) {
->  		if (blk_queue_nonrot(bdev_get_queue(p->bdev))) {
-> -- 
-> 1.8.1.4
+> I intended to set the whole node which the kernel resides in as
+> un-hotpluggable.
 > 
+> >
+> >Is there a way to get accurate nid information for memblocks at early boot? I
+> >suspect pfn_to_nid doesn't work yet at this stage (i got a panic when I
+> >attempted iirc)
+> 
+> In such an early time, I think we can only get nid from
+> numa_meminfo. So as I
+> said above, I'd like to fix this problem by making memblock has correct nid.
+> 
+> And I read the patch below. I think if we get nid from numa_meminfo,
+> than we
+> don't need to call memblock_get_region_node().
+> 
+
+ok. If we update the memblock nid fields from numa_meminfo,
+memblock_get_region_node will always return the correct node id.
+
+thanks,
+
+- Vasilis
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
