@@ -1,152 +1,198 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v3 12/13] x86, numa, acpi, memory-hotplug: Make
- movablecore=acpi have higher priority.
-Date: Mon, 3 Jun 2013 10:59:24 +0800
-Message-ID: <44161.2760689624$1370228390@news.gmane.org>
-References: <1369387762-17865-1-git-send-email-tangchen@cn.fujitsu.com>
- <1369387762-17865-13-git-send-email-tangchen@cn.fujitsu.com>
+Subject: Re: Transparent Hugepage impact on memcpy
+Date: Tue, 4 Jun 2013 20:30:51 +0800
+Message-ID: <2109.09282691336$1370349073@news.gmane.org>
+References: <51ADAC15.1050103@huawei.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/mixed; boundary="NzB8fVQJ5HfG6fxh"
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1UjKzh-0000GN-Fa
-	for glkm-linux-mm-2@m.gmane.org; Mon, 03 Jun 2013 04:59:38 +0200
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 308ED6B0032
-	for <linux-mm@kvack.org>; Sun,  2 Jun 2013 22:59:35 -0400 (EDT)
+	id 1UjqOI-0003Ap-FJ
+	for glkm-linux-mm-2@m.gmane.org; Tue, 04 Jun 2013 14:31:06 +0200
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id D5E156B0093
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 08:31:03 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 3 Jun 2013 08:23:13 +0530
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 4D607394005B
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2013 08:29:29 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r532xKWB43450416
-	for <linux-mm@kvack.org>; Mon, 3 Jun 2013 08:29:20 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r532xQtb010235
-	for <linux-mm@kvack.org>; Mon, 3 Jun 2013 12:59:27 +1000
+	Tue, 4 Jun 2013 17:55:30 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 2827C125804F
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 18:03:02 +0530 (IST)
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r54CUnZ856361008
+	for <linux-mm@kvack.org>; Tue, 4 Jun 2013 18:00:49 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r54CUrJF018270
+	for <linux-mm@kvack.org>; Tue, 4 Jun 2013 22:30:53 +1000
 Content-Disposition: inline
-In-Reply-To: <1369387762-17865-13-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <51ADAC15.1050103@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, tj@kernel.org, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jianguo Wu <wujianguo@huawei.com>
+Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, qiuxishi <qiuxishi@huawei.com>
 
-On Fri, May 24, 2013 at 05:29:21PM +0800, Tang Chen wrote:
->Arrange hotpluggable memory as ZONE_MOVABLE will cause NUMA performance decreased
->because the kernel cannot use movable memory.
+
+--NzB8fVQJ5HfG6fxh
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+
+On Tue, Jun 04, 2013 at 04:57:57PM +0800, Jianguo Wu wrote:
+>Hi all,
 >
->For users who don't use memory hotplug and who don't want to lose their NUMA
->performance, they need a way to disable this functionality.
+>I tested memcpy with perf bench, and found that in prefault case, When Transparent Hugepage is on,
+>memcpy has worse performance.
 >
->So, if users specify "movablecore=acpi" in kernel commandline, the kernel will
->use SRAT to arrange ZONE_MOVABLE, and it has higher priority then original
->movablecore and kernelcore boot option.
->
->For those who don't want this, just specify nothing.
+>When THP on is 3.672879 GB/Sec (with prefault), while THP off is 6.190187 GB/Sec (with prefault).
 >
 
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+I get similar result as you against 3.10-rc4 in the attachment. This
+dues to the characteristic of thp takes a single page fault for each 
+2MB virtual region touched by userland.
 
->Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
->---
-> include/linux/memblock.h |    1 +
-> mm/memblock.c            |    5 +++++
-> mm/page_alloc.c          |   31 +++++++++++++++++++++++++++++--
-> 3 files changed, 35 insertions(+), 2 deletions(-)
+>I think THP will improve performance, but the test result obviously not the case. 
+>Andrea mentioned THP cause "clear_page/copy_page less cache friendly" in
+>http://events.linuxfoundation.org/slides/2011/lfcs/lfcs2011_hpc_arcangeli.pdf.
 >
->diff --git a/include/linux/memblock.h b/include/linux/memblock.h
->index 08c761d..5528e8f 100644
->--- a/include/linux/memblock.h
->+++ b/include/linux/memblock.h
->@@ -69,6 +69,7 @@ int memblock_free(phys_addr_t base, phys_addr_t size);
-> int memblock_reserve(phys_addr_t base, phys_addr_t size);
-> int memblock_reserve_local_node(phys_addr_t base, phys_addr_t size, int nid);
-> int memblock_reserve_hotpluggable(phys_addr_t base, phys_addr_t size, int nid);
->+bool memblock_is_hotpluggable(struct memblock_region *region);
-> void memblock_free_hotpluggable(void);
-> void memblock_trim_memory(phys_addr_t align);
-> void memblock_mark_kernel_nodes(void);
->diff --git a/mm/memblock.c b/mm/memblock.c
->index 54de398..8b9a13c 100644
->--- a/mm/memblock.c
->+++ b/mm/memblock.c
->@@ -623,6 +623,11 @@ int __init_memblock memblock_reserve_hotpluggable(phys_addr_t base,
-> 	return memblock_reserve_region(base, size, nid, flags);
-> }
+>I am not quite understand this, could you please give me some comments, Thanks!
 >
->+bool __init_memblock memblock_is_hotpluggable(struct memblock_region *region)
->+{
->+	return region->flags & (1 << MEMBLK_HOTPLUGGABLE);
->+}
->+
-> /**
->  * __next_free_mem_range - next function for for_each_free_mem_range()
->  * @idx: pointer to u64 loop variable
->diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->index b9ea143..557b21b 100644
->--- a/mm/page_alloc.c
->+++ b/mm/page_alloc.c
->@@ -4793,9 +4793,37 @@ static void __init find_zone_movable_pfns_for_nodes(void)
-> 	nodemask_t saved_node_state = node_states[N_MEMORY];
-> 	unsigned long totalpages = early_calculate_totalpages();
-> 	int usable_nodes = nodes_weight(node_states[N_MEMORY]);
->+	struct memblock_type *reserved = &memblock.reserved;
+>I test in Linux-3.4-stable, and my machine info is:
+>Intel(R) Xeon(R) CPU           E5520  @ 2.27GHz
 >
-> 	/*
->-	 * If movablecore was specified, calculate what size of
->+	 * Need to find movable_zone earlier in case movablecore=acpi is
->+	 * specified.
->+	 */
->+	find_usable_zone_for_movable();
->+
->+	/*
->+	 * If movablecore=acpi was specified, then zone_movable_pfn[] has been
->+	 * initialized, and no more work needs to do.
->+	 * NOTE: In this case, we ignore kernelcore option.
->+	 */
->+	if (movablecore_enable_srat) {
->+		for (i = 0; i < reserved->cnt; i++) {
->+			if (!memblock_is_hotpluggable(&reserved->regions[i]))
->+				continue;
->+
->+			nid = reserved->regions[i].nid;
->+
->+			usable_startpfn = PFN_DOWN(reserved->regions[i].base);
->+			zone_movable_pfn[nid] = zone_movable_pfn[nid] ?
->+				min(usable_startpfn, zone_movable_pfn[nid]) :
->+				usable_startpfn;
->+		}
->+
->+		goto out;
->+	}
->+
->+	/*
->+	 * If movablecore=nn[KMG] was specified, calculate what size of
-> 	 * kernelcore that corresponds so that memory usable for
-> 	 * any allocation type is evenly spread. If both kernelcore
-> 	 * and movablecore are specified, then the value of kernelcore
->@@ -4821,7 +4849,6 @@ static void __init find_zone_movable_pfns_for_nodes(void)
-> 		goto out;
+>available: 2 nodes (0-1)
+>node 0 cpus: 0 1 2 3 8 9 10 11
+>node 0 size: 24567 MB
+>node 0 free: 23550 MB
+>node 1 cpus: 4 5 6 7 12 13 14 15
+>node 1 size: 24576 MB
+>node 1 free: 23767 MB
+>node distances:
+>node   0   1 
+>  0:  10  20 
+>  1:  20  10
 >
-> 	/* usable_startpfn is the lowest possible pfn ZONE_MOVABLE can be at */
->-	find_usable_zone_for_movable();
-> 	usable_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
+>Below is test result:
+>---with THP---
+>#cat /sys/kernel/mm/transparent_hugepage/enabled
+>[always] madvise never
+>#./perf bench mem memcpy -l 1gb -o
+># Running mem/memcpy benchmark...
+># Copying 1gb Bytes ...
 >
-> restart:
->-- 
->1.7.1
+>       3.672879 GB/Sec (with prefault)
+>
+>#./perf stat ...
+>Performance counter stats for './perf bench mem memcpy -l 1gb -o':
+>
+>          35455940 cache-misses              #   53.504 % of all cache refs     [49.45%]
+>          66267785 cache-references                                             [49.78%]
+>              2409 page-faults                                                 
+>         450768651 dTLB-loads
+>                                                  [50.78%]
+>             24580 dTLB-misses
+>              #    0.01% of all dTLB cache hits  [51.01%]
+>        1338974202 dTLB-stores
+>                                                 [50.63%]
+>             77943 dTLB-misses
+>                                                 [50.24%]
+>         697404997 iTLB-loads
+>                                                  [49.77%]
+>               274 iTLB-misses
+>              #    0.00% of all iTLB cache hits  [49.30%]
+>
+>       0.855041819 seconds time elapsed
+>
+>---no THP---
+>#cat /sys/kernel/mm/transparent_hugepage/enabled
+>always madvise [never]
+>
+>#./perf bench mem memcpy -l 1gb -o
+># Running mem/memcpy benchmark...
+># Copying 1gb Bytes ...
+>
+>       6.190187 GB/Sec (with prefault)
+>
+>#./perf stat ...
+>Performance counter stats for './perf bench mem memcpy -l 1gb -o':
+>
+>          16920763 cache-misses              #   98.377 % of all cache refs     [50.01%]
+>          17200000 cache-references                                             [50.04%]
+>            524652 page-faults                                                 
+>         734365659 dTLB-loads
+>                                                  [50.04%]
+>           4986387 dTLB-misses
+>              #    0.68% of all dTLB cache hits  [50.04%]
+>        1013408298 dTLB-stores
+>                                                 [50.04%]
+>           8180817 dTLB-misses
+>                                                 [49.97%]
+>        1526642351 iTLB-loads
+>                                                  [50.41%]
+>                56 iTLB-misses
+>              #    0.00% of all iTLB cache hits  [50.21%]
+>
+>       1.025425847 seconds time elapsed
+>
+>Thanks,
+>Jianguo Wu.
 >
 >--
 >To unsubscribe, send a message with 'unsubscribe linux-mm' in
 >the body to majordomo@kvack.org.  For more info on Linux MM,
 >see: http://www.linux-mm.org/ .
 >Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+--NzB8fVQJ5HfG6fxh
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: attachment; filename=thp
+
+---with THP---
+#cat  /sys/kernel/mm/transparent_hugepage/enabled
+[always] madvise never
+# Running mem/memcpy benchmark...
+# Copying 1gb Bytes ...
+
+      12.208522 GB/Sec (with prefault)
+
+ Performance counter stats for './perf bench mem memcpy -l 1gb -o':
+
+        26,453,696 cache-misses              #   35.411 % of all cache refs     [57.66%]
+        74,704,531 cache-references                                             [58.40%]
+             2,297 page-faults                                                 
+       146,567,960 dTLB-loads                                                   [58.64%]
+       211,648,685 dTLB-stores                                                  [58.63%]
+            14,533 dTLB-load-misses          #    0.01% of all dTLB cache hits  [57.46%]
+               640 iTLB-loads                                                   [55.74%]
+           270,881 iTLB-load-misses          #  42325.16% of all iTLB cache hits  [55.17%]
+
+       0.232425109 seconds time elapsed
+
+---no THP---
+#cat  /sys/kernel/mm/transparent_hugepage/enabled
+always madvise [never]
+
+# Running mem/memcpy benchmark...
+# Copying 1gb Bytes ...
+
+      18.325087 GB/Sec (with prefault)
+
+ Performance counter stats for './perf bench mem memcpy -l 1gb -o':
+
+        28,498,544 cache-misses              #   86.167 % of all cache refs     [57.35%]
+        33,073,611 cache-references                                             [57.71%]
+           524,540 page-faults                                                 
+       453,500,641 dTLB-loads                                                   [57.99%]
+       409,255,606 dTLB-stores                                                  [57.99%]
+         2,033,985 dTLB-load-misses          #    0.45% of all dTLB cache hits  [57.52%]
+             1,180 iTLB-loads                                                   [56.69%]
+           539,056 iTLB-load-misses          #  45682.71% of all iTLB cache hits  [56.02%]
+
+       0.485932214 seconds time elapsed
+
+--NzB8fVQJ5HfG6fxh--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
