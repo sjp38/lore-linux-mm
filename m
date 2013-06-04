@@ -1,95 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 0F1026B0070
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 03:11:17 -0400 (EDT)
-Date: Tue, 4 Jun 2013 16:11:16 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: page_alloc: fix watermark check in
- __zone_watermark_ok()
-Message-ID: <20130604071116.GG14719@blaptop>
-References: <518B5556.4010005@samsung.com>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 9041F6B0072
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 04:58:22 -0400 (EDT)
+Message-ID: <51ADAC15.1050103@huawei.com>
+Date: Tue, 4 Jun 2013 16:57:57 +0800
+From: Jianguo Wu <wujianguo@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <518B5556.4010005@samsung.com>
+Subject: Transparent Hugepage impact on memcpy
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tomasz Stanislawski <t.stanislaws@samsung.com>
-Cc: linux-mm@kvack.org, =?utf-8?B?J+uwleqyveuvvCc=?= <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, mgorman@suse.de, 'Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+To: linux-mm@kvack.org
+Cc: Andrea Arcangeli <aarcange@redhat.com>, qiuxishi <qiuxishi@huawei.com>
 
-Hello,
+Hi all,
 
-On Thu, May 09, 2013 at 09:50:46AM +0200, Tomasz Stanislawski wrote:
-> The watermark check consists of two sub-checks.
-> The first one is:
-> 
-> 	if (free_pages <= min + lowmem_reserve)
-> 		return false;
-> 
-> The check assures that there is minimal amount of RAM in the zone.  If CMA is
-> used then the free_pages is reduced by the number of free pages in CMA prior
-> to the over-mentioned check.
-> 
-> 	if (!(alloc_flags & ALLOC_CMA))
-> 		free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
-> 
-> This prevents the zone from being drained from pages available for non-movable
-> allocations.
+I tested memcpy with perf bench, and found that in prefault case, When Transparent Hugepage is on,
+memcpy has worse performance.
 
-The description is rather confusing.
-It was not to prevent the zone from being drained but for considering a right
-number of allocatable pages from the zone because !ALLOC_CMA pages couldn't be
-allocated from CMA migrate type from the zone so if we didn't have such patch,
-zone_watermark_ok could return true but allocation couldn't allocate a page.
+When THP on is 3.672879 GB/Sec (with prefault), while THP off is 6.190187 GB/Sec (with prefault).
 
-> 
-> The second check prevents the zone from getting too fragmented.
-> 
-> 	for (o = 0; o < order; o++) {
-> 		free_pages -= z->free_area[o].nr_free << o;
-> 		min >>= 1;
-> 		if (free_pages <= min)
-> 			return false;
-> 	}
-> 
-> The field z->free_area[o].nr_free is equal to the number of free pages
-> including free CMA pages.  Therefore the CMA pages are subtracted twice.  This
+I think THP will improve performance, but the test result obviously not the case. 
+Andrea mentioned THP cause "clear_page/copy_page less cache friendly" in
+http://events.linuxfoundation.org/slides/2011/lfcs/lfcs2011_hpc_arcangeli.pdf.
 
-Right.
+I am not quite understand this, could you please give me some comments, Thanks!
 
-> may cause a false positive fail of __zone_watermark_ok() if the CMA area gets
-> strongly fragmented.  In such a case there are many 0-order free pages located
-> in CMA. Those pages are subtracted twice therefore they will quickly drain
-> free_pages during the check against fragmentation.  The test fails even though
+I test in Linux-3.4-stable, and my machine info is:
+Intel(R) Xeon(R) CPU           E5520  @ 2.27GHz
 
-> there are many free non-cma pages in the zone.
+available: 2 nodes (0-1)
+node 0 cpus: 0 1 2 3 8 9 10 11
+node 0 size: 24567 MB
+node 0 free: 23550 MB
+node 1 cpus: 4 5 6 7 12 13 14 15
+node 1 size: 24576 MB
+node 1 free: 23767 MB
+node distances:
+node   0   1 
+  0:  10  20 
+  1:  20  10
 
-How about this?
+Below is test result:
+---with THP---
+#cat /sys/kernel/mm/transparent_hugepage/enabled
+[always] madvise never
+#./perf bench mem memcpy -l 1gb -o
+# Running mem/memcpy benchmark...
+# Copying 1gb Bytes ...
 
-  The !ALLOC_CMA higher order allocation fails even though there are many
-  free high order pages in the zone.
+       3.672879 GB/Sec (with prefault)
 
-This patch should go to stable so I'd like to include description with detail
-numbers of zone's stat to describe the situation when the higher allocation
-is failed so stable maintainers and other distro maintainers could parse the
-problem easily.
+#./perf stat ...
+Performance counter stats for './perf bench mem memcpy -l 1gb -o':
 
-> 
-> This patch fixes this issue by subtracting CMA pages only for a purpose of
-> (free_pages <= min + lowmem_reserve) check.
+          35455940 cache-misses              #   53.504 % of all cache refs     [49.45%]
+          66267785 cache-references                                             [49.78%]
+              2409 page-faults                                                 
+         450768651 dTLB-loads
+                                                  [50.78%]
+             24580 dTLB-misses
+              #    0.01% of all dTLB cache hits  [51.01%]
+        1338974202 dTLB-stores
+                                                 [50.63%]
+             77943 dTLB-misses
+                                                 [50.24%]
+         697404997 iTLB-loads
+                                                  [49.77%]
+               274 iTLB-misses
+              #    0.00% of all iTLB cache hits  [49.30%]
 
+       0.855041819 seconds time elapsed
 
-> 
-> Signed-off-by: Tomasz Stanislawski <t.stanislaws@samsung.com>
-> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+---no THP---
+#cat /sys/kernel/mm/transparent_hugepage/enabled
+always madvise [never]
 
-Otherwise, looks good to me.
+#./perf bench mem memcpy -l 1gb -o
+# Running mem/memcpy benchmark...
+# Copying 1gb Bytes ...
 
-Acked-by: Minchan Kim <minchan@kernel.org>
+       6.190187 GB/Sec (with prefault)
 
--- 
-Kind regards,
-Minchan Kim
+#./perf stat ...
+Performance counter stats for './perf bench mem memcpy -l 1gb -o':
+
+          16920763 cache-misses              #   98.377 % of all cache refs     [50.01%]
+          17200000 cache-references                                             [50.04%]
+            524652 page-faults                                                 
+         734365659 dTLB-loads
+                                                  [50.04%]
+           4986387 dTLB-misses
+              #    0.68% of all dTLB cache hits  [50.04%]
+        1013408298 dTLB-stores
+                                                 [50.04%]
+           8180817 dTLB-misses
+                                                 [49.97%]
+        1526642351 iTLB-loads
+                                                  [50.41%]
+                56 iTLB-misses
+              #    0.00% of all iTLB cache hits  [50.21%]
+
+       1.025425847 seconds time elapsed
+
+Thanks,
+Jianguo Wu.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
