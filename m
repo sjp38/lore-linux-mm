@@ -1,40 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 8EEA16B0033
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 11:29:19 -0400 (EDT)
-Message-ID: <51AE07CE.9040304@sr71.net>
-Date: Tue, 04 Jun 2013 08:29:18 -0700
-From: Dave Hansen <dave@sr71.net>
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id F32416B0031
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 11:30:01 -0400 (EDT)
+Date: Tue, 4 Jun 2013 17:29:59 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 1/3] memcg: fix subtle memory barrier bug in
+ mem_cgroup_iter()
+Message-ID: <20130604152959.GB6356@dhcp22.suse.cz>
+References: <1370306679-13129-1-git-send-email-tj@kernel.org>
+ <1370306679-13129-2-git-send-email-tj@kernel.org>
+ <20130604130336.GE31242@dhcp22.suse.cz>
+ <20130604135840.GN15576@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: [v5][PATCH 5/6] mm: vmscan: batch shrink_page_list() locking
- operations
-References: <20130603200202.7F5FDE07@viggo.jf.intel.com> <20130603200208.6F71D31F@viggo.jf.intel.com> <20130604050103.GC14719@blaptop> <20130604060224.GE14719@blaptop>
-In-Reply-To: <20130604060224.GE14719@blaptop>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130604135840.GN15576@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de, tim.c.chen@linux.intel.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Tejun Heo <tj@kernel.org>, bsingharora@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org, lizefan@huawei.com
 
-On 06/03/2013 11:02 PM, Minchan Kim wrote:
->> > Why do we need new lru list instead of using @free_pages?
-> I got your point that @free_pages could have freed page by
-> put_page_testzero of shrink_page_list and they don't have
-> valid mapping so __remove_mapping_batch's mapping_release_page
-> would access NULL pointer.
+On Tue 04-06-13 09:58:40, Johannes Weiner wrote:
+> On Tue, Jun 04, 2013 at 03:03:36PM +0200, Michal Hocko wrote:
+> > On Mon 03-06-13 17:44:37, Tejun Heo wrote:
+> > [...]
+> > > @@ -1218,9 +1218,18 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+> > >  			 * is alive.
+> > >  			 */
+> > >  			dead_count = atomic_read(&root->dead_count);
+> > > -			smp_rmb();
+> > > +
+> > >  			last_visited = iter->last_visited;
+> > >  			if (last_visited) {
+> > > +				/*
+> > > +				 * Paired with smp_wmb() below in this
+> > > +				 * function.  The pair guarantee that
+> > > +				 * last_visited is more current than
+> > > +				 * last_dead_count, which may lead to
+> > > +				 * spurious iteration resets but guarantees
+> > > +				 * reliable detection of dead condition.
+> > > +				 */
+> > > +				smp_rmb();
+> > >  				if ((dead_count != iter->last_dead_count) ||
+> > >  					!css_tryget(&last_visited->css)) {
+> > >  					last_visited = NULL;
+> > 
+> > I originally had the barrier this way but Johannes pointed out it is not
+> > correct https://lkml.org/lkml/2013/2/11/411
+> > "
+> > !> +			/*
+> > !> +			 * last_visited might be invalid if some of the group
+> > !> +			 * downwards was removed. As we do not know which one
+> > !> +			 * disappeared we have to start all over again from the
+> > !> +			 * root.
+> > !> +			 * css ref count then makes sure that css won't
+> > !> +			 * disappear while we iterate to the next memcg
+> > !> +			 */
+> > !> +			last_visited = iter->last_visited;
+> > !> +			dead_count = atomic_read(&root->dead_count);
+> > !> +			smp_rmb();
+> > !
+> > !Confused about this barrier, see below.
+> > !
+> > !As per above, if you remove the iter lock, those lines are mixed up.
+> > !You need to read the dead count first because the writer updates the
+> > !dead count after it sets the new position.  That way, if the dead
+> > !count gives the go-ahead, you KNOW that the position cache is valid,
+> > !because it has been updated first.  If either the two reads or the two
+> > !writes get reordered, you risk seeing a matching dead count while the
+> > !position cache is stale.
+> > "
 > 
-> I think it would be better to mention it in comment. :(
-> Otherwise, I suggest we can declare another new LIST_HEAD to
-> accumulate pages freed by put_page_testzero in shrink_page_list
-> so __remove_mapping_batch don't have to declare temporal LRU list
-> and can remove unnecessary list_move operation.
+> The original prototype code I sent looked like this:
+> 
+> mem_cgroup_iter:
+> rcu_read_lock()
+> if atomic_read(&root->dead_count) == iter->dead_count:
+>   smp_rmb()
+>   if tryget(iter->position):
+>     position = iter->position
+> memcg = find_next(postion)
+> css_put(position)
+> iter->position = memcg
+> smp_wmb() /* Write position cache BEFORE marking it uptodate */
+> iter->dead_count = atomic_read(&root->dead_count)
+> rcu_read_unlock()
+> 
+> iter->last_position is written, THEN iter->last_dead_count is written.
+> 
+> So, yes, you "need to read the dead count" first to be sure
+> iter->last_position is uptodate.  But iter->last_dead_count, not
+> root->dead_count.  I should have caught this in the final submission
+> of your patch :(
 
-If I respin them again, I'll add a comment.
+OK, right you are. I managed to confuse myself by the three dependencies
+here. dead_count -> last_visited -> last_dead_count. The first one is
+invalid because last_visited doesn't care about dead_count and that
+makes it much more clear now.
 
-I guess we could splice the whole list over at once instead of moving
-the pages individually.  But, what are we trying to optimize here?
-Saving a list_head worth of space on the stack?
+> Tejun's patch is not correct, either.  Something like this?
+
+Yes this looks saner and correct. Care to send a full patch?
+
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 010d6c1..92830fa 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1199,7 +1199,6 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+>  
+>  			mz = mem_cgroup_zoneinfo(root, nid, zid);
+>  			iter = &mz->reclaim_iter[reclaim->priority];
+> -			last_visited = iter->last_visited;
+>  			if (prev && reclaim->generation != iter->generation) {
+>  				iter->last_visited = NULL;
+>  				goto out_unlock;
+> @@ -1217,14 +1216,20 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+>  			 * css_tryget() verifies the cgroup pointed to
+>  			 * is alive.
+>  			 */
+> +			last_visited = NULL;
+>  			dead_count = atomic_read(&root->dead_count);
+> -			smp_rmb();
+> -			last_visited = iter->last_visited;
+> -			if (last_visited) {
+> -				if ((dead_count != iter->last_dead_count) ||
+> -					!css_tryget(&last_visited->css)) {
+> +			if (dead_count == iter->last_dead_count) {
+> +				/*
+> +				 * The writer below sets the position
+> +				 * pointer, then the dead count.
+> +				 * Ensure we read the updated position
+> +				 * when the dead count matches.
+> +				 */
+> +				smp_rmb();
+> +				last_visited = iter->last_visited;
+> +				if (last_visited &&
+> +				    !css_tryget(&last_visited->css))
+>  					last_visited = NULL;
+> -				}
+>  			}
+>  		}
+>  
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
