@@ -1,151 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id D0C956B0031
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 12:45:07 -0400 (EDT)
-Date: Tue, 04 Jun 2013 12:44:46 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1370364286-kuz8hc2j-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20130603132641.GB18588@dhcp22.suse.cz>
-References: <1369770771-8447-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1369770771-8447-3-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20130603132641.GB18588@dhcp22.suse.cz>
-Subject: [PATCH v4] migrate: add migrate_entry_wait_huge()
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id A3BC36B0031
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 13:49:43 -0400 (EDT)
+Received: by mail-qc0-f176.google.com with SMTP id o10so328727qcv.7
+        for <linux-mm@kvack.org>; Tue, 04 Jun 2013 10:49:42 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20130604154500.GA5664@gmail.com>
+References: <201306040922.10235.frank.mehnert@oracle.com>
+	<20130604115807.GF3672@sgi.com>
+	<201306041414.52237.frank.mehnert@oracle.com>
+	<20130604154500.GA5664@gmail.com>
+Date: Tue, 4 Jun 2013 13:49:42 -0400
+Message-ID: <CAH3drwZMe-6y-nVvpzOBzH28-hVJCO7QzXV5hPgM8n8SgH9kFA@mail.gmail.com>
+Subject: Re: Handling NUMA page migration
+From: Jerome Glisse <j.glisse@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andi Kleen <andi@firstfloor.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org
+To: Frank Mehnert <frank.mehnert@oracle.com>
+Cc: Robin Holt <holt@sgi.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>
 
-Here is the revised one. Andrew, could you replace the following
-patches in your tree with this?
+On Tue, Jun 4, 2013 at 11:45 AM, Jerome Glisse <j.glisse@gmail.com> wrote:
+> On Tue, Jun 04, 2013 at 02:14:45PM +0200, Frank Mehnert wrote:
+>> On Tuesday 04 June 2013 13:58:07 Robin Holt wrote:
+>> > This is probably more appropriate to be directed at the linux-mm
+>> > mailing list.
+>> >
+>> > On Tue, Jun 04, 2013 at 09:22:10AM +0200, Frank Mehnert wrote:
+>> > > Hi,
+>> > >
+>> > > our memory management on Linux hosts conflicts with NUMA page migration.
+>> > > I assume this problem existed for a longer time but Linux 3.8 introduced
+>> > > automatic NUMA page balancing which makes the problem visible on
+>> > > multi-node hosts leading to kernel oopses.
+>> > >
+>> > > NUMA page migration means that the physical address of a page changes.
+>> > > This is fatal if the application assumes that this never happens for
+>> > > that page as it was supposed to be pinned.
+>> > >
+>> > > We have two kind of pinned memory:
+>> > >
+>> > > A) 1. allocate memory in userland with mmap()
+>> > >
+>> > >    2. madvise(MADV_DONTFORK)
+>> > >    3. pin with get_user_pages().
+>> > >    4. flush dcache_page()
+>> > >    5. vm_flags |= (VM_DONTCOPY | VM_LOCKED)
+>> > >
+>> > >       (resulting flags are VM_MIXEDMAP | VM_DONTDUMP | VM_DONTEXPAND |
+>> > >
+>> > >        VM_DONTCOPY | VM_LOCKED | 0xff)
+>> >
+>> > I don't think this type of allocation should be affected.  The
+>> > get_user_pages() call should elevate the pages reference count which
+>> > should prevent migration from completing.  I would, however, wait for
+>> > a more definitive answer.
+>>
+>> Thanks Robin! Actually case B) is more important for us so I'm waiting
+>> for more feedback :)
+>>
+>> Frank
+>>
+>> > > B) 1. allocate memory with alloc_pages()
+>> > >
+>> > >    2. SetPageReserved()
+>> > >    3. vm_mmap() to allocate a userspace mapping
+>> > >    4. vm_insert_page()
+>> > >    5. vm_flags |= (VM_DONTEXPAND | VM_DONTDUMP)
+>> > >
+>> > >       (resulting flags are VM_MIXEDMAP | VM_DONTDUMP | VM_DONTEXPAND |
+>> > >       0xff)
+>> > >
+>> > > At least the memory allocated like B) is affected by automatic NUMA page
+>> > > migration. I'm not sure about A).
+>> > >
+>> > > 1. How can I prevent automatic NUMA page migration on this memory?
+>> > > 2. Can NUMA page migration also be handled on such kind of memory without
+>> > >
+>> > >    preventing migration?
+>> > >
+>> > > Thanks,
+>> > >
+>> > > Frank
+>
+> I was looking at migration code lately, and while i am not an expert at all
+> in this area. I think there is a bug in the way handle_mm_fault deals, or
+> rather not deals, with migration entry.
+>
+> When huge page is migrated its pmd is replace with a special swp entry pmd,
+> which is a non zero pmd but that does not have any of the huge pmd flag set
+> so none of the handle_mm_fault path detect it as swap entry. Then believe
+> its a valid pmd and try to allocate pte under it which should oops.
+>
+> Attached patch is what i believe should be done (not even compile tested).
+>
+> Again i might be missing a subtelty somewhere else and just missed where
+> huge migration entry are dealt with.
+>
+> Cheers,
+> Jerome
 
-  migrate-add-migrate_entry_wait_huge.patch
-  hugetlbfs-support-split-page-table-lock.patch
+Never mind i was missing something hugetlb_fault will handle it.
 
-Thanks,
-Naoya Horiguchi
-----
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Date: Tue, 4 Jun 2013 12:26:32 -0400
-Subject: [PATCH v4] migrate: add migrate_entry_wait_huge()
-
-When we have a page fault for the address which is backed by a hugepage
-under migration, the kernel can't wait correctly and do busy looping on
-hugepage fault until the migration finishes.
-As a result, users who try to kick hugepage migration (via soft offlining,
-for example) occasionally experience long delay or soft lockup.
-
-This is because pte_offset_map_lock() can't get a correct migration entry
-or a correct page table lock for hugepage.
-This patch introduces migration_entry_wait_huge() to solve this.
-
-ChangeLog v4:
- - replace huge_pte_lockptr with &(mm)->page_table_lock
-   (postponed split page table lock patch)
- - update description
-
-ChangeLog v3:
- - use huge_pte_lockptr
-
-ChangeLog v2:
- - remove dup in migrate_entry_wait_huge()
-
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Cc: stable@vger.kernel.org # 2.6.35
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
----
- include/linux/swapops.h |  3 +++
- mm/hugetlb.c            |  2 +-
- mm/migrate.c            | 23 ++++++++++++++++++-----
- 3 files changed, 22 insertions(+), 6 deletions(-)
-
-diff --git a/include/linux/swapops.h b/include/linux/swapops.h
-index 47ead51..c5fd30d 100644
---- a/include/linux/swapops.h
-+++ b/include/linux/swapops.h
-@@ -137,6 +137,7 @@ static inline void make_migration_entry_read(swp_entry_t *entry)
- 
- extern void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
- 					unsigned long address);
-+extern void migration_entry_wait_huge(struct mm_struct *mm, pte_t *pte);
- #else
- 
- #define make_migration_entry(page, write) swp_entry(0, 0)
-@@ -148,6 +149,8 @@ static inline int is_migration_entry(swp_entry_t swp)
- static inline void make_migration_entry_read(swp_entry_t *entryp) { }
- static inline void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
- 					 unsigned long address) { }
-+static inline void migration_entry_wait_huge(struct mm_struct *mm,
-+					pte_t *pte) { }
- static inline int is_write_migration_entry(swp_entry_t entry)
- {
- 	return 0;
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 463fb5e..d793c5e 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -2865,7 +2865,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	if (ptep) {
- 		entry = huge_ptep_get(ptep);
- 		if (unlikely(is_hugetlb_entry_migration(entry))) {
--			migration_entry_wait(mm, (pmd_t *)ptep, address);
-+			migration_entry_wait_huge(mm, ptep);
- 			return 0;
- 		} else if (unlikely(is_hugetlb_entry_hwpoisoned(entry)))
- 			return VM_FAULT_HWPOISON_LARGE |
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 6f2df6e..b8d56a1 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -204,15 +204,14 @@ static void remove_migration_ptes(struct page *old, struct page *new)
-  * get to the page and wait until migration is finished.
-  * When we return from this function the fault will be retried.
-  */
--void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
--				unsigned long address)
-+static void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
-+				spinlock_t *ptl)
- {
--	pte_t *ptep, pte;
--	spinlock_t *ptl;
-+	pte_t pte;
- 	swp_entry_t entry;
- 	struct page *page;
- 
--	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
-+	spin_lock(ptl);
- 	pte = *ptep;
- 	if (!is_swap_pte(pte))
- 		goto out;
-@@ -240,6 +239,20 @@ void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
- 	pte_unmap_unlock(ptep, ptl);
- }
- 
-+void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
-+				unsigned long address)
-+{
-+	spinlock_t *ptl = pte_lockptr(mm, pmd);
-+	pte_t *ptep = pte_offset_map(pmd, address);
-+	__migration_entry_wait(mm, ptep, ptl);
-+}
-+
-+void migration_entry_wait_huge(struct mm_struct *mm, pte_t *pte)
-+{
-+	spinlock_t *ptl = &(mm)->page_table_lock;
-+	__migration_entry_wait(mm, pte, ptl);
-+}
-+
- #ifdef CONFIG_BLOCK
- /* Returns true if all buffers are successfully locked */
- static bool buffer_migrate_lock_buffers(struct buffer_head *head,
--- 
-1.7.11.7
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
