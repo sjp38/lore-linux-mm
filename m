@@ -1,123 +1,193 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 3158D6B0092
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 08:15:02 -0400 (EDT)
-From: Frank Mehnert <frank.mehnert@oracle.com>
-Subject: Re: Handling NUMA page migration
-Date: Tue, 4 Jun 2013 14:14:45 +0200
-References: <201306040922.10235.frank.mehnert@oracle.com> <20130604115807.GF3672@sgi.com>
-In-Reply-To: <20130604115807.GF3672@sgi.com>
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id D5E156B0093
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 08:31:03 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Tue, 4 Jun 2013 17:55:30 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 2827C125804F
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 18:03:02 +0530 (IST)
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r54CUnZ856361008
+	for <linux-mm@kvack.org>; Tue, 4 Jun 2013 18:00:49 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r54CUrJF018270
+	for <linux-mm@kvack.org>; Tue, 4 Jun 2013 22:30:53 +1000
+Date: Tue, 4 Jun 2013 20:30:51 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: Transparent Hugepage impact on memcpy
+Message-ID: <20130604123050.GA32707@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <51ADAC15.1050103@huawei.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed;
-  boundary="nextPart4158253.W4x4OHcdpD";
-  protocol="application/pgp-signature";
-  micalg=pgp-sha1
-Content-Transfer-Encoding: 7bit
-Message-Id: <201306041414.52237.frank.mehnert@oracle.com>
+Content-Type: multipart/mixed; boundary="NzB8fVQJ5HfG6fxh"
+Content-Disposition: inline
+In-Reply-To: <51ADAC15.1050103@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>
+To: Jianguo Wu <wujianguo@huawei.com>
+Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, qiuxishi <qiuxishi@huawei.com>
 
---nextPart4158253.W4x4OHcdpD
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
 
-On Tuesday 04 June 2013 13:58:07 Robin Holt wrote:
-> This is probably more appropriate to be directed at the linux-mm
-> mailing list.
->=20
-> On Tue, Jun 04, 2013 at 09:22:10AM +0200, Frank Mehnert wrote:
-> > Hi,
-> >=20
-> > our memory management on Linux hosts conflicts with NUMA page migration.
-> > I assume this problem existed for a longer time but Linux 3.8 introduced
-> > automatic NUMA page balancing which makes the problem visible on
-> > multi-node hosts leading to kernel oopses.
-> >=20
-> > NUMA page migration means that the physical address of a page changes.
-> > This is fatal if the application assumes that this never happens for
-> > that page as it was supposed to be pinned.
-> >=20
-> > We have two kind of pinned memory:
-> >=20
-> > A) 1. allocate memory in userland with mmap()
-> >=20
-> >    2. madvise(MADV_DONTFORK)
-> >    3. pin with get_user_pages().
-> >    4. flush dcache_page()
-> >    5. vm_flags |=3D (VM_DONTCOPY | VM_LOCKED)
-> >   =20
-> >       (resulting flags are VM_MIXEDMAP | VM_DONTDUMP | VM_DONTEXPAND |
-> >      =20
-> >        VM_DONTCOPY | VM_LOCKED | 0xff)
->=20
-> I don't think this type of allocation should be affected.  The
-> get_user_pages() call should elevate the pages reference count which
-> should prevent migration from completing.  I would, however, wait for
-> a more definitive answer.
+--NzB8fVQJ5HfG6fxh
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-Thanks Robin! Actually case B) is more important for us so I'm waiting
-for more feedback :)
+On Tue, Jun 04, 2013 at 04:57:57PM +0800, Jianguo Wu wrote:
+>Hi all,
+>
+>I tested memcpy with perf bench, and found that in prefault case, When Transparent Hugepage is on,
+>memcpy has worse performance.
+>
+>When THP on is 3.672879 GB/Sec (with prefault), while THP off is 6.190187 GB/Sec (with prefault).
+>
 
-=46rank
+I get similar result as you against 3.10-rc4 in the attachment. This
+dues to the characteristic of thp takes a single page fault for each 
+2MB virtual region touched by userland.
 
-> > B) 1. allocate memory with alloc_pages()
-> >=20
-> >    2. SetPageReserved()
-> >    3. vm_mmap() to allocate a userspace mapping
-> >    4. vm_insert_page()
-> >    5. vm_flags |=3D (VM_DONTEXPAND | VM_DONTDUMP)
-> >   =20
-> >       (resulting flags are VM_MIXEDMAP | VM_DONTDUMP | VM_DONTEXPAND |
-> >       0xff)
-> >=20
-> > At least the memory allocated like B) is affected by automatic NUMA page
-> > migration. I'm not sure about A).
-> >=20
-> > 1. How can I prevent automatic NUMA page migration on this memory?
-> > 2. Can NUMA page migration also be handled on such kind of memory witho=
-ut
-> >=20
-> >    preventing migration?
-> >=20
-> > Thanks,
-> >=20
-> > Frank
->=20
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+>I think THP will improve performance, but the test result obviously not the case. 
+>Andrea mentioned THP cause "clear_page/copy_page less cache friendly" in
+>http://events.linuxfoundation.org/slides/2011/lfcs/lfcs2011_hpc_arcangeli.pdf.
+>
+>I am not quite understand this, could you please give me some comments, Thanks!
+>
+>I test in Linux-3.4-stable, and my machine info is:
+>Intel(R) Xeon(R) CPU           E5520  @ 2.27GHz
+>
+>available: 2 nodes (0-1)
+>node 0 cpus: 0 1 2 3 8 9 10 11
+>node 0 size: 24567 MB
+>node 0 free: 23550 MB
+>node 1 cpus: 4 5 6 7 12 13 14 15
+>node 1 size: 24576 MB
+>node 1 free: 23767 MB
+>node distances:
+>node   0   1 
+>  0:  10  20 
+>  1:  20  10
+>
+>Below is test result:
+>---with THP---
+>#cat /sys/kernel/mm/transparent_hugepage/enabled
+>[always] madvise never
+>#./perf bench mem memcpy -l 1gb -o
+># Running mem/memcpy benchmark...
+># Copying 1gb Bytes ...
+>
+>       3.672879 GB/Sec (with prefault)
+>
+>#./perf stat ...
+>Performance counter stats for './perf bench mem memcpy -l 1gb -o':
+>
+>          35455940 cache-misses              #   53.504 % of all cache refs     [49.45%]
+>          66267785 cache-references                                             [49.78%]
+>              2409 page-faults                                                 
+>         450768651 dTLB-loads
+>                                                  [50.78%]
+>             24580 dTLB-misses
+>              #    0.01% of all dTLB cache hits  [51.01%]
+>        1338974202 dTLB-stores
+>                                                 [50.63%]
+>             77943 dTLB-misses
+>                                                 [50.24%]
+>         697404997 iTLB-loads
+>                                                  [49.77%]
+>               274 iTLB-misses
+>              #    0.00% of all iTLB cache hits  [49.30%]
+>
+>       0.855041819 seconds time elapsed
+>
+>---no THP---
+>#cat /sys/kernel/mm/transparent_hugepage/enabled
+>always madvise [never]
+>
+>#./perf bench mem memcpy -l 1gb -o
+># Running mem/memcpy benchmark...
+># Copying 1gb Bytes ...
+>
+>       6.190187 GB/Sec (with prefault)
+>
+>#./perf stat ...
+>Performance counter stats for './perf bench mem memcpy -l 1gb -o':
+>
+>          16920763 cache-misses              #   98.377 % of all cache refs     [50.01%]
+>          17200000 cache-references                                             [50.04%]
+>            524652 page-faults                                                 
+>         734365659 dTLB-loads
+>                                                  [50.04%]
+>           4986387 dTLB-misses
+>              #    0.68% of all dTLB cache hits  [50.04%]
+>        1013408298 dTLB-stores
+>                                                 [50.04%]
+>           8180817 dTLB-misses
+>                                                 [49.97%]
+>        1526642351 iTLB-loads
+>                                                  [50.41%]
+>                56 iTLB-misses
+>              #    0.00% of all iTLB cache hits  [50.21%]
+>
+>       1.025425847 seconds time elapsed
+>
+>Thanks,
+>Jianguo Wu.
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-=2D-=20
-Dr.-Ing. Frank Mehnert | Software Development Director, VirtualBox
-ORACLE Deutschland B.V. & Co. KG | Werkstr. 24 | 71384 Weinstadt, Germany
+--NzB8fVQJ5HfG6fxh
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: attachment; filename=thp
 
-Hauptverwaltung: Riesstr. 25, D-80992 M=FCnchen
-Registergericht: Amtsgericht M=FCnchen, HRA 95603
-Gesch=E4ftsf=FChrer: J=FCrgen Kunz
+---with THP---
+#cat  /sys/kernel/mm/transparent_hugepage/enabled
+[always] madvise never
+# Running mem/memcpy benchmark...
+# Copying 1gb Bytes ...
 
-Komplement=E4rin: ORACLE Deutschland Verwaltung B.V.
-Hertogswetering 163/167, 3543 AS Utrecht, Niederlande
-Handelsregister der Handelskammer Midden-Niederlande, Nr. 30143697
-Gesch=E4ftsf=FChrer: Alexander van der Ven, Astrid Kepper, Val Maher
+      12.208522 GB/Sec (with prefault)
 
---nextPart4158253.W4x4OHcdpD
-Content-Type: application/pgp-signature; name=signature.asc 
-Content-Description: This is a digitally signed message part.
+ Performance counter stats for './perf bench mem memcpy -l 1gb -o':
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.20 (GNU/Linux)
+        26,453,696 cache-misses              #   35.411 % of all cache refs     [57.66%]
+        74,704,531 cache-references                                             [58.40%]
+             2,297 page-faults                                                 
+       146,567,960 dTLB-loads                                                   [58.64%]
+       211,648,685 dTLB-stores                                                  [58.63%]
+            14,533 dTLB-load-misses          #    0.01% of all dTLB cache hits  [57.46%]
+               640 iTLB-loads                                                   [55.74%]
+           270,881 iTLB-load-misses          #  42325.16% of all iTLB cache hits  [55.17%]
 
-iEYEABECAAYFAlGt2jwACgkQ6z8pigLf3EeBhACfWdr/FHrGL56lylmiX4Vuhb4I
-5iUAn1y2LOnXJpRbvKAcKDFUBv640YH6
-=l1BW
------END PGP SIGNATURE-----
+       0.232425109 seconds time elapsed
 
---nextPart4158253.W4x4OHcdpD--
+---no THP---
+#cat  /sys/kernel/mm/transparent_hugepage/enabled
+always madvise [never]
+
+# Running mem/memcpy benchmark...
+# Copying 1gb Bytes ...
+
+      18.325087 GB/Sec (with prefault)
+
+ Performance counter stats for './perf bench mem memcpy -l 1gb -o':
+
+        28,498,544 cache-misses              #   86.167 % of all cache refs     [57.35%]
+        33,073,611 cache-references                                             [57.71%]
+           524,540 page-faults                                                 
+       453,500,641 dTLB-loads                                                   [57.99%]
+       409,255,606 dTLB-stores                                                  [57.99%]
+         2,033,985 dTLB-load-misses          #    0.45% of all dTLB cache hits  [57.52%]
+             1,180 iTLB-loads                                                   [56.69%]
+           539,056 iTLB-load-misses          #  45682.71% of all iTLB cache hits  [56.02%]
+
+       0.485932214 seconds time elapsed
+
+--NzB8fVQJ5HfG6fxh--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
