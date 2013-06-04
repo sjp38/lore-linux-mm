@@ -1,60 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 386056B0037
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 00:41:41 -0400 (EDT)
-Date: Tue, 4 Jun 2013 13:41:39 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [v4][PATCH 1/6] mm: swap: defer clearing of page_private() for
- swap cache pages
-Message-ID: <20130604044139.GB14719@blaptop>
-References: <20130531183855.44DDF928@viggo.jf.intel.com>
- <20130531183856.1D7D75AD@viggo.jf.intel.com>
- <20130603054048.GA27858@blaptop>
- <51ACADCD.70904@sr71.net>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 897076B0039
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 00:57:09 -0400 (EDT)
+Date: Tue, 4 Jun 2013 00:57:07 -0400 (EDT)
+From: CAI Qian <caiqian@redhat.com>
+Message-ID: <1898240904.11078354.1370321827838.JavaMail.root@redhat.com>
+In-Reply-To: <20130604041617.GF29466@dastard>
+References: <510292845.4997401.1369279175460.JavaMail.root@redhat.com> <1824023060.8558101.1369892432333.JavaMail.root@redhat.com> <1462663454.9294499.1369969415681.JavaMail.root@redhat.com> <20130531060415.GU29466@dastard> <1517224799.10311874.1370228651422.JavaMail.root@redhat.com> <20130603040038.GX29466@dastard> <1317567060.11044929.1370315696270.JavaMail.root@redhat.com> <20130604041617.GF29466@dastard>
+Subject: Re: 3.9.4 Oops running xfstests (WAS Re: 3.9.3: Oops running
+ xfstests)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <51ACADCD.70904@sr71.net>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de, tim.c.chen@linux.intel.com
+To: Dave Chinner <david@fromorbit.com>
+Cc: xfs@oss.sgi.com, stable@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On Mon, Jun 03, 2013 at 07:53:01AM -0700, Dave Hansen wrote:
-> On 06/02/2013 10:40 PM, Minchan Kim wrote:
-> >> > diff -puN mm/vmscan.c~__delete_from_swap_cache-dont-clear-page-private mm/vmscan.c
-> >> > --- linux.git/mm/vmscan.c~__delete_from_swap_cache-dont-clear-page-private	2013-05-30 16:07:50.632079492 -0700
-> >> > +++ linux.git-davehans/mm/vmscan.c	2013-05-30 16:07:50.637079712 -0700
-> >> > @@ -494,6 +494,8 @@ static int __remove_mapping(struct addre
-> >> >  		__delete_from_swap_cache(page);
-> >> >  		spin_unlock_irq(&mapping->tree_lock);
-> >> >  		swapcache_free(swap, page);
-> >> > +		set_page_private(page, 0);
-> >> > +		ClearPageSwapCache(page);
-> > It it worth to support non-atomic version of ClearPageSwapCache?
+
+> Cai, I did ask you for the information that would have answered this
+> question:
 > 
-> Just for this, probably not.
+> > > 	3. if you can't reproduce it like that, does it reproduce on
+> > > 	  an xfstest run on a pristine system? If so, what command
+> > > 	  line are you running, and what are the filesystem
+> > > 	  configurations?
 > 
-> It does look like a site where it would be theoretically safe to use
-> non-atomic flag operations since the page is on a one-way trip to the
-> allocator at this point and the __clear_page_locked() now happens _just_
-> after this code.
+> So, I need xfstests command line and the xfs_info output from the
+> filesystems in use at the time this problem occurs..
+Here you are.
+[root@hp-z210-01 xfstests-dev]# a=`grep ' swap' /etc/fstab | cut -f 1 -d ' '`
+[root@hp-z210-01 xfstests-dev]# b=`grep ' /home' /etc/fstab | cut -f 1 -d ' '`
+[root@hp-z210-01 xfstests-dev]# swapoff -a
+[root@hp-z210-01 xfstests-dev]# umount /home
+[root@hp-z210-01 xfstests-dev]# echo "swap = $a"
+swap = /dev/mapper/rhel_hp--z210--01-swap
+[root@hp-z210-01 xfstests-dev]# echo "home = $b"
+home = /dev/mapper/rhel_hp--z210--01-home
+[root@hp-z210-01 xfstests-dev]# export TEST_DEV=$a
+[root@hp-z210-01 xfstests-dev]# export TEST_DIR=/mnt/testarea/test
+[root@hp-z210-01 xfstests-dev]# export SCRATCH_DEV=$b
+[root@hp-z210-01 xfstests-dev]# export SCRATCH_MNT=/mnt/testarea/scratch
+[root@hp-z210-01 xfstests-dev]# mkdir -p /mnt/testarea/test
+[root@hp-z210-01 xfstests-dev]# mkdir -p /mnt/testarea/scratch
+[root@hp-z210-01 xfstests-dev]# 
+[root@hp-z210-01 xfstests-dev]# mkfs.xfs -f $a
+meta-data=/dev/mapper/rhel_hp--z210--01-swap isize=256    agcount=4, agsize=251904 blks
+         =                       sectsz=512   attr=2, projid32bit=0
+data     =                       bsize=4096   blocks=1007616, imaxpct=25
+         =                       sunit=0      swidth=0 blks
+naming   =version 2              bsize=4096   ascii-ci=0
+log      =internal log           bsize=4096   blocks=2560, version=2
+         =                       sectsz=512   sunit=0 blks, lazy-count=1
+realtime =none                   extsz=4096   blocks=0, rtextents=0
+[root@hp-z210-01 xfstests-dev]# mkfs.xfs -f $b
+meta-data=/dev/mapper/rhel_hp--z210--01-home isize=256    agcount=4, agsize=11701504 blks
+         =                       sectsz=512   attr=2, projid32bit=0
+data     =                       bsize=4096   blocks=46806016, imaxpct=25
+         =                       sunit=0      swidth=0 blks
+naming   =version 2              bsize=4096   ascii-ci=0
+log      =internal log           bsize=4096   blocks=22854, version=2
+         =                       sectsz=512   sunit=0 blks, lazy-count=1
+realtime =none                   extsz=4096   blocks=0, rtextents=0
 
-True.
-
-> 
-> But, personally, I'm happy to leave it as-is.  The atomic vs. non-atomic
-> flags look to me like a micro-optimization that we should use when we
-> _know_ there will be some tangible benefit.  Otherwise, they're just
-> something extra for developers to trip over and cause very subtle bugs.
-
-I just asked it because when I read the description of patchset, I felt
-you were very sensitive to the atomic operation on many CPU system with
-several sockets. Anyway, if you don't want it, I don't mind it, either.
-
--- 
-Kind regards,
-Minchan Kim
+[root@hp-z210-01 xfstests-dev]# 
+[root@hp-z210-01 xfstests-dev]# mount /dev/mapper/rhel_hp--z210--01-home /mnt/testarea/scratch
+[root@hp-z210-01 xfstests-dev]# 
+[root@hp-z210-01 xfstests-dev]# mount /dev/mapper/rhel_hp--z210--01-swap /mnt/testarea/test
+[root@hp-z210-01 xfstests-dev]# xfs_info $a
+meta-data=/dev/mapper/rhel_hp--z210--01-swap isize=256    agcount=4, agsize=251904 blks
+         =                       sectsz=512   attr=2
+data     =                       bsize=4096   blocks=1007616, imaxpct=25
+         =                       sunit=0      swidth=0 blks
+naming   =version 2              bsize=4096   ascii-ci=0
+log      =internal               bsize=4096   blocks=2560, version=2
+         =                       sectsz=512   sunit=0 blks, lazy-count=1
+realtime =none                   extsz=4096   blocks=0, rtextents=0
+[root@hp-z210-01 xfstests-dev]# xfs_info $b
+meta-data=/dev/mapper/rhel_hp--z210--01-home isize=256    agcount=4, agsize=11701504 blks
+         =                       sectsz=512   attr=2
+data     =                       bsize=4096   blocks=46806016, imaxpct=25
+         =                       sunit=0      swidth=0 blks
+naming   =version 2              bsize=4096   ascii-ci=0
+log      =internal               bsize=4096   blocks=22854, version=2
+         =                       sectsz=512   sunit=0 blks, lazy-count=1
+realtime =none                   extsz=4096   blocks=0, rtextents=0
+[root@hp-z210-01 xfstests-dev]# ./check 20
+FSTYP         -- xfs (non-debug)
+PLATFORM      -- Linux/x86_64 hp-z210-01 3.9.4
+MKFS_OPTIONS  -- -f -bsize=4096 /dev/mapper/rhel_hp--z210--01-home
+MOUNT_OPTIONS -- -o context=system_u:object_r:nfs_t:s0 /dev/mapper/rhel_hp--z210--01-home /mnt/testarea/scratch
+020	<crashed immediately...>
+CAI Qian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
