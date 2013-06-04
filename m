@@ -1,115 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 8D6A16B003A
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 09:21:21 -0400 (EDT)
-Date: Tue, 4 Jun 2013 15:21:20 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 2/3] memcg: restructure mem_cgroup_iter()
-Message-ID: <20130604132120.GG31242@dhcp22.suse.cz>
-References: <1370306679-13129-1-git-send-email-tj@kernel.org>
- <1370306679-13129-3-git-send-email-tj@kernel.org>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id EF6586B003B
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 09:34:47 -0400 (EDT)
+Date: Tue, 4 Jun 2013 08:34:46 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: Handling NUMA page migration
+Message-ID: <20130604133446.GP3658@sgi.com>
+References: <201306040922.10235.frank.mehnert@oracle.com>
+ <20130604115807.GF3672@sgi.com>
+ <201306041414.52237.frank.mehnert@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="7iMSBzlTiPOCCT2k"
 Content-Disposition: inline
-In-Reply-To: <1370306679-13129-3-git-send-email-tj@kernel.org>
+In-Reply-To: <201306041414.52237.frank.mehnert@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: hannes@cmpxchg.org, bsingharora@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org, lizefan@huawei.com
+To: Frank Mehnert <frank.mehnert@oracle.com>
+Cc: Robin Holt <holt@sgi.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>
 
-On Mon 03-06-13 17:44:38, Tejun Heo wrote:
-> mem_cgroup_iter() implements two iteration modes - plain and reclaim.
-> The former is normal pre-order tree walk.  The latter tries to share
-> iteration cursor per zone and priority pair among multiple reclaimers
-> so that they all contribute to scanning forward rather than banging on
-> the same cgroups simultaneously.
-> 
-> Implementing the two in the same function allows them to share code
-> paths which is fine but the current structure is unnecessarily
-> convoluted with conditionals on @reclaim spread across the function
-> rather obscurely and with a somewhat strange control flow which checks
-> for conditions which can't be and has duplicate tests for the same
-> conditions in different forms.
-> 
-> This patch restructures the function such that there's single test on
-> @reclaim and !reclaim path is contained in its block, which simplifies
-> both !reclaim and reclaim paths.  Also, the control flow in the
-> reclaim path is restructured and commented so that it's easier to
-> follow what's going on why.
-> 
-> Note that after the patch reclaim->generation is synchronized to the
-> iter's on success whether @prev was specified or not.  This doesn't
-> cause any functional differences as the two generation numbers are
-> guaranteed to be the same at that point if @prev and makes the code
-> slightly easier to follow.
-> 
-> This patch is pure restructuring and shouldn't introduce any
-> functional differences.
-> 
-> Signed-off-by: Tejun Heo <tj@kernel.org>
-> ---
->  mm/memcontrol.c | 131 ++++++++++++++++++++++++++++++--------------------------
->  1 file changed, 71 insertions(+), 60 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index cb2f91c..99e7357 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1170,8 +1170,8 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
->  				   struct mem_cgroup_reclaim_cookie *reclaim)
->  {
->  	struct mem_cgroup *memcg = NULL;
-> -	struct mem_cgroup *last_visited = NULL;
-> -	unsigned long uninitialized_var(dead_count);
-> +	struct mem_cgroup_per_zone *mz;
-> +	struct mem_cgroup_reclaim_iter *iter;
->  
->  	if (mem_cgroup_disabled())
->  		return NULL;
-> @@ -1179,9 +1179,6 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
->  	if (!root)
->  		root = root_mem_cgroup;
->  
-> -	if (prev && !reclaim)
-> -		last_visited = prev;
-> -
->  	if (!root->use_hierarchy && root != root_mem_cgroup) {
->  		if (prev)
->  			goto out_css_put;
-> @@ -1189,73 +1186,87 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
->  	}
->  
->  	rcu_read_lock();
-> -	while (!memcg) {
-> -		struct mem_cgroup_reclaim_iter *uninitialized_var(iter);
-> -
-> -		if (reclaim) {
-> -			int nid = zone_to_nid(reclaim->zone);
-> -			int zid = zone_idx(reclaim->zone);
-> -			struct mem_cgroup_per_zone *mz;
-> -
-> -			mz = mem_cgroup_zoneinfo(root, nid, zid);
-> -			iter = &mz->reclaim_iter[reclaim->priority];
-> -			last_visited = iter->last_visited;
-> -			if (prev && reclaim->generation != iter->generation) {
-> -				iter->last_visited = NULL;
-> -				goto out_unlock;
-> -			}
->  
-> +	/* non reclaim case is simple - just iterate from @prev */
-> +	if (!reclaim) {
-> +		memcg = __mem_cgroup_iter_next(root, prev);
-> +		goto out_unlock;
-> +	}
 
-I do not have objections for pulling !reclaim case like this, but could
-you base this on top of the patch which adds predicates into the
-operators, please?
+--7iMSBzlTiPOCCT2k
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-[...]
--- 
-Michal Hocko
-SUSE Labs
+On Tue, Jun 04, 2013 at 02:14:45PM +0200, Frank Mehnert wrote:
+> On Tuesday 04 June 2013 13:58:07 Robin Holt wrote:
+> > This is probably more appropriate to be directed at the linux-mm
+> > mailing list.
+> >=20
+> > On Tue, Jun 04, 2013 at 09:22:10AM +0200, Frank Mehnert wrote:
+> > > Hi,
+> > >=20
+> > > our memory management on Linux hosts conflicts with NUMA page migrati=
+on.
+> > > I assume this problem existed for a longer time but Linux 3.8 introdu=
+ced
+> > > automatic NUMA page balancing which makes the problem visible on
+> > > multi-node hosts leading to kernel oopses.
+> > >=20
+> > > NUMA page migration means that the physical address of a page changes.
+> > > This is fatal if the application assumes that this never happens for
+> > > that page as it was supposed to be pinned.
+> > >=20
+> > > We have two kind of pinned memory:
+> > >=20
+> > > A) 1. allocate memory in userland with mmap()
+> > >=20
+> > >    2. madvise(MADV_DONTFORK)
+> > >    3. pin with get_user_pages().
+> > >    4. flush dcache_page()
+> > >    5. vm_flags |=3D (VM_DONTCOPY | VM_LOCKED)
+> > >   =20
+> > >       (resulting flags are VM_MIXEDMAP | VM_DONTDUMP | VM_DONTEXPAND |
+> > >      =20
+> > >        VM_DONTCOPY | VM_LOCKED | 0xff)
+> >=20
+> > I don't think this type of allocation should be affected.  The
+> > get_user_pages() call should elevate the pages reference count which
+> > should prevent migration from completing.  I would, however, wait for
+> > a more definitive answer.
+>=20
+> Thanks Robin! Actually case B) is more important for us so I'm waiting
+> for more feedback :)
+
+If you have a good test case, you might want to try adding a get_page()
+in there to see if that mitigates the problem.  It would at least be
+interesting to know if it has an effect.
+
+Robin
+
+>=20
+> Frank
+>=20
+> > > B) 1. allocate memory with alloc_pages()
+> > >=20
+> > >    2. SetPageReserved()
+> > >    3. vm_mmap() to allocate a userspace mapping
+> > >    4. vm_insert_page()
+> > >    5. vm_flags |=3D (VM_DONTEXPAND | VM_DONTDUMP)
+> > >   =20
+> > >       (resulting flags are VM_MIXEDMAP | VM_DONTDUMP | VM_DONTEXPAND |
+> > >       0xff)
+> > >=20
+> > > At least the memory allocated like B) is affected by automatic NUMA p=
+age
+> > > migration. I'm not sure about A).
+> > >=20
+> > > 1. How can I prevent automatic NUMA page migration on this memory?
+> > > 2. Can NUMA page migration also be handled on such kind of memory wit=
+hout
+> > >=20
+> > >    preventing migration?
+> > >=20
+> > > Thanks,
+> > >=20
+> > > Frank
+> >=20
+> > --
+> > To unsubscribe from this list: send the line "unsubscribe linux-kernel"=
+ in
+> > the body of a message to majordomo@vger.kernel.org
+> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> > Please read the FAQ at  http://www.tux.org/lkml/
+>=20
+> --=20
+> Dr.-Ing. Frank Mehnert | Software Development Director, VirtualBox
+> ORACLE Deutschland B.V. & Co. KG | Werkstr. 24 | 71384 Weinstadt, Germany
+>=20
+> Hauptverwaltung: Riesstr. 25, D-80992 M=FCnchen
+> Registergericht: Amtsgericht M=FCnchen, HRA 95603
+> Gesch=E4ftsf=FChrer: J=FCrgen Kunz
+>=20
+> Komplement=E4rin: ORACLE Deutschland Verwaltung B.V.
+> Hertogswetering 163/167, 3543 AS Utrecht, Niederlande
+> Handelsregister der Handelskammer Midden-Niederlande, Nr. 30143697
+> Gesch=E4ftsf=FChrer: Alexander van der Ven, Astrid Kepper, Val Maher
+
+
+
+--7iMSBzlTiPOCCT2k
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+Content-Disposition: inline
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
+
+iQIcBAEBAgAGBQJRrez2AAoJELMAcI/i6zvGpeAQAK2pZORRhgdsJry6AVTi9No3
+o+GEZ3q/Iy1BvuTxaLr2ccL0mamHUrjbY/C465cYnIXX9/Jkf6EnoQ1JPY1BoOpv
+E4NhnPGWCRVDeb8YAcMRVI5io69ppdO66zTrdhVBN3LGJ7k0wVilRbgXhVlqlL8b
+ABEZ3Tiiuf+8aGJS2wfdcMk9AyqQB5szIAKT4u3TD6kxHuqQU2VwMRalZIMmmR2K
+1lo2igwUuEr1MVxBY9j9kGkGClOyBQZmclPSIzYGi3jDxdbUJkA+2JeAFjt8nyYe
+GVYYk59EyEHgVBb271GRhNY4kCJ+nmPgszexi2XJwWKraRw6jq28AfOggaO/EStb
+5xkbGo9W9AWz2dN/vlXy+8dQlmi2ZiRlCDTr/jBdYh5IyzY7RkYrCCMjKYnW4dug
+erMzpbZV620sGohvU87coCDOKfrdBu5D85WxAIBc4582whVGb5ZCMMw2mIe44gm2
+/fAgqBgeSWyYls4FrWhi1nyAebEEcdvxwyHMurmdWNQYtAbNabLIOzcUABwYwWki
+x73sZPsdp4hMNnWaXFkBRtgH32zTaeWK0LMsvtYYkDvNFNV1evX9vy7FLzGstkPv
+PQWxt3bh6uAGH7O2svH0flMWVeoLyn5tL2VDtmackmiDwYQTo0jDysQba3bBAnHR
+uAJVtN7SVuOFoyrZ/F8o
+=JcAm
+-----END PGP SIGNATURE-----
+
+--7iMSBzlTiPOCCT2k--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
