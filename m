@@ -1,150 +1,304 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id F32416B0031
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 11:30:01 -0400 (EDT)
-Date: Tue, 4 Jun 2013 17:29:59 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/3] memcg: fix subtle memory barrier bug in
- mem_cgroup_iter()
-Message-ID: <20130604152959.GB6356@dhcp22.suse.cz>
-References: <1370306679-13129-1-git-send-email-tj@kernel.org>
- <1370306679-13129-2-git-send-email-tj@kernel.org>
- <20130604130336.GE31242@dhcp22.suse.cz>
- <20130604135840.GN15576@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 493946B0031
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 11:34:12 -0400 (EDT)
+Received: by mail-wi0-f180.google.com with SMTP id hn14so340541wib.13
+        for <linux-mm@kvack.org>; Tue, 04 Jun 2013 08:34:10 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130604135840.GN15576@cmpxchg.org>
+In-Reply-To: <20130603174351.d04b2ac71d1bab0df242e0ba@mxc.nes.nec.co.jp>
+References: <20130523052421.13864.83978.stgit@localhost6.localdomain6>
+	<20130523052547.13864.83306.stgit@localhost6.localdomain6>
+	<20130523152445.17549682ae45b5aab3f3cde0@linux-foundation.org>
+	<CAJGZr0LwivLTH+E7WAR1B9_6B4e=jv04KgCUL_PdVpi9JjDpBw@mail.gmail.com>
+	<51A2BBA7.50607@jp.fujitsu.com>
+	<CAJGZr0LmsFXEgb3UXVb+rqo1aq5KJyNxyNAD+DG+3KnJm_ZncQ@mail.gmail.com>
+	<51A71B49.3070003@cn.fujitsu.com>
+	<CAJGZr0Ld6Q4a4f-VObAbvqCp=+fTFNEc6M-Fdnhh28GTcSm1=w@mail.gmail.com>
+	<20130603174351.d04b2ac71d1bab0df242e0ba@mxc.nes.nec.co.jp>
+Date: Tue, 4 Jun 2013 19:34:10 +0400
+Message-ID: <CAJGZr0KV9hmdFWQE5Z9kOieHSPhGKLAhsw1Me2RE2ADsbU=b7w@mail.gmail.com>
+Subject: Re: [PATCH v8 9/9] vmcore: support mmap() on /proc/vmcore
+From: Maxim Uvarov <muvarov@gmail.com>
+Content-Type: multipart/alternative; boundary=001a11c222020666a704de55d015
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Tejun Heo <tj@kernel.org>, bsingharora@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org, lizefan@huawei.com
+To: Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>
+Cc: riel@redhat.com, "kexec@lists.infradead.org" <kexec@lists.infradead.org>, hughd@google.com, linux-kernel@vger.kernel.org, lisa.mitchell@hp.com, Vivek Goyal <vgoyal@redhat.com>, linux-mm@kvack.org, HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Eric W. Biederman" <ebiederm@xmission.com>, kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, walken@google.com, Cliff Wickman <cpw@sgi.com>, jingbai.ma@hp.com
 
-On Tue 04-06-13 09:58:40, Johannes Weiner wrote:
-> On Tue, Jun 04, 2013 at 03:03:36PM +0200, Michal Hocko wrote:
-> > On Mon 03-06-13 17:44:37, Tejun Heo wrote:
-> > [...]
-> > > @@ -1218,9 +1218,18 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
-> > >  			 * is alive.
-> > >  			 */
-> > >  			dead_count = atomic_read(&root->dead_count);
-> > > -			smp_rmb();
-> > > +
-> > >  			last_visited = iter->last_visited;
-> > >  			if (last_visited) {
-> > > +				/*
-> > > +				 * Paired with smp_wmb() below in this
-> > > +				 * function.  The pair guarantee that
-> > > +				 * last_visited is more current than
-> > > +				 * last_dead_count, which may lead to
-> > > +				 * spurious iteration resets but guarantees
-> > > +				 * reliable detection of dead condition.
-> > > +				 */
-> > > +				smp_rmb();
-> > >  				if ((dead_count != iter->last_dead_count) ||
-> > >  					!css_tryget(&last_visited->css)) {
-> > >  					last_visited = NULL;
-> > 
-> > I originally had the barrier this way but Johannes pointed out it is not
-> > correct https://lkml.org/lkml/2013/2/11/411
-> > "
-> > !> +			/*
-> > !> +			 * last_visited might be invalid if some of the group
-> > !> +			 * downwards was removed. As we do not know which one
-> > !> +			 * disappeared we have to start all over again from the
-> > !> +			 * root.
-> > !> +			 * css ref count then makes sure that css won't
-> > !> +			 * disappear while we iterate to the next memcg
-> > !> +			 */
-> > !> +			last_visited = iter->last_visited;
-> > !> +			dead_count = atomic_read(&root->dead_count);
-> > !> +			smp_rmb();
-> > !
-> > !Confused about this barrier, see below.
-> > !
-> > !As per above, if you remove the iter lock, those lines are mixed up.
-> > !You need to read the dead count first because the writer updates the
-> > !dead count after it sets the new position.  That way, if the dead
-> > !count gives the go-ahead, you KNOW that the position cache is valid,
-> > !because it has been updated first.  If either the two reads or the two
-> > !writes get reordered, you risk seeing a matching dead count while the
-> > !position cache is stale.
-> > "
-> 
-> The original prototype code I sent looked like this:
-> 
-> mem_cgroup_iter:
-> rcu_read_lock()
-> if atomic_read(&root->dead_count) == iter->dead_count:
->   smp_rmb()
->   if tryget(iter->position):
->     position = iter->position
-> memcg = find_next(postion)
-> css_put(position)
-> iter->position = memcg
-> smp_wmb() /* Write position cache BEFORE marking it uptodate */
-> iter->dead_count = atomic_read(&root->dead_count)
-> rcu_read_unlock()
-> 
-> iter->last_position is written, THEN iter->last_dead_count is written.
-> 
-> So, yes, you "need to read the dead count" first to be sure
-> iter->last_position is uptodate.  But iter->last_dead_count, not
-> root->dead_count.  I should have caught this in the final submission
-> of your patch :(
+--001a11c222020666a704de55d015
+Content-Type: text/plain; charset=ISO-8859-1
 
-OK, right you are. I managed to confuse myself by the three dependencies
-here. dead_count -> last_visited -> last_dead_count. The first one is
-invalid because last_visited doesn't care about dead_count and that
-makes it much more clear now.
+2013/6/3 Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>
 
-> Tejun's patch is not correct, either.  Something like this?
+> Hello Maxim,
+>
+> On Thu, 30 May 2013 14:30:01 +0400
+> Maxim Uvarov <muvarov@gmail.com> wrote:
+>
+> > 2013/5/30 Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+> >
+> > > On 05/30/2013 05:14 PM, Maxim Uvarov wrote:
+> > > >
+> > > >
+> > > >
+> > > > 2013/5/27 HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com <mailto:
+> > > d.hatayama@jp.fujitsu.com>>
+> > > >
+> > > >     (2013/05/24 18:02), Maxim Uvarov wrote:
+> > > >
+> > > >
+> > > >
+> > > >
+> > > >         2013/5/24 Andrew Morton <akpm@linux-foundation.org <mailto:
+> > > akpm@linux-foundation.org> <mailto:akpm@linux-foundation.__org
+> <mailto:
+> > > akpm@linux-foundation.org>>>
+> > > >
+> > > >
+> > > >             On Thu, 23 May 2013 14:25:48 +0900 HATAYAMA Daisuke <
+> > > d.hatayama@jp.fujitsu.com <mailto:d.hatayama@jp.fujitsu.com> <mailto:
+> > > d.hatayama@jp.fujitsu.__com <mailto:d.hatayama@jp.fujitsu.com>>>
+> wrote:
+> > > >
+> > > >              > This patch introduces mmap_vmcore().
+> > > >              >
+> > > >              > Don't permit writable nor executable mapping even with
+> > > mprotect()
+> > > >              > because this mmap() is aimed at reading crash dump
+> memory.
+> > > >              > Non-writable mapping is also requirement of
+> > > remap_pfn_range() when
+> > > >              > mapping linear pages on non-consecutive physical
+> pages;
+> > > see
+> > > >              > is_cow_mapping().
+> > > >              >
+> > > >              > Set VM_MIXEDMAP flag to remap memory by
+> remap_pfn_range
+> > > and by
+> > > >              > remap_vmalloc_range_pertial at the same time for a
+> single
+> > > >              > vma. do_munmap() can correctly clean partially
+> remapped
+> > > vma with two
+> > > >              > functions in abnormal case. See zap_pte_range(),
+> > > vm_normal_page() and
+> > > >              > their comments for details.
+> > > >              >
+> > > >              > On x86-32 PAE kernels, mmap() supports at most 16TB
+> > > memory only. This
+> > > >              > limitation comes from the fact that the third
+> argument of
+> > > >              > remap_pfn_range(), pfn, is of 32-bit length on x86-32:
+> > > unsigned long.
+> > > >
+> > > >             More reviewing and testing, please.
+> > > >
+> > > >
+> > > >         Do you have git pull for both kernel and userland changes? I
+> > > would like to do some more testing on my machines.
+> > > >
+> > > >         Maxim.
+> > > >
+> > > >
+> > > >     Thanks! That's very helpful.
+> > > >
+> > > >     --
+> > > >     Thanks.
+> > > >     HATAYAMA, Daisuke
+> > > >
+> > > > Any update for this? Where can I checkout all sources?
+> > >
+> > > This series is now in Andrew Morton's -mm tree.
+> > >
+> > > Ok, and what about makedumpfile changes? Is it possible to fetch them
+> from
+> > somewhere?
+>
+> You can fetch them from here, "mmap" branch is the change:
+>
+>   git://git.code.sf.net/p/makedumpfile/code
+>
+> And they will be merged into v1.5.4.
+>
+>
+thank you, got it. But still do not see kernel patches in akpm tree:
+git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
+http://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
+https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
+Should I look at different branch?
 
-Yes this looks saner and correct. Care to send a full patch?
+Maxim.
 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 010d6c1..92830fa 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1199,7 +1199,6 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
->  
->  			mz = mem_cgroup_zoneinfo(root, nid, zid);
->  			iter = &mz->reclaim_iter[reclaim->priority];
-> -			last_visited = iter->last_visited;
->  			if (prev && reclaim->generation != iter->generation) {
->  				iter->last_visited = NULL;
->  				goto out_unlock;
-> @@ -1217,14 +1216,20 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
->  			 * css_tryget() verifies the cgroup pointed to
->  			 * is alive.
->  			 */
-> +			last_visited = NULL;
->  			dead_count = atomic_read(&root->dead_count);
-> -			smp_rmb();
-> -			last_visited = iter->last_visited;
-> -			if (last_visited) {
-> -				if ((dead_count != iter->last_dead_count) ||
-> -					!css_tryget(&last_visited->css)) {
-> +			if (dead_count == iter->last_dead_count) {
-> +				/*
-> +				 * The writer below sets the position
-> +				 * pointer, then the dead count.
-> +				 * Ensure we read the updated position
-> +				 * when the dead count matches.
-> +				 */
-> +				smp_rmb();
-> +				last_visited = iter->last_visited;
-> +				if (last_visited &&
-> +				    !css_tryget(&last_visited->css))
->  					last_visited = NULL;
-> -				}
->  			}
->  		}
->  
+
+
+>
+> Thanks
+> Atsushi Kumagai
+>
+> _______________________________________________
+> kexec mailing list
+> kexec@lists.infradead.org
+> http://lists.infradead.org/mailman/listinfo/kexec
+>
+
+
 
 -- 
-Michal Hocko
-SUSE Labs
+Best regards,
+Maxim Uvarov
+
+--001a11c222020666a704de55d015
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><br><div class=3D"gmail_extra"><br><br><div class=3D"gmail=
+_quote">2013/6/3 Atsushi Kumagai <span dir=3D"ltr">&lt;<a href=3D"mailto:ku=
+magai-atsushi@mxc.nes.nec.co.jp" target=3D"_blank">kumagai-atsushi@mxc.nes.=
+nec.co.jp</a>&gt;</span><br>
+<blockquote class=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8ex;border-=
+left:1px solid rgb(204,204,204);padding-left:1ex">Hello Maxim,<br>
+<div><div class=3D"h5"><br>
+On Thu, 30 May 2013 14:30:01 +0400<br>
+Maxim Uvarov &lt;<a href=3D"mailto:muvarov@gmail.com">muvarov@gmail.com</a>=
+&gt; wrote:<br>
+<br>
+&gt; 2013/5/30 Zhang Yanfei &lt;<a href=3D"mailto:zhangyanfei@cn.fujitsu.co=
+m">zhangyanfei@cn.fujitsu.com</a>&gt;<br>
+&gt;<br>
+&gt; &gt; On 05/30/2013 05:14 PM, Maxim Uvarov wrote:<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; 2013/5/27 HATAYAMA Daisuke &lt;<a href=3D"mailto:d.hatayama@=
+jp.fujitsu.com">d.hatayama@jp.fujitsu.com</a> &lt;mailto:<br>
+&gt; &gt; <a href=3D"mailto:d.hatayama@jp.fujitsu.com">d.hatayama@jp.fujits=
+u.com</a>&gt;&gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; =A0 =A0 (2013/05/24 18:02), Maxim Uvarov wrote:<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; =A0 =A0 =A0 =A0 2013/5/24 Andrew Morton &lt;<a href=3D"mailt=
+o:akpm@linux-foundation.org">akpm@linux-foundation.org</a> &lt;mailto:<br>
+&gt; &gt; <a href=3D"mailto:akpm@linux-foundation.org">akpm@linux-foundatio=
+n.org</a>&gt; &lt;mailto:<a href=3D"mailto:akpm@linux-foundation.">akpm@lin=
+ux-foundation.</a>__org &lt;mailto:<br>
+&gt; &gt; <a href=3D"mailto:akpm@linux-foundation.org">akpm@linux-foundatio=
+n.org</a>&gt;&gt;&gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 On Thu, 23 May 2013 14:25:48 +0900 H=
+ATAYAMA Daisuke &lt;<br>
+&gt; &gt; <a href=3D"mailto:d.hatayama@jp.fujitsu.com">d.hatayama@jp.fujits=
+u.com</a> &lt;mailto:<a href=3D"mailto:d.hatayama@jp.fujitsu.com">d.hatayam=
+a@jp.fujitsu.com</a>&gt; &lt;mailto:<br>
+&gt; &gt; d.hatayama@jp.fujitsu.__com &lt;mailto:<a href=3D"mailto:d.hataya=
+ma@jp.fujitsu.com">d.hatayama@jp.fujitsu.com</a>&gt;&gt;&gt; wrote:<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; This patch introduces mmap_v=
+mcore().<br>
+&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt;<br>
+&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; Don&#39;t permit writable no=
+r executable mapping even with<br>
+&gt; &gt; mprotect()<br>
+&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; because this mmap() is aimed=
+ at reading crash dump memory.<br>
+&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; Non-writable mapping is also=
+ requirement of<br>
+&gt; &gt; remap_pfn_range() when<br>
+&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; mapping linear pages on non-=
+consecutive physical pages;<br>
+&gt; &gt; see<br>
+&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; is_cow_mapping().<br>
+&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt;<br>
+&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; Set VM_MIXEDMAP flag to rema=
+p memory by remap_pfn_range<br>
+&gt; &gt; and by<br>
+&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; remap_vmalloc_range_pertial =
+at the same time for a single<br>
+&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; vma. do_munmap() can correct=
+ly clean partially remapped<br>
+&gt; &gt; vma with two<br>
+&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; functions in abnormal case. =
+See zap_pte_range(),<br>
+&gt; &gt; vm_normal_page() and<br>
+&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; their comments for details.<=
+br>
+&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt;<br>
+&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; On x86-32 PAE kernels, mmap(=
+) supports at most 16TB<br>
+&gt; &gt; memory only. This<br>
+&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; limitation comes from the fa=
+ct that the third argument of<br>
+&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; remap_pfn_range(), pfn, is o=
+f 32-bit length on x86-32:<br>
+&gt; &gt; unsigned long.<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 More reviewing and testing, please.<=
+br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; =A0 =A0 =A0 =A0 Do you have git pull for both kernel and use=
+rland changes? I<br>
+&gt; &gt; would like to do some more testing on my machines.<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; =A0 =A0 =A0 =A0 Maxim.<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; =A0 =A0 Thanks! That&#39;s very helpful.<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; =A0 =A0 --<br>
+&gt; &gt; &gt; =A0 =A0 Thanks.<br>
+&gt; &gt; &gt; =A0 =A0 HATAYAMA, Daisuke<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; Any update for this? Where can I checkout all sources?<br>
+&gt; &gt;<br>
+&gt; &gt; This series is now in Andrew Morton&#39;s -mm tree.<br>
+&gt; &gt;<br>
+&gt; &gt; Ok, and what about makedumpfile changes? Is it possible to fetch =
+them from<br>
+&gt; somewhere?<br>
+<br>
+</div></div>You can fetch them from here, &quot;mmap&quot; branch is the ch=
+ange:<br>
+<br>
+=A0 git://<a href=3D"http://git.code.sf.net/p/makedumpfile/code" target=3D"=
+_blank">git.code.sf.net/p/makedumpfile/code</a><br>
+<br>
+And they will be merged into v1.5.4.<br>
+<br></blockquote><div><br></div><div>thank you, got it. But still do not se=
+e kernel patches in akpm tree:<br><table summary=3D"repository info" class=
+=3D""><tbody><tr><td colspan=3D"5"><a href=3D"git://git.kernel.org/pub/scm/=
+linux/kernel/git/next/linux-next.git">git://git.kernel.org/pub/scm/linux/ke=
+rnel/git/next/linux-next.git</a></td>
+</tr>
+<tr><td colspan=3D"5"><a href=3D"http://git.kernel.org/pub/scm/linux/kernel=
+/git/next/linux-next.git">http://git.kernel.org/pub/scm/linux/kernel/git/ne=
+xt/linux-next.git</a></td></tr>
+<tr><td colspan=3D"5"><a href=3D"https://git.kernel.org/pub/scm/linux/kerne=
+l/git/next/linux-next.git">https://git.kernel.org/pub/scm/linux/kernel/git/=
+next/linux-next.git</a></td></tr></tbody></table><br></div><div>Should I lo=
+ok at different branch?<br>
+<br></div><div>Maxim.<br></div><div><br></div><div>=A0</div><blockquote cla=
+ss=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8ex;border-left:1px solid =
+rgb(204,204,204);padding-left:1ex">
+<br>
+Thanks<br>
+<span class=3D""><font color=3D"#888888">Atsushi Kumagai<br>
+</font></span><div class=3D""><div class=3D"h5"><br>
+_______________________________________________<br>
+kexec mailing list<br>
+<a href=3D"mailto:kexec@lists.infradead.org">kexec@lists.infradead.org</a><=
+br>
+<a href=3D"http://lists.infradead.org/mailman/listinfo/kexec" target=3D"_bl=
+ank">http://lists.infradead.org/mailman/listinfo/kexec</a><br>
+</div></div></blockquote></div><br><br clear=3D"all"><br>-- <br>Best regard=
+s,<br>Maxim Uvarov
+</div></div>
+
+--001a11c222020666a704de55d015--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
