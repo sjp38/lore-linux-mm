@@ -1,102 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 17E826B0083
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 05:55:17 -0400 (EDT)
-Date: Tue, 4 Jun 2013 11:55:14 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] mm, memcg: add oom killer delay
-Message-ID: <20130604095514.GC31242@dhcp22.suse.cz>
-References: <20130530150539.GA18155@dhcp22.suse.cz>
- <alpine.DEB.2.02.1305301338430.20389@chino.kir.corp.google.com>
- <20130531081052.GA32491@dhcp22.suse.cz>
- <alpine.DEB.2.02.1305310316210.27716@chino.kir.corp.google.com>
- <20130531112116.GC32491@dhcp22.suse.cz>
- <alpine.DEB.2.02.1305311224330.3434@chino.kir.corp.google.com>
- <20130601102058.GA19474@dhcp22.suse.cz>
- <alpine.DEB.2.02.1306031102480.7956@chino.kir.corp.google.com>
- <20130603193147.GC23659@dhcp22.suse.cz>
- <alpine.DEB.2.02.1306031411380.22083@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 2458C6B0087
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 06:37:29 -0400 (EDT)
+Message-ID: <51ADC365.4010307@redhat.com>
+Date: Tue, 04 Jun 2013 06:37:25 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1306031411380.22083@chino.kir.corp.google.com>
+Subject: Re: [RFC PATCH] Re: Repeated fork() causes SLAB to grow without bound
+References: <20120816024610.GA5350@evergreen.ssec.wisc.edu> <502D42E5.7090403@redhat.com> <20120818000312.GA4262@evergreen.ssec.wisc.edu> <502F100A.1080401@redhat.com> <alpine.LSU.2.00.1208200032450.24855@eggly.anvils> <CANN689Ej7XLh8VKuaPrTttDrtDGQbXuYJgS2uKnZL2EYVTM3Dg@mail.gmail.com> <20120822032057.GA30871@google.com> <50345232.4090002@redhat.com> <20130603195003.GA31275@evergreen.ssec.wisc.edu>
+In-Reply-To: <20130603195003.GA31275@evergreen.ssec.wisc.edu>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon 03-06-13 14:17:54, David Rientjes wrote:
-> On Mon, 3 Jun 2013, Michal Hocko wrote:
-> 
-> > > What do you suggest when you read the "tasks" file and it returns -ENOMEM 
-> > > because kmalloc() fails because the userspace oom handler's memcg is also 
-> > > oom? 
-> > 
-> > That would require that you track kernel allocations which is currently
-> > done only for explicit caches.
-> > 
-> 
-> That will not always be the case, and I think this could be a prerequisite 
-> patch for such support that we have internally. 
+On 06/03/2013 03:50 PM, Daniel Forrest wrote:
+> On Tue, Aug 21, 2012 at 11:29:54PM -0400, Rik van Riel wrote:
+>> On 08/21/2012 11:20 PM, Michel Lespinasse wrote:
+>>> On Mon, Aug 20, 2012 at 02:39:26AM -0700, Michel Lespinasse wrote:
+>>>> Instead of adding an atomic count for page references, we could limit
+>>>> the anon_vma stacking depth. In fork, we would only clone anon_vmas
+>>>> that have a low enough generation count. I think that's not great
+>>>> (adds a special case for the deep-fork-without-exec behavior), but
+>>>> still better than the atomic page reference counter.
+>>>
+>>> Here is an attached patch to demonstrate the idea.
+>>>
+>>> anon_vma_clone() is modified to return the length of the existing same_vma
+>>> anon vma chain, and we create a new anon_vma in the child only on the first
+>>> fork (this could be tweaked to allow up to a set number of forks, but
+>>> I think the first fork would cover all the common forking server cases).
+>>
+>> I suspect we need 2 or 3.
+>>
+>> Some forking servers first fork off one child, and have
+>> the original parent exit, in order to "background the server".
+>> That first child then becomes the parent to the real child
+>> processes that do the work.
+>>
+>> It is conceivable that we might need an extra level for
+>> processes that do something special with privilege dropping,
+>> namespace changing, etc...
+>>
+>> Even setting the threshold to 5 should be totally harmless,
+>> since the problem does not kick in until we have really
+>> long chains, like in Dan's bug report.
+>
+> I have been running with Michel's patch (with the threshold set to 5)
+> for quite a few months now and can confirm that it does indeed solve
+> my problem.  I am not a kernel developer, so I would appreciate if one
+> of you could push this into the kernel tree.
+>
+> NOTE: I have attached Michel's patch with "(length > 1)" modified to
+> "(length > 5)" and added a "Tested-by:".
 
-> I'm not sure a userspace oom notifier would want to keep a
-> preallocated buffer around that is mlocked in memory for all possible
-> lengths of this file.
+Thank you for testing this.
 
-Well, an oom handler which allocates memory under the same restricted
-memory doesn't make much sense to me. Tracking all kmem allocations
-makes it almost impossible to implement a non-trivial handler.
+I believe this code should go into the Linux kernel,
+since it closes up what could be a denial of service
+attack (albeit a local one) with the anonvma code.
 
-> > > Obviously it's not a situation we want to get into, but unless you 
-> > > know that handler's exact memory usage across multiple versions, nothing 
-> > > else is sharing that memcg, and it's a perfect implementation, you can't 
-> > > guarantee it.  We need to address real world problems that occur in 
-> > > practice.
-> > 
-> > If you really need to have such a guarantee then you can have a _global_
-> > watchdog observing oom_control of all groups that provide such a vague
-> > requirements for oom user handlers.
-> > 
-> 
-> The whole point is to allow the user to implement their own oom policy.
+> On Mon, Aug 20, 2012 at 02:39:26AM -0700, Michel Lespinasse wrote:
+>> Instead of adding an atomic count for page references, we could limit
+>> the anon_vma stacking depth. In fork, we would only clone anon_vmas
+>> that have a low enough generation count. I think that's not great
+>> (adds a special case for the deep-fork-without-exec behavior), but
+>> still better than the atomic page reference counter.
+>
+> Here is an attached patch to demonstrate the idea.
+>
+> anon_vma_clone() is modified to return the length of the existing same_vma
+> anon vma chain, and we create a new anon_vma in the child only on the first
+> fork (this could be tweaked to allow up to a set number of forks, but
+> I think the first fork would cover all the common forking server cases).
+>
+> Signed-off-by: Michel Lespinasse <walken@google.com>
+> Tested-by: Daniel Forrest <dan.forrest@ssec.wisc.edu>
 
-OK, maybe I just wasn't clear enough or I am missing your point. Your
-users _can_ implement and register their oom handlers. But as your
-requirements are rather benevolent for handlers implementation you would
-have a global watchdog which would sit on the oom_control of those
-groups (which are allowed to have own handlers - all of them in your
-case I guess) and trigger (user defined/global) timeout when it gets a
-notification. If the group was under oom always during the timeout then
-just disable oom_control until oom is settled (under_oom is 0).
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
-Why wouldn't something like this work for your use case?
 
-> If the policy was completely encapsulated in kernel code, we don't need to 
-> ever disable the oom killer even with memory.oom_control.  Users may 
-> choose to kill the largest process, the newest process, the oldest 
-> process, sacrifice children instead of parents, prevent forkbombs, 
-> implement their own priority scoring (which is what we do), kill the 
-> allocating task, etc.
-> 
-> To not merge this patch, I'd ask that you show an alternative that allows 
-> users to implement their own userspace oom handlers and not require admin 
-> intervention when things go wrong.
-
-Hohmm, so you are insisting on something that can be implemented in the
-userspace and put it into the kernel because it is more convenient for
-you and your use case. This doesn't sound like a way for accepting a
-feature.
-
-To make this absolutely clear. I do understand your requirements but you
-haven't shown any _argument_ why the timeout you are proposing cannot be
-implemented in the userspace. I will not ack this without this
-reasoning.
-
-And yes we should make memcg oom handling less deadlock prone and
-Johannes' work in this thread is a good step forward.
 -- 
-Michal Hocko
-SUSE Labs
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
