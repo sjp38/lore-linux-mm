@@ -1,308 +1,275 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id E284C6B007D
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 05:17:52 -0400 (EDT)
-Date: Tue, 4 Jun 2013 11:17:49 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] mm, memcg: add oom killer delay
-Message-ID: <20130604091749.GB31242@dhcp22.suse.cz>
-References: <20130530150539.GA18155@dhcp22.suse.cz>
- <alpine.DEB.2.02.1305301338430.20389@chino.kir.corp.google.com>
- <20130531081052.GA32491@dhcp22.suse.cz>
- <alpine.DEB.2.02.1305310316210.27716@chino.kir.corp.google.com>
- <20130531112116.GC32491@dhcp22.suse.cz>
- <alpine.DEB.2.02.1305311224330.3434@chino.kir.corp.google.com>
- <20130601061151.GC15576@cmpxchg.org>
- <20130603153432.GC18588@dhcp22.suse.cz>
- <20130603164839.GG15576@cmpxchg.org>
- <20130603183018.GJ15576@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 73A0C6B0081
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 05:53:15 -0400 (EDT)
+Date: Tue, 4 Jun 2013 11:52:58 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: TLB and PTE coherency during munmap
+Message-ID: <20130604095258.GL8923@twins.programming.kicks-ass.net>
+References: <CAMo8BfL4QfJrfejNKmBDhAVdmE=_Ys6MVUH5Xa3w_mU41hwx0A@mail.gmail.com>
+ <CAMo8BfJie1Y49QeSJ+JTQb9WsYJkMMkb1BkKz2Gzy3T7V6ogHA@mail.gmail.com>
+ <51A45861.1010008@gmail.com>
+ <20130529122728.GA27176@twins.programming.kicks-ass.net>
+ <51A5F7A7.5020604@synopsys.com>
+ <20130529175125.GJ12193@twins.programming.kicks-ass.net>
+ <CAMo8BfJtkEtf9RKsGRnOnZ5zbJQz5tW4HeDfydFq_ZnrFr8opw@mail.gmail.com>
+ <20130603090501.GI5910@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130603183018.GJ15576@cmpxchg.org>
+In-Reply-To: <20130603090501.GI5910@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Max Filippov <jcmvbkbc@gmail.com>
+Cc: Vineet Gupta <Vineet.Gupta1@synopsys.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, Ralf Baechle <ralf@linux-mips.org>, Chris Zankel <chris@zankel.net>, Marc Gauthier <Marc.Gauthier@tensilica.com>, linux-xtensa@linux-xtensa.org, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Tony Luck <tony.luck@intel.com>
 
-On Mon 03-06-13 14:30:18, Johannes Weiner wrote:
-> On Mon, Jun 03, 2013 at 12:48:39PM -0400, Johannes Weiner wrote:
-> > On Mon, Jun 03, 2013 at 05:34:32PM +0200, Michal Hocko wrote:
-[...]
-> > > I am just afraid about all the other archs that do not support (from
-> > > quick grep it looks like: blackfin, c6x, h8300, metag, mn10300,
-> > > openrisc, score and tile). What would be an alternative for them?
-> > > #ifdefs for the old code (something like ARCH_HAS_FAULT_OOM_RETRY)? This
-> > > would be acceptable for me.
+On Mon, Jun 03, 2013 at 11:05:01AM +0200, Peter Zijlstra wrote:
+> On Fri, May 31, 2013 at 08:09:17AM +0400, Max Filippov wrote:
+> > Hi Peter,
 > > 
-> > blackfin is NOMMU but I guess the others should be converted to the
-> > proper OOM protocol anyway and not just kill the faulting task.  I can
-> > update them in the next version of the patch (series).
-> 
-> It's no longer necessary since I remove the arch-specific flag
-> setting, but I converted them anyway while I was at it.  Will send
-> them as a separate patch.
-
-I am still not sure doing this unconditionally is the right way. Say
-that a new arch will be added. How the poor implementer knows that memcg
-oom handling requires an arch specific code to work properly?
-
-So while I obviously do not have anything agains your conversion of
-other archs that are in the tree currently I think we need something
-like CONFIG_OLD_VERSION_MEMCG_OOM which depends on ARCH_HAS_FAULT_OOM_RETRY.
-
-[...]
-> > > > diff --git a/include/linux/sched.h b/include/linux/sched.h
-> > > > index e692a02..cf60aef 100644
-> > > > --- a/include/linux/sched.h
-> > > > +++ b/include/linux/sched.h
-> > > > @@ -1282,6 +1282,8 @@ struct task_struct {
-> > > >  				 * execve */
-> > > >  	unsigned in_iowait:1;
-> > > >  
-> > > > +	unsigned in_userfault:1;
-> > > > +
-> > > 
-> > > [This is more a nit pick but before I forget while I am reading through
-> > > the rest of the patch.]
-> > > 
-> > > OK there is a lot of room around those bit fields but as this is only
-> > > for memcg and you are enlarging the structure by the pointer then you
-> > > can reuse bottom bit of memcg pointer.
+> > On Wed, May 29, 2013 at 9:51 PM, Peter Zijlstra <peterz@infradead.org> wrote:
+> > > What about something like this?
 > > 
-> > I just didn't want to put anything in the arch code that looks too
-> > memcgish, even though it's the only user right now.  But granted, it
-> > will also probably remain the only user for a while.
+> > With that patch I still get mtest05 firing my TLB/PTE incoherency check
+> > in the UP PREEMPT_VOLUNTARY configuration. This happens after
+> > zap_pte_range completion in the end of unmap_region because of
+> > rescheduling called in the following call chain:
 > 
-> I tried a couple of variants, including using the lowest memcg bit,
-> but it all turned into more ugliness.  So that .in_userfault is still
-> there in v2, but it's now set in handle_mm_fault() in a generic manner
-> depending on a fault flag, please reconsider if you can live with it.
-
-Sure thing.
-
-[...]
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Subject: [PATCH] memcg: do not sleep on OOM waitqueue with full charge context
+> OK, so there two options; completely kill off fast-mode or something like the
+> below where we add magic to the scheduler :/
 > 
-> The memcg OOM handling is incredibly fragile because once a memcg goes
-> OOM, one task (kernel or userspace) is responsible for resolving the
-> situation.  Every other task that gets caught trying to charge memory
-> gets stuck in a waitqueue while potentially holding various filesystem
-> and mm locks on which the OOM handling task may now deadlock.
+> I'm aware people might object to something like the below -- but since its a
+> possibility I thought we ought to at least mention it.
 > 
-> Do two things:
+> For those new to the thread; the problem is that since the introduction of
+> preemptible mmu_gather the traditional UP fast-mode is broken. Fast-mode is
+> where we free the pages first and flush TLBs later. This is not a problem if
+> there's no concurrency, but obviously if you can preempt there now is.
 > 
-> 1. When OOMing in a system call (buffered IO and friends), invoke the
->    OOM killer but do not trap other tasks and just return -ENOMEM for
->    everyone.  Userspace should be able to handle this... right?
+> I think I prefer completely killing off fast-mode esp. since UP seems to go the
+> way of the Dodo and it does away with an exception in the mmu_gather code.
 > 
-> 2. When OOMing in a page fault, invoke the OOM killer but do not trap
->    other chargers directly in the charging code.  Instead, remember
->    the OOMing memcg in the task struct and then fully unwind the page
->    fault stack first.  Then synchronize the memcg OOM from
->    pagefault_out_of_memory().
-> 
-> While reworking the OOM routine, also remove a needless OOM waitqueue
-> wakeup when invoking the killer.  Only uncharges and limit increases,
-> things that actually change the memory situation, should do wakeups.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  include/linux/memcontrol.h |   6 +++
->  include/linux/mm.h         |   1 +
->  include/linux/sched.h      |   6 +++
->  mm/ksm.c                   |   2 +-
->  mm/memcontrol.c            | 117 +++++++++++++++++++++++----------------------
->  mm/memory.c                |  40 +++++++++++-----
->  mm/oom_kill.c              |   7 ++-
->  7 files changed, 108 insertions(+), 71 deletions(-)
-> 
-[...]
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index de22292..97cf32b 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-[...]
-> @@ -2179,56 +2181,72 @@ static void memcg_oom_recover(struct mem_cgroup *memcg)
->  }
->  
->  /*
-> - * try to call OOM killer. returns false if we should exit memory-reclaim loop.
-> + * try to call OOM killer
->   */
-> -static bool mem_cgroup_handle_oom(struct mem_cgroup *memcg, gfp_t mask,
-> -				  int order)
-> +static void mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
->  {
-> -	struct oom_wait_info owait;
-> -	bool locked, need_to_kill;
-> -
-> -	owait.memcg = memcg;
-> -	owait.wait.flags = 0;
-> -	owait.wait.func = memcg_oom_wake_function;
-> -	owait.wait.private = current;
-> -	INIT_LIST_HEAD(&owait.wait.task_list);
-> -	need_to_kill = true;
-> -	mem_cgroup_mark_under_oom(memcg);
-> +	bool locked, need_to_kill = true;
->  
->  	/* At first, try to OOM lock hierarchy under memcg.*/
->  	spin_lock(&memcg_oom_lock);
->  	locked = mem_cgroup_oom_lock(memcg);
-> -	/*
-> -	 * Even if signal_pending(), we can't quit charge() loop without
-> -	 * accounting. So, UNINTERRUPTIBLE is appropriate. But SIGKILL
-> -	 * under OOM is always welcomed, use TASK_KILLABLE here.
-> -	 */
-> -	prepare_to_wait(&memcg_oom_waitq, &owait.wait, TASK_KILLABLE);
-> -	if (!locked || memcg->oom_kill_disable)
-> +	if (!locked || memcg->oom_kill_disable) {
->  		need_to_kill = false;
-> +		if (current->in_userfault) {
-> +			/*
-> +			 * We start sleeping on the OOM waitqueue only
-> +			 * after unwinding the page fault stack, so
-> +			 * make sure we detect wakeups that happen
-> +			 * between now and then.
-> +			 */
-> +			mem_cgroup_mark_under_oom(memcg);
-> +			current->memcg_oom.wakeups =
-> +				atomic_read(&memcg->oom_wakeups);
-> +			css_get(&memcg->css);
-> +			current->memcg_oom.memcg = memcg;
-> +		}
-> +	}
->  	if (locked)
->  		mem_cgroup_oom_notify(memcg);
->  	spin_unlock(&memcg_oom_lock);
->  
-> -	if (need_to_kill) {
-> -		finish_wait(&memcg_oom_waitq, &owait.wait);
-> +	if (need_to_kill)
->  		mem_cgroup_out_of_memory(memcg, mask, order);
+> Anyway; opinions? Linus, Thomas, Ingo?
 
-Now that I am looking at this again I've realized that this
-is not correct. The task which triggers memcg OOM will not
-have memcg_oom.memcg set so it would trigger a global OOM in
-pagefault_out_of_memory. Either we should return CHARGE_RETRY (and
-propagate it via mem_cgroup_do_charge) for need_to_kill or set up
-current->memcg_oom also for need_to_kill.
+And here's the patch that makes fast mode go *poof*..
 
-Or am I missing something?
+---
+ arch/arm/include/asm/tlb.h  | 27 ++++-----------------------
+ arch/ia64/include/asm/tlb.h | 41 ++++++++---------------------------------
+ include/asm-generic/tlb.h   | 17 +----------------
+ mm/memory.c                 |  9 ---------
+ 4 files changed, 13 insertions(+), 81 deletions(-)
 
-> -	} else {
-> -		schedule();
-> -		finish_wait(&memcg_oom_waitq, &owait.wait);
-> -	}
-> -	spin_lock(&memcg_oom_lock);
-> -	if (locked)
-> +
-> +	if (locked) {
-> +		spin_lock(&memcg_oom_lock);
->  		mem_cgroup_oom_unlock(memcg);
-> -	memcg_wakeup_oom(memcg);
-> -	spin_unlock(&memcg_oom_lock);
-> +		spin_unlock(&memcg_oom_lock);
-> +	}
-> +}
-[...]
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 6dc1882..ff5e2d7 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1815,7 +1815,7 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
->  			while (!(page = follow_page_mask(vma, start,
->  						foll_flags, &page_mask))) {
->  				int ret;
-> -				unsigned int fault_flags = 0;
-> +				unsigned int fault_flags = FAULT_FLAG_KERNEL;
->  
->  				/* For mlock, just skip the stack guard page. */
->  				if (foll_flags & FOLL_MLOCK) {
-
-This is also a bit tricky. Say there is an unlikely situation when a
-task fails to charge because of memcg OOM, it couldn't lock the oom
-so it ended up with current->memcg_oom set and __get_user_pages will
-turn VM_FAULT_OOM into ENOMEM but memcg_oom is still there. Then the
-following global OOM condition gets confused (well the oom will be
-triggered by somebody else so it shouldn't end up in the endless loop
-but still...), doesn't it?
-
-So maybe we need a handle_mm_fault variant called outside of the page
-fault path which clears the things up.
-
-> @@ -3760,22 +3761,14 @@ unlock:
->  /*
->   * By the time we get here, we already hold the mm semaphore
->   */
-> -int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-> -		unsigned long address, unsigned int flags)
-> +static int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-> +			     unsigned long address, unsigned int flags)
-
-Is this reusable? Who would call this helper or is it just for the code
-readability? I would probably prefer a smaller patch but I do not have a
-strong opinion on this.
-
->  {
->  	pgd_t *pgd;
->  	pud_t *pud;
->  	pmd_t *pmd;
->  	pte_t *pte;
->  
-> -	__set_current_state(TASK_RUNNING);
-> -
-> -	count_vm_event(PGFAULT);
-> -	mem_cgroup_count_vm_event(mm, PGFAULT);
-> -
-> -	/* do counter updates before entering really critical section. */
-> -	check_sync_rss_stat(current);
-> -
->  	if (unlikely(is_vm_hugetlb_page(vma)))
->  		return hugetlb_fault(mm, vma, address, flags);
->  
-> @@ -3856,6 +3849,31 @@ retry:
->  	return handle_pte_fault(mm, vma, address, pte, pmd, flags);
->  }
->  
-> +int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-> +		    unsigned long address, unsigned int flags)
-> +{
-> +	int in_userfault = !(flags & FAULT_FLAG_KERNEL);
-> +	int ret;
-> +
-> +	__set_current_state(TASK_RUNNING);
-> +
-> +	count_vm_event(PGFAULT);
-> +	mem_cgroup_count_vm_event(mm, PGFAULT);
-> +
-> +	/* do counter updates before entering really critical section. */
-> +	check_sync_rss_stat(current);
-> +
-> +	if (in_userfault)
-> +		current->in_userfault = 1;
-
-If this is just memcg thing (although you envision future usage outside
-of memcg) then would it make more sense to use a memcg helper here which
-would be noop for !CONFIG_MEMCG and disabled for mem_cgroup_disabled.
-
-> +
-> +	ret = __handle_mm_fault(mm, vma, address, flags);
-> +
-> +	if (in_userfault)
-> +		current->in_userfault = 0;
-> +
-> +	return ret;
-> +}
-> +
->  #ifndef __PAGETABLE_PUD_FOLDED
->  /*
->   * Allocate page upper directory.
-[...]
--- 
-Michal Hocko
-SUSE Labs
+diff --git a/arch/arm/include/asm/tlb.h b/arch/arm/include/asm/tlb.h
+index 99a1951..bdf2b84 100644
+--- a/arch/arm/include/asm/tlb.h
++++ b/arch/arm/include/asm/tlb.h
+@@ -33,18 +33,6 @@
+ #include <asm/pgalloc.h>
+ #include <asm/tlbflush.h>
+ 
+-/*
+- * We need to delay page freeing for SMP as other CPUs can access pages
+- * which have been removed but not yet had their TLB entries invalidated.
+- * Also, as ARMv7 speculative prefetch can drag new entries into the TLB,
+- * we need to apply this same delaying tactic to ensure correct operation.
+- */
+-#if defined(CONFIG_SMP) || defined(CONFIG_CPU_32v7)
+-#define tlb_fast_mode(tlb)	0
+-#else
+-#define tlb_fast_mode(tlb)	1
+-#endif
+-
+ #define MMU_GATHER_BUNDLE	8
+ 
+ /*
+@@ -112,12 +100,10 @@ static inline void __tlb_alloc_page(struct mmu_gather *tlb)
+ static inline void tlb_flush_mmu(struct mmu_gather *tlb)
+ {
+ 	tlb_flush(tlb);
+-	if (!tlb_fast_mode(tlb)) {
+-		free_pages_and_swap_cache(tlb->pages, tlb->nr);
+-		tlb->nr = 0;
+-		if (tlb->pages == tlb->local)
+-			__tlb_alloc_page(tlb);
+-	}
++	free_pages_and_swap_cache(tlb->pages, tlb->nr);
++	tlb->nr = 0;
++	if (tlb->pages == tlb->local)
++		__tlb_alloc_page(tlb);
+ }
+ 
+ static inline void
+@@ -178,11 +164,6 @@ tlb_end_vma(struct mmu_gather *tlb, struct vm_area_struct *vma)
+ 
+ static inline int __tlb_remove_page(struct mmu_gather *tlb, struct page *page)
+ {
+-	if (tlb_fast_mode(tlb)) {
+-		free_page_and_swap_cache(page);
+-		return 1; /* avoid calling tlb_flush_mmu */
+-	}
+-
+ 	tlb->pages[tlb->nr++] = page;
+ 	VM_BUG_ON(tlb->nr > tlb->max);
+ 	return tlb->max - tlb->nr;
+diff --git a/arch/ia64/include/asm/tlb.h b/arch/ia64/include/asm/tlb.h
+index c3ffe3e..ef3a9de 100644
+--- a/arch/ia64/include/asm/tlb.h
++++ b/arch/ia64/include/asm/tlb.h
+@@ -46,12 +46,6 @@
+ #include <asm/tlbflush.h>
+ #include <asm/machvec.h>
+ 
+-#ifdef CONFIG_SMP
+-# define tlb_fast_mode(tlb)	((tlb)->nr == ~0U)
+-#else
+-# define tlb_fast_mode(tlb)	(1)
+-#endif
+-
+ /*
+  * If we can't allocate a page to make a big batch of page pointers
+  * to work on, then just handle a few from the on-stack structure.
+@@ -60,7 +54,7 @@
+ 
+ struct mmu_gather {
+ 	struct mm_struct	*mm;
+-	unsigned int		nr;		/* == ~0U => fast mode */
++	unsigned int		nr;
+ 	unsigned int		max;
+ 	unsigned char		fullmm;		/* non-zero means full mm flush */
+ 	unsigned char		need_flush;	/* really unmapped some PTEs? */
+@@ -103,6 +97,7 @@ extern struct ia64_tr_entry *ia64_idtrs[NR_CPUS];
+ static inline void
+ ia64_tlb_flush_mmu (struct mmu_gather *tlb, unsigned long start, unsigned long end)
+ {
++	unsigned long i;
+ 	unsigned int nr;
+ 
+ 	if (!tlb->need_flush)
+@@ -141,13 +136,11 @@ ia64_tlb_flush_mmu (struct mmu_gather *tlb, unsigned long start, unsigned long e
+ 
+ 	/* lastly, release the freed pages */
+ 	nr = tlb->nr;
+-	if (!tlb_fast_mode(tlb)) {
+-		unsigned long i;
+-		tlb->nr = 0;
+-		tlb->start_addr = ~0UL;
+-		for (i = 0; i < nr; ++i)
+-			free_page_and_swap_cache(tlb->pages[i]);
+-	}
++
++	tlb->nr = 0;
++	tlb->start_addr = ~0UL;
++	for (i = 0; i < nr; ++i)
++		free_page_and_swap_cache(tlb->pages[i]);
+ }
+ 
+ static inline void __tlb_alloc_page(struct mmu_gather *tlb)
+@@ -167,20 +160,7 @@ tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned int full_m
+ 	tlb->mm = mm;
+ 	tlb->max = ARRAY_SIZE(tlb->local);
+ 	tlb->pages = tlb->local;
+-	/*
+-	 * Use fast mode if only 1 CPU is online.
+-	 *
+-	 * It would be tempting to turn on fast-mode for full_mm_flush as well.  But this
+-	 * doesn't work because of speculative accesses and software prefetching: the page
+-	 * table of "mm" may (and usually is) the currently active page table and even
+-	 * though the kernel won't do any user-space accesses during the TLB shoot down, a
+-	 * compiler might use speculation or lfetch.fault on what happens to be a valid
+-	 * user-space address.  This in turn could trigger a TLB miss fault (or a VHPT
+-	 * walk) and re-insert a TLB entry we just removed.  Slow mode avoids such
+-	 * problems.  (We could make fast-mode work by switching the current task to a
+-	 * different "mm" during the shootdown.) --davidm 08/02/2002
+-	 */
+-	tlb->nr = (num_online_cpus() == 1) ? ~0U : 0;
++	tlb->nr = 0;
+ 	tlb->fullmm = full_mm_flush;
+ 	tlb->start_addr = ~0UL;
+ }
+@@ -214,11 +194,6 @@ static inline int __tlb_remove_page(struct mmu_gather *tlb, struct page *page)
+ {
+ 	tlb->need_flush = 1;
+ 
+-	if (tlb_fast_mode(tlb)) {
+-		free_page_and_swap_cache(page);
+-		return 1; /* avoid calling tlb_flush_mmu */
+-	}
+-
+ 	if (!tlb->nr && tlb->pages == tlb->local)
+ 		__tlb_alloc_page(tlb);
+ 
+diff --git a/include/asm-generic/tlb.h b/include/asm-generic/tlb.h
+index b1b1fa6..13821c3 100644
+--- a/include/asm-generic/tlb.h
++++ b/include/asm-generic/tlb.h
+@@ -97,11 +97,9 @@ struct mmu_gather {
+ 	unsigned long		start;
+ 	unsigned long		end;
+ 	unsigned int		need_flush : 1,	/* Did free PTEs */
+-				fast_mode  : 1; /* No batching   */
+-
+ 	/* we are in the middle of an operation to clear
+ 	 * a full mm and can make some optimizations */
+-	unsigned int		fullmm : 1,
++				fullmm : 1,
+ 	/* we have performed an operation which
+ 	 * requires a complete flush of the tlb */
+ 				need_flush_all : 1;
+@@ -114,19 +112,6 @@ struct mmu_gather {
+ 
+ #define HAVE_GENERIC_MMU_GATHER
+ 
+-static inline int tlb_fast_mode(struct mmu_gather *tlb)
+-{
+-#ifdef CONFIG_SMP
+-	return tlb->fast_mode;
+-#else
+-	/*
+-	 * For UP we don't need to worry about TLB flush
+-	 * and page free order so much..
+-	 */
+-	return 1;
+-#endif
+-}
+-
+ void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, bool fullmm);
+ void tlb_flush_mmu(struct mmu_gather *tlb);
+ void tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start,
+diff --git a/mm/memory.c b/mm/memory.c
+index d7d54a1..95d0cce 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -220,7 +220,6 @@ void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, bool fullmm)
+ 	tlb->start	= -1UL;
+ 	tlb->end	= 0;
+ 	tlb->need_flush = 0;
+-	tlb->fast_mode  = (num_possible_cpus() == 1);
+ 	tlb->local.next = NULL;
+ 	tlb->local.nr   = 0;
+ 	tlb->local.max  = ARRAY_SIZE(tlb->__pages);
+@@ -244,9 +243,6 @@ void tlb_flush_mmu(struct mmu_gather *tlb)
+ 	tlb_table_flush(tlb);
+ #endif
+ 
+-	if (tlb_fast_mode(tlb))
+-		return;
+-
+ 	for (batch = &tlb->local; batch; batch = batch->next) {
+ 		free_pages_and_swap_cache(batch->pages, batch->nr);
+ 		batch->nr = 0;
+@@ -288,11 +284,6 @@ int __tlb_remove_page(struct mmu_gather *tlb, struct page *page)
+ 
+ 	VM_BUG_ON(!tlb->need_flush);
+ 
+-	if (tlb_fast_mode(tlb)) {
+-		free_page_and_swap_cache(page);
+-		return 1; /* avoid calling tlb_flush_mmu() */
+-	}
+-
+ 	batch = tlb->active;
+ 	batch->pages[batch->nr++] = page;
+ 	if (batch->nr == batch->max) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
