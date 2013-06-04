@@ -1,76 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
-	by kanga.kvack.org (Postfix) with SMTP id BB81A6B0032
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 16:20:24 -0400 (EDT)
-Date: Tue, 4 Jun 2013 22:20:17 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: Transparent Hugepage impact on memcpy
-Message-ID: <20130604202017.GJ3463@redhat.com>
-References: <51ADAC15.1050103@huawei.com>
- <20130604123050.GA32707@hacker.(null)>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 0125B6B0031
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 16:48:11 -0400 (EDT)
+Received: by mail-wi0-f170.google.com with SMTP id hr14so4293336wib.3
+        for <linux-mm@kvack.org>; Tue, 04 Jun 2013 13:48:10 -0700 (PDT)
+Date: Tue, 4 Jun 2013 22:48:07 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch -v4 4/8] memcg: enhance memcg iterator to support
+ predicates
+Message-ID: <20130604204807.GA13231@dhcp22.suse.cz>
+References: <1370254735-13012-1-git-send-email-mhocko@suse.cz>
+ <1370254735-13012-5-git-send-email-mhocko@suse.cz>
+ <20130604010737.GF29989@mtj.dyndns.org>
+ <20130604134523.GH31242@dhcp22.suse.cz>
+ <20130604193619.GA14916@htj.dyndns.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130604123050.GA32707@hacker.(null)>
+In-Reply-To: <20130604193619.GA14916@htj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, qiuxishi <qiuxishi@huawei.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Glauber Costa <glommer@parallels.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>, Balbir Singh <bsingharora@gmail.com>
 
-Hello everyone,
-
-On Tue, Jun 04, 2013 at 08:30:51PM +0800, Wanpeng Li wrote:
-> On Tue, Jun 04, 2013 at 04:57:57PM +0800, Jianguo Wu wrote:
-> >Hi all,
-> >
-> >I tested memcpy with perf bench, and found that in prefault case, When Transparent Hugepage is on,
-> >memcpy has worse performance.
-> >
-> >When THP on is 3.672879 GB/Sec (with prefault), while THP off is 6.190187 GB/Sec (with prefault).
-> >
+On Tue 04-06-13 12:36:19, Tejun Heo wrote:
+> Hey, Michal.
 > 
-> I get similar result as you against 3.10-rc4 in the attachment. This
-> dues to the characteristic of thp takes a single page fault for each 
-> 2MB virtual region touched by userland.
+> On Tue, Jun 04, 2013 at 03:45:23PM +0200, Michal Hocko wrote:
+> > Is this something that you find serious enough to block this series?
+> > I do not want to push hard but I would like to settle with something
+> > finally. This is taking way longer than I would like.
+> 
+> I really don't think memcg can afford to add more mess than there
+> already is.  Let's try to get things right with each change, please.
 
-I had a look at what prefault does and page faults should not be
-involved in the measurement of GB/sec. The "stats" also include the
-page faults but the page fault is not part of the printed GB/sec, if
-"-o" is used.
+Is this really about inside vs. outside skipping? I think this is a
+general improvement to the code. I really prefer not duplicating common
+code and skipping handling is such a code (we have a visitor which can
+control the walk). With a side bonus that it doesn't have to pollute
+vmscan more than necessary.
 
-If the perf test is correct, it looks more an hardware issue with
-memcpy and large TLBs than a software one. memset doesn't exibith it,
-if this was something fundamental memset should also exibith it. It
-shall be possible to reproduce this with hugetlbfs in fact... if you
-want to be 100% sure it's not software, you should try that.
+Please be more specific about _what_ is so ugly about this interface so
+that it matters so much.
 
-Chances are there's enough pre-fetching going on in the CPU to
-optimize for those 4k tlb loads in streaming copies, and the
-pagetables are also cached very nicely with streaming copies. Maybe
-large TLBs somewhere are less optimized for streaming copies. Only
-something smarter happening in the CPU optimized for 4k and not yet
-for 2M TLBs can explain this: if the CPU was equally intelligent it
-should definitely be faster with THP on even with "-o".
+> Can we please see how the other approach would look like?  I have a
+> suspicion that it's likely be simpler but the devils are in the
+> details and all...
+>
+> > > The iteration only depends on the current position.  Can't you factor
+> > > out skipping part outside the function rather than rolling into this
+> > > monstery thing with predicate callback?  Just test the condition
+> > > outside and call a function to skip whatever is necessary?
+> > > 
+> > > Also, cgroup_rightmost_descendant() can be pretty expensive depending
+> > > on how your tree looks like. 
+> > 
+> > I have no problem using something else. This was just the easiest to
+> > use and it behaves more-or-less good for hierarchies which are more or
+> > less balanced. If this turns out to be a problem we can introduce a
+> > new cgroup_skip_subtree which would get to last->sibling or go up the
+> > parent chain until there is non-NULL sibling. But what would be the next
+> > selling point here if we made it perfect right now? ;)
+> 
+> Yeah, sure thing.  I was just worried because the skipping here might
+> not be as good as the code seems to indicate.  There will be cases,
+> which aren't too uncommon, where the skipping doesn't save much
+> compared to just continuing the pre-order walk, so....  And nobody
+> would really notice it unless [s]he looks really hard for it, which is
+> the more worrisome part for me.  Maybe just stick a comment there
+> explaining that we probably want something better in the future?
 
-Overall I doubt there's anything in software to fix here.
+Sure thing. I will stick there a comment:
 
-Also note, this is not related to additional cache usage during page
-faults that I mentioned in the pdf. Page faults or cache effects in
-the page faults are completely removed from the equation because of
-"-o". The prefault pass, eliminates the page faults and trashes away
-all the cache (regardless if the page fault uses non-temporal stores
-or not) before the "measured" memcpy load starts.
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 91740f7..43e955a 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1073,6 +1073,14 @@ skip_node:
+ 			prev_cgroup = next_cgroup;
+ 			goto skip_node;
+ 		case SKIP_TREE:
++			/*
++			 * cgroup_rightmost_descendant is not an optimal way to
++			 * skip through a subtree (especially for imbalanced
++			 * trees leaning to right) but that's what we have right
++			 * now. More effective solution would be traversing
++			 * right-up for first non-NULL without calling
++			 * cgroup_next_descendant_pre afterwards.
++			 */
+ 			prev_cgroup = cgroup_rightmost_descendant(next_cgroup);
+ 			goto skip_node;
+ 		case VISIT:
 
-I don't think this is a major concern, as a proof of thumb you just
-need to prefix the "perf" command with "time" to see it: the THP
-version still completes much faster despite the prefault part of it
-is slightly slower with THP on.
-
-THP pays off the most during computations that are accessing randomly,
-and not sequentially.
-
-Thanks,
-Andrea
+Better?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
