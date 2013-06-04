@@ -1,92 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id B2E916B0031
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 12:38:33 -0400 (EDT)
-Received: by mail-we0-f177.google.com with SMTP id m19so424015wev.36
-        for <linux-mm@kvack.org>; Tue, 04 Jun 2013 09:38:32 -0700 (PDT)
-Date: Tue, 4 Jun 2013 18:38:28 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch v4] Soft limit rework
-Message-ID: <20130604163828.GA9321@dhcp22.suse.cz>
-References: <1370254735-13012-1-git-send-email-mhocko@suse.cz>
- <CAKTCnz=CMbhhROPV4iC6_XPuu_8J53ZMTdXtY_bevPjG+B-+mw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id D0C956B0031
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 12:45:07 -0400 (EDT)
+Date: Tue, 04 Jun 2013 12:44:46 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1370364286-kuz8hc2j-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20130603132641.GB18588@dhcp22.suse.cz>
+References: <1369770771-8447-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1369770771-8447-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20130603132641.GB18588@dhcp22.suse.cz>
+Subject: [PATCH v4] migrate: add migrate_entry_wait_huge()
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <CAKTCnz=CMbhhROPV4iC6_XPuu_8J53ZMTdXtY_bevPjG+B-+mw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Glauber Costa <glommer@parallels.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>, Tejun Heo <tj@kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andi Kleen <andi@firstfloor.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org
 
-On Tue 04-06-13 21:57:56, Balbir Singh wrote:
-> On Mon, Jun 3, 2013 at 3:48 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> > Hi,
-> >
-> > This is the fourth version of the patchset.
-> >
-> > Summary of versions:
-> > The first version has been posted here: http://permalink.gmane.org/gmane.linux.kernel.mm/97973
-> > (lkml wasn't CCed at the time so I cannot find it in lwn.net
-> > archives). There were no major objections. The second version
-> > has been posted here http://lwn.net/Articles/548191/ as a part
-> > of a longer and spicier thread which started after LSF here:
-> > https://lwn.net/Articles/548192/
-> > Version number 3 has been posted here http://lwn.net/Articles/550409/
-> > Johannes was worried about setups with thousands of memcgs and the
-> > tree walk overhead for the soft reclaim pass without anybody in excess.
-> >
-> > Changes between RFC (aka V1) -> V2
-> > As there were no major objections there were only some minor cleanups
-> > since the last version and I have moved "memcg: Ignore soft limit until
-> > it is explicitly specified" to the end of the series.
-> >
-> > Changes between V2 -> V3
-> > No changes in the code since the last version. I have just rebased the
-> > series on top of the current mmotm tree. The most controversial part
-> > has been dropped (the last patch "memcg: Ignore soft limit until it is
-> > explicitly specified") so there are no semantical changes to the soft
-> > limit behavior. This makes this work mostly a code clean up and code
-> > reorganization. Nevertheless, this is enough to make the soft limit work
-> > more efficiently according to my testing and groups above the soft limit
-> > are reclaimed much less as a result.
-> >
-> > Changes between V3->V4
-> > Added some Reviewed-bys but the biggest change comes from Johannes
-> > concern about the tree traversal overhead with a huge number of memcgs
-> > (http://thread.gmane.org/gmane.linux.kernel.cgroups/7307/focus=100326)
-> > and this version addresses this problem by augmenting the memcg tree
-> > with the number of over soft limit children at each level of the
-> > hierarchy. See more bellow.
-> >
-> > The basic idea is quite simple. Pull soft reclaim into shrink_zone in
-> > the first step and get rid of the previous soft reclaim infrastructure.
-> > shrink_zone is done in two passes now. First it tries to do the soft
-> > limit reclaim and it falls back to reclaim-all mode if no group is over
-> > the limit or no pages have been scanned. The second pass happens at the
-> > same priority so the only time we waste is the memcg tree walk which
-> > has been updated in the third step to have only negligible overhead.
-> >
-> 
-> Hi, Michal
-> 
-> I've just looked at this (I am yet to review the series), but the
-> intention of the changes do not read out clearly. Or may be I quite
-> outdated on the subject :)
+Here is the revised one. Andrew, could you replace the following
+patches in your tree with this?
 
-OK, let me summarize. The primary intention is to get rid of the current
-soft reclaim infrastructure which basically bypasses the standard
-reclaim and tight it directly into shrink_zone code. This also means
-that the soft reclaim doesn't reclaim at priority 0 and that it is
-active also for the targeted (aka limit) reclaim.
+  migrate-add-migrate_entry_wait_huge.patch
+  hugetlbfs-support-split-page-table-lock.patch
 
-Does this help?
+Thanks,
+Naoya Horiguchi
+----
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Date: Tue, 4 Jun 2013 12:26:32 -0400
+Subject: [PATCH v4] migrate: add migrate_entry_wait_huge()
+
+When we have a page fault for the address which is backed by a hugepage
+under migration, the kernel can't wait correctly and do busy looping on
+hugepage fault until the migration finishes.
+As a result, users who try to kick hugepage migration (via soft offlining,
+for example) occasionally experience long delay or soft lockup.
+
+This is because pte_offset_map_lock() can't get a correct migration entry
+or a correct page table lock for hugepage.
+This patch introduces migration_entry_wait_huge() to solve this.
+
+ChangeLog v4:
+ - replace huge_pte_lockptr with &(mm)->page_table_lock
+   (postponed split page table lock patch)
+ - update description
+
+ChangeLog v3:
+ - use huge_pte_lockptr
+
+ChangeLog v2:
+ - remove dup in migrate_entry_wait_huge()
+
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Cc: stable@vger.kernel.org # 2.6.35
+Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+---
+ include/linux/swapops.h |  3 +++
+ mm/hugetlb.c            |  2 +-
+ mm/migrate.c            | 23 ++++++++++++++++++-----
+ 3 files changed, 22 insertions(+), 6 deletions(-)
+
+diff --git a/include/linux/swapops.h b/include/linux/swapops.h
+index 47ead51..c5fd30d 100644
+--- a/include/linux/swapops.h
++++ b/include/linux/swapops.h
+@@ -137,6 +137,7 @@ static inline void make_migration_entry_read(swp_entry_t *entry)
  
-> Balbir
-
+ extern void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
+ 					unsigned long address);
++extern void migration_entry_wait_huge(struct mm_struct *mm, pte_t *pte);
+ #else
+ 
+ #define make_migration_entry(page, write) swp_entry(0, 0)
+@@ -148,6 +149,8 @@ static inline int is_migration_entry(swp_entry_t swp)
+ static inline void make_migration_entry_read(swp_entry_t *entryp) { }
+ static inline void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
+ 					 unsigned long address) { }
++static inline void migration_entry_wait_huge(struct mm_struct *mm,
++					pte_t *pte) { }
+ static inline int is_write_migration_entry(swp_entry_t entry)
+ {
+ 	return 0;
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 463fb5e..d793c5e 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -2865,7 +2865,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	if (ptep) {
+ 		entry = huge_ptep_get(ptep);
+ 		if (unlikely(is_hugetlb_entry_migration(entry))) {
+-			migration_entry_wait(mm, (pmd_t *)ptep, address);
++			migration_entry_wait_huge(mm, ptep);
+ 			return 0;
+ 		} else if (unlikely(is_hugetlb_entry_hwpoisoned(entry)))
+ 			return VM_FAULT_HWPOISON_LARGE |
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 6f2df6e..b8d56a1 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -204,15 +204,14 @@ static void remove_migration_ptes(struct page *old, struct page *new)
+  * get to the page and wait until migration is finished.
+  * When we return from this function the fault will be retried.
+  */
+-void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
+-				unsigned long address)
++static void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
++				spinlock_t *ptl)
+ {
+-	pte_t *ptep, pte;
+-	spinlock_t *ptl;
++	pte_t pte;
+ 	swp_entry_t entry;
+ 	struct page *page;
+ 
+-	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
++	spin_lock(ptl);
+ 	pte = *ptep;
+ 	if (!is_swap_pte(pte))
+ 		goto out;
+@@ -240,6 +239,20 @@ void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
+ 	pte_unmap_unlock(ptep, ptl);
+ }
+ 
++void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
++				unsigned long address)
++{
++	spinlock_t *ptl = pte_lockptr(mm, pmd);
++	pte_t *ptep = pte_offset_map(pmd, address);
++	__migration_entry_wait(mm, ptep, ptl);
++}
++
++void migration_entry_wait_huge(struct mm_struct *mm, pte_t *pte)
++{
++	spinlock_t *ptl = &(mm)->page_table_lock;
++	__migration_entry_wait(mm, pte, ptl);
++}
++
+ #ifdef CONFIG_BLOCK
+ /* Returns true if all buffers are successfully locked */
+ static bool buffer_migrate_lock_buffers(struct buffer_head *head,
 -- 
-Michal Hocko
-SUSE Labs
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
