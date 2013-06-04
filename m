@@ -1,307 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 493946B0031
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 11:34:12 -0400 (EDT)
-Received: by mail-wi0-f180.google.com with SMTP id hn14so340541wib.13
-        for <linux-mm@kvack.org>; Tue, 04 Jun 2013 08:34:10 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id DDDFA6B0031
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 11:48:32 -0400 (EDT)
+Received: by mail-qa0-f47.google.com with SMTP id hv16so316007qab.20
+        for <linux-mm@kvack.org>; Tue, 04 Jun 2013 08:48:32 -0700 (PDT)
+Date: Tue, 4 Jun 2013 11:45:01 -0400
+From: Jerome Glisse <j.glisse@gmail.com>
+Subject: Re: Handling NUMA page migration
+Message-ID: <20130604154500.GA5664@gmail.com>
+References: <201306040922.10235.frank.mehnert@oracle.com>
+ <20130604115807.GF3672@sgi.com>
+ <201306041414.52237.frank.mehnert@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <20130603174351.d04b2ac71d1bab0df242e0ba@mxc.nes.nec.co.jp>
-References: <20130523052421.13864.83978.stgit@localhost6.localdomain6>
-	<20130523052547.13864.83306.stgit@localhost6.localdomain6>
-	<20130523152445.17549682ae45b5aab3f3cde0@linux-foundation.org>
-	<CAJGZr0LwivLTH+E7WAR1B9_6B4e=jv04KgCUL_PdVpi9JjDpBw@mail.gmail.com>
-	<51A2BBA7.50607@jp.fujitsu.com>
-	<CAJGZr0LmsFXEgb3UXVb+rqo1aq5KJyNxyNAD+DG+3KnJm_ZncQ@mail.gmail.com>
-	<51A71B49.3070003@cn.fujitsu.com>
-	<CAJGZr0Ld6Q4a4f-VObAbvqCp=+fTFNEc6M-Fdnhh28GTcSm1=w@mail.gmail.com>
-	<20130603174351.d04b2ac71d1bab0df242e0ba@mxc.nes.nec.co.jp>
-Date: Tue, 4 Jun 2013 19:34:10 +0400
-Message-ID: <CAJGZr0KV9hmdFWQE5Z9kOieHSPhGKLAhsw1Me2RE2ADsbU=b7w@mail.gmail.com>
-Subject: Re: [PATCH v8 9/9] vmcore: support mmap() on /proc/vmcore
-From: Maxim Uvarov <muvarov@gmail.com>
-Content-Type: multipart/alternative; boundary=001a11c222020666a704de55d015
+Content-Type: multipart/mixed; boundary="KsGdsel6WgEHnImy"
+Content-Disposition: inline
+In-Reply-To: <201306041414.52237.frank.mehnert@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>
-Cc: riel@redhat.com, "kexec@lists.infradead.org" <kexec@lists.infradead.org>, hughd@google.com, linux-kernel@vger.kernel.org, lisa.mitchell@hp.com, Vivek Goyal <vgoyal@redhat.com>, linux-mm@kvack.org, HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Eric W. Biederman" <ebiederm@xmission.com>, kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, walken@google.com, Cliff Wickman <cpw@sgi.com>, jingbai.ma@hp.com
-
---001a11c222020666a704de55d015
-Content-Type: text/plain; charset=ISO-8859-1
-
-2013/6/3 Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>
-
-> Hello Maxim,
->
-> On Thu, 30 May 2013 14:30:01 +0400
-> Maxim Uvarov <muvarov@gmail.com> wrote:
->
-> > 2013/5/30 Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-> >
-> > > On 05/30/2013 05:14 PM, Maxim Uvarov wrote:
-> > > >
-> > > >
-> > > >
-> > > > 2013/5/27 HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com <mailto:
-> > > d.hatayama@jp.fujitsu.com>>
-> > > >
-> > > >     (2013/05/24 18:02), Maxim Uvarov wrote:
-> > > >
-> > > >
-> > > >
-> > > >
-> > > >         2013/5/24 Andrew Morton <akpm@linux-foundation.org <mailto:
-> > > akpm@linux-foundation.org> <mailto:akpm@linux-foundation.__org
-> <mailto:
-> > > akpm@linux-foundation.org>>>
-> > > >
-> > > >
-> > > >             On Thu, 23 May 2013 14:25:48 +0900 HATAYAMA Daisuke <
-> > > d.hatayama@jp.fujitsu.com <mailto:d.hatayama@jp.fujitsu.com> <mailto:
-> > > d.hatayama@jp.fujitsu.__com <mailto:d.hatayama@jp.fujitsu.com>>>
-> wrote:
-> > > >
-> > > >              > This patch introduces mmap_vmcore().
-> > > >              >
-> > > >              > Don't permit writable nor executable mapping even with
-> > > mprotect()
-> > > >              > because this mmap() is aimed at reading crash dump
-> memory.
-> > > >              > Non-writable mapping is also requirement of
-> > > remap_pfn_range() when
-> > > >              > mapping linear pages on non-consecutive physical
-> pages;
-> > > see
-> > > >              > is_cow_mapping().
-> > > >              >
-> > > >              > Set VM_MIXEDMAP flag to remap memory by
-> remap_pfn_range
-> > > and by
-> > > >              > remap_vmalloc_range_pertial at the same time for a
-> single
-> > > >              > vma. do_munmap() can correctly clean partially
-> remapped
-> > > vma with two
-> > > >              > functions in abnormal case. See zap_pte_range(),
-> > > vm_normal_page() and
-> > > >              > their comments for details.
-> > > >              >
-> > > >              > On x86-32 PAE kernels, mmap() supports at most 16TB
-> > > memory only. This
-> > > >              > limitation comes from the fact that the third
-> argument of
-> > > >              > remap_pfn_range(), pfn, is of 32-bit length on x86-32:
-> > > unsigned long.
-> > > >
-> > > >             More reviewing and testing, please.
-> > > >
-> > > >
-> > > >         Do you have git pull for both kernel and userland changes? I
-> > > would like to do some more testing on my machines.
-> > > >
-> > > >         Maxim.
-> > > >
-> > > >
-> > > >     Thanks! That's very helpful.
-> > > >
-> > > >     --
-> > > >     Thanks.
-> > > >     HATAYAMA, Daisuke
-> > > >
-> > > > Any update for this? Where can I checkout all sources?
-> > >
-> > > This series is now in Andrew Morton's -mm tree.
-> > >
-> > > Ok, and what about makedumpfile changes? Is it possible to fetch them
-> from
-> > somewhere?
->
-> You can fetch them from here, "mmap" branch is the change:
->
->   git://git.code.sf.net/p/makedumpfile/code
->
-> And they will be merged into v1.5.4.
->
->
-thank you, got it. But still do not see kernel patches in akpm tree:
-git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
-http://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
-https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
-Should I look at different branch?
-
-Maxim.
+To: Frank Mehnert <frank.mehnert@oracle.com>
+Cc: Robin Holt <holt@sgi.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>
 
 
+--KsGdsel6WgEHnImy
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
->
-> Thanks
-> Atsushi Kumagai
->
-> _______________________________________________
-> kexec mailing list
-> kexec@lists.infradead.org
-> http://lists.infradead.org/mailman/listinfo/kexec
->
+On Tue, Jun 04, 2013 at 02:14:45PM +0200, Frank Mehnert wrote:
+> On Tuesday 04 June 2013 13:58:07 Robin Holt wrote:
+> > This is probably more appropriate to be directed at the linux-mm
+> > mailing list.
+> > 
+> > On Tue, Jun 04, 2013 at 09:22:10AM +0200, Frank Mehnert wrote:
+> > > Hi,
+> > > 
+> > > our memory management on Linux hosts conflicts with NUMA page migration.
+> > > I assume this problem existed for a longer time but Linux 3.8 introduced
+> > > automatic NUMA page balancing which makes the problem visible on
+> > > multi-node hosts leading to kernel oopses.
+> > > 
+> > > NUMA page migration means that the physical address of a page changes.
+> > > This is fatal if the application assumes that this never happens for
+> > > that page as it was supposed to be pinned.
+> > > 
+> > > We have two kind of pinned memory:
+> > > 
+> > > A) 1. allocate memory in userland with mmap()
+> > > 
+> > >    2. madvise(MADV_DONTFORK)
+> > >    3. pin with get_user_pages().
+> > >    4. flush dcache_page()
+> > >    5. vm_flags |= (VM_DONTCOPY | VM_LOCKED)
+> > >    
+> > >       (resulting flags are VM_MIXEDMAP | VM_DONTDUMP | VM_DONTEXPAND |
+> > >       
+> > >        VM_DONTCOPY | VM_LOCKED | 0xff)
+> > 
+> > I don't think this type of allocation should be affected.  The
+> > get_user_pages() call should elevate the pages reference count which
+> > should prevent migration from completing.  I would, however, wait for
+> > a more definitive answer.
+> 
+> Thanks Robin! Actually case B) is more important for us so I'm waiting
+> for more feedback :)
+> 
+> Frank
+> 
+> > > B) 1. allocate memory with alloc_pages()
+> > > 
+> > >    2. SetPageReserved()
+> > >    3. vm_mmap() to allocate a userspace mapping
+> > >    4. vm_insert_page()
+> > >    5. vm_flags |= (VM_DONTEXPAND | VM_DONTDUMP)
+> > >    
+> > >       (resulting flags are VM_MIXEDMAP | VM_DONTDUMP | VM_DONTEXPAND |
+> > >       0xff)
+> > > 
+> > > At least the memory allocated like B) is affected by automatic NUMA page
+> > > migration. I'm not sure about A).
+> > > 
+> > > 1. How can I prevent automatic NUMA page migration on this memory?
+> > > 2. Can NUMA page migration also be handled on such kind of memory without
+> > > 
+> > >    preventing migration?
+> > > 
+> > > Thanks,
+> > > 
+> > > Frank
+
+I was looking at migration code lately, and while i am not an expert at all
+in this area. I think there is a bug in the way handle_mm_fault deals, or
+rather not deals, with migration entry.
+
+When huge page is migrated its pmd is replace with a special swp entry pmd,
+which is a non zero pmd but that does not have any of the huge pmd flag set
+so none of the handle_mm_fault path detect it as swap entry. Then believe
+its a valid pmd and try to allocate pte under it which should oops.
+
+Attached patch is what i believe should be done (not even compile tested).
+
+Again i might be missing a subtelty somewhere else and just missed where
+huge migration entry are dealt with.
+
+Cheers,
+Jerome
+
+--KsGdsel6WgEHnImy
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: attachment; filename="0001-mm-properly-handle-fault-on-huge-page-migration.patch"
 
 
-
--- 
-Best regards,
-Maxim Uvarov
-
---001a11c222020666a704de55d015
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr"><br><div class=3D"gmail_extra"><br><br><div class=3D"gmail=
-_quote">2013/6/3 Atsushi Kumagai <span dir=3D"ltr">&lt;<a href=3D"mailto:ku=
-magai-atsushi@mxc.nes.nec.co.jp" target=3D"_blank">kumagai-atsushi@mxc.nes.=
-nec.co.jp</a>&gt;</span><br>
-<blockquote class=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8ex;border-=
-left:1px solid rgb(204,204,204);padding-left:1ex">Hello Maxim,<br>
-<div><div class=3D"h5"><br>
-On Thu, 30 May 2013 14:30:01 +0400<br>
-Maxim Uvarov &lt;<a href=3D"mailto:muvarov@gmail.com">muvarov@gmail.com</a>=
-&gt; wrote:<br>
-<br>
-&gt; 2013/5/30 Zhang Yanfei &lt;<a href=3D"mailto:zhangyanfei@cn.fujitsu.co=
-m">zhangyanfei@cn.fujitsu.com</a>&gt;<br>
-&gt;<br>
-&gt; &gt; On 05/30/2013 05:14 PM, Maxim Uvarov wrote:<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt; 2013/5/27 HATAYAMA Daisuke &lt;<a href=3D"mailto:d.hatayama@=
-jp.fujitsu.com">d.hatayama@jp.fujitsu.com</a> &lt;mailto:<br>
-&gt; &gt; <a href=3D"mailto:d.hatayama@jp.fujitsu.com">d.hatayama@jp.fujits=
-u.com</a>&gt;&gt;<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt; =A0 =A0 (2013/05/24 18:02), Maxim Uvarov wrote:<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt; =A0 =A0 =A0 =A0 2013/5/24 Andrew Morton &lt;<a href=3D"mailt=
-o:akpm@linux-foundation.org">akpm@linux-foundation.org</a> &lt;mailto:<br>
-&gt; &gt; <a href=3D"mailto:akpm@linux-foundation.org">akpm@linux-foundatio=
-n.org</a>&gt; &lt;mailto:<a href=3D"mailto:akpm@linux-foundation.">akpm@lin=
-ux-foundation.</a>__org &lt;mailto:<br>
-&gt; &gt; <a href=3D"mailto:akpm@linux-foundation.org">akpm@linux-foundatio=
-n.org</a>&gt;&gt;&gt;<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 On Thu, 23 May 2013 14:25:48 +0900 H=
-ATAYAMA Daisuke &lt;<br>
-&gt; &gt; <a href=3D"mailto:d.hatayama@jp.fujitsu.com">d.hatayama@jp.fujits=
-u.com</a> &lt;mailto:<a href=3D"mailto:d.hatayama@jp.fujitsu.com">d.hatayam=
-a@jp.fujitsu.com</a>&gt; &lt;mailto:<br>
-&gt; &gt; d.hatayama@jp.fujitsu.__com &lt;mailto:<a href=3D"mailto:d.hataya=
-ma@jp.fujitsu.com">d.hatayama@jp.fujitsu.com</a>&gt;&gt;&gt; wrote:<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; This patch introduces mmap_v=
-mcore().<br>
-&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt;<br>
-&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; Don&#39;t permit writable no=
-r executable mapping even with<br>
-&gt; &gt; mprotect()<br>
-&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; because this mmap() is aimed=
- at reading crash dump memory.<br>
-&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; Non-writable mapping is also=
- requirement of<br>
-&gt; &gt; remap_pfn_range() when<br>
-&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; mapping linear pages on non-=
-consecutive physical pages;<br>
-&gt; &gt; see<br>
-&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; is_cow_mapping().<br>
-&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt;<br>
-&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; Set VM_MIXEDMAP flag to rema=
-p memory by remap_pfn_range<br>
-&gt; &gt; and by<br>
-&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; remap_vmalloc_range_pertial =
-at the same time for a single<br>
-&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; vma. do_munmap() can correct=
-ly clean partially remapped<br>
-&gt; &gt; vma with two<br>
-&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; functions in abnormal case. =
-See zap_pte_range(),<br>
-&gt; &gt; vm_normal_page() and<br>
-&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; their comments for details.<=
-br>
-&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt;<br>
-&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; On x86-32 PAE kernels, mmap(=
-) supports at most 16TB<br>
-&gt; &gt; memory only. This<br>
-&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; limitation comes from the fa=
-ct that the third argument of<br>
-&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0&gt; remap_pfn_range(), pfn, is o=
-f 32-bit length on x86-32:<br>
-&gt; &gt; unsigned long.<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt; =A0 =A0 =A0 =A0 =A0 =A0 More reviewing and testing, please.<=
-br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt; =A0 =A0 =A0 =A0 Do you have git pull for both kernel and use=
-rland changes? I<br>
-&gt; &gt; would like to do some more testing on my machines.<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt; =A0 =A0 =A0 =A0 Maxim.<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt; =A0 =A0 Thanks! That&#39;s very helpful.<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt; =A0 =A0 --<br>
-&gt; &gt; &gt; =A0 =A0 Thanks.<br>
-&gt; &gt; &gt; =A0 =A0 HATAYAMA, Daisuke<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt; Any update for this? Where can I checkout all sources?<br>
-&gt; &gt;<br>
-&gt; &gt; This series is now in Andrew Morton&#39;s -mm tree.<br>
-&gt; &gt;<br>
-&gt; &gt; Ok, and what about makedumpfile changes? Is it possible to fetch =
-them from<br>
-&gt; somewhere?<br>
-<br>
-</div></div>You can fetch them from here, &quot;mmap&quot; branch is the ch=
-ange:<br>
-<br>
-=A0 git://<a href=3D"http://git.code.sf.net/p/makedumpfile/code" target=3D"=
-_blank">git.code.sf.net/p/makedumpfile/code</a><br>
-<br>
-And they will be merged into v1.5.4.<br>
-<br></blockquote><div><br></div><div>thank you, got it. But still do not se=
-e kernel patches in akpm tree:<br><table summary=3D"repository info" class=
-=3D""><tbody><tr><td colspan=3D"5"><a href=3D"git://git.kernel.org/pub/scm/=
-linux/kernel/git/next/linux-next.git">git://git.kernel.org/pub/scm/linux/ke=
-rnel/git/next/linux-next.git</a></td>
-</tr>
-<tr><td colspan=3D"5"><a href=3D"http://git.kernel.org/pub/scm/linux/kernel=
-/git/next/linux-next.git">http://git.kernel.org/pub/scm/linux/kernel/git/ne=
-xt/linux-next.git</a></td></tr>
-<tr><td colspan=3D"5"><a href=3D"https://git.kernel.org/pub/scm/linux/kerne=
-l/git/next/linux-next.git">https://git.kernel.org/pub/scm/linux/kernel/git/=
-next/linux-next.git</a></td></tr></tbody></table><br></div><div>Should I lo=
-ok at different branch?<br>
-<br></div><div>Maxim.<br></div><div><br></div><div>=A0</div><blockquote cla=
-ss=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8ex;border-left:1px solid =
-rgb(204,204,204);padding-left:1ex">
-<br>
-Thanks<br>
-<span class=3D""><font color=3D"#888888">Atsushi Kumagai<br>
-</font></span><div class=3D""><div class=3D"h5"><br>
-_______________________________________________<br>
-kexec mailing list<br>
-<a href=3D"mailto:kexec@lists.infradead.org">kexec@lists.infradead.org</a><=
-br>
-<a href=3D"http://lists.infradead.org/mailman/listinfo/kexec" target=3D"_bl=
-ank">http://lists.infradead.org/mailman/listinfo/kexec</a><br>
-</div></div></blockquote></div><br><br clear=3D"all"><br>-- <br>Best regard=
-s,<br>Maxim Uvarov
-</div></div>
-
---001a11c222020666a704de55d015--
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+--KsGdsel6WgEHnImy--
