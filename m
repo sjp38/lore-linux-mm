@@ -1,144 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 457256B003A
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 08:55:32 -0400 (EDT)
-Message-ID: <51ADE3B7.1070303@huawei.com>
-Date: Tue, 4 Jun 2013 20:55:19 +0800
-From: Jianguo Wu <wujianguo@huawei.com>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 928CC6B003A
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 09:03:39 -0400 (EDT)
+Date: Tue, 4 Jun 2013 15:03:36 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 1/3] memcg: fix subtle memory barrier bug in
+ mem_cgroup_iter()
+Message-ID: <20130604130336.GE31242@dhcp22.suse.cz>
+References: <1370306679-13129-1-git-send-email-tj@kernel.org>
+ <1370306679-13129-2-git-send-email-tj@kernel.org>
 MIME-Version: 1.0
-Subject: Re: Transparent Hugepage impact on memcpy
-References: <51ADAC15.1050103@huawei.com> <51adde12.e6b2320a.610d.ffff96f3SMTPIN_ADDED_BROKEN@mx.google.com>
-In-Reply-To: <51adde12.e6b2320a.610d.ffff96f3SMTPIN_ADDED_BROKEN@mx.google.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1370306679-13129-2-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, qiuxishi <qiuxishi@huawei.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: hannes@cmpxchg.org, bsingharora@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org, lizefan@huawei.com
 
-On 2013/6/4 20:30, Wanpeng Li wrote:
+On Mon 03-06-13 17:44:37, Tejun Heo wrote:
+[...]
+> @@ -1218,9 +1218,18 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+>  			 * is alive.
+>  			 */
+>  			dead_count = atomic_read(&root->dead_count);
+> -			smp_rmb();
+> +
+>  			last_visited = iter->last_visited;
+>  			if (last_visited) {
+> +				/*
+> +				 * Paired with smp_wmb() below in this
+> +				 * function.  The pair guarantee that
+> +				 * last_visited is more current than
+> +				 * last_dead_count, which may lead to
+> +				 * spurious iteration resets but guarantees
+> +				 * reliable detection of dead condition.
+> +				 */
+> +				smp_rmb();
+>  				if ((dead_count != iter->last_dead_count) ||
+>  					!css_tryget(&last_visited->css)) {
+>  					last_visited = NULL;
 
-> On Tue, Jun 04, 2013 at 04:57:57PM +0800, Jianguo Wu wrote:
->> Hi all,
->>
->> I tested memcpy with perf bench, and found that in prefault case, When Transparent Hugepage is on,
->> memcpy has worse performance.
->>
->> When THP on is 3.672879 GB/Sec (with prefault), while THP off is 6.190187 GB/Sec (with prefault).
->>
+I originally had the barrier this way but Johannes pointed out it is not
+correct https://lkml.org/lkml/2013/2/11/411
+"
+!> +			/*
+!> +			 * last_visited might be invalid if some of the group
+!> +			 * downwards was removed. As we do not know which one
+!> +			 * disappeared we have to start all over again from the
+!> +			 * root.
+!> +			 * css ref count then makes sure that css won't
+!> +			 * disappear while we iterate to the next memcg
+!> +			 */
+!> +			last_visited = iter->last_visited;
+!> +			dead_count = atomic_read(&root->dead_count);
+!> +			smp_rmb();
+!
+!Confused about this barrier, see below.
+!
+!As per above, if you remove the iter lock, those lines are mixed up.
+!You need to read the dead count first because the writer updates the
+!dead count after it sets the new position.  That way, if the dead
+!count gives the go-ahead, you KNOW that the position cache is valid,
+!because it has been updated first.  If either the two reads or the two
+!writes get reordered, you risk seeing a matching dead count while the
+!position cache is stale.
+"
+
+I think that explanation makes sense but I will leave
+further explanation to Mr "I do not like mutual exclusion" :P
+(https://lkml.org/lkml/2013/2/11/501 "My bumper sticker reads "I don't
+believe in mutual exclusion" (the kernel hacker's version of smile for
+the red light camera)")
+
+> @@ -1235,6 +1244,7 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+>  				css_put(&last_visited->css);
+>  
+>  			iter->last_visited = memcg;
+> +			/* paired with smp_rmb() above in this function */
+>  			smp_wmb();
+>  			iter->last_dead_count = dead_count;
+>  
+> -- 
+> 1.8.2.1
 > 
-> I get similar result as you against 3.10-rc4 in the attachment. This
-> dues to the characteristic of thp takes a single page fault for each 
-> 2MB virtual region touched by userland.
->
 
-Hi Wanpeng,
-Thanks for your reply:).
-
- 
-
-This test is with prefault, so it would not count page fault time in, and I think less page fault
-will improve memcpy performance, right?
-
-Test results from perf stat show a significant reduction in cache-references and cache-misses
-when THP is off, do you have any idea about this?
-
-Thanks,
-Jianguo Wu.
-
->> I think THP will improve performance, but the test result obviously not the case. 
->> Andrea mentioned THP cause "clear_page/copy_page less cache friendly" in
->> http://events.linuxfoundation.org/slides/2011/lfcs/lfcs2011_hpc_arcangeli.pdf.
->>
->> I am not quite understand this, could you please give me some comments, Thanks!
->>
->> I test in Linux-3.4-stable, and my machine info is:
->> Intel(R) Xeon(R) CPU           E5520  @ 2.27GHz
->>
->> available: 2 nodes (0-1)
->> node 0 cpus: 0 1 2 3 8 9 10 11
->> node 0 size: 24567 MB
->> node 0 free: 23550 MB
->> node 1 cpus: 4 5 6 7 12 13 14 15
->> node 1 size: 24576 MB
->> node 1 free: 23767 MB
->> node distances:
->> node   0   1 
->>  0:  10  20 
->>  1:  20  10
->>
->> Below is test result:
->> ---with THP---
->> #cat /sys/kernel/mm/transparent_hugepage/enabled
->> [always] madvise never
->> #./perf bench mem memcpy -l 1gb -o
->> # Running mem/memcpy benchmark...
->> # Copying 1gb Bytes ...
->>
->>       3.672879 GB/Sec (with prefault)
->>
->> #./perf stat ...
->> Performance counter stats for './perf bench mem memcpy -l 1gb -o':
->>
->>          35455940 cache-misses              #   53.504 % of all cache refs     [49.45%]
->>          66267785 cache-references                                             [49.78%]
->>              2409 page-faults                                                 
->>         450768651 dTLB-loads
->>                                                  [50.78%]
->>             24580 dTLB-misses
->>              #    0.01% of all dTLB cache hits  [51.01%]
->>        1338974202 dTLB-stores
->>                                                 [50.63%]
->>             77943 dTLB-misses
->>                                                 [50.24%]
->>         697404997 iTLB-loads
->>                                                  [49.77%]
->>               274 iTLB-misses
->>              #    0.00% of all iTLB cache hits  [49.30%]
->>
->>       0.855041819 seconds time elapsed
->>
->> ---no THP---
->> #cat /sys/kernel/mm/transparent_hugepage/enabled
->> always madvise [never]
->>
->> #./perf bench mem memcpy -l 1gb -o
->> # Running mem/memcpy benchmark...
->> # Copying 1gb Bytes ...
->>
->>       6.190187 GB/Sec (with prefault)
->>
->> #./perf stat ...
->> Performance counter stats for './perf bench mem memcpy -l 1gb -o':
->>
->>          16920763 cache-misses              #   98.377 % of all cache refs     [50.01%]
->>          17200000 cache-references                                             [50.04%]
->>            524652 page-faults                                                 
->>         734365659 dTLB-loads
->>                                                  [50.04%]
->>           4986387 dTLB-misses
->>              #    0.68% of all dTLB cache hits  [50.04%]
->>        1013408298 dTLB-stores
->>                                                 [50.04%]
->>           8180817 dTLB-misses
->>                                                 [49.97%]
->>        1526642351 iTLB-loads
->>                                                  [50.41%]
->>                56 iTLB-misses
->>              #    0.00% of all iTLB cache hits  [50.21%]
->>
->>       1.025425847 seconds time elapsed
->>
->> Thanks,
->> Jianguo Wu.
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
-
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
