@@ -1,60 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id E9C936B0033
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 17:55:38 -0400 (EDT)
-Received: by mail-pb0-f42.google.com with SMTP id uo1so836524pbc.15
-        for <linux-mm@kvack.org>; Tue, 04 Jun 2013 14:55:38 -0700 (PDT)
-Date: Tue, 4 Jun 2013 14:55:35 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 3/3] memcg: simplify mem_cgroup_reclaim_iter
-Message-ID: <20130604215535.GM14916@htj.dyndns.org>
-References: <1370306679-13129-1-git-send-email-tj@kernel.org>
- <1370306679-13129-4-git-send-email-tj@kernel.org>
- <20130604131843.GF31242@dhcp22.suse.cz>
- <20130604205025.GG14916@htj.dyndns.org>
- <20130604212808.GB13231@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130604212808.GB13231@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id BAE826B0033
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 18:41:44 -0400 (EDT)
+Message-Id: <20130604172132.425514485@1wt.eu>
+Date: Tue, 04 Jun 2013 19:22:21 +0200
+From: Willy Tarreau <w@1wt.eu>
+Subject: [ 051/184] x86/mm: Check if PUD is large when validating a
+In-Reply-To: <58df134a4b98edf5b0073e2e1e988fe6@local>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: hannes@cmpxchg.org, bsingharora@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org, lizefan@huawei.com
+To: linux-kernel@vger.kernel.org, stable@vger.kernel.org
+Cc: Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Willy Tarreau <w@1wt.eu>
 
-Hello, Michal.
+2.6.32-longterm review patch.  If anyone has any objections, please let me know.
 
-On Tue, Jun 04, 2013 at 11:28:08PM +0200, Michal Hocko wrote:
-> Well, I do not mind pinning when I know that somebody releases the
-> reference in a predictable future (ideally almost immediately). But the
-> cached iter represents time unbounded pinning because nobody can
-> guarantee that priority 3 at zone Normal at node 3 will be ever scanned
-> again and the pointer in the last_visited node will be stuck there for
+------------------
+ kernel address
 
-I don't really get that.  As long as the amount is bound and the
-overhead negligible / acceptable, why does it matter how long the
-pinning persists?  We aren't talking about something gigantic or can
-leak continuously.  It will only matter iff cgroups are continuously
-created and destroyed and each live memcg will be able to pin one
-memcg (BTW, I think I forgot to unpin on memcg destruction).
+From: Mel Gorman <mgorman@suse.de>
 
-> eternity. Can we free memcg with only css elevated and safely check that
-> the cached pointer can be used without similar dances we have now?
-> I am open to any suggestions.
+commit 0ee364eb316348ddf3e0dfcd986f5f13f528f821 upstream.
 
-I really think this is worrying too much about something which doesn't
-really matter and then coming up with an over-engineered solution for
-the imagined problem.  This isn't a real problem.  No solution is
-necessary.
+A user reported the following oops when a backup process reads
+/proc/kcore:
 
-In the off chance that this is a real problem, which I strongly doubt,
-as I wrote to Johannes, we can implement extremely dumb cleanup
-routine rather than this weak reference beast.
+ BUG: unable to handle kernel paging request at ffffbb00ff33b000
+ IP: [<ffffffff8103157e>] kern_addr_valid+0xbe/0x110
+ [...]
 
-Thanks.
+ Call Trace:
+  [<ffffffff811b8aaa>] read_kcore+0x17a/0x370
+  [<ffffffff811ad847>] proc_reg_read+0x77/0xc0
+  [<ffffffff81151687>] vfs_read+0xc7/0x130
+  [<ffffffff811517f3>] sys_read+0x53/0xa0
+  [<ffffffff81449692>] system_call_fastpath+0x16/0x1b
 
+Investigation determined that the bug triggered when reading
+system RAM at the 4G mark. On this system, that was the first
+address using 1G pages for the virt->phys direct mapping so the
+PUD is pointing to a physical address, not a PMD page.
+
+The problem is that the page table walker in kern_addr_valid() is
+not checking pud_large() and treats the physical address as if
+it was a PMD.  If it happens to look like pmd_none then it'll
+silently fail, probably returning zeros instead of real data. If
+the data happens to look like a present PMD though, it will be
+walked resulting in the oops above.
+
+This patch adds the necessary pud_large() check.
+
+Unfortunately the problem was not readily reproducible and now
+they are running the backup program without accessing
+/proc/kcore so the patch has not been validated but I think it
+makes sense.
+
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+Reviewed-by: Rik van Riel <riel@redhat.coM>
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org
+Link: http://lkml.kernel.org/r/20130211145236.GX21389@suse.de
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Signed-off-by: Willy Tarreau <w@1wt.eu>
+---
+ arch/x86/include/asm/pgtable.h | 5 +++++
+ arch/x86/mm/init_64.c          | 3 +++
+ 2 files changed, 8 insertions(+)
+
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index af6fd36..1cce9d2 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -130,6 +130,11 @@ static inline unsigned long pmd_pfn(pmd_t pmd)
+ 	return (pmd_val(pmd) & PTE_PFN_MASK) >> PAGE_SHIFT;
+ }
+ 
++static inline unsigned long pud_pfn(pud_t pud)
++{
++	return (pud_val(pud) & PTE_PFN_MASK) >> PAGE_SHIFT;
++}
++
+ #define pte_page(pte)	pfn_to_page(pte_pfn(pte))
+ 
+ static inline int pmd_large(pmd_t pte)
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 7d095ad..ccbc61b 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -839,6 +839,9 @@ int kern_addr_valid(unsigned long addr)
+ 	if (pud_none(*pud))
+ 		return 0;
+ 
++	if (pud_large(*pud))
++		return pfn_valid(pud_pfn(*pud));
++
+ 	pmd = pmd_offset(pud, addr);
+ 	if (pmd_none(*pmd))
+ 		return 0;
 -- 
-tejun
+1.7.12.2.21.g234cd45.dirty
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
