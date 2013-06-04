@@ -1,89 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 4F4BE6B006C
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 02:59:32 -0400 (EDT)
-Date: Tue, 4 Jun 2013 15:59:30 +0900
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 0F1026B0070
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 03:11:17 -0400 (EDT)
+Date: Tue, 4 Jun 2013 16:11:16 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [v5][PATCH 5/6] mm: vmscan: batch shrink_page_list() locking
- operations
-Message-ID: <20130604065930.GA26129@blaptop>
-References: <20130603200202.7F5FDE07@viggo.jf.intel.com>
- <20130603200208.6F71D31F@viggo.jf.intel.com>
- <20130604050103.GC14719@blaptop>
- <51AD84BA.4090106@sr71.net>
+Subject: Re: [PATCH] mm: page_alloc: fix watermark check in
+ __zone_watermark_ok()
+Message-ID: <20130604071116.GG14719@blaptop>
+References: <518B5556.4010005@samsung.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51AD84BA.4090106@sr71.net>
+In-Reply-To: <518B5556.4010005@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de, tim.c.chen@linux.intel.com
+To: Tomasz Stanislawski <t.stanislaws@samsung.com>
+Cc: linux-mm@kvack.org, =?utf-8?B?J+uwleqyveuvvCc=?= <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, mgorman@suse.de, 'Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 
-On Mon, Jun 03, 2013 at 11:10:02PM -0700, Dave Hansen wrote:
-> On 06/03/2013 10:01 PM, Minchan Kim wrote:
-> >> > +static int __remove_mapping_batch(struct list_head *remove_list,
-> >> > +				  struct list_head *ret_pages,
-> >> > +				  struct list_head *free_pages)
-> >> > +{
-> >> > +	int nr_reclaimed = 0;
-> >> > +	struct address_space *mapping;
-> >> > +	struct page *page;
-> >> > +	LIST_HEAD(need_free_mapping);
-> >> > +
-> >> > +	while (!list_empty(remove_list)) {
-> ...
-> >> > +		if (!__remove_mapping(mapping, page)) {
-> >> > +			unlock_page(page);
-> >> > +			list_add(&page->lru, ret_pages);
-> >> > +			continue;
-> >> > +		}
-> >> > +		list_add(&page->lru, &need_free_mapping);
-> ...
-> > +	spin_unlock_irq(&mapping->tree_lock);
-> > +	while (!list_empty(&need_free_mapping)) {...
-> > +		list_move(&page->list, free_pages);
-> > +		mapping_release_page(mapping, page);
-> > +	}
-> > Why do we need new lru list instead of using @free_pages?
-> 
-> I actually tried using @free_pages at first.  The problem is that we
-> need to call mapping_release_page() without the radix tree lock held so
-> we can not do it in the first while() loop.
-> 
-> 'free_pages' is a list created up in shrink_page_list().  There can be
-> several calls to __remove_mapping_batch() for each call to
-> shrink_page_list().
+Hello,
 
-I missed that point.
+On Thu, May 09, 2013 at 09:50:46AM +0200, Tomasz Stanislawski wrote:
+> The watermark check consists of two sub-checks.
+> The first one is:
+> 
+> 	if (free_pages <= min + lowmem_reserve)
+> 		return false;
+> 
+> The check assures that there is minimal amount of RAM in the zone.  If CMA is
+> used then the free_pages is reduced by the number of free pages in CMA prior
+> to the over-mentioned check.
+> 
+> 	if (!(alloc_flags & ALLOC_CMA))
+> 		free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
+> 
+> This prevents the zone from being drained from pages available for non-movable
+> allocations.
+
+The description is rather confusing.
+It was not to prevent the zone from being drained but for considering a right
+number of allocatable pages from the zone because !ALLOC_CMA pages couldn't be
+allocated from CMA migrate type from the zone so if we didn't have such patch,
+zone_watermark_ok could return true but allocation couldn't allocate a page.
 
 > 
-> 'need_free_mapping' lets us temporarily differentiate the pages that we
-> need to call mapping_release_page()/unlock_page() on versus the ones on
-> 'free_pages' which have already had that done.
+> The second check prevents the zone from getting too fragmented.
 > 
+> 	for (o = 0; o < order; o++) {
+> 		free_pages -= z->free_area[o].nr_free << o;
+> 		min >>= 1;
+> 		if (free_pages <= min)
+> 			return false;
+> 	}
+> 
+> The field z->free_area[o].nr_free is equal to the number of free pages
+> including free CMA pages.  Therefore the CMA pages are subtracted twice.  This
 
 Right.
 
-> We could theoretically delay _all_ of the
-> release_mapping_page()/unlock_page() operations until the _entire_
-> shrink_page_list() operation is done, but doing this really helps with
+> may cause a false positive fail of __zone_watermark_ok() if the CMA area gets
+> strongly fragmented.  In such a case there are many 0-order free pages located
+> in CMA. Those pages are subtracted twice therefore they will quickly drain
+> free_pages during the check against fragmentation.  The test fails even though
 
-                                        maybe you mean
-                                        but doing this doesn't really helps
-> lock_page() latency.
+> there are many free non-cma pages in the zone.
+
+How about this?
+
+  The !ALLOC_CMA higher order allocation fails even though there are many
+  free high order pages in the zone.
+
+This patch should go to stable so I'd like to include description with detail
+numbers of zone's stat to describe the situation when the higher allocation
+is failed so stable maintainers and other distro maintainers could parse the
+problem easily.
+
 > 
-> Does that make sense?
+> This patch fixes this issue by subtracting CMA pages only for a purpose of
+> (free_pages <= min + lowmem_reserve) check.
 
-If so, It does make sense.
-Thanks for pointing me out.
 
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Signed-off-by: Tomasz Stanislawski <t.stanislaws@samsung.com>
+> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+
+Otherwise, looks good to me.
+
+Acked-by: Minchan Kim <minchan@kernel.org>
 
 -- 
 Kind regards,
