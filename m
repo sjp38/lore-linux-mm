@@ -1,137 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id C0EC26B0031
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 09:59:05 -0400 (EDT)
-Date: Tue, 4 Jun 2013 09:58:40 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 1/3] memcg: fix subtle memory barrier bug in
- mem_cgroup_iter()
-Message-ID: <20130604135840.GN15576@cmpxchg.org>
-References: <1370306679-13129-1-git-send-email-tj@kernel.org>
- <1370306679-13129-2-git-send-email-tj@kernel.org>
- <20130604130336.GE31242@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id C5A9A6B0031
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 10:02:31 -0400 (EDT)
+Date: Tue, 4 Jun 2013 16:02:30 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: Handling NUMA page migration
+Message-ID: <20130604140230.GB31247@dhcp22.suse.cz>
+References: <201306040922.10235.frank.mehnert@oracle.com>
+ <20130604115807.GF3672@sgi.com>
+ <201306041414.52237.frank.mehnert@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130604130336.GE31242@dhcp22.suse.cz>
+In-Reply-To: <201306041414.52237.frank.mehnert@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Tejun Heo <tj@kernel.org>, bsingharora@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org, lizefan@huawei.com
+To: Frank Mehnert <frank.mehnert@oracle.com>
+Cc: Robin Holt <holt@sgi.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>
 
-On Tue, Jun 04, 2013 at 03:03:36PM +0200, Michal Hocko wrote:
-> On Mon 03-06-13 17:44:37, Tejun Heo wrote:
-> [...]
-> > @@ -1218,9 +1218,18 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
-> >  			 * is alive.
-> >  			 */
-> >  			dead_count = atomic_read(&root->dead_count);
-> > -			smp_rmb();
-> > +
-> >  			last_visited = iter->last_visited;
-> >  			if (last_visited) {
-> > +				/*
-> > +				 * Paired with smp_wmb() below in this
-> > +				 * function.  The pair guarantee that
-> > +				 * last_visited is more current than
-> > +				 * last_dead_count, which may lead to
-> > +				 * spurious iteration resets but guarantees
-> > +				 * reliable detection of dead condition.
-> > +				 */
-> > +				smp_rmb();
-> >  				if ((dead_count != iter->last_dead_count) ||
-> >  					!css_tryget(&last_visited->css)) {
-> >  					last_visited = NULL;
+On Tue 04-06-13 14:14:45, Frank Mehnert wrote:
+> On Tuesday 04 June 2013 13:58:07 Robin Holt wrote:
+> > This is probably more appropriate to be directed at the linux-mm
+> > mailing list.
+> > 
+> > On Tue, Jun 04, 2013 at 09:22:10AM +0200, Frank Mehnert wrote:
+> > > Hi,
+> > > 
+> > > our memory management on Linux hosts conflicts with NUMA page migration.
+> > > I assume this problem existed for a longer time but Linux 3.8 introduced
+> > > automatic NUMA page balancing which makes the problem visible on
+> > > multi-node hosts leading to kernel oopses.
+> > > 
+> > > NUMA page migration means that the physical address of a page changes.
+> > > This is fatal if the application assumes that this never happens for
+> > > that page as it was supposed to be pinned.
+> > > 
+> > > We have two kind of pinned memory:
+> > > 
+> > > A) 1. allocate memory in userland with mmap()
+> > > 
+> > >    2. madvise(MADV_DONTFORK)
+> > >    3. pin with get_user_pages().
+> > >    4. flush dcache_page()
+> > >    5. vm_flags |= (VM_DONTCOPY | VM_LOCKED)
+> > >    
+> > >       (resulting flags are VM_MIXEDMAP | VM_DONTDUMP | VM_DONTEXPAND |
+> > >       
+> > >        VM_DONTCOPY | VM_LOCKED | 0xff)
+> > 
+> > I don't think this type of allocation should be affected.  The
+> > get_user_pages() call should elevate the pages reference count which
+> > should prevent migration from completing.  I would, however, wait for
+> > a more definitive answer.
 > 
-> I originally had the barrier this way but Johannes pointed out it is not
-> correct https://lkml.org/lkml/2013/2/11/411
-> "
-> !> +			/*
-> !> +			 * last_visited might be invalid if some of the group
-> !> +			 * downwards was removed. As we do not know which one
-> !> +			 * disappeared we have to start all over again from the
-> !> +			 * root.
-> !> +			 * css ref count then makes sure that css won't
-> !> +			 * disappear while we iterate to the next memcg
-> !> +			 */
-> !> +			last_visited = iter->last_visited;
-> !> +			dead_count = atomic_read(&root->dead_count);
-> !> +			smp_rmb();
-> !
-> !Confused about this barrier, see below.
-> !
-> !As per above, if you remove the iter lock, those lines are mixed up.
-> !You need to read the dead count first because the writer updates the
-> !dead count after it sets the new position.  That way, if the dead
-> !count gives the go-ahead, you KNOW that the position cache is valid,
-> !because it has been updated first.  If either the two reads or the two
-> !writes get reordered, you risk seeing a matching dead count while the
-> !position cache is stale.
-> "
+> Thanks Robin! Actually case B) is more important for us so I'm waiting
+> for more feedback :)
 
-The original prototype code I sent looked like this:
+The manual node migration code seems to be OK in case B as well because
+Reserved are skipped (check check_pte_range called from down the
+do_migrate_pages path).
 
-mem_cgroup_iter:
-rcu_read_lock()
-if atomic_read(&root->dead_count) == iter->dead_count:
-  smp_rmb()
-  if tryget(iter->position):
-    position = iter->position
-memcg = find_next(postion)
-css_put(position)
-iter->position = memcg
-smp_wmb() /* Write position cache BEFORE marking it uptodate */
-iter->dead_count = atomic_read(&root->dead_count)
-rcu_read_unlock()
+Maybe auto-numa code is missing this check assuming that it cannot
+encounter reserved pages.
 
-iter->last_position is written, THEN iter->last_dead_count is written.
-
-So, yes, you "need to read the dead count" first to be sure
-iter->last_position is uptodate.  But iter->last_dead_count, not
-root->dead_count.  I should have caught this in the final submission
-of your patch :(
-
-Tejun's patch is not correct, either.  Something like this?
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 010d6c1..92830fa 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1199,7 +1199,6 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
- 
- 			mz = mem_cgroup_zoneinfo(root, nid, zid);
- 			iter = &mz->reclaim_iter[reclaim->priority];
--			last_visited = iter->last_visited;
- 			if (prev && reclaim->generation != iter->generation) {
- 				iter->last_visited = NULL;
- 				goto out_unlock;
-@@ -1217,14 +1216,20 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
- 			 * css_tryget() verifies the cgroup pointed to
- 			 * is alive.
- 			 */
-+			last_visited = NULL;
- 			dead_count = atomic_read(&root->dead_count);
--			smp_rmb();
--			last_visited = iter->last_visited;
--			if (last_visited) {
--				if ((dead_count != iter->last_dead_count) ||
--					!css_tryget(&last_visited->css)) {
-+			if (dead_count == iter->last_dead_count) {
-+				/*
-+				 * The writer below sets the position
-+				 * pointer, then the dead count.
-+				 * Ensure we read the updated position
-+				 * when the dead count matches.
-+				 */
-+				smp_rmb();
-+				last_visited = iter->last_visited;
-+				if (last_visited &&
-+				    !css_tryget(&last_visited->css))
- 					last_visited = NULL;
--				}
- 			}
- 		}
- 
+migrate_misplaced_page relies on numamigrate_isolate_page which relies
+on isolate_lru_page and that one expects a LRU page. Is your Reserved
+page on the LRU list? That would be a bit unexpected.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
