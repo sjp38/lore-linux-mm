@@ -1,124 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id B89DC6B0032
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 10:12:15 -0400 (EDT)
-Received: by mail-pb0-f48.google.com with SMTP id md4so297611pbc.7
-        for <linux-mm@kvack.org>; Tue, 04 Jun 2013 07:12:15 -0700 (PDT)
-Message-ID: <51ADF56B.2060407@gmail.com>
-Date: Tue, 04 Jun 2013 22:10:51 +0800
-From: Hush Bensen <hush.bensen@gmail.com>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id A5F786B0031
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 11:22:15 -0400 (EDT)
+Message-ID: <51AE061F.5060900@sr71.net>
+Date: Tue, 04 Jun 2013 08:22:07 -0700
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Subject: Re: Transparent Hugepage impact on memcpy
-References: <51ADAC15.1050103@huawei.com>
-In-Reply-To: <51ADAC15.1050103@huawei.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Subject: Re: [v5][PATCH 5/6] mm: vmscan: batch shrink_page_list() locking
+ operations
+References: <20130603200202.7F5FDE07@viggo.jf.intel.com> <20130603200208.6F71D31F@viggo.jf.intel.com> <CAJd=RBC563c64usU2oK40b62c7N0R15KD_4ihFExeT021wUTcw@mail.gmail.com> <20130604050744.GD14719@blaptop>
+In-Reply-To: <20130604050744.GD14719@blaptop>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Andi Kleen <ak@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, qiuxishi <qiuxishi@huawei.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Hillf Danton <dhillf@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de, tim.c.chen@linux.intel.com
 
-Cc thp guys.
+On 06/03/2013 10:07 PM, Minchan Kim wrote:
+>>> > > +       while (!list_empty(remove_list)) {
+>>> > > +               page = lru_to_page(remove_list);
+>>> > > +               BUG_ON(!PageLocked(page));
+>>> > > +               BUG_ON(page_mapping(page) != mapping);
+>>> > > +               list_del(&page->lru);
+>>> > > +
+>>> > > +               if (!__remove_mapping(mapping, page)) {
+>>> > > +                       unlock_page(page);
+>>> > > +                       list_add(&page->lru, ret_pages);
+>>> > > +                       continue;
+>>> > > +               }
+>>> > > +               list_add(&page->lru, &need_free_mapping);
+>>> > > +       }
+>>> > > +       spin_unlock_irq(&mapping->tree_lock);
+>>> > > +
+>> > While reclaiming pages, can we open ears upon IRQ controller,
+>> > if the page list length is over 10, or even 20?
+> At the moment, it implicitly could be bounded by SWAP_CLUSTER_MAX and
+> it's the value used by isolate_migratepages_ranges to enable IRQ.
+> I have no idea it's proper value to give a chace to IRQ but at least,
+> Dave's code doesn't break the rule.
+> If we need a tune for that, it could be a another patch to investigate
 
-ao? 2013/6/4 16:57, Jianguo Wu a??e??:
-> Hi all,
->
-> I tested memcpy with perf bench, and found that in prefault case, When Transparent Hugepage is on,
-> memcpy has worse performance.
->
-> When THP on is 3.672879 GB/Sec (with prefault), while THP off is 6.190187 GB/Sec (with prefault).
->
-> I think THP will improve performance, but the test result obviously not the case.
-> Andrea mentioned THP cause "clear_page/copy_page less cache friendly" in
-> http://events.linuxfoundation.org/slides/2011/lfcs/lfcs2011_hpc_arcangeli.pdf.
->
-> I am not quite understand this, could you please give me some comments, Thanks!
->
-> I test in Linux-3.4-stable, and my machine info is:
-> Intel(R) Xeon(R) CPU           E5520  @ 2.27GHz
->
-> available: 2 nodes (0-1)
-> node 0 cpus: 0 1 2 3 8 9 10 11
-> node 0 size: 24567 MB
-> node 0 free: 23550 MB
-> node 1 cpus: 4 5 6 7 12 13 14 15
-> node 1 size: 24576 MB
-> node 1 free: 23767 MB
-> node distances:
-> node   0   1
->    0:  10  20
->    1:  20  10
->
-> Below is test result:
-> ---with THP---
-> #cat /sys/kernel/mm/transparent_hugepage/enabled
-> [always] madvise never
-> #./perf bench mem memcpy -l 1gb -o
-> # Running mem/memcpy benchmark...
-> # Copying 1gb Bytes ...
->
->         3.672879 GB/Sec (with prefault)
->
-> #./perf stat ...
-> Performance counter stats for './perf bench mem memcpy -l 1gb -o':
->
->            35455940 cache-misses              #   53.504 % of all cache refs     [49.45%]
->            66267785 cache-references                                             [49.78%]
->                2409 page-faults
->           450768651 dTLB-loads
->                                                    [50.78%]
->               24580 dTLB-misses
->                #    0.01% of all dTLB cache hits  [51.01%]
->          1338974202 dTLB-stores
->                                                   [50.63%]
->               77943 dTLB-misses
->                                                   [50.24%]
->           697404997 iTLB-loads
->                                                    [49.77%]
->                 274 iTLB-misses
->                #    0.00% of all iTLB cache hits  [49.30%]
->
->         0.855041819 seconds time elapsed
->
-> ---no THP---
-> #cat /sys/kernel/mm/transparent_hugepage/enabled
-> always madvise [never]
->
-> #./perf bench mem memcpy -l 1gb -o
-> # Running mem/memcpy benchmark...
-> # Copying 1gb Bytes ...
->
->         6.190187 GB/Sec (with prefault)
->
-> #./perf stat ...
-> Performance counter stats for './perf bench mem memcpy -l 1gb -o':
->
->            16920763 cache-misses              #   98.377 % of all cache refs     [50.01%]
->            17200000 cache-references                                             [50.04%]
->              524652 page-faults
->           734365659 dTLB-loads
->                                                    [50.04%]
->             4986387 dTLB-misses
->                #    0.68% of all dTLB cache hits  [50.04%]
->          1013408298 dTLB-stores
->                                                   [50.04%]
->             8180817 dTLB-misses
->                                                   [49.97%]
->          1526642351 iTLB-loads
->                                                    [50.41%]
->                  56 iTLB-misses
->                #    0.00% of all iTLB cache hits  [50.21%]
->
->         1.025425847 seconds time elapsed
->
-> Thanks,
-> Jianguo Wu.
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+I also wouldn't exactly call this "reclaiming pages".   As Minchan
+mentions, this is already bounded and it's a relatively cheap set of
+operations.  *WAY* cheaper than actually reclaiming a page.
+
+Honestly, this whole patch series is about trading latency for increased
+bandwidth reclaiming pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
