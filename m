@@ -1,48 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 6E78E6B0085
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 19:09:05 -0400 (EDT)
-Date: Wed, 5 Jun 2013 16:09:02 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v10 35/35] memcg: reap dead memcgs upon global memory
- pressure.
-Message-Id: <20130605160902.2e656a43aa7c5a51a574ea48@linux-foundation.org>
-In-Reply-To: <1370287804-3481-36-git-send-email-glommer@openvz.org>
-References: <1370287804-3481-1-git-send-email-glommer@openvz.org>
-	<1370287804-3481-36-git-send-email-glommer@openvz.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 6E2C86B0085
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 19:29:39 -0400 (EDT)
+Date: Wed, 5 Jun 2013 20:29:33 -0300
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: [PATCH] virtio_balloon: leak_balloon(): only tell host if we got
+ pages deflated
+Message-ID: <20130605232932.GA30387@optiplex.redhat.com>
+References: <20130605171031.7448deea@redhat.com>
+ <20130605212449.GB19617@optiplex.redhat.com>
+ <20130605190844.1e96bbde@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130605190844.1e96bbde@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@openvz.org>
-Cc: linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>, Rik van Riel <riel@redhat.com>
+To: Luiz Capitulino <lcapitulino@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org
 
-On Mon,  3 Jun 2013 23:30:04 +0400 Glauber Costa <glommer@openvz.org> wrote:
-
-> When we delete kmem-enabled memcgs, they can still be zombieing
-> around for a while. The reason is that the objects may still be alive,
-> and we won't be able to delete them at destruction time.
+On Wed, Jun 05, 2013 at 07:08:44PM -0400, Luiz Capitulino wrote:
+> On Wed, 5 Jun 2013 18:24:49 -0300
+> Rafael Aquini <aquini@redhat.com> wrote:
 > 
-> The only entry point for that, though, are the shrinkers. The
-> shrinker interface, however, is not exactly tailored to our needs. It
-> could be a little bit better by using the API Dave Chinner proposed, but
-> it is still not ideal since we aren't really a count-and-scan event, but
-> more a one-off flush-all-you-can event that would have to abuse that
-> somehow.
+> > On Wed, Jun 05, 2013 at 05:10:31PM -0400, Luiz Capitulino wrote:
+> > > The balloon_page_dequeue() function can return NULL. If it does for
+> > > the first page being freed, then leak_balloon() will create a
+> > > scatter list with len=0. Which in turn seems to generate an invalid
+> > > virtio request.
+> > > 
+> > > Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
+> > > ---
+> > > 
+> > > PS: I didn't get this in practice. I found it by code review. On the other
+> > >     hand, automatic-ballooning was able to put such invalid requests in
+> > >     the virtqueue and QEMU would explode...
+> > >
+> > 
+> > Nice catch! The patch looks sane and replicates the check done at
+> > fill_balloon(). I think we also could use this P.S. as a commentary 
+> > to let others aware of this scenario. Thanks Luiz!
+> 
+> Want me to respin?
+>
 
-This patch is significantly dependent on
-http://ozlabs.org/~akpm/mmots/broken-out/memcg-debugging-facility-to-access-dangling-memcgs.patch,
-which was designated "mm only debug patch" when I merged it six months
-ago.
+That would be great, indeed. I guess the commentary could also go for the same
+if case at fill_balloon(), assuming the tests are placed to prevent the same
+scenario you described at changelog. You can stick my Ack on it, if reposting.
 
-We can go ahead and merge
-memcg-debugging-facility-to-access-dangling-memcgs.patch upstream I
-guess, but we shouldn't do that just because it makes the
-patch-wrangling a bit easier!
-
-Is memcg-debugging-facility-to-access-dangling-memcgs.patch worth merging in
-its own right?  If so, what changed since our earlier decision?
+Cheers!
+-- Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
