@@ -1,56 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 71B766B0031
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 06:10:23 -0400 (EDT)
-Date: Wed, 5 Jun 2013 11:10:19 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: Handling NUMA page migration
-Message-ID: <20130605101019.GA18242@suse.de>
-References: <201306040922.10235.frank.mehnert@oracle.com>
- <20130604115807.GF3672@sgi.com>
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id DFCFF6B0031
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 06:22:59 -0400 (EDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20130604115807.GF3672@sgi.com>
+Message-ID: <201306051222.32786.frank.mehnert@oracle.com>
+Date: Wed, 5 Jun 2013 03:22:32 -0700 (PDT)
+From: Frank Mehnert <frank.mehnert@oracle.com>
+Subject: Re: Handling NUMA page migration
+References: <201306040922.10235.frank.mehnert@oracle.com>
+ <201306051132.15788.frank.mehnert@oracle.com>
+ <20130605095630.GL15997@dhcp22.suse.cz>
+In-Reply-To: <20130605095630.GL15997@dhcp22.suse.cz>
+Content-Type: multipart/signed;
+ boundary="__1370427774877127954abhmt116.oracle.com";
+ protocol=application/pgp-signature; micalg=pgp-sha1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Frank Mehnert <frank.mehnert@oracle.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Robin Holt <holt@sgi.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>
 
-On Tue, Jun 04, 2013 at 06:58:07AM -0500, Robin Holt wrote:
-> > B) 1. allocate memory with alloc_pages()
-> >    2. SetPageReserved()
-> >    3. vm_mmap() to allocate a userspace mapping
-> >    4. vm_insert_page()
-> >    5. vm_flags |= (VM_DONTEXPAND | VM_DONTDUMP)
-> >       (resulting flags are VM_MIXEDMAP | VM_DONTDUMP | VM_DONTEXPAND | 0xff)
-> > 
-> > At least the memory allocated like B) is affected by automatic NUMA page
-> > migration. I'm not sure about A).
-> > 
-> > 1. How can I prevent automatic NUMA page migration on this memory?
-> > 2. Can NUMA page migration also be handled on such kind of memory without
-> >    preventing migration?
-> > 
+--__1370427774877127954abhmt116.oracle.com
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-Page migration does not expect a PageReserved && PageLRU page. The only
-reserved check that is made by migration is for the zero page and that
-happens in the syscall path for move_pages() which is not used by either
-compaction or automatic balancing.
+On Wednesday 05 June 2013 11:56:30 Michal Hocko wrote:
+> On Wed 05-06-13 11:32:15, Frank Mehnert wrote:
+> [...]
+>=20
+> > Thank you very much for your help. As I said, this problem happens _onl=
+y_
+> > with NUMA_BALANCING enabled. I understand that you treat the VirtualBox
+> > code as untrusted but the reason for the problem is that some assumption
+> > is obviously not met: The VirtualBox code assumes that the memory it
+> > allocates using case A and case B is
+> >=20
+> >  1. always present and
+> >  2. will always be backed by the same phyiscal memory
+> >=20
+> > over the entire life time. Enabling NUMA_BALANCING seems to make this
+> > assumption false. I only want to know why.
+>=20
+> As I said earlier. Both the manual node migration and numa_fault handler
+> do not migrate pages with elevated ref count (your A case) and pages
+> that are not on the LRU. So if your Referenced pages might be on the LRU
+> then you probably have to look into numamigrate_isolate_page and do an
+> exception for PageReserved pages. But I am a bit suspicious this is the
+> cause because the reclaim doesn't consider PageReserved pages either so
+> they could get reclaimed. Or maybe you have handled that path in your
+> kernel.
 
-At some point you must have a driver that is setting PageReserved on
-anonymous pages that is later encountered by automatic numa balancing
-during a NUMA hinting fault.  I expect this is an out-of-tree driver or
-a custom kernel of some sort. Memory should be pinned by elevating the
-reference count of the page, not setting PageReserved.
+Thanks, I will also investigate into this direction.
 
-It's not particularly clear how you avoid hitting the same bug due to THP and
-memory compaction to be honest but maybe your setup hits a steady state that
-simply never hit the problem or it happens rarely and it was not identified.
+> Or the other option is that you depend on a timing or something like
+> that which doesn't hold anymore. That would be hard to debug though.
+>=20
+> > I see, you don't believe me. I will add more code to the kernel logging
+> > which pages were migrated.
+>=20
+> Simple test for PageReserved flag in numamigrate_isolate_page should
+> tell you more.
+>=20
+> This would cover the migration part. Another potential problem could be
+> that the page might get unmapped and marked for the numa fault (see
+> do_numa_page). So maybe your code just assumes that the page even
+> doesn't get unmapped?
 
--- 
-Mel Gorman
-SUSE Labs
+Exactly, that's the assumption -- therefore all these vm_flags tricks.
+If this assumption is wrong or not always true, can this requirement
+(page is _never_ unmapped) be met at all?
+
+Thanks,
+
+=46rank
+=2D-=20
+Dr.-Ing. Frank Mehnert | Software Development Director, VirtualBox
+ORACLE Deutschland B.V. & Co. KG | Werkstr. 24 | 71384 Weinstadt, Germany
+
+Hauptverwaltung: Riesstr. 25, D-80992 M=FCnchen
+Registergericht: Amtsgericht M=FCnchen, HRA 95603
+Gesch=E4ftsf=FChrer: J=FCrgen Kunz
+
+Komplement=E4rin: ORACLE Deutschland Verwaltung B.V.
+Hertogswetering 163/167, 3543 AS Utrecht, Niederlande
+Handelsregister der Handelskammer Midden-Niederlande, Nr. 30143697
+Gesch=E4ftsf=FChrer: Alexander van der Ven, Astrid Kepper, Val Maher
+
+--__1370427774877127954abhmt116.oracle.com
+Content-Description: This is a digitally signed message part.
+Content-Type: application/pgp-signature; charset=ascii; name="signature.asc"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.20 (GNU/Linux)
+
+iEYEABECAAYFAlGvEWgACgkQ6z8pigLf3EceqgCeIvCbuMlq78IuaTUXjkQZlHe8
+G8sAoIEdEpsNNYwkxqKVb7FXAYfCp0Er
+=9Mof
+-----END PGP SIGNATURE-----
+
+--__1370427774877127954abhmt116.oracle.com--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
