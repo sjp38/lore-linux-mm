@@ -1,83 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id F3B6F6B0031
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 03:57:14 -0400 (EDT)
-Date: Wed, 5 Jun 2013 16:57:13 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [v5][PATCH 5/6] mm: vmscan: batch shrink_page_list() locking
- operations
-Message-ID: <20130605075713.GJ8732@blaptop>
-References: <20130603200202.7F5FDE07@viggo.jf.intel.com>
- <20130603200208.6F71D31F@viggo.jf.intel.com>
- <CAJd=RBC563c64usU2oK40b62c7N0R15KD_4ihFExeT021wUTcw@mail.gmail.com>
- <20130604050744.GD14719@blaptop>
- <CAJd=RBAt9eSx3_FB79J93e19bv15sFry-mU6hkUYH80isULszw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id B53ED6B0031
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 04:05:49 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id w16so1457200pde.9
+        for <linux-mm@kvack.org>; Wed, 05 Jun 2013 01:05:49 -0700 (PDT)
+Date: Wed, 5 Jun 2013 01:05:45 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [patch -v4 4/8] memcg: enhance memcg iterator to support
+ predicates
+Message-ID: <20130605080545.GF7303@mtj.dyndns.org>
+References: <1370254735-13012-1-git-send-email-mhocko@suse.cz>
+ <1370254735-13012-5-git-send-email-mhocko@suse.cz>
+ <20130604010737.GF29989@mtj.dyndns.org>
+ <20130604134523.GH31242@dhcp22.suse.cz>
+ <20130604193619.GA14916@htj.dyndns.org>
+ <20130604204807.GA13231@dhcp22.suse.cz>
+ <20130604205426.GI14916@htj.dyndns.org>
+ <20130605073728.GC15997@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAJd=RBAt9eSx3_FB79J93e19bv15sFry-mU6hkUYH80isULszw@mail.gmail.com>
+In-Reply-To: <20130605073728.GC15997@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: Dave Hansen <dave@sr71.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de, tim.c.chen@linux.intel.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Glauber Costa <glommer@parallels.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>, Balbir Singh <bsingharora@gmail.com>
 
-On Wed, Jun 05, 2013 at 03:28:27PM +0800, Hillf Danton wrote:
-> On Tue, Jun 4, 2013 at 1:07 PM, Minchan Kim <minchan@kernel.org> wrote:
-> > On Tue, Jun 04, 2013 at 09:17:26AM +0800, Hillf Danton wrote:
-> >> On Tue, Jun 4, 2013 at 4:02 AM, Dave Hansen <dave@sr71.net> wrote:
-> >> > +/*
-> >> > + * pages come in here (via remove_list) locked and leave unlocked
-> >> > + * (on either ret_pages or free_pages)
-> >> > + *
-> >> > + * We do this batching so that we free batches of pages with a
-> >> > + * single mapping->tree_lock acquisition/release.  This optimization
-> >> > + * only makes sense when the pages on remove_list all share a
-> >> > + * page_mapping().  If this is violated you will BUG_ON().
-> >> > + */
-> >> > +static int __remove_mapping_batch(struct list_head *remove_list,
-> >> > +                                 struct list_head *ret_pages,
-> >> > +                                 struct list_head *free_pages)
-> >> > +{
-> >> > +       int nr_reclaimed = 0;
-> >> > +       struct address_space *mapping;
-> >> > +       struct page *page;
-> >> > +       LIST_HEAD(need_free_mapping);
-> >> > +
-> >> > +       if (list_empty(remove_list))
-> >> > +               return 0;
-> >> > +
-> >> > +       mapping = page_mapping(lru_to_page(remove_list));
-> >> > +       spin_lock_irq(&mapping->tree_lock);
-> >> > +       while (!list_empty(remove_list)) {
-> >> > +               page = lru_to_page(remove_list);
-> >> > +               BUG_ON(!PageLocked(page));
-> >> > +               BUG_ON(page_mapping(page) != mapping);
-> >> > +               list_del(&page->lru);
-> >> > +
-> >> > +               if (!__remove_mapping(mapping, page)) {
-> >> > +                       unlock_page(page);
-> >> > +                       list_add(&page->lru, ret_pages);
-> >> > +                       continue;
-> >> > +               }
-> >> > +               list_add(&page->lru, &need_free_mapping);
-> >> > +       }
-> >> > +       spin_unlock_irq(&mapping->tree_lock);
-> >> > +
-> >> While reclaiming pages, can we open ears upon IRQ controller,
-> >> if the page list length is over 10, or even 20?
-> >
-> > At the moment, it implicitly could be bounded by SWAP_CLUSTER_MAX and
+Hey, Michal.
+
+On Wed, Jun 05, 2013 at 09:37:28AM +0200, Michal Hocko wrote:
+> Tejun, I do not have infinite amount of time and this is barely a
+> priority for the patchset. The core part is to be able to skip
+> nodes/subtrees which are not worth reclaiming, remember?
+>
+> I have already expressed my priorities for inside skipping
+> decisions. You are just throwing "let's try a different way" handwavy
+> suggestions. I have no problem to pull the skip logic outside of
+> iterators if more people think that this is _really_ important. But
+> until then I take it as a really low priority that shouldn't delay the
+> patchset without a good reason.
 > 
-> Could we reclaim a THP currently?
+> So please try to focus on the technical parts of the patchset if you
+> want to help with the review. I really appreciate suggestions but please
+> do not get down to bike scheding.
 
-You mean that we could have (512 * SWAP_CLUSTER_MAX) pages in
-page_list as worst case?
-Yes but in that case, we drain batch_for_mapping_rm by [6/6] so
-THP page couldn't be a problem, IMO.
+Well, so, I know I've been pain in the ass but here's the thing.  I
+don't think you've been doing a good job of maintaining memcg.  Among
+the code pieces that I look at, it really ranks very close to the
+bottom in terms of readability and general messiness.  One of the core
+jobs of being a maintainer is ensuring the code stays in readable and
+maintainable state.
+
+Maybe memcg is really really really special and it does require the
+level of complication that you've been adding; however, I can't see
+that.  Not yet anyway.  What I see is a subsystem which is slurping in
+complexity without properly evaluating the benefits such complexity
+brings and its overhead.  Why do you have several archaic barrier
+dancings buried in memcg?  If you do really need them and yes I can
+see that you might need them, build proper abstractions and update
+code properly even if that takes more time because otherwise we'll end
+up with something which is painful to maintain, and you're never gonna
+get enough reviews and testing for the scary stuff you buried inside
+memcg.
+
+If you think I'm going overboard with the barrier stuff, what about
+the css and memcg refcnts?  memcg had and still has this layered
+refcnting, which is obviously bonkers if you just take one step back
+and look at it.  What about the css_id addition?  Why has memcg added
+so many fundamentally broken things to memcg itself and cgroup core?
+
+At this point, I'm fairly doubtful that memcg is being properly
+maintained and hope that someone else would take control of what code
+goes in.  You probably had all the good technical reasons when you
+were committing all those broken stuff.  I don't know why it's been
+going this way.  It almost feels like you can see the details but
+never the larger picture.
+
+So, yes, I agree this isn't the biggest technical point in the series
+and understand that you could be frustrated with me throwing in
+wrenches, but I think going a bit slower in itself could be helpful.
+Have you tried just implementing skipping interface?  Really, I'm
+almost sure it's gonna be much more readable than the predicate thing.
+
+Thanks.
 
 -- 
-Kind regards,
-Minchan Kim
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
