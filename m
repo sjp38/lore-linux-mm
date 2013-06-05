@@ -1,179 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 1C2606B0075
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 19:08:44 -0400 (EDT)
-Date: Wed, 5 Jun 2013 16:08:41 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v10 29/35] memcg: per-memcg kmem shrinking
-Message-Id: <20130605160841.909420c06bfde62039489d2e@linux-foundation.org>
-In-Reply-To: <1370287804-3481-30-git-send-email-glommer@openvz.org>
-References: <1370287804-3481-1-git-send-email-glommer@openvz.org>
-	<1370287804-3481-30-git-send-email-glommer@openvz.org>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 6B3B16B0080
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 19:08:46 -0400 (EDT)
+Date: Wed, 5 Jun 2013 19:08:44 -0400
+From: Luiz Capitulino <lcapitulino@redhat.com>
+Subject: Re: [PATCH] virtio_balloon: leak_balloon(): only tell host if we
+ got pages deflated
+Message-ID: <20130605190844.1e96bbde@redhat.com>
+In-Reply-To: <20130605212449.GB19617@optiplex.redhat.com>
+References: <20130605171031.7448deea@redhat.com>
+	<20130605212449.GB19617@optiplex.redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@openvz.org>
-Cc: linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>, Rik van Riel <riel@redhat.com>
+To: Rafael Aquini <aquini@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org
 
-On Mon,  3 Jun 2013 23:29:58 +0400 Glauber Costa <glommer@openvz.org> wrote:
+On Wed, 5 Jun 2013 18:24:49 -0300
+Rafael Aquini <aquini@redhat.com> wrote:
 
-> If the kernel limit is smaller than the user limit, we will have
-> situations in which our allocations fail but freeing user pages will buy
-> us nothing.  In those, we would like to call a specialized memcg
-> reclaimer that only frees kernel memory and leave the user memory alone.
-> Those are also expected to fail when we account memcg->kmem, instead of
-> when we account memcg->res. Based on that, this patch implements a
-> memcg-specific reclaimer, that only shrinks kernel objects, withouth
-> touching user pages.
+> On Wed, Jun 05, 2013 at 05:10:31PM -0400, Luiz Capitulino wrote:
+> > The balloon_page_dequeue() function can return NULL. If it does for
+> > the first page being freed, then leak_balloon() will create a
+> > scatter list with len=0. Which in turn seems to generate an invalid
+> > virtio request.
+> > 
+> > Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
+> > ---
+> > 
+> > PS: I didn't get this in practice. I found it by code review. On the other
+> >     hand, automatic-ballooning was able to put such invalid requests in
+> >     the virtqueue and QEMU would explode...
+> >
 > 
-> There might be situations in which there are plenty of objects to
-> shrink, but we can't do it because the __GFP_FS flag is not set.
-> Although they can happen with user pages, they are a lot more common
-> with fs-metadata: this is the case with almost all inode allocation.
+> Nice catch! The patch looks sane and replicates the check done at
+> fill_balloon(). I think we also could use this P.S. as a commentary 
+> to let others aware of this scenario. Thanks Luiz!
+
+Want me to respin?
+
+> Acked-by: Rafael Aquini <aquini@redhat.com>
+
+Thanks for your review!
+
 > 
-> Those allocations are, however, capable of waiting.  So we can just span
-
-"spawn"!
-
-> a worker, let it finish its job and proceed with the allocation. As slow
-> as it is, at this point we are already past any hopes anyway.
-
->
-> ...
->
-> + * If the kernel limit is smaller than the user limit, we will have situations
-> + * in which our allocations fail but freeing user pages will buy us nothing.
-> + * In those, we would like to call a specialized memcg reclaimer that only
-> + * frees kernel memory and leave the user memory alone.
-
-"leaves"
-
-> + * This test exists so we can differentiate between those. Everytime one of the
-
-"Every time"
-
-> + * limits is updated, we need to run it. The set_limit_mutex must be held, so
-> + * they don't change again.
-> + */
-> +static void memcg_update_shrink_status(struct mem_cgroup *memcg)
-> +{
-> +	mutex_lock(&set_limit_mutex);
-> +	if (res_counter_read_u64(&memcg->kmem, RES_LIMIT) <
-> +		res_counter_read_u64(&memcg->res, RES_LIMIT))
-> +		set_bit(KMEM_MAY_SHRINK, &memcg->kmem_account_flags);
-> +	else
-> +		clear_bit(KMEM_MAY_SHRINK, &memcg->kmem_account_flags);
-> +	mutex_unlock(&set_limit_mutex);
-> +}
-> +#else
-> +static void memcg_update_shrink_status(struct mem_cgroup *memcg)
-> +{
-> +}
->  #endif
 >  
->  /* Stuffs for move charges at task migration. */
-> @@ -3013,8 +3042,6 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
->  	memcg_check_events(memcg, page);
->  }
->  
-> -static DEFINE_MUTEX(set_limit_mutex);
-> -
->  #ifdef CONFIG_MEMCG_KMEM
->  static inline bool memcg_can_account_kmem(struct mem_cgroup *memcg)
->  {
-> @@ -3056,16 +3083,91 @@ static int mem_cgroup_slabinfo_read(struct cgroup *cont, struct cftype *cft,
->  }
->  #endif
->  
-> +/*
-> + * During the creation a new cache, we need to disable our accounting mechanism
-
-"creation of"
-
-> + * altogether. This is true even if we are not creating, but rather just
-> + * enqueing new caches to be created.
-> + *
-> + * This is because that process will trigger allocations; some visible, like
-> + * explicit kmallocs to auxiliary data structures, name strings and internal
-> + * cache structures; some well concealed, like INIT_WORK() that can allocate
-> + * objects during debug.
-> + *
-> + * If any allocation happens during memcg_kmem_get_cache, we will recurse back
-> + * to it. This may not be a bounded recursion: since the first cache creation
-> + * failed to complete (waiting on the allocation), we'll just try to create the
-> + * cache again, failing at the same point.
-> + *
-> + * memcg_kmem_get_cache is prepared to abort after seeing a positive count of
-> + * memcg_kmem_skip_account. So we enclose anything that might allocate memory
-> + * inside the following two functions.
-
-Please identify the type of caches we're talking about here.  slab
-caches?  inode/dentry/anything-whcih-hash-a-shrinker?
-
-(yes, these observations pertain to existing code)
-
-> + */
-> +static inline void memcg_stop_kmem_account(void)
-> +{
-> +	VM_BUG_ON(!current->mm);
-> +	current->memcg_kmem_skip_account++;
-> +}
-> +
-> +static inline void memcg_resume_kmem_account(void)
-> +{
-> +	VM_BUG_ON(!current->mm);
-> +	current->memcg_kmem_skip_account--;
-> +}
-> +
-> +static int memcg_try_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size)
-> +{
-> +	int retries = MEM_CGROUP_RECLAIM_RETRIES;
-> +	struct res_counter *fail_res;
-> +	int ret;
-> +
-> +	do {
-> +		ret = res_counter_charge(&memcg->kmem, size, &fail_res);
-> +		if (!ret)
-> +			return ret;
-> +
-> +		if (!(gfp & __GFP_WAIT))
-> +			return ret;
-> +
-> +		/*
-> +		 * We will try to shrink kernel memory present in caches. We
-> +		 * are sure that we can wait, so we will. The duration of our
-> +		 * wait is determined by congestion, the same way as vmscan.c
-> +		 *
-> +		 * If we are in FS context, though, then although we can wait,
-> +		 * we cannot call the shrinkers. Most fs shrinkers (which
-> +		 * comprises most of our kmem data) will not run without
-> +		 * __GFP_FS since they can deadlock. The solution is to
-> +		 * synchronously run that in a different context.
-
-But this is pointless.  Calling a function via a different thread and
-then waiting for it to complete is equivalent to calling it directly.
-
-> +		 */
-> +		if (!(gfp & __GFP_FS)) {
-> +			/*
-> +			 * we are already short on memory, every queue
-> +			 * allocation is likely to fail
-> +			 */
-> +			memcg_stop_kmem_account();
-> +			schedule_work(&memcg->kmemcg_shrink_work);
-> +			flush_work(&memcg->kmemcg_shrink_work);
-> +			memcg_resume_kmem_account();
-> +		} else
-> +			try_to_free_mem_cgroup_kmem(memcg, gfp);
-> +	} while (retries--);
-> +
-> +	return ret;
-> +}
->
-> ...
->
+> > PPS: Very lightly tested
+> >
+> >  drivers/virtio/virtio_balloon.c | 3 ++-
+> >  1 file changed, 2 insertions(+), 1 deletion(-)
+> > 
+> > diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+> > index bd3ae32..71af7b5 100644
+> > --- a/drivers/virtio/virtio_balloon.c
+> > +++ b/drivers/virtio/virtio_balloon.c
+> > @@ -191,7 +191,8 @@ static void leak_balloon(struct virtio_balloon *vb, size_t num)
+> >  	 * virtio_has_feature(vdev, VIRTIO_BALLOON_F_MUST_TELL_HOST);
+> >  	 * is true, we *have* to do it in this order
+> >  	 */
+> > -	tell_host(vb, vb->deflate_vq);
+> > +	if (vb->num_pfns != 0)
+> > +		tell_host(vb, vb->deflate_vq);
+> >  	mutex_unlock(&vb->balloon_lock);
+> >  	release_pages_by_pfn(vb->pfns, vb->num_pfns);
+> >  }
+> > -- 
+> > 1.8.1.4
+> > 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
