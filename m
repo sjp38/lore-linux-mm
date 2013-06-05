@@ -1,65 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 57A0E6B0031
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 17:24:55 -0400 (EDT)
-Date: Wed, 5 Jun 2013 18:24:49 -0300
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id C224C6B0031
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 17:34:06 -0400 (EDT)
+Date: Wed, 5 Jun 2013 18:33:52 -0300
 From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH] virtio_balloon: leak_balloon(): only tell host if we got
- pages deflated
-Message-ID: <20130605212449.GB19617@optiplex.redhat.com>
-References: <20130605171031.7448deea@redhat.com>
+Subject: Re: [PATCH 1/7] mm: remove ZONE_RECLAIM_LOCKED
+Message-ID: <20130605213351.GC19617@optiplex.redhat.com>
+References: <1370445037-24144-1-git-send-email-aarcange@redhat.com>
+ <1370445037-24144-2-git-send-email-aarcange@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130605171031.7448deea@redhat.com>
+In-Reply-To: <1370445037-24144-2-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luiz Capitulino <lcapitulino@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>
 
-On Wed, Jun 05, 2013 at 05:10:31PM -0400, Luiz Capitulino wrote:
-> The balloon_page_dequeue() function can return NULL. If it does for
-> the first page being freed, then leak_balloon() will create a
-> scatter list with len=0. Which in turn seems to generate an invalid
-> virtio request.
+On Wed, Jun 05, 2013 at 05:10:31PM +0200, Andrea Arcangeli wrote:
+> Zone reclaim locked breaks zone_reclaim_mode=1. If more than one
+> thread allocates memory at the same time, it forces a premature
+> allocation into remote NUMA nodes even when there's plenty of clean
+> cache to reclaim in the local nodes.
 > 
-> Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 > ---
-> 
-> PS: I didn't get this in practice. I found it by code review. On the other
->     hand, automatic-ballooning was able to put such invalid requests in
->     the virtqueue and QEMU would explode...
->
-
-Nice catch! The patch looks sane and replicates the check done at
-fill_balloon(). I think we also could use this P.S. as a commentary 
-to let others aware of this scenario. Thanks Luiz!
 
 Acked-by: Rafael Aquini <aquini@redhat.com>
 
- 
-> PPS: Very lightly tested
->
->  drivers/virtio/virtio_balloon.c | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
+
+>  include/linux/mmzone.h | 6 ------
+>  mm/vmscan.c            | 4 ----
+>  2 files changed, 10 deletions(-)
 > 
-> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-> index bd3ae32..71af7b5 100644
-> --- a/drivers/virtio/virtio_balloon.c
-> +++ b/drivers/virtio/virtio_balloon.c
-> @@ -191,7 +191,8 @@ static void leak_balloon(struct virtio_balloon *vb, size_t num)
->  	 * virtio_has_feature(vdev, VIRTIO_BALLOON_F_MUST_TELL_HOST);
->  	 * is true, we *have* to do it in this order
->  	 */
-> -	tell_host(vb, vb->deflate_vq);
-> +	if (vb->num_pfns != 0)
-> +		tell_host(vb, vb->deflate_vq);
->  	mutex_unlock(&vb->balloon_lock);
->  	release_pages_by_pfn(vb->pfns, vb->num_pfns);
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 5c76737..f23b080 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -490,7 +490,6 @@ struct zone {
+>  } ____cacheline_internodealigned_in_smp;
+>  
+>  typedef enum {
+> -	ZONE_RECLAIM_LOCKED,		/* prevents concurrent reclaim */
+>  	ZONE_OOM_LOCKED,		/* zone is in OOM killer zonelist */
+>  	ZONE_CONGESTED,			/* zone has many dirty pages backed by
+>  					 * a congested BDI
+> @@ -517,11 +516,6 @@ static inline int zone_is_reclaim_congested(const struct zone *zone)
+>  	return test_bit(ZONE_CONGESTED, &zone->flags);
 >  }
-> -- 
-> 1.8.1.4
-> 
+>  
+> -static inline int zone_is_reclaim_locked(const struct zone *zone)
+> -{
+> -	return test_bit(ZONE_RECLAIM_LOCKED, &zone->flags);
+> -}
+> -
+>  static inline int zone_is_oom_locked(const struct zone *zone)
+>  {
+>  	return test_bit(ZONE_OOM_LOCKED, &zone->flags);
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index fa6a853..cc5bb01 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -3424,11 +3424,7 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+>  	if (node_state(node_id, N_CPU) && node_id != numa_node_id())
+>  		return ZONE_RECLAIM_NOSCAN;
+>  
+> -	if (zone_test_and_set_flag(zone, ZONE_RECLAIM_LOCKED))
+> -		return ZONE_RECLAIM_NOSCAN;
+> -
+>  	ret = __zone_reclaim(zone, gfp_mask, order);
+> -	zone_clear_flag(zone, ZONE_RECLAIM_LOCKED);
+>  
+>  	if (!ret)
+>  		count_vm_event(PGSCAN_ZONE_RECLAIM_FAILED);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
