@@ -1,147 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 1BC126B0031
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 23:26:48 -0400 (EDT)
-Message-ID: <51AEAFD8.305@huawei.com>
-Date: Wed, 5 Jun 2013 11:26:16 +0800
-From: Jianguo Wu <wujianguo@huawei.com>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 11EB96B0031
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 02:40:19 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id w16so1373376pde.37
+        for <linux-mm@kvack.org>; Tue, 04 Jun 2013 23:40:19 -0700 (PDT)
+Date: Tue, 4 Jun 2013 23:40:16 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm, memcg: add oom killer delay
+In-Reply-To: <20130604095514.GC31242@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.02.1306042329320.20610@chino.kir.corp.google.com>
+References: <20130530150539.GA18155@dhcp22.suse.cz> <alpine.DEB.2.02.1305301338430.20389@chino.kir.corp.google.com> <20130531081052.GA32491@dhcp22.suse.cz> <alpine.DEB.2.02.1305310316210.27716@chino.kir.corp.google.com> <20130531112116.GC32491@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1305311224330.3434@chino.kir.corp.google.com> <20130601102058.GA19474@dhcp22.suse.cz> <alpine.DEB.2.02.1306031102480.7956@chino.kir.corp.google.com> <20130603193147.GC23659@dhcp22.suse.cz> <alpine.DEB.2.02.1306031411380.22083@chino.kir.corp.google.com>
+ <20130604095514.GC31242@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: Transparent Hugepage impact on memcpy
-References: <51ADAC15.1050103@huawei.com>
-In-Reply-To: <51ADAC15.1050103@huawei.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrea Arcangeli <aarcange@redhat.com>, qiuxishi <qiuxishi@huawei.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Hush Bensen <hush.bensen@gmail.com>, mitake@dcl.info.waseda.ac.jp
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-Hi,
-One more question, I wrote a memcpy test program, mostly the same as with perf bench memcpy.
-But test result isn't consistent with perf bench when THP is off.
+On Tue, 4 Jun 2013, Michal Hocko wrote:
 
-	my program				perf bench
-THP:	3.628368 GB/Sec (with prefault)		3.672879 GB/Sec (with prefault)
-NO-THP:	3.612743 GB/Sec (with prefault)		6.190187 GB/Sec (with prefault)
+> > I'm not sure a userspace oom notifier would want to keep a
+> > preallocated buffer around that is mlocked in memory for all possible
+> > lengths of this file.
+> 
+> Well, an oom handler which allocates memory under the same restricted
+> memory doesn't make much sense to me. Tracking all kmem allocations
+> makes it almost impossible to implement a non-trivial handler.
+> 
 
-Below is my code:
-	src = calloc(1, len);
-	dst = calloc(1, len);
+This isn't only about oom notifiers that reside in the same oom memcg, 
+they can be at a higher level or a different subtree entirely.  The point 
+is that they can be unresponsive either because userspace is flaky, its 
+oom itself, or we do track all slab.  The kernel is the only thing in the 
+position to fix the issue after a sensible user-defined amount of time has 
+elapsed, and that's what this patch is.
 
-	if (prefault)
-		memcpy(dst, src, len);
-	gettimeofday(&tv_start, NULL);
-	memcpy(dst, src, len);
-	gettimeofday(&tv_end, NULL);
+> OK, maybe I just wasn't clear enough or I am missing your point. Your
+> users _can_ implement and register their oom handlers. But as your
+> requirements are rather benevolent for handlers implementation you would
+> have a global watchdog which would sit on the oom_control of those
+> groups (which are allowed to have own handlers - all of them in your
+> case I guess) and trigger (user defined/global) timeout when it gets a
+> notification. If the group was under oom always during the timeout then
+> just disable oom_control until oom is settled (under_oom is 0).
+> 
+> Why wouldn't something like this work for your use case?
+> 
 
-	timersub(&tv_end, &tv_start, &tv_diff);
-	free(src);
-	free(dst);
+For the aforementioned reason that we give users the ability to manipulate 
+their own memcg trees and userspace is untrusted.  Their oom notifiers 
+cannot be run as root, not only because of security but also because it 
+would not properly isolate their memory usage to their memcg tree.
 
-	speed = (double)((double)len / timeval2double(&tv_diff));
-	print_bps(speed);
+> Hohmm, so you are insisting on something that can be implemented in the
+> userspace and put it into the kernel because it is more convenient for
+> you and your use case. This doesn't sound like a way for accepting a
+> feature.
+> 
 
-This is weird, is it possible that perf bench do some build optimize?
+I don't think you yet understand the problem, which is probably my fault.  
+I'm not insisting this be implemented in the kernel, I'm saying it's not 
+possible to do it in userspace.  Your idea of a timeout implemented in 
+userspace doesn't work in practice: userspace is both untrusted and cannot 
+be guaranteed to be perfect and always wakeup, get the information it does 
+according to its implementation, and issue a SIGKILL.
 
-Thansk,
-Jianguo Wu.
+This is the result of memcg allowing users to disable the oom killer 
+entirely for a memcg, which is still ridiculous, because if the user 
+doesn't respond then you've wasted all that memory and cannot get it back 
+without admin intervention or a reboot.  There are no other "features" in 
+the kernel that put such a responsibility on a userspace process such that 
+if it doesn't work then the entire memcg deadlocks forever without admin 
+intervention.  We need a failsafe in the kernel.
 
-On 2013/6/4 16:57, Jianguo Wu wrote:
+Real users like this cannot run as root, and we cannot run in the root 
+memcg without charging that memory usage to the user's container for that 
+share of a global resource.  Real users do have to tollerate buggy and 
+flaky userspace implementations that cannot be guaranteed to run or do 
+what they are supposed to do.  It's too costly of a problem to not address 
+with a failsafe.  I speak strictly from experience on this.
 
-> Hi all,
-> 
-> I tested memcpy with perf bench, and found that in prefault case, When Transparent Hugepage is on,
-> memcpy has worse performance.
-> 
-> When THP on is 3.672879 GB/Sec (with prefault), while THP off is 6.190187 GB/Sec (with prefault).
-> 
-> I think THP will improve performance, but the test result obviously not the case. 
-> Andrea mentioned THP cause "clear_page/copy_page less cache friendly" in
-> http://events.linuxfoundation.org/slides/2011/lfcs/lfcs2011_hpc_arcangeli.pdf.
-> 
-> I am not quite understand this, could you please give me some comments, Thanks!
-> 
-> I test in Linux-3.4-stable, and my machine info is:
-> Intel(R) Xeon(R) CPU           E5520  @ 2.27GHz
-> 
-> available: 2 nodes (0-1)
-> node 0 cpus: 0 1 2 3 8 9 10 11
-> node 0 size: 24567 MB
-> node 0 free: 23550 MB
-> node 1 cpus: 4 5 6 7 12 13 14 15
-> node 1 size: 24576 MB
-> node 1 free: 23767 MB
-> node distances:
-> node   0   1 
->   0:  10  20 
->   1:  20  10
-> 
-> Below is test result:
-> ---with THP---
-> #cat /sys/kernel/mm/transparent_hugepage/enabled
-> [always] madvise never
-> #./perf bench mem memcpy -l 1gb -o
-> # Running mem/memcpy benchmark...
-> # Copying 1gb Bytes ...
-> 
->        3.672879 GB/Sec (with prefault)
-> 
-> #./perf stat ...
-> Performance counter stats for './perf bench mem memcpy -l 1gb -o':
-> 
->           35455940 cache-misses              #   53.504 % of all cache refs     [49.45%]
->           66267785 cache-references                                             [49.78%]
->               2409 page-faults                                                 
->          450768651 dTLB-loads
->                                                   [50.78%]
->              24580 dTLB-misses
->               #    0.01% of all dTLB cache hits  [51.01%]
->         1338974202 dTLB-stores
->                                                  [50.63%]
->              77943 dTLB-misses
->                                                  [50.24%]
->          697404997 iTLB-loads
->                                                   [49.77%]
->                274 iTLB-misses
->               #    0.00% of all iTLB cache hits  [49.30%]
-> 
->        0.855041819 seconds time elapsed
-> 
-> ---no THP---
-> #cat /sys/kernel/mm/transparent_hugepage/enabled
-> always madvise [never]
-> 
-> #./perf bench mem memcpy -l 1gb -o
-> # Running mem/memcpy benchmark...
-> # Copying 1gb Bytes ...
-> 
->        6.190187 GB/Sec (with prefault)
-> 
-> #./perf stat ...
-> Performance counter stats for './perf bench mem memcpy -l 1gb -o':
-> 
->           16920763 cache-misses              #   98.377 % of all cache refs     [50.01%]
->           17200000 cache-references                                             [50.04%]
->             524652 page-faults                                                 
->          734365659 dTLB-loads
->                                                   [50.04%]
->            4986387 dTLB-misses
->               #    0.68% of all dTLB cache hits  [50.04%]
->         1013408298 dTLB-stores
->                                                  [50.04%]
->            8180817 dTLB-misses
->                                                  [49.97%]
->         1526642351 iTLB-loads
->                                                   [50.41%]
->                 56 iTLB-misses
->               #    0.00% of all iTLB cache hits  [50.21%]
-> 
->        1.025425847 seconds time elapsed
-> 
-> Thanks,
-> Jianguo Wu.
+> And yes we should make memcg oom handling less deadlock prone and
+> Johannes' work in this thread is a good step forward.
 
-
+The long-term solution to that, which I already have patches for, is 
+something you would cringe even more at: memcg memory reserves that are 
+shared with per-zone memory reserves that get the global oom killer to 
+kill off that process without notification in the case the memcg memory 
+reserves cause a global oom.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
