@@ -1,75 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 6B3B16B0080
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 19:08:46 -0400 (EDT)
-Date: Wed, 5 Jun 2013 19:08:44 -0400
-From: Luiz Capitulino <lcapitulino@redhat.com>
-Subject: Re: [PATCH] virtio_balloon: leak_balloon(): only tell host if we
- got pages deflated
-Message-ID: <20130605190844.1e96bbde@redhat.com>
-In-Reply-To: <20130605212449.GB19617@optiplex.redhat.com>
-References: <20130605171031.7448deea@redhat.com>
-	<20130605212449.GB19617@optiplex.redhat.com>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id A2E6F6B0080
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 19:08:48 -0400 (EDT)
+Date: Wed, 5 Jun 2013 16:08:46 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v10 30/35] memcg: scan cache objects hierarchically
+Message-Id: <20130605160846.3b91290652d555a2a19aa6af@linux-foundation.org>
+In-Reply-To: <1370287804-3481-31-git-send-email-glommer@openvz.org>
+References: <1370287804-3481-1-git-send-email-glommer@openvz.org>
+	<1370287804-3481-31-git-send-email-glommer@openvz.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org
+To: Glauber Costa <glommer@openvz.org>
+Cc: linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>, Rik van Riel <riel@redhat.com>
 
-On Wed, 5 Jun 2013 18:24:49 -0300
-Rafael Aquini <aquini@redhat.com> wrote:
+On Mon,  3 Jun 2013 23:29:59 +0400 Glauber Costa <glommer@openvz.org> wrote:
 
-> On Wed, Jun 05, 2013 at 05:10:31PM -0400, Luiz Capitulino wrote:
-> > The balloon_page_dequeue() function can return NULL. If it does for
-> > the first page being freed, then leak_balloon() will create a
-> > scatter list with len=0. Which in turn seems to generate an invalid
-> > virtio request.
-> > 
-> > Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
-> > ---
-> > 
-> > PS: I didn't get this in practice. I found it by code review. On the other
-> >     hand, automatic-ballooning was able to put such invalid requests in
-> >     the virtqueue and QEMU would explode...
-> >
+> When reaching shrink_slab, we should descent in children memcg searching
+
+"descend into child memcgs"
+
+> for objects that could be shrunk. This is true even if the memcg does
+
+"can be"
+
+> not have kmem limits on, since the kmem res_counter will also be billed
+> against the user res_counter of the parent.
 > 
-> Nice catch! The patch looks sane and replicates the check done at
-> fill_balloon(). I think we also could use this P.S. as a commentary 
-> to let others aware of this scenario. Thanks Luiz!
-
-Want me to respin?
-
-> Acked-by: Rafael Aquini <aquini@redhat.com>
-
-Thanks for your review!
-
+> It is possible that we will free objects and not free any pages, that
+> will just harm the child groups without helping the parent group at all.
+> But at this point, we basically are prepared to pay the price.
 > 
->  
-> > PPS: Very lightly tested
-> >
-> >  drivers/virtio/virtio_balloon.c | 3 ++-
-> >  1 file changed, 2 insertions(+), 1 deletion(-)
-> > 
-> > diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-> > index bd3ae32..71af7b5 100644
-> > --- a/drivers/virtio/virtio_balloon.c
-> > +++ b/drivers/virtio/virtio_balloon.c
-> > @@ -191,7 +191,8 @@ static void leak_balloon(struct virtio_balloon *vb, size_t num)
-> >  	 * virtio_has_feature(vdev, VIRTIO_BALLOON_F_MUST_TELL_HOST);
-> >  	 * is true, we *have* to do it in this order
-> >  	 */
-> > -	tell_host(vb, vb->deflate_vq);
-> > +	if (vb->num_pfns != 0)
-> > +		tell_host(vb, vb->deflate_vq);
-> >  	mutex_unlock(&vb->balloon_lock);
-> >  	release_pages_by_pfn(vb->pfns, vb->num_pfns);
-> >  }
-> > -- 
-> > 1.8.1.4
-> > 
-> 
+> ...
+>
+>  #ifdef CONFIG_MEMCG_KMEM
+> +bool memcg_kmem_should_reclaim(struct mem_cgroup *memcg)
+> +{
+> +	struct mem_cgroup *iter;
+> +
+> +	for_each_mem_cgroup_tree(iter, memcg) {
+> +		if (memcg_kmem_is_active(iter)) {
+> +			mem_cgroup_iter_break(memcg, iter);
+> +			return true;
+> +		}
+> +	}
+> +	return false;
+> +}
+
+Locking requirements for this function?  Perhaps the
+for_each_mem_cgroup_tree() definition site would be an appropriate
+place to document this.
+
+>  static inline bool memcg_can_account_kmem(struct mem_cgroup *memcg)
+>  {
+>  	return !mem_cgroup_disabled() && !mem_cgroup_is_root(memcg) &&
+>
+> ...
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
