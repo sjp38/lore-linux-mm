@@ -1,63 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 6FBC66B0031
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 05:56:32 -0400 (EDT)
-Date: Wed, 5 Jun 2013 11:56:30 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: Handling NUMA page migration
-Message-ID: <20130605095630.GL15997@dhcp22.suse.cz>
-References: <201306040922.10235.frank.mehnert@oracle.com>
- <201306051034.19959.frank.mehnert@oracle.com>
- <20130605091048.GI15997@dhcp22.suse.cz>
- <201306051132.15788.frank.mehnert@oracle.com>
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id BF4CD6B0033
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 06:04:44 -0400 (EDT)
+Date: Wed, 5 Jun 2013 12:04:39 +0200 (CEST)
+From: =?ISO-8859-15?Q?Luk=E1=A8_Czerner?= <lczerner@redhat.com>
+Subject: Re: [PATCH v4 20/20] ext4: Allow punch hole with bigalloc enabled
+In-Reply-To: <20130531151454.GB19561@thunk.org>
+Message-ID: <alpine.LFD.2.03.1306051203310.2912@redhat.com>
+References: <1368549454-8930-1-git-send-email-lczerner@redhat.com> <1368549454-8930-21-git-send-email-lczerner@redhat.com> <20130531151454.GB19561@thunk.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201306051132.15788.frank.mehnert@oracle.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Frank Mehnert <frank.mehnert@oracle.com>
-Cc: Robin Holt <holt@sgi.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, akpm@linux-foundation.org, hughd@google.com
 
-On Wed 05-06-13 11:32:15, Frank Mehnert wrote:
-[...]
-> Thank you very much for your help. As I said, this problem happens _only_
-> with NUMA_BALANCING enabled. I understand that you treat the VirtualBox
-> code as untrusted but the reason for the problem is that some assumption
-> is obviously not met: The VirtualBox code assumes that the memory it
-> allocates using case A and case B is
+On Fri, 31 May 2013, Theodore Ts'o wrote:
+
+> Date: Fri, 31 May 2013 11:14:54 -0400
+> From: Theodore Ts'o <tytso@mit.edu>
+> To: Lukas Czerner <lczerner@redhat.com>
+> Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+>     linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org,
+>     akpm@linux-foundation.org, hughd@google.com
+> Subject: Re: [PATCH v4 20/20] ext4: Allow punch hole with bigalloc enabled
 > 
->  1. always present and
->  2. will always be backed by the same phyiscal memory
+> On Tue, May 14, 2013 at 06:37:34PM +0200, Lukas Czerner wrote:
+> > In commits 5f95d21fb6f2aaa52830e5b7fb405f6c71d3ab85 and
+> > 30bc2ec9598a1b156ad75217f2e7d4560efdeeab we've reworked punch_hole
+> > implementation and there is noting holding us back from using punch hole
+> > on file system with bigalloc feature enabled.
+> > 
+> > This has been tested with fsx and xfstests.
+> > 
+> > Signed-off-by: Lukas Czerner <lczerner@redhat.com>
+> > Reviewed-by: Jan Kara <jack@suse.cz>
 > 
-> over the entire life time. Enabling NUMA_BALANCING seems to make this
-> assumption false. I only want to know why.
+> This patch is causing a test failure with bigalloc enabled with the
+> xfstests shared/298.
+> 
+> Since it's at the end of the invalidate page range tests, I'm going to
+> drop this patch for now.  Could you take a look at this?
 
-As I said earlier. Both the manual node migration and numa_fault handler
-do not migrate pages with elevated ref count (your A case) and pages
-that are not on the LRU. So if your Referenced pages might be on the LRU
-then you probably have to look into numamigrate_isolate_page and do an
-exception for PageReserved pages. But I am a bit suspicious this is the
-cause because the reclaim doesn't consider PageReserved pages either so
-they could get reclaimed. Or maybe you have handled that path in your
-kernel.
+Hi Ted,
 
-Or the other option is that you depend on a timing or something like
-that which doesn't hold anymore. That would be hard to debug though.
- 
-> I see, you don't believe me. I will add more code to the kernel logging
-> which pages were migrated.
+sorry for the delay, I've been on vacation last week so I am trying
+to catch on the recent development :) I'll take a look at it
+hopefully this week. Thanks for letting me know.
 
-Simple test for PageReserved flag in numamigrate_isolate_page should
-tell you more.
+-Lukas
 
-This would cover the migration part. Another potential problem could be
-that the page might get unmapped and marked for the numa fault (see
-do_numa_page). So maybe your code just assumes that the page even
-doesn't get unmapped?
--- 
-Michal Hocko
-SUSE Labs
+> 
+> Thanks!!
+> 
+> 					- Ted
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-ext4" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
