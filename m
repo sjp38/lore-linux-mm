@@ -1,93 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 3C8AE6B0031
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 17:17:33 -0400 (EDT)
-Date: Wed, 5 Jun 2013 17:17:04 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 3/3] memcg: simplify mem_cgroup_reclaim_iter
-Message-ID: <20130605211704.GJ15721@cmpxchg.org>
-References: <20130604131843.GF31242@dhcp22.suse.cz>
- <20130604205025.GG14916@htj.dyndns.org>
- <20130604212808.GB13231@dhcp22.suse.cz>
- <20130604215535.GM14916@htj.dyndns.org>
- <20130605073023.GB15997@dhcp22.suse.cz>
- <20130605082023.GG7303@mtj.dyndns.org>
- <20130605143949.GQ15576@cmpxchg.org>
- <20130605172212.GA10693@mtj.dyndns.org>
- <20130605194552.GI15721@cmpxchg.org>
- <20130605200612.GH10693@mtj.dyndns.org>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 57A0E6B0031
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 17:24:55 -0400 (EDT)
+Date: Wed, 5 Jun 2013 18:24:49 -0300
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: [PATCH] virtio_balloon: leak_balloon(): only tell host if we got
+ pages deflated
+Message-ID: <20130605212449.GB19617@optiplex.redhat.com>
+References: <20130605171031.7448deea@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130605200612.GH10693@mtj.dyndns.org>
+In-Reply-To: <20130605171031.7448deea@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Michal Hocko <mhocko@suse.cz>, bsingharora@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org, lizefan@huawei.com
+To: Luiz Capitulino <lcapitulino@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org
 
-Hi Tejun,
-
-On Wed, Jun 05, 2013 at 01:06:12PM -0700, Tejun Heo wrote:
-> On Wed, Jun 05, 2013 at 03:45:52PM -0400, Johannes Weiner wrote:
-> > I'm not sure what you are suggesting.  Synchroneously invalidate every
-> > individual iterator upwards the hierarchy every time a cgroup is
-> > destroyed?
+On Wed, Jun 05, 2013 at 05:10:31PM -0400, Luiz Capitulino wrote:
+> The balloon_page_dequeue() function can return NULL. If it does for
+> the first page being freed, then leak_balloon() will create a
+> scatter list with len=0. Which in turn seems to generate an invalid
+> virtio request.
 > 
-> Yeap.
-
-> > As I said, the weak pointers are only a few lines of code that can be
-> > neatly self-contained (see the invalidate, load, store functions
-> > below).  Please convince me that your alternative solution will save
-> > complexity to such an extent that either the memory waste of
-> > indefinite css pinning, or the computational overhead of non-lazy
-> > iterator cleanup, is justifiable.
+> Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
+> ---
 > 
-> The biggest issue I see with the weak pointer is that it's special and
-> tricky.  If this is something which is absolutely necessary, it should
-> be somewhere more generic.  Also, if we can use the usual RCU deref
-> with O(depth) cleanup in the cold path, I don't see how this deviation
-> is justifiable.
+> PS: I didn't get this in practice. I found it by code review. On the other
+>     hand, automatic-ballooning was able to put such invalid requests in
+>     the virtqueue and QEMU would explode...
 >
-> For people who've been looking at it for long enough, it probably
-> isn't that different from using plain RCU but that's just because that
-> person has spent the time to build that pattern into his/her brain.
-> We now have a lot of people accustomed to plain RCU usages which in
-> itself is tricky already and introducing new constructs is actively
-> deterimental to maintainability.  We sure can do that when there's no
-> alternative but I don't think avoiding synchronous cleanup on cgroup
-> destruction path is a good enough reason.  It feels like an
-> over-engineering to me.
+
+Nice catch! The patch looks sane and replicates the check done at
+fill_balloon(). I think we also could use this P.S. as a commentary 
+to let others aware of this scenario. Thanks Luiz!
+
+Acked-by: Rafael Aquini <aquini@redhat.com>
+
+ 
+> PPS: Very lightly tested
 >
-> Another thing is that this matters the most when there are continuous
-> creation and destruction of cgroups and the weak pointer
-> implementation would keep resetting the iteration to the beginning.
-> Depending on timing, it'd be able to live-lock reclaim cursor to the
-> beginning of iteration even with fairly low rate of destruction,
-> right?  It can be pretty bad high up the tree.  With synchronous
-> cleanup, depending on how it's implemented, it can be made to keep the
-> iteration position.
-
-That could be an advantage, yes.  But keep in mind that every
-destruction has to perform this invalidation operation against the
-global root_mem_cgroup's nr_node * nr_zone * nr_priority_levels
-iterators, so you can't muck around forever, while possibly holding a
-lock at this level.  It's not a hot path, but you don't want to turn
-it into one, either.
-
-The upshot for me is this: whether you do long-term pinning or greedy
-iterator invalidation, the cost of cgroup destruction increases.
-Either in terms of memory usage or in terms of compute time.  I would
-have loved to see something as simple as the long-term pinning work
-out in practice, because it truly would have been simpler.  But at
-this point, I don't really care much because the projected margins of
-reduction in complexity and increase of cost from your proposal are
-too small for me to feel strongly about one solution or the other, or
-go ahead and write the code.  I'll look at your patches, though ;-)
-
-Either way, I'll prepare the patch set that includes the barrier fix
-and a small cleanup to make the weak pointer management more
-palatable.  I'm still open to code proposals, so don't let it distract
-you, but we might as well make it a bit more readable in the meantime.
+>  drivers/virtio/virtio_balloon.c | 3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+> index bd3ae32..71af7b5 100644
+> --- a/drivers/virtio/virtio_balloon.c
+> +++ b/drivers/virtio/virtio_balloon.c
+> @@ -191,7 +191,8 @@ static void leak_balloon(struct virtio_balloon *vb, size_t num)
+>  	 * virtio_has_feature(vdev, VIRTIO_BALLOON_F_MUST_TELL_HOST);
+>  	 * is true, we *have* to do it in this order
+>  	 */
+> -	tell_host(vb, vb->deflate_vq);
+> +	if (vb->num_pfns != 0)
+> +		tell_host(vb, vb->deflate_vq);
+>  	mutex_unlock(&vb->balloon_lock);
+>  	release_pages_by_pfn(vb->pfns, vb->num_pfns);
+>  }
+> -- 
+> 1.8.1.4
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
