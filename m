@@ -1,107 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id C58696B0034
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 04:56:32 -0400 (EDT)
-From: Frank Mehnert <frank.mehnert@oracle.com>
-Subject: Re: Handling NUMA page migration
-Date: Wed, 5 Jun 2013 10:56:22 +0200
-References: <201306040922.10235.frank.mehnert@oracle.com> <20130605075454.GD15997@dhcp22.suse.cz> <201306051034.19959.frank.mehnert@oracle.com>
-In-Reply-To: <201306051034.19959.frank.mehnert@oracle.com>
+Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
+	by kanga.kvack.org (Postfix) with SMTP id D479D6B0034
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 04:58:53 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id wp1so858536pac.3
+        for <linux-mm@kvack.org>; Wed, 05 Jun 2013 01:58:53 -0700 (PDT)
+Date: Wed, 5 Jun 2013 01:58:49 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [patch -v4 4/8] memcg: enhance memcg iterator to support
+ predicates
+Message-ID: <20130605085849.GB7990@mtj.dyndns.org>
+References: <1370254735-13012-1-git-send-email-mhocko@suse.cz>
+ <1370254735-13012-5-git-send-email-mhocko@suse.cz>
+ <20130604010737.GF29989@mtj.dyndns.org>
+ <20130604134523.GH31242@dhcp22.suse.cz>
+ <20130604193619.GA14916@htj.dyndns.org>
+ <20130604204807.GA13231@dhcp22.suse.cz>
+ <20130604205426.GI14916@htj.dyndns.org>
+ <20130605073728.GC15997@dhcp22.suse.cz>
+ <20130605080545.GF7303@mtj.dyndns.org>
+ <20130605085239.GF15997@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: multipart/signed;
-  boundary="nextPart25383825.ZHbH6Qegqm";
-  protocol="application/pgp-signature";
-  micalg=pgp-sha1
-Content-Transfer-Encoding: 7bit
-Message-Id: <201306051056.22716.frank.mehnert@oracle.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130605085239.GF15997@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: Robin Holt <holt@sgi.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Glauber Costa <glommer@parallels.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>, Balbir Singh <bsingharora@gmail.com>
 
---nextPart25383825.ZHbH6Qegqm
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+Hey, Michal.
 
-On Wednesday 05 June 2013 10:34:13 Frank Mehnert wrote:
-> On Wednesday 05 June 2013 09:54:54 Michal Hocko wrote:
-> > On Tue 04-06-13 23:54:45, Frank Mehnert wrote:
-> > > On Tuesday 04 June 2013 20:17:02 Frank Mehnert wrote:
-> > > > On Tuesday 04 June 2013 16:02:30 Michal Hocko wrote:
-> > > > > On Tue 04-06-13 14:14:45, Frank Mehnert wrote:
-> > > > > > On Tuesday 04 June 2013 13:58:07 Robin Holt wrote:
-> > > > > > > This is probably more appropriate to be directed at the
-> > > > > > > linux-mm mailing list.
-> > > > > > >=20
-> > > > > > > On Tue, Jun 04, 2013 at 09:22:10AM +0200, Frank Mehnert wrote:
-> > > > > > > > Hi,
-> > > > > > > >=20
-> > > > > > > > our memory management on Linux hosts conflicts with NUMA pa=
-ge
-> > > > > > > > migration. I assume this problem existed for a longer time
-> > > > > > > > but Linux 3.8 introduced automatic NUMA page balancing which
-> > > > > > > > makes the problem visible on multi-node hosts leading to
-> > > > > > > > kernel oopses.
-> > > > > > > >=20
-> > > > > > > > NUMA page migration means that the physical address of a pa=
-ge
-> > > > > > > > changes. This is fatal if the application assumes that this
-> > > > > > > > never happens for that page as it was supposed to be pinned.
-> > > > > > > >=20
-> > > > > > > > We have two kind of pinned memory:
+On Wed, Jun 05, 2013 at 10:52:39AM +0200, Michal Hocko wrote:
+> > One of the core jobs of being a maintainer is ensuring the code stays
+> > in readable and maintainable state.
+> 
+> As you might know I am playing the maintainer role for around year and a
+> half and there were many improvemtns merged since then (and some faults
+> as well of course).
+> There is a lot of space for improvements and I work at areas as time
+> permits focusing more at reviews for other people are willing to do.
 
-Just to repeat it for reference:
+I see.  Yeah, maybe I was attributing too many things to you.  Sorry
+about that.
 
-A) 1. allocate memory in userland with mmap()
-   2. madvise(MADV_DONTFORK)
-   3. pin with get_user_pages().
-   4. flush dcache_page()
-   5. vm_flags |=3D (VM_DONTCOPY | VM_LOCKED)
-      (resulting flags are VM_MIXEDMAP | VM_DONTDUMP | VM_DONTEXPAND |
-       VM_DONTCOPY | VM_LOCKED | 0xff)
+> [...]
+> 
+> Please stop distracting from the main purpose of this discussion with
+> side tracks and personal things.
 
-B) 1. allocate memory with alloc_pages()
-   2. SetPageReserved()
-   3. vm_mmap() to allocate a userspace mapping
-   4. vm_insert_page()
-   5. vm_flags |=3D (VM_DONTEXPAND | VM_DONTDUMP)
-      (resulting flags are VM_MIXEDMAP | VM_DONTDUMP | VM_DONTEXPAND | 0xff)
+I'm not really trying to distract you.  I suppose my points are.
 
-The frequent case is B.
+* Let's please pay more attention to each change which goes in.
 
-I've just disabled CONFIG_TRANSPARENT_HUGEPAGE for testing purposes and
-the Oops is still triggered when running my testcase.
+* Let's prioritize cleanups over new features because, whatever the
+  history, memcg needs quite some cleanups.
 
-Thanks,
+I really don't have personal vandetta against you.  I'm mostly just
+very frustrated about memcg.  Maybe you're too.
 
-=46rank
-=2D-=20
-Dr.-Ing. Frank Mehnert | Software Development Director, VirtualBox
-ORACLE Deutschland B.V. & Co. KG | Werkstr. 24 | 71384 Weinstadt, Germany
+Anyways, so you aren't gonna try the skipping thing?
 
-Hauptverwaltung: Riesstr. 25, D-80992 M=FCnchen
-Registergericht: Amtsgericht M=FCnchen, HRA 95603
-Gesch=E4ftsf=FChrer: J=FCrgen Kunz
+Thanks.
 
-Komplement=E4rin: ORACLE Deutschland Verwaltung B.V.
-Hertogswetering 163/167, 3543 AS Utrecht, Niederlande
-Handelsregister der Handelskammer Midden-Niederlande, Nr. 30143697
-Gesch=E4ftsf=FChrer: Alexander van der Ven, Astrid Kepper, Val Maher
-
---nextPart25383825.ZHbH6Qegqm
-Content-Type: application/pgp-signature; name=signature.asc 
-Content-Description: This is a digitally signed message part.
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.20 (GNU/Linux)
-
-iEYEABECAAYFAlGu/TYACgkQ6z8pigLf3EfSHQCfegpVhzfJlHNzLka5jaPxcyQ8
-snsAn3m5QLi6aQ2TC61723ktVN4NqGWJ
-=G1tK
------END PGP SIGNATURE-----
-
---nextPart25383825.ZHbH6Qegqm--
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
