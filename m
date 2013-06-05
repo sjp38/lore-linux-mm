@@ -1,71 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id B5F476B0031
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 03:30:26 -0400 (EDT)
-Date: Wed, 5 Jun 2013 09:30:23 +0200
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 03E306B0031
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 03:37:30 -0400 (EDT)
+Date: Wed, 5 Jun 2013 09:37:28 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 3/3] memcg: simplify mem_cgroup_reclaim_iter
-Message-ID: <20130605073023.GB15997@dhcp22.suse.cz>
-References: <1370306679-13129-1-git-send-email-tj@kernel.org>
- <1370306679-13129-4-git-send-email-tj@kernel.org>
- <20130604131843.GF31242@dhcp22.suse.cz>
- <20130604205025.GG14916@htj.dyndns.org>
- <20130604212808.GB13231@dhcp22.suse.cz>
- <20130604215535.GM14916@htj.dyndns.org>
+Subject: Re: [patch -v4 4/8] memcg: enhance memcg iterator to support
+ predicates
+Message-ID: <20130605073728.GC15997@dhcp22.suse.cz>
+References: <1370254735-13012-1-git-send-email-mhocko@suse.cz>
+ <1370254735-13012-5-git-send-email-mhocko@suse.cz>
+ <20130604010737.GF29989@mtj.dyndns.org>
+ <20130604134523.GH31242@dhcp22.suse.cz>
+ <20130604193619.GA14916@htj.dyndns.org>
+ <20130604204807.GA13231@dhcp22.suse.cz>
+ <20130604205426.GI14916@htj.dyndns.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130604215535.GM14916@htj.dyndns.org>
+In-Reply-To: <20130604205426.GI14916@htj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tejun Heo <tj@kernel.org>
-Cc: hannes@cmpxchg.org, bsingharora@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org, lizefan@huawei.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Glauber Costa <glommer@parallels.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>, Balbir Singh <bsingharora@gmail.com>
 
-On Tue 04-06-13 14:55:35, Tejun Heo wrote:
-> Hello, Michal.
+On Tue 04-06-13 13:54:26, Tejun Heo wrote:
+> Hey,
 > 
-> On Tue, Jun 04, 2013 at 11:28:08PM +0200, Michal Hocko wrote:
-> > Well, I do not mind pinning when I know that somebody releases the
-> > reference in a predictable future (ideally almost immediately). But the
-> > cached iter represents time unbounded pinning because nobody can
-> > guarantee that priority 3 at zone Normal at node 3 will be ever scanned
-> > again and the pointer in the last_visited node will be stuck there for
+> On Tue, Jun 04, 2013 at 10:48:07PM +0200, Michal Hocko wrote:
+> > > I really don't think memcg can afford to add more mess than there
+> > > already is.  Let's try to get things right with each change, please.
+> > 
+> > Is this really about inside vs. outside skipping? I think this is a
+> > general improvement to the code. I really prefer not duplicating common
+> > code and skipping handling is such a code (we have a visitor which can
+> > control the walk). With a side bonus that it doesn't have to pollute
+> > vmscan more than necessary.
+> > 
+> > Please be more specific about _what_ is so ugly about this interface so
+> > that it matters so much.
 > 
-> I don't really get that.  As long as the amount is bound and the
-> overhead negligible / acceptable, why does it matter how long the
-> pinning persists? 
+> Can you please try the other approach and see how it looks? 
 
-Because the amount is not bound either. Just create a hierarchy and
-trigger the hard limit and if you are careful enough you can always keep
-some of the children in the cached pointer (with css reference, if you
-will) and then release the hierarchy. You can do that repeatedly and
-leak considerable amount of memory.
+Tejun, I do not have infinite amount of time and this is barely a
+priority for the patchset. The core part is to be able to skip
+nodes/subtrees which are not worth reclaiming, remember?
 
-> We aren't talking about something gigantic or can
+I have already expressed my priorities for inside skipping
+decisions. You are just throwing "let's try a different way" handwavy
+suggestions. I have no problem to pull the skip logic outside of
+iterators if more people think that this is _really_ important. But
+until then I take it as a really low priority that shouldn't delay the
+patchset without a good reason.
 
-mem_cgroup is 888B now (depending on configuration). So I wouldn't call
-it negligible.
-
-> leak continuously.  It will only matter iff cgroups are continuously
-> created and destroyed and each live memcg will be able to pin one
-> memcg (BTW, I think I forgot to unpin on memcg destruction).
-> 
-> > eternity. Can we free memcg with only css elevated and safely check that
-> > the cached pointer can be used without similar dances we have now?
-> > I am open to any suggestions.
-> 
-> I really think this is worrying too much about something which doesn't
-> really matter and then coming up with an over-engineered solution for
-> the imagined problem.  This isn't a real problem.  No solution is
-> necessary.
-> 
-> In the off chance that this is a real problem, which I strongly doubt,
-> as I wrote to Johannes, we can implement extremely dumb cleanup
-> routine rather than this weak reference beast.
-
-That was my first version (https://lkml.org/lkml/2013/1/3/298) and
-Johannes didn't like. To be honest I do not care _much_ which way we go
-but we definitely cannot pin those objects for ever.
+So please try to focus on the technical parts of the patchset if you
+want to help with the review. I really appreciate suggestions but please
+do not get down to bike scheding.
 
 -- 
 Michal Hocko
