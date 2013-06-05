@@ -1,134 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 929426B0031
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 22:50:07 -0400 (EDT)
-Message-ID: <51AEA72B.5070707@huawei.com>
-Date: Wed, 5 Jun 2013 10:49:15 +0800
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 1BC126B0031
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2013 23:26:48 -0400 (EDT)
+Message-ID: <51AEAFD8.305@huawei.com>
+Date: Wed, 5 Jun 2013 11:26:16 +0800
 From: Jianguo Wu <wujianguo@huawei.com>
 MIME-Version: 1.0
 Subject: Re: Transparent Hugepage impact on memcpy
-References: <51ADAC15.1050103@huawei.com> <20130604123050.GA32707@hacker.(null)> <20130604202017.GJ3463@redhat.com>
-In-Reply-To: <20130604202017.GJ3463@redhat.com>
+References: <51ADAC15.1050103@huawei.com>
+In-Reply-To: <51ADAC15.1050103@huawei.com>
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-mm@kvack.org, qiuxishi <qiuxishi@huawei.com>, Hush Bensen <hush.bensen@gmail.com>
+To: linux-mm@kvack.org
+Cc: Andrea Arcangeli <aarcange@redhat.com>, qiuxishi <qiuxishi@huawei.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Hush Bensen <hush.bensen@gmail.com>, mitake@dcl.info.waseda.ac.jp
 
-Hi Andrea,
+Hi,
+One more question, I wrote a memcpy test program, mostly the same as with perf bench memcpy.
+But test result isn't consistent with perf bench when THP is off.
 
-Thanks for your patient explanation:). Please see below.
+	my program				perf bench
+THP:	3.628368 GB/Sec (with prefault)		3.672879 GB/Sec (with prefault)
+NO-THP:	3.612743 GB/Sec (with prefault)		6.190187 GB/Sec (with prefault)
 
-On 2013/6/5 4:20, Andrea Arcangeli wrote:
+Below is my code:
+	src = calloc(1, len);
+	dst = calloc(1, len);
 
-> Hello everyone,
-> 
-> On Tue, Jun 04, 2013 at 08:30:51PM +0800, Wanpeng Li wrote:
->> On Tue, Jun 04, 2013 at 04:57:57PM +0800, Jianguo Wu wrote:
->>> Hi all,
->>>
->>> I tested memcpy with perf bench, and found that in prefault case, When Transparent Hugepage is on,
->>> memcpy has worse performance.
->>>
->>> When THP on is 3.672879 GB/Sec (with prefault), while THP off is 6.190187 GB/Sec (with prefault).
->>>
->>
->> I get similar result as you against 3.10-rc4 in the attachment. This
->> dues to the characteristic of thp takes a single page fault for each 
->> 2MB virtual region touched by userland.
-> 
-> I had a look at what prefault does and page faults should not be
-> involved in the measurement of GB/sec. The "stats" also include the
-> page faults but the page fault is not part of the printed GB/sec, if
-> "-o" is used.
+	if (prefault)
+		memcpy(dst, src, len);
+	gettimeofday(&tv_start, NULL);
+	memcpy(dst, src, len);
+	gettimeofday(&tv_end, NULL);
 
-Agreed.
+	timersub(&tv_end, &tv_start, &tv_diff);
+	free(src);
+	free(dst);
 
-> 
-> If the perf test is correct, it looks more an hardware issue with
-> memcpy and large TLBs than a software one. memset doesn't exibith it,
-> if this was something fundamental memset should also exibith it. It
+	speed = (double)((double)len / timeval2double(&tv_diff));
+	print_bps(speed);
 
-Yes, I test memset with perf bench, it's little faster with THP:
-THP:    6.458863 GB/Sec (with prefault)
-NO-THP: 6.393698 GB/Sec (with prefault)
+This is weird, is it possible that perf bench do some build optimize?
 
-> shall be possible to reproduce this with hugetlbfs in fact... if you
-> want to be 100% sure it's not software, you should try that.
-> 
-
-Yes, I got following result:
-hugetlb:    2.518822 GB/Sec	(with prefault)
-no-hugetlb: 3.688322 GB/Sec	(with prefault)
-
-> Chances are there's enough pre-fetching going on in the CPU to
-> optimize for those 4k tlb loads in streaming copies, and the
-> pagetables are also cached very nicely with streaming copies. Maybe
-> large TLBs somewhere are less optimized for streaming copies. Only
-> something smarter happening in the CPU optimized for 4k and not yet
-> for 2M TLBs can explain this: if the CPU was equally intelligent it
-> should definitely be faster with THP on even with "-o".
-> 
-> Overall I doubt there's anything in software to fix here.
-> 
-> Also note, this is not related to additional cache usage during page
-> faults that I mentioned in the pdf. Page faults or cache effects in
-> the page faults are completely removed from the equation because of
-> "-o". The prefault pass, eliminates the page faults and trashes away
-> all the cache (regardless if the page fault uses non-temporal stores
-> or not) before the "measured" memcpy load starts.
-> 
-
-Test results from perf stat show a significant reduction in cache-references and cache-misses
-when THP is off, how to explain this?
-	cache-misses	cache-references
-THP:	35455940	66267785
-NO-THP: 16920763	17200000
-
-> I don't think this is a major concern, as a proof of thumb you just
-> need to prefix the "perf" command with "time" to see it: the THP
-
-I test with "time ./perf bench mem memcpy -l 1gb -o", and the result is
-consistent with your expect.
-
-THP:
-       3.629896 GB/Sec (with prefault)
-
-real	0m0.849s
-user	0m0.472s
-sys	0m0.372s
-
-NO-THP:
-       6.169184 GB/Sec (with prefault)
-
-real	0m1.013s
-user	0m0.412s
-sys	0m0.596s
-
-> version still completes much faster despite the prefault part of it
-> is slightly slower with THP on.
-> 
-
-Why the prefault part is slower with THP on?
-perf bench shows when no prefault, with THP on is much faster:
-
-# ./perf bench mem memcpy -l 1gb -n
-THP:    1.759009 GB/Sec
-NO-THP: 1.291761 GB/Sec
-
-Thanks again for your explanation.
-
+Thansk,
 Jianguo Wu.
 
-> THP pays off the most during computations that are accessing randomly,
-> and not sequentially.
+On 2013/6/4 16:57, Jianguo Wu wrote:
+
+> Hi all,
+> 
+> I tested memcpy with perf bench, and found that in prefault case, When Transparent Hugepage is on,
+> memcpy has worse performance.
+> 
+> When THP on is 3.672879 GB/Sec (with prefault), while THP off is 6.190187 GB/Sec (with prefault).
+> 
+> I think THP will improve performance, but the test result obviously not the case. 
+> Andrea mentioned THP cause "clear_page/copy_page less cache friendly" in
+> http://events.linuxfoundation.org/slides/2011/lfcs/lfcs2011_hpc_arcangeli.pdf.
+> 
+> I am not quite understand this, could you please give me some comments, Thanks!
+> 
+> I test in Linux-3.4-stable, and my machine info is:
+> Intel(R) Xeon(R) CPU           E5520  @ 2.27GHz
+> 
+> available: 2 nodes (0-1)
+> node 0 cpus: 0 1 2 3 8 9 10 11
+> node 0 size: 24567 MB
+> node 0 free: 23550 MB
+> node 1 cpus: 4 5 6 7 12 13 14 15
+> node 1 size: 24576 MB
+> node 1 free: 23767 MB
+> node distances:
+> node   0   1 
+>   0:  10  20 
+>   1:  20  10
+> 
+> Below is test result:
+> ---with THP---
+> #cat /sys/kernel/mm/transparent_hugepage/enabled
+> [always] madvise never
+> #./perf bench mem memcpy -l 1gb -o
+> # Running mem/memcpy benchmark...
+> # Copying 1gb Bytes ...
+> 
+>        3.672879 GB/Sec (with prefault)
+> 
+> #./perf stat ...
+> Performance counter stats for './perf bench mem memcpy -l 1gb -o':
+> 
+>           35455940 cache-misses              #   53.504 % of all cache refs     [49.45%]
+>           66267785 cache-references                                             [49.78%]
+>               2409 page-faults                                                 
+>          450768651 dTLB-loads
+>                                                   [50.78%]
+>              24580 dTLB-misses
+>               #    0.01% of all dTLB cache hits  [51.01%]
+>         1338974202 dTLB-stores
+>                                                  [50.63%]
+>              77943 dTLB-misses
+>                                                  [50.24%]
+>          697404997 iTLB-loads
+>                                                   [49.77%]
+>                274 iTLB-misses
+>               #    0.00% of all iTLB cache hits  [49.30%]
+> 
+>        0.855041819 seconds time elapsed
+> 
+> ---no THP---
+> #cat /sys/kernel/mm/transparent_hugepage/enabled
+> always madvise [never]
+> 
+> #./perf bench mem memcpy -l 1gb -o
+> # Running mem/memcpy benchmark...
+> # Copying 1gb Bytes ...
+> 
+>        6.190187 GB/Sec (with prefault)
+> 
+> #./perf stat ...
+> Performance counter stats for './perf bench mem memcpy -l 1gb -o':
+> 
+>           16920763 cache-misses              #   98.377 % of all cache refs     [50.01%]
+>           17200000 cache-references                                             [50.04%]
+>             524652 page-faults                                                 
+>          734365659 dTLB-loads
+>                                                   [50.04%]
+>            4986387 dTLB-misses
+>               #    0.68% of all dTLB cache hits  [50.04%]
+>         1013408298 dTLB-stores
+>                                                  [50.04%]
+>            8180817 dTLB-misses
+>                                                  [49.97%]
+>         1526642351 iTLB-loads
+>                                                   [50.41%]
+>                 56 iTLB-misses
+>               #    0.00% of all iTLB cache hits  [50.21%]
+> 
+>        1.025425847 seconds time elapsed
 > 
 > Thanks,
-> Andrea
-> 
-> .
-> 
+> Jianguo Wu.
 
 
 
