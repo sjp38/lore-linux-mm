@@ -1,81 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 298C66B0036
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 09:55:26 -0400 (EDT)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Wed, 5 Jun 2013 09:55:24 -0400
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 39EFB38C8045
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 09:55:15 -0400 (EDT)
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r55DtFQh240648
-	for <linux-mm@kvack.org>; Wed, 5 Jun 2013 09:55:15 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r55DtEK0032684
-	for <linux-mm@kvack.org>; Wed, 5 Jun 2013 10:55:15 -0300
-Date: Wed, 5 Jun 2013 08:55:08 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: Re: [PATCHv13 2/4] zbud: add to mm/
-Message-ID: <20130605135508.GA25375@cerebellum>
-References: <1370291585-26102-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <1370291585-26102-3-git-send-email-sjenning@linux.vnet.ibm.com>
- <51AEDE10.4010108@oracle.com>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id B32756B0034
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 10:03:02 -0400 (EDT)
+Date: Wed, 5 Jun 2013 16:02:58 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [RFC PATCH] Re: Repeated fork() causes SLAB to grow without bound
+Message-ID: <20130605140258.GL3463@redhat.com>
+References: <20120816024610.GA5350@evergreen.ssec.wisc.edu>
+ <502D42E5.7090403@redhat.com>
+ <20120818000312.GA4262@evergreen.ssec.wisc.edu>
+ <502F100A.1080401@redhat.com>
+ <alpine.LSU.2.00.1208200032450.24855@eggly.anvils>
+ <CANN689Ej7XLh8VKuaPrTttDrtDGQbXuYJgS2uKnZL2EYVTM3Dg@mail.gmail.com>
+ <20120822032057.GA30871@google.com>
+ <50345232.4090002@redhat.com>
+ <20130603195003.GA31275@evergreen.ssec.wisc.edu>
+ <51ADC365.4010307@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51AEDE10.4010108@oracle.com>
+In-Reply-To: <51ADC365.4010307@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <bob.liu@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Jun 05, 2013 at 02:43:28PM +0800, Bob Liu wrote:
-> Hi Seth,
+On Tue, Jun 04, 2013 at 06:37:25AM -0400, Rik van Riel wrote:
+> On 06/03/2013 03:50 PM, Daniel Forrest wrote:
+> > On Tue, Aug 21, 2012 at 11:29:54PM -0400, Rik van Riel wrote:
+> >> On 08/21/2012 11:20 PM, Michel Lespinasse wrote:
+> >>> On Mon, Aug 20, 2012 at 02:39:26AM -0700, Michel Lespinasse wrote:
+> >>>> Instead of adding an atomic count for page references, we could limit
+> >>>> the anon_vma stacking depth. In fork, we would only clone anon_vmas
+> >>>> that have a low enough generation count. I think that's not great
+> >>>> (adds a special case for the deep-fork-without-exec behavior), but
+> >>>> still better than the atomic page reference counter.
+> >>>
+> >>> Here is an attached patch to demonstrate the idea.
+> >>>
+> >>> anon_vma_clone() is modified to return the length of the existing same_vma
+> >>> anon vma chain, and we create a new anon_vma in the child only on the first
+> >>> fork (this could be tweaked to allow up to a set number of forks, but
+> >>> I think the first fork would cover all the common forking server cases).
+> >>
+> >> I suspect we need 2 or 3.
+> >>
+> >> Some forking servers first fork off one child, and have
+> >> the original parent exit, in order to "background the server".
+> >> That first child then becomes the parent to the real child
+> >> processes that do the work.
+> >>
+> >> It is conceivable that we might need an extra level for
+> >> processes that do something special with privilege dropping,
+> >> namespace changing, etc...
+> >>
+> >> Even setting the threshold to 5 should be totally harmless,
+> >> since the problem does not kick in until we have really
+> >> long chains, like in Dan's bug report.
+> >
+> > I have been running with Michel's patch (with the threshold set to 5)
+> > for quite a few months now and can confirm that it does indeed solve
+> > my problem.  I am not a kernel developer, so I would appreciate if one
+> > of you could push this into the kernel tree.
+> >
+> > NOTE: I have attached Michel's patch with "(length > 1)" modified to
+> > "(length > 5)" and added a "Tested-by:".
 > 
-> On 06/04/2013 04:33 AM, Seth Jennings wrote:
-> > +	/* Couldn't find unbuddied zbud page, create new one */
+> Thank you for testing this.
 > 
-> How about moving zswap_is_full() to here.
-> 
-> if (zswap_is_full()) {
-> 	/* Don't alloc any new page, try to reclaim and direct use the
-> reclaimed page instead */
+> I believe this code should go into the Linux kernel,
+> since it closes up what could be a denial of service
+> attack (albeit a local one) with the anonvma code.
 
-Yes, this is at the top of the list for improvements.
+Agreed. The only thing I don't like about this patch is the hardcoding
+of number 5: could we make it a variable to tweak with sysfs/sysctl so
+if some weird workload arises we have a tuning tweak? It'd cost one
+cacheline during fork, so it doesn't look excessive overhead.
 
-I have already started on this work and it isn't quite as simple as it seems.
-The difficulty rises from the fact that, for now, zswap uses per-cpu
-compression buffers which require preemption to be disabled. This prevents the
-calling zbud_reclaim_page() in zbud_alloc() because the eviction handler for
-the user may do something that can wait; an allocation with GFP_WAIT for
-example.
-
-So it's going to take some massaging in the zswap layer to get that to work.
-
-It's very doable.  Just not in this patchset without causing a lot of code
-thrash.
-
-> }
-> 
-> > +	spin_unlock(&pool->lock);
-> > +	page = alloc_page(gfp);
-> > +	if (!page)
-> > +		return -ENOMEM;
-> > +	spin_lock(&pool->lock);
-> > +	pool->pages_nr++;
-> > +	zhdr = init_zbud_page(page);
-> > +	bud = FIRST;
-<snip>
-> 
-> It looks good for me except two things.
-> One is about what the performance might be after the zswap pool is full.
-> The other is still about the 20% limit of zswap pool size.
-
-Yep, working on both of them.
-
-Seth
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
