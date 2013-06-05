@@ -1,66 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 133796B0031
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 10:42:28 -0400 (EDT)
-Received: by mail-pd0-f173.google.com with SMTP id v10so1926564pde.32
-        for <linux-mm@kvack.org>; Wed, 05 Jun 2013 07:42:27 -0700 (PDT)
-Message-ID: <51AF4E3F.1010102@gmail.com>
-Date: Wed, 05 Jun 2013 22:42:07 +0800
-From: Jiang Liu <liuj97@gmail.com>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 7668A6B0031
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 10:50:33 -0400 (EDT)
+Date: Wed, 5 Jun 2013 10:50:21 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 3/3] memcg: simplify mem_cgroup_reclaim_iter
+Message-ID: <20130605145021.GR15576@cmpxchg.org>
+References: <1370306679-13129-1-git-send-email-tj@kernel.org>
+ <1370306679-13129-4-git-send-email-tj@kernel.org>
+ <20130604131843.GF31242@dhcp22.suse.cz>
+ <20130604205025.GG14916@htj.dyndns.org>
+ <20130604212808.GB13231@dhcp22.suse.cz>
+ <20130604215535.GM14916@htj.dyndns.org>
+ <20130605073023.GB15997@dhcp22.suse.cz>
+ <20130605082023.GG7303@mtj.dyndns.org>
+ <20130605143949.GQ15576@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: mmots: mm-correctly-update-zone-managed_pages-fix.patch breaks
- compilation
-References: <20130605111607.GM15997@dhcp22.suse.cz>
-In-Reply-To: <20130605111607.GM15997@dhcp22.suse.cz>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130605143949.GQ15576@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, "Michael S. Tsirkin" <mst@redhat.com>, sworddragon2@aol.com, Arnd Bergmann <arnd@arndb.de>, Catalin Marinas <catalin.marinas@arm.com>, Chris Metcalf <cmetcalf@tilera.com>, David Howells <dhowells@redhat.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Ingo Molnar <mingo@redhat.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Jiang Liu <jiang.liu@huawei.com>, Jianguo Wu <wujianguo@huawei.com>, Joonsoo Kim <js1304@gmail.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mel@csn.ul.ie>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Russell King <rmk@arm.linux.org.uk>, Rusty Russell <rusty@rustcorp.com.au>, Tang Chen <tangchen@cn.fujitsu.com>, Tejun Heo <tj@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Wen Congyang <wency@cn.fujitsu.com>, Will Deacon <will.deacon@arm.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Yinghai Lu <yinghai@kernel.org>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: Michal Hocko <mhocko@suse.cz>, bsingharora@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org, lizefan@huawei.com
 
-On 06/05/2013 07:16 PM, Michal Hocko wrote:
-> Hi Andrew,
-> the above patch breaks compilation:
-> mm/page_alloc.c: In function a??adjust_managed_page_counta??:
-> mm/page_alloc.c:5226: error: lvalue required as left operand of assignment
+On Wed, Jun 05, 2013 at 10:39:49AM -0400, Johannes Weiner wrote:
+> On Wed, Jun 05, 2013 at 01:20:23AM -0700, Tejun Heo wrote:
+> > Hello, Michal.
+> > 
+> > On Wed, Jun 05, 2013 at 09:30:23AM +0200, Michal Hocko wrote:
+> > > > We aren't talking about something gigantic or can
+> > > 
+> > > mem_cgroup is 888B now (depending on configuration). So I wouldn't call
+> > > it negligible.
+> > 
+> > Do you think that the number can actually grow harmful?  Would you be
+> > kind enough to share some calculations with me?
 > 
-> Could you drop the mm/page_alloc.c hunk, please? Not all versions of gcc
-> are able to cope with this obviously (mine is 4.3.4).
-> 
-> Thanks
-> 
-Hi Andrew,
+> 5k cgroups * say 10 priority levels * 1k struct mem_cgroup may pin 51M
+> of dead struct mem_cgroup, plus whatever else the css pins.
 
-When CONFIG_HIGHMEM is undefined, totalhigh_pages is defined as:
-#define totalhigh_pages 0UL
-Thus statement "totalhigh_pages += count" will cause build failure as:
-  CC      mm/page_alloc.o
-mm/page_alloc.c: In function a??adjust_managed_page_counta??:
-mm/page_alloc.c:5262:19: error: lvalue required as left operand of
-assignment
-make[1]: *** [mm/page_alloc.o] Error 1
-make: *** [mm/page_alloc.o] Error 2
-
-So we still need to use CONFIG_HIGHMEM to guard the statement.
----
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 3437f7a..860d639 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5258,8 +5258,10 @@ void adjust_managed_page_count(struct page *page,
-long count)
-        spin_lock(&managed_page_count_lock);
-        page_zone(page)->managed_pages += count;
-        totalram_pages += count;
-+#ifdef CONFIG_HIGHMEM
-        if (PageHighMem(page))
-                totalhigh_pages += count;
-+#endif
-        spin_unlock(&managed_page_count_lock);
- }
- EXPORT_SYMBOL(adjust_managed_page_count);
----
+Bleh, ... * nr_node_ids * MAX_NR_ZONES.  So it is a couple hundred MB
+in that case.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
