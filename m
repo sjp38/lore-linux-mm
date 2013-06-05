@@ -1,64 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id BF4CD6B0033
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 06:04:44 -0400 (EDT)
-Date: Wed, 5 Jun 2013 12:04:39 +0200 (CEST)
-From: =?ISO-8859-15?Q?Luk=E1=A8_Czerner?= <lczerner@redhat.com>
-Subject: Re: [PATCH v4 20/20] ext4: Allow punch hole with bigalloc enabled
-In-Reply-To: <20130531151454.GB19561@thunk.org>
-Message-ID: <alpine.LFD.2.03.1306051203310.2912@redhat.com>
-References: <1368549454-8930-1-git-send-email-lczerner@redhat.com> <1368549454-8930-21-git-send-email-lczerner@redhat.com> <20130531151454.GB19561@thunk.org>
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 71B766B0031
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 06:10:23 -0400 (EDT)
+Date: Wed, 5 Jun 2013 11:10:19 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: Handling NUMA page migration
+Message-ID: <20130605101019.GA18242@suse.de>
+References: <201306040922.10235.frank.mehnert@oracle.com>
+ <20130604115807.GF3672@sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20130604115807.GF3672@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, akpm@linux-foundation.org, hughd@google.com
+To: Robin Holt <holt@sgi.com>
+Cc: Frank Mehnert <frank.mehnert@oracle.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>
 
-On Fri, 31 May 2013, Theodore Ts'o wrote:
-
-> Date: Fri, 31 May 2013 11:14:54 -0400
-> From: Theodore Ts'o <tytso@mit.edu>
-> To: Lukas Czerner <lczerner@redhat.com>
-> Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
->     linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org,
->     akpm@linux-foundation.org, hughd@google.com
-> Subject: Re: [PATCH v4 20/20] ext4: Allow punch hole with bigalloc enabled
-> 
-> On Tue, May 14, 2013 at 06:37:34PM +0200, Lukas Czerner wrote:
-> > In commits 5f95d21fb6f2aaa52830e5b7fb405f6c71d3ab85 and
-> > 30bc2ec9598a1b156ad75217f2e7d4560efdeeab we've reworked punch_hole
-> > implementation and there is noting holding us back from using punch hole
-> > on file system with bigalloc feature enabled.
+On Tue, Jun 04, 2013 at 06:58:07AM -0500, Robin Holt wrote:
+> > B) 1. allocate memory with alloc_pages()
+> >    2. SetPageReserved()
+> >    3. vm_mmap() to allocate a userspace mapping
+> >    4. vm_insert_page()
+> >    5. vm_flags |= (VM_DONTEXPAND | VM_DONTDUMP)
+> >       (resulting flags are VM_MIXEDMAP | VM_DONTDUMP | VM_DONTEXPAND | 0xff)
 > > 
-> > This has been tested with fsx and xfstests.
+> > At least the memory allocated like B) is affected by automatic NUMA page
+> > migration. I'm not sure about A).
 > > 
-> > Signed-off-by: Lukas Czerner <lczerner@redhat.com>
-> > Reviewed-by: Jan Kara <jack@suse.cz>
-> 
-> This patch is causing a test failure with bigalloc enabled with the
-> xfstests shared/298.
-> 
-> Since it's at the end of the invalidate page range tests, I'm going to
-> drop this patch for now.  Could you take a look at this?
+> > 1. How can I prevent automatic NUMA page migration on this memory?
+> > 2. Can NUMA page migration also be handled on such kind of memory without
+> >    preventing migration?
+> > 
 
-Hi Ted,
+Page migration does not expect a PageReserved && PageLRU page. The only
+reserved check that is made by migration is for the zero page and that
+happens in the syscall path for move_pages() which is not used by either
+compaction or automatic balancing.
 
-sorry for the delay, I've been on vacation last week so I am trying
-to catch on the recent development :) I'll take a look at it
-hopefully this week. Thanks for letting me know.
+At some point you must have a driver that is setting PageReserved on
+anonymous pages that is later encountered by automatic numa balancing
+during a NUMA hinting fault.  I expect this is an out-of-tree driver or
+a custom kernel of some sort. Memory should be pinned by elevating the
+reference count of the page, not setting PageReserved.
 
--Lukas
+It's not particularly clear how you avoid hitting the same bug due to THP and
+memory compaction to be honest but maybe your setup hits a steady state that
+simply never hit the problem or it happens rarely and it was not identified.
 
-> 
-> Thanks!!
-> 
-> 					- Ted
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-ext4" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> 
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
