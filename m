@@ -1,394 +1,651 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 8D7536B006C
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 16:35:15 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 73BC26B0071
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 16:35:25 -0400 (EDT)
 From: Glauber Costa <glommer@openvz.org>
-Subject: [PATCH v11 18/25] xfs: convert dquot cache lru to list_lru
-Date: Fri,  7 Jun 2013 00:34:51 +0400
-Message-Id: <1370550898-26711-19-git-send-email-glommer@openvz.org>
+Subject: [PATCH v11 19/25] fs: convert fs shrinkers to new scan/count API
+Date: Fri,  7 Jun 2013 00:34:52 +0400
+Message-Id: <1370550898-26711-20-git-send-email-glommer@openvz.org>
 In-Reply-To: <1370550898-26711-1-git-send-email-glommer@openvz.org>
 References: <1370550898-26711-1-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-fsdevel@vger.kernel.org, mgorman@suse.de, david@fromorbit.com, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suze.cz, hannes@cmpxchg.org, hughd@google.com, gthelen@google.com, Dave Chinner <dchinner@redhat.com>, Glauber Costa <glommer@openvz.org>
+Cc: linux-fsdevel@vger.kernel.org, mgorman@suse.de, david@fromorbit.com, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suze.cz, hannes@cmpxchg.org, hughd@google.com, gthelen@google.com, Dave Chinner <dchinner@redhat.com>, Glauber Costa <glommer@openvz.org>, Adrian Hunter <adrian.hunter@intel.com>
 
 From: Dave Chinner <dchinner@redhat.com>
 
-Convert the XFS dquot lru to use the list_lru construct and convert
-the shrinker to being node aware.
+Convert the filesystem shrinkers to use the new API, and standardise
+some of the behaviours of the shrinkers at the same time. For
+example, nr_to_scan means the number of objects to scan, not the
+number of objects to free.
 
-* v7: Add NUMA aware flag
-[ glommer: edited for conflicts + warning fixes ]
+I refactored the CIFS idmap shrinker a little - it really needs to
+be broken up into a shrinker per tree and keep an item count with
+the tree root so that we don't need to walk the tree every time the
+shrinker needs to count the number of objects in the tree (i.e.
+all the time under memory pressure).
+
+[ v11: fix coding style ]
+[ glommer: fixes for ext4, ubifs, nfs, cifs and glock. Fixes are
+  needed mainly due to new code merged in the tree ]
 Signed-off-by: Dave Chinner <dchinner@redhat.com>
 Signed-off-by: Glauber Costa <glommer@openvz.org>
+Acked-by: Mel Gorman <mgorman@suse.de>
+Acked-by: Artem Bityutskiy <artem.bityutskiy@linux.intel.com>
+Acked-by: Jan Kara <jack@suse.cz>
+Acked-by: Steven Whitehouse <swhiteho@redhat.com>
+CC: Adrian Hunter <adrian.hunter@intel.com>
 ---
- fs/xfs/xfs_dquot.c |   7 +-
- fs/xfs/xfs_qm.c    | 277 +++++++++++++++++++++++++++--------------------------
- fs/xfs/xfs_qm.h    |   4 +-
- 3 files changed, 144 insertions(+), 144 deletions(-)
+ fs/ext4/extents_status.c | 30 ++++++++++++++++++------------
+ fs/gfs2/glock.c          | 28 +++++++++++++++++-----------
+ fs/gfs2/main.c           |  3 ++-
+ fs/gfs2/quota.c          | 14 ++++++++------
+ fs/gfs2/quota.h          |  4 +++-
+ fs/mbcache.c             | 47 ++++++++++++++++++++++++++---------------------
+ fs/nfs/dir.c             | 14 +++++++++++---
+ fs/nfs/internal.h        |  4 +++-
+ fs/nfs/super.c           |  3 ++-
+ fs/nfsd/nfscache.c       | 31 ++++++++++++++++++++++---------
+ fs/quota/dquot.c         | 29 +++++++++++------------------
+ fs/ubifs/shrinker.c      | 22 +++++++++++++---------
+ fs/ubifs/super.c         |  3 ++-
+ fs/ubifs/ubifs.h         |  3 ++-
+ 14 files changed, 140 insertions(+), 95 deletions(-)
 
-diff --git a/fs/xfs/xfs_dquot.c b/fs/xfs/xfs_dquot.c
-index 044e97a..a2c5672 100644
---- a/fs/xfs/xfs_dquot.c
-+++ b/fs/xfs/xfs_dquot.c
-@@ -939,13 +939,8 @@ xfs_qm_dqput_final(
- 
- 	trace_xfs_dqput_free(dqp);
- 
--	mutex_lock(&qi->qi_lru_lock);
--	if (list_empty(&dqp->q_lru)) {
--		list_add_tail(&dqp->q_lru, &qi->qi_lru_list);
--		qi->qi_lru_count++;
-+	if (list_lru_add(&qi->qi_lru, &dqp->q_lru))
- 		XFS_STATS_INC(xs_qm_dquot_unused);
--	}
--	mutex_unlock(&qi->qi_lru_lock);
- 
- 	/*
- 	 * If we just added a udquot to the freelist, then we want to release
-diff --git a/fs/xfs/xfs_qm.c b/fs/xfs/xfs_qm.c
-index f10506b..bd6c12a 100644
---- a/fs/xfs/xfs_qm.c
-+++ b/fs/xfs/xfs_qm.c
-@@ -51,8 +51,9 @@
-  */
- STATIC int	xfs_qm_init_quotainos(xfs_mount_t *);
- STATIC int	xfs_qm_init_quotainfo(xfs_mount_t *);
--STATIC int	xfs_qm_shake(struct shrinker *, struct shrink_control *);
- 
-+
-+STATIC void	xfs_qm_dqfree_one(struct xfs_dquot *dqp);
- /*
-  * We use the batch lookup interface to iterate over the dquots as it
-  * currently is the only interface into the radix tree code that allows
-@@ -197,12 +198,9 @@ xfs_qm_dqpurge(
- 	 * We move dquots to the freelist as soon as their reference count
- 	 * hits zero, so it really should be on the freelist here.
- 	 */
--	mutex_lock(&qi->qi_lru_lock);
- 	ASSERT(!list_empty(&dqp->q_lru));
--	list_del_init(&dqp->q_lru);
--	qi->qi_lru_count--;
-+	list_lru_del(&qi->qi_lru, &dqp->q_lru);
- 	XFS_STATS_DEC(xs_qm_dquot_unused);
--	mutex_unlock(&qi->qi_lru_lock);
- 
- 	xfs_qm_dqdestroy(dqp);
- 
-@@ -632,6 +630,141 @@ xfs_qm_calc_dquots_per_chunk(
- 	return ndquots;
+diff --git a/fs/ext4/extents_status.c b/fs/ext4/extents_status.c
+index e6941e6..4bce4f0 100644
+--- a/fs/ext4/extents_status.c
++++ b/fs/ext4/extents_status.c
+@@ -878,20 +878,26 @@ int ext4_es_zeroout(struct inode *inode, struct ext4_extent *ex)
+ 				     EXTENT_STATUS_WRITTEN);
  }
  
-+struct xfs_qm_isolate {
-+	struct list_head	buffers;
-+	struct list_head	dispose;
-+};
+-static int ext4_es_shrink(struct shrinker *shrink, struct shrink_control *sc)
 +
-+static enum lru_status
-+xfs_qm_dquot_isolate(
-+	struct list_head	*item,
-+	spinlock_t		*lru_lock,
-+	void			*arg)
++static long ext4_es_count(struct shrinker *shrink, struct shrink_control *sc)
 +{
-+	struct xfs_dquot	*dqp = container_of(item,
-+						struct xfs_dquot, q_lru);
-+	struct xfs_qm_isolate	*isol = arg;
++	long nr;
++	struct ext4_sb_info *sbi = container_of(shrink,
++					struct ext4_sb_info, s_es_shrinker);
 +
-+	if (!xfs_dqlock_nowait(dqp))
-+		goto out_miss_busy;
-+
-+	/*
-+	 * This dquot has acquired a reference in the meantime remove it from
-+	 * the freelist and try again.
-+	 */
-+	if (dqp->q_nrefs) {
-+		xfs_dqunlock(dqp);
-+		XFS_STATS_INC(xs_qm_dqwants);
-+
-+		trace_xfs_dqreclaim_want(dqp);
-+		list_del_init(&dqp->q_lru);
-+		XFS_STATS_DEC(xs_qm_dquot_unused);
-+		return 0;
-+	}
-+
-+	/*
-+	 * If the dquot is dirty, flush it. If it's already being flushed, just
-+	 * skip it so there is time for the IO to complete before we try to
-+	 * reclaim it again on the next LRU pass.
-+	 */
-+	if (!xfs_dqflock_nowait(dqp)) {
-+		xfs_dqunlock(dqp);
-+		goto out_miss_busy;
-+	}
-+
-+	if (XFS_DQ_IS_DIRTY(dqp)) {
-+		struct xfs_buf	*bp = NULL;
-+		int		error;
-+
-+		trace_xfs_dqreclaim_dirty(dqp);
-+
-+		/* we have to drop the LRU lock to flush the dquot */
-+		spin_unlock(lru_lock);
-+
-+		error = xfs_qm_dqflush(dqp, &bp);
-+		if (error) {
-+			xfs_warn(dqp->q_mount, "%s: dquot %p flush failed",
-+				 __func__, dqp);
-+			goto out_unlock_dirty;
-+		}
-+
-+		xfs_buf_delwri_queue(bp, &isol->buffers);
-+		xfs_buf_relse(bp);
-+		goto out_unlock_dirty;
-+	}
-+	xfs_dqfunlock(dqp);
-+
-+	/*
-+	 * Prevent lookups now that we are past the point of no return.
-+	 */
-+	dqp->dq_flags |= XFS_DQ_FREEING;
-+	xfs_dqunlock(dqp);
-+
-+	ASSERT(dqp->q_nrefs == 0);
-+	list_move_tail(&dqp->q_lru, &isol->dispose);
-+	XFS_STATS_DEC(xs_qm_dquot_unused);
-+	trace_xfs_dqreclaim_done(dqp);
-+	XFS_STATS_INC(xs_qm_dqreclaims);
-+	return 0;
-+
-+out_miss_busy:
-+	trace_xfs_dqreclaim_busy(dqp);
-+	XFS_STATS_INC(xs_qm_dqreclaim_misses);
-+	return 2;
-+
-+out_unlock_dirty:
-+	trace_xfs_dqreclaim_busy(dqp);
-+	XFS_STATS_INC(xs_qm_dqreclaim_misses);
-+	return 3;
++	nr = percpu_counter_read_positive(&sbi->s_extent_cache_cnt);
++	trace_ext4_es_shrink_enter(sbi->s_sb, sc->nr_to_scan, nr);
++	return nr;
 +}
 +
-+static long
-+xfs_qm_shrink_scan(
-+	struct shrinker		*shrink,
-+	struct shrink_control	*sc)
++static long ext4_es_scan(struct shrinker *shrink, struct shrink_control *sc)
+ {
+ 	struct ext4_sb_info *sbi = container_of(shrink,
+ 					struct ext4_sb_info, s_es_shrinker);
+ 	struct ext4_inode_info *ei;
+ 	struct list_head *cur, *tmp, scanned;
+ 	int nr_to_scan = sc->nr_to_scan;
+-	int ret, nr_shrunk = 0;
+-
+-	ret = percpu_counter_read_positive(&sbi->s_extent_cache_cnt);
+-	trace_ext4_es_shrink_enter(sbi->s_sb, nr_to_scan, ret);
+-
+-	if (!nr_to_scan)
+-		return ret;
++	int ret = 0, nr_shrunk = 0;
+ 
+ 	INIT_LIST_HEAD(&scanned);
+ 
+@@ -920,9 +926,8 @@ static int ext4_es_shrink(struct shrinker *shrink, struct shrink_control *sc)
+ 	list_splice_tail(&scanned, &sbi->s_es_lru);
+ 	spin_unlock(&sbi->s_es_lru_lock);
+ 
+-	ret = percpu_counter_read_positive(&sbi->s_extent_cache_cnt);
+ 	trace_ext4_es_shrink_exit(sbi->s_sb, nr_shrunk, ret);
+-	return ret;
++	return nr_shrunk;
+ }
+ 
+ void ext4_es_register_shrinker(struct super_block *sb)
+@@ -932,7 +937,8 @@ void ext4_es_register_shrinker(struct super_block *sb)
+ 	sbi = EXT4_SB(sb);
+ 	INIT_LIST_HEAD(&sbi->s_es_lru);
+ 	spin_lock_init(&sbi->s_es_lru_lock);
+-	sbi->s_es_shrinker.shrink = ext4_es_shrink;
++	sbi->s_es_shrinker.scan_objects = ext4_es_scan;
++	sbi->s_es_shrinker.count_objects = ext4_es_count;
+ 	sbi->s_es_shrinker.seeks = DEFAULT_SEEKS;
+ 	register_shrinker(&sbi->s_es_shrinker);
+ }
+@@ -973,7 +979,7 @@ static int __es_try_to_reclaim_extents(struct ext4_inode_info *ei,
+ 	struct ext4_es_tree *tree = &ei->i_es_tree;
+ 	struct rb_node *node;
+ 	struct extent_status *es;
+-	int nr_shrunk = 0;
++	long nr_shrunk = 0;
+ 
+ 	if (ei->i_es_lru_nr == 0)
+ 		return 0;
+diff --git a/fs/gfs2/glock.c b/fs/gfs2/glock.c
+index 3bd2748..a7060a0 100644
+--- a/fs/gfs2/glock.c
++++ b/fs/gfs2/glock.c
+@@ -1428,21 +1428,22 @@ __acquires(&lru_lock)
+  * gfs2_dispose_glock_lru() above.
+  */
+ 
+-static void gfs2_scan_glock_lru(int nr)
++static long gfs2_scan_glock_lru(int nr)
+ {
+ 	struct gfs2_glock *gl;
+ 	LIST_HEAD(skipped);
+ 	LIST_HEAD(dispose);
++	long freed = 0;
+ 
+ 	spin_lock(&lru_lock);
+-	while(nr && !list_empty(&lru_list)) {
++	while ((nr-- >= 0) && !list_empty(&lru_list)) {
+ 		gl = list_entry(lru_list.next, struct gfs2_glock, gl_lru);
+ 
+ 		/* Test for being demotable */
+ 		if (!test_and_set_bit(GLF_LOCK, &gl->gl_flags)) {
+ 			list_move(&gl->gl_lru, &dispose);
+ 			atomic_dec(&lru_count);
+-			nr--;
++			freed++;
+ 			continue;
+ 		}
+ 
+@@ -1452,23 +1453,28 @@ static void gfs2_scan_glock_lru(int nr)
+ 	if (!list_empty(&dispose))
+ 		gfs2_dispose_glock_lru(&dispose);
+ 	spin_unlock(&lru_lock);
++
++	return freed;
+ }
+ 
+-static int gfs2_shrink_glock_memory(struct shrinker *shrink,
+-				    struct shrink_control *sc)
++static long gfs2_glock_shrink_scan(struct shrinker *shrink,
++				   struct shrink_control *sc)
+ {
+-	if (sc->nr_to_scan) {
+-		if (!(sc->gfp_mask & __GFP_FS))
+-			return -1;
+-		gfs2_scan_glock_lru(sc->nr_to_scan);
+-	}
++	if (!(sc->gfp_mask & __GFP_FS))
++		return SHRINK_STOP;
++	return gfs2_scan_glock_lru(sc->nr_to_scan);
++}
+ 
++static long gfs2_glock_shrink_count(struct shrinker *shrink,
++				    struct shrink_control *sc)
 +{
-+	struct xfs_quotainfo	*qi = container_of(shrink,
-+					struct xfs_quotainfo, qi_shrinker);
-+	struct xfs_qm_isolate	isol;
-+	long			freed;
-+	int			error;
-+	unsigned long		nr_to_scan = sc->nr_to_scan;
-+
-+	if ((sc->gfp_mask & (__GFP_FS|__GFP_WAIT)) != (__GFP_FS|__GFP_WAIT))
-+		return 0;
-+
-+	INIT_LIST_HEAD(&isol.buffers);
-+	INIT_LIST_HEAD(&isol.dispose);
-+
-+	freed = list_lru_walk_node(&qi->qi_lru, sc->nid, xfs_qm_dquot_isolate, &isol,
-+					&nr_to_scan);
-+
-+	error = xfs_buf_delwri_submit(&isol.buffers);
-+	if (error)
-+		xfs_warn(NULL, "%s: dquot reclaim failed", __func__);
-+
-+	while (!list_empty(&isol.dispose)) {
-+		struct xfs_dquot	*dqp;
-+
-+		dqp = list_first_entry(&isol.dispose, struct xfs_dquot, q_lru);
-+		list_del_init(&dqp->q_lru);
-+		xfs_qm_dqfree_one(dqp);
+ 	return vfs_pressure_ratio(atomic_read(&lru_count));
+ }
+ 
+ static struct shrinker glock_shrinker = {
+-	.shrink = gfs2_shrink_glock_memory,
+ 	.seeks = DEFAULT_SEEKS,
++	.count_objects = gfs2_glock_shrink_count,
++	.scan_objects = gfs2_glock_shrink_scan,
+ };
+ 
+ /**
+diff --git a/fs/gfs2/main.c b/fs/gfs2/main.c
+index e04d0e0..a105d84 100644
+--- a/fs/gfs2/main.c
++++ b/fs/gfs2/main.c
+@@ -32,7 +32,8 @@
+ struct workqueue_struct *gfs2_control_wq;
+ 
+ static struct shrinker qd_shrinker = {
+-	.shrink = gfs2_shrink_qd_memory,
++	.count_objects = gfs2_qd_shrink_count,
++	.scan_objects = gfs2_qd_shrink_scan,
+ 	.seeks = DEFAULT_SEEKS,
+ };
+ 
+diff --git a/fs/gfs2/quota.c b/fs/gfs2/quota.c
+index d550a5d..bb83036 100644
+--- a/fs/gfs2/quota.c
++++ b/fs/gfs2/quota.c
+@@ -75,17 +75,15 @@ static LIST_HEAD(qd_lru_list);
+ static atomic_t qd_lru_count = ATOMIC_INIT(0);
+ static DEFINE_SPINLOCK(qd_lru_lock);
+ 
+-int gfs2_shrink_qd_memory(struct shrinker *shrink, struct shrink_control *sc)
++long gfs2_qd_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
+ {
+ 	struct gfs2_quota_data *qd;
+ 	struct gfs2_sbd *sdp;
+ 	int nr_to_scan = sc->nr_to_scan;
+-
+-	if (nr_to_scan == 0)
+-		goto out;
++	long freed = 0;
+ 
+ 	if (!(sc->gfp_mask & __GFP_FS))
+-		return -1;
++		return SHRINK_STOP;
+ 
+ 	spin_lock(&qd_lru_lock);
+ 	while (nr_to_scan && !list_empty(&qd_lru_list)) {
+@@ -110,10 +108,14 @@ int gfs2_shrink_qd_memory(struct shrinker *shrink, struct shrink_control *sc)
+ 		kmem_cache_free(gfs2_quotad_cachep, qd);
+ 		spin_lock(&qd_lru_lock);
+ 		nr_to_scan--;
++		freed++;
+ 	}
+ 	spin_unlock(&qd_lru_lock);
++	return freed;
++}
+ 
+-out:
++long gfs2_qd_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
++{
+ 	return vfs_pressure_ratio(atomic_read(&qd_lru_count));
+ }
+ 
+diff --git a/fs/gfs2/quota.h b/fs/gfs2/quota.h
+index 4f5e6e4..4f61708 100644
+--- a/fs/gfs2/quota.h
++++ b/fs/gfs2/quota.h
+@@ -53,7 +53,9 @@ static inline int gfs2_quota_lock_check(struct gfs2_inode *ip)
+ 	return ret;
+ }
+ 
+-extern int gfs2_shrink_qd_memory(struct shrinker *shrink,
++extern long gfs2_qd_shrink_count(struct shrinker *shrink,
++				 struct shrink_control *sc);
++extern long gfs2_qd_shrink_scan(struct shrinker *shrink,
+ 				 struct shrink_control *sc);
+ extern const struct quotactl_ops gfs2_quotactl_ops;
+ 
+diff --git a/fs/mbcache.c b/fs/mbcache.c
+index 5eb0476..dbb9e54 100644
+--- a/fs/mbcache.c
++++ b/fs/mbcache.c
+@@ -86,18 +86,6 @@ static LIST_HEAD(mb_cache_list);
+ static LIST_HEAD(mb_cache_lru_list);
+ static DEFINE_SPINLOCK(mb_cache_spinlock);
+ 
+-/*
+- * What the mbcache registers as to get shrunk dynamically.
+- */
+-
+-static int mb_cache_shrink_fn(struct shrinker *shrink,
+-			      struct shrink_control *sc);
+-
+-static struct shrinker mb_cache_shrinker = {
+-	.shrink = mb_cache_shrink_fn,
+-	.seeks = DEFAULT_SEEKS,
+-};
+-
+ static inline int
+ __mb_cache_entry_is_hashed(struct mb_cache_entry *ce)
+ {
+@@ -151,7 +139,7 @@ forget:
+ 
+ 
+ /*
+- * mb_cache_shrink_fn()  memory pressure callback
++ * mb_cache_shrink_scan()  memory pressure callback
+  *
+  * This function is called by the kernel memory management when memory
+  * gets low.
+@@ -159,17 +147,16 @@ forget:
+  * @shrink: (ignored)
+  * @sc: shrink_control passed from reclaim
+  *
+- * Returns the number of objects which are present in the cache.
++ * Returns the number of objects freed.
+  */
+-static int
+-mb_cache_shrink_fn(struct shrinker *shrink, struct shrink_control *sc)
++static long
++mb_cache_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
+ {
+ 	LIST_HEAD(free_list);
+-	struct mb_cache *cache;
+ 	struct mb_cache_entry *entry, *tmp;
+-	int count = 0;
+ 	int nr_to_scan = sc->nr_to_scan;
+ 	gfp_t gfp_mask = sc->gfp_mask;
++	long freed = 0;
+ 
+ 	mb_debug("trying to free %d entries", nr_to_scan);
+ 	spin_lock(&mb_cache_spinlock);
+@@ -179,19 +166,37 @@ mb_cache_shrink_fn(struct shrinker *shrink, struct shrink_control *sc)
+ 				   struct mb_cache_entry, e_lru_list);
+ 		list_move_tail(&ce->e_lru_list, &free_list);
+ 		__mb_cache_entry_unhash(ce);
++		freed++;
 +	}
-+
++	spin_unlock(&mb_cache_spinlock);
++	list_for_each_entry_safe(entry, tmp, &free_list, e_lru_list) {
++		__mb_cache_entry_forget(entry, gfp_mask);
+ 	}
 +	return freed;
 +}
 +
 +static long
-+xfs_qm_shrink_count(
-+	struct shrinker		*shrink,
-+	struct shrink_control	*sc)
++mb_cache_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
 +{
-+	struct xfs_quotainfo	*qi = container_of(shrink,
-+					struct xfs_quotainfo, qi_shrinker);
++	struct mb_cache *cache;
++	long count = 0;
 +
-+	return list_lru_count_node(&qi->qi_lru, sc->nid);
++	spin_lock(&mb_cache_spinlock);
+ 	list_for_each_entry(cache, &mb_cache_list, c_cache_list) {
+ 		mb_debug("cache %s (%d)", cache->c_name,
+ 			  atomic_read(&cache->c_entry_count));
+ 		count += atomic_read(&cache->c_entry_count);
+ 	}
+ 	spin_unlock(&mb_cache_spinlock);
+-	list_for_each_entry_safe(entry, tmp, &free_list, e_lru_list) {
+-		__mb_cache_entry_forget(entry, gfp_mask);
+-	}
++
+ 	return vfs_pressure_ratio(count);
+ }
+ 
++static struct shrinker mb_cache_shrinker = {
++	.count_objects = mb_cache_shrink_count,
++	.scan_objects = mb_cache_shrink_scan,
++	.seeks = DEFAULT_SEEKS,
++};
+ 
+ /*
+  * mb_cache_create()  create a new cache
+diff --git a/fs/nfs/dir.c b/fs/nfs/dir.c
+index 0d2cdad..b769a06 100644
+--- a/fs/nfs/dir.c
++++ b/fs/nfs/dir.c
+@@ -1964,17 +1964,18 @@ static void nfs_access_free_list(struct list_head *head)
+ 	}
+ }
+ 
+-int nfs_access_cache_shrinker(struct shrinker *shrink,
+-			      struct shrink_control *sc)
++long
++nfs_access_cache_scan(struct shrinker *shrink, struct shrink_control *sc)
+ {
+ 	LIST_HEAD(head);
+ 	struct nfs_inode *nfsi, *next;
+ 	struct nfs_access_entry *cache;
+ 	int nr_to_scan = sc->nr_to_scan;
+ 	gfp_t gfp_mask = sc->gfp_mask;
++	long freed = 0;
+ 
+ 	if ((gfp_mask & GFP_KERNEL) != GFP_KERNEL)
+-		return (nr_to_scan == 0) ? 0 : -1;
++		return SHRINK_STOP;
+ 
+ 	spin_lock(&nfs_access_lru_lock);
+ 	list_for_each_entry_safe(nfsi, next, &nfs_access_lru_list, access_cache_inode_lru) {
+@@ -1990,6 +1991,7 @@ int nfs_access_cache_shrinker(struct shrinker *shrink,
+ 				struct nfs_access_entry, lru);
+ 		list_move(&cache->lru, &head);
+ 		rb_erase(&cache->rb_node, &nfsi->access_cache);
++		freed++;
+ 		if (!list_empty(&nfsi->access_cache_entry_lru))
+ 			list_move_tail(&nfsi->access_cache_inode_lru,
+ 					&nfs_access_lru_list);
+@@ -2004,6 +2006,12 @@ remove_lru_entry:
+ 	}
+ 	spin_unlock(&nfs_access_lru_lock);
+ 	nfs_access_free_list(&head);
++	return freed;
 +}
 +
- /*
-  * This initializes all the quota information that's kept in the
-  * mount structure
-@@ -662,9 +795,7 @@ xfs_qm_init_quotainfo(
- 	INIT_RADIX_TREE(&qinf->qi_gquota_tree, GFP_NOFS);
- 	mutex_init(&qinf->qi_tree_lock);
++long
++nfs_access_cache_count(struct shrinker *shrink, struct shrink_control *sc)
++{
+ 	return vfs_pressure_ratio(atomic_long_read(&nfs_access_nr_entries));
+ }
  
--	INIT_LIST_HEAD(&qinf->qi_lru_list);
--	qinf->qi_lru_count = 0;
--	mutex_init(&qinf->qi_lru_lock);
-+	list_lru_init(&qinf->qi_lru);
+diff --git a/fs/nfs/internal.h b/fs/nfs/internal.h
+index 91e59a3..9651e20 100644
+--- a/fs/nfs/internal.h
++++ b/fs/nfs/internal.h
+@@ -269,7 +269,9 @@ extern struct nfs_client *nfs_init_client(struct nfs_client *clp,
+ 			   const char *ip_addr, rpc_authflavor_t authflavour);
  
- 	/* mutex used to serialize quotaoffs */
- 	mutex_init(&qinf->qi_quotaofflock);
-@@ -730,8 +861,10 @@ xfs_qm_init_quotainfo(
- 		qinf->qi_rtbwarnlimit = XFS_QM_RTBWARNLIMIT;
+ /* dir.c */
+-extern int nfs_access_cache_shrinker(struct shrinker *shrink,
++extern long nfs_access_cache_count(struct shrinker *shrink,
++					struct shrink_control *sc);
++extern long nfs_access_cache_scan(struct shrinker *shrink,
+ 					struct shrink_control *sc);
+ struct dentry *nfs_lookup(struct inode *, struct dentry *, unsigned int);
+ int nfs_create(struct inode *, struct dentry *, umode_t, bool);
+diff --git a/fs/nfs/super.c b/fs/nfs/super.c
+index 4336d03..06c3d1c 100644
+--- a/fs/nfs/super.c
++++ b/fs/nfs/super.c
+@@ -360,7 +360,8 @@ static void unregister_nfs4_fs(void)
+ #endif
+ 
+ static struct shrinker acl_shrinker = {
+-	.shrink		= nfs_access_cache_shrinker,
++	.count_objects	= nfs_access_cache_count,
++	.scan_objects	= nfs_access_cache_scan,
+ 	.seeks		= DEFAULT_SEEKS,
+ };
+ 
+diff --git a/fs/nfsd/nfscache.c b/fs/nfsd/nfscache.c
+index e76244e..5564c38 100644
+--- a/fs/nfsd/nfscache.c
++++ b/fs/nfsd/nfscache.c
+@@ -59,11 +59,14 @@ static unsigned int		longest_chain_cachesize;
+ 
+ static int	nfsd_cache_append(struct svc_rqst *rqstp, struct kvec *vec);
+ static void	cache_cleaner_func(struct work_struct *unused);
+-static int 	nfsd_reply_cache_shrink(struct shrinker *shrink,
+-					struct shrink_control *sc);
++static long	nfsd_reply_cache_count(struct shrinker *shrink,
++				       struct shrink_control *sc);
++static long	nfsd_reply_cache_scan(struct shrinker *shrink,
++				      struct shrink_control *sc);
+ 
+ static struct shrinker nfsd_reply_cache_shrinker = {
+-	.shrink	= nfsd_reply_cache_shrink,
++	.scan_objects = nfsd_reply_cache_scan,
++	.count_objects = nfsd_reply_cache_count,
+ 	.seeks	= 1,
+ };
+ 
+@@ -232,16 +235,18 @@ nfsd_cache_entry_expired(struct svc_cacherep *rp)
+  * Walk the LRU list and prune off entries that are older than RC_EXPIRE.
+  * Also prune the oldest ones when the total exceeds the max number of entries.
+  */
+-static void
++static long
+ prune_cache_entries(void)
+ {
+ 	struct svc_cacherep *rp, *tmp;
++	long freed = 0;
+ 
+ 	list_for_each_entry_safe(rp, tmp, &lru_head, c_lru) {
+ 		if (!nfsd_cache_entry_expired(rp) &&
+ 		    num_drc_entries <= max_drc_entries)
+ 			break;
+ 		nfsd_reply_cache_free_locked(rp);
++		freed++;
  	}
  
--	qinf->qi_shrinker.shrink = xfs_qm_shake;
-+	qinf->qi_shrinker.count_objects = xfs_qm_shrink_count;
-+	qinf->qi_shrinker.scan_objects = xfs_qm_shrink_scan;
- 	qinf->qi_shrinker.seeks = DEFAULT_SEEKS;
-+	qinf->qi_shrinker.flags = SHRINKER_NUMA_AWARE;
- 	register_shrinker(&qinf->qi_shrinker);
- 	return 0;
- }
-@@ -1482,132 +1615,6 @@ xfs_qm_dqfree_one(
- 	xfs_qm_dqdestroy(dqp);
+ 	/*
+@@ -254,6 +259,7 @@ prune_cache_entries(void)
+ 		cancel_delayed_work(&cache_cleaner);
+ 	else
+ 		mod_delayed_work(system_wq, &cache_cleaner, RC_EXPIRE);
++	return freed;
  }
  
--STATIC void
--xfs_qm_dqreclaim_one(
--	struct xfs_dquot	*dqp,
--	struct list_head	*buffer_list,
--	struct list_head	*dispose_list)
--{
--	struct xfs_mount	*mp = dqp->q_mount;
--	struct xfs_quotainfo	*qi = mp->m_quotainfo;
--	int			error;
--
--	if (!xfs_dqlock_nowait(dqp))
--		goto out_move_tail;
--
--	/*
--	 * This dquot has acquired a reference in the meantime remove it from
--	 * the freelist and try again.
--	 */
--	if (dqp->q_nrefs) {
--		xfs_dqunlock(dqp);
--
--		trace_xfs_dqreclaim_want(dqp);
--		XFS_STATS_INC(xs_qm_dqwants);
--
--		list_del_init(&dqp->q_lru);
--		qi->qi_lru_count--;
--		XFS_STATS_DEC(xs_qm_dquot_unused);
--		return;
--	}
--
--	/*
--	 * Try to grab the flush lock. If this dquot is in the process of
--	 * getting flushed to disk, we don't want to reclaim it.
--	 */
--	if (!xfs_dqflock_nowait(dqp))
--		goto out_unlock_move_tail;
--
--	if (XFS_DQ_IS_DIRTY(dqp)) {
--		struct xfs_buf	*bp = NULL;
--
--		trace_xfs_dqreclaim_dirty(dqp);
--
--		error = xfs_qm_dqflush(dqp, &bp);
--		if (error) {
--			xfs_warn(mp, "%s: dquot %p flush failed",
--				 __func__, dqp);
--			goto out_unlock_move_tail;
--		}
--
--		xfs_buf_delwri_queue(bp, buffer_list);
--		xfs_buf_relse(bp);
--		/*
--		 * Give the dquot another try on the freelist, as the
--		 * flushing will take some time.
--		 */
--		goto out_unlock_move_tail;
--	}
--	xfs_dqfunlock(dqp);
--
--	/*
--	 * Prevent lookups now that we are past the point of no return.
--	 */
--	dqp->dq_flags |= XFS_DQ_FREEING;
--	xfs_dqunlock(dqp);
--
--	ASSERT(dqp->q_nrefs == 0);
--	list_move_tail(&dqp->q_lru, dispose_list);
--	qi->qi_lru_count--;
--	XFS_STATS_DEC(xs_qm_dquot_unused);
--
--	trace_xfs_dqreclaim_done(dqp);
--	XFS_STATS_INC(xs_qm_dqreclaims);
--	return;
--
--	/*
--	 * Move the dquot to the tail of the list so that we don't spin on it.
--	 */
--out_unlock_move_tail:
--	xfs_dqunlock(dqp);
--out_move_tail:
--	list_move_tail(&dqp->q_lru, &qi->qi_lru_list);
--	trace_xfs_dqreclaim_busy(dqp);
--	XFS_STATS_INC(xs_qm_dqreclaim_misses);
--}
--
--STATIC int
--xfs_qm_shake(
--	struct shrinker		*shrink,
--	struct shrink_control	*sc)
--{
--	struct xfs_quotainfo	*qi =
--		container_of(shrink, struct xfs_quotainfo, qi_shrinker);
--	int			nr_to_scan = sc->nr_to_scan;
--	LIST_HEAD		(buffer_list);
--	LIST_HEAD		(dispose_list);
--	struct xfs_dquot	*dqp;
--	int			error;
--
--	if ((sc->gfp_mask & (__GFP_FS|__GFP_WAIT)) != (__GFP_FS|__GFP_WAIT))
--		return 0;
--	if (!nr_to_scan)
--		goto out;
--
--	mutex_lock(&qi->qi_lru_lock);
--	while (!list_empty(&qi->qi_lru_list)) {
--		if (nr_to_scan-- <= 0)
--			break;
--		dqp = list_first_entry(&qi->qi_lru_list, struct xfs_dquot,
--				       q_lru);
--		xfs_qm_dqreclaim_one(dqp, &buffer_list, &dispose_list);
--	}
--	mutex_unlock(&qi->qi_lru_lock);
--
--	error = xfs_buf_delwri_submit(&buffer_list);
--	if (error)
--		xfs_warn(NULL, "%s: dquot reclaim failed", __func__);
--
--	while (!list_empty(&dispose_list)) {
--		dqp = list_first_entry(&dispose_list, struct xfs_dquot, q_lru);
--		list_del_init(&dqp->q_lru);
--		xfs_qm_dqfree_one(dqp);
--	}
--
--out:
--	return vfs_pressure_ratio(qi->qi_lru_count);
--}
--
+ static void
+@@ -264,20 +270,27 @@ cache_cleaner_func(struct work_struct *unused)
+ 	spin_unlock(&cache_lock);
+ }
+ 
+-static int
+-nfsd_reply_cache_shrink(struct shrinker *shrink, struct shrink_control *sc)
++static long
++nfsd_reply_cache_count(struct shrinker *shrink, struct shrink_control *sc)
+ {
+-	unsigned int num;
++	long num;
+ 
+ 	spin_lock(&cache_lock);
+-	if (sc->nr_to_scan)
+-		prune_cache_entries();
+ 	num = num_drc_entries;
+ 	spin_unlock(&cache_lock);
+ 
+ 	return num;
+ }
+ 
++static long
++nfsd_reply_cache_scan(struct shrinker *shrink, struct shrink_control *sc)
++{
++	long freed;
++	spin_lock(&cache_lock);
++	freed = prune_cache_entries();
++	spin_unlock(&cache_lock);
++	return freed;
++}
  /*
-  * Start a transaction and write the incore superblock changes to
-  * disk. flags parameter indicates which fields have changed.
-diff --git a/fs/xfs/xfs_qm.h b/fs/xfs/xfs_qm.h
-index 5d16a6e..8173b5e 100644
---- a/fs/xfs/xfs_qm.h
-+++ b/fs/xfs/xfs_qm.h
-@@ -47,9 +47,7 @@ typedef struct xfs_quotainfo {
- 	struct mutex qi_tree_lock;
- 	xfs_inode_t	*qi_uquotaip;	 /* user quota inode */
- 	xfs_inode_t	*qi_gquotaip;	 /* group quota inode */
--	struct list_head qi_lru_list;
--	struct mutex	 qi_lru_lock;
--	int		 qi_lru_count;
-+	struct list_lru	 qi_lru;
- 	int		 qi_dquots;
- 	time_t		 qi_btimelimit;	 /* limit for blks timer */
- 	time_t		 qi_itimelimit;	 /* limit for inodes timer */
+  * Walk an xdr_buf and get a CRC for at most the first RC_CSUMLEN bytes
+  */
+diff --git a/fs/quota/dquot.c b/fs/quota/dquot.c
+index 762b09c..930a1b7 100644
+--- a/fs/quota/dquot.c
++++ b/fs/quota/dquot.c
+@@ -687,44 +687,37 @@ int dquot_quota_sync(struct super_block *sb, int type)
+ }
+ EXPORT_SYMBOL(dquot_quota_sync);
+ 
+-/* Free unused dquots from cache */
+-static void prune_dqcache(int count)
++static long
++dqcache_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
+ {
+ 	struct list_head *head;
+ 	struct dquot *dquot;
++	long freed = 0;
+ 
+ 	head = free_dquots.prev;
+-	while (head != &free_dquots && count) {
++	while (head != &free_dquots && sc->nr_to_scan) {
+ 		dquot = list_entry(head, struct dquot, dq_free);
+ 		remove_dquot_hash(dquot);
+ 		remove_free_dquot(dquot);
+ 		remove_inuse(dquot);
+ 		do_destroy_dquot(dquot);
+-		count--;
++		sc->nr_to_scan--;
++		freed++;
+ 		head = free_dquots.prev;
+ 	}
++	return freed;
+ }
+ 
+-/*
+- * This is called from kswapd when we think we need some
+- * more memory
+- */
+-static int shrink_dqcache_memory(struct shrinker *shrink,
+-				 struct shrink_control *sc)
++static long
++dqcache_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
+ {
+-	int nr = sc->nr_to_scan;
+-
+-	if (nr) {
+-		spin_lock(&dq_list_lock);
+-		prune_dqcache(nr);
+-		spin_unlock(&dq_list_lock);
+-	}
+ 	return vfs_pressure_ratio(
+ 	percpu_counter_read_positive(&dqstats.counter[DQST_FREE_DQUOTS]));
+ }
+ 
+ static struct shrinker dqcache_shrinker = {
+-	.shrink = shrink_dqcache_memory,
++	.count_objects = dqcache_shrink_count,
++	.scan_objects = dqcache_shrink_scan,
+ 	.seeks = DEFAULT_SEEKS,
+ };
+ 
+diff --git a/fs/ubifs/shrinker.c b/fs/ubifs/shrinker.c
+index 9e1d056..e2cf4cb 100644
+--- a/fs/ubifs/shrinker.c
++++ b/fs/ubifs/shrinker.c
+@@ -277,19 +277,23 @@ static int kick_a_thread(void)
+ 	return 0;
+ }
+ 
+-int ubifs_shrinker(struct shrinker *shrink, struct shrink_control *sc)
++long ubifs_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
++{
++	long clean_zn_cnt = atomic_long_read(&ubifs_clean_zn_cnt);
++
++	/*
++	 * Due to the way UBIFS updates the clean znode counter it may
++	 * temporarily be negative.
++	 */
++	return clean_zn_cnt >= 0 ? clean_zn_cnt : 1;
++}
++
++long ubifs_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
+ {
+ 	int nr = sc->nr_to_scan;
+ 	int freed, contention = 0;
+ 	long clean_zn_cnt = atomic_long_read(&ubifs_clean_zn_cnt);
+ 
+-	if (nr == 0)
+-		/*
+-		 * Due to the way UBIFS updates the clean znode counter it may
+-		 * temporarily be negative.
+-		 */
+-		return clean_zn_cnt >= 0 ? clean_zn_cnt : 1;
+-
+ 	if (!clean_zn_cnt) {
+ 		/*
+ 		 * No clean znodes, nothing to reap. All we can do in this case
+@@ -316,7 +320,7 @@ int ubifs_shrinker(struct shrinker *shrink, struct shrink_control *sc)
+ 
+ 	if (!freed && contention) {
+ 		dbg_tnc("freed nothing, but contention");
+-		return -1;
++		return SHRINK_STOP;
+ 	}
+ 
+ out:
+diff --git a/fs/ubifs/super.c b/fs/ubifs/super.c
+index f21acf0..ff357e0 100644
+--- a/fs/ubifs/super.c
++++ b/fs/ubifs/super.c
+@@ -49,7 +49,8 @@ struct kmem_cache *ubifs_inode_slab;
+ 
+ /* UBIFS TNC shrinker description */
+ static struct shrinker ubifs_shrinker_info = {
+-	.shrink = ubifs_shrinker,
++	.scan_objects = ubifs_shrink_scan,
++	.count_objects = ubifs_shrink_count,
+ 	.seeks = DEFAULT_SEEKS,
+ };
+ 
+diff --git a/fs/ubifs/ubifs.h b/fs/ubifs/ubifs.h
+index b2babce..bcdafcc 100644
+--- a/fs/ubifs/ubifs.h
++++ b/fs/ubifs/ubifs.h
+@@ -1624,7 +1624,8 @@ int ubifs_tnc_start_commit(struct ubifs_info *c, struct ubifs_zbranch *zroot);
+ int ubifs_tnc_end_commit(struct ubifs_info *c);
+ 
+ /* shrinker.c */
+-int ubifs_shrinker(struct shrinker *shrink, struct shrink_control *sc);
++long ubifs_shrink_scan(struct shrinker *shrink, struct shrink_control *sc);
++long ubifs_shrink_count(struct shrinker *shrink, struct shrink_control *sc);
+ 
+ /* commit.c */
+ int ubifs_bg_thread(void *info);
 -- 
 1.8.1.4
 
