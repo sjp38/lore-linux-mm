@@ -1,65 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id C5A756B0032
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 10:14:03 -0400 (EDT)
-Date: Thu, 6 Jun 2013 11:13:58 -0300
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH v2] virtio_balloon: leak_balloon(): only tell host if we
- got pages deflated
-Message-ID: <20130606141357.GD30387@optiplex.redhat.com>
-References: <20130605211837.1fc9b902@redhat.com>
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 242236B0034
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 10:15:32 -0400 (EDT)
+Date: Thu, 6 Jun 2013 14:15:29 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 1/7] mm: remove ZONE_RECLAIM_LOCKED
+In-Reply-To: <51AFA786.1040608@gmail.com>
+Message-ID: <0000013f19d7a21d-0bc478a9-c65b-4d66-a774-266b17bcde2a-000000@email.amazonses.com>
+References: <1370445037-24144-1-git-send-email-aarcange@redhat.com> <1370445037-24144-2-git-send-email-aarcange@redhat.com> <51AFA185.9000909@gmail.com> <0000013f161c3f42-14ae4d9d-fd85-47dd-ba80-896e1e84a6fe-000000@email.amazonses.com>
+ <51AFA786.1040608@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130605211837.1fc9b902@redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luiz Capitulino <lcapitulino@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>
 
-On Wed, Jun 05, 2013 at 09:18:37PM -0400, Luiz Capitulino wrote:
-> The balloon_page_dequeue() function can return NULL. If it does for
-> the first page being freed, then leak_balloon() will create a
-> scatter list with len=0. Which in turn seems to generate an invalid
-> virtio request.
-> 
-> I didn't get this in practice, I found it by code review. On the other
-> hand, such an invalid virtio request will cause errors in QEMU and
-> fill_balloon() also performs the same check implemented by this commit.
-> 
-> Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
-> Acked-by: Rafael Aquini <aquini@redhat.com>
-> ---
-> 
-> o v2
-> 
->  - Improve changelog
-> 
->  drivers/virtio/virtio_balloon.c | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
-> 
-> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-> index bd3ae32..71af7b5 100644
-> --- a/drivers/virtio/virtio_balloon.c
-> +++ b/drivers/virtio/virtio_balloon.c
-> @@ -191,7 +191,8 @@ static void leak_balloon(struct virtio_balloon *vb, size_t num)
->  	 * virtio_has_feature(vdev, VIRTIO_BALLOON_F_MUST_TELL_HOST);
->  	 * is true, we *have* to do it in this order
->  	 */
-> -	tell_host(vb, vb->deflate_vq);
+On Wed, 5 Jun 2013, KOSAKI Motohiro wrote:
 
-Luiz, sorry for not being clearer before. I was referring to add a commentary on
-code, to explain in short words why we should not get rid of this check point.
+> > There was early on an issue with multiple zone reclaims from
+> > different processors causing an extreme slowdown and the system would go
+> > OOM. The flag was used to enforce that only a single zone reclaim pass was
+> > occurring at one time on a zone. This minimized contention and avoided
+> > the failure.
+>
+> OK. I've convinced now we can removed because sc->nr_to_reclaim protect us
+> form
+> this issue.
 
-> +	if (vb->num_pfns != 0)
-> +		tell_host(vb, vb->deflate_vq);
->  	mutex_unlock(&vb->balloon_lock);
+How does nr_to_reclaim limit the concurrency of zone reclaim?
 
-If the comment is regarded as unnecessary, then just ignore my suggestion. I'm
-OK with your patch. :)
-
-Cheers!
--- Rafael
+What happens if multiple processes are allocating from the same zone and
+they all go into direct reclaim and therefore hit zone reclaim?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
