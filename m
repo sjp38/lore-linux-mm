@@ -1,161 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 7BD356B005A
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 16:34:55 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 7FA936B005A
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 16:34:58 -0400 (EDT)
 From: Glauber Costa <glommer@openvz.org>
-Subject: [PATCH v11 12/25] list_lru: per-node API
-Date: Fri,  7 Jun 2013 00:34:45 +0400
-Message-Id: <1370550898-26711-13-git-send-email-glommer@openvz.org>
+Subject: [PATCH v11 13/25] shrinker: add node awareness
+Date: Fri,  7 Jun 2013 00:34:46 +0400
+Message-Id: <1370550898-26711-14-git-send-email-glommer@openvz.org>
 In-Reply-To: <1370550898-26711-1-git-send-email-glommer@openvz.org>
 References: <1370550898-26711-1-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-fsdevel@vger.kernel.org, mgorman@suse.de, david@fromorbit.com, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suze.cz, hannes@cmpxchg.org, hughd@google.com, gthelen@google.com, Glauber Costa <glommer@openvz.org>, Dave Chinner <dchinner@redhat.com>
+Cc: linux-fsdevel@vger.kernel.org, mgorman@suse.de, david@fromorbit.com, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suze.cz, hannes@cmpxchg.org, hughd@google.com, gthelen@google.com, Dave Chinner <dchinner@redhat.com>, Glauber Costa <glommer@openvz.org>
 
-This patch adapts the list_lru API to accept an optional node argument,
-to be used by NUMA aware shrinking functions. Code that does not care
-about the NUMA placement of objects can still call into the very same
-functions as before. They will simply iterate over all nodes.
+From: Dave Chinner <dchinner@redhat.com>
 
+Pass the node of the current zone being reclaimed to shrink_slab(),
+allowing the shrinker control nodemask to be set appropriately for
+node aware shrinkers.
+
+[ v3: update ashmem ]
+Signed-off-by: Dave Chinner <dchinner@redhat.com>
 Signed-off-by: Glauber Costa <glommer@openvz.org>
-Cc: Dave Chinner <dchinner@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>
+Acked-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/list_lru.h | 39 ++++++++++++++++++++++++++++++++++-----
- mm/list_lru.c            | 37 +++++++++----------------------------
- 2 files changed, 43 insertions(+), 33 deletions(-)
+ drivers/staging/android/ashmem.c |  3 +++
+ fs/drop_caches.c                 |  1 +
+ include/linux/shrinker.h         |  3 +++
+ mm/memory-failure.c              |  2 ++
+ mm/vmscan.c                      | 11 ++++++++---
+ 5 files changed, 17 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
-index f4d4cb6..2fe13e1 100644
---- a/include/linux/list_lru.h
-+++ b/include/linux/list_lru.h
-@@ -75,20 +75,32 @@ bool list_lru_add(struct list_lru *lru, struct list_head *item);
- bool list_lru_del(struct list_lru *lru, struct list_head *item);
- 
- /**
-- * list_lru_count: return the number of objects currently held by @lru
-+ * list_lru_count_node: return the number of objects currently held by @lru
-  * @lru: the lru pointer.
-+ * @nid: the node id to count from.
-  *
-  * Always return a non-negative number, 0 for empty lists. There is no
-  * guarantee that the list is not updated while the count is being computed.
-  * Callers that want such a guarantee need to provide an outer lock.
-  */
--unsigned long list_lru_count(struct list_lru *lru);
-+unsigned long list_lru_count_node(struct list_lru *lru, int nid);
-+static inline unsigned long list_lru_count(struct list_lru *lru)
-+{
-+	long count = 0;
-+	int nid;
+diff --git a/drivers/staging/android/ashmem.c b/drivers/staging/android/ashmem.c
+index 21a3f72..65f36d7 100644
+--- a/drivers/staging/android/ashmem.c
++++ b/drivers/staging/android/ashmem.c
+@@ -692,6 +692,9 @@ static long ashmem_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+ 				.gfp_mask = GFP_KERNEL,
+ 				.nr_to_scan = 0,
+ 			};
 +
-+	for_each_node_mask(nid, lru->active_nodes)
-+		count += list_lru_count_node(lru, nid);
++			nodes_setall(sc.nodes_to_scan);
 +
-+	return count;
-+}
+ 			ret = ashmem_shrink(&ashmem_shrinker, &sc);
+ 			sc.nr_to_scan = ret;
+ 			ashmem_shrink(&ashmem_shrinker, &sc);
+diff --git a/fs/drop_caches.c b/fs/drop_caches.c
+index c00e055..9fd702f 100644
+--- a/fs/drop_caches.c
++++ b/fs/drop_caches.c
+@@ -44,6 +44,7 @@ static void drop_slab(void)
+ 		.gfp_mask = GFP_KERNEL,
+ 	};
  
- typedef enum lru_status
- (*list_lru_walk_cb)(struct list_head *item, spinlock_t *lock, void *cb_arg);
- /**
-- * list_lru_walk: walk a list_lru, isolating and disposing freeable items.
-+ * list_lru_walk_node: walk a list_lru, isolating and disposing freeable items.
-  * @lru: the lru pointer.
-+ * @nid: the node id to scan from.
-  * @isolate: callback function that is resposible for deciding what to do with
-  *  the item currently being scanned
-  * @cb_arg: opaque type that will be passed to @isolate
-@@ -106,8 +118,25 @@ typedef enum lru_status
-  *
-  * Return value: the number of objects effectively removed from the LRU.
-  */
--unsigned long list_lru_walk(struct list_lru *lru, list_lru_walk_cb isolate,
--		   void *cb_arg, unsigned long nr_to_walk);
-+unsigned long list_lru_walk_node(struct list_lru *lru, int nid,
-+				 list_lru_walk_cb isolate, void *cb_arg,
-+				 unsigned long *nr_to_walk);
++	nodes_setall(shrink.nodes_to_scan);
+ 	do {
+ 		nr_objects = shrink_slab(&shrink, 1000, 1000);
+ 	} while (nr_objects > 10);
+diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
+index 884e762..76f520c 100644
+--- a/include/linux/shrinker.h
++++ b/include/linux/shrinker.h
+@@ -16,6 +16,9 @@ struct shrink_control {
+ 
+ 	/* How many slab objects shrinker() should scan and try to reclaim */
+ 	unsigned long nr_to_scan;
 +
-+static inline unsigned long
-+list_lru_walk(struct list_lru *lru, list_lru_walk_cb isolate,
-+	      void *cb_arg, unsigned long nr_to_walk)
-+{
-+	long isolated = 0;
-+	int nid;
++	/* shrink from these nodes */
++	nodemask_t nodes_to_scan;
+ };
+ 
+ #define SHRINK_STOP (~0UL)
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index 2c13aa7..09ae111 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -248,10 +248,12 @@ void shake_page(struct page *p, int access)
+ 	 */
+ 	if (access) {
+ 		int nr;
++		int nid = page_to_nid(p);
+ 		do {
+ 			struct shrink_control shrink = {
+ 				.gfp_mask = GFP_KERNEL,
+ 			};
++			node_set(nid, shrink.nodes_to_scan);
+ 
+ 			nr = shrink_slab(&shrink, 1000, 1000);
+ 			if (page_count(p) == 1)
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index dfc5685..f39cae0 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2385,12 +2385,16 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 		 */
+ 		if (global_reclaim(sc)) {
+ 			unsigned long lru_pages = 0;
 +
-+	for_each_node_mask(nid, lru->active_nodes) {
-+		isolated += list_lru_walk_node(lru, nid, isolate,
-+					       cb_arg, &nr_to_walk);
-+		if (nr_to_walk <= 0)
-+			break;
-+	}
-+	return isolated;
-+}
++			nodes_clear(shrink->nodes_to_scan);
+ 			for_each_zone_zonelist(zone, z, zonelist,
+ 					gfp_zone(sc->gfp_mask)) {
+ 				if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
+ 					continue;
  
- typedef void (*list_lru_dispose_cb)(struct list_head *dispose_list);
- /**
-diff --git a/mm/list_lru.c b/mm/list_lru.c
-index f2d1d6e..2822817 100644
---- a/mm/list_lru.c
-+++ b/mm/list_lru.c
-@@ -47,25 +47,22 @@ bool list_lru_del(struct list_lru *lru, struct list_head *item)
- }
- EXPORT_SYMBOL_GPL(list_lru_del);
+ 				lru_pages += zone_reclaimable_pages(zone);
++				node_set(zone_to_nid(zone),
++					 shrink->nodes_to_scan);
+ 			}
  
--unsigned long list_lru_count(struct list_lru *lru)
-+unsigned long
-+list_lru_count_node(struct list_lru *lru, int nid)
- {
- 	unsigned long count = 0;
--	int nid;
--
--	for_each_node_mask(nid, lru->active_nodes) {
--		struct list_lru_node *nlru = &lru->node[nid];
-+	struct list_lru_node *nlru = &lru->node[nid];
+ 			shrink_slab(shrink, sc->nr_scanned, lru_pages);
+@@ -2847,6 +2851,8 @@ static bool kswapd_shrink_zone(struct zone *zone,
+ 		return true;
  
--		spin_lock(&nlru->lock);
--		BUG_ON(nlru->nr_items < 0);
--		count += nlru->nr_items;
--		spin_unlock(&nlru->lock);
--	}
-+	spin_lock(&nlru->lock);
-+	BUG_ON(nlru->nr_items < 0);
-+	count += nlru->nr_items;
-+	spin_unlock(&nlru->lock);
+ 	shrink_zone(zone, sc);
++	nodes_clear(shrink.nodes_to_scan);
++	node_set(zone_to_nid(zone), shrink.nodes_to_scan);
  
- 	return count;
- }
--EXPORT_SYMBOL_GPL(list_lru_count);
-+EXPORT_SYMBOL_GPL(list_lru_count_node);
+ 	reclaim_state->reclaimed_slab = 0;
+ 	nr_slab = shrink_slab(&shrink, sc->nr_scanned, lru_pages);
+@@ -3555,10 +3561,9 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+ 		 * number of slab pages and shake the slab until it is reduced
+ 		 * by the same nr_pages that we used for reclaiming unmapped
+ 		 * pages.
+-		 *
+-		 * Note that shrink_slab will free memory on all zones and may
+-		 * take a long time.
+ 		 */
++		nodes_clear(shrink.nodes_to_scan);
++		node_set(zone_to_nid(zone), shrink.nodes_to_scan);
+ 		for (;;) {
+ 			unsigned long lru_pages = zone_reclaimable_pages(zone);
  
--static unsigned long
-+unsigned long
- list_lru_walk_node(struct list_lru *lru, int nid, list_lru_walk_cb isolate,
- 		   void *cb_arg, unsigned long *nr_to_walk)
- {
-@@ -120,22 +117,6 @@ restart:
- }
- EXPORT_SYMBOL_GPL(list_lru_walk_node);
- 
--unsigned long list_lru_walk(struct list_lru *lru, list_lru_walk_cb isolate,
--			    void *cb_arg, unsigned long nr_to_walk)
--{
--	unsigned long isolated = 0;
--	int nid;
--
--	for_each_node_mask(nid, lru->active_nodes) {
--		isolated += list_lru_walk_node(lru, nid, isolate,
--					       cb_arg, &nr_to_walk);
--		if (nr_to_walk <= 0)
--			break;
--	}
--	return isolated;
--}
--EXPORT_SYMBOL_GPL(list_lru_walk);
--
- static unsigned long list_lru_dispose_all_node(struct list_lru *lru, int nid,
- 					       list_lru_dispose_cb dispose)
- {
 -- 
 1.8.1.4
 
