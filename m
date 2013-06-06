@@ -1,70 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 68F6F6B0031
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 05:49:22 -0400 (EDT)
-Date: Thu, 6 Jun 2013 02:49:06 -0700
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 044AA6B0031
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 05:55:32 -0400 (EDT)
+Date: Thu, 6 Jun 2013 02:55:17 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v10 29/35] memcg: per-memcg kmem shrinking
-Message-Id: <20130606024906.e5b85b28.akpm@linux-foundation.org>
-In-Reply-To: <51B049D5.2020809@parallels.com>
+Subject: Re: [PATCH v10 08/35] list: add a new LRU list type
+Message-Id: <20130606025517.8400c279.akpm@linux-foundation.org>
+In-Reply-To: <51B05069.5070404@parallels.com>
 References: <1370287804-3481-1-git-send-email-glommer@openvz.org>
-	<1370287804-3481-30-git-send-email-glommer@openvz.org>
-	<20130605160841.909420c06bfde62039489d2e@linux-foundation.org>
-	<51B049D5.2020809@parallels.com>
+	<1370287804-3481-9-git-send-email-glommer@openvz.org>
+	<20130605160758.19e854a6995e3c2a1f5260bf@linux-foundation.org>
+	<20130606024909.GP29338@dastard>
+	<20130605200554.d4dae16f.akpm@linux-foundation.org>
+	<20130606044426.GX29338@dastard>
+	<20130606000409.e4333f7c.akpm@linux-foundation.org>
+	<51B05069.5070404@parallels.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
-Cc: Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>, Rik van Riel <riel@redhat.com>
+Cc: Dave Chinner <david@fromorbit.com>, Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>
 
-On Thu, 6 Jun 2013 12:35:33 +0400 Glauber Costa <glommer@parallels.com> wrote:
+On Thu, 6 Jun 2013 13:03:37 +0400 Glauber Costa <glommer@parallels.com> wrote:
 
-> On 06/06/2013 03:08 AM, Andrew Morton wrote:
-> >> +
-> >> > +		/*
-> >> > +		 * We will try to shrink kernel memory present in caches. We
-> >> > +		 * are sure that we can wait, so we will. The duration of our
-> >> > +		 * wait is determined by congestion, the same way as vmscan.c
-> >> > +		 *
-> >> > +		 * If we are in FS context, though, then although we can wait,
-> >> > +		 * we cannot call the shrinkers. Most fs shrinkers (which
-> >> > +		 * comprises most of our kmem data) will not run without
-> >> > +		 * __GFP_FS since they can deadlock. The solution is to
-> >> > +		 * synchronously run that in a different context.
-> > But this is pointless.  Calling a function via a different thread and
-> > then waiting for it to complete is equivalent to calling it directly.
-> > 
-> Not in this case. We are in wait-capable context (we check for this
-> right before we reach this), but we are not in fs capable context.
+>  I do think it would be more appropriate to
+> > discard the lib/ idea and move it all into fs/ or mm/.
+> I have no particular love for this in lib/
 > 
-> So the reason we do this - which I tried to cover in the changelog, is
-> to escape from the GFP_FS limitation that our call chain has, not the
-> wait limitation.
+> Most of the users are in fs/, so I see no point in mm/
+> So for me, if you are really not happy about lib, I would suggest moving
+> this to fs/
 
-But that's equivalent to calling the code directly.  Look:
+Always feel free to differ but yes, fs/ seems better to me.
 
-some_fs_function()
-{
-	lock(some-fs-lock);
-	...
-}
-
-some_other_fs_function()
-{
-	lock(some-fs-lock);
-	alloc_pages(GFP_NOFS);
-	->...
-	  ->schedule_work(some_fs_function);
-	    flush_scheduled_work();
-
-that flush_scheduled_work() won't complete until some_fs_function() has
-completed.  But some_fs_function() won't complete, because we're
-holding some-fs-lock.
-
-
-	
+I suggested mm/ also because that's where the shrinker core resides.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
