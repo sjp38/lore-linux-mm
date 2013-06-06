@@ -1,49 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 8E2636B0031
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 07:46:43 -0400 (EDT)
-Message-ID: <51B076D1.20007@parallels.com>
-Date: Thu, 6 Jun 2013 15:47:29 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 973E26B0031
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 07:50:33 -0400 (EDT)
+Date: Thu, 6 Jun 2013 13:50:31 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 3/3] memcg: simplify mem_cgroup_reclaim_iter
+Message-ID: <20130606115031.GE7909@dhcp22.suse.cz>
+References: <20130604215535.GM14916@htj.dyndns.org>
+ <20130605073023.GB15997@dhcp22.suse.cz>
+ <20130605082023.GG7303@mtj.dyndns.org>
+ <20130605143949.GQ15576@cmpxchg.org>
+ <20130605172212.GA10693@mtj.dyndns.org>
+ <20130605194552.GI15721@cmpxchg.org>
+ <20130605200612.GH10693@mtj.dyndns.org>
+ <20130605211704.GJ15721@cmpxchg.org>
+ <20130605222021.GL10693@mtj.dyndns.org>
+ <20130605222709.GM10693@mtj.dyndns.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v10 08/35] list: add a new LRU list type
-References: <1370287804-3481-1-git-send-email-glommer@openvz.org> <1370287804-3481-9-git-send-email-glommer@openvz.org> <20130605160758.19e854a6995e3c2a1f5260bf@linux-foundation.org> <20130606024909.GP29338@dastard> <20130605200554.d4dae16f.akpm@linux-foundation.org> <20130606044426.GX29338@dastard> <20130606000409.e4333f7c.akpm@linux-foundation.org> <51B05069.5070404@parallels.com> <20130606025517.8400c279.akpm@linux-foundation.org>
-In-Reply-To: <20130606025517.8400c279.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130605222709.GM10693@mtj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Chinner <david@fromorbit.com>, Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, bsingharora@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org, lizefan@huawei.com
 
-On 06/06/2013 01:55 PM, Andrew Morton wrote:
-> On Thu, 6 Jun 2013 13:03:37 +0400 Glauber Costa <glommer@parallels.com> wrote:
+On Wed 05-06-13 15:27:09, Tejun Heo wrote:
+> On Wed, Jun 05, 2013 at 03:20:21PM -0700, Tejun Heo wrote:
+> > Yo,
+> > 
+> > On Wed, Jun 05, 2013 at 05:17:04PM -0400, Johannes Weiner wrote:
+> > > That could be an advantage, yes.  But keep in mind that every
+> > > destruction has to perform this invalidation operation against the
+> > > global root_mem_cgroup's nr_node * nr_zone * nr_priority_levels
+> > > iterators, so you can't muck around forever, while possibly holding a
+> > > lock at this level.  It's not a hot path, but you don't want to turn
+> > > it into one, either.
+> > 
+> > nr_node tends to be pretty low in most cases, so it shouldn't be a
+> > problem there but yeah with high enough nodes and high enough rate of
 > 
->>  I do think it would be more appropriate to
->>> discard the lib/ idea and move it all into fs/ or mm/.
->> I have no particular love for this in lib/
->>
->> Most of the users are in fs/, so I see no point in mm/
->> So for me, if you are really not happy about lib, I would suggest moving
->> this to fs/
+> Also, do we need to hold a lock?  It doesn't have to be completely
+> strict, so we might as well get away with something like,
 > 
-> Always feel free to differ but yes, fs/ seems better to me.
-> 
-> I suggested mm/ also because that's where the shrinker core resides.
-> 
-As I said, unless Dave has a strong point against it, I don't really
-care if it lives in lib/ or not. It is infrastructure, but not
-necessarily lib-like infrastructure.
+> 	for_each_cached_pos() {
+> 		if (hint == me) {
+> 			/* simple clearing implementation, we prolly wanna push it forward */
+> 			cached = xchg(hint, NULL);
+> 			if (cached)
+> 				css_put(cached);
+> 		}
+> 	}
 
-Now, I have been thinking about this during the last hour, and as much
-as all users are in fs/, putting it into mm/ would give us quite some
-other advantage: namely, it has been already detected that we would like
-to have, if possible, stronger ties between shrinkers, caches and the
-underlying lists. We use a bunch of mm/ infrastructure, etc.
+This would be racy:
+mem_cgroup_iter
+  rcu_read_lock
+  __mem_cgroup_iter_next		cgroup_destroy_locked
+    css_tryget(memcg)
+  					  atomic_add(CSS_DEACT_BIAS)
+    					  offline_css(memcg)
+					    xchg(memcg, NULL)
+  mem_cgroup_iter_update
+    iter->last_visited = memcg
+  rcy_read_unlock
 
-This is always something we can change if it really hurts, but right now
-I am 51 % mm/ 49 % fs/
+But if it was called from call_rcu the we should be safe AFAICS.
 
+> It still scans the memory but wouldn't create any contention.
+> 
+> Thanks.
+> 
+> -- 
+> tejun
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
