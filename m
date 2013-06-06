@@ -1,37 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id DB3D56B0033
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 05:02:45 -0400 (EDT)
-Message-ID: <51B05069.5070404@parallels.com>
-Date: Thu, 6 Jun 2013 13:03:37 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id C08CC6B0033
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 05:04:34 -0400 (EDT)
+Date: Thu, 6 Jun 2013 10:04:30 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 1/7] mm: remove ZONE_RECLAIM_LOCKED
+Message-ID: <20130606090430.GC1936@suse.de>
+References: <1370445037-24144-1-git-send-email-aarcange@redhat.com>
+ <1370445037-24144-2-git-send-email-aarcange@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v10 08/35] list: add a new LRU list type
-References: <1370287804-3481-1-git-send-email-glommer@openvz.org> <1370287804-3481-9-git-send-email-glommer@openvz.org> <20130605160758.19e854a6995e3c2a1f5260bf@linux-foundation.org> <20130606024909.GP29338@dastard> <20130605200554.d4dae16f.akpm@linux-foundation.org> <20130606044426.GX29338@dastard> <20130606000409.e4333f7c.akpm@linux-foundation.org>
-In-Reply-To: <20130606000409.e4333f7c.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1370445037-24144-2-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Chinner <david@fromorbit.com>, Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>
 
-On 06/06/2013 11:04 AM, Andrew Morton wrote:
-> But anyone who just wants a queue doesn't want their queue_lru_del()
-> calling into memcg code(!).
+On Wed, Jun 05, 2013 at 05:10:31PM +0200, Andrea Arcangeli wrote:
+> Zone reclaim locked breaks zone_reclaim_mode=1. If more than one
+> thread allocates memory at the same time, it forces a premature
+> allocation into remote NUMA nodes even when there's plenty of clean
+> cache to reclaim in the local nodes.
+> 
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 
-It won't call any relevant memcg code unless the list_lru (or queue, or
-whatever) is explicitly marked as memcg-aware.
+Be aware that after this patch is applied that it is possible to have a
+situation like this
 
+1. 4 processes running on node 1
+2. Each process tries to allocate 30% of memory
+3. Each process reads the full buffer in a loop (stupid, just an example)
 
- I do think it would be more appropriate to
-> discard the lib/ idea and move it all into fs/ or mm/.
-I have no particular love for this in lib/
+In this situation the processes will continually interfere with each
+other until one of them gets migrated to another zone by the scheduler.
+Watch for excessive reclaim, swapping and page writes from reclaim context
+as a result of this patch. A less stupid example is four file intensive
+workloads running in one node interfering with each other.
 
-Most of the users are in fs/, so I see no point in mm/
-So for me, if you are really not happy about lib, I would suggest moving
-this to fs/
+Before this patch, one process would make forward progress and the others
+would fall back to using remote memory until all 4 processes had all the
+memory they need. At this point it is no longer allocating new pages or in
+reclaim. Most users will not notice additional remote accesses but I bet
+you they will notice swap/reclaim storms when there is plenty of memory
+on other nodes.
 
+Direct reclaim suffers a similar problem but to a much lesser extent.
+Users of direct reclaim will fall back to other zones in the zonelist and
+kswapd mitigates entry into direct reclaim in a number of cases.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
