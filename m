@@ -1,67 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 8CE286B0034
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 22:04:59 -0400 (EDT)
-Date: Thu, 6 Jun 2013 12:04:55 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: Re: mmotm 2013-06-05-17-24 uploaded
-Message-Id: <20130606120455.bd86a4c0ac009482db80f634@canb.auug.org.au>
-In-Reply-To: <20130606002636.6746F5A41AE@corp2gmr1-2.hot.corp.google.com>
-References: <20130606002636.6746F5A41AE@corp2gmr1-2.hot.corp.google.com>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 81A606B0031
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 22:48:16 -0400 (EDT)
+Date: Wed, 5 Jun 2013 19:48:01 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v10 03/35] dcache: convert dentry_stat.nr_unused to
+ per-cpu counters
+Message-Id: <20130605194801.f9b25abf.akpm@linux-foundation.org>
+In-Reply-To: <20130606014509.GN29338@dastard>
+References: <1370287804-3481-1-git-send-email-glommer@openvz.org>
+	<1370287804-3481-4-git-send-email-glommer@openvz.org>
+	<20130605160731.91a5cd3ff700367f5e155d83@linux-foundation.org>
+	<20130606014509.GN29338@dastard>
 Mime-Version: 1.0
-Content-Type: multipart/signed; protocol="application/pgp-signature";
- micalg="PGP-SHA256";
- boundary="Signature=_Thu__6_Jun_2013_12_04_55_+1000_4uFTmUaO3h/okSgd"
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>
 
---Signature=_Thu__6_Jun_2013_12_04_55_+1000_4uFTmUaO3h/okSgd
-Content-Type: text/plain; charset=US-ASCII
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+On Thu, 6 Jun 2013 11:45:09 +1000 Dave Chinner <david@fromorbit.com> wrote:
 
-Hi Andrew,
+> Andrew, if you want to push the changes back to generic per-cpu
+> counters through to Linus, then I'll write the patches for you.  But
+> - and this is a big but - I'll only do this if you are going to deal
+> with the "performance trumps all other concerns" fanatics over
+> whether it should be merged or not. I have better things to do
+> with my time have a flamewar over trivial details like this.
 
-On Wed, 05 Jun 2013 17:26:36 -0700 akpm@linux-foundation.org wrote:
->
->   linux-next-git-rejects.patch
+Please view my comments as a critique of the changelog, not of the code. 
 
-We must figure out why you sometimes get rejects that I do not get when I
-import your series into a git tree.  However in this case you resolution
-is not quite right.  It leaves 2 continue statements in
-net/mac80211/iface.c at line 191 which will unconditionally short circuit
-the enclosing loop.  The version that will be in linux-next today is
-correct (and git did it automatically as part of the merge of the old
-linux-next tree).
+There are presumably good (but undisclosed) reasons for going this way,
+but this question is so bleeding obvious that the decision should have
+been addressed up-front and in good detail.
 
---=20
-Cheers,
-Stephen Rothwell                    sfr@canb.auug.org.au
-
---Signature=_Thu__6_Jun_2013_12_04_55_+1000_4uFTmUaO3h/okSgd
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.20 (GNU/Linux)
-
-iQIcBAEBCAAGBQJRr+5HAAoJEECxmPOUX5FEOo8P/RnG5/O6F33VHBHkewwwihE2
-Ba9P9wfOy2DsgdIBvdSOcRaDE//2SFMheEbBdt1oFKWrPY1iycjn5NW1nqv4w051
-o+3JUcIJM8ApjhO4oXBuLoZdHI9MrGg8l57GoOqOvZSANHhJfHovEXTGVw/xKRHk
-p3cQ2YcnpwXiSf4BCWs/DniF7Ux3ETLomaEBwdd0Bg4Oqk64hfmXz3VDb9gJBCAT
-eCQ1wu6cLd/rAGOJuxHHpx2cNPp7xr+fhEWRi0krEhAOlRkn1qQLCPkNRx9DpB7m
-q0NTEf2nKzSwhYsKtspFJnl6aLyN91axuVF7m2nIa7E3BddJRCdCQIn5jlpB0ZwF
-xGX9lO2jM/fWoNMgadjeqmyrzlAFtUvLliTQSANz4GMoalhnGBuzIcols0OPjjcf
-1tHM2VGNVJ+6MpyN+KRsoIvfCCwnSKTh5m1DlWC/aLcCgJwTo3FbyK0WaBywErl9
-FthIRpYQOUo3c93MZyJzsvSywXCRgzujpvcetMqFP9XVWPLDJRdfxZ7owkDVsGwN
-r2xRegCCLWZIXlQpNsX6yJ67b8YkMJ5o2+62qW71N0CRDI/LVfNMST9K7W3/7OPR
-oJ/VE9PreIPeJiFsQuRDW4X4RvoRxr9m8hLb5FkVnteyVmvaMTObSKKrGK3ZeJoa
-B8g7q9rCyMcQmA9PPJA5
-=5k0P
------END PGP SIGNATURE-----
-
---Signature=_Thu__6_Jun_2013_12_04_55_+1000_4uFTmUaO3h/okSgd--
+And, preferably, with benchmark numbers.  Because it might have been
+the wrong decision - stranger things have happened.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
