@@ -1,213 +1,302 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id A89F26B0062
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 16:35:06 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 4FD306B0068
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 16:35:10 -0400 (EDT)
 From: Glauber Costa <glommer@openvz.org>
-Subject: [PATCH v11 15/25] fs: convert inode and dentry shrinking to be node aware
-Date: Fri,  7 Jun 2013 00:34:48 +0400
-Message-Id: <1370550898-26711-16-git-send-email-glommer@openvz.org>
+Subject: [PATCH v11 16/25] xfs: convert buftarg LRU to generic code
+Date: Fri,  7 Jun 2013 00:34:49 +0400
+Message-Id: <1370550898-26711-17-git-send-email-glommer@openvz.org>
 In-Reply-To: <1370550898-26711-1-git-send-email-glommer@openvz.org>
 References: <1370550898-26711-1-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-fsdevel@vger.kernel.org, mgorman@suse.de, david@fromorbit.com, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suze.cz, hannes@cmpxchg.org, hughd@google.com, gthelen@google.com, Dave Chinner <dchinner@redhat.com>, Glauber Costa <glommer@parallels.com>
+Cc: linux-fsdevel@vger.kernel.org, mgorman@suse.de, david@fromorbit.com, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suze.cz, hannes@cmpxchg.org, hughd@google.com, gthelen@google.com, Glauber Costa <glommer@openvz.org>, Dave Chinner <dchinner@redhat.com>
 
 From: Dave Chinner <dchinner@redhat.com>
 
-Now that the shrinker is passing a node in the scan control
-structure, we can pass this to the the generic LRU list code to
-isolate reclaim to the lists on matching nodes.
+Convert the buftarg LRU to use the new generic LRU list and take
+advantage of the functionality it supplies to make the buffer cache
+shrinker node aware.
 
-v7: refactoring of the LRU list API in a separate patch
+* v7: Add NUMA aware flag
+
+Signed-off-by: Glauber Costa <glommer@openvz.org>
 Signed-off-by: Dave Chinner <dchinner@redhat.com>
-Signed-off-by: Glauber Costa <glommer@parallels.com>
-Acked-by: Mel Gorman <mgorman@suse.de>
 ---
- fs/dcache.c        |  8 +++++---
- fs/inode.c         |  7 ++++---
- fs/internal.h      |  6 ++++--
- fs/super.c         | 23 ++++++++++++++---------
- fs/xfs/xfs_super.c |  6 ++++--
- include/linux/fs.h |  4 ++--
- 6 files changed, 33 insertions(+), 21 deletions(-)
+ fs/xfs/xfs_buf.c | 170 ++++++++++++++++++++++++++-----------------------------
+ fs/xfs/xfs_buf.h |   5 +-
+ 2 files changed, 82 insertions(+), 93 deletions(-)
 
-diff --git a/fs/dcache.c b/fs/dcache.c
-index 00722b3..d3feea1 100644
---- a/fs/dcache.c
-+++ b/fs/dcache.c
-@@ -891,6 +891,7 @@ dentry_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
-  * prune_dcache_sb - shrink the dcache
-  * @sb: superblock
-  * @nr_to_scan : number of entries to try to free
-+ * @nid: which node to scan for freeable entities
-  *
-  * Attempt to shrink the superblock dcache LRU by @nr_to_scan entries. This is
-  * done when we need more memory an called from the superblock shrinker
-@@ -899,13 +900,14 @@ dentry_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
-  * This function may fail to free any resources if all the dentries are in
-  * use.
+diff --git a/fs/xfs/xfs_buf.c b/fs/xfs/xfs_buf.c
+index 1b2472a..b19b8a4 100644
+--- a/fs/xfs/xfs_buf.c
++++ b/fs/xfs/xfs_buf.c
+@@ -85,20 +85,14 @@ xfs_buf_vmap_len(
+  * The LRU takes a new reference to the buffer so that it will only be freed
+  * once the shrinker takes the buffer off the LRU.
   */
--long prune_dcache_sb(struct super_block *sb, unsigned long nr_to_scan)
-+long prune_dcache_sb(struct super_block *sb, unsigned long nr_to_scan,
-+		     int nid)
+-STATIC void
++static void
+ xfs_buf_lru_add(
+ 	struct xfs_buf	*bp)
  {
+-	struct xfs_buftarg *btp = bp->b_target;
+-
+-	spin_lock(&btp->bt_lru_lock);
+-	if (list_empty(&bp->b_lru)) {
+-		atomic_inc(&bp->b_hold);
+-		list_add_tail(&bp->b_lru, &btp->bt_lru);
+-		btp->bt_lru_nr++;
++	if (list_lru_add(&bp->b_target->bt_lru, &bp->b_lru)) {
+ 		bp->b_lru_flags &= ~_XBF_LRU_DISPOSE;
++		atomic_inc(&bp->b_hold);
+ 	}
+-	spin_unlock(&btp->bt_lru_lock);
+ }
+ 
+ /*
+@@ -107,24 +101,13 @@ xfs_buf_lru_add(
+  * The unlocked check is safe here because it only occurs when there are not
+  * b_lru_ref counts left on the inode under the pag->pag_buf_lock. it is there
+  * to optimise the shrinker removing the buffer from the LRU and calling
+- * xfs_buf_free(). i.e. it removes an unnecessary round trip on the
+- * bt_lru_lock.
++ * xfs_buf_free().
+  */
+-STATIC void
++static void
+ xfs_buf_lru_del(
+ 	struct xfs_buf	*bp)
+ {
+-	struct xfs_buftarg *btp = bp->b_target;
+-
+-	if (list_empty(&bp->b_lru))
+-		return;
+-
+-	spin_lock(&btp->bt_lru_lock);
+-	if (!list_empty(&bp->b_lru)) {
+-		list_del_init(&bp->b_lru);
+-		btp->bt_lru_nr--;
+-	}
+-	spin_unlock(&btp->bt_lru_lock);
++	list_lru_del(&bp->b_target->bt_lru, &bp->b_lru);
+ }
+ 
+ /*
+@@ -151,18 +134,10 @@ xfs_buf_stale(
+ 	bp->b_flags &= ~_XBF_DELWRI_Q;
+ 
+ 	atomic_set(&(bp)->b_lru_ref, 0);
+-	if (!list_empty(&bp->b_lru)) {
+-		struct xfs_buftarg *btp = bp->b_target;
+-
+-		spin_lock(&btp->bt_lru_lock);
+-		if (!list_empty(&bp->b_lru) &&
+-		    !(bp->b_lru_flags & _XBF_LRU_DISPOSE)) {
+-			list_del_init(&bp->b_lru);
+-			btp->bt_lru_nr--;
+-			atomic_dec(&bp->b_hold);
+-		}
+-		spin_unlock(&btp->bt_lru_lock);
+-	}
++	if (!(bp->b_lru_flags & _XBF_LRU_DISPOSE) &&
++	    (list_lru_del(&bp->b_target->bt_lru, &bp->b_lru)))
++		atomic_dec(&bp->b_hold);
++
+ 	ASSERT(atomic_read(&bp->b_hold) >= 1);
+ }
+ 
+@@ -1501,83 +1476,97 @@ xfs_buf_iomove(
+  * returned. These buffers will have an elevated hold count, so wait on those
+  * while freeing all the buffers only held by the LRU.
+  */
+-void
+-xfs_wait_buftarg(
+-	struct xfs_buftarg	*btp)
++static enum lru_status
++xfs_buftarg_wait_rele(
++	struct list_head	*item,
++	spinlock_t		*lru_lock,
++	void			*arg)
++
+ {
+-	struct xfs_buf		*bp;
++	struct xfs_buf		*bp = container_of(item, struct xfs_buf, b_lru);
+ 
+-restart:
+-	spin_lock(&btp->bt_lru_lock);
+-	while (!list_empty(&btp->bt_lru)) {
+-		bp = list_first_entry(&btp->bt_lru, struct xfs_buf, b_lru);
+-		if (atomic_read(&bp->b_hold) > 1) {
+-			trace_xfs_buf_wait_buftarg(bp, _RET_IP_);
+-			list_move_tail(&bp->b_lru, &btp->bt_lru);
+-			spin_unlock(&btp->bt_lru_lock);
+-			delay(100);
+-			goto restart;
+-		}
++	if (atomic_read(&bp->b_hold) > 1) {
++		/* need to wait */
++		trace_xfs_buf_wait_buftarg(bp, _RET_IP_);
++		spin_unlock(lru_lock);
++		delay(100);
++	} else {
+ 		/*
+ 		 * clear the LRU reference count so the buffer doesn't get
+ 		 * ignored in xfs_buf_rele().
+ 		 */
+ 		atomic_set(&bp->b_lru_ref, 0);
+-		spin_unlock(&btp->bt_lru_lock);
++		spin_unlock(lru_lock);
+ 		xfs_buf_rele(bp);
+-		spin_lock(&btp->bt_lru_lock);
+ 	}
+-	spin_unlock(&btp->bt_lru_lock);
++
++	spin_lock(lru_lock);
++	return LRU_RETRY;
+ }
+ 
+-int
+-xfs_buftarg_shrink(
++void
++xfs_wait_buftarg(
++	struct xfs_buftarg	*btp)
++{
++	while (list_lru_count(&btp->bt_lru))
++		list_lru_walk(&btp->bt_lru, xfs_buftarg_wait_rele,
++			      NULL, LONG_MAX);
++}
++
++static enum lru_status
++xfs_buftarg_isolate(
++	struct list_head	*item,
++	spinlock_t		*lru_lock,
++	void			*arg)
++{
++	struct xfs_buf		*bp = container_of(item, struct xfs_buf, b_lru);
++	struct list_head	*dispose = arg;
++
++	/*
++	 * Decrement the b_lru_ref count unless the value is already
++	 * zero. If the value is already zero, we need to reclaim the
++	 * buffer, otherwise it gets another trip through the LRU.
++	 */
++	if (!atomic_add_unless(&bp->b_lru_ref, -1, 0))
++		return LRU_ROTATE;
++
++	bp->b_lru_flags |= _XBF_LRU_DISPOSE;
++	list_move(item, dispose);
++	return LRU_REMOVED;
++}
++
++static long
++xfs_buftarg_shrink_scan(
+ 	struct shrinker		*shrink,
+ 	struct shrink_control	*sc)
+ {
+ 	struct xfs_buftarg	*btp = container_of(shrink,
+ 					struct xfs_buftarg, bt_shrinker);
+-	struct xfs_buf		*bp;
+-	int nr_to_scan = sc->nr_to_scan;
  	LIST_HEAD(dispose);
- 	long freed;
++	long			freed;
++	unsigned long		nr_to_scan = sc->nr_to_scan;
  
--	freed = list_lru_walk(&sb->s_dentry_lru, dentry_lru_isolate,
--			      &dispose, nr_to_scan);
-+	freed = list_lru_walk_node(&sb->s_dentry_lru, nid, dentry_lru_isolate,
+-	if (!nr_to_scan)
+-		return btp->bt_lru_nr;
+-
+-	spin_lock(&btp->bt_lru_lock);
+-	while (!list_empty(&btp->bt_lru)) {
+-		if (nr_to_scan-- <= 0)
+-			break;
+-
+-		bp = list_first_entry(&btp->bt_lru, struct xfs_buf, b_lru);
+-
+-		/*
+-		 * Decrement the b_lru_ref count unless the value is already
+-		 * zero. If the value is already zero, we need to reclaim the
+-		 * buffer, otherwise it gets another trip through the LRU.
+-		 */
+-		if (!atomic_add_unless(&bp->b_lru_ref, -1, 0)) {
+-			list_move_tail(&bp->b_lru, &btp->bt_lru);
+-			continue;
+-		}
+-
+-		/*
+-		 * remove the buffer from the LRU now to avoid needing another
+-		 * lock round trip inside xfs_buf_rele().
+-		 */
+-		list_move(&bp->b_lru, &dispose);
+-		btp->bt_lru_nr--;
+-		bp->b_lru_flags |= _XBF_LRU_DISPOSE;
+-	}
+-	spin_unlock(&btp->bt_lru_lock);
++	freed = list_lru_walk_node(&btp->bt_lru, sc->nid, xfs_buftarg_isolate,
 +				       &dispose, &nr_to_scan);
- 	shrink_dentry_list(&dispose);
- 	return freed;
- }
-diff --git a/fs/inode.c b/fs/inode.c
-index 5d85521..00b804e 100644
---- a/fs/inode.c
-+++ b/fs/inode.c
-@@ -746,13 +746,14 @@ inode_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
-  * to trim from the LRU. Inodes to be freed are moved to a temporary list and
-  * then are freed outside inode_lock by dispose_list().
-  */
--long prune_icache_sb(struct super_block *sb, unsigned long nr_to_scan)
-+long prune_icache_sb(struct super_block *sb, unsigned long nr_to_scan,
-+		     int nid)
- {
- 	LIST_HEAD(freeable);
- 	long freed;
  
--	freed = list_lru_walk(&sb->s_inode_lru, inode_lru_isolate,
--						&freeable, nr_to_scan);
-+	freed = list_lru_walk_node(&sb->s_inode_lru, nid, inode_lru_isolate,
-+				       &freeable, &nr_to_scan);
- 	dispose_list(&freeable);
- 	return freed;
- }
-diff --git a/fs/internal.h b/fs/internal.h
-index ea43c89..8902d56 100644
---- a/fs/internal.h
-+++ b/fs/internal.h
-@@ -110,7 +110,8 @@ extern int open_check_o_direct(struct file *f);
-  * inode.c
-  */
- extern spinlock_t inode_sb_list_lock;
--extern long prune_icache_sb(struct super_block *sb, unsigned long nr_to_scan);
-+extern long prune_icache_sb(struct super_block *sb, unsigned long nr_to_scan,
-+			    int nid);
- extern void inode_add_lru(struct inode *inode);
- 
- /*
-@@ -126,7 +127,8 @@ extern int invalidate_inodes(struct super_block *, bool);
-  * dcache.c
-  */
- extern struct dentry *__d_alloc(struct super_block *, const struct qstr *);
--extern long prune_dcache_sb(struct super_block *sb, unsigned long nr_to_scan);
-+extern long prune_dcache_sb(struct super_block *sb, unsigned long nr_to_scan,
-+			    int nid);
- 
- /*
-  * read_write.c
-diff --git a/fs/super.c b/fs/super.c
-index 7fe934d..85a6104 100644
---- a/fs/super.c
-+++ b/fs/super.c
-@@ -75,10 +75,10 @@ static long super_cache_scan(struct shrinker *shrink, struct shrink_control *sc)
- 		return SHRINK_STOP;
- 
- 	if (sb->s_op && sb->s_op->nr_cached_objects)
--		fs_objects = sb->s_op->nr_cached_objects(sb);
-+		fs_objects = sb->s_op->nr_cached_objects(sb, sc->nid);
- 
--	inodes = list_lru_count(&sb->s_inode_lru);
--	dentries = list_lru_count(&sb->s_dentry_lru);
-+	inodes = list_lru_count_node(&sb->s_inode_lru, sc->nid);
-+	dentries = list_lru_count_node(&sb->s_dentry_lru, sc->nid);
- 	total_objects = dentries + inodes + fs_objects + 1;
- 
- 	/* proportion the scan between the caches */
-@@ -89,13 +89,14 @@ static long super_cache_scan(struct shrinker *shrink, struct shrink_control *sc)
- 	 * prune the dcache first as the icache is pinned by it, then
- 	 * prune the icache, followed by the filesystem specific caches
- 	 */
--	freed = prune_dcache_sb(sb, dentries);
--	freed += prune_icache_sb(sb, inodes);
-+	freed = prune_dcache_sb(sb, dentries, sc->nid);
-+	freed += prune_icache_sb(sb, inodes, sc->nid);
- 
- 	if (fs_objects) {
- 		fs_objects = mult_frac(sc->nr_to_scan, fs_objects,
- 								total_objects);
--		freed += sb->s_op->free_cached_objects(sb, fs_objects);
-+		freed += sb->s_op->free_cached_objects(sb, fs_objects,
-+						       sc->nid);
+ 	while (!list_empty(&dispose)) {
++		struct xfs_buf *bp;
+ 		bp = list_first_entry(&dispose, struct xfs_buf, b_lru);
+ 		list_del_init(&bp->b_lru);
+ 		xfs_buf_rele(bp);
  	}
  
- 	drop_super(sb);
-@@ -113,10 +114,13 @@ static long super_cache_count(struct shrinker *shrink, struct shrink_control *sc
- 		return 0;
- 
- 	if (sb->s_op && sb->s_op->nr_cached_objects)
--		total_objects = sb->s_op->nr_cached_objects(sb);
-+		total_objects = sb->s_op->nr_cached_objects(sb,
-+						 sc->nid);
- 
--	total_objects += list_lru_count(&sb->s_dentry_lru);
--	total_objects += list_lru_count(&sb->s_inode_lru);
-+	total_objects += list_lru_count_node(&sb->s_dentry_lru,
-+						 sc->nid);
-+	total_objects += list_lru_count_node(&sb->s_inode_lru,
-+						 sc->nid);
- 
- 	total_objects = vfs_pressure_ratio(total_objects);
- 	drop_super(sb);
-@@ -232,6 +236,7 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
- 		s->s_shrink.scan_objects = super_cache_scan;
- 		s->s_shrink.count_objects = super_cache_count;
- 		s->s_shrink.batch = 1024;
-+		s->s_shrink.flags = SHRINKER_NUMA_AWARE;
- 	}
- out:
- 	return s;
-diff --git a/fs/xfs/xfs_super.c b/fs/xfs/xfs_super.c
-index 443a8bc..ec2b267 100644
---- a/fs/xfs/xfs_super.c
-+++ b/fs/xfs/xfs_super.c
-@@ -1536,7 +1536,8 @@ xfs_fs_mount(
- 
- static long
- xfs_fs_nr_cached_objects(
--	struct super_block	*sb)
-+	struct super_block	*sb,
-+	int			nid)
- {
- 	return xfs_reclaim_inodes_count(XFS_M(sb));
+-	return btp->bt_lru_nr;
++	return freed;
++}
++
++static long
++xfs_buftarg_shrink_count(
++	struct shrinker		*shrink,
++	struct shrink_control	*sc)
++{
++	struct xfs_buftarg	*btp = container_of(shrink,
++					struct xfs_buftarg, bt_shrinker);
++	return list_lru_count_node(&btp->bt_lru, sc->nid);
  }
-@@ -1544,7 +1545,8 @@ xfs_fs_nr_cached_objects(
- static long
- xfs_fs_free_cached_objects(
- 	struct super_block	*sb,
--	long			nr_to_scan)
-+	long			nr_to_scan,
-+	int			nid)
- {
- 	return xfs_reclaim_inodes_nr(XFS_M(sb), nr_to_scan);
- }
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 976258f..610955f 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -1610,8 +1610,8 @@ struct super_operations {
- 	ssize_t (*quota_write)(struct super_block *, int, const char *, size_t, loff_t);
- #endif
- 	int (*bdev_try_to_free_page)(struct super_block*, struct page*, gfp_t);
--	long (*nr_cached_objects)(struct super_block *);
--	long (*free_cached_objects)(struct super_block *, long);
-+	long (*nr_cached_objects)(struct super_block *, int);
-+	long (*free_cached_objects)(struct super_block *, long, int);
- };
+ 
+ void
+@@ -1659,12 +1648,13 @@ xfs_alloc_buftarg(
+ 	if (!btp->bt_bdi)
+ 		goto error;
+ 
+-	INIT_LIST_HEAD(&btp->bt_lru);
+-	spin_lock_init(&btp->bt_lru_lock);
++	list_lru_init(&btp->bt_lru);
+ 	if (xfs_setsize_buftarg_early(btp, bdev))
+ 		goto error;
+-	btp->bt_shrinker.shrink = xfs_buftarg_shrink;
++	btp->bt_shrinker.count_objects = xfs_buftarg_shrink_count;
++	btp->bt_shrinker.scan_objects = xfs_buftarg_shrink_scan;
+ 	btp->bt_shrinker.seeks = DEFAULT_SEEKS;
++	btp->bt_shrinker.flags = SHRINKER_NUMA_AWARE;
+ 	register_shrinker(&btp->bt_shrinker);
+ 	return btp;
+ 
+diff --git a/fs/xfs/xfs_buf.h b/fs/xfs/xfs_buf.h
+index 433a12e..5ec7d35 100644
+--- a/fs/xfs/xfs_buf.h
++++ b/fs/xfs/xfs_buf.h
+@@ -25,6 +25,7 @@
+ #include <linux/fs.h>
+ #include <linux/buffer_head.h>
+ #include <linux/uio.h>
++#include <linux/list_lru.h>
  
  /*
+  *	Base types
+@@ -92,9 +93,7 @@ typedef struct xfs_buftarg {
+ 
+ 	/* LRU control structures */
+ 	struct shrinker		bt_shrinker;
+-	struct list_head	bt_lru;
+-	spinlock_t		bt_lru_lock;
+-	unsigned int		bt_lru_nr;
++	struct list_lru		bt_lru;
+ } xfs_buftarg_t;
+ 
+ struct xfs_buf;
 -- 
 1.8.1.4
 
