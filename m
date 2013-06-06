@@ -1,18 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 9DE7E6B006E
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 03:04:24 -0400 (EDT)
-Date: Thu, 6 Jun 2013 00:04:09 -0700
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id DC2916B0071
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 03:12:25 -0400 (EDT)
+Date: Thu, 6 Jun 2013 00:12:10 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v10 08/35] list: add a new LRU list type
-Message-Id: <20130606000409.e4333f7c.akpm@linux-foundation.org>
-In-Reply-To: <20130606044426.GX29338@dastard>
+Subject: Re: [PATCH v10 13/35] vmscan: per-node deferred work
+Message-Id: <20130606001210.d0fe1a80.akpm@linux-foundation.org>
+In-Reply-To: <20130606045907.GY29338@dastard>
 References: <1370287804-3481-1-git-send-email-glommer@openvz.org>
-	<1370287804-3481-9-git-send-email-glommer@openvz.org>
-	<20130605160758.19e854a6995e3c2a1f5260bf@linux-foundation.org>
-	<20130606024909.GP29338@dastard>
-	<20130605200554.d4dae16f.akpm@linux-foundation.org>
-	<20130606044426.GX29338@dastard>
+	<1370287804-3481-14-git-send-email-glommer@openvz.org>
+	<20130605160815.fb69f7d4d1736455727fc669@linux-foundation.org>
+	<20130606033742.GS29338@dastard>
+	<20130606045907.GY29338@dastard>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -21,28 +20,72 @@ List-ID: <linux-mm.kvack.org>
 To: Dave Chinner <david@fromorbit.com>
 Cc: Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>
 
-On Thu, 6 Jun 2013 14:44:26 +1000 Dave Chinner <david@fromorbit.com> wrote:
+On Thu, 6 Jun 2013 14:59:07 +1000 Dave Chinner <david@fromorbit.com> wrote:
 
-> > Why was it called "lru", btw?  iirc it's actually a "stack" (or
-> > "queue"?) and any lru functionality is actually implemented externally.
+> On Thu, Jun 06, 2013 at 01:37:42PM +1000, Dave Chinner wrote:
+> > On Wed, Jun 05, 2013 at 04:08:15PM -0700, Andrew Morton wrote:
+> > > On Mon,  3 Jun 2013 23:29:42 +0400 Glauber Costa <glommer@openvz.org> wrote:
+> > > 
+> > > > We already keep per-node LRU lists for objects being shrunk, but the
+> > > > work that is deferred from one run to another is kept global. This
+> > > > creates an impedance problem, where upon node pressure, work deferred
+> > > > will accumulate and end up being flushed in other nodes.
+> > > 
+> > > This changelog would be more useful if it had more specificity.  Where
+> > > do we keep these per-node LRU lists (names of variables?).
+> > 
+> > In the per-node LRU lists the shrinker walks ;)
+> > 
+> > > Where do we
+> > > keep the global data? 
+> > 
+> > In the struct shrinker
+> > 
+> > > In what function does this other-node flushing
+> > > happen?
+> > 
+> > Any shrinker that is run on a different node.
+> > 
+> > > Generally so that readers can go and look at the data structures and
+> > > functions which you're talking about.
+> > > 
+> > > > In large machines, many nodes can accumulate at the same time, all
+> > > > adding to the global counter.
+> > > 
+> > > What global counter?
+> > 
+> > shrinker->nr
+> > 
+> > > >  As we accumulate more and more, we start
+> > > > to ask for the caches to flush even bigger numbers.
+> > > 
+> > > Where does this happen?
+> > 
+> > The shrinker scan loop ;)
 > 
-> Because it's a bunch of infrastructure and helper functions that
-> callers use to implement a list based LRU that tightly integrates
-> with the shrinker infrastructure.  ;)
+> Answers which doesn't really tell you more than you already knew :/
 > 
-> I'm open to a better name - something just as short and concise
-> would be nice ;)
+> To give you more background, Andrew, here's a pointer to the
+> discussion where we analysed the problem that lead to this patch:
+> 
+> http://marc.info/?l=linux-fsdevel&m=136852512724091&w=4
 
-Not a biggie, but it's nice to get these things exact on day one.
+Thanks, I'll read that later.  But that only helps me!  And I'll forget
+it all in six hours.
 
-"queue"?  Because someone who wants a queue is likely to look at
-list_lru.c and think "hm, that's no good".  Whereas if it's queue.c
-then they're more likely to use it.  Then start cursing at its
-internal spin_lock() :)
+Please understand where I'm coming from here: I review code from the
+point of view (amongst others) "how understandable and maintainable is
+this".  And I hope that reviewees understand that "if this reader asked
+that question then others will wonder the same thing, so I need to fix
+that up".
 
-But anyone who just wants a queue doesn't want their queue_lru_del()
-calling into memcg code(!).  I do think it would be more appropriate to
-discard the lib/ idea and move it all into fs/ or mm/.
+And I do think that about 2% of readers look in Documentation/, 1% of
+readers go back to look at changelogs and 0% of readers go back and
+look at the mailing list discussion.  It's most effective if it's right
+there in the .c file.
+
+Obviously there are tradeoffs here, but code which overdoes the
+explain-thyself thing is rare to non-existent.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
