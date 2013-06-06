@@ -1,183 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id E07F96B0031
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 04:29:48 -0400 (EDT)
-Date: Thu, 6 Jun 2013 10:29:47 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 2/2] mm: memcontrol: factor out reclaim iterator loading
- and updating
-Message-ID: <20130606082947.GD7909@dhcp22.suse.cz>
-References: <1370472826-29959-1-git-send-email-hannes@cmpxchg.org>
- <1370472826-29959-2-git-send-email-hannes@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 071E56B0031
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 04:32:59 -0400 (EDT)
+Message-ID: <51B04968.7080105@parallels.com>
+Date: Thu, 6 Jun 2013 12:33:44 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1370472826-29959-2-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [PATCH v10 35/35] memcg: reap dead memcgs upon global memory
+ pressure.
+References: <1370287804-3481-1-git-send-email-glommer@openvz.org> <1370287804-3481-36-git-send-email-glommer@openvz.org> <20130605160902.2e656a43aa7c5a51a574ea48@linux-foundation.org>
+In-Reply-To: <20130605160902.2e656a43aa7c5a51a574ea48@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel
+ Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes
+ Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>, Rik van Riel <riel@redhat.com>
 
-On Wed 05-06-13 18:53:46, Johannes Weiner wrote:
-> mem_cgroup_iter() is too hard to follow.  Factor out the lockless
-> reclaim iterator loading and updating so it's easier to follow the big
-> picture.
+On 06/06/2013 03:09 AM, Andrew Morton wrote:
+> On Mon,  3 Jun 2013 23:30:04 +0400 Glauber Costa <glommer@openvz.org> wrote:
 > 
-> Also document the iterator invalidation mechanism a bit more
-> extensively.
+>> When we delete kmem-enabled memcgs, they can still be zombieing
+>> around for a while. The reason is that the objects may still be alive,
+>> and we won't be able to delete them at destruction time.
+>>
+>> The only entry point for that, though, are the shrinkers. The
+>> shrinker interface, however, is not exactly tailored to our needs. It
+>> could be a little bit better by using the API Dave Chinner proposed, but
+>> it is still not ideal since we aren't really a count-and-scan event, but
+>> more a one-off flush-all-you-can event that would have to abuse that
+>> somehow.
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-
-I like this
-Acked-by: Michal Hocko <mhocko@suse.cz>
-
-> ---
->  mm/memcontrol.c | 86 ++++++++++++++++++++++++++++++++++++++-------------------
->  1 file changed, 57 insertions(+), 29 deletions(-)
+> This patch is significantly dependent on
+> http://ozlabs.org/~akpm/mmots/broken-out/memcg-debugging-facility-to-access-dangling-memcgs.patch,
+> which was designated "mm only debug patch" when I merged it six months
+> ago.
 > 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index e2cbb44..23a9236 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1148,6 +1148,58 @@ skip_node:
->  	return NULL;
->  }
->  
-> +static void mem_cgroup_iter_invalidate(struct mem_cgroup *root)
-> +{
-> +	/*
-> +	 * When a group in the hierarchy below root is destroyed, the
-> +	 * hierarchy iterator can no longer be trusted since it might
-> +	 * have pointed to the destroyed group.  Invalidate it.
-> +	 */
-> +	atomic_inc(&root->dead_count);
-> +}
-> +
-> +static struct mem_cgroup *
-> +mem_cgroup_iter_load(struct mem_cgroup_reclaim_iter *iter,
-> +		     struct mem_cgroup *root,
-> +		     int *sequence)
-> +{
-> +	struct mem_cgroup *position = NULL;
-> +	/*
-> +	 * A cgroup destruction happens in two stages: offlining and
-> +	 * release.  They are separated by a RCU grace period.
-> +	 *
-> +	 * If the iterator is valid, we may still race with an
-> +	 * offlining.  The RCU lock ensures the object won't be
-> +	 * released, tryget will fail if we lost the race.
-> +	 */
-> +	*sequence = atomic_read(&root->dead_count);
-> +	if (iter->last_dead_count == *sequence) {
-> +		smp_rmb();
-> +		position = iter->last_visited;
-> +		if (position && !css_tryget(&position->css))
-> +			position = NULL;
-> +	}
-> +	return position;
-> +}
-> +
-> +static void mem_cgroup_iter_update(struct mem_cgroup_reclaim_iter *iter,
-> +				   struct mem_cgroup *last_visited,
-> +				   struct mem_cgroup *new_position,
-> +				   int sequence)
-> +{
-> +	if (last_visited)
-> +		css_put(&last_visited->css);
-> +	/*
-> +	 * We store the sequence count from the time @last_visited was
-> +	 * loaded successfully instead of rereading it here so that we
-> +	 * don't lose destruction events in between.  We could have
-> +	 * raced with the destruction of @new_position after all.
-> +	 */
-> +	iter->last_visited = new_position;
-> +	smp_wmb();
-> +	iter->last_dead_count = sequence;
-> +}
-> +
->  /**
->   * mem_cgroup_iter - iterate over memory cgroup hierarchy
->   * @root: hierarchy root
-> @@ -1171,7 +1223,6 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
->  {
->  	struct mem_cgroup *memcg = NULL;
->  	struct mem_cgroup *last_visited = NULL;
-> -	unsigned long uninitialized_var(dead_count);
->  
->  	if (mem_cgroup_disabled())
->  		return NULL;
-> @@ -1191,6 +1242,7 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
->  	rcu_read_lock();
->  	while (!memcg) {
->  		struct mem_cgroup_reclaim_iter *uninitialized_var(iter);
-> +		int uninitialized_var(seq);
->  
->  		if (reclaim) {
->  			int nid = zone_to_nid(reclaim->zone);
-> @@ -1204,37 +1256,13 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
->  				goto out_unlock;
->  			}
->  
-> -			/*
-> -			 * If the dead_count mismatches, a destruction
-> -			 * has happened or is happening concurrently.
-> -			 * If the dead_count matches, a destruction
-> -			 * might still happen concurrently, but since
-> -			 * we checked under RCU, that destruction
-> -			 * won't free the object until we release the
-> -			 * RCU reader lock.  Thus, the dead_count
-> -			 * check verifies the pointer is still valid,
-> -			 * css_tryget() verifies the cgroup pointed to
-> -			 * is alive.
-> -			 */
-> -			dead_count = atomic_read(&root->dead_count);
-> -			if (dead_count == iter->last_dead_count) {
-> -				smp_rmb();
-> -				last_visited = iter->last_visited;
-> -				if (last_visited &&
-> -				    !css_tryget(&last_visited->css))
-> -					last_visited = NULL;
-> -			}
-> +			last_visited = mem_cgroup_iter_load(iter, root, &seq);
->  		}
->  
->  		memcg = __mem_cgroup_iter_next(root, last_visited);
->  
->  		if (reclaim) {
-> -			if (last_visited)
-> -				css_put(&last_visited->css);
-> -
-> -			iter->last_visited = memcg;
-> -			smp_wmb();
-> -			iter->last_dead_count = dead_count;
-> +			mem_cgroup_iter_update(iter, last_visited, memcg, seq);
->  
->  			if (!memcg)
->  				iter->generation++;
-> @@ -6319,14 +6347,14 @@ static void mem_cgroup_invalidate_reclaim_iterators(struct mem_cgroup *memcg)
->  	struct mem_cgroup *parent = memcg;
->  
->  	while ((parent = parent_mem_cgroup(parent)))
-> -		atomic_inc(&parent->dead_count);
-> +		mem_cgroup_iter_invalidate(parent);
->  
->  	/*
->  	 * if the root memcg is not hierarchical we have to check it
->  	 * explicitely.
->  	 */
->  	if (!root_mem_cgroup->use_hierarchy)
-> -		atomic_inc(&root_mem_cgroup->dead_count);
-> +		mem_cgroup_iter_invalidate(root_mem_cgroup);
->  }
->  
->  static void mem_cgroup_css_offline(struct cgroup *cont)
-> -- 
-> 1.8.3
+> We can go ahead and merge
+> memcg-debugging-facility-to-access-dangling-memcgs.patch upstream I
+> guess, but we shouldn't do that just because it makes the
+> patch-wrangling a bit easier!
+> 
+> Is memcg-debugging-facility-to-access-dangling-memcgs.patch worth merging in
+> its own right?  If so, what changed since our earlier decision?
 > 
 
--- 
-Michal Hocko
-SUSE Labs
+I was under the impression that it *was* merged, even though it
+shouldn't - it was showing up on -next, so I could be wrong. I am
+basically using part of the infrastructure for this patch, but the rest
+can go away.
+
+If the patch isn't really merged and I was just confused (can happen),
+what I would prefer to do is what I have done originally: I will append
+part of that in this patch (the part the adds memcgs to the dangling
+list), and leave the file part in a separate patch. I will then resend
+you that patch as a debug-only patch.
+
+To do that, it would be mostly helpful if you could remove that for your
+tree temporarily.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
