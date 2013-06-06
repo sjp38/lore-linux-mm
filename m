@@ -1,81 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 654866B0070
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 03:19:10 -0400 (EDT)
-Date: Thu, 6 Jun 2013 00:18:55 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v10 00/35] kmemcg shrinkers
-Message-Id: <20130606001855.48d9da2e.akpm@linux-foundation.org>
-In-Reply-To: <51B02347.60809@parallels.com>
-References: <1370287804-3481-1-git-send-email-glommer@openvz.org>
-	<20130605160721.da995af82eb247ccf8f8537f@linux-foundation.org>
-	<51B02347.60809@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 3C5E66B006C
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 03:23:11 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id fb1so1534907pad.9
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2013 00:23:10 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20130606120455.bd86a4c0ac009482db80f634@canb.auug.org.au>
+References: <20130606002636.6746F5A41AE@corp2gmr1-2.hot.corp.google.com>
+	<20130606120455.bd86a4c0ac009482db80f634@canb.auug.org.au>
+Date: Thu, 6 Jun 2013 09:23:10 +0200
+Message-ID: <CAMuHMdUKvJBS9u4qjDDKRhAMv9ikrxYSBgobLSSDWL1VmeV9wA@mail.gmail.com>
+Subject: Re: mmotm 2013-06-05-17-24 uploaded
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>
+To: Stephen Rothwell <sfr@canb.auug.org.au>, Andrew Morton <akpm@linux-foundation.org>
+Cc: mm-commits@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Linux-Next <linux-next@vger.kernel.org>
 
-On Thu, 6 Jun 2013 09:51:03 +0400 Glauber Costa <glommer@parallels.com> wrote:
+Hi Andrew,
 
-> On 06/06/2013 03:07 AM, Andrew Morton wrote:
-> > On Mon,  3 Jun 2013 23:29:29 +0400 Glauber Costa <glommer@openvz.org> wrote:
-> 
-> > I haven't seen any show-stoppers yet so I guess I'll slam it all into
-> > -next and cross fingers.  I would ask that the relevant developers set
-> > aside a solid day to read and runtime test it all.  Realistically, it's
-> > likely to take considerably more time that that.
-> > 
-> > I do expect that I'll drop the entire patchset again for the next
-> > version, if only because the next version should withdraw all the
-> > switch-random-code-to-xfs-coding-style changes...
-> > 
-> Ok, how do you want me to proceed ? Should I send a new series, or
-> incremental? When exactly?
-> 
-> I do have at least two fixes to send that popped out this week: one of
-> them for the drivers patch, since Kent complained about a malconversion
-> of the bcache driver, and another one in the memcg page path.
+On Thu, Jun 6, 2013 at 4:04 AM, Stephen Rothwell <sfr@canb.auug.org.au> wrote:
+> On Wed, 05 Jun 2013 17:26:36 -0700 akpm@linux-foundation.org wrote:
+>>
+>>   linux-next-git-rejects.patch
+>
+> We must figure out why you sometimes get rejects that I do not get when I
+> import your series into a git tree.  However in this case you resolution
+> is not quite right.  It leaves 2 continue statements in
+> net/mac80211/iface.c at line 191 which will unconditionally short circuit
+> the enclosing loop.  The version that will be in linux-next today is
+> correct (and git did it automatically as part of the merge of the old
+> linux-next tree).
 
-Definitely a new series.  I tossed this series into -mm and -next so
-that others can conveniently review and test it (hint).
+Do you have "git rerere" enabled?
 
-> > 
-> > I'm thinking that we should approach this in two stages: all the new
-> > shrinker stuff separated from the memcg_kmem work.  So we merge
-> > everything up to "shrinker: Kill old ->shrink API" and then continue to
-> > work on the memcg things?
-> > 
-> 
-> I agree with this, the shrinker part got a very thorough review from Mel
-> recently. I do need to send you the fix for the bcache driver (or the
-> whole thing, as you would prefer), and fix whatever comments you have.
-> 
-> Please note that as I have mentioned in the opening letter, I have two
-> follow up patches for memcg (one of them allows us to use the shrinker
-> infrastructure to reduce the value of kmem.limit, and the other one
-> flushes the caches upon destruction). I haven't included in the series
-> because the series is already huge, and I believe by including them,
-> they would not get the review they deserve (by being new). Splitting it
-> in two would allow me to include them in a smaller series.
-> 
-> I will go over your comments in a couple of hours. Please just advise me
-> how would you like me to proceed with this logistically (new submission,
-> fixes, for which patches, etc)
+Gr{oetje,eeting}s,
 
-New everything, please.  There's no hurry - linux-next is going on
-holidays for a week.
+                        Geert
 
-The shrinker stuff seems sensible and straightforward and I expect we
-can proceed with that at the normal pace.  The memcg changes struck me
-as being hairy as hell and I'd really like to see the other memcg
-people go through it carefully.
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
 
-Of course, "new series" doesn't give you an easily accessible tree to
-target.  I could drop it all again to give you a clean shot at
-tomorrow's -next?
+In personal conversations with technical people, I call myself a hacker. But
+when I'm talking to journalists I just say "programmer" or something like that.
+                                -- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
