@@ -1,225 +1,290 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 8DD1D6B0034
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 16:34:32 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 069496B0037
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 16:34:34 -0400 (EDT)
 From: Glauber Costa <glommer@openvz.org>
-Subject: [PATCH v11 01/25] fs: bump inode and dentry counters to long
-Date: Fri,  7 Jun 2013 00:34:34 +0400
-Message-Id: <1370550898-26711-2-git-send-email-glommer@openvz.org>
+Subject: [PATCH v11 05/25] dcache: remove dentries from LRU before putting on dispose list
+Date: Fri,  7 Jun 2013 00:34:38 +0400
+Message-Id: <1370550898-26711-6-git-send-email-glommer@openvz.org>
 In-Reply-To: <1370550898-26711-1-git-send-email-glommer@openvz.org>
 References: <1370550898-26711-1-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-fsdevel@vger.kernel.org, mgorman@suse.de, david@fromorbit.com, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suze.cz, hannes@cmpxchg.org, hughd@google.com, gthelen@google.com, Glauber Costa <glommer@openvz.org>, Dave Chinner <dchinner@redhat.com>
+Cc: linux-fsdevel@vger.kernel.org, mgorman@suse.de, david@fromorbit.com, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suze.cz, hannes@cmpxchg.org, hughd@google.com, gthelen@google.com, Dave Chinner <dchinner@redhat.com>, Glauber Costa <glommer@openvz.org>
 
-There are situations in very large machines in which we can have a large
-quantity of dirty inodes, unused dentries, etc. This is particularly
-true when umounting a filesystem, where eventually since every live
-object will eventually be discarded.
+From: Dave Chinner <dchinner@redhat.com>
 
-Dave Chinner reported a problem with this while experimenting with the
-shrinker revamp patchset. So we believe it is time for a change. This
-patch just moves int to longs. Machines where it matters should have a
-big long anyway.
+One of the big problems with modifying the way the dcache shrinker
+and LRU implementation works is that the LRU is abused in several
+ways. One of these is shrink_dentry_list().
 
+Basically, we can move a dentry off the LRU onto a different list
+without doing any accounting changes, and then use dentry_lru_prune()
+to remove it from what-ever list it is now on to do the LRU
+accounting at that point.
+
+This makes it -really hard- to change the LRU implementation. The
+use of the per-sb LRU lock serialises movement of the dentries
+between the different lists and the removal of them, and this is the
+only reason that it works. If we want to break up the dentry LRU
+lock and lists into, say, per-node lists, we remove the only
+serialisation that allows this lru list/dispose list abuse to work.
+
+To make this work effectively, the dispose list has to be isolated
+from the LRU list - dentries have to be removed from the LRU
+*before* being placed on the dispose list. This means that the LRU
+accounting and isolation is completed before disposal is started,
+and that means we can change the LRU implementation freely in
+future.
+
+This means that dentries *must* be marked with DCACHE_SHRINK_LIST
+when they are placed on the dispose list so that we don't think that
+parent dentries found in try_prune_one_dentry() are on the LRU when
+the are actually on the dispose list. This would result in
+accounting the dentry to the LRU a second time. Hence
+dentry_lru_del() has to handle the DCACHE_SHRINK_LIST case
+differently because the dentry isn't on the LRU list.
+
+[ v2: don't decrement nr unused twice, spotted by Sha Zhengju ]
+[ v7: (dchinner)
+- shrink list leaks dentries when inode/parent can't be locked in
+  dentry_kill().
+- remove the readdition of dentry_lru_prune(). ]
+
+Signed-off-by: Dave Chinner <dchinner@redhat.com>
 Signed-off-by: Glauber Costa <glommer@openvz.org>
-CC: Dave Chinner <dchinner@redhat.com>
 ---
- fs/dcache.c             |  8 ++++----
- fs/inode.c              | 18 +++++++++---------
- fs/internal.h           |  2 +-
- include/linux/dcache.h  | 10 +++++-----
- include/linux/fs.h      |  4 ++--
- include/uapi/linux/fs.h |  6 +++---
- kernel/sysctl.c         |  6 +++---
- 7 files changed, 27 insertions(+), 27 deletions(-)
+ fs/dcache.c | 98 ++++++++++++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 77 insertions(+), 21 deletions(-)
 
 diff --git a/fs/dcache.c b/fs/dcache.c
-index f09b908..aca4e4b 100644
+index 0a49669..16b599e 100644
 --- a/fs/dcache.c
 +++ b/fs/dcache.c
-@@ -117,13 +117,13 @@ struct dentry_stat_t dentry_stat = {
- 	.age_limit = 45,
- };
- 
--static DEFINE_PER_CPU(unsigned int, nr_dentry);
-+static DEFINE_PER_CPU(long, nr_dentry);
- 
- #if defined(CONFIG_SYSCTL) && defined(CONFIG_PROC_FS)
--static int get_nr_dentry(void)
-+static long get_nr_dentry(void)
- {
- 	int i;
--	int sum = 0;
-+	long sum = 0;
- 	for_each_possible_cpu(i)
- 		sum += per_cpu(nr_dentry, i);
- 	return sum < 0 ? 0 : sum;
-@@ -133,7 +133,7 @@ int proc_nr_dentry(ctl_table *table, int write, void __user *buffer,
- 		   size_t *lenp, loff_t *ppos)
- {
- 	dentry_stat.nr_dentry = get_nr_dentry();
--	return proc_dointvec(table, write, buffer, lenp, ppos);
-+	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
+@@ -327,7 +327,7 @@ static void dentry_unlink_inode(struct dentry * dentry)
  }
- #endif
  
-diff --git a/fs/inode.c b/fs/inode.c
-index 00d5fc3..ff29765 100644
---- a/fs/inode.c
-+++ b/fs/inode.c
-@@ -70,33 +70,33 @@ EXPORT_SYMBOL(empty_aops);
+ /*
+- * dentry_lru_(add|del|prune|move_tail) must be called with d_lock held.
++ * dentry_lru_(add|del|move_list) must be called with d_lock held.
   */
- struct inodes_stat_t inodes_stat;
- 
--static DEFINE_PER_CPU(unsigned int, nr_inodes);
--static DEFINE_PER_CPU(unsigned int, nr_unused);
-+static DEFINE_PER_CPU(unsigned long, nr_inodes);
-+static DEFINE_PER_CPU(unsigned long, nr_unused);
- 
- static struct kmem_cache *inode_cachep __read_mostly;
- 
--static int get_nr_inodes(void)
-+static long get_nr_inodes(void)
+ static void dentry_lru_add(struct dentry *dentry)
  {
- 	int i;
--	int sum = 0;
-+	long sum = 0;
- 	for_each_possible_cpu(i)
- 		sum += per_cpu(nr_inodes, i);
- 	return sum < 0 ? 0 : sum;
+@@ -343,16 +343,25 @@ static void dentry_lru_add(struct dentry *dentry)
+ static void __dentry_lru_del(struct dentry *dentry)
+ {
+ 	list_del_init(&dentry->d_lru);
+-	dentry->d_flags &= ~DCACHE_SHRINK_LIST;
+ 	dentry->d_sb->s_nr_dentry_unused--;
+ 	this_cpu_dec(nr_dentry_unused);
  }
  
--static inline int get_nr_inodes_unused(void)
-+static inline long get_nr_inodes_unused(void)
- {
- 	int i;
--	int sum = 0;
-+	long sum = 0;
- 	for_each_possible_cpu(i)
- 		sum += per_cpu(nr_unused, i);
- 	return sum < 0 ? 0 : sum;
- }
- 
--int get_nr_dirty_inodes(void)
-+long get_nr_dirty_inodes(void)
- {
- 	/* not actually dirty inodes, but a wild approximation */
--	int nr_dirty = get_nr_inodes() - get_nr_inodes_unused();
-+	long nr_dirty = get_nr_inodes() - get_nr_inodes_unused();
- 	return nr_dirty > 0 ? nr_dirty : 0;
- }
- 
-@@ -109,7 +109,7 @@ int proc_nr_inodes(ctl_table *table, int write,
- {
- 	inodes_stat.nr_inodes = get_nr_inodes();
- 	inodes_stat.nr_unused = get_nr_inodes_unused();
--	return proc_dointvec(table, write, buffer, lenp, ppos);
-+	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
- }
- #endif
- 
-diff --git a/fs/internal.h b/fs/internal.h
-index eaa75f7..cd5009f 100644
---- a/fs/internal.h
-+++ b/fs/internal.h
-@@ -117,7 +117,7 @@ extern void inode_add_lru(struct inode *inode);
+ /*
+  * Remove a dentry with references from the LRU.
++ *
++ * If we are on the shrink list, then we can get to try_prune_one_dentry() and
++ * lose our last reference through the parent walk. In this case, we need to
++ * remove ourselves from the shrink list, not the LRU.
   */
- extern void inode_wb_list_del(struct inode *inode);
+ static void dentry_lru_del(struct dentry *dentry)
+ {
++	if (dentry->d_flags & DCACHE_SHRINK_LIST) {
++		list_del_init(&dentry->d_lru);
++		dentry->d_flags &= ~DCACHE_SHRINK_LIST;
++		return;
++	}
++
+ 	if (!list_empty(&dentry->d_lru)) {
+ 		spin_lock(&dentry->d_sb->s_dentry_lru_lock);
+ 		__dentry_lru_del(dentry);
+@@ -362,13 +371,15 @@ static void dentry_lru_del(struct dentry *dentry)
  
--extern int get_nr_dirty_inodes(void);
-+extern long get_nr_dirty_inodes(void);
- extern void evict_inodes(struct super_block *);
- extern int invalidate_inodes(struct super_block *, bool);
+ static void dentry_lru_move_list(struct dentry *dentry, struct list_head *list)
+ {
++	BUG_ON(dentry->d_flags & DCACHE_SHRINK_LIST);
++
+ 	spin_lock(&dentry->d_sb->s_dentry_lru_lock);
+ 	if (list_empty(&dentry->d_lru)) {
+ 		list_add_tail(&dentry->d_lru, list);
+-		dentry->d_sb->s_nr_dentry_unused++;
+-		this_cpu_inc(nr_dentry_unused);
+ 	} else {
+ 		list_move_tail(&dentry->d_lru, list);
++		dentry->d_sb->s_nr_dentry_unused--;
++		this_cpu_dec(nr_dentry_unused);
+ 	}
+ 	spin_unlock(&dentry->d_sb->s_dentry_lru_lock);
+ }
+@@ -466,7 +477,8 @@ EXPORT_SYMBOL(d_drop);
+  * If ref is non-zero, then decrement the refcount too.
+  * Returns dentry requiring refcount drop, or NULL if we're done.
+  */
+-static inline struct dentry *dentry_kill(struct dentry *dentry, int ref)
++static inline struct dentry *
++dentry_kill(struct dentry *dentry, int ref, int unlock_on_failure)
+ 	__releases(dentry->d_lock)
+ {
+ 	struct inode *inode;
+@@ -475,8 +487,10 @@ static inline struct dentry *dentry_kill(struct dentry *dentry, int ref)
+ 	inode = dentry->d_inode;
+ 	if (inode && !spin_trylock(&inode->i_lock)) {
+ relock:
+-		spin_unlock(&dentry->d_lock);
+-		cpu_relax();
++		if (unlock_on_failure) {
++			spin_unlock(&dentry->d_lock);
++			cpu_relax();
++		}
+ 		return dentry; /* try again with same dentry */
+ 	}
+ 	if (IS_ROOT(dentry))
+@@ -563,7 +577,7 @@ repeat:
+ 	return;
  
-diff --git a/include/linux/dcache.h b/include/linux/dcache.h
-index 1a6bb81..1a82bdb 100644
---- a/include/linux/dcache.h
-+++ b/include/linux/dcache.h
-@@ -54,11 +54,11 @@ struct qstr {
- #define hashlen_len(hashlen)  ((u32)((hashlen) >> 32))
+ kill_it:
+-	dentry = dentry_kill(dentry, 1);
++	dentry = dentry_kill(dentry, 1, 1);
+ 	if (dentry)
+ 		goto repeat;
+ }
+@@ -762,12 +776,12 @@ EXPORT_SYMBOL(d_prune_aliases);
+  *
+  * This may fail if locks cannot be acquired no problem, just try again.
+  */
+-static void try_prune_one_dentry(struct dentry *dentry)
++static struct dentry * try_prune_one_dentry(struct dentry *dentry)
+ 	__releases(dentry->d_lock)
+ {
+ 	struct dentry *parent;
  
- struct dentry_stat_t {
--	int nr_dentry;
--	int nr_unused;
--	int age_limit;          /* age in seconds */
--	int want_pages;         /* pages requested by system */
--	int dummy[2];
-+	long nr_dentry;
-+	long nr_unused;
-+	long age_limit;          /* age in seconds */
-+	long want_pages;         /* pages requested by system */
-+	long dummy[2];
- };
- extern struct dentry_stat_t dentry_stat;
+-	parent = dentry_kill(dentry, 0);
++	parent = dentry_kill(dentry, 0, 0);
+ 	/*
+ 	 * If dentry_kill returns NULL, we have nothing more to do.
+ 	 * if it returns the same dentry, trylocks failed. In either
+@@ -779,9 +793,9 @@ static void try_prune_one_dentry(struct dentry *dentry)
+ 	 * fragmentation.
+ 	 */
+ 	if (!parent)
+-		return;
++		return NULL;
+ 	if (parent == dentry)
+-		return;
++		return dentry;
  
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index a4c9fbe..ad3eb76 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -1266,12 +1266,12 @@ struct super_block {
- 	struct list_head	s_mounts;	/* list of mounts; _not_ for fs use */
- 	/* s_dentry_lru, s_nr_dentry_unused protected by dcache.c lru locks */
- 	struct list_head	s_dentry_lru;	/* unused dentry lru */
--	int			s_nr_dentry_unused;	/* # of dentry on lru */
-+	long			s_nr_dentry_unused;	/* # of dentry on lru */
+ 	/* Prune ancestors. */
+ 	dentry = parent;
+@@ -790,10 +804,11 @@ static void try_prune_one_dentry(struct dentry *dentry)
+ 		if (dentry->d_count > 1) {
+ 			dentry->d_count--;
+ 			spin_unlock(&dentry->d_lock);
+-			return;
++			return NULL;
+ 		}
+-		dentry = dentry_kill(dentry, 1);
++		dentry = dentry_kill(dentry, 1, 1);
+ 	}
++	return NULL;
+ }
  
- 	/* s_inode_lru_lock protects s_inode_lru and s_nr_inodes_unused */
- 	spinlock_t		s_inode_lru_lock ____cacheline_aligned_in_smp;
- 	struct list_head	s_inode_lru;		/* unused inode lru */
--	int			s_nr_inodes_unused;	/* # of inodes on lru */
-+	long			s_nr_inodes_unused;	/* # of inodes on lru */
+ static void shrink_dentry_list(struct list_head *list)
+@@ -812,21 +827,31 @@ static void shrink_dentry_list(struct list_head *list)
+ 		}
  
- 	struct block_device	*s_bdev;
- 	struct backing_dev_info *s_bdi;
-diff --git a/include/uapi/linux/fs.h b/include/uapi/linux/fs.h
-index a4ed56c..6c28b61 100644
---- a/include/uapi/linux/fs.h
-+++ b/include/uapi/linux/fs.h
-@@ -49,9 +49,9 @@ struct files_stat_struct {
- };
+ 		/*
++		 * The dispose list is isolated and dentries are not accounted
++		 * to the LRU here, so we can simply remove it from the list
++		 * here regardless of whether it is referenced or not.
++		 */
++		list_del_init(&dentry->d_lru);
++		dentry->d_flags &= ~DCACHE_SHRINK_LIST;
++
++		/*
+ 		 * We found an inuse dentry which was not removed from
+-		 * the LRU because of laziness during lookup.  Do not free
+-		 * it - just keep it off the LRU list.
++		 * the LRU because of laziness during lookup. Do not free it.
+ 		 */
+ 		if (dentry->d_count) {
+-			dentry_lru_del(dentry);
+ 			spin_unlock(&dentry->d_lock);
+ 			continue;
+ 		}
+-
+ 		rcu_read_unlock();
  
- struct inodes_stat_t {
--	int nr_inodes;
--	int nr_unused;
--	int dummy[5];		/* padding for sysctl ABI compatibility */
-+	long nr_inodes;
-+	long nr_unused;
-+	long dummy[5];		/* padding for sysctl ABI compatibility */
- };
+-		try_prune_one_dentry(dentry);
++		dentry = try_prune_one_dentry(dentry);
  
+ 		rcu_read_lock();
++		if (dentry) {
++			dentry->d_flags |= DCACHE_SHRINK_LIST;
++			list_add(&dentry->d_lru, list);
++			spin_unlock(&dentry->d_lock);
++		}
+ 	}
+ 	rcu_read_unlock();
+ }
+@@ -867,8 +892,10 @@ relock:
+ 			list_move(&dentry->d_lru, &referenced);
+ 			spin_unlock(&dentry->d_lock);
+ 		} else {
+-			list_move_tail(&dentry->d_lru, &tmp);
++			list_move(&dentry->d_lru, &tmp);
+ 			dentry->d_flags |= DCACHE_SHRINK_LIST;
++			this_cpu_dec(nr_dentry_unused);
++			sb->s_nr_dentry_unused--;
+ 			spin_unlock(&dentry->d_lock);
+ 			if (!--count)
+ 				break;
+@@ -882,6 +909,27 @@ relock:
+ 	shrink_dentry_list(&tmp);
+ }
  
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 9edcf45..fb90f7c 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -1456,14 +1456,14 @@ static struct ctl_table fs_table[] = {
- 	{
- 		.procname	= "inode-nr",
- 		.data		= &inodes_stat,
--		.maxlen		= 2*sizeof(int),
-+		.maxlen		= 2*sizeof(long),
- 		.mode		= 0444,
- 		.proc_handler	= proc_nr_inodes,
- 	},
- 	{
- 		.procname	= "inode-state",
- 		.data		= &inodes_stat,
--		.maxlen		= 7*sizeof(int),
-+		.maxlen		= 7*sizeof(long),
- 		.mode		= 0444,
- 		.proc_handler	= proc_nr_inodes,
- 	},
-@@ -1493,7 +1493,7 @@ static struct ctl_table fs_table[] = {
- 	{
- 		.procname	= "dentry-state",
- 		.data		= &dentry_stat,
--		.maxlen		= 6*sizeof(int),
-+		.maxlen		= 6*sizeof(long),
- 		.mode		= 0444,
- 		.proc_handler	= proc_nr_dentry,
- 	},
++/*
++ * Mark all the dentries as on being the dispose list so we don't think they are
++ * still on the LRU if we try to kill them from ascending the parent chain in
++ * try_prune_one_dentry() rather than directly from the dispose list.
++ */
++static void
++shrink_dcache_list(
++	struct list_head *dispose)
++{
++	struct dentry *dentry;
++
++	rcu_read_lock();
++	list_for_each_entry_rcu(dentry, dispose, d_lru) {
++		spin_lock(&dentry->d_lock);
++		dentry->d_flags |= DCACHE_SHRINK_LIST;
++		spin_unlock(&dentry->d_lock);
++	}
++	rcu_read_unlock();
++	shrink_dentry_list(dispose);
++}
++
+ /**
+  * shrink_dcache_sb - shrink dcache for a superblock
+  * @sb: superblock
+@@ -895,9 +943,17 @@ void shrink_dcache_sb(struct super_block *sb)
+ 
+ 	spin_lock(&sb->s_dentry_lru_lock);
+ 	while (!list_empty(&sb->s_dentry_lru)) {
++		/*
++		 * account for removal here so we don't need to handle it later
++		 * even though the dentry is no longer on the lru list.
++		 */
+ 		list_splice_init(&sb->s_dentry_lru, &tmp);
++		this_cpu_sub(nr_dentry_unused, sb->s_nr_dentry_unused);
++		sb->s_nr_dentry_unused = 0;
+ 		spin_unlock(&sb->s_dentry_lru_lock);
+-		shrink_dentry_list(&tmp);
++
++		shrink_dcache_list(&tmp);
++
+ 		spin_lock(&sb->s_dentry_lru_lock);
+ 	}
+ 	spin_unlock(&sb->s_dentry_lru_lock);
 -- 
 1.8.1.4
 
