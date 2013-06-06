@@ -1,73 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id B393C6B0031
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 12:48:17 -0400 (EDT)
-Date: Thu, 6 Jun 2013 09:48:01 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v10 11/35] list_lru: per-node list infrastructure
-Message-Id: <20130606094801.8a259edf.akpm@linux-foundation.org>
-In-Reply-To: <51B0B58B.50203@parallels.com>
-References: <1370287804-3481-1-git-send-email-glommer@openvz.org>
-	<1370287804-3481-12-git-send-email-glommer@openvz.org>
-	<20130605160804.be25fb655f075efe70ec57c0@linux-foundation.org>
-	<51B0B58B.50203@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id A7E1C6B0031
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 13:17:35 -0400 (EDT)
+Received: by mail-ob0-f171.google.com with SMTP id dn14so5121624obc.30
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2013 10:17:34 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <0000013f19d7a21d-0bc478a9-c65b-4d66-a774-266b17bcde2a-000000@email.amazonses.com>
+References: <1370445037-24144-1-git-send-email-aarcange@redhat.com>
+ <1370445037-24144-2-git-send-email-aarcange@redhat.com> <51AFA185.9000909@gmail.com>
+ <0000013f161c3f42-14ae4d9d-fd85-47dd-ba80-896e1e84a6fe-000000@email.amazonses.com>
+ <51AFA786.1040608@gmail.com> <0000013f19d7a21d-0bc478a9-c65b-4d66-a774-266b17bcde2a-000000@email.amazonses.com>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Thu, 6 Jun 2013 13:17:14 -0400
+Message-ID: <CAHGf_=pXjSjZLNEDdbet1633cKtdPR6pqgO-WNVeH3DaBbbVGQ@mail.gmail.com>
+Subject: Re: [PATCH 1/7] mm: remove ZONE_RECLAIM_LOCKED
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>
 
-On Thu, 6 Jun 2013 20:15:07 +0400 Glauber Costa <glommer@parallels.com> wrote:
+> How does nr_to_reclaim limit the concurrency of zone reclaim?
 
-> On 06/06/2013 03:08 AM, Andrew Morton wrote:
-> >> +	for_each_node_mask(nid, lru->active_nodes) {
-> >> > +		struct list_lru_node *nlru = &lru->node[nid];
-> >> > +
-> >> > +		spin_lock(&nlru->lock);
-> >> > +		BUG_ON(nlru->nr_items < 0);
-> > This is buggy.
-> > 
-> > The bit in lru->active_nodes could be cleared by now.  We can only make
-> > this assertion if we recheck lru->active_nodes[nid] inside the
-> > spinlocked region.
-> > 
-> Sorry Andrew, how so ?
-> We will clear that flag if nr_items == 0. nr_items should *never* get to
-> be less than 0, it doesn't matter if the node is cleared or not.
-> 
-> If the node is cleared, we would expected the following statement to
-> expand to
->    count += nlru->nr_items = 0;
->    spin_unlock(&nlru->lock);
-> 
-> Which is actually cheaper than testing for the bit being still set.
+No, it doesn't prevent concurrent reclaim itself. It only prevents cuncurrent
+reclaim much much pages rather than SWAP_CLUSTER_MAX. note,
+zone reclaim uses priority 4 by default.
 
-Well OK - I didn't actually look at the expression the BUG_ON() was
-testing.  You got lucky ;)
+> What happens if multiple processes are allocating from the same zone and
+> they all go into direct reclaim and therefore hit zone reclaim?
 
-My point was that nlru->lock protects ->active_nodes and so the above
-code is racy due to a locking error.  I now see that was incorrect -
-active_nodes has no locking.
-
-Well, it kinda has accidental locking - nrlu->lock happens to protect
-this nrlu's bit in active_nodes while permitting other nrlu's bits to
-concurrently change.
-
-
-The bottom line is that code which does
-
-	if (node_isset(n, active_nodes))
-		use(n);
-
-can end up using a node which is no longer in the active_nodes, because
-there is no locking.  This is a bit weird and worrisome and might lead
-to bugs in the future, at least.  Perhaps we can improve the
-maintainability by documenting this at the active_nodes site, dunno.
-
-This code gets changed a lot in later patches and I didn't check to see
-if the problem remains in the final product.
+At zone reclaim was created, 16 (1<<4) concurrent reclaim may drop all page
+cache because zone reclaim uses priority 4 by default. However, now we have
+reckaim bail out logic. So, priority 4 doesn't directly mean each zone reclaim
+drop 1/16 caches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
