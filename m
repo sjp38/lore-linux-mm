@@ -1,30 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 237A56B0031
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 04:26:41 -0400 (EDT)
-Message-ID: <51B047F0.7060501@parallels.com>
-Date: Thu, 6 Jun 2013 12:27:28 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 0AD886B0031
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 04:28:20 -0400 (EDT)
+Date: Thu, 6 Jun 2013 10:28:18 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 1/2] mm: memcontrol: fix lockless reclaim hierarchy
+ iterator
+Message-ID: <20130606082818.GC7909@dhcp22.suse.cz>
+References: <1370472826-29959-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v10 22/35] shrinker: convert remaining shrinkers to count/scan
- API
-References: <1370287804-3481-1-git-send-email-glommer@openvz.org> <1370287804-3481-23-git-send-email-glommer@openvz.org> <20130605160821.59adf9ad4efe48144fd9e237@linux-foundation.org> <20130606034116.GT29338@dastard>
-In-Reply-To: <20130606034116.GT29338@dastard>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1370472826-29959-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>, Marcelo Tosatti <mtosatti@redhat.com>, Gleb Natapov <gleb@redhat.com>, Chuck Lever <chuck.lever@oracle.com>, "J. Bruce Fields" <bfields@redhat.com>, Trond Myklebust <Trond.Myklebust@netapp.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 06/06/2013 07:41 AM, Dave Chinner wrote:
->> Really, it would be best if you were to go through the entire patchset
->> > and undo all this.
-> Sure, that can be done.
-There is a lot to do, a lot to rebase, and many conflicts to fix.
-Since I will be the one resending this anyway, let me just go ahead and
-fix them.
+On Wed 05-06-13 18:53:45, Johannes Weiner wrote:
+> The lockless reclaim hierarchy iterator currently has a misplaced
+> barrier that can lead to use-after-free crashes.
+> 
+> The reclaim hierarchy iterator consist of a sequence count and a
+> position pointer that are read and written locklessly, with memory
+> barriers enforcing ordering.
+> 
+> The write side sets the position pointer first, then updates the
+> sequence count to "publish" the new position.  Likewise, the read side
+> must read the sequence count first, then the position.  If the
+> sequence count is up to date, it's guaranteed that the position is up
+> to date as well:
+> 
+>   writer:                         reader:
+>   iter->position = position       if iter->sequence == expected:
+>   smp_wmb()                           smp_rmb()
+>   iter->sequence = sequence           position = iter->position
+> 
+> However, the read side barrier is currently misplaced, which can lead
+> to dereferencing stale position pointers that no longer point to valid
+> memory.  Fix this.
+> 
+> Reported-by: Tejun Heo <tj@kernel.org>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: stable@kernel.org [3.10+]
 
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
+> ---
+>  mm/memcontrol.c | 12 +++++-------
+>  1 file changed, 5 insertions(+), 7 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 010d6c1..e2cbb44 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1199,7 +1199,6 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+>  
+>  			mz = mem_cgroup_zoneinfo(root, nid, zid);
+>  			iter = &mz->reclaim_iter[reclaim->priority];
+> -			last_visited = iter->last_visited;
+>  			if (prev && reclaim->generation != iter->generation) {
+>  				iter->last_visited = NULL;
+>  				goto out_unlock;
+> @@ -1218,13 +1217,12 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+>  			 * is alive.
+>  			 */
+>  			dead_count = atomic_read(&root->dead_count);
+> -			smp_rmb();
+> -			last_visited = iter->last_visited;
+> -			if (last_visited) {
+> -				if ((dead_count != iter->last_dead_count) ||
+> -					!css_tryget(&last_visited->css)) {
+> +			if (dead_count == iter->last_dead_count) {
+> +				smp_rmb();
+> +				last_visited = iter->last_visited;
+> +				if (last_visited &&
+> +				    !css_tryget(&last_visited->css))
+>  					last_visited = NULL;
+> -				}
+>  			}
+>  		}
+>  
+> -- 
+> 1.8.3
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
