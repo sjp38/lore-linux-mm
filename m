@@ -1,50 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id 3C5E66B006C
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 03:23:11 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id fb1so1534907pad.9
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2013 00:23:10 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id C5C226B003B
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 03:36:11 -0400 (EDT)
+Message-ID: <51B03C1F.4000501@parallels.com>
+Date: Thu, 6 Jun 2013 11:37:03 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <20130606120455.bd86a4c0ac009482db80f634@canb.auug.org.au>
-References: <20130606002636.6746F5A41AE@corp2gmr1-2.hot.corp.google.com>
-	<20130606120455.bd86a4c0ac009482db80f634@canb.auug.org.au>
-Date: Thu, 6 Jun 2013 09:23:10 +0200
-Message-ID: <CAMuHMdUKvJBS9u4qjDDKRhAMv9ikrxYSBgobLSSDWL1VmeV9wA@mail.gmail.com>
-Subject: Re: mmotm 2013-06-05-17-24 uploaded
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH v10 00/35] kmemcg shrinkers
+References: <1370287804-3481-1-git-send-email-glommer@openvz.org> <20130605160721.da995af82eb247ccf8f8537f@linux-foundation.org> <51B02347.60809@parallels.com> <20130606001855.48d9da2e.akpm@linux-foundation.org>
+In-Reply-To: <20130606001855.48d9da2e.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stephen Rothwell <sfr@canb.auug.org.au>, Andrew Morton <akpm@linux-foundation.org>
-Cc: mm-commits@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Linux-Next <linux-next@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>
 
-Hi Andrew,
-
-On Thu, Jun 6, 2013 at 4:04 AM, Stephen Rothwell <sfr@canb.auug.org.au> wrote:
-> On Wed, 05 Jun 2013 17:26:36 -0700 akpm@linux-foundation.org wrote:
->>
->>   linux-next-git-rejects.patch
->
-> We must figure out why you sometimes get rejects that I do not get when I
-> import your series into a git tree.  However in this case you resolution
-> is not quite right.  It leaves 2 continue statements in
-> net/mac80211/iface.c at line 191 which will unconditionally short circuit
-> the enclosing loop.  The version that will be in linux-next today is
-> correct (and git did it automatically as part of the merge of the old
-> linux-next tree).
-
-Do you have "git rerere" enabled?
-
-Gr{oetje,eeting}s,
-
-                        Geert
-
---
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
-
-In personal conversations with technical people, I call myself a hacker. But
-when I'm talking to journalists I just say "programmer" or something like that.
-                                -- Linus Torvalds
+On 06/06/2013 11:18 AM, Andrew Morton wrote:
+> The shrinker stuff seems sensible and straightforward and I expect we
+> can proceed with that at the normal pace.  The memcg changes struck me
+> as being hairy as hell and I'd really like to see the other memcg
+> people go through it carefully.
+> 
+> Of course, "new series" doesn't give you an easily accessible tree to
+> target.  I could drop it all again to give you a clean shot at
+> tomorrow's -next?
+If you just keep them on top (not really sure how hard it is for you), I
+can just remove them all and apply a new series on top.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
