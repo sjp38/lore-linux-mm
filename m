@@ -1,107 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
-	by kanga.kvack.org (Postfix) with SMTP id 264E76B0033
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 08:23:24 -0400 (EDT)
-Date: Thu, 6 Jun 2013 14:23:21 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] memcg: clean up memcg->nodeinfo
-Message-ID: <20130606122321.GF7909@dhcp22.suse.cz>
-References: <1370487934-4547-1-git-send-email-hannes@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id 5E3146B0031
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 08:39:52 -0400 (EDT)
+Message-ID: <51B0834A.8020606@parallels.com>
+Date: Thu, 6 Jun 2013 16:40:42 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1370487934-4547-1-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [PATCH v10 03/35] dcache: convert dentry_stat.nr_unused to per-cpu
+ counters
+References: <1370287804-3481-1-git-send-email-glommer@openvz.org> <1370287804-3481-4-git-send-email-glommer@openvz.org> <20130605160731.91a5cd3ff700367f5e155d83@linux-foundation.org> <20130606014509.GN29338@dastard> <20130605194801.f9b25abf.akpm@linux-foundation.org>
+In-Reply-To: <20130605194801.f9b25abf.akpm@linux-foundation.org>
+Content-Type: multipart/mixed;
+	boundary="------------090100080903040700090200"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Chinner <david@fromorbit.com>, Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>
 
-On Wed 05-06-13 23:05:34, Johannes Weiner wrote:
-> Remove struct mem_cgroup_lru_info and fold its single member, the
-> variably sized nodeinfo[0], directly into struct mem_cgroup.  This
-> should make it more obvious why it has to be the last member there.
+--------------090100080903040700090200
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
+
+On 06/06/2013 06:48 AM, Andrew Morton wrote:
+> On Thu, 6 Jun 2013 11:45:09 +1000 Dave Chinner <david@fromorbit.com> wrote:
 > 
-> Also move the comment that's above that special last member below it,
-> so it is more visible to somebody that considers appending to the
-> struct mem_cgroup.
->
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-
-It would be better to make this a regular array in the long term. But
-this is definitely an improvement
-
-Acked-by: Michal Hocko <mhocko@suse.cz>
-
-Thanks!
-> ---
->  mm/memcontrol.c | 21 ++++++---------------
->  1 file changed, 6 insertions(+), 15 deletions(-)
+>> Andrew, if you want to push the changes back to generic per-cpu
+>> counters through to Linus, then I'll write the patches for you.  But
+>> - and this is a big but - I'll only do this if you are going to deal
+>> with the "performance trumps all other concerns" fanatics over
+>> whether it should be merged or not. I have better things to do
+>> with my time have a flamewar over trivial details like this.
 > 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index ff7b40d..d169a8d 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -187,10 +187,6 @@ struct mem_cgroup_per_node {
->  	struct mem_cgroup_per_zone zoneinfo[MAX_NR_ZONES];
->  };
->  
-> -struct mem_cgroup_lru_info {
-> -	struct mem_cgroup_per_node *nodeinfo[0];
-> -};
-> -
->  /*
->   * Cgroups above their limits are maintained in a RB-Tree, independent of
->   * their hierarchy representation
-> @@ -384,14 +380,9 @@ struct mem_cgroup {
->  #endif
->  	/* when kmem shrinkers can sleep but can't proceed due to context */
->  	struct work_struct kmemcg_shrink_work;
-> -	/*
-> -	 * Per cgroup active and inactive list, similar to the
-> -	 * per zone LRU lists.
-> -	 *
-> -	 * WARNING: This has to be the last element of the struct. Don't
-> -	 * add new fields after this point.
-> -	 */
-> -	struct mem_cgroup_lru_info info;
-> +
-> +	struct mem_cgroup_per_node *nodeinfo[0];
-> +	/* WARNING: nodeinfo has to be the last member here */
->  };
->  
->  static size_t memcg_size(void)
-> @@ -777,7 +768,7 @@ static struct mem_cgroup_per_zone *
->  mem_cgroup_zoneinfo(struct mem_cgroup *memcg, int nid, int zid)
->  {
->  	VM_BUG_ON((unsigned)nid >= nr_node_ids);
-> -	return &memcg->info.nodeinfo[nid]->zoneinfo[zid];
-> +	return &memcg->nodeinfo[nid]->zoneinfo[zid];
->  }
->  
->  struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *memcg)
-> @@ -6595,13 +6586,13 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
->  		mz->on_tree = false;
->  		mz->memcg = memcg;
->  	}
-> -	memcg->info.nodeinfo[node] = pn;
-> +	memcg->nodeinfo[node] = pn;
->  	return 0;
->  }
->  
->  static void free_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
->  {
-> -	kfree(memcg->info.nodeinfo[node]);
-> +	kfree(memcg->nodeinfo[node]);
->  }
->  
->  static struct mem_cgroup *mem_cgroup_alloc(void)
-> -- 
-> 1.8.2.3
+> Please view my comments as a critique of the changelog, not of the code. 
+> 
+> There are presumably good (but undisclosed) reasons for going this way,
+> but this question is so bleeding obvious that the decision should have
+> been addressed up-front and in good detail.
+> 
+> And, preferably, with benchmark numbers.  Because it might have been
+> the wrong decision - stranger things have happened.
 > 
 
--- 
-Michal Hocko
-SUSE Labs
+I have folded the attached patch here. Let me know if it still needs
+more love.
+
+
+--------------090100080903040700090200
+Content-Type: text/x-patch; name="3.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename="3.patch"
+
+diff --git a/fs/dcache.c b/fs/dcache.c
+index 9f2aa96..0466dbd 100644
+--- a/fs/dcache.c
++++ b/fs/dcache.c
+@@ -121,7 +121,19 @@ static DEFINE_PER_CPU(long, nr_dentry);
+ static DEFINE_PER_CPU(long, nr_dentry_unused);
+ 
+ #if defined(CONFIG_SYSCTL) && defined(CONFIG_PROC_FS)
+-/* scan possible cpus instead of online and avoid worrying about CPU hotplug. */
++
++/*
++ * Here we resort to our own counters instead of using generic per-cpu counters
++ * for consistency with what the vfs inode code does. We are expected to harvest
++ * better code and performance by having our own specialized counters.
++ *
++ * Please note that the loop is done over all possible CPUs, not over all online
++ * CPUs. The reason for this is that we don't want to play games with CPUs going
++ * on and off. If one of them goes off, we will just keep their counters.
++ *
++ * glommer: See cffbc8a for details, and if you ever intend to change this,
++ * please update all vfs counters to match.
++ */
+ static long get_nr_dentry(void)
+ {
+ 	int i;
+
+--------------090100080903040700090200--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
