@@ -1,65 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 071E56B0031
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 04:32:59 -0400 (EDT)
-Message-ID: <51B04968.7080105@parallels.com>
-Date: Thu, 6 Jun 2013 12:33:44 +0400
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id D4DF86B0033
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 04:34:42 -0400 (EDT)
+Message-ID: <51B049D5.2020809@parallels.com>
+Date: Thu, 6 Jun 2013 12:35:33 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v10 35/35] memcg: reap dead memcgs upon global memory
- pressure.
-References: <1370287804-3481-1-git-send-email-glommer@openvz.org> <1370287804-3481-36-git-send-email-glommer@openvz.org> <20130605160902.2e656a43aa7c5a51a574ea48@linux-foundation.org>
-In-Reply-To: <20130605160902.2e656a43aa7c5a51a574ea48@linux-foundation.org>
+Subject: Re: [PATCH v10 29/35] memcg: per-memcg kmem shrinking
+References: <1370287804-3481-1-git-send-email-glommer@openvz.org> <1370287804-3481-30-git-send-email-glommer@openvz.org> <20130605160841.909420c06bfde62039489d2e@linux-foundation.org>
+In-Reply-To: <20130605160841.909420c06bfde62039489d2e@linux-foundation.org>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel
- Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes
- Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>, Rik van Riel <riel@redhat.com>
+Cc: Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>, Rik van Riel <riel@redhat.com>
 
-On 06/06/2013 03:09 AM, Andrew Morton wrote:
-> On Mon,  3 Jun 2013 23:30:04 +0400 Glauber Costa <glommer@openvz.org> wrote:
+On 06/06/2013 03:08 AM, Andrew Morton wrote:
+>> +
+>> > +		/*
+>> > +		 * We will try to shrink kernel memory present in caches. We
+>> > +		 * are sure that we can wait, so we will. The duration of our
+>> > +		 * wait is determined by congestion, the same way as vmscan.c
+>> > +		 *
+>> > +		 * If we are in FS context, though, then although we can wait,
+>> > +		 * we cannot call the shrinkers. Most fs shrinkers (which
+>> > +		 * comprises most of our kmem data) will not run without
+>> > +		 * __GFP_FS since they can deadlock. The solution is to
+>> > +		 * synchronously run that in a different context.
+> But this is pointless.  Calling a function via a different thread and
+> then waiting for it to complete is equivalent to calling it directly.
 > 
->> When we delete kmem-enabled memcgs, they can still be zombieing
->> around for a while. The reason is that the objects may still be alive,
->> and we won't be able to delete them at destruction time.
->>
->> The only entry point for that, though, are the shrinkers. The
->> shrinker interface, however, is not exactly tailored to our needs. It
->> could be a little bit better by using the API Dave Chinner proposed, but
->> it is still not ideal since we aren't really a count-and-scan event, but
->> more a one-off flush-all-you-can event that would have to abuse that
->> somehow.
-> 
-> This patch is significantly dependent on
-> http://ozlabs.org/~akpm/mmots/broken-out/memcg-debugging-facility-to-access-dangling-memcgs.patch,
-> which was designated "mm only debug patch" when I merged it six months
-> ago.
-> 
-> We can go ahead and merge
-> memcg-debugging-facility-to-access-dangling-memcgs.patch upstream I
-> guess, but we shouldn't do that just because it makes the
-> patch-wrangling a bit easier!
-> 
-> Is memcg-debugging-facility-to-access-dangling-memcgs.patch worth merging in
-> its own right?  If so, what changed since our earlier decision?
-> 
+Not in this case. We are in wait-capable context (we check for this
+right before we reach this), but we are not in fs capable context.
 
-I was under the impression that it *was* merged, even though it
-shouldn't - it was showing up on -next, so I could be wrong. I am
-basically using part of the infrastructure for this patch, but the rest
-can go away.
-
-If the patch isn't really merged and I was just confused (can happen),
-what I would prefer to do is what I have done originally: I will append
-part of that in this patch (the part the adds memcgs to the dangling
-list), and leave the file part in a separate patch. I will then resend
-you that patch as a debug-only patch.
-
-To do that, it would be mostly helpful if you could remove that for your
-tree temporarily.
+So the reason we do this - which I tried to cover in the changelog, is
+to escape from the GFP_FS limitation that our call chain has, not the
+wait limitation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
