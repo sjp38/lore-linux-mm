@@ -1,465 +1,220 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 7F3E16B0033
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 23:10:00 -0400 (EDT)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 2/2] memcg: do not sleep on OOM waitqueue with full charge context
-Date: Wed,  5 Jun 2013 23:09:53 -0400
-Message-Id: <1370488193-4747-2-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1370488193-4747-1-git-send-email-hannes@cmpxchg.org>
-References: <1370488193-4747-1-git-send-email-hannes@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 556C66B0031
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 23:21:11 -0400 (EDT)
+Date: Thu, 6 Jun 2013 13:21:07 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v10 11/35] list_lru: per-node list infrastructure
+Message-ID: <20130606032107.GQ29338@dastard>
+References: <1370287804-3481-1-git-send-email-glommer@openvz.org>
+ <1370287804-3481-12-git-send-email-glommer@openvz.org>
+ <20130605160804.be25fb655f075efe70ec57c0@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130605160804.be25fb655f075efe70ec57c0@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>
 
-The memcg OOM handling is incredibly fragile because once a memcg goes
-OOM, one task (kernel or userspace) is responsible for resolving the
-situation.  Every other task that gets caught trying to charge memory
-gets stuck in a waitqueue while potentially holding various filesystem
-and mm locks on which the OOM handling task may now deadlock.
+On Wed, Jun 05, 2013 at 04:08:04PM -0700, Andrew Morton wrote:
+> On Mon,  3 Jun 2013 23:29:40 +0400 Glauber Costa <glommer@openvz.org> wrote:
+> 
+> > From: Dave Chinner <dchinner@redhat.com>
+> > 
+> > Now that we have an LRU list API, we can start to enhance the
+> > implementation.  This splits the single LRU list into per-node lists
+> > and locks to enhance scalability.
+> 
+> Do we have any runtime measurements?  They're pretty important for
+> justifying inclusion of the code.
 
-Do two things:
+Nothing I've officially posted, because I've been busy with other
+XFS stuff. But, well, if you look here:
 
-1. When OOMing in a system call (buffered IO and friends), invoke the
-   OOM killer but just return -ENOMEM, never sleep.  Userspace should
-   be able to handle this.
+http://oss.sgi.com/pipermail/xfs/2013-June/026888.html
 
-2. When OOMing in a page fault and somebody else is handling the
-   situation, do not sleep directly in the charging code.  Instead,
-   remember the OOMing memcg in the task struct and then fully unwind
-   the page fault stack first before going to sleep.
+-  12.74%  [kernel]  [k] __ticket_spin_trylock
+   - __ticket_spin_trylock
+      - 60.49% _raw_spin_lock
+         + 91.79% inode_add_lru			>>> inode_lru_lock
+         + 2.98% dentry_lru_del			>>> dcache_lru_lock
+         + 1.30% shrink_dentry_list
+         + 0.71% evict
+      - 20.42% do_raw_spin_lock
+         - _raw_spin_lock
+            + 13.41% inode_add_lru		>>> inode_lru_lock
+            + 10.55% evict
+            + 8.26% dentry_lru_del		>>> dcache_lru_lock
+            + 7.62% __remove_inode_hash
+....
+      - 10.37% do_raw_spin_trylock
+         - _raw_spin_trylock
+            + 79.65% prune_icache_sb		>>> inode_lru_lock
+            + 11.04% shrink_dentry_list
+            + 9.24% prune_dcache_sb		>>> dcache_lru_lock
+      - 8.72% _raw_spin_trylock
+         + 46.33% prune_icache_sb		>>> inode_lru_lock
+         + 46.08% shrink_dentry_list
+         + 7.60% prune_dcache_sb		>>> dcache_lru_lock
 
-While reworking the OOM routine, also remove a needless OOM waitqueue
-wakeup when invoking the killer.  Only uncharges and limit increases,
-things that actually change the memory situation, should do wakeups.
+This is from an 8p system w/ fake-numa=4 running an 8-way find+stat
+workload on 50 million files. 12.5% CPU usage means we are burning
+an entire CPU of that system just in __ticket_spin_trylock(), and
+the numbers above indicate that roughly 60% of that CPU time is from
+the inode_lru_lock.
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
----
- include/linux/memcontrol.h |  22 +++++++
- include/linux/mm.h         |   1 +
- include/linux/sched.h      |   6 ++
- mm/ksm.c                   |   2 +-
- mm/memcontrol.c            | 146 ++++++++++++++++++++++++++++-----------------
- mm/memory.c                |  40 +++++++++----
- mm/oom_kill.c              |   7 ++-
- 7 files changed, 154 insertions(+), 70 deletions(-)
+So, more than half a CPU being spent just trying to get the
+inode_lru_lock. The generic LRU list code drops
+__ticket_spin_trylock() back down to roughly 2% of the total CPU
+usage for the same workload - the CPU burn associated with the
+contention on the global lock goes away.
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index c8b1412..8e0f900 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -124,6 +124,15 @@ unsigned long mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list);
- void mem_cgroup_update_lru_size(struct lruvec *, enum lru_list, int);
- extern void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
- 					struct task_struct *p);
-+static inline void mem_cgroup_set_userfault(struct task_struct *p)
-+{
-+	p->memcg_oom.in_userfault = 1;
-+}
-+static inline void mem_cgroup_clear_userfault(struct task_struct *p)
-+{
-+	p->memcg_oom.in_userfault = 0;
-+}
-+bool mem_cgroup_oom_synchronize(void);
- extern void mem_cgroup_replace_page_cache(struct page *oldpage,
- 					struct page *newpage);
- 
-@@ -343,6 +352,19 @@ mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
- {
- }
- 
-+static inline void mem_cgroup_set_userfault(struct task_struct *p)
-+{
-+}
-+
-+static inline void mem_cgroup_clear_userfault(struct task_struct *p)
-+{
-+}
-+
-+static inline bool mem_cgroup_oom_synchronize(void)
-+{
-+	return false;
-+}
-+
- static inline void mem_cgroup_begin_update_page_stat(struct page *page,
- 					bool *locked, unsigned long *flags)
- {
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index b87681a..79ee304 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -176,6 +176,7 @@ extern pgprot_t protection_map[16];
- #define FAULT_FLAG_RETRY_NOWAIT	0x10	/* Don't drop mmap_sem and wait when retrying */
- #define FAULT_FLAG_KILLABLE	0x20	/* The fault task is in SIGKILL killable region */
- #define FAULT_FLAG_TRIED	0x40	/* second try */
-+#define FAULT_FLAG_KERNEL	0x80	/* kernel-triggered fault (get_user_pages etc.) */
- 
- /*
-  * vm_fault is filled by the the pagefault handler and passed to the vma's
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 08090e6..0659277 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1403,6 +1403,12 @@ struct task_struct {
- 		unsigned long memsw_nr_pages; /* uncharged mem+swap usage */
- 	} memcg_batch;
- 	unsigned int memcg_kmem_skip_account;
-+	struct memcg_oom_info {
-+		unsigned int in_userfault:1;
-+		unsigned int in_memcg_oom:1;
-+		int wakeups;
-+		struct mem_cgroup *wait_on_memcg;
-+	} memcg_oom;
- #endif
- #ifdef CONFIG_UPROBES
- 	struct uprobe_task *utask;
-diff --git a/mm/ksm.c b/mm/ksm.c
-index b6afe0c..9dff93b 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -372,7 +372,7 @@ static int break_ksm(struct vm_area_struct *vma, unsigned long addr)
- 			break;
- 		if (PageKsm(page))
- 			ret = handle_mm_fault(vma->vm_mm, vma, addr,
--							FAULT_FLAG_WRITE);
-+					FAULT_FLAG_KERNEL | FAULT_FLAG_WRITE);
- 		else
- 			ret = VM_FAULT_WRITE;
- 		put_page(page);
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index d169a8d..61d3449 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -298,6 +298,7 @@ struct mem_cgroup {
- 
- 	bool		oom_lock;
- 	atomic_t	under_oom;
-+	atomic_t	oom_wakeups;
- 
- 	atomic_t	refcnt;
- 
-@@ -2305,6 +2306,7 @@ static int memcg_oom_wake_function(wait_queue_t *wait,
- 
- static void memcg_wakeup_oom(struct mem_cgroup *memcg)
- {
-+	atomic_inc(&memcg->oom_wakeups);
- 	/* for filtering, pass "memcg" as argument. */
- 	__wake_up(&memcg_oom_waitq, TASK_NORMAL, 0, memcg);
- }
-@@ -2316,56 +2318,103 @@ static void memcg_oom_recover(struct mem_cgroup *memcg)
- }
- 
- /*
-- * try to call OOM killer. returns false if we should exit memory-reclaim loop.
-+ * try to call OOM killer
-  */
--static bool mem_cgroup_handle_oom(struct mem_cgroup *memcg, gfp_t mask,
--				  int order)
-+static void mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
- {
--	struct oom_wait_info owait;
--	bool locked, need_to_kill;
--
--	owait.memcg = memcg;
--	owait.wait.flags = 0;
--	owait.wait.func = memcg_oom_wake_function;
--	owait.wait.private = current;
--	INIT_LIST_HEAD(&owait.wait.task_list);
--	need_to_kill = true;
--	mem_cgroup_mark_under_oom(memcg);
-+	bool locked, need_to_kill = true;
- 
- 	/* At first, try to OOM lock hierarchy under memcg.*/
- 	spin_lock(&memcg_oom_lock);
- 	locked = mem_cgroup_oom_lock(memcg);
--	/*
--	 * Even if signal_pending(), we can't quit charge() loop without
--	 * accounting. So, UNINTERRUPTIBLE is appropriate. But SIGKILL
--	 * under OOM is always welcomed, use TASK_KILLABLE here.
--	 */
--	prepare_to_wait(&memcg_oom_waitq, &owait.wait, TASK_KILLABLE);
- 	if (!locked || memcg->oom_kill_disable)
- 		need_to_kill = false;
- 	if (locked)
- 		mem_cgroup_oom_notify(memcg);
- 	spin_unlock(&memcg_oom_lock);
- 
--	if (need_to_kill) {
--		finish_wait(&memcg_oom_waitq, &owait.wait);
--		mem_cgroup_out_of_memory(memcg, mask, order);
--	} else {
--		schedule();
--		finish_wait(&memcg_oom_waitq, &owait.wait);
-+	/*
-+	 * A system call can just return -ENOMEM, but if this is a
-+	 * page fault and somebody else is handling the OOM already,
-+	 * we need to sleep on the OOM waitqueue for this memcg until
-+	 * the situation is resolved.  Which can take some time
-+	 * because it might be handled by a userspace task.
-+	 *
-+	 * However, this is the charge context, which means that we
-+	 * may sit on a large call stack and hold various filesystem
-+	 * locks, the mmap_sem etc. and we don't want the OOM handler
-+	 * to deadlock on them while we sit here and wait.  Store the
-+	 * current OOM context in the task_struct, then return
-+	 * -ENOMEM.  At the end of the page fault handler, with the
-+	 * stack unwound, pagefault_out_of_memory() will check back
-+	 * with us by calling mem_cgroup_oom_synchronize(), possibly
-+	 * putting the task to sleep.
-+	 */
-+	if (current->memcg_oom.in_userfault) {
-+		current->memcg_oom.in_memcg_oom = 1;
-+		/*
-+		 * Somebody else is handling the situation.  Make sure
-+		 * no wakeups are missed between now and going to
-+		 * sleep at the end of the page fault.
-+		 */
-+		if (!need_to_kill) {
-+			mem_cgroup_mark_under_oom(memcg);
-+			current->memcg_oom.wakeups =
-+				atomic_read(&memcg->oom_wakeups);
-+			css_get(&memcg->css);
-+			current->memcg_oom.wait_on_memcg = memcg;
-+		}
- 	}
--	spin_lock(&memcg_oom_lock);
--	if (locked)
-+
-+	if (need_to_kill)
-+		mem_cgroup_out_of_memory(memcg, mask, order);
-+
-+	if (locked) {
-+		spin_lock(&memcg_oom_lock);
- 		mem_cgroup_oom_unlock(memcg);
--	memcg_wakeup_oom(memcg);
--	spin_unlock(&memcg_oom_lock);
-+		spin_unlock(&memcg_oom_lock);
-+	}
-+}
- 
--	mem_cgroup_unmark_under_oom(memcg);
-+bool mem_cgroup_oom_synchronize(void)
-+{
-+	struct oom_wait_info owait;
-+	struct mem_cgroup *memcg;
- 
--	if (test_thread_flag(TIF_MEMDIE) || fatal_signal_pending(current))
-+	/* OOM is global, do not handle */
-+	if (!current->memcg_oom.in_memcg_oom)
- 		return false;
--	/* Give chance to dying process */
--	schedule_timeout_uninterruptible(1);
-+
-+	/*
-+	 * We invoked the OOM killer but there is a chance that a kill
-+	 * did not free up any charges.  Everybody else might already
-+	 * be sleeping, so restart the fault and keep the rampage
-+	 * going until some charges are released.
-+	 */
-+	memcg = current->memcg_oom.wait_on_memcg;
-+	if (!memcg)
-+		goto out;
-+
-+	if (test_thread_flag(TIF_MEMDIE) || fatal_signal_pending(current))
-+		goto out_put;
-+
-+	owait.memcg = memcg;
-+	owait.wait.flags = 0;
-+	owait.wait.func = memcg_oom_wake_function;
-+	owait.wait.private = current;
-+	INIT_LIST_HEAD(&owait.wait.task_list);
-+
-+	prepare_to_wait(&memcg_oom_waitq, &owait.wait, TASK_KILLABLE);
-+	/* Only sleep if we didn't miss any wakeups since OOM */
-+	if (atomic_read(&memcg->oom_wakeups) == current->memcg_oom.wakeups)
-+		schedule();
-+	finish_wait(&memcg_oom_waitq, &owait.wait);
-+out_put:
-+	mem_cgroup_unmark_under_oom(memcg);
-+	css_put(&memcg->css);
-+	current->memcg_oom.wait_on_memcg = NULL;
-+out:
-+	current->memcg_oom.in_memcg_oom = 0;
- 	return true;
- }
- 
-@@ -2678,12 +2727,11 @@ enum {
- 	CHARGE_RETRY,		/* need to retry but retry is not bad */
- 	CHARGE_NOMEM,		/* we can't do more. return -ENOMEM */
- 	CHARGE_WOULDBLOCK,	/* GFP_WAIT wasn't set and no enough res. */
--	CHARGE_OOM_DIE,		/* the current is killed because of OOM */
- };
- 
- static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 				unsigned int nr_pages, unsigned int min_pages,
--				bool oom_check)
-+				bool invoke_oom)
- {
- 	unsigned long csize = nr_pages * PAGE_SIZE;
- 	struct mem_cgroup *mem_over_limit;
-@@ -2740,14 +2788,10 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	if (mem_cgroup_wait_acct_move(mem_over_limit))
- 		return CHARGE_RETRY;
- 
--	/* If we don't need to call oom-killer at el, return immediately */
--	if (!oom_check)
--		return CHARGE_NOMEM;
--	/* check OOM */
--	if (!mem_cgroup_handle_oom(mem_over_limit, gfp_mask, get_order(csize)))
--		return CHARGE_OOM_DIE;
-+	if (invoke_oom)
-+		mem_cgroup_oom(mem_over_limit, gfp_mask, get_order(csize));
- 
--	return CHARGE_RETRY;
-+	return CHARGE_NOMEM;
- }
- 
- /*
-@@ -2850,7 +2894,7 @@ again:
- 	}
- 
- 	do {
--		bool oom_check;
-+		bool invoke_oom = oom && !nr_oom_retries;
- 
- 		/* If killed, bypass charge */
- 		if (fatal_signal_pending(current)) {
-@@ -2858,14 +2902,8 @@ again:
- 			goto bypass;
- 		}
- 
--		oom_check = false;
--		if (oom && !nr_oom_retries) {
--			oom_check = true;
--			nr_oom_retries = MEM_CGROUP_RECLAIM_RETRIES;
--		}
--
--		ret = mem_cgroup_do_charge(memcg, gfp_mask, batch, nr_pages,
--		    oom_check);
-+		ret = mem_cgroup_do_charge(memcg, gfp_mask, batch,
-+					   nr_pages, invoke_oom);
- 		switch (ret) {
- 		case CHARGE_OK:
- 			break;
-@@ -2878,16 +2916,12 @@ again:
- 			css_put(&memcg->css);
- 			goto nomem;
- 		case CHARGE_NOMEM: /* OOM routine works */
--			if (!oom) {
-+			if (!oom || invoke_oom) {
- 				css_put(&memcg->css);
- 				goto nomem;
- 			}
--			/* If oom, we never return -ENOMEM */
- 			nr_oom_retries--;
- 			break;
--		case CHARGE_OOM_DIE: /* Killed by OOM Killer */
--			css_put(&memcg->css);
--			goto bypass;
- 		}
- 	} while (ret != CHARGE_OK);
- 
-diff --git a/mm/memory.c b/mm/memory.c
-index 2210b21..05f307b 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1819,7 +1819,7 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 			while (!(page = follow_page_mask(vma, start,
- 						foll_flags, &page_mask))) {
- 				int ret;
--				unsigned int fault_flags = 0;
-+				unsigned int fault_flags = FAULT_FLAG_KERNEL;
- 
- 				/* For mlock, just skip the stack guard page. */
- 				if (foll_flags & FOLL_MLOCK) {
-@@ -1947,6 +1947,7 @@ int fixup_user_fault(struct task_struct *tsk, struct mm_struct *mm,
- 	if (!vma || address < vma->vm_start)
- 		return -EFAULT;
- 
-+	fault_flags |= FAULT_FLAG_KERNEL;
- 	ret = handle_mm_fault(mm, vma, address, fault_flags);
- 	if (ret & VM_FAULT_ERROR) {
- 		if (ret & VM_FAULT_OOM)
-@@ -3764,22 +3765,14 @@ unlock:
- /*
-  * By the time we get here, we already hold the mm semaphore
-  */
--int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
--		unsigned long address, unsigned int flags)
-+static int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-+			     unsigned long address, unsigned int flags)
- {
- 	pgd_t *pgd;
- 	pud_t *pud;
- 	pmd_t *pmd;
- 	pte_t *pte;
- 
--	__set_current_state(TASK_RUNNING);
--
--	count_vm_event(PGFAULT);
--	mem_cgroup_count_vm_event(mm, PGFAULT);
--
--	/* do counter updates before entering really critical section. */
--	check_sync_rss_stat(current);
--
- 	if (unlikely(is_vm_hugetlb_page(vma)))
- 		return hugetlb_fault(mm, vma, address, flags);
- 
-@@ -3860,6 +3853,31 @@ retry:
- 	return handle_pte_fault(mm, vma, address, pte, pmd, flags);
- }
- 
-+int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-+		    unsigned long address, unsigned int flags)
-+{
-+	int in_userfault = !(flags & FAULT_FLAG_KERNEL);
-+	int ret;
-+
-+	__set_current_state(TASK_RUNNING);
-+
-+	count_vm_event(PGFAULT);
-+	mem_cgroup_count_vm_event(mm, PGFAULT);
-+
-+	/* do counter updates before entering really critical section. */
-+	check_sync_rss_stat(current);
-+
-+	if (in_userfault)
-+		mem_cgroup_set_userfault(current);
-+
-+	ret = __handle_mm_fault(mm, vma, address, flags);
-+
-+	if (in_userfault)
-+		mem_cgroup_clear_userfault(current);
-+
-+	return ret;
-+}
-+
- #ifndef __PAGETABLE_PUD_FOLDED
- /*
-  * Allocate page upper directory.
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 79e451a..0c9f836 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -678,9 +678,12 @@ out:
-  */
- void pagefault_out_of_memory(void)
- {
--	struct zonelist *zonelist = node_zonelist(first_online_node,
--						  GFP_KERNEL);
-+	struct zonelist *zonelist;
- 
-+	if (mem_cgroup_oom_synchronize())
-+		return;
-+
-+	zonelist = node_zonelist(first_online_node, GFP_KERNEL);
- 	if (try_set_zonelist_oom(zonelist, GFP_KERNEL)) {
- 		out_of_memory(NULL, 0, 0, NULL, false);
- 		clear_zonelist_oom(zonelist, GFP_KERNEL);
+It's pretty obvious if a global lock is causing contention issues on
+an 8p system, then larger systems are going to be much, much worse.
+
+> Measurememnts for non-NUMA and uniprocessor kernels would be useful in
+> making that decision as well.
+
+I get the same spinlock contention problems when I run without the
+fake-numa kernel parameter on the VM. The generic LRU lists can't
+fix the problem for non-numa systems.
+
+> In fact a lot of the patchset is likely to be injurious to small
+> machines.  We should quantify this and then persade ourselves that the
+> large-machine gains are worth the small-machine losses.
+
+I haven't been able to measure any CPU usage difference from the
+changes for non-numa systems on workloads that stress the LRUs. if
+you've got any ideas on how I might demonstrate a regression, then
+I'm all ears. But If I can't measure the difference, there is
+none...
+
+> 
+> > Items are placed on lists
+> > according to the node the memory belongs to. To make scanning the
+> > lists efficient, also track whether the per-node lists have entries
+> > in them in a active nodemask.
+> > 
+> > Note:
+> > We use a fixed-size array for the node LRU, this struct can be very big
+> > if MAX_NUMNODES is big. If this becomes a problem this is fixable by
+> > turning this into a pointer and dynamically allocating this to
+> > nr_node_ids. This quantity is firwmare-provided, and still would provide
+> > room for all nodes at the cost of a pointer lookup and an extra
+> > allocation. Because that allocation will most likely come from a
+> > different slab cache than the main structure holding this structure, we
+> > may very well fail.
+> 
+> Surprised.  How big is MAX_NUMNODES likely to get?
+
+AFAICT, 1024.
+
+> lib/flex_array.c might be of use here.
+
+Never heard of it :/
+
+Perhaps it might, but that woul dbe something to do further down the
+track...
+
+> 
+> >
+> > ...
+> >
+> > -struct list_lru {
+> > +struct list_lru_node {
+> >  	spinlock_t		lock;
+> >  	struct list_head	list;
+> >  	long			nr_items;
+> > +} ____cacheline_aligned_in_smp;
+> > +
+> > +struct list_lru {
+> > +	/*
+> > +	 * Because we use a fixed-size array, this struct can be very big if
+> > +	 * MAX_NUMNODES is big. If this becomes a problem this is fixable by
+> > +	 * turning this into a pointer and dynamically allocating this to
+> > +	 * nr_node_ids. This quantity is firwmare-provided, and still would
+> > +	 * provide room for all nodes at the cost of a pointer lookup and an
+> > +	 * extra allocation. Because that allocation will most likely come from
+> > +	 * a different slab cache than the main structure holding this
+> > +	 * structure, we may very well fail.
+> > +	 */
+> > +	struct list_lru_node	node[MAX_NUMNODES];
+> > +	nodemask_t		active_nodes;
+> 
+> Some documentation of the data structure would be helpful.  It appears
+> that active_nodes tracks (ie: duplicates) node[x].nr_items!=0.
+> 
+> It's unclear that active_nodes is really needed - we could just iterate
+> across all items in list_lru.node[].  Are we sure that the correct
+> tradeoff decision was made here?
+
+Yup. Think of all the cache line misses that checking
+node[x].nr_items != 0 entails. If MAX_NUMNODES = 1024, there's 1024
+cacheline misses right there. The nodemask is a much more cache
+friendly method of storing active node state.
+
+not to mention that for small machines with a large MAX_NUMNODES,
+we'd be checking nodes that never have items stored on them...
+
+> What's the story on NUMA node hotplug, btw?
+
+Do we care? hotplug doesn't change MAX_NUMNODES, and if you are
+removing a node you have to free all the memory on the node,
+so that should already be tken care of by external code....
+
+> 
+> >  };
+> >  
+> >
+> > ...
+> >
+> >  unsigned long
+> > -list_lru_walk(
+> > -	struct list_lru *lru,
+> > -	list_lru_walk_cb isolate,
+> > -	void		*cb_arg,
+> > -	unsigned long	nr_to_walk)
+> > +list_lru_count(struct list_lru *lru)
+> >  {
+> > +	long count = 0;
+> > +	int nid;
+> > +
+> > +	for_each_node_mask(nid, lru->active_nodes) {
+> > +		struct list_lru_node *nlru = &lru->node[nid];
+> > +
+> > +		spin_lock(&nlru->lock);
+> > +		BUG_ON(nlru->nr_items < 0);
+> 
+> This is buggy.
+
+Yup, good catch.
+
+> > +EXPORT_SYMBOL_GPL(list_lru_count);
+> 
+> list_lru_count()'s return value is of course approximate.  If callers
+> require that the returned value be exact, they will need to provide
+> their own locking on top of list_lru's internal locking (which would
+> then become redundant).
+> 
+> This is the sort of thing which should be discussed in the interface
+> documentation.
+
+Yup.
+
+> list_lru_count() can be very expensive.
+
+Well, yes. But it's far less expensive than a global LRU lock on a
+machine of the size that we are concerned about list_lru_count()
+being expensive.
+
+Cheers,
+
+Dave.
 -- 
-1.8.2.3
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
