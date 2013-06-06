@@ -1,44 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 15E906B0031
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 05:39:37 -0400 (EDT)
-Message-ID: <51B05983.5060009@cn.fujitsu.com>
-Date: Thu, 06 Jun 2013 17:42:27 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v3 07/13] x86, numa, mem-hotplug: Mark nodes which the
- kernel resides in.
-References: <1369387762-17865-1-git-send-email-tangchen@cn.fujitsu.com> <1369387762-17865-8-git-send-email-tangchen@cn.fujitsu.com> <20130531162401.GA31139@dhcp-192-168-178-175.profitbricks.localdomain> <51AC4759.6090101@cn.fujitsu.com> <20130603131823.GA4729@dhcp-192-168-178-175.profitbricks.localdomain>
-In-Reply-To: <20130603131823.GA4729@dhcp-192-168-178-175.profitbricks.localdomain>
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id 68F6F6B0031
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 05:49:22 -0400 (EDT)
+Date: Thu, 6 Jun 2013 02:49:06 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v10 29/35] memcg: per-memcg kmem shrinking
+Message-Id: <20130606024906.e5b85b28.akpm@linux-foundation.org>
+In-Reply-To: <51B049D5.2020809@parallels.com>
+References: <1370287804-3481-1-git-send-email-glommer@openvz.org>
+	<1370287804-3481-30-git-send-email-glommer@openvz.org>
+	<20130605160841.909420c06bfde62039489d2e@linux-foundation.org>
+	<51B049D5.2020809@parallels.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
-Cc: mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, tj@kernel.org, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>, Rik van Riel <riel@redhat.com>
 
-Hi Vasilis,
+On Thu, 6 Jun 2013 12:35:33 +0400 Glauber Costa <glommer@parallels.com> wrote:
 
-On 06/03/2013 09:18 PM, Vasilis Liaskovitis wrote:
-......
->>
->> In such an early time, I think we can only get nid from
->> numa_meminfo. So as I
->> said above, I'd like to fix this problem by making memblock has correct nid.
->>
->> And I read the patch below. I think if we get nid from numa_meminfo,
->> than we
->> don't need to call memblock_get_region_node().
->>
->
-> ok. If we update the memblock nid fields from numa_meminfo,
-> memblock_get_region_node will always return the correct node id.
->
+> On 06/06/2013 03:08 AM, Andrew Morton wrote:
+> >> +
+> >> > +		/*
+> >> > +		 * We will try to shrink kernel memory present in caches. We
+> >> > +		 * are sure that we can wait, so we will. The duration of our
+> >> > +		 * wait is determined by congestion, the same way as vmscan.c
+> >> > +		 *
+> >> > +		 * If we are in FS context, though, then although we can wait,
+> >> > +		 * we cannot call the shrinkers. Most fs shrinkers (which
+> >> > +		 * comprises most of our kmem data) will not run without
+> >> > +		 * __GFP_FS since they can deadlock. The solution is to
+> >> > +		 * synchronously run that in a different context.
+> > But this is pointless.  Calling a function via a different thread and
+> > then waiting for it to complete is equivalent to calling it directly.
+> > 
+> Not in this case. We are in wait-capable context (we check for this
+> right before we reach this), but we are not in fs capable context.
+> 
+> So the reason we do this - which I tried to cover in the changelog, is
+> to escape from the GFP_FS limitation that our call chain has, not the
+> wait limitation.
 
-I have fixed this problem in this way. And I'll send the new patches 
-next week.
+But that's equivalent to calling the code directly.  Look:
 
-Thanks. :)
+some_fs_function()
+{
+	lock(some-fs-lock);
+	...
+}
+
+some_other_fs_function()
+{
+	lock(some-fs-lock);
+	alloc_pages(GFP_NOFS);
+	->...
+	  ->schedule_work(some_fs_function);
+	    flush_scheduled_work();
+
+that flush_scheduled_work() won't complete until some_fs_function() has
+completed.  But some_fs_function() won't complete, because we're
+holding some-fs-lock.
+
+
+	
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
