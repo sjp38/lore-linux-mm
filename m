@@ -1,166 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 6DCEF6B0031
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 09:54:11 -0400 (EDT)
-Received: by mail-la0-f54.google.com with SMTP id ec20so2607849lab.13
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2013 06:54:09 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id C5A756B0032
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 10:14:03 -0400 (EDT)
+Date: Thu, 6 Jun 2013 11:13:58 -0300
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: [PATCH v2] virtio_balloon: leak_balloon(): only tell host if we
+ got pages deflated
+Message-ID: <20130606141357.GD30387@optiplex.redhat.com>
+References: <20130605211837.1fc9b902@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <51AEAFD8.305@huawei.com>
-References: <51ADAC15.1050103@huawei.com>
-	<51AEAFD8.305@huawei.com>
-Date: Thu, 6 Jun 2013 22:54:09 +0900
-Message-ID: <CAMO-S2ixv55bGEFGR6Eh=UZgVBz=nv81EckuzWoVi0t4KdB+VA@mail.gmail.com>
-Subject: Re: Transparent Hugepage impact on memcpy
-From: Hitoshi Mitake <mitake@dcl.info.waseda.ac.jp>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130605211837.1fc9b902@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jianguo Wu <wujianguo@huawei.com>
-Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, qiuxishi <qiuxishi@huawei.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Hush Bensen <hush.bensen@gmail.com>, mitake.hitoshi@gmail.com
+To: Luiz Capitulino <lcapitulino@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org
 
-Hi Jianguo,
+On Wed, Jun 05, 2013 at 09:18:37PM -0400, Luiz Capitulino wrote:
+> The balloon_page_dequeue() function can return NULL. If it does for
+> the first page being freed, then leak_balloon() will create a
+> scatter list with len=0. Which in turn seems to generate an invalid
+> virtio request.
+> 
+> I didn't get this in practice, I found it by code review. On the other
+> hand, such an invalid virtio request will cause errors in QEMU and
+> fill_balloon() also performs the same check implemented by this commit.
+> 
+> Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
+> Acked-by: Rafael Aquini <aquini@redhat.com>
+> ---
+> 
+> o v2
+> 
+>  - Improve changelog
+> 
+>  drivers/virtio/virtio_balloon.c | 3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+> index bd3ae32..71af7b5 100644
+> --- a/drivers/virtio/virtio_balloon.c
+> +++ b/drivers/virtio/virtio_balloon.c
+> @@ -191,7 +191,8 @@ static void leak_balloon(struct virtio_balloon *vb, size_t num)
+>  	 * virtio_has_feature(vdev, VIRTIO_BALLOON_F_MUST_TELL_HOST);
+>  	 * is true, we *have* to do it in this order
+>  	 */
+> -	tell_host(vb, vb->deflate_vq);
 
-On Wed, Jun 5, 2013 at 12:26 PM, Jianguo Wu <wujianguo@huawei.com> wrote:
-> Hi,
-> One more question, I wrote a memcpy test program, mostly the same as with perf bench memcpy.
-> But test result isn't consistent with perf bench when THP is off.
->
->         my program                              perf bench
-> THP:    3.628368 GB/Sec (with prefault)         3.672879 GB/Sec (with prefault)
-> NO-THP: 3.612743 GB/Sec (with prefault)         6.190187 GB/Sec (with prefault)
->
-> Below is my code:
->         src = calloc(1, len);
->         dst = calloc(1, len);
->
->         if (prefault)
->                 memcpy(dst, src, len);
->         gettimeofday(&tv_start, NULL);
->         memcpy(dst, src, len);
->         gettimeofday(&tv_end, NULL);
->
->         timersub(&tv_end, &tv_start, &tv_diff);
->         free(src);
->         free(dst);
->
->         speed = (double)((double)len / timeval2double(&tv_diff));
->         print_bps(speed);
->
-> This is weird, is it possible that perf bench do some build optimize?
->
-> Thansk,
-> Jianguo Wu.
+Luiz, sorry for not being clearer before. I was referring to add a commentary on
+code, to explain in short words why we should not get rid of this check point.
 
-perf bench mem memcpy is build with -O6. This is the compile command
-line (you can get this with make V=1):
-gcc -o bench/mem-memcpy-x86-64-asm.o -c -fno-omit-frame-pointer -ggdb3
--funwind-tables -Wall -Wextra -std=gnu99 -Werror -O6 .... # ommited
+> +	if (vb->num_pfns != 0)
+> +		tell_host(vb, vb->deflate_vq);
+>  	mutex_unlock(&vb->balloon_lock);
 
-Can I see your compile option for your test program and the actual
-command line executing perf bench mem memcpy?
+If the comment is regarded as unnecessary, then just ignore my suggestion. I'm
+OK with your patch. :)
 
-Thanks,
-Hitoshi
-
->
-> On 2013/6/4 16:57, Jianguo Wu wrote:
->
->> Hi all,
->>
->> I tested memcpy with perf bench, and found that in prefault case, When Transparent Hugepage is on,
->> memcpy has worse performance.
->>
->> When THP on is 3.672879 GB/Sec (with prefault), while THP off is 6.190187 GB/Sec (with prefault).
->>
->> I think THP will improve performance, but the test result obviously not the case.
->> Andrea mentioned THP cause "clear_page/copy_page less cache friendly" in
->> http://events.linuxfoundation.org/slides/2011/lfcs/lfcs2011_hpc_arcangeli.pdf.
->>
->> I am not quite understand this, could you please give me some comments, Thanks!
->>
->> I test in Linux-3.4-stable, and my machine info is:
->> Intel(R) Xeon(R) CPU           E5520  @ 2.27GHz
->>
->> available: 2 nodes (0-1)
->> node 0 cpus: 0 1 2 3 8 9 10 11
->> node 0 size: 24567 MB
->> node 0 free: 23550 MB
->> node 1 cpus: 4 5 6 7 12 13 14 15
->> node 1 size: 24576 MB
->> node 1 free: 23767 MB
->> node distances:
->> node   0   1
->>   0:  10  20
->>   1:  20  10
->>
->> Below is test result:
->> ---with THP---
->> #cat /sys/kernel/mm/transparent_hugepage/enabled
->> [always] madvise never
->> #./perf bench mem memcpy -l 1gb -o
->> # Running mem/memcpy benchmark...
->> # Copying 1gb Bytes ...
->>
->>        3.672879 GB/Sec (with prefault)
->>
->> #./perf stat ...
->> Performance counter stats for './perf bench mem memcpy -l 1gb -o':
->>
->>           35455940 cache-misses              #   53.504 % of all cache refs     [49.45%]
->>           66267785 cache-references                                             [49.78%]
->>               2409 page-faults
->>          450768651 dTLB-loads
->>                                                   [50.78%]
->>              24580 dTLB-misses
->>               #    0.01% of all dTLB cache hits  [51.01%]
->>         1338974202 dTLB-stores
->>                                                  [50.63%]
->>              77943 dTLB-misses
->>                                                  [50.24%]
->>          697404997 iTLB-loads
->>                                                   [49.77%]
->>                274 iTLB-misses
->>               #    0.00% of all iTLB cache hits  [49.30%]
->>
->>        0.855041819 seconds time elapsed
->>
->> ---no THP---
->> #cat /sys/kernel/mm/transparent_hugepage/enabled
->> always madvise [never]
->>
->> #./perf bench mem memcpy -l 1gb -o
->> # Running mem/memcpy benchmark...
->> # Copying 1gb Bytes ...
->>
->>        6.190187 GB/Sec (with prefault)
->>
->> #./perf stat ...
->> Performance counter stats for './perf bench mem memcpy -l 1gb -o':
->>
->>           16920763 cache-misses              #   98.377 % of all cache refs     [50.01%]
->>           17200000 cache-references                                             [50.04%]
->>             524652 page-faults
->>          734365659 dTLB-loads
->>                                                   [50.04%]
->>            4986387 dTLB-misses
->>               #    0.68% of all dTLB cache hits  [50.04%]
->>         1013408298 dTLB-stores
->>                                                  [50.04%]
->>            8180817 dTLB-misses
->>                                                  [49.97%]
->>         1526642351 iTLB-loads
->>                                                   [50.41%]
->>                 56 iTLB-misses
->>               #    0.00% of all iTLB cache hits  [50.21%]
->>
->>        1.025425847 seconds time elapsed
->>
->> Thanks,
->> Jianguo Wu.
->
->
->
->
+Cheers!
+-- Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
