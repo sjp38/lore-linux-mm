@@ -1,123 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id B322B6B0033
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 23:06:08 -0400 (EDT)
-Date: Wed, 5 Jun 2013 20:05:54 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v10 08/35] list: add a new LRU list type
-Message-Id: <20130605200554.d4dae16f.akpm@linux-foundation.org>
-In-Reply-To: <20130606024909.GP29338@dastard>
-References: <1370287804-3481-1-git-send-email-glommer@openvz.org>
-	<1370287804-3481-9-git-send-email-glommer@openvz.org>
-	<20130605160758.19e854a6995e3c2a1f5260bf@linux-foundation.org>
-	<20130606024909.GP29338@dastard>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id DF9E36B0031
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 23:09:58 -0400 (EDT)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch 1/2] arch: invoke oom-killer from page fault
+Date: Wed,  5 Jun 2013 23:09:52 -0400
+Message-Id: <1370488193-4747-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, 6 Jun 2013 12:49:09 +1000 Dave Chinner <david@fromorbit.com> wrote:
+Since '1c0fe6e mm: invoke oom-killer from page fault', page fault
+handlers should not directly kill faulting tasks in an out of memory
+condition.  Instead, they should be invoking the OOM killer to pick
+the right task.  Convert the remaining architectures.
 
-> > > +{
-> > > +	spin_lock(&lru->lock);
-> > 
-> > OK, problems.  Long experience has shown us that in-kernel container
-> > library code like this should not perform its own locking.  Things like:
-> > 
-> > - I want to call it from interrupts!
-> > - I want to use a mutex!
-> > - I want to use RCU!
-> 
-> Wrap them around the outside of all your LRU operations, then.
-> 
-> > - I already hold a lock and don't need this code to take another one!
-> 
-> The internal lru lock is for simplicity of implementation.
-> 
-> > - I need to sleep in my isolate callback, but the library code is
-> >   holding a spinlock!
-> 
-> The isolate callback gets passed the spinlock that it is holding
-> precisely so the callback can drop it and do sleeping operations.
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ arch/arc/mm/fault.c      | 6 ++++--
+ arch/metag/mm/fault.c    | 6 ++++--
+ arch/mn10300/mm/fault.c  | 7 ++++---
+ arch/openrisc/mm/fault.c | 8 ++++----
+ arch/score/mm/fault.c    | 8 ++++----
+ arch/tile/mm/fault.c     | 8 ++++----
+ 6 files changed, 24 insertions(+), 19 deletions(-)
 
-As I said, "Long experience has shown".  These restrictions reduce the
-usefulness of this code.
-
-> > - I want to test lru.nr_items in a non-racy fashion, but to do that I
-> >   have to take a lib/-private spinlock!
-> 
-> Nobody should be peeking at the internals of the list structures.
-> That's just completely broken. Use the APIs that are provided
-
-Those APIs don't work.  It isn't possible for callers to get an exact
-count, unless they provide redundant external locking.  This problem is
-a consequence of the decision to perform lib-internal locking.
-
-> The current implementation is designed to be basic and obviously
-> correct, not some wacky, amazingly optimised code that nobody but
-> the original author can understand.
-
-Implementations which expect caller-provided locking are simpler.
-
-> > This is a little bit strange, because one could legitimately do
-> > 
-> > 	list_del(item);		/* from my private list */
-> > 	list_lru_add(lru, item);
-> > 
-> > but this interface forced me to do a needless lru_del_init().
-> 
-> How do you know what list the item is on in list_lru_add()? We have
-> to know to get the accounting right. i.e. if it is already on the
-> LRU and we remove it and the re-add it, the number of items on the
-> list doesn't change. but it it's on some private list, then we have
-> to increment the number of items on the LRU list.
-> 
-> So, if it's already on a list, we cannot determine what the correct
-> thing to do it, and hence the callers of list_lru_add() must ensure
-> that the item is not on a private list before trying to add it to
-> the LRU.
-
-It isn't "already on a list" - the caller just removed it!
-
-It's suboptimal, but I'm not saying this decision was wrong.  However
-explanation and documentation is needed to demonstrate that it was
-correct.
-
-> > Addendum: having now read through the evolution of lib/list_lru.c, it's
-> > pretty apparent that this code is highly specific to the inode and
-> > dcache shrinkers and is unlikely to see applications elsewhere.  So
-> > hrm, perhaps we're kinda kidding ourselves by putting it in lib/ at
-> > all.
-> 
-> In this patch set, it replaces the LRU in the xfs buffer cache, the
-> LRU in the XFS dquot cache, and I've got patches that use it in the
-> XFS inode cache as well. And they were all drop-in replacements,
-> just like for the inode and dentry caches. It's hard to claim that
-> it's so specific to the inode/dentry caches when there are at least
-> 3 other LRUs that were pretty trivial to convert for use...
-> 
-> The whole point of the patchset is to introduce infrastructure that
-> is generically useful. Sure, it might start out looking like the
-> thing that it was derived from, but we've got to start somewhere.
-> Given that there are 5 different users already, it's obviously
-> already more than just usable for the inode and dentry caches.
-> 
-> The only reason that there haven't been more subsystems converted is
-> that we are concentrating on getting what we alreayd have merged
-> first....
-
-I'm not objecting to the code per-se - I'm sure it's appropriate to the
-current callsites.  But these restrictions do reduce its overall
-applicability.  And I do agree that it's not worth generalizing it
-because of what-if scenarios.
-
-Why was it called "lru", btw?  iirc it's actually a "stack" (or
-"queue"?) and any lru functionality is actually implemented externally.
-There is no "list_lru_touch()".
-
+diff --git a/arch/arc/mm/fault.c b/arch/arc/mm/fault.c
+index c0decc1..d5ec60a 100644
+--- a/arch/arc/mm/fault.c
++++ b/arch/arc/mm/fault.c
+@@ -207,8 +207,10 @@ out_of_memory:
+ 	}
+ 	up_read(&mm->mmap_sem);
+ 
+-	if (user_mode(regs))
+-		do_group_exit(SIGKILL);	/* This will never return */
++	if (user_mode(regs)) {
++		pagefault_out_of_memory();
++		return;
++	}
+ 
+ 	goto no_context;
+ 
+diff --git a/arch/metag/mm/fault.c b/arch/metag/mm/fault.c
+index 2c75bf7..8fddf46 100644
+--- a/arch/metag/mm/fault.c
++++ b/arch/metag/mm/fault.c
+@@ -224,8 +224,10 @@ do_sigbus:
+ 	 */
+ out_of_memory:
+ 	up_read(&mm->mmap_sem);
+-	if (user_mode(regs))
+-		do_group_exit(SIGKILL);
++	if (user_mode(regs)) {
++		pagefault_out_of_memory();
++		return 1;
++	}
+ 
+ no_context:
+ 	/* Are we prepared to handle this kernel fault?  */
+diff --git a/arch/mn10300/mm/fault.c b/arch/mn10300/mm/fault.c
+index d48a84f..8a2e6de 100644
+--- a/arch/mn10300/mm/fault.c
++++ b/arch/mn10300/mm/fault.c
+@@ -345,9 +345,10 @@ no_context:
+  */
+ out_of_memory:
+ 	up_read(&mm->mmap_sem);
+-	printk(KERN_ALERT "VM: killing process %s\n", tsk->comm);
+-	if ((fault_code & MMUFCR_xFC_ACCESS) == MMUFCR_xFC_ACCESS_USR)
+-		do_exit(SIGKILL);
++	if ((fault_code & MMUFCR_xFC_ACCESS) == MMUFCR_xFC_ACCESS_USR) {
++		pagefault_out_of_memory();
++		return;
++	}
+ 	goto no_context;
+ 
+ do_sigbus:
+diff --git a/arch/openrisc/mm/fault.c b/arch/openrisc/mm/fault.c
+index e2bfafc..4a41f84 100644
+--- a/arch/openrisc/mm/fault.c
++++ b/arch/openrisc/mm/fault.c
+@@ -267,10 +267,10 @@ out_of_memory:
+ 	__asm__ __volatile__("l.nop 1");
+ 
+ 	up_read(&mm->mmap_sem);
+-	printk("VM: killing process %s\n", tsk->comm);
+-	if (user_mode(regs))
+-		do_exit(SIGKILL);
+-	goto no_context;
++	if (!user_mode(regs))
++		goto no_context;
++	pagefault_out_of_memory();
++	return;
+ 
+ do_sigbus:
+ 	up_read(&mm->mmap_sem);
+diff --git a/arch/score/mm/fault.c b/arch/score/mm/fault.c
+index 47b600e..6b18fb0 100644
+--- a/arch/score/mm/fault.c
++++ b/arch/score/mm/fault.c
+@@ -172,10 +172,10 @@ out_of_memory:
+ 		down_read(&mm->mmap_sem);
+ 		goto survive;
+ 	}
+-	printk("VM: killing process %s\n", tsk->comm);
+-	if (user_mode(regs))
+-		do_group_exit(SIGKILL);
+-	goto no_context;
++	if (!user_mode(regs))
++		goto no_context;
++	pagefault_out_of_memory();
++	return;
+ 
+ do_sigbus:
+ 	up_read(&mm->mmap_sem);
+diff --git a/arch/tile/mm/fault.c b/arch/tile/mm/fault.c
+index 3d2b81c..f7f99f9 100644
+--- a/arch/tile/mm/fault.c
++++ b/arch/tile/mm/fault.c
+@@ -573,10 +573,10 @@ out_of_memory:
+ 		down_read(&mm->mmap_sem);
+ 		goto survive;
+ 	}
+-	pr_alert("VM: killing process %s\n", tsk->comm);
+-	if (!is_kernel_mode)
+-		do_group_exit(SIGKILL);
+-	goto no_context;
++	if (is_kernel_mode)
++		goto no_context;
++	pagefault_out_of_memory();
++	return 0;
+ 
+ do_sigbus:
+ 	up_read(&mm->mmap_sem);
+-- 
+1.8.2.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
