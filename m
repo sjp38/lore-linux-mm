@@ -1,83 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 29C8D6B0032
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 12:04:51 -0400 (EDT)
-Date: Thu, 6 Jun 2013 18:04:46 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH for 3.2.34] memcg: do not trigger OOM if PF_NO_MEMCG_OOM
- is set
-Message-ID: <20130606160446.GE24115@dhcp22.suse.cz>
-References: <20130208123854.GB7557@dhcp22.suse.cz>
- <20130208145616.FB78CE24@pobox.sk>
- <20130208152402.GD7557@dhcp22.suse.cz>
- <20130208165805.8908B143@pobox.sk>
- <20130208171012.GH7557@dhcp22.suse.cz>
- <20130208220243.EDEE0825@pobox.sk>
- <20130210150310.GA9504@dhcp22.suse.cz>
- <20130210174619.24F20488@pobox.sk>
- <20130211112240.GC19922@dhcp22.suse.cz>
- <20130222092332.4001E4B6@pobox.sk>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 5D80C6B0032
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 12:14:17 -0400 (EDT)
+Message-ID: <51B0B58B.50203@parallels.com>
+Date: Thu, 6 Jun 2013 20:15:07 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130222092332.4001E4B6@pobox.sk>
+Subject: Re: [PATCH v10 11/35] list_lru: per-node list infrastructure
+References: <1370287804-3481-1-git-send-email-glommer@openvz.org> <1370287804-3481-12-git-send-email-glommer@openvz.org> <20130605160804.be25fb655f075efe70ec57c0@linux-foundation.org>
+In-Reply-To: <20130605160804.be25fb655f075efe70ec57c0@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: azurIt <azurit@pobox.sk>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>
 
-Hi,
+On 06/06/2013 03:08 AM, Andrew Morton wrote:
+>> +	for_each_node_mask(nid, lru->active_nodes) {
+>> > +		struct list_lru_node *nlru = &lru->node[nid];
+>> > +
+>> > +		spin_lock(&nlru->lock);
+>> > +		BUG_ON(nlru->nr_items < 0);
+> This is buggy.
+> 
+> The bit in lru->active_nodes could be cleared by now.  We can only make
+> this assertion if we recheck lru->active_nodes[nid] inside the
+> spinlocked region.
+> 
+Sorry Andrew, how so ?
+We will clear that flag if nr_items == 0. nr_items should *never* get to
+be less than 0, it doesn't matter if the node is cleared or not.
 
-I am really sorry it took so long but I was constantly preempted by
-other stuff. I hope I have a good news for you, though. Johannes has
-found a nice way how to overcome deadlock issues from memcg OOM which
-might help you. Would you be willing to test with his patch
-(http://permalink.gmane.org/gmane.linux.kernel.mm/101437). Unlike my
-patch which handles just the i_mutex case his patch solved all possible
-locks.
+If the node is cleared, we would expected the following statement to
+expand to
+   count += nlru->nr_items = 0;
+   spin_unlock(&nlru->lock);
 
-I can backport the patch for your kernel (are you still using 3.2 kernel
-or you have moved to a newer one?).
-
-On Fri 22-02-13 09:23:32, azurIt wrote:
-> >Unfortunately I am not able to reproduce this behavior even if I try
-> >to hammer OOM like mad so I am afraid I cannot help you much without
-> >further debugging patches.
-> >I do realize that experimenting in your environment is a problem but I
-> >do not many options left. Please do not use strace and rather collect
-> >/proc/pid/stack instead. It would be also helpful to get group/tasks
-> >file to have a full list of tasks in the group
-> 
-> 
-> 
-> Hi Michal,
-> 
-> 
-> sorry that i didn't response for a while. Today i installed kernel with your two patches and i'm running it now. I'm still having problems with OOM which is not able to handle low memory and is not killing processes. Here is some info:
-> 
-> - data from cgroup 1258 while it was under OOM and no processes were killed (so OOM don't stop and cgroup was freezed)
-> http://watchdog.sk/lkml/memcg-bug-6.tar.gz
-> 
-> I noticed problem about on 8:39 and waited until 8:57 (nothing happend). Then i killed process 19864 which seems to help and other processes probably ends and cgroup started to work. But problem accoured again about 20 seconds later, so i killed all processes at 8:58. The problem is occuring all the time since then. All processes (in that cgroup) are always in state 'D' when it occurs.
-> 
-> 
-> - kernel log from boot until now
-> http://watchdog.sk/lkml/kern3.gz
-> 
-> 
-> Btw, something probably happened also at about 3:09 but i wasn't able to gather any data because my 'load check script' killed all apache processes (load was more than 100).
-> 
-> 
-> 
-> azur
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-
--- 
-Michal Hocko
-SUSE Labs
+Which is actually cheaper than testing for the bit being still set.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
