@@ -1,181 +1,280 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 649E66B0033
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 04:53:40 -0400 (EDT)
-Date: Thu, 6 Jun 2013 09:53:36 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 0/7] RFC: adding compaction to zone_reclaim_mode > 0
-Message-ID: <20130606085335.GB1936@suse.de>
-References: <1370445037-24144-1-git-send-email-aarcange@redhat.com>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 1AC926B0033
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 04:59:18 -0400 (EDT)
+Message-ID: <51B04F97.8090809@parallels.com>
+Date: Thu, 6 Jun 2013 13:00:07 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1370445037-24144-1-git-send-email-aarcange@redhat.com>
+Subject: Re: [PATCH v10 13/35] vmscan: per-node deferred work
+References: <1370287804-3481-1-git-send-email-glommer@openvz.org> <1370287804-3481-14-git-send-email-glommer@openvz.org> <20130605160815.fb69f7d4d1736455727fc669@linux-foundation.org>
+In-Reply-To: <20130605160815.fb69f7d4d1736455727fc669@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel
+ Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes
+ Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>
 
-On Wed, Jun 05, 2013 at 05:10:30PM +0200, Andrea Arcangeli wrote:
-> Hello everyone,
+On 06/06/2013 03:08 AM, Andrew Morton wrote:
+> On Mon,  3 Jun 2013 23:29:42 +0400 Glauber Costa <glommer@openvz.org> wrote:
 > 
-> I got a bugreport showing some problem with NUMA affinity with CPU
-> node bindings when THP is enabled and /proc/sys/vm/zone_reclaim_mode
-> is > 0.
+>> We already keep per-node LRU lists for objects being shrunk, but the
+>> work that is deferred from one run to another is kept global. This
+>> creates an impedance problem, where upon node pressure, work deferred
+>> will accumulate and end up being flushed in other nodes.
 > 
-
-zone_reclaim_mode has generated a number of bugs for me in the past. In
-my experience almost all of them were related to excessive stalling. The
-most recent example was stalls measured in minutes while memory was free
-on other nodes although this was with an old kernel that would not affect
-mainline today.
-
-> When THP is disabled, zone_reclaim_mode set to 1 (or higher) tends to
-> allocate memory in the local node with quite some accuracy in presence
-> of CPU node bindings (and weak or no memory bindings). However THP
-> enabled tends to spread the memory to other nodes erroneously.
+> This changelog would be more useful if it had more specificity.  Where
+> do we keep these per-node LRU lists (names of variables?).  Where do we
+> keep the global data?  In what function does this other-node flushing
+> happen?
 > 
-
-This does not surprise me as such. zone reclaim is expected today to
-fail quickly. I would expect a process to make more forware progress if
-it uses remote memory quickly or allocates base pages locally than stall
-trying to allocate a THP locally. There was a time when THP were allocated
-aggressively with lumpy reclaim, repeated attempts at allocation etc and
-we moved away from that. zone_reclaim is very similar.
-
-> I also found zone_reclaim_mode is quite unreliable in presence of
-> multiple threads allocating memory at the same time from different
-> CPUs in the same node, even when THP is disabled and there's plenty of
-> clean cache to trivially reclaim.
+> Generally so that readers can go and look at the data structures and
+> functions which you're talking about.
 > 
-
-There is a flag that prevents multiple zone_reclaims within a zone and it
-had at least two purposes.  One was that reclaim in the past was excessive
-and multiple processes entering reclaim simultaneously tended to reclaim
-way more than required. Second, multiple processes in zone reclaim mode
-interfered with each other reclaiming each others memory in a stupid
-loop. It should be better today for a variety of reasons but these are
-the two primary problems to watch out for.
-
-> The major problem with THP enabled is that zone_reclaim doesn't even
-> try to use compaction. Then there are more changes suggested to make
-> the whole compaction process more reliable than it is now.
+>> In large machines, many nodes can accumulate at the same time, all
+>> adding to the global counter.
 > 
-
-It has less *overhead*. The success rate is actually lower today because it
-no longer reclaims the world and heavily disrupts the system to allocate
-a THP. It's a long-standing TODO item to implement proper capture logic
-in compaction but it has not happened yet. It's a fair bit down the TODO
-list unfortunately.
-
-> After setting zone_reclaim_mode to 1 and booting with
-> numa_zonelist_order=n, with this patchset applied I get this NUMA placement:
+> What global counter?
 > 
->   PID COMMAND         CPUMASK     TOTAL [     N0     N1 ]
->  7088 breakthp              0      2.1M [   2.1M     0  ]
->  7089 breakthp              1      2.1M [   2.1M     0  ]
->  7090 breakthp              2      2.1M [   2.1M     0  ]
->  7091 breakthp              3      2.1M [   2.1M     0  ]
->  7092 breakthp              6      2.1M [     0    2.1M ]
->  7093 breakthp              7      2.1M [     0    2.1M ]
->  7094 breakthp              8      2.1M [     0    2.1M ]
->  7095 breakthp              9      2.1M [     0    2.1M ]
->  7097 breakthp              0      2.1M [   2.1M     0  ]
->  7098 breakthp              1      2.1M [   2.1M     0  ]
->  7099 breakthp              2      2.1M [   2.1M     0  ]
->  7100 breakthp              3      2.1M [   2.1M     0  ]
->  7101 breakthp              6      2.1M [     0    2.1M ]
->  7102 breakthp              7      2.1M [     0    2.1M ]
->  7103 breakthp              8      2.1M [     0    2.1M ]
->  7104 breakthp              9      2.1M [     0    2.1M ]
->   PID COMMAND         CPUMASK     TOTAL [     N0     N1 ]
->  7106 usemem                0     1.00G [  1.00G     0  ]
->  7107 usemem                1     1.00G [  1.00G     0  ]
->  7108 usemem                2     1.00G [  1.00G     0  ]
->  7109 usemem                3     1.00G [  1.00G     0  ]
->  7110 usemem                6     1.00G [     0   1.00G ]
->  7111 usemem                7     1.00G [     0   1.00G ]
->  7112 usemem                8     1.00G [     0   1.00G ]
->  7113 usemem                9     1.00G [     0   1.00G ]
+>>  As we accumulate more and more, we start
+>> to ask for the caches to flush even bigger numbers.
 > 
-> Without current upstream without the patchset and still
-> zone_reclaim_mode = 1 and booting with numa_zonelist_order=n:
+> Where does this happen?
 > 
->   PID COMMAND         CPUMASK     TOTAL [     N0     N1 ]
->  2950 breakthp              0      2.1M [   2.1M     0  ]
->  2951 breakthp              1      2.1M [   2.1M     0  ]
->  2952 breakthp              2      2.1M [   2.1M     0  ]
->  2953 breakthp              3      2.1M [   2.1M     0  ]
->  2954 breakthp              6      2.1M [     0    2.1M ]
->  2955 breakthp              7      2.1M [     0    2.1M ]
->  2956 breakthp              8      2.1M [     0    2.1M ]
->  2957 breakthp              9      2.1M [     0    2.1M ]
->  2966 breakthp              0      2.1M [   2.0M    96K ]
->  2967 breakthp              1      2.1M [   2.0M    96K ]
->  2968 breakthp              2      1.9M [   1.9M    96K ]
->  2969 breakthp              3      2.1M [   2.0M    96K ]
->  2970 breakthp              6      2.1M [   228K   1.8M ]
->  2971 breakthp              7      2.1M [    72K   2.0M ]
->  2972 breakthp              8      2.1M [    60K   2.0M ]
->  2973 breakthp              9      2.1M [   204K   1.9M ]
->   PID COMMAND         CPUMASK     TOTAL [     N0     N1 ]
->  3088 usemem                0     1.00G [ 856.2M 168.0M ]
->  3089 usemem                1     1.00G [ 860.2M 164.0M ]
->  3090 usemem                2     1.00G [ 860.2M 164.0M ]
->  3091 usemem                3     1.00G [ 858.2M 166.0M ]
->  3092 usemem                6     1.00G [ 248.0M 776.2M ]
->  3093 usemem                7     1.00G [ 248.0M 776.2M ]
->  3094 usemem                8     1.00G [ 250.0M 774.2M ]
->  3095 usemem                9     1.00G [ 246.0M 778.2M ]
+>> The result is that
+>> the caches are depleted and do not stabilize. To achieve stable steady
+>> state behavior, we need to tackle it differently.
+>>
+>> In this patch we keep the deferred count per-node, and will never
+>> accumulate that to other nodes.
+>>
+>> ...
+>>
+>> --- a/include/linux/shrinker.h
+>> +++ b/include/linux/shrinker.h
+>> @@ -19,6 +19,8 @@ struct shrink_control {
+>>  
+>>  	/* shrink from these nodes */
+>>  	nodemask_t nodes_to_scan;
+>> +	/* current node being shrunk (for NUMA aware shrinkers) */
+>> +	int nid;
+>>  };
+>>  
+>>  /*
+>> @@ -42,6 +44,8 @@ struct shrink_control {
+>>   * objects freed during the scan, or -1 if progress cannot be made due to
+>>   * potential deadlocks. If -1 is returned, then no further attempts to call the
+>>   * @scan_objects will be made from the current reclaim context.
+>> + *
+>> + * @flags determine the shrinker abilities, like numa awareness 
+>>   */
+>>  struct shrinker {
+>>  	int (*shrink)(struct shrinker *, struct shrink_control *sc);
+>> @@ -50,12 +54,34 @@ struct shrinker {
+>>  
+>>  	int seeks;	/* seeks to recreate an obj */
+>>  	long batch;	/* reclaim batch size, 0 = default */
+>> +	unsigned long flags;
+>>  
+>>  	/* These are for internal use */
+>>  	struct list_head list;
+>> -	atomic_long_t nr_in_batch; /* objs pending delete */
+>> +	/*
+>> +	 * We would like to avoid allocating memory when registering a new
+>> +	 * shrinker.
 > 
-> Allocation speed seems a bit faster with the patchset applied likely
-> thanks to the increased NUMA locality that even during a simple
-> initialization, more than offsets the compaction costs.
+> That's quite surprising.  What are the reasons for this?
 > 
-> The testcase always uses CPU bindings (half processes in one node, and
-> half processes in the other node). It first fragments all memory
-> (breakthp) by breaking lots of hugepages with mremap, and then another
-> process (usemem) allocates lots of memory, in turn exercising the
-> reliability of compaction with zone_reclaim_mode > 0.
+>> 		 All shrinkers will need to keep track of deferred objects,
+> 
+> What is a deferred object and why does this deferral happen?
+> 
+>> +	 * and we need a counter for this. If the shrinkers are not NUMA aware,
+>> +	 * this is a small and bounded space that fits into an atomic_long_t.
+>> +	 * This is because that the deferring decisions are global, and we will
+> 
+> s/that//
+> 
+>> +	 * not allocate in this case.
+>> +	 *
+>> +	 * When the shrinker is NUMA aware, we will need this to be a per-node
+>> +	 * array. Numerically speaking, the minority of shrinkers are NUMA
+>> +	 * aware, so this saves quite a bit.
+>> +	 */
+> 
+> I don't really understand what's going on here :(
 > 
 
-Ok.
+Ok. We need an array allocation for NUMA aware shrinkers, but we don't
+need any for non NUMA-aware shrinkers. There is nothing wrong with the
+memory allocation "per-se" , in terms of contexts, etc.
 
-> Very few hugepages are available when usemem starts, but compaction
-> has a trivial time to generate as many hugepages as needed without any
-> risk of failure.
+But in a NUMA *machine*, we would be allocating a lot of wasted memory
+for creating arrays in shrinkers that are not NUMA capable at all.
+
+Turns out, they seem to be the majority (at least so far).
+
+Aside from the memory allocated, we still have all the useless loops and
+cacheline dirtying. So I figured it would be useful to not make them all
+NUMA aware if we can avoid it.
+
+
+>> +	union {
+>> +		/* objs pending delete */
+>> +		atomic_long_t nr_deferred;
+>> +		/* objs pending delete, per node */
+>> +		atomic_long_t *nr_deferred_node;
+>> +	};
+>>  };
+>>  #define DEFAULT_SEEKS 2 /* A good number if you don't know better. */
+>> -extern void register_shrinker(struct shrinker *);
+>> +
+>> +/* Flags */
+>> +#define SHRINKER_NUMA_AWARE (1 << 0)
+>> +
+>> +extern int register_shrinker(struct shrinker *);
+>>  extern void unregister_shrinker(struct shrinker *);
+>>  #endif
+>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> index 53e647f..08eec9d 100644
+>> --- a/mm/vmscan.c
+>> +++ b/mm/vmscan.c
+>> @@ -155,14 +155,36 @@ static unsigned long get_lru_size(struct lruvec *lruvec, enum lru_list lru)
+>>  }
+>>  
+>>  /*
+>> - * Add a shrinker callback to be called from the vm
+>> + * Add a shrinker callback to be called from the vm.
+>> + *
+>> + * It cannot fail, unless the flag SHRINKER_NUMA_AWARE is specified.
+>> + * With this flag set, this function will allocate memory and may fail.
+>>   */
 > 
-> The memory layout when usemem starts is like this:
+> Again, I don't see what the big deal is with memory allocation. 
+> register_shrinker() is pretty rare, is likely to happen when the system
+> is under little stress and GFP_KERNEL is quite strong.  Why all the
+> concern?
 > 
-> 4k page anon
-> 4k page free
-> another 512-2 4k pages free
-> 4k page anon
-> 4k page free
-> another 512-2 4k pages free
-> [..]
+>> -void register_shrinker(struct shrinker *shrinker)
+>> +int register_shrinker(struct shrinker *shrinker)
+>>  {
+>> -	atomic_long_set(&shrinker->nr_in_batch, 0);
+>> +	/*
+>> +	 * If we only have one possible node in the system anyway, save
+>> +	 * ourselves the trouble and disable NUMA aware behavior. This way we
+>> +	 * will allocate nothing and save memory and some small loop time
+>> +	 * later.
+>> +	 */
+>> +	if (nr_node_ids == 1)
+>> +		shrinker->flags &= ~SHRINKER_NUMA_AWARE;
+>> +
+>> +	if (shrinker->flags & SHRINKER_NUMA_AWARE) {
+>> +		size_t size;
+>> +
+>> +		size = sizeof(*shrinker->nr_deferred_node) * nr_node_ids;
+>> +		shrinker->nr_deferred_node = kzalloc(size, GFP_KERNEL);
+>> +		if (!shrinker->nr_deferred_node)
+>> +			return -ENOMEM;
+>> +	} else
+>> +		atomic_long_set(&shrinker->nr_deferred, 0);
+>> +
+>>  	down_write(&shrinker_rwsem);
+>>  	list_add_tail(&shrinker->list, &shrinker_list);
+>>  	up_write(&shrinker_rwsem);
+>> +	return 0;
+>>  }
+>>  EXPORT_SYMBOL(register_shrinker);
 > 
-> If automatic NUMA balancing is enabled, this isn't as critical issues
-> as without (the placement will be fixed later at runtime with THP NUMA
-> migration faults), but it still looks worth optimizing the initial
-> placement to avoid those migrations and for short lived computations
-> (where automatic NUMA balancing can't help). Especially if the process
-> has already been pinned to the CPUs of a node like in the bugreport I
-> got.
+> What would be the cost if we were to do away with SHRINKER_NUMA_AWARE
+> and treat all shrinkers the same way?  The need to allocate extra
+> memory per shrinker?  That sounds pretty cheap?
 > 
 
-I had debated with myself whether zone_reclaim_mode and automatic numa
-placement would be mutually exclusive. I felt that it would be sufficient for
-the local memory allocation policy to handle initial placement without using
-zone_reclaim_mode and have automatic numa placement fix it up later. This
-would minimise application startup time and initial poor placement would not
-be a problem for long-lived processes. I did not do anything about actually
-setting the defaults but I became less concerned with zone_reclaim_mode
-as a result. Still, it would not kill to improve zone_reclaim_mode either.
+Well, maybe I am just a little bit more frenetic about savings than you
+are. There are quite a bunch of shrinkers.
 
--- 
-Mel Gorman
-SUSE Labs
+
+>> @@ -186,6 +208,116 @@ static inline int do_shrinker_shrink(struct shrinker *shrinker,
+>>  }
+>>  
+>>  #define SHRINK_BATCH 128
+>> +
+>> +static unsigned long
+>> +shrink_slab_node(struct shrink_control *shrinkctl, struct shrinker *shrinker,
+>> +		 unsigned long nr_pages_scanned, unsigned long lru_pages,
+>> +		 atomic_long_t *deferred)
+>> +{
+>> +	unsigned long freed = 0;
+>> +	unsigned long long delta;
+>> +	long total_scan;
+>> +	long max_pass;
+>> +	long nr;
+>> +	long new_nr;
+>> +	long batch_size = shrinker->batch ? shrinker->batch
+>> +					  : SHRINK_BATCH;
+>> +
+>> +	if (shrinker->scan_objects) {
+>> +		max_pass = shrinker->count_objects(shrinker, shrinkctl);
+>> +		WARN_ON(max_pass < 0);
+>> +	} else
+>> +		max_pass = do_shrinker_shrink(shrinker, shrinkctl, 0);
+>> +	if (max_pass <= 0)
+>> +		return 0;
+>> +
+>> +	/*
+>> +	 * copy the current shrinker scan count into a local variable
+>> +	 * and zero it so that other concurrent shrinker invocations
+>> +	 * don't also do this scanning work.
+>> +	 */
+>> +	nr = atomic_long_xchg(deferred, 0);
+> 
+> This comment seems wrong.  It implies that "deferred" refers to "the
+> current shrinker scan count".  But how are these two the same thing?  A
+> "scan count" would refer to the number of objects to be scanned (or
+> which were scanned - it's unclear).  Whereas "deferred" would refer to
+> the number of those to-be-scanned objects which we didn't process and
+> is hence less than or equal to the "scan count".
+> 
+> It's all very foggy :(  This whole concept of deferral needs more
+> explanation, please.
+> 
+
+>> +	total_scan = nr;
+>> +	delta = (4 * nr_pages_scanned) / shrinker->seeks;
+>> +	delta *= max_pass;
+>> +	do_div(delta, lru_pages + 1);
+>> +	total_scan += delta;
+>> +	if (total_scan < 0) {
+>> +		printk(KERN_ERR
+>> +		"shrink_slab: %pF negative objects to delete nr=%ld\n",
+>> +		       shrinker->shrink, total_scan);
+>> +		total_scan = max_pass;
+>> +	}
+>> +
+>> +	/*
+>> +	 * We need to avoid excessive windup on filesystem shrinkers
+>> +	 * due to large numbers of GFP_NOFS allocations causing the
+>> +	 * shrinkers to return -1 all the time. This results in a large
+>> +	 * nr being built up so when a shrink that can do some work
+>> +	 * comes along it empties the entire cache due to nr >>>
+>> +	 * max_pass.  This is bad for sustaining a working set in
+>> +	 * memory.
+>> +	 *
+>> +	 * Hence only allow the shrinker to scan the entire cache when
+>> +	 * a large delta change is calculated directly.
+>> +	 */
+> 
+> That was an important comment.  So the whole problem we're tackling
+> here is fs shrinkers baling out in GFP_NOFS allocations?
+> 
+The main problem, yes. Not the whole.
+The whole problem is shrinkers bailing out. For the fs shrinkers it
+happens in GFP_NOFS allocations. For the other shrinkers, I have no idea.
+
+But if they bail out, we'll defer the scan just the same.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
