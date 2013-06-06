@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id 806EB6B0034
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 23:51:38 -0400 (EDT)
-Date: Wed, 5 Jun 2013 20:51:23 -0700
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 2B8866B0037
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2013 23:55:05 -0400 (EDT)
+Date: Wed, 5 Jun 2013 20:54:50 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v10 11/35] list_lru: per-node list infrastructure
-Message-Id: <20130605205123.7be6a0fe.akpm@linux-foundation.org>
-In-Reply-To: <20130606032107.GQ29338@dastard>
+Subject: Re: [PATCH v10 12/35] shrinker: add node awareness
+Message-Id: <20130605205450.d9bc576b.akpm@linux-foundation.org>
+In-Reply-To: <20130606032659.GR29338@dastard>
 References: <1370287804-3481-1-git-send-email-glommer@openvz.org>
-	<1370287804-3481-12-git-send-email-glommer@openvz.org>
-	<20130605160804.be25fb655f075efe70ec57c0@linux-foundation.org>
-	<20130606032107.GQ29338@dastard>
+	<1370287804-3481-13-git-send-email-glommer@openvz.org>
+	<20130605160810.5b203c3368b9df7d087ee3b1@linux-foundation.org>
+	<20130606032659.GR29338@dastard>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -19,45 +19,45 @@ List-ID: <linux-mm.kvack.org>
 To: Dave Chinner <david@fromorbit.com>
 Cc: Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>
 
-On Thu, 6 Jun 2013 13:21:07 +1000 Dave Chinner <david@fromorbit.com> wrote:
+On Thu, 6 Jun 2013 13:26:59 +1000 Dave Chinner <david@fromorbit.com> wrote:
 
-> > > +struct list_lru {
-> > > +	/*
-> > > +	 * Because we use a fixed-size array, this struct can be very big if
-> > > +	 * MAX_NUMNODES is big. If this becomes a problem this is fixable by
-> > > +	 * turning this into a pointer and dynamically allocating this to
-> > > +	 * nr_node_ids. This quantity is firwmare-provided, and still would
-> > > +	 * provide room for all nodes at the cost of a pointer lookup and an
-> > > +	 * extra allocation. Because that allocation will most likely come from
-> > > +	 * a different slab cache than the main structure holding this
-> > > +	 * structure, we may very well fail.
-> > > +	 */
-> > > +	struct list_lru_node	node[MAX_NUMNODES];
-> > > +	nodemask_t		active_nodes;
+> On Wed, Jun 05, 2013 at 04:08:10PM -0700, Andrew Morton wrote:
+> > On Mon,  3 Jun 2013 23:29:41 +0400 Glauber Costa <glommer@openvz.org> wrote:
 > > 
-> > Some documentation of the data structure would be helpful.  It appears
-> > that active_nodes tracks (ie: duplicates) node[x].nr_items!=0.
+> > > From: Dave Chinner <dchinner@redhat.com>
+> > > 
+> > > Pass the node of the current zone being reclaimed to shrink_slab(),
+> > > allowing the shrinker control nodemask to be set appropriately for
+> > > node aware shrinkers.
 > > 
-> > It's unclear that active_nodes is really needed - we could just iterate
-> > across all items in list_lru.node[].  Are we sure that the correct
-> > tradeoff decision was made here?
+> > Again, some musings on node hotplug would be interesting.
+> > 
+> > > --- a/drivers/staging/android/ashmem.c
+> > > +++ b/drivers/staging/android/ashmem.c
+> > > @@ -692,6 +692,9 @@ static long ashmem_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+> > >  				.gfp_mask = GFP_KERNEL,
+> > >  				.nr_to_scan = 0,
+> > >  			};
+> > > +
+> > > +			nodes_setall(sc.nodes_to_scan);
+> > 
+> > hm, is there some way to do this within the initializer? ie:
+> > 
+> > 				.nodes_to_scan = magic_goes_here(),
 > 
-> Yup. Think of all the cache line misses that checking
-> node[x].nr_items != 0 entails. If MAX_NUMNODES = 1024, there's 1024
-> cacheline misses right there. The nodemask is a much more cache
-> friendly method of storing active node state.
+> Nothing obvious - it's essentially a memset call, so I'm not sure
+> how that could be put in the initialiser...
 
-Well, it depends on the relative frequency of list-wide walking.  If
-that's "very low" then the cost of maintaining active_nodes could
-dominate.
+I was thinking something like
 
-Plus all the callsites which traverse active_nodes will touch
-list_lru.node[n] anyway, so the cache-miss impact will be unaltered.
+		.nodes_to_scan = node_online_map,
 
-> not to mention that for small machines with a large MAX_NUMNODES,
-> we'd be checking nodes that never have items stored on them...
+which would solve both problems.  But node_online_map is nowhere near
+the appropriate type, ho-hum.
 
-Yes, there is that.
+We could newly accumulate such a thing in register_one_node(), but I
+don't see a need.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
