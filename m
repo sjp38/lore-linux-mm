@@ -1,70 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 204DE6B0034
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 10:19:55 -0400 (EDT)
-Date: Thu, 6 Jun 2013 10:19:52 -0400
-From: Luiz Capitulino <lcapitulino@redhat.com>
-Subject: Re: [PATCH v2] virtio_balloon: leak_balloon(): only tell host if we
- got pages deflated
-Message-ID: <20130606101952.5f2c7988@redhat.com>
-In-Reply-To: <20130606141357.GD30387@optiplex.redhat.com>
-References: <20130605211837.1fc9b902@redhat.com>
-	<20130606141357.GD30387@optiplex.redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id E1CD26B0037
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 10:27:43 -0400 (EDT)
+Message-ID: <51B09C91.4010104@parallels.com>
+Date: Thu, 6 Jun 2013 18:28:33 +0400
+From: Glauber Costa <glommer@parallels.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v10 08/35] list: add a new LRU list type
+References: <1370287804-3481-1-git-send-email-glommer@openvz.org> <1370287804-3481-9-git-send-email-glommer@openvz.org> <20130605160758.19e854a6995e3c2a1f5260bf@linux-foundation.org> <20130606024909.GP29338@dastard>
+In-Reply-To: <20130606024909.GP29338@dastard>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes
+ Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>
 
-On Thu, 6 Jun 2013 11:13:58 -0300
-Rafael Aquini <aquini@redhat.com> wrote:
-
-> On Wed, Jun 05, 2013 at 09:18:37PM -0400, Luiz Capitulino wrote:
-> > The balloon_page_dequeue() function can return NULL. If it does for
-> > the first page being freed, then leak_balloon() will create a
-> > scatter list with len=0. Which in turn seems to generate an invalid
-> > virtio request.
-> > 
-> > I didn't get this in practice, I found it by code review. On the other
-> > hand, such an invalid virtio request will cause errors in QEMU and
-> > fill_balloon() also performs the same check implemented by this commit.
-> > 
-> > Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
-> > Acked-by: Rafael Aquini <aquini@redhat.com>
-> > ---
-> > 
-> > o v2
-> > 
-> >  - Improve changelog
-> > 
-> >  drivers/virtio/virtio_balloon.c | 3 ++-
-> >  1 file changed, 2 insertions(+), 1 deletion(-)
-> > 
-> > diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-> > index bd3ae32..71af7b5 100644
-> > --- a/drivers/virtio/virtio_balloon.c
-> > +++ b/drivers/virtio/virtio_balloon.c
-> > @@ -191,7 +191,8 @@ static void leak_balloon(struct virtio_balloon *vb, size_t num)
-> >  	 * virtio_has_feature(vdev, VIRTIO_BALLOON_F_MUST_TELL_HOST);
-> >  	 * is true, we *have* to do it in this order
-> >  	 */
-> > -	tell_host(vb, vb->deflate_vq);
+On 06/06/2013 06:49 AM, Dave Chinner wrote:
+>> > How [patch 09/35]'s inode_lru_isolate() avoids this bug I don't know. 
+>> > Perhaps it doesn't.
+> The LRU_RETRY cse is supposed to handle this. However, the LRU_RETRY
+> return code is now buggy and you've caught that. It'll need fixing.
+> My original code only had inode_lru_isolate() drop the lru lock, and
+> it would return LRU_RETRY which would restart the scan of the list
+> from the start, thereby avoiding those problems.
 > 
-> Luiz, sorry for not being clearer before. I was referring to add a commentary on
-> code, to explain in short words why we should not get rid of this check point.
+Yes, I have changed that, but I wasn't aware that your original
+intention for restarting from the beginning was to avoid such problems.
+And having only half the brain Andrew has, I didn't notice it myself.
 
-Oh.
-
-> > +	if (vb->num_pfns != 0)
-> > +		tell_host(vb, vb->deflate_vq);
-> >  	mutex_unlock(&vb->balloon_lock);
-> 
-> If the comment is regarded as unnecessary, then just ignore my suggestion. I'm
-> OK with your patch. :)
-
-IMHO, the code is clear enough.
+I will fix this somehow while trying to keep the behavior Mel insisted
+on; iow; not retrying forever.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
