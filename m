@@ -1,137 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
-	by kanga.kvack.org (Postfix) with SMTP id 69F536B005C
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 01:33:27 -0400 (EDT)
-Date: Thu, 6 Jun 2013 01:33:15 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 2/2] memcg: do not sleep on OOM waitqueue with full
- charge context
-Message-ID: <20130606053315.GB9406@cmpxchg.org>
-References: <1370488193-4747-1-git-send-email-hannes@cmpxchg.org>
- <1370488193-4747-2-git-send-email-hannes@cmpxchg.org>
- <alpine.DEB.2.02.1306052058340.25115@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 057F76B0068
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 01:50:17 -0400 (EDT)
+Message-ID: <51B02347.60809@parallels.com>
+Date: Thu, 6 Jun 2013 09:51:03 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1306052058340.25115@chino.kir.corp.google.com>
+Subject: Re: [PATCH v10 00/35] kmemcg shrinkers
+References: <1370287804-3481-1-git-send-email-glommer@openvz.org> <20130605160721.da995af82eb247ccf8f8537f@linux-foundation.org>
+In-Reply-To: <20130605160721.da995af82eb247ccf8f8537f@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>
 
-On Wed, Jun 05, 2013 at 09:10:51PM -0700, David Rientjes wrote:
-> On Wed, 5 Jun 2013, Johannes Weiner wrote:
+On 06/06/2013 03:07 AM, Andrew Morton wrote:
+> On Mon,  3 Jun 2013 23:29:29 +0400 Glauber Costa <glommer@openvz.org> wrote:
 > 
-> > The memcg OOM handling is incredibly fragile because once a memcg goes
-> > OOM, one task (kernel or userspace) is responsible for resolving the
-> > situation.
+>> Andrew,
+>>
+>> This submission contains one small bug fix over the last one. I have been
+>> testing it regularly and believe this is ready for merging. I have follow up
+>> patches for this series, with a few improvements (namely: dynamic sized
+>> list_lru node arrays, memcg flush-at-destruction, kmemcg shrinking setting
+>> limit < usage).  But since this series is already quite mature - and very
+>> extensive, I don't believe that adding new patches would make them receive the
+>> appropriate level of review. So please advise me if there is anything crucial
+>> missing in here. Thanks!
+>>
+>> Hi,
+>>
+>> This patchset implements targeted shrinking for memcg when kmem limits are
+>> present. So far, we've been accounting kernel objects but failing allocations
+>> when short of memory. This is because our only option would be to call the
+>> global shrinker, depleting objects from all caches and breaking isolation.
+>>
+>> The main idea is to associate per-memcg lists with each of the LRUs. The main
+>> LRU still provides a single entry point and when adding or removing an element
+>> from the LRU, we use the page information to figure out which memcg it belongs
+>> to and relay it to the right list.
+>>
+>> Base work:
+>> ==========
+>>
+>> Please note that this builds upon the recent work from Dave Chinner that
+>> sanitizes the LRU shrinking API and make the shrinkers node aware. Node
+>> awareness is not *strictly* needed for my work, but I still perceive it
+>> as an advantage. The API unification is a major need, and I build upon it
+>> heavily. That allows us to manipulate the LRUs without knowledge of the
+>> underlying objects with ease. This time, I am including that work here as
+>> a baseline.
 > 
-> Not sure what this means.  Are you referring to the case where the memcg 
-> is disabled from oom killing and we're relying on a userspace handler and 
-> it may be caught on the waitqueue itself?  Otherwise, are you referring to 
-> the task as eventually being the only one that takes the hierarchy oom 
-> lock and calls mem_cgroup_out_of_memory()?  I don't think you can make a 
-> case for the latter since the one that calls mem_cgroup_out_of_memory() 
-> should return and call memcg_wakeup_oom().  We obviously don't want to do 
-> any memory allocations in this path.
-
-If the killing task or one of the sleeping tasks is holding a lock
-that the selected victim needs in order to exit no progress can be
-made.
-
-The report we had a few months ago was that a task held the i_mutex
-when trying to charge a page cache page and then invoked the OOM
-handler and looped on CHARGE_RETRY.  Meanwhile, the selected victim
-was just entering truncate() and now stuck waiting for the i_mutex.
-
-I'll add this scenario to the changelog, hopefully it will make the
-rest a little clearer.
-
-> > Every other task that gets caught trying to charge memory
-> > gets stuck in a waitqueue while potentially holding various filesystem
-> > and mm locks on which the OOM handling task may now deadlock.
-> > 
+> This patchset is huge.
 > 
-> What locks?  The oom killer quite extensively needs task_lock() but we 
-> shouldn't be calling it in the case where we hold this since its a 
-> spinlock and mem_cgroup_do_charge() never gets to the point of handling 
-> the oom.
+> My overall take is that the patchset is massive and intrusive and scary
+> :( I'd like to see more evidence that the memcg people (mhocko, hannes,
+> kamezawa etc) have spent quality time reviewing and testing this code. 
+> There really is a lot of it!
 > 
-> Again, are you referring only to a userspace handler here?
 
-No.  The OOM path (does not matter if user task or kernel) is
-currently entered from the charge context, which may hold filesystem
-and mm locks (look who charges page cache pages e.g.) and they are not
-released until the situation is resolved because the task either loops
-inside __mem_cgroup_try_charge() on CHARGE_RETRY or is stuck in the
-waitqueue.
+More review is useful, indeed.
 
-And waiting for anybody else to make progress while holding mmap_sem,
-i_mutex etc. is the problem.
-
-> > Do two things:
-> > 
-> > 1. When OOMing in a system call (buffered IO and friends), invoke the
-> >    OOM killer but just return -ENOMEM, never sleep.  Userspace should
-> >    be able to handle this.
-> > 
+> I haven't seen any show-stoppers yet so I guess I'll slam it all into
+> -next and cross fingers.  I would ask that the relevant developers set
+> aside a solid day to read and runtime test it all.  Realistically, it's
+> likely to take considerably more time that that.
 > 
-> The sleep should never occur for any significant duration currently, the 
-> current implementation ensures one process calls 
-> mem_cgroup_out_of_memory() while all others sit on a waitqueue until that 
-> process returns from the oom killer and then they all wakeup again so the 
-> killed process may exit and all others can retry their allocations now 
-> that something has been killed.  If that process hasn't exited yet, the 
-> next process that locks the memcg oom hierarchy will see the killed 
-> process with TIF_MEMDIE and the oom killer is deferred.  So this sleep is 
-> very temporary already, I don't see why you're trying to make it faster 
-> while another thread finds a candidate task, it works quite well already.
-
-It's not the amount of time slept on average, it's that going to sleep
-in this context may deadlock the killing or the killed task.  I don't
-see where you read "making it faster", but I'm trying to make it just
-slightly faster than a deadlock.
-
-> > 2. When OOMing in a page fault and somebody else is handling the
-> >    situation, do not sleep directly in the charging code.  Instead,
-> >    remember the OOMing memcg in the task struct and then fully unwind
-> >    the page fault stack first before going to sleep.
-> > 
+> I do expect that I'll drop the entire patchset again for the next
+> version, if only because the next version should withdraw all the
+> switch-random-code-to-xfs-coding-style changes...
 > 
-> Are you trying to address a situation here where the memcg oom handler 
-> takes too long to work?  We've quite extensively tried to improve that, 
-> especially by reducing its dependency on tasklist_lock which is contended 
-> from the writeside in the exit path and by only iterating processes that 
-> are attached to that memcg hierarchy and not all processes on the system 
-> like before.  I don't see the issue with scheduling other oom processes 
-> while one is doing mem_cgroup_out_of_memory().  (I would if the oom killer 
-> required things like mm->mmap_sem, but obviously it doesn't for reasons 
-> not related to memcg.)
+Ok, how do you want me to proceed ? Should I send a new series, or
+incremental? When exactly?
 
-I really don't see where you read "performance optimization" in this
-changelog, the very first paragraph mentions "very fragile" and "may
-deadlock".
+I do have at least two fixes to send that popped out this week: one of
+them for the drivers patch, since Kent complained about a malconversion
+of the bcache driver, and another one in the memcg page path.
 
-> > While reworking the OOM routine, also remove a needless OOM waitqueue
-> > wakeup when invoking the killer.  Only uncharges and limit increases,
-> > things that actually change the memory situation, should do wakeups.
-> > 
 > 
-> It's not needless at all, it's vitally required!  The oom killed process 
-> needs to be removed from the waitqueue and scheduled now with TIF_MEMDIE 
-> that the memcg oom killer provided so the allocation succeeds in the page 
-> allocator and memcg bypasses the charge so it can exit.
+> I'm thinking that we should approach this in two stages: all the new
+> shrinker stuff separated from the memcg_kmem work.  So we merge
+> everything up to "shrinker: Kill old ->shrink API" and then continue to
+> work on the memcg things?
+> 
 
-The OOM killer sets TIF_MEMDIE and then sends a fatal signal to the
-victim.  That reliably wakes it up, doesn't it?
+I agree with this, the shrinker part got a very thorough review from Mel
+recently. I do need to send you the fix for the bcache driver (or the
+whole thing, as you would prefer), and fix whatever comments you have.
 
-> Exactly what problem are you trying to address with this patch?  I don't 
-> see any description of the user-visible effects or a specific xample of 
-> the scenario you're trying to address here.
+Please note that as I have mentioned in the opening letter, I have two
+follow up patches for memcg (one of them allows us to use the shrinker
+infrastructure to reduce the value of kmem.limit, and the other one
+flushes the caches upon destruction). I haven't included in the series
+because the series is already huge, and I believe by including them,
+they would not get the review they deserve (by being new). Splitting it
+in two would allow me to include them in a smaller series.
 
-I'll add the example scenarios.
-
-Thanks!
+I will go over your comments in a couple of hours. Please just advise me
+how would you like me to proceed with this logistically (new submission,
+fixes, for which patches, etc)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
