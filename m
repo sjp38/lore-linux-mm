@@ -1,34 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id BAAB46B003A
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 17:15:03 -0400 (EDT)
-Date: Thu, 6 Jun 2013 14:15:01 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v11 00/25] shrinkers rework: per-numa, generic lists,
- etc
-Message-Id: <20130606141501.72d80a9a5c7bce4c4a002906@linux-foundation.org>
-In-Reply-To: <1370550898-26711-1-git-send-email-glommer@openvz.org>
-References: <1370550898-26711-1-git-send-email-glommer@openvz.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 897006B0036
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 17:31:49 -0400 (EDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCH v8 9/9] vmcore: support mmap() on /proc/vmcore
+Date: Thu, 06 Jun 2013 23:31:41 +0200
+Message-ID: <10307835.fkACLi6FUD@wuerfel>
+In-Reply-To: <20130523052547.13864.83306.stgit@localhost6.localdomain6>
+References: <20130523052421.13864.83978.stgit@localhost6.localdomain6> <20130523052547.13864.83306.stgit@localhost6.localdomain6>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@openvz.org>
-Cc: linux-fsdevel@vger.kernel.org, mgorman@suse.de, david@fromorbit.com, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suze.cz, hannes@cmpxchg.org, hughd@google.com, gthelen@google.com
+To: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
+Cc: vgoyal@redhat.com, ebiederm@xmission.com, akpm@linux-foundation.org, cpw@sgi.com, kumagai-atsushi@mxc.nes.nec.co.jp, lisa.mitchell@hp.com, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, zhangyanfei@cn.fujitsu.com, jingbai.ma@hp.com, linux-mm@kvack.org, riel@redhat.com, walken@google.com, hughd@google.com, kosaki.motohiro@jp.fujitsu.com
 
-On Fri,  7 Jun 2013 00:34:33 +0400 Glauber Costa <glommer@openvz.org> wrote:
-
-> Andrew,
+On Thursday 23 May 2013 14:25:48 HATAYAMA Daisuke wrote:
+> This patch introduces mmap_vmcore().
 > 
-> I believe I have addressed most of your comments, while attempting to address
-> all of them. If there is anything I have missed after this long day, let me
-> know and I will go over it promptly.
+> Don't permit writable nor executable mapping even with mprotect()
+> because this mmap() is aimed at reading crash dump memory.
+> Non-writable mapping is also requirement of remap_pfn_range() when
+> mapping linear pages on non-consecutive physical pages; see
+> is_cow_mapping().
+> 
+> Set VM_MIXEDMAP flag to remap memory by remap_pfn_range and by
+> remap_vmalloc_range_pertial at the same time for a single
+> vma. do_munmap() can correctly clean partially remapped vma with two
+> functions in abnormal case. See zap_pte_range(), vm_normal_page() and
+> their comments for details.
+> 
+> On x86-32 PAE kernels, mmap() supports at most 16TB memory only. This
+> limitation comes from the fact that the third argument of
+> remap_pfn_range(), pfn, is of 32-bit length on x86-32: unsigned long.
+> 
+> Signed-off-by: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
+> Acked-by: Vivek Goyal <vgoyal@redhat.com>
 
-I'll trust you - I've had my fill of costacode this week ;)
+I get build errors on 'make randconfig' from this, when building
+NOMMU kernels on ARM. I suppose the new feature should be hidden
+in #ifdef CONFIG_MMU.
 
-Can you send over a nice introductory [patch 0/n] as an overview of the
-whole series?
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
