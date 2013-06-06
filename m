@@ -1,97 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id E12696B003B
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 00:10:54 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id x10so2781693pdj.15
-        for <linux-mm@kvack.org>; Wed, 05 Jun 2013 21:10:54 -0700 (PDT)
-Date: Wed, 5 Jun 2013 21:10:51 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 2/2] memcg: do not sleep on OOM waitqueue with full charge
- context
-In-Reply-To: <1370488193-4747-2-git-send-email-hannes@cmpxchg.org>
-Message-ID: <alpine.DEB.2.02.1306052058340.25115@chino.kir.corp.google.com>
-References: <1370488193-4747-1-git-send-email-hannes@cmpxchg.org> <1370488193-4747-2-git-send-email-hannes@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 151EE6B0033
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 00:36:32 -0400 (EDT)
+Date: Thu, 6 Jun 2013 00:36:20 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 1/2] arch: invoke oom-killer from page fault
+Message-ID: <20130606043620.GA9406@cmpxchg.org>
+References: <1370488193-4747-1-git-send-email-hannes@cmpxchg.org>
+ <alpine.DEB.2.02.1306052053360.25115@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1306052053360.25115@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
+To: David Rientjes <rientjes@google.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, 5 Jun 2013, Johannes Weiner wrote:
-
-> The memcg OOM handling is incredibly fragile because once a memcg goes
-> OOM, one task (kernel or userspace) is responsible for resolving the
-> situation.
-
-Not sure what this means.  Are you referring to the case where the memcg 
-is disabled from oom killing and we're relying on a userspace handler and 
-it may be caught on the waitqueue itself?  Otherwise, are you referring to 
-the task as eventually being the only one that takes the hierarchy oom 
-lock and calls mem_cgroup_out_of_memory()?  I don't think you can make a 
-case for the latter since the one that calls mem_cgroup_out_of_memory() 
-should return and call memcg_wakeup_oom().  We obviously don't want to do 
-any memory allocations in this path.
-
-> Every other task that gets caught trying to charge memory
-> gets stuck in a waitqueue while potentially holding various filesystem
-> and mm locks on which the OOM handling task may now deadlock.
+On Wed, Jun 05, 2013 at 08:57:44PM -0700, David Rientjes wrote:
+> On Wed, 5 Jun 2013, Johannes Weiner wrote:
 > 
-
-What locks?  The oom killer quite extensively needs task_lock() but we 
-shouldn't be calling it in the case where we hold this since its a 
-spinlock and mem_cgroup_do_charge() never gets to the point of handling 
-the oom.
-
-Again, are you referring only to a userspace handler here?
-
-> Do two things:
+> > Since '1c0fe6e mm: invoke oom-killer from page fault', page fault
+> > handlers should not directly kill faulting tasks in an out of memory
+> > condition.
 > 
-> 1. When OOMing in a system call (buffered IO and friends), invoke the
->    OOM killer but just return -ENOMEM, never sleep.  Userspace should
->    be able to handle this.
+> I have no objection to the patch, but there's no explanation given here 
+> why exiting with a kill shouldn't be done.  Is it because of memory 
+> reserves and there is no guarantee that current will be able to exit?  Or 
+> is it just for consistency with other archs?
 > 
-
-The sleep should never occur for any significant duration currently, the 
-current implementation ensures one process calls 
-mem_cgroup_out_of_memory() while all others sit on a waitqueue until that 
-process returns from the oom killer and then they all wakeup again so the 
-killed process may exit and all others can retry their allocations now 
-that something has been killed.  If that process hasn't exited yet, the 
-next process that locks the memcg oom hierarchy will see the killed 
-process with TIF_MEMDIE and the oom killer is deferred.  So this sleep is 
-very temporary already, I don't see why you're trying to make it faster 
-while another thread finds a candidate task, it works quite well already.
-
-> 2. When OOMing in a page fault and somebody else is handling the
->    situation, do not sleep directly in the charging code.  Instead,
->    remember the OOMing memcg in the task struct and then fully unwind
->    the page fault stack first before going to sleep.
+> > Instead, they should be invoking the OOM killer to pick
+> > the right task.  Convert the remaining architectures.
+> > 
 > 
-
-Are you trying to address a situation here where the memcg oom handler 
-takes too long to work?  We've quite extensively tried to improve that, 
-especially by reducing its dependency on tasklist_lock which is contended 
-from the writeside in the exit path and by only iterating processes that 
-are attached to that memcg hierarchy and not all processes on the system 
-like before.  I don't see the issue with scheduling other oom processes 
-while one is doing mem_cgroup_out_of_memory().  (I would if the oom killer 
-required things like mm->mmap_sem, but obviously it doesn't for reasons 
-not related to memcg.)
-
-> While reworking the OOM routine, also remove a needless OOM waitqueue
-> wakeup when invoking the killer.  Only uncharges and limit increases,
-> things that actually change the memory situation, should do wakeups.
+> If this is a matter of memory reserves, I guess you could point people who 
+> want the current behavior (avoiding the expensiveness of the tasklist scan 
+> in the oom killer for example) to /proc/sys/vm/oom_kill_allocating_task?
 > 
+> This changelog is a bit cryptic in its motivation.
 
-It's not needless at all, it's vitally required!  The oom killed process 
-needs to be removed from the waitqueue and scheduled now with TIF_MEMDIE 
-that the memcg oom killer provided so the allocation succeeds in the page 
-allocator and memcg bypasses the charge so it can exit.
+Fixing copy-pasted bitrot^W^W^W^WHow about this?
 
-Exactly what problem are you trying to address with this patch?  I don't 
-see any description of the user-visible effects or a specific xample of 
-the scenario you're trying to address here.
+---
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch] mm: invoke oom-killer from remaining unconverted page fault
+ handlers
+
+A few remaining architectures directly kill the page faulting task in
+an out of memory situation.  This is usually not a good idea since
+that task might not even use a significant amount of memory and so may
+not be the optimal victim to resolve the situation.
+
+Since '1c0fe6e mm: invoke oom-killer from page fault' (2.6.29) there
+is a hook that architecture page fault handlers are supposed to call
+to invoke the OOM killer and let it pick the right task to kill.
+Convert the remaining architectures over to this hook.
+
+To have the previous behavior of simply taking out the faulting task
+the vm.oom_kill_allocating_task sysctl can be set to 1.
+
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ arch/arc/mm/fault.c      | 6 ++++--
+ arch/metag/mm/fault.c    | 6 ++++--
+ arch/mn10300/mm/fault.c  | 7 ++++---
+ arch/openrisc/mm/fault.c | 8 ++++----
+ arch/score/mm/fault.c    | 8 ++++----
+ arch/tile/mm/fault.c     | 8 ++++----
+ 6 files changed, 24 insertions(+), 19 deletions(-)
+
+diff --git a/arch/arc/mm/fault.c b/arch/arc/mm/fault.c
+index c0decc1..d5ec60a 100644
+--- a/arch/arc/mm/fault.c
++++ b/arch/arc/mm/fault.c
+@@ -207,8 +207,10 @@ out_of_memory:
+ 	}
+ 	up_read(&mm->mmap_sem);
+ 
+-	if (user_mode(regs))
+-		do_group_exit(SIGKILL);	/* This will never return */
++	if (user_mode(regs)) {
++		pagefault_out_of_memory();
++		return;
++	}
+ 
+ 	goto no_context;
+ 
+diff --git a/arch/metag/mm/fault.c b/arch/metag/mm/fault.c
+index 2c75bf7..8fddf46 100644
+--- a/arch/metag/mm/fault.c
++++ b/arch/metag/mm/fault.c
+@@ -224,8 +224,10 @@ do_sigbus:
+ 	 */
+ out_of_memory:
+ 	up_read(&mm->mmap_sem);
+-	if (user_mode(regs))
+-		do_group_exit(SIGKILL);
++	if (user_mode(regs)) {
++		pagefault_out_of_memory();
++		return 1;
++	}
+ 
+ no_context:
+ 	/* Are we prepared to handle this kernel fault?  */
+diff --git a/arch/mn10300/mm/fault.c b/arch/mn10300/mm/fault.c
+index d48a84f..8a2e6de 100644
+--- a/arch/mn10300/mm/fault.c
++++ b/arch/mn10300/mm/fault.c
+@@ -345,9 +345,10 @@ no_context:
+  */
+ out_of_memory:
+ 	up_read(&mm->mmap_sem);
+-	printk(KERN_ALERT "VM: killing process %s\n", tsk->comm);
+-	if ((fault_code & MMUFCR_xFC_ACCESS) == MMUFCR_xFC_ACCESS_USR)
+-		do_exit(SIGKILL);
++	if ((fault_code & MMUFCR_xFC_ACCESS) == MMUFCR_xFC_ACCESS_USR) {
++		pagefault_out_of_memory();
++		return;
++	}
+ 	goto no_context;
+ 
+ do_sigbus:
+diff --git a/arch/openrisc/mm/fault.c b/arch/openrisc/mm/fault.c
+index e2bfafc..4a41f84 100644
+--- a/arch/openrisc/mm/fault.c
++++ b/arch/openrisc/mm/fault.c
+@@ -267,10 +267,10 @@ out_of_memory:
+ 	__asm__ __volatile__("l.nop 1");
+ 
+ 	up_read(&mm->mmap_sem);
+-	printk("VM: killing process %s\n", tsk->comm);
+-	if (user_mode(regs))
+-		do_exit(SIGKILL);
+-	goto no_context;
++	if (!user_mode(regs))
++		goto no_context;
++	pagefault_out_of_memory();
++	return;
+ 
+ do_sigbus:
+ 	up_read(&mm->mmap_sem);
+diff --git a/arch/score/mm/fault.c b/arch/score/mm/fault.c
+index 47b600e..6b18fb0 100644
+--- a/arch/score/mm/fault.c
++++ b/arch/score/mm/fault.c
+@@ -172,10 +172,10 @@ out_of_memory:
+ 		down_read(&mm->mmap_sem);
+ 		goto survive;
+ 	}
+-	printk("VM: killing process %s\n", tsk->comm);
+-	if (user_mode(regs))
+-		do_group_exit(SIGKILL);
+-	goto no_context;
++	if (!user_mode(regs))
++		goto no_context;
++	pagefault_out_of_memory();
++	return;
+ 
+ do_sigbus:
+ 	up_read(&mm->mmap_sem);
+diff --git a/arch/tile/mm/fault.c b/arch/tile/mm/fault.c
+index 3d2b81c..f7f99f9 100644
+--- a/arch/tile/mm/fault.c
++++ b/arch/tile/mm/fault.c
+@@ -573,10 +573,10 @@ out_of_memory:
+ 		down_read(&mm->mmap_sem);
+ 		goto survive;
+ 	}
+-	pr_alert("VM: killing process %s\n", tsk->comm);
+-	if (!is_kernel_mode)
+-		do_group_exit(SIGKILL);
+-	goto no_context;
++	if (is_kernel_mode)
++		goto no_context;
++	pagefault_out_of_memory();
++	return 0;
+ 
+ do_sigbus:
+ 	up_read(&mm->mmap_sem);
+-- 
+1.8.2.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
