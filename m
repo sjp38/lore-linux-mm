@@ -1,81 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id E96CF6B0031
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 08:49:55 -0400 (EDT)
-Date: Thu, 6 Jun 2013 09:49:41 -0300
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH 4/7] mm: compaction: reset before initializing the scan
- cursors
-Message-ID: <20130606124941.GC30387@optiplex.redhat.com>
-References: <1370445037-24144-1-git-send-email-aarcange@redhat.com>
- <1370445037-24144-5-git-send-email-aarcange@redhat.com>
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id DFB516B0033
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 08:51:04 -0400 (EDT)
+Message-ID: <51B085E5.9070103@parallels.com>
+Date: Thu, 6 Jun 2013 16:51:49 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1370445037-24144-5-git-send-email-aarcange@redhat.com>
+Subject: Re: [PATCH v10 04/35] dentry: move to per-sb LRU locks
+References: <1370287804-3481-1-git-send-email-glommer@openvz.org> <1370287804-3481-5-git-send-email-glommer@openvz.org> <20130605160738.fe46654369044b6d94eadd1b@linux-foundation.org> <51B0424A.3090208@parallels.com>
+In-Reply-To: <51B0424A.3090208@parallels.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>
 
-On Wed, Jun 05, 2013 at 05:10:34PM +0200, Andrea Arcangeli wrote:
-> Otherwise the first iteration of compaction after restarting it, will
-> only do a partial scan.
+On 06/06/2013 12:03 PM, Glauber Costa wrote:
+> On 06/06/2013 03:07 AM, Andrew Morton wrote:
+>> On Mon,  3 Jun 2013 23:29:33 +0400 Glauber Costa <glommer@openvz.org> wrote:
+>>
+>>> From: Dave Chinner <dchinner@redhat.com>
+>>>
+>>> With the dentry LRUs being per-sb structures, there is no real need
+>>> for a global dentry_lru_lock. The locking can be made more
+>>> fine-grained by moving to a per-sb LRU lock, isolating the LRU
+>>> operations of different filesytsems completely from each other.
+>>
+>> What's the point to this patch?  Is it to enable some additional
+>> development, or is it a standalone performance tweak?
+>>
+>> If the latter then the patch obviously makes this dentry code bloatier
+>> and straight-line slower.  So we're assuming that the multiprocessor
+>> contention-avoidance benefits will outweigh that cost.  Got any proof
+>> of this?
+>>
+>>
+> This is preparation for the whole point of this series, which is to
+> abstract the lru manipulation into a list_lru. It is hard to do that
+> when the dcache has a single lock for all manipulations, and multiple
+> lists under its umbrella.
 > 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> ---
-
-Others have said it already, but looks like the changelog was stripped.
-
-Acked-by: Rafael Aquini <aquini@redhat.com>
-
-
->  mm/compaction.c | 19 +++++++++++--------
->  1 file changed, 11 insertions(+), 8 deletions(-)
 > 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 525baaa..afaf692 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -934,6 +934,17 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
->  	}
->  
->  	/*
-> +	 * Clear pageblock skip if there were failures recently and
-> +	 * compaction is about to be retried after being
-> +	 * deferred. kswapd does not do this reset and it will wait
-> +	 * direct compaction to do so either when the cursor meets
-> +	 * after one compaction pass is complete or if compaction is
-> +	 * restarted after being deferred for a while.
-> +	 */
-> +	if ((compaction_restarting(zone, cc->order)) && !current_is_kswapd())
-> +		__reset_isolation_suitable(zone);
-> +
-> +	/*
->  	 * Setup to move all movable pages to the end of the zone. Used cached
->  	 * information on where the scanners should start but check that it
->  	 * is initialised by ensuring the values are within zone boundaries.
-> @@ -949,14 +960,6 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
->  		zone->compact_cached_migrate_pfn = cc->migrate_pfn;
->  	}
->  
-> -	/*
-> -	 * Clear pageblock skip if there were failures recently and compaction
-> -	 * is about to be retried after being deferred. kswapd does not do
-> -	 * this reset as it'll reset the cached information when going to sleep.
-> -	 */
-> -	if (compaction_restarting(zone, cc->order) && !current_is_kswapd())
-> -		__reset_isolation_suitable(zone);
-> -
->  	migrate_prep_local();
->  
->  	while ((ret = compact_finished(zone, cc)) == COMPACT_CONTINUE) {
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+I have updated the Changelog, that now reads:
+
+With the dentry LRUs being per-sb structures, there is no real need for
+a global dentry_lru_lock. The locking can be made more fine-grained by
+moving to a per-sb LRU lock, isolating the LRU operations of different
+filesytsems completely from each other. The need for this is independent
+of any performance consideration that may arise: in the interest of
+abstracting the lru operations away, it is mandatory that each lru works
+around its own lock instead of a global lock for all of them.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
