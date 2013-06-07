@@ -1,108 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id B20A66B0031
-	for <linux-mm@kvack.org>; Mon, 10 Jun 2013 11:22:48 -0400 (EDT)
-Date: Mon, 10 Jun 2013 17:22:46 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] memcg: Add force_reclaim to reclaim tasks' memory in
- memcg.
-Message-ID: <20130610152246.GB14295@dhcp22.suse.cz>
-References: <021801ce65cb$f5b0bc50$e11234f0$%kim@samsung.com>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id A97256B0031
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2013 11:38:04 -0400 (EDT)
+Message-ID: <51B2029A.8050504@sr71.net>
+Date: Fri, 07 Jun 2013 08:56:10 -0700
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <021801ce65cb$f5b0bc50$e11234f0$%kim@samsung.com>
+Subject: Re: [PATCHv4 14/39] thp, mm: rewrite delete_from_page_cache() to
+ support huge pages
+References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com> <1368321816-17719-15-git-send-email-kirill.shutemov@linux.intel.com> <519BD595.5040405@sr71.net> <20130528122812.0D624E0090@blue.fi.intel.com> <20130607151025.241EFE0090@blue.fi.intel.com>
+In-Reply-To: <20130607151025.241EFE0090@blue.fi.intel.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hyunhee Kim <hyunhee.kim@samsung.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, 'Kyungmin Park' <kyungmin.park@samsung.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon 10-06-13 20:16:31, Hyunhee Kim wrote:
-> These days, platforms tend to manage memory on low memory state
-> like andloid's lowmemory killer. These platforms might want to
-> reclaim memory from background tasks as well as kill victims
-> to guarantee free memory at use space level. This patch provides
-> an interface to reclaim a given memcg.
+On 06/07/2013 08:10 AM, Kirill A. Shutemov wrote:
+> +	/*
+> +	 * When we add a huge page to page cache we take only reference to head
+> +	 * page, but on split we need to take addition reference to all tail
+> +	 * pages since they are still in page cache after splitting.
+> +	 */
+> +	init_tail_refcount = PageAnon(page) ? 0 : 1;
 
-> After platform's low memory handler moves tasks that the platform
-> wants to reclaim to a memcg and decides how many pages should be
-> reclaimed, it can reclaim the pages from the tasks by writing the
-> number of pages at memory.force_reclaim.
+What's the "init" for in the name?
 
-Why cannot you simply set the soft limit to 0 for the target group which
-would enforce reclaim during the next global reclaim instead?
+In add_to_page_cache_locked() in patch 12/39, you do
+> +       spin_lock_irq(&mapping->tree_lock);
+> +       for (i = 0; i < nr; i++) {
+> +               page_cache_get(page + i);
 
-Or you can even use the hard limit for that. If you know how much memory
-is used by those processes you can simply move them to a group with the
-hard limit reduced by the amount of pages which you want to free and the
-reclaim would happen during taks move.
+That looks to me to be taking references to the tail pages.  What gives? :)
 
-> Signed-off-by: Hyunhee Kim <hyunhee.kim@samsung.com>
-> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
-> ---
->  mm/memcontrol.c |   26 ++++++++++++++++++++++++++
->  1 file changed, 26 insertions(+)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 010d6c1..21819c9 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -4980,6 +4980,28 @@ static int mem_cgroup_force_empty_write(struct cgroup
-> *cont, unsigned int event)
->  	return ret;
->  }
+>  	for (i = HPAGE_PMD_NR - 1; i >= 1; i--) {
+>  		struct page *page_tail = page + i;
 >  
-> +static int mem_cgroup_force_reclaim(struct cgroup *cont, struct cftype
-> *cft, u64 val)
-> +{
-> +
-> +	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
-> +	unsigned long nr_to_reclaim = val;
-> +	unsigned long total = 0;
-> +	int loop;
-> +
-> +	for (loop = 0; loop < MEM_CGROUP_MAX_RECLAIM_LOOPS; loop++) {
-> +		total += try_to_free_mem_cgroup_pages(memcg, GFP_KERNEL,
-> false);
-> +
-> +		/*
-> +		 * If nothing was reclaimed after two attempts, there
-> +		 * may be no reclaimable pages in this hierarchy.
-> +		 * If more than nr_to_reclaim pages were already reclaimed,
-> +		 * finish force reclaim.
-> +		 */
-> +		if (loop && (!total || total > nr_to_reclaim))
-> +			break;
-> +	}
-> +	return total;
-> +}
+> @@ -1587,8 +1595,9 @@ static void __split_huge_page_refcount(struct page *page,
+>  		 * atomic_set() here would be safe on all archs (and
+>  		 * not only on x86), it's safer to use atomic_add().
+>  		 */
+> -		atomic_add(page_mapcount(page) + page_mapcount(page_tail) + 1,
+> -			   &page_tail->_count);
+> +		atomic_add(init_tail_refcount + page_mapcount(page) +
+> +				page_mapcount(page_tail) + 1,
+> +				&page_tail->_count);
 >  
->  static u64 mem_cgroup_hierarchy_read(struct cgroup *cont, struct cftype
-> *cft)
->  {
-> @@ -5938,6 +5960,10 @@ static struct cftype mem_cgroup_files[] = {
->  		.trigger = mem_cgroup_force_empty_write,
->  	},
->  	{
-> +		.name = "force_reclaim",
-> +		.write_u64 = mem_cgroup_force_reclaim,
-> +	},
-> +	{
->  		.name = "use_hierarchy",
->  		.flags = CFTYPE_INSANE,
->  		.write_u64 = mem_cgroup_hierarchy_write,
-> -- 
-> 1.7.9.5
-> 
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>  		/* after clearing PageTail the gup refcount can be released */
+>  		smp_mb();
 
--- 
-Michal Hocko
-SUSE Labs
+This does look much better in general, though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
