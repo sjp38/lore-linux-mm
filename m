@@ -1,79 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 9C0D56B0032
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 20:48:30 -0400 (EDT)
-Received: by mail-qe0-f41.google.com with SMTP id b4so2397026qen.14
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2013 17:48:29 -0700 (PDT)
-Date: Thu, 6 Jun 2013 17:48:24 -0700
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id DD2386B0032
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 20:52:47 -0400 (EDT)
+Received: by mail-qc0-f180.google.com with SMTP id a1so72261qcx.11
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2013 17:52:47 -0700 (PDT)
+Date: Thu, 6 Jun 2013 17:52:42 -0700
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: [patch -v4 4/8] memcg: enhance memcg iterator to support
- predicates
-Message-ID: <20130607004824.GA16160@htj.dyndns.org>
-References: <20130604134523.GH31242@dhcp22.suse.cz>
- <20130604193619.GA14916@htj.dyndns.org>
- <20130604204807.GA13231@dhcp22.suse.cz>
- <20130604205426.GI14916@htj.dyndns.org>
- <20130605073728.GC15997@dhcp22.suse.cz>
- <20130605080545.GF7303@mtj.dyndns.org>
- <20130605085239.GF15997@dhcp22.suse.cz>
- <20130605085849.GB7990@mtj.dyndns.org>
- <20130605090739.GH15997@dhcp22.suse.cz>
- <20130605090938.GA8266@mtj.dyndns.org>
+Subject: Re: [PATCH 3/3] memcg: simplify mem_cgroup_reclaim_iter
+Message-ID: <20130607005242.GB16160@htj.dyndns.org>
+References: <20130605073023.GB15997@dhcp22.suse.cz>
+ <20130605082023.GG7303@mtj.dyndns.org>
+ <20130605143949.GQ15576@cmpxchg.org>
+ <20130605172212.GA10693@mtj.dyndns.org>
+ <20130605194552.GI15721@cmpxchg.org>
+ <20130605200612.GH10693@mtj.dyndns.org>
+ <20130605211704.GJ15721@cmpxchg.org>
+ <20130605222021.GL10693@mtj.dyndns.org>
+ <20130605222709.GM10693@mtj.dyndns.org>
+ <20130606115031.GE7909@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130605090938.GA8266@mtj.dyndns.org>
+In-Reply-To: <20130606115031.GE7909@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Glauber Costa <glommer@parallels.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>, Balbir Singh <bsingharora@gmail.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, bsingharora@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org, lizefan@huawei.com
 
-On Wed, Jun 05, 2013 at 02:09:38AM -0700, Tejun Heo wrote:
-> On Wed, Jun 05, 2013 at 11:07:39AM +0200, Michal Hocko wrote:
-> > On Wed 05-06-13 01:58:49, Tejun Heo wrote:
-> > [...]
-> > > Anyways, so you aren't gonna try the skipping thing?
+Hello,
+
+On Thu, Jun 06, 2013 at 01:50:31PM +0200, Michal Hocko wrote:
+> > Also, do we need to hold a lock?  It doesn't have to be completely
+> > strict, so we might as well get away with something like,
 > > 
-> > As I said. I do not consider this a priority for the said reasons (i
-> > will not repeat them).
+> > 	for_each_cached_pos() {
+> > 		if (hint == me) {
+> > 			/* simple clearing implementation, we prolly wanna push it forward */
+> > 			cached = xchg(hint, NULL);
+> > 			if (cached)
+> > 				css_put(cached);
+> > 		}
+> > 	}
 > 
-> That's a weird way to respond.  Alright, whatever, let me give it a
-> shot then.
+> This would be racy:
+> mem_cgroup_iter
+>   rcu_read_lock
+>   __mem_cgroup_iter_next		cgroup_destroy_locked
+>     css_tryget(memcg)
+>   					  atomic_add(CSS_DEACT_BIAS)
+>     					  offline_css(memcg)
+> 					    xchg(memcg, NULL)
+>   mem_cgroup_iter_update
+>     iter->last_visited = memcg
+>   rcy_read_unlock
+> 
+> But if it was called from call_rcu the we should be safe AFAICS.
 
-So, there were some private exchanges and here's my main issue with
-the addition of predicate callback to mem_cgroup_iter_cond().
-
-There are two common patterns that are used to implement iteration.
-One is the good ol' callback based one - ie. call_fn_on_each(fn) type
-interface.  The other is something which can be used as part of flow
-control by the user - be it give_me_next_elem() or for_each() type
-loop macro.  In majority of cases, especially for anything generic,
-the latter is considered to be the better choice because, while a bit
-more challenging to implement usually, it's a lot less cumbersome for
-the users of the interface.
-
-mem_cgroup_iter_cond() seems icky to me because the predicate callback
-is essentially visit callback, so now we end up with
-give_me_next_elem() with visit callback, which is fundamentally
-superflous.  If it were properly call_fn_on_each(fn), the return
-values would be CONTINUE, SKIP_SUBTREE or ABORT, which makes more
-sense to me.  Sure, it can be said that the predicate callback is for
-a different purpose but it really doesn't change that the interface
-now is visiting the same node in two different places.  If it were
-something remotely widely used, it won't take much time developing
-braindamaged usages where part is being done inside the predicate
-callback and the rest is done outside without clear reason why just
-because of natural code growth.  I don't think this is the type of
-construct that we want in kernel in general.
-
-That said, it also is true that doing this is the shortest path to
-implementing subtree skip given how the iterator is put together
-currently and the series as a whole reduces significant amount of
-complexity, so it is an acceptable tradeoff to proceed with this
-implementation with later restructuring of the iterator.
-
-So, let's go ahead as proposed.  I'll try to rework the iterator on
-top of it, and my aplogies to Michal for being over-the-top.
+Oh yeah, it is racy.  That's what I meant by "not having to be
+completely strict".  The race window is small enough and it's not like
+we're messing up refcnt or may end up with use-after-free.  Doing it
+from RCU would make the race go away but I'm not sure whether the
+extra RCU bouncing is worthwhile.  I don't know.  Maybe.
 
 Thanks.
 
