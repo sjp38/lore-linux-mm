@@ -1,40 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 26E7B6B0032
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2013 10:15:03 -0400 (EDT)
-Date: Fri, 7 Jun 2013 16:15:00 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v10 00/35] kmemcg shrinkers
-Message-ID: <20130607141500.GH8117@dhcp22.suse.cz>
-References: <1370287804-3481-1-git-send-email-glommer@openvz.org>
- <20130605160721.da995af82eb247ccf8f8537f@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 1D8CD6B0033
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2013 10:16:10 -0400 (EDT)
+Message-ID: <51B1EB25.9000509@yandex-team.ru>
+Date: Fri, 07 Jun 2013 18:16:05 +0400
+From: Roman Gushchin <klamm@yandex-team.ru>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130605160721.da995af82eb247ccf8f8537f@linux-foundation.org>
+Subject: Re: [patch 09/10] mm: thrash detection-based file cache sizing
+References: <1369937046-27666-1-git-send-email-hannes@cmpxchg.org> <1369937046-27666-10-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1369937046-27666-10-git-send-email-hannes@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, metin d <metdos@yahoo.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
 
-On Wed 05-06-13 16:07:21, Andrew Morton wrote:
-[...]
-> This patchset is huge.
+On 30.05.2013 22:04, Johannes Weiner wrote:
+> +/*
+> + * Monotonic workingset clock for non-resident pages.
+> + *
+> + * The refault distance of a page is the number of ticks that occurred
+> + * between that page's eviction and subsequent refault.
+> + *
+> + * Every page slot that is taken away from the inactive list is one
+> + * more slot the inactive list would have to grow again in order to
+> + * hold the current non-resident pages in memory as well.
+> + *
+> + * As the refault distance needs to reflect the space missing on the
+> + * inactive list, the workingset time is advanced every time the
+> + * inactive list is shrunk.  This means eviction, but also activation.
+> + */
+> +static atomic_long_t workingset_time;
 
-yes it is really huge which is made it lower on the todo list because
-other things always preempted it.
- 
-> My overall take is that the patchset is massive and intrusive and scary
-> :( I'd like to see more evidence that the memcg people (mhocko, hannes,
-> kamezawa etc) have spent quality time reviewing and testing this code. 
-> There really is a lot of it!
+It seems strange to me, that workingset_time is global.
+Don't you want to make it per-cgroup?
 
-I only following discussions right now, and I wasn't even able to catch
-up on those. I plan to review memcg parts soon, but cannot give any
-estimate. I am sorry for that but the time doesn't allow me.
--- 
-Michal Hocko
-SUSE Labs
+Two more questions:
+1) do you plan to take fadvise's into account somehow?
+2) do you plan to use workingset information to enhance
+	the readahead mechanism?
+
+Thanks!
+
+Regards,
+Roman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
