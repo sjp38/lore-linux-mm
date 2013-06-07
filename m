@@ -1,107 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id E71E76B0032
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 23:55:39 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Fri, 7 Jun 2013 13:49:46 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id BB7B42BB0051
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2013 13:55:30 +1000 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r573erw466191382
-	for <linux-mm@kvack.org>; Fri, 7 Jun 2013 13:40:54 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r573tSoq024759
-	for <linux-mm@kvack.org>; Fri, 7 Jun 2013 13:55:29 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH -V7 09/18] powerpc: Switch 16GB and 16MB explicit hugepages to a different page table format
-In-Reply-To: <1370558559.32518.4@snotra>
-References: <1367177859-7893-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1367177859-7893-10-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1370558559.32518.4@snotra>
-Date: Fri, 07 Jun 2013 09:25:22 +0530
-Message-ID: <87zjv2wp5h.fsf@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 3ED886B0032
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2013 02:03:07 -0400 (EDT)
+Message-ID: <51B177C9.5020704@parallels.com>
+Date: Fri, 7 Jun 2013 10:03:53 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: Re: [PATCH v10 03/35] dcache: convert dentry_stat.nr_unused to per-cpu
+ counters
+References: <1370287804-3481-1-git-send-email-glommer@openvz.org> <1370287804-3481-4-git-send-email-glommer@openvz.org> <20130605160731.91a5cd3ff700367f5e155d83@linux-foundation.org> <20130606014509.GN29338@dastard> <20130605194801.f9b25abf.akpm@linux-foundation.org> <51B0834A.8020606@parallels.com> <20130606152546.52f614d852da32d28a0b460f@linux-foundation.org> <20130606234204.GF29338@dastard>
+In-Reply-To: <20130606234204.GF29338@dastard>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Scott Wood <scottwood@freescale.com>
-Cc: benh@kernel.crashing.org, paulus@samba.org, dwg@au1.ibm.com, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Scott Wood <scottwood@freescale.com> writes:
+On 06/07/2013 03:42 AM, Dave Chinner wrote:
+> On Thu, Jun 06, 2013 at 03:25:46PM -0700, Andrew Morton wrote:
+>> On Thu, 6 Jun 2013 16:40:42 +0400 Glauber Costa <glommer@parallels.com> wrote:
+>>
+>>> +/*
+>>> + * Here we resort to our own counters instead of using generic per-cpu counters
+>>> + * for consistency with what the vfs inode code does. We are expected to harvest
+>>> + * better code and performance by having our own specialized counters.
+>>> + *
+>>> + * Please note that the loop is done over all possible CPUs, not over all online
+>>> + * CPUs. The reason for this is that we don't want to play games with CPUs going
+>>> + * on and off. If one of them goes off, we will just keep their counters.
+>>> + *
+>>> + * glommer: See cffbc8a for details, and if you ever intend to change this,
+>>> + * please update all vfs counters to match.
+>>
+>> Handling CPU hotplug is really quite simple - see lib/percpu_counter.c
+> 
+> Yes, it is - you're preaching to the choir, Andrew.
+> 
+> But, well, if you want us to add notifiers to optimise the summation
+> to just the active CPUs, then lets just covert the code to use the
+> generic per-cpu counters and stop wasting time rehashing tired old
+> arguments.
+> 
 
-> On 04/28/2013 02:37:30 PM, Aneesh Kumar K.V wrote:
->> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
->> 
->> We will be switching PMD_SHIFT to 24 bits to facilitate THP  
->> impmenetation.
->> With PMD_SHIFT set to 24, we now have 16MB huge pages allocated at  
->> PGD level.
->> That means with 32 bit process we cannot allocate normal pages at
->> all, because we cover the entire address space with one pgd entry.  
->> Fix this
->> by switching to a new page table format for hugepages. With the new  
->> page table
->> format for 16GB and 16MB hugepages we won't allocate hugepage  
->> directory. Instead
->> we encode the PTE information directly at the directory level. This  
->> forces 16MB
->> hugepage at PMD level. This will also make the page take walk much  
->> simpler later
->> when we add the THP support.
->> 
->> With the new table format we have 4 cases for pgds and pmds:
->> (1) invalid (all zeroes)
->> (2) pointer to next table, as normal; bottom 6 bits == 0
->> (3) leaf pte for huge page, bottom two bits != 00
->> (4) hugepd pointer, bottom two bits == 00, next 4 bits indicate size  
->> of table
->> 
->> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
->> ---
->>  arch/powerpc/include/asm/page.h    |   2 +
->>  arch/powerpc/include/asm/pgtable.h |   2 +
->>  arch/powerpc/mm/gup.c              |  18 +++-
->>  arch/powerpc/mm/hugetlbpage.c      | 176  
->> +++++++++++++++++++++++++++++++------
->>  4 files changed, 168 insertions(+), 30 deletions(-)
->
-> After this patch, on 64-bit book3e (e5500, and thus 4K pages), I see  
-> messages like this after exiting a program that uses hugepages  
-> (specifically, qemu):
->
-> /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd  
-> 40000001fc221516.
-> /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd  
-> 40000001fc221516.
-> /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd  
-> 40000001fc2214d6.
-> /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd  
-> 40000001fc2214d6.
-> /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd  
-> 40000001fc221916.
-> /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd  
-> 40000001fc221916.
-> /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd  
-> 40000001fc2218d6.
-> /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd  
-> 40000001fc2218d6.
-> /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd  
-> 40000001fc221496.
-> /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd  
-> 40000001fc221496.
-> /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd  
-> 40000001fc221856.
-> /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd  
-> 40000001fc221856.
-> /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd  
-> 40000001fc221816.
+It is not even only this. I had this very same discussion a while ago
+with Kamezawa - memcg also uses its own percpu counters. If my mind does
+not betray me, that was because the patterns generated for a
+percpu_counter array are quite bad. So this is not the single offender.
+(And again, I came up with the "why not percpu counters" as soon as Dave
+posted this patch for the first time).
 
-hmm that implies some of the code paths are not properly #ifdef.
-The goal was to limit the new format CONFIG_PPC_BOOK3S_64 as seen in the
-definition of huge_pte_alloc. Can you send me the .config ?
+One thing that it seems to indicate is that the percpu counters are too
+generic, and maybe could use some work.
 
--aneesh
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
