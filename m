@@ -1,80 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 129386B0033
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2013 03:37:57 -0400 (EDT)
-Date: Fri, 7 Jun 2013 09:37:54 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 3/3] memcg: simplify mem_cgroup_reclaim_iter
-Message-ID: <20130607073754.GA8117@dhcp22.suse.cz>
-References: <20130605082023.GG7303@mtj.dyndns.org>
- <20130605143949.GQ15576@cmpxchg.org>
- <20130605172212.GA10693@mtj.dyndns.org>
- <20130605194552.GI15721@cmpxchg.org>
- <20130605200612.GH10693@mtj.dyndns.org>
- <20130605211704.GJ15721@cmpxchg.org>
- <20130605222021.GL10693@mtj.dyndns.org>
- <20130605222709.GM10693@mtj.dyndns.org>
- <20130606115031.GE7909@dhcp22.suse.cz>
- <20130607005242.GB16160@htj.dyndns.org>
+	by kanga.kvack.org (Postfix) with SMTP id 7964F6B0033
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2013 04:03:52 -0400 (EDT)
+Message-ID: <51B1941C.80707@parallels.com>
+Date: Fri, 7 Jun 2013 12:04:44 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130607005242.GB16160@htj.dyndns.org>
+Subject: Re: [PATCH v11 00/25] shrinkers rework: per-numa, generic lists,
+ etc
+References: <1370550898-26711-1-git-send-email-glommer@openvz.org> <20130606141501.72d80a9a5c7bce4c4a002906@linux-foundation.org>
+In-Reply-To: <20130606141501.72d80a9a5c7bce4c4a002906@linux-foundation.org>
+Content-Type: multipart/mixed;
+	boundary="------------040000060903070107070709"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, bsingharora@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org, lizefan@huawei.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, mgorman@suse.de, david@fromorbit.com, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suze.cz, hannes@cmpxchg.org, hughd@google.com, gthelen@google.com
 
-On Thu 06-06-13 17:52:42, Tejun Heo wrote:
-> Hello,
+--------------040000060903070107070709
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
+
+On 06/07/2013 01:15 AM, Andrew Morton wrote:
+> On Fri,  7 Jun 2013 00:34:33 +0400 Glauber Costa <glommer@openvz.org> wrote:
 > 
-> On Thu, Jun 06, 2013 at 01:50:31PM +0200, Michal Hocko wrote:
-> > > Also, do we need to hold a lock?  It doesn't have to be completely
-> > > strict, so we might as well get away with something like,
-> > > 
-> > > 	for_each_cached_pos() {
-> > > 		if (hint == me) {
-> > > 			/* simple clearing implementation, we prolly wanna push it forward */
-> > > 			cached = xchg(hint, NULL);
-> > > 			if (cached)
-> > > 				css_put(cached);
-> > > 		}
-> > > 	}
-> > 
-> > This would be racy:
-> > mem_cgroup_iter
-> >   rcu_read_lock
-> >   __mem_cgroup_iter_next		cgroup_destroy_locked
-> >     css_tryget(memcg)
-> >   					  atomic_add(CSS_DEACT_BIAS)
-> >     					  offline_css(memcg)
-> > 					    xchg(memcg, NULL)
-> >   mem_cgroup_iter_update
-> >     iter->last_visited = memcg
-> >   rcy_read_unlock
-> > 
-> > But if it was called from call_rcu the we should be safe AFAICS.
+>> Andrew,
+>>
+>> I believe I have addressed most of your comments, while attempting to address
+>> all of them. If there is anything I have missed after this long day, let me
+>> know and I will go over it promptly.
 > 
-> Oh yeah, it is racy.  That's what I meant by "not having to be
-> completely strict".  The race window is small enough and it's not like
-> we're messing up refcnt or may end up with use-after-free. 
-
-But it would potentially pin (aka leak) the memcg for ever.
-
-> Doing it from RCU would make the race go away but I'm not sure whether
-> the extra RCU bouncing is worthwhile.  I don't know.  Maybe.
+> I'll trust you - I've had my fill of costacode this week ;)
 > 
-> Thanks.
+> Can you send over a nice introductory [patch 0/n] as an overview of the
+> whole series?
 > 
-> -- 
-> tejun
+here it is.
 
--- 
-Michal Hocko
-SUSE Labs
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+--------------040000060903070107070709
+Content-Type: text/x-patch; name="0000-cover-letter.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename="0000-cover-letter.patch"
+
+
+--------------040000060903070107070709--
