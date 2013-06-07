@@ -1,323 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id B7CEA6B0032
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2013 10:10:45 -0400 (EDT)
-Date: Fri, 7 Jun 2013 10:10:27 -0400
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCH v11 20/25] drivers: convert shrinkers to new count/scan
- API
-Message-ID: <20130607141027.GH25649@phenom.dumpdata.com>
-References: <1370550898-26711-1-git-send-email-glommer@openvz.org>
- <1370550898-26711-21-git-send-email-glommer@openvz.org>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 87C466B0032
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2013 10:12:07 -0400 (EDT)
+Date: Fri, 7 Jun 2013 16:12:04 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] memcg: do not account memory used for cache creation
+Message-ID: <20130607141204.GG8117@dhcp22.suse.cz>
+References: <1370355059-24968-1-git-send-email-glommer@openvz.org>
+ <20130607092132.GE8117@dhcp22.suse.cz>
+ <51B1B1E9.1020701@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1370550898-26711-21-git-send-email-glommer@openvz.org>
+In-Reply-To: <51B1B1E9.1020701@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@openvz.org>
-Cc: akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, mgorman@suse.de, david@fromorbit.com, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suze.cz, hannes@cmpxchg.org, hughd@google.com, gthelen@google.com, Dave Chinner <dchinner@redhat.com>, Daniel Vetter <daniel.vetter@ffwll.ch>, Kent Overstreet <koverstreet@google.com>, Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>, John Stultz <john.stultz@linaro.org>, David Rientjes <rientjes@google.com>, Jerome Glisse <jglisse@redhat.com>, Thomas Hellstrom <thellstrom@vmware.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com
 
-On Fri, Jun 07, 2013 at 12:34:53AM +0400, Glauber Costa wrote:
-> From: Dave Chinner <dchinner@redhat.com>
+On Fri 07-06-13 14:11:53, Glauber Costa wrote:
+> On 06/07/2013 01:21 PM, Michal Hocko wrote:
+> > On Tue 04-06-13 18:10:59, Glauber Costa wrote:
+> >> The memory we used to hold the memcg arrays is currently accounted to
+> >> the current memcg.
+> > 
+> > Maybe I have missed a train but I thought that only some caches are
+> > tracked and those have to be enabled explicitly by using __GFP_KMEMCG in
+> > gfp flags.
 > 
-> Convert the driver shrinkers to the new API. Most changes are
-> compile tested only because I either don't have the hardware or it's
-> staging stuff.
+> No, all caches are tracked. This was set a long time ago, and only a
+> very few initial versions differed from this. This barely changed over
+> the lifetime of the memcg patchset.
 > 
-> FWIW, the md and android code is pretty good, but the rest of it
-> makes me want to claw my eyes out.  The amount of broken code I just
-> encountered is mind boggling.  I've added comments explaining what
-> is broken, but I fear that some of the code would be best dealt with
-> by being dragged behind the bike shed, burying in mud up to it's
-> neck and then run over repeatedly with a blunt lawn mower.
+> You probably got confused, due to the fact that only some *allocations*
 
-The rest being i915, ttm, bcache- etc ?
+OK, I was really imprecise. Of course any type of cache might be tracked
+should the allocation (which takes gfp) say so. What I have missed is
+that not only stack allocations say so but also kmalloc itself enforces
+that rather than the actual caller of kmalloc. This is definitely new
+to me. And it is quite confusing that the flag is set only for large
+allocations (kmalloc_order) or am I just missing other parts where
+__GFP_KMEMCG is set unconditionally?
 
+I really have to go and dive into the code.
+
+> are tracked, but in particular, all cache + stack ones are. All child
+> caches that are created set the __GFP_KMEMCG flag, because those pages
+> should all belong to a cgroup.
 > 
-> Special mention goes to the zcache/zcache2 drivers. They can't
-> co-exist in the build at the same time, they are under different
-> menu options in menuconfig, they only show up when you've got the
-> right set of mm subsystem options configured and so even compile
-> testing is an exercise in pulling teeth.  And that doesn't even take
-> into account the horrible, broken code...
+> > 
+> > But d79923fa "sl[au]b: allocate objects from memcg cache" seems to be
+> > setting gfp unconditionally for large caches. The changelog doesn't
+> > explain why, though? This is really confusing.
+> For all caches.
+> 
+> Again, not all *allocations* are market, but all cache allocations are.
+> All pages that belong to a memcg cache should obviously be accounted.
 
-Now that you have rebased it, did you still see issues here.
+What is memcg cache?
 
-> diff --git a/drivers/gpu/drm/ttm/ttm_page_alloc.c b/drivers/gpu/drm/ttm/ttm_page_alloc.c
-> index bd2a3b4..1746f30 100644
-> --- a/drivers/gpu/drm/ttm/ttm_page_alloc.c
-> +++ b/drivers/gpu/drm/ttm/ttm_page_alloc.c
-> @@ -377,28 +377,26 @@ out:
->  	return nr_free;
->  }
->  
-> -/* Get good estimation how many pages are free in pools */
-> -static int ttm_pool_get_num_unused_pages(void)
-> -{
-> -	unsigned i;
-> -	int total = 0;
-> -	for (i = 0; i < NUM_POOLS; ++i)
-> -		total += _manager->pools[i].npages;
-> -
-> -	return total;
-> -}
-> -
+Sorry about the offtopic question but why only large allocations are
+marked for tracking? The changelog doesn't mention that.
+ 
+> >> But that creates a problem, because that memory can
+> >> only be freed after the last user is gone. Our only way to know which is
+> >> the last user, is to hook up to freeing time, but the fact that we still
+> >> have some in flight kmallocs will prevent freeing to happen. I believe
+> >> therefore to be just easier to account this memory as global overhead.
+> > 
+> > No internal allocations for memcg can be tracked otherwise we call for a
+> > problem. How do we know that others are safe?
+> > 
+> 
+> We really need to inspect that. But in particular, all memory that is
+> allocated before kmemcg becomes active is safe. Which means that struct
+> memcg and all the memory it uses is safe (it will be likely billed to
+> the parent, but that is perfectly fine).
 
-I am unclear as of why you move this.
->  /**
->   * Callback for mm to request pool to reduce number of page held.
-> + *
-> + * XXX: (dchinner) Deadlock warning!
-> + *
-> + * ttm_page_pool_free() does memory allocation using GFP_KERNEL.  that means
+Or the creator of the group which might be an admin. This sounds it
+should be safe as well.
 
-That
-> + * this can deadlock when called a sc->gfp_mask that is not equal to
-> + * GFP_KERNEL.
-> + *
-> + * This code is crying out for a shrinker per pool....
+> It is also not correct to state that no memcg memory should be tracked.
+> All memory allocated on behalf of a process, in particular, memcg
+> memory, should in general be tracked. It is just memory, after all. The
+> problem is not so much the fact that it is memcg memory, but it's lifetime.
+> 
+> For the record, using the memory.dangling debug file, I see all memcgs
+> successfully going away after this patch + global pressure to force all
+> objects to go away.
+> 
+> 
+> >> Signed-off-by: Glauber Costa <glommer@openvz.org>
+> >> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> >> Cc: Michal Hocko <mhocko@suse.cz>
+> >> Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> >>
+> >> ---
+> >> I noticed this while testing nuances of the shrinker patches. The
+> >> caches would basically stay present forever, even if we managed to
+> >> flush all of the actual memory being used. With this patch applied,
+> >> they would go away all right.
+> >> ---
+> >>  mm/memcontrol.c | 2 ++
+> >>  1 file changed, 2 insertions(+)
+> >>
+> >> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> >> index 5d8b93a..aa1cbd4 100644
+> >> --- a/mm/memcontrol.c
+> >> +++ b/mm/memcontrol.c
+> >> @@ -5642,7 +5642,9 @@ static int memcg_propagate_kmem(struct mem_cgroup *memcg)
+> >>  	static_key_slow_inc(&memcg_kmem_enabled_key);
+> >>  
+> >>  	mutex_lock(&set_limit_mutex);
+> >> +	memcg_stop_kmem_account();
+> >>  	ret = memcg_update_cache_sizes(memcg);
+> >> +	memcg_resume_kmem_account();
+> >>  	mutex_unlock(&set_limit_mutex);
+> >>  out:
+> >>  	return ret;
+> >> -- 
+> >> 1.8.1.4
+> >>
+> >> --
+> >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> >> the body to majordomo@kvack.org.  For more info on Linux MM,
+> >> see: http://www.linux-mm.org/ .
+> >> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> > 
+> 
 
-It iterates over different pools.
-
-
-The ttm_page_pool_free() could use GFP_ATOMIC to guard against the dead-lock
-I think?
-
->   */
-> -static int ttm_pool_mm_shrink(struct shrinker *shrink,
-> -			      struct shrink_control *sc)
-> +static long
-> +ttm_pool_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
->  {
->  	static atomic_t start_pool = ATOMIC_INIT(0);
->  	unsigned i;
->  	unsigned pool_offset = atomic_add_return(1, &start_pool);
->  	struct ttm_page_pool *pool;
->  	int shrink_pages = sc->nr_to_scan;
-> +	long freed = 0;
->  
->  	pool_offset = pool_offset % NUM_POOLS;
->  	/* select start pool in round robin fashion */
-> @@ -408,14 +406,28 @@ static int ttm_pool_mm_shrink(struct shrinker *shrink,
->  			break;
->  		pool = &_manager->pools[(i + pool_offset)%NUM_POOLS];
->  		shrink_pages = ttm_page_pool_free(pool, nr_free);
-> +		freed += nr_free - shrink_pages;
->  	}
-> -	/* return estimated number of unused pages in pool */
-> -	return ttm_pool_get_num_unused_pages();
-> +	return freed;
-> +}
-> +
-> +
-> +static long
-> +ttm_pool_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
-> +{
-> +	unsigned i;
-> +	long count = 0;
-> +
-> +	for (i = 0; i < NUM_POOLS; ++i)
-> +		count += _manager->pools[i].npages;
-> +
-> +	return count;
->  }
->  
->  static void ttm_pool_mm_shrink_init(struct ttm_pool_manager *manager)
->  {
-> -	manager->mm_shrink.shrink = &ttm_pool_mm_shrink;
-> +	manager->mm_shrink.count_objects = &ttm_pool_shrink_count;
-> +	manager->mm_shrink.scan_objects = &ttm_pool_shrink_scan;
->  	manager->mm_shrink.seeks = 1;
->  	register_shrinker(&manager->mm_shrink);
->  }
-> diff --git a/drivers/gpu/drm/ttm/ttm_page_alloc_dma.c b/drivers/gpu/drm/ttm/ttm_page_alloc_dma.c
-> index b8b3943..dc009f1 100644
-> --- a/drivers/gpu/drm/ttm/ttm_page_alloc_dma.c
-> +++ b/drivers/gpu/drm/ttm/ttm_page_alloc_dma.c
-> @@ -918,19 +918,6 @@ int ttm_dma_populate(struct ttm_dma_tt *ttm_dma, struct device *dev)
->  }
->  EXPORT_SYMBOL_GPL(ttm_dma_populate);
->  
-> -/* Get good estimation how many pages are free in pools */
-> -static int ttm_dma_pool_get_num_unused_pages(void)
-> -{
-> -	struct device_pools *p;
-> -	unsigned total = 0;
-> -
-> -	mutex_lock(&_manager->lock);
-> -	list_for_each_entry(p, &_manager->pools, pools)
-> -		total += p->pool->npages_free;
-> -	mutex_unlock(&_manager->lock);
-> -	return total;
-> -}
-> -
->  /* Put all pages in pages list to correct pool to wait for reuse */
->  void ttm_dma_unpopulate(struct ttm_dma_tt *ttm_dma, struct device *dev)
->  {
-> @@ -1002,18 +989,29 @@ EXPORT_SYMBOL_GPL(ttm_dma_unpopulate);
->  
->  /**
->   * Callback for mm to request pool to reduce number of page held.
-> + *
-> + * XXX: (dchinner) Deadlock warning!
-> + *
-> + * ttm_dma_page_pool_free() does GFP_KERNEL memory allocation, and so attention
-> + * needs to be paid to sc->gfp_mask to determine if this can be done or not.
-> + * GFP_KERNEL memory allocation in a GFP_ATOMIC reclaim context woul dbe really
-> + * bad.
-
-would be.
-> + *
-> + * I'm getting sadder as I hear more pathetical whimpers about needing per-pool
-> + * shrinkers
-
-Were are these whimpers coming from?
-
->   */
-> -static int ttm_dma_pool_mm_shrink(struct shrinker *shrink,
-> -				  struct shrink_control *sc)
-> +static long
-> +ttm_dma_pool_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
->  {
->  	static atomic_t start_pool = ATOMIC_INIT(0);
->  	unsigned idx = 0;
->  	unsigned pool_offset = atomic_add_return(1, &start_pool);
->  	unsigned shrink_pages = sc->nr_to_scan;
->  	struct device_pools *p;
-> +	long freed = 0;
->  
->  	if (list_empty(&_manager->pools))
-> -		return 0;
-> +		return SHRINK_STOP;
->  
->  	mutex_lock(&_manager->lock);
->  	pool_offset = pool_offset % _manager->npools;
-> @@ -1029,18 +1027,33 @@ static int ttm_dma_pool_mm_shrink(struct shrinker *shrink,
->  			continue;
->  		nr_free = shrink_pages;
->  		shrink_pages = ttm_dma_page_pool_free(p->pool, nr_free);
-> +		freed += nr_free - shrink_pages;
-> +
->  		pr_debug("%s: (%s:%d) Asked to shrink %d, have %d more to go\n",
->  			 p->pool->dev_name, p->pool->name, current->pid,
->  			 nr_free, shrink_pages);
->  	}
->  	mutex_unlock(&_manager->lock);
-> -	/* return estimated number of unused pages in pool */
-> -	return ttm_dma_pool_get_num_unused_pages();
-> +	return freed;
-> +}
-
-That code looks good.
-> +
-> +static long
-> +ttm_dma_pool_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
-> +{
-> +	struct device_pools *p;
-> +	long count = 0;
-> +
-> +	mutex_lock(&_manager->lock);
-> +	list_for_each_entry(p, &_manager->pools, pools)
-> +		count += p->pool->npages_free;
-> +	mutex_unlock(&_manager->lock);
-> +	return count;
->  }
-
-But this needn't to be moved? Or is it b/c you would like the code to
-be in "one section" ?
-
-If so, please use the same style for functions as the rest of the file
-has.
-
->  
->  static void ttm_dma_pool_mm_shrink_init(struct ttm_pool_manager *manager)
->  {
-> -	manager->mm_shrink.shrink = &ttm_dma_pool_mm_shrink;
-> +	manager->mm_shrink.count_objects = &ttm_dma_pool_shrink_count;
-> +	manager->mm_shrink.scan_objects = &ttm_dma_pool_shrink_scan;
->  	manager->mm_shrink.seeks = 1;
->  	register_shrinker(&manager->mm_shrink);
->  }
-
-.. snip..
-> diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
-> index dcceed2..4ade8e3 100644
-> --- a/drivers/staging/zcache/zcache-main.c
-> +++ b/drivers/staging/zcache/zcache-main.c
-> @@ -1140,23 +1140,19 @@ static bool zcache_freeze;
->   * pageframes in use.  FIXME POLICY: Probably the writeback should only occur
->   * if the eviction doesn't free enough pages.
->   */
-> -static int shrink_zcache_memory(struct shrinker *shrink,
-> -				struct shrink_control *sc)
-> +static long scan_zcache_memory(struct shrinker *shrink,
-> +			       struct shrink_control *sc)
->  {
->  	static bool in_progress;
-> -	int ret = -1;
-> -	int nr = sc->nr_to_scan;
->  	int nr_evict = 0;
->  	int nr_writeback = 0;
->  	struct page *page;
->  	int  file_pageframes_inuse, anon_pageframes_inuse;
-> -
-> -	if (nr <= 0)
-> -		goto skip_evict;
-> +	long freed = 0;
->  
->  	/* don't allow more than one eviction thread at a time */
->  	if (in_progress)
-> -		goto skip_evict;
-> +		return 0;
->  
->  	in_progress = true;
->  
-> @@ -1176,6 +1172,7 @@ static int shrink_zcache_memory(struct shrinker *shrink,
->  		if (page == NULL)
->  			break;
->  		zcache_free_page(page);
-> +		freed++;
->  	}
->  
->  	zcache_last_active_anon_pageframes =
-> @@ -1192,13 +1189,22 @@ static int shrink_zcache_memory(struct shrinker *shrink,
->  #ifdef CONFIG_ZCACHE_WRITEBACK
->  		int writeback_ret;
->  		writeback_ret = zcache_frontswap_writeback();
-> -		if (writeback_ret == -ENOMEM)
-> +		if (writeback_ret != -ENOMEM)
-> +			freed++;
-> +		else
->  #endif
->  			break;
->  	}
->  	in_progress = false;
->  
-> -skip_evict:
-> +	return freed;
-> +}
-> +
-> +static long count_zcache_memory(struct shrinker *shrink,
-> +				struct shrink_control *sc)
-> +{
-> +	int ret = -1;
-> +
->  	/* resample: has changed, but maybe not all the way yet */
->  	zcache_last_active_file_pageframes =
->  		global_page_state(NR_LRU_BASE + LRU_ACTIVE_FILE);
-> @@ -1212,7 +1218,8 @@ skip_evict:
->  }
->  
->  static struct shrinker zcache_shrinker = {
-> -	.shrink = shrink_zcache_memory,
-> +	.scan_objects = scan_zcache_memory,
-> +	.count_objects = count_zcache_memory,
->  	.seeks = DEFAULT_SEEKS,
->  };
->  
-
-That looks OK, but I think it needs an Ack from Greg KH as well?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
