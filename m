@@ -1,124 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id BE7DC6B0032
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 20:02:34 -0400 (EDT)
-Date: Thu, 6 Jun 2013 20:02:22 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 2/2] memcg: do not sleep on OOM waitqueue with full
- charge context
-Message-ID: <20130607000222.GT15576@cmpxchg.org>
-References: <1370488193-4747-1-git-send-email-hannes@cmpxchg.org>
- <1370488193-4747-2-git-send-email-hannes@cmpxchg.org>
- <alpine.DEB.2.02.1306052058340.25115@chino.kir.corp.google.com>
- <20130606053315.GB9406@cmpxchg.org>
- <20130606173355.GB27226@cmpxchg.org>
- <alpine.DEB.2.02.1306061308320.9493@chino.kir.corp.google.com>
- <20130606215425.GM15721@cmpxchg.org>
- <alpine.DEB.2.02.1306061507330.15503@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 9C0D56B0032
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 20:48:30 -0400 (EDT)
+Received: by mail-qe0-f41.google.com with SMTP id b4so2397026qen.14
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2013 17:48:29 -0700 (PDT)
+Date: Thu, 6 Jun 2013 17:48:24 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [patch -v4 4/8] memcg: enhance memcg iterator to support
+ predicates
+Message-ID: <20130607004824.GA16160@htj.dyndns.org>
+References: <20130604134523.GH31242@dhcp22.suse.cz>
+ <20130604193619.GA14916@htj.dyndns.org>
+ <20130604204807.GA13231@dhcp22.suse.cz>
+ <20130604205426.GI14916@htj.dyndns.org>
+ <20130605073728.GC15997@dhcp22.suse.cz>
+ <20130605080545.GF7303@mtj.dyndns.org>
+ <20130605085239.GF15997@dhcp22.suse.cz>
+ <20130605085849.GB7990@mtj.dyndns.org>
+ <20130605090739.GH15997@dhcp22.suse.cz>
+ <20130605090938.GA8266@mtj.dyndns.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1306061507330.15503@chino.kir.corp.google.com>
+In-Reply-To: <20130605090938.GA8266@mtj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Glauber Costa <glommer@parallels.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>, Balbir Singh <bsingharora@gmail.com>
 
-On Thu, Jun 06, 2013 at 03:18:37PM -0700, David Rientjes wrote:
-> On Thu, 6 Jun 2013, Johannes Weiner wrote:
+On Wed, Jun 05, 2013 at 02:09:38AM -0700, Tejun Heo wrote:
+> On Wed, Jun 05, 2013 at 11:07:39AM +0200, Michal Hocko wrote:
+> > On Wed 05-06-13 01:58:49, Tejun Heo wrote:
+> > [...]
+> > > Anyways, so you aren't gonna try the skipping thing?
+> > 
+> > As I said. I do not consider this a priority for the said reasons (i
+> > will not repeat them).
 > 
-> > > I don't understand why memcg is unique in this regard and it doesn't 
-> > > affect the page allocator as well on system oom conditions.  Ignoring 
-> > > memecg, all allocating processes will loop forever in the page allocator 
-> > > unless there are atypical gfp flags waiting for memory to be available, 
-> > > only one will call the oom killer at a time, a process is selected and 
-> > > killed, and the oom killer defers until that process exists because it 
-> > > finds TIF_MEMDIE.  Why is memcg charging any different?
-> > 
-> > The allocator wakes up kswapd, global OOMs are rarer, with physical
-> > memory the line to OOM is blurrier than with the memcg hard limit?
-> > 
-> > Anyway, I'm not aware of bug reports in the global case, but there are
-> > bug reports for the memcg case and we have a decent understanding of
-> > those deadlocks.  So can we stay focussed and fix this, please?
-> > 
-> 
-> Could you point me to those bug reports?  As far as I know, we have never 
-> encountered them so it would be surprising to me that we're running with a 
-> potential landmine and have seemingly never hit it.
+> That's a weird way to respond.  Alright, whatever, let me give it a
+> shot then.
 
-Sure thing: https://lkml.org/lkml/2012/11/21/497
+So, there were some private exchanges and here's my main issue with
+the addition of predicate callback to mem_cgroup_iter_cond().
 
-During that thread Michal pinned down the problem to i_mutex being
-held by the OOM invoking task, which the selected victim is trying to
-acquire.
+There are two common patterns that are used to implement iteration.
+One is the good ol' callback based one - ie. call_fn_on_each(fn) type
+interface.  The other is something which can be used as part of flow
+control by the user - be it give_me_next_elem() or for_each() type
+loop macro.  In majority of cases, especially for anything generic,
+the latter is considered to be the better choice because, while a bit
+more challenging to implement usually, it's a lot less cumbersome for
+the users of the interface.
 
-> > > > Reported-by: Reported-by: azurIt <azurit@pobox.sk>
-> > > > Debugged-by: Michal Hocko <mhocko@suse.cz>
-> > > > Reported-by: David Rientjes <rientjes@google.com>
-> > > 
-> > > What exactly did I report?  This isn't at all what 
-> > > memory.oom_delay_millisecs is about, which is a failure of userspace to 
-> > > respond to the condition and react in time, not because it's stuck on any 
-> > > lock.  We still need that addition regardless of what you're doing here.
-> > 
-> > Oh, tell me how getting stuck indefinitely on a lock will not result
-> > in "a failure to react in time".  This is some seriously misguided
-> > pedantry.
-> > 
-> 
-> It certainly would, but it's not the point that memory.oom_delay_millisecs 
-> was intended to address.  memory.oom_delay_millisecs would simply delay 
-> calling mem_cgroup_out_of_memory() unless userspace can't free memory or 
-> increase the memory limit in time.  Obviously that delay isn't going to 
-> magically address any lock dependency issues.
+mem_cgroup_iter_cond() seems icky to me because the predicate callback
+is essentially visit callback, so now we end up with
+give_me_next_elem() with visit callback, which is fundamentally
+superflous.  If it were properly call_fn_on_each(fn), the return
+values would be CONTINUE, SKIP_SUBTREE or ABORT, which makes more
+sense to me.  Sure, it can be said that the predicate callback is for
+a different purpose but it really doesn't change that the interface
+now is visiting the same node in two different places.  If it were
+something remotely widely used, it won't take much time developing
+braindamaged usages where part is being done inside the predicate
+callback and the rest is done outside without clear reason why just
+because of natural code growth.  I don't think this is the type of
+construct that we want in kernel in general.
 
-The delayed fallback would certainly resolve the issue of the
-userspace handler getting stuck, be it due to memory shortness or due
-to locks.
+That said, it also is true that doing this is the shortest path to
+implementing subtree skip given how the iterator is put together
+currently and the series as a whole reduces significant amount of
+complexity, so it is an acceptable tradeoff to proceed with this
+implementation with later restructuring of the iterator.
 
-However, it would not solve the part of the problem where the OOM
-killing kernel task is holding locks that the victim requires to exit.
+So, let's go ahead as proposed.  I'll try to rework the iterator on
+top of it, and my aplogies to Michal for being over-the-top.
 
-We are definitely looking at multiple related issues, that's why I'm
-trying to fix them step by step.
+Thanks.
 
-> > And yes, you talked about deadlocking potential other than the handler
-> > itself OOMing, I quote from
-> > <alpine.DEB.2.02.1305301338430.20389@chino.kir.corp.google.com>:
-> > 
-> > "Unresponsiveness isn't necessarily only because of memory
-> >  constraints, you may have your oom notifier in a parent cgroup that
-> >  isn't oom.  If a process is stuck on mm->mmap_sem in the oom cgroup,
-> >  though, the oom notifier may not be able to scrape /proc/pid and
-> >  attain necessary information in making an oom kill decision."
-> > 
-> > These are your words, and my patch sets out to fix the described
-> > problem,
-> 
-> I can review this patch apart from memory.oom_delay_millisecs using the 
-> examples in your changelog, but this isn't the problem statement for my 
-> patch.  The paragraph above is describing one way that an oom handler may 
-> encounter issues, it's not the only way and it's not a way that we have 
-> ever faced on our production servers with memcg.  I just didn't think the 
-> above was me reporting a bug, perhaps you took it that way.
-
-Please do consider this fix individually.  It's good to know that you
-didn't run into this particular issue on your machines so far, but
-since you described the problem you must have arrived at the same
-conclusion by just reading the code, which was good enough for me.
-Again, I can just remove your Reported-by: if you don't think it's
-justified.
-
-> The point I'm trying to make is that your patch doesn't reduce our need 
-> for memory.oom_delay_millisecs as described in the thread for that patch.
-
-It does not.  But it does fix a problem that came up during the
-discussion and it does fix a problem that you may hit at a random
-point in time regardless of the memory.oom_delay_millisecs patch.
-
-I'm sorry for the confusion this created, but yes, it's a separate
-albeit related issue.
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
