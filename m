@@ -1,81 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id CAF476B0031
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2013 11:36:36 -0400 (EDT)
-Date: Fri, 7 Jun 2013 17:36:35 +0200
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id EB0D56B0031
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2013 11:54:09 -0400 (EDT)
+Date: Fri, 7 Jun 2013 17:54:06 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: OOM Killer and add_to_page_cache_locked
-Message-ID: <20130607153635.GJ8117@dhcp22.suse.cz>
-References: <51B05616.9050501@adocean-global.com>
- <20130606155323.GD24115@dhcp22.suse.cz>
- <51B1F8B3.8030108@adocean-global.com>
+Subject: Re: [PATCH] memcg: do not account memory used for cache creation
+Message-ID: <20130607155406.GL8117@dhcp22.suse.cz>
+References: <1370355059-24968-1-git-send-email-glommer@openvz.org>
+ <20130607092132.GE8117@dhcp22.suse.cz>
+ <51B1B1E9.1020701@parallels.com>
+ <20130607141204.GG8117@dhcp22.suse.cz>
+ <51B1F1FD.7000002@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51B1F8B3.8030108@adocean-global.com>
+In-Reply-To: <51B1F1FD.7000002@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Piotr Nowojski <piotr.nowojski@adocean-global.com>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Glauber Costa <glommer@gmail.com>
+Cc: Glauber Costa <glommer@parallels.com>, Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com
 
-On Fri 07-06-13 17:13:55, Piotr Nowojski wrote:
-> W dniu 06.06.2013 17:57, Michal Hocko pisze:
-> >>>In our system we have hit some very annoying situation (bug?) with
-> >>>cgroups. I'm writing to you, because I have found your posts on
-> >>>mailing lists with similar topic. Maybe you could help us or point
-> >>>some direction where to look for/ask.
+On Fri 07-06-13 18:45:17, Glauber Costa wrote:
+> On 06/07/2013 06:12 PM, Michal Hocko wrote:
+> >On Fri 07-06-13 14:11:53, Glauber Costa wrote:
+> >>On 06/07/2013 01:21 PM, Michal Hocko wrote:
+> >>>On Tue 04-06-13 18:10:59, Glauber Costa wrote:
+> >>>>The memory we used to hold the memcg arrays is currently accounted to
+> >>>>the current memcg.
 > >>>
-> >>>We have system with ~15GB RAM (+2GB SWAP), and we are running ~10
-> >>>heavy IO processes. Each process is using constantly 200-210MB RAM
-> >>>(RSS) and a lot of page cache. All processes are in cgroup with
-> >>>following limits:
-> >>>
-> >>>/sys/fs/cgroup/taskell2 $ cat memory.limit_in_bytes
-> >>>memory.memsw.limit_in_bytes
-> >>>14183038976
-> >>>15601344512
-> >I assume that memory.use_hierarchy is 1, right?
-> System has been rebooted since last test, so I can not guarantee
-> that it was set for 100%, but it should have been. Currently I'm
-> rerunning this scenario that lead to the described problem with:
-> 
-> /sys/fs/cgroup/taskell2# cat memory.use_hierarchy ../memory.use_hierarchy
-> 1
-> 0
-
-OK, good. Your numbers suggeste that the hierachy _is_ in use. I just
-wanted to be 100% sure.
-
-[...]
-> >The core thing to find out is why the hard limit reclaim is not able to
-> >free anything. Unfortunatelly we do not have memcg reclaim statistics so
-> >it would be a bit harder. I would start with the above patch first and
-> >then I can prepare some debugging patches for you.
-> I will try 3.6 (probably 3.7) kernel after weekend - unfortunately
-
-I would simply try 3.9 (stable) and skip those two.
-
-> repeating whole scenario is taking 10-30 hours because of very
-> slowly growing page cache.
-
-OK, this is good to know.
-
-> >Also does 3.4 vanila (or the stable kernel) behave the same way? Is the
-> >current vanilla behaving the same way?
-> I don't know, we are using standard kernel that comes from Ubuntu.
-
-yes, but I guess ubuntu, like any other distro puts some pathces on top
-of vanilla kernel.
-
-> >Finally, have you seen the issue for a longer time or it started showing
-> >up only now?
+> >>>Maybe I have missed a train but I thought that only some caches are
+> >>>tracked and those have to be enabled explicitly by using __GFP_KMEMCG in
+> >>>gfp flags.
+> >>
+> >>No, all caches are tracked. This was set a long time ago, and only a
+> >>very few initial versions differed from this. This barely changed over
+> >>the lifetime of the memcg patchset.
+> >>
+> >>You probably got confused, due to the fact that only some *allocations*
 > >
-> This system is very new. We have started testing scenario which
-> triggered OOM something like one week ago and we have immediately
-> hit this issue. Previously, with different scenarios and different
-> memory usage by processes we didn't have this issue.
+> >OK, I was really imprecise. Of course any type of cache might be tracked
+> >should the allocation (which takes gfp) say so. What I have missed is
+> >that not only stack allocations say so but also kmalloc itself enforces
+> >that rather than the actual caller of kmalloc. This is definitely new
+> >to me. And it is quite confusing that the flag is set only for large
+> >allocations (kmalloc_order) or am I just missing other parts where
+> >__GFP_KMEMCG is set unconditionally?
+> >
+> >I really have to go and dive into the code.
+> >
+> 
+> Here is where you are getting your confusion: we don't track caches,
+> we track *pages*.
+> 
+> Everytime you pass GFP_KMEMCG to a *page* allocation, it gets tracked.
+> Every memcg cache - IOW, a memcg copy of a slab cache, sets
+> GFP_KMEMCG for all its allocations.
+
+yes that is clear to me.
+
+> Now, the slub - and this is really an implementation detail -
+> doesn't have caches for high order kmalloc caches. Instead, it gets
+> pages directly from the page allocator. So we have to mark them
+> explicitly. (they are a cache, they are just not implemented as
+> such)
+
+I am still confused. If kmalloc_large_node is called because the size of
+the object is larger than SLUB_MAX_SIZE then __GFP_KMEMCG is added
+automatically regardless what _caller_ of kmalloc said. What am I
+missing?
+ 
+> The slab doesn't do that, so all kmalloc caches are just normal caches.
+> 
+> Also note that kmalloc is a *kind* of cache, but not *the caches*.
+> Here we are talking dentries, inodes, everything.
+
+> We track *pages* allocated for all those caches.
+
+Yes, that is clear.
+ 
+> >>are tracked, but in particular, all cache + stack ones are. All child
+> >>caches that are created set the __GFP_KMEMCG flag, because those pages
+> >>should all belong to a cgroup.
+> >>
+> >>>
+> >>>But d79923fa "sl[au]b: allocate objects from memcg cache" seems to be
+> >>>setting gfp unconditionally for large caches. The changelog doesn't
+> >>>explain why, though? This is really confusing.
+> >>For all caches.
+> >>
+> >>Again, not all *allocations* are market, but all cache allocations are.
+> >>All pages that belong to a memcg cache should obviously be accounted.
+> >
+> >What is memcg cache?
+> >
+> 
+> A memcg-local copy of a slab cache.
 
 OK
+ 
+> >Sorry about the offtopic question but why only large allocations are
+> >marked for tracking? The changelog doesn't mention that.
+> >
+> 
+> Don't worry about the question. As for the large allocations, I hope
+> the answer I provided below addresses it. If you are still not
+> getting it, let me know.
+> 
+> 
 
 -- 
 Michal Hocko
