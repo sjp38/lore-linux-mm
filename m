@@ -1,186 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 5BEF36B0032
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 21:27:24 -0400 (EDT)
-Message-ID: <51B136E2.4010606@huawei.com>
-Date: Fri, 7 Jun 2013 09:26:58 +0800
-From: Jianguo Wu <wujianguo@huawei.com>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id E71E76B0032
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 23:55:39 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Fri, 7 Jun 2013 13:49:46 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id BB7B42BB0051
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2013 13:55:30 +1000 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r573erw466191382
+	for <linux-mm@kvack.org>; Fri, 7 Jun 2013 13:40:54 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r573tSoq024759
+	for <linux-mm@kvack.org>; Fri, 7 Jun 2013 13:55:29 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH -V7 09/18] powerpc: Switch 16GB and 16MB explicit hugepages to a different page table format
+In-Reply-To: <1370558559.32518.4@snotra>
+References: <1367177859-7893-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1367177859-7893-10-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1370558559.32518.4@snotra>
+Date: Fri, 07 Jun 2013 09:25:22 +0530
+Message-ID: <87zjv2wp5h.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: Transparent Hugepage impact on memcpy
-References: <51ADAC15.1050103@huawei.com> <51AEAFD8.305@huawei.com> <CAMO-S2ixv55bGEFGR6Eh=UZgVBz=nv81EckuzWoVi0t4KdB+VA@mail.gmail.com>
-In-Reply-To: <CAMO-S2ixv55bGEFGR6Eh=UZgVBz=nv81EckuzWoVi0t4KdB+VA@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hitoshi Mitake <mitake@dcl.info.waseda.ac.jp>
-Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, qiuxishi <qiuxishi@huawei.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Hush Bensen <hush.bensen@gmail.com>, mitake.hitoshi@gmail.com
+To: Scott Wood <scottwood@freescale.com>
+Cc: benh@kernel.crashing.org, paulus@samba.org, dwg@au1.ibm.com, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
 
-Hi Hitoshi,
+Scott Wood <scottwood@freescale.com> writes:
 
-Thanks for your reply! please see below.
+> On 04/28/2013 02:37:30 PM, Aneesh Kumar K.V wrote:
+>> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+>> 
+>> We will be switching PMD_SHIFT to 24 bits to facilitate THP  
+>> impmenetation.
+>> With PMD_SHIFT set to 24, we now have 16MB huge pages allocated at  
+>> PGD level.
+>> That means with 32 bit process we cannot allocate normal pages at
+>> all, because we cover the entire address space with one pgd entry.  
+>> Fix this
+>> by switching to a new page table format for hugepages. With the new  
+>> page table
+>> format for 16GB and 16MB hugepages we won't allocate hugepage  
+>> directory. Instead
+>> we encode the PTE information directly at the directory level. This  
+>> forces 16MB
+>> hugepage at PMD level. This will also make the page take walk much  
+>> simpler later
+>> when we add the THP support.
+>> 
+>> With the new table format we have 4 cases for pgds and pmds:
+>> (1) invalid (all zeroes)
+>> (2) pointer to next table, as normal; bottom 6 bits == 0
+>> (3) leaf pte for huge page, bottom two bits != 00
+>> (4) hugepd pointer, bottom two bits == 00, next 4 bits indicate size  
+>> of table
+>> 
+>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+>> ---
+>>  arch/powerpc/include/asm/page.h    |   2 +
+>>  arch/powerpc/include/asm/pgtable.h |   2 +
+>>  arch/powerpc/mm/gup.c              |  18 +++-
+>>  arch/powerpc/mm/hugetlbpage.c      | 176  
+>> +++++++++++++++++++++++++++++++------
+>>  4 files changed, 168 insertions(+), 30 deletions(-)
+>
+> After this patch, on 64-bit book3e (e5500, and thus 4K pages), I see  
+> messages like this after exiting a program that uses hugepages  
+> (specifically, qemu):
+>
+> /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd  
+> 40000001fc221516.
+> /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd  
+> 40000001fc221516.
+> /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd  
+> 40000001fc2214d6.
+> /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd  
+> 40000001fc2214d6.
+> /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd  
+> 40000001fc221916.
+> /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd  
+> 40000001fc221916.
+> /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd  
+> 40000001fc2218d6.
+> /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd  
+> 40000001fc2218d6.
+> /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd  
+> 40000001fc221496.
+> /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd  
+> 40000001fc221496.
+> /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd  
+> 40000001fc221856.
+> /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd  
+> 40000001fc221856.
+> /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd  
+> 40000001fc221816.
 
-On 2013/6/6 21:54, Hitoshi Mitake wrote:
+hmm that implies some of the code paths are not properly #ifdef.
+The goal was to limit the new format CONFIG_PPC_BOOK3S_64 as seen in the
+definition of huge_pte_alloc. Can you send me the .config ?
 
-> Hi Jianguo,
-> 
-> On Wed, Jun 5, 2013 at 12:26 PM, Jianguo Wu <wujianguo@huawei.com> wrote:
->> Hi,
->> One more question, I wrote a memcpy test program, mostly the same as with perf bench memcpy.
->> But test result isn't consistent with perf bench when THP is off.
->>
->>         my program                              perf bench
->> THP:    3.628368 GB/Sec (with prefault)         3.672879 GB/Sec (with prefault)
->> NO-THP: 3.612743 GB/Sec (with prefault)         6.190187 GB/Sec (with prefault)
->>
->> Below is my code:
->>         src = calloc(1, len);
->>         dst = calloc(1, len);
->>
->>         if (prefault)
->>                 memcpy(dst, src, len);
->>         gettimeofday(&tv_start, NULL);
->>         memcpy(dst, src, len);
->>         gettimeofday(&tv_end, NULL);
->>
->>         timersub(&tv_end, &tv_start, &tv_diff);
->>         free(src);
->>         free(dst);
->>
->>         speed = (double)((double)len / timeval2double(&tv_diff));
->>         print_bps(speed);
->>
->> This is weird, is it possible that perf bench do some build optimize?
->>
->> Thansk,
->> Jianguo Wu.
-> 
-> perf bench mem memcpy is build with -O6. This is the compile command
-> line (you can get this with make V=1):
-> gcc -o bench/mem-memcpy-x86-64-asm.o -c -fno-omit-frame-pointer -ggdb3
-> -funwind-tables -Wall -Wextra -std=gnu99 -Werror -O6 .... # ommited
-> 
-> Can I see your compile option for your test program and the actual
-> command line executing perf bench mem memcpy?
-> 
-
-I just compiled my test program with gcc -o memcpy-test memcpy-test.c.
-I tried to use the same compile option with perf bench mem memcpy, and
-the test result showed no difference.
-
-My execute command line for perf bench mem memcpy:
-#./perf bench mem memcpy -l 1gb -o
-
-Thanks,
-Jianguo Wu
-
-> Thanks,
-> Hitoshi
-> 
->>
->> On 2013/6/4 16:57, Jianguo Wu wrote:
->>
->>> Hi all,
->>>
->>> I tested memcpy with perf bench, and found that in prefault case, When Transparent Hugepage is on,
->>> memcpy has worse performance.
->>>
->>> When THP on is 3.672879 GB/Sec (with prefault), while THP off is 6.190187 GB/Sec (with prefault).
->>>
->>> I think THP will improve performance, but the test result obviously not the case.
->>> Andrea mentioned THP cause "clear_page/copy_page less cache friendly" in
->>> http://events.linuxfoundation.org/slides/2011/lfcs/lfcs2011_hpc_arcangeli.pdf.
->>>
->>> I am not quite understand this, could you please give me some comments, Thanks!
->>>
->>> I test in Linux-3.4-stable, and my machine info is:
->>> Intel(R) Xeon(R) CPU           E5520  @ 2.27GHz
->>>
->>> available: 2 nodes (0-1)
->>> node 0 cpus: 0 1 2 3 8 9 10 11
->>> node 0 size: 24567 MB
->>> node 0 free: 23550 MB
->>> node 1 cpus: 4 5 6 7 12 13 14 15
->>> node 1 size: 24576 MB
->>> node 1 free: 23767 MB
->>> node distances:
->>> node   0   1
->>>   0:  10  20
->>>   1:  20  10
->>>
->>> Below is test result:
->>> ---with THP---
->>> #cat /sys/kernel/mm/transparent_hugepage/enabled
->>> [always] madvise never
->>> #./perf bench mem memcpy -l 1gb -o
->>> # Running mem/memcpy benchmark...
->>> # Copying 1gb Bytes ...
->>>
->>>        3.672879 GB/Sec (with prefault)
->>>
->>> #./perf stat ...
->>> Performance counter stats for './perf bench mem memcpy -l 1gb -o':
->>>
->>>           35455940 cache-misses              #   53.504 % of all cache refs     [49.45%]
->>>           66267785 cache-references                                             [49.78%]
->>>               2409 page-faults
->>>          450768651 dTLB-loads
->>>                                                   [50.78%]
->>>              24580 dTLB-misses
->>>               #    0.01% of all dTLB cache hits  [51.01%]
->>>         1338974202 dTLB-stores
->>>                                                  [50.63%]
->>>              77943 dTLB-misses
->>>                                                  [50.24%]
->>>          697404997 iTLB-loads
->>>                                                   [49.77%]
->>>                274 iTLB-misses
->>>               #    0.00% of all iTLB cache hits  [49.30%]
->>>
->>>        0.855041819 seconds time elapsed
->>>
->>> ---no THP---
->>> #cat /sys/kernel/mm/transparent_hugepage/enabled
->>> always madvise [never]
->>>
->>> #./perf bench mem memcpy -l 1gb -o
->>> # Running mem/memcpy benchmark...
->>> # Copying 1gb Bytes ...
->>>
->>>        6.190187 GB/Sec (with prefault)
->>>
->>> #./perf stat ...
->>> Performance counter stats for './perf bench mem memcpy -l 1gb -o':
->>>
->>>           16920763 cache-misses              #   98.377 % of all cache refs     [50.01%]
->>>           17200000 cache-references                                             [50.04%]
->>>             524652 page-faults
->>>          734365659 dTLB-loads
->>>                                                   [50.04%]
->>>            4986387 dTLB-misses
->>>               #    0.68% of all dTLB cache hits  [50.04%]
->>>         1013408298 dTLB-stores
->>>                                                  [50.04%]
->>>            8180817 dTLB-misses
->>>                                                  [49.97%]
->>>         1526642351 iTLB-loads
->>>                                                   [50.41%]
->>>                 56 iTLB-misses
->>>               #    0.00% of all iTLB cache hits  [50.21%]
->>>
->>>        1.025425847 seconds time elapsed
->>>
->>> Thanks,
->>> Jianguo Wu.
->>
->>
->>
->>
-> 
-> .
-> 
-
-
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
