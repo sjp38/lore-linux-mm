@@ -1,102 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 3745B6B0036
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2013 11:14:44 -0400 (EDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <519BE6ED.8030202@sr71.net>
-References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1368321816-17719-21-git-send-email-kirill.shutemov@linux.intel.com>
- <519BE6ED.8030202@sr71.net>
-Subject: Re: [PATCHv4 20/39] thp, mm: naive support of thp in generic
- read/write routines
-Content-Transfer-Encoding: 7bit
-Message-Id: <20130607151718.E126AE0090@blue.fi.intel.com>
-Date: Fri,  7 Jun 2013 18:17:18 +0300 (EEST)
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 456116B0031
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2013 11:27:00 -0400 (EDT)
+Received: by mail-pb0-f46.google.com with SMTP id rq8so2466900pbb.19
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2013 08:26:59 -0700 (PDT)
+Date: Sat, 8 Jun 2013 00:26:53 +0900
+From: Minchan Kim <minchan.kernel.2@gmail.com>
+Subject: Re: [BUG] non-swapcache page in end_swap_bio_read()
+Message-ID: <20130607152653.GA3586@blaptop>
+References: <20130607125908.GB9282@cpv436-motbuntu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130607125908.GB9282@cpv436-motbuntu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Artem Savkov <artem.savkov@gmail.com>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-mm@kvack.org, linux-pm@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Dave Hansen wrote:
-> On 05/11/2013 06:23 PM, Kirill A. Shutemov wrote:
-> > +		if (PageTransHuge(page))
-> > +			offset = pos & ~HPAGE_PMD_MASK;
-> > +
-> >  		pagefault_disable();
-> > -		copied = iov_iter_copy_from_user_atomic(page, i, offset, bytes);
-> > +		copied = iov_iter_copy_from_user_atomic(
-> > +				page + (offset >> PAGE_CACHE_SHIFT),
-> > +				i, offset & ~PAGE_CACHE_MASK, bytes);
-> >  		pagefault_enable();
-> >  		flush_dcache_page(page);
-> 
-> I think there's enough voodoo in there to warrant a comment or adding
-> some temporary variables.  There are three things going on that you wan
-> to convey:
-> 
-> 1. Offset is normally <PAGE_SIZE, but you make it <HPAGE_PMD_SIZE if
->    you are dealing with a huge page
-> 2. (offset >> PAGE_CACHE_SHIFT) is always 0 for small pages since
->     offset < PAGE_SIZE
-> 3. "offset & ~PAGE_CACHE_MASK" does nothing for small-page offsets, but
->    it turns a large-page offset back in to a small-page-offset.
-> 
-> I think you can do it with something like this:
-> 
->  	int subpage_nr = 0;
-> 	off_t smallpage_offset = offset;
-> 	if (PageTransHuge(page)) {
-> 		// we transform 'offset' to be offset in to the huge
-> 		// page instead of inside the PAGE_SIZE page
-> 		offset = pos & ~HPAGE_PMD_MASK;
-> 		subpage_nr = (offset >> PAGE_CACHE_SHIFT);
-> 	}
-> 	
-> > +		copied = iov_iter_copy_from_user_atomic(
-> > +				page + subpage_nr,
-> > +				i, smallpage_offset, bytes);
-> 
-> 
-> > @@ -2437,6 +2453,7 @@ again:
-> >  			 * because not all segments in the iov can be copied at
-> >  			 * once without a pagefault.
-> >  			 */
-> > +			offset = pos & ~PAGE_CACHE_MASK;
-> 
-> Urg, and now it's *BACK* in to a small-page offset?
-> 
-> This means that 'offset' has two _different_ meanings and it morphs
-> between them during the function a couple of times.  That seems very
-> error-prone to me.
+Hello Artem,
 
-I guess this way is better, right?
+On Fri, Jun 07, 2013 at 04:59:09PM +0400, Artem Savkov wrote:
+> Hello all,
+> 
+> I'm hitting the following BUG_ON during boot when
+> CONFIG_PM_STD_PARTITION or "resume" kernel boot option are set. Looks
+> like this issue was introduced in (or brought up to light by)
+> "mm: remove compressed copy from zram in-memory"
+> (84e5bb4f06e6d6f0c4dfc033b4700702ed8aaccc in linux-next.git)
+> What happens is that during swsusp_check() bio is created with
+> bio_end_io set to end_swap_bio_read(), but the page is not in swap
+> cache.
 
-@@ -2382,6 +2393,7 @@ static ssize_t generic_perform_write(struct file *file,
-                unsigned long bytes;    /* Bytes to write to page */
-                size_t copied;          /* Bytes copied from user */
-                void *fsdata;
-+               int subpage_nr = 0;
- 
-                offset = (pos & (PAGE_CACHE_SIZE - 1));
-                bytes = min_t(unsigned long, PAGE_CACHE_SIZE - offset,
-@@ -2411,8 +2423,14 @@ again:
-                if (mapping_writably_mapped(mapping))
-                        flush_dcache_page(page);
- 
-+               if (PageTransHuge(page)) {
-+                       off_t huge_offset = pos & ~HPAGE_PMD_MASK;
-+                       subpage_nr = huge_offset >> PAGE_CACHE_SHIFT;
-+               }
-+
-                pagefault_disable();
--               copied = iov_iter_copy_from_user_atomic(page, i, offset, bytes);
-+               copied = iov_iter_copy_from_user_atomic(page + subpage_nr, i,
-+                               offset, bytes);
-                pagefault_enable();
-                flush_dcache_page(page);
- 
+True. I totally missed it.
+
+> Not sure how to handle this the right way, but proceeding with the
+> optimization in end_swap_bio_read() only after checking PageSwapCache
+> flag does help.
+
+I'd like to go with your way.
+We already have SetPageUptodate so PageSwapCache's cost would be really
+cheap from hitting from cacheline. Even, we can optimize it with unlikely
+hint.
+
+The credit should be yours so could you send a patch with your SOB?
+Please write a comment in code about that why we need such check.
+
+If you have any problem about sending a patch, I will send it for you
+on Monday if others don't suggest another solution.
+
+Thanks for the report!
+
+> 
+> [    2.065206] kernel BUG at mm/swapfile.c:2361!
+> [    2.065469] invalid opcode: 0000 [#1] SMP 
+> [    2.065469] Modules linked in:
+> [    2.065469] CPU: 1 PID: 0 Comm: swapper/1 Not tainted 3.10.0-rc4-next-20130607+ #61
+> [    2.065469] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2007
+> [    2.065469] task: ffff88001e5ccfc0 ti: ffff88001e5ea000 task.ti: ffff88001e5ea000
+> [    2.065469] RIP: 0010:[<ffffffff811462eb>]  [<ffffffff811462eb>] page_swap_info+0xab/0xb0
+> [    2.065469] RSP: 0000:ffff88001ec03c78  EFLAGS: 00010246
+> [    2.065469] RAX: 0100000000000009 RBX: ffffea0000794780 RCX: 0000000000000c0b
+> [    2.065469] RDX: 0000000000000046 RSI: 0000000000000000 RDI: 0000000000000000
+> [    2.065469] RBP: ffff88001ec03c88 R08: 0000000000000000 R09: 0000000000000000
+> [    2.065469] R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000000000
+> [    2.065469] R13: 0000000000000001 R14: ffff88001e7f6200 R15: 0000000000001000
+> [    2.065469] FS:  0000000000000000(0000) GS:ffff88001ec00000(0000) knlGS:0000000000000000
+> [    2.065469] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+> [    2.065469] CR2: 0000000000000000 CR3: 000000000240b000 CR4: 00000000000006e0
+> [    2.065469] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> [    2.065469] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+> [    2.065469] Stack:
+> [    2.065469]  ffffea0000794780 ffff88001e7f6200 ffff88001ec03cb8 ffffffff81145486
+> [    2.065469]  ffff88001e5cd5c0 ffff88001c02cd20 0000000000001000 0000000000000000
+> [    2.065469]  ffff88001ec03cc8 ffffffff81199518 ffff88001ec03d28 ffffffff81518ec3
+> [    2.065469] Call Trace:
+> [    2.065469]  <IRQ> 
+> [    2.065469]  [<ffffffff81145486>] end_swap_bio_read+0x96/0x130
+> [    2.065469]  [<ffffffff81199518>] bio_endio+0x18/0x40
+> [    2.065469]  [<ffffffff81518ec3>] blk_update_request+0x213/0x540
+> [    2.065469]  [<ffffffff81518fa0>] ? blk_update_request+0x2f0/0x540
+> [    2.065469]  [<ffffffff817986a6>] ? ata_hsm_qc_complete+0x46/0x130
+> [    2.065469]  [<ffffffff81519212>] blk_update_bidi_request+0x22/0x90
+> [    2.065469]  [<ffffffff8151b9ea>] blk_end_bidi_request+0x2a/0x80
+> [    2.065469]  [<ffffffff8151ba8b>] blk_end_request+0xb/0x10
+> [    2.065469]  [<ffffffff817693aa>] scsi_io_completion+0xaa/0x6b0
+> [    2.065469]  [<ffffffff817608d8>] scsi_finish_command+0xc8/0x130
+> [    2.065469]  [<ffffffff81769aff>] scsi_softirq_done+0x13f/0x160
+> [    2.065469]  [<ffffffff81521ebc>] blk_done_softirq+0x7c/0x90
+> [    2.065469]  [<ffffffff81049030>] __do_softirq+0x130/0x3f0
+> [    2.065469]  [<ffffffff810d454e>] ? handle_irq_event+0x4e/0x70
+> [    2.065469]  [<ffffffff81049405>] irq_exit+0xa5/0xb0
+> [    2.065469]  [<ffffffff81003cb1>] do_IRQ+0x61/0xe0
+> [    2.065469]  [<ffffffff81c2832f>] common_interrupt+0x6f/0x6f
+> [    2.065469]  <EOI> 
+> [    2.065469]  [<ffffffff8107ebff>] ? local_clock+0x4f/0x60
+> [    2.065469]  [<ffffffff81c27f85>] ? _raw_spin_unlock_irq+0x35/0x50
+> [    2.065469]  [<ffffffff81c27f7b>] ? _raw_spin_unlock_irq+0x2b/0x50
+> [    2.065469]  [<ffffffff81078bd0>] finish_task_switch+0x80/0x110
+> [    2.065469]  [<ffffffff81078b93>] ? finish_task_switch+0x43/0x110
+> [    2.065469]  [<ffffffff81c2525c>] __schedule+0x32c/0x8c0
+> [    2.065469]  [<ffffffff81c2c010>] ? notifier_call_chain+0x150/0x150
+> [    2.065469]  [<ffffffff81c259d4>] schedule+0x24/0x70
+> [    2.065469]  [<ffffffff81c25d42>] schedule_preempt_disabled+0x22/0x30
+> [    2.065469]  [<ffffffff81093645>] cpu_startup_entry+0x335/0x380
+> [    2.065469]  [<ffffffff81c1ed7e>] start_secondary+0x217/0x219
+> [    2.065469] Code: 69 bc 16 82 48 c7 c7 77 bc 16 82 31 c0 49 c1 ec 39 49 c1 e9 10 41 83 e1 01 e8 6c d2 ad 00 5b 4a 8b 04 e5 e0 bf 14 83 41 5c c9 c3 <0f> 0b eb fe 90 48 8b 07 55 48 89 e5 a9 00 00 01 00 74 12 e8 3d 
+> [    2.065469] RIP  [<ffffffff811462eb>] page_swap_info+0xab/0xb0
+> [    2.065469]  RSP <ffff88001ec03c78>
+> 
+> -- 
+> Regards,
+>     Artem
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
 -- 
- Kirill A. Shutemov
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
