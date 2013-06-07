@@ -1,129 +1,186 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 67E236B0032
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 21:13:53 -0400 (EDT)
-Message-ID: <51B1332E.4030907@cn.fujitsu.com>
-Date: Fri, 07 Jun 2013 09:11:10 +0800
-From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 5BEF36B0032
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2013 21:27:24 -0400 (EDT)
+Message-ID: <51B136E2.4010606@huawei.com>
+Date: Fri, 7 Jun 2013 09:26:58 +0800
+From: Jianguo Wu <wujianguo@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v8 9/9] vmcore: support mmap() on /proc/vmcore
-References: <20130523052421.13864.83978.stgit@localhost6.localdomain6> <20130523052547.13864.83306.stgit@localhost6.localdomain6> <20130523152445.17549682ae45b5aab3f3cde0@linux-foundation.org> <CAJGZr0LwivLTH+E7WAR1B9_6B4e=jv04KgCUL_PdVpi9JjDpBw@mail.gmail.com> <51A2BBA7.50607@jp.fujitsu.com> <CAJGZr0LmsFXEgb3UXVb+rqo1aq5KJyNxyNAD+DG+3KnJm_ZncQ@mail.gmail.com> <51A71B49.3070003@cn.fujitsu.com> <CAJGZr0Ld6Q4a4f-VObAbvqCp=+fTFNEc6M-Fdnhh28GTcSm1=w@mail.gmail.com> <20130603174351.d04b2ac71d1bab0df242e0ba@mxc.nes.nec.co.jp> <CAJGZr0KV9hmdFWQE5Z9kOieHSPhGKLAhsw1Me2RE2ADsbU=b7w@mail.gmail.com>
-In-Reply-To: <CAJGZr0KV9hmdFWQE5Z9kOieHSPhGKLAhsw1Me2RE2ADsbU=b7w@mail.gmail.com>
+Subject: Re: Transparent Hugepage impact on memcpy
+References: <51ADAC15.1050103@huawei.com> <51AEAFD8.305@huawei.com> <CAMO-S2ixv55bGEFGR6Eh=UZgVBz=nv81EckuzWoVi0t4KdB+VA@mail.gmail.com>
+In-Reply-To: <CAMO-S2ixv55bGEFGR6Eh=UZgVBz=nv81EckuzWoVi0t4KdB+VA@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Maxim Uvarov <muvarov@gmail.com>
-Cc: Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>, riel@redhat.com, "kexec@lists.infradead.org" <kexec@lists.infradead.org>, hughd@google.com, linux-kernel@vger.kernel.org, lisa.mitchell@hp.com, Vivek Goyal <vgoyal@redhat.com>, linux-mm@kvack.org, HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>, "Eric W. Biederman" <ebiederm@xmission.com>, kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, walken@google.com, Cliff Wickman <cpw@sgi.com>, jingbai.ma@hp.com
+To: Hitoshi Mitake <mitake@dcl.info.waseda.ac.jp>
+Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, qiuxishi <qiuxishi@huawei.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Hush Bensen <hush.bensen@gmail.com>, mitake.hitoshi@gmail.com
 
-On 06/04/2013 11:34 PM, Maxim Uvarov wrote:
-> 
-> 
-> 
-> 2013/6/3 Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp <mailto:kumagai-atsushi@mxc.nes.nec.co.jp>>
-> 
->     Hello Maxim,
-> 
->     On Thu, 30 May 2013 14:30:01 +0400
->     Maxim Uvarov <muvarov@gmail.com <mailto:muvarov@gmail.com>> wrote:
-> 
->     > 2013/5/30 Zhang Yanfei <zhangyanfei@cn.fujitsu.com <mailto:zhangyanfei@cn.fujitsu.com>>
->     >
->     > > On 05/30/2013 05:14 PM, Maxim Uvarov wrote:
->     > > >
->     > > >
->     > > >
->     > > > 2013/5/27 HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com <mailto:d.hatayama@jp.fujitsu.com> <mailto:
->     > > d.hatayama@jp.fujitsu.com <mailto:d.hatayama@jp.fujitsu.com>>>
->     > > >
->     > > >     (2013/05/24 18:02), Maxim Uvarov wrote:
->     > > >
->     > > >
->     > > >
->     > > >
->     > > >         2013/5/24 Andrew Morton <akpm@linux-foundation.org <mailto:akpm@linux-foundation.org> <mailto:
->     > > akpm@linux-foundation.org <mailto:akpm@linux-foundation.org>> <mailto:akpm@linux-foundation. <mailto:akpm@linux-foundation.>__org <mailto:
->     > > akpm@linux-foundation.org <mailto:akpm@linux-foundation.org>>>>
->     > > >
->     > > >
->     > > >             On Thu, 23 May 2013 14:25:48 +0900 HATAYAMA Daisuke <
->     > > d.hatayama@jp.fujitsu.com <mailto:d.hatayama@jp.fujitsu.com> <mailto:d.hatayama@jp.fujitsu.com <mailto:d.hatayama@jp.fujitsu.com>> <mailto:
->     > > d.hatayama@jp.fujitsu.__com <mailto:d.hatayama@jp.fujitsu.com <mailto:d.hatayama@jp.fujitsu.com>>>> wrote:
->     > > >
->     > > >              > This patch introduces mmap_vmcore().
->     > > >              >
->     > > >              > Don't permit writable nor executable mapping even with
->     > > mprotect()
->     > > >              > because this mmap() is aimed at reading crash dump memory.
->     > > >              > Non-writable mapping is also requirement of
->     > > remap_pfn_range() when
->     > > >              > mapping linear pages on non-consecutive physical pages;
->     > > see
->     > > >              > is_cow_mapping().
->     > > >              >
->     > > >              > Set VM_MIXEDMAP flag to remap memory by remap_pfn_range
->     > > and by
->     > > >              > remap_vmalloc_range_pertial at the same time for a single
->     > > >              > vma. do_munmap() can correctly clean partially remapped
->     > > vma with two
->     > > >              > functions in abnormal case. See zap_pte_range(),
->     > > vm_normal_page() and
->     > > >              > their comments for details.
->     > > >              >
->     > > >              > On x86-32 PAE kernels, mmap() supports at most 16TB
->     > > memory only. This
->     > > >              > limitation comes from the fact that the third argument of
->     > > >              > remap_pfn_range(), pfn, is of 32-bit length on x86-32:
->     > > unsigned long.
->     > > >
->     > > >             More reviewing and testing, please.
->     > > >
->     > > >
->     > > >         Do you have git pull for both kernel and userland changes? I
->     > > would like to do some more testing on my machines.
->     > > >
->     > > >         Maxim.
->     > > >
->     > > >
->     > > >     Thanks! That's very helpful.
->     > > >
->     > > >     --
->     > > >     Thanks.
->     > > >     HATAYAMA, Daisuke
->     > > >
->     > > > Any update for this? Where can I checkout all sources?
->     > >
->     > > This series is now in Andrew Morton's -mm tree.
->     > >
->     > > Ok, and what about makedumpfile changes? Is it possible to fetch them from
->     > somewhere?
-> 
->     You can fetch them from here, "mmap" branch is the change:
-> 
->       git://git.code.sf.net/p/makedumpfile/code <http://git.code.sf.net/p/makedumpfile/code>
-> 
->     And they will be merged into v1.5.4.
-> 
-> 
-> thank you, got it. But still do not see kernel patches in akpm tree:
-> git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
-> http://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
-> https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
-> 
-> 
-> Should I look at different branch?
+Hi Hitoshi,
 
-Now it is merged into the next tree you list above. See the commit:
+Thanks for your reply! please see below.
 
-author	HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>	2013-06-06 00:40:01 (GMT)
-committer	Stephen Rothwell <sfr@canb.auug.org.au>	2013-06-06 05:50:03 (GMT)
-commit	4be2c06c30e4c3994d86e0be24ff1af12d2c71d5 (patch)
-tree	d7fb8c64c628600e8ba24481927f087fc11c2986
-parent	99f80952861807e521ed30c22925f009f543a5ec (diff)
+On 2013/6/6 21:54, Hitoshi Mitake wrote:
 
--- 
-Thanks.
-Zhang Yanfei
+> Hi Jianguo,
+> 
+> On Wed, Jun 5, 2013 at 12:26 PM, Jianguo Wu <wujianguo@huawei.com> wrote:
+>> Hi,
+>> One more question, I wrote a memcpy test program, mostly the same as with perf bench memcpy.
+>> But test result isn't consistent with perf bench when THP is off.
+>>
+>>         my program                              perf bench
+>> THP:    3.628368 GB/Sec (with prefault)         3.672879 GB/Sec (with prefault)
+>> NO-THP: 3.612743 GB/Sec (with prefault)         6.190187 GB/Sec (with prefault)
+>>
+>> Below is my code:
+>>         src = calloc(1, len);
+>>         dst = calloc(1, len);
+>>
+>>         if (prefault)
+>>                 memcpy(dst, src, len);
+>>         gettimeofday(&tv_start, NULL);
+>>         memcpy(dst, src, len);
+>>         gettimeofday(&tv_end, NULL);
+>>
+>>         timersub(&tv_end, &tv_start, &tv_diff);
+>>         free(src);
+>>         free(dst);
+>>
+>>         speed = (double)((double)len / timeval2double(&tv_diff));
+>>         print_bps(speed);
+>>
+>> This is weird, is it possible that perf bench do some build optimize?
+>>
+>> Thansk,
+>> Jianguo Wu.
+> 
+> perf bench mem memcpy is build with -O6. This is the compile command
+> line (you can get this with make V=1):
+> gcc -o bench/mem-memcpy-x86-64-asm.o -c -fno-omit-frame-pointer -ggdb3
+> -funwind-tables -Wall -Wextra -std=gnu99 -Werror -O6 .... # ommited
+> 
+> Can I see your compile option for your test program and the actual
+> command line executing perf bench mem memcpy?
+> 
+
+I just compiled my test program with gcc -o memcpy-test memcpy-test.c.
+I tried to use the same compile option with perf bench mem memcpy, and
+the test result showed no difference.
+
+My execute command line for perf bench mem memcpy:
+#./perf bench mem memcpy -l 1gb -o
+
+Thanks,
+Jianguo Wu
+
+> Thanks,
+> Hitoshi
+> 
+>>
+>> On 2013/6/4 16:57, Jianguo Wu wrote:
+>>
+>>> Hi all,
+>>>
+>>> I tested memcpy with perf bench, and found that in prefault case, When Transparent Hugepage is on,
+>>> memcpy has worse performance.
+>>>
+>>> When THP on is 3.672879 GB/Sec (with prefault), while THP off is 6.190187 GB/Sec (with prefault).
+>>>
+>>> I think THP will improve performance, but the test result obviously not the case.
+>>> Andrea mentioned THP cause "clear_page/copy_page less cache friendly" in
+>>> http://events.linuxfoundation.org/slides/2011/lfcs/lfcs2011_hpc_arcangeli.pdf.
+>>>
+>>> I am not quite understand this, could you please give me some comments, Thanks!
+>>>
+>>> I test in Linux-3.4-stable, and my machine info is:
+>>> Intel(R) Xeon(R) CPU           E5520  @ 2.27GHz
+>>>
+>>> available: 2 nodes (0-1)
+>>> node 0 cpus: 0 1 2 3 8 9 10 11
+>>> node 0 size: 24567 MB
+>>> node 0 free: 23550 MB
+>>> node 1 cpus: 4 5 6 7 12 13 14 15
+>>> node 1 size: 24576 MB
+>>> node 1 free: 23767 MB
+>>> node distances:
+>>> node   0   1
+>>>   0:  10  20
+>>>   1:  20  10
+>>>
+>>> Below is test result:
+>>> ---with THP---
+>>> #cat /sys/kernel/mm/transparent_hugepage/enabled
+>>> [always] madvise never
+>>> #./perf bench mem memcpy -l 1gb -o
+>>> # Running mem/memcpy benchmark...
+>>> # Copying 1gb Bytes ...
+>>>
+>>>        3.672879 GB/Sec (with prefault)
+>>>
+>>> #./perf stat ...
+>>> Performance counter stats for './perf bench mem memcpy -l 1gb -o':
+>>>
+>>>           35455940 cache-misses              #   53.504 % of all cache refs     [49.45%]
+>>>           66267785 cache-references                                             [49.78%]
+>>>               2409 page-faults
+>>>          450768651 dTLB-loads
+>>>                                                   [50.78%]
+>>>              24580 dTLB-misses
+>>>               #    0.01% of all dTLB cache hits  [51.01%]
+>>>         1338974202 dTLB-stores
+>>>                                                  [50.63%]
+>>>              77943 dTLB-misses
+>>>                                                  [50.24%]
+>>>          697404997 iTLB-loads
+>>>                                                   [49.77%]
+>>>                274 iTLB-misses
+>>>               #    0.00% of all iTLB cache hits  [49.30%]
+>>>
+>>>        0.855041819 seconds time elapsed
+>>>
+>>> ---no THP---
+>>> #cat /sys/kernel/mm/transparent_hugepage/enabled
+>>> always madvise [never]
+>>>
+>>> #./perf bench mem memcpy -l 1gb -o
+>>> # Running mem/memcpy benchmark...
+>>> # Copying 1gb Bytes ...
+>>>
+>>>        6.190187 GB/Sec (with prefault)
+>>>
+>>> #./perf stat ...
+>>> Performance counter stats for './perf bench mem memcpy -l 1gb -o':
+>>>
+>>>           16920763 cache-misses              #   98.377 % of all cache refs     [50.01%]
+>>>           17200000 cache-references                                             [50.04%]
+>>>             524652 page-faults
+>>>          734365659 dTLB-loads
+>>>                                                   [50.04%]
+>>>            4986387 dTLB-misses
+>>>               #    0.68% of all dTLB cache hits  [50.04%]
+>>>         1013408298 dTLB-stores
+>>>                                                  [50.04%]
+>>>            8180817 dTLB-misses
+>>>                                                  [49.97%]
+>>>         1526642351 iTLB-loads
+>>>                                                   [50.41%]
+>>>                 56 iTLB-misses
+>>>               #    0.00% of all iTLB cache hits  [50.21%]
+>>>
+>>>        1.025425847 seconds time elapsed
+>>>
+>>> Thanks,
+>>> Jianguo Wu.
+>>
+>>
+>>
+>>
+> 
+> .
+> 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
