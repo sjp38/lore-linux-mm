@@ -1,50 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 1D8CD6B0033
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2013 10:16:10 -0400 (EDT)
-Message-ID: <51B1EB25.9000509@yandex-team.ru>
-Date: Fri, 07 Jun 2013 18:16:05 +0400
-From: Roman Gushchin <klamm@yandex-team.ru>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 591B46B0032
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2013 10:45:22 -0400 (EDT)
+Received: by mail-lb0-f171.google.com with SMTP id 13so1077180lba.2
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2013 07:45:20 -0700 (PDT)
+Message-ID: <51B1F1FD.7000002@gmail.com>
+Date: Fri, 07 Jun 2013 18:45:17 +0400
+From: Glauber Costa <glommer@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [patch 09/10] mm: thrash detection-based file cache sizing
-References: <1369937046-27666-1-git-send-email-hannes@cmpxchg.org> <1369937046-27666-10-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1369937046-27666-10-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [PATCH] memcg: do not account memory used for cache creation
+References: <1370355059-24968-1-git-send-email-glommer@openvz.org> <20130607092132.GE8117@dhcp22.suse.cz> <51B1B1E9.1020701@parallels.com> <20130607141204.GG8117@dhcp22.suse.cz>
+In-Reply-To: <20130607141204.GG8117@dhcp22.suse.cz>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, metin d <metdos@yahoo.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Glauber Costa <glommer@parallels.com>, Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com
 
-On 30.05.2013 22:04, Johannes Weiner wrote:
-> +/*
-> + * Monotonic workingset clock for non-resident pages.
-> + *
-> + * The refault distance of a page is the number of ticks that occurred
-> + * between that page's eviction and subsequent refault.
-> + *
-> + * Every page slot that is taken away from the inactive list is one
-> + * more slot the inactive list would have to grow again in order to
-> + * hold the current non-resident pages in memory as well.
-> + *
-> + * As the refault distance needs to reflect the space missing on the
-> + * inactive list, the workingset time is advanced every time the
-> + * inactive list is shrunk.  This means eviction, but also activation.
-> + */
-> +static atomic_long_t workingset_time;
+On 06/07/2013 06:12 PM, Michal Hocko wrote:
+> On Fri 07-06-13 14:11:53, Glauber Costa wrote:
+>> On 06/07/2013 01:21 PM, Michal Hocko wrote:
+>>> On Tue 04-06-13 18:10:59, Glauber Costa wrote:
+>>>> The memory we used to hold the memcg arrays is currently accounted to
+>>>> the current memcg.
+>>>
+>>> Maybe I have missed a train but I thought that only some caches are
+>>> tracked and those have to be enabled explicitly by using __GFP_KMEMCG in
+>>> gfp flags.
+>>
+>> No, all caches are tracked. This was set a long time ago, and only a
+>> very few initial versions differed from this. This barely changed over
+>> the lifetime of the memcg patchset.
+>>
+>> You probably got confused, due to the fact that only some *allocations*
+>
+> OK, I was really imprecise. Of course any type of cache might be tracked
+> should the allocation (which takes gfp) say so. What I have missed is
+> that not only stack allocations say so but also kmalloc itself enforces
+> that rather than the actual caller of kmalloc. This is definitely new
+> to me. And it is quite confusing that the flag is set only for large
+> allocations (kmalloc_order) or am I just missing other parts where
+> __GFP_KMEMCG is set unconditionally?
+>
+> I really have to go and dive into the code.
+>
 
-It seems strange to me, that workingset_time is global.
-Don't you want to make it per-cgroup?
+Here is where you are getting your confusion: we don't track caches, we 
+track *pages*.
 
-Two more questions:
-1) do you plan to take fadvise's into account somehow?
-2) do you plan to use workingset information to enhance
-	the readahead mechanism?
+Everytime you pass GFP_KMEMCG to a *page* allocation, it gets tracked.
+Every memcg cache - IOW, a memcg copy of a slab cache, sets GFP_KMEMCG 
+for all its allocations.
 
-Thanks!
+Now, the slub - and this is really an implementation detail - doesn't 
+have caches for high order kmalloc caches. Instead, it gets pages 
+directly from the page allocator. So we have to mark them explicitly. 
+(they are a cache, they are just not implemented as such)
 
-Regards,
-Roman
+The slab doesn't do that, so all kmalloc caches are just normal caches.
+
+Also note that kmalloc is a *kind* of cache, but not *the caches*. Here 
+we are talking dentries, inodes, everything. We track *pages* allocated 
+for all those caches.
+
+
+>> are tracked, but in particular, all cache + stack ones are. All child
+>> caches that are created set the __GFP_KMEMCG flag, because those pages
+>> should all belong to a cgroup.
+>>
+>>>
+>>> But d79923fa "sl[au]b: allocate objects from memcg cache" seems to be
+>>> setting gfp unconditionally for large caches. The changelog doesn't
+>>> explain why, though? This is really confusing.
+>> For all caches.
+>>
+>> Again, not all *allocations* are market, but all cache allocations are.
+>> All pages that belong to a memcg cache should obviously be accounted.
+>
+> What is memcg cache?
+>
+
+A memcg-local copy of a slab cache.
+
+> Sorry about the offtopic question but why only large allocations are
+> marked for tracking? The changelog doesn't mention that.
+>
+
+Don't worry about the question. As for the large allocations, I hope the 
+answer I provided below addresses it. If you are still not getting it, 
+let me know.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
