@@ -1,80 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id B06686B0031
-	for <linux-mm@kvack.org>; Sat,  8 Jun 2013 06:42:23 -0400 (EDT)
-Received: by mail-ve0-f172.google.com with SMTP id jz10so3671302veb.31
-        for <linux-mm@kvack.org>; Sat, 08 Jun 2013 03:42:22 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 0CED36B0031
+	for <linux-mm@kvack.org>; Sat,  8 Jun 2013 12:57:59 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Sun, 9 Jun 2013 02:48:56 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 9FBCE2BB0051
+	for <linux-mm@kvack.org>; Sun,  9 Jun 2013 02:57:52 +1000 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r58GhMm661538368
+	for <linux-mm@kvack.org>; Sun, 9 Jun 2013 02:43:23 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r58GvoOx012953
+	for <linux-mm@kvack.org>; Sun, 9 Jun 2013 02:57:51 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH -V7 09/18] powerpc: Switch 16GB and 16MB explicit hugepages to a different page table format
+In-Reply-To: <1370632664.6813.10@snotra>
+References: <1367177859-7893-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1367177859-7893-10-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1370558559.32518.4@snotra> <87zjv2wp5h.fsf@linux.vnet.ibm.com> <1370632664.6813.10@snotra>
+Date: Sat, 08 Jun 2013 22:27:48 +0530
+Message-ID: <87obbgpmk3.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <201306072034.58817.arnd@arndb.de>
-References: <20130523052421.13864.83978.stgit@localhost6.localdomain6>
-	<10307835.fkACLi6FUD@wuerfel>
-	<51B130F9.8070408@jp.fujitsu.com>
-	<201306072034.58817.arnd@arndb.de>
-Date: Sat, 8 Jun 2013 19:42:22 +0900
-Message-ID: <CABOkKT1=b26khQue0jPa12km-AVOWhcgAgB8b9gaJ0FAvogjiQ@mail.gmail.com>
-Subject: Re: [PATCH v8 9/9] vmcore: support mmap() on /proc/vmcore
-From: HATAYAMA Daisuke <d.hatayama@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: vgoyal@redhat.com, ebiederm@xmission.com, akpm@linux-foundation.org, cpw@sgi.com, kumagai-atsushi@mxc.nes.nec.co.jp, lisa.mitchell@hp.com, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, zhangyanfei@cn.fujitsu.com, jingbai.ma@hp.com, linux-mm@kvack.org, riel@redhat.com, walken@google.com, hughd@google.com, kosaki.motohiro@jp.fujitsu.com
+To: Scott Wood <scottwood@freescale.com>
+Cc: benh@kernel.crashing.org, paulus@samba.org, dwg@au1.ibm.com, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
 
-2013/6/8 Arnd Bergmann <arnd@arndb.de>:
-> On Friday 07 June 2013, HATAYAMA Daisuke wrote:
->> Thanks for trying the build and your report!
->>
->> OTOH, I don't have no-MMU architectures; x86 box only. I cannot reproduce this build error.
->> Could you give me your build log? I want to use it to detect what part depends on CONFIG_MMU.
+Scott Wood <scottwood@freescale.com> writes:
+
+> On 06/06/2013 10:55:22 PM, Aneesh Kumar K.V wrote:
+>> Scott Wood <scottwood@freescale.com> writes:
+>> 
+>> > On 04/28/2013 02:37:30 PM, Aneesh Kumar K.V wrote:
+>> >> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+>> >>
+>> >> We will be switching PMD_SHIFT to 24 bits to facilitate THP
+
+.....
+
+>> >>
+>> >> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+>> >> ---
+>> >>  arch/powerpc/include/asm/page.h    |   2 +
+>> >>  arch/powerpc/include/asm/pgtable.h |   2 +
+>> >>  arch/powerpc/mm/gup.c              |  18 +++-
+>> >>  arch/powerpc/mm/hugetlbpage.c      | 176
+>> >> +++++++++++++++++++++++++++++++------
+>> >>  4 files changed, 168 insertions(+), 30 deletions(-)
+>> >
+>> > After this patch, on 64-bit book3e (e5500, and thus 4K pages), I see
+>> > messages like this after exiting a program that uses hugepages
+>> > (specifically, qemu):
+>> >
+>> > /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd
+>> > 40000001fc221516.
+>> > /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd
+>> > 40000001fc221516.
+>> > /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd
+>> > 40000001fc2214d6.
+>> > /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd
+>> > 40000001fc2214d6.
+>> > /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd
+>> > 40000001fc221916.
+>> > /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd
+>> > 40000001fc221916.
+>> > /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd
+>> > 40000001fc2218d6.
+>> > /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd
+>> > 40000001fc2218d6.
+>> > /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd
+>> > 40000001fc221496.
+>> > /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd
+>> > 40000001fc221496.
+>> > /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd
+>> > 40000001fc221856.
+>> > /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd
+>> > 40000001fc221856.
+>> > /home/scott/fsl/git/linux/upstream/mm/memory.c:407: bad pmd
+>> > 40000001fc221816.
+>> 
+>> hmm that implies some of the code paths are not properly #ifdef.
+>> The goal was to limit the new format CONFIG_PPC_BOOK3S_64 as seen in  
+>> the
+>> definition of huge_pte_alloc. Can you send me the .config ?
 >
-> What I get is a link-time error:
+> Attached.
 >
-> fs/built-in.o: In function `mmap_vmcore':
-> :(.text+0x4bc18): undefined reference to `remap_vmalloc_range_partial'
-> fs/built-in.o: In function `merge_note_headers_elf32.constprop.4':
-> :(.init.text+0x142c): undefined reference to `find_vm_area'
->
-> and I used this patch to temporarily work around the problem, effectively disabling all
-> of /proc/vmcore on non-MMU kernels.
->
-> diff --git a/include/linux/crash_dump.h b/include/linux/crash_dump.h
-> index 37e4f8d..9a078ef 100644
-> --- a/include/linux/crash_dump.h
-> +++ b/include/linux/crash_dump.h
-> @@ -55,7 +55,7 @@ static inline int is_kdump_kernel(void)
->
->  static inline int is_vmcore_usable(void)
->  {
-> -       return is_kdump_kernel() && elfcorehdr_addr != ELFCORE_ADDR_ERR ? 1 : 0;
-> +       return IS_ENABLED(CONFIG_MMU) && is_kdump_kernel() && elfcorehdr_addr != ELFCORE_ADDR_ERR ? 1 : 0;
->  }
->
->  /* vmcore_unusable() marks the vmcore as unusable,
->
->
-> For testing, I used ARM at91x40_defconfig and manually turned on VMCORE support in
-> menuconfig, but it happened before using "randconfig". On most distros you can
-> these days install an arm cross compiler using yum or apt-get and build
-> the kernel yourself with 'make ARCH=arm CROSS_COMPILE=arm-linux-gnueabi-'
 >
 
-Thanks for the detailed explanation. To be honest, I had totally
-forgotten existence of cross-compiler and need of build check on
-multiple architectures before posting patch set... I tried installing
-cross compiler for arm and I've successfully got arm compiler using
-yum. I feel it much easier than I tried building them on console some
-years.
+That didn't give much hint on why we are finding bad pmd. One of the
+reason for finding bad pmd is we are finding hugepd with the new format,
+ie, bottom two bits == 00, next 4 bits indicate size of table, but use
+the old functions to check whether it is hugepd
 
-I successfully reproduce the build error you see and I found I
-overlooked no MMU system. This build error is caused by my mmap patch
-set I made that maps physically non-contiguous objects into virtually
-contiguous user-space as ELF layout. For this, MMU is essential.
+static inline int hugepd_ok(hugepd_t hpd)
+{
+	return (hpd.pd > 0);
+}
 
-I'll post a patch to disable mmap on /proc/vmcore on no MMU system
-next week. I cannot use  compony email address now.
+Can you check the intermediate file generated and verify that the
+huge_pte_alloc is doing the right thing. All the new changes should be
+limitted to book3s 64. Hence boo3e should all work as before.
 
-Thanks.
-HATAYAMA, Daisuke
+With the config shared I am not finding anything wrong, but I can't test
+these configs. Also can you confirm what you bisect this to 
+
+e2b3d202d1dba8f3546ed28224ce485bc50010be 
+powerpc: Switch 16GB and 16MB explicit hugepages to a different page table format
+
+or 
+
+cf9427b85e90bb1ff90e2397ff419691d983c68b "powerpc: New hugepage directory format"
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
