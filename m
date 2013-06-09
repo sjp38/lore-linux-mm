@@ -1,47 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 14E4C6B0031
-	for <linux-mm@kvack.org>; Sun,  9 Jun 2013 08:02:11 -0400 (EDT)
-Received: by mail-la0-f46.google.com with SMTP id eg20so4869159lab.5
-        for <linux-mm@kvack.org>; Sun, 09 Jun 2013 05:02:09 -0700 (PDT)
-Date: Sun, 9 Jun 2013 16:02:05 +0400
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id E04736B0031
+	for <linux-mm@kvack.org>; Sun,  9 Jun 2013 08:46:09 -0400 (EDT)
+Received: by mail-la0-f50.google.com with SMTP id dy20so2713175lab.37
+        for <linux-mm@kvack.org>; Sun, 09 Jun 2013 05:46:08 -0700 (PDT)
 From: Glauber Costa <glommer@gmail.com>
-Subject: Re: [PATCH v11 20/25] drivers: convert shrinkers to new count/scan
- API
-Message-ID: <20130609120204.GB5315@localhost.localdomain>
-References: <1370550898-26711-1-git-send-email-glommer@openvz.org>
- <1370550898-26711-21-git-send-email-glommer@openvz.org>
- <20130607141027.GH25649@phenom.dumpdata.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130607141027.GH25649@phenom.dumpdata.com>
+Subject: [PATCH v2 0/2] do not account memory used for cache creation
+Date: Sun,  9 Jun 2013 16:45:52 +0400
+Message-Id: <1370781954-9972-1-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: Glauber Costa <glommer@openvz.org>, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, mgorman@suse.de, david@fromorbit.com, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suze.cz, hannes@cmpxchg.org, hughd@google.com, gthelen@google.com, Dave Chinner <dchinner@redhat.com>, Daniel Vetter <daniel.vetter@ffwll.ch>, Kent Overstreet <koverstreet@google.com>, Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>, John Stultz <john.stultz@linaro.org>, David Rientjes <rientjes@google.com>, Jerome Glisse <jglisse@redhat.com>, Thomas Hellstrom <thellstrom@vmware.com>
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, mhocko@suze.cz, hannes@cmpxchg.org, kamezawa.hiroyu@jp.fujitsu.com, Glauber Costa <glommer@openvz.org>
 
-On Fri, Jun 07, 2013 at 10:10:27AM -0400, Konrad Rzeszutek Wilk wrote:
-> On Fri, Jun 07, 2013 at 12:34:53AM +0400, Glauber Costa wrote:
-> > From: Dave Chinner <dchinner@redhat.com>
-> > 
-> > Convert the driver shrinkers to the new API. Most changes are
-> > compile tested only because I either don't have the hardware or it's
-> > staging stuff.
-> > 
-> > FWIW, the md and android code is pretty good, but the rest of it
-> > makes me want to claw my eyes out.  The amount of broken code I just
-> > encountered is mind boggling.  I've added comments explaining what
-> > is broken, but I fear that some of the code would be best dealt with
-> > by being dragged behind the bike shed, burying in mud up to it's
-> > neck and then run over repeatedly with a blunt lawn mower.
-> 
-> The rest being i915, ttm, bcache- etc ?
-> 
+The memory we used to hold the memcg arrays is currently accounted to
+the current memcg. But that creates a problem, because that memory can
+only be freed after the last user is gone. Our only way to know which is
+the last user, is to hook up to freeing time, but the fact that we still
+have some in flight kmallocs will prevent freeing to happen. I believe
+therefore to be just easier to account this memory as global overhead.
 
-Since all I have done for this patch in particular was to keep the
-code going forward over the many iterations of the patchset, I will
-leave the comments on this to my dear friend Dave.
+>From my last submission, Michal rightfully noted that this will break
+when SLUB is used and allocations are big enough, since those will bypass
+the cache mechanism and go directly to the page allocator. To fix this,
+we need an extra patch that instructs the memcg kmem page charging to check
+the bypass flag as well.
+
+Glauber Costa (2):
+  memcg: also test for skip accounting at the page allocation level
+  memcg: do not account memory used for cache creation
+
+ mm/memcontrol.c | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)
+
+-- 
+1.8.2.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
