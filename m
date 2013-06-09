@@ -1,102 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 663516B0031
-	for <linux-mm@kvack.org>; Sun,  9 Jun 2013 07:57:49 -0400 (EDT)
-Received: by mail-lb0-f176.google.com with SMTP id z5so5413322lbh.21
-        for <linux-mm@kvack.org>; Sun, 09 Jun 2013 04:57:47 -0700 (PDT)
-Date: Sun, 9 Jun 2013 15:57:44 +0400
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 14E4C6B0031
+	for <linux-mm@kvack.org>; Sun,  9 Jun 2013 08:02:11 -0400 (EDT)
+Received: by mail-la0-f46.google.com with SMTP id eg20so4869159lab.5
+        for <linux-mm@kvack.org>; Sun, 09 Jun 2013 05:02:09 -0700 (PDT)
+Date: Sun, 9 Jun 2013 16:02:05 +0400
 From: Glauber Costa <glommer@gmail.com>
-Subject: Re: [PATCH] memcg: do not account memory used for cache creation
-Message-ID: <20130609115742.GA5315@localhost.localdomain>
-References: <1370355059-24968-1-git-send-email-glommer@openvz.org>
- <20130607092132.GE8117@dhcp22.suse.cz>
- <51B1B1E9.1020701@parallels.com>
- <20130607141204.GG8117@dhcp22.suse.cz>
- <51B1F1FD.7000002@gmail.com>
- <20130607155406.GL8117@dhcp22.suse.cz>
+Subject: Re: [PATCH v11 20/25] drivers: convert shrinkers to new count/scan
+ API
+Message-ID: <20130609120204.GB5315@localhost.localdomain>
+References: <1370550898-26711-1-git-send-email-glommer@openvz.org>
+ <1370550898-26711-21-git-send-email-glommer@openvz.org>
+ <20130607141027.GH25649@phenom.dumpdata.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130607155406.GL8117@dhcp22.suse.cz>
+In-Reply-To: <20130607141027.GH25649@phenom.dumpdata.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com
+To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: Glauber Costa <glommer@openvz.org>, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, mgorman@suse.de, david@fromorbit.com, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suze.cz, hannes@cmpxchg.org, hughd@google.com, gthelen@google.com, Dave Chinner <dchinner@redhat.com>, Daniel Vetter <daniel.vetter@ffwll.ch>, Kent Overstreet <koverstreet@google.com>, Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>, John Stultz <john.stultz@linaro.org>, David Rientjes <rientjes@google.com>, Jerome Glisse <jglisse@redhat.com>, Thomas Hellstrom <thellstrom@vmware.com>
 
-On Fri, Jun 07, 2013 at 05:54:06PM +0200, Michal Hocko wrote:
-> On Fri 07-06-13 18:45:17, Glauber Costa wrote:
-> > On 06/07/2013 06:12 PM, Michal Hocko wrote:
-> > >On Fri 07-06-13 14:11:53, Glauber Costa wrote:
-> > >>On 06/07/2013 01:21 PM, Michal Hocko wrote:
-> > >>>On Tue 04-06-13 18:10:59, Glauber Costa wrote:
-> > >>>>The memory we used to hold the memcg arrays is currently accounted to
-> > >>>>the current memcg.
-> > >>>
-> > >>>Maybe I have missed a train but I thought that only some caches are
-> > >>>tracked and those have to be enabled explicitly by using __GFP_KMEMCG in
-> > >>>gfp flags.
-> > >>
-> > >>No, all caches are tracked. This was set a long time ago, and only a
-> > >>very few initial versions differed from this. This barely changed over
-> > >>the lifetime of the memcg patchset.
-> > >>
-> > >>You probably got confused, due to the fact that only some *allocations*
-> > >
-> > >OK, I was really imprecise. Of course any type of cache might be tracked
-> > >should the allocation (which takes gfp) say so. What I have missed is
-> > >that not only stack allocations say so but also kmalloc itself enforces
-> > >that rather than the actual caller of kmalloc. This is definitely new
-> > >to me. And it is quite confusing that the flag is set only for large
-> > >allocations (kmalloc_order) or am I just missing other parts where
-> > >__GFP_KMEMCG is set unconditionally?
-> > >
-> > >I really have to go and dive into the code.
-> > >
+On Fri, Jun 07, 2013 at 10:10:27AM -0400, Konrad Rzeszutek Wilk wrote:
+> On Fri, Jun 07, 2013 at 12:34:53AM +0400, Glauber Costa wrote:
+> > From: Dave Chinner <dchinner@redhat.com>
 > > 
-> > Here is where you are getting your confusion: we don't track caches,
-> > we track *pages*.
+> > Convert the driver shrinkers to the new API. Most changes are
+> > compile tested only because I either don't have the hardware or it's
+> > staging stuff.
 > > 
-> > Everytime you pass GFP_KMEMCG to a *page* allocation, it gets tracked.
-> > Every memcg cache - IOW, a memcg copy of a slab cache, sets
-> > GFP_KMEMCG for all its allocations.
+> > FWIW, the md and android code is pretty good, but the rest of it
+> > makes me want to claw my eyes out.  The amount of broken code I just
+> > encountered is mind boggling.  I've added comments explaining what
+> > is broken, but I fear that some of the code would be best dealt with
+> > by being dragged behind the bike shed, burying in mud up to it's
+> > neck and then run over repeatedly with a blunt lawn mower.
 > 
-> yes that is clear to me.
+> The rest being i915, ttm, bcache- etc ?
 > 
-> > Now, the slub - and this is really an implementation detail -
-> > doesn't have caches for high order kmalloc caches. Instead, it gets
-> > pages directly from the page allocator. So we have to mark them
-> > explicitly. (they are a cache, they are just not implemented as
-> > such)
-> 
-> I am still confused. If kmalloc_large_node is called because the size of
-> the object is larger than SLUB_MAX_SIZE then __GFP_KMEMCG is added
-> automatically regardless what _caller_ of kmalloc said. What am I
-> missing?
->  
 
-You are not missing anything, I am.
-
-It was not a problem since now because all allocations being bypassed
-were pretty small - so I got blinded by this.
-
-The logic I have explained to you is correct and will for 100 % of the
-time for the SLAB. The SLUB allocator, however, will ignore our bypassing
-request because it will never get to memcg_kmem_get_cache.
-
-It doesn't hurt to have the bypass check at memcg_kmem_newpage_charge as
-well, so I will add it - Thank you very much for noticing this.
-
-The only situation in which it *could* hurt to have an extra check in there,
-is if we decide to bypass the allocations somewhere inside the slab caches
-themselves, in such a way that we would select a memcg cache at
-memcg_kmem_get_cache, but then insert a non-memcg page in it because between
-the cache selection and the allocation there was a bypass request.
-
-As long as we keep the bypass requests memcg-internal, it should not be
-a problem.
-
-So in a summary: We will need two patches instead of one to tackle this.
-I will send you shortly.
+Since all I have done for this patch in particular was to keep the
+code going forward over the many iterations of the patchset, I will
+leave the comments on this to my dear friend Dave.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
