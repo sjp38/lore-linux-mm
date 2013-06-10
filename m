@@ -1,40 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 897D16B0031
-	for <linux-mm@kvack.org>; Mon, 10 Jun 2013 10:09:16 -0400 (EDT)
-Received: by mail-pb0-f48.google.com with SMTP id ma3so1855996pbc.35
-        for <linux-mm@kvack.org>; Mon, 10 Jun 2013 07:09:15 -0700 (PDT)
-MIME-Version: 1.0
-Date: Mon, 10 Jun 2013 16:09:15 +0200
-Message-ID: <CAAxaTiNXV_RitbBKxCwV_rV44d1cLhfEbLs3ngtEGQUnZ2zk_g@mail.gmail.com>
-Subject: Handling of GFP_WAIT in the slub and slab allocators
-From: Nicolas Palix <nicolas.palix@imag.fr>
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 362C56B0032
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2013 10:09:42 -0400 (EDT)
+Date: Mon, 10 Jun 2013 10:09:39 -0400
+From: Luiz Capitulino <lcapitulino@redhat.com>
+Subject: Re: [PATCH] memcg: event control at vmpressure.
+Message-ID: <20130610100939.3cb7f89b@redhat.com>
+In-Reply-To: <021701ce65cb$a3b9c3b0$eb2d4b10$%kim@samsung.com>
+References: <021701ce65cb$a3b9c3b0$eb2d4b10$%kim@samsung.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
+To: Hyunhee Kim <hyunhee.kim@samsung.com>
+Cc: linux-mm@kvack.org, 'Kyungmin Park' <kyungmin.park@samsung.com>
 
-Hi,
+On Mon, 10 Jun 2013 20:14:13 +0900
+Hyunhee Kim <hyunhee.kim@samsung.com> wrote:
 
-In the SLUB allocator, the GFP_WAIT mask bit is used
-in allocate_slab to decide if local_irq_enable must be called.
-This test is done again later to decide if local_irq_disable
-must be called.
+> In vmpressure, events are sent to the user space continuously
+> until the memory state changes. This becomes overheads for user space module
+> and also consumes power consumption.
 
-I notice that in the SLAB allocator, local_irq_save and
-local_irq_restore are called in slab_alloc_node and slab_alloc without
-checking the GFP_WAIT bit of the flags parameter.
+If the kernel is still under memory pressure, I think we do want to keep
+sending the event to user-space. At least as a default behavior.
 
-Am I missing something or is there something to be fixed in the SLAB allocator ?
+I think it would be fine to implement this change as an additional parameter
+when registering for the event, but I also wonder if this shouldn't be
+solved by the user-space app itself (eg. rate-limiting the event reception).
 
-As I understand the code so far, this could change the state of the irqs
-during the execution of start_kernel (init/main.c) for instance.
-
-Could someone give me enlightenment about those points ?
-
-Regards,
---
-Nicolas Palix
+> So, with this patch, vmpressure
+> remembers
+> the current level and only sends the event only when new memory state is
+> different from the current level.
+> 
+> Signed-off-by: Hyunhee Kim <hyunhee.kim@samsung.com>
+> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+> ---
+>  include/linux/vmpressure.h |    2 ++
+>  mm/vmpressure.c            |    4 +++-
+>  2 files changed, 5 insertions(+), 1 deletion(-)
+> 
+> diff --git a/include/linux/vmpressure.h b/include/linux/vmpressure.h
+> index 76be077..fa0c0d2 100644
+> --- a/include/linux/vmpressure.h
+> +++ b/include/linux/vmpressure.h
+> @@ -20,6 +20,8 @@ struct vmpressure {
+>  	struct mutex events_lock;
+>  
+>  	struct work_struct work;
+> +
+> +	int current_level;
+>  };
+>  
+>  struct mem_cgroup;
+> diff --git a/mm/vmpressure.c b/mm/vmpressure.c
+> index 736a601..5f6609c 100644
+> --- a/mm/vmpressure.c
+> +++ b/mm/vmpressure.c
+> @@ -152,9 +152,10 @@ static bool vmpressure_event(struct vmpressure *vmpr,
+>  	mutex_lock(&vmpr->events_lock);
+>  
+>  	list_for_each_entry(ev, &vmpr->events, node) {
+> -		if (level >= ev->level) {
+> +		if (level >= ev->level && level != vmpr->current_level) {
+>  			eventfd_signal(ev->efd, 1);
+>  			signalled = true;
+> +			vmpr->current_level = level;
+>  		}
+>  	}
+>  
+> @@ -371,4 +372,5 @@ void vmpressure_init(struct vmpressure *vmpr)
+>  	mutex_init(&vmpr->events_lock);
+>  	INIT_LIST_HEAD(&vmpr->events);
+>  	INIT_WORK(&vmpr->work, vmpressure_work_fn);
+> +	vmpr->current_level = -1;
+>  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
