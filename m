@@ -1,85 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id D72456B0032
-	for <linux-mm@kvack.org>; Mon, 10 Jun 2013 15:56:35 -0400 (EDT)
-Message-ID: <51B62F6B.8040308@oracle.com>
-Date: Mon, 10 Jun 2013 15:56:27 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id EA0616B0031
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2013 16:48:05 -0400 (EDT)
+Received: by mail-ee0-f46.google.com with SMTP id d41so2166060eek.5
+        for <linux-mm@kvack.org>; Mon, 10 Jun 2013 13:48:04 -0700 (PDT)
+Date: Mon, 10 Jun 2013 22:48:01 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 3/3] memcg: simplify mem_cgroup_reclaim_iter
+Message-ID: <20130610204801.GA21003@dhcp22.suse.cz>
+References: <20130605200612.GH10693@mtj.dyndns.org>
+ <20130605211704.GJ15721@cmpxchg.org>
+ <20130605222021.GL10693@mtj.dyndns.org>
+ <20130605222709.GM10693@mtj.dyndns.org>
+ <20130606115031.GE7909@dhcp22.suse.cz>
+ <20130607005242.GB16160@htj.dyndns.org>
+ <20130607073754.GA8117@dhcp22.suse.cz>
+ <20130607232557.GL14781@mtj.dyndns.org>
+ <20130610080208.GB5138@dhcp22.suse.cz>
+ <20130610195426.GC12461@mtj.dyndns.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] slab: prevent warnings when allocating with __GFP_NOWARN
-References: <1370891880-2644-1-git-send-email-sasha.levin@oracle.com> <CAOJsxLGDH2iwznRkP-iwiMZw7Ee3mirhjLvhShrWLHR0qguRxA@mail.gmail.com>
-In-Reply-To: <CAOJsxLGDH2iwznRkP-iwiMZw7Ee3mirhjLvhShrWLHR0qguRxA@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130610195426.GC12461@mtj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, bsingharora@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org, lizefan@huawei.com
 
-On 06/10/2013 03:31 PM, Pekka Enberg wrote:
-> Hello Sasha,
->
-> On Mon, Jun 10, 2013 at 10:18 PM, Sasha Levin <sasha.levin@oracle.com> wrote:
->> slab would still spew a warning when a big allocation happens with the
->> __GFP_NOWARN fleg is set. Prevent that to conform to __GFP_NOWARN.
->>
->> Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
->> ---
->>   mm/slab_common.c | 4 +++-
->>   1 file changed, 3 insertions(+), 1 deletion(-)
->>
->> diff --git a/mm/slab_common.c b/mm/slab_common.c
->> index ff3218a..2d41450 100644
->> --- a/mm/slab_common.c
->> +++ b/mm/slab_common.c
->> @@ -373,8 +373,10 @@ struct kmem_cache *kmalloc_slab(size_t size, gfp_t flags)
->>   {
->>          int index;
->>
->> -       if (WARN_ON_ONCE(size > KMALLOC_MAX_SIZE))
->> +       if (size > KMALLOC_MAX_SIZE) {
->> +               WARN_ON_ONCE(!(flags & __GFP_NOWARN));
->>                  return NULL;
->> +       }
->
-> Does this fix a real problem you're seeing? __GFP_NOWARN is about not
-> warning if a memory allocation fails but this particular WARN_ON
-> suggests a kernel bug.
+On Mon 10-06-13 12:54:26, Tejun Heo wrote:
+> Hello, Michal.
+> 
+> On Mon, Jun 10, 2013 at 10:02:08AM +0200, Michal Hocko wrote:
+> > Sure a next visit on the same root subtree (same node, zone and prio)
+> > would css_put it but what if that root goes away itself. Still fixable,
+> > if every group checks its own cached iters and css_put everybody but
+> > that is even uglier. So doing the up-the-hierarchy cleanup in RCU
+> > callback is much easier.
+> 
+> Ooh, right, we don't need cleanup of the cached cursors on destruction
+> if we get this correct - especially if we make cursors point to the
+> next cgroup to visit as self is always the first one to visit. 
 
-It fixes this warning:
+You would need to pin the next-to-visit memcg as well, so you need a
+cleanup on the removal.
 
-[ 1691.703002] WARNING: CPU: 15 PID: 21519 at mm/slab_common.c:376 
-kmalloc_slab+0x2f/0xb0()
-[ 1691.706906] can: request_module (can-proto-4) failed.
-[ 1691.707827] mpoa: proc_mpc_write: could not parse ''
-[ 1691.713952] Modules linked in:
-[ 1691.715199] CPU: 15 PID: 21519 Comm: trinity-child15 Tainted: G 
-   W    3.10.0-rc4-next-20130607-sasha-00011-gcd78395-dirty #2
-[ 1691.719669]  0000000000000009 ffff880020a95e30 ffffffff83ff4041 
-0000000000000000
-[ 1691.797744]  ffff880020a95e68 ffffffff8111fe12 fffffffffffffff0 
-00000000000082d0
-[ 1691.802822]  0000000000080000 0000000000080000 0000000001400000 
-ffff880020a95e78
-[ 1691.807621] Call Trace:
-[ 1691.809473]  [<ffffffff83ff4041>] dump_stack+0x4e/0x82
-[ 1691.812783]  [<ffffffff8111fe12>] warn_slowpath_common+0x82/0xb0
-[ 1691.817011]  [<ffffffff8111fe55>] warn_slowpath_null+0x15/0x20
-[ 1691.819936]  [<ffffffff81243dcf>] kmalloc_slab+0x2f/0xb0
-[ 1691.824942]  [<ffffffff81278d54>] __kmalloc+0x24/0x4b0
-[ 1691.827285]  [<ffffffff8196ffe3>] ? security_capable+0x13/0x20
-[ 1691.829405]  [<ffffffff812a26b7>] ? pipe_fcntl+0x107/0x210
-[ 1691.831827]  [<ffffffff812a26b7>] pipe_fcntl+0x107/0x210
-[ 1691.833651]  [<ffffffff812b7ea0>] ? fget_raw_light+0x130/0x3f0
-[ 1691.835343]  [<ffffffff812aa5fb>] SyS_fcntl+0x60b/0x6a0
-[ 1691.837008]  [<ffffffff8403ca98>] tracesys+0xe1/0xe6
+> Yeah, if we can do away with that, doing that way is definitely
+> better.
 
-The caller specifically sets __GFP_NOWARN presumably to avoid this 
-warning on slub but I'm not sure if there's any other reason.
-
-
-Thanks,
-Sasha
+The only advantage I can see from next-to-visit caching is that the
+destruction path can reuse __mem_cgroup_iter_next unlike last_visited
+which would need to develop a code to get the previous member. Maybe it
+is worth a try.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
