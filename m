@@ -1,40 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id C49056B0031
-	for <linux-mm@kvack.org>; Mon, 10 Jun 2013 17:27:24 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id kp12so3164577pab.7
-        for <linux-mm@kvack.org>; Mon, 10 Jun 2013 14:27:24 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 1BFE76B0031
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2013 19:14:04 -0400 (EDT)
+Received: by mail-qc0-f172.google.com with SMTP id j10so3982473qcx.17
+        for <linux-mm@kvack.org>; Mon, 10 Jun 2013 16:14:03 -0700 (PDT)
+Date: Mon, 10 Jun 2013 16:13:58 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 3/3] memcg: simplify mem_cgroup_reclaim_iter
+Message-ID: <20130610231358.GD12461@mtj.dyndns.org>
+References: <20130605211704.GJ15721@cmpxchg.org>
+ <20130605222021.GL10693@mtj.dyndns.org>
+ <20130605222709.GM10693@mtj.dyndns.org>
+ <20130606115031.GE7909@dhcp22.suse.cz>
+ <20130607005242.GB16160@htj.dyndns.org>
+ <20130607073754.GA8117@dhcp22.suse.cz>
+ <20130607232557.GL14781@mtj.dyndns.org>
+ <20130610080208.GB5138@dhcp22.suse.cz>
+ <20130610195426.GC12461@mtj.dyndns.org>
+ <20130610204801.GA21003@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <0000013f2eaa90dc-0a3a9858-994c-46dd-83b5-891c05b473f4-000000@email.amazonses.com>
-References: <CAAxaTiNXV_RitbBKxCwV_rV44d1cLhfEbLs3ngtEGQUnZ2zk_g@mail.gmail.com>
-	<0000013f2eaa90dc-0a3a9858-994c-46dd-83b5-891c05b473f4-000000@email.amazonses.com>
-Date: Mon, 10 Jun 2013 23:27:23 +0200
-Message-ID: <CAAxaTiOwqEzYO1QTae3HTAu2C-uQY1gvCXeC5rwzypRGV6d+BQ@mail.gmail.com>
-Subject: Re: Handling of GFP_WAIT in the slub and slab allocators
-From: Nicolas Palix <nicolas.palix@imag.fr>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130610204801.GA21003@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@gentwo.org>
-Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, bsingharora@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org, lizefan@huawei.com
 
-On Mon, Jun 10, 2013 at 5:18 PM, Christoph Lameter <cl@gentwo.org> wrote:
-> On Mon, 10 Jun 2013, Nicolas Palix wrote:
->
->> I notice that in the SLAB allocator, local_irq_save and
->> local_irq_restore are called in slab_alloc_node and slab_alloc without
->> checking the GFP_WAIT bit of the flags parameter.
->
-> SLAB does the same as SLUB. Have a look at mm/slab.c:cache_grow()
+Hey,
 
-I agree and it is the same for mm/slab.c:fallback_alloc() but
-why is it not also required for mm/slab.c:slab_alloc_node()
-and mm/slab.c:slab_alloc() which both manipulate the local irqs?
+On Mon, Jun 10, 2013 at 10:48:01PM +0200, Michal Hocko wrote:
+> > Ooh, right, we don't need cleanup of the cached cursors on destruction
+> > if we get this correct - especially if we make cursors point to the
+> > next cgroup to visit as self is always the first one to visit. 
+> 
+> You would need to pin the next-to-visit memcg as well, so you need a
+> cleanup on the removal.
 
+But that'd be one of the descendants of the said cgroup and there can
+no descendant left when the cgroup is being removed.  What am I
+missing?
 
+Thanks.
 
---
-Nicolas Palix
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
