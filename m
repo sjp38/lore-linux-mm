@@ -1,93 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 9D0B46B0032
-	for <linux-mm@kvack.org>; Mon, 10 Jun 2013 07:16:33 -0400 (EDT)
-Received: from epcpsbgr5.samsung.com
- (u145.gpu120.samsung.co.kr [203.254.230.145])
- by mailout1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTP id <0MO600K7SCMYIA70@mailout1.samsung.com> for linux-mm@kvack.org;
- Mon, 10 Jun 2013 20:16:31 +0900 (KST)
-From: Hyunhee Kim <hyunhee.kim@samsung.com>
-Subject: [PATCH] memcg: Add force_reclaim to reclaim tasks' memory in memcg.
-Date: Mon, 10 Jun 2013 20:16:31 +0900
-Message-id: <021801ce65cb$f5b0bc50$e11234f0$%kim@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-transfer-encoding: 7bit
-Content-language: ko
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 77EE56B0031
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2013 08:03:57 -0400 (EDT)
+Received: from /spool/local
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dingel@linux.vnet.ibm.com>;
+	Mon, 10 Jun 2013 13:01:41 +0100
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
+	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id EE8F62190056
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2013 13:07:11 +0100 (BST)
+Received: from d06av06.portsmouth.uk.ibm.com (d06av06.portsmouth.uk.ibm.com [9.149.37.217])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5AC3glj38994064
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2013 12:03:42 GMT
+Received: from d06av06.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av06.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r5AC3rbD016691
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2013 06:03:53 -0600
+From: Dominik Dingel <dingel@linux.vnet.ibm.com>
+Subject: [PATCH 2/4] PF: Move architecture specifics to the backends
+Date: Mon, 10 Jun 2013 14:03:46 +0200
+Message-Id: <1370865828-2053-3-git-send-email-dingel@linux.vnet.ibm.com>
+In-Reply-To: <1370865828-2053-1-git-send-email-dingel@linux.vnet.ibm.com>
+References: <1370865828-2053-1-git-send-email-dingel@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, cgroups@vger.kernel.org
-Cc: 'Kyungmin Park' <kyungmin.park@samsung.com>
+To: Gleb Natapov <gleb@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>
+Cc: Christian Borntraeger <borntraeger@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, kvm@vger.kernel.org, linux-s390@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dominik Dingel <dingel@linux.vnet.ibm.com>
 
-These days, platforms tend to manage memory on low memory state
-like andloid's lowmemory killer. These platforms might want to
-reclaim memory from background tasks as well as kill victims
-to guarantee free memory at use space level. This patch provides
-an interface to reclaim a given memcg. After platform's low memory
-handler moves tasks that the platform wants to reclaim to
-a memcg and decides how many pages should be reclaimed, it can
-reclaim the pages from the tasks by writing the number of pages
-at memory.force_reclaim.
+Current common code use PAGE_OFFSET to indicate a bad host virtual address.
+This works for x86 but not necessarily on other architectures. So the check
+is moved into architecture specific code.
 
-Signed-off-by: Hyunhee Kim <hyunhee.kim@samsung.com>
-Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+Todo:
+ - apply to other architectures when applicable
+
+Signed-off-by: Dominik Dingel <dingel@linux.vnet.ibm.com>
 ---
- mm/memcontrol.c |   26 ++++++++++++++++++++++++++
- 1 file changed, 26 insertions(+)
+ arch/s390/include/asm/kvm_host.h | 12 ++++++++++++
+ arch/x86/include/asm/kvm_host.h  |  8 ++++++++
+ include/linux/kvm_host.h         |  8 --------
+ 3 files changed, 20 insertions(+), 8 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 010d6c1..21819c9 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4980,6 +4980,28 @@ static int mem_cgroup_force_empty_write(struct cgroup
-*cont, unsigned int event)
- 	return ret;
+diff --git a/arch/s390/include/asm/kvm_host.h b/arch/s390/include/asm/kvm_host.h
+index deb1990..e014bba 100644
+--- a/arch/s390/include/asm/kvm_host.h
++++ b/arch/s390/include/asm/kvm_host.h
+@@ -277,6 +277,18 @@ struct kvm_arch{
+ 	int css_support;
+ };
+ 
++#define KVM_HVA_ERR_BAD		(-1UL)
++#define KVM_HVA_ERR_RO_BAD	(-1UL)
++
++static inline bool kvm_is_error_hva(unsigned long addr)
++{
++	/*
++	 * on s390, this check is not needed as kernel and user memory
++	 * is not mapped into the same address space
++	 */
++	return false;
++}
++
+ extern int sie64a(struct kvm_s390_sie_block *, u64 *);
+ extern unsigned long sie_exit_addr;
+ #endif
+diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
+index 4979778..5ed7c83 100644
+--- a/arch/x86/include/asm/kvm_host.h
++++ b/arch/x86/include/asm/kvm_host.h
+@@ -94,6 +94,14 @@
+ 
+ #define ASYNC_PF_PER_VCPU 64
+ 
++#define KVM_HVA_ERR_BAD		(PAGE_OFFSET)
++#define KVM_HVA_ERR_RO_BAD	(PAGE_OFFSET + PAGE_SIZE)
++
++static inline bool kvm_is_error_hva(unsigned long addr)
++{
++	return addr >= PAGE_OFFSET;
++}
++
+ extern raw_spinlock_t kvm_lock;
+ extern struct list_head vm_list;
+ 
+diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
+index c139582..9bd29ef 100644
+--- a/include/linux/kvm_host.h
++++ b/include/linux/kvm_host.h
+@@ -84,14 +84,6 @@ static inline bool is_noslot_pfn(pfn_t pfn)
+ 	return pfn == KVM_PFN_NOSLOT;
  }
  
-+static int mem_cgroup_force_reclaim(struct cgroup *cont, struct cftype
-*cft, u64 val)
-+{
-+
-+	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
-+	unsigned long nr_to_reclaim = val;
-+	unsigned long total = 0;
-+	int loop;
-+
-+	for (loop = 0; loop < MEM_CGROUP_MAX_RECLAIM_LOOPS; loop++) {
-+		total += try_to_free_mem_cgroup_pages(memcg, GFP_KERNEL,
-false);
-+
-+		/*
-+		 * If nothing was reclaimed after two attempts, there
-+		 * may be no reclaimable pages in this hierarchy.
-+		 * If more than nr_to_reclaim pages were already reclaimed,
-+		 * finish force reclaim.
-+		 */
-+		if (loop && (!total || total > nr_to_reclaim))
-+			break;
-+	}
-+	return total;
-+}
+-#define KVM_HVA_ERR_BAD		(PAGE_OFFSET)
+-#define KVM_HVA_ERR_RO_BAD	(PAGE_OFFSET + PAGE_SIZE)
+-
+-static inline bool kvm_is_error_hva(unsigned long addr)
+-{
+-	return addr >= PAGE_OFFSET;
+-}
+-
+ #define KVM_ERR_PTR_BAD_PAGE	(ERR_PTR(-ENOENT))
  
- static u64 mem_cgroup_hierarchy_read(struct cgroup *cont, struct cftype
-*cft)
- {
-@@ -5938,6 +5960,10 @@ static struct cftype mem_cgroup_files[] = {
- 		.trigger = mem_cgroup_force_empty_write,
- 	},
- 	{
-+		.name = "force_reclaim",
-+		.write_u64 = mem_cgroup_force_reclaim,
-+	},
-+	{
- 		.name = "use_hierarchy",
- 		.flags = CFTYPE_INSANE,
- 		.write_u64 = mem_cgroup_hierarchy_write,
+ static inline bool is_error_page(struct page *page)
 -- 
-1.7.9.5
-
+1.8.1.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
