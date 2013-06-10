@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id ED9EA6B0033
-	for <linux-mm@kvack.org>; Mon, 10 Jun 2013 08:03:57 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id BA63C6B0037
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2013 08:03:58 -0400 (EDT)
 Received: from /spool/local
-	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp17.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <dingel@linux.vnet.ibm.com>;
-	Mon, 10 Jun 2013 13:01:42 +0100
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
-	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 6D0342190023
-	for <linux-mm@kvack.org>; Mon, 10 Jun 2013 13:07:11 +0100 (BST)
-Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5AC3gSP50725090
-	for <linux-mm@kvack.org>; Mon, 10 Jun 2013 12:03:42 GMT
-Received: from d06av03.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av03.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r5AC3qf2004597
-	for <linux-mm@kvack.org>; Mon, 10 Jun 2013 06:03:52 -0600
+	Mon, 10 Jun 2013 13:00:18 +0100
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (d06relay12.portsmouth.uk.ibm.com [9.149.109.197])
+	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id AE7071B0805D
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2013 13:03:54 +0100 (BST)
+Received: from d06av09.portsmouth.uk.ibm.com (d06av09.portsmouth.uk.ibm.com [9.149.37.250])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5AC3h3054788264
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2013 12:03:43 GMT
+Received: from d06av09.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av09.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r5AC3rb8003329
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2013 06:03:54 -0600
 From: Dominik Dingel <dingel@linux.vnet.ibm.com>
-Subject: [PATCH 1/4] PF: Add FAULT_FLAG_RETRY_NOWAIT for guest fault
-Date: Mon, 10 Jun 2013 14:03:45 +0200
-Message-Id: <1370865828-2053-2-git-send-email-dingel@linux.vnet.ibm.com>
+Subject: [PATCH 3/4] PF: Additional flag for direct page fault inject
+Date: Mon, 10 Jun 2013 14:03:47 +0200
+Message-Id: <1370865828-2053-4-git-send-email-dingel@linux.vnet.ibm.com>
 In-Reply-To: <1370865828-2053-1-git-send-email-dingel@linux.vnet.ibm.com>
 References: <1370865828-2053-1-git-send-email-dingel@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,162 +26,130 @@ List-ID: <linux-mm.kvack.org>
 To: Gleb Natapov <gleb@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>
 Cc: Christian Borntraeger <borntraeger@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, kvm@vger.kernel.org, linux-s390@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dominik Dingel <dingel@linux.vnet.ibm.com>
 
-In case of a fault retry exit sie64a() with the gmap_fault indication set.
-This makes it possbile to handle async page faults without the need for mm notifiers.
+On some architectures, as on s390x we may want to be able to directly inject
+notifications to the guest in case of a swapped in page. Also on s390x
+there is no need to go from gfn to hva as by calling gmap_fault we already
+have the needed address.
 
-Based on a patch from Marin Schwidefsky.
-
-Todo:
- - Add access to distinguish fault types to prevent double fault
+Due to a possible race, we now always have to insert the page to the queue.
+So if we are not able to schedule the async page, we have to remove it from
+the list again. As this is only when we also have to page in synchronously,
+the overhead is not really important.
 
 Signed-off-by: Dominik Dingel <dingel@linux.vnet.ibm.com>
 ---
- arch/s390/include/asm/processor.h |  7 +++++++
- arch/s390/kvm/kvm-s390.c          | 15 +++++++++++++++
- arch/s390/mm/fault.c              | 29 +++++++++++++++++++++++++----
- arch/s390/mm/pgtable.c            |  1 +
- 4 files changed, 48 insertions(+), 4 deletions(-)
+ arch/x86/kvm/mmu.c       |  2 +-
+ include/linux/kvm_host.h |  3 ++-
+ virt/kvm/async_pf.c      | 33 +++++++++++++++++++++++++++------
+ 3 files changed, 30 insertions(+), 8 deletions(-)
 
-diff --git a/arch/s390/include/asm/processor.h b/arch/s390/include/asm/processor.h
-index 6b49987..938d92c 100644
---- a/arch/s390/include/asm/processor.h
-+++ b/arch/s390/include/asm/processor.h
-@@ -77,6 +77,13 @@ struct thread_struct {
-         unsigned long ksp;              /* kernel stack pointer             */
- 	mm_segment_t mm_segment;
- 	unsigned long gmap_addr;	/* address of last gmap fault. */
-+#define PFAULT_EN	1
-+#define PFAULT_PEND	2
-+	unsigned long gmap_pfault;	/*
-+					 * indicator if pfault is enabled for a
-+					 * guest and if a guest pfault is
-+					 * pending
-+					 */
- 	struct per_regs per_user;	/* User specified PER registers */
- 	struct per_event per_event;	/* Cause of the last PER trap */
- 	unsigned long per_flags;	/* Flags to control debug behavior */
-diff --git a/arch/s390/kvm/kvm-s390.c b/arch/s390/kvm/kvm-s390.c
-index a44c0dc..c2ae2c4 100644
---- a/arch/s390/kvm/kvm-s390.c
-+++ b/arch/s390/kvm/kvm-s390.c
-@@ -706,6 +706,17 @@ static int kvm_s390_handle_requests(struct kvm_vcpu *vcpu)
- 	return 0;
+diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
+index 956ca35..02a49a9 100644
+--- a/arch/x86/kvm/mmu.c
++++ b/arch/x86/kvm/mmu.c
+@@ -3223,7 +3223,7 @@ static int kvm_arch_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, gfn_t gfn)
+ 	arch.direct_map = vcpu->arch.mmu.direct_map;
+ 	arch.cr3 = vcpu->arch.mmu.get_cr3(vcpu);
+ 
+-	return kvm_setup_async_pf(vcpu, gva, gfn, &arch);
++	return kvm_setup_async_pf(vcpu, gva, gfn, &arch, false);
  }
  
-+static void kvm_arch_fault_in_sync(struct kvm_vcpu *vcpu)
-+{
-+	hva_t fault_addr;
-+	/* TODO let current->thread.gmap_pfault indicate read or write fault */
-+	struct mm_struct *mm = current->mm;
-+	down_read(&mm->mmap_sem);
-+	fault_addr = __gmap_fault(current->thread.gmap_addr, vcpu->arch.gmap);
-+	get_user_pages(current, mm, fault_addr, 1, 1, 0, NULL, NULL);
-+	up_read(&mm->mmap_sem);
-+}
-+
- static int __vcpu_run(struct kvm_vcpu *vcpu)
- {
- 	int rc;
-@@ -739,6 +750,10 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
- 	if (rc < 0) {
- 		if (kvm_is_ucontrol(vcpu->kvm)) {
- 			rc = SIE_INTERCEPT_UCONTROL;
-+		} else if (test_bit(PFAULT_PEND,
-+				    &current->thread.gmap_pfault)) {
-+			kvm_arch_fault_in_sync(vcpu);
-+			rc = 0;
- 		} else {
- 			VCPU_EVENT(vcpu, 3, "%s", "fault in sie instruction");
- 			trace_kvm_s390_sie_fault(vcpu);
-diff --git a/arch/s390/mm/fault.c b/arch/s390/mm/fault.c
-index c5cfb6f..61b1644 100644
---- a/arch/s390/mm/fault.c
-+++ b/arch/s390/mm/fault.c
-@@ -50,6 +50,7 @@
- #define VM_FAULT_BADMAP		0x020000
- #define VM_FAULT_BADACCESS	0x040000
- #define VM_FAULT_SIGNAL		0x080000
-+#define VM_FAULT_PFAULT		0x100000
+ static bool can_do_async_pf(struct kvm_vcpu *vcpu)
+diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
+index 9bd29ef..a798deb 100644
+--- a/include/linux/kvm_host.h
++++ b/include/linux/kvm_host.h
+@@ -165,12 +165,13 @@ struct kvm_async_pf {
+ 	struct kvm_arch_async_pf arch;
+ 	struct page *page;
+ 	bool done;
++	bool direct_inject;
+ };
  
- static unsigned long store_indication __read_mostly;
- 
-@@ -226,6 +227,7 @@ static noinline void do_fault_error(struct pt_regs *regs, int fault)
- 			return;
- 		}
- 	case VM_FAULT_BADCONTEXT:
-+	case VM_FAULT_PFAULT:
- 		do_no_context(regs);
- 		break;
- 	case VM_FAULT_SIGNAL:
-@@ -263,6 +265,9 @@ static noinline void do_fault_error(struct pt_regs *regs, int fault)
-  */
- static inline int do_exception(struct pt_regs *regs, int access)
- {
-+#ifdef CONFIG_PGSTE
-+	struct gmap *gmap;
-+#endif
- 	struct task_struct *tsk;
- 	struct mm_struct *mm;
- 	struct vm_area_struct *vma;
-@@ -301,9 +306,10 @@ static inline int do_exception(struct pt_regs *regs, int access)
- 	down_read(&mm->mmap_sem);
- 
- #ifdef CONFIG_PGSTE
--	if ((current->flags & PF_VCPU) && S390_lowcore.gmap) {
--		address = __gmap_fault(address,
--				     (struct gmap *) S390_lowcore.gmap);
-+	gmap = (struct gmap *)
-+		((current->flags & PF_VCPU) ? S390_lowcore.gmap : 0);
-+	if (gmap) {
-+		address = __gmap_fault(address, gmap);
- 		if (address == -EFAULT) {
- 			fault = VM_FAULT_BADMAP;
- 			goto out_up;
-@@ -312,6 +318,8 @@ static inline int do_exception(struct pt_regs *regs, int access)
- 			fault = VM_FAULT_OOM;
- 			goto out_up;
- 		}
-+		if (test_bit(PFAULT_EN, &current->thread.gmap_pfault))
-+			flags |= FAULT_FLAG_RETRY_NOWAIT;
- 	}
+ void kvm_clear_async_pf_completion_queue(struct kvm_vcpu *vcpu);
+ void kvm_check_async_pf_completion(struct kvm_vcpu *vcpu);
+ int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, gfn_t gfn,
+-		       struct kvm_arch_async_pf *arch);
++		       struct kvm_arch_async_pf *arch, bool is_direct);
+ int kvm_async_pf_wakeup_all(struct kvm_vcpu *vcpu);
  #endif
  
-@@ -368,9 +376,22 @@ retry:
- 				      regs, address);
- 		}
- 		if (fault & VM_FAULT_RETRY) {
-+#ifdef CONFIG_PGSTE
-+			if (gmap &&
-+			    test_bit(PFAULT_EN, &current->thread.gmap_pfault)) {
-+				/* FAULT_FLAG_RETRY_NOWAIT has been set,
-+				 * mmap_sem has not been released */
-+				/* TODO use access to distinguish fault type */
-+				set_bit(PFAULT_PEND,
-+					&current->thread.gmap_pfault);
-+				fault = VM_FAULT_PFAULT;
-+				goto out_up;
-+			}
-+#endif
- 			/* Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk
- 			 * of starvation. */
--			flags &= ~FAULT_FLAG_ALLOW_RETRY;
-+			flags &= ~(FAULT_FLAG_ALLOW_RETRY |
-+				   FAULT_FLAG_RETRY_NOWAIT);
- 			flags |= FAULT_FLAG_TRIED;
- 			down_read(&mm->mmap_sem);
- 			goto retry;
-diff --git a/arch/s390/mm/pgtable.c b/arch/s390/mm/pgtable.c
-index 5fb7f19..14d067d 100644
---- a/arch/s390/mm/pgtable.c
-+++ b/arch/s390/mm/pgtable.c
-@@ -540,6 +540,7 @@ unsigned long __gmap_fault(unsigned long address, struct gmap *gmap)
- 	int rc;
+diff --git a/virt/kvm/async_pf.c b/virt/kvm/async_pf.c
+index ea475cd..a4a6483 100644
+--- a/virt/kvm/async_pf.c
++++ b/virt/kvm/async_pf.c
+@@ -73,9 +73,17 @@ static void async_pf_execute(struct work_struct *work)
+ 	unuse_mm(mm);
  
- 	current->thread.gmap_addr = address;
-+	clear_bit(PFAULT_PEND, &current->thread.gmap_pfault);
- 	segment_ptr = gmap_table_walk(address, gmap);
- 	if (IS_ERR(segment_ptr))
- 		return -EFAULT;
+ 	spin_lock(&vcpu->async_pf.lock);
+-	list_add_tail(&apf->link, &vcpu->async_pf.done);
+ 	apf->page = page;
+ 	apf->done = true;
++	if (apf->direct_inject) {
++		kvm_arch_async_page_present(vcpu, apf);
++		list_del(&apf->queue);
++		vcpu->async_pf.queued--;
++		kvm_release_page_clean(apf->page);
++		kmem_cache_free(async_pf_cache, apf);
++	} else {
++		list_add_tail(&apf->link, &vcpu->async_pf.done);
++	}
+ 	spin_unlock(&vcpu->async_pf.lock);
+ 
+ 	/*
+@@ -145,7 +153,7 @@ void kvm_check_async_pf_completion(struct kvm_vcpu *vcpu)
+ }
+ 
+ int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, gfn_t gfn,
+-		       struct kvm_arch_async_pf *arch)
++		       struct kvm_arch_async_pf *arch, bool is_direct)
+ {
+ 	struct kvm_async_pf *work;
+ 
+@@ -165,13 +173,24 @@ int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, gfn_t gfn,
+ 	work->page = NULL;
+ 	work->done = false;
+ 	work->vcpu = vcpu;
+-	work->gva = gva;
+-	work->addr = gfn_to_hva(vcpu->kvm, gfn);
++	if (gfn == -1) {
++		work->gva = -1;
++		work->addr = gva;
++	} else {
++		work->gva = gva;
++		work->addr = gfn_to_hva(vcpu->kvm, gfn);
++	}
++	work->direct_inject = is_direct;
+ 	work->arch = *arch;
+ 	work->mm = current->mm;
+ 	atomic_inc(&work->mm->mm_count);
+ 	kvm_get_kvm(work->vcpu->kvm);
+ 
++	spin_lock(&vcpu->async_pf.lock);
++	list_add_tail(&work->queue, &vcpu->async_pf.queue);
++	vcpu->async_pf.queued++;
++	spin_unlock(&vcpu->async_pf.lock);
++
+ 	/* this can't really happen otherwise gfn_to_pfn_async
+ 	   would succeed */
+ 	if (unlikely(kvm_is_error_hva(work->addr)))
+@@ -181,11 +200,13 @@ int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, gfn_t gfn,
+ 	if (!schedule_work(&work->work))
+ 		goto retry_sync;
+ 
+-	list_add_tail(&work->queue, &vcpu->async_pf.queue);
+-	vcpu->async_pf.queued++;
+ 	kvm_arch_async_page_not_present(vcpu, work);
+ 	return 1;
+ retry_sync:
++	spin_lock(&vcpu->async_pf.lock);
++	list_del(&work->queue);
++	vcpu->async_pf.queued--;
++	spin_unlock(&vcpu->async_pf.lock);
+ 	kvm_put_kvm(work->vcpu->kvm);
+ 	mmdrop(work->mm);
+ 	kmem_cache_free(async_pf_cache, work);
 -- 
 1.8.1.6
 
