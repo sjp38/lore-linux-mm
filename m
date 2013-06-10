@@ -1,75 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id BD5DF6B0031
-	for <linux-mm@kvack.org>; Mon, 10 Jun 2013 07:14:15 -0400 (EDT)
-Received: from epcpsbgr3.samsung.com
- (u143.gpu120.samsung.co.kr [203.254.230.143])
- by mailout3.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 9D0B46B0032
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2013 07:16:33 -0400 (EDT)
+Received: from epcpsbgr5.samsung.com
+ (u145.gpu120.samsung.co.kr [203.254.230.145])
+ by mailout1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
  (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTP id <0MO6007WACJM9YM0@mailout3.samsung.com> for linux-mm@kvack.org;
- Mon, 10 Jun 2013 20:14:13 +0900 (KST)
+ with ESMTP id <0MO600K7SCMYIA70@mailout1.samsung.com> for linux-mm@kvack.org;
+ Mon, 10 Jun 2013 20:16:31 +0900 (KST)
 From: Hyunhee Kim <hyunhee.kim@samsung.com>
-Subject: [PATCH] memcg: event control at vmpressure.
-Date: Mon, 10 Jun 2013 20:14:13 +0900
-Message-id: <021701ce65cb$a3b9c3b0$eb2d4b10$%kim@samsung.com>
+Subject: [PATCH] memcg: Add force_reclaim to reclaim tasks' memory in memcg.
+Date: Mon, 10 Jun 2013 20:16:31 +0900
+Message-id: <021801ce65cb$f5b0bc50$e11234f0$%kim@samsung.com>
 MIME-version: 1.0
 Content-type: text/plain; charset=us-ascii
 Content-transfer-encoding: 7bit
 Content-language: ko
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: linux-mm@kvack.org, cgroups@vger.kernel.org
 Cc: 'Kyungmin Park' <kyungmin.park@samsung.com>
 
-In vmpressure, events are sent to the user space continuously
-until the memory state changes. This becomes overheads for user space module
-and also consumes power consumption. So, with this patch, vmpressure
-remembers
-the current level and only sends the event only when new memory state is
-different from the current level.
+These days, platforms tend to manage memory on low memory state
+like andloid's lowmemory killer. These platforms might want to
+reclaim memory from background tasks as well as kill victims
+to guarantee free memory at use space level. This patch provides
+an interface to reclaim a given memcg. After platform's low memory
+handler moves tasks that the platform wants to reclaim to
+a memcg and decides how many pages should be reclaimed, it can
+reclaim the pages from the tasks by writing the number of pages
+at memory.force_reclaim.
 
 Signed-off-by: Hyunhee Kim <hyunhee.kim@samsung.com>
 Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
 ---
- include/linux/vmpressure.h |    2 ++
- mm/vmpressure.c            |    4 +++-
- 2 files changed, 5 insertions(+), 1 deletion(-)
+ mm/memcontrol.c |   26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)
 
-diff --git a/include/linux/vmpressure.h b/include/linux/vmpressure.h
-index 76be077..fa0c0d2 100644
---- a/include/linux/vmpressure.h
-+++ b/include/linux/vmpressure.h
-@@ -20,6 +20,8 @@ struct vmpressure {
- 	struct mutex events_lock;
- 
- 	struct work_struct work;
-+
-+	int current_level;
- };
- 
- struct mem_cgroup;
-diff --git a/mm/vmpressure.c b/mm/vmpressure.c
-index 736a601..5f6609c 100644
---- a/mm/vmpressure.c
-+++ b/mm/vmpressure.c
-@@ -152,9 +152,10 @@ static bool vmpressure_event(struct vmpressure *vmpr,
- 	mutex_lock(&vmpr->events_lock);
- 
- 	list_for_each_entry(ev, &vmpr->events, node) {
--		if (level >= ev->level) {
-+		if (level >= ev->level && level != vmpr->current_level) {
- 			eventfd_signal(ev->efd, 1);
- 			signalled = true;
-+			vmpr->current_level = level;
- 		}
- 	}
- 
-@@ -371,4 +372,5 @@ void vmpressure_init(struct vmpressure *vmpr)
- 	mutex_init(&vmpr->events_lock);
- 	INIT_LIST_HEAD(&vmpr->events);
- 	INIT_WORK(&vmpr->work, vmpressure_work_fn);
-+	vmpr->current_level = -1;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 010d6c1..21819c9 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -4980,6 +4980,28 @@ static int mem_cgroup_force_empty_write(struct cgroup
+*cont, unsigned int event)
+ 	return ret;
  }
+ 
++static int mem_cgroup_force_reclaim(struct cgroup *cont, struct cftype
+*cft, u64 val)
++{
++
++	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
++	unsigned long nr_to_reclaim = val;
++	unsigned long total = 0;
++	int loop;
++
++	for (loop = 0; loop < MEM_CGROUP_MAX_RECLAIM_LOOPS; loop++) {
++		total += try_to_free_mem_cgroup_pages(memcg, GFP_KERNEL,
+false);
++
++		/*
++		 * If nothing was reclaimed after two attempts, there
++		 * may be no reclaimable pages in this hierarchy.
++		 * If more than nr_to_reclaim pages were already reclaimed,
++		 * finish force reclaim.
++		 */
++		if (loop && (!total || total > nr_to_reclaim))
++			break;
++	}
++	return total;
++}
+ 
+ static u64 mem_cgroup_hierarchy_read(struct cgroup *cont, struct cftype
+*cft)
+ {
+@@ -5938,6 +5960,10 @@ static struct cftype mem_cgroup_files[] = {
+ 		.trigger = mem_cgroup_force_empty_write,
+ 	},
+ 	{
++		.name = "force_reclaim",
++		.write_u64 = mem_cgroup_force_reclaim,
++	},
++	{
+ 		.name = "use_hierarchy",
+ 		.flags = CFTYPE_INSANE,
+ 		.write_u64 = mem_cgroup_hierarchy_write,
 -- 
 1.7.9.5
 
