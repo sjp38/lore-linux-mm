@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 4EEA96B003B
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 557156B003C
 	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 11:32:48 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 7/8] thp: do_huge_pmd_anonymous_page() cleanup
-Date: Tue, 11 Jun 2013 18:35:18 +0300
-Message-Id: <1370964919-16187-8-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 6/8] thp: move maybe_pmd_mkwrite() out of mk_huge_pmd()
+Date: Tue, 11 Jun 2013 18:35:17 +0300
+Message-Id: <1370964919-16187-7-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1370964919-16187-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1370964919-16187-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,118 +15,67 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Minor cleanup: unindent most code of the fucntion by inverting one
-condition. It's preparation for the next patch.
+It's confusing that mk_huge_pmd() has semantics different from mk_pte()
+or mk_pmd(). I spent some time on debugging issue cased by this
+inconsistency.
 
-No functional changes.
+Let's move maybe_pmd_mkwrite() out of mk_huge_pmd() and adjust
+prototype to match mk_pte().
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Acked-by: Hillf Danton <dhillf@gmail.com>
+Acked-by: Dave Hansen <dave.hansen@linux.intel.com>
 ---
- mm/huge_memory.c |   83 +++++++++++++++++++++++++++---------------------------
- 1 file changed, 41 insertions(+), 42 deletions(-)
+ mm/huge_memory.c |   14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)
 
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 5cd63f0..01a267c 100644
+index 3622e0be..5cd63f0 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -790,55 +790,54 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	unsigned long haddr = address & HPAGE_PMD_MASK;
- 	pte_t *pte;
+@@ -695,11 +695,10 @@ pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma)
+ 	return pmd;
+ }
  
--	if (haddr >= vma->vm_start && haddr + HPAGE_PMD_SIZE <= vma->vm_end) {
--		if (unlikely(anon_vma_prepare(vma)))
--			return VM_FAULT_OOM;
--		if (unlikely(khugepaged_enter(vma)))
-+	if (haddr < vma->vm_start || haddr + HPAGE_PMD_SIZE > vma->vm_end)
-+		goto out;
-+	if (unlikely(anon_vma_prepare(vma)))
-+		return VM_FAULT_OOM;
-+	if (unlikely(khugepaged_enter(vma)))
-+		return VM_FAULT_OOM;
-+	if (!(flags & FAULT_FLAG_WRITE) &&
-+			transparent_hugepage_use_zero_page()) {
-+		pgtable_t pgtable;
-+		struct page *zero_page;
-+		bool set;
-+		pgtable = pte_alloc_one(mm, haddr);
-+		if (unlikely(!pgtable))
- 			return VM_FAULT_OOM;
--		if (!(flags & FAULT_FLAG_WRITE) &&
--				transparent_hugepage_use_zero_page()) {
--			pgtable_t pgtable;
--			struct page *zero_page;
--			bool set;
--			pgtable = pte_alloc_one(mm, haddr);
--			if (unlikely(!pgtable))
--				return VM_FAULT_OOM;
--			zero_page = get_huge_zero_page();
--			if (unlikely(!zero_page)) {
--				pte_free(mm, pgtable);
--				count_vm_event(THP_FAULT_FALLBACK);
--				goto out;
--			}
--			spin_lock(&mm->page_table_lock);
--			set = set_huge_zero_page(pgtable, mm, vma, haddr, pmd,
--					zero_page);
--			spin_unlock(&mm->page_table_lock);
--			if (!set) {
--				pte_free(mm, pgtable);
--				put_huge_zero_page();
--			}
--			return 0;
--		}
--		page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
--					  vma, haddr, numa_node_id(), 0);
--		if (unlikely(!page)) {
-+		zero_page = get_huge_zero_page();
-+		if (unlikely(!zero_page)) {
-+			pte_free(mm, pgtable);
- 			count_vm_event(THP_FAULT_FALLBACK);
- 			goto out;
- 		}
--		count_vm_event(THP_FAULT_ALLOC);
--		if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
--			put_page(page);
--			goto out;
--		}
--		if (unlikely(__do_huge_pmd_anonymous_page(mm, vma, haddr, pmd,
--							  page))) {
--			mem_cgroup_uncharge_page(page);
--			put_page(page);
--			goto out;
-+		spin_lock(&mm->page_table_lock);
-+		set = set_huge_zero_page(pgtable, mm, vma, haddr, pmd,
-+				zero_page);
-+		spin_unlock(&mm->page_table_lock);
-+		if (!set) {
-+			pte_free(mm, pgtable);
-+			put_huge_zero_page();
- 		}
--
- 		return 0;
- 	}
-+	page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
-+			vma, haddr, numa_node_id(), 0);
-+	if (unlikely(!page)) {
-+		count_vm_event(THP_FAULT_FALLBACK);
-+		goto out;
-+	}
-+	count_vm_event(THP_FAULT_ALLOC);
-+	if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
-+		put_page(page);
-+		goto out;
-+	}
-+	if (unlikely(__do_huge_pmd_anonymous_page(mm, vma, haddr, pmd, page))) {
-+		mem_cgroup_uncharge_page(page);
-+		put_page(page);
-+		goto out;
-+	}
-+
-+	return 0;
- out:
+-static inline pmd_t mk_huge_pmd(struct page *page, struct vm_area_struct *vma)
++static inline pmd_t mk_huge_pmd(struct page *page, pgprot_t prot)
+ {
+ 	pmd_t entry;
+-	entry = mk_pmd(page, vma->vm_page_prot);
+-	entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
++	entry = mk_pmd(page, prot);
+ 	entry = pmd_mkhuge(entry);
+ 	return entry;
+ }
+@@ -732,7 +731,8 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
+ 		pte_free(mm, pgtable);
+ 	} else {
+ 		pmd_t entry;
+-		entry = mk_huge_pmd(page, vma);
++		entry = mk_huge_pmd(page, vma->vm_page_prot);
++		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+ 		page_add_new_anon_rmap(page, vma, haddr);
+ 		pgtable_trans_huge_deposit(mm, pmd, pgtable);
+ 		set_pmd_at(mm, haddr, pmd, entry);
+@@ -1215,7 +1215,8 @@ alloc:
+ 		goto out_mn;
+ 	} else {
+ 		pmd_t entry;
+-		entry = mk_huge_pmd(new_page, vma);
++		entry = mk_huge_pmd(new_page, vma->vm_page_prot);
++		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+ 		pmdp_clear_flush(vma, haddr, pmd);
+ 		page_add_new_anon_rmap(new_page, vma, haddr);
+ 		set_pmd_at(mm, haddr, pmd, entry);
+@@ -2361,7 +2362,8 @@ static void collapse_huge_page(struct mm_struct *mm,
+ 	__SetPageUptodate(new_page);
+ 	pgtable = pmd_pgtable(_pmd);
+ 
+-	_pmd = mk_huge_pmd(new_page, vma);
++	_pmd = mk_huge_pmd(new_page, vma->vm_page_prot);
++	_pmd = maybe_pmd_mkwrite(pmd_mkdirty(_pmd), vma);
+ 
  	/*
- 	 * Use __pte_alloc instead of pte_alloc_map, because we can't
+ 	 * spin_lock() below is not the equivalent of smp_wmb(), so
 -- 
 1.7.10.4
 
