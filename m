@@ -1,46 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 909E66B0031
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 16:53:54 -0400 (EDT)
-Date: Tue, 11 Jun 2013 15:53:43 -0500
-From: Scott Wood <scottwood@freescale.com>
-Subject: Re: [PATCH -V7 09/18] powerpc: Switch 16GB and 16MB explicit
- hugepages to a different page table format
-In-Reply-To: <87obbgpmk3.fsf@linux.vnet.ibm.com> (from
-	aneesh.kumar@linux.vnet.ibm.com on Sat Jun  8 11:57:48 2013)
-Message-ID: <1370984023.18413.30@snotra>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id CBB376B0031
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 17:16:06 -0400 (EDT)
+Date: Tue, 11 Jun 2013 17:16:01 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH, RFC] mm: Implement RLIMIT_RSS
+Message-ID: <20130611211601.GA29426@cmpxchg.org>
+References: <20130611182921.GB25941@logfs.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"; delsp=Yes; format=Flowed
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20130611182921.GB25941@logfs.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, paulus@samba.org, linuxppc-dev@lists.ozlabs.org, dwg@au1.ibm.com
+To: =?iso-8859-1?Q?J=F6rn?= Engel <joern@logfs.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 06/08/2013 11:57:48 AM, Aneesh Kumar K.V wrote:
-> With the config shared I am not finding anything wrong, but I can't =20
-> test
-> these configs. Also can you confirm what you bisect this to
->=20
-> e2b3d202d1dba8f3546ed28224ce485bc50010be
-> powerpc: Switch 16GB and 16MB explicit hugepages to a different page =20
-> table format
+On Tue, Jun 11, 2013 at 02:29:21PM -0400, Jorn Engel wrote:
+> I've seen a couple of instances where people try to impose a vsize
+> limit simply because there is no rss limit in Linux.  The vsize limit
+> is a horrible approximation and even this patch seems to be an
+> improvement.
+> 
+> Would there be strong opposition to actually supporting RLIMIT_RSS?
+> 
+> Jorn
+> 
+> --
+> It's not whether you win or lose, it's how you place the blame.
+> -- unknown
+> 
+> 
+> Not quite perfect, but close enough for many purposes.  This checks rss
+> limit inside may_expand_vm() and will fail if we are already over the
+> limit.
 
->=20
-> or
->=20
-> cf9427b85e90bb1ff90e2397ff419691d983c68b "powerpc: New hugepage =20
-> directory format"
+This is trivial to exploit by creating the mappings first and
+populating them later, so while it may cover some use cases, it does
+not have the protection against malicious programs aspect that all the
+other rlimits have.
 
-It's e2b3d202d1dba8f3546ed28224ce485bc50010be.
+The right place to enforce the limit is at the point of memory
+allocation, which raises the question what to do when the limit is
+exceeded in a page fault.  Reclaim from the process's memory?  Kill
+it?
 
-It turned out to be the change from "pmd_none" to =20
-"pmd_none_or_clear_bad".  Making that change triggers the "bad pmd" =20
-messages even when applied to v3.9 -- so we had bad pmds all along, =20
-undetected.  Now I get to figure out why. :-(
-
--Scott=
+I guess the answer to these questions is "memory cgroups", so that's
+why there is no real motivation to implement RLIMIT_RSS separately...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
