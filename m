@@ -1,44 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 404668D001E
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 12:24:33 -0400 (EDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <51B74A7A.1040707@sr71.net>
-References: <1370964919-16187-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1370964919-16187-3-git-send-email-kirill.shutemov@linux.intel.com>
- <51B74A7A.1040707@sr71.net>
-Subject: Re: [PATCH 2/8] thp, mm: avoid PageUnevictable on active/inactive lru
- lists
-Content-Transfer-Encoding: 7bit
-Message-Id: <20130611162707.53DCBE0090@blue.fi.intel.com>
-Date: Tue, 11 Jun 2013 19:27:07 +0300 (EEST)
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 3937B8D001E
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 12:28:49 -0400 (EDT)
+Date: Tue, 11 Jun 2013 16:28:47 +0000
+From: Christoph Lameter <cl@gentwo.org>
+Subject: Re: [PATCH] slab: prevent warnings when allocating with
+ __GFP_NOWARN
+In-Reply-To: <1370967193.3252.47.camel@edumazet-glaptop>
+Message-ID: <0000013f341177d5-2328d812-f9a5-4626-970c-365489f690d5-000000@email.amazonses.com>
+References: <1370891880-2644-1-git-send-email-sasha.levin@oracle.com>  <CAOJsxLGDH2iwznRkP-iwiMZw7Ee3mirhjLvhShrWLHR0qguRxA@mail.gmail.com>  <51B62F6B.8040308@oracle.com>  <0000013f3075f90d-735942a8-b4b8-413f-a09e-57d1de0c4974-000000@email.amazonses.com>
+ <51B67553.6020205@oracle.com>  <CAOJsxLH56xqCoDikYYaY_guqCX=S4rcVfDJQ4ki=r-PkNQW9ug@mail.gmail.com>  <51B72323.8040207@oracle.com>  <0000013f33cdc631-eadb07d1-ef08-4e2c-a218-1997eb86cde9-000000@email.amazonses.com>  <51B73F38.6040802@kernel.org>
+ <0000013f33d58923-88767793-2187-476d-b500-dba3c22607aa-000000@email.amazonses.com>  <51B745F9.9080609@oracle.com> <1370967193.3252.47.camel@edumazet-glaptop>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Pekka Enberg <penberg@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-Dave Hansen wrote:
-> On 06/11/2013 08:35 AM, Kirill A. Shutemov wrote:
-> > active/inactive lru lists can contain unevicable pages (i.e. ramfs pages
-> > that have been placed on the LRU lists when first allocated), but these
-> > pages must not have PageUnevictable set - otherwise shrink_[in]active_list
-> > goes crazy:
-> 
-> I think it's also important here to note if this is a bug that can be
-> hit _currently_, or if this really is just a preparatory patch for
-> transparent huge page cache.
+On Tue, 11 Jun 2013, Eric Dumazet wrote:
 
-I've mentioned in cover letter, that don't think the bug can be triggered on
-current upstream code.
+> Allowing a pipe to store thousands of page refs seems quite useless and
+> dangerous.
+>
+> Having to use vmalloc()/vfree() for every splice()/vmsplice() would be a
+> performance loss anyway.
+>
+> (fs/splice.c splice_grow_spd() will also want to allocate big kmalloc()
+> chunks)
 
-> From what I can see, this is _needed_ preparatory work, but it can also
-> stand on its own because it simplifies things.  It should go in sooner
-> rather than later.
-
-Right.
-
--- 
- Kirill A. Shutemov
+Why is it not using the page allocator for large allocations?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
