@@ -1,39 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 2B5656B0033
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 03:14:14 -0400 (EDT)
-Date: Tue, 11 Jun 2013 10:13:59 +0300
-From: Dan Carpenter <dan.carpenter@oracle.com>
-Subject: [patch -mm] UBIFS: signedness bug in ubifs_shrink_count()
-Message-ID: <20130611071359.GA6071@debian>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 9A0A76B0033
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 03:27:45 -0400 (EDT)
+Date: Tue, 11 Jun 2013 09:27:43 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 3/3] memcg: simplify mem_cgroup_reclaim_iter
+Message-ID: <20130611072743.GB24031@dhcp22.suse.cz>
+References: <20130605222021.GL10693@mtj.dyndns.org>
+ <20130605222709.GM10693@mtj.dyndns.org>
+ <20130606115031.GE7909@dhcp22.suse.cz>
+ <20130607005242.GB16160@htj.dyndns.org>
+ <20130607073754.GA8117@dhcp22.suse.cz>
+ <20130607232557.GL14781@mtj.dyndns.org>
+ <20130610080208.GB5138@dhcp22.suse.cz>
+ <20130610195426.GC12461@mtj.dyndns.org>
+ <20130610204801.GA21003@dhcp22.suse.cz>
+ <20130610231358.GD12461@mtj.dyndns.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20130610231358.GD12461@mtj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Chinner <dchinner@redhat.com>, Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, bsingharora@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org, lizefan@huawei.com
 
-We test "clean_zn_cnt" for negative later in the function.
+On Mon 10-06-13 16:13:58, Tejun Heo wrote:
+> Hey,
+> 
+> On Mon, Jun 10, 2013 at 10:48:01PM +0200, Michal Hocko wrote:
+> > > Ooh, right, we don't need cleanup of the cached cursors on destruction
+> > > if we get this correct - especially if we make cursors point to the
+> > > next cgroup to visit as self is always the first one to visit. 
+> > 
+> > You would need to pin the next-to-visit memcg as well, so you need a
+> > cleanup on the removal.
+> 
+> But that'd be one of the descendants of the said cgroup and there can
+> no descendant left when the cgroup is being removed.  What am I
+> missing?
+            .
+            .
+            .
+            A (cached=E)
+	   /|\____________
+          / |             \
+	 B  D (cached=E)   F<
+	/   |               \
+       C<   E                G
+            ^
+	 removed
 
-Signed-off-by: Dan Carpenter <dan.carpenter@oracle.com>
----
-This was introduced in the -mm branch in:
-fs-convert-fs-shrinkers-to-new-scan-count-api-fix
+* D level cache - nobody left for either approach approach
+* A level is 
+	- F for next-to-visit
+	- C for last_visited
 
-diff --git a/fs/ubifs/shrinker.c b/fs/ubifs/shrinker.c
-index 68ce399..f35135e 100644
---- a/fs/ubifs/shrinker.c
-+++ b/fs/ubifs/shrinker.c
-@@ -280,7 +280,7 @@ static int kick_a_thread(void)
- unsigned long ubifs_shrink_count(struct shrinker *shrink,
- 				 struct shrink_control *sc)
- {
--	unsigned long clean_zn_cnt = atomic_long_read(&ubifs_clean_zn_cnt);
-+	long clean_zn_cnt = atomic_long_read(&ubifs_clean_zn_cnt);
- 
- 	/*
- 	 * Due to the way UBIFS updates the clean znode counter it may
+You have to get up the hierarchy and handle root cgroup as a special
+case for !root->use_hierarchy. Once you have non-NULL new cache the it
+can be propagated without a new search (which I haven't realized when
+working on this approach the last time - not that it would safe some
+code in the end).
+
+Makes sense?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
