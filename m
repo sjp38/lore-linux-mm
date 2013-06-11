@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 65E5A6B0038
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 9ED726B0039
 	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 11:32:44 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 4/8] mm: cleanup add_to_page_cache_locked()
-Date: Tue, 11 Jun 2013 18:35:15 +0300
-Message-Id: <1370964919-16187-5-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 3/8] thp: account anon transparent huge pages into NR_ANON_PAGES
+Date: Tue, 11 Jun 2013 18:35:14 +0300
+Message-Id: <1370964919-16187-4-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1370964919-16187-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1370964919-16187-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,82 +15,117 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-The patch makes add_to_page_cache_locked() cleaner:
- - unindent most code of the function by inverting one condition;
- - streamline code no-error path;
- - move insert error path outside normal code path;
- - call radix_tree_preload_end() earlier;
+We use NR_ANON_PAGES as base for reporting AnonPages to user.
+There's not much sense in not accounting transparent huge pages there, but
+add them on printing to user.
 
-No functional changes.
+Let's account transparent huge pages in NR_ANON_PAGES in the first place.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Acked-by: Dave Hansen <dave.hansen@linux.intel.com>
 ---
- mm/filemap.c |   48 +++++++++++++++++++++++++-----------------------
- 1 file changed, 25 insertions(+), 23 deletions(-)
+ drivers/base/node.c |    6 ------
+ fs/proc/meminfo.c   |    6 ------
+ mm/huge_memory.c    |    1 -
+ mm/rmap.c           |   18 +++++++++---------
+ 4 files changed, 9 insertions(+), 22 deletions(-)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 61158ac..bb6ad8c 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -467,32 +467,34 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
- 	error = mem_cgroup_cache_charge(page, current->mm,
- 					gfp_mask & GFP_RECLAIM_MASK);
- 	if (error)
--		goto out;
-+		return error;
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index 7616a77..bc9f43b 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -125,13 +125,7 @@ static ssize_t node_read_meminfo(struct device *dev,
+ 		       nid, K(node_page_state(nid, NR_WRITEBACK)),
+ 		       nid, K(node_page_state(nid, NR_FILE_PAGES)),
+ 		       nid, K(node_page_state(nid, NR_FILE_MAPPED)),
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-		       nid, K(node_page_state(nid, NR_ANON_PAGES)
+-			+ node_page_state(nid, NR_ANON_TRANSPARENT_HUGEPAGES) *
+-			HPAGE_PMD_NR),
+-#else
+ 		       nid, K(node_page_state(nid, NR_ANON_PAGES)),
+-#endif
+ 		       nid, K(node_page_state(nid, NR_SHMEM)),
+ 		       nid, node_page_state(nid, NR_KERNEL_STACK) *
+ 				THREAD_SIZE / 1024,
+diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+index 5aa847a..59d85d6 100644
+--- a/fs/proc/meminfo.c
++++ b/fs/proc/meminfo.c
+@@ -132,13 +132,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ 		K(i.freeswap),
+ 		K(global_page_state(NR_FILE_DIRTY)),
+ 		K(global_page_state(NR_WRITEBACK)),
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-		K(global_page_state(NR_ANON_PAGES)
+-		  + global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
+-		  HPAGE_PMD_NR),
+-#else
+ 		K(global_page_state(NR_ANON_PAGES)),
+-#endif
+ 		K(global_page_state(NR_FILE_MAPPED)),
+ 		K(global_page_state(NR_SHMEM)),
+ 		K(global_page_state(NR_SLAB_RECLAIMABLE) +
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index d94f7de..3622e0be 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1666,7 +1666,6 @@ static void __split_huge_page_refcount(struct page *page,
+ 	BUG_ON(atomic_read(&page->_count) <= 0);
  
- 	error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
--	if (error == 0) {
--		page_cache_get(page);
--		page->mapping = mapping;
--		page->index = offset;
--
--		spin_lock_irq(&mapping->tree_lock);
--		error = radix_tree_insert(&mapping->page_tree, offset, page);
--		if (likely(!error)) {
--			mapping->nrpages++;
--			__inc_zone_page_state(page, NR_FILE_PAGES);
--			spin_unlock_irq(&mapping->tree_lock);
--			trace_mm_filemap_add_to_page_cache(page);
--		} else {
--			page->mapping = NULL;
--			/* Leave page->index set: truncation relies upon it */
--			spin_unlock_irq(&mapping->tree_lock);
--			mem_cgroup_uncharge_cache_page(page);
--			page_cache_release(page);
--		}
--		radix_tree_preload_end();
--	} else
-+	if (error) {
- 		mem_cgroup_uncharge_cache_page(page);
--out:
-+		return error;
-+	}
-+
-+	page_cache_get(page);
-+	page->mapping = mapping;
-+	page->index = offset;
-+
-+	spin_lock_irq(&mapping->tree_lock);
-+	error = radix_tree_insert(&mapping->page_tree, offset, page);
-+	radix_tree_preload_end();
-+	if (unlikely(!error))
-+		goto err_insert;
-+	mapping->nrpages++;
-+	__inc_zone_page_state(page, NR_FILE_PAGES);
-+	spin_unlock_irq(&mapping->tree_lock);
-+	trace_mm_filemap_add_to_page_cache(page);
-+	return 0;
-+err_insert:
-+	page->mapping = NULL;
-+	/* Leave page->index set: truncation relies upon it */
-+	spin_unlock_irq(&mapping->tree_lock);
-+	mem_cgroup_uncharge_cache_page(page);
-+	page_cache_release(page);
- 	return error;
- }
- EXPORT_SYMBOL(add_to_page_cache_locked);
+ 	__mod_zone_page_state(zone, NR_ANON_TRANSPARENT_HUGEPAGES, -1);
+-	__mod_zone_page_state(zone, NR_ANON_PAGES, HPAGE_PMD_NR);
+ 
+ 	ClearPageCompound(page);
+ 	compound_unlock(page);
+diff --git a/mm/rmap.c b/mm/rmap.c
+index e22ceeb..066d7e6 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1055,11 +1055,11 @@ void do_page_add_anon_rmap(struct page *page,
+ {
+ 	int first = atomic_inc_and_test(&page->_mapcount);
+ 	if (first) {
+-		if (!PageTransHuge(page))
+-			__inc_zone_page_state(page, NR_ANON_PAGES);
+-		else
++		if (PageTransHuge(page))
+ 			__inc_zone_page_state(page,
+ 					      NR_ANON_TRANSPARENT_HUGEPAGES);
++		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES,
++				hpage_nr_pages(page));
+ 	}
+ 	if (unlikely(PageKsm(page)))
+ 		return;
+@@ -1088,10 +1088,10 @@ void page_add_new_anon_rmap(struct page *page,
+ 	VM_BUG_ON(address < vma->vm_start || address >= vma->vm_end);
+ 	SetPageSwapBacked(page);
+ 	atomic_set(&page->_mapcount, 0); /* increment count (starts at -1) */
+-	if (!PageTransHuge(page))
+-		__inc_zone_page_state(page, NR_ANON_PAGES);
+-	else
++	if (PageTransHuge(page))
+ 		__inc_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
++	__mod_zone_page_state(page_zone(page), NR_ANON_PAGES,
++			hpage_nr_pages(page));
+ 	__page_set_anon_rmap(page, vma, address, 1);
+ 	if (!mlocked_vma_newpage(vma, page)) {
+ 		SetPageActive(page);
+@@ -1151,11 +1151,11 @@ void page_remove_rmap(struct page *page)
+ 		goto out;
+ 	if (anon) {
+ 		mem_cgroup_uncharge_page(page);
+-		if (!PageTransHuge(page))
+-			__dec_zone_page_state(page, NR_ANON_PAGES);
+-		else
++		if (PageTransHuge(page))
+ 			__dec_zone_page_state(page,
+ 					      NR_ANON_TRANSPARENT_HUGEPAGES);
++		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES,
++				hpage_nr_pages(page));
+ 	} else {
+ 		__dec_zone_page_state(page, NR_FILE_MAPPED);
+ 		mem_cgroup_dec_page_stat(page, MEMCG_NR_FILE_MAPPED);
 -- 
 1.7.10.4
 
