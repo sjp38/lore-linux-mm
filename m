@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 9ED726B0039
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 11:32:44 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id C6C6E6B003A
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 11:32:45 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 3/8] thp: account anon transparent huge pages into NR_ANON_PAGES
-Date: Tue, 11 Jun 2013 18:35:14 +0300
-Message-Id: <1370964919-16187-4-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 2/8] thp, mm: avoid PageUnevictable on active/inactive lru lists
+Date: Tue, 11 Jun 2013 18:35:13 +0300
+Message-Id: <1370964919-16187-3-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1370964919-16187-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1370964919-16187-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,117 +15,117 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-We use NR_ANON_PAGES as base for reporting AnonPages to user.
-There's not much sense in not accounting transparent huge pages there, but
-add them on printing to user.
+active/inactive lru lists can contain unevicable pages (i.e. ramfs pages
+that have been placed on the LRU lists when first allocated), but these
+pages must not have PageUnevictable set - otherwise shrink_[in]active_list
+goes crazy:
 
-Let's account transparent huge pages in NR_ANON_PAGES in the first place.
+kernel BUG at /home/space/kas/git/public/linux-next/mm/vmscan.c:1122!
+
+1090 static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+1091                 struct lruvec *lruvec, struct list_head *dst,
+1092                 unsigned long *nr_scanned, struct scan_control *sc,
+1093                 isolate_mode_t mode, enum lru_list lru)
+1094 {
+...
+1108                 switch (__isolate_lru_page(page, mode)) {
+1109                 case 0:
+...
+1116                 case -EBUSY:
+...
+1121                 default:
+1122                         BUG();
+1123                 }
+1124         }
+...
+1130 }
+
+__isolate_lru_page() returns EINVAL for PageUnevictable(page).
+
+For lru_add_page_tail(), it means we should not set PageUnevictable()
+for tail pages unless we're sure that it will go to LRU_UNEVICTABLE.
+Let's just copy PG_active and PG_unevictable from head page in
+__split_huge_page_refcount(), it will simplify lru_add_page_tail().
+
+This will fix one more bug in lru_add_page_tail():
+if page_evictable(page_tail) is false and PageLRU(page) is true, page_tail
+will go to the same lru as page, but nobody cares to sync page_tail
+active/inactive state with page. So we can end up with inactive page on
+active lru.
+The patch will fix it as well since we copy PG_active from head page.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Acked-by: Dave Hansen <dave.hansen@linux.intel.com>
 ---
- drivers/base/node.c |    6 ------
- fs/proc/meminfo.c   |    6 ------
- mm/huge_memory.c    |    1 -
- mm/rmap.c           |   18 +++++++++---------
- 4 files changed, 9 insertions(+), 22 deletions(-)
+ mm/huge_memory.c |    4 +++-
+ mm/swap.c        |   20 ++------------------
+ 2 files changed, 5 insertions(+), 19 deletions(-)
 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 7616a77..bc9f43b 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -125,13 +125,7 @@ static ssize_t node_read_meminfo(struct device *dev,
- 		       nid, K(node_page_state(nid, NR_WRITEBACK)),
- 		       nid, K(node_page_state(nid, NR_FILE_PAGES)),
- 		       nid, K(node_page_state(nid, NR_FILE_MAPPED)),
--#ifdef CONFIG_TRANSPARENT_HUGEPAGE
--		       nid, K(node_page_state(nid, NR_ANON_PAGES)
--			+ node_page_state(nid, NR_ANON_TRANSPARENT_HUGEPAGES) *
--			HPAGE_PMD_NR),
--#else
- 		       nid, K(node_page_state(nid, NR_ANON_PAGES)),
--#endif
- 		       nid, K(node_page_state(nid, NR_SHMEM)),
- 		       nid, node_page_state(nid, NR_KERNEL_STACK) *
- 				THREAD_SIZE / 1024,
-diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-index 5aa847a..59d85d6 100644
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -132,13 +132,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- 		K(i.freeswap),
- 		K(global_page_state(NR_FILE_DIRTY)),
- 		K(global_page_state(NR_WRITEBACK)),
--#ifdef CONFIG_TRANSPARENT_HUGEPAGE
--		K(global_page_state(NR_ANON_PAGES)
--		  + global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
--		  HPAGE_PMD_NR),
--#else
- 		K(global_page_state(NR_ANON_PAGES)),
--#endif
- 		K(global_page_state(NR_FILE_MAPPED)),
- 		K(global_page_state(NR_SHMEM)),
- 		K(global_page_state(NR_SLAB_RECLAIMABLE) +
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index d94f7de..3622e0be 100644
+index ed26ccb..d94f7de 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -1666,7 +1666,6 @@ static void __split_huge_page_refcount(struct page *page,
- 	BUG_ON(atomic_read(&page->_count) <= 0);
+@@ -1625,7 +1625,9 @@ static void __split_huge_page_refcount(struct page *page,
+ 				     ((1L << PG_referenced) |
+ 				      (1L << PG_swapbacked) |
+ 				      (1L << PG_mlocked) |
+-				      (1L << PG_uptodate)));
++				      (1L << PG_uptodate) |
++				      (1L << PG_active) |
++				      (1L << PG_unevictable)));
+ 		page_tail->flags |= (1L << PG_dirty);
  
- 	__mod_zone_page_state(zone, NR_ANON_TRANSPARENT_HUGEPAGES, -1);
--	__mod_zone_page_state(zone, NR_ANON_PAGES, HPAGE_PMD_NR);
- 
- 	ClearPageCompound(page);
- 	compound_unlock(page);
-diff --git a/mm/rmap.c b/mm/rmap.c
-index e22ceeb..066d7e6 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1055,11 +1055,11 @@ void do_page_add_anon_rmap(struct page *page,
+ 		/* clear PageTail before overwriting first_page */
+diff --git a/mm/swap.c b/mm/swap.c
+index 2056d54..a19d4e5 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -770,8 +770,6 @@ EXPORT_SYMBOL(__pagevec_release);
+ void lru_add_page_tail(struct page *page, struct page *page_tail,
+ 		       struct lruvec *lruvec, struct list_head *list)
  {
- 	int first = atomic_inc_and_test(&page->_mapcount);
- 	if (first) {
--		if (!PageTransHuge(page))
--			__inc_zone_page_state(page, NR_ANON_PAGES);
--		else
-+		if (PageTransHuge(page))
- 			__inc_zone_page_state(page,
- 					      NR_ANON_TRANSPARENT_HUGEPAGES);
-+		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES,
-+				hpage_nr_pages(page));
+-	int uninitialized_var(active);
+-	enum lru_list lru;
+ 	const int file = 0;
+ 
+ 	VM_BUG_ON(!PageHead(page));
+@@ -783,20 +781,6 @@ void lru_add_page_tail(struct page *page, struct page *page_tail,
+ 	if (!list)
+ 		SetPageLRU(page_tail);
+ 
+-	if (page_evictable(page_tail)) {
+-		if (PageActive(page)) {
+-			SetPageActive(page_tail);
+-			active = 1;
+-			lru = LRU_ACTIVE_ANON;
+-		} else {
+-			active = 0;
+-			lru = LRU_INACTIVE_ANON;
+-		}
+-	} else {
+-		SetPageUnevictable(page_tail);
+-		lru = LRU_UNEVICTABLE;
+-	}
+-
+ 	if (likely(PageLRU(page)))
+ 		list_add_tail(&page_tail->lru, &page->lru);
+ 	else if (list) {
+@@ -812,13 +796,13 @@ void lru_add_page_tail(struct page *page, struct page *page_tail,
+ 		 * Use the standard add function to put page_tail on the list,
+ 		 * but then correct its position so they all end up in order.
+ 		 */
+-		add_page_to_lru_list(page_tail, lruvec, lru);
++		add_page_to_lru_list(page_tail, lruvec, page_lru(page_tail));
+ 		list_head = page_tail->lru.prev;
+ 		list_move_tail(&page_tail->lru, list_head);
  	}
- 	if (unlikely(PageKsm(page)))
- 		return;
-@@ -1088,10 +1088,10 @@ void page_add_new_anon_rmap(struct page *page,
- 	VM_BUG_ON(address < vma->vm_start || address >= vma->vm_end);
- 	SetPageSwapBacked(page);
- 	atomic_set(&page->_mapcount, 0); /* increment count (starts at -1) */
--	if (!PageTransHuge(page))
--		__inc_zone_page_state(page, NR_ANON_PAGES);
--	else
-+	if (PageTransHuge(page))
- 		__inc_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
-+	__mod_zone_page_state(page_zone(page), NR_ANON_PAGES,
-+			hpage_nr_pages(page));
- 	__page_set_anon_rmap(page, vma, address, 1);
- 	if (!mlocked_vma_newpage(vma, page)) {
- 		SetPageActive(page);
-@@ -1151,11 +1151,11 @@ void page_remove_rmap(struct page *page)
- 		goto out;
- 	if (anon) {
- 		mem_cgroup_uncharge_page(page);
--		if (!PageTransHuge(page))
--			__dec_zone_page_state(page, NR_ANON_PAGES);
--		else
-+		if (PageTransHuge(page))
- 			__dec_zone_page_state(page,
- 					      NR_ANON_TRANSPARENT_HUGEPAGES);
-+		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES,
-+				hpage_nr_pages(page));
- 	} else {
- 		__dec_zone_page_state(page, NR_FILE_MAPPED);
- 		mem_cgroup_dec_page_stat(page, MEMCG_NR_FILE_MAPPED);
+ 
+ 	if (!PageUnevictable(page))
+-		update_page_reclaim_stat(lruvec, file, active);
++		update_page_reclaim_stat(lruvec, file, PageActive(page_tail));
+ }
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ 
 -- 
 1.7.10.4
 
