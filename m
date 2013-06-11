@@ -1,43 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id D45236B0034
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 18:20:12 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id r10so3028695pdi.27
-        for <linux-mm@kvack.org>; Tue, 11 Jun 2013 15:20:12 -0700 (PDT)
-Date: Tue, 11 Jun 2013 15:20:09 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2] Make transparent hugepages cpuset aware
-In-Reply-To: <1370967244-5610-1-git-send-email-athorlton@sgi.com>
-Message-ID: <alpine.DEB.2.02.1306111517200.6141@chino.kir.corp.google.com>
-References: <1370967244-5610-1-git-send-email-athorlton@sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 034146B0034
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 18:34:56 -0400 (EDT)
+Date: Tue, 11 Jun 2013 15:34:54 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] slab: prevent warnings when allocating with
+ __GFP_NOWARN
+Message-Id: <20130611153454.6ab17ce44bc4a678b8bf72d4@linux-foundation.org>
+In-Reply-To: <51B73F38.6040802@kernel.org>
+References: <1370891880-2644-1-git-send-email-sasha.levin@oracle.com>
+	<CAOJsxLGDH2iwznRkP-iwiMZw7Ee3mirhjLvhShrWLHR0qguRxA@mail.gmail.com>
+	<51B62F6B.8040308@oracle.com>
+	<0000013f3075f90d-735942a8-b4b8-413f-a09e-57d1de0c4974-000000@email.amazonses.com>
+	<51B67553.6020205@oracle.com>
+	<CAOJsxLH56xqCoDikYYaY_guqCX=S4rcVfDJQ4ki=r-PkNQW9ug@mail.gmail.com>
+	<51B72323.8040207@oracle.com>
+	<0000013f33cdc631-eadb07d1-ef08-4e2c-a218-1997eb86cde9-000000@email.amazonses.com>
+	<51B73F38.6040802@kernel.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Thorlton <athorlton@sgi.com>
-Cc: linux-kernel@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, linux-doc@vger.kernel.org, linux-mm@kvack.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@gentwo.org>, Sasha Levin <sasha.levin@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, 11 Jun 2013, Alex Thorlton wrote:
+On Tue, 11 Jun 2013 18:16:08 +0300 Pekka Enberg <penberg@kernel.org> wrote:
 
-> This patch adds the ability to control THPs on a per cpuset basis.  Please see
-> the additions to Documentation/cgroups/cpusets.txt for more information.
+> On Tue, 11 Jun 2013, Sasha Levin wrote:
+> >> I think that leaving the warning makes sense to catch similar
+> >> things which are actually bugs - we had a similar issue with
+> >> /dev/kmsg (if I remember correctly) which actually pointed to
+> >> a bug.
 > 
+> On 6/11/13 6:14 PM, Christoph Lameter wrote:
+> > Right. Requesting an allocation larger than even supported by the page
+> > allocator from the slab allocators that are specializing in allocations of
+> > small objects is usually an indication of a problem in the code.
+> 
+> So you're OK with going forward with Sasha's patch?
 
-What's missing from both this changelog and the documentation you point to 
-is why this change is needed.
+Yes please.  slab should honour __GFP_NOWARN.
 
-I can understand how you would want a subset of processes to not use thp 
-when it is enabled.  This is typically where MADV_NOHUGEPAGE is used with 
-some type of malloc hook.
+__GFP_NOWARN is frequently used by kernel code to probe for "how big an
+allocation can I get".  That's a bit lame, but it's used on slow paths
+and is pretty simple.
 
-I don't think we need to do this on a cpuset level, so unfortunately I 
-think this needs to be reworked.  Would it make sense to add a per-process 
-tunable to always get MADV_NOHUGEPAGE behavior for all of its sbrk() and 
-mmap() calls?  Perhaps, but then you would need to justify why it can't be 
-done with a malloc hook in userspace.
-
-This seems to just be working around a userspace issue or for a matter of 
-convenience, right?
+In the case of pipe_set_size(), it's userspace who is doing the
+probing: an application can request a huge pipe buffer and if that
+fails, try again with a smaller one.  It's just wrong to emit a kernel
+warning in this case.  Plus, we've already reported the failure
+anyway, by returning -ENOMEM from pipe_fcntl().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
