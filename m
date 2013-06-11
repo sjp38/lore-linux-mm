@@ -1,82 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 565486B0037
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 05:07:23 -0400 (EDT)
-Received: by mail-wi0-f178.google.com with SMTP id k10so655816wiv.11
-        for <linux-mm@kvack.org>; Tue, 11 Jun 2013 02:07:21 -0700 (PDT)
-Date: Tue, 11 Jun 2013 10:07:15 +0100
-From: Steve Capper <steve.capper@linaro.org>
-Subject: Re: [PATCH 00/11] HugeTLB and THP support for ARM64.
-Message-ID: <20130611090714.GA21776@linaro.org>
-References: <1369328878-11706-1-git-send-email-steve.capper@linaro.org>
+Message-ID: <51B6F107.80501@cn.fujitsu.com>
+Date: Tue, 11 Jun 2013 17:42:31 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1369328878-11706-1-git-send-email-steve.capper@linaro.org>
+Subject: Re: [WiP]: aio support for migrating pages (Re: [PATCH V2 1/2] mm:
+ hotplug: implement non-movable version of get_user_pages() called get_user_pages_non_movable())
+References: <20130206095617.GN21389@suse.de> <5190AE4F.4000103@cn.fujitsu.com> <20130513091902.GP11497@suse.de> <5191B5B3.7080406@cn.fujitsu.com> <20130515132453.GB11497@suse.de> <5194748A.5070700@cn.fujitsu.com> <20130517002349.GI1008@kvack.org> <5195A3F4.70803@cn.fujitsu.com> <20130517143718.GK1008@kvack.org> <519AD6F8.2070504@cn.fujitsu.com> <20130521022733.GT1008@kvack.org>
+In-Reply-To: <20130521022733.GT1008@kvack.org>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: x86@kernel.org, akpm@linux-foundation.org
-Cc: catalin.marinas@arm.com, linux-mm@kvack.org
+To: Benjamin LaHaise <bcrl@kvack.org>
+Cc: Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Lin Feng <linfeng@cn.fujitsu.com>, akpm@linux-foundation.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, zab@redhat.com, jmoyer@redhat.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>
 
-On Thu, May 23, 2013 at 06:07:47PM +0100, Steve Capper wrote:
-> This series brings huge pages and transparent huge pages to ARM64.
-> The functionality is very similar to x86, and a lot of code that can
-> be used by both ARM64 and x86 is brought into mm to avoid the need
-> for code duplication.
-> 
-> One notable difference from x86 is that ARM64 supports normal pages
-> that are 64KB. When 64KB pages are enabled, huge page and
-> transparent huge pages are 512MB only, otherwise the sizes match
-> x86.
-> 
-> This series applies to 3.10-rc2.
-> 
-> I've tested this under the ARMv8 Fast model and the x86 code has
-> been tested in a KVM guest. libhugetlbfs was used for testing under
-> both architectures.
-> 
-> Changelog:
-> Patch:
->    * pud_large usage replaced with pud_huge for general hugetlb
->      code imported into mm.
->    * comments tidied up for bit swap of PTE_FILE, PTE_PROT_NONE.
-> 
-> RFC v2:
->    * PROT_NONE support added for HugeTLB and THP.
->    * pmd_modify implementation fixed.
->    * Superfluous huge dcache flushing code removed.
->    * Simplified (and corrected) MAX_ORDER raise for THP && 64KB
->      pages.
->    * The MAX_ORDER check in huge_mm.h has been corrected.
-> 
-> ---
-> 
-> Steve Capper (11):
->   mm: hugetlb: Copy huge_pmd_share from x86 to mm.
->   x86: mm: Remove x86 version of huge_pmd_share.
->   mm: hugetlb: Copy general hugetlb code from x86 to mm.
->   x86: mm: Remove general hugetlb code from x86.
->   mm: thp: Correct the HPAGE_PMD_ORDER check.
->   ARM64: mm: Restore memblock limit when map_mem finished.
->   ARM64: mm: Make PAGE_NONE pages read only and no-execute.
->   ARM64: mm: Swap PTE_FILE and PTE_PROT_NONE bits.
->   ARM64: mm: HugeTLB support.
->   ARM64: mm: Raise MAX_ORDER for 64KB pages and THP.
->   ARM64: mm: THP support.
+Hi Benjamin,
 
-[ ... ]
+Are you still working on this problem ?
 
-Hello,
-I was just wondering if there were any comments on the mm and x86 patches in
-this series, or should I send a pull request for them?
+Thanks. :)
 
-Catalin has acked the ARM64 ones but we need the x86->mm code move in place
-before the ARM64 code is merged. The idea behind the code move was to avoid
-code duplication between x86 and ARM64 (and ARM).
-
-Thanks,
--- 
-Steve
+On 05/21/2013 10:27 AM, Benjamin LaHaise wrote:
+> On Tue, May 21, 2013 at 10:07:52AM +0800, Tang Chen wrote:
+> ....
+>> I'm not saying using two callbacks before and after migration is better.
+>> I don't want to use address_space_operations is because there is no such
+>> member
+>> for anonymous pages.
+>
+> That depends on the nature of the pinning.  For the general case of
+> get_user_pages(), you're correct that it won't work for anonymous memory.
+>
+>> In your idea, using a file mapping will create a
+>> address_space_operations. But
+>> I really don't think we can modify the way of memory allocation for all the
+>> subsystems who has this problem. Maybe not just aio and cma. That means if
+>> you want to pin pages in memory, you have to use a file mapping. This makes
+>> the memory allocation more complicated. And the idea should be known by all
+>> the subsystem developers. Is that going to happen ?
+>
+> Different subsystems will need to use different approaches to fixing the
+> issue.  I doubt any single approach will work for everything.
+>
+>> I also thought about reuse one field of struct page. But as you said, there
+>> may not be many users of this functionality. Reusing a field of struct page
+>> will make things more complicated and lead to high coupling.
+>
+> What happens when more than one subsystem tries to pin a particular page?
+> What if it's a shared page rather than an anonymous page?
+>
+>> So, how about the other idea that Mel mentioned ?
+>>
+>> We create a 1-1 mapping of pinned page ranges and the pinner (subsystem
+>> callbacks and data), maybe a global list or a hash table. And then, we can
+>> find the callbacks.
+>
+> Maybe that is the simplest approach, but it's going to make get_user_pages()
+> slower and more complicated (as if it wasn't already).  Maybe with all the
+> bells and whistles of per-cpu data structures and such you can make it work,
+> but I'm pretty sure someone running the large unmentionable benchmark will
+> complain about the performance regressions you're going to introduce.  At
+> least in the case of the AIO ring buffer, using the address_space approach
+> doesn't introduce any new performance issues.  There's also the bigger
+> question of if you can or cannot exclude get_user_pages_fast() from this.
+> In short: you've got a lot more work on your hands to do.
+>
+>> Thanks. :)
+>
+> Cheers,
+>
+> 		-ben
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
