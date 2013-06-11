@@ -1,136 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id AD51E6B0031
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 02:52:41 -0400 (EDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <1370881521-177821-1-git-send-email-athorlton@sgi.com>
-References: <1370881521-177821-1-git-send-email-athorlton@sgi.com>
-Subject: RE: [PATCH] Make transparent hugepages cpuset aware
-Content-Transfer-Encoding: 7bit
-Message-Id: <20130611065518.3DEBCE0090@blue.fi.intel.com>
-Date: Tue, 11 Jun 2013 09:55:18 +0300 (EEST)
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 2B5656B0033
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 03:14:14 -0400 (EDT)
+Date: Tue, 11 Jun 2013 10:13:59 +0300
+From: Dan Carpenter <dan.carpenter@oracle.com>
+Subject: [patch -mm] UBIFS: signedness bug in ubifs_shrink_count()
+Message-ID: <20130611071359.GA6071@debian>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Thorlton <athorlton@sgi.com>
-Cc: linux-kernel@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, linux-doc@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Chinner <dchinner@redhat.com>, Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org
 
-Alex Thorlton wrote:
-> This patch adds the ability to control THPs on a per cpuset basis.  Please see
-> the additions to Documentation/cgroups/cpusets.txt for more information.
-> 
-> Signed-off-by: Alex Thorlton <athorlton@sgi.com>
-> Reviewed-by: Robin Holt <holt@sgi.com>
-> Cc: Li Zefan <lizefan@huawei.com>
-> Cc: Rob Landley <rob@landley.net>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: linux-doc@vger.kernel.org
-> Cc: linux-mm@kvack.org
-> ---
->  Documentation/cgroups/cpusets.txt |  50 ++++++++++-
->  include/linux/cpuset.h            |   5 ++
->  include/linux/huge_mm.h           |  25 +++++-
->  kernel/cpuset.c                   | 181 ++++++++++++++++++++++++++++++++++++++
->  mm/huge_memory.c                  |   3 +
->  5 files changed, 261 insertions(+), 3 deletions(-)
-> 
-> diff --git a/Documentation/cgroups/cpusets.txt b/Documentation/cgroups/cpusets.txt
-> index 12e01d4..b7b2c83 100644
-> --- a/Documentation/cgroups/cpusets.txt
-> +++ b/Documentation/cgroups/cpusets.txt
-> @@ -22,12 +22,14 @@ CONTENTS:
->    1.6 What is memory spread ?
->    1.7 What is sched_load_balance ?
->    1.8 What is sched_relax_domain_level ?
-> -  1.9 How do I use cpusets ?
-> +  1.9 What is thp_enabled ?
-> +  1.10 How do I use cpusets ?
->  2. Usage Examples and Syntax
->    2.1 Basic Usage
->    2.2 Adding/removing cpus
->    2.3 Setting flags
->    2.4 Attaching processes
-> +  2.5 Setting thp_enabled flags
->  3. Questions
->  4. Contact
->  
-> @@ -581,7 +583,34 @@ If your situation is:
->  then increasing 'sched_relax_domain_level' would benefit you.
->  
->  
-> -1.9 How do I use cpusets ?
-> +1.9 What is thp_enabled ?
-> +-----------------------
-> +
-> +The thp_enabled file contained within each cpuset controls how transparent
-> +hugepages are handled within that cpuset.
-> +
-> +The root cpuset's thp_enabled flags mirror the flags set in
-> +/sys/kernel/mm/transparent_hugepage/enabled.  The flags in the root cpuset can
-> +only be modified by changing /sys/kernel/mm/transparent_hugepage/enabled. The
-> +thp_enabled file for the root cpuset is read only.  These flags cause the
-> +root cpuset to behave as one might expect:
-> +
-> +- When set to always, THPs are used whenever practical
-> +- When set to madvise, THPs are used only on chunks of memory that have the
-> +  MADV_HUGEPAGE flag set
-> +- When set to never, THPs are never allowed for tasks in this cpuset
-> +
-> +The behavior of thp_enabled for children of the root cpuset is where things
-> +become a bit more interesting.  The child cpusets accept the same flags as the
-> +root, but also have a default flag, which, when set, causes a cpuset to use the
-> +behavior of its parent.  When a child cpuset is created, its default flag is
-> +always initially set.
-> +
-> +Since the flags on child cpusets are allowed to differ from the flags on their
-> +parents, we are able to enable THPs for tasks in specific cpusets, and disable
-> +them in others.
+We test "clean_zn_cnt" for negative later in the function.
 
-Should we have a way for parent cgroup can enforce child behaviour?
-Like a mask of allowed thp_enabled values children can choose.
+Signed-off-by: Dan Carpenter <dan.carpenter@oracle.com>
+---
+This was introduced in the -mm branch in:
+fs-convert-fs-shrinkers-to-new-scan-count-api-fix
 
-> @@ -177,6 +177,29 @@ static inline struct page *compound_trans_head(struct page *page)
->  	return page;
->  }
->  
-> +#ifdef CONFIG_CPUSETS
-> +extern int cpuset_thp_always(struct task_struct *p);
-> +extern int cpuset_thp_madvise(struct task_struct *p);
-> +
-> +static inline int transparent_hugepage_enabled(struct vm_area_struct *vma)
-> +{
-> +	if (cpuset_thp_always(current))
-> +		return 1;
-
-Why do you ignore VM_NOHUGEPAGE?
-And !is_vma_temporary_stack(__vma) is still relevant.
-
-> +	else if (cpuset_thp_madvise(current) &&
-> +		 ((vma)->vm_flags & VM_HUGEPAGE) &&
-> +		 !((vma)->vm_flags & VM_NOHUGEPAGE) &&
-> +		 !is_vma_temporary_stack(vma))
-> +		return 1;
-> +	else
-> +		return 0;
-> +}
-> +#else
-> +static inline int transparent_hugepage_enabled(struct vm_area_struct *vma)
-> +{
-> +	return _transparent_hugepage_enabled(vma);
-> +}
-> +#endif
-> +
->  extern int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  				unsigned long addr, pmd_t pmd, pmd_t *pmdp);
->  
-
--- 
- Kirill A. Shutemov
+diff --git a/fs/ubifs/shrinker.c b/fs/ubifs/shrinker.c
+index 68ce399..f35135e 100644
+--- a/fs/ubifs/shrinker.c
++++ b/fs/ubifs/shrinker.c
+@@ -280,7 +280,7 @@ static int kick_a_thread(void)
+ unsigned long ubifs_shrink_count(struct shrinker *shrink,
+ 				 struct shrink_control *sc)
+ {
+-	unsigned long clean_zn_cnt = atomic_long_read(&ubifs_clean_zn_cnt);
++	long clean_zn_cnt = atomic_long_read(&ubifs_clean_zn_cnt);
+ 
+ 	/*
+ 	 * Due to the way UBIFS updates the clean znode counter it may
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
