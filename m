@@ -1,57 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 166896B004D
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 11:33:11 -0400 (EDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 0/8] Transparent huge page cache: phase 0, prep work
-Date: Tue, 11 Jun 2013 18:35:11 +0300
-Message-Id: <1370964919-16187-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id C89156B0037
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 11:43:57 -0400 (EDT)
+Date: Tue, 11 Jun 2013 17:43:53 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch v4] Soft limit rework
+Message-ID: <20130611154353.GF31277@dhcp22.suse.cz>
+References: <1370254735-13012-1-git-send-email-mhocko@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1370254735-13012-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Glauber Costa <glommer@parallels.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>
 
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+JFYI, I have rebased the series on top of the current mmotm tree to
+catch up with Mel's changes in reclaim and other small things here and
+there. To be sure that the things are still good I have started my tests
+again which will take some time.
 
-My patchset which introduces transparent huge page cache is pretty big and
-hardly reviewable. Dave Hansen suggested to split it in few parts.
-
-This is the first part: preparation work. I think it's useful without rest
-patches.
-
-There's one fix for bug in lru_add_page_tail(). I doubt it's possible to
-trigger it on current code, but nice to have it upstream anyway.
-Rest is cleanups.
-
-Patch 8 depends on patch 7. Other patches are independent and can be
-applied separately.
-
-Please, consider applying.
-
-Kirill A. Shutemov (8):
-  mm: drop actor argument of do_generic_file_read()
-  thp, mm: avoid PageUnevictable on active/inactive lru lists
-  thp: account anon transparent huge pages into NR_ANON_PAGES
-  mm: cleanup add_to_page_cache_locked()
-  thp, mm: locking tail page is a bug
-  thp: move maybe_pmd_mkwrite() out of mk_huge_pmd()
-  thp: do_huge_pmd_anonymous_page() cleanup
-  thp: consolidate code between handle_mm_fault() and
-    do_huge_pmd_anonymous_page()
-
- drivers/base/node.c     |    6 ---
- fs/proc/meminfo.c       |    6 ---
- include/linux/huge_mm.h |    3 --
- include/linux/mm.h      |    3 +-
- mm/filemap.c            |   60 ++++++++++++-----------
- mm/huge_memory.c        |  125 ++++++++++++++++++++---------------------------
- mm/memory.c             |    9 ++--
- mm/rmap.c               |   18 +++----
- mm/swap.c               |   20 +-------
- 9 files changed, 104 insertions(+), 146 deletions(-)
-
+There will be only documentation updates in the new series.
 -- 
-1.7.10.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
