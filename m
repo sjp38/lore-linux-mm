@@ -1,71 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 66DBB6B0033
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 09:10:39 -0400 (EDT)
-Date: Tue, 11 Jun 2013 09:10:36 -0400
-From: Luiz Capitulino <lcapitulino@redhat.com>
-Subject: Re: [PATCH] memcg: event control at vmpressure.
-Message-ID: <20130611091036.466f9743@redhat.com>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 9FF4F6B0033
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 09:13:20 -0400 (EDT)
+Received: by mail-wi0-f177.google.com with SMTP id ey16so4113232wid.16
+        for <linux-mm@kvack.org>; Tue, 11 Jun 2013 06:13:19 -0700 (PDT)
+MIME-Version: 1.0
 In-Reply-To: <20130611062124.GA24031@dhcp22.suse.cz>
 References: <021701ce65cb$a3b9c3b0$eb2d4b10$%kim@samsung.com>
 	<20130610151258.GA14295@dhcp22.suse.cz>
 	<20130611001747.GA16971@teo>
 	<20130611062124.GA24031@dhcp22.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 11 Jun 2013 16:13:18 +0300
+Message-ID: <CAOJsxLF8TCCLJWaNrydEatcYgj49ChBsNLJXpMaUTfRywUMm9w@mail.gmail.com>
+Subject: Re: [PATCH] memcg: event control at vmpressure.
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: Anton Vorontsov <anton@enomsg.org>, Hyunhee Kim <hyunhee.kim@samsung.com>, linux-mm@kvack.org, 'Kyungmin Park' <kyungmin.park@samsung.com>
+Cc: Anton Vorontsov <anton@enomsg.org>, Hyunhee Kim <hyunhee.kim@samsung.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Kyungmin Park <kyungmin.park@samsung.com>
 
-On Tue, 11 Jun 2013 08:21:24 +0200
-Michal Hocko <mhocko@suse.cz> wrote:
-
-> On Mon 10-06-13 17:17:47, Anton Vorontsov wrote:
-> > On Mon, Jun 10, 2013 at 05:12:58PM +0200, Michal Hocko wrote:
-> > > > +		if (level >= ev->level && level != vmpr->current_level) {
-> > > >  			eventfd_signal(ev->efd, 1);
-> > > >  			signalled = true;
-> > > > +			vmpr->current_level = level;
-> > > 
-> > > This would mean that you send a signal for, say, VMPRESSURE_LOW, then
-> > > the reclaim finishes and two days later when you hit the reclaim again
-> > > you would simply miss the event, right?
-> > > 
-> > > So, unless I am missing something, then this is plain wrong.
-> > 
-> > Yup, in it current version, it is not acceptable. For example, sometimes
-> > we do want to see all the _LOW events, since _LOW level shows not just the
-> > level itself, but the activity (i.e. reclaiming process).
-> > 
-> > There are a few ways to make both parties happy, though.
-> > 
-> > If the app wants to implement the time-based throttling, then just close
-> > the fd and sleep for needed amount of time (or do not read from the
-> > eventfd -- kernel then will just increment the eventfd counter, so there
-> > won't be context switches at the least).
-> 
-> That makes sense to me.
-> 
-> > Doing the time-based throttling in the kernel won't buy us much, I
-> > believe.
-> 
-> Yes.
->  
-> > Or, if you still want the "one-shot"/"edge-triggered" events (which might
-> > make perfect sense for medium and critical levels), then I'd propose to
-> > add some additional flag when you register the event, so that the old
-> > behaviour would be still available for those who need it. This approach I
-> > think is the best one.
-> 
+On Tue, Jun 11, 2013 at 9:21 AM, Michal Hocko <mhocko@suse.cz> wrote:
+>> Or, if you still want the "one-shot"/"edge-triggered" events (which might
+>> make perfect sense for medium and critical levels), then I'd propose to
+>> add some additional flag when you register the event, so that the old
+>> behaviour would be still available for those who need it. This approach I
+>> think is the best one.
+>
 > Hmm, how would one-shot even differ from a single open, register, read
 > and close?
 
-Agreed.
-
-A different solution would be to have a simple state machine and notify
-user-space on state transitions.
+Yup, one-shot probably doesn't make sense but edge-triggered does.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
