@@ -1,53 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id CBB376B0031
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 17:16:06 -0400 (EDT)
-Date: Tue, 11 Jun 2013 17:16:01 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH, RFC] mm: Implement RLIMIT_RSS
-Message-ID: <20130611211601.GA29426@cmpxchg.org>
-References: <20130611182921.GB25941@logfs.org>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 039186B0034
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 17:57:11 -0400 (EDT)
+Received: by mail-pd0-f173.google.com with SMTP id v14so5249931pde.4
+        for <linux-mm@kvack.org>; Tue, 11 Jun 2013 14:57:11 -0700 (PDT)
+Date: Tue, 11 Jun 2013 14:57:08 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch 2/2] memcg: do not sleep on OOM waitqueue with full charge
+ context
+In-Reply-To: <20130607000222.GT15576@cmpxchg.org>
+Message-ID: <alpine.DEB.2.02.1306111454030.4803@chino.kir.corp.google.com>
+References: <1370488193-4747-1-git-send-email-hannes@cmpxchg.org> <1370488193-4747-2-git-send-email-hannes@cmpxchg.org> <alpine.DEB.2.02.1306052058340.25115@chino.kir.corp.google.com> <20130606053315.GB9406@cmpxchg.org> <20130606173355.GB27226@cmpxchg.org>
+ <alpine.DEB.2.02.1306061308320.9493@chino.kir.corp.google.com> <20130606215425.GM15721@cmpxchg.org> <alpine.DEB.2.02.1306061507330.15503@chino.kir.corp.google.com> <20130607000222.GT15576@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20130611182921.GB25941@logfs.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?iso-8859-1?Q?J=F6rn?= Engel <joern@logfs.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Jun 11, 2013 at 02:29:21PM -0400, Jorn Engel wrote:
-> I've seen a couple of instances where people try to impose a vsize
-> limit simply because there is no rss limit in Linux.  The vsize limit
-> is a horrible approximation and even this patch seems to be an
-> improvement.
-> 
-> Would there be strong opposition to actually supporting RLIMIT_RSS?
-> 
-> Jorn
-> 
-> --
-> It's not whether you win or lose, it's how you place the blame.
-> -- unknown
-> 
-> 
-> Not quite perfect, but close enough for many purposes.  This checks rss
-> limit inside may_expand_vm() and will fail if we are already over the
-> limit.
+On Thu, 6 Jun 2013, Johannes Weiner wrote:
 
-This is trivial to exploit by creating the mappings first and
-populating them later, so while it may cover some use cases, it does
-not have the protection against malicious programs aspect that all the
-other rlimits have.
+> > Could you point me to those bug reports?  As far as I know, we have never 
+> > encountered them so it would be surprising to me that we're running with a 
+> > potential landmine and have seemingly never hit it.
+> 
+> Sure thing: https://lkml.org/lkml/2012/11/21/497
+> 
 
-The right place to enforce the limit is at the point of memory
-allocation, which raises the question what to do when the limit is
-exceeded in a page fault.  Reclaim from the process's memory?  Kill
-it?
+Ok, I think I read most of it, although the lkml.org interface makes it 
+easy to miss some.
 
-I guess the answer to these questions is "memory cgroups", so that's
-why there is no real motivation to implement RLIMIT_RSS separately...
+> During that thread Michal pinned down the problem to i_mutex being
+> held by the OOM invoking task, which the selected victim is trying to
+> acquire.
+> 
+> > > > > Reported-by: Reported-by: azurIt <azurit@pobox.sk>
+
+Ok, so the key here is that azurIt was able to reliably reproduce this 
+issue and now it has been resurrected after seven months of silence since 
+that thread.  I also notice that azurIt isn't cc'd on this thread.  Do we 
+know if this is still a problem?
+
+We certainly haven't run into any memcg deadlocks like this.
+
+> > It certainly would, but it's not the point that memory.oom_delay_millisecs 
+> > was intended to address.  memory.oom_delay_millisecs would simply delay 
+> > calling mem_cgroup_out_of_memory() unless userspace can't free memory or 
+> > increase the memory limit in time.  Obviously that delay isn't going to 
+> > magically address any lock dependency issues.
+> 
+> The delayed fallback would certainly resolve the issue of the
+> userspace handler getting stuck, be it due to memory shortness or due
+> to locks.
+> 
+> However, it would not solve the part of the problem where the OOM
+> killing kernel task is holding locks that the victim requires to exit.
+> 
+
+Right.
+
+> We are definitely looking at multiple related issues, that's why I'm
+> trying to fix them step by step.
+> 
+
+I guess my question is why this would be addressed now when nobody has 
+reported it recently on any recent kernel and then not cc the person who 
+reported it?
+
+Can anybody, even with an instrumented kernel to make it more probable, 
+reproduce the issue this is addressing?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
