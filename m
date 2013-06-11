@@ -1,51 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 617C56B0034
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 18:50:35 -0400 (EDT)
-Date: Tue, 11 Jun 2013 17:50:27 -0500
-From: Scott Wood <scottwood@freescale.com>
-Subject: Re: [PATCH -V7 09/18] powerpc: Switch 16GB and 16MB explicit
- hugepages to a different page table format
-References: <87obbgpmk3.fsf@linux.vnet.ibm.com> <1370984023.18413.30@snotra>
-In-Reply-To: <1370984023.18413.30@snotra> (from scottwood@freescale.com on
-	Tue Jun 11 15:53:43 2013)
-Message-ID: <1370991027.18413.33@snotra>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 3BC186B0034
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 19:22:49 -0400 (EDT)
+Date: Tue, 11 Jun 2013 17:53:20 -0400
+From: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>
+Subject: Re: [PATCH, RFC] mm: Implement RLIMIT_RSS
+Message-ID: <20130611215319.GA29368@logfs.org>
+References: <20130611182921.GB25941@logfs.org>
+ <20130611211601.GA29426@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"; delsp=Yes; format=Flowed
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20130611211601.GA29426@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Scott Wood <scottwood@freescale.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, paulus@samba.org, linuxppc-dev@lists.ozlabs.org, dwg@au1.ibm.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 06/11/2013 03:53:43 PM, Scott Wood wrote:
-> On 06/08/2013 11:57:48 AM, Aneesh Kumar K.V wrote:
->> With the config shared I am not finding anything wrong, but I can't =20
->> test
->> these configs. Also can you confirm what you bisect this to
->>=20
->> e2b3d202d1dba8f3546ed28224ce485bc50010be
->> powerpc: Switch 16GB and 16MB explicit hugepages to a different page =20
->> table format
->=20
->>=20
->> or
->>=20
->> cf9427b85e90bb1ff90e2397ff419691d983c68b "powerpc: New hugepage =20
->> directory format"
->=20
-> It's e2b3d202d1dba8f3546ed28224ce485bc50010be.
->=20
-> It turned out to be the change from "pmd_none" to =20
-> "pmd_none_or_clear_bad".  Making that change triggers the "bad pmd" =20
-> messages even when applied to v3.9 -- so we had bad pmds all along, =20
-> undetected.  Now I get to figure out why. :-(
+On Tue, 11 June 2013 17:16:01 -0400, Johannes Weiner wrote:
+> On Tue, Jun 11, 2013 at 02:29:21PM -0400, JA?rn Engel wrote:
+> > I've seen a couple of instances where people try to impose a vsize
+> > limit simply because there is no rss limit in Linux.  The vsize limit
+> > is a horrible approximation and even this patch seems to be an
+> > improvement.
+> > 
+> > Would there be strong opposition to actually supporting RLIMIT_RSS?
+> 
+> This is trivial to exploit by creating the mappings first and
+> populating them later, so while it may cover some use cases, it does
+> not have the protection against malicious programs aspect that all the
+> other rlimits have.
 
-So, for both pud and pgd we only call "or_clear_bad" when is_hugepd =20
-returns false.  Why is it OK to do it unconditionally for pmd?
+Hm.  The use case I have is that an application wants to limit itself.
+It is effectively a special assert to catch memory leaks and the like.
+So malicious programs are not my immediate concern.
 
--Scott=
+Of course the moment Linux supports RLIMIT_RSS people will use it to
+limit malicious programs, no matter how many scary warning we put in.
+
+> The right place to enforce the limit is at the point of memory
+> allocation, which raises the question what to do when the limit is
+> exceeded in a page fault.  Reclaim from the process's memory?  Kill
+> it?
+> 
+> I guess the answer to these questions is "memory cgroups", so that's
+> why there is no real motivation to implement RLIMIT_RSS separately...
+
+Lack of opposition would be enough for me.  But I guess we need a bit
+more for a mergeable patch than I did and I only did the existing
+patch because it seemed easy, not because it is important.  Will keep
+the patch in my junk code folder for now.
+
+JA?rn
+
+--
+A surrounded army must be given a way out.
+-- Sun Tzu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
