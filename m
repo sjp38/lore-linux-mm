@@ -1,75 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id D14D56B0031
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 02:28:51 -0400 (EDT)
-Received: by mail-we0-f178.google.com with SMTP id u53so5586842wes.9
-        for <linux-mm@kvack.org>; Mon, 10 Jun 2013 23:28:50 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <51B67553.6020205@oracle.com>
-References: <1370891880-2644-1-git-send-email-sasha.levin@oracle.com>
-	<CAOJsxLGDH2iwznRkP-iwiMZw7Ee3mirhjLvhShrWLHR0qguRxA@mail.gmail.com>
-	<51B62F6B.8040308@oracle.com>
-	<0000013f3075f90d-735942a8-b4b8-413f-a09e-57d1de0c4974-000000@email.amazonses.com>
-	<51B67553.6020205@oracle.com>
-Date: Tue, 11 Jun 2013 09:28:50 +0300
-Message-ID: <CAOJsxLH56xqCoDikYYaY_guqCX=S4rcVfDJQ4ki=r-PkNQW9ug@mail.gmail.com>
-Subject: Re: [PATCH] slab: prevent warnings when allocating with __GFP_NOWARN
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id AD51E6B0031
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 02:52:41 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <1370881521-177821-1-git-send-email-athorlton@sgi.com>
+References: <1370881521-177821-1-git-send-email-athorlton@sgi.com>
+Subject: RE: [PATCH] Make transparent hugepages cpuset aware
+Content-Transfer-Encoding: 7bit
+Message-Id: <20130611065518.3DEBCE0090@blue.fi.intel.com>
+Date: Tue, 11 Jun 2013 09:55:18 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Christoph Lameter <cl@gentwo.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Alex Thorlton <athorlton@sgi.com>
+Cc: linux-kernel@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, linux-doc@vger.kernel.org, linux-mm@kvack.org
 
-Hi Sasha,
+Alex Thorlton wrote:
+> This patch adds the ability to control THPs on a per cpuset basis.  Please see
+> the additions to Documentation/cgroups/cpusets.txt for more information.
+> 
+> Signed-off-by: Alex Thorlton <athorlton@sgi.com>
+> Reviewed-by: Robin Holt <holt@sgi.com>
+> Cc: Li Zefan <lizefan@huawei.com>
+> Cc: Rob Landley <rob@landley.net>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: linux-doc@vger.kernel.org
+> Cc: linux-mm@kvack.org
+> ---
+>  Documentation/cgroups/cpusets.txt |  50 ++++++++++-
+>  include/linux/cpuset.h            |   5 ++
+>  include/linux/huge_mm.h           |  25 +++++-
+>  kernel/cpuset.c                   | 181 ++++++++++++++++++++++++++++++++++++++
+>  mm/huge_memory.c                  |   3 +
+>  5 files changed, 261 insertions(+), 3 deletions(-)
+> 
+> diff --git a/Documentation/cgroups/cpusets.txt b/Documentation/cgroups/cpusets.txt
+> index 12e01d4..b7b2c83 100644
+> --- a/Documentation/cgroups/cpusets.txt
+> +++ b/Documentation/cgroups/cpusets.txt
+> @@ -22,12 +22,14 @@ CONTENTS:
+>    1.6 What is memory spread ?
+>    1.7 What is sched_load_balance ?
+>    1.8 What is sched_relax_domain_level ?
+> -  1.9 How do I use cpusets ?
+> +  1.9 What is thp_enabled ?
+> +  1.10 How do I use cpusets ?
+>  2. Usage Examples and Syntax
+>    2.1 Basic Usage
+>    2.2 Adding/removing cpus
+>    2.3 Setting flags
+>    2.4 Attaching processes
+> +  2.5 Setting thp_enabled flags
+>  3. Questions
+>  4. Contact
+>  
+> @@ -581,7 +583,34 @@ If your situation is:
+>  then increasing 'sched_relax_domain_level' would benefit you.
+>  
+>  
+> -1.9 How do I use cpusets ?
+> +1.9 What is thp_enabled ?
+> +-----------------------
+> +
+> +The thp_enabled file contained within each cpuset controls how transparent
+> +hugepages are handled within that cpuset.
+> +
+> +The root cpuset's thp_enabled flags mirror the flags set in
+> +/sys/kernel/mm/transparent_hugepage/enabled.  The flags in the root cpuset can
+> +only be modified by changing /sys/kernel/mm/transparent_hugepage/enabled. The
+> +thp_enabled file for the root cpuset is read only.  These flags cause the
+> +root cpuset to behave as one might expect:
+> +
+> +- When set to always, THPs are used whenever practical
+> +- When set to madvise, THPs are used only on chunks of memory that have the
+> +  MADV_HUGEPAGE flag set
+> +- When set to never, THPs are never allowed for tasks in this cpuset
+> +
+> +The behavior of thp_enabled for children of the root cpuset is where things
+> +become a bit more interesting.  The child cpusets accept the same flags as the
+> +root, but also have a default flag, which, when set, causes a cpuset to use the
+> +behavior of its parent.  When a child cpuset is created, its default flag is
+> +always initially set.
+> +
+> +Since the flags on child cpusets are allowed to differ from the flags on their
+> +parents, we are able to enable THPs for tasks in specific cpusets, and disable
+> +them in others.
 
-On Tue, Jun 11, 2013 at 3:54 AM, Sasha Levin <sasha.levin@oracle.com> wrote:
-> On 06/10/2013 07:40 PM, Christoph Lameter wrote:
->>
->> On Mon, 10 Jun 2013, Sasha Levin wrote:
->>
->>> [ 1691.807621] Call Trace:
->>> [ 1691.809473]  [<ffffffff83ff4041>] dump_stack+0x4e/0x82
->>> [ 1691.812783]  [<ffffffff8111fe12>] warn_slowpath_common+0x82/0xb0
->>> [ 1691.817011]  [<ffffffff8111fe55>] warn_slowpath_null+0x15/0x20
->>> [ 1691.819936]  [<ffffffff81243dcf>] kmalloc_slab+0x2f/0xb0
->>> [ 1691.824942]  [<ffffffff81278d54>] __kmalloc+0x24/0x4b0
->>> [ 1691.827285]  [<ffffffff8196ffe3>] ? security_capable+0x13/0x20
->>> [ 1691.829405]  [<ffffffff812a26b7>] ? pipe_fcntl+0x107/0x210
->>> [ 1691.831827]  [<ffffffff812a26b7>] pipe_fcntl+0x107/0x210
->>> [ 1691.833651]  [<ffffffff812b7ea0>] ? fget_raw_light+0x130/0x3f0
->>> [ 1691.835343]  [<ffffffff812aa5fb>] SyS_fcntl+0x60b/0x6a0
->>> [ 1691.837008]  [<ffffffff8403ca98>] tracesys+0xe1/0xe6
->>>
->>> The caller specifically sets __GFP_NOWARN presumably to avoid this
->>> warning on
->>> slub but I'm not sure if there's any other reason.
->>
->>
->> There must be another reason. Lets fix this.
->
-> My, I feel silly now.
->
-> I was the one who added __GFP_NOFAIL in the first place in
-> 2ccd4f4d ("pipe: fail cleanly when root tries F_SETPIPE_SZ
-> with big size").
->
-> What happens is that root can go ahead and specify any size
-> it wants to be used as buffer size - and the kernel will
-> attempt to comply by allocation that buffer. Which fails
-> if the size is too big.
->
-> Either way, even if we do end up doing something different,
-> shouldn't we prevent slab from spewing a warning if
-> __GFP_NOWARN is passed?
+Should we have a way for parent cgroup can enforce child behaviour?
+Like a mask of allowed thp_enabled values children can choose.
 
-Yeah, this is the size-from-userspace case I was thinking about. I think
-we have two options: either use your patch or drop the WARN_ON
-completely.
+> @@ -177,6 +177,29 @@ static inline struct page *compound_trans_head(struct page *page)
+>  	return page;
+>  }
+>  
+> +#ifdef CONFIG_CPUSETS
+> +extern int cpuset_thp_always(struct task_struct *p);
+> +extern int cpuset_thp_madvise(struct task_struct *p);
+> +
+> +static inline int transparent_hugepage_enabled(struct vm_area_struct *vma)
+> +{
+> +	if (cpuset_thp_always(current))
+> +		return 1;
 
-Christoph, which one do you prefer?
+Why do you ignore VM_NOHUGEPAGE?
+And !is_vma_temporary_stack(__vma) is still relevant.
 
-                                Pekka
+> +	else if (cpuset_thp_madvise(current) &&
+> +		 ((vma)->vm_flags & VM_HUGEPAGE) &&
+> +		 !((vma)->vm_flags & VM_NOHUGEPAGE) &&
+> +		 !is_vma_temporary_stack(vma))
+> +		return 1;
+> +	else
+> +		return 0;
+> +}
+> +#else
+> +static inline int transparent_hugepage_enabled(struct vm_area_struct *vma)
+> +{
+> +	return _transparent_hugepage_enabled(vma);
+> +}
+> +#endif
+> +
+>  extern int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  				unsigned long addr, pmd_t pmd, pmd_t *pmdp);
+>  
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
