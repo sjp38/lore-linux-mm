@@ -1,40 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id A39C86B0034
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 18:10:15 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id z10so5565678pdj.31
-        for <linux-mm@kvack.org>; Tue, 11 Jun 2013 15:10:14 -0700 (PDT)
-Date: Tue, 11 Jun 2013 15:10:12 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] slab: prevent warnings when allocating with
- __GFP_NOWARN
-In-Reply-To: <0000013f33cdc631-eadb07d1-ef08-4e2c-a218-1997eb86cde9-000000@email.amazonses.com>
-Message-ID: <alpine.DEB.2.02.1306111509250.6141@chino.kir.corp.google.com>
-References: <1370891880-2644-1-git-send-email-sasha.levin@oracle.com> <CAOJsxLGDH2iwznRkP-iwiMZw7Ee3mirhjLvhShrWLHR0qguRxA@mail.gmail.com> <51B62F6B.8040308@oracle.com> <0000013f3075f90d-735942a8-b4b8-413f-a09e-57d1de0c4974-000000@email.amazonses.com>
- <51B67553.6020205@oracle.com> <CAOJsxLH56xqCoDikYYaY_guqCX=S4rcVfDJQ4ki=r-PkNQW9ug@mail.gmail.com> <51B72323.8040207@oracle.com> <0000013f33cdc631-eadb07d1-ef08-4e2c-a218-1997eb86cde9-000000@email.amazonses.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 4B47A6B0034
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 18:13:45 -0400 (EDT)
+Received: from /spool/local
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
+	Tue, 11 Jun 2013 16:13:44 -0600
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id C24071FF001B
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 16:08:28 -0600 (MDT)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5BMDeFk163018
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 16:13:40 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5BMDdMR002578
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 16:13:39 -0600
+From: Cody P Schafer <cody@linux.vnet.ibm.com>
+Subject: [PATCH] mm/page_alloc: don't re-init pageset in zone_pcp_update()
+Date: Tue, 11 Jun 2013 15:12:59 -0700
+Message-Id: <1370988779-7586-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@gentwo.org>
-Cc: Sasha Levin <sasha.levin@oracle.com>, Pekka Enberg <penberg@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Valdis.Kletnieks@vt.edu, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-On Tue, 11 Jun 2013, Christoph Lameter wrote:
+Factor pageset_set_high_and_batch() (which contains all needed logic too
+set a pageset's ->high and ->batch inrespective of system state) out of
+zone_pageset_init(), which avoids us calling pageset_init(), and
+unsafely blowing away a pageset at runtime (leaked pages and
+potentially some funky allocations would be the result) when memory
+hotplug is triggered.
 
-> > I think that leaving the warning makes sense to catch similar
-> > things which are actually bugs - we had a similar issue with
-> > /dev/kmsg (if I remember correctly) which actually pointed to
-> > a bug.
-> 
-> Right. Requesting an allocation larger than even supported by the page
-> allocator from the slab allocators that are specializing in allocations of
-> small objects is usually an indication of a problem in the code.
-> 
+Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
+---
 
-I think we can remove the kmalloc_slab() warning that Sasha is pointing to 
-and just fallback to the page allocator for sizes that are too large?  
-Then the page allocator can return NULL and warn, if necessary, for orders 
-larger than MAX_ORDER.
+Unless memory hotplug is being triggered on boot, this should *not* be cause of Valdis
+Kletnieks' reported bug in -next:
+         "next-20130607 BUG: Bad page state in process systemd pfn:127643"
+
+---
+
+ mm/page_alloc.c | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 18102e1..f62c7ac 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4111,11 +4111,9 @@ static void pageset_set_high(struct per_cpu_pageset *p,
+ 	pageset_update(&p->pcp, high, batch);
+ }
+ 
+-static void __meminit zone_pageset_init(struct zone *zone, int cpu)
++static void __meminit pageset_set_high_and_batch(struct zone *zone,
++		struct per_cpu_pageset *pcp)
+ {
+-	struct per_cpu_pageset *pcp = per_cpu_ptr(zone->pageset, cpu);
+-
+-	pageset_init(pcp);
+ 	if (percpu_pagelist_fraction)
+ 		pageset_set_high(pcp,
+ 			(zone->managed_pages /
+@@ -4124,6 +4122,14 @@ static void __meminit zone_pageset_init(struct zone *zone, int cpu)
+ 		pageset_set_batch(pcp, zone_batchsize(zone));
+ }
+ 
++static void __meminit zone_pageset_init(struct zone *zone, int cpu)
++{
++	struct per_cpu_pageset *pcp = per_cpu_ptr(zone->pageset, cpu);
++
++	pageset_init(pcp);
++	pageset_set_high_and_batch(zone, pcp);
++}
++
+ static void __meminit setup_zone_pageset(struct zone *zone)
+ {
+ 	int cpu;
+@@ -6173,7 +6179,8 @@ void __meminit zone_pcp_update(struct zone *zone)
+ 	unsigned cpu;
+ 	mutex_lock(&pcp_batch_high_lock);
+ 	for_each_possible_cpu(cpu)
+-		zone_pageset_init(zone, cpu);
++		pageset_set_high_and_batch(zone,
++				per_cpu_ptr(zone->pageset, cpu));
+ 	mutex_unlock(&pcp_batch_high_lock);
+ }
+ #endif
+-- 
+1.8.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
