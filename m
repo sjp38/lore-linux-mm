@@ -1,30 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id C89156B0037
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 11:43:57 -0400 (EDT)
-Date: Tue, 11 Jun 2013 17:43:53 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch v4] Soft limit rework
-Message-ID: <20130611154353.GF31277@dhcp22.suse.cz>
-References: <1370254735-13012-1-git-send-email-mhocko@suse.cz>
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 0AD236B0038
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 11:45:08 -0400 (EDT)
+Message-ID: <51B745F9.9080609@oracle.com>
+Date: Tue, 11 Jun 2013 11:44:57 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1370254735-13012-1-git-send-email-mhocko@suse.cz>
+Subject: Re: [PATCH] slab: prevent warnings when allocating with __GFP_NOWARN
+References: <1370891880-2644-1-git-send-email-sasha.levin@oracle.com> <CAOJsxLGDH2iwznRkP-iwiMZw7Ee3mirhjLvhShrWLHR0qguRxA@mail.gmail.com> <51B62F6B.8040308@oracle.com> <0000013f3075f90d-735942a8-b4b8-413f-a09e-57d1de0c4974-000000@email.amazonses.com> <51B67553.6020205@oracle.com> <CAOJsxLH56xqCoDikYYaY_guqCX=S4rcVfDJQ4ki=r-PkNQW9ug@mail.gmail.com> <51B72323.8040207@oracle.com> <0000013f33cdc631-eadb07d1-ef08-4e2c-a218-1997eb86cde9-000000@email.amazonses.com> <51B73F38.6040802@kernel.org> <0000013f33d58923-88767793-2187-476d-b500-dba3c22607aa-000000@email.amazonses.com>
+In-Reply-To: <0000013f33d58923-88767793-2187-476d-b500-dba3c22607aa-000000@email.amazonses.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Glauber Costa <glommer@parallels.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>
+To: Christoph Lameter <cl@gentwo.org>
+Cc: Pekka Enberg <penberg@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-JFYI, I have rebased the series on top of the current mmotm tree to
-catch up with Mel's changes in reclaim and other small things here and
-there. To be sure that the things are still good I have started my tests
-again which will take some time.
+On 06/11/2013 11:23 AM, Christoph Lameter wrote:
+> On Tue, 11 Jun 2013, Pekka Enberg wrote:
+>
+>> So you're OK with going forward with Sasha's patch? It's needed
+>> because __GFP_NOWARN was specifically added there to fix this
+>> issue earlier.
+>
+> Why dont we fix the call site to use vmalloc instead for larger allocs?
+>
 
-There will be only documentation updates in the new series.
--- 
-Michal Hocko
-SUSE Labs
+We should probably be doing both.
+
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
