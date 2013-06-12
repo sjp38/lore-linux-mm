@@ -1,126 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 680A36B0034
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2013 02:30:28 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Wed, 12 Jun 2013 11:54:46 +0530
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id D47E7E0053
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2013 11:59:40 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5C6UElw28835974
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2013 12:00:15 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5C6UEKO023804
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2013 16:30:16 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH -V7 09/18] powerpc: Switch 16GB and 16MB explicit hugepages to a different page table format
-In-Reply-To: <1370991027.18413.33@snotra>
-References: <87obbgpmk3.fsf@linux.vnet.ibm.com> <1370984023.18413.30@snotra> <1370991027.18413.33@snotra>
-Date: Wed, 12 Jun 2013 12:00:13 +0530
-Message-ID: <8738snj0y2.fsf@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 774BE6B0034
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2013 02:49:12 -0400 (EDT)
+Date: Wed, 12 Jun 2013 16:48:48 +1000
+From: NeilBrown <neilb@suse.de>
+Subject: Re: [PATCH 5/8] vrange: Add new vrange(2) system call
+Message-ID: <20130612164848.10b93db2@notabene.brown>
+In-Reply-To: <1371010971-15647-6-git-send-email-john.stultz@linaro.org>
+References: <1371010971-15647-1-git-send-email-john.stultz@linaro.org>
+	<1371010971-15647-6-git-send-email-john.stultz@linaro.org>
+Mime-Version: 1.0
+Content-Type: multipart/signed; micalg=PGP-SHA1;
+ boundary="Sig_/b0nI1FvxbWRiAuqajT_wD97"; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Scott Wood <scottwood@freescale.com>Scott Wood <scottwood@freescale.com>
-Cc: linux-mm@kvack.org, paulus@samba.org, linuxppc-dev@lists.ozlabs.org, dwg@au1.ibm.com
+To: John Stultz <john.stultz@linaro.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Dhaval Giani <dgiani@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Scott Wood <scottwood@freescale.com> writes:
+--Sig_/b0nI1FvxbWRiAuqajT_wD97
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-> On 06/11/2013 03:53:43 PM, Scott Wood wrote:
->> On 06/08/2013 11:57:48 AM, Aneesh Kumar K.V wrote:
->>> With the config shared I am not finding anything wrong, but I can't  
->>> test
->>> these configs. Also can you confirm what you bisect this to
->>> 
->>> e2b3d202d1dba8f3546ed28224ce485bc50010be
->>> powerpc: Switch 16GB and 16MB explicit hugepages to a different page  
->>> table format
->> 
->>> 
->>> or
->>> 
->>> cf9427b85e90bb1ff90e2397ff419691d983c68b "powerpc: New hugepage  
->>> directory format"
->> 
->> It's e2b3d202d1dba8f3546ed28224ce485bc50010be.
->> 
->> It turned out to be the change from "pmd_none" to  
->> "pmd_none_or_clear_bad".  Making that change triggers the "bad pmd"  
->> messages even when applied to v3.9 -- so we had bad pmds all along,  
->> undetected.  Now I get to figure out why. :-(
->
-> So, for both pud and pgd we only call "or_clear_bad" when is_hugepd  
-> returns false.  Why is it OK to do it unconditionally for pmd?
->
+On Tue, 11 Jun 2013 21:22:48 -0700 John Stultz <john.stultz@linaro.org> wro=
+te:
 
-Ok, that could be the issue. Now the reason why we want to call
-pmd_clear is to take care of explicit hugepage pte saved in the
-pmd slot. We should already find the slot cleared otherwise it
-is a corruption. How about the below ? The current code is broken
-in that we will never take that free_hugepd_range call at all.
+> From: Minchan Kim <minchan@kernel.org>
+>=20
+> This patch adds new system call sys_vrange.
+>=20
+> NAME
+> 	vrange - Mark or unmark range of memory as volatile
+>=20
+> SYNOPSIS
+> 	int vrange(unsigned_long start, size_t length, int mode,
+> 			 int *purged);
+>=20
+...
+>=20
+> 	purged: Pointer to an integer which will return 1 if
+> 	mode =3D=3D VRANGE_NONVOLATILE and any page in the affected range
+> 	was purged. If purged returns zero during a mode =3D=3D
+> 	VRANGE_NONVOLATILE call, it means all of the pages in the range
+> 	are intact.
 
-commit a09f59fe477242a3ebd153e618a705ac8f6c1b89
-Author: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-Date:   Wed Jun 12 11:32:58 2013 +0530
+This seems a bit ambiguous.
+It is clear that the pointed-to location will be set to '1' if any part of
+the range was purged, but it is not clear what will happen if it wasn't
+purged.
+The mention of 'returns zero' seems to suggest that it might set the locati=
+on
+to '0' in that case, but that isn't obvious to me.  The code appear to alwa=
+ys
+set it - that should be explicit.
 
-    powerpc: Fix bad pmd error with FSL config
-    
-    FSL uses the hugepd at PMD level and don't encode pte directly
-    at the pmd level. So it will find the lower bits of pmd set
-    and the pmd_bad check throws error. Infact the current code
-    will never take the free_hugepd_range call at all because it will
-    clear the pmd if it find a hugepd pointer.
-    
-    Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Also, should the location be a fixed number of bytes to reduce possible
+issues with N-bit userspace on M-bit kernels?
 
-diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
-index f2f01fd..315fbd4 100644
---- a/arch/powerpc/mm/hugetlbpage.c
-+++ b/arch/powerpc/mm/hugetlbpage.c
-@@ -536,19 +536,28 @@ static void hugetlb_free_pmd_range(struct mmu_gather *tlb, pud_t *pud,
- 	do {
- 		pmd = pmd_offset(pud, addr);
- 		next = pmd_addr_end(addr, end);
--		if (pmd_none_or_clear_bad(pmd))
--			continue;
-+		if (!is_hugepd(pmd)) {
-+			/*
-+			 * if it is not hugepd pointer, we should already find
-+			 * it cleared.
-+			 */
-+			if (!pmd_none_or_clear_bad(pmd))
-+				WARN_ON(1);
-+		} else {
-+			if (pmd_none(*pmd))
-+				continue;
- #ifdef CONFIG_PPC_FSL_BOOK3E
--		/*
--		 * Increment next by the size of the huge mapping since
--		 * there may be more than one entry at this level for a
--		 * single hugepage, but all of them point to
--		 * the same kmem cache that holds the hugepte.
--		 */
--		next = addr + (1 << hugepd_shift(*(hugepd_t *)pmd));
-+			/*
-+			 * Increment next by the size of the huge mapping since
-+			 * there may be more than one entry at this level for a
-+			 * single hugepage, but all of them point to
-+			 * the same kmem cache that holds the hugepte.
-+			 */
-+			next = addr + (1 << hugepd_shift(*(hugepd_t *)pmd));
- #endif
--		free_hugepd_range(tlb, (hugepd_t *)pmd, PMD_SHIFT,
--				  addr, next, floor, ceiling);
-+			free_hugepd_range(tlb, (hugepd_t *)pmd, PMD_SHIFT,
-+					  addr, next, floor, ceiling);
-+		}
- 	} while (addr = next, addr != end);
- 
- 	start &= PUD_MASK;
+May I suggest:
+
+        purge:  If not NULL, a pointer to a 32bit location which will be set
+        to 1 if mode =3D=3D VRANGE_NONVOLATILE and any page in the affected=
+ range
+        was purged, and will be set to 0 in all other cases (including
+        if mode =3D=3D VRANGE_VOLATILE).
+
+
+I don't think any further explanation is needed.
+
+
+> +	if (purged) {
+> +		/* Test pointer is valid before making any changes */
+> +		if (put_user(p, purged))
+> +			return -EFAULT;
+> +	}
+> +
+> +	ret =3D do_vrange(mm, start, end - 1, mode, &p);
+> +
+> +	if (purged) {
+> +		if (put_user(p, purged)) {
+> +			/*
+> +			 * This would be bad, since we've modified volatilty
+> +			 * and the change in purged state would be lost.
+> +			 */
+> +			BUG();
+> +		}
+> +	}
+
+I agree that would be bad, but I don't think a BUG() is called for.  Maybe a
+WARN, and certainly a "return -EFAULT;"
+
+--Sig_/b0nI1FvxbWRiAuqajT_wD97
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Disposition: attachment; filename=signature.asc
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.19 (GNU/Linux)
+
+iQIVAwUBUbgZ0Dnsnt1WYoG5AQJqbw//Zb5KkmJeLkSWquGmN5sLd0KuV+qm/xub
+KnE5Ti8LHDvLkYW+DYmt0fhOZV7Q/V25dQ53oO+y5ia4b392kyJ+0PVaOaPX/SHG
+8vuN9oBNaGKzYR7e5mOHqixJOnQcbZlP8H6TIld5R4VEsjvtQS6Q9/3dirdXdB4/
+LhNSjJmplfQNMZbTQXvcorRdCxNHtosRGQarbsI9YM9Hvy1386FPG5JdHA3rDXrD
+yA82BrH5A6V6IA++Sl4tuaFUPWY3a96ErsS7CIqLOT22uBe85N/WEbKOz0y9tP5H
+ILlquYUuSHayi2i5zkY08VIZii3wdMWiw2cfNIGdVpSpI9QPEiX5tXrmBbveN6Hf
+MyD8SLJ4r45kD09vvehBsi0ZJhiXeJCTCscyc4O0Oz9hoeymAXGPltWLVfz5SkTa
+Lq6WLMMZN+YlEhX+RlVwk6LBda2iMRvf1FWhnSH+ANjkNQ/tfGBvCxhwq2JAYtG+
+2qv48i+pz8AGlxZ6AsCgrdpGE3c5hfJ1bPUGAzNRpk3PjWzL0Dt5PWdFqReU5zs/
+tR90isndAoHIZoWJWM1YcHf+v7MClbGm9vH5L845JNB+/Zjy7KkyPOOYIUWo5RzZ
+f4nagLWmg1TO74l8zfmx/14RnvMLfhZRG9aaHTMNt+Qi5m/O+f/Q5ls3cDfIlFjx
+IqbaGNLzzzc=
+=AQM0
+-----END PGP SIGNATURE-----
+
+--Sig_/b0nI1FvxbWRiAuqajT_wD97--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
