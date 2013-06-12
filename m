@@ -1,82 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 5336D6B0034
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 20:54:41 -0400 (EDT)
-Date: Tue, 11 Jun 2013 17:54:32 -0700
-From: =?utf-8?B?U8O2cmVu?= Brinkmann <soren.brinkmann@xilinx.com>
-Subject: Re: [checkpatch] - Confusion
-References: <1370843475.58124.YahooMailNeo@web160106.mail.bf1.yahoo.com>
- <CAK7N6vrQFK=9OQi7dDUgGWWNQk71x3BeqPA9x3Pq66baA61PrQ@mail.gmail.com>
- <1370890140.99216.YahooMailNeo@web160102.mail.bf1.yahoo.com>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 2A3146B0034
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 22:18:02 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id kl14so2795957pab.6
+        for <linux-mm@kvack.org>; Tue, 11 Jun 2013 19:18:01 -0700 (PDT)
+Message-ID: <51B7DA51.1000304@gmail.com>
+Date: Wed, 12 Jun 2013 10:17:53 +0800
+From: Jiang Liu <liuj97@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Disposition: inline
-In-Reply-To: <1370890140.99216.YahooMailNeo@web160102.mail.bf1.yahoo.com>
-Message-ID: <8a2ec29d-e6d8-44ed-a70d-2273848706ce@VA3EHSMHS029.ehs.local>
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH v8, part3 10/14] mm: use a dedicated lock to protect totalram_pages
+ and zone->managed_pages
+References: <1369575522-26405-1-git-send-email-jiang.liu@huawei.com> <1369575522-26405-11-git-send-email-jiang.liu@huawei.com> <20130611130042.3dec2cc6737f21180bc09bb1@linux-foundation.org>
+In-Reply-To: <20130611130042.3dec2cc6737f21180bc09bb1@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: PINTU KUMAR <pintu_agarwal@yahoo.com>, Andy Whitcroft <apw@canonical.com>, Joe Perches <joe@perches.com>
-Cc: anish singh <anish198519851985@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <james.bottomley@hansenpartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>
 
-Hi Pintu,
+On Wed 12 Jun 2013 04:00:42 AM CST, Andrew Morton wrote:
+> On Sun, 26 May 2013 21:38:38 +0800 Jiang Liu <liuj97@gmail.com> wrote:
+>
+>> Currently lock_memory_hotplug()/unlock_memory_hotplug() are used to
+>> protect totalram_pages and zone->managed_pages. Other than the memory
+>> hotplug driver, totalram_pages and zone->managed_pages may also be
+>> modified at runtime by other drivers, such as Xen balloon,
+>> virtio_balloon etc. For those cases, memory hotplug lock is a little
+>> too heavy, so introduce a dedicated lock to protect totalram_pages
+>> and zone->managed_pages.
+>>
+>> Now we have a simplified locking rules totalram_pages and
+>> zone->managed_pages as:
+>> 1) no locking for read accesses because they are unsigned long.
+>> 2) no locking for write accesses at boot time in single-threaded context.
+>> 3) serialize write accesses at runtime by acquiring the dedicated
+>>    managed_page_count_lock.
+>>
+>> Also adjust zone->managed_pages when freeing reserved pages into the
+>> buddy system, to keep totalram_pages and zone->managed_pages in
+>> consistence.
+>>
+>> ...
+>>
+>> +void adjust_managed_page_count(struct page *page, long count)
+>> +{
+>> +	spin_lock(&managed_page_count_lock);
+>> +	page_zone(page)->managed_pages += count;
+>> +	totalram_pages += count;
+>> +	spin_unlock(&managed_page_count_lock);
+>> +}
+>> +EXPORT_SYMBOL(adjust_managed_page_count);
+>
+> This is exported to modules but there are no modular callers at this
+> time.
+>
+> I assume this was done for some forthcoming xen/virtio_balloon/etc
+> patches?  If so, it would be better to avoid adding the export until it
+> is actually needed.
+Hi Andrew,
+     adjust_managed_page_count() will be used by virtio_balloon and xen 
+balloon
+drivers. Grep mmots tree:
+drivers/virtio/virtio_balloon.c:		adjust_managed_page_count(page, -1);
+drivers/virtio/virtio_balloon.c:		adjust_managed_page_count(page, 1);
+drivers/xen/balloon.c:	adjust_managed_page_count(page, -1);
+drivers/xen/balloon.c:	adjust_managed_page_count(page, 1);
 
-On Mon, Jun 10, 2013 at 11:49:00AM -0700, PINTU KUMAR wrote:
-> >________________________________
-> > From: anish singh <anish198519851985@gmail.com>
-> >To: PINTU KUMAR <pintu_agarwal@yahoo.com> =
-
-> >Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>; "linu=
-x-mm@kvack.org" <linux-mm@kvack.org> =
-
-> >Sent: Sunday, 9 June 2013 10:58 PM
-> >Subject: Re: [checkpatch] - Confusion
-> > =
-
-> >
-> >On Mon, Jun 10, 2013 at 11:21 AM, PINTU KUMAR <pintu_agarwal@yahoo.com> =
-wrote:
-> >> Hi,
-> >>
-> >> I wanted to submit my first patch.
-> >> But I have some confusion about the /scripts/checkpatch.pl errors.
-> >>
-> >> After correcting some checkpatch errors, when I run checkpatch.pl, it =
-showed me 0 errors.
-> >> But when I create patches are git format-patch, it is showing me 1 err=
-or.
-> >did=C2=A0 you run the checkpatch.pl on the file which gets created
-> >after git format-patch?
-> >If yes, then I think it is not necessary.You can use git-am to apply
-> >your own patch on a undisturbed file and if it applies properly then
-> >you are good to go i.e. you can send your patch.
-> =
-
-> Yes, first I ran checkpatch directly on the file(mm/page_alloc.c) and fix=
-ed all the errors.
-> It showed me (0) errors.
-> Then I created a patch using _git format-patch_ and ran checkpatch again =
-on the created patch.
-> But now it is showing me 1 error.
-> According to me this error is false positive (irrelevant), because I did =
-not change anything related to the error and also the similar change alread=
-y exists somewhere else too.
-> Do you mean, shall I go ahead and submit the patch with this 1 error??
-> ERROR: need consistent spacing around '*' (ctx:WxV)
-> =
-
-> #153: FILE: mm/page_alloc.c:5476:
-> +int min_free_kbytes_sysctl_handler(ctl_table *table, int write,
-Rather a shot into the dark, but it looks like checkpatch is
-misinterpreting 'ctl_table' as an arithmetic operand instead of a type.
-I don't know how checkpatch learns about types created by typedefs, but
-my guess is, that this line
-	typedef struct ctl_table ctl_table; (include/linux/sysctl.h)
-is not correctly picked up by checkpatch.
-So, I assume this actually is a false positive.
-
-	S=C3=B6ren
-
+So if we un-export it in part3, we need to export in part4 again.
+Regards!
+Gerry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
