@@ -1,102 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 9FAE76B003B
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2013 14:47:16 -0400 (EDT)
-Received: by mail-pd0-f176.google.com with SMTP id t12so5561920pdi.21
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2013 11:47:15 -0700 (PDT)
-Message-ID: <51B8C230.6000902@linaro.org>
-Date: Wed, 12 Jun 2013 11:47:12 -0700
-From: John Stultz <john.stultz@linaro.org>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 2BA556B0039
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2013 16:12:13 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id kx10so4903725pab.27
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2013 13:12:12 -0700 (PDT)
+Date: Wed, 12 Jun 2013 13:12:09 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch 2/2] memcg: do not sleep on OOM waitqueue with full charge
+ context
+In-Reply-To: <20130612082817.GA6706@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.02.1306121309500.23348@chino.kir.corp.google.com>
+References: <1370488193-4747-1-git-send-email-hannes@cmpxchg.org> <1370488193-4747-2-git-send-email-hannes@cmpxchg.org> <alpine.DEB.2.02.1306052058340.25115@chino.kir.corp.google.com> <20130606053315.GB9406@cmpxchg.org> <20130606173355.GB27226@cmpxchg.org>
+ <alpine.DEB.2.02.1306061308320.9493@chino.kir.corp.google.com> <20130606215425.GM15721@cmpxchg.org> <alpine.DEB.2.02.1306061507330.15503@chino.kir.corp.google.com> <20130607000222.GT15576@cmpxchg.org> <alpine.DEB.2.02.1306111454030.4803@chino.kir.corp.google.com>
+ <20130612082817.GA6706@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/8] vrange: Add new vrange(2) system call
-References: <1371010971-15647-1-git-send-email-john.stultz@linaro.org> <1371010971-15647-6-git-send-email-john.stultz@linaro.org> <20130612164848.10b93db2@notabene.brown>
-In-Reply-To: <20130612164848.10b93db2@notabene.brown>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: NeilBrown <neilb@suse.de>
-Cc: LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Dhaval Giani <dgiani@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 06/11/2013 11:48 PM, NeilBrown wrote:
-> On Tue, 11 Jun 2013 21:22:48 -0700 John Stultz <john.stultz@linaro.org> wrote:
->
->> From: Minchan Kim <minchan@kernel.org>
->>
->> This patch adds new system call sys_vrange.
->>
->> NAME
->> 	vrange - Mark or unmark range of memory as volatile
->>
->> SYNOPSIS
->> 	int vrange(unsigned_long start, size_t length, int mode,
->> 			 int *purged);
->>
-> ...
->> 	purged: Pointer to an integer which will return 1 if
->> 	mode == VRANGE_NONVOLATILE and any page in the affected range
->> 	was purged. If purged returns zero during a mode ==
->> 	VRANGE_NONVOLATILE call, it means all of the pages in the range
->> 	are intact.
-> This seems a bit ambiguous.
-> It is clear that the pointed-to location will be set to '1' if any part of
-> the range was purged, but it is not clear what will happen if it wasn't
-> purged.
-> The mention of 'returns zero' seems to suggest that it might set the location
-> to '0' in that case, but that isn't obvious to me.  The code appear to always
-> set it - that should be explicit.
->
-> Also, should the location be a fixed number of bytes to reduce possible
-> issues with N-bit userspace on M-bit kernels?
->
-> May I suggest:
->
->          purge:  If not NULL, a pointer to a 32bit location which will be set
->          to 1 if mode == VRANGE_NONVOLATILE and any page in the affected range
->          was purged, and will be set to 0 in all other cases (including
->          if mode == VRANGE_VOLATILE).
->
->
-> I don't think any further explanation is needed.
+On Wed, 12 Jun 2013, Michal Hocko wrote:
 
-I'll use this! Thanks for the suggestion!
+> > > > > > > Reported-by: Reported-by: azurIt <azurit@pobox.sk>
+> > 
+> > Ok, so the key here is that azurIt was able to reliably reproduce this 
+> > issue and now it has been resurrected after seven months of silence since 
+> > that thread.  I also notice that azurIt isn't cc'd on this thread.  Do we 
+> > know if this is still a problem?
+> 
+> I have backported the patch for his 3.2 and waiting for his feedback.
+> 
 
-
->> +	if (purged) {
->> +		/* Test pointer is valid before making any changes */
->> +		if (put_user(p, purged))
->> +			return -EFAULT;
->> +	}
->> +
->> +	ret = do_vrange(mm, start, end - 1, mode, &p);
->> +
->> +	if (purged) {
->> +		if (put_user(p, purged)) {
->> +			/*
->> +			 * This would be bad, since we've modified volatilty
->> +			 * and the change in purged state would be lost.
->> +			 */
->> +			BUG();
->> +		}
->> +	}
-> I agree that would be bad, but I don't think a BUG() is called for.  Maybe a
-> WARN, and certainly a "return -EFAULT;"
-
-Yea, this was a late change before I sent out the patches. In reviewing 
-the documentation I realized we still could return an error and the 
-purge data was lost. Thus I added the earlier test to make sure the 
-pointer is valid before we take any action.
-
-The BUG() was mostly for my own testing, and I'll change it in the 
-future, although I want to sort out exactly in what cases the second 
-put_user() could fail if the first succeeded.
-
-Thanks as always for the great feedback!
--john
-
-
-
-
+Ok, thanks.  I thought this was only going seven months back when it was 
+reported, I missed that the issue this patch is trying to address goes 
+back a 1 1/2 years to 3.2 and nobody else has reported it.  I think his 
+feedback would be the key, specifically if he can upgrade to a later 
+kernel first.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
