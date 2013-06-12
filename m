@@ -1,166 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 009F06B0034
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2013 00:23:13 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id fa11so6162994pad.5
-        for <linux-mm@kvack.org>; Tue, 11 Jun 2013 21:23:13 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 16D2D6B0036
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2013 00:23:16 -0400 (EDT)
+Received: by mail-pb0-f43.google.com with SMTP id md12so8243097pbc.16
+        for <linux-mm@kvack.org>; Tue, 11 Jun 2013 21:23:15 -0700 (PDT)
 From: John Stultz <john.stultz@linaro.org>
-Subject: [PATCH 0/8] Volatile Ranges (v8?)
-Date: Tue, 11 Jun 2013 21:22:43 -0700
-Message-Id: <1371010971-15647-1-git-send-email-john.stultz@linaro.org>
+Subject: [PATCH 1/8] vrange: Add basic data structure and functions
+Date: Tue, 11 Jun 2013 21:22:44 -0700
+Message-Id: <1371010971-15647-2-git-send-email-john.stultz@linaro.org>
+In-Reply-To: <1371010971-15647-1-git-send-email-john.stultz@linaro.org>
+References: <1371010971-15647-1-git-send-email-john.stultz@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
-Cc: John Stultz <john.stultz@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Dhaval Giani <dgiani@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Dhaval Giani <dgiani@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, John Stultz <john.stultz@linaro.org>
 
-Hey everyone.
+From: Minchan Kim <minchan@kernel.org>
 
-I know its been quite awhile. But Minchan and I have been doing a
-fair amount of discussing offlist since lsf-mm, trying to come
-to agreement on the semantics for the volatile ranges interface,
-and after circling around each other's arguments for awhile (he'd
-suggest and idea, I'd disagree, then I'd come around to agree just as
-he would begin to disagree :) I think things have started to converge
-pretty nicely, at least as far as the interface goes.
+This patch adds vrange data structure(interval tree) and
+related functions.
 
-Some of the more interesting and challenging ideas we've explored
-recently have been given up for now, mostly so we can get some core
-agreed functionality moving upstream. We may still want to revisit
-those ideas before the final push, but for now, we're focusing on
-the parts we agree on that we think have a chance at eventually
-being merged.
+The vrange uses generic interval tree as main data structure
+because it handles address range so generic interval tree
+fits well for the purpose.
 
-If you've read some of my earlier summaries, you'll likely find
-this patchset much simplified:
-* We only have one interface: vrange(address, len, mode, *purged),
-  which is used in a method similar to madvise on both file or
-  anonymous pages.
-* We no longer have a concept of anon-only or private-volatility.
-  Despite the potential performance gains that Minchan liked in
-  avoiding the mmap_sem,the semantics were often confusing when using
-  private volatility on non-anonymous pages.
-* We no longer have behavior flags. Potential extensions can still be
-  done via introducing new mode flags.
+The add_vrange/remove_vrange are core functions for system call
+will be introduced next patch.
 
-The patch set has also been heavily reworked and reordered to make
-more iterative sense and hopefully to be easier to review.
+1. add_vrange inserts new address range into interval tree.
+   If new address range crosses over existing volatile range,
+   existing volatile range will be expanded to cover new range.
+   Then, if existing volatile range has purged state, new range
+   will have a purged state.
+   It's not good and we need more fine-grained purged state handling
+   in a vrange(TODO)
 
-Patches 1-5 are what we're wanting the most feedback on, since this
-is the area dealing with the userland interface and the semantics of
-how volatile ranges behave.
+   If new address range is inside existing range, we ignore it
 
-Patches 6-8 provide the back-end purging logic, which is likely
-to change, and is provided only so folks can start playing around
-with a functional patch series. It currently has some limitations,
-like it doesn't purge anonymous pages on swap free systems.
-Additionally, the newly integrated file page purging logic likely has
-issues still to be resolved.
+2. remove_vrange removes address range
+   Then, return a purged state of the address ranges.
 
-Overall, We still have the following TODOS with the patchset:
-* Come to consensus on the best way to avoid inheriting mm_struct
-  volatility when the underlying vmas change. (see patch 4 in this
-  series)
-* Ensure we zap underlying file page (ala  truncate_inode_pages_range)
-  when we purge file pages - this make purging similar to file hole
-  punching and ensures we don't find stale data later. (patch 7)
-* Avoid lockdep warnings caused by allocations made while holding vroot
-  lock triggering reclaim which could try to purge volatile ranges,
-  grabbing the same vroot lock.  Minchan added a GFP_NO_VRANGE flag,
-  but we've not hooked that up into the reclaim logic to avoid purging.
-* Re-integrate Minchan's logic to purge anonymous pages on swapfree
-  systems (dropped for this release to keep things simpler for review)
-
-
-Any feedback and review would be greatly appreciated!
-
-thanks!
--john
-
-
-Volatile Ranges
-============== 
-Volatile ranges provide a way for userland applications to provide
-hints to the kernel, about memory that is not immediately in use and
-can be regenerated if needed.
-
-After marking a range as volatile, if the kernel experiences memory
-pressure, the kernel can then purge those pages, freeing up additional
-space.  Userland can also tell the kernel it wants to use that memory
-again, by marking the range non-volatile, after which the kernel will
-not purge that memory.
-
-If the kernel has already purged the memory when userland requests
-it be made non-volatile, the kernel will return a warning value to
-notify userland that the data was lost and must be regenerated.
-
-If userland accesses memory marked volatile that has not been purged,
-it will get the values it expects.
-
-However, if userland touches volatile memory that has been purged, the
-kernel will send it a SIGBUS.  This makes it possible for userland to
-handle the SIGBUS, marking the memory as non-volatile and re-generating
-it as needed before continuing.
-
-In some ways, the kernel's purging of memory can be considered
-as similar to a delayed MADV_DONTNEED or FALLOC_FL_PUNCH_HOLE
-operation, which can be canceled. Thus similarly to MADV_DONTNEED
-or FALLOC_FL_PUNCH_HOLE, operations done on file data that is mmaped
-shared will be seen by other processes who have that file mapped. Thus
-if an application marks shared  mmaped file data as volatile, that
-volatility state is also shared across other tasks. This allows tasks
-to coordinate for one task to mark  shared file data as volatile, and a
-second task to be able to unmark it if necessary. If the kernel purges
-volatile file data that was marked by one task, all tasks sharing
-that data will see the data as purged, and will have to mark it as
-non-volatile before accessing it or will have to handle the SIGBUS.
-
-All volatility on files is cleared when the last fd handle is closed.
-
-
-Interface:
-The vrange syscall is defined as follows:
-
-int vrange(unsigned long address, size_t length, int mode, int* purged)
-
-address:	Starting address in the process where memory will be
-	 	marked. This must be page aligned
-
-length:		Length of the range to be marked. This must be in page
-		size units.
-
-mode:
- VRANGE_VOLATILE:	Marks the specified range as volatile, and
-			able to be purged.
- VRANGE_NONVOLATILE:	Marks the specified range as non-volatile. If
-			any data in that range was volatile and has
-			been purged, 1 will be returned in the purged
-			pointer.
-
-purged:		Pointer to an integer that will be set to 1 if any data
-		in the range being marked non-volatile has been purged
-		and is lost. If it is zero, then no data in the
-		specified range has been lost.
-
-Return values:
-		Returns the number of bytes marked or unmarked. Similar
-		to write(), it  may return fewer bytes then specified
-		if it ran into a problem.
-
-		If an error (negative value) is returned,no changes
-		were made.
-
-Errors:
-	EINVAL:
-		* address is not page-aligned, or is invalid.
-		* length is not a multiple of the page size.
-		* length is negative.
-	ENOMEM:
-		* Not enough memory.
-	EFAULT:
-		* Purge pointer is invalid.
-
-
-
+This patch copied some part from John Stultz's work but different semantic.
 
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Android Kernel Team <kernel-team@android.com>
@@ -183,49 +63,330 @@ Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 Cc: Michel Lespinasse <walken@google.com>
 Cc: Minchan Kim <minchan@kernel.org>
 Cc: linux-mm@kvack.org <linux-mm@kvack.org>
-
-
-John Stultz (2):
-  vrange: Add vrange support for file address_spaces
-  vrange: Clear volatility on new mmaps
-
-Minchan Kim (6):
-  vrange: Add basic data structure and functions
-  vrange: Add vrange support to mm_structs
-  vrange: Add new vrange(2) system call
-  vrange: Add GFP_NO_VRANGE allocation flag
-  vrange: Add method to purge volatile ranges
-  vrange: Send SIGBUS when user try to access purged page
-
- arch/x86/include/asm/pgtable_types.h   |   2 +
- arch/x86/syscalls/syscall_64.tbl       |   1 +
- fs/file_table.c                        |   5 +
- fs/inode.c                             |   2 +
- include/asm-generic/pgtable.h          |  11 +
- include/linux/fs.h                     |   2 +
- include/linux/gfp.h                    |   7 +-
- include/linux/mm_types.h               |   5 +
- include/linux/rmap.h                   |  12 +-
- include/linux/swap.h                   |   1 +
- include/linux/vrange.h                 |  60 +++
- include/linux/vrange_types.h           |  19 +
- include/uapi/asm-generic/mman-common.h |   3 +
- init/main.c                            |   2 +
- kernel/fork.c                          |   6 +
- lib/Makefile                           |   2 +-
- mm/Makefile                            |   2 +-
- mm/ksm.c                               |   2 +-
- mm/memory.c                            |  23 +-
- mm/mmap.c                              |   5 +
- mm/rmap.c                              |  30 +-
- mm/swapfile.c                          |  36 ++
- mm/vmscan.c                            |  16 +-
- mm/vrange.c                            | 731 +++++++++++++++++++++++++++++++++
- 24 files changed, 963 insertions(+), 22 deletions(-)
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+[jstultz: Heavy rework and cleanups to make this infrastructure more
+easily reused for both file and anonymous pages]
+Signed-off-by: John Stultz <john.stultz@linaro.org>
+---
+ include/linux/vrange.h       |  44 +++++++++++
+ include/linux/vrange_types.h |  19 +++++
+ init/main.c                  |   2 +
+ lib/Makefile                 |   2 +-
+ mm/Makefile                  |   2 +-
+ mm/vrange.c                  | 181 +++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 248 insertions(+), 2 deletions(-)
  create mode 100644 include/linux/vrange.h
  create mode 100644 include/linux/vrange_types.h
  create mode 100644 mm/vrange.c
 
+diff --git a/include/linux/vrange.h b/include/linux/vrange.h
+new file mode 100644
+index 0000000..2064cb0
+--- /dev/null
++++ b/include/linux/vrange.h
+@@ -0,0 +1,44 @@
++#ifndef _LINUX_VRANGE_H
++#define _LINUX_VRANGE_H
++
++#include <linux/vrange_types.h>
++#include <linux/mm.h>
++
++#define vrange_entry(ptr) \
++	container_of(ptr, struct vrange, node.rb)
++
++#ifdef CONFIG_MMU
++
++static inline void vrange_root_init(struct vrange_root *vroot, int type)
++{
++	vroot->type = type;
++	vroot->v_rb = RB_ROOT;
++	mutex_init(&vroot->v_lock);
++}
++
++static inline void vrange_lock(struct vrange_root *vroot)
++{
++	mutex_lock(&vroot->v_lock);
++}
++
++static inline void vrange_unlock(struct vrange_root *vroot)
++{
++	mutex_unlock(&vroot->v_lock);
++}
++
++static inline int vrange_type(struct vrange *vrange)
++{
++	return vrange->owner->type;
++}
++
++void vrange_init(void);
++extern void vrange_root_cleanup(struct vrange_root *vroot);
++
++#else
++
++static inline void vrange_init(void) {};
++static inline void vrange_root_init(struct vrange_root *vroot, int type) {};
++static inline void vrange_root_cleanup(struct vrange_root *vroot) {};
++
++#endif
++#endif /* _LINIUX_VRANGE_H */
+diff --git a/include/linux/vrange_types.h b/include/linux/vrange_types.h
+new file mode 100644
+index 0000000..7f44c01
+--- /dev/null
++++ b/include/linux/vrange_types.h
+@@ -0,0 +1,19 @@
++#ifndef _LINUX_VRANGE_TYPES_H
++#define _LINUX_VRANGE_TYPES_H
++
++#include <linux/mutex.h>
++#include <linux/interval_tree.h>
++
++struct vrange_root {
++	struct rb_root v_rb;		/* vrange rb tree */
++	struct mutex v_lock;		/* Protect v_rb */
++	enum {VRANGE_MM, VRANGE_FILE} type; /* range root type */
++};
++
++struct vrange {
++	struct interval_tree_node node;
++	struct vrange_root *owner;
++	int purged;
++};
++#endif
++
+diff --git a/init/main.c b/init/main.c
+index 9484f4b..9cf08ba 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -74,6 +74,7 @@
+ #include <linux/ptrace.h>
+ #include <linux/blkdev.h>
+ #include <linux/elevator.h>
++#include <linux/vrange.h>
+ 
+ #include <asm/io.h>
+ #include <asm/bugs.h>
+@@ -601,6 +602,7 @@ asmlinkage void __init start_kernel(void)
+ 	calibrate_delay();
+ 	pidmap_init();
+ 	anon_vma_init();
++	vrange_init();
+ #ifdef CONFIG_X86
+ 	if (efi_enabled(EFI_RUNTIME_SERVICES))
+ 		efi_enter_virtual_mode();
+diff --git a/lib/Makefile b/lib/Makefile
+index c55a037..ccd15ff 100644
+--- a/lib/Makefile
++++ b/lib/Makefile
+@@ -13,7 +13,7 @@ lib-y := ctype.o string.o vsprintf.o cmdline.o \
+ 	 sha1.o md5.o irq_regs.o reciprocal_div.o argv_split.o \
+ 	 proportions.o flex_proportions.o prio_heap.o ratelimit.o show_mem.o \
+ 	 is_single_threaded.o plist.o decompress.o kobject_uevent.o \
+-	 earlycpio.o
++	 earlycpio.o interval_tree.o
+ 
+ obj-$(CONFIG_ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS) += usercopy.o
+ lib-$(CONFIG_MMU) += ioremap.o
+diff --git a/mm/Makefile b/mm/Makefile
+index 72c5acb..b67fcf5 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -5,7 +5,7 @@
+ mmu-y			:= nommu.o
+ mmu-$(CONFIG_MMU)	:= fremap.o highmem.o madvise.o memory.o mincore.o \
+ 			   mlock.o mmap.o mprotect.o mremap.o msync.o rmap.o \
+-			   vmalloc.o pagewalk.o pgtable-generic.o
++			   vmalloc.o pagewalk.o pgtable-generic.o vrange.o
+ 
+ ifdef CONFIG_CROSS_MEMORY_ATTACH
+ mmu-$(CONFIG_MMU)	+= process_vm_access.o
+diff --git a/mm/vrange.c b/mm/vrange.c
+new file mode 100644
+index 0000000..e3042e0
+--- /dev/null
++++ b/mm/vrange.c
+@@ -0,0 +1,181 @@
++/*
++ * mm/vrange.c
++ */
++
++#include <linux/vrange.h>
++#include <linux/slab.h>
++
++static struct kmem_cache *vrange_cachep;
++
++void __init vrange_init(void)
++{
++	vrange_cachep = KMEM_CACHE(vrange, SLAB_PANIC);
++}
++
++static struct vrange *__vrange_alloc(gfp_t flags)
++{
++	struct vrange *vrange = kmem_cache_alloc(vrange_cachep, flags);
++	if (!vrange)
++		return vrange;
++	vrange->owner = NULL;
++	return vrange;
++}
++
++static void __vrange_free(struct vrange *range)
++{
++	WARN_ON(range->owner);
++	kmem_cache_free(vrange_cachep, range);
++}
++
++static void __vrange_add(struct vrange *range, struct vrange_root *vroot)
++{
++	range->owner = vroot;
++	interval_tree_insert(&range->node, &vroot->v_rb);
++}
++
++static void __vrange_remove(struct vrange *range)
++{
++	interval_tree_remove(&range->node, &range->owner->v_rb);
++	range->owner = NULL;
++}
++
++static inline void __vrange_set(struct vrange *range,
++		unsigned long start_idx, unsigned long end_idx,
++		bool purged)
++{
++	range->node.start = start_idx;
++	range->node.last = end_idx;
++	range->purged = purged;
++}
++
++static inline void __vrange_resize(struct vrange *range,
++		unsigned long start_idx, unsigned long end_idx)
++{
++	struct vrange_root *vroot = range->owner;
++	bool purged = range->purged;
++
++	__vrange_remove(range);
++	__vrange_set(range, start_idx, end_idx, purged);
++	__vrange_add(range, vroot);
++}
++
++static int vrange_add(struct vrange_root *vroot,
++			unsigned long start_idx, unsigned long end_idx)
++{
++	struct vrange *new_range, *range;
++	struct interval_tree_node *node, *next;
++	int purged = 0;
++
++	new_range = __vrange_alloc(GFP_KERNEL);
++	if (!new_range)
++		return -ENOMEM;
++
++	vrange_lock(vroot);
++
++	node = interval_tree_iter_first(&vroot->v_rb, start_idx, end_idx);
++	while (node) {
++		next = interval_tree_iter_next(node, start_idx, end_idx);
++		range = container_of(node, struct vrange, node);
++		/* old range covers new range fully */
++		if (node->start <= start_idx && node->last >= end_idx) {
++			__vrange_free(new_range);
++			goto out;
++		}
++
++		start_idx = min_t(unsigned long, start_idx, node->start);
++		end_idx = max_t(unsigned long, end_idx, node->last);
++		purged |= range->purged;
++
++		__vrange_remove(range);
++		__vrange_free(range);
++
++		node = next;
++	}
++
++	__vrange_set(new_range, start_idx, end_idx, purged);
++	__vrange_add(new_range, vroot);
++out:
++	vrange_unlock(vroot);
++	return 0;
++}
++
++static int vrange_remove(struct vrange_root *vroot,
++				unsigned long start_idx, unsigned long end_idx,
++				int *purged)
++{
++	struct vrange *new_range, *range;
++	struct interval_tree_node *node, *next;
++	bool used_new = false;
++
++	if (!purged)
++		return -EINVAL;
++
++	*purged = 0;
++
++	new_range = __vrange_alloc(GFP_KERNEL);
++	if (!new_range)
++		return -ENOMEM;
++
++	vrange_lock(vroot);
++
++	node = interval_tree_iter_first(&vroot->v_rb, start_idx, end_idx);
++	while (node) {
++		next = interval_tree_iter_next(node, start_idx, end_idx);
++		range = container_of(node, struct vrange, node);
++
++		*purged |= range->purged;
++
++		if (start_idx <= node->start && end_idx >= node->last) {
++			/* argumented range covers the range fully */
++			__vrange_remove(range);
++			__vrange_free(range);
++		} else if (node->start >= start_idx) {
++			/*
++			 * Argumented range covers over the left of the
++			 * range
++			 */
++			__vrange_resize(range, end_idx + 1, node->last);
++		} else if (node->last <= end_idx) {
++			/*
++			 * Argumented range covers over the right of the
++			 * range
++			 */
++			__vrange_resize(range, node->start, start_idx - 1);
++		} else {
++			/*
++			 * Argumented range is middle of the range
++			 */
++			used_new = true;
++			__vrange_resize(range, node->start, start_idx - 1);
++			__vrange_set(new_range, end_idx + 1, node->last,
++					range->purged);
++			__vrange_add(new_range, vroot);
++			break;
++		}
++
++		node = next;
++	}
++	vrange_unlock(vroot);
++
++	if (!used_new)
++		__vrange_free(new_range);
++
++	return 0;
++}
++
++void vrange_root_cleanup(struct vrange_root *vroot)
++{
++	struct vrange *range;
++	struct rb_node *next;
++
++	vrange_lock(vroot);
++	next = rb_first(&vroot->v_rb);
++	while (next) {
++		range = vrange_entry(next);
++		next = rb_next(next);
++		__vrange_remove(range);
++		__vrange_free(range);
++	}
++	vrange_unlock(vroot);
++}
++
 -- 
 1.8.1.2
 
