@@ -1,62 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 3BC186B0034
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 19:22:49 -0400 (EDT)
-Date: Tue, 11 Jun 2013 17:53:20 -0400
-From: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>
-Subject: Re: [PATCH, RFC] mm: Implement RLIMIT_RSS
-Message-ID: <20130611215319.GA29368@logfs.org>
-References: <20130611182921.GB25941@logfs.org>
- <20130611211601.GA29426@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 5336D6B0034
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2013 20:54:41 -0400 (EDT)
+Date: Tue, 11 Jun 2013 17:54:32 -0700
+From: =?utf-8?B?U8O2cmVu?= Brinkmann <soren.brinkmann@xilinx.com>
+Subject: Re: [checkpatch] - Confusion
+References: <1370843475.58124.YahooMailNeo@web160106.mail.bf1.yahoo.com>
+ <CAK7N6vrQFK=9OQi7dDUgGWWNQk71x3BeqPA9x3Pq66baA61PrQ@mail.gmail.com>
+ <1370890140.99216.YahooMailNeo@web160102.mail.bf1.yahoo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset="utf-8"
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20130611211601.GA29426@cmpxchg.org>
+In-Reply-To: <1370890140.99216.YahooMailNeo@web160102.mail.bf1.yahoo.com>
+Message-ID: <8a2ec29d-e6d8-44ed-a70d-2273848706ce@VA3EHSMHS029.ehs.local>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: PINTU KUMAR <pintu_agarwal@yahoo.com>, Andy Whitcroft <apw@canonical.com>, Joe Perches <joe@perches.com>
+Cc: anish singh <anish198519851985@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, 11 June 2013 17:16:01 -0400, Johannes Weiner wrote:
-> On Tue, Jun 11, 2013 at 02:29:21PM -0400, JA?rn Engel wrote:
-> > I've seen a couple of instances where people try to impose a vsize
-> > limit simply because there is no rss limit in Linux.  The vsize limit
-> > is a horrible approximation and even this patch seems to be an
-> > improvement.
-> > 
-> > Would there be strong opposition to actually supporting RLIMIT_RSS?
-> 
-> This is trivial to exploit by creating the mappings first and
-> populating them later, so while it may cover some use cases, it does
-> not have the protection against malicious programs aspect that all the
-> other rlimits have.
+Hi Pintu,
 
-Hm.  The use case I have is that an application wants to limit itself.
-It is effectively a special assert to catch memory leaks and the like.
-So malicious programs are not my immediate concern.
+On Mon, Jun 10, 2013 at 11:49:00AM -0700, PINTU KUMAR wrote:
+> >________________________________
+> > From: anish singh <anish198519851985@gmail.com>
+> >To: PINTU KUMAR <pintu_agarwal@yahoo.com> =
 
-Of course the moment Linux supports RLIMIT_RSS people will use it to
-limit malicious programs, no matter how many scary warning we put in.
+> >Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>; "linu=
+x-mm@kvack.org" <linux-mm@kvack.org> =
 
-> The right place to enforce the limit is at the point of memory
-> allocation, which raises the question what to do when the limit is
-> exceeded in a page fault.  Reclaim from the process's memory?  Kill
-> it?
-> 
-> I guess the answer to these questions is "memory cgroups", so that's
-> why there is no real motivation to implement RLIMIT_RSS separately...
+> >Sent: Sunday, 9 June 2013 10:58 PM
+> >Subject: Re: [checkpatch] - Confusion
+> > =
 
-Lack of opposition would be enough for me.  But I guess we need a bit
-more for a mergeable patch than I did and I only did the existing
-patch because it seemed easy, not because it is important.  Will keep
-the patch in my junk code folder for now.
+> >
+> >On Mon, Jun 10, 2013 at 11:21 AM, PINTU KUMAR <pintu_agarwal@yahoo.com> =
+wrote:
+> >> Hi,
+> >>
+> >> I wanted to submit my first patch.
+> >> But I have some confusion about the /scripts/checkpatch.pl errors.
+> >>
+> >> After correcting some checkpatch errors, when I run checkpatch.pl, it =
+showed me 0 errors.
+> >> But when I create patches are git format-patch, it is showing me 1 err=
+or.
+> >did=C2=A0 you run the checkpatch.pl on the file which gets created
+> >after git format-patch?
+> >If yes, then I think it is not necessary.You can use git-am to apply
+> >your own patch on a undisturbed file and if it applies properly then
+> >you are good to go i.e. you can send your patch.
+> =
 
-JA?rn
+> Yes, first I ran checkpatch directly on the file(mm/page_alloc.c) and fix=
+ed all the errors.
+> It showed me (0) errors.
+> Then I created a patch using _git format-patch_ and ran checkpatch again =
+on the created patch.
+> But now it is showing me 1 error.
+> According to me this error is false positive (irrelevant), because I did =
+not change anything related to the error and also the similar change alread=
+y exists somewhere else too.
+> Do you mean, shall I go ahead and submit the patch with this 1 error??
+> ERROR: need consistent spacing around '*' (ctx:WxV)
+> =
 
---
-A surrounded army must be given a way out.
--- Sun Tzu
+> #153: FILE: mm/page_alloc.c:5476:
+> +int min_free_kbytes_sysctl_handler(ctl_table *table, int write,
+Rather a shot into the dark, but it looks like checkpatch is
+misinterpreting 'ctl_table' as an arithmetic operand instead of a type.
+I don't know how checkpatch learns about types created by typedefs, but
+my guess is, that this line
+	typedef struct ctl_table ctl_table; (include/linux/sysctl.h)
+is not correctly picked up by checkpatch.
+So, I assume this actually is a false positive.
+
+	S=C3=B6ren
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
