@@ -1,46 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
-	by kanga.kvack.org (Postfix) with SMTP id 7A45D6B0034
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2013 04:28:21 -0400 (EDT)
-Date: Wed, 12 Jun 2013 10:28:17 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 2/2] memcg: do not sleep on OOM waitqueue with full
- charge context
-Message-ID: <20130612082817.GA6706@dhcp22.suse.cz>
-References: <1370488193-4747-1-git-send-email-hannes@cmpxchg.org>
- <1370488193-4747-2-git-send-email-hannes@cmpxchg.org>
- <alpine.DEB.2.02.1306052058340.25115@chino.kir.corp.google.com>
- <20130606053315.GB9406@cmpxchg.org>
- <20130606173355.GB27226@cmpxchg.org>
- <alpine.DEB.2.02.1306061308320.9493@chino.kir.corp.google.com>
- <20130606215425.GM15721@cmpxchg.org>
- <alpine.DEB.2.02.1306061507330.15503@chino.kir.corp.google.com>
- <20130607000222.GT15576@cmpxchg.org>
- <alpine.DEB.2.02.1306111454030.4803@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 957C66B0034
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2013 08:06:54 -0400 (EDT)
+Received: by mail-pd0-f181.google.com with SMTP id 14so7161025pdj.12
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2013 05:06:53 -0700 (PDT)
+Message-ID: <51B86456.3060606@gmail.com>
+Date: Wed, 12 Jun 2013 20:06:46 +0800
+From: Zhang Yanfei <zhangyanfei.yes@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1306111454030.4803@chino.kir.corp.google.com>
+Subject: [PATCH] mm: Remove zone_type argument of build_zonelists_node
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Tue 11-06-13 14:57:08, David Rientjes wrote:
-[...]
-> > > > > > Reported-by: Reported-by: azurIt <azurit@pobox.sk>
-> 
-> Ok, so the key here is that azurIt was able to reliably reproduce this 
-> issue and now it has been resurrected after seven months of silence since 
-> that thread.  I also notice that azurIt isn't cc'd on this thread.  Do we 
-> know if this is still a problem?
+From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-I have backported the patch for his 3.2 and waiting for his feedback.
+The callers of build_zonelists_node always pass MAX_NR_ZONES -1
+as the zone_type argument, so we can directly use the value
+in build_zonelists_node and remove zone_type argument.
 
-[...]
+Signed-off-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+---
+ mm/page_alloc.c |   21 ++++++++-------------
+ 1 files changed, 8 insertions(+), 13 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 378a15b..4c09dea 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3148,12 +3148,10 @@ static void zoneref_set_zone(struct zone *zone, struct zoneref *zoneref)
+  * Add all populated zones of a node to the zonelist.
+  */
+ static int build_zonelists_node(pg_data_t *pgdat, struct zonelist *zonelist,
+-				int nr_zones, enum zone_type zone_type)
++				int nr_zones)
+ {
+ 	struct zone *zone;
+-
+-	BUG_ON(zone_type >= MAX_NR_ZONES);
+-	zone_type++;
++	enum zone_type zone_type = MAX_NR_ZONES;
+ 
+ 	do {
+ 		zone_type--;
+@@ -3163,8 +3161,8 @@ static int build_zonelists_node(pg_data_t *pgdat, struct zonelist *zonelist,
+ 				&zonelist->_zonerefs[nr_zones++]);
+ 			check_highest_zone(zone_type);
+ 		}
+-
+ 	} while (zone_type);
++
+ 	return nr_zones;
+ }
+ 
+@@ -3351,8 +3349,7 @@ static void build_zonelists_in_node_order(pg_data_t *pgdat, int node)
+ 	zonelist = &pgdat->node_zonelists[0];
+ 	for (j = 0; zonelist->_zonerefs[j].zone != NULL; j++)
+ 		;
+-	j = build_zonelists_node(NODE_DATA(node), zonelist, j,
+-							MAX_NR_ZONES - 1);
++	j = build_zonelists_node(NODE_DATA(node), zonelist, j);
+ 	zonelist->_zonerefs[j].zone = NULL;
+ 	zonelist->_zonerefs[j].zone_idx = 0;
+ }
+@@ -3366,7 +3363,7 @@ static void build_thisnode_zonelists(pg_data_t *pgdat)
+ 	struct zonelist *zonelist;
+ 
+ 	zonelist = &pgdat->node_zonelists[1];
+-	j = build_zonelists_node(pgdat, zonelist, 0, MAX_NR_ZONES - 1);
++	j = build_zonelists_node(pgdat, zonelist, 0);
+ 	zonelist->_zonerefs[j].zone = NULL;
+ 	zonelist->_zonerefs[j].zone_idx = 0;
+ }
+@@ -3574,7 +3571,7 @@ static void build_zonelists(pg_data_t *pgdat)
+ 	local_node = pgdat->node_id;
+ 
+ 	zonelist = &pgdat->node_zonelists[0];
+-	j = build_zonelists_node(pgdat, zonelist, 0, MAX_NR_ZONES - 1);
++	j = build_zonelists_node(pgdat, zonelist, 0);
+ 
+ 	/*
+ 	 * Now we build the zonelist so that it contains the zones
+@@ -3587,14 +3584,12 @@ static void build_zonelists(pg_data_t *pgdat)
+ 	for (node = local_node + 1; node < MAX_NUMNODES; node++) {
+ 		if (!node_online(node))
+ 			continue;
+-		j = build_zonelists_node(NODE_DATA(node), zonelist, j,
+-							MAX_NR_ZONES - 1);
++		j = build_zonelists_node(NODE_DATA(node), zonelist, j);
+ 	}
+ 	for (node = 0; node < local_node; node++) {
+ 		if (!node_online(node))
+ 			continue;
+-		j = build_zonelists_node(NODE_DATA(node), zonelist, j,
+-							MAX_NR_ZONES - 1);
++		j = build_zonelists_node(NODE_DATA(node), zonelist, j);
+ 	}
+ 
+ 	zonelist->_zonerefs[j].zone = NULL;
 -- 
-Michal Hocko
-SUSE Labs
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
