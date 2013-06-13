@@ -1,133 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 99F76900002
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 09:28:03 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 6143890000B
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 09:28:04 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [Part3 PATCH v2 2/4] mem-hotplug: Skip LOCAL_NODE_DATA pages in memory offline procedure.
-Date: Thu, 13 Jun 2013 21:03:54 +0800
-Message-Id: <1371128636-9027-3-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1371128636-9027-1-git-send-email-tangchen@cn.fujitsu.com>
-References: <1371128636-9027-1-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [Part2 PATCH v4 14/15] x86, numa, acpi, memory-hotplug: Make movablecore=acpi have higher priority.
+Date: Thu, 13 Jun 2013 21:03:38 +0800
+Message-Id: <1371128619-8987-15-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1371128619-8987-1-git-send-email-tangchen@cn.fujitsu.com>
+References: <1371128619-8987-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-In memory offline procedure, skip pages marked as LOCAL_NODE_DATA.
-For now, this kind of pages are used to store local node pagetables.
+Arrange hotpluggable memory as ZONE_MOVABLE will cause NUMA performance decreased
+because the kernel cannot use movable memory.
 
-The minimum unit of memory online/offline is a memory block. In a
-block, the movable pages will be offlined as usual (unmapped and
-isolated), and the pagetable pages will be skipped. After the iteration
-of all page, the block will be set as offline, but the kernel can
-still access the pagetable pages. This is user transparent.
+For users who don't use memory hotplug and who don't want to lose their NUMA
+performance, they need a way to disable this functionality.
 
-v1 -> v2: As suggested by Wu Jianguo <wujianguo@huawei.com>, define a
-	  macro to check if a page contains local node data.
+So, if users specify "movablecore=acpi" in kernel commandline, the kernel will
+use SRAT to arrange ZONE_MOVABLE, and it has higher priority then original
+movablecore and kernelcore boot option.
+
+For those who don't want this, just specify nothing.
 
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- include/linux/memory_hotplug.h |    7 ++++++-
- mm/page_alloc.c                |   15 +++++++++++++--
- mm/page_isolation.c            |    5 +++++
- 3 files changed, 24 insertions(+), 3 deletions(-)
+ include/linux/memblock.h |    1 +
+ mm/memblock.c            |    5 +++++
+ mm/page_alloc.c          |   31 +++++++++++++++++++++++++++++--
+ 3 files changed, 35 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index c0c4107..05de193 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -5,8 +5,8 @@
- #include <linux/spinlock.h>
- #include <linux/notifier.h>
- #include <linux/bug.h>
-+#include <linux/mm_types.h>
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index d113175..a85ced9 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -66,6 +66,7 @@ int memblock_reserve(phys_addr_t base, phys_addr_t size);
+ int memblock_reserve_node(phys_addr_t base, phys_addr_t size, int nid);
+ int memblock_reserve_local_node(phys_addr_t base, phys_addr_t size, int nid);
+ int memblock_reserve_hotpluggable(phys_addr_t base, phys_addr_t size, int nid);
++bool memblock_is_hotpluggable(struct memblock_region *region);
+ void memblock_free_hotpluggable(void);
+ void memblock_trim_memory(phys_addr_t align);
+ void memblock_mark_kernel_nodes(void);
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 9df0b5f..0c4a709 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -626,6 +626,11 @@ int __init_memblock memblock_reserve_hotpluggable(phys_addr_t base,
+ 	return memblock_reserve_region(base, size, nid, MEMBLK_HOTPLUGGABLE);
+ }
  
--struct page;
- struct zone;
- struct pglist_data;
- struct mem_section;
-@@ -31,6 +31,11 @@ enum {
- 	MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE = LOCAL_NODE_DATA,
- };
- 
-+static inline bool is_local_node_data(struct page *page)
++bool __init_memblock memblock_is_hotpluggable(struct memblock_region *region)
 +{
-+	return (unsigned long)page->lru.next == LOCAL_NODE_DATA;
++	return region->flags & MEMBLK_HOTPLUGGABLE;
 +}
 +
- /* Types for control the zone type of onlined memory */
- enum {
- 	ONLINE_KEEP,
+ /**
+  * __next_free_mem_range - next function for for_each_free_mem_range()
+  * @idx: pointer to u64 loop variable
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a5325b2..7cd8f13 100644
+index ee5ae49..10c85b1 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -5772,6 +5772,11 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
- 			continue;
+@@ -4830,9 +4830,37 @@ static void __init find_zone_movable_pfns_for_nodes(void)
+ 	nodemask_t saved_node_state = node_states[N_MEMORY];
+ 	unsigned long totalpages = early_calculate_totalpages();
+ 	int usable_nodes = nodes_weight(node_states[N_MEMORY]);
++	struct memblock_type *reserved = &memblock.reserved;
  
- 		page = pfn_to_page(check);
+ 	/*
+-	 * If movablecore was specified, calculate what size of
++	 * Need to find movable_zone earlier in case movablecore=acpi is
++	 * specified.
++	 */
++	find_usable_zone_for_movable();
 +
-+		/* Skip pages storing local node kernel data. */
-+		if (is_local_node_data(page))
-+			continue;
++	/*
++	 * If movablecore=acpi was specified, then zone_movable_pfn[] has been
++	 * initialized, and no more work needs to do.
++	 * NOTE: In this case, we ignore kernelcore option.
++	 */
++	if (movablecore_enable_srat) {
++		for (i = 0; i < reserved->cnt; i++) {
++			if (!memblock_is_hotpluggable(&reserved->regions[i]))
++				continue;
 +
- 		/*
- 		 * We can't use page_count without pin a page
- 		 * because another CPU can free compound page.
-@@ -6095,8 +6100,7 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
- 	struct page *page;
- 	struct zone *zone;
- 	int order, i;
--	unsigned long pfn;
--	unsigned long flags;
-+	unsigned long pfn, flags;
- 	/* find the first valid pfn */
- 	for (pfn = start_pfn; pfn < end_pfn; pfn++)
- 		if (pfn_valid(pfn))
-@@ -6112,6 +6116,13 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
- 			continue;
- 		}
- 		page = pfn_to_page(pfn);
++			nid = reserved->regions[i].nid;
 +
-+		/* Skip pages storing local node kernel data. */
-+		if (is_local_node_data(page)) {
-+			pfn++;
-+			continue;
++			usable_startpfn = PFN_DOWN(reserved->regions[i].base);
++			zone_movable_pfn[nid] = zone_movable_pfn[nid] ?
++				min(usable_startpfn, zone_movable_pfn[nid]) :
++				usable_startpfn;
 +		}
 +
- 		/*
- 		 * The HWPoisoned page may be not in buddy system, and
- 		 * page_count() is not 0.
-diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-index 383bdbb..4cb0ccb 100644
---- a/mm/page_isolation.c
-+++ b/mm/page_isolation.c
-@@ -6,6 +6,7 @@
- #include <linux/page-isolation.h>
- #include <linux/pageblock-flags.h>
- #include <linux/memory.h>
-+#include <linux/memory_hotplug.h>
- #include "internal.h"
- 
- int set_migratetype_isolate(struct page *page, bool skip_hwpoisoned_pages)
-@@ -181,6 +182,7 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
- 			continue;
- 		}
- 		page = pfn_to_page(pfn);
++		goto out;
++	}
 +
- 		if (PageBuddy(page)) {
- 			/*
- 			 * If race between isolatation and allocation happens,
-@@ -208,6 +210,9 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
- 			 */
- 			pfn++;
- 			continue;
-+		} else if (is_local_node_data(page)) {
-+			pfn++;
-+			continue;
- 		}
- 		else
- 			break;
++	/*
++	 * If movablecore=nn[KMG] was specified, calculate what size of
+ 	 * kernelcore that corresponds so that memory usable for
+ 	 * any allocation type is evenly spread. If both kernelcore
+ 	 * and movablecore are specified, then the value of kernelcore
+@@ -4858,7 +4886,6 @@ static void __init find_zone_movable_pfns_for_nodes(void)
+ 		goto out;
+ 
+ 	/* usable_startpfn is the lowest possible pfn ZONE_MOVABLE can be at */
+-	find_usable_zone_for_movable();
+ 	usable_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
+ 
+ restart:
 -- 
 1.7.1
 
