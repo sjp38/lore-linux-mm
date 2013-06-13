@@ -1,30 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id F35806B0038
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 13:17:09 -0400 (EDT)
-Message-ID: <51B9FE8E.9000109@intel.com>
-Date: Thu, 13 Jun 2013 10:17:02 -0700
-From: Dave Hansen <dave.hansen@intel.com>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 223966B0031
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 14:36:09 -0400 (EDT)
+In-Reply-To: <1371128589-8953-22-git-send-email-tangchen@cn.fujitsu.com>
+References: <1371128589-8953-1-git-send-email-tangchen@cn.fujitsu.com> <1371128589-8953-22-git-send-email-tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [Part3 PATCH v2 2/4] mem-hotplug: Skip LOCAL_NODE_DATA pages
- in memory offline procedure.
-References: <1371128636-9027-1-git-send-email-tangchen@cn.fujitsu.com> <1371128636-9027-3-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1371128636-9027-3-git-send-email-tangchen@cn.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain;
+ charset=UTF-8
+Subject: Re: [Part1 PATCH v5 21/22] x86, mm: Make init_mem_mapping be able to be called several times
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Date: Thu, 13 Jun 2013 14:35:28 -0400
+Message-ID: <aad34de7-8ff7-442d-ad8a-bed2a6e3edea@email.android.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Tang Chen <tangchen@cn.fujitsu.com>, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com
+Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Jacob Shin <jacob.shin@amd.com>
 
-On 06/13/2013 06:03 AM, Tang Chen wrote:
-> +static inline bool is_local_node_data(struct page *page)
-> +{
-> +	return (unsigned long)page->lru.next == LOCAL_NODE_DATA;
-> +}
+Tang Chen <tangchen@cn.fujitsu.com> wrote:
 
-page->lru is already in a union.  Could you please just add a new entry
-to the union with a nice associated comment instead of reusing it this way?
+>From: Yinghai Lu <yinghai@kern=
+el.org>
+>
+>Prepare to put page table on local nodes.
+>
+>Move calling of ini=
+t_mem_mapping() to early_initmem_init().
+>
+>Rework alloc_low_pages to alloc=
+ate page table in following order:
+>	BRK, local node, low range
+>
+>Still on=
+ly load_cr3 one time, otherwise we would break xen 64bit again.
+>
+
+
+
+Sigh..=
+  Can that comment on Xen be removed please.  The issue was fixed last rele=
+ase  and I believe I already asked to remove that comment as it is not true=
+ anymore. 
+-- 
+Sent from my Android phone. Please excuse my brevity.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
