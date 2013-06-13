@@ -1,171 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id A404F90001B
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 11:16:04 -0400 (EDT)
-Date: Thu, 13 Jun 2013 17:16:02 +0200
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 5D7CE90001B
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 11:19:02 -0400 (EDT)
+Date: Thu, 13 Jun 2013 17:19:00 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] mm, memcg: add oom killer delay
-Message-ID: <20130613151602.GG23070@dhcp22.suse.cz>
-References: <20130603193147.GC23659@dhcp22.suse.cz>
- <alpine.DEB.2.02.1306031411380.22083@chino.kir.corp.google.com>
- <20130604095514.GC31242@dhcp22.suse.cz>
- <alpine.DEB.2.02.1306042329320.20610@chino.kir.corp.google.com>
- <20130605093937.GK15997@dhcp22.suse.cz>
- <alpine.DEB.2.02.1306051657001.29626@chino.kir.corp.google.com>
- <20130610142321.GE5138@dhcp22.suse.cz>
- <alpine.DEB.2.02.1306111321360.32688@chino.kir.corp.google.com>
- <20130612202348.GA17282@dhcp22.suse.cz>
- <alpine.DEB.2.02.1306121408490.24902@chino.kir.corp.google.com>
+Subject: Re: mem_cgroup_page_lruvec: BUG: unable to handle kernel NULL
+ pointer dereference at 00000000000001a8
+Message-ID: <20130613151900.GH23070@dhcp22.suse.cz>
+References: <CAFLxGvzKes7mGknTJgqFamr_-ODPBArf6BajF+m5x-S4AEtdmQ@mail.gmail.com>
+ <20130613120248.GB23070@dhcp22.suse.cz>
+ <51B9B5BC.4090702@nod.at>
+ <20130613132908.GC23070@dhcp22.suse.cz>
+ <20130613133244.GD23070@dhcp22.suse.cz>
+ <51B9CA83.9070001@nod.at>
+ <20130613143946.GF23070@dhcp22.suse.cz>
+ <51B9DB23.7010609@nod.at>
+ <51B9DDD3.3000107@nod.at>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1306121408490.24902@chino.kir.corp.google.com>
+In-Reply-To: <51B9DDD3.3000107@nod.at>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Richard Weinberger <richard@nod.at>
+Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cgroups mailinglist <cgroups@vger.kernel.org>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, bsingharora@gmail.com, hannes@cmpxchg.org
 
-On Wed 12-06-13 14:27:05, David Rientjes wrote:
-> On Wed, 12 Jun 2013, Michal Hocko wrote:
-> 
-> > But the objective is to handle oom deadlocks gracefully and you cannot
-> > possibly miss those as they are, well, _deadlocks_.
-> 
-> That's not at all the objective, the changelog quite explicitly states 
-> this is a deadlock as the result of userspace having disabled the oom 
-> killer so that its userspace oom handler can resolve the condition and it 
-> being unresponsive or unable to perform its job.
+On Thu 13-06-13 16:57:23, Richard Weinberger wrote:
+> Am 13.06.2013 16:45, schrieb Richard Weinberger:
+> >Am 13.06.2013 16:39, schrieb Michal Hocko:
+> >>On Thu 13-06-13 15:34:59, Richard Weinberger wrote:
+> >>>Am 13.06.2013 15:32, schrieb Michal Hocko:
+> >>>>Ohh and could you post the config please? Sorry should have asked
+> >>>>earlier.
+> >>>
+> >>>See attachment.
+> >>
+> >>Nothing unusual there. Could you enable CONFIG_DEBUG_VM maybe it will
+> >>help too catch the problem earlier.
+> >
+> >OK
+> >
+> >>>>On Thu 13-06-13 15:29:08, Michal Hocko wrote:
+> >>>>>
+> >>>>>On Thu 13-06-13 14:06:20, Richard Weinberger wrote:
+> >>>>>[...]
+> >>>>>>All code
+> >>>>>>========
+> >>>>>>    0:   89 50 08                mov    %edx,0x8(%rax)
+> >>>>>>    3:   48 89 d1                mov    %rdx,%rcx
+> >>>>>>    6:   0f 1f 40 00             nopl   0x0(%rax)
+> >>>>>>    a:   49 8b 04 24             mov    (%r12),%rax
+> >>>>>>    e:   48 89 c2                mov    %rax,%rdx
+> >>>>>>   11:   48 c1 e8 38             shr    $0x38,%rax
+> >>>>>>   15:   83 e0 03                and    $0x3,%eax
+> >>>>>                    nid = page_to_nid
+> >>>>>>   18:   48 c1 ea 3a             shr    $0x3a,%rdx
+> >>>>>                    zid = page_zonenum
+> >>
+> >>Ohh, I am wrong here. rdx should be nid and eax the zid.
+> >>
+> >>>>>
+> >>>>>>   1c:   48 69 c0 38 01 00 00    imul   $0x138,%rax,%rax
+> >>>>>>   23:   48 03 84 d1 e0 02 00    add    0x2e0(%rcx,%rdx,8),%rax
+> >>>>>                    &memcg->nodeinfo[nid]->zoneinfo[zid]
+> >>>>>
+> >>>>>>   2a:   00
+> >>>>>>   2b:*  48 3b 58 70             cmp    0x70(%rax),%rbx     <-- trapping instruction
+> >>>>>
+> >>>>>OK, so this maps to:
+> >>>>>         if (unlikely(lruvec->zone != zone)) <<<
+> >>>>>                 lruvec->zone = zone;
+> >>>>>
+> >>>>>>[35355.883056] RSP: 0000:ffff88003d523aa8  EFLAGS: 00010002
+> >>>>>>[35355.883056] RAX: 0000000000000138 RBX: ffff88003fffa600 RCX: ffff88003e04a800
+> >>>>>>[35355.883056] RDX: 0000000000000020 RSI: 0000000000000000 RDI: 0000000000028500
+> >>>>>>[35355.883056] RBP: ffff88003d523ab8 R08: 0000000000000000 R09: 0000000000000000
+> >>>>>>[35355.883056] R10: 0000000000000000 R11: dead000000100100 R12: ffffea0000a14000
+> >>>>>>[35355.883056] R13: ffff88003e04b138 R14: ffff88003d523bb8 R15: ffffea0000a14020
+> >>>>>>[35355.883056] FS:  0000000000000000(0000) GS:ffff88003fd80000(0000)
+> >>>>>
+> >>>>>RAX (lruvec) is obviously incorrect and it doesn't make any sense. rax should
+> >>>>>contain an address at an offset from ffff88003e04a800 But there is 0x138 there
+> >>>>>instead.
+> >>
+> >>Hmm, now that I am looking at the registers again. RDX which should be
+> >>nid seems to be quite big. It says this is node 32. Does the machine
+> >>have really so many NUMA nodes?
+> >
+> >No. It's a KVM guest with two CPUs. Nothing special.
+> >qemu command line:
+> >qemu-kvm -m 1G -drive file=lxc_host.qcow2,if=virtio -nographic -kernel linux/arch/x86/boot/bzImage -append console=ttyS0 root=/dev/vda2 -net user,hostfwd=tcp::5555-:22 -net
+> >nic,model=e1000 -smp 4
 
-Ohh, so another round. Sigh. You insist on having user space handlers
-running in the context of the limited group. OK, I can understand your
-use case, although I think it is pushing the limits of the interface and
-it is dangerous.
-As the problems/deadlocks are unavoidable with this approach you really
-need a backup plan to reduce the damage once it happens. You insist on
-having in-kernel solution while there is a user space alternative
-possible IMO.
-
-> When you allow users to create their own memcgs, which we do and is 
-> possible by chowning the user's root to be owned by it, and implement 
-> their own userspace oom notifier, you must then rely on their 
-> implementation to work 100% of the time, otherwise all those gigabytes of 
-> memory go unfreed forever.  What you're insisting on is that this 
-> userspace is perfect
-
-No, I am not saying that. You can let your untrusted users handle
-their OOMs as you like. The watchdog (your fallback solution) _has_
-to be trusted though and if you want it to do the job then you better
-implement it correctly. Is this requirement a problem?
-
-> and there is never any memory allocated (otherwise it may oom its own
-> user root memcg where the notifier is hosted)
-
-If the watchdog runs under root memcg then there is no limit so the only
-OOM that might happen is the global one and you can protect the watchdog
-by oom_adj as I have mentioned earlier.
-
-> and it is always responsive and able to handle the situation.
-
-If it is a trusted code then it can run with a real time priority.
-
-> This is not reality.
-
-It seems you just do not want to accept that there is other solution
-because the kernel solution sounds like an easier option for you.
-
-> This is why the kernel has its own oom killer and doesn't wait for a user 
-> to go to kill something.  There's no option to disable the kernel oom 
-> killer.  It's because we don't want to leave the system in a state where 
-> no progress can be made.  The same intention is for memcgs to not be left 
-> in a state where no progress can be made even if userspace has the best 
-> intentions.
-> 
-> Your solution of a global entity to prevent these situations doesn't work 
-> for the same reason we can't implement the kernel oom killer in userspace.  
-> It's the exact same reason. 
-
-No it is not! The core difference is that there is _always_ some memory
-for the watchdog (because something else might be killed to free some
-memory) while there is none for the global OOM. So the watchdog even
-doesn't need to mlock everything in.
-
-> We also want to push patches that allow global oom conditions to
-> trigger an eventfd notification on the root memcg with the exact same
-> semantics of a memcg oom:
-
-As already mentioned we have discussed this at LSF. I am still not
-sure it is the right thing to do though. The interface would be too
-tricky. There are other options to implement user defined policy for the
-global OOM and they should be considered before there is a decision to
-push it into memcg.
-
-> allow it time to respond but 
-> step in and kill something if it fails to respond.  Memcg happens to be 
-> the perfect place to implement such a userspace policy and we want to have 
-> a priority-based killing mechanism that is hierarchical and different from 
-> oom_score_adj.
-
-It might sound perfect for your use cases but we should be _really_
-careful to not pull another tricky interface into memcg that would fit
-a certain scenario.
-Remember use_hierarchy thingy? It sounded like a good idea at the time
-and it turned into a nightmare over time. It also aimed at solving a
-restriction at the time. The restriction is not here anymore AFAICT but
-we have a crippled hierarchy semantic.
-
-> For that to work properly, it cannot possibly allocate memory even on page 
-> fault so it must be mlocked in memory and have enough buffers to store the 
-> priorities of top-level memcgs.  Asking a global watchdog to sit there 
-> mlocked in memory to store thousands of memcgs, their priorities, their 
-> last oom, their timeouts, etc, is a non-starter.
-
-I have asked you about an estimation already. I do not think that the
-memory consumption would really matter here. We are talking about few
-megs at most and even that is exaggerated.
-
-> I don't buy your argument that we're pushing any interface to an extreme.  
-
-OK, call it a matter of taste but handling oom in the context of the
-oom itself without any requirements to the handler implementation and
-without access to any memory reserves because the handler is not trusted
-feels weird and scary to me.
-
-> Users having the ability to manipulate their own memcgs and subcontainers 
-> isn't extreme, it's explicitly allowed by cgroups! 
-
-Sure thing and no discussion about that. We are just arguing who should
-be responsible here. Admin who allows such a setup or kernel.
-
-> What we're asking for is that level of control for memcg is sane and
-
-I can argue that it _is_ quite sane in its current form. The interface
-allows you to handle the oom either by increasing the limit which
-doesn't allocate any kernel memory or by killing a task which doesn't
-allocate any memory either.
-If the handler fails to make the oom decision without allocating a
-memory and it is running under the restricted environment at the same
-time then it calls for troubles. If you, as an admin, want to allow such
-a setup then why not, but be aware of potential problems and handle them
-when they happen. If there was no sane way to implement such a stopgap
-measure then I wouldn't be objecting.
-
-I do not think that your oom_control at root group level argument really
-matters now because a) there is nothing like that in the kernel yet and
-b) it is questionable it will be ever (as the discussion hasn't started
-yet).
-Not mentioning that even if it was I think the watchdog could be still
-implemented (e.g. re-enable global oom after a timeout from a different
-thread in the global watchdog - you can certainly do that without any
-allocations).
-
-> that if userspace is unresponsive that we don't lose gigabytes of
-> memory forever.  And since we've supported this type of functionality
-> even before memcg was created for cpusets and have used and supported
-> it for six years, I have no problem supporting such a thing upstream.
-> 
-> I do understand that we're the largest user of memcg and use it unlike you 
-> or others on this thread do, but that doesn't mean our usecase is any less 
-> important or that we should aim for the most robust behavior possible.
+OK, then something probably overwrites page->flags. I would be more
+inclined to blame some other code ;)
+Maybe DEBUG_VM will start shouting earlier
+ 
+> Errr, I meant four CPUs. :)
 
 -- 
 Michal Hocko
