@@ -1,109 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 2ADAB900002
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 69CBC900004
 	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 09:28:02 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [Part1 PATCH v5 13/22] x86, mm, numa: Use numa_meminfo to check node_map_pfn alignment
-Date: Thu, 13 Jun 2013 21:03:00 +0800
-Message-Id: <1371128589-8953-14-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1371128589-8953-1-git-send-email-tangchen@cn.fujitsu.com>
-References: <1371128589-8953-1-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [Part2 PATCH v4 11/15] x86, numa, memblock: Introduce MEMBLK_LOCAL_NODE to mark and reserve node-life-cycle data.
+Date: Thu, 13 Jun 2013 21:03:35 +0800
+Message-Id: <1371128619-8987-12-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1371128619-8987-1-git-send-email-tangchen@cn.fujitsu.com>
+References: <1371128619-8987-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-From: Yinghai Lu <yinghai@kernel.org>
+node-life-cycle data (whose life cycle is the same as a node)
+allocated by memblock should be marked so that when we free usable
+memory to buddy system, we can skip them.
 
-We could use numa_meminfo directly instead of memblock nid in
-node_map_pfn_alignment().
+This patch introduces a flag MEMBLK_LOCAL_NODE for memblock to reserve
+node-life-cycle data. For now, it is only kernel direct mapping pagetable
+pages, based on Yinghai's patch.
 
-So we could do setting memblock nid later and only do it once
-for successful path.
-
--v2: according to tj, separate moving to another patch.
-
-Signed-off-by: Yinghai Lu <yinghai@kernel.org>
-Reviewed-by: Tang Chen <tangchen@cn.fujitsu.com>
-Tested-by: Tang Chen <tangchen@cn.fujitsu.com>
+Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 ---
- arch/x86/mm/numa.c |   30 +++++++++++++++++++-----------
- 1 files changed, 19 insertions(+), 11 deletions(-)
+ arch/x86/mm/init.c       |   16 ++++++++++++----
+ include/linux/memblock.h |    2 ++
+ mm/memblock.c            |    6 ++++++
+ 3 files changed, 20 insertions(+), 4 deletions(-)
 
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index 10c6240..cff565a 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -493,14 +493,18 @@ static bool __init numa_meminfo_cover_memory(const struct numa_meminfo *mi)
-  * Returns the determined alignment in pfn's.  0 if there is no alignment
-  * requirement (single node).
-  */
--unsigned long __init node_map_pfn_alignment(void)
-+#ifdef NODE_NOT_IN_PAGE_FLAGS
-+static unsigned long __init node_map_pfn_alignment(struct numa_meminfo *mi)
- {
- 	unsigned long accl_mask = 0, last_end = 0;
- 	unsigned long start, end, mask;
- 	int last_nid = -1;
- 	int i, nid;
- 
--	for_each_mem_pfn_range(i, MAX_NUMNODES, &start, &end, &nid) {
-+	for (i = 0; i < mi->nr_blks; i++) {
-+		start = mi->blk[i].start >> PAGE_SHIFT;
-+		end = mi->blk[i].end >> PAGE_SHIFT;
-+		nid = mi->blk[i].nid;
- 		if (!start || last_nid < 0 || last_nid == nid) {
- 			last_nid = nid;
- 			last_end = end;
-@@ -523,10 +527,16 @@ unsigned long __init node_map_pfn_alignment(void)
- 	/* convert mask to number of pages */
- 	return ~accl_mask + 1;
- }
-+#else
-+static unsigned long __init node_map_pfn_alignment(struct numa_meminfo *mi)
-+{
-+	return 0;
-+}
-+#endif
- 
- static int __init numa_register_memblks(struct numa_meminfo *mi)
- {
--	unsigned long uninitialized_var(pfn_align);
-+	unsigned long pfn_align;
- 	int i;
- 
- 	/* Account for nodes with cpus and no memory */
-@@ -538,24 +548,22 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
- 	if (!numa_meminfo_cover_memory(mi))
- 		return -EINVAL;
- 
--	for (i = 0; i < mi->nr_blks; i++) {
--		struct numa_memblk *mb = &mi->blk[i];
--		memblock_set_node(mb->start, mb->end - mb->start, mb->nid);
--	}
--
- 	/*
- 	 * If sections array is gonna be used for pfn -> nid mapping, check
- 	 * whether its granularity is fine enough.
- 	 */
--#ifdef NODE_NOT_IN_PAGE_FLAGS
--	pfn_align = node_map_pfn_alignment();
-+	pfn_align = node_map_pfn_alignment(mi);
- 	if (pfn_align && pfn_align < PAGES_PER_SECTION) {
- 		printk(KERN_WARNING "Node alignment %LuMB < min %LuMB, rejecting NUMA config\n",
- 		       PFN_PHYS(pfn_align) >> 20,
- 		       PFN_PHYS(PAGES_PER_SECTION) >> 20);
- 		return -EINVAL;
- 	}
--#endif
+diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
+index 9ff71ff..63abb46 100644
+--- a/arch/x86/mm/init.c
++++ b/arch/x86/mm/init.c
+@@ -62,14 +62,22 @@ __ref void *alloc_low_pages(unsigned int num)
+ 					low_min_pfn_mapped << PAGE_SHIFT,
+ 					low_max_pfn_mapped << PAGE_SHIFT,
+ 					PAGE_SIZE * num , PAGE_SIZE);
+-		} else
++			if (!ret)
++				panic("alloc_low_page: can not alloc memory");
 +
-+	for (i = 0; i < mi->nr_blks; i++) {
-+		struct numa_memblk *mb = &mi->blk[i];
-+		memblock_set_node(mb->start, mb->end - mb->start, mb->nid);
-+	}
++			memblock_reserve(ret, PAGE_SIZE * num);
++		} else {
+ 			ret = memblock_find_in_range(
+ 					local_min_pfn_mapped << PAGE_SHIFT,
+ 					local_max_pfn_mapped << PAGE_SHIFT,
+ 					PAGE_SIZE * num , PAGE_SIZE);
+-		if (!ret)
+-			panic("alloc_low_page: can not alloc memory");
+-		memblock_reserve(ret, PAGE_SIZE * num);
++			if (!ret)
++				panic("alloc_low_page: can not alloc memory");
++
++			memblock_reserve_local_node(ret, PAGE_SIZE * num,
++					memory_add_physaddr_to_nid(ret));
++		}
++
+ 		pfn = ret >> PAGE_SHIFT;
+ 	} else {
+ 		pfn = pgt_buf_end;
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index 5a52f37..517c027 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -21,6 +21,7 @@
  
- 	return 0;
+ /* Definition of memblock flags. */
+ #define MEMBLK_FLAGS_DEFAULT	0x0	/* default flag */
++#define	MEMBLK_LOCAL_NODE	0x1	/* node-life-cycle data */
+ 
+ struct memblock_region {
+ 	phys_addr_t base;
+@@ -62,6 +63,7 @@ int memblock_remove(phys_addr_t base, phys_addr_t size);
+ int memblock_free(phys_addr_t base, phys_addr_t size);
+ int memblock_reserve(phys_addr_t base, phys_addr_t size);
+ int memblock_reserve_node(phys_addr_t base, phys_addr_t size, int nid);
++int memblock_reserve_local_node(phys_addr_t base, phys_addr_t size, int nid);
+ void memblock_trim_memory(phys_addr_t align);
+ void memblock_mark_kernel_nodes(void);
+ 
+diff --git a/mm/memblock.c b/mm/memblock.c
+index bb53c54..e747bc6 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -597,6 +597,12 @@ int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
+ 				       MEMBLK_FLAGS_DEFAULT);
  }
+ 
++int __init_memblock memblock_reserve_local_node(phys_addr_t base,
++					phys_addr_t size, int nid)
++{
++	return memblock_reserve_region(base, size, nid, MEMBLK_LOCAL_NODE);
++}
++
+ /**
+  * __next_free_mem_range - next function for for_each_free_mem_range()
+  * @idx: pointer to u64 loop variable
 -- 
 1.7.1
 
