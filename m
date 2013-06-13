@@ -1,58 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id E15116B0033
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 17:06:34 -0400 (EDT)
-Date: Thu, 13 Jun 2013 14:06:32 -0700
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id C327A6B0033
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 17:20:35 -0400 (EDT)
+Date: Thu, 13 Jun 2013 14:20:33 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: Revert pinned_vm braindamage
-Message-Id: <20130613140632.15982af2ebc443b24bfff86a@linux-foundation.org>
-In-Reply-To: <20130606124351.GZ27176@twins.programming.kicks-ass.net>
-References: <20130606124351.GZ27176@twins.programming.kicks-ass.net>
+Subject: Re: [PATCH 00/11] HugeTLB and THP support for ARM64.
+Message-Id: <20130613142033.fdcefe11264c1bb2df8fc4cb@linux-foundation.org>
+In-Reply-To: <20130611090714.GA21776@linaro.org>
+References: <1369328878-11706-1-git-send-email-steve.capper@linaro.org>
+	<20130611090714.GA21776@linaro.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: torvalds@linux-foundation.org, roland@kernel.org, mingo@kernel.org, tglx@linutronix.de, kosaki.motohiro@gmail.com, penberg@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-rdma@vger.kernel.org, Mike Marciniszyn <infinipath@intel.com>
+To: Steve Capper <steve.capper@linaro.org>
+Cc: x86@kernel.org, catalin.marinas@arm.com, linux-mm@kvack.org
 
-Let's try to get this wrapped up?
+On Tue, 11 Jun 2013 10:07:15 +0100 Steve Capper <steve.capper@linaro.org> wrote:
 
-On Thu, 6 Jun 2013 14:43:51 +0200 Peter Zijlstra <peterz@infradead.org> wrote:
-
+> Hello,
+> I was just wondering if there were any comments on the mm and x86 patches in
+> this series, or should I send a pull request for them?
 > 
-> Patch bc3e53f682 ("mm: distinguish between mlocked and pinned pages")
-> broke RLIMIT_MEMLOCK.
+> Catalin has acked the ARM64 ones but we need the x86->mm code move in place
+> before the ARM64 code is merged. The idea behind the code move was to avoid
+> code duplication between x86 and ARM64 (and ARM).
 
-I rather like what bc3e53f682 did, actually.  RLIMIT_MEMLOCK limits the
-amount of memory you can mlock().  Nice and simple.
-
-This pinning thing which infiniband/perf are doing is conceptually
-different and if we care at all, perhaps we should be looking at adding
-RLIMIT_PINNED.
-
-> Before that patch: mm_struct::locked_vm < RLIMIT_MEMLOCK; after that
-> patch we have: mm_struct::locked_vm < RLIMIT_MEMLOCK &&
-> mm_struct::pinned_vm < RLIMIT_MEMLOCK.
-
-But this is a policy decision which was implemented in perf_mmap() and
-perf can alter that decision.  How bad would it be if perf just ignored
-RLIMIT_MEMLOCK?
-
-
-drivers/infiniband/hw/qib/qib_user_pages.c has issues, btw.  It
-compares the amount-to-be-pinned with rlimit(RLIMIT_MEMLOCK), but
-forgets to also look at current->mm->pinned_vm.  Duh.
-
-It also does the pinned accounting in __qib_get_user_pages() but in
-__qib_release_user_pages(), the caller is supposed to do it, which is
-rather awkward.
-
-
-Longer-term I don't think that inifinband or perf should be dinking
-around with rlimit(RLIMIT_MEMLOCK) or ->pinned_vm.  Those policy
-decisions should be hoisted into a core mm helper where we can do it
-uniformly (and more correctly than infiniband's attempt!).
+Ack from me on patches 1, 2, 3, 4 and 5.  Please get the whole series
+into linux-next asap and merge it up at the appropriate time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
