@@ -1,57 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 8898C6B0036
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 15:19:34 -0400 (EDT)
-Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Thu, 13 Jun 2013 13:19:33 -0600
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id E14CAC9003E
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 15:19:30 -0400 (EDT)
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5DJJVNQ57933940
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 15:19:31 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5DJJULc029378
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 16:19:30 -0300
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: [PATCH] zswap: init under_reclaim
-Date: Thu, 13 Jun 2013 14:19:14 -0500
-Message-Id: <1371151154-22360-1-git-send-email-sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 2D0546B0033
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 15:53:07 -0400 (EDT)
+Received: by mail-qa0-f53.google.com with SMTP id g10so1324363qah.5
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2013 12:53:06 -0700 (PDT)
+Date: Thu, 13 Jun 2013 12:53:00 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v3 5/9] memcg: use css_get/put when charging/uncharging
+ kmem
+Message-ID: <20130613195300.GE13970@mtj.dyndns.org>
+References: <51B98D17.2050902@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51B98D17.2050902@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Bob Liu <bob.liu@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Li Zefan <lizefan@huawei.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Glauber Costa <glommer@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Bob Liu reported a memory leak in zswap.  This was due to the
-under_reclaim field in the zbud header not being initialized
-to 0, which resulted in zbud_free() not freeing the page
-under the false assumption that the page was undergoing
-zbud reclaim.
+On Thu, Jun 13, 2013 at 05:12:55PM +0800, Li Zefan wrote:
+> Sorry for updating the patchset so late.
+> 
+> I've made some changes for the memory barrier thing, and I agree with
+> Michal that there can be improvement but can be a separate patch.
+> 
+> If this version is ok for everyone, I'll send the whole patchset out
+> to Andrew.
 
-This patch properly initializes the under_reclaim field.
+Can you please post an updated patch as reply to the original patch?
+It's a bit difficult to follow things.
 
-Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Reported-by: Bob Liu <bob.liu@oracle.com>
----
- mm/zbud.c |    1 +
- 1 file changed, 1 insertion(+)
+> =========================
+> 
+> Use css_get/put instead of mem_cgroup_get/put.
+> 
+> We can't do a simple replacement, because here mem_cgroup_put()
+> is called during mem_cgroup_css_free(), while mem_cgroup_css_free()
+> won't be called until css refcnt goes down to 0.
+> 
+> Instead we increment css refcnt in mem_cgroup_css_offline(), and
+> then check if there's still kmem charges. If not, css refcnt will
+> be decremented immediately, otherwise the refcnt won't be decremented
+> when kmem charges goes down to 0.
+> 
+> v3:
+> - changed wmb() to smp_smb(), and moved it to memcg_kmem_mark_dead(),
+>   and added comment.
+> 
+> v2:
+> - added wmb() in kmem_cgroup_css_offline(), pointed out by Michal
+> - revised comments as suggested by Michal
+> - fixed to check if kmem is activated in kmem_cgroup_css_offline()
+> 
+> Signed-off-by: Li Zefan <lizefan@huawei.com>
+> Acked-by: Michal Hocko <mhocko@suse.cz>
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-diff --git a/mm/zbud.c b/mm/zbud.c
-index d63ae6e..9bb4710 100644
---- a/mm/zbud.c
-+++ b/mm/zbud.c
-@@ -138,6 +138,7 @@ static struct zbud_header *init_zbud_page(struct page *page)
- 	zhdr->last_chunks = 0;
- 	INIT_LIST_HEAD(&zhdr->buddy);
- 	INIT_LIST_HEAD(&zhdr->lru);
-+	zhdr->under_reclaim = 0;
- 	return zhdr;
- }
- 
+Reviewed-by: Tejun Heo <tj@kernel.org>
+
+But let's please remove the barrier dancing.
+
+Thanks.
+
 -- 
-1.7.9.5
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
