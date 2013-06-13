@@ -1,81 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id C47DD6B0039
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 12:38:52 -0400 (EDT)
-Date: Thu, 13 Jun 2013 18:38:49 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] memcg: make cache index determination more robust
-Message-ID: <20130613163849.GL23070@dhcp22.suse.cz>
-References: <1371069808-1172-1-git-send-email-glommer@openvz.org>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id F35806B0038
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 13:17:09 -0400 (EDT)
+Message-ID: <51B9FE8E.9000109@intel.com>
+Date: Thu, 13 Jun 2013 10:17:02 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1371069808-1172-1-git-send-email-glommer@openvz.org>
+Subject: Re: [Part3 PATCH v2 2/4] mem-hotplug: Skip LOCAL_NODE_DATA pages
+ in memory offline procedure.
+References: <1371128636-9027-1-git-send-email-tangchen@cn.fujitsu.com> <1371128636-9027-3-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1371128636-9027-3-git-send-email-tangchen@cn.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Glauber Costa <glommer@openvz.org>, Johannes Weiner <hannes@cmpxchg.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed 12-06-13 16:43:28, Glauber Costa wrote:
-> I caught myself doing something like the following outside memcg core:
-> 
-> 	memcg_id = -1;
-> 	if (memcg && memcg_kmem_is_active(memcg))
-> 		memcg_id = memcg_cache_id(memcg);
-> 
-> to be able to handle all possible memcgs in a sane manner. In particular, the
-> root cache will have kmemcg_id = -1 (just because we don't call memcg_kmem_init
-> to the root cache since it is not limitable). We have always coped with that by
-> making sure we sanitize which cache is passed to memcg_cache_id. Although this
-> example is given for root, what we really need to know is whether or not a
-> cache is kmem active.
-> 
-> But outside the memcg core testing for root, for instance, is not trivial since
-> we don't export mem_cgroup_is_root. I ended up realizing that this tests really
-> belong inside memcg_cache_id. This patch moves the tests inside memcg_cache_id
-> and make sure it always return a meaningful value.
+On 06/13/2013 06:03 AM, Tang Chen wrote:
+> +static inline bool is_local_node_data(struct page *page)
+> +{
+> +	return (unsigned long)page->lru.next == LOCAL_NODE_DATA;
+> +}
 
-This is quite a mess, to be honest. Some callers test/require
-memcg_can_account_kmem others !p->is_root_cache. Can we have that
-unified, please?
-
-Also the return value of this function is used mostly as an index to
-memcg_params->memcg_caches array so returning -1 sounds like a bad idea.
-Few other cases use it as a real id. Maybe we need to split this up.
-
-Pulling the check inside the function is OK but can we settle with a
-common pattern here, pretty please?
-
-> Signed-off-by: Glauber Costa <glommer@openvz.org>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  mm/memcontrol.c | 4 +++-
->  1 file changed, 3 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 2e851f4..749f7a4 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3081,7 +3081,9 @@ void memcg_cache_list_add(struct mem_cgroup *memcg, struct kmem_cache *cachep)
->   */
->  int memcg_cache_id(struct mem_cgroup *memcg)
->  {
-> -	return memcg ? memcg->kmemcg_id : -1;
-> +	if (!memcg || !memcg_kmem_is_active(memcg))
-> +		return -1;
-> +	return memcg->kmemcg_id;
->  }
->  
->  /*
-> -- 
-> 1.8.1.4
-> 
-
--- 
-Michal Hocko
-SUSE Labs
+page->lru is already in a union.  Could you please just add a new entry
+to the union with a nice associated comment instead of reusing it this way?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
