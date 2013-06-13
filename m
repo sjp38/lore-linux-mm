@@ -1,64 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id E67616B0036
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 09:27:57 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id B48B46B0039
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 09:27:58 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [Part2 PATCH v4 02/15] acpi: Print Hot-Pluggable Field in SRAT.
-Date: Thu, 13 Jun 2013 21:03:26 +0800
-Message-Id: <1371128619-8987-3-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1371128619-8987-1-git-send-email-tangchen@cn.fujitsu.com>
-References: <1371128619-8987-1-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [Part1 PATCH v5 20/22] x86, mm: Add comments for step_size shift
+Date: Thu, 13 Jun 2013 21:03:07 +0800
+Message-Id: <1371128589-8953-21-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1371128589-8953-1-git-send-email-tangchen@cn.fujitsu.com>
+References: <1371128589-8953-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-The Hot-Pluggable field in SRAT suggests if the memory could be
-hotplugged while the system is running. Print it as well when
-parsing SRAT will help users to know which memory is hotpluggable.
+From: Yinghai Lu <yinghai@kernel.org>
 
-Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+As requested by hpa, add comments for why we choose 5 to be
+the step size shift.
+
+Signed-off-by: Yinghai Lu <yinghai@kernel.org>
+Reviewed-by: Tang Chen <tangchen@cn.fujitsu.com>
+Tested-by: Tang Chen <tangchen@cn.fujitsu.com>
 ---
- arch/x86/mm/srat.c |   11 +++++++----
- 1 files changed, 7 insertions(+), 4 deletions(-)
+ arch/x86/mm/init.c |   21 ++++++++++++++++++---
+ 1 files changed, 18 insertions(+), 3 deletions(-)
 
-diff --git a/arch/x86/mm/srat.c b/arch/x86/mm/srat.c
-index 443f9ef..134a79d 100644
---- a/arch/x86/mm/srat.c
-+++ b/arch/x86/mm/srat.c
-@@ -146,6 +146,7 @@ int __init
- acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
+diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
+index 3c21f16..5f38e72 100644
+--- a/arch/x86/mm/init.c
++++ b/arch/x86/mm/init.c
+@@ -395,8 +395,23 @@ static unsigned long __init init_range_memory_mapping(
+ 	return mapped_ram_size;
+ }
+ 
+-/* (PUD_SHIFT-PMD_SHIFT)/2 */
+-#define STEP_SIZE_SHIFT 5
++static unsigned long __init get_new_step_size(unsigned long step_size)
++{
++	/*
++	 * initial mapped size is PMD_SIZE, aka 2M.
++	 * We can not set step_size to be PUD_SIZE aka 1G yet.
++	 * In worse case, when 1G is cross the 1G boundary, and
++	 * PG_LEVEL_2M is not set, we will need 1+1+512 pages (aka 2M + 8k)
++	 * to map 1G range with PTE. Use 5 as shift for now.
++	 */
++	unsigned long new_step_size = step_size << 5;
++
++	if (new_step_size > step_size)
++		step_size = new_step_size;
++
++	return  step_size;
++}
++
+ void __init init_mem_mapping(void)
  {
- 	u64 start, end;
-+	u32 hotpluggable;
- 	int node, pxm;
+ 	unsigned long end, real_end, start, last_start;
+@@ -445,7 +460,7 @@ void __init init_mem_mapping(void)
+ 		min_pfn_mapped = last_start >> PAGE_SHIFT;
+ 		/* only increase step_size after big range get mapped */
+ 		if (new_mapped_ram_size > mapped_ram_size)
+-			step_size <<= STEP_SIZE_SHIFT;
++			step_size = get_new_step_size(step_size);
+ 		mapped_ram_size += new_mapped_ram_size;
+ 	}
  
- 	if (srat_disabled())
-@@ -154,7 +155,8 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
- 		goto out_err_bad_srat;
- 	if ((ma->flags & ACPI_SRAT_MEM_ENABLED) == 0)
- 		goto out_err;
--	if ((ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE) && !save_add_info())
-+	hotpluggable = ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE;
-+	if (hotpluggable && !save_add_info())
- 		goto out_err;
- 
- 	start = ma->base_address;
-@@ -174,9 +176,10 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
- 
- 	node_set(node, numa_nodes_parsed);
- 
--	printk(KERN_INFO "SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]\n",
--	       node, pxm,
--	       (unsigned long long) start, (unsigned long long) end - 1);
-+	pr_info("SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx] %s\n",
-+		node, pxm,
-+		(unsigned long long) start, (unsigned long long) end - 1,
-+		hotpluggable ? "Hot Pluggable" : "");
- 
- 	return 0;
- out_err_bad_srat:
 -- 
 1.7.1
 
