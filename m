@@ -1,236 +1,272 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id EA13D90000B
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 09:28:06 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 541D2900010
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 09:28:07 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [Part3 PATCH v2 1/4] bootmem, mem-hotplug: Register local pagetable pages with LOCAL_NODE_DATA when freeing bootmem.
-Date: Thu, 13 Jun 2013 21:03:53 +0800
-Message-Id: <1371128636-9027-2-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1371128636-9027-1-git-send-email-tangchen@cn.fujitsu.com>
-References: <1371128636-9027-1-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [Part2 PATCH v4 06/15] memblock, numa: Introduce flag into memblock.
+Date: Thu, 13 Jun 2013 21:03:30 +0800
+Message-Id: <1371128619-8987-7-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1371128619-8987-1-git-send-email-tangchen@cn.fujitsu.com>
+References: <1371128619-8987-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-As Yinghai suggested, even if a node is movable node, which has only
-ZONE_MOVABLE, pagetables should be put in the local node.
+There is no flag in memblock to describe what type the memory is.
+Sometimes, we may use memblock to reserve some memory for special usage.
+For example, as Yinghai did in his patch, allocate pagetables on local
+node before all the memory on the node is mapped.
+Please refer to Yinghai's patch:
+v1: https://lkml.org/lkml/2013/3/7/642
+v2: https://lkml.org/lkml/2013/3/10/47
+v3: https://lkml.org/lkml/2013/4/4/639
+v4: https://lkml.org/lkml/2013/4/11/829
 
-In memory hot-remove logic, it offlines all pages first, and then
-removes pagetables. But the local pagetable pages cannot be offlined
-because they are used by kernel.
+In hotplug environment, there could be some problems when we hot-remove
+memory if we do so. Pagetable pages are kernel memory, which we cannot
+migrate. But we can put them in local node because their life-cycle is
+the same as the node.  So we need to free them all before memory hot-removing.
 
-So we should skip this kind of pages in offline procedure. But first
-of all, we need to mark them.
+Actually, data whose life cycle is the same as a node, such as pagetable
+pages, vmemmap pages, page_cgroup pages, all could be put on local node.
+They can be freed when we hot-removing a whole node.
 
-This patch marks local node data pages in the same way as we mark the
-SECTION_INFO and MIX_SECTION_INFO data pages. We introduce a new type
-of bootmem: LOCAL_NODE_DATA. And use page->lru.next to mark this type
-of memory.
+In order to do so, we need to mark out these special pages in memblock.
+In this patch, we introduce a new "flags" member into memblock_region:
+   struct memblock_region {
+           phys_addr_t base;
+           phys_addr_t size;
+           unsigned long flags;
+   #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+           int nid;
+   #endif
+   };
 
+This patch does the following things:
+1) Add "flags" member to memblock_region, and MEMBLK_DEFAULT flag for common usage.
+2) Modify the following APIs' prototype:
+	memblock_add_region()
+	memblock_insert_region()
+3) Add memblock_reserve_region() to support reserve memory with flags, and keep
+   memblock_reserve()'s prototype unmodified.
+4) Modify other APIs to support flags, but keep their prototype unmodified.
+
+The idea is from Wen Congyang <wency@cn.fujitsu.com> and Liu Jiang <jiang.liu@huawei.com>.
+
+v3 -> v4: Define the flags with macro directly instead of bit shift.
+
+Suggested-by: Wen Congyang <wency@cn.fujitsu.com>
+Suggested-by: Liu Jiang <jiang.liu@huawei.com>
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 ---
- arch/x86/mm/init_64.c          |    2 +
- include/linux/memblock.h       |   22 +++++++++++++++++
- include/linux/memory_hotplug.h |   13 ++++++++-
- mm/memblock.c                  |   52 ++++++++++++++++++++++++++++++++++++++++
- mm/memory_hotplug.c            |   26 ++++++++++++++++++++
- 5 files changed, 113 insertions(+), 2 deletions(-)
+ include/linux/memblock.h |    4 +++
+ mm/memblock.c            |   55 +++++++++++++++++++++++++++++++++------------
+ 2 files changed, 44 insertions(+), 15 deletions(-)
 
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index bb00c46..25de304 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -1053,6 +1053,8 @@ static void __init register_page_bootmem_info(void)
- 
- 	for_each_online_node(i)
- 		register_page_bootmem_info_node(NODE_DATA(i));
-+
-+	register_page_bootmem_local_node();
- #endif
- }
- 
 diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index a85ced9..8a38eef 100644
+index f388203..93f3453 100644
 --- a/include/linux/memblock.h
 +++ b/include/linux/memblock.h
-@@ -131,6 +131,28 @@ void __next_free_mem_range_rev(u64 *idx, int nid, phys_addr_t *out_start,
- 	     i != (u64)ULLONG_MAX;					\
- 	     __next_free_mem_range_rev(&i, nid, p_start, p_end, p_nid))
+@@ -19,9 +19,13 @@
  
-+void __next_local_node_mem_range(int *idx, int nid, phys_addr_t *out_start,
-+				 phys_addr_t *out_end, int *out_nid);
+ #define INIT_MEMBLOCK_REGIONS	128
+ 
++/* Definition of memblock flags. */
++#define MEMBLK_FLAGS_DEFAULT	0x0	/* default flag */
 +
-+/**
-+ * for_each_local_node_mem_range - iterate memblock areas storing local node
-+ *                                 data
-+ * @i: int used as loop variable
-+ * @nid: node selector, %MAX_NUMNODES for all nodes
-+ * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
-+ * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
-+ * @p_nid: ptr to int for nid of the range, can be %NULL
-+ *
-+ * Walks over memblock areas storing local node data. Since all the local node
-+ * areas will be reserved by memblock, this iterator will only iterate
-+ * memblock.reserve. Available as soon as memblock is initialized.
-+ */
-+#define for_each_local_node_mem_range(i, nid, p_start, p_end, p_nid)	    \
-+	for (i = -1,							    \
-+	     __next_local_node_mem_range(&i, nid, p_start, p_end, p_nid);   \
-+	     i != -1;							    \
-+	     __next_local_node_mem_range(&i, nid, p_start, p_end, p_nid))
-+
+ struct memblock_region {
+ 	phys_addr_t base;
+ 	phys_addr_t size;
++	unsigned long flags;
  #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- int memblock_set_node(phys_addr_t base, phys_addr_t size, int nid);
- 
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 0b21e54..c0c4107 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -16,14 +16,19 @@ struct memory_block;
- 
- /*
-  * Types for free bootmem stored in page->lru.next. These have to be in
-- * some random range in unsigned long space for debugging purposes.
-+ * some random range in unsigned long space for debugging purposes except
-+ * LOCAL_NODE_DATA.
-+ *
-+ * LOCAL_NODE_DATA is used to mark local node pages storing data to
-+ * describe the memory of the node, such as local pagetable pages.
-  */
- enum {
- 	MEMORY_HOTPLUG_MIN_BOOTMEM_TYPE = 12,
- 	SECTION_INFO = MEMORY_HOTPLUG_MIN_BOOTMEM_TYPE,
- 	MIX_SECTION_INFO,
- 	NODE_INFO,
--	MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE = NODE_INFO,
-+	LOCAL_NODE_DATA,
-+	MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE = LOCAL_NODE_DATA,
- };
- 
- /* Types for control the zone type of onlined memory */
-@@ -179,10 +184,14 @@ static inline void arch_refresh_nodedata(int nid, pg_data_t *pgdat)
- 
- #ifdef CONFIG_HAVE_BOOTMEM_INFO_NODE
- extern void register_page_bootmem_info_node(struct pglist_data *pgdat);
-+extern void register_page_bootmem_local_node(void);
- #else
- static inline void register_page_bootmem_info_node(struct pglist_data *pgdat)
- {
- }
-+static inline void register_page_bootmem_local_node()
-+{
-+}
+ 	int nid;
  #endif
- extern void put_page_bootmem(struct page *page);
- extern void get_page_bootmem(unsigned long ingo, struct page *page,
 diff --git a/mm/memblock.c b/mm/memblock.c
-index e672b9e..420e7fb 100644
+index c5fad93..9e871e9 100644
 --- a/mm/memblock.c
 +++ b/mm/memblock.c
-@@ -631,6 +631,58 @@ bool __init_memblock memblock_is_hotpluggable(struct memblock_region *region)
- 	return region->flags & MEMBLK_HOTPLUGGABLE;
+@@ -157,6 +157,7 @@ static void __init_memblock memblock_remove_region(struct memblock_type *type, u
+ 		type->cnt = 1;
+ 		type->regions[0].base = 0;
+ 		type->regions[0].size = 0;
++		type->regions[0].flags = 0;
+ 		memblock_set_region_node(&type->regions[0], MAX_NUMNODES);
+ 	}
  }
+@@ -307,7 +308,8 @@ static void __init_memblock memblock_merge_regions(struct memblock_type *type)
  
-+/*
-+ * Common iterator to find next range with the same flags.
-+ */
-+static void __init_memblock __next_flag_mem_range(int *idx, int nid,
-+					unsigned long flags,
-+					phys_addr_t *out_start,
-+					phys_addr_t *out_end, int *out_nid)
-+{
-+	struct memblock_type *rsv = &memblock.reserved;
-+	struct memblock_region *r;
-+
-+	while (++*idx < rsv->cnt) {
-+		r = &rsv->regions[*idx];
-+
-+		if (nid != MAX_NUMNODES &&
-+		    nid != memblock_get_region_node(r))
-+			continue;
-+
-+		if (r->flags & flags)
-+			break;
-+	}
-+
-+	if (*idx >= rsv->cnt) {
-+		*idx = -1;
-+		return;
-+	}
-+
-+	if (out_start)
-+		*out_start = r->base;
-+	if (out_end)
-+		*out_end = r->base + r->size;
-+	if (out_nid)
-+		*out_nid = memblock_get_region_node(r);
-+}
-+
-+/**
-+ * __next_local_node_mem_range - next function for
-+ *                               for_each_local_node_mem_range()
-+ * @idx: pointer to int loop variable
-+ * @nid: node selector, %MAX_NUMNODES for all nodes
-+ * @out_start: ptr to phys_addr_t for start address of the range, can be %NULL
-+ * @out_end: ptr to phys_addr_t for end address of the range, can be %NULL
-+ * @out_nid: ptr to int for nid of the range, can be %NULL
-+ */
-+void __init_memblock __next_local_node_mem_range(int *idx, int nid,
-+					phys_addr_t *out_start,
-+					phys_addr_t *out_end, int *out_nid)
-+{
-+	__next_flag_mem_range(idx, nid, MEMBLK_LOCAL_NODE,
-+			      out_start, out_end, out_nid);
-+}
-+
- /**
-  * __next_free_mem_range - next function for for_each_free_mem_range()
-  * @idx: pointer to u64 loop variable
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 1ad92b4..c2017eb 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -30,6 +30,7 @@
- #include <linux/mm_inline.h>
- #include <linux/firmware-map.h>
- #include <linux/stop_machine.h>
-+#include <linux/memblock.h>
- 
- #include <asm/tlbflush.h>
- 
-@@ -191,6 +192,31 @@ static void register_page_bootmem_info_section(unsigned long start_pfn)
- }
- #endif /* !CONFIG_SPARSEMEM_VMEMMAP */
- 
-+void __ref register_page_bootmem_local_node()
-+{
-+	int i, nid;
-+	phys_addr_t start, end;
-+	unsigned long start_pfn, end_pfn;
-+	struct page *page;
-+
-+	for_each_local_node_mem_range(i, MAX_NUMNODES, &start, &end, &nid) {
-+		start_pfn = PFN_DOWN(start);
-+		end_pfn = PFN_UP(end);
-+		page = pfn_to_page(start_pfn);
-+
-+		for ( ; start_pfn <= end_pfn; start_pfn++, page++) {
-+			/*
-+			 * We need to set the whole page as LOCAL_NODE_DATA,
-+			 * so we get the upper end_pfn. But this upper end_pfn
-+			 * may not exist. So we have to check if the page
-+			 * present before we access its struct page.
-+			 */
-+			if (pfn_present(start_pfn))
-+				get_page_bootmem(nid, page, LOCAL_NODE_DATA);
-+		}
-+	}
-+}
-+
- void register_page_bootmem_info_node(struct pglist_data *pgdat)
+ 		if (this->base + this->size != next->base ||
+ 		    memblock_get_region_node(this) !=
+-		    memblock_get_region_node(next)) {
++		    memblock_get_region_node(next) ||
++		    this->flags != next->flags) {
+ 			BUG_ON(this->base + this->size > next->base);
+ 			i++;
+ 			continue;
+@@ -327,13 +329,15 @@ static void __init_memblock memblock_merge_regions(struct memblock_type *type)
+  * @base:	base address of the new region
+  * @size:	size of the new region
+  * @nid:	node id of the new region
++ * @flags:	flags of the new region
+  *
+  * Insert new memblock region [@base,@base+@size) into @type at @idx.
+  * @type must already have extra room to accomodate the new region.
+  */
+ static void __init_memblock memblock_insert_region(struct memblock_type *type,
+ 						   int idx, phys_addr_t base,
+-						   phys_addr_t size, int nid)
++						   phys_addr_t size,
++						   int nid, unsigned long flags)
  {
- 	unsigned long i, pfn, end_pfn, nr_pages;
+ 	struct memblock_region *rgn = &type->regions[idx];
+ 
+@@ -341,6 +345,7 @@ static void __init_memblock memblock_insert_region(struct memblock_type *type,
+ 	memmove(rgn + 1, rgn, (type->cnt - idx) * sizeof(*rgn));
+ 	rgn->base = base;
+ 	rgn->size = size;
++	rgn->flags = flags;
+ 	memblock_set_region_node(rgn, nid);
+ 	type->cnt++;
+ 	type->total_size += size;
+@@ -352,6 +357,7 @@ static void __init_memblock memblock_insert_region(struct memblock_type *type,
+  * @base: base address of the new region
+  * @size: size of the new region
+  * @nid: nid of the new region
++ * @flags: flags of the new region
+  *
+  * Add new memblock region [@base,@base+@size) into @type.  The new region
+  * is allowed to overlap with existing ones - overlaps don't affect already
+@@ -362,7 +368,8 @@ static void __init_memblock memblock_insert_region(struct memblock_type *type,
+  * 0 on success, -errno on failure.
+  */
+ static int __init_memblock memblock_add_region(struct memblock_type *type,
+-				phys_addr_t base, phys_addr_t size, int nid)
++				phys_addr_t base, phys_addr_t size,
++				int nid, unsigned long flags)
+ {
+ 	bool insert = false;
+ 	phys_addr_t obase = base;
+@@ -377,6 +384,7 @@ static int __init_memblock memblock_add_region(struct memblock_type *type,
+ 		WARN_ON(type->cnt != 1 || type->total_size);
+ 		type->regions[0].base = base;
+ 		type->regions[0].size = size;
++		type->regions[0].flags = flags;
+ 		memblock_set_region_node(&type->regions[0], nid);
+ 		type->total_size = size;
+ 		return 0;
+@@ -407,7 +415,8 @@ repeat:
+ 			nr_new++;
+ 			if (insert)
+ 				memblock_insert_region(type, i++, base,
+-						       rbase - base, nid);
++						       rbase - base, nid,
++						       flags);
+ 		}
+ 		/* area below @rend is dealt with, forget about it */
+ 		base = min(rend, end);
+@@ -417,7 +426,8 @@ repeat:
+ 	if (base < end) {
+ 		nr_new++;
+ 		if (insert)
+-			memblock_insert_region(type, i, base, end - base, nid);
++			memblock_insert_region(type, i, base, end - base,
++					       nid, flags);
+ 	}
+ 
+ 	/*
+@@ -439,12 +449,14 @@ repeat:
+ int __init_memblock memblock_add_node(phys_addr_t base, phys_addr_t size,
+ 				       int nid)
+ {
+-	return memblock_add_region(&memblock.memory, base, size, nid);
++	return memblock_add_region(&memblock.memory, base, size,
++				   nid, MEMBLK_FLAGS_DEFAULT);
+ }
+ 
+ int __init_memblock memblock_add(phys_addr_t base, phys_addr_t size)
+ {
+-	return memblock_add_region(&memblock.memory, base, size, MAX_NUMNODES);
++	return memblock_add_region(&memblock.memory, base, size,
++				   MAX_NUMNODES, MEMBLK_FLAGS_DEFAULT);
+ }
+ 
+ /**
+@@ -499,7 +511,8 @@ static int __init_memblock memblock_isolate_range(struct memblock_type *type,
+ 			rgn->size -= base - rbase;
+ 			type->total_size -= base - rbase;
+ 			memblock_insert_region(type, i, rbase, base - rbase,
+-					       memblock_get_region_node(rgn));
++					       memblock_get_region_node(rgn),
++					       rgn->flags);
+ 		} else if (rend > end) {
+ 			/*
+ 			 * @rgn intersects from above.  Split and redo the
+@@ -509,7 +522,8 @@ static int __init_memblock memblock_isolate_range(struct memblock_type *type,
+ 			rgn->size -= end - rbase;
+ 			type->total_size -= end - rbase;
+ 			memblock_insert_region(type, i--, rbase, end - rbase,
+-					       memblock_get_region_node(rgn));
++					       memblock_get_region_node(rgn),
++					       rgn->flags);
+ 		} else {
+ 			/* @rgn is fully contained, record it */
+ 			if (!*end_rgn)
+@@ -551,16 +565,25 @@ int __init_memblock memblock_free(phys_addr_t base, phys_addr_t size)
+ 	return __memblock_remove(&memblock.reserved, base, size);
+ }
+ 
+-int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
++static int __init_memblock memblock_reserve_region(phys_addr_t base,
++						   phys_addr_t size,
++						   int nid,
++						   unsigned long flags)
+ {
+ 	struct memblock_type *_rgn = &memblock.reserved;
+ 
+-	memblock_dbg("memblock_reserve: [%#016llx-%#016llx] %pF\n",
++	memblock_dbg("memblock_reserve: [%#016llx-%#016llx] with flags %#016lx %pF\n",
+ 		     (unsigned long long)base,
+ 		     (unsigned long long)base + size,
+-		     (void *)_RET_IP_);
++		     flags, (void *)_RET_IP_);
++
++	return memblock_add_region(_rgn, base, size, nid, flags);
++}
+ 
+-	return memblock_add_region(_rgn, base, size, MAX_NUMNODES);
++int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
++{
++	return memblock_reserve_region(base, size, MAX_NUMNODES,
++				       MEMBLK_FLAGS_DEFAULT);
+ }
+ 
+ /**
+@@ -985,6 +1008,7 @@ void __init_memblock memblock_set_current_limit(phys_addr_t limit)
+ static void __init_memblock memblock_dump(struct memblock_type *type, char *name)
+ {
+ 	unsigned long long base, size;
++	unsigned long flags;
+ 	int i;
+ 
+ 	pr_info(" %s.cnt  = 0x%lx\n", name, type->cnt);
+@@ -995,13 +1019,14 @@ static void __init_memblock memblock_dump(struct memblock_type *type, char *name
+ 
+ 		base = rgn->base;
+ 		size = rgn->size;
++		flags = rgn->flags;
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+ 		if (memblock_get_region_node(rgn) != MAX_NUMNODES)
+ 			snprintf(nid_buf, sizeof(nid_buf), " on node %d",
+ 				 memblock_get_region_node(rgn));
+ #endif
+-		pr_info(" %s[%#x]\t[%#016llx-%#016llx], %#llx bytes%s\n",
+-			name, i, base, base + size - 1, size, nid_buf);
++		pr_info(" %s[%#x]\t[%#016llx-%#016llx], %#llx bytes%s flags: %#lx\n",
++			name, i, base, base + size - 1, size, nid_buf, flags);
+ 	}
+ }
+ 
 -- 
 1.7.1
 
