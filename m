@@ -1,74 +1,180 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id BDF8590001B
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 09:48:28 -0400 (EDT)
-Date: Thu, 13 Jun 2013 15:48:26 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 2/2] memcg: do not sleep on OOM waitqueue with full
- charge context
-Message-ID: <20130613134826.GE23070@dhcp22.suse.cz>
-References: <20130606173355.GB27226@cmpxchg.org>
- <alpine.DEB.2.02.1306061308320.9493@chino.kir.corp.google.com>
- <20130606215425.GM15721@cmpxchg.org>
- <alpine.DEB.2.02.1306061507330.15503@chino.kir.corp.google.com>
- <20130607000222.GT15576@cmpxchg.org>
- <alpine.DEB.2.02.1306111454030.4803@chino.kir.corp.google.com>
- <20130612082817.GA6706@dhcp22.suse.cz>
- <alpine.DEB.2.02.1306121309500.23348@chino.kir.corp.google.com>
- <20130612203705.GB17282@dhcp22.suse.cz>
- <alpine.DEB.2.02.1306121343500.24902@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id E103190001B
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 10:17:06 -0400 (EDT)
+Received: by mail-ee0-f43.google.com with SMTP id l10so4480614eei.2
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2013 07:17:05 -0700 (PDT)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [Part3 PATCH v2 1/4] bootmem, mem-hotplug: Register local pagetable pages with LOCAL_NODE_DATA when freeing bootmem.
+In-Reply-To: <1371128636-9027-2-git-send-email-tangchen@cn.fujitsu.com>
+References: <1371128636-9027-1-git-send-email-tangchen@cn.fujitsu.com> <1371128636-9027-2-git-send-email-tangchen@cn.fujitsu.com>
+Date: Thu, 13 Jun 2013 16:16:58 +0200
+Message-ID: <xa1tli6ef63p.fsf@mina86.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1306121343500.24902@chino.kir.corp.google.com>
+Content-Type: multipart/mixed; boundary="=-=-="
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Tang Chen <tangchen@cn.fujitsu.com>, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com
+Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed 12-06-13 13:49:47, David Rientjes wrote:
-> On Wed, 12 Jun 2013, Michal Hocko wrote:
-> 
-> > The patch is a big improvement with a minimum code overhead. Blocking
-> > any task which sits on top of an unpredictable amount of locks is just
-> > broken. So regardless how many users are affected we should merge it and
-> > backport to stable trees. The problem is there since ever. We seem to
-> > be surprisingly lucky to not hit this more often.
-> > 
-> 
-> Right now it appears that that number of users is 0 and we're talking 
-> about a problem that was reported in 3.2 that was released a year and a 
-> half ago.  The rules of inclusion in stable also prohibit such a change 
-> from being backported, specifically "It must fix a real bug that bothers 
-> people (not a, "This could be a problem..." type thing)".
+--=-=-=
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 
-As you can see there is an user seeing this in 3.2. The bug is _real_ and
-I do not see what you are objecting against. Do you really think that
-sitting on a time bomb is preferred more?
+On Thu, Jun 13 2013, Tang Chen wrote:
+> As Yinghai suggested, even if a node is movable node, which has only
+> ZONE_MOVABLE, pagetables should be put in the local node.
+>
+> In memory hot-remove logic, it offlines all pages first, and then
+> removes pagetables. But the local pagetable pages cannot be offlined
+> because they are used by kernel.
+>
+> So we should skip this kind of pages in offline procedure. But first
+> of all, we need to mark them.
+>
+> This patch marks local node data pages in the same way as we mark the
+> SECTION_INFO and MIX_SECTION_INFO data pages. We introduce a new type
+> of bootmem: LOCAL_NODE_DATA. And use page->lru.next to mark this type
+> of memory.
+>
+> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+> ---
+>  arch/x86/mm/init_64.c          |    2 +
+>  include/linux/memblock.h       |   22 +++++++++++++++++
+>  include/linux/memory_hotplug.h |   13 ++++++++-
+>  mm/memblock.c                  |   52 ++++++++++++++++++++++++++++++++++=
+++++++
+>  mm/memory_hotplug.c            |   26 ++++++++++++++++++++
+>  5 files changed, 113 insertions(+), 2 deletions(-)
+>
+> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+> index bb00c46..25de304 100644
+> --- a/arch/x86/mm/init_64.c
+> +++ b/arch/x86/mm/init_64.c
+> @@ -1053,6 +1053,8 @@ static void __init register_page_bootmem_info(void)
+>=20=20
+>  	for_each_online_node(i)
+>  		register_page_bootmem_info_node(NODE_DATA(i));
+> +
+> +	register_page_bootmem_local_node();
+>  #endif
+>  }
+>=20=20
+> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+> index a85ced9..8a38eef 100644
+> --- a/include/linux/memblock.h
+> +++ b/include/linux/memblock.h
+> @@ -131,6 +131,28 @@ void __next_free_mem_range_rev(u64 *idx, int nid, ph=
+ys_addr_t *out_start,
+>  	     i !=3D (u64)ULLONG_MAX;					\
+>  	     __next_free_mem_range_rev(&i, nid, p_start, p_end, p_nid))
+>=20=20
+> +void __next_local_node_mem_range(int *idx, int nid, phys_addr_t *out_sta=
+rt,
+> +				 phys_addr_t *out_end, int *out_nid);
 
-> We have deployed memcg on a very large number of machines and I can run a 
-> query over all software watchdog timeouts that have occurred by 
-> deadlocking on i_mutex during memcg oom.  It returns 0 results.
+Why not make it return int?
 
-Do you capture /prc/<pid>/stack for each of them to find that your
-deadlock (and you have reported that they happen) was in fact caused by
-a locking issue? These kind of deadlocks might got unnoticed especially
-when the oom is handled by userspace by increasing the limit (my mmecg
-is stuck and increasing the limit a bit always helped).
+> +
+> +/**
+> + * for_each_local_node_mem_range - iterate memblock areas storing local =
+node
+> + *                                 data
+> + * @i: int used as loop variable
+> + * @nid: node selector, %MAX_NUMNODES for all nodes
+> + * @p_start: ptr to phys_addr_t for start address of the range, can be %=
+NULL
+> + * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
+> + * @p_nid: ptr to int for nid of the range, can be %NULL
+> + *
+> + * Walks over memblock areas storing local node data. Since all the loca=
+l node
+> + * areas will be reserved by memblock, this iterator will only iterate
+> + * memblock.reserve. Available as soon as memblock is initialized.
+> + */
+> +#define for_each_local_node_mem_range(i, nid, p_start, p_end, p_nid)	   =
+ \
+> +	for (i =3D -1,							    \
+> +	     __next_local_node_mem_range(&i, nid, p_start, p_end, p_nid);   \
+> +	     i !=3D -1;							    \
+> +	     __next_local_node_mem_range(&i, nid, p_start, p_end, p_nid))
+> +
 
-> > I am not quite sure I understand your reservation about the patch to be
-> > honest. Andrew still hasn't merged this one although 1/2 is in.
-> 
-> Perhaps he is as unconvinced?  The patch adds 100 lines of code, including 
-> fields to task_struct for memcg, for a problem that nobody can reproduce.  
-> My question still stands: can anybody, even with an instrumented kernel to 
-> make it more probable, reproduce the issue this is addressing?
+If __next_local_node_mem_range() returned int, this would be easier:
 
-So the referenced discussion is not sufficient?
++#define for_each_local_node_mem_range(i, nid, p_start, p_end, p_nid)	     =
+ \
++	for (i =3D -1;
++	     (i =3D __next_local_node_mem_range(i, nid, p_start, p_end, p_nid)) !=
+=3D -1; )
 
--- 
-Michal Hocko
-SUSE Labs
+>  #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+>  int memblock_set_node(phys_addr_t base, phys_addr_t size, int nid);
+>=20=20
+> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplu=
+g.h
+> index 0b21e54..c0c4107 100644
+> --- a/include/linux/memory_hotplug.h
+> +++ b/include/linux/memory_hotplug.h
+
+> +/**
+> + * __next_local_node_mem_range - next function for
+> + *                               for_each_local_node_mem_range()
+> + * @idx: pointer to int loop variable
+> + * @nid: node selector, %MAX_NUMNODES for all nodes
+> + * @out_start: ptr to phys_addr_t for start address of the range, can be=
+ %NULL
+> + * @out_end: ptr to phys_addr_t for end address of the range, can be %NU=
+LL
+> + * @out_nid: ptr to int for nid of the range, can be %NULL
+> + */
+> +void __init_memblock __next_local_node_mem_range(int *idx, int nid,
+> +					phys_addr_t *out_start,
+> +					phys_addr_t *out_end, int *out_nid)
+> +{
+> +	__next_flag_mem_range(idx, nid, MEMBLK_LOCAL_NODE,
+> +			      out_start, out_end, out_nid);
+> +}
+
+static inline in a header file perhaps?
+
+--=20
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
+ (o o)
+ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+--=-=-=
+Content-Type: multipart/signed; boundary="==-=-=";
+	micalg=pgp-sha1; protocol="application/pgp-signature"
+
+--==-=-=
+Content-Type: text/plain
+
+
+--==-=-=
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+
+iQIcBAEBAgAGBQJRudRaAAoJECBgQBJQdR/0WPwP/1dgJxcQSzLTWaUb1P4pkJA9
+SMs6dBSola+wGugLvaLxZ6IQXmpMUZj+lXZiO0H1iXo+A9WVLbDae8BTUGgjLVAD
+MAi0nMfcbjzxuVQAB53xV0N2Yoc1uuZf6eUlCD8WAEdrH3vn4DR3o8XRVNAvVY+S
+WmLDWk8LdSsF78mqR0NRyT8YvmpdnKTZTu5ffI/0/BVwhJu+8Jz/GtC4QB5v8red
+CJNrLIQmuAS+mIi6721RsvuYjaqYDfd3r4gIJjhxw5pMv97tHFgEXfZOuvO3RuBy
+zg0NzLbJ8q6uD8BVxQPA559tMJ5rmFneksnhHkFIuAI3imuw+B2gQt8vRbz06EZL
+VdiRzp6THTp8GDK+BmdxtvjDRblD6g83/kxeLTbIEoGLg+5qzXuBePpoQfTeK4+H
+ThxLTkW59Xs1s+xc0bqiDiTBzKmBrUDojcrAq2DFFuUR7ub9TU6WhOv1FDygZRB1
+ZNctpc0EyNkm++cYS5/ARCMA5v6vRPwdFI9TgbOXiRC/uIjhksalsBz839NDCbxG
+0fy84YJPdXTImxyRdfgl+ECaDDrIMpFK5Jrvc6MCiV/YM57AYdBToHZ0/zJ6Tq1i
+7Q0vdotsVZ2vgNlh0rXBwlTV6Si0NIqZuwe6ezWzLHUPP0e5kE197TGokpCp5k3U
+kG1Sd3zHCdgF7OVBvNFB
+=udWL
+-----END PGP SIGNATURE-----
+--==-=-=--
+
+--=-=-=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
