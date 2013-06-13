@@ -1,117 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 6143890000B
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 5E66790000A
 	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 09:28:04 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [Part2 PATCH v4 14/15] x86, numa, acpi, memory-hotplug: Make movablecore=acpi have higher priority.
-Date: Thu, 13 Jun 2013 21:03:38 +0800
-Message-Id: <1371128619-8987-15-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1371128619-8987-1-git-send-email-tangchen@cn.fujitsu.com>
-References: <1371128619-8987-1-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [Part1 PATCH v5 10/22] x86, mm, numa: Move two functions calling on successful path later
+Date: Thu, 13 Jun 2013 21:02:57 +0800
+Message-Id: <1371128589-8953-11-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1371128589-8953-1-git-send-email-tangchen@cn.fujitsu.com>
+References: <1371128589-8953-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Arrange hotpluggable memory as ZONE_MOVABLE will cause NUMA performance decreased
-because the kernel cannot use movable memory.
+From: Yinghai Lu <yinghai@kernel.org>
 
-For users who don't use memory hotplug and who don't want to lose their NUMA
-performance, they need a way to disable this functionality.
+We need to have numa info ready before init_mem_mappingi(), so that we
+can call init_mem_mapping per node, and alse trim node memory ranges to
+big alignment.
 
-So, if users specify "movablecore=acpi" in kernel commandline, the kernel will
-use SRAT to arrange ZONE_MOVABLE, and it has higher priority then original
-movablecore and kernelcore boot option.
+Currently, parsing numa info needs to allocate some buffer and need to be
+called after init_mem_mapping. So try to split parsing numa info procedure
+into two steps:
+	- The first step will be called before init_mem_mapping, and it
+	  should not need allocate buffers.
+	- The second step will cantain all the buffer related code and be
+	  executed later.
 
-For those who don't want this, just specify nothing.
+At last we will have early_initmem_init() and initmem_init().
 
-Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+This patch implements only the first step.
+
+setup_node_data() and numa_init_array() are only called for successful
+path, so we can move these two callings to x86_numa_init(). That will also
+make numa_init() smaller and more readable.
+
+-v2: remove online_node_map clear in numa_init(), as it is only
+     set in setup_node_data() at last in successful path.
+
+Signed-off-by: Yinghai Lu <yinghai@kernel.org>
+Reviewed-by: Tang Chen <tangchen@cn.fujitsu.com>
+Tested-by: Tang Chen <tangchen@cn.fujitsu.com>
 ---
- include/linux/memblock.h |    1 +
- mm/memblock.c            |    5 +++++
- mm/page_alloc.c          |   31 +++++++++++++++++++++++++++++--
- 3 files changed, 35 insertions(+), 2 deletions(-)
+ arch/x86/mm/numa.c |   69 +++++++++++++++++++++++++++++----------------------
+ 1 files changed, 39 insertions(+), 30 deletions(-)
 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index d113175..a85ced9 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -66,6 +66,7 @@ int memblock_reserve(phys_addr_t base, phys_addr_t size);
- int memblock_reserve_node(phys_addr_t base, phys_addr_t size, int nid);
- int memblock_reserve_local_node(phys_addr_t base, phys_addr_t size, int nid);
- int memblock_reserve_hotpluggable(phys_addr_t base, phys_addr_t size, int nid);
-+bool memblock_is_hotpluggable(struct memblock_region *region);
- void memblock_free_hotpluggable(void);
- void memblock_trim_memory(phys_addr_t align);
- void memblock_mark_kernel_nodes(void);
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 9df0b5f..0c4a709 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -626,6 +626,11 @@ int __init_memblock memblock_reserve_hotpluggable(phys_addr_t base,
- 	return memblock_reserve_region(base, size, nid, MEMBLK_HOTPLUGGABLE);
+diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+index a71c4e2..07ae800 100644
+--- a/arch/x86/mm/numa.c
++++ b/arch/x86/mm/numa.c
+@@ -477,7 +477,7 @@ static bool __init numa_meminfo_cover_memory(const struct numa_meminfo *mi)
+ static int __init numa_register_memblks(struct numa_meminfo *mi)
+ {
+ 	unsigned long uninitialized_var(pfn_align);
+-	int i, nid;
++	int i;
+ 
+ 	/* Account for nodes with cpus and no memory */
+ 	node_possible_map = numa_nodes_parsed;
+@@ -506,24 +506,6 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
+ 	if (!numa_meminfo_cover_memory(mi))
+ 		return -EINVAL;
+ 
+-	/* Finally register nodes. */
+-	for_each_node_mask(nid, node_possible_map) {
+-		u64 start = PFN_PHYS(max_pfn);
+-		u64 end = 0;
+-
+-		for (i = 0; i < mi->nr_blks; i++) {
+-			if (nid != mi->blk[i].nid)
+-				continue;
+-			start = min(mi->blk[i].start, start);
+-			end = max(mi->blk[i].end, end);
+-		}
+-
+-		if (start < end)
+-			setup_node_data(nid, start, end);
+-	}
+-
+-	/* Dump memblock with node info and return. */
+-	memblock_dump_all();
+ 	return 0;
  }
  
-+bool __init_memblock memblock_is_hotpluggable(struct memblock_region *region)
-+{
-+	return region->flags & MEMBLK_HOTPLUGGABLE;
-+}
-+
- /**
-  * __next_free_mem_range - next function for for_each_free_mem_range()
-  * @idx: pointer to u64 loop variable
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index ee5ae49..10c85b1 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4830,9 +4830,37 @@ static void __init find_zone_movable_pfns_for_nodes(void)
- 	nodemask_t saved_node_state = node_states[N_MEMORY];
- 	unsigned long totalpages = early_calculate_totalpages();
- 	int usable_nodes = nodes_weight(node_states[N_MEMORY]);
-+	struct memblock_type *reserved = &memblock.reserved;
+@@ -559,7 +541,6 @@ static int __init numa_init(int (*init_func)(void))
  
- 	/*
--	 * If movablecore was specified, calculate what size of
-+	 * Need to find movable_zone earlier in case movablecore=acpi is
-+	 * specified.
-+	 */
-+	find_usable_zone_for_movable();
+ 	nodes_clear(numa_nodes_parsed);
+ 	nodes_clear(node_possible_map);
+-	nodes_clear(node_online_map);
+ 	memset(&numa_meminfo, 0, sizeof(numa_meminfo));
+ 	WARN_ON(memblock_set_node(0, ULLONG_MAX, MAX_NUMNODES));
+ 	numa_reset_distance();
+@@ -577,15 +558,6 @@ static int __init numa_init(int (*init_func)(void))
+ 	if (ret < 0)
+ 		return ret;
+ 
+-	for (i = 0; i < nr_cpu_ids; i++) {
+-		int nid = early_cpu_to_node(i);
+-
+-		if (nid == NUMA_NO_NODE)
+-			continue;
+-		if (!node_online(nid))
+-			numa_clear_node(i);
+-	}
+-	numa_init_array();
+ 	return 0;
+ }
+ 
+@@ -618,7 +590,7 @@ static int __init dummy_numa_init(void)
+  * last fallback is dummy single node config encomapssing whole memory and
+  * never fails.
+  */
+-void __init x86_numa_init(void)
++static void __init early_x86_numa_init(void)
+ {
+ 	if (!numa_off) {
+ #ifdef CONFIG_X86_NUMAQ
+@@ -638,6 +610,43 @@ void __init x86_numa_init(void)
+ 	numa_init(dummy_numa_init);
+ }
+ 
++void __init x86_numa_init(void)
++{
++	int i, nid;
++	struct numa_meminfo *mi = &numa_meminfo;
 +
-+	/*
-+	 * If movablecore=acpi was specified, then zone_movable_pfn[] has been
-+	 * initialized, and no more work needs to do.
-+	 * NOTE: In this case, we ignore kernelcore option.
-+	 */
-+	if (movablecore_enable_srat) {
-+		for (i = 0; i < reserved->cnt; i++) {
-+			if (!memblock_is_hotpluggable(&reserved->regions[i]))
++	early_x86_numa_init();
++
++	/* Finally register nodes. */
++	for_each_node_mask(nid, node_possible_map) {
++		u64 start = PFN_PHYS(max_pfn);
++		u64 end = 0;
++
++		for (i = 0; i < mi->nr_blks; i++) {
++			if (nid != mi->blk[i].nid)
 +				continue;
-+
-+			nid = reserved->regions[i].nid;
-+
-+			usable_startpfn = PFN_DOWN(reserved->regions[i].base);
-+			zone_movable_pfn[nid] = zone_movable_pfn[nid] ?
-+				min(usable_startpfn, zone_movable_pfn[nid]) :
-+				usable_startpfn;
++			start = min(mi->blk[i].start, start);
++			end = max(mi->blk[i].end, end);
 +		}
 +
-+		goto out;
++		if (start < end)
++			setup_node_data(nid, start, end); /* online is set */
 +	}
 +
-+	/*
-+	 * If movablecore=nn[KMG] was specified, calculate what size of
- 	 * kernelcore that corresponds so that memory usable for
- 	 * any allocation type is evenly spread. If both kernelcore
- 	 * and movablecore are specified, then the value of kernelcore
-@@ -4858,7 +4886,6 @@ static void __init find_zone_movable_pfns_for_nodes(void)
- 		goto out;
- 
- 	/* usable_startpfn is the lowest possible pfn ZONE_MOVABLE can be at */
--	find_usable_zone_for_movable();
- 	usable_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
- 
- restart:
++	/* Dump memblock with node info */
++	memblock_dump_all();
++
++	for (i = 0; i < nr_cpu_ids; i++) {
++		int nid = early_cpu_to_node(i);
++
++		if (nid == NUMA_NO_NODE)
++			continue;
++		if (!node_online(nid))
++			numa_clear_node(i);
++	}
++	numa_init_array();
++}
++
+ static __init int find_near_online_node(int node)
+ {
+ 	int n, val;
 -- 
 1.7.1
 
