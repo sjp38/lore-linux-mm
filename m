@@ -1,94 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 817108D0022
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 09:28:00 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 353308D0024
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 09:28:01 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [Part1 PATCH v5 14/22] x86, mm, numa: Set memblock nid later
-Date: Thu, 13 Jun 2013 21:03:01 +0800
-Message-Id: <1371128589-8953-15-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1371128589-8953-1-git-send-email-tangchen@cn.fujitsu.com>
-References: <1371128589-8953-1-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [Part2 PATCH v4 08/15] x86, numa: Save nid when reserve memory into memblock.reserved[].
+Date: Thu, 13 Jun 2013 21:03:32 +0800
+Message-Id: <1371128619-8987-9-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1371128619-8987-1-git-send-email-tangchen@cn.fujitsu.com>
+References: <1371128619-8987-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-From: Yinghai Lu <yinghai@kernel.org>
+Since we introduced numa_sync_memblock_nid synchronize nid info in
+memblock.reserved[] and numa_meminfo, when numa_meminfo has been
+initialized, we need to save the nid into memblock.reserved[] when
+we reserve memory.
 
-In order to seperate parsing numa info procedure into two steps,
-we need to set memblock nid later because it could change memblock
-array, and possible doube memblock.memory array which will allocate
-buffer.
-
-Only set memblock nid once for successful path.
-
-Also rename numa_register_memblks to numa_check_memblks() after
-moving out code of setting memblock nid.
-
-Signed-off-by: Yinghai Lu <yinghai@kernel.org>
-Reviewed-by: Tang Chen <tangchen@cn.fujitsu.com>
-Tested-by: Tang Chen <tangchen@cn.fujitsu.com>
+Reported-by: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
+Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 ---
- arch/x86/mm/numa.c |   16 +++++++---------
- 1 files changed, 7 insertions(+), 9 deletions(-)
+ include/linux/memblock.h |    1 +
+ include/linux/mm.h       |    9 +++++++++
+ mm/memblock.c            |   10 +++++++++-
+ 3 files changed, 19 insertions(+), 1 deletions(-)
 
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index cff565a..e448b6f 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -534,10 +534,9 @@ static unsigned long __init node_map_pfn_alignment(struct numa_meminfo *mi)
- }
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index 93f3453..f558590 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -61,6 +61,7 @@ int memblock_add(phys_addr_t base, phys_addr_t size);
+ int memblock_remove(phys_addr_t base, phys_addr_t size);
+ int memblock_free(phys_addr_t base, phys_addr_t size);
+ int memblock_reserve(phys_addr_t base, phys_addr_t size);
++int memblock_reserve_node(phys_addr_t base, phys_addr_t size, int nid);
+ void memblock_trim_memory(phys_addr_t align);
+ 
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index b827743..4a94b56 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1662,6 +1662,15 @@ unsigned long change_prot_numa(struct vm_area_struct *vma,
+ 			unsigned long start, unsigned long end);
  #endif
  
--static int __init numa_register_memblks(struct numa_meminfo *mi)
-+static int __init numa_check_memblks(struct numa_meminfo *mi)
- {
- 	unsigned long pfn_align;
--	int i;
- 
- 	/* Account for nodes with cpus and no memory */
- 	node_possible_map = numa_nodes_parsed;
-@@ -560,11 +559,6 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
- 		return -EINVAL;
- 	}
- 
--	for (i = 0; i < mi->nr_blks; i++) {
--		struct numa_memblk *mb = &mi->blk[i];
--		memblock_set_node(mb->start, mb->end - mb->start, mb->nid);
--	}
--
- 	return 0;
++#ifdef CONFIG_NUMA
++int __init early_numa_find_range_nid(u64 start, u64 size);
++#else
++static inline int __init early_numa_find_range_nid(u64 start, u64 size)
++{
++	return 0;
++}
++#endif
++
+ struct vm_area_struct *find_extend_vma(struct mm_struct *, unsigned long addr);
+ int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
+ 			unsigned long pfn, unsigned long size, pgprot_t);
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 9e871e9..cc55ff0 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -580,9 +580,17 @@ static int __init_memblock memblock_reserve_region(phys_addr_t base,
+ 	return memblock_add_region(_rgn, base, size, nid, flags);
  }
  
-@@ -601,7 +595,6 @@ static int __init numa_init(int (*init_func)(void))
- 	nodes_clear(numa_nodes_parsed);
- 	nodes_clear(node_possible_map);
- 	memset(&numa_meminfo, 0, sizeof(numa_meminfo));
--	WARN_ON(memblock_set_node(0, ULLONG_MAX, MAX_NUMNODES));
- 	numa_reset_distance();
- 
- 	ret = init_func();
-@@ -613,7 +606,7 @@ static int __init numa_init(int (*init_func)(void))
- 
- 	numa_emulation(&numa_meminfo, numa_distance_cnt);
- 
--	ret = numa_register_memblks(&numa_meminfo);
-+	ret = numa_check_memblks(&numa_meminfo);
- 	if (ret < 0)
- 		return ret;
- 
-@@ -676,6 +669,11 @@ void __init x86_numa_init(void)
- 
- 	early_x86_numa_init();
- 
-+	for (i = 0; i < mi->nr_blks; i++) {
-+		struct numa_memblk *mb = &mi->blk[i];
-+		memblock_set_node(mb->start, mb->end - mb->start, mb->nid);
-+	}
++int __init_memblock memblock_reserve_node(phys_addr_t base,
++					  phys_addr_t size, int nid)
++{
++	return memblock_reserve_region(base, size, nid,
++				       MEMBLK_FLAGS_DEFAULT);
++}
 +
- 	/* Finally register nodes. */
- 	for_each_node_mask(nid, node_possible_map) {
- 		u64 start = PFN_PHYS(max_pfn);
+ int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
+ {
+-	return memblock_reserve_region(base, size, MAX_NUMNODES,
++	int nid = early_numa_find_range_nid(base, size);
++	return memblock_reserve_region(base, size, nid,
+ 				       MEMBLK_FLAGS_DEFAULT);
+ }
+ 
 -- 
 1.7.1
 
