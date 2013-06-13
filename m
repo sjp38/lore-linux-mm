@@ -1,103 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 61BBD90001B
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 09:28:22 -0400 (EDT)
-From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [Part1 PATCH v5 18/22] x86, mm, numa: Add early_initmem_init() stub
-Date: Thu, 13 Jun 2013 21:03:05 +0800
-Message-Id: <1371128589-8953-19-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1371128589-8953-1-git-send-email-tangchen@cn.fujitsu.com>
-References: <1371128589-8953-1-git-send-email-tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 7BC8290001B
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 09:29:13 -0400 (EDT)
+Date: Thu, 13 Jun 2013 15:29:08 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: mem_cgroup_page_lruvec: BUG: unable to handle kernel NULL
+ pointer dereference at 00000000000001a8
+Message-ID: <20130613132908.GC23070@dhcp22.suse.cz>
+References: <CAFLxGvzKes7mGknTJgqFamr_-ODPBArf6BajF+m5x-S4AEtdmQ@mail.gmail.com>
+ <20130613120248.GB23070@dhcp22.suse.cz>
+ <51B9B5BC.4090702@nod.at>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51B9B5BC.4090702@nod.at>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com
-Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Jacob Shin <jacob.shin@amd.com>
+To: Richard Weinberger <richard@nod.at>
+Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cgroups mailinglist <cgroups@vger.kernel.org>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, bsingharora@gmail.com, hannes@cmpxchg.org
 
-From: Yinghai Lu <yinghai@kernel.org>
 
-Introduce early_initmem_init() to call early_x86_numa_init(),
-which will be used to parse numa info earlier.
+On Thu 13-06-13 14:06:20, Richard Weinberger wrote:
+[...]
+> All code
+> ========
+>    0:   89 50 08                mov    %edx,0x8(%rax)
+>    3:   48 89 d1                mov    %rdx,%rcx
+>    6:   0f 1f 40 00             nopl   0x0(%rax)
+>    a:   49 8b 04 24             mov    (%r12),%rax
+>    e:   48 89 c2                mov    %rax,%rdx
+>   11:   48 c1 e8 38             shr    $0x38,%rax
+>   15:   83 e0 03                and    $0x3,%eax
+					nid = page_to_nid
+>   18:   48 c1 ea 3a             shr    $0x3a,%rdx
+					zid = page_zonenum
 
-Later will call init_mem_mapping for all the nodes.
+>   1c:   48 69 c0 38 01 00 00    imul   $0x138,%rax,%rax
+>   23:   48 03 84 d1 e0 02 00    add    0x2e0(%rcx,%rdx,8),%rax
+					&memcg->nodeinfo[nid]->zoneinfo[zid]
 
-Signed-off-by: Yinghai Lu <yinghai@kernel.org>
-Cc: Pekka Enberg <penberg@kernel.org>
-Cc: Jacob Shin <jacob.shin@amd.com>
-Reviewed-by: Tang Chen <tangchen@cn.fujitsu.com>
-Tested-by: Tang Chen <tangchen@cn.fujitsu.com>
----
- arch/x86/include/asm/page_types.h |    1 +
- arch/x86/kernel/setup.c           |    1 +
- arch/x86/mm/init.c                |    6 ++++++
- arch/x86/mm/numa.c                |    7 +++++--
- 4 files changed, 13 insertions(+), 2 deletions(-)
+>   2a:   00
+>   2b:*  48 3b 58 70             cmp    0x70(%rax),%rbx     <-- trapping instruction
 
-diff --git a/arch/x86/include/asm/page_types.h b/arch/x86/include/asm/page_types.h
-index b012b82..d04dd8c 100644
---- a/arch/x86/include/asm/page_types.h
-+++ b/arch/x86/include/asm/page_types.h
-@@ -55,6 +55,7 @@ bool pfn_range_is_mapped(unsigned long start_pfn, unsigned long end_pfn);
- extern unsigned long init_memory_mapping(unsigned long start,
- 					 unsigned long end);
- 
-+void early_initmem_init(void);
- extern void initmem_init(void);
- 
- #endif	/* !__ASSEMBLY__ */
-diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-index d11b1b7..301165e 100644
---- a/arch/x86/kernel/setup.c
-+++ b/arch/x86/kernel/setup.c
-@@ -1162,6 +1162,7 @@ void __init setup_arch(char **cmdline_p)
- 
- 	early_acpi_boot_init();
- 
-+	early_initmem_init();
- 	initmem_init();
- 	memblock_find_dma_reserve();
- 
-diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
-index 8554656..3c21f16 100644
---- a/arch/x86/mm/init.c
-+++ b/arch/x86/mm/init.c
-@@ -467,6 +467,12 @@ void __init init_mem_mapping(void)
- 	early_memtest(0, max_pfn_mapped << PAGE_SHIFT);
- }
- 
-+#ifndef CONFIG_NUMA
-+void __init early_initmem_init(void)
-+{
-+}
-+#endif
-+
- /*
-  * devmem_is_allowed() checks to see if /dev/mem access to a certain address
-  * is valid. The argument is a physical page number.
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index 630e09f..7d76936 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -665,13 +665,16 @@ static void __init early_x86_numa_init(void)
- 	numa_init(dummy_numa_init);
- }
- 
-+void __init early_initmem_init(void)
-+{
-+	early_x86_numa_init();
-+}
-+
- void __init x86_numa_init(void)
- {
- 	int i, nid;
- 	struct numa_meminfo *mi = &numa_meminfo;
- 
--	early_x86_numa_init();
--
- #ifdef CONFIG_ACPI_NUMA
- 	if (srat_used)
- 		x86_acpi_numa_init_slit();
+OK, so this maps to:
+        if (unlikely(lruvec->zone != zone)) <<<
+                lruvec->zone = zone;
+
+> [35355.883056] RSP: 0000:ffff88003d523aa8  EFLAGS: 00010002
+> [35355.883056] RAX: 0000000000000138 RBX: ffff88003fffa600 RCX: ffff88003e04a800
+> [35355.883056] RDX: 0000000000000020 RSI: 0000000000000000 RDI: 0000000000028500
+> [35355.883056] RBP: ffff88003d523ab8 R08: 0000000000000000 R09: 0000000000000000
+> [35355.883056] R10: 0000000000000000 R11: dead000000100100 R12: ffffea0000a14000
+> [35355.883056] R13: ffff88003e04b138 R14: ffff88003d523bb8 R15: ffffea0000a14020
+> [35355.883056] FS:  0000000000000000(0000) GS:ffff88003fd80000(0000)
+
+RAX (lruvec) is obviously incorrect and it doesn't make any sense. rax should
+contain an address at an offset from ffff88003e04a800 But there is 0x138 there
+instead.
+
+Is this easily reproducible? Could you configure kdump.
+
 -- 
-1.7.1
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
