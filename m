@@ -1,70 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 94A4E6B0033
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2013 21:53:31 -0400 (EDT)
-Date: Thu, 13 Jun 2013 10:53:29 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Change soft-dirty interface?
-Message-ID: <20130613015329.GA3894@bbox>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id D25BB6B0033
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2013 21:58:58 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id lf11so4780216pab.24
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2013 18:58:58 -0700 (PDT)
+Date: Thu, 13 Jun 2013 09:58:27 +0800
+From: Wang YanQing <udknight@gmail.com>
+Subject: Re: [PATCH]memblock: Fix potential section mismatch problem
+Message-ID: <20130613015827.GA2667@udknight>
+References: <20130612160816.GA13813@udknight>
+ <CAE9FiQUTwwRUuFicCFvdZZ1_9ytkaexK939zKmYyM31BMaiuZw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <CAE9FiQUTwwRUuFicCFvdZZ1_9ytkaexK939zKmYyM31BMaiuZw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Emelyanov <xemul@parallels.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-mm@kvack.org
+To: Yinghai Lu <yinghai@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, Tejun Heo <tj@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Sam Ravnborg <sam@ravnborg.org>
 
-Hi all, 
+On Wed, Jun 12, 2013 at 10:29:17AM -0700, Yinghai Lu wrote:
+> On Wed, Jun 12, 2013 at 9:08 AM, Wang YanQing <udknight@gmail.com> wrote:
+> >
+> > This patch convert __init to __init_memblock
+> > for functions which make reference to memblock variable
+> > with attribute __meminitdata.
+> 
+> for which arch?
 
-Sorry for late interrupting to promote patchset to the mainline.
-I'd like to discuss our usecase so I'd like to change per-process
-interface with per-range interface.
+I just think different arch could have different
+meaning about __init and __init_memblock, but
+if a function call another function with __init_memblock
+annotation or has reference to variable with  __initdata_memblock,
+then we have better to give it __init_memblock annotation.
 
-Our usecase is following as,
 
-A application allocates a big buffer(A) and makes backup buffer(B)
-for it and copy B from A.
-Let's assume A consists of subranges (A-1, A-2, A-3, A-4).
-As time goes by, application can modify anywhere of A.
-In this example, let's assume A-1 and A-2 are modified.
-When the time happen, we compare A-1 with B-1 to make
-diff of the range(On every iteration, we don't need all range's diff by design)
-and do something with diff, then we'd like to remark only the A-1 with
-soft-dirty, NOT A's all range of the process to track the A-1's
-further difference in future while keeping dirty information (A-2, A-3, A-4)
-because we will make A-2's diff in next iteration.
+> for x86: __init_memblock is __init, so that is not problem.
 
-We can't do it by existing interface.
+Thanks for point out this, then I know why I haven't get
+compile warning.
 
-So, I'd like to add [addr, len] argument with using proc
+> for other arches like powerpc and sparc etc, __init_memblock is " "
+> 
+> so you need cc  powerpc, and sparc ...
 
-    echo 4 0x100000 0x3000 > /proc/self/clear_refs
+My first motivation to propose this patch was I found below 
+two functions have different annotation which I think they 
+should have the same annotation:
 
-It doesn't break anything but not sure everyone like the interface
-because recently I heard from akpm following comment.
+"
+int __init memblock_is_reserved(phys_addr_t addr)
+{
+        return memblock_search(&memblock.reserved, addr) != -1;
+}
 
-        https://lkml.org/lkml/2013/5/21/529
+int __init_memblock memblock_is_memory(phys_addr_t addr)
+{
+        return memblock_search(&memblock.memory, addr) != -1;
+}
+"
 
-Although per-process reclaim is another story with this,
-I feel he seems to hate doing something on proc interface with
-/proc/pid/maps like above range parameter.
 
-If it's not allowed, another approach should be new system call.
-
-        int sys_softdirty(pid_t pid, void *addr, size_t len);
-
-If we approach new system call, we don't need to maintain current
-proc interface and it would be very handy to get a information
-without pagemap (open/read/close) so we can add a parameter to
-get a dirty information easily.
-
-        int sys_softdirty(pid_t pid, void *addr, size_t len, unsigned char *vec)
-
-What do you think about it?
-
--- 
-Kind regards,
-Minchan Kim
+Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
