@@ -1,38 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 52E746B0033
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 03:03:26 -0400 (EDT)
-Received: by mail-we0-f178.google.com with SMTP id u53so7744720wes.9
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2013 00:03:24 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id D443B6B0033
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 04:57:32 -0400 (EDT)
+Date: Thu, 13 Jun 2013 17:57:32 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH, RFC] mm: Implement RLIMIT_RSS
+Message-ID: <20130613085732.GB4533@bbox>
+References: <20130611182921.GB25941@logfs.org>
+ <20130611211601.GA29426@cmpxchg.org>
+ <20130611215319.GA29368@logfs.org>
 MIME-Version: 1.0
-In-Reply-To: <20130611153454.6ab17ce44bc4a678b8bf72d4@linux-foundation.org>
-References: <1370891880-2644-1-git-send-email-sasha.levin@oracle.com>
-	<CAOJsxLGDH2iwznRkP-iwiMZw7Ee3mirhjLvhShrWLHR0qguRxA@mail.gmail.com>
-	<51B62F6B.8040308@oracle.com>
-	<0000013f3075f90d-735942a8-b4b8-413f-a09e-57d1de0c4974-000000@email.amazonses.com>
-	<51B67553.6020205@oracle.com>
-	<CAOJsxLH56xqCoDikYYaY_guqCX=S4rcVfDJQ4ki=r-PkNQW9ug@mail.gmail.com>
-	<51B72323.8040207@oracle.com>
-	<0000013f33cdc631-eadb07d1-ef08-4e2c-a218-1997eb86cde9-000000@email.amazonses.com>
-	<51B73F38.6040802@kernel.org>
-	<20130611153454.6ab17ce44bc4a678b8bf72d4@linux-foundation.org>
-Date: Thu, 13 Jun 2013 10:03:24 +0300
-Message-ID: <CAOJsxLE=cw8NqmQhbA0AP-c5ckejxuU-1pX4KyHY0J2HN0iTzA@mail.gmail.com>
-Subject: Re: [PATCH] slab: prevent warnings when allocating with __GFP_NOWARN
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20130611215319.GA29368@logfs.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@gentwo.org>, Sasha Levin <sasha.levin@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: =?iso-8859-1?Q?J=F6rn?= Engel <joern@logfs.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Jun 12, 2013 at 1:34 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> __GFP_NOWARN is frequently used by kernel code to probe for "how big an
-> allocation can I get".  That's a bit lame, but it's used on slow paths
-> and is pretty simple.
+Hey Jorn,
 
-Applied to slab/urgent, thanks guys!
+On Tue, Jun 11, 2013 at 05:53:20PM -0400, Jorn Engel wrote:
+> On Tue, 11 June 2013 17:16:01 -0400, Johannes Weiner wrote:
+> > On Tue, Jun 11, 2013 at 02:29:21PM -0400, Jorn Engel wrote:
+> > > I've seen a couple of instances where people try to impose a vsize
+> > > limit simply because there is no rss limit in Linux.  The vsize limit
+> > > is a horrible approximation and even this patch seems to be an
+> > > improvement.
+> > > 
+> > > Would there be strong opposition to actually supporting RLIMIT_RSS?
+> > 
+> > This is trivial to exploit by creating the mappings first and
+> > populating them later, so while it may cover some use cases, it does
+> > not have the protection against malicious programs aspect that all the
+> > other rlimits have.
+> 
+> Hm.  The use case I have is that an application wants to limit itself.
+> It is effectively a special assert to catch memory leaks and the like.
+> So malicious programs are not my immediate concern.
+
+Just out of curisoity.
+
+It means you already know the max rss of the application in advance
+so you can use taskstats's hiwater_rss if you don't need to catch
+the moment which rss is over the limit.
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
