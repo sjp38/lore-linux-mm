@@ -1,180 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id E103190001B
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 10:17:06 -0400 (EDT)
-Received: by mail-ee0-f43.google.com with SMTP id l10so4480614eei.2
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2013 07:17:05 -0700 (PDT)
-From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [Part3 PATCH v2 1/4] bootmem, mem-hotplug: Register local pagetable pages with LOCAL_NODE_DATA when freeing bootmem.
-In-Reply-To: <1371128636-9027-2-git-send-email-tangchen@cn.fujitsu.com>
-References: <1371128636-9027-1-git-send-email-tangchen@cn.fujitsu.com> <1371128636-9027-2-git-send-email-tangchen@cn.fujitsu.com>
-Date: Thu, 13 Jun 2013 16:16:58 +0200
-Message-ID: <xa1tli6ef63p.fsf@mina86.com>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 44BA690001B
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 10:39:49 -0400 (EDT)
+Date: Thu, 13 Jun 2013 16:39:46 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: mem_cgroup_page_lruvec: BUG: unable to handle kernel NULL
+ pointer dereference at 00000000000001a8
+Message-ID: <20130613143946.GF23070@dhcp22.suse.cz>
+References: <CAFLxGvzKes7mGknTJgqFamr_-ODPBArf6BajF+m5x-S4AEtdmQ@mail.gmail.com>
+ <20130613120248.GB23070@dhcp22.suse.cz>
+ <51B9B5BC.4090702@nod.at>
+ <20130613132908.GC23070@dhcp22.suse.cz>
+ <20130613133244.GD23070@dhcp22.suse.cz>
+ <51B9CA83.9070001@nod.at>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="=-=-="
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51B9CA83.9070001@nod.at>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com
-Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Richard Weinberger <richard@nod.at>
+Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cgroups mailinglist <cgroups@vger.kernel.org>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, bsingharora@gmail.com, hannes@cmpxchg.org
 
---=-=-=
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+On Thu 13-06-13 15:34:59, Richard Weinberger wrote:
+> Am 13.06.2013 15:32, schrieb Michal Hocko:
+> >Ohh and could you post the config please? Sorry should have asked
+> >earlier.
+> 
+> See attachment.
 
-On Thu, Jun 13 2013, Tang Chen wrote:
-> As Yinghai suggested, even if a node is movable node, which has only
-> ZONE_MOVABLE, pagetables should be put in the local node.
->
-> In memory hot-remove logic, it offlines all pages first, and then
-> removes pagetables. But the local pagetable pages cannot be offlined
-> because they are used by kernel.
->
-> So we should skip this kind of pages in offline procedure. But first
-> of all, we need to mark them.
->
-> This patch marks local node data pages in the same way as we mark the
-> SECTION_INFO and MIX_SECTION_INFO data pages. We introduce a new type
-> of bootmem: LOCAL_NODE_DATA. And use page->lru.next to mark this type
-> of memory.
->
-> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-> ---
->  arch/x86/mm/init_64.c          |    2 +
->  include/linux/memblock.h       |   22 +++++++++++++++++
->  include/linux/memory_hotplug.h |   13 ++++++++-
->  mm/memblock.c                  |   52 ++++++++++++++++++++++++++++++++++=
-++++++
->  mm/memory_hotplug.c            |   26 ++++++++++++++++++++
->  5 files changed, 113 insertions(+), 2 deletions(-)
->
-> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-> index bb00c46..25de304 100644
-> --- a/arch/x86/mm/init_64.c
-> +++ b/arch/x86/mm/init_64.c
-> @@ -1053,6 +1053,8 @@ static void __init register_page_bootmem_info(void)
->=20=20
->  	for_each_online_node(i)
->  		register_page_bootmem_info_node(NODE_DATA(i));
-> +
-> +	register_page_bootmem_local_node();
->  #endif
->  }
->=20=20
-> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-> index a85ced9..8a38eef 100644
-> --- a/include/linux/memblock.h
-> +++ b/include/linux/memblock.h
-> @@ -131,6 +131,28 @@ void __next_free_mem_range_rev(u64 *idx, int nid, ph=
-ys_addr_t *out_start,
->  	     i !=3D (u64)ULLONG_MAX;					\
->  	     __next_free_mem_range_rev(&i, nid, p_start, p_end, p_nid))
->=20=20
-> +void __next_local_node_mem_range(int *idx, int nid, phys_addr_t *out_sta=
-rt,
-> +				 phys_addr_t *out_end, int *out_nid);
+Nothing unusual there. Could you enable CONFIG_DEBUG_VM maybe it will
+help too catch the problem earlier.
 
-Why not make it return int?
+> >On Thu 13-06-13 15:29:08, Michal Hocko wrote:
+> >>
+> >>On Thu 13-06-13 14:06:20, Richard Weinberger wrote:
+> >>[...]
+> >>>All code
+> >>>========
+> >>>    0:   89 50 08                mov    %edx,0x8(%rax)
+> >>>    3:   48 89 d1                mov    %rdx,%rcx
+> >>>    6:   0f 1f 40 00             nopl   0x0(%rax)
+> >>>    a:   49 8b 04 24             mov    (%r12),%rax
+> >>>    e:   48 89 c2                mov    %rax,%rdx
+> >>>   11:   48 c1 e8 38             shr    $0x38,%rax
+> >>>   15:   83 e0 03                and    $0x3,%eax
+> >>					nid = page_to_nid
+> >>>   18:   48 c1 ea 3a             shr    $0x3a,%rdx
+> >>					zid = page_zonenum
 
-> +
-> +/**
-> + * for_each_local_node_mem_range - iterate memblock areas storing local =
-node
-> + *                                 data
-> + * @i: int used as loop variable
-> + * @nid: node selector, %MAX_NUMNODES for all nodes
-> + * @p_start: ptr to phys_addr_t for start address of the range, can be %=
-NULL
-> + * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
-> + * @p_nid: ptr to int for nid of the range, can be %NULL
-> + *
-> + * Walks over memblock areas storing local node data. Since all the loca=
-l node
-> + * areas will be reserved by memblock, this iterator will only iterate
-> + * memblock.reserve. Available as soon as memblock is initialized.
-> + */
-> +#define for_each_local_node_mem_range(i, nid, p_start, p_end, p_nid)	   =
- \
-> +	for (i =3D -1,							    \
-> +	     __next_local_node_mem_range(&i, nid, p_start, p_end, p_nid);   \
-> +	     i !=3D -1;							    \
-> +	     __next_local_node_mem_range(&i, nid, p_start, p_end, p_nid))
-> +
+Ohh, I am wrong here. rdx should be nid and eax the zid.
 
-If __next_local_node_mem_range() returned int, this would be easier:
+> >>
+> >>>   1c:   48 69 c0 38 01 00 00    imul   $0x138,%rax,%rax
+> >>>   23:   48 03 84 d1 e0 02 00    add    0x2e0(%rcx,%rdx,8),%rax
+> >>					&memcg->nodeinfo[nid]->zoneinfo[zid]
+> >>
+> >>>   2a:   00
+> >>>   2b:*  48 3b 58 70             cmp    0x70(%rax),%rbx     <-- trapping instruction
+> >>
+> >>OK, so this maps to:
+> >>         if (unlikely(lruvec->zone != zone)) <<<
+> >>                 lruvec->zone = zone;
+> >>
+> >>>[35355.883056] RSP: 0000:ffff88003d523aa8  EFLAGS: 00010002
+> >>>[35355.883056] RAX: 0000000000000138 RBX: ffff88003fffa600 RCX: ffff88003e04a800
+> >>>[35355.883056] RDX: 0000000000000020 RSI: 0000000000000000 RDI: 0000000000028500
+> >>>[35355.883056] RBP: ffff88003d523ab8 R08: 0000000000000000 R09: 0000000000000000
+> >>>[35355.883056] R10: 0000000000000000 R11: dead000000100100 R12: ffffea0000a14000
+> >>>[35355.883056] R13: ffff88003e04b138 R14: ffff88003d523bb8 R15: ffffea0000a14020
+> >>>[35355.883056] FS:  0000000000000000(0000) GS:ffff88003fd80000(0000)
+> >>
+> >>RAX (lruvec) is obviously incorrect and it doesn't make any sense. rax should
+> >>contain an address at an offset from ffff88003e04a800 But there is 0x138 there
+> >>instead.
 
-+#define for_each_local_node_mem_range(i, nid, p_start, p_end, p_nid)	     =
- \
-+	for (i =3D -1;
-+	     (i =3D __next_local_node_mem_range(i, nid, p_start, p_end, p_nid)) !=
-=3D -1; )
+Hmm, now that I am looking at the registers again. RDX which should be
+nid seems to be quite big. It says this is node 32. Does the machine
+have really so many NUMA nodes?
+Also I think the trapping instruction was one instruction above:
+IP: [<ffffffff811297d9>] mem_cgroup_page_lruvec+0x79/0x90
 
->  #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
->  int memblock_set_node(phys_addr_t base, phys_addr_t size, int nid);
->=20=20
-> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplu=
-g.h
-> index 0b21e54..c0c4107 100644
-> --- a/include/linux/memory_hotplug.h
-> +++ b/include/linux/memory_hotplug.h
+0x000000000004fb09 <+121>:   add    0x2e0(%rcx,%rdx,8),%rax
+0x000000000004fb11 <+129>:   cmp    0x70(%rax),%rbx
 
-> +/**
-> + * __next_local_node_mem_range - next function for
-> + *                               for_each_local_node_mem_range()
-> + * @idx: pointer to int loop variable
-> + * @nid: node selector, %MAX_NUMNODES for all nodes
-> + * @out_start: ptr to phys_addr_t for start address of the range, can be=
- %NULL
-> + * @out_end: ptr to phys_addr_t for end address of the range, can be %NU=
-LL
-> + * @out_nid: ptr to int for nid of the range, can be %NULL
-> + */
-> +void __init_memblock __next_local_node_mem_range(int *idx, int nid,
-> +					phys_addr_t *out_start,
-> +					phys_addr_t *out_end, int *out_nid)
-> +{
-> +	__next_flag_mem_range(idx, nid, MEMBLK_LOCAL_NODE,
-> +			      out_start, out_end, out_nid);
-> +}
+rather than cmp marked above. This would explain why rax is 138 because
+that would point the zid=1 and 138 is offset of mem_cgroup_per_zone
+within mem_cgroup_per_node for that zone. This would mean that the
+struct page contains a weird node id.
 
-static inline in a header file perhaps?
-
---=20
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
- (o o)
-ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
---=-=-=
-Content-Type: multipart/signed; boundary="==-=-=";
-	micalg=pgp-sha1; protocol="application/pgp-signature"
-
---==-=-=
-Content-Type: text/plain
-
-
---==-=-=
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
-
-iQIcBAEBAgAGBQJRudRaAAoJECBgQBJQdR/0WPwP/1dgJxcQSzLTWaUb1P4pkJA9
-SMs6dBSola+wGugLvaLxZ6IQXmpMUZj+lXZiO0H1iXo+A9WVLbDae8BTUGgjLVAD
-MAi0nMfcbjzxuVQAB53xV0N2Yoc1uuZf6eUlCD8WAEdrH3vn4DR3o8XRVNAvVY+S
-WmLDWk8LdSsF78mqR0NRyT8YvmpdnKTZTu5ffI/0/BVwhJu+8Jz/GtC4QB5v8red
-CJNrLIQmuAS+mIi6721RsvuYjaqYDfd3r4gIJjhxw5pMv97tHFgEXfZOuvO3RuBy
-zg0NzLbJ8q6uD8BVxQPA559tMJ5rmFneksnhHkFIuAI3imuw+B2gQt8vRbz06EZL
-VdiRzp6THTp8GDK+BmdxtvjDRblD6g83/kxeLTbIEoGLg+5qzXuBePpoQfTeK4+H
-ThxLTkW59Xs1s+xc0bqiDiTBzKmBrUDojcrAq2DFFuUR7ub9TU6WhOv1FDygZRB1
-ZNctpc0EyNkm++cYS5/ARCMA5v6vRPwdFI9TgbOXiRC/uIjhksalsBz839NDCbxG
-0fy84YJPdXTImxyRdfgl+ECaDDrIMpFK5Jrvc6MCiV/YM57AYdBToHZ0/zJ6Tq1i
-7Q0vdotsVZ2vgNlh0rXBwlTV6Si0NIqZuwe6ezWzLHUPP0e5kE197TGokpCp5k3U
-kG1Sd3zHCdgF7OVBvNFB
-=udWL
------END PGP SIGNATURE-----
---==-=-=--
-
---=-=-=--
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
