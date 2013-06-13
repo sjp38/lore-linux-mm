@@ -1,65 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id C935C6B0033
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 02:28:15 -0400 (EDT)
-Date: Thu, 13 Jun 2013 15:28:15 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 4/8] vrange: Clear volatility on new mmaps
-Message-ID: <20130613062815.GB5209@bbox>
-References: <1371010971-15647-1-git-send-email-john.stultz@linaro.org>
- <1371010971-15647-5-git-send-email-john.stultz@linaro.org>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 52E746B0033
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 03:03:26 -0400 (EDT)
+Received: by mail-we0-f178.google.com with SMTP id u53so7744720wes.9
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2013 00:03:24 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1371010971-15647-5-git-send-email-john.stultz@linaro.org>
+In-Reply-To: <20130611153454.6ab17ce44bc4a678b8bf72d4@linux-foundation.org>
+References: <1370891880-2644-1-git-send-email-sasha.levin@oracle.com>
+	<CAOJsxLGDH2iwznRkP-iwiMZw7Ee3mirhjLvhShrWLHR0qguRxA@mail.gmail.com>
+	<51B62F6B.8040308@oracle.com>
+	<0000013f3075f90d-735942a8-b4b8-413f-a09e-57d1de0c4974-000000@email.amazonses.com>
+	<51B67553.6020205@oracle.com>
+	<CAOJsxLH56xqCoDikYYaY_guqCX=S4rcVfDJQ4ki=r-PkNQW9ug@mail.gmail.com>
+	<51B72323.8040207@oracle.com>
+	<0000013f33cdc631-eadb07d1-ef08-4e2c-a218-1997eb86cde9-000000@email.amazonses.com>
+	<51B73F38.6040802@kernel.org>
+	<20130611153454.6ab17ce44bc4a678b8bf72d4@linux-foundation.org>
+Date: Thu, 13 Jun 2013 10:03:24 +0300
+Message-ID: <CAOJsxLE=cw8NqmQhbA0AP-c5ckejxuU-1pX4KyHY0J2HN0iTzA@mail.gmail.com>
+Subject: Re: [PATCH] slab: prevent warnings when allocating with __GFP_NOWARN
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Dhaval Giani <dgiani@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@gentwo.org>, Sasha Levin <sasha.levin@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hey John,
+On Wed, Jun 12, 2013 at 1:34 AM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> __GFP_NOWARN is frequently used by kernel code to probe for "how big an
+> allocation can I get".  That's a bit lame, but it's used on slow paths
+> and is pretty simple.
 
-On Tue, Jun 11, 2013 at 09:22:47PM -0700, John Stultz wrote:
-> At lsf-mm, the issue was brought up that there is a precedence with
-> interfaces like mlock, such that new mappings in a pre-existing range
-> do no inherit the mlock state.
-> 
-> This is mostly because mlock only modifies the existing vmas, and so
-> any new mmaps create new vmas, which won't be mlocked.
-> 
-> Since volatility is not stored in the vma (for good cause, specfically
-> as we'd have to have manage file volatility differently from anonymous
-> and we're likely to manage volatility on small chunks of memory, which
-> would cause lots of vma splitting and churn), this patch clears volatilty
-> on new mappings, to ensure that we don't inherit volatility if memory in
-> an existing volatile range is unmapped and then re-mapped with something
-> else.
-> 
-> Thus, this patch forces any volatility to be cleared on mmap.
-
-If we have lots of node on vroot but it doesn't include newly mmmaping
-vma range, it's purely unnecessary cost and that's never what we want.
-
-> 
-> XXX: We expect this patch to be not well loved by mm folks, and are open
-> to alternative methods here. Its more of a place holder to address
-> the issue from lsf-mm and hopefully will spur some further discussion.
-
-Another idea is we can add "bool is_vrange" in struct vm_area_struct.
-It is protected by vrange_lock. The scenario is following as,
-
-When do_vrange is called with VRANGE_VOLATILE, it iterates vmas
-and mark the vma->is_vrange to true. So, we can avoid tree traversal
-if the is_vrange is false when munmap is called and newly mmaped vma
-doesn't need to clear any volatility.
-
-And it would help the performance of purging path to find that a page
-is volatile page or not(for now, it is traversing on vroot to find it
-but we could do it easily via checking the vma->is_vrange).
-
--- 
-Kind regards,
-Minchan Kim
+Applied to slab/urgent, thanks guys!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
