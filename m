@@ -1,48 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 223966B0031
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 14:36:09 -0400 (EDT)
-In-Reply-To: <1371128589-8953-22-git-send-email-tangchen@cn.fujitsu.com>
-References: <1371128589-8953-1-git-send-email-tangchen@cn.fujitsu.com> <1371128589-8953-22-git-send-email-tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id B0EEE6B0036
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 15:07:54 -0400 (EDT)
+Received: from /spool/local
+	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Thu, 13 Jun 2013 15:07:53 -0400
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 2A2A5C90070
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 15:07:50 -0400 (EDT)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5DJ6Sik282042
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 15:06:29 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5DJ6I5d004102
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 15:06:19 -0400
+Date: Thu, 13 Jun 2013 14:06:17 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Subject: Re: [PATCHv13 0/4] zswap: compressed swap caching
+Message-ID: <20130613190617.GB2967@medulla>
+References: <1370291585-26102-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <51B9BC5E.6060407@oracle.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/plain;
- charset=UTF-8
-Subject: Re: [Part1 PATCH v5 21/22] x86, mm: Make init_mem_mapping be able to be called several times
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Date: Thu, 13 Jun 2013 14:35:28 -0400
-Message-ID: <aad34de7-8ff7-442d-ad8a-bed2a6e3edea@email.android.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51B9BC5E.6060407@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com
-Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Jacob Shin <jacob.shin@amd.com>
+To: Bob Liu <bob.liu@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-Tang Chen <tangchen@cn.fujitsu.com> wrote:
+On Thu, Jun 13, 2013 at 08:34:38PM +0800, Bob Liu wrote:
+> Hi Seth,
+> 
+> On 06/04/2013 04:33 AM, Seth Jennings wrote:
+> > This is the latest version of the zswap patchset for compressed swap caching.
+> > This is submitted for merging into linux-next and inclusion in v3.11.
+> > 
+> 
+> Have you noticed that pool_pages >> stored_pages, like this:
+> [root@ca-dev32 zswap]# cat *
+> 0
+> 424057
+> 99538
+> 0
+> 2749448
+> 0
+> 24
+> 60018
+> 16837
+> [root@ca-dev32 zswap]# cat pool_pages
+> 97372
+> [root@ca-dev32 zswap]# cat stored_pages
+> 53701
+> [root@ca-dev32 zswap]#
+> 
+> I think it's unreasonable to use more pool pages than stored pages!
 
->From: Yinghai Lu <yinghai@kern=
-el.org>
->
->Prepare to put page table on local nodes.
->
->Move calling of ini=
-t_mem_mapping() to early_initmem_init().
->
->Rework alloc_low_pages to alloc=
-ate page table in following order:
->	BRK, local node, low range
->
->Still on=
-ly load_cr3 one time, otherwise we would break xen 64bit again.
->
+Gah, in the moving of the zbud metadata for v13, I forgot to init the new
+under_reclaim field of the zbud header.  Patch going out now.
 
+Thanks for reporting!
 
-
-Sigh..=
-  Can that comment on Xen be removed please.  The issue was fixed last rele=
-ase  and I believe I already asked to remove that comment as it is not true=
- anymore. 
--- 
-Sent from my Android phone. Please excuse my brevity.
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
