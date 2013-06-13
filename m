@@ -1,103 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 5D7CE90001B
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 11:19:02 -0400 (EDT)
-Date: Thu, 13 Jun 2013 17:19:00 +0200
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id D350B90001B
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 11:53:23 -0400 (EDT)
+Date: Thu, 13 Jun 2013 17:53:19 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: mem_cgroup_page_lruvec: BUG: unable to handle kernel NULL
- pointer dereference at 00000000000001a8
-Message-ID: <20130613151900.GH23070@dhcp22.suse.cz>
-References: <CAFLxGvzKes7mGknTJgqFamr_-ODPBArf6BajF+m5x-S4AEtdmQ@mail.gmail.com>
- <20130613120248.GB23070@dhcp22.suse.cz>
- <51B9B5BC.4090702@nod.at>
- <20130613132908.GC23070@dhcp22.suse.cz>
- <20130613133244.GD23070@dhcp22.suse.cz>
- <51B9CA83.9070001@nod.at>
- <20130613143946.GF23070@dhcp22.suse.cz>
- <51B9DB23.7010609@nod.at>
- <51B9DDD3.3000107@nod.at>
+Subject: Re: [PATCH v3 5/9] memcg: use css_get/put when charging/uncharging
+ kmem
+Message-ID: <20130613155319.GJ23070@dhcp22.suse.cz>
+References: <51B98D17.2050902@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51B9DDD3.3000107@nod.at>
+In-Reply-To: <51B98D17.2050902@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Richard Weinberger <richard@nod.at>
-Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cgroups mailinglist <cgroups@vger.kernel.org>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, bsingharora@gmail.com, hannes@cmpxchg.org
+To: Li Zefan <lizefan@huawei.com>
+Cc: Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Thu 13-06-13 16:57:23, Richard Weinberger wrote:
-> Am 13.06.2013 16:45, schrieb Richard Weinberger:
-> >Am 13.06.2013 16:39, schrieb Michal Hocko:
-> >>On Thu 13-06-13 15:34:59, Richard Weinberger wrote:
-> >>>Am 13.06.2013 15:32, schrieb Michal Hocko:
-> >>>>Ohh and could you post the config please? Sorry should have asked
-> >>>>earlier.
-> >>>
-> >>>See attachment.
-> >>
-> >>Nothing unusual there. Could you enable CONFIG_DEBUG_VM maybe it will
-> >>help too catch the problem earlier.
-> >
-> >OK
-> >
-> >>>>On Thu 13-06-13 15:29:08, Michal Hocko wrote:
-> >>>>>
-> >>>>>On Thu 13-06-13 14:06:20, Richard Weinberger wrote:
-> >>>>>[...]
-> >>>>>>All code
-> >>>>>>========
-> >>>>>>    0:   89 50 08                mov    %edx,0x8(%rax)
-> >>>>>>    3:   48 89 d1                mov    %rdx,%rcx
-> >>>>>>    6:   0f 1f 40 00             nopl   0x0(%rax)
-> >>>>>>    a:   49 8b 04 24             mov    (%r12),%rax
-> >>>>>>    e:   48 89 c2                mov    %rax,%rdx
-> >>>>>>   11:   48 c1 e8 38             shr    $0x38,%rax
-> >>>>>>   15:   83 e0 03                and    $0x3,%eax
-> >>>>>                    nid = page_to_nid
-> >>>>>>   18:   48 c1 ea 3a             shr    $0x3a,%rdx
-> >>>>>                    zid = page_zonenum
-> >>
-> >>Ohh, I am wrong here. rdx should be nid and eax the zid.
-> >>
-> >>>>>
-> >>>>>>   1c:   48 69 c0 38 01 00 00    imul   $0x138,%rax,%rax
-> >>>>>>   23:   48 03 84 d1 e0 02 00    add    0x2e0(%rcx,%rdx,8),%rax
-> >>>>>                    &memcg->nodeinfo[nid]->zoneinfo[zid]
-> >>>>>
-> >>>>>>   2a:   00
-> >>>>>>   2b:*  48 3b 58 70             cmp    0x70(%rax),%rbx     <-- trapping instruction
-> >>>>>
-> >>>>>OK, so this maps to:
-> >>>>>         if (unlikely(lruvec->zone != zone)) <<<
-> >>>>>                 lruvec->zone = zone;
-> >>>>>
-> >>>>>>[35355.883056] RSP: 0000:ffff88003d523aa8  EFLAGS: 00010002
-> >>>>>>[35355.883056] RAX: 0000000000000138 RBX: ffff88003fffa600 RCX: ffff88003e04a800
-> >>>>>>[35355.883056] RDX: 0000000000000020 RSI: 0000000000000000 RDI: 0000000000028500
-> >>>>>>[35355.883056] RBP: ffff88003d523ab8 R08: 0000000000000000 R09: 0000000000000000
-> >>>>>>[35355.883056] R10: 0000000000000000 R11: dead000000100100 R12: ffffea0000a14000
-> >>>>>>[35355.883056] R13: ffff88003e04b138 R14: ffff88003d523bb8 R15: ffffea0000a14020
-> >>>>>>[35355.883056] FS:  0000000000000000(0000) GS:ffff88003fd80000(0000)
-> >>>>>
-> >>>>>RAX (lruvec) is obviously incorrect and it doesn't make any sense. rax should
-> >>>>>contain an address at an offset from ffff88003e04a800 But there is 0x138 there
-> >>>>>instead.
-> >>
-> >>Hmm, now that I am looking at the registers again. RDX which should be
-> >>nid seems to be quite big. It says this is node 32. Does the machine
-> >>have really so many NUMA nodes?
-> >
-> >No. It's a KVM guest with two CPUs. Nothing special.
-> >qemu command line:
-> >qemu-kvm -m 1G -drive file=lxc_host.qcow2,if=virtio -nographic -kernel linux/arch/x86/boot/bzImage -append console=ttyS0 root=/dev/vda2 -net user,hostfwd=tcp::5555-:22 -net
-> >nic,model=e1000 -smp 4
+On Thu 13-06-13 17:12:55, Li Zefan wrote:
+> Sorry for updating the patchset so late.
+> 
+> I've made some changes for the memory barrier thing, and I agree with
+> Michal that there can be improvement but can be a separate patch.
+> 
+> If this version is ok for everyone, I'll send the whole patchset out
+> to Andrew.
+> 
+> =========================
+> 
+> Use css_get/put instead of mem_cgroup_get/put.
+> 
+> We can't do a simple replacement, because here mem_cgroup_put()
+> is called during mem_cgroup_css_free(), while mem_cgroup_css_free()
+> won't be called until css refcnt goes down to 0.
+> 
+> Instead we increment css refcnt in mem_cgroup_css_offline(), and
+> then check if there's still kmem charges. If not, css refcnt will
+> be decremented immediately, 
 
-OK, then something probably overwrites page->flags. I would be more
-inclined to blame some other code ;)
-Maybe DEBUG_VM will start shouting earlier
- 
-> Errr, I meant four CPUs. :)
+> otherwise the refcnt won't be decremented when kmem charges goes down
+> to 0.
 
+This is a bit confusing. What about "otherwise the css refcount will be
+released after the last kmem allocation is uncharged."
+
+> 
+> v3:
+> - changed wmb() to smp_smb(), and moved it to memcg_kmem_mark_dead(),
+>   and added comment.
+> 
+> v2:
+> - added wmb() in kmem_cgroup_css_offline(), pointed out by Michal
+> - revised comments as suggested by Michal
+> - fixed to check if kmem is activated in kmem_cgroup_css_offline()
+> 
+> Signed-off-by: Li Zefan <lizefan@huawei.com>
+> Acked-by: Michal Hocko <mhocko@suse.cz>
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  mm/memcontrol.c | 70 ++++++++++++++++++++++++++++++++++++---------------------
+>  1 file changed, 45 insertions(+), 25 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 466c595..76dcd0e 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -416,6 +416,11 @@ static void memcg_kmem_clear_activated(struct mem_cgroup *memcg)
+>  
+>  static void memcg_kmem_mark_dead(struct mem_cgroup *memcg)
+>  {
+> +	/*
+> +	 * We need to call css_get() first, because memcg_uncharge_kmem()
+> +	 * will call css_put() if it sees the memcg is dead.
+> +	 */
+> +	smb_wmb();
+>  	if (test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags))
+>  		set_bit(KMEM_ACCOUNTED_DEAD, &memcg->kmem_account_flags);
+
+I do not feel strongly about that but maybe open coding this in
+mem_cgroup_css_offline would be even better. There is only single caller
+and there is smaller chance somebody will use the function incorrectly
+later on.
+
+So I leave the decision on you because this doesn't matter much.
+
+[...]
 -- 
 Michal Hocko
 SUSE Labs
