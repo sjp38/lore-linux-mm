@@ -1,149 +1,238 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 7A21C900011
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id EA13D90000B
 	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 09:28:06 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: =?UTF-8?q?=5BPart2=20PATCH=20v4=2000/15=5D=20Arrange=20hotpluggable=20memory=20in=20SRAT=20as=20ZONE=5FMOVABLE=2E?=
-Date: Thu, 13 Jun 2013 21:03:24 +0800
-Message-Id: <1371128619-8987-1-git-send-email-tangchen@cn.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Subject: [Part3 PATCH v2 1/4] bootmem, mem-hotplug: Register local pagetable pages with LOCAL_NODE_DATA when freeing bootmem.
+Date: Thu, 13 Jun 2013 21:03:53 +0800
+Message-Id: <1371128636-9027-2-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1371128636-9027-1-git-send-email-tangchen@cn.fujitsu.com>
+References: <1371128636-9027-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-In memory hotplug situation, the hotpluggable memory should be
-arranged in ZONE=5FMOVABLE because memory in ZONE=5FNORMAL may be
-used by kernel, and Linux cannot migrate pages used by kernel.
+As Yinghai suggested, even if a node is movable node, which has only
+ZONE_MOVABLE, pagetables should be put in the local node.
 
-So we need a way to specify hotpluggable memory as movable. It
-should be as easy as possible.
+In memory hot-remove logic, it offlines all pages first, and then
+removes pagetables. But the local pagetable pages cannot be offlined
+because they are used by kernel.
 
-According to ACPI spec 5.0, SRAT table has memory affinity
-structure and the structure has Hot Pluggable Filed.=20
-See "5.2.16.2 Memory Affinity Structure".
+So we should skip this kind of pages in offline procedure. But first
+of all, we need to mark them.
 
-If we use the information, we might be able to specify hotpluggable
-memory by firmware. For example, if Hot Pluggable Filed is enabled,
-kernel sets the memory as movable memory.
+This patch marks local node data pages in the same way as we mark the
+SECTION_INFO and MIX_SECTION_INFO data pages. We introduce a new type
+of bootmem: LOCAL_NODE_DATA. And use page->lru.next to mark this type
+of memory.
 
-To achieve this goal, we need to do the following:
-1. Prevent memblock from allocating hotpluggable memroy for kernel.
-   This is done by reserving hotpluggable memory in memblock as the
-   folowing steps:
-   1) Parse SRAT early enough so that memblock knows which memory
-      is hotpluggable.
-   2) Add a "flags" member to memblock so that it is able to tell
-      which memory is hotpluggable when freeing it to buddy.
+Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+---
+ arch/x86/mm/init_64.c          |    2 +
+ include/linux/memblock.h       |   22 +++++++++++++++++
+ include/linux/memory_hotplug.h |   13 ++++++++-
+ mm/memblock.c                  |   52 ++++++++++++++++++++++++++++++++++++++++
+ mm/memory_hotplug.c            |   26 ++++++++++++++++++++
+ 5 files changed, 113 insertions(+), 2 deletions(-)
 
-2. Free hotpluggable memory to buddy system when memory initialization
-   is done.
-
-3. Arrange hotpluggable memory in ZONE=5FMOVABLE.
-   (This will cause NUMA performance decreased)
-
-4. Provide a user interface to enable/disable this functionality.
-   (This is useful for those who don't use memory hotplug and who don't
-    want to lose their NUMA performance.)
-
-
-This patch-set does the following:
-patch1:        Fix a little problem.
-patch2:        Have Hot-Pluggable Field in SRAT printed when parsing SRAT.
-patch4,5:      Introduce hotpluggable field to numa=5Fmeminfo.
-patch6~9:      Introduce flags to memblock, and keep the public APIs protot=
-ype
-               unmodified.
-patch10,11:      Reserve node-life-cycle memory as MEMBLK=5FLOCAL=5FNODE wi=
-th memblock.
-patch12,13:    Reserve hotpluggable memory as MEMBLK=5FHOTPLUGGABLE with me=
-mblock,
-               and free it to buddy when memory initialization is done.
-patch3,14,15:  Improve "movablecore" boot option to support "movablecore=3D=
-acpi".
-
-
-Change log v3 -> v4:
-1. Define flags in memblock as macro directly instead of bit shift.
-2. Fix a bug found by Vasilis Liaskovitis, mark nodes which the=20
-   kernel resides in correctly.
-
-Change log v2 -> v3:
-1. As Chen Gong <gong.chen@linux.intel.com> noticed that=20
-   memblock=5Falloc=5Ftry=5Fnid() will call panic() if it fails to
-   allocate memory, so remove the return value check in=20
-   setup=5Fnode=5Fdata() in patch1.
-2. Did not movable find=5Fusable=5Fzone=5Ffor=5Fmovable() forward=20
-   to initialize movable=5Fzone. Fixed in patch12.
-3. Did not transform reserved->regions[i].base to its PFN=20
-   in find=5Fzone=5Fmovable=5Fpfns=5Ffor=5Fnodes(). Fixed in patch12.
-
-Change log v1 -> v2:
-1. Fix a bug in patch10: forgot to update start and end value.
-2. Add new patch8: make alloc=5Flow=5Fpages be able to call
-   memory=5Fadd=5Fphysaddr=5Fto=5Fnid().
-
-
-This patch-set is based on Yinghai's
-"x86, ACPI, numa: Parse numa info early" patch-set.
-Please refer to:
-v1: https://lkml.org/lkml/2013/3/7/642
-v2: https://lkml.org/lkml/2013/3/10/47
-v3: https://lkml.org/lkml/2013/4/4/639
-v4: https://lkml.org/lkml/2013/4/11/829
-
-And Yinghai's patch did the following things:
-1) Parse SRAT early enough.
-2=EF=BC=89Allocate pagetable pages in local node.
-
-Tang Chen (14):
-  acpi: Print Hot-Pluggable Field in SRAT.
-  page=5Falloc, mem-hotplug: Improve movablecore to {en|dis}able using
-    SRAT.
-  x86, numa, acpi, memory-hotplug: Introduce hotplug info into struct
-    numa=5Fmeminfo.
-  x86, numa, acpi, memory-hotplug: Consider hotplug info when cleanup
-    numa=5Fmeminfo.
-  memblock, numa: Introduce flag into memblock.
-  x86, numa: Synchronize nid info in memblock.reserve with
-    numa=5Fmeminfo.
-  x86, numa: Save nid when reserve memory into memblock.reserved[].
-  x86, numa, mem-hotplug: Mark nodes which the kernel resides in.
-  x86, numa: Move memory=5Fadd=5Fphysaddr=5Fto=5Fnid() to CONFIG=5FNUMA.
-  x86, numa, memblock: Introduce MEMBLK=5FLOCAL=5FNODE to mark and reserve
-    node-life-cycle data.
-  x86, acpi, numa, mem-hotplug: Introduce MEMBLK=5FHOTPLUGGABLE to mark
-    and reserve hotpluggable memory.
-  x86, memblock, mem-hotplug: Free hotpluggable memory reserved by
-    memblock.
-  x86, numa, acpi, memory-hotplug: Make movablecore=3Dacpi have higher
-    priority.
-  doc, page=5Falloc, acpi, mem-hotplug: Add doc for movablecore=3Dacpi boot
-    option.
-
-Yasuaki Ishimatsu (1):
-  x86: get pg=5Fdata=5Ft's memory from other node
-
- Documentation/kernel-parameters.txt |    8 ++
- arch/x86/include/asm/numa.h         |    3 +-
- arch/x86/kernel/apic/numaq=5F32.c     |    2 +-
- arch/x86/mm/amdtopology.c           |    3 +-
- arch/x86/mm/init.c                  |   16 +++-
- arch/x86/mm/numa.c                  |  118 +++++++++++++++++++++++++++++---
- arch/x86/mm/numa=5Finternal.h         |    1 +
- arch/x86/mm/srat.c                  |   13 ++--
- include/linux/memblock.h            |   13 ++++
- include/linux/memory=5Fhotplug.h      |    3 +
- include/linux/mm.h                  |    9 +++
- mm/memblock.c                       |  129 +++++++++++++++++++++++++++++++=
-----
- mm/nobootmem.c                      |    3 +
- mm/page=5Falloc.c                     |   44 +++++++++++-
- 14 files changed, 325 insertions(+), 40 deletions(-)
-
-=
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index bb00c46..25de304 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -1053,6 +1053,8 @@ static void __init register_page_bootmem_info(void)
+ 
+ 	for_each_online_node(i)
+ 		register_page_bootmem_info_node(NODE_DATA(i));
++
++	register_page_bootmem_local_node();
+ #endif
+ }
+ 
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index a85ced9..8a38eef 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -131,6 +131,28 @@ void __next_free_mem_range_rev(u64 *idx, int nid, phys_addr_t *out_start,
+ 	     i != (u64)ULLONG_MAX;					\
+ 	     __next_free_mem_range_rev(&i, nid, p_start, p_end, p_nid))
+ 
++void __next_local_node_mem_range(int *idx, int nid, phys_addr_t *out_start,
++				 phys_addr_t *out_end, int *out_nid);
++
++/**
++ * for_each_local_node_mem_range - iterate memblock areas storing local node
++ *                                 data
++ * @i: int used as loop variable
++ * @nid: node selector, %MAX_NUMNODES for all nodes
++ * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
++ * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
++ * @p_nid: ptr to int for nid of the range, can be %NULL
++ *
++ * Walks over memblock areas storing local node data. Since all the local node
++ * areas will be reserved by memblock, this iterator will only iterate
++ * memblock.reserve. Available as soon as memblock is initialized.
++ */
++#define for_each_local_node_mem_range(i, nid, p_start, p_end, p_nid)	    \
++	for (i = -1,							    \
++	     __next_local_node_mem_range(&i, nid, p_start, p_end, p_nid);   \
++	     i != -1;							    \
++	     __next_local_node_mem_range(&i, nid, p_start, p_end, p_nid))
++
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+ int memblock_set_node(phys_addr_t base, phys_addr_t size, int nid);
+ 
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 0b21e54..c0c4107 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -16,14 +16,19 @@ struct memory_block;
+ 
+ /*
+  * Types for free bootmem stored in page->lru.next. These have to be in
+- * some random range in unsigned long space for debugging purposes.
++ * some random range in unsigned long space for debugging purposes except
++ * LOCAL_NODE_DATA.
++ *
++ * LOCAL_NODE_DATA is used to mark local node pages storing data to
++ * describe the memory of the node, such as local pagetable pages.
+  */
+ enum {
+ 	MEMORY_HOTPLUG_MIN_BOOTMEM_TYPE = 12,
+ 	SECTION_INFO = MEMORY_HOTPLUG_MIN_BOOTMEM_TYPE,
+ 	MIX_SECTION_INFO,
+ 	NODE_INFO,
+-	MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE = NODE_INFO,
++	LOCAL_NODE_DATA,
++	MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE = LOCAL_NODE_DATA,
+ };
+ 
+ /* Types for control the zone type of onlined memory */
+@@ -179,10 +184,14 @@ static inline void arch_refresh_nodedata(int nid, pg_data_t *pgdat)
+ 
+ #ifdef CONFIG_HAVE_BOOTMEM_INFO_NODE
+ extern void register_page_bootmem_info_node(struct pglist_data *pgdat);
++extern void register_page_bootmem_local_node(void);
+ #else
+ static inline void register_page_bootmem_info_node(struct pglist_data *pgdat)
+ {
+ }
++static inline void register_page_bootmem_local_node()
++{
++}
+ #endif
+ extern void put_page_bootmem(struct page *page);
+ extern void get_page_bootmem(unsigned long ingo, struct page *page,
+diff --git a/mm/memblock.c b/mm/memblock.c
+index e672b9e..420e7fb 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -631,6 +631,58 @@ bool __init_memblock memblock_is_hotpluggable(struct memblock_region *region)
+ 	return region->flags & MEMBLK_HOTPLUGGABLE;
+ }
+ 
++/*
++ * Common iterator to find next range with the same flags.
++ */
++static void __init_memblock __next_flag_mem_range(int *idx, int nid,
++					unsigned long flags,
++					phys_addr_t *out_start,
++					phys_addr_t *out_end, int *out_nid)
++{
++	struct memblock_type *rsv = &memblock.reserved;
++	struct memblock_region *r;
++
++	while (++*idx < rsv->cnt) {
++		r = &rsv->regions[*idx];
++
++		if (nid != MAX_NUMNODES &&
++		    nid != memblock_get_region_node(r))
++			continue;
++
++		if (r->flags & flags)
++			break;
++	}
++
++	if (*idx >= rsv->cnt) {
++		*idx = -1;
++		return;
++	}
++
++	if (out_start)
++		*out_start = r->base;
++	if (out_end)
++		*out_end = r->base + r->size;
++	if (out_nid)
++		*out_nid = memblock_get_region_node(r);
++}
++
++/**
++ * __next_local_node_mem_range - next function for
++ *                               for_each_local_node_mem_range()
++ * @idx: pointer to int loop variable
++ * @nid: node selector, %MAX_NUMNODES for all nodes
++ * @out_start: ptr to phys_addr_t for start address of the range, can be %NULL
++ * @out_end: ptr to phys_addr_t for end address of the range, can be %NULL
++ * @out_nid: ptr to int for nid of the range, can be %NULL
++ */
++void __init_memblock __next_local_node_mem_range(int *idx, int nid,
++					phys_addr_t *out_start,
++					phys_addr_t *out_end, int *out_nid)
++{
++	__next_flag_mem_range(idx, nid, MEMBLK_LOCAL_NODE,
++			      out_start, out_end, out_nid);
++}
++
+ /**
+  * __next_free_mem_range - next function for for_each_free_mem_range()
+  * @idx: pointer to u64 loop variable
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 1ad92b4..c2017eb 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -30,6 +30,7 @@
+ #include <linux/mm_inline.h>
+ #include <linux/firmware-map.h>
+ #include <linux/stop_machine.h>
++#include <linux/memblock.h>
+ 
+ #include <asm/tlbflush.h>
+ 
+@@ -191,6 +192,31 @@ static void register_page_bootmem_info_section(unsigned long start_pfn)
+ }
+ #endif /* !CONFIG_SPARSEMEM_VMEMMAP */
+ 
++void __ref register_page_bootmem_local_node()
++{
++	int i, nid;
++	phys_addr_t start, end;
++	unsigned long start_pfn, end_pfn;
++	struct page *page;
++
++	for_each_local_node_mem_range(i, MAX_NUMNODES, &start, &end, &nid) {
++		start_pfn = PFN_DOWN(start);
++		end_pfn = PFN_UP(end);
++		page = pfn_to_page(start_pfn);
++
++		for ( ; start_pfn <= end_pfn; start_pfn++, page++) {
++			/*
++			 * We need to set the whole page as LOCAL_NODE_DATA,
++			 * so we get the upper end_pfn. But this upper end_pfn
++			 * may not exist. So we have to check if the page
++			 * present before we access its struct page.
++			 */
++			if (pfn_present(start_pfn))
++				get_page_bootmem(nid, page, LOCAL_NODE_DATA);
++		}
++	}
++}
++
+ void register_page_bootmem_info_node(struct pglist_data *pgdat)
+ {
+ 	unsigned long i, pfn, end_pfn, nr_pages;
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
