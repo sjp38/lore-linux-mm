@@ -1,133 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id D5DAC6B0033
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 07:16:19 -0400 (EDT)
-Received: by mail-pb0-f51.google.com with SMTP id um15so10153905pbc.24
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2013 04:16:19 -0700 (PDT)
-Date: Thu, 13 Jun 2013 19:16:09 +0800
-From: Shaohua Li <shli@kernel.org>
-Subject: Re: [patch 2/4 v4]swap: make swap discard async
-Message-ID: <20130613111609.GB26947@kernel.org>
-References: <20130326053730.GB19646@kernel.org>
- <20130612152218.a7a8d7900e7d66978883e772@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 2E2C16B0036
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 07:48:28 -0400 (EDT)
+Received: by mail-vb0-f49.google.com with SMTP id 12so3362886vbf.22
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2013 04:48:27 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130612152218.a7a8d7900e7d66978883e772@linux-foundation.org>
+Date: Thu, 13 Jun 2013 13:48:27 +0200
+Message-ID: <CAFLxGvzKes7mGknTJgqFamr_-ODPBArf6BajF+m5x-S4AEtdmQ@mail.gmail.com>
+Subject: mem_cgroup_page_lruvec: BUG: unable to handle kernel NULL pointer
+ dereference at 00000000000001a8
+From: richard -rw- weinberger <richard.weinberger@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, riel@redhat.com, minchan@kernel.org, kmpark@infradead.org, hughd@google.com, aquini@redhat.com
+To: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cgroups mailinglist <cgroups@vger.kernel.org>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, bsingharora@gmail.com, Michal Hocko <mhocko@suse.cz>, hannes@cmpxchg.org
 
-On Wed, Jun 12, 2013 at 03:22:18PM -0700, Andrew Morton wrote:
-> On Tue, 26 Mar 2013 13:37:30 +0800 Shaohua Li <shli@kernel.org> wrote:
-> 
-> > swap can do cluster discard for SSD, which is good, but there are some problems
-> > here:
-> > 1. swap do the discard just before page reclaim gets a swap entry and writes
-> > the disk sectors. This is useless for high end SSD, because an overwrite to a
-> > sector implies a discard to original nand flash too. A discard + overwrite ==
-> > overwrite.
-> > 2. the purpose of doing discard is to improve SSD firmware garbage collection.
-> > Doing discard just before write doesn't help, because the interval between
-> > discard and write is too short. Doing discard async and just after a swap entry
-> > is freed can make the interval longer, so SSD firmware has more time to do gc.
-> > 3. block discard is a sync API, which will delay scan_swap_map() significantly.
-> > 4. Write and discard command can be executed parallel in PCIe SSD. Making
-> > swap discard async can make execution more efficiently.
-> > 
-> > This patch makes swap discard async, and move discard to where swap entry is
-> > freed. Idealy we should do discard for any freed sectors, but some SSD discard
-> > is very slow. This patch still does discard for a whole cluster. 
-> 
-> This is rather unclear.  I see two reasons for async discard:
-> 
-> a) To avoid blocking userspace while the discard is in progress.
-> 
->    Well OK, but it is important that measurements be provided so we
->    can evaluate the usefulness of the change.
+Hi!
 
-It avoids delay introduced by disacard before we do swap write. Not avoid
-blocking userspace.
+While playing with user namespaces my kernel crashed under heavy load.
+Kernel is 3.9.0 plus some trivial patches.
 
-> b) To give the SSD firmware time to perform GC.
-> 
->    If so, this is a very poor implementation.  There is no control
->    here over the duration of that delay and schedule_work() might cause
->    the work to occur very very soon after schedule_work() is called.
-> 
->    Relying upon the vagaries of scheduler implementation, hardware
->    speed, system load etc to provide a suitable delay sounds unreliable
->    and sloppy.
-> 
->    If we want to put a delay in there then I do think that some
->    explicit, controlled and perhaps tunable interval should be used.
+[35355.882105] BUG: unable to handle kernel NULL pointer dereference
+at 00000000000001a8
+[35355.883056] IP: [<ffffffff811297d9>] mem_cgroup_page_lruvec+0x79/0x90
+[35355.883056] PGD 0
+[35355.883056] Oops: 0000 [#1] SMP
+[35355.883056] CPU 3
+[35355.883056] Pid: 477, comm: kswapd0 Not tainted 3.9.0+ #12 Bochs Bochs
+[35355.883056] RIP: 0010:[<ffffffff811297d9>]  [<ffffffff811297d9>]
+mem_cgroup_page_lruvec+0x79/0x90
+[35355.883056] RSP: 0000:ffff88003d523aa8  EFLAGS: 00010002
+[35355.883056] RAX: 0000000000000138 RBX: ffff88003fffa600 RCX: ffff88003e04a800
+[35355.883056] RDX: 0000000000000020 RSI: 0000000000000000 RDI: 0000000000028500
+[35355.883056] RBP: ffff88003d523ab8 R08: 0000000000000000 R09: 0000000000000000
+[35355.883056] R10: 0000000000000000 R11: dead000000100100 R12: ffffea0000a14000
+[35355.883056] R13: ffff88003e04b138 R14: ffff88003d523bb8 R15: ffffea0000a14020
+[35355.883056] FS:  0000000000000000(0000) GS:ffff88003fd80000(0000)
+knlGS:0000000000000000
+[35355.883056] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[35355.883056] CR2: 00000000000001a8 CR3: 0000000001a0b000 CR4: 00000000000006e0
+[35355.883056] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[35355.883056] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+[35355.883056] Process kswapd0 (pid: 477, threadinfo ffff88003d522000,
+task ffff88003db6dc40)
+[35355.883056] Stack:
+[35355.883056]  0000000000000014 ffffea0000a14000 ffff88003d523b28
+ffffffff810ea4c5
+[35355.883056]  ffff88003d523b90 ffff88003fffa9c0 ffff88003d523b98
+0000000000000020
+[35355.883056]  ffff88003fffa600 0000000200000003 ffff88003fffa600
+ffff88003d523b98
+[35355.883056] Call Trace:
+[35355.883056]  [<ffffffff810ea4c5>] move_active_pages_to_lru+0x65/0x190
+[35355.883056]  [<ffffffff810ec4e7>] shrink_active_list+0x297/0x380
+[35355.883056]  [<ffffffff810ebff6>] ? shrink_inactive_list+0x1a6/0x400
+[35355.883056]  [<ffffffff810ec815>] shrink_lruvec+0x245/0x4b0
+[35355.883056]  [<ffffffff810ecae6>] shrink_zone+0x66/0x180
+[35355.883056]  [<ffffffff810edcb4>] balance_pgdat+0x474/0x5b0
+[35355.883056]  [<ffffffff810edf58>] kswapd+0x168/0x440
+[35355.883056]  [<ffffffff8105d310>] ? abort_exclusive_wait+0xb0/0xb0
+[35355.883056]  [<ffffffff810eddf0>] ? balance_pgdat+0x5b0/0x5b0
+[35355.883056]  [<ffffffff8105c5fb>] kthread+0xbb/0xc0
+[35355.883056]  [<ffffffff8105c540>] ? __kthread_unpark+0x50/0x50
+[35355.883056]  [<ffffffff81748eac>] ret_from_fork+0x7c/0xb0
+[35355.883056]  [<ffffffff8105c540>] ? __kthread_unpark+0x50/0x50
+[35355.883056] Code: 89 50 08 48 89 d1 0f 1f 40 00 49 8b 04 24 48 89
+c2 48 c1 e8 38 83 e0 03 48 c1 ea 3a 48 69 c0 38 01 00 00 48 03 84 d1
+e0 02 00 00 <48> 3b 58 70 75 0a 48 8b 5d f0 4c 8b 65 f8 c9 c3 48 89 58
+70 eb
+[35355.883056] RIP  [<ffffffff811297d9>] mem_cgroup_page_lruvec+0x79/0x90
+[35355.883056]  RSP <ffff88003d523aa8>
+[35355.883056] CR2: 00000000000001a8
+[35355.883056] ---[ end trace 2c9b8eec517f960d ]---
 
-The delay here isn't very important. If we do very heavy write, write will
-eventually be GC bound, any delay doesn't help GC. The point here is we should
-send discard as early as possible, because it can potentially help GC. I'm not
-trying to control delay to help GC. I'll rewrite the descritpion in next post.
 
-> > My test does a several round of 'mmap, write, unmap', which will trigger a lot
-> > of swap discard. In a fusionio card, with this patch, the test runtime is
-> > reduced to 18% of the time without it, so around 5.5x faster.
-> >
-> > ...
-> >
-> > --- linux.orig/include/linux/swap.h	2013-03-22 17:21:45.590763696 +0800
-> > +++ linux/include/linux/swap.h	2013-03-22 17:23:56.069125823 +0800
-> > @@ -194,8 +194,6 @@ struct swap_info_struct {
-> >  	unsigned int inuse_pages;	/* number of those currently in use */
-> >  	unsigned int cluster_next;	/* likely index for next allocation */
-> >  	unsigned int cluster_nr;	/* countdown to next cluster search */
-> > -	unsigned int lowest_alloc;	/* while preparing discard cluster */
-> > -	unsigned int highest_alloc;	/* while preparing discard cluster */
-> >  	struct swap_extent *curr_swap_extent;
-> >  	struct swap_extent first_swap_extent;
-> >  	struct block_device *bdev;	/* swap device or bdev of swap file */
-> > @@ -217,6 +215,9 @@ struct swap_info_struct {
-> >  					 * swap_lock. If both locks need hold,
-> >  					 * hold swap_lock first.
-> >  					 */
-> > +	struct work_struct discard_work;
-> > +	unsigned int discard_cluster_head;
-> > +	unsigned int discard_cluster_tail;
-> 
-> Please document the fields carefully.  Documentation of data structures
-> often turns out to be the most valuable of all.
-
-ok
- 
-> >  };
-> >  
-> >  struct swap_list_t {
-> >
-> > ...
-> >
-> > +static void swap_discard_work(struct work_struct *work)
-> > +{
-> > +	struct swap_info_struct *si;
-> > +
-> > +	si = container_of(work, struct swap_info_struct, discard_work);
-> > +
-> > +	spin_lock(&si->lock);
-> > +	swap_do_scheduled_discard(si);
-> > +	spin_unlock(&si->lock);
-> > +}
-> 
-> What guarantees that *si still exists?  If this work was delayed 200
-> milliseconds and there was an intervening swapoff, what happens?
-
-we flush the worker at swapoff.
- 
-> We should be careful to not overload keventd.  What is the upper bound
-> on the duration of this function?
-
-It doesn't use too much cpu time, but it could run and wait for IO completion
-for a long time because discard is quite slow in some SSD. Is this a problem?
-
+--
 Thanks,
-Shaohua
+//richard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
