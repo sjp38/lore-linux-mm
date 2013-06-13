@@ -1,49 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id D71406B0033
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 08:36:15 -0400 (EDT)
-Message-ID: <51B9BC5E.6060407@oracle.com>
-Date: Thu, 13 Jun 2013 20:34:38 +0800
-From: Bob Liu <bob.liu@oracle.com>
-MIME-Version: 1.0
-Subject: Re: [PATCHv13 0/4] zswap: compressed swap caching
-References: <1370291585-26102-1-git-send-email-sjenning@linux.vnet.ibm.com>
-In-Reply-To: <1370291585-26102-1-git-send-email-sjenning@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 05FEA6B0033
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 09:27:54 -0400 (EDT)
+From: Tang Chen <tangchen@cn.fujitsu.com>
+Subject: [Part3 PATCH v2 3/4] mem-hotplug: Skip LOCAL_NODE_DATA pages in memory online procedure.
+Date: Thu, 13 Jun 2013 21:03:55 +0800
+Message-Id: <1371128636-9027-4-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1371128636-9027-1-git-send-email-tangchen@cn.fujitsu.com>
+References: <1371128636-9027-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com
+Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi Seth,
+Pages marked as LOCAL_NODE_DATA are skipped when we do memory offline.
+So we have to skip them again when we do memory online.
 
-On 06/04/2013 04:33 AM, Seth Jennings wrote:
-> This is the latest version of the zswap patchset for compressed swap caching.
-> This is submitted for merging into linux-next and inclusion in v3.11.
-> 
+Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+---
+ mm/memory_hotplug.c |    5 +++++
+ 1 files changed, 5 insertions(+), 0 deletions(-)
 
-Have you noticed that pool_pages >> stored_pages, like this:
-[root@ca-dev32 zswap]# cat *
-0
-424057
-99538
-0
-2749448
-0
-24
-60018
-16837
-[root@ca-dev32 zswap]# cat pool_pages
-97372
-[root@ca-dev32 zswap]# cat stored_pages
-53701
-[root@ca-dev32 zswap]#
-
-I think it's unreasonable to use more pool pages than stored pages!
-
-Regards,
--Bob
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index c2017eb..3561048 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -843,6 +843,11 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
+ 	if (PageReserved(pfn_to_page(start_pfn)))
+ 		for (i = 0; i < nr_pages; i++) {
+ 			page = pfn_to_page(start_pfn + i);
++
++			/* Skip pages storing local node kernel data. */
++			if (is_local_node_data(page))
++				continue;
++
+ 			(*online_page_callback)(page);
+ 			onlined_pages++;
+ 		}
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
