@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 365E48D001F
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id C41338D0027
 	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 09:28:01 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [Part2 PATCH v4 13/15] x86, memblock, mem-hotplug: Free hotpluggable memory reserved by memblock.
-Date: Thu, 13 Jun 2013 21:03:37 +0800
-Message-Id: <1371128619-8987-14-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [Part2 PATCH v4 07/15] x86, numa: Synchronize nid info in memblock.reserve with numa_meminfo.
+Date: Thu, 13 Jun 2013 21:03:31 +0800
+Message-Id: <1371128619-8987-8-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1371128619-8987-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1371128619-8987-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,73 +13,87 @@ List-ID: <linux-mm.kvack.org>
 To: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-We reserved hotpluggable memory in memblock. And when memory initialization
-is done, we have to free it to buddy system.
+Vasilis Liaskovitis found that before we parse SRAT and fulfill
+numa_meminfo, the nids of all the regions in memblock.reserve[]
+are MAX_NUMNODES. In this case, we cannot mark the nodes which
+the kernel resides in correctly.
 
-This patch free memory reserved by memblock with flag MEMBLK_HOTPLUGGABLE.
+So after we parse SRAT and fulfill nume_meminfo, synchronize the
+nid info to memblock.reserve[] immediately.
 
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Signed-off-by: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
 ---
- include/linux/memblock.h |    1 +
- mm/memblock.c            |   17 +++++++++++++++++
- mm/nobootmem.c           |    3 +++
- 3 files changed, 21 insertions(+), 0 deletions(-)
+ arch/x86/mm/numa.c |   49 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 files changed, 49 insertions(+), 0 deletions(-)
 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index ce315b2..d113175 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -66,6 +66,7 @@ int memblock_reserve(phys_addr_t base, phys_addr_t size);
- int memblock_reserve_node(phys_addr_t base, phys_addr_t size, int nid);
- int memblock_reserve_local_node(phys_addr_t base, phys_addr_t size, int nid);
- int memblock_reserve_hotpluggable(phys_addr_t base, phys_addr_t size, int nid);
-+void memblock_free_hotpluggable(void);
- void memblock_trim_memory(phys_addr_t align);
- void memblock_mark_kernel_nodes(void);
- bool memblock_is_kernel_node(int nid);
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 51f0264..9df0b5f 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -568,6 +568,23 @@ int __init_memblock memblock_free(phys_addr_t base, phys_addr_t size)
- 	return __memblock_remove(&memblock.reserved, base, size);
+diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+index 05e4443..005a422 100644
+--- a/arch/x86/mm/numa.c
++++ b/arch/x86/mm/numa.c
+@@ -595,6 +595,48 @@ static void __init numa_init_array(void)
+ 	}
  }
  
-+static void __init_memblock memblock_free_flags(unsigned long flags)
++/*
++ * early_numa_find_range_nid - Find nid for a memory range at early time.
++ * @start: start address of the memory range (physaddr)
++ * @size: size of the memory range
++ *
++ * Return nid of the memory range, or MAX_NUMNODES if it failed to find the nid.
++ *
++ * NOTE: This function uses numa_meminfo to find the range's nid, so it should
++ *       be called after numa_meminfo has been initialized.
++ */
++int __init early_numa_find_range_nid(u64 start, u64 size)
 +{
 +	int i;
-+	struct memblock_type *reserved = &memblock.reserved;
++	struct numa_meminfo *mi = &numa_meminfo;
 +
-+	for (i = 0; i < reserved->cnt; i++) {
-+		if (reserved->regions[i].flags == flags)
-+			memblock_remove_region(reserved, i);
++	for (i = 0; i < mi->nr_blks; i++)
++		if (start >= mi->blk[i].start &&
++		    (start + size - 1) <= mi->blk[i].end)
++			return mi->blk[i].nid;
++
++	return MAX_NUMNODES;
++}
++
++/*
++ * numa_sync_memblock_nid - Synchronize nid info in memblock.reserve[] to
++ *                          numa_meminfo.
++ *
++ * This function will synchronize the nid fields of regions in
++ * memblock.reserve[] to numa_meminfo.
++ */
++static void __init numa_sync_memblock_nid()
++{
++	int i, nid;
++	struct memblock_type *res = &memblock.reserved;
++
++	for (i = 0; i < res->cnt; i++) {
++		nid = early_numa_find_range_nid(res->regions[i].base,
++						res->regions[i].size);
++		memblock_set_region_node(&res->regions[i], nid);
 +	}
 +}
 +
-+void __init_memblock memblock_free_hotpluggable()
-+{
-+	memblock_dbg("memblock: free all hotpluggable memory");
-+	memblock_free_flags(MEMBLK_HOTPLUGGABLE);
-+}
-+
- static int __init_memblock memblock_reserve_region(phys_addr_t base,
- 						   phys_addr_t size,
- 						   int nid,
-diff --git a/mm/nobootmem.c b/mm/nobootmem.c
-index bdd3fa2..dbfbcb9 100644
---- a/mm/nobootmem.c
-+++ b/mm/nobootmem.c
-@@ -165,6 +165,9 @@ unsigned long __init free_all_bootmem(void)
- 	for_each_online_pgdat(pgdat)
- 		reset_node_lowmem_managed_pages(pgdat);
+ static int __init numa_init(int (*init_func)(void))
+ {
+ 	int i;
+@@ -617,6 +659,13 @@ static int __init numa_init(int (*init_func)(void))
+ 	if (ret < 0)
+ 		return ret;
  
-+	/* Hotpluggable memory reserved by memblock should also be freed. */
-+	memblock_free_hotpluggable();
++	/*
++	 * Before fulfilling numa_meminfo, all regions allocated by memblock
++	 * are reserved with nid MAX_NUMNODES because there is no numa node
++	 * info at such an early time. Now, fill the correct nid into memblock.
++	 */
++	numa_sync_memblock_nid();
 +
- 	/*
- 	 * We need to use MAX_NUMNODES instead of NODE_DATA(0)->node_id
- 	 *  because in some case like Node0 doesn't have RAM installed
+ 	return 0;
+ }
+ 
 -- 
 1.7.1
 
