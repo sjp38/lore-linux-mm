@@ -1,41 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 4FAED6B0033
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 13:57:17 -0400 (EDT)
-Received: by mail-gh0-f179.google.com with SMTP id f16so233492ghb.38
-        for <linux-mm@kvack.org>; Fri, 14 Jun 2013 10:57:16 -0700 (PDT)
-Date: Fri, 14 Jun 2013 10:57:10 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 4/8] mm/writeback: rename WB_REASON_FORKER_THREAD to
- WB_REASON_WORKER_THREAD
-Message-ID: <20130614175710.GB6593@mtj.dyndns.org>
-References: <1371195041-26654-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1371195041-26654-4-git-send-email-liwanp@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1371195041-26654-4-git-send-email-liwanp@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 5A5116B0033
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 14:04:46 -0400 (EDT)
+Received: by mail-la0-f52.google.com with SMTP id fo12so799047lab.39
+        for <linux-mm@kvack.org>; Fri, 14 Jun 2013 11:04:44 -0700 (PDT)
+From: Glauber Costa <glommer@gmail.com>
+Subject: [PATCH v2 0/2] slightly rework memcg cache id determination
+Date: Fri, 14 Jun 2013 14:04:34 -0400
+Message-Id: <1371233076-936-1-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Fengguang Wu <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Andrew Shewmaker <agshew@gmail.com>, Jiri Kosina <jkosina@suse.cz>, Namjae Jeon <linkinjeon@gmail.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm <linux-mm@kvack.org>, cgroups <cgroups@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Glauber Costa <glommer@openvz.org>
 
-On Fri, Jun 14, 2013 at 03:30:37PM +0800, Wanpeng Li wrote:
-> After commit 839a8e86("writeback: replace custom worker pool implementation
-> with unbound workqueue"), there is no bdi forker thread any more. This patch
-> rename WB_REASON_FORKER_THREAD to WB_REASON_WORKER_THREAD since works are
-> done by emergency worker.
+Michal,
 
-This is somewhat userland visible and we'll be exposing exactly the
-same information with just a different name.  While the string doesn't
-match the current implementation exactly, I don't think we need to
-change it.  Maybe add a comment there saying why it has a mismatching
-name is enough?
+Let me know if this is more acceptable to you. I didn't take your suggestion of
+having an id and idx functions, because I think this could potentially be even
+more confusing: in the sense that people would need to wonder a bit what is the
+difference between them.
 
-Thanks.
+Note please that we never use the id as an array index outside of memcg core.
+So for memcg core, I have changed, in Patch 2, each direct use of idx as an
+index to include a VM_BUG_ON in case we would get an invalid index.
+
+For the other cases, I have consolidated a bit the usage pattern around
+memcg_cache_id.  Now the tests are all pretty standardized.
+
+Glauber Costa (2):
+  memcg: make cache index determination more robust
+  memcg: consolidate callers of memcg_cache_id
+
+ mm/memcontrol.c | 19 ++++++++++++-------
+ 1 file changed, 12 insertions(+), 7 deletions(-)
 
 -- 
-tejun
+1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
