@@ -1,115 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id D866B6B005A
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 21:59:38 -0400 (EDT)
-Message-ID: <51BA7831.4040003@huawei.com>
-Date: Fri, 14 Jun 2013 09:56:01 +0800
-From: Li Zefan <lizefan@huawei.com>
-MIME-Version: 1.0
-Subject: [PATCH v4 9/9] memcg: don't need to free memcg via RCU or workqueue
-References: <51BA7794.2000305@huawei.com>
-In-Reply-To: <51BA7794.2000305@huawei.com>
-Content-Type: text/plain; charset="GB2312"
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id C8B456B0033
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 22:38:13 -0400 (EDT)
+From: Joe Perches <joe@perches.com>
+Subject: [Trivial PATCH 00/33] Remove uses of typedef ctl_table
+Date: Thu, 13 Jun 2013 19:37:25 -0700
+Message-Id: <cover.1371177118.git.joe@perches.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>
+To: Jiri Kosina <trivial@kernel.org>
+Cc: linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, openipmi-developer@lists.sourceforge.net, linux-rdma@vger.kernel.org, linux-raid@vger.kernel.org, linux-scsi@vger.kernel.org, codalist@coda.cs.cmu.edu, linux-fsdevel@vger.kernel.org, linux-cachefs@redhat.com, linux-nfs@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, ocfs2-devel@oss.oracle.com, xfs@oss.sgi.com, keyrings@linux-nfs.org, netdev@vger.kernel.org, linux-mm@kvack.org, linux-security-module@vger.kernel.org
 
-Now memcg has the same life cycle with its corresponding cgroup, and
-a cgroup is freed via RCU and then mem_cgroup_css_free() will be
-called in a work function, so we can simply call __mem_cgroup_free()
-in mem_cgroup_css_free().
+It's clearer to use struct ctl_table instead
 
-This actually reverts 59927fb984de1703c67bc640c3e522d8b5276c73
-("memcg: free mem_cgroup by RCU to fix oops").
+Joe Perches (33):
+  arm: kernel: isa: Convert use of typedef ctl_table to struct ctl_table
+  frv: Convert use of typedef ctl_table to struct ctl_table
+  ia64: crash: Convert use of typedef ctl_table to struct ctl_table
+  mips: lasat: sysctl: Convert use of typedef ctl_table to struct ctl_table
+  powerpc: idle: Convert use of typedef ctl_table to struct ctl_table
+  s390: Convert use of typedef ctl_table to struct ctl_table
+  tile: proc: Convert use of typedef ctl_table to struct ctl_table
+  x86: vdso: Convert use of typedef ctl_table to struct ctl_table
+  cdrom: Convert use of typedef ctl_table to struct ctl_table
+  char: Convert use of typedef ctl_table to struct ctl_table
+  infiniband: Convert use of typedef ctl_table to struct ctl_table
+  macintosh: Convert use of typedef ctl_table to struct ctl_table
+  md: Convert use of typedef ctl_table to struct ctl_table
+  sgi: xpc: Convert use of typedef ctl_table to struct ctl_table
+  parport: Convert use of typedef ctl_table to struct ctl_table
+  scsi_sysctl: Convert use of typedef ctl_table to struct ctl_table
+  coda: Convert use of typedef ctl_table to struct ctl_table
+  fscache: Convert use of typedef ctl_table to struct ctl_table
+  lockd: Convert use of typedef ctl_table to struct ctl_table
+  nfs: Convert use of typedef ctl_table to struct ctl_table
+  inotify: Convert use of typedef ctl_table to struct ctl_table
+  ntfs: Convert use of typedef ctl_table to struct ctl_table
+  ocfs2: Convert use of typedef ctl_table to struct ctl_table
+  quota: Convert use of typedef ctl_table to struct ctl_table
+  xfs: Convert use of typedef ctl_table to struct ctl_table
+  fs: Convert use of typedef ctl_table to struct ctl_table
+  key: Convert use of typedef ctl_table to struct ctl_table
+  ipv6: Convert use of typedef ctl_table to struct ctl_table
+  ndisc: Convert use of typedef ctl_table to struct ctl_table
+  ipc: Convert use of typedef ctl_table to struct ctl_table
+  sysctl: Convert use of typedef ctl_table to struct ctl_table
+  mm: Convert use of typedef ctl_table to struct ctl_table
+  security: keys: Convert use of typedef ctl_table to struct ctl_table
 
-Cc: Hugh Dickins <hughd@google.com>
-Signed-off-by: Li Zefan <lizefan@huawei.com>
-Acked-by: Michal Hocko <mhocko@suse.cz>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- mm/memcontrol.c | 51 +++++----------------------------------------------
- 1 file changed, 5 insertions(+), 46 deletions(-)
+ arch/arm/kernel/isa.c              |  6 ++--
+ arch/frv/kernel/pm.c               |  8 +++---
+ arch/frv/kernel/sysctl.c           |  4 +--
+ arch/ia64/kernel/crash.c           |  4 +--
+ arch/ia64/kernel/perfmon.c         |  6 ++--
+ arch/mips/lasat/sysctl.c           | 14 ++++-----
+ arch/powerpc/kernel/idle.c         |  4 +--
+ arch/s390/appldata/appldata_base.c | 16 +++++------
+ arch/s390/kernel/debug.c           |  4 +--
+ arch/s390/mm/cmm.c                 |  6 ++--
+ arch/tile/kernel/proc.c            |  4 +--
+ arch/x86/vdso/vdso32-setup.c       |  4 +--
+ drivers/cdrom/cdrom.c              | 10 +++----
+ drivers/char/hpet.c                |  6 ++--
+ drivers/char/ipmi/ipmi_poweroff.c  |  6 ++--
+ drivers/char/random.c              |  8 +++---
+ drivers/char/rtc.c                 |  6 ++--
+ drivers/infiniband/core/ucma.c     |  2 +-
+ drivers/macintosh/mac_hid.c        |  8 +++---
+ drivers/md/md.c                    |  6 ++--
+ drivers/misc/sgi-xp/xpc_main.c     |  6 ++--
+ drivers/parport/procfs.c           | 58 +++++++++++++++++++-------------------
+ drivers/scsi/scsi_sysctl.c         |  6 ++--
+ fs/coda/sysctl.c                   |  4 +--
+ fs/dcache.c                        |  2 +-
+ fs/drop_caches.c                   |  2 +-
+ fs/eventpoll.c                     |  2 +-
+ fs/file_table.c                    |  4 +--
+ fs/fscache/main.c                  |  4 +--
+ fs/inode.c                         |  2 +-
+ fs/lockd/svc.c                     |  6 ++--
+ fs/nfs/nfs4sysctl.c                |  6 ++--
+ fs/nfs/sysctl.c                    |  6 ++--
+ fs/notify/inotify/inotify_user.c   |  2 +-
+ fs/ntfs/sysctl.c                   |  4 +--
+ fs/ocfs2/stackglue.c               |  8 +++---
+ fs/quota/dquot.c                   |  6 ++--
+ fs/xfs/xfs_sysctl.c                | 26 ++++++++---------
+ include/linux/key.h                |  2 +-
+ include/net/ipv6.h                 |  4 +--
+ include/net/ndisc.h                |  2 +-
+ ipc/ipc_sysctl.c                   | 14 ++++-----
+ ipc/mq_sysctl.c                    | 10 +++----
+ kernel/sysctl.c                    |  2 +-
+ kernel/utsname_sysctl.c            |  6 ++--
+ mm/page-writeback.c                |  2 +-
+ mm/page_alloc.c                    | 15 +++++-----
+ security/keys/sysctl.c             |  2 +-
+ 48 files changed, 174 insertions(+), 171 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 7b622c3..234f311 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -267,28 +267,10 @@ struct mem_cgroup {
- 	/* vmpressure notifications */
- 	struct vmpressure vmpressure;
- 
--	union {
--		/*
--		 * the counter to account for mem+swap usage.
--		 */
--		struct res_counter memsw;
--
--		/*
--		 * rcu_freeing is used only when freeing struct mem_cgroup,
--		 * so put it into a union to avoid wasting more memory.
--		 * It must be disjoint from the css field.  It could be
--		 * in a union with the res field, but res plays a much
--		 * larger part in mem_cgroup life than memsw, and might
--		 * be of interest, even at time of free, when debugging.
--		 * So share rcu_head with the less interesting memsw.
--		 */
--		struct rcu_head rcu_freeing;
--		/*
--		 * We also need some space for a worker in deferred freeing.
--		 * By the time we call it, rcu_freeing is no longer in use.
--		 */
--		struct work_struct work_freeing;
--	};
-+	/*
-+	 * the counter to account for mem+swap usage.
-+	 */
-+	struct res_counter memsw;
- 
- 	/*
- 	 * the counter to account for kernel memory usage.
-@@ -6182,29 +6164,6 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
- 		vfree(memcg);
- }
- 
--
--/*
-- * Helpers for freeing a kmalloc()ed/vzalloc()ed mem_cgroup by RCU,
-- * but in process context.  The work_freeing structure is overlaid
-- * on the rcu_freeing structure, which itself is overlaid on memsw.
-- */
--static void free_work(struct work_struct *work)
--{
--	struct mem_cgroup *memcg;
--
--	memcg = container_of(work, struct mem_cgroup, work_freeing);
--	__mem_cgroup_free(memcg);
--}
--
--static void free_rcu(struct rcu_head *rcu_head)
--{
--	struct mem_cgroup *memcg;
--
--	memcg = container_of(rcu_head, struct mem_cgroup, rcu_freeing);
--	INIT_WORK(&memcg->work_freeing, free_work);
--	schedule_work(&memcg->work_freeing);
--}
--
- /*
-  * Returns the parent mem_cgroup in memcgroup hierarchy with hierarchy enabled.
-  */
-@@ -6355,7 +6314,7 @@ static void mem_cgroup_css_free(struct cgroup *cont)
- 
- 	mem_cgroup_sockets_destroy(memcg);
- 
--	call_rcu(&memcg->rcu_freeing, free_rcu);
-+	__mem_cgroup_free(memcg);
- }
- 
- #ifdef CONFIG_MMU
 -- 
-1.8.0.2
+1.8.1.2.459.gbcd45b4.dirty
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
