@@ -1,12 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 865AA6B0033
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 21:57:38 -0400 (EDT)
-Message-ID: <51BA7794.2000305@huawei.com>
-Date: Fri, 14 Jun 2013 09:53:24 +0800
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 3172B6B0036
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 21:57:46 -0400 (EDT)
+Message-ID: <51BA77B7.5030405@huawei.com>
+Date: Fri, 14 Jun 2013 09:53:59 +0800
 From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Subject: [PATCH v4 0/9] memcg: make memcg's life cycle the same as cgroup
+Subject: [PATCH v4 2/9] memcg, kmem: fix reference count handling on the error
+ path
+References: <51BA7794.2000305@huawei.com>
+In-Reply-To: <51BA7794.2000305@huawei.com>
 Content-Type: text/plain; charset="GB2312"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -14,65 +17,54 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>
 
-Hi Andrew,
+From: Michal Hocko <mhocko@suse.cz>
 
-All the patches in this patchset has been acked by Michal and Kamezawa-san, and
-it's ready to be merged into -mm.
+mem_cgroup_css_online calls mem_cgroup_put if memcg_init_kmem
+fails. This is not correct because only memcg_propagate_kmem takes an
+additional reference while mem_cgroup_sockets_init is allowed to fail as
+well (although no current implementation fails) but it doesn't take any
+reference. This all suggests that it should be memcg_propagate_kmem that
+should clean up after itself so this patch moves mem_cgroup_put over
+there.
 
-I have another pending patchset that kills css_id, which depends on this one.
+Unfortunately this is not that easy (as pointed out by Li Zefan) because
+memcg_kmem_mark_dead marks the group dead (KMEM_ACCOUNTED_DEAD) if it
+is marked active (KMEM_ACCOUNTED_ACTIVE) which is the case even if
+memcg_propagate_kmem fails so the additional reference is dropped in
+that case in kmem_cgroup_destroy which means that the reference would be
+dropped two times.
 
+The easiest way then would be to simply remove mem_cgrroup_put from
+mem_cgroup_css_online and rely on kmem_cgroup_destroy doing the right
+thing.
 
-Changes since v3:
-- rebased against mmotm 2013-06-06-16-19
-- changed wmb() to smp_wmb() and moved it to memcg_kmem_mark_dead() and added
-  more comment.
+Cc: <stable@vger.kernel.org> # 3.8+
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+Signed-off-by: Li Zefan <lizefan@huawei.com>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/memcontrol.c | 8 --------
+ 1 file changed, 8 deletions(-)
 
-Changes since v2:
-
-- rebased against 3.10-rc1
-- collected some acks
-- the two memcg bug fixes has been merged into mainline
-- the cgroup core patch has been merged into mainline
-
-Changes since v1:
-
-- wrote better changelog and added acked-by and reviewed-by tags
-- revised some comments as suggested by Michal
-- added a wmb() in kmem_cgroup_css_offline(), pointed out by Michal
-- fixed a bug which causes a css_put() never be called
-
-
-Now memcg has its own refcnt, so when a cgroup is destroyed, the memcg can
-still be alive. This patchset converts memcg to always use css_get/put, so
-memcg will have the same life cycle as its corresponding cgroup.
-
-The historical reason that memcg didn't use css_get in some cases, is that
-cgroup couldn't be removed if there're still css refs. The situation has
-changed so that rmdir a cgroup will succeed regardless css refs, but won't
-be freed until css refs goes down to 0.
-
-Since the introduction of kmemcg, the memcg refcnt handling grows even more
-complicated. This patchset greately simplifies memcg's life cycle management.
-
-Also, after those changes, we can convert memcg to use cgroup->id, and then
-we can kill css_id.
-
-Li Zefan (7):
-  memcg: use css_get() in sock_update_memcg()
-  memcg: don't use mem_cgroup_get() when creating a kmemcg cache
-  memcg: use css_get/put when charging/uncharging kmem
-  memcg: use css_get/put for swap memcg
-  memcg: don't need to get a reference to the parent
-  memcg: kill memcg refcnt
-  memcg: don't need to free memcg via RCU or workqueue
-
-Michal Hocko (2):
-  Revert "memcg: avoid dangling reference count in creation failure."
-  memcg, kmem: fix reference count handling on the error path
-
- mm/memcontrol.c | 208 +++++++++++++++++++++-----------------------------------
- 1 file changed, 77 insertions(+), 131 deletions(-)
-
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 0bacc0d..b5ec4da 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -6325,14 +6325,6 @@ mem_cgroup_css_online(struct cgroup *cont)
+ 
+ 	error = memcg_init_kmem(memcg, &mem_cgroup_subsys);
+ 	mutex_unlock(&memcg_create_mutex);
+-	if (error) {
+-		/*
+-		 * We call put now because our (and parent's) refcnts
+-		 * are already in place. mem_cgroup_put() will internally
+-		 * call __mem_cgroup_free, so return directly
+-		 */
+-		mem_cgroup_put(memcg);
+-	}
+ 	return error;
+ }
+ 
 -- 
 1.8.0.2
 
