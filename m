@@ -1,40 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 7EE626B0033
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 18:47:14 -0400 (EDT)
-Received: by mail-ie0-f181.google.com with SMTP id x12so2671303ief.12
-        for <linux-mm@kvack.org>; Fri, 14 Jun 2013 15:47:13 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1371249104.1758.20.camel@buesod1.americas.hpqcorp.net>
-References: <1371165333.27102.568.camel@schen9-DESK>
-	<1371167015.1754.14.camel@buesod1.americas.hpqcorp.net>
-	<1371226197.27102.594.camel@schen9-DESK>
-	<1371249104.1758.20.camel@buesod1.americas.hpqcorp.net>
-Date: Fri, 14 Jun 2013 15:47:13 -0700
-Message-ID: <CANN689GtHw6dDeMd+2fuUz_dv_Z44XndVj2u-TNy70qkZWkpDw@mail.gmail.com>
-Subject: Re: Performance regression from switching lock to rw-sem for anon-vma tree
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 1B73F6B0033
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 19:04:28 -0400 (EDT)
+Date: Fri, 14 Jun 2013 16:04:25 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: vmscan: remove redundant querying to shrinker
+Message-Id: <20130614160425.237b0fe0cb3f711740734b32@linux-foundation.org>
+In-Reply-To: <CALSv+Dht=1ghRmiXdLwkFcXgRTwV=erSeoXc2AEh7+8XmHh1xQ@mail.gmail.com>
+References: <1371204471-13518-1-git-send-email-heesub.shin@samsung.com>
+	<20130614111034.GA306@gmail.com>
+	<CALSv+Dht=1ghRmiXdLwkFcXgRTwV=erSeoXc2AEh7+8XmHh1xQ@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr.bueso@hp.com>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, "Shi, Alex" <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: HeeSub Shin <heesub@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, Heesub Shin <heesub.shin@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de, riel@redhat.com, kyungmin.park@samsung.com, d.j.shin@samsung.com, sunae.seo@samsung.com
 
-On Fri, Jun 14, 2013 at 3:31 PM, Davidlohr Bueso <davidlohr.bueso@hp.com> wrote:
-> A few ideas that come to mind are avoiding taking the ->wait_lock and
-> avoid dealing with waiters when doing the optimistic spinning (just like
-> mutexes do).
->
-> I agree that we should first deal with the optimistic spinning before
-> adding the MCS complexity.
+On Sat, 15 Jun 2013 03:13:26 +0900 HeeSub Shin <heesub@gmail.com> wrote:
 
-Maybe it would be worth disabling the MCS patch in mutex and comparing
-that to the rwsem patches ? Just to make sure the rwsem performance
-delta isn't related to that.
+> Hello,
+> 
+> On Fri, Jun 14, 2013 at 8:10 PM, Minchan Kim <minchan@kernel.org> wrote:
+> 
+> >
+> > Hello,
+> >
+> > On Fri, Jun 14, 2013 at 07:07:51PM +0900, Heesub Shin wrote:
+> > > shrink_slab() queries each slab cache to get the number of
+> > > elements in it. In most cases such queries are cheap but,
+> > > on some caches. For example, Android low-memory-killer,
+> > > which is operates as a slab shrinker, does relatively
+> > > long calculation once invoked and it is quite expensive.
+> >
+> > LMK as shrinker is really bad, which everybody didn't want
+> > when we reviewed it a few years ago so that's a one of reason
+> > LMK couldn't be promoted to mainline yet. So your motivation is
+> > already not atrractive. ;-)
+> >
+> > >
+> > > This patch removes redundant queries to shrinker function
+> > > in the loop of shrink batch.
+> >
+> > I didn't review the patch and others don't want it, I guess.
+> > Because slab shrink is under construction and many patches were
+> > already merged into mmtom. Please look at latest mmotm tree.
+> >
+> >         git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+> 
+> 
+> >
+> > If you concern is still in there and it's really big concern of MM
+> > we should take care, NOT LMK, plese, resend it.
+> >
+> >
+> I've noticed that there are huge changes there in the recent mmotm and you
+> guys already settled the issue of my concern. I usually keep track changes
+> in recent mm-tree, but this time I didn't. My bad :-)
+> 
 
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+I'm not averse to merging an improvement like this even if it gets
+rubbed out by forthcoming changes.  The big changes may never get
+merged or may be reverted.  And by merging this patch, others are more
+likely to grab it, backport it into earlier kernels and benefit from
+it.
+
+Also, the problem which this simple patch fixes might be present in a
+different form after the large patchset has been merged.  That does not
+appear to be the case this time.
+
+So I'd actually like to merge Heesub's patch.  Problem is, I don't have
+a way to redistribute it for testing - I'd need to effectively revert
+the whole thing when integrating Glauber's stuff on top, so nobody who
+is using linux-next would test Heesub's change.  Drat.
+
+
+
+
+However I'm a bit sceptical about the description here.  The shrinker
+is supposed to special-case the "nr_to_scan == 0" case and AFAICT
+drivers/staging/android/lowmemorykiller.c:lowmem_shrink() does do this,
+and it looks like the function will be pretty quick in this case.
+
+In other words, the behaviour of lowmem_shrink(nr_to_scan == 0) does
+not match Heesub's description.  What's up with that?
+
+
+
+Also, there is an obvious optimisation which we could make to
+lowmem_shrink().  All this stuff:
+
+	if (lowmem_adj_size < array_size)
+		array_size = lowmem_adj_size;
+	if (lowmem_minfree_size < array_size)
+		array_size = lowmem_minfree_size;
+	for (i = 0; i < array_size; i++) {
+		if (other_free < lowmem_minfree[i] &&
+		    other_file < lowmem_minfree[i]) {
+			min_score_adj = lowmem_adj[i];
+			break;
+		}
+	}
+
+does nothing useful in the nr_to_scan==0 case and should be omitted for
+this special case.  But this problem was fixed in the large shrinker
+rework in -mm.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
