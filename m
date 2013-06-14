@@ -1,71 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id B91E56B0037
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 09:56:14 -0400 (EDT)
-Date: Fri, 14 Jun 2013 15:56:13 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] memcg: make cache index determination more robust
-Message-ID: <20130614135613.GF10084@dhcp22.suse.cz>
-References: <1371069808-1172-1-git-send-email-glommer@openvz.org>
- <20130613163849.GL23070@dhcp22.suse.cz>
- <20130614112359.GC4292@localhost.localdomain>
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 6789F6B0036
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 10:32:13 -0400 (EDT)
+Date: Fri, 14 Jun 2013 14:32:11 +0000
+From: Christoph Lameter <cl@gentwo.org>
+Subject: Re: [PATCH] slub: Avoid direct compaction if possible
+In-Reply-To: <51BB1802.8050108@yandex-team.ru>
+Message-ID: <0000013f4319cb46-a5a3de58-1207-4037-ae39-574b58135ea2-000000@email.amazonses.com>
+References: <51BB1802.8050108@yandex-team.ru>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130614112359.GC4292@localhost.localdomain>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Glauber Costa <glommer@openvz.org>, Johannes Weiner <hannes@cmpxchg.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Roman Gushchin <klamm@yandex-team.ru>
+Cc: penberg@kernel.org, mpm@selenic.com, akpm@linux-foundation.org, mgorman@suse.de, rientjes@google.com, glommer@parallels.com, hannes@cmpxchg.org, minchan@kernel.org, jiang.liu@huawei.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri 14-06-13 15:24:00, Glauber Costa wrote:
-> On Thu, Jun 13, 2013 at 06:38:49PM +0200, Michal Hocko wrote:
-> > On Wed 12-06-13 16:43:28, Glauber Costa wrote:
-> > > I caught myself doing something like the following outside memcg core:
-> > > 
-> > > 	memcg_id = -1;
-> > > 	if (memcg && memcg_kmem_is_active(memcg))
-> > > 		memcg_id = memcg_cache_id(memcg);
-> > > 
-> > > to be able to handle all possible memcgs in a sane manner. In particular, the
-> > > root cache will have kmemcg_id = -1 (just because we don't call memcg_kmem_init
-> > > to the root cache since it is not limitable). We have always coped with that by
-> > > making sure we sanitize which cache is passed to memcg_cache_id. Although this
-> > > example is given for root, what we really need to know is whether or not a
-> > > cache is kmem active.
-> > > 
-> > > But outside the memcg core testing for root, for instance, is not trivial since
-> > > we don't export mem_cgroup_is_root. I ended up realizing that this tests really
-> > > belong inside memcg_cache_id. This patch moves the tests inside memcg_cache_id
-> > > and make sure it always return a meaningful value.
-> > 
-> > This is quite a mess, to be honest. Some callers test/require
-> > memcg_can_account_kmem others !p->is_root_cache. Can we have that
-> > unified, please?
-> > 
-> > Also the return value of this function is used mostly as an index to
-> > memcg_params->memcg_caches array so returning -1 sounds like a bad idea.
-> > Few other cases use it as a real id. Maybe we need to split this up.
-> > 
-> > Pulling the check inside the function is OK but can we settle with a
-> > common pattern here, pretty please?
-> > 
-> BTW: Since the test for memcg_can_account_kmem is a bit stronger than
-> memcg_kmem_is_active (the difference is that it tests the extra bit that we need
-> to coordinate the static branches), I will test for that, instead. Like this:
-> 
-> int memcg_cache_id(struct mem_cgroup *memcg)
-> {
->         if (!memcg_can_account_kmem(memcg))                       
->                 return -1;
->         return memcg->kmemcg_id;                                          
-> }
+On Fri, 14 Jun 2013, Roman Gushchin wrote:
 
-Makes sense. You also need to test memcg == NULL, right?
+> Slub tries to allocate contiguous pages even if memory is fragmented and
+> there are no free contiguous pages. In this case it calls direct compaction
+> to allocate contiguous page. Compaction requires the taking of some heavily
+> contended locks (e.g. zone locks). So, running compaction (direct and using
+> kswapd) simultaneously on several processors can cause serious performance
+> issues.
 
--- 
-Michal Hocko
-SUSE Labs
+The main thing that this patch does is to add a nocompact flag to the page
+allocator. That needs to be a separate patch. Also fix the description.
+Slub does not invoke compaction. The page allocator initiates compaction
+under certain conditions.
+
+> It's possible to avoid such problems (or at least to make them less probable)
+> by avoiding direct compaction. If it's not possible to allocate a contiguous
+> page without compaction, slub will fall back to order 0 page(s). In this case
+> kswapd will be woken to perform asynchronous compaction. So, slub can return
+> to default order allocations as soon as memory will be de-fragmented.
+
+Sounds like a good idea. Do you have some numbers to show the effect of
+this patch?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
