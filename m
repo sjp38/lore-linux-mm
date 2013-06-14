@@ -1,79 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 6D2676B0033
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 08:39:23 -0400 (EDT)
-Received: by mail-pb0-f52.google.com with SMTP id xa12so534387pbc.11
-        for <linux-mm@kvack.org>; Fri, 14 Jun 2013 05:39:22 -0700 (PDT)
-Message-ID: <51BB0EF1.7040303@gmail.com>
-Date: Fri, 14 Jun 2013 20:39:13 +0800
-From: Zhang Yanfei <zhangyanfei.yes@gmail.com>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 7B3046B0033
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 08:55:54 -0400 (EDT)
+Received: by mail-we0-f173.google.com with SMTP id x54so466038wes.18
+        for <linux-mm@kvack.org>; Fri, 14 Jun 2013 05:55:53 -0700 (PDT)
+Date: Fri, 14 Jun 2013 13:55:47 +0100
+From: Steve Capper <steve.capper@linaro.org>
+Subject: Re: [PATCH 00/11] HugeTLB and THP support for ARM64.
+Message-ID: <20130614125547.GA7008@linaro.org>
+References: <1369328878-11706-1-git-send-email-steve.capper@linaro.org>
+ <20130611090714.GA21776@linaro.org>
+ <20130613142033.fdcefe11264c1bb2df8fc4cb@linux-foundation.org>
 MIME-Version: 1.0
-Subject: [PATCH] mm: Remove unused functions is_{normal_idx, normal, dma32,
- dma}
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130613142033.fdcefe11264c1bb2df8fc4cb@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: x86@kernel.org, catalin.marinas@arm.com, linux-mm@kvack.org
 
-From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+On Thu, Jun 13, 2013 at 02:20:33PM -0700, Andrew Morton wrote:
+> On Tue, 11 Jun 2013 10:07:15 +0100 Steve Capper <steve.capper@linaro.org> wrote:
+> 
+> > Hello,
+> > I was just wondering if there were any comments on the mm and x86 patches in
+> > this series, or should I send a pull request for them?
+> > 
+> > Catalin has acked the ARM64 ones but we need the x86->mm code move in place
+> > before the ARM64 code is merged. The idea behind the code move was to avoid
+> > code duplication between x86 and ARM64 (and ARM).
+> 
+> Ack from me on patches 1, 2, 3, 4 and 5.  Please get the whole series
+> into linux-next asap and merge it up at the appropriate time.
 
-These functions are nowhere used, so remove them.
+Thanks,
+I've sent a request to the linux-next to pull the series.
 
-Signed-off-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
----
- include/linux/mmzone.h |   28 ----------------------------
- 1 files changed, 0 insertions(+), 28 deletions(-)
-
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 5c76737..32f0105 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -843,11 +843,6 @@ static inline int is_highmem_idx(enum zone_type idx)
- #endif
- }
- 
--static inline int is_normal_idx(enum zone_type idx)
--{
--	return (idx == ZONE_NORMAL);
--}
--
- /**
-  * is_highmem - helper function to quickly check if a struct zone is a 
-  *              highmem zone or not.  This is an attempt to keep references
-@@ -866,29 +861,6 @@ static inline int is_highmem(struct zone *zone)
- #endif
- }
- 
--static inline int is_normal(struct zone *zone)
--{
--	return zone == zone->zone_pgdat->node_zones + ZONE_NORMAL;
--}
--
--static inline int is_dma32(struct zone *zone)
--{
--#ifdef CONFIG_ZONE_DMA32
--	return zone == zone->zone_pgdat->node_zones + ZONE_DMA32;
--#else
--	return 0;
--#endif
--}
--
--static inline int is_dma(struct zone *zone)
--{
--#ifdef CONFIG_ZONE_DMA
--	return zone == zone->zone_pgdat->node_zones + ZONE_DMA;
--#else
--	return 0;
--#endif
--}
--
- /* These two functions are used to setup the per zone pages min values */
- struct ctl_table;
- int min_free_kbytes_sysctl_handler(struct ctl_table *, int,
+Cheers,
 -- 
-1.7.1
+Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
