@@ -1,64 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
-	by kanga.kvack.org (Postfix) with SMTP id A684C6B003B
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 05:41:39 -0400 (EDT)
-Message-ID: <51BAE4A5.6070506@cn.fujitsu.com>
-Date: Fri, 14 Jun 2013 17:38:45 +0800
-From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 602476B003C
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 05:41:48 -0400 (EDT)
+Date: Fri, 14 Jun 2013 17:41:45 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [iput] BUG: Bad page state in process rm pfn:0b0ce
+Message-ID: <20130614094145.GA21338@localhost>
+References: <20130613102549.GD31394@localhost>
+ <20130614091655.GD1875@suse.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/8] mm/writeback: fix wb_do_writeback exported unsafely
-References: <1371195041-26654-1-git-send-email-liwanp@linux.vnet.ibm.com> <20130614090217.GA7574@dhcp22.suse.cz> <20130614092952.AAED5E0090@blue.fi.intel.com> <20130614093159.GB10084@dhcp22.suse.cz>
-In-Reply-To: <20130614093159.GB10084@dhcp22.suse.cz>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130614091655.GD1875@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Andrew Shewmaker <agshew@gmail.com>, Jiri Kosina <jkosina@suse.cz>, Namjae Jeon <linkinjeon@gmail.com>, Jan Kara <jack@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 06/14/2013 05:31 PM, Michal Hocko wrote:
-> On Fri 14-06-13 12:29:52, Kirill A. Shutemov wrote:
->> Michal Hocko wrote:
->>> On Fri 14-06-13 15:30:34, Wanpeng Li wrote:
->>>> There is just one caller in fs-writeback.c call wb_do_writeback and
->>>> current codes unnecessary export it in header file, this patch fix
->>>> it by changing wb_do_writeback to static function.
->>>
->>> So what?
->>>
->>> Besides that git grep wb_do_writeback tells that 
->>> mm/backing-dev.c:                       wb_do_writeback(me, 0);
->>>
->>> Have you tested this at all?
->>
->> Commit 839a8e8 removes that.
+On Fri, Jun 14, 2013 at 10:16:55AM +0100, Mel Gorman wrote:
+> On Thu, Jun 13, 2013 at 06:25:49PM +0800, Fengguang Wu wrote:
+> > Greetings,
+> > 
+> > I got the below dmesg in linux-next and the first bad commit is
+> > 
 > 
-> OK, I didn't check the most up-to-date tree. Sorry about this confusion.
-> I do not object to cleanups like this but it should be clear they are
-> cleanups. "fix wb_do_writeback exported unsafely" sounds like a fix
-> rather than a cleanup
-
-Agreed.
-
+> Thanks Fengguang.
 > 
->>>> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->>
->> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
->>
->> -- 
->>  Kirill A. Shutemov
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Can you try the following please? I do not see the same issue
+> unfortunately but I am the wrong type of unlucky here.
+
+Sure I'll test it right away, thanks for the quick fix!
+
+Thanks,
+Fengguang
+
+> ---8<---
+> mm: Clear page active before releasing pages
 > 
-
-
--- 
-Thanks.
-Zhang Yanfei
+> Active pages should not be freed to the page allocator as it triggers a
+> bad page state warning. Fengguang Wu reported the following bug
+> 
+> [   84.212960] BUG: Bad page state in process rm  pfn:0b0c9
+> [   84.214682] page:ffff88000d646240 count:0 mapcount:0 mapping:          (null) index:0x0
+> [   84.216883] page flags: 0x20000000004c(referenced|uptodate|active)
+> [   84.218697] CPU: 1 PID: 283 Comm: rm Not tainted 3.10.0-rc4-04361-geeb9bfc #49
+> [   84.220729]  ffff88000d646240 ffff88000d179bb8 ffffffff82562956 ffff88000d179bd8
+> [   84.223242]  ffffffff811333f1 000020000000004c ffff88000d646240 ffff88000d179c28
+> [   84.225387]  ffffffff811346a4 ffff880000270000 0000000000000000 0000000000000006
+> [   84.227294] Call Trace:
+> [   84.227867]  [<ffffffff82562956>] dump_stack+0x27/0x30
+> [   84.229045]  [<ffffffff811333f1>] bad_page+0x130/0x158
+> [   84.230261]  [<ffffffff811346a4>] free_pages_prepare+0x8b/0x1e3
+> [   84.231765]  [<ffffffff8113542a>] free_hot_cold_page+0x28/0x1cf
+> [   84.233171]  [<ffffffff82585830>] ? _raw_spin_unlock_irqrestore+0x6b/0xc6
+> [   84.234822]  [<ffffffff81135b59>] free_hot_cold_page_list+0x30/0x5a
+> [   84.236311]  [<ffffffff8113a4ed>] release_pages+0x251/0x267
+> [   84.237653]  [<ffffffff8112a88d>] ? delete_from_page_cache+0x48/0x9e
+> [   84.239142]  [<ffffffff8113ad93>] __pagevec_release+0x2b/0x3d
+> [   84.240473]  [<ffffffff8113b45a>] truncate_inode_pages_range+0x1b0/0x7ce
+> [   84.242032]  [<ffffffff810e76ab>] ? put_lock_stats.isra.20+0x1c/0x53
+> [   84.243480]  [<ffffffff810e77f5>] ? lock_release_holdtime+0x113/0x11f
+> [   84.244935]  [<ffffffff8113ba8c>] truncate_inode_pages+0x14/0x1d
+> [   84.246337]  [<ffffffff8119b3ef>] evict+0x11f/0x232
+> [   84.247501]  [<ffffffff8119c527>] iput+0x1a5/0x218
+> [   84.248607]  [<ffffffff8118f015>] do_unlinkat+0x19b/0x25a
+> [   84.249828]  [<ffffffff810ea993>] ? trace_hardirqs_on_caller+0x210/0x2ce
+> [   84.251382]  [<ffffffff8144372e>] ? trace_hardirqs_on_thunk+0x3a/0x3f
+> [   84.252879]  [<ffffffff8118f10d>] SyS_unlinkat+0x39/0x4c
+> [   84.254174]  [<ffffffff825874d6>] system_call_fastpath+0x1a/0x1f
+> [   84.255596] Disabling lock debugging due to kernel taint
+> 
+> The problem was that a page marked for activation was released via
+> pagevec. This patch clears the active bit before freeing in this case.
+> 
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> ---
+>  mm/swap.c | 3 +++
+>  1 file changed, 3 insertions(+)
+> 
+> diff --git a/mm/swap.c b/mm/swap.c
+> index ac23602..4a1d0d2 100644
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -739,6 +739,9 @@ void release_pages(struct page **pages, int nr, int cold)
+>  			del_page_from_lru_list(page, lruvec, page_off_lru(page));
+>  		}
+>  
+> +		/* Clear Active bit in case of parallel mark_page_accessed */
+> +		ClearPageActive(page);
+> +
+>  		list_add(&page->lru, &pages_to_free);
+>  	}
+>  	if (zone)
+> -- 
+> Mel Gorman
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
