@@ -1,57 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id BA99E6B0033
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 12:16:58 -0400 (EDT)
-Message-ID: <51BB41EF.7080508@redhat.com>
-Date: Fri, 14 Jun 2013 12:16:47 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id BDD876B0033
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 12:52:42 -0400 (EDT)
+Message-ID: <51BB4A53.4000505@yandex-team.ru>
+Date: Fri, 14 Jun 2013 20:52:35 +0400
+From: Roman Gushchin <klamm@yandex-team.ru>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/7] mm: remove ZONE_RECLAIM_LOCKED
-References: <1370445037-24144-1-git-send-email-aarcange@redhat.com> <1370445037-24144-2-git-send-email-aarcange@redhat.com> <20130606090430.GC1936@suse.de> <51B0C8D8.7070708@redhat.com>
-In-Reply-To: <51B0C8D8.7070708@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Subject: Re: [PATCH] slub: Avoid direct compaction if possible
+References: <51BB1802.8050108@yandex-team.ru> <0000013f4319cb46-a5a3de58-1207-4037-ae39-574b58135ea2-000000@email.amazonses.com> <51BB33FE.1020403@yandex-team.ru> <0000013f43718d4d-7bb260e7-8115-4891-bb26-6febacb7169d-000000@email.amazonses.com>
+In-Reply-To: <0000013f43718d4d-7bb260e7-8115-4891-bb26-6febacb7169d-000000@email.amazonses.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>
+To: Christoph Lameter <cl@gentwo.org>
+Cc: Pekka Enberg <penberg@kernel.org>, mpm@selenic.com, akpm@linux-foundation.org, mgorman@suse.de, David Rientjes <rientjes@google.com>, glommer@gmail.com, hannes@cmpxchg.org, minchan@kernel.org, jiang.liu@huawei.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 06/06/2013 01:37 PM, Rik van Riel wrote:
-> On 06/06/2013 05:04 AM, Mel Gorman wrote:
->> On Wed, Jun 05, 2013 at 05:10:31PM +0200, Andrea Arcangeli wrote:
->>> Zone reclaim locked breaks zone_reclaim_mode=1. If more than one
->>> thread allocates memory at the same time, it forces a premature
->>> allocation into remote NUMA nodes even when there's plenty of clean
->>> cache to reclaim in the local nodes.
->>>
->>> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
->>
->> Be aware that after this patch is applied that it is possible to have a
->> situation like this
->>
->> 1. 4 processes running on node 1
->> 2. Each process tries to allocate 30% of memory
->> 3. Each process reads the full buffer in a loop (stupid, just an example)
->>
->> In this situation the processes will continually interfere with each
->> other until one of them gets migrated to another zone by the scheduler.
+On 14.06.2013 20:08, Christoph Lameter wrote:
+> On Fri, 14 Jun 2013, Roman Gushchin wrote:
 >
-> This is a very good point.
+>> But there is an actual problem, that this patch solves.
+>> Sometimes I saw the following issue on some machines:
+>> all CPUs are performing compaction, system time is about 80%,
+>> system is completely unreliable. It occurs only on machines
+>> with specific workload (distributed data storage system, so,
+>> intensive disk i/o is performed). A system can fall into
+>> this state fast and unexpectedly or by progressive degradation.
 >
-> Andrea, I suspect we will need some kind of safeguard against
-> this problem.
+> Well that is not a slab allocator specific issue but related to compaction
+> concurrency. Likely cache line contention is causing a severe slowday. But
+> that issue could be triggered by any subsystem that does lots of memory
+> allocations. I would suggest that we try to address the problem in the
+> compaction logic rather than modifying allocators.
 
-Never mind me.
+I agree, that it's good to address the original issue. But I'm not sure,
+that it's a compaction issue. If someone wants to participate here,
+I can provide more information. The main problem here is that it's
+__very__ hard to reproduce the issue.
 
-In __zone_reclaim we set the flags in swap_control so
-we never unmap pages or swap pages out at all by
-default, so this should not be an issue at all.
+But, I think, all that shouldn't stop us from modifying the allocator.
+Falling back to minimal order is in any case better than running
+direct compaction. Just because it's faster. Am I wrong?
 
-In order to get the problem illustrated above, the
-user will have to enable RECLAIM_SWAP through sysfs
-manually.
-
-The series looks fine as is.
+Regards,
+Roman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
