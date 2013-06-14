@@ -1,101 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id C47936B0033
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 06:16:59 -0400 (EDT)
-Date: Fri, 14 Jun 2013 12:16:53 +0200 (CEST)
-From: =?ISO-8859-15?Q?Luk=E1=A8_Czerner?= <lczerner@redhat.com>
-Subject: Re: [PATCH v4 15/20] ext4: use ext4_zero_partial_blocks in
- punch_hole
-In-Reply-To: <20130614030154.GA18731@thunk.org>
-Message-ID: <alpine.LFD.2.00.1306141216070.2327@localhost.localdomain>
-References: <1368549454-8930-1-git-send-email-lczerner@redhat.com> <1368549454-8930-16-git-send-email-lczerner@redhat.com> <20130614030154.GA18731@thunk.org>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 188E56B0033
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 06:33:15 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Fri, 14 Jun 2013 19:12:20 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 029C22CE81FB
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 19:14:11 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5E8xY091311116
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 18:59:34 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5E9E9IO004503
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 19:14:10 +1000
+Date: Fri, 14 Jun 2013 17:14:07 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/8] mm/writeback: fix wb_do_writeback exported unsafely
+Message-ID: <20130614091407.GA2970@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <1371195041-26654-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <20130614090217.GA7574@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130614090217.GA7574@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, akpm@linux-foundation.org, hughd@google.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Fengguang Wu <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Andrew Shewmaker <agshew@gmail.com>, Jiri Kosina <jkosina@suse.cz>, Namjae Jeon <linkinjeon@gmail.com>, Jan Kara <jack@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 13 Jun 2013, Theodore Ts'o wrote:
+On Fri, Jun 14, 2013 at 11:02:17AM +0200, Michal Hocko wrote:
+>On Fri 14-06-13 15:30:34, Wanpeng Li wrote:
+>> There is just one caller in fs-writeback.c call wb_do_writeback and
+>> current codes unnecessary export it in header file, this patch fix
+>> it by changing wb_do_writeback to static function.
+>
+>So what?
+>
+>Besides that git grep wb_do_writeback tells that 
+>mm/backing-dev.c:                       wb_do_writeback(me, 0);
+>
 
-> Date: Thu, 13 Jun 2013 23:01:54 -0400
-> From: Theodore Ts'o <tytso@mit.edu>
-> To: Lukas Czerner <lczerner@redhat.com>
-> Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
->     linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org,
->     akpm@linux-foundation.org, hughd@google.com
-> Subject: Re: [PATCH v4 15/20] ext4: use ext4_zero_partial_blocks in punch_hole
-> 
-> On Tue, May 14, 2013 at 06:37:29PM +0200, Lukas Czerner wrote:
-> > We're doing to get rid of ext4_discard_partial_page_buffers() since it is
-> > duplicating some code and also partially duplicating work of
-> > truncate_pagecache_range(), moreover the old implementation was much
-> > clearer.
-> > 
-> > Now when the truncate_inode_pages_range() can handle truncating non page
-> > aligned regions we can use this to invalidate and zero out block aligned
-> > region of the punched out range and then use ext4_block_truncate_page()
-> > to zero the unaligned blocks on the start and end of the range. This
-> > will greatly simplify the punch hole code. Moreover after this commit we
-> > can get rid of the ext4_discard_partial_page_buffers() completely.
-> > 
-> > We also introduce function ext4_prepare_punch_hole() to do come common
-> > operations before we attempt to do the actual punch hole on
-> > indirect or extent file which saves us some code duplication.
-> > 
-> > This has been tested on ppc64 with 1k block size with fsx and xfstests
-> > without any problems.
-> > 
-> > Signed-off-by: Lukas Czerner <lczerner@redhat.com>
-> 
-> Hi Lukas,
-> 
-> I've been seeing xfstests failures on test generic/300 in nojournal
-> mode.
-> 
-> BEGIN TEST: Ext4 4k block w/ no journal Thu Jun 13 22:38:47 EDT 2013
-> Device: /dev/vdb
-> mk2fs options: -q -O ^has_journal
-> mount options: -o block_validity,noload
-> FSTYP         -- ext4
-> PLATFORM      -- Linux/i686 candygram 3.10.0-rc2-00477-g1e1cad7
-> MKFS_OPTIONS  -- -q -O ^has_journal /dev/vdc
-> MOUNT_OPTIONS -- -o acl,user_xattr -o block_validity,noload /dev/vdc /vdc
-> 
-> generic/300		[20:42:18][  116.877278] fio (3320) used greatest stack depth: 5580 bytes left
-> [  116.967122] fio (3321) used greatest stack depth: 5560 bytes left
-> [  117.573861] fio (3325) used greatest stack depth: 5504 bytes left
->  [20:44:01] [failed, exit status 1] - output mismatch (see /root/xfstests/results/generic/300.out.bad)
->     --- tests/generic/300.out	 2013-06-04 22:42:55.000000000 -0400
->     +++ /root/xfstests/results/generic/300.out.bad	       2013-06-13 20:44:01.306666665 -0400
->     @@ -2,3 +2,4 @@
->      
->      Run fio with random aio-dio pattern
->      
->     +_check_generic_filesystem: filesystem on /dev/vdc is inconsistent (see /root/xfstests/results/generic/300.full)
->      ...
->      (Run 'diff -u tests/generic/300.out /root/xfstests/results/generic/300.out.bad' to see the entire diff)
-> 
-> It bisects down to this patch, and if I take the dev branch, and
-> revert patches #15 through #19 in this series, the problem goes away.
-> 
-> Can you investigate and recommend a better fix?
+I don't think this can be found in 3.10-rc1 ~ 3.10-rc5. ;-) 
+Since Tejun's patchset commit 839a8e86("writeback: replace 
+custom worker pool implementation with unbound workqueue")
+merged, just one caller in fs/fs-writeback.c now. 
 
-Hi Ted,
+>Have you tested this at all?
+>
 
-I'll take a look at this. Thanks for letting me know.
+I test them all against 3.10-rc5. ;-)
 
--Lukas
-
-> 
-> Thanks,
-> 
-> 					- Ted
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-ext4" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> 
+>> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+>> ---
+>>  fs/fs-writeback.c         | 2 +-
+>>  include/linux/writeback.h | 1 -
+>>  2 files changed, 1 insertion(+), 2 deletions(-)
+>> 
+>> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+>> index 3be5718..f892dec 100644
+>> --- a/fs/fs-writeback.c
+>> +++ b/fs/fs-writeback.c
+>> @@ -959,7 +959,7 @@ static long wb_check_old_data_flush(struct bdi_writeback *wb)
+>>  /*
+>>   * Retrieve work items and do the writeback they describe
+>>   */
+>> -long wb_do_writeback(struct bdi_writeback *wb, int force_wait)
+>> +static long wb_do_writeback(struct bdi_writeback *wb, int force_wait)
+>>  {
+>>  	struct backing_dev_info *bdi = wb->bdi;
+>>  	struct wb_writeback_work *work;
+>> diff --git a/include/linux/writeback.h b/include/linux/writeback.h
+>> index 579a500..e27468e 100644
+>> --- a/include/linux/writeback.h
+>> +++ b/include/linux/writeback.h
+>> @@ -94,7 +94,6 @@ int try_to_writeback_inodes_sb_nr(struct super_block *, unsigned long nr,
+>>  void sync_inodes_sb(struct super_block *);
+>>  long writeback_inodes_wb(struct bdi_writeback *wb, long nr_pages,
+>>  				enum wb_reason reason);
+>> -long wb_do_writeback(struct bdi_writeback *wb, int force_wait);
+>>  void wakeup_flusher_threads(long nr_pages, enum wb_reason reason);
+>>  void inode_wait_for_writeback(struct inode *inode);
+>>  
+>> -- 
+>> 1.8.1.2
+>> 
+>
+>-- 
+>Michal Hocko
+>SUSE Labs
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
