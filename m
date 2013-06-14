@@ -1,176 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id E67226B0033
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 20:21:29 -0400 (EDT)
-Date: Fri, 14 Jun 2013 09:21:32 +0900
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 333896B0033
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 20:32:10 -0400 (EDT)
+Date: Fri, 14 Jun 2013 09:32:13 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 4/8] vrange: Clear volatility on new mmaps
-Message-ID: <20130614002132.GC4533@bbox>
-References: <1371010971-15647-1-git-send-email-john.stultz@linaro.org>
- <1371010971-15647-5-git-send-email-john.stultz@linaro.org>
- <20130613062815.GB5209@bbox>
- <51BA593E.9000102@linaro.org>
+Subject: Re: Change soft-dirty interface?
+Message-ID: <20130614003213.GD4533@bbox>
+References: <20130613015329.GA3894@bbox>
+ <51B98C9A.8020602@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51BA593E.9000102@linaro.org>
+In-Reply-To: <51B98C9A.8020602@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Dhaval Giani <dgiani@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Pavel Emelyanov <xemul@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-mm@kvack.org
 
-Hello John,
+Hello Pavel,
 
-On Thu, Jun 13, 2013 at 04:43:58PM -0700, John Stultz wrote:
-> On 06/12/2013 11:28 PM, Minchan Kim wrote:
-> >Hey John,
-> >
-> >On Tue, Jun 11, 2013 at 09:22:47PM -0700, John Stultz wrote:
-> >>At lsf-mm, the issue was brought up that there is a precedence with
-> >>interfaces like mlock, such that new mappings in a pre-existing range
-> >>do no inherit the mlock state.
-> >>
-> >>This is mostly because mlock only modifies the existing vmas, and so
-> >>any new mmaps create new vmas, which won't be mlocked.
-> >>
-> >>Since volatility is not stored in the vma (for good cause, specfically
-> >>as we'd have to have manage file volatility differently from anonymous
-> >>and we're likely to manage volatility on small chunks of memory, which
-> >>would cause lots of vma splitting and churn), this patch clears volatilty
-> >>on new mappings, to ensure that we don't inherit volatility if memory in
-> >>an existing volatile range is unmapped and then re-mapped with something
-> >>else.
-> >>
-> >>Thus, this patch forces any volatility to be cleared on mmap.
-> >If we have lots of node on vroot but it doesn't include newly mmmaping
-> >vma range, it's purely unnecessary cost and that's never what we want.
-> >
-> >>XXX: We expect this patch to be not well loved by mm folks, and are open
-> >>to alternative methods here. Its more of a place holder to address
-> >>the issue from lsf-mm and hopefully will spur some further discussion.
-> >Another idea is we can add "bool is_vrange" in struct vm_area_struct.
-> >It is protected by vrange_lock. The scenario is following as,
-> >
-> >When do_vrange is called with VRANGE_VOLATILE, it iterates vmas
-> >and mark the vma->is_vrange to true. So, we can avoid tree traversal
-> >if the is_vrange is false when munmap is called and newly mmaped vma
-> >doesn't need to clear any volatility.
+On Thu, Jun 13, 2013 at 01:10:50PM +0400, Pavel Emelyanov wrote:
+> On 06/13/2013 05:53 AM, Minchan Kim wrote:
+> > Hi all, 
+> > 
+> > Sorry for late interrupting to promote patchset to the mainline.
+> > I'd like to discuss our usecase so I'd like to change per-process
+> > interface with per-range interface.
+> > 
+> > Our usecase is following as,
+> > 
+> > A application allocates a big buffer(A) and makes backup buffer(B)
+> > for it and copy B from A.
+> > Let's assume A consists of subranges (A-1, A-2, A-3, A-4).
+> > As time goes by, application can modify anywhere of A.
+> > In this example, let's assume A-1 and A-2 are modified.
+> > When the time happen, we compare A-1 with B-1 to make
+> > diff of the range(On every iteration, we don't need all range's diff by design)
+> > and do something with diff, then we'd like to remark only the A-1 with
+> > soft-dirty, NOT A's all range of the process to track the A-1's
+> > further difference in future while keeping dirty information (A-2, A-3, A-4)
+> > because we will make A-2's diff in next iteration.
+> > 
+> > We can't do it by existing interface.
 > 
-> We could look further into this approach if folks think its the best
-> way to go. Though it has the downside of having the split the vmas
-> when we're dealing with a large number of smallish objects. Also
+> So you need to track changes not in the whole range, but in sub-ranges.
+> OK.
 
-We don't need to split vma, which I don't really want.
-I meant followig as
-
-1)
-
-0x100000                                        0x10000000
-|                       VMA : isvrange = false  |
-
-
-2) vrange(0x200000, 0x100000, VRANGE_VOLATILE)
-
-
-0x100000                                        0x10000000
-|                       VMA : isvrange = true   |
-
-
-        vroot
-       /
-   node 1
-    
-2) vrange(0x400000, 0x100000, VRANGE_VOLATILE)
-
-0x100000                                        0x10000000
-|                       VMA : isvrange = true   |
-
-
-        vroot
-       /     \
-   node 1  node 2
-
-
-3) unmap(0x400000, 0x100000, VRANGE_NOVOLATILE)
-
-sys_munmap:
-
-if (vma->is_vrange) {
-        vrange_clear(0x400000, 0x400000 + 0x100000 -1); 
-        if (vma_vrange_all_clear(vma)
-                vma->isvrange = false;
-}
-
-0x100000                                        0x10000000
-|                       VMA : isvrange = true   |
-
-        vroot
-       /    
-   node 1
-
-
-3) unmap(0x200000, 0x100000, VRANGE_NOVOLATILE)
-
-sys_munmap:
-
-if (vma->is_vrange) {
-        vrange_clear(0x200000, 0x200000 + 0x100000 -1); 
-        if (vma_vrange_all_clear(vma)
-                vma->isvrange = false;
-}
-
-0x100000                                        0x10000000
-|                       VMA : isvrange = false  |
-
-        vroot
-       /    \
-
-
-4) purging path
-
-bool really_vrange_page(page *page)
-{
-        
-        return __vrange_address(vroot, startofpage, endofpage);
-}
-
-shrink_page_list
-        ..
-        ..
-
-        vma = rmap_from_page(page);
-        if (vma->is_vrange) {
-                /*
-                 * vma's is_vrange could have false positive
-                 * so that we should check it.
-                 */
-                if (really_vrange_page(page))
-                        purge_page(page);
-        }
-        ..
-        ..
-
-So we can reduce unnecessary vroot traverse without vma splitting.
-
-> we'd be increasing the vma_struct size for everyone, even if no one
-> is using volatile ranges, which may be a bigger concern.
-
-
-I think vma is not a sensitive about size and historically, we have
-been added a variable easily. Of course, another ideas which don't
-need to increase vma size are welcome but IMHO, it'a good compromise
-between performance and memoryfootprint.
+Right.
 
 > 
-> Also it means we'd be managing anonymous and file volatility with
-> different structures (though that's not the end of the world).
+> > So, I'd like to add [addr, len] argument with using proc
+> > 
+> >     echo 4 0x100000 0x3000 > /proc/self/clear_refs
+> > 
+> > It doesn't break anything but not sure everyone like the interface
+> > because recently I heard from akpm following comment.
+> > 
+> >         https://lkml.org/lkml/2013/5/21/529
+> > 
+> > Although per-process reclaim is another story with this,
+> > I feel he seems to hate doing something on proc interface with
+> > /proc/pid/maps like above range parameter.
+> > 
+> > If it's not allowed, another approach should be new system call.
+> > 
+> >         int sys_softdirty(pid_t pid, void *addr, size_t len);
+> 
+> This looks like existing sys_madvise() one.
 
-volatility still is kept in vrange->purged.
-Do I miss something?
+Except pid part. It is added by your purpose, which external task
+can control any process.
 
 > 
-> thanks
-> -john
+> > If we approach new system call, we don't need to maintain current
+> > proc interface and it would be very handy to get a information
+> > without pagemap (open/read/close) so we can add a parameter to
+> > get a dirty information easily.
+> > 
+> >         int sys_softdirty(pid_t pid, void *addr, size_t len, unsigned char *vec)
+> > 
+> > What do you think about it?
+> > 
+> 
+> This is OK for me, though there's another issue with this API I'd like
+> to mention -- consider your app is doing these tricks with soft-dirty
+> and at the same time CRIU tools live-migrate it using the soft-dirty bits
+> to optimize the freeze time.
+> 
+> In that case soft-dirty bits would be in wrong state for both -- you app
+> and CRIU, but with the proc API we could compare the ctime-s of the 
+> clear_refs file and find out, that someone spoiled the soft-dirty state
+> from last time we messed with it and handle it somehow (copy all the memory
+> in the worst case). Can we somehow handle this with your proposal?
+
+Good point I didn't think over that.
+A simple idea popped from my mind is we can use read/write lock
+so if pid is equal to calling process's one or pid is NULL,
+we use read side lock, which can allow marking soft-dirty 
+several vmas with parallel. And pid is not equal to calling
+process's one, the API should try to hold write-side lock
+then, if it's fail, the API should return EAGAIN so that CRIU
+can progress other processes and retry it after a while.
+Of course, it would make live-lock so that sys_softdirty might
+need another argument like "int block".
+
+> 
+> Thanks,
+> Pavel
 > 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
