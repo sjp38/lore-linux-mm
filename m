@@ -1,44 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 3FA5B6B0033
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 01:42:16 -0400 (EDT)
-Message-ID: <51BAADE8.2040501@cn.fujitsu.com>
-Date: Fri, 14 Jun 2013 13:45:12 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [Part3 PATCH v2 2/4] mem-hotplug: Skip LOCAL_NODE_DATA pages
- in memory offline procedure.
-References: <1371128636-9027-1-git-send-email-tangchen@cn.fujitsu.com> <1371128636-9027-3-git-send-email-tangchen@cn.fujitsu.com> <51B9FE8E.9000109@intel.com>
-In-Reply-To: <51B9FE8E.9000109@intel.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 4AE5F6B0033
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 03:30:59 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Fri, 14 Jun 2013 17:21:38 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 289A32CE804A
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 17:30:51 +1000 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5E7GEN846137350
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 17:16:15 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5E7UnFj027732
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 17:30:49 +1000
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: [PATCH 1/8] mm/writeback: fix wb_do_writeback exported unsafely
+Date: Fri, 14 Jun 2013 15:30:34 +0800
+Message-Id: <1371195041-26654-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Fengguang Wu <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Andrew Shewmaker <agshew@gmail.com>, Jiri Kosina <jkosina@suse.cz>, Namjae Jeon <linkinjeon@gmail.com>, Jan Kara <jack@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Hi Dave,
+There is just one caller in fs-writeback.c call wb_do_writeback and
+current codes unnecessary export it in header file, this patch fix
+it by changing wb_do_writeback to static function.
 
-On 06/14/2013 01:17 AM, Dave Hansen wrote:
-> On 06/13/2013 06:03 AM, Tang Chen wrote:
->> +static inline bool is_local_node_data(struct page *page)
->> +{
->> +	return (unsigned long)page->lru.next == LOCAL_NODE_DATA;
->> +}
->
-> page->lru is already in a union.  Could you please just add a new entry
-> to the union with a nice associated comment instead of reusing it this way?
->
+Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+---
+ fs/fs-writeback.c         | 2 +-
+ include/linux/writeback.h | 1 -
+ 2 files changed, 1 insertion(+), 2 deletions(-)
 
-You mean add a new entry to the union in page structure ?
-
-Hum, seems a good idea. :)
-
-And as you know, NODE_INFO, SECTION_INFO, ... , they all reuse page->lru.
-So I need to modify the associated code too. This is easy to do, and I can
-do it in the next version soon.
-
-Thanks. :)
+diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+index 3be5718..f892dec 100644
+--- a/fs/fs-writeback.c
++++ b/fs/fs-writeback.c
+@@ -959,7 +959,7 @@ static long wb_check_old_data_flush(struct bdi_writeback *wb)
+ /*
+  * Retrieve work items and do the writeback they describe
+  */
+-long wb_do_writeback(struct bdi_writeback *wb, int force_wait)
++static long wb_do_writeback(struct bdi_writeback *wb, int force_wait)
+ {
+ 	struct backing_dev_info *bdi = wb->bdi;
+ 	struct wb_writeback_work *work;
+diff --git a/include/linux/writeback.h b/include/linux/writeback.h
+index 579a500..e27468e 100644
+--- a/include/linux/writeback.h
++++ b/include/linux/writeback.h
+@@ -94,7 +94,6 @@ int try_to_writeback_inodes_sb_nr(struct super_block *, unsigned long nr,
+ void sync_inodes_sb(struct super_block *);
+ long writeback_inodes_wb(struct bdi_writeback *wb, long nr_pages,
+ 				enum wb_reason reason);
+-long wb_do_writeback(struct bdi_writeback *wb, int force_wait);
+ void wakeup_flusher_threads(long nr_pages, enum wb_reason reason);
+ void inode_wait_for_writeback(struct inode *inode);
+ 
+-- 
+1.8.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
