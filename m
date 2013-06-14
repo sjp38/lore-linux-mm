@@ -1,102 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 7A22F6B0033
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 09:18:00 -0400 (EDT)
-Message-ID: <51BB1802.8050108@yandex-team.ru>
-Date: Fri, 14 Jun 2013 17:17:54 +0400
-From: Roman Gushchin <klamm@yandex-team.ru>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 68D166B0033
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 09:53:20 -0400 (EDT)
+Date: Fri, 14 Jun 2013 15:53:16 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] memcg: make cache index determination more robust
+Message-ID: <20130614135316.GE10084@dhcp22.suse.cz>
+References: <1371069808-1172-1-git-send-email-glommer@openvz.org>
+ <20130613163849.GL23070@dhcp22.suse.cz>
+ <20130614110145.GB4292@localhost.localdomain>
 MIME-Version: 1.0
-Subject: [PATCH] slub: Avoid direct compaction if possible
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130614110145.GB4292@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cl@linux-foundation.org, penberg@kernel.org, mpm@selenic.com, akpm@linux-foundation.org, mgorman@suse.de, rientjes@google.com, glommer@parallels.com, hannes@cmpxchg.org, minchan@kernel.org, jiang.liu@huawei.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Glauber Costa <glommer@gmail.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Glauber Costa <glommer@openvz.org>, Johannes Weiner <hannes@cmpxchg.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Slub tries to use contiguous pages to fasten allocations and to minimize
-management overhead. If necessary, it can easily fall back to the minimum
-order allocations.
+On Fri 14-06-13 15:01:45, Glauber Costa wrote:
+> On Thu, Jun 13, 2013 at 06:38:49PM +0200, Michal Hocko wrote:
+> > On Wed 12-06-13 16:43:28, Glauber Costa wrote:
+> > > I caught myself doing something like the following outside memcg core:
+> > > 
+> > > 	memcg_id = -1;
+> > > 	if (memcg && memcg_kmem_is_active(memcg))
+> > > 		memcg_id = memcg_cache_id(memcg);
+> > > 
+> > > to be able to handle all possible memcgs in a sane manner. In particular, the
+> > > root cache will have kmemcg_id = -1 (just because we don't call memcg_kmem_init
+> > > to the root cache since it is not limitable). We have always coped with that by
+> > > making sure we sanitize which cache is passed to memcg_cache_id. Although this
+> > > example is given for root, what we really need to know is whether or not a
+> > > cache is kmem active.
+> > > 
+> > > But outside the memcg core testing for root, for instance, is not trivial since
+> > > we don't export mem_cgroup_is_root. I ended up realizing that this tests really
+> > > belong inside memcg_cache_id. This patch moves the tests inside memcg_cache_id
+> > > and make sure it always return a meaningful value.
+> > 
+> > This is quite a mess, to be honest. Some callers test/require
+> > memcg_can_account_kmem others !p->is_root_cache. Can we have that
+> > unified, please?
+> > 
+> > Also the return value of this function is used mostly as an index to
+> > memcg_params->memcg_caches array so returning -1 sounds like a bad idea.
+> > Few other cases use it as a real id. Maybe we need to split this up.
+> > 
+> > Pulling the check inside the function is OK but can we settle with a
+> > common pattern here, pretty please?
+> > 
+> 
+> We have been through the array index discussion before. It is used as
+> an array index only in contexts where we are absolutely sure we are
+> dealing with a memcg that is kmem limited. Those are usually contexts
+> in which in case it is not, we would have to BUG anyway.
+>
+> If you prefer, though, that we always BUG on id == -1 in those
+> scenarios, for consistency, this is understandable and I will prepare
+> a patch for this.
 
-Slub tries to allocate contiguous pages even if memory is fragmented and
-there are no free contiguous pages. In this case it calls direct compaction
-to allocate contiguous page. Compaction requires the taking of some heavily
-contended locks (e.g. zone locks). So, running compaction (direct and using
-kswapd) simultaneously on several processors can cause serious performance
-issues.
-
-It's possible to avoid such problems (or at least to make them less probable)
-by avoiding direct compaction. If it's not possible to allocate a contiguous
-page without compaction, slub will fall back to order 0 page(s). In this case
-kswapd will be woken to perform asynchronous compaction. So, slub can return
-to default order allocations as soon as memory will be de-fragmented.
-
-Signed-off-by: Roman Gushchin <klamm@yandex-team.ru>
----
-  include/linux/gfp.h | 4 +++-
-  mm/page_alloc.c     | 3 +++
-  mm/slub.c           | 3 ++-
-  3 files changed, 8 insertions(+), 2 deletions(-)
-
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 0f615eb..073a90a 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -35,6 +35,7 @@ struct vm_area_struct;
-  #define ___GFP_NO_KSWAPD	0x400000u
-  #define ___GFP_OTHER_NODE	0x800000u
-  #define ___GFP_WRITE		0x1000000u
-+#define ___GFP_NOCOMPACT	0x2000000u
-  /* If the above are modified, __GFP_BITS_SHIFT may need updating */
-
-  /*
-@@ -92,6 +93,7 @@ struct vm_area_struct;
-  #define __GFP_OTHER_NODE ((__force gfp_t)___GFP_OTHER_NODE) /* On behalf of other node */
-  #define __GFP_KMEMCG	((__force gfp_t)___GFP_KMEMCG) /* Allocation comes from a memcg-accounted resource */
-  #define __GFP_WRITE	((__force gfp_t)___GFP_WRITE)	/* Allocator intends to dirty page */
-+#define __GFP_NOCOMPACT ((__force gfp_t)___GFP_NOCOMPACT) /* Avoid direct compaction */
-
-  /*
-   * This may seem redundant, but it's a way of annotating false positives vs.
-@@ -99,7 +101,7 @@ struct vm_area_struct;
-   */
-  #define __GFP_NOTRACK_FALSE_POSITIVE (__GFP_NOTRACK)
-
--#define __GFP_BITS_SHIFT 25	/* Room for N __GFP_FOO bits */
-+#define __GFP_BITS_SHIFT 26	/* Room for N __GFP_FOO bits */
-  #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
-
-  /* This equals 0, but use constants in case they ever change */
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index c3edb62..292562f 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2482,6 +2482,9 @@ rebalance:
-  	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
-  		goto nopage;
-
-+	if (order && (gfp_mask & __GFP_NOCOMPACT))
-+		goto nopage;
-+
-  	/*
-  	 * Try direct compaction. The first pass is asynchronous. Subsequent
-  	 * attempts after direct reclaim are synchronous
-diff --git a/mm/slub.c b/mm/slub.c
-index 57707f0..a38733b 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1287,7 +1287,8 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
-  	 * Let the initial higher-order allocation fail under memory pressure
-  	 * so we fall-back to the minimum order allocation.
-  	 */
--	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY) & ~__GFP_NOFAIL;
-+	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY | __GFP_NOCOMPACT) &
-+		~__GFP_NOFAIL;
-
-  	page = alloc_slab_page(alloc_gfp, node, oo);
-  	if (unlikely(!page)) {
+I think it would even make sense to have two things memcg_cache_id - the
+same we have now + your condition enhancement - and memcg_cache_idx
+which uses memcg_cache_id internally and BUG_ON(memcg_cache_id()==-1).
 -- 
-1.8.1.2
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
