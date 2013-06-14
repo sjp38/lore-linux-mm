@@ -1,15 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 8FDD06B0033
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 21:57:30 -0400 (EDT)
-Message-ID: <51BA77A6.70404@huawei.com>
-Date: Fri, 14 Jun 2013 09:53:42 +0800
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 865AA6B0033
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 21:57:38 -0400 (EDT)
+Message-ID: <51BA7794.2000305@huawei.com>
+Date: Fri, 14 Jun 2013 09:53:24 +0800
 From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Subject: [PATCH v4 1/9] Revert "memcg: avoid dangling reference count in creation
- failure."
-References: <51BA7794.2000305@huawei.com>
-In-Reply-To: <51BA7794.2000305@huawei.com>
+Subject: [PATCH v4 0/9] memcg: make memcg's life cycle the same as cgroup
 Content-Type: text/plain; charset="GB2312"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,35 +14,65 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>
 
-From: Michal Hocko <mhocko@suse.cz>
+Hi Andrew,
 
-This reverts commit e4715f01be697a3730c78f8ffffb595591d6a88c
+All the patches in this patchset has been acked by Michal and Kamezawa-san, and
+it's ready to be merged into -mm.
 
-mem_cgroup_put is hierarchy aware so mem_cgroup_put(memcg) already drops
-an additional reference from all parents so the additional
-mem_cgrroup_put(parent) potentially causes use-after-free.
+I have another pending patchset that kills css_id, which depends on this one.
 
-Cc: <stable@vger.kernel.org> # 3.9+
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
-Signed-off-by: Li Zefan <lizefan@huawei.com>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- mm/memcontrol.c | 2 --
- 1 file changed, 2 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 2e851f4..0bacc0d 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -6332,8 +6332,6 @@ mem_cgroup_css_online(struct cgroup *cont)
- 		 * call __mem_cgroup_free, so return directly
- 		 */
- 		mem_cgroup_put(memcg);
--		if (parent->use_hierarchy)
--			mem_cgroup_put(parent);
- 	}
- 	return error;
- }
+Changes since v3:
+- rebased against mmotm 2013-06-06-16-19
+- changed wmb() to smp_wmb() and moved it to memcg_kmem_mark_dead() and added
+  more comment.
+
+Changes since v2:
+
+- rebased against 3.10-rc1
+- collected some acks
+- the two memcg bug fixes has been merged into mainline
+- the cgroup core patch has been merged into mainline
+
+Changes since v1:
+
+- wrote better changelog and added acked-by and reviewed-by tags
+- revised some comments as suggested by Michal
+- added a wmb() in kmem_cgroup_css_offline(), pointed out by Michal
+- fixed a bug which causes a css_put() never be called
+
+
+Now memcg has its own refcnt, so when a cgroup is destroyed, the memcg can
+still be alive. This patchset converts memcg to always use css_get/put, so
+memcg will have the same life cycle as its corresponding cgroup.
+
+The historical reason that memcg didn't use css_get in some cases, is that
+cgroup couldn't be removed if there're still css refs. The situation has
+changed so that rmdir a cgroup will succeed regardless css refs, but won't
+be freed until css refs goes down to 0.
+
+Since the introduction of kmemcg, the memcg refcnt handling grows even more
+complicated. This patchset greately simplifies memcg's life cycle management.
+
+Also, after those changes, we can convert memcg to use cgroup->id, and then
+we can kill css_id.
+
+Li Zefan (7):
+  memcg: use css_get() in sock_update_memcg()
+  memcg: don't use mem_cgroup_get() when creating a kmemcg cache
+  memcg: use css_get/put when charging/uncharging kmem
+  memcg: use css_get/put for swap memcg
+  memcg: don't need to get a reference to the parent
+  memcg: kill memcg refcnt
+  memcg: don't need to free memcg via RCU or workqueue
+
+Michal Hocko (2):
+  Revert "memcg: avoid dangling reference count in creation failure."
+  memcg, kmem: fix reference count handling on the error path
+
+ mm/memcontrol.c | 208 +++++++++++++++++++++-----------------------------------
+ 1 file changed, 77 insertions(+), 131 deletions(-)
+
 -- 
 1.8.0.2
 
