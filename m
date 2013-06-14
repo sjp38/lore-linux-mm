@@ -1,9 +1,9 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Subject: Re: [PATCH 1/8] mm/writeback: fix wb_do_writeback exported unsafely
-Date: Fri, 14 Jun 2013 17:41:05 +0800
-Message-ID: <28438.920810777$1371202893@news.gmane.org>
+Date: Fri, 14 Jun 2013 17:14:07 +0800
+Message-ID: <26005.2119302147$1371206019@news.gmane.org>
 References: <1371195041-26654-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <20130614093121.GB28555@hli22-desktop>
+ <20130614090217.GA7574@dhcp22.suse.cz>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -11,48 +11,54 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1UnQVW-00048U-Tl
-	for glkm-linux-mm-2@m.gmane.org; Fri, 14 Jun 2013 11:41:23 +0200
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 364566B0036
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 05:41:18 -0400 (EDT)
+	id 1UnRJx-00025f-JE
+	for glkm-linux-mm-2@m.gmane.org; Fri, 14 Jun 2013 12:33:29 +0200
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 188E56B0033
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 06:33:15 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Fri, 14 Jun 2013 15:06:51 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id A7A0C125805B
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 15:10:06 +0530 (IST)
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5E9fCMr23658678
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 15:11:13 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5E9f6CY021278
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 09:41:08 GMT
+	Fri, 14 Jun 2013 19:12:20 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 029C22CE81FB
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 19:14:11 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5E8xY091311116
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 18:59:34 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5E9E9IO004503
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 19:14:10 +1000
 Content-Disposition: inline
-In-Reply-To: <20130614093121.GB28555@hli22-desktop>
+In-Reply-To: <20130614090217.GA7574@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Haicheng Li <haicheng.li@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Fengguang Wu <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Andrew Shewmaker <agshew@gmail.com>, Jiri Kosina <jkosina@suse.cz>, Namjae Jeon <linkinjeon@gmail.com>, Jan Kara <jack@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Fengguang Wu <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Andrew Shewmaker <agshew@gmail.com>, Jiri Kosina <jkosina@suse.cz>, Namjae Jeon <linkinjeon@gmail.com>, Jan Kara <jack@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jun 14, 2013 at 05:31:21PM +0800, Haicheng Li wrote:
->
->On Fri, Jun 14, 2013 at 03:30:34PM +0800, Wanpeng Li wrote:
+On Fri, Jun 14, 2013 at 11:02:17AM +0200, Michal Hocko wrote:
+>On Fri 14-06-13 15:30:34, Wanpeng Li wrote:
 >> There is just one caller in fs-writeback.c call wb_do_writeback and
 >> current codes unnecessary export it in header file, this patch fix
 >> it by changing wb_do_writeback to static function.
->> 
+>
+>So what?
+>
+>Besides that git grep wb_do_writeback tells that 
+>mm/backing-dev.c:                       wb_do_writeback(me, 0);
+>
+
+I don't think this can be found in 3.10-rc1 ~ 3.10-rc5. ;-) 
+Since Tejun's patchset commit 839a8e86("writeback: replace 
+custom worker pool implementation with unbound workqueue")
+merged, just one caller in fs/fs-writeback.c now. 
+
+>Have you tested this at all?
+>
+
+I test them all against 3.10-rc5. ;-)
+
 >> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->
->Hi Wanpeng,
->
->A simliar patch has been merged in -next tree with commit#: 836f29bbb0f7a08dbdf1ed3ee704ef8aea81e56f
->
->BTW, actually this should have nothing to do with safety, just unnecessary to export it globally.
-
-Oh, I miss your commit, anyway, good to see your work. ;-)
-
 >> ---
 >>  fs/fs-writeback.c         | 2 +-
 >>  include/linux/writeback.h | 1 -
@@ -86,11 +92,16 @@ Oh, I miss your commit, anyway, good to see your work. ;-)
 >> -- 
 >> 1.8.1.2
 >> 
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
+>-- 
+>Michal Hocko
+>SUSE Labs
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
