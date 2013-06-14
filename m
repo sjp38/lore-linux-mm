@@ -1,45 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 42F476B0033
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2013 23:46:46 -0400 (EDT)
-In-Reply-To: 
-Subject: Linux error
-Message-ID: <OF00AB313C.BC4D6194-ON48257B8A.001435F8-48257B8A.00143611@LocalDomain>
-Date: Fri, 14 Jun 2013 11:40:45 +0800
-From: Mohd.Izhar@mesiniaga.com.my
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/html;
-	charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id AC4466B0033
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 01:05:47 -0400 (EDT)
+Message-ID: <51BAA557.7060501@cn.fujitsu.com>
+Date: Fri, 14 Jun 2013 13:08:39 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-References: 
-MIME-Version: 1.0
+Subject: Re: [Part1 PATCH v5 21/22] x86, mm: Make init_mem_mapping be able
+ to be called several times
+References: <1371128589-8953-1-git-send-email-tangchen@cn.fujitsu.com> <1371128589-8953-22-git-send-email-tangchen@cn.fujitsu.com> <aad34de7-8ff7-442d-ad8a-bed2a6e3edea@email.android.com> <CAE9FiQXjg1zZB8veUHH2u9T5G1X8VMdMyY528YDhJtsFjKPxPQ@mail.gmail.com>
+In-Reply-To: <CAE9FiQXjg1zZB8veUHH2u9T5G1X8VMdMyY528YDhJtsFjKPxPQ@mail.gmail.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Yinghai Lu <yinghai@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Thomas Renninger <trenn@suse.de>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, Rik van Riel <riel@redhat.com>, jweiner@redhat.com, Prarit Bhargava <prarit@redhat.com>, the arch/x86 maintainers <x86@kernel.org>, linux-doc@vger.kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, Jacob Shin <jacob.shin@amd.com>
 
-<FONT face=3D"Default Sans Serif,Verdana,Arial,Helvetica,sans-serif" size=
-=3D2>Hi<div><br></div><div>I have linux problem here.</div><div><br></div><=
-div>kernel: [20171960.122815] The scan=5Funevictable=5Fpages sysctl/node-in=
-terface has been disabled for lack of a legitimate use case. &nbsp;If you h=
-ave one, please send an email to linux-mm@kvack.org.</div><div><br></div><d=
-iv>Thank you</div><div><br></div><div>BR Mohd Izhar</div></FONT><font face=
-=3D"sans-serif"><br>
-<br>
-<b>Mesiniaga - Helping Customers Succeed</b><br><br>
+On 06/14/2013 06:47 AM, Yinghai Lu wrote:
+> On Thu, Jun 13, 2013 at 11:35 AM, Konrad Rzeszutek Wilk
+> <konrad.wilk@oracle.com>  wrote:
+>> Tang Chen<tangchen@cn.fujitsu.com>  wrote:
+>>
+>>> From: Yinghai Lu<yinghai@kernel.org>
+>>>
+>>> Prepare to put page table on local nodes.
+>>>
+>>> Move calling of init_mem_mapping() to early_initmem_init().
+>>>
+>>> Rework alloc_low_pages to allocate page table in following order:
+>>>        BRK, local node, low range
+>>>
+>>> Still only load_cr3 one time, otherwise we would break xen 64bit again.
+>>>
+>>
+>>
+>>
+>> Sigh..  Can that comment on Xen be removed please.  The issue was fixed last release  and I believe I already asked to remove that comment as it is not true anymore.
+>
+> Sorry about that again, I thought I removed that already.
 
-Disclaimer:<br><br>
+Sorry I didn't notice that. Will remove it if Yinghai or I resend this 
+patch-set.
 
-"This e-mail (including any attachments) may contain confidential informati=
-on. If you are not the intended recipient, you are hereby notified that any=
- review, distribution, printing, copying or use of this e-mail is strictly =
-prohibited. If you have received this e-mail in error, please notify the se=
-nder or Mesiniaga immediately and delete the original message. Opinions, co=
-nclusions and other information in this e-mail that do not relate to the of=
-ficial business of Mesiniaga and/or its group of companies shall be underst=
-ood as neither given nor endorsed by Mesiniaga and Mesiniaga accepts no res=
-ponsibility for the same. All liability arising from or in connection with =
-computer viruses and/or corrupted e-mails is excluded to the fullest extent=
- permitted by law." <br></font>
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
