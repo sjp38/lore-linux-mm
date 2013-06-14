@@ -1,70 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 299D76B0031
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 15:29:50 -0400 (EDT)
-Received: from /spool/local
-	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Fri, 14 Jun 2013 15:29:49 -0400
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 83BABC90026
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 15:29:44 -0400 (EDT)
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5EJSN5v339542
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 15:28:23 -0400
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5EJSMh0014923
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 13:28:23 -0600
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: [PATCH] MAINTAINERS: add zswap and zbud maintainer
-Date: Fri, 14 Jun 2013 14:28:20 -0500
-Message-Id: <1371238100-4621-1-git-send-email-sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id EF0D26B0031
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 15:55:14 -0400 (EDT)
+Message-ID: <0000013f4441888d-73dc2ac4-08a7-4f84-ba27-72a2840e201f-000000@email.amazonses.com>
+Date: Fri, 14 Jun 2013 19:55:13 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: [3.11 0/4] Sl[auo]b: Patches for 3.11 V1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Mauro Carvalho Chehab <mchehab@redhat.com>, Cesar Eduardo Barros <cesarb@cesarb.net>, "David S. Miller" <davem@davemloft.net>, Hans Verkuil <hans.verkuil@cisco.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-This patch adds maintainer information for zswap and zbud
-into the MAINTAINERS file.
+This patchset contains
 
-Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
----
- MAINTAINERS |   13 +++++++++++++
- 1 file changed, 13 insertions(+)
+1. A patch that allows the compiling of slub without cpu partial support (for the realtime folks)
 
-diff --git a/MAINTAINERS b/MAINTAINERS
-index 8bdd7a7..8c5897e 100644
---- a/MAINTAINERS
-+++ b/MAINTAINERS
-@@ -9011,6 +9011,13 @@ F:	Documentation/networking/z8530drv.txt
- F:	drivers/net/hamradio/*scc.c
- F:	drivers/net/hamradio/z8530.h
- 
-+ZBUD COMPRESSED PAGE ALLOCATOR
-+M:	Seth Jennings <sjenning@linux.vnet.ibm.com>
-+L:	linux-mm@kvack.org
-+S:	Maintained
-+F:	mm/zbud.c
-+F:	include/linux/zbud.h
-+
- ZD1211RW WIRELESS DRIVER
- M:	Daniel Drake <dsd@gentoo.org>
- M:	Ulrich Kunitz <kune@deine-taler.de>
-@@ -9033,6 +9040,12 @@ M:	"Maciej W. Rozycki" <macro@linux-mips.org>
- S:	Maintained
- F:	drivers/tty/serial/zs.*
- 
-+ZSWAP COMPRESSED SWAP CACHING
-+M:	Seth Jennings <sjenning@linux.vnet.ibm.com>
-+L:	linux-mm@kvack.org
-+S:	Maintained
-+F:	mm/zswap.c
-+
- THE REST
- M:	Linus Torvalds <torvalds@linux-foundation.org>
- L:	linux-kernel@vger.kernel.org
--- 
-1.7.9.5
+2. 3 more unification patches that create more common definitions in include/linux/slab.h and
+   get rid of include/linux/slob_def.h.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
