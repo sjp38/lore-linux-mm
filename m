@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 571156B003B
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 49CCD6B003A
 	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 03:31:14 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Fri, 14 Jun 2013 17:20:01 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 78D772CE8053
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 17:31:09 +1000 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5E7V0M932899136
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 17:31:00 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5E7V7SU014905
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 17:31:08 +1000
+	Fri, 14 Jun 2013 12:53:00 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 21C371258043
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 13:00:03 +0530 (IST)
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5E7UvtW21823694
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 13:00:58 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5E7Ur9r016766
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 17:30:54 +1000
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH 7/8] mm/thp: fix doc for transparent huge zero page
-Date: Fri, 14 Jun 2013 15:30:40 +0800
-Message-Id: <1371195041-26654-7-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH 2/8] mm/writeback: remove wb_reason_name
+Date: Fri, 14 Jun 2013 15:30:35 +0800
+Message-Id: <1371195041-26654-2-git-send-email-liwanp@linux.vnet.ibm.com>
 In-Reply-To: <1371195041-26654-1-git-send-email-liwanp@linux.vnet.ibm.com>
 References: <1371195041-26654-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,36 +26,25 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Fengguang Wu <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Andrew Shewmaker <agshew@gmail.com>, Jiri Kosina <jkosina@suse.cz>, Namjae Jeon <linkinjeon@gmail.com>, Jan Kara <jack@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Transparent huge zero page is used during the page fault instead of
-in khugepaged.
-
-# ls /sys/kernel/mm/transparent_hugepage/
-defrag  enabled  khugepaged  use_zero_page
-# ls /sys/kernel/mm/transparent_hugepage/khugepaged/
-alloc_sleep_millisecs  defrag  full_scans  max_ptes_none  pages_collapsed  pages_to_scan  scan_sleep_millisecs
-
-This patch corrects the documentation just like the codes done.
+wb_reason_name is not used any more, this patch remove it.
 
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- Documentation/vm/transhuge.txt | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ include/linux/writeback.h | 1 -
+ 1 file changed, 1 deletion(-)
 
-diff --git a/Documentation/vm/transhuge.txt b/Documentation/vm/transhuge.txt
-index 8785fb8..4a63953 100644
---- a/Documentation/vm/transhuge.txt
-+++ b/Documentation/vm/transhuge.txt
-@@ -120,8 +120,8 @@ By default kernel tries to use huge zero page on read page fault.
- It's possible to disable huge zero page by writing 0 or enable it
- back by writing 1:
+diff --git a/include/linux/writeback.h b/include/linux/writeback.h
+index e27468e..8b5cec4 100644
+--- a/include/linux/writeback.h
++++ b/include/linux/writeback.h
+@@ -51,7 +51,6 @@ enum wb_reason {
  
--echo 0 >/sys/kernel/mm/transparent_hugepage/khugepaged/use_zero_page
--echo 1 >/sys/kernel/mm/transparent_hugepage/khugepaged/use_zero_page
-+echo 0 >/sys/kernel/mm/transparent_hugepage/use_zero_page
-+echo 1 >/sys/kernel/mm/transparent_hugepage/use_zero_page
+ 	WB_REASON_MAX,
+ };
+-extern const char *wb_reason_name[];
  
- khugepaged will be automatically started when
- transparent_hugepage/enabled is set to "always" or "madvise, and it'll
+ /*
+  * A control structure which tells the writeback code what to do.  These are
 -- 
 1.8.1.2
 
