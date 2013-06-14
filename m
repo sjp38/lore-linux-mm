@@ -1,140 +1,221 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 2AFDD6B0031
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id BB44A6B0031
 	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 16:06:38 -0400 (EDT)
-Message-ID: <0000013f444bf700-59d05036-ae10-4667-a61a-bc61bdcf4417-000000@email.amazonses.com>
+Message-ID: <0000013f444bf6e9-d535ba8b-df9e-4053-9ed4-eaba75e2cfd2-000000@email.amazonses.com>
 Date: Fri, 14 Jun 2013 20:06:36 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: [3.11 4/4] Move kmalloc definitions to slab.h
+Subject: [3.11 3/4] Move kmalloc_node functions to common code
 References: <20130614195500.373711648@linux.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-All the kmallocs are mostly doing the same. Unify them.
-
-slob_def.h becomes empty. So remove it.
+The kmalloc_node functions of all slab allcoators are similar now so
+lets move them into slab.h. This requires some function naming changes
+in slob.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
 Index: linux/include/linux/slab.h
 ===================================================================
---- linux.orig/include/linux/slab.h	2013-06-14 14:34:26.148925322 -0500
-+++ linux/include/linux/slab.h	2013-06-14 14:35:12.509741180 -0500
-@@ -4,6 +4,8 @@
-  * (C) SGI 2006, Christoph Lameter
-  * 	Cleaned up and restructured to ease the addition of alternative
-  * 	implementations of SLAB allocators.
-+ * (C) Linux Foundation 2008-2013
-+ *      Unified interface for all slab allocators
-  */
+--- linux.orig/include/linux/slab.h	2013-06-14 13:40:52.424106451 -0500
++++ linux/include/linux/slab.h	2013-06-14 14:45:24.000000000 -0500
+@@ -289,6 +289,38 @@ static __always_inline int kmalloc_index
+ }
+ #endif /* !CONFIG_SLOB */
  
- #ifndef _LINUX_SLAB_H
-@@ -12,6 +14,7 @@
- #include <linux/gfp.h>
- #include <linux/types.h>
- #include <linux/workqueue.h>
-+#include <linux/kmemleak.h>
- 
- 
- /*
-@@ -329,10 +332,71 @@ kmem_cache_alloc_node_trace(struct kmem_
- #include <linux/slub_def.h>
- #endif
- 
--#ifdef CONFIG_SLOB
--#include <linux/slob_def.h>
-+static __always_inline void *
-+kmalloc_order(size_t size, gfp_t flags, unsigned int order)
-+{
-+	void *ret;
++void *__kmalloc(size_t size, gfp_t flags);
++void *kmem_cache_alloc(struct kmem_cache *, gfp_t flags);
 +
-+	flags |= (__GFP_COMP | __GFP_KMEMCG);
-+	ret = (void *) __get_free_pages(flags, order);
-+	kmemleak_alloc(ret, size, 1, flags);
-+	return ret;
-+}
-+
-+#ifdef CONFIG_TRACING
-+extern void *kmalloc_order_trace(size_t size, gfp_t flags, unsigned int order);
++#ifdef CONFIG_NUMA
++void *__kmalloc_node(size_t size, gfp_t flags, int node);
++void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node);
 +#else
-+static __always_inline void *
-+kmalloc_order_trace(size_t size, gfp_t flags, unsigned int order)
++static __always_inline void *__kmalloc_node(size_t size, gfp_t flags, int node)
 +{
-+	return kmalloc_order(size, flags, order);
-+}
- #endif
- 
-+static __always_inline void *kmalloc_large(size_t size, gfp_t flags)
-+{
-+	unsigned int order = get_order(size);
-+	return kmalloc_order_trace(size, flags, order);
++	return __kmalloc(size, flags);
 +}
 +
-+#ifdef CONFIG_TRACING
-+extern void *kmem_cache_alloc_trace(struct kmem_cache *, gfp_t);
-+#else
-+static __always_inline void *kmem_cache_alloc_trace(struct kmem_cache *s,
-+		gfp_t flags)
++static __always_inline void *kmem_cache_alloc_node(struct kmem_cache *s, gfp_t flags, int node)
 +{
 +	return kmem_cache_alloc(s, flags);
 +}
 +#endif
 +
-+/**
-+ * kmalloc - allocate memory
-+ * @size: how many bytes of memory are required.
-+ * @flags: the type of memory to allocate (see kcalloc).
-+ *
-+ * kmalloc is the normal method of allocating memory
-+ * for objects smaller than page size in the kernel.
-+ */
-+static __always_inline void *kmalloc(size_t size, gfp_t flags)
++#ifdef CONFIG_TRACING
++extern void *kmem_cache_alloc_node_trace(struct kmem_cache *s,
++					   gfp_t gfpflags,
++					   int node);
++#else
++static __always_inline void *
++kmem_cache_alloc_node_trace(struct kmem_cache *s,
++			      gfp_t gfpflags,
++			      int node)
 +{
-+	if (__builtin_constant_p(size)) {
-+		if (size > KMALLOC_MAX_CACHE_SIZE)
-+			return kmalloc_large(size, flags);
-+#ifndef CONFIG_SLOB
-+		if (!(flags & GFP_DMA)) {
-+			int index = kmalloc_index(size);
-+
-+			if (!index)
-+				return ZERO_SIZE_PTR;
-+
-+			return kmem_cache_alloc_trace(kmalloc_caches[index],
-+					flags);
-+		}
++	return kmem_cache_alloc_node(s, gfpflags, node);
++}
 +#endif
++
+ #ifdef CONFIG_SLAB
+ #include <linux/slab_def.h>
+ #endif
+@@ -321,6 +353,23 @@ static __always_inline int kmalloc_size(
+ 	return 0;
+ }
+ 
++static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
++{
++#ifndef CONFIG_SLOB
++	if (__builtin_constant_p(size) &&
++		size <= KMALLOC_MAX_CACHE_SIZE && !(flags & SLAB_CACHE_DMA)) {
++		int i = kmalloc_index(size);
++
++		if (!i)
++			return ZERO_SIZE_PTR;
++
++		return kmem_cache_alloc_node_trace(kmalloc_caches[i],
++			       			flags, node);
 +	}
-+	return __kmalloc(size, flags);
++#endif
++	return __kmalloc_node(size, flags, node);
 +}
 +
  /*
-  * Determine size used for the nth kmalloc cache.
-  * return size or 0 if a kmalloc cache for that
-Index: linux/include/linux/slab_def.h
-===================================================================
---- linux.orig/include/linux/slab_def.h	2013-06-14 14:34:26.148925322 -0500
-+++ linux/include/linux/slab_def.h	2013-06-14 14:34:26.144925252 -0500
-@@ -102,44 +102,4 @@ struct kmem_cache {
- 	 */
- };
+  * Setting ARCH_SLAB_MINALIGN in arch headers allows a different alignment.
+  * Intended for arches that get misalignment faults even for 64 bit integer
+@@ -441,36 +490,6 @@ static inline void *kcalloc(size_t n, si
+ 	return kmalloc_array(n, size, flags | __GFP_ZERO);
+ }
  
--#ifdef CONFIG_TRACING
--extern void *kmem_cache_alloc_trace(struct kmem_cache *, gfp_t, size_t);
--#else
--static __always_inline void *
--kmem_cache_alloc_trace(struct kmem_cache *cachep, gfp_t flags, size_t size)
+-#if !defined(CONFIG_NUMA) && !defined(CONFIG_SLOB)
+-/**
+- * kmalloc_node - allocate memory from a specific node
+- * @size: how many bytes of memory are required.
+- * @flags: the type of memory to allocate (see kcalloc).
+- * @node: node to allocate from.
+- *
+- * kmalloc() for non-local nodes, used to allocate from a specific node
+- * if available. Equivalent to kmalloc() in the non-NUMA single-node
+- * case.
+- */
+-static inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+-{
+-	return kmalloc(size, flags);
+-}
+-
+-static inline void *__kmalloc_node(size_t size, gfp_t flags, int node)
+-{
+-	return __kmalloc(size, flags);
+-}
+-
+-void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
+-
+-static inline void *kmem_cache_alloc_node(struct kmem_cache *cachep,
+-					gfp_t flags, int node)
 -{
 -	return kmem_cache_alloc(cachep, flags);
 -}
+-#endif /* !CONFIG_NUMA && !CONFIG_SLOB */
+-
+ /*
+  * kmalloc_track_caller is a special version of kmalloc that records the
+  * calling function of the routine calling it for slab leak tracking instead
+Index: linux/include/linux/slub_def.h
+===================================================================
+--- linux.orig/include/linux/slub_def.h	2013-06-14 13:40:52.424106451 -0500
++++ linux/include/linux/slub_def.h	2013-06-14 14:45:24.000000000 -0500
+@@ -115,9 +115,6 @@ static inline int kmem_cache_cpu_partial
+ #endif
+ }
+ 
+-void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
+-void *__kmalloc(size_t size, gfp_t flags);
+-
+ static __always_inline void *
+ kmalloc_order(size_t size, gfp_t flags, unsigned int order)
+ {
+@@ -185,38 +182,4 @@ static __always_inline void *kmalloc(siz
+ 	return __kmalloc(size, flags);
+ }
+ 
+-#ifdef CONFIG_NUMA
+-void *__kmalloc_node(size_t size, gfp_t flags, int node);
+-void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node);
+-
+-#ifdef CONFIG_TRACING
+-extern void *kmem_cache_alloc_node_trace(struct kmem_cache *s,
+-					   gfp_t gfpflags,
+-					   int node, size_t size);
+-#else
+-static __always_inline void *
+-kmem_cache_alloc_node_trace(struct kmem_cache *s,
+-			      gfp_t gfpflags,
+-			      int node, size_t size)
+-{
+-	return kmem_cache_alloc_node(s, gfpflags, node);
+-}
 -#endif
 -
--static __always_inline void *kmalloc(size_t size, gfp_t flags)
+-static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+-{
+-	if (__builtin_constant_p(size) &&
+-		size <= KMALLOC_MAX_CACHE_SIZE && !(flags & GFP_DMA)) {
+-		int index = kmalloc_index(size);
+-
+-		if (!index)
+-			return ZERO_SIZE_PTR;
+-
+-		return kmem_cache_alloc_node_trace(kmalloc_caches[index],
+-			       flags, node, size);
+-	}
+-	return __kmalloc_node(size, flags, node);
+-}
+-#endif
+-
+ #endif /* _LINUX_SLUB_DEF_H */
+Index: linux/include/linux/slab_def.h
+===================================================================
+--- linux.orig/include/linux/slab_def.h	2013-06-14 13:40:52.424106451 -0500
++++ linux/include/linux/slab_def.h	2013-06-14 14:45:24.000000000 -0500
+@@ -102,9 +102,6 @@ struct kmem_cache {
+ 	 */
+ };
+ 
+-void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
+-void *__kmalloc(size_t size, gfp_t flags);
+-
+ #ifdef CONFIG_TRACING
+ extern void *kmem_cache_alloc_trace(struct kmem_cache *, gfp_t, size_t);
+ #else
+@@ -145,53 +142,4 @@ static __always_inline void *kmalloc(siz
+ 	return __kmalloc(size, flags);
+ }
+ 
+-#ifdef CONFIG_NUMA
+-extern void *__kmalloc_node(size_t size, gfp_t flags, int node);
+-extern void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node);
+-
+-#ifdef CONFIG_TRACING
+-extern void *kmem_cache_alloc_node_trace(struct kmem_cache *cachep,
+-					 gfp_t flags,
+-					 int nodeid,
+-					 size_t size);
+-#else
+-static __always_inline void *
+-kmem_cache_alloc_node_trace(struct kmem_cache *cachep,
+-			    gfp_t flags,
+-			    int nodeid,
+-			    size_t size)
+-{
+-	return kmem_cache_alloc_node(cachep, flags, nodeid);
+-}
+-#endif
+-
+-static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
 -{
 -	struct kmem_cache *cachep;
--	void *ret;
 -
 -	if (__builtin_constant_p(size)) {
 -		int i;
@@ -154,115 +235,123 @@ Index: linux/include/linux/slab_def.h
 -#endif
 -			cachep = kmalloc_caches[i];
 -
--		ret = kmem_cache_alloc_trace(cachep, flags, size);
--
--		return ret;
+-		return kmem_cache_alloc_node_trace(cachep, flags, node, size);
 -	}
--	return __kmalloc(size, flags);
+-	return __kmalloc_node(size, flags, node);
 -}
+-
+-#endif	/* CONFIG_NUMA */
 -
  #endif	/* _LINUX_SLAB_DEF_H */
-Index: linux/include/linux/slub_def.h
-===================================================================
---- linux.orig/include/linux/slub_def.h	2013-06-14 14:34:26.148925322 -0500
-+++ linux/include/linux/slub_def.h	2013-06-14 14:34:26.144925252 -0500
-@@ -12,8 +12,6 @@
- #include <linux/workqueue.h>
- #include <linux/kobject.h>
- 
--#include <linux/kmemleak.h>
--
- enum stat_item {
- 	ALLOC_FASTPATH,		/* Allocation from cpu slab */
- 	ALLOC_SLOWPATH,		/* Allocation by getting a new cpu slab */
-@@ -115,17 +113,6 @@ static inline int kmem_cache_cpu_partial
- #endif
- }
- 
--static __always_inline void *
--kmalloc_order(size_t size, gfp_t flags, unsigned int order)
--{
--	void *ret;
--
--	flags |= (__GFP_COMP | __GFP_KMEMCG);
--	ret = (void *) __get_free_pages(flags, order);
--	kmemleak_alloc(ret, size, 1, flags);
--	return ret;
--}
--
- /**
-  * Calling this on allocated memory will check that the memory
-  * is expected to be in use, and print warnings if not.
-@@ -139,47 +126,4 @@ static inline bool verify_mem_not_delete
- }
- #endif
- 
--#ifdef CONFIG_TRACING
--extern void *
--kmem_cache_alloc_trace(struct kmem_cache *s, gfp_t gfpflags, size_t size);
--extern void *kmalloc_order_trace(size_t size, gfp_t flags, unsigned int order);
--#else
--static __always_inline void *
--kmem_cache_alloc_trace(struct kmem_cache *s, gfp_t gfpflags, size_t size)
--{
--	return kmem_cache_alloc(s, gfpflags);
--}
--
--static __always_inline void *
--kmalloc_order_trace(size_t size, gfp_t flags, unsigned int order)
--{
--	return kmalloc_order(size, flags, order);
--}
--#endif
--
--static __always_inline void *kmalloc_large(size_t size, gfp_t flags)
--{
--	unsigned int order = get_order(size);
--	return kmalloc_order_trace(size, flags, order);
--}
--
--static __always_inline void *kmalloc(size_t size, gfp_t flags)
--{
--	if (__builtin_constant_p(size)) {
--		if (size > KMALLOC_MAX_CACHE_SIZE)
--			return kmalloc_large(size, flags);
--
--		if (!(flags & GFP_DMA)) {
--			int index = kmalloc_index(size);
--
--			if (!index)
--				return ZERO_SIZE_PTR;
--
--			return kmem_cache_alloc_trace(kmalloc_caches[index],
--					flags, size);
--		}
--	}
--	return __kmalloc(size, flags);
--}
--
- #endif /* _LINUX_SLUB_DEF_H */
 Index: linux/include/linux/slob_def.h
 ===================================================================
---- linux.orig/include/linux/slob_def.h	2013-06-14 14:04:09.000000000 -0500
-+++ /dev/null	1970-01-01 00:00:00.000000000 +0000
-@@ -1,17 +0,0 @@
--#ifndef __LINUX_SLOB_DEF_H
--#define __LINUX_SLOB_DEF_H
+--- linux.orig/include/linux/slob_def.h	2013-06-14 13:40:52.424106451 -0500
++++ linux/include/linux/slob_def.h	2013-06-14 14:45:24.000000000 -0500
+@@ -1,24 +1,7 @@
+ #ifndef __LINUX_SLOB_DEF_H
+ #define __LINUX_SLOB_DEF_H
+ 
+-#include <linux/numa.h>
 -
--/*
-- * kmalloc - allocate memory
-- * @size: how many bytes of memory are required.
-- * @flags: the type of memory to allocate (see kcalloc).
-- *
-- * kmalloc is the normal method of allocating memory
-- * in the kernel.
-- */
--static __always_inline void *kmalloc(size_t size, gfp_t flags)
+-void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node);
+-
+-static __always_inline void *kmem_cache_alloc(struct kmem_cache *cachep,
+-					      gfp_t flags)
 -{
--	return __kmalloc_node(size, flags, NUMA_NO_NODE);
+-	return kmem_cache_alloc_node(cachep, flags, NUMA_NO_NODE);
 -}
 -
--#endif /* __LINUX_SLOB_DEF_H */
+-void *__kmalloc_node(size_t size, gfp_t flags, int node);
+-
+-static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+-{
+-	return __kmalloc_node(size, flags, node);
+-}
+-
+-/**
++/*
+  * kmalloc - allocate memory
+  * @size: how many bytes of memory are required.
+  * @flags: the type of memory to allocate (see kcalloc).
+@@ -31,9 +14,4 @@ static __always_inline void *kmalloc(siz
+ 	return __kmalloc_node(size, flags, NUMA_NO_NODE);
+ }
+ 
+-static __always_inline void *__kmalloc(size_t size, gfp_t flags)
+-{
+-	return kmalloc(size, flags);
+-}
+-
+ #endif /* __LINUX_SLOB_DEF_H */
+Index: linux/mm/slab.c
+===================================================================
+--- linux.orig/mm/slab.c	2013-06-14 13:40:52.424106451 -0500
++++ linux/mm/slab.c	2013-06-14 13:40:52.420106378 -0500
+@@ -3681,7 +3681,7 @@ __do_kmalloc_node(size_t size, gfp_t fla
+ 	cachep = kmalloc_slab(size, flags);
+ 	if (unlikely(ZERO_OR_NULL_PTR(cachep)))
+ 		return cachep;
+-	return kmem_cache_alloc_node_trace(cachep, flags, node, size);
++	return kmem_cache_alloc_node_trace(cachep, flags, node);
+ }
+ 
+ #if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_TRACING)
+Index: linux/mm/slob.c
+===================================================================
+--- linux.orig/mm/slob.c	2013-06-14 13:14:08.000000000 -0500
++++ linux/mm/slob.c	2013-06-14 14:44:56.812030812 -0500
+@@ -462,11 +462,11 @@ __do_kmalloc_node(size_t size, gfp_t gfp
+ 	return ret;
+ }
+ 
+-void *__kmalloc_node(size_t size, gfp_t gfp, int node)
++void *__kmalloc(size_t size, gfp_t gfp)
+ {
+-	return __do_kmalloc_node(size, gfp, node, _RET_IP_);
++	return __do_kmalloc_node(size, gfp, NUMA_NO_NODE, _RET_IP_);
+ }
+-EXPORT_SYMBOL(__kmalloc_node);
++EXPORT_SYMBOL(__kmalloc);
+ 
+ #ifdef CONFIG_TRACING
+ void *__kmalloc_track_caller(size_t size, gfp_t gfp, unsigned long caller)
+@@ -534,7 +534,7 @@ int __kmem_cache_create(struct kmem_cach
+ 	return 0;
+ }
+ 
+-void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
++void *slob_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
+ {
+ 	void *b;
+ 
+@@ -560,7 +560,27 @@ void *kmem_cache_alloc_node(struct kmem_
+ 	kmemleak_alloc_recursive(b, c->size, 1, c->flags, flags);
+ 	return b;
+ }
++EXPORT_SYMBOL(slob_alloc_node);
++
++void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
++{
++	return slob_alloc_node(cachep, flags, NUMA_NO_NODE);
++}
++EXPORT_SYMBOL(kmem_cache_alloc);
++
++#ifdef CONFIG_NUMA
++void *__kmalloc_node(size_t size, gfp_t gfp, int node)
++{
++	return __do_kmalloc_node(size, gfp, node, _RET_IP_);
++}
++EXPORT_SYMBOL(__kmalloc_node);
++
++void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t gfp, int node)
++{
++	return slob_alloc_node(cachep, gfp, node);
++}
+ EXPORT_SYMBOL(kmem_cache_alloc_node);
++#endif
+ 
+ static void __kmem_cache_free(void *b, int size)
+ {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
