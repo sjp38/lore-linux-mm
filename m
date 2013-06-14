@@ -1,100 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 602476B003C
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 05:41:48 -0400 (EDT)
-Date: Fri, 14 Jun 2013 17:41:45 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [iput] BUG: Bad page state in process rm pfn:0b0ce
-Message-ID: <20130614094145.GA21338@localhost>
-References: <20130613102549.GD31394@localhost>
- <20130614091655.GD1875@suse.de>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 7F1A56B0037
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 06:01:33 -0400 (EDT)
+Message-ID: <51BAE9F3.5030301@parallels.com>
+Date: Fri, 14 Jun 2013 14:01:23 +0400
+From: Pavel Emelyanov <xemul@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130614091655.GD1875@suse.de>
+Subject: Re: Change soft-dirty interface?
+References: <20130613015329.GA3894@bbox> <51B98C9A.8020602@parallels.com> <20130614003213.GD4533@bbox> <20130614004133.GE4533@bbox> <20130614050738.GA21852@bbox>
+In-Reply-To: <20130614050738.GA21852@bbox>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-mm@kvack.org
 
-On Fri, Jun 14, 2013 at 10:16:55AM +0100, Mel Gorman wrote:
-> On Thu, Jun 13, 2013 at 06:25:49PM +0800, Fengguang Wu wrote:
-> > Greetings,
-> > 
-> > I got the below dmesg in linux-next and the first bad commit is
-> > 
-> 
-> Thanks Fengguang.
-> 
-> Can you try the following please? I do not see the same issue
-> unfortunately but I am the wrong type of unlucky here.
+>>>>> If it's not allowed, another approach should be new system call.
+>>>>>
+>>>>>         int sys_softdirty(pid_t pid, void *addr, size_t len);
+>>>>
+>>>> This looks like existing sys_madvise() one.
+>>>
+>>> Except pid part. It is added by your purpose, which external task
+>>> can control any process.
 
-Sure I'll test it right away, thanks for the quick fix!
+In CRIU we can work with pid-less syscalls just fine :) So extending regular
+madvise would work.
 
-Thanks,
-Fengguang
+>>>>
+>>>>> If we approach new system call, we don't need to maintain current
+>>>>> proc interface and it would be very handy to get a information
+>>>>> without pagemap (open/read/close) so we can add a parameter to
+>>>>> get a dirty information easily.
+>>>>>
+>>>>>         int sys_softdirty(pid_t pid, void *addr, size_t len, unsigned char *vec)
+>>>>>
+>>>>> What do you think about it?
+>>>>>
+>>>>
+>>>> This is OK for me, though there's another issue with this API I'd like
+>>>> to mention -- consider your app is doing these tricks with soft-dirty
+>>>> and at the same time CRIU tools live-migrate it using the soft-dirty bits
+>>>> to optimize the freeze time.
+>>>>
+>>>> In that case soft-dirty bits would be in wrong state for both -- you app
+>>>> and CRIU, but with the proc API we could compare the ctime-s of the 
+>>>> clear_refs file and find out, that someone spoiled the soft-dirty state
+>>>> from last time we messed with it and handle it somehow (copy all the memory
+>>>> in the worst case). Can we somehow handle this with your proposal?
+>>>
+>>> Good point I didn't think over that.
+>>> A simple idea popped from my mind is we can use read/write lock
+>>> so if pid is equal to calling process's one or pid is NULL,
+>>> we use read side lock, which can allow marking soft-dirty 
+>>> several vmas with parallel. And pid is not equal to calling
+>>> process's one, the API should try to hold write-side lock
+>>> then, if it's fail, the API should return EAGAIN so that CRIU
+>>> can progress other processes and retry it after a while.
+>>> Of course, it would make live-lock so that sys_softdirty might
+>>> need another argument like "int block".
+>>
+>> And we need a flag to show SELF_SOFT_DIRTY or EXTERNAL_SOFT_DIRTY
+>> and the flag will be protected by above lock. It could prevent mixed
+>> case by self and external.
+> 
+> I realized it's not enough. Another idea is here.
+> The intenion is followin as,
+> 
+> self softdirty VS self softdirty -> NOT exclusive
+> self softdirty VS external softdirty -> exclusive
+> external softdirty VS external softdirty-> excluisve
 
-> ---8<---
-> mm: Clear page active before releasing pages
+I think it might work for us. However, I have two comments to the
+implementation, please see below.
+
+> struct softdirty token {
+>         u64 external;
+>         u64 internal;
+> };
 > 
-> Active pages should not be freed to the page allocator as it triggers a
-> bad page state warning. Fengguang Wu reported the following bug
+>        int sys_set_softdirty(pid_t pid, unsigned long start, size_t len,
+>                                 struct softdirty *token); 
+>        int sys_get_softdirty(pid_t pid, unsigned long start, size_t len, 
+>                                 struct softdirty token, char *vec);
+
+Can you please show an example how to use these two, I don't quite get how
+can I do external soft-dirty tracking in atomic manner.
+
 > 
-> [   84.212960] BUG: Bad page state in process rm  pfn:0b0c9
-> [   84.214682] page:ffff88000d646240 count:0 mapcount:0 mapping:          (null) index:0x0
-> [   84.216883] page flags: 0x20000000004c(referenced|uptodate|active)
-> [   84.218697] CPU: 1 PID: 283 Comm: rm Not tainted 3.10.0-rc4-04361-geeb9bfc #49
-> [   84.220729]  ffff88000d646240 ffff88000d179bb8 ffffffff82562956 ffff88000d179bd8
-> [   84.223242]  ffffffff811333f1 000020000000004c ffff88000d646240 ffff88000d179c28
-> [   84.225387]  ffffffff811346a4 ffff880000270000 0000000000000000 0000000000000006
-> [   84.227294] Call Trace:
-> [   84.227867]  [<ffffffff82562956>] dump_stack+0x27/0x30
-> [   84.229045]  [<ffffffff811333f1>] bad_page+0x130/0x158
-> [   84.230261]  [<ffffffff811346a4>] free_pages_prepare+0x8b/0x1e3
-> [   84.231765]  [<ffffffff8113542a>] free_hot_cold_page+0x28/0x1cf
-> [   84.233171]  [<ffffffff82585830>] ? _raw_spin_unlock_irqrestore+0x6b/0xc6
-> [   84.234822]  [<ffffffff81135b59>] free_hot_cold_page_list+0x30/0x5a
-> [   84.236311]  [<ffffffff8113a4ed>] release_pages+0x251/0x267
-> [   84.237653]  [<ffffffff8112a88d>] ? delete_from_page_cache+0x48/0x9e
-> [   84.239142]  [<ffffffff8113ad93>] __pagevec_release+0x2b/0x3d
-> [   84.240473]  [<ffffffff8113b45a>] truncate_inode_pages_range+0x1b0/0x7ce
-> [   84.242032]  [<ffffffff810e76ab>] ? put_lock_stats.isra.20+0x1c/0x53
-> [   84.243480]  [<ffffffff810e77f5>] ? lock_release_holdtime+0x113/0x11f
-> [   84.244935]  [<ffffffff8113ba8c>] truncate_inode_pages+0x14/0x1d
-> [   84.246337]  [<ffffffff8119b3ef>] evict+0x11f/0x232
-> [   84.247501]  [<ffffffff8119c527>] iput+0x1a5/0x218
-> [   84.248607]  [<ffffffff8118f015>] do_unlinkat+0x19b/0x25a
-> [   84.249828]  [<ffffffff810ea993>] ? trace_hardirqs_on_caller+0x210/0x2ce
-> [   84.251382]  [<ffffffff8144372e>] ? trace_hardirqs_on_thunk+0x3a/0x3f
-> [   84.252879]  [<ffffffff8118f10d>] SyS_unlinkat+0x39/0x4c
-> [   84.254174]  [<ffffffff825874d6>] system_call_fastpath+0x1a/0x1f
-> [   84.255596] Disabling lock debugging due to kernel taint
+> SYSCALL(set_softdirty, ..., token)
+> {
+>         struct task_struct *tsk = task_from_pid(pid);
+>         mutex_lock(&mm->st_lock);
+>         if (tsk == current)
+>                 tsk->mm->token.internal++; 
+>         else
+>                 tsk->mm->token.external++;
+>         token->external = mm->token.external;
+>         token->internal = mm->token.internal;
+>         mutex_unlock(&mm->st_lock);
+>         ..
+>         ..
 > 
-> The problem was that a page marked for activation was released via
-> pagevec. This patch clears the active bit before freeing in this case.
+> }
 > 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> ---
->  mm/swap.c | 3 +++
->  1 file changed, 3 insertions(+)
+> SYSCALL(get_softdirty, ..., token, ...)
+> {
+>         struct task_struct *tsk = task_from_pid(pid);
+>         mutex_lock(&mm->st_lock);
+>         if (tsk == current) {
+>                 if (tsk->mm->token.external != token.external) {
+>                         mutex_unlock
+>                         return -EAGAIN;
+>                 }
+>         } else {
+>                 if (tsk->mm->token.external != token.external ||
+>                     tsk->mm->token.internal != token.internal) {
+>                         mutex_unlock;
+>                         return -EAGAIN;
+>                 }
+>         }
+>         mutex_unlock(&mm->st_lock);
+
+Presumably the critical section should be longer, as if tokens match and we
+release the lock and proceed with working on pagemap, the concurrent call
+to set_softdirty can proceed and spoil the picture.
+
+>         ...
+> }
 > 
-> diff --git a/mm/swap.c b/mm/swap.c
-> index ac23602..4a1d0d2 100644
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -739,6 +739,9 @@ void release_pages(struct page **pages, int nr, int cold)
->  			del_page_from_lru_list(page, lruvec, page_off_lru(page));
->  		}
->  
-> +		/* Clear Active bit in case of parallel mark_page_accessed */
-> +		ClearPageActive(page);
-> +
->  		list_add(&page->lru, &pages_to_free);
->  	}
->  	if (zone)
-> -- 
-> Mel Gorman
-> SUSE Labs
+> 
+> 
+> 
+>>
+>> -- 
+>> Kind regards,
+>> Minchan Kim
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
