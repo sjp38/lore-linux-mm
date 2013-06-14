@@ -1,49 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id BDD876B0033
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 12:52:42 -0400 (EDT)
-Message-ID: <51BB4A53.4000505@yandex-team.ru>
-Date: Fri, 14 Jun 2013 20:52:35 +0400
-From: Roman Gushchin <klamm@yandex-team.ru>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 4FAED6B0033
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2013 13:57:17 -0400 (EDT)
+Received: by mail-gh0-f179.google.com with SMTP id f16so233492ghb.38
+        for <linux-mm@kvack.org>; Fri, 14 Jun 2013 10:57:16 -0700 (PDT)
+Date: Fri, 14 Jun 2013 10:57:10 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 4/8] mm/writeback: rename WB_REASON_FORKER_THREAD to
+ WB_REASON_WORKER_THREAD
+Message-ID: <20130614175710.GB6593@mtj.dyndns.org>
+References: <1371195041-26654-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1371195041-26654-4-git-send-email-liwanp@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] slub: Avoid direct compaction if possible
-References: <51BB1802.8050108@yandex-team.ru> <0000013f4319cb46-a5a3de58-1207-4037-ae39-574b58135ea2-000000@email.amazonses.com> <51BB33FE.1020403@yandex-team.ru> <0000013f43718d4d-7bb260e7-8115-4891-bb26-6febacb7169d-000000@email.amazonses.com>
-In-Reply-To: <0000013f43718d4d-7bb260e7-8115-4891-bb26-6febacb7169d-000000@email.amazonses.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1371195041-26654-4-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@gentwo.org>
-Cc: Pekka Enberg <penberg@kernel.org>, mpm@selenic.com, akpm@linux-foundation.org, mgorman@suse.de, David Rientjes <rientjes@google.com>, glommer@gmail.com, hannes@cmpxchg.org, minchan@kernel.org, jiang.liu@huawei.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Fengguang Wu <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Andrew Shewmaker <agshew@gmail.com>, Jiri Kosina <jkosina@suse.cz>, Namjae Jeon <linkinjeon@gmail.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 14.06.2013 20:08, Christoph Lameter wrote:
-> On Fri, 14 Jun 2013, Roman Gushchin wrote:
->
->> But there is an actual problem, that this patch solves.
->> Sometimes I saw the following issue on some machines:
->> all CPUs are performing compaction, system time is about 80%,
->> system is completely unreliable. It occurs only on machines
->> with specific workload (distributed data storage system, so,
->> intensive disk i/o is performed). A system can fall into
->> this state fast and unexpectedly or by progressive degradation.
->
-> Well that is not a slab allocator specific issue but related to compaction
-> concurrency. Likely cache line contention is causing a severe slowday. But
-> that issue could be triggered by any subsystem that does lots of memory
-> allocations. I would suggest that we try to address the problem in the
-> compaction logic rather than modifying allocators.
+On Fri, Jun 14, 2013 at 03:30:37PM +0800, Wanpeng Li wrote:
+> After commit 839a8e86("writeback: replace custom worker pool implementation
+> with unbound workqueue"), there is no bdi forker thread any more. This patch
+> rename WB_REASON_FORKER_THREAD to WB_REASON_WORKER_THREAD since works are
+> done by emergency worker.
 
-I agree, that it's good to address the original issue. But I'm not sure,
-that it's a compaction issue. If someone wants to participate here,
-I can provide more information. The main problem here is that it's
-__very__ hard to reproduce the issue.
+This is somewhat userland visible and we'll be exposing exactly the
+same information with just a different name.  While the string doesn't
+match the current implementation exactly, I don't think we need to
+change it.  Maybe add a comment there saying why it has a mismatching
+name is enough?
 
-But, I think, all that shouldn't stop us from modifying the allocator.
-Falling back to minimal order is in any case better than running
-direct compaction. Just because it's faster. Am I wrong?
+Thanks.
 
-Regards,
-Roman
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
