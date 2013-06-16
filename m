@@ -1,54 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id D2A656B0034
-	for <linux-mm@kvack.org>; Sun, 16 Jun 2013 14:04:53 -0400 (EDT)
-Received: by mail-pb0-f53.google.com with SMTP id xb12so2056639pbc.12
-        for <linux-mm@kvack.org>; Sun, 16 Jun 2013 11:04:53 -0700 (PDT)
-Date: Sun, 16 Jun 2013 11:04:50 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: Add unlikely for current_order test
-In-Reply-To: <51BC4A83.50302@gmail.com>
-Message-ID: <alpine.DEB.2.02.1306161103020.22688@chino.kir.corp.google.com>
-References: <51BC4A83.50302@gmail.com>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id E58AE6B0032
+	for <linux-mm@kvack.org>; Sun, 16 Jun 2013 19:25:19 -0400 (EDT)
+Received: from ita15242 by lnx22.ion.it with local (Exim 4.76)
+	(envelope-from <ita15242@lnx22.ion.it>)
+	id 1UoMHQ-0027fv-0J
+	for linux-mm@kvack.org; Mon, 17 Jun 2013 01:22:40 +0200
+Subject: Re: Sales Contract
+From: M@kvack.org:D Andy Albart <globalworld@andyalbart.com>
+Reply-To: 
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain
+Content-Transfer-Encoding: 8bit
+Message-Id: <E1UoMHQ-0027fv-0J@lnx22.ion.it>
+Date: Mon, 17 Jun 2013 01:22:40 +0200
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yanfei <zhangyanfei.yes@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
 
-On Sat, 15 Jun 2013, Zhang Yanfei wrote:
+Dear Sir/Ma,
 
-> From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-> 
-> Since we have an unlikely for the "current_order >= pageblock_order / 2"
-> test above, adding an unlikely for this "current_order >= pageblock_order"
-> test seems more appropriate.
-> 
 
-I don't understand the justification at all, current_order being unlikely 
-greater than or equal to pageblock_order / 2 doesn't imply at all that 
-it's unlikely that current_order is greater than or equal to 
-pageblock_order.
+Greetings from Warsaw, Poland, Please find our new order(PO-NO#63119) and new design made for our company only. Please we do not 
 
-> Signed-off-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-> ---
->  mm/page_alloc.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index c3edb62..1b6d7de 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1071,7 +1071,7 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
->  			rmv_page_order(page);
->  
->  			/* Take ownership for orders >= pageblock_order */
-> -			if (current_order >= pageblock_order &&
-> +			if (unlikely(current_order >= pageblock_order) &&
->  			    !is_migrate_cma(migratetype))
->  				change_pageblock_range(page, current_order,
->  							start_migratetype);
+
+want the new prototype to be shared by other people. We made this exclusively for our company and we have therefore encrypted the file.
+
+
+Click the link below to access the Purchase order, i could not attach it because it kept bouncing back, i uploaded it on our secure website, 
+
+
+you must have to log in with your existing trading email address as to have access to the files.
+
+
+
+Click Here To View Our Company Online Sample
+
+
+
+
+Or copy and paste our company product online sample site to view the exact product.
+
+
+fargoglobal.nazuka.net/globaltrade/
+
+
+
+
+Urgent!!!! Please send us Proforma Invoice as soon as possible and confirm shipping date not later than two weeks.
+
+give me your best price (FOB) and delivery date for this exact sample most our customers requires online.
+
+
+
+Send to us this requirements. 
+
+1. Catalogue if you have a better sample you want us to make.
+2. Final Quotation Price based on FOB
+3. Payment method 
+4. Packing method 
+
+Should you have any questions and inquiry, please feel free to contact us at any time. 
+
+
+
+Thank you.
+Best regards, 
+
+
+Andy Albart Trading Inc.
+ul. Patriotow 110
+04-844 Warsaw
+Poland
+Phone +48 (0) 22 33 22 121
+Fax +48 (0) 22 33 22 120
+Email: sales@andyalbart.pl
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
