@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id F32AA6B0039
-	for <linux-mm@kvack.org>; Sat, 15 Jun 2013 21:15:07 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 031D86B003A
+	for <linux-mm@kvack.org>; Sat, 15 Jun 2013 21:15:09 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Sun, 16 Jun 2013 06:40:39 +0530
+	Sun, 16 Jun 2013 06:37:33 +0530
 Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id A61F7394004E
-	for <linux-mm@kvack.org>; Sun, 16 Jun 2013 06:45:03 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5G1EwUx30605556
-	for <linux-mm@kvack.org>; Sun, 16 Jun 2013 06:44:58 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5G1F14L032332
-	for <linux-mm@kvack.org>; Sun, 16 Jun 2013 11:15:02 +1000
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 1D4391258043
+	for <linux-mm@kvack.org>; Sun, 16 Jun 2013 06:44:00 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5G1Exf322544558
+	for <linux-mm@kvack.org>; Sun, 16 Jun 2013 06:44:59 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5G1F3NX010213
+	for <linux-mm@kvack.org>; Sun, 16 Jun 2013 01:15:04 GMT
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v2 4/7] mm/page_alloc: fix blank in show_free_areas
-Date: Sun, 16 Jun 2013 09:14:47 +0800
-Message-Id: <1371345290-19588-4-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v2 5/7] mm/page_alloc: fix doc for numa_zonelist_order
+Date: Sun, 16 Jun 2013 09:14:48 +0800
+Message-Id: <1371345290-19588-5-git-send-email-liwanp@linux.vnet.ibm.com>
 In-Reply-To: <1371345290-19588-1-git-send-email-liwanp@linux.vnet.ibm.com>
 References: <1371345290-19588-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,55 +26,28 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Fengguang Wu <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Andrew Shewmaker <agshew@gmail.com>, Jiri Kosina <jkosina@suse.cz>, Namjae Jeon <linkinjeon@gmail.com>, Jan Kara <jack@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-There is a blank in show_free_areas which lead to dump messages aren't
-aligned. This patch remove blank.
-
-Before patch:
-
-[155219.720141] active_anon:50675 inactive_anon:35273 isolated_anon:0
-[155219.720141]  active_file:215421 inactive_file:344268 isolated_file:0
-[155219.720141]  unevictable:0 dirty:35 writeback:0 unstable:0
-[155219.720141]  free:1334870 slab_reclaimable:28833 slab_unreclaimable:5115
-[155219.720141]  mapped:25233 shmem:35511 pagetables:1705 bounce:0
-[155219.720141]  free_cma:0
-
-After patch:
-
-[   73.913889] active_anon:39578 inactive_anon:32082 isolated_anon:0
-[   73.913889] active_file:14621 inactive_file:57993 isolated_file:0
-[   73.913889] unevictable:0dirty:263 writeback:0 unstable:0
-[   73.913889] free:1865614 slab_reclaimable:3264 slab_unreclaimable:4566
-[   73.913889] mapped:21192 shmem:32327 pagetables:1572 bounce:0
-[   73.913889] free_cma:0
+The default zonelist order selecter will select "node" order if any node's
+DMA zone comprises greater than 70% of its local memory instead of 60%,
+according to default_zonelist_order::low_kmem_size > total * 70/100.
 
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- mm/page_alloc.c | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ Documentation/sysctl/vm.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 18102e1..e6e881a 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3004,12 +3004,12 @@ void show_free_areas(unsigned int filter)
- 	}
+diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+index a5717c3..15d341a 100644
+--- a/Documentation/sysctl/vm.txt
++++ b/Documentation/sysctl/vm.txt
+@@ -531,7 +531,7 @@ Specify "[Dd]efault" to request automatic configuration.  Autoconfiguration
+ will select "node" order in following case.
+ (1) if the DMA zone does not exist or
+ (2) if the DMA zone comprises greater than 50% of the available memory or
+-(3) if any node's DMA zone comprises greater than 60% of its local memory and
++(3) if any node's DMA zone comprises greater than 70% of its local memory and
+     the amount of local memory is big enough.
  
- 	printk("active_anon:%lu inactive_anon:%lu isolated_anon:%lu\n"
--		" active_file:%lu inactive_file:%lu isolated_file:%lu\n"
--		" unevictable:%lu"
--		" dirty:%lu writeback:%lu unstable:%lu\n"
--		" free:%lu slab_reclaimable:%lu slab_unreclaimable:%lu\n"
--		" mapped:%lu shmem:%lu pagetables:%lu bounce:%lu\n"
--		" free_cma:%lu\n",
-+		"active_file:%lu inactive_file:%lu isolated_file:%lu\n"
-+		"unevictable:%lu"
-+		"dirty:%lu writeback:%lu unstable:%lu\n"
-+		"free:%lu slab_reclaimable:%lu slab_unreclaimable:%lu\n"
-+		"mapped:%lu shmem:%lu pagetables:%lu bounce:%lu\n"
-+		"free_cma:%lu\n",
- 		global_page_state(NR_ACTIVE_ANON),
- 		global_page_state(NR_INACTIVE_ANON),
- 		global_page_state(NR_ISOLATED_ANON),
+ Otherwise, "zone" order will be selected. Default order is recommended unless
 -- 
 1.8.1.2
 
