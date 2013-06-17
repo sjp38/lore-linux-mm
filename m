@@ -1,67 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id C93286B0033
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 10:54:11 -0400 (EDT)
-Message-ID: <51BF230E.8050904@yandex-team.ru>
-Date: Mon, 17 Jun 2013 18:54:06 +0400
-From: Roman Gushchin <klamm@yandex-team.ru>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 7070D6B0032
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 11:14:18 -0400 (EDT)
+Received: by mail-lb0-f169.google.com with SMTP id d10so2645548lbj.14
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2013 08:14:16 -0700 (PDT)
+Date: Mon, 17 Jun 2013 19:14:12 +0400
+From: Glauber Costa <glommer@gmail.com>
+Subject: Re: linux-next: slab shrinkers: BUG at mm/list_lru.c:92
+Message-ID: <20130617151403.GA25172@localhost.localdomain>
+References: <20130617141822.GF5018@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH] slub: Avoid direct compaction if possible
-References: <51BB1802.8050108@yandex-team.ru> <0000013f4319cb46-a5a3de58-1207-4037-ae39-574b58135ea2-000000@email.amazonses.com> <alpine.DEB.2.02.1306141322490.17237@chino.kir.corp.google.com> <51BF024F.2080609@yandex-team.ru> <20130617142715.GB8853@dhcp22.suse.cz>
-In-Reply-To: <20130617142715.GB8853@dhcp22.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130617141822.GF5018@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: David Rientjes <rientjes@google.com>, Christoph Lameter <cl@gentwo.org>, penberg@kernel.org, mpm@selenic.com, akpm@linux-foundation.org, mgorman@suse.de, glommer@parallels.com, hannes@cmpxchg.org, minchan@kernel.org, jiang.liu@huawei.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Dave Chinner <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 17.06.2013 18:27, Michal Hocko wrote:
-> On Mon 17-06-13 16:34:23, Roman Gushchin wrote:
->> On 15.06.2013 00:26, David Rientjes wrote:
->>> On Fri, 14 Jun 2013, Christoph Lameter wrote:
->>>
->>>>> It's possible to avoid such problems (or at least to make them less probable)
->>>>> by avoiding direct compaction. If it's not possible to allocate a contiguous
->>>>> page without compaction, slub will fall back to order 0 page(s). In this case
->>>>> kswapd will be woken to perform asynchronous compaction. So, slub can return
->>>>> to default order allocations as soon as memory will be de-fragmented.
->>>>
->>>> Sounds like a good idea. Do you have some numbers to show the effect of
->>>> this patch?
->>>>
->>>
->>> I'm surprised you like this patch, it basically makes slub allocations to
->>> be atomic and doesn't try memory compaction nor reclaim.  Asynchronous
->>> compaction certainly isn't aggressive enough to mimick the effects of the
->>> old lumpy reclaim that would have resulted in less fragmented memory.  If
->>> slub is the only thing that is doing high-order allocations, it will start
->>> falling back to the smallest page order much much more often.
->>>
->>> I agree that this doesn't seem like a slub issue at all but rather a page
->>> allocator issue; if we have many simultaneous thp faults at the same time
->>> and /sys/kernel/mm/transparent_hugepage/defrag is "always" then you'll get
->>> the same problem if deferred compaction isn't helping.
->>>
->>> So I don't think we should be patching slub in any special way here.
->>>
->>> Roman, are you using the latest kernel?  If so, what does
->>> grep compact_ /proc/vmstat show after one or more of these events?
->>>
->>
->> We're using 3.4. And the problem reveals when we moved from 3.2 to 3.4.
->> It can be also reproduced on 3.5.
->
-> FWIW, there were some compaction locking related patches merged
-> around 3.7. See 2a1402aa044b55c2d30ab0ed9405693ef06fb07c and follow ups.
+On Mon, Jun 17, 2013 at 04:18:22PM +0200, Michal Hocko wrote:
+> Hi,
 
-Thanks, Michal.
-I've already tried to backport some of those patches, but it didn't help
-(may be it wasn't enough).
-I'll try to reproduce the issue on raw 3.9.
+Hi,
 
-Regards,
-Roman
+> I managed to trigger:
+> [ 1015.776029] kernel BUG at mm/list_lru.c:92!
+> [ 1015.776029] invalid opcode: 0000 [#1] SMP
+> with Linux next (next-20130607) with https://lkml.org/lkml/2013/6/17/203
+> on top. 
+> 
+> This is obviously BUG_ON(nlru->nr_items < 0) and 
+> ffffffff81122d0b:       48 85 c0                test   %rax,%rax
+> ffffffff81122d0e:       49 89 44 24 18          mov    %rax,0x18(%r12)
+> ffffffff81122d13:       0f 84 87 00 00 00       je     ffffffff81122da0 <list_lru_walk_node+0x110>
+> ffffffff81122d19:       49 83 7c 24 18 00       cmpq   $0x0,0x18(%r12)
+> ffffffff81122d1f:       78 7b                   js     ffffffff81122d9c <list_lru_walk_node+0x10c>
+> [...]
+> ffffffff81122d9c:       0f 0b                   ud2
+> 
+> RAX is -1UL.
+Yes, fearing those kind of imbalances, we decided to leave the counter as a signed quantity
+and BUG, instead of an unsigned quantity.
+
+> 
+> I assume that the current backtrace is of no use and it would most
+> probably be some shrinker which doesn't behave.
+> 
+There are currently 3 users of list_lru in tree: dentries, inodes and xfs.
+Assuming you are not using xfs, we are left with dentries and inodes.
+
+The first thing to do is to find which one of them is misbehaving. You can try finding
+this out by the address of the list_lru, and where it lays in the superblock.
+
+Once we know each of them is misbehaving, then we'll have to figure out why.
+
+Any special filesystem workload ?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
