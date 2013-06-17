@@ -1,72 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 034DD6B0031
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 17:13:58 -0400 (EDT)
-Received: by mail-ie0-f179.google.com with SMTP id c10so8167096ieb.10
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2013 14:13:58 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20130617210422.GN32663@mtj.dyndns.org>
-References: <1371128589-8953-1-git-send-email-tangchen@cn.fujitsu.com>
-	<1371128589-8953-4-git-send-email-tangchen@cn.fujitsu.com>
-	<20130617210422.GN32663@mtj.dyndns.org>
-Date: Mon, 17 Jun 2013 14:13:58 -0700
-Message-ID: <CAE9FiQXTAT69WKvzXe7FuuSqiA9epuSGPFP2ihhpDZkqYtn9_g@mail.gmail.com>
-Subject: Re: [Part1 PATCH v5 03/22] x86, ACPI, mm: Kill max_low_pfn_mapped
-From: Yinghai Lu <yinghai@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 5CFD86B0031
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 17:29:17 -0400 (EDT)
+Date: Mon, 17 Jun 2013 14:29:14 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: +
+ mm-thp-dont-use-hpage_shift-in-transparent-hugepage-code.patch added to -mm
+ tree
+Message-Id: <20130617142914.4914dcfbd19d345dde686245@linux-foundation.org>
+In-Reply-To: <20130617132746.GA30262@shutemov.name>
+References: <20130513231406.D912031C276@corp2gmr1-1.hot.corp.google.com>
+	<20130617132746.GA30262@shutemov.name>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Thomas Renninger <trenn@suse.de>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, Rik van Riel <riel@redhat.com>, jweiner@redhat.com, Prarit Bhargava <prarit@redhat.com>, the arch/x86 maintainers <x86@kernel.org>, linux-doc@vger.kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Jacob Shin <jacob.shin@amd.com>, Pekka Enberg <penberg@kernel.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Jun 17, 2013 at 2:04 PM, Tejun Heo <tj@kernel.org> wrote:
-> Hello,
->
-> On Thu, Jun 13, 2013 at 09:02:50PM +0800, Tang Chen wrote:
->> From: Yinghai Lu <yinghai@kernel.org>
->>
->> Now we have pfn_mapped[] array, and max_low_pfn_mapped should not
->> be used anymore. Users should use pfn_mapped[] or just
->> 1UL<<(32-PAGE_SHIFT) instead.
->>
->> The only user of max_low_pfn_mapped is ACPI_INITRD_TABLE_OVERRIDE.
->> We could change to use 1U<<(32_PAGE_SHIFT) with it, aka under 4G.
->
->                                 ^ typo
+On Mon, 17 Jun 2013 16:27:46 +0300 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
 
-ok.
+> On Mon, May 13, 2013 at 04:14:06PM -0700, akpm@linux-foundation.org wrote:
+> > From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> > Subject: mm/THP: don't use HPAGE_SHIFT in transparent hugepage code
+> > 
+> > For architectures like powerpc that support multiple explicit hugepage
+> > sizes, HPAGE_SHIFT indicate the default explicit hugepage shift.  For THP
+> > to work the hugepage size should be same as PMD_SIZE.  So use PMD_SHIFT
+> > directly.  So move the define outside CONFIG_TRANSPARENT_HUGEPAGE #ifdef
+> > because we want to use these defines in generic code with if
+> > (pmd_trans_huge()) conditional.
+> 
+> I would propose to partly revert the patch with the patch bellow.
 
->
-> ...
->> diff --git a/drivers/acpi/osl.c b/drivers/acpi/osl.c
->> index e721863..93e3194 100644
->> --- a/drivers/acpi/osl.c
->> +++ b/drivers/acpi/osl.c
->> @@ -624,9 +624,9 @@ void __init acpi_initrd_override(void *data, size_t size)
->>       if (table_nr == 0)
->>               return;
->>
->> -     acpi_tables_addr =
->> -             memblock_find_in_range(0, max_low_pfn_mapped << PAGE_SHIFT,
->> -                                    all_tables_size, PAGE_SIZE);
->> +     /* under 4G at first, then above 4G */
->> +     acpi_tables_addr = memblock_find_in_range(0, (1ULL<<32) - 1,
->> +                                     all_tables_size, PAGE_SIZE);
->
-> No bigge, but why (1ULL << 32) - 1?  Shouldn't it be just 1ULL << 32?
-> memblock deals with [@start, @end) areas, right?
-
-that is for 32bit, when phys_addr_t is 32bit, in that case
-(1ULL<<32) cast to 32bit would be 0.
-
->
-> Other than that,
->
->  Acked-by: Tejun Heo <tj@kernel.org>
-
-Thanks
-
-Yinghai
+It's not completely clear what you're proposing here.  Can you send a
+real patch against mmotm or -next for us to look at?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
