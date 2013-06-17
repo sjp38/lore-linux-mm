@@ -1,79 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id A2B576B0032
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 11:33:04 -0400 (EDT)
-Date: Mon, 17 Jun 2013 17:33:02 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: linux-next: slab shrinkers: BUG at mm/list_lru.c:92
-Message-ID: <20130617153302.GI5018@dhcp22.suse.cz>
-References: <20130617141822.GF5018@dhcp22.suse.cz>
- <20130617151403.GA25172@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130617151403.GA25172@localhost.localdomain>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 291C26B0031
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 12:22:09 -0400 (EDT)
+Message-ID: <1371486122.1778.14.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: Performance regression from switching lock to rw-sem for
+ anon-vma tree
+From: Davidlohr Bueso <davidlohr.bueso@hp.com>
+Date: Mon, 17 Jun 2013 09:22:02 -0700
+In-Reply-To: <51BD8A77.2080201@intel.com>
+References: <1371165333.27102.568.camel@schen9-DESK>
+	 <1371167015.1754.14.camel@buesod1.americas.hpqcorp.net>
+	 <51BD8A77.2080201@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@gmail.com>
-Cc: Dave Chinner <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Alex Shi <alex.shi@intel.com>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon 17-06-13 19:14:12, Glauber Costa wrote:
-> On Mon, Jun 17, 2013 at 04:18:22PM +0200, Michal Hocko wrote:
-> > Hi,
-> 
-> Hi,
-> 
-> > I managed to trigger:
-> > [ 1015.776029] kernel BUG at mm/list_lru.c:92!
-> > [ 1015.776029] invalid opcode: 0000 [#1] SMP
-> > with Linux next (next-20130607) with https://lkml.org/lkml/2013/6/17/203
-> > on top. 
+On Sun, 2013-06-16 at 17:50 +0800, Alex Shi wrote:
+> On 06/14/2013 07:43 AM, Davidlohr Bueso wrote:
+> > I was hoping that the lack of spin on owner was the main difference with
+> > rwsems and am/was in the middle of implementing it. Could you send your
+> > patch so I can give it a try on my workloads?
 > > 
-> > This is obviously BUG_ON(nlru->nr_items < 0) and 
-> > ffffffff81122d0b:       48 85 c0                test   %rax,%rax
-> > ffffffff81122d0e:       49 89 44 24 18          mov    %rax,0x18(%r12)
-> > ffffffff81122d13:       0f 84 87 00 00 00       je     ffffffff81122da0 <list_lru_walk_node+0x110>
-> > ffffffff81122d19:       49 83 7c 24 18 00       cmpq   $0x0,0x18(%r12)
-> > ffffffff81122d1f:       78 7b                   js     ffffffff81122d9c <list_lru_walk_node+0x10c>
-> > [...]
-> > ffffffff81122d9c:       0f 0b                   ud2
+> > Note that there have been a few recent (3.10) changes to mutexes that
+> > give a nice performance boost, specially on large systems, most
+> > noticeably:
 > > 
-> > RAX is -1UL.
->
-> Yes, fearing those kind of imbalances, we decided to leave the counter
-> as a signed quantity and BUG, instead of an unsigned quantity.
-> 
-> > I assume that the current backtrace is of no use and it would most
-> > probably be some shrinker which doesn't behave.
+> > commit 2bd2c92c (mutex: Make more scalable by doing less atomic
+> > operations)
 > > 
-> There are currently 3 users of list_lru in tree: dentries, inodes and xfs.
-> Assuming you are not using xfs, we are left with dentries and inodes.
+> > commit 0dc8c730 (mutex: Queue mutex spinners with MCS lock to reduce
+> > cacheline contention)
+> > 
+> > It might be worth looking into doing something similar to commit
+> > 0dc8c730, in addition to the optimistic spinning.
 > 
-> The first thing to do is to find which one of them is misbehaving. You
-> can try finding this out by the address of the list_lru, and where it
-> lays in the superblock.
+> It is a good tunning for large machine. I just following what the commit 
+> 0dc8c730 done, give a RFC patch here. I tried it on my NHM EP machine. seems no
+> clear help on aim7. but maybe it is helpful on large machine.  :)
 
-I am not sure I understand. Care to prepare a debugging patch for me?
- 
-> Once we know each of them is misbehaving, then we'll have to figure
-> out why.
+After a lot of benchmarking, I finally got the ideal results for aim7,
+so far: this patch + optimistic spinning with preemption disabled. Just
+like optimistic spinning, this patch by itself makes little to no
+difference, yet combined is where we actually outperform 3.10-rc5. In
+addition, I noticed extra throughput when disabling preemption in
+try_optimistic_spin().
+
+With i_mmap as a rwsem and these changes I could see performance
+benefits for alltests (+14.5%), custom (+17%), disk (+11%), high_systime
+(+5%), shared (+15%) and short (+4%), most of them after around 500
+users, for fewer users, it made little to no difference.
+
+Thanks,
+Davidlohr
+
 > 
-> Any special filesystem workload ?
+> 
+> diff --git a/include/asm-generic/rwsem.h b/include/asm-generic/rwsem.h
+> index bb1e2cd..240729a 100644
+> --- a/include/asm-generic/rwsem.h
+> +++ b/include/asm-generic/rwsem.h
+> @@ -70,11 +70,11 @@ static inline void __down_write(struct rw_semaphore *sem)
+>  
+>  static inline int __down_write_trylock(struct rw_semaphore *sem)
+>  {
+> -	long tmp;
+> +	if (unlikely(&sem->count != RWSEM_UNLOCKED_VALUE))
+> +		return 0;
+>  
+> -	tmp = cmpxchg(&sem->count, RWSEM_UNLOCKED_VALUE,
+> -		      RWSEM_ACTIVE_WRITE_BIAS);
+> -	return tmp == RWSEM_UNLOCKED_VALUE;
+> +	return cmpxchg(&sem->count, RWSEM_UNLOCKED_VALUE,
+> +		      RWSEM_ACTIVE_WRITE_BIAS) == RWSEM_UNLOCKED_VALUE;
+>  }
+>  
+>  /*
+> diff --git a/lib/rwsem.c b/lib/rwsem.c
+> index 19c5fa9..9e54e20 100644
+> --- a/lib/rwsem.c
+> +++ b/lib/rwsem.c
+> @@ -64,7 +64,7 @@ __rwsem_do_wake(struct rw_semaphore *sem, enum rwsem_wake_type wake_type)
+>  	struct rwsem_waiter *waiter;
+>  	struct task_struct *tsk;
+>  	struct list_head *next;
+> -	long oldcount, woken, loop, adjustment;
+> +	long woken, loop, adjustment;
+>  
+>  	waiter = list_entry(sem->wait_list.next, struct rwsem_waiter, list);
+>  	if (waiter->type == RWSEM_WAITING_FOR_WRITE) {
+> @@ -75,7 +75,7 @@ __rwsem_do_wake(struct rw_semaphore *sem, enum rwsem_wake_type wake_type)
+>  			 * will block as they will notice the queued writer.
+>  			 */
+>  			wake_up_process(waiter->task);
+> -		goto out;
+> +		return sem;
+>  	}
+>  
+>  	/* Writers might steal the lock before we grant it to the next reader.
+> @@ -85,15 +85,28 @@ __rwsem_do_wake(struct rw_semaphore *sem, enum rwsem_wake_type wake_type)
+>  	adjustment = 0;
+>  	if (wake_type != RWSEM_WAKE_READ_OWNED) {
+>  		adjustment = RWSEM_ACTIVE_READ_BIAS;
+> - try_reader_grant:
+> -		oldcount = rwsem_atomic_update(adjustment, sem) - adjustment;
+> -		if (unlikely(oldcount < RWSEM_WAITING_BIAS)) {
+> -			/* A writer stole the lock. Undo our reader grant. */
+> +		while (1) {
+> +			long oldcount;
+> +
+> +			/* A writer stole the lock. */
+> +			if (unlikely(sem->count & RWSEM_ACTIVE_MASK))
+> +				return sem;
+> +
+> +			if (unlikely(sem->count < RWSEM_WAITING_BIAS)) {
+> +				cpu_relax();
+> +				continue;
+> +			}
+> +
+> +			oldcount = rwsem_atomic_update(adjustment, sem)
+> +								- adjustment;
+> +			if (likely(oldcount >= RWSEM_WAITING_BIAS))
+> +				break;
+> +
+> +			 /* A writer stole the lock.  Undo our reader grant. */
+>  			if (rwsem_atomic_update(-adjustment, sem) &
+>  						RWSEM_ACTIVE_MASK)
+> -				goto out;
+> +				return sem;
+>  			/* Last active locker left. Retry waking readers. */
+> -			goto try_reader_grant;
+>  		}
+>  	}
+>  
+> @@ -136,7 +149,6 @@ __rwsem_do_wake(struct rw_semaphore *sem, enum rwsem_wake_type wake_type)
+>  	sem->wait_list.next = next;
+>  	next->prev = &sem->wait_list;
+>  
+> - out:
+>  	return sem;
+>  }
+>  
+> -- 
+> Thanks
+>     Alex
+> 
+> 
 
-This is two parallel kernel builds with separate kernel trees running
-under 2 hard unlimitted groups (with 0 soft limit) followed by rm -rf
-source trees + drop caches. Sometimes I have to repeat this multiple
-times. I can also see some timer specific crashes which are most
-probably not related so I am getting back to my mm tree and will hope
-the tree is healthy.
-
-I have seen some other traces as well (mentioning ext3 dput paths) but I
-cannot reproduce them anymore.
-
-Thanks!
--- 
-Michal Hocko
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
