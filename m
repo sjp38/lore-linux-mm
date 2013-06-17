@@ -1,80 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 831B16B0032
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 18:24:38 -0400 (EDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <20130617151417.f7610d56b4b43ced30c40133@linux-foundation.org>
-References: <1371506740-14606-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20130617151417.f7610d56b4b43ced30c40133@linux-foundation.org>
-Subject: Re: [PATCH] thp: define HPAGE_PMD_* constans as BUILD_BUG() if !THP
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id D055F6B0032
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 18:27:43 -0400 (EDT)
+Subject: Re: Performance regression from switching lock to rw-sem for
+ anon-vma tree
+From: Tim Chen <tim.c.chen@linux.intel.com>
+In-Reply-To: <CANN689GtHw6dDeMd+2fuUz_dv_Z44XndVj2u-TNy70qkZWkpDw@mail.gmail.com>
+References: <1371165333.27102.568.camel@schen9-DESK>
+	 <1371167015.1754.14.camel@buesod1.americas.hpqcorp.net>
+	 <1371226197.27102.594.camel@schen9-DESK>
+	 <1371249104.1758.20.camel@buesod1.americas.hpqcorp.net>
+	 <CANN689GtHw6dDeMd+2fuUz_dv_Z44XndVj2u-TNy70qkZWkpDw@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 17 Jun 2013 15:27:46 -0700
+Message-ID: <1371508066.27102.639.camel@schen9-DESK>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Message-Id: <20130617222703.D8C4AE0090@blue.fi.intel.com>
-Date: Tue, 18 Jun 2013 01:27:03 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michel Lespinasse <walken@google.com>
+Cc: Davidlohr Bueso <davidlohr.bueso@hp.com>, Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, "Shi,
+ Alex" <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-Andrew Morton wrote:
-> On Tue, 18 Jun 2013 01:05:40 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
-> 
-> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> > 
-> > Currently, HPAGE_PMD_* constans rely on PMD_SHIFT regardless of
-> > CONFIG_TRANSPARENT_HUGEPAGE. PMD_SHIFT is not defined everywhere (e.g.
-> > arm nommu case).
-> > 
-> > It means we can't use anything like this in generic code:
-> > 
-> >         if (PageTransHuge(page))
-> >                 zero_huge_user(page, 0, HPAGE_PMD_SIZE);
-> >         else
-> >                 clear_highpage(page);
-> > 
-> > For !THP case, PageTransHuge() is 0 and compiler can eliminate
-> > zero_huge_user() call. But it still need to be valid C expression, means
-> > HPAGE_PMD_SIZE has to expand to something compiler can understand.
-> > 
-> > Previously, HPAGE_PMD_* were defined to BUILD_BUG() for !THP. Let's come
-> > back to it.
-> > 
-> > ...
+On Fri, 2013-06-14 at 15:47 -0700, Michel Lespinasse wrote:
+> On Fri, Jun 14, 2013 at 3:31 PM, Davidlohr Bueso <davidlohr.bueso@hp.com> wrote:
+> > A few ideas that come to mind are avoiding taking the ->wait_lock and
+> > avoid dealing with waiters when doing the optimistic spinning (just like
+> > mutexes do).
 > >
-> > --- a/include/linux/huge_mm.h
-> > +++ b/include/linux/huge_mm.h
-> > @@ -58,11 +58,12 @@ extern pmd_t *page_check_address_pmd(struct page *page,
-> >  
-> >  #define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
-> >  #define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
-> > +
-> > +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> >  #define HPAGE_PMD_SHIFT PMD_SHIFT
-> >  #define HPAGE_PMD_SIZE	((1UL) << HPAGE_PMD_SHIFT)
-> >  #define HPAGE_PMD_MASK	(~(HPAGE_PMD_SIZE - 1))
-> >  
-> > -#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> >  extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
-> >  
-> >  #define transparent_hugepage_enabled(__vma)				\
-> > @@ -180,6 +181,9 @@ extern int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vm
-> >  				unsigned long addr, pmd_t pmd, pmd_t *pmdp);
-> >  
-> >  #else /* CONFIG_TRANSPARENT_HUGEPAGE */
-> > +#define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
-> > +#define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })
-> > +#define HPAGE_PMD_SIZE ({ BUILD_BUG(); 0; })
-> >  
+> > I agree that we should first deal with the optimistic spinning before
+> > adding the MCS complexity.
 > 
-> We've done this sort of thing before and it blew up.  We do want to be
-> able to use things like HPAGE_PMD_foo in global-var initialisers and
-> definitions, but the problem is that BUILD_BUG() can't be used outside
-> functions.
+> Maybe it would be worth disabling the MCS patch in mutex and comparing
+> that to the rwsem patches ? Just to make sure the rwsem performance
+> delta isn't related to that.
+> 
 
-I don't see how it's a blocker. For global variables, we will have to use
-#ifdefs, but the approach is still useful for in-function code.
+I've tried to back out the MCS patch.  In fact, for exim, it is about 1%
+faster without MCS.  So the better performance of mutex I saw was not
+due to MCS.  Thanks for the suggestion.
 
--- 
- Kirill A. Shutemov
+Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
