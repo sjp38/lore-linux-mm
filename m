@@ -1,99 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id AD37F6B0033
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 05:17:43 -0400 (EDT)
-Received: by mail-ie0-f169.google.com with SMTP id 10so6462413ied.28
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2013 02:17:43 -0700 (PDT)
-Message-ID: <51BED42F.9000507@ozlabs.ru>
-Date: Mon, 17 Jun 2013 19:17:35 +1000
-From: Alexey Kardashevskiy <aik@ozlabs.ru>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id B615F6B0033
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 05:30:15 -0400 (EDT)
+Date: Mon, 17 Jun 2013 10:30:10 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 1/7] mm: remove ZONE_RECLAIM_LOCKED
+Message-ID: <20130617093010.GH1875@suse.de>
+References: <1370445037-24144-1-git-send-email-aarcange@redhat.com>
+ <1370445037-24144-2-git-send-email-aarcange@redhat.com>
+ <20130606090430.GC1936@suse.de>
+ <51B0C8D8.7070708@redhat.com>
+ <51BB41EF.7080508@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/4] powerpc: Prepare to support kernel handling of IOMMU
- map/unmap
-References: <1370412673-1345-1-git-send-email-aik@ozlabs.ru>  <1370412673-1345-3-git-send-email-aik@ozlabs.ru> <1371356818.21896.114.camel@pasglop>
-In-Reply-To: <1371356818.21896.114.camel@pasglop>
-Content-Type: text/plain; charset=KOI8-R
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <51BB41EF.7080508@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: linuxppc-dev@lists.ozlabs.org, David Gibson <david@gibson.dropbear.id.au>, Alexander Graf <agraf@suse.de>, Paul Mackerras <paulus@samba.org>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kvm-ppc@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>
 
-On 06/16/2013 02:26 PM, Benjamin Herrenschmidt wrote:
->> +#if defined(CONFIG_SPARSEMEM_VMEMMAP) || defined(CONFIG_FLATMEM)
->> +int realmode_get_page(struct page *page)
->> +{
->> +	if (PageCompound(page))
->> +		return -EAGAIN;
->> +
->> +	get_page(page);
->> +
->> +	return 0;
->> +}
->> +EXPORT_SYMBOL_GPL(realmode_get_page);
->> +
->> +int realmode_put_page(struct page *page)
->> +{
->> +	if (PageCompound(page))
->> +		return -EAGAIN;
->> +
->> +	if (!atomic_add_unless(&page->_count, -1, 1))
->> +		return -EAGAIN;
->> +
->> +	return 0;
->> +}
->> +EXPORT_SYMBOL_GPL(realmode_put_page);
->> +#endif
+On Fri, Jun 14, 2013 at 12:16:47PM -0400, Rik van Riel wrote:
+> On 06/06/2013 01:37 PM, Rik van Riel wrote:
+> >On 06/06/2013 05:04 AM, Mel Gorman wrote:
+> >>On Wed, Jun 05, 2013 at 05:10:31PM +0200, Andrea Arcangeli wrote:
+> >>>Zone reclaim locked breaks zone_reclaim_mode=1. If more than one
+> >>>thread allocates memory at the same time, it forces a premature
+> >>>allocation into remote NUMA nodes even when there's plenty of clean
+> >>>cache to reclaim in the local nodes.
+> >>>
+> >>>Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> >>
+> >>Be aware that after this patch is applied that it is possible to have a
+> >>situation like this
+> >>
+> >>1. 4 processes running on node 1
+> >>2. Each process tries to allocate 30% of memory
+> >>3. Each process reads the full buffer in a loop (stupid, just an example)
+> >>
+> >>In this situation the processes will continually interfere with each
+> >>other until one of them gets migrated to another zone by the scheduler.
+> >
+> >This is a very good point.
+> >
+> >Andrea, I suspect we will need some kind of safeguard against
+> >this problem.
 > 
-> Several worries here, mostly that if the generic code ever changes
-> (something gets added to get_page() that makes it no-longer safe for use
-> in real mode for example, or some other condition gets added to
-> put_page()), we go out of sync and potentially end up with very hard and
-> very subtle bugs.
+> Never mind me.
 > 
-> It might be worth making sure that:
+> In __zone_reclaim we set the flags in swap_control so
+> we never unmap pages or swap pages out at all by
+> default, so this should not be an issue at all.
 > 
->  - This is reviewed by some generic VM people (and make sure they
-> understand why we need to do that)
+> In order to get the problem illustrated above, the
+> user will have to enable RECLAIM_SWAP through sysfs
+> manually.
 > 
->  - A comment is added to get_page() and put_page() to make sure that if
-> they are changed in any way, dbl check the impact on our
-> realmode_get_page() (or "ping" us to make sure things are still ok).
 
-After changing get_page() to get_page_unless_zero(), the get_page API I use is:
-get_page_unless_zero() - basically atomic_inc_not_zero()
-atomic_add_unless() - just operated with the counter
-PageCompound() - check if it is a huge page.
-
-No usage of get_page or put_page.
-
-If any of those changes, I would expect it to hit us immediately, no?
-
-So it may only make sense to add a comment to PageCompound(). But the
-comment says "PageCompound is generally not used in hot code paths", and
-our path is hot. Heh.
-
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 6d53675..c70a654 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -329,7 +329,8 @@ static inline void set_page_writeback(struct page *page)
-  * System with lots of page flags available. This allows separate
-  * flags for PageHead() and PageTail() checks of compound pages so that bit
-  * tests can be used in performance sensitive paths. PageCompound is
-- * generally not used in hot code paths.
-+ * generally not used in hot code paths except arch/powerpc/mm/init_64.c
-+ * which uses it to detect huge pages and avoid handling those in real mode.
-  */
- __PAGEFLAG(Head, head) CLEARPAGEFLAG(Head, head)
- __PAGEFLAG(Tail, tail)
-
-
-So?
-
+For the mapped case and the default tuning for zone_reclaim_mode then
+yes. If instead of allocating 30% of memory the processes are using using
+buffered reads/writes then they'll reach each others page cache pages and
+it's a very similar problem.
 
 -- 
-Alexey
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
