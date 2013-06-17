@@ -1,143 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id C07ED6B0032
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 18:30:10 -0400 (EDT)
-Received: by mail-la0-f48.google.com with SMTP id lx15so2891734lab.7
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2013 15:30:08 -0700 (PDT)
-Date: Tue, 18 Jun 2013 02:30:05 +0400
-From: Glauber Costa <glommer@gmail.com>
-Subject: Re: linux-next: slab shrinkers: BUG at mm/list_lru.c:92
-Message-ID: <20130617223004.GB2538@localhost.localdomain>
-References: <20130617141822.GF5018@dhcp22.suse.cz>
- <20130617151403.GA25172@localhost.localdomain>
- <20130617143508.7417f1ac9ecd15d8b2877f76@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="YZ5djTAD1cGYuMQK"
-Content-Disposition: inline
-In-Reply-To: <20130617143508.7417f1ac9ecd15d8b2877f76@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 1A5776B0032
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 18:33:24 -0400 (EDT)
+Date: Mon, 17 Jun 2013 15:33:22 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] thp: define HPAGE_PMD_* constans as BUILD_BUG() if !THP
+Message-Id: <20130617153322.f3cecaa54aacd465fedb7c36@linux-foundation.org>
+In-Reply-To: <20130617222703.D8C4AE0090@blue.fi.intel.com>
+References: <1371506740-14606-1-git-send-email-kirill.shutemov@linux.intel.com>
+	<20130617151417.f7610d56b4b43ced30c40133@linux-foundation.org>
+	<20130617222703.D8C4AE0090@blue.fi.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
+On Tue, 18 Jun 2013 01:27:03 +0300 (EEST) "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
 
---YZ5djTAD1cGYuMQK
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-
-On Mon, Jun 17, 2013 at 02:35:08PM -0700, Andrew Morton wrote:
-> On Mon, 17 Jun 2013 19:14:12 +0400 Glauber Costa <glommer@gmail.com> wrote:
-> 
-> > > I managed to trigger:
-> > > [ 1015.776029] kernel BUG at mm/list_lru.c:92!
-> > > [ 1015.776029] invalid opcode: 0000 [#1] SMP
-> > > with Linux next (next-20130607) with https://lkml.org/lkml/2013/6/17/203
-> > > on top. 
-> > > 
-> > > This is obviously BUG_ON(nlru->nr_items < 0) and 
-> > > ffffffff81122d0b:       48 85 c0                test   %rax,%rax
-> > > ffffffff81122d0e:       49 89 44 24 18          mov    %rax,0x18(%r12)
-> > > ffffffff81122d13:       0f 84 87 00 00 00       je     ffffffff81122da0 <list_lru_walk_node+0x110>
-> > > ffffffff81122d19:       49 83 7c 24 18 00       cmpq   $0x0,0x18(%r12)
-> > > ffffffff81122d1f:       78 7b                   js     ffffffff81122d9c <list_lru_walk_node+0x10c>
-> > > [...]
-> > > ffffffff81122d9c:       0f 0b                   ud2
-> > > 
-> > > RAX is -1UL.
-> > Yes, fearing those kind of imbalances, we decided to leave the counter as a signed quantity
-> > and BUG, instead of an unsigned quantity.
+> > >  #else /* CONFIG_TRANSPARENT_HUGEPAGE */
+> > > +#define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
+> > > +#define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })
+> > > +#define HPAGE_PMD_SIZE ({ BUILD_BUG(); 0; })
+> > >  
 > > 
-> > > 
-> > > I assume that the current backtrace is of no use and it would most
-> > > probably be some shrinker which doesn't behave.
-> > > 
-> > There are currently 3 users of list_lru in tree: dentries, inodes and xfs.
-> > Assuming you are not using xfs, we are left with dentries and inodes.
-> > 
-> > The first thing to do is to find which one of them is misbehaving. You can try finding
-> > this out by the address of the list_lru, and where it lays in the superblock.
-> > 
-> > Once we know each of them is misbehaving, then we'll have to figure out why.
+> > We've done this sort of thing before and it blew up.  We do want to be
+> > able to use things like HPAGE_PMD_foo in global-var initialisers and
+> > definitions, but the problem is that BUILD_BUG() can't be used outside
+> > functions.
 > 
-> The trace says shrink_slab_node->super_cache_scan->prune_icache_sb.  So
-> it's inodes?
-> 
-Assuming there is no memory corruption of any sort going on , let's check the code.
-nr_item is only manipulated in 3 places:
+> I don't see how it's a blocker. For global variables, we will have to use
+> #ifdefs, but the approach is still useful for in-function code.
 
-1) list_lru_add, where it is increased
-2) list_lru_del, where it is decreased in case the user have voluntarily removed the
-   element from the list
-3) list_lru_walk_node, where an element is removing during shrink.
-
-All three excerpts seem to be correctly locked, so something like this indicates an imbalance.
-Either the element was never added to the list, or it was added, removed, and we didn't notice
-it. (Again, your backing storage is not XFS, is it? If it is , we have another user to look for)
-
-I will assume that Andrew is correct and this is inode related. list_lru_del reads as follows:
-        spin_lock(&nlru->lock);
-        if (!list_empty(item)) { ... }
-
-So one possibility is that we are manipulating this list outside this lock somewhere. Going to
-inode.c... We always manipulate the LRU inside the lock, but the element is not always in the LRU,
-if it is in a list. Could it be possible that the element is in the dispose_list, and at the same
-time someone calls list_lru_del at it, creating the imbalance ?
-
-callers:
-iput_final, evict_inodes, invalidate_inodes.
-Both evict_inodes and invalidate_inodes will do the following pattern:
-
-                inode->i_state |= I_FREEING;                                            
-                inode_lru_list_del(inode);
-                spin_unlock(&inode->i_lock);
-                list_add(&inode->i_lru, &dispose);
-
-IOW, they will remove the element from the LRU, and add it to the dispose list.
-Both of them will also bail out if they see I_FREEING already set, so they are safe
-against each other - because the flag is manipulated inside the lock.
-
-But how about iput_final? It seems to me that if we are calling iput_final at the
-same time as the other two, this *could* happen (maybe there is some extra protection
-that can be seen from Australia but not from here. Dave?)
-
-Right now this is my best theory.
-
-I am attaching a patch that should make a difference in case I am right.
-
-
-
-
-
---YZ5djTAD1cGYuMQK
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline; filename="inode.patch"
-
-diff --git a/fs/inode.c b/fs/inode.c
-index 00b804e..c46c92e 100644
---- a/fs/inode.c
-+++ b/fs/inode.c
-@@ -419,6 +419,8 @@ void inode_add_lru(struct inode *inode)
- 
- static void inode_lru_list_del(struct inode *inode)
- {
-+	if (inode->i_state & I_FREEING)
-+		return;
- 
- 	if (list_lru_del(&inode->i_sb->s_inode_lru, &inode->i_lru))
- 		this_cpu_dec(nr_unused);
-@@ -1381,9 +1383,8 @@ static void iput_final(struct inode *inode)
- 		inode->i_state &= ~I_WILL_FREE;
- 	}
- 
-+	inode_lru_list_del(inode);
- 	inode->i_state |= I_FREEING;
--	if (!list_empty(&inode->i_lru))
--		inode_lru_list_del(inode);
- 	spin_unlock(&inode->i_lock);
- 
- 	evict(inode);
-
---YZ5djTAD1cGYuMQK--
+OK.  Current mainline uses BUILD_BUG() here, so I guess the change
+won't break anything.  Yet.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
