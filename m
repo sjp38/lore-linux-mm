@@ -1,59 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 33A6E6B0034
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 09:30:51 -0400 (EDT)
-Date: Mon, 17 Jun 2013 15:30:49 +0200
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 3E3E06B0033
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 10:01:10 -0400 (EDT)
+Date: Mon, 17 Jun 2013 16:01:08 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2 0/2] slightly rework memcg cache id determination
-Message-ID: <20130617133049.GC5018@dhcp22.suse.cz>
-References: <1371233076-936-1-git-send-email-glommer@openvz.org>
+Subject: Re: [patch v4] Soft limit rework
+Message-ID: <20130617140108.GE5018@dhcp22.suse.cz>
+References: <1370254735-13012-1-git-send-email-mhocko@suse.cz>
+ <20130611154353.GF31277@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1371233076-936-1-git-send-email-glommer@openvz.org>
+In-Reply-To: <20130611154353.GF31277@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, cgroups <cgroups@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Glauber Costa <glommer@openvz.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, Glauber Costa <glommer@gmail.com>
 
-On Fri 14-06-13 14:04:34, Glauber Costa wrote:
-> Michal,
-> 
-> Let me know if this is more acceptable to you. I didn't take your suggestion of
-> having an id and idx functions, because I think this could potentially be even
-> more confusing: in the sense that people would need to wonder a bit what is the
-> difference between them.
+On Tue 11-06-13 17:43:53, Michal Hocko wrote:
+> JFYI, I have rebased the series on top of the current mmotm tree to
+> catch up with Mel's changes in reclaim and other small things here and
+> there. To be sure that the things are still good I have started my tests
+> again which will take some time.
 
-Any clean up is better than nothing. I still think that split up and
-making the 2 functions explicit would be better but I do not think this
-is really that important. 
+And it took way more time than I would like but the current mmotm is
+broken and crashes/hangs and misbehaves in strange ways. At first I
+thought it is my -mm git tree that is broken but then when I started
+testing with linux-next I could see issues as well. I was able to reduce
+the space to slab shrinkers rework but bisection led to nothing
+reasonable. I will report those issues in a separate email when I
+collect all necessary information.
 
-> Note please that we never use the id as an array index outside of memcg core.
-
-Now but that doesn't prevent future abuse.
-
-> So for memcg core, I have changed, in Patch 2, each direct use of idx as an
-> index to include a VM_BUG_ON in case we would get an invalid index.
-
-OK. If you had an _idx variant then you wouldn't need to add that
-VM_BUG_ON at every single place where you use it as an index and do not
-risk that future calls would forget about VM_BUG_ON.
-
-> For the other cases, I have consolidated a bit the usage pattern around
-> memcg_cache_id.  Now the tests are all pretty standardized.
-
-OK, Great!
- 
-> Glauber Costa (2):
->   memcg: make cache index determination more robust
->   memcg: consolidate callers of memcg_cache_id
-> 
->  mm/memcontrol.c | 19 ++++++++++++-------
->  1 file changed, 12 insertions(+), 7 deletions(-)
-> 
-> -- 
-> 1.8.1.4
-> 
+In the meantime I will retest on top of my -mm tree without slab
+shrinkers patches applied. This should be OK for the soft reclaim work
+because memcg shrinkers are still not merged into mm tree and they
+shouldn't be affected by the soft reclaim as the reclaim is per
+shrink_zone now.
 
 -- 
 Michal Hocko
