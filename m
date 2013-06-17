@@ -1,41 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 5CFD86B0031
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 17:29:17 -0400 (EDT)
-Date: Mon, 17 Jun 2013 14:29:14 -0700
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 3B5636B0031
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 17:35:12 -0400 (EDT)
+Date: Mon, 17 Jun 2013 14:35:08 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: +
- mm-thp-dont-use-hpage_shift-in-transparent-hugepage-code.patch added to -mm
- tree
-Message-Id: <20130617142914.4914dcfbd19d345dde686245@linux-foundation.org>
-In-Reply-To: <20130617132746.GA30262@shutemov.name>
-References: <20130513231406.D912031C276@corp2gmr1-1.hot.corp.google.com>
-	<20130617132746.GA30262@shutemov.name>
+Subject: Re: linux-next: slab shrinkers: BUG at mm/list_lru.c:92
+Message-Id: <20130617143508.7417f1ac9ecd15d8b2877f76@linux-foundation.org>
+In-Reply-To: <20130617151403.GA25172@localhost.localdomain>
+References: <20130617141822.GF5018@dhcp22.suse.cz>
+	<20130617151403.GA25172@localhost.localdomain>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Glauber Costa <glommer@gmail.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, 17 Jun 2013 16:27:46 +0300 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+On Mon, 17 Jun 2013 19:14:12 +0400 Glauber Costa <glommer@gmail.com> wrote:
 
-> On Mon, May 13, 2013 at 04:14:06PM -0700, akpm@linux-foundation.org wrote:
-> > From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> > Subject: mm/THP: don't use HPAGE_SHIFT in transparent hugepage code
+> > I managed to trigger:
+> > [ 1015.776029] kernel BUG at mm/list_lru.c:92!
+> > [ 1015.776029] invalid opcode: 0000 [#1] SMP
+> > with Linux next (next-20130607) with https://lkml.org/lkml/2013/6/17/203
+> > on top. 
 > > 
-> > For architectures like powerpc that support multiple explicit hugepage
-> > sizes, HPAGE_SHIFT indicate the default explicit hugepage shift.  For THP
-> > to work the hugepage size should be same as PMD_SIZE.  So use PMD_SHIFT
-> > directly.  So move the define outside CONFIG_TRANSPARENT_HUGEPAGE #ifdef
-> > because we want to use these defines in generic code with if
-> > (pmd_trans_huge()) conditional.
+> > This is obviously BUG_ON(nlru->nr_items < 0) and 
+> > ffffffff81122d0b:       48 85 c0                test   %rax,%rax
+> > ffffffff81122d0e:       49 89 44 24 18          mov    %rax,0x18(%r12)
+> > ffffffff81122d13:       0f 84 87 00 00 00       je     ffffffff81122da0 <list_lru_walk_node+0x110>
+> > ffffffff81122d19:       49 83 7c 24 18 00       cmpq   $0x0,0x18(%r12)
+> > ffffffff81122d1f:       78 7b                   js     ffffffff81122d9c <list_lru_walk_node+0x10c>
+> > [...]
+> > ffffffff81122d9c:       0f 0b                   ud2
+> > 
+> > RAX is -1UL.
+> Yes, fearing those kind of imbalances, we decided to leave the counter as a signed quantity
+> and BUG, instead of an unsigned quantity.
 > 
-> I would propose to partly revert the patch with the patch bellow.
+> > 
+> > I assume that the current backtrace is of no use and it would most
+> > probably be some shrinker which doesn't behave.
+> > 
+> There are currently 3 users of list_lru in tree: dentries, inodes and xfs.
+> Assuming you are not using xfs, we are left with dentries and inodes.
+> 
+> The first thing to do is to find which one of them is misbehaving. You can try finding
+> this out by the address of the list_lru, and where it lays in the superblock.
+> 
+> Once we know each of them is misbehaving, then we'll have to figure out why.
 
-It's not completely clear what you're proposing here.  Can you send a
-real patch against mmotm or -next for us to look at?
+The trace says shrink_slab_node->super_cache_scan->prune_icache_sb.  So
+it's inodes?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
