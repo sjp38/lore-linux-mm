@@ -1,102 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 7486A6B0033
-	for <linux-mm@kvack.org>; Sun, 16 Jun 2013 20:08:32 -0400 (EDT)
-Date: Mon, 17 Jun 2013 10:08:27 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH] mm: vmscan: remove redundant querying to shrinker
-Message-ID: <20130617000827.GI29338@dastard>
-References: <1371204471-13518-1-git-send-email-heesub.shin@samsung.com>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id AB9976B0033
+	for <linux-mm@kvack.org>; Sun, 16 Jun 2013 21:56:00 -0400 (EDT)
+Message-ID: <51BE6BFC.3030009@cn.fujitsu.com>
+Date: Mon, 17 Jun 2013 09:53:00 +0800
+From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1371204471-13518-1-git-send-email-heesub.shin@samsung.com>
+Subject: Re: [PATCH] mm: Add unlikely for current_order test
+References: <51BC4A83.50302@gmail.com> <alpine.DEB.2.02.1306161103020.22688@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1306161103020.22688@chino.kir.corp.google.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Heesub Shin <heesub.shin@samsung.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de, riel@redhat.com, kyungmin.park@samsung.com, d.j.shin@samsung.com, sunae.seo@samsung.com
+To: David Rientjes <rientjes@google.com>
+Cc: Zhang Yanfei <zhangyanfei.yes@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Fri, Jun 14, 2013 at 07:07:51PM +0900, Heesub Shin wrote:
-> shrink_slab() queries each slab cache to get the number of
-> elements in it. In most cases such queries are cheap but,
-> on some caches. For example, Android low-memory-killer,
-> which is operates as a slab shrinker, does relatively
-> long calculation once invoked and it is quite expensive.
+Hi David,
 
-As has already been pointed out, the low memory killer is a badly
-broken piece of code. I can't run a normal machine with it enabled
-because it randomly kills processes whenever memory pressure is
-generated. What it does is simply broken and hence arguing that it
-has too much overhead is not a convincing argument for changing core
-shrinker infrastructure.
-
-> This patch removes redundant queries to shrinker function
-> in the loop of shrink batch.
+On 06/17/2013 02:04 AM, David Rientjes wrote:
+> On Sat, 15 Jun 2013, Zhang Yanfei wrote:
 > 
-> Signed-off-by: Heesub Shin <heesub.shin@samsung.com>
-> ---
->  mm/vmscan.c | 4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
+>> From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+>>
+>> Since we have an unlikely for the "current_order >= pageblock_order / 2"
+>> test above, adding an unlikely for this "current_order >= pageblock_order"
+>> test seems more appropriate.
+>>
 > 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index fa6a853..11b6695 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -282,9 +282,8 @@ unsigned long shrink_slab(struct shrink_control *shrink,
->  					max_pass, delta, total_scan);
->  
->  		while (total_scan >= batch_size) {
-> -			int nr_before;
-> +			int nr_before = max_pass;
->  
-> -			nr_before = do_shrinker_shrink(shrinker, shrink, 0);
->  			shrink_ret = do_shrinker_shrink(shrinker, shrink,
->  							batch_size);
->  			if (shrink_ret == -1)
-> @@ -293,6 +292,7 @@ unsigned long shrink_slab(struct shrink_control *shrink,
->  				ret += nr_before - shrink_ret;
->  			count_vm_events(SLABS_SCANNED, batch_size);
->  			total_scan -= batch_size;
-> +			max_pass = shrink_ret;
->  
->  			cond_resched();
->  		}
+> I don't understand the justification at all, current_order being unlikely 
+> greater than or equal to pageblock_order / 2 doesn't imply at all that 
+> it's unlikely that current_order is greater than or equal to 
+> pageblock_order.
+> 
 
-Shrinkers run concurrently on different CPUs, and so the state of
-the cache being shrunk can change significantly when cond_resched()
-actually yields the CPU.  Hence we need to recalculate the current
-state of the cache before we shrink again to get an accurate idea of
-how much work the current loop has done. If we get this badly wrong,
-the caller of shrink_slab() will get an incorrect idea of how much
-work was actually done by the shrinkers....
+hmmm... I am confused. Since current_order is >= pageblock_order / 2 is unlikely,
+why current_order is >= pageblock_order isn't unlikely. Or there are other
+tips?
 
-This problem is fixed in mmtom by the change of shrinker API that
-results shrinker->scan_objects() returning the number of objects
-freed directly, and hence it isn't necessary to have a
-shrinker->count_objects() call in the scan loop anymore. i.e. the
-reworked scan loop ends up like:
+Actually, I am also a little confused about why current_order should be
+unlikely greater than or equal to pageblock_order / 2. When borrowing pages
+with other migrate_type, we always search from MAX_ORDER-1, which is greater
+or equal to pageblock_order.
 
-	while (total_scan >= batch_size) {
-		unsigned long ret;
-		shrinkctl->nr_to_scan = batch_size;
-		ret = shrinker->scan_objects(shrinker, shrinkctl);
-
-		if (ret == SHRINK_STOP)
-			break;
-		freed += ret;
-
-		count_vm_events(SLABS_SCANNED, batch_size);
-		total_scan -= batch_size;
-	}
-
-So we've already solved the problem you are concerned about....
-
-Cheers,
-
-Dave.
 -- 
-Dave Chinner
-david@fromorbit.com
+Thanks.
+Zhang Yanfei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
