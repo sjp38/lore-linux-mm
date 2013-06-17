@@ -1,84 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 9FBFB6B0034
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 05:41:54 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 17 Jun 2013 15:05:04 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id B7C191258053
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 15:10:45 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5H9foMc27525236
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 15:11:52 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5H9fjUR005003
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 19:41:46 +1000
-Date: Mon, 17 Jun 2013 17:41:44 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 3/7] mm/writeback: commit reason of
- WB_REASON_FORKER_THREAD mismatch name
-Message-ID: <20130617094144.GA21564@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1371345290-19588-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1371345290-19588-3-git-send-email-liwanp@linux.vnet.ibm.com>
- <20130617083030.GE19194@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 03DA96B0033
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 05:45:35 -0400 (EDT)
+Date: Mon, 17 Jun 2013 11:45:30 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH] mm: Revert pinned_vm braindamage
+Message-ID: <20130617094530.GO3204@twins.programming.kicks-ass.net>
+References: <20130606124351.GZ27176@twins.programming.kicks-ass.net>
+ <20130613140632.15982af2ebc443b24bfff86a@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130617083030.GE19194@dhcp22.suse.cz>
+In-Reply-To: <20130613140632.15982af2ebc443b24bfff86a@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Fengguang Wu <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Andrew Shewmaker <agshew@gmail.com>, Jiri Kosina <jkosina@suse.cz>, Namjae Jeon <linkinjeon@gmail.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: torvalds@linux-foundation.org, roland@kernel.org, mingo@kernel.org, tglx@linutronix.de, kosaki.motohiro@gmail.com, penberg@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-rdma@vger.kernel.org, Mike Marciniszyn <infinipath@intel.com>
 
-On Mon, Jun 17, 2013 at 10:30:30AM +0200, Michal Hocko wrote:
->On Sun 16-06-13 09:14:46, Wanpeng Li wrote:
->> After commit 839a8e86("writeback: replace custom worker pool implementation
->> with unbound workqueue"), there is no bdi forker thread any more. However,
->> WB_REASON_FORKER_THREAD is still used due to it is somewhat userland visible 
->
->What exactly "somewhat userland visible" means?
->Is this about trace events?
+On Thu, Jun 13, 2013 at 02:06:32PM -0700, Andrew Morton wrote:
+> Let's try to get this wrapped up?
+> 
+> On Thu, 6 Jun 2013 14:43:51 +0200 Peter Zijlstra <peterz@infradead.org> wrote:
+> 
+> > 
+> > Patch bc3e53f682 ("mm: distinguish between mlocked and pinned pages")
+> > broke RLIMIT_MEMLOCK.
+> 
+> I rather like what bc3e53f682 did, actually.  RLIMIT_MEMLOCK limits the
+> amount of memory you can mlock().  Nice and simple.
+> 
+> This pinning thing which infiniband/perf are doing is conceptually
+> different and if we care at all, perhaps we should be looking at adding
+> RLIMIT_PINNED.
 
-Thanks for the question, Tejun, could you explain this for us? ;-)
+We could do that; but I really don't like doing it for the reasons I
+outlined previously. It gives the user another knob to twiddle which is
+pretty much the same as one he already has just slightly different.
 
-Regards,
-Wanpeng Li 
+Like said, I see RLIMIT_MEMLOCK to mean the amount of pages the user can
+exempt from paging; since that is what the VM cares about most.
 
->
->> and we won't be exposing exactly the same information with just a different 
->> name. 
->> 
->> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->> ---
->>  include/linux/writeback.h | 5 +++++
->>  1 file changed, 5 insertions(+)
->> 
->> diff --git a/include/linux/writeback.h b/include/linux/writeback.h
->> index 8b5cec4..cf077a7 100644
->> --- a/include/linux/writeback.h
->> +++ b/include/linux/writeback.h
->> @@ -47,6 +47,11 @@ enum wb_reason {
->>  	WB_REASON_LAPTOP_TIMER,
->>  	WB_REASON_FREE_MORE_MEM,
->>  	WB_REASON_FS_FREE_SPACE,
->> +/*
->> + * There is no bdi forker thread any more and works are done by emergency
->> + * worker, however, this is somewhat userland visible and we'll be exposing
->> + * exactly the same information, so it has a mismatch name.
->> + */
->>  	WB_REASON_FORKER_THREAD,
->>  
->>  	WB_REASON_MAX,
->> -- 
->> 1.8.1.2
->> 
->
->-- 
->Michal Hocko
->SUSE Labs
+> > Before that patch: mm_struct::locked_vm < RLIMIT_MEMLOCK; after that
+> > patch we have: mm_struct::locked_vm < RLIMIT_MEMLOCK &&
+> > mm_struct::pinned_vm < RLIMIT_MEMLOCK.
+> 
+> But this is a policy decision which was implemented in perf_mmap() and
+> perf can alter that decision.  How bad would it be if perf just ignored
+> RLIMIT_MEMLOCK?
+
+Then it could pin all memory -- seems like something bad.
+
+> drivers/infiniband/hw/qib/qib_user_pages.c has issues, btw.  It
+> compares the amount-to-be-pinned with rlimit(RLIMIT_MEMLOCK), but
+> forgets to also look at current->mm->pinned_vm.  Duh.
+> 
+> It also does the pinned accounting in __qib_get_user_pages() but in
+> __qib_release_user_pages(), the caller is supposed to do it, which is
+> rather awkward.
+> 
+> 
+> Longer-term I don't think that inifinband or perf should be dinking
+> around with rlimit(RLIMIT_MEMLOCK) or ->pinned_vm.  Those policy
+> decisions should be hoisted into a core mm helper where we can do it
+> uniformly (and more correctly than infiniband's attempt!).
+
+Agreed, hence my VM_PINNED proposal that would lift most of that to the
+core VM.
+
+I just got really lost in the IB code :/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
