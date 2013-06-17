@@ -1,81 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id E58AE6B0032
-	for <linux-mm@kvack.org>; Sun, 16 Jun 2013 19:25:19 -0400 (EDT)
-Received: from ita15242 by lnx22.ion.it with local (Exim 4.76)
-	(envelope-from <ita15242@lnx22.ion.it>)
-	id 1UoMHQ-0027fv-0J
-	for linux-mm@kvack.org; Mon, 17 Jun 2013 01:22:40 +0200
-Subject: Re: Sales Contract
-From: M@kvack.org:D Andy Albart <globalworld@andyalbart.com>
-Reply-To: 
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 7486A6B0033
+	for <linux-mm@kvack.org>; Sun, 16 Jun 2013 20:08:32 -0400 (EDT)
+Date: Mon, 17 Jun 2013 10:08:27 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] mm: vmscan: remove redundant querying to shrinker
+Message-ID: <20130617000827.GI29338@dastard>
+References: <1371204471-13518-1-git-send-email-heesub.shin@samsung.com>
 MIME-Version: 1.0
-Content-Type: text/plain
-Content-Transfer-Encoding: 8bit
-Message-Id: <E1UoMHQ-0027fv-0J@lnx22.ion.it>
-Date: Mon, 17 Jun 2013 01:22:40 +0200
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1371204471-13518-1-git-send-email-heesub.shin@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Heesub Shin <heesub.shin@samsung.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de, riel@redhat.com, kyungmin.park@samsung.com, d.j.shin@samsung.com, sunae.seo@samsung.com
 
-Dear Sir/Ma,
+On Fri, Jun 14, 2013 at 07:07:51PM +0900, Heesub Shin wrote:
+> shrink_slab() queries each slab cache to get the number of
+> elements in it. In most cases such queries are cheap but,
+> on some caches. For example, Android low-memory-killer,
+> which is operates as a slab shrinker, does relatively
+> long calculation once invoked and it is quite expensive.
 
+As has already been pointed out, the low memory killer is a badly
+broken piece of code. I can't run a normal machine with it enabled
+because it randomly kills processes whenever memory pressure is
+generated. What it does is simply broken and hence arguing that it
+has too much overhead is not a convincing argument for changing core
+shrinker infrastructure.
 
-Greetings from Warsaw, Poland, Please find our new order(PO-NO#63119) and new design made for our company only. Please we do not 
+> This patch removes redundant queries to shrinker function
+> in the loop of shrink batch.
+> 
+> Signed-off-by: Heesub Shin <heesub.shin@samsung.com>
+> ---
+>  mm/vmscan.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index fa6a853..11b6695 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -282,9 +282,8 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+>  					max_pass, delta, total_scan);
+>  
+>  		while (total_scan >= batch_size) {
+> -			int nr_before;
+> +			int nr_before = max_pass;
+>  
+> -			nr_before = do_shrinker_shrink(shrinker, shrink, 0);
+>  			shrink_ret = do_shrinker_shrink(shrinker, shrink,
+>  							batch_size);
+>  			if (shrink_ret == -1)
+> @@ -293,6 +292,7 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+>  				ret += nr_before - shrink_ret;
+>  			count_vm_events(SLABS_SCANNED, batch_size);
+>  			total_scan -= batch_size;
+> +			max_pass = shrink_ret;
+>  
+>  			cond_resched();
+>  		}
 
+Shrinkers run concurrently on different CPUs, and so the state of
+the cache being shrunk can change significantly when cond_resched()
+actually yields the CPU.  Hence we need to recalculate the current
+state of the cache before we shrink again to get an accurate idea of
+how much work the current loop has done. If we get this badly wrong,
+the caller of shrink_slab() will get an incorrect idea of how much
+work was actually done by the shrinkers....
 
-want the new prototype to be shared by other people. We made this exclusively for our company and we have therefore encrypted the file.
+This problem is fixed in mmtom by the change of shrinker API that
+results shrinker->scan_objects() returning the number of objects
+freed directly, and hence it isn't necessary to have a
+shrinker->count_objects() call in the scan loop anymore. i.e. the
+reworked scan loop ends up like:
 
+	while (total_scan >= batch_size) {
+		unsigned long ret;
+		shrinkctl->nr_to_scan = batch_size;
+		ret = shrinker->scan_objects(shrinker, shrinkctl);
 
-Click the link below to access the Purchase order, i could not attach it because it kept bouncing back, i uploaded it on our secure website, 
+		if (ret == SHRINK_STOP)
+			break;
+		freed += ret;
 
+		count_vm_events(SLABS_SCANNED, batch_size);
+		total_scan -= batch_size;
+	}
 
-you must have to log in with your existing trading email address as to have access to the files.
+So we've already solved the problem you are concerned about....
 
+Cheers,
 
-
-Click Here To View Our Company Online Sample
-
-
-
-
-Or copy and paste our company product online sample site to view the exact product.
-
-
-fargoglobal.nazuka.net/globaltrade/
-
-
-
-
-Urgent!!!! Please send us Proforma Invoice as soon as possible and confirm shipping date not later than two weeks.
-
-give me your best price (FOB) and delivery date for this exact sample most our customers requires online.
-
-
-
-Send to us this requirements. 
-
-1. Catalogue if you have a better sample you want us to make.
-2. Final Quotation Price based on FOB
-3. Payment method 
-4. Packing method 
-
-Should you have any questions and inquiry, please feel free to contact us at any time. 
-
-
-
-Thank you.
-Best regards, 
-
-
-Andy Albart Trading Inc.
-ul. Patriotow 110
-04-844 Warsaw
-Poland
-Phone +48 (0) 22 33 22 121
-Fax +48 (0) 22 33 22 120
-Email: sales@andyalbart.pl
-
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
