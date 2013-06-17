@@ -1,60 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
-	by kanga.kvack.org (Postfix) with SMTP id 9CFA76B0031
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 17:56:53 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id y10so3218873pdj.0
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2013 14:56:52 -0700 (PDT)
-Message-ID: <51BF861F.6040802@gmail.com>
-Date: Tue, 18 Jun 2013 05:56:47 +0800
-From: Zhang Yanfei <zhangyanfei.yes@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm: Add unlikely for current_order test
-References: <51BC4A83.50302@gmail.com> <alpine.DEB.2.02.1306161103020.22688@chino.kir.corp.google.com> <51BE6BFC.3030009@cn.fujitsu.com> <alpine.DEB.2.02.1306171431470.20631@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.02.1306171431470.20631@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id E16326B0031
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 18:03:09 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] thp: define HPAGE_PMD_* constans as BUILD_BUG() if !THP
+Date: Tue, 18 Jun 2013 01:05:40 +0300
+Message-Id: <1371506740-14606-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 06/18/2013 05:37 AM, David Rientjes wrote:
-> On Mon, 17 Jun 2013, Zhang Yanfei wrote:
-> 
->>> I don't understand the justification at all, current_order being unlikely 
->>> greater than or equal to pageblock_order / 2 doesn't imply at all that 
->>> it's unlikely that current_order is greater than or equal to 
->>> pageblock_order.
->>>
->>
->> hmmm... I am confused. Since current_order is >= pageblock_order / 2 is unlikely,
->> why current_order is >= pageblock_order isn't unlikely. Or there are other
->> tips?
->>
->> Actually, I am also a little confused about why current_order should be
->> unlikely greater than or equal to pageblock_order / 2. When borrowing pages
->> with other migrate_type, we always search from MAX_ORDER-1, which is greater
->> or equal to pageblock_order.
->>
-> 
-> Look at what is being done in the function: current_order loops down from 
-> MAX_ORDER-1 to the order passed.  It is not at all "unlikely" that 
-> current_order is greater than pageblock_order, or pageblock_order / 2.
-> 
-> MAX_ORDER is typically 11 and pageblock_order is typically 9 on x86.  
-> Integer division truncates, so pageblock_order / 2 is 4.  For the first 
-> eight iterations, it's guaranteed that current_order >= pageblock_order / 
-> 2 if it even gets that far!
-> 
-> So just remove the unlikely() entirely, it's completely bogus.
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-I see. Thanks!
+Currently, HPAGE_PMD_* constans rely on PMD_SHIFT regardless of
+CONFIG_TRANSPARENT_HUGEPAGE. PMD_SHIFT is not defined everywhere (e.g.
+arm nommu case).
 
-I will send another patch.
+It means we can't use anything like this in generic code:
 
+        if (PageTransHuge(page))
+                zero_huge_user(page, 0, HPAGE_PMD_SIZE);
+        else
+                clear_highpage(page);
+
+For !THP case, PageTransHuge() is 0 and compiler can eliminate
+zero_huge_user() call. But it still need to be valid C expression, means
+HPAGE_PMD_SIZE has to expand to something compiler can understand.
+
+Previously, HPAGE_PMD_* were defined to BUILD_BUG() for !THP. Let's come
+back to it.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ include/linux/huge_mm.h | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index cc276d2..e2dbefb 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -58,11 +58,12 @@ extern pmd_t *page_check_address_pmd(struct page *page,
+ 
+ #define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
+ #define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
++
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ #define HPAGE_PMD_SHIFT PMD_SHIFT
+ #define HPAGE_PMD_SIZE	((1UL) << HPAGE_PMD_SHIFT)
+ #define HPAGE_PMD_MASK	(~(HPAGE_PMD_SIZE - 1))
+ 
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
+ 
+ #define transparent_hugepage_enabled(__vma)				\
+@@ -180,6 +181,9 @@ extern int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vm
+ 				unsigned long addr, pmd_t pmd, pmd_t *pmdp);
+ 
+ #else /* CONFIG_TRANSPARENT_HUGEPAGE */
++#define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
++#define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })
++#define HPAGE_PMD_SIZE ({ BUILD_BUG(); 0; })
+ 
+ #define hpage_nr_pages(x) 1
+ 
 -- 
-Thanks.
-Zhang Yanfei
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
