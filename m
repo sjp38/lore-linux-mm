@@ -1,86 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 611616B0031
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 12:54:16 -0400 (EDT)
-Received: by mail-lb0-f178.google.com with SMTP id y6so2720402lbh.37
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2013 09:54:14 -0700 (PDT)
-Date: Mon, 17 Jun 2013 20:54:10 +0400
-From: Glauber Costa <glommer@gmail.com>
-Subject: Re: linux-next: slab shrinkers: BUG at mm/list_lru.c:92
-Message-ID: <20130617165409.GA10764@localhost.localdomain>
-References: <20130617141822.GF5018@dhcp22.suse.cz>
- <20130617151403.GA25172@localhost.localdomain>
- <20130617153302.GI5018@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130617153302.GI5018@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 5D31E6B0031
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 13:17:44 -0400 (EDT)
+Date: Mon, 17 Jun 2013 13:17:41 -0400
+From: Luiz Capitulino <lcapitulino@redhat.com>
+Subject: Re: [PATCH v2] virtio_balloon: leak_balloon(): only tell host if we
+ got pages deflated
+Message-ID: <20130617131741.3489b85d@redhat.com>
+In-Reply-To: <20130605211837.1fc9b902@redhat.com>
+References: <20130605211837.1fc9b902@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Dave Chinner <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, aquini@redhat.com
 
-On Mon, Jun 17, 2013 at 05:33:02PM +0200, Michal Hocko wrote:
-> On Mon 17-06-13 19:14:12, Glauber Costa wrote:
-> > On Mon, Jun 17, 2013 at 04:18:22PM +0200, Michal Hocko wrote:
-> > > Hi,
-> > 
-> > Hi,
-> > 
-> > > I managed to trigger:
-> > > [ 1015.776029] kernel BUG at mm/list_lru.c:92!
-> > > [ 1015.776029] invalid opcode: 0000 [#1] SMP
-> > > with Linux next (next-20130607) with https://lkml.org/lkml/2013/6/17/203
-> > > on top. 
-> > > 
-> > > This is obviously BUG_ON(nlru->nr_items < 0) and 
-> > > ffffffff81122d0b:       48 85 c0                test   %rax,%rax
-> > > ffffffff81122d0e:       49 89 44 24 18          mov    %rax,0x18(%r12)
-> > > ffffffff81122d13:       0f 84 87 00 00 00       je     ffffffff81122da0 <list_lru_walk_node+0x110>
-> > > ffffffff81122d19:       49 83 7c 24 18 00       cmpq   $0x0,0x18(%r12)
-> > > ffffffff81122d1f:       78 7b                   js     ffffffff81122d9c <list_lru_walk_node+0x10c>
-> > > [...]
-> > > ffffffff81122d9c:       0f 0b                   ud2
-> > > 
-> > > RAX is -1UL.
-> >
-> > Yes, fearing those kind of imbalances, we decided to leave the counter
-> > as a signed quantity and BUG, instead of an unsigned quantity.
-> > 
-> > > I assume that the current backtrace is of no use and it would most
-> > > probably be some shrinker which doesn't behave.
-> > > 
-> > There are currently 3 users of list_lru in tree: dentries, inodes and xfs.
-> > Assuming you are not using xfs, we are left with dentries and inodes.
-> > 
-> > The first thing to do is to find which one of them is misbehaving. You
-> > can try finding this out by the address of the list_lru, and where it
-> > lays in the superblock.
-> 
-> I am not sure I understand. Care to prepare a debugging patch for me?
->  
-> > Once we know each of them is misbehaving, then we'll have to figure
-> > out why.
-> > 
-> > Any special filesystem workload ?
-> 
-> This is two parallel kernel builds with separate kernel trees running
-> under 2 hard unlimitted groups (with 0 soft limit) followed by rm -rf
-> source trees + drop caches. Sometimes I have to repeat this multiple
-> times. I can also see some timer specific crashes which are most
-> probably not related so I am getting back to my mm tree and will hope
-> the tree is healthy.
-> 
-> I have seen some other traces as well (mentioning ext3 dput paths) but I
-> cannot reproduce them anymore.
-> 
+On Wed, 5 Jun 2013 21:18:37 -0400
+Luiz Capitulino <lcapitulino@redhat.com> wrote:
 
-Do you have those traces? If there is a bug in the ext3 dput, then it is
-most likely the culprit. dput() is when we insert things into the LRU. So
-if we are not fully inserting an element that we should have - and later
-on try to remove it, we'll go negative.
+> The balloon_page_dequeue() function can return NULL. If it does for
+> the first page being freed, then leak_balloon() will create a
+> scatter list with len=0. Which in turn seems to generate an invalid
+> virtio request.
+> 
+> I didn't get this in practice, I found it by code review. On the other
+> hand, such an invalid virtio request will cause errors in QEMU and
+> fill_balloon() also performs the same check implemented by this commit.
+> 
+> Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
+> Acked-by: Rafael Aquini <aquini@redhat.com>
 
-Can we see those traces?
+Andrew, can you pick this one?
+
+> ---
+> 
+> o v2
+> 
+>  - Improve changelog
+> 
+>  drivers/virtio/virtio_balloon.c | 3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+> index bd3ae32..71af7b5 100644
+> --- a/drivers/virtio/virtio_balloon.c
+> +++ b/drivers/virtio/virtio_balloon.c
+> @@ -191,7 +191,8 @@ static void leak_balloon(struct virtio_balloon *vb, size_t num)
+>  	 * virtio_has_feature(vdev, VIRTIO_BALLOON_F_MUST_TELL_HOST);
+>  	 * is true, we *have* to do it in this order
+>  	 */
+> -	tell_host(vb, vb->deflate_vq);
+> +	if (vb->num_pfns != 0)
+> +		tell_host(vb, vb->deflate_vq);
+>  	mutex_unlock(&vb->balloon_lock);
+>  	release_pages_by_pfn(vb->pfns, vb->num_pfns);
+>  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
