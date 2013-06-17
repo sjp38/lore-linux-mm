@@ -1,70 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id B615F6B0033
-	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 05:30:15 -0400 (EDT)
-Date: Mon, 17 Jun 2013 10:30:10 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 1/7] mm: remove ZONE_RECLAIM_LOCKED
-Message-ID: <20130617093010.GH1875@suse.de>
-References: <1370445037-24144-1-git-send-email-aarcange@redhat.com>
- <1370445037-24144-2-git-send-email-aarcange@redhat.com>
- <20130606090430.GC1936@suse.de>
- <51B0C8D8.7070708@redhat.com>
- <51BB41EF.7080508@redhat.com>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 9FBFB6B0034
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 05:41:54 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Mon, 17 Jun 2013 15:05:04 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id B7C191258053
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 15:10:45 +0530 (IST)
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5H9foMc27525236
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 15:11:52 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5H9fjUR005003
+	for <linux-mm@kvack.org>; Mon, 17 Jun 2013 19:41:46 +1000
+Date: Mon, 17 Jun 2013 17:41:44 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 3/7] mm/writeback: commit reason of
+ WB_REASON_FORKER_THREAD mismatch name
+Message-ID: <20130617094144.GA21564@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <1371345290-19588-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1371345290-19588-3-git-send-email-liwanp@linux.vnet.ibm.com>
+ <20130617083030.GE19194@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51BB41EF.7080508@redhat.com>
+In-Reply-To: <20130617083030.GE19194@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>
+To: Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Fengguang Wu <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Andrew Shewmaker <agshew@gmail.com>, Jiri Kosina <jkosina@suse.cz>, Namjae Jeon <linkinjeon@gmail.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jun 14, 2013 at 12:16:47PM -0400, Rik van Riel wrote:
-> On 06/06/2013 01:37 PM, Rik van Riel wrote:
-> >On 06/06/2013 05:04 AM, Mel Gorman wrote:
-> >>On Wed, Jun 05, 2013 at 05:10:31PM +0200, Andrea Arcangeli wrote:
-> >>>Zone reclaim locked breaks zone_reclaim_mode=1. If more than one
-> >>>thread allocates memory at the same time, it forces a premature
-> >>>allocation into remote NUMA nodes even when there's plenty of clean
-> >>>cache to reclaim in the local nodes.
-> >>>
-> >>>Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> >>
-> >>Be aware that after this patch is applied that it is possible to have a
-> >>situation like this
-> >>
-> >>1. 4 processes running on node 1
-> >>2. Each process tries to allocate 30% of memory
-> >>3. Each process reads the full buffer in a loop (stupid, just an example)
-> >>
-> >>In this situation the processes will continually interfere with each
-> >>other until one of them gets migrated to another zone by the scheduler.
-> >
-> >This is a very good point.
-> >
-> >Andrea, I suspect we will need some kind of safeguard against
-> >this problem.
-> 
-> Never mind me.
-> 
-> In __zone_reclaim we set the flags in swap_control so
-> we never unmap pages or swap pages out at all by
-> default, so this should not be an issue at all.
-> 
-> In order to get the problem illustrated above, the
-> user will have to enable RECLAIM_SWAP through sysfs
-> manually.
-> 
+On Mon, Jun 17, 2013 at 10:30:30AM +0200, Michal Hocko wrote:
+>On Sun 16-06-13 09:14:46, Wanpeng Li wrote:
+>> After commit 839a8e86("writeback: replace custom worker pool implementation
+>> with unbound workqueue"), there is no bdi forker thread any more. However,
+>> WB_REASON_FORKER_THREAD is still used due to it is somewhat userland visible 
+>
+>What exactly "somewhat userland visible" means?
+>Is this about trace events?
 
-For the mapped case and the default tuning for zone_reclaim_mode then
-yes. If instead of allocating 30% of memory the processes are using using
-buffered reads/writes then they'll reach each others page cache pages and
-it's a very similar problem.
+Thanks for the question, Tejun, could you explain this for us? ;-)
 
--- 
-Mel Gorman
-SUSE Labs
+Regards,
+Wanpeng Li 
+
+>
+>> and we won't be exposing exactly the same information with just a different 
+>> name. 
+>> 
+>> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+>> ---
+>>  include/linux/writeback.h | 5 +++++
+>>  1 file changed, 5 insertions(+)
+>> 
+>> diff --git a/include/linux/writeback.h b/include/linux/writeback.h
+>> index 8b5cec4..cf077a7 100644
+>> --- a/include/linux/writeback.h
+>> +++ b/include/linux/writeback.h
+>> @@ -47,6 +47,11 @@ enum wb_reason {
+>>  	WB_REASON_LAPTOP_TIMER,
+>>  	WB_REASON_FREE_MORE_MEM,
+>>  	WB_REASON_FS_FREE_SPACE,
+>> +/*
+>> + * There is no bdi forker thread any more and works are done by emergency
+>> + * worker, however, this is somewhat userland visible and we'll be exposing
+>> + * exactly the same information, so it has a mismatch name.
+>> + */
+>>  	WB_REASON_FORKER_THREAD,
+>>  
+>>  	WB_REASON_MAX,
+>> -- 
+>> 1.8.1.2
+>> 
+>
+>-- 
+>Michal Hocko
+>SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
