@@ -1,47 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id DAF216B0033
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 17:34:25 -0400 (EDT)
-Date: Tue, 18 Jun 2013 16:04:33 -0400
-From: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>
-Subject: Re: [PATCH 0/2] hugetlb fixes
-Message-ID: <20130618200433.GA28198@logfs.org>
-References: <1371581225-27535-1-git-send-email-joern@logfs.org>
- <20130618185055.GA27618@logfs.org>
- <20130618132705.c5eb78a20499beb1b769f741@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20130618132705.c5eb78a20499beb1b769f741@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id B49FD6B0033
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 18:12:11 -0400 (EDT)
+Received: from /spool/local
+	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
+	Tue, 18 Jun 2013 18:12:10 -0400
+Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id D14C3C90044
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 18:12:06 -0400 (EDT)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5IMB70m308354
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 18:11:07 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5IMB7lf031602
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 18:11:07 -0400
+From: Cody P Schafer <cody@linux.vnet.ibm.com>
+Subject: [PATCH] mm/page_alloc: remove repetitious local_irq_save() in __zone_pcp_update()
+Date: Tue, 18 Jun 2013 15:10:37 -0700
+Message-Id: <1371593437-30002-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Cody P Schafer <cody@linux.vnet.ibm.com>, Linux MM <linux-mm@kvack.org>
 
-On Tue, 18 June 2013 13:27:05 -0700, Andrew Morton wrote:
-> On Tue, 18 Jun 2013 14:50:55 -0400 J__rn Engel <joern@logfs.org> wrote:
-> 
-> > On Tue, 18 June 2013 14:47:03 -0400, Joern Engel wrote:
-> > > 
-> > > Test program below is failing before these two patches and passing
-> > > after.
-> > 
-> > Actually, do we have a place to stuff kernel tests?  And if not,
-> > should we have one?
-> 
-> Yep, tools/testing/selftests/vm.  It's pretty simple and stupid at
-> present - it anything about the framework irritates you, please fix it!
+__zone_pcp_update() is called via stop_machine(), which already disables
+local irq.
 
-Just did. :)
+Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
+---
+ mm/page_alloc.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
 
-JA?rn
-
---
-Maintenance in other professions and of other articles is concerned with
-the return of the item to its original state; in Software, maintenance
-is concerned with moving an item away from its original state.
--- Les Belady
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index bac3107..b46b54a 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6179,7 +6179,7 @@ static int __meminit __zone_pcp_update(void *data)
+ {
+ 	struct zone *zone = data;
+ 	int cpu;
+-	unsigned long batch = zone_batchsize(zone), flags;
++	unsigned long batch = zone_batchsize(zone);
+ 
+ 	for_each_possible_cpu(cpu) {
+ 		struct per_cpu_pageset *pset;
+@@ -6188,12 +6188,10 @@ static int __meminit __zone_pcp_update(void *data)
+ 		pset = per_cpu_ptr(zone->pageset, cpu);
+ 		pcp = &pset->pcp;
+ 
+-		local_irq_save(flags);
+ 		if (pcp->count > 0)
+ 			free_pcppages_bulk(zone, pcp->count, pcp);
+ 		drain_zonestat(zone, pset);
+ 		setup_pageset(pset, batch);
+-		local_irq_restore(flags);
+ 	}
+ 	return 0;
+ }
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
