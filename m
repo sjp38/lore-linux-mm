@@ -1,83 +1,233 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 1F2DC6B0032
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 07:50:39 -0400 (EDT)
-Received: by mail-ve0-f171.google.com with SMTP id b10so3026677vea.30
-        for <linux-mm@kvack.org>; Tue, 18 Jun 2013 04:50:38 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20130617160200.27bb5d82df09a26adb8efce5@linux-foundation.org>
-References: <1370291585-26102-1-git-send-email-sjenning@linux.vnet.ibm.com>
-	<1370291585-26102-4-git-send-email-sjenning@linux.vnet.ibm.com>
-	<CAA_GA1eWFYDxp3gEdWzajVP4jMpmJbt=oWBZYqZEQjndU=s_Qg@mail.gmail.com>
-	<20130617160200.27bb5d82df09a26adb8efce5@linux-foundation.org>
-Date: Tue, 18 Jun 2013 19:50:37 +0800
-Message-ID: <CAA_GA1eqEUD+f-ZmXiBXS+UC5honi8kKtDTXV9dSTT=oj6S4Ag@mail.gmail.com>
-Subject: Re: [PATCHv13 3/4] zswap: add to mm/
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 9D5FB6B0032
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 08:10:06 -0400 (EDT)
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [PATCH v5] Soft limit rework
+Date: Tue, 18 Jun 2013 14:09:39 +0200
+Message-Id: <1371557387-22434-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, Glauber Costa <glommer@gmail.com>
 
->
-> So the minor fault rate improved and everything else got worse?
+Hi,
 
-I did the test again, in a new clean environment.
-I'm sure the config files are the same except enabled zswap.
+This is the fifth version of the patchset.
 
-                                         v3.10-rc4                   v3.10-rc4
-                             2G-parallio-zswapbas         2G-parallio-nozswap
-Ops memcachetest-0M               819.00 (  0.00%)           1041.00 ( 27.11%)
-Ops memcachetest-198M             736.00 (  0.00%)            973.00 ( 32.20%)
-Ops memcachetest-430M             700.00 (  0.00%)            892.00 ( 27.43%)
-Ops memcachetest-661M             672.00 (  0.00%)            819.00 ( 21.88%)
-Ops memcachetest-893M             675.00 (  0.00%)            775.00 ( 14.81%)
-Ops memcachetest-1125M            665.00 (  0.00%)            764.00 ( 14.89%)
-Ops memcachetest-1356M            641.00 (  0.00%)            749.00 ( 16.85%)
-Ops io-duration-0M                  0.00 (  0.00%)              0.00 (  0.00%)
-Ops io-duration-198M              111.00 (  0.00%)             21.00 ( 81.08%)
-Ops io-duration-430M              125.00 (  0.00%)             29.00 ( 76.80%)
-Ops io-duration-661M              153.00 (  0.00%)             34.00 ( 77.78%)
-Ops io-duration-893M              118.00 (  0.00%)             36.00 ( 69.49%)
-Ops io-duration-1125M             142.00 (  0.00%)             43.00 ( 69.72%)
-Ops io-duration-1356M             156.00 (  0.00%)             50.00 ( 67.95%)
-Ops swaptotal-0M               462237.00 (  0.00%)         469193.00 ( -1.50%)
-Ops swaptotal-198M             490462.00 (  0.00%)         496201.00 ( -1.17%)
-Ops swaptotal-430M             500469.00 (  0.00%)         520400.00 ( -3.98%)
-Ops swaptotal-661M             506038.00 (  0.00%)         538872.00 ( -6.49%)
-Ops swaptotal-893M             514930.00 (  0.00%)         522590.00 ( -1.49%)
-Ops swaptotal-1125M            521010.00 (  0.00%)         526934.00 ( -1.14%)
-Ops swaptotal-1356M            513128.00 (  0.00%)         525241.00 ( -2.36%)
-Ops swapin-0M                  246425.00 (  0.00%)         251226.00 ( -1.95%)
-Ops swapin-198M                266446.00 (  0.00%)         236126.00 ( 11.38%)
-Ops swapin-430M                271586.00 (  0.00%)         265193.00 (  2.35%)
-Ops swapin-661M                263404.00 (  0.00%)         280281.00 ( -6.41%)
-Ops swapin-893M                263958.00 (  0.00%)         263004.00 (  0.36%)
-Ops swapin-1125M               276149.00 (  0.00%)         261962.00 (  5.14%)
-Ops swapin-1356M               264214.00 (  0.00%)         262571.00 (  0.62%)
-Ops minorfaults-0M             629965.00 (  0.00%)         625759.00 (  0.67%)
-Ops minorfaults-198M           641320.00 (  0.00%)         769752.00 (-20.03%)
-Ops minorfaults-430M           635270.00 (  0.00%)         678590.00 ( -6.82%)
-Ops minorfaults-661M           625123.00 (  0.00%)         669308.00 ( -7.07%)
-Ops minorfaults-893M           625165.00 (  0.00%)         656343.00 ( -4.99%)
-Ops minorfaults-1125M          624358.00 (  0.00%)         657954.00 ( -5.38%)
-Ops minorfaults-1356M          619724.00 (  0.00%)         672035.00 ( -8.44%)
-Ops majorfaults-0M              57664.00 (  0.00%)          39395.00 ( 31.68%)
-Ops majorfaults-198M            59747.00 (  0.00%)          38758.00 ( 35.13%)
-Ops majorfaults-430M            63453.00 (  0.00%)          39819.00 ( 37.25%)
-Ops majorfaults-661M            61310.00 (  0.00%)          40171.00 ( 34.48%)
-Ops majorfaults-893M            62544.00 (  0.00%)          37576.00 ( 39.92%)
-Ops majorfaults-1125M           60866.00 (  0.00%)          36891.00 ( 39.39%)
-Ops majorfaults-1356M           66598.00 (  0.00%)          37123.00 ( 44.26%)
+Summary of versions:
+The first version has been posted here: http://permalink.gmane.org/gmane.linux.kernel.mm/97973
+(lkml wasn't CCed at the time so I cannot find it in lwn.net
+archives). There were no major objections. 
 
-It shows clearly that swaptotal and minorfaults get improved a little
-if enabled zswap.
-But with the cost that the performance of everything else dropped a lot.
+The second version has been posted here http://lwn.net/Articles/548191/
+as a part of a longer and spicier thread which started after LSF here:
+https://lwn.net/Articles/548192/
 
---
-Regards,
---Bob
+Version number 3 has been posted here http://lwn.net/Articles/550409/
+Johannes was worried about setups with thousands of memcgs and the
+tree walk overhead for the soft reclaim pass without anybody in excess.
+
+Version number 4 has been posted here http://lwn.net/Articles/552703/
+appart from heated discussion about memcg iterator predicate which ended
+with a conclusion that the predicate based iteration is "the shortest path to
+implementing subtree skip given how the iterator is put together
+currently and the series as a whole reduces significant amount of
+complexity, so it is an acceptable tradeoff to proceed with this
+implementation with later restructuring of the iterator." 
+(http://thread.gmane.org/gmane.linux.kernel.mm/101162/focus=101560)
+
+Changes between RFC (aka V1) -> V2
+As there were no major objections there were only some minor cleanups
+since the last version and I have moved "memcg: Ignore soft limit until
+it is explicitly specified" to the end of the series.
+
+Changes between V2 -> V3
+No changes in the code since the last version. I have just rebased the
+series on top of the current mmotm tree. The most controversial part
+has been dropped (the last patch "memcg: Ignore soft limit until it is
+explicitly specified") so there are no semantical changes to the soft
+limit behavior. This makes this work mostly a code clean up and code
+reorganization. Nevertheless, this is enough to make the soft limit work
+more efficiently according to my testing and groups above the soft limit
+are reclaimed much less as a result.
+
+Changes between V3->V4
+Added some Reviewed-bys but the biggest change comes from Johannes
+concern about the tree traversal overhead with a huge number of memcgs
+(http://thread.gmane.org/gmane.linux.kernel.cgroups/7307/focus=100326)
+and this version addresses this problem by augmenting the memcg tree
+with the number of over soft limit children at each level of the
+hierarchy. See more bellow.
+
+Changes between V4->V5
+Rebased on top of mmotm tree (without slab shrinkers patchset because
+there are issues with that patchset) + restested as there were many 
+kswapd changes (Results are more or less consistent more on that bellow).
+There were only doc updates, no code changes.
+
+Please let me know if this has any chance to get merged into 3.11. I do
+not want to push it too hard but I think this work is basically ready
+and waiting more doesn't help. I can live with 3.12 merge window as well
+if 3.11 sounds too early though.
+
+The basic idea is quite simple. Pull soft reclaim into shrink_zone in
+the first step and get rid of the previous soft reclaim infrastructure.
+shrink_zone is done in two passes now. First it tries to do the soft
+limit reclaim and it falls back to reclaim-all mode if no group is over
+the limit or no pages have been scanned. The second pass happens at the
+same priority so the only time we waste is the memcg tree walk which
+has been updated in the third step to have only negligible overhead.
+
+As a bonus we will get rid of a _lot_ of code by this and soft reclaim
+will not stand out like before when it wasn't integrated into the zone
+shrinking code and it reclaimed at priority 0 (the testing results show
+that some workloads suffers from such an aggressive reclaim). The clean
+up is in a separate patch because I felt it would be easier to review
+that way.
+
+The second step is soft limit reclaim integration into targeted
+reclaim. It should be rather straight forward. Soft limit has been used
+only for the global reclaim so far but it makes sense for any kind of
+pressure coming from up-the-hierarchy, including targeted reclaim.
+
+The third step (patches 4-8) addresses the tree walk overhead by
+enhancing memcg iterators to enable skipping whole subtrees and tracking
+number of over soft limit children at each level of the hierarchy. This
+information is updated same way the old soft limit tree was updated
+(from memcg_check_events) so we shouldn't see an additional overhead. In
+fact mem_cgroup_update_soft_limit is much simpler than tree manipulation
+done previously.
+__shrink_zone uses mem_cgroup_soft_reclaim_eligible as a predicate for
+mem_cgroup_iter so the decision whether a particular group should be
+visited is done at the iterator level which allows us to decide to skip
+the whole subtree as well (if there is no child in excess). This reduces
+the tree walk overhead considerably.
+
+My primary test case was a parallel kernel build with 2 groups (make
+is running with -j4 with a distribution .config in a separate cgroup
+without any hard limit) on a 8 CPU machine booted with 1GB memory.  I
+was mostly interested in 2 setups. Default - no soft limit set and - and
+0 soft limit set to both groups.
+The first one should tell us whether the rework regresses the default
+behavior while the second one should show us improvements in an extreme
+case where both workloads are always over the soft limit.
+
+/usr/bin/time -v has been used to collect the statistics and each
+configuration had 3 runs after fresh boot without any other load on the
+system.
+
+base is mmotm-2013-05-09-15-57
+baserebase is mmotm-2013-06-05-17-24-63 + patches from the current mmots
+without slab shrinkers patchset.
+reworkrebase all patches 8 applied on top of baserebase
+
+* No-limit
+User
+base: min: 1164.94 max: 1169.75 avg: 1168.31 std: 1.57 runs: 6
+baserebase: min: 1169.46 [100.4%] max: 1176.07 [100.5%] avg: 1172.49 [100.4%] std: 2.38 runs: 6
+reworkrebase: min: 1172.58 [100.7%] max: 1177.43 [100.7%] avg: 1175.53 [100.6%] std: 1.91 runs: 6
+System
+base: min: 242.55 max: 245.36 avg: 243.92 std: 1.17 runs: 6
+baserebase: min: 235.36 [97.0%] max: 238.52 [97.2%] avg: 236.70 [97.0%] std: 1.04 runs: 6
+reworkrebase: min: 236.21 [97.4%] max: 239.46 [97.6%] avg: 237.55 [97.4%] std: 1.05 runs: 6
+Elapsed
+base: min: 596.81 max: 620.04 avg: 605.52 std: 7.56 runs: 6
+baserebase: min: 666.45 [111.7%] max: 710.89 [114.7%] avg: 690.62 [114.1%] std: 13.85 runs: 6
+reworkrebase: min: 664.05 [111.3%] max: 701.06 [113.1%] avg: 689.29 [113.8%] std: 12.36 runs: 6
+
+Elapsed time regressed by 13% wrt. base but it seems that this came from
+baserebase which regressed by the same amount.
+
+* 0-limit
+User
+base: min: 1188.28 max: 1198.54 avg: 1194.10 std: 3.31 runs: 6
+baserebase: min: 1186.17 [99.8%] max: 1196.46 [99.8%] avg: 1189.75 [99.6%] std: 3.41 runs: 6
+reworkrebase: min: 1169.88 [98.5%] max: 1177.84 [98.3%] avg: 1173.50 [98.3%] std: 2.79 runs: 6
+System
+base: min: 248.40 max: 252.00 avg: 250.19 std: 1.38 runs: 6
+baserebase: min: 240.77 [96.9%] max: 246.74 [97.9%] avg: 243.63 [97.4%] std: 2.23 runs: 6
+reworkrebase: min: 235.19 [94.7%] max: 237.43 [94.2%] avg: 236.35 [94.5%] std: 0.86 runs: 6
+Elapsed
+base: min: 759.28 max: 805.30 avg: 784.87 std: 15.45 runs: 6
+baserebase: min: 881.69 [116.1%] max: 938.14 [116.5%] avg: 911.68 [116.2%] std: 19.58 runs: 6
+reworkrebase: min: 667.54 [87.9%] max: 718.54 [89.2%] avg: 695.61 [88.6%] std: 17.16 runs: 6
+
+System time is slightly better but I wouldn't consider it relevant.
+
+Elapsed time is more interesting though. baserebase regresses by 16%
+again which is in par with no-limit configuration.
+
+With the patchset applied we are 11% better in average wrt. to the
+old base but it is important to realize that this is still 76.3% wrt.
+baserebase so the effect of the series is comparable to the previous
+version. Albeit the whole result is worse.
+
+Page fault statistics tell us at least part of the story:
+Minor
+base: min: 35941845.00 max: 36029788.00 avg: 35986860.17 std: 28288.66 runs: 6
+baserebase: min: 35852414.00 [99.8%] max: 35899605.00 [99.6%] avg: 35874906.83 [99.7%] std: 18722.59 runs: 6
+reworkrebase: min: 35538346.00 [98.9%] max: 35584907.00 [98.8%] avg: 35562362.17 [98.8%] std: 18921.74 runs: 6
+Major
+base: min: 25390.00 max: 33132.00 avg: 29961.83 std: 2476.58 runs: 6
+baserebase: min: 34224.00 [134.8%] max: 45674.00 [137.9%] avg: 41556.83 [138.7%] std: 3595.39 runs: 6
+reworkrebase: min: 277.00 [1.1%] max: 480.00 [1.4%] avg: 384.67 [1.3%] std: 74.67 runs: 6
+
+While the minor faults are within the noise the major faults are reduced
+considerably. This looks like an aggressive pageout during the reclaim
+and that pageout affects the working set presumably. Please note that
+baserebase has even hight number of major page faults than the older
+mmotm trree.
+
+While this looks as a nice win it is fair to say that there are some
+workloads that actually benefit from reclaim at 0 priority (from
+background reclaim). E.g. an aggressive streaming IO would like to get
+rid of as many pages as possible and do not block on the pages under
+writeback. This can lead to a higher System time but I generally got
+Elapsed which was comparable.
+
+The following results are from 2 groups configuration on a 8GB machine
+(A running stream IO with 4*TotalMem with 0 soft limit, B runnning a
+mem_eater which consumes TotalMem-1G without any limit).
+System
+base: min: 124.88 max: 136.97 avg: 130.77 std: 4.94 runs: 3
+baserebase: min: 102.51 [82.1%] max: 108.84 [79.5%] avg: 104.81 [80.1%] std: 2.86 runs: 3
+reworkrebase: min: 108.29 [86.7%] max: 121.70 [88.9%] avg: 114.60 [87.6%] std: 5.50 runs: 3
+Elapsed
+base: min: 398.86 max: 412.81 avg: 407.62 std: 6.23 runs: 3
+baserebase: min: 480.92 [120.6%] max: 497.56 [120.5%] avg: 491.46 [120.6%] std: 7.48 runs: 3
+reworkrebase: min: 397.19 [99.6%] max: 462.57 [112.1%] avg: 436.13 [107.0%] std: 28.12 runs: 3
+
+baserebase regresses again by 20% and the series is worse by 7% but it
+is still at 89% wrt baserebase so it looks good to me.
+
+So to wrap this up. The series is still doing good and improves the soft
+limit.
+
+The testing results for bunch of cgroups with both stream IO and kbuild
+loads can be found in "memcg: track children in soft limit excess to
+improve soft limit".
+
+The series has seen quite some testing and I guess it is in the state to
+be merged into mmotm and hopefully get into 3.11. I would like to hear
+back from Johannes and Kamezawa about this timing though.
+
+Shortlog says:
+Michal Hocko (8):
+      memcg, vmscan: integrate soft reclaim tighter with zone shrinking code
+      memcg: Get rid of soft-limit tree infrastructure
+      vmscan, memcg: Do softlimit reclaim also for targeted reclaim
+      memcg: enhance memcg iterator to support predicates
+      memcg: track children in soft limit excess to improve soft limit
+      memcg, vmscan: Do not attempt soft limit reclaim if it would not scan anything
+      memcg: Track all children over limit in the root
+      memcg, vmscan: do not fall into reclaim-all pass too quickly
+
+And the disffstat shows us that we still got rid of a lot of code
+ include/linux/memcontrol.h |  54 ++++-
+ mm/memcontrol.c            | 565 +++++++++++++--------------------------------
+ mm/vmscan.c                |  83 ++++---
+ 3 files changed, 254 insertions(+), 448 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
