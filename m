@@ -1,47 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 865DC6B0033
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 11:23:39 -0400 (EDT)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Tue, 18 Jun 2013 11:23:38 -0400
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id E1D9B38C8059
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 11:23:34 -0400 (EDT)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5IFNZ4G244994
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 11:23:35 -0400
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5IFPTP5003141
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 09:25:29 -0600
-Date: Tue, 18 Jun 2013 08:23:02 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: vmstat kthreads
-Message-ID: <20130618152302.GA10702@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 07F696B0033
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 11:25:48 -0400 (EDT)
+Received: by mail-wg0-f53.google.com with SMTP id y10so3656008wgg.32
+        for <linux-mm@kvack.org>; Tue, 18 Jun 2013 08:25:47 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <20130618102109.310f4ce1@riff.lan>
+References: <20130614195500.373711648@linux.com>
+	<0000013f44418a14-7abe9784-a481-4c34-8ff3-c3afe2d57979-000000@email.amazonses.com>
+	<51BFFFA1.8030402@kernel.org>
+	<0000013f57a5b278-d9104e1e-ccec-40ec-bd95-f8b0816a38d9-000000@email.amazonses.com>
+	<20130618102109.310f4ce1@riff.lan>
+Date: Tue, 18 Jun 2013 18:25:47 +0300
+Message-ID: <CAOJsxLHsYVThWL7yKEQaQqxTSpgK8RHm-u8n94t_m4=uMjDqzw@mail.gmail.com>
+Subject: Re: [3.11 1/4] slub: Make cpu partial slab support configurable V2
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: ghaskins@londonstockexchange.com, niv@us.ibm.com, kravetz@us.ibm.com
+To: Clark Williams <williams@redhat.com>
+Cc: Christoph Lameter <cl@linux.com>, Steven Rostedt <rostedt@goodmis.org>, Thomas Gleixner <tglx@linutronix.de>, Joonsoo Kim <js1304@gmail.com>, Clark Williams <clark@redhat.com>, Glauber Costa <glommer@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>
 
-Hello!
+On Tue, Jun 18, 2013 at 6:21 PM, Clark Williams <williams@redhat.com> wrote:
+> I'm sure it would be better to actually do cpu_partial processing in
+> small chunks to avoid latency spikes in latency sensitive applications
 
-I have been digging around the vmstat kthreads a bit, and it appears to
-me that there is no reason to run a given CPU's vmstat kthread unless
-that CPU spends some time executing in the kernel.  If correct, this
-observation indicates that one way to safely reduce OS jitter due to the
-vmstat kthreads is to prevent them from executing on a given CPU if that
-CPU has been executing in usermode since the last time that this CPU's
-vmstat kthread executed.
+Sounds like a patch I'd be much more interested in applying...
 
-Does this seem like a sensible course of action, or did I miss something
-when I went through the code?
-
-							Thanx, Paul
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
