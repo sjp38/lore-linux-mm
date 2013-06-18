@@ -1,158 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id A82A26B0037
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 17:32:12 -0400 (EDT)
-From: Joern Engel <joern@logfs.org>
-Subject: [PATCH 3/3] selftests: add hugetlbfstest
-Date: Tue, 18 Jun 2013 16:02:01 -0400
-Message-Id: <1371585721-28087-4-git-send-email-joern@logfs.org>
-In-Reply-To: <1371585721-28087-1-git-send-email-joern@logfs.org>
-References: <1371585721-28087-1-git-send-email-joern@logfs.org>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 2FCD96B0039
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 17:32:20 -0400 (EDT)
+Message-ID: <1371591120.13194.10.camel@misato.fc.hp.com>
+Subject: Re: [PATCH] mm, sparse: Put clear_hwpoisoned_pages within
+ CONFIG_MEMORY_HOTREMOVE
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Tue, 18 Jun 2013 15:32:00 -0600
+In-Reply-To: <51C06F51.2030704@gmail.com>
+References: <51C06F51.2030704@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Joern Engel <joern@logfs.org>
+To: Zhang Yanfei <zhangyanfei.yes@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-As the confusing naming indicates, this test has some overlap with
-pre-existing tests.  Would be nice to merge them eventually.  But since
-it is only test code, cleanliness is much less important than mere
-existence.
+On Tue, 2013-06-18 at 22:31 +0800, Zhang Yanfei wrote:
+> From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+> 
+> With CONFIG_MEMORY_HOTREMOVE unset, there is a compile warning:
+> 
+> mm/sparse.c:755: warning: a??clear_hwpoisoned_pagesa?? defined but not used
+> 
+> And Bisecting it ended up pointing to:
+> 
+> commit 4edd7ceff0662afde195da6f6c43e7cbe1ed2dc4
+> Author: David Rientjes <rientjes@google.com>
+> Date:   Mon Apr 29 15:08:22 2013 -0700
+> 
+>     mm, hotplug: avoid compiling memory hotremove functions when disabled
+>     
+>     __remove_pages() is only necessary for CONFIG_MEMORY_HOTREMOVE.  PowerPC
+>     pseries will return -EOPNOTSUPP if unsupported.
+>     
+>     Adding an #ifdef causes several other functions it depends on to also
+>     become unnecessary, which saves in .text when disabled (it's disabled in
+>     most defconfigs besides powerpc, including x86).  remove_memory_block()
+>     becomes static since it is not referenced outside of
+>     drivers/base/memory.c.
+>     
+>     Build tested on x86 and powerpc with CONFIG_MEMORY_HOTREMOVE both enabled
+>     and disabled.
+>     
+>     Signed-off-by: David Rientjes <rientjes@google.com>
+>     Acked-by: Toshi Kani <toshi.kani@hp.com>
+>     Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+>     Cc: Paul Mackerras <paulus@samba.org>
+>     Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+>     Cc: Wen Congyang <wency@cn.fujitsu.com>
+>     Cc: Tang Chen <tangchen@cn.fujitsu.com>
+>     Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>     Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+>     Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+> 
+> This is because the commit above put function sparse_remove_one_section
+> within the protection of CONFIG_MEMORY_HOTREMOVE but the only user of
+> function clear_hwpoisoned_pages is sparse_remove_one_section, and it
+> is not within the protection of CONFIG_MEMORY_HOTREMOVE.
+> 
+> So put clear_hwpoisoned_pages within CONFIG_MEMORY_HOTREMOVE should
+> fix the warning.
+> 
+> Signed-off-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Toshi Kani <toshi.kani@hp.com>
 
-Signed-off-by: Joern Engel <joern@logfs.org>
----
- tools/testing/selftests/vm/Makefile        |    2 +-
- tools/testing/selftests/vm/hugetlbfstest.c |   84 ++++++++++++++++++++++++++++
- tools/testing/selftests/vm/run_vmtests     |   11 ++++
- 3 files changed, 96 insertions(+), 1 deletion(-)
- create mode 100644 tools/testing/selftests/vm/hugetlbfstest.c
+Looks good.
 
-diff --git a/tools/testing/selftests/vm/Makefile b/tools/testing/selftests/vm/Makefile
-index cb3f5f2..3f94e1a 100644
---- a/tools/testing/selftests/vm/Makefile
-+++ b/tools/testing/selftests/vm/Makefile
-@@ -2,7 +2,7 @@
- 
- CC = $(CROSS_COMPILE)gcc
- CFLAGS = -Wall
--BINARIES = hugepage-mmap hugepage-shm map_hugetlb thuge-gen
-+BINARIES = hugepage-mmap hugepage-shm map_hugetlb thuge-gen hugetlbfstest
- 
- all: $(BINARIES)
- %: %.c
-diff --git a/tools/testing/selftests/vm/hugetlbfstest.c b/tools/testing/selftests/vm/hugetlbfstest.c
-new file mode 100644
-index 0000000..ea40ff8
---- /dev/null
-+++ b/tools/testing/selftests/vm/hugetlbfstest.c
-@@ -0,0 +1,84 @@
-+#define _GNU_SOURCE
-+#include <assert.h>
-+#include <fcntl.h>
-+#include <stdio.h>
-+#include <stdlib.h>
-+#include <string.h>
-+#include <sys/mman.h>
-+#include <sys/stat.h>
-+#include <sys/types.h>
-+#include <unistd.h>
-+
-+typedef unsigned long long u64;
-+
-+static size_t length = 1 << 24;
-+
-+static u64 read_rss(void)
-+{
-+	char buf[4096], *s = buf;
-+	int i, fd;
-+	u64 rss;
-+
-+	fd = open("/proc/self/statm", O_RDONLY);
-+	assert(fd > 2);
-+	memset(buf, 0, sizeof(buf));
-+	read(fd, buf, sizeof(buf) - 1);
-+	for (i = 0; i < 1; i++)
-+		s = strchr(s, ' ') + 1;
-+	rss = strtoull(s, NULL, 10);
-+	return rss << 12; /* assumes 4k pagesize */
-+}
-+
-+static void do_mmap(int fd, int extra_flags, int unmap)
-+{
-+	int *p;
-+	int flags = MAP_PRIVATE | MAP_POPULATE | extra_flags;
-+	u64 before, after;
-+
-+	before = read_rss();
-+	p = mmap(NULL, length, PROT_READ | PROT_WRITE, flags, fd, 0);
-+	assert(p != MAP_FAILED ||
-+			!"mmap returned an unexpected error");
-+	after = read_rss();
-+	assert(llabs(after - before - length) < 0x40000 ||
-+			!"rss didn't grow as expected");
-+	if (!unmap)
-+		return;
-+	munmap(p, length);
-+	after = read_rss();
-+	assert(llabs(after - before) < 0x40000 ||
-+			!"rss didn't shrink as expected");
-+}
-+
-+static int open_file(const char *path)
-+{
-+	int fd, err;
-+
-+	unlink(path);
-+	fd = open(path, O_CREAT | O_RDWR | O_TRUNC | O_EXCL
-+			| O_LARGEFILE | O_CLOEXEC, 0600);
-+	assert(fd > 2);
-+	unlink(path);
-+	err = ftruncate(fd, length);
-+	assert(!err);
-+	return fd;
-+}
-+
-+int main(void)
-+{
-+	int hugefd, fd;
-+
-+	fd = open_file("/dev/shm/hugetlbhog");
-+	hugefd = open_file("/hugepages/hugetlbhog");
-+
-+	system("echo 100 > /proc/sys/vm/nr_hugepages");
-+	do_mmap(-1, MAP_ANONYMOUS, 1);
-+	do_mmap(fd, 0, 1);
-+	do_mmap(-1, MAP_ANONYMOUS | MAP_HUGETLB, 1);
-+	do_mmap(hugefd, 0, 1);
-+	do_mmap(hugefd, MAP_HUGETLB, 1);
-+	/* Leak the last one to test do_exit() */
-+	do_mmap(-1, MAP_ANONYMOUS | MAP_HUGETLB, 0);
-+	printf("oll korrekt.\n");
-+	return 0;
-+}
-diff --git a/tools/testing/selftests/vm/run_vmtests b/tools/testing/selftests/vm/run_vmtests
-index 7a9072d..c87b681 100644
---- a/tools/testing/selftests/vm/run_vmtests
-+++ b/tools/testing/selftests/vm/run_vmtests
-@@ -75,6 +75,17 @@ else
- 	echo "[PASS]"
- fi
- 
-+echo "--------------------"
-+echo "running hugetlbfstest"
-+echo "--------------------"
-+./hugetlbfstest
-+if [ $? -ne 0 ]; then
-+	echo "[FAIL]"
-+	exitcode=1
-+else
-+	echo "[PASS]"
-+fi
-+
- #cleanup
- umount $mnt
- rm -rf $mnt
--- 
-1.7.10.4
+Acked-by: Toshi Kani <toshi.kani@hp.com>
+
+Thanks,
+-Toshi
+
+
+>  mm/sparse.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index 1c91f0d..999a1fe 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -751,6 +751,7 @@ out:
+>  	return ret;
+>  }
+>  
+> +#ifdef CONFIG_MEMORY_HOTREMOVE
+>  #ifdef CONFIG_MEMORY_FAILURE
+>  static void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
+>  {
+> @@ -772,7 +773,6 @@ static inline void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
+>  }
+>  #endif
+>  
+> -#ifdef CONFIG_MEMORY_HOTREMOVE
+>  static void free_section_usemap(struct page *memmap, unsigned long *usemap)
+>  {
+>  	struct page *usemap_page;
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
