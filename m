@@ -1,233 +1,407 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 9D5FB6B0032
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 08:10:06 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 0B4A06B0034
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 08:10:12 -0400 (EDT)
 From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH v5] Soft limit rework
-Date: Tue, 18 Jun 2013 14:09:39 +0200
-Message-Id: <1371557387-22434-1-git-send-email-mhocko@suse.cz>
+Subject: [PATCH v5 1/8] memcg, vmscan: integrate soft reclaim tighter with zone shrinking code
+Date: Tue, 18 Jun 2013 14:09:40 +0200
+Message-Id: <1371557387-22434-2-git-send-email-mhocko@suse.cz>
+In-Reply-To: <1371557387-22434-1-git-send-email-mhocko@suse.cz>
+References: <1371557387-22434-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, Glauber Costa <glommer@gmail.com>
 
-Hi,
+Memcg soft reclaim has been traditionally triggered from the global
+reclaim paths before calling shrink_zone. mem_cgroup_soft_limit_reclaim
+then picked up a group which exceeds the soft limit the most and
+reclaimed it with 0 priority to reclaim at least SWAP_CLUSTER_MAX pages.
 
-This is the fifth version of the patchset.
+The infrastructure requires per-node-zone trees which hold over-limit
+groups and keep them up-to-date (via memcg_check_events) which is not
+cost free. Although this overhead hasn't turned out to be a bottle neck
+the implementation is suboptimal because mem_cgroup_update_tree has no
+idea which zones consumed memory over the limit so we could easily end
+up having a group on a node-zone tree having only few pages from that
+node-zone.
 
-Summary of versions:
-The first version has been posted here: http://permalink.gmane.org/gmane.linux.kernel.mm/97973
-(lkml wasn't CCed at the time so I cannot find it in lwn.net
-archives). There were no major objections. 
+This patch doesn't try to fix node-zone trees management because it
+seems that integrating soft reclaim into zone shrinking sounds much
+easier and more appropriate for several reasons.
+First of all 0 priority reclaim was a crude hack which might lead to
+big stalls if the group's LRUs are big and hard to reclaim (e.g. a lot
+of dirty/writeback pages).
+Soft reclaim should be applicable also to the targeted reclaim which is
+awkward right now without additional hacks.
+Last but not least the whole infrastructure eats quite some code.
 
-The second version has been posted here http://lwn.net/Articles/548191/
-as a part of a longer and spicier thread which started after LSF here:
-https://lwn.net/Articles/548192/
+After this patch shrink_zone is done in 2 passes. First it tries to do the
+soft reclaim if appropriate (only for global reclaim for now to keep
+compatible with the original state) and fall back to ignoring soft limit
+if no group is eligible to soft reclaim or nothing has been scanned
+during the first pass. Only groups which are over their soft limit or
+any of their parents up the hierarchy is over the limit are considered
+eligible during the first pass.
 
-Version number 3 has been posted here http://lwn.net/Articles/550409/
-Johannes was worried about setups with thousands of memcgs and the
-tree walk overhead for the soft reclaim pass without anybody in excess.
+Soft limit tree which is not necessary anymore will be removed in the
+follow up patch to make this patch smaller and easier to review.
 
-Version number 4 has been posted here http://lwn.net/Articles/552703/
-appart from heated discussion about memcg iterator predicate which ended
-with a conclusion that the predicate based iteration is "the shortest path to
-implementing subtree skip given how the iterator is put together
-currently and the series as a whole reduces significant amount of
-complexity, so it is an acceptable tradeoff to proceed with this
-implementation with later restructuring of the iterator." 
-(http://thread.gmane.org/gmane.linux.kernel.mm/101162/focus=101560)
+Changes since v2
+- Do not try soft reclaim pass if mem_cgroup_disabled
+Changes since v1
+- __shrink_zone doesn't return the number of shrunk groups as nr_scanned
+  test covers both no groups scanned and no pages from the required zone
+  as pointed by Johannes
 
-Changes between RFC (aka V1) -> V2
-As there were no major objections there were only some minor cleanups
-since the last version and I have moved "memcg: Ignore soft limit until
-it is explicitly specified" to the end of the series.
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+Reviewed-by: Glauber Costa <glommer@openvz.org>
+Reviewed-by: Tejun Heo <tj@kernel.org>
+---
+ include/linux/memcontrol.h |  10 +--
+ mm/memcontrol.c            | 161 ++++++---------------------------------------
+ mm/vmscan.c                |  62 +++++++++--------
+ 3 files changed, 59 insertions(+), 174 deletions(-)
 
-Changes between V2 -> V3
-No changes in the code since the last version. I have just rebased the
-series on top of the current mmotm tree. The most controversial part
-has been dropped (the last patch "memcg: Ignore soft limit until it is
-explicitly specified") so there are no semantical changes to the soft
-limit behavior. This makes this work mostly a code clean up and code
-reorganization. Nevertheless, this is enough to make the soft limit work
-more efficiently according to my testing and groups above the soft limit
-are reclaimed much less as a result.
-
-Changes between V3->V4
-Added some Reviewed-bys but the biggest change comes from Johannes
-concern about the tree traversal overhead with a huge number of memcgs
-(http://thread.gmane.org/gmane.linux.kernel.cgroups/7307/focus=100326)
-and this version addresses this problem by augmenting the memcg tree
-with the number of over soft limit children at each level of the
-hierarchy. See more bellow.
-
-Changes between V4->V5
-Rebased on top of mmotm tree (without slab shrinkers patchset because
-there are issues with that patchset) + restested as there were many 
-kswapd changes (Results are more or less consistent more on that bellow).
-There were only doc updates, no code changes.
-
-Please let me know if this has any chance to get merged into 3.11. I do
-not want to push it too hard but I think this work is basically ready
-and waiting more doesn't help. I can live with 3.12 merge window as well
-if 3.11 sounds too early though.
-
-The basic idea is quite simple. Pull soft reclaim into shrink_zone in
-the first step and get rid of the previous soft reclaim infrastructure.
-shrink_zone is done in two passes now. First it tries to do the soft
-limit reclaim and it falls back to reclaim-all mode if no group is over
-the limit or no pages have been scanned. The second pass happens at the
-same priority so the only time we waste is the memcg tree walk which
-has been updated in the third step to have only negligible overhead.
-
-As a bonus we will get rid of a _lot_ of code by this and soft reclaim
-will not stand out like before when it wasn't integrated into the zone
-shrinking code and it reclaimed at priority 0 (the testing results show
-that some workloads suffers from such an aggressive reclaim). The clean
-up is in a separate patch because I felt it would be easier to review
-that way.
-
-The second step is soft limit reclaim integration into targeted
-reclaim. It should be rather straight forward. Soft limit has been used
-only for the global reclaim so far but it makes sense for any kind of
-pressure coming from up-the-hierarchy, including targeted reclaim.
-
-The third step (patches 4-8) addresses the tree walk overhead by
-enhancing memcg iterators to enable skipping whole subtrees and tracking
-number of over soft limit children at each level of the hierarchy. This
-information is updated same way the old soft limit tree was updated
-(from memcg_check_events) so we shouldn't see an additional overhead. In
-fact mem_cgroup_update_soft_limit is much simpler than tree manipulation
-done previously.
-__shrink_zone uses mem_cgroup_soft_reclaim_eligible as a predicate for
-mem_cgroup_iter so the decision whether a particular group should be
-visited is done at the iterator level which allows us to decide to skip
-the whole subtree as well (if there is no child in excess). This reduces
-the tree walk overhead considerably.
-
-My primary test case was a parallel kernel build with 2 groups (make
-is running with -j4 with a distribution .config in a separate cgroup
-without any hard limit) on a 8 CPU machine booted with 1GB memory.  I
-was mostly interested in 2 setups. Default - no soft limit set and - and
-0 soft limit set to both groups.
-The first one should tell us whether the rework regresses the default
-behavior while the second one should show us improvements in an extreme
-case where both workloads are always over the soft limit.
-
-/usr/bin/time -v has been used to collect the statistics and each
-configuration had 3 runs after fresh boot without any other load on the
-system.
-
-base is mmotm-2013-05-09-15-57
-baserebase is mmotm-2013-06-05-17-24-63 + patches from the current mmots
-without slab shrinkers patchset.
-reworkrebase all patches 8 applied on top of baserebase
-
-* No-limit
-User
-base: min: 1164.94 max: 1169.75 avg: 1168.31 std: 1.57 runs: 6
-baserebase: min: 1169.46 [100.4%] max: 1176.07 [100.5%] avg: 1172.49 [100.4%] std: 2.38 runs: 6
-reworkrebase: min: 1172.58 [100.7%] max: 1177.43 [100.7%] avg: 1175.53 [100.6%] std: 1.91 runs: 6
-System
-base: min: 242.55 max: 245.36 avg: 243.92 std: 1.17 runs: 6
-baserebase: min: 235.36 [97.0%] max: 238.52 [97.2%] avg: 236.70 [97.0%] std: 1.04 runs: 6
-reworkrebase: min: 236.21 [97.4%] max: 239.46 [97.6%] avg: 237.55 [97.4%] std: 1.05 runs: 6
-Elapsed
-base: min: 596.81 max: 620.04 avg: 605.52 std: 7.56 runs: 6
-baserebase: min: 666.45 [111.7%] max: 710.89 [114.7%] avg: 690.62 [114.1%] std: 13.85 runs: 6
-reworkrebase: min: 664.05 [111.3%] max: 701.06 [113.1%] avg: 689.29 [113.8%] std: 12.36 runs: 6
-
-Elapsed time regressed by 13% wrt. base but it seems that this came from
-baserebase which regressed by the same amount.
-
-* 0-limit
-User
-base: min: 1188.28 max: 1198.54 avg: 1194.10 std: 3.31 runs: 6
-baserebase: min: 1186.17 [99.8%] max: 1196.46 [99.8%] avg: 1189.75 [99.6%] std: 3.41 runs: 6
-reworkrebase: min: 1169.88 [98.5%] max: 1177.84 [98.3%] avg: 1173.50 [98.3%] std: 2.79 runs: 6
-System
-base: min: 248.40 max: 252.00 avg: 250.19 std: 1.38 runs: 6
-baserebase: min: 240.77 [96.9%] max: 246.74 [97.9%] avg: 243.63 [97.4%] std: 2.23 runs: 6
-reworkrebase: min: 235.19 [94.7%] max: 237.43 [94.2%] avg: 236.35 [94.5%] std: 0.86 runs: 6
-Elapsed
-base: min: 759.28 max: 805.30 avg: 784.87 std: 15.45 runs: 6
-baserebase: min: 881.69 [116.1%] max: 938.14 [116.5%] avg: 911.68 [116.2%] std: 19.58 runs: 6
-reworkrebase: min: 667.54 [87.9%] max: 718.54 [89.2%] avg: 695.61 [88.6%] std: 17.16 runs: 6
-
-System time is slightly better but I wouldn't consider it relevant.
-
-Elapsed time is more interesting though. baserebase regresses by 16%
-again which is in par with no-limit configuration.
-
-With the patchset applied we are 11% better in average wrt. to the
-old base but it is important to realize that this is still 76.3% wrt.
-baserebase so the effect of the series is comparable to the previous
-version. Albeit the whole result is worse.
-
-Page fault statistics tell us at least part of the story:
-Minor
-base: min: 35941845.00 max: 36029788.00 avg: 35986860.17 std: 28288.66 runs: 6
-baserebase: min: 35852414.00 [99.8%] max: 35899605.00 [99.6%] avg: 35874906.83 [99.7%] std: 18722.59 runs: 6
-reworkrebase: min: 35538346.00 [98.9%] max: 35584907.00 [98.8%] avg: 35562362.17 [98.8%] std: 18921.74 runs: 6
-Major
-base: min: 25390.00 max: 33132.00 avg: 29961.83 std: 2476.58 runs: 6
-baserebase: min: 34224.00 [134.8%] max: 45674.00 [137.9%] avg: 41556.83 [138.7%] std: 3595.39 runs: 6
-reworkrebase: min: 277.00 [1.1%] max: 480.00 [1.4%] avg: 384.67 [1.3%] std: 74.67 runs: 6
-
-While the minor faults are within the noise the major faults are reduced
-considerably. This looks like an aggressive pageout during the reclaim
-and that pageout affects the working set presumably. Please note that
-baserebase has even hight number of major page faults than the older
-mmotm trree.
-
-While this looks as a nice win it is fair to say that there are some
-workloads that actually benefit from reclaim at 0 priority (from
-background reclaim). E.g. an aggressive streaming IO would like to get
-rid of as many pages as possible and do not block on the pages under
-writeback. This can lead to a higher System time but I generally got
-Elapsed which was comparable.
-
-The following results are from 2 groups configuration on a 8GB machine
-(A running stream IO with 4*TotalMem with 0 soft limit, B runnning a
-mem_eater which consumes TotalMem-1G without any limit).
-System
-base: min: 124.88 max: 136.97 avg: 130.77 std: 4.94 runs: 3
-baserebase: min: 102.51 [82.1%] max: 108.84 [79.5%] avg: 104.81 [80.1%] std: 2.86 runs: 3
-reworkrebase: min: 108.29 [86.7%] max: 121.70 [88.9%] avg: 114.60 [87.6%] std: 5.50 runs: 3
-Elapsed
-base: min: 398.86 max: 412.81 avg: 407.62 std: 6.23 runs: 3
-baserebase: min: 480.92 [120.6%] max: 497.56 [120.5%] avg: 491.46 [120.6%] std: 7.48 runs: 3
-reworkrebase: min: 397.19 [99.6%] max: 462.57 [112.1%] avg: 436.13 [107.0%] std: 28.12 runs: 3
-
-baserebase regresses again by 20% and the series is worse by 7% but it
-is still at 89% wrt baserebase so it looks good to me.
-
-So to wrap this up. The series is still doing good and improves the soft
-limit.
-
-The testing results for bunch of cgroups with both stream IO and kbuild
-loads can be found in "memcg: track children in soft limit excess to
-improve soft limit".
-
-The series has seen quite some testing and I guess it is in the state to
-be merged into mmotm and hopefully get into 3.11. I would like to hear
-back from Johannes and Kamezawa about this timing though.
-
-Shortlog says:
-Michal Hocko (8):
-      memcg, vmscan: integrate soft reclaim tighter with zone shrinking code
-      memcg: Get rid of soft-limit tree infrastructure
-      vmscan, memcg: Do softlimit reclaim also for targeted reclaim
-      memcg: enhance memcg iterator to support predicates
-      memcg: track children in soft limit excess to improve soft limit
-      memcg, vmscan: Do not attempt soft limit reclaim if it would not scan anything
-      memcg: Track all children over limit in the root
-      memcg, vmscan: do not fall into reclaim-all pass too quickly
-
-And the disffstat shows us that we still got rid of a lot of code
- include/linux/memcontrol.h |  54 ++++-
- mm/memcontrol.c            | 565 +++++++++++++--------------------------------
- mm/vmscan.c                |  83 ++++---
- 3 files changed, 254 insertions(+), 448 deletions(-)
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 7b4d9d7..d495b9e 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -180,9 +180,7 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
+ 	mem_cgroup_update_page_stat(page, idx, -1);
+ }
+ 
+-unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+-						gfp_t gfp_mask,
+-						unsigned long *total_scanned);
++bool mem_cgroup_soft_reclaim_eligible(struct mem_cgroup *memcg);
+ 
+ void __mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx);
+ static inline void mem_cgroup_count_vm_event(struct mm_struct *mm,
+@@ -359,11 +357,9 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
+ }
+ 
+ static inline
+-unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+-					    gfp_t gfp_mask,
+-					    unsigned long *total_scanned)
++bool mem_cgroup_soft_reclaim_eligible(struct mem_cgroup *memcg)
+ {
+-	return 0;
++	return false;
+ }
+ 
+ static inline void mem_cgroup_split_huge_fixup(struct page *head)
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 96e6168..ea10f73 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2101,57 +2101,28 @@ static bool mem_cgroup_reclaimable(struct mem_cgroup *memcg, bool noswap)
+ }
+ #endif
+ 
+-static int mem_cgroup_soft_reclaim(struct mem_cgroup *root_memcg,
+-				   struct zone *zone,
+-				   gfp_t gfp_mask,
+-				   unsigned long *total_scanned)
+-{
+-	struct mem_cgroup *victim = NULL;
+-	int total = 0;
+-	int loop = 0;
+-	unsigned long excess;
+-	unsigned long nr_scanned;
+-	struct mem_cgroup_reclaim_cookie reclaim = {
+-		.zone = zone,
+-		.priority = 0,
+-	};
++/*
++ * A group is eligible for the soft limit reclaim if it is
++ * 	a) is over its soft limit
++ * 	b) any parent up the hierarchy is over its soft limit
++ */
++bool mem_cgroup_soft_reclaim_eligible(struct mem_cgroup *memcg)
++{
++	struct mem_cgroup *parent = memcg;
+ 
+-	excess = res_counter_soft_limit_excess(&root_memcg->res) >> PAGE_SHIFT;
+-
+-	while (1) {
+-		victim = mem_cgroup_iter(root_memcg, victim, &reclaim);
+-		if (!victim) {
+-			loop++;
+-			if (loop >= 2) {
+-				/*
+-				 * If we have not been able to reclaim
+-				 * anything, it might because there are
+-				 * no reclaimable pages under this hierarchy
+-				 */
+-				if (!total)
+-					break;
+-				/*
+-				 * We want to do more targeted reclaim.
+-				 * excess >> 2 is not to excessive so as to
+-				 * reclaim too much, nor too less that we keep
+-				 * coming back to reclaim from this cgroup
+-				 */
+-				if (total >= (excess >> 2) ||
+-					(loop > MEM_CGROUP_MAX_RECLAIM_LOOPS))
+-					break;
+-			}
+-			continue;
+-		}
+-		if (!mem_cgroup_reclaimable(victim, false))
+-			continue;
+-		total += mem_cgroup_shrink_node_zone(victim, gfp_mask, false,
+-						     zone, &nr_scanned);
+-		*total_scanned += nr_scanned;
+-		if (!res_counter_soft_limit_excess(&root_memcg->res))
+-			break;
++	if (res_counter_soft_limit_excess(&memcg->res))
++		return true;
++
++	/*
++	 * If any parent up the hierarchy is over its soft limit then we
++	 * have to obey and reclaim from this group as well.
++	 */
++	while((parent = parent_mem_cgroup(parent))) {
++		if (res_counter_soft_limit_excess(&parent->res))
++			return true;
+ 	}
+-	mem_cgroup_iter_break(root_memcg, victim);
+-	return total;
++
++	return false;
+ }
+ 
+ /*
+@@ -4777,98 +4748,6 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+ 	return ret;
+ }
+ 
+-unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+-					    gfp_t gfp_mask,
+-					    unsigned long *total_scanned)
+-{
+-	unsigned long nr_reclaimed = 0;
+-	struct mem_cgroup_per_zone *mz, *next_mz = NULL;
+-	unsigned long reclaimed;
+-	int loop = 0;
+-	struct mem_cgroup_tree_per_zone *mctz;
+-	unsigned long long excess;
+-	unsigned long nr_scanned;
+-
+-	if (order > 0)
+-		return 0;
+-
+-	mctz = soft_limit_tree_node_zone(zone_to_nid(zone), zone_idx(zone));
+-	/*
+-	 * This loop can run a while, specially if mem_cgroup's continuously
+-	 * keep exceeding their soft limit and putting the system under
+-	 * pressure
+-	 */
+-	do {
+-		if (next_mz)
+-			mz = next_mz;
+-		else
+-			mz = mem_cgroup_largest_soft_limit_node(mctz);
+-		if (!mz)
+-			break;
+-
+-		nr_scanned = 0;
+-		reclaimed = mem_cgroup_soft_reclaim(mz->memcg, zone,
+-						    gfp_mask, &nr_scanned);
+-		nr_reclaimed += reclaimed;
+-		*total_scanned += nr_scanned;
+-		spin_lock(&mctz->lock);
+-
+-		/*
+-		 * If we failed to reclaim anything from this memory cgroup
+-		 * it is time to move on to the next cgroup
+-		 */
+-		next_mz = NULL;
+-		if (!reclaimed) {
+-			do {
+-				/*
+-				 * Loop until we find yet another one.
+-				 *
+-				 * By the time we get the soft_limit lock
+-				 * again, someone might have aded the
+-				 * group back on the RB tree. Iterate to
+-				 * make sure we get a different mem.
+-				 * mem_cgroup_largest_soft_limit_node returns
+-				 * NULL if no other cgroup is present on
+-				 * the tree
+-				 */
+-				next_mz =
+-				__mem_cgroup_largest_soft_limit_node(mctz);
+-				if (next_mz == mz)
+-					css_put(&next_mz->memcg->css);
+-				else /* next_mz == NULL or other memcg */
+-					break;
+-			} while (1);
+-		}
+-		__mem_cgroup_remove_exceeded(mz->memcg, mz, mctz);
+-		excess = res_counter_soft_limit_excess(&mz->memcg->res);
+-		/*
+-		 * One school of thought says that we should not add
+-		 * back the node to the tree if reclaim returns 0.
+-		 * But our reclaim could return 0, simply because due
+-		 * to priority we are exposing a smaller subset of
+-		 * memory to reclaim from. Consider this as a longer
+-		 * term TODO.
+-		 */
+-		/* If excess == 0, no tree ops */
+-		__mem_cgroup_insert_exceeded(mz->memcg, mz, mctz, excess);
+-		spin_unlock(&mctz->lock);
+-		css_put(&mz->memcg->css);
+-		loop++;
+-		/*
+-		 * Could not reclaim anything and there are no more
+-		 * mem cgroups to try or we seem to be looping without
+-		 * reclaiming anything.
+-		 */
+-		if (!nr_reclaimed &&
+-			(next_mz == NULL ||
+-			loop > MEM_CGROUP_MAX_SOFT_LIMIT_RECLAIM_LOOPS))
+-			break;
+-	} while (!nr_reclaimed);
+-	if (next_mz)
+-		css_put(&next_mz->memcg->css);
+-	return nr_reclaimed;
+-}
+-
+ /**
+  * mem_cgroup_force_empty_list - clears LRU of a group
+  * @memcg: group to clear
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index b96faea..d8823f0 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -139,11 +139,21 @@ static bool global_reclaim(struct scan_control *sc)
+ {
+ 	return !sc->target_mem_cgroup;
+ }
++
++static bool mem_cgroup_should_soft_reclaim(struct scan_control *sc)
++{
++	return !mem_cgroup_disabled() && global_reclaim(sc);
++}
+ #else
+ static bool global_reclaim(struct scan_control *sc)
+ {
+ 	return true;
+ }
++
++static bool mem_cgroup_should_soft_reclaim(struct scan_control *sc)
++{
++	return false;
++}
+ #endif
+ 
+ static unsigned long get_lru_size(struct lruvec *lruvec, enum lru_list lru)
+@@ -2124,7 +2134,8 @@ static inline bool should_continue_reclaim(struct zone *zone,
+ 	}
+ }
+ 
+-static void shrink_zone(struct zone *zone, struct scan_control *sc)
++static void
++__shrink_zone(struct zone *zone, struct scan_control *sc, bool soft_reclaim)
+ {
+ 	unsigned long nr_reclaimed, nr_scanned;
+ 
+@@ -2143,6 +2154,12 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+ 		do {
+ 			struct lruvec *lruvec;
+ 
++			if (soft_reclaim &&
++			    !mem_cgroup_soft_reclaim_eligible(memcg)) {
++				memcg = mem_cgroup_iter(root, memcg, &reclaim);
++				continue;
++			}
++
+ 			lruvec = mem_cgroup_zone_lruvec(zone, memcg);
+ 
+ 			shrink_lruvec(lruvec, sc);
+@@ -2173,6 +2190,24 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+ 					 sc->nr_scanned - nr_scanned, sc));
+ }
+ 
++
++static void shrink_zone(struct zone *zone, struct scan_control *sc)
++{
++	bool do_soft_reclaim = mem_cgroup_should_soft_reclaim(sc);
++	unsigned long nr_scanned = sc->nr_scanned;
++
++	__shrink_zone(zone, sc, do_soft_reclaim);
++
++	/*
++	 * No group is over the soft limit or those that are do not have
++	 * pages in the zone we are reclaiming so we have to reclaim everybody
++	 */
++	if (do_soft_reclaim && (sc->nr_scanned == nr_scanned)) {
++		__shrink_zone(zone, sc, false);
++		return;
++	}
++}
++
+ /* Returns true if compaction should go ahead for a high-order request */
+ static inline bool compaction_ready(struct zone *zone, struct scan_control *sc)
+ {
+@@ -2234,8 +2269,6 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+ {
+ 	struct zoneref *z;
+ 	struct zone *zone;
+-	unsigned long nr_soft_reclaimed;
+-	unsigned long nr_soft_scanned;
+ 	bool aborted_reclaim = false;
+ 
+ 	/*
+@@ -2275,18 +2308,6 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+ 					continue;
+ 				}
+ 			}
+-			/*
+-			 * This steals pages from memory cgroups over softlimit
+-			 * and returns the number of reclaimed pages and
+-			 * scanned pages. This works for global memory pressure
+-			 * and balancing, not for a memcg's limit.
+-			 */
+-			nr_soft_scanned = 0;
+-			nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(zone,
+-						sc->order, sc->gfp_mask,
+-						&nr_soft_scanned);
+-			sc->nr_reclaimed += nr_soft_reclaimed;
+-			sc->nr_scanned += nr_soft_scanned;
+ 			/* need some check for avoid more shrink_zone() */
+ 		}
+ 
+@@ -2881,8 +2902,6 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+ {
+ 	int i;
+ 	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
+-	unsigned long nr_soft_reclaimed;
+-	unsigned long nr_soft_scanned;
+ 	struct scan_control sc = {
+ 		.gfp_mask = GFP_KERNEL,
+ 		.priority = DEF_PRIORITY,
+@@ -2997,15 +3016,6 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+ 
+ 			sc.nr_scanned = 0;
+ 
+-			nr_soft_scanned = 0;
+-			/*
+-			 * Call soft limit reclaim before calling shrink_zone.
+-			 */
+-			nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(zone,
+-							order, sc.gfp_mask,
+-							&nr_soft_scanned);
+-			sc.nr_reclaimed += nr_soft_reclaimed;
+-
+ 			/*
+ 			 * There should be no need to raise the scanning
+ 			 * priority if enough pages are already being scanned
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
