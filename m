@@ -1,50 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 091436B0037
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 15:01:44 -0400 (EDT)
-Received: by mail-yh0-f54.google.com with SMTP id f73so1697709yha.41
-        for <linux-mm@kvack.org>; Tue, 18 Jun 2013 12:01:44 -0700 (PDT)
-Date: Tue, 18 Jun 2013 12:01:39 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v3 3/6] mm/writeback: commit reason of
- WB_REASON_FORKER_THREAD mismatch name
-Message-ID: <20130618190139.GG1596@htj.dyndns.org>
-References: <1371555222-22678-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1371555222-22678-3-git-send-email-liwanp@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1371555222-22678-3-git-send-email-liwanp@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id 501226B0033
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 16:17:11 -0400 (EDT)
+From: Joern Engel <joern@logfs.org>
+Subject: [PATCH 0/2] hugetlb fixes
+Date: Tue, 18 Jun 2013 14:47:03 -0400
+Message-Id: <1371581225-27535-1-git-send-email-joern@logfs.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Fengguang Wu <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Andrew Shewmaker <agshew@gmail.com>, Jiri Kosina <jkosina@suse.cz>, Namjae Jeon <linkinjeon@gmail.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Joern Engel <joern@logfs.org>
 
-On Tue, Jun 18, 2013 at 07:33:39PM +0800, Wanpeng Li wrote:
-> After commit 839a8e86("writeback: replace custom worker pool implementation
-> with unbound workqueue"), there is no bdi forker thread any more. However,
-> WB_REASON_FORKER_THREAD is still used due to it is somewhat userland visible
-> and we won't be exposing exactly the same information with just a different
-> name.
-> 
-> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+As everyone knows, hugetlbfs sucks.  But it is also necessary for
+large memory machines, so we should make it suck less.  Top of my list
+were lack of rss accounting and refusing mmap with MAP_HUGETLB when
+using hugetlbfs.  The latter generally created a know in every brain I
+explained this to.
 
-Reviewed-by: Tejun Heo <tj@kernel.org>
+Test program below is failing before these two patches and passing
+after.
 
-> +/*
-> + * There is no bdi forker thread any more and works are done by emergency
-> + * worker, however, this is somewhat userland visible and we'll be exposing
-> + * exactly the same information, so it has a mismatch name.
-> + */
->  	WB_REASON_FORKER_THREAD,
+Joern Engel (2):
+  hugetlb: properly account rss
+  mmap: allow MAP_HUGETLB for hugetlbfs files
 
-But it'd be probably better to explicitly point to the TPs rather than
-saying "somewhat" visible.
-
-Thanks.
+ mm/hugetlb.c |    4 ++++
+ mm/mmap.c    |   12 ++++++++++--
+ 2 files changed, 14 insertions(+), 2 deletions(-)
 
 -- 
-tejun
+1.7.10.4
+
+#define _GNU_SOURCE
+#include <assert.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+typedef unsigned long long u64;
+
+static size_t length = 1 << 24;
+
+static u64 read_rss(void)
+{
+	char buf[4096], *s = buf;
+	int i, fd;
+	u64 rss;
+
+	fd = open("/proc/self/statm", O_RDONLY);
+	assert(fd > 2);
+	memset(buf, 0, sizeof(buf));
+	read(fd, buf, sizeof(buf) - 1);
+	for (i = 0; i < 1; i++)
+		s = strchr(s, ' ') + 1;
+	rss = strtoull(s, NULL, 10);
+	return rss << 12; /* assumes 4k pagesize */
+}
+
+static void do_mmap(int fd, int extra_flags, int unmap)
+{
+	int *p;
+	int flags = MAP_PRIVATE | MAP_POPULATE | extra_flags;
+	u64 before, after;
+
+	before = read_rss();
+	p = mmap(NULL, length, PROT_READ | PROT_WRITE, flags, fd, 0);
+	assert(p != MAP_FAILED ||
+			!"mmap returned an unexpected error");
+	after = read_rss();
+	assert(llabs(after - before - length) < 0x40000 ||
+			!"rss didn't grow as expected");
+	if (!unmap)
+		return;
+	munmap(p, length);
+	after = read_rss();
+	assert(llabs(after - before) < 0x40000 ||
+			!"rss didn't shrink as expected");
+}
+
+static int open_file(const char *path)
+{
+	int fd, err;
+
+	unlink(path);
+	fd = open(path, O_CREAT | O_RDWR | O_TRUNC | O_EXCL
+			| O_LARGEFILE | O_CLOEXEC, 0600);
+	assert(fd > 2);
+	unlink(path);
+	err = ftruncate(fd, length);
+	assert(!err);
+	return fd;
+}
+
+int main(void)
+{
+	int hugefd, fd;
+
+	fd = open_file("/dev/shm/hugetlbhog");
+	hugefd = open_file("/hugepages/hugetlbhog");
+
+	system("echo 100 > /proc/sys/vm/nr_hugepages");
+	do_mmap(-1, MAP_ANONYMOUS, 1);
+	do_mmap(fd, 0, 1);
+	do_mmap(-1, MAP_ANONYMOUS | MAP_HUGETLB, 1);
+	do_mmap(hugefd, 0, 1);
+	do_mmap(hugefd, MAP_HUGETLB, 1);
+	/* Leak the last one to test do_exit() */
+	do_mmap(-1, MAP_ANONYMOUS | MAP_HUGETLB, 0);
+	printf("oll korrekt.\n");
+	return 0;
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
