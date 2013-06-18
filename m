@@ -1,136 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 5EE0C6B0032
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 02:10:55 -0400 (EDT)
-Received: by mail-la0-f52.google.com with SMTP id fo12so3115098lab.25
-        for <linux-mm@kvack.org>; Mon, 17 Jun 2013 23:10:53 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 7A8F26B0032
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 02:22:24 -0400 (EDT)
+Received: by mail-ie0-f175.google.com with SMTP id a13so9013401iee.20
+        for <linux-mm@kvack.org>; Mon, 17 Jun 2013 23:22:23 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20130617131551.GA5018@dhcp22.suse.cz>
-References: <008a01ce6b4e$079b6a50$16d23ef0$%kim@samsung.com>
-	<20130617131551.GA5018@dhcp22.suse.cz>
-Date: Tue, 18 Jun 2013 15:10:52 +0900
-Message-ID: <CAOK=xRMYZokH1rg+dfE0KfPk9NsqPmmaTg-k8sagqRqvR+jG+w@mail.gmail.com>
-Subject: Re: [PATCH v3] memcg: event control at vmpressure.
-From: Hyunhee Kim <hyunhee.kim@samsung.com>
+In-Reply-To: <20130618015806.GY32663@mtj.dyndns.org>
+References: <1371128589-8953-1-git-send-email-tangchen@cn.fujitsu.com>
+	<1371128589-8953-17-git-send-email-tangchen@cn.fujitsu.com>
+	<20130618015806.GY32663@mtj.dyndns.org>
+Date: Mon, 17 Jun 2013 23:22:23 -0700
+Message-ID: <CAE9FiQVVGdDMxO5RmHSzAcB_cu49EQFiNLxswS7U0Nt5-J774w@mail.gmail.com>
+Subject: Re: [Part1 PATCH v5 16/22] x86, mm, numa: Move numa emulation
+ handling down.
+From: Yinghai Lu <yinghai@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Anton Vorontsov <anton@enomsg.org>, linux-mm@kvack.org, akpm@linux-foundation.org, rob@landley.net, kamezawa.hiroyu@jp.fujitsu.com, hannes@cmpxchg.org, rientjes@google.com, kirill@shutemov.name, Kyungmin Park <kyungmin.park@samsung.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Thomas Renninger <trenn@suse.de>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, Rik van Riel <riel@redhat.com>, jweiner@redhat.com, Prarit Bhargava <prarit@redhat.com>, the arch/x86 maintainers <x86@kernel.org>, linux-doc@vger.kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>
 
-2013/6/17 Michal Hocko <mhocko@suse.cz>:
-> On Mon 17-06-13 20:30:11, Hyunhee Kim wrote:
-> [...]
->> diff --git a/mm/vmpressure.c b/mm/vmpressure.c
->> index 736a601..a18fdb3 100644
->> --- a/mm/vmpressure.c
->> +++ b/mm/vmpressure.c
-> [...]
->> @@ -150,14 +151,16 @@ static bool vmpressure_event(struct vmpressure *vmpr,
->>       level = vmpressure_calc_level(scanned, reclaimed);
+On Mon, Jun 17, 2013 at 6:58 PM, Tejun Heo <tj@kernel.org> wrote:
+> On Thu, Jun 13, 2013 at 09:03:03PM +0800, Tang Chen wrote:
+>> From: Yinghai Lu <yinghai@kernel.org>
 >>
->>       mutex_lock(&vmpr->events_lock);
->> -
->>       list_for_each_entry(ev, &vmpr->events, node) {
->>               if (level >= ev->level) {
->> +                     if (ev->edge_trigger && (level == vmpr->last_level
->
->> +                             || level != ev->level))
->
-> Hmm, why this differs from the "always" semantic? You do not want to see
-> lower events? Why?
-
-Yes, I didn't want to see every lower level events whenever the higher
-level event occurs because the higher event signal implies that the
-lower memory situation also occurs. For example, if CRITICAL event
-occurs, it means that LOW and MEDIUM also occur. So, I think that
-triggering these lower level events are redundant. And, some users
-don't want to see this every event. But, I think that if I don't want
-to see lower events, I should add another option. Currently, as you
-mentioned, for edge_trigger option, I'll remove "level != ev->level"
-part.
-
->
->> +                             continue;
->>                       eventfd_signal(ev->efd, 1);
->>                       signalled = true;
->>               }
->>       }
->> -
->> +     vmpr->last_level = level;
->>       mutex_unlock(&vmpr->events_lock);
->
-> I have already asked in the previous version but there was no answer for
-> it. So let's try again.
->
-> What is the expected semantic when an event is triggered but there is
-> nobody to consume it?
-> I am not sure that the current implementation is practical. Say that
-> last_level is LOW and you just registered your event. Should you see the
-> first event or not?
->
-> I think that last_level should be per-vmpressure_event and the edge
-> would be defined as the even seen for the first time since registration.
-
-Right. The current implementation could not cover those situations. As
-you mentioned, I think that this could be solved by having last_level
-per vmpressure_event (after removing "level != ev->level"). If
-last_level of each event is set to valid level only after the first
-event is signaled, we cannot miss the first signal even when an event
-is registered in the middle of runtime.
-
->
->>       return signalled;
->> @@ -290,9 +293,11 @@ void vmpressure_prio(gfp_t gfp, struct mem_cgroup *memcg, int prio)
->>   *
->>   * This function associates eventfd context with the vmpressure
->>   * infrastructure, so that the notifications will be delivered to the
->> - * @eventfd. The @args parameter is a string that denotes pressure level
->> + * @eventfd. The @args parameters are a string that denotes pressure level
->>   * threshold (one of vmpressure_str_levels, i.e. "low", "medium", or
->> - * "critical").
->> + * "critical") and a trigger option that decides whether events are triggered
->> + * continuously or only on edge ("always" or "edge" if "edge", only the current
->> + * pressure level is triggered when the pressure level changes.
->>   *
->>   * This function should not be used directly, just pass it to (struct
->>   * cftype).register_event, and then cgroup core will handle everything by
->> @@ -303,10 +308,14 @@ int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
->>  {
->>       struct vmpressure *vmpr = cg_to_vmpressure(cg);
->>       struct vmpressure_event *ev;
->> +     char strlevel[32], strtrigger[32] = "always";
->>       int level;
+>> numa_emulation() needs to allocate buffer for new numa_meminfo
+>> and distance matrix, so execute it later in x86_numa_init().
 >>
->> +     if ((sscanf(args, "%s %s\n", strlevel, strtrigger) > 2))
->> +             return -EINVAL;
->
-> Ouch! You should rather not let your users write over your stack, should
-> you?
->
-
-Sorry, this should be fixed in the next patch.
-
->> +
->>       for (level = 0; level < VMPRESSURE_NUM_LEVELS; level++) {
->> -             if (!strcmp(vmpressure_str_levels[level], args))
->> +             if (!strcmp(vmpressure_str_levels[level], strlevel))
->>                       break;
->>       }
+>> Also we change the behavoir:
+>>       - before this patch, if user input wrong data in command
+>>         line, it will fall back to next numa probing or disabling
+>>         numa.
+>>       - after this patch, if user input wrong data in command line,
+>>         it will stay with numa info probed from previous probing,
+>>         like ACPI SRAT or amd_numa.
 >>
-> [...]
-> --
-> Michal Hocko
-> SUSE Labs
+>> We need to call numa_check_memblks to reject wrong user inputs early
+>> so that we can keep the original numa_meminfo not changed.
 >
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> So, this is another very subtle ordering you're adding without any
+> comment and I'm not sure it even makes sense because the function can
+> fail after that point.
 
-Thanks,
-Hyunhee Kim.
+Yes, if it fail, we will stay with current numa info from firmware.
+That looks like right behavior.
+
+Before this patch, it will fail to next numa way like if acpi srat + user
+input fail, it will try to go with amd_numa then try apply user info.
+
+>
+> I'm getting really doubtful about this whole approach of carefully
+> splitting discovery and registration.  It's inherently fragile like
+> hell and the poor documentation makes it a lot worse.  I'm gonna reply
+> to the head message.
+
+Maybe look at the patch is not clear enough, but if looks at the final changed
+code it would be more clear.
+
+Thanks
+
+Yinghai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
