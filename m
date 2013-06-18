@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 9C1386B003B
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 08:10:29 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 65D8C6B003C
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 08:10:32 -0400 (EDT)
 From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH v5 6/8] memcg, vmscan: Do not attempt soft limit reclaim if it would not scan anything
-Date: Tue, 18 Jun 2013 14:09:45 +0200
-Message-Id: <1371557387-22434-7-git-send-email-mhocko@suse.cz>
+Subject: [PATCH v5 7/8] memcg: Track all children over limit in the root
+Date: Tue, 18 Jun 2013 14:09:46 +0200
+Message-Id: <1371557387-22434-8-git-send-email-mhocko@suse.cz>
 In-Reply-To: <1371557387-22434-1-git-send-email-mhocko@suse.cz>
 References: <1371557387-22434-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -13,59 +13,59 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, Glauber Costa <glommer@gmail.com>
 
-mem_cgroup_should_soft_reclaim controls whether soft reclaim pass is
-done and it always says yes currently. Memcg iterators are clever to
-skip nodes that are not soft reclaimable quite efficiently but
-mem_cgroup_should_soft_reclaim can be more clever and do not start the
-soft reclaim pass at all if it knows that nothing would be scanned
-anyway.
+Children in soft limit excess are currently tracked up the hierarchy
+in memcg->children_in_excess. Nevertheless there still might exist
+tons of groups that are not in hierarchy relation to the root cgroup
+(e.g. all first level groups if root_mem_cgroup->use_hierarchy ==
+false).
 
-In order to do that, simply reuse mem_cgroup_soft_reclaim_eligible for
-the target group of the reclaim and allow the pass only if the whole
-subtree wouldn't be skipped.
+As the whole tree walk has to be done when the iteration starts at
+root_mem_cgroup the iterator should be able to skip the walk if there
+is no child above the limit without iterating them. This can be done
+easily if the root tracks all children rather than only hierarchical
+children. This is done by this patch which updates root_mem_cgroup
+children_in_excess if root_mem_cgroup->use_hierarchy == false so the
+root knows about all children in excess.
 
-Changes since v1
-- do not export mem_cgroup_root and teach mem_cgroup_soft_reclaim_eligible
-  to handle NULL memcg as mem_cgroup_root
+Please note that this is not an issue for inner memcgs which have
+use_hierarchy == false because then only the single group is visited so
+no special optimization is necessary.
 
 Signed-off-by: Michal Hocko <mhocko@suse.cz>
 ---
- mm/memcontrol.c | 6 +++++-
- mm/vmscan.c     | 4 +++-
- 2 files changed, 8 insertions(+), 2 deletions(-)
+ mm/memcontrol.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 2a06d5a..b2e44d3 100644
+index b2e44d3..d55e2c8 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -1987,7 +1987,11 @@ enum mem_cgroup_filter_t
- mem_cgroup_soft_reclaim_eligible(struct mem_cgroup *memcg,
- 		struct mem_cgroup *root)
- {
--	struct mem_cgroup *parent = memcg;
-+	struct mem_cgroup *parent;
-+
-+	if (!memcg)
-+		memcg = root_mem_cgroup;
-+	parent = memcg;
- 
- 	if (res_counter_soft_limit_excess(&memcg->res))
- 		return VISIT;
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 79d59ec..56302da 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -142,7 +142,9 @@ static bool global_reclaim(struct scan_control *sc)
- 
- static bool mem_cgroup_should_soft_reclaim(struct scan_control *sc)
- {
--	return !mem_cgroup_disabled();
-+	struct mem_cgroup *root = sc->target_mem_cgroup;
-+	return !mem_cgroup_disabled() &&
-+		mem_cgroup_soft_reclaim_eligible(root, root) != SKIP_TREE;
+@@ -942,9 +942,15 @@ static void mem_cgroup_update_soft_limit(struct mem_cgroup *memcg)
+ 	/*
+ 	 * Necessary to update all ancestors when hierarchy is used
+ 	 * because their event counter is not touched.
++	 * We track children even outside the hierarchy for the root
++	 * cgroup because tree walk starting at root should visit
++	 * all cgroups and we want to prevent from pointless tree
++	 * walk if no children is below the limit.
+ 	 */
+ 	while (delta && (parent = parent_mem_cgroup(parent)))
+ 		atomic_add(delta, &parent->children_in_excess);
++	if (memcg != root_mem_cgroup && !root_mem_cgroup->use_hierarchy)
++		atomic_add(delta, &root_mem_cgroup->children_in_excess);
+ 	spin_unlock(&memcg->soft_lock);
  }
- #else
- static bool global_reclaim(struct scan_control *sc)
+ 
+@@ -6256,6 +6262,9 @@ static void mem_cgroup_css_offline(struct cgroup *cont)
+ 	if (memcg->soft_contributed) {
+ 		while ((memcg = parent_mem_cgroup(memcg)))
+ 			atomic_dec(&memcg->children_in_excess);
++
++		if (memcg != root_mem_cgroup && !root_mem_cgroup->use_hierarchy)
++			atomic_dec(&root_mem_cgroup->children_in_excess);
+ 	}
+ 	mem_cgroup_destroy_all_caches(memcg);
+ }
 -- 
 1.8.3.1
 
