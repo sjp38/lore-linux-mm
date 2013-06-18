@@ -1,91 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 95A4F6B0032
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 08:29:23 -0400 (EDT)
-Received: by mail-vc0-f182.google.com with SMTP id id13so2820057vcb.41
-        for <linux-mm@kvack.org>; Tue, 18 Jun 2013 05:29:22 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 466416B0033
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 09:50:29 -0400 (EDT)
+Date: Tue, 18 Jun 2013 15:50:25 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: linux-next: slab shrinkers: BUG at mm/list_lru.c:92
+Message-ID: <20130618135025.GK13677@dhcp22.suse.cz>
+References: <20130617141822.GF5018@dhcp22.suse.cz>
+ <20130617151403.GA25172@localhost.localdomain>
+ <20130617143508.7417f1ac9ecd15d8b2877f76@linux-foundation.org>
+ <20130617223004.GB2538@localhost.localdomain>
+ <20130618024623.GP29338@dastard>
+ <20130618063104.GB20528@localhost.localdomain>
+ <20130618082414.GC13677@dhcp22.suse.cz>
+ <20130618104443.GH13677@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20130617160200.27bb5d82df09a26adb8efce5@linux-foundation.org>
-References: <1370291585-26102-1-git-send-email-sjenning@linux.vnet.ibm.com>
-	<1370291585-26102-4-git-send-email-sjenning@linux.vnet.ibm.com>
-	<CAA_GA1eWFYDxp3gEdWzajVP4jMpmJbt=oWBZYqZEQjndU=s_Qg@mail.gmail.com>
-	<20130617160200.27bb5d82df09a26adb8efce5@linux-foundation.org>
-Date: Tue, 18 Jun 2013 20:29:22 +0800
-Message-ID: <CAA_GA1cLD7-AW45VkU9Tx9os7Pu5jaW3UkrVaQu--ecQ2x9j_g@mail.gmail.com>
-Subject: Re: [PATCHv13 3/4] zswap: add to mm/
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130618104443.GH13677@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
+To: Glauber Costa <glommer@gmail.com>
+Cc: Dave Chinner <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
->
-> I'm not sure how representative this is of real workloads, but it does
-> look rather fatal for zswap.  The differences are so large, I wonder if
-> it's just some silly bug or config issue.
->
+And again, another hang. It looks like the inode deletion never
+finishes. The good thing is that I do not see any LRU related BUG_ONs
+anymore. I am going to test with the other patch in the thread.
 
-In my observation, zswap_pool_pages always close to zswap_stored_pages
-in this testing.
-I think it means that the fragmentation of zswap is heavy.
-Since in idea state number of zswap pool pages should be half of stored pages.
-
-The reason may be this workload is not suitable for compression.
-The data of it can't be compressed to a low percent.
-It can only compressed to around 70% percent(not exactly but at least
-above 50%).
-
-I made a simple patch to limit the fragment of zswap to 70%.
-The result can be better but still not positive.
-                                         v3.10-rc4                   v3.10-rc4
-                               2G-parallio-nozswap     2G-parallio-zswapdefrag
-Ops memcachetest-0M              1041.00 (  0.00%)           1058.00 (  1.63%)
-Ops memcachetest-198M             973.00 (  0.00%)           1019.00 (  4.73%)
-Ops memcachetest-430M             892.00 (  0.00%)            831.00 ( -6.84%)
-Ops memcachetest-661M             819.00 (  0.00%)            850.00 (  3.79%)
-Ops memcachetest-893M             775.00 (  0.00%)            784.00 (  1.16%)
-Ops memcachetest-1125M            764.00 (  0.00%)            766.00 (  0.26%)
-Ops memcachetest-1356M            749.00 (  0.00%)            782.00 (  4.41%)
-Ops io-duration-0M                  0.00 (  0.00%)              0.00 (  0.00%)
-Ops io-duration-198M               21.00 (  0.00%)             28.00 (-33.33%)
-Ops io-duration-430M               29.00 (  0.00%)             32.00 (-10.34%)
-Ops io-duration-661M               34.00 (  0.00%)             34.00 (  0.00%)
-Ops io-duration-893M               36.00 (  0.00%)             42.00 (-16.67%)
-Ops io-duration-1125M              43.00 (  0.00%)             47.00 ( -9.30%)
-Ops io-duration-1356M              50.00 (  0.00%)             49.00 (  2.00%)
-Ops swaptotal-0M               469193.00 (  0.00%)         461146.00 (  1.72%)
-Ops swaptotal-198M             496201.00 (  0.00%)         495692.00 (  0.10%)
-Ops swaptotal-430M             520400.00 (  0.00%)         520252.00 (  0.03%)
-Ops swaptotal-661M             538872.00 (  0.00%)         513541.00 (  4.70%)
-Ops swaptotal-893M             522590.00 (  0.00%)         532311.00 ( -1.86%)
-Ops swaptotal-1125M            526934.00 (  0.00%)         527089.00 ( -0.03%)
-Ops swaptotal-1356M            525241.00 (  0.00%)         525747.00 ( -0.10%)
-Ops swapin-0M                  251226.00 (  0.00%)         248426.00 (  1.11%)
-Ops swapin-198M                236126.00 (  0.00%)         239031.00 ( -1.23%)
-Ops swapin-430M                265193.00 (  0.00%)         266174.00 ( -0.37%)
-Ops swapin-661M                280281.00 (  0.00%)         263151.00 (  6.11%)
-Ops swapin-893M                263004.00 (  0.00%)         268473.00 ( -2.08%)
-Ops swapin-1125M               261962.00 (  0.00%)         264925.00 ( -1.13%)
-Ops swapin-1356M               262571.00 (  0.00%)         266695.00 ( -1.57%)
-Ops minorfaults-0M             625759.00 (  0.00%)         620448.00 (  0.85%)
-Ops minorfaults-198M           769752.00 (  0.00%)         703458.00 (  8.61%)
-Ops minorfaults-430M           678590.00 (  0.00%)         686257.00 ( -1.13%)
-Ops minorfaults-661M           669308.00 (  0.00%)         668845.00 (  0.07%)
-Ops minorfaults-893M           656343.00 (  0.00%)         680286.00 ( -3.65%)
-Ops minorfaults-1125M          657954.00 (  0.00%)         655280.00 (  0.41%)
-Ops minorfaults-1356M          672035.00 (  0.00%)         659861.00 (  1.81%)
-Ops majorfaults-0M              39395.00 (  0.00%)          38828.00 (  1.44%)
-Ops majorfaults-198M            38758.00 (  0.00%)          42876.00 (-10.62%)
-Ops majorfaults-430M            39819.00 (  0.00%)          38668.00 (  2.89%)
-Ops majorfaults-661M            40171.00 (  0.00%)          38443.00 (  4.30%)
-Ops majorfaults-893M            37576.00 (  0.00%)          37664.00 ( -0.23%)
-Ops majorfaults-1125M           36891.00 (  0.00%)          37527.00 ( -1.72%)
-Ops majorfaults-1356M           37123.00 (  0.00%)          37779.00 ( -1.77%)
-
---
-Regards,
---Bob
+2476 [<ffffffff8118325e>] __wait_on_freeing_inode+0x9e/0xc0	<<< waiting for an inode to go away
+[<ffffffff81183321>] find_inode_fast+0xa1/0xc0
+[<ffffffff8118525f>] iget_locked+0x4f/0x180
+[<ffffffff811ef9e3>] ext4_iget+0x33/0x9f0
+[<ffffffff811f6a1c>] ext4_lookup+0xbc/0x160
+[<ffffffff81174ad0>] lookup_real+0x20/0x60
+[<ffffffff81177e25>] lookup_open+0x175/0x1d0
+[<ffffffff8117815e>] do_last+0x2de/0x780			<<< holds i_mutex
+[<ffffffff8117ae9a>] path_openat+0xda/0x400
+[<ffffffff8117b303>] do_filp_open+0x43/0xa0
+[<ffffffff81168ee0>] do_sys_open+0x160/0x1e0
+[<ffffffff81168f9c>] sys_open+0x1c/0x20
+[<ffffffff81582fe9>] system_call_fastpath+0x16/0x1b
+[<ffffffffffffffff>] 0xffffffffffffffff
+11214 [<ffffffff81178144>] do_last+0x2c4/0x780			<<< blocked on i_mutex
+[<ffffffff8117ae9a>] path_openat+0xda/0x400
+[<ffffffff8117b303>] do_filp_open+0x43/0xa0
+[<ffffffff81168ee0>] do_sys_open+0x160/0x1e0
+[<ffffffff81168f9c>] sys_open+0x1c/0x20
+[<ffffffff81582fe9>] system_call_fastpath+0x16/0x1b
+[<ffffffffffffffff>] 0xffffffffffffffff
+11217 [<ffffffff81178144>] do_last+0x2c4/0x780			<<< blocked on i_mutex
+[<ffffffff8117ae9a>] path_openat+0xda/0x400
+[<ffffffff8117b303>] do_filp_open+0x43/0xa0
+[<ffffffff81168ee0>] do_sys_open+0x160/0x1e0
+[<ffffffff81168f9c>] sys_open+0x1c/0x20
+[<ffffffff81582fe9>] system_call_fastpath+0x16/0x1b
+[<ffffffffffffffff>] 0xffffffffffffffff
+11288 [<ffffffff81178144>] do_last+0x2c4/0x780			<<< blocked on i_mutex
+[<ffffffff8117ae9a>] path_openat+0xda/0x400
+[<ffffffff8117b303>] do_filp_open+0x43/0xa0
+[<ffffffff81168ee0>] do_sys_open+0x160/0x1e0
+[<ffffffff81168f9c>] sys_open+0x1c/0x20
+[<ffffffff81582fe9>] system_call_fastpath+0x16/0x1b
+[<ffffffffffffffff>] 0xffffffffffffffff
+11453 [<ffffffff8118325e>] __wait_on_freeing_inode+0x9e/0xc0
+[<ffffffff81183321>] find_inode_fast+0xa1/0xc0
+[<ffffffff8118525f>] iget_locked+0x4f/0x180
+[<ffffffff811ef9e3>] ext4_iget+0x33/0x9f0
+[<ffffffff811f6a1c>] ext4_lookup+0xbc/0x160
+[<ffffffff81174ad0>] lookup_real+0x20/0x60
+[<ffffffff81177e25>] lookup_open+0x175/0x1d0
+[<ffffffff8117815e>] do_last+0x2de/0x780
+[<ffffffff8117ae9a>] path_openat+0xda/0x400
+[<ffffffff8117b303>] do_filp_open+0x43/0xa0
+[<ffffffff81168ee0>] do_sys_open+0x160/0x1e0
+[<ffffffff81168f9c>] sys_open+0x1c/0x20
+[<ffffffff81582fe9>] system_call_fastpath+0x16/0x1b
+[<ffffffffffffffff>] 0xffffffffffffffff
+12439 [<ffffffff8118325e>] __wait_on_freeing_inode+0x9e/0xc0
+[<ffffffff81183321>] find_inode_fast+0xa1/0xc0
+[<ffffffff8118525f>] iget_locked+0x4f/0x180
+[<ffffffff811ef9e3>] ext4_iget+0x33/0x9f0
+[<ffffffff811f6a1c>] ext4_lookup+0xbc/0x160
+[<ffffffff81174ad0>] lookup_real+0x20/0x60
+[<ffffffff81175254>] __lookup_hash+0x34/0x40
+[<ffffffff81179872>] path_lookupat+0x7a2/0x830
+[<ffffffff81179933>] filename_lookup+0x33/0xd0
+[<ffffffff8117ab0b>] user_path_at_empty+0x7b/0xb0
+[<ffffffff8117ab4c>] user_path_at+0xc/0x10
+[<ffffffff8116ff91>] vfs_fstatat+0x51/0xb0
+[<ffffffff81170116>] vfs_stat+0x16/0x20
+[<ffffffff8117013f>] sys_newstat+0x1f/0x50
+[<ffffffff81582fe9>] system_call_fastpath+0x16/0x1b
+[<ffffffffffffffff>] 0xffffffffffffffff
+12542 [<ffffffff81179862>] path_lookupat+0x792/0x830
+[<ffffffff81179933>] filename_lookup+0x33/0xd0
+[<ffffffff8117ab0b>] user_path_at_empty+0x7b/0xb0
+[<ffffffff8117ab4c>] user_path_at+0xc/0x10
+[<ffffffff8116ff91>] vfs_fstatat+0x51/0xb0
+[<ffffffff81170116>] vfs_stat+0x16/0x20
+[<ffffffff8117013f>] sys_newstat+0x1f/0x50
+[<ffffffff81582fe9>] system_call_fastpath+0x16/0x1b
+[<ffffffffffffffff>] 0xffffffffffffffff
+12588 [<ffffffff81179862>] path_lookupat+0x792/0x830
+[<ffffffff81179933>] filename_lookup+0x33/0xd0
+[<ffffffff8117ab0b>] user_path_at_empty+0x7b/0xb0
+[<ffffffff8117ab4c>] user_path_at+0xc/0x10
+[<ffffffff8116ff91>] vfs_fstatat+0x51/0xb0
+[<ffffffff81170116>] vfs_stat+0x16/0x20
+[<ffffffff8117013f>] sys_newstat+0x1f/0x50
+[<ffffffff81582fe9>] system_call_fastpath+0x16/0x1b
+[<ffffffffffffffff>] 0xffffffffffffffff
+12589 [<ffffffff81179862>] path_lookupat+0x792/0x830
+[<ffffffff81179933>] filename_lookup+0x33/0xd0
+[<ffffffff8117ab0b>] user_path_at_empty+0x7b/0xb0
+[<ffffffff8117ab4c>] user_path_at+0xc/0x10
+[<ffffffff8116ff91>] vfs_fstatat+0x51/0xb0
+[<ffffffff81170116>] vfs_stat+0x16/0x20
+[<ffffffff8117013f>] sys_newstat+0x1f/0x50
+[<ffffffff81582fe9>] system_call_fastpath+0x16/0x1b
+[<ffffffffffffffff>] 0xffffffffffffffff
+13098 [<ffffffff8118325e>] __wait_on_freeing_inode+0x9e/0xc0
+[<ffffffff81183321>] find_inode_fast+0xa1/0xc0
+[<ffffffff8118525f>] iget_locked+0x4f/0x180
+[<ffffffff811ef9e3>] ext4_iget+0x33/0x9f0
+[<ffffffff811f6a1c>] ext4_lookup+0xbc/0x160
+[<ffffffff81174ad0>] lookup_real+0x20/0x60
+[<ffffffff81177e25>] lookup_open+0x175/0x1d0
+[<ffffffff8117815e>] do_last+0x2de/0x780
+[<ffffffff8117ae9a>] path_openat+0xda/0x400
+[<ffffffff8117b303>] do_filp_open+0x43/0xa0
+[<ffffffff81168ee0>] do_sys_open+0x160/0x1e0
+[<ffffffff81168f9c>] sys_open+0x1c/0x20
+[<ffffffff81582fe9>] system_call_fastpath+0x16/0x1b
+[<ffffffffffffffff>] 0xffffffffffffffff
+19091 [<ffffffff81179862>] path_lookupat+0x792/0x830
+[<ffffffff81179933>] filename_lookup+0x33/0xd0
+[<ffffffff8117ab0b>] user_path_at_empty+0x7b/0xb0
+[<ffffffff8117ab4c>] user_path_at+0xc/0x10
+[<ffffffff8116ff91>] vfs_fstatat+0x51/0xb0
+[<ffffffff81170116>] vfs_stat+0x16/0x20
+[<ffffffff8117013f>] sys_newstat+0x1f/0x50
+[<ffffffff81582fe9>] system_call_fastpath+0x16/0x1b
+[<ffffffffffffffff>] 0xffffffffffffffff
+19092 [<ffffffff81179862>] path_lookupat+0x792/0x830
+[<ffffffff81179933>] filename_lookup+0x33/0xd0
+[<ffffffff8117ab0b>] user_path_at_empty+0x7b/0xb0
+[<ffffffff8117ab4c>] user_path_at+0xc/0x10
+[<ffffffff8116ff91>] vfs_fstatat+0x51/0xb0
+[<ffffffff81170116>] vfs_stat+0x16/0x20
+[<ffffffff8117013f>] sys_newstat+0x1f/0x50
+[<ffffffff81582fe9>] system_call_fastpath+0x16/0x1b
+[<ffffffffffffffff>] 0xffffffffffffffff
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
