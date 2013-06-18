@@ -1,70 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 45A2A6B0033
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 19:39:56 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 3A8BD6B0033
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 19:52:58 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 19 Jun 2013 09:31:03 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 5C0832CE8051
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 09:39:43 +1000 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5INP1op8978780
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 09:25:01 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5INdfdl025886
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 09:39:42 +1000
-Date: Wed, 19 Jun 2013 07:39:40 +0800
+	Wed, 19 Jun 2013 09:45:49 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 614213578045
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 09:52:52 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5INqhZ63342634
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 09:52:43 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5INqpDd016762
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 09:52:52 +1000
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v3 3/6] mm/writeback: commit reason of
- WB_REASON_FORKER_THREAD mismatch name
-Message-ID: <20130618233940.GA32647@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1371555222-22678-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1371555222-22678-3-git-send-email-liwanp@linux.vnet.ibm.com>
- <20130618190139.GG1596@htj.dyndns.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130618190139.GG1596@htj.dyndns.org>
+Subject: [PATCH v4 2/6] mm/writeback: Don't check force_wait to handle bdi->work_list
+Date: Wed, 19 Jun 2013 07:52:39 +0800
+Message-Id: <1371599563-6424-2-git-send-email-liwanp@linux.vnet.ibm.com>
+In-Reply-To: <1371599563-6424-1-git-send-email-liwanp@linux.vnet.ibm.com>
+References: <1371599563-6424-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Fengguang Wu <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Andrew Shewmaker <agshew@gmail.com>, Jiri Kosina <jkosina@suse.cz>, Namjae Jeon <linkinjeon@gmail.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Fengguang Wu <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Andrew Shewmaker <agshew@gmail.com>, Jiri Kosina <jkosina@suse.cz>, Namjae Jeon <linkinjeon@gmail.com>, Jan Kara <jack@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Tue, Jun 18, 2013 at 12:01:39PM -0700, Tejun Heo wrote:
->On Tue, Jun 18, 2013 at 07:33:39PM +0800, Wanpeng Li wrote:
->> After commit 839a8e86("writeback: replace custom worker pool implementation
->> with unbound workqueue"), there is no bdi forker thread any more. However,
->> WB_REASON_FORKER_THREAD is still used due to it is somewhat userland visible
->> and we won't be exposing exactly the same information with just a different
->> name.
->> 
->> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->
->Reviewed-by: Tejun Heo <tj@kernel.org>
->
->> +/*
->> + * There is no bdi forker thread any more and works are done by emergency
->> + * worker, however, this is somewhat userland visible and we'll be exposing
->> + * exactly the same information, so it has a mismatch name.
->> + */
->>  	WB_REASON_FORKER_THREAD,
->
->But it'd be probably better to explicitly point to the TPs rather than
->saying "somewhat" visible.
+Changelog:
+ v3 - > v4:
+    * add Tejun's Reviewed-by
 
-Thanks for your review, Tejun, I will update them in next version. ;-)
+After commit 839a8e86("writeback: replace custom worker pool implementation
+with unbound workqueue"), bdi_writeback_workfn runs off bdi_writeback->dwork,
+on each execution, it processes bdi->work_list and reschedules if there are
+more things to do instead of flush any work that race with us existing. It is
+unecessary to check force_wait in wb_do_writeback since it is always 0 after
+the mentioned commit. This patch remove the force_wait in wb_do_writeback.
 
-Regards,
-Wanpeng Li 
+Reviewed-by: Tejun Heo <tj@kernel.org>
+Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+---
+ fs/fs-writeback.c |   10 ++--------
+ 1 files changed, 2 insertions(+), 8 deletions(-)
 
->
->Thanks.
->
->-- 
->tejun
+diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+index f892dec..e15aa97 100644
+--- a/fs/fs-writeback.c
++++ b/fs/fs-writeback.c
+@@ -959,7 +959,7 @@ static long wb_check_old_data_flush(struct bdi_writeback *wb)
+ /*
+  * Retrieve work items and do the writeback they describe
+  */
+-static long wb_do_writeback(struct bdi_writeback *wb, int force_wait)
++static long wb_do_writeback(struct bdi_writeback *wb)
+ {
+ 	struct backing_dev_info *bdi = wb->bdi;
+ 	struct wb_writeback_work *work;
+@@ -967,12 +967,6 @@ static long wb_do_writeback(struct bdi_writeback *wb, int force_wait)
+ 
+ 	set_bit(BDI_writeback_running, &wb->bdi->state);
+ 	while ((work = get_next_work_item(bdi)) != NULL) {
+-		/*
+-		 * Override sync mode, in case we must wait for completion
+-		 * because this thread is exiting now.
+-		 */
+-		if (force_wait)
+-			work->sync_mode = WB_SYNC_ALL;
+ 
+ 		trace_writeback_exec(bdi, work);
+ 
+@@ -1021,7 +1015,7 @@ void bdi_writeback_workfn(struct work_struct *work)
+ 		 * rescuer as work_list needs to be drained.
+ 		 */
+ 		do {
+-			pages_written = wb_do_writeback(wb, 0);
++			pages_written = wb_do_writeback(wb);
+ 			trace_writeback_pages_written(pages_written);
+ 		} while (!list_empty(&bdi->work_list));
+ 	} else {
+-- 
+1.7.5.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
