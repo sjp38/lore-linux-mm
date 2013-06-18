@@ -1,31 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 0F7BC6B0033
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 17:32:03 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 01B7C6B0034
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 17:32:07 -0400 (EDT)
 From: Joern Engel <joern@logfs.org>
-Subject: [PATCH 0/3] Improve selftests
-Date: Tue, 18 Jun 2013 16:01:58 -0400
-Message-Id: <1371585721-28087-1-git-send-email-joern@logfs.org>
+Subject: [PATCH 2/3] self-test: fix make clean
+Date: Tue, 18 Jun 2013 16:02:00 -0400
+Message-Id: <1371585721-28087-3-git-send-email-joern@logfs.org>
+In-Reply-To: <1371585721-28087-1-git-send-email-joern@logfs.org>
+References: <1371585721-28087-1-git-send-email-joern@logfs.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Joern Engel <joern@logfs.org>
 
-First two are cleanups, third adds hugetlbfstest.  This test fails on
-current kernels, but I have previously sent a patchset to fix the two
-failures.
+thuge-gen was forgotten.  Fix it by removing the duplication, so we
+don't get too many repeats.
 
-Joern Engel (3):
-  selftests: exit 1 on failure
-  self-test: fix make clean
-  selftests: add hugetlbfstest
+Signed-off-by: Joern Engel <joern@logfs.org>
+---
+ tools/testing/selftests/vm/Makefile |    5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
- tools/testing/selftests/vm/Makefile        |    7 ++-
- tools/testing/selftests/vm/hugetlbfstest.c |   84 ++++++++++++++++++++++++++++
- tools/testing/selftests/vm/run_vmtests     |   16 ++++++
- 3 files changed, 104 insertions(+), 3 deletions(-)
- create mode 100644 tools/testing/selftests/vm/hugetlbfstest.c
-
+diff --git a/tools/testing/selftests/vm/Makefile b/tools/testing/selftests/vm/Makefile
+index 7d47927..cb3f5f2 100644
+--- a/tools/testing/selftests/vm/Makefile
++++ b/tools/testing/selftests/vm/Makefile
+@@ -2,8 +2,9 @@
+ 
+ CC = $(CROSS_COMPILE)gcc
+ CFLAGS = -Wall
++BINARIES = hugepage-mmap hugepage-shm map_hugetlb thuge-gen
+ 
+-all: hugepage-mmap hugepage-shm  map_hugetlb thuge-gen
++all: $(BINARIES)
+ %: %.c
+ 	$(CC) $(CFLAGS) -o $@ $^
+ 
+@@ -11,4 +12,4 @@ run_tests: all
+ 	@/bin/sh ./run_vmtests || (echo "vmtests: [FAIL]"; exit 1)
+ 
+ clean:
+-	$(RM) hugepage-mmap hugepage-shm  map_hugetlb
++	$(RM) $(BINARIES)
 -- 
 1.7.10.4
 
