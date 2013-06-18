@@ -1,83 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 143B56B0038
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 17:32:20 -0400 (EDT)
-From: Joern Engel <joern@logfs.org>
-Subject: [PATCH 1/3] selftests: exit 1 on failure
-Date: Tue, 18 Jun 2013 16:01:59 -0400
-Message-Id: <1371585721-28087-2-git-send-email-joern@logfs.org>
-In-Reply-To: <1371585721-28087-1-git-send-email-joern@logfs.org>
-References: <1371585721-28087-1-git-send-email-joern@logfs.org>
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id DAF216B0033
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 17:34:25 -0400 (EDT)
+Date: Tue, 18 Jun 2013 16:04:33 -0400
+From: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>
+Subject: Re: [PATCH 0/2] hugetlb fixes
+Message-ID: <20130618200433.GA28198@logfs.org>
+References: <1371581225-27535-1-git-send-email-joern@logfs.org>
+ <20130618185055.GA27618@logfs.org>
+ <20130618132705.c5eb78a20499beb1b769f741@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20130618132705.c5eb78a20499beb1b769f741@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Joern Engel <joern@logfs.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-In case this ever gets scripted, it should return 0 on success and 1 on
-failure.  Parsing the output should be left to meatbags.
+On Tue, 18 June 2013 13:27:05 -0700, Andrew Morton wrote:
+> On Tue, 18 Jun 2013 14:50:55 -0400 J__rn Engel <joern@logfs.org> wrote:
+> 
+> > On Tue, 18 June 2013 14:47:03 -0400, Joern Engel wrote:
+> > > 
+> > > Test program below is failing before these two patches and passing
+> > > after.
+> > 
+> > Actually, do we have a place to stuff kernel tests?  And if not,
+> > should we have one?
+> 
+> Yep, tools/testing/selftests/vm.  It's pretty simple and stupid at
+> present - it anything about the framework irritates you, please fix it!
 
-Signed-off-by: Joern Engel <joern@logfs.org>
----
- tools/testing/selftests/vm/Makefile    |    2 +-
- tools/testing/selftests/vm/run_vmtests |    5 +++++
- 2 files changed, 6 insertions(+), 1 deletion(-)
+Just did. :)
 
-diff --git a/tools/testing/selftests/vm/Makefile b/tools/testing/selftests/vm/Makefile
-index 436d2e8..7d47927 100644
---- a/tools/testing/selftests/vm/Makefile
-+++ b/tools/testing/selftests/vm/Makefile
-@@ -8,7 +8,7 @@ all: hugepage-mmap hugepage-shm  map_hugetlb thuge-gen
- 	$(CC) $(CFLAGS) -o $@ $^
- 
- run_tests: all
--	@/bin/sh ./run_vmtests || echo "vmtests: [FAIL]"
-+	@/bin/sh ./run_vmtests || (echo "vmtests: [FAIL]"; exit 1)
- 
- clean:
- 	$(RM) hugepage-mmap hugepage-shm  map_hugetlb
-diff --git a/tools/testing/selftests/vm/run_vmtests b/tools/testing/selftests/vm/run_vmtests
-index 4c53cae..7a9072d 100644
---- a/tools/testing/selftests/vm/run_vmtests
-+++ b/tools/testing/selftests/vm/run_vmtests
-@@ -4,6 +4,7 @@
- #we need 256M, below is the size in kB
- needmem=262144
- mnt=./huge
-+exitcode=0
- 
- #get pagesize and freepages from /proc/meminfo
- while read name size unit; do
-@@ -41,6 +42,7 @@ echo "--------------------"
- ./hugepage-mmap
- if [ $? -ne 0 ]; then
- 	echo "[FAIL]"
-+	exitcode=1
- else
- 	echo "[PASS]"
- fi
-@@ -55,6 +57,7 @@ echo "--------------------"
- ./hugepage-shm
- if [ $? -ne 0 ]; then
- 	echo "[FAIL]"
-+	exitcode=1
- else
- 	echo "[PASS]"
- fi
-@@ -67,6 +70,7 @@ echo "--------------------"
- ./map_hugetlb
- if [ $? -ne 0 ]; then
- 	echo "[FAIL]"
-+	exitcode=1
- else
- 	echo "[PASS]"
- fi
-@@ -75,3 +79,4 @@ fi
- umount $mnt
- rm -rf $mnt
- echo $nr_hugepgs > /proc/sys/vm/nr_hugepages
-+exit $exitcode
--- 
-1.7.10.4
+JA?rn
+
+--
+Maintenance in other professions and of other articles is concerned with
+the return of the item to its original state; in Software, maintenance
+is concerned with moving an item away from its original state.
+-- Les Belady
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
