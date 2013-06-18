@@ -1,101 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 9D1996B003D
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 08:10:35 -0400 (EDT)
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH v5 8/8] memcg, vmscan: do not fall into reclaim-all pass too quickly
-Date: Tue, 18 Jun 2013 14:09:47 +0200
-Message-Id: <1371557387-22434-9-git-send-email-mhocko@suse.cz>
-In-Reply-To: <1371557387-22434-1-git-send-email-mhocko@suse.cz>
-References: <1371557387-22434-1-git-send-email-mhocko@suse.cz>
+	by kanga.kvack.org (Postfix) with SMTP id 95A4F6B0032
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 08:29:23 -0400 (EDT)
+Received: by mail-vc0-f182.google.com with SMTP id id13so2820057vcb.41
+        for <linux-mm@kvack.org>; Tue, 18 Jun 2013 05:29:22 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20130617160200.27bb5d82df09a26adb8efce5@linux-foundation.org>
+References: <1370291585-26102-1-git-send-email-sjenning@linux.vnet.ibm.com>
+	<1370291585-26102-4-git-send-email-sjenning@linux.vnet.ibm.com>
+	<CAA_GA1eWFYDxp3gEdWzajVP4jMpmJbt=oWBZYqZEQjndU=s_Qg@mail.gmail.com>
+	<20130617160200.27bb5d82df09a26adb8efce5@linux-foundation.org>
+Date: Tue, 18 Jun 2013 20:29:22 +0800
+Message-ID: <CAA_GA1cLD7-AW45VkU9Tx9os7Pu5jaW3UkrVaQu--ecQ2x9j_g@mail.gmail.com>
+Subject: Re: [PATCHv13 3/4] zswap: add to mm/
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, Glauber Costa <glommer@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
 
-shrink_zone starts with soft reclaim pass first and then falls back to
-regular reclaim if nothing has been scanned. This behavior is natural
-but there is a catch. Memcg iterators, when used with the reclaim
-cookie, are designed to help to prevent from over reclaim by
-interleaving reclaimers (per node-zone-priority) so the tree walk might
-miss many (even all) nodes in the hierarchy e.g. when there are direct
-reclaimers racing with each other or with kswapd in the global case or
-multiple allocators reaching the limit for the target reclaim case.
-To make it even more complicated, targeted reclaim doesn't do the whole
-tree walk because it stops reclaiming once it reclaims sufficient pages.
-As a result groups over the limit might be missed, thus nothing is
-scanned, and reclaim would fall back to the reclaim all mode.
+>
+> I'm not sure how representative this is of real workloads, but it does
+> look rather fatal for zswap.  The differences are so large, I wonder if
+> it's just some silly bug or config issue.
+>
 
-This patch checks for the incomplete tree walk in shrink_zone. If no
-group has been visited and the hierarchy is soft reclaimable then we
-must have missed some groups, in which case the __shrink_zone is called
-again. This doesn't guarantee there will be some progress of course
-because the current reclaimer might be still racing with others but it
-would at least give a chance to start the walk without a big risk of
-reclaim latencies.
+In my observation, zswap_pool_pages always close to zswap_stored_pages
+in this testing.
+I think it means that the fragmentation of zswap is heavy.
+Since in idea state number of zswap pool pages should be half of stored pages.
 
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
----
- mm/vmscan.c | 19 +++++++++++++++++--
- 1 file changed, 17 insertions(+), 2 deletions(-)
+The reason may be this workload is not suitable for compression.
+The data of it can't be compressed to a low percent.
+It can only compressed to around 70% percent(not exactly but at least
+above 50%).
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 56302da..8cbc8e5 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2136,10 +2136,11 @@ static inline bool should_continue_reclaim(struct zone *zone,
- 	}
- }
- 
--static void
-+static int
- __shrink_zone(struct zone *zone, struct scan_control *sc, bool soft_reclaim)
- {
- 	unsigned long nr_reclaimed, nr_scanned;
-+	int groups_scanned = 0;
- 
- 	do {
- 		struct mem_cgroup *root = sc->target_mem_cgroup;
-@@ -2157,6 +2158,7 @@ __shrink_zone(struct zone *zone, struct scan_control *sc, bool soft_reclaim)
- 		while ((memcg = mem_cgroup_iter_cond(root, memcg, &reclaim, filter))) {
- 			struct lruvec *lruvec;
- 
-+			groups_scanned++;
- 			lruvec = mem_cgroup_zone_lruvec(zone, memcg);
- 
- 			shrink_lruvec(lruvec, sc);
-@@ -2184,6 +2186,8 @@ __shrink_zone(struct zone *zone, struct scan_control *sc, bool soft_reclaim)
- 
- 	} while (should_continue_reclaim(zone, sc->nr_reclaimed - nr_reclaimed,
- 					 sc->nr_scanned - nr_scanned, sc));
-+
-+	return groups_scanned;
- }
- 
- 
-@@ -2191,8 +2195,19 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
- {
- 	bool do_soft_reclaim = mem_cgroup_should_soft_reclaim(sc);
- 	unsigned long nr_scanned = sc->nr_scanned;
-+	int scanned_groups;
- 
--	__shrink_zone(zone, sc, do_soft_reclaim);
-+	scanned_groups = __shrink_zone(zone, sc, do_soft_reclaim);
-+	/*
-+         * memcg iterator might race with other reclaimer or start from
-+         * a incomplete tree walk so the tree walk in __shrink_zone
-+         * might have missed groups that are above the soft limit. Try
-+         * another loop to catch up with others. Do it just once to
-+         * prevent from reclaim latencies when other reclaimers always
-+         * preempt this one.
-+	 */
-+	if (do_soft_reclaim && !scanned_groups)
-+		__shrink_zone(zone, sc, do_soft_reclaim);
- 
- 	/*
- 	 * No group is over the soft limit or those that are do not have
--- 
-1.8.3.1
+I made a simple patch to limit the fragment of zswap to 70%.
+The result can be better but still not positive.
+                                         v3.10-rc4                   v3.10-rc4
+                               2G-parallio-nozswap     2G-parallio-zswapdefrag
+Ops memcachetest-0M              1041.00 (  0.00%)           1058.00 (  1.63%)
+Ops memcachetest-198M             973.00 (  0.00%)           1019.00 (  4.73%)
+Ops memcachetest-430M             892.00 (  0.00%)            831.00 ( -6.84%)
+Ops memcachetest-661M             819.00 (  0.00%)            850.00 (  3.79%)
+Ops memcachetest-893M             775.00 (  0.00%)            784.00 (  1.16%)
+Ops memcachetest-1125M            764.00 (  0.00%)            766.00 (  0.26%)
+Ops memcachetest-1356M            749.00 (  0.00%)            782.00 (  4.41%)
+Ops io-duration-0M                  0.00 (  0.00%)              0.00 (  0.00%)
+Ops io-duration-198M               21.00 (  0.00%)             28.00 (-33.33%)
+Ops io-duration-430M               29.00 (  0.00%)             32.00 (-10.34%)
+Ops io-duration-661M               34.00 (  0.00%)             34.00 (  0.00%)
+Ops io-duration-893M               36.00 (  0.00%)             42.00 (-16.67%)
+Ops io-duration-1125M              43.00 (  0.00%)             47.00 ( -9.30%)
+Ops io-duration-1356M              50.00 (  0.00%)             49.00 (  2.00%)
+Ops swaptotal-0M               469193.00 (  0.00%)         461146.00 (  1.72%)
+Ops swaptotal-198M             496201.00 (  0.00%)         495692.00 (  0.10%)
+Ops swaptotal-430M             520400.00 (  0.00%)         520252.00 (  0.03%)
+Ops swaptotal-661M             538872.00 (  0.00%)         513541.00 (  4.70%)
+Ops swaptotal-893M             522590.00 (  0.00%)         532311.00 ( -1.86%)
+Ops swaptotal-1125M            526934.00 (  0.00%)         527089.00 ( -0.03%)
+Ops swaptotal-1356M            525241.00 (  0.00%)         525747.00 ( -0.10%)
+Ops swapin-0M                  251226.00 (  0.00%)         248426.00 (  1.11%)
+Ops swapin-198M                236126.00 (  0.00%)         239031.00 ( -1.23%)
+Ops swapin-430M                265193.00 (  0.00%)         266174.00 ( -0.37%)
+Ops swapin-661M                280281.00 (  0.00%)         263151.00 (  6.11%)
+Ops swapin-893M                263004.00 (  0.00%)         268473.00 ( -2.08%)
+Ops swapin-1125M               261962.00 (  0.00%)         264925.00 ( -1.13%)
+Ops swapin-1356M               262571.00 (  0.00%)         266695.00 ( -1.57%)
+Ops minorfaults-0M             625759.00 (  0.00%)         620448.00 (  0.85%)
+Ops minorfaults-198M           769752.00 (  0.00%)         703458.00 (  8.61%)
+Ops minorfaults-430M           678590.00 (  0.00%)         686257.00 ( -1.13%)
+Ops minorfaults-661M           669308.00 (  0.00%)         668845.00 (  0.07%)
+Ops minorfaults-893M           656343.00 (  0.00%)         680286.00 ( -3.65%)
+Ops minorfaults-1125M          657954.00 (  0.00%)         655280.00 (  0.41%)
+Ops minorfaults-1356M          672035.00 (  0.00%)         659861.00 (  1.81%)
+Ops majorfaults-0M              39395.00 (  0.00%)          38828.00 (  1.44%)
+Ops majorfaults-198M            38758.00 (  0.00%)          42876.00 (-10.62%)
+Ops majorfaults-430M            39819.00 (  0.00%)          38668.00 (  2.89%)
+Ops majorfaults-661M            40171.00 (  0.00%)          38443.00 (  4.30%)
+Ops majorfaults-893M            37576.00 (  0.00%)          37664.00 ( -0.23%)
+Ops majorfaults-1125M           36891.00 (  0.00%)          37527.00 ( -1.72%)
+Ops majorfaults-1356M           37123.00 (  0.00%)          37779.00 ( -1.77%)
+
+--
+Regards,
+--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
