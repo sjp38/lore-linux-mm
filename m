@@ -1,120 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 501226B0033
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 16:17:11 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 2EEA16B0034
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 16:17:20 -0400 (EDT)
 From: Joern Engel <joern@logfs.org>
-Subject: [PATCH 0/2] hugetlb fixes
-Date: Tue, 18 Jun 2013 14:47:03 -0400
-Message-Id: <1371581225-27535-1-git-send-email-joern@logfs.org>
+Subject: [PATCH 2/2] mmap: allow MAP_HUGETLB for hugetlbfs files
+Date: Tue, 18 Jun 2013 14:47:05 -0400
+Message-Id: <1371581225-27535-3-git-send-email-joern@logfs.org>
+In-Reply-To: <1371581225-27535-1-git-send-email-joern@logfs.org>
+References: <1371581225-27535-1-git-send-email-joern@logfs.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Joern Engel <joern@logfs.org>
 
-As everyone knows, hugetlbfs sucks.  But it is also necessary for
-large memory machines, so we should make it suck less.  Top of my list
-were lack of rss accounting and refusing mmap with MAP_HUGETLB when
-using hugetlbfs.  The latter generally created a know in every brain I
-explained this to.
+It is counterintuitive at best that mmap'ing a hugetlbfs file with
+MAP_HUGETLB fails, while mmap'ing it without will a) succeed and b)
+return huge pages.
 
-Test program below is failing before these two patches and passing
-after.
+Signed-off-by: Joern Engel <joern@logfs.org>
+---
+ mm/mmap.c |   12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
 
-Joern Engel (2):
-  hugetlb: properly account rss
-  mmap: allow MAP_HUGETLB for hugetlbfs files
-
- mm/hugetlb.c |    4 ++++
- mm/mmap.c    |   12 ++++++++++--
- 2 files changed, 14 insertions(+), 2 deletions(-)
-
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 2a594246..76eb6df 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -33,6 +33,7 @@
+ #include <linux/uprobes.h>
+ #include <linux/rbtree_augmented.h>
+ #include <linux/sched/sysctl.h>
++#include <linux/magic.h>
+ 
+ #include <asm/uaccess.h>
+ #include <asm/cacheflush.h>
+@@ -1313,6 +1314,11 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+ 	return addr;
+ }
+ 
++static inline int is_hugetlb_file(struct file *file)
++{
++	return file->f_inode->i_sb->s_magic == HUGETLBFS_MAGIC;
++}
++
+ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
+ 		unsigned long, prot, unsigned long, flags,
+ 		unsigned long, fd, unsigned long, pgoff)
+@@ -1322,11 +1328,12 @@ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
+ 
+ 	if (!(flags & MAP_ANONYMOUS)) {
+ 		audit_mmap_fd(fd, flags);
+-		if (unlikely(flags & MAP_HUGETLB))
+-			return -EINVAL;
+ 		file = fget(fd);
+ 		if (!file)
+ 			goto out;
++		retval = -EINVAL;
++		if (unlikely(flags & MAP_HUGETLB && !is_hugetlb_file(file)))
++			goto out_fput;
+ 	} else if (flags & MAP_HUGETLB) {
+ 		struct user_struct *user = NULL;
+ 		/*
+@@ -1346,6 +1353,7 @@ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
+ 	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
+ 
+ 	retval = vm_mmap_pgoff(file, addr, len, prot, flags, pgoff);
++out_fput:
+ 	if (file)
+ 		fput(file);
+ out:
 -- 
 1.7.10.4
-
-#define _GNU_SOURCE
-#include <assert.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
-
-typedef unsigned long long u64;
-
-static size_t length = 1 << 24;
-
-static u64 read_rss(void)
-{
-	char buf[4096], *s = buf;
-	int i, fd;
-	u64 rss;
-
-	fd = open("/proc/self/statm", O_RDONLY);
-	assert(fd > 2);
-	memset(buf, 0, sizeof(buf));
-	read(fd, buf, sizeof(buf) - 1);
-	for (i = 0; i < 1; i++)
-		s = strchr(s, ' ') + 1;
-	rss = strtoull(s, NULL, 10);
-	return rss << 12; /* assumes 4k pagesize */
-}
-
-static void do_mmap(int fd, int extra_flags, int unmap)
-{
-	int *p;
-	int flags = MAP_PRIVATE | MAP_POPULATE | extra_flags;
-	u64 before, after;
-
-	before = read_rss();
-	p = mmap(NULL, length, PROT_READ | PROT_WRITE, flags, fd, 0);
-	assert(p != MAP_FAILED ||
-			!"mmap returned an unexpected error");
-	after = read_rss();
-	assert(llabs(after - before - length) < 0x40000 ||
-			!"rss didn't grow as expected");
-	if (!unmap)
-		return;
-	munmap(p, length);
-	after = read_rss();
-	assert(llabs(after - before) < 0x40000 ||
-			!"rss didn't shrink as expected");
-}
-
-static int open_file(const char *path)
-{
-	int fd, err;
-
-	unlink(path);
-	fd = open(path, O_CREAT | O_RDWR | O_TRUNC | O_EXCL
-			| O_LARGEFILE | O_CLOEXEC, 0600);
-	assert(fd > 2);
-	unlink(path);
-	err = ftruncate(fd, length);
-	assert(!err);
-	return fd;
-}
-
-int main(void)
-{
-	int hugefd, fd;
-
-	fd = open_file("/dev/shm/hugetlbhog");
-	hugefd = open_file("/hugepages/hugetlbhog");
-
-	system("echo 100 > /proc/sys/vm/nr_hugepages");
-	do_mmap(-1, MAP_ANONYMOUS, 1);
-	do_mmap(fd, 0, 1);
-	do_mmap(-1, MAP_ANONYMOUS | MAP_HUGETLB, 1);
-	do_mmap(hugefd, 0, 1);
-	do_mmap(hugefd, MAP_HUGETLB, 1);
-	/* Leak the last one to test do_exit() */
-	do_mmap(-1, MAP_ANONYMOUS | MAP_HUGETLB, 0);
-	printf("oll korrekt.\n");
-	return 0;
-}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
