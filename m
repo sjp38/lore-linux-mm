@@ -1,44 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 91CD46B0033
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 11:38:39 -0400 (EDT)
-Received: by mail-wg0-f44.google.com with SMTP id m15so3577114wgh.23
-        for <linux-mm@kvack.org>; Tue, 18 Jun 2013 08:38:37 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 4F1A96B0033
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 12:45:28 -0400 (EDT)
+Date: Tue, 18 Jun 2013 11:45:37 -0500
+From: Alex Thorlton <athorlton@sgi.com>
+Subject: Re: [PATCH v2] Make transparent hugepages cpuset aware
+Message-ID: <20130618164537.GJ16067@sgi.com>
+References: <1370967244-5610-1-git-send-email-athorlton@sgi.com>
+ <alpine.DEB.2.02.1306111517200.6141@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <0000013f444bf6e9-d535ba8b-df9e-4053-9ed4-eaba75e2cfd2-000000@email.amazonses.com>
-References: <20130614195500.373711648@linux.com>
-	<0000013f444bf6e9-d535ba8b-df9e-4053-9ed4-eaba75e2cfd2-000000@email.amazonses.com>
-Date: Tue, 18 Jun 2013 18:38:37 +0300
-Message-ID: <CAOJsxLHPWJdc6Qy9e7-s-7+KWPOgbs8ZR+JpxWb9sykyC9Um8A@mail.gmail.com>
-Subject: Re: [3.11 3/4] Move kmalloc_node functions to common code
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1306111517200.6141@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>
+To: David Rientjes <rientjes@google.com>
+Cc: linux-kernel@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, linux-doc@vger.kernel.org, linux-mm@kvack.org, Robin Holt <holt@sgi.com>
 
-On Fri, Jun 14, 2013 at 11:06 PM, Christoph Lameter <cl@linux.com> wrote:
-> The kmalloc_node functions of all slab allcoators are similar now so
-> lets move them into slab.h. This requires some function naming changes
-> in slob.
->
-> Signed-off-by: Christoph Lameter <cl@linux.com>
+On Tue, Jun 11, 2013 at 03:20:09PM -0700, David Rientjes wrote:
+> On Tue, 11 Jun 2013, Alex Thorlton wrote:
+> 
+> > This patch adds the ability to control THPs on a per cpuset basis.
+> > Please see
+> > the additions to Documentation/cgroups/cpusets.txt for more
+> > information.
+> > 
+> 
+> What's missing from both this changelog and the documentation you
+> point to 
+> is why this change is needed.
+> 
+> I can understand how you would want a subset of processes to not use
+> thp 
+> when it is enabled.  This is typically where MADV_NOHUGEPAGE is used
+> with 
+> some type of malloc hook.
+> 
+> I don't think we need to do this on a cpuset level, so unfortunately I 
+> think this needs to be reworked.  Would it make sense to add a
+> per-process 
+> tunable to always get MADV_NOHUGEPAGE behavior for all of its sbrk()
+> and 
+> mmap() calls?  Perhaps, but then you would need to justify why it
+> can't be 
+> done with a malloc hook in userspace.
+> 
+> This seems to just be working around a userspace issue or for a matter
+> of 
+> convenience, right?
 
-I'm seeing this after "make defconfig" on x86-64:
+David,
 
-  CC      mm/slub.o
-mm/slub.c:2445:7: error: conflicting types for =91kmem_cache_alloc_node_tra=
-ce=92
-include/linux/slab.h:311:14: note: previous declaration of
-=91kmem_cache_alloc_node_trace=92 was here
-mm/slub.c:2455:1: error: conflicting types for =91kmem_cache_alloc_node_tra=
-ce=92
-include/linux/slab.h:311:14: note: previous declaration of
-=91kmem_cache_alloc_node_trace=92 was here
-make[1]: *** [mm/slub.o] Error 1
-make: *** [mm/slub.o] Error 2
+Thanks for your input, however, I believe the method of using a malloc
+hook falls apart when it comes to static binaries, since we wont' have
+any shared libraries to hook into.  Although using a malloc hook is a
+perfectly suitable solution for most cases, we're looking to implement a
+solution that can be used in all situations.
+
+Aside from that particular shortcoming of the malloc hook solution,
+there are some other situations having a cpuset-based option is a
+much simpler and more efficient solution than the alternatives.  One
+such situation that comes to mind would be an environment where a batch
+scheduler is in use to ration system resources.  If an administrator
+determines that a users jobs run more efficiently with thp always on,
+the administrator can simply set the users jobs to always run with that
+setting, instead of having to coordinate with that user to get them to
+run their jobs in a different way.  I feel that, for cases such as this,
+the this additional flag is in line with the other capabilities that
+cgroups and cpusets provide.
+
+While there are likely numerous other situations where having a flag to
+control thp on the cpuset level makes things a bit easier to manage, the
+one real show-stopper here is that we really have no other options when
+it comes to static binaries.
+
+- Alex Thorlton
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
