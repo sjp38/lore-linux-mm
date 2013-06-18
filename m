@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 2EEA16B0034
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 16:17:20 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id F3D3D6B0037
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 16:17:29 -0400 (EDT)
 From: Joern Engel <joern@logfs.org>
-Subject: [PATCH 2/2] mmap: allow MAP_HUGETLB for hugetlbfs files
-Date: Tue, 18 Jun 2013 14:47:05 -0400
-Message-Id: <1371581225-27535-3-git-send-email-joern@logfs.org>
+Subject: [PATCH 1/2] hugetlb: properly account rss
+Date: Tue, 18 Jun 2013 14:47:04 -0400
+Message-Id: <1371581225-27535-2-git-send-email-joern@logfs.org>
 In-Reply-To: <1371581225-27535-1-git-send-email-joern@logfs.org>
 References: <1371581225-27535-1-git-send-email-joern@logfs.org>
 Sender: owner-linux-mm@kvack.org
@@ -13,62 +13,44 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Joern Engel <joern@logfs.org>
 
-It is counterintuitive at best that mmap'ing a hugetlbfs file with
-MAP_HUGETLB fails, while mmap'ing it without will a) succeed and b)
-return huge pages.
+When moving a program from mmap'ing small pages to mmap'ing huge pages,
+a remarkable drop in rss ensues.  For some reason hugepages were never
+accounted for in rss, which in my book is a clear bug.  Sadly this bug
+has been present in hugetlbfs since it was merged back in 2002.  There
+is every chance existing programs depend on hugepages not being counted
+as rss.
+
+I think the correct solution is to fix the bug and wait for someone to
+complain.  It is just as likely that noone cares - as evidenced by the
+fact that noone seems to have noticed for ten years.
 
 Signed-off-by: Joern Engel <joern@logfs.org>
 ---
- mm/mmap.c |   12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ mm/hugetlb.c |    4 ++++
+ 1 file changed, 4 insertions(+)
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 2a594246..76eb6df 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -33,6 +33,7 @@
- #include <linux/uprobes.h>
- #include <linux/rbtree_augmented.h>
- #include <linux/sched/sysctl.h>
-+#include <linux/magic.h>
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 1a12f5b..705036c 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1174,6 +1174,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 	set_page_private(page, (unsigned long)spool);
  
- #include <asm/uaccess.h>
- #include <asm/cacheflush.h>
-@@ -1313,6 +1314,11 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
- 	return addr;
+ 	vma_commit_reservation(h, vma, addr);
++	add_mm_counter(vma->vm_mm, MM_ANONPAGES, pages_per_huge_page(h));
+ 	return page;
  }
  
-+static inline int is_hugetlb_file(struct file *file)
-+{
-+	return file->f_inode->i_sb->s_magic == HUGETLBFS_MAGIC;
-+}
+@@ -2406,6 +2407,9 @@ again:
+ 		if (pte_dirty(pte))
+ 			set_page_dirty(page);
+ 
++		/* -pages_per_huge_page(h) wouldn't get sign-extended */
++		add_mm_counter(vma->vm_mm, MM_ANONPAGES, -1 << h->order);
 +
- SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
- 		unsigned long, prot, unsigned long, flags,
- 		unsigned long, fd, unsigned long, pgoff)
-@@ -1322,11 +1328,12 @@ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
- 
- 	if (!(flags & MAP_ANONYMOUS)) {
- 		audit_mmap_fd(fd, flags);
--		if (unlikely(flags & MAP_HUGETLB))
--			return -EINVAL;
- 		file = fget(fd);
- 		if (!file)
- 			goto out;
-+		retval = -EINVAL;
-+		if (unlikely(flags & MAP_HUGETLB && !is_hugetlb_file(file)))
-+			goto out_fput;
- 	} else if (flags & MAP_HUGETLB) {
- 		struct user_struct *user = NULL;
- 		/*
-@@ -1346,6 +1353,7 @@ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
- 	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
- 
- 	retval = vm_mmap_pgoff(file, addr, len, prot, flags, pgoff);
-+out_fput:
- 	if (file)
- 		fput(file);
- out:
+ 		page_remove_rmap(page);
+ 		force_flush = !__tlb_remove_page(tlb, page);
+ 		if (force_flush)
 -- 
 1.7.10.4
 
