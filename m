@@ -1,128 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 6BE856B0032
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 07:01:54 -0400 (EDT)
-Date: Tue, 18 Jun 2013 13:01:51 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v3] memcg: event control at vmpressure.
-Message-ID: <20130618110151.GI13677@dhcp22.suse.cz>
-References: <008a01ce6b4e$079b6a50$16d23ef0$%kim@samsung.com>
- <20130617131551.GA5018@dhcp22.suse.cz>
- <CAOK=xRMYZokH1rg+dfE0KfPk9NsqPmmaTg-k8sagqRqvR+jG+w@mail.gmail.com>
- <CAOK=xRMz+qX=CQ+3oD6TsEiGckMAdGJ-GAUC8o6nQpx4SJtQPw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id A73266B0034
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 07:15:07 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Tue, 18 Jun 2013 16:37:19 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 2EF2BE004F
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 16:44:20 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5IBF0ku30998614
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 16:45:00 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5IBErGw029351
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 11:14:54 GMT
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [Bug 56881] New: MAP_HUGETLB mmap fails for certain sizes
+In-Reply-To: <20130613142944.7fb7637c8a8622573e06c21b@linux-foundation.org>
+References: <bug-56881-27@https.bugzilla.kernel.org/> <20130423132522.042fa8d27668bbca6a410a92@linux-foundation.org> <20130424081454.GA13994@cmpxchg.org> <1366816599-7fr82iw1-mutt-n-horiguchi@ah.jp.nec.com> <20130424153951.GQ2018@cmpxchg.org> <1366844735-kqynvvnu-mutt-n-horiguchi@ah.jp.nec.com> <87vc5jh6cv.fsf@linux.vnet.ibm.com> <20130613142944.7fb7637c8a8622573e06c21b@linux-foundation.org>
+Date: Tue, 18 Jun 2013 16:44:52 +0530
+Message-ID: <87hagvisb7.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAOK=xRMz+qX=CQ+3oD6TsEiGckMAdGJ-GAUC8o6nQpx4SJtQPw@mail.gmail.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hyunhee Kim <hyunhee.kim@samsung.com>
-Cc: Anton Vorontsov <anton@enomsg.org>, linux-mm@kvack.org, akpm@linux-foundation.org, rob@landley.net, kamezawa.hiroyu@jp.fujitsu.com, hannes@cmpxchg.org, rientjes@google.com, kirill@shutemov.name, Kyungmin Park <kyungmin.park@samsung.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, iceman_dvd@yahoo.com, Steven Truelove <steven.truelove@utoronto.ca>
 
-On Tue 18-06-13 17:00:06, Hyunhee Kim wrote:
-> 2013/6/18 Hyunhee Kim <hyunhee.kim@samsung.com>:
-> > 2013/6/17 Michal Hocko <mhocko@suse.cz>:
-> >> On Mon 17-06-13 20:30:11, Hyunhee Kim wrote:
-> >> [...]
-> >>> diff --git a/mm/vmpressure.c b/mm/vmpressure.c
-> >>> index 736a601..a18fdb3 100644
-> >>> --- a/mm/vmpressure.c
-> >>> +++ b/mm/vmpressure.c
-> >> [...]
-> >>> @@ -150,14 +151,16 @@ static bool vmpressure_event(struct vmpressure *vmpr,
-> >>>       level = vmpressure_calc_level(scanned, reclaimed);
-> >>>
-> >>>       mutex_lock(&vmpr->events_lock);
-> >>> -
-> >>>       list_for_each_entry(ev, &vmpr->events, node) {
-> >>>               if (level >= ev->level) {
-> >>> +                     if (ev->edge_trigger && (level == vmpr->last_level
-> >>
-> >>> +                             || level != ev->level))
-> >>
-> >> Hmm, why this differs from the "always" semantic? You do not want to see
-> >> lower events? Why?
-> >
-> > Yes, I didn't want to see every lower level events whenever the higher
-> > level event occurs because the higher event signal implies that the
-> > lower memory situation also occurs. 
+Andrew Morton <akpm@linux-foundation.org> writes:
 
-Is there any guarantee that such a condition would be also signalled?
+> On Wed, 12 Jun 2013 17:46:16 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+>
+>> > From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>> > Date: Wed, 24 Apr 2013 16:44:19 -0400
+>> > Subject: [PATCH] hugetlbfs: fix mmap failure in unaligned size request
+>> >
+>> > As reported in https://bugzilla.kernel.org/show_bug.cgi?id=56881, current
+>> > kernel returns -EINVAL unless a given mmap length is "almost" hugepage
+>> > aligned. This is because in sys_mmap_pgoff() the given length is passed to
+>> > vm_mmap_pgoff() as it is without being aligned with hugepage boundary.
+>> >
+>> > This is a regression introduced in commit 40716e29243d "hugetlbfs: fix
+>> > alignment of huge page requests", where alignment code is pushed into
+>> > hugetlb_file_setup() and the variable len in caller side is not changed.
+>> >
+>> > To fix this, this patch partially reverts that commit, and changes
+>> > the type of parameter size from size_t to (size_t *) in order to
+>> > align the size in caller side.
+>> 
+>> After the change af73e4d9506d3b797509f3c030e7dcd554f7d9c4 we have
+>> alignment related failures in libhugetlbfs test suite. misalign test
+>> fails with 3.10-rc5, while it works with 3.9.
+>
+> What does this mean.  Is 3.10-rc5 more strict, or less strict?
+>
+> If "less strict" then that's expected and old userspace should be OK
+> with the change and the test should be updated (sorry).
 
-> > For example, if CRITICAL event
-> > occurs, it means that LOW and MEDIUM also occur. So, I think that
-> > triggering these lower level events are redundant. And, some users
-> > don't want to see this every event. But, I think that if I don't want
-> > to see lower events, I should add another option.
+3.10_rc5 is less strict. Also Naoya Horiguchi updated that relevant
+changes to libhugetlbfs test is also posted at 
 
-I think the interface should be consistent with `always' unless there is
-very good reason to do otherwise.
+http://www.mail-archive.com/libhugetlbfs-devel@lists.sourceforge.net/msg13317.html
 
-> > Currently, as you mentioned, for edge_trigger option, I'll remove
-> > "level != ev->level" part.
-> >
-> >>
-> >>> +                             continue;
-> >>>                       eventfd_signal(ev->efd, 1);
-> >>>                       signalled = true;
-> >>>               }
-> >>>       }
-> >>> -
-> >>> +     vmpr->last_level = level;
-> >>>       mutex_unlock(&vmpr->events_lock);
-> >>
-> >> I have already asked in the previous version but there was no answer for
-> >> it. So let's try again.
-> >>
-> >> What is the expected semantic when an event is triggered but there is
-> >> nobody to consume it?
-> >> I am not sure that the current implementation is practical. Say that
-> >> last_level is LOW and you just registered your event. Should you see the
-> >> first event or not?
-> >>
-> >> I think that last_level should be per-vmpressure_event and the edge
-> >> would be defined as the even seen for the first time since registration.
-> >
-> > Right. The current implementation could not cover those situations. As
-> > you mentioned, I think that this could be solved by having last_level
-> > per vmpressure_event (after removing "level != ev->level"). If
-> > last_level of each event is set to valid level only after the first
-> > event is signaled, we cannot miss the first signal even when an event
-> > is registered in the middle of runtime.
-> >
-> 
-> How about initializing vmpr->last_level = -1 everytime new event is
-> registered? (having last_level per vmpr). 
-
-So all those consumers that have seen an event already would be
-surprised that they get the very same event again without transition to
-other level (so it won't be edge triggered anymore). No this doesn't
-make any sense to me.
-
-Please try to think about the interface, what it is supposed to do and
-how it is supposed to behave. The current implementation seems hackish
-to me and it is an example of a single-use-case-designed interface which
-tend to be hard to maintain and a bad idea in long term.
-
-> I think that if we have last_level for each event, only new event
-> could be triggered when the current level is same as the last
-> level. And I think that this is a little awkward.
-
-Why? I might be wrong here but when I register an event I would like to
-get a notification when the event is triggered for the first time from
-my POV. I have no way to find out that such an event has been already
-triggered for somebody else.
-
-> But, if we set vmpr->last_level = -1 when new event is registered,
-> we can see all events with new event even though the level is not
-> changed.
-
-Which basically ruins the idea of the edge triggered event.
-
-[...]
--- 
-Michal Hocko
-SUSE Labs
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
