@@ -1,134 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 302246B0033
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 08:53:35 -0400 (EDT)
-Date: Wed, 19 Jun 2013 14:53:29 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v4] memcg: event control at vmpressure.
-Message-ID: <20130619125329.GB16457@dhcp22.suse.cz>
-References: <008a01ce6b4e$079b6a50$16d23ef0$%kim@samsung.com>
- <20130617131551.GA5018@dhcp22.suse.cz>
- <CAOK=xRMYZokH1rg+dfE0KfPk9NsqPmmaTg-k8sagqRqvR+jG+w@mail.gmail.com>
- <CAOK=xRMz+qX=CQ+3oD6TsEiGckMAdGJ-GAUC8o6nQpx4SJtQPw@mail.gmail.com>
- <20130618110151.GI13677@dhcp22.suse.cz>
- <00fd01ce6ce0$82eac0a0$88c041e0$%kim@samsung.com>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 27A376B0033
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 09:16:17 -0400 (EDT)
+Received: by mail-ea0-f175.google.com with SMTP id z7so3178502eaf.6
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2013 06:16:15 -0700 (PDT)
+Date: Wed, 19 Jun 2013 15:16:12 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: Performance regression from switching lock to rw-sem for
+ anon-vma tree
+Message-ID: <20130619131611.GC24957@gmail.com>
+References: <1371165992.27102.573.camel@schen9-DESK>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <00fd01ce6ce0$82eac0a0$88c041e0$%kim@samsung.com>
+In-Reply-To: <1371165992.27102.573.camel@schen9-DESK>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hyunhee Kim <hyunhee.kim@samsung.com>
-Cc: 'Anton Vorontsov' <anton@enomsg.org>, linux-mm@kvack.org, akpm@linux-foundation.org, rob@landley.net, kamezawa.hiroyu@jp.fujitsu.com, hannes@cmpxchg.org, rientjes@google.com, kirill@shutemov.name, 'Kyungmin Park' <kyungmin.park@samsung.com>
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, "Shi, Alex" <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-OK, this looks much better. Few nitpicks bellow.
 
-On Wed 19-06-13 20:31:16, Hyunhee Kim wrote:
-> In the original vmpressure, events are triggered whenever there is a reclaim
-> activity. This becomes overheads to user space module and also increases
-> power consumption if there is somebody to listen to it. This patch provides
-> options to trigger events only when the pressure level changes.
-> This trigger option can be set when registering each event by writing
-> a trigger option, "edge" or "always", next to the string of levels.
-> "edge" means that the event is triggered only when the pressure level is changed.
-> "always" means that events are triggered whenever there is a reclaim process.
-> To keep backward compatibility, "always" is set by default if nothing is input
-> as an option. Each event can have different option. For example,
-> "low" level uses "always" trigger option to see reclaim activity at user space
-> while "medium"/"critical" uses "edge" to do an important job
-> like killing tasks only once.
+* Tim Chen <tim.c.chen@linux.intel.com> wrote:
+
+> Ingo,
 > 
-> Signed-off-by: Hyunhee Kim <hyunhee.kim@samsung.com>
-> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
-> ---
->  Documentation/cgroups/memory.txt |   12 ++++++++++--
->  mm/vmpressure.c                  |   32 ++++++++++++++++++++++++++++----
->  2 files changed, 38 insertions(+), 6 deletions(-)
+> At the time of switching the anon-vma tree's lock from mutex to 
+> rw-sem (commit 5a505085), we encountered regressions for fork heavy workload. 
+> A lot of optimizations to rw-sem (e.g. lock stealing) helped to 
+> mitigate the problem.  I tried an experiment on the 3.10-rc4 kernel 
+> to compare the performance of rw-sem to one that uses mutex. I saw 
+> a 8% regression in throughput for rw-sem vs a mutex implementation in
+> 3.10-rc4.
 > 
-> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-> index ddf4f93..181a11f 100644
-> --- a/Documentation/cgroups/memory.txt
-> +++ b/Documentation/cgroups/memory.txt
-> @@ -791,6 +791,13 @@ way to trigger. Applications should do whatever they can to help the
->  system. It might be too late to consult with vmstat or any other
->  statistics, so it's advisable to take an immediate action.
->  
-> +Events can be triggered whenever there is a reclaim activity or
-> +only when the pressure level changes. Trigger option is decided
-> +by writing it next to level. The event whose trigger option is "always"
-> +is triggered whenever there is a reclaim process. If "edge" is set,
-> +the event is triggered only when the level is changed.
-> +If the trigger option is not set, "always" is set by default.
-> +
+> For the experiments, I used the exim mail server workload in 
+> the MOSBENCH test suite on 4 socket (westmere) and a 4 socket 
+> (ivy bridge) with the number of clients sending mail equal 
+> to number of cores.  The mail server will
+> fork off a process to handle an incoming mail and put it into mail
+> spool. The lock protecting the anon-vma tree is stressed due to
+> heavy forking. On both machines, I saw that the mutex implementation 
+> has 8% more throughput.  I've pinned the cpu frequency to maximum
+> in the experiments.
+> 
+> I've tried two separate tweaks to the rw-sem on 3.10-rc4.  I've tested 
+> each tweak individually.
+> 
+> 1) Add an owner field when a writer holds the lock and introduce 
+> optimistic spinning when an active writer is holding the semaphore.  
+> It reduced the context switching by 30% to a level very close to the
+> mutex implementation.  However, I did not see any throughput improvement
+> of exim.
+> 
+> 2) When the sem->count's active field is non-zero (i.e. someone
+> is holding the lock), we can skip directly to the down_write_failed
+> path, without adding the RWSEM_DOWN_WRITE_BIAS and taking
+> it off again from sem->count, saving us two atomic operations.
+> Since we will try the lock stealing again later, this should be okay.
+> Unfortunately it did not improve the exim workload either.  
+> 
+> Any suggestions on the difference between rwsem and mutex performance
+> and possible improvements to recover this regression?
+> 
+> Thanks.
+> 
+> Tim
+> 
+> vmstat for mutex implementation: 
+> procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu-----
+>  r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
+> 38  0      0 130957920  47860 199956    0    0     0    56 236342 476975 14 72 14  0  0
+> 41  0      0 130938560  47860 219900    0    0     0     0 236816 479676 14 72 14  0  0
+> 
+> vmstat for rw-sem implementation (3.10-rc4)
+> procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu-----
+>  r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
+> 40  0      0 130933984  43232 202584    0    0     0     0 321817 690741 13 71 16  0  0
+> 39  0      0 130913904  43232 224812    0    0     0     0 322193 692949 13 71 16  0  0
 
-I would move this information bellow where the usage is described.
+It appears the main difference is that the rwsem variant context-switches 
+about 36% more than the mutex version, right?
 
->  The events are propagated upward until the event is handled, i.e. the
->  events are not pass-through. Here is what this means: for example you have
->  three cgroups: A->B->C. Now you set up an event listener on cgroups A, B
-[...]
-> diff --git a/mm/vmpressure.c b/mm/vmpressure.c
-> index 736a601..4f676b8 100644
-> --- a/mm/vmpressure.c
-> +++ b/mm/vmpressure.c
-[...]
-> @@ -303,10 +310,21 @@ int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
->  {
->  	struct vmpressure *vmpr = cg_to_vmpressure(cg);
->  	struct vmpressure_event *ev;
-> +	char *strlevel = NULL, *strtrigger = NULL, *p = NULL;
->  	int level;
->  
-> +	p = strchr(args, ' ');
-> +
-> +	if (p) {
-> +		strtrigger = p + 1;
-> +		*p = '\0';
-> +		strlevel = (char *)args;
-> +	} else {
-> +		strlevel = (char *)args;
-> +	}
-> +
+I'm wondering how that's possible - the lock is mostly write-locked, 
+correct? So the lock-stealing from Davidlohr Bueso and Michel Lespinasse 
+ought to have brought roughly the same lock-stealing behavior as mutexes 
+do, right?
 
-This is a total nit but this can be further simplified.
-	strlevel = args;
-	strtrigger = strchr(args, ' ');
-	if (strtrigger) {
-		*strtrigger = '\0';
-		strtrigger++;
-	}
-I would still rather see using sscanf but that is just a matter of taste
-I guess.
+So the next analytical step would be to figure out why rwsem lock-stealing 
+is not behaving in an equivalent fashion on this workload. Do readers come 
+in frequently enough to disrupt write-lock-stealing perhaps?
 
->  	for (level = 0; level < VMPRESSURE_NUM_LEVELS; level++) {
-> -		if (!strcmp(vmpressure_str_levels[level], args))
-> +		if (!strcmp(vmpressure_str_levels[level], strlevel))
->  			break;
->  	}
->  
-> @@ -319,6 +337,12 @@ int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
->  
->  	ev->efd = eventfd;
->  	ev->level = level;
-> +	ev->last_level = -1;
-> +
-> +	if (strtrigger && !strcmp(strtrigger, "edge"))
-> +		ev->edge_trigger = true;
-> +	else
-> +		ev->edge_trigger = false;
+Context-switch call-graph profiling might shed some light on where the 
+extra context switches come from...
 
-I guess it would be more appropriate to return EINVAL if the trigger is
-neither always nor edge because we might end up with abuses where
-somebody start relying on "foo" implying "always".
+Something like:
 
-The history tells that user interface should be really careful about not
-allowing "undocumented but happen to work" behavior.
+  perf record -g -e sched:sched_switch --filter 'prev_state != 0' -a sleep 1
 
->  	mutex_lock(&vmpr->events_lock);
->  	list_add(&ev->node, &vmpr->events);
--- 
-Michal Hocko
-SUSE Labs
+or a variant thereof might do the trick.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
