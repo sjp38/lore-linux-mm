@@ -1,85 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id ECF0F6B0037
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 04:53:20 -0400 (EDT)
-Date: Wed, 19 Jun 2013 09:53:16 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm/vmscan.c: 'lru' may be used without initialized after
- the patch "3abf380..." in next-20130607 tree
-Message-ID: <20130619085315.GK1875@suse.de>
-References: <51C155D1.3090304@asianux.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <51C155D1.3090304@asianux.com>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id B80BC6B0034
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 05:12:37 -0400 (EDT)
+Received: by mail-ie0-f177.google.com with SMTP id aq17so11604248iec.8
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2013 02:12:37 -0700 (PDT)
+Message-ID: <1371633148.2984.18.camel@ThinkPad-T5421>
+Subject: Re: [PATCH v11 25/25] list_lru: dynamically adjust node arrays
+From: Li Zhong <lizhongfs@gmail.com>
+Reply-To: lizhongfs@gmail.com
+Date: Wed, 19 Jun 2013 17:12:28 +0800
+In-Reply-To: <20130619073154.GA1990@localhost.localdomain>
+References: <1370550898-26711-1-git-send-email-glommer@openvz.org>
+	 <1370550898-26711-26-git-send-email-glommer@openvz.org>
+	 <1371548521.2984.6.camel@ThinkPad-T5421>
+	 <20130619073154.GA1990@localhost.localdomain>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Gang <gang.chen@asianux.com>
-Cc: hannes@cmpxchg.org, riel@redhat.com, mhocko@suse.cz, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Glauber Costa <glommer@gmail.com>
+Cc: Glauber Costa <glommer@openvz.org>, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, mgorman@suse.de, david@fromorbit.com, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suze.cz, hannes@cmpxchg.org, hughd@google.com, gthelen@google.com, Dave Chinner <dchinner@redhat.com>
 
-On Wed, Jun 19, 2013 at 02:55:13PM +0800, Chen Gang wrote:
+On Wed, 2013-06-19 at 11:31 +0400, Glauber Costa wrote:
+> On Tue, Jun 18, 2013 at 05:42:01PM +0800, Li Zhong wrote:
+> > On Fri, 2013-06-07 at 00:34 +0400, Glauber Costa wrote:
+>  > 
+> > > diff --git a/fs/super.c b/fs/super.c
+> > > index 85a6104..1b6ef7b 100644
+> > > --- a/fs/super.c
+> > > +++ b/fs/super.c
+> > > @@ -199,8 +199,12 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
+> > >  		INIT_HLIST_NODE(&s->s_instances);
+> > >  		INIT_HLIST_BL_HEAD(&s->s_anon);
+> > >  		INIT_LIST_HEAD(&s->s_inodes);
+> > > -		list_lru_init(&s->s_dentry_lru);
+> > > -		list_lru_init(&s->s_inode_lru);
+> > > +
+> > > +		if (list_lru_init(&s->s_dentry_lru))
+> > > +			goto err_out;
+> > > +		if (list_lru_init(&s->s_inode_lru))
+> > > +			goto err_out_dentry_lru;
+> > > +
+> > >  		INIT_LIST_HEAD(&s->s_mounts);
+> > >  		init_rwsem(&s->s_umount);
+> > >  		lockdep_set_class(&s->s_umount, &type->s_umount_key);
+> > > @@ -240,6 +244,9 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
+> > >  	}
+> > >  out:
+> > >  	return s;
+> > > +
+> > > +err_out_dentry_lru:
+> > > +	list_lru_destroy(&s->s_dentry_lru);
+> > >  err_out:
+> > >  	security_sb_free(s);
+> > >  #ifdef CONFIG_SMP
+> > 
+> > It seems we also need to call list_lru_destroy() in destroy_super()? 
+> > like below:
+> >  
+> > -----------
+> > diff --git a/fs/super.c b/fs/super.c
+> > index b79e732..06ee3af 100644
+> > --- a/fs/super.c
+> > +++ b/fs/super.c
+> > @@ -269,6 +269,8 @@ err_out:
+> >   */
+> >  static inline void destroy_super(struct super_block *s)
+> >  {
+> > +	list_lru_destroy(&s->s_inode_lru);
+> > +	list_lru_destroy(&s->s_dentry_lru);
+> >  #ifdef CONFIG_SMP
+> >  	free_percpu(s->s_files);
+> >  #endif
 > 
-> 'lru' may be used without initialized, so need regressing part of the
-> related patch.
+> Hi
 > 
-> The related patch:
->   "3abf380 mm: remove lru parameter from __lru_cache_add and lru_cache_add_lru"
+> Thanks for taking a look at this.
 > 
-> 
-> Signed-off-by: Chen Gang <gang.chen@asianux.com>
-> ---
->  mm/vmscan.c |    1 +
->  1 files changed, 1 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index fe73724..e92b1858 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -595,6 +595,7 @@ redo:
->  		 * unevictable page on [in]active list.
->  		 * We know how to handle that.
->  		 */
-> +		lru = !!TestClearPageActive(page) + page_lru_base_type(page);
->  		lru_cache_add(page);
+> list_lru_destroy is called by deactivate_lock_super, so we should be fine already.
 
-Thanks for catching this but I have one question. Why are you clearing
-the active bit?
+Sorry, I'm a little confused...
 
-Before 3abf380 we did
+I didn't see list_lru_destroy() called in deactivate_locked_super().
+Maybe I missed something? 
 
-active = TestClearPageActive(page);
-lru = active + page_lru_base_type(page);
-lru_cache_add_lru(page, lru);
+But it seems other memory allocated in alloc_super(), are freed in
+destroy_super(), e.g. ->s_files, why don't we also free this one here? 
 
-so if the page was active before then it gets added to the active list. When
-3abf380 is applied. it becomes.
+Thanks, Zhong
 
-Leave PageActive alone
-lru_cache_add(page);
-..... until __pagevec_lru_add -> __pagevec_lru_add_fn
-int file = page_is_file_cache(page);
-int active = PageActive(page);
-enum lru_list lru = page_lru(page);
-
-After your patch it's
-
-Clear PageActive
-lru_cache_add(page)
-.......
-always add to inactive list
-
-I do not think you intended to do this and if you did, it deserves far
-more comment than being a compile warning fix. In putback_lru_page we only
-care about whether the lru was unevictable or not. Hence I think what you
-meant to do was simply
-
-	lru = page_lru_base_type(page);
-
-If you agree then can you resend a revised version to Andrew please?
-
--- 
-Mel Gorman
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
