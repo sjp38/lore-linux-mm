@@ -1,118 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 173346B0033
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 05:57:25 -0400 (EDT)
-Message-ID: <51C18051.8070404@asianux.com>
-Date: Wed, 19 Jun 2013 17:56:33 +0800
-From: Chen Gang <gang.chen@asianux.com>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id ECBC66B0033
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 06:00:47 -0400 (EDT)
+Received: by mail-bk0-f54.google.com with SMTP id it16so2213827bkc.41
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2013 03:00:46 -0700 (PDT)
+Date: Wed, 19 Jun 2013 12:00:42 +0200
+From: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
+Subject: Re: [Part3 PATCH v2 0/4] Support hot-remove local pagetable pages.
+Message-ID: <20130619100042.GA4545@dhcp-192-168-178-175.profitbricks.localdomain>
+References: <1371128636-9027-1-git-send-email-tangchen@cn.fujitsu.com>
+ <20130618170515.GC4553@dhcp-192-168-178-175.profitbricks.localdomain>
+ <51C15DC2.3030501@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/vmscan.c: 'lru' may be used without initialized after
- the patch "3abf380..." in next-20130607 tree
-References: <51C155D1.3090304@asianux.com> <20130619085315.GK1875@suse.de>
-In-Reply-To: <20130619085315.GK1875@suse.de>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51C15DC2.3030501@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: hannes@cmpxchg.org, riel@redhat.com, mhocko@suse.cz, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: yinghai@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 06/19/2013 04:53 PM, Mel Gorman wrote:
-> On Wed, Jun 19, 2013 at 02:55:13PM +0800, Chen Gang wrote:
->> > 
->> > 'lru' may be used without initialized, so need regressing part of the
->> > related patch.
->> > 
->> > The related patch:
->> >   "3abf380 mm: remove lru parameter from __lru_cache_add and lru_cache_add_lru"
->> > 
->> > 
->> > Signed-off-by: Chen Gang <gang.chen@asianux.com>
->> > ---
->> >  mm/vmscan.c |    1 +
->> >  1 files changed, 1 insertions(+), 0 deletions(-)
->> > 
->> > diff --git a/mm/vmscan.c b/mm/vmscan.c
->> > index fe73724..e92b1858 100644
->> > --- a/mm/vmscan.c
->> > +++ b/mm/vmscan.c
->> > @@ -595,6 +595,7 @@ redo:
->> >  		 * unevictable page on [in]active list.
->> >  		 * We know how to handle that.
->> >  		 */
->> > +		lru = !!TestClearPageActive(page) + page_lru_base_type(page);
->> >  		lru_cache_add(page);
-> Thanks for catching this but I have one question. Why are you clearing
-> the active bit?
+Hi Tang,
+On Wed, Jun 19, 2013 at 03:29:06PM +0800, Tang Chen wrote:
+> Hi Vasilis, Yinghai,
 > 
-
-Oh, it is my fault, I only want to regress part of the original patch,
-did not notice clearing the active bit.
-
-
-> Before 3abf380 we did
-> 
-> active = TestClearPageActive(page);
-> lru = active + page_lru_base_type(page);
-> lru_cache_add_lru(page, lru);
-> 
-> so if the page was active before then it gets added to the active list. When
-> 3abf380 is applied. it becomes.
-> 
-> Leave PageActive alone
-> lru_cache_add(page);
-> .... until __pagevec_lru_add -> __pagevec_lru_add_fn
-> int file = page_is_file_cache(page);
-> int active = PageActive(page);
-> enum lru_list lru = page_lru(page);
-> 
-> After your patch it's
-> 
-> Clear PageActive
-> lru_cache_add(page)
+> On 06/19/2013 01:05 AM, Vasilis Liaskovitis wrote:
 > ......
-> always add to inactive list
+> >
+> >This could be a design problem of part3: if we allow local pagetable memory
+> >to not be offlined but allow the offlining to return successfully, then
+> >hot-remove is going to succeed. But the direct mapped pagetable pages are still
+> >mapped in the kernel. The hot-removed memblocks will suddenly disappear (think
+> >physical DIMMs getting disabled in real hardware, or in a VM case the
+> >corresponding guest memory getting freed from the emulator e.g. qemu/kvm). The
+> >system can crash as a result.
+> >
 > 
-> I do not think you intended to do this and if you did, it deserves far
-> more comment than being a compile warning fix. In putback_lru_page we only
-> care about whether the lru was unevictable or not. Hence I think what you
-> meant to do was simply
+> Yes. Since the pagetable pages is only allocated to local node, a node may
+> have more than one device, hot-remove only one memory device could be
+> problematic.
 > 
-> 	lru = page_lru_base_type(page);
+> But I think it will work if we hot-remove a whole node. I should have
+> mentioned it. And sorry for the not fully test.
+
+ok, the crash I saw was also for the partial node removal.
+
+> I think allocating pagetable pages to local device will resolve this
+> problem.
+
+ok. Yes, you mentioned this approach before I think.
+
+> And need to restructure this patch-set.
 > 
-> If you agree then can you resend a revised version to Andrew please?
+> >I think these local pagetables do need to be unmapped from kernel, offlined and
+> >removed somehow - otherwise hot-remove should fail. Could they be migrated
+> >alternatively e.g. to node 0 memory?  But Iiuc direct mapped pages cannot be
+> >migrated, correct?
+> 
+> I think we have unmapped the local pagetables. in functions
+> free_pud/pmd/pte_table(), we cleared pud, pmd, and pte. We just didn't
+> free the pagetable pages to buddy.
 
-Yes, I should do, but excuse me, I do not quite know about 'revised
-version'.
+ok, thanks for explaining.
 
-I guess it means I need still send the related patch which base on the
-original one, e.g. for next-20130618:
+> 
+> But when we are not hot-removing the whole node, it is still problematic.
+> This is true, and it is my design problem.
+> 
+> >
+> >What is the original reason for local node pagetable allocation with regards
+> >to memory hotplug? I assume we want to have hotplugged nodes use only their local
+> >memory, so that there are no inter-node memory dependencies for hot-add/remove.
+> >Are there other reasons that I am missing?
+> 
+> I think the original reason to do local node pagetable is to improve
+> performance.
+> Using local pagetable, vmemmap and so on will be faster.
+> 
+> But actually I think there is no particular reason to implement
+> memory hot-remove
+> and local node pagetable at the same time. And before this
+> patch-set, I also
+> suggested once that implement memory hot-remove first, and then
+> improve it to
+> local pagetable. But Yinghai has done the local pagetable work in
+> has patches (part1).
+> And my work is based on his patches. So I just did it.
+> 
+> But obviously it is more complicated than I thought.
+> 
+> And now, it seems tj has some more thinking on part1.
+> 
+> So how about the following plan:
+> 1. Implement arranging hotpluggable memory with SRAT first, without
+> local pagetable.
+>    (The main work in part2. And of course, need some patches in part1.)
 
-------------------------diff begin-------------------------------------
+agreed (and yes, several patches from part1 will be needed to do the early srat
+parsing here)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index fe73724..d03facb 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -595,6 +595,7 @@ redo:
- 		 * unevictable page on [in]active list.
- 		 * We know how to handle that.
- 		 */
-+		lru = page_lru_base_type(page);
- 		lru_cache_add(page);
- 	} else {
- 		/*
+> 2. Do the local device pagetable work, not local node.
+> 3. Improve memory hotplug to support local device pagetable.
 
-------------------------diff end---------------------------------------
+ok, I 'll think about these as well, and help out.
 
-Is it correct ?
+thanks,
 
-
-Thanks.
--- 
-Chen Gang
-
-Asianux Corporation
+- Vasilis
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
