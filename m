@@ -1,108 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id ECBC66B0033
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 06:00:47 -0400 (EDT)
-Received: by mail-bk0-f54.google.com with SMTP id it16so2213827bkc.41
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2013 03:00:46 -0700 (PDT)
-Date: Wed, 19 Jun 2013 12:00:42 +0200
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 908076B0033
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 06:05:50 -0400 (EDT)
+Received: by mail-bk0-f41.google.com with SMTP id jc3so2269558bkc.14
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2013 03:05:48 -0700 (PDT)
+Date: Wed, 19 Jun 2013 12:05:45 +0200
 From: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
-Subject: Re: [Part3 PATCH v2 0/4] Support hot-remove local pagetable pages.
-Message-ID: <20130619100042.GA4545@dhcp-192-168-178-175.profitbricks.localdomain>
-References: <1371128636-9027-1-git-send-email-tangchen@cn.fujitsu.com>
- <20130618170515.GC4553@dhcp-192-168-178-175.profitbricks.localdomain>
- <51C15DC2.3030501@cn.fujitsu.com>
+Subject: Re: [Part1 PATCH v5 00/22] x86, ACPI, numa: Parse numa info earlier
+Message-ID: <20130619100544.GB4545@dhcp-192-168-178-175.profitbricks.localdomain>
+References: <1371128589-8953-1-git-send-email-tangchen@cn.fujitsu.com>
+ <20130618171036.GD4553@dhcp-192-168-178-175.profitbricks.localdomain>
+ <CAE9FiQW2CMfNOTNM1MRCZo-ZQuQgj=JQtXLZ3eUxF7dQ8qukTA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51C15DC2.3030501@cn.fujitsu.com>
+In-Reply-To: <CAE9FiQW2CMfNOTNM1MRCZo-ZQuQgj=JQtXLZ3eUxF7dQ8qukTA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: yinghai@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Yinghai Lu <yinghai@kernel.org>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Thomas Renninger <trenn@suse.de>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, mina86@mina86.com, gong.chen@linux.intel.com, lwoodman@redhat.com, Rik van Riel <riel@redhat.com>, jweiner@redhat.com, Prarit Bhargava <prarit@redhat.com>, the arch/x86 maintainers <x86@kernel.org>, linux-doc@vger.kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
-Hi Tang,
-On Wed, Jun 19, 2013 at 03:29:06PM +0800, Tang Chen wrote:
-> Hi Vasilis, Yinghai,
-> 
-> On 06/19/2013 01:05 AM, Vasilis Liaskovitis wrote:
-> ......
+On Tue, Jun 18, 2013 at 01:19:12PM -0700, Yinghai Lu wrote:
+> On Tue, Jun 18, 2013 at 10:10 AM, Vasilis Liaskovitis
+> <vasilis.liaskovitis@profitbricks.com> wrote:
+> >> could be found at:
+> >>         git://git.kernel.org/pub/scm/linux/kernel/git/yinghai/linux-yinghai.git for-x86-mm
+> >>
+> >> and it is based on today's Linus tree.
+> >>
 > >
-> >This could be a design problem of part3: if we allow local pagetable memory
-> >to not be offlined but allow the offlining to return successfully, then
-> >hot-remove is going to succeed. But the direct mapped pagetable pages are still
-> >mapped in the kernel. The hot-removed memblocks will suddenly disappear (think
-> >physical DIMMs getting disabled in real hardware, or in a VM case the
-> >corresponding guest memory getting freed from the emulator e.g. qemu/kvm). The
-> >system can crash as a result.
+> > Has this patchset been tested on various numa configs?
+> > I am using linux-next next-20130607 + part1 with qemu/kvm/seabios VMs. The kernel
+> > boots successfully in many numa configs but while trying different memory sizes
+> > for a 2 numa node VM, I noticed that booting does not complete in all cases
+> > (bootup screen appears to hang but there is no output indicating an early panic)
 > >
-> 
-> Yes. Since the pagetable pages is only allocated to local node, a node may
-> have more than one device, hot-remove only one memory device could be
-> problematic.
-> 
-> But I think it will work if we hot-remove a whole node. I should have
-> mentioned it. And sorry for the not fully test.
-
-ok, the crash I saw was also for the partial node removal.
-
-> I think allocating pagetable pages to local device will resolve this
-> problem.
-
-ok. Yes, you mentioned this approach before I think.
-
-> And need to restructure this patch-set.
-> 
-> >I think these local pagetables do need to be unmapped from kernel, offlined and
-> >removed somehow - otherwise hot-remove should fail. Could they be migrated
-> >alternatively e.g. to node 0 memory?  But Iiuc direct mapped pages cannot be
-> >migrated, correct?
-> 
-> I think we have unmapped the local pagetables. in functions
-> free_pud/pmd/pte_table(), we cleared pud, pmd, and pte. We just didn't
-> free the pagetable pages to buddy.
-
-ok, thanks for explaining.
-
-> 
-> But when we are not hot-removing the whole node, it is still problematic.
-> This is true, and it is my design problem.
-> 
+> > node0   node1    boots
+> > 1G      1G       yes
+> > 1G      2G       yes
+> > 1G      0.5G     yes
+> > 3G      2.5G     yes
+> > 3G      3G       yes
+> > 4G      0G       yes
+> > 4G      4G       yes
+> > 1.5G    1G       no
+> > 2G      1G       no
+> > 2G      2G       no
+> > 2.5G    2G       no
+> > 2.5G    2.5G     no
 > >
-> >What is the original reason for local node pagetable allocation with regards
-> >to memory hotplug? I assume we want to have hotplugged nodes use only their local
-> >memory, so that there are no inter-node memory dependencies for hot-add/remove.
-> >Are there other reasons that I am missing?
+> > linux-next next-20130607 boots al of these configs fine.
+> >
+> > Looks odd, perhaps I have something wrong in my setup or maybe there is a
+> > seabios/qemu interaction with this patchset. I will update if I find something.
 > 
-> I think the original reason to do local node pagetable is to improve
-> performance.
-> Using local pagetable, vmemmap and so on will be faster.
-> 
-> But actually I think there is no particular reason to implement
-> memory hot-remove
-> and local node pagetable at the same time. And before this
-> patch-set, I also
-> suggested once that implement memory hot-remove first, and then
-> improve it to
-> local pagetable. But Yinghai has done the local pagetable work in
-> has patches (part1).
-> And my work is based on his patches. So I just did it.
-> 
-> But obviously it is more complicated than I thought.
-> 
-> And now, it seems tj has some more thinking on part1.
-> 
-> So how about the following plan:
-> 1. Implement arranging hotpluggable memory with SRAT first, without
-> local pagetable.
->    (The main work in part2. And of course, need some patches in part1.)
+> just tried 2g/2g, and it works on qemu-kvm:
 
-agreed (and yes, several patches from part1 will be needed to do the early srat
-parsing here)
+thanks for testing. If you can also share qemu/seabios versions you use (release
+or git commits), that would be helpful.
 
-> 2. Do the local device pagetable work, not local node.
-> 3. Improve memory hotplug to support local device pagetable.
-
-ok, I 'll think about these as well, and help out.
+this is most likely some error on my setup, I 'll let you know if I conclude
+otherwise.
 
 thanks,
 
