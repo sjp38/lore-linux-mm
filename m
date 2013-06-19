@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 3F6C86B004D
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 21:19:05 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 723006B005A
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 21:19:06 -0400 (EDT)
 From: Davidlohr Bueso <davidlohr.bueso@hp.com>
-Subject: [PATCH 10/11] ipc,msg: drop msg_unlock
-Date: Tue, 18 Jun 2013 18:18:35 -0700
-Message-Id: <1371604716-3439-11-git-send-email-davidlohr.bueso@hp.com>
+Subject: [PATCH 11/11] ipc: document general ipc locking scheme
+Date: Tue, 18 Jun 2013 18:18:36 -0700
+Message-Id: <1371604716-3439-12-git-send-email-davidlohr.bueso@hp.com>
 In-Reply-To: <1371604716-3439-1-git-send-email-davidlohr.bueso@hp.com>
 References: <1371604716-3439-1-git-send-email-davidlohr.bueso@hp.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,37 +13,37 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Davidlohr Bueso <davidlohr.bueso@hp.com>
 
-There is only one user left, drop this function and just call
-ipc_unlock_object() and rcu_read_unlock().
+As suggested by Andrew, add a generic initial locking scheme
+used throughout all sysv ipc mechanisms. Documenting the ids
+rwsem, how rcu can be enough to do the initial checks and when
+to actually acquire the kern_ipc_perm.lock spinlock.
+
+I found that adding it to util.c was generic enough.
 
 Signed-off-by: Davidlohr Bueso <davidlohr.bueso@hp.com>
 ---
- ipc/msg.c | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ ipc/util.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
 
-diff --git a/ipc/msg.c b/ipc/msg.c
-index 80d8aa7..091fa2b 100644
---- a/ipc/msg.c
-+++ b/ipc/msg.c
-@@ -70,8 +70,6 @@ struct msg_sender {
+diff --git a/ipc/util.c b/ipc/util.c
+index 8f12fe3..639bf38 100644
+--- a/ipc/util.c
++++ b/ipc/util.c
+@@ -15,6 +15,14 @@
+  * Jun 2006 - namespaces ssupport
+  *            OpenVZ, SWsoft Inc.
+  *            Pavel Emelianov <xemul@openvz.org>
++ *
++ * General sysv ipc locking scheme:
++ *  when doing ipc id lookups, take the ids->rwsem
++ *      rcu_read_lock()
++ *          obtain the ipc object (kern_ipc_perm)
++ *          perform security, capabilities, auditing and permission checks, etc.
++ *          acquire the ipc lock (kern_ipc_perm.lock) throught ipc_lock_object()
++ *             perform data updates (ie: SET, RMID, LOCK/UNLOCK commands)
+  */
  
- #define msg_ids(ns)	((ns)->ids[IPC_MSG_IDS])
- 
--#define msg_unlock(msq)		ipc_unlock(&(msq)->q_perm)
--
- static void freeque(struct ipc_namespace *, struct kern_ipc_perm *);
- static int newque(struct ipc_namespace *, struct ipc_params *);
- #ifdef CONFIG_PROC_FS
-@@ -270,7 +268,8 @@ static void freeque(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
- 	expunge_all(msq, -EIDRM);
- 	ss_wakeup(&msq->q_senders, 1);
- 	msg_rmid(ns, msq);
--	msg_unlock(msq);
-+	ipc_unlock_object(&msq->q_perm);
-+	rcu_read_unlock();
- 
- 	list_for_each_entry_safe(msg, t, &msq->q_messages, m_list) {
- 		atomic_dec(&ns->msg_hdrs);
+ #include <linux/mm.h>
 -- 
 1.7.11.7
 
