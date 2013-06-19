@@ -1,101 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 47E536B0033
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 22:59:36 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 3CA193EE081
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 11:59:33 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D61A45DE52
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 11:59:33 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0CF7545DE4F
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 11:59:33 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id F0C1CE08002
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 11:59:32 +0900 (JST)
-Received: from g01jpfmpwkw01.exch.g01.fujitsu.local (g01jpfmpwkw01.exch.g01.fujitsu.local [10.0.193.38])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A36C31DB803E
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 11:59:32 +0900 (JST)
-Message-ID: <51C11E56.2090903@jp.fujitsu.com>
-Date: Wed, 19 Jun 2013 11:58:30 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 0BF326B0033
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 00:34:17 -0400 (EDT)
+Date: Wed, 19 Jun 2013 13:34:19 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 7/8] vrange: Add method to purge volatile ranges
+Message-ID: <20130619043419.GA10961@bbox>
+References: <1371010971-15647-1-git-send-email-john.stultz@linaro.org>
+ <1371010971-15647-8-git-send-email-john.stultz@linaro.org>
 MIME-Version: 1.0
-Subject: Re: [Part3 PATCH v2 0/4] Support hot-remove local pagetable pages.
-References: <1371128636-9027-1-git-send-email-tangchen@cn.fujitsu.com>  <20130618170515.GC4553@dhcp-192-168-178-175.profitbricks.localdomain> <1371599989.22206.6.camel@misato.fc.hp.com>
-In-Reply-To: <1371599989.22206.6.camel@misato.fc.hp.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1371010971-15647-8-git-send-email-john.stultz@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, Tang Chen <tangchen@cn.fujitsu.com>, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: John Stultz <john.stultz@linaro.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Dhaval Giani <dgiani@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-2013/06/19 8:59, Toshi Kani wrote:
-> On Tue, 2013-06-18 at 19:05 +0200, Vasilis Liaskovitis wrote:
->> Hi,
->>
->> On Thu, Jun 13, 2013 at 09:03:52PM +0800, Tang Chen wrote:
->>> The following patch-set from Yinghai allocates pagetables to local nodes.
->>> v1: https://lkml.org/lkml/2013/3/7/642
->>> v2: https://lkml.org/lkml/2013/3/10/47
->>> v3: https://lkml.org/lkml/2013/4/4/639
->>> v4: https://lkml.org/lkml/2013/4/11/829
->>>
->>> Since pagetable pages are used by the kernel, they cannot be offlined.
->>> As a result, they cannot be hot-remove.
->>>
->>> This patch fix this problem with the following solution:
->>>
->>>       1.   Introduce a new bootmem type LOCAL_NODE_DATAL, and register local
->>>            pagetable pages as LOCAL_NODE_DATAL by setting page->lru.next to
->>>            LOCAL_NODE_DATAL, just like we register SECTION_INFO pages.
->>>
->>>       2.   Skip LOCAL_NODE_DATAL pages in offline/online procedures. When the
->>>            whole memory block they reside in is offlined, the kernel can
->>>            still access the pagetables.
->>>            (This changes the semantics of offline/online a little bit.)
->>
->> This could be a design problem of part3: if we allow local pagetable memory
->> to not be offlined but allow the offlining to return successfully, then
->> hot-remove is going to succeed. But the direct mapped pagetable pages are still
->> mapped in the kernel. The hot-removed memblocks will suddenly disappear (think
->> physical DIMMs getting disabled in real hardware, or in a VM case the
->> corresponding guest memory getting freed from the emulator e.g. qemu/kvm). The
->> system can crash as a result.
->>
->> I think these local pagetables do need to be unmapped from kernel, offlined and
->> removed somehow - otherwise hot-remove should fail. Could they be migrated
->> alternatively e.g. to node 0 memory?  But Iiuc direct mapped pages cannot be
->> migrated, correct?
->>
->> What is the original reason for local node pagetable allocation with regards
->> to memory hotplug? I assume we want to have hotplugged nodes use only their local
->> memory, so that there are no inter-node memory dependencies for hot-add/remove.
->> Are there other reasons that I am missing?
->
-> I second Vasilis.  The part1/2/3 series could be much simpler & less
-> riskier if we focus on the SRAT changes first, and make the local node
-> pagetable changes as a separate item.  Is there particular reason why
-> they have to be done at a same time?
+On Tue, Jun 11, 2013 at 09:22:50PM -0700, John Stultz wrote:
+> From: Minchan Kim <minchan@kernel.org>
+> 
+> This patch adds discarding function to purge volatile ranges under
+> memory pressure. Logic is as following:
+> 
+> 1. Memory pressure happens
+> 2. VM start to reclaim pages
+> 3. Check the page is in volatile range.
+> 4. If so, zap the page from the process's page table.
+>    (By semantic vrange(2), we should mark it with another one to
+>     make page fault when you try to access the address. It will
+>     be introduced later patch)
+> 5. If page is unmapped from all processes, discard it instead of swapping.
+> 
+> This patch does not address the case where there is no swap, which
+> keeps anonymous pages from being aged off the LRUs. Minchan has
+> additional patches that add support for purging anonymous pages
+> 
+> XXX: First pass at file purging. Seems to work, but is likely broken
+> and needs close review.
+> 
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Android Kernel Team <kernel-team@android.com>
+> Cc: Robert Love <rlove@google.com>
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Dave Hansen <dave@linux.vnet.ibm.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Dmitry Adamushko <dmitry.adamushko@gmail.com>
+> Cc: Dave Chinner <david@fromorbit.com>
+> Cc: Neil Brown <neilb@suse.de>
+> Cc: Andrea Righi <andrea@betterlinux.com>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> Cc: Mike Hommey <mh@glandium.org>
+> Cc: Taras Glek <tglek@mozilla.com>
+> Cc: Dhaval Giani <dgiani@mozilla.com>
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+> Cc: Michel Lespinasse <walken@google.com>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: linux-mm@kvack.org <linux-mm@kvack.org>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> [jstultz: Reworked to add purging of file pages, commit log tweaks]
+> Signed-off-by: John Stultz <john.stultz@linaro.org>
+> ---
+>  include/linux/rmap.h   |  12 +-
+>  include/linux/swap.h   |   1 +
+>  include/linux/vrange.h |   7 ++
+>  mm/ksm.c               |   2 +-
+>  mm/rmap.c              |  30 +++--
+>  mm/swapfile.c          |  36 ++++++
+>  mm/vmscan.c            |  16 ++-
+>  mm/vrange.c            | 332 +++++++++++++++++++++++++++++++++++++++++++++++++
+>  8 files changed, 420 insertions(+), 16 deletions(-)
 
-If my understanding is correct:
-Main purpose of Yinghai's work is to put pagetable on local node ram.
-For this, he needs to know SRAT information before setting pagetable.
-So part1 does them same time.
-
-Thanks,
-Yasuaki Ishimatsu
-
->
-> Thanks,
-> -Toshi
->
->
-
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+This patch has some bugs so below patch should fix them and pass my
+simple cases.
