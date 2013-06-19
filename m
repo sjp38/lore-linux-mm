@@ -1,72 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id B13A26B0033
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 17:24:10 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id q10so5480937pdj.10
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2013 14:24:10 -0700 (PDT)
-Date: Wed, 19 Jun 2013 14:24:07 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2] Make transparent hugepages cpuset aware
-In-Reply-To: <20130619093212.GX3658@sgi.com>
-Message-ID: <alpine.DEB.2.02.1306191419081.13015@chino.kir.corp.google.com>
-References: <1370967244-5610-1-git-send-email-athorlton@sgi.com> <alpine.DEB.2.02.1306111517200.6141@chino.kir.corp.google.com> <20130618164537.GJ16067@sgi.com> <alpine.DEB.2.02.1306181654350.4503@chino.kir.corp.google.com> <20130619093212.GX3658@sgi.com>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 1D3526B0034
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 17:25:42 -0400 (EDT)
+Received: by mail-ie0-f178.google.com with SMTP id u16so13959222iet.23
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2013 14:25:41 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <CAE9FiQVVGdDMxO5RmHSzAcB_cu49EQFiNLxswS7U0Nt5-J774w@mail.gmail.com>
+References: <1371128589-8953-1-git-send-email-tangchen@cn.fujitsu.com>
+	<1371128589-8953-17-git-send-email-tangchen@cn.fujitsu.com>
+	<20130618015806.GY32663@mtj.dyndns.org>
+	<CAE9FiQVVGdDMxO5RmHSzAcB_cu49EQFiNLxswS7U0Nt5-J774w@mail.gmail.com>
+Date: Wed, 19 Jun 2013 14:25:41 -0700
+Message-ID: <CAE9FiQVYwiFXanN0tbR=_=VDUn75DvfGsFPHbrYsPM3CWBaaQg@mail.gmail.com>
+Subject: Re: [Part1 PATCH v5 16/22] x86, mm, numa: Move numa emulation
+ handling down.
+From: Yinghai Lu <yinghai@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Alex Thorlton <athorlton@sgi.com>, linux-kernel@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, linux-doc@vger.kernel.org, linux-mm@kvack.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Thomas Renninger <trenn@suse.de>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, mina86@mina86.com, gong.chen@linux.intel.com, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, lwoodman@redhat.com, Rik van Riel <riel@redhat.com>, jweiner@redhat.com, Prarit Bhargava <prarit@redhat.com>, the arch/x86 maintainers <x86@kernel.org>, linux-doc@vger.kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>
 
-On Wed, 19 Jun 2013, Robin Holt wrote:
+On Mon, Jun 17, 2013 at 11:22 PM, Yinghai Lu <yinghai@kernel.org> wrote:
+> On Mon, Jun 17, 2013 at 6:58 PM, Tejun Heo <tj@kernel.org> wrote:
+>> On Thu, Jun 13, 2013 at 09:03:03PM +0800, Tang Chen wrote:
+>>> From: Yinghai Lu <yinghai@kernel.org>
+>>>
+>>> numa_emulation() needs to allocate buffer for new numa_meminfo
+>>> and distance matrix, so execute it later in x86_numa_init().
+>>>
+>>> Also we change the behavoir:
+>>>       - before this patch, if user input wrong data in command
+>>>         line, it will fall back to next numa probing or disabling
+>>>         numa.
+>>>       - after this patch, if user input wrong data in command line,
+>>>         it will stay with numa info probed from previous probing,
+>>>         like ACPI SRAT or amd_numa.
+>>>
+>>> We need to call numa_check_memblks to reject wrong user inputs early
+>>> so that we can keep the original numa_meminfo not changed.
+>>
+>> So, this is another very subtle ordering you're adding without any
+>> comment and I'm not sure it even makes sense because the function can
+>> fail after that point.
 
-> The convenience being that many batch schedulers have added cpuset
-> support.  They create the cpuset's and configure them as appropriate
-> for the job as determined by a mixture of input from the submitting
-> user but still under the control of the administrator.  That seems like
-> a fairly significant convenience given that it took years to get the
-> batch schedulers to adopt cpusets in the first place.  At this point,
-> expanding their use of cpusets is under the control of the system
-> administrator and would not require any additional development on
-> the batch scheduler developers part.
-> 
+the new numa_emulation will call numa_check_memblks at first before
+touch numa_meminfo.
+if it fails, numa_meminfo is not touched, so that should not a problem.
 
-You can't say the same for memcg?
+>
+> Yes, if it fail, we will stay with current numa info from firmware.
+> That looks like right behavior.
+>
+> Before this patch, it will fail to next numa way like if acpi srat + user
+> input fail, it will try to go with amd_numa then try apply user info.
 
-> Here are the entries in the cpuset:
-> cgroup.event_control  mem_exclusive    memory_pressure_enabled  notify_on_release         tasks
-> cgroup.procs          mem_hardwall     memory_spread_page       release_agent
-> cpu_exclusive         memory_migrate   memory_spread_slab       sched_load_balance
-> cpus                  memory_pressure  mems                     sched_relax_domain_level
-> 
-> There are scheduler, slab allocator, page_cache layout, etc controls.
+For numa emulation fail sequence, want to double check what should be
+right seuence:
 
-I think this is mostly for historical reasons since cpusets were 
-introduced before cgroups.
+on and before 2.6.38:
+   emulation ==> acpi ==> amd ==> dummy
+so if emulation with wrong input, will fall back to acpi numa.
 
-> Why _NOT_ add a thp control to that nicely contained central location?
-> It is a concise set of controls for the job.
-> 
+from 2.6.39
+   acpi (emulation) ==> amd (emulation) ==> dummy (emulation)
+if emulation with wrong input, it will fall back to next numa discovery.
 
-All of the above seem to be for cpusets primary purpose, i.e. NUMA 
-optimizations.  It has nothing to do with transparent hugepages.  (I'm not 
-saying thp has anything to do with memcg either, but a "memory controller" 
-seems more appropriate for controlling thp behavior.)
+after my patchset
+will be acpi ==> amd ==> dummy
+          emulation.
+the new emulation will call numa_check_memblks at first before touch
+numa_meminfo.
+anyway if emulation fails, numa_meminfo is not touched.
 
-> Maybe I am misunderstanding.  Are you saying you want to put memcg
-> information into the cpuset or something like that?
-> 
+so this change looks like right change.
 
-I'm saying there's absolutely no reason to have thp controlled by a 
-cpuset, or ANY cgroup for that matter, since you chose not to respond to 
-the question I asked: why do you want to control thp behavior for certain 
-static binaries and not others?  Where is the performance regression or 
-the downside?  Is it because of max_ptes_none for certain jobs blowing up 
-the rss?  We need information, and even if were justifiable then it 
-wouldn't have anything to do with ANY cgroup but rather a per-process 
-control.  It has nothing to do with cpusets whatsoever.
+Thanks
 
-(And I'm very curious why you didn't even cc the cpusets maintainer on 
-this patch in the first place who would probably say the same thing.)
+Yinghai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
