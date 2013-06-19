@@ -1,60 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 95C576B0033
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 16:18:19 -0400 (EDT)
-Date: Wed, 19 Jun 2013 20:18:18 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: vmstat kthreads
-In-Reply-To: <20130619145906.GB5146@linux.vnet.ibm.com>
-Message-ID: <0000013f5e167883-3b022396-6162-4079-b80d-789b797e5ecb-000000@email.amazonses.com>
-References: <20130618152302.GA10702@linux.vnet.ibm.com> <0000013f58656ee7-8bb24ac4-72fa-4c0b-b888-7c056f261b6e-000000@email.amazonses.com> <20130618182616.GT5146@linux.vnet.ibm.com> <0000013f5cd1c54a-31d71292-c227-4f84-925d-75407a687824-000000@email.amazonses.com>
- <CAOtvUMc5w3zNe8ed6qX0OOM__3F_hOTqvFa1AkdXF0PHvzGZqg@mail.gmail.com> <20130619145906.GB5146@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id B13A26B0033
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 17:24:10 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id q10so5480937pdj.10
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2013 14:24:10 -0700 (PDT)
+Date: Wed, 19 Jun 2013 14:24:07 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v2] Make transparent hugepages cpuset aware
+In-Reply-To: <20130619093212.GX3658@sgi.com>
+Message-ID: <alpine.DEB.2.02.1306191419081.13015@chino.kir.corp.google.com>
+References: <1370967244-5610-1-git-send-email-athorlton@sgi.com> <alpine.DEB.2.02.1306111517200.6141@chino.kir.corp.google.com> <20130618164537.GJ16067@sgi.com> <alpine.DEB.2.02.1306181654350.4503@chino.kir.corp.google.com> <20130619093212.GX3658@sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Gilad Ben-Yossef <gilad@benyossef.com>, linux-mm@kvack.org, ghaskins@londonstockexchange.com, niv@us.ibm.com, kravetz@us.ibm.com, Frederic Weisbecker <fweisbec@gmail.com>
+To: Robin Holt <holt@sgi.com>
+Cc: Alex Thorlton <athorlton@sgi.com>, linux-kernel@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, linux-doc@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 19 Jun 2013, Paul E. McKenney wrote:
+On Wed, 19 Jun 2013, Robin Holt wrote:
 
-> > I've just ported them over to 3.10 and they merge (with a small fix
-> > due to deferred workqueue API changes) and build. I did not try to run
-> > this version though.
-> > I'll post them as replies to this message.
-> >
-> > I'd be happy to rescue them from the "TODO" pile... :-)
->
-> Please!  ;-)
+> The convenience being that many batch schedulers have added cpuset
+> support.  They create the cpuset's and configure them as appropriate
+> for the job as determined by a mixture of input from the submitting
+> user but still under the control of the administrator.  That seems like
+> a fairly significant convenience given that it took years to get the
+> batch schedulers to adopt cpusets in the first place.  At this point,
+> expanding their use of cpusets is under the control of the system
+> administrator and would not require any additional development on
+> the batch scheduler developers part.
+> 
 
-Well if we are going into vmstat mods then I'd also like to throw in this
-old patch:
+You can't say the same for memcg?
 
-Subject: vmstat: Avoid interrupt disable in vm stats loop
+> Here are the entries in the cpuset:
+> cgroup.event_control  mem_exclusive    memory_pressure_enabled  notify_on_release         tasks
+> cgroup.procs          mem_hardwall     memory_spread_page       release_agent
+> cpu_exclusive         memory_migrate   memory_spread_slab       sched_load_balance
+> cpus                  memory_pressure  mems                     sched_relax_domain_level
+> 
+> There are scheduler, slab allocator, page_cache layout, etc controls.
 
-There is no need to disable interrupts if we use xchg().
+I think this is mostly for historical reasons since cpusets were 
+introduced before cgroups.
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
+> Why _NOT_ add a thp control to that nicely contained central location?
+> It is a concise set of controls for the job.
+> 
 
-Index: linux/mm/vmstat.c
-===================================================================
---- linux.orig/mm/vmstat.c	2013-05-20 15:19:28.000000000 -0500
-+++ linux/mm/vmstat.c	2013-06-19 10:09:09.954024071 -0500
-@@ -445,13 +445,8 @@ void refresh_cpu_vm_stats(int cpu)
+All of the above seem to be for cpusets primary purpose, i.e. NUMA 
+optimizations.  It has nothing to do with transparent hugepages.  (I'm not 
+saying thp has anything to do with memcg either, but a "memory controller" 
+seems more appropriate for controlling thp behavior.)
 
- 		for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
- 			if (p->vm_stat_diff[i]) {
--				unsigned long flags;
--				int v;
-+				int v = xchg(p->vm_stat_diff + i, 0);
+> Maybe I am misunderstanding.  Are you saying you want to put memcg
+> information into the cpuset or something like that?
+> 
 
--				local_irq_save(flags);
--				v = p->vm_stat_diff[i];
--				p->vm_stat_diff[i] = 0;
--				local_irq_restore(flags);
- 				atomic_long_add(v, &zone->vm_stat[i]);
- 				global_diff[i] += v;
- #ifdef CONFIG_NUMA
+I'm saying there's absolutely no reason to have thp controlled by a 
+cpuset, or ANY cgroup for that matter, since you chose not to respond to 
+the question I asked: why do you want to control thp behavior for certain 
+static binaries and not others?  Where is the performance regression or 
+the downside?  Is it because of max_ptes_none for certain jobs blowing up 
+the rss?  We need information, and even if were justifiable then it 
+wouldn't have anything to do with ANY cgroup but rather a per-process 
+control.  It has nothing to do with cpusets whatsoever.
+
+(And I'm very curious why you didn't even cc the cpusets maintainer on 
+this patch in the first place who would probably say the same thing.)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
