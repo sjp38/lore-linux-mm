@@ -1,54 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 12EB36B0033
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 13:14:34 -0400 (EDT)
-Date: Wed, 19 Jun 2013 10:14:14 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v11 25/25] list_lru: dynamically adjust node arrays
-Message-Id: <20130619101414.49da3bfb.akpm@linux-foundation.org>
-In-Reply-To: <20130619132904.GA4031@localhost.localdomain>
-References: <1370550898-26711-1-git-send-email-glommer@openvz.org>
-	<1370550898-26711-26-git-send-email-glommer@openvz.org>
-	<1371548521.2984.6.camel@ThinkPad-T5421>
-	<20130619073154.GA1990@localhost.localdomain>
-	<1371633148.2984.18.camel@ThinkPad-T5421>
-	<20130619132904.GA4031@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 47D546B0033
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 13:55:03 -0400 (EDT)
+Date: Wed, 19 Jun 2013 12:25:06 -0400
+From: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>
+Subject: [PATCH] mmap: allow MAP_HUGETLB for hugetlbfs files v2
+Message-ID: <20130619162506.GA7511@logfs.org>
+References: <1371581225-27535-1-git-send-email-joern@logfs.org>
+ <1371581225-27535-3-git-send-email-joern@logfs.org>
+ <51C107E9.9050900@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <51C107E9.9050900@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@gmail.com>
-Cc: Li Zhong <lizhongfs@gmail.com>, Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, mgorman@suse.de, david@fromorbit.com, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suze.cz, hannes@cmpxchg.org, hughd@google.com, gthelen@google.com, Dave Chinner <dchinner@redhat.com>
+To: Jianguo Wu <wujianguo@huawei.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, 19 Jun 2013 17:29:06 +0400 Glauber Costa <glommer@gmail.com> wrote:
+It is counterintuitive at best that mmap'ing a hugetlbfs file with
+MAP_HUGETLB fails, while mmap'ing it without will a) succeed and b)
+return huge pages.
+v2: use is_file_hugepages(), as suggested by Jianguo
 
-> > > Thanks for taking a look at this.
-> > > 
-> > > list_lru_destroy is called by deactivate_lock_super, so we should be fine already.
-> > 
-> > Sorry, I'm a little confused...
-> > 
-> > I didn't see list_lru_destroy() called in deactivate_locked_super().
-> > Maybe I missed something? 
-> 
-> Err... the code in my tree reads:
-> 
->         unregister_shrinker(&s->s_shrink);
->         list_lru_destroy(&s->s_dentry_lru);
->         list_lru_destroy(&s->s_inode_lru);
->         put_filesystem(fs);
->         put_super(s);
-> 
-> But then I have just checked Andrew's, and it is not there - thank you.
+Signed-off-by: Joern Engel <joern@logfs.org>
+Cc: Jianguo Wu <wujianguo@huawei.com>
+---
+ mm/mmap.c |    6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
 
-That is added by "super: targeted memcg reclaim", which is in the part
-of the series which we decided to defer.
-
-> Andrew, should I send a patch for you to fold it ?
-
-Sure.  Perhaps you could check for any other things which should be
-brought over from the not-merged-yet patches?
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 2a594246..cdc8e7a 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1322,11 +1322,12 @@ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
+ 
+ 	if (!(flags & MAP_ANONYMOUS)) {
+ 		audit_mmap_fd(fd, flags);
+-		if (unlikely(flags & MAP_HUGETLB))
+-			return -EINVAL;
+ 		file = fget(fd);
+ 		if (!file)
+ 			goto out;
++		retval = -EINVAL;
++		if (unlikely(flags & MAP_HUGETLB && !is_file_hugepages(file)))
++			goto out_fput;
+ 	} else if (flags & MAP_HUGETLB) {
+ 		struct user_struct *user = NULL;
+ 		/*
+@@ -1346,6 +1347,7 @@ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
+ 	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
+ 
+ 	retval = vm_mmap_pgoff(file, addr, len, prot, flags, pgoff);
++out_fput:
+ 	if (file)
+ 		fput(file);
+ out:
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
