@@ -1,68 +1,342 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 495EC6B0034
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 00:41:43 -0400 (EDT)
-Date: Wed, 19 Jun 2013 13:41:47 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 0/8] Volatile Ranges (v8?)
-Message-ID: <20130619044147.GC10961@bbox>
-References: <1371010971-15647-1-git-send-email-john.stultz@linaro.org>
- <51BF3827.4060606@mozilla.com>
- <20130618041100.GA3116@bbox>
- <51C091D6.8010608@mozilla.com>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id EF5406B0033
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 01:21:45 -0400 (EDT)
+Date: Wed, 19 Jun 2013 14:22:03 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [3.11 1/4] slub: Make cpu partial slab support configurable V2
+Message-ID: <20130619052203.GA12231@lge.com>
+References: <20130614195500.373711648@linux.com>
+ <0000013f44418a14-7abe9784-a481-4c34-8ff3-c3afe2d57979-000000@email.amazonses.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51C091D6.8010608@mozilla.com>
+In-Reply-To: <0000013f44418a14-7abe9784-a481-4c34-8ff3-c3afe2d57979-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dhaval Giani <dgiani@mozilla.com>
-Cc: John Stultz <john.stultz@linaro.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-Hello Dhaval,
+Hello, Christoph.
 
-On Tue, Jun 18, 2013 at 12:59:02PM -0400, Dhaval Giani wrote:
-> On 2013-06-18 12:11 AM, Minchan Kim wrote:
-> >Hello Dhaval,
-> >
-> >On Mon, Jun 17, 2013 at 12:24:07PM -0400, Dhaval Giani wrote:
-> >>Hi John,
-> >>
-> >>I have been giving your git tree a whirl, and in order to simulate a
-> >>limited memory environment, I was using memory cgroups.
-> >>
-> >>The program I was using to test is attached here. It is your test
-> >>code, with some changes (changing the syscall interface, reducing
-> >>the memory pressure to be generated).
-> >>
-> >>I trapped it in a memory cgroup with 1MB memory.limit_in_bytes and hit this,
-> >>
-> >>[  406.207612] ------------[ cut here ]------------
-> >>[  406.207621] kernel BUG at mm/vrange.c:523!
-> >>[  406.207626] invalid opcode: 0000 [#1] SMP
-> >>[  406.207631] Modules linked in:
-> >>[  406.207637] CPU: 0 PID: 1579 Comm: volatile-test Not tainted
-> >Thanks for the testing!
-> >Does below patch fix your problem?
+On Fri, Jun 14, 2013 at 07:55:13PM +0000, Christoph Lameter wrote:
+> cpu partial support can introduce level of indeterminism that is not wanted
+> in certain context (like a realtime kernel). Make it configurable.
 > 
-> Yes it does! Thank you very much for the patch.
+> Signed-off-by: Christoph Lameter <cl@linux.com>
+> 
+> Index: linux/include/linux/slub_def.h
+> ===================================================================
+> --- linux.orig/include/linux/slub_def.h	2013-06-14 09:50:58.190453865 -0500
+> +++ linux/include/linux/slub_def.h	2013-06-14 09:50:58.186453794 -0500
+> @@ -73,7 +73,9 @@ struct kmem_cache {
+>  	int size;		/* The size of an object including meta data */
+>  	int object_size;	/* The size of an object without meta data */
+>  	int offset;		/* Free pointer offset. */
+> +#ifdef CONFIG_SLUB_CPU_PARTIAL
+>  	int cpu_partial;	/* Number of per cpu partial objects to keep around */
+> +#endif
+>  	struct kmem_cache_order_objects oo;
+>  
+>  	/* Allocation and freeing of slabs */
+> @@ -104,6 +106,15 @@ struct kmem_cache {
+>  	struct kmem_cache_node *node[MAX_NUMNODES];
+>  };
 
-Thaks for the confirming.
-While I tested it, I found several problems so I just sent fixes as reply
-of each [7/8] and [8/8].
-Could you test it?
+How about maintaining cpu_partial when !CONFIG_SLUB_CPU_PARTIAL?
+It makes code less churn and doesn't have much overhead.
+At bottom, my implementation with cpu_partial is attached. It uses less '#ifdef'.
+
+>  
+> +static inline int kmem_cache_cpu_partial(struct kmem_cache *s)
+> +{
+> +#ifdef CONFIG_SLUB_CPU_PARTIAL
+> +	return s->cpu_partial;
+> +#else
+> +	return 0;
+> +#endif
+> +}
+> +
+>  void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
+>  void *__kmalloc(size_t size, gfp_t flags);
+>  
+> Index: linux/mm/slub.c
+> ===================================================================
+> --- linux.orig/mm/slub.c	2013-06-14 09:50:58.190453865 -0500
+> +++ linux/mm/slub.c	2013-06-14 09:50:58.186453794 -0500
+> @@ -1573,7 +1573,8 @@ static void *get_partial_node(struct kme
+>  			put_cpu_partial(s, page, 0);
+>  			stat(s, CPU_PARTIAL_NODE);
+>  		}
+> -		if (kmem_cache_debug(s) || available > s->cpu_partial / 2)
+> +		if (kmem_cache_debug(s) ||
+> +			       available > kmem_cache_cpu_partial(s) / 2)
+>  			break;
+>  
+>  	}
+> @@ -1884,6 +1885,7 @@ redo:
+>  static void unfreeze_partials(struct kmem_cache *s,
+>  		struct kmem_cache_cpu *c)
+>  {
+> +#ifdef CONFIG_SLUB_CPU_PARTIAL
+>  	struct kmem_cache_node *n = NULL, *n2 = NULL;
+>  	struct page *page, *discard_page = NULL;
+>  
+> @@ -1938,6 +1940,7 @@ static void unfreeze_partials(struct kme
+>  		discard_slab(s, page);
+>  		stat(s, FREE_SLAB);
+>  	}
+> +#endif
+>  }
+>  
+>  /*
+> @@ -1951,6 +1954,7 @@ static void unfreeze_partials(struct kme
+>   */
+>  static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+>  {
+> +#ifdef CONFIG_SLUB_CPU_PARTIAL
+>  	struct page *oldpage;
+>  	int pages;
+>  	int pobjects;
+> @@ -1987,6 +1991,7 @@ static void put_cpu_partial(struct kmem_
+>  		page->next = oldpage;
+>  
+>  	} while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page) != oldpage);
+> +#endif
+>  }
+>  
+>  static inline void flush_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
+> @@ -2495,6 +2500,7 @@ static void __slab_free(struct kmem_cach
+>  		new.inuse--;
+>  		if ((!new.inuse || !prior) && !was_frozen) {
+>  
+> +#ifdef CONFIG_SLUB_CPU_PARTIAL
+>  			if (!kmem_cache_debug(s) && !prior)
+>  
+>  				/*
+> @@ -2503,7 +2509,9 @@ static void __slab_free(struct kmem_cach
+>  				 */
+>  				new.frozen = 1;
+>  
+> -			else { /* Needs to be taken off a list */
+> +			else
+> +#endif
+> +		       		{ /* Needs to be taken off a list */
+>  
+>  	                        n = get_node(s, page_to_nid(page));
+>  				/*
+> @@ -2525,6 +2533,7 @@ static void __slab_free(struct kmem_cach
+>  		"__slab_free"));
+>  
+>  	if (likely(!n)) {
+> +#ifdef CONFIG_SLUB_CPU_PARTIAL
+>  
+>  		/*
+>  		 * If we just froze the page then put it onto the
+> @@ -2534,6 +2543,7 @@ static void __slab_free(struct kmem_cach
+>  			put_cpu_partial(s, page, 1);
+>  			stat(s, CPU_PARTIAL_FREE);
+>  		}
+> +#endif
+>  		/*
+>  		 * The list lock was not taken therefore no list
+>  		 * activity can be necessary.
+> @@ -3041,7 +3051,7 @@ static int kmem_cache_open(struct kmem_c
+>  	 * list to avoid pounding the page allocator excessively.
+>  	 */
+>  	set_min_partial(s, ilog2(s->size) / 2);
+> -
+> +#ifdef CONFIG_SLUB_CPU_PARTIAL
+>  	/*
+>  	 * cpu_partial determined the maximum number of objects kept in the
+>  	 * per cpu partial lists of a processor.
+> @@ -3069,6 +3079,7 @@ static int kmem_cache_open(struct kmem_c
+>  		s->cpu_partial = 13;
+>  	else
+>  		s->cpu_partial = 30;
+> +#endif
+>  
+>  #ifdef CONFIG_NUMA
+>  	s->remote_node_defrag_ratio = 1000;
+> @@ -4424,7 +4435,7 @@ SLAB_ATTR(order);
+>  
+>  static ssize_t min_partial_show(struct kmem_cache *s, char *buf)
+>  {
+> -	return sprintf(buf, "%lu\n", s->min_partial);
+> +	return sprintf(buf, "%u\n", kmem_cache_cpu_partial(s));
+>  }
+
+min_partial is not related to cpu_partial.
+
+>  
+>  static ssize_t min_partial_store(struct kmem_cache *s, const char *buf,
+> @@ -4444,7 +4455,7 @@ SLAB_ATTR(min_partial);
+>  
+>  static ssize_t cpu_partial_show(struct kmem_cache *s, char *buf)
+>  {
+> -	return sprintf(buf, "%u\n", s->cpu_partial);
+> +	return sprintf(buf, "%u\n", kmem_cache_cpu_partial(s));
+>  }
+>  
+>  static ssize_t cpu_partial_store(struct kmem_cache *s, const char *buf,
+> @@ -4458,10 +4469,13 @@ static ssize_t cpu_partial_store(struct
+>  		return err;
+>  	if (objects && kmem_cache_debug(s))
+>  		return -EINVAL;
+> -
+> +#ifdef CONFIG_SLUB_CPU_PARTIAL
+>  	s->cpu_partial = objects;
+>  	flush_all(s);
+>  	return length;
+> +#else
+> +	return -ENOSYS;
+> +#endif
+>  }
+>  SLAB_ATTR(cpu_partial);
+>  
+> Index: linux/init/Kconfig
+> ===================================================================
+> --- linux.orig/init/Kconfig	2013-06-14 09:50:58.190453865 -0500
+> +++ linux/init/Kconfig	2013-06-14 09:50:58.186453794 -0500
+> @@ -1559,6 +1559,17 @@ config SLOB
+>  
+>  endchoice
+>  
+> +config SLUB_CPU_PARTIAL
+> +	default y
+> +	depends on SLUB
+> +	bool "SLUB per cpu partial cache"
+> +	help
+> +	  Per cpu partial caches accellerate objects allocation and freeing
+> +	  that is local to a processor at the price of more indeterminism
+> +	  in the latency of the free. On overflow these caches will be cleared
+> +	  which requires the taking of locks that may cause latency spikes.
+> +	  Typically one would choose no for a realtime system.
+> +
+>  config MMAP_ALLOW_UNINITIALIZED
+>  	bool "Allow mmapped anonymous memory to be uninitialized"
+>  	depends on EXPERT && !MMU
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 
-FYI: John, Dhaval
-
-I am working to clean purging mess up so maybe it would need not a few
-change for purging part.
-
-Thanks!
-
+-----------------------8<---------------------------
+diff --git a/init/Kconfig b/init/Kconfig
+index 2d9b831..a7ec1ec 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -1559,6 +1559,17 @@ config SLOB
+ 
+ endchoice
+ 
++config SLUB_CPU_PARTIAL
++	default y
++	depends on SLUB
++	bool "SLUB per cpu partial cache"
++	help
++	  Per cpu partial caches accellerate objects allocation and freeing
++	  that is local to a processor at the price of more indeterminism
++	  in the latency of the free. On overflow these caches will be cleared
++	  which requires the taking of locks that may cause latency spikes.
++	  Typically one would choose no for a realtime system.
++
+ config MMAP_ALLOW_UNINITIALIZED
+ 	bool "Allow mmapped anonymous memory to be uninitialized"
+ 	depends on EXPERT && !MMU
+diff --git a/mm/slub.c b/mm/slub.c
+index 57707f0..c820f9d 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -123,6 +123,15 @@ static inline int kmem_cache_debug(struct kmem_cache *s)
+ #endif
+ }
+ 
++static inline int kmem_cache_has_cpu_partial(struct kmem_cache *s)
++{
++#ifdef CONFIG_SLUB_PARTIAL
++	return !kmem_cache_debug(s);
++#else
++	return false;
++#endif
++}
++
+ /*
+  * Issues still to be resolved:
+  *
+@@ -1573,7 +1582,8 @@ static void *get_partial_node(struct kmem_cache *s, struct kmem_cache_node *n,
+ 			put_cpu_partial(s, page, 0);
+ 			stat(s, CPU_PARTIAL_NODE);
+ 		}
+-		if (kmem_cache_debug(s) || available > s->cpu_partial / 2)
++		if (!kmem_cache_has_cpu_partial(s)
++			|| available > s->cpu_partial / 2)
+ 			break;
+ 
+ static void unfreeze_partials(struct kmem_cache *s,
+ 		struct kmem_cache_cpu *c)
+ {
++#ifdef CONFIG_SLUB_PARTIAL
+ 	struct kmem_cache_node *n = NULL, *n2 = NULL;
+ 	struct page *page, *discard_page = NULL;
+ 
+@@ -1938,6 +1949,7 @@ static void unfreeze_partials(struct kmem_cache *s,
+ 		discard_slab(s, page);
+ 		stat(s, FREE_SLAB);
+ 	}
++#endif
+ }
+ 
+ /*
+@@ -1951,6 +1963,7 @@ static void unfreeze_partials(struct kmem_cache *s,
+  */
+ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+ {
++#ifdef CONFIG_SLUB_PARTIAL
+ 	struct page *oldpage;
+ 	int pages;
+ 	int pobjects;
+@@ -1987,6 +2000,7 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+ 		page->next = oldpage;
+ 
+ 	} while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page) != oldpage);
++#endif
+ }
+ 
+ static inline void flush_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
+@@ -2495,7 +2509,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+ 		new.inuse--;
+ 		if ((!new.inuse || !prior) && !was_frozen) {
+ 
+-			if (!kmem_cache_debug(s) && !prior)
++			if (kmem_cache_has_cpu_partial(s) && !prior)
+ 
+ 				/*
+ 				 * Slab was on no list before and will be partially empty
+@@ -3059,7 +3073,7 @@ static int kmem_cache_open(struct kmem_cache *s, unsigned long flags)
+ 	 *    per node list when we run out of per cpu objects. We only fetch 50%
+ 	 *    to keep some capacity around for frees.
+ 	 */
+-	if (kmem_cache_debug(s))
++	if (!kmem_cache_has_cpu_partial(s))
+ 		s->cpu_partial = 0;
+ 	else if (s->size >= PAGE_SIZE)
+ 		s->cpu_partial = 2;
+@@ -4456,7 +4470,7 @@ static ssize_t cpu_partial_store(struct kmem_cache *s, const char *buf,
+ 	err = strict_strtoul(buf, 10, &objects);
+ 	if (err)
+ 		return err;
+-	if (objects && kmem_cache_debug(s))
++	if (objects && !kmem_cache_has_cpu_partial(s))
+ 		return -EINVAL;
+ 
+ 	s->cpu_partial = objects;
 -- 
-Kind regards,
-Minchan Kim
+1.7.9.5
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
