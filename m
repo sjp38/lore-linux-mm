@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id AD2126B003C
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 21:18:57 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 1B6616B003D
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 21:19:01 -0400 (EDT)
 From: Davidlohr Bueso <davidlohr.bueso@hp.com>
-Subject: [PATCH 07/11] ipc,shm: cleanup do_shmat pasta
-Date: Tue, 18 Jun 2013 18:18:32 -0700
-Message-Id: <1371604716-3439-8-git-send-email-davidlohr.bueso@hp.com>
+Subject: [PATCH 08/11] ipc,shm: shorten critical region for shmat
+Date: Tue, 18 Jun 2013 18:18:33 -0700
+Message-Id: <1371604716-3439-9-git-send-email-davidlohr.bueso@hp.com>
 In-Reply-To: <1371604716-3439-1-git-send-email-davidlohr.bueso@hp.com>
 References: <1371604716-3439-1-git-send-email-davidlohr.bueso@hp.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,77 +13,62 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Davidlohr Bueso <davidlohr.bueso@hp.com>
 
-Clean up some of the messy do_shmat() spaghetti code, getting
-rid of out_free and out_put_dentry labels. This makes shortening
-the critical region of this function in the next patch a little
-easier to do and read.
+Similar to other system calls, acquire the kern_ipc_perm lock
+after doing the initial permission and security checks.
 
 Signed-off-by: Davidlohr Bueso <davidlohr.bueso@hp.com>
 ---
- ipc/shm.c | 26 ++++++++++++--------------
- 1 file changed, 12 insertions(+), 14 deletions(-)
+ ipc/shm.c | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)
 
 diff --git a/ipc/shm.c b/ipc/shm.c
-index e4ac1c1..d1b3ebf 100644
+index d1b3ebf..2fe6170 100644
 --- a/ipc/shm.c
 +++ b/ipc/shm.c
-@@ -1108,16 +1108,21 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr,
+@@ -19,6 +19,9 @@
+  * namespaces support
+  * OpenVZ, SWsoft Inc.
+  * Pavel Emelianov <xemul@openvz.org>
++ *
++ * Better ipc lock (kern_ipc_perm.lock) handling
++ * Davidlohr Bueso <davidlohr.bueso@hp.com>, June 2013.
+  */
+ 
+ #include <linux/slab.h>
+@@ -1086,7 +1089,8 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr,
+ 	 * additional creator id...
+ 	 */
+ 	ns = current->nsproxy->ipc_ns;
+-	shp = shm_lock_check(ns, shmid);
++	rcu_read_lock();
++	shp = shm_obtain_object_check(ns, shmid);
+ 	if (IS_ERR(shp)) {
+ 		err = PTR_ERR(shp);
+ 		goto out;
+@@ -1100,11 +1104,13 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr,
+ 	if (err)
+ 		goto out_unlock;
+ 
++	ipc_lock_object(&shp->shm_perm);	
+ 	path = shp->shm_file->f_path;
+ 	path_get(&path);
+ 	shp->shm_nattch++;
+ 	size = i_size_read(path.dentry->d_inode);
+-	shm_unlock(shp);
++	ipc_unlock_object(&shp->shm_perm);	
++	rcu_read_unlock();
  
  	err = -ENOMEM;
  	sfd = kzalloc(sizeof(*sfd), GFP_KERNEL);
--	if (!sfd)
--		goto out_put_dentry;
-+	if (!sfd) {
-+		path_put(&path);
-+		goto out_nattch;
-+	}
- 
- 	file = alloc_file(&path, f_mode,
- 			  is_file_hugepages(shp->shm_file) ?
- 				&shm_file_operations_huge :
- 				&shm_file_operations);
- 	err = PTR_ERR(file);
--	if (IS_ERR(file))
--		goto out_free;
-+	if (IS_ERR(file)) {
-+		kfree(sfd);
-+		path_put(&path);
-+		goto out_nattch;
-+	}
- 
- 	file->private_data = sfd;
- 	file->f_mapping = shp->shm_file->f_mapping;
-@@ -1143,7 +1148,7 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr,
- 		    addr > current->mm->start_stack - size - PAGE_SIZE * 5)
- 			goto invalid;
- 	}
--		
-+
- 	addr = do_mmap_pgoff(file, addr, size, prot, flags, 0, &populate);
- 	*raddr = addr;
- 	err = 0;
-@@ -1167,19 +1172,12 @@ out_nattch:
- 	else
- 		shm_unlock(shp);
- 	up_write(&shm_ids(ns).rw_mutex);
--
--out:
+@@ -1175,7 +1181,7 @@ out_nattch:
  	return err;
  
  out_unlock:
- 	shm_unlock(shp);
--	goto out;
--
--out_free:
--	kfree(sfd);
--out_put_dentry:
--	path_put(&path);
--	goto out_nattch;
-+out:
-+	return err;
+-	shm_unlock(shp);
++	rcu_read_unlock();
+ out:
+ 	return err;
  }
- 
- SYSCALL_DEFINE3(shmat, int, shmid, char __user *, shmaddr, int, shmflg)
 -- 
 1.7.11.7
 
