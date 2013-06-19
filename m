@@ -1,95 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id B80BC6B0034
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 05:12:37 -0400 (EDT)
-Received: by mail-ie0-f177.google.com with SMTP id aq17so11604248iec.8
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2013 02:12:37 -0700 (PDT)
-Message-ID: <1371633148.2984.18.camel@ThinkPad-T5421>
-Subject: Re: [PATCH v11 25/25] list_lru: dynamically adjust node arrays
-From: Li Zhong <lizhongfs@gmail.com>
-Reply-To: lizhongfs@gmail.com
-Date: Wed, 19 Jun 2013 17:12:28 +0800
-In-Reply-To: <20130619073154.GA1990@localhost.localdomain>
-References: <1370550898-26711-1-git-send-email-glommer@openvz.org>
-	 <1370550898-26711-26-git-send-email-glommer@openvz.org>
-	 <1371548521.2984.6.camel@ThinkPad-T5421>
-	 <20130619073154.GA1990@localhost.localdomain>
-Content-Type: text/plain; charset="UTF-8"
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id A399F6B0033
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 05:18:43 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
+	Wed, 19 Jun 2013 14:42:36 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 6827CE004F
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 14:48:01 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5J9IiZt9175134
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 14:48:45 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5J9IYMv017108
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 19:18:34 +1000
+Message-ID: <51C176AC.4000709@linux.vnet.ibm.com>
+Date: Wed, 19 Jun 2013 14:45:24 +0530
+From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm/page_alloc: remove repetitious local_irq_save() in
+ __zone_pcp_update()
+References: <1371593437-30002-1-git-send-email-cody@linux.vnet.ibm.com>
+In-Reply-To: <1371593437-30002-1-git-send-email-cody@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@gmail.com>
-Cc: Glauber Costa <glommer@openvz.org>, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, mgorman@suse.de, david@fromorbit.com, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suze.cz, hannes@cmpxchg.org, hughd@google.com, gthelen@google.com, Dave Chinner <dchinner@redhat.com>
+To: Cody P Schafer <cody@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>
 
-On Wed, 2013-06-19 at 11:31 +0400, Glauber Costa wrote:
-> On Tue, Jun 18, 2013 at 05:42:01PM +0800, Li Zhong wrote:
-> > On Fri, 2013-06-07 at 00:34 +0400, Glauber Costa wrote:
->  > 
-> > > diff --git a/fs/super.c b/fs/super.c
-> > > index 85a6104..1b6ef7b 100644
-> > > --- a/fs/super.c
-> > > +++ b/fs/super.c
-> > > @@ -199,8 +199,12 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
-> > >  		INIT_HLIST_NODE(&s->s_instances);
-> > >  		INIT_HLIST_BL_HEAD(&s->s_anon);
-> > >  		INIT_LIST_HEAD(&s->s_inodes);
-> > > -		list_lru_init(&s->s_dentry_lru);
-> > > -		list_lru_init(&s->s_inode_lru);
-> > > +
-> > > +		if (list_lru_init(&s->s_dentry_lru))
-> > > +			goto err_out;
-> > > +		if (list_lru_init(&s->s_inode_lru))
-> > > +			goto err_out_dentry_lru;
-> > > +
-> > >  		INIT_LIST_HEAD(&s->s_mounts);
-> > >  		init_rwsem(&s->s_umount);
-> > >  		lockdep_set_class(&s->s_umount, &type->s_umount_key);
-> > > @@ -240,6 +244,9 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
-> > >  	}
-> > >  out:
-> > >  	return s;
-> > > +
-> > > +err_out_dentry_lru:
-> > > +	list_lru_destroy(&s->s_dentry_lru);
-> > >  err_out:
-> > >  	security_sb_free(s);
-> > >  #ifdef CONFIG_SMP
-> > 
-> > It seems we also need to call list_lru_destroy() in destroy_super()? 
-> > like below:
-> >  
-> > -----------
-> > diff --git a/fs/super.c b/fs/super.c
-> > index b79e732..06ee3af 100644
-> > --- a/fs/super.c
-> > +++ b/fs/super.c
-> > @@ -269,6 +269,8 @@ err_out:
-> >   */
-> >  static inline void destroy_super(struct super_block *s)
-> >  {
-> > +	list_lru_destroy(&s->s_inode_lru);
-> > +	list_lru_destroy(&s->s_dentry_lru);
-> >  #ifdef CONFIG_SMP
-> >  	free_percpu(s->s_files);
-> >  #endif
+On 06/19/2013 03:40 AM, Cody P Schafer wrote:
+> __zone_pcp_update() is called via stop_machine(), which already disables
+> local irq.
 > 
-> Hi
+> Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
+
+Reviewed-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
+
+Regards,
+Srivatsa S. Bhat
+
+> ---
+>  mm/page_alloc.c | 4 +---
+>  1 file changed, 1 insertion(+), 3 deletions(-)
 > 
-> Thanks for taking a look at this.
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index bac3107..b46b54a 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -6179,7 +6179,7 @@ static int __meminit __zone_pcp_update(void *data)
+>  {
+>  	struct zone *zone = data;
+>  	int cpu;
+> -	unsigned long batch = zone_batchsize(zone), flags;
+> +	unsigned long batch = zone_batchsize(zone);
 > 
-> list_lru_destroy is called by deactivate_lock_super, so we should be fine already.
-
-Sorry, I'm a little confused...
-
-I didn't see list_lru_destroy() called in deactivate_locked_super().
-Maybe I missed something? 
-
-But it seems other memory allocated in alloc_super(), are freed in
-destroy_super(), e.g. ->s_files, why don't we also free this one here? 
-
-Thanks, Zhong
-
+>  	for_each_possible_cpu(cpu) {
+>  		struct per_cpu_pageset *pset;
+> @@ -6188,12 +6188,10 @@ static int __meminit __zone_pcp_update(void *data)
+>  		pset = per_cpu_ptr(zone->pageset, cpu);
+>  		pcp = &pset->pcp;
+> 
+> -		local_irq_save(flags);
+>  		if (pcp->count > 0)
+>  			free_pcppages_bulk(zone, pcp->count, pcp);
+>  		drain_zonestat(zone, pset);
+>  		setup_pageset(pset, batch);
+> -		local_irq_restore(flags);
+>  	}
+>  	return 0;
+>  }
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
