@@ -1,38 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id AADEE6B0033
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 02:33:40 -0400 (EDT)
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH] slub: do not put a slab to cpu partial list when cpu_partial is 0
-Date: Wed, 19 Jun 2013 15:33:55 +0900
-Message-Id: <1371623635-26575-1-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 309776B0033
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 02:56:06 -0400 (EDT)
+Message-ID: <51C155D1.3090304@asianux.com>
+Date: Wed, 19 Jun 2013 14:55:13 +0800
+From: Chen Gang <gang.chen@asianux.com>
+MIME-Version: 1.0
+Subject: [PATCH] mm/vmscan.c: 'lru' may be used without initialized after
+ the patch "3abf380..." in next-20130607 tree
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Mel Gorman <mgorman@suse.de>, hannes@cmpxchg.org, riel@redhat.com, mhocko@suse.cz
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-In free path, we don't check number of cpu_partial, so one slab can
-be linked in cpu partial list even if cpu_partial is 0. To prevent this,
-we should check number of cpu_partial in put_cpu_partial().
 
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+'lru' may be used without initialized, so need regressing part of the
+related patch.
 
-diff --git a/mm/slub.c b/mm/slub.c
-index 57707f0..7033b4f 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1955,6 +1955,9 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
- 	int pages;
- 	int pobjects;
- 
-+	if (!s->cpu_partial)
-+		return;
-+
- 	do {
- 		pages = 0;
- 		pobjects = 0;
+The related patch:
+  "3abf380 mm: remove lru parameter from __lru_cache_add and lru_cache_add_lru"
+
+
+Signed-off-by: Chen Gang <gang.chen@asianux.com>
+---
+ mm/vmscan.c |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index fe73724..e92b1858 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -595,6 +595,7 @@ redo:
+ 		 * unevictable page on [in]active list.
+ 		 * We know how to handle that.
+ 		 */
++		lru = !!TestClearPageActive(page) + page_lru_base_type(page);
+ 		lru_cache_add(page);
+ 	} else {
+ 		/*
 -- 
-1.7.9.5
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
