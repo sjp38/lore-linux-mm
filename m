@@ -1,62 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 3FF026B0033
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 21:18:48 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 3BFD76B0034
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 21:18:49 -0400 (EDT)
 From: Davidlohr Bueso <davidlohr.bueso@hp.com>
-Subject: [PATCH 00/11] sysv ipc shared mem optimizations
-Date: Tue, 18 Jun 2013 18:18:25 -0700
-Message-Id: <1371604716-3439-1-git-send-email-davidlohr.bueso@hp.com>
+Subject: [PATCH 01/11] ipc,shm: introduce lockless functions to obtain the ipc object
+Date: Tue, 18 Jun 2013 18:18:26 -0700
+Message-Id: <1371604716-3439-2-git-send-email-davidlohr.bueso@hp.com>
+In-Reply-To: <1371604716-3439-1-git-send-email-davidlohr.bueso@hp.com>
+References: <1371604716-3439-1-git-send-email-davidlohr.bueso@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Davidlohr Bueso <davidlohr.bueso@hp.com>
 
-This is the third and final patchset that deals with reducing the
-amount of contention we impose on the ipc lock (kern_ipc_perm.lock).
-These changes mostly deal with shared memory, previous work has already
-been done for semaphores and message queues:
+Add shm_obtain_object() and shm_obtain_object_check(), which will allow us
+to get the ipc object without acquiring the lock. Just as with other forms
+of ipc, these functions are basically wrappers around ipc_obtain_object*().
 
-http://lkml.org/lkml/2013/3/20/546 (sems)
-http://lkml.org/lkml/2013/5/15/584 (mqueues)
+Signed-off-by: Davidlohr Bueso <davidlohr.bueso@hp.com>
+---
+ ipc/shm.c | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
 
-With these patches applied, a custom shm microbenchmark stressing shmctl
-doing IPC_STAT with 4 threads a million times, reduces the execution time by 50%.
-A similar run, this time with IPC_SET, reduces the execution time from 3 mins and
-35 secs to 27 seconds.
-
-Patches 1-8: replaces blindly taking the ipc lock for a smarter combination
-of rcu and ipc_obtain_object, only acquiring the spinlock when updating.
-
-Patch 9: renames the ids rw_mutex to rwsem, which is what it already was.
-
-Patch 10: is a trivial mqueue leftover cleanup
-
-Patch 11: adds a brief lock scheme description, requested by Andrew.
-
-This patchset applies on top of linux-next (3.10.0-rc6-next-20130618).
-
-Davidlohr Bueso (11):
-  ipc,shm: introduce lockless functions to obtain the ipc object
-  ipc,shm: shorten critical region in shmctl_down
-  ipc: drop ipcctl_pre_down
-  ipc,shm: introduce shmctl_nolock
-  ipc,shm: make shmctl_nolock lockless
-  ipc,shm: shorten critical region for shmctl
-  ipc,shm: cleanup do_shmat pasta
-  ipc,shm: shorten critical region for shmat
-  ipc: rename ids->rw_mutex
-  ipc,msg: drop msg_unlock
-  ipc: document general ipc locking scheme
-
- include/linux/ipc_namespace.h |   2 +-
- ipc/msg.c                     |  25 +++--
- ipc/namespace.c               |   4 +-
- ipc/sem.c                     |  24 ++---
- ipc/shm.c                     | 239 ++++++++++++++++++++++++++----------------
- ipc/util.c                    |  57 +++++-----
- ipc/util.h                    |   7 +-
- 7 files changed, 199 insertions(+), 159 deletions(-)
-
+diff --git a/ipc/shm.c b/ipc/shm.c
+index c6b4ad5..216ae72 100644
+--- a/ipc/shm.c
++++ b/ipc/shm.c
+@@ -124,6 +124,26 @@ void __init shm_init (void)
+ 				IPC_SHM_IDS, sysvipc_shm_proc_show);
+ }
+ 
++static inline struct shmid_kernel *shm_obtain_object(struct ipc_namespace *ns, int id)
++{
++	struct kern_ipc_perm *ipcp = ipc_obtain_object(&shm_ids(ns), id);
++
++	if (IS_ERR(ipcp))
++		return ERR_CAST(ipcp);
++
++	return container_of(ipcp, struct shmid_kernel, shm_perm);
++}
++
++static inline struct shmid_kernel *shm_obtain_object_check(struct ipc_namespace *ns, int id)
++{
++	struct kern_ipc_perm *ipcp = ipc_obtain_object_check(&shm_ids(ns), id);
++
++	if (IS_ERR(ipcp))
++		return ERR_CAST(ipcp);
++
++	return container_of(ipcp, struct shmid_kernel, shm_perm);
++}
++
+ /*
+  * shm_lock_(check_) routines are called in the paths where the rw_mutex
+  * is not necessarily held.
 -- 
 1.7.11.7
 
