@@ -1,109 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id B04B56B0033
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 09:29:13 -0400 (EDT)
-Received: by mail-la0-f51.google.com with SMTP id fq12so4625700lab.10
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2013 06:29:11 -0700 (PDT)
-Date: Wed, 19 Jun 2013 17:29:06 +0400
-From: Glauber Costa <glommer@gmail.com>
-Subject: Re: [PATCH v11 25/25] list_lru: dynamically adjust node arrays
-Message-ID: <20130619132904.GA4031@localhost.localdomain>
-References: <1370550898-26711-1-git-send-email-glommer@openvz.org>
- <1370550898-26711-26-git-send-email-glommer@openvz.org>
- <1371548521.2984.6.camel@ThinkPad-T5421>
- <20130619073154.GA1990@localhost.localdomain>
- <1371633148.2984.18.camel@ThinkPad-T5421>
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 0A0206B0033
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 09:57:18 -0400 (EDT)
+Date: Wed, 19 Jun 2013 15:57:16 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: linux-next: slab shrinkers: BUG at mm/list_lru.c:92
+Message-ID: <20130619135716.GA21014@dhcp22.suse.cz>
+References: <20130617141822.GF5018@dhcp22.suse.cz>
+ <20130617151403.GA25172@localhost.localdomain>
+ <20130617143508.7417f1ac9ecd15d8b2877f76@linux-foundation.org>
+ <20130617223004.GB2538@localhost.localdomain>
+ <20130618062623.GA20528@localhost.localdomain>
+ <20130619071346.GA9545@dhcp22.suse.cz>
+ <20130619073526.GB1990@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1371633148.2984.18.camel@ThinkPad-T5421>
+In-Reply-To: <20130619073526.GB1990@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Zhong <lizhongfs@gmail.com>
-Cc: Glauber Costa <glommer@openvz.org>, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, mgorman@suse.de, david@fromorbit.com, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suze.cz, hannes@cmpxchg.org, hughd@google.com, gthelen@google.com, Dave Chinner <dchinner@redhat.com>
+To: Glauber Costa <glommer@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Jun 19, 2013 at 05:12:28PM +0800, Li Zhong wrote:
-> On Wed, 2013-06-19 at 11:31 +0400, Glauber Costa wrote:
-> > On Tue, Jun 18, 2013 at 05:42:01PM +0800, Li Zhong wrote:
-> > > On Fri, 2013-06-07 at 00:34 +0400, Glauber Costa wrote:
-> >  > 
-> > > > diff --git a/fs/super.c b/fs/super.c
-> > > > index 85a6104..1b6ef7b 100644
-> > > > --- a/fs/super.c
-> > > > +++ b/fs/super.c
-> > > > @@ -199,8 +199,12 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
-> > > >  		INIT_HLIST_NODE(&s->s_instances);
-> > > >  		INIT_HLIST_BL_HEAD(&s->s_anon);
-> > > >  		INIT_LIST_HEAD(&s->s_inodes);
-> > > > -		list_lru_init(&s->s_dentry_lru);
-> > > > -		list_lru_init(&s->s_inode_lru);
-> > > > +
-> > > > +		if (list_lru_init(&s->s_dentry_lru))
-> > > > +			goto err_out;
-> > > > +		if (list_lru_init(&s->s_inode_lru))
-> > > > +			goto err_out_dentry_lru;
-> > > > +
-> > > >  		INIT_LIST_HEAD(&s->s_mounts);
-> > > >  		init_rwsem(&s->s_umount);
-> > > >  		lockdep_set_class(&s->s_umount, &type->s_umount_key);
-> > > > @@ -240,6 +244,9 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
-> > > >  	}
-> > > >  out:
-> > > >  	return s;
-> > > > +
-> > > > +err_out_dentry_lru:
-> > > > +	list_lru_destroy(&s->s_dentry_lru);
-> > > >  err_out:
-> > > >  	security_sb_free(s);
-> > > >  #ifdef CONFIG_SMP
-> > > 
-> > > It seems we also need to call list_lru_destroy() in destroy_super()? 
-> > > like below:
-> > >  
-> > > -----------
-> > > diff --git a/fs/super.c b/fs/super.c
-> > > index b79e732..06ee3af 100644
-> > > --- a/fs/super.c
-> > > +++ b/fs/super.c
-> > > @@ -269,6 +269,8 @@ err_out:
-> > >   */
-> > >  static inline void destroy_super(struct super_block *s)
-> > >  {
-> > > +	list_lru_destroy(&s->s_inode_lru);
-> > > +	list_lru_destroy(&s->s_dentry_lru);
-> > >  #ifdef CONFIG_SMP
-> > >  	free_percpu(s->s_files);
-> > >  #endif
-> > 
-> > Hi
-> > 
-> > Thanks for taking a look at this.
-> > 
-> > list_lru_destroy is called by deactivate_lock_super, so we should be fine already.
+On Wed 19-06-13 11:35:27, Glauber Costa wrote:
+[...]
+> Sorry if you said that before Michal.
 > 
-> Sorry, I'm a little confused...
+> But given the backtrace, are you sure this is LRU-related?
+
+No idea. I just know that my mm tree behaves correctly after the whole
+series has been reverted (58f6e0c8fb37e8e37d5ac17a61a53ac236c15047) and
+before the latest version of the patchset has been applied.
+
+> You mentioned you bisected it but found nothing conclusive.
+
+Yes, but I was interested in crashes and not hangs so I will try it
+again.
+
+I really hope this is not just some stupidness in my tree.
+
+> I will keep looking but maybe this could benefit from
+> a broader fs look
 > 
-> I didn't see list_lru_destroy() called in deactivate_locked_super().
-> Maybe I missed something? 
+> In any case, the patch we suggested is obviously correct and we should
+> apply nevertheless.  I will write it down and send it to Andrew.
 
-Err... the code in my tree reads:
+OK, feel free to stick my Tested-by there.
 
-        unregister_shrinker(&s->s_shrink);
-        list_lru_destroy(&s->s_dentry_lru);
-        list_lru_destroy(&s->s_inode_lru);
-        put_filesystem(fs);
-        put_super(s);
-
-But then I have just checked Andrew's, and it is not there - thank you.
-
-Andrew, should I send a patch for you to fold it ?
-
-
-> 
-> But it seems other memory allocated in alloc_super(), are freed in
-> destroy_super(), e.g. ->s_files, why don't we also free this one here? 
-Because we want this close to unregister_shrinker, it is a more natural
-location for this.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
