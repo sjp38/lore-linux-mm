@@ -1,91 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 989646B0038
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 05:32:15 -0400 (EDT)
-Date: Wed, 19 Jun 2013 04:32:13 -0500
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [PATCH v2] Make transparent hugepages cpuset aware
-Message-ID: <20130619093212.GX3658@sgi.com>
-References: <1370967244-5610-1-git-send-email-athorlton@sgi.com>
- <alpine.DEB.2.02.1306111517200.6141@chino.kir.corp.google.com>
- <20130618164537.GJ16067@sgi.com>
- <alpine.DEB.2.02.1306181654350.4503@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 173346B0033
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 05:57:25 -0400 (EDT)
+Message-ID: <51C18051.8070404@asianux.com>
+Date: Wed, 19 Jun 2013 17:56:33 +0800
+From: Chen Gang <gang.chen@asianux.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1306181654350.4503@chino.kir.corp.google.com>
+Subject: Re: [PATCH] mm/vmscan.c: 'lru' may be used without initialized after
+ the patch "3abf380..." in next-20130607 tree
+References: <51C155D1.3090304@asianux.com> <20130619085315.GK1875@suse.de>
+In-Reply-To: <20130619085315.GK1875@suse.de>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Alex Thorlton <athorlton@sgi.com>, linux-kernel@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, linux-doc@vger.kernel.org, linux-mm@kvack.org, Robin Holt <holt@sgi.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: hannes@cmpxchg.org, riel@redhat.com, mhocko@suse.cz, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Tue, Jun 18, 2013 at 05:01:23PM -0700, David Rientjes wrote:
-> On Tue, 18 Jun 2013, Alex Thorlton wrote:
+On 06/19/2013 04:53 PM, Mel Gorman wrote:
+> On Wed, Jun 19, 2013 at 02:55:13PM +0800, Chen Gang wrote:
+>> > 
+>> > 'lru' may be used without initialized, so need regressing part of the
+>> > related patch.
+>> > 
+>> > The related patch:
+>> >   "3abf380 mm: remove lru parameter from __lru_cache_add and lru_cache_add_lru"
+>> > 
+>> > 
+>> > Signed-off-by: Chen Gang <gang.chen@asianux.com>
+>> > ---
+>> >  mm/vmscan.c |    1 +
+>> >  1 files changed, 1 insertions(+), 0 deletions(-)
+>> > 
+>> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> > index fe73724..e92b1858 100644
+>> > --- a/mm/vmscan.c
+>> > +++ b/mm/vmscan.c
+>> > @@ -595,6 +595,7 @@ redo:
+>> >  		 * unevictable page on [in]active list.
+>> >  		 * We know how to handle that.
+>> >  		 */
+>> > +		lru = !!TestClearPageActive(page) + page_lru_base_type(page);
+>> >  		lru_cache_add(page);
+> Thanks for catching this but I have one question. Why are you clearing
+> the active bit?
 > 
-> > Thanks for your input, however, I believe the method of using a malloc
-> > hook falls apart when it comes to static binaries, since we wont' have
-> > any shared libraries to hook into.  Although using a malloc hook is a
-> > perfectly suitable solution for most cases, we're looking to implement a
-> > solution that can be used in all situations.
-> > 
+
+Oh, it is my fault, I only want to regress part of the original patch,
+did not notice clearing the active bit.
+
+
+> Before 3abf380 we did
 > 
-> I guess the question would be why you don't want your malloc memory backed 
-> by thp pages for certain static binaries and not others?  Is it because of 
-> an increased rss due to khugepaged collapsing memory because of its 
-> default max_ptes_none value?
+> active = TestClearPageActive(page);
+> lru = active + page_lru_base_type(page);
+> lru_cache_add_lru(page, lru);
 > 
-> > Aside from that particular shortcoming of the malloc hook solution,
-> > there are some other situations having a cpuset-based option is a
-> > much simpler and more efficient solution than the alternatives.
+> so if the page was active before then it gets added to the active list. When
+> 3abf380 is applied. it becomes.
 > 
-> Sure, but why should this be a cpuset based solution?  What is special 
-> about cpusets that make certain statically allocated binaries not want 
-> memory backed by thp while others do?  This still seems based solely on 
-> convenience instead of any hard requirement.
-
-The convenience being that many batch schedulers have added cpuset
-support.  They create the cpuset's and configure them as appropriate
-for the job as determined by a mixture of input from the submitting
-user but still under the control of the administrator.  That seems like
-a fairly significant convenience given that it took years to get the
-batch schedulers to adopt cpusets in the first place.  At this point,
-expanding their use of cpusets is under the control of the system
-administrator and would not require any additional development on
-the batch scheduler developers part.
-
-> > One
-> > such situation that comes to mind would be an environment where a batch
-> > scheduler is in use to ration system resources.  If an administrator
-> > determines that a users jobs run more efficiently with thp always on,
-> > the administrator can simply set the users jobs to always run with that
-> > setting, instead of having to coordinate with that user to get them to
-> > run their jobs in a different way.  I feel that, for cases such as this,
-> > the this additional flag is in line with the other capabilities that
-> > cgroups and cpusets provide.
-> > 
+> Leave PageActive alone
+> lru_cache_add(page);
+> .... until __pagevec_lru_add -> __pagevec_lru_add_fn
+> int file = page_is_file_cache(page);
+> int active = PageActive(page);
+> enum lru_list lru = page_lru(page);
 > 
-> That sounds like a memcg, i.e. container, type of an issue, not a cpuset 
-> issue which is more geared toward NUMA optimizations.  User jobs should 
-> always run more efficiently with thp always on, the worst-case scenario 
-> should be if they run with the same performance as thp set to never.  In 
-> other words, there shouldn't be any regression that requires certain 
-> cpusets to disable thp because of a performance regression.  If there are 
-> any, we'd like to investigate that separately from this patch.
+> After your patch it's
+> 
+> Clear PageActive
+> lru_cache_add(page)
+> ......
+> always add to inactive list
+> 
+> I do not think you intended to do this and if you did, it deserves far
+> more comment than being a compile warning fix. In putback_lru_page we only
+> care about whether the lru was unevictable or not. Hence I think what you
+> meant to do was simply
+> 
+> 	lru = page_lru_base_type(page);
+> 
+> If you agree then can you resend a revised version to Andrew please?
 
-Here are the entries in the cpuset:
-cgroup.event_control  mem_exclusive    memory_pressure_enabled  notify_on_release         tasks
-cgroup.procs          mem_hardwall     memory_spread_page       release_agent
-cpu_exclusive         memory_migrate   memory_spread_slab       sched_load_balance
-cpus                  memory_pressure  mems                     sched_relax_domain_level
+Yes, I should do, but excuse me, I do not quite know about 'revised
+version'.
 
-There are scheduler, slab allocator, page_cache layout, etc controls.
-Why _NOT_ add a thp control to that nicely contained central location?
-It is a concise set of controls for the job.
+I guess it means I need still send the related patch which base on the
+original one, e.g. for next-20130618:
 
-Maybe I am misunderstanding.  Are you saying you want to put memcg
-information into the cpuset or something like that?
+------------------------diff begin-------------------------------------
 
-Robin
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index fe73724..d03facb 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -595,6 +595,7 @@ redo:
+ 		 * unevictable page on [in]active list.
+ 		 * We know how to handle that.
+ 		 */
++		lru = page_lru_base_type(page);
+ 		lru_cache_add(page);
+ 	} else {
+ 		/*
+
+------------------------diff end---------------------------------------
+
+Is it correct ?
+
+
+Thanks.
+-- 
+Chen Gang
+
+Asianux Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
