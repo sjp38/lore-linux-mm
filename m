@@ -1,69 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id CB4506B0037
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 11:00:42 -0400 (EDT)
-Received: from /spool/local
-	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Wed, 19 Jun 2013 11:00:41 -0400
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 8962CC90041
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 11:00:36 -0400 (EDT)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5JExYln236886
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 10:59:34 -0400
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5JF1egW006120
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 09:01:41 -0600
-Date: Wed, 19 Jun 2013 07:59:07 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: vmstat kthreads
-Message-ID: <20130619145906.GB5146@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20130618152302.GA10702@linux.vnet.ibm.com>
- <0000013f58656ee7-8bb24ac4-72fa-4c0b-b888-7c056f261b6e-000000@email.amazonses.com>
- <20130618182616.GT5146@linux.vnet.ibm.com>
- <0000013f5cd1c54a-31d71292-c227-4f84-925d-75407a687824-000000@email.amazonses.com>
- <CAOtvUMc5w3zNe8ed6qX0OOM__3F_hOTqvFa1AkdXF0PHvzGZqg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAOtvUMc5w3zNe8ed6qX0OOM__3F_hOTqvFa1AkdXF0PHvzGZqg@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 721506B0037
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 11:18:57 -0400 (EDT)
+Message-ID: <1371655111.22206.29.camel@misato.fc.hp.com>
+Subject: Re: [Part3 PATCH v2 0/4] Support hot-remove local pagetable pages.
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Wed, 19 Jun 2013 09:18:31 -0600
+In-Reply-To: <51C15DC2.3030501@cn.fujitsu.com>
+References: <1371128636-9027-1-git-send-email-tangchen@cn.fujitsu.com>
+	 <20130618170515.GC4553@dhcp-192-168-178-175.profitbricks.localdomain>
+	 <51C15DC2.3030501@cn.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben-Yossef <gilad@benyossef.com>
-Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, ghaskins@londonstockexchange.com, niv@us.ibm.com, kravetz@us.ibm.com, Frederic Weisbecker <fweisbec@gmail.com>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, yinghai@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Jun 19, 2013 at 05:50:46PM +0300, Gilad Ben-Yossef wrote:
-> On Wed, Jun 19, 2013 at 5:23 PM, Christoph Lameter <cl@linux.com> wrote:
-> > On Tue, 18 Jun 2013, Paul E. McKenney wrote:
+On Wed, 2013-06-19 at 15:29 +0800, Tang Chen wrote:
+> Hi Vasilis, Yinghai,
+> 
+> On 06/19/2013 01:05 AM, Vasilis Liaskovitis wrote:
+> ......
 > >
-> >> > Gilad Ben-Yossef has been posting patches that address this issue in Feb
-> >> > 2012. Ccing him. Can we see your latest work, Gilead?
-> >>
-> >> Is it this one?
-> >>
-> >> https://lkml.org/lkml/2012/5/3/269
-> >
-> > Yes that is it. Maybe the scheme there could be generalized so that other
-> > subsystems can also use this to disable their threads if nothing is going
-> > on? Or integrate the monitoring into the notick logic somehow?
+> > This could be a design problem of part3: if we allow local pagetable memory
+> > to not be offlined but allow the offlining to return successfully, then
+> > hot-remove is going to succeed. But the direct mapped pagetable pages are still
+> > mapped in the kernel. The hot-removed memblocks will suddenly disappear (think
+> > physical DIMMs getting disabled in real hardware, or in a VM case the
+> > corresponding guest memory getting freed from the emulator e.g. qemu/kvm). The
+> > system can crash as a result.
 > >
 > 
-> I respinned the original patch based on feedback from Christoph for
-> 3.2 and even did some light testing then, but got distracted and never
-> posted the result.
+> Yes. Since the pagetable pages is only allocated to local node, a node may
+> have more than one device, hot-remove only one memory device could be
+> problematic.
 > 
-> I've just ported them over to 3.10 and they merge (with a small fix
-> due to deferred workqueue API changes) and build. I did not try to run
-> this version though.
-> I'll post them as replies to this message.
+> But I think it will work if we hot-remove a whole node. I should have
+> mentioned it. And sorry for the not fully test.
 > 
-> I'd be happy to rescue them from the "TODO" pile... :-)
+> I think allocating pagetable pages to local device will resolve this problem.
+> And need to restructure this patch-set.
+> 
+> > I think these local pagetables do need to be unmapped from kernel, offlined and
+> > removed somehow - otherwise hot-remove should fail. Could they be migrated
+> > alternatively e.g. to node 0 memory?  But Iiuc direct mapped pages cannot be
+> > migrated, correct?
+> 
+> I think we have unmapped the local pagetables. in functions
+> free_pud/pmd/pte_table(), we cleared pud, pmd, and pte. We just didn't
+> free the pagetable pages to buddy.
+> 
+> But when we are not hot-removing the whole node, it is still problematic.
+> This is true, and it is my design problem.
+> 
+> >
+> > What is the original reason for local node pagetable allocation with regards
+> > to memory hotplug? I assume we want to have hotplugged nodes use only their local
+> > memory, so that there are no inter-node memory dependencies for hot-add/remove.
+> > Are there other reasons that I am missing?
+> 
+> I think the original reason to do local node pagetable is to improve 
+> performance.
+> Using local pagetable, vmemmap and so on will be faster.
+> 
+> But actually I think there is no particular reason to implement memory hot-remove
+> and local node pagetable at the same time. And before this patch-set, I also
+> suggested once that implement memory hot-remove first, and then improve it to
+> local pagetable. But Yinghai has done the local pagetable work in has 
+> patches (part1).
+> And my work is based on his patches. So I just did it.
+> 
+> But obviously it is more complicated than I thought.
+> 
+> And now, it seems tj has some more thinking on part1.
+> 
+> So how about the following plan:
+> 1. Implement arranging hotpluggable memory with SRAT first, without 
+> local pagetable.
+>     (The main work in part2. And of course, need some patches in part1.)
+> 2. Do the local device pagetable work, not local node.
+> 3. Improve memory hotplug to support local device pagetable.
 
-Please!  ;-)
+Sounds like a good plan.  Thanks Tang!
+-Toshi
 
-							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
