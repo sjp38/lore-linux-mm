@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id B2AC06B0038
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 21:18:51 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id E5A9B6B0039
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 21:18:52 -0400 (EDT)
 From: Davidlohr Bueso <davidlohr.bueso@hp.com>
-Subject: [PATCH 03/11] ipc: drop ipcctl_pre_down
-Date: Tue, 18 Jun 2013 18:18:28 -0700
-Message-Id: <1371604716-3439-4-git-send-email-davidlohr.bueso@hp.com>
+Subject: [PATCH 04/11] ipc,shm: introduce shmctl_nolock
+Date: Tue, 18 Jun 2013 18:18:29 -0700
+Message-Id: <1371604716-3439-5-git-send-email-davidlohr.bueso@hp.com>
 In-Reply-To: <1371604716-3439-1-git-send-email-davidlohr.bueso@hp.com>
 References: <1371604716-3439-1-git-send-email-davidlohr.bueso@hp.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,71 +13,109 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Davidlohr Bueso <davidlohr.bueso@hp.com>
 
-Now that sem, msgque and shm, through *_down(), all use the lockless
-variant of ipcctl_pre_down(), go ahead and delete it.
+Similar to semctl and msgctl, when calling msgctl, the *_INFO and *_STAT commands
+can be performed without acquiring the ipc object.
+
+Add a shmctl_nolock() function and move the logic of *_INFO and *_STAT out of
+msgctl(). Since we are just moving functionality, this change still takes the
+lock and it will be properly lockless in the next patch.
 
 Signed-off-by: Davidlohr Bueso <davidlohr.bueso@hp.com>
 ---
- ipc/util.c | 21 ++-------------------
- ipc/util.h |  3 ---
- 2 files changed, 2 insertions(+), 22 deletions(-)
+ ipc/shm.c | 57 +++++++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 39 insertions(+), 18 deletions(-)
 
-diff --git a/ipc/util.c b/ipc/util.c
-index a0c139f..1893667 100644
---- a/ipc/util.c
-+++ b/ipc/util.c
-@@ -746,26 +746,10 @@ int ipc_update_perm(struct ipc64_perm *in, struct kern_ipc_perm *out)
-  * It must be called without any lock held and
-  *  - retrieves the ipc with the given id in the given table.
-  *  - performs some audit and permission check, depending on the given cmd
-- *  - returns the ipc with the ipc lock held in case of success
-- *    or an err-code without any lock held otherwise.
-+ *  - returns a pointer to the ipc object or otherwise, the corresponding error.
-  *
-  * Call holding the both the rw_mutex and the rcu read lock.
-  */
--struct kern_ipc_perm *ipcctl_pre_down(struct ipc_namespace *ns,
--				      struct ipc_ids *ids, int id, int cmd,
--				      struct ipc64_perm *perm, int extra_perm)
--{
--	struct kern_ipc_perm *ipcp;
--
--	ipcp = ipcctl_pre_down_nolock(ns, ids, id, cmd, perm, extra_perm);
--	if (IS_ERR(ipcp))
+diff --git a/ipc/shm.c b/ipc/shm.c
+index 22cffd7..3e12398 100644
+--- a/ipc/shm.c
++++ b/ipc/shm.c
+@@ -820,29 +820,24 @@ out_up:
+ 	return err;
+ }
+ 
+-SYSCALL_DEFINE3(shmctl, int, shmid, int, cmd, struct shmid_ds __user *, buf)
++static int shmctl_nolock(struct ipc_namespace *ns, int shmid,
++			 int cmd, int version, void __user *buf)
+ {
++	int err;
+ 	struct shmid_kernel *shp;
+-	int err, version;
+-	struct ipc_namespace *ns;
+ 
+-	if (cmd < 0 || shmid < 0) {
+-		err = -EINVAL;
 -		goto out;
++	/* preliminary security checks for *_INFO */
++	if (cmd == IPC_INFO || cmd == SHM_INFO) {
++		err = security_shm_shmctl(NULL, cmd);
++		if (err)
++			return err;
+ 	}
+ 
+-	version = ipc_parse_version(&cmd);
+-	ns = current->nsproxy->ipc_ns;
 -
--	spin_lock(&ipcp->lock);
--out:
--	return ipcp;
--}
+-	switch (cmd) { /* replace with proc interface ? */
++	switch (cmd) {
+ 	case IPC_INFO:
+ 	{
+ 		struct shminfo64 shminfo;
+ 
+-		err = security_shm_shmctl(NULL, cmd);
+-		if (err)
+-			return err;
 -
- struct kern_ipc_perm *ipcctl_pre_down_nolock(struct ipc_namespace *ns,
- 					     struct ipc_ids *ids, int id, int cmd,
- 					     struct ipc64_perm *perm, int extra_perm)
-@@ -782,8 +766,7 @@ struct kern_ipc_perm *ipcctl_pre_down_nolock(struct ipc_namespace *ns,
+ 		memset(&shminfo, 0, sizeof(shminfo));
+ 		shminfo.shmmni = shminfo.shmseg = ns->shm_ctlmni;
+ 		shminfo.shmmax = ns->shm_ctlmax;
+@@ -864,10 +859,6 @@ SYSCALL_DEFINE3(shmctl, int, shmid, int, cmd, struct shmid_ds __user *, buf)
+ 	{
+ 		struct shm_info shm_info;
  
- 	audit_ipc_obj(ipcp);
- 	if (cmd == IPC_SET)
--		audit_ipc_set_perm(extra_perm, perm->uid,
--				   perm->gid, perm->mode);
-+		audit_ipc_set_perm(extra_perm, perm->uid, perm->gid, perm->mode);
- 
- 	euid = current_euid();
- 	if (uid_eq(euid, ipcp->cuid) || uid_eq(euid, ipcp->uid)  ||
-diff --git a/ipc/util.h b/ipc/util.h
-index b6a6a88..41a6c4d 100644
---- a/ipc/util.h
-+++ b/ipc/util.h
-@@ -131,9 +131,6 @@ int ipc_update_perm(struct ipc64_perm *in, struct kern_ipc_perm *out);
- struct kern_ipc_perm *ipcctl_pre_down_nolock(struct ipc_namespace *ns,
- 					     struct ipc_ids *ids, int id, int cmd,
- 					     struct ipc64_perm *perm, int extra_perm);
--struct kern_ipc_perm *ipcctl_pre_down(struct ipc_namespace *ns,
--				      struct ipc_ids *ids, int id, int cmd,
--				      struct ipc64_perm *perm, int extra_perm);
- 
- #ifndef CONFIG_ARCH_WANT_IPC_PARSE_VERSION
-   /* On IA-64, we always use the "64-bit version" of the IPC structures.  */ 
+-		err = security_shm_shmctl(NULL, cmd);
+-		if (err)
+-			return err;
+-
+ 		memset(&shm_info, 0, sizeof(shm_info));
+ 		down_read(&shm_ids(ns).rw_mutex);
+ 		shm_info.used_ids = shm_ids(ns).in_use;
+@@ -928,6 +919,36 @@ SYSCALL_DEFINE3(shmctl, int, shmid, int, cmd, struct shmid_ds __user *, buf)
+ 			err = result;
+ 		goto out;
+ 	}
++	default:
++		return -EINVAL;
++	}
++
++out_unlock:
++	shm_unlock(shp);
++out:
++	return err;
++}
++
++SYSCALL_DEFINE3(shmctl, int, shmid, int, cmd, struct shmid_ds __user *, buf)
++{
++	struct shmid_kernel *shp;
++	int err, version;
++	struct ipc_namespace *ns;
++
++	if (cmd < 0 || shmid < 0) {
++		err = -EINVAL;
++		goto out;
++	}
++
++	version = ipc_parse_version(&cmd);
++	ns = current->nsproxy->ipc_ns;
++
++	switch (cmd) {
++	case IPC_INFO:
++	case SHM_INFO:
++	case SHM_STAT:
++	case IPC_STAT:
++		return shmctl_nolock(ns, shmid, cmd, version, buf);
+ 	case SHM_LOCK:
+ 	case SHM_UNLOCK:
+ 	{
 -- 
 1.7.11.7
 
