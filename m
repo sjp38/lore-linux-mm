@@ -1,68 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 1A98F6B0039
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 21:35:07 -0400 (EDT)
-Message-ID: <51C10A0D.9010804@cn.fujitsu.com>
-Date: Wed, 19 Jun 2013 09:31:57 +0800
-From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 47E536B0033
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 22:59:36 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 3CA193EE081
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 11:59:33 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D61A45DE52
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 11:59:33 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0CF7545DE4F
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 11:59:33 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id F0C1CE08002
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 11:59:32 +0900 (JST)
+Received: from g01jpfmpwkw01.exch.g01.fujitsu.local (g01jpfmpwkw01.exch.g01.fujitsu.local [10.0.193.38])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A36C31DB803E
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 11:59:32 +0900 (JST)
+Message-ID: <51C11E56.2090903@jp.fujitsu.com>
+Date: Wed, 19 Jun 2013 11:58:30 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 6/6] mm/pgtable: Don't accumulate addr during pgd prepopulate
- pmd
-References: <1371599563-6424-1-git-send-email-liwanp@linux.vnet.ibm.com> <1371599563-6424-6-git-send-email-liwanp@linux.vnet.ibm.com>
-In-Reply-To: <1371599563-6424-6-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: Re: [Part3 PATCH v2 0/4] Support hot-remove local pagetable pages.
+References: <1371128636-9027-1-git-send-email-tangchen@cn.fujitsu.com>  <20130618170515.GC4553@dhcp-192-168-178-175.profitbricks.localdomain> <1371599989.22206.6.camel@misato.fc.hp.com>
+In-Reply-To: <1371599989.22206.6.camel@misato.fc.hp.com>
+Content-Type: text/plain; charset="UTF-8"; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Fengguang Wu <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Andrew Shewmaker <agshew@gmail.com>, Jiri Kosina <jkosina@suse.cz>, Namjae Jeon <linkinjeon@gmail.com>, Jan Kara <jack@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, Tang Chen <tangchen@cn.fujitsu.com>, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 06/19/2013 07:52 AM, Wanpeng Li wrote:
-> Changelog:
->  v2 - > v3:
->    * add Michal's Reviewed-by
-> 
-> The old codes accumulate addr to get right pmd, however,
-> currently pmds are preallocated and transfered as a parameter,
-> there is unnecessary to accumulate addr variable any more, this
-> patch remove it.
-> 
-> Reviewed-by: Michal Hocko <mhocko@suse.cz>
-> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+2013/06/19 8:59, Toshi Kani wrote:
+> On Tue, 2013-06-18 at 19:05 +0200, Vasilis Liaskovitis wrote:
+>> Hi,
+>>
+>> On Thu, Jun 13, 2013 at 09:03:52PM +0800, Tang Chen wrote:
+>>> The following patch-set from Yinghai allocates pagetables to local nodes.
+>>> v1: https://lkml.org/lkml/2013/3/7/642
+>>> v2: https://lkml.org/lkml/2013/3/10/47
+>>> v3: https://lkml.org/lkml/2013/4/4/639
+>>> v4: https://lkml.org/lkml/2013/4/11/829
+>>>
+>>> Since pagetable pages are used by the kernel, they cannot be offlined.
+>>> As a result, they cannot be hot-remove.
+>>>
+>>> This patch fix this problem with the following solution:
+>>>
+>>>       1.   Introduce a new bootmem type LOCAL_NODE_DATAL, and register local
+>>>            pagetable pages as LOCAL_NODE_DATAL by setting page->lru.next to
+>>>            LOCAL_NODE_DATAL, just like we register SECTION_INFO pages.
+>>>
+>>>       2.   Skip LOCAL_NODE_DATAL pages in offline/online procedures. When the
+>>>            whole memory block they reside in is offlined, the kernel can
+>>>            still access the pagetables.
+>>>            (This changes the semantics of offline/online a little bit.)
+>>
+>> This could be a design problem of part3: if we allow local pagetable memory
+>> to not be offlined but allow the offlining to return successfully, then
+>> hot-remove is going to succeed. But the direct mapped pagetable pages are still
+>> mapped in the kernel. The hot-removed memblocks will suddenly disappear (think
+>> physical DIMMs getting disabled in real hardware, or in a VM case the
+>> corresponding guest memory getting freed from the emulator e.g. qemu/kvm). The
+>> system can crash as a result.
+>>
+>> I think these local pagetables do need to be unmapped from kernel, offlined and
+>> removed somehow - otherwise hot-remove should fail. Could they be migrated
+>> alternatively e.g. to node 0 memory?  But Iiuc direct mapped pages cannot be
+>> migrated, correct?
+>>
+>> What is the original reason for local node pagetable allocation with regards
+>> to memory hotplug? I assume we want to have hotplugged nodes use only their local
+>> memory, so that there are no inter-node memory dependencies for hot-add/remove.
+>> Are there other reasons that I am missing?
+>
+> I second Vasilis.  The part1/2/3 series could be much simpler & less
+> riskier if we focus on the SRAT changes first, and make the local node
+> pagetable changes as a separate item.  Is there particular reason why
+> they have to be done at a same time?
 
-Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+If my understanding is correct:
+Main purpose of Yinghai's work is to put pagetable on local node ram.
+For this, he needs to know SRAT information before setting pagetable.
+So part1 does them same time.
 
-> ---
->  arch/x86/mm/pgtable.c |    4 +---
->  1 files changed, 1 insertions(+), 3 deletions(-)
-> 
-> diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-> index 17fda6a..dfa537a 100644
-> --- a/arch/x86/mm/pgtable.c
-> +++ b/arch/x86/mm/pgtable.c
-> @@ -240,7 +240,6 @@ static void pgd_mop_up_pmds(struct mm_struct *mm, pgd_t *pgdp)
->  static void pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd, pmd_t *pmds[])
->  {
->  	pud_t *pud;
-> -	unsigned long addr;
->  	int i;
->  
->  	if (PREALLOCATED_PMDS == 0) /* Work around gcc-3.4.x bug */
-> @@ -248,8 +247,7 @@ static void pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd, pmd_t *pmds[])
->  
->  	pud = pud_offset(pgd, 0);
->  
-> - 	for (addr = i = 0; i < PREALLOCATED_PMDS;
-> -	     i++, pud++, addr += PUD_SIZE) {
-> +	for (i = 0; i < PREALLOCATED_PMDS; i++, pud++) {
->  		pmd_t *pmd = pmds[i];
->  
->  		if (i >= KERNEL_PGD_BOUNDARY)
+Thanks,
+Yasuaki Ishimatsu
 
+>
+> Thanks,
+> -Toshi
+>
+>
 
--- 
-Thanks.
-Zhang Yanfei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
