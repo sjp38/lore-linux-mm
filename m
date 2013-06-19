@@ -1,184 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 7FE226B0034
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 16:03:02 -0400 (EDT)
-Received: by mail-wi0-f178.google.com with SMTP id k10so1029628wiv.11
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2013 13:03:00 -0700 (PDT)
-From: Gilad Ben-Yossef <gilad@benyossef.com>
-Subject: [PATCH v2 2/2] mm: add sysctl to pick vmstat monitor cpu
-Date: Wed, 19 Jun 2013 23:02:48 +0300
-Message-Id: <1371672168-9869-2-git-send-email-gilad@benyossef.com>
-In-Reply-To: <CAOtvUMc5w3zNe8ed6qX0OOM__3F_hOTqvFa1AkdXF0PHvzGZqg@mail.gmail.com>
-References: <CAOtvUMc5w3zNe8ed6qX0OOM__3F_hOTqvFa1AkdXF0PHvzGZqg@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 95C576B0033
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 16:18:19 -0400 (EDT)
+Date: Wed, 19 Jun 2013 20:18:18 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: vmstat kthreads
+In-Reply-To: <20130619145906.GB5146@linux.vnet.ibm.com>
+Message-ID: <0000013f5e167883-3b022396-6162-4079-b80d-789b797e5ecb-000000@email.amazonses.com>
+References: <20130618152302.GA10702@linux.vnet.ibm.com> <0000013f58656ee7-8bb24ac4-72fa-4c0b-b888-7c056f261b6e-000000@email.amazonses.com> <20130618182616.GT5146@linux.vnet.ibm.com> <0000013f5cd1c54a-31d71292-c227-4f84-925d-75407a687824-000000@email.amazonses.com>
+ <CAOtvUMc5w3zNe8ed6qX0OOM__3F_hOTqvFa1AkdXF0PHvzGZqg@mail.gmail.com> <20130619145906.GB5146@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: paulmck@linux.vnet.ibm.com
-Cc: Gilad Ben-Yossef <gilad@benyossef.com>, Christoph Lameter <cl@linux.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Gilad Ben-Yossef <gilad@benyossef.com>, linux-mm@kvack.org, ghaskins@londonstockexchange.com, niv@us.ibm.com, kravetz@us.ibm.com, Frederic Weisbecker <fweisbec@gmail.com>
 
-Add a sysctl knob to enable admin to hand pick the scapegoat cpu
-that will perform the extra work of preiodically checking for
-new VM activity on CPUs that have switched off their vmstat_update
-work item schedling.
+On Wed, 19 Jun 2013, Paul E. McKenney wrote:
 
-Signed-off-by: Gilad Ben-Yossef <gilad@benyossef.com>
-CC: Christoph Lameter <cl@linux.com>
-CC: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-CC: linux-kernel@vger.kernel.org
-CC: linux-mm@kvack.org
+> > I've just ported them over to 3.10 and they merge (with a small fix
+> > due to deferred workqueue API changes) and build. I did not try to run
+> > this version though.
+> > I'll post them as replies to this message.
+> >
+> > I'd be happy to rescue them from the "TODO" pile... :-)
+>
+> Please!  ;-)
 
----
- include/linux/vmstat.h |    1 +
- kernel/sysctl.c        |    7 ++++
- mm/vmstat.c            |   72 ++++++++++++++++++++++++++++++++++++++++++++----
- 3 files changed, 74 insertions(+), 6 deletions(-)
+Well if we are going into vmstat mods then I'd also like to throw in this
+old patch:
 
-diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-index a30ab79..470f1d0 100644
---- a/include/linux/vmstat.h
-+++ b/include/linux/vmstat.h
-@@ -9,6 +9,7 @@
- #include <linux/atomic.h>
- 
- extern int sysctl_stat_interval;
-+extern int sysctl_vmstat_monitor_cpu;
- 
- #ifdef CONFIG_VM_EVENT_COUNTERS
- /*
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 9edcf45..58c889e 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -1361,6 +1361,13 @@ static struct ctl_table vm_table[] = {
- 		.mode		= 0644,
- 		.proc_handler	= proc_dointvec_jiffies,
- 	},
-+	{
-+		.procname	= "stat_monitor_cpu",
-+		.data		= &sysctl_vmstat_monitor_cpu,
-+		.maxlen		= sizeof(sysctl_vmstat_monitor_cpu),
-+		.mode		= 0644,
-+		.proc_handler	= proc_dointvec,
-+	},
- #endif
- #ifdef CONFIG_MMU
- 	{
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 6143c70..767412e 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1187,7 +1187,7 @@ static const struct file_operations proc_vmstat_file_operations = {
- static DEFINE_PER_CPU(struct delayed_work, vmstat_work);
- int sysctl_stat_interval __read_mostly = HZ;
- static struct cpumask vmstat_cpus;
--static int vmstat_monitor_cpu __read_mostly = VMSTAT_NO_CPU;
-+int sysctl_vmstat_monitor_cpu __read_mostly = VMSTAT_NO_CPU;
- 
- static inline bool need_vmstat(int cpu)
- {
-@@ -1232,12 +1232,13 @@ static void vmstat_update(struct work_struct *w)
- {
- 	int cpu, this_cpu = smp_processor_id();
- 
--	if (unlikely(this_cpu == vmstat_monitor_cpu))
-+	if (unlikely(this_cpu == sysctl_vmstat_monitor_cpu))
- 		for_each_cpu_not(cpu, &vmstat_cpus)
- 			if (need_vmstat(cpu))
- 				start_cpu_timer(cpu);
- 
--	if (likely(refresh_cpu_vm_stats(this_cpu) || (this_cpu == vmstat_monitor_cpu)))
-+	if (likely(refresh_cpu_vm_stats(this_cpu) ||
-+		(this_cpu == sysctl_vmstat_monitor_cpu)))
- 		schedule_delayed_work(&__get_cpu_var(vmstat_work),
- 				round_jiffies_relative(sysctl_stat_interval));
- 	else
-@@ -1266,9 +1267,9 @@ static int __cpuinit vmstat_cpuup_callback(struct notifier_block *nfb,
- 		if (cpumask_test_cpu(cpu, &vmstat_cpus)) {
- 			cancel_delayed_work_sync(&per_cpu(vmstat_work, cpu));
- 			per_cpu(vmstat_work, cpu).work.func = NULL;
--			if(cpu == vmstat_monitor_cpu) {
-+			if (cpu == sysctl_vmstat_monitor_cpu) {
- 				int this_cpu = smp_processor_id();
--				vmstat_monitor_cpu = this_cpu;
-+				sysctl_vmstat_monitor_cpu = this_cpu;
- 				if (!cpumask_test_cpu(this_cpu, &vmstat_cpus))
- 					start_cpu_timer(this_cpu);
- 			}
-@@ -1299,7 +1300,7 @@ static int __init setup_vmstat(void)
- 
- 	register_cpu_notifier(&vmstat_notifier);
- 
--	vmstat_monitor_cpu = smp_processor_id();
-+	sysctl_vmstat_monitor_cpu = smp_processor_id();
- 
- 	for_each_online_cpu(cpu)
- 		setup_cpu_timer(cpu);
-@@ -1474,5 +1475,64 @@ fail:
- 	return -ENOMEM;
- }
- 
-+#ifdef CONFIG_SYSCTL
-+/*
-+ * proc handler for /proc/sys/mm/stat_monitor_cpu
-+ *
-+ * Note that there is a harmless race condition here:
-+ * If you concurrently try to change the monitor CPU to
-+ * a new valid one and an invalid (offline) one at the
-+ * same time, you can get a success indication for the
-+ * valid one, a failure for the invalid one, but end up
-+ * with the old value. It's easily fixable but hardly
-+ * worth the added complexity.
-+ */
-+
-+int proc_monitor_cpu(struct ctl_table *table, int write,
-+			void __user *buffer, size_t *lenp, loff_t *ppos)
-+{
-+	int ret;
-+	int tmp;
-+
-+	/*
-+	 * We need to make sure the chosen and old monitor cpus don't
-+	 * go offline on us during the transition.
-+	 */
-+	get_online_cpus();
-+
-+	tmp = sysctl_vmstat_monitor_cpu;
-+
-+	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-+
-+	if (ret || !write)
-+		goto out;
-+
-+	/*
-+	 * An offline CPU is a bad choice for monitoring duty.
-+	 * Abort.
-+	 */
-+	if (!cpu_online(sysctl_vmstat_monitor_cpu)) {
-+		sysctl_vmstat_monitor_cpu = tmp;
-+		ret = -ERANGE;
-+		/*
-+		 * Note! we fall through here on purpose, since
-+		 * the old CPU monitor might have switched off
-+		 * its vmstat_update by this time.
-+		 */
-+	}
-+
-+	/*
-+	 * If the new monitor cpu had the vmstat_update off,
-+	 * bring it back on.
-+	 */
-+	if (!cpumask_test_cpu(sysctl_vmstat_monitor_cpu, &vmstat_cpus))
-+		start_cpu_timer(sysctl_vmstat_monitor_cpu);
-+
-+out:
-+	put_online_cpus();
-+	return ret;
-+}
-+#endif /* CONFIG_SYSCTL */
-+
- module_init(extfrag_debug_init);
- #endif
--- 
-1.7.0.4
+Subject: vmstat: Avoid interrupt disable in vm stats loop
+
+There is no need to disable interrupts if we use xchg().
+
+Signed-off-by: Christoph Lameter <cl@linux.com>
+
+Index: linux/mm/vmstat.c
+===================================================================
+--- linux.orig/mm/vmstat.c	2013-05-20 15:19:28.000000000 -0500
++++ linux/mm/vmstat.c	2013-06-19 10:09:09.954024071 -0500
+@@ -445,13 +445,8 @@ void refresh_cpu_vm_stats(int cpu)
+
+ 		for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
+ 			if (p->vm_stat_diff[i]) {
+-				unsigned long flags;
+-				int v;
++				int v = xchg(p->vm_stat_diff + i, 0);
+
+-				local_irq_save(flags);
+-				v = p->vm_stat_diff[i];
+-				p->vm_stat_diff[i] = 0;
+-				local_irq_restore(flags);
+ 				atomic_long_add(v, &zone->vm_stat[i]);
+ 				global_diff[i] += v;
+ #ifdef CONFIG_NUMA
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
