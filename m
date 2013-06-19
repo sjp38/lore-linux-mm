@@ -1,83 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 504846B0034
-	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 21:30:35 -0400 (EDT)
-Message-ID: <51C1097B.3060208@huawei.com>
-Date: Wed, 19 Jun 2013 09:29:31 +0800
-From: Li Zefan <lizefan@huawei.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 1A98F6B0039
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2013 21:35:07 -0400 (EDT)
+Message-ID: <51C10A0D.9010804@cn.fujitsu.com>
+Date: Wed, 19 Jun 2013 09:31:57 +0800
+From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 0/9] memcg: make memcg's life cycle the same as cgroup
-References: <51BA7794.2000305@huawei.com>
-In-Reply-To: <51BA7794.2000305@huawei.com>
-Content-Type: text/plain; charset="GB2312"
+Subject: Re: [PATCH v4 6/6] mm/pgtable: Don't accumulate addr during pgd prepopulate
+ pmd
+References: <1371599563-6424-1-git-send-email-liwanp@linux.vnet.ibm.com> <1371599563-6424-6-git-send-email-liwanp@linux.vnet.ibm.com>
+In-Reply-To: <1371599563-6424-6-git-send-email-liwanp@linux.vnet.ibm.com>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Fengguang Wu <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Andrew Shewmaker <agshew@gmail.com>, Jiri Kosina <jkosina@suse.cz>, Namjae Jeon <linkinjeon@gmail.com>, Jan Kara <jack@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Andrew, any chance for this patchset to be queued for 3.11?
+On 06/19/2013 07:52 AM, Wanpeng Li wrote:
+> Changelog:
+>  v2 - > v3:
+>    * add Michal's Reviewed-by
+> 
+> The old codes accumulate addr to get right pmd, however,
+> currently pmds are preallocated and transfered as a parameter,
+> there is unnecessary to accumulate addr variable any more, this
+> patch remove it.
+> 
+> Reviewed-by: Michal Hocko <mhocko@suse.cz>
+> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On 2013/6/14 9:53, Li Zefan wrote:
-> Hi Andrew,
+Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+
+> ---
+>  arch/x86/mm/pgtable.c |    4 +---
+>  1 files changed, 1 insertions(+), 3 deletions(-)
 > 
-> All the patches in this patchset has been acked by Michal and Kamezawa-san, and
-> it's ready to be merged into -mm.
-> 
-> I have another pending patchset that kills css_id, which depends on this one.
-> 
-> 
-> Changes since v3:
-> - rebased against mmotm 2013-06-06-16-19
-> - changed wmb() to smp_wmb() and moved it to memcg_kmem_mark_dead() and added
->   more comment.
-> 
-> Changes since v2:
-> 
-> - rebased against 3.10-rc1
-> - collected some acks
-> - the two memcg bug fixes has been merged into mainline
-> - the cgroup core patch has been merged into mainline
-> 
-> Changes since v1:
-> 
-> - wrote better changelog and added acked-by and reviewed-by tags
-> - revised some comments as suggested by Michal
-> - added a wmb() in kmem_cgroup_css_offline(), pointed out by Michal
-> - fixed a bug which causes a css_put() never be called
-> 
-> 
-> Now memcg has its own refcnt, so when a cgroup is destroyed, the memcg can
-> still be alive. This patchset converts memcg to always use css_get/put, so
-> memcg will have the same life cycle as its corresponding cgroup.
-> 
-> The historical reason that memcg didn't use css_get in some cases, is that
-> cgroup couldn't be removed if there're still css refs. The situation has
-> changed so that rmdir a cgroup will succeed regardless css refs, but won't
-> be freed until css refs goes down to 0.
-> 
-> Since the introduction of kmemcg, the memcg refcnt handling grows even more
-> complicated. This patchset greately simplifies memcg's life cycle management.
-> 
-> Also, after those changes, we can convert memcg to use cgroup->id, and then
-> we can kill css_id.
-> 
-> Li Zefan (7):
->   memcg: use css_get() in sock_update_memcg()
->   memcg: don't use mem_cgroup_get() when creating a kmemcg cache
->   memcg: use css_get/put when charging/uncharging kmem
->   memcg: use css_get/put for swap memcg
->   memcg: don't need to get a reference to the parent
->   memcg: kill memcg refcnt
->   memcg: don't need to free memcg via RCU or workqueue
-> 
-> Michal Hocko (2):
->   Revert "memcg: avoid dangling reference count in creation failure."
->   memcg, kmem: fix reference count handling on the error path
-> 
->  mm/memcontrol.c | 208 +++++++++++++++++++++-----------------------------------
->  1 file changed, 77 insertions(+), 131 deletions(-)
-> 
+> diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+> index 17fda6a..dfa537a 100644
+> --- a/arch/x86/mm/pgtable.c
+> +++ b/arch/x86/mm/pgtable.c
+> @@ -240,7 +240,6 @@ static void pgd_mop_up_pmds(struct mm_struct *mm, pgd_t *pgdp)
+>  static void pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd, pmd_t *pmds[])
+>  {
+>  	pud_t *pud;
+> -	unsigned long addr;
+>  	int i;
+>  
+>  	if (PREALLOCATED_PMDS == 0) /* Work around gcc-3.4.x bug */
+> @@ -248,8 +247,7 @@ static void pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd, pmd_t *pmds[])
+>  
+>  	pud = pud_offset(pgd, 0);
+>  
+> - 	for (addr = i = 0; i < PREALLOCATED_PMDS;
+> -	     i++, pud++, addr += PUD_SIZE) {
+> +	for (i = 0; i < PREALLOCATED_PMDS; i++, pud++) {
+>  		pmd_t *pmd = pmds[i];
+>  
+>  		if (i >= KERNEL_PGD_BOUNDARY)
+
+
+-- 
+Thanks.
+Zhang Yanfei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
