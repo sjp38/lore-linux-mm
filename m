@@ -1,32 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id DA9636B0033
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 10:23:40 -0400 (EDT)
-Date: Wed, 19 Jun 2013 14:23:39 +0000
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 8BBED6B0033
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 10:25:47 -0400 (EDT)
+Date: Wed, 19 Jun 2013 14:25:46 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: vmstat kthreads
-In-Reply-To: <20130618182616.GT5146@linux.vnet.ibm.com>
-Message-ID: <0000013f5cd1c54a-31d71292-c227-4f84-925d-75407a687824-000000@email.amazonses.com>
-References: <20130618152302.GA10702@linux.vnet.ibm.com> <0000013f58656ee7-8bb24ac4-72fa-4c0b-b888-7c056f261b6e-000000@email.amazonses.com> <20130618182616.GT5146@linux.vnet.ibm.com>
+Subject: Re: [PATCH] slub: do not put a slab to cpu partial list when
+ cpu_partial is 0
+In-Reply-To: <1371623635-26575-1-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <0000013f5cd3b621-8f7f97fb-f97e-4498-9e1e-40feaa7be0b7-000000@email.amazonses.com>
+References: <1371623635-26575-1-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: gilad@benyossef.com, linux-mm@kvack.org, ghaskins@londonstockexchange.com, niv@us.ibm.com, kravetz@us.ibm.com, Frederic Weisbecker <fweisbec@gmail.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 18 Jun 2013, Paul E. McKenney wrote:
+On Wed, 19 Jun 2013, Joonsoo Kim wrote:
 
-> > Gilad Ben-Yossef has been posting patches that address this issue in Feb
-> > 2012. Ccing him. Can we see your latest work, Gilead?
->
-> Is it this one?
->
-> https://lkml.org/lkml/2012/5/3/269
+> In free path, we don't check number of cpu_partial, so one slab can
+> be linked in cpu partial list even if cpu_partial is 0. To prevent this,
+> we should check number of cpu_partial in put_cpu_partial().
 
-Yes that is it. Maybe the scheme there could be generalized so that other
-subsystems can also use this to disable their threads if nothing is going
-on? Or integrate the monitoring into the notick logic somehow?
+Acked-by: Christoph Lameeter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
