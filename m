@@ -1,91 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id A9D7F6B0033
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 09:26:17 -0400 (EDT)
-Date: Wed, 19 Jun 2013 15:26:14 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH for 3.2] memcg: do not trap chargers with full callstack
- on OOM
-Message-ID: <20130619132614.GC16457@dhcp22.suse.cz>
-References: <20130208171012.GH7557@dhcp22.suse.cz>
- <20130208220243.EDEE0825@pobox.sk>
- <20130210150310.GA9504@dhcp22.suse.cz>
- <20130210174619.24F20488@pobox.sk>
- <20130211112240.GC19922@dhcp22.suse.cz>
- <20130222092332.4001E4B6@pobox.sk>
- <20130606160446.GE24115@dhcp22.suse.cz>
- <20130606181633.BCC3E02E@pobox.sk>
- <20130607131157.GF8117@dhcp22.suse.cz>
- <20130617122134.2E072BA8@pobox.sk>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id B04B56B0033
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 09:29:13 -0400 (EDT)
+Received: by mail-la0-f51.google.com with SMTP id fq12so4625700lab.10
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2013 06:29:11 -0700 (PDT)
+Date: Wed, 19 Jun 2013 17:29:06 +0400
+From: Glauber Costa <glommer@gmail.com>
+Subject: Re: [PATCH v11 25/25] list_lru: dynamically adjust node arrays
+Message-ID: <20130619132904.GA4031@localhost.localdomain>
+References: <1370550898-26711-1-git-send-email-glommer@openvz.org>
+ <1370550898-26711-26-git-send-email-glommer@openvz.org>
+ <1371548521.2984.6.camel@ThinkPad-T5421>
+ <20130619073154.GA1990@localhost.localdomain>
+ <1371633148.2984.18.camel@ThinkPad-T5421>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130617122134.2E072BA8@pobox.sk>
+In-Reply-To: <1371633148.2984.18.camel@ThinkPad-T5421>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: azurIt <azurit@pobox.sk>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Li Zhong <lizhongfs@gmail.com>
+Cc: Glauber Costa <glommer@openvz.org>, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, mgorman@suse.de, david@fromorbit.com, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suze.cz, hannes@cmpxchg.org, hughd@google.com, gthelen@google.com, Dave Chinner <dchinner@redhat.com>
 
-On Mon 17-06-13 12:21:34, azurIt wrote:
-> >Here we go. I hope I didn't screw anything (Johannes might double check)
-> >because there were quite some changes in the area since 3.2. Nothing
-> >earth shattering though. Please note that I have only compile tested
-> >this. Also make sure you remove the previous patches you have from me.
+On Wed, Jun 19, 2013 at 05:12:28PM +0800, Li Zhong wrote:
+> On Wed, 2013-06-19 at 11:31 +0400, Glauber Costa wrote:
+> > On Tue, Jun 18, 2013 at 05:42:01PM +0800, Li Zhong wrote:
+> > > On Fri, 2013-06-07 at 00:34 +0400, Glauber Costa wrote:
+> >  > 
+> > > > diff --git a/fs/super.c b/fs/super.c
+> > > > index 85a6104..1b6ef7b 100644
+> > > > --- a/fs/super.c
+> > > > +++ b/fs/super.c
+> > > > @@ -199,8 +199,12 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
+> > > >  		INIT_HLIST_NODE(&s->s_instances);
+> > > >  		INIT_HLIST_BL_HEAD(&s->s_anon);
+> > > >  		INIT_LIST_HEAD(&s->s_inodes);
+> > > > -		list_lru_init(&s->s_dentry_lru);
+> > > > -		list_lru_init(&s->s_inode_lru);
+> > > > +
+> > > > +		if (list_lru_init(&s->s_dentry_lru))
+> > > > +			goto err_out;
+> > > > +		if (list_lru_init(&s->s_inode_lru))
+> > > > +			goto err_out_dentry_lru;
+> > > > +
+> > > >  		INIT_LIST_HEAD(&s->s_mounts);
+> > > >  		init_rwsem(&s->s_umount);
+> > > >  		lockdep_set_class(&s->s_umount, &type->s_umount_key);
+> > > > @@ -240,6 +244,9 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
+> > > >  	}
+> > > >  out:
+> > > >  	return s;
+> > > > +
+> > > > +err_out_dentry_lru:
+> > > > +	list_lru_destroy(&s->s_dentry_lru);
+> > > >  err_out:
+> > > >  	security_sb_free(s);
+> > > >  #ifdef CONFIG_SMP
+> > > 
+> > > It seems we also need to call list_lru_destroy() in destroy_super()? 
+> > > like below:
+> > >  
+> > > -----------
+> > > diff --git a/fs/super.c b/fs/super.c
+> > > index b79e732..06ee3af 100644
+> > > --- a/fs/super.c
+> > > +++ b/fs/super.c
+> > > @@ -269,6 +269,8 @@ err_out:
+> > >   */
+> > >  static inline void destroy_super(struct super_block *s)
+> > >  {
+> > > +	list_lru_destroy(&s->s_inode_lru);
+> > > +	list_lru_destroy(&s->s_dentry_lru);
+> > >  #ifdef CONFIG_SMP
+> > >  	free_percpu(s->s_files);
+> > >  #endif
+> > 
+> > Hi
+> > 
+> > Thanks for taking a look at this.
+> > 
+> > list_lru_destroy is called by deactivate_lock_super, so we should be fine already.
 > 
+> Sorry, I'm a little confused...
 > 
-> Hi Michal,
+> I didn't see list_lru_destroy() called in deactivate_locked_super().
+> Maybe I missed something? 
+
+Err... the code in my tree reads:
+
+        unregister_shrinker(&s->s_shrink);
+        list_lru_destroy(&s->s_dentry_lru);
+        list_lru_destroy(&s->s_inode_lru);
+        put_filesystem(fs);
+        put_super(s);
+
+But then I have just checked Andrew's, and it is not there - thank you.
+
+Andrew, should I send a patch for you to fold it ?
+
+
 > 
-> it, unfortunately, didn't work. Everything was working fine but
-> original problem is still occuring. 
-
-This would be more than surprising because tasks blocked at memcg OOM
-don't hold any locks anymore. Maybe I have messed something up during
-backport but I cannot spot anything.
-
-> I'm unable to send you stacks or more info because problem is taking
-> down the whole server for some time now (don't know what exactly
-> caused it to start happening, maybe newer versions of 3.2.x).
-
-So you are not testing with the same kernel with just the old patch
-replaced by the new one?
-
-> But i'm sure of one thing - when problem occurs, nothing is able to
-> access hard drives (every process which tries it is freezed until
-> problem is resolved or server is rebooted).
-
-I would be really interesting to see what those tasks are blocked on.
-
-> Problem is fixed after killing processes from cgroup which
-> caused it and everything immediatelly starts to work normally. I
-> find this out by keeping terminal opened from another server to one
-> where my problem is occuring quite often and running several apps
-> there (htop, iotop, etc.). When problem occurs, all apps which wasn't
-> working with HDD was ok. The htop proved to be very usefull here
-> because it's only reading proc filesystem and is also able to send
-> KILL signals - i was able to resolve the problem with it
->   without rebooting the server.
-
-sysrq+t will give you the list of all tasks and their traces.
-
-> I created a special daemon (about month ago) which is able to detect
-> and fix the problem so i'm not having server outages now. The point
-> was to NOT access anything which is stored on HDDs, the daemon is
-> only reading info from cgroup filesystem and sending KILL signals to
-> processes. Maybe i should be able to also read stack files before
-> killing, i will try it.
-> 
-> Btw, which vanilla kernel includes this patch?
-
-None yet. But I hope it will be merged to 3.11 and backported to the
-stable trees.
- 
-> Thank you and everyone involved very much for time and help.
-> 
-> azur
-
--- 
-Michal Hocko
-SUSE Labs
+> But it seems other memory allocated in alloc_super(), are freed in
+> destroy_super(), e.g. ->s_files, why don't we also free this one here? 
+Because we want this close to unregister_shrinker, it is a more natural
+location for this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
