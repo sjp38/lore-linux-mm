@@ -1,106 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 27A376B0033
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 09:16:17 -0400 (EDT)
-Received: by mail-ea0-f175.google.com with SMTP id z7so3178502eaf.6
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2013 06:16:15 -0700 (PDT)
-Date: Wed, 19 Jun 2013 15:16:12 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: Performance regression from switching lock to rw-sem for
- anon-vma tree
-Message-ID: <20130619131611.GC24957@gmail.com>
-References: <1371165992.27102.573.camel@schen9-DESK>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id A9D7F6B0033
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 09:26:17 -0400 (EDT)
+Date: Wed, 19 Jun 2013 15:26:14 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH for 3.2] memcg: do not trap chargers with full callstack
+ on OOM
+Message-ID: <20130619132614.GC16457@dhcp22.suse.cz>
+References: <20130208171012.GH7557@dhcp22.suse.cz>
+ <20130208220243.EDEE0825@pobox.sk>
+ <20130210150310.GA9504@dhcp22.suse.cz>
+ <20130210174619.24F20488@pobox.sk>
+ <20130211112240.GC19922@dhcp22.suse.cz>
+ <20130222092332.4001E4B6@pobox.sk>
+ <20130606160446.GE24115@dhcp22.suse.cz>
+ <20130606181633.BCC3E02E@pobox.sk>
+ <20130607131157.GF8117@dhcp22.suse.cz>
+ <20130617122134.2E072BA8@pobox.sk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1371165992.27102.573.camel@schen9-DESK>
+In-Reply-To: <20130617122134.2E072BA8@pobox.sk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, "Shi, Alex" <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: azurIt <azurit@pobox.sk>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-
-* Tim Chen <tim.c.chen@linux.intel.com> wrote:
-
-> Ingo,
+On Mon 17-06-13 12:21:34, azurIt wrote:
+> >Here we go. I hope I didn't screw anything (Johannes might double check)
+> >because there were quite some changes in the area since 3.2. Nothing
+> >earth shattering though. Please note that I have only compile tested
+> >this. Also make sure you remove the previous patches you have from me.
 > 
-> At the time of switching the anon-vma tree's lock from mutex to 
-> rw-sem (commit 5a505085), we encountered regressions for fork heavy workload. 
-> A lot of optimizations to rw-sem (e.g. lock stealing) helped to 
-> mitigate the problem.  I tried an experiment on the 3.10-rc4 kernel 
-> to compare the performance of rw-sem to one that uses mutex. I saw 
-> a 8% regression in throughput for rw-sem vs a mutex implementation in
-> 3.10-rc4.
 > 
-> For the experiments, I used the exim mail server workload in 
-> the MOSBENCH test suite on 4 socket (westmere) and a 4 socket 
-> (ivy bridge) with the number of clients sending mail equal 
-> to number of cores.  The mail server will
-> fork off a process to handle an incoming mail and put it into mail
-> spool. The lock protecting the anon-vma tree is stressed due to
-> heavy forking. On both machines, I saw that the mutex implementation 
-> has 8% more throughput.  I've pinned the cpu frequency to maximum
-> in the experiments.
+> Hi Michal,
 > 
-> I've tried two separate tweaks to the rw-sem on 3.10-rc4.  I've tested 
-> each tweak individually.
+> it, unfortunately, didn't work. Everything was working fine but
+> original problem is still occuring. 
+
+This would be more than surprising because tasks blocked at memcg OOM
+don't hold any locks anymore. Maybe I have messed something up during
+backport but I cannot spot anything.
+
+> I'm unable to send you stacks or more info because problem is taking
+> down the whole server for some time now (don't know what exactly
+> caused it to start happening, maybe newer versions of 3.2.x).
+
+So you are not testing with the same kernel with just the old patch
+replaced by the new one?
+
+> But i'm sure of one thing - when problem occurs, nothing is able to
+> access hard drives (every process which tries it is freezed until
+> problem is resolved or server is rebooted).
+
+I would be really interesting to see what those tasks are blocked on.
+
+> Problem is fixed after killing processes from cgroup which
+> caused it and everything immediatelly starts to work normally. I
+> find this out by keeping terminal opened from another server to one
+> where my problem is occuring quite often and running several apps
+> there (htop, iotop, etc.). When problem occurs, all apps which wasn't
+> working with HDD was ok. The htop proved to be very usefull here
+> because it's only reading proc filesystem and is also able to send
+> KILL signals - i was able to resolve the problem with it
+>   without rebooting the server.
+
+sysrq+t will give you the list of all tasks and their traces.
+
+> I created a special daemon (about month ago) which is able to detect
+> and fix the problem so i'm not having server outages now. The point
+> was to NOT access anything which is stored on HDDs, the daemon is
+> only reading info from cgroup filesystem and sending KILL signals to
+> processes. Maybe i should be able to also read stack files before
+> killing, i will try it.
 > 
-> 1) Add an owner field when a writer holds the lock and introduce 
-> optimistic spinning when an active writer is holding the semaphore.  
-> It reduced the context switching by 30% to a level very close to the
-> mutex implementation.  However, I did not see any throughput improvement
-> of exim.
+> Btw, which vanilla kernel includes this patch?
+
+None yet. But I hope it will be merged to 3.11 and backported to the
+stable trees.
+ 
+> Thank you and everyone involved very much for time and help.
 > 
-> 2) When the sem->count's active field is non-zero (i.e. someone
-> is holding the lock), we can skip directly to the down_write_failed
-> path, without adding the RWSEM_DOWN_WRITE_BIAS and taking
-> it off again from sem->count, saving us two atomic operations.
-> Since we will try the lock stealing again later, this should be okay.
-> Unfortunately it did not improve the exim workload either.  
-> 
-> Any suggestions on the difference between rwsem and mutex performance
-> and possible improvements to recover this regression?
-> 
-> Thanks.
-> 
-> Tim
-> 
-> vmstat for mutex implementation: 
-> procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu-----
->  r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
-> 38  0      0 130957920  47860 199956    0    0     0    56 236342 476975 14 72 14  0  0
-> 41  0      0 130938560  47860 219900    0    0     0     0 236816 479676 14 72 14  0  0
-> 
-> vmstat for rw-sem implementation (3.10-rc4)
-> procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu-----
->  r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
-> 40  0      0 130933984  43232 202584    0    0     0     0 321817 690741 13 71 16  0  0
-> 39  0      0 130913904  43232 224812    0    0     0     0 322193 692949 13 71 16  0  0
+> azur
 
-It appears the main difference is that the rwsem variant context-switches 
-about 36% more than the mutex version, right?
-
-I'm wondering how that's possible - the lock is mostly write-locked, 
-correct? So the lock-stealing from Davidlohr Bueso and Michel Lespinasse 
-ought to have brought roughly the same lock-stealing behavior as mutexes 
-do, right?
-
-So the next analytical step would be to figure out why rwsem lock-stealing 
-is not behaving in an equivalent fashion on this workload. Do readers come 
-in frequently enough to disrupt write-lock-stealing perhaps?
-
-Context-switch call-graph profiling might shed some light on where the 
-extra context switches come from...
-
-Something like:
-
-  perf record -g -e sched:sched_switch --filter 'prev_state != 0' -a sleep 1
-
-or a variant thereof might do the trick.
-
-Thanks,
-
-	Ingo
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
