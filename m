@@ -1,124 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 4FA876B0033
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 11:14:07 -0400 (EDT)
-Received: by mail-ea0-f171.google.com with SMTP id m14so4045847eaj.2
-        for <linux-mm@kvack.org>; Thu, 20 Jun 2013 08:14:05 -0700 (PDT)
-From: Ghennadi Procopciuc <unix140@gmail.com>
-Subject: [PATCH] mm: fix overflow in alloc_vmap_area
-Date: Thu, 20 Jun 2013 18:12:30 +0300
-Message-Id: <1371741150-10861-1-git-send-email-unix140@gmail.com>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id BC4336B0034
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 11:16:08 -0400 (EDT)
+Date: Thu, 20 Jun 2013 17:16:07 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: linux-next: slab shrinkers: BUG at mm/list_lru.c:92
+Message-ID: <20130620151607.GE27196@dhcp22.suse.cz>
+References: <20130617141822.GF5018@dhcp22.suse.cz>
+ <20130617151403.GA25172@localhost.localdomain>
+ <20130617143508.7417f1ac9ecd15d8b2877f76@linux-foundation.org>
+ <20130617223004.GB2538@localhost.localdomain>
+ <20130618062623.GA20528@localhost.localdomain>
+ <20130619071346.GA9545@dhcp22.suse.cz>
+ <20130619142801.GA21483@dhcp22.suse.cz>
+ <20130620141136.GA3351@localhost.localdomain>
+ <20130620151201.GD27196@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130620151201.GD27196@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, js1304@gmail.com, rientjes@google.com, minchan@kernel.org, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Ghennadi Procopciuc <unix140@gmail.com>, Daniel Baluta <dbaluta@ixiacom.com>
+To: Glauber Costa <glommer@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Inserting the following kernel module:
+On Thu 20-06-13 17:12:01, Michal Hocko wrote:
+> On Thu 20-06-13 18:11:38, Glauber Costa wrote:
+> [...]
+> > > [84091.219056] ------------[ cut here ]------------
+> > > [84091.220015] kernel BUG at mm/list_lru.c:42!
+> > > [84091.220015] invalid opcode: 0000 [#1] SMP 
+> > > [84091.220015] Modules linked in: edd nfsv3 nfs_acl nfs fscache lockd sunrpc af_packet bridge stp llc cpufreq_conservative cpufreq_userspace cpufreq_powersave fuse loop dm_mod powernow_k8 tg3 kvm_amd kvm ptp e1000 pps_core shpchp edac_core i2c_amd756 amd_rng pci_hotplug k8temp sg i2c_amd8111 edac_mce_amd serio_raw sr_mod pcspkr cdrom button ohci_hcd ehci_hcd usbcore usb_common processor thermal_sys scsi_dh_emc scsi_dh_rdac scsi_dh_hp_sw scsi_dh ata_generic sata_sil pata_amd
+> > > [84091.220015] CPU 1 
+> > > [84091.220015] Pid: 32545, comm: rm Not tainted 3.9.0mmotmdebugging1+ #1472 AMD A8440/WARTHOG
+> > > [84091.220015] RIP: 0010:[<ffffffff81127fff>]  [<ffffffff81127fff>] list_lru_del+0xcf/0xe0
+> > > [84091.220015] RSP: 0018:ffff88001de85df8  EFLAGS: 00010286
+> > > [84091.220015] RAX: ffffffffffffffff RBX: ffff88001e1ce2c0 RCX: 0000000000000002
+> > > [84091.220015] RDX: ffff88001e1ce2c8 RSI: ffff8800087f4220 RDI: ffff88001e1ce2c0
+> > > [84091.220015] RBP: ffff88001de85e18 R08: 0000000000000000 R09: 0000000000000000
+> > > [84091.220015] R10: ffff88001d539128 R11: ffff880018234882 R12: ffff8800087f4220
+> > > [84091.220015] R13: ffff88001c68bc40 R14: 0000000000000000 R15: ffff88001de85ea8
+> > > [84091.220015] FS:  00007f43adb30700(0000) GS:ffff88001f100000(0000) knlGS:0000000000000000
+> > > [84091.220015] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+> > > [84091.220015] CR2: 0000000001ffed30 CR3: 000000001e02e000 CR4: 00000000000007e0
+> > > [84091.220015] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> > > [84091.220015] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+> > > [84091.220015] Process rm (pid: 32545, threadinfo ffff88001de84000, task ffff88001c22e5c0)
+> > > [84091.220015] Stack:
+> > > [84091.220015]  ffff8800087f4130 ffff8800087f41b8 ffff88001c68b800 0000000000000000
+> > > [84091.220015]  ffff88001de85e48 ffffffff81184357 ffff88001de85e48 ffff8800087f4130
+> > > [84091.220015]  ffff88001e005000 ffff880014e4eb40 ffff88001de85e68 ffffffff81184418
+> > > [84091.220015] Call Trace:
+> > > [84091.220015]  [<ffffffff81184357>] iput_final+0x117/0x190
+> > > [84091.220015]  [<ffffffff81184418>] iput+0x48/0x60
+> > > [84091.220015]  [<ffffffff8117a804>] do_unlinkat+0x214/0x240
+> > > [84091.220015]  [<ffffffff8117aa4d>] sys_unlinkat+0x1d/0x40
+> > > [84091.220015]  [<ffffffff81583129>] system_call_fastpath+0x16/0x1b
+> > > [84091.220015] Code: 5c 41 5d b8 01 00 00 00 41 5e c9 c3 49 8d 45 08 f0 45 0f b3 75 08 eb db 0f 1f 40 00 66 83 03 01 5b 41 5c 41 5d 31 c0 41 5e c9 c3 <0f> 0b eb fe 66 66 66 66 2e 0f 1f 84 00 00 00 00 00 55 ba 00 00 
+> > > [84091.220015] RIP  [<ffffffff81127fff>] list_lru_del+0xcf/0xe0
+> > > [84091.220015]  RSP <ffff88001de85df8>
+> > > [84091.470390] ---[ end trace e6915e8ee0f5f079 ]---
+> > > 
+> > > Which is BUG_ON(nlru->nr_items < 0) from iput_final path. So it seems
+> > > that there is still a race there.
+> > 
+> > I am still looking at this - still can't reproduce, still don't know what is going
+> > on.
+> 
+> I am bisecting it again. It is quite tedious, though, because good case
+> is hard to be sure about.
 
-<snip>
+And my test case runs the following (there is very same B.run, both of
+them run in its own group):
+#JOBS=4
+#KERNEL_CONFIG="./config"
+#KERNEL_TAR="./linux-3.7-rc5.tar.bz2"
+#KERNEL_OUT="build/$CGROUP/kernel"
+#CGROUP=A
+$ cat A.run
+KERNEL_DIR="$KERNEL_OUT/${KERNEL_TAR%.tar.bz2}"
+mkdir -p "$KERNEL_DIR"
 
-static int simple_test_init(void)
-{
-        size_t i, j;
-        void *address;
+tar -xf $KERNEL_TAR -C $KERNEL_OUT || fail "get the source for $KERNEL_TAR->$KERNEL_OUT"
+cp "$KERNEL_CONFIG" "$KERNEL_DIR/.config" || fail "Get the config"
 
-        for (i = 0 * MB; i<  60 * MB; i += 1 * MB) {
-                for (j = i; j<  i + 1 * MB; j += KB) {
-                        address = vmalloc(j);
-                        vfree(address);
-                }
-        }
+LOG="`pwd`/$LOG_OUT_DIR"
+mkdir -p "$LOG"
 
-        return 0;
-}
-
-</snip>
-
-triggers BUG at mm/vmalloc.c:310 on a x86 machine:
-
-[   95.218283] Kernel BUG at c1126cdb [verbose debug info unavailable]
-[   95.218306] invalid opcode: 0000 [#1] SMP
-[   95.218324] Modules linked in: lkma_test(OF+)<snip lots of not tainted modules>
-[   95.218559] Pid: 2419, comm: insmod Tainted: GF          O 3.9.0+ #57 Hewlett-Packard HP Compaq 8200 Elite CMT PC/1494
-[   95.218597] EIP: 0060:[<c1126cdb>] EFLAGS: 00010207 CPU: 3
-[   95.218617] EIP is at __insert_vmap_area+0xfb/0x100
-[   95.218635] EAX: f85dc000 EBX: ef05cac0 ECX: f7be08c4 EDX: 00000007
-[   95.218657] ESI: f2ed044c EDI: c1a220b8 EBP: f027bd34 ESP: f027bd14
-[   95.218680]  DS: 007b ES: 007b FS: 00d8 GS: 00e0 SS: 0068
-[   95.218699] CR0: 80050033 CR2: b5995118 CR3: 30364000 CR4: 000407f0
-[   95.218721] DR0: 00000000 DR1: 00000000 DR2: 00000000 DR3: 00000000
-[   95.218743] DR6: ffff0ff0 DR7: 00000400
-[   95.218758] Process insmod (pid: 2419, ti=f027a000 task=efe64010 task.ti=f027a000)
-[   95.218784] Stack:
-[   95.218792]  c177b964 fecfb000 f85e2000 00000000 f85dc000 ffbfe000 f02da1c0 0007f000
-[   95.218829]  f027bd7c c112802d c177b9b0 fecfb000 01305000 ffbfe000 00000001 ef05cac0
-[   95.218866]  00000000 00000000 f83fe000 01304fff f83fe000 ffffffff 01305000 ef05c500
-[   95.218903] Call Trace:
-[   95.218915]  [<f85e2000>] ? 0xf85e1fff
-[   95.218930]  [<f85dc000>] ? 0xf85dbfff
-[   95.218945]  [<c112802d>] alloc_vmap_area.isra.16+0x1bd/0x2f0
-[   95.218967]  [<c112867f>] __get_vm_area_node.isra.17+0x8f/0x130
-[   95.218988]  [<c1128d77>] __vmalloc_node_range+0x57/0x200
-[   95.219009]  [<f85f3075>] ? lkma_test_init+0x45/0x70 [lkma_test]
-[   95.219031]  [<c1128f82>] __vmalloc_node+0x62/0x70
-[   95.219049]  [<f85f3075>] ? lkma_test_init+0x45/0x70 [lkma_test]
-[   95.219071]  [<c1129058>] vmalloc+0x38/0x40
-[   95.219087]  [<f85f3075>] ? lkma_test_init+0x45/0x70 [lkma_test]
-[   95.219109]  [<f85f3075>] lkma_test_init+0x45/0x70 [lkma_test]
-[   95.219131]  [<f85f3030>] ? kzalloc+0x10/0x10 [lkma_test]
-[   95.219151]  [<c1001222>] do_one_initcall+0x112/0x160
-[   95.219171]  [<c15ca3cf>] ? set_section_ro_nx+0x54/0x59
-[   95.219190]  [<c1099b69>] load_module+0x1d79/0x2660
-[   95.219209]  [<c114721d>] ? create_object+0x19d/0x280
-[   95.219230]  [<c109a4c8>] sys_init_module+0x78/0xb0
-[   95.219250]  [<c15d9801>] sysenter_do_call+0x12/0x22
-[   95.219268] Code: 39 03 73 0c 8b 3f 89 f0 83 c7 08 e9 3d ff ff ff 8b 46 f4 39 43 04 76 13 8b 3f 89 f0 83 c7 04 e9 29 ff ff ff e8 fb 1b 4a 00 eb ab<0f>  0b 8d 76 00 55 89 e5 56 53 66 66 66 66 90 83 60 0c df 89 c6
-[   95.219415] EIP: [<c1126cdb>] __insert_vmap_area+0xfb/0x100 SS:ESP 0068:f027bd14
-[   95.228313] ---[ end trace e0a1efb2acb97c98 ]---
-
-A printk placed in __insert_vmap_area will show:
-
-[   95.218256] va->va_start=0xfecfb000 tmp_va->va_end=0xf85e2000 va->va_end=0 tmp_va->va_start=0xf85dc000
-
-and another one, before sum operation in alloc_vmap_area:
-
-[   95.218204] addr = 0xfecfb000 size = 19943424 vend = 0xffbfe000
-
-If after addition the result is smaller than one of the arguments,
-then an overflow occurred. In our case there is an obvious overflow.
-
-Signed-off-by: Ghennadi Procopciuc <unix140@gmail.com>
-Cc: Daniel Baluta<dbaluta@ixiacom.com>
-
----
- Don't know if this is the right solution, but the bug happens for me in
- 3.10-rc6 and 3.9.
----
- mm/vmalloc.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
-
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 0f751f2..6ea525c 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -421,12 +421,13 @@ nocache:
- 	}
-
- found:
--	if (addr + size > vend)
-+	va->va_end = addr + size;
-+	if (va->va_end < addr || va->va_end < size || va->va_end > vend)
- 		goto overflow;
-
- 	va->va_start = addr;
--	va->va_end = addr + size;
- 	va->flags = 0;
-+
- 	__insert_vmap_area(va);
- 	free_vmap_cache = &va->rb_node;
- 	spin_unlock(&vmap_area_lock);
---
-1.8.1.2
+old_path="`pwd`"
+cd "$KERNEL_DIR"
+info "$CGROUP starting build jobs:$JOBS"
+TIMESTAMP=`date +%s`
+( /usr/bin/time -v make -j$JOBS vmlinux >/dev/null ) > $LOG/time.$CGROUP.$TIMESTAMP 2>&1 || fail "Build the kernel at $KERNEL_DIR"
+cd "$old_path"
+rm -rf "$KERNEL_OUT"
+sync
+echo 3 > /proc/sys/vm/drop_caches
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
