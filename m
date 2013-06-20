@@ -1,109 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 9A5896B0033
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 02:17:24 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id 4so5883412pdd.20
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2013 23:17:23 -0700 (PDT)
-Date: Wed, 19 Jun 2013 23:17:19 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [Part1 PATCH v5 00/22] x86, ACPI, numa: Parse numa info earlier
-Message-ID: <20130620061719.GA16114@mtj.dyndns.org>
-References: <1371128589-8953-1-git-send-email-tangchen@cn.fujitsu.com>
- <20130618020357.GZ32663@mtj.dyndns.org>
- <51BFF464.809@cn.fujitsu.com>
- <20130618172129.GH2767@htj.dyndns.org>
- <51C298B2.9060900@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 24D026B0033
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 02:35:46 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
+	Thu, 20 Jun 2013 16:26:56 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id E47412CE8044
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 16:35:38 +1000 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5K6Kk8p55312592
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 16:20:46 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5K6ZbbE004547
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 16:35:37 +1000
+Message-ID: <51C2A1F2.7040104@linux.vnet.ibm.com>
+Date: Thu, 20 Jun 2013 12:02:18 +0530
+From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <51C298B2.9060900@cn.fujitsu.com>
+Subject: Re: [PATCH] mm/page_alloc: remove repetitious local_irq_save() in
+ __zone_pcp_update()
+References: <1371593437-30002-1-git-send-email-cody@linux.vnet.ibm.com> <51C176AC.4000709@linux.vnet.ibm.com> <alpine.DEB.2.02.1306191543070.15308@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1306191543070.15308@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: yinghai@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Cody P Schafer <cody@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>
 
-Hello, Tang.
-
-On Thu, Jun 20, 2013 at 01:52:50PM +0800, Tang Chen wrote:
-> 1. It is difficult to tell which memory allocation is temporary and
->    which one is permanent when memblock is allocating memory. So, we
->    can only wait till boot is complete, and see which remains.
->    But, we have the second difficulty.
+On 06/20/2013 04:23 AM, David Rientjes wrote:
+> On Wed, 19 Jun 2013, Srivatsa S. Bhat wrote:
 > 
-> 2. In memblock.reserve[], we cannot tell why we allocated this memory
->    just from the array item, right?  So it is difficult to do the
->    relocation. If in the future, we have to allocate permanent memory
->    for other new purposes, we have to do the relocation again and again.
->    (Not sure if I understand the point correctly. I think there isn't
->     a generic way to relocate memory used for different purposes.)
+>>> __zone_pcp_update() is called via stop_machine(), which already disables
+>>> local irq.
+>>>
+>>> Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
+>>
+>> Reviewed-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
+>>
+> 
+> What was reviewed?
+>
 
-I was suggesting two separate things.
+See below.
+ 
+>>> ---
+>>>  mm/page_alloc.c | 4 +---
+>>>  1 file changed, 1 insertion(+), 3 deletions(-)
+>>>
+>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>>> index bac3107..b46b54a 100644
+>>> --- a/mm/page_alloc.c
+>>> +++ b/mm/page_alloc.c
+>>> @@ -6179,7 +6179,7 @@ static int __meminit __zone_pcp_update(void *data)
+>>>  {
+>>>  	struct zone *zone = data;
+>>>  	int cpu;
+>>> -	unsigned long batch = zone_batchsize(zone), flags;
+>>> +	unsigned long batch = zone_batchsize(zone);
+>>>
+>>>  	for_each_possible_cpu(cpu) {
+>>>  		struct per_cpu_pageset *pset;
+>>> @@ -6188,12 +6188,10 @@ static int __meminit __zone_pcp_update(void *data)
+>>>  		pset = per_cpu_ptr(zone->pageset, cpu);
+>>>  		pcp = &pset->pcp;
+>>>
+>>> -		local_irq_save(flags);
+>>>  		if (pcp->count > 0)
+>>>  			free_pcppages_bulk(zone, pcp->count, pcp);
+>>>  		drain_zonestat(zone, pset);
+>>>  		setup_pageset(pset, batch);
+>>> -		local_irq_restore(flags);
+> 
+> This seems like a fine cleanup because stop_machine() disable irqs,
 
-* As memblock allocator can relocate itself.  There's no point in
-  avoiding setting NUMA node while parsing and registering NUMA
-  topology.  Just parse and register NUMA info and later tell it to
-  relocate itself out of hot-pluggable node.  A number of patches in
-  the series is doing this dancing - carefully reordering NUMA
-  probing.  No need to do that.  It's really fragile thing to do.
+I hope you are not missing the fact that stop_machine() disables irqs
+on *all* CPUs.
 
-* Once you get the above out of the way, I don't think there are a lot
-  of permanent allocations in the way before NUMA is initialized.
-  Re-order the remaining ones if that's cleaner to do.  If that gets
-  overly messy / fragile, copying them around or freeing and reloading
-  afterwards could be an option too.  There isn't much point in being
-  super-efficient about ACPI override table.  Being cleaner and more
-  robust is far more important.
+> but it 
+> appears like there is two problems with this function already:
+> 
+>  - it's doing for_each_possible_cpu() internally, why?  local_irq_save()
+>    works on the local cpu and won't protect
+>    per_cpu_ptr(zone->pageset, cpu)->pcp of some random cpu, and
+> 
 
-As for distinguishing temporary / permanent, it shouldn't be difficult
-to make memblock track all allocations before NUMA info becomes online
-and then verify that those areas are free by the time boot is
-complete.  Just mark the reserved areas allocated before NUMA info is
-fully available.
+stop_machine() allows only _your function_ to run and nothing else, on
+the entire system. All other CPUs loop with interrupts disabled until
+the function is completed.
 
-> If you also had a look at the Part2 patches, you will see that I
-> introduced a flags member into memblock to specify different types
-> of memory, which will help to recognize hotpluggable memory. My
-> thinking is that ensure memblock will not allocate hotpluggable
-> memory. I think this is the most safe and easy way to satisfy hotplug
-> requirement.
+>  - setup_pageset() is what is ultimately responsible for doing 
+>    pcp->count = 0 after free_pcppages_bulk(), but what happens if 
+>    pcp->count is read in between the two on the cpu that has not disabled 
+>    irqs?
+> 
 
-And you can use exactly the same mechanism to track memory areas which
-were allocated before NUMA info was fully available, right?
+Nobody can do anything else when this function runs. That's precisely
+why its named as stop-*machine*.
 
-> So you don't agree to serialize the operations at boot time.
+> You can't just do
+> 
+> 	for_each_possible_cpu(cpu) {
+> 		unsigned long flags;
+> 
+> 		local_irq_save(flags);
+> 		...
+> 		local_irq_restore(flags);
+> 	}
+> 
+> This is just disabling irqs locally over and over again, not on the cpu 
+> you're manipulating in its per-cpu critical section.
+>
 
-No, I'm not disagreeing that some ordering is necessary.  My point is
-that things seem to be going that way too far.  Sure, some reordering
-is necessary but it doesn't have to be this fragile.  Careful
-reordering isn't the only way to achieve it.
+stop-machine() takes care of disabling irqs on every online CPU.
+ 
+> I don't think we hit this because onlining and offlining memory isn't a 
+> very common operation, but it doesn't change the fact that it's broken.
+>
 
-> About this patch-set from Yinghai, actually he is doing a job that I
-> failed to do. And he also included a lot of other things in the
-> patch-set, such as extend max number of overridable acpi tables, local
-> node pagetable, and so on.
+If __zone_pcp_update() is called only from stop_machine() (and looking at
+the current code, that's true), then there is no problem, due to the reasons
+explained above.
 
-Doing multiple things to achieve a goal in a patchset might not be
-optimal but is usually okay if properly explained.  What's not okay is
-not explaining the overall goal, approach and design in the head
-message, poor quality of patch description and code documentation.
+Regards,
+Srivatsa S. Bhat
 
-This part of code is almost inherently fragile and difficult to debug
-and patchset like this would degrade the maintainability and I really
-don't want to spend hours trying to decipher what the overall approach
-is by trying to navigate maze of poorly documented patches only to
-find out that some of the basic approaches are not very agreeable.  We
-could have had this exact discussion way earlier if the head message
-properly described what was going on and the review process would have
-been much more pleasant for all involved parties.
-
-I don't think it matters whose patches go in how as long as they are
-attributed correctly.  The end result - what goes in the git tree as
-log and code changes - matters, and it needs to be whole lot better.
-
-Thanks.
-
--- 
-tejun
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
