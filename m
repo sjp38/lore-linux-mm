@@ -1,53 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 8F8476B0033
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 01:06:26 -0400 (EDT)
-Received: by mail-lb0-f180.google.com with SMTP id o10so5411932lbi.39
-        for <linux-mm@kvack.org>; Wed, 19 Jun 2013 22:06:24 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id EFDAD6B0033
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 01:45:18 -0400 (EDT)
+Date: Thu, 20 Jun 2013 14:45:39 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [3.11 1/4] slub: Make cpu partial slab support configurable V2
+Message-ID: <20130620054539.GA32061@lge.com>
+References: <20130614195500.373711648@linux.com>
+ <0000013f44418a14-7abe9784-a481-4c34-8ff3-c3afe2d57979-000000@email.amazonses.com>
+ <20130619052203.GA12231@lge.com>
+ <0000013f5cd71dac-5c834a4e-c521-4d79-aecc-3e7a6671fb8c-000000@email.amazonses.com>
+ <20130620015056.GC13026@lge.com>
+ <51c26ebd.e842320a.5dc1.ffffedfcSMTPIN_ADDED_BROKEN@mx.google.com>
 MIME-Version: 1.0
-In-Reply-To: <CAOtvUMcm66hfdp6YrAfTMgOOJ6tsgXuWYup8A-vbtsf8NWciJA@mail.gmail.com>
-References: <20130618152302.GA10702@linux.vnet.ibm.com>
-	<0000013f58656ee7-8bb24ac4-72fa-4c0b-b888-7c056f261b6e-000000@email.amazonses.com>
-	<20130618182616.GT5146@linux.vnet.ibm.com>
-	<0000013f5cd1c54a-31d71292-c227-4f84-925d-75407a687824-000000@email.amazonses.com>
-	<CAOtvUMc5w3zNe8ed6qX0OOM__3F_hOTqvFa1AkdXF0PHvzGZqg@mail.gmail.com>
-	<CAOtvUMcm66hfdp6YrAfTMgOOJ6tsgXuWYup8A-vbtsf8NWciJA@mail.gmail.com>
-Date: Thu, 20 Jun 2013 08:06:23 +0300
-Message-ID: <CAOtvUMcyT+NKUaT_pS=qePsbXhmUdqEHGQjXZVY9EaZEX+5Nbw@mail.gmail.com>
-Subject: Re: vmstat kthreads
-From: Gilad Ben-Yossef <gilad@benyossef.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51c26ebd.e842320a.5dc1.ffffedfcSMTPIN_ADDED_BROKEN@mx.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, ghaskins@londonstockexchange.com, niv@us.ibm.com, kravetz@us.ibm.com, Frederic Weisbecker <fweisbec@gmail.com>
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-On Wed, Jun 19, 2013 at 5:57 PM, Gilad Ben-Yossef <gilad@benyossef.com> wrote:
+On Thu, Jun 20, 2013 at 10:53:36AM +0800, Wanpeng Li wrote:
+> On Thu, Jun 20, 2013 at 10:50:56AM +0900, Joonsoo Kim wrote:
+> >On Wed, Jun 19, 2013 at 02:29:29PM +0000, Christoph Lameter wrote:
+> >
+> >
+> >-----------------8<-----------------------------------------------
+> >>From a3257adcff89fd89a7ecb26c1247eec511302807 Mon Sep 17 00:00:00 2001
+> >From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> >Date: Wed, 19 Jun 2013 14:05:52 +0900
+> >Subject: [PATCH] slub: Make cpu partial slab support configurable
+> >
+> >cpu partial support can introduce level of indeterminism that is not
+> >wanted in certain context (like a realtime kernel). Make it configurable.
+> >
+> >This patch is based on Christoph Lameter's
+> >"slub: Make cpu partial slab support configurable V2".
+> >
+> 
+> As you know, actually cpu_partial is the maximum number of objects kept 
+> in the per cpu slab and cpu partial lists of a processor instead of 
+> just the maximum number of objects kept in cpu partial lists of a
+> processor. The allocation will always fallback to slow path if not 
+> config SLUB_CPU_PARTIAL, whether it will lead to more latency?
 
->> I'll post them as replies to this message.
->
-> ... or rather, I'll send them later this evening when I'm not behind a
-> firewall that is blocking SMTP connections... :-)
->
+No, the SLUB maintain a cpu slab even if s->cpu_partial is 0.
+It is a violation of definition of cpu_partial as you pointed out, but,
+current implementation do this way.
 
-Well, I must have botched  the reply-to header, so they ended up as a
-separate message post:
+Thanks.
 
-https://lkml.org/lkml/2013/6/19/583
-https://lkml.org/lkml/2013/6/19/580
-
-
--- 
-Gilad Ben-Yossef
-Chief Coffee Drinker
-gilad@benyossef.com
-Israel Cell: +972-52-8260388
-US Cell: +1-973-8260388
-http://benyossef.com
-
-"If you take a class in large-scale robotics, can you end up in a
-situation where the homework eats your dog?"
- -- Jean-Baptiste Queru
+> 
+> Regards,
+> Wanpeng Li 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
