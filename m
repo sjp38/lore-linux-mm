@@ -1,76 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 8851D6B0033
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 19:24:12 -0400 (EDT)
-Subject: Re: Performance regression from switching lock to rw-sem for
- anon-vma tree
-From: Tim Chen <tim.c.chen@linux.intel.com>
-In-Reply-To: <1371683514.1783.3.camel@buesod1.americas.hpqcorp.net>
-References: <1371165333.27102.568.camel@schen9-DESK>
-	 <1371167015.1754.14.camel@buesod1.americas.hpqcorp.net>
-	 <51BD8A77.2080201@intel.com>
-	 <1371486122.1778.14.camel@buesod1.americas.hpqcorp.net>
-	 <51BF99B0.4040509@intel.com>
-	 <1371512120.1778.40.camel@buesod1.americas.hpqcorp.net>
-	 <1371514081.27102.651.camel@schen9-DESK>
-	 <1371683514.1783.3.camel@buesod1.americas.hpqcorp.net>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 19 Jun 2013 16:24:15 -0700
-Message-ID: <1371684255.27102.667.camel@schen9-DESK>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 77B1F6B0033
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 20:26:13 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Thu, 20 Jun 2013 05:51:15 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id B4C621258053
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 05:55:04 +0530 (IST)
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5K0QCWQ32768026
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 05:56:13 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5K0Q4HF026634
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 10:26:05 +1000
+Date: Thu, 20 Jun 2013 08:26:03 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH] slub: do not put a slab to cpu partial list when
+ cpu_partial is 0
+Message-ID: <20130620002603.GA2640@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <1371623635-26575-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <51c1652d.246e320a.4057.ffffed4fSMTPIN_ADDED_BROKEN@mx.google.com>
+ <20130619085250.GC12231@lge.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130619085250.GC12231@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr.bueso@hp.com>
-Cc: Alex Shi <alex.shi@intel.com>, Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 2013-06-19 at 16:11 -0700, Davidlohr Bueso wrote:
-> On Mon, 2013-06-17 at 17:08 -0700, Tim Chen wrote:
-> > On Mon, 2013-06-17 at 16:35 -0700, Davidlohr Bueso wrote:
-> > > On Tue, 2013-06-18 at 07:20 +0800, Alex Shi wrote:
-> > > > On 06/18/2013 12:22 AM, Davidlohr Bueso wrote:
-> > > > > After a lot of benchmarking, I finally got the ideal results for aim7,
-> > > > > so far: this patch + optimistic spinning with preemption disabled. Just
-> > > > > like optimistic spinning, this patch by itself makes little to no
-> > > > > difference, yet combined is where we actually outperform 3.10-rc5. In
-> > > > > addition, I noticed extra throughput when disabling preemption in
-> > > > > try_optimistic_spin().
-> > > > > 
-> > > > > With i_mmap as a rwsem and these changes I could see performance
-> > > > > benefits for alltests (+14.5%), custom (+17%), disk (+11%), high_systime
-> > > > > (+5%), shared (+15%) and short (+4%), most of them after around 500
-> > > > > users, for fewer users, it made little to no difference.
-> > > > 
-> > > > A pretty good number. what's the cpu number in your machine? :)
-> > > 
-> > > 8-socket, 80 cores (ht off)
-> > > 
-> > > 
-> > 
-> > David,
-> > 
-> > I wonder if you are interested to try the experimental patch below.  
-> > It tries to avoid unnecessary writes to the sem->count when we are 
-> > going to fail the down_write by executing rwsem_down_write_failed_s
-> > instead of rwsem_down_write_failed.  It should further reduce the
-> > cache line bouncing.  It didn't make a difference for my 
-> > workload.  Wonder if it may help yours more in addition to the 
-> > other two patches.  Right now the patch is an ugly hack.  I'll merge
-> > rwsem_down_write_failed_s and rwsem_down_write_failed into one
-> > function if this approach actually helps things.
-> > 
-> 
-> I tried this on top of the patches we've already been dealing with. It
-> actually did more harm than good. Only got a slight increase in the
-> five_sec workload, for the rest either no effect, or negative. So far
-> the best results are still with spin on owner + preempt disable + Alex's
-> patches.
-> 
+On Wed, Jun 19, 2013 at 05:52:50PM +0900, Joonsoo Kim wrote:
+>On Wed, Jun 19, 2013 at 04:00:32PM +0800, Wanpeng Li wrote:
+>> On Wed, Jun 19, 2013 at 03:33:55PM +0900, Joonsoo Kim wrote:
+>> >In free path, we don't check number of cpu_partial, so one slab can
+>> >be linked in cpu partial list even if cpu_partial is 0. To prevent this,
+>> >we should check number of cpu_partial in put_cpu_partial().
+>> >
+>> 
+>> How about skip get_partial entirely? put_cpu_partial is called 
+>> in two paths, one is during refill cpu partial lists in alloc 
+>> slow path, the other is in free slow path. And cpu_partial is 0 
+>> just in debug mode. 
+>> 
+>> - alloc slow path, there is unnecessary to call get_partial 
+>>   since cpu partial lists won't be used in debug mode. 
+>> - free slow patch, new.inuse won't be true in debug mode 
+>>   which lead to put_cpu_partial won't be called.
+>> 
+>
+>In debug mode, put_cpu_partial() can't be called already on both path.
+>But, if we assign 0 to cpu_partial via sysfs, put_cpu_partial() will be called
+>on free slow path. On alloc slow path, it can't be called, because following
+>test in get_partial_node() is always failed.
+>
+>available > s->cpu_partial / 2
 
-Thanks for trying it out. A little disappointed as I was expecting no
-change in performance for the worst case.
+Is it always true? We can freeze slab from partial list, and 
+s->cpu_partial is 0. 
 
-Tim
+Regards,
+Wanpeng Li 
+
+>
+>Thanks.
+>
+>> Regards,
+>> Wanpeng Li 
+>> 
+>> >Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>> >
+>> >diff --git a/mm/slub.c b/mm/slub.c
+>> >index 57707f0..7033b4f 100644
+>> >--- a/mm/slub.c
+>> >+++ b/mm/slub.c
+>> >@@ -1955,6 +1955,9 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+>> > 	int pages;
+>> > 	int pobjects;
+>> >
+>> >+	if (!s->cpu_partial)
+>> >+		return;
+>> >+
+>> > 	do {
+>> > 		pages = 0;
+>> > 		pobjects = 0;
+>> >-- 
+>> >1.7.9.5
+>> >
+>> >--
+>> >To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> >the body to majordomo@kvack.org.  For more info on Linux MM,
+>> >see: http://www.linux-mm.org/ .
+>> >Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>> 
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
