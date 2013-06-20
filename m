@@ -1,175 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 748066B0034
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 22:17:42 -0400 (EDT)
-Received: from epcpsbgr4.samsung.com
- (u144.gpu120.samsung.co.kr [203.254.230.144])
- by mailout2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTP id <0MOO00M0G6DGISG0@mailout2.samsung.com> for linux-mm@kvack.org;
- Thu, 20 Jun 2013 11:17:40 +0900 (KST)
-From: Hyunhee Kim <hyunhee.kim@samsung.com>
-References: <008a01ce6b4e$079b6a50$16d23ef0$%kim@samsung.com>
- <20130617131551.GA5018@dhcp22.suse.cz>
- <CAOK=xRMYZokH1rg+dfE0KfPk9NsqPmmaTg-k8sagqRqvR+jG+w@mail.gmail.com>
- <CAOK=xRMz+qX=CQ+3oD6TsEiGckMAdGJ-GAUC8o6nQpx4SJtQPw@mail.gmail.com>
- <20130618110151.GI13677@dhcp22.suse.cz>
- <00fd01ce6ce0$82eac0a0$88c041e0$%kim@samsung.com>
- <20130619125329.GB16457@dhcp22.suse.cz>
-In-reply-to: <20130619125329.GB16457@dhcp22.suse.cz>
-Subject: [PATCH v5] memcg: event control at vmpressure.
-Date: Thu, 20 Jun 2013 11:17:39 +0900
-Message-id: <000401ce6d5c$566ac620$03405260$%kim@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-transfer-encoding: 7bit
-Content-language: ko
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id BB8D06B0033
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 22:27:43 -0400 (EDT)
+Date: Wed, 19 Jun 2013 21:27:39 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH v2] Make transparent hugepages cpuset aware
+Message-ID: <20130620022739.GF3658@sgi.com>
+References: <1370967244-5610-1-git-send-email-athorlton@sgi.com>
+ <alpine.DEB.2.02.1306111517200.6141@chino.kir.corp.google.com>
+ <20130618164537.GJ16067@sgi.com>
+ <alpine.DEB.2.02.1306181654350.4503@chino.kir.corp.google.com>
+ <20130619093212.GX3658@sgi.com>
+ <alpine.DEB.2.02.1306191419081.13015@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1306191419081.13015@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Michal Hocko' <mhocko@suse.cz>, 'Anton Vorontsov' <anton@enomsg.org>, linux-mm@kvack.org, akpm@linux-foundation.org, rob@landley.net, kamezawa.hiroyu@jp.fujitsu.com, hannes@cmpxchg.org, rientjes@google.com, kirill@shutemov.name
-Cc: 'Kyungmin Park' <kyungmin.park@samsung.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Robin Holt <holt@sgi.com>, Alex Thorlton <athorlton@sgi.com>, linux-kernel@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, linux-doc@vger.kernel.org, linux-mm@kvack.org
 
-In the original vmpressure, events are triggered whenever there is a reclaim
-activity. This becomes overheads to user space module and also increases
-power consumption if there is somebody to listen to it. This patch provides
-options to trigger events only when the pressure level changes.
-This trigger option can be set when registering each event by writing
-a trigger option, "edge" or "always", next to the string of levels.
-"edge" means that the event is triggered only when the pressure level is changed.
-"always" means that events are triggered whenever there is a reclaim process.
-To keep backward compatibility, "always" is set by default if nothing is input
-as an option. Each event can have different option. For example,
-"low" level uses "always" trigger option to see reclaim activity at user space
-while "medium"/"critical" uses "edge" to do an important job
-like killing tasks only once.
+On Wed, Jun 19, 2013 at 02:24:07PM -0700, David Rientjes wrote:
+> On Wed, 19 Jun 2013, Robin Holt wrote:
+> 
+> > The convenience being that many batch schedulers have added cpuset
+> > support.  They create the cpuset's and configure them as appropriate
+> > for the job as determined by a mixture of input from the submitting
+> > user but still under the control of the administrator.  That seems like
+> > a fairly significant convenience given that it took years to get the
+> > batch schedulers to adopt cpusets in the first place.  At this point,
+> > expanding their use of cpusets is under the control of the system
+> > administrator and would not require any additional development on
+> > the batch scheduler developers part.
+> > 
+> 
+> You can't say the same for memcg?
 
-Signed-off-by: Hyunhee Kim <hyunhee.kim@samsung.com>
-Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
----
- Documentation/cgroups/memory.txt |   12 ++++++++++--
- mm/vmpressure.c                  |   34 ++++++++++++++++++++++++++++++----
- 2 files changed, 40 insertions(+), 6 deletions(-)
+I am not aware of batch scheduler support for memory controllers.
+The request came from our benchmarking group.
 
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-index ddf4f93..185870f 100644
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -807,13 +807,21 @@ register a notification, an application must:
- 
- - create an eventfd using eventfd(2);
- - open memory.pressure_level;
--- write string like "<event_fd> <fd of memory.pressure_level> <level>"
-+- write string like
-+	"<event_fd> <fd of memory.pressure_level> <level> <trigger_option>"
-   to cgroup.event_control.
- 
- Application will be notified through eventfd when memory pressure is at
- the specific level (or higher). Read/write operations to
- memory.pressure_level are no implemented.
- 
-+Events can be triggered whenever there is a reclaim activity or
-+only when the pressure level changes. Trigger option is decided
-+by writing it next to the level. The event whose trigger option is
-+"always" is triggered whenever there is a reclaim process.
-+If "edge" is set, the event is triggered only when the level is changed.
-+If the trigger option is not set, "always" is set by default.
-+
- Test:
- 
-    Here is a small script example that makes a new cgroup, sets up a
-@@ -823,7 +831,7 @@ Test:
-    # cd /sys/fs/cgroup/memory/
-    # mkdir foo
-    # cd foo
--   # cgroup_event_listener memory.pressure_level low &
-+   # cgroup_event_listener memory.pressure_level low edge &
-    # echo 8000000 > memory.limit_in_bytes
-    # echo 8000000 > memory.memsw.limit_in_bytes
-    # echo $$ > tasks
-diff --git a/mm/vmpressure.c b/mm/vmpressure.c
-index 736a601..3c37b12 100644
---- a/mm/vmpressure.c
-+++ b/mm/vmpressure.c
-@@ -137,6 +137,8 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
- struct vmpressure_event {
- 	struct eventfd_ctx *efd;
- 	enum vmpressure_levels level;
-+	int last_level;
-+	bool edge_trigger;
- 	struct list_head node;
- };
- 
-@@ -153,11 +155,14 @@ static bool vmpressure_event(struct vmpressure *vmpr,
- 
- 	list_for_each_entry(ev, &vmpr->events, node) {
- 		if (level >= ev->level) {
-+			if (ev->edge_trigger && level == ev->last_level)
-+				continue;
-+
- 			eventfd_signal(ev->efd, 1);
- 			signalled = true;
- 		}
-+		ev->last_level = level;
- 	}
--
- 	mutex_unlock(&vmpr->events_lock);
- 
- 	return signalled;
-@@ -290,9 +295,11 @@ void vmpressure_prio(gfp_t gfp, struct mem_cgroup *memcg, int prio)
-  *
-  * This function associates eventfd context with the vmpressure
-  * infrastructure, so that the notifications will be delivered to the
-- * @eventfd. The @args parameter is a string that denotes pressure level
-+ * @eventfd. The @args parameters are a string that denotes pressure level
-  * threshold (one of vmpressure_str_levels, i.e. "low", "medium", or
-- * "critical").
-+ * "critical") and a trigger option that decides whether events are triggered
-+ * continuously or only on edge ("always" or "edge" if "edge", events
-+ * are triggered when the pressure level changes.
-  *
-  * This function should not be used directly, just pass it to (struct
-  * cftype).register_event, and then cgroup core will handle everything by
-@@ -303,10 +310,19 @@ int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
- {
- 	struct vmpressure *vmpr = cg_to_vmpressure(cg);
- 	struct vmpressure_event *ev;
-+	char *strlevel = NULL, *strtrigger = NULL;
- 	int level;
- 
-+	strlevel = args;
-+	strtrigger = strchr(args, ' ');
-+
-+	if (strtrigger) {
-+		*strtrigger = '\0';
-+		strtrigger++;
-+	}
-+
- 	for (level = 0; level < VMPRESSURE_NUM_LEVELS; level++) {
--		if (!strcmp(vmpressure_str_levels[level], args))
-+		if (!strcmp(vmpressure_str_levels[level], strlevel))
- 			break;
- 	}
- 
-@@ -319,6 +335,16 @@ int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
- 
- 	ev->efd = eventfd;
- 	ev->level = level;
-+	ev->last_level = -1;
-+
-+	if (strtrigger == NULL)
-+		ev->edge_trigger = false;
-+	else if (!strcmp(strtrigger, "always"))
-+		ev->edge_trigger = false;
-+	else if (!strcmp(strtrigger, "edge"))
-+		ev->edge_trigger = true;
-+	else
-+		return -EINVAL;
- 
- 	mutex_lock(&vmpr->events_lock);
- 	list_add(&ev->node, &vmpr->events);
--- 
-1.7.9.5
+> > Here are the entries in the cpuset:
+> > cgroup.event_control  mem_exclusive    memory_pressure_enabled  notify_on_release         tasks
+> > cgroup.procs          mem_hardwall     memory_spread_page       release_agent
+> > cpu_exclusive         memory_migrate   memory_spread_slab       sched_load_balance
+> > cpus                  memory_pressure  mems                     sched_relax_domain_level
+> > 
+> > There are scheduler, slab allocator, page_cache layout, etc controls.
+> 
+> I think this is mostly for historical reasons since cpusets were 
+> introduced before cgroups.
+> 
+> > Why _NOT_ add a thp control to that nicely contained central location?
+> > It is a concise set of controls for the job.
+> > 
+> 
+> All of the above seem to be for cpusets primary purpose, i.e. NUMA 
+> optimizations.  It has nothing to do with transparent hugepages.  (I'm not 
+> saying thp has anything to do with memcg either, but a "memory controller" 
+> seems more appropriate for controlling thp behavior.)
 
+cpusets was not for NUMA.  It has no preference for "nodes" or anything like
+that.  It was for splitting a machine into layered smaller groups.  Usually,
+we see one cpuset with contains the batch scheduler.  The batch scheduler then
+creates cpusets for jobs it starts.  Has nothing to do with nodes.  That is
+more an administrator issue.  They set the minimum grouping of resources
+for scheduled jobs.
+
+> > Maybe I am misunderstanding.  Are you saying you want to put memcg
+> > information into the cpuset or something like that?
+> > 
+> 
+> I'm saying there's absolutely no reason to have thp controlled by a 
+> cpuset, or ANY cgroup for that matter, since you chose not to respond to 
+> the question I asked: why do you want to control thp behavior for certain 
+> static binaries and not others?  Where is the performance regression or 
+> the downside?  Is it because of max_ptes_none for certain jobs blowing up 
+> the rss?  We need information, and even if were justifiable then it 
+> wouldn't have anything to do with ANY cgroup but rather a per-process 
+> control.  It has nothing to do with cpusets whatsoever.
+
+It was a request from our benchmarking group that has found some jobs
+benefit from thp, while other are harmed.  Let me ask them for more
+details.
+
+> (And I'm very curious why you didn't even cc the cpusets maintainer on 
+> this patch in the first place who would probably say the same thing.)
+
+I didn't know there was a cpuset maintainer.  Paul Jackson (SGI retired)
+had originally worked to get cpusets introduced and then converted to
+use cgroups.  I had never known there was a maintainer after him.  Sorry
+for that.
+
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
