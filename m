@@ -1,41 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 2EC3C6B0033
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 09:57:26 -0400 (EDT)
-Date: Thu, 20 Jun 2013 21:57:19 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [PATCH v4 3/6] mm/writeback: commit reason of
- WB_REASON_FORKER_THREAD mismatch name
-Message-ID: <20130620135719.GB10909@localhost>
-References: <1371599563-6424-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1371599563-6424-3-git-send-email-liwanp@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 6A26B6B0034
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 09:58:28 -0400 (EDT)
+Date: Thu, 20 Jun 2013 13:58:27 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v2 2/2] mm: add sysctl to pick vmstat monitor cpu
+In-Reply-To: <1371672168-9869-2-git-send-email-gilad@benyossef.com>
+Message-ID: <0000013f61e10d68-d5ca253d-d14f-4547-8291-aafa6b596ed7-000000@email.amazonses.com>
+References: <CAOtvUMc5w3zNe8ed6qX0OOM__3F_hOTqvFa1AkdXF0PHvzGZqg@mail.gmail.com> <1371672168-9869-2-git-send-email-gilad@benyossef.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1371599563-6424-3-git-send-email-liwanp@linux.vnet.ibm.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Andrew Shewmaker <agshew@gmail.com>, Jiri Kosina <jkosina@suse.cz>, Namjae Jeon <linkinjeon@gmail.com>, Jan Kara <jack@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Gilad Ben-Yossef <gilad@benyossef.com>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Frederic Weisbecker <fweisbec@gmail.com>
 
-> @@ -47,6 +47,11 @@ enum wb_reason {
->  	WB_REASON_LAPTOP_TIMER,
->  	WB_REASON_FREE_MORE_MEM,
->  	WB_REASON_FS_FREE_SPACE,
-> +/*
-> + * There is no bdi forker thread any more and works are done by emergency
-> + * worker, however, this is TPs userland visible and we'll be exposing
-> + * exactly the same information, so it has a mismatch name.
-> + */
+On Wed, 19 Jun 2013, Gilad Ben-Yossef wrote:
 
-Nitpick: indent the comment.
+> Add a sysctl knob to enable admin to hand pick the scapegoat cpu
+> that will perform the extra work of preiodically checking for
+> new VM activity on CPUs that have switched off their vmstat_update
+> work item schedling.
 
->  	WB_REASON_FORKER_THREAD,
->  
->  	WB_REASON_MAX,
-
-Thanks,
-Fengguang
+Not necessary if we use the dynticks sacrificial processor
+(boot cpu). Seems to be also used for RCU.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
