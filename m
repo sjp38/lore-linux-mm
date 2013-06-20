@@ -1,39 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 2A15E6B0033
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 19:20:47 -0400 (EDT)
-Message-ID: <51C38E3D.5090805@oracle.com>
-Date: Fri, 21 Jun 2013 07:20:29 +0800
-From: Bob Liu <bob.liu@oracle.com>
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 79E536B0034
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 19:37:40 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Fri, 21 Jun 2013 09:28:07 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 946D82CE8044
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 09:37:31 +1000 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5KNMbvM5701964
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 09:22:38 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5KNbT5T025131
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 09:37:30 +1000
+Date: Fri, 21 Jun 2013 07:37:25 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH v4 2/6] mm/writeback: Don't check force_wait to handle
+ bdi->work_list
+Message-ID: <20130620233724.GA26898@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <1371599563-6424-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1371599563-6424-2-git-send-email-liwanp@linux.vnet.ibm.com>
+ <20130620134615.GA10909@localhost>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] zswap: update/document boot parameters
-References: <1371716949-9918-1-git-send-email-bob.liu@oracle.com> <20130620144826.GB9461@cerebellum>
-In-Reply-To: <20130620144826.GB9461@cerebellum>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130620134615.GA10909@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Bob Liu <lliubbo@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, konrad.wilk@oracle.com
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Andrew Shewmaker <agshew@gmail.com>, Jiri Kosina <jkosina@suse.cz>, Namjae Jeon <linkinjeon@gmail.com>, Jan Kara <jack@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+On Thu, Jun 20, 2013 at 09:46:15PM +0800, Fengguang Wu wrote:
+>>  fs/fs-writeback.c |   10 ++--------
+>>  1 files changed, 2 insertions(+), 8 deletions(-)
+>
+>The header file should be changed, too. Otherwise looks fine to me.
+>
+>include/linux/writeback.h:97:long wb_do_writeback(struct bdi_writeback *wb, int force_wait);
 
+Thanks for your review, Fengguang. ;-)
 
-On 06/20/2013 10:48 PM, Seth Jennings wrote:
-> On Thu, Jun 20, 2013 at 04:29:09PM +0800, Bob Liu wrote:
->> The current parameters of zswap are not straightforward.
->> Changed them to start with zswap* and documented them.
-> 
-> Thanks for the patch!
-> 
-> However, I think you might be missing that using module_param(_named) allows
-> access on the kernel boot line with <modulename>.<moduleparam> syntax.  So
+The line in header file has already been removed by commit(836f29bbb0:
+fs/fs-writeback.c: : make wb_do_writeback() as static) in -next tree
+since there is just one caller in fs/fs-writeback.c.
 
-Oh, yes.
-Sorry for the noise, I missed the meaning of module_param.
-
--- 
 Regards,
--Bob
+Wanpeng Li 
+
+>
+>Thanks,
+>Fengguang
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
