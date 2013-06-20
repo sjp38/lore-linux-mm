@@ -1,106 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 77B1F6B0033
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 20:26:13 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Thu, 20 Jun 2013 05:51:15 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id B4C621258053
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 05:55:04 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5K0QCWQ32768026
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 05:56:13 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5K0Q4HF026634
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 10:26:05 +1000
-Date: Thu, 20 Jun 2013 08:26:03 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH] slub: do not put a slab to cpu partial list when
- cpu_partial is 0
-Message-ID: <20130620002603.GA2640@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1371623635-26575-1-git-send-email-iamjoonsoo.kim@lge.com>
- <51c1652d.246e320a.4057.ffffed4fSMTPIN_ADDED_BROKEN@mx.google.com>
- <20130619085250.GC12231@lge.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130619085250.GC12231@lge.com>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 442C56B0033
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 20:50:33 -0400 (EDT)
+Received: by mail-pd0-f180.google.com with SMTP id 10so5625764pdi.39
+        for <linux-mm@kvack.org>; Wed, 19 Jun 2013 17:50:32 -0700 (PDT)
+Message-ID: <1371689423.2555.1.camel@ThinkPad-T5421>
+Subject: Re: [PATCH v11 25/25] list_lru: dynamically adjust node arrays
+From: Li Zhong <lizhongfs@gmail.com>
+Reply-To: lizhongfs@gmail.com
+Date: Thu, 20 Jun 2013 08:50:23 +0800
+In-Reply-To: <20130619101414.49da3bfb.akpm@linux-foundation.org>
+References: <1370550898-26711-1-git-send-email-glommer@openvz.org>
+	 <1370550898-26711-26-git-send-email-glommer@openvz.org>
+	 <1371548521.2984.6.camel@ThinkPad-T5421>
+	 <20130619073154.GA1990@localhost.localdomain>
+	 <1371633148.2984.18.camel@ThinkPad-T5421>
+	 <20130619132904.GA4031@localhost.localdomain>
+	 <20130619101414.49da3bfb.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Glauber Costa <glommer@gmail.com>, Glauber Costa <glommer@openvz.org>, linux-fsdevel@vger.kernel.org, mgorman@suse.de, david@fromorbit.com, linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suze.cz, hannes@cmpxchg.org, hughd@google.com, gthelen@google.com, Dave Chinner <dchinner@redhat.com>
 
-On Wed, Jun 19, 2013 at 05:52:50PM +0900, Joonsoo Kim wrote:
->On Wed, Jun 19, 2013 at 04:00:32PM +0800, Wanpeng Li wrote:
->> On Wed, Jun 19, 2013 at 03:33:55PM +0900, Joonsoo Kim wrote:
->> >In free path, we don't check number of cpu_partial, so one slab can
->> >be linked in cpu partial list even if cpu_partial is 0. To prevent this,
->> >we should check number of cpu_partial in put_cpu_partial().
->> >
->> 
->> How about skip get_partial entirely? put_cpu_partial is called 
->> in two paths, one is during refill cpu partial lists in alloc 
->> slow path, the other is in free slow path. And cpu_partial is 0 
->> just in debug mode. 
->> 
->> - alloc slow path, there is unnecessary to call get_partial 
->>   since cpu partial lists won't be used in debug mode. 
->> - free slow patch, new.inuse won't be true in debug mode 
->>   which lead to put_cpu_partial won't be called.
->> 
->
->In debug mode, put_cpu_partial() can't be called already on both path.
->But, if we assign 0 to cpu_partial via sysfs, put_cpu_partial() will be called
->on free slow path. On alloc slow path, it can't be called, because following
->test in get_partial_node() is always failed.
->
->available > s->cpu_partial / 2
+On Wed, 2013-06-19 at 10:14 -0700, Andrew Morton wrote:
+> On Wed, 19 Jun 2013 17:29:06 +0400 Glauber Costa <glommer@gmail.com> wrote:
+> 
+> > > > Thanks for taking a look at this.
+> > > > 
+> > > > list_lru_destroy is called by deactivate_lock_super, so we should be fine already.
+> > > 
+> > > Sorry, I'm a little confused...
+> > > 
+> > > I didn't see list_lru_destroy() called in deactivate_locked_super().
+> > > Maybe I missed something? 
+> > 
+> > Err... the code in my tree reads:
+> > 
+> >         unregister_shrinker(&s->s_shrink);
+> >         list_lru_destroy(&s->s_dentry_lru);
+> >         list_lru_destroy(&s->s_inode_lru);
+> >         put_filesystem(fs);
+> >         put_super(s);
+> > 
+> > But then I have just checked Andrew's, and it is not there - thank you.
+> 
+> That is added by "super: targeted memcg reclaim", which is in the part
+> of the series which we decided to defer.
 
-Is it always true? We can freeze slab from partial list, and 
-s->cpu_partial is 0. 
+Oh, yes, there it is. Sorry for the noise ...
 
-Regards,
-Wanpeng Li 
+> 
+> > Andrew, should I send a patch for you to fold it ?
+> 
+> Sure.  Perhaps you could check for any other things which should be
+> brought over from the not-merged-yet patches?
+> 
 
->
->Thanks.
->
->> Regards,
->> Wanpeng Li 
->> 
->> >Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->> >
->> >diff --git a/mm/slub.c b/mm/slub.c
->> >index 57707f0..7033b4f 100644
->> >--- a/mm/slub.c
->> >+++ b/mm/slub.c
->> >@@ -1955,6 +1955,9 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
->> > 	int pages;
->> > 	int pobjects;
->> >
->> >+	if (!s->cpu_partial)
->> >+		return;
->> >+
->> > 	do {
->> > 		pages = 0;
->> > 		pobjects = 0;
->> >-- 
->> >1.7.9.5
->> >
->> >--
->> >To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> >the body to majordomo@kvack.org.  For more info on Linux MM,
->> >see: http://www.linux-mm.org/ .
->> >Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->> 
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
