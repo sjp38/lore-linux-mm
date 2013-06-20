@@ -1,144 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 187966B0033
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 10:48:47 -0400 (EDT)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Thu, 20 Jun 2013 10:48:46 -0400
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 26210C90041
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 10:48:40 -0400 (EDT)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5KEmewv44892406
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 10:48:40 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5KEmUVZ010695
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 11:48:30 -0300
-Date: Thu, 20 Jun 2013 09:48:26 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: Re: [PATCH 2/2] zswap: update/document boot parameters
-Message-ID: <20130620144826.GB9461@cerebellum>
-References: <1371716949-9918-1-git-send-email-bob.liu@oracle.com>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 1F02A6B0034
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 10:48:58 -0400 (EDT)
+Date: Thu, 20 Jun 2013 14:48:56 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] mm: Revert pinned_vm braindamage
+In-Reply-To: <20130620114943.GB12125@gmail.com>
+Message-ID: <0000013f620f4699-f484f28e-3d12-4560-adfe-3b00af995fd9-000000@email.amazonses.com>
+References: <20130606124351.GZ27176@twins.programming.kicks-ass.net> <0000013f1ad00ec0-9574a936-3a75-4ccc-a84c-4a12a7ea106e-000000@email.amazonses.com> <20130607110344.GA27176@twins.programming.kicks-ass.net> <0000013f1f1f79d1-2cf8cb8c-7e63-4e83-9f2b-7acc0e0638a1-000000@email.amazonses.com>
+ <20130617110832.GP3204@twins.programming.kicks-ass.net> <0000013f536c60ee-9a1ca9da-b798-416a-a32e-c896813d3bac-000000@email.amazonses.com> <20130620114943.GB12125@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1371716949-9918-1-git-send-email-bob.liu@oracle.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, konrad.wilk@oracle.com, Bob Liu <bob.liu@oracle.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, akpm@linux-foundation.org, torvalds@linux-foundation.org, roland@kernel.org, tglx@linutronix.de, kosaki.motohiro@gmail.com, penberg@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-rdma@vger.kernel.org
 
-On Thu, Jun 20, 2013 at 04:29:09PM +0800, Bob Liu wrote:
-> The current parameters of zswap are not straightforward.
-> Changed them to start with zswap* and documented them.
+On Thu, 20 Jun 2013, Ingo Molnar wrote:
 
-Thanks for the patch!
+> Peter clearly pointed it out that in the perf case it's user-space that
+> initiates the pinned memory mapping which is resource-controlled via
+> RLIMIT_MEMLOCK - and this was implemented that way before your commit
+> broke the code.
 
-However, I think you might be missing that using module_param(_named) allows
-access on the kernel boot line with <modulename>.<moduleparam> syntax.  So
-"zswap" already has to be the parameter string as it is the name of the module
-to whom the parameters belong.
+There is no way that user space can initiate a page pin right now. Perf is
+pinning the page from the kernel. Similarly the IB subsystem pins memory
+meeded for device I/O.
 
-For example, your patch just changes the boot parameter from
-zswap.max_pool_percent to zswap_maxpool_percent.  That doesn't add any clarity
-IMO.
+> You seem to be hell bent on defining 'memory pinning' only as "the thing
+> done via the mlock*() system calls", but that is a nonsensical distinction
+> that actively and incorrectly ignores other system calls that can and do
+> pin memory legitimately.
 
-Yes, zswap isn't able to be a module right now.  But there is no harm in using
-the module framework to provide standardized access to zswap parameters. Plus,
-the day might come when zswap can be a module.
+Nope. I have said that Memory pinning is done by increasing the refcount
+which is different from mlock which sets a page flag.
 
-As far as documenting them in kernel-parameters.txt, this was mentioned before
-and I it was decided to not do that since module parameters are typically not
-documented there. However, since zswap is currently not buildable as a module,
-I could see where I case could be made for documenting them there.
+I have consistently argued that these are two different things. And I am
+a
+bit surprised that this point has not been understood after all these
+repetitions.
 
-If you wanted to document them with their <modulename>.<moduleparam> syntax,
-I wouldn't be opposed to it.
+Memory pinning these days is done as a side effect of kernel / driver
+needs. I.e. the memory registration done through the IB subsystem and
+elsewhere.
 
-Seth
+> int can_do_mlock(void)
+> {
+>         if (capable(CAP_IPC_LOCK))
+>                 return 1;
+>         if (rlimit(RLIMIT_MEMLOCK) != 0)
+>                 return 1;
+>         return 0;
+> }
+> EXPORT_SYMBOL(can_do_mlock);
+>
+> Q.E.D.
 
-> 
-> Signed-off-by: Bob Liu <bob.liu@oracle.com>
-> ---
->  Documentation/kernel-parameters.txt |    8 ++++++++
->  mm/zswap.c                          |   27 +++++++++++++++++++++++----
->  2 files changed, 31 insertions(+), 4 deletions(-)
-> 
-> diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-> index 2fe6e76..07642fd 100644
-> --- a/Documentation/kernel-parameters.txt
-> +++ b/Documentation/kernel-parameters.txt
-> @@ -3367,6 +3367,14 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
->  			Format:
->  			<irq>,<irq_mask>,<io>,<full_duplex>,<do_sound>,<lockup_hack>[,<irq2>[,<irq3>[,<irq4>]]]
-> 
-> +	zswap 		Enable compressed cache for swap pages support which
-> +			is disabled by default.
-> +	zswapcompressor=
-> +			Select which compressor to be used by zswap.
-> +			The default compressor is lzo.
-> +	zswap_maxpool_percent=
-> +			Select how may percent of total memory can be used to
-> +			store comprssed pages. The default percent is 20%.
->  ______________________________________________________________________
-> 
->  TODO:
-> diff --git a/mm/zswap.c b/mm/zswap.c
-> index 7fe2b1b..8ec1360 100644
-> --- a/mm/zswap.c
-> +++ b/mm/zswap.c
-> @@ -77,17 +77,13 @@ static u64 zswap_duplicate_entry;
->  **********************************/
->  /* Enable/disable zswap (disabled by default, fixed at boot for now) */
->  static bool zswap_enabled __read_mostly;
-> -module_param_named(enabled, zswap_enabled, bool, 0);
-> 
->  /* Compressor to be used by zswap (fixed at boot for now) */
->  #define ZSWAP_COMPRESSOR_DEFAULT "lzo"
->  static char *zswap_compressor = ZSWAP_COMPRESSOR_DEFAULT;
-> -module_param_named(compressor, zswap_compressor, charp, 0);
-> 
->  /* The maximum percentage of memory that the compressed pool can occupy */
->  static unsigned int zswap_max_pool_percent = 20;
-> -module_param_named(max_pool_percent,
-> -			zswap_max_pool_percent, uint, 0644);
-> 
->  /*********************************
->  * compression functions
-> @@ -914,6 +910,29 @@ static int __init zswap_debugfs_init(void)
->  static void __exit zswap_debugfs_exit(void) { }
->  #endif
-> 
-> +static int __init enable_zswap(char *s)
-> +{
-> +	zswap_enabled = true;
-> +	return 1;
-> +}
-> +__setup("zswap", enable_zswap);
-> +
-> +static int __init setup_zswap_compressor(char *s)
-> +{
-> +	strlcpy(zswap_compressor, s, sizeof(zswap_compressor));
-> +	zswap_enabled = true;
-> +	return 1;
-> +}
-> +__setup("zswapcompressor=", setup_zswap_compressor);
-> +
-> +static int __init setup_zswap_max_pool_percent(char *s)
-> +{
-> +	get_option(&s, &zswap_max_pool_percent);
-> +	zswap_enabled = true;
-> +	return 1;
-> +}
-> +__setup("zswap_maxpool_percent=", setup_zswap_max_pool_percent);
-> +
->  /*********************************
->  * module init and exit
->  **********************************/
-> -- 
-> 1.7.10.4
-> 
+Argh. Just checked the apps. True. They did set the rlimit to 0 at some
+point in order to make this work. Then they monitor the number of locked
+pages and create alerts so that action can be taking if a system uses too
+many mlocked pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
