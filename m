@@ -1,98 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id BB8D06B0033
-	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 22:27:43 -0400 (EDT)
-Date: Wed, 19 Jun 2013 21:27:39 -0500
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [PATCH v2] Make transparent hugepages cpuset aware
-Message-ID: <20130620022739.GF3658@sgi.com>
-References: <1370967244-5610-1-git-send-email-athorlton@sgi.com>
- <alpine.DEB.2.02.1306111517200.6141@chino.kir.corp.google.com>
- <20130618164537.GJ16067@sgi.com>
- <alpine.DEB.2.02.1306181654350.4503@chino.kir.corp.google.com>
- <20130619093212.GX3658@sgi.com>
- <alpine.DEB.2.02.1306191419081.13015@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 50C506B0033
+	for <linux-mm@kvack.org>; Wed, 19 Jun 2013 22:32:47 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Thu, 20 Jun 2013 07:57:49 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 72A12394004F
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 08:02:40 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5K2WZKr27721836
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 08:02:36 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5K2Wd87012369
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 02:32:39 GMT
+Date: Thu, 20 Jun 2013 10:32:38 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH] slub: do not put a slab to cpu partial list when
+ cpu_partial is 0
+Message-ID: <20130620023238.GA27516@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <1371623635-26575-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <51c1652d.246e320a.4057.ffffed4fSMTPIN_ADDED_BROKEN@mx.google.com>
+ <20130619085250.GC12231@lge.com>
+ <51c24c29.425c320a.433e.ffff9d8fSMTPIN_ADDED_BROKEN@mx.google.com>
+ <20130620014439.GA13026@lge.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1306191419081.13015@chino.kir.corp.google.com>
+In-Reply-To: <20130620014439.GA13026@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Robin Holt <holt@sgi.com>, Alex Thorlton <athorlton@sgi.com>, linux-kernel@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, linux-doc@vger.kernel.org, linux-mm@kvack.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Jun 19, 2013 at 02:24:07PM -0700, David Rientjes wrote:
-> On Wed, 19 Jun 2013, Robin Holt wrote:
-> 
-> > The convenience being that many batch schedulers have added cpuset
-> > support.  They create the cpuset's and configure them as appropriate
-> > for the job as determined by a mixture of input from the submitting
-> > user but still under the control of the administrator.  That seems like
-> > a fairly significant convenience given that it took years to get the
-> > batch schedulers to adopt cpusets in the first place.  At this point,
-> > expanding their use of cpusets is under the control of the system
-> > administrator and would not require any additional development on
-> > the batch scheduler developers part.
-> > 
-> 
-> You can't say the same for memcg?
+On Thu, Jun 20, 2013 at 10:44:40AM +0900, Joonsoo Kim wrote:
+>On Thu, Jun 20, 2013 at 08:26:03AM +0800, Wanpeng Li wrote:
+>> On Wed, Jun 19, 2013 at 05:52:50PM +0900, Joonsoo Kim wrote:
+>> >On Wed, Jun 19, 2013 at 04:00:32PM +0800, Wanpeng Li wrote:
+>> >> On Wed, Jun 19, 2013 at 03:33:55PM +0900, Joonsoo Kim wrote:
+>> >> >In free path, we don't check number of cpu_partial, so one slab can
+>> >> >be linked in cpu partial list even if cpu_partial is 0. To prevent this,
+>> >> >we should check number of cpu_partial in put_cpu_partial().
+>> >> >
+>> >> 
+>> >> How about skip get_partial entirely? put_cpu_partial is called 
+>> >> in two paths, one is during refill cpu partial lists in alloc 
+>> >> slow path, the other is in free slow path. And cpu_partial is 0 
+>> >> just in debug mode. 
+>> >> 
+>> >> - alloc slow path, there is unnecessary to call get_partial 
+>> >>   since cpu partial lists won't be used in debug mode. 
+>> >> - free slow patch, new.inuse won't be true in debug mode 
+>> >>   which lead to put_cpu_partial won't be called.
+>> >> 
+>> >
+>> >In debug mode, put_cpu_partial() can't be called already on both path.
+>> >But, if we assign 0 to cpu_partial via sysfs, put_cpu_partial() will be called
+>> >on free slow path. On alloc slow path, it can't be called, because following
+>> >test in get_partial_node() is always failed.
+>> >
+>> >available > s->cpu_partial / 2
+>> 
+>> Is it always true? We can freeze slab from partial list, and 
+>> s->cpu_partial is 0. 
+>
+>Do you mean node partial list?
+>
 
-I am not aware of batch scheduler support for memory controllers.
-The request came from our benchmarking group.
+Yup.
 
-> > Here are the entries in the cpuset:
-> > cgroup.event_control  mem_exclusive    memory_pressure_enabled  notify_on_release         tasks
-> > cgroup.procs          mem_hardwall     memory_spread_page       release_agent
-> > cpu_exclusive         memory_migrate   memory_spread_slab       sched_load_balance
-> > cpus                  memory_pressure  mems                     sched_relax_domain_level
-> > 
-> > There are scheduler, slab allocator, page_cache layout, etc controls.
-> 
-> I think this is mostly for historical reasons since cpusets were 
-> introduced before cgroups.
-> 
-> > Why _NOT_ add a thp control to that nicely contained central location?
-> > It is a concise set of controls for the job.
-> > 
-> 
-> All of the above seem to be for cpusets primary purpose, i.e. NUMA 
-> optimizations.  It has nothing to do with transparent hugepages.  (I'm not 
-> saying thp has anything to do with memcg either, but a "memory controller" 
-> seems more appropriate for controlling thp behavior.)
+>At first, acquire_slab() is called for a cpu slab(not cpu partial list)
+>in get_partial_node(), and then, check above test. In this time, available
+>is always higher than 0, so, if we assign 0 to s->cpu_partial, we break
+>the loop and we don't try to get a slab for cpu partial list.
+>
 
-cpusets was not for NUMA.  It has no preference for "nodes" or anything like
-that.  It was for splitting a machine into layered smaller groups.  Usually,
-we see one cpuset with contains the batch scheduler.  The batch scheduler then
-creates cpusets for jobs it starts.  Has nothing to do with nodes.  That is
-more an administrator issue.  They set the minimum grouping of resources
-for scheduled jobs.
+Agreed. 
 
-> > Maybe I am misunderstanding.  Are you saying you want to put memcg
-> > information into the cpuset or something like that?
-> > 
-> 
-> I'm saying there's absolutely no reason to have thp controlled by a 
-> cpuset, or ANY cgroup for that matter, since you chose not to respond to 
-> the question I asked: why do you want to control thp behavior for certain 
-> static binaries and not others?  Where is the performance regression or 
-> the downside?  Is it because of max_ptes_none for certain jobs blowing up 
-> the rss?  We need information, and even if were justifiable then it 
-> wouldn't have anything to do with ANY cgroup but rather a per-process 
-> control.  It has nothing to do with cpusets whatsoever.
+Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-It was a request from our benchmarking group that has found some jobs
-benefit from thp, while other are harmed.  Let me ask them for more
-details.
-
-> (And I'm very curious why you didn't even cc the cpusets maintainer on 
-> this patch in the first place who would probably say the same thing.)
-
-I didn't know there was a cpuset maintainer.  Paul Jackson (SGI retired)
-had originally worked to get cpusets introduced and then converted to
-use cgroups.  I had never known there was a maintainer after him.  Sorry
-for that.
-
-Robin
+>Thanks.
+>
+>> 
+>> Regards,
+>> Wanpeng Li 
+>> 
+>> >
+>> >Thanks.
+>> >
+>> >> Regards,
+>> >> Wanpeng Li 
+>> >> 
+>> >> >Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>> >> >
+>> >> >diff --git a/mm/slub.c b/mm/slub.c
+>> >> >index 57707f0..7033b4f 100644
+>> >> >--- a/mm/slub.c
+>> >> >+++ b/mm/slub.c
+>> >> >@@ -1955,6 +1955,9 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+>> >> > 	int pages;
+>> >> > 	int pobjects;
+>> >> >
+>> >> >+	if (!s->cpu_partial)
+>> >> >+		return;
+>> >> >+
+>> >> > 	do {
+>> >> > 		pages = 0;
+>> >> > 		pobjects = 0;
+>> >> >-- 
+>> >> >1.7.9.5
+>> >> >
+>> >> >--
+>> >> >To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> >> >the body to majordomo@kvack.org.  For more info on Linux MM,
+>> >> >see: http://www.linux-mm.org/ .
+>> >> >Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>> >> 
+>> >> --
+>> >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> >> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> >> see: http://www.linux-mm.org/ .
+>> >> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>> 
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
