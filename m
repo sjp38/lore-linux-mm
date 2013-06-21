@@ -1,67 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 584456B005A
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 21:24:36 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 343126B0068
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 21:26:22 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Fri, 21 Jun 2013 11:17:26 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 8BEAC3578051
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 11:24:31 +1000 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5L1OMT661800462
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 11:24:22 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5L1OU7m015013
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 11:24:31 +1000
+	Fri, 21 Jun 2013 22:22:42 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id C1CF12BB0044
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 11:26:16 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5L1BNeT7471602
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 11:11:23 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5L1QFFN026676
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 11:26:16 +1000
+Date: Fri, 21 Jun 2013 09:26:14 +0800
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v7 6/6] mm/pgtable: Don't accumulate addr during pgd prepopulate pmd
-Date: Fri, 21 Jun 2013 09:24:19 +0800
-Message-Id: <1371777859-13459-6-git-send-email-liwanp@linux.vnet.ibm.com>
-In-Reply-To: <1371777859-13459-1-git-send-email-liwanp@linux.vnet.ibm.com>
-References: <1371777859-13459-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH v5 2/6] mm/writeback: Don't check force_wait to handle
+ bdi->work_list
+Message-ID: <20130621012614.GA12123@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <1371774534-4139-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1371774534-4139-2-git-send-email-liwanp@linux.vnet.ibm.com>
+ <20130621003330.GD11033@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130621003330.GD11033@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Fengguang Wu <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Andrew Shewmaker <agshew@gmail.com>, Jiri Kosina <jkosina@suse.cz>, Namjae Jeon <linkinjeon@gmail.com>, Jan Kara <jack@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Andrew Shewmaker <agshew@gmail.com>, Jiri Kosina <jkosina@suse.cz>, Namjae Jeon <linkinjeon@gmail.com>, Jan Kara <jack@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The old codes accumulate addr to get right pmd, however,
-currently pmds are preallocated and transfered as a parameter,
-there is unnecessary to accumulate addr variable any more, this
-patch remove it.
+On Fri, Jun 21, 2013 at 08:33:30AM +0800, Fengguang Wu wrote:
+>Reviewed-by: Fengguang Wu <fengguang.wu@intel.com>
+>
+>Andrew: this patch must be ordered _after_ "fs/fs-writeback.c: make
+>wb_do_writeback() as static" to avoid build errors.
+>
 
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
-Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
----
- arch/x86/mm/pgtable.c |    4 +---
- 1 files changed, 1 insertions(+), 3 deletions(-)
+I will fold this as note in v7, thanks for pointing out. ;-)
 
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index 17fda6a..dfa537a 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -240,7 +240,6 @@ static void pgd_mop_up_pmds(struct mm_struct *mm, pgd_t *pgdp)
- static void pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd, pmd_t *pmds[])
- {
- 	pud_t *pud;
--	unsigned long addr;
- 	int i;
- 
- 	if (PREALLOCATED_PMDS == 0) /* Work around gcc-3.4.x bug */
-@@ -248,8 +247,7 @@ static void pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd, pmd_t *pmds[])
- 
- 	pud = pud_offset(pgd, 0);
- 
-- 	for (addr = i = 0; i < PREALLOCATED_PMDS;
--	     i++, pud++, addr += PUD_SIZE) {
-+	for (i = 0; i < PREALLOCATED_PMDS; i++, pud++) {
- 		pmd_t *pmd = pmds[i];
- 
- 		if (i >= KERNEL_PGD_BOUNDARY)
--- 
-1.7.5.4
+Regards,
+Wanpeng Li 
+
+>Thanks,
+>Fengguang
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
