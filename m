@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na6sys010bmx048.postini.com [74.125.246.148])
-	by kanga.kvack.org (Postfix) with SMTP id C27DF6B0039
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 20:29:14 -0400 (EDT)
+Received: from psmtp.com (na6sys010bmx032.postini.com [74.125.246.132])
+	by kanga.kvack.org (Postfix) with SMTP id C91C26B003A
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 20:29:16 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Fri, 21 Jun 2013 10:20:25 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id D7FC22BB0050
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 10:29:08 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5L0EOT835520620
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 10:14:24 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5L0T7OI001923
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 10:29:08 +1000
+	Fri, 21 Jun 2013 05:50:46 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 69524125804E
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 05:58:10 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5L0TKQg26542248
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 05:59:20 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5L0T9JM012758
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 00:29:09 GMT
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v5 5/6] mm/thp: fix doc for transparent huge zero page
-Date: Fri, 21 Jun 2013 08:28:53 +0800
-Message-Id: <1371774534-4139-5-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v5 6/6] mm/pgtable: Don't accumulate addr during pgd prepopulate pmd
+Date: Fri, 21 Jun 2013 08:28:54 +0800
+Message-Id: <1371774534-4139-6-git-send-email-liwanp@linux.vnet.ibm.com>
 In-Reply-To: <1371774534-4139-1-git-send-email-liwanp@linux.vnet.ibm.com>
 References: <1371774534-4139-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,37 +26,40 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Fengguang Wu <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Andrew Shewmaker <agshew@gmail.com>, Jiri Kosina <jkosina@suse.cz>, Namjae Jeon <linkinjeon@gmail.com>, Jan Kara <jack@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Transparent huge zero page is used during the page fault instead of
-in khugepaged.
+The old codes accumulate addr to get right pmd, however,
+currently pmds are preallocated and transfered as a parameter,
+there is unnecessary to accumulate addr variable any more, this
+patch remove it.
 
-# ls /sys/kernel/mm/transparent_hugepage/
-defrag  enabled  khugepaged  use_zero_page
-# ls /sys/kernel/mm/transparent_hugepage/khugepaged/
-alloc_sleep_millisecs  defrag  full_scans  max_ptes_none  pages_collapsed  pages_to_scan  scan_sleep_millisecs
-
-This patch corrects the documentation just like the codes done.
-
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- Documentation/vm/transhuge.txt |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+ arch/x86/mm/pgtable.c |    4 +---
+ 1 files changed, 1 insertions(+), 3 deletions(-)
 
-diff --git a/Documentation/vm/transhuge.txt b/Documentation/vm/transhuge.txt
-index 8785fb8..4a63953 100644
---- a/Documentation/vm/transhuge.txt
-+++ b/Documentation/vm/transhuge.txt
-@@ -120,8 +120,8 @@ By default kernel tries to use huge zero page on read page fault.
- It's possible to disable huge zero page by writing 0 or enable it
- back by writing 1:
+diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+index 17fda6a..dfa537a 100644
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -240,7 +240,6 @@ static void pgd_mop_up_pmds(struct mm_struct *mm, pgd_t *pgdp)
+ static void pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd, pmd_t *pmds[])
+ {
+ 	pud_t *pud;
+-	unsigned long addr;
+ 	int i;
  
--echo 0 >/sys/kernel/mm/transparent_hugepage/khugepaged/use_zero_page
--echo 1 >/sys/kernel/mm/transparent_hugepage/khugepaged/use_zero_page
-+echo 0 >/sys/kernel/mm/transparent_hugepage/use_zero_page
-+echo 1 >/sys/kernel/mm/transparent_hugepage/use_zero_page
+ 	if (PREALLOCATED_PMDS == 0) /* Work around gcc-3.4.x bug */
+@@ -248,8 +247,7 @@ static void pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd, pmd_t *pmds[])
  
- khugepaged will be automatically started when
- transparent_hugepage/enabled is set to "always" or "madvise, and it'll
+ 	pud = pud_offset(pgd, 0);
+ 
+- 	for (addr = i = 0; i < PREALLOCATED_PMDS;
+-	     i++, pud++, addr += PUD_SIZE) {
++	for (i = 0; i < PREALLOCATED_PMDS; i++, pud++) {
+ 		pmd_t *pmd = pmds[i];
+ 
+ 		if (i >= KERNEL_PGD_BOUNDARY)
 -- 
 1.7.5.4
 
