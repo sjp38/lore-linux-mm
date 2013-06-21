@@ -1,67 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na6sys010bmx032.postini.com [74.125.246.132])
-	by kanga.kvack.org (Postfix) with SMTP id C91C26B003A
-	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 20:29:16 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Fri, 21 Jun 2013 05:50:46 +0530
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 69524125804E
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 05:58:10 +0530 (IST)
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5L0TKQg26542248
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 05:59:20 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5L0T9JM012758
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 00:29:09 GMT
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v5 6/6] mm/pgtable: Don't accumulate addr during pgd prepopulate pmd
-Date: Fri, 21 Jun 2013 08:28:54 +0800
-Message-Id: <1371774534-4139-6-git-send-email-liwanp@linux.vnet.ibm.com>
-In-Reply-To: <1371774534-4139-1-git-send-email-liwanp@linux.vnet.ibm.com>
-References: <1371774534-4139-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Received: from psmtp.com (na6sys010bmx033.postini.com [74.125.246.133])
+	by kanga.kvack.org (Postfix) with SMTP id E3ECE6B0033
+	for <linux-mm@kvack.org>; Thu, 20 Jun 2013 20:31:09 -0400 (EDT)
+Date: Fri, 21 Jun 2013 08:31:03 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [PATCH v4 2/6] mm/writeback: Don't check force_wait to handle
+ bdi->work_list
+Message-ID: <20130621003103.GC11033@localhost>
+References: <1371599563-6424-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1371599563-6424-2-git-send-email-liwanp@linux.vnet.ibm.com>
+ <20130620134615.GA10909@localhost>
+ <20130620233724.GA26898@hacker.(null)>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130620233724.GA26898@hacker.(null)>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Fengguang Wu <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Andrew Shewmaker <agshew@gmail.com>, Jiri Kosina <jkosina@suse.cz>, Namjae Jeon <linkinjeon@gmail.com>, Jan Kara <jack@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Andrew Shewmaker <agshew@gmail.com>, Jiri Kosina <jkosina@suse.cz>, Namjae Jeon <linkinjeon@gmail.com>, Jan Kara <jack@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The old codes accumulate addr to get right pmd, however,
-currently pmds are preallocated and transfered as a parameter,
-there is unnecessary to accumulate addr variable any more, this
-patch remove it.
+On Fri, Jun 21, 2013 at 07:37:25AM +0800, Wanpeng Li wrote:
+> On Thu, Jun 20, 2013 at 09:46:15PM +0800, Fengguang Wu wrote:
+> >>  fs/fs-writeback.c |   10 ++--------
+> >>  1 files changed, 2 insertions(+), 8 deletions(-)
+> >
+> >The header file should be changed, too. Otherwise looks fine to me.
+> >
+> >include/linux/writeback.h:97:long wb_do_writeback(struct bdi_writeback *wb, int force_wait);
+> 
+> Thanks for your review, Fengguang. ;-)
+> 
+> The line in header file has already been removed by commit(836f29bbb0:
+> fs/fs-writeback.c: : make wb_do_writeback() as static) in -next tree
+> since there is just one caller in fs/fs-writeback.c.
 
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
-Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
----
- arch/x86/mm/pgtable.c |    4 +---
- 1 files changed, 1 insertions(+), 3 deletions(-)
+Ah OK. I was reading the upstream kernel.. However it still presents a
+tricky situation (for Andrew Morton) that commit 836f29bbb0 MUST be
+merged before your patch in the next merge window. Otherwise it will
+lead to a range of build failure commits.
 
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index 17fda6a..dfa537a 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -240,7 +240,6 @@ static void pgd_mop_up_pmds(struct mm_struct *mm, pgd_t *pgdp)
- static void pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd, pmd_t *pmds[])
- {
- 	pud_t *pud;
--	unsigned long addr;
- 	int i;
- 
- 	if (PREALLOCATED_PMDS == 0) /* Work around gcc-3.4.x bug */
-@@ -248,8 +247,7 @@ static void pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd, pmd_t *pmds[])
- 
- 	pud = pud_offset(pgd, 0);
- 
-- 	for (addr = i = 0; i < PREALLOCATED_PMDS;
--	     i++, pud++, addr += PUD_SIZE) {
-+	for (i = 0; i < PREALLOCATED_PMDS; i++, pud++) {
- 		pmd_t *pmd = pmds[i];
- 
- 		if (i >= KERNEL_PGD_BOUNDARY)
--- 
-1.7.5.4
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
