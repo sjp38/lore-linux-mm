@@ -1,53 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 8251A6B0031
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 19:42:42 -0400 (EDT)
-Received: by mail-vb0-f46.google.com with SMTP id 10so6380520vbe.5
-        for <linux-mm@kvack.org>; Fri, 21 Jun 2013 16:42:41 -0700 (PDT)
-MIME-Version: 1.0
-Date: Fri, 21 Jun 2013 16:42:41 -0700
-Message-ID: <CAMbhsRQU=xrcum+ZUbG3S+JfFUJK_qm_VB96Vz=PpL=vQYhUvg@mail.gmail.com>
-Subject: RFC: named anonymous vmas
-From: Colin Cross <ccross@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 653666B0031
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 19:51:28 -0400 (EDT)
+Subject: [PATCH 0/2] rwsem: performance enhancements for systems with many
+ cores
+From: Tim Chen <tim.c.chen@linux.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 21 Jun 2013 16:51:31 -0700
+Message-ID: <1371858691.22432.3.camel@schen9-DESK>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lkml <linux-kernel@vger.kernel.org>
-Cc: Linux-MM <linux-mm@kvack.org>, Android Kernel Team <kernel-team@android.com>, John Stultz <john.stultz@linaro.org>
+To: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Tim Chen <tim.c.chen@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-One of the features of ashmem (drivers/staging/android/ashmem.c) that
-hasn't gotten much discussion about moving out of staging is named
-anonymous memory.
+In this patchset, we introduce two optimizations to read write semaphore.
+The first one reduces cache bouncing of the sem->count field
+by doing a pre-read of the sem->count and avoid cmpxchg if possible.
+The second patch introduces similar optimistic spining logic in
+the mutex code for the writer lock acquisition of rw-sem.
 
-In Android, ashmem is used for three different features, and most
-users of it only care about one feature at a time.  One is volatile
-ranges, which John Stultz has been implementing.  The second is
-anonymous shareable memory without having a world-writable tmpfs that
-untrusted apps could fill with files.  The third and most heavily used
-feature within the Android codebase is named anonymous memory, where a
-region of anonymous memory can have a name associated with it that
-will show up in /proc/pid/maps.  The Dalvik VM likes to use this
-feature extensively, even for memory that will never be shared and
-could easily be allocated using an anonymous mmap, and even malloc has
-used it in the past.  It provides an easy way to collate memory used
-for different purposes across multiple processes, which Android uses
-for its "dumpsys meminfo" and "librank" tools to determine how much
-memory is used for java heaps, JIT caches, native mallocs, etc.
+Combining the two patches, in testing by Davidlohr Bueso on aim7 workloads
+on 8 socket 80 cores system, he saw improvements of
+alltests (+14.5%), custom (+17%), disk (+11%), high_systime
+(+5%), shared (+15%) and short (+4%), most of them after around 500
+users when i_mmap was implemented as rwsem.
 
-I'd like to add this feature for anonymous mmap memory.  I propose
-adding an madvise2(unsigned long start, size_t len_in, int behavior,
-void *ptr, size_t size) syscall and a new MADV_NAME behavior, which
-treats ptr as a string of length size.  The string would be copied
-somewhere reusable in the kernel, or reused if it already exists, and
-the kernel address of the string would get stashed in a new field in
-struct vm_area_struct.  Adjacent vmas would only get merged if the
-name pointer matched, and naming part of a mapping would split the
-mapping.  show_map_vma would print the name only if none of the other
-existing names rules match.
+Feedbacks on the effectiveness of these tweaks on other workloads
+will be appreciated.
 
-Any comments as I start implementing it?  Is there any reason to allow
-naming a file-backed mapping and showing it alongside the file name in
-/proc/pid/maps?
+
+Alex Shi (1):
+  rwsem: check the lock before cpmxchg in down_write_trylock and    
+    rwsem_do_wake
+
+Tim Chen (1):
+  rwsem: do optimistic spinning for writer lock acquisition
+
+ Makefile                    |    2 +-
+ include/asm-generic/rwsem.h |    8 +-
+ include/linux/rwsem.h       |    3 +
+ init/Kconfig                |    9 +++
+ kernel/rwsem.c              |   29 +++++++-
+ lib/rwsem.c                 |  169 ++++++++++++++++++++++++++++++++++++++-----
+ 6 files changed, 195 insertions(+), 25 deletions(-)
+
+-- 
+1.7.4.4
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
