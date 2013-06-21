@@ -1,31 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 7BFE66B0031
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 07:02:52 -0400 (EDT)
-Received: by mail-la0-f51.google.com with SMTP id fq12so6973525lab.38
-        for <linux-mm@kvack.org>; Fri, 21 Jun 2013 04:02:50 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20130621091944.GC12424@dhcp22.suse.cz>
-References: <CAOK=xRMYZokH1rg+dfE0KfPk9NsqPmmaTg-k8sagqRqvR+jG+w@mail.gmail.com>
-	<CAOK=xRMz+qX=CQ+3oD6TsEiGckMAdGJ-GAUC8o6nQpx4SJtQPw@mail.gmail.com>
-	<20130618110151.GI13677@dhcp22.suse.cz>
-	<00fd01ce6ce0$82eac0a0$88c041e0$%kim@samsung.com>
-	<20130619125329.GB16457@dhcp22.suse.cz>
-	<000401ce6d5c$566ac620$03405260$%kim@samsung.com>
-	<20130620121649.GB27196@dhcp22.suse.cz>
-	<001e01ce6e15$3d183bd0$b748b370$%kim@samsung.com>
-	<001f01ce6e15$b7109950$2531cbf0$%kim@samsung.com>
-	<20130621012234.GF11659@bbox>
-	<20130621091944.GC12424@dhcp22.suse.cz>
-Date: Fri, 21 Jun 2013 20:02:50 +0900
-Message-ID: <CAOK=xRMZTTEqX7kAUkkFU+www6jwTQw8bvw6a0p-Jfd828gyCQ@mail.gmail.com>
-Subject: Re: [PATCH v6] memcg: event control at vmpressure.
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 09B686B0031
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 07:54:34 -0400 (EDT)
+Received: from epcpsbgr1.samsung.com
+ (u141.gpu120.samsung.co.kr [203.254.230.141])
+ by mailout3.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTP id <0MOQ00MTBRPPFKN0@mailout3.samsung.com> for linux-mm@kvack.org;
+ Fri, 21 Jun 2013 20:54:33 +0900 (KST)
 From: Hyunhee Kim <hyunhee.kim@samsung.com>
-Content-Type: text/plain; charset=ISO-8859-1
+References: 
+ <CAOK=xRMYZokH1rg+dfE0KfPk9NsqPmmaTg-k8sagqRqvR+jG+w@mail.gmail.com>
+ <CAOK=xRMz+qX=CQ+3oD6TsEiGckMAdGJ-GAUC8o6nQpx4SJtQPw@mail.gmail.com>
+ <20130618110151.GI13677@dhcp22.suse.cz>
+ <00fd01ce6ce0$82eac0a0$88c041e0$%kim@samsung.com>
+ <20130619125329.GB16457@dhcp22.suse.cz>
+ <000401ce6d5c$566ac620$03405260$%kim@samsung.com>
+ <20130620121649.GB27196@dhcp22.suse.cz>
+ <001e01ce6e15$3d183bd0$b748b370$%kim@samsung.com>
+ <001f01ce6e15$b7109950$2531cbf0$%kim@samsung.com>
+ <20130621012234.GF11659@bbox> <20130621091944.GC12424@dhcp22.suse.cz>
+ <CAOK=xRMZTTEqX7kAUkkFU+www6jwTQw8bvw6a0p-Jfd828gyCQ@mail.gmail.com>
+In-reply-to: 
+ <CAOK=xRMZTTEqX7kAUkkFU+www6jwTQw8bvw6a0p-Jfd828gyCQ@mail.gmail.com>
+Subject: RE: [PATCH v6] memcg: event control at vmpressure.
+Date: Fri, 21 Jun 2013 20:54:32 +0900
+Message-id: <004301ce6e76$17be3220$473a9660$%kim@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-transfer-encoding: 7bit
+Content-language: ko
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan@kernel.org>
-Cc: Anton Vorontsov <anton@enomsg.org>, linux-mm@kvack.org, akpm@linux-foundation.org, rob@landley.net, kamezawa.hiroyu@jp.fujitsu.com, hannes@cmpxchg.org, rientjes@google.com, kirill@shutemov.name, Kyungmin Park <kyungmin.park@samsung.com>
+To: 'Minchan Kim' <minchan@kernel.org>
+Cc: 'Anton Vorontsov' <anton@enomsg.org>, linux-mm@kvack.org, akpm@linux-foundation.org, rob@landley.net, kamezawa.hiroyu@jp.fujitsu.com, hannes@cmpxchg.org, rientjes@google.com, kirill@shutemov.name, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Hyunhee Kim' <hyunhee.kim@samsung.com>, 'Michal Hocko' <mhocko@suse.cz>
+
+In addition, I have more questions about vmpressure.
+
+1. Why are vmpressure_level_med and vmpressure_level_critical fixed in kernel?
+    Isn't it worth to allow users to specify them when registering events?
+
+2. Sometimes, there are frequent fluctuation like entering low, and middle, and low, and middle...
+    How about using marginal value to leave each level? Isn't it unnecessary?
+
+3. Is there any reason to use reclaim rate to decide levels? 
+    Is it bad option to use available memory like android low memory killer?
+
+Thanks in advance.
+
+Hyunhee Kim.
+
+-----Original Message-----
+From: owner-linux-mm@kvack.org [mailto:owner-linux-mm@kvack.org] On Behalf Of Hyunhee Kim
+Sent: Friday, June 21, 2013 8:03 PM
+To: Michal Hocko; Minchan Kim
+Cc: Anton Vorontsov; linux-mm@kvack.org; akpm@linux-foundation.org; rob@landley.net; kamezawa.hiroyu@jp.fujitsu.com;
+hannes@cmpxchg.org; rientjes@google.com; kirill@shutemov.name; Kyungmin Park
+Subject: Re: [PATCH v6] memcg: event control at vmpressure.
 
 2013/6/21 Michal Hocko <mhocko@suse.cz>:
 > On Fri 21-06-13 10:22:34, Minchan Kim wrote:
@@ -224,6 +255,12 @@ Hyunhee Kim.
 > the body to majordomo@kvack.org.  For more info on Linux MM,
 > see: http://www.linux-mm.org/ .
 > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
