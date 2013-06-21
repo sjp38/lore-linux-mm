@@ -1,180 +1,212 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 7360B6B0031
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 18:54:12 -0400 (EDT)
-Received: by mail-wi0-f169.google.com with SMTP id c10so1155328wiw.4
-        for <linux-mm@kvack.org>; Fri, 21 Jun 2013 15:54:10 -0700 (PDT)
-MIME-Version: 1.0
-Reply-To: sedat.dilek@gmail.com
-In-Reply-To: <1371852439.1798.27.camel@buesod1.americas.hpqcorp.net>
-References: <CA+icZUXuw7QBn4CPLLuiVUjHin0m6GRdbczGw=bZY+Z60sXNow@mail.gmail.com>
-	<1371852439.1798.27.camel@buesod1.americas.hpqcorp.net>
-Date: Sat, 22 Jun 2013 00:54:10 +0200
-Message-ID: <CA+icZUUdwAiyVq5-7+qo3YL-ka4y6DfbMmjy_MTiZ+Y70y55Cw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 67F2C6B0031
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 19:11:48 -0400 (EDT)
+Message-ID: <1371856305.13136.6.camel@buesod1.americas.hpqcorp.net>
 Subject: Re: linux-next: Tree for Jun 21 [ BROKEN ipc/ipc-msg ]
-From: Sedat Dilek <sedat.dilek@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+From: Davidlohr Bueso <davidlohr.bueso@hp.com>
+Date: Fri, 21 Jun 2013 16:11:45 -0700
+In-Reply-To: <CA+icZUUdwAiyVq5-7+qo3YL-ka4y6DfbMmjy_MTiZ+Y70y55Cw@mail.gmail.com>
+References: 
+	<CA+icZUXuw7QBn4CPLLuiVUjHin0m6GRdbczGw=bZY+Z60sXNow@mail.gmail.com>
+	 <1371852439.1798.27.camel@buesod1.americas.hpqcorp.net>
+	 <CA+icZUUdwAiyVq5-7+qo3YL-ka4y6DfbMmjy_MTiZ+Y70y55Cw@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr.bueso@hp.com>
+To: sedat.dilek@gmail.com
 Cc: linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, Stephen Rothwell <sfr@canb.auug.org.au>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Manfred Spraul <manfred@colorfullife.com>
 
-On Sat, Jun 22, 2013 at 12:07 AM, Davidlohr Bueso
-<davidlohr.bueso@hp.com> wrote:
-> On Fri, 2013-06-21 at 21:34 +0200, Sedat Dilek wrote:
->> On Fri, Jun 21, 2013 at 10:17 AM, Stephen Rothwell <sfr@canb.auug.org.au> wrote:
->> > Hi all,
->> >
->> > Happy solstice!
->> >
->> > Changes since 20130620:
->> >
->> > Dropped tree: mailbox (really bad merge conflicts with the arm-soc tree)
->> >
->> > The net-next tree gained a conflict against the net tree.
->> >
->> > The leds tree still had its build failure, so I used the version from
->> > next-20130607.
->> >
->> > The arm-soc tree gained conflicts against the tip, net-next, mfd and
->> > mailbox trees.
->> >
->> > The staging tree still had its build failure for which I disabled some
->> > code.
->> >
->> > The akpm tree lost a few patches that turned up elsewhere and gained
->> > conflicts against the ftrace and arm-soc trees.
->> >
->> > ----------------------------------------------------------------------------
->> >
->>
->> [ CC IPC folks ]
->>
->> Building via 'make deb-pkg' with fakeroot fails here like this:
->>
->> make: *** [deb-pkg] Terminated
->> /usr/bin/fakeroot: line 181:  2386 Terminated
->> FAKEROOTKEY=$FAKEROOTKEY LD_LIBRARY_PATH="$PATHS" LD_PRELOAD="$LIB"
->> "$@"
->> semop(1): encountered an error: Identifier removed
->> semop(2): encountered an error: Invalid argument
->> semop(1): encountered an error: Identifier removed
->> semop(1): encountered an error: Identifier removed
->> semop(1): encountered an error: Invalid argument
->> semop(1): encountered an error: Invalid argument
->> semop(1): encountered an error: Invalid argument
->>
->
-> Hmmm those really shouldn't be related to the message queue changes. Are
-> you sure you got the right bisect?
->
-> Manfred has a few ipc/sem.c patches in linux-next, starting at commit
-> c50df1b4 (ipc/sem.c: cacheline align the semaphore structures), does
-> reverting any of those instead of "ipc,msg: shorten critical region in
-> msgrcv" help at all? Also, anything reported in dmesg?
->
+On Sat, 2013-06-22 at 00:54 +0200, Sedat Dilek wrote:
+> On Sat, Jun 22, 2013 at 12:07 AM, Davidlohr Bueso
+> <davidlohr.bueso@hp.com> wrote:
+> > On Fri, 2013-06-21 at 21:34 +0200, Sedat Dilek wrote:
+> >> On Fri, Jun 21, 2013 at 10:17 AM, Stephen Rothwell <sfr@canb.auug.org.au> wrote:
+> >> > Hi all,
+> >> >
+> >> > Happy solstice!
+> >> >
+> >> > Changes since 20130620:
+> >> >
+> >> > Dropped tree: mailbox (really bad merge conflicts with the arm-soc tree)
+> >> >
+> >> > The net-next tree gained a conflict against the net tree.
+> >> >
+> >> > The leds tree still had its build failure, so I used the version from
+> >> > next-20130607.
+> >> >
+> >> > The arm-soc tree gained conflicts against the tip, net-next, mfd and
+> >> > mailbox trees.
+> >> >
+> >> > The staging tree still had its build failure for which I disabled some
+> >> > code.
+> >> >
+> >> > The akpm tree lost a few patches that turned up elsewhere and gained
+> >> > conflicts against the ftrace and arm-soc trees.
+> >> >
+> >> > ----------------------------------------------------------------------------
+> >> >
+> >>
+> >> [ CC IPC folks ]
+> >>
+> >> Building via 'make deb-pkg' with fakeroot fails here like this:
+> >>
+> >> make: *** [deb-pkg] Terminated
+> >> /usr/bin/fakeroot: line 181:  2386 Terminated
+> >> FAKEROOTKEY=$FAKEROOTKEY LD_LIBRARY_PATH="$PATHS" LD_PRELOAD="$LIB"
+> >> "$@"
+> >> semop(1): encountered an error: Identifier removed
+> >> semop(2): encountered an error: Invalid argument
+> >> semop(1): encountered an error: Identifier removed
+> >> semop(1): encountered an error: Identifier removed
+> >> semop(1): encountered an error: Invalid argument
+> >> semop(1): encountered an error: Invalid argument
+> >> semop(1): encountered an error: Invalid argument
+> >>
+> >
+> > Hmmm those really shouldn't be related to the message queue changes. Are
+> > you sure you got the right bisect?
+> >
+> > Manfred has a few ipc/sem.c patches in linux-next, starting at commit
+> > c50df1b4 (ipc/sem.c: cacheline align the semaphore structures), does
+> > reverting any of those instead of "ipc,msg: shorten critical region in
+> > msgrcv" help at all? Also, anything reported in dmesg?
+> >
+> 
+> First, I reverted all IPC patches from akpm-tree within -next.
+> Then, I isolated the culprit by git-bisecting.
+> As I checked my logs I did not see anything helpful.
+> 
+> >> The issue is present since next-20130606!
+> >>
+> >> LAST KNOWN GOOD: next-20130605
+> >> FIRST KNOWN BAD: next-20130606
+> >>
+> >> KNOWN GOOD: next-20130604
+> >> KNOWN BAD:  next-20130607 || next-20130619 || next-20130620 || next-20130621
+> >>
+> >> git-bisect says CULPRIT commit is...
+> >>
+> >>      "ipc,msg: shorten critical region in msgrcv"
+> >
+> > This I get. I went through the code again and it looks correct and
+> > functionally equivalent to the old msgrcv.
+> >
+> 
+> Hmm, I guess a rcu_read_unlock() is missing?
+> 
+> [ next-20130605 ]
+> ...
+> 		/* Lockless receive, part 3:
+> 		 * Acquire the queue spinlock.
+> 		 */
+> 		ipc_lock_by_ptr(&msq->q_perm);
+> 		rcu_read_unlock();
+> ...
+> [ next-20130621 ]
+> ...
+> 		/* Lockless receive, part 3:
+> 		 * Acquire the queue spinlock.
+> 		 */
+> 		ipc_lock_object(&msq->q_perm);
+> ...
+> 
+> Whereas ipc_lock_by_ptr() is equivalent to:
+> rcu_read_lock();
+> ipc_lock_object();
 
-First, I reverted all IPC patches from akpm-tree within -next.
-Then, I isolated the culprit by git-bisecting.
-As I checked my logs I did not see anything helpful.
+Yeah, I noticed that, but it's not an error. In the older code we have
 
->> The issue is present since next-20130606!
->>
->> LAST KNOWN GOOD: next-20130605
->> FIRST KNOWN BAD: next-20130606
->>
->> KNOWN GOOD: next-20130604
->> KNOWN BAD:  next-20130607 || next-20130619 || next-20130620 || next-20130621
->>
->> git-bisect says CULPRIT commit is...
->>
->>      "ipc,msg: shorten critical region in msgrcv"
->
-> This I get. I went through the code again and it looks correct and
-> functionally equivalent to the old msgrcv.
->
+rcu_read_lock (Lockless receive, part 1)
+[...]
+/* Lockless receive, part 3:
+ * Acquire the queue spinlock.
+ */
+ipc_lock_by_ptr(&msq->q_perm);
+rcu_read_unlock();
 
-Hmm, I guess a rcu_read_unlock() is missing?
 
-[ next-20130605 ]
-...
-		/* Lockless receive, part 3:
-		 * Acquire the queue spinlock.
-		 */
-		ipc_lock_by_ptr(&msq->q_perm);
-		rcu_read_unlock();
-...
-[ next-20130621 ]
-...
-		/* Lockless receive, part 3:
-		 * Acquire the queue spinlock.
-		 */
-		ipc_lock_object(&msq->q_perm);
-...
-
-Whereas ipc_lock_by_ptr() is equivalent to:
+Which translates to:
+rcu_read_lock (Lockless receive, part 1)
+[...]
+/* Lockless receive, part 3:
+ * Acquire the queue spinlock.
+ */
 rcu_read_lock();
 ipc_lock_object();
+rcu_read_unlock();
 
->>
->> NOTE: msg_lock_(check_) routines have to be restored (one more revert needed)!
->
-> This I don't get. Restoring msg_lock_[check] is already equivalent to
-> reverting "ipc,msg: shorten critical region in msgrcv" and several other
-> of the msq patches. What other patch needs reverted?
->
+And thus, after that last rcu_read_unlock we are left with
+rcu_read_lock()
+ipc_lock_object();
 
-No, you have to revert both patches as the other removed
-msg_lock_[check] afterwards.
+If you notice, that's exactly what is done in the new code, only much
+more readable: We do rcu_read_lock in the part 1, then in part 3, we
+acquire the spinlock via ipc_lock_object(&msq->q_perm)
 
-> Anyway, I'll see if I can reproduce the issue, maybe I'm missing
-> something.
->
 
-Yupp, I try with adding rcu_read_unlock()... and report.
+> >>
+> >> NOTE: msg_lock_(check_) routines have to be restored (one more revert needed)!
+> >
+> > This I don't get. Restoring msg_lock_[check] is already equivalent to
+> > reverting "ipc,msg: shorten critical region in msgrcv" and several other
+> > of the msq patches. What other patch needs reverted?
+> >
+> 
+> No, you have to revert both patches as the other removed
+> msg_lock_[check] afterwards.
+> 
+> > Anyway, I'll see if I can reproduce the issue, maybe I'm missing
+> > something.
+> >
+> 
+> Yupp, I try with adding rcu_read_unlock()... and report.
+> 
+> - Sedat -
+> 
+> > Thanks,
+> > Davidlohr
+> >
+> >>
+> >> Reverting both (below) commits makes fakeroot build via 'make dep-pkg" again.
+> >>
+> >> I have tested the revert-patches with next-20130606 and next-20130621
+> >> (see file-attachments).
+> >>
+> >> My build-script is attached!
+> >>
+> >> Can someone of the IPC folks look at that?
+> >> Thanks!
+> >>
+> >> - Sedat -
+> >>
+> >>
+> >> P.S.: Commit-IDs listed below.
+> >>
+> >> [ next-20130606 ]
+> >>
+> >> http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/log/?id=next-20130606
+> >>
+> >> "ipc: remove unused functions"
+> >> http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/?id=8793fdfb0d0a6ed5916767e29a15d3eb56e04e79
+> >>
+> >> "ipc,msg: shorten critical region in msgrcv"
+> >> http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/?id=c0ff93322847a54f74a5450032c4df64c17fdaed
+> >>
+> >> [ next-20130621 ]
+> >>
+> >> http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/log/?id=next-20130621
+> >>
+> >> "ipc: remove unused functions"
+> >> http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/?id=941ce57c81dcceadf55265616ee1e8bef18b0ad3
+> >>
+> >> "ipc,msg: shorten critical region in msgrcv"
+> >> http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/?id=62190df4081ee8504e3611d45edb40450cb408ac
+> >
+> >
 
-- Sedat -
-
-> Thanks,
-> Davidlohr
->
->>
->> Reverting both (below) commits makes fakeroot build via 'make dep-pkg" again.
->>
->> I have tested the revert-patches with next-20130606 and next-20130621
->> (see file-attachments).
->>
->> My build-script is attached!
->>
->> Can someone of the IPC folks look at that?
->> Thanks!
->>
->> - Sedat -
->>
->>
->> P.S.: Commit-IDs listed below.
->>
->> [ next-20130606 ]
->>
->> http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/log/?id=next-20130606
->>
->> "ipc: remove unused functions"
->> http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/?id=8793fdfb0d0a6ed5916767e29a15d3eb56e04e79
->>
->> "ipc,msg: shorten critical region in msgrcv"
->> http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/?id=c0ff93322847a54f74a5450032c4df64c17fdaed
->>
->> [ next-20130621 ]
->>
->> http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/log/?id=next-20130621
->>
->> "ipc: remove unused functions"
->> http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/?id=941ce57c81dcceadf55265616ee1e8bef18b0ad3
->>
->> "ipc,msg: shorten critical region in msgrcv"
->> http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/?id=62190df4081ee8504e3611d45edb40450cb408ac
->
->
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
