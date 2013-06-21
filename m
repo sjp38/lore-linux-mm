@@ -1,172 +1,229 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 089A96B0037
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 11:21:59 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 510156B0031
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 12:27:52 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id bi5so8073405pad.18
+        for <linux-mm@kvack.org>; Fri, 21 Jun 2013 09:27:51 -0700 (PDT)
+Date: Sat, 22 Jun 2013 01:27:43 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v6] memcg: event control at vmpressure.
+Message-ID: <20130621162743.GA2837@gmail.com>
+References: <CAOK=xRMz+qX=CQ+3oD6TsEiGckMAdGJ-GAUC8o6nQpx4SJtQPw@mail.gmail.com>
+ <20130618110151.GI13677@dhcp22.suse.cz>
+ <00fd01ce6ce0$82eac0a0$88c041e0$%kim@samsung.com>
+ <20130619125329.GB16457@dhcp22.suse.cz>
+ <000401ce6d5c$566ac620$03405260$%kim@samsung.com>
+ <20130620121649.GB27196@dhcp22.suse.cz>
+ <001e01ce6e15$3d183bd0$b748b370$%kim@samsung.com>
+ <001f01ce6e15$b7109950$2531cbf0$%kim@samsung.com>
+ <20130621012234.GF11659@bbox>
+ <20130621091944.GC12424@dhcp22.suse.cz>
 MIME-Version: 1.0
-Message-ID: <253b3e7e-e65e-407a-adfe-f3fdd9a1909e@default>
-Date: Fri, 21 Jun 2013 08:20:34 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCHv13 3/4] zswap: add to mm/
-References: <1370291585-26102-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <1370291585-26102-4-git-send-email-sjenning@linux.vnet.ibm.com>
- <CAA_GA1eWFYDxp3gEdWzajVP4jMpmJbt=oWBZYqZEQjndU=s_Qg@mail.gmail.com>
- <20130620023750.GA1194@cerebellum>
- <CAA_GA1c8cH1fu9jHk8evKZvK-gpQ+c8NEp5=_jDLKPcMbG_ufA@mail.gmail.com>
- <20130620142328.GA9461@cerebellum>
- <CAA_GA1eoD6Q6uYjQyJUhSuusNZn7TvekF1-EQLATSywatCHk3g@mail.gmail.com>
-In-Reply-To: <CAA_GA1eoD6Q6uYjQyJUhSuusNZn7TvekF1-EQLATSywatCHk3g@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130621091944.GC12424@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, devel@driverdev.osuosl.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Hyunhee Kim <hyunhee.kim@samsung.com>, 'Anton Vorontsov' <anton@enomsg.org>, linux-mm@kvack.org, akpm@linux-foundation.org, rob@landley.net, kamezawa.hiroyu@jp.fujitsu.com, hannes@cmpxchg.org, rientjes@google.com, kirill@shutemov.name, 'Kyungmin Park' <kyungmin.park@samsung.com>
 
-> From: Bob Liu [mailto:lliubbo@gmail.com]
- Subject: Re: [PATCHv13 3/4] zswap: add to mm/
->=20
-> On Thu, Jun 20, 2013 at 10:23 PM, Seth Jennings
-> <sjenning@linux.vnet.ibm.com> wrote:
-> > On Thu, Jun 20, 2013 at 05:42:04PM +0800, Bob Liu wrote:
-> >> > Just made a mmtests run of my own and got very different results:
-> >> >
-> >>
-> >> It's strange, I'll update to rc6 and try again.
-> >> By the way, are you using 824 hardware compressor instead of lzo?
-> >
-> > My results where using lzo software compression.
-> >
->=20
-> Thanks, and today I used another machine to test zswap.
-> The total ram size of that machine is around 4G.
-> This time the result is better:
->                                                rc6                       =
-  rc6
->                                              zswap                       =
- base
-> Ops memcachetest-0M             14619.00 (  0.00%)          15602.00 (  6=
-.72%)
-> Ops memcachetest-435M           14727.00 (  0.00%)          15860.00 (  7=
-.69%)
-> Ops memcachetest-944M           12452.00 (  0.00%)          11812.00 ( -5=
-.14%)
-> Ops memcachetest-1452M          12183.00 (  0.00%)           9829.00 (-19=
-.32%)
-> Ops memcachetest-1961M          11953.00 (  0.00%)           9337.00 (-21=
-.89%)
-> Ops memcachetest-2469M          11201.00 (  0.00%)           7509.00 (-32=
-.96%)
-> Ops memcachetest-2978M           9738.00 (  0.00%)           5981.00 (-38=
-.58%)
-> Ops io-duration-0M                  0.00 (  0.00%)              0.00 (  0=
-.00%)
-> Ops io-duration-435M               10.00 (  0.00%)              6.00 ( 40=
-.00%)
-> Ops io-duration-944M               19.00 (  0.00%)             19.00 (  0=
-.00%)
-> Ops io-duration-1452M              31.00 (  0.00%)             26.00 ( 16=
-.13%)
-> Ops io-duration-1961M              40.00 (  0.00%)             35.00 ( 12=
-.50%)
-> Ops io-duration-2469M              45.00 (  0.00%)             43.00 (  4=
-.44%)
-> Ops io-duration-2978M              58.00 (  0.00%)             53.00 (  8=
-.62%)
-> Ops swaptotal-0M                56711.00 (  0.00%)              8.00 ( 99=
-.99%)
-> Ops swaptotal-435M              19218.00 (  0.00%)           2101.00 ( 89=
-.07%)
-> Ops swaptotal-944M              53233.00 (  0.00%)          98055.00 (-84=
-.20%)
-> Ops swaptotal-1452M             52064.00 (  0.00%)         145624.00 (-17=
-9.70%)
-> Ops swaptotal-1961M             54960.00 (  0.00%)         153907.00 (-18=
-0.03%)
-> Ops swaptotal-2469M             57485.00 (  0.00%)         176340.00 (-20=
-6.76%)
-> Ops swaptotal-2978M             77704.00 (  0.00%)         182996.00 (-13=
-5.50%)
-> Ops swapin-0M                   24834.00 (  0.00%)              8.00 ( 99=
-.97%)
-> Ops swapin-435M                  9038.00 (  0.00%)              0.00 (  0=
-.00%)
-> Ops swapin-944M                 26230.00 (  0.00%)          42953.00 (-63=
-.76%)
-> Ops swapin-1452M                25766.00 (  0.00%)          68440.00 (-16=
-5.62%)
-> Ops swapin-1961M                27258.00 (  0.00%)          68129.00 (-14=
-9.94%)
-> Ops swapin-2469M                28508.00 (  0.00%)          82234.00 (-18=
-8.46%)
-> Ops swapin-2978M                37970.00 (  0.00%)          89280.00 (-13=
-5.13%)
-> Ops minorfaults-0M            1460163.00 (  0.00%)         927966.00 ( 36=
-.45%)
-> Ops minorfaults-435M           954058.00 (  0.00%)         936182.00 (  1=
-.87%)
-> Ops minorfaults-944M           972818.00 (  0.00%)        1005956.00 ( -3=
-.41%)
-> Ops minorfaults-1452M          966597.00 (  0.00%)        1035465.00 ( -7=
-.12%)
-> Ops minorfaults-1961M          976158.00 (  0.00%)        1049441.00 ( -7=
-.51%)
-> Ops minorfaults-2469M          967815.00 (  0.00%)        1051752.00 ( -8=
-.67%)
-> Ops minorfaults-2978M          988712.00 (  0.00%)        1034615.00 ( -4=
-.64%)
-> Ops majorfaults-0M               5899.00 (  0.00%)              9.00 ( 99=
-.85%)
-> Ops majorfaults-435M             2684.00 (  0.00%)             67.00 ( 97=
-.50%)
-> Ops majorfaults-944M             4380.00 (  0.00%)           5790.00 (-32=
-.19%)
-> Ops majorfaults-1452M            4161.00 (  0.00%)           9222.00 (-12=
-1.63%)
-> Ops majorfaults-1961M            4435.00 (  0.00%)           8800.00 (-98=
-.42%)
-> Ops majorfaults-2469M            4555.00 (  0.00%)          10541.00 (-13=
-1.42%)
-> Ops majorfaults-2978M            6182.00 (  0.00%)          11618.00 (-87=
-.93%)
->=20
->=20
-> But the performance of the first machine I used whose total ram size
-> is 2G is still bad.
-> I need more time to summarize those testing results.
->=20
-> Maybe you can also have a try with lower total ram size.
->=20
-> --
-> Regards,
-> --Bob
+Hello Michal,
 
+On Fri, Jun 21, 2013 at 11:19:44AM +0200, Michal Hocko wrote:
+> On Fri 21-06-13 10:22:34, Minchan Kim wrote:
+> > On Fri, Jun 21, 2013 at 09:24:38AM +0900, Hyunhee Kim wrote:
+> > > In the original vmpressure, events are triggered whenever there is a reclaim
+> > > activity. This becomes overheads to user space module and also increases
+> > 
+> > Not true.
+> > We have lots of filter to not trigger event even if reclaim is going on.
+> > Your statement would make confuse.
+> 
+> Where is the filter implemented? In the kernel? I do not see any
+> throttling in the current mm tree.
 
-A very important factor that you are not considering and
-that might account for your different results is the
-"initial conditions".  For example, I always ran my benchmarks
-after a default-configured EL6 boot, which launches many services
-at boot time, each of which creates many anonymous pages,
-and these "service anonymous pages" are often the pages
-that are selected by LRU for swapping, and compressed by zcache/zswap.
-Someone else may run the benchmarks on a minimally-configured
-embedded system, and someone else on a single-user system
-with no services running at all.  A single-user system with
-no services is often best for reproducing benchmark results but
-may not be at all representative of the real world.
+1. mem_cgroup_soft_limit_reclaim
+2. reclaim caused by DMA zone
+3. vmpressure_win
 
-At a minimum, it would be good to always record "Active(anon)"
-and "Inactive(anon)" in addition to the amount of physical
-RAM in the system.  (Note, in /proc/meminfo on my system,
-the sum of these don't add up to "AnonPages"... I'm not sure
-why.)
+> 
+> > > power consumption if there is somebody to listen to it. This patch provides
+> > > options to trigger events only when the pressure level changes.
+> > > This trigger option can be set when registering each event by writing
+> > > a trigger option, "edge" or "always", next to the string of levels.
+> > > "edge" means that the event is triggered only when the pressure level is changed.
+> > > "always" means that events are triggered whenever there is a reclaim process.
+> >                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> >                                                   Not true, either.
+> 
+> Is this about vmpressure_win? But I agree that this could be more
+> specific. Something like "`Always' trigger option will signal all events
+> while `edge' option will trigger only events when the level changes."
+> 
+> > > To keep backward compatibility, "always" is set by default if nothing is input
+> > > as an option. Each event can have different option. For example,
+> > > "low" level uses "always" trigger option to see reclaim activity at user space
+> > > while "medium"/"critical" uses "edge" to do an important job
+> > > like killing tasks only once.
+> > 
+> > Question.
+> > 
+> > 1. user: set critical edge
+> > 2. kernel: memory is tight and trigger event with critical
+> > 3. user: kill a program when he receives a event
+> > 4. kernel: memory is very tight again and want to trigger a event
+> >    with critical but fail because last_level was critical and it was edge.
+> > 
+> > Right?
+> 
+> yes, this is the risk of the edge triggering and the user has to be
+> prepared for that. I still think that it makes some sense to have the
+> two modes.
 
-And of course, even if the number of anonymous pages is
-the same, the _contents_ of those pages may be very different,
-which will affect zcache/zswap density which may have
-a large impact on benchmark results.
+I'm not sure it's good idea.
+How could user overcome above problem?
+The problem is "critical" means that the memory is really tight so
+that user should do ememgency plan to overcome the situation like
+kill someone. Even, kill could be a problem because the one from userspace
+couldn't use reserved memory pool so that killing could be stalled for a
+long time and then, we could end up encountering OOM. :(
 
-Thanks,
-Dan (T-minus two weeks and counting)
+So, the description should include how to overcome above situation in
+userspace efficiently even though memory is really tight, which we don't
+have extra memory to read vmstat.
+
+We reviewers should review that it does make sense. If so, we need to
+write down it in documentation, otherwise, we should fix it from kernel
+side.
+
+Another problem from this patch is that it couldn't detect same event
+contiguously so you are saying userspace have to handle it.
+It doesn't make sense to me. Why should user handle such false positive?
+I don't mean false positive signal is bad because low memory notification
+has inherent such a problem but we should try to avoid such frequent triggering
+if possible.
+IOW, It reveals current vmpressure's problem.
+Fix it without band-aiding of userspace if it's really problem.
+
+>  
+> > > @@ -823,7 +831,7 @@ Test:
+> > >     # cd /sys/fs/cgroup/memory/
+> > >     # mkdir foo
+> > >     # cd foo
+> > > -   # cgroup_event_listener memory.pressure_level low &
+> > > +   # cgroup_event_listener memory.pressure_level low edge &
+> > >     # echo 8000000 > memory.limit_in_bytes
+> > >     # echo 8000000 > memory.memsw.limit_in_bytes
+> > >     # echo $$ > tasks
+> > > diff --git a/mm/vmpressure.c b/mm/vmpressure.c
+> > > index 736a601..a08252e 100644
+> > > --- a/mm/vmpressure.c
+> > > +++ b/mm/vmpressure.c
+> > > @@ -137,6 +137,8 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
+> > >  struct vmpressure_event {
+> > >  	struct eventfd_ctx *efd;
+> > >  	enum vmpressure_levels level;
+> > > +	int last_level;
+> > 
+> > int? but level is enum vmpressure_levels?
+> 
+> good catch
+>  
+> > > +	bool edge_trigger;
+> > >  	struct list_head node;
+> > >  };
+> > >  
+> > > @@ -153,11 +155,14 @@ static bool vmpressure_event(struct vmpressure *vmpr,
+> > >  
+> > >  	list_for_each_entry(ev, &vmpr->events, node) {
+> > >  		if (level >= ev->level) {
+> > > +			if (ev->edge_trigger && level == ev->last_level)
+> > > +				continue;
+> > > +
+> > >  			eventfd_signal(ev->efd, 1);
+> > >  			signalled = true;
+> > >  		}
+> > > +		ev->last_level = level;
+> > >  	}
+> > > -
+> > 
+> > Unnecessary change.
+> > 
+> > >  	mutex_unlock(&vmpr->events_lock);
+> > >  
+> > >  	return signalled;
+> > > @@ -290,9 +295,11 @@ void vmpressure_prio(gfp_t gfp, struct mem_cgroup *memcg, int prio)
+> > >   *
+> > >   * This function associates eventfd context with the vmpressure
+> > >   * infrastructure, so that the notifications will be delivered to the
+> > > - * @eventfd. The @args parameter is a string that denotes pressure level
+> > > + * @eventfd. The @args parameters are a string that denotes pressure level
+> > >   * threshold (one of vmpressure_str_levels, i.e. "low", "medium", or
+> > > - * "critical").
+> > > + * "critical") and a trigger option that decides whether events are triggered
+> > > + * continuously or only on edge ("always" or "edge" if "edge", events
+> > > + * are triggered when the pressure level changes.
+> > >   *
+> > >   * This function should not be used directly, just pass it to (struct
+> > >   * cftype).register_event, and then cgroup core will handle everything by
+> > > @@ -303,22 +310,43 @@ int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
+> > >  {
+> > >  	struct vmpressure *vmpr = cg_to_vmpressure(cg);
+> > >  	struct vmpressure_event *ev;
+> > > +	char *strlevel, *strtrigger;
+> > >  	int level;
+> > > +	bool trigger;
+> > 
+> > What trigger?
+> > Would be better to use "bool egde" instead?
+> 
+> yes
+> 
+> > > +
+> > > +	strlevel = args;
+> > > +	strtrigger = strchr(args, ' ');
+> > > +
+> > > +	if (strtrigger) {
+> > > +		*strtrigger = '\0';
+> > > +		strtrigger++;
+> > > +	}
+> > >  
+> > >  	for (level = 0; level < VMPRESSURE_NUM_LEVELS; level++) {
+> > > -		if (!strcmp(vmpressure_str_levels[level], args))
+> > > +		if (!strcmp(vmpressure_str_levels[level], strlevel))
+> > >  			break;
+> > >  	}
+> > >  
+> > >  	if (level >= VMPRESSURE_NUM_LEVELS)
+> > >  		return -EINVAL;
+> > >  
+> > > +	if (strtrigger == NULL)
+> > > +		trigger = false;
+> > > +	else if (!strcmp(strtrigger, "always"))
+> > > +		trigger = false;
+> > > +	else if (!strcmp(strtrigger, "edge"))
+> > > +		trigger = true;
+> > > +	else
+> > > +		return -EINVAL;
+> > > +
+> > >  	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
+> > >  	if (!ev)
+> > >  		return -ENOMEM;
+> > >  
+> > >  	ev->efd = eventfd;
+> > >  	ev->level = level;
+> > > +	ev->last_level = -1;
+> > 
+> > VMPRESSURE_NONE is better?
+>  
+> Yes
+> -- 
+> Michal Hocko
+> SUSE Labs
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
