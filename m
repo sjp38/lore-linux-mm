@@ -1,52 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 6ADE86B0031
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 16:18:39 -0400 (EDT)
-Received: by mail-ob0-f170.google.com with SMTP id ef5so8970846obb.1
-        for <linux-mm@kvack.org>; Fri, 21 Jun 2013 13:18:38 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <51C3E276.8030804@zytor.com>
-References: <1371128589-8953-1-git-send-email-tangchen@cn.fujitsu.com>
-	<51C3E276.8030804@zytor.com>
-Date: Fri, 21 Jun 2013 13:18:38 -0700
-Message-ID: <CAE9FiQUVeGyQuT8rBHnkm08o5vQZdH3-=zm6nfEkvRPnGhpnbg@mail.gmail.com>
-Subject: Re: [Part1 PATCH v5 00/22] x86, ACPI, numa: Parse numa info earlier
-From: Yinghai Lu <yinghai@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id C3CC56B0031
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 18:07:22 -0400 (EDT)
+Message-ID: <1371852439.1798.27.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: linux-next: Tree for Jun 21 [ BROKEN ipc/ipc-msg ]
+From: Davidlohr Bueso <davidlohr.bueso@hp.com>
+Date: Fri, 21 Jun 2013 15:07:19 -0700
+In-Reply-To: <CA+icZUXuw7QBn4CPLLuiVUjHin0m6GRdbczGw=bZY+Z60sXNow@mail.gmail.com>
+References: 
+	<CA+icZUXuw7QBn4CPLLuiVUjHin0m6GRdbczGw=bZY+Z60sXNow@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>, Tejun Heo <tj@kernel.org>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Renninger <trenn@suse.de>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, mina86@mina86.com, gong.chen@linux.intel.com, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, lwoodman@redhat.com, Rik van Riel <riel@redhat.com>, jweiner@redhat.com, Prarit Bhargava <prarit@redhat.com>, the arch/x86 maintainers <x86@kernel.org>, linux-doc@vger.kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: sedat.dilek@gmail.com
+Cc: linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, Stephen Rothwell <sfr@canb.auug.org.au>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Manfred Spraul <manfred@colorfullife.com>
 
-On Thu, Jun 20, 2013 at 10:19 PM, H. Peter Anvin <hpa@zytor.com> wrote:
-> On 06/13/2013 06:02 AM, Tang Chen wrote:
->> From: Yinghai Lu <yinghai@kernel.org>
->>
->> No offence, just rebase and resend the patches from Yinghai to help
->> to push this functionality faster.
->> Also improve the comments in the patches' log.
->>
->
-> So we need a new version of this which addresses the build problems and
-> the feedback from Tejun... and it would be good to get that soon, or
-> we'll be looking at 3.12.
->
-> Since the merge window is approaching quickly, is there a meaningful
-> subset that is ready now?
+On Fri, 2013-06-21 at 21:34 +0200, Sedat Dilek wrote:
+> On Fri, Jun 21, 2013 at 10:17 AM, Stephen Rothwell <sfr@canb.auug.org.au> wrote:
+> > Hi all,
+> >
+> > Happy solstice!
+> >
+> > Changes since 20130620:
+> >
+> > Dropped tree: mailbox (really bad merge conflicts with the arm-soc tree)
+> >
+> > The net-next tree gained a conflict against the net tree.
+> >
+> > The leds tree still had its build failure, so I used the version from
+> > next-20130607.
+> >
+> > The arm-soc tree gained conflicts against the tip, net-next, mfd and
+> > mailbox trees.
+> >
+> > The staging tree still had its build failure for which I disabled some
+> > code.
+> >
+> > The akpm tree lost a few patches that turned up elsewhere and gained
+> > conflicts against the ftrace and arm-soc trees.
+> >
+> > ----------------------------------------------------------------------------
+> >
+> 
+> [ CC IPC folks ]
+> 
+> Building via 'make deb-pkg' with fakeroot fails here like this:
+> 
+> make: *** [deb-pkg] Terminated
+> /usr/bin/fakeroot: line 181:  2386 Terminated
+> FAKEROOTKEY=$FAKEROOTKEY LD_LIBRARY_PATH="$PATHS" LD_PRELOAD="$LIB"
+> "$@"
+> semop(1): encountered an error: Identifier removed
+> semop(2): encountered an error: Invalid argument
+> semop(1): encountered an error: Identifier removed
+> semop(1): encountered an error: Identifier removed
+> semop(1): encountered an error: Invalid argument
+> semop(1): encountered an error: Invalid argument
+> semop(1): encountered an error: Invalid argument
+> 
 
-patch 1-9, and 20 in updated patchset, could goto 3.11.
-git://git.kernel.org/pub/scm/linux/kernel/git/yinghai/linux-yinghai.git
-for-x86-mm
-https://git.kernel.org/cgit/linux/kernel/git/yinghai/linux-yinghai.git/log/?h=for-x86-mm
+Hmmm those really shouldn't be related to the message queue changes. Are
+you sure you got the right bisect? 
 
-they are about acpi_override move early and some enhancement.
-they got enough tested-by and Acked-by include ones from tj.
+Manfred has a few ipc/sem.c patches in linux-next, starting at commit
+c50df1b4 (ipc/sem.c: cacheline align the semaphore structures), does
+reverting any of those instead of "ipc,msg: shorten critical region in
+msgrcv" help at all? Also, anything reported in dmesg?
 
-If you are ok with that, I could resend those 10 patches today.
+> The issue is present since next-20130606!
+> 
+> LAST KNOWN GOOD: next-20130605
+> FIRST KNOWN BAD: next-20130606
+> 
+> KNOWN GOOD: next-20130604
+> KNOWN BAD:  next-20130607 || next-20130619 || next-20130620 || next-20130621
+> 
+> git-bisect says CULPRIT commit is...
+> 
+>      "ipc,msg: shorten critical region in msgrcv"
 
-Thanks
+This I get. I went through the code again and it looks correct and
+functionally equivalent to the old msgrcv.
 
-Yinghai
+> 
+> NOTE: msg_lock_(check_) routines have to be restored (one more revert needed)!
+
+This I don't get. Restoring msg_lock_[check] is already equivalent to
+reverting "ipc,msg: shorten critical region in msgrcv" and several other
+of the msq patches. What other patch needs reverted?
+
+Anyway, I'll see if I can reproduce the issue, maybe I'm missing
+something.
+
+Thanks,
+Davidlohr
+
+> 
+> Reverting both (below) commits makes fakeroot build via 'make dep-pkg" again.
+> 
+> I have tested the revert-patches with next-20130606 and next-20130621
+> (see file-attachments).
+> 
+> My build-script is attached!
+> 
+> Can someone of the IPC folks look at that?
+> Thanks!
+> 
+> - Sedat -
+> 
+> 
+> P.S.: Commit-IDs listed below.
+> 
+> [ next-20130606 ]
+> 
+> http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/log/?id=next-20130606
+> 
+> "ipc: remove unused functions"
+> http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/?id=8793fdfb0d0a6ed5916767e29a15d3eb56e04e79
+> 
+> "ipc,msg: shorten critical region in msgrcv"
+> http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/?id=c0ff93322847a54f74a5450032c4df64c17fdaed
+> 
+> [ next-20130621 ]
+> 
+> http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/log/?id=next-20130621
+> 
+> "ipc: remove unused functions"
+> http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/?id=941ce57c81dcceadf55265616ee1e8bef18b0ad3
+> 
+> "ipc,msg: shorten critical region in msgrcv"
+> http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/?id=62190df4081ee8504e3611d45edb40450cb408ac
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
