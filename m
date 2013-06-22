@@ -1,71 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id C69946B0031
-	for <linux-mm@kvack.org>; Sat, 22 Jun 2013 01:50:08 -0400 (EDT)
-Received: from epcpsbgr3.samsung.com
- (u143.gpu120.samsung.co.kr [203.254.230.143])
- by mailout1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTP id <0MOS00GMG5J4JJ70@mailout1.samsung.com> for linux-mm@kvack.org;
- Sat, 22 Jun 2013 14:50:07 +0900 (KST)
-From: Hyunhee Kim <hyunhee.kim@samsung.com>
-References: 
- <CAOK=xRMz+qX=CQ+3oD6TsEiGckMAdGJ-GAUC8o6nQpx4SJtQPw@mail.gmail.com>
- <20130618110151.GI13677@dhcp22.suse.cz>
- <00fd01ce6ce0$82eac0a0$88c041e0$%kim@samsung.com>
- <20130619125329.GB16457@dhcp22.suse.cz>
- <000401ce6d5c$566ac620$03405260$%kim@samsung.com>
- <20130620121649.GB27196@dhcp22.suse.cz>
- <001e01ce6e15$3d183bd0$b748b370$%kim@samsung.com>
- <001f01ce6e15$b7109950$2531cbf0$%kim@samsung.com>
- <20130621012234.GF11659@bbox> <20130621091944.GC12424@dhcp22.suse.cz>
- <20130621162743.GA2837@gmail.com>
- <CAOK=xRMhwvWrao_ve8GFsk0JBHAcWh_SB_kM6fCujp8WThPimw@mail.gmail.com>
- <CAOK=xRNEMp3igfwQfrz0ffApmoAL19OM0EGLaBJ5RerZy9ddtw@mail.gmail.com>
-In-reply-to: 
- <CAOK=xRNEMp3igfwQfrz0ffApmoAL19OM0EGLaBJ5RerZy9ddtw@mail.gmail.com>
-Subject: [PATCH] memcg: consider "scanned < reclaimed" case when calculating
-Date: Sat, 22 Jun 2013 14:50:06 +0900
-Message-id: <005601ce6f0c$5948ff90$0bdafeb0$%kim@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-transfer-encoding: 7bit
-Content-language: ko
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id A73146B0031
+	for <linux-mm@kvack.org>; Sat, 22 Jun 2013 03:21:45 -0400 (EDT)
+Message-ID: <51C55082.5040500@hurleysoftware.com>
+Date: Sat, 22 Jun 2013 03:21:38 -0400
+From: Peter Hurley <peter@hurleysoftware.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/2] rwsem: check the lock before cpmxchg in down_write_trylock
+ and rwsem_do_wake
+References: <cover.1371855277.git.tim.c.chen@linux.intel.com> <1371858695.22432.4.camel@schen9-DESK>
+In-Reply-To: <1371858695.22432.4.camel@schen9-DESK>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Hyunhee Kim' <hyunhee.kim@samsung.com>, 'Minchan Kim' <minchan@kernel.org>, 'Michal Hocko' <mhocko@suse.cz>, 'Anton Vorontsov' <anton@enomsg.org>, linux-mm@kvack.org, akpm@linux-foundation.org, rob@landley.net, kamezawa.hiroyu@jp.fujitsu.com, hannes@cmpxchg.org, rientjes@google.com, kirill@shutemov.name, 'Kyungmin Park' <kyungmin.park@samsung.com>
+To: Tim Chen <tim.c.chen@linux.intel.com>, Alex Shi <alex.shi@intel.com>, Michel Lespinasse <walken@google.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-In vmpressure, the pressure level is calculated based on the ratio
-of how many pages were scanned vs. reclaimed in a given time window.
-However, there is a possibility that "scanned < reclaimed" in such
-a case, THP page is reclaimed or reclaiming is abandoned by fatal
-signal in shrink_inactive_list, etc. So, with this patch, we just
-return "low" level when "scanned < reclaimed" by assuming that
-there are enough reclaimed pages.
+On 06/21/2013 07:51 PM, Tim Chen wrote:
+> Doing cmpxchg will cause cache bouncing when checking
+> sem->count. This could cause scalability issue
+> in a large machine (e.g. a 80 cores box).
+>
+> A pre-read of sem->count can mitigate this.
+>
+> Signed-off-by: Alex Shi <alex.shi@intel.com>
+> Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
+> ---
+>   include/asm-generic/rwsem.h |    8 ++++----
+>   lib/rwsem.c                 |   21 +++++++++++++--------
+>   2 files changed, 17 insertions(+), 12 deletions(-)
+>
+> diff --git a/include/asm-generic/rwsem.h b/include/asm-generic/rwsem.h
+> index bb1e2cd..052d973 100644
+> --- a/include/asm-generic/rwsem.h
+> +++ b/include/asm-generic/rwsem.h
+> @@ -70,11 +70,11 @@ static inline void __down_write(struct rw_semaphore *sem)
+>
+>   static inline int __down_write_trylock(struct rw_semaphore *sem)
+>   {
+> -	long tmp;
+> +	if (unlikely(&sem->count != RWSEM_UNLOCKED_VALUE))
+                      ^^^^^^^^^^^
 
-Signed-off-by: Hyunhee Kim <hyunhee.kim@samsung.com>
-Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
----
- mm/vmpressure.c |    3 +++
- 1 file changed, 3 insertions(+)
+This is probably not what you want.
 
-diff --git a/mm/vmpressure.c b/mm/vmpressure.c
-index 736a601..c6560f3 100644
---- a/mm/vmpressure.c
-+++ b/mm/vmpressure.c
-@@ -118,6 +118,9 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
- 	unsigned long scale = scanned + reclaimed;
- 	unsigned long pressure;
- 
-+	if (reclaimed > scanned)
-+		return VMPRESSURE_LOW;
-+
- 	/*
- 	 * We calculate the ratio (in percents) of how many pages were
- 	 * scanned vs. reclaimed in a given time frame (window). Note that
--- 
-1.7.9.5
 
+> +		return 0;
+>
+> -	tmp = cmpxchg(&sem->count, RWSEM_UNLOCKED_VALUE,
+> -		      RWSEM_ACTIVE_WRITE_BIAS);
+> -	return tmp == RWSEM_UNLOCKED_VALUE;
+> +	return cmpxchg(&sem->count, RWSEM_UNLOCKED_VALUE,
+> +		RWSEM_ACTIVE_WRITE_BIAS) == RWSEM_UNLOCKED_VALUE;
+>   }
+>
+>   /*
+> diff --git a/lib/rwsem.c b/lib/rwsem.c
+> index 19c5fa9..2072af5 100644
+> --- a/lib/rwsem.c
+> +++ b/lib/rwsem.c
+> @@ -75,7 +75,7 @@ __rwsem_do_wake(struct rw_semaphore *sem, enum rwsem_wake_type wake_type)
+>   			 * will block as they will notice the queued writer.
+>   			 */
+>   			wake_up_process(waiter->task);
+> -		goto out;
+> +		return sem;
+
+Please put these flow control changes in a separate patch.
+
+
+>   	}
+>
+>   	/* Writers might steal the lock before we grant it to the next reader.
+> @@ -85,15 +85,21 @@ __rwsem_do_wake(struct rw_semaphore *sem, enum rwsem_wake_type wake_type)
+>   	adjustment = 0;
+>   	if (wake_type != RWSEM_WAKE_READ_OWNED) {
+>   		adjustment = RWSEM_ACTIVE_READ_BIAS;
+> - try_reader_grant:
+> -		oldcount = rwsem_atomic_update(adjustment, sem) - adjustment;
+> -		if (unlikely(oldcount < RWSEM_WAITING_BIAS)) {
+> -			/* A writer stole the lock. Undo our reader grant. */
+> +		while (1) {
+> +			/* A writer stole the lock. */
+> +			if (sem->count < RWSEM_WAITING_BIAS)
+> +				return sem;
+
+I'm all for structured looping instead of goto labels but this optimization
+is only useful on the 1st iteration. IOW, on the second iteration you already
+know that you need to try for reclaiming the lock.
+
+
+> +
+> +			oldcount = rwsem_atomic_update(adjustment, sem)
+> +								- adjustment;
+> +			if (likely(oldcount >= RWSEM_WAITING_BIAS))
+> +				break;
+> +
+> +			 /* A writer stole the lock.  Undo our reader grant. */
+>   			if (rwsem_atomic_update(-adjustment, sem) &
+>   						RWSEM_ACTIVE_MASK)
+> -				goto out;
+> +				return sem;
+>   			/* Last active locker left. Retry waking readers. */
+> -			goto try_reader_grant;
+>   		}
+>   	}
+>
+> @@ -136,7 +142,6 @@ __rwsem_do_wake(struct rw_semaphore *sem, enum rwsem_wake_type wake_type)
+>   	sem->wait_list.next = next;
+>   	next->prev = &sem->wait_list;
+>
+> - out:
+>   	return sem;
+>   }
+
+
+Alex and Tim,
+
+Was there a v1 of this series; ie., is this v2 (or higher)?
+
+How are you validating lock correctness/behavior with this series?
+
+Regards,
+Peter Hurley
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
