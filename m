@@ -1,55 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id D51116B0031
-	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 20:25:21 -0400 (EDT)
-Received: by mail-ie0-f175.google.com with SMTP id a13so20512351iee.20
-        for <linux-mm@kvack.org>; Fri, 21 Jun 2013 17:25:16 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 0F7E66B0031
+	for <linux-mm@kvack.org>; Fri, 21 Jun 2013 20:27:52 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id hz11so8580658pad.30
+        for <linux-mm@kvack.org>; Fri, 21 Jun 2013 17:27:52 -0700 (PDT)
+Date: Fri, 21 Jun 2013 17:27:44 -0700
+From: Anton Vorontsov <anton@enomsg.org>
+Subject: Re: [PATCH v6] memcg: event control at vmpressure.
+Message-ID: <20130622002744.GA29172@lizard.mcd26095.sjc.wayport.net>
+References: <00fd01ce6ce0$82eac0a0$88c041e0$%kim@samsung.com>
+ <20130619125329.GB16457@dhcp22.suse.cz>
+ <000401ce6d5c$566ac620$03405260$%kim@samsung.com>
+ <20130620121649.GB27196@dhcp22.suse.cz>
+ <001e01ce6e15$3d183bd0$b748b370$%kim@samsung.com>
+ <001f01ce6e15$b7109950$2531cbf0$%kim@samsung.com>
+ <20130621012234.GF11659@bbox>
+ <20130621091944.GC12424@dhcp22.suse.cz>
+ <20130621162743.GA2837@gmail.com>
+ <20130621164413.GA4759@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1371859222.13136.11.camel@buesod1.americas.hpqcorp.net>
-References: <1371858691.22432.3.camel@schen9-DESK>
-	<1371859222.13136.11.camel@buesod1.americas.hpqcorp.net>
-Date: Fri, 21 Jun 2013 17:25:16 -0700
-Message-ID: <CANN689G1hyV_+2DxOiLqHDLGGuCjAqn9GhV-g4A0Jfd6YRQupQ@mail.gmail.com>
-Subject: Re: [PATCH 0/2] rwsem: performance enhancements for systems with many cores
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20130621164413.GA4759@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr.bueso@hp.com>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Hyunhee Kim <hyunhee.kim@samsung.com>, linux-mm@kvack.org, akpm@linux-foundation.org, rob@landley.net, kamezawa.hiroyu@jp.fujitsu.com, hannes@cmpxchg.org, rientjes@google.com, kirill@shutemov.name, 'Kyungmin Park' <kyungmin.park@samsung.com>
 
-On Fri, Jun 21, 2013 at 5:00 PM, Davidlohr Bueso <davidlohr.bueso@hp.com> wrote:
-> On Fri, 2013-06-21 at 16:51 -0700, Tim Chen wrote:
->> In this patchset, we introduce two optimizations to read write semaphore.
->> The first one reduces cache bouncing of the sem->count field
->> by doing a pre-read of the sem->count and avoid cmpxchg if possible.
->> The second patch introduces similar optimistic spining logic in
->> the mutex code for the writer lock acquisition of rw-sem.
->>
->> Combining the two patches, in testing by Davidlohr Bueso on aim7 workloads
->> on 8 socket 80 cores system, he saw improvements of
->> alltests (+14.5%), custom (+17%), disk (+11%), high_systime
->> (+5%), shared (+15%) and short (+4%), most of them after around 500
->> users when i_mmap was implemented as rwsem.
->>
->> Feedbacks on the effectiveness of these tweaks on other workloads
->> will be appreciated.
->
-> Tim, I was really hoping to send all this in one big bundle. I was doing
-> some further testing (enabling hyperthreading and some Oracle runs),
-> fortunately everything looks ok and we are getting actual improvements
-> on large boxes.
->
-> That said, how about I send you my i_mmap rwsem patchset for a v2 of
-> this patchset?
+On Sat, Jun 22, 2013 at 01:44:14AM +0900, Minchan Kim wrote:
+[...]
+> 3. The reclaimed could be greater than scanned in vmpressure_evnet
+>    by several reasons. Totally, It could trigger wrong event.
 
-I'm a bit confused about the state of these patchsets - it looks like
-I'm only copied into half of the conversations. Should I wait for a v2
-here, or should I hunt down for Alex's version of things, or... ?
+Yup, and in that case the best we can do is just ignore the event (i.e.
+not pass it to the userland): thing is, based on the fact that
+'reclaimed > scanned' we can't actually conclude anything about the
+pressure: it might be still high, or we actually freed enough.
 
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+Thanks,
+
+Anton
+
+p.s. I was somewhat sure that someone sent a patch to ignore 'reclaimed >
+scanned' situation, but I cannot find it in my mailbox. Maybe I was
+dreaming about it? :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
