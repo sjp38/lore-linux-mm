@@ -1,129 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id A73146B0031
-	for <linux-mm@kvack.org>; Sat, 22 Jun 2013 03:21:45 -0400 (EDT)
-Message-ID: <51C55082.5040500@hurleysoftware.com>
-Date: Sat, 22 Jun 2013 03:21:38 -0400
-From: Peter Hurley <peter@hurleysoftware.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] rwsem: check the lock before cpmxchg in down_write_trylock
- and rwsem_do_wake
-References: <cover.1371855277.git.tim.c.chen@linux.intel.com> <1371858695.22432.4.camel@schen9-DESK>
-In-Reply-To: <1371858695.22432.4.camel@schen9-DESK>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id B298A6B0031
+	for <linux-mm@kvack.org>; Sat, 22 Jun 2013 03:34:36 -0400 (EDT)
+Received: from epcpsbgr2.samsung.com
+ (u142.gpu120.samsung.co.kr [203.254.230.142])
+ by mailout4.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTP id <0MOS009BGADMXJ50@mailout4.samsung.com> for linux-mm@kvack.org;
+ Sat, 22 Jun 2013 16:34:35 +0900 (KST)
+From: Hyunhee Kim <hyunhee.kim@samsung.com>
+References: 
+ <CAOK=xRMz+qX=CQ+3oD6TsEiGckMAdGJ-GAUC8o6nQpx4SJtQPw@mail.gmail.com>
+ <20130618110151.GI13677@dhcp22.suse.cz>
+ <00fd01ce6ce0$82eac0a0$88c041e0$%kim@samsung.com>
+ <20130619125329.GB16457@dhcp22.suse.cz>
+ <000401ce6d5c$566ac620$03405260$%kim@samsung.com>
+ <20130620121649.GB27196@dhcp22.suse.cz>
+ <001e01ce6e15$3d183bd0$b748b370$%kim@samsung.com>
+ <001f01ce6e15$b7109950$2531cbf0$%kim@samsung.com>
+ <20130621012234.GF11659@bbox> <20130621091944.GC12424@dhcp22.suse.cz>
+ <20130621162743.GA2837@gmail.com>
+ <CAOK=xRMhwvWrao_ve8GFsk0JBHAcWh_SB_kM6fCujp8WThPimw@mail.gmail.com>
+ <CAOK=xRNEMp3igfwQfrz0ffApmoAL19OM0EGLaBJ5RerZy9ddtw@mail.gmail.com>
+ <005601ce6f0c$5948ff90$0bdafeb0$%kim@samsung.com>
+In-reply-to: <005601ce6f0c$5948ff90$0bdafeb0$%kim@samsung.com>
+Subject: [PATCH] memcg: add interface to specify thresholds of vmpressure
+Date: Sat, 22 Jun 2013 16:34:34 +0900
+Message-id: <005801ce6f1a$f1664f90$d432eeb0$%kim@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-transfer-encoding: 7bit
+Content-language: ko
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>, Alex Shi <alex.shi@intel.com>, Michel Lespinasse <walken@google.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: 'Hyunhee Kim' <hyunhee.kim@samsung.com>, 'Minchan Kim' <minchan@kernel.org>, 'Michal Hocko' <mhocko@suse.cz>, 'Anton Vorontsov' <anton@enomsg.org>, linux-mm@kvack.org, akpm@linux-foundation.org, rob@landley.net, kamezawa.hiroyu@jp.fujitsu.com, hannes@cmpxchg.org, rientjes@google.com, kirill@shutemov.name, 'Kyungmin Park' <kyungmin.park@samsung.com>
 
-On 06/21/2013 07:51 PM, Tim Chen wrote:
-> Doing cmpxchg will cause cache bouncing when checking
-> sem->count. This could cause scalability issue
-> in a large machine (e.g. a 80 cores box).
->
-> A pre-read of sem->count can mitigate this.
->
-> Signed-off-by: Alex Shi <alex.shi@intel.com>
-> Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
-> ---
->   include/asm-generic/rwsem.h |    8 ++++----
->   lib/rwsem.c                 |   21 +++++++++++++--------
->   2 files changed, 17 insertions(+), 12 deletions(-)
->
-> diff --git a/include/asm-generic/rwsem.h b/include/asm-generic/rwsem.h
-> index bb1e2cd..052d973 100644
-> --- a/include/asm-generic/rwsem.h
-> +++ b/include/asm-generic/rwsem.h
-> @@ -70,11 +70,11 @@ static inline void __down_write(struct rw_semaphore *sem)
->
->   static inline int __down_write_trylock(struct rw_semaphore *sem)
->   {
-> -	long tmp;
-> +	if (unlikely(&sem->count != RWSEM_UNLOCKED_VALUE))
-                      ^^^^^^^^^^^
+Memory pressure is calculated based on scanned/reclaimed ratio. The higher
+the value, the more number unsuccessful reclaims there were. These thresholds
+can be specified when each event is registered by writing it next to the
+string of level. Default value is 60 for "medium" and 95 for "critical"
 
-This is probably not what you want.
+Signed-off-by: Hyunhee Kim <hyunhee.kim@samsung.com>
+Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+---
+ Documentation/cgroups/memory.txt |    8 +++++-
+ mm/vmpressure.c                  |   54 +++++++++++++++++++++++++++-----------
+ 2 files changed, 45 insertions(+), 17 deletions(-)
 
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index ddf4f93..bd9cf46 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -807,13 +807,19 @@ register a notification, an application must:
+ 
+ - create an eventfd using eventfd(2);
+ - open memory.pressure_level;
+-- write string like "<event_fd> <fd of memory.pressure_level> <level>"
++- write string like "<event_fd> <fd of memory.pressure_level> <level> <threshold>"
+   to cgroup.event_control.
+ 
+ Application will be notified through eventfd when memory pressure is at
+ the specific level (or higher). Read/write operations to
+ memory.pressure_level are no implemented.
+ 
++We account memory pressure based on scanned/reclaimed ratio. The higher
++the value, the more number unsuccessful reclaims there were. These thresholds
++can be specified when each event is registered by writing it next to the
++string of level. Default value is 60 for "medium" and 95 for "critical".
++If nothing is input as threshold, default values are used.
++
+ Test:
+ 
+    Here is a small script example that makes a new cgroup, sets up a
+diff --git a/mm/vmpressure.c b/mm/vmpressure.c
+index 736a601..52b266c 100644
+--- a/mm/vmpressure.c
++++ b/mm/vmpressure.c
+@@ -40,15 +40,6 @@
+ static const unsigned long vmpressure_win = SWAP_CLUSTER_MAX * 16;
+ 
+ /*
+- * These thresholds are used when we account memory pressure through
+- * scanned/reclaimed ratio. The current values were chosen empirically. In
+- * essence, they are percents: the higher the value, the more number
+- * unsuccessful reclaims there were.
+- */
+-static const unsigned int vmpressure_level_med = 60;
+-static const unsigned int vmpressure_level_critical = 95;
+-
+-/*
+  * When there are too little pages left to scan, vmpressure() may miss the
+  * critical pressure as number of pages will be less than "window size".
+  * However, in that case the vmscan priority will raise fast as the
+@@ -97,6 +88,19 @@ enum vmpressure_levels {
+ 	VMPRESSURE_NUM_LEVELS,
+ };
+ 
++/*
++ * These thresholds are used when we account memory pressure through
++ * scanned/reclaimed ratio. In essence, they are percents: the higher
++ * the value, the more number unsuccessful reclaims there were.
++ * These thresholds can be specified when each event is registered.
++ */
++
++static unsigned int vmpressure_threshold_levels[] = {
++	[VMPRESSURE_LOW] = 0,
++	[VMPRESSURE_MEDIUM] = 60,
++	[VMPRESSURE_CRITICAL] = 95,
++};
++
+ static const char * const vmpressure_str_levels[] = {
+ 	[VMPRESSURE_LOW] = "low",
+ 	[VMPRESSURE_MEDIUM] = "medium",
+@@ -105,11 +109,14 @@ static const char * const vmpressure_str_levels[] = {
+ 
+ static enum vmpressure_levels vmpressure_level(unsigned long pressure)
+ {
+-	if (pressure >= vmpressure_level_critical)
+-		return VMPRESSURE_CRITICAL;
+-	else if (pressure >= vmpressure_level_med)
+-		return VMPRESSURE_MEDIUM;
+-	return VMPRESSURE_LOW;
++	int level;
++
++	for (level = VMPRESSURE_NUM_LEVELS - 1; level >= 0; level--) {
++		if (pressure >= vmpressure_threshold_levels[level])
++			break;
++	}
++
++	return level;
+ }
+ 
+ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
+@@ -303,10 +310,21 @@ int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
+ {
+ 	struct vmpressure *vmpr = cg_to_vmpressure(cg);
+ 	struct vmpressure_event *ev;
+-	int level;
++	char *strlevel, *strthres;
++	int level, thres = -1;
++
++	strlevel = args;
++	strthres = strchr(args, ' ');
++
++	if (strthres) {
++		*strthres = '\0';
++		strthres++;
++		if(kstrtoint(strthres, 10, &thres))
++			return -EINVAL;
++	}
+ 
+ 	for (level = 0; level < VMPRESSURE_NUM_LEVELS; level++) {
+-		if (!strcmp(vmpressure_str_levels[level], args))
++		if (!strcmp(vmpressure_str_levels[level], strlevel))
+ 			break;
+ 	}
+ 
+@@ -320,6 +338,10 @@ int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
+ 	ev->efd = eventfd;
+ 	ev->level = level;
+ 
++	/* If user input threshold is not valid value, use default value */
++	if (thres <= 100 && thres >= 0)
++		vmpressure_threshold_levels[level] = thres;
++
+ 	mutex_lock(&vmpr->events_lock);
+ 	list_add(&ev->node, &vmpr->events);
+ 	mutex_unlock(&vmpr->events_lock);
+-- 
+1.7.9.5
 
-> +		return 0;
->
-> -	tmp = cmpxchg(&sem->count, RWSEM_UNLOCKED_VALUE,
-> -		      RWSEM_ACTIVE_WRITE_BIAS);
-> -	return tmp == RWSEM_UNLOCKED_VALUE;
-> +	return cmpxchg(&sem->count, RWSEM_UNLOCKED_VALUE,
-> +		RWSEM_ACTIVE_WRITE_BIAS) == RWSEM_UNLOCKED_VALUE;
->   }
->
->   /*
-> diff --git a/lib/rwsem.c b/lib/rwsem.c
-> index 19c5fa9..2072af5 100644
-> --- a/lib/rwsem.c
-> +++ b/lib/rwsem.c
-> @@ -75,7 +75,7 @@ __rwsem_do_wake(struct rw_semaphore *sem, enum rwsem_wake_type wake_type)
->   			 * will block as they will notice the queued writer.
->   			 */
->   			wake_up_process(waiter->task);
-> -		goto out;
-> +		return sem;
-
-Please put these flow control changes in a separate patch.
-
-
->   	}
->
->   	/* Writers might steal the lock before we grant it to the next reader.
-> @@ -85,15 +85,21 @@ __rwsem_do_wake(struct rw_semaphore *sem, enum rwsem_wake_type wake_type)
->   	adjustment = 0;
->   	if (wake_type != RWSEM_WAKE_READ_OWNED) {
->   		adjustment = RWSEM_ACTIVE_READ_BIAS;
-> - try_reader_grant:
-> -		oldcount = rwsem_atomic_update(adjustment, sem) - adjustment;
-> -		if (unlikely(oldcount < RWSEM_WAITING_BIAS)) {
-> -			/* A writer stole the lock. Undo our reader grant. */
-> +		while (1) {
-> +			/* A writer stole the lock. */
-> +			if (sem->count < RWSEM_WAITING_BIAS)
-> +				return sem;
-
-I'm all for structured looping instead of goto labels but this optimization
-is only useful on the 1st iteration. IOW, on the second iteration you already
-know that you need to try for reclaiming the lock.
-
-
-> +
-> +			oldcount = rwsem_atomic_update(adjustment, sem)
-> +								- adjustment;
-> +			if (likely(oldcount >= RWSEM_WAITING_BIAS))
-> +				break;
-> +
-> +			 /* A writer stole the lock.  Undo our reader grant. */
->   			if (rwsem_atomic_update(-adjustment, sem) &
->   						RWSEM_ACTIVE_MASK)
-> -				goto out;
-> +				return sem;
->   			/* Last active locker left. Retry waking readers. */
-> -			goto try_reader_grant;
->   		}
->   	}
->
-> @@ -136,7 +142,6 @@ __rwsem_do_wake(struct rw_semaphore *sem, enum rwsem_wake_type wake_type)
->   	sem->wait_list.next = next;
->   	next->prev = &sem->wait_list;
->
-> - out:
->   	return sem;
->   }
-
-
-Alex and Tim,
-
-Was there a v1 of this series; ie., is this v2 (or higher)?
-
-How are you validating lock correctness/behavior with this series?
-
-Regards,
-Peter Hurley
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
