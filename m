@@ -1,157 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 92C096B0034
-	for <linux-mm@kvack.org>; Sat, 22 Jun 2013 21:16:21 -0400 (EDT)
-Message-ID: <51C64C5D.5090400@intel.com>
-Date: Sun, 23 Jun 2013 09:16:13 +0800
-From: Alex Shi <alex.shi@intel.com>
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 787A56B0034
+	for <linux-mm@kvack.org>; Sun, 23 Jun 2013 01:10:20 -0400 (EDT)
+Date: Sun, 23 Jun 2013 07:10:18 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH 1/2] rwsem: check the lock before cpmxchg in
+ down_write_trylock and rwsem_do_wake
+Message-ID: <20130623051018.GS6123@two.firstfloor.org>
+References: <cover.1371855277.git.tim.c.chen@linux.intel.com>
+ <1371858695.22432.4.camel@schen9-DESK>
+ <51C55082.5040500@hurleysoftware.com>
+ <51C64C5D.5090400@intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] rwsem: check the lock before cpmxchg in down_write_trylock
- and rwsem_do_wake
-References: <cover.1371855277.git.tim.c.chen@linux.intel.com> <1371858695.22432.4.camel@schen9-DESK> <51C55082.5040500@hurleysoftware.com>
-In-Reply-To: <51C55082.5040500@hurleysoftware.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51C64C5D.5090400@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Hurley <peter@hurleysoftware.com>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>, Michel Lespinasse <walken@google.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Alex Shi <alex.shi@intel.com>
+Cc: Peter Hurley <peter@hurleysoftware.com>, Tim Chen <tim.c.chen@linux.intel.com>, Michel Lespinasse <walken@google.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-On 06/22/2013 03:21 PM, Peter Hurley wrote:
-> On 06/21/2013 07:51 PM, Tim Chen wrote:
->> Doing cmpxchg will cause cache bouncing when checking
->> sem->count. This could cause scalability issue
->> in a large machine (e.g. a 80 cores box).
->>
->> A pre-read of sem->count can mitigate this.
->>
->> Signed-off-by: Alex Shi <alex.shi@intel.com>
->> Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
->> ---
->>   include/asm-generic/rwsem.h |    8 ++++----
->>   lib/rwsem.c                 |   21 +++++++++++++--------
->>   2 files changed, 17 insertions(+), 12 deletions(-)
->>
->> diff --git a/include/asm-generic/rwsem.h b/include/asm-generic/rwsem.h
->> index bb1e2cd..052d973 100644
->> --- a/include/asm-generic/rwsem.h
->> +++ b/include/asm-generic/rwsem.h
->> @@ -70,11 +70,11 @@ static inline void __down_write(struct
->> rw_semaphore *sem)
->>
->>   static inline int __down_write_trylock(struct rw_semaphore *sem)
->>   {
->> -    long tmp;
->> +    if (unlikely(&sem->count != RWSEM_UNLOCKED_VALUE))
->                      ^^^^^^^^^^^
+> >> diff --git a/include/asm-generic/rwsem.h b/include/asm-generic/rwsem.h
+> >> index bb1e2cd..052d973 100644
+> >> --- a/include/asm-generic/rwsem.h
+> >> +++ b/include/asm-generic/rwsem.h
+> >> @@ -70,11 +70,11 @@ static inline void __down_write(struct
+> >> rw_semaphore *sem)
+> >>
+> >>   static inline int __down_write_trylock(struct rw_semaphore *sem)
+> >>   {
+> >> -    long tmp;
+> >> +    if (unlikely(&sem->count != RWSEM_UNLOCKED_VALUE))
+> >                      ^^^^^^^^^^^
+> > 
+> > This is probably not what you want.
+> > 
 > 
-> This is probably not what you want.
+> this function logical is quite simple. check the sem->count before
+> cmpxchg is no harm this logical.
 > 
+> So could you like to tell us what should we want?
 
-this function logical is quite simple. check the sem->count before
-cmpxchg is no harm this logical.
+You are comparing the address, not the value. Remove the &
+This was a nop too.
 
-So could you like to tell us what should we want?
-
-> 
->> +        return 0;
->>
->> -    tmp = cmpxchg(&sem->count, RWSEM_UNLOCKED_VALUE,
->> -              RWSEM_ACTIVE_WRITE_BIAS);
->> -    return tmp == RWSEM_UNLOCKED_VALUE;
->> +    return cmpxchg(&sem->count, RWSEM_UNLOCKED_VALUE,
->> +        RWSEM_ACTIVE_WRITE_BIAS) == RWSEM_UNLOCKED_VALUE;
->>   }
->>
->>   /*
->> diff --git a/lib/rwsem.c b/lib/rwsem.c
->> index 19c5fa9..2072af5 100644
->> --- a/lib/rwsem.c
->> +++ b/lib/rwsem.c
->> @@ -75,7 +75,7 @@ __rwsem_do_wake(struct rw_semaphore *sem, enum
->> rwsem_wake_type wake_type)
->>                * will block as they will notice the queued writer.
->>                */
->>               wake_up_process(waiter->task);
->> -        goto out;
->> +        return sem;
-> 
-> Please put these flow control changes in a separate patch.
-
-I had sent the split patches to Tim&Davidlohr. They will send them out
-as a single patchset.
-> 
-> 
->>       }
->>
->>       /* Writers might steal the lock before we grant it to the next
->> reader.
->> @@ -85,15 +85,21 @@ __rwsem_do_wake(struct rw_semaphore *sem, enum
->> rwsem_wake_type wake_type)
->>       adjustment = 0;
->>       if (wake_type != RWSEM_WAKE_READ_OWNED) {
->>           adjustment = RWSEM_ACTIVE_READ_BIAS;
->> - try_reader_grant:
->> -        oldcount = rwsem_atomic_update(adjustment, sem) - adjustment;
->> -        if (unlikely(oldcount < RWSEM_WAITING_BIAS)) {
->> -            /* A writer stole the lock. Undo our reader grant. */
->> +        while (1) {
->> +            /* A writer stole the lock. */
->> +            if (sem->count < RWSEM_WAITING_BIAS)
->> +                return sem;
-> 
-> I'm all for structured looping instead of goto labels but this optimization
-> is only useful on the 1st iteration. IOW, on the second iteration you
-> already
-> know that you need to try for reclaiming the lock.
-> 
-
-sorry. could you like to say more clear, what's the 1st or 2nd iteration
-or others?
-> 
->> +
->> +            oldcount = rwsem_atomic_update(adjustment, sem)
->> +                                - adjustment;
->> +            if (likely(oldcount >= RWSEM_WAITING_BIAS))
->> +                break;
->> +
->> +             /* A writer stole the lock.  Undo our reader grant. */
->>               if (rwsem_atomic_update(-adjustment, sem) &
->>                           RWSEM_ACTIVE_MASK)
->> -                goto out;
->> +                return sem;
->>               /* Last active locker left. Retry waking readers. */
->> -            goto try_reader_grant;
->>           }
->>       }
->>
->> @@ -136,7 +142,6 @@ __rwsem_do_wake(struct rw_semaphore *sem, enum
->> rwsem_wake_type wake_type)
->>       sem->wait_list.next = next;
->>       next->prev = &sem->wait_list;
->>
->> - out:
->>       return sem;
->>   }
-> 
-> 
-> Alex and Tim,
-> 
-> Was there a v1 of this series; ie., is this v2 (or higher)?
-> 
-> How are you validating lock correctness/behavior with this series?
-
-some benchmark tested against this patch, mainly aim7. plus by eyes, we
-didn't change the logical except check the lock value before  do locking
-> 
-> Regards,
-> Peter Hurley
-> 
-
-
+-Andi
 -- 
-Thanks
-    Alex
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
