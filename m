@@ -1,53 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 07A0A6B0036
-	for <linux-mm@kvack.org>; Sat, 22 Jun 2013 16:10:00 -0400 (EDT)
-Subject: =?utf-8?q?Re=3A_=5BPATCH_for_3=2E2=5D_memcg=3A_do_not_trap_chargers_with_full_callstack_on_OOM?=
-Date: Sat, 22 Jun 2013 22:09:58 +0200
-From: "azurIt" <azurit@pobox.sk>
-References: <20130208171012.GH7557@dhcp22.suse.cz>, <20130208220243.EDEE0825@pobox.sk>, <20130210150310.GA9504@dhcp22.suse.cz>, <20130210174619.24F20488@pobox.sk>, <20130211112240.GC19922@dhcp22.suse.cz>, <20130222092332.4001E4B6@pobox.sk>, <20130606160446.GE24115@dhcp22.suse.cz>, <20130606181633.BCC3E02E@pobox.sk>, <20130607131157.GF8117@dhcp22.suse.cz>, <20130617122134.2E072BA8@pobox.sk> <20130619132614.GC16457@dhcp22.suse.cz>
-In-Reply-To: <20130619132614.GC16457@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 92C096B0034
+	for <linux-mm@kvack.org>; Sat, 22 Jun 2013 21:16:21 -0400 (EDT)
+Message-ID: <51C64C5D.5090400@intel.com>
+Date: Sun, 23 Jun 2013 09:16:13 +0800
+From: Alex Shi <alex.shi@intel.com>
 MIME-Version: 1.0
-Message-Id: <20130622220958.D10567A4@pobox.sk>
+Subject: Re: [PATCH 1/2] rwsem: check the lock before cpmxchg in down_write_trylock
+ and rwsem_do_wake
+References: <cover.1371855277.git.tim.c.chen@linux.intel.com> <1371858695.22432.4.camel@schen9-DESK> <51C55082.5040500@hurleysoftware.com>
+In-Reply-To: <51C55082.5040500@hurleysoftware.com>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?q?cgroups_mailinglist?= <cgroups@vger.kernel.org>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
+To: Peter Hurley <peter@hurleysoftware.com>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>, Michel Lespinasse <walken@google.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-Michal,
+On 06/22/2013 03:21 PM, Peter Hurley wrote:
+> On 06/21/2013 07:51 PM, Tim Chen wrote:
+>> Doing cmpxchg will cause cache bouncing when checking
+>> sem->count. This could cause scalability issue
+>> in a large machine (e.g. a 80 cores box).
+>>
+>> A pre-read of sem->count can mitigate this.
+>>
+>> Signed-off-by: Alex Shi <alex.shi@intel.com>
+>> Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
+>> ---
+>>   include/asm-generic/rwsem.h |    8 ++++----
+>>   lib/rwsem.c                 |   21 +++++++++++++--------
+>>   2 files changed, 17 insertions(+), 12 deletions(-)
+>>
+>> diff --git a/include/asm-generic/rwsem.h b/include/asm-generic/rwsem.h
+>> index bb1e2cd..052d973 100644
+>> --- a/include/asm-generic/rwsem.h
+>> +++ b/include/asm-generic/rwsem.h
+>> @@ -70,11 +70,11 @@ static inline void __down_write(struct
+>> rw_semaphore *sem)
+>>
+>>   static inline int __down_write_trylock(struct rw_semaphore *sem)
+>>   {
+>> -    long tmp;
+>> +    if (unlikely(&sem->count != RWSEM_UNLOCKED_VALUE))
+>                      ^^^^^^^^^^^
+> 
+> This is probably not what you want.
+> 
+
+this function logical is quite simple. check the sem->count before
+cmpxchg is no harm this logical.
+
+So could you like to tell us what should we want?
+
+> 
+>> +        return 0;
+>>
+>> -    tmp = cmpxchg(&sem->count, RWSEM_UNLOCKED_VALUE,
+>> -              RWSEM_ACTIVE_WRITE_BIAS);
+>> -    return tmp == RWSEM_UNLOCKED_VALUE;
+>> +    return cmpxchg(&sem->count, RWSEM_UNLOCKED_VALUE,
+>> +        RWSEM_ACTIVE_WRITE_BIAS) == RWSEM_UNLOCKED_VALUE;
+>>   }
+>>
+>>   /*
+>> diff --git a/lib/rwsem.c b/lib/rwsem.c
+>> index 19c5fa9..2072af5 100644
+>> --- a/lib/rwsem.c
+>> +++ b/lib/rwsem.c
+>> @@ -75,7 +75,7 @@ __rwsem_do_wake(struct rw_semaphore *sem, enum
+>> rwsem_wake_type wake_type)
+>>                * will block as they will notice the queued writer.
+>>                */
+>>               wake_up_process(waiter->task);
+>> -        goto out;
+>> +        return sem;
+> 
+> Please put these flow control changes in a separate patch.
+
+I had sent the split patches to Tim&Davidlohr. They will send them out
+as a single patchset.
+> 
+> 
+>>       }
+>>
+>>       /* Writers might steal the lock before we grant it to the next
+>> reader.
+>> @@ -85,15 +85,21 @@ __rwsem_do_wake(struct rw_semaphore *sem, enum
+>> rwsem_wake_type wake_type)
+>>       adjustment = 0;
+>>       if (wake_type != RWSEM_WAKE_READ_OWNED) {
+>>           adjustment = RWSEM_ACTIVE_READ_BIAS;
+>> - try_reader_grant:
+>> -        oldcount = rwsem_atomic_update(adjustment, sem) - adjustment;
+>> -        if (unlikely(oldcount < RWSEM_WAITING_BIAS)) {
+>> -            /* A writer stole the lock. Undo our reader grant. */
+>> +        while (1) {
+>> +            /* A writer stole the lock. */
+>> +            if (sem->count < RWSEM_WAITING_BIAS)
+>> +                return sem;
+> 
+> I'm all for structured looping instead of goto labels but this optimization
+> is only useful on the 1st iteration. IOW, on the second iteration you
+> already
+> know that you need to try for reclaiming the lock.
+> 
+
+sorry. could you like to say more clear, what's the 1st or 2nd iteration
+or others?
+> 
+>> +
+>> +            oldcount = rwsem_atomic_update(adjustment, sem)
+>> +                                - adjustment;
+>> +            if (likely(oldcount >= RWSEM_WAITING_BIAS))
+>> +                break;
+>> +
+>> +             /* A writer stole the lock.  Undo our reader grant. */
+>>               if (rwsem_atomic_update(-adjustment, sem) &
+>>                           RWSEM_ACTIVE_MASK)
+>> -                goto out;
+>> +                return sem;
+>>               /* Last active locker left. Retry waking readers. */
+>> -            goto try_reader_grant;
+>>           }
+>>       }
+>>
+>> @@ -136,7 +142,6 @@ __rwsem_do_wake(struct rw_semaphore *sem, enum
+>> rwsem_wake_type wake_type)
+>>       sem->wait_list.next = next;
+>>       next->prev = &sem->wait_list;
+>>
+>> - out:
+>>       return sem;
+>>   }
+> 
+> 
+> Alex and Tim,
+> 
+> Was there a v1 of this series; ie., is this v2 (or higher)?
+> 
+> How are you validating lock correctness/behavior with this series?
+
+some benchmark tested against this patch, mainly aim7. plus by eyes, we
+didn't change the logical except check the lock value before  do locking
+> 
+> Regards,
+> Peter Hurley
+> 
 
 
-
->> I'm unable to send you stacks or more info because problem is taking
->> down the whole server for some time now (don't know what exactly
->> caused it to start happening, maybe newer versions of 3.2.x).
->
->So you are not testing with the same kernel with just the old patch
->replaced by the new one?
-
-
-No, i'm not testing with the same kernel but all are 3.2.x. I even cannot install older 3.2.x because grsecurity is always available for newest kernel and there is no archive of older versions (at least i don't know about any).
-
-
->> But i'm sure of one thing - when problem occurs, nothing is able to
->> access hard drives (every process which tries it is freezed until
->> problem is resolved or server is rebooted).
->
->I would be really interesting to see what those tasks are blocked on.
-
-
-I'm trying to get it, stay tuned :)
-
-
-Today i noticed one bug, not 100% sure it is related to 'your' patch but i didn't seen this before. I noticed that i have lots of cgroups which cannot be removed - if i do 'rmdir <cgroup_directory>', it just hangs and never complete. Even more, it's not possible to access the whole cgroup filesystem until i kill that rmdir (anything, which tries it, just hangs). All unremoveable cgroups has this in 'memory.oom_control':
-oom_kill_disable 0
-under_oom 1
-
-And, yes, 'tasks' file is empty.
-
-azur
+-- 
+Thanks
+    Alex
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
