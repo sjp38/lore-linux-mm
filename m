@@ -1,86 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id DA4306B0032
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2013 16:00:04 -0400 (EDT)
-Received: by mail-gh0-f169.google.com with SMTP id r1so3635036ghr.28
-        for <linux-mm@kvack.org>; Mon, 24 Jun 2013 13:00:03 -0700 (PDT)
-Date: Mon, 24 Jun 2013 12:59:56 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [Part1 PATCH v5 00/22] x86, ACPI, numa: Parse numa info earlier
-Message-ID: <20130624195956.GG1918@mtj.dyndns.org>
-References: <1371128589-8953-1-git-send-email-tangchen@cn.fujitsu.com>
- <20130618020357.GZ32663@mtj.dyndns.org>
- <51BFF464.809@cn.fujitsu.com>
- <20130618172129.GH2767@htj.dyndns.org>
- <51C298B2.9060900@cn.fujitsu.com>
- <20130620061719.GA16114@mtj.dyndns.org>
- <51C41AB4.9070500@cn.fujitsu.com>
- <20130621182511.GA1763@htj.dyndns.org>
- <51C7C258.8070906@cn.fujitsu.com>
- <51C7F4A3.6060307@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id A512A6B0036
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2013 16:13:57 -0400 (EDT)
+Date: Mon, 24 Jun 2013 16:13:45 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH for 3.2] memcg: do not trap chargers with full callstack
+ on OOM
+Message-ID: <20130624201345.GA21822@cmpxchg.org>
+References: <20130210150310.GA9504@dhcp22.suse.cz>
+ <20130210174619.24F20488@pobox.sk>
+ <20130211112240.GC19922@dhcp22.suse.cz>
+ <20130222092332.4001E4B6@pobox.sk>
+ <20130606160446.GE24115@dhcp22.suse.cz>
+ <20130606181633.BCC3E02E@pobox.sk>
+ <20130607131157.GF8117@dhcp22.suse.cz>
+ <20130617122134.2E072BA8@pobox.sk>
+ <20130619132614.GC16457@dhcp22.suse.cz>
+ <20130622220958.D10567A4@pobox.sk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51C7F4A3.6060307@cn.fujitsu.com>
+In-Reply-To: <20130622220958.D10567A4@pobox.sk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: yinghai@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: azurIt <azurit@pobox.sk>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Hello, Tang.
+Hi guys,
 
-On Mon, Jun 24, 2013 at 03:26:27PM +0800, Tang Chen wrote:
-> >My box is x86_64, and the memory layout is:
-> >[ 0.000000] SRAT: Node 0 PXM 0 [mem 0x00000000-0x7fffffff]
-> >[ 0.000000] SRAT: Node 0 PXM 0 [mem 0x100000000-0x307ffffff]
-> >[ 0.000000] SRAT: Node 1 PXM 2 [mem 0x308000000-0x587ffffff] Hot Pluggable
-> >[ 0.000000] SRAT: Node 2 PXM 3 [mem 0x588000000-0x7ffffffff] Hot Pluggable
+On Sat, Jun 22, 2013 at 10:09:58PM +0200, azurIt wrote:
+> >> But i'm sure of one thing - when problem occurs, nothing is able to
+> >> access hard drives (every process which tries it is freezed until
+> >> problem is resolved or server is rebooted).
 > >
-> >
-> >I marked ranges reserved by memblock before we parse SRAT with flag 0x4.
-> >There are about 14 ranges which is persistent after boot.
-
-You can also record the caller address or short backtrace with each
-allocation (maybe controlled by some debug parameter).  It'd be a nice
-capability to keep around anyway.
-
-> This range is allocated by init_mem_mapping() in setup_arch(), it calls
-> alloc_low_pages() to allocate pagetable pages.
+> >I would be really interesting to see what those tasks are blocked on.
 > 
-> I think if we do the local device pagetable, we can solve this problem
-> without any relocation.
-
-Yeah, I really can't think of many places which would allocate
-permanent piece of memory before memblock is fully initialized.  Just
-in case I wasn't clear, I don't have anything fundamentally against
-reordering operations if that's cleaner, but we really should at least
-find out what needs to be reordered and have a mechanism to verify and
-track them down, and of course if relocating / reloading / whatever is
-cleaner and/or more robust, that's what we should do.
-
-> I will make a patch trying to do this. But I'm not sure if there are any
-> other relocation problems on other architectures.
+> I'm trying to get it, stay tuned :)
 > 
-> But even if not, I still think this could be dangerous if someone modifies
-> the boot path and allocates some persistent memory before SRAT parsed in
-> the future. He has to be aware of memory hotplug things and do the
-> necessary relocation himself.
+> Today i noticed one bug, not 100% sure it is related to 'your' patch
+> but i didn't seen this before. I noticed that i have lots of cgroups
+> which cannot be removed - if i do 'rmdir <cgroup_directory>', it
+> just hangs and never complete. Even more, it's not possible to
+> access the whole cgroup filesystem until i kill that rmdir
+> (anything, which tries it, just hangs). All unremoveable cgroups has
+> this in 'memory.oom_control': oom_kill_disable 0 under_oom 1
 
-As I wrote above, I think it'd be nice to have a way to track memblock
-allocations.  It can be a debug thing but we can just do it by
-default, e.g., for allocations before memblock is fully initialized.
-It's not like there are a ton of them.  Those extra allocations can be
-freed on boot completion anyway, so they won't affect NUMA hotplug
-either and we'll be able to continuously watch, and thus properly
-maintain, the early boot hotplug issue on most configurations whether
-they actually support and perform hotplug or not, which will be
-multiple times more robust than trying to tweak boot sequence once and
-hoping that it doesn't deteriorate over time.
+Somebody acquires the OOM wait reference to the memcg and marks it
+under oom but then does not call into mem_cgroup_oom_synchronize() to
+clean up.  That's why under_oom is set and the rmdir waits for
+outstanding references.
 
-Thanks.
+> And, yes, 'tasks' file is empty.
 
--- 
-tejun
+It's not a kernel thread that does it because all kernel-context
+handle_mm_fault() are annotated properly, which means the task must be
+userspace and, since tasks is empty, have exited before synchronizing.
+
+Can you try with the following patch on top?
+
+diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+index 5db0490..9a0b152 100644
+--- a/arch/x86/mm/fault.c
++++ b/arch/x86/mm/fault.c
+@@ -846,17 +846,6 @@ static noinline int
+ mm_fault_error(struct pt_regs *regs, unsigned long error_code,
+ 	       unsigned long address, unsigned int fault)
+ {
+-	/*
+-	 * Pagefault was interrupted by SIGKILL. We have no reason to
+-	 * continue pagefault.
+-	 */
+-	if (fatal_signal_pending(current)) {
+-		if (!(fault & VM_FAULT_RETRY))
+-			up_read(&current->mm->mmap_sem);
+-		if (!(error_code & PF_USER))
+-			no_context(regs, error_code, address);
+-		return 1;
+-	}
+ 	if (!(fault & VM_FAULT_ERROR))
+ 		return 0;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
