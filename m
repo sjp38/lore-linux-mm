@@ -1,148 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id AEA526B004D
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2013 05:43:16 -0400 (EDT)
-Message-ID: <51C813FA.9010000@cn.fujitsu.com>
-Date: Mon, 24 Jun 2013 17:40:10 +0800
-From: Gu Zheng <guz.fnst@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [Part1 PATCH v5 00/22] x86, ACPI, numa: Parse numa info earlier
-References: <1371128589-8953-1-git-send-email-tangchen@cn.fujitsu.com> <20130618171036.GD4553@dhcp-192-168-178-175.profitbricks.localdomain>
-In-Reply-To: <20130618171036.GD4553@dhcp-192-168-178-175.profitbricks.localdomain>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 948696B005C
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2013 06:23:30 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Mon, 24 Jun 2013 20:08:57 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 1C3CD3578045
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2013 20:23:21 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5OANB8h4784554
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2013 20:23:12 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5OANJVl012497
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2013 20:23:20 +1000
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: [PATCH 1/3] mm/slab: Fix drain freelist excessively
+Date: Mon, 24 Jun 2013 18:23:12 +0800
+Message-Id: <1372069394-26167-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>
+Cc: Glauber Costa <glommer@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On 06/19/2013 01:10 AM, Vasilis Liaskovitis wrote:
+The drain_freelist is called to drain slabs_free lists for cache reap, 
+cache shrink, memory hotplug callback etc. The tofree parameter is the 
+number of slab objects to free instead of the number of slabs to free. 
+The parameter transfered from callers is n->free_objects or n->freelimit 
++ 5 * (searchp->num - 1) / (5 * searchp->num), and both of them mean 
+the number of slabs objects. I add printk to dump drain information:
 
-> Hi,
-> 
-> On Thu, Jun 13, 2013 at 09:02:47PM +0800, Tang Chen wrote:
->> From: Yinghai Lu <yinghai@kernel.org>
->>
->> No offence, just rebase and resend the patches from Yinghai to help
->> to push this functionality faster.
->> Also improve the comments in the patches' log.
->>
->>
->> One commit that tried to parse SRAT early get reverted before v3.9-rc1.
->>
->> | commit e8d1955258091e4c92d5a975ebd7fd8a98f5d30f
->> | Author: Tang Chen <tangchen@cn.fujitsu.com>
->> | Date:   Fri Feb 22 16:33:44 2013 -0800
->> |
->> |    acpi, memory-hotplug: parse SRAT before memblock is ready
->>
->> It broke several things, like acpi override and fall back path etc.
->>
->> This patchset is clean implementation that will parse numa info early.
->> 1. keep the acpi table initrd override working by split finding with copying.
->>    finding is done at head_32.S and head64.c stage,
->>         in head_32.S, initrd is accessed in 32bit flat mode with phys addr.
->>         in head64.c, initrd is accessed via kernel low mapping address
->>         with help of #PF set page table.
->>    copying is done with early_ioremap just after memblock is setup.
->> 2. keep fallback path working. numaq and ACPI and amd_nmua and dummy.
->>    seperate initmem_init to two stages.
->>    early_initmem_init will only extract numa info early into numa_meminfo.
->>    initmem_init will keep slit and emulation handling.
->> 3. keep other old code flow untouched like relocate_initrd and initmem_init.
->>    early_initmem_init will take old init_mem_mapping position.
->>    it call early_x86_numa_init and init_mem_mapping for every nodes.
->>    For 64bit, we avoid having size limit on initrd, as relocate_initrd
->>    is still after init_mem_mapping for all memory.
->> 4. last patch will try to put page table on local node, so that memory
->>    hotplug will be happy.
->>
->> In short, early_initmem_init will parse numa info early and call
->> init_mem_mapping to set page table for every nodes's mem.
->>
->> could be found at:
->>         git://git.kernel.org/pub/scm/linux/kernel/git/yinghai/linux-yinghai.git for-x86-mm
->>
->> and it is based on today's Linus tree.
->>
-> 
-> Has this patchset been tested on various numa configs?
-> I am using linux-next next-20130607 + part1 with qemu/kvm/seabios VMs. The kernel
-> boots successfully in many numa configs but while trying different memory sizes
-> for a 2 numa node VM, I noticed that booting does not complete in all cases
-> (bootup screen appears to hang but there is no output indicating an early panic)
-> 
-> node0   node1	 boots
-> 1G 	1G	 yes
-> 1G 	2G	 yes
-> 1G 	0.5G	 yes
-> 3G 	2.5G	 yes
-> 3G 	3G 	 yes
-> 4G 	0G	 yes
-> 4G 	4G	 yes
-> 1.5G	1G	 no
-> 2G 	1G	 no
-> 2G 	2G	 no
-> 2.5G 	2G	 no
-> 2.5G 	2.5G	 no
-> 
-> linux-next next-20130607 boots al of these configs fine.
-> 
-> Looks odd, perhaps I have something wrong in my setup or maybe there is a
-> seabios/qemu interaction with this patchset. I will update if I find something.
+[  122.864255] tofree is 2, actually free is 52, cache size is 26
 
-Hi Vasilis,
-   This patchset can work well with all the numa config cases you mentioned in latest kernel tree (3.10-rc7) in our box.
+The number of objects which caller prefer to drain is 2, however, actually 
+52 objects are drained, this destroy the cache locality.This patch fix it 
+by compare the number of slabs objects which already drained instead of 
+compare the number of slabs to the number of slab objects prefer to drain.
 
-Host OS: RHEL 6.4 Beta
-qemu-kvm: 0.12.1.2 (Released with RHEL 6.4 Beta)
-Guest OS: RHEL 6.3 
-Guest kernel:3.10-rc7 + [Part1 PATCH v5 ] x86, ACPI, numa: Parse numa info earlier
-Cmd:
+Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+---
+ mm/slab.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-/usr/libexec/qemu-kvm -name rhel_6.3 -S -M rhel6.4.0 -enable-kvm 
--m 5120 -smp 4,sockets=4,cores=1,threads=1 
--numa node,nodeid=0,cpus=0-1,mem=2560 
--numa node,nodeid=1,cpus=2-3,mem=2560 
--uuid fa11164c-1a09-280b-eae4-e2c40c631767 -nodefconfig -nodefaults -chardev 
-socket,id=charmonitor,path=/var/lib/libvirt/qemu/rhel_6.3.monitor,server,nowait 
--mon chardev=charmonitor,id=monitor,mode=control -rtc base=utc -no-shutdown 
--device piix3-usb-uhci,id=usb,bus=pci.0,addr=0x1.0x2 -drive file=/home/hut-rhel6.3.img,if=none,id=drive-virtio-disk0,format=qcow2,cache=none -device virtio-blk-pci,scsi=off,bus=pci.0,addr=0x4,drive=drive-virtio-disk0,id=virtio-disk0,bootindex=1 -netdev tap,fd=26,id=hostnet0,vhost=on,vhostfd=27 -device virtio-net-pci,netdev=hostnet0,id=net0,mac=52:54:00:28:6e:29,bus=pci.0,addr=0x3 -chardev pty,id=charserial0 -device isa-serial,chardev=charserial0,id=serial0 -device usb-tablet,id=input0 -vnc 127.0.0.1:0 -vga cirrus -device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x5
-
-
-Result:
-node0   node1	 boots
-1G 	1G	 yes
-1G 	2G	 yes
-1G 	0.5G	 yes
-3G 	2.5G	 yes
-3G 	3G 	 yes
-4G 	0G	 yes
-4G 	4G	 yes
-1.5G	1G	 yes
-2G 	1G	 yes
-2G 	2G	 yes
-2.5G 	2G	 yes
-2.5G 	2.5G	 yes
-
-Thanks,
-
-Gu
-
-
-> 
-> thanks,
-> 
-> - Vasilis
-> 
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-> 
-
+diff --git a/mm/slab.c b/mm/slab.c
+index be12f68..18628da 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -2479,7 +2479,7 @@ static void drain_cpu_caches(struct kmem_cache *cachep)
+ 
+ /*
+  * Remove slabs from the list of free slabs.
+- * Specify the number of slabs to drain in tofree.
++ * Specify the number of slab objects to drain in tofree.
+  *
+  * Returns the actual number of slabs released.
+  */
+@@ -2491,7 +2491,7 @@ static int drain_freelist(struct kmem_cache *cache,
+ 	struct slab *slabp;
+ 
+ 	nr_freed = 0;
+-	while (nr_freed < tofree && !list_empty(&n->slabs_free)) {
++	while (nr_freed * cache->num < tofree && !list_empty(&n->slabs_free)) {
+ 
+ 		spin_lock_irq(&n->list_lock);
+ 		p = n->slabs_free.prev;
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
