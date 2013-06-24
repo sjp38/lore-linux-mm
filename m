@@ -1,51 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 6A4706B0031
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2013 18:08:51 -0400 (EDT)
-Message-ID: <51C8C36B.9020605@hurleysoftware.com>
-Date: Mon, 24 Jun 2013 18:08:43 -0400
-From: Peter Hurley <peter@hurleysoftware.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] rwsem: do optimistic spinning for writer lock acquisition
-References: <cover.1371855277.git.tim.c.chen@linux.intel.com>  <1371858700.22432.5.camel@schen9-DESK>  <51C558E2.1040108@hurleysoftware.com> <1372111092.22432.84.camel@schen9-DESK>
-In-Reply-To: <1372111092.22432.84.camel@schen9-DESK>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 093886B0032
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2013 19:20:27 -0400 (EDT)
+Subject: [PATCH v2 0/5] rwsem: performance enhancements for systems with
+ many cores
+From: Tim Chen <tim.c.chen@linux.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 24 Jun 2013 16:20:30 -0700
+Message-ID: <1372116030.22432.90.camel@schen9-DESK>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Alex Shi <alex.shi@intel.com>, Michel Lespinasse <walken@google.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Tim Chen <tim.c.chen@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-On 06/24/2013 05:58 PM, Tim Chen wrote:
-> On Sat, 2013-06-22 at 03:57 -0400, Peter Hurley wrote:
->> Will this spin for full scheduler value on a reader-owned lock?
->>
->>> +		/* wait_lock will be acquired if write_lock is obtained */
->>> +		if (rwsem_try_write_lock(sem->count, true, sem)) {
->>> +			ret = 1;
->>> +			goto out;
->>> +		}
->>> +
->>> +		/*
->>> +		 * When there's no owner, we might have preempted between the
->>                                                           ^^^^^^^^
->>
->> Isn't pre-emption disabled?
->>
->
-> Peter, on further review, this code is needed.  This code guard against
-> the case of this thread preempting another thread in the middle
-> of setting the  owner field.  Disabling preemption does not prevent this
-> thread from preempting others, even though others cannot preempt
-> this thread.
+In this patchset, we introduce two optimizations to read write semaphore.
+The first optimization reduces cache bouncing of the sem->count field
+by doing a pre-read of the lock status (i.e. sem->count) and avoid cmpxchg if possible.
+The second optimization introduces similar optimistic spining logic in
+the mutex code for the writer lock acquisition of rw-sem.
 
-Yep; so the "we" in the quoted comment really refers to another thread
-executing down_write_xxxx().
+Combining the two patches, in testing by Davidlohr Bueso on aim7 workloads
+on 8 socket 80 cores system, he saw improvements of
+alltests (+14.5%), custom (+17%), disk (+11%), high_systime
+(+5%), shared (+15%) and short (+4%), most of them after around 500
+users when i_mmap was implemented as rwsem.
 
-Thanks for the clarification.
+Feed-backs on the effectiveness of these tweaks on other workloads
+will be appreciated.  Thanks to Peter Hurley for reviewing the first version
+of this patchset.
 
-Regards,
-Peter Hurley
+I have left the optimistic spinning on write lock acquisition not as a default
+option.  I'll like people's opinion to see if it should be on by default
+to get more testing. 
+
+Changelog:
+
+v2:
+1. Reorganize changes to down_write_trylock and do_wake into 4 patches and fixed
+   a bug referencing &sem->count when sem->count is intended.
+2. Fix unsafe sem->owner de-reference in rwsem_can_spin_on_owner.
+the option to be on for more seasoning but can be turned off should it be detrimental.
+3. Various patch comments update
+
+
+Alex Shi (4):
+  rwsem: check the lock before cpmxchg in down_write_trylock
+  rwsem: remove 'out' label in do_wake
+  rwsem: remove try_reader_grant label do_wake
+  rwsem/wake: check lock before do atomic update
+
+Tim Chen (1):
+  rwsem: do optimistic spinning for writer lock acquisition
+
+ include/asm-generic/rwsem.h |    8 +-
+ include/linux/rwsem.h       |    3 +
+ init/Kconfig                |    9 ++
+ kernel/rwsem.c              |   29 +++++++-
+ lib/rwsem.c                 |  175 ++++++++++++++++++++++++++++++++++++++-----
+ 5 files changed, 199 insertions(+), 25 deletions(-)
+
+-- 
+1.7.4.4
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
