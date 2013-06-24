@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id B3F626B0073
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2013 07:04:28 -0400 (EDT)
-Received: by mail-ob0-f173.google.com with SMTP id wc20so10727253obb.18
-        for <linux-mm@kvack.org>; Mon, 24 Jun 2013 04:04:27 -0700 (PDT)
-Date: Mon, 24 Jun 2013 19:04:16 +0800
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 6A0EF6B0075
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2013 07:04:56 -0400 (EDT)
+Received: by mail-ob0-f176.google.com with SMTP id v19so10620777obq.35
+        for <linux-mm@kvack.org>; Mon, 24 Jun 2013 04:04:55 -0700 (PDT)
+Date: Mon, 24 Jun 2013 19:04:44 +0800
 From: Shaohua Li <shli@kernel.org>
-Subject: [patch 3/4 v5]swap: fix races exposed by swap discard
-Message-ID: <20130624110416.GC15796@kernel.org>
+Subject: [patch 4/4 v5]swap: make cluster allocation per-cpu
+Message-ID: <20130624110444.GD15796@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -17,94 +17,236 @@ To: linux-mm@kvack.org
 Cc: akpm@linux-foundation.org, riel@redhat.com, minchan@kernel.org, kmpark@infradead.org, hughd@google.com, aquini@redhat.com
 
 
-Last patch can expose races, according to Hugh:
+swap cluster allocation is to get better request merge to improve performance.
+But the cluster is shared globally, if multiple tasks are doing swap, this will
+cause interleave disk access. While multiple tasks swap is quite common, for
+example, each numa node has a kswapd thread doing swap or multiple
+threads/processes do direct page reclaim.
 
-swapoff was sometimes failing with "Cannot allocate memory", coming from
-try_to_unuse()'s -ENOMEM: it needs to allow for swap_duplicate() failing on a
-free entry temporarily SWAP_MAP_BAD while being discarded.
+We makes the cluster allocation per-cpu here. The interleave disk access issue
+goes away. All tasks will do sequential swap.
 
-We should use ACCESS_ONCE() there, and whenever accessing swap_map locklessly;
-but rather than peppering it throughout try_to_unuse(), just declare *swap_map
-with volatile.
+If one CPU can't get its per-cpu cluster (for example, there is no free cluster
+anymore in the swap), it will fallback to scan swap_map.  The CPU can still
+continue swap. We don't need recycle free swap entries of other CPUs.
 
-try_to_unuse() is accustomed to *swap_map going down racily, but not
-necessarily to it jumping up from 0 to SWAP_MAP_BAD: we'll be safer to prevent
-that transition once SWP_WRITEOK is switched off, when it's a waste of time to
-issue discards anyway (swapon can do a whole discard).
+In my test (swap to a 2-disk raid0 partition), this improves around 10%
+swapout throughput, and request size is increased significantly.
 
-Another issue is:
+How does this impact swap readahead is uncertain though. On one side, page
+reclaim always isolates and swaps several adjancent pages, this will make page
+reclaim write the pages sequentially and benefit readahead. On the other side,
+several CPU write pages interleave means the pages don't live _sequentially_
+but relatively _near_. In the per-cpu allocation case, if adjancent pages are
+written by different cpus, they will live relatively _far_.  So how this
+impacts swap readahead depends on how many pages page reclaim isolates and
+swaps one time. If the number is big, this patch will benefit swap readahead.
+Of course, this is about sequential access pattern. The patch has no impact for
+random access pattern, because the new cluster allocation algorithm is just for
+SSD.
 
-In swapin_readahead(), read_swap_cache_async() can read a bad swap entry,
-because we don't check if readahead swap entry is bad. This doesn't break
-anything but such swapin page is wasteful and can only be freed at page
-reclaim. We should avoid read such swap entry. And in discard, we mark swap
-entry SWAP_MAP_BAD and then switch it to normal when discard is finished. If
-readahead reads such swap entry, we have the same issue, so we much check if
-swap entry is bad too.
-
-Thanks Hugh to inspire swapin_readahead could use bad swap entry.
-
-[include Hugh's patch 'swap: fix swapoff ENOMEMs from discard']
-Signed-off-by: Hugh Dickins <hughd@google.com>
 Signed-off-by: Shaohua Li <shli@fusionio.com>
 ---
- mm/swapfile.c |   15 +++++++++++----
- 1 file changed, 11 insertions(+), 4 deletions(-)
+ include/linux/swap.h |    6 ++
+ mm/swapfile.c        |  116 ++++++++++++++++++++++++++++++++++++++-------------
+ 2 files changed, 93 insertions(+), 29 deletions(-)
 
+Index: linux/include/linux/swap.h
+===================================================================
+--- linux.orig/include/linux/swap.h	2013-06-20 08:07:50.000000000 +0800
++++ linux/include/linux/swap.h	2013-06-20 08:15:41.825465714 +0800
+@@ -186,6 +186,11 @@ struct swap_cluster_info {
+ #define CLUSTER_FLAG_FREE 1 /* This cluster is free */
+ #define CLUSTER_FLAG_NEXT_NULL 2 /* This cluster has no next cluster */
+ 
++struct percpu_cluster {
++	struct swap_cluster_info index; /* Current cluster index */
++	unsigned int next; /* Likely next allocation offset */
++};
++
+ /*
+  * The in-memory structure used to track swap areas.
+  */
+@@ -205,6 +210,7 @@ struct swap_info_struct {
+ 	unsigned int inuse_pages;	/* number of those currently in use */
+ 	unsigned int cluster_next;	/* likely index for next allocation */
+ 	unsigned int cluster_nr;	/* countdown to next cluster search */
++	struct percpu_cluster __percpu *percpu_cluster;
+ 	struct swap_extent *curr_swap_extent;
+ 	struct swap_extent first_swap_extent;
+ 	struct block_device *bdev;	/* swap device or bdev of swap file */
 Index: linux/mm/swapfile.c
 ===================================================================
---- linux.orig/mm/swapfile.c	2013-06-20 08:14:33.526326270 +0800
-+++ linux/mm/swapfile.c	2013-06-20 08:14:40.214241379 +0800
-@@ -357,7 +357,8 @@ static void dec_cluster_info_page(struct
- 		 * instead of free it immediately. The cluster will be freed
- 		 * after discard.
- 		 */
--		if (p->flags & SWP_DISCARDABLE) {
-+		if ((p->flags & (SWP_WRITEOK | SWP_DISCARDABLE)) ==
-+				 (SWP_WRITEOK | SWP_DISCARDABLE)) {
- 			swap_cluster_schedule_discard(p, idx);
- 			return;
- 		}
-@@ -1255,7 +1256,7 @@ static unsigned int find_next_to_unuse(s
- 			else
- 				continue;
- 		}
--		count = si->swap_map[i];
-+		count = ACCESS_ONCE(si->swap_map[i]);
- 		if (count && swap_count(count) != SWAP_MAP_BAD)
- 			break;
- 	}
-@@ -1275,7 +1276,7 @@ int try_to_unuse(unsigned int type, bool
+--- linux.orig/mm/swapfile.c	2013-06-20 08:14:40.000000000 +0800
++++ linux/mm/swapfile.c	2013-06-20 08:15:41.825465714 +0800
+@@ -379,13 +379,73 @@ static void dec_cluster_info_page(struct
+  * It's possible scan_swap_map() uses a free cluster in the middle of free
+  * cluster list. Avoiding such abuse to avoid list corruption.
+  */
+-static inline bool scan_swap_map_recheck_cluster(struct swap_info_struct *si,
++static bool
++scan_swap_map_ssd_cluster_conflict(struct swap_info_struct *si,
+ 	unsigned long offset)
  {
- 	struct swap_info_struct *si = swap_info[type];
- 	struct mm_struct *start_mm;
--	unsigned char *swap_map;
-+	volatile unsigned char *swap_map;	/* ACCESS_ONCE throughout */
- 	unsigned char swcount;
- 	struct page *page;
- 	swp_entry_t entry;
-@@ -1326,7 +1327,8 @@ int try_to_unuse(unsigned int type, bool
- 			 * reused since sys_swapoff() already disabled
- 			 * allocation from here, or alloc_page() failed.
- 			 */
--			if (!*swap_map)
-+			swcount = *swap_map;
-+			if (!swcount || swcount == SWAP_MAP_BAD)
- 				continue;
- 			retval = -ENOMEM;
- 			break;
-@@ -2462,6 +2464,11 @@ static int __swap_duplicate(swp_entry_t
- 		goto unlock_out;
- 
- 	count = p->swap_map[offset];
-+	if (unlikely(swap_count(count) == SWAP_MAP_BAD)) {
-+		err = -ENOENT;
-+		goto unlock_out;
++	struct percpu_cluster *percpu_cluster;
++	bool conflict;
++
+ 	offset /= SWAPFILE_CLUSTER;
+-	return !cluster_is_null(&si->free_cluster_head) &&
++	conflict = !cluster_is_null(&si->free_cluster_head) &&
+ 		offset != cluster_next(&si->free_cluster_head) &&
+ 		cluster_is_free(&si->cluster_info[offset]);
++
++	if (!conflict)
++		return false;
++
++	percpu_cluster = this_cpu_ptr(si->percpu_cluster);
++	cluster_set_null(&percpu_cluster->index);
++	return true;
++}
++
++static void scan_swap_map_try_ssd_cluster(struct swap_info_struct *si,
++	unsigned long *offset, unsigned long *scan_base)
++{
++	struct percpu_cluster *cluster;
++	bool found_free;
++	unsigned long tmp;
++
++new_cluster:
++	cluster = this_cpu_ptr(si->percpu_cluster);
++	if (cluster_is_null(&cluster->index)) {
++		if (!cluster_is_null(&si->free_cluster_head)) {
++			cluster->index = si->free_cluster_head;
++			cluster->next = cluster_next(&cluster->index) *
++					SWAPFILE_CLUSTER;
++		} else if (!cluster_is_null(&si->discard_cluster_head)) {
++			/*
++			 * we don't have free cluster but have some clusters in
++			 * discarding, do discard now and reclaim them
++			 */
++			swap_do_scheduled_discard(si);
++			goto new_cluster;
++		} else
++			return;
 +	}
 +
- 	has_cache = count & SWAP_HAS_CACHE;
- 	count &= ~SWAP_HAS_CACHE;
- 	err = 0;
++	found_free = false;
++
++	/*
++	 * Other CPUs can use our cluster if they can't find a free cluster,
++	 * check if there is still free entry in the cluster
++	 */
++	tmp = cluster->next;
++	while (tmp < si->max && tmp < (cluster_next(&cluster->index) + 1) *
++	       SWAPFILE_CLUSTER) {
++		if (!si->swap_map[tmp]) {
++			found_free = true;
++			break;
++		}
++		tmp++;
++	}
++	if (!found_free) {
++		cluster_set_null(&cluster->index);
++		goto new_cluster;
++	}
++	cluster->next = tmp + 1;
++	*offset = tmp;
++	*scan_base = tmp;
+ }
+ 
+ static unsigned long scan_swap_map(struct swap_info_struct *si,
+@@ -410,36 +470,17 @@ static unsigned long scan_swap_map(struc
+ 	si->flags += SWP_SCANNING;
+ 	scan_base = offset = si->cluster_next;
+ 
++	/* SSD algorithm */
++	if (si->cluster_info) {
++		scan_swap_map_try_ssd_cluster(si, &offset, &scan_base);
++		goto checks;
++	}
++
+ 	if (unlikely(!si->cluster_nr--)) {
+ 		if (si->pages - si->inuse_pages < SWAPFILE_CLUSTER) {
+ 			si->cluster_nr = SWAPFILE_CLUSTER - 1;
+ 			goto checks;
+ 		}
+-check_cluster:
+-		if (!cluster_is_null(&si->free_cluster_head)) {
+-			offset = cluster_next(&si->free_cluster_head) *
+-						SWAPFILE_CLUSTER;
+-			last_in_cluster = offset + SWAPFILE_CLUSTER - 1;
+-			si->cluster_next = offset;
+-			si->cluster_nr = SWAPFILE_CLUSTER - 1;
+-			goto checks;
+-		} else if (si->cluster_info) {
+-			/*
+-			 * we don't have free cluster but have some clusters in
+-			 * discarding, do discard now and reclaim them
+-			 */
+-			if (!cluster_is_null(&si->discard_cluster_head)) {
+-				swap_do_scheduled_discard(si);
+-				goto check_cluster;
+-			}
+-
+-			/*
+-			 * Checking free cluster is fast enough, we can do the
+-			 * check every time
+-			 */
+-			si->cluster_nr = 0;
+-			goto checks;
+-		}
+ 
+ 		spin_unlock(&si->lock);
+ 
+@@ -498,8 +539,11 @@ check_cluster:
+ 	}
+ 
+ checks:
+-	if (scan_swap_map_recheck_cluster(si, offset))
+-		goto check_cluster;
++	if (si->cluster_info) {
++		while (scan_swap_map_ssd_cluster_conflict(si, offset)) {
++			scan_swap_map_try_ssd_cluster(si, &offset, &scan_base);
++		}
++	}
+ 	if (!(si->flags & SWP_WRITEOK))
+ 		goto no_page;
+ 	if (!si->highest_bit)
+@@ -1840,6 +1884,8 @@ SYSCALL_DEFINE1(swapoff, const char __us
+ 	spin_unlock(&swap_lock);
+ 	frontswap_invalidate_area(type);
+ 	mutex_unlock(&swapon_mutex);
++	free_percpu(p->percpu_cluster);
++	p->percpu_cluster = NULL;
+ 	vfree(swap_map);
+ 	vfree(cluster_info);
+ 	vfree(frontswap_map);
+@@ -2340,6 +2386,16 @@ SYSCALL_DEFINE2(swapon, const char __use
+ 			error = -ENOMEM;
+ 			goto bad_swap;
+ 		}
++		p->percpu_cluster = alloc_percpu(struct percpu_cluster);
++		if (!p->percpu_cluster) {
++			error = -ENOMEM;
++			goto bad_swap;
++		}
++		for_each_possible_cpu(i) {
++			struct percpu_cluster *cluster;
++			cluster = per_cpu_ptr(p->percpu_cluster, i);
++			cluster_set_null(&cluster->index);
++		}
+ 	}
+ 
+ 	error = swap_cgroup_swapon(p->type, maxpages);
+@@ -2383,6 +2439,8 @@ SYSCALL_DEFINE2(swapon, const char __use
+ 	error = 0;
+ 	goto out;
+ bad_swap:
++	free_percpu(p->percpu_cluster);
++	p->percpu_cluster = NULL;
+ 	if (inode && S_ISBLK(inode->i_mode) && p->bdev) {
+ 		set_blocksize(p->bdev, p->old_block_size);
+ 		blkdev_put(p->bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
