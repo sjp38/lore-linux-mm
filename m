@@ -1,72 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 78C9F6B0032
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2013 12:36:01 -0400 (EDT)
-Subject: Re: [PATCH 2/2] rwsem: do optimistic spinning for writer lock
- acquisition
-From: Tim Chen <tim.c.chen@linux.intel.com>
-In-Reply-To: <20130624084645.GL28407@twins.programming.kicks-ass.net>
-References: <cover.1371855277.git.tim.c.chen@linux.intel.com>
-	 <1371858700.22432.5.camel@schen9-DESK>
-	 <20130624084645.GL28407@twins.programming.kicks-ass.net>
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 24 Jun 2013 09:36:02 -0700
-Message-ID: <1372091762.22432.16.camel@schen9-DESK>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 799C56B0032
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2013 12:48:42 -0400 (EDT)
+Subject: =?utf-8?q?Re=3A_=5BPATCH_for_3=2E2=5D_memcg=3A_do_not_trap_chargers_with_full_callstack_on_OOM?=
+Date: Mon, 24 Jun 2013 18:48:40 +0200
+From: "azurIt" <azurit@pobox.sk>
+References: <20130208171012.GH7557@dhcp22.suse.cz>, <20130208220243.EDEE0825@pobox.sk>, <20130210150310.GA9504@dhcp22.suse.cz>, <20130210174619.24F20488@pobox.sk>, <20130211112240.GC19922@dhcp22.suse.cz>, <20130222092332.4001E4B6@pobox.sk>, <20130606160446.GE24115@dhcp22.suse.cz>, <20130606181633.BCC3E02E@pobox.sk>, <20130607131157.GF8117@dhcp22.suse.cz>, <20130617122134.2E072BA8@pobox.sk> <20130619132614.GC16457@dhcp22.suse.cz>
+In-Reply-To: <20130619132614.GC16457@dhcp22.suse.cz>
+MIME-Version: 1.0
+Message-Id: <20130624184840.781777E6@pobox.sk>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?q?cgroups_mailinglist?= <cgroups@vger.kernel.org>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
 
-On Mon, 2013-06-24 at 10:46 +0200, Peter Zijlstra wrote:
-> On Fri, Jun 21, 2013 at 04:51:40PM -0700, Tim Chen wrote:
-> > Introduce in this patch optimistic spinning for writer lock
-> > acquisition in read write semaphore.  The logic is
-> > similar to the optimistic spinning in mutex but without
-> > the MCS lock queueing of the spinner.  This provides a
-> > better chance for a writer to acquire the lock before
-> > being we block it and put it to sleep.
-> > 
-> > Disabling of pre-emption during optimistic spinning
-> > was suggested by Davidlohr Bueso.  It
-> > improved performance of aim7 for his test suite.
-> > 
-> > Combined with the patch to avoid unnecesary cmpxchg,
-> > in testing by Davidlohr Bueso on aim7 workloads
-> > on 8 socket 80 cores system, he saw improvements of
-> > alltests (+14.5%), custom (+17%), disk (+11%), high_systime
-> > (+5%), shared (+15%) and short (+4%), most of them after around 500
-> > users when he implemented i_mmap as rwsem.
-> > 
-> > Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
-> > ---
-> >  Makefile              |    2 +-
-> >  include/linux/rwsem.h |    3 +
-> >  init/Kconfig          |    9 +++
-> >  kernel/rwsem.c        |   29 +++++++++-
-> >  lib/rwsem.c           |  148 +++++++++++++++++++++++++++++++++++++++++++++----
-> >  5 files changed, 178 insertions(+), 13 deletions(-)
-> > 
-> > diff --git a/Makefile b/Makefile
-> > index 49aa84b..7d1ef64 100644
-> > --- a/Makefile
-> > +++ b/Makefile
-> > @@ -1,7 +1,7 @@
-> >  VERSION = 3
-> >  PATCHLEVEL = 10
-> >  SUBLEVEL = 0
-> > -EXTRAVERSION = -rc4
-> > +EXTRAVERSION = -rc4-optspin4
-> >  NAME = Unicycling Gorilla
-> >  
-> >  # *DOCUMENTATION*
-> 
-> I'm fairly sure we don't want to commit this hunk ;-)
+>I would be really interesting to see what those tasks are blocked on.
 
-Fat fingers.  Thanks for catching.
 
-Tim
+Ok, i got it! Problem occurs two times and it behaves differently each time, I was running kernel with that latest patch.
+
+1.) It doesn't have impact on the whole server, only on one cgroup. Here are stacks:
+http://watchdog.sk/lkml/memcg-bug-7.tar.gz
+
+
+2.) It almost takes down the server because of huge I/O on HDDs. Unfortunately, i had a bug in my script which was suppose to gather stacks (i wasn't able to do it by hand like in (1), server was almost unoperable). But I was lucky and somehow killed processes from problematic cgroup (via htop) and server was ok again EXCEPT one important thing - processes from that cgroup were still running in D state and i wasn't able to kill them for good. They were taking web server network ports so i had to reboot the server :( BUT, before that, i gathered stacks:
+http://watchdog.sk/lkml/memcg-bug-8.tar.gz
+
+What do you think?
+
+azur
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
