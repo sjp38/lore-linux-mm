@@ -1,14 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id F36386B0038
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2013 19:20:45 -0400 (EDT)
-Subject: [PATCH v2 4/5] rwsem/wake: check lock before do atomic update
+	by kanga.kvack.org (Postfix) with SMTP id 4BA3E6B0039
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2013 19:20:49 -0400 (EDT)
+Subject: [PATCH v2 5/5] rwsem: do optimistic spinning for writer lock
+ acquisition
 From: Tim Chen <tim.c.chen@linux.intel.com>
 In-Reply-To: <cover.1372112541.git.tim.c.chen@linux.intel.com>
 References: <cover.1372112541.git.tim.c.chen@linux.intel.com>
 Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 24 Jun 2013 16:20:48 -0700
-Message-ID: <1372116048.22432.94.camel@schen9-DESK>
+Date: Mon, 24 Jun 2013 16:20:51 -0700
+Message-ID: <1372116051.22432.95.camel@schen9-DESK>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -16,45 +17,340 @@ List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Tim Chen <tim.c.chen@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-Atomic update lock and roll back will cause cache bouncing in large
-machine. A lock status pre-read can relieve this problem.
+We want to add optimistic spinning to rwsems because we've noticed that
+the writer rwsem does not perform as well as mutexes. Tim noticed that
+for exim (mail server) workloads, when reverting commit 4fc3f1d6 and Davidlohr
+noticed it when converting the i_mmap_mutex to a rwsem in some aim7
+workloads. We've noticed that the biggest difference, in a nutshell, is
+when we fail to acquire a mutex in the fastpath, optimistic spinning
+comes in to play and we can avoid a large amount of unnecessary sleeping
+and wait queue overhead.
 
-Suggested-by: Davidlohr Bueso <davidlohr.bueso@hp.com>
-Suggested-by: Tim Chen <tim.c.chen@linux.intel.com>
-Signed-off-by: Alex Shi <alex.shi@intel.com>
+For rwsems on the other hand, upon entering the writer slowpath in
+rwsem_down_write_failed(), we just acquire the ->wait_lock, add
+ourselves to the wait_queue and blocking until we get the lock.
+
+Reviewed-by: Peter Hurley <peter@hurleysoftware.com>
+Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
+Signed-off-by: Davidlohr Bueso <davidlohr.bueso@hp.com>
 ---
- lib/rwsem.c |    8 +++++++-
- 1 files changed, 7 insertions(+), 1 deletions(-)
+ include/linux/rwsem.h |    3 +
+ init/Kconfig          |    9 +++
+ kernel/rwsem.c        |   29 +++++++++-
+ lib/rwsem.c           |  150 +++++++++++++++++++++++++++++++++++++++++++++----
+ 4 files changed, 179 insertions(+), 12 deletions(-)
 
+diff --git a/include/linux/rwsem.h b/include/linux/rwsem.h
+index 0616ffe..0c5933b 100644
+--- a/include/linux/rwsem.h
++++ b/include/linux/rwsem.h
+@@ -29,6 +29,9 @@ struct rw_semaphore {
+ #ifdef CONFIG_DEBUG_LOCK_ALLOC
+ 	struct lockdep_map	dep_map;
+ #endif
++#ifdef CONFIG_RWSEM_SPIN_ON_WRITE_OWNER
++	struct task_struct	*owner;
++#endif
+ };
+ 
+ extern struct rw_semaphore *rwsem_down_read_failed(struct rw_semaphore *sem);
+diff --git a/init/Kconfig b/init/Kconfig
+index 9d3a788..3de7e2d 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -1595,6 +1595,15 @@ config TRACEPOINTS
+ 
+ source "arch/Kconfig"
+ 
++config CONFIG_RWSEM_SPIN_ON_WRTIE_OWNER
++	bool "Optimistic spin write acquisition for writer owned rw-sem"
++	default n
++	depends on SMP
++	help
++	  Allows a writer to perform optimistic spinning if another writer own
++	  the read write semaphore.  This gives a greater chance for writer to
++	  acquire a semaphore before blocking it and putting it to sleep.
++
+ endmenu		# General setup
+ 
+ config HAVE_GENERIC_DMA_COHERENT
+diff --git a/kernel/rwsem.c b/kernel/rwsem.c
+index cfff143..a32990a 100644
+--- a/kernel/rwsem.c
++++ b/kernel/rwsem.c
+@@ -12,6 +12,26 @@
+ 
+ #include <linux/atomic.h>
+ 
++#ifdef CONFIG_RWSEM_SPIN_ON_WRITE_OWNER
++static inline void rwsem_set_owner(struct rw_semaphore *sem)
++{
++	sem->owner = current;
++}
++
++static inline void rwsem_clear_owner(struct rw_semaphore *sem)
++{
++	sem->owner = NULL;
++}
++#else
++static inline void rwsem_set_owner(struct rw_semaphore *sem)
++{
++}
++
++static inline void rwsem_clear_owner(struct rw_semaphore *sem)
++{
++}
++#endif
++
+ /*
+  * lock for reading
+  */
+@@ -48,6 +68,7 @@ void __sched down_write(struct rw_semaphore *sem)
+ 	rwsem_acquire(&sem->dep_map, 0, 0, _RET_IP_);
+ 
+ 	LOCK_CONTENDED(sem, __down_write_trylock, __down_write);
++	rwsem_set_owner(sem);
+ }
+ 
+ EXPORT_SYMBOL(down_write);
+@@ -59,8 +80,10 @@ int down_write_trylock(struct rw_semaphore *sem)
+ {
+ 	int ret = __down_write_trylock(sem);
+ 
+-	if (ret == 1)
++	if (ret == 1) {
+ 		rwsem_acquire(&sem->dep_map, 0, 1, _RET_IP_);
++		rwsem_set_owner(sem);
++	}
+ 	return ret;
+ }
+ 
+@@ -86,6 +109,7 @@ void up_write(struct rw_semaphore *sem)
+ 	rwsem_release(&sem->dep_map, 1, _RET_IP_);
+ 
+ 	__up_write(sem);
++	rwsem_clear_owner(sem);
+ }
+ 
+ EXPORT_SYMBOL(up_write);
+@@ -100,6 +124,7 @@ void downgrade_write(struct rw_semaphore *sem)
+ 	 * dependency.
+ 	 */
+ 	__downgrade_write(sem);
++	rwsem_clear_owner(sem);
+ }
+ 
+ EXPORT_SYMBOL(downgrade_write);
+@@ -122,6 +147,7 @@ void _down_write_nest_lock(struct rw_semaphore *sem, struct lockdep_map *nest)
+ 	rwsem_acquire_nest(&sem->dep_map, 0, 0, nest, _RET_IP_);
+ 
+ 	LOCK_CONTENDED(sem, __down_write_trylock, __down_write);
++	rwsem_set_owner(sem);
+ }
+ 
+ EXPORT_SYMBOL(_down_write_nest_lock);
+@@ -141,6 +167,7 @@ void down_write_nested(struct rw_semaphore *sem, int subclass)
+ 	rwsem_acquire(&sem->dep_map, subclass, 0, _RET_IP_);
+ 
+ 	LOCK_CONTENDED(sem, __down_write_trylock, __down_write);
++	rwsem_set_owner(sem);
+ }
+ 
+ EXPORT_SYMBOL(down_write_nested);
 diff --git a/lib/rwsem.c b/lib/rwsem.c
-index a8055cf..1d6e6e8 100644
+index 1d6e6e8..79f17eb 100644
 --- a/lib/rwsem.c
 +++ b/lib/rwsem.c
-@@ -64,7 +64,7 @@ __rwsem_do_wake(struct rw_semaphore *sem, enum rwsem_wake_type wake_type)
- 	struct rwsem_waiter *waiter;
- 	struct task_struct *tsk;
- 	struct list_head *next;
--	long oldcount, woken, loop, adjustment;
-+	long woken, loop, adjustment;
+@@ -8,6 +8,7 @@
+  */
+ #include <linux/rwsem.h>
+ #include <linux/sched.h>
++#include <linux/sched/rt.h>
+ #include <linux/init.h>
+ #include <linux/export.h>
  
- 	waiter = list_entry(sem->wait_list.next, struct rwsem_waiter, list);
- 	if (waiter->type == RWSEM_WAITING_FOR_WRITE) {
-@@ -86,6 +86,12 @@ __rwsem_do_wake(struct rw_semaphore *sem, enum rwsem_wake_type wake_type)
- 	if (wake_type != RWSEM_WAKE_READ_OWNED) {
- 		adjustment = RWSEM_ACTIVE_READ_BIAS;
- 		while (1) {
-+			long oldcount;
+@@ -27,6 +28,9 @@ void __init_rwsem(struct rw_semaphore *sem, const char *name,
+ 	sem->count = RWSEM_UNLOCKED_VALUE;
+ 	raw_spin_lock_init(&sem->wait_lock);
+ 	INIT_LIST_HEAD(&sem->wait_list);
++#ifdef CONFIG_RWSEM_SPIN_ON_WRITE_OWNER
++	sem->owner = NULL;
++#endif
+ }
+ 
+ EXPORT_SYMBOL(__init_rwsem);
+@@ -194,6 +198,130 @@ struct rw_semaphore __sched *rwsem_down_read_failed(struct rw_semaphore *sem)
+ 	return sem;
+ }
+ 
++static inline int rwsem_try_write_lock(long count, bool need_lock,
++	struct rw_semaphore *sem)
++{
++	if (!(count & RWSEM_ACTIVE_MASK)) {
++		/* Try acquiring the write lock. */
++		if (sem->count == RWSEM_WAITING_BIAS &&
++		    cmpxchg(&sem->count, RWSEM_WAITING_BIAS,
++			    RWSEM_ACTIVE_WRITE_BIAS) == RWSEM_WAITING_BIAS) {
++			if (need_lock)
++				raw_spin_lock_irq(&sem->wait_lock);
++			if (!list_is_singular(&sem->wait_list))
++				rwsem_atomic_update(RWSEM_WAITING_BIAS, sem);
++			return 1;
++		}
++	}
++	return 0;
++}
 +
-+			/* A writer stole the lock. */
-+			if (unlikely(sem->count < RWSEM_WAITING_BIAS))
-+				return sem;
++#ifdef CONFIG_RWSEM_SPIN_ON_WRITE_OWNER
++static inline bool rwsem_can_spin_on_owner(struct rw_semaphore *sem)
++{
++	int retval;
++	task_struct *owner;
 +
- 			oldcount = rwsem_atomic_update(adjustment, sem)
- 								- adjustment;
- 			if (likely(oldcount >= RWSEM_WAITING_BIAS))
++	rcu_read_lock();
++	owner = sem->owner;
++
++	/* Spin only if active writer running */
++	if (owner)
++		retval = owner->on_cpu;
++	else
++		retval = false;
++
++	rcu_read_unlock();
++	/*
++	 * if lock->owner is not set, the sem owner may have just acquired
++	 * it and not set the owner yet, or the sem has been released, or
++	 * reader active.
++	 */
++	return retval;
++}
++
++static inline bool owner_running(struct rw_semaphore *lock,
++				struct task_struct *owner)
++{
++	if (lock->owner != owner)
++		return false;
++
++	/*
++	 * Ensure we emit the owner->on_cpu, dereference _after_ checking
++	 * lock->owner still matches owner, if that fails, owner might
++	 * point to free()d memory, if it still matches, the rcu_read_lock()
++	 * ensures the memory stays valid.
++	 */
++	barrier();
++
++	return owner->on_cpu;
++}
++
++static noinline
++int rwsem_spin_on_owner(struct rw_semaphore *lock, struct task_struct *owner)
++{
++	rcu_read_lock();
++	while (owner_running(lock, owner)) {
++		if (need_resched())
++			break;
++
++		arch_mutex_cpu_relax();
++	}
++	rcu_read_unlock();
++
++	/*
++	 * We break out the loop above on need_resched() and when the
++	 * owner changed, which is a sign for heavy contention. Return
++	 * success only when lock->owner is NULL.
++	 */
++	return lock->owner == NULL;
++}
++
++int rwsem_optimistic_spin(struct rw_semaphore *sem)
++{
++	struct	task_struct	*owner;
++	int	ret = 0;
++
++	/* sem->wait_lock should not be held when doing optimistic spinning */
++	if (!rwsem_can_spin_on_owner(sem))
++		return ret;
++
++	preempt_disable();
++	for (;;) {
++		owner = ACCESS_ONCE(sem->owner);
++		if (owner && !rwsem_spin_on_owner(sem, owner))
++			break;
++
++		/* wait_lock will be acquired if write_lock is obtained */
++		if (rwsem_try_write_lock(sem->count, true, sem)) {
++			ret = 1;
++			break;
++		}
++
++		/*
++		 * When there's no owner, we might have preempted between the
++		 * owner acquiring the lock and setting the owner field. If
++		 * we're an RT task that will live-lock because we won't let
++		 * the owner complete.
++		 */
++		if (!owner && (need_resched() || rt_task(current)))
++			break;
++
++		/*
++		 * The cpu_relax() call is a compiler barrier which forces
++		 * everything in this loop to be re-loaded. We don't need
++		 * memory barriers as we'll eventually observe the right
++		 * values at the cost of a few extra spins.
++		 */
++		arch_mutex_cpu_relax();
++
++	}
++
++	preempt_enable();
++	return ret;
++}
++#endif
++
+ /*
+  * wait until we successfully acquire the write lock
+  */
+@@ -202,6 +330,9 @@ struct rw_semaphore __sched *rwsem_down_write_failed(struct rw_semaphore *sem)
+ 	long count, adjustment = -RWSEM_ACTIVE_WRITE_BIAS;
+ 	struct rwsem_waiter waiter;
+ 	struct task_struct *tsk = current;
++#ifdef CONFIG_RWSEM_SPIN_ON_WRITE_OWNER
++	bool try_optimistic_spin = true;
++#endif
+ 
+ 	/* set up my own style of waitqueue */
+ 	waiter.task = tsk;
+@@ -225,20 +356,17 @@ struct rw_semaphore __sched *rwsem_down_write_failed(struct rw_semaphore *sem)
+ 	/* wait until we successfully acquire the lock */
+ 	set_task_state(tsk, TASK_UNINTERRUPTIBLE);
+ 	while (true) {
+-		if (!(count & RWSEM_ACTIVE_MASK)) {
+-			/* Try acquiring the write lock. */
+-			count = RWSEM_ACTIVE_WRITE_BIAS;
+-			if (!list_is_singular(&sem->wait_list))
+-				count += RWSEM_WAITING_BIAS;
+-
+-			if (sem->count == RWSEM_WAITING_BIAS &&
+-			    cmpxchg(&sem->count, RWSEM_WAITING_BIAS, count) ==
+-							RWSEM_WAITING_BIAS)
+-				break;
+-		}
++		if (rwsem_try_write_lock(count, false, sem))
++			break;
+ 
+ 		raw_spin_unlock_irq(&sem->wait_lock);
+ 
++#ifdef CONFIG_RWSEM_SPIN_ON_WRITE_OWNER
++		/* do optimistic spinning */
++		if (try_optimistic_spin && rwsem_optimistic_spin(sem))
++			break;
++		try_optimistic_spin = false;
++#endif
+ 		/* Block until there are no active lockers. */
+ 		do {
+ 			schedule();
 -- 
 1.7.4.4
-
 
 
 
