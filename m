@@ -1,490 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 4062C6B0038
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2013 04:25:45 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 24 Jun 2013 13:47:06 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 39205125804E
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2013 13:54:42 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5O8Pt2m12517498
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2013 13:55:55 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5O8PcEZ021592
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2013 18:25:38 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [RFC PATCH 3/3] powerpc: Contiguous memory allocator based RMA allocation
-Date: Mon, 24 Jun 2013 13:55:27 +0530
-Message-Id: <1372062327-7028-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1372062327-7028-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-References: <1372062327-7028-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 182FE6B003D
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2013 04:47:10 -0400 (EDT)
+Date: Mon, 24 Jun 2013 10:46:45 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 2/2] rwsem: do optimistic spinning for writer lock
+ acquisition
+Message-ID: <20130624084645.GL28407@twins.programming.kicks-ass.net>
+References: <cover.1371855277.git.tim.c.chen@linux.intel.com>
+ <1371858700.22432.5.camel@schen9-DESK>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1371858700.22432.5.camel@schen9-DESK>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, benh@kernel.crashing.org, paulus@samba.org
-Cc: linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+On Fri, Jun 21, 2013 at 04:51:40PM -0700, Tim Chen wrote:
+> Introduce in this patch optimistic spinning for writer lock
+> acquisition in read write semaphore.  The logic is
+> similar to the optimistic spinning in mutex but without
+> the MCS lock queueing of the spinner.  This provides a
+> better chance for a writer to acquire the lock before
+> being we block it and put it to sleep.
+> 
+> Disabling of pre-emption during optimistic spinning
+> was suggested by Davidlohr Bueso.  It
+> improved performance of aim7 for his test suite.
+> 
+> Combined with the patch to avoid unnecesary cmpxchg,
+> in testing by Davidlohr Bueso on aim7 workloads
+> on 8 socket 80 cores system, he saw improvements of
+> alltests (+14.5%), custom (+17%), disk (+11%), high_systime
+> (+5%), shared (+15%) and short (+4%), most of them after around 500
+> users when he implemented i_mmap as rwsem.
+> 
+> Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
+> ---
+>  Makefile              |    2 +-
+>  include/linux/rwsem.h |    3 +
+>  init/Kconfig          |    9 +++
+>  kernel/rwsem.c        |   29 +++++++++-
+>  lib/rwsem.c           |  148 +++++++++++++++++++++++++++++++++++++++++++++----
+>  5 files changed, 178 insertions(+), 13 deletions(-)
+> 
+> diff --git a/Makefile b/Makefile
+> index 49aa84b..7d1ef64 100644
+> --- a/Makefile
+> +++ b/Makefile
+> @@ -1,7 +1,7 @@
+>  VERSION = 3
+>  PATCHLEVEL = 10
+>  SUBLEVEL = 0
+> -EXTRAVERSION = -rc4
+> +EXTRAVERSION = -rc4-optspin4
+>  NAME = Unicycling Gorilla
+>  
+>  # *DOCUMENTATION*
 
-Use CMA for allocation of RMA region for guest. Also remove linear allocator
-now that it is not used
-
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
----
- arch/powerpc/include/asm/kvm_book3s_64.h |   1 +
- arch/powerpc/include/asm/kvm_host.h      |  12 +--
- arch/powerpc/include/asm/kvm_ppc.h       |   8 +-
- arch/powerpc/kernel/setup_64.c           |   2 -
- arch/powerpc/kvm/book3s_hv.c             |  44 ++++++---
- arch/powerpc/kvm/book3s_hv_builtin.c     | 164 +++++++------------------------
- 6 files changed, 71 insertions(+), 160 deletions(-)
-
-diff --git a/arch/powerpc/include/asm/kvm_book3s_64.h b/arch/powerpc/include/asm/kvm_book3s_64.h
-index f8355a9..76ff0b5 100644
---- a/arch/powerpc/include/asm/kvm_book3s_64.h
-+++ b/arch/powerpc/include/asm/kvm_book3s_64.h
-@@ -37,6 +37,7 @@ static inline void svcpu_put(struct kvmppc_book3s_shadow_vcpu *svcpu)
- 
- #ifdef CONFIG_KVM_BOOK3S_64_HV
- #define KVM_DEFAULT_HPT_ORDER	24	/* 16MB HPT by default */
-+extern unsigned long kvm_rma_pages;
- #endif
- 
- #define VRMA_VSID	0x1ffffffUL	/* 1TB VSID reserved for VRMA */
-diff --git a/arch/powerpc/include/asm/kvm_host.h b/arch/powerpc/include/asm/kvm_host.h
-index 0097dab..525684c 100644
---- a/arch/powerpc/include/asm/kvm_host.h
-+++ b/arch/powerpc/include/asm/kvm_host.h
-@@ -183,13 +183,9 @@ struct kvmppc_spapr_tce_table {
- 	struct page *pages[0];
- };
- 
--struct kvmppc_linear_info {
--	void		*base_virt;
--	unsigned long	 base_pfn;
--	unsigned long	 npages;
--	struct list_head list;
--	atomic_t	 use_count;
--	int		 type;
-+struct kvm_rma_info {
-+	atomic_t use_count;
-+	unsigned long base_pfn;
- };
- 
- /* XICS components, defined in book3s_xics.c */
-@@ -246,7 +242,7 @@ struct kvm_arch {
- 	int tlbie_lock;
- 	unsigned long lpcr;
- 	unsigned long rmor;
--	struct kvmppc_linear_info *rma;
-+	struct kvm_rma_info *ri;
- 	unsigned long vrma_slb_v;
- 	int rma_setup_done;
- 	int using_mmu_notifiers;
-diff --git a/arch/powerpc/include/asm/kvm_ppc.h b/arch/powerpc/include/asm/kvm_ppc.h
-index 058ac93..7a09cf5 100644
---- a/arch/powerpc/include/asm/kvm_ppc.h
-+++ b/arch/powerpc/include/asm/kvm_ppc.h
-@@ -137,8 +137,8 @@ extern long kvmppc_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
- 			     unsigned long ioba, unsigned long tce);
- extern long kvm_vm_ioctl_allocate_rma(struct kvm *kvm,
- 				struct kvm_allocate_rma *rma);
--extern struct kvmppc_linear_info *kvm_alloc_rma(void);
--extern void kvm_release_rma(struct kvmppc_linear_info *ri);
-+extern struct kvm_rma_info *kvm_alloc_rma(void);
-+extern void kvm_release_rma(struct kvm_rma_info *ri);
- extern struct page *kvm_alloc_hpt(int nr_pages);
- extern void kvm_release_hpt(struct page *page, int nr_pages);
- extern int kvmppc_core_init_vm(struct kvm *kvm);
-@@ -282,7 +282,6 @@ static inline void kvmppc_set_host_ipi(int cpu, u8 host_ipi)
- }
- 
- extern void kvmppc_fast_vcpu_kick(struct kvm_vcpu *vcpu);
--extern void kvm_linear_init(void);
- 
- #else
- static inline void __init kvm_cma_reserve(void)
-@@ -291,9 +290,6 @@ static inline void __init kvm_cma_reserve(void)
- static inline void kvmppc_set_xics_phys(int cpu, unsigned long addr)
- {}
- 
--static inline void kvm_linear_init(void)
--{}
--
- static inline u32 kvmppc_get_xics_latch(void)
- {
- 	return 0;
-diff --git a/arch/powerpc/kernel/setup_64.c b/arch/powerpc/kernel/setup_64.c
-index ee28d1f..8a022f5 100644
---- a/arch/powerpc/kernel/setup_64.c
-+++ b/arch/powerpc/kernel/setup_64.c
-@@ -611,8 +611,6 @@ void __init setup_arch(char **cmdline_p)
- 	/* Initialize the MMU context management stuff */
- 	mmu_context_init();
- 
--	kvm_linear_init();
--
- 	/* Interrupt code needs to be 64K-aligned */
- 	if ((unsigned long)_stext & 0xffff)
- 		panic("Kernelbase not 64K-aligned (0x%lx)!\n",
-diff --git a/arch/powerpc/kvm/book3s_hv.c b/arch/powerpc/kvm/book3s_hv.c
-index 550f592..0f0d05e 100644
---- a/arch/powerpc/kvm/book3s_hv.c
-+++ b/arch/powerpc/kvm/book3s_hv.c
-@@ -1511,10 +1511,10 @@ static inline int lpcr_rmls(unsigned long rma_size)
- 
- static int kvm_rma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
- {
--	struct kvmppc_linear_info *ri = vma->vm_file->private_data;
- 	struct page *page;
-+	struct kvm_rma_info *ri = vma->vm_file->private_data;
- 
--	if (vmf->pgoff >= ri->npages)
-+	if (vmf->pgoff >= kvm_rma_pages)
- 		return VM_FAULT_SIGBUS;
- 
- 	page = pfn_to_page(ri->base_pfn + vmf->pgoff);
-@@ -1536,7 +1536,7 @@ static int kvm_rma_mmap(struct file *file, struct vm_area_struct *vma)
- 
- static int kvm_rma_release(struct inode *inode, struct file *filp)
- {
--	struct kvmppc_linear_info *ri = filp->private_data;
-+	struct kvm_rma_info *ri = filp->private_data;
- 
- 	kvm_release_rma(ri);
- 	return 0;
-@@ -1549,8 +1549,24 @@ static const struct file_operations kvm_rma_fops = {
- 
- long kvm_vm_ioctl_allocate_rma(struct kvm *kvm, struct kvm_allocate_rma *ret)
- {
--	struct kvmppc_linear_info *ri;
- 	long fd;
-+	struct kvm_rma_info *ri;
-+	/*
-+	 * Only do this on PPC970 in HV mode
-+	 */
-+	if (!cpu_has_feature(CPU_FTR_HVMODE) ||
-+	    !cpu_has_feature(CPU_FTR_ARCH_201))
-+		return -EINVAL;
-+
-+	if (!kvm_rma_pages)
-+		return -EINVAL;
-+	/*
-+	 * Check that the requested size is one supported in hardware
-+	 */
-+	if (lpcr_rmls(kvm_rma_pages << PAGE_SHIFT) < 0) {
-+		pr_err("RMA pages of %lu not supported\n", kvm_rma_pages);
-+		return -EINVAL;
-+	}
- 
- 	ri = kvm_alloc_rma();
- 	if (!ri)
-@@ -1560,7 +1576,7 @@ long kvm_vm_ioctl_allocate_rma(struct kvm *kvm, struct kvm_allocate_rma *ret)
- 	if (fd < 0)
- 		kvm_release_rma(ri);
- 
--	ret->rma_size = ri->npages << PAGE_SHIFT;
-+	ret->rma_size = kvm_rma_pages << PAGE_SHIFT;
- 	return fd;
- }
- 
-@@ -1725,7 +1741,7 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
- {
- 	int err = 0;
- 	struct kvm *kvm = vcpu->kvm;
--	struct kvmppc_linear_info *ri = NULL;
-+	struct kvm_rma_info *ri = NULL;
- 	unsigned long hva;
- 	struct kvm_memory_slot *memslot;
- 	struct vm_area_struct *vma;
-@@ -1803,7 +1819,7 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
- 
- 	} else {
- 		/* Set up to use an RMO region */
--		rma_size = ri->npages;
-+		rma_size = kvm_rma_pages;
- 		if (rma_size > memslot->npages)
- 			rma_size = memslot->npages;
- 		rma_size <<= PAGE_SHIFT;
-@@ -1814,7 +1830,7 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
- 			goto out_srcu;
- 		}
- 		atomic_inc(&ri->use_count);
--		kvm->arch.rma = ri;
-+		kvm->arch.ri = ri;
- 
- 		/* Update LPCR and RMOR */
- 		lpcr = kvm->arch.lpcr;
-@@ -1831,14 +1847,14 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
- 			/* POWER7 */
- 			lpcr &= ~(LPCR_VPM0 | LPCR_VRMA_L);
- 			lpcr |= rmls << LPCR_RMLS_SH;
--			kvm->arch.rmor = kvm->arch.rma->base_pfn << PAGE_SHIFT;
-+			kvm->arch.rmor = ri->base_pfn << PAGE_SHIFT;
- 		}
- 		kvm->arch.lpcr = lpcr;
- 		pr_info("KVM: Using RMO at %lx size %lx (LPCR = %lx)\n",
- 			ri->base_pfn << PAGE_SHIFT, rma_size, lpcr);
- 
- 		/* Initialize phys addrs of pages in RMO */
--		npages = ri->npages;
-+		npages = kvm_rma_pages;
- 		porder = __ilog2(npages);
- 		physp = memslot->arch.slot_phys;
- 		if (physp) {
-@@ -1888,7 +1904,7 @@ int kvmppc_core_init_vm(struct kvm *kvm)
- 	INIT_LIST_HEAD(&kvm->arch.spapr_tce_tables);
- 	INIT_LIST_HEAD(&kvm->arch.rtas_tokens);
- 
--	kvm->arch.rma = NULL;
-+	kvm->arch.ri = NULL;
- 
- 	kvm->arch.host_sdr1 = mfspr(SPRN_SDR1);
- 
-@@ -1927,9 +1943,9 @@ void kvmppc_core_destroy_vm(struct kvm *kvm)
- {
- 	uninhibit_secondary_onlining();
- 
--	if (kvm->arch.rma) {
--		kvm_release_rma(kvm->arch.rma);
--		kvm->arch.rma = NULL;
-+	if (kvm->arch.ri) {
-+		kvm_release_rma(kvm->arch.ri);
-+		kvm->arch.ri = NULL;
- 	}
- 
- 	kvmppc_rtas_tokens_free(kvm);
-diff --git a/arch/powerpc/kvm/book3s_hv_builtin.c b/arch/powerpc/kvm/book3s_hv_builtin.c
-index cf8e25a..b33d3a0 100644
---- a/arch/powerpc/kvm/book3s_hv_builtin.c
-+++ b/arch/powerpc/kvm/book3s_hv_builtin.c
-@@ -21,13 +21,6 @@
- #include <asm/kvm_book3s.h>
- 
- #include "book3s_hv_cma.h"
--
--#define KVM_LINEAR_RMA		0
--#define KVM_LINEAR_HPT		1
--
--static void __init kvm_linear_init_one(ulong size, int count, int type);
--static struct kvmppc_linear_info *kvm_alloc_linear(int type);
--static void kvm_release_linear(struct kvmppc_linear_info *ri);
- /*
-  * should be power of 2
-  */
-@@ -36,19 +29,17 @@ static unsigned long hpt_align_pages = (1 << 18) >> PAGE_SHIFT; /* 256k */
-  * By default we reserve 5% of memory for hash pagetable allocation.
-  */
- static unsigned long kvm_cma_resv_ratio = 5;
--
--/*************** RMA *************/
--
- /*
-- * This maintains a list of RMAs (real mode areas) for KVM guests to use.
-+ * We allocate RMAs (real mode areas) for KVM guests from the KVM CMA area.
-  * Each RMA has to be physically contiguous and of a size that the
-  * hardware supports.  PPC970 and POWER7 support 64MB, 128MB and 256MB,
-  * and other larger sizes.  Since we are unlikely to be allocate that
-  * much physically contiguous memory after the system is up and running,
-- * we preallocate a set of RMAs in early boot for KVM to use.
-+ * we preallocate a set of RMAs in early boot using CMA.
-+ * should be power of 2.
-  */
--static unsigned long kvm_rma_size = 64 << 20;	/* 64MB */
--static unsigned long kvm_rma_count;
-+unsigned long kvm_rma_pages = (1 << 26) >> PAGE_SHIFT;	/* 64MB */
-+EXPORT_SYMBOL_GPL(kvm_rma_pages);
- 
- /* Work out RMLS (real mode limit selector) field value for a given RMA size.
-    Assumes POWER7 or PPC970. */
-@@ -78,35 +69,44 @@ static inline int lpcr_rmls(unsigned long rma_size)
- 
- static int __init early_parse_rma_size(char *p)
- {
--	if (!p)
--		return 1;
-+	unsigned long kvm_rma_size;
- 
-+	pr_debug("%s(%s)\n", __func__, p);
-+	if (!p)
-+		return -EINVAL;
- 	kvm_rma_size = memparse(p, &p);
--
-+	kvm_rma_pages = kvm_rma_size >> PAGE_SHIFT;
- 	return 0;
- }
- early_param("kvm_rma_size", early_parse_rma_size);
- 
--static int __init early_parse_rma_count(char *p)
--{
--	if (!p)
--		return 1;
--
--	kvm_rma_count = simple_strtoul(p, NULL, 0);
--
--	return 0;
--}
--early_param("kvm_rma_count", early_parse_rma_count);
--
--struct kvmppc_linear_info *kvm_alloc_rma(void)
-+struct kvm_rma_info *kvm_alloc_rma()
- {
--	return kvm_alloc_linear(KVM_LINEAR_RMA);
-+	struct page *page;
-+	struct kvm_rma_info *ri;
-+
-+	ri = kmalloc(sizeof(struct kvm_rma_info), GFP_KERNEL);
-+	if (!ri)
-+		return NULL;
-+	page = kvm_alloc_cma(kvm_rma_pages,
-+			     get_order(kvm_rma_pages << PAGE_SHIFT));
-+	if (!page)
-+		goto err_out;
-+	atomic_set(&ri->use_count, 1);
-+	ri->base_pfn = page_to_pfn(page);
-+	return ri;
-+err_out:
-+	kfree(ri);
-+	return NULL;
- }
- EXPORT_SYMBOL_GPL(kvm_alloc_rma);
- 
--void kvm_release_rma(struct kvmppc_linear_info *ri)
-+void kvm_release_rma(struct kvm_rma_info *ri)
- {
--	kvm_release_linear(ri);
-+	if (atomic_dec_and_test(&ri->use_count)) {
-+		kvm_release_cma(pfn_to_page(ri->base_pfn), kvm_rma_pages);
-+		kfree(ri);
-+	}
- }
- EXPORT_SYMBOL_GPL(kvm_release_rma);
- 
-@@ -121,8 +121,7 @@ early_param("kvm_cma_resv_ratio", early_parse_kvm_cma_resv);
- 
- struct page *kvm_alloc_hpt(int nr_pages)
- {
--	return kvm_alloc_cma(nr_pages,
--			     get_order(hpt_align_pages << PAGE_SHIFT));
-+	return kvm_alloc_cma(nr_pages, get_order(hpt_align_pages << PAGE_SHIFT));
- }
- EXPORT_SYMBOL_GPL(kvm_alloc_hpt);
- 
-@@ -132,101 +131,6 @@ void kvm_release_hpt(struct page *page, int nr_pages)
- }
- EXPORT_SYMBOL_GPL(kvm_release_hpt);
- 
--/*************** generic *************/
--
--static LIST_HEAD(free_linears);
--static DEFINE_SPINLOCK(linear_lock);
--
--static void __init kvm_linear_init_one(ulong size, int count, int type)
--{
--	unsigned long i;
--	unsigned long j, npages;
--	void *linear;
--	struct page *pg;
--	const char *typestr;
--	struct kvmppc_linear_info *linear_info;
--
--	if (!count)
--		return;
--
--	typestr = (type == KVM_LINEAR_RMA) ? "RMA" : "HPT";
--
--	npages = size >> PAGE_SHIFT;
--	linear_info = alloc_bootmem(count * sizeof(struct kvmppc_linear_info));
--	for (i = 0; i < count; ++i) {
--		linear = alloc_bootmem_align(size, size);
--		pr_debug("Allocated KVM %s at %p (%ld MB)\n", typestr, linear,
--			 size >> 20);
--		linear_info[i].base_virt = linear;
--		linear_info[i].base_pfn = __pa(linear) >> PAGE_SHIFT;
--		linear_info[i].npages = npages;
--		linear_info[i].type = type;
--		list_add_tail(&linear_info[i].list, &free_linears);
--		atomic_set(&linear_info[i].use_count, 0);
--
--		pg = pfn_to_page(linear_info[i].base_pfn);
--		for (j = 0; j < npages; ++j) {
--			atomic_inc(&pg->_count);
--			++pg;
--		}
--	}
--}
--
--static struct kvmppc_linear_info *kvm_alloc_linear(int type)
--{
--	struct kvmppc_linear_info *ri, *ret;
--
--	ret = NULL;
--	spin_lock(&linear_lock);
--	list_for_each_entry(ri, &free_linears, list) {
--		if (ri->type != type)
--			continue;
--
--		list_del(&ri->list);
--		atomic_inc(&ri->use_count);
--		memset(ri->base_virt, 0, ri->npages << PAGE_SHIFT);
--		ret = ri;
--		break;
--	}
--	spin_unlock(&linear_lock);
--	return ret;
--}
--
--static void kvm_release_linear(struct kvmppc_linear_info *ri)
--{
--	if (atomic_dec_and_test(&ri->use_count)) {
--		spin_lock(&linear_lock);
--		list_add_tail(&ri->list, &free_linears);
--		spin_unlock(&linear_lock);
--
--	}
--}
--
--/*
-- * Called at boot time while the bootmem allocator is active,
-- * to allocate contiguous physical memory for the hash page
-- * tables for guests.
-- */
--void __init kvm_linear_init(void)
--{
--	/* RMA */
--	/* Only do this on PPC970 in HV mode */
--	if (!cpu_has_feature(CPU_FTR_HVMODE) ||
--	    !cpu_has_feature(CPU_FTR_ARCH_201))
--		return;
--
--	if (!kvm_rma_size || !kvm_rma_count)
--		return;
--
--	/* Check that the requested size is one supported in hardware */
--	if (lpcr_rmls(kvm_rma_size) < 0) {
--		pr_err("RMA size of 0x%lx not supported\n", kvm_rma_size);
--		return;
--	}
--
--	kvm_linear_init_one(kvm_rma_size, kvm_rma_count, KVM_LINEAR_RMA);
--}
--
- /**
-  * kvm_cma_reserve() - reserve area for kvm hash pagetable
-  *
-@@ -252,7 +156,7 @@ void __init kvm_cma_reserve(void)
- 	if (selected_size) {
- 		pr_debug("%s: reserving %ld MiB for global area\n", __func__,
- 			 (unsigned long)selected_size / SZ_1M);
--		align_size = hpt_align_pages << PAGE_SHIFT;
-+		align_size = max(kvm_rma_pages, hpt_align_pages) << PAGE_SHIFT;
- 		kvm_cma_declare_contiguous(selected_size, align_size);
- 	}
- }
--- 
-1.8.1.2
+I'm fairly sure we don't want to commit this hunk ;-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
