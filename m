@@ -1,13 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 093886B0032
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2013 19:20:27 -0400 (EDT)
-Subject: [PATCH v2 0/5] rwsem: performance enhancements for systems with
- many cores
+	by kanga.kvack.org (Postfix) with SMTP id BAD756B0036
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2013 19:20:33 -0400 (EDT)
+Subject: [PATCH v2 1/5] rwsem: check the lock before cpmxchg in
+ down_write_trylock
 From: Tim Chen <tim.c.chen@linux.intel.com>
+In-Reply-To: <cover.1372112541.git.tim.c.chen@linux.intel.com>
+References: <cover.1372112541.git.tim.c.chen@linux.intel.com>
 Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 24 Jun 2013 16:20:30 -0700
-Message-ID: <1372116030.22432.90.camel@schen9-DESK>
+Date: Mon, 24 Jun 2013 16:20:35 -0700
+Message-ID: <1372116035.22432.91.camel@schen9-DESK>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -15,54 +17,39 @@ List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Tim Chen <tim.c.chen@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-In this patchset, we introduce two optimizations to read write semaphore.
-The first optimization reduces cache bouncing of the sem->count field
-by doing a pre-read of the lock status (i.e. sem->count) and avoid cmpxchg if possible.
-The second optimization introduces similar optimistic spining logic in
-the mutex code for the writer lock acquisition of rw-sem.
+Cmpxchg will cause the cacheline bouning when do the value checking,
+that cause scalability issue in a large machine (like a 80 core box).
 
-Combining the two patches, in testing by Davidlohr Bueso on aim7 workloads
-on 8 socket 80 cores system, he saw improvements of
-alltests (+14.5%), custom (+17%), disk (+11%), high_systime
-(+5%), shared (+15%) and short (+4%), most of them after around 500
-users when i_mmap was implemented as rwsem.
+So a lock pre-read can relief this contention.
 
-Feed-backs on the effectiveness of these tweaks on other workloads
-will be appreciated.  Thanks to Peter Hurley for reviewing the first version
-of this patchset.
+Signed-off-by: Alex Shi <alex.shi@intel.com>
+---
+ include/asm-generic/rwsem.h |    8 ++++----
+ 1 files changed, 4 insertions(+), 4 deletions(-)
 
-I have left the optimistic spinning on write lock acquisition not as a default
-option.  I'll like people's opinion to see if it should be on by default
-to get more testing. 
-
-Changelog:
-
-v2:
-1. Reorganize changes to down_write_trylock and do_wake into 4 patches and fixed
-   a bug referencing &sem->count when sem->count is intended.
-2. Fix unsafe sem->owner de-reference in rwsem_can_spin_on_owner.
-the option to be on for more seasoning but can be turned off should it be detrimental.
-3. Various patch comments update
-
-
-Alex Shi (4):
-  rwsem: check the lock before cpmxchg in down_write_trylock
-  rwsem: remove 'out' label in do_wake
-  rwsem: remove try_reader_grant label do_wake
-  rwsem/wake: check lock before do atomic update
-
-Tim Chen (1):
-  rwsem: do optimistic spinning for writer lock acquisition
-
- include/asm-generic/rwsem.h |    8 +-
- include/linux/rwsem.h       |    3 +
- init/Kconfig                |    9 ++
- kernel/rwsem.c              |   29 +++++++-
- lib/rwsem.c                 |  175 ++++++++++++++++++++++++++++++++++++++-----
- 5 files changed, 199 insertions(+), 25 deletions(-)
-
+diff --git a/include/asm-generic/rwsem.h b/include/asm-generic/rwsem.h
+index bb1e2cd..5ba80e7 100644
+--- a/include/asm-generic/rwsem.h
++++ b/include/asm-generic/rwsem.h
+@@ -70,11 +70,11 @@ static inline void __down_write(struct rw_semaphore *sem)
+ 
+ static inline int __down_write_trylock(struct rw_semaphore *sem)
+ {
+-	long tmp;
++	if (unlikely(sem->count != RWSEM_UNLOCKED_VALUE))
++		return 0;
+ 
+-	tmp = cmpxchg(&sem->count, RWSEM_UNLOCKED_VALUE,
+-		      RWSEM_ACTIVE_WRITE_BIAS);
+-	return tmp == RWSEM_UNLOCKED_VALUE;
++	return cmpxchg(&sem->count, RWSEM_UNLOCKED_VALUE,
++		      RWSEM_ACTIVE_WRITE_BIAS) == RWSEM_UNLOCKED_VALUE;
+ }
+ 
+ /*
 -- 
 1.7.4.4
+
 
 
 --
