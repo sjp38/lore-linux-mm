@@ -1,43 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 123196B0032
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2013 03:11:50 -0400 (EDT)
-Date: Tue, 25 Jun 2013 08:11:40 +0100
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: [PATCH v2] vfs: export lseek_execute() to modules
-Message-ID: <20130625071139.GZ4165@ZenIV.linux.org.uk>
-References: <51C91645.8050502@oracle.com>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 70D016B0032
+	for <linux-mm@kvack.org>; Tue, 25 Jun 2013 03:26:47 -0400 (EDT)
+Message-ID: <51C945FE.2030305@asianux.com>
+Date: Tue, 25 Jun 2013 15:25:50 +0800
+From: Chen Gang <gang.chen@asianux.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <51C91645.8050502@oracle.com>
+Subject: Re: [Suggestion] arch: s390: mm: the warnings with allmodconfig and
+ "EXTRA_CFLAGS=-W"
+References: <51C8F685.6000209@asianux.com> <51C8F861.9010101@asianux.com> <20130625085006.01a7f368@mschwide>
+In-Reply-To: <20130625085006.01a7f368@mschwide>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Liu <jeff.liu@oracle.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, andi@firstfloor.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Chris.mason@fusionio.com, jbacik@fusionio.com, Ben Myers <bpm@sgi.com>, tytso@mit.edu, hughd@google.com, Mark Fasheh <mfasheh@suse.com>, Joel Becker <jlbec@evilplan.org>, sage@inktank.com
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, linux390@de.ibm.com, cornelia.huck@de.ibm.com, mtosatti@redhat.com, Thomas Gleixner <tglx@linutronix.de>, linux-s390@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux-Arch <linux-arch@vger.kernel.org>, linux-mm@kvack.org
 
-On Tue, Jun 25, 2013 at 12:02:13PM +0800, Jeff Liu wrote:
-> From: Jie Liu <jeff.liu@oracle.com>
+On 06/25/2013 02:50 PM, Martin Schwidefsky wrote:
+> On Tue, 25 Jun 2013 09:54:41 +0800
+> Chen Gang <gang.chen@asianux.com> wrote:
 > 
-> For those file systems(btrfs/ext4/ocfs2/tmpfs) that support
-> SEEK_DATA/SEEK_HOLE functions, we end up handling the similar
-> matter in lseek_execute() to update the current file offset
-> to the desired offset if it is valid, ceph also does the
-> simliar things at ceph_llseek().
-> 
-> To reduce the duplications, this patch make lseek_execute()
-> public accessible so that we can call it directly from the
-> underlying file systems.
+>> > Hello Maintainers:
+>> > 
+>> > When allmodconfig for " IBM zSeries model z800 and z900"
+>> > 
+>> > It will report the related warnings ("EXTRA_CFLAGS=-W"):
+>> >   mm/slub.c:1875:1: warning: a??deactivate_slaba?? uses dynamic stack allocation [enabled by default]
+>> >   mm/slub.c:1941:1: warning: a??unfreeze_partials.isra.32a?? uses dynamic stack allocation [enabled by default]
+>> >   mm/slub.c:2575:1: warning: a??__slab_freea?? uses dynamic stack allocation [enabled by default]
+>> >   mm/slub.c:1582:1: warning: a??get_partial_node.isra.34a?? uses dynamic stack allocation [enabled by default]
+>> >   mm/slub.c:2311:1: warning: a??__slab_alloc.constprop.42a?? uses dynamic stack allocation [enabled by default]
+>> > 
+>> > Is it OK ?
+> Yes, these warnings should be ok. They are enabled by CONFIG_WARN_DYNAMIC_STACK,
+> the purpose is to find all functions with dynamic stack allocations. The check
+> if the allocations are truly ok needs to be done manually as the compiler
+> can not find out the maximum allocation size automatically.
 
-Umm...  I like it, but it needs changes:
-	* inode argument of lseek_execute() is pointless (and killed
-off in vfs.git, actually)
-	* I'm really not happy about the name of that function.  For
-a static it's kinda-sort tolerable, but for something global, let
-alone exported...
+Thank you very much for your details information.
 
-I've put a modified variant into #for-next; could you check if you are
-still OK with it?
+-- 
+Chen Gang
+
+Asianux Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
