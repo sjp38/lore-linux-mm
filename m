@@ -1,113 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 2C99D6B0032
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2013 13:38:20 -0400 (EDT)
-Message-ID: <51C9D56F.8040400@infradead.org>
-Date: Tue, 25 Jun 2013 10:37:51 -0700
-From: Randy Dunlap <rdunlap@infradead.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH] slab: add kmalloc() to kernel API documentation
-References: <1372177015-30492-1-git-send-email-michael.opdenacker@free-electrons.com>
-In-Reply-To: <1372177015-30492-1-git-send-email-michael.opdenacker@free-electrons.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 805076B0032
+	for <linux-mm@kvack.org>; Tue, 25 Jun 2013 16:33:39 -0400 (EDT)
+Message-ID: <1372192414.1888.8.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: linux-next: Tree for Jun 21 [ BROKEN ipc/ipc-msg ]
+From: Davidlohr Bueso <davidlohr.bueso@hp.com>
+Date: Tue, 25 Jun 2013 13:33:34 -0700
+In-Reply-To: <CA+icZUVbUD1tUa_ORtn_ZZebpp3gXXHGAcNe0NdYPXPMPoABuA@mail.gmail.com>
+References: 
+	<CA+icZUXuw7QBn4CPLLuiVUjHin0m6GRdbczGw=bZY+Z60sXNow@mail.gmail.com>
+	 <CA+icZUVbUD1tUa_ORtn_ZZebpp3gXXHGAcNe0NdYPXPMPoABuA@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Opdenacker <michael.opdenacker@free-electrons.com>
-Cc: cl@linux-foundation.org, penberg@kernel.org, mpm@selenic.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: sedat.dilek@gmail.com
+Cc: linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, Stephen Rothwell <sfr@canb.auug.org.au>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Manfred Spraul <manfred@colorfullife.com>, Jonathan Gonzalez <jgonzalez@linets.cl>
 
-On 06/25/13 09:16, Michael Opdenacker wrote:
-> At the moment, kmalloc() isn't even listed in the kernel API
-> documentation (DocBook/kernel-api.html after running "make htmldocs").
+On Tue, 2013-06-25 at 18:10 +0200, Sedat Dilek wrote:
+[...]
+
+> I did some more testing with Linux-Testing-Project (release:
+> ltp-full-20130503) and next-20130624 (Monday) which has still the
+> issue, here.
 > 
-> Another issue is that the documentation for kmalloc_node()
-> refers to kcalloc()'s documentation to describe its 'flags' parameter,
-> while kcalloc() refered to kmalloc()'s documentation, which doesn't exist!
+> If I revert the mentioned two commits from my local
+> revert-ipc-next20130624-5089fd1c6a6a-ab9efc2d0db5 GIT repo, everything
+> is fine.
 > 
-> This patch is a proposed fix for this. It also removes the documentation
-> for kmalloc() in include/linux/slob_def.h which isn't included to
-> generate the documentation anyway. This way, kmalloc() is described
-> in only one place.
+> I have tested the LTP ***IPC*** and ***SYSCALLS*** testcases.
 > 
-> Signed-off-by: Michael Opdenacker <michael.opdenacker@free-electrons.com>\
-
-Acked-by: Randy Dunlap <rdunlap@infradead.org>
-
-Thanks.
-
-
-> ---
->  include/linux/slab.h     | 18 ++++++++++++++----
->  include/linux/slob_def.h |  8 --------
->  2 files changed, 14 insertions(+), 12 deletions(-)
+>    root# ./runltp -f ipc
 > 
-> diff --git a/include/linux/slab.h b/include/linux/slab.h
-> index 0c62175..dffc7a2 100644
-> --- a/include/linux/slab.h
-> +++ b/include/linux/slab.h
-> @@ -356,9 +356,8 @@ int cache_show(struct kmem_cache *s, struct seq_file *m);
->  void print_slabinfo_header(struct seq_file *m);
->  
->  /**
-> - * kmalloc_array - allocate memory for an array.
-> - * @n: number of elements.
-> - * @size: element size.
-> + * kmalloc - allocate memory
-> + * @size: how many bytes of memory are required.
->   * @flags: the type of memory to allocate.
->   *
->   * The @flags argument may be one of:
-> @@ -405,6 +404,17 @@ void print_slabinfo_header(struct seq_file *m);
->   * There are other flags available as well, but these are not intended
->   * for general use, and so are not documented here. For a full list of
->   * potential flags, always refer to linux/gfp.h.
-> + *
-> + * kmalloc is the normal method of allocating memory
-> + * in the kernel.
-> + */
-> +static __always_inline void *kmalloc(size_t size, gfp_t flags);
-> +
-> +/**
-> + * kmalloc_array - allocate memory for an array.
-> + * @n: number of elements.
-> + * @size: element size.
-> + * @flags: the type of memory to allocate (see kmalloc).
->   */
->  static inline void *kmalloc_array(size_t n, size_t size, gfp_t flags)
->  {
-> @@ -428,7 +438,7 @@ static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
->  /**
->   * kmalloc_node - allocate memory from a specific node
->   * @size: how many bytes of memory are required.
-> - * @flags: the type of memory to allocate (see kcalloc).
-> + * @flags: the type of memory to allocate (see kmalloc).
->   * @node: node to allocate from.
->   *
->   * kmalloc() for non-local nodes, used to allocate from a specific node
-> diff --git a/include/linux/slob_def.h b/include/linux/slob_def.h
-> index f28e14a..095a5a4 100644
-> --- a/include/linux/slob_def.h
-> +++ b/include/linux/slob_def.h
-> @@ -18,14 +18,6 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
->  	return __kmalloc_node(size, flags, node);
->  }
->  
-> -/**
-> - * kmalloc - allocate memory
-> - * @size: how many bytes of memory are required.
-> - * @flags: the type of memory to allocate (see kcalloc).
-> - *
-> - * kmalloc is the normal method of allocating memory
-> - * in the kernel.
-> - */
->  static __always_inline void *kmalloc(size_t size, gfp_t flags)
->  {
->  	return __kmalloc_node(size, flags, NUMA_NO_NODE);
+>    root# ./runltp -f syscalls
+
+These are nice test cases!
+
+So I was able to reproduce the issue with LTP and manually running
+msgctl08. We seemed to be racing at find_msg(), so take to q_perm lock
+before calling it. The following changes fixes the issue and passes all
+'runltp -f syscall' tests, could you give it a try?
+
+Thanks,
+Davidlohr
+
+diff --git a/ipc/msg.c b/ipc/msg.c
+index a1cf70e..a1f7d84 100644
+--- a/ipc/msg.c
++++ b/ipc/msg.c
+@@ -895,6 +895,7 @@ long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp, int msgfl
+                if (ipcperms(ns, &msq->q_perm, S_IRUGO))
+                        goto out_unlock1;
+ 
++               ipc_lock_object(&msq->q_perm);
+                msg = find_msg(msq, &msgtyp, mode);
+                if (!IS_ERR(msg)) {
+                        /*
+@@ -903,7 +904,7 @@ long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp, int msgfl
+                         */
+                        if ((bufsz < msg->m_ts) && !(msgflg & MSG_NOERROR)) {
+                                msg = ERR_PTR(-E2BIG);
+-                               goto out_unlock1;
++                               goto out_unlock0;
+                        }
+                        /*
+                         * If we are copying, then do not unlink message and do
+@@ -911,10 +912,9 @@ long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp, int msgfl
+                         */
+                        if (msgflg & MSG_COPY) {
+                                msg = copy_msg(msg, copy);
+-                               goto out_unlock1;
++                               goto out_unlock0;
+                        }
+ 
+-                       ipc_lock_object(&msq->q_perm);
+                        list_del(&msg->m_list);
+                        msq->q_qnum--;
+                        msq->q_rtime = get_seconds();
+@@ -930,10 +930,9 @@ long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp, int msgfl
+                /* No message waiting. Wait for a message */
+                if (msgflg & IPC_NOWAIT) {
+                        msg = ERR_PTR(-ENOMSG);
+-                       goto out_unlock1;
++                       goto out_unlock0;
+                }
+ 
+-               ipc_lock_object(&msq->q_perm);
+                list_add_tail(&msr_d.r_list, &msq->q_receivers);
+                msr_d.r_tsk = current;
+                msr_d.r_msgtype = msgtyp;
+
+
+Thanks,
+Davidlohr
 > 
+> IPC seems to be fine for both -1 (UNPATCHED) and -2 (with attached two
+> REVERTED patches) kernel, but -1 hangs in the SYSCALLS/msgctl08 test.
+> 
+> Previous msgctl07 is OK, but ***msgctl08*** produces this:
+> ...
+> <<<test_start>>>
+> tag=msgctl07 stime=1372174934
+> cmdline="msgctl07"
+> contacts=""
+> analysis=exit
+> <<<test_output>>>
+> msgctl07    1  TPASS  :  msgctl07 ran successfully!
+> <<<execution_status>>>
+> initiation_status="ok"
+> duration=20 termination_type=exited termination_id=0 corefile=no
+> cutime=1995 cstime=3
+> <<<test_end>>>
+> <<<test_start>>>
+> tag=msgctl08 stime=1372174954
+> cmdline="msgctl08"
+> contacts=""
+> analysis=exit
+> <<<test_output>>>
+> msgctl08    0  TWARN  :  Verify error in child 0, *buf = 28, val = 27, size = 8
+> msgctl08    1  TFAIL  :  in child 0 read # = 73,key =  127
+> msgctl08    0  TWARN  :  Verify error in child 3, *buf = ffffff8a, val
+> = ffffff89, size = 52
+> msgctl08    1  TFAIL  :  in child 3 read # = 157,key =  189
+> msgctl08    0  TWARN  :  Verify error in child 2, *buf = ffffff87, val
+> = ffffff86, size = 71
+> msgctl08    1  TFAIL  :  in child 2 read # = 15954,key =  3e86
+> msgctl08    0  TWARN  :  Verify error in child 12, *buf = ffffffa9,
+> val = ffffffa8, size = 22
+> msgctl08    1  TFAIL  :  in child 12 read # = 12904,key =  32a8
+> msgctl08    0  TWARN  :  Verify error in child 13, *buf = 36, val =
+> 35, size = 27
+> msgctl08    1  TFAIL  :  in child 13 read # = 10442,key =  2935
+> msgctl08    0  TWARN  :  Verify error in child 10, *buf = ffffff86,
+> val = ffffff85, size = 63
+> msgctl08    1  TFAIL  :  in child 10 read # = 19713,key =  4d85
+> msgctl08    0  TWARN  :  Verify error in child 4, *buf = 4c, val = 4b, size = 83
+> msgctl08    1  TFAIL  :  in child 4 read # = 23082,key =  5a4b
+> msgctl08    0  TWARN  :  Verify error in child 15, *buf = 61, val =
+> 60, size = 94
+> msgctl08    1  TFAIL  :  in child 15 read # = 23554,key =  5c60
+> msgctl08    0  TWARN  :  Verify error in child 11, *buf = 3b, val =
+> 3a, size = 22
+> msgctl08    1  TFAIL  :  in child 11 read # = 26468,key =  683a
+> msgctl08    0  TWARN  :  Verify error in child 5, *buf = ffffffb5, val
+> = ffffffb4, size = 41
+> msgctl08    1  TFAIL  :  in child 5 read # = 31867,key =  7cb4
+> msgctl08    0  TWARN  :  Verify error in child 1, *buf = 7d, val = 7c, size = 59
+> msgctl08    1  TFAIL  :  in child 1 read # = 41063,key =  a07c
+> msgctl08    0  TWARN  :  Verify error in child 7, *buf = fffffff2, val
+> = fffffff1, size = 83
+> msgctl08    1  TFAIL  :  in child 7 read # = 38476,key =  96f1
+> msgctl08    0  TWARN  :  Verify error in child 9, *buf = ffffff8b, val
+> = ffffff8a, size = 40
+> msgctl08    1  TFAIL  :  in child 9 read # = 90438,key =  1618a
+> msgctl08    0  TWARN  :  Verify error in child 8, *buf = ffffffcd, val
+> = ffffffcc, size = 38
+> msgctl08    1  TFAIL  :  in child 8 read # = 88712,key =  15acc
+> msgctl08    0  TWARN  :  Verify error in child 6, *buf = 6, val = 5, size = 1
+> msgctl08    1  TFAIL  :  in child 6 read # = 83297,key =  14605
+> ***** STOPPED *****
+> 
+> See "ltp-full-20130503.git/testcases/kernel/syscalls/ipc/msgctl/msgctl08.c" [1].
+> 
+> NOTE: Debian/Ubuntu users with dash as default shell require the patch from [2].
+> 
+> - Sedat -
+> 
+> P.S.: Unfortunately, fakeroot DEBUG doc file is outdated.
+> 
+> [1] https://github.com/linux-test-project/ltp/blob/master/testcases/kernel/syscalls/ipc/msgctl/msgctl08.c
+> [2] https://github.com/linux-test-project/ltp/commit/b88fa5b6ec5a29834a0e52df7b22b9bb47fe0379
 
-
--- 
-~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
