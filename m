@@ -1,61 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 9219E6B0032
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2013 22:29:23 -0400 (EDT)
-Date: Tue, 25 Jun 2013 12:29:21 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: linux-next: slab shrinkers: BUG at mm/list_lru.c:92
-Message-ID: <20130625022921.GQ29376@dastard>
-References: <20130617151403.GA25172@localhost.localdomain>
- <20130617143508.7417f1ac9ecd15d8b2877f76@linux-foundation.org>
- <20130617223004.GB2538@localhost.localdomain>
- <20130618062623.GA20528@localhost.localdomain>
- <20130619071346.GA9545@dhcp22.suse.cz>
- <20130619142801.GA21483@dhcp22.suse.cz>
- <20130620141136.GA3351@localhost.localdomain>
- <20130620151201.GD27196@dhcp22.suse.cz>
- <20130621090021.GB12424@dhcp22.suse.cz>
- <20130623115127.GA7986@localhost.localdomain>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 991E36B0036
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2013 22:30:41 -0400 (EDT)
+Message-ID: <51C900BD.60109@oracle.com>
+Date: Tue, 25 Jun 2013 10:30:21 +0800
+From: Jeff Liu <jeff.liu@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130623115127.GA7986@localhost.localdomain>
+Subject: Re: [RFC PATCH] vfs: export lseek_execute() to modules
+References: <51C832F8.2090707@oracle.com> <20130624125513.GA7921@infradead.org>
+In-Reply-To: <20130624125513.GA7921@infradead.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@gmail.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Sun, Jun 23, 2013 at 03:51:29PM +0400, Glauber Costa wrote:
-> On Fri, Jun 21, 2013 at 11:00:21AM +0200, Michal Hocko wrote:
-> > On Thu 20-06-13 17:12:01, Michal Hocko wrote:
-> > > I am bisecting it again. It is quite tedious, though, because good case
-> > > is hard to be sure about.
-> > 
-> > OK, so now I converged to 2d4fc052 (inode: convert inode lru list to generic lru
-> > list code.) in my tree and I have double checked it matches what is in
-> > the linux-next. This doesn't help much to pin point the issue I am
-> > afraid :/
-> > 
-> Can you revert this patch (easiest way ATM is to rewind your tree to a point
-> right before it) and apply the following patch?
+On 06/24/2013 08:55 PM, Christoph Hellwig wrote:
+
+> On Mon, Jun 24, 2013 at 07:52:24PM +0800, Jeff Liu wrote:
+>> From: Jie Liu <jeff.liu@oracle.com>
+>>
+>> For those file systems(btrfs/ext4/xfs/ocfs2/tmpfs) that support
+>> SEEK_DATA/SEEK_HOLE functions, we end up handling the similar
+>> matter in lseek_execute() to verify the final offset.
+>>
+>> To reduce the duplications, this patch make lseek_execute() public
+>> accessible so that we can call it directly from them.
+>>
+>> Thanks Dave Chinner for this suggestion.
 > 
-> As Dave has mentioned, it is very likely that this bug was already there, we
-> were just not ever checking imbalances. The attached patch would tell us at
-> least if the imbalance was there before. If this is the case, I would suggest
-> turning the BUG condition into a WARN_ON_ONCE since we would be officially
-> not introducing any regression. It is no less of a bug, though, and we should
-> keep looking for it.
+> Please add a kerneldoc comment explaining the use of this function.
 
-We probably should do that BUG->WARN change anyway. BUG_ON is pretty
-obnoxious in places where we can probably continue on without much
-impact....
+Ok, I'll repost it later.
 
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Thanks,
+-Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
