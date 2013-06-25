@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 895C26B0039
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 07DB46B003A
 	for <linux-mm@kvack.org>; Mon, 24 Jun 2013 20:21:49 -0400 (EDT)
 From: Davidlohr Bueso <davidlohr.bueso@hp.com>
-Subject: [PATCH 3/5] mm: convert i_mmap_mutex to rwsem
-Date: Mon, 24 Jun 2013 17:21:36 -0700
-Message-Id: <1372119698-13147-4-git-send-email-davidlohr.bueso@hp.com>
+Subject: [PATCH 4/5] mm/rmap: share the i_mmap_rwsem
+Date: Mon, 24 Jun 2013 17:21:37 -0700
+Message-Id: <1372119698-13147-5-git-send-email-davidlohr.bueso@hp.com>
 In-Reply-To: <1372119698-13147-1-git-send-email-davidlohr.bueso@hp.com>
 References: <1372119698-13147-1-git-send-email-davidlohr.bueso@hp.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,69 +13,141 @@ List-ID: <linux-mm.kvack.org>
 To: mingo@kernel.org, akpm@linux-foundation.org
 Cc: walken@google.com, alex.shi@intel.com, tim.c.chen@linux.intel.com, a.p.zijlstra@chello.nl, riel@redhat.com, peter@hurleysoftware.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Davidlohr Bueso <davidlohr.bueso@hp.com>
 
-This conversion is straightforward. All users take the write
-lock, so there is really not much difference with the previous
-mutex lock.
+Similar to commit 4fc3f1d6, which optimized the anon-vma rwsem, we can share
+the i_mmap_rwsem among multiple readers for rmap_walk_file(),
+try_to_unmap_file() and collect_procs_file().
+
+With this change, and the rwsem optimizations discussed in
+http://lkml.org/lkml/2013/6/16/38 we can see performance improvements.
+On a 8 socket, 80 core DL980, when compared to a vanilla 3.10-rc5, aim7
+benefits in throughput, with the following workloads (beyond 500 users):
+
+- alltests (+14.5%)
+- custom (+17%)
+- disk (+11%)
+- high_systime (+5%)
+- shared (+15%)
+- short (+4%)
+
+For lower amounts of users, there are no significant differences as all numbers
+are within the 0-2% noise range.
 
 Signed-off-by: Davidlohr Bueso <davidlohr.bueso@hp.com>
 ---
- fs/inode.c         | 2 +-
- include/linux/fs.h | 6 +++---
- mm/mmap.c          | 2 +-
- 3 files changed, 5 insertions(+), 5 deletions(-)
+ include/linux/fs.h  | 10 ++++++++++
+ mm/memory-failure.c |  7 +++----
+ mm/rmap.c           | 12 ++++++------
+ 3 files changed, 19 insertions(+), 10 deletions(-)
 
-diff --git a/fs/inode.c b/fs/inode.c
-index 00d5fc3..af5f0ea 100644
---- a/fs/inode.c
-+++ b/fs/inode.c
-@@ -345,7 +345,7 @@ void address_space_init_once(struct address_space *mapping)
- 	memset(mapping, 0, sizeof(*mapping));
- 	INIT_RADIX_TREE(&mapping->page_tree, GFP_ATOMIC);
- 	spin_lock_init(&mapping->tree_lock);
--	mutex_init(&mapping->i_mmap_mutex);
-+	init_rwsem(&mapping->i_mmap_rwsem);
- 	INIT_LIST_HEAD(&mapping->private_list);
- 	spin_lock_init(&mapping->private_lock);
- 	mapping->i_mmap = RB_ROOT;
 diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 1ea6c68..79b8548 100644
+index 79b8548..5646641 100644
 --- a/include/linux/fs.h
 +++ b/include/linux/fs.h
-@@ -410,7 +410,7 @@ struct address_space {
- 	unsigned int		i_mmap_writable;/* count VM_SHARED mappings */
- 	struct rb_root		i_mmap;		/* tree of private and shared mappings */
- 	struct list_head	i_mmap_nonlinear;/*list VM_NONLINEAR mappings */
--	struct mutex		i_mmap_mutex;	/* protect tree, count, list */
-+	struct rw_semaphore     i_mmap_rwsem;	/* protect tree, count, list */
- 	/* Protected by tree_lock together with the radix tree */
- 	unsigned long		nrpages;	/* number of total pages */
- 	pgoff_t			writeback_index;/* writeback starts here */
-@@ -477,12 +477,12 @@ int mapping_tagged(struct address_space *mapping, int tag);
- 
- static inline void i_mmap_lock_write(struct address_space *mapping)
- {
--	mutex_lock(&mapping->i_mmap_mutex);
-+	down_write(&mapping->i_mmap_rwsem);
+@@ -485,6 +485,16 @@ static inline void i_mmap_unlock_write(struct address_space *mapping)
+ 	up_write(&mapping->i_mmap_rwsem);
  }
  
- static inline void i_mmap_unlock_write(struct address_space *mapping)
- {
--	mutex_unlock(&mapping->i_mmap_mutex);
-+	up_write(&mapping->i_mmap_rwsem);
++static inline void i_mmap_lock_read(struct address_space *mapping)
++{
++	down_read(&mapping->i_mmap_rwsem);
++}
++
++static inline void i_mmap_unlock_read(struct address_space *mapping)
++{
++	up_read(&mapping->i_mmap_rwsem);
++}
++
+ /*
+  * Might pages of this file be mapped into userspace?
+  */
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index e7e0f90..6db44eb 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -436,7 +436,7 @@ static void collect_procs_file(struct page *page, struct list_head *to_kill,
+ 	struct task_struct *tsk;
+ 	struct address_space *mapping = page->mapping;
+ 
+-	i_mmap_lock_write(mapping);
++	i_mmap_lock_read(mapping);
+ 	read_lock(&tasklist_lock);
+ 	for_each_process(tsk) {
+ 		pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+@@ -444,8 +444,7 @@ static void collect_procs_file(struct page *page, struct list_head *to_kill,
+ 		if (!task_early_kill(tsk))
+ 			continue;
+ 
+-		vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff,
+-				      pgoff) {
++		vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
+ 			/*
+ 			 * Send early kill signal to tasks where a vma covers
+ 			 * the page but the corrupted page is not necessarily
+@@ -458,7 +457,7 @@ static void collect_procs_file(struct page *page, struct list_head *to_kill,
+ 		}
+ 	}
+ 	read_unlock(&tasklist_lock);
+-	i_mmap_unlock_write(mapping);
++	i_mmap_unlock_read(mapping);
  }
  
  /*
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 01a9876..b4e142a 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -3016,7 +3016,7 @@ static void vm_lock_mapping(struct mm_struct *mm, struct address_space *mapping)
- 		 */
- 		if (test_and_set_bit(AS_MM_ALL_LOCKS, &mapping->flags))
- 			BUG();
--		mutex_lock_nest_lock(&mapping->i_mmap_mutex, &mm->mmap_sem);
-+		down_write_nest_lock(&mapping->i_mmap_rwsem, &mm->mmap_sem);
+diff --git a/mm/rmap.c b/mm/rmap.c
+index bc8eeb5..98b986d 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -808,7 +808,7 @@ static int page_referenced_file(struct page *page,
+ 	 */
+ 	BUG_ON(!PageLocked(page));
+ 
+-	i_mmap_lock_write(mapping);
++	i_mmap_lock_read(mapping);
+ 
+ 	/*
+ 	 * i_mmap_mutex does not stabilize mapcount at all, but mapcount
+@@ -831,7 +831,7 @@ static int page_referenced_file(struct page *page,
+ 			break;
  	}
+ 
+-	i_mmap_unlock_write(mapping);
++	i_mmap_unlock_read(mapping);
+ 	return referenced;
+ }
+ 
+@@ -1516,7 +1516,7 @@ static int try_to_unmap_file(struct page *page, enum ttu_flags flags)
+ 	if (PageHuge(page))
+ 		pgoff = page->index << compound_order(page);
+ 
+-	i_mmap_lock_write(mapping);
++	i_mmap_lock_read(mapping);
+ 	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
+ 		unsigned long address = vma_address(page, vma);
+ 		ret = try_to_unmap_one(page, vma, address, flags);
+@@ -1594,7 +1594,7 @@ static int try_to_unmap_file(struct page *page, enum ttu_flags flags)
+ 	list_for_each_entry(vma, &mapping->i_mmap_nonlinear, shared.nonlinear)
+ 		vma->vm_private_data = NULL;
+ out:
+-	i_mmap_unlock_write(mapping);
++	i_mmap_unlock_read(mapping);
+ 	return ret;
+ }
+ 
+@@ -1711,7 +1711,7 @@ static int rmap_walk_file(struct page *page, int (*rmap_one)(struct page *,
+ 
+ 	if (!mapping)
+ 		return ret;
+-	i_mmap_lock_write(mapping);
++	i_mmap_lock_read(mapping);
+ 	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
+ 		unsigned long address = vma_address(page, vma);
+ 		ret = rmap_one(page, vma, address, arg);
+@@ -1723,7 +1723,7 @@ static int rmap_walk_file(struct page *page, int (*rmap_one)(struct page *,
+ 	 * never contain migration ptes.  Decide what to do about this
+ 	 * limitation to linear when we need rmap_walk() on nonlinear.
+ 	 */
+-	i_mmap_unlock_write(mapping);
++	i_mmap_unlock_read(mapping);
+ 	return ret;
  }
  
 -- 
