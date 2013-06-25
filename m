@@ -1,45 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 8608C6B0031
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2013 09:55:03 -0400 (EDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <20130617153120.6EADFE0090@blue.fi.intel.com>
-References: <1370964919-16187-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20130617153120.6EADFE0090@blue.fi.intel.com>
-Subject: [PING] Transparent huge page cache: phase 0, prep work
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 406EE6B0031
+	for <linux-mm@kvack.org>; Tue, 25 Jun 2013 10:24:34 -0400 (EDT)
+Message-ID: <1372170272.18733.201.camel@gandalf.local.home>
+Subject: Re: [3.11 1/4] slub: Make cpu partial slab support configurable V2
+From: Steven Rostedt <rostedt@goodmis.org>
+Date: Tue, 25 Jun 2013 10:24:32 -0400
+In-Reply-To: <CAOJsxLHsYVThWL7yKEQaQqxTSpgK8RHm-u8n94t_m4=uMjDqzw@mail.gmail.com>
+References: <20130614195500.373711648@linux.com>
+	 <0000013f44418a14-7abe9784-a481-4c34-8ff3-c3afe2d57979-000000@email.amazonses.com>
+	 <51BFFFA1.8030402@kernel.org>
+	 <0000013f57a5b278-d9104e1e-ccec-40ec-bd95-f8b0816a38d9-000000@email.amazonses.com>
+	 <20130618102109.310f4ce1@riff.lan>
+	 <CAOJsxLHsYVThWL7yKEQaQqxTSpgK8RHm-u8n94t_m4=uMjDqzw@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Message-Id: <20130625135746.E6506E0090@blue.fi.intel.com>
-Date: Tue, 25 Jun 2013 16:57:46 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Clark Williams <williams@redhat.com>, Christoph Lameter <cl@linux.com>, Thomas Gleixner <tglx@linutronix.de>, Joonsoo Kim <js1304@gmail.com>, Clark Williams <clark@redhat.com>, Glauber Costa <glommer@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>
 
-Kirill A. Shutemov wrote:
-> Kirill A. Shutemov wrote:
-> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> > 
-> > My patchset which introduces transparent huge page cache is pretty big and
-> > hardly reviewable. Dave Hansen suggested to split it in few parts.
-> > 
-> > This is the first part: preparation work. I think it's useful without rest
-> > patches.
-> > 
-> > There's one fix for bug in lru_add_page_tail(). I doubt it's possible to
-> > trigger it on current code, but nice to have it upstream anyway.
-> > Rest is cleanups.
-> > 
-> > Patch 8 depends on patch 7. Other patches are independent and can be
-> > applied separately.
-> > 
-> > Please, consider applying.
+On Tue, 2013-06-18 at 18:25 +0300, Pekka Enberg wrote:
+> On Tue, Jun 18, 2013 at 6:21 PM, Clark Williams <williams@redhat.com> wrote:
+> > I'm sure it would be better to actually do cpu_partial processing in
+> > small chunks to avoid latency spikes in latency sensitive applications
 > 
-> Andrew, Andrea, any feedback?
+> Sounds like a patch I'd be much more interested in applying...
 
-Ping?
+Is this going to happen, otherwise we would really like a fix for RT.
 
--- 
- Kirill A. Shutemov
+-- Steve
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
