@@ -1,109 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 28BDF6B0032
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2013 06:16:10 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Tue, 25 Jun 2013 15:37:27 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id CDE333940043
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2013 15:46:03 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5PAGEgc29360288
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2013 15:46:18 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5PAFwHZ030906
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2013 20:15:59 +1000
-Message-ID: <51C96DBC.3070807@linux.vnet.ibm.com>
-Date: Tue, 25 Jun 2013 15:45:24 +0530
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [RFC PATCH 1/3] mm/cma: Move dma contiguous changes into a seperate
- config
-References: <1372062327-7028-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1372062327-7028-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 8608C6B0031
+	for <linux-mm@kvack.org>; Tue, 25 Jun 2013 09:55:03 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <20130617153120.6EADFE0090@blue.fi.intel.com>
+References: <1370964919-16187-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <20130617153120.6EADFE0090@blue.fi.intel.com>
+Subject: [PING] Transparent huge page cache: phase 0, prep work
 Content-Transfer-Encoding: 7bit
+Message-Id: <20130625135746.E6506E0090@blue.fi.intel.com>
+Date: Tue, 25 Jun 2013 16:57:46 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, benh@kernel.crashing.org, paulus@samba.org, linuxppc-dev@lists.ozlabs.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-> diff --git a/drivers/base/Makefile b/drivers/base/Makefile
-> index 4e22ce3..5d93bb5 100644
-> --- a/drivers/base/Makefile
-> +++ b/drivers/base/Makefile
-> @@ -6,7 +6,7 @@ obj-y			:= core.o bus.o dd.o syscore.o \
->  			   attribute_container.o transport_class.o \
->  			   topology.o
->  obj-$(CONFIG_DEVTMPFS)	+= devtmpfs.o
-> -obj-$(CONFIG_CMA) += dma-contiguous.o
-> +obj-$(CONFIG_DMA_CMA) += dma-contiguous.o
->  obj-y			+= power/
->  obj-$(CONFIG_HAS_DMA)	+= dma-mapping.o
->  obj-$(CONFIG_HAVE_GENERIC_DMA_COHERENT) += dma-coherent.o
-> diff --git a/include/linux/dma-contiguous.h b/include/linux/dma-contiguous.h
-> index 01b5c84..00141d3 100644
-> --- a/include/linux/dma-contiguous.h
-> +++ b/include/linux/dma-contiguous.h
-> @@ -57,7 +57,7 @@ struct cma;
->  struct page;
->  struct device;
+Kirill A. Shutemov wrote:
+> Kirill A. Shutemov wrote:
+> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> > 
+> > My patchset which introduces transparent huge page cache is pretty big and
+> > hardly reviewable. Dave Hansen suggested to split it in few parts.
+> > 
+> > This is the first part: preparation work. I think it's useful without rest
+> > patches.
+> > 
+> > There's one fix for bug in lru_add_page_tail(). I doubt it's possible to
+> > trigger it on current code, but nice to have it upstream anyway.
+> > Rest is cleanups.
+> > 
+> > Patch 8 depends on patch 7. Other patches are independent and can be
+> > applied separately.
+> > 
+> > Please, consider applying.
 > 
-> -#ifdef CONFIG_CMA
-> +#ifdef CONFIG_DMA_CMA
-> 
+> Andrew, Andrea, any feedback?
 
-We have some generic CMA documentation available in this file which need
-to be moved to a more generic place (generic MM) as we are differentiating
-it from DMA specific usage. Ideally we should have two documentation
+Ping?
 
-(1) CMA usage for any subsystem
-(2) DMA specific CMA usage
-
-
->  /*
->   * There is always at least global CMA area and a few optional device
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index e742d06..b362369 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -477,3 +477,23 @@ config FRONTSWAP
->  	  and swap data is stored as normal on the matching swap device.
-> 
->  	  If unsure, say Y to enable frontswap.
-> +
-> +config CMA
-> +	bool "Contiguous Memory Allocator"
-> +	depends on HAVE_MEMBLOCK
-> +	select MIGRATION
-> +	select MEMORY_ISOLATION
-> +	help
-> +	  This enables the Contiguous Memory Allocator which allows other
-> +	  subsystem to allocate big physically-contiguous blocks of memory
-
-Should be "any subsystem" instead of "other subsystem"
-
-> +
-> +	  If unsure, say "n".
-> +
-> +config CMA_DEBUG
-> +	bool "CMA debug messages (DEVELOPMENT)"
-> +	depends on DEBUG_KERNEL && CMA
-> +	help
-> +	  Turns on debug messages in CMA.  This produces KERN_DEBUG
-> +	  messages for every CMA call as well as various messages while
-> +	  processing calls such as dma_alloc_from_contiguous().
-> +	  This option does not affect warning and error messages.
-> 
-
-We should probably split up these debug configs as well to differentiate between
-generic CMA_DEBUG and DMA_CMA_DEBUG options.
-
-
-Regards
-Anshuman
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
