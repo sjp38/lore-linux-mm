@@ -1,69 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 32A446B0032
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2013 02:50:14 -0400 (EDT)
-Received: from /spool/local
-	by e06smtp18.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
-	Tue, 25 Jun 2013 07:44:50 +0100
-Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
-	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 9C67917D805F
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2013 07:51:37 +0100 (BST)
-Received: from d06av02.portsmouth.uk.ibm.com (d06av02.portsmouth.uk.ibm.com [9.149.37.228])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5P6nxFF49217738
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2013 06:49:59 GMT
-Received: from d06av02.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av02.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r5P6o98c001409
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2013 00:50:09 -0600
-Date: Tue, 25 Jun 2013 08:50:06 +0200
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [Suggestion] arch: s390: mm: the warnings with allmodconfig and
- "EXTRA_CFLAGS=-W"
-Message-ID: <20130625085006.01a7f368@mschwide>
-In-Reply-To: <51C8F861.9010101@asianux.com>
-References: <51C8F685.6000209@asianux.com>
-	<51C8F861.9010101@asianux.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 123196B0032
+	for <linux-mm@kvack.org>; Tue, 25 Jun 2013 03:11:50 -0400 (EDT)
+Date: Tue, 25 Jun 2013 08:11:40 +0100
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: [PATCH v2] vfs: export lseek_execute() to modules
+Message-ID: <20130625071139.GZ4165@ZenIV.linux.org.uk>
+References: <51C91645.8050502@oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51C91645.8050502@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Gang <gang.chen@asianux.com>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, linux390@de.ibm.com, cornelia.huck@de.ibm.com, mtosatti@redhat.com, Thomas Gleixner <tglx@linutronix.de>, linux-s390@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux-Arch <linux-arch@vger.kernel.org>, linux-mm@kvack.org
+To: Jeff Liu <jeff.liu@oracle.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, andi@firstfloor.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Chris.mason@fusionio.com, jbacik@fusionio.com, Ben Myers <bpm@sgi.com>, tytso@mit.edu, hughd@google.com, Mark Fasheh <mfasheh@suse.com>, Joel Becker <jlbec@evilplan.org>, sage@inktank.com
 
-On Tue, 25 Jun 2013 09:54:41 +0800
-Chen Gang <gang.chen@asianux.com> wrote:
+On Tue, Jun 25, 2013 at 12:02:13PM +0800, Jeff Liu wrote:
+> From: Jie Liu <jeff.liu@oracle.com>
+> 
+> For those file systems(btrfs/ext4/ocfs2/tmpfs) that support
+> SEEK_DATA/SEEK_HOLE functions, we end up handling the similar
+> matter in lseek_execute() to update the current file offset
+> to the desired offset if it is valid, ceph also does the
+> simliar things at ceph_llseek().
+> 
+> To reduce the duplications, this patch make lseek_execute()
+> public accessible so that we can call it directly from the
+> underlying file systems.
 
-> Hello Maintainers:
->=20
-> When allmodconfig for " IBM zSeries model z800 and z900"
->=20
-> It will report the related warnings ("EXTRA_CFLAGS=3D-W"):
->   mm/slub.c:1875:1: warning: =E2=80=98deactivate_slab=E2=80=99 uses dynam=
-ic stack allocation [enabled by default]
->   mm/slub.c:1941:1: warning: =E2=80=98unfreeze_partials.isra.32=E2=80=99 =
-uses dynamic stack allocation [enabled by default]
->   mm/slub.c:2575:1: warning: =E2=80=98__slab_free=E2=80=99 uses dynamic s=
-tack allocation [enabled by default]
->   mm/slub.c:1582:1: warning: =E2=80=98get_partial_node.isra.34=E2=80=99 u=
-ses dynamic stack allocation [enabled by default]
->   mm/slub.c:2311:1: warning: =E2=80=98__slab_alloc.constprop.42=E2=80=99 =
-uses dynamic stack allocation [enabled by default]
->=20
-> Is it OK ?
+Umm...  I like it, but it needs changes:
+	* inode argument of lseek_execute() is pointless (and killed
+off in vfs.git, actually)
+	* I'm really not happy about the name of that function.  For
+a static it's kinda-sort tolerable, but for something global, let
+alone exported...
 
-Yes, these warnings should be ok. They are enabled by CONFIG_WARN_DYNAMIC_S=
-TACK,
-the purpose is to find all functions with dynamic stack allocations. The ch=
-eck
-if the allocations are truly ok needs to be done manually as the compiler
-can not find out the maximum allocation size automatically.
-
---=20
-blue skies,
-   Martin.
-
-"Reality continues to ruin my life." - Calvin.
+I've put a modified variant into #for-next; could you check if you are
+still OK with it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
