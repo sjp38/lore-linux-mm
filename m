@@ -1,48 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 90E9C6B0032
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2013 03:38:12 -0400 (EDT)
-Date: Tue, 25 Jun 2013 09:37:39 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 2/2] rwsem: do optimistic spinning for writer lock
- acquisition
-Message-ID: <20130625073739.GX28407@twins.programming.kicks-ass.net>
-References: <cover.1371855277.git.tim.c.chen@linux.intel.com>
- <1371858700.22432.5.camel@schen9-DESK>
- <51C558E2.1040108@hurleysoftware.com>
- <1372017836.1797.14.camel@buesod1.americas.hpqcorp.net>
- <1372093876.22432.34.camel@schen9-DESK>
- <51C894C3.4040407@hurleysoftware.com>
- <1372105065.22432.65.camel@schen9-DESK>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 2EFF26B0037
+	for <linux-mm@kvack.org>; Tue, 25 Jun 2013 03:50:19 -0400 (EDT)
+Message-ID: <51C94B67.5070705@oracle.com>
+Date: Tue, 25 Jun 2013 15:48:55 +0800
+From: Jeff Liu <jeff.liu@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1372105065.22432.65.camel@schen9-DESK>
+Subject: Re: [PATCH v2] vfs: export lseek_execute() to modules
+References: <51C91645.8050502@oracle.com> <20130625071139.GZ4165@ZenIV.linux.org.uk>
+In-Reply-To: <20130625071139.GZ4165@ZenIV.linux.org.uk>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Peter Hurley <peter@hurleysoftware.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Alex Shi <alex.shi@intel.com>, Michel Lespinasse <walken@google.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Al Viro <viro@ZenIV.linux.org.uk>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, andi@firstfloor.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Chris.mason@fusionio.com, jbacik@fusionio.com, Ben Myers <bpm@sgi.com>, tytso@mit.edu, hughd@google.com, Mark Fasheh <mfasheh@suse.com>, Joel Becker <jlbec@evilplan.org>, sage@inktank.com
 
-On Mon, Jun 24, 2013 at 01:17:45PM -0700, Tim Chen wrote:
-> On second thought, I agree with you.  I should change this to
-> something like
-> 
-> 	int retval = true;
-> 	task_struct *sem_owner;
-> 
-> 	/* Spin only if active writer running */
-> 	if (!sem->owner)
-> 		return false;
-> 
-> 	rcu_read_lock();
-> 	sem_owner = sem->owner;
+On 06/25/2013 03:11 PM, Al Viro wrote:
 
-That should be: sem_owner = ACCESS_ONCE(sem->owner); to make sure the
-compiler doesn't try and be clever and rereads.
-
-> 	if (sem_owner)
-> 		retval = sem_owner->on_cpu;
+> On Tue, Jun 25, 2013 at 12:02:13PM +0800, Jeff Liu wrote:
+>> From: Jie Liu <jeff.liu@oracle.com>
+>>
+>> For those file systems(btrfs/ext4/ocfs2/tmpfs) that support
+>> SEEK_DATA/SEEK_HOLE functions, we end up handling the similar
+>> matter in lseek_execute() to update the current file offset
+>> to the desired offset if it is valid, ceph also does the
+>> simliar things at ceph_llseek().
+>>
+>> To reduce the duplications, this patch make lseek_execute()
+>> public accessible so that we can call it directly from the
+>> underlying file systems.
 > 
+> Umm...  I like it, but it needs changes:
+> 	* inode argument of lseek_execute() is pointless (and killed
+> off in vfs.git, actually)
+> 	* I'm really not happy about the name of that function.  For
+> a static it's kinda-sort tolerable, but for something global, let
+> alone exported...
+> 
+> I've put a modified variant into #for-next; could you check if you are
+> still OK with it?
+
+Yep, I'm ok with vfs_setpos().
+
+Thanks,
+-Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
