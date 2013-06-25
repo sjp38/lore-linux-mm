@@ -1,52 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 359586B0032
-	for <linux-mm@kvack.org>; Mon, 24 Jun 2013 19:45:13 -0400 (EDT)
-Received: by mail-ie0-f180.google.com with SMTP id f4so25976866iea.39
-        for <linux-mm@kvack.org>; Mon, 24 Jun 2013 16:45:12 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAMbhsRTdMaVR1LZRigumDqz_e5FgeyfJLrSHCDs8t7ywrmumTQ@mail.gmail.com>
-References: <CAMbhsRQU=xrcum+ZUbG3S+JfFUJK_qm_VB96Vz=PpL=vQYhUvg@mail.gmail.com>
-	<20130622103158.GA16304@infradead.org>
-	<CAMbhsRTz246dWPQOburNor2HvrgbN-AWb2jT_AEywtJHFbKWsA@mail.gmail.com>
-	<kq4v0b$p8p$3@ger.gmane.org>
-	<20130624114832.GA9961@infradead.org>
-	<CAMbhsRTdMaVR1LZRigumDqz_e5FgeyfJLrSHCDs8t7ywrmumTQ@mail.gmail.com>
-Date: Mon, 24 Jun 2013 16:45:12 -0700
-Message-ID: <CANcMJZBy+yyX=CweduKYw8thN9fxZ2EKZwza9aVwz_cvQa0nxQ@mail.gmail.com>
-Subject: Re: RFC: named anonymous vmas
-From: John Stultz <john.stultz@linaro.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 3CFE76B0032
+	for <linux-mm@kvack.org>; Mon, 24 Jun 2013 20:21:47 -0400 (EDT)
+From: Davidlohr Bueso <davidlohr.bueso@hp.com>
+Subject: [PATCH 0/5] mm: i_mmap_mutex to rwsem
+Date: Mon, 24 Jun 2013 17:21:33 -0700
+Message-Id: <1372119698-13147-1-git-send-email-davidlohr.bueso@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Colin Cross <ccross@google.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Alex Elsayed <eternaleye@gmail.com>, Linux-MM <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: mingo@kernel.org, akpm@linux-foundation.org
+Cc: walken@google.com, alex.shi@intel.com, tim.c.chen@linux.intel.com, a.p.zijlstra@chello.nl, riel@redhat.com, peter@hurleysoftware.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Davidlohr Bueso <davidlohr.bueso@hp.com>
 
-On Mon, Jun 24, 2013 at 10:26 AM, Colin Cross <ccross@google.com> wrote:
-> On Mon, Jun 24, 2013 at 4:48 AM, Christoph Hellwig <hch@infradead.org> wrote:
->> On Sat, Jun 22, 2013 at 12:47:29PM -0700, Alex Elsayed wrote:
->>> Couldn't this be done by having a root-only tmpfs, and having a userspace
->>> component that creates per-app directories with restrictive permissions on
->>> startup/app install? Then each app creates files in its own directory, and
->>> can pass the fds around.
->
-> If each app gets its own writable directory that's not really
-> different than a world writable tmpfs.  It requires something that
-> watches for apps to exit for any reason and cleans up their
-> directories, and it requires each app to come up with an unused name
-> when it wants to create a file, and the kernel can give you both very
-> cleanly.
+This patchset extends the work started by Ingo Molnar in late 2012,
+optimizing the anon-vma mutex lock, converting it from a exclusive mutex
+to a rwsem, and sharing the lock for read-only paths when walking the
+the vma-interval tree. More specifically commits 5a505085 and 4fc3f1d6.
 
-Though, I believe having a daemon that has exclusive access to tmpfs,
-and creates, unlinks and passes the fd to the requesting application
-would provide a userspace only implementation of the second feature
-requirement ("without having a world-writable tmpfs that untrusted
-apps could fill with files").  Though I'm not sure what the
-proc/<pid>/maps naming would look like on the unlinked file, so it
-might not solve the third naming issue.
+The i_mmap mutex has similar responsibilities with the anon-vma, protecting
+file backed pages. Therefore we can use similar locking techniques: covert
+the mutex to a rwsem and share the lock when possible.
 
-thanks
--john
+With these changes, and the rwsem optimizations discussed in
+http://lkml.org/lkml/2013/6/16/38 we can see performance improvements.
+For instance, on a 8 socket, 80 core DL980, when compared to a vanilla 3.10-rc5, 
+aim7 benefits in throughput, with the following workloads (beyond 500 users):
+
+- alltests (+14.5%)
+- custom (+17%)
+- disk (+11%)
+- high_systime (+5%)
+- shared (+15%)
+- short (+4%)
+
+For lower amounts of users, there are no significant differences as all numbers
+are within the 0-2% noise range.
+
+Davidlohr Bueso (5):
+  mm,fs: introduce helpers around i_mmap_mutex
+  mm: use new helper functions around the i_mmap_mutex
+  mm: convert i_mmap_mutex to rwsem
+  mm/rmap: share the i_mmap_rwsem
+  mm: rename leftover i_mmap_mutex
+
+ Documentation/lockstat.txt   |  2 +-
+ Documentation/vm/locking     |  2 +-
+ arch/x86/mm/hugetlbpage.c    |  6 +++---
+ fs/hugetlbfs/inode.c         |  4 ++--
+ fs/inode.c                   |  2 +-
+ include/linux/fs.h           | 22 +++++++++++++++++++++-
+ include/linux/mmu_notifier.h |  2 +-
+ kernel/events/uprobes.c      |  6 +++---
+ kernel/fork.c                |  4 ++--
+ mm/filemap.c                 | 10 +++++-----
+ mm/filemap_xip.c             |  4 ++--
+ mm/fremap.c                  |  4 ++--
+ mm/hugetlb.c                 | 16 ++++++++--------
+ mm/memory-failure.c          |  7 +++----
+ mm/memory.c                  |  8 ++++----
+ mm/mmap.c                    | 22 +++++++++++-----------
+ mm/mremap.c                  |  6 +++---
+ mm/nommu.c                   | 14 +++++++-------
+ mm/rmap.c                    | 24 ++++++++++++------------
+ 19 files changed, 92 insertions(+), 73 deletions(-)
+
+-- 
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
