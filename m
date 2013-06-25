@@ -1,49 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 70D016B0032
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2013 03:26:47 -0400 (EDT)
-Message-ID: <51C945FE.2030305@asianux.com>
-Date: Tue, 25 Jun 2013 15:25:50 +0800
-From: Chen Gang <gang.chen@asianux.com>
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 90E9C6B0032
+	for <linux-mm@kvack.org>; Tue, 25 Jun 2013 03:38:12 -0400 (EDT)
+Date: Tue, 25 Jun 2013 09:37:39 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 2/2] rwsem: do optimistic spinning for writer lock
+ acquisition
+Message-ID: <20130625073739.GX28407@twins.programming.kicks-ass.net>
+References: <cover.1371855277.git.tim.c.chen@linux.intel.com>
+ <1371858700.22432.5.camel@schen9-DESK>
+ <51C558E2.1040108@hurleysoftware.com>
+ <1372017836.1797.14.camel@buesod1.americas.hpqcorp.net>
+ <1372093876.22432.34.camel@schen9-DESK>
+ <51C894C3.4040407@hurleysoftware.com>
+ <1372105065.22432.65.camel@schen9-DESK>
 MIME-Version: 1.0
-Subject: Re: [Suggestion] arch: s390: mm: the warnings with allmodconfig and
- "EXTRA_CFLAGS=-W"
-References: <51C8F685.6000209@asianux.com> <51C8F861.9010101@asianux.com> <20130625085006.01a7f368@mschwide>
-In-Reply-To: <20130625085006.01a7f368@mschwide>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1372105065.22432.65.camel@schen9-DESK>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, linux390@de.ibm.com, cornelia.huck@de.ibm.com, mtosatti@redhat.com, Thomas Gleixner <tglx@linutronix.de>, linux-s390@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux-Arch <linux-arch@vger.kernel.org>, linux-mm@kvack.org
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Peter Hurley <peter@hurleysoftware.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Alex Shi <alex.shi@intel.com>, Michel Lespinasse <walken@google.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-On 06/25/2013 02:50 PM, Martin Schwidefsky wrote:
-> On Tue, 25 Jun 2013 09:54:41 +0800
-> Chen Gang <gang.chen@asianux.com> wrote:
+On Mon, Jun 24, 2013 at 01:17:45PM -0700, Tim Chen wrote:
+> On second thought, I agree with you.  I should change this to
+> something like
 > 
->> > Hello Maintainers:
->> > 
->> > When allmodconfig for " IBM zSeries model z800 and z900"
->> > 
->> > It will report the related warnings ("EXTRA_CFLAGS=-W"):
->> >   mm/slub.c:1875:1: warning: a??deactivate_slaba?? uses dynamic stack allocation [enabled by default]
->> >   mm/slub.c:1941:1: warning: a??unfreeze_partials.isra.32a?? uses dynamic stack allocation [enabled by default]
->> >   mm/slub.c:2575:1: warning: a??__slab_freea?? uses dynamic stack allocation [enabled by default]
->> >   mm/slub.c:1582:1: warning: a??get_partial_node.isra.34a?? uses dynamic stack allocation [enabled by default]
->> >   mm/slub.c:2311:1: warning: a??__slab_alloc.constprop.42a?? uses dynamic stack allocation [enabled by default]
->> > 
->> > Is it OK ?
-> Yes, these warnings should be ok. They are enabled by CONFIG_WARN_DYNAMIC_STACK,
-> the purpose is to find all functions with dynamic stack allocations. The check
-> if the allocations are truly ok needs to be done manually as the compiler
-> can not find out the maximum allocation size automatically.
+> 	int retval = true;
+> 	task_struct *sem_owner;
+> 
+> 	/* Spin only if active writer running */
+> 	if (!sem->owner)
+> 		return false;
+> 
+> 	rcu_read_lock();
+> 	sem_owner = sem->owner;
 
-Thank you very much for your details information.
+That should be: sem_owner = ACCESS_ONCE(sem->owner); to make sure the
+compiler doesn't try and be clever and rereads.
 
--- 
-Chen Gang
-
-Asianux Corporation
+> 	if (sem_owner)
+> 		retval = sem_owner->on_cpu;
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
