@@ -1,55 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 4FC426B0032
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2013 12:46:26 -0400 (EDT)
-Message-ID: <51C9C960.6070706@sr71.net>
-Date: Tue, 25 Jun 2013 09:46:24 -0700
-From: Dave Hansen <dave@sr71.net>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 2C99D6B0032
+	for <linux-mm@kvack.org>; Tue, 25 Jun 2013 13:38:20 -0400 (EDT)
+Message-ID: <51C9D56F.8040400@infradead.org>
+Date: Tue, 25 Jun 2013 10:37:51 -0700
+From: Randy Dunlap <rdunlap@infradead.org>
 MIME-Version: 1.0
-Subject: Re: [PATCHv4 27/39] x86-64, mm: proper alignment mappings with hugepages
-References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com> <1368321816-17719-28-git-send-email-kirill.shutemov@linux.intel.com> <519BFBA9.7040007@sr71.net> <20130625145655.68DCBE0090@blue.fi.intel.com>
-In-Reply-To: <20130625145655.68DCBE0090@blue.fi.intel.com>
+Subject: Re: [PATCH] slab: add kmalloc() to kernel API documentation
+References: <1372177015-30492-1-git-send-email-michael.opdenacker@free-electrons.com>
+In-Reply-To: <1372177015-30492-1-git-send-email-michael.opdenacker@free-electrons.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Michael Opdenacker <michael.opdenacker@free-electrons.com>
+Cc: cl@linux-foundation.org, penberg@kernel.org, mpm@selenic.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 06/25/2013 07:56 AM, Kirill A. Shutemov wrote:
-> Dave Hansen wrote:
->> On 05/11/2013 06:23 PM, Kirill A. Shutemov wrote:
->>> +static inline unsigned long mapping_align_mask(struct address_space *mapping)
->>> +{
->>> +	if (mapping_can_have_hugepages(mapping))
->>> +		return PAGE_MASK & ~HPAGE_MASK;
->>> +	return get_align_mask();
->>> +}
->>
->> get_align_mask() appears to be a bit more complicated to me than just a
->> plain old mask.  Are you sure you don't need to pick up any of its
->> behavior for the mapping_can_have_hugepages() case?
+On 06/25/13 09:16, Michael Opdenacker wrote:
+> At the moment, kmalloc() isn't even listed in the kernel API
+> documentation (DocBook/kernel-api.html after running "make htmldocs").
 > 
-> get_align_mask() never returns more strict mask then we do in
-> mapping_can_have_hugepages() case.
+> Another issue is that the documentation for kmalloc_node()
+> refers to kcalloc()'s documentation to describe its 'flags' parameter,
+> while kcalloc() refered to kmalloc()'s documentation, which doesn't exist!
 > 
-> I can modify it this way:
+> This patch is a proposed fix for this. It also removes the documentation
+> for kmalloc() in include/linux/slob_def.h which isn't included to
+> generate the documentation anyway. This way, kmalloc() is described
+> in only one place.
 > 
->         unsigned long mask = get_align_mask();
-> 
->         if (mapping_can_have_hugepages(mapping))
->                 mask &= PAGE_MASK & ~HPAGE_MASK;
->         return mask;
-> 
-> But it looks more confusing for me. What do you think?
+> Signed-off-by: Michael Opdenacker <michael.opdenacker@free-electrons.com>\
 
-Personally, I find that a *LOT* more clear.  The &= pretty much spells
-out what you said in your explanation: get_align_mask()'s mask can only
-be made more strict when we encounter a huge page.
+Acked-by: Randy Dunlap <rdunlap@infradead.org>
 
-The relationship between the two masks is not apparent at all in your
-original code.  This is all nitpicking though, I just wanted to make
-sure you'd considered if you were accidentally changing behavior.
+Thanks.
+
+
+> ---
+>  include/linux/slab.h     | 18 ++++++++++++++----
+>  include/linux/slob_def.h |  8 --------
+>  2 files changed, 14 insertions(+), 12 deletions(-)
+> 
+> diff --git a/include/linux/slab.h b/include/linux/slab.h
+> index 0c62175..dffc7a2 100644
+> --- a/include/linux/slab.h
+> +++ b/include/linux/slab.h
+> @@ -356,9 +356,8 @@ int cache_show(struct kmem_cache *s, struct seq_file *m);
+>  void print_slabinfo_header(struct seq_file *m);
+>  
+>  /**
+> - * kmalloc_array - allocate memory for an array.
+> - * @n: number of elements.
+> - * @size: element size.
+> + * kmalloc - allocate memory
+> + * @size: how many bytes of memory are required.
+>   * @flags: the type of memory to allocate.
+>   *
+>   * The @flags argument may be one of:
+> @@ -405,6 +404,17 @@ void print_slabinfo_header(struct seq_file *m);
+>   * There are other flags available as well, but these are not intended
+>   * for general use, and so are not documented here. For a full list of
+>   * potential flags, always refer to linux/gfp.h.
+> + *
+> + * kmalloc is the normal method of allocating memory
+> + * in the kernel.
+> + */
+> +static __always_inline void *kmalloc(size_t size, gfp_t flags);
+> +
+> +/**
+> + * kmalloc_array - allocate memory for an array.
+> + * @n: number of elements.
+> + * @size: element size.
+> + * @flags: the type of memory to allocate (see kmalloc).
+>   */
+>  static inline void *kmalloc_array(size_t n, size_t size, gfp_t flags)
+>  {
+> @@ -428,7 +438,7 @@ static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
+>  /**
+>   * kmalloc_node - allocate memory from a specific node
+>   * @size: how many bytes of memory are required.
+> - * @flags: the type of memory to allocate (see kcalloc).
+> + * @flags: the type of memory to allocate (see kmalloc).
+>   * @node: node to allocate from.
+>   *
+>   * kmalloc() for non-local nodes, used to allocate from a specific node
+> diff --git a/include/linux/slob_def.h b/include/linux/slob_def.h
+> index f28e14a..095a5a4 100644
+> --- a/include/linux/slob_def.h
+> +++ b/include/linux/slob_def.h
+> @@ -18,14 +18,6 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+>  	return __kmalloc_node(size, flags, node);
+>  }
+>  
+> -/**
+> - * kmalloc - allocate memory
+> - * @size: how many bytes of memory are required.
+> - * @flags: the type of memory to allocate (see kcalloc).
+> - *
+> - * kmalloc is the normal method of allocating memory
+> - * in the kernel.
+> - */
+>  static __always_inline void *kmalloc(size_t size, gfp_t flags)
+>  {
+>  	return __kmalloc_node(size, flags, NUMA_NO_NODE);
+> 
+
+
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
