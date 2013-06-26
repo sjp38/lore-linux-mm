@@ -1,77 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id CB31C6B0032
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 09:44:53 -0400 (EDT)
-Date: Wed, 26 Jun 2013 09:44:48 -0400
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id F20066B0036
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 09:45:53 -0400 (EDT)
+Date: Wed, 26 Jun 2013 09:45:48 -0400
 From: Luiz Capitulino <lcapitulino@redhat.com>
 Subject: Re: [PATCH] vmpressure: implement strict mode
-Message-ID: <20130626094448.4375035e@redhat.com>
-In-Reply-To: <20130626082040.GI29127@bbox>
+Message-ID: <20130626094548.24c68511@redhat.com>
+In-Reply-To: <20130626080827.GE28748@dhcp22.suse.cz>
 References: <20130625175129.7c0d79e1@redhat.com>
-	<20130626075051.GG29127@bbox>
-	<20130626075921.GD28748@dhcp22.suse.cz>
-	<20130626082040.GI29127@bbox>
+	<20130626080827.GE28748@dhcp22.suse.cz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, anton@enomsg.org, akpm@linux-foundation.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, minchan@kernel.org, anton@enomsg.org, akpm@linux-foundation.org
 
-On Wed, 26 Jun 2013 17:20:40 +0900
-Minchan Kim <minchan@kernel.org> wrote:
+On Wed, 26 Jun 2013 10:08:27 +0200
+Michal Hocko <mhocko@suse.cz> wrote:
 
-> Hello Michal,
-> 
-> On Wed, Jun 26, 2013 at 09:59:21AM +0200, Michal Hocko wrote:
-> > On Wed 26-06-13 16:50:51, Minchan Kim wrote:
-> > > On Tue, Jun 25, 2013 at 05:51:29PM -0400, Luiz Capitulino wrote:
-> > > > Currently, applications are notified for the level they registered for
-> > > > _plus_ higher levels.
-> > > > 
-> > > > This is a problem if the application wants to implement different
-> > > > actions for different levels. For example, an application might want
-> > > > to release 10% of its cache on level low, 50% on medium and 100% on
-> > > > critical. To do this, the application has to register a different fd
-> > > > for each event. However, fd low is always going to be notified and
-> > > > and all fds are going to be notified on level critical.
-> > > > 
-> > > > Strict mode solves this problem by strictly notifiying the event
-> > > > an fd has registered for. It's optional. By default we still notify
-> > > > on higher levels.
-> > > > 
-> > > > Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
-> > > Acked-by: Minchan Kim <minchan@kernel.org>
-> > > 
-> > > Shouldn't we make this default?
+> On Tue 25-06-13 17:51:29, Luiz Capitulino wrote:
+> > Currently, applications are notified for the level they registered for
+> > _plus_ higher levels.
 > > 
-> > The interface is not there for long but still, changing it is always
-> > quite tricky. And the users who care can be modified really easily so I
-> > would stick with the original default.
+> > This is a problem if the application wants to implement different
+> > actions for different levels. For example, an application might want
+> > to release 10% of its cache on level low, 50% on medium and 100% on
+> > critical. To do this, the application has to register a different fd
+> > for each event. However, fd low is always going to be notified and
+> > and all fds are going to be notified on level critical.
 > 
-> Yeb, I am not strong against to stick old at a moment but at least,
-> this patch makes more sense to me so I'd like to know why we didn't do it
-> from the beginning. Surely, Anton has a answer.
+> OK, I am not user of this interface but I thought that the application
+> would take an action of the highest level it gets notification. But yes
+> this might get clumsy to implement.
+> 
+> > Strict mode solves this problem by strictly notifiying the event
+> > an fd has registered for. It's optional. By default we still notify
+> > on higher levels.
+> 
+> OK, makes some sense to me and it should work with the proposed edge
+> trigerring as well.
+> 
+> > Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
+> > ---
+> > 
+> > PS: I'm following the discussion on the event storm problem, but I believe
+> >     strict mode is orthogonal to what has been suggested (although the
+> >     patches conflict)
+> > 
+> >  Documentation/cgroups/memory.txt | 10 ++++++----
+> >  mm/vmpressure.c                  | 19 +++++++++++++++++--
+> >  2 files changed, 23 insertions(+), 6 deletions(-)
+> > 
+> > diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+> > index ddf4f93..3c589cf 100644
+> > --- a/Documentation/cgroups/memory.txt
+> > +++ b/Documentation/cgroups/memory.txt
+> > @@ -807,12 +807,14 @@ register a notification, an application must:
+> >  
+> >  - create an eventfd using eventfd(2);
+> >  - open memory.pressure_level;
+> > -- write string like "<event_fd> <fd of memory.pressure_level> <level>"
+> > +- write string like "<event_fd> <fd of memory.pressure_level> <level> [strict]"
+> >    to cgroup.event_control.
+> >  
+> > -Application will be notified through eventfd when memory pressure is at
+> > -the specific level (or higher). Read/write operations to
+> > -memory.pressure_level are no implemented.
+> > +Applications will be notified through eventfd when memory pressure is at
+> > +the specific level or higher. If strict is passed, then applications
+> > +will only be notified when memory pressure reaches the specified level.
+> 
+> It would be good to describe when is strick and when the default
+> appropriate.
 
-That's exactly my thinking too: I think strict mode should be the default
-mode, and the current mode should be optional. But it's not a big deal.
+Yeah, Anton asked for the same thing. Will do it.
 
-I've discussed this issue with Anton some weeks ago, and iirc (Anton,
-please correct/clarify where appropriate) the conclusion was that the
-current schema makes sense for apps monitoring reclaim activity, as
-they can hook on low only.
+> > +
+> > +Read/write operations to memory.pressure_level are no implemented.
+> >  
+> >  Test:
+> >  
+> > diff --git a/mm/vmpressure.c b/mm/vmpressure.c
+> > index 736a601..6289ede 100644
+> > --- a/mm/vmpressure.c
+> > +++ b/mm/vmpressure.c
+> > @@ -137,6 +137,7 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
+> >  struct vmpressure_event {
+> >  	struct eventfd_ctx *efd;
+> >  	enum vmpressure_levels level;
+> > +	bool strict_mode;
+> 
+> Any reason to not using a flag for this? If there are any other modes to
+> come them we would end up with zilions of bools which is not very nice.
 
-Hmm. Something just crossed my mind. Maybe we should have two
-notification schemas:
+Good point, I'll change it.
 
- o memory.pressure_level: implements strict mode (this patch)
-
- o memory.reclaim_activity: apps are notified whenever there's reclaim
-							activity
-
-As for changing applications, it's better to get some breakage while
-we're in -rc than regret the API later.
+> 
+> >  	struct list_head node;
+> >  };
+> >  
+> > @@ -153,6 +154,9 @@ static bool vmpressure_event(struct vmpressure *vmpr,
+> >  
+> >  	list_for_each_entry(ev, &vmpr->events, node) {
+> >  		if (level >= ev->level) {
+> > +			/* strict mode ensures level == ev->level */
+> > +			if (ev->strict_mode && level != ev->level)
+> > +				continue;
+> >  			eventfd_signal(ev->efd, 1);
+> >  			signalled = true;
+> >  		}
+> > @@ -292,7 +296,7 @@ void vmpressure_prio(gfp_t gfp, struct mem_cgroup *memcg, int prio)
+> >   * infrastructure, so that the notifications will be delivered to the
+> >   * @eventfd. The @args parameter is a string that denotes pressure level
+> >   * threshold (one of vmpressure_str_levels, i.e. "low", "medium", or
+> > - * "critical").
+> > + * "critical") and optionally a different operating mode (i.e. "strict")
+> >   *
+> >   * This function should not be used directly, just pass it to (struct
+> >   * cftype).register_event, and then cgroup core will handle everything by
+> > @@ -303,22 +307,33 @@ int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
+> >  {
+> >  	struct vmpressure *vmpr = cg_to_vmpressure(cg);
+> >  	struct vmpressure_event *ev;
+> > +	bool smode = false;
+> > +	const char *p;
+> >  	int level;
+> >  
+> >  	for (level = 0; level < VMPRESSURE_NUM_LEVELS; level++) {
+> > -		if (!strcmp(vmpressure_str_levels[level], args))
+> > +		p = vmpressure_str_levels[level];
+> > +		if (!strncmp(p, args, strlen(p)))
+> >  			break;
+> >  	}
+> >  
+> >  	if (level >= VMPRESSURE_NUM_LEVELS)
+> >  		return -EINVAL;
+> >  
+> > +	p = strchr(args, ' ');
+> > +	if (p) {
+> > +		if (strncmp(++p, "strict", 6))
+> > +			return -EINVAL;
+> > +		smode = true;
+> > +	}
+> > +
+> >  	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
+> >  	if (!ev)
+> >  		return -ENOMEM;
+> >  
+> >  	ev->efd = eventfd;
+> >  	ev->level = level;
+> > +	ev->strict_mode = smode;
+> >  
+> >  	mutex_lock(&vmpr->events_lock);
+> >  	list_add(&ev->node, &vmpr->events);
+> > -- 
+> > 1.8.1.4
+> > 
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
