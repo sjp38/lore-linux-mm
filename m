@@ -1,159 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id F11E46B0036
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 04:08:28 -0400 (EDT)
-Date: Wed, 26 Jun 2013 10:08:27 +0200
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id AD77A6B0032
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 04:15:11 -0400 (EDT)
+Date: Wed, 26 Jun 2013 10:15:09 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] vmpressure: implement strict mode
-Message-ID: <20130626080827.GE28748@dhcp22.suse.cz>
-References: <20130625175129.7c0d79e1@redhat.com>
+Subject: Re: linux-next: slab shrinkers: BUG at mm/list_lru.c:92
+Message-ID: <20130626081509.GF28748@dhcp22.suse.cz>
+References: <20130617141822.GF5018@dhcp22.suse.cz>
+ <20130617151403.GA25172@localhost.localdomain>
+ <20130617143508.7417f1ac9ecd15d8b2877f76@linux-foundation.org>
+ <20130617223004.GB2538@localhost.localdomain>
+ <20130618024623.GP29338@dastard>
+ <20130618063104.GB20528@localhost.localdomain>
+ <20130618082414.GC13677@dhcp22.suse.cz>
+ <20130618104443.GH13677@dhcp22.suse.cz>
+ <20130618135025.GK13677@dhcp22.suse.cz>
+ <20130625022754.GP29376@dastard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130625175129.7c0d79e1@redhat.com>
+In-Reply-To: <20130625022754.GP29376@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luiz Capitulino <lcapitulino@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, minchan@kernel.org, anton@enomsg.org, akpm@linux-foundation.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Glauber Costa <glommer@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 25-06-13 17:51:29, Luiz Capitulino wrote:
-> Currently, applications are notified for the level they registered for
-> _plus_ higher levels.
+On Tue 25-06-13 12:27:54, Dave Chinner wrote:
+> On Tue, Jun 18, 2013 at 03:50:25PM +0200, Michal Hocko wrote:
+> > And again, another hang. It looks like the inode deletion never
+> > finishes. The good thing is that I do not see any LRU related BUG_ONs
+> > anymore. I am going to test with the other patch in the thread.
+> > 
+> > 2476 [<ffffffff8118325e>] __wait_on_freeing_inode+0x9e/0xc0	<<< waiting for an inode to go away
+> > [<ffffffff81183321>] find_inode_fast+0xa1/0xc0
+> > [<ffffffff8118525f>] iget_locked+0x4f/0x180
+> > [<ffffffff811ef9e3>] ext4_iget+0x33/0x9f0
+> > [<ffffffff811f6a1c>] ext4_lookup+0xbc/0x160
+> > [<ffffffff81174ad0>] lookup_real+0x20/0x60
+> > [<ffffffff81177e25>] lookup_open+0x175/0x1d0
+> > [<ffffffff8117815e>] do_last+0x2de/0x780			<<< holds i_mutex
+> > [<ffffffff8117ae9a>] path_openat+0xda/0x400
+> > [<ffffffff8117b303>] do_filp_open+0x43/0xa0
+> > [<ffffffff81168ee0>] do_sys_open+0x160/0x1e0
+> > [<ffffffff81168f9c>] sys_open+0x1c/0x20
+> > [<ffffffff81582fe9>] system_call_fastpath+0x16/0x1b
+> > [<ffffffffffffffff>] 0xffffffffffffffff
 > 
-> This is a problem if the application wants to implement different
-> actions for different levels. For example, an application might want
-> to release 10% of its cache on level low, 50% on medium and 100% on
-> critical. To do this, the application has to register a different fd
-> for each event. However, fd low is always going to be notified and
-> and all fds are going to be notified on level critical.
+> I don't think this has anything to do with LRUs.
 
-OK, I am not user of this interface but I thought that the application
-would take an action of the highest level it gets notification. But yes
-this might get clumsy to implement.
+I am not claiming that. It might be a timing issue which never mattered
+but it is strange I can reproduce this so easily and repeatedly with the
+shrinkers patchset applied.
+As I said earlier, this might be breakage in my -mm tree as well
+(missing some patch which didn't go via Andrew or misapplied patch). The
+situation is worsen by the state of linux-next which has some unrelated
+issues.
 
-> Strict mode solves this problem by strictly notifiying the event
-> an fd has registered for. It's optional. By default we still notify
-> on higher levels.
+I really do not want to delay the whole patchset just because of some
+problem on my side. Do you have any tree that I should try to test?
 
-OK, makes some sense to me and it should work with the proposed edge
-trigerring as well.
-
-> Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
-> ---
+> __wait_on_freeing_inode() only blocks once the inode is being freed
+> (i.e. I_FREEING is set), and that happens when a lookup is done when
+> the inode is still in the inode hash.
 > 
-> PS: I'm following the discussion on the event storm problem, but I believe
->     strict mode is orthogonal to what has been suggested (although the
->     patches conflict)
+> I_FREEING is set on the inode at the same time it is removed from
+> the LRU, and from that point onwards the LRUs play no part in the
+> inode being freed and anyone waiting on the inode being freed
+> getting woken.
 > 
->  Documentation/cgroups/memory.txt | 10 ++++++----
->  mm/vmpressure.c                  | 19 +++++++++++++++++--
->  2 files changed, 23 insertions(+), 6 deletions(-)
+> The only way I can see this happening, is if there is a dispose list
+> that is not getting processed properly. e.g., we move a bunch on
+> inodes to the dispose list setting I_FREEING, then for some reason
+> it gets dropped on the ground and so the wakeup call doesn't happen
+> when the inode has been removed from the hash.
 > 
-> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-> index ddf4f93..3c589cf 100644
-> --- a/Documentation/cgroups/memory.txt
-> +++ b/Documentation/cgroups/memory.txt
-> @@ -807,12 +807,14 @@ register a notification, an application must:
->  
->  - create an eventfd using eventfd(2);
->  - open memory.pressure_level;
-> -- write string like "<event_fd> <fd of memory.pressure_level> <level>"
-> +- write string like "<event_fd> <fd of memory.pressure_level> <level> [strict]"
->    to cgroup.event_control.
->  
-> -Application will be notified through eventfd when memory pressure is at
-> -the specific level (or higher). Read/write operations to
-> -memory.pressure_level are no implemented.
-> +Applications will be notified through eventfd when memory pressure is at
-> +the specific level or higher. If strict is passed, then applications
-> +will only be notified when memory pressure reaches the specified level.
+> I can't see anywhere in the code that this happens, though, but it
+> might be some pre-existing race in the inode hash that you are now
+> triggering because freeing will be happening in parallel on multiple
+> nodes rather than serialising on a global lock...
+> 
+> I won't have seen this on XFS stress testing, because it doesn't use
+> the VFS inode hashes for inode lookups. Given that XFS is not
+> triggering either problem you are seeing, that makes me think
 
-It would be good to describe when is strick and when the default
-appropriate.
+I haven't tested with xfs.
 
-> +
-> +Read/write operations to memory.pressure_level are no implemented.
->  
->  Test:
->  
-> diff --git a/mm/vmpressure.c b/mm/vmpressure.c
-> index 736a601..6289ede 100644
-> --- a/mm/vmpressure.c
-> +++ b/mm/vmpressure.c
-> @@ -137,6 +137,7 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
->  struct vmpressure_event {
->  	struct eventfd_ctx *efd;
->  	enum vmpressure_levels level;
-> +	bool strict_mode;
-
-Any reason to not using a flag for this? If there are any other modes to
-come them we would end up with zilions of bools which is not very nice.
-
->  	struct list_head node;
->  };
->  
-> @@ -153,6 +154,9 @@ static bool vmpressure_event(struct vmpressure *vmpr,
->  
->  	list_for_each_entry(ev, &vmpr->events, node) {
->  		if (level >= ev->level) {
-> +			/* strict mode ensures level == ev->level */
-> +			if (ev->strict_mode && level != ev->level)
-> +				continue;
->  			eventfd_signal(ev->efd, 1);
->  			signalled = true;
->  		}
-> @@ -292,7 +296,7 @@ void vmpressure_prio(gfp_t gfp, struct mem_cgroup *memcg, int prio)
->   * infrastructure, so that the notifications will be delivered to the
->   * @eventfd. The @args parameter is a string that denotes pressure level
->   * threshold (one of vmpressure_str_levels, i.e. "low", "medium", or
-> - * "critical").
-> + * "critical") and optionally a different operating mode (i.e. "strict")
->   *
->   * This function should not be used directly, just pass it to (struct
->   * cftype).register_event, and then cgroup core will handle everything by
-> @@ -303,22 +307,33 @@ int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
->  {
->  	struct vmpressure *vmpr = cg_to_vmpressure(cg);
->  	struct vmpressure_event *ev;
-> +	bool smode = false;
-> +	const char *p;
->  	int level;
->  
->  	for (level = 0; level < VMPRESSURE_NUM_LEVELS; level++) {
-> -		if (!strcmp(vmpressure_str_levels[level], args))
-> +		p = vmpressure_str_levels[level];
-> +		if (!strncmp(p, args, strlen(p)))
->  			break;
->  	}
->  
->  	if (level >= VMPRESSURE_NUM_LEVELS)
->  		return -EINVAL;
->  
-> +	p = strchr(args, ' ');
-> +	if (p) {
-> +		if (strncmp(++p, "strict", 6))
-> +			return -EINVAL;
-> +		smode = true;
-> +	}
-> +
->  	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
->  	if (!ev)
->  		return -ENOMEM;
->  
->  	ev->efd = eventfd;
->  	ev->level = level;
-> +	ev->strict_mode = smode;
->  
->  	mutex_lock(&vmpr->events_lock);
->  	list_add(&ev->node, &vmpr->events);
+> that it might be a pre-existing inode hash lookup/reclaim race
+> condition, not a LRU problem.
+> 
+> Cheers,
+> 
+> Dave.
 > -- 
-> 1.8.1.4
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Dave Chinner
+> david@fromorbit.com
 
 -- 
 Michal Hocko
