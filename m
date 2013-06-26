@@ -1,151 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 80C526B0032
-	for <linux-mm@kvack.org>; Tue, 25 Jun 2013 20:19:53 -0400 (EDT)
-Subject: Re: Performance regression from switching lock to rw-sem for
- anon-vma tree
-From: Tim Chen <tim.c.chen@linux.intel.com>
-In-Reply-To: <1371660831.27102.663.camel@schen9-DESK>
-References: <1371165992.27102.573.camel@schen9-DESK>
-	 <20130619131611.GC24957@gmail.com> <1371660831.27102.663.camel@schen9-DESK>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 25 Jun 2013 17:19:56 -0700
-Message-ID: <1372205996.22432.119.camel@schen9-DESK>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 8575E6B0032
+	for <linux-mm@kvack.org>; Tue, 25 Jun 2013 20:28:32 -0400 (EDT)
+Received: by mail-oa0-f54.google.com with SMTP id o6so14295634oag.13
+        for <linux-mm@kvack.org>; Tue, 25 Jun 2013 17:28:31 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20130625175129.7c0d79e1@redhat.com>
+References: <20130625175129.7c0d79e1@redhat.com>
+Date: Wed, 26 Jun 2013 09:28:31 +0900
+Message-ID: <CAH9JG2U6Kg9MBdFX-OnfrqGAsJGJwEMkg01-uUycF1r3VyZqrg@mail.gmail.com>
+Subject: Re: [PATCH] vmpressure: implement strict mode
+From: Kyungmin Park <kmpark@infradead.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, "Shi, Alex" <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Luiz Capitulino <lcapitulino@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.cz, minchan@kernel.org, anton@enomsg.org, akpm@linux-foundation.org, Hyunhee Kim <hyunhee.kim@samsung.com>
 
-On Wed, 2013-06-19 at 09:53 -0700, Tim Chen wrote: 
-> On Wed, 2013-06-19 at 15:16 +0200, Ingo Molnar wrote:
-> 
-> > > vmstat for mutex implementation: 
-> > > procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu-----
-> > >  r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
-> > > 38  0      0 130957920  47860 199956    0    0     0    56 236342 476975 14 72 14  0  0
-> > > 41  0      0 130938560  47860 219900    0    0     0     0 236816 479676 14 72 14  0  0
-> > > 
-> > > vmstat for rw-sem implementation (3.10-rc4)
-> > > procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu-----
-> > >  r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
-> > > 40  0      0 130933984  43232 202584    0    0     0     0 321817 690741 13 71 16  0  0
-> > > 39  0      0 130913904  43232 224812    0    0     0     0 322193 692949 13 71 16  0  0
-> > 
-> > It appears the main difference is that the rwsem variant context-switches 
-> > about 36% more than the mutex version, right?
-> > 
-> > I'm wondering how that's possible - the lock is mostly write-locked, 
-> > correct? So the lock-stealing from Davidlohr Bueso and Michel Lespinasse 
-> > ought to have brought roughly the same lock-stealing behavior as mutexes 
-> > do, right?
-> > 
-> > So the next analytical step would be to figure out why rwsem lock-stealing 
-> > is not behaving in an equivalent fashion on this workload. Do readers come 
-> > in frequently enough to disrupt write-lock-stealing perhaps?
++ Ms. Kim,
 
-Ingo, 
+she already raised this issue at another mail thread.
 
-I did some instrumentation on the write lock failure path.  I found that
-for the exim workload, there are no readers blocking for the rwsem when
-write locking failed.  The lock stealing is successful for 9.1% of the
-time and the rest of the write lock failure caused the writer to go to
-sleep.  About 1.4% of the writers sleep more than once. Majority of the
-writers sleep once.
+Thank you,
+Kyungmin Park
 
-It is weird that lock stealing is not successful more often.
-
-Tim
-
-> > 
-> > Context-switch call-graph profiling might shed some light on where the 
-> > extra context switches come from...
-> > 
-> > Something like:
-> > 
-> >   perf record -g -e sched:sched_switch --filter 'prev_state != 0' -a sleep 1
-> > 
-> > or a variant thereof might do the trick.
-> > 
-> 
-> Ingo,
-> 
-> It appears that we are having much more down write failure causing a process to
-> block vs going to the slow path for the mutex case.
-> 
-> Here's the profile data from
-> perf record -g -e sched:sched_switch --filter 'prev_state != 0' -a sleep 1
-> 
-> 3.10-rc4 (mutex implementation context switch profile)
-> 
-> -  59.51%             exim  [kernel.kallsyms]  [k] perf_trace_sched_switch
->    - perf_trace_sched_switch
->    - __schedule
->       - 99.98% schedule
->          + 33.07% schedule_timeout
->          + 23.84% pipe_wait
->          + 20.24% do_wait
->          + 12.37% do_exit
->          + 5.34% sigsuspend
->          - 3.40% schedule_preempt_disabled
->               __mutex_lock_common.clone.8
->               __mutex_lock_slowpath
->             - mutex_lock                   <---------low rate mutex blocking
->                + 65.71% lock_anon_vma_root.clone.24
->                + 19.03% anon_vma_lock.clone.21
->                + 7.14% dup_mm
->                + 5.36% unlink_file_vma
->                + 1.71% ima_file_check
->                + 0.64% generic_file_aio_write
->          - 1.07% rwsem_down_write_failed
->               call_rwsem_down_write_failed
->               exit_shm
->               do_exit
->               do_group_exit
->               SyS_exit_group
->               system_call_fastpath
-> -  27.61%           smtpbm  [kernel.kallsyms]  [k] perf_trace_sched_switch
->    - perf_trace_sched_switch
->    - __schedule
->    - schedule
->    - schedule_timeout
->       + 100.00% sk_wait_data
-> +   0.46%          swapper  [kernel.kallsyms]  [k] perf_trace_sched_switch
-> 
-> 
-> ----------------------
-> 3.10-rc4 implementation (rw-sem context switch profile)
-> 
-> 81.91%             exim  [kernel.kallsyms]  [k] perf_trace_sched_switch
-> - perf_trace_sched_switch
-> - __schedule
->    - 99.99% schedule
->       - 65.26% rwsem_down_write_failed   <------High write lock blocking
->          - call_rwsem_down_write_failed
->             - 79.36% lock_anon_vma_root.clone.27
->                + 52.64% unlink_anon_vmas
->                + 47.36% anon_vma_clone
->             + 12.16% anon_vma_fork
->             + 8.00% anon_vma_free
->       + 11.96% schedule_timeout
->       + 7.66% do_exit
->       + 7.61% do_wait
->       + 5.49% pipe_wait
->       + 1.82% sigsuspend
-> 13.55%           smtpbm  [kernel.kallsyms]  [k] perf_trace_sched_switch
-> - perf_trace_sched_switch
-> - __schedule
-> - schedule
-> - schedule_timeout
->  0.11%        rcu_sched  [kernel.kallsyms]  [k] perf_trace_sched_switch
-> 
-> 
-> Thanks.
-> 
-> Tim
-
-
+On Wed, Jun 26, 2013 at 6:51 AM, Luiz Capitulino <lcapitulino@redhat.com> wrote:
+> Currently, applications are notified for the level they registered for
+> _plus_ higher levels.
+>
+> This is a problem if the application wants to implement different
+> actions for different levels. For example, an application might want
+> to release 10% of its cache on level low, 50% on medium and 100% on
+> critical. To do this, the application has to register a different fd
+> for each event. However, fd low is always going to be notified and
+> and all fds are going to be notified on level critical.
+>
+> Strict mode solves this problem by strictly notifiying the event
+> an fd has registered for. It's optional. By default we still notify
+> on higher levels.
+>
+> Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
+> ---
+>
+> PS: I'm following the discussion on the event storm problem, but I believe
+>     strict mode is orthogonal to what has been suggested (although the
+>     patches conflict)
+>
+>  Documentation/cgroups/memory.txt | 10 ++++++----
+>  mm/vmpressure.c                  | 19 +++++++++++++++++--
+>  2 files changed, 23 insertions(+), 6 deletions(-)
+>
+> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+> index ddf4f93..3c589cf 100644
+> --- a/Documentation/cgroups/memory.txt
+> +++ b/Documentation/cgroups/memory.txt
+> @@ -807,12 +807,14 @@ register a notification, an application must:
+>
+>  - create an eventfd using eventfd(2);
+>  - open memory.pressure_level;
+> -- write string like "<event_fd> <fd of memory.pressure_level> <level>"
+> +- write string like "<event_fd> <fd of memory.pressure_level> <level> [strict]"
+>    to cgroup.event_control.
+>
+> -Application will be notified through eventfd when memory pressure is at
+> -the specific level (or higher). Read/write operations to
+> -memory.pressure_level are no implemented.
+> +Applications will be notified through eventfd when memory pressure is at
+> +the specific level or higher. If strict is passed, then applications
+> +will only be notified when memory pressure reaches the specified level.
+> +
+> +Read/write operations to memory.pressure_level are no implemented.
+>
+>  Test:
+>
+> diff --git a/mm/vmpressure.c b/mm/vmpressure.c
+> index 736a601..6289ede 100644
+> --- a/mm/vmpressure.c
+> +++ b/mm/vmpressure.c
+> @@ -137,6 +137,7 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
+>  struct vmpressure_event {
+>         struct eventfd_ctx *efd;
+>         enum vmpressure_levels level;
+> +       bool strict_mode;
+>         struct list_head node;
+>  };
+>
+> @@ -153,6 +154,9 @@ static bool vmpressure_event(struct vmpressure *vmpr,
+>
+>         list_for_each_entry(ev, &vmpr->events, node) {
+>                 if (level >= ev->level) {
+> +                       /* strict mode ensures level == ev->level */
+> +                       if (ev->strict_mode && level != ev->level)
+> +                               continue;
+>                         eventfd_signal(ev->efd, 1);
+>                         signalled = true;
+>                 }
+> @@ -292,7 +296,7 @@ void vmpressure_prio(gfp_t gfp, struct mem_cgroup *memcg, int prio)
+>   * infrastructure, so that the notifications will be delivered to the
+>   * @eventfd. The @args parameter is a string that denotes pressure level
+>   * threshold (one of vmpressure_str_levels, i.e. "low", "medium", or
+> - * "critical").
+> + * "critical") and optionally a different operating mode (i.e. "strict")
+>   *
+>   * This function should not be used directly, just pass it to (struct
+>   * cftype).register_event, and then cgroup core will handle everything by
+> @@ -303,22 +307,33 @@ int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
+>  {
+>         struct vmpressure *vmpr = cg_to_vmpressure(cg);
+>         struct vmpressure_event *ev;
+> +       bool smode = false;
+> +       const char *p;
+>         int level;
+>
+>         for (level = 0; level < VMPRESSURE_NUM_LEVELS; level++) {
+> -               if (!strcmp(vmpressure_str_levels[level], args))
+> +               p = vmpressure_str_levels[level];
+> +               if (!strncmp(p, args, strlen(p)))
+>                         break;
+>         }
+>
+>         if (level >= VMPRESSURE_NUM_LEVELS)
+>                 return -EINVAL;
+>
+> +       p = strchr(args, ' ');
+> +       if (p) {
+> +               if (strncmp(++p, "strict", 6))
+> +                       return -EINVAL;
+> +               smode = true;
+> +       }
+> +
+>         ev = kzalloc(sizeof(*ev), GFP_KERNEL);
+>         if (!ev)
+>                 return -ENOMEM;
+>
+>         ev->efd = eventfd;
+>         ev->level = level;
+> +       ev->strict_mode = smode;
+>
+>         mutex_lock(&vmpr->events_lock);
+>         list_add(&ev->node, &vmpr->events);
+> --
+> 1.8.1.4
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
