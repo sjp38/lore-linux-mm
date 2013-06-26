@@ -1,83 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id EE38F6B0034
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 16:38:17 -0400 (EDT)
-Date: Wed, 26 Jun 2013 22:38:03 +0200
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 0DBAF6B0034
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 16:48:24 -0400 (EDT)
+Date: Wed, 26 Jun 2013 22:48:16 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Subject: Re: [PATCH 3/7] mm: compaction: don't depend on kswapd to invoke
  reset_isolation_suitable
-Message-ID: <20130626203803.GC28030@redhat.com>
+Message-ID: <20130626204816.GD28030@redhat.com>
 References: <1370445037-24144-1-git-send-email-aarcange@redhat.com>
  <1370445037-24144-4-git-send-email-aarcange@redhat.com>
- <51AF9630.5040105@redhat.com>
+ <20130606091148.GE1936@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51AF9630.5040105@redhat.com>
+In-Reply-To: <20130606091148.GE1936@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>
 
-On Wed, Jun 05, 2013 at 03:49:04PM -0400, Rik van Riel wrote:
-> On 06/05/2013 11:10 AM, Andrea Arcangeli wrote:
-> > If kswapd never need to run (only __GFP_NO_KSWAPD allocations and
-> > plenty of free memory) compaction is otherwise crippled down and stops
-> > running for a while after the free/isolation cursor meets. After that
-> > allocation can fail for a full cycle of compaction_deferred, until
-> > compaction_restarting finally reset it again.
-> >
-> > Stopping compaction for a full cycle after the cursor meets, even if
-> > it never failed and it's not going to fail, doesn't make sense.
-> >
-> > We already throttle compaction CPU utilization using
-> > defer_compaction. We shouldn't prevent compaction to run after each
-> > pass completes when the cursor meets, unless it failed.
-> >
-> > This makes direct compaction functional again. The throttling of
-> > direct compaction is still controlled by the defer_compaction
-> > logic.
-> >
-> > kswapd still won't risk to reset compaction, and it will wait direct
-> > compaction to do so. Not sure if this is ideal but it at least
-> > decreases the risk of kswapd doing too much work. kswapd will only run
-> > one pass of compaction until some allocation invokes compaction again.
-> 
-> Won't kswapd reset compaction even with your patch,
-> but only when kswapd invokes compaction and the cursors
-> meet?
+On Thu, Jun 06, 2013 at 10:11:48AM +0100, Mel Gorman wrote:
+> That was part of a series that addressed a problem where processes
+> stalled for prolonged periods of time in compaction. I see your point
 
-kswapd won't ever reset it because of the current_is_kswapd check.
+Yes.
 
-> In other words, the behaviour should be correct even
-> for cases where kswapd is the only thing in the system
-> doing compaction (eg. GFP_ATOMIC higher order allocations),
-> but your changelog does not describe it completely.
+> and I do not have a better suggestion at this time but I'll keep an eye
+> out for regressions in that area.
 
-In that case with the previous code compact_blockskip_flush would
-never get set and still compaction would never be resetted.
+That's my exact concern too, and there's not much we can do about
+it. But not calling compaction reliably, simply guarantees spurious
+failures where it would be trivial to allocate THP and we just don't
+even try to compact memory.
 
-> > This decreased reliability of compaction was introduced in commit
-> > 62997027ca5b3d4618198ed8b1aba40b61b1137b .
-> >
-> > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> 
-> The code looks good to me.
-> 
-> Reviewed-by: Rik van Riel <riel@redhat.com>
+Of course we have khugepaged that fixes it up for THP.
 
-Thanks. Not sure if this does exactly what you expected but it's not
-changing the behavior of the GFP_ATOMIC load if compared to the
-current upstream comapction code.
+But in the NUMA case (without automatic NUMA balancing enabled), the
+transparent hugepage could be allocated in the wrong node and it will
+stay there forever.
 
-The first attempt to add compaction in kswapd a few years back failed
-because it slowed down network NFS loads with jumbo frames.  kswapd
-was doing too much compaction for very short lived allocations
-(worthless and totally wasted CPU), so I believe this time compaction
-in kswapd worked out just because we don't activate with GFP_ATOMIC
-network jumbo frame allocations. So the above to me sounds more a
-feature than a bug and that's why I've been careful not to ever reset
-compaction within kswapd (just like the previous code).
+In general it should be more optimal not to require khugepaged or
+automatic NUMA balancing to fix up allocator errors after the fact,
+especially because they both won't help with short lived
+allocations. And especially the NUMA effect could be measurable for
+short lived allocations that may go in the wrong node (like while
+building with gcc).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
