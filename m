@@ -1,48 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 830CA6B0034
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 14:38:52 -0400 (EDT)
-Date: Wed, 26 Jun 2013 11:38:51 -0700
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH] zcache: initialize module properly when zcache=FOO is
- given
-Message-ID: <20130626183851.GA10591@kroah.com>
-References: <1372258142-7019-1-git-send-email-mhocko@suse.cz>
- <20130626150116.GA6004@phenom.dumpdata.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20130626150116.GA6004@phenom.dumpdata.com>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 986DC6B0034
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 14:53:47 -0400 (EDT)
+Received: from list by plane.gmane.org with local (Exim 4.69)
+	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
+	id 1Uruqf-0003hj-Av
+	for linux-mm@kvack.org; Wed, 26 Jun 2013 20:53:45 +0200
+Received: from c-24-17-197-101.hsd1.wa.comcast.net ([24.17.197.101])
+        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2013 20:53:45 +0200
+Received: from eternaleye by c-24-17-197-101.hsd1.wa.comcast.net with local (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2013 20:53:45 +0200
+From: Alex Elsayed <eternaleye@gmail.com>
+Subject: Re: RFC: named anonymous vmas
+Date: Wed, 26 Jun 2013 11:53:32 -0700
+Message-ID: <kqfdb6$haq$2@ger.gmane.org>
+References: <CAMbhsRQU=xrcum+ZUbG3S+JfFUJK_qm_VB96Vz=PpL=vQYhUvg@mail.gmail.com> <20130622103158.GA16304@infradead.org> <CAMbhsRTz246dWPQOburNor2HvrgbN-AWb2jT_AEywtJHFbKWsA@mail.gmail.com> <kq4v0b$p8p$3@ger.gmane.org> <20130624114832.GA9961@infradead.org> <CAMbhsRTdMaVR1LZRigumDqz_e5FgeyfJLrSHCDs8t7ywrmumTQ@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7Bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <lliubbo@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Cristian =?iso-8859-1?Q?Rodr=EDguez?= <crrodriguez@opensuse.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 
-On Wed, Jun 26, 2013 at 11:01:16AM -0400, Konrad Rzeszutek Wilk wrote:
-> On Wed, Jun 26, 2013 at 04:49:02PM +0200, Michal Hocko wrote:
-> > 835f2f51 (staging: zcache: enable zcache to be built/loaded as a module)
-> > introduced in 3.10-rc1 has introduced a bug for zcache=FOO module
-> > parameter processing.
-> > 
-> > zcache_comp_init return code doesn't agree with crypto_has_comp which
-> > uses 1 for the success unlike zcache_comp_init which uses 0. This
-> > causes module loading failure even if the given algorithm is supported:
-> > [    0.815330] zcache: compressor initialization failed
-> > 
-> > Reported-by: Cristian Rodriguez <crrodriguez@opensuse.org>
-> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+Colin Cross wrote:
+
+> On Mon, Jun 24, 2013 at 4:48 AM, Christoph Hellwig <hch@infradead.org>
+> wrote:
+>> On Sat, Jun 22, 2013 at 12:47:29PM -0700, Alex Elsayed wrote:
+>>> Couldn't this be done by having a root-only tmpfs, and having a
+>>> userspace component that creates per-app directories with restrictive
+>>> permissions on startup/app install? Then each app creates files in its
+>>> own directory, and can pass the fds around.
 > 
-> Looks OK to me.
-> 
-> Cc-ing Greg.
+> If each app gets its own writable directory that's not really
+> different than a world writable tmpfs.  It requires something that
+> watches for apps to exit for any reason and cleans up their
+> directories, and it requires each app to come up with an unused name
+> when it wants to create a file, and the kernel can give you both very
+> cleanly.
 
-That's nice, but can someone resend it in a format that I can apply it
-in, with your ack?
+Not so far as I can tell. I'm thinking specifically in the Android model of 
+'one user per app', and as I see it the issues with a world writable tmpfs 
+would be:
 
-thanks,
+1.) Race conditions and all the sticky bit bugs of history - app A tries to 
+create file foo, but app C is doing the same. This is resolved with per-app 
+directories and restrictive permissions.
 
-greg k-h
+2.) Resource exhaustion - implementing this for a mmap'ed device node as 
+described in HCH's mail would amount to implementing some sort of quota 
+support. A world-writable tmpfs would require user quotas. A dir-per-app 
+tmpfs could mount a separate, limited tmpfs on each even in the absence of 
+user quotas, and mount -o remount,size=$foo works to change those limits 
+(within certain bounds of behavior).
+
+3.) Cleanup - doing this with a device makes it simple, yes; once the FDs 
+are closed the mapping goes away. But if the only way the mapping gets 
+shared is via FD passing, and your users are all via a platform library, 
+unlink() after open(O_CREAT) would get you the same behavior as I understand 
+it. At that point, the only thing to clean up is the per-app directory 
+itself, which can be done on app uninstall IIUC.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
