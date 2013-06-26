@@ -1,103 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id AD77A6B0032
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 04:15:11 -0400 (EDT)
-Date: Wed, 26 Jun 2013 10:15:09 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: linux-next: slab shrinkers: BUG at mm/list_lru.c:92
-Message-ID: <20130626081509.GF28748@dhcp22.suse.cz>
-References: <20130617141822.GF5018@dhcp22.suse.cz>
- <20130617151403.GA25172@localhost.localdomain>
- <20130617143508.7417f1ac9ecd15d8b2877f76@linux-foundation.org>
- <20130617223004.GB2538@localhost.localdomain>
- <20130618024623.GP29338@dastard>
- <20130618063104.GB20528@localhost.localdomain>
- <20130618082414.GC13677@dhcp22.suse.cz>
- <20130618104443.GH13677@dhcp22.suse.cz>
- <20130618135025.GK13677@dhcp22.suse.cz>
- <20130625022754.GP29376@dastard>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id D44B36B0032
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 04:20:34 -0400 (EDT)
+Date: Wed, 26 Jun 2013 17:20:40 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] vmpressure: implement strict mode
+Message-ID: <20130626082040.GI29127@bbox>
+References: <20130625175129.7c0d79e1@redhat.com>
+ <20130626075051.GG29127@bbox>
+ <20130626075921.GD28748@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130625022754.GP29376@dastard>
+In-Reply-To: <20130626075921.GD28748@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Glauber Costa <glommer@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Luiz Capitulino <lcapitulino@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, anton@enomsg.org, akpm@linux-foundation.org
 
-On Tue 25-06-13 12:27:54, Dave Chinner wrote:
-> On Tue, Jun 18, 2013 at 03:50:25PM +0200, Michal Hocko wrote:
-> > And again, another hang. It looks like the inode deletion never
-> > finishes. The good thing is that I do not see any LRU related BUG_ONs
-> > anymore. I am going to test with the other patch in the thread.
+Hello Michal,
+
+On Wed, Jun 26, 2013 at 09:59:21AM +0200, Michal Hocko wrote:
+> On Wed 26-06-13 16:50:51, Minchan Kim wrote:
+> > On Tue, Jun 25, 2013 at 05:51:29PM -0400, Luiz Capitulino wrote:
+> > > Currently, applications are notified for the level they registered for
+> > > _plus_ higher levels.
+> > > 
+> > > This is a problem if the application wants to implement different
+> > > actions for different levels. For example, an application might want
+> > > to release 10% of its cache on level low, 50% on medium and 100% on
+> > > critical. To do this, the application has to register a different fd
+> > > for each event. However, fd low is always going to be notified and
+> > > and all fds are going to be notified on level critical.
+> > > 
+> > > Strict mode solves this problem by strictly notifiying the event
+> > > an fd has registered for. It's optional. By default we still notify
+> > > on higher levels.
+> > > 
+> > > Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
+> > Acked-by: Minchan Kim <minchan@kernel.org>
 > > 
-> > 2476 [<ffffffff8118325e>] __wait_on_freeing_inode+0x9e/0xc0	<<< waiting for an inode to go away
-> > [<ffffffff81183321>] find_inode_fast+0xa1/0xc0
-> > [<ffffffff8118525f>] iget_locked+0x4f/0x180
-> > [<ffffffff811ef9e3>] ext4_iget+0x33/0x9f0
-> > [<ffffffff811f6a1c>] ext4_lookup+0xbc/0x160
-> > [<ffffffff81174ad0>] lookup_real+0x20/0x60
-> > [<ffffffff81177e25>] lookup_open+0x175/0x1d0
-> > [<ffffffff8117815e>] do_last+0x2de/0x780			<<< holds i_mutex
-> > [<ffffffff8117ae9a>] path_openat+0xda/0x400
-> > [<ffffffff8117b303>] do_filp_open+0x43/0xa0
-> > [<ffffffff81168ee0>] do_sys_open+0x160/0x1e0
-> > [<ffffffff81168f9c>] sys_open+0x1c/0x20
-> > [<ffffffff81582fe9>] system_call_fastpath+0x16/0x1b
-> > [<ffffffffffffffff>] 0xffffffffffffffff
+> > Shouldn't we make this default?
 > 
-> I don't think this has anything to do with LRUs.
+> The interface is not there for long but still, changing it is always
+> quite tricky. And the users who care can be modified really easily so I
+> would stick with the original default.
 
-I am not claiming that. It might be a timing issue which never mattered
-but it is strange I can reproduce this so easily and repeatedly with the
-shrinkers patchset applied.
-As I said earlier, this might be breakage in my -mm tree as well
-(missing some patch which didn't go via Andrew or misapplied patch). The
-situation is worsen by the state of linux-next which has some unrelated
-issues.
+Yeb, I am not strong against to stick old at a moment but at least,
+this patch makes more sense to me so I'd like to know why we didn't do it
+from the beginning. Surely, Anton has a answer.
 
-I really do not want to delay the whole patchset just because of some
-problem on my side. Do you have any tree that I should try to test?
-
-> __wait_on_freeing_inode() only blocks once the inode is being freed
-> (i.e. I_FREEING is set), and that happens when a lookup is done when
-> the inode is still in the inode hash.
 > 
-> I_FREEING is set on the inode at the same time it is removed from
-> the LRU, and from that point onwards the LRUs play no part in the
-> inode being freed and anyone waiting on the inode being freed
-> getting woken.
-> 
-> The only way I can see this happening, is if there is a dispose list
-> that is not getting processed properly. e.g., we move a bunch on
-> inodes to the dispose list setting I_FREEING, then for some reason
-> it gets dropped on the ground and so the wakeup call doesn't happen
-> when the inode has been removed from the hash.
-> 
-> I can't see anywhere in the code that this happens, though, but it
-> might be some pre-existing race in the inode hash that you are now
-> triggering because freeing will be happening in parallel on multiple
-> nodes rather than serialising on a global lock...
-> 
-> I won't have seen this on XFS stress testing, because it doesn't use
-> the VFS inode hashes for inode lookups. Given that XFS is not
-> triggering either problem you are seeing, that makes me think
-
-I haven't tested with xfs.
-
-> that it might be a pre-existing inode hash lookup/reclaim race
-> condition, not a LRU problem.
-> 
-> Cheers,
-> 
-> Dave.
 > -- 
-> Dave Chinner
-> david@fromorbit.com
+> Michal Hocko
+> SUSE Labs
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
-Michal Hocko
-SUSE Labs
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
