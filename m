@@ -1,42 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id BB74E6B0036
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 02:30:09 -0400 (EDT)
-Received: by mail-la0-f44.google.com with SMTP id er20so13252394lab.3
-        for <linux-mm@kvack.org>; Tue, 25 Jun 2013 23:30:07 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id B51586B0036
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 02:30:20 -0400 (EDT)
+Received: by mail-la0-f44.google.com with SMTP id er20so13424666lab.31
+        for <linux-mm@kvack.org>; Tue, 25 Jun 2013 23:30:18 -0700 (PDT)
 From: Glauber Costa <glommer@gmail.com>
-Subject: [PATCH 0/2] fixes for list_lru
-Date: Wed, 26 Jun 2013 02:29:39 -0400
-Message-Id: <1372228181-18827-1-git-send-email-glommer@openvz.org>
+Subject: [PATCH 1/2] inode: move inode to a different list inside lock
+Date: Wed, 26 Jun 2013 02:29:40 -0400
+Message-Id: <1372228181-18827-2-git-send-email-glommer@openvz.org>
+In-Reply-To: <1372228181-18827-1-git-send-email-glommer@openvz.org>
+References: <1372228181-18827-1-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm <linux-mm@kvack.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, dchinner@redhat.com, Michal Hocko <mhocko@suse.cz>, Glauber Costa <glommer@openvz.org>
 
-Hi Andrew,
+When removing an element from the lru, this will be done today after the lock
+is released. This is a clear mistake, although we are not sure if the bugs we
+are seeing are related to this. All list manipulations are done inside the
+lock, and so should this one.
 
-I can't find those fixes - or replies to it - anywehere.
-Maybe I just forgot to hit send ? If that is the case, sorry
-about that.
+Signed-off-by: Glauber Costa <glommer@openvz.org>
+---
+ fs/inode.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-I am resending just in case. They are supposed to be
-folded to their respective patches:
-- inode-convert-inode-lru-list-to-generic-lru-list-code.patch
-- list_lru-dynamically-adjust-node-arrays.patch
-
-Thanks
-
-
-Glauber Costa (2):
-  inode: move inode to a different list inside lock
-  super: fix for destroy lrus
-
- fs/inode.c       | 2 +-
- fs/super.c       | 3 +++
- fs/xfs/xfs_buf.c | 2 +-
- fs/xfs/xfs_qm.c  | 2 +-
- 4 files changed, 6 insertions(+), 3 deletions(-)
-
+diff --git a/fs/inode.c b/fs/inode.c
+index a2b49c8..e315c0a 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -735,9 +735,9 @@ inode_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
+ 
+ 	WARN_ON(inode->i_state & I_NEW);
+ 	inode->i_state |= I_FREEING;
++	list_move(&inode->i_lru, freeable);
+ 	spin_unlock(&inode->i_lock);
+ 
+-	list_move(&inode->i_lru, freeable);
+ 	this_cpu_dec(nr_unused);
+ 	return LRU_REMOVED;
+ }
 -- 
 1.8.2.1
 
