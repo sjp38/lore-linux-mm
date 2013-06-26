@@ -1,112 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 6C42A6B0034
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 19:18:14 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id hz11so212335pad.16
-        for <linux-mm@kvack.org>; Wed, 26 Jun 2013 16:18:13 -0700 (PDT)
-Date: Wed, 26 Jun 2013 16:18:11 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, memcg: add oom killer delay
-In-Reply-To: <51C8F4B9.9060604@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.02.1306261606050.27897@chino.kir.corp.google.com>
-References: <20130603193147.GC23659@dhcp22.suse.cz> <alpine.DEB.2.02.1306031411380.22083@chino.kir.corp.google.com> <20130604095514.GC31242@dhcp22.suse.cz> <alpine.DEB.2.02.1306042329320.20610@chino.kir.corp.google.com> <20130605093937.GK15997@dhcp22.suse.cz>
- <alpine.DEB.2.02.1306051657001.29626@chino.kir.corp.google.com> <20130610142321.GE5138@dhcp22.suse.cz> <alpine.DEB.2.02.1306111321360.32688@chino.kir.corp.google.com> <20130612202348.GA17282@dhcp22.suse.cz> <alpine.DEB.2.02.1306121408490.24902@chino.kir.corp.google.com>
- <20130613151602.GG23070@dhcp22.suse.cz> <alpine.DEB.2.02.1306131508300.8686@chino.kir.corp.google.com> <51BA6A2A.3060107@jp.fujitsu.com> <alpine.DEB.2.02.1306140254590.8780@chino.kir.corp.google.com> <51C8F4B9.9060604@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id C7C6C6B0034
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 19:24:32 -0400 (EDT)
+Date: Thu, 27 Jun 2013 09:24:26 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: linux-next: slab shrinkers: BUG at mm/list_lru.c:92
+Message-ID: <20130626232426.GA29034@dastard>
+References: <20130617151403.GA25172@localhost.localdomain>
+ <20130617143508.7417f1ac9ecd15d8b2877f76@linux-foundation.org>
+ <20130617223004.GB2538@localhost.localdomain>
+ <20130618024623.GP29338@dastard>
+ <20130618063104.GB20528@localhost.localdomain>
+ <20130618082414.GC13677@dhcp22.suse.cz>
+ <20130618104443.GH13677@dhcp22.suse.cz>
+ <20130618135025.GK13677@dhcp22.suse.cz>
+ <20130625022754.GP29376@dastard>
+ <20130626081509.GF28748@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130626081509.GF28748@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Glauber Costa <glommer@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, 25 Jun 2013, Kamezawa Hiroyuki wrote:
-
-> Considering only memcg, bypassing all charge-limit-check will work.
-> But as you say, that will not work against global-oom.
-
-I think it will since we have per-zone memory reserves that can be 
-bypassed in the page allocator, not to the level of PF_MEMALLOC or 
-TIF_MEMDIE but perhaps to the min watermark / 4, for example.  A userspace 
-global oom handler will obviously be mlocked in memory and this reserve is 
-used only for true kmem accounting so that reading things like the memcg 
-tasks file or reading /proc/pid/stat works, or dynamically allocate a 
-buffer to store data to iterate over.  This is why 
-memory.oom_delay_millisecs is crucial: we want the same functionality that 
-the "user root" has for global oom conditions at the memcg root level and 
-in case reserves are exhausted that the kernel will kill something (which 
-should be rare, but possible) and use the rest of memory reserves to allow 
-to exit.
-
-> > Even with all of the above (which is not actually that invasive of a
-> > patch), I still think we need memory.oom_delay_millisecs.  I probably made
-> > a mistake in describing what that is addressing if it seems like it's
-> > trying to address any of the above.
+On Wed, Jun 26, 2013 at 10:15:09AM +0200, Michal Hocko wrote:
+> On Tue 25-06-13 12:27:54, Dave Chinner wrote:
+> > On Tue, Jun 18, 2013 at 03:50:25PM +0200, Michal Hocko wrote:
+> > > And again, another hang. It looks like the inode deletion never
+> > > finishes. The good thing is that I do not see any LRU related BUG_ONs
+> > > anymore. I am going to test with the other patch in the thread.
+> > > 
+> > > 2476 [<ffffffff8118325e>] __wait_on_freeing_inode+0x9e/0xc0	<<< waiting for an inode to go away
+> > > [<ffffffff81183321>] find_inode_fast+0xa1/0xc0
+> > > [<ffffffff8118525f>] iget_locked+0x4f/0x180
+> > > [<ffffffff811ef9e3>] ext4_iget+0x33/0x9f0
+> > > [<ffffffff811f6a1c>] ext4_lookup+0xbc/0x160
+> > > [<ffffffff81174ad0>] lookup_real+0x20/0x60
+> > > [<ffffffff81177e25>] lookup_open+0x175/0x1d0
+> > > [<ffffffff8117815e>] do_last+0x2de/0x780			<<< holds i_mutex
+> > > [<ffffffff8117ae9a>] path_openat+0xda/0x400
+> > > [<ffffffff8117b303>] do_filp_open+0x43/0xa0
+> > > [<ffffffff81168ee0>] do_sys_open+0x160/0x1e0
+> > > [<ffffffff81168f9c>] sys_open+0x1c/0x20
+> > > [<ffffffff81582fe9>] system_call_fastpath+0x16/0x1b
+> > > [<ffffffffffffffff>] 0xffffffffffffffff
 > > 
-> > If a userspace oom handler fails to respond even with access to those
-> > "memcg reserves",
+> > I don't think this has anything to do with LRUs.
 > 
-> How this happens ?
+> I am not claiming that. It might be a timing issue which never mattered
+> but it is strange I can reproduce this so easily and repeatedly with the
+> shrinkers patchset applied.
+> As I said earlier, this might be breakage in my -mm tree as well
+> (missing some patch which didn't go via Andrew or misapplied patch). The
+> situation is worsen by the state of linux-next which has some unrelated
+> issues.
 > 
+> I really do not want to delay the whole patchset just because of some
+> problem on my side. Do you have any tree that I should try to test?
 
-If the memcg reserves are exhausted, then the kernel needs to kill 
-something even in global oom conditions (consider a "user root" memcg tree 
-to be the same as a global oom condition for processes attached to that 
-tree) since otherwise the machine hangs.  There's no guarantee that some 
-root process sitting in the root memcg would be able to enforce this delay 
-as Michal suggests since reserves could be depleted.  It's important we 
-don't do something as extreme as PF_MEMALLOC so all per-zone reserves are 
-depleted so that the kernel can still intervene and kill something when 
-userspace is unresponsive.
+No, I've just been testing Glauber's tree and sending patches for
+problems back to him based on it.
 
-> Someone may be against that kind of control and say "Hey, I have better idea".
-> That was another reason that oom-scirpiting was discussed. No one can
-> implement
-> general-purpose-victim-selection-logic.
+> > I won't have seen this on XFS stress testing, because it doesn't use
+> > the VFS inode hashes for inode lookups. Given that XFS is not
+> > triggering either problem you are seeing, that makes me think
 > 
+> I haven't tested with xfs.
 
-Completely agreed, and our experience shows that users who manipulate 
-their own "user root" memcgs have their own logic, this is why we're 
-trying to make userspace oom handling as powerful as possible without 
-risking making the machine unresponsive.
+That might be worthwhile if you can easily do that - another data
+point indicating a hang or absence of a hang will help point us in
+the right direction here...
 
-> IMHO, it will be difficult but allowing to write script/filter for oom-killing
-> will be worth to try. like..
-> 
-> ==
-> for_each_process :
->   if comm == mem_manage_daemon :
->      continue
->   if user == root              :
->      continue
->   score = default_calc_score()
->   if score > high_score :
->      selected = current
-> ==
-> 
+Cheers,
 
-This is effectively what already happens with the oom delay as proposed 
-here, the userspace oom handler is given access to "memcg reserves" and a 
-period of time to respond; if that fails, then the kernel will kill 
-something the next time we try to charge to the memcg.
-
-> BTW, if you love the logic in the userland oom daemon, why you can't implement
-> it in the kernel ? Does that do some pretty things other than sending SIGKILL
-> ?
-> 
-
-Some do "pretty" things like collect stats and dump it before killing 
-something, but we also want oom handlers that don't do SIGKILL at all.  An 
-example: we statically allocate hugepages at boot because we need a large 
-percentage of memory to be backed by hugepages for a certain class of 
-applications and it's only available at boot.  We also have a userspace 
-that runs on these machines that is shared between hugepage machines and 
-non-hugepage machines.  At times, this userspace becomes oom because the 
-remainder of available memory is allocated as hugetlb pages when in 
-reality they are unmapped and sitting in a free pool.  In that case, our 
-userspace oom handler wants to free those hugetlb pages back to the kernel 
-down to a certain watermark and then opportunistically reallocate them to 
-the pool when memory usage on the system is lower due to spikes in the 
-userspace.
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
