@@ -1,169 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id F20066B0036
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 09:45:53 -0400 (EDT)
-Date: Wed, 26 Jun 2013 09:45:48 -0400
-From: Luiz Capitulino <lcapitulino@redhat.com>
-Subject: Re: [PATCH] vmpressure: implement strict mode
-Message-ID: <20130626094548.24c68511@redhat.com>
-In-Reply-To: <20130626080827.GE28748@dhcp22.suse.cz>
-References: <20130625175129.7c0d79e1@redhat.com>
-	<20130626080827.GE28748@dhcp22.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 3432E6B0036
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 10:38:11 -0400 (EDT)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 1/8] mm: numa: Document automatic NUMA balancing sysctls
+Date: Wed, 26 Jun 2013 15:38:00 +0100
+Message-Id: <1372257487-9749-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1372257487-9749-1-git-send-email-mgorman@suse.de>
+References: <1372257487-9749-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, minchan@kernel.org, anton@enomsg.org, akpm@linux-foundation.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-On Wed, 26 Jun 2013 10:08:27 +0200
-Michal Hocko <mhocko@suse.cz> wrote:
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ Documentation/sysctl/kernel.txt | 66 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 66 insertions(+)
 
-> On Tue 25-06-13 17:51:29, Luiz Capitulino wrote:
-> > Currently, applications are notified for the level they registered for
-> > _plus_ higher levels.
-> > 
-> > This is a problem if the application wants to implement different
-> > actions for different levels. For example, an application might want
-> > to release 10% of its cache on level low, 50% on medium and 100% on
-> > critical. To do this, the application has to register a different fd
-> > for each event. However, fd low is always going to be notified and
-> > and all fds are going to be notified on level critical.
-> 
-> OK, I am not user of this interface but I thought that the application
-> would take an action of the highest level it gets notification. But yes
-> this might get clumsy to implement.
-> 
-> > Strict mode solves this problem by strictly notifiying the event
-> > an fd has registered for. It's optional. By default we still notify
-> > on higher levels.
-> 
-> OK, makes some sense to me and it should work with the proposed edge
-> trigerring as well.
-> 
-> > Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
-> > ---
-> > 
-> > PS: I'm following the discussion on the event storm problem, but I believe
-> >     strict mode is orthogonal to what has been suggested (although the
-> >     patches conflict)
-> > 
-> >  Documentation/cgroups/memory.txt | 10 ++++++----
-> >  mm/vmpressure.c                  | 19 +++++++++++++++++--
-> >  2 files changed, 23 insertions(+), 6 deletions(-)
-> > 
-> > diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-> > index ddf4f93..3c589cf 100644
-> > --- a/Documentation/cgroups/memory.txt
-> > +++ b/Documentation/cgroups/memory.txt
-> > @@ -807,12 +807,14 @@ register a notification, an application must:
-> >  
-> >  - create an eventfd using eventfd(2);
-> >  - open memory.pressure_level;
-> > -- write string like "<event_fd> <fd of memory.pressure_level> <level>"
-> > +- write string like "<event_fd> <fd of memory.pressure_level> <level> [strict]"
-> >    to cgroup.event_control.
-> >  
-> > -Application will be notified through eventfd when memory pressure is at
-> > -the specific level (or higher). Read/write operations to
-> > -memory.pressure_level are no implemented.
-> > +Applications will be notified through eventfd when memory pressure is at
-> > +the specific level or higher. If strict is passed, then applications
-> > +will only be notified when memory pressure reaches the specified level.
-> 
-> It would be good to describe when is strick and when the default
-> appropriate.
-
-Yeah, Anton asked for the same thing. Will do it.
-
-> > +
-> > +Read/write operations to memory.pressure_level are no implemented.
-> >  
-> >  Test:
-> >  
-> > diff --git a/mm/vmpressure.c b/mm/vmpressure.c
-> > index 736a601..6289ede 100644
-> > --- a/mm/vmpressure.c
-> > +++ b/mm/vmpressure.c
-> > @@ -137,6 +137,7 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
-> >  struct vmpressure_event {
-> >  	struct eventfd_ctx *efd;
-> >  	enum vmpressure_levels level;
-> > +	bool strict_mode;
-> 
-> Any reason to not using a flag for this? If there are any other modes to
-> come them we would end up with zilions of bools which is not very nice.
-
-Good point, I'll change it.
-
-> 
-> >  	struct list_head node;
-> >  };
-> >  
-> > @@ -153,6 +154,9 @@ static bool vmpressure_event(struct vmpressure *vmpr,
-> >  
-> >  	list_for_each_entry(ev, &vmpr->events, node) {
-> >  		if (level >= ev->level) {
-> > +			/* strict mode ensures level == ev->level */
-> > +			if (ev->strict_mode && level != ev->level)
-> > +				continue;
-> >  			eventfd_signal(ev->efd, 1);
-> >  			signalled = true;
-> >  		}
-> > @@ -292,7 +296,7 @@ void vmpressure_prio(gfp_t gfp, struct mem_cgroup *memcg, int prio)
-> >   * infrastructure, so that the notifications will be delivered to the
-> >   * @eventfd. The @args parameter is a string that denotes pressure level
-> >   * threshold (one of vmpressure_str_levels, i.e. "low", "medium", or
-> > - * "critical").
-> > + * "critical") and optionally a different operating mode (i.e. "strict")
-> >   *
-> >   * This function should not be used directly, just pass it to (struct
-> >   * cftype).register_event, and then cgroup core will handle everything by
-> > @@ -303,22 +307,33 @@ int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
-> >  {
-> >  	struct vmpressure *vmpr = cg_to_vmpressure(cg);
-> >  	struct vmpressure_event *ev;
-> > +	bool smode = false;
-> > +	const char *p;
-> >  	int level;
-> >  
-> >  	for (level = 0; level < VMPRESSURE_NUM_LEVELS; level++) {
-> > -		if (!strcmp(vmpressure_str_levels[level], args))
-> > +		p = vmpressure_str_levels[level];
-> > +		if (!strncmp(p, args, strlen(p)))
-> >  			break;
-> >  	}
-> >  
-> >  	if (level >= VMPRESSURE_NUM_LEVELS)
-> >  		return -EINVAL;
-> >  
-> > +	p = strchr(args, ' ');
-> > +	if (p) {
-> > +		if (strncmp(++p, "strict", 6))
-> > +			return -EINVAL;
-> > +		smode = true;
-> > +	}
-> > +
-> >  	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
-> >  	if (!ev)
-> >  		return -ENOMEM;
-> >  
-> >  	ev->efd = eventfd;
-> >  	ev->level = level;
-> > +	ev->strict_mode = smode;
-> >  
-> >  	mutex_lock(&vmpr->events_lock);
-> >  	list_add(&ev->node, &vmpr->events);
-> > -- 
-> > 1.8.1.4
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+diff --git a/Documentation/sysctl/kernel.txt b/Documentation/sysctl/kernel.txt
+index ccd4258..0fe678c 100644
+--- a/Documentation/sysctl/kernel.txt
++++ b/Documentation/sysctl/kernel.txt
+@@ -354,6 +354,72 @@ utilize.
+ 
+ ==============================================================
+ 
++numa_balancing
++
++Enables/disables automatic page fault based NUMA memory
++balancing. Memory is moved automatically to nodes
++that access it often.
++
++Enables/disables automatic NUMA memory balancing. On NUMA machines, there
++is a performance penalty if remote memory is accessed by a CPU. When this
++feature is enabled the kernel samples what task thread is accessing memory
++by periodically unmapping pages and later trapping a page fault. At the
++time of the page fault, it is determined if the data being accessed should
++be migrated to a local memory node.
++
++The unmapping of pages and trapping faults incur additional overhead that
++ideally is offset by improved memory locality but there is no universal
++guarantee. If the target workload is already bound to NUMA nodes then this
++feature should be disabled. Otherwise, if the system overhead from the
++feature is too high then the rate the kernel samples for NUMA hinting
++faults may be controlled by the numa_balancing_scan_period_min_ms,
++numa_balancing_scan_delay_ms, numa_balancing_scan_period_reset,
++numa_balancing_scan_period_max_ms and numa_balancing_scan_size_mb sysctls.
++
++==============================================================
++
++numa_balancing_scan_period_min_ms, numa_balancing_scan_delay_ms,
++numa_balancing_scan_period_max_ms, numa_balancing_scan_period_reset,
++numa_balancing_scan_size_mb
++
++Automatic NUMA balancing scans tasks address space and unmaps pages to
++detect if pages are properly placed or if the data should be migrated to a
++memory node local to where the task is running.  Every "scan delay" the task
++scans the next "scan size" number of pages in its address space. When the
++end of the address space is reached the scanner restarts from the beginning.
++
++In combination, the "scan delay" and "scan size" determine the scan rate.
++When "scan delay" decreases, the scan rate increases.  The scan delay and
++hence the scan rate of every task is adaptive and depends on historical
++behaviour. If pages are properly placed then the scan delay increases,
++otherwise the scan delay decreases.  The "scan size" is not adaptive but
++the higher the "scan size", the higher the scan rate.
++
++Higher scan rates incur higher system overhead as page faults must be
++trapped and potentially data must be migrated. However, the higher the scan
++rate, the more quickly a tasks memory is migrated to a local node if the
++workload pattern changes and minimises performance impact due to remote
++memory accesses. These sysctls control the thresholds for scan delays and
++the number of pages scanned.
++
++numa_balancing_scan_period_min_ms is the minimum delay in milliseconds
++between scans. It effectively controls the maximum scanning rate for
++each task.
++
++numa_balancing_scan_delay_ms is the starting "scan delay" used for a task
++when it initially forks.
++
++numa_balancing_scan_period_max_ms is the maximum delay between scans. It
++effectively controls the minimum scanning rate for each task.
++
++numa_balancing_scan_size_mb is how many megabytes worth of pages are
++scanned for a given scan.
++
++numa_balancing_scan_period_reset is a blunt instrument that controls how
++often a tasks scan delay is reset to detect sudden changes in task behaviour.
++
++==============================================================
++
+ osrelease, ostype & version:
+ 
+ # cat osrelease
+-- 
+1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
