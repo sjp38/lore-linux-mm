@@ -1,50 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 0DBAF6B0034
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 16:48:24 -0400 (EDT)
-Date: Wed, 26 Jun 2013 22:48:16 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 3/7] mm: compaction: don't depend on kswapd to invoke
- reset_isolation_suitable
-Message-ID: <20130626204816.GD28030@redhat.com>
-References: <1370445037-24144-1-git-send-email-aarcange@redhat.com>
- <1370445037-24144-4-git-send-email-aarcange@redhat.com>
- <20130606091148.GE1936@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130606091148.GE1936@suse.de>
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id EF99F6B0036
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 17:36:00 -0400 (EDT)
+Subject: Re: Performance regression from switching lock to rw-sem for
+ anon-vma tree
+From: Tim Chen <tim.c.chen@linux.intel.com>
+In-Reply-To: <20130626095108.GB29181@gmail.com>
+References: <1371165992.27102.573.camel@schen9-DESK>
+	 <20130619131611.GC24957@gmail.com> <1371660831.27102.663.camel@schen9-DESK>
+	 <1372205996.22432.119.camel@schen9-DESK> <20130626095108.GB29181@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 26 Jun 2013 14:36:00 -0700
+Message-ID: <1372282560.22432.139.camel@schen9-DESK>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, "Shi, Alex" <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-On Thu, Jun 06, 2013 at 10:11:48AM +0100, Mel Gorman wrote:
-> That was part of a series that addressed a problem where processes
-> stalled for prolonged periods of time in compaction. I see your point
+On Wed, 2013-06-26 at 11:51 +0200, Ingo Molnar wrote: 
+> * Tim Chen <tim.c.chen@linux.intel.com> wrote:
+> 
+> > On Wed, 2013-06-19 at 09:53 -0700, Tim Chen wrote: 
+> > > On Wed, 2013-06-19 at 15:16 +0200, Ingo Molnar wrote:
+> > > 
+> > > > > vmstat for mutex implementation: 
+> > > > > procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu-----
+> > > > >  r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
+> > > > > 38  0      0 130957920  47860 199956    0    0     0    56 236342 476975 14 72 14  0  0
+> > > > > 41  0      0 130938560  47860 219900    0    0     0     0 236816 479676 14 72 14  0  0
+> > > > > 
+> > > > > vmstat for rw-sem implementation (3.10-rc4)
+> > > > > procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu-----
+> > > > >  r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
+> > > > > 40  0      0 130933984  43232 202584    0    0     0     0 321817 690741 13 71 16  0  0
+> > > > > 39  0      0 130913904  43232 224812    0    0     0     0 322193 692949 13 71 16  0  0
+> > > > 
+> > > > It appears the main difference is that the rwsem variant context-switches 
+> > > > about 36% more than the mutex version, right?
+> > > > 
+> > > > I'm wondering how that's possible - the lock is mostly write-locked, 
+> > > > correct? So the lock-stealing from Davidlohr Bueso and Michel Lespinasse 
+> > > > ought to have brought roughly the same lock-stealing behavior as mutexes 
+> > > > do, right?
+> > > > 
+> > > > So the next analytical step would be to figure out why rwsem lock-stealing 
+> > > > is not behaving in an equivalent fashion on this workload. Do readers come 
+> > > > in frequently enough to disrupt write-lock-stealing perhaps?
+> > 
+> > Ingo, 
+> > 
+> > I did some instrumentation on the write lock failure path.  I found that
+> > for the exim workload, there are no readers blocking for the rwsem when
+> > write locking failed.  The lock stealing is successful for 9.1% of the
+> > time and the rest of the write lock failure caused the writer to go to
+> > sleep.  About 1.4% of the writers sleep more than once. Majority of the
+> > writers sleep once.
+> > 
+> > It is weird that lock stealing is not successful more often.
+> 
+> For this to be comparable to the mutex scalability numbers you'd have to 
+> compare wlock-stealing _and_ adaptive spinning for failed-wlock rwsems.
+> 
+> Are both techniques applied in the kernel you are running your tests on?
+> 
 
-Yes.
+Ingo,
 
-> and I do not have a better suggestion at this time but I'll keep an eye
-> out for regressions in that area.
+The previous experiment was done on a kernel without spinning. 
+I've redone the testing on two kernel for a 15 sec stretch of the
+workload run.  One with the adaptive (or optimistic) 
+spinning and the other without.  Both have the patches from Alex to avoid 
+cmpxchg induced cache bouncing.
 
-That's my exact concern too, and there's not much we can do about
-it. But not calling compaction reliably, simply guarantees spurious
-failures where it would be trivial to allocate THP and we just don't
-even try to compact memory.
+With the spinning, I sleep much less for lock acquisition (18.6% vs 91.58%).
+However, I've got doubling of write lock acquisition getting
+blocked.  So that offset the gain from spinning which may be why
+I didn't see gain for this particular workload.
 
-Of course we have khugepaged that fixes it up for THP.
+						No Opt Spin	Opt Spin
+Writer acquisition blocked count		3448946		7359040
+Blocked by reader				0.00%		0.55%
+Lock acquired first attempt (lock stealing)	8.42%		16.92%
+Lock acquired second attempt (1 sleep)		90.26%		17.60%
+Lock acquired after more than 1 sleep		1.32%		1.00%
+Lock acquired with optimistic spin		N/A		64.48%
 
-But in the NUMA case (without automatic NUMA balancing enabled), the
-transparent hugepage could be allocated in the wrong node and it will
-stay there forever.
+Tim
 
-In general it should be more optimal not to require khugepaged or
-automatic NUMA balancing to fix up allocator errors after the fact,
-especially because they both won't help with short lived
-allocations. And especially the NUMA effect could be measurable for
-short lived allocations that may go in the wrong node (like while
-building with gcc).
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
