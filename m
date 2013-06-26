@@ -1,53 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id DA4776B0034
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 14:00:46 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id hz11so14639095pad.16
-        for <linux-mm@kvack.org>; Wed, 26 Jun 2013 11:00:46 -0700 (PDT)
-Date: Wed, 26 Jun 2013 11:00:43 -0700
-From: Anton Vorontsov <anton@enomsg.org>
-Subject: Re: [PATCH] vmpressure: implement strict mode
-Message-ID: <20130626180042.GA9827@teo>
-References: <20130625175129.7c0d79e1@redhat.com>
- <20130626075051.GG29127@bbox>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 830CA6B0034
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 14:38:52 -0400 (EDT)
+Date: Wed, 26 Jun 2013 11:38:51 -0700
+From: Greg KH <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH] zcache: initialize module properly when zcache=FOO is
+ given
+Message-ID: <20130626183851.GA10591@kroah.com>
+References: <1372258142-7019-1-git-send-email-mhocko@suse.cz>
+ <20130626150116.GA6004@phenom.dumpdata.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20130626075051.GG29127@bbox>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20130626150116.GA6004@phenom.dumpdata.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Luiz Capitulino <lcapitulino@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.cz, akpm@linux-foundation.org
+To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <lliubbo@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Cristian =?iso-8859-1?Q?Rodr=EDguez?= <crrodriguez@opensuse.org>
 
-On Wed, Jun 26, 2013 at 04:50:51PM +0900, Minchan Kim wrote:
-> On Tue, Jun 25, 2013 at 05:51:29PM -0400, Luiz Capitulino wrote:
-> > Currently, applications are notified for the level they registered for
-> > _plus_ higher levels.
+On Wed, Jun 26, 2013 at 11:01:16AM -0400, Konrad Rzeszutek Wilk wrote:
+> On Wed, Jun 26, 2013 at 04:49:02PM +0200, Michal Hocko wrote:
+> > 835f2f51 (staging: zcache: enable zcache to be built/loaded as a module)
+> > introduced in 3.10-rc1 has introduced a bug for zcache=FOO module
+> > parameter processing.
 > > 
-> > This is a problem if the application wants to implement different
-> > actions for different levels. For example, an application might want
-> > to release 10% of its cache on level low, 50% on medium and 100% on
-> > critical. To do this, the application has to register a different fd
-> > for each event. However, fd low is always going to be notified and
-> > and all fds are going to be notified on level critical.
+> > zcache_comp_init return code doesn't agree with crypto_has_comp which
+> > uses 1 for the success unlike zcache_comp_init which uses 0. This
+> > causes module loading failure even if the given algorithm is supported:
+> > [    0.815330] zcache: compressor initialization failed
 > > 
-> > Strict mode solves this problem by strictly notifiying the event
-> > an fd has registered for. It's optional. By default we still notify
-> > on higher levels.
-> > 
-> > Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
-> Acked-by: Minchan Kim <minchan@kernel.org>
+> > Reported-by: Cristian Rodriguez <crrodriguez@opensuse.org>
+> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
 > 
-> Shouldn't we make this default?
-> What do you think about it?
+> Looks OK to me.
+> 
+> Cc-ing Greg.
 
-Either way works and both modes have their use-cases (as I have described
-in my previous mail). Changing the default mode is just unneeded churn,
-IMO. As long as things are documented properly, we are good. :)
+That's nice, but can someone resend it in a format that I can apply it
+in, with your ack?
 
-Thanks,
+thanks,
 
-Anton
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
