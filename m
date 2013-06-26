@@ -1,101 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id D8B5F6B0034
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 16:10:27 -0400 (EDT)
-Date: Wed, 26 Jun 2013 22:10:11 +0200
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id EE38F6B0034
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 16:38:17 -0400 (EDT)
+Date: Wed, 26 Jun 2013 22:38:03 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 1/7] mm: remove ZONE_RECLAIM_LOCKED
-Message-ID: <20130626201011.GB28030@redhat.com>
+Subject: Re: [PATCH 3/7] mm: compaction: don't depend on kswapd to invoke
+ reset_isolation_suitable
+Message-ID: <20130626203803.GC28030@redhat.com>
 References: <1370445037-24144-1-git-send-email-aarcange@redhat.com>
- <1370445037-24144-2-git-send-email-aarcange@redhat.com>
- <20130606090430.GC1936@suse.de>
- <51B0C8D8.7070708@redhat.com>
- <51BB41EF.7080508@redhat.com>
- <20130617093010.GH1875@suse.de>
- <51BF519C.9000508@redhat.com>
+ <1370445037-24144-4-git-send-email-aarcange@redhat.com>
+ <51AF9630.5040105@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51BF519C.9000508@redhat.com>
+In-Reply-To: <51AF9630.5040105@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Rik van Riel <riel@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>
+Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>
 
-Hi!
-
-On Mon, Jun 17, 2013 at 02:12:44PM -0400, Rik van Riel wrote:
-> On 06/17/2013 05:30 AM, Mel Gorman wrote:
-> > On Fri, Jun 14, 2013 at 12:16:47PM -0400, Rik van Riel wrote:
-> >> On 06/06/2013 01:37 PM, Rik van Riel wrote:
-> >>> On 06/06/2013 05:04 AM, Mel Gorman wrote:
-> >>>> On Wed, Jun 05, 2013 at 05:10:31PM +0200, Andrea Arcangeli wrote:
-> >>>>> Zone reclaim locked breaks zone_reclaim_mode=1. If more than one
-> >>>>> thread allocates memory at the same time, it forces a premature
-> >>>>> allocation into remote NUMA nodes even when there's plenty of clean
-> >>>>> cache to reclaim in the local nodes.
-> >>>>>
-> >>>>> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> >>>>
-> >>>> Be aware that after this patch is applied that it is possible to have a
-> >>>> situation like this
-> >>>>
-> >>>> 1. 4 processes running on node 1
-> >>>> 2. Each process tries to allocate 30% of memory
-> >>>> 3. Each process reads the full buffer in a loop (stupid, just an example)
-> >>>>
-> >>>> In this situation the processes will continually interfere with each
-> >>>> other until one of them gets migrated to another zone by the scheduler.
-> >>>
-> >>> This is a very good point.
-> >>>
-> >>> Andrea, I suspect we will need some kind of safeguard against
-> >>> this problem.
-> >>
-> >> Never mind me.
-> >>
-> >> In __zone_reclaim we set the flags in swap_control so
-> >> we never unmap pages or swap pages out at all by
-> >> default, so this should not be an issue at all.
-> >>
-> >> In order to get the problem illustrated above, the
-> >> user will have to enable RECLAIM_SWAP through sysfs
-> >> manually.
-> >>
+On Wed, Jun 05, 2013 at 03:49:04PM -0400, Rik van Riel wrote:
+> On 06/05/2013 11:10 AM, Andrea Arcangeli wrote:
+> > If kswapd never need to run (only __GFP_NO_KSWAPD allocations and
+> > plenty of free memory) compaction is otherwise crippled down and stops
+> > running for a while after the free/isolation cursor meets. After that
+> > allocation can fail for a full cycle of compaction_deferred, until
+> > compaction_restarting finally reset it again.
 > >
-> > For the mapped case and the default tuning for zone_reclaim_mode then
-> > yes. If instead of allocating 30% of memory the processes are using using
-> > buffered reads/writes then they'll reach each others page cache pages and
-> > it's a very similar problem.
+> > Stopping compaction for a full cycle after the cursor meets, even if
+> > it never failed and it's not going to fail, doesn't make sense.
+> >
+> > We already throttle compaction CPU utilization using
+> > defer_compaction. We shouldn't prevent compaction to run after each
+> > pass completes when the cursor meets, unless it failed.
+> >
+> > This makes direct compaction functional again. The throttling of
+> > direct compaction is still controlled by the defer_compaction
+> > logic.
+> >
+> > kswapd still won't risk to reset compaction, and it will wait direct
+> > compaction to do so. Not sure if this is ideal but it at least
+> > decreases the risk of kswapd doing too much work. kswapd will only run
+> > one pass of compaction until some allocation invokes compaction again.
 > 
-> Could we fix that problem by simply allowing page cache
-> allocations (__GFP_WRITE) to fall back to other zones,
-> regardless of the zone_reclaim setting?
+> Won't kswapd reset compaction even with your patch,
+> but only when kswapd invokes compaction and the cursors
+> meet?
+
+kswapd won't ever reset it because of the current_is_kswapd check.
+
+> In other words, the behaviour should be correct even
+> for cases where kswapd is the only thing in the system
+> doing compaction (eg. GFP_ATOMIC higher order allocations),
+> but your changelog does not describe it completely.
+
+In that case with the previous code compact_blockskip_flush would
+never get set and still compaction would never be resetted.
+
+> > This decreased reliability of compaction was introduced in commit
+> > 62997027ca5b3d4618198ed8b1aba40b61b1137b .
+> >
+> > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 > 
-> The ZONE_RECLAIM_LOCKED function seems to break as many
-> things as it fixes, so replacing it with something else
-> seems like a worthwhile pursuit...
+> The code looks good to me.
+> 
+> Reviewed-by: Rik van Riel <riel@redhat.com>
 
-I actually don't see a connection between the various scenarios
-described above with ZONE_RECLAIM_LOCKED. I mean whatever problem you
-are having with swapping or excessive reclaim in a single zone/node
-despite the other zones/nodes are completely free, could materialize
-the same way with the current ZONE_RECLAIM_LOCKED code if you just use
-a mutex in userland to serialize the memory allocations. Or if they
-just happen to run serially for other reasons.
+Thanks. Not sure if this does exactly what you expected but it's not
+changing the behavior of the GFP_ATOMIC load if compared to the
+current upstream comapction code.
 
-If it was a problem to keep insisting calling zone_reclaim in any
-given zone, the problem would eventually materialize anyway, by just
-running a single thread in the whole system pinned to a single node.
-
-ZONE_RECLAIM_LOCKED isn't about swapping or memory pressure, it is
-only about preventing running more than one zone_reclaim function at
-once in any given zone. But that shall be ok. If all zone_reclaim()
-running in parallel are doing a .nr_to_reclaim = SWAP_CLUSTER_MAX
-shrinkage attempt with may_unmap/may_writepage unset
-(zone_reclaim_mode is <=1), there shall be no problem. And
-zone_reclaim won't be called anymore as soon as the watermark is above
-"low".
+The first attempt to add compaction in kswapd a few years back failed
+because it slowed down network NFS loads with jumbo frames.  kswapd
+was doing too much compaction for very short lived allocations
+(worthless and totally wasted CPU), so I believe this time compaction
+in kswapd worked out just because we don't activate with GFP_ATOMIC
+network jumbo frame allocations. So the above to me sounds more a
+feature than a bug and that's why I've been careful not to ever reset
+compaction within kswapd (just like the previous code).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
