@@ -1,186 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 319066B003C
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 10:38:16 -0400 (EDT)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 8/8] sched: Increase NUMA PTE scanning when a new preferred node is selected
-Date: Wed, 26 Jun 2013 15:38:07 +0100
-Message-Id: <1372257487-9749-9-git-send-email-mgorman@suse.de>
-In-Reply-To: <1372257487-9749-1-git-send-email-mgorman@suse.de>
-References: <1372257487-9749-1-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 16F4C6B0038
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 10:49:17 -0400 (EDT)
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [PATCH] zcache: initialize module properly when zcache=FOO is given
+Date: Wed, 26 Jun 2013 16:49:02 +0200
+Message-Id: <1372258142-7019-1-git-send-email-mhocko@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Bob Liu <lliubbo@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, =?UTF-8?q?Cristian=20Rodr=C3=ADguez?= <crrodriguez@opensuse.org>
 
-The NUMA PTE scan is reset every sysctl_numa_balancing_scan_period_reset
-in case of phase changes. This is crude and it is clearly visible in graphs
-when the PTE scanner resets even if the workload is already balanced. This
-patch increases the scan rate if the preferred node is updated and the
-task is currently running on the node to recheck if the placement
-decision is correct. In the optimistic expectation that the placement
-decisions will be correct, the maximum period between scans is also
-increased to reduce overhead due to automatic NUMA balancing.
+835f2f51 (staging: zcache: enable zcache to be built/loaded as a module)
+introduced in 3.10-rc1 has introduced a bug for zcache=FOO module
+parameter processing.
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
+zcache_comp_init return code doesn't agree with crypto_has_comp which
+uses 1 for the success unlike zcache_comp_init which uses 0. This
+causes module loading failure even if the given algorithm is supported:
+[    0.815330] zcache: compressor initialization failed
+
+Reported-by: Cristian RodrA-guez <crrodriguez@opensuse.org>
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
 ---
- Documentation/sysctl/kernel.txt | 11 +++--------
- include/linux/mm_types.h        |  3 ---
- include/linux/sched/sysctl.h    |  1 -
- kernel/sched/core.c             |  1 -
- kernel/sched/fair.c             | 26 +++++++++++---------------
- kernel/sysctl.c                 |  7 -------
- 6 files changed, 14 insertions(+), 35 deletions(-)
+ drivers/staging/zcache/zcache-main.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
 
-diff --git a/Documentation/sysctl/kernel.txt b/Documentation/sysctl/kernel.txt
-index 246b128..a275042 100644
---- a/Documentation/sysctl/kernel.txt
-+++ b/Documentation/sysctl/kernel.txt
-@@ -373,15 +373,13 @@ guarantee. If the target workload is already bound to NUMA nodes then this
- feature should be disabled. Otherwise, if the system overhead from the
- feature is too high then the rate the kernel samples for NUMA hinting
- faults may be controlled by the numa_balancing_scan_period_min_ms,
--numa_balancing_scan_delay_ms, numa_balancing_scan_period_reset,
--numa_balancing_scan_period_max_ms, numa_balancing_scan_size_mb and
--numa_balancing_settle_count sysctls.
-+numa_balancing_scan_delay_ms, numa_balancing_scan_period_max_ms,
-+numa_balancing_scan_size_mb and numa_balancing_settle_count sysctls.
- 
- ==============================================================
- 
- numa_balancing_scan_period_min_ms, numa_balancing_scan_delay_ms,
--numa_balancing_scan_period_max_ms, numa_balancing_scan_period_reset,
--numa_balancing_scan_size_mb
-+numa_balancing_scan_period_max_ms, numa_balancing_scan_size_mb
- 
- Automatic NUMA balancing scans tasks address space and unmaps pages to
- detect if pages are properly placed or if the data should be migrated to a
-@@ -416,9 +414,6 @@ effectively controls the minimum scanning rate for each task.
- numa_balancing_scan_size_mb is how many megabytes worth of pages are
- scanned for a given scan.
- 
--numa_balancing_scan_period_reset is a blunt instrument that controls how
--often a tasks scan delay is reset to detect sudden changes in task behaviour.
--
- numa_balancing_settle_count is how many scan periods must complete before
- the schedule balancer stops pushing the task towards a preferred node. This
- gives the scheduler a chance to place the task on an alternative node if the
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index ace9a5f..de70964 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -421,9 +421,6 @@ struct mm_struct {
- 	 */
- 	unsigned long numa_next_scan;
- 
--	/* numa_next_reset is when the PTE scanner period will be reset */
--	unsigned long numa_next_reset;
--
- 	/* Restart point for scanning and setting pte_numa */
- 	unsigned long numa_scan_offset;
- 
-diff --git a/include/linux/sched/sysctl.h b/include/linux/sched/sysctl.h
-index bf8086b..10d16c4f 100644
---- a/include/linux/sched/sysctl.h
-+++ b/include/linux/sched/sysctl.h
-@@ -47,7 +47,6 @@ extern enum sched_tunable_scaling sysctl_sched_tunable_scaling;
- extern unsigned int sysctl_numa_balancing_scan_delay;
- extern unsigned int sysctl_numa_balancing_scan_period_min;
- extern unsigned int sysctl_numa_balancing_scan_period_max;
--extern unsigned int sysctl_numa_balancing_scan_period_reset;
- extern unsigned int sysctl_numa_balancing_scan_size;
- extern unsigned int sysctl_numa_balancing_settle_count;
- 
-diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index b4722d6..2d1fd93 100644
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
-@@ -1585,7 +1585,6 @@ static void __sched_fork(struct task_struct *p)
- #ifdef CONFIG_NUMA_BALANCING
- 	if (p->mm && atomic_read(&p->mm->mm_users) == 1) {
- 		p->mm->numa_next_scan = jiffies;
--		p->mm->numa_next_reset = jiffies;
- 		p->mm->numa_scan_seq = 0;
+diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
+index dcceed2..0fe530b 100644
+--- a/drivers/staging/zcache/zcache-main.c
++++ b/drivers/staging/zcache/zcache-main.c
+@@ -1811,10 +1811,12 @@ static int zcache_comp_init(void)
+ #else
+ 	if (*zcache_comp_name != '\0') {
+ 		ret = crypto_has_comp(zcache_comp_name, 0, 0);
+-		if (!ret)
++		if (!ret) {
+ 			pr_info("zcache: %s not supported\n",
+ 					zcache_comp_name);
+-		goto out;
++			goto out;
++		}
++		goto out_alloc;
  	}
+ 	if (!ret)
+ 		strcpy(zcache_comp_name, "lzo");
+@@ -1827,6 +1829,7 @@ static int zcache_comp_init(void)
+ 	pr_info("zcache: using %s compressor\n", zcache_comp_name);
  
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 490e601..e9bbb70 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -782,8 +782,7 @@ update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
-  * numa task sample period in ms
-  */
- unsigned int sysctl_numa_balancing_scan_period_min = 100;
--unsigned int sysctl_numa_balancing_scan_period_max = 100*50;
--unsigned int sysctl_numa_balancing_scan_period_reset = 100*600;
-+unsigned int sysctl_numa_balancing_scan_period_max = 100*600;
- 
- /* Portion of address space to scan in MB */
- unsigned int sysctl_numa_balancing_scan_size = 256;
-@@ -881,6 +880,7 @@ static void task_numa_placement(struct task_struct *p)
- 	 */
- 	if (max_faults && max_nid != p->numa_preferred_nid) {
- 		int preferred_cpu;
-+		int old_migrate_seq = p->numa_migrate_seq;
- 
- 		/*
- 		 * If the task is not on the preferred node then find the most
-@@ -892,6 +892,15 @@ static void task_numa_placement(struct task_struct *p)
- 							     max_nid);
- 
- 		sched_setnuma(p, max_nid, preferred_cpu);
-+
-+		/*
-+		 * If preferred nodes changes frequently then the scan rate
-+		 * will be continually high. Mitigate this by increaseing the
-+		 * scan rate only if the task was settled.
-+		 */
-+		if (old_migrate_seq >= sysctl_numa_balancing_settle_count)
-+			p->numa_scan_period = max(p->numa_scan_period >> 1,
-+					sysctl_numa_balancing_scan_period_min);
- 	}
- }
- 
-@@ -985,19 +994,6 @@ void task_numa_work(struct callback_head *work)
- 	}
- 
- 	/*
--	 * Reset the scan period if enough time has gone by. Objective is that
--	 * scanning will be reduced if pages are properly placed. As tasks
--	 * can enter different phases this needs to be re-examined. Lacking
--	 * proper tracking of reference behaviour, this blunt hammer is used.
--	 */
--	migrate = mm->numa_next_reset;
--	if (time_after(now, migrate)) {
--		p->numa_scan_period = sysctl_numa_balancing_scan_period_min;
--		next_scan = now + msecs_to_jiffies(sysctl_numa_balancing_scan_period_reset);
--		xchg(&mm->numa_next_reset, next_scan);
--	}
--
--	/*
- 	 * Enforce maximal scan/migration frequency..
- 	 */
- 	migrate = mm->numa_next_scan;
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 263486f..1fcbc68 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -373,13 +373,6 @@ static struct ctl_table kern_table[] = {
- 		.proc_handler	= proc_dointvec,
- 	},
- 	{
--		.procname	= "numa_balancing_scan_period_reset",
--		.data		= &sysctl_numa_balancing_scan_period_reset,
--		.maxlen		= sizeof(unsigned int),
--		.mode		= 0644,
--		.proc_handler	= proc_dointvec,
--	},
--	{
- 		.procname	= "numa_balancing_scan_period_max_ms",
- 		.data		= &sysctl_numa_balancing_scan_period_max,
- 		.maxlen		= sizeof(unsigned int),
+ 	/* alloc percpu transforms */
++out_alloc:
+ 	ret = 0;
+ 	zcache_comp_pcpu_tfms = alloc_percpu(struct crypto_comp *);
+ 	if (!zcache_comp_pcpu_tfms)
 -- 
-1.8.1.4
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
