@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id A83CC6B0038
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 12:27:57 -0400 (EDT)
-Subject: [PATCH v3 3/5] rwsem: remove try_reader_grant label do_wake
+	by kanga.kvack.org (Postfix) with SMTP id 802C96B0039
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 12:28:00 -0400 (EDT)
+Subject: [PATCH v3 4/5] rwsem/wake: check lock before do atomic update
 From: Tim Chen <tim.c.chen@linux.intel.com>
 In-Reply-To: <cover.1372261602.git.tim.c.chen@linux.intel.com>
 References: <cover.1372261602.git.tim.c.chen@linux.intel.com>
 Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 26 Jun 2013 09:27:58 -0700
-Message-ID: <1372264078.22432.123.camel@schen9-DESK>
+Date: Wed, 26 Jun 2013 09:28:01 -0700
+Message-ID: <1372264081.22432.124.camel@schen9-DESK>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -16,40 +16,42 @@ List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Tim Chen <tim.c.chen@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-That make code simple and more readable
+Atomic update lock and roll back will cause cache bouncing in large
+machine. A lock status pre-read can relieve this problem
 
+Suggested-by: Davidlohr bueso <davidlohr.bueso@hp.com>
+Suggested-by: Tim Chen <tim.c.chen@linux.intel.com>
 Signed-off-by: Alex Shi <alex.shi@intel.com>
 ---
- lib/rwsem.c |   12 +++++++-----
- 1 files changed, 7 insertions(+), 5 deletions(-)
+ lib/rwsem.c |    8 +++++++-
+ 1 files changed, 7 insertions(+), 1 deletions(-)
 
 diff --git a/lib/rwsem.c b/lib/rwsem.c
-index 42f1b1a..a8055cf 100644
+index a8055cf..1d6e6e8 100644
 --- a/lib/rwsem.c
 +++ b/lib/rwsem.c
-@@ -85,15 +85,17 @@ __rwsem_do_wake(struct rw_semaphore *sem, enum rwsem_wake_type wake_type)
- 	adjustment = 0;
+@@ -64,7 +64,7 @@ __rwsem_do_wake(struct rw_semaphore *sem, enum rwsem_wake_type wake_type)
+ 	struct rwsem_waiter *waiter;
+ 	struct task_struct *tsk;
+ 	struct list_head *next;
+-	long oldcount, woken, loop, adjustment;
++	long woken, loop, adjustment;
+ 
+ 	waiter = list_entry(sem->wait_list.next, struct rwsem_waiter, list);
+ 	if (waiter->type == RWSEM_WAITING_FOR_WRITE) {
+@@ -86,6 +86,12 @@ __rwsem_do_wake(struct rw_semaphore *sem, enum rwsem_wake_type wake_type)
  	if (wake_type != RWSEM_WAKE_READ_OWNED) {
  		adjustment = RWSEM_ACTIVE_READ_BIAS;
-- try_reader_grant:
--		oldcount = rwsem_atomic_update(adjustment, sem) - adjustment;
--		if (unlikely(oldcount < RWSEM_WAITING_BIAS)) {
--			/* A writer stole the lock. Undo our reader grant. */
-+		while (1) {
-+			oldcount = rwsem_atomic_update(adjustment, sem)
-+								- adjustment;
-+			if (likely(oldcount >= RWSEM_WAITING_BIAS))
-+				break;
+ 		while (1) {
++			long oldcount;
 +
-+			 /* A writer stole the lock.  Undo our reader grant. */
- 			if (rwsem_atomic_update(-adjustment, sem) &
- 						RWSEM_ACTIVE_MASK)
- 				return sem;
- 			/* Last active locker left. Retry waking readers. */
--			goto try_reader_grant;
- 		}
- 	}
- 
++			/* A writer stole the lock. */
++			if (unlikely(sem->count < RWSEM_WAITING_BIAS))
++				return sem;
++
+ 			oldcount = rwsem_atomic_update(adjustment, sem)
+ 								- adjustment;
+ 			if (likely(oldcount >= RWSEM_WAITING_BIAS))
 -- 
 1.7.4.4
 
