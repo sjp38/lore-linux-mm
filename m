@@ -1,42 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id E65446B0033
-	for <linux-mm@kvack.org>; Thu, 27 Jun 2013 11:59:17 -0400 (EDT)
-Subject: Re: [PATCH v4 1/5] rwsem: check the lock before cpmxchg in
- down_write_trylock
-From: Tim Chen <tim.c.chen@linux.intel.com>
-In-Reply-To: <51CB9631.1030508@intel.com>
-References: <cover.1372282738.git.tim.c.chen@linux.intel.com>
-	 <1372285674.22432.141.camel@schen9-DESK>  <51CB9631.1030508@intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 27 Jun 2013 08:59:18 -0700
-Message-ID: <1372348758.22432.153.camel@schen9-DESK>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id E860A6B0032
+	for <linux-mm@kvack.org>; Thu, 27 Jun 2013 12:01:33 -0400 (EDT)
+Date: Thu, 27 Jun 2013 18:01:27 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 5/8] sched: Favour moving tasks towards the preferred node
+Message-ID: <20130627160127.GY28407@twins.programming.kicks-ass.net>
+References: <1372257487-9749-1-git-send-email-mgorman@suse.de>
+ <1372257487-9749-6-git-send-email-mgorman@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1372257487-9749-6-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Shi <alex.shi@intel.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 2013-06-27 at 09:32 +0800, Alex Shi wrote:
-> The following line should be added head of commit log on patches 1~4. :)
-> 
-> From: Alex Shi <alex.shi@intel.com>
-> 
-> 
-> > Cmpxchg will cause the cacheline bouning when do the value checking,
-> > that cause scalability issue in a large machine (like a 80 core box).
-> > 
-> > So a lock pre-read can relief this contention.
-> > 
-> > Signed-off-by: Alex Shi <alex.shi@intel.com>
-> 
-> 
+On Wed, Jun 26, 2013 at 03:38:04PM +0100, Mel Gorman wrote:
+> @@ -3897,6 +3907,28 @@ task_hot(struct task_struct *p, u64 now, struct sched_domain *sd)
+>  	return delta < (s64)sysctl_sched_migration_cost;
+>  }
+>  
+> +/* Returns true if the destination node has incurred more faults */
+> +static bool migrate_improves_locality(struct task_struct *p, struct lb_env *env)
+> +{
+> +	int src_nid, dst_nid;
+> +
+> +	if (!p->numa_faults || !(env->sd->flags & SD_NUMA))
+> +		return false;
+> +
+> +	src_nid = cpu_to_node(env->src_cpu);
+> +	dst_nid = cpu_to_node(env->dst_cpu);
+> +
+> +	if (src_nid == dst_nid)
+> +		return false;
+> +
+> +	if (p->numa_migrate_seq < sysctl_numa_balancing_settle_count &&
+> +	    p->numa_preferred_nid == dst_nid)
+> +		return true;
+> +
+> +	return false;
+> +}
+> +
 
-Okay.  Will add the From line in addition to Signed off line on next
-update.
-
-Tim
+This references ->numa_faults, which is declared under NUMA_BALANCING
+but lacks any such conditionality here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
