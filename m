@@ -1,108 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id B1F036B0037
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 20:24:58 -0400 (EDT)
-Subject: Re: Performance regression from switching lock to rw-sem for
- anon-vma tree
-From: Tim Chen <tim.c.chen@linux.intel.com>
-In-Reply-To: <1372282560.22432.139.camel@schen9-DESK>
-References: <1371165992.27102.573.camel@schen9-DESK>
-	 <20130619131611.GC24957@gmail.com> <1371660831.27102.663.camel@schen9-DESK>
-	 <1372205996.22432.119.camel@schen9-DESK> <20130626095108.GB29181@gmail.com>
-	 <1372282560.22432.139.camel@schen9-DESK>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 26 Jun 2013 17:25:01 -0700
-Message-ID: <1372292701.22432.152.camel@schen9-DESK>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id B96A96B0034
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 21:32:30 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id lf11so331989pab.10
+        for <linux-mm@kvack.org>; Wed, 26 Jun 2013 18:32:29 -0700 (PDT)
+From: Bob Liu <lliubbo@gmail.com>
+Subject: [RESEND PATCH] zcache: initialize module properly when zcache=FOO is given
+Date: Thu, 27 Jun 2013 09:32:20 +0800
+Message-Id: <1372296740-25259-1-git-send-email-bob.liu@oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, "Shi, Alex" <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: gregkh@linuxfoundation.org
+Cc: mhocko@suse.cz, konrad.wilk@oracle.com, akpm@linux-foundation.org, linux-mm@kvack.org, crrodriguez@opensuse.org, Bob Liu <bob.liu@oracle.com>
 
-On Wed, 2013-06-26 at 14:36 -0700, Tim Chen wrote:
-> On Wed, 2013-06-26 at 11:51 +0200, Ingo Molnar wrote: 
-> > * Tim Chen <tim.c.chen@linux.intel.com> wrote:
-> > 
-> > > On Wed, 2013-06-19 at 09:53 -0700, Tim Chen wrote: 
-> > > > On Wed, 2013-06-19 at 15:16 +0200, Ingo Molnar wrote:
-> > > > 
-> > > > > > vmstat for mutex implementation: 
-> > > > > > procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu-----
-> > > > > >  r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
-> > > > > > 38  0      0 130957920  47860 199956    0    0     0    56 236342 476975 14 72 14  0  0
-> > > > > > 41  0      0 130938560  47860 219900    0    0     0     0 236816 479676 14 72 14  0  0
-> > > > > > 
-> > > > > > vmstat for rw-sem implementation (3.10-rc4)
-> > > > > > procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu-----
-> > > > > >  r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
-> > > > > > 40  0      0 130933984  43232 202584    0    0     0     0 321817 690741 13 71 16  0  0
-> > > > > > 39  0      0 130913904  43232 224812    0    0     0     0 322193 692949 13 71 16  0  0
-> > > > > 
-> > > > > It appears the main difference is that the rwsem variant context-switches 
-> > > > > about 36% more than the mutex version, right?
-> > > > > 
-> > > > > I'm wondering how that's possible - the lock is mostly write-locked, 
-> > > > > correct? So the lock-stealing from Davidlohr Bueso and Michel Lespinasse 
-> > > > > ought to have brought roughly the same lock-stealing behavior as mutexes 
-> > > > > do, right?
-> > > > > 
-> > > > > So the next analytical step would be to figure out why rwsem lock-stealing 
-> > > > > is not behaving in an equivalent fashion on this workload. Do readers come 
-> > > > > in frequently enough to disrupt write-lock-stealing perhaps?
-> > > 
-> > > Ingo, 
-> > > 
-> > > I did some instrumentation on the write lock failure path.  I found that
-> > > for the exim workload, there are no readers blocking for the rwsem when
-> > > write locking failed.  The lock stealing is successful for 9.1% of the
-> > > time and the rest of the write lock failure caused the writer to go to
-> > > sleep.  About 1.4% of the writers sleep more than once. Majority of the
-> > > writers sleep once.
-> > > 
-> > > It is weird that lock stealing is not successful more often.
-> > 
-> > For this to be comparable to the mutex scalability numbers you'd have to 
-> > compare wlock-stealing _and_ adaptive spinning for failed-wlock rwsems.
-> > 
-> > Are both techniques applied in the kernel you are running your tests on?
-> > 
-> 
-> Ingo,
-> 
-> The previous experiment was done on a kernel without spinning. 
-> I've redone the testing on two kernel for a 15 sec stretch of the
-> workload run.  One with the adaptive (or optimistic) 
-> spinning and the other without.  Both have the patches from Alex to avoid 
-> cmpxchg induced cache bouncing.
-> 
-> With the spinning, I sleep much less for lock acquisition (18.6% vs 91.58%).
-> However, I've got doubling of write lock acquisition getting
-> blocked.  So that offset the gain from spinning which may be why
-> I didn't see gain for this particular workload.
-> 
-> 						No Opt Spin	Opt Spin
-> Writer acquisition blocked count		3448946		7359040
-> Blocked by reader				0.00%		0.55%
-> Lock acquired first attempt (lock stealing)	8.42%		16.92%
-> Lock acquired second attempt (1 sleep)		90.26%		17.60%
-> Lock acquired after more than 1 sleep		1.32%		1.00%
-> Lock acquired with optimistic spin		N/A		64.48%
-> 
+From: Michal Hocko <mhocko@suse.cz>
 
-Adding also the mutex statistics for the 3.10-rc4 kernel with mutex
-implemenation of lock for anon_vma tree.  Wonder if Ingo has any
-insight on why mutex performs better from these stats.
+835f2f51 (staging: zcache: enable zcache to be built/loaded as a module)
+introduced in 3.10-rc1 has introduced a bug for zcache=FOO module
+parameter processing.
 
-Mutex acquisition blocked count			14380340
-Lock acquired in slowpath (no sleep)		0.06%
-Lock acquired in slowpath (1 sleep)		0.24%
-Lock acquired in slowpath more than 1 sleep	0.98%
-Lock acquired with optimistic spin		99.6%
+zcache_comp_init return code doesn't agree with crypto_has_comp which
+uses 1 for the success unlike zcache_comp_init which uses 0. This
+causes module loading failure even if the given algorithm is supported:
+[    0.815330] zcache: compressor initialization failed
 
-Thanks.
+Reported-by: Cristian RodrA-guez <crrodriguez@opensuse.org>
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+Acked-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Signed-off-by: Bob Liu <bob.liu@oracle.com>
+---
+ drivers/staging/zcache/zcache-main.c |    7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
 
-Tim
+diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
+index dcceed2..0fe530b 100644
+--- a/drivers/staging/zcache/zcache-main.c
++++ b/drivers/staging/zcache/zcache-main.c
+@@ -1811,10 +1811,12 @@ static int zcache_comp_init(void)
+ #else
+ 	if (*zcache_comp_name != '\0') {
+ 		ret = crypto_has_comp(zcache_comp_name, 0, 0);
+-		if (!ret)
++		if (!ret) {
+ 			pr_info("zcache: %s not supported\n",
+ 					zcache_comp_name);
+-		goto out;
++			goto out;
++		}
++		goto out_alloc;
+ 	}
+ 	if (!ret)
+ 		strcpy(zcache_comp_name, "lzo");
+@@ -1827,6 +1829,7 @@ static int zcache_comp_init(void)
+ 	pr_info("zcache: using %s compressor\n", zcache_comp_name);
+ 
+ 	/* alloc percpu transforms */
++out_alloc:
+ 	ret = 0;
+ 	zcache_comp_pcpu_tfms = alloc_percpu(struct crypto_comp *);
+ 	if (!zcache_comp_pcpu_tfms)
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
