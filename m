@@ -1,47 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 690C46B003C
-	for <linux-mm@kvack.org>; Thu, 27 Jun 2013 10:59:46 -0400 (EDT)
-Date: Thu, 27 Jun 2013 16:59:39 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 0/6] Basic scheduler support for automatic NUMA balancing
-Message-ID: <20130627145939.GW28407@twins.programming.kicks-ass.net>
-References: <1372257487-9749-1-git-send-email-mgorman@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1372257487-9749-1-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id C49F36B0032
+	for <linux-mm@kvack.org>; Thu, 27 Jun 2013 11:17:54 -0400 (EDT)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Thu, 27 Jun 2013 11:17:53 -0400
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id A48DD38C801A
+	for <linux-mm@kvack.org>; Thu, 27 Jun 2013 11:17:50 -0400 (EDT)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5RFHp1p302360
+	for <linux-mm@kvack.org>; Thu, 27 Jun 2013 11:17:51 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5RFHo5s017265
+	for <linux-mm@kvack.org>; Thu, 27 Jun 2013 11:17:51 -0400
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Subject: [RESEND][PATCH] zswap: fix Kconfig to depend on CRYPTO=y
+Date: Thu, 27 Jun 2013 10:17:43 -0500
+Message-Id: <1372346263-6005-1-git-send-email-sjenning@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Fengguang Wu <fengguang.wu@intel.com>, Bob Liu <lliubbo@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Jun 26, 2013 at 03:37:59PM +0100, Mel Gorman wrote:
-> It's several months overdue and everything was quiet after 3.8 came out
-> but I recently had a chance to revisit automatic NUMA balancing for a few
-> days. I looked at basic scheduler integration resulting in the following
-> small series. Much of the following is heavily based on the numacore series
-> which in itself takes part of the autonuma series from back in November. In
-> particular it borrows heavily from Peter Ziljstra's work in "sched, numa,
-> mm: Add adaptive NUMA affinity support" but deviates too much to preserve
-> Signed-off-bys. As before, if the relevant authors are ok with it I'll
-> add Signed-off-bys (or add them yourselves if you pick the patches up).
-> 
-> This is still far from complete and there are known performance gaps between
-> this and manual binding where possible and depending on the workload between
-> it and interleaving when hard bindings are not an option.  As before,
-> the intention is not to complete the work but to incrementally improve
-> mainline and preserve bisectability for any bug reports that crop up. This
-> will allow us to validate each step and keep reviewer stress to a minimum.
+The Kconfig entry for zswap currently allows CRYPTO=m to satisfy the
+zswap dependency.  However zswap is boolean (i.e. built-in) and has
+symbol dependencies on CRYPTO.  Additionally, because the CRYPTO dependency
+is satisfied with =m, the additional selects zswap does can also
+be satisfied with =m, which leads to additional linking errors.
 
-Yah..
+>From the report:
+=====
+tree:   git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git since-3.9
+head:   57cefddb141d6c9d0ab4f5a8589dd017f796a3f7
+commit: 563f51c95b552e0d663df5bdf6cfc8e8a72d3ec6 [494/499] zswap: add to mm/
+config: x86_64-randconfig-x004-0619 (attached as .config)
 
-Except for the few things I've already replied to; and a very strong
-urge to run:
+All error/warnings:
 
-  sed -e 's/NUMA_BALANCE/SCHED_NUMA/g' -e 's/numa_balance/sched_numa/'
+   mm/built-in.o: In function `zswap_frontswap_invalidate_area':
+>> zswap.c:(.text+0x3a705): undefined reference to `zbud_free'
+   mm/built-in.o: In function `zswap_free_entry':
+>> zswap.c:(.text+0x3a76b): undefined reference to `zbud_free'
+>> zswap.c:(.text+0x3a789): undefined reference to `zbud_get_pool_size'
+on and on...
+=====
 
-on both the tree and these patches I'm all for merging this.
+This patch makes CRYPTO a built-in dependency of ZSWAP.  This has the
+side effect of also making the selects built-in.
+
+Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Reported-by: Fengguang Wu <fengguang.wu@intel.com>
+---
+
+Andrew, please merge this into your mmotm ASAP as it fixes a demonstrable
+build break.
+
+ mm/Kconfig | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 949e8de..81763ae 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -490,7 +490,7 @@ config ZBUD
+ 
+ config ZSWAP
+ 	bool "Compressed cache for swap pages (EXPERIMENTAL)"
+-	depends on FRONTSWAP && CRYPTO
++	depends on FRONTSWAP && CRYPTO=y
+ 	select CRYPTO_LZO
+ 	select ZBUD
+ 	default n
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
