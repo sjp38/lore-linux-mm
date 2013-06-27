@@ -1,49 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 256456B0032
-	for <linux-mm@kvack.org>; Thu, 27 Jun 2013 11:57:57 -0400 (EDT)
-Date: Thu, 27 Jun 2013 17:57:48 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 2/8] sched: Track NUMA hinting faults on per-node basis
-Message-ID: <20130627155748.GX28407@twins.programming.kicks-ass.net>
-References: <1372257487-9749-1-git-send-email-mgorman@suse.de>
- <1372257487-9749-3-git-send-email-mgorman@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1372257487-9749-3-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id E65446B0033
+	for <linux-mm@kvack.org>; Thu, 27 Jun 2013 11:59:17 -0400 (EDT)
+Subject: Re: [PATCH v4 1/5] rwsem: check the lock before cpmxchg in
+ down_write_trylock
+From: Tim Chen <tim.c.chen@linux.intel.com>
+In-Reply-To: <51CB9631.1030508@intel.com>
+References: <cover.1372282738.git.tim.c.chen@linux.intel.com>
+	 <1372285674.22432.141.camel@schen9-DESK>  <51CB9631.1030508@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 27 Jun 2013 08:59:18 -0700
+Message-ID: <1372348758.22432.153.camel@schen9-DESK>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Alex Shi <alex.shi@intel.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-On Wed, Jun 26, 2013 at 03:38:01PM +0100, Mel Gorman wrote:
-> @@ -503,6 +503,18 @@ DECLARE_PER_CPU(struct rq, runqueues);
->  #define cpu_curr(cpu)		(cpu_rq(cpu)->curr)
->  #define raw_rq()		(&__raw_get_cpu_var(runqueues))
->  
-> +#ifdef CONFIG_NUMA_BALANCING
-> +extern void sched_setnuma(struct task_struct *p, int node, int shared);
-
-Stray line; you're introducing that function later with a different
-signature.
-
-> +static inline void task_numa_free(struct task_struct *p)
-> +{
-> +	kfree(p->numa_faults);
-> +}
-> +#else /* CONFIG_NUMA_BALANCING */
-> +static inline void task_numa_free(struct task_struct *p)
-> +{
-> +}
-> +#endif /* CONFIG_NUMA_BALANCING */
-> +
->  #ifdef CONFIG_SMP
->  
->  #define rcu_dereference_check_sched_domain(p) \
-> -- 
-> 1.8.1.4
+On Thu, 2013-06-27 at 09:32 +0800, Alex Shi wrote:
+> The following line should be added head of commit log on patches 1~4. :)
 > 
+> From: Alex Shi <alex.shi@intel.com>
+> 
+> 
+> > Cmpxchg will cause the cacheline bouning when do the value checking,
+> > that cause scalability issue in a large machine (like a 80 core box).
+> > 
+> > So a lock pre-read can relief this contention.
+> > 
+> > Signed-off-by: Alex Shi <alex.shi@intel.com>
+> 
+> 
+
+Okay.  Will add the From line in addition to Signed off line on next
+update.
+
+Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
