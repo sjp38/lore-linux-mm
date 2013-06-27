@@ -1,52 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 67D536B0034
-	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 20:21:33 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Thu, 27 Jun 2013 10:11:52 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 8B8C13578045
-	for <linux-mm@kvack.org>; Thu, 27 Jun 2013 10:21:27 +1000 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5R0LHV06619408
-	for <linux-mm@kvack.org>; Thu, 27 Jun 2013 10:21:18 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5R0LQIZ005540
-	for <linux-mm@kvack.org>; Thu, 27 Jun 2013 10:21:26 +1000
-Date: Thu, 27 Jun 2013 08:21:24 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 2/3] mm/slab: Sharing s_next and s_stop between slab and
- slub
-Message-ID: <20130627002124.GA12151@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1372069394-26167-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1372069394-26167-2-git-send-email-liwanp@linux.vnet.ibm.com>
- <alpine.DEB.2.02.1306241421560.25343@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1306241421560.25343@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id B1F036B0037
+	for <linux-mm@kvack.org>; Wed, 26 Jun 2013 20:24:58 -0400 (EDT)
+Subject: Re: Performance regression from switching lock to rw-sem for
+ anon-vma tree
+From: Tim Chen <tim.c.chen@linux.intel.com>
+In-Reply-To: <1372282560.22432.139.camel@schen9-DESK>
+References: <1371165992.27102.573.camel@schen9-DESK>
+	 <20130619131611.GC24957@gmail.com> <1371660831.27102.663.camel@schen9-DESK>
+	 <1372205996.22432.119.camel@schen9-DESK> <20130626095108.GB29181@gmail.com>
+	 <1372282560.22432.139.camel@schen9-DESK>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 26 Jun 2013 17:25:01 -0700
+Message-ID: <1372292701.22432.152.camel@schen9-DESK>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, "Shi, Alex" <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-On Mon, Jun 24, 2013 at 02:23:11PM -0700, David Rientjes wrote:
->On Mon, 24 Jun 2013, Wanpeng Li wrote:
->
->> This patch shares s_next and s_stop between slab and slub.
->> 
->
->Just about the entire kernel includes slab.h, so I think you'll need to 
->give these slab-specific names instead of exporting "s_next" and "s_stop" 
->to everybody.
+On Wed, 2013-06-26 at 14:36 -0700, Tim Chen wrote:
+> On Wed, 2013-06-26 at 11:51 +0200, Ingo Molnar wrote: 
+> > * Tim Chen <tim.c.chen@linux.intel.com> wrote:
+> > 
+> > > On Wed, 2013-06-19 at 09:53 -0700, Tim Chen wrote: 
+> > > > On Wed, 2013-06-19 at 15:16 +0200, Ingo Molnar wrote:
+> > > > 
+> > > > > > vmstat for mutex implementation: 
+> > > > > > procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu-----
+> > > > > >  r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
+> > > > > > 38  0      0 130957920  47860 199956    0    0     0    56 236342 476975 14 72 14  0  0
+> > > > > > 41  0      0 130938560  47860 219900    0    0     0     0 236816 479676 14 72 14  0  0
+> > > > > > 
+> > > > > > vmstat for rw-sem implementation (3.10-rc4)
+> > > > > > procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu-----
+> > > > > >  r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
+> > > > > > 40  0      0 130933984  43232 202584    0    0     0     0 321817 690741 13 71 16  0  0
+> > > > > > 39  0      0 130913904  43232 224812    0    0     0     0 322193 692949 13 71 16  0  0
+> > > > > 
+> > > > > It appears the main difference is that the rwsem variant context-switches 
+> > > > > about 36% more than the mutex version, right?
+> > > > > 
+> > > > > I'm wondering how that's possible - the lock is mostly write-locked, 
+> > > > > correct? So the lock-stealing from Davidlohr Bueso and Michel Lespinasse 
+> > > > > ought to have brought roughly the same lock-stealing behavior as mutexes 
+> > > > > do, right?
+> > > > > 
+> > > > > So the next analytical step would be to figure out why rwsem lock-stealing 
+> > > > > is not behaving in an equivalent fashion on this workload. Do readers come 
+> > > > > in frequently enough to disrupt write-lock-stealing perhaps?
+> > > 
+> > > Ingo, 
+> > > 
+> > > I did some instrumentation on the write lock failure path.  I found that
+> > > for the exim workload, there are no readers blocking for the rwsem when
+> > > write locking failed.  The lock stealing is successful for 9.1% of the
+> > > time and the rest of the write lock failure caused the writer to go to
+> > > sleep.  About 1.4% of the writers sleep more than once. Majority of the
+> > > writers sleep once.
+> > > 
+> > > It is weird that lock stealing is not successful more often.
+> > 
+> > For this to be comparable to the mutex scalability numbers you'd have to 
+> > compare wlock-stealing _and_ adaptive spinning for failed-wlock rwsems.
+> > 
+> > Are both techniques applied in the kernel you are running your tests on?
+> > 
+> 
+> Ingo,
+> 
+> The previous experiment was done on a kernel without spinning. 
+> I've redone the testing on two kernel for a 15 sec stretch of the
+> workload run.  One with the adaptive (or optimistic) 
+> spinning and the other without.  Both have the patches from Alex to avoid 
+> cmpxchg induced cache bouncing.
+> 
+> With the spinning, I sleep much less for lock acquisition (18.6% vs 91.58%).
+> However, I've got doubling of write lock acquisition getting
+> blocked.  So that offset the gain from spinning which may be why
+> I didn't see gain for this particular workload.
+> 
+> 						No Opt Spin	Opt Spin
+> Writer acquisition blocked count		3448946		7359040
+> Blocked by reader				0.00%		0.55%
+> Lock acquired first attempt (lock stealing)	8.42%		16.92%
+> Lock acquired second attempt (1 sleep)		90.26%		17.60%
+> Lock acquired after more than 1 sleep		1.32%		1.00%
+> Lock acquired with optimistic spin		N/A		64.48%
+> 
 
-Ok, I will update them in next version, thanks for your review. ;-)
+Adding also the mutex statistics for the 3.10-rc4 kernel with mutex
+implemenation of lock for anon_vma tree.  Wonder if Ingo has any
+insight on why mutex performs better from these stats.
 
-Regards,
-Wanpeng Li 
+Mutex acquisition blocked count			14380340
+Lock acquired in slowpath (no sleep)		0.06%
+Lock acquired in slowpath (1 sleep)		0.24%
+Lock acquired in slowpath more than 1 sleep	0.98%
+Lock acquired with optimistic spin		99.6%
+
+Thanks.
+
+Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
