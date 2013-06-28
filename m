@@ -1,51 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id D2D376B0031
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 09:00:06 -0400 (EDT)
-Date: Fri, 28 Jun 2013 14:00:03 +0100
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 646FF6B0031
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 09:02:16 -0400 (EDT)
+Date: Fri, 28 Jun 2013 14:01:59 +0100
 From: Mel Gorman <mgorman@suse.de>
 Subject: Re: [PATCH 5/8] sched: Favour moving tasks towards the preferred node
-Message-ID: <20130628130003.GV1875@suse.de>
+Message-ID: <20130628130159.GW1875@suse.de>
 References: <1372257487-9749-1-git-send-email-mgorman@suse.de>
  <1372257487-9749-6-git-send-email-mgorman@suse.de>
- <20130627145345.GT28407@twins.programming.kicks-ass.net>
+ <20130627160127.GY28407@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20130627145345.GT28407@twins.programming.kicks-ass.net>
+In-Reply-To: <20130627160127.GY28407@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>
 Cc: Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Jun 27, 2013 at 04:53:45PM +0200, Peter Zijlstra wrote:
+On Thu, Jun 27, 2013 at 06:01:27PM +0200, Peter Zijlstra wrote:
 > On Wed, Jun 26, 2013 at 03:38:04PM +0100, Mel Gorman wrote:
-> > This patch favours moving tasks towards the preferred NUMA node when
-> > it has just been selected. Ideally this is self-reinforcing as the
-> > longer the the task runs on that node, the more faults it should incur
-> > causing task_numa_placement to keep the task running on that node. In
-> > reality a big weakness is that the nodes CPUs can be overloaded and it
-> > would be more effficient to queue tasks on an idle node and migrate to
-> > the new node. This would require additional smarts in the balancer so
-> > for now the balancer will simply prefer to place the task on the
-> > preferred node for a tunable number of PTE scans.
+> > @@ -3897,6 +3907,28 @@ task_hot(struct task_struct *p, u64 now, struct sched_domain *sd)
+> >  	return delta < (s64)sysctl_sched_migration_cost;
+> >  }
+> >  
+> > +/* Returns true if the destination node has incurred more faults */
+> > +static bool migrate_improves_locality(struct task_struct *p, struct lb_env *env)
+> > +{
+> > +	int src_nid, dst_nid;
+> > +
+> > +	if (!p->numa_faults || !(env->sd->flags & SD_NUMA))
+> > +		return false;
+> > +
+> > +	src_nid = cpu_to_node(env->src_cpu);
+> > +	dst_nid = cpu_to_node(env->dst_cpu);
+> > +
+> > +	if (src_nid == dst_nid)
+> > +		return false;
+> > +
+> > +	if (p->numa_migrate_seq < sysctl_numa_balancing_settle_count &&
+> > +	    p->numa_preferred_nid == dst_nid)
+> > +		return true;
+> > +
+> > +	return false;
+> > +}
+> > +
 > 
-> This changelog fails to mention why you're adding the settle stuff in
-> this patch.
+> This references ->numa_faults, which is declared under NUMA_BALANCING
+> but lacks any such conditionality here.
 
-Updated the change.
-
-This patch favours moving tasks towards the preferred NUMA node when it
-has just been selected. Ideally this is self-reinforcing as the longer
-the task runs on that node, the more faults it should incur causing
-task_numa_placement to keep the task running on that node. In reality
-a big weakness is that the nodes CPUs can be overloaded and it would be
-more efficient to queue tasks on an idle node and migrate to the new node.
-This would require additional smarts in the balancer so for now the balancer
-will simply prefer to place the task on the preferred node for a PTE scans
-which is controlled by the numa_balancing_settle_count sysctl. Once the
-settle_count number of scans has complete the schedule is free to place
-the task on an alternative node if the load is imbalanced.
+Fixed.
 
 -- 
 Mel Gorman
