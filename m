@@ -1,24 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 2AA8C6B0032
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 05:11:16 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 574276B0036
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 05:11:17 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Fri, 28 Jun 2013 14:33:38 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 3D3C8E0056
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 14:40:46 +0530 (IST)
+	Fri, 28 Jun 2013 14:36:07 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id A73B7394004F
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 14:41:11 +0530 (IST)
 Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5S9BUK113828146
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 14:41:31 +0530
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5S9B96e26869960
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 14:41:09 +0530
 Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5S9B7SM000333
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 19:11:08 +1000
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5S9BBQs000741
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 19:11:12 +1000
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH -V2 1/4] mm/cma: Move dma contiguous changes into a seperate config
-Date: Fri, 28 Jun 2013 14:40:59 +0530
-Message-Id: <1372410662-3748-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V2 4/4] powerpc/kvm: Use 256K chunk to track both RMA and hash page table allocation.
+Date: Fri, 28 Jun 2013 14:41:02 +0530
+Message-Id: <1372410662-3748-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1372410662-3748-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1372410662-3748-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: benh@kernel.crashing.org, paulus@samba.org, linux-mm@kvack.org, m.szyprowski@samsung.com, mina86@mina86.com
@@ -26,189 +28,111 @@ Cc: linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.i
 
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-We want to use CMA for allocating hash page table and real mode area for
-PPC64. Hence move DMA contiguous related changes into a seperate config
-so that ppc64 can enable CMA without requiring DMA contiguous.
+Both RMA and hash page table request will be a multiple of 256K. We can use
+a chunk size of 256K to track the free/used 256K chunk in the bitmap. This
+should help to reduce the bitmap size.
 
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- arch/arm/configs/omap2plus_defconfig  |  2 +-
- arch/arm/configs/tegra_defconfig      |  2 +-
- arch/arm/include/asm/dma-contiguous.h |  2 +-
- arch/arm/mm/dma-mapping.c             |  6 +++---
- drivers/base/Kconfig                  | 21 +++++----------------
- drivers/base/Makefile                 |  2 +-
- include/linux/dma-contiguous.h        |  2 +-
- mm/Kconfig                            | 24 ++++++++++++++++++++++++
- 8 files changed, 37 insertions(+), 24 deletions(-)
+ arch/powerpc/kvm/book3s_hv_cma.c | 35 +++++++++++++++++++++++++----------
+ 1 file changed, 25 insertions(+), 10 deletions(-)
 
-diff --git a/arch/arm/configs/omap2plus_defconfig b/arch/arm/configs/omap2plus_defconfig
-index abbe319..098268f 100644
---- a/arch/arm/configs/omap2plus_defconfig
-+++ b/arch/arm/configs/omap2plus_defconfig
-@@ -71,7 +71,7 @@ CONFIG_MAC80211=m
- CONFIG_MAC80211_RC_PID=y
- CONFIG_MAC80211_RC_DEFAULT_PID=y
- CONFIG_UEVENT_HELPER_PATH="/sbin/hotplug"
--CONFIG_CMA=y
-+CONFIG_DMA_CMA=y
- CONFIG_CONNECTOR=y
- CONFIG_DEVTMPFS=y
- CONFIG_DEVTMPFS_MOUNT=y
-diff --git a/arch/arm/configs/tegra_defconfig b/arch/arm/configs/tegra_defconfig
-index f7ba3161..34ae8f2 100644
---- a/arch/arm/configs/tegra_defconfig
-+++ b/arch/arm/configs/tegra_defconfig
-@@ -79,7 +79,7 @@ CONFIG_RFKILL_GPIO=y
- CONFIG_DEVTMPFS=y
- CONFIG_DEVTMPFS_MOUNT=y
- # CONFIG_FIRMWARE_IN_KERNEL is not set
--CONFIG_CMA=y
-+CONFIG_DMA_CMA=y
- CONFIG_MTD=y
- CONFIG_MTD_CHAR=y
- CONFIG_MTD_M25P80=y
-diff --git a/arch/arm/include/asm/dma-contiguous.h b/arch/arm/include/asm/dma-contiguous.h
-index 3ed37b4..e072bb2 100644
---- a/arch/arm/include/asm/dma-contiguous.h
-+++ b/arch/arm/include/asm/dma-contiguous.h
-@@ -2,7 +2,7 @@
- #define ASMARM_DMA_CONTIGUOUS_H
+diff --git a/arch/powerpc/kvm/book3s_hv_cma.c b/arch/powerpc/kvm/book3s_hv_cma.c
+index fdd0b88..018613a 100644
+--- a/arch/powerpc/kvm/book3s_hv_cma.c
++++ b/arch/powerpc/kvm/book3s_hv_cma.c
+@@ -23,6 +23,10 @@
+ #include <linux/mutex.h>
+ #include <linux/sizes.h>
+ #include <linux/slab.h>
++/*
++ * Both RMA and Hash page allocation will be multiple of 256K.
++ */
++#define KVM_CMA_CHUNK_ORDER	18
  
- #ifdef __KERNEL__
--#ifdef CONFIG_CMA
-+#ifdef CONFIG_DMA_CMA
+ struct kvm_cma {
+ 	unsigned long	base_pfn;
+@@ -94,6 +98,7 @@ err:
+ struct page *kvm_alloc_cma(int nr_pages, unsigned long align_pages)
+ {
+ 	int ret;
++	int chunk_count, nr_chunk;
+ 	struct page *page = NULL;
+ 	struct kvm_cma *cma = &kvm_cma_area;
+ 	unsigned long mask, pfn, pageno, start = 0;
+@@ -107,20 +112,26 @@ struct page *kvm_alloc_cma(int nr_pages, unsigned long align_pages)
  
- #include <linux/types.h>
- #include <asm-generic/dma-contiguous.h>
-diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-index ef3e0f3..1fb40dc 100644
---- a/arch/arm/mm/dma-mapping.c
-+++ b/arch/arm/mm/dma-mapping.c
-@@ -358,7 +358,7 @@ static int __init atomic_pool_init(void)
- 	if (!pages)
- 		goto no_pages;
+ 	if (!nr_pages)
+ 		return NULL;
++	/*
++	 * aling mask with chunk size. The bit tracks pages in chunk size
++	 */
++	mask = (align_pages >> (KVM_CMA_CHUNK_ORDER - PAGE_SHIFT)) - 1;
++	BUILD_BUG_ON(PAGE_SHIFT > KVM_CMA_CHUNK_ORDER);
  
--	if (IS_ENABLED(CONFIG_CMA))
-+	if (IS_ENABLED(CONFIG_DMA_CMA))
- 		ptr = __alloc_from_contiguous(NULL, pool->size, prot, &page,
- 					      atomic_pool_init);
- 	else
-@@ -670,7 +670,7 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
- 		addr = __alloc_simple_buffer(dev, size, gfp, &page);
- 	else if (!(gfp & __GFP_WAIT))
- 		addr = __alloc_from_pool(size, &page);
--	else if (!IS_ENABLED(CONFIG_CMA))
-+	else if (!IS_ENABLED(CONFIG_DMA_CMA))
- 		addr = __alloc_remap_buffer(dev, size, gfp, prot, &page, caller);
- 	else
- 		addr = __alloc_from_contiguous(dev, size, prot, &page, caller);
-@@ -759,7 +759,7 @@ static void __arm_dma_free(struct device *dev, size_t size, void *cpu_addr,
- 		__dma_free_buffer(page, size);
- 	} else if (__free_from_pool(cpu_addr, size)) {
- 		return;
--	} else if (!IS_ENABLED(CONFIG_CMA)) {
-+	} else if (!IS_ENABLED(CONFIG_DMA_CMA)) {
- 		__dma_free_remap(cpu_addr, size);
- 		__dma_free_buffer(page, size);
- 	} else {
-diff --git a/drivers/base/Kconfig b/drivers/base/Kconfig
-index 07abd9d..74b7c98 100644
---- a/drivers/base/Kconfig
-+++ b/drivers/base/Kconfig
-@@ -202,11 +202,10 @@ config DMA_SHARED_BUFFER
- 	  APIs extension; the file's descriptor can then be passed on to other
- 	  driver.
+-	mask = align_pages - 1;
++	chunk_count = cma->count >>  (KVM_CMA_CHUNK_ORDER - PAGE_SHIFT);
++	nr_chunk = nr_pages >> (KVM_CMA_CHUNK_ORDER - PAGE_SHIFT);
  
--config CMA
--	bool "Contiguous Memory Allocator"
--	depends on HAVE_DMA_CONTIGUOUS && HAVE_MEMBLOCK
--	select MIGRATION
--	select MEMORY_ISOLATION
-+config DMA_CMA
-+	bool "DMA Contiguous Memory Allocator"
-+	depends on HAVE_DMA_CONTIGUOUS
-+	select CMA
- 	help
- 	  This enables the Contiguous Memory Allocator which allows drivers
- 	  to allocate big physically-contiguous blocks of memory for use with
-@@ -215,17 +214,7 @@ config CMA
- 	  For more information see <include/linux/dma-contiguous.h>.
- 	  If unsure, say "n".
+ 	mutex_lock(&kvm_cma_mutex);
+ 	for (;;) {
+-		pageno = bitmap_find_next_zero_area(cma->bitmap, cma->count,
+-						    start, nr_pages, mask);
+-		if (pageno >= cma->count)
++		pageno = bitmap_find_next_zero_area(cma->bitmap, chunk_count,
++						    start, nr_chunk, mask);
++		if (pageno >= chunk_count)
+ 			break;
  
--if CMA
+-		pfn = cma->base_pfn + pageno;
++		pfn = cma->base_pfn + (pageno << (KVM_CMA_CHUNK_ORDER - PAGE_SHIFT));
+ 		ret = alloc_contig_range(pfn, pfn + nr_pages, MIGRATE_CMA);
+ 		if (ret == 0) {
+-			bitmap_set(cma->bitmap, pageno, nr_pages);
++			bitmap_set(cma->bitmap, pageno, nr_chunk);
+ 			page = pfn_to_page(pfn);
+ 			memset(pfn_to_kaddr(pfn), 0, nr_pages << PAGE_SHIFT);
+ 			break;
+@@ -148,6 +159,7 @@ struct page *kvm_alloc_cma(int nr_pages, unsigned long align_pages)
+  */
+ bool kvm_release_cma(struct page *pages, int nr_pages)
+ {
++	int nr_chunk;
+ 	unsigned long pfn;
+ 	struct kvm_cma *cma = &kvm_cma_area;
+ 
+@@ -163,9 +175,12 @@ bool kvm_release_cma(struct page *pages, int nr_pages)
+ 		return false;
+ 
+ 	VM_BUG_ON(pfn + nr_pages > cma->base_pfn + cma->count);
++	nr_chunk = nr_pages >>  (KVM_CMA_CHUNK_ORDER - PAGE_SHIFT);
+ 
+ 	mutex_lock(&kvm_cma_mutex);
+-	bitmap_clear(cma->bitmap, pfn - cma->base_pfn, nr_pages);
++	bitmap_clear(cma->bitmap,
++		     (pfn - cma->base_pfn) >> (KVM_CMA_CHUNK_ORDER - PAGE_SHIFT),
++		     nr_chunk);
+ 	free_contig_range(pfn, nr_pages);
+ 	mutex_unlock(&kvm_cma_mutex);
+ 
+@@ -196,14 +211,14 @@ static int __init kvm_cma_activate_area(unsigned long base_pfn,
+ 
+ static int __init kvm_cma_init_reserved_areas(void)
+ {
+-	int bitmap_size, ret;
++	int bitmap_size, ret, chunk_count;
+ 	struct kvm_cma *cma = &kvm_cma_area;
+ 
+ 	pr_debug("%s()\n", __func__);
+ 	if (!cma->count)
+ 		return 0;
 -
--config CMA_DEBUG
--	bool "CMA debug messages (DEVELOPMENT)"
--	depends on DEBUG_KERNEL
--	help
--	  Turns on debug messages in CMA.  This produces KERN_DEBUG
--	  messages for every CMA call as well as various messages while
--	  processing calls such as dma_alloc_from_contiguous().
--	  This option does not affect warning and error messages.
--
-+if  DMA_CMA
- comment "Default contiguous memory area size:"
- 
- config CMA_SIZE_MBYTES
-diff --git a/drivers/base/Makefile b/drivers/base/Makefile
-index 4e22ce3..5d93bb5 100644
---- a/drivers/base/Makefile
-+++ b/drivers/base/Makefile
-@@ -6,7 +6,7 @@ obj-y			:= core.o bus.o dd.o syscore.o \
- 			   attribute_container.o transport_class.o \
- 			   topology.o
- obj-$(CONFIG_DEVTMPFS)	+= devtmpfs.o
--obj-$(CONFIG_CMA) += dma-contiguous.o
-+obj-$(CONFIG_DMA_CMA) += dma-contiguous.o
- obj-y			+= power/
- obj-$(CONFIG_HAS_DMA)	+= dma-mapping.o
- obj-$(CONFIG_HAVE_GENERIC_DMA_COHERENT) += dma-coherent.o
-diff --git a/include/linux/dma-contiguous.h b/include/linux/dma-contiguous.h
-index 01b5c84..00141d3 100644
---- a/include/linux/dma-contiguous.h
-+++ b/include/linux/dma-contiguous.h
-@@ -57,7 +57,7 @@ struct cma;
- struct page;
- struct device;
- 
--#ifdef CONFIG_CMA
-+#ifdef CONFIG_DMA_CMA
- 
- /*
-  * There is always at least global CMA area and a few optional device
-diff --git a/mm/Kconfig b/mm/Kconfig
-index e742d06..26a5f81 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -477,3 +477,27 @@ config FRONTSWAP
- 	  and swap data is stored as normal on the matching swap device.
- 
- 	  If unsure, say Y to enable frontswap.
-+
-+config CMA
-+	bool "Contiguous Memory Allocator"
-+	depends on HAVE_MEMBLOCK
-+	select MIGRATION
-+	select MEMORY_ISOLATION
-+	help
-+	  This enables the Contiguous Memory Allocator which allows other
-+	  subsystems to allocate big physically-contiguous blocks of memory.
-+	  CMA reserves a region of memory and allows only movable pages to
-+	  be allocated from it. This way, the kernel can use the memory for
-+	  pagecache and when a subsystem requests for contiguous area, the
-+	  allocated pages are migrated away to serve the contiguous request.
-+
-+	  If unsure, say "n".
-+
-+config CMA_DEBUG
-+	bool "CMA debug messages (DEVELOPMENT)"
-+	depends on DEBUG_KERNEL && CMA
-+	help
-+	  Turns on debug messages in CMA.  This produces KERN_DEBUG
-+	  messages for every CMA call as well as various messages while
-+	  processing calls such as dma_alloc_from_contiguous().
-+	  This option does not affect warning and error messages.
+-	bitmap_size = BITS_TO_LONGS(cma->count) * sizeof(long);
++	chunk_count = cma->count >> (KVM_CMA_CHUNK_ORDER - PAGE_SHIFT);
++	bitmap_size = BITS_TO_LONGS(chunk_count) * sizeof(long);
+ 	cma->bitmap = kzalloc(bitmap_size, GFP_KERNEL);
+ 	if (!cma->bitmap)
+ 		return -ENOMEM;
 -- 
 1.8.1.2
 
