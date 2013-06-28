@@ -1,64 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 34B796B0032
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 06:33:11 -0400 (EDT)
-Date: Fri, 28 Jun 2013 12:33:04 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 7/8] sched: Split accounting of NUMA hinting faults that
- pass two-stage filter
-Message-ID: <20130628103304.GF28407@twins.programming.kicks-ass.net>
-References: <1372257487-9749-1-git-send-email-mgorman@suse.de>
- <1372257487-9749-8-git-send-email-mgorman@suse.de>
- <20130628070027.GD17195@linux.vnet.ibm.com>
- <20130628093625.GF29209@dyad.programming.kicks-ass.net>
- <20130628101245.GD8362@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id D59826B0031
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 08:17:56 -0400 (EDT)
+Date: Fri, 28 Jun 2013 14:17:51 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2] vmpressure: consider "scanned < reclaimed" case when
+ calculating  a pressure level.
+Message-ID: <20130628121751.GA5125@dhcp22.suse.cz>
+References: <20130621162743.GA2837@gmail.com>
+ <CAOK=xRMhwvWrao_ve8GFsk0JBHAcWh_SB_kM6fCujp8WThPimw@mail.gmail.com>
+ <CAOK=xRNEMp3igfwQfrz0ffApmoAL19OM0EGLaBJ5RerZy9ddtw@mail.gmail.com>
+ <005601ce6f0c$5948ff90$0bdafeb0$%kim@samsung.com>
+ <20130626073557.GD29127@bbox>
+ <009601ce72fd$427eed70$c77cc850$%kim@samsung.com>
+ <20130627093721.GC17647@dhcp22.suse.cz>
+ <20130627153528.GA5006@gmail.com>
+ <20130627161103.GA25165@dhcp22.suse.cz>
+ <20130627180550.GA2276@teo>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130628101245.GD8362@linux.vnet.ibm.com>
+In-Reply-To: <20130627180550.GA2276@teo>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Anton Vorontsov <anton@enomsg.org>
+Cc: Minchan Kim <minchan@kernel.org>, Hyunhee Kim <hyunhee.kim@samsung.com>, linux-mm@kvack.org, akpm@linux-foundation.org, rob@landley.net, kamezawa.hiroyu@jp.fujitsu.com, hannes@cmpxchg.org, rientjes@google.com, kirill@shutemov.name, 'Kyungmin Park' <kyungmin.park@samsung.com>
 
-On Fri, Jun 28, 2013 at 03:42:45PM +0530, Srikar Dronamraju wrote:
-> > > 
-> > > > Ideally it would be possible to distinguish between NUMA hinting faults
-> > > > that are private to a task and those that are shared. This would require
-> > > > that the last task that accessed a page for a hinting fault would be
-> > > > recorded which would increase the size of struct page. Instead this patch
-> > > > approximates private pages by assuming that faults that pass the two-stage
-> > > > filter are private pages and all others are shared. The preferred NUMA
-> > > > node is then selected based on where the maximum number of approximately
-> > > > private faults were measured.
-> > > 
-> > > Should we consider only private faults for preferred node?
-> > 
-> > I don't think so; its optimal for the task to be nearest most of its pages;
-> > irrespective of whether they be private or shared.
+On Thu 27-06-13 11:05:50, Anton Vorontsov wrote:
+> On Thu, Jun 27, 2013 at 06:11:03PM +0200, Michal Hocko wrote:
+> > > If we send critical but there isn't big memory pressure, maybe
+> > > critical handler would kill some process and the result is that
+> > > killing another process unnecessary. That's really thing we should
+> > > avoid.
 > 
-> Then the preferred node should have been chosen based on both the
-> private and shared faults and not just private faults.
+> Yes, so that is why I actually want to ack the patch... It might be not an
+> ideal solution, but to me it seems like a good for the time being.
 
-Oh duh indeed. I totally missed it did that. Changelog also isn't giving
-rationale for this. Mel?
+I am still not sure why a) nr_taken shouldn't be used instead of
+nr_scanned b) why there should be any signal if the current allocator
+dies and the direct reclaim is terminated prematurely.
 
-> > 
-> > > I would think if tasks have shared pages then moving all tasks that share
-> > > the same pages to a node where the share pages are around would be
-> > > preferred. No? 
-> > 
-> > Well no; not if there's only 5 shared pages but 1024 private pages.
-> 
-> Yes, agree, but should we try to give the shared pages some additional weightage?
-
-Yes because you'll get 1/n amount of this on shared pages for threads --
-other threads will contend for the same PTE fault. And no because for
-inter process shared memory they'll each have their own PTE. And maybe
-because even for the threaded case its hard to tell how many threads
-will actually contend for that one PTE.
-
-Confused enough? :-)
+[...]
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
