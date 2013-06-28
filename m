@@ -1,104 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 658BF6B0036
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 13:45:26 -0400 (EDT)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Fri, 28 Jun 2013 13:45:25 -0400
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 5C5066E8044
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 13:45:16 -0400 (EDT)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5SHioDl313864
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 13:44:50 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5SHinOm021995
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 14:44:50 -0300
-Date: Fri, 28 Jun 2013 23:14:45 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 5/8] sched: Favour moving tasks towards the preferred node
-Message-ID: <20130628174445.GP8362@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20130628090447.GD28407@twins.programming.kicks-ass.net>
- <20130628100723.GC8362@linux.vnet.ibm.com>
- <20130628135114.GY1875@suse.de>
- <20130628171427.GO8362@linux.vnet.ibm.com>
- <20130628173407.GC1875@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20130628173407.GC1875@suse.de>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 4DE046B0032
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 13:56:44 -0400 (EDT)
+Subject: [PATCH] x86: meminfo: fix DirectMap2M underflow
+From: Dave Hansen <dave@sr71.net>
+Date: Fri, 28 Jun 2013 10:56:33 -0700
+Message-Id: <20130628175633.FCD5AF0B@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, x86@kernel.org, Dave Hansen <dave@sr71.net>
 
-> > > 
-> > > -	if (migrate_improves_locality(p, env))
-> > > +	if (migrate_improves_locality(p, env)) {
-> > > +#ifdef CONFIG_SCHEDSTATS
-> > > +		schedstat_inc(env->sd, lb_hot_gained[env->idle]);
-> > > +		schedstat_inc(p, se.statistics.nr_forced_migrations);
-> > > +#endif
-> > >  		return 1;
-> > > +	}
-> > > 
-> > 
-> > In this case, we account even cache cold threads as _cache hot_ in
-> > schedstats.
-> > 
-> > We need the task_hot() call to determine if task is cache hot or not.
-> > So the migrate_improves_locality(), I think should be called within the
-> > tsk_cache_hot check.
-> > 
-> > Do you have issues with the above snippet that I posted earlier?
-> > 
-> 
-> The migrate_improves_locality call had already happened so it cannot be
-> true after the tsk_cache_hot check is made so I was confused. If the call is
-> moved within task cache hot then it changes the intent of the patch because
 
-Yes,  I was suggesting moving it inside.
+From: Dave Hansen <dave.hansen@linux.intel.com>
 
-> cache hotness then trumps memory locality which is not intended. Memory
-> locality is expected to trump cache hotness.
-> 
+This bug seems familiar.  I'm not sure if I hit it a while ago
+and ignored it or if it is something I've seen show up in a
+couple of different forms.
 
-But whether the memory locality trumps or the cache hotness, the result
-would still be the same but a little concise code.
+I booted a kernel in a KVM instance which has a bunch of
+debugging turned on.  Meminfo shows:
 
-> How about this?
-> 
->         tsk_cache_hot = task_hot(p, env->src_rq->clock_task, env->sd);
-> 
->         if (migrate_improves_locality(p, env)) {
-> #ifdef CONFIG_SCHEDSTATS
->                 if (tsk_cache_hot) {
->                         schedstat_inc(env->sd, lb_hot_gained[env->idle]);
->                         schedstat_inc(p, se.statistics.nr_forced_migrations);
->                 }
-> #endif
->                 return 1;
->         }
-> 
->         if (!tsk_cache_hot ||
->                 env->sd->nr_balance_failed > env->sd->cache_nice_tries) {
-> #ifdef CONFIG_SCHEDSTATS
->                 if (tsk_cache_hot) {
->                         schedstat_inc(env->sd, lb_hot_gained[env->idle]);
->                         schedstat_inc(p, se.statistics.nr_forced_migrations);
->                 }
-> #endif
->                 return 1;
->         }
+DirectMap4k:     2058232 kB
+DirectMap2M:    18446744073709541376 kB
 
-Yes, this looks fine to me.
-> 
+Which is a _bit_ bogus. :) In this case, I think DEBUG_PAGEALLOC
+is what actually triggers this:
 
--- 
-Thanks and Regards
-Srikar Dronamraju
+void free_init_pages(char *what, unsigned long begin, unsigned long end)
+{
+...
+#ifdef CONFIG_DEBUG_PAGEALLOC
+        printk(KERN_INFO "debug: unmapping init [mem %#010lx-%#010lx]\n",
+                begin, end - 1);
+        set_memory_np(begin, (end - begin) >> PAGE_SHIFT);
+#else
+...
+
+Here, we are freeing memory in this mapping (from
+Documentation/x86/x86_64/mm.txt):
+
+ffffffff80000000 - ffffffffa0000000 (=512 MB)  kernel text mapping, from phys 0
+
+Which we map with 2M pages.  But, this is not a part of the
+actual kernel linear map.  The change_page_attr() code calls in
+to split_page_count() since it is splitting a 2M page.  We do
+not have any 2M pages for the linear map (because of
+DEBUG_PAGEALLOC), and the count underflows.
+
+This patch adds a check (and an argument) to split_page_count()
+to make sure that we can tell whether or not the address we are
+splitting is part of the linear map.
+
+It also changes the types of the direct_pages_count[] variables
+and the accessor functions.  The callers are already passing
+signed variables in:
+
+	update_page_count(PG_LEVEL_1G, -pages);
+
+to a function with unsigned arguments:
+
+	void update_page_count(int level, unsigned long pages)
+
+so we might as well make them signed.  We make the
+direct_pages_count[] variables signed so that we can do easy
+checks when they underflow.
+
+
+---
+
+ linux.git-davehans/arch/x86/include/asm/pgtable_types.h |    4 +-
+ linux.git-davehans/arch/x86/mm/init_32.c                |    2 -
+ linux.git-davehans/arch/x86/mm/pageattr.c               |   32 ++++++++++++----
+ 3 files changed, 27 insertions(+), 11 deletions(-)
+
+diff -puN arch/x86/include/asm/pgtable_types.h~mm-meminfo-DirectMap2M-underflow arch/x86/include/asm/pgtable_types.h
+--- linux.git/arch/x86/include/asm/pgtable_types.h~mm-meminfo-DirectMap2M-underflow	2013-06-28 10:55:42.528074131 -0700
++++ linux.git-davehans/arch/x86/include/asm/pgtable_types.h	2013-06-28 10:55:42.535074443 -0700
+@@ -339,9 +339,9 @@ enum pg_level {
+ };
+ 
+ #ifdef CONFIG_PROC_FS
+-extern void update_page_count(int level, unsigned long pages);
++extern void update_page_count(int level, int pages);
+ #else
+-static inline void update_page_count(int level, unsigned long pages) { }
++static inline void update_page_count(int level, int pages) { }
+ #endif
+ 
+ /*
+diff -puN arch/x86/mm/init_32.c~mm-meminfo-DirectMap2M-underflow arch/x86/mm/init_32.c
+--- linux.git/arch/x86/mm/init_32.c~mm-meminfo-DirectMap2M-underflow	2013-06-28 10:55:42.530074220 -0700
++++ linux.git-davehans/arch/x86/mm/init_32.c	2013-06-28 10:55:42.536074487 -0700
+@@ -261,7 +261,7 @@ kernel_physical_mapping_init(unsigned lo
+ 	pgd_t *pgd;
+ 	pmd_t *pmd;
+ 	pte_t *pte;
+-	unsigned pages_2m, pages_4k;
++	int pages_2m, pages_4k;
+ 	int mapping_iter;
+ 
+ 	start_pfn = start >> PAGE_SHIFT;
+diff -puN arch/x86/mm/pageattr.c~mm-meminfo-DirectMap2M-underflow arch/x86/mm/pageattr.c
+--- linux.git/arch/x86/mm/pageattr.c~mm-meminfo-DirectMap2M-underflow	2013-06-28 10:55:42.532074309 -0700
++++ linux.git-davehans/arch/x86/mm/pageattr.c	2013-06-28 10:55:42.537074532 -0700
+@@ -53,31 +53,47 @@ static DEFINE_SPINLOCK(cpa_lock);
+ #define CPA_PAGES_ARRAY 4
+ 
+ #ifdef CONFIG_PROC_FS
+-static unsigned long direct_pages_count[PG_LEVEL_NUM];
++static long direct_pages_count[PG_LEVEL_NUM];
+ 
+-void update_page_count(int level, unsigned long pages)
++static void check_direct_pages_count(int level)
++{
++	WARN_ONCE(direct_pages_count[level] < 0,
++		"page table count underflow level: %d", level);
++}
++
++void update_page_count(int level, int pages)
+ {
+ 	/* Protect against CPA */
+ 	spin_lock(&pgd_lock);
+ 	direct_pages_count[level] += pages;
++	check_direct_pages_count(level);
+ 	spin_unlock(&pgd_lock);
+ }
+ 
+-static void split_page_count(int level)
++static void split_page_count(unsigned long address, int level)
+ {
++	/*
++	 * We only keep these pagetable counts for memory in
++	 * the linear map.  The things we do not care about
++	 * and do not track are all at or above VMALLOC_START.
++	 */
++	if (address >= VMALLOC_START)
++		return;
++
+ 	direct_pages_count[level]--;
++	check_direct_pages_count(level);
+ 	direct_pages_count[level - 1] += PTRS_PER_PTE;
+ }
+ 
+ void arch_report_meminfo(struct seq_file *m)
+ {
+-	seq_printf(m, "DirectMap4k:    %8lu kB\n",
++	seq_printf(m, "DirectMap4k:    %8ld kB\n",
+ 			direct_pages_count[PG_LEVEL_4K] << 2);
+ #if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
+-	seq_printf(m, "DirectMap2M:    %8lu kB\n",
++	seq_printf(m, "DirectMap2M:    %8ld kB\n",
+ 			direct_pages_count[PG_LEVEL_2M] << 11);
+ #else
+-	seq_printf(m, "DirectMap4M:    %8lu kB\n",
++	seq_printf(m, "DirectMap4M:    %8ld kB\n",
+ 			direct_pages_count[PG_LEVEL_2M] << 12);
+ #endif
+ #ifdef CONFIG_X86_64
+@@ -87,7 +103,7 @@ void arch_report_meminfo(struct seq_file
+ #endif
+ }
+ #else
+-static inline void split_page_count(int level) { }
++static inline void split_page_count(unsigned long address, int level) { }
+ #endif
+ 
+ #ifdef CONFIG_X86_64
+@@ -607,7 +623,7 @@ __split_large_page(pte_t *kpte, unsigned
+ 
+ 	if (pfn_range_is_mapped(PFN_DOWN(__pa(address)),
+ 				PFN_DOWN(__pa(address)) + 1))
+-		split_page_count(level);
++		split_page_count(address, level);
+ 
+ 	/*
+ 	 * Install the new, split up pagetable.
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
