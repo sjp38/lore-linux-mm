@@ -1,121 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 27A996B0032
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 18:15:11 -0400 (EDT)
-Date: Sat, 29 Jun 2013 00:14:59 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 5/7] mm: compaction: increase the high order pages in the
- watermarks
-Message-ID: <20130628221459.GA6120@redhat.com>
-References: <1370445037-24144-1-git-send-email-aarcange@redhat.com>
- <1370445037-24144-6-git-send-email-aarcange@redhat.com>
- <51AF9D1D.6030709@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <51AF9D1D.6030709@redhat.com>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 7257B6B0032
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 18:59:21 -0400 (EDT)
+Date: Fri, 28 Jun 2013 15:59:19 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v4 5/9] memcg: use css_get/put when charging/uncharging
+ kmem
+Message-Id: <20130628155919.840f44b4d76e4e9ade6a9b6e@linux-foundation.org>
+In-Reply-To: <51BA77F1.4080106@huawei.com>
+References: <51BA7794.2000305@huawei.com>
+	<51BA77F1.4080106@huawei.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>
+To: Li Zefan <lizefan@huawei.com>
+Cc: Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>
 
-On Wed, Jun 05, 2013 at 04:18:37PM -0400, Rik van Riel wrote:
-> On 06/05/2013 11:10 AM, Andrea Arcangeli wrote:
-> > Require more high order pages in the watermarks, to give more margin
-> > for concurrent allocations. If there are too few pages, they can
-> > disappear too soon.
+On Fri, 14 Jun 2013 09:54:57 +0800 Li Zefan <lizefan@huawei.com> wrote:
+
+> Use css_get/put instead of mem_cgroup_get/put.
 > 
-> Not sure what to do with this patch.
+> We can't do a simple replacement, because here mem_cgroup_put()
+> is called during mem_cgroup_css_free(), while mem_cgroup_css_free()
+> won't be called until css refcnt goes down to 0.
 > 
-> Not scaling min for pageblock_order-2 allocations seems like
-> it could be excessive.
-<
-> Presumably this scaling was introduced for a good reason.
-
-I think the reason is that even if we generate plenty of hugepages
-they may be splitted to lower orders well before other hugepage
-allocations will be invoked. So we risk doing too much work.
-
+> Instead we increment css refcnt in mem_cgroup_css_offline(), and
+> then check if there's still kmem charges. If not, css refcnt will
+> be decremented immediately, otherwise the refcnt will be released
+> after the last kmem allocation is uncahred.
 > 
-> Why is that reason no longer valid?
-> 
-> Why is it safe to make this change?
-> 
-> Would it be safer to simply scale min less steeply?
+> ...
+>
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -416,6 +416,11 @@ static void memcg_kmem_clear_activated(struct mem_cgroup *memcg)
+>  
+>  static void memcg_kmem_mark_dead(struct mem_cgroup *memcg)
+>  {
+> +	/*
+> +	 * We need to call css_get() first, because memcg_uncharge_kmem()
+> +	 * will call css_put() if it sees the memcg is dead.
+> +	 */
+> +	smp_wmb();
+>  	if (test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags))
+>  		set_bit(KMEM_ACCOUNTED_DEAD, &memcg->kmem_account_flags);
+>  }
 
-This simply makes the scaling down for pageblock_order-1 equal to the
-scaling of pageblock_order-2. So compaction will generate more
-hugepages before stopping.
+That comment is rather confusing and unhelpful.  "We need to call
+css_get", but we clearly *don't* call css_get().  I guess we want
 
-The larger the order size of the allocation and the more aggressive we
-scale it down "min" for larger allocations, the fewer order pages
-there will be within the low-min wmarks. this changes increases the
-number of hugepages within low-min wmarks.
+--- a/mm/memcontrol.c~memcg-use-css_get-put-when-charging-uncharging-kmem-fix
++++ a/mm/memcontrol.c
+@@ -407,7 +407,7 @@ static void memcg_kmem_clear_activated(s
+ static void memcg_kmem_mark_dead(struct mem_cgroup *memcg)
+ {
+ 	/*
+-	 * We need to call css_get() first, because memcg_uncharge_kmem()
++	 * Our caller must use css_get() first, because memcg_uncharge_kmem()
+ 	 * will call css_put() if it sees the memcg is dead.
+ 	 */
+ 	smp_wmb();
+_
 
-In my testing what happened with too few large order pages within the
-low-min wmark, is that those few pages may be allocated or splitted to
-lower orders well before the CPU doing the compaction has a chance to
-allocate those. This patch made a difference in increasing the
-reliability of a threaded workload running with CPU NODE pinning and
-zone_reclaim_mode=1, and in turn it may be beneficial in general.
 
-The patch simpy reduces the scaling factor, because having a few more
-pages of margin between low-min wmarks is beneficial not just for 4k
-pages but for any order size in presence of threads. The downside is
-the risk of doing more compaction work but then nobody keeps
-allocating hugepages.
+But it's still not good.
 
-> >   		/* Require fewer higher order pages to be free */
-> > -		min >>= 1;
-> > +		if (o >= pageblock_order-1)
-> > +			min >>= 1;
+- What is the smp_wmb() for?  These barriers should always be
+  documented so readers can see what we're barriering against but this
+  one is floating around unexplained.
 
-On my laptop I get min:44764kB low:55952kB high:67144kB
+- What does memcg_uncharge_kmem() have to do with all this? 
+  memcg_kmem_mark_dead() just does a set_bit() - what has that to do
+  with memcg_kmem_mark_dead().
 
-scaling down like upstream we get:
+So I dunno, it's all clear as mud and I hope we can do better.
 
-order9 -> 218kb low wmark
 
-not even 1 hugepage of buffer between low-min -> very unreliable.
+> @@ -3060,8 +3065,16 @@ static void memcg_uncharge_kmem(struct mem_cgroup *memcg, u64 size)
+>  	if (res_counter_uncharge(&memcg->kmem, size))
+>  		return;
+>  
+> +	/*
+> +	 * Releases a reference taken in kmem_cgroup_css_offline in case
+> +	 * this last uncharge is racing with the offlining code or it is
+> +	 * outliving the memcg existence.
+> +	 *
+> +	 * The memory barrier imposed by test&clear is paired with the
+> +	 * explicit one in memcg_kmem_mark_dead().
+> +	 */
 
-with my patch:
+OK, that clears things up a bit.  A small bit.
 
-order9 -> 27mbyte low wmark
-order9 -> 22mbyte min wmark
 
-2 hugepages of margin: at least a bit of margin with concurrent
-allocations from different CPUs.
-
-But this whole logic is wrong and needs to be improved further: it
-makes no sense to have the min wmark scaled down to 22mbytes for order
-9. The min must be scaled down way more aggressively and _differently_
-than "low" for large order allocations. The "min" exists only for
-PF_MEMALLOC and other emergency allocations, and those must never
-require order > 0. Hence the min should shift down towards 0, while
-"low" must not.
-
-What I mean is that right now we generate just 1 hugepage, we should
-generate 3 to have more margin for concurrent allocations, but not
-22mbyte of hugepages that won't even have a chance to be used for
-anything but PF_MEMALLOC paths that shouldn't depend on high order.
-
-We still need plenty of free memory in the "min" wmark, but no
-hugepage is ok in the min.
-
-> Why this and not this?
-> 
-> 		if (order & 1)
-> 			min >>=1;
-
-I can test it but it would be less aggressive.
-
-> Not saying my idea is any better than yours, just saying that
-> a change like this needs more justification than provided by
-> your changelog...
-
-I'll improve the changelog and I'll try to improve the logic so that
-it says reliable as with my patch but the min is scaled down more
-aggressively in hugepage terms.
+This code is far too tricky :(
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
