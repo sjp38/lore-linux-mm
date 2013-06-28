@@ -1,99 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 126D76B0032
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 09:51:18 -0400 (EDT)
-Date: Fri, 28 Jun 2013 14:51:14 +0100
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 058F16B0032
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 09:54:57 -0400 (EDT)
+Date: Fri, 28 Jun 2013 14:54:54 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 5/8] sched: Favour moving tasks towards the preferred node
-Message-ID: <20130628135114.GY1875@suse.de>
-References: <20130628090447.GD28407@twins.programming.kicks-ass.net>
- <20130628100723.GC8362@linux.vnet.ibm.com>
+Subject: Re: [PATCH 6/8] sched: Reschedule task on preferred NUMA node once
+ selected
+Message-ID: <20130628135454.GZ1875@suse.de>
+References: <1372257487-9749-1-git-send-email-mgorman@suse.de>
+ <1372257487-9749-7-git-send-email-mgorman@suse.de>
+ <20130627145458.GU28407@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20130628100723.GC8362@linux.vnet.ibm.com>
+In-Reply-To: <20130627145458.GU28407@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Jun 28, 2013 at 03:37:23PM +0530, Srikar Dronamraju wrote:
-> > > > +
-> > > > +
-> > > >  /*
-> > > >   * can_migrate_task - may task p from runqueue rq be migrated to this_cpu?
-> > > >   */
-> > > > @@ -3945,10 +3977,14 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
-> > > >  
-> > > >  	/*
-> > > >  	 * Aggressive migration if:
-> > > > -	 * 1) task is cache cold, or
-> > > > -	 * 2) too many balance attempts have failed.
-> > > > +	 * 1) destination numa is preferred
-> > > > +	 * 2) task is cache cold, or
-> > > > +	 * 3) too many balance attempts have failed.
-> > > >  	 */
-> > > >  
-> > > > +	if (migrate_improves_locality(p, env))
-> > > > +		return 1;
-> > > 
-> > > Shouldnt this be under tsk_cache_hot check?
-> > > 
-> > > If the task is cache hot, then we would have to update the corresponding  schedstat
-> > > metrics.
-> > 
-> > No; you want migrate_degrades_locality() to be like task_hot(). You want
-> > to _always_ migrate tasks towards better locality irrespective of local
-> > cache hotness.
-> > 
+On Thu, Jun 27, 2013 at 04:54:58PM +0200, Peter Zijlstra wrote:
+> On Wed, Jun 26, 2013 at 03:38:05PM +0100, Mel Gorman wrote:
+> > +static int
+> > +find_idlest_cpu_node(int this_cpu, int nid)
+> > +{
+> > +	unsigned long load, min_load = ULONG_MAX;
+> > +	int i, idlest_cpu = this_cpu;
+> > +
+> > +	BUG_ON(cpu_to_node(this_cpu) == nid);
+> > +
+> > +	for_each_cpu(i, cpumask_of_node(nid)) {
+> > +		load = weighted_cpuload(i);
+> > +
+> > +		if (load < min_load) {
+> > +			struct task_struct *p;
+> > +
+> > +			/* Do not preempt a task running on its preferred node */
+> > +			struct rq *rq = cpu_rq(i);
+> > +			local_irq_disable();
+> > +			raw_spin_lock(&rq->lock);
 > 
-> Yes, I understand that numa should have more priority over cache.
-> But the schedstats will not be updated about whether the task was hot or
-> cold.
-> 
-> So lets say the task was cache hot but numa wants it to move, then we
-> should certainly move it but we should update the schedstats to mention that we
-> moved a cache hot task.
-> 
-> Something akin to this.
-> 
-> 	tsk_cache_hot = task_hot(p, env->src_rq->clock_task, env->sd);
-> 	if (tsk_cache_hot) {
-> 		if (migrate_improves_locality(p, env) || 
-> 		 	(env->sd->nr_balance_failed > env->sd->cache_nice_tries)) {
-> #ifdef CONFIG_SCHEDSTATS
-> 			schedstat_inc(env->sd, lb_hot_gained[env->idle]);
-> 			schedstat_inc(p, se.statistics.nr_forced_migrations);
-> #endif
-> 			return 1;
-> 		}
-> 		schedstat_inc(p, se.statistics.nr_failed_migrations_hot);
-> 		return 0;
-> 	}
-> 	return 1;
+> raw_spin_lock_irq() ?
 > 
 
-Thanks. Is this acceptable?
+/me slaps self
 
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index b3848e0..c3a153e 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -4088,8 +4088,13 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
- 	 * 3) too many balance attempts have failed.
- 	 */
- 
--	if (migrate_improves_locality(p, env))
-+	if (migrate_improves_locality(p, env)) {
-+#ifdef CONFIG_SCHEDSTATS
-+		schedstat_inc(env->sd, lb_hot_gained[env->idle]);
-+		schedstat_inc(p, se.statistics.nr_forced_migrations);
-+#endif
- 		return 1;
-+	}
- 
- 	tsk_cache_hot = task_hot(p, env->src_rq->clock_task, env->sd);
- 	if (!tsk_cache_hot)
+Fixed. Thanks.
+
+> > +			p = rq->curr;
+> > +			if (p->numa_preferred_nid != nid) {
+> > +				min_load = load;
+> > +				idlest_cpu = i;
+> > +			}
+> > +			raw_spin_unlock(&rq->lock);
+> > +			local_irq_disable();
+> > +		}
+> > +	}
+> > +
+> > +	return idlest_cpu;
+> > +}
 
 -- 
 Mel Gorman
