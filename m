@@ -1,45 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 0C3C76B004D
-	for <linux-mm@kvack.org>; Thu, 27 Jun 2013 22:15:05 -0400 (EDT)
-Received: by mail-ie0-f173.google.com with SMTP id k13so3146422iea.32
-        for <linux-mm@kvack.org>; Thu, 27 Jun 2013 19:15:05 -0700 (PDT)
-Date: Fri, 28 Jun 2013 10:14:54 +0800
-From: Shaohua Li <shli@kernel.org>
-Subject: Re: [PATCH 01/02] swap: discard while swapping only if
- SWAP_FLAG_DISCARD_PAGES
-Message-ID: <20130628021454.GA16423@kernel.org>
-References: <cover.1369529143.git.aquini@redhat.com>
- <537407790857e8a5d4db5fb294a909a61be29687.1369529143.git.aquini@redhat.com>
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 5FFEE6B0032
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 00:34:15 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id hz11so1927448pad.30
+        for <linux-mm@kvack.org>; Thu, 27 Jun 2013 21:34:14 -0700 (PDT)
+Date: Thu, 27 Jun 2013 21:34:11 -0700
+From: Anton Vorontsov <anton@enomsg.org>
+Subject: Re: [PATCH v2] vmpressure: implement strict mode
+Message-ID: <20130628043411.GA9100@teo>
+References: <20130626231712.4a7392a7@redhat.com>
+ <20130627150231.2bc00e3efcd426c4beef894c@linux-foundation.org>
+ <20130628000201.GB15637@bbox>
+ <20130627173433.d0fc6ecd.akpm@linux-foundation.org>
+ <20130628005852.GA8093@teo>
+ <20130627181353.3d552e64.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <537407790857e8a5d4db5fb294a909a61be29687.1369529143.git.aquini@redhat.com>
+In-Reply-To: <20130627181353.3d552e64.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, kzak@redhat.com, jmoyer@redhat.com, kosaki.motohiro@gmail.com, riel@redhat.com, lwoodman@redhat.com, mgorman@suse.de
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan@kernel.org>, Luiz Capitulino <lcapitulino@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.cz, kmpark@infradead.org, hyunhee.kim@samsung.com
 
-On Sun, May 26, 2013 at 01:31:55AM -0300, Rafael Aquini wrote:
-> This patch introduces SWAP_FLAG_DISCARD_PAGES and SWAP_FLAG_DISCARD_ONCE
-> new flags to allow more flexibe swap discard policies being flagged through
-> swapon(8). The default behavior is to keep both single-time, or batched, area
-> discards (SWAP_FLAG_DISCARD_ONCE) and fine-grained discards for page-clusters
-> (SWAP_FLAG_DISCARD_PAGES) enabled, in order to keep consistentcy with older
-> kernel behavior, as well as maintain compatibility with older swapon(8).
-> However, through the new introduced flags the best suitable discard policy 
-> can be selected accordingly to any given swap device constraint.
+On Thu, Jun 27, 2013 at 06:13:53PM -0700, Andrew Morton wrote:
+> On Thu, 27 Jun 2013 17:58:53 -0700 Anton Vorontsov <anton@enomsg.org> wrote:
+> > Current frequency is 1/(2MB). Suppose we ended up scanning the whole
+> > memory on a 2GB host, this will give us 1024 hits. Doesn't feel too much*
+> > to me... But for what it worth, I am against adding read() to the
+> > interface -- just because we can avoid the unnecessary switch into the
+> > kernel.
+> 
+> What was it they said about premature optimization?
+> 
+> I think I'd rather do nothing than add a mode hack (already!).
+> 
+> The information Luiz wants is already available with the existing
+> interface, so why not just use it until there is a real demonstrated
+> problem?
+> 
+> But all this does point at the fact that the chosen interface was not a
+> good one.  And it's happening so soon :( A far better interface would
+> be to do away with this level filtering stuff in the kernel altogether.
 
-I'm sorry to response this thread so later. I thought if we just want to
-discard the swap partition once at swapon, we really should do it in swapon
-tool. The swapon tool can detect the swap device supports discard, any swap
-partition is empty at swapon, and we have ioctl to do discard in userspace, so
-we have no problem to do discard at the tool. If we don't want to do discard at
-all, let the tool handles the option. Kernel is not the place to handle the
-complexity.
+OK, I am convinced that modes might be not necessary, but I see no big
+problem in current situation, we can add the strict mode and deprecate the
+"filtering" -- basically we'll implement the idea of requiring that
+userspace registers a separate fd for each level.
 
-Thanks,
-Shaohua
+As one of the ways to change the interface, we can do the strict mode by
+writing levels in uppercase, and warn_once on lowercase levels, describing
+that the old behaviour will go away. Once (if ever) we remove the old
+behaviour, the apps trying the old-style lowercase levels will fail
+gracefully with EINVAL.
+
+Or we can be honest and admit that we can't be perfect and just add an
+explicit versioning to the interface. :)
+
+It might be unfortunate that we did not foresee this and have to change
+things that soon, but we did change interfaces in the past for a lot of
+sysfs and proc knobs, so it is not something new. Once the vmpressure
+feature will get even wider usage exposure, we might realize that we need
+to make even more changes...
+
+> (Why didn't vmpressure use netlink, btw?  Then we'd have decent payload
+> delivery)
+
+Because we decided to be a part of memcg and thus we used standard cgroups
+notifications. And we didn't need the payload (and still don't need it if
+we go with the multiple fds interface).
+
+Anton
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
