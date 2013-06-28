@@ -1,61 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na6sys010bmx080.postini.com [74.125.246.180])
-	by kanga.kvack.org (Postfix) with SMTP id 8AE086B0032
-	for <linux-mm@kvack.org>; Thu, 27 Jun 2013 20:01:48 -0400 (EDT)
-Date: Fri, 28 Jun 2013 09:02:01 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v2] vmpressure: implement strict mode
-Message-ID: <20130628000201.GB15637@bbox>
-References: <20130626231712.4a7392a7@redhat.com>
- <20130627150231.2bc00e3efcd426c4beef894c@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130627150231.2bc00e3efcd426c4beef894c@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 8EEF16B0032
+	for <linux-mm@kvack.org>; Thu, 27 Jun 2013 20:32:48 -0400 (EDT)
+Date: Thu, 27 Jun 2013 17:32:25 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: mmotm 2013-06-27-16-36 uploaded
+Message-Id: <20130627173225.3915d976.akpm@linux-foundation.org>
+In-Reply-To: <20130628095712.120bec7036284584fd467ee2@canb.auug.org.au>
+References: <20130627233733.BAEB131C3BE@corp2gmr1-1.hot.corp.google.com>
+	<20130628095712.120bec7036284584fd467ee2@canb.auug.org.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Luiz Capitulino <lcapitulino@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.cz, anton@enomsg.org, kmpark@infradead.org, hyunhee.kim@samsung.com
+To: Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
 
-Hi Andrew,
+On Fri, 28 Jun 2013 09:57:12 +1000 Stephen Rothwell <sfr@canb.auug.org.au> wrote:
 
-On Thu, Jun 27, 2013 at 03:02:31PM -0700, Andrew Morton wrote:
-> On Wed, 26 Jun 2013 23:17:12 -0400 Luiz Capitulino <lcapitulino@redhat.com> wrote:
+> Hi Andrew,
 > 
-> > Currently, an eventfd is notified for the level it's registered for
-> > _plus_ higher levels.
+> On Thu, 27 Jun 2013 16:37:33 -0700 akpm@linux-foundation.org wrote:
+> >
+> > The mm-of-the-moment snapshot 2013-06-27-16-36 has been uploaded to
 > > 
-> > This is a problem if an application wants to implement different
-> > actions for different levels. For example, an application might want
-> > to release 10% of its cache on level low, 50% on medium and 100% on
-> > critical. To do this, an application has to register a different
-> > eventfd for each pressure level. However, fd low is always going to
-> > be notified and and all fds are going to be notified on level critical.
+> >    http://www.ozlabs.org/~akpm/mmotm/
 > > 
-> > Strict mode solves this problem by strictly notifiying an eventfd
-> > for the pressure level it registered for. This new mode is optional,
-> > by default we still notify eventfds on higher levels too.
-> > 
+> >   include-linux-smph-on_each_cpu-switch-back-to-a-macro.patch
+> >   arch-c6x-mm-include-asm-uaccessh-to-pass-compiling.patch
+> >   drivers-dma-pl330c-fix-locking-in-pl330_free_chan_resources.patch
 > 
-> It didn't take long for this simple interface to start getting ugly :(
-> And having the fd operate in different modes is ugly.
-> 
-> Can we instead pass the level in the event payload?
+> Did you mean to drop these three patches from linux-next?
 
-You mean userland have to look the result of read(2) to confirm what
-current level is and if it's no interest for us, we don't do any reaction.
-If so, userland daemon would receive lots of events which are no interest.
-
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+Nope, they should be inside the NEXT_PATCHES_START/NEXT_PATCHES_END
+section, thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
