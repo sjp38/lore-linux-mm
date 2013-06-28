@@ -1,71 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 2CD326B0031
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 08:33:04 -0400 (EDT)
-Date: Fri, 28 Jun 2013 13:33:00 +0100
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id D2D376B0031
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 09:00:06 -0400 (EDT)
+Date: Fri, 28 Jun 2013 14:00:03 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 3/8] sched: Select a preferred node with the most numa
- hinting faults
-Message-ID: <20130628123300.GU1875@suse.de>
+Subject: Re: [PATCH 5/8] sched: Favour moving tasks towards the preferred node
+Message-ID: <20130628130003.GV1875@suse.de>
 References: <1372257487-9749-1-git-send-email-mgorman@suse.de>
- <1372257487-9749-4-git-send-email-mgorman@suse.de>
- <20130628061428.GB17195@linux.vnet.ibm.com>
+ <1372257487-9749-6-git-send-email-mgorman@suse.de>
+ <20130627145345.GT28407@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20130628061428.GB17195@linux.vnet.ibm.com>
+In-Reply-To: <20130627145345.GT28407@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Jun 28, 2013 at 11:44:28AM +0530, Srikar Dronamraju wrote:
-> * Mel Gorman <mgorman@suse.de> [2013-06-26 15:38:02]:
+On Thu, Jun 27, 2013 at 04:53:45PM +0200, Peter Zijlstra wrote:
+> On Wed, Jun 26, 2013 at 03:38:04PM +0100, Mel Gorman wrote:
+> > This patch favours moving tasks towards the preferred NUMA node when
+> > it has just been selected. Ideally this is self-reinforcing as the
+> > longer the the task runs on that node, the more faults it should incur
+> > causing task_numa_placement to keep the task running on that node. In
+> > reality a big weakness is that the nodes CPUs can be overloaded and it
+> > would be more effficient to queue tasks on an idle node and migrate to
+> > the new node. This would require additional smarts in the balancer so
+> > for now the balancer will simply prefer to place the task on the
+> > preferred node for a tunable number of PTE scans.
 > 
-> > This patch selects a preferred node for a task to run on based on the
-> > NUMA hinting faults. This information is later used to migrate tasks
-> > towards the node during balancing.
-> > 
-> > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> > ---
-> >  include/linux/sched.h |  1 +
-> >  kernel/sched/core.c   | 10 ++++++++++
-> >  kernel/sched/fair.c   | 16 ++++++++++++++--
-> >  kernel/sched/sched.h  |  2 +-
-> >  4 files changed, 26 insertions(+), 3 deletions(-)
-> > 
-> > diff --git a/include/linux/sched.h b/include/linux/sched.h
-> > index 72861b4..ba46a64 100644
-> > --- a/include/linux/sched.h
-> > +++ b/include/linux/sched.h
-> > @@ -1507,6 +1507,7 @@ struct task_struct {
-> >  	struct callback_head numa_work;
-> >  
-> >  	unsigned long *numa_faults;
-> > +	int numa_preferred_nid;
-> >  #endif /* CONFIG_NUMA_BALANCING */
-> >  
-> >  	struct rcu_head rcu;
-> > diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-> > index f332ec0..019baae 100644
-> > --- a/kernel/sched/core.c
-> > +++ b/kernel/sched/core.c
-> > @@ -1593,6 +1593,7 @@ static void __sched_fork(struct task_struct *p)
-> >  	p->numa_scan_seq = p->mm ? p->mm->numa_scan_seq : 0;
-> >  	p->numa_migrate_seq = p->mm ? p->mm->numa_scan_seq - 1 : 0;
-> >  	p->numa_scan_period = sysctl_numa_balancing_scan_delay;
-> > +	p->numa_preferred_nid = -1;
-> 
-> Though we may not want to inherit faults, I think the tasks generally
-> share pages with their siblings, parent. So will it make sense to
-> inherit the preferred node?
-> 
+> This changelog fails to mention why you're adding the settle stuff in
+> this patch.
 
-If it really shared data with its parent then it will be detected by the PTE
-scanner later as normal. I would expect that initially it would be scheduled
-to run on CPUs on the local node and I would think that inheriting it here
-will not make a detectable difference. If you think it will, I can do it
-but then the data should certainly be cleared on exec.
+Updated the change.
+
+This patch favours moving tasks towards the preferred NUMA node when it
+has just been selected. Ideally this is self-reinforcing as the longer
+the task runs on that node, the more faults it should incur causing
+task_numa_placement to keep the task running on that node. In reality
+a big weakness is that the nodes CPUs can be overloaded and it would be
+more efficient to queue tasks on an idle node and migrate to the new node.
+This would require additional smarts in the balancer so for now the balancer
+will simply prefer to place the task on the preferred node for a PTE scans
+which is controlled by the numa_balancing_settle_count sysctl. Once the
+settle_count number of scans has complete the schedule is free to place
+the task on an alternative node if the load is imbalanced.
 
 -- 
 Mel Gorman
