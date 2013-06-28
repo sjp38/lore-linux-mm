@@ -1,240 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 2C5BF6B0032
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 04:11:29 -0400 (EDT)
-Received: from /spool/local
-	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Fri, 28 Jun 2013 04:11:28 -0400
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 45F6238C8047
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 04:11:24 -0400 (EDT)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5S8BPrN275604
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 04:11:25 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5S8BO85004097
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 05:11:24 -0300
-Date: Fri, 28 Jun 2013 13:41:20 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 5/8] sched: Favour moving tasks towards the preferred node
-Message-ID: <20130628081120.GE17195@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <1372257487-9749-1-git-send-email-mgorman@suse.de>
- <1372257487-9749-6-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id A929F6B0032
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 04:39:47 -0400 (EDT)
+Date: Fri, 28 Jun 2013 10:39:43 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: linux-next: slab shrinkers: BUG at mm/list_lru.c:92
+Message-ID: <20130628083943.GA32747@dhcp22.suse.cz>
+References: <20130617223004.GB2538@localhost.localdomain>
+ <20130618024623.GP29338@dastard>
+ <20130618063104.GB20528@localhost.localdomain>
+ <20130618082414.GC13677@dhcp22.suse.cz>
+ <20130618104443.GH13677@dhcp22.suse.cz>
+ <20130618135025.GK13677@dhcp22.suse.cz>
+ <20130625022754.GP29376@dastard>
+ <20130626081509.GF28748@dhcp22.suse.cz>
+ <20130626232426.GA29034@dastard>
+ <20130627145411.GA24206@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1372257487-9749-6-git-send-email-mgorman@suse.de>
+In-Reply-To: <20130627145411.GA24206@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Glauber Costa <glommer@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-* Mel Gorman <mgorman@suse.de> [2013-06-26 15:38:04]:
+I have just triggered this one.
 
-> This patch favours moving tasks towards the preferred NUMA node when
-> it has just been selected. Ideally this is self-reinforcing as the
-> longer the the task runs on that node, the more faults it should incur
-> causing task_numa_placement to keep the task running on that node. In
-> reality a big weakness is that the nodes CPUs can be overloaded and it
-> would be more effficient to queue tasks on an idle node and migrate to
-> the new node. This would require additional smarts in the balancer so
-> for now the balancer will simply prefer to place the task on the
-> preferred node for a tunable number of PTE scans.
-> 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> ---
->  Documentation/sysctl/kernel.txt |  8 +++++++-
->  include/linux/sched.h           |  1 +
->  kernel/sched/core.c             |  4 +++-
->  kernel/sched/fair.c             | 40 ++++++++++++++++++++++++++++++++++++++--
->  kernel/sysctl.c                 |  7 +++++++
->  5 files changed, 56 insertions(+), 4 deletions(-)
-> 
-> diff --git a/Documentation/sysctl/kernel.txt b/Documentation/sysctl/kernel.txt
-> index 0fe678c..246b128 100644
-> --- a/Documentation/sysctl/kernel.txt
-> +++ b/Documentation/sysctl/kernel.txt
-> @@ -374,7 +374,8 @@ feature should be disabled. Otherwise, if the system overhead from the
->  feature is too high then the rate the kernel samples for NUMA hinting
->  faults may be controlled by the numa_balancing_scan_period_min_ms,
->  numa_balancing_scan_delay_ms, numa_balancing_scan_period_reset,
-> -numa_balancing_scan_period_max_ms and numa_balancing_scan_size_mb sysctls.
-> +numa_balancing_scan_period_max_ms, numa_balancing_scan_size_mb and
-> +numa_balancing_settle_count sysctls.
->  
->  ==============================================================
->  
-> @@ -418,6 +419,11 @@ scanned for a given scan.
->  numa_balancing_scan_period_reset is a blunt instrument that controls how
->  often a tasks scan delay is reset to detect sudden changes in task behaviour.
->  
-> +numa_balancing_settle_count is how many scan periods must complete before
-> +the schedule balancer stops pushing the task towards a preferred node. This
-> +gives the scheduler a chance to place the task on an alternative node if the
-> +preferred node is overloaded.
-> +
->  ==============================================================
->  
->  osrelease, ostype & version:
-> diff --git a/include/linux/sched.h b/include/linux/sched.h
-> index 42f9818..82a6136 100644
-> --- a/include/linux/sched.h
-> +++ b/include/linux/sched.h
-> @@ -815,6 +815,7 @@ enum cpu_idle_type {
->  #define SD_ASYM_PACKING		0x0800  /* Place busy groups earlier in the domain */
->  #define SD_PREFER_SIBLING	0x1000	/* Prefer to place tasks in a sibling domain */
->  #define SD_OVERLAP		0x2000	/* sched_domains of this level overlap */
-> +#define SD_NUMA			0x4000	/* cross-node balancing */
->  
->  extern int __weak arch_sd_sibiling_asym_packing(void);
->  
-> diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-> index b00b81a..ba9470e 100644
-> --- a/kernel/sched/core.c
-> +++ b/kernel/sched/core.c
-> @@ -1591,7 +1591,7 @@ static void __sched_fork(struct task_struct *p)
->  
->  	p->node_stamp = 0ULL;
->  	p->numa_scan_seq = p->mm ? p->mm->numa_scan_seq : 0;
-> -	p->numa_migrate_seq = p->mm ? p->mm->numa_scan_seq - 1 : 0;
-> +	p->numa_migrate_seq = 0;
->  	p->numa_scan_period = sysctl_numa_balancing_scan_delay;
->  	p->numa_preferred_nid = -1;
->  	p->numa_work.next = &p->numa_work;
-> @@ -5721,6 +5721,7 @@ struct sched_domain_topology_level;
->  void sched_setnuma(struct task_struct *p, int nid)
->  {
->  	p->numa_preferred_nid = nid;
-> +	p->numa_migrate_seq = 0;
->  }
->  #endif /* CONFIG_NUMA_BALANCING */
->  
-> @@ -6150,6 +6151,7 @@ sd_numa_init(struct sched_domain_topology_level *tl, int cpu)
->  					| 0*SD_SHARE_PKG_RESOURCES
->  					| 1*SD_SERIALIZE
->  					| 0*SD_PREFER_SIBLING
-> +					| 1*SD_NUMA
->  					| sd_local_flags(level)
->  					,
->  		.last_balance		= jiffies,
-> diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-> index 5893399..5e7f728 100644
-> --- a/kernel/sched/fair.c
-> +++ b/kernel/sched/fair.c
-> @@ -791,6 +791,15 @@ unsigned int sysctl_numa_balancing_scan_size = 256;
->  /* Scan @scan_size MB every @scan_period after an initial @scan_delay in ms */
->  unsigned int sysctl_numa_balancing_scan_delay = 1000;
->  
-> +/*
-> + * Once a preferred node is selected the scheduler balancer will prefer moving
-> + * a task to that node for sysctl_numa_balancing_settle_count number of PTE
-> + * scans. This will give the process the chance to accumulate more faults on
-> + * the preferred node but still allow the scheduler to move the task again if
-> + * the nodes CPUs are overloaded.
-> + */
-> +unsigned int sysctl_numa_balancing_settle_count __read_mostly = 3;
-> +
->  static void task_numa_placement(struct task_struct *p)
->  {
->  	int seq, nid, max_nid = 0;
-> @@ -802,6 +811,7 @@ static void task_numa_placement(struct task_struct *p)
->  	if (p->numa_scan_seq == seq)
->  		return;
->  	p->numa_scan_seq = seq;
-> +	p->numa_migrate_seq++;
->  
->  	/* Find the node with the highest number of faults */
->  	for (nid = 0; nid < nr_node_ids; nid++) {
-> @@ -3897,6 +3907,28 @@ task_hot(struct task_struct *p, u64 now, struct sched_domain *sd)
->  	return delta < (s64)sysctl_sched_migration_cost;
->  }
->  
-> +/* Returns true if the destination node has incurred more faults */
-> +static bool migrate_improves_locality(struct task_struct *p, struct lb_env *env)
-> +{
-> +	int src_nid, dst_nid;
-> +
-> +	if (!p->numa_faults || !(env->sd->flags & SD_NUMA))
-> +		return false;
-> +
-> +	src_nid = cpu_to_node(env->src_cpu);
-> +	dst_nid = cpu_to_node(env->dst_cpu);
-> +
-> +	if (src_nid == dst_nid)
-> +		return false;
-> +
-> +	if (p->numa_migrate_seq < sysctl_numa_balancing_settle_count &&
+[37955.354041] BUG: unable to handle kernel paging request at 000000572ead7838
+[37955.356032] IP: [<ffffffff81127e5b>] list_lru_walk_node+0xab/0x140
+[37955.364062] PGD 2bf0a067 PUD 0 
+[37955.364062] Oops: 0000 [#1] SMP 
+[37955.364062] Modules linked in: edd nfsv3 nfs_acl nfs fscache lockd sunrpc af_packet bridge stp llc cpufreq_conservative cpufreq_userspace cpufreq_powersave fuse xfs libcrc32c loop dm_mod tg3 ptp powernow_k8 pps_core e1000 kvm_amd shpchp kvm edac_core i2c_amd756 pci_hotplug i2c_amd8111 sg edac_mce_amd amd_rng k8temp sr_mod pcspkr cdrom serio_raw button ohci_hcd ehci_hcd usbcore usb_common processor thermal_sys scsi_dh_emc scsi_dh_rdac scsi_dh_hp_sw scsi_dh ata_generic sata_sil pata_amd
+[37955.364062] CPU 3 
+[37955.364062] Pid: 3351, comm: as Not tainted 3.9.0mmotm+ #1490 AMD A8440/WARTHOG
+[37955.364062] RIP: 0010:[<ffffffff81127e5b>]  [<ffffffff81127e5b>] list_lru_walk_node+0xab/0x140
+[37955.364062] RSP: 0000:ffff8800374af7b8  EFLAGS: 00010286
+[37955.364062] RAX: 0000000000000106 RBX: ffff88002ead7838 RCX: ffff8800374af830
+[37955.364062] RDX: 0000000000000107 RSI: ffff88001d250dc0 RDI: ffff88002ead77d0
+[37955.364062] RBP: ffff8800374af818 R08: 0000000000000000 R09: ffff88001ffeafc0
+[37955.364062] R10: 0000000000000002 R11: 0000000000000000 R12: ffff88001d250dc0
+[37955.364062] R13: 00000000000000a0 R14: 000000572ead7838 R15: ffff88001d250dc8
+[37955.364062] FS:  00002aaaaaadb100(0000) GS:ffff88003fd00000(0000) knlGS:0000000000000000
+[37955.364062] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[37955.364062] CR2: 000000572ead7838 CR3: 0000000036f61000 CR4: 00000000000007e0
+[37955.364062] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[37955.364062] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+[37955.364062] Process as (pid: 3351, threadinfo ffff8800374ae000, task ffff880036d665c0)
+[37955.364062] Stack:
+[37955.364062]  ffff88001da3e700 ffff8800374af830 ffff8800374af838 ffffffff811846d0
+[37955.364062]  0000000000000000 ffff88001ce75c48 01ff8800374af838 ffff8800374af838
+[37955.364062]  0000000000000000 ffff88001ce75800 ffff8800374afa08 0000000000001014
+[37955.364062] Call Trace:
+[37955.364062]  [<ffffffff811846d0>] ? insert_inode_locked+0x160/0x160
+[37955.364062]  [<ffffffff8118496c>] prune_icache_sb+0x3c/0x60
+[37955.364062]  [<ffffffff8116dcbe>] super_cache_scan+0x12e/0x1b0
+[37955.364062]  [<ffffffff8111354a>] shrink_slab_node+0x13a/0x250
+[37955.364062]  [<ffffffff8111671b>] shrink_slab+0xab/0x120
+[37955.364062]  [<ffffffff81117944>] do_try_to_free_pages+0x264/0x360
+[37955.364062]  [<ffffffff81117d90>] try_to_free_pages+0x130/0x180
+[37955.364062]  [<ffffffff81001974>] ? __switch_to+0x1b4/0x550
+[37955.364062]  [<ffffffff8110a2fe>] __alloc_pages_slowpath+0x39e/0x790
+[37955.364062]  [<ffffffff8110a8ea>] __alloc_pages_nodemask+0x1fa/0x210
+[37955.364062]  [<ffffffff8114d1b0>] alloc_pages_vma+0xa0/0x120
+[37955.364062]  [<ffffffff81129ebb>] do_anonymous_page+0x16b/0x350
+[37955.364062]  [<ffffffff8112f9c5>] handle_pte_fault+0x235/0x240
+[37955.364062]  [<ffffffff8107b8b0>] ? set_next_entity+0xb0/0xd0
+[37955.364062]  [<ffffffff8112fcbf>] handle_mm_fault+0x2ef/0x400
+[37955.364062]  [<ffffffff8157e927>] __do_page_fault+0x237/0x4f0
+[37955.364062]  [<ffffffff8116a8a8>] ? fsnotify_access+0x68/0x80
+[37955.364062]  [<ffffffff8116b0b8>] ? vfs_read+0xd8/0x130
+[37955.364062]  [<ffffffff8157ebe9>] do_page_fault+0x9/0x10
+[37955.364062]  [<ffffffff8157b348>] page_fault+0x28/0x30
+[37955.364062] Code: 44 24 18 0f 84 87 00 00 00 49 83 7c 24 18 00 78 7b 49 83 c5 01 48 8b 4d a8 48 8b 11 48 8d 42 ff 48 85 d2 48 89 01 74 78 4d 39 f7 <49> 8b 06 4c 89 f3 74 6d 49 89 c6 eb a6 0f 1f 84 00 00 00 00 00 
+[37955.364062] RIP  [<ffffffff81127e5b>] list_lru_walk_node+0xab/0x140
 
-Lets say even if the numa_migrate_seq is greater than settle_count but running
-on a wrong node, then shouldnt this be taken as a good opportunity to 
-move the task?
+ffffffff81127e0e:       48 8b 55 b0             mov    -0x50(%rbp),%rdx
+ffffffff81127e12:       4c 89 e6                mov    %r12,%rsi
+ffffffff81127e15:       48 89 df                mov    %rbx,%rdi
+ffffffff81127e18:       ff 55 b8                callq  *-0x48(%rbp)		# isolate(item, &nlru->lock, cb_arg)
+ffffffff81127e1b:       83 f8 01                cmp    $0x1,%eax
+ffffffff81127e1e:       74 78                   je     ffffffff81127e98 <list_lru_walk_node+0xe8>
+ffffffff81127e20:       73 4e                   jae    ffffffff81127e70 <list_lru_walk_node+0xc0>
+[...]
+ffffffff81127e45:       48 8b 4d a8             mov    -0x58(%rbp),%rcx		# LRU_ROTATE:
+ffffffff81127e49:       48 8b 11                mov    (%rcx),%rdx
+ffffffff81127e4c:       48 8d 42 ff             lea    -0x1(%rdx),%rax	
+ffffffff81127e50:       48 85 d2                test   %rdx,%rdx		# if ((*nr_to_walk)-- == 0)
+ffffffff81127e53:       48 89 01                mov    %rax,(%rcx)
+ffffffff81127e56:       74 78                   je     ffffffff81127ed0 <list_lru_walk_node+0x120>
+ffffffff81127e58:       4d 39 f7                cmp    %r14,%r15
+ffffffff81127e5b:       49 8b 06                mov    (%r14),%rax		<<< BANG
+ffffffff81127e5e:       4c 89 f3                mov    %r14,%rbx
+ffffffff81127e61:       74 6d                   je     ffffffff81127ed0 <list_lru_walk_node+0x120>
+ffffffff81127e63:       49 89 c6                mov    %rax,%r14
+ffffffff81127e66:       eb a6                   jmp    ffffffff81127e0e <list_lru_walk_node+0x5e>
+[...]
+ffffffff81127e70:       83 f8 02                cmp    $0x2,%eax
+ffffffff81127e73:       74 d0                   je     ffffffff81127e45 <list_lru_walk_node+0x95>
+ffffffff81127e75:       83 f8 03                cmp    $0x3,%eax
+ffffffff81127e78:       74 06                   je     ffffffff81127e80 <list_lru_walk_node+0xd0>
+ffffffff81127e7a:       0f 0b                   ud2
+[...]
+ffffffff81127ed0:       66 41 83 04 24 01       addw   $0x1,(%r12)
+ffffffff81127ed6:       48 83 c4 38             add    $0x38,%rsp
+ffffffff81127eda:       4c 89 e8                mov    %r13,%rax
+ffffffff81127edd:       5b                      pop    %rbx
+ffffffff81127ede:       41 5c                   pop    %r12
+ffffffff81127ee0:       41 5d                   pop    %r13
+ffffffff81127ee2:       41 5e                   pop    %r14
+ffffffff81127ee4:       41 5f                   pop    %r15
+ffffffff81127ee6:       c9                      leaveq 
+ffffffff81127ee7:       c3                      retq
 
-> +	    p->numa_preferred_nid == dst_nid)
-> +		return true;
-> +
-> +	return false;
-> +}
-> +
-> +
->  /*
->   * can_migrate_task - may task p from runqueue rq be migrated to this_cpu?
->   */
-> @@ -3945,10 +3977,14 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
->  
->  	/*
->  	 * Aggressive migration if:
-> -	 * 1) task is cache cold, or
-> -	 * 2) too many balance attempts have failed.
-> +	 * 1) destination numa is preferred
-> +	 * 2) task is cache cold, or
-> +	 * 3) too many balance attempts have failed.
->  	 */
->  
-> +	if (migrate_improves_locality(p, env))
-> +		return 1;
-
-Shouldnt this be under tsk_cache_hot check?
-
-If the task is cache hot, then we would have to update the corresponding  schedstat
-metrics.
-
-
-> +
->  	tsk_cache_hot = task_hot(p, env->src_rq->clock_task, env->sd);
->  	if (!tsk_cache_hot ||
->  		env->sd->nr_balance_failed > env->sd->cache_nice_tries) {
-> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-> index afc1dc6..263486f 100644
-> --- a/kernel/sysctl.c
-> +++ b/kernel/sysctl.c
-> @@ -393,6 +393,13 @@ static struct ctl_table kern_table[] = {
->  		.mode		= 0644,
->  		.proc_handler	= proc_dointvec,
->  	},
-> +	{
-> +		.procname       = "numa_balancing_settle_count",
-> +		.data           = &sysctl_numa_balancing_settle_count,
-> +		.maxlen         = sizeof(unsigned int),
-> +		.mode           = 0644,
-> +		.proc_handler   = proc_dointvec,
-> +	},
->  #endif /* CONFIG_NUMA_BALANCING */
->  #endif /* CONFIG_SCHED_DEBUG */
->  	{
-> -- 
-> 1.8.1.4
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
+We are tripping over in list_for_each_safe and r14(000000572ead7838) is
+obviously a garbage. So the lru is clobbered?
 -- 
-Thanks and Regards
-Srikar Dronamraju
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
