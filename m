@@ -1,128 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 481AD6B0033
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 09:55:25 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id rl6so2468573pac.29
-        for <linux-mm@kvack.org>; Fri, 28 Jun 2013 06:55:24 -0700 (PDT)
-Date: Fri, 28 Jun 2013 22:55:17 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v2] vmpressure: consider "scanned < reclaimed" case when
- calculating  a pressure level.
-Message-ID: <20130628135517.GA4414@gmail.com>
-References: <CAOK=xRMhwvWrao_ve8GFsk0JBHAcWh_SB_kM6fCujp8WThPimw@mail.gmail.com>
- <CAOK=xRNEMp3igfwQfrz0ffApmoAL19OM0EGLaBJ5RerZy9ddtw@mail.gmail.com>
- <005601ce6f0c$5948ff90$0bdafeb0$%kim@samsung.com>
- <20130626073557.GD29127@bbox>
- <009601ce72fd$427eed70$c77cc850$%kim@samsung.com>
- <20130627093721.GC17647@dhcp22.suse.cz>
- <20130627153528.GA5006@gmail.com>
- <20130627161103.GA25165@dhcp22.suse.cz>
- <20130627235435.GA15637@bbox>
- <20130628122412.GB5125@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 106D16B0037
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 09:55:43 -0400 (EDT)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Fri, 28 Jun 2013 09:55:42 -0400
+Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 58DC9C90042
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 09:55:38 -0400 (EDT)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5SDsUGL289486
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 09:54:30 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5SDsROO017758
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 10:54:30 -0300
+Date: Fri, 28 Jun 2013 19:24:22 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 0/6] Basic scheduler support for automatic NUMA balancing
+Message-ID: <20130628135422.GA21895@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <1372257487-9749-1-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20130628122412.GB5125@dhcp22.suse.cz>
+In-Reply-To: <1372257487-9749-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Hyunhee Kim <hyunhee.kim@samsung.com>, 'Anton Vorontsov' <anton@enomsg.org>, linux-mm@kvack.org, akpm@linux-foundation.org, rob@landley.net, kamezawa.hiroyu@jp.fujitsu.com, hannes@cmpxchg.org, rientjes@google.com, kirill@shutemov.name, 'Kyungmin Park' <kyungmin.park@samsung.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi Michal,
+* Mel Gorman <mgorman@suse.de> [2013-06-26 15:37:59]:
 
-On Fri, Jun 28, 2013 at 02:24:12PM +0200, Michal Hocko wrote:
-> On Fri 28-06-13 08:54:35, Minchan Kim wrote:
-> > Hello Michal,
-> > 
-> > On Thu, Jun 27, 2013 at 06:11:03PM +0200, Michal Hocko wrote:
-> > > On Fri 28-06-13 00:35:28, Minchan Kim wrote:
-> > > > Hi Michal,
-> > > > 
-> > > > On Thu, Jun 27, 2013 at 11:37:21AM +0200, Michal Hocko wrote:
-> > > > > On Thu 27-06-13 15:12:10, Hyunhee Kim wrote:
-> > > > > > In vmpressure, the pressure level is calculated based on the ratio
-> > > > > > of how many pages were scanned vs. reclaimed in a given time window.
-> > > > > > However, there is a possibility that "scanned < reclaimed" in such a
-> > > > > > case, when reclaiming ends by fatal signal in shrink_inactive_list.
-> > > > > > So, with this patch, we just return "low" level when "scanned < reclaimed"
-> > > > > > happens not to have userland miss reclaim activity.
-> > > > > 
-> > > > > Hmm, fatal signal pending on kswapd doesn't make sense to me so it has
-> > > > > to be a direct reclaim path. Does it really make sense to signal LOW
-> > > > > when there is probably a big memory pressure and somebody is killing the
-> > > > > current allocator?
-> > > > 
-> > > > So, do you want to trigger critical instead of low?
-> > > > 
-> > > > Now, current is going to die so we can expect shortly we can get a amount
-> > > > of memory, normally. 
-> > > 
-> > > And also consider that this is per-memcg interface. And so it is even
-> > > more complicated. If a task dies then there is _no_ guarantee that there
-> > > will be an uncharge in that group (task could have been migrated to that
-> > > group so the memory belongs to somebody else).
-> > 
-> > Good point and that's one of the reason I hate memcg for just using
-> > vmpressure. 
-> 
-> Well, the very same problem is present in the memcg OOM as well. oom
-> score calculation is not memcg aware wrt charges.
-> 
-> > Let's think over it. One of the very avaialbe scenario
-> > which userland could do when notified from vmpressure is that manager
-> > process sends signal for others to release own cached memory.
-> 
-> Assuming those processes are in the same memcg, right?
-> 
-> > If we use vmpressure without move_charge_at_immigrate in multiple memcg
-> > group, it would be a disaster. But if we use move_charge_at_immigrate,
-> > we will see long stall easily so it's not an option, either.
-> 
-> I am not sure I am following you here. Could you be more specific what
-> is the actual problem?
-> From my POV, a manager can see a memory pressure, it notifies others in
-> the same memcg and they will release their caches. With
-> move_charge_at_immigrate == 0 some of those might release a memory in
-> other group but somebody must be using memory from the currently
-> signaled group, right?
+> It's several months overdue and everything was quiet after 3.8 came out
+> but I recently had a chance to revisit automatic NUMA balancing for a few
+> days. I looked at basic scheduler integration resulting in the following
+> small series. Much of the following is heavily based on the numacore series
+> which in itself takes part of the autonuma series from back in November. In
+> particular it borrows heavily from Peter Ziljstra's work in "sched, numa,
+> mm: Add adaptive NUMA affinity support" but deviates too much to preserve
+> Signed-off-bys. As before, if the relevant authors are ok with it I'll
+> add Signed-off-bys (or add them yourselves if you pick the patches up).
 
-My concern is that manager process can send a signal to a process A
-in same group but unfortunately, process A would release a memory
-in other group so manager process can send a signal to a process B
-in same group but unfortunately, process B would release a memory
-in other group so manger process can ...
-...
-...
-...
-in same group and at last, process Z would release a memory in same
-group but we release all of cached from A-Y process. :(
 
-> 
-> > So, IMO, it's not a good idea to use vmpressure with no-root memcg so
-> > it could raise the question again "why vmpressure is part of memcg".
-> 
-> Maybe I do not see the problem correctly, but making vmpressure memcg
-> aware was a good idea. It is something like userspace pre-oom handling.
+Here is a snapshot of the results of running autonuma-benchmark running on 8
+node 64 cpu system with hyper threading disabled. Ran 5 iterations for each
+setup
 
-I don't say that memcg-aware is bad. Surely it's good thing but
-it's not good that we must enable memcg for just using memory notifier
-globally. Even above problem would make memcg-vmpressure complicated and
-memory reclaim behavior change compared to long history well-made global
-page reclaim.
+	KernelVersion: 3.9.0-mainline_v39+()
+				Testcase:      Min      Max      Avg
+				  numa01:  1784.16  1864.15  1800.16
+				  numa02:    32.07    32.72    32.59
 
-I claim we should be able to use vmpressure without memcg as well as
-memcg.
+	KernelVersion: 3.9.0-mainline_v39+() + mel's patches
+				Testcase:      Min      Max      Avg  %Change
+				  numa01:  1752.48  1859.60  1785.60    0.82%
+				  numa02:    47.21    60.58    53.43  -39.00%
 
-> 
-> > I really didn't want it. :(
-> [...]
-> -- 
-> Michal Hocko
-> SUSE Labs
+So numa02 case; we see a degradation of around 39%.
+
+Details below
+-----------------------------------------------------------------------------------------
+
+numa01
+	KernelVersion: 3.9.0-mainline_v39+()
+	 Performance counter stats for '/usr/bin/time -f %e %S %U %c %w -o start_bench.out -a ./numa01':
+		   554,289 cs                                                           [100.00%]
+		    26,727 migrations                                                   [100.00%]
+		 1,982,054 faults                                                       [100.00%]
+		     5,819 migrate:mm_migrate_pages                                    
+
+	    1784.171745972 seconds time elapsed
+
+	numa01 1784.16 352.58 68140.96 141242 4862
+
+	KernelVersion: 3.9.0-mainline_v39+() + mel's patches
+	 Performance counter stats for '/usr/bin/time -f %e %S %U %c %w -o start_bench.out -a ./numa01':
+
+		 1,072,118 cs                                                           [100.00%]
+		    43,796 migrations                                                   [100.00%]
+		 5,226,896 faults                                                       [100.00%]
+		     2,815 migrate:mm_migrate_pages                                    
+
+	    1763.961631143 seconds time elapsed
+
+	numa01 1763.95 321.62 78358.88 233740 2712
+
+
+numa02
+	KernelVersion: 3.9.0-mainline_v39+()
+
+	 Performance counter stats for '/usr/bin/time -f %e %S %U %c %w -o start_bench.out -a ./numa02':
+
+		    14,018 cs                                                           [100.00%]
+		     1,209 migrations                                                   [100.00%]
+		    40,847 faults                                                       [100.00%]
+		       629 migrate:mm_migrate_pages                                    
+
+	      32.729238004 seconds time elapsed
+
+	numa02 32.72 51.25 1415.06 6013 111
+
+	KernelVersion: 3.9.0-mainline_v39+() + mel's patches
+
+	 Performance counter stats for '/usr/bin/time -f %e %S %U %c %w -o start_bench.out -a ./numa02':
+
+		    35,891 cs                                                           [100.00%]
+		     1,579 migrations                                                   [100.00%]
+		   173,443 faults                                                       [100.00%]
+		     1,106 migrate:mm_migrate_pages                                    
+
+	      53.970814899 seconds time elapsed
+
+	numa02 53.96 128.90 2301.90 9291 148
+
+Notes:
+In the numa01 case, we see a slight benefit + lesser system and user time.
+We see more context switches and task migrations but lesser page migrations.
+
+
+In the numa02 case, we see a larger degradation + higher system + higher user
+time. We see more context switches and more page migrations too.
 
 -- 
-Kind regards,
-Minchan Kim
+Thanks and Regards
+Srikar Dronamraju
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
