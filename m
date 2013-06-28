@@ -1,51 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id AE9516B0032
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 05:36:55 -0400 (EDT)
-Date: Fri, 28 Jun 2013 11:36:25 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 7/8] sched: Split accounting of NUMA hinting faults that
- pass two-stage filter
-Message-ID: <20130628093625.GF29209@dyad.programming.kicks-ass.net>
-References: <1372257487-9749-1-git-send-email-mgorman@suse.de>
- <1372257487-9749-8-git-send-email-mgorman@suse.de>
- <20130628070027.GD17195@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 6CD1E6B0036
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 05:38:14 -0400 (EDT)
+Received: by mail-ee0-f45.google.com with SMTP id c1so921198eek.18
+        for <linux-mm@kvack.org>; Fri, 28 Jun 2013 02:38:12 -0700 (PDT)
+Date: Fri, 28 Jun 2013 11:38:09 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: Performance regression from switching lock to rw-sem for
+ anon-vma tree
+Message-ID: <20130628093809.GB29205@gmail.com>
+References: <1371165992.27102.573.camel@schen9-DESK>
+ <20130619131611.GC24957@gmail.com>
+ <1371660831.27102.663.camel@schen9-DESK>
+ <1372205996.22432.119.camel@schen9-DESK>
+ <20130626095108.GB29181@gmail.com>
+ <1372282560.22432.139.camel@schen9-DESK>
+ <1372292701.22432.152.camel@schen9-DESK>
+ <20130627083651.GA3730@gmail.com>
+ <1372366385.22432.185.camel@schen9-DESK>
+ <1372375873.22432.200.camel@schen9-DESK>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130628070027.GD17195@linux.vnet.ibm.com>
+In-Reply-To: <1372375873.22432.200.camel@schen9-DESK>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, "Shi, Alex" <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-On Fri, Jun 28, 2013 at 12:30:27PM +0530, Srikar Dronamraju wrote:
-> * Mel Gorman <mgorman@suse.de> [2013-06-26 15:38:06]:
+
+* Tim Chen <tim.c.chen@linux.intel.com> wrote:
+
+> I tried some tweaking that checks sem->count for read owned lock. Even 
+> though it reduces the percentage of acquisitions that need sleeping by 
+> 8.14% (from 18.6% to 10.46%), it increases the writer acquisition 
+> blocked count by 11%. This change still doesn't boost throughput and has 
+> a tiny regression for the workload.
 > 
-> > Ideally it would be possible to distinguish between NUMA hinting faults
-> > that are private to a task and those that are shared. This would require
-> > that the last task that accessed a page for a hinting fault would be
-> > recorded which would increase the size of struct page. Instead this patch
-> > approximates private pages by assuming that faults that pass the two-stage
-> > filter are private pages and all others are shared. The preferred NUMA
-> > node is then selected based on where the maximum number of approximately
-> > private faults were measured.
-> 
-> Should we consider only private faults for preferred node?
+> 						Opt Spin Opt Spin
+> 							 (with tweak)	
+> Writer acquisition blocked count		7359040	8168006
+> Blocked by reader				 0.55%	 0.52%
+> Lock acquired first attempt (lock stealing)	16.92%	19.70%
+> Lock acquired second attempt (1 sleep)	17.60%	 9.32%
+> Lock acquired after more than 1 sleep		 1.00%	 1.14%
+> Lock acquired with optimistic spin		64.48%	69.84%
+> Optimistic spin abort 1 			11.77%	 1.14%
+> Optimistic spin abort 2			 6.81%	 9.22%
+> Optimistic spin abort 3			 0.02%	 0.10%
 
-I don't think so; its optimal for the task to be nearest most of its pages;
-irrespective of whether they be private or shared.
+So lock stealing+spinning now acquires the lock successfully ~90% of the 
+time, the remaining sleeps are:
 
-> I would think if tasks have shared pages then moving all tasks that share
-> the same pages to a node where the share pages are around would be
-> preferred. No? 
+> Lock acquired second attempt (1 sleep)	......	 9.32%
 
-Well no; not if there's only 5 shared pages but 1024 private pages.
+And the reason these sleeps are mostly due to:
 
-> If yes, how does the preferred node logic help to achieve
-> the above?
+> Optimistic spin abort 2			 .....	 9.22%
 
-There's no packing logic yet...
+Right?
+
+So this particular #2 abort point is:
+
+|       preempt_disable();
+|       for (;;) {
+|               owner = ACCESS_ONCE(sem->owner);
+|               if (owner && !rwsem_spin_on_owner(sem, owner))
+|                       break;   <--------------------------- abort (2)
+
+Next step would be to investigate why we decide to not spin there, why 
+does rwsem_spin_on_owner() fail?
+
+If I got all the patches right, rwsem_spin_on_owner() is this:
+
++static noinline
++int rwsem_spin_on_owner(struct rw_semaphore *lock, struct task_struct *owner)
++{
++       rcu_read_lock();
++       while (owner_running(lock, owner)) {
++               if (need_resched())
++                       break;
++
++               arch_mutex_cpu_relax();
++       }
++       rcu_read_unlock();
++
++       /*
++        * We break out the loop above on need_resched() and when the
++        * owner changed, which is a sign for heavy contention. Return
++        * success only when lock->owner is NULL.
++        */
++       return lock->owner == NULL;
++}
+
+where owner_running() is similar to the mutex spinning code: it in the end 
+checks owner->on_cpu - like the mutex code.
+
+If my analysis is correct so far then it might be useful to add two more 
+stats: did rwsem_spin_on_owner() fail because lock->owner == NULL [owner 
+released the rwsem], or because owner_running() failed [owner went to 
+sleep]?
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
