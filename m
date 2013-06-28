@@ -1,45 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 5625B6B0032
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 05:02:06 -0400 (EDT)
-Date: Fri, 28 Jun 2013 11:01:59 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 4/8] sched: Update NUMA hinting faults once per scan
-Message-ID: <20130628090159.GC28407@twins.programming.kicks-ass.net>
-References: <1372257487-9749-1-git-send-email-mgorman@suse.de>
- <1372257487-9749-5-git-send-email-mgorman@suse.de>
- <20130628063233.GC17195@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 5EC726B0032
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 05:04:52 -0400 (EDT)
+Date: Fri, 28 Jun 2013 18:04:50 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v2] vmpressure: implement strict mode
+Message-ID: <20130628090450.GA9956@bbox>
+References: <20130626231712.4a7392a7@redhat.com>
+ <20130627150231.2bc00e3efcd426c4beef894c@linux-foundation.org>
+ <20130628000201.GB15637@bbox>
+ <20130627173433.d0fc6ecd.akpm@linux-foundation.org>
+ <20130628005852.GA8093@teo>
+ <20130627181353.3d552e64.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130628063233.GC17195@linux.vnet.ibm.com>
+In-Reply-To: <20130627181353.3d552e64.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Anton Vorontsov <anton@enomsg.org>, Luiz Capitulino <lcapitulino@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.cz, kmpark@infradead.org, hyunhee.kim@samsung.com
 
-On Fri, Jun 28, 2013 at 12:02:33PM +0530, Srikar Dronamraju wrote:
-> * Mel Gorman <mgorman@suse.de> [2013-06-26 15:38:03]:
-> > @@ -831,9 +837,13 @@ void task_numa_fault(int node, int pages, bool migrated)
-> >  	if (unlikely(!p->numa_faults)) {
-> >  		int size = sizeof(*p->numa_faults) * nr_node_ids;
-> >  
-> > -		p->numa_faults = kzalloc(size, GFP_KERNEL);
-> > +		/* numa_faults and numa_faults_buffer share the allocation */
-> > +		p->numa_faults = kzalloc(size * 2, GFP_KERNEL);
+On Thu, Jun 27, 2013 at 06:13:53PM -0700, Andrew Morton wrote:
+> On Thu, 27 Jun 2013 17:58:53 -0700 Anton Vorontsov <anton@enomsg.org> wrote:
 > 
-> Instead of allocating buffer to hold the current faults, cant we pass
-> the nr of pages and node information (and probably migrate) to
-> task_numa_placement()?.
+> > On Thu, Jun 27, 2013 at 05:34:33PM -0700, Andrew Morton wrote:
+> > > > If so, userland daemon would receive lots of events which are no interest.
+> > > 
+> > > "lots"?  If vmpressure is generating events at such a high frequency that
+> > > this matters then it's already busted?
+> > 
+> > Current frequency is 1/(2MB). Suppose we ended up scanning the whole
+> > memory on a 2GB host, this will give us 1024 hits. Doesn't feel too much*
+> > to me... But for what it worth, I am against adding read() to the
+> > interface -- just because we can avoid the unnecessary switch into the
+> > kernel.
+> 
+> What was it they said about premature optimization?
+> 
+> I think I'd rather do nothing than add a mode hack (already!).
+> 
+> The information Luiz wants is already available with the existing
+> interface, so why not just use it until there is a real demonstrated
+> problem?
+> 
+> But all this does point at the fact that the chosen interface was not a
+> good one.  And it's happening so soon :( A far better interface would
+> be to do away with this level filtering stuff in the kernel altogether.
+> Register for events and you get all the events, simple.  Or require that
+> userspace register a separate time for each level, or whatever.
+> 
+> Something clean and simple which leaves the policy in userspace,
+> please.  Not this.
 
-I'm afraid I don't get your question; there's more storage required than
-just the arguments.
+Anton, Michal,
 
-> Why should task_struct be passed as an argument to  task_numa_placement().
-> It seems it always will be current.
+Tend to agree. I have been thought that current vmpressure heuristic
+could be much fluctuated with various workloads so that how we could make
+it stable with another parameters in future so everyone has satisfactory
+result with just common general value of low/medium/critical but
+different window size. It's not easy for kernel to handle it, IMO.
+So as Andrew says, how about leaving the policy in userspace?
 
-Customary for parts -- motivated by the fact that usage of current
-is/can be more expensive than passing an argument.
+For example, we kernel just can expose linear index(ex, 0~100) using
+some algorithm(ex, current vmpressure_win/reclaimed/scan) and userland
+could poll it with his time granularity and handle the situation and
+reset it.
+
+It's a just simple example without enough considering.
+Anyway the point is that isn't it worth to think over userspace policy
+and what's indicator kernel could expose to user space?
+
+
+> 
+> (Why didn't vmpressure use netlink, btw?  Then we'd have decent payload
+> delivery)
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
