@@ -1,42 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 57ED66B0036
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 11:48:40 -0400 (EDT)
-Message-ID: <51CDB056.5090308@sr71.net>
-Date: Fri, 28 Jun 2013 08:48:38 -0700
-From: Dave Hansen <dave@sr71.net>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 05D466B0032
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 12:30:19 -0400 (EDT)
+Message-ID: <51CDBA15.9000207@oracle.com>
+Date: Fri, 28 Jun 2013 11:30:13 -0500
+From: Dave Kleikamp <dave.kleikamp@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] mm: madvise: MADV_POPULATE for quick pre-faulting
-References: <20130627231605.8F9F12E6@viggo.jf.intel.com> <20130628054757.GA10429@gmail.com>
-In-Reply-To: <20130628054757.GA10429@gmail.com>
+Subject: [PATCH] mm: sched: numa: fix NUMA balancing when !SCHED_DEBUG
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org
 
-On 06/27/2013 10:47 PM, Zheng Liu wrote:
->> I've been doing some testing involving large amounts of
->> page cache.  It's quite painful to get hundreds of GB
->> of page cache mapped in, especially when I am trying to
->> do it in parallel threads.  This is true even when the
->> page cache is already allocated and I only need to map
->> it in.  The test:
->>
->> 1. take 160 16MB files
->> 2. clone 160 threads, mmap the 16MB files, and either
->>   a. walk through the file touching each page
-> 
-> Why not change MAP_POPULATE flag in mmap(2)?  Now it is only for private
-> mappings.  But maybe we could let it support shared mapping.
+Commit 3105b86a defined numabalancing_enabled to control the enabling
+and disabling of automatic NUMA balancing, but it is never used.
 
-Adding that support to mmap() will certainly _help_ some folks.  But,
-anything that mmap()s something is taking mmap_sem for write.  That
-means that threaded apps doing mmap()/munmap() frequently are _not_
-scalable.
+I believe the intention was to use this in place of
+sched_feat_numa(NUMA).
 
-IOW, a process needing to do a bunch of MAP_POPULATEs isn't
-parallelizable, but one using this mechanism would be.
+Currently, if SCHED_DEBUG is not defined, sched_feat_numa(NUMA) will
+never be changed from the initial "false".
+
+Signed-off-by: Dave Kleikamp <dave.kleikamp@oracle.com>
+---
+ kernel/sched/fair.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index c61a614..fc11c2f 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -813,7 +813,7 @@ void task_numa_fault(int node, int pages, bool migrated)
+ {
+ 	struct task_struct *p = current;
+ 
+-	if (!sched_feat_numa(NUMA))
++	if (!numabalancing_enabled)
+ 		return;
+ 
+ 	/* FIXME: Allocate task-specific structure for placement policy here */
+@@ -5751,7 +5751,7 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
+ 		entity_tick(cfs_rq, se, queued);
+ 	}
+ 
+-	if (sched_feat_numa(NUMA))
++	if (numabalancing_enabled)
+ 		task_tick_numa(rq, curr);
+ 
+ 	update_rq_runnable_avg(rq, 1);
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
