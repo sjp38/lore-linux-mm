@@ -1,82 +1,216 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id CF6C56B0036
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 05:04:54 -0400 (EDT)
-Date: Fri, 28 Jun 2013 11:04:47 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 5/8] sched: Favour moving tasks towards the preferred node
-Message-ID: <20130628090447.GD28407@twins.programming.kicks-ass.net>
-References: <1372257487-9749-1-git-send-email-mgorman@suse.de>
- <1372257487-9749-6-git-send-email-mgorman@suse.de>
- <20130628081120.GE17195@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130628081120.GE17195@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 2AA8C6B0032
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 05:11:16 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Fri, 28 Jun 2013 14:33:38 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 3D3C8E0056
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 14:40:46 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5S9BUK113828146
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 14:41:31 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5S9B7SM000333
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 19:11:08 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V2 1/4] mm/cma: Move dma contiguous changes into a seperate config
+Date: Fri, 28 Jun 2013 14:40:59 +0530
+Message-Id: <1372410662-3748-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: benh@kernel.crashing.org, paulus@samba.org, linux-mm@kvack.org, m.szyprowski@samsung.com, mina86@mina86.com
+Cc: linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-On Fri, Jun 28, 2013 at 01:41:20PM +0530, Srikar Dronamraju wrote:
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Please trim your replies.
+We want to use CMA for allocating hash page table and real mode area for
+PPC64. Hence move DMA contiguous related changes into a seperate config
+so that ppc64 can enable CMA without requiring DMA contiguous.
 
-> > +/* Returns true if the destination node has incurred more faults */
-> > +static bool migrate_improves_locality(struct task_struct *p, struct lb_env *env)
-> > +{
-> > +	int src_nid, dst_nid;
-> > +
-> > +	if (!p->numa_faults || !(env->sd->flags & SD_NUMA))
-> > +		return false;
-> > +
-> > +	src_nid = cpu_to_node(env->src_cpu);
-> > +	dst_nid = cpu_to_node(env->dst_cpu);
-> > +
-> > +	if (src_nid == dst_nid)
-> > +		return false;
-> > +
-> > +	if (p->numa_migrate_seq < sysctl_numa_balancing_settle_count &&
-> 
-> Lets say even if the numa_migrate_seq is greater than settle_count but running
-> on a wrong node, then shouldnt this be taken as a good opportunity to 
-> move the task?
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+ arch/arm/configs/omap2plus_defconfig  |  2 +-
+ arch/arm/configs/tegra_defconfig      |  2 +-
+ arch/arm/include/asm/dma-contiguous.h |  2 +-
+ arch/arm/mm/dma-mapping.c             |  6 +++---
+ drivers/base/Kconfig                  | 21 +++++----------------
+ drivers/base/Makefile                 |  2 +-
+ include/linux/dma-contiguous.h        |  2 +-
+ mm/Kconfig                            | 24 ++++++++++++++++++++++++
+ 8 files changed, 37 insertions(+), 24 deletions(-)
 
-I think that's what its doing; so this stmt says; if seq is large and
-we're trying to move to the 'right' node; move it noaw.
-
-> > +	    p->numa_preferred_nid == dst_nid)
-> > +		return true;
-> > +
-> > +	return false;
-> > +}
-> > +
-> > +
-> >  /*
-> >   * can_migrate_task - may task p from runqueue rq be migrated to this_cpu?
-> >   */
-> > @@ -3945,10 +3977,14 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
-> >  
-> >  	/*
-> >  	 * Aggressive migration if:
-> > -	 * 1) task is cache cold, or
-> > -	 * 2) too many balance attempts have failed.
-> > +	 * 1) destination numa is preferred
-> > +	 * 2) task is cache cold, or
-> > +	 * 3) too many balance attempts have failed.
-> >  	 */
-> >  
-> > +	if (migrate_improves_locality(p, env))
-> > +		return 1;
-> 
-> Shouldnt this be under tsk_cache_hot check?
-> 
-> If the task is cache hot, then we would have to update the corresponding  schedstat
-> metrics.
-
-No; you want migrate_degrades_locality() to be like task_hot(). You want
-to _always_ migrate tasks towards better locality irrespective of local
-cache hotness.
+diff --git a/arch/arm/configs/omap2plus_defconfig b/arch/arm/configs/omap2plus_defconfig
+index abbe319..098268f 100644
+--- a/arch/arm/configs/omap2plus_defconfig
++++ b/arch/arm/configs/omap2plus_defconfig
+@@ -71,7 +71,7 @@ CONFIG_MAC80211=m
+ CONFIG_MAC80211_RC_PID=y
+ CONFIG_MAC80211_RC_DEFAULT_PID=y
+ CONFIG_UEVENT_HELPER_PATH="/sbin/hotplug"
+-CONFIG_CMA=y
++CONFIG_DMA_CMA=y
+ CONFIG_CONNECTOR=y
+ CONFIG_DEVTMPFS=y
+ CONFIG_DEVTMPFS_MOUNT=y
+diff --git a/arch/arm/configs/tegra_defconfig b/arch/arm/configs/tegra_defconfig
+index f7ba3161..34ae8f2 100644
+--- a/arch/arm/configs/tegra_defconfig
++++ b/arch/arm/configs/tegra_defconfig
+@@ -79,7 +79,7 @@ CONFIG_RFKILL_GPIO=y
+ CONFIG_DEVTMPFS=y
+ CONFIG_DEVTMPFS_MOUNT=y
+ # CONFIG_FIRMWARE_IN_KERNEL is not set
+-CONFIG_CMA=y
++CONFIG_DMA_CMA=y
+ CONFIG_MTD=y
+ CONFIG_MTD_CHAR=y
+ CONFIG_MTD_M25P80=y
+diff --git a/arch/arm/include/asm/dma-contiguous.h b/arch/arm/include/asm/dma-contiguous.h
+index 3ed37b4..e072bb2 100644
+--- a/arch/arm/include/asm/dma-contiguous.h
++++ b/arch/arm/include/asm/dma-contiguous.h
+@@ -2,7 +2,7 @@
+ #define ASMARM_DMA_CONTIGUOUS_H
+ 
+ #ifdef __KERNEL__
+-#ifdef CONFIG_CMA
++#ifdef CONFIG_DMA_CMA
+ 
+ #include <linux/types.h>
+ #include <asm-generic/dma-contiguous.h>
+diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+index ef3e0f3..1fb40dc 100644
+--- a/arch/arm/mm/dma-mapping.c
++++ b/arch/arm/mm/dma-mapping.c
+@@ -358,7 +358,7 @@ static int __init atomic_pool_init(void)
+ 	if (!pages)
+ 		goto no_pages;
+ 
+-	if (IS_ENABLED(CONFIG_CMA))
++	if (IS_ENABLED(CONFIG_DMA_CMA))
+ 		ptr = __alloc_from_contiguous(NULL, pool->size, prot, &page,
+ 					      atomic_pool_init);
+ 	else
+@@ -670,7 +670,7 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
+ 		addr = __alloc_simple_buffer(dev, size, gfp, &page);
+ 	else if (!(gfp & __GFP_WAIT))
+ 		addr = __alloc_from_pool(size, &page);
+-	else if (!IS_ENABLED(CONFIG_CMA))
++	else if (!IS_ENABLED(CONFIG_DMA_CMA))
+ 		addr = __alloc_remap_buffer(dev, size, gfp, prot, &page, caller);
+ 	else
+ 		addr = __alloc_from_contiguous(dev, size, prot, &page, caller);
+@@ -759,7 +759,7 @@ static void __arm_dma_free(struct device *dev, size_t size, void *cpu_addr,
+ 		__dma_free_buffer(page, size);
+ 	} else if (__free_from_pool(cpu_addr, size)) {
+ 		return;
+-	} else if (!IS_ENABLED(CONFIG_CMA)) {
++	} else if (!IS_ENABLED(CONFIG_DMA_CMA)) {
+ 		__dma_free_remap(cpu_addr, size);
+ 		__dma_free_buffer(page, size);
+ 	} else {
+diff --git a/drivers/base/Kconfig b/drivers/base/Kconfig
+index 07abd9d..74b7c98 100644
+--- a/drivers/base/Kconfig
++++ b/drivers/base/Kconfig
+@@ -202,11 +202,10 @@ config DMA_SHARED_BUFFER
+ 	  APIs extension; the file's descriptor can then be passed on to other
+ 	  driver.
+ 
+-config CMA
+-	bool "Contiguous Memory Allocator"
+-	depends on HAVE_DMA_CONTIGUOUS && HAVE_MEMBLOCK
+-	select MIGRATION
+-	select MEMORY_ISOLATION
++config DMA_CMA
++	bool "DMA Contiguous Memory Allocator"
++	depends on HAVE_DMA_CONTIGUOUS
++	select CMA
+ 	help
+ 	  This enables the Contiguous Memory Allocator which allows drivers
+ 	  to allocate big physically-contiguous blocks of memory for use with
+@@ -215,17 +214,7 @@ config CMA
+ 	  For more information see <include/linux/dma-contiguous.h>.
+ 	  If unsure, say "n".
+ 
+-if CMA
+-
+-config CMA_DEBUG
+-	bool "CMA debug messages (DEVELOPMENT)"
+-	depends on DEBUG_KERNEL
+-	help
+-	  Turns on debug messages in CMA.  This produces KERN_DEBUG
+-	  messages for every CMA call as well as various messages while
+-	  processing calls such as dma_alloc_from_contiguous().
+-	  This option does not affect warning and error messages.
+-
++if  DMA_CMA
+ comment "Default contiguous memory area size:"
+ 
+ config CMA_SIZE_MBYTES
+diff --git a/drivers/base/Makefile b/drivers/base/Makefile
+index 4e22ce3..5d93bb5 100644
+--- a/drivers/base/Makefile
++++ b/drivers/base/Makefile
+@@ -6,7 +6,7 @@ obj-y			:= core.o bus.o dd.o syscore.o \
+ 			   attribute_container.o transport_class.o \
+ 			   topology.o
+ obj-$(CONFIG_DEVTMPFS)	+= devtmpfs.o
+-obj-$(CONFIG_CMA) += dma-contiguous.o
++obj-$(CONFIG_DMA_CMA) += dma-contiguous.o
+ obj-y			+= power/
+ obj-$(CONFIG_HAS_DMA)	+= dma-mapping.o
+ obj-$(CONFIG_HAVE_GENERIC_DMA_COHERENT) += dma-coherent.o
+diff --git a/include/linux/dma-contiguous.h b/include/linux/dma-contiguous.h
+index 01b5c84..00141d3 100644
+--- a/include/linux/dma-contiguous.h
++++ b/include/linux/dma-contiguous.h
+@@ -57,7 +57,7 @@ struct cma;
+ struct page;
+ struct device;
+ 
+-#ifdef CONFIG_CMA
++#ifdef CONFIG_DMA_CMA
+ 
+ /*
+  * There is always at least global CMA area and a few optional device
+diff --git a/mm/Kconfig b/mm/Kconfig
+index e742d06..26a5f81 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -477,3 +477,27 @@ config FRONTSWAP
+ 	  and swap data is stored as normal on the matching swap device.
+ 
+ 	  If unsure, say Y to enable frontswap.
++
++config CMA
++	bool "Contiguous Memory Allocator"
++	depends on HAVE_MEMBLOCK
++	select MIGRATION
++	select MEMORY_ISOLATION
++	help
++	  This enables the Contiguous Memory Allocator which allows other
++	  subsystems to allocate big physically-contiguous blocks of memory.
++	  CMA reserves a region of memory and allows only movable pages to
++	  be allocated from it. This way, the kernel can use the memory for
++	  pagecache and when a subsystem requests for contiguous area, the
++	  allocated pages are migrated away to serve the contiguous request.
++
++	  If unsure, say "n".
++
++config CMA_DEBUG
++	bool "CMA debug messages (DEVELOPMENT)"
++	depends on DEBUG_KERNEL && CMA
++	help
++	  Turns on debug messages in CMA.  This produces KERN_DEBUG
++	  messages for every CMA call as well as various messages while
++	  processing calls such as dma_alloc_from_contiguous().
++	  This option does not affect warning and error messages.
+-- 
+1.8.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
