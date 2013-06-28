@@ -1,182 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 4DE046B0032
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 13:56:44 -0400 (EDT)
-Subject: [PATCH] x86: meminfo: fix DirectMap2M underflow
-From: Dave Hansen <dave@sr71.net>
-Date: Fri, 28 Jun 2013 10:56:33 -0700
-Message-Id: <20130628175633.FCD5AF0B@viggo.jf.intel.com>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id EC4F26B0033
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 14:26:29 -0400 (EDT)
+Date: Fri, 28 Jun 2013 14:25:58 -0400
+From: Luiz Capitulino <lcapitulino@redhat.com>
+Subject: Re: [PATCH v2] vmpressure: implement strict mode
+Message-ID: <20130628142558.5da3d030@redhat.com>
+In-Reply-To: <20130628170917.GA12610@teo>
+References: <20130626231712.4a7392a7@redhat.com>
+	<20130627150231.2bc00e3efcd426c4beef894c@linux-foundation.org>
+	<20130628000201.GB15637@bbox>
+	<20130627173433.d0fc6ecd.akpm@linux-foundation.org>
+	<20130628005852.GA8093@teo>
+	<20130627181353.3d552e64.akpm@linux-foundation.org>
+	<20130628043411.GA9100@teo>
+	<20130628050712.GA10097@teo>
+	<20130628100027.31504abe@redhat.com>
+	<20130628165722.GA12271@teo>
+	<20130628170917.GA12610@teo>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, x86@kernel.org, Dave Hansen <dave@sr71.net>
+To: Anton Vorontsov <anton@enomsg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.cz, kmpark@infradead.org, hyunhee.kim@samsung.com
 
+On Fri, 28 Jun 2013 10:09:17 -0700
+Anton Vorontsov <anton@enomsg.org> wrote:
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+> On Fri, Jun 28, 2013 at 09:57:22AM -0700, Anton Vorontsov wrote:
+> > On Fri, Jun 28, 2013 at 10:00:27AM -0400, Luiz Capitulino wrote:
+> > > On Thu, 27 Jun 2013 22:07:12 -0700
+> > > Anton Vorontsov <anton@enomsg.org> wrote:
+> > > 
+> > > > On Thu, Jun 27, 2013 at 09:34:11PM -0700, Anton Vorontsov wrote:
+> > > > > ... we can add the strict mode and deprecate the
+> > > > > "filtering" -- basically we'll implement the idea of requiring that
+> > > > > userspace registers a separate fd for each level.
+> > > > 
+> > > > Btw, assuming that more levels can be added, there will be a problem:
+> > > > imagine that an app hooked up onto low, med, crit levels in "strict"
+> > > > mode... then once we add a new level, the app will start missing the new
+> > > > level events.
+> > > 
+> > > That's how it's expected to work, because on strict mode you're notified
+> > > for the level you registered for. So apps registering for critical, will
+> > > still be notified on critical just like before.
+> > 
+> > Suppose you introduce a new level, and the system hits this level. Before,
+> > the app would receive at least some notification for the given memory load
+> > (i.e. one of the old levels), with the new level introduced in the kernel,
+> > the app will receive no events at all.
 
-This bug seems familiar.  I'm not sure if I hit it a while ago
-and ignored it or if it is something I've seen show up in a
-couple of different forms.
+That's not true. If an app registered for critical it will still get
+critical notification when the system is at the critical level. Just as it
+always did. No new events will change this.
 
-I booted a kernel in a KVM instance which has a bunch of
-debugging turned on.  Meminfo shows:
+With today's semantics though, new events will change when current events
+are triggered. So each new extension will cause applications to have
+different behaviors, in different kernel versions. This looks quite
+undesirable to me.
 
-DirectMap4k:     2058232 kB
-DirectMap2M:    18446744073709541376 kB
+> > This makes a serious behavioural
+> > change in the app (read: it'll break it).
 
-Which is a _bit_ bogus. :) In this case, I think DEBUG_PAGEALLOC
-is what actually triggers this:
+How? Strict mode semantics is simple: you get what you registered for.
+No matter the kernel version, no matter how many events we add on top
+of existing ones. How can this brake applications?
 
-void free_init_pages(char *what, unsigned long begin, unsigned long end)
-{
-...
-#ifdef CONFIG_DEBUG_PAGEALLOC
-        printk(KERN_INFO "debug: unmapping init [mem %#010lx-%#010lx]\n",
-                begin, end - 1);
-        set_memory_np(begin, (end - begin) >> PAGE_SHIFT);
-#else
-...
+> Btw, why exactly you need the strict mode?
 
-Here, we are freeing memory in this mapping (from
-Documentation/x86/x86_64/mm.txt):
+I'm implementing automatic guest-resize for KVM guests. What I'd like to
+do is to inflate the balloon by different values depending on the
+host pressure. Say, 1MB on low; 16MB on medium and 128MB on critical.
 
-ffffffff80000000 - ffffffffa0000000 (=512 MB)  kernel text mapping, from phys 0
+The actual values are meaningless btw, as this is going to be set by
+the user. So, saying that 1MB on low is too little to be concerned about
+is not an valid argument, as the user can set this to 1GB.
 
-Which we map with 2M pages.  But, this is not a part of the
-actual kernel linear map.  The change_page_attr() code calls in
-to split_page_count() since it is splitting a 2M page.  We do
-not have any 2M pages for the linear map (because of
-DEBUG_PAGEALLOC), and the count underflows.
+> Why 'medium' won't work for the
+> load-balancing?
 
-This patch adds a check (and an argument) to split_page_count()
-to make sure that we can tell whether or not the address we are
-splitting is part of the linear map.
+I need precision. If the system is at 'medium' level, then I'll do
+medium stuff. If it gets into critical, then I'll do critical stuff.
 
-It also changes the types of the direct_pages_count[] variables
-and the accessor functions.  The callers are already passing
-signed variables in:
-
-	update_page_count(PG_LEVEL_1G, -pages);
-
-to a function with unsigned arguments:
-
-	void update_page_count(int level, unsigned long pages)
-
-so we might as well make them signed.  We make the
-direct_pages_count[] variables signed so that we can do easy
-checks when they underflow.
-
-
----
-
- linux.git-davehans/arch/x86/include/asm/pgtable_types.h |    4 +-
- linux.git-davehans/arch/x86/mm/init_32.c                |    2 -
- linux.git-davehans/arch/x86/mm/pageattr.c               |   32 ++++++++++++----
- 3 files changed, 27 insertions(+), 11 deletions(-)
-
-diff -puN arch/x86/include/asm/pgtable_types.h~mm-meminfo-DirectMap2M-underflow arch/x86/include/asm/pgtable_types.h
---- linux.git/arch/x86/include/asm/pgtable_types.h~mm-meminfo-DirectMap2M-underflow	2013-06-28 10:55:42.528074131 -0700
-+++ linux.git-davehans/arch/x86/include/asm/pgtable_types.h	2013-06-28 10:55:42.535074443 -0700
-@@ -339,9 +339,9 @@ enum pg_level {
- };
- 
- #ifdef CONFIG_PROC_FS
--extern void update_page_count(int level, unsigned long pages);
-+extern void update_page_count(int level, int pages);
- #else
--static inline void update_page_count(int level, unsigned long pages) { }
-+static inline void update_page_count(int level, int pages) { }
- #endif
- 
- /*
-diff -puN arch/x86/mm/init_32.c~mm-meminfo-DirectMap2M-underflow arch/x86/mm/init_32.c
---- linux.git/arch/x86/mm/init_32.c~mm-meminfo-DirectMap2M-underflow	2013-06-28 10:55:42.530074220 -0700
-+++ linux.git-davehans/arch/x86/mm/init_32.c	2013-06-28 10:55:42.536074487 -0700
-@@ -261,7 +261,7 @@ kernel_physical_mapping_init(unsigned lo
- 	pgd_t *pgd;
- 	pmd_t *pmd;
- 	pte_t *pte;
--	unsigned pages_2m, pages_4k;
-+	int pages_2m, pages_4k;
- 	int mapping_iter;
- 
- 	start_pfn = start >> PAGE_SHIFT;
-diff -puN arch/x86/mm/pageattr.c~mm-meminfo-DirectMap2M-underflow arch/x86/mm/pageattr.c
---- linux.git/arch/x86/mm/pageattr.c~mm-meminfo-DirectMap2M-underflow	2013-06-28 10:55:42.532074309 -0700
-+++ linux.git-davehans/arch/x86/mm/pageattr.c	2013-06-28 10:55:42.537074532 -0700
-@@ -53,31 +53,47 @@ static DEFINE_SPINLOCK(cpa_lock);
- #define CPA_PAGES_ARRAY 4
- 
- #ifdef CONFIG_PROC_FS
--static unsigned long direct_pages_count[PG_LEVEL_NUM];
-+static long direct_pages_count[PG_LEVEL_NUM];
- 
--void update_page_count(int level, unsigned long pages)
-+static void check_direct_pages_count(int level)
-+{
-+	WARN_ONCE(direct_pages_count[level] < 0,
-+		"page table count underflow level: %d", level);
-+}
-+
-+void update_page_count(int level, int pages)
- {
- 	/* Protect against CPA */
- 	spin_lock(&pgd_lock);
- 	direct_pages_count[level] += pages;
-+	check_direct_pages_count(level);
- 	spin_unlock(&pgd_lock);
- }
- 
--static void split_page_count(int level)
-+static void split_page_count(unsigned long address, int level)
- {
-+	/*
-+	 * We only keep these pagetable counts for memory in
-+	 * the linear map.  The things we do not care about
-+	 * and do not track are all at or above VMALLOC_START.
-+	 */
-+	if (address >= VMALLOC_START)
-+		return;
-+
- 	direct_pages_count[level]--;
-+	check_direct_pages_count(level);
- 	direct_pages_count[level - 1] += PTRS_PER_PTE;
- }
- 
- void arch_report_meminfo(struct seq_file *m)
- {
--	seq_printf(m, "DirectMap4k:    %8lu kB\n",
-+	seq_printf(m, "DirectMap4k:    %8ld kB\n",
- 			direct_pages_count[PG_LEVEL_4K] << 2);
- #if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
--	seq_printf(m, "DirectMap2M:    %8lu kB\n",
-+	seq_printf(m, "DirectMap2M:    %8ld kB\n",
- 			direct_pages_count[PG_LEVEL_2M] << 11);
- #else
--	seq_printf(m, "DirectMap4M:    %8lu kB\n",
-+	seq_printf(m, "DirectMap4M:    %8ld kB\n",
- 			direct_pages_count[PG_LEVEL_2M] << 12);
- #endif
- #ifdef CONFIG_X86_64
-@@ -87,7 +103,7 @@ void arch_report_meminfo(struct seq_file
- #endif
- }
- #else
--static inline void split_page_count(int level) { }
-+static inline void split_page_count(unsigned long address, int level) { }
- #endif
- 
- #ifdef CONFIG_X86_64
-@@ -607,7 +623,7 @@ __split_large_page(pte_t *kpte, unsigned
- 
- 	if (pfn_range_is_mapped(PFN_DOWN(__pa(address)),
- 				PFN_DOWN(__pa(address)) + 1))
--		split_page_count(level);
-+		split_page_count(address, level);
- 
- 	/*
- 	 * Install the new, split up pagetable.
-_
+I don't want to do critical stuff on all levels, or critical on
+medium. This is really messy. Just give me what I asked for, please.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
