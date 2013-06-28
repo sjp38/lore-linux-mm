@@ -1,58 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id CD9026B003D
-	for <linux-mm@kvack.org>; Thu, 27 Jun 2013 21:14:16 -0400 (EDT)
-Date: Thu, 27 Jun 2013 18:13:53 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] vmpressure: implement strict mode
-Message-Id: <20130627181353.3d552e64.akpm@linux-foundation.org>
-In-Reply-To: <20130628005852.GA8093@teo>
-References: <20130626231712.4a7392a7@redhat.com>
-	<20130627150231.2bc00e3efcd426c4beef894c@linux-foundation.org>
-	<20130628000201.GB15637@bbox>
-	<20130627173433.d0fc6ecd.akpm@linux-foundation.org>
-	<20130628005852.GA8093@teo>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 0C3C76B004D
+	for <linux-mm@kvack.org>; Thu, 27 Jun 2013 22:15:05 -0400 (EDT)
+Received: by mail-ie0-f173.google.com with SMTP id k13so3146422iea.32
+        for <linux-mm@kvack.org>; Thu, 27 Jun 2013 19:15:05 -0700 (PDT)
+Date: Fri, 28 Jun 2013 10:14:54 +0800
+From: Shaohua Li <shli@kernel.org>
+Subject: Re: [PATCH 01/02] swap: discard while swapping only if
+ SWAP_FLAG_DISCARD_PAGES
+Message-ID: <20130628021454.GA16423@kernel.org>
+References: <cover.1369529143.git.aquini@redhat.com>
+ <537407790857e8a5d4db5fb294a909a61be29687.1369529143.git.aquini@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <537407790857e8a5d4db5fb294a909a61be29687.1369529143.git.aquini@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Vorontsov <anton@enomsg.org>
-Cc: Minchan Kim <minchan@kernel.org>, Luiz Capitulino <lcapitulino@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.cz, kmpark@infradead.org, hyunhee.kim@samsung.com
+To: Rafael Aquini <aquini@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, kzak@redhat.com, jmoyer@redhat.com, kosaki.motohiro@gmail.com, riel@redhat.com, lwoodman@redhat.com, mgorman@suse.de
 
-On Thu, 27 Jun 2013 17:58:53 -0700 Anton Vorontsov <anton@enomsg.org> wrote:
+On Sun, May 26, 2013 at 01:31:55AM -0300, Rafael Aquini wrote:
+> This patch introduces SWAP_FLAG_DISCARD_PAGES and SWAP_FLAG_DISCARD_ONCE
+> new flags to allow more flexibe swap discard policies being flagged through
+> swapon(8). The default behavior is to keep both single-time, or batched, area
+> discards (SWAP_FLAG_DISCARD_ONCE) and fine-grained discards for page-clusters
+> (SWAP_FLAG_DISCARD_PAGES) enabled, in order to keep consistentcy with older
+> kernel behavior, as well as maintain compatibility with older swapon(8).
+> However, through the new introduced flags the best suitable discard policy 
+> can be selected accordingly to any given swap device constraint.
 
-> On Thu, Jun 27, 2013 at 05:34:33PM -0700, Andrew Morton wrote:
-> > > If so, userland daemon would receive lots of events which are no interest.
-> > 
-> > "lots"?  If vmpressure is generating events at such a high frequency that
-> > this matters then it's already busted?
-> 
-> Current frequency is 1/(2MB). Suppose we ended up scanning the whole
-> memory on a 2GB host, this will give us 1024 hits. Doesn't feel too much*
-> to me... But for what it worth, I am against adding read() to the
-> interface -- just because we can avoid the unnecessary switch into the
-> kernel.
+I'm sorry to response this thread so later. I thought if we just want to
+discard the swap partition once at swapon, we really should do it in swapon
+tool. The swapon tool can detect the swap device supports discard, any swap
+partition is empty at swapon, and we have ioctl to do discard in userspace, so
+we have no problem to do discard at the tool. If we don't want to do discard at
+all, let the tool handles the option. Kernel is not the place to handle the
+complexity.
 
-What was it they said about premature optimization?
-
-I think I'd rather do nothing than add a mode hack (already!).
-
-The information Luiz wants is already available with the existing
-interface, so why not just use it until there is a real demonstrated
-problem?
-
-But all this does point at the fact that the chosen interface was not a
-good one.  And it's happening so soon :( A far better interface would
-be to do away with this level filtering stuff in the kernel altogether.
-Register for events and you get all the events, simple.  Or require that
-userspace register a separate time for each level, or whatever.
-
-Something clean and simple which leaves the policy in userspace,
-please.  Not this.
-
-(Why didn't vmpressure use netlink, btw?  Then we'd have decent payload
-delivery)
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
