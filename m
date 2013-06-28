@@ -1,266 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id B9BF96B0032
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 03:01:02 -0400 (EDT)
-Received: from /spool/local
-	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Fri, 28 Jun 2013 01:01:02 -0600
-Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id B2F6319D804C
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 01:00:44 -0600 (MDT)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r5S70gVK128538
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 01:00:49 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r5S70fJa028978
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 01:00:42 -0600
-Date: Fri, 28 Jun 2013 12:30:27 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 7/8] sched: Split accounting of NUMA hinting faults that
- pass two-stage filter
-Message-ID: <20130628070027.GD17195@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <1372257487-9749-1-git-send-email-mgorman@suse.de>
- <1372257487-9749-8-git-send-email-mgorman@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <1372257487-9749-8-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id F3D2E6B0032
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 03:43:13 -0400 (EDT)
+Received: from epcpsbgr5.samsung.com
+ (u145.gpu120.samsung.co.kr [203.254.230.145])
+ by mailout3.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTP id <0MP300BU7ERZYX60@mailout3.samsung.com> for linux-mm@kvack.org;
+ Fri, 28 Jun 2013 16:43:11 +0900 (KST)
+From: Hyunhee Kim <hyunhee.kim@samsung.com>
+References: <20130621091944.GC12424@dhcp22.suse.cz>
+ <20130621162743.GA2837@gmail.com>
+ <CAOK=xRMhwvWrao_ve8GFsk0JBHAcWh_SB_kM6fCujp8WThPimw@mail.gmail.com>
+ <CAOK=xRNEMp3igfwQfrz0ffApmoAL19OM0EGLaBJ5RerZy9ddtw@mail.gmail.com>
+ <005601ce6f0c$5948ff90$0bdafeb0$%kim@samsung.com>
+ <20130626073557.GD29127@bbox>
+ <009601ce72fd$427eed70$c77cc850$%kim@samsung.com>
+ <20130627093721.GC17647@dhcp22.suse.cz> <20130627153528.GA5006@gmail.com>
+ <20130627161103.GA25165@dhcp22.suse.cz> <20130627235435.GA15637@bbox>
+In-reply-to: <20130627235435.GA15637@bbox>
+Subject: [PATCH v3] vmpressure: consider "scanned < reclaimed" case when
+ calculating  a pressure level.
+Date: Fri, 28 Jun 2013 16:43:09 +0900
+Message-id: <010801ce73d3$227f8800$677e9800$%kim@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-transfer-encoding: 7bit
+Content-language: ko
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: 'Minchan Kim' <minchan@kernel.org>, 'Michal Hocko' <mhocko@suse.cz>, 'Anton Vorontsov' <anton@enomsg.org>, linux-mm@kvack.org, akpm@linux-foundation.org, rob@landley.net, kamezawa.hiroyu@jp.fujitsu.com, hannes@cmpxchg.org, rientjes@google.com, kirill@shutemov.name, 'Kyungmin Park' <kyungmin.park@samsung.com>
 
-* Mel Gorman <mgorman@suse.de> [2013-06-26 15:38:06]:
+In vmpressure, the pressure level is calculated based on the ratio
+of how many pages were scanned vs. reclaimed in a given time window.
+However, there is a possibility that "scanned < reclaimed" for some
+reasons, e.g., when reclaiming ends by fatal signal in shrink_inactive_list
+or THP reclaiming, etc. When this happens, we cannot tell anything about the
+current pressure level. So, with this patch, we just return "low" level
+when "scanned < reclaimed" happens to inform that there is reclaiming activity.
+Userland can have a chance to free some memory.
 
-> Ideally it would be possible to distinguish between NUMA hinting faults
-> that are private to a task and those that are shared. This would require
-> that the last task that accessed a page for a hinting fault would be
-> recorded which would increase the size of struct page. Instead this patch
-> approximates private pages by assuming that faults that pass the two-stage
-> filter are private pages and all others are shared. The preferred NUMA
-> node is then selected based on where the maximum number of approximately
-> private faults were measured.
+Signed-off-by: Hyunhee Kim <hyunhee.kim@samsung.com>
+Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+---
+ mm/vmpressure.c |   10 ++++++++++
+ 1 file changed, 10 insertions(+)
 
-Should we consider only private faults for preferred node?
-I would think if tasks have shared pages then moving all tasks that share
-the same pages to a node where the share pages are around would be
-preferred. No? If yes, how does the preferred node logic help to achieve
-the above?
-
-> 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> ---
->  include/linux/sched.h |  4 ++--
->  kernel/sched/fair.c   | 32 ++++++++++++++++++++++----------
->  mm/huge_memory.c      |  7 ++++---
->  mm/memory.c           |  9 ++++++---
->  4 files changed, 34 insertions(+), 18 deletions(-)
-> 
-> diff --git a/include/linux/sched.h b/include/linux/sched.h
-> index 82a6136..a41edea 100644
-> --- a/include/linux/sched.h
-> +++ b/include/linux/sched.h
-> @@ -1600,10 +1600,10 @@ struct task_struct {
->  #define tsk_cpus_allowed(tsk) (&(tsk)->cpus_allowed)
->  
->  #ifdef CONFIG_NUMA_BALANCING
-> -extern void task_numa_fault(int node, int pages, bool migrated);
-> +extern void task_numa_fault(int last_node, int node, int pages, bool migrated);
->  extern void set_numabalancing_state(bool enabled);
->  #else
-> -static inline void task_numa_fault(int node, int pages, bool migrated)
-> +static inline void task_numa_fault(int last_node, int node, int pages, bool migrated)
->  {
->  }
->  static inline void set_numabalancing_state(bool enabled)
-> diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-> index 99951a8..490e601 100644
-> --- a/kernel/sched/fair.c
-> +++ b/kernel/sched/fair.c
-> @@ -833,6 +833,11 @@ find_idlest_cpu_node(int this_cpu, int nid)
->  	return idlest_cpu;
->  }
->  
-> +static inline int task_faults_idx(int nid, int priv)
-> +{
-> +	return 2 * nid + priv;
-> +}
-> +
->  static void task_numa_placement(struct task_struct *p)
->  {
->  	int seq, nid, max_nid = 0;
-> @@ -849,13 +854,19 @@ static void task_numa_placement(struct task_struct *p)
->  	/* Find the node with the highest number of faults */
->  	for (nid = 0; nid < nr_node_ids; nid++) {
->  		unsigned long faults;
-> +		int priv, i;
->  
-> -		/* Decay existing window and copy faults since last scan */
-> -		p->numa_faults[nid] >>= 1;
-> -		p->numa_faults[nid] += p->numa_faults_buffer[nid];
-> -		p->numa_faults_buffer[nid] = 0;
-> +		for (priv = 0; priv < 2; priv++) {
-> +			i = task_faults_idx(nid, priv);
-> +
-> +			/* Decay existing window and copy faults since last scan */
-> +			p->numa_faults[i] >>= 1;
-> +			p->numa_faults[i] += p->numa_faults_buffer[i];
-> +			p->numa_faults_buffer[i] = 0;
-> +		}
->  
-> -		faults = p->numa_faults[nid];
-> +		/* Find maximum private faults */
-> +		faults = p->numa_faults[task_faults_idx(nid, 1)];
->  		if (faults > max_faults) {
->  			max_faults = faults;
->  			max_nid = nid;
-> @@ -887,24 +898,25 @@ static void task_numa_placement(struct task_struct *p)
->  /*
->   * Got a PROT_NONE fault for a page on @node.
->   */
-> -void task_numa_fault(int node, int pages, bool migrated)
-> +void task_numa_fault(int last_nid, int node, int pages, bool migrated)
->  {
->  	struct task_struct *p = current;
-> +	int priv = (cpu_to_node(task_cpu(p)) == last_nid);
->  
->  	if (!sched_feat_numa(NUMA))
->  		return;
->  
->  	/* Allocate buffer to track faults on a per-node basis */
->  	if (unlikely(!p->numa_faults)) {
-> -		int size = sizeof(*p->numa_faults) * nr_node_ids;
-> +		int size = sizeof(*p->numa_faults) * 2 * nr_node_ids;
->  
->  		/* numa_faults and numa_faults_buffer share the allocation */
-> -		p->numa_faults = kzalloc(size * 2, GFP_KERNEL);
-> +		p->numa_faults = kzalloc(size * 4, GFP_KERNEL);
->  		if (!p->numa_faults)
->  			return;
->  
->  		BUG_ON(p->numa_faults_buffer);
-> -		p->numa_faults_buffer = p->numa_faults + nr_node_ids;
-> +		p->numa_faults_buffer = p->numa_faults + (2 * nr_node_ids);
->  	}
->  
->  	/*
-> @@ -918,7 +930,7 @@ void task_numa_fault(int node, int pages, bool migrated)
->  	task_numa_placement(p);
->  
->  	/* Record the fault, double the weight if pages were migrated */
-> -	p->numa_faults_buffer[node] += pages << migrated;
-> +	p->numa_faults_buffer[task_faults_idx(node, priv)] += pages << migrated;
->  }
->  
->  static void reset_ptenuma_scan(struct task_struct *p)
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index e2f7f5aa..7cd7114 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -1292,7 +1292,7 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  {
->  	struct page *page;
->  	unsigned long haddr = addr & HPAGE_PMD_MASK;
-> -	int target_nid;
-> +	int target_nid, last_nid;
->  	int current_nid = -1;
->  	bool migrated;
->  
-> @@ -1307,6 +1307,7 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  	if (current_nid == numa_node_id())
->  		count_vm_numa_event(NUMA_HINT_FAULTS_LOCAL);
->  
-> +	last_nid = page_nid_last(page);
->  	target_nid = mpol_misplaced(page, vma, haddr);
->  	if (target_nid == -1) {
->  		put_page(page);
-> @@ -1332,7 +1333,7 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  	if (!migrated)
->  		goto check_same;
->  
-> -	task_numa_fault(target_nid, HPAGE_PMD_NR, true);
-> +	task_numa_fault(last_nid, target_nid, HPAGE_PMD_NR, true);
->  	return 0;
->  
->  check_same:
-> @@ -1347,7 +1348,7 @@ clear_pmdnuma:
->  out_unlock:
->  	spin_unlock(&mm->page_table_lock);
->  	if (current_nid != -1)
-> -		task_numa_fault(current_nid, HPAGE_PMD_NR, false);
-> +		task_numa_fault(last_nid, current_nid, HPAGE_PMD_NR, false);
->  	return 0;
->  }
->  
-> diff --git a/mm/memory.c b/mm/memory.c
-> index ba94dec..c28bf52 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -3536,7 +3536,7 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  {
->  	struct page *page = NULL;
->  	spinlock_t *ptl;
-> -	int current_nid = -1;
-> +	int current_nid = -1, last_nid;
->  	int target_nid;
->  	bool migrated = false;
->  
-> @@ -3566,6 +3566,7 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  		return 0;
->  	}
->  
-> +	last_nid = page_nid_last(page);
->  	current_nid = page_to_nid(page);
->  	target_nid = numa_migrate_prep(page, vma, addr, current_nid);
->  	pte_unmap_unlock(ptep, ptl);
-> @@ -3586,7 +3587,7 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  
->  out:
->  	if (current_nid != -1)
-> -		task_numa_fault(current_nid, 1, migrated);
-> +		task_numa_fault(last_nid, current_nid, 1, migrated);
->  	return 0;
->  }
->  
-> @@ -3602,6 +3603,7 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  	spinlock_t *ptl;
->  	bool numa = false;
->  	int local_nid = numa_node_id();
-> +	int last_nid;
->  
->  	spin_lock(&mm->page_table_lock);
->  	pmd = *pmdp;
-> @@ -3654,6 +3656,7 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  		 * migrated to.
->  		 */
->  		curr_nid = local_nid;
-> +		last_nid = page_nid_last(page);
->  		target_nid = numa_migrate_prep(page, vma, addr,
->  					       page_to_nid(page));
->  		if (target_nid == -1) {
-> @@ -3666,7 +3669,7 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  		migrated = migrate_misplaced_page(page, target_nid);
->  		if (migrated)
->  			curr_nid = target_nid;
-> -		task_numa_fault(curr_nid, 1, migrated);
-> +		task_numa_fault(last_nid, curr_nid, 1, migrated);
->  
->  		pte = pte_offset_map_lock(mm, pmdp, addr, &ptl);
->  	}
-> -- 
-> 1.8.1.4
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
+diff --git a/mm/vmpressure.c b/mm/vmpressure.c
+index 736a601..915a608 100644
+--- a/mm/vmpressure.c
++++ b/mm/vmpressure.c
+@@ -119,6 +119,16 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
+ 	unsigned long pressure;
+ 
+ 	/*
++	 * This could happen for some reasons. e.g., reclaiming ends by fatal
++	 * signal in shrink_inactive_list() or THP reclaiming, etc. In this case,
++	 * we cannot tell anything about the pressure level. So, the best way to
++	 * handle this is to notify LOW in order to inform that there is
++	 * reclaiming activity. This gives a chance to userland to free memory.
++	 */
++	if (reclaimed > scanned)
++		return VMPRESSURE_LOW;
++
++	/*
+ 	 * We calculate the ratio (in percents) of how many pages were
+ 	 * scanned vs. reclaimed in a given time frame (window). Note that
+ 	 * time is in VM reclaimer's "ticks", i.e. number of pages
 -- 
-Thanks and Regards
-Srikar Dronamraju
+1.7.9.5
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
