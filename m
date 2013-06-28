@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 8B9766B0033
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 14:58:58 -0400 (EDT)
-Date: Fri, 28 Jun 2013 14:58:29 -0400
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 811596B0031
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 15:44:30 -0400 (EDT)
+Date: Fri, 28 Jun 2013 15:44:02 -0400
 From: Luiz Capitulino <lcapitulino@redhat.com>
 Subject: Re: [PATCH v2] vmpressure: implement strict mode
-Message-ID: <20130628145829.14dde5a2@redhat.com>
-In-Reply-To: <20130628184547.GA14287@teo>
+Message-ID: <20130628154402.4035f2fa@redhat.com>
+In-Reply-To: <20130628185547.GA14520@teo>
 References: <20130628000201.GB15637@bbox>
 	<20130627173433.d0fc6ecd.akpm@linux-foundation.org>
 	<20130628005852.GA8093@teo>
@@ -16,8 +16,8 @@ References: <20130628000201.GB15637@bbox>
 	<20130628100027.31504abe@redhat.com>
 	<20130628165722.GA12271@teo>
 	<20130628170917.GA12610@teo>
-	<20130628142558.5da3d030@redhat.com>
-	<20130628184547.GA14287@teo>
+	<20130628144507.37d28ed9@redhat.com>
+	<20130628185547.GA14520@teo>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -26,66 +26,62 @@ List-ID: <linux-mm.kvack.org>
 To: Anton Vorontsov <anton@enomsg.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.cz, kmpark@infradead.org, hyunhee.kim@samsung.com
 
-On Fri, 28 Jun 2013 11:45:47 -0700
+On Fri, 28 Jun 2013 11:55:47 -0700
 Anton Vorontsov <anton@enomsg.org> wrote:
 
-> On Fri, Jun 28, 2013 at 02:25:58PM -0400, Luiz Capitulino wrote:
-> > > > > That's how it's expected to work, because on strict mode you're notified
-> > > > > for the level you registered for. So apps registering for critical, will
-> > > > > still be notified on critical just like before.
-> > > > 
-> > > > Suppose you introduce a new level, and the system hits this level. Before,
-> > > > the app would receive at least some notification for the given memory load
-> > > > (i.e. one of the old levels), with the new level introduced in the kernel,
-> > > > the app will receive no events at all.
+> On Fri, Jun 28, 2013 at 02:45:07PM -0400, Luiz Capitulino wrote:
+> > On Fri, 28 Jun 2013 10:09:17 -0700
+> > Anton Vorontsov <anton@enomsg.org> wrote:
 > > 
-> > That's not true. If an app registered for critical it will still get
-> > critical notification when the system is at the critical level. Just as it
-> > always did. No new events will change this.
+> > > So, I would now argue that the current scheme is perfectly OK and can do
+> > > everything you can do with the "strict" one,
 > > 
-> > With today's semantics though, new events will change when current events
-> > are triggered. So each new extension will cause applications to have
-> > different behaviors, in different kernel versions. This looks quite
-> > undesirable to me.
+> > I forgot commenting this bit. This is not true, because I don't want a
+> > low fd to be notified on critical level. The current interface just
+> > can't do that.
 > 
-> I'll try to explain it again.
-> 
-> Old behaviour:
-> 
-> low -> event
->   x <- but the system is at this unnamed level, between low and med
-> med
-> crit
-> 
-> 
-> We add a level:
-> 
-> low
-> low-med <- system at this state, we send an event, but the old app does
->            not know about it, so it won't receive *any* notifications. (In
-> 	   older kernels it would receive low level notification
-> med
-> crit
-> 
-> You really don't see a problem here?
+> Why can't you use poll() and demultiplex the events? Check if there is an
+> event in the crit fd, and if there is, then just ignore all the rest.
 
-I do get what you're saying. We disagree it's a problem. In my mind the
-best API is to get what you registered for. Nothing more, nothing less.
+This may be a valid workaround for current kernels, but application
+behavior will be different among kernels with a different number of
+events.
 
-Now, there might be ways around it (being it a problem or not). I was
-also considering this:
+Say, we events on top of critical. Then crit fd will now be
+notified for cases where it didn't use to on older kernels.
 
-> 3. Never change the levels (how can we know?)
+> > However, it *is* possible to make non-strict work on strict if we make
+> > strict default _and_ make reads on memory.pressure_level return
+> > available events. Just do this on app initialization:
+> > 
+> > for each event in memory.pressure_level; do
+> > 	/* register eventfd to be notified on "event" */
+> > done
+> 
+> This scheme registers "all" events.
 
-If we fail at determining levels (I honestly think current levels are
-all we need), we can add a new interface later.
+Yes, because I thought that's the user-case that matters for activity
+manager :)
 
-Also, what I said in the last email should work, which is to make
-memory.pressure_level return supported levels, so an application can
-register for all available levels. This way it will never miss a level.
+> Here is more complicated case:
+> 
+> Old kernels, pressure_level reads:
+> 
+>   low, med, crit
+> 
+> The app just wants to listen for med level.
+> 
+> New kernels, pressure_level reads:
+> 
+>   low, FOO, med, BAR, crit
+> 
+> How would application decide which of FOO and BAR are ex-med levels?
 
-I also think this matches having the mechanism in the kernel and
-policy in user-space.
+What you meant by ex-med?
+
+Let's not over-design. I agree that allowing the API to be extended
+is a good thing, but we shouldn't give complex meaning to events,
+otherwise we're better with a numeric scale instead.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
