@@ -1,109 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 6CD1E6B0036
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 05:38:14 -0400 (EDT)
-Received: by mail-ee0-f45.google.com with SMTP id c1so921198eek.18
-        for <linux-mm@kvack.org>; Fri, 28 Jun 2013 02:38:12 -0700 (PDT)
-Date: Fri, 28 Jun 2013 11:38:09 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: Performance regression from switching lock to rw-sem for
- anon-vma tree
-Message-ID: <20130628093809.GB29205@gmail.com>
-References: <1371165992.27102.573.camel@schen9-DESK>
- <20130619131611.GC24957@gmail.com>
- <1371660831.27102.663.camel@schen9-DESK>
- <1372205996.22432.119.camel@schen9-DESK>
- <20130626095108.GB29181@gmail.com>
- <1372282560.22432.139.camel@schen9-DESK>
- <1372292701.22432.152.camel@schen9-DESK>
- <20130627083651.GA3730@gmail.com>
- <1372366385.22432.185.camel@schen9-DESK>
- <1372375873.22432.200.camel@schen9-DESK>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id CA3C06B0032
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 06:06:15 -0400 (EDT)
+Subject: =?utf-8?q?Re=3A_=5BPATCH_for_3=2E2=5D_memcg=3A_do_not_trap_chargers_with_full_callstack_on_OOM?=
+Date: Fri, 28 Jun 2013 12:06:13 +0200
+From: "azurIt" <azurit@pobox.sk>
+References: <20130210150310.GA9504@dhcp22.suse.cz>, <20130210174619.24F20488@pobox.sk>, <20130211112240.GC19922@dhcp22.suse.cz>, <20130222092332.4001E4B6@pobox.sk>, <20130606160446.GE24115@dhcp22.suse.cz>, <20130606181633.BCC3E02E@pobox.sk>, <20130607131157.GF8117@dhcp22.suse.cz>, <20130617122134.2E072BA8@pobox.sk>, <20130619132614.GC16457@dhcp22.suse.cz>, <20130622220958.D10567A4@pobox.sk> <20130624201345.GA21822@cmpxchg.org>
+In-Reply-To: <20130624201345.GA21822@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1372375873.22432.200.camel@schen9-DESK>
+Message-Id: <20130628120613.6D6CAD21@pobox.sk>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, "Shi, Alex" <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
+Cc: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?q?cgroups_mailinglist?= <cgroups@vger.kernel.org>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>
+
+>It's not a kernel thread that does it because all kernel-context
+>handle_mm_fault() are annotated properly, which means the task must be
+>userspace and, since tasks is empty, have exited before synchronizing.
+>
+>Can you try with the following patch on top?
 
 
-* Tim Chen <tim.c.chen@linux.intel.com> wrote:
+Michal and Johannes,
 
-> I tried some tweaking that checks sem->count for read owned lock. Even 
-> though it reduces the percentage of acquisitions that need sleeping by 
-> 8.14% (from 18.6% to 10.46%), it increases the writer acquisition 
-> blocked count by 11%. This change still doesn't boost throughput and has 
-> a tiny regression for the workload.
-> 
-> 						Opt Spin Opt Spin
-> 							 (with tweak)	
-> Writer acquisition blocked count		7359040	8168006
-> Blocked by reader				 0.55%	 0.52%
-> Lock acquired first attempt (lock stealing)	16.92%	19.70%
-> Lock acquired second attempt (1 sleep)	17.60%	 9.32%
-> Lock acquired after more than 1 sleep		 1.00%	 1.14%
-> Lock acquired with optimistic spin		64.48%	69.84%
-> Optimistic spin abort 1 			11.77%	 1.14%
-> Optimistic spin abort 2			 6.81%	 9.22%
-> Optimistic spin abort 3			 0.02%	 0.10%
+i have some observations which i made:
+Original patch from Johannes was really fixing something but definitely not everything and was introducing new problems. I'm running unpatched kernel from time i send my last message and problems with freezing cgroups are occuring very often (several times per day) - they were, on the other hand, quite rare with patch from Johannes.
 
-So lock stealing+spinning now acquires the lock successfully ~90% of the 
-time, the remaining sleeps are:
+Johannes, i didn't try your last patch yet. I would like to wait until you or Michal look at my last message which contained detailed information about freezing of cgroups on kernel running your original patch (which was suppose to fix it for good). Even more, i would like to hear your opinion about that stucked processes which was holding web server port and which forced me to reboot production server at the middle of the day :( more information was in my last message. Thank you very much for your time.
 
-> Lock acquired second attempt (1 sleep)	......	 9.32%
-
-And the reason these sleeps are mostly due to:
-
-> Optimistic spin abort 2			 .....	 9.22%
-
-Right?
-
-So this particular #2 abort point is:
-
-|       preempt_disable();
-|       for (;;) {
-|               owner = ACCESS_ONCE(sem->owner);
-|               if (owner && !rwsem_spin_on_owner(sem, owner))
-|                       break;   <--------------------------- abort (2)
-
-Next step would be to investigate why we decide to not spin there, why 
-does rwsem_spin_on_owner() fail?
-
-If I got all the patches right, rwsem_spin_on_owner() is this:
-
-+static noinline
-+int rwsem_spin_on_owner(struct rw_semaphore *lock, struct task_struct *owner)
-+{
-+       rcu_read_lock();
-+       while (owner_running(lock, owner)) {
-+               if (need_resched())
-+                       break;
-+
-+               arch_mutex_cpu_relax();
-+       }
-+       rcu_read_unlock();
-+
-+       /*
-+        * We break out the loop above on need_resched() and when the
-+        * owner changed, which is a sign for heavy contention. Return
-+        * success only when lock->owner is NULL.
-+        */
-+       return lock->owner == NULL;
-+}
-
-where owner_running() is similar to the mutex spinning code: it in the end 
-checks owner->on_cpu - like the mutex code.
-
-If my analysis is correct so far then it might be useful to add two more 
-stats: did rwsem_spin_on_owner() fail because lock->owner == NULL [owner 
-released the rwsem], or because owner_running() failed [owner went to 
-sleep]?
-
-Thanks,
-
-	Ingo
+azur
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
