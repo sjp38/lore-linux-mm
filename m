@@ -1,102 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id C17E36B0032
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 20:56:41 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id bi5so3019494pad.4
-        for <linux-mm@kvack.org>; Fri, 28 Jun 2013 17:56:40 -0700 (PDT)
-Date: Fri, 28 Jun 2013 17:56:37 -0700
-From: Anton Vorontsov <anton@enomsg.org>
-Subject: Re: [PATCH v2] vmpressure: implement strict mode
-Message-ID: <20130629005637.GA16068@teo>
-References: <20130628005852.GA8093@teo>
- <20130627181353.3d552e64.akpm@linux-foundation.org>
- <20130628043411.GA9100@teo>
- <20130628050712.GA10097@teo>
- <20130628100027.31504abe@redhat.com>
- <20130628165722.GA12271@teo>
- <20130628170917.GA12610@teo>
- <20130628144507.37d28ed9@redhat.com>
- <20130628185547.GA14520@teo>
- <20130628154402.4035f2fa@redhat.com>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id F068C6B0032
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 22:20:05 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id rp16so2916505pbb.0
+        for <linux-mm@kvack.org>; Fri, 28 Jun 2013 19:20:05 -0700 (PDT)
+Message-ID: <51CE4451.4060708@gmail.com>
+Date: Sat, 29 Jun 2013 10:20:01 +0800
+From: Zheng Liu <gnehzuil.liu@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20130628154402.4035f2fa@redhat.com>
+Subject: Re: [RFC][PATCH] mm: madvise: MADV_POPULATE for quick pre-faulting
+References: <20130627231605.8F9F12E6@viggo.jf.intel.com> <20130628054757.GA10429@gmail.com> <51CDB056.5090308@sr71.net>
+In-Reply-To: <51CDB056.5090308@sr71.net>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luiz Capitulino <lcapitulino@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.cz, kmpark@infradead.org, hyunhee.kim@samsung.com
+To: Dave Hansen <dave@sr71.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jun 28, 2013 at 03:44:02PM -0400, Luiz Capitulino wrote:
-> > Why can't you use poll() and demultiplex the events? Check if there is an
-> > event in the crit fd, and if there is, then just ignore all the rest.
+On 06/28/2013 11:48 PM, Dave Hansen wrote:
+> On 06/27/2013 10:47 PM, Zheng Liu wrote:
+>>> I've been doing some testing involving large amounts of
+>>> page cache.  It's quite painful to get hundreds of GB
+>>> of page cache mapped in, especially when I am trying to
+>>> do it in parallel threads.  This is true even when the
+>>> page cache is already allocated and I only need to map
+>>> it in.  The test:
+>>>
+>>> 1. take 160 16MB files
+>>> 2. clone 160 threads, mmap the 16MB files, and either
+>>>   a. walk through the file touching each page
+>>
+>> Why not change MAP_POPULATE flag in mmap(2)?  Now it is only for private
+>> mappings.  But maybe we could let it support shared mapping.
 > 
-> This may be a valid workaround for current kernels, but application
-> behavior will be different among kernels with a different number of
-> events.
-
-This is not a workaround, this is how poll works, and this is kinda
-expected... But not that I had this plan in mind when I was designing the
-current scheme... :)
-
-> Say, we events on top of critical. Then crit fd will now be
-> notified for cases where it didn't use to on older kernels.
-
-I'm not sure I am following here... but thinking about it more, I guess
-the extra read() will be needed anyway (to reset the counter).
-
-> > > However, it *is* possible to make non-strict work on strict if we make
-> > > strict default _and_ make reads on memory.pressure_level return
-> > > available events. Just do this on app initialization:
-> > > 
-> > > for each event in memory.pressure_level; do
-> > > 	/* register eventfd to be notified on "event" */
-> > > done
-> > 
-> > This scheme registers "all" events.
+> Adding that support to mmap() will certainly _help_ some folks.  But,
+> anything that mmap()s something is taking mmap_sem for write.  That
+> means that threaded apps doing mmap()/munmap() frequently are _not_
+> scalable.
 > 
-> Yes, because I thought that's the user-case that matters for activity
-> manager :)
+> IOW, a process needing to do a bunch of MAP_POPULATEs isn't
+> parallelizable, but one using this mechanism would be.
 
-Some activity managers use only low levels (Android), some might use only
-medium levels (simple load-balancing).
+I look at the code, and it seems that we will handle MAP_POPULATE flag
+after we release mmap_sem locking in vm_mmap_pgoff():
 
-Being able to register only "all" does not make sense to me.
+                down_write(&mm->mmap_sem);
+                ret = do_mmap_pgoff(file, addr, len, prot, flag, pgoff,
+                                    &populate);
+                up_write(&mm->mmap_sem);
+                if (populate)
+                        mm_populate(ret, populate);
 
-> > Here is more complicated case:
-> > 
-> > Old kernels, pressure_level reads:
-> > 
-> >   low, med, crit
-> > 
-> > The app just wants to listen for med level.
-> > 
-> > New kernels, pressure_level reads:
-> > 
-> >   low, FOO, med, BAR, crit
-> > 
-> > How would application decide which of FOO and BAR are ex-med levels?
-> 
-> What you meant by ex-med?
+Am I missing something?
 
-The scale is continuous and non-overlapping. If you add some other level,
-you effectively "shrinking" other levels, so the ex-med in the list above
-might correspond to "FOO, med" or "med, BAR" or "FOO, med, BAR", and that
-is exactly the problem.
-
-> Let's not over-design. I agree that allowing the API to be extended
-> is a good thing, but we shouldn't give complex meaning to events,
-> otherwise we're better with a numeric scale instead.
-
-I am not over-desiging at all. Again, you did not provide any solution for
-the case if we are going to add a new level. Thing is, I don't know if we
-are going to add more levels, but the three-levels scheme is not something
-scientifically proven, it is just an arbitrary thing we made up. We may
-end up with four, or five... or not.
-
-Thanks,
-
-Anton
+Regards,
+						- Zheng
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
