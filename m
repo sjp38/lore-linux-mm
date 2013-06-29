@@ -1,47 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 0F9C66B0036
-	for <linux-mm@kvack.org>; Sat, 29 Jun 2013 03:43:31 -0400 (EDT)
-Date: Sat, 29 Jun 2013 17:25:49 +1000
-From: Paul Mackerras <paulus@samba.org>
-Subject: Re: [PATCH -V2 2/4] powerpc: Contiguous memory allocator based hash
- page allocation
-Message-ID: <20130629072549.GC8687@iris.ozlabs.ibm.com>
-References: <1372410662-3748-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1372410662-3748-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1372410662-3748-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 7D8D86B0032
+	for <linux-mm@kvack.org>; Sat, 29 Jun 2013 10:01:25 -0400 (EDT)
+Subject: Re: mmotm 2013-06-27-16-36 uploaded (wait event common)
+In-Reply-To: Your message of "Thu, 27 Jun 2013 22:30:41 -0700."
+             <51CD1F81.4040202@infradead.org>
+From: Valdis.Kletnieks@vt.edu
+References: <20130627233733.BAEB131C3BE@corp2gmr1-1.hot.corp.google.com>
+            <51CD1F81.4040202@infradead.org>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="==_Exmh_1372514416_2179P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Content-Transfer-Encoding: 7bit
+Date: Sat, 29 Jun 2013 10:00:16 -0400
+Message-ID: <65029.1372514416@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: benh@kernel.crashing.org, linux-mm@kvack.org, m.szyprowski@samsung.com, mina86@mina86.com, linuxppc-dev@lists.ozlabs.org
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>
 
-On Fri, Jun 28, 2013 at 02:41:00PM +0530, Aneesh Kumar K.V wrote:
-> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> 
-> Use CMA for allocation of guest hash page.
+--==_Exmh_1372514416_2179P
+Content-Type: text/plain; charset=us-ascii
 
-"page table" not just "page".  This patch description seems a bit
-brief for a patch of this length.  Please describe a little more of
-the motivation and the design decisions.
+On Thu, 27 Jun 2013 22:30:41 -0700, Randy Dunlap said:
 
-> +	if (selected_size) {
-> +		pr_debug("%s: reserving %ld MiB for global area\n", __func__,
-> +			 (unsigned long)selected_size / SZ_1M);
-> +		align_size = hpt_align_pages << PAGE_SHIFT;
-> +		kvm_cma_declare_contiguous(selected_size, align_size);
+> +		__ret = __wait_no_timeout(tout) ?: (tout) ?: 1;
 
-The alignment you declare here has to be at least as large as the
-largest alignment that we will be requesting for any block later on.
-This alignment is fine for POWER7, but PPC970 requires the HPT to be
-aligned on a multiple of its size.  For PPC970 we should make sure
-align_size is at least as large as any block that we could allocate.
-Thus align_size should be at least __rounddown_pow_of_two(selected_size)
-for PPC970.
+Was this trying to do a  wait_ho_timeout(!!tout)  or something?
 
-Paul.
+--==_Exmh_1372514416_2179P
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.13 (GNU/Linux)
+Comment: Exmh version 2.5 07/13/2001
+
+iQIVAwUBUc7ocAdmEQWDXROgAQJnsw/9GIls2RIxjfNdU10UXmU5XtVGWfAu2IkZ
+lO5FqDzA9b+g49K1HLAxQ3RVNz+TrtmI44gx6qjzsMYqVzz4KU5KRzgd+yAp5M83
+WK2oI7ez0djtOLst6NnPddBZN6Li8x6h8UaW6CltpR2qRcCyZvF22SqAzVDWXClo
+kc3sYTIWDrfPnAvpBEpJpTPl64i7G5nLIri+Vx4UnsmXVeRUKhKk1og3ekdZJ6os
+BtkKU55WlJEidalOV5NeyZ9SVPlGTptc1GhbYnB7dGuMWzpdNtqQec+VnQRLQNOz
+FnTTzWNI5vSEYB4sSLwawa3JE3l/Xq+ZMwI2/G6cVjH1kc4hEw+gD8Si3+wdj8rA
+mg/ski9wqSMLOirXduqOxzNsdvSR92bLKMz8ZBKXirtb1EWyxhs7tyA1HDYN9gfi
+VTpdtYbI4THRCKTB6z/2ToCqEEeXmfBl3TE8DYzervaz1fHxbHjIGpEstWyOdBLj
+ZqUCPQ60BsQrqT2Xdg5opi0yKMFbDL6Hfce4Wk/hXE50AkInFtRqg10HwgQaPj2U
+UXW+A/lBt0UyjUnvcg4y8fiUt25xcIPojn1stwi4Vm4fpMwCS7OmZ6RkCiyB5wXH
+It2s71pSzAifn0OUdI/ZlDxkdUYBHGpz87aU39ze5ZazUiCIP+D7N3ywmKOnsCmD
+ryOFZ7EiecU=
+=6+DB
+-----END PGP SIGNATURE-----
+
+--==_Exmh_1372514416_2179P--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
