@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id A0CEB6B0033
-	for <linux-mm@kvack.org>; Sat, 29 Jun 2013 13:42:22 -0400 (EDT)
-Subject: [PATCH 01/16] fuse: Linking file to inode helper
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 9910A6B0036
+	for <linux-mm@kvack.org>; Sat, 29 Jun 2013 13:42:32 -0400 (EDT)
+Subject: [PATCH 02/16] fuse: Getting file for writeback helper
 From: Maxim Patlasov <MPatlasov@parallels.com>
-Date: Sat, 29 Jun 2013 21:42:10 +0400
-Message-ID: <20130629174154.20175.73142.stgit@maximpc.sw.ru>
+Date: Sat, 29 Jun 2013 21:42:20 +0400
+Message-ID: <20130629174215.20175.22933.stgit@maximpc.sw.ru>
 In-Reply-To: <20130629172211.20175.70154.stgit@maximpc.sw.ru>
 References: <20130629172211.20175.70154.stgit@maximpc.sw.ru>
 MIME-Version: 1.0
@@ -18,66 +18,64 @@ Cc: riel@redhat.com, dev@parallels.com, xemul@parallels.com, fuse-devel@lists.so
 
 From: Pavel Emelyanov <xemul@openvz.org>
 
-When writeback is ON every writeable file should be in per-inode write list,
-not only mmap-ed ones. Thus introduce a helper for this linkage.
+There will be a .writepageS callback implementation which will need to
+get a fuse_file out of a fuse_inode, thus make a helper for this.
 
 Signed-off-by: Maxim Patlasov <MPatlasov@parallels.com>
 Signed-off-by: Pavel Emelyanov <xemul@openvz.org>
 ---
- fs/fuse/file.c |   33 +++++++++++++++++++--------------
- 1 files changed, 19 insertions(+), 14 deletions(-)
+ fs/fuse/file.c |   24 ++++++++++++++++--------
+ 1 files changed, 16 insertions(+), 8 deletions(-)
 
 diff --git a/fs/fuse/file.c b/fs/fuse/file.c
-index 35f2810..cc858ee 100644
+index cc858ee..6b6d307 100644
 --- a/fs/fuse/file.c
 +++ b/fs/fuse/file.c
-@@ -171,6 +171,22 @@ int fuse_do_open(struct fuse_conn *fc, u64 nodeid, struct file *file,
+@@ -1505,6 +1505,20 @@ static void fuse_writepage_end(struct fuse_conn *fc, struct fuse_req *req)
+ 	fuse_writepage_free(fc, req);
  }
- EXPORT_SYMBOL_GPL(fuse_do_open);
  
-+static void fuse_link_write_file(struct file *file)
++static struct fuse_file *fuse_write_file(struct fuse_conn *fc,
++					 struct fuse_inode *fi)
 +{
-+	struct inode *inode = file_inode(file);
-+	struct fuse_conn *fc = get_fuse_conn(inode);
-+	struct fuse_inode *fi = get_fuse_inode(inode);
-+	struct fuse_file *ff = file->private_data;
-+	/*
-+	 * file may be written through mmap, so chain it onto the
-+	 * inodes's write_file list
-+	 */
++	struct fuse_file *ff;
++
 +	spin_lock(&fc->lock);
-+	if (list_empty(&ff->write_entry))
-+		list_add(&ff->write_entry, &fi->write_files);
++	BUG_ON(list_empty(&fi->write_files));
++	ff = list_entry(fi->write_files.next, struct fuse_file, write_entry);
++	fuse_file_get(ff);
 +	spin_unlock(&fc->lock);
++
++	return ff;
 +}
 +
- void fuse_finish_open(struct inode *inode, struct file *file)
+ static int fuse_writepage_locked(struct page *page)
  {
- 	struct fuse_file *ff = file->private_data;
-@@ -1615,20 +1631,9 @@ static const struct vm_operations_struct fuse_file_vm_ops = {
+ 	struct address_space *mapping = page->mapping;
+@@ -1512,7 +1526,6 @@ static int fuse_writepage_locked(struct page *page)
+ 	struct fuse_conn *fc = get_fuse_conn(inode);
+ 	struct fuse_inode *fi = get_fuse_inode(inode);
+ 	struct fuse_req *req;
+-	struct fuse_file *ff;
+ 	struct page *tmp_page;
  
- static int fuse_file_mmap(struct file *file, struct vm_area_struct *vma)
- {
--	if ((vma->vm_flags & VM_SHARED) && (vma->vm_flags & VM_MAYWRITE)) {
--		struct inode *inode = file_inode(file);
--		struct fuse_conn *fc = get_fuse_conn(inode);
--		struct fuse_inode *fi = get_fuse_inode(inode);
--		struct fuse_file *ff = file->private_data;
--		/*
--		 * file may be written through mmap, so chain it onto the
--		 * inodes's write_file list
--		 */
--		spin_lock(&fc->lock);
--		if (list_empty(&ff->write_entry))
--			list_add(&ff->write_entry, &fi->write_files);
--		spin_unlock(&fc->lock);
--	}
-+	if ((vma->vm_flags & VM_SHARED) && (vma->vm_flags & VM_MAYWRITE))
-+		fuse_link_write_file(file);
-+
- 	file_accessed(file);
- 	vma->vm_ops = &fuse_file_vm_ops;
- 	return 0;
+ 	set_page_writeback(page);
+@@ -1526,13 +1539,8 @@ static int fuse_writepage_locked(struct page *page)
+ 	if (!tmp_page)
+ 		goto err_free;
+ 
+-	spin_lock(&fc->lock);
+-	BUG_ON(list_empty(&fi->write_files));
+-	ff = list_entry(fi->write_files.next, struct fuse_file, write_entry);
+-	req->ff = fuse_file_get(ff);
+-	spin_unlock(&fc->lock);
+-
+-	fuse_write_fill(req, ff, page_offset(page), 0);
++	req->ff = fuse_write_file(fc, fi);
++	fuse_write_fill(req, req->ff, page_offset(page), 0);
+ 
+ 	copy_highpage(tmp_page, page);
+ 	req->misc.write.in.write_flags |= FUSE_WRITE_CACHE;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
