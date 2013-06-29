@@ -1,100 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 7257B6B0032
-	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 18:59:21 -0400 (EDT)
-Date: Fri, 28 Jun 2013 15:59:19 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4 5/9] memcg: use css_get/put when charging/uncharging
- kmem
-Message-Id: <20130628155919.840f44b4d76e4e9ade6a9b6e@linux-foundation.org>
-In-Reply-To: <51BA77F1.4080106@huawei.com>
-References: <51BA7794.2000305@huawei.com>
-	<51BA77F1.4080106@huawei.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id C17E36B0032
+	for <linux-mm@kvack.org>; Fri, 28 Jun 2013 20:56:41 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id bi5so3019494pad.4
+        for <linux-mm@kvack.org>; Fri, 28 Jun 2013 17:56:40 -0700 (PDT)
+Date: Fri, 28 Jun 2013 17:56:37 -0700
+From: Anton Vorontsov <anton@enomsg.org>
+Subject: Re: [PATCH v2] vmpressure: implement strict mode
+Message-ID: <20130629005637.GA16068@teo>
+References: <20130628005852.GA8093@teo>
+ <20130627181353.3d552e64.akpm@linux-foundation.org>
+ <20130628043411.GA9100@teo>
+ <20130628050712.GA10097@teo>
+ <20130628100027.31504abe@redhat.com>
+ <20130628165722.GA12271@teo>
+ <20130628170917.GA12610@teo>
+ <20130628144507.37d28ed9@redhat.com>
+ <20130628185547.GA14520@teo>
+ <20130628154402.4035f2fa@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20130628154402.4035f2fa@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Zefan <lizefan@huawei.com>
-Cc: Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>
+To: Luiz Capitulino <lcapitulino@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.cz, kmpark@infradead.org, hyunhee.kim@samsung.com
 
-On Fri, 14 Jun 2013 09:54:57 +0800 Li Zefan <lizefan@huawei.com> wrote:
-
-> Use css_get/put instead of mem_cgroup_get/put.
+On Fri, Jun 28, 2013 at 03:44:02PM -0400, Luiz Capitulino wrote:
+> > Why can't you use poll() and demultiplex the events? Check if there is an
+> > event in the crit fd, and if there is, then just ignore all the rest.
 > 
-> We can't do a simple replacement, because here mem_cgroup_put()
-> is called during mem_cgroup_css_free(), while mem_cgroup_css_free()
-> won't be called until css refcnt goes down to 0.
+> This may be a valid workaround for current kernels, but application
+> behavior will be different among kernels with a different number of
+> events.
+
+This is not a workaround, this is how poll works, and this is kinda
+expected... But not that I had this plan in mind when I was designing the
+current scheme... :)
+
+> Say, we events on top of critical. Then crit fd will now be
+> notified for cases where it didn't use to on older kernels.
+
+I'm not sure I am following here... but thinking about it more, I guess
+the extra read() will be needed anyway (to reset the counter).
+
+> > > However, it *is* possible to make non-strict work on strict if we make
+> > > strict default _and_ make reads on memory.pressure_level return
+> > > available events. Just do this on app initialization:
+> > > 
+> > > for each event in memory.pressure_level; do
+> > > 	/* register eventfd to be notified on "event" */
+> > > done
+> > 
+> > This scheme registers "all" events.
 > 
-> Instead we increment css refcnt in mem_cgroup_css_offline(), and
-> then check if there's still kmem charges. If not, css refcnt will
-> be decremented immediately, otherwise the refcnt will be released
-> after the last kmem allocation is uncahred.
+> Yes, because I thought that's the user-case that matters for activity
+> manager :)
+
+Some activity managers use only low levels (Android), some might use only
+medium levels (simple load-balancing).
+
+Being able to register only "all" does not make sense to me.
+
+> > Here is more complicated case:
+> > 
+> > Old kernels, pressure_level reads:
+> > 
+> >   low, med, crit
+> > 
+> > The app just wants to listen for med level.
+> > 
+> > New kernels, pressure_level reads:
+> > 
+> >   low, FOO, med, BAR, crit
+> > 
+> > How would application decide which of FOO and BAR are ex-med levels?
 > 
-> ...
->
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -416,6 +416,11 @@ static void memcg_kmem_clear_activated(struct mem_cgroup *memcg)
->  
->  static void memcg_kmem_mark_dead(struct mem_cgroup *memcg)
->  {
-> +	/*
-> +	 * We need to call css_get() first, because memcg_uncharge_kmem()
-> +	 * will call css_put() if it sees the memcg is dead.
-> +	 */
-> +	smp_wmb();
->  	if (test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags))
->  		set_bit(KMEM_ACCOUNTED_DEAD, &memcg->kmem_account_flags);
->  }
+> What you meant by ex-med?
 
-That comment is rather confusing and unhelpful.  "We need to call
-css_get", but we clearly *don't* call css_get().  I guess we want
+The scale is continuous and non-overlapping. If you add some other level,
+you effectively "shrinking" other levels, so the ex-med in the list above
+might correspond to "FOO, med" or "med, BAR" or "FOO, med, BAR", and that
+is exactly the problem.
 
---- a/mm/memcontrol.c~memcg-use-css_get-put-when-charging-uncharging-kmem-fix
-+++ a/mm/memcontrol.c
-@@ -407,7 +407,7 @@ static void memcg_kmem_clear_activated(s
- static void memcg_kmem_mark_dead(struct mem_cgroup *memcg)
- {
- 	/*
--	 * We need to call css_get() first, because memcg_uncharge_kmem()
-+	 * Our caller must use css_get() first, because memcg_uncharge_kmem()
- 	 * will call css_put() if it sees the memcg is dead.
- 	 */
- 	smp_wmb();
-_
+> Let's not over-design. I agree that allowing the API to be extended
+> is a good thing, but we shouldn't give complex meaning to events,
+> otherwise we're better with a numeric scale instead.
 
+I am not over-desiging at all. Again, you did not provide any solution for
+the case if we are going to add a new level. Thing is, I don't know if we
+are going to add more levels, but the three-levels scheme is not something
+scientifically proven, it is just an arbitrary thing we made up. We may
+end up with four, or five... or not.
 
-But it's still not good.
+Thanks,
 
-- What is the smp_wmb() for?  These barriers should always be
-  documented so readers can see what we're barriering against but this
-  one is floating around unexplained.
-
-- What does memcg_uncharge_kmem() have to do with all this? 
-  memcg_kmem_mark_dead() just does a set_bit() - what has that to do
-  with memcg_kmem_mark_dead().
-
-So I dunno, it's all clear as mud and I hope we can do better.
-
-
-> @@ -3060,8 +3065,16 @@ static void memcg_uncharge_kmem(struct mem_cgroup *memcg, u64 size)
->  	if (res_counter_uncharge(&memcg->kmem, size))
->  		return;
->  
-> +	/*
-> +	 * Releases a reference taken in kmem_cgroup_css_offline in case
-> +	 * this last uncharge is racing with the offlining code or it is
-> +	 * outliving the memcg existence.
-> +	 *
-> +	 * The memory barrier imposed by test&clear is paired with the
-> +	 * explicit one in memcg_kmem_mark_dead().
-> +	 */
-
-OK, that clears things up a bit.  A small bit.
-
-
-This code is far too tricky :(
+Anton
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
