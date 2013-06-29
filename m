@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id ABB026B005C
-	for <linux-mm@kvack.org>; Sat, 29 Jun 2013 13:46:20 -0400 (EDT)
-Subject: [PATCH 12/16] fuse: fuse_writepage_locked() should wait on writeback
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 1CDF86B0039
+	for <linux-mm@kvack.org>; Sat, 29 Jun 2013 13:46:41 -0400 (EDT)
+Subject: [PATCH 13/16] fuse: fuse_flush() should wait on writeback
 From: Maxim Patlasov <MPatlasov@parallels.com>
-Date: Sat, 29 Jun 2013 21:46:07 +0400
-Message-ID: <20130629174552.20175.47375.stgit@maximpc.sw.ru>
+Date: Sat, 29 Jun 2013 21:46:28 +0400
+Message-ID: <20130629174612.20175.15469.stgit@maximpc.sw.ru>
 In-Reply-To: <20130629172211.20175.70154.stgit@maximpc.sw.ru>
 References: <20130629172211.20175.70154.stgit@maximpc.sw.ru>
 MIME-Version: 1.0
@@ -16,66 +16,44 @@ List-ID: <linux-mm.kvack.org>
 To: miklos@szeredi.hu
 Cc: riel@redhat.com, dev@parallels.com, xemul@parallels.com, fuse-devel@lists.sourceforge.net, bfoster@redhat.com, linux-kernel@vger.kernel.org, jbottomley@parallels.com, linux-mm@kvack.org, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, akpm@linux-foundation.org, fengguang.wu@intel.com, devel@openvz.org, mgorman@suse.de
 
-fuse_writepage_locked() should never submit new i/o for given page->index
-if there is another one 'in progress' already. In most cases it's safe to
-wait on page writeback. But if it was called due to memory shortage
-(WB_SYNC_NONE), we should redirty page rather than blocking caller.
+The aim of .flush fop is to hint file-system that flushing its state or caches
+or any other important data to reliable storage would be desirable now.
+fuse_flush() passes this hint by sending FUSE_FLUSH request to userspace.
+However, dirty pages and pages under writeback may be not visible to userspace
+yet if we won't ensure it explicitly.
 
 Signed-off-by: Maxim Patlasov <MPatlasov@parallels.com>
 ---
- fs/fuse/file.c |   18 +++++++++++++++---
- 1 files changed, 15 insertions(+), 3 deletions(-)
+ fs/fuse/file.c |    9 +++++++++
+ 1 files changed, 9 insertions(+), 0 deletions(-)
 
 diff --git a/fs/fuse/file.c b/fs/fuse/file.c
-index 89b08d6..f48f796 100644
+index f48f796..86ef60f 100644
 --- a/fs/fuse/file.c
 +++ b/fs/fuse/file.c
-@@ -1595,7 +1595,8 @@ static struct fuse_file *fuse_write_file(struct fuse_conn *fc,
- 	return ff;
- }
+@@ -19,6 +19,7 @@
+ #include <linux/falloc.h>
  
--static int fuse_writepage_locked(struct page *page)
-+static int fuse_writepage_locked(struct page *page,
-+				 struct writeback_control *wbc)
- {
- 	struct address_space *mapping = page->mapping;
- 	struct inode *inode = mapping->host;
-@@ -1604,6 +1605,14 @@ static int fuse_writepage_locked(struct page *page)
- 	struct fuse_req *req;
- 	struct page *tmp_page;
+ static const struct file_operations fuse_direct_io_file_operations;
++static void fuse_sync_writes(struct inode *inode);
  
-+	if (fuse_page_is_writeback(inode, page->index)) {
-+		if (wbc->sync_mode != WB_SYNC_ALL) {
-+			redirty_page_for_writepage(wbc, page);
-+			return 0;
-+		}
-+		fuse_wait_on_page_writeback(inode, page->index);
-+	}
+ static int fuse_send_open(struct fuse_conn *fc, u64 nodeid, struct file *file,
+ 			  int opcode, struct fuse_open_out *outargp)
+@@ -400,6 +401,14 @@ static int fuse_flush(struct file *file, fl_owner_t id)
+ 	if (fc->no_flush)
+ 		return 0;
+ 
++	err = filemap_write_and_wait(file->f_mapping);
++	if (err)
++		return err;
 +
- 	set_page_writeback(page);
- 
- 	req = fuse_request_alloc_nofs(1);
-@@ -1651,7 +1660,7 @@ static int fuse_writepage(struct page *page, struct writeback_control *wbc)
- {
- 	int err;
- 
--	err = fuse_writepage_locked(page);
-+	err = fuse_writepage_locked(page, wbc);
- 	unlock_page(page);
- 
- 	return err;
-@@ -1926,7 +1935,10 @@ static int fuse_launder_page(struct page *page)
- 	int err = 0;
- 	if (clear_page_dirty_for_io(page)) {
- 		struct inode *inode = page->mapping->host;
--		err = fuse_writepage_locked(page);
-+		struct writeback_control wbc = {
-+			.sync_mode = WB_SYNC_ALL,
-+		};
-+		err = fuse_writepage_locked(page, &wbc);
- 		if (!err)
- 			fuse_wait_on_page_writeback(inode, page->index);
- 	}
++	mutex_lock(&inode->i_mutex);
++	fuse_sync_writes(inode);
++	mutex_unlock(&inode->i_mutex);
++
+ 	req = fuse_get_req_nofail_nopages(fc, file);
+ 	memset(&inarg, 0, sizeof(inarg));
+ 	inarg.fh = ff->fh;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
