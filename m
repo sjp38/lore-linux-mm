@@ -1,50 +1,83 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 5EDAF6B0031
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 23:17:58 -0400 (EDT)
-Date: Wed, 31 Jul 2013 20:17:08 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH resend] drop_caches: add some documentation and info
- message
-Message-Id: <20130731201708.efa5ae87.akpm@linux-foundation.org>
-In-Reply-To: <51F9D1F6.4080001@jp.fujitsu.com>
-References: <1374842669-22844-1-git-send-email-mhocko@suse.cz>
-	<20130729135743.c04224fb5d8e64b2730d8263@linux-foundation.org>
-	<51F9D1F6.4080001@jp.fujitsu.com>
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH 3/3] mm/slab: Fix /proc/slabinfo unwriteable for slab
+Date: Tue, 2 Jul 2013 07:43:54 +0800
+Message-ID: <19863.2937543609$1372722259@news.gmane.org>
+References: <1372069394-26167-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1372069394-26167-3-git-send-email-liwanp@linux.vnet.ibm.com>
+ <0000013f9aed0ce5-ff542635-3074-4f9b-842e-d04492ed3e90-000000@email.amazonses.com>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Return-path: <owner-linux-mm@kvack.org>
+Received: from kanga.kvack.org ([205.233.56.17])
+	by plane.gmane.org with esmtp (Exim 4.69)
+	(envelope-from <owner-linux-mm@kvack.org>)
+	id 1UtnlT-0004WA-08
+	for glkm-linux-mm-2@m.gmane.org; Tue, 02 Jul 2013 01:44:11 +0200
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id BDE2C6B0032
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 19:44:07 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Tue, 2 Jul 2013 05:07:50 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id E7807E0053
+	for <linux-mm@kvack.org>; Tue,  2 Jul 2013 05:13:36 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r61NiJKq26869876
+	for <linux-mm@kvack.org>; Tue, 2 Jul 2013 05:14:22 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r61NhsZD019131
+	for <linux-mm@kvack.org>; Mon, 1 Jul 2013 23:43:55 GMT
+Content-Disposition: inline
+In-Reply-To: <0000013f9aed0ce5-ff542635-3074-4f9b-842e-d04492ed3e90-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: mhocko@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, kamezawa.hiroyu@jp.fujitsu.com, bp@suse.de, dave@linux.vnet.ibm.com
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 31 Jul 2013 23:11:50 -0400 KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On Mon, Jul 01, 2013 at 03:49:54PM +0000, Christoph Lameter wrote:
+>On Mon, 24 Jun 2013, Wanpeng Li wrote:
+>
+>>  1 file changed, 10 insertions(+)
+>>
+>> diff --git a/mm/slab_common.c b/mm/slab_common.c
+>> index d161b81..7fdde79 100644
+>> --- a/mm/slab_common.c
+>> +++ b/mm/slab_common.c
+>> @@ -631,10 +631,20 @@ static const struct file_operations proc_slabinfo_operations = {
+>>  	.release	= seq_release,
+>>  };
+>>
+>> +#ifdef CONFIG_SLAB
+>> +static int __init slab_proc_init(void)
+>> +{
+>> +	proc_create("slabinfo", S_IWUSR | S_IRUSR, NULL, &proc_slabinfo_operations);
+>> +	return 0;
+>> +}
+>> +#endif
+>> +#ifdef CONFIG_SLUB
+>>  static int __init slab_proc_init(void)
+>>  {
+>>  	proc_create("slabinfo", S_IRUSR, NULL, &proc_slabinfo_operations);
+>>  	return 0;
+>>  }
+>
+>It may be easier to define a macro SLABINFO_RIGHTS and use #ifdefs to
+>assign the correct one. That way we have only one slab_proc_init().
+>
 
-> >> --- a/fs/drop_caches.c
-> >> +++ b/fs/drop_caches.c
-> >> @@ -59,6 +59,8 @@ int drop_caches_sysctl_handler(ctl_table *table, int write,
-> >>  	if (ret)
-> >>  		return ret;
-> >>  	if (write) {
-> >> +		printk(KERN_INFO "%s (%d): dropped kernel caches: %d\n",
-> >> +		       current->comm, task_pid_nr(current), sysctl_drop_caches);
-> >>  		if (sysctl_drop_caches & 1)
-> >>  			iterate_supers(drop_pagecache_sb, NULL);
-> >>  		if (sysctl_drop_caches & 2)
-> > 
-> > How about we do
-> > 
-> > 	if (!(sysctl_drop_caches & 4))
-> > 		printk(....)
-> > 
-> > so people can turn it off if it's causing problems?
-> 
-> The best interface depends on the purpose. If you want to detect crazy application,
-> we can't assume an application co-operate us. So, I doubt this works.
+Greate point! I	will do it in next version. ;-)
 
-You missed the "!".  I'm proposing that setting the new bit 2 will
-permit people to prevent the new printk if it is causing them problems.
+Regards,
+Wanpeng Li 
+
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
