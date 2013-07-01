@@ -1,171 +1,295 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 0A3036B0032
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 07:52:10 -0400 (EDT)
-Received: by mail-ee0-f50.google.com with SMTP id d49so2021794eek.9
-        for <linux-mm@kvack.org>; Mon, 01 Jul 2013 04:52:09 -0700 (PDT)
-From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH -V2 1/4] mm/cma: Move dma contiguous changes into a seperate config
-In-Reply-To: <1372410662-3748-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-References: <1372410662-3748-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Date: Mon, 01 Jul 2013 13:52:02 +0200
-Message-ID: <xa1tzju6sdjx.fsf@mina86.com>
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id B9F606B0032
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 07:57:57 -0400 (EDT)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH RFC 01/13] mm: add PRAM API stubs and Kconfig
+Date: Mon, 1 Jul 2013 15:57:36 +0400
+Message-ID: <fdf9aceddf42b7568efaec2e483374c3526e9776.1372582755.git.vdavydov@parallels.com>
+In-Reply-To: <cover.1372582754.git.vdavydov@parallels.com>
+References: <cover.1372582754.git.vdavydov@parallels.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="=-=-="
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, benh@kernel.crashing.org, paulus@samba.org, linux-mm@kvack.org, m.szyprowski@samsung.com
-Cc: linuxppc-dev@lists.ozlabs.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, criu@openvz.org, devel@openvz.org, xemul@parallels.com, khorenko@parallels.com
 
---=-=-=
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Persistent memory subsys or PRAM is intended to be used for saving
+memory pages of the currently executing kernel and restoring them after
+a kexec in the newly booted one. This can be utilized for speeding up
+reboot by leaving process memory and/or FS caches in-place.
 
-On Fri, Jun 28 2013, Aneesh Kumar K.V wrote:
-> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
->
-> We want to use CMA for allocating hash page table and real mode area for
-> PPC64. Hence move DMA contiguous related changes into a seperate config
-> so that ppc64 can enable CMA without requiring DMA contiguous.
->
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+The proposed API:
 
-Acked-by: Michal Nazarewicz <mina86@mina86.com>
+ * Persistent memory is divided into nodes, which can be saved or loaded
+   independently of each other. The nodes are identified by unique name
+   strings. PRAM node is created (removed) when save (load) is initiated
+   by calling pram_prepare_save() (pram_prepare_load()), see below.
 
-> diff --git a/drivers/base/Kconfig b/drivers/base/Kconfig
-> index 07abd9d..74b7c98 100644
-> --- a/drivers/base/Kconfig
-> +++ b/drivers/base/Kconfig
-> @@ -202,11 +202,10 @@ config DMA_SHARED_BUFFER
->  	  APIs extension; the file's descriptor can then be passed on to other
->  	  driver.
->=20=20
-> -config CMA
-> -	bool "Contiguous Memory Allocator"
-> -	depends on HAVE_DMA_CONTIGUOUS && HAVE_MEMBLOCK
-> -	select MIGRATION
-> -	select MEMORY_ISOLATION
-> +config DMA_CMA
-> +	bool "DMA Contiguous Memory Allocator"
-> +	depends on HAVE_DMA_CONTIGUOUS
-> +	select CMA
+ * For saving/loading data from a PRAM node an instance of the
+   pram_stream struct is used. The struct is initialized by calling
+   pram_prepare_save() for saving data or pram_prepare_load() for
+   loading data. After save (load) is complete, pram_finish_save()
+   (pram_finish_load()) must be called. If an error occurred during
+   save, the saved data and the PRAM node may be freed by calling
+   pram_discard_save() instead of pram_finish_save().
 
-Just to be on the safe side, I'd add
+ * Each pram_stream has a type, which  determines the set of operations
+   that may be used for saving/loading data. The type is defined by the
+   pram_stream_type enum. Currently there are two stream types
+   available: PRAM_PAGE_STREAM to save/load memory pages, and
+   PRAM_BYTE_STREAM to save/load byte strings. For page streams
+   pram_save_page() and pram_load_page() may be used, and for byte
+   streams pram_write() and pram_read() may be used for saving and
+   loading data respectively.
 
-	depends on HAVE_MEMBLOCK
+Thus a sequence of operations for saving/loading data from PRAM should
+look like:
 
-or change this so that it does not select CMA but depends on CMA.
+  * For saving data to PRAM:
 
->  	help
->  	  This enables the Contiguous Memory Allocator which allows drivers
->  	  to allocate big physically-contiguous blocks of memory for use with
-> @@ -215,17 +214,7 @@ config CMA
->  	  For more information see <include/linux/dma-contiguous.h>.
->  	  If unsure, say "n".
->=20=20
-> -if CMA
-> -
-> -config CMA_DEBUG
-> -	bool "CMA debug messages (DEVELOPMENT)"
-> -	depends on DEBUG_KERNEL
-> -	help
-> -	  Turns on debug messages in CMA.  This produces KERN_DEBUG
-> -	  messages for every CMA call as well as various messages while
-> -	  processing calls such as dma_alloc_from_contiguous().
-> -	  This option does not affect warning and error messages.
-> -
-> +if  DMA_CMA
->  comment "Default contiguous memory area size:"
->=20=20
->  config CMA_SIZE_MBYTES
+    /* create PRAM node and initialize stream for saving data to it */
+    pram_prepare_save()
 
-> diff --git a/include/linux/dma-contiguous.h b/include/linux/dma-contiguou=
-s.h
-> index 01b5c84..00141d3 100644
-> --- a/include/linux/dma-contiguous.h
-> +++ b/include/linux/dma-contiguous.h
-> @@ -57,7 +57,7 @@ struct cma;
->  struct page;
->  struct device;
->=20=20
-> -#ifdef CONFIG_CMA
-> +#ifdef CONFIG_DMA_CMA
->=20=20
->  /*
->   * There is always at least global CMA area and a few optional device
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index e742d06..26a5f81 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -477,3 +477,27 @@ config FRONTSWAP
->  	  and swap data is stored as normal on the matching swap device.
->=20=20
->  	  If unsure, say Y to enable frontswap.
-> +
-> +config CMA
-> +	bool "Contiguous Memory Allocator"
-> +	depends on HAVE_MEMBLOCK
-> +	select MIGRATION
-> +	select MEMORY_ISOLATION
-> +	help
-> +	  This enables the Contiguous Memory Allocator which allows other
-> +	  subsystems to allocate big physically-contiguous blocks of memory.
-> +	  CMA reserves a region of memory and allows only movable pages to
-> +	  be allocated from it. This way, the kernel can use the memory for
-> +	  pagecache and when a subsystem requests for contiguous area, the
-> +	  allocated pages are migrated away to serve the contiguous request.
-> +
-> +	  If unsure, say "n".
-> +
-> +config CMA_DEBUG
-> +	bool "CMA debug messages (DEVELOPMENT)"
-> +	depends on DEBUG_KERNEL && CMA
-> +	help
-> +	  Turns on debug messages in CMA.  This produces KERN_DEBUG
-> +	  messages for every CMA call as well as various messages while
-> +	  processing calls such as dma_alloc_from_contiguous().
-> +	  This option does not affect warning and error messages.
-> --=20
-> 1.8.1.2
->
+    /* save data to the node */
+    pram_save_page()[,...]      /* for page stream, or
+    pram_write()[,...]           * ... for byte stream */
 
---=20
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
- (o o)
-ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
---=-=-=
-Content-Type: multipart/signed; boundary="==-=-=";
-	micalg=pgp-sha1; protocol="application/pgp-signature"
+    /* commit the save or discard and delete the node */
+    pram_finish_save()          /* on success, or
+    pram_discard_save()          * ... in case of error */
 
---==-=-=
-Content-Type: text/plain
+  * For loading data from PRAM:
 
+    /* remove PRAM node from the list and initialize stream for
+     * loading data from it */
+    pram_prepare_load()
 
---==-=-=
-Content-Type: application/pgp-signature; name="signature.asc"
+    /* load data from the node */
+    pram_load_page()[,...]      /* for page stream, or
+    pram_read()[,...]            * ... for byte stream */
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
+    /* free the node */
+    pram_finish_load()
+---
+ include/linux/pram.h |   38 +++++++++++++++
+ mm/Kconfig           |    9 ++++
+ mm/Makefile          |    1 +
+ mm/pram.c            |  131 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 179 insertions(+)
+ create mode 100644 include/linux/pram.h
+ create mode 100644 mm/pram.c
 
-iQIcBAEBAgAGBQJR0W1iAAoJECBgQBJQdR/0GKsQAImkobDydf8Cz/SR7nE8B2Q6
-LTA0n87AwwtMgLeZLIDQncksISI7bdduIsjaLD1zk3pcIu3z3RdPHEsoVZCgBaaN
-vz+BMnLe6TEgP6HKI98QcrVyeZViJwMIKSNTPUmdByum7YxOWAKQH6rSNogTsZGE
-nwPMU9ZklN9DaZtOpuOCP+6yxmuN5ENYnaIeKD9R+UOYbM6XfdlqX0Plmho5XZGd
-KCaH8dmfa7DobiHVREl7+n6YVQpZPeavOywSPPNw76XiGT7KZaaTxMdNC+nQJH6C
-SrUL8CDtcDei0OsIByE1BAYkhKXFsQRfWZkYG3YxpLmBVzuPaLjiMw0jasFlozSD
-26C5Gqkfv80tD61jdfrWVnDta912CCPjfQ5L7gpJV+XN134otdnXB5Fw3JKTG9iW
-2hl9KEufbmMgYqb+rkeAmkN4DHNdRuN5qPO5i2HfHXCGVW2++QBW1dW6rthV16VG
-q0kWC+H8Q2wWQuSUW7/h3+o2jOSOlT6mN90/UoO2QU1SPIhgkBR+7ismHVJWFPRw
-i+wF4WeBaGvzq2Lb7LqB9r3+P/VG1eGuinJYx3lV9TrMJRE0dmMYmXIFEE95aS1h
-cWskahY1GMgVpjsdPWucjkXlu1BXR9/OjjO8REJ07PkM2ny+OcQ49qLgn7dFHs4+
-9P3LkSEZPWNMGUpon1H8
-=7mX6
------END PGP SIGNATURE-----
---==-=-=--
-
---=-=-=--
+diff --git a/include/linux/pram.h b/include/linux/pram.h
+new file mode 100644
+index 0000000..cf04548
+--- /dev/null
++++ b/include/linux/pram.h
+@@ -0,0 +1,38 @@
++#ifndef _LINUX_PRAM_H
++#define _LINUX_PRAM_H
++
++#include <linux/gfp.h>
++#include <linux/types.h>
++#include <linux/mm_types.h>
++
++struct pram_stream;
++
++#define PRAM_NAME_MAX		256	/* including nul */
++
++enum pram_stream_type {
++	PRAM_PAGE_STREAM,
++	PRAM_BYTE_STREAM,
++};
++
++extern int pram_prepare_save(struct pram_stream *ps,
++		const char *name, enum pram_stream_type type, gfp_t gfp_mask);
++extern void pram_finish_save(struct pram_stream *ps);
++extern void pram_discard_save(struct pram_stream *ps);
++
++extern int pram_prepare_load(struct pram_stream *ps,
++		const char *name, enum pram_stream_type type);
++extern void pram_finish_load(struct pram_stream *ps);
++
++#define PRAM_PAGE_LRU		0x01	/* page is on the LRU */
++
++/* page-stream specific methods */
++extern int pram_save_page(struct pram_stream *ps,
++			  struct page *page, int flags);
++extern struct page *pram_load_page(struct pram_stream *ps, int *flags);
++
++/* byte-stream specific methods */
++extern ssize_t pram_write(struct pram_stream *ps,
++			  const void *buf, size_t count);
++extern size_t pram_read(struct pram_stream *ps, void *buf, size_t count);
++
++#endif /* _LINUX_PRAM_H */
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 3bea74f..46337e8 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -471,3 +471,12 @@ config FRONTSWAP
+ 	  and swap data is stored as normal on the matching swap device.
+ 
+ 	  If unsure, say Y to enable frontswap.
++
++config PRAM
++	bool "Persistent over-kexec memory storage"
++	default n
++	help
++	  This option adds the kernel API that enables saving memory pages of
++	  the currently executing kernel and restoring them after a kexec in
++	  the newly booted one. This can be utilized for speeding up reboot by
++	  leaving process memory and/or FS caches in-place.
+diff --git a/mm/Makefile b/mm/Makefile
+index 3a46287..33ad952 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -58,3 +58,4 @@ obj-$(CONFIG_DEBUG_KMEMLEAK) += kmemleak.o
+ obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
+ obj-$(CONFIG_CLEANCACHE) += cleancache.o
+ obj-$(CONFIG_MEMORY_ISOLATION) += page_isolation.o
++obj-$(CONFIG_PRAM) += pram.o
+diff --git a/mm/pram.c b/mm/pram.c
+new file mode 100644
+index 0000000..cea0e87
+--- /dev/null
++++ b/mm/pram.c
+@@ -0,0 +1,131 @@
++#include <linux/err.h>
++#include <linux/gfp.h>
++#include <linux/kernel.h>
++#include <linux/mm.h>
++#include <linux/pram.h>
++#include <linux/types.h>
++
++/**
++ * Create a persistent memory node with name @name and initialize stream @ps
++ * for saving data to it.
++ *
++ * @type determines the content type of the newly created node and, as a
++ * result, the set of operations that may be used on the stream as follows:
++ *    %PRAM_PAGE_STREAM: page stream, use pram_save_page()
++ *    %PRAM_BYTE_STREAM: byte stream, use pram_write()
++ *
++ * @gfp_mask specifies the memory allocation mask to be used when saving data.
++ *
++ * Returns 0 on success, -errno on failure.
++ *
++ * After the save has finished, pram_finish_save() (or pram_discard_save() in
++ * case of failure) is to be called.
++ */
++int pram_prepare_save(struct pram_stream *ps,
++		const char *name, enum pram_stream_type type, gfp_t gfp_mask)
++{
++	return -ENOSYS;
++}
++
++/**
++ * Commit the save to persistent memory started with pram_prepare_save().
++ * After the call, the stream may not be used any more.
++ */
++void pram_finish_save(struct pram_stream *ps)
++{
++	BUG();
++}
++
++/**
++ * Cancel the save to persistent memory started with pram_prepare_save() and
++ * destroy the corresponding persistent memory node freeing all data that have
++ * been saved to it.
++ */
++void pram_discard_save(struct pram_stream *ps)
++{
++	BUG();
++}
++
++/**
++ * Remove the peristent memory node with name @name and initialize stream @ps
++ * for loading data from it.
++ *
++ * @type determines the content type of the node to be loaded and, as a result,
++ * the set of operations that may be used on the stream as follows:
++ *    %PRAM_PAGE_STREAM: page stream, use pram_load_page()
++ *    %PRAM_BYTE_STREAM: byte stream, use pram_read()
++ *
++ * Returns 0 on success, -errno on failure.
++ *
++ * After the load has finished, pram_finish_load() is to be called.
++ */
++int pram_prepare_load(struct pram_stream *ps,
++		const char *name, enum pram_stream_type type)
++{
++	return -ENOSYS;
++}
++
++/**
++ * Finish the load from persistent memory started with pram_prepare_load()
++ * freeing the corresponding persistent memory node and all data that have not
++ * been loaded from it.
++ */
++void pram_finish_load(struct pram_stream *ps)
++{
++	BUG();
++}
++
++/**
++ * Save page @page to the persistent memory node associated with stream @ps.
++ * The stream must be initialized with pram_prepare_save().
++ *
++ * @flags determines the page state. If the page is on the lru, @flags should
++ * have the PRAM_PAGE_LRU bit set.
++ *
++ * Returns 0 on success, -errno on failure.
++ */
++int pram_save_page(struct pram_stream *ps, struct page *page, int flags)
++{
++	return -ENOSYS;
++}
++
++/**
++ * Load the next page from the persistent memory node associated with stream
++ * @ps. The stream must be initialized with pram_prepare_load().
++ *
++ * If not NULL, @flags is initialized with the state of the page loaded. If the
++ * page is on the lru, it will have the PRAM_PAGE_LRU bit set.
++ *
++ * Returns the page loaded or NULL if the node is empty.
++ *
++ * Pages are loaded from persistent memory in the same order they were saved.
++ * The page loaded has its refcounter incremeneted.
++ */
++struct page *pram_load_page(struct pram_stream *ps, int *flags)
++{
++	return NULL;
++}
++
++/**
++ * Copy @count bytes from @buf to the persistent memory node assiciated with
++ * stream @ps. The stream must be initialized with pram_prepare_save().
++ *
++ * On success, returns the number of bytes written, which is always equal to
++ * @count. On failure, -errno is returned.
++ */
++ssize_t pram_write(struct pram_stream *ps, const void *buf, size_t count)
++{
++	return -ENOSYS;
++}
++
++/**
++ * Copy up to @count bytes from the persistent memory node assiciated with
++ * stream @ps to @buf. The stream must be initialized with pram_prepare_load().
++ *
++ * Returns the number of bytes read, which may be less than @count if the node
++ * has fewer bytes available.
++ */
++size_t pram_read(struct pram_stream *ps, void *buf, size_t count)
++{
++	return 0;
++}
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
