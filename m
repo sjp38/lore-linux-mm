@@ -1,151 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 7A1EC6B0032
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 04:22:38 -0400 (EDT)
-Received: by mail-la0-f52.google.com with SMTP id fo12so4100643lab.39
-        for <linux-mm@kvack.org>; Mon, 01 Jul 2013 01:22:36 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 862946B0032
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 04:43:27 -0400 (EDT)
+Date: Mon, 1 Jul 2013 09:43:21 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 0/6] Basic scheduler support for automatic NUMA balancing
+Message-ID: <20130701084321.GD1875@suse.de>
+References: <1372257487-9749-1-git-send-email-mgorman@suse.de>
+ <20130628135422.GA21895@linux.vnet.ibm.com>
+ <20130701053947.GQ8362@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20130629005637.GA16068@teo>
-References: <20130628005852.GA8093@teo>
-	<20130627181353.3d552e64.akpm@linux-foundation.org>
-	<20130628043411.GA9100@teo>
-	<20130628050712.GA10097@teo>
-	<20130628100027.31504abe@redhat.com>
-	<20130628165722.GA12271@teo>
-	<20130628170917.GA12610@teo>
-	<20130628144507.37d28ed9@redhat.com>
-	<20130628185547.GA14520@teo>
-	<20130628154402.4035f2fa@redhat.com>
-	<20130629005637.GA16068@teo>
-Date: Mon, 1 Jul 2013 17:22:36 +0900
-Message-ID: <CAOK=xROD2AKbgw4V65ddqWFODtn4B1-uYG-NF==oANqVFmZZtg@mail.gmail.com>
-Subject: Re: [PATCH v2] vmpressure: implement strict mode
-From: Hyunhee Kim <hyunhee.kim@samsung.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20130701053947.GQ8362@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Vorontsov <anton@enomsg.org>
-Cc: Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.cz, kmpark@infradead.org
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-2013/6/29 Anton Vorontsov <anton@enomsg.org>:
-> On Fri, Jun 28, 2013 at 03:44:02PM -0400, Luiz Capitulino wrote:
->> > Why can't you use poll() and demultiplex the events? Check if there is an
->> > event in the crit fd, and if there is, then just ignore all the rest.
->>
->> This may be a valid workaround for current kernels, but application
->> behavior will be different among kernels with a different number of
->> events.
->
-> This is not a workaround, this is how poll works, and this is kinda
-> expected... But not that I had this plan in mind when I was designing the
-> current scheme... :)
->
->> Say, we events on top of critical. Then crit fd will now be
->> notified for cases where it didn't use to on older kernels.
->
-> I'm not sure I am following here... but thinking about it more, I guess
-> the extra read() will be needed anyway (to reset the counter).
->
->> > > However, it *is* possible to make non-strict work on strict if we make
->> > > strict default _and_ make reads on memory.pressure_level return
->> > > available events. Just do this on app initialization:
->> > >
->> > > for each event in memory.pressure_level; do
->> > >   /* register eventfd to be notified on "event" */
->> > > done
->> >
->> > This scheme registers "all" events.
->>
->> Yes, because I thought that's the user-case that matters for activity
->> manager :)
->
-> Some activity managers use only low levels (Android), some might use only
-> medium levels (simple load-balancing).
+On Mon, Jul 01, 2013 at 11:09:47AM +0530, Srikar Dronamraju wrote:
+> * Srikar Dronamraju <srikar@linux.vnet.ibm.com> [2013-06-28 19:24:22]:
+> 
+> > * Mel Gorman <mgorman@suse.de> [2013-06-26 15:37:59]:
+> > 
+> > > It's several months overdue and everything was quiet after 3.8 came out
+> > > but I recently had a chance to revisit automatic NUMA balancing for a few
+> > > days. I looked at basic scheduler integration resulting in the following
+> > > small series. Much of the following is heavily based on the numacore series
+> > > which in itself takes part of the autonuma series from back in November. In
+> > > particular it borrows heavily from Peter Ziljstra's work in "sched, numa,
+> > > mm: Add adaptive NUMA affinity support" but deviates too much to preserve
+> > > Signed-off-bys. As before, if the relevant authors are ok with it I'll
+> > > add Signed-off-bys (or add them yourselves if you pick the patches up).
+> > 
+> > 
+> > Here is a snapshot of the results of running autonuma-benchmark running on 8
+> > node 64 cpu system with hyper threading disabled. Ran 5 iterations for each
+> > setup
+> > 
+> > 	KernelVersion: 3.9.0-mainline_v39+()
+> > 				Testcase:      Min      Max      Avg
+> > 				  numa01:  1784.16  1864.15  1800.16
+> > 				  numa02:    32.07    32.72    32.59
+> > 
+> > 	KernelVersion: 3.9.0-mainline_v39+() + mel's patches
+> > 				Testcase:      Min      Max      Avg  %Change
+> > 				  numa01:  1752.48  1859.60  1785.60    0.82%
+> > 				  numa02:    47.21    60.58    53.43  -39.00%
+> > 
+> > So numa02 case; we see a degradation of around 39%.
+> > 
+> 
+> I reran the tests again 
+> 
+> KernelVersion: 3.9.0-mainline_v39+()
+>                         Testcase:      Min      Max      Avg
+>                           numa01:  1784.16  1864.15  1800.16
+>              numa01_THREAD_ALLOC:   293.75   315.35   311.03
+>                           numa02:    32.07    32.72    32.59
+>                       numa02_SMT:    39.27    39.79    39.69
+> 
+> KernelVersion: 3.9.0-mainline_v39+() + your patches
+>                         Testcase:      Min      Max      Avg  %Change
+>                           numa01:  1720.40  1876.89  1767.75    1.83%
+>              numa01_THREAD_ALLOC:   464.34   554.82   496.64  -37.37%
+>                           numa02:    52.02    58.57    56.21  -42.02%
+>                       numa02_SMT:    42.07    52.64    47.33  -16.14%
+> 
 
-When the platform like Android uses only "low" level, is it the
-process you intended when designing vmpressure?
+Thanks. Each of the the two runs had 5 iterations and there is a
+difference in the reported average. Do you know what the standard
+deviation is of the results?
 
-1. activity manager receives "low" level events
-2. it reads and checks the current memory (e.g. available memory) using vmstat
-3. if the available memory is not under the threshold (defined e.g. by
-activity manager), activity manager does nothing
-4. if the available memory is under the threshold, activity manager
-handles it by e.g. reclaiming or killing processes?
+I'm less concerned about the numa01 results as it is an adverse
+workload on machins with more than two sockets but the numa02 results
+are certainly of concern. My own testing for numa02 showed little or no
+change. Would you mind testing with "Increase NUMA PTE scanning when a
+new preferred node is selected" reverted please?
 
-At first time when I saw this vmpressure, I thought that I should
-register all events ("low", "medium", and "critical
-") and use different handler for each event. However, without the mode
-like strict mode, I should see too many events. So, now, I think that
-it is better to use only one level and run each handler after checking
-available memory as you mentioned.
-
-But,
-
-1. Isn't it overhead to read event and check memory state every time
-we receive events?
-    - sometimes, even when there are lots of available memory, low
-level event could occur if most of them is reclaimable memory not free
-pages.
-    - Don't most of platforms use available memory to judge their
-current memory state? Is there any reason vmpressure use reclaim rate?
-IMO, activity manager doesn't have to check available memory if it
-could receive signal based on the available memory.
-
-2. If we use only "medium" to avoid the overheads occurred when using
-"low" level, isn't it possible to miss sending events when there is a
-little available memory but reclaim ratio is high?
-
-IMHO, we cannot consider and cover all the use cases, but considering
-some use cases and giving some guides and directions to use this
-vmpressure will be helpful to make many platform accept this for their
-low memory manager.
-
-Thanks,
-Hyunhee Kim.
-
->
-> Being able to register only "all" does not make sense to me.
->
->> > Here is more complicated case:
->> >
->> > Old kernels, pressure_level reads:
->> >
->> >   low, med, crit
->> >
->> > The app just wants to listen for med level.
->> >
->> > New kernels, pressure_level reads:
->> >
->> >   low, FOO, med, BAR, crit
->> >
->> > How would application decide which of FOO and BAR are ex-med levels?
->>
->> What you meant by ex-med?
->
-> The scale is continuous and non-overlapping. If you add some other level,
-> you effectively "shrinking" other levels, so the ex-med in the list above
-> might correspond to "FOO, med" or "med, BAR" or "FOO, med, BAR", and that
-> is exactly the problem.
->
->> Let's not over-design. I agree that allowing the API to be extended
->> is a good thing, but we shouldn't give complex meaning to events,
->> otherwise we're better with a numeric scale instead.
->
-> I am not over-desiging at all. Again, you did not provide any solution for
-> the case if we are going to add a new level. Thing is, I don't know if we
-> are going to add more levels, but the three-levels scheme is not something
-> scientifically proven, it is just an arbitrary thing we made up. We may
-> end up with four, or five... or not.
->
-> Thanks,
->
-> Anton
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
