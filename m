@@ -1,345 +1,265 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Message-ID: <51D12E7B.6080301@cn.fujitsu.com>
-Date: Mon, 01 Jul 2013 15:23:39 +0800
-From: Gu Zheng <guz.fnst@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id DE8946B0036
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 03:50:11 -0400 (EDT)
+Date: Mon, 1 Jul 2013 09:50:05 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: linux-next: slab shrinkers: BUG at mm/list_lru.c:92
+Message-ID: <20130701075005.GA28765@dhcp22.suse.cz>
+References: <20130618082414.GC13677@dhcp22.suse.cz>
+ <20130618104443.GH13677@dhcp22.suse.cz>
+ <20130618135025.GK13677@dhcp22.suse.cz>
+ <20130625022754.GP29376@dastard>
+ <20130626081509.GF28748@dhcp22.suse.cz>
+ <20130626232426.GA29034@dastard>
+ <20130627145411.GA24206@dhcp22.suse.cz>
+ <20130629025509.GG9047@dastard>
+ <20130630183349.GA23731@dhcp22.suse.cz>
+ <20130701012558.GB27780@dastard>
 MIME-Version: 1.0
-Subject: Re: [WiP]: aio support for migrating pages (Re: [PATCH V2 1/2] mm:
- hotplug: implement non-movable version of get_user_pages() called get_user_pages_non_movable())
-References: <20130513091902.GP11497@suse.de> <5191B5B3.7080406@cn.fujitsu.com> <20130515132453.GB11497@suse.de> <5194748A.5070700@cn.fujitsu.com> <20130517002349.GI1008@kvack.org> <5195A3F4.70803@cn.fujitsu.com> <20130517143718.GK1008@kvack.org> <519AD6F8.2070504@cn.fujitsu.com> <20130521022733.GT1008@kvack.org> <51B6F107.80501@cn.fujitsu.com> <20130611144525.GB14404@kvack.org>
-In-Reply-To: <20130611144525.GB14404@kvack.org>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130701012558.GB27780@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin LaHaise <bcrl@kvack.org>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, akpm@linux-foundation.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, zab@redhat.com, jmoyer@redhat.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Glauber Costa <glommer@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 06/11/2013 10:45 PM, Benjamin LaHaise wrote:
-
-> Hi Tang,
+On Mon 01-07-13 11:25:58, Dave Chinner wrote:
+> On Sun, Jun 30, 2013 at 08:33:49PM +0200, Michal Hocko wrote:
+> > On Sat 29-06-13 12:55:09, Dave Chinner wrote:
+> > > On Thu, Jun 27, 2013 at 04:54:11PM +0200, Michal Hocko wrote:
+> > > > On Thu 27-06-13 09:24:26, Dave Chinner wrote:
+> > > > > On Wed, Jun 26, 2013 at 10:15:09AM +0200, Michal Hocko wrote:
+> > > > > > On Tue 25-06-13 12:27:54, Dave Chinner wrote:
+> > > > > > > On Tue, Jun 18, 2013 at 03:50:25PM +0200, Michal Hocko wrote:
+> > > > > > > > And again, another hang. It looks like the inode deletion never
+> > > > > > > > finishes. The good thing is that I do not see any LRU related BUG_ONs
+> > > > > > > > anymore. I am going to test with the other patch in the thread.
+> > > > > > > > 
+> > > > > > > > 2476 [<ffffffff8118325e>] __wait_on_freeing_inode+0x9e/0xc0	<<< waiting for an inode to go away
+> > > > > > > > [<ffffffff81183321>] find_inode_fast+0xa1/0xc0
+> > > > > > > > [<ffffffff8118525f>] iget_locked+0x4f/0x180
+> > > > > > > > [<ffffffff811ef9e3>] ext4_iget+0x33/0x9f0
+> > > > > > > > [<ffffffff811f6a1c>] ext4_lookup+0xbc/0x160
+> > > > > > > > [<ffffffff81174ad0>] lookup_real+0x20/0x60
+> > > > > > > > [<ffffffff81177e25>] lookup_open+0x175/0x1d0
+> > > > > > > > [<ffffffff8117815e>] do_last+0x2de/0x780			<<< holds i_mutex
+> > > > > > > > [<ffffffff8117ae9a>] path_openat+0xda/0x400
+> > > > > > > > [<ffffffff8117b303>] do_filp_open+0x43/0xa0
+> > > > > > > > [<ffffffff81168ee0>] do_sys_open+0x160/0x1e0
+> > > > > > > > [<ffffffff81168f9c>] sys_open+0x1c/0x20
+> > > > > > > > [<ffffffff81582fe9>] system_call_fastpath+0x16/0x1b
+> > > > > > > > [<ffffffffffffffff>] 0xffffffffffffffff
 > 
-> On Tue, Jun 11, 2013 at 05:42:31PM +0800, Tang Chen wrote:
->> Hi Benjamin,
->>
->> Are you still working on this problem ?
->>
->> Thanks. :)
+> .....
+> > Do you mean sysrq+t? It is attached. 
+> > 
+> > Btw. I was able to reproduce this again. The stuck processes were
+> > sitting in the same traces for more than 28 hours without any change so
+> > I do not think this is a temporal condition.
+> > 
+> > Traces of all processes in the D state:
+> > 7561 [<ffffffffa029c03e>] xfs_iget+0xbe/0x190 [xfs]
+> > [<ffffffffa02a8e98>] xfs_lookup+0xe8/0x110 [xfs]
+> > [<ffffffffa029fad9>] xfs_vn_lookup+0x49/0x90 [xfs]
+> > [<ffffffff81174ad0>] lookup_real+0x20/0x60
+> > [<ffffffff81177e25>] lookup_open+0x175/0x1d0
+> > [<ffffffff8117815e>] do_last+0x2de/0x780
+> > [<ffffffff8117ae9a>] path_openat+0xda/0x400
+> > [<ffffffff8117b303>] do_filp_open+0x43/0xa0
+> > [<ffffffff81168ee0>] do_sys_open+0x160/0x1e0
+> > [<ffffffff81168f9c>] sys_open+0x1c/0x20
+> > [<ffffffff815830e9>] system_call_fastpath+0x16/0x1b
+> > [<ffffffffffffffff>] 0xffffffffffffffff
 > 
-> Below is a copy of the most recent version of this patch I have worked 
-> on.  This version works and stands up to my testing using move_pages() to 
-> force the migration of the aio ring buffer.  A test program is available 
-> at http://www.kvack.org/~bcrl/aio/aio-numa-test.c .  Please note that 
-> this version is not suitable for mainline as the modifactions to the 
-> anon inode code are undesirable, so that part needs reworking.
+> This looks like it may be equivalent to the ext4 trace above, though
+> I'm not totally sure on that yet. Can you get me the line of code
+> where the above code is sleeping - 'gdb> l *(xfs_iget+0xbe)' output
+> is sufficient.
 
+OK, this is a bit tricky because I have xfs built as a module so objdump
+on xfs.ko shows nonsense
+   19039:       e8 00 00 00 00          callq  1903e <xfs_iget+0xbe>
+   1903e:       48 8b 75 c0             mov    -0x40(%rbp),%rsi
 
+crash was more clever though and it says:
+0xffffffffa029c034 <xfs_iget+180>:      mov    $0x1,%edi
+0xffffffffa029c039 <xfs_iget+185>:      callq  0xffffffff815776d0
+<schedule_timeout_uninterruptible>
+/dev/shm/mhocko-build/BUILD/kernel-3.9.0mmotm+/fs/xfs/xfs_icache.c: 423
+0xffffffffa029c03e <xfs_iget+190>:      mov    -0x40(%rbp),%rsi
 
-Hi Ben,
-Are you still working on this patch?
-As you know, using the current anon inode will lead to more than one instance of
-aio can not work. Have you found a way to fix this issue? Or can we use some
-other ones to replace the anon inode?
+which maps to:
+out_error_or_again:
+        if (error == EAGAIN) {
+                delay(1);
+                goto again;
+        }
 
-Thanks,
-Gu
+So this looks like this path loops in goto again and out_error_or_again.
 
+> If it's where I suspect it is, we are hitting a VFS inode that
+> igrab() is failing on because I_FREEING is set and that is returning
+> EAGAIN. Hence xfs_iget() sleeps for a short period and retries the
+> lookup. If you've still got a system in this state, can you dump the
+> xfs stats a few times about 5s apart i.e.
 > 
-> 		-ben
+> $ for i in `seq 0 1 5`; do echo ; date; cat /proc/fs/xfs/stat ; sleep 5 ; done
 > 
-> 
->  fs/aio.c                |  113 ++++++++++++++++++++++++++++++++++++++++++++----
->  fs/anon_inodes.c        |   14 ++++-
->  include/linux/migrate.h |    3 +
->  mm/migrate.c            |    2 
->  mm/swap.c               |    1 
->  5 files changed, 121 insertions(+), 12 deletions(-)
-> 
-> diff --git a/fs/aio.c b/fs/aio.c
-> index c5b1a8c..a951690 100644
-> --- a/fs/aio.c
-> +++ b/fs/aio.c
-> @@ -35,6 +35,9 @@
->  #include <linux/eventfd.h>
->  #include <linux/blkdev.h>
->  #include <linux/compat.h>
-> +#include <linux/anon_inodes.h>
-> +#include <linux/migrate.h>
-> +#include <linux/ramfs.h>
->  
->  #include <asm/kmap_types.h>
->  #include <asm/uaccess.h>
-> @@ -108,6 +111,7 @@ struct kioctx {
->  	} ____cacheline_aligned_in_smp;
->  
->  	struct page		*internal_pages[AIO_RING_PAGES];
-> +	struct file		*ctx_file;
->  };
->  
->  /*------ sysctl variables----*/
-> @@ -136,18 +140,80 @@ __initcall(aio_setup);
->  
->  static void aio_free_ring(struct kioctx *ctx)
->  {
-> -	long i;
-> -
-> -	for (i = 0; i < ctx->nr_pages; i++)
-> -		put_page(ctx->ring_pages[i]);
-> +	int i;
->  
->  	if (ctx->mmap_size)
->  		vm_munmap(ctx->mmap_base, ctx->mmap_size);
->  
-> +	if (ctx->ctx_file)
-> +		truncate_setsize(ctx->ctx_file->f_inode, 0);
-> +
-> +	for (i = 0; i < ctx->nr_pages; i++) {
-> +		pr_debug("pid(%d) [%d] page->count=%d\n", current->pid, i,
-> +			 page_count(ctx->ring_pages[i]));
-> +		put_page(ctx->ring_pages[i]);
-> +	}
-> +
->  	if (ctx->ring_pages && ctx->ring_pages != ctx->internal_pages)
->  		kfree(ctx->ring_pages);
-> +
-> +	if (ctx->ctx_file) {
-> +		truncate_setsize(ctx->ctx_file->f_inode, 0);
-> +		pr_debug("pid(%d) i_nlink=%u d_count=%d, d_unhashed=%d i_count=%d\n",
-> +			 current->pid, ctx->ctx_file->f_inode->i_nlink,
-> +			 ctx->ctx_file->f_path.dentry->d_count,
-> +			 d_unhashed(ctx->ctx_file->f_path.dentry),
-> +			 atomic_read(&ctx->ctx_file->f_path.dentry->d_inode->i_count));
-> +		fput(ctx->ctx_file);
-> +		ctx->ctx_file = NULL;
-> +	}
-> +}
-> +
-> +static int aio_ctx_mmap(struct file *file, struct vm_area_struct *vma)
-> +{
-> +	vma->vm_ops = &generic_file_vm_ops;
-> +	return 0;
-> +}
-> +
-> +static const struct file_operations aio_ctx_fops = {
-> +	.mmap	= aio_ctx_mmap,
-> +};
-> +
-> +static int aio_set_page_dirty(struct page *page)
-> +{
-> +	return 0;
-> +}
-> +
-> +static int aio_migratepage(struct address_space *mapping, struct page *new,
-> +			   struct page *old, enum migrate_mode mode)
-> +{
-> +	struct kioctx *ctx = mapping->private_data;
-> +	unsigned long flags;
-> +	unsigned idx = old->index;
-> +	int rc;
-> +
-> +	BUG_ON(PageWriteback(old));    /* Writeback must be complete */
-> +	put_page(old);
-> +	rc = migrate_page_move_mapping(mapping, new, old, NULL, mode);
-> +	if (rc != MIGRATEPAGE_SUCCESS) {
-> +		get_page(old);
-> +		return rc;
-> +	}
-> +	get_page(new);
-> +
-> +	spin_lock_irqsave(&ctx->completion_lock, flags);
-> +	migrate_page_copy(new, old);
-> +	ctx->ring_pages[idx] = new;
-> +	spin_unlock_irqrestore(&ctx->completion_lock, flags);
-> +
-> +	return MIGRATEPAGE_SUCCESS;
->  }
->  
-> +static const struct address_space_operations aio_ctx_aops = {
-> +	.set_page_dirty = aio_set_page_dirty,
-> +	.migratepage	= aio_migratepage,
-> +};
-> +
->  static int aio_setup_ring(struct kioctx *ctx)
->  {
->  	struct aio_ring *ring;
-> @@ -155,6 +221,7 @@ static int aio_setup_ring(struct kioctx *ctx)
->  	struct mm_struct *mm = current->mm;
->  	unsigned long size, populate;
->  	int nr_pages;
-> +	int i;
->  
->  	/* Compensate for the ring buffer's head/tail overlap entry */
->  	nr_events += 2;	/* 1 is required, 2 for good luck */
-> @@ -166,6 +233,28 @@ static int aio_setup_ring(struct kioctx *ctx)
->  	if (nr_pages < 0)
->  		return -EINVAL;
->  
-> +	ctx->ctx_file = anon_inode_getfile("[aio]", &aio_ctx_fops, ctx, O_RDWR);
-> +	if (IS_ERR(ctx->ctx_file)) {
-> +		ctx->ctx_file = NULL;
-> +		return -EAGAIN;
-> +	}
-> +	ctx->ctx_file->f_inode->i_mapping->a_ops = &aio_ctx_aops;
-> +	ctx->ctx_file->f_inode->i_mapping->private_data = ctx;
-> +	ctx->ctx_file->f_inode->i_size = PAGE_SIZE * (loff_t)nr_pages;
-> +
-> +	for (i=0; i<nr_pages; i++) {
-> +		struct page *page;
-> +		page = find_or_create_page(ctx->ctx_file->f_inode->i_mapping,
-> +					   i, GFP_HIGHUSER | __GFP_ZERO);
-> +		if (!page)
-> +			break;
-> +		pr_debug("pid(%d) page[%d]->count=%d\n",
-> +			 current->pid, i, page_count(page));
-> +		SetPageUptodate(page);
-> +		SetPageDirty(page);
-> +		unlock_page(page);
-> +	}
-> +
->  	nr_events = (PAGE_SIZE * nr_pages - sizeof(struct aio_ring)) / sizeof(struct io_event);
->  
->  	ctx->nr_events = 0;
-> @@ -180,20 +269,25 @@ static int aio_setup_ring(struct kioctx *ctx)
->  	ctx->mmap_size = nr_pages * PAGE_SIZE;
->  	pr_debug("attempting mmap of %lu bytes\n", ctx->mmap_size);
->  	down_write(&mm->mmap_sem);
-> -	ctx->mmap_base = do_mmap_pgoff(NULL, 0, ctx->mmap_size,
-> -				       PROT_READ|PROT_WRITE,
-> -				       MAP_ANONYMOUS|MAP_PRIVATE, 0, &populate);
-> +	ctx->mmap_base = do_mmap_pgoff(ctx->ctx_file, 0, ctx->mmap_size,
-> +				       PROT_READ | PROT_WRITE,
-> +				       MAP_SHARED | MAP_POPULATE, 0,
-> +				       &populate);
->  	if (IS_ERR((void *)ctx->mmap_base)) {
->  		up_write(&mm->mmap_sem);
->  		ctx->mmap_size = 0;
->  		aio_free_ring(ctx);
->  		return -EAGAIN;
->  	}
-> +	up_write(&mm->mmap_sem);
-> +	mm_populate(ctx->mmap_base, populate);
->  
->  	pr_debug("mmap address: 0x%08lx\n", ctx->mmap_base);
->  	ctx->nr_pages = get_user_pages(current, mm, ctx->mmap_base, nr_pages,
->  				       1, 0, ctx->ring_pages, NULL);
-> -	up_write(&mm->mmap_sem);
-> +	for (i=0; i<ctx->nr_pages; i++) {
-> +		put_page(ctx->ring_pages[i]);
-> +	}
->  
->  	if (unlikely(ctx->nr_pages != nr_pages)) {
->  		aio_free_ring(ctx);
-> @@ -403,6 +497,8 @@ out_cleanup:
->  	err = -EAGAIN;
->  	aio_free_ring(ctx);
->  out_freectx:
-> +	if (ctx->ctx_file)
-> +		fput(ctx->ctx_file);
->  	kmem_cache_free(kioctx_cachep, ctx);
->  	pr_debug("error allocating ioctx %d\n", err);
->  	return ERR_PTR(err);
-> @@ -852,6 +948,7 @@ SYSCALL_DEFINE2(io_setup, unsigned, nr_events, aio_context_t __user *, ctxp)
->  	ioctx = ioctx_alloc(nr_events);
->  	ret = PTR_ERR(ioctx);
->  	if (!IS_ERR(ioctx)) {
-> +		ctx = ioctx->user_id;
->  		ret = put_user(ioctx->user_id, ctxp);
->  		if (ret)
->  			kill_ioctx(ioctx);
-> diff --git a/fs/anon_inodes.c b/fs/anon_inodes.c
-> index 47a65df..376d289 100644
-> --- a/fs/anon_inodes.c
-> +++ b/fs/anon_inodes.c
-> @@ -131,6 +131,7 @@ struct file *anon_inode_getfile(const char *name,
->  	struct qstr this;
->  	struct path path;
->  	struct file *file;
-> +	struct inode *inode;
->  
->  	if (IS_ERR(anon_inode_inode))
->  		return ERR_PTR(-ENODEV);
-> @@ -138,6 +139,12 @@ struct file *anon_inode_getfile(const char *name,
->  	if (fops->owner && !try_module_get(fops->owner))
->  		return ERR_PTR(-ENOENT);
->  
-> +	inode = anon_inode_mkinode(anon_inode_inode->i_sb);
-> +	if (IS_ERR(inode)) {
-> +		file = ERR_PTR(-ENOMEM);
-> +		goto err_module;
-> +	}
-> +
->  	/*
->  	 * Link the inode to a directory entry by creating a unique name
->  	 * using the inode sequence number.
-> @@ -155,17 +162,18 @@ struct file *anon_inode_getfile(const char *name,
->  	 * We know the anon_inode inode count is always greater than zero,
->  	 * so ihold() is safe.
->  	 */
-> -	ihold(anon_inode_inode);
-> +	//ihold(inode);
->  
-> -	d_instantiate(path.dentry, anon_inode_inode);
-> +	d_instantiate(path.dentry, inode);
->  
->  	file = alloc_file(&path, OPEN_FMODE(flags), fops);
->  	if (IS_ERR(file))
->  		goto err_dput;
-> -	file->f_mapping = anon_inode_inode->i_mapping;
-> +	file->f_mapping = inode->i_mapping;
->  
->  	file->f_flags = flags & (O_ACCMODE | O_NONBLOCK);
->  	file->private_data = priv;
-> +	drop_nlink(inode);
->  
->  	return file;
->  
-> diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-> index a405d3dc..b6f3289 100644
-> --- a/include/linux/migrate.h
-> +++ b/include/linux/migrate.h
-> @@ -55,6 +55,9 @@ extern int migrate_vmas(struct mm_struct *mm,
->  extern void migrate_page_copy(struct page *newpage, struct page *page);
->  extern int migrate_huge_page_move_mapping(struct address_space *mapping,
->  				  struct page *newpage, struct page *page);
-> +extern int migrate_page_move_mapping(struct address_space *mapping,
-> +                struct page *newpage, struct page *page,
-> +                struct buffer_head *head, enum migrate_mode mode);
->  #else
->  
->  static inline void putback_lru_pages(struct list_head *l) {}
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 27ed225..ac9c3a9 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -294,7 +294,7 @@ static inline bool buffer_migrate_lock_buffers(struct buffer_head *head,
->   * 2 for pages with a mapping
->   * 3 for pages with a mapping and PagePrivate/PagePrivate2 set.
->   */
-> -static int migrate_page_move_mapping(struct address_space *mapping,
-> +int migrate_page_move_mapping(struct address_space *mapping,
->  		struct page *newpage, struct page *page,
->  		struct buffer_head *head, enum migrate_mode mode)
->  {
-> diff --git a/mm/swap.c b/mm/swap.c
-> index dfd7d71..bbfba0a 100644
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -160,6 +160,7 @@ skip_lock_tail:
->  
->  void put_page(struct page *page)
->  {
-> +	BUG_ON(page_count(page) <= 0);
->  	if (unlikely(PageCompound(page)))
->  		put_compound_page(page);
->  	else if (put_page_testzero(page))
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-> 
+> Depending on what stat is changing (i'm looking for skip vs recycle
+> in the inode cache stats), that will tell us why the lookup is
+> failing...
 
+$ for i in `seq 0 1 5`; do echo ; date; cat /proc/fs/xfs/stat ; sleep 5 ; done
 
+Mon Jul  1 09:29:57 CEST 2013
+extent_alloc 1484333 2038118 1678 13182
+abt 0 0 0 0
+blk_map 21004635 3433178 1450438 1461372 1450017 25888309 0
+bmbt 0 0 0 0
+dir 1482235 1466711 7281 2529
+trans 7676 6231535 1444850
+ig 0 8534 299 1463749 0 1256778 262381
+log 37039 2082072 414 8808 16395
+push_ail 7684106 0 519016 449446 0 12401 64613 2970751 0 1036
+xstrat 1441551 0
+rw 1744884 1351499
+attr 84933 0 0 0
+icluster 130532 102985 2389817
+vnodes 4293706604 0 0 0 1260692 1260692 1260692 0
+buf 24539551 79603 24464366 2126 8792 75185 0 129859 9654
+abtb2 1520647 1551239 12314 12331 0 0 0 0 0 0 0 0 0 0 15613
+abtc2 2972473 1641548 1486215 1486232 0 0 0 0 0 0 0 0 0 0 258694
+bmbt2 16968 199868 14855 0 3 0 89 0 6414 89 58 0 61 0 1800151
+ibt2 4289847 39122572 22887 1 4 0 644 59 10700 0 88 0 92 0 2732985
+qm 0 0 0 0 0 0 0 0
+xpc 7892422656 3364392442 7942370166
+debug 0
 
+Mon Jul  1 09:30:02 CEST 2013
+extent_alloc 1484362 2038147 1678 13182
+abt 0 0 0 0
+blk_map 21005075 3433237 1450468 1461401 1450047 25888838 0
+bmbt 0 0 0 0
+dir 1482265 1466741 7281 2529
+trans 7676 6231652 1444880
+ig 0 8534 299 1463779 0 1256778 262381
+log 37039 2082072 414 8808 16395
+push_ail 7684253 0 519016 449446 0 12401 64613 2970751 0 1036
+xstrat 1441579 0
+rw 1744914 1351499
+attr 84933 0 0 0
+icluster 130532 102985 2389817
+vnodes 4293706604 0 0 0 1260692 1260692 1260692 0
+buf 24540112 79607 24464923 2126 8792 75189 0 129863 9657
+abtb2 1520676 1551268 12314 12331 0 0 0 0 0 0 0 0 0 0 15613
+abtc2 2972531 1641578 1486244 1486261 0 0 0 0 0 0 0 0 0 0 258696
+bmbt2 16969 199882 14856 0 3 0 89 0 6415 89 58 0 61 0 1800406
+ibt2 4289937 39123472 22887 1 4 0 644 59 10700 0 88 0 92 0 2732985
+qm 0 0 0 0 0 0 0 0
+xpc 7892537344 3364415667 7942370166
+debug 0
+
+Mon Jul  1 09:30:07 CEST 2013
+extent_alloc 1484393 2038181 1678 13182
+abt 0 0 0 0
+blk_map 21005515 3433297 1450498 1461431 1450077 25889368 0
+bmbt 0 0 0 0
+dir 1482295 1466771 7281 2529
+trans 7676 6231774 1444910
+ig 0 8534 299 1463809 0 1256778 262381
+log 37039 2082072 414 8808 16395
+push_ail 7684405 0 519016 449446 0 12401 64613 2970751 0 1036
+xstrat 1441609 0
+rw 1744944 1351499
+attr 84933 0 0 0
+icluster 130532 102985 2389817
+vnodes 4293706604 0 0 0 1260692 1260692 1260692 0
+buf 24540682 79609 24465491 2126 8792 75191 0 129867 9657
+abtb2 1520708 1551300 12314 12331 0 0 0 0 0 0 0 0 0 0 15613
+abtc2 2972593 1641609 1486275 1486292 0 0 0 0 0 0 0 0 0 0 258696
+bmbt2 16969 199882 14856 0 3 0 89 0 6415 89 58 0 61 0 1800406
+ibt2 4290028 39124384 22888 1 4 0 644 59 10700 0 88 0 92 0 2732985
+qm 0 0 0 0 0 0 0 0
+xpc 7892660224 3364438892 7942370166
+debug 0
+
+Mon Jul  1 09:30:12 CEST 2013
+extent_alloc 1484424 2038215 1678 13182
+abt 0 0 0 0
+blk_map 21005901 3433353 1450524 1461461 1450103 25889836 0
+bmbt 0 0 0 0
+dir 1482321 1466797 7281 2529
+trans 7677 6231889 1444936
+ig 0 8534 299 1463835 0 1256778 262381
+log 37045 2082361 414 8810 16398
+push_ail 7684547 0 519079 449508 0 12408 64613 2971092 0 1037
+xstrat 1441639 0
+rw 1744970 1351499
+attr 84933 0 0 0
+icluster 130548 102999 2390155
+vnodes 4293706604 0 0 0 1260692 1260692 1260692 0
+buf 24541210 79611 24466017 2126 8792 75193 0 129871 9657
+abtb2 1520740 1551332 12314 12331 0 0 0 0 0 0 0 0 0 0 15613
+abtc2 2972655 1641640 1486306 1486323 0 0 0 0 0 0 0 0 0 0 258696
+bmbt2 16969 199882 14856 0 3 0 89 0 6415 89 58 0 61 0 1800406
+ibt2 4290107 39125176 22889 1 4 0 644 59 10700 0 88 0 92 0 2732985
+qm 0 0 0 0 0 0 0 0
+xpc 7892783104 3364458016 7942370166
+debug 0
+
+Mon Jul  1 09:30:17 CEST 2013
+extent_alloc 1484454 2038245 1678 13182
+abt 0 0 0 0
+blk_map 21006341 3433413 1450554 1461491 1450133 25890366 0
+bmbt 0 0 0 0
+dir 1482351 1466827 7281 2529
+trans 7677 6232011 1444966
+ig 0 8534 299 1463865 0 1256778 262381
+log 37045 2082361 414 8810 16398
+push_ail 7684699 0 519175 449508 0 12408 64613 2971092 0 1037
+xstrat 1441669 0
+rw 1745000 1351499
+attr 84933 0 0 0
+icluster 130548 102999 2390155
+vnodes 4293706604 0 0 0 1260692 1260692 1260692 0
+buf 24541770 79611 24466577 2126 8792 75193 0 129871 9657
+abtb2 1520770 1551362 12314 12331 0 0 0 0 0 0 0 0 0 0 15613
+abtc2 2972715 1641670 1486336 1486353 0 0 0 0 0 0 0 0 0 0 258696
+bmbt2 16969 199882 14856 0 3 0 89 0 6415 89 58 0 61 0 1800406
+ibt2 4290197 39126076 22889 1 4 0 644 59 10700 0 88 0 92 0 2732985
+qm 0 0 0 0 0 0 0 0
+xpc 7892905984 3364481241 7942370166
+debug 0
+
+Mon Jul  1 09:30:22 CEST 2013
+extent_alloc 1484486 2038280 1678 13182
+abt 0 0 0 0
+blk_map 21006782 3433474 1450584 1461522 1450163 25890898 0
+bmbt 0 0 0 0
+dir 1482381 1466857 7281 2529
+trans 7677 6232134 1444996
+ig 0 8534 299 1463895 0 1256778 262381
+log 37045 2082361 414 8810 16398
+push_ail 7684852 0 519272 449508 0 12408 64613 2971092 0 1037
+xstrat 1441699 0
+rw 1745030 1351499
+attr 84933 0 0 0
+icluster 130548 102999 2390155
+vnodes 4293706604 0 0 0 1260692 1260692 1260692 0
+buf 24542347 79614 24467151 2126 8792 75196 0 129876 9657
+abtb2 1520803 1551395 12314 12331 0 0 0 0 0 0 0 0 0 0 15613
+abtc2 2972779 1641702 1486368 1486385 0 0 0 0 0 0 0 0 0 0 258696
+bmbt2 16970 199896 14857 0 3 0 89 0 6415 89 58 0 61 0 1800407
+ibt2 4290288 39126988 22890 1 4 0 644 59 10700 0 88 0 92 0 2732985
+qm 0 0 0 0 0 0 0 0
+xpc 7893028864 3364504466 7942370166
+debug 0
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
