@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 50E046B005C
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 07:58:16 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 450E76B005C
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 07:58:19 -0400 (EDT)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH RFC 11/13] mm: PRAM: allow to free persistent memory from userspace
-Date: Mon, 1 Jul 2013 15:57:46 +0400
-Message-ID: <38f22df08b8843c989d24c22c19f4a42d09b182a.1372582756.git.vdavydov@parallels.com>
+Subject: [PATCH RFC 12/13] mm: shmem: introduce shmem_insert_page
+Date: Mon, 1 Jul 2013 15:57:47 +0400
+Message-ID: <edc161ad4ad9799c4b0c40163787bdb03a0386a4.1372582756.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1372582754.git.vdavydov@parallels.com>
 References: <cover.1372582754.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -15,71 +15,107 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, criu@openvz.org, devel@openvz.org, xemul@parallels.com, khorenko@parallels.com
 
-To free all space utilized for persistent memory, one can write 0 to
-/sys/kernel/pram. This will destroy all PRAM nodes that are not
-currently being read or written.
----
- mm/pram.c |   39 ++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 38 insertions(+), 1 deletion(-)
+The function inserts a memory page to a shmem file under an arbitrary
+offset. If there is something at the specified offset (page or swap),
+the function fails.
 
-diff --git a/mm/pram.c b/mm/pram.c
-index 3ad769b..43ad85f 100644
---- a/mm/pram.c
-+++ b/mm/pram.c
-@@ -697,6 +697,32 @@ static void pram_truncate_node(struct pram_node *node)
- 
+The function will be sued by the next patch.
+---
+ include/linux/shmem_fs.h |    3 ++
+ mm/shmem.c               |   68 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 71 insertions(+)
+
+diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
+index 30aa0dc..da63308 100644
+--- a/include/linux/shmem_fs.h
++++ b/include/linux/shmem_fs.h
+@@ -62,4 +62,7 @@ static inline struct page *shmem_read_mapping_page(
+ 					mapping_gfp_mask(mapping));
  }
  
-+/*
-+ * Free all nodes that are not under operation.
-+ */
-+static void pram_truncate(void)
-+{
-+	struct page *page, *tmp;
-+	struct pram_node *node;
-+	LIST_HEAD(dispose);
++extern int shmem_insert_page(struct inode *inode,
++		pgoff_t index, struct page *page, bool on_lru);
 +
-+	mutex_lock(&pram_mutex);
-+	list_for_each_entry_safe(page, tmp, &pram_nodes, lru) {
-+		node = page_address(page);
-+		if (!(node->flags & PRAM_ACCMODE_MASK))
-+			list_move(&page->lru, &dispose);
-+	}
-+	mutex_unlock(&pram_mutex);
-+
-+	while (!list_empty(&dispose)) {
-+		page = list_first_entry(&dispose, struct page, lru);
-+		list_del(&page->lru);
-+		node = page_address(page);
-+		pram_truncate_node(node);
-+		pram_free_page(node);
-+	}
-+}
-+
- static void pram_stream_init(struct pram_stream *ps,
- 			     struct pram_node *node, gfp_t gfp_mask)
- {
-@@ -1189,8 +1215,19 @@ static ssize_t show_pram_sb_pfn(struct kobject *kobj,
- 	return sprintf(buf, "%lx\n", pfn);
+ #endif
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 1c44af7..71fac31 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -328,6 +328,74 @@ static void shmem_delete_from_page_cache(struct page *page, void *radswap)
+ 	BUG_ON(error);
  }
  
-+static ssize_t store_pram_sb_pfn(struct kobject *kobj,
-+		struct kobj_attribute *attr, const char *buf, size_t count)
++int shmem_insert_page(struct inode *inode,
++		pgoff_t index, struct page *page, bool on_lru)
 +{
-+	int val;
++	struct address_space *mapping = inode->i_mapping;
++	struct shmem_inode_info *info = SHMEM_I(inode);
++	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
++	gfp_t gfp = mapping_gfp_mask(mapping);
++	int err;
 +
-+	if (kstrtoint(buf, 0, &val) || val)
-+		return -EINVAL;
-+	pram_truncate();
-+	return count;
++	if (index > (MAX_LFS_FILESIZE >> PAGE_CACHE_SHIFT))
++		return -EFBIG;
++
++	err = -ENOSPC;
++	if (shmem_acct_block(info->flags))
++		goto out;
++	if (sbinfo->max_blocks) {
++		if (percpu_counter_compare(&sbinfo->used_blocks,
++					   sbinfo->max_blocks) >= 0)
++			goto out_unacct;
++		percpu_counter_inc(&sbinfo->used_blocks);
++	}
++
++	if (!on_lru) {
++		SetPageSwapBacked(page);
++		__set_page_locked(page);
++	} else
++		lock_page(page);
++
++	err = mem_cgroup_cache_charge(page, current->mm,
++				      gfp & GFP_RECLAIM_MASK);
++	if (err)
++		goto out_unlock;
++	err = radix_tree_preload(gfp & GFP_RECLAIM_MASK);
++	if (!err) {
++		err = shmem_add_to_page_cache(page, mapping, index, gfp, NULL);
++		radix_tree_preload_end();
++	}
++	if (err)
++		goto out_uncharge;
++
++	if (!on_lru)
++		lru_cache_add_anon(page);
++
++	spin_lock(&info->lock);
++	info->alloced++;
++	inode->i_blocks += BLOCKS_PER_PAGE;
++	shmem_recalc_inode(inode);
++	spin_unlock(&info->lock);
++
++	flush_dcache_page(page);
++	SetPageUptodate(page);
++	set_page_dirty(page);
++
++	unlock_page(page);
++	return 0;
++
++out_uncharge:
++	mem_cgroup_uncharge_cache_page(page);
++out_unlock:
++	unlock_page(page);
++	if (sbinfo->max_blocks)
++		percpu_counter_add(&sbinfo->used_blocks, -1);
++out_unacct:
++	shmem_unacct_blocks(info->flags, 1);
++out:
++	return err;
 +}
 +
- static struct kobj_attribute pram_sb_pfn_attr =
--	__ATTR(pram, 0444, show_pram_sb_pfn, NULL);
-+	__ATTR(pram, 0644, show_pram_sb_pfn, store_pram_sb_pfn);
- 
- static struct attribute *pram_attrs[] = {
- 	&pram_sb_pfn_attr.attr,
+ /*
+  * Like find_get_pages, but collecting swap entries as well as pages.
+  */
 -- 
 1.7.10.4
 
