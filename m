@@ -1,34 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id B1E616B0032
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 14:16:36 -0400 (EDT)
-Date: Mon, 1 Jul 2013 18:16:35 +0000
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 76D416B0033
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 14:19:44 -0400 (EDT)
+Date: Mon, 1 Jul 2013 18:19:43 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [3.11 1/4] slub: Make cpu partial slab support configurable V2
-In-Reply-To: <1372170272.18733.201.camel@gandalf.local.home>
-Message-ID: <0000013f9b735739-eb4b29ce-fbc6-4493-ac56-22766da5fdae-000000@email.amazonses.com>
-References: <20130614195500.373711648@linux.com> <0000013f44418a14-7abe9784-a481-4c34-8ff3-c3afe2d57979-000000@email.amazonses.com> <51BFFFA1.8030402@kernel.org> <0000013f57a5b278-d9104e1e-ccec-40ec-bd95-f8b0816a38d9-000000@email.amazonses.com>
- <20130618102109.310f4ce1@riff.lan> <CAOJsxLHsYVThWL7yKEQaQqxTSpgK8RHm-u8n94t_m4=uMjDqzw@mail.gmail.com> <1372170272.18733.201.camel@gandalf.local.home>
+Subject: Re: [PATCH] mm, slab: Drop unnecessary slabp->inuse < cachep->num
+ test
+In-Reply-To: <51D1AE84.8010404@gmail.com>
+Message-ID: <0000013f9b76364e-6d24303e-93bc-425d-9933-710b0587b56b-000000@email.amazonses.com>
+References: <51D1AE84.8010404@gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Pekka Enberg <penberg@kernel.org>, Clark Williams <williams@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Joonsoo Kim <js1304@gmail.com>, Clark Williams <clark@redhat.com>, Glauber Costa <glommer@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>
+To: Zhang Yanfei <zhangyanfei.yes@gmail.com>
+Cc: penberg@kernel.org, mpm@selenic.com, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-On Tue, 25 Jun 2013, Steven Rostedt wrote:
+On Tue, 2 Jul 2013, Zhang Yanfei wrote:
 
-> On Tue, 2013-06-18 at 18:25 +0300, Pekka Enberg wrote:
-> > On Tue, Jun 18, 2013 at 6:21 PM, Clark Williams <williams@redhat.com> wrote:
-> > > I'm sure it would be better to actually do cpu_partial processing in
-> > > small chunks to avoid latency spikes in latency sensitive applications
-> >
-> > Sounds like a patch I'd be much more interested in applying...
+> From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 >
-> Is this going to happen, otherwise we would really like a fix for RT.
+> In function cache_alloc_refill, we have used BUG_ON to ensure
+> that slabp->inuse is less than cachep->num before the while
+> test. And in the while body, we do not change the value of
+> slabp->inuse and cachep->num, so it is not necessary to test
+> if slabp->inuse < cachep->num test for every loop.
 
-Forget it. Just switch cpu_partial processing off. It will be in small
-chunks then.
+The body calls slab_get_obj which changes slabp->inuse!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
