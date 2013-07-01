@@ -1,167 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 2A9296B0032
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 05:22:48 -0400 (EDT)
-Date: Mon, 1 Jul 2013 05:13:55 -0400
-From: Chen Gong <gong.chen@linux.intel.com>
-Subject: Re: [PATCH] mm/memory-failure.c: fix memory leak in successful soft
- offlining
-Message-ID: <20130701091355.GA14444@gchen.bj.intel.com>
-References: <1368807482-11153-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 0A3036B0032
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 07:52:10 -0400 (EDT)
+Received: by mail-ee0-f50.google.com with SMTP id d49so2021794eek.9
+        for <linux-mm@kvack.org>; Mon, 01 Jul 2013 04:52:09 -0700 (PDT)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [PATCH -V2 1/4] mm/cma: Move dma contiguous changes into a seperate config
+In-Reply-To: <1372410662-3748-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1372410662-3748-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Date: Mon, 01 Jul 2013 13:52:02 +0200
+Message-ID: <xa1tzju6sdjx.fsf@mina86.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="6TrnltStXW4iwmi0"
-Content-Disposition: inline
-In-Reply-To: <1368807482-11153-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Type: multipart/mixed; boundary="=-=-="
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, benh@kernel.crashing.org, paulus@samba.org, linux-mm@kvack.org, m.szyprowski@samsung.com
+Cc: linuxppc-dev@lists.ozlabs.org
 
-
---6TrnltStXW4iwmi0
+--=-=-=
 Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
 Content-Transfer-Encoding: quoted-printable
 
-On Fri, May 17, 2013 at 12:18:02PM -0400, Naoya Horiguchi wrote:
-> Date: Fri, 17 May 2013 12:18:02 -0400
-> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> To: linux-mm@kvack.org
-> Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen
->  <andi@firstfloor.org>, linux-kernel@vger.kernel.org, Naoya Horiguchi
->  <n-horiguchi@ah.jp.nec.com>
-> Subject: [PATCH] mm/memory-failure.c: fix memory leak in successful soft
->  offlining
->=20
-> After a successful page migration by soft offlining, the source page is
-> not properly freed and it's never reusable even if we unpoison it afterwa=
-rd.
->=20
-> This is caused by the race between freeing page and setting PG_hwpoison.
-> In successful soft offlining, the source page is put (and the refcount
-> becomes 0) by putback_lru_page() in unmap_and_move(), where it's linked to
-> pagevec and actual freeing back to buddy is delayed. So if PG_hwpoison is
-> set for the page before freeing, the freeing does not functions as expect=
-ed
-> (in such case freeing aborts in free_pages_prepare() check.)
->=20
-> This patch tries to make sure to free the source page before setting
-> PG_hwpoison on it. To avoid reallocating, the page keeps MIGRATE_ISOLATE
-> until after setting PG_hwpoison.
->=20
-> This patch also removes obsolete comments about "keeping elevated refcoun=
-t"
-> because what they say is not true. Unlike memory_failure(), soft_offline_=
-page()
-> uses no special page isolation code, and the soft-offlined pages have no
-> difference from buddy pages except PG_hwpoison. So no need to keep refcou=
-nt
-> elevated.
->=20
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> ---
->  mm/memory-failure.c | 22 ++++++++++++++++++----
->  1 file changed, 18 insertions(+), 4 deletions(-)
->=20
-> diff --git linux-v3.9-rc3.orig/mm/memory-failure.c linux-v3.9-rc3/mm/memo=
-ry-failure.c
-> index 4e01082..894262d 100644
-> --- linux-v3.9-rc3.orig/mm/memory-failure.c
-> +++ linux-v3.9-rc3/mm/memory-failure.c
-> @@ -1410,7 +1410,8 @@ static int __get_any_page(struct page *p, unsigned =
-long pfn, int flags)
-> =20
->  	/*
->  	 * Isolate the page, so that it doesn't get reallocated if it
-> -	 * was free.
-> +	 * was free. This flag should be kept set until the source page
-> +	 * is freed and PG_hwpoison on it is set.
->  	 */
->  	set_migratetype_isolate(p, true);
->  	/*
-> @@ -1433,7 +1434,6 @@ static int __get_any_page(struct page *p, unsigned =
-long pfn, int flags)
->  		/* Not a free page */
->  		ret =3D 1;
->  	}
-> -	unset_migratetype_isolate(p, MIGRATE_MOVABLE);
->  	unlock_memory_hotplug();
->  	return ret;
->  }
-> @@ -1503,7 +1503,6 @@ static int soft_offline_huge_page(struct page *page=
-, int flags)
->  		atomic_long_add(1 << compound_trans_order(hpage),
->  				&num_poisoned_pages);
->  	}
-> -	/* keep elevated page count for bad page */
->  	return ret;
->  }
-> =20
-> @@ -1568,7 +1567,7 @@ int soft_offline_page(struct page *page, int flags)
->  			atomic_long_inc(&num_poisoned_pages);
->  		}
->  	}
-> -	/* keep elevated page count for bad page */
-> +	unset_migratetype_isolate(page, MIGRATE_MOVABLE);
->  	return ret;
->  }
-> =20
-> @@ -1634,7 +1633,22 @@ static int __soft_offline_page(struct page *page, =
-int flags)
->  			if (ret > 0)
->  				ret =3D -EIO;
->  		} else {
-> +			/*
-> +			 * After page migration succeeds, the source page can
-> +			 * be trapped in pagevec and actual freeing is delayed.
-> +			 * Freeing code works differently based on PG_hwpoison,
-> +			 * so there's a race. We need to make sure that the
-> +			 * source page should be freed back to buddy before
-> +			 * setting PG_hwpoison.
-> +			 */
-> +			if (!is_free_buddy_page(page))
-> +				lru_add_drain_all();
-> +			if (!is_free_buddy_page(page))
-> +				drain_all_pages();
->  			SetPageHWPoison(page);
-> +			if (!is_free_buddy_page(page))
-> +				pr_info("soft offline: %#lx: page leaked\n",
-> +					pfn);
->  			atomic_long_inc(&num_poisoned_pages);
->  		}
->  	} else {
+On Fri, Jun 28 2013, Aneesh Kumar K.V wrote:
+> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+>
+> We want to use CMA for allocating hash page table and real mode area for
+> PPC64. Hence move DMA contiguous related changes into a seperate config
+> so that ppc64 can enable CMA without requiring DMA contiguous.
+>
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+
+Acked-by: Michal Nazarewicz <mina86@mina86.com>
+
+> diff --git a/drivers/base/Kconfig b/drivers/base/Kconfig
+> index 07abd9d..74b7c98 100644
+> --- a/drivers/base/Kconfig
+> +++ b/drivers/base/Kconfig
+> @@ -202,11 +202,10 @@ config DMA_SHARED_BUFFER
+>  	  APIs extension; the file's descriptor can then be passed on to other
+>  	  driver.
+>=20=20
+> -config CMA
+> -	bool "Contiguous Memory Allocator"
+> -	depends on HAVE_DMA_CONTIGUOUS && HAVE_MEMBLOCK
+> -	select MIGRATION
+> -	select MEMORY_ISOLATION
+> +config DMA_CMA
+> +	bool "DMA Contiguous Memory Allocator"
+> +	depends on HAVE_DMA_CONTIGUOUS
+> +	select CMA
+
+Just to be on the safe side, I'd add
+
+	depends on HAVE_MEMBLOCK
+
+or change this so that it does not select CMA but depends on CMA.
+
+>  	help
+>  	  This enables the Contiguous Memory Allocator which allows drivers
+>  	  to allocate big physically-contiguous blocks of memory for use with
+> @@ -215,17 +214,7 @@ config CMA
+>  	  For more information see <include/linux/dma-contiguous.h>.
+>  	  If unsure, say "n".
+>=20=20
+> -if CMA
+> -
+> -config CMA_DEBUG
+> -	bool "CMA debug messages (DEVELOPMENT)"
+> -	depends on DEBUG_KERNEL
+> -	help
+> -	  Turns on debug messages in CMA.  This produces KERN_DEBUG
+> -	  messages for every CMA call as well as various messages while
+> -	  processing calls such as dma_alloc_from_contiguous().
+> -	  This option does not affect warning and error messages.
+> -
+> +if  DMA_CMA
+>  comment "Default contiguous memory area size:"
+>=20=20
+>  config CMA_SIZE_MBYTES
+
+> diff --git a/include/linux/dma-contiguous.h b/include/linux/dma-contiguou=
+s.h
+> index 01b5c84..00141d3 100644
+> --- a/include/linux/dma-contiguous.h
+> +++ b/include/linux/dma-contiguous.h
+> @@ -57,7 +57,7 @@ struct cma;
+>  struct page;
+>  struct device;
+>=20=20
+> -#ifdef CONFIG_CMA
+> +#ifdef CONFIG_DMA_CMA
+>=20=20
+>  /*
+>   * There is always at least global CMA area and a few optional device
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index e742d06..26a5f81 100644
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -477,3 +477,27 @@ config FRONTSWAP
+>  	  and swap data is stored as normal on the matching swap device.
+>=20=20
+>  	  If unsure, say Y to enable frontswap.
+> +
+> +config CMA
+> +	bool "Contiguous Memory Allocator"
+> +	depends on HAVE_MEMBLOCK
+> +	select MIGRATION
+> +	select MEMORY_ISOLATION
+> +	help
+> +	  This enables the Contiguous Memory Allocator which allows other
+> +	  subsystems to allocate big physically-contiguous blocks of memory.
+> +	  CMA reserves a region of memory and allows only movable pages to
+> +	  be allocated from it. This way, the kernel can use the memory for
+> +	  pagecache and when a subsystem requests for contiguous area, the
+> +	  allocated pages are migrated away to serve the contiguous request.
+> +
+> +	  If unsure, say "n".
+> +
+> +config CMA_DEBUG
+> +	bool "CMA debug messages (DEVELOPMENT)"
+> +	depends on DEBUG_KERNEL && CMA
+> +	help
+> +	  Turns on debug messages in CMA.  This produces KERN_DEBUG
+> +	  messages for every CMA call as well as various messages while
+> +	  processing calls such as dma_alloc_from_contiguous().
+> +	  This option does not affect warning and error messages.
 > --=20
-> 1.7.11.7
->=20
-Hi, Naoya
+> 1.8.1.2
+>
 
-What happens about this patch? It looks find to me but not merged yet.
-If something I missed, would you please tell me again?
+--=20
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
+ (o o)
+ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+--=-=-=
+Content-Type: multipart/signed; boundary="==-=-=";
+	micalg=pgp-sha1; protocol="application/pgp-signature"
 
---6TrnltStXW4iwmi0
+--==-=-=
+Content-Type: text/plain
+
+
+--==-=-=
 Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
 
 -----BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
+Version: GnuPG v1.4.11 (GNU/Linux)
 
-iQIcBAEBAgAGBQJR0UhTAAoJEI01n1+kOSLHWegP/jPbIOa4VsMTfNfywCTFlOYw
-ry3XGPhOKxdiZtSKLrGN71p3OAQSyz/WXuOFMKrieXsj5Xbvxya/TzqlPsUFT1z1
-HnMPT9redMW7cdNjNpkq3EGDudZP3anyCvTxJK3RY4PEdMZzAq+vvlVHBLq3VPs7
-BJBBFYJ0u2TT6TfXCWnuQ1u/jvP3ICYWzyUCVqnKASe6hGRc4MUsHdPZX5E01rlO
-6dFZkcHkLKPaIVjBJ54E/gVGfNFOIB8k2ZdP6DhpRncH3TbAHhniecrGYz0cSOri
-X7OTCWqDT6bTrJpL/y6TeLx46QDF/zyv4fDXFL8gdlPtwdMAI7A6RfjoHSWzn33p
-NOaDqc1DvD+97+XGF8tS35WGsVJILanc8A2Xn+0ipJ5cPj4v/GaWMzcynjSbFN1k
-7W8PB7fHBBV8qx2MLNscft7W71HVf8K0GIgkrbghkkimKlMrbji70YeoQG2P0RwK
-Hxlw5+GiGSzesU5lc7bjw6N2EQoz3FUnI/q/o4OQ/EWV8DOhfUaVhUazMD9wqiLS
-YW2TErWDUMpnNibRqQlu7r/i4hsANc1kY7n4qyIe8/66IrU6tLNSbqHUAn1lrw2q
-3ni38bnBPVVOtnvwQrRv0M5v1V9y0gmvjOSm8nGEE0DgeJXFzDNQzqNDdHsyK3g3
-r4fKAQ30Y2E/a0OQEncd
-=fMY0
+iQIcBAEBAgAGBQJR0W1iAAoJECBgQBJQdR/0GKsQAImkobDydf8Cz/SR7nE8B2Q6
+LTA0n87AwwtMgLeZLIDQncksISI7bdduIsjaLD1zk3pcIu3z3RdPHEsoVZCgBaaN
+vz+BMnLe6TEgP6HKI98QcrVyeZViJwMIKSNTPUmdByum7YxOWAKQH6rSNogTsZGE
+nwPMU9ZklN9DaZtOpuOCP+6yxmuN5ENYnaIeKD9R+UOYbM6XfdlqX0Plmho5XZGd
+KCaH8dmfa7DobiHVREl7+n6YVQpZPeavOywSPPNw76XiGT7KZaaTxMdNC+nQJH6C
+SrUL8CDtcDei0OsIByE1BAYkhKXFsQRfWZkYG3YxpLmBVzuPaLjiMw0jasFlozSD
+26C5Gqkfv80tD61jdfrWVnDta912CCPjfQ5L7gpJV+XN134otdnXB5Fw3JKTG9iW
+2hl9KEufbmMgYqb+rkeAmkN4DHNdRuN5qPO5i2HfHXCGVW2++QBW1dW6rthV16VG
+q0kWC+H8Q2wWQuSUW7/h3+o2jOSOlT6mN90/UoO2QU1SPIhgkBR+7ismHVJWFPRw
+i+wF4WeBaGvzq2Lb7LqB9r3+P/VG1eGuinJYx3lV9TrMJRE0dmMYmXIFEE95aS1h
+cWskahY1GMgVpjsdPWucjkXlu1BXR9/OjjO8REJ07PkM2ny+OcQ49qLgn7dFHs4+
+9P3LkSEZPWNMGUpon1H8
+=7mX6
 -----END PGP SIGNATURE-----
+--==-=-=--
 
---6TrnltStXW4iwmi0--
+--=-=-=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
