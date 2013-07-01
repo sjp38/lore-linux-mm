@@ -1,71 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id EF6786B0033
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 11:25:18 -0400 (EDT)
-Date: Mon, 01 Jul 2013 11:25:03 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1372692303-56f0gltk-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20130701091355.GA14444@gchen.bj.intel.com>
-References: <1368807482-11153-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20130701091355.GA14444@gchen.bj.intel.com>
-Subject: Re: [PATCH] mm/memory-failure.c: fix memory leak in successful soft
- offlining
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 1A8FA6B0031
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 11:46:54 -0400 (EDT)
+Date: Mon, 1 Jul 2013 15:46:52 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 1/3] mm/slab: Fix drain freelist excessively
+In-Reply-To: <1372069394-26167-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Message-ID: <0000013f9aea494f-7a5fe6c7-47d2-42a9-bbe6-5dbc85dab0a5-000000@email.amazonses.com>
+References: <1372069394-26167-1-git-send-email-liwanp@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gong.chen@linux.intel.com
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Jul 01, 2013 at 05:13:55AM -0400, Chen Gong wrote:
-> On Fri, May 17, 2013 at 12:18:02PM -0400, Naoya Horiguchi wrote:
-> > Date: Fri, 17 May 2013 12:18:02 -0400
-> > From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > To: linux-mm@kvack.org
-> > Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen
-> >  <andi@firstfloor.org>, linux-kernel@vger.kernel.org, Naoya Horiguchi
-> >  <n-horiguchi@ah.jp.nec.com>
-> > Subject: [PATCH] mm/memory-failure.c: fix memory leak in successful soft
-> >  offlining
-> > 
-> > After a successful page migration by soft offlining, the source page is
-> > not properly freed and it's never reusable even if we unpoison it afterward.
-> > 
-> > This is caused by the race between freeing page and setting PG_hwpoison.
-> > In successful soft offlining, the source page is put (and the refcount
-> > becomes 0) by putback_lru_page() in unmap_and_move(), where it's linked to
-> > pagevec and actual freeing back to buddy is delayed. So if PG_hwpoison is
-> > set for the page before freeing, the freeing does not functions as expected
-> > (in such case freeing aborts in free_pages_prepare() check.)
-> > 
-> > This patch tries to make sure to free the source page before setting
-> > PG_hwpoison on it. To avoid reallocating, the page keeps MIGRATE_ISOLATE
-> > until after setting PG_hwpoison.
-> > 
-> > This patch also removes obsolete comments about "keeping elevated refcount"
-> > because what they say is not true. Unlike memory_failure(), soft_offline_page()
-> > uses no special page isolation code, and the soft-offlined pages have no
-> > difference from buddy pages except PG_hwpoison. So no need to keep refcount
-> > elevated.
-> > 
-> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > ---
-...
-> Hi, Naoya
-> 
-> What happens about this patch? It looks find to me but not merged yet.
-> If something I missed, would you please tell me again?
+On Mon, 24 Jun 2013, Wanpeng Li wrote:
 
-Hello Gong,
+> The drain_freelist is called to drain slabs_free lists for cache reap,
+> cache shrink, memory hotplug callback etc. The tofree parameter is the
+> number of slab objects to free instead of the number of slabs to free.
 
-It's already on mmotm, so I hope Andrew will push it in this merge window
-(just opened yesterday.)
+Well its intended to be the number of slabs to free. The patch does not
+fix the callers that pass the number of slabs.
 
-Thanks,
-Naoya Horiguchi
+I think the best approach would be to fix the callers that pass # of
+objects. Make sure they pass # of slabs.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
