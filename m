@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 9D6EB6B004D
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 07:58:15 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 50E046B005C
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 07:58:16 -0400 (EDT)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH RFC 10/13] mm: PRAM: allow to ban arbitrary memory ranges
-Date: Mon, 1 Jul 2013 15:57:45 +0400
-Message-ID: <b7b246583fa36a83a61e7f98838b0b922bc375f2.1372582756.git.vdavydov@parallels.com>
+Subject: [PATCH RFC 11/13] mm: PRAM: allow to free persistent memory from userspace
+Date: Mon, 1 Jul 2013 15:57:46 +0400
+Message-ID: <38f22df08b8843c989d24c22c19f4a42d09b182a.1372582756.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1372582754.git.vdavydov@parallels.com>
 References: <cover.1372582754.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -15,85 +15,71 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, criu@openvz.org, devel@openvz.org, xemul@parallels.com, khorenko@parallels.com
 
-Banning for PRAM memory ranges that have been reserved at boot time is
-not enough for avoiding all conflicts. The point is that kexec may load
-the new kernel code to some address range that have never been reserved
-possibly overwriting persistent data.
-
-Fortunately, it is possible to specify a memory range kexec will load
-the new kernel code into. Thus, to avoid kexec-vs-PRAM conflicts, it is
-enough to disallow for PRAM some memory range large enough to load the
-new kernel and make kexec load the new kernel code into that range.
-
-For that purpose, This patch adds ability to specify arbitrary banned
-ranges using the 'pram_banned' boot option.
+To free all space utilized for persistent memory, one can write 0 to
+/sys/kernel/pram. This will destroy all PRAM nodes that are not
+currently being read or written.
 ---
- mm/pram.c |   45 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 45 insertions(+)
+ mm/pram.c |   39 ++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 38 insertions(+), 1 deletion(-)
 
 diff --git a/mm/pram.c b/mm/pram.c
-index 969ff3f..3ad769b 100644
+index 3ad769b..43ad85f 100644
 --- a/mm/pram.c
 +++ b/mm/pram.c
-@@ -127,6 +127,15 @@ static bool __meminitdata pram_reservation_in_progress;
-  * persistent data. Since the device configuration cannot change during kexec
-  * and the newly booted kernel is likely to have a similar boot-time device
-  * driver set, this hack should work in most cases.
-+ *
-+ * This solution has one exception. The point is that kexec may load the new
-+ * kernel code to some address range that have never been reserved and thus
-+ * banned for PRAM by the current kernel possibly overwriting persistent data.
-+ * Fortunately, it is possible to specify an exact range kexec will load the
-+ * new kernel code into. Thus, to avoid kexec-vs-PRAM conflicts, one should
-+ * disallow for PRAM some memory range large enough to load the new kernel (see
-+ * the 'pram_banned' boot param) and make kexec load the new kernel code into
-+ * that range.
-  */
+@@ -697,6 +697,32 @@ static void pram_truncate_node(struct pram_node *node)
  
- /*
-@@ -378,6 +387,42 @@ out:
  }
  
- /*
-+ * A comma separated list of memory regions that PRAM is not allowed to use.
-+ */
-+static int __init parse_pram_banned(char *arg)
-+{
-+	char *cur = arg, *tmp;
-+	unsigned long long start, end;
-+
-+	do {
-+		start = memparse(cur, &tmp);
-+		if (cur == tmp) {
-+			pr_warning("pram_banned: Memory value expected\n");
-+			return -EINVAL;
-+		}
-+		cur = tmp;
-+		if (*cur != '-') {
-+			pr_warning("pram_banned: '-' expected\n");
-+			return -EINVAL;
-+		}
-+		cur++;
-+		end = memparse(cur, &tmp);
-+		if (cur == tmp) {
-+			pr_warning("pram_banned: Memory value expected\n");
-+			return -EINVAL;
-+		}
-+		if (end <= start) {
-+			pr_warning("pram_banned: end <= start\n");
-+			return -EINVAL;
-+		}
-+		pram_ban_region(PFN_DOWN(start), PFN_UP(end) - 1);
-+	} while (*cur++ == ',');
-+
-+	return 0;
-+}
-+early_param("pram_banned", parse_pram_banned);
-+
 +/*
-  * Bans pfn range [start..end] (inclusive) for PRAM.
-  */
- void __meminit pram_ban_region(unsigned long start, unsigned long end)
++ * Free all nodes that are not under operation.
++ */
++static void pram_truncate(void)
++{
++	struct page *page, *tmp;
++	struct pram_node *node;
++	LIST_HEAD(dispose);
++
++	mutex_lock(&pram_mutex);
++	list_for_each_entry_safe(page, tmp, &pram_nodes, lru) {
++		node = page_address(page);
++		if (!(node->flags & PRAM_ACCMODE_MASK))
++			list_move(&page->lru, &dispose);
++	}
++	mutex_unlock(&pram_mutex);
++
++	while (!list_empty(&dispose)) {
++		page = list_first_entry(&dispose, struct page, lru);
++		list_del(&page->lru);
++		node = page_address(page);
++		pram_truncate_node(node);
++		pram_free_page(node);
++	}
++}
++
+ static void pram_stream_init(struct pram_stream *ps,
+ 			     struct pram_node *node, gfp_t gfp_mask)
+ {
+@@ -1189,8 +1215,19 @@ static ssize_t show_pram_sb_pfn(struct kobject *kobj,
+ 	return sprintf(buf, "%lx\n", pfn);
+ }
+ 
++static ssize_t store_pram_sb_pfn(struct kobject *kobj,
++		struct kobj_attribute *attr, const char *buf, size_t count)
++{
++	int val;
++
++	if (kstrtoint(buf, 0, &val) || val)
++		return -EINVAL;
++	pram_truncate();
++	return count;
++}
++
+ static struct kobj_attribute pram_sb_pfn_attr =
+-	__ATTR(pram, 0444, show_pram_sb_pfn, NULL);
++	__ATTR(pram, 0644, show_pram_sb_pfn, store_pram_sb_pfn);
+ 
+ static struct attribute *pram_attrs[] = {
+ 	&pram_sb_pfn_attr.attr,
 -- 
 1.7.10.4
 
