@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 40FDC6B0039
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 07:58:04 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 397996B003A
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 07:58:06 -0400 (EDT)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH RFC 04/13] mm: PRAM: implement byte stream operations
-Date: Mon, 1 Jul 2013 15:57:39 +0400
-Message-ID: <65bcf77aad13e514e805dd3e26a479ad42ce93c7.1372582755.git.vdavydov@parallels.com>
+Subject: [PATCH RFC 05/13] mm: PRAM: link nodes by pfn before reboot
+Date: Mon, 1 Jul 2013 15:57:40 +0400
+Message-ID: <f2817b1c438c8bd6e7a26185c214f73922f20628.1372582756.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1372582754.git.vdavydov@parallels.com>
 References: <cover.1372582754.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -15,155 +15,104 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, criu@openvz.org, devel@openvz.org, xemul@parallels.com, khorenko@parallels.com
 
-This patch adds ability to save arbitrary byte strings to PRAM using
-pram_write() to be restored later using pram_read(). These two
-operations are implemented on top of pram_save_page() and
-pram_load_page() respectively.
+Since page structs, which are used for linking PRAM nodes, are cleared
+on boot, organize all PRAM nodes into a list singly-linked by pfn's
+before reboot to facilitate the node list restore in the new kernel.
 ---
- include/linux/pram.h |    4 +++
- mm/pram.c            |   86 ++++++++++++++++++++++++++++++++++++++++++++++++--
- 2 files changed, 88 insertions(+), 2 deletions(-)
+ mm/pram.c |   50 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 50 insertions(+)
 
-diff --git a/include/linux/pram.h b/include/linux/pram.h
-index dd17316..61c536c 100644
---- a/include/linux/pram.h
-+++ b/include/linux/pram.h
-@@ -13,6 +13,10 @@ struct pram_stream {
- 	struct pram_node *node;
- 	struct pram_link *link;		/* current link */
- 	unsigned int page_index;	/* next page index in link */
-+
-+	/* byte-stream specific */
-+	struct page *data_page;
-+	unsigned int data_offset;
- };
- 
- #define PRAM_NAME_MAX		256	/* including nul */
 diff --git a/mm/pram.c b/mm/pram.c
-index a443eb0..f7eebe1 100644
+index f7eebe1..c7706dc 100644
 --- a/mm/pram.c
 +++ b/mm/pram.c
-@@ -1,5 +1,6 @@
+@@ -1,11 +1,15 @@
  #include <linux/err.h>
  #include <linux/gfp.h>
-+#include <linux/highmem.h>
+ #include <linux/highmem.h>
++#include <linux/init.h>
  #include <linux/kernel.h>
  #include <linux/list.h>
  #include <linux/mm.h>
-@@ -46,6 +47,7 @@ struct pram_link {
++#include <linux/module.h>
+ #include <linux/mutex.h>
++#include <linux/notifier.h>
+ #include <linux/pram.h>
++#include <linux/reboot.h>
+ #include <linux/sched.h>
+ #include <linux/string.h>
+ #include <linux/types.h>
+@@ -42,6 +46,9 @@ struct pram_link {
+  * singly-linked list of PRAM link structures (see above), the node has a
+  * pointer to the head of.
+  *
++ * To facilitate data restore in the new kernel, before reboot all PRAM nodes
++ * are organized into a list singly-linked by pfn's (see pram_reboot()).
++ *
+  * The structure occupies a memory page.
+  */
  struct pram_node {
- 	__u32	flags;		/* see PRAM_* flags below */
+@@ -49,6 +56,7 @@ struct pram_node {
  	__u32	type;		/* data type, see enum pram_stream_type */
-+	__u64	data_len;	/* data size, only for byte streams */
+ 	__u64	data_len;	/* data size, only for byte streams */
  	__u64	link_pfn;	/* points to the first link of the node */
++	__u64	node_pfn;	/* points to the next node in the node list */
  
  	__u8	name[PRAM_NAME_MAX];
-@@ -284,6 +286,9 @@ void pram_finish_load(struct pram_stream *ps)
+ };
+@@ -57,6 +65,10 @@ struct pram_node {
+ #define PRAM_LOAD		2
+ #define PRAM_ACCMODE_MASK	3
  
- 	BUG_ON((node->flags & PRAM_ACCMODE_MASK) != PRAM_LOAD);
++/*
++ * For convenience sake PRAM nodes are kept in an auxiliary doubly-linked list
++ * connected through the lru field of the page struct.
++ */
+ static LIST_HEAD(pram_nodes);			/* linked through page::lru */
+ static DEFINE_MUTEX(pram_mutex);		/* serializes open/close */
  
-+	if (ps->data_page)
-+		put_page(ps->data_page);
-+
- 	pram_truncate_node(node);
- 	pram_free_page(node);
+@@ -521,3 +533,41 @@ size_t pram_read(struct pram_stream *ps, void *buf, size_t count)
+ 	}
+ 	return read_count;
  }
-@@ -422,10 +427,51 @@ struct page *pram_load_page(struct pram_stream *ps, int *flags)
-  *
-  * On success, returns the number of bytes written, which is always equal to
-  * @count. On failure, -errno is returned.
-+ *
-+ * Error values:
-+ *    %ENOMEM: insufficient amount of memory available
-  */
- ssize_t pram_write(struct pram_stream *ps, const void *buf, size_t count)
- {
--	return -ENOSYS;
-+	void *addr;
-+	size_t copy_count, write_count = 0;
-+	struct pram_node *node = ps->node;
 +
-+	BUG_ON(node->type != PRAM_BYTE_STREAM);
-+	BUG_ON((node->flags & PRAM_ACCMODE_MASK) != PRAM_SAVE);
++/*
++ * Build the list of PRAM nodes.
++ */
++static void __pram_reboot(void)
++{
++	struct page *page;
++	struct pram_node *node;
++	unsigned long node_pfn = 0;
 +
-+	while (count > 0) {
-+		if (!ps->data_page) {
-+			struct page *page;
-+			int err;
-+
-+			page = pram_alloc_page((ps->gfp_mask & GFP_RECLAIM_MASK) |
-+					       __GFP_HIGHMEM | __GFP_ZERO);
-+			if (!page)
-+				return -ENOMEM;
-+			err = __pram_save_page(ps, page, 0);
-+			put_page(page);
-+			if (err)
-+				return err;
-+			ps->data_page = page;
-+			ps->data_offset = 0;
-+		}
-+
-+		copy_count = min_t(size_t, count, PAGE_SIZE - ps->data_offset);
-+		addr = kmap_atomic(ps->data_page);
-+		memcpy(addr + ps->data_offset, buf, copy_count);
-+		kunmap_atomic(addr);
-+
-+		buf += copy_count;
-+		node->data_len += copy_count;
-+		ps->data_offset += copy_count;
-+		if (ps->data_offset >= PAGE_SIZE)
-+			ps->data_page = NULL;
-+
-+		write_count += copy_count;
-+		count -= copy_count;
++	list_for_each_entry_reverse(page, &pram_nodes, lru) {
++		node = page_address(page);
++		if (WARN_ON(node->flags & PRAM_ACCMODE_MASK))
++			continue;
++		node->node_pfn = node_pfn;
++		node_pfn = page_to_pfn(page);
 +	}
-+	return write_count;
- }
- 
- /**
-@@ -437,5 +483,41 @@ ssize_t pram_write(struct pram_stream *ps, const void *buf, size_t count)
-  */
- size_t pram_read(struct pram_stream *ps, void *buf, size_t count)
- {
--	return 0;
-+	char *addr;
-+	size_t copy_count, read_count = 0;
-+	struct pram_node *node = ps->node;
++}
 +
-+	BUG_ON(node->type != PRAM_BYTE_STREAM);
-+	BUG_ON((node->flags & PRAM_ACCMODE_MASK) != PRAM_LOAD);
++static int pram_reboot(struct notifier_block *notifier,
++		       unsigned long val, void *v)
++{
++	if (val != SYS_RESTART)
++		return NOTIFY_DONE;
++	__pram_reboot();
++	return NOTIFY_OK;
++}
 +
-+	while (count > 0 && node->data_len > 0) {
-+		if (!ps->data_page) {
-+			struct page *page;
++static struct notifier_block pram_reboot_notifier = {
++	.notifier_call = pram_reboot,
++};
 +
-+			page = __pram_load_page(ps, NULL);
-+			if (!page)
-+				break;
-+			ps->data_page = page;
-+			ps->data_offset = 0;
-+		}
-+
-+		copy_count = min_t(size_t, count, PAGE_SIZE - ps->data_offset);
-+		if (copy_count > node->data_len)
-+			copy_count = node->data_len;
-+		addr = kmap_atomic(ps->data_page);
-+		memcpy(buf, addr + ps->data_offset, copy_count);
-+		kunmap_atomic(addr);
-+
-+		buf += copy_count;
-+		node->data_len -= copy_count;
-+		ps->data_offset += copy_count;
-+		if (ps->data_offset >= PAGE_SIZE || !node->data_len) {
-+			put_page(ps->data_page);
-+			ps->data_page = NULL;
-+		}
-+
-+		read_count += copy_count;
-+		count -= copy_count;
-+	}
-+	return read_count;
- }
++static int __init pram_init(void)
++{
++	register_reboot_notifier(&pram_reboot_notifier);
++	return 0;
++}
++module_init(pram_init);
 -- 
 1.7.10.4
 
