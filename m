@@ -1,31 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 2D0E76B0032
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 14:41:06 -0400 (EDT)
-Date: Mon, 1 Jul 2013 18:41:04 +0000
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 908856B0032
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 14:45:04 -0400 (EDT)
+Date: Mon, 1 Jul 2013 18:45:03 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] slab: add kmalloc() to kernel API documentation
-In-Reply-To: <1372177015-30492-1-git-send-email-michael.opdenacker@free-electrons.com>
-Message-ID: <0000013f9b89c37f-5d9539bc-944c-4937-9b35-30cdd0fd18a3-000000@email.amazonses.com>
-References: <1372177015-30492-1-git-send-email-michael.opdenacker@free-electrons.com>
+Subject: Re: [PATCH 1/3] mm/slub: Fix slub calculate active slabs
+ uncorrectly
+In-Reply-To: <1372291059-9880-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Message-ID: <0000013f9b8d6897-d2399224-d203-4dc5-a700-90dea9be7536-000000@email.amazonses.com>
+References: <1372291059-9880-1-git-send-email-liwanp@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Opdenacker <michael.opdenacker@free-electrons.com>
-Cc: penberg@kernel.org, mpm@selenic.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 25 Jun 2013, Michael Opdenacker wrote:
+On Thu, 27 Jun 2013, Wanpeng Li wrote:
 
-> This patch is a proposed fix for this. It also removes the documentation
-> for kmalloc() in include/linux/slob_def.h which isn't included to
-> generate the documentation anyway. This way, kmalloc() is described
-> in only one place.
+> Enough slabs are queued in partial list to avoid pounding the page allocator
+> excessively. Entire free slabs are not discarded immediately if there are not
+> enough slabs in partial list(n->partial < s->min_partial). The number of total
+> slabs is composed by the number of active slabs and the number of entire free
+> slabs, however, the current logic of slub implementation ignore this which lead
+> to the number of active slabs and the number of total slabs in slabtop message
+> is always equal. This patch fix it by substract the number of entire free slabs
+> in partial list when caculate active slabs.
 
-Acked-by: Christoph Lameter <cl@linux.com>
+What do you mean by "active" slabs? If this excludes the small number of
+empty slabs that could be present then indeed you will not have that
+number. But why do you need that?
 
-Note that this will conflict with one of my pending patches that also
-addresses one of these issues but this work is much more comprehensive.
+The number of total slabs is the number of partial slabs, plus the number
+of full slabs plus the number of percpu slabs.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
