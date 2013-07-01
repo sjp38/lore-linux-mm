@@ -1,13 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id B9F606B0032
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 0E5296B0036
 	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 07:57:57 -0400 (EDT)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH RFC 01/13] mm: add PRAM API stubs and Kconfig
-Date: Mon, 1 Jul 2013 15:57:36 +0400
-Message-ID: <fdf9aceddf42b7568efaec2e483374c3526e9776.1372582755.git.vdavydov@parallels.com>
-In-Reply-To: <cover.1372582754.git.vdavydov@parallels.com>
-References: <cover.1372582754.git.vdavydov@parallels.com>
+Subject: [PATCH RFC 00/13] PRAM: Persistent over-kexec memory storage
+Date: Mon, 1 Jul 2013 15:57:35 +0400
+Message-ID: <cover.1372582754.git.vdavydov@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -15,279 +13,197 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, criu@openvz.org, devel@openvz.org, xemul@parallels.com, khorenko@parallels.com
 
-Persistent memory subsys or PRAM is intended to be used for saving
-memory pages of the currently executing kernel and restoring them after
-a kexec in the newly booted one. This can be utilized for speeding up
-reboot by leaving process memory and/or FS caches in-place.
+Hi,
 
-The proposed API:
+This patchset implements persistent over-kexec memory storage or PRAM, which is
+intended to be used for saving memory pages of the currently executing kernel
+and restoring them after a kexec in the newly booted one. This can be utilized
+for speeding up reboot by leaving process memory and/or FS caches in-place. The
+patchset introduces the PRAM kernel API serving for that purpose and makes use
+of this API to make tmpfs 'persistent', i.e. makes it possible to save tmpfs
+tree on unmount and restore it on the next mount even if the system is kexec'd
+between the mount and unmount.
 
- * Persistent memory is divided into nodes, which can be saved or loaded
-   independently of each other. The nodes are identified by unique name
-   strings. PRAM node is created (removed) when save (load) is initiated
-   by calling pram_prepare_save() (pram_prepare_load()), see below.
+For further details, please see below.
 
- * For saving/loading data from a PRAM node an instance of the
-   pram_stream struct is used. The struct is initialized by calling
-   pram_prepare_save() for saving data or pram_prepare_load() for
-   loading data. After save (load) is complete, pram_finish_save()
-   (pram_finish_load()) must be called. If an error occurred during
-   save, the saved data and the PRAM node may be freed by calling
-   pram_discard_save() instead of pram_finish_save().
+ -- The problem --
 
- * Each pram_stream has a type, which  determines the set of operations
-   that may be used for saving/loading data. The type is defined by the
-   pram_stream_type enum. Currently there are two stream types
-   available: PRAM_PAGE_STREAM to save/load memory pages, and
-   PRAM_BYTE_STREAM to save/load byte strings. For page streams
-   pram_save_page() and pram_load_page() may be used, and for byte
-   streams pram_write() and pram_read() may be used for saving and
-   loading data respectively.
+If Ksplice is not available or cannot be applied, a kernel update requires
+restarting the system, which implies reinitialization of all running
+application. Since this is a disk-bound operation, it can take quite a lot of
+time. What is worse, if the host serves as a web or database or whatever else
+server, apart from huge downtime the system reboot will cause any existent
+connection to be dropped, which may not always be tolerated.
 
-Thus a sequence of operations for saving/loading data from PRAM should
-look like:
+Although the kernel boot can be speeded up significantly by employing kexec,
+which jumps directly to the new kernel skipping the BIOS and boot loader
+stages, it has nothing to do with running applications, which still need to be
+restarted.
 
-  * For saving data to PRAM:
+ -- The solution --
 
-    /* create PRAM node and initialize stream for saving data to it */
-    pram_prepare_save()
+There is the rapidly developing criu project (www.criu.org), which targets on
+saving running application states to disk to be restored later. It is already
+accepted by the community and hopefully it will soon be able to dump and
+restore every Linux process. Obviously criu can be successfully used to omit
+full application reinitialization on reboot, but criu'ing may still take a lot
+of time. To illustrate, imagine a database server that cached to its internal
+buffers 100 GB of data. Writing the image of that process sequentially at 100
+MB/s will take more that 15 minutes. Multiplied by two, since the image must be
+read after reboot, it gives half an hour of downtime! The server's clients will
+probably disconnect by timeout until the system is up and running, which
+cancels all the benefits of criu'ing.
 
-    /* save data to the node */
-    pram_save_page()[,...]      /* for page stream, or
-    pram_write()[,...]           * ... for byte stream */
+However, the disk read/write, which is the bottleneck in the criu scheme, can
+be avoided if kexec is used for rebooting. The point is kexec does not reset
+the RAM state leaving all data written to memory intact. This fact is already
+utilized by kdump to gather the full memory image on kernel panic. If it were
+possible to save arbitrary data and restore them after kexec, it could be
+utilized to completely avoid disk accesses when criu'ing.
 
-    /* commit the save or discard and delete the node */
-    pram_finish_save()          /* on success, or
-    pram_discard_save()          * ... in case of error */
+This patchset implements the kernel API for saving data to be restored after
+kexec and employs it to make tmpfs 'persistent' as described below.
 
-  * For loading data from PRAM:
+ -- Usage --
 
-    /* remove PRAM node from the list and initialize stream for
-     * loading data from it */
-    pram_prepare_load()
+ 1) Boot kernel with 'pram_banned=MEMRANGE' boot option.
+ 
+    MEMRANGE=MEMMIN-MEMMAX specifies memory range where kexec will load the new
+    kernel code. It is used to avoid conflicts with persistent memory as
+    described in implementation details. MEMRANGE=0-128M should be enough.
 
-    /* load data from the node */
-    pram_load_page()[,...]      /* for page stream, or
-    pram_read()[,...]            * ... for byte stream */
+ 2) Mount tmpfs with 'pram=NAME' option.
 
-    /* free the node */
-    pram_finish_load()
----
- include/linux/pram.h |   38 +++++++++++++++
- mm/Kconfig           |    9 ++++
- mm/Makefile          |    1 +
- mm/pram.c            |  131 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 179 insertions(+)
+    NAME is an arbitrary string specifying persistent memory node. Different
+    tmpfs trees may be saved to PRAM if different names are passed.
+
+    # mkdir -p /mnt/crdump
+    # mount -t tmpfs -o pram=mytmpfs none /mnt/crdump
+
+ 3) Checkpoint the process tree you'd want to pass over kexec to tmpfs.
+
+    # criu dump -D /mnt/crdump -t $PID
+
+ 4) Unmount tmpfs.
+ 
+    It will be automatically saved to PRAM on unmount.
+
+    # umount /mnt/crdump
+
+ 5) Load the new kernel image.
+ 
+    Kexec needs some tweaking for PRAM to work. First, one should pass PRAM
+    super block pfn via 'pram' boot option. The pfn is exported via the sysfs
+    file /sys/kernel/pram. Second, kexec must be forced to load the kernel code
+    to MEMRANGE (see p.1).
+
+    # kexec --load /vmlinuz --initrd=initrd.img \
+            --append="$(cat /proc/cmdline | sed -e 's/pram=[^ ]*//g') pram=$(cat /sys/kernel/pram)" \
+	    --mem-min=$MEMMIN --mem-max=$MEMMAX
+
+ 6) Boot to the new kernel.
+
+    # reboot
+
+ 7) Mount tmpfs with 'pram=NAME' option.
+
+    It should find the PRAM node with the tmpfs tree saved on previous unmount
+    and restore it.
+
+    # mount -t tmpfs -o pram=mytmpfs none /mnt/crdump
+
+ 8) Restore the process saved in p.3.
+
+    # criu restore -d -D /mnt/crdump
+
+ 9) Remove the dump and unmount tmpfs
+
+    # rm -f /mnt/crdump
+    # umount /mnt/crdump
+
+ -- Implementation details --
+
+ * Saving a memory page is simply incrementing its refcounter so the page will
+   not get freed when the last user puts it. So the data saved to PRAM may be
+   safely used as usual.
+
+ * To preserve persistent memory in the newly booted kernel, PRAM marks all the
+   pages saved as reserved at early boot so that they will not be recycled. For
+   the new kernel to find persistent memory metadata, one should pass PRAM
+   super block pfn, which is exported via /sys/kernel/pram, in the 'pram' boot
+   param.
+
+ * Since some memory is required for completing boot sequence, PRAM tracks all
+   memory regions that have ever been reserved by other parts of the kernel and
+   avoids using them for persistent memory. Since the device configuration
+   cannot change during kexec, and the newly booted kernel is likely to have
+   the same set of device drivers, it should work in most cases.
+
+ * Since kexec may load the new kernel code to any memory region, it can
+   destroy persistent memory. To exclude this, kexec should be forced to load
+   the new kernel code to a memory region that is banned for PRAM. For that
+   purpose, there is the 'pram_banned' boot param and --mem-min and --mem-max
+   otpions of the kexec utility.
+
+ * If a conflict still happens, it will be identified and all persistent memory
+   will be discarded to prevent further errors. It is guaranteed by
+   checksumming all data saved to PRAM.
+
+ * tmpfs is saved to PRAM on unmount and loaded on mount if 'pram=NAME' mount
+   option is passed. NAME specifies the PRAM node to save data to. This is to
+   allow saving several tmpfs trees.
+
+ * Saving tmpfs to PRAM is not well elaborated at present and serves rather as
+   a proof of concept. Namely, only regular files without multiple hard links
+   are supported and tmpfs may not be swapped out. If these requirements are
+   not met, save to PRAM will be aborted spewing a message to the kernel log.
+   This is not very difficult to fix, but at present one should turn off swap
+   to test the feature.
+
+ -- Future plans --
+
+What we'd like to do:
+
+ * Implement swap entries 'freezing' to allow saving a swapped out tmpfs.
+ * Implement full support of tmpfs including saving dirs, special files, etc.
+ * Implement SPLICE_F_MOVE, SPLICE_F_GIFT flags for splicing data from/to
+   shmem. This would allow avoiding memory copying on checkpoint/restore.
+ * Save uptodate fs cache on umount to be restored on mount after kexec.
+
+Thanks,
+
+Vladimir Davydov (13):
+  mm: add PRAM API stubs and Kconfig
+  mm: PRAM: implement node load and save functions
+  mm: PRAM: implement page stream operations
+  mm: PRAM: implement byte stream operations
+  mm: PRAM: link nodes by pfn before reboot
+  mm: PRAM: introduce super block
+  mm: PRAM: preserve persistent memory at boot
+  mm: PRAM: checksum saved data
+  mm: PRAM: ban pages that have been reserved at boot time
+  mm: PRAM: allow to ban arbitrary memory ranges
+  mm: PRAM: allow to free persistent memory from userspace
+  mm: shmem: introduce shmem_insert_page
+  mm: shmem: enable saving to PRAM
+
+ arch/x86/kernel/setup.c  |    2 +
+ arch/x86/mm/init_32.c    |    5 +
+ arch/x86/mm/init_64.c    |    5 +
+ include/linux/pram.h     |   62 +++
+ include/linux/shmem_fs.h |   29 ++
+ mm/Kconfig               |   14 +
+ mm/Makefile              |    1 +
+ mm/bootmem.c             |    4 +
+ mm/memblock.c            |    7 +-
+ mm/pram.c                | 1279 ++++++++++++++++++++++++++++++++++++++++++++++
+ mm/shmem.c               |   97 +++-
+ mm/shmem_pram.c          |  378 ++++++++++++++
+ 12 files changed, 1878 insertions(+), 5 deletions(-)
  create mode 100644 include/linux/pram.h
  create mode 100644 mm/pram.c
+ create mode 100644 mm/shmem_pram.c
 
-diff --git a/include/linux/pram.h b/include/linux/pram.h
-new file mode 100644
-index 0000000..cf04548
---- /dev/null
-+++ b/include/linux/pram.h
-@@ -0,0 +1,38 @@
-+#ifndef _LINUX_PRAM_H
-+#define _LINUX_PRAM_H
-+
-+#include <linux/gfp.h>
-+#include <linux/types.h>
-+#include <linux/mm_types.h>
-+
-+struct pram_stream;
-+
-+#define PRAM_NAME_MAX		256	/* including nul */
-+
-+enum pram_stream_type {
-+	PRAM_PAGE_STREAM,
-+	PRAM_BYTE_STREAM,
-+};
-+
-+extern int pram_prepare_save(struct pram_stream *ps,
-+		const char *name, enum pram_stream_type type, gfp_t gfp_mask);
-+extern void pram_finish_save(struct pram_stream *ps);
-+extern void pram_discard_save(struct pram_stream *ps);
-+
-+extern int pram_prepare_load(struct pram_stream *ps,
-+		const char *name, enum pram_stream_type type);
-+extern void pram_finish_load(struct pram_stream *ps);
-+
-+#define PRAM_PAGE_LRU		0x01	/* page is on the LRU */
-+
-+/* page-stream specific methods */
-+extern int pram_save_page(struct pram_stream *ps,
-+			  struct page *page, int flags);
-+extern struct page *pram_load_page(struct pram_stream *ps, int *flags);
-+
-+/* byte-stream specific methods */
-+extern ssize_t pram_write(struct pram_stream *ps,
-+			  const void *buf, size_t count);
-+extern size_t pram_read(struct pram_stream *ps, void *buf, size_t count);
-+
-+#endif /* _LINUX_PRAM_H */
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 3bea74f..46337e8 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -471,3 +471,12 @@ config FRONTSWAP
- 	  and swap data is stored as normal on the matching swap device.
- 
- 	  If unsure, say Y to enable frontswap.
-+
-+config PRAM
-+	bool "Persistent over-kexec memory storage"
-+	default n
-+	help
-+	  This option adds the kernel API that enables saving memory pages of
-+	  the currently executing kernel and restoring them after a kexec in
-+	  the newly booted one. This can be utilized for speeding up reboot by
-+	  leaving process memory and/or FS caches in-place.
-diff --git a/mm/Makefile b/mm/Makefile
-index 3a46287..33ad952 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -58,3 +58,4 @@ obj-$(CONFIG_DEBUG_KMEMLEAK) += kmemleak.o
- obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
- obj-$(CONFIG_CLEANCACHE) += cleancache.o
- obj-$(CONFIG_MEMORY_ISOLATION) += page_isolation.o
-+obj-$(CONFIG_PRAM) += pram.o
-diff --git a/mm/pram.c b/mm/pram.c
-new file mode 100644
-index 0000000..cea0e87
---- /dev/null
-+++ b/mm/pram.c
-@@ -0,0 +1,131 @@
-+#include <linux/err.h>
-+#include <linux/gfp.h>
-+#include <linux/kernel.h>
-+#include <linux/mm.h>
-+#include <linux/pram.h>
-+#include <linux/types.h>
-+
-+/**
-+ * Create a persistent memory node with name @name and initialize stream @ps
-+ * for saving data to it.
-+ *
-+ * @type determines the content type of the newly created node and, as a
-+ * result, the set of operations that may be used on the stream as follows:
-+ *    %PRAM_PAGE_STREAM: page stream, use pram_save_page()
-+ *    %PRAM_BYTE_STREAM: byte stream, use pram_write()
-+ *
-+ * @gfp_mask specifies the memory allocation mask to be used when saving data.
-+ *
-+ * Returns 0 on success, -errno on failure.
-+ *
-+ * After the save has finished, pram_finish_save() (or pram_discard_save() in
-+ * case of failure) is to be called.
-+ */
-+int pram_prepare_save(struct pram_stream *ps,
-+		const char *name, enum pram_stream_type type, gfp_t gfp_mask)
-+{
-+	return -ENOSYS;
-+}
-+
-+/**
-+ * Commit the save to persistent memory started with pram_prepare_save().
-+ * After the call, the stream may not be used any more.
-+ */
-+void pram_finish_save(struct pram_stream *ps)
-+{
-+	BUG();
-+}
-+
-+/**
-+ * Cancel the save to persistent memory started with pram_prepare_save() and
-+ * destroy the corresponding persistent memory node freeing all data that have
-+ * been saved to it.
-+ */
-+void pram_discard_save(struct pram_stream *ps)
-+{
-+	BUG();
-+}
-+
-+/**
-+ * Remove the peristent memory node with name @name and initialize stream @ps
-+ * for loading data from it.
-+ *
-+ * @type determines the content type of the node to be loaded and, as a result,
-+ * the set of operations that may be used on the stream as follows:
-+ *    %PRAM_PAGE_STREAM: page stream, use pram_load_page()
-+ *    %PRAM_BYTE_STREAM: byte stream, use pram_read()
-+ *
-+ * Returns 0 on success, -errno on failure.
-+ *
-+ * After the load has finished, pram_finish_load() is to be called.
-+ */
-+int pram_prepare_load(struct pram_stream *ps,
-+		const char *name, enum pram_stream_type type)
-+{
-+	return -ENOSYS;
-+}
-+
-+/**
-+ * Finish the load from persistent memory started with pram_prepare_load()
-+ * freeing the corresponding persistent memory node and all data that have not
-+ * been loaded from it.
-+ */
-+void pram_finish_load(struct pram_stream *ps)
-+{
-+	BUG();
-+}
-+
-+/**
-+ * Save page @page to the persistent memory node associated with stream @ps.
-+ * The stream must be initialized with pram_prepare_save().
-+ *
-+ * @flags determines the page state. If the page is on the lru, @flags should
-+ * have the PRAM_PAGE_LRU bit set.
-+ *
-+ * Returns 0 on success, -errno on failure.
-+ */
-+int pram_save_page(struct pram_stream *ps, struct page *page, int flags)
-+{
-+	return -ENOSYS;
-+}
-+
-+/**
-+ * Load the next page from the persistent memory node associated with stream
-+ * @ps. The stream must be initialized with pram_prepare_load().
-+ *
-+ * If not NULL, @flags is initialized with the state of the page loaded. If the
-+ * page is on the lru, it will have the PRAM_PAGE_LRU bit set.
-+ *
-+ * Returns the page loaded or NULL if the node is empty.
-+ *
-+ * Pages are loaded from persistent memory in the same order they were saved.
-+ * The page loaded has its refcounter incremeneted.
-+ */
-+struct page *pram_load_page(struct pram_stream *ps, int *flags)
-+{
-+	return NULL;
-+}
-+
-+/**
-+ * Copy @count bytes from @buf to the persistent memory node assiciated with
-+ * stream @ps. The stream must be initialized with pram_prepare_save().
-+ *
-+ * On success, returns the number of bytes written, which is always equal to
-+ * @count. On failure, -errno is returned.
-+ */
-+ssize_t pram_write(struct pram_stream *ps, const void *buf, size_t count)
-+{
-+	return -ENOSYS;
-+}
-+
-+/**
-+ * Copy up to @count bytes from the persistent memory node assiciated with
-+ * stream @ps to @buf. The stream must be initialized with pram_prepare_load().
-+ *
-+ * Returns the number of bytes read, which may be less than @count if the node
-+ * has fewer bytes available.
-+ */
-+size_t pram_read(struct pram_stream *ps, void *buf, size_t count)
-+{
-+	return 0;
-+}
 -- 
 1.7.10.4
 
