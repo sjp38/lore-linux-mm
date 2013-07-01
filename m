@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 6F0726B0038
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 07:58:02 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 40FDC6B0039
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 07:58:04 -0400 (EDT)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH RFC 03/13] mm: PRAM: implement page stream operations
-Date: Mon, 1 Jul 2013 15:57:38 +0400
-Message-ID: <058d7295434214c8a6b4f3f6a812351dfd025da1.1372582755.git.vdavydov@parallels.com>
+Subject: [PATCH RFC 04/13] mm: PRAM: implement byte stream operations
+Date: Mon, 1 Jul 2013 15:57:39 +0400
+Message-ID: <65bcf77aad13e514e805dd3e26a479ad42ce93c7.1372582755.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1372582754.git.vdavydov@parallels.com>
 References: <cover.1372582754.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -15,271 +15,155 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, criu@openvz.org, devel@openvz.org, xemul@parallels.com, khorenko@parallels.com
 
-Using the pram_save_page() function, one can populate PRAM nodes with
-memory pages, which can be then loaded using the pram_load_page()
-function. Saving a memory page to PRAM is implemented as storing the pfn
-in the PRAM node and incrementing its ref count so that it will not get
-freed after the last user puts it.
+This patch adds ability to save arbitrary byte strings to PRAM using
+pram_write() to be restored later using pram_read(). These two
+operations are implemented on top of pram_save_page() and
+pram_load_page() respectively.
 ---
- include/linux/pram.h |    3 +
- mm/pram.c            |  166 +++++++++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 167 insertions(+), 2 deletions(-)
+ include/linux/pram.h |    4 +++
+ mm/pram.c            |   86 ++++++++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 88 insertions(+), 2 deletions(-)
 
 diff --git a/include/linux/pram.h b/include/linux/pram.h
-index 5b8c2c1..dd17316 100644
+index dd17316..61c536c 100644
 --- a/include/linux/pram.h
 +++ b/include/linux/pram.h
-@@ -6,10 +6,13 @@
- #include <linux/mm_types.h>
- 
- struct pram_node;
-+struct pram_link;
- 
- struct pram_stream {
- 	gfp_t gfp_mask;
+@@ -13,6 +13,10 @@ struct pram_stream {
  	struct pram_node *node;
-+	struct pram_link *link;		/* current link */
-+	unsigned int page_index;	/* next page index in link */
+ 	struct pram_link *link;		/* current link */
+ 	unsigned int page_index;	/* next page index in link */
++
++	/* byte-stream specific */
++	struct page *data_page;
++	unsigned int data_offset;
  };
  
  #define PRAM_NAME_MAX		256	/* including nul */
 diff --git a/mm/pram.c b/mm/pram.c
-index 3af2039..a443eb0 100644
+index a443eb0..f7eebe1 100644
 --- a/mm/pram.c
 +++ b/mm/pram.c
-@@ -5,19 +5,48 @@
+@@ -1,5 +1,6 @@
+ #include <linux/err.h>
+ #include <linux/gfp.h>
++#include <linux/highmem.h>
+ #include <linux/kernel.h>
+ #include <linux/list.h>
  #include <linux/mm.h>
- #include <linux/mutex.h>
- #include <linux/pram.h>
-+#include <linux/sched.h>
- #include <linux/string.h>
- #include <linux/types.h>
- 
- /*
-+ * Represents a reference to a data page saved to PRAM.
-+ */
-+struct pram_entry {
-+	__u32 flags;		/* see PRAM_PAGE_* flags */
-+	__u64 pfn;		/* the page frame number */
-+};
-+
-+/*
-+ * Keeps references to data pages saved to PRAM.
-+ * The structure occupies a memory page.
-+ */
-+struct pram_link {
-+	__u64	link_pfn;	/* points to the next link of the node */
-+
-+	/* the array occupies the rest of the link page; if the link is not
-+	 * full, the rest of the array must be filled with zeros */
-+	struct pram_entry entry[0];
-+};
-+
-+#define PRAM_LINK_ENTRIES_MAX \
-+	((PAGE_SIZE-sizeof(struct pram_link))/sizeof(struct pram_entry))
-+
-+/*
-  * Persistent memory is divided into nodes that can be saved or loaded
-  * independently of each other. The nodes are identified by unique name
-  * strings.
-  *
-+ * References to data pages saved to a persistent memory node are kept in a
-+ * singly-linked list of PRAM link structures (see above), the node has a
-+ * pointer to the head of.
-+ *
-  * The structure occupies a memory page.
-  */
+@@ -46,6 +47,7 @@ struct pram_link {
  struct pram_node {
  	__u32	flags;		/* see PRAM_* flags below */
  	__u32	type;		/* data type, see enum pram_stream_type */
-+	__u64	link_pfn;	/* points to the first link of the node */
++	__u64	data_len;	/* data size, only for byte streams */
+ 	__u64	link_pfn;	/* points to the first link of the node */
  
  	__u8	name[PRAM_NAME_MAX];
- };
-@@ -62,12 +91,46 @@ static struct pram_node *pram_find_node(const char *name)
- 	return NULL;
- }
- 
-+static void pram_truncate_link(struct pram_link *link)
-+{
-+	int i;
-+	unsigned long pfn;
-+	struct page *page;
-+
-+	for (i = 0; i < PRAM_LINK_ENTRIES_MAX; i++) {
-+		pfn = link->entry[i].pfn;
-+		if (!pfn)
-+			continue;
-+		page = pfn_to_page(pfn);
-+		put_page(page);
-+	}
-+}
-+
-+static void pram_truncate_node(struct pram_node *node)
-+{
-+	unsigned long link_pfn;
-+	struct pram_link *link;
-+
-+	link_pfn = node->link_pfn;
-+	while (link_pfn) {
-+		link = pfn_to_kaddr(link_pfn);
-+		pram_truncate_link(link);
-+		link_pfn = link->link_pfn;
-+		pram_free_page(link);
-+		cond_resched();
-+	}
-+	node->link_pfn = 0;
-+
-+}
-+
- static void pram_stream_init(struct pram_stream *ps,
- 			     struct pram_node *node, gfp_t gfp_mask)
- {
- 	memset(ps, 0, sizeof(*ps));
- 	ps->gfp_mask = gfp_mask;
- 	ps->node = node;
-+	if (node->link_pfn)
-+		ps->link = pfn_to_kaddr(node->link_pfn);
- }
- 
- /**
-@@ -157,6 +220,7 @@ void pram_discard_save(struct pram_stream *ps)
- 	pram_delete_node(node);
- 	mutex_unlock(&pram_mutex);
- 
-+	pram_truncate_node(node);
- 	pram_free_page(node);
- }
- 
-@@ -220,9 +284,46 @@ void pram_finish_load(struct pram_stream *ps)
+@@ -284,6 +286,9 @@ void pram_finish_load(struct pram_stream *ps)
  
  	BUG_ON((node->flags & PRAM_ACCMODE_MASK) != PRAM_LOAD);
  
-+	pram_truncate_node(node);
++	if (ps->data_page)
++		put_page(ps->data_page);
++
+ 	pram_truncate_node(node);
  	pram_free_page(node);
  }
- 
-+/*
-+ * Insert page to PRAM node allocating a new PRAM link if necessary.
-+ */
-+static int __pram_save_page(struct pram_stream *ps,
-+			    struct page *page, int flags)
-+{
-+	struct pram_node *node = ps->node;
-+	struct pram_link *link = ps->link;
-+	struct pram_entry *entry;
-+
-+	if (!link || ps->page_index >= PRAM_LINK_ENTRIES_MAX) {
-+		struct page *link_page;
-+		unsigned long link_pfn;
-+
-+		link_page = pram_alloc_page((ps->gfp_mask & GFP_RECLAIM_MASK) |
-+					    __GFP_ZERO);
-+		if (!link_page)
-+			return -ENOMEM;
-+
-+		link_pfn = page_to_pfn(link_page);
-+		if (link)
-+			link->link_pfn = link_pfn;
-+		else
-+			node->link_pfn = link_pfn;
-+
-+		ps->link = link = page_address(link_page);
-+		ps->page_index = 0;
-+	}
-+
-+	get_page(page);
-+	entry = &link->entry[ps->page_index++];
-+	entry->flags = flags;
-+	entry->pfn = page_to_pfn(page);
-+	return 0;
-+}
-+
- /**
-  * Save page @page to the persistent memory node associated with stream @ps.
-  * The stream must be initialized with pram_prepare_save().
-@@ -231,10 +332,66 @@ void pram_finish_load(struct pram_stream *ps)
-  * have the PRAM_PAGE_LRU bit set.
+@@ -422,10 +427,51 @@ struct page *pram_load_page(struct pram_stream *ps, int *flags)
   *
-  * Returns 0 on success, -errno on failure.
+  * On success, returns the number of bytes written, which is always equal to
+  * @count. On failure, -errno is returned.
 + *
 + * Error values:
 + *    %ENOMEM: insufficient amount of memory available
-+ *
-+ * Saving a page to persistent memory is simply incrementing its refcount so
-+ * that it will not get freed after the last user puts it. That means it is
-+ * safe to use the page as usual after it has been saved.
   */
- int pram_save_page(struct pram_stream *ps, struct page *page, int flags)
+ ssize_t pram_write(struct pram_stream *ps, const void *buf, size_t count)
  {
 -	return -ENOSYS;
++	void *addr;
++	size_t copy_count, write_count = 0;
 +	struct pram_node *node = ps->node;
 +
-+	BUG_ON(node->type != PRAM_PAGE_STREAM);
++	BUG_ON(node->type != PRAM_BYTE_STREAM);
 +	BUG_ON((node->flags & PRAM_ACCMODE_MASK) != PRAM_SAVE);
 +
-+	BUG_ON(PageCompound(page));
++	while (count > 0) {
++		if (!ps->data_page) {
++			struct page *page;
++			int err;
 +
-+	return __pram_save_page(ps, page, flags);
-+}
++			page = pram_alloc_page((ps->gfp_mask & GFP_RECLAIM_MASK) |
++					       __GFP_HIGHMEM | __GFP_ZERO);
++			if (!page)
++				return -ENOMEM;
++			err = __pram_save_page(ps, page, 0);
++			put_page(page);
++			if (err)
++				return err;
++			ps->data_page = page;
++			ps->data_offset = 0;
++		}
 +
-+/*
-+ * Extract the next page from persistent memory freeing a PRAM link if it
-+ * becomes empty.
-+ */
-+static struct page *__pram_load_page(struct pram_stream *ps, int *flags)
-+{
-+	struct pram_node *node = ps->node;
-+	struct pram_link *link = ps->link;
-+	struct pram_entry *entry;
-+	struct page *page = NULL;
-+	bool eof = false;
++		copy_count = min_t(size_t, count, PAGE_SIZE - ps->data_offset);
++		addr = kmap_atomic(ps->data_page);
++		memcpy(addr + ps->data_offset, buf, copy_count);
++		kunmap_atomic(addr);
 +
-+	if (!link)
-+		return NULL;
++		buf += copy_count;
++		node->data_len += copy_count;
++		ps->data_offset += copy_count;
++		if (ps->data_offset >= PAGE_SIZE)
++			ps->data_page = NULL;
 +
-+	BUG_ON(ps->page_index >= PRAM_LINK_ENTRIES_MAX);
-+	entry = &link->entry[ps->page_index];
-+	if (entry->pfn) {
-+		page = pfn_to_page(entry->pfn);
-+		if (flags)
-+			*flags = entry->flags;
-+	} else
-+		eof = true;
-+
-+	/* clear to avoid double free (see pram_truncate_link()) */
-+	memset(entry, 0, sizeof(*entry));
-+
-+	if (eof || ++ps->page_index >= PRAM_LINK_ENTRIES_MAX) {
-+		if (link->link_pfn) {
-+			WARN_ON(eof);
-+			ps->link = pfn_to_kaddr(link->link_pfn);
-+			ps->page_index = 0;
-+		} else
-+			ps->link = NULL;
-+
-+		node->link_pfn = link->link_pfn;
-+		pram_free_page(link);
++		write_count += copy_count;
++		count -= copy_count;
 +	}
-+
-+	return page;
++	return write_count;
  }
  
  /**
-@@ -251,7 +408,12 @@ int pram_save_page(struct pram_stream *ps, struct page *page, int flags)
+@@ -437,5 +483,41 @@ ssize_t pram_write(struct pram_stream *ps, const void *buf, size_t count)
   */
- struct page *pram_load_page(struct pram_stream *ps, int *flags)
+ size_t pram_read(struct pram_stream *ps, void *buf, size_t count)
  {
--	return NULL;
+-	return 0;
++	char *addr;
++	size_t copy_count, read_count = 0;
 +	struct pram_node *node = ps->node;
 +
-+	BUG_ON(node->type != PRAM_PAGE_STREAM);
++	BUG_ON(node->type != PRAM_BYTE_STREAM);
 +	BUG_ON((node->flags & PRAM_ACCMODE_MASK) != PRAM_LOAD);
 +
-+	return __pram_load_page(ps, flags);
++	while (count > 0 && node->data_len > 0) {
++		if (!ps->data_page) {
++			struct page *page;
++
++			page = __pram_load_page(ps, NULL);
++			if (!page)
++				break;
++			ps->data_page = page;
++			ps->data_offset = 0;
++		}
++
++		copy_count = min_t(size_t, count, PAGE_SIZE - ps->data_offset);
++		if (copy_count > node->data_len)
++			copy_count = node->data_len;
++		addr = kmap_atomic(ps->data_page);
++		memcpy(buf, addr + ps->data_offset, copy_count);
++		kunmap_atomic(addr);
++
++		buf += copy_count;
++		node->data_len -= copy_count;
++		ps->data_offset += copy_count;
++		if (ps->data_offset >= PAGE_SIZE || !node->data_len) {
++			put_page(ps->data_page);
++			ps->data_page = NULL;
++		}
++
++		read_count += copy_count;
++		count -= copy_count;
++	}
++	return read_count;
  }
- 
- /**
 -- 
 1.7.10.4
 
