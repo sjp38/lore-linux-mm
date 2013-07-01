@@ -1,45 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 8C7796B0031
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 12:16:48 -0400 (EDT)
-Message-ID: <51D1AB6E.9030905@sr71.net>
-Date: Mon, 01 Jul 2013 09:16:46 -0700
-From: Dave Hansen <dave@sr71.net>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id C2AE86B0031
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 12:30:07 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id y10so2793496pdj.28
+        for <linux-mm@kvack.org>; Mon, 01 Jul 2013 09:30:07 -0700 (PDT)
+Message-ID: <51D1AE84.8010404@gmail.com>
+Date: Tue, 02 Jul 2013 00:29:56 +0800
+From: Zhang Yanfei <zhangyanfei.yes@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] mm: madvise: MADV_POPULATE for quick pre-faulting
-References: <20130627231605.8F9F12E6@viggo.jf.intel.com> <20130628054757.GA10429@gmail.com> <51CDB056.5090308@sr71.net> <51CE4451.4060708@gmail.com>
-In-Reply-To: <51CE4451.4060708@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: [PATCH] mm, slab: Drop unnecessary slabp->inuse < cachep->num test
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zheng Liu <gnehzuil.liu@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: penberg@kernel.org, cl@linux-foundation.org, mpm@selenic.com
+Cc: Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-On 06/28/2013 07:20 PM, Zheng Liu wrote:
->> > IOW, a process needing to do a bunch of MAP_POPULATEs isn't
->> > parallelizable, but one using this mechanism would be.
-> I look at the code, and it seems that we will handle MAP_POPULATE flag
-> after we release mmap_sem locking in vm_mmap_pgoff():
-> 
->                 down_write(&mm->mmap_sem);
->                 ret = do_mmap_pgoff(file, addr, len, prot, flag, pgoff,
->                                     &populate);
->                 up_write(&mm->mmap_sem);
->                 if (populate)
->                         mm_populate(ret, populate);
-> 
-> Am I missing something?
+From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-I went and did my same test using mmap(MAP_POPULATE)/munmap() pair
-versus using MADV_POPULATE in 160 threads in parallel.
+In function cache_alloc_refill, we have used BUG_ON to ensure
+that slabp->inuse is less than cachep->num before the while
+test. And in the while body, we do not change the value of
+slabp->inuse and cachep->num, so it is not necessary to test
+if slabp->inuse < cachep->num test for every loop.
 
-MADV_POPULATE was about 10x faster in the threaded configuration.
+Signed-off-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+---
+ mm/slab.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-With MADV_POPULATE, the biggest cost is shipping the mmap_sem cacheline
-around so that we can write the reader count update in to it.  With
-mmap(), there is a lot of _contention_ on that lock which is much, much
-more expensive than simply bouncing a cacheline around.
+diff --git a/mm/slab.c b/mm/slab.c
+index 8ccd296..c2076c2 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -3004,7 +3004,7 @@ retry:
+ 		 */
+ 		BUG_ON(slabp->inuse >= cachep->num);
+ 
+-		while (slabp->inuse < cachep->num && batchcount--) {
++		while (batchcount--) {
+ 			STATS_INC_ALLOCED(cachep);
+ 			STATS_INC_ACTIVE(cachep);
+ 			STATS_SET_HIGH(cachep);
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
