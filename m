@@ -1,86 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 862946B0032
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 04:43:27 -0400 (EDT)
-Date: Mon, 1 Jul 2013 09:43:21 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 0/6] Basic scheduler support for automatic NUMA balancing
-Message-ID: <20130701084321.GD1875@suse.de>
-References: <1372257487-9749-1-git-send-email-mgorman@suse.de>
- <20130628135422.GA21895@linux.vnet.ibm.com>
- <20130701053947.GQ8362@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 6DFE36B0032
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 04:51:06 -0400 (EDT)
+Date: Mon, 1 Jul 2013 10:51:03 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [PATCH] vmpressure: implement strict mode
+Message-ID: <20130701085103.GA19798@amd.pavel.ucw.cz>
+References: <20130625175129.7c0d79e1@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130701053947.GQ8362@linux.vnet.ibm.com>
+In-Reply-To: <20130625175129.7c0d79e1@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Luiz Capitulino <lcapitulino@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.cz, minchan@kernel.org, anton@enomsg.org, akpm@linux-foundation.org
 
-On Mon, Jul 01, 2013 at 11:09:47AM +0530, Srikar Dronamraju wrote:
-> * Srikar Dronamraju <srikar@linux.vnet.ibm.com> [2013-06-28 19:24:22]:
-> 
-> > * Mel Gorman <mgorman@suse.de> [2013-06-26 15:37:59]:
-> > 
-> > > It's several months overdue and everything was quiet after 3.8 came out
-> > > but I recently had a chance to revisit automatic NUMA balancing for a few
-> > > days. I looked at basic scheduler integration resulting in the following
-> > > small series. Much of the following is heavily based on the numacore series
-> > > which in itself takes part of the autonuma series from back in November. In
-> > > particular it borrows heavily from Peter Ziljstra's work in "sched, numa,
-> > > mm: Add adaptive NUMA affinity support" but deviates too much to preserve
-> > > Signed-off-bys. As before, if the relevant authors are ok with it I'll
-> > > add Signed-off-bys (or add them yourselves if you pick the patches up).
-> > 
-> > 
-> > Here is a snapshot of the results of running autonuma-benchmark running on 8
-> > node 64 cpu system with hyper threading disabled. Ran 5 iterations for each
-> > setup
-> > 
-> > 	KernelVersion: 3.9.0-mainline_v39+()
-> > 				Testcase:      Min      Max      Avg
-> > 				  numa01:  1784.16  1864.15  1800.16
-> > 				  numa02:    32.07    32.72    32.59
-> > 
-> > 	KernelVersion: 3.9.0-mainline_v39+() + mel's patches
-> > 				Testcase:      Min      Max      Avg  %Change
-> > 				  numa01:  1752.48  1859.60  1785.60    0.82%
-> > 				  numa02:    47.21    60.58    53.43  -39.00%
-> > 
-> > So numa02 case; we see a degradation of around 39%.
-> > 
-> 
-> I reran the tests again 
-> 
-> KernelVersion: 3.9.0-mainline_v39+()
->                         Testcase:      Min      Max      Avg
->                           numa01:  1784.16  1864.15  1800.16
->              numa01_THREAD_ALLOC:   293.75   315.35   311.03
->                           numa02:    32.07    32.72    32.59
->                       numa02_SMT:    39.27    39.79    39.69
-> 
-> KernelVersion: 3.9.0-mainline_v39+() + your patches
->                         Testcase:      Min      Max      Avg  %Change
->                           numa01:  1720.40  1876.89  1767.75    1.83%
->              numa01_THREAD_ALLOC:   464.34   554.82   496.64  -37.37%
->                           numa02:    52.02    58.57    56.21  -42.02%
->                       numa02_SMT:    42.07    52.64    47.33  -16.14%
-> 
+Hi!
 
-Thanks. Each of the the two runs had 5 iterations and there is a
-difference in the reported average. Do you know what the standard
-deviation is of the results?
+> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+> index ddf4f93..3c589cf 100644
+> --- a/Documentation/cgroups/memory.txt
+> +++ b/Documentation/cgroups/memory.txt
+> @@ -807,12 +807,14 @@ register a notification, an application must:
+>  
+>  - create an eventfd using eventfd(2);
+>  - open memory.pressure_level;
+> -- write string like "<event_fd> <fd of memory.pressure_level> <level>"
+> +- write string like "<event_fd> <fd of memory.pressure_level> <level> [strict]"
+>    to cgroup.event_control.
+>  
 
-I'm less concerned about the numa01 results as it is an adverse
-workload on machins with more than two sockets but the numa02 results
-are certainly of concern. My own testing for numa02 showed little or no
-change. Would you mind testing with "Increase NUMA PTE scanning when a
-new preferred node is selected" reverted please?
+This is.. pretty strange interface. Would it be cleaner to do ioctl()?
+New syscall?
 
+> @@ -303,22 +307,33 @@ int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
+>  {
+>  	struct vmpressure *vmpr = cg_to_vmpressure(cg);
+>  	struct vmpressure_event *ev;
+> +	bool smode = false;
+> +	const char *p;
+>  	int level;
+>  
+>  	for (level = 0; level < VMPRESSURE_NUM_LEVELS; level++) {
+> -		if (!strcmp(vmpressure_str_levels[level], args))
+> +		p = vmpressure_str_levels[level];
+> +		if (!strncmp(p, args, strlen(p)))
+>  			break;
+>  	}
+>  
+>  	if (level >= VMPRESSURE_NUM_LEVELS)
+>  		return -EINVAL;
+>  
+> +	p = strchr(args, ' ');
+> +	if (p) {
+> +		if (strncmp(++p, "strict", 6))
+> +			return -EINVAL;
+> +		smode = true;
+> +	}
+> +
+
+This looks like something for bash, not for kernel :-(.
+									Pavel
 -- 
-Mel Gorman
-SUSE Labs
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
