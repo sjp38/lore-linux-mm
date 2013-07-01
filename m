@@ -1,165 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 55F796B0032
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 17:16:14 -0400 (EDT)
-Date: Mon, 1 Jul 2013 14:16:12 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 16/16] mm: strictlimit feature
-Message-Id: <20130701141612.04d867863319bcc23d007a23@linux-foundation.org>
-In-Reply-To: <20130629174706.20175.78184.stgit@maximpc.sw.ru>
-References: <20130629172211.20175.70154.stgit@maximpc.sw.ru>
-	<20130629174706.20175.78184.stgit@maximpc.sw.ru>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id BDE2C6B0032
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 19:44:07 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Tue, 2 Jul 2013 05:07:50 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id E7807E0053
+	for <linux-mm@kvack.org>; Tue,  2 Jul 2013 05:13:36 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r61NiJKq26869876
+	for <linux-mm@kvack.org>; Tue, 2 Jul 2013 05:14:22 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r61NhsZD019131
+	for <linux-mm@kvack.org>; Mon, 1 Jul 2013 23:43:55 GMT
+Date: Tue, 2 Jul 2013 07:43:54 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH 3/3] mm/slab: Fix /proc/slabinfo unwriteable for slab
+Message-ID: <20130701234354.GA14358@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <1372069394-26167-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1372069394-26167-3-git-send-email-liwanp@linux.vnet.ibm.com>
+ <0000013f9aed0ce5-ff542635-3074-4f9b-842e-d04492ed3e90-000000@email.amazonses.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <0000013f9aed0ce5-ff542635-3074-4f9b-842e-d04492ed3e90-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Maxim Patlasov <MPatlasov@parallels.com>
-Cc: miklos@szeredi.hu, riel@redhat.com, dev@parallels.com, xemul@parallels.com, fuse-devel@lists.sourceforge.net, bfoster@redhat.com, linux-kernel@vger.kernel.org, jbottomley@parallels.com, linux-mm@kvack.org, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, fengguang.wu@intel.com, devel@openvz.org, mgorman@suse.de
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat, 29 Jun 2013 21:48:54 +0400 Maxim Patlasov <MPatlasov@parallels.com> wrote:
-
-> From: Miklos Szeredi <mszeredi@suse.cz>
-> 
-> The feature prevents mistrusted filesystems to grow a large number of dirty
-> pages before throttling. For such filesystems balance_dirty_pages always
-> check bdi counters against bdi limits. I.e. even if global "nr_dirty" is under
-> "freerun", it's not allowed to skip bdi checks. The only use case for now is
-> fuse: it sets bdi max_ratio to 1% by default and system administrators are
-> supposed to expect that this limit won't be exceeded.
-> 
-> The feature is on if address space is marked by AS_STRICTLIMIT flag.
-> A filesystem may set the flag when it initializes a new inode.
-> 
-
-Fengguang, could you please review this patch?
-
-I suggest you await the next version, which hopefully will be more
-reviewable...
-
+On Mon, Jul 01, 2013 at 03:49:54PM +0000, Christoph Lameter wrote:
+>On Mon, 24 Jun 2013, Wanpeng Li wrote:
 >
-> ...
+>>  1 file changed, 10 insertions(+)
+>>
+>> diff --git a/mm/slab_common.c b/mm/slab_common.c
+>> index d161b81..7fdde79 100644
+>> --- a/mm/slab_common.c
+>> +++ b/mm/slab_common.c
+>> @@ -631,10 +631,20 @@ static const struct file_operations proc_slabinfo_operations = {
+>>  	.release	= seq_release,
+>>  };
+>>
+>> +#ifdef CONFIG_SLAB
+>> +static int __init slab_proc_init(void)
+>> +{
+>> +	proc_create("slabinfo", S_IWUSR | S_IRUSR, NULL, &proc_slabinfo_operations);
+>> +	return 0;
+>> +}
+>> +#endif
+>> +#ifdef CONFIG_SLUB
+>>  static int __init slab_proc_init(void)
+>>  {
+>>  	proc_create("slabinfo", S_IRUSR, NULL, &proc_slabinfo_operations);
+>>  	return 0;
+>>  }
 >
-> --- a/include/linux/backing-dev.h
-> +++ b/include/linux/backing-dev.h
-> @@ -33,6 +33,8 @@ enum bdi_state {
->  	BDI_sync_congested,	/* The sync queue is getting full */
->  	BDI_registered,		/* bdi_register() was done */
->  	BDI_writeback_running,	/* Writeback is in progress */
-> +	BDI_idle,		/* No pages under writeback at the moment of
-> +				 * last update of write bw */
-
-Why does BDI_idle exist?
-
->  	BDI_unused,		/* Available bits start here */
->  };
->  
-> @@ -43,6 +45,7 @@ enum bdi_stat_item {
->  	BDI_WRITEBACK,
->  	BDI_DIRTIED,
->  	BDI_WRITTEN,
-> +	BDI_WRITTEN_BACK,
->  	NR_BDI_STAT_ITEMS
->  };
->  
-> @@ -76,6 +79,8 @@ struct backing_dev_info {
->  	unsigned long bw_time_stamp;	/* last time write bw is updated */
->  	unsigned long dirtied_stamp;
->  	unsigned long written_stamp;	/* pages written at bw_time_stamp */
-> +	unsigned long writeback_stamp;	/* pages sent to writeback at
-> +					 * bw_time_stamp */
-
-Well this sucks.  Some of the "foo_stamp" fields are in units of time
-(jiffies?  We aren't told) and some of the "foo_stamp" fields are in
-units of number-of-pages.  It would be good to fix the naming here.
-
->  	unsigned long write_bandwidth;	/* the estimated write bandwidth */
->  	unsigned long avg_write_bandwidth; /* further smoothed write bw */
->  
-> diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-> index e3dea75..baac702 100644
-> --- a/include/linux/pagemap.h
-> +++ b/include/linux/pagemap.h
-> @@ -25,6 +25,7 @@ enum mapping_flags {
->  	AS_MM_ALL_LOCKS	= __GFP_BITS_SHIFT + 2,	/* under mm_take_all_locks() */
->  	AS_UNEVICTABLE	= __GFP_BITS_SHIFT + 3,	/* e.g., ramdisk, SHM_LOCK */
->  	AS_BALLOON_MAP  = __GFP_BITS_SHIFT + 4, /* balloon page special map */
-> +	AS_STRICTLIMIT	= __GFP_BITS_SHIFT + 5, /* strict dirty limit */
-
-Thing is, "strict dirty limit" isn't documented anywhere, so this
-reference is left dangling.
-
+>It may be easier to define a macro SLABINFO_RIGHTS and use #ifdefs to
+>assign the correct one. That way we have only one slab_proc_init().
 >
-> ...
->
-> --- a/mm/backing-dev.c
-> +++ b/mm/backing-dev.c
-> @@ -94,6 +94,7 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
->  		   "BackgroundThresh:   %10lu kB\n"
->  		   "BdiDirtied:         %10lu kB\n"
->  		   "BdiWritten:         %10lu kB\n"
-> +		   "BdiWrittenBack:     %10lu kB\n"
->  		   "BdiWriteBandwidth:  %10lu kBps\n"
->  		   "b_dirty:            %10lu\n"
->  		   "b_io:               %10lu\n"
 
-I can't imagine what the difference is between BdiWritten and
-BdiWrittenBack.
+Greate point! I	will do it in next version. ;-)
 
-I suggest you document this at the BDI_WRITTEN_BACK definition site in
-enum bdi_stat_item.  BDI_WRITTEN (at least) will also need
-documentation so people can understand the difference.
+Regards,
+Wanpeng Li 
 
->
-> ...
->
-> @@ -679,29 +711,31 @@ static unsigned long bdi_position_ratio(struct backing_dev_info *bdi,
->  	if (unlikely(dirty >= limit))
->  		return 0;
->  
-> +	if (unlikely(strictlimit)) {
-> +		if (bdi_dirty < 8)
-> +			return 2 << RATELIMIT_CALC_SHIFT;
-> +
-> +		if (bdi_dirty >= bdi_thresh)
-> +			return 0;
-> +
-> +		bdi_setpoint = bdi_thresh + bdi_dirty_limit(bdi, bg_thresh);
-> +		bdi_setpoint /= 2;
-> +
-> +		if (bdi_setpoint == 0 || bdi_setpoint == bdi_thresh)
-> +			return 0;
-> +
-> +		pos_ratio = pos_ratio_polynom(bdi_setpoint, bdi_dirty,
-> +					      bdi_thresh);
-> +		return min_t(long long, pos_ratio, 2 << RATELIMIT_CALC_SHIFT);
-> +	}
-
-This would be a suitable site at which to document the strictlimit
-feature.  What it is, how it works and most importantly, why it exists.
-
->
-> ...
->
-> @@ -994,6 +1029,16 @@ static void bdi_update_dirty_ratelimit(struct backing_dev_info *bdi,
->  	 * keep that period small to reduce time lags).
->  	 */
->  	step = 0;
-> +
-> +	if (unlikely(strictlimit)) {
-> +		dirty = bdi_dirty;
-> +		if (bdi_dirty < 8)
-> +			setpoint = bdi_dirty + 1;
-> +		else
-> +			setpoint = (bdi_thresh +
-> +				    bdi_dirty_limit(bdi, bg_thresh)) / 2;
-> +	}
-
-Explain this to the reader, please.
-
->
-> ...
->
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
