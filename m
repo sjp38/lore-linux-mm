@@ -1,70 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id DF5A76B0032
-	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 20:03:36 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 2 Jul 2013 05:24:38 +0530
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 18F36E0054
-	for <linux-mm@kvack.org>; Tue,  2 Jul 2013 05:33:10 +0530 (IST)
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6203sh921168366
-	for <linux-mm@kvack.org>; Tue, 2 Jul 2013 05:33:55 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6203THw029006
-	for <linux-mm@kvack.org>; Tue, 2 Jul 2013 00:03:30 GMT
-Date: Tue, 2 Jul 2013 08:03:29 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 1/3] mm/slub: Fix slub calculate active slabs uncorrectly
-Message-ID: <20130702000329.GC14358@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1372291059-9880-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <0000013f9b8d6897-d2399224-d203-4dc5-a700-90dea9be7536-000000@email.amazonses.com>
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 740B26B0032
+	for <linux-mm@kvack.org>; Mon,  1 Jul 2013 22:19:14 -0400 (EDT)
+Received: by mail-pb0-f52.google.com with SMTP id xa12so5497464pbc.11
+        for <linux-mm@kvack.org>; Mon, 01 Jul 2013 19:19:13 -0700 (PDT)
+Date: Tue, 2 Jul 2013 10:37:48 +0800
+From: Zheng Liu <gnehzuil.liu@gmail.com>
+Subject: Re: [RFC][PATCH] mm: madvise: MADV_POPULATE for quick pre-faulting
+Message-ID: <20130702023748.GA10366@gmail.com>
+References: <20130627231605.8F9F12E6@viggo.jf.intel.com>
+ <20130628054757.GA10429@gmail.com>
+ <51CDB056.5090308@sr71.net>
+ <51CE4451.4060708@gmail.com>
+ <51D1AB6E.9030905@sr71.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <0000013f9b8d6897-d2399224-d203-4dc5-a700-90dea9be7536-000000@email.amazonses.com>
+In-Reply-To: <51D1AB6E.9030905@sr71.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave@sr71.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Jul 01, 2013 at 06:45:03PM +0000, Christoph Lameter wrote:
->On Thu, 27 Jun 2013, Wanpeng Li wrote:
->
->> Enough slabs are queued in partial list to avoid pounding the page allocator
->> excessively. Entire free slabs are not discarded immediately if there are not
->> enough slabs in partial list(n->partial < s->min_partial). The number of total
->> slabs is composed by the number of active slabs and the number of entire free
->> slabs, however, the current logic of slub implementation ignore this which lead
->> to the number of active slabs and the number of total slabs in slabtop message
->> is always equal. This patch fix it by substract the number of entire free slabs
->> in partial list when caculate active slabs.
->
->What do you mean by "active" slabs? If this excludes the small number of
->empty slabs that could be present then indeed you will not have that
->number. But why do you need that?
->
->The number of total slabs is the number of partial slabs, plus the number
->of full slabs plus the number of percpu slabs.
+On Mon, Jul 01, 2013 at 09:16:46AM -0700, Dave Hansen wrote:
+> On 06/28/2013 07:20 PM, Zheng Liu wrote:
+> >> > IOW, a process needing to do a bunch of MAP_POPULATEs isn't
+> >> > parallelizable, but one using this mechanism would be.
+> > I look at the code, and it seems that we will handle MAP_POPULATE flag
+> > after we release mmap_sem locking in vm_mmap_pgoff():
+> > 
+> >                 down_write(&mm->mmap_sem);
+> >                 ret = do_mmap_pgoff(file, addr, len, prot, flag, pgoff,
+> >                                     &populate);
+> >                 up_write(&mm->mmap_sem);
+> >                 if (populate)
+> >                         mm_populate(ret, populate);
+> > 
+> > Am I missing something?
+> 
+> I went and did my same test using mmap(MAP_POPULATE)/munmap() pair
+> versus using MADV_POPULATE in 160 threads in parallel.
+> 
+> MADV_POPULATE was about 10x faster in the threaded configuration.
+> 
+> With MADV_POPULATE, the biggest cost is shipping the mmap_sem cacheline
+> around so that we can write the reader count update in to it.  With
+> mmap(), there is a lot of _contention_ on that lock which is much, much
+> more expensive than simply bouncing a cacheline around.
 
-Before patch:
-Active / Total Slabs (% used) : 59018 / 59018 (100.0%)
+Thanks for your explanation.
 
-After patch:
-Active / Total Slabs (% used) : 11086 / 11153 (99.4%)
-
-These numbers are dump from slabtop for monitor slub, before patch Active / Total 
-Slabs are always 100%, this is not truth since empty slabs present. However, the 
-slab allocator can caculate its Active / Total Slabs correctly and its value is 
-less than 100.0%. By comparison, slub is more efficient than slab through slabtop 
-observation, however, it is not truth since slub uncorrectly calculate its 
-Active / Total Slabs.
+FWIW, it would be great if we can let MAP_POPULATE flag support shared
+mappings because in our product system there has a lot of applications
+that uses mmap(2) and then pre-faults this mapping.  Currently these
+applications need to pre-fault the mapping manually.
 
 Regards,
-Wanpeng Li 
+                                                - Zheng
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
