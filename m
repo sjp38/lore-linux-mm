@@ -1,38 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 0A0C46B0032
-	for <linux-mm@kvack.org>; Tue,  2 Jul 2013 08:42:10 -0400 (EDT)
-Date: Tue, 2 Jul 2013 14:42:08 +0200
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 9152E6B0033
+	for <linux-mm@kvack.org>; Tue,  2 Jul 2013 08:44:29 -0400 (EDT)
+Date: Tue, 2 Jul 2013 14:44:27 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: PROBLEM: Processes writing large files in memory-limited LXC
- container are killed by OOM
-Message-ID: <20130702124208.GF16815@dhcp22.suse.cz>
-References: <CAMcjixYa-mjo5TrxmtBkr0MOf+8r_iSeW5MF4c8nJKdp5m+RPA@mail.gmail.com>
- <20130701180101.GA5460@ac100>
- <20130701184503.GG17812@cmpxchg.org>
- <20130701190222.GA10367@sergelap>
+Subject: Re: linux-next: slab shrinkers: BUG at mm/list_lru.c:92
+Message-ID: <20130702124427.GG16815@dhcp22.suse.cz>
+References: <20130626081509.GF28748@dhcp22.suse.cz>
+ <20130626232426.GA29034@dastard>
+ <20130627145411.GA24206@dhcp22.suse.cz>
+ <20130629025509.GG9047@dastard>
+ <20130630183349.GA23731@dhcp22.suse.cz>
+ <20130701012558.GB27780@dastard>
+ <20130701075005.GA28765@dhcp22.suse.cz>
+ <20130701081056.GA4072@dastard>
+ <20130702092200.GB16815@dhcp22.suse.cz>
+ <20130702121947.GE14996@dastard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130701190222.GA10367@sergelap>
+In-Reply-To: <20130702121947.GE14996@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Serge Hallyn <serge.hallyn@ubuntu.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Aaron Staley <aaron@picloud.com>, containers@lists.linux-foundation.org, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Glauber Costa <glommer@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon 01-07-13 14:02:22, Serge Hallyn wrote:
-> Quoting Johannes Weiner (hannes@cmpxchg.org):
+On Tue 02-07-13 22:19:47, Dave Chinner wrote:
 [...]
-> > OOM with too many dirty pages', included in 3.6+.
-> 
-> Is anyone actively working on the long term solution?
+> Ok, so it's been leaked from a dispose list somehow. Thanks for the
+> info, Michal, it's time to go look at the code....
 
-Patches for memcg dirty pages accounted were posted quite some time ago.
-I plan to look at the at some point but I am rather busy with other
-stuff right now. That would be just a first step though. Then we need to
-hook into dirty pages throttling and make it memcg aware which sounds
-like a bigger challenge.
-
+OK, just in case we will need it, I am keeping the machine in this state
+for now. So we still can play with crash and check all the juicy
+internals.
 -- 
 Michal Hocko
 SUSE Labs
