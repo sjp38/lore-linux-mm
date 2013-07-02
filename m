@@ -1,155 +1,192 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id E74126B0032
-	for <linux-mm@kvack.org>; Tue,  2 Jul 2013 04:29:08 -0400 (EDT)
-Received: by mail-lb0-f171.google.com with SMTP id 13so3135349lba.16
-        for <linux-mm@kvack.org>; Tue, 02 Jul 2013 01:29:07 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id AA8A76B0032
+	for <linux-mm@kvack.org>; Tue,  2 Jul 2013 04:34:02 -0400 (EDT)
+Message-ID: <51D2906A.3030909@parallels.com>
+Date: Tue, 2 Jul 2013 12:33:46 +0400
+From: Maxim Patlasov <mpatlasov@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <20130702043256.GA14927@teo>
-References: <20130628043411.GA9100@teo>
-	<20130628050712.GA10097@teo>
-	<20130628100027.31504abe@redhat.com>
-	<20130628165722.GA12271@teo>
-	<20130628170917.GA12610@teo>
-	<20130628144507.37d28ed9@redhat.com>
-	<20130628185547.GA14520@teo>
-	<20130628154402.4035f2fa@redhat.com>
-	<20130629005637.GA16068@teo>
-	<CAOK=xROD2AKbgw4V65ddqWFODtn4B1-uYG-NF==oANqVFmZZtg@mail.gmail.com>
-	<20130702043256.GA14927@teo>
-Date: Tue, 2 Jul 2013 17:29:06 +0900
-Message-ID: <CAOK=xRP9o7+qoOMmKj-ZZOHZtDqErS-SCnDXf86fvTjocQROTg@mail.gmail.com>
-Subject: Re: [PATCH v2] vmpressure: implement strict mode
-From: Hyunhee Kim <hyunhee.kim@samsung.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 16/16] mm: strictlimit feature
+References: <20130629172211.20175.70154.stgit@maximpc.sw.ru> <20130629174706.20175.78184.stgit@maximpc.sw.ru> <20130701141612.04d867863319bcc23d007a23@linux-foundation.org>
+In-Reply-To: <20130701141612.04d867863319bcc23d007a23@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Vorontsov <anton@enomsg.org>
-Cc: Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.cz, kmpark@infradead.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: miklos@szeredi.hu, riel@redhat.com, dev@parallels.com, xemul@parallels.com, fuse-devel@lists.sourceforge.net, bfoster@redhat.com, linux-kernel@vger.kernel.org, jbottomley@parallels.com, linux-mm@kvack.org, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, fengguang.wu@intel.com, devel@openvz.org, mgorman@suse.de
 
-2013/7/2 Anton Vorontsov <anton@enomsg.org>:
-> On Mon, Jul 01, 2013 at 05:22:36PM +0900, Hyunhee Kim wrote:
->> >> > > for each event in memory.pressure_level; do
->> >> > >   /* register eventfd to be notified on "event" */
->> >> > > done
->> >> >
->> >> > This scheme registers "all" events.
->> >>
->> >> Yes, because I thought that's the user-case that matters for activity
->> >> manager :)
->> >
->> > Some activity managers use only low levels (Android), some might use only
->> > medium levels (simple load-balancing).
+Hi Andrew,
+
+07/02/2013 01:16 AM, Andrew Morton D?D,N?DuN?:
+> On Sat, 29 Jun 2013 21:48:54 +0400 Maxim Patlasov <MPatlasov@parallels.com> wrote:
+>
+>> From: Miklos Szeredi <mszeredi@suse.cz>
 >>
->> When the platform like Android uses only "low" level, is it the
->> process you intended when designing vmpressure?
+>> The feature prevents mistrusted filesystems to grow a large number of dirty
+>> pages before throttling. For such filesystems balance_dirty_pages always
+>> check bdi counters against bdi limits. I.e. even if global "nr_dirty" is under
+>> "freerun", it's not allowed to skip bdi checks. The only use case for now is
+>> fuse: it sets bdi max_ratio to 1% by default and system administrators are
+>> supposed to expect that this limit won't be exceeded.
 >>
->> 1. activity manager receives "low" level events
->> 2. it reads and checks the current memory (e.g. available memory) using vmstat
->> 3. if the available memory is not under the threshold (defined e.g. by
->> activity manager), activity manager does nothing
->> 4. if the available memory is under the threshold, activity manager
->> handles it by e.g. reclaiming or killing processes?
->
-> Yup, exactly.
->
->> At first time when I saw this vmpressure, I thought that I should
->> register all events ("low", "medium", and "critical
->> ") and use different handler for each event. However, without the mode
->> like strict mode, I should see too many events. So, now, I think that
->> it is better to use only one level and run each handler after checking
->> available memory as you mentioned.
->
-> Yup, this should work ideally.
-
-Thanks for your reply.
-I think that, as you mentioned, using one level event could work well
-when activity manager checks available memory in user space.
-
-I also think that Luiz's use case and the use case I thought at first
-(registering "low", "medium", and "critical", and run each handler)
-are another examples of use cases that could be widely used.
-For example, let's think about the case when userland wants to know
-"pressure level" (reclaim ratio calculated by vmpressure 0~60~100).
-In this case, if we do not register all of these events and register
-only "low" level, we cannot distinguish "low", "medium", and
-"critical" pressure level in userland.
-This reclaim ratio cannot be identified in userland.
-
-Thanks.
-Hyunhee Kim.
-
->
->> But,
+>> The feature is on if address space is marked by AS_STRICTLIMIT flag.
+>> A filesystem may set the flag when it initializes a new inode.
 >>
->> 1. Isn't it overhead to read event and check memory state every time
->> we receive events?
+> Fengguang, could you please review this patch?
 >
-> Even if it is an overhead, is it measurable? Plus, vmstat/memcg stats are
-> the only source of information that Activity Manager can use to make a
-> decision, so there is no point in duplicating the information in the
-> notifications.
+> I suggest you await the next version, which hopefully will be more
+> reviewable...
+
+Thanks a lot for quick review, I'll update the patch according to your 
+comments soon.
+
+I'm answering the question about BDI_idle below inline, but I'll add 
+some comment about it where BDI_idle is actually used as well.
+
+Thanks,
+Maxim
+
 >
->>     - sometimes, even when there are lots of available memory, low
->> level event could occur if most of them is reclaimable memory not free
->> pages.
+>> ...
+>>
+>> --- a/include/linux/backing-dev.h
+>> +++ b/include/linux/backing-dev.h
+>> @@ -33,6 +33,8 @@ enum bdi_state {
+>>   	BDI_sync_congested,	/* The sync queue is getting full */
+>>   	BDI_registered,		/* bdi_register() was done */
+>>   	BDI_writeback_running,	/* Writeback is in progress */
+>> +	BDI_idle,		/* No pages under writeback at the moment of
+>> +				 * last update of write bw */
+> Why does BDI_idle exist?
+
+BDI_idle along with BDI_WRITTEN_BACK exists to distinguish two cases:
+
+1st. BDI_WRITTEN has not been incremented since we looked at it last 
+time because backing dev is unresponding. I.e. it had some pages under 
+writeback but it have not made any progress for some reasons.
+
+2nd. BDI_WRITTEN has not been incremented since we looked at it last 
+time because backing dev had nothing to do. I.e. there are some dirty 
+pages on bdi, but they have not been passed to backing dev yet. This is 
+the case when bdi_dirty is under bdi background threshold and flusher 
+refrains from flushing even if we woke it up explicitly by 
+bdi_start_background_writeback.
+
+We have to skip bdi_update_write_bandwidth() in the 2nd case because 
+otherwise bdi_update_write_bandwidth() will see written==0 and 
+mistakenly decrease write_bandwidth. The criterion to skip is the 
+following: BDI_idle is set (i.e. there were no pages under writeback 
+when we looked at the bdi last time) && BDI_WRITTEN_BACK counter has not 
+changed (i.e. no new pages has been sent to writeback since we looked at 
+the bdi last time).
+
+Thanks,
+Maxim
+
 >
-> The point of low level is to signal [any] reclaiming activity. So, yes,
+>>   	BDI_unused,		/* Available bits start here */
+>>   };
+>>   
+>> @@ -43,6 +45,7 @@ enum bdi_stat_item {
+>>   	BDI_WRITEBACK,
+>>   	BDI_DIRTIED,
+>>   	BDI_WRITTEN,
+>> +	BDI_WRITTEN_BACK,
+>>   	NR_BDI_STAT_ITEMS
+>>   };
+>>   
+>> @@ -76,6 +79,8 @@ struct backing_dev_info {
+>>   	unsigned long bw_time_stamp;	/* last time write bw is updated */
+>>   	unsigned long dirtied_stamp;
+>>   	unsigned long written_stamp;	/* pages written at bw_time_stamp */
+>> +	unsigned long writeback_stamp;	/* pages sent to writeback at
+>> +					 * bw_time_stamp */
+> Well this sucks.  Some of the "foo_stamp" fields are in units of time
+> (jiffies?  We aren't told) and some of the "foo_stamp" fields are in
+> units of number-of-pages.  It would be good to fix the naming here.
 >
->>     - Don't most of platforms use available memory to judge their
->> current memory state?
+>>   	unsigned long write_bandwidth;	/* the estimated write bandwidth */
+>>   	unsigned long avg_write_bandwidth; /* further smoothed write bw */
+>>   
+>> diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+>> index e3dea75..baac702 100644
+>> --- a/include/linux/pagemap.h
+>> +++ b/include/linux/pagemap.h
+>> @@ -25,6 +25,7 @@ enum mapping_flags {
+>>   	AS_MM_ALL_LOCKS	= __GFP_BITS_SHIFT + 2,	/* under mm_take_all_locks() */
+>>   	AS_UNEVICTABLE	= __GFP_BITS_SHIFT + 3,	/* e.g., ramdisk, SHM_LOCK */
+>>   	AS_BALLOON_MAP  = __GFP_BITS_SHIFT + 4, /* balloon page special map */
+>> +	AS_STRICTLIMIT	= __GFP_BITS_SHIFT + 5, /* strict dirty limit */
+> Thing is, "strict dirty limit" isn't documented anywhere, so this
+> reference is left dangling.
 >
-> No, because you hardly want to monitor available memory only. You want to
-> take into account the level of the page caches, etc.
+>> ...
+>>
+>> --- a/mm/backing-dev.c
+>> +++ b/mm/backing-dev.c
+>> @@ -94,6 +94,7 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
+>>   		   "BackgroundThresh:   %10lu kB\n"
+>>   		   "BdiDirtied:         %10lu kB\n"
+>>   		   "BdiWritten:         %10lu kB\n"
+>> +		   "BdiWrittenBack:     %10lu kB\n"
+>>   		   "BdiWriteBandwidth:  %10lu kBps\n"
+>>   		   "b_dirty:            %10lu\n"
+>>   		   "b_io:               %10lu\n"
+> I can't imagine what the difference is between BdiWritten and
+> BdiWrittenBack.
 >
->> Is there any reason vmpressure use reclaim rate?
+> I suggest you document this at the BDI_WRITTEN_BACK definition site in
+> enum bdi_stat_item.  BDI_WRITTEN (at least) will also need
+> documentation so people can understand the difference.
 >
-> Yes, you can refer to this email:
+>> ...
+>>
+>> @@ -679,29 +711,31 @@ static unsigned long bdi_position_ratio(struct backing_dev_info *bdi,
+>>   	if (unlikely(dirty >= limit))
+>>   		return 0;
+>>   
+>> +	if (unlikely(strictlimit)) {
+>> +		if (bdi_dirty < 8)
+>> +			return 2 << RATELIMIT_CALC_SHIFT;
+>> +
+>> +		if (bdi_dirty >= bdi_thresh)
+>> +			return 0;
+>> +
+>> +		bdi_setpoint = bdi_thresh + bdi_dirty_limit(bdi, bg_thresh);
+>> +		bdi_setpoint /= 2;
+>> +
+>> +		if (bdi_setpoint == 0 || bdi_setpoint == bdi_thresh)
+>> +			return 0;
+>> +
+>> +		pos_ratio = pos_ratio_polynom(bdi_setpoint, bdi_dirty,
+>> +					      bdi_thresh);
+>> +		return min_t(long long, pos_ratio, 2 << RATELIMIT_CALC_SHIFT);
+>> +	}
+> This would be a suitable site at which to document the strictlimit
+> feature.  What it is, how it works and most importantly, why it exists.
 >
->   http://lkml.org/lkml/2012/10/4/145
+>> ...
+>>
+>> @@ -994,6 +1029,16 @@ static void bdi_update_dirty_ratelimit(struct backing_dev_info *bdi,
+>>   	 * keep that period small to reduce time lags).
+>>   	 */
+>>   	step = 0;
+>> +
+>> +	if (unlikely(strictlimit)) {
+>> +		dirty = bdi_dirty;
+>> +		if (bdi_dirty < 8)
+>> +			setpoint = bdi_dirty + 1;
+>> +		else
+>> +			setpoint = (bdi_thresh +
+>> +				    bdi_dirty_limit(bdi, bg_thresh)) / 2;
+>> +	}
+> Explain this to the reader, please.
 >
-> And here is about the levels thing:
+>> ...
+>>
 >
->   http://lkml.org/lkml/2012/10/22/177
 >
->> IMO, activity manager doesn't have to check available memory if it
->> could receive signal based on the available memory.
->
-> But userspace can define its own policy of managing the tasks/resouces
-> based on different factors, other than just available memory. And that is
-> exactly why we don't filter the events in the kernel anymore. The only
-> filtering that we make is the levels, which, as it appears, can work for
-> many use-cases.
->
->> 2. If we use only "medium" to avoid the overheads occurred when using
->> "low" level, isn't it possible to miss sending events when there is a
->> little available memory but reclaim ratio is high?
->
-> If your app don't "trust" reclaim ratio idicator, then the application can
-> use its own heuristics, using low level just to monitor reclaiming
-> activity. More than that, you can change vmpressure itself to use
-> different heuristics for low/med/crit levels: the point of introducing
-> levels was also to hide the implementation and memory management details,
-> so if you can come up with a better approach for vmpressure "internals"
-> you are more than welcome to do so. :)
->
->> IMHO, we cannot consider and cover all the use cases, but considering
->> some use cases and giving some guides and directions to use this
->> vmpressure will be helpful to make many platform accept this for their
->> low memory manager.
->
-> Can't argue with that. :) I guess I will need to better document current
-> behavior of the levels and when exactly the events trigger.
->
-> Thanks!
->
-> Anton
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
