@@ -1,98 +1,217 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 0B30A6B0032
-	for <linux-mm@kvack.org>; Tue,  2 Jul 2013 01:28:31 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 7D0756B0032
+	for <linux-mm@kvack.org>; Tue,  2 Jul 2013 01:45:32 -0400 (EDT)
 Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Tue, 2 Jul 2013 06:28:31 +0100
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 7DE50C9003E
-	for <linux-mm@kvack.org>; Tue,  2 Jul 2013 01:28:26 -0400 (EDT)
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r625SRJm57999442
-	for <linux-mm@kvack.org>; Tue, 2 Jul 2013 01:28:27 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r625SQLK032131
-	for <linux-mm@kvack.org>; Tue, 2 Jul 2013 02:28:27 -0300
-Date: Tue, 2 Jul 2013 10:58:12 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 0/6] Basic scheduler support for automatic NUMA balancing
-Message-ID: <20130702052812.GA2654@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <1372257487-9749-1-git-send-email-mgorman@suse.de>
- <20130628135422.GA21895@linux.vnet.ibm.com>
- <20130701053947.GQ8362@linux.vnet.ibm.com>
- <20130701084321.GD1875@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20130701084321.GD1875@suse.de>
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Tue, 2 Jul 2013 15:30:42 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 81DEF3578051
+	for <linux-mm@kvack.org>; Tue,  2 Jul 2013 15:45:26 +1000 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r625UJQ532768036
+	for <linux-mm@kvack.org>; Tue, 2 Jul 2013 15:30:20 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r625jOHH001692
+	for <linux-mm@kvack.org>; Tue, 2 Jul 2013 15:45:25 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V3 1/4] mm/cma: Move dma contiguous changes into a seperate config
+Date: Tue,  2 Jul 2013 11:15:15 +0530
+Message-Id: <1372743918-12293-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: benh@kernel.crashing.org, paulus@samba.org, agraf@suse.de, m.szyprowski@samsung.com, mina86@mina86.com
+Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org, kvm@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-* Mel Gorman <mgorman@suse.de> [2013-07-01 09:43:21]:
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-> 
-> Thanks. Each of the the two runs had 5 iterations and there is a
-> difference in the reported average. Do you know what the standard
-> deviation is of the results?
+We want to use CMA for allocating hash page table and real mode area for
+PPC64. Hence move DMA contiguous related changes into a seperate config
+so that ppc64 can enable CMA without requiring DMA contiguous.
 
-Yes, the results were from 2 different runs. 
-I hadnt calculated the std deviation for those runs.
-> 
-> I'm less concerned about the numa01 results as it is an adverse
-> workload on machins with more than two sockets but the numa02 results
-> are certainly of concern. My own testing for numa02 showed little or no
-> change. Would you mind testing with "Increase NUMA PTE scanning when a
-> new preferred node is selected" reverted please?
-> 
+Acked-by: Michal Nazarewicz <mina86@mina86.com>
+Acked-by: Paul Mackerras <paulus@samba.org>
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+ arch/arm/configs/omap2plus_defconfig  |  2 +-
+ arch/arm/configs/tegra_defconfig      |  2 +-
+ arch/arm/include/asm/dma-contiguous.h |  2 +-
+ arch/arm/mm/dma-mapping.c             |  6 +++---
+ drivers/base/Kconfig                  | 20 ++++----------------
+ drivers/base/Makefile                 |  2 +-
+ include/linux/dma-contiguous.h        |  2 +-
+ mm/Kconfig                            | 24 ++++++++++++++++++++++++
+ 8 files changed, 36 insertions(+), 24 deletions(-)
 
-Here are the results with the last patch reverted as requested by you.
-
-KernelVersion: 3.9.0-mainline_v39+ your patches - last patch
-		Testcase:      Min      Max      Avg  StdDev  %Change
-		  numa01:  1704.50  1841.82  1757.55   49.27    2.42%
-     numa01_THREAD_ALLOC:   433.25   517.07   464.17   28.15  -32.99%
-		  numa02:    55.64    61.75    57.70    2.19  -43.52%
-	      numa02_SMT:    44.78    53.45    48.72    2.91  -18.53%
-
-
-
-Detailed run output here 
-
-numa01 1704.50 248.67 71999.86 207091 1093
-numa01_THREAD_ALLOC 461.62 416.89 23064.79 90283 961
-numa02 61.75 93.86 2444.21 10652 6
-numa02_SMT 46.79 23.13 977.94 1925 8
-numa01 1769.09 262.00 74607.77 226677 1313
-numa01_THREAD_ALLOC 433.25 365.12 21994.25 88597 773
-numa02 55.64 89.52 2250.01 8848 210
-numa02_SMT 49.39 19.81 938.86 1376 33
-numa01 1841.82 407.73 78683.69 227428 1834
-numa01_THREAD_ALLOC 517.07 465.71 26152.60 111689 978
-numa02 55.95 103.26 2223.36 8471 158
-numa02_SMT 53.45 19.73 962.08 1349 26
-numa01 1760.41 474.74 76094.03 231278 2802
-numa01_THREAD_ALLOC 456.80 395.35 23170.23 88049 835
-numa02 57.18 87.31 2390.11 10804 3
-numa02_SMT 44.78 26.48 944.28 1314 7
-numa01 1711.91 421.49 77728.30 224185 2103
-numa01_THREAD_ALLOC 452.09 430.88 22271.38 83418 2035
-numa02 57.97 126.86 2354.34 8991 135
-numa02_SMT 49.19 34.99 914.35 1308 22
-
-
-> -- 
-> Mel Gorman
-> SUSE Labs
-> 
-
+diff --git a/arch/arm/configs/omap2plus_defconfig b/arch/arm/configs/omap2plus_defconfig
+index abbe319..098268f 100644
+--- a/arch/arm/configs/omap2plus_defconfig
++++ b/arch/arm/configs/omap2plus_defconfig
+@@ -71,7 +71,7 @@ CONFIG_MAC80211=m
+ CONFIG_MAC80211_RC_PID=y
+ CONFIG_MAC80211_RC_DEFAULT_PID=y
+ CONFIG_UEVENT_HELPER_PATH="/sbin/hotplug"
+-CONFIG_CMA=y
++CONFIG_DMA_CMA=y
+ CONFIG_CONNECTOR=y
+ CONFIG_DEVTMPFS=y
+ CONFIG_DEVTMPFS_MOUNT=y
+diff --git a/arch/arm/configs/tegra_defconfig b/arch/arm/configs/tegra_defconfig
+index f7ba3161..34ae8f2 100644
+--- a/arch/arm/configs/tegra_defconfig
++++ b/arch/arm/configs/tegra_defconfig
+@@ -79,7 +79,7 @@ CONFIG_RFKILL_GPIO=y
+ CONFIG_DEVTMPFS=y
+ CONFIG_DEVTMPFS_MOUNT=y
+ # CONFIG_FIRMWARE_IN_KERNEL is not set
+-CONFIG_CMA=y
++CONFIG_DMA_CMA=y
+ CONFIG_MTD=y
+ CONFIG_MTD_CHAR=y
+ CONFIG_MTD_M25P80=y
+diff --git a/arch/arm/include/asm/dma-contiguous.h b/arch/arm/include/asm/dma-contiguous.h
+index 3ed37b4..e072bb2 100644
+--- a/arch/arm/include/asm/dma-contiguous.h
++++ b/arch/arm/include/asm/dma-contiguous.h
+@@ -2,7 +2,7 @@
+ #define ASMARM_DMA_CONTIGUOUS_H
+ 
+ #ifdef __KERNEL__
+-#ifdef CONFIG_CMA
++#ifdef CONFIG_DMA_CMA
+ 
+ #include <linux/types.h>
+ #include <asm-generic/dma-contiguous.h>
+diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+index ef3e0f3..1fb40dc 100644
+--- a/arch/arm/mm/dma-mapping.c
++++ b/arch/arm/mm/dma-mapping.c
+@@ -358,7 +358,7 @@ static int __init atomic_pool_init(void)
+ 	if (!pages)
+ 		goto no_pages;
+ 
+-	if (IS_ENABLED(CONFIG_CMA))
++	if (IS_ENABLED(CONFIG_DMA_CMA))
+ 		ptr = __alloc_from_contiguous(NULL, pool->size, prot, &page,
+ 					      atomic_pool_init);
+ 	else
+@@ -670,7 +670,7 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
+ 		addr = __alloc_simple_buffer(dev, size, gfp, &page);
+ 	else if (!(gfp & __GFP_WAIT))
+ 		addr = __alloc_from_pool(size, &page);
+-	else if (!IS_ENABLED(CONFIG_CMA))
++	else if (!IS_ENABLED(CONFIG_DMA_CMA))
+ 		addr = __alloc_remap_buffer(dev, size, gfp, prot, &page, caller);
+ 	else
+ 		addr = __alloc_from_contiguous(dev, size, prot, &page, caller);
+@@ -759,7 +759,7 @@ static void __arm_dma_free(struct device *dev, size_t size, void *cpu_addr,
+ 		__dma_free_buffer(page, size);
+ 	} else if (__free_from_pool(cpu_addr, size)) {
+ 		return;
+-	} else if (!IS_ENABLED(CONFIG_CMA)) {
++	} else if (!IS_ENABLED(CONFIG_DMA_CMA)) {
+ 		__dma_free_remap(cpu_addr, size);
+ 		__dma_free_buffer(page, size);
+ 	} else {
+diff --git a/drivers/base/Kconfig b/drivers/base/Kconfig
+index 07abd9d..10cd80a 100644
+--- a/drivers/base/Kconfig
++++ b/drivers/base/Kconfig
+@@ -202,11 +202,9 @@ config DMA_SHARED_BUFFER
+ 	  APIs extension; the file's descriptor can then be passed on to other
+ 	  driver.
+ 
+-config CMA
+-	bool "Contiguous Memory Allocator"
+-	depends on HAVE_DMA_CONTIGUOUS && HAVE_MEMBLOCK
+-	select MIGRATION
+-	select MEMORY_ISOLATION
++config DMA_CMA
++	bool "DMA Contiguous Memory Allocator"
++	depends on HAVE_DMA_CONTIGUOUS && CMA
+ 	help
+ 	  This enables the Contiguous Memory Allocator which allows drivers
+ 	  to allocate big physically-contiguous blocks of memory for use with
+@@ -215,17 +213,7 @@ config CMA
+ 	  For more information see <include/linux/dma-contiguous.h>.
+ 	  If unsure, say "n".
+ 
+-if CMA
+-
+-config CMA_DEBUG
+-	bool "CMA debug messages (DEVELOPMENT)"
+-	depends on DEBUG_KERNEL
+-	help
+-	  Turns on debug messages in CMA.  This produces KERN_DEBUG
+-	  messages for every CMA call as well as various messages while
+-	  processing calls such as dma_alloc_from_contiguous().
+-	  This option does not affect warning and error messages.
+-
++if  DMA_CMA
+ comment "Default contiguous memory area size:"
+ 
+ config CMA_SIZE_MBYTES
+diff --git a/drivers/base/Makefile b/drivers/base/Makefile
+index 4e22ce3..5d93bb5 100644
+--- a/drivers/base/Makefile
++++ b/drivers/base/Makefile
+@@ -6,7 +6,7 @@ obj-y			:= core.o bus.o dd.o syscore.o \
+ 			   attribute_container.o transport_class.o \
+ 			   topology.o
+ obj-$(CONFIG_DEVTMPFS)	+= devtmpfs.o
+-obj-$(CONFIG_CMA) += dma-contiguous.o
++obj-$(CONFIG_DMA_CMA) += dma-contiguous.o
+ obj-y			+= power/
+ obj-$(CONFIG_HAS_DMA)	+= dma-mapping.o
+ obj-$(CONFIG_HAVE_GENERIC_DMA_COHERENT) += dma-coherent.o
+diff --git a/include/linux/dma-contiguous.h b/include/linux/dma-contiguous.h
+index 01b5c84..00141d3 100644
+--- a/include/linux/dma-contiguous.h
++++ b/include/linux/dma-contiguous.h
+@@ -57,7 +57,7 @@ struct cma;
+ struct page;
+ struct device;
+ 
+-#ifdef CONFIG_CMA
++#ifdef CONFIG_DMA_CMA
+ 
+ /*
+  * There is always at least global CMA area and a few optional device
+diff --git a/mm/Kconfig b/mm/Kconfig
+index e742d06..26a5f81 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -477,3 +477,27 @@ config FRONTSWAP
+ 	  and swap data is stored as normal on the matching swap device.
+ 
+ 	  If unsure, say Y to enable frontswap.
++
++config CMA
++	bool "Contiguous Memory Allocator"
++	depends on HAVE_MEMBLOCK
++	select MIGRATION
++	select MEMORY_ISOLATION
++	help
++	  This enables the Contiguous Memory Allocator which allows other
++	  subsystems to allocate big physically-contiguous blocks of memory.
++	  CMA reserves a region of memory and allows only movable pages to
++	  be allocated from it. This way, the kernel can use the memory for
++	  pagecache and when a subsystem requests for contiguous area, the
++	  allocated pages are migrated away to serve the contiguous request.
++
++	  If unsure, say "n".
++
++config CMA_DEBUG
++	bool "CMA debug messages (DEVELOPMENT)"
++	depends on DEBUG_KERNEL && CMA
++	help
++	  Turns on debug messages in CMA.  This produces KERN_DEBUG
++	  messages for every CMA call as well as various messages while
++	  processing calls such as dma_alloc_from_contiguous().
++	  This option does not affect warning and error messages.
 -- 
-Thanks and Regards
-Srikar Dronamraju
+1.8.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
