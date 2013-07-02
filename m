@@ -1,24 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 7D0756B0032
-	for <linux-mm@kvack.org>; Tue,  2 Jul 2013 01:45:32 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 9BDD86B0033
+	for <linux-mm@kvack.org>; Tue,  2 Jul 2013 01:45:35 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 2 Jul 2013 15:30:42 +1000
+	Tue, 2 Jul 2013 15:42:43 +1000
 Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 81DEF3578051
-	for <linux-mm@kvack.org>; Tue,  2 Jul 2013 15:45:26 +1000 (EST)
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 02EAC2BB0051
+	for <linux-mm@kvack.org>; Tue,  2 Jul 2013 15:45:31 +1000 (EST)
 Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r625UJQ532768036
-	for <linux-mm@kvack.org>; Tue, 2 Jul 2013 15:30:20 +1000
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r625UOXE852238
+	for <linux-mm@kvack.org>; Tue, 2 Jul 2013 15:30:24 +1000
 Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r625jOHH001692
-	for <linux-mm@kvack.org>; Tue, 2 Jul 2013 15:45:25 +1000
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r625jTa9001850
+	for <linux-mm@kvack.org>; Tue, 2 Jul 2013 15:45:29 +1000
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH -V3 1/4] mm/cma: Move dma contiguous changes into a seperate config
-Date: Tue,  2 Jul 2013 11:15:15 +0530
-Message-Id: <1372743918-12293-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V3 3/4] powerpc/kvm: Contiguous memory allocator based RMA allocation
+Date: Tue,  2 Jul 2013 11:15:17 +0530
+Message-Id: <1372743918-12293-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1372743918-12293-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1372743918-12293-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: benh@kernel.crashing.org, paulus@samba.org, agraf@suse.de, m.szyprowski@samsung.com, mina86@mina86.com
@@ -26,190 +28,424 @@ Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org, 
 
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-We want to use CMA for allocating hash page table and real mode area for
-PPC64. Hence move DMA contiguous related changes into a seperate config
-so that ppc64 can enable CMA without requiring DMA contiguous.
+Older version of power architecture use Real Mode Offset register and Real Mode Limit
+Selector for mapping guest Real Mode Area. The guest RMA should be physically
+contigous since we use the range when address translation is not enabled.
 
-Acked-by: Michal Nazarewicz <mina86@mina86.com>
+This patch switch RMA allocation code to use contigous memory allocator. The patch
+also remove the the linear allocator which not used any more
+
 Acked-by: Paul Mackerras <paulus@samba.org>
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- arch/arm/configs/omap2plus_defconfig  |  2 +-
- arch/arm/configs/tegra_defconfig      |  2 +-
- arch/arm/include/asm/dma-contiguous.h |  2 +-
- arch/arm/mm/dma-mapping.c             |  6 +++---
- drivers/base/Kconfig                  | 20 ++++----------------
- drivers/base/Makefile                 |  2 +-
- include/linux/dma-contiguous.h        |  2 +-
- mm/Kconfig                            | 24 ++++++++++++++++++++++++
- 8 files changed, 36 insertions(+), 24 deletions(-)
+ arch/powerpc/include/asm/kvm_book3s_64.h |   1 +
+ arch/powerpc/include/asm/kvm_host.h      |  12 +--
+ arch/powerpc/include/asm/kvm_ppc.h       |   8 +-
+ arch/powerpc/kernel/setup_64.c           |   2 -
+ arch/powerpc/kvm/book3s_hv.c             |  27 +++--
+ arch/powerpc/kvm/book3s_hv_builtin.c     | 167 ++++++++-----------------------
+ 6 files changed, 65 insertions(+), 152 deletions(-)
 
-diff --git a/arch/arm/configs/omap2plus_defconfig b/arch/arm/configs/omap2plus_defconfig
-index abbe319..098268f 100644
---- a/arch/arm/configs/omap2plus_defconfig
-+++ b/arch/arm/configs/omap2plus_defconfig
-@@ -71,7 +71,7 @@ CONFIG_MAC80211=m
- CONFIG_MAC80211_RC_PID=y
- CONFIG_MAC80211_RC_DEFAULT_PID=y
- CONFIG_UEVENT_HELPER_PATH="/sbin/hotplug"
--CONFIG_CMA=y
-+CONFIG_DMA_CMA=y
- CONFIG_CONNECTOR=y
- CONFIG_DEVTMPFS=y
- CONFIG_DEVTMPFS_MOUNT=y
-diff --git a/arch/arm/configs/tegra_defconfig b/arch/arm/configs/tegra_defconfig
-index f7ba3161..34ae8f2 100644
---- a/arch/arm/configs/tegra_defconfig
-+++ b/arch/arm/configs/tegra_defconfig
-@@ -79,7 +79,7 @@ CONFIG_RFKILL_GPIO=y
- CONFIG_DEVTMPFS=y
- CONFIG_DEVTMPFS_MOUNT=y
- # CONFIG_FIRMWARE_IN_KERNEL is not set
--CONFIG_CMA=y
-+CONFIG_DMA_CMA=y
- CONFIG_MTD=y
- CONFIG_MTD_CHAR=y
- CONFIG_MTD_M25P80=y
-diff --git a/arch/arm/include/asm/dma-contiguous.h b/arch/arm/include/asm/dma-contiguous.h
-index 3ed37b4..e072bb2 100644
---- a/arch/arm/include/asm/dma-contiguous.h
-+++ b/arch/arm/include/asm/dma-contiguous.h
-@@ -2,7 +2,7 @@
- #define ASMARM_DMA_CONTIGUOUS_H
+diff --git a/arch/powerpc/include/asm/kvm_book3s_64.h b/arch/powerpc/include/asm/kvm_book3s_64.h
+index f8355a9..76ff0b5 100644
+--- a/arch/powerpc/include/asm/kvm_book3s_64.h
++++ b/arch/powerpc/include/asm/kvm_book3s_64.h
+@@ -37,6 +37,7 @@ static inline void svcpu_put(struct kvmppc_book3s_shadow_vcpu *svcpu)
  
- #ifdef __KERNEL__
--#ifdef CONFIG_CMA
-+#ifdef CONFIG_DMA_CMA
+ #ifdef CONFIG_KVM_BOOK3S_64_HV
+ #define KVM_DEFAULT_HPT_ORDER	24	/* 16MB HPT by default */
++extern unsigned long kvm_rma_pages;
+ #endif
  
- #include <linux/types.h>
- #include <asm-generic/dma-contiguous.h>
-diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-index ef3e0f3..1fb40dc 100644
---- a/arch/arm/mm/dma-mapping.c
-+++ b/arch/arm/mm/dma-mapping.c
-@@ -358,7 +358,7 @@ static int __init atomic_pool_init(void)
- 	if (!pages)
- 		goto no_pages;
+ #define VRMA_VSID	0x1ffffffUL	/* 1TB VSID reserved for VRMA */
+diff --git a/arch/powerpc/include/asm/kvm_host.h b/arch/powerpc/include/asm/kvm_host.h
+index 0097dab..3328353 100644
+--- a/arch/powerpc/include/asm/kvm_host.h
++++ b/arch/powerpc/include/asm/kvm_host.h
+@@ -183,13 +183,9 @@ struct kvmppc_spapr_tce_table {
+ 	struct page *pages[0];
+ };
  
--	if (IS_ENABLED(CONFIG_CMA))
-+	if (IS_ENABLED(CONFIG_DMA_CMA))
- 		ptr = __alloc_from_contiguous(NULL, pool->size, prot, &page,
- 					      atomic_pool_init);
- 	else
-@@ -670,7 +670,7 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
- 		addr = __alloc_simple_buffer(dev, size, gfp, &page);
- 	else if (!(gfp & __GFP_WAIT))
- 		addr = __alloc_from_pool(size, &page);
--	else if (!IS_ENABLED(CONFIG_CMA))
-+	else if (!IS_ENABLED(CONFIG_DMA_CMA))
- 		addr = __alloc_remap_buffer(dev, size, gfp, prot, &page, caller);
- 	else
- 		addr = __alloc_from_contiguous(dev, size, prot, &page, caller);
-@@ -759,7 +759,7 @@ static void __arm_dma_free(struct device *dev, size_t size, void *cpu_addr,
- 		__dma_free_buffer(page, size);
- 	} else if (__free_from_pool(cpu_addr, size)) {
- 		return;
--	} else if (!IS_ENABLED(CONFIG_CMA)) {
-+	} else if (!IS_ENABLED(CONFIG_DMA_CMA)) {
- 		__dma_free_remap(cpu_addr, size);
- 		__dma_free_buffer(page, size);
+-struct kvmppc_linear_info {
+-	void		*base_virt;
+-	unsigned long	 base_pfn;
+-	unsigned long	 npages;
+-	struct list_head list;
+-	atomic_t	 use_count;
+-	int		 type;
++struct kvm_rma_info {
++	atomic_t use_count;
++	unsigned long base_pfn;
+ };
+ 
+ /* XICS components, defined in book3s_xics.c */
+@@ -246,7 +242,7 @@ struct kvm_arch {
+ 	int tlbie_lock;
+ 	unsigned long lpcr;
+ 	unsigned long rmor;
+-	struct kvmppc_linear_info *rma;
++	struct kvm_rma_info *rma;
+ 	unsigned long vrma_slb_v;
+ 	int rma_setup_done;
+ 	int using_mmu_notifiers;
+diff --git a/arch/powerpc/include/asm/kvm_ppc.h b/arch/powerpc/include/asm/kvm_ppc.h
+index b5ef7a3..5a26bfc 100644
+--- a/arch/powerpc/include/asm/kvm_ppc.h
++++ b/arch/powerpc/include/asm/kvm_ppc.h
+@@ -137,8 +137,8 @@ extern long kvmppc_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
+ 			     unsigned long ioba, unsigned long tce);
+ extern long kvm_vm_ioctl_allocate_rma(struct kvm *kvm,
+ 				struct kvm_allocate_rma *rma);
+-extern struct kvmppc_linear_info *kvm_alloc_rma(void);
+-extern void kvm_release_rma(struct kvmppc_linear_info *ri);
++extern struct kvm_rma_info *kvm_alloc_rma(void);
++extern void kvm_release_rma(struct kvm_rma_info *ri);
+ extern struct page *kvm_alloc_hpt(unsigned long nr_pages);
+ extern void kvm_release_hpt(struct page *page, unsigned long nr_pages);
+ extern int kvmppc_core_init_vm(struct kvm *kvm);
+@@ -282,7 +282,6 @@ static inline void kvmppc_set_host_ipi(int cpu, u8 host_ipi)
+ }
+ 
+ extern void kvmppc_fast_vcpu_kick(struct kvm_vcpu *vcpu);
+-extern void kvm_linear_init(void);
+ 
+ #else
+ static inline void __init kvm_cma_reserve(void)
+@@ -291,9 +290,6 @@ static inline void __init kvm_cma_reserve(void)
+ static inline void kvmppc_set_xics_phys(int cpu, unsigned long addr)
+ {}
+ 
+-static inline void kvm_linear_init(void)
+-{}
+-
+ static inline u32 kvmppc_get_xics_latch(void)
+ {
+ 	return 0;
+diff --git a/arch/powerpc/kernel/setup_64.c b/arch/powerpc/kernel/setup_64.c
+index ee28d1f..8a022f5 100644
+--- a/arch/powerpc/kernel/setup_64.c
++++ b/arch/powerpc/kernel/setup_64.c
+@@ -611,8 +611,6 @@ void __init setup_arch(char **cmdline_p)
+ 	/* Initialize the MMU context management stuff */
+ 	mmu_context_init();
+ 
+-	kvm_linear_init();
+-
+ 	/* Interrupt code needs to be 64K-aligned */
+ 	if ((unsigned long)_stext & 0xffff)
+ 		panic("Kernelbase not 64K-aligned (0x%lx)!\n",
+diff --git a/arch/powerpc/kvm/book3s_hv.c b/arch/powerpc/kvm/book3s_hv.c
+index 550f592..55c8519 100644
+--- a/arch/powerpc/kvm/book3s_hv.c
++++ b/arch/powerpc/kvm/book3s_hv.c
+@@ -1511,10 +1511,10 @@ static inline int lpcr_rmls(unsigned long rma_size)
+ 
+ static int kvm_rma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ {
+-	struct kvmppc_linear_info *ri = vma->vm_file->private_data;
+ 	struct page *page;
++	struct kvm_rma_info *ri = vma->vm_file->private_data;
+ 
+-	if (vmf->pgoff >= ri->npages)
++	if (vmf->pgoff >= kvm_rma_pages)
+ 		return VM_FAULT_SIGBUS;
+ 
+ 	page = pfn_to_page(ri->base_pfn + vmf->pgoff);
+@@ -1536,7 +1536,7 @@ static int kvm_rma_mmap(struct file *file, struct vm_area_struct *vma)
+ 
+ static int kvm_rma_release(struct inode *inode, struct file *filp)
+ {
+-	struct kvmppc_linear_info *ri = filp->private_data;
++	struct kvm_rma_info *ri = filp->private_data;
+ 
+ 	kvm_release_rma(ri);
+ 	return 0;
+@@ -1549,8 +1549,17 @@ static const struct file_operations kvm_rma_fops = {
+ 
+ long kvm_vm_ioctl_allocate_rma(struct kvm *kvm, struct kvm_allocate_rma *ret)
+ {
+-	struct kvmppc_linear_info *ri;
+ 	long fd;
++	struct kvm_rma_info *ri;
++	/*
++	 * Only do this on PPC970 in HV mode
++	 */
++	if (!cpu_has_feature(CPU_FTR_HVMODE) ||
++	    !cpu_has_feature(CPU_FTR_ARCH_201))
++		return -EINVAL;
++
++	if (!kvm_rma_pages)
++		return -EINVAL;
+ 
+ 	ri = kvm_alloc_rma();
+ 	if (!ri)
+@@ -1560,7 +1569,7 @@ long kvm_vm_ioctl_allocate_rma(struct kvm *kvm, struct kvm_allocate_rma *ret)
+ 	if (fd < 0)
+ 		kvm_release_rma(ri);
+ 
+-	ret->rma_size = ri->npages << PAGE_SHIFT;
++	ret->rma_size = kvm_rma_pages << PAGE_SHIFT;
+ 	return fd;
+ }
+ 
+@@ -1725,7 +1734,7 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
+ {
+ 	int err = 0;
+ 	struct kvm *kvm = vcpu->kvm;
+-	struct kvmppc_linear_info *ri = NULL;
++	struct kvm_rma_info *ri = NULL;
+ 	unsigned long hva;
+ 	struct kvm_memory_slot *memslot;
+ 	struct vm_area_struct *vma;
+@@ -1803,7 +1812,7 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
+ 
  	} else {
-diff --git a/drivers/base/Kconfig b/drivers/base/Kconfig
-index 07abd9d..10cd80a 100644
---- a/drivers/base/Kconfig
-+++ b/drivers/base/Kconfig
-@@ -202,11 +202,9 @@ config DMA_SHARED_BUFFER
- 	  APIs extension; the file's descriptor can then be passed on to other
- 	  driver.
+ 		/* Set up to use an RMO region */
+-		rma_size = ri->npages;
++		rma_size = kvm_rma_pages;
+ 		if (rma_size > memslot->npages)
+ 			rma_size = memslot->npages;
+ 		rma_size <<= PAGE_SHIFT;
+@@ -1831,14 +1840,14 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
+ 			/* POWER7 */
+ 			lpcr &= ~(LPCR_VPM0 | LPCR_VRMA_L);
+ 			lpcr |= rmls << LPCR_RMLS_SH;
+-			kvm->arch.rmor = kvm->arch.rma->base_pfn << PAGE_SHIFT;
++			kvm->arch.rmor = ri->base_pfn << PAGE_SHIFT;
+ 		}
+ 		kvm->arch.lpcr = lpcr;
+ 		pr_info("KVM: Using RMO at %lx size %lx (LPCR = %lx)\n",
+ 			ri->base_pfn << PAGE_SHIFT, rma_size, lpcr);
  
--config CMA
--	bool "Contiguous Memory Allocator"
--	depends on HAVE_DMA_CONTIGUOUS && HAVE_MEMBLOCK
--	select MIGRATION
--	select MEMORY_ISOLATION
-+config DMA_CMA
-+	bool "DMA Contiguous Memory Allocator"
-+	depends on HAVE_DMA_CONTIGUOUS && CMA
- 	help
- 	  This enables the Contiguous Memory Allocator which allows drivers
- 	  to allocate big physically-contiguous blocks of memory for use with
-@@ -215,17 +213,7 @@ config CMA
- 	  For more information see <include/linux/dma-contiguous.h>.
- 	  If unsure, say "n".
+ 		/* Initialize phys addrs of pages in RMO */
+-		npages = ri->npages;
++		npages = kvm_rma_pages;
+ 		porder = __ilog2(npages);
+ 		physp = memslot->arch.slot_phys;
+ 		if (physp) {
+diff --git a/arch/powerpc/kvm/book3s_hv_builtin.c b/arch/powerpc/kvm/book3s_hv_builtin.c
+index 4b865c5..8cd0dae 100644
+--- a/arch/powerpc/kvm/book3s_hv_builtin.c
++++ b/arch/powerpc/kvm/book3s_hv_builtin.c
+@@ -21,13 +21,6 @@
+ #include <asm/kvm_book3s.h>
  
--if CMA
+ #include "book3s_hv_cma.h"
 -
--config CMA_DEBUG
--	bool "CMA debug messages (DEVELOPMENT)"
--	depends on DEBUG_KERNEL
--	help
--	  Turns on debug messages in CMA.  This produces KERN_DEBUG
--	  messages for every CMA call as well as various messages while
--	  processing calls such as dma_alloc_from_contiguous().
--	  This option does not affect warning and error messages.
+-#define KVM_LINEAR_RMA		0
+-#define KVM_LINEAR_HPT		1
 -
-+if  DMA_CMA
- comment "Default contiguous memory area size:"
- 
- config CMA_SIZE_MBYTES
-diff --git a/drivers/base/Makefile b/drivers/base/Makefile
-index 4e22ce3..5d93bb5 100644
---- a/drivers/base/Makefile
-+++ b/drivers/base/Makefile
-@@ -6,7 +6,7 @@ obj-y			:= core.o bus.o dd.o syscore.o \
- 			   attribute_container.o transport_class.o \
- 			   topology.o
- obj-$(CONFIG_DEVTMPFS)	+= devtmpfs.o
--obj-$(CONFIG_CMA) += dma-contiguous.o
-+obj-$(CONFIG_DMA_CMA) += dma-contiguous.o
- obj-y			+= power/
- obj-$(CONFIG_HAS_DMA)	+= dma-mapping.o
- obj-$(CONFIG_HAVE_GENERIC_DMA_COHERENT) += dma-coherent.o
-diff --git a/include/linux/dma-contiguous.h b/include/linux/dma-contiguous.h
-index 01b5c84..00141d3 100644
---- a/include/linux/dma-contiguous.h
-+++ b/include/linux/dma-contiguous.h
-@@ -57,7 +57,7 @@ struct cma;
- struct page;
- struct device;
- 
--#ifdef CONFIG_CMA
-+#ifdef CONFIG_DMA_CMA
- 
+-static void __init kvm_linear_init_one(ulong size, int count, int type);
+-static struct kvmppc_linear_info *kvm_alloc_linear(int type);
+-static void kvm_release_linear(struct kvmppc_linear_info *ri);
  /*
-  * There is always at least global CMA area and a few optional device
-diff --git a/mm/Kconfig b/mm/Kconfig
-index e742d06..26a5f81 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -477,3 +477,27 @@ config FRONTSWAP
- 	  and swap data is stored as normal on the matching swap device.
+  * Hash page table alignment on newer cpus(CPU_FTR_ARCH_206)
+  * should be power of 2.
+@@ -37,19 +30,17 @@ static void kvm_release_linear(struct kvmppc_linear_info *ri);
+  * By default we reserve 5% of memory for hash pagetable allocation.
+  */
+ static unsigned long kvm_cma_resv_ratio = 5;
+-
+-/*************** RMA *************/
+-
+ /*
+- * This maintains a list of RMAs (real mode areas) for KVM guests to use.
++ * We allocate RMAs (real mode areas) for KVM guests from the KVM CMA area.
+  * Each RMA has to be physically contiguous and of a size that the
+  * hardware supports.  PPC970 and POWER7 support 64MB, 128MB and 256MB,
+  * and other larger sizes.  Since we are unlikely to be allocate that
+  * much physically contiguous memory after the system is up and running,
+- * we preallocate a set of RMAs in early boot for KVM to use.
++ * we preallocate a set of RMAs in early boot using CMA.
++ * should be power of 2.
+  */
+-static unsigned long kvm_rma_size = 64 << 20;	/* 64MB */
+-static unsigned long kvm_rma_count;
++unsigned long kvm_rma_pages = (1 << 27) >> PAGE_SHIFT;	/* 128MB */
++EXPORT_SYMBOL_GPL(kvm_rma_pages);
  
- 	  If unsure, say Y to enable frontswap.
+ /* Work out RMLS (real mode limit selector) field value for a given RMA size.
+    Assumes POWER7 or PPC970. */
+@@ -79,35 +70,50 @@ static inline int lpcr_rmls(unsigned long rma_size)
+ 
+ static int __init early_parse_rma_size(char *p)
+ {
+-	if (!p)
+-		return 1;
++	unsigned long kvm_rma_size;
+ 
++	pr_debug("%s(%s)\n", __func__, p);
++	if (!p)
++		return -EINVAL;
+ 	kvm_rma_size = memparse(p, &p);
+-
++	/*
++	 * Check that the requested size is one supported in hardware
++	 */
++	if (lpcr_rmls(kvm_rma_size) < 0) {
++		pr_err("RMA size of 0x%lx not supported\n", kvm_rma_size);
++		return -EINVAL;
++	}
++	kvm_rma_pages = kvm_rma_size >> PAGE_SHIFT;
+ 	return 0;
+ }
+ early_param("kvm_rma_size", early_parse_rma_size);
+ 
+-static int __init early_parse_rma_count(char *p)
++struct kvm_rma_info *kvm_alloc_rma()
+ {
+-	if (!p)
+-		return 1;
+-
+-	kvm_rma_count = simple_strtoul(p, NULL, 0);
+-
+-	return 0;
+-}
+-early_param("kvm_rma_count", early_parse_rma_count);
+-
+-struct kvmppc_linear_info *kvm_alloc_rma(void)
+-{
+-	return kvm_alloc_linear(KVM_LINEAR_RMA);
++	struct page *page;
++	struct kvm_rma_info *ri;
 +
-+config CMA
-+	bool "Contiguous Memory Allocator"
-+	depends on HAVE_MEMBLOCK
-+	select MIGRATION
-+	select MEMORY_ISOLATION
-+	help
-+	  This enables the Contiguous Memory Allocator which allows other
-+	  subsystems to allocate big physically-contiguous blocks of memory.
-+	  CMA reserves a region of memory and allows only movable pages to
-+	  be allocated from it. This way, the kernel can use the memory for
-+	  pagecache and when a subsystem requests for contiguous area, the
-+	  allocated pages are migrated away to serve the contiguous request.
++	ri = kmalloc(sizeof(struct kvm_rma_info), GFP_KERNEL);
++	if (!ri)
++		return NULL;
++	page = kvm_alloc_cma(kvm_rma_pages, kvm_rma_pages);
++	if (!page)
++		goto err_out;
++	atomic_set(&ri->use_count, 1);
++	ri->base_pfn = page_to_pfn(page);
++	return ri;
++err_out:
++	kfree(ri);
++	return NULL;
+ }
+ EXPORT_SYMBOL_GPL(kvm_alloc_rma);
+ 
+-void kvm_release_rma(struct kvmppc_linear_info *ri)
++void kvm_release_rma(struct kvm_rma_info *ri)
+ {
+-	kvm_release_linear(ri);
++	if (atomic_dec_and_test(&ri->use_count)) {
++		kvm_release_cma(pfn_to_page(ri->base_pfn), kvm_rma_pages);
++		kfree(ri);
++	}
+ }
+ EXPORT_SYMBOL_GPL(kvm_release_rma);
+ 
+@@ -137,101 +143,6 @@ void kvm_release_hpt(struct page *page, unsigned long nr_pages)
+ }
+ EXPORT_SYMBOL_GPL(kvm_release_hpt);
+ 
+-/*************** generic *************/
+-
+-static LIST_HEAD(free_linears);
+-static DEFINE_SPINLOCK(linear_lock);
+-
+-static void __init kvm_linear_init_one(ulong size, int count, int type)
+-{
+-	unsigned long i;
+-	unsigned long j, npages;
+-	void *linear;
+-	struct page *pg;
+-	const char *typestr;
+-	struct kvmppc_linear_info *linear_info;
+-
+-	if (!count)
+-		return;
+-
+-	typestr = (type == KVM_LINEAR_RMA) ? "RMA" : "HPT";
+-
+-	npages = size >> PAGE_SHIFT;
+-	linear_info = alloc_bootmem(count * sizeof(struct kvmppc_linear_info));
+-	for (i = 0; i < count; ++i) {
+-		linear = alloc_bootmem_align(size, size);
+-		pr_debug("Allocated KVM %s at %p (%ld MB)\n", typestr, linear,
+-			 size >> 20);
+-		linear_info[i].base_virt = linear;
+-		linear_info[i].base_pfn = __pa(linear) >> PAGE_SHIFT;
+-		linear_info[i].npages = npages;
+-		linear_info[i].type = type;
+-		list_add_tail(&linear_info[i].list, &free_linears);
+-		atomic_set(&linear_info[i].use_count, 0);
+-
+-		pg = pfn_to_page(linear_info[i].base_pfn);
+-		for (j = 0; j < npages; ++j) {
+-			atomic_inc(&pg->_count);
+-			++pg;
+-		}
+-	}
+-}
+-
+-static struct kvmppc_linear_info *kvm_alloc_linear(int type)
+-{
+-	struct kvmppc_linear_info *ri, *ret;
+-
+-	ret = NULL;
+-	spin_lock(&linear_lock);
+-	list_for_each_entry(ri, &free_linears, list) {
+-		if (ri->type != type)
+-			continue;
+-
+-		list_del(&ri->list);
+-		atomic_inc(&ri->use_count);
+-		memset(ri->base_virt, 0, ri->npages << PAGE_SHIFT);
+-		ret = ri;
+-		break;
+-	}
+-	spin_unlock(&linear_lock);
+-	return ret;
+-}
+-
+-static void kvm_release_linear(struct kvmppc_linear_info *ri)
+-{
+-	if (atomic_dec_and_test(&ri->use_count)) {
+-		spin_lock(&linear_lock);
+-		list_add_tail(&ri->list, &free_linears);
+-		spin_unlock(&linear_lock);
+-
+-	}
+-}
+-
+-/*
+- * Called at boot time while the bootmem allocator is active,
+- * to allocate contiguous physical memory for the hash page
+- * tables for guests.
+- */
+-void __init kvm_linear_init(void)
+-{
+-	/* RMA */
+-	/* Only do this on PPC970 in HV mode */
+-	if (!cpu_has_feature(CPU_FTR_HVMODE) ||
+-	    !cpu_has_feature(CPU_FTR_ARCH_201))
+-		return;
+-
+-	if (!kvm_rma_size || !kvm_rma_count)
+-		return;
+-
+-	/* Check that the requested size is one supported in hardware */
+-	if (lpcr_rmls(kvm_rma_size) < 0) {
+-		pr_err("RMA size of 0x%lx not supported\n", kvm_rma_size);
+-		return;
+-	}
+-
+-	kvm_linear_init_one(kvm_rma_size, kvm_rma_count, KVM_LINEAR_RMA);
+-}
+-
+ /**
+  * kvm_cma_reserve() - reserve area for kvm hash pagetable
+  *
+@@ -265,6 +176,8 @@ void __init kvm_cma_reserve(void)
+ 			align_size = __rounddown_pow_of_two(selected_size);
+ 		else
+ 			align_size = HPT_ALIGN_PAGES << PAGE_SHIFT;
 +
-+	  If unsure, say "n".
-+
-+config CMA_DEBUG
-+	bool "CMA debug messages (DEVELOPMENT)"
-+	depends on DEBUG_KERNEL && CMA
-+	help
-+	  Turns on debug messages in CMA.  This produces KERN_DEBUG
-+	  messages for every CMA call as well as various messages while
-+	  processing calls such as dma_alloc_from_contiguous().
-+	  This option does not affect warning and error messages.
++		align_size = max(kvm_rma_pages << PAGE_SHIFT, align_size);
+ 		kvm_cma_declare_contiguous(selected_size, align_size);
+ 	}
+ }
 -- 
 1.8.1.2
 
