@@ -1,142 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 5656F6B0031
-	for <linux-mm@kvack.org>; Tue,  2 Jul 2013 15:38:06 -0400 (EDT)
-Date: Tue, 2 Jul 2013 12:38:04 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: strictlimit feature -v2
-Message-Id: <20130702123804.9f252487f86c12b0f4edee57@linux-foundation.org>
-In-Reply-To: <20130702174316.15075.84993.stgit@maximpc.sw.ru>
-References: <20130629174706.20175.78184.stgit@maximpc.sw.ru>
-	<20130702174316.15075.84993.stgit@maximpc.sw.ru>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id B16476B0034
+	for <linux-mm@kvack.org>; Tue,  2 Jul 2013 15:47:06 -0400 (EDT)
+Date: Tue, 2 Jul 2013 21:47:03 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [PATCH] vmpressure: implement strict mode
+Message-ID: <20130702194703.GA19373@amd.pavel.ucw.cz>
+References: <20130625175129.7c0d79e1@redhat.com>
+ <20130701085103.GA19798@amd.pavel.ucw.cz>
+ <20130702110628.5dbb75e0@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130702110628.5dbb75e0@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Maxim Patlasov <MPatlasov@parallels.com>
-Cc: miklos@szeredi.hu, riel@redhat.com, dev@parallels.com, xemul@parallels.com, fuse-devel@lists.sourceforge.net, bfoster@redhat.com, linux-kernel@vger.kernel.org, jbottomley@parallels.com, linux-mm@kvack.org, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, fengguang.wu@intel.com, devel@openvz.org, mgorman@suse.de
+To: Luiz Capitulino <lcapitulino@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.cz, minchan@kernel.org, anton@enomsg.org, akpm@linux-foundation.org
 
-On Tue, 02 Jul 2013 21:44:47 +0400 Maxim Patlasov <MPatlasov@parallels.com> wrote:
-
-> From: Miklos Szeredi <mszeredi@suse.cz>
+On Tue 2013-07-02 11:06:28, Luiz Capitulino wrote:
+> On Mon, 1 Jul 2013 10:51:03 +0200
+> Pavel Machek <pavel@ucw.cz> wrote:
 > 
-> The feature prevents mistrusted filesystems to grow a large number of dirty
-> pages before throttling. For such filesystems balance_dirty_pages always
-> check bdi counters against bdi limits. I.e. even if global "nr_dirty" is under
-> "freerun", it's not allowed to skip bdi checks. The only use case for now is
-> fuse: it sets bdi max_ratio to 1% by default and system administrators are
-> supposed to expect that this limit won't be exceeded.
+> > Hi!
+> > 
+> > > diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+> > > index ddf4f93..3c589cf 100644
+> > > --- a/Documentation/cgroups/memory.txt
+> > > +++ b/Documentation/cgroups/memory.txt
+> > > @@ -807,12 +807,14 @@ register a notification, an application must:
+> > >  
+> > >  - create an eventfd using eventfd(2);
+> > >  - open memory.pressure_level;
+> > > -- write string like "<event_fd> <fd of memory.pressure_level> <level>"
+> > > +- write string like "<event_fd> <fd of memory.pressure_level> <level> [strict]"
+> > >    to cgroup.event_control.
+> > >  
+> > 
+> > This is.. pretty strange interface. Would it be cleaner to do ioctl()?
+> > New syscall?
 > 
-> The feature is on if address space is marked by AS_STRICTLIMIT flag.
-> A filesystem may set the flag when it initializes a new inode.
-> 
-> Changed in v2 (thanks to Andrew Morton):
->  - added a few explanatory comments
->  - cleaned up the mess in backing_dev_info foo_stamp fields: now it's clearly
->    stated that bw_time_stamp is measured in jiffies; renamed other foo_stamp
->    fields to reflect that they are in units of number-of-pages.
-> 
+> Are you referring to my new mode or to the whole thing?
 
-Better, thanks.
+Well. The interface was already very strange and you made it even
+worse.
 
-The writeback arithemtic makes my head spin - I'd really like Fengguang
-to go over this, please.
+For example... How is the string terminated? \0? \n? Not at all? Needs
+to be written in single write? How many spaces are allowed? Can I put
+there \t? How many leading zeros? How do you know that you can stop
+looking for "strict" string?
 
-A quick visit from the spelling police:
+Dunno. Passing fd by writting it out in ascii is strange. (And writing
+fd in ascii to the same fd is ... very strange.)
 
->
-> ...
->
-> @@ -41,8 +43,15 @@ typedef int (congested_fn)(void *, int);
->  enum bdi_stat_item {
->  	BDI_RECLAIMABLE,
->  	BDI_WRITEBACK,
-> -	BDI_DIRTIED,
-> -	BDI_WRITTEN,
-> +
-> +	/*
-> +	 * The three counters below reflects number of events of specific type
-> +	 * happened since bdi_init(). The type is defined in comments below:
-
-"The three counters below reflect the number of events of specific
-types since bdi_init()"
-
-> +	 */
-> +	BDI_DIRTIED,	  /* a page was dirtied */
-> +	BDI_WRITTEN,	  /* writeout completed for a page */
-> +	BDI_WRITTEN_BACK, /* a page went to writeback */
-> +
->  	NR_BDI_STAT_ITEMS
->  };
->  
->
-> ...
->
-> @@ -680,28 +712,55 @@ static unsigned long bdi_position_ratio(struct backing_dev_info *bdi,
->  		return 0;
->  
->  	/*
-> -	 * global setpoint
-> +	 * The strictlimit feature is a tool preventing mistrusted filesystems
-> +	 * to grow a large number of dirty pages before throttling. For such
-
-"from growing"
-
-> +	 * filesystems balance_dirty_pages always checks bdi counters against
-> +	 * bdi limits. Even if global "nr_dirty" is under "freerun". This is
-> +	 * especially important for fuse who sets bdi->max_ratio to 1% by
-
-s/who/which/
-
-> +	 * default. Without strictlimit feature, fuse writeback may consume
-> +	 * arbitrary amount of RAM because it is accounted in
-> +	 * NR_WRITEBACK_TEMP which is not involved in calculating "nr_dirty".
->
-> ...
->
-> @@ -994,6 +1054,26 @@ static void bdi_update_dirty_ratelimit(struct backing_dev_info *bdi,
->  	 * keep that period small to reduce time lags).
->  	 */
->  	step = 0;
-> +
-> +	/*
-> +	 * For strictlimit case, balanced_dirty_ratelimit was calculated
-
-balance_dirty_ratelimit?
-
-> +	 * above based on bdi counters and limits (see bdi_position_ratio()).
-> +	 * Hence, to calculate "step" properly, we have to use bdi_dirty as
-> +	 * "dirty" and bdi_setpoint as "setpoint".
-> +	 *
-> +	 * We rampup dirty_ratelimit forcibly if bdi_dirty is low because
-> +	 * it's possible that bdi_thresh is close to zero due to inactivity
-> +	 * of backing device (see the implementation of bdi_dirty_limit()).
-> +	 */
-> +	if (unlikely(strictlimit)) {
-> +		dirty = bdi_dirty;
-> +		if (bdi_dirty < 8)
-> +			setpoint = bdi_dirty + 1;
-> +		else
->
-> ...
->
-> @@ -1057,18 +1140,32 @@ void __bdi_update_bandwidth(struct backing_dev_info *bdi,
->  	if (elapsed > HZ && time_before(bdi->bw_time_stamp, start_time))
->  		goto snapshot;
->  
-> +	/*
-> +	 * Skip periods when backing dev was idle due to abscence of pages
-
-"absence"
-
-> +	 * under writeback (when over_bground_thresh() returns false)
-> +	 */
-> +	if (test_bit(BDI_idle, &bdi->state) &&
-> +	    bdi->writeback_nr_stamp == writeback)
->
-> ...
->
+									Pavel
+-- 
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
