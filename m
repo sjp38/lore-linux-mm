@@ -1,231 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 436496B0032
-	for <linux-mm@kvack.org>; Tue,  2 Jul 2013 03:00:39 -0400 (EDT)
-Received: by mail-wg0-f42.google.com with SMTP id z11so4280172wgg.1
-        for <linux-mm@kvack.org>; Tue, 02 Jul 2013 00:00:37 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 015FB6B0032
+	for <linux-mm@kvack.org>; Tue,  2 Jul 2013 03:47:38 -0400 (EDT)
+Date: Tue, 2 Jul 2013 09:46:59 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 0/6] Basic scheduler support for automatic NUMA balancing
+Message-ID: <20130702074659.GC21726@dyad.programming.kicks-ass.net>
+References: <1372257487-9749-1-git-send-email-mgorman@suse.de>
+ <20130628135422.GA21895@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20130701125345.c4a383c7b8345f9c5ae54023@linux-foundation.org>
-References: <20130523052421.13864.83978.stgit@localhost6.localdomain6>
-	<20130523052547.13864.83306.stgit@localhost6.localdomain6>
-	<20130523152445.17549682ae45b5aab3f3cde0@linux-foundation.org>
-	<CAJGZr0LwivLTH+E7WAR1B9_6B4e=jv04KgCUL_PdVpi9JjDpBw@mail.gmail.com>
-	<51A2BBA7.50607@jp.fujitsu.com>
-	<CAJGZr0LmsFXEgb3UXVb+rqo1aq5KJyNxyNAD+DG+3KnJm_ZncQ@mail.gmail.com>
-	<51A71B49.3070003@cn.fujitsu.com>
-	<CAJGZr0Ld6Q4a4f-VObAbvqCp=+fTFNEc6M-Fdnhh28GTcSm1=w@mail.gmail.com>
-	<20130603174351.d04b2ac71d1bab0df242e0ba@mxc.nes.nec.co.jp>
-	<CAJGZr0+9VUweN1Ssdq6P9Lug1GnTB3+RPv77JLRmnw=rpd9+Dw@mail.gmail.com>
-	<51D0C500.4060108@jp.fujitsu.com>
-	<CAJGZr0Jwy6OLADBO9GExWVbwG_LMk41ZsSMZKvWmwcA9StVZQA@mail.gmail.com>
-	<20130701125345.c4a383c7b8345f9c5ae54023@linux-foundation.org>
-Date: Tue, 2 Jul 2013 11:00:37 +0400
-Message-ID: <CAJGZr0+vcPmG7e54caYm+FM3g4NibZgut8Gf8n73A3HE3HKw3g@mail.gmail.com>
-Subject: Re: [PATCH v8 9/9] vmcore: support mmap() on /proc/vmcore
-From: Maxim Uvarov <muvarov@gmail.com>
-Content-Type: multipart/alternative; boundary=f46d043bdf74fb9a1604e081e625
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130628135422.GA21895@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>, Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>, riel@redhat.com, kexec@lists.infradead.org, hughd@google.com, linux-kernel@vger.kernel.org, lisa.mitchell@hp.com, vgoyal@redhat.com, linux-mm@kvack.org, zhangyanfei@cn.fujitsu.com, ebiederm@xmission.com, kosaki.motohiro@jp.fujitsu.com, walken@google.com, cpw@sgi.com, jingbai.ma@hp.com
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
---f46d043bdf74fb9a1604e081e625
-Content-Type: text/plain; charset=ISO-8859-1
+On Fri, Jun 28, 2013 at 07:24:22PM +0530, Srikar Dronamraju wrote:
+> * Mel Gorman <mgorman@suse.de> [2013-06-26 15:37:59]:
+> 
+> > It's several months overdue and everything was quiet after 3.8 came out
+> > but I recently had a chance to revisit automatic NUMA balancing for a few
+> > days. I looked at basic scheduler integration resulting in the following
+> > small series. Much of the following is heavily based on the numacore series
+> > which in itself takes part of the autonuma series from back in November. In
+> > particular it borrows heavily from Peter Ziljstra's work in "sched, numa,
+> > mm: Add adaptive NUMA affinity support" but deviates too much to preserve
+> > Signed-off-bys. As before, if the relevant authors are ok with it I'll
+> > add Signed-off-bys (or add them yourselves if you pick the patches up).
+> 
+> 
+> Here is a snapshot of the results of running autonuma-benchmark running on 8
+> node 64 cpu system with hyper threading disabled. Ran 5 iterations for each
+> setup
+> 
+> 	KernelVersion: 3.9.0-mainline_v39+()
+> 				Testcase:      Min      Max      Avg
+> 				  numa01:  1784.16  1864.15  1800.16
+> 				  numa02:    32.07    32.72    32.59
+> 
+> 	KernelVersion: 3.9.0-mainline_v39+() + mel's patches
+> 				Testcase:      Min      Max      Avg  %Change
+> 				  numa01:  1752.48  1859.60  1785.60    0.82%
+> 				  numa02:    47.21    60.58    53.43  -39.00%
 
-2013/7/1 Andrew Morton <akpm@linux-foundation.org>
+I had to go look at these benchmarks again; and numa02 is the one that's purely
+private and thus should run well with this patch set. numa01 is the purely
+shared one and should fare less good for now.
 
-> On Mon, 1 Jul 2013 18:34:43 +0400 Maxim Uvarov <muvarov@gmail.com> wrote:
->
-> > 2013/7/1 HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
-> >
-> > > (2013/06/29 1:40), Maxim Uvarov wrote:
-> > >
-> > >> Did test on 1TB machine. Total vmcore capture and save took 143
-> minutes
-> > >> while vmcore size increased from 9Gb to 59Gb.
-> > >>
-> > >> Will do some debug for that.
-> > >>
-> > >> Maxim.
-> > >>
-> > >
-> > > Please show me your kdump configuration file and tell me what you did
-> in
-> > > the test and how you confirmed the result.
-> > >
-> > >
-> > Hello Hatayama,
-> >
-> > I re-run tests in dev env. I took your latest kernel patchset from
-> > patchwork for vmcore + devel branch of makedumpfile + fix to open and
-> write
-> > to /dev/null. Run this test on 1Tb memory machine with memory used by
-> some
-> > user space processes. crashkernel=384M.
-> >
-> > Please see my results for makedumpfile process work:
-> > [gzip compression]
-> > -c -d31 /dev/null
-> > real 37.8 m
-> > user 29.51 m
-> > sys 7.12 m
-> >
-> > [no compression]
-> > -d31 /dev/null
-> > real 27 m
-> > user 23 m
-> > sys   4 m
-> >
-> > [no compression, disable cyclic mode]
-> > -d31 --non-cyclic /dev/null
-> > real 26.25 m
-> > user 23 m
-> > sys 3.13 m
-> >
-> > [gzip compression]
-> > -c -d31 /dev/null
-> > % time     seconds  usecs/call     calls    errors syscall
-> > ------ ----------- ----------- --------- --------- ----------------
-> >  54.75   38.840351         110    352717           mmap
-> >  44.55   31.607620          90    352716         1 munmap
-> >   0.70    0.497668           0  25497667           brk
-> >   0.00    0.000356           0    111920           write
-> >   0.00    0.000280           0    111904           lseek
-> >   0.00    0.000025           4         7           open
-> >   0.00    0.000000           0       473           read
-> >   0.00    0.000000           0         7           close
-> >   0.00    0.000000           0         3           fstat
-> >   0.00    0.000000           0         1           getpid
-> >   0.00    0.000000           0         1           execve
-> >   0.00    0.000000           0         1           uname
-> >   0.00    0.000000           0         2           unlink
-> >   0.00    0.000000           0         1           arch_prctl
-> > ------ ----------- ----------- --------- --------- ----------------
-> > 100.00   70.946300              26427420         1 total
-> >
->
-> I have no point of comparison here.  Is this performance good, or is
-> the mmap-based approach still a lot more expensive?
->
->
-> Compressing to non-mmap version improvement is 30 minutes against 130
-minutes for total dump process. And kernel load is very minimal. So
-definitely we need these patches.
 
--- 
-Best regards,
-Maxim Uvarov
+So on the biggest system I've got; 4 nodes 32 cpus:
 
---f46d043bdf74fb9a1604e081e625
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+ Performance counter stats for './numa02' (5 runs):
 
-<br><br><div class=3D"gmail_quote">2013/7/1 Andrew Morton <span dir=3D"ltr"=
->&lt;<a href=3D"mailto:akpm@linux-foundation.org" target=3D"_blank">akpm@li=
-nux-foundation.org</a>&gt;</span><br><blockquote class=3D"gmail_quote" styl=
-e=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
-<div class=3D"HOEnZb"><div class=3D"h5">On Mon, 1 Jul 2013 18:34:43 +0400 M=
-axim Uvarov &lt;<a href=3D"mailto:muvarov@gmail.com">muvarov@gmail.com</a>&=
-gt; wrote:<br>
-<br>
-&gt; 2013/7/1 HATAYAMA Daisuke &lt;<a href=3D"mailto:d.hatayama@jp.fujitsu.=
-com">d.hatayama@jp.fujitsu.com</a>&gt;<br>
-&gt;<br>
-&gt; &gt; (2013/06/29 1:40), Maxim Uvarov wrote:<br>
-&gt; &gt;<br>
-&gt; &gt;&gt; Did test on 1TB machine. Total vmcore capture and save took 1=
-43 minutes<br>
-&gt; &gt;&gt; while vmcore size increased from 9Gb to 59Gb.<br>
-&gt; &gt;&gt;<br>
-&gt; &gt;&gt; Will do some debug for that.<br>
-&gt; &gt;&gt;<br>
-&gt; &gt;&gt; Maxim.<br>
-&gt; &gt;&gt;<br>
-&gt; &gt;<br>
-&gt; &gt; Please show me your kdump configuration file and tell me what you=
- did in<br>
-&gt; &gt; the test and how you confirmed the result.<br>
-&gt; &gt;<br>
-&gt; &gt;<br>
-&gt; Hello Hatayama,<br>
-&gt;<br>
-&gt; I re-run tests in dev env. I took your latest kernel patchset from<br>
-&gt; patchwork for vmcore + devel branch of makedumpfile + fix to open and =
-write<br>
-&gt; to /dev/null. Run this test on 1Tb memory machine with memory used by =
-some<br>
-&gt; user space processes. crashkernel=3D384M.<br>
-&gt;<br>
-&gt; Please see my results for makedumpfile process work:<br>
-&gt; [gzip compression]<br>
-&gt; -c -d31 /dev/null<br>
-&gt; real 37.8 m<br>
-&gt; user 29.51 m<br>
-&gt; sys 7.12 m<br>
-&gt;<br>
-&gt; [no compression]<br>
-&gt; -d31 /dev/null<br>
-&gt; real 27 m<br>
-&gt; user 23 m<br>
-&gt; sys =A0 4 m<br>
-&gt;<br>
-&gt; [no compression, disable cyclic mode]<br>
-&gt; -d31 --non-cyclic /dev/null<br>
-&gt; real 26.25 m<br>
-&gt; user 23 m<br>
-&gt; sys 3.13 m<br>
-&gt;<br>
-&gt; [gzip compression]<br>
-&gt; -c -d31 /dev/null<br>
-&gt; % time =A0 =A0 seconds =A0usecs/call =A0 =A0 calls =A0 =A0errors sysca=
-ll<br>
-&gt; ------ ----------- ----------- --------- --------- ----------------<br=
->
-&gt; =A054.75 =A0 38.840351 =A0 =A0 =A0 =A0 110 =A0 =A0352717 =A0 =A0 =A0 =
-=A0 =A0 mmap<br>
-&gt; =A044.55 =A0 31.607620 =A0 =A0 =A0 =A0 =A090 =A0 =A0352716 =A0 =A0 =A0=
- =A0 1 munmap<br>
-&gt; =A0 0.70 =A0 =A00.497668 =A0 =A0 =A0 =A0 =A0 0 =A025497667 =A0 =A0 =A0=
- =A0 =A0 brk<br>
-&gt; =A0 0.00 =A0 =A00.000356 =A0 =A0 =A0 =A0 =A0 0 =A0 =A0111920 =A0 =A0 =
-=A0 =A0 =A0 write<br>
-&gt; =A0 0.00 =A0 =A00.000280 =A0 =A0 =A0 =A0 =A0 0 =A0 =A0111904 =A0 =A0 =
-=A0 =A0 =A0 lseek<br>
-&gt; =A0 0.00 =A0 =A00.000025 =A0 =A0 =A0 =A0 =A0 4 =A0 =A0 =A0 =A0 7 =A0 =
-=A0 =A0 =A0 =A0 open<br>
-&gt; =A0 0.00 =A0 =A00.000000 =A0 =A0 =A0 =A0 =A0 0 =A0 =A0 =A0 473 =A0 =A0=
- =A0 =A0 =A0 read<br>
-&gt; =A0 0.00 =A0 =A00.000000 =A0 =A0 =A0 =A0 =A0 0 =A0 =A0 =A0 =A0 7 =A0 =
-=A0 =A0 =A0 =A0 close<br>
-&gt; =A0 0.00 =A0 =A00.000000 =A0 =A0 =A0 =A0 =A0 0 =A0 =A0 =A0 =A0 3 =A0 =
-=A0 =A0 =A0 =A0 fstat<br>
-&gt; =A0 0.00 =A0 =A00.000000 =A0 =A0 =A0 =A0 =A0 0 =A0 =A0 =A0 =A0 1 =A0 =
-=A0 =A0 =A0 =A0 getpid<br>
-&gt; =A0 0.00 =A0 =A00.000000 =A0 =A0 =A0 =A0 =A0 0 =A0 =A0 =A0 =A0 1 =A0 =
-=A0 =A0 =A0 =A0 execve<br>
-&gt; =A0 0.00 =A0 =A00.000000 =A0 =A0 =A0 =A0 =A0 0 =A0 =A0 =A0 =A0 1 =A0 =
-=A0 =A0 =A0 =A0 uname<br>
-&gt; =A0 0.00 =A0 =A00.000000 =A0 =A0 =A0 =A0 =A0 0 =A0 =A0 =A0 =A0 2 =A0 =
-=A0 =A0 =A0 =A0 unlink<br>
-&gt; =A0 0.00 =A0 =A00.000000 =A0 =A0 =A0 =A0 =A0 0 =A0 =A0 =A0 =A0 1 =A0 =
-=A0 =A0 =A0 =A0 arch_prctl<br>
-&gt; ------ ----------- ----------- --------- --------- ----------------<br=
->
-&gt; 100.00 =A0 70.946300 =A0 =A0 =A0 =A0 =A0 =A0 =A026427420 =A0 =A0 =A0 =
-=A0 1 total<br>
-&gt;<br>
-<br>
-</div></div>I have no point of comparison here. =A0Is this performance good=
-, or is<br>
-the mmap-based approach still a lot more expensive?<br>
-<br>
-<br>
-</blockquote></div>Compressing to non-mmap version improvement is 30 minute=
-s against 130 minutes for total dump process. And kernel load is very minim=
-al. So definitely we need these patches. <br><br>-- <br>Best regards,<br>
-Maxim Uvarov
+3.10.0+ - NO_NUMA		57.973118199 seconds time elapsed    ( +-  0.71% )
+3.10.0+ -    NUMA		17.619811716 seconds time elapsed    ( +-  0.32% )
 
---f46d043bdf74fb9a1604e081e625--
+3.10.0+ + patches - NO_NUMA	58.235353126 seconds time elapsed    ( +-  0.45% )
+3.10.0+ + patches -    NUMA     17.580963359 seconds time elapsed    ( +-  0.09% )
+
+
+Which is a small to no improvement. We'd have to look at what makes the 8 node
+go funny, but I don't think its realistic to hold off on the patches for that
+system.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
