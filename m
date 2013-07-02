@@ -1,65 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id B22896B0031
-	for <linux-mm@kvack.org>; Tue,  2 Jul 2013 12:53:44 -0400 (EDT)
-Date: Tue, 2 Jul 2013 11:53:32 -0500
-From: Clark Williams <williams@redhat.com>
-Subject: Re: [3.11 1/4] slub: Make cpu partial slab support configurable V2
-Message-ID: <20130702115332.4fa8f2db@riff.lan>
-In-Reply-To: <0000013fa047b23e-84298a70-911d-43ea-9db3-bc9682bb90b6-000000@email.amazonses.com>
-References: <20130614195500.373711648@linux.com>
-	<0000013f44418a14-7abe9784-a481-4c34-8ff3-c3afe2d57979-000000@email.amazonses.com>
-	<51BFFFA1.8030402@kernel.org>
-	<0000013f57a5b278-d9104e1e-ccec-40ec-bd95-f8b0816a38d9-000000@email.amazonses.com>
-	<20130618102109.310f4ce1@riff.lan>
-	<CAOJsxLHsYVThWL7yKEQaQqxTSpgK8RHm-u8n94t_m4=uMjDqzw@mail.gmail.com>
-	<1372170272.18733.201.camel@gandalf.local.home>
-	<0000013f9b735739-eb4b29ce-fbc6-4493-ac56-22766da5fdae-000000@email.amazonses.com>
-	<20130702100913.0ef4cd25@riff.lan>
-	<0000013fa047b23e-84298a70-911d-43ea-9db3-bc9682bb90b6-000000@email.amazonses.com>
-Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=PGP-SHA1;
- boundary="Sig_/1nIpdleycquNizPTiAVqWa2"; protocol="application/pgp-signature"
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id C3C076B0031
+	for <linux-mm@kvack.org>; Tue,  2 Jul 2013 13:24:12 -0400 (EDT)
+Received: by mail-pb0-f46.google.com with SMTP id rq2so6379990pbb.19
+        for <linux-mm@kvack.org>; Tue, 02 Jul 2013 10:24:12 -0700 (PDT)
+Date: Tue, 2 Jul 2013 10:24:09 -0700
+From: Anton Vorontsov <anton@enomsg.org>
+Subject: Re: [PATCH v2] vmpressure: implement strict mode
+Message-ID: <20130702172409.GA13695@teo>
+References: <20130628043411.GA9100@teo>
+ <20130628050712.GA10097@teo>
+ <20130628100027.31504abe@redhat.com>
+ <20130628165722.GA12271@teo>
+ <20130628170917.GA12610@teo>
+ <20130628144507.37d28ed9@redhat.com>
+ <20130628185547.GA14520@teo>
+ <20130628154402.4035f2fa@redhat.com>
+ <20130629005637.GA16068@teo>
+ <20130702105911.2830181d@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20130702105911.2830181d@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Pekka Enberg <penberg@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Joonsoo Kim <js1304@gmail.com>, Clark Williams <clark@redhat.com>, Glauber Costa <glommer@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>
+To: Luiz Capitulino <lcapitulino@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.cz, kmpark@infradead.org, hyunhee.kim@samsung.com
 
---Sig_/1nIpdleycquNizPTiAVqWa2
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+On Tue, Jul 02, 2013 at 10:59:11AM -0400, Luiz Capitulino wrote:
+>  2. Considering the interface can be extended, how can new applications
+>     work on backwards mode? Say, we add ultra-critical on 3.12 and
+>     I update my application to work on it, how will my application
+>     work on 3.11?
 
-On Tue, 2 Jul 2013 16:47:01 +0000
-Christoph Lameter <cl@linux.com> wrote:
+It will refuse to run, as expected. We are returning -EINVAL on unknown
+levels. The same way you try to run e.g. systemd on linux-2.4. Systemd
+requires new features of the kernel, if there are no features present the
+kernel returns an error and then app gracefully fails.
 
-> On Tue, 2 Jul 2013, Clark Williams wrote:
->=20
-> > What's your recommended method for switching cpu_partial processing
-> > off?
-> >
-> > I'm not all that keen on repeatedly traversing /sys/kernel/slab looking
-> > for 'cpu_partial' entries, mainly because if you do it at boot time
-> > (i.e. from a startup script) you miss some of the entries.
->=20
-> Merge the patch that makes a config option and compile it out of the
-> kernel?
->=20
+>     Hint: Try and error is an horribly bad approach.
+> 
+>  3. I also don't believe we have good forward compatibility with
+>     the current API, as adding new events will cause existing ones
+>     to be triggered more often,
 
-Ah, ok that makes sense. I thought you meant an alternative.
+If they don't register for the new events (the old apps don't know about
+them, so they won't), there will be absolutely no difference in the
+behaviour, and that is what is most important.
 
---Sig_/1nIpdleycquNizPTiAVqWa2
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Disposition: attachment; filename=signature.asc
+There is a scalability problem I can see because of the need of the read()
+call on each fd, but the "scalability" problem will actually arise if we
+have insane number of levels.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.19 (GNU/Linux)
+> Honestly, what Andrew suggested is the best design for me: apps
+> are notified on all events but the event name is sent to the application.
 
-iEYEARECAAYFAlHTBZAACgkQHyuj/+TTEp2vsACeLE+Sf+TD/xz8MqtpxXg3g/6/
-yrYAoL17Kc0fnvzj60g9vtFP37Gpm0bQ
-=AHZU
------END PGP SIGNATURE-----
+I am fine with this approach (or any other, I'm really indifferent to the
+API itself -- read/netlink/notification per file/whatever for the
+payload), except that you still have the similar problem:
 
---Sig_/1nIpdleycquNizPTiAVqWa2--
+  read() old    read() new
+  --------------------------
+       "low"           "low"
+       "low"           "foo" -- the app does not know what does this mean
+       "med"           "bar" -- ditto
+       "med"           "med"
+
+> This is pretty simple and solves all the problems we've discussed
+> so far.
+> 
+> Why can't we just do it?
+
+Because of the problems described above. Again, add versioning and there
+will be no problem (but just the fact that we need for versioning for that
+kind of interface might raise questions).
+
+> > > > Here is more complicated case:
+> > > > 
+> > > > Old kernels, pressure_level reads:
+> > > > 
+> > > >   low, med, crit
+> > > > 
+> > > > The app just wants to listen for med level.
+> > > > 
+> > > > New kernels, pressure_level reads:
+> > > > 
+> > > >   low, FOO, med, BAR, crit
+> > > > 
+> > > > How would application decide which of FOO and BAR are ex-med levels?
+> > > 
+> > > What you meant by ex-med?
+> > 
+> > The scale is continuous and non-overlapping. If you add some other level,
+> > you effectively "shrinking" other levels, so the ex-med in the list above
+> > might correspond to "FOO, med" or "med, BAR" or "FOO, med, BAR", and that
+> > is exactly the problem.
+> 
+> Just return the events in order?
+
+The order is not a problem, the meaning is. The old app does not know the
+meaning of FOO or BAR levels, for it is is literally "some foo" and "some
+bar" -- it can't make any decision.
+
+Anton
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
