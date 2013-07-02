@@ -1,237 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 0ED946B0032
-	for <linux-mm@kvack.org>; Tue,  2 Jul 2013 04:20:36 -0400 (EDT)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout2.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MPA003AKV3RXW20@mailout2.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 02 Jul 2013 09:20:35 +0100 (BST)
-Message-id: <51D28D51.6090305@samsung.com>
-Date: Tue, 02 Jul 2013 10:20:33 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-MIME-version: 1.0
-Subject: Re: [PATCH -V3 1/4] mm/cma: Move dma contiguous changes into a
- seperate config
-References: <1372743918-12293-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-reply-to: <1372743918-12293-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Content-type: text/plain; charset=UTF-8; format=flowed
-Content-transfer-encoding: 7bit
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id E74126B0032
+	for <linux-mm@kvack.org>; Tue,  2 Jul 2013 04:29:08 -0400 (EDT)
+Received: by mail-lb0-f171.google.com with SMTP id 13so3135349lba.16
+        for <linux-mm@kvack.org>; Tue, 02 Jul 2013 01:29:07 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20130702043256.GA14927@teo>
+References: <20130628043411.GA9100@teo>
+	<20130628050712.GA10097@teo>
+	<20130628100027.31504abe@redhat.com>
+	<20130628165722.GA12271@teo>
+	<20130628170917.GA12610@teo>
+	<20130628144507.37d28ed9@redhat.com>
+	<20130628185547.GA14520@teo>
+	<20130628154402.4035f2fa@redhat.com>
+	<20130629005637.GA16068@teo>
+	<CAOK=xROD2AKbgw4V65ddqWFODtn4B1-uYG-NF==oANqVFmZZtg@mail.gmail.com>
+	<20130702043256.GA14927@teo>
+Date: Tue, 2 Jul 2013 17:29:06 +0900
+Message-ID: <CAOK=xRP9o7+qoOMmKj-ZZOHZtDqErS-SCnDXf86fvTjocQROTg@mail.gmail.com>
+Subject: Re: [PATCH v2] vmpressure: implement strict mode
+From: Hyunhee Kim <hyunhee.kim@samsung.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: benh@kernel.crashing.org, paulus@samba.org, agraf@suse.de, mina86@mina86.com, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org, kvm@vger.kernel.org
+To: Anton Vorontsov <anton@enomsg.org>
+Cc: Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.cz, kmpark@infradead.org
 
-Hello,
-
-On 7/2/2013 7:45 AM, Aneesh Kumar K.V wrote:
-> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+2013/7/2 Anton Vorontsov <anton@enomsg.org>:
+> On Mon, Jul 01, 2013 at 05:22:36PM +0900, Hyunhee Kim wrote:
+>> >> > > for each event in memory.pressure_level; do
+>> >> > >   /* register eventfd to be notified on "event" */
+>> >> > > done
+>> >> >
+>> >> > This scheme registers "all" events.
+>> >>
+>> >> Yes, because I thought that's the user-case that matters for activity
+>> >> manager :)
+>> >
+>> > Some activity managers use only low levels (Android), some might use only
+>> > medium levels (simple load-balancing).
+>>
+>> When the platform like Android uses only "low" level, is it the
+>> process you intended when designing vmpressure?
+>>
+>> 1. activity manager receives "low" level events
+>> 2. it reads and checks the current memory (e.g. available memory) using vmstat
+>> 3. if the available memory is not under the threshold (defined e.g. by
+>> activity manager), activity manager does nothing
+>> 4. if the available memory is under the threshold, activity manager
+>> handles it by e.g. reclaiming or killing processes?
 >
-> We want to use CMA for allocating hash page table and real mode area for
-> PPC64. Hence move DMA contiguous related changes into a seperate config
-> so that ppc64 can enable CMA without requiring DMA contiguous.
+> Yup, exactly.
 >
-> Acked-by: Michal Nazarewicz <mina86@mina86.com>
-> Acked-by: Paul Mackerras <paulus@samba.org>
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-
-OK. It looks that there is not that much that can be easily shared between
-dma-mapping cma provider and ppc/kvm cma allocator. I would prefer to merge
-patch 1/4 to my dma-mapping tree, because I plan some significant changes in
-cma code, see: 
-http://thread.gmane.org/gmane.linux.drivers.devicetree/40013/
-I think it is better to keep those changes together.
-
-For now I've merged your patch with removed defconfig updates. AFAIK such
-changes require separate handling to avoid pointless merge conflicts. I've
-also prepared a topic branch for-v3.12-cma-dma, available at
-git://git.linaro.org/people/mszyprowski/linux-dma-mapping, which You can 
-merge
-together with your changes to ppc kernel trees.
-
-> ---
->   arch/arm/configs/omap2plus_defconfig  |  2 +-
->   arch/arm/configs/tegra_defconfig      |  2 +-
->   arch/arm/include/asm/dma-contiguous.h |  2 +-
->   arch/arm/mm/dma-mapping.c             |  6 +++---
->   drivers/base/Kconfig                  | 20 ++++----------------
->   drivers/base/Makefile                 |  2 +-
->   include/linux/dma-contiguous.h        |  2 +-
->   mm/Kconfig                            | 24 ++++++++++++++++++++++++
->   8 files changed, 36 insertions(+), 24 deletions(-)
+>> At first time when I saw this vmpressure, I thought that I should
+>> register all events ("low", "medium", and "critical
+>> ") and use different handler for each event. However, without the mode
+>> like strict mode, I should see too many events. So, now, I think that
+>> it is better to use only one level and run each handler after checking
+>> available memory as you mentioned.
 >
-> diff --git a/arch/arm/configs/omap2plus_defconfig b/arch/arm/configs/omap2plus_defconfig
-> index abbe319..098268f 100644
-> --- a/arch/arm/configs/omap2plus_defconfig
-> +++ b/arch/arm/configs/omap2plus_defconfig
-> @@ -71,7 +71,7 @@ CONFIG_MAC80211=m
->   CONFIG_MAC80211_RC_PID=y
->   CONFIG_MAC80211_RC_DEFAULT_PID=y
->   CONFIG_UEVENT_HELPER_PATH="/sbin/hotplug"
-> -CONFIG_CMA=y
-> +CONFIG_DMA_CMA=y
->   CONFIG_CONNECTOR=y
->   CONFIG_DEVTMPFS=y
->   CONFIG_DEVTMPFS_MOUNT=y
-> diff --git a/arch/arm/configs/tegra_defconfig b/arch/arm/configs/tegra_defconfig
-> index f7ba3161..34ae8f2 100644
-> --- a/arch/arm/configs/tegra_defconfig
-> +++ b/arch/arm/configs/tegra_defconfig
-> @@ -79,7 +79,7 @@ CONFIG_RFKILL_GPIO=y
->   CONFIG_DEVTMPFS=y
->   CONFIG_DEVTMPFS_MOUNT=y
->   # CONFIG_FIRMWARE_IN_KERNEL is not set
-> -CONFIG_CMA=y
-> +CONFIG_DMA_CMA=y
->   CONFIG_MTD=y
->   CONFIG_MTD_CHAR=y
->   CONFIG_MTD_M25P80=y
-> diff --git a/arch/arm/include/asm/dma-contiguous.h b/arch/arm/include/asm/dma-contiguous.h
-> index 3ed37b4..e072bb2 100644
-> --- a/arch/arm/include/asm/dma-contiguous.h
-> +++ b/arch/arm/include/asm/dma-contiguous.h
-> @@ -2,7 +2,7 @@
->   #define ASMARM_DMA_CONTIGUOUS_H
->   
->   #ifdef __KERNEL__
-> -#ifdef CONFIG_CMA
-> +#ifdef CONFIG_DMA_CMA
->   
->   #include <linux/types.h>
->   #include <asm-generic/dma-contiguous.h>
-> diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-> index ef3e0f3..1fb40dc 100644
-> --- a/arch/arm/mm/dma-mapping.c
-> +++ b/arch/arm/mm/dma-mapping.c
-> @@ -358,7 +358,7 @@ static int __init atomic_pool_init(void)
->   	if (!pages)
->   		goto no_pages;
->   
-> -	if (IS_ENABLED(CONFIG_CMA))
-> +	if (IS_ENABLED(CONFIG_DMA_CMA))
->   		ptr = __alloc_from_contiguous(NULL, pool->size, prot, &page,
->   					      atomic_pool_init);
->   	else
-> @@ -670,7 +670,7 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
->   		addr = __alloc_simple_buffer(dev, size, gfp, &page);
->   	else if (!(gfp & __GFP_WAIT))
->   		addr = __alloc_from_pool(size, &page);
-> -	else if (!IS_ENABLED(CONFIG_CMA))
-> +	else if (!IS_ENABLED(CONFIG_DMA_CMA))
->   		addr = __alloc_remap_buffer(dev, size, gfp, prot, &page, caller);
->   	else
->   		addr = __alloc_from_contiguous(dev, size, prot, &page, caller);
-> @@ -759,7 +759,7 @@ static void __arm_dma_free(struct device *dev, size_t size, void *cpu_addr,
->   		__dma_free_buffer(page, size);
->   	} else if (__free_from_pool(cpu_addr, size)) {
->   		return;
-> -	} else if (!IS_ENABLED(CONFIG_CMA)) {
-> +	} else if (!IS_ENABLED(CONFIG_DMA_CMA)) {
->   		__dma_free_remap(cpu_addr, size);
->   		__dma_free_buffer(page, size);
->   	} else {
-> diff --git a/drivers/base/Kconfig b/drivers/base/Kconfig
-> index 07abd9d..10cd80a 100644
-> --- a/drivers/base/Kconfig
-> +++ b/drivers/base/Kconfig
-> @@ -202,11 +202,9 @@ config DMA_SHARED_BUFFER
->   	  APIs extension; the file's descriptor can then be passed on to other
->   	  driver.
->   
-> -config CMA
-> -	bool "Contiguous Memory Allocator"
-> -	depends on HAVE_DMA_CONTIGUOUS && HAVE_MEMBLOCK
-> -	select MIGRATION
-> -	select MEMORY_ISOLATION
-> +config DMA_CMA
-> +	bool "DMA Contiguous Memory Allocator"
-> +	depends on HAVE_DMA_CONTIGUOUS && CMA
->   	help
->   	  This enables the Contiguous Memory Allocator which allows drivers
->   	  to allocate big physically-contiguous blocks of memory for use with
-> @@ -215,17 +213,7 @@ config CMA
->   	  For more information see <include/linux/dma-contiguous.h>.
->   	  If unsure, say "n".
->   
-> -if CMA
-> -
-> -config CMA_DEBUG
-> -	bool "CMA debug messages (DEVELOPMENT)"
-> -	depends on DEBUG_KERNEL
-> -	help
-> -	  Turns on debug messages in CMA.  This produces KERN_DEBUG
-> -	  messages for every CMA call as well as various messages while
-> -	  processing calls such as dma_alloc_from_contiguous().
-> -	  This option does not affect warning and error messages.
-> -
-> +if  DMA_CMA
->   comment "Default contiguous memory area size:"
->   
->   config CMA_SIZE_MBYTES
-> diff --git a/drivers/base/Makefile b/drivers/base/Makefile
-> index 4e22ce3..5d93bb5 100644
-> --- a/drivers/base/Makefile
-> +++ b/drivers/base/Makefile
-> @@ -6,7 +6,7 @@ obj-y			:= core.o bus.o dd.o syscore.o \
->   			   attribute_container.o transport_class.o \
->   			   topology.o
->   obj-$(CONFIG_DEVTMPFS)	+= devtmpfs.o
-> -obj-$(CONFIG_CMA) += dma-contiguous.o
-> +obj-$(CONFIG_DMA_CMA) += dma-contiguous.o
->   obj-y			+= power/
->   obj-$(CONFIG_HAS_DMA)	+= dma-mapping.o
->   obj-$(CONFIG_HAVE_GENERIC_DMA_COHERENT) += dma-coherent.o
-> diff --git a/include/linux/dma-contiguous.h b/include/linux/dma-contiguous.h
-> index 01b5c84..00141d3 100644
-> --- a/include/linux/dma-contiguous.h
-> +++ b/include/linux/dma-contiguous.h
-> @@ -57,7 +57,7 @@ struct cma;
->   struct page;
->   struct device;
->   
-> -#ifdef CONFIG_CMA
-> +#ifdef CONFIG_DMA_CMA
->   
->   /*
->    * There is always at least global CMA area and a few optional device
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index e742d06..26a5f81 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -477,3 +477,27 @@ config FRONTSWAP
->   	  and swap data is stored as normal on the matching swap device.
->   
->   	  If unsure, say Y to enable frontswap.
-> +
-> +config CMA
-> +	bool "Contiguous Memory Allocator"
-> +	depends on HAVE_MEMBLOCK
-> +	select MIGRATION
-> +	select MEMORY_ISOLATION
-> +	help
-> +	  This enables the Contiguous Memory Allocator which allows other
-> +	  subsystems to allocate big physically-contiguous blocks of memory.
-> +	  CMA reserves a region of memory and allows only movable pages to
-> +	  be allocated from it. This way, the kernel can use the memory for
-> +	  pagecache and when a subsystem requests for contiguous area, the
-> +	  allocated pages are migrated away to serve the contiguous request.
-> +
-> +	  If unsure, say "n".
-> +
-> +config CMA_DEBUG
-> +	bool "CMA debug messages (DEVELOPMENT)"
-> +	depends on DEBUG_KERNEL && CMA
-> +	help
-> +	  Turns on debug messages in CMA.  This produces KERN_DEBUG
-> +	  messages for every CMA call as well as various messages while
-> +	  processing calls such as dma_alloc_from_contiguous().
-> +	  This option does not affect warning and error messages.
+> Yup, this should work ideally.
 
-Best regards
--- 
-Marek Szyprowski
-Samsung R&D Institute Poland
+Thanks for your reply.
+I think that, as you mentioned, using one level event could work well
+when activity manager checks available memory in user space.
 
+I also think that Luiz's use case and the use case I thought at first
+(registering "low", "medium", and "critical", and run each handler)
+are another examples of use cases that could be widely used.
+For example, let's think about the case when userland wants to know
+"pressure level" (reclaim ratio calculated by vmpressure 0~60~100).
+In this case, if we do not register all of these events and register
+only "low" level, we cannot distinguish "low", "medium", and
+"critical" pressure level in userland.
+This reclaim ratio cannot be identified in userland.
+
+Thanks.
+Hyunhee Kim.
+
+>
+>> But,
+>>
+>> 1. Isn't it overhead to read event and check memory state every time
+>> we receive events?
+>
+> Even if it is an overhead, is it measurable? Plus, vmstat/memcg stats are
+> the only source of information that Activity Manager can use to make a
+> decision, so there is no point in duplicating the information in the
+> notifications.
+>
+>>     - sometimes, even when there are lots of available memory, low
+>> level event could occur if most of them is reclaimable memory not free
+>> pages.
+>
+> The point of low level is to signal [any] reclaiming activity. So, yes,
+>
+>>     - Don't most of platforms use available memory to judge their
+>> current memory state?
+>
+> No, because you hardly want to monitor available memory only. You want to
+> take into account the level of the page caches, etc.
+>
+>> Is there any reason vmpressure use reclaim rate?
+>
+> Yes, you can refer to this email:
+>
+>   http://lkml.org/lkml/2012/10/4/145
+>
+> And here is about the levels thing:
+>
+>   http://lkml.org/lkml/2012/10/22/177
+>
+>> IMO, activity manager doesn't have to check available memory if it
+>> could receive signal based on the available memory.
+>
+> But userspace can define its own policy of managing the tasks/resouces
+> based on different factors, other than just available memory. And that is
+> exactly why we don't filter the events in the kernel anymore. The only
+> filtering that we make is the levels, which, as it appears, can work for
+> many use-cases.
+>
+>> 2. If we use only "medium" to avoid the overheads occurred when using
+>> "low" level, isn't it possible to miss sending events when there is a
+>> little available memory but reclaim ratio is high?
+>
+> If your app don't "trust" reclaim ratio idicator, then the application can
+> use its own heuristics, using low level just to monitor reclaiming
+> activity. More than that, you can change vmpressure itself to use
+> different heuristics for low/med/crit levels: the point of introducing
+> levels was also to hide the implementation and memory management details,
+> so if you can come up with a better approach for vmpressure "internals"
+> you are more than welcome to do so. :)
+>
+>> IMHO, we cannot consider and cover all the use cases, but considering
+>> some use cases and giving some guides and directions to use this
+>> vmpressure will be helpful to make many platform accept this for their
+>> low memory manager.
+>
+> Can't argue with that. :) I guess I will need to better document current
+> behavior of the levels and when exactly the events trigger.
+>
+> Thanks!
+>
+> Anton
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
