@@ -1,61 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 499156B0034
-	for <linux-mm@kvack.org>; Tue,  2 Jul 2013 11:33:01 -0400 (EDT)
-Message-ID: <51D2F2A9.8040503@suse.de>
-Date: Tue, 02 Jul 2013 17:32:57 +0200
-From: Alexander Graf <agraf@suse.de>
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 693B56B0032
+	for <linux-mm@kvack.org>; Tue,  2 Jul 2013 11:34:12 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 3 Jul 2013 12:30:09 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 42F303578051
+	for <linux-mm@kvack.org>; Wed,  3 Jul 2013 01:34:08 +1000 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r62FXxra23789672
+	for <linux-mm@kvack.org>; Wed, 3 Jul 2013 01:33:59 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r62FY7bd003290
+	for <linux-mm@kvack.org>; Wed, 3 Jul 2013 01:34:07 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH -V3 1/4] mm/cma: Move dma contiguous changes into a seperate config
+In-Reply-To: <51D28D51.6090305@samsung.com>
+References: <1372743918-12293-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <51D28D51.6090305@samsung.com>
+Date: Tue, 02 Jul 2013 21:03:57 +0530
+Message-ID: <87txkdyo0q.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH -V3 2/4] powerpc/kvm: Contiguous memory allocator based
- hash page table allocation
-References: <1372743918-12293-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1372743918-12293-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <51D2EDD7.9060205@suse.de> <87wqp9yo4m.fsf@linux.vnet.ibm.com>
-In-Reply-To: <87wqp9yo4m.fsf@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: benh@kernel.crashing.org, paulus@samba.org, m.szyprowski@samsung.com, mina86@mina86.com, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org, kvm@vger.kernel.org
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: benh@kernel.crashing.org, paulus@samba.org, agraf@suse.de, mina86@mina86.com, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org, kvm@vger.kernel.org
 
-On 07/02/2013 05:31 PM, Aneesh Kumar K.V wrote:
-> Alexander Graf<agraf@suse.de>  writes:
+Marek Szyprowski <m.szyprowski@samsung.com> writes:
+
+> Hello,
 >
->> On 07/02/2013 07:45 AM, Aneesh Kumar K.V wrote:
->>> From: "Aneesh Kumar K.V"<aneesh.kumar@linux.vnet.ibm.com>
->>>
->>> Powerpc architecture uses a hash based page table mechanism for mapping virtual
->>> addresses to physical address. The architecture require this hash page table to
->>> be physically contiguous. With KVM on Powerpc currently we use early reservation
->>> mechanism for allocating guest hash page table. This implies that we need to
->>> reserve a big memory region to ensure we can create large number of guest
->>> simultaneously with KVM on Power. Another disadvantage is that the reserved memory
->>> is not available to rest of the subsystems and and that implies we limit the total
->>> available memory in the host.
->>>
->>> This patch series switch the guest hash page table allocation to use
->>> contiguous memory allocator.
->>>
->>> Signed-off-by: Aneesh Kumar K.V<aneesh.kumar@linux.vnet.ibm.com>
->> Is CMA a mandatory option in the kernel? Or can it be optionally
->> disabled? If it can be disabled, we should keep the preallocated
->> fallback case around for systems that have CMA disabled.
+> On 7/2/2013 7:45 AM, Aneesh Kumar K.V wrote:
+>> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 >>
-> CMA is not a mandatory option. But we have
+>> We want to use CMA for allocating hash page table and real mode area for
+>> PPC64. Hence move DMA contiguous related changes into a seperate config
+>> so that ppc64 can enable CMA without requiring DMA contiguous.
+>>
+>> Acked-by: Michal Nazarewicz <mina86@mina86.com>
+>> Acked-by: Paul Mackerras <paulus@samba.org>
+>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 >
-> config KVM_BOOK3S_64_HV
-> 	bool "KVM support for POWER7 and PPC970 using hypervisor mode in host"
-> 	depends on KVM_BOOK3S_64
-> 	select MMU_NOTIFIER
-> 	select CMA
+> OK. It looks that there is not that much that can be easily shared between
+> dma-mapping cma provider and ppc/kvm cma allocator. I would prefer to merge
+> patch 1/4 to my dma-mapping tree, because I plan some significant changes in
+> cma code, see: 
+> http://thread.gmane.org/gmane.linux.drivers.devicetree/40013/
+> I think it is better to keep those changes together.
 >
-> ie, for book3s HV we select CMA and only this CMA needs is memblock
-> which we already support
+> For now I've merged your patch with removed defconfig updates. AFAIK such
+> changes require separate handling to avoid pointless merge conflicts.
 
-Ah, that was the hunk I did miss. Thanks a lot, then it's perfectly fine 
-of course :). Very nice patch set btw.
+How do we get the defconfig changes done ?
 
+> I've
+> also prepared a topic branch for-v3.12-cma-dma, available at
+> git://git.linaro.org/people/mszyprowski/linux-dma-mapping, which You can 
+> merge
+> together with your changes to ppc kernel trees.
+>
 
-Alex
+Thanks. Will update accordingly as other patches get picked into
+respective trees
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
