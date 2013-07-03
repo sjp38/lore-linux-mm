@@ -1,41 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id A7FF36B0033
-	for <linux-mm@kvack.org>; Wed,  3 Jul 2013 02:16:40 -0400 (EDT)
-Date: Wed, 3 Jul 2013 16:15:31 +1000
-From: Paul Mackerras <paulus@samba.org>
-Subject: Re: [PATCH -V3 2/4] powerpc/kvm: Contiguous memory allocator based
- hash page table allocation
-Message-ID: <20130703061531.GA25034@drongo>
-References: <1372743918-12293-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1372743918-12293-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 98F5D6B0031
+	for <linux-mm@kvack.org>; Wed,  3 Jul 2013 03:24:14 -0400 (EDT)
+Received: by mail-wi0-f173.google.com with SMTP id hq4so4879377wib.12
+        for <linux-mm@kvack.org>; Wed, 03 Jul 2013 00:24:12 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1372743918-12293-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Reply-To: sedat.dilek@gmail.com
+In-Reply-To: <20130702223714.GA28048@redhat.com>
+References: <CA+icZUXo=Z4gDfCMvLqRQDq_fpNAq+UqtUw=jrU=3=kVZP-2+A@mail.gmail.com>
+	<20130630181945.GA5171@redhat.com>
+	<CA+icZUWLUSg-Sfd9FHXs8Amz+-s6vs_VOJsQpUSa9+fYM8XyNQ@mail.gmail.com>
+	<20130702223714.GA28048@redhat.com>
+Date: Wed, 3 Jul 2013 09:24:12 +0200
+Message-ID: <CA+icZUWV+O9x7VUt9ocu3kk10vqDv3oEQ533mnsWhBiEKk7fJQ@mail.gmail.com>
+Subject: Re: linux-next: Tree for Jun 28 [ BISECTED: rsyslog/imklog: High CPU
+ usage ]
+From: Sedat Dilek <sedat.dilek@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: benh@kernel.crashing.org, agraf@suse.de, m.szyprowski@samsung.com, mina86@mina86.com, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org, kvm@vger.kernel.org
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, Stephen Rothwell <sfr@canb.auug.org.au>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Daniel Vetter <daniel.vetter@ffwll.ch>, Imre Deak <imre.deak@intel.com>, Lukas Czerner <lczerner@redhat.com>, Samuel Ortiz <samuel@sortiz.org>, Wensong Zhang <wensong@linux-vs.org>, Simon Horman <horms@verge.net.au>, Julian Anastasov <ja@ssi.bg>, Ralf Baechle <ralf@linux-mips.org>, Valdis.Kletnieks@vt.edu, linux-mm <linux-mm@kvack.org>
 
-On Tue, Jul 02, 2013 at 11:15:16AM +0530, Aneesh Kumar K.V wrote:
-> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> 
-> Powerpc architecture uses a hash based page table mechanism for mapping virtual
-> addresses to physical address. The architecture require this hash page table to
-> be physically contiguous. With KVM on Powerpc currently we use early reservation
-> mechanism for allocating guest hash page table. This implies that we need to
-> reserve a big memory region to ensure we can create large number of guest
-> simultaneously with KVM on Power. Another disadvantage is that the reserved memory
-> is not available to rest of the subsystems and and that implies we limit the total
-> available memory in the host.
-> 
-> This patch series switch the guest hash page table allocation to use
-> contiguous memory allocator.
-> 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+On Wed, Jul 3, 2013 at 12:37 AM, Oleg Nesterov <oleg@redhat.com> wrote:
+> Hi Sedat,
+>
+> On 07/02, Sedat Dilek wrote:
+>>
+>> did you made a cleaned-up version?
+>> AFAICS v3, I read that on linux-mm ML, sorry if I ask here in this thread.
+>
+> Yes, I am going to send v3 with this fix + another minor change.
+> Sorry for delay, I was distracted, will try tomorrow.
+>
+> Besides, I think Andrew and Stephen need a rest before I try to
+> break wait.h or the third time.
+>
 
-Acked-by: Paul Mackerras <paulus@samba.org>
+Everyone should get a 3rd chance :-).
+
+BTW, dealing with such issues makes me more and more familiar with my
+Linux-systems.
+
+- Sedat -
+
+> Oleg.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
