@@ -1,70 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 79A6E6B0031
-	for <linux-mm@kvack.org>; Wed,  3 Jul 2013 17:57:12 -0400 (EDT)
-Date: Wed, 3 Jul 2013 17:56:54 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 07/13] sched: Split accounting of NUMA hinting faults
- that pass two-stage filter
-Message-ID: <20130703215654.GN17812@cmpxchg.org>
-References: <1372861300-9973-1-git-send-email-mgorman@suse.de>
- <1372861300-9973-8-git-send-email-mgorman@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1372861300-9973-8-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id BF7656B0031
+	for <linux-mm@kvack.org>; Wed,  3 Jul 2013 19:04:59 -0400 (EDT)
+Message-ID: <1372892697.8728.22.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: mmotm 2013-07-02-15-32 uploaded
+From: Davidlohr Bueso <davidlohr.bueso@hp.com>
+Date: Wed, 03 Jul 2013 16:04:57 -0700
+In-Reply-To: <CA+icZUWX761O5tAfdYfgR0_QA8zMiZOqBBjzbWVeEcZPL+M_pQ@mail.gmail.com>
+References: <20130702223405.AF5BB5A4016@corp2gmr1-2.hot.corp.google.com>
+	 <CA+icZUWX761O5tAfdYfgR0_QA8zMiZOqBBjzbWVeEcZPL+M_pQ@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: sedat.dilek@gmail.com
+Cc: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
 
-On Wed, Jul 03, 2013 at 03:21:34PM +0100, Mel Gorman wrote:
-> Ideally it would be possible to distinguish between NUMA hinting faults
-> that are private to a task and those that are shared. This would require
-> that the last task that accessed a page for a hinting fault would be
-> recorded which would increase the size of struct page. Instead this patch
-> approximates private pages by assuming that faults that pass the two-stage
-> filter are private pages and all others are shared. The preferred NUMA
-> node is then selected based on where the maximum number of approximately
-> private faults were measured. Shared faults are not taken into
-> consideration for a few reasons.
+On Wed, 2013-07-03 at 09:44 +0200, Sedat Dilek wrote:
+> On Wed, Jul 3, 2013 at 12:34 AM,  <akpm@linux-foundation.org> wrote:
+> > The mm-of-the-moment snapshot 2013-07-02-15-32 has been uploaded to
+> >
+> >    http://www.ozlabs.org/~akpm/mmotm/
+> >
+> > mmotm-readme.txt says
+> >
+> > README for mm-of-the-moment:
+> >
+> > http://www.ozlabs.org/~akpm/mmotm/
+> >
+> > This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+> > more than once a week.
+> >
+> > You will need quilt to apply these patches to the latest Linus release (3.x
+> > or 3.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+> > http://ozlabs.org/~akpm/mmotm/series
+> >
+> > The file broken-out.tar.gz contains two datestamp files: .DATE and
+> > .DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+> > followed by the base kernel version against which this patch series is to
+> > be applied.
+> >
+> > This tree is partially included in linux-next.  To see which patches are
+> > included in linux-next, consult the `series' file.  Only the patches
+> > within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+> > linux-next.
+> >
+> 
+> Hi Andrew,
+> 
+> 1st, I would like to see a diff to previous mmotm release.
+> Is that possible - with the announce.
+> For example, I like to diff series file of mmot*m* and mmot*s*.
+> 
+> AFAICS, you wanted to fold the fix into the real patch?
+> 
+> ipcmsg-shorten-critical-region-in-msgctl_down.patch
+> ipcmsg-shorten-critical-region-in-msgrcv-fix-race-in-msgrcv2.patch
 
-Ingo had a patch that would just encode a few bits of the PID along
-with the last_nid (last_cpu in his case) member of struct page.  No
-extra space required and should be accurate enough.
+IIRC, it will be folded in once it reaches Linus.
 
-Otherwise this is blind to sharedness within the node the task is
-currently running on, right?
+> 
+> 3rd, is the "sysv-ipc-shm-optimizations" patchset from Davidlohr included here?
+> ( I had no closer look. )
 
-> First, if there are many tasks sharing the page then they'll all move
-> towards the same node. The node will be compute overloaded and then
-> scheduled away later only to bounce back again. Alternatively the shared
-> tasks would just bounce around nodes because the fault information is
-> effectively noise. Either way accounting for shared faults the same as
-> private faults may result in lower performance overall.
+Those are being considered for 3.12 now, I'll resend the patchset once
+3.11-rc1 is out.
 
-When the node with many shared pages is compute overloaded then there
-is arguably not an optimal node for the tasks and moving them off is
-inevitable.  However, the node with the most page accesses, private or
-shared, is still the preferred node from a memory stand point.
-Compute load being equal, the task should go to the node with 2GB of
-shared memory and not to the one with 2 private pages.
-
-If the load balancer moves the task off due to cpu load reasons,
-wouldn't the settle count mechanism prevent it from bouncing back?
-
-Likewise, if the cpu load situation changes, the balancer could move
-the task back to its truly preferred node.
-
-> The second reason is based on a hypothetical workload that has a small
-> number of very important, heavily accessed private pages but a large shared
-> array. The shared array would dominate the number of faults and be selected
-> as a preferred node even though it's the wrong decision.
-
-That's a scan granularity problem and I can't see how you solve it
-with ignoring the shared pages.  What if the situation is opposite
-with a small, heavily used shared set and many rarely used private
-pages?
+Thanks,
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
