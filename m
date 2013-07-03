@@ -1,211 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 92A266B0038
-	for <linux-mm@kvack.org>; Wed,  3 Jul 2013 04:35:20 -0400 (EDT)
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [RFC PATCH 5/5] readhead: support multiple pages allocation for readahead
-Date: Wed,  3 Jul 2013 17:34:20 +0900
-Message-Id: <1372840460-5571-6-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1372840460-5571-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1372840460-5571-1-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 8E89D6B0031
+	for <linux-mm@kvack.org>; Wed,  3 Jul 2013 04:41:41 -0400 (EDT)
+Received: from /spool/local
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
+	Wed, 3 Jul 2013 09:36:34 +0100
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
+	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 171201B08075
+	for <linux-mm@kvack.org>; Wed,  3 Jul 2013 09:41:38 +0100 (BST)
+Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r638fQ7X55378110
+	for <linux-mm@kvack.org>; Wed, 3 Jul 2013 08:41:26 GMT
+Received: from d06av03.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av03.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r638fajk031739
+	for <linux-mm@kvack.org>; Wed, 3 Jul 2013 02:41:37 -0600
+Date: Wed, 3 Jul 2013 10:41:34 +0200
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: PageDirty check in mk_pte for s390
+Message-ID: <20130703104134.4e901aea@mschwide>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org, linux-s390@vger.kernel.org
 
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Hi Hugh,
 
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index e3dea75..eb1472c 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -217,28 +217,33 @@ static inline void page_unfreeze_refs(struct page *page, int count)
- }
- 
- #ifdef CONFIG_NUMA
--extern struct page *__page_cache_alloc(gfp_t gfp);
-+extern struct page *__page_cache_alloc(gfp_t gfp,
-+			unsigned long *nr_pages, struct page **pages);
- #else
--static inline struct page *__page_cache_alloc(gfp_t gfp)
-+static inline struct page *__page_cache_alloc(gfp_t gfp,
-+			unsigned long *nr_pages, struct page **pages)
+I still have the patch below in my patch heap. Should I just go ahead and
+add it to my s390-tree or do you prefer to take care of it yourself ?
+
+--
+Subject: [PATCH] s390/mm: move PageDirty check from mk_pte to common code
+
+Hugh Dickins commented on the software dirty bit implementation and he
+does not like the fact that mk_pte uses PageDirty under the covers.
+His suggestion is to move the PageDirty check into the __do_fault
+function.
+
+Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
+---
+ arch/s390/include/asm/pgtable.h |  9 +++------
+ mm/memory.c                     | 12 ++++++++++++
+ 2 files changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
+index 68e6168..d56dc6d 100644
+--- a/arch/s390/include/asm/pgtable.h
++++ b/arch/s390/include/asm/pgtable.h
+@@ -1260,13 +1260,8 @@ static inline pte_t mk_pte_phys(unsigned long physpage, pgprot_t pgprot)
+ static inline pte_t mk_pte(struct page *page, pgprot_t pgprot)
  {
--	return alloc_pages(gfp, 0);
-+	return alloc_pages_exact_node_multiple(numa_node_id(),
-+						gfp, nr_pages, pages);
- }
- #endif
+ 	unsigned long physpage = page_to_phys(page);
+-	pte_t __pte = mk_pte_phys(physpage, pgprot);
  
- static inline struct page *page_cache_alloc(struct address_space *x)
- {
--	return __page_cache_alloc(mapping_gfp_mask(x));
-+	return __page_cache_alloc(mapping_gfp_mask(x), NULL, NULL);
- }
- 
- static inline struct page *page_cache_alloc_cold(struct address_space *x)
- {
--	return __page_cache_alloc(mapping_gfp_mask(x)|__GFP_COLD);
-+	return __page_cache_alloc(mapping_gfp_mask(x)|__GFP_COLD, NULL, NULL);
+-	if ((pte_val(__pte) & _PAGE_SWW) && PageDirty(page)) {
+-		pte_val(__pte) |= _PAGE_SWC;
+-		pte_val(__pte) &= ~_PAGE_RO;
+-	}
+-	return __pte;
++	return mk_pte_phys(physpage, pgprot);
  }
  
--static inline struct page *page_cache_alloc_readahead(struct address_space *x)
-+static inline struct page *page_cache_alloc_readahead(struct address_space *x,
-+				unsigned long *nr_pages, struct page **pages)
- {
- 	return __page_cache_alloc(mapping_gfp_mask(x) |
--				  __GFP_COLD | __GFP_NORETRY | __GFP_NOWARN);
-+				  __GFP_COLD | __GFP_NORETRY | __GFP_NOWARN,
-+				  nr_pages, pages);
- }
+ #define pgd_index(address) (((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
+@@ -1599,6 +1594,8 @@ extern int s390_enable_sie(void);
+ static inline void pgtable_cache_init(void) { }
+ static inline void check_pgt_cache(void) { }
  
- typedef int filler_t(void *, struct page *);
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 7905fe7..0bbfda9 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -510,7 +510,8 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
- EXPORT_SYMBOL_GPL(add_to_page_cache_lru);
- 
- #ifdef CONFIG_NUMA
--struct page *__page_cache_alloc(gfp_t gfp)
-+struct page *__page_cache_alloc(gfp_t gfp,
-+			unsigned long *nr_pages, struct page **pages)
- {
- 	int n;
- 	struct page *page;
-@@ -520,12 +521,14 @@ struct page *__page_cache_alloc(gfp_t gfp)
- 		do {
- 			cpuset_mems_cookie = get_mems_allowed();
- 			n = cpuset_mem_spread_node();
--			page = alloc_pages_exact_node(n, gfp, 0);
-+			page = alloc_pages_exact_node_multiple(n,
-+						gfp, nr_pages, pages);
- 		} while (!put_mems_allowed(cpuset_mems_cookie) && !page);
- 
- 		return page;
- 	}
--	return alloc_pages(gfp, 0);
-+	return alloc_pages_exact_node_multiple(numa_node_id(), gfp,
-+							nr_pages, pages);
- }
- EXPORT_SYMBOL(__page_cache_alloc);
- #endif
-@@ -789,7 +792,7 @@ struct page *find_or_create_page(struct address_space *mapping,
- repeat:
- 	page = find_lock_page(mapping, index);
- 	if (!page) {
--		page = __page_cache_alloc(gfp_mask);
-+		page = __page_cache_alloc(gfp_mask, NULL, NULL);
- 		if (!page)
- 			return NULL;
- 		/*
-@@ -1053,7 +1056,8 @@ grab_cache_page_nowait(struct address_space *mapping, pgoff_t index)
- 		page_cache_release(page);
- 		return NULL;
- 	}
--	page = __page_cache_alloc(mapping_gfp_mask(mapping) & ~__GFP_FS);
-+	page = __page_cache_alloc(mapping_gfp_mask(mapping) & ~__GFP_FS,
-+								NULL, NULL);
- 	if (page && add_to_page_cache_lru(page, mapping, index, GFP_NOFS)) {
- 		page_cache_release(page);
- 		page = NULL;
-@@ -1806,7 +1810,7 @@ static struct page *__read_cache_page(struct address_space *mapping,
- repeat:
- 	page = find_get_page(mapping, index);
- 	if (!page) {
--		page = __page_cache_alloc(gfp | __GFP_COLD);
-+		page = __page_cache_alloc(gfp | __GFP_COLD, NULL, NULL);
- 		if (!page)
- 			return ERR_PTR(-ENOMEM);
- 		err = add_to_page_cache_lru(page, mapping, index, gfp);
-@@ -2281,7 +2285,7 @@ repeat:
- 	if (page)
- 		goto found;
- 
--	page = __page_cache_alloc(gfp_mask & ~gfp_notmask);
-+	page = __page_cache_alloc(gfp_mask & ~gfp_notmask, NULL, NULL);
- 	if (!page)
- 		return NULL;
- 	status = add_to_page_cache_lru(page, mapping, index,
-diff --git a/mm/readahead.c b/mm/readahead.c
-index 3932f28..3e2c377 100644
---- a/mm/readahead.c
-+++ b/mm/readahead.c
-@@ -157,40 +157,61 @@ __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
- 	struct inode *inode = mapping->host;
- 	struct page *page;
- 	unsigned long end_index;	/* The last page we want to read */
-+	unsigned long end, i;
- 	LIST_HEAD(page_pool);
- 	int page_idx;
- 	int ret = 0;
- 	loff_t isize = i_size_read(inode);
-+	struct page **pages;
- 
- 	if (isize == 0)
- 		goto out;
- 
- 	end_index = ((isize - 1) >> PAGE_CACHE_SHIFT);
-+	if (offset > end_index)
-+		goto out;
++#define __ARCH_WANT_PTE_WRITE_DIRTY
 +
- 	if (offset + nr_to_read > end_index + 1)
- 		nr_to_read = end_index - offset + 1;
+ #include <asm-generic/pgtable.h>
  
-+	pages = kmalloc(sizeof(struct page *) * nr_to_read, GFP_KERNEL);
-+	if (!pages)
-+		goto out;
-+
- 	/*
- 	 * Preallocate as many pages as we will need.
- 	 */
- 	for (page_idx = 0; page_idx < nr_to_read; page_idx++) {
- 		pgoff_t page_offset = offset + page_idx;
-+		unsigned long nr_pages;
+ #endif /* _S390_PAGE_H */
+diff --git a/mm/memory.c b/mm/memory.c
+index 1207cef..765d5f2 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3417,6 +3417,18 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 				dirty_page = page;
+ 				get_page(dirty_page);
+ 			}
++#ifdef __ARCH_WANT_PTE_WRITE_DIRTY
++			/*
++			 * Architectures that use software dirty bits may
++			 * want to set the dirty bit in the pte if the pte
++			 * is writable and the PageDirty bit is set for the
++			 * page. This avoids unnecessary protection faults
++			 * for writable mappings which do not use
++			 * mapping_cap_account_dirty, e.g. tmpfs and shmem.
++			 */
++			else if (pte_write(entry) && PageDirty(page))
++				entry = pte_mkdirty(entry);
++#endif
+ 		}
+ 		set_pte_at(mm, address, page_table, entry);
  
- 		rcu_read_lock();
--		page = radix_tree_lookup(&mapping->page_tree, page_offset);
-+		end = radix_tree_next_present(&mapping->page_tree,
-+				page_offset, nr_to_read - page_idx);
- 		rcu_read_unlock();
--		if (page)
-+		nr_pages = end - page_offset;
-+		if (!nr_pages)
- 			continue;
- 
--		page = page_cache_alloc_readahead(mapping);
--		if (!page)
--			break;
--		page->index = page_offset;
--		list_add(&page->lru, &page_pool);
--		if (page_idx == nr_to_read - lookahead_size)
--			SetPageReadahead(page);
--		ret++;
-+		page_cache_alloc_readahead(mapping, &nr_pages, pages);
-+		if (!nr_pages)
-+			goto start_io;
-+
-+		for (i = 0; i < nr_pages; i++) {
-+			page = pages[i];
-+			page->index = page_offset + i;
-+			list_add(&page->lru, &page_pool);
-+			if (page_idx == nr_to_read - lookahead_size)
-+				SetPageReadahead(page);
-+			ret++;
-+		}
-+
-+		/* Skip already checked page */
-+		page_idx += nr_pages;
- 	}
- 
-+start_io:
-+	kfree(pages);
- 	/*
- 	 * Now start the IO.  We ignore I/O errors - if the page is not
- 	 * uptodate then the caller will launch readpage again, and
 -- 
-1.7.9.5
+blue skies,
+   Martin.
+
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
