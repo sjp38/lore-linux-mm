@@ -1,118 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 0D6DF6B0031
-	for <linux-mm@kvack.org>; Wed,  3 Jul 2013 06:58:50 -0400 (EDT)
-Received: by mail-wi0-f169.google.com with SMTP id c10so6097719wiw.0
-        for <linux-mm@kvack.org>; Wed, 03 Jul 2013 03:58:49 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 420AC6B0031
+	for <linux-mm@kvack.org>; Wed,  3 Jul 2013 07:01:50 -0400 (EDT)
+Message-ID: <51D4047F.2010700@parallels.com>
+Date: Wed, 3 Jul 2013 15:01:19 +0400
+From: Maxim Patlasov <mpatlasov@parallels.com>
 MIME-Version: 1.0
-Reply-To: sedat.dilek@gmail.com
-In-Reply-To: <CA+icZUUWGa0f1pKM4Vegmk3Ns8cMbQcQTR6i=XGUtpr8CkvLYA@mail.gmail.com>
-References: <CA+icZUUWGa0f1pKM4Vegmk3Ns8cMbQcQTR6i=XGUtpr8CkvLYA@mail.gmail.com>
-Date: Wed, 3 Jul 2013 12:58:49 +0200
-Message-ID: <CA+icZUWtvuq=KP2YsoUfWAZTzZWQymcXk72UbMquYGPCFkpnjg@mail.gmail.com>
-Subject: Re: linux-next: Tree for Jul 3 [ BROKEN: memcontrol.c:(.text+0x5caa6):
- undefined reference to `mem_cgroup_sockets_destroy' ]
-From: Sedat Dilek <sedat.dilek@gmail.com>
-Content-Type: multipart/mixed; boundary=f46d044402d6b2005d04e0995800
+Subject: Re: [PATCH] mm: strictlimit feature -v2
+References: <20130629174706.20175.78184.stgit@maximpc.sw.ru> <20130702174316.15075.84993.stgit@maximpc.sw.ru> <20130702123804.9f252487f86c12b0f4edee57@linux-foundation.org>
+In-Reply-To: <20130702123804.9f252487f86c12b0f4edee57@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Li Zefan <lizefan@huawei.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: miklos@szeredi.hu, riel@redhat.com, dev@parallels.com, xemul@parallels.com, fuse-devel@lists.sourceforge.net, bfoster@redhat.com, linux-kernel@vger.kernel.org, jbottomley@parallels.com, linux-mm@kvack.org, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, fengguang.wu@intel.com, devel@openvz.org, mgorman@suse.de
 
---f46d044402d6b2005d04e0995800
-Content-Type: text/plain; charset=UTF-8
+07/02/2013 11:38 PM, Andrew Morton D?D,N?DuN?:
+> On Tue, 02 Jul 2013 21:44:47 +0400 Maxim Patlasov <MPatlasov@parallels.com> wrote:
+>
+>> From: Miklos Szeredi <mszeredi@suse.cz>
+>>
+>> The feature prevents mistrusted filesystems to grow a large number of dirty
+>> pages before throttling. For such filesystems balance_dirty_pages always
+>> check bdi counters against bdi limits. I.e. even if global "nr_dirty" is under
+>> "freerun", it's not allowed to skip bdi checks. The only use case for now is
+>> fuse: it sets bdi max_ratio to 1% by default and system administrators are
+>> supposed to expect that this limit won't be exceeded.
+>>
+>> The feature is on if address space is marked by AS_STRICTLIMIT flag.
+>> A filesystem may set the flag when it initializes a new inode.
+>>
+>> Changed in v2 (thanks to Andrew Morton):
+>>   - added a few explanatory comments
+>>   - cleaned up the mess in backing_dev_info foo_stamp fields: now it's clearly
+>>     stated that bw_time_stamp is measured in jiffies; renamed other foo_stamp
+>>     fields to reflect that they are in units of number-of-pages.
+>>
+> Better, thanks.
+>
+> The writeback arithemtic makes my head spin - I'd really like Fengguang
+> to go over this, please.
+>
+> A quick visit from the spelling police:
 
-On Wed, Jul 3, 2013 at 11:29 AM, Sedat Dilek <sedat.dilek@gmail.com> wrote:
-> On Wed, Jul 3, 2013 at 10:06 AM, Stephen Rothwell <sfr@canb.auug.org.au> wrote:
->> Hi all,
+Great! Thank you, Andrew. I'll wait for Fengguang' feedback for a while 
+before respin.
+
+>
+>> ...
 >>
->> Changes since 20130702:
+>> @@ -41,8 +43,15 @@ typedef int (congested_fn)(void *, int);
+>>   enum bdi_stat_item {
+>>   	BDI_RECLAIMABLE,
+>>   	BDI_WRITEBACK,
+>> -	BDI_DIRTIED,
+>> -	BDI_WRITTEN,
+>> +
+>> +	/*
+>> +	 * The three counters below reflects number of events of specific type
+>> +	 * happened since bdi_init(). The type is defined in comments below:
+> "The three counters below reflect the number of events of specific
+> types since bdi_init()"
+>
+>> +	 */
+>> +	BDI_DIRTIED,	  /* a page was dirtied */
+>> +	BDI_WRITTEN,	  /* writeout completed for a page */
+>> +	BDI_WRITTEN_BACK, /* a page went to writeback */
+>> +
+>>   	NR_BDI_STAT_ITEMS
+>>   };
+>>   
 >>
->> The powerpc tree lost its build failure.
+>> ...
 >>
->> The device-mapper tree gained a conflict against the md tree.
+>> @@ -680,28 +712,55 @@ static unsigned long bdi_position_ratio(struct backing_dev_info *bdi,
+>>   		return 0;
+>>   
+>>   	/*
+>> -	 * global setpoint
+>> +	 * The strictlimit feature is a tool preventing mistrusted filesystems
+>> +	 * to grow a large number of dirty pages before throttling. For such
+> "from growing"
+>
+>> +	 * filesystems balance_dirty_pages always checks bdi counters against
+>> +	 * bdi limits. Even if global "nr_dirty" is under "freerun". This is
+>> +	 * especially important for fuse who sets bdi->max_ratio to 1% by
+> s/who/which/
+>
+>> +	 * default. Without strictlimit feature, fuse writeback may consume
+>> +	 * arbitrary amount of RAM because it is accounted in
+>> +	 * NR_WRITEBACK_TEMP which is not involved in calculating "nr_dirty".
 >>
->> The net-next tree gained a build failure for which I cherry-picked an
->> upcoming fix.
+>> ...
 >>
->> The trivial tree gained conflicts against the btrfs and Linus' trees.
+>> @@ -994,6 +1054,26 @@ static void bdi_update_dirty_ratelimit(struct backing_dev_info *bdi,
+>>   	 * keep that period small to reduce time lags).
+>>   	 */
+>>   	step = 0;
+>> +
+>> +	/*
+>> +	 * For strictlimit case, balanced_dirty_ratelimit was calculated
+> balance_dirty_ratelimit?
+>
+>> +	 * above based on bdi counters and limits (see bdi_position_ratio()).
+>> +	 * Hence, to calculate "step" properly, we have to use bdi_dirty as
+>> +	 * "dirty" and bdi_setpoint as "setpoint".
+>> +	 *
+>> +	 * We rampup dirty_ratelimit forcibly if bdi_dirty is low because
+>> +	 * it's possible that bdi_thresh is close to zero due to inactivity
+>> +	 * of backing device (see the implementation of bdi_dirty_limit()).
+>> +	 */
+>> +	if (unlikely(strictlimit)) {
+>> +		dirty = bdi_dirty;
+>> +		if (bdi_dirty < 8)
+>> +			setpoint = bdi_dirty + 1;
+>> +		else
 >>
->> The xen-two tree gained a conflict against the tip tree.
+>> ...
 >>
->> The akpm tree lost some patches that turned up elsewhere.
+>> @@ -1057,18 +1140,32 @@ void __bdi_update_bandwidth(struct backing_dev_info *bdi,
+>>   	if (elapsed > HZ && time_before(bdi->bw_time_stamp, start_time))
+>>   		goto snapshot;
+>>   
+>> +	/*
+>> +	 * Skip periods when backing dev was idle due to abscence of pages
+> "absence"
+>
+>> +	 * under writeback (when over_bground_thresh() returns false)
+>> +	 */
+>> +	if (test_bit(BDI_idle, &bdi->state) &&
+>> +	    bdi->writeback_nr_stamp == writeback)
 >>
->> The cpuinit tree lost a patch that turned up elsewhere.
->>
->> ----------------------------------------------------------------------------
+>> ...
 >>
 >
-> From my build-log:
-> ...
->  CC      mm/memcontrol.o
-> ...
->   MODPOST vmlinux.o
-> WARNING: modpost: Found 1 section mismatch(es).
-> To see full details build your kernel with:
-> 'make CONFIG_DEBUG_SECTION_MISMATCH=y'
->   GEN     .version
->   CHK     include/generated/compile.h
->   UPD     include/generated/compile.h
->   CC      init/version.o
->   LD      init/built-in.o
-> mm/built-in.o: In function `mem_cgroup_css_free':
-> memcontrol.c:(.text+0x5caa6): undefined reference to
-> `mem_cgroup_sockets_destroy'
-> make[2]: *** [vmlinux] Error 1
-> make[1]: *** [deb-pkg] Error 2
-> make: *** [deb-pkg] Error 2
 >
-> My kernel-config is attached.
->
-
-[ CC linux-mm and Li Zefan ]
-
-Trying with the attached patch... Building...
-
-- Sedat -
-
-
-> - Sedat -
-
---f46d044402d6b2005d04e0995800
-Content-Type: application/octet-stream;
-	name="0001-memcg-Fix-build-failure-in-mem_cgroup_css_free.patch"
-Content-Disposition: attachment;
-	filename="0001-memcg-Fix-build-failure-in-mem_cgroup_css_free.patch"
-Content-Transfer-Encoding: base64
-X-Attachment-Id: f_hioewc7l1
-
-RnJvbSAzZTc4NTkyMDZjODI5OGI1ODc3OWE2ZTIwMDc0N2FlNDhhMDIxNDljIE1vbiBTZXAgMTcg
-MDA6MDA6MDAgMjAwMQpGcm9tOiBTZWRhdCBEaWxlayA8c2VkYXQuZGlsZWtAZ21haWwuY29tPgpE
-YXRlOiBXZWQsIDMgSnVsIDIwMTMgMTI6NDU6NDAgKzAyMDAKU3ViamVjdDogW1BBVENIIG5leHQt
-MjAxMzA3MDNdIG1lbWNnOiBGaXggYnVpbGQgZmFpbHVyZSBpbgogbWVtX2Nncm91cF9jc3NfZnJl
-ZSgpCgpGcm9tIG15IGJ1aWxkLWxvZyBmb3IgbmV4dC0yMDEzMDcwMzoKLi4uCm1tL2J1aWx0LWlu
-Lm86IEluIGZ1bmN0aW9uIGBtZW1fY2dyb3VwX2Nzc19mcmVlJzoKbWVtY29udHJvbC5jOigudGV4
-dCsweDVjYWE2KTogdW5kZWZpbmVkIHJlZmVyZW5jZSB0byBgbWVtX2Nncm91cF9zb2NrZXRzX2Rl
-c3Ryb3knCm1ha2VbMl06ICoqKiBbdm1saW51eF0gRXJyb3IKCmNvbW1pdCA0OWYyYjZiZWI0Mjgg
-KCJtZW1jZzogdXNlIGNzc19nZXQvcHV0IHdoZW4gY2hhcmdpbmcvdW5jaGFyZ2luZyBrbWVtIikK
-cmVuYW1lZCBrbWVtX2Nncm91cF9kZXN0cm95KCkgdG8ga21lbV9jZ3JvdXBfY3NzX29mZmxpbmUo
-KS4KCi1zdGF0aWMgdm9pZCBrbWVtX2Nncm91cF9kZXN0cm95KHN0cnVjdCBtZW1fY2dyb3VwICpt
-ZW1jZykKK3N0YXRpYyB2b2lkIGttZW1fY2dyb3VwX2Nzc19vZmZsaW5lKHN0cnVjdCBtZW1fY2dy
-b3VwICptZW1jZykKCldoZXJlYXMgaW4gbWVtX2Nncm91cF9jc3NfZnJlZSgpIEkgc2VlIHRoaXM6
-CgotIGttZW1fY2dyb3VwX2Rlc3Ryb3kobWVtY2cpOworIG1lbV9jZ3JvdXBfc29ja2V0c19kZXN0
-cm95KG1lbWNnKTsKClRoaXMgc2hvdWxkIGJlIElNSE86CgorIGttZW1fY2dyb3VwX2Nzc19vZmZs
-aW5lbWVtY2cpOwoKSSBhbSBub3Qgc3VyZSBpZiB0aGlzIHdhcyBpbnRlbmRlZCBhbmQgc3BlY3Vs
-YXRlIHRoaXMgaXMgYSB0eXBvLgoKVGhpcyBwYXRjaCB0cmllcyB0byBmaXggdGhlIGlzc3VlLgoK
-U2lnbmVkLW9mZi1ieTogU2VkYXQgRGlsZWsgPHNlZGF0LmRpbGVrQGdtYWlsLmNvbT4KLS0tCiBt
-bS9tZW1jb250cm9sLmMgfCAyICstCiAxIGZpbGUgY2hhbmdlZCwgMSBpbnNlcnRpb24oKyksIDEg
-ZGVsZXRpb24oLSkKCmRpZmYgLS1naXQgYS9tbS9tZW1jb250cm9sLmMgYi9tbS9tZW1jb250cm9s
-LmMKaW5kZXggZDZhM2U1Ni4uY2E4ZDk4NSAxMDA2NDQKLS0tIGEvbW0vbWVtY29udHJvbC5jCisr
-KyBiL21tL21lbWNvbnRyb2wuYwpAQCAtNjMzMiw3ICs2MzMyLDcgQEAgc3RhdGljIHZvaWQgbWVt
-X2Nncm91cF9jc3NfZnJlZShzdHJ1Y3QgY2dyb3VwICpjb250KQogewogCXN0cnVjdCBtZW1fY2dy
-b3VwICptZW1jZyA9IG1lbV9jZ3JvdXBfZnJvbV9jb250KGNvbnQpOwogCi0JbWVtX2Nncm91cF9z
-b2NrZXRzX2Rlc3Ryb3kobWVtY2cpOworCW1lbV9jZ3JvdXBfY3NzX29mZmxpbmUobWVtY2cpOwog
-CiAJX19tZW1fY2dyb3VwX2ZyZWUobWVtY2cpOwogfQotLSAKMS44LjMuMgoK
---f46d044402d6b2005d04e0995800--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
