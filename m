@@ -1,33 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 0042C6B0031
-	for <linux-mm@kvack.org>; Wed,  3 Jul 2013 11:57:46 -0400 (EDT)
-Date: Wed, 3 Jul 2013 15:57:45 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC PATCH 1/5] mm, page_alloc: support multiple pages
- allocation
-In-Reply-To: <1372840460-5571-2-git-send-email-iamjoonsoo.kim@lge.com>
-Message-ID: <0000013fa540f411-a89dd4a2-0fc9-428d-ad1e-5fa032413911-000000@email.amazonses.com>
-References: <1372840460-5571-1-git-send-email-iamjoonsoo.kim@lge.com> <1372840460-5571-2-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 391356B0034
+	for <linux-mm@kvack.org>; Wed,  3 Jul 2013 12:00:01 -0400 (EDT)
+Date: Wed, 3 Jul 2013 17:59:58 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH next-20130703] net: sock: Add ifdef CONFIG_MEMCG_KMEM for
+ mem_cgroup_sockets_{init,destroy}
+Message-ID: <20130703155958.GC5153@dhcp22.suse.cz>
+References: <1372853998-15353-1-git-send-email-sedat.dilek@gmail.com>
+ <51D41E34.5010802@huawei.com>
+ <20130703152058.GA30267@dhcp22.suse.cz>
+ <CA+icZUX+mB2v9ghdhaLvpncCu+yxP4xJzzbFxXisFsB2tDM7TA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+icZUX+mB2v9ghdhaLvpncCu+yxP4xJzzbFxXisFsB2tDM7TA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>
+To: Sedat Dilek <sedat.dilek@gmail.com>
+Cc: Li Zefan <lizefan@huawei.com>, akpm@linux-foundation.org, davem@davemloft.net, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, linux-mm@kvack.org
 
-On Wed, 3 Jul 2013, Joonsoo Kim wrote:
+On Wed 03-07-13 17:53:21, Sedat Dilek wrote:
+> On Wed, Jul 3, 2013 at 5:20 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> > On Wed 03-07-13 20:51:00, Li Zefan wrote:
+> > [...]
+> >> [PATCH] memcg: fix build error if CONFIG_MEMCG_KMEM=n
+> >>
+> >> Fix this build error:
+> >>
+> >> mm/built-in.o: In function `mem_cgroup_css_free':
+> >> memcontrol.c:(.text+0x5caa6): undefined reference to
+> >> 'mem_cgroup_sockets_destroy'
+> >>
+> >> Reported-by: Fengguang Wu <fengguang.wu@intel.com>
+> >> Reported-by: Stephen Rothwell <sfr@canb.auug.org.au>
+> >> Signed-off-by: Li Zefan <lizefan@huawei.com>
+> >
+> > I am seeing the same thing I just didn't get to reporting it.
+> > The other approach is not bad as well but I find this tiny better
+> > because mem_cgroup_css_free should care only about a single cleanup
+> > function for whole kmem. If that one needs to do tcp kmem specific
+> > cleanup then it should be done inside kmem_cgroup_css_offline.
+> >
+> 
+> As said in my other mail, for me this makes sense as it is a followup.
+> 
+> But, still I don't know why sock.c has is own mem_cgroup_sockets_{init,destroy}.
 
-> @@ -298,13 +298,15 @@ static inline void arch_alloc_page(struct page *page, int order) { }
->
->  struct page *
->  __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
-> -		       struct zonelist *zonelist, nodemask_t *nodemask);
-> +		       struct zonelist *zonelist, nodemask_t *nodemask,
-> +		       unsigned long *nr_pages, struct page **pages);
->
+That is the only definition AFAICS (except for !CONFIG_NET where it
+expands to NOOP). Please note that memcg_init_kmem is a common kmem
+initializator and it needs to be prepared for !CONFIG_NET.
 
-Add a separate function for the allocation of multiple pages instead?
+The same applies to _destroy.
+Makes more sense now?
+
+[...]
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
