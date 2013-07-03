@@ -1,141 +1,188 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 420AC6B0031
-	for <linux-mm@kvack.org>; Wed,  3 Jul 2013 07:01:50 -0400 (EDT)
-Message-ID: <51D4047F.2010700@parallels.com>
-Date: Wed, 3 Jul 2013 15:01:19 +0400
-From: Maxim Patlasov <mpatlasov@parallels.com>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 7DC586B0031
+	for <linux-mm@kvack.org>; Wed,  3 Jul 2013 07:24:09 -0400 (EDT)
+Date: Wed, 3 Jul 2013 21:24:03 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: linux-next: slab shrinkers: BUG at mm/list_lru.c:92
+Message-ID: <20130703112403.GP14996@dastard>
+References: <20130626232426.GA29034@dastard>
+ <20130627145411.GA24206@dhcp22.suse.cz>
+ <20130629025509.GG9047@dastard>
+ <20130630183349.GA23731@dhcp22.suse.cz>
+ <20130701012558.GB27780@dastard>
+ <20130701075005.GA28765@dhcp22.suse.cz>
+ <20130701081056.GA4072@dastard>
+ <20130702092200.GB16815@dhcp22.suse.cz>
+ <20130702121947.GE14996@dastard>
+ <20130702124427.GG16815@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: strictlimit feature -v2
-References: <20130629174706.20175.78184.stgit@maximpc.sw.ru> <20130702174316.15075.84993.stgit@maximpc.sw.ru> <20130702123804.9f252487f86c12b0f4edee57@linux-foundation.org>
-In-Reply-To: <20130702123804.9f252487f86c12b0f4edee57@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130702124427.GG16815@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: miklos@szeredi.hu, riel@redhat.com, dev@parallels.com, xemul@parallels.com, fuse-devel@lists.sourceforge.net, bfoster@redhat.com, linux-kernel@vger.kernel.org, jbottomley@parallels.com, linux-mm@kvack.org, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, fengguang.wu@intel.com, devel@openvz.org, mgorman@suse.de
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Glauber Costa <glommer@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-07/02/2013 11:38 PM, Andrew Morton D?D,N?DuN?:
-> On Tue, 02 Jul 2013 21:44:47 +0400 Maxim Patlasov <MPatlasov@parallels.com> wrote:
->
->> From: Miklos Szeredi <mszeredi@suse.cz>
->>
->> The feature prevents mistrusted filesystems to grow a large number of dirty
->> pages before throttling. For such filesystems balance_dirty_pages always
->> check bdi counters against bdi limits. I.e. even if global "nr_dirty" is under
->> "freerun", it's not allowed to skip bdi checks. The only use case for now is
->> fuse: it sets bdi max_ratio to 1% by default and system administrators are
->> supposed to expect that this limit won't be exceeded.
->>
->> The feature is on if address space is marked by AS_STRICTLIMIT flag.
->> A filesystem may set the flag when it initializes a new inode.
->>
->> Changed in v2 (thanks to Andrew Morton):
->>   - added a few explanatory comments
->>   - cleaned up the mess in backing_dev_info foo_stamp fields: now it's clearly
->>     stated that bw_time_stamp is measured in jiffies; renamed other foo_stamp
->>     fields to reflect that they are in units of number-of-pages.
->>
-> Better, thanks.
->
-> The writeback arithemtic makes my head spin - I'd really like Fengguang
-> to go over this, please.
->
-> A quick visit from the spelling police:
+On Tue, Jul 02, 2013 at 02:44:27PM +0200, Michal Hocko wrote:
+> On Tue 02-07-13 22:19:47, Dave Chinner wrote:
+> [...]
+> > Ok, so it's been leaked from a dispose list somehow. Thanks for the
+> > info, Michal, it's time to go look at the code....
+> 
+> OK, just in case we will need it, I am keeping the machine in this state
+> for now. So we still can play with crash and check all the juicy
+> internals.
 
-Great! Thank you, Andrew. I'll wait for Fengguang' feedback for a while 
-before respin.
+My current suspect is the LRU_RETRY code. I don't think what it is
+doing is at all valid - list_for_each_safe() is not safe if you drop
+the lock that protects the list. i.e. there is nothing that protects
+the stored next pointer from being removed from the list by someone
+else. Hence what I think is occurring is this:
 
->
->> ...
->>
->> @@ -41,8 +43,15 @@ typedef int (congested_fn)(void *, int);
->>   enum bdi_stat_item {
->>   	BDI_RECLAIMABLE,
->>   	BDI_WRITEBACK,
->> -	BDI_DIRTIED,
->> -	BDI_WRITTEN,
->> +
->> +	/*
->> +	 * The three counters below reflects number of events of specific type
->> +	 * happened since bdi_init(). The type is defined in comments below:
-> "The three counters below reflect the number of events of specific
-> types since bdi_init()"
->
->> +	 */
->> +	BDI_DIRTIED,	  /* a page was dirtied */
->> +	BDI_WRITTEN,	  /* writeout completed for a page */
->> +	BDI_WRITTEN_BACK, /* a page went to writeback */
->> +
->>   	NR_BDI_STAT_ITEMS
->>   };
->>   
->>
->> ...
->>
->> @@ -680,28 +712,55 @@ static unsigned long bdi_position_ratio(struct backing_dev_info *bdi,
->>   		return 0;
->>   
->>   	/*
->> -	 * global setpoint
->> +	 * The strictlimit feature is a tool preventing mistrusted filesystems
->> +	 * to grow a large number of dirty pages before throttling. For such
-> "from growing"
->
->> +	 * filesystems balance_dirty_pages always checks bdi counters against
->> +	 * bdi limits. Even if global "nr_dirty" is under "freerun". This is
->> +	 * especially important for fuse who sets bdi->max_ratio to 1% by
-> s/who/which/
->
->> +	 * default. Without strictlimit feature, fuse writeback may consume
->> +	 * arbitrary amount of RAM because it is accounted in
->> +	 * NR_WRITEBACK_TEMP which is not involved in calculating "nr_dirty".
->>
->> ...
->>
->> @@ -994,6 +1054,26 @@ static void bdi_update_dirty_ratelimit(struct backing_dev_info *bdi,
->>   	 * keep that period small to reduce time lags).
->>   	 */
->>   	step = 0;
->> +
->> +	/*
->> +	 * For strictlimit case, balanced_dirty_ratelimit was calculated
-> balance_dirty_ratelimit?
->
->> +	 * above based on bdi counters and limits (see bdi_position_ratio()).
->> +	 * Hence, to calculate "step" properly, we have to use bdi_dirty as
->> +	 * "dirty" and bdi_setpoint as "setpoint".
->> +	 *
->> +	 * We rampup dirty_ratelimit forcibly if bdi_dirty is low because
->> +	 * it's possible that bdi_thresh is close to zero due to inactivity
->> +	 * of backing device (see the implementation of bdi_dirty_limit()).
->> +	 */
->> +	if (unlikely(strictlimit)) {
->> +		dirty = bdi_dirty;
->> +		if (bdi_dirty < 8)
->> +			setpoint = bdi_dirty + 1;
->> +		else
->>
->> ...
->>
->> @@ -1057,18 +1140,32 @@ void __bdi_update_bandwidth(struct backing_dev_info *bdi,
->>   	if (elapsed > HZ && time_before(bdi->bw_time_stamp, start_time))
->>   		goto snapshot;
->>   
->> +	/*
->> +	 * Skip periods when backing dev was idle due to abscence of pages
-> "absence"
->
->> +	 * under writeback (when over_bground_thresh() returns false)
->> +	 */
->> +	if (test_bit(BDI_idle, &bdi->state) &&
->> +	    bdi->writeback_nr_stamp == writeback)
->>
->> ...
->>
->
->
+
+thread 1			thread 2
+lock(lru)
+list_for_each_safe(lru)		lock(lru)
+  isolate			......
+    lock(i_lock)
+    has buffers
+      __iget
+      unlock(i_lock)
+      unlock(lru)
+      .....			(gets lru lock)
+      				list_for_each_safe(lru)
+				  walks all the inodes
+				  finds inode being isolated by other thread
+				  isolate
+				    i_count > 0
+				      list_del_init(i_lru)
+				      return LRU_REMOVED;
+				   moves to next inode, inode that
+				   other thread has stored as next
+				   isolate
+				     i_state |= I_FREEING
+				     list_move(dispose_list)
+				     return LRU_REMOVED
+				 ....
+				 unlock(lru)
+      lock(lru)
+      return LRU_RETRY;
+  if (!first_pass)
+    ....
+  --nr_to_scan
+  (loop again using next, which has already been removed from the
+  LRU by the other thread!)
+  isolate
+    lock(i_lock)
+    if (i_state & ~I_REFERENCED)
+      list_del_init(i_lru)	<<<<< inode is on dispose list!
+				<<<<< inode is now isolated, with I_FREEING set
+      return LRU_REMOVED;
+
+That fits the corpse left on your machine, Michal. One thread has
+moved the inode to a dispose list, the other thread thinks it is
+still on the LRU and should be removed, and removes it.
+
+This also explains the lru item count going negative - the same item
+is being removed from the lru twice. So it seems like all the
+problems you've been seeing are caused by this one problem....
+
+Patch below that should fix this.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
+
+list_lru: fix broken LRU_RETRY behaviour
+
+From: Dave Chinner <dchinner@redhat.com>
+
+The LRU_RETRY code assumes that the list traversal status after we
+have dropped and regained the list lock. Unfortunately, this is not
+a valid assumption, and that can lead to racing traversals isolating
+objects that the other traversal expects to be the next item on the
+list.
+
+This is causing problems with the inode cache shrinker isolation,
+with races resulting in an inode on a dispose list being "isolated"
+because a racing traversal still thinks it is on the LRU. The inode
+is then never reclaimed and that causes hangs if a subsequent lookup
+on that inode occurs.
+
+Fix it by always restarting the list walk on a LRU_RETRY return from
+the isolate callback. Avoid the possibility of livelocks the current
+code was trying to aavoid by always decrementing the nr_to_walk
+counter on retries so that even if we keep hitting the same item on
+the list we'll eventually stop trying to walk and exit out of the
+situation causing the problem.
+
+Reported-by: Michal Hocko <mhocko@suse.cz>
+Signed-off-by: Dave Chinner <dchinner@redhat.com>
+---
+ mm/list_lru.c |   29 ++++++++++++-----------------
+ 1 file changed, 12 insertions(+), 17 deletions(-)
+
+diff --git a/mm/list_lru.c b/mm/list_lru.c
+index dc71659..7246791 100644
+--- a/mm/list_lru.c
++++ b/mm/list_lru.c
+@@ -71,19 +71,19 @@ list_lru_walk_node(struct list_lru *lru, int nid, list_lru_walk_cb isolate,
+ 	struct list_lru_node	*nlru = &lru->node[nid];
+ 	struct list_head *item, *n;
+ 	unsigned long isolated = 0;
+-	/*
+-	 * If we don't keep state of at which pass we are, we can loop at
+-	 * LRU_RETRY, since we have no guarantees that the caller will be able
+-	 * to do something other than retry on the next pass. We handle this by
+-	 * allowing at most one retry per object. This should not be altered
+-	 * by any condition other than LRU_RETRY.
+-	 */
+-	bool first_pass = true;
+ 
+ 	spin_lock(&nlru->lock);
+ restart:
+ 	list_for_each_safe(item, n, &nlru->list) {
+ 		enum lru_status ret;
++
++		/*
++		 * decrement nr_to_walk first so that we don't livelock if we
++		 * get stuck on large numbesr of LRU_RETRY items
++		 */
++		if (--(*nr_to_walk) == 0)
++			break;
++
+ 		ret = isolate(item, &nlru->lock, cb_arg);
+ 		switch (ret) {
+ 		case LRU_REMOVED:
+@@ -98,19 +98,14 @@ restart:
+ 		case LRU_SKIP:
+ 			break;
+ 		case LRU_RETRY:
+-			if (!first_pass) {
+-				first_pass = true;
+-				break;
+-			}
+-			first_pass = false;
++			/*
++			 * The lru lock has been dropped, our list traversal is
++			 * now invalid and so we have to restart from scratch.
++			 */
+ 			goto restart;
+ 		default:
+ 			BUG();
+ 		}
+-
+-		if ((*nr_to_walk)-- == 0)
+-			break;
+-
+ 	}
+ 
+ 	spin_unlock(&nlru->lock);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
