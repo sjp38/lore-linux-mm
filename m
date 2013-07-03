@@ -1,32 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 060446B0031
-	for <linux-mm@kvack.org>; Wed,  3 Jul 2013 11:28:27 -0400 (EDT)
-Date: Wed, 3 Jul 2013 17:28:24 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC PATCH 0/5] Support multiple pages allocation
-Message-ID: <20130703152824.GB30267@dhcp22.suse.cz>
-References: <1372840460-5571-1-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 1BBD16B0031
+	for <linux-mm@kvack.org>; Wed,  3 Jul 2013 11:33:50 -0400 (EDT)
+Date: Wed, 3 Jul 2013 16:33:46 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 11/13] sched: Check current->mm before allocating NUMA
+ faults
+Message-ID: <20130703153346.GH1875@suse.de>
+References: <1372861300-9973-1-git-send-email-mgorman@suse.de>
+ <1372861300-9973-12-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1372840460-5571-1-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1372861300-9973-12-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 03-07-13 17:34:15, Joonsoo Kim wrote:
-[...]
-> For one page allocation at once, this patchset makes allocator slower than
-> before (-5%). 
+On Wed, Jul 03, 2013 at 03:21:38PM +0100, Mel Gorman wrote:
+> @@ -1072,16 +1076,18 @@ void task_numa_work(struct callback_head *work)
+>  			end = ALIGN(start + (pages << PAGE_SHIFT), HPAGE_SIZE);
+>  			end = min(end, vma->vm_end);
+>  			nr_pte_updates += change_prot_numa(vma, start, end);
+> -			pages -= (end - start) >> PAGE_SHIFT;
+> -
+> -			start = end;
+>  
+>  			/*
+>  			 * Scan sysctl_numa_balancing_scan_size but ensure that
+> -			 * least one PTE is updated so that unused virtual
+> -			 * address space is quickly skipped
+> +			 * at least one PTE is updated so that unused virtual
+> +			 * address space is quickly skipped.
+>  			 */
+> -			if (pages <= 0 && nr_pte_updates)
+> +			if (nr_pte_updates)
+> +				pages -= (end - start) >> PAGE_SHIFT;
+> +
+> +			start = end;
+> +
+> +			if (pages <= 0)
+>  				goto out;
+>  		} while (end != vma->vm_end);
 
-Slowing down the most used path is a no-go. Where does this slow down
-come from?
+This hunk is a rebasing error that should have been in the previous
+patch. Fixed now.
 
-[...]
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
