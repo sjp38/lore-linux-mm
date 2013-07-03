@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 2CBAB6B0033
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 769C36B0036
 	for <linux-mm@kvack.org>; Wed,  3 Jul 2013 10:21:45 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 01/13] mm: numa: Document automatic NUMA balancing sysctls
-Date: Wed,  3 Jul 2013 15:21:28 +0100
-Message-Id: <1372861300-9973-2-git-send-email-mgorman@suse.de>
+Subject: [PATCH 03/13] sched: Select a preferred node with the most numa hinting faults
+Date: Wed,  3 Jul 2013 15:21:30 +0100
+Message-Id: <1372861300-9973-4-git-send-email-mgorman@suse.de>
 In-Reply-To: <1372861300-9973-1-git-send-email-mgorman@suse.de>
 References: <1372861300-9973-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,88 +13,104 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 Cc: Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
+This patch selects a preferred node for a task to run on based on the
+NUMA hinting faults. This information is later used to migrate tasks
+towards the node during balancing.
+
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- Documentation/sysctl/kernel.txt | 66 +++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 66 insertions(+)
+ include/linux/sched.h |  1 +
+ kernel/sched/core.c   | 10 ++++++++++
+ kernel/sched/fair.c   | 16 ++++++++++++++--
+ kernel/sched/sched.h  |  1 +
+ 4 files changed, 26 insertions(+), 2 deletions(-)
 
-diff --git a/Documentation/sysctl/kernel.txt b/Documentation/sysctl/kernel.txt
-index ccd4258..0fe678c 100644
---- a/Documentation/sysctl/kernel.txt
-+++ b/Documentation/sysctl/kernel.txt
-@@ -354,6 +354,72 @@ utilize.
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 72861b4..ba46a64 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1507,6 +1507,7 @@ struct task_struct {
+ 	struct callback_head numa_work;
  
- ==============================================================
+ 	unsigned long *numa_faults;
++	int numa_preferred_nid;
+ #endif /* CONFIG_NUMA_BALANCING */
  
-+numa_balancing
-+
-+Enables/disables automatic page fault based NUMA memory
-+balancing. Memory is moved automatically to nodes
-+that access it often.
-+
-+Enables/disables automatic NUMA memory balancing. On NUMA machines, there
-+is a performance penalty if remote memory is accessed by a CPU. When this
-+feature is enabled the kernel samples what task thread is accessing memory
-+by periodically unmapping pages and later trapping a page fault. At the
-+time of the page fault, it is determined if the data being accessed should
-+be migrated to a local memory node.
-+
-+The unmapping of pages and trapping faults incur additional overhead that
-+ideally is offset by improved memory locality but there is no universal
-+guarantee. If the target workload is already bound to NUMA nodes then this
-+feature should be disabled. Otherwise, if the system overhead from the
-+feature is too high then the rate the kernel samples for NUMA hinting
-+faults may be controlled by the numa_balancing_scan_period_min_ms,
-+numa_balancing_scan_delay_ms, numa_balancing_scan_period_reset,
-+numa_balancing_scan_period_max_ms and numa_balancing_scan_size_mb sysctls.
-+
-+==============================================================
-+
-+numa_balancing_scan_period_min_ms, numa_balancing_scan_delay_ms,
-+numa_balancing_scan_period_max_ms, numa_balancing_scan_period_reset,
-+numa_balancing_scan_size_mb
-+
-+Automatic NUMA balancing scans tasks address space and unmaps pages to
-+detect if pages are properly placed or if the data should be migrated to a
-+memory node local to where the task is running.  Every "scan delay" the task
-+scans the next "scan size" number of pages in its address space. When the
-+end of the address space is reached the scanner restarts from the beginning.
-+
-+In combination, the "scan delay" and "scan size" determine the scan rate.
-+When "scan delay" decreases, the scan rate increases.  The scan delay and
-+hence the scan rate of every task is adaptive and depends on historical
-+behaviour. If pages are properly placed then the scan delay increases,
-+otherwise the scan delay decreases.  The "scan size" is not adaptive but
-+the higher the "scan size", the higher the scan rate.
-+
-+Higher scan rates incur higher system overhead as page faults must be
-+trapped and potentially data must be migrated. However, the higher the scan
-+rate, the more quickly a tasks memory is migrated to a local node if the
-+workload pattern changes and minimises performance impact due to remote
-+memory accesses. These sysctls control the thresholds for scan delays and
-+the number of pages scanned.
-+
-+numa_balancing_scan_period_min_ms is the minimum delay in milliseconds
-+between scans. It effectively controls the maximum scanning rate for
-+each task.
-+
-+numa_balancing_scan_delay_ms is the starting "scan delay" used for a task
-+when it initially forks.
-+
-+numa_balancing_scan_period_max_ms is the maximum delay between scans. It
-+effectively controls the minimum scanning rate for each task.
-+
-+numa_balancing_scan_size_mb is how many megabytes worth of pages are
-+scanned for a given scan.
-+
-+numa_balancing_scan_period_reset is a blunt instrument that controls how
-+often a tasks scan delay is reset to detect sudden changes in task behaviour.
-+
-+==============================================================
-+
- osrelease, ostype & version:
+ 	struct rcu_head rcu;
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index f332ec0..019baae 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -1593,6 +1593,7 @@ static void __sched_fork(struct task_struct *p)
+ 	p->numa_scan_seq = p->mm ? p->mm->numa_scan_seq : 0;
+ 	p->numa_migrate_seq = p->mm ? p->mm->numa_scan_seq - 1 : 0;
+ 	p->numa_scan_period = sysctl_numa_balancing_scan_delay;
++	p->numa_preferred_nid = -1;
+ 	p->numa_work.next = &p->numa_work;
+ 	p->numa_faults = NULL;
+ #endif /* CONFIG_NUMA_BALANCING */
+@@ -5713,6 +5714,15 @@ enum s_alloc {
  
- # cat osrelease
+ struct sched_domain_topology_level;
+ 
++#ifdef CONFIG_NUMA_BALANCING
++
++/* Set a tasks preferred NUMA node */
++void sched_setnuma(struct task_struct *p, int nid)
++{
++	p->numa_preferred_nid = nid;
++}
++#endif /* CONFIG_NUMA_BALANCING */
++
+ typedef struct sched_domain *(*sched_domain_init_f)(struct sched_domain_topology_level *tl, int cpu);
+ typedef const struct cpumask *(*sched_domain_mask_f)(int cpu);
+ 
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 904fd6f..f8c3f61 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -793,7 +793,8 @@ unsigned int sysctl_numa_balancing_scan_delay = 1000;
+ 
+ static void task_numa_placement(struct task_struct *p)
+ {
+-	int seq;
++	int seq, nid, max_nid = 0;
++	unsigned long max_faults = 0;
+ 
+ 	if (!p->mm)	/* for example, ksmd faulting in a user's mm */
+ 		return;
+@@ -802,7 +803,18 @@ static void task_numa_placement(struct task_struct *p)
+ 		return;
+ 	p->numa_scan_seq = seq;
+ 
+-	/* FIXME: Scheduling placement policy hints go here */
++	/* Find the node with the highest number of faults */
++	for (nid = 0; nid < nr_node_ids; nid++) {
++		unsigned long faults = p->numa_faults[nid];
++		p->numa_faults[nid] >>= 1;
++		if (faults > max_faults) {
++			max_faults = faults;
++			max_nid = nid;
++		}
++	}
++
++	if (max_faults && max_nid != p->numa_preferred_nid)
++		sched_setnuma(p, max_nid);
+ }
+ 
+ /*
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index c5f773d..65a0cf0 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -504,6 +504,7 @@ DECLARE_PER_CPU(struct rq, runqueues);
+ #define raw_rq()		(&__raw_get_cpu_var(runqueues))
+ 
+ #ifdef CONFIG_NUMA_BALANCING
++extern void sched_setnuma(struct task_struct *p, int nid);
+ static inline void task_numa_free(struct task_struct *p)
+ {
+ 	kfree(p->numa_faults);
 -- 
 1.8.1.4
 
