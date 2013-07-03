@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 6C3926B0044
-	for <linux-mm@kvack.org>; Wed,  3 Jul 2013 10:22:26 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 3A9B56B0044
+	for <linux-mm@kvack.org>; Wed,  3 Jul 2013 10:22:27 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 12/13] mm: numa: Scan pages with elevated page_mapcount
-Date: Wed,  3 Jul 2013 15:21:39 +0100
-Message-Id: <1372861300-9973-13-git-send-email-mgorman@suse.de>
+Subject: [PATCH 13/13] sched: Account for the number of preferred tasks running on a node when selecting a preferred node
+Date: Wed,  3 Jul 2013 15:21:40 +0100
+Message-Id: <1372861300-9973-14-git-send-email-mgorman@suse.de>
 In-Reply-To: <1372861300-9973-1-git-send-email-mgorman@suse.de>
 References: <1372861300-9973-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,124 +13,133 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 Cc: Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-Initial support for automatic NUMA balancing was unable to distinguish
-between false shared versus private pages except by ignoring pages with an
-elevated page_mapcount entirely. This patch kicks away the training wheels
-as initial support for identifying shared/private pages is now in place.
-Note that the patch still leaves shared, file-backed in VM_EXEC vmas in
-place guessing that these are shared library pages. Migrating them are
-likely to be of major benefit as generally the expectation would be that
-these are read-shared between caches and that iTLB and iCache pressure is
-generally low.
+It is preferred that tasks always run local to their memory but it is
+not optimal if that node is compute overloaded and failing to get
+access to a CPU. This would compete with the load balancer trying to
+move tasks off and NUMA balancing moving it back.
+
+Ultimately, it will be required that the compute load be calculated
+of each node and minimise that as well as minimising the number of
+remote accesses until the optimal balance point is reached. Begin
+this process by simply accounting for the number of tasks that are
+running on their preferred node. When deciding what node to place
+a task on, do not place a task on a node that has more preferred
+placement tasks than there are CPUs.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/migrate.h |  7 ++++---
- mm/memory.c             |  4 ++--
- mm/migrate.c            | 17 ++++++-----------
- mm/mprotect.c           |  4 +---
- 4 files changed, 13 insertions(+), 19 deletions(-)
+ kernel/sched/fair.c  | 45 ++++++++++++++++++++++++++++++++++++++++++---
+ kernel/sched/sched.h |  4 ++++
+ 2 files changed, 46 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-index a405d3dc..e7e26af 100644
---- a/include/linux/migrate.h
-+++ b/include/linux/migrate.h
-@@ -92,11 +92,12 @@ static inline int migrate_huge_page_move_mapping(struct address_space *mapping,
- #endif /* CONFIG_MIGRATION */
- 
- #ifdef CONFIG_NUMA_BALANCING
--extern int migrate_misplaced_page(struct page *page, int node);
--extern int migrate_misplaced_page(struct page *page, int node);
-+extern int migrate_misplaced_page(struct page *page,
-+				  struct vm_area_struct *vma, int node);
- extern bool migrate_ratelimited(int node);
- #else
--static inline int migrate_misplaced_page(struct page *page, int node)
-+static inline int migrate_misplaced_page(struct page *page,
-+					 struct vm_area_struct *vma, int node)
- {
- 	return -EAGAIN; /* can't migrate now */
- }
-diff --git a/mm/memory.c b/mm/memory.c
-index c28bf52..b06022a 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3581,7 +3581,7 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	}
- 
- 	/* Migrate to the requested node */
--	migrated = migrate_misplaced_page(page, target_nid);
-+	migrated = migrate_misplaced_page(page, vma, target_nid);
- 	if (migrated)
- 		current_nid = target_nid;
- 
-@@ -3666,7 +3666,7 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 
- 		/* Migrate to the requested node */
- 		pte_unmap_unlock(pte, ptl);
--		migrated = migrate_misplaced_page(page, target_nid);
-+		migrated = migrate_misplaced_page(page, vma, target_nid);
- 		if (migrated)
- 			curr_nid = target_nid;
- 		task_numa_fault(last_nid, curr_nid, 1, migrated);
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 3bbaf5d..23f8122 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1579,7 +1579,8 @@ int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
-  * node. Caller is expected to have an elevated reference count on
-  * the page that will be dropped by this function before returning.
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 3c796b0..9ffdff3 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -777,6 +777,18 @@ update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
+  * Scheduling class queueing methods:
   */
--int migrate_misplaced_page(struct page *page, int node)
-+int migrate_misplaced_page(struct page *page, struct vm_area_struct *vma,
-+			   int node)
+ 
++static void account_numa_enqueue(struct rq *rq, struct task_struct *p)
++{
++	rq->nr_preferred_running +=
++			(cpu_to_node(task_cpu(p)) == p->numa_preferred_nid);
++}
++
++static void account_numa_dequeue(struct rq *rq, struct task_struct *p)
++{
++	rq->nr_preferred_running -=
++			(cpu_to_node(task_cpu(p)) == p->numa_preferred_nid);
++}
++
+ #ifdef CONFIG_NUMA_BALANCING
+ /*
+  * Approximate time to scan a full NUMA task in ms. The task scan period is
+@@ -865,6 +877,21 @@ static inline int task_faults_idx(int nid, int priv)
+ 	return 2 * nid + priv;
+ }
+ 
++/* Returns true if the given node is compute overloaded */
++static bool sched_numa_overloaded(int nid)
++{
++	int nr_cpus = 0;
++	int nr_preferred = 0;
++	int i;
++
++	for_each_cpu(i, cpumask_of_node(nid)) {
++		nr_cpus++;
++		nr_preferred += cpu_rq(i)->nr_preferred_running;
++	}
++
++	return nr_preferred >= nr_cpus << 1;
++}
++
+ static void task_numa_placement(struct task_struct *p)
  {
- 	pg_data_t *pgdat = NODE_DATA(node);
- 	int isolated;
-@@ -1587,10 +1588,11 @@ int migrate_misplaced_page(struct page *page, int node)
- 	LIST_HEAD(migratepages);
+ 	int seq, nid, max_nid = 0;
+@@ -892,7 +919,7 @@ static void task_numa_placement(struct task_struct *p)
  
- 	/*
--	 * Don't migrate pages that are mapped in multiple processes.
--	 * TODO: Handle false sharing detection instead of this hammer
-+	 * Don't migrate file pages that are mapped in multiple processes
-+	 * with execute permissions as they are probably shared libraries.
- 	 */
--	if (page_mapcount(page) != 1)
-+	if (page_mapcount(page) != 1 && page_is_file_cache(page) &&
-+	    (vma->vm_flags & VM_EXEC))
- 		goto out;
+ 		/* Find maximum private faults */
+ 		faults = p->numa_faults[task_faults_idx(nid, 1)];
+-		if (faults > max_faults) {
++		if (faults > max_faults && !sched_numa_overloaded(nid)) {
+ 			max_faults = faults;
+ 			max_nid = nid;
+ 		}
+@@ -1144,6 +1171,14 @@ void task_tick_numa(struct rq *rq, struct task_struct *curr)
+ static void task_tick_numa(struct rq *rq, struct task_struct *curr)
+ {
+ }
++
++static inline void account_numa_enqueue(struct rq *rq, struct task_struct *p)
++{
++}
++
++static inline void account_numa_dequeue(struct rq *rq, struct task_struct *p)
++{
++}
+ #endif /* CONFIG_NUMA_BALANCING */
  
- 	/*
-@@ -1641,13 +1643,6 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 	int page_lru = page_is_file_cache(page);
+ static void
+@@ -1153,8 +1188,10 @@ account_entity_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se)
+ 	if (!parent_entity(se))
+ 		update_load_add(&rq_of(cfs_rq)->load, se->load.weight);
+ #ifdef CONFIG_SMP
+-	if (entity_is_task(se))
++	if (entity_is_task(se)) {
++		account_numa_enqueue(rq_of(cfs_rq), task_of(se));
+ 		list_add(&se->group_node, &rq_of(cfs_rq)->cfs_tasks);
++	}
+ #endif
+ 	cfs_rq->nr_running++;
+ }
+@@ -1165,8 +1202,10 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
+ 	update_load_sub(&cfs_rq->load, se->load.weight);
+ 	if (!parent_entity(se))
+ 		update_load_sub(&rq_of(cfs_rq)->load, se->load.weight);
+-	if (entity_is_task(se))
++	if (entity_is_task(se)) {
++		account_numa_dequeue(rq_of(cfs_rq), task_of(se));
+ 		list_del_init(&se->group_node);
++	}
+ 	cfs_rq->nr_running--;
+ }
  
- 	/*
--	 * Don't migrate pages that are mapped in multiple processes.
--	 * TODO: Handle false sharing detection instead of this hammer
--	 */
--	if (page_mapcount(page) != 1)
--		goto out_dropref;
--
--	/*
- 	 * Rate-limit the amount of data that is being migrated to a node.
- 	 * Optimal placement is no good if the memory bus is saturated and
- 	 * all the time is being spent migrating!
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index 94722a4..cacc64a 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -69,9 +69,7 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 					if (last_nid != this_nid)
- 						all_same_node = false;
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index 64c37a3..f05b31b 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -433,6 +433,10 @@ struct rq {
  
--					/* only check non-shared pages */
--					if (!pte_numa(oldpte) &&
--					    page_mapcount(page) == 1) {
-+					if (!pte_numa(oldpte)) {
- 						ptent = pte_mknuma(ptent);
- 						updated = true;
- 					}
+ 	struct list_head cfs_tasks;
+ 
++#ifdef CONFIG_NUMA_BALANCING
++	unsigned long nr_preferred_running;
++#endif
++
+ 	u64 rt_avg;
+ 	u64 age_stamp;
+ 	u64 idle_stamp;
 -- 
 1.8.1.4
 
