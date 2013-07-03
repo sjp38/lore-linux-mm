@@ -1,36 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 155F86B0032
-	for <linux-mm@kvack.org>; Tue,  2 Jul 2013 18:42:05 -0400 (EDT)
-Date: Wed, 3 Jul 2013 00:37:14 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: linux-next: Tree for Jun 28 [ BISECTED: rsyslog/imklog: High
-	CPU usage ]
-Message-ID: <20130702223714.GA28048@redhat.com>
-References: <CA+icZUXo=Z4gDfCMvLqRQDq_fpNAq+UqtUw=jrU=3=kVZP-2+A@mail.gmail.com> <20130630181945.GA5171@redhat.com> <CA+icZUWLUSg-Sfd9FHXs8Amz+-s6vs_VOJsQpUSa9+fYM8XyNQ@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+icZUWLUSg-Sfd9FHXs8Amz+-s6vs_VOJsQpUSa9+fYM8XyNQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id E216A6B0031
+	for <linux-mm@kvack.org>; Tue,  2 Jul 2013 20:50:16 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Wed, 3 Jul 2013 10:42:49 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id B053E357804E
+	for <linux-mm@kvack.org>; Wed,  3 Jul 2013 10:50:04 +1000 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r630ns0s60293312
+	for <linux-mm@kvack.org>; Wed, 3 Jul 2013 10:49:55 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r630o2mt006743
+	for <linux-mm@kvack.org>; Wed, 3 Jul 2013 10:50:03 +1000
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v2 1/5] mm/slab: Fix drain freelist excessively
+Date: Wed,  3 Jul 2013 08:49:49 +0800
+Message-Id: <1372812593-7617-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sedat Dilek <sedat.dilek@gmail.com>
-Cc: linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, Stephen Rothwell <sfr@canb.auug.org.au>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Daniel Vetter <daniel.vetter@ffwll.ch>, Imre Deak <imre.deak@intel.com>, Lukas Czerner <lczerner@redhat.com>, Samuel Ortiz <samuel@sortiz.org>, Wensong Zhang <wensong@linux-vs.org>, Simon Horman <horms@verge.net.au>, Julian Anastasov <ja@ssi.bg>, Ralf Baechle <ralf@linux-mips.org>, Valdis.Kletnieks@vt.edu, linux-mm <linux-mm@kvack.org>
+To: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>
+Cc: Glauber Costa <glommer@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Hi Sedat,
+Changelog:
+ v1 -> v2:
+  * Fix the callers that pass # of objects. Make sure they pass # of slabs.
 
-On 07/02, Sedat Dilek wrote:
->
-> did you made a cleaned-up version?
-> AFAICS v3, I read that on linux-mm ML, sorry if I ask here in this thread.
+The drain_freelist is called to drain slabs_free lists for cache reap,
+cache shrink, memory hotplug callback etc. The tofree parameter should
+be the number of slab to free instead of the number of slab objects to
+free.
 
-Yes, I am going to send v3 with this fix + another minor change.
-Sorry for delay, I was distracted, will try tomorrow.
+This patch fix the callers that pass # of objects. Make sure they pass #
+of slabs.
 
-Besides, I think Andrew and Stephen need a rest before I try to
-break wait.h or the third time.
+Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+---
+ mm/slab.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
 
-Oleg.
+diff --git a/mm/slab.c b/mm/slab.c
+index 17298c1..13f5ecc 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -1241,7 +1241,8 @@ free_array_cache:
+ 		n = cachep->node[node];
+ 		if (!n)
+ 			continue;
+-		drain_freelist(cachep, n, n->free_objects);
++		drain_freelist(cachep, n, (n->free_objects +
++						cachep->num - 1) / cachep->num);
+ 	}
+ }
+ 
+@@ -1408,7 +1409,8 @@ static int __meminit drain_cache_node_node(int node)
+ 		if (!n)
+ 			continue;
+ 
+-		drain_freelist(cachep, n, n->free_objects);
++		drain_freelist(cachep, n, (n->free_objects +
++						cachep->num - 1) / cachep->num);
+ 
+ 		if (!list_empty(&n->slabs_full) ||
+ 		    !list_empty(&n->slabs_partial)) {
+@@ -2532,7 +2534,8 @@ static int __cache_shrink(struct kmem_cache *cachep)
+ 		if (!n)
+ 			continue;
+ 
+-		drain_freelist(cachep, n, n->free_objects);
++		drain_freelist(cachep, n, (n->free_objects +
++						cachep->num - 1) / cachep->num);
+ 
+ 		ret += !list_empty(&n->slabs_full) ||
+ 			!list_empty(&n->slabs_partial);
+-- 
+1.8.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
