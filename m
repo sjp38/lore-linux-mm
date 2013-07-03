@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 11B046B0034
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 3225C6B0036
 	for <linux-mm@kvack.org>; Wed,  3 Jul 2013 04:35:19 -0400 (EDT)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [RFC PATCH 2/5] mm, page_alloc: introduce alloc_pages_exact_node_multiple()
-Date: Wed,  3 Jul 2013 17:34:17 +0900
-Message-Id: <1372840460-5571-3-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [RFC PATCH 3/5] radix-tree: introduce radix_tree_[next/prev]_present()
+Date: Wed,  3 Jul 2013 17:34:18 +0900
+Message-Id: <1372840460-5571-4-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1372840460-5571-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1372840460-5571-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,27 +15,66 @@ Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Glauber 
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 8bfa87b..f8cde28 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -327,6 +327,16 @@ static inline struct page *alloc_pages_exact_node(int nid, gfp_t gfp_mask,
- 	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
+diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
+index ffc444c..045b325 100644
+--- a/include/linux/radix-tree.h
++++ b/include/linux/radix-tree.h
+@@ -230,6 +230,10 @@ unsigned long radix_tree_next_hole(struct radix_tree_root *root,
+ 				unsigned long index, unsigned long max_scan);
+ unsigned long radix_tree_prev_hole(struct radix_tree_root *root,
+ 				unsigned long index, unsigned long max_scan);
++unsigned long radix_tree_next_present(struct radix_tree_root *root,
++				unsigned long index, unsigned long max_scan);
++unsigned long radix_tree_prev_present(struct radix_tree_root *root,
++				unsigned long index, unsigned long max_scan);
+ int radix_tree_preload(gfp_t gfp_mask);
+ void radix_tree_init(void);
+ void *radix_tree_tag_set(struct radix_tree_root *root,
+diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+index e796429..e02e3b8 100644
+--- a/lib/radix-tree.c
++++ b/lib/radix-tree.c
+@@ -984,6 +984,40 @@ unsigned long radix_tree_prev_hole(struct radix_tree_root *root,
  }
+ EXPORT_SYMBOL(radix_tree_prev_hole);
  
-+static inline struct page *alloc_pages_exact_node_multiple(int nid,
-+		gfp_t gfp_mask, unsigned long *nr_pages, struct page **pages)
++unsigned long radix_tree_next_present(struct radix_tree_root *root,
++				unsigned long index, unsigned long max_scan)
 +{
-+	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES || !node_online(nid));
++	unsigned long i;
 +
-+	return __alloc_pages_nodemask(gfp_mask, 0,
-+				node_zonelist(nid, gfp_mask), NULL,
-+				nr_pages, pages);
++	for (i = 0; i < max_scan; i++) {
++		if (radix_tree_lookup(root, index))
++			break;
++		index++;
++		if (index == 0)
++			break;
++	}
++
++	return index;
 +}
++EXPORT_SYMBOL(radix_tree_next_present);
 +
- #ifdef CONFIG_NUMA
- extern struct page *alloc_pages_current(gfp_t gfp_mask, unsigned order);
- 
++unsigned long radix_tree_prev_present(struct radix_tree_root *root,
++				   unsigned long index, unsigned long max_scan)
++{
++	unsigned long i;
++
++	for (i = 0; i < max_scan; i++) {
++		if (radix_tree_lookup(root, index))
++			break;
++		index--;
++		if (index == ULONG_MAX)
++			break;
++	}
++
++	return index;
++}
++EXPORT_SYMBOL(radix_tree_prev_present);
++
+ /**
+  *	radix_tree_gang_lookup - perform multiple lookup on a radix tree
+  *	@root:		radix tree root
 -- 
 1.7.9.5
 
