@@ -1,26 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Date: Thu, 4 Jul 2013 07:41:53 -0400
-From: Benjamin LaHaise <bcrl@kvack.org>
-Subject: Re: [WiP]: aio support for migrating pages (Re: [PATCH V2 1/2] mm: hotplug: implement non-movable version of get_user_pages() called get_user_pages_non_movable())
-Message-ID: <20130704114153.GD11006@kvack.org>
-References: <20130517002349.GI1008@kvack.org> <5195A3F4.70803@cn.fujitsu.com> <20130517143718.GK1008@kvack.org> <519AD6F8.2070504@cn.fujitsu.com> <20130521022733.GT1008@kvack.org> <51B6F107.80501@cn.fujitsu.com> <20130611144525.GB14404@kvack.org> <51D12E7B.6080301@cn.fujitsu.com> <20130702180008.GQ16399@kvack.org> <51D51B66.3000301@cn.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id DD79E6B0034
+	for <linux-mm@kvack.org>; Thu,  4 Jul 2013 08:26:52 -0400 (EDT)
+Received: from /spool/local
+	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Thu, 4 Jul 2013 06:26:52 -0600
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id B769D1FF0024
+	for <linux-mm@kvack.org>; Thu,  4 Jul 2013 06:21:32 -0600 (MDT)
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r64CQnlH119392
+	for <linux-mm@kvack.org>; Thu, 4 Jul 2013 06:26:49 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r64CQn9L011926
+	for <linux-mm@kvack.org>; Thu, 4 Jul 2013 06:26:49 -0600
+Date: Thu, 4 Jul 2013 17:56:44 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 06/13] sched: Reschedule task on preferred NUMA node once
+ selected
+Message-ID: <20130704122644.GA29916@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <1372861300-9973-1-git-send-email-mgorman@suse.de>
+ <1372861300-9973-7-git-send-email-mgorman@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <51D51B66.3000301@cn.fujitsu.com>
+In-Reply-To: <1372861300-9973-7-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gu Zheng <guz.fnst@cn.fujitsu.com>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, akpm@linux-foundation.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, zab@redhat.com, jmoyer@redhat.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Jul 04, 2013 at 02:51:18PM +0800, Gu Zheng wrote:
-> Hi Ben,
->       When I test your patch on kernel 3.10, the kernel panic when aio job
-> complete or exit, exactly in aio_free_ring(), the following is a part of dmesg.
+* Mel Gorman <mgorman@suse.de> [2013-07-03 15:21:33]:
 
-What is your test case?
+> 
+> diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+> index 2a0bbc2..b9139be 100644
+> --- a/kernel/sched/fair.c
+> +++ b/kernel/sched/fair.c
+> @@ -800,6 +800,37 @@ unsigned int sysctl_numa_balancing_scan_delay = 1000;
+>   */
+>  unsigned int sysctl_numa_balancing_settle_count __read_mostly = 3;
+> 
+> +static unsigned long weighted_cpuload(const int cpu);
+> +
+> +static int
+> +find_idlest_cpu_node(int this_cpu, int nid)
+> +{
+> +	unsigned long load, min_load = ULONG_MAX;
+> +	int i, idlest_cpu = this_cpu;
+> +
+> +	BUG_ON(cpu_to_node(this_cpu) == nid);
+> +
+> +	for_each_cpu(i, cpumask_of_node(nid)) {
+> +		load = weighted_cpuload(i);
+> +
+> +		if (load < min_load) {
+> +			struct task_struct *p;
+> +
+> +			/* Do not preempt a task running on its preferred node */
+> +			struct rq *rq = cpu_rq(i);
+> +			raw_spin_lock_irq(&rq->lock);
 
-		-ben
+Not sure why we need this spin_lock? Cant this be done in a rcu block
+instead?
+
+
+-- 
+Thanks and Regards
+Srikar Dronamraju
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
