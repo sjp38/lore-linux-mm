@@ -1,159 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 801CD6B0033
-	for <linux-mm@kvack.org>; Thu,  4 Jul 2013 15:36:51 -0400 (EDT)
-Date: Thu, 4 Jul 2013 15:36:38 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 07/13] sched: Split accounting of NUMA hinting faults
- that pass two-stage filter
-Message-ID: <20130704193638.GP17812@cmpxchg.org>
-References: <1372861300-9973-1-git-send-email-mgorman@suse.de>
- <1372861300-9973-8-git-send-email-mgorman@suse.de>
- <20130703215654.GN17812@cmpxchg.org>
- <20130704092356.GK1875@suse.de>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 6E9DB6B0033
+	for <linux-mm@kvack.org>; Thu,  4 Jul 2013 16:28:07 -0400 (EDT)
+Date: Thu, 4 Jul 2013 22:22:32 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH] mm: add sys_madvise2 and MADV_NAME to name vmas
+Message-ID: <20130704202232.GA19287@redhat.com>
+References: <1372901537-31033-1-git-send-email-ccross@android.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130704092356.GK1875@suse.de>
+In-Reply-To: <1372901537-31033-1-git-send-email-ccross@android.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Colin Cross <ccross@android.com>
+Cc: linux-kernel@vger.kernel.org, Kyungmin Park <kmpark@infradead.org>, Christoph Hellwig <hch@infradead.org>, John Stultz <john.stultz@linaro.org>, Rob Landley <rob@landley.net>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rusty Russell <rusty@rustcorp.com.au>, "Eric W. Biederman" <ebiederm@xmission.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Anton Vorontsov <anton.vorontsov@linaro.org>, Pekka Enberg <penberg@kernel.org>, Shaohua Li <shli@fusionio.com>, Sasha Levin <sasha.levin@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@kernel.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, "open list:GENERIC INCLUDE/A..." <linux-arch@vger.kernel.org>
 
-On Thu, Jul 04, 2013 at 10:23:56AM +0100, Mel Gorman wrote:
-> On Wed, Jul 03, 2013 at 05:56:54PM -0400, Johannes Weiner wrote:
-> > On Wed, Jul 03, 2013 at 03:21:34PM +0100, Mel Gorman wrote:
-> > > Ideally it would be possible to distinguish between NUMA hinting faults
-> > > that are private to a task and those that are shared. This would require
-> > > that the last task that accessed a page for a hinting fault would be
-> > > recorded which would increase the size of struct page. Instead this patch
-> > > approximates private pages by assuming that faults that pass the two-stage
-> > > filter are private pages and all others are shared. The preferred NUMA
-> > > node is then selected based on where the maximum number of approximately
-> > > private faults were measured. Shared faults are not taken into
-> > > consideration for a few reasons.
-> > 
-> > Ingo had a patch that would just encode a few bits of the PID along
-> > with the last_nid (last_cpu in his case) member of struct page.  No
-> > extra space required and should be accurate enough.
-> > 
-> 
-> Yes, I'm aware of it. I noted in the changelog that ideally we'd record
-> the task both to remind myself and so that the patch that introduces it
-> could refer to this changelog so there is some sort of logical progression
-> for reviewers.
-> 
-> I was not keen on the use of last_cpu because I felt there was an implicit
-> assumption that scanning would always be fast enough to record hinting
-> faults before a task got moved to another CPU for any reason. I feared this
-> would be worse as memory and task sizes increased. That's why I stayed
-> with tracking the nid for the two-stage filter until it could be proven
-> it was insufficient for some reason.
-> 
-> The lack of anything resembling pid tracking now is that the series is
-> already a bit of a mouthful and I thought the other parts were more
-> important for now.
+On 07/03, Colin Cross wrote:
+>
+> The names of named anonymous vmas are shown in /proc/pid/maps
+> as [anon:<name>].  The name of all named vmas are shown in
+> /proc/pid/smaps in a new "Name" field that is only present
+> for named vmas.
 
-Fair enough.
+And this is the only purpose, yes?
 
-> > Otherwise this is blind to sharedness within the node the task is
-> > currently running on, right?
-> > 
-> 
-> Yes, it is.
-> 
-> > > First, if there are many tasks sharing the page then they'll all move
-> > > towards the same node. The node will be compute overloaded and then
-> > > scheduled away later only to bounce back again. Alternatively the shared
-> > > tasks would just bounce around nodes because the fault information is
-> > > effectively noise. Either way accounting for shared faults the same as
-> > > private faults may result in lower performance overall.
-> > 
-> > When the node with many shared pages is compute overloaded then there
-> > is arguably not an optimal node for the tasks and moving them off is
-> > inevitable. 
-> 
-> Yes. If such an event occurs then the ideal is that the task interleaves
-> between a subset of nodes. The situation could be partially detected by
-> tracking if the number of historical faults is approximately larger than
-> the preferred node and then interleave between the top N nodes most faulted
-> nodes until the working set fits. Starting the interleave should just be
-> a matter of coding. The difficulty is correctly backing off that if there
-> is a phase change.
+>  static long madvise_behavior(struct vm_area_struct * vma,
+>  		     struct vm_area_struct **prev,
+> -		     unsigned long start, unsigned long end, int behavior)
+> +		     unsigned long start, unsigned long end, int behavior,
+> +		     void *arg, size_t arg_len)
+>  {
+>  	struct mm_struct * mm = vma->vm_mm;
+>  	int error = 0;
+>  	pgoff_t pgoff;
+>  	unsigned long new_flags = vma->vm_flags;
+> +	struct vma_name *new_name = vma->vm_name;
+>  
+>  	switch (behavior) {
+>  	case MADV_NORMAL:
+> @@ -93,16 +97,28 @@ static long madvise_behavior(struct vm_area_struct * vma,
+>  		if (error)
+>  			goto out;
+>  		break;
+> +	case MADV_NAME:
+> +		if (arg) {
+> +			new_name = vma_name_get_from_str(arg, arg_len);
+> +			if (!new_name) {
+> +				error = -ENOMEM;
+> +				goto out;
+> +			}
+> +		} else {
+> +			new_name = NULL;
+> +		}
+> +		break;
+>  	}
+>  
+> -	if (new_flags == vma->vm_flags) {
+> +	if (new_flags == vma->vm_flags && new_name == vma->vm_name) {
+>  		*prev = vma;
+>  		goto out;
+>  	}
+>  
+>  	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
+>  	*prev = vma_merge(mm, *prev, start, end, new_flags, vma->anon_vma,
+> -				vma->vm_file, pgoff, vma_policy(vma));
+> +				vma->vm_file, pgoff, vma_policy(vma),
+> +				new_name);
+>  	if (*prev) {
+>  		vma = *prev;
+>  		goto success;
+> @@ -127,8 +143,17 @@ success:
+>  	 * vm_flags is protected by the mmap_sem held in write mode.
+>  	 */
+>  	vma->vm_flags = new_flags;
+> +	if (vma->vm_name != new_name) {
+> +		if (vma->vm_name)
+> +			vma_name_put(vma->vm_name);
+> +		if (new_name)
+> +			vma_name_get(new_name);
+> +		vma->vm_name = new_name;
+> +	}
 
-Agreed, optimizing second-best placement can be dealt with later.  I'm
-worried about optimal placement, though.
+So we change vma->vm_name after vma_merge(). But given that is_mergeable_vma()
+checks vma->vm_name with this patch, this means that we can have 2 vma's with
+the same ->vm_name which should be merged?
 
-And I'm worried about skewing memory access statistics in order to
-steer future situations the CPU load balancer should handle instead.
+IOW. Suppose that we have vma with vm_start = START, end = START + 2 * PAGE_SIZE.
+Suppose that an application does
 
-> > However, the node with the most page accesses, private or
-> > shared, is still the preferred node from a memory stand point.
-> > Compute load being equal, the task should go to the node with 2GB of
-> > shared memory and not to the one with 2 private pages.
-> > 
-> 
-> Agreed. The level of shared vs private needs to be detected. The problem
-> here is that detecting private dominated workloads is not straight-forward,
-> particularly as the scan rate slows as we've already discussed.
+	MADV_NAME(START, PAGE_SIZE, "MY_NAME");
+	MADV_NAME(START + PAGE_SIZE, PAGE_SIZE, "MY_NAME");
 
-I was going for the opposite conclusion: that it does not matter
-whether memory is accessed privately or in a shared fashion, because
-there is no obvious connection to its access frequency, not to me at
-least.  Short of accurate access frequency sampling and supportive
-data, the node with most accesses in general should be the preferred
-node, not the one with the most private accesses because it's the
-smaller assumption to make.
+The 1st MADV_NAME will split this vma, the 2nd won't merge. Not that I think
+this is buggy, just a bit inconsistent imho.
 
-> > > The second reason is based on a hypothetical workload that has a small
-> > > number of very important, heavily accessed private pages but a large shared
-> > > array. The shared array would dominate the number of faults and be selected
-> > > as a preferred node even though it's the wrong decision.
-> > 
-> > That's a scan granularity problem and I can't see how you solve it
-> > with ignoring the shared pages. 
-> 
-> I acknowledge it's a problem and basically I'm making a big assumption
-> that private-dominated workloads are going to be the common case. Threaded
-> application on UMA with heavy amounts of shared data (within cache lines)
-> already suck in terms of performance so I'm expecting programmers already
-> try and avoid this sort of sharing. Obviously we are at a page granularity
-> here so the assumption will depend entirely on alignments and buffer sizes
-> so it might still fall apart.
+And I guess vma_name_get(new_name) is not needed, you can simply nullify it
+after changing ->vm_name to avoid vma_name_put() below.
 
-Don't basically all VM-based mulithreaded programs have this usage
-pattern?  The whole runtime (text, heap) is shared between threads.
-If some thread-local memory spills over to another node, should the
-scheduler move this thread off node from a memory standpoint?  I don't
-think so at all.  I would expect it to always gravitate back towards
-this node with the VM on it, only get moved off for CPU load reasons,
-and get moved back as soon as the load situation permits.
-
-Meanwhile, if there is little shared memory and private memory spills
-over to other nodes, you still don't know which node's memory is more
-frequently used beyond scan period granularity.  Ignoring shared
-memory accesses would not actually help finding the right node in this
-case.  You might even make it worse: since private accesses are all
-treated equally, you assume equal access frequency among them.  Shared
-accesses could now be the distinguishing data point to tell which node
-sees more memory accesses.
-
-> I think that dealing with this specific problem is a series all on its
-> own and treating it on its own in isolation would be best.
-
-The scan granularity issue is indeed a separate issue, I'm just really
-suspicious of the assumption you make to attempt working around it in
-this patch, because of the risk of moving away from optimal placement
-prematurely.
-
-The null hypothesis is that there is no connection between accesses
-being shared or private and their actual frequency.  I would be
-interested if this assumption has had a positive effect in your
-testing or if this is based on the theoretical cases you mentioned in
-the changelog, i.e. why you chose to make the bigger assumption.
--ENODATA ;-)
-
-I think answering this question is precisely the scope of this patch.
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
