@@ -1,33 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 783FA6B0033
-	for <linux-mm@kvack.org>; Thu,  4 Jul 2013 10:25:05 -0400 (EDT)
-Message-ID: <51D585A8.3070001@redhat.com>
-Date: Thu, 04 Jul 2013 10:24:40 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id BD12B6B0033
+	for <linux-mm@kvack.org>; Thu,  4 Jul 2013 10:40:23 -0400 (EDT)
+Date: Thu, 4 Jul 2013 15:40:18 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 13/13] sched: Account for the number of preferred tasks
+ running on a node when selecting a preferred node
+Message-ID: <20130704144018.GS1875@suse.de>
+References: <1372861300-9973-1-git-send-email-mgorman@suse.de>
+ <1372861300-9973-14-git-send-email-mgorman@suse.de>
+ <20130703183243.GB18898@dyad.programming.kicks-ass.net>
+ <20130704093716.GO1875@suse.de>
+ <20130704130719.GC29916@linux.vnet.ibm.com>
+ <20130704135415.GR1875@suse.de>
+ <20130704140612.GO18898@dyad.programming.kicks-ass.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH 07/13] sched: Split accounting of NUMA hinting faults
- that pass two-stage filter
-References: <1372861300-9973-1-git-send-email-mgorman@suse.de> <1372861300-9973-8-git-send-email-mgorman@suse.de> <20130703215654.GN17812@cmpxchg.org> <20130704092356.GK1875@suse.de>
-In-Reply-To: <20130704092356.GK1875@suse.de>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20130704140612.GO18898@dyad.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 07/04/2013 05:23 AM, Mel Gorman wrote:
+On Thu, Jul 04, 2013 at 04:06:13PM +0200, Peter Zijlstra wrote:
+> On Thu, Jul 04, 2013 at 02:54:15PM +0100, Mel Gorman wrote:
+> > diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+> > index 9247345..387f28d 100644
+> > --- a/kernel/sched/fair.c
+> > +++ b/kernel/sched/fair.c
+> > @@ -863,9 +863,13 @@ find_idlest_cpu_node(int this_cpu, int nid)
+> >  		load = weighted_cpuload(i);
+> >  
+> >  		if (load < min_load) {
+> > -			/* Do not preempt a task running on a preferred node */
+> > +			/*
+> > +			 * Do not preempt a task running on a preferred node or
+> > +			 * tasks are are pinned to their current CPU
+> > +			 */
+> >  			struct task_struct *p = cpu_rq(i)->curr;
+> > -			if (p->numa_preferred_nid != nid) {
+> > +			if (p->numa_preferred_nid != nid &&
+> > +			    cpumask_weight(tsk_cpus_allowed(p)) > 1) {
+> 
+> We have p->nr_cpus_allowed for that.
+> 
 
-> I think that dealing with this specific problem is a series all on its
-> own and treating it on its own in isolation would be best.
+/me slaps self
 
-Agreed, lets tackle one thing at a time, otherwise we will
-(once again) end up with a patch series that is too large
-to merge.
+That's a bit easier to calculate, thanks.
 
 -- 
-All rights reversed
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
