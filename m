@@ -1,65 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id B41B46B0036
-	for <linux-mm@kvack.org>; Thu,  4 Jul 2013 06:00:52 -0400 (EDT)
-Date: Thu, 4 Jul 2013 12:00:44 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC PATCH 0/5] Support multiple pages allocation
-Message-ID: <20130704100044.GB7833@dhcp22.suse.cz>
-References: <1372840460-5571-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20130703152824.GB30267@dhcp22.suse.cz>
- <51D44890.4080003@gmail.com>
- <51D44AE7.1090701@gmail.com>
- <20130704042450.GA7132@lge.com>
-MIME-Version: 1.0
+Date: Thu, 4 Jul 2013 07:41:53 -0400
+From: Benjamin LaHaise <bcrl@kvack.org>
+Subject: Re: [WiP]: aio support for migrating pages (Re: [PATCH V2 1/2] mm: hotplug: implement non-movable version of get_user_pages() called get_user_pages_non_movable())
+Message-ID: <20130704114153.GD11006@kvack.org>
+References: <20130517002349.GI1008@kvack.org> <5195A3F4.70803@cn.fujitsu.com> <20130517143718.GK1008@kvack.org> <519AD6F8.2070504@cn.fujitsu.com> <20130521022733.GT1008@kvack.org> <51B6F107.80501@cn.fujitsu.com> <20130611144525.GB14404@kvack.org> <51D12E7B.6080301@cn.fujitsu.com> <20130702180008.GQ16399@kvack.org> <51D51B66.3000301@cn.fujitsu.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130704042450.GA7132@lge.com>
+In-Reply-To: <51D51B66.3000301@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Zhang Yanfei <zhangyanfei.yes@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Gu Zheng <guz.fnst@cn.fujitsu.com>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, akpm@linux-foundation.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, zab@redhat.com, jmoyer@redhat.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>
 
-On Thu 04-07-13 13:24:50, Joonsoo Kim wrote:
-> On Thu, Jul 04, 2013 at 12:01:43AM +0800, Zhang Yanfei wrote:
-> > On 07/03/2013 11:51 PM, Zhang Yanfei wrote:
-> > > On 07/03/2013 11:28 PM, Michal Hocko wrote:
-> > >> On Wed 03-07-13 17:34:15, Joonsoo Kim wrote:
-> > >> [...]
-> > >>> For one page allocation at once, this patchset makes allocator slower than
-> > >>> before (-5%). 
-> > >>
-> > >> Slowing down the most used path is a no-go. Where does this slow down
-> > >> come from?
-> > > 
-> > > I guess, it might be: for one page allocation at once, comparing to the original
-> > > code, this patch adds two parameters nr_pages and pages and will do extra checks
-> > > for the parameter nr_pages in the allocation path.
-> > > 
-> > 
-> > If so, adding a separate path for the multiple allocations seems better.
-> 
-> Hello, all.
-> 
-> I modify the code for optimizing one page allocation via likely macro.
-> I attach a new one at the end of this mail.
-> 
-> In this case, performance degradation for one page allocation at once is -2.5%.
-> I guess, remained overhead comes from two added parameters.
-> Is it unreasonable cost to support this new feature?
+On Thu, Jul 04, 2013 at 02:51:18PM +0800, Gu Zheng wrote:
+> Hi Ben,
+>       When I test your patch on kernel 3.10, the kernel panic when aio job
+> complete or exit, exactly in aio_free_ring(), the following is a part of dmesg.
 
-Which benchmark you are using for this testing?
+What is your test case?
 
-> I think that readahead path is one of the most used path, so this penalty looks
-> endurable. And after supporting this feature, we can find more use cases.
-
-What about page faults? I would oppose that page faults are _much_ more
-frequent than read ahead so you really cannot slow them down.
-
-[...]
--- 
-Michal Hocko
-SUSE Labs
+		-ben
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
