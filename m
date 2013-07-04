@@ -1,98 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 73E256B0034
-	for <linux-mm@kvack.org>; Thu,  4 Jul 2013 08:55:33 -0400 (EDT)
-From: Kevin Hao <haokexin@gmail.com>
-Subject: [PATCH v2 5/8] memblock: introduce the memblock_reinit function
-Date: Thu, 4 Jul 2013 20:54:11 +0800
-Message-ID: <1372942454-25191-6-git-send-email-haokexin@gmail.com>
-In-Reply-To: <1372942454-25191-1-git-send-email-haokexin@gmail.com>
-References: <1372942454-25191-1-git-send-email-haokexin@gmail.com>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 4F2276B0034
+	for <linux-mm@kvack.org>; Thu,  4 Jul 2013 09:08:19 -0400 (EDT)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Thu, 4 Jul 2013 09:08:18 -0400
+Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id F2DA038C8045
+	for <linux-mm@kvack.org>; Thu,  4 Jul 2013 09:08:14 -0400 (EDT)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r64D7OAp58785886
+	for <linux-mm@kvack.org>; Thu, 4 Jul 2013 09:07:24 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r64D7Mug019044
+	for <linux-mm@kvack.org>; Thu, 4 Jul 2013 09:07:23 -0400
+Date: Thu, 4 Jul 2013 18:37:19 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 13/13] sched: Account for the number of preferred tasks
+ running on a node when selecting a preferred node
+Message-ID: <20130704130719.GC29916@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <1372861300-9973-1-git-send-email-mgorman@suse.de>
+ <1372861300-9973-14-git-send-email-mgorman@suse.de>
+ <20130703183243.GB18898@dyad.programming.kicks-ass.net>
+ <20130704093716.GO1875@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20130704093716.GO1875@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kumar Gala <galak@kernel.crashing.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Scott Wood <scottwood@freescale.com>, linuxppc <linuxppc-dev@lists.ozlabs.org>, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-In the current code, the data used by memblock are initialized
-statically. But in some special cases we may scan the memory twice.
-So we should have a way to reinitialize these data before the second
-time.
+>  static void task_numa_placement(struct task_struct *p)
+>  {
+>  	int seq, nid, max_nid = 0;
+> @@ -897,7 +924,7 @@ static void task_numa_placement(struct task_struct *p)
+> 
+>  		/* Find maximum private faults */
+>  		faults = p->numa_faults[task_faults_idx(nid, 1)];
+> -		if (faults > max_faults) {
+> +		if (faults > max_faults && !sched_numa_overloaded(nid)) {
 
-Signed-off-by: Kevin Hao <haokexin@gmail.com>
----
-A new patch in v2.
+Should we take the other approach of setting the preferred nid but not 
+moving the task to the node?
 
- include/linux/memblock.h |  1 +
- mm/memblock.c            | 33 +++++++++++++++++++++++----------
- 2 files changed, 24 insertions(+), 10 deletions(-)
+So if some task moves out of the preferred node, then we should still be
+able to move this task there. 
 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index f388203..9d55311 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -58,6 +58,7 @@ int memblock_remove(phys_addr_t base, phys_addr_t size);
- int memblock_free(phys_addr_t base, phys_addr_t size);
- int memblock_reserve(phys_addr_t base, phys_addr_t size);
- void memblock_trim_memory(phys_addr_t align);
-+void memblock_reinit(void);
- 
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
-diff --git a/mm/memblock.c b/mm/memblock.c
-index c5fad93..9406ce6 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -23,23 +23,36 @@
- static struct memblock_region memblock_memory_init_regions[INIT_MEMBLOCK_REGIONS] __initdata_memblock;
- static struct memblock_region memblock_reserved_init_regions[INIT_MEMBLOCK_REGIONS] __initdata_memblock;
- 
--struct memblock memblock __initdata_memblock = {
--	.memory.regions		= memblock_memory_init_regions,
--	.memory.cnt		= 1,	/* empty dummy entry */
--	.memory.max		= INIT_MEMBLOCK_REGIONS,
--
--	.reserved.regions	= memblock_reserved_init_regions,
--	.reserved.cnt		= 1,	/* empty dummy entry */
--	.reserved.max		= INIT_MEMBLOCK_REGIONS,
-+#define INIT_MEMBLOCK {							\
-+	.memory.regions		= memblock_memory_init_regions,		\
-+	.memory.cnt		= 1,	/* empty dummy entry */		\
-+	.memory.max		= INIT_MEMBLOCK_REGIONS,		\
-+									\
-+	.reserved.regions	= memblock_reserved_init_regions,	\
-+	.reserved.cnt		= 1,	/* empty dummy entry */		\
-+	.reserved.max		= INIT_MEMBLOCK_REGIONS,		\
-+									\
-+	.current_limit		= MEMBLOCK_ALLOC_ANYWHERE,		\
-+}
- 
--	.current_limit		= MEMBLOCK_ALLOC_ANYWHERE,
--};
-+struct memblock memblock __initdata_memblock = INIT_MEMBLOCK;
- 
- int memblock_debug __initdata_memblock;
- static int memblock_can_resize __initdata_memblock;
- static int memblock_memory_in_slab __initdata_memblock = 0;
- static int memblock_reserved_in_slab __initdata_memblock = 0;
- 
-+void __init memblock_reinit(void)
-+{
-+	memset(memblock_memory_init_regions, 0,
-+				sizeof(memblock_memory_init_regions));
-+	memset(memblock_reserved_init_regions, 0,
-+				sizeof(memblock_reserved_init_regions));
-+
-+	memset(&memblock, 0, sizeof(memblock));
-+	memblock = (struct memblock) INIT_MEMBLOCK;
-+}
-+
- /* inline so we don't get a warning when pr_debug is compiled out */
- static __init_memblock const char *
- memblock_type_name(struct memblock_type *type)
--- 
-1.8.1.4
+However your current approach has an advantage that it atleast runs on
+second preferred choice if not the first.
+
+Also should sched_numa_overloaded() also consider pinned tasks?
+
+>  			max_faults = faults;
+>  			max_nid = nid;
+>  		}
+> @@ -923,9 +950,7 @@ static void task_numa_placement(struct task_struct *p)
+>  							     max_nid);
+>  		}
+> 
+> -		/* Update the preferred nid and migrate task if possible */
+> -		p->numa_preferred_nid = max_nid;
+> -		p->numa_migrate_seq = 0;
+> +		sched_setnuma(p, max_nid, preferred_cpu);
+>  		migrate_task_to(p, preferred_cpu);
+> 
+>  		/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
