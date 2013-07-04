@@ -1,978 +1,439 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id D9F966B0032
-	for <linux-mm@kvack.org>; Wed,  3 Jul 2013 21:32:45 -0400 (EDT)
-Received: by mail-ve0-f201.google.com with SMTP id ox1so80233veb.4
-        for <linux-mm@kvack.org>; Wed, 03 Jul 2013 18:32:44 -0700 (PDT)
-From: Colin Cross <ccross@android.com>
-Subject: [PATCH] mm: add sys_madvise2 and MADV_NAME to name vmas
-Date: Wed,  3 Jul 2013 18:31:56 -0700
-Message-Id: <1372901537-31033-1-git-send-email-ccross@android.com>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 3B39E6B0032
+	for <linux-mm@kvack.org>; Thu,  4 Jul 2013 00:05:08 -0400 (EDT)
+Date: Thu, 04 Jul 2013 00:05:12 -0500 (EDT)
+Subject: 2.0 is back
+From: INFORMATION - SM00TH CL0CK <affiliate_online@susteen.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed;boundary="----=_20130703150016000000_41656"
+Message-ID: <1372874419.04516356@apps.royalchampion.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Kyungmin Park <kmpark@infradead.org>, Christoph Hellwig <hch@infradead.org>, John Stultz <john.stultz@linaro.org>, Colin Cross <ccross@android.com>, Rob Landley <rob@landley.net>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rusty Russell <rusty@rustcorp.com.au>, "Eric W. Biederman" <ebiederm@xmission.com>, Oleg Nesterov <oleg@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Anton Vorontsov <anton.vorontsov@linaro.org>, Pekka Enberg <penberg@kernel.org>, Shaohua Li <shli@fusionio.com>, Sasha Levin <sasha.levin@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@kernel.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, "open list:GENERIC INCLUDE/A..." <linux-arch@vger.kernel.org>
 
-Userspace processes often have multiple allocators that each do
-anonymous mmaps to get memory.  When examining memory usage of
-individual processes or systems as a whole, it is useful to be
-able to break down the various heaps that were allocated by
-each layer and examine their size, RSS, and physical memory
-usage.
+------=_20130703150016000000_41656
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-This patch adds a struct vma_name * containing a string to each
-vma.  Every vma with the same name is guaranteed to point to
-the same struct vma_name, allowing name equality comparisons
-by comparing pointers.  The expected use case is a few names
-used by many processes.
+<html xmlns:v=3D"urn:schemas-microsoft-com:vml" =
+xmlns:o=3D"urn:schemas-microsoft-com:office:office" =
+xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
+xmlns:m=3D"http://schemas.microsoft.com/office/2004/12/omml" =
+xmlns=3D"http://www.w3.org/TR/REC-html40"><head><META =
+HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; =
+charset=3Dus-ascii"><meta name=3DGenerator content=3D"Microsoft Word 14 =
+(filtered medium)"><!--[if !mso]><style>v\:* =
+{behavior:url(#default#VML);}
+o\:* {behavior:url(#default#VML);}
+w\:* {behavior:url(#default#VML);}
+shape {behavior:url(#default#VML);}
+</style><![endif]--><style><!--
+/* Font Definitions */
+@font-face
+	{font-family:Calibri;
+	panose-1:2 15 5 2 2 2 4 3 2 4;}
+@font-face
+	{font-family:Tahoma;
+	panose-1:2 11 6 4 3 5 4 4 2 4;}
+/* Style Definitions */
+p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{margin:0in;
+	margin-bottom:.0001pt;
+	font-size:11.0pt;
+	font-family:"Calibri","sans-serif";}
+a:link, span.MsoHyperlink
+	{mso-style-priority:99;
+	color:blue;
+	text-decoration:underline;}
+a:visited, span.MsoHyperlinkFollowed
+	{mso-style-priority:99;
+	color:purple;
+	text-decoration:underline;}
+p.MsoAcetate, li.MsoAcetate, div.MsoAcetate
+	{mso-style-priority:99;
+	mso-style-link:"Balloon Text Char";
+	margin:0in;
+	margin-bottom:.0001pt;
+	font-size:8.0pt;
+	font-family:"Tahoma","sans-serif";}
+span.EmailStyle17
+	{mso-style-type:personal-compose;
+	font-family:"Calibri","sans-serif";
+	color:windowtext;}
+span.BalloonTextChar
+	{mso-style-name:"Balloon Text Char";
+	mso-style-priority:99;
+	mso-style-link:"Balloon Text";
+	font-family:"Tahoma","sans-serif";}
+MsoChpDefault
+	{mso-style-type:export-only;
+	font-family:"Calibri","sans-serif";}
+@page WordSection1
+	{size:8.5in 11.0in;
+	margin:1.0in 1.0in 1.0in 1.0in;}
+div.WordSection1
+	{page:WordSection1;}
+--></style><!--[if gte mso 9]><xml>
+<o:shapedefaults v:ext=3D"edit" spidmax=3D"1026" />
+</xml><![endif]--><!--[if gte mso 9]><xml>
+<o:shapelayout v:ext=3D"edit">
+<o:idmap v:ext=3D"edit" data=3D"1" />
+</o:shapelayout></xml><![endif]--></head>
+<body lang=3DEN-US link=3Dblue vlink=3Dpurple>
+<div class=3DWordSection1><p class=3DMsoNormal>
+<img width=3D523 height=3D374 id=3D"Picture_x0020_1" =
+src=3D"cid:image001.gif@01CE77F7.49E7D280">
+<o:p></o:p></p></div></body></html>
 
-A new madvise2 syscall is added that takes a pointer and a size,
-which along with the new behavior MADV_NAME can be used to
-attach a name to an existing vma.
+------=_20130703150016000000_41656
+Content-Type: image/gif;
+	name="image001.gif"
+Content-Transfer-Encoding: base64
+Content-ID: <image001.gif@01CE77F7.49E7D280>
 
-The names of named anonymous vmas are shown in /proc/pid/maps
-as [anon:<name>].  The name of all named vmas are shown in
-/proc/pid/smaps in a new "Name" field that is only present
-for named vmas.
+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
+Hne5zx1ZEQAAOw==
 
-The only cost for non-named vmas added by this patch is the
-check on the vm_name pointer.  For named vmas, it adds a
-refcount update to splitting/merging/duplicating vmas,
-and unmapping a named vma may require taking a global lock
-if it is the last vma with that name.
-
-Signed-off-by: Colin Cross <ccross@android.com>
----
- Documentation/filesystems/proc.txt     |   6 +
- fs/proc/task_mmu.c                     |  10 ++
- include/linux/mm.h                     |   7 +-
- include/linux/mm_types.h               |   3 +
- include/linux/syscalls.h               |   2 +
- include/uapi/asm-generic/mman-common.h |   1 +
- kernel/fork.c                          |   3 +
- kernel/sys_ni.c                        |   1 +
- mm/Makefile                            |   3 +-
- mm/madvise.c                           | 179 ++++++++++++++++++++-------
- mm/mempolicy.c                         |   2 +-
- mm/mlock.c                             |   2 +-
- mm/mmap.c                              |  45 +++++--
- mm/mprotect.c                          |   3 +-
- mm/nommu.c                             |   5 +
- mm/vma_name.c                          | 220 +++++++++++++++++++++++++++++++++
- 16 files changed, 427 insertions(+), 65 deletions(-)
- create mode 100644 mm/vma_name.c
-
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index fd8d0d5..04eabf3 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -369,6 +369,8 @@ is not associated with a file:
-  [stack:1001]             = the stack of the thread with tid 1001
-  [vdso]                   = the "virtual dynamic shared object",
-                             the kernel system call handler
-+ [anon:<name>]            = an anonymous mapping that has been
-+                            named by MADV_NAME
- 
-  or if empty, the mapping is anonymous.
- 
-@@ -419,6 +421,7 @@ KernelPageSize:        4 kB
- MMUPageSize:           4 kB
- Locked:              374 kB
- VmFlags: rd ex mr mw me de
-+Name:           name_from_MADV_NAME
- 
- the first of these lines shows the same information as is displayed for the
- mapping in /proc/PID/maps.  The remaining lines show the size of the mapping
-@@ -469,6 +472,9 @@ Note that there is no guarantee that every flag and associated mnemonic will
- be present in all further kernel releases. Things get changed, the flags may
- be vanished or the reverse -- new added.
- 
-+The "Name" field will only be present on a mapping that has had MADV_NAME
-+called on it, and will show the name passed in by userspace.
-+
- This file is only present if the CONFIG_MMU kernel configuration option is
- enabled.
- 
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 3e636d8..6741031 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -335,6 +335,12 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
- 				pad_len_spaces(m, len);
- 				seq_printf(m, "[stack:%d]", tid);
- 			}
-+			goto done;
-+		}
-+
-+		if (vma->vm_name) {
-+			pad_len_spaces(m, len);
-+			seq_printf(m, "[anon:%s]", vma_name_str(vma->vm_name));
- 		}
- 	}
- 
-@@ -634,6 +640,10 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
- 
- 	show_smap_vma_flags(m, vma);
- 
-+	if (vma->vm_name)
-+		seq_printf(m, "Name:           %s\n",
-+				vma_name_str(vma->vm_name));
-+
- 	if (m->count < m->size)  /* vma is copied successfully */
- 		m->version = (vma != get_gate_vma(task->mm))
- 			? vma->vm_start : 0;
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index bd5679d..5727611 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1486,7 +1486,7 @@ extern int vma_adjust(struct vm_area_struct *vma, unsigned long start,
- extern struct vm_area_struct *vma_merge(struct mm_struct *,
- 	struct vm_area_struct *prev, unsigned long addr, unsigned long end,
- 	unsigned long vm_flags, struct anon_vma *, struct file *, pgoff_t,
--	struct mempolicy *);
-+	struct mempolicy *, struct vma_name *);
- extern struct anon_vma *find_mergeable_anon_vma(struct vm_area_struct *);
- extern int split_vma(struct mm_struct *,
- 	struct vm_area_struct *, unsigned long addr, int new_below);
-@@ -1829,5 +1829,10 @@ void __init setup_nr_node_ids(void);
- static inline void setup_nr_node_ids(void) {}
- #endif
- 
-+struct vma_name *vma_name_get_from_str(const char *name, size_t name_len);
-+void vma_name_get(struct vma_name *vma_name);
-+void vma_name_put(struct vma_name *vma_name);
-+const char *vma_name_str(struct vma_name *vma_name);
-+
- #endif /* __KERNEL__ */
- #endif /* _LINUX_MM_H */
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index ace9a5f..f2491ab 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -219,6 +219,8 @@ struct vm_region {
- 						* this region */
- };
- 
-+struct vma_name;
-+
- /*
-  * This struct defines a memory VMM memory area. There is one of these
-  * per VM-area/task.  A VM area is any part of the process virtual memory
-@@ -289,6 +291,7 @@ struct vm_area_struct {
- #ifdef CONFIG_NUMA
- 	struct mempolicy *vm_policy;	/* NUMA policy for the VMA */
- #endif
-+	struct vma_name *vm_name;
- };
- 
- struct core_thread {
-diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
-index 4147d70..d3a4b65 100644
---- a/include/linux/syscalls.h
-+++ b/include/linux/syscalls.h
-@@ -841,4 +841,6 @@ asmlinkage long sys_process_vm_writev(pid_t pid,
- asmlinkage long sys_kcmp(pid_t pid1, pid_t pid2, int type,
- 			 unsigned long idx1, unsigned long idx2);
- asmlinkage long sys_finit_module(int fd, const char __user *uargs, int flags);
-+asmlinkage long sys_madvise2(unsigned long start, size_t len_in, int behavior,
-+			     void * __user arg, size_t arg_len);
- #endif
-diff --git a/include/uapi/asm-generic/mman-common.h b/include/uapi/asm-generic/mman-common.h
-index 4164529..ecb8a41 100644
---- a/include/uapi/asm-generic/mman-common.h
-+++ b/include/uapi/asm-generic/mman-common.h
-@@ -51,6 +51,7 @@
- #define MADV_DONTDUMP   16		/* Explicity exclude from the core dump,
- 					   overrides the coredump filter bits */
- #define MADV_DODUMP	17		/* Clear the MADV_NODUMP flag */
-+#define MADV_NAME	18		/* Set a userspace visible name */
- 
- /* compatibility flags */
- #define MAP_FILE	0
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 41671a5..07d0e55 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -451,6 +451,9 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
- 			mutex_unlock(&mapping->i_mmap_mutex);
- 		}
- 
-+		if (tmp->vm_name)
-+			vma_name_get(tmp->vm_name);
-+
- 		/*
- 		 * Clear hugetlb-related page reserves for children. This only
- 		 * affects MAP_PRIVATE mappings. Faults generated by the child
-diff --git a/kernel/sys_ni.c b/kernel/sys_ni.c
-index 7078052..128fe64 100644
---- a/kernel/sys_ni.c
-+++ b/kernel/sys_ni.c
-@@ -175,6 +175,7 @@ cond_syscall(sys_mremap);
- cond_syscall(sys_remap_file_pages);
- cond_syscall(compat_sys_move_pages);
- cond_syscall(compat_sys_migrate_pages);
-+cond_syscall(sys_madvise2);
- 
- /* block-layer dependent */
- cond_syscall(sys_bdflush);
-diff --git a/mm/Makefile b/mm/Makefile
-index 72c5acb..586c91d 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -17,8 +17,7 @@ obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
- 			   util.o mmzone.o vmstat.o backing-dev.o \
- 			   mm_init.o mmu_context.o percpu.o slab_common.o \
- 			   compaction.o balloon_compaction.o \
--			   interval_tree.o $(mmu-y)
--
-+			   interval_tree.o vma_name.o $(mmu-y)
- obj-y += init-mm.o
- 
- ifdef CONFIG_NO_BOOTMEM
-diff --git a/mm/madvise.c b/mm/madvise.c
-index 7055883..5cd80c9 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -19,6 +19,8 @@
- #include <linux/blkdev.h>
- #include <linux/swap.h>
- #include <linux/swapops.h>
-+#include <linux/limits.h>
-+#include <linux/err.h>
- 
- /*
-  * Any behaviour which results in changes to the vma->vm_flags needs to
-@@ -44,12 +46,14 @@ static int madvise_need_mmap_write(int behavior)
-  */
- static long madvise_behavior(struct vm_area_struct * vma,
- 		     struct vm_area_struct **prev,
--		     unsigned long start, unsigned long end, int behavior)
-+		     unsigned long start, unsigned long end, int behavior,
-+		     void *arg, size_t arg_len)
- {
- 	struct mm_struct * mm = vma->vm_mm;
- 	int error = 0;
- 	pgoff_t pgoff;
- 	unsigned long new_flags = vma->vm_flags;
-+	struct vma_name *new_name = vma->vm_name;
- 
- 	switch (behavior) {
- 	case MADV_NORMAL:
-@@ -93,16 +97,28 @@ static long madvise_behavior(struct vm_area_struct * vma,
- 		if (error)
- 			goto out;
- 		break;
-+	case MADV_NAME:
-+		if (arg) {
-+			new_name = vma_name_get_from_str(arg, arg_len);
-+			if (!new_name) {
-+				error = -ENOMEM;
-+				goto out;
-+			}
-+		} else {
-+			new_name = NULL;
-+		}
-+		break;
- 	}
- 
--	if (new_flags == vma->vm_flags) {
-+	if (new_flags == vma->vm_flags && new_name == vma->vm_name) {
- 		*prev = vma;
- 		goto out;
- 	}
- 
- 	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
- 	*prev = vma_merge(mm, *prev, start, end, new_flags, vma->anon_vma,
--				vma->vm_file, pgoff, vma_policy(vma));
-+				vma->vm_file, pgoff, vma_policy(vma),
-+				new_name);
- 	if (*prev) {
- 		vma = *prev;
- 		goto success;
-@@ -127,8 +143,17 @@ success:
- 	 * vm_flags is protected by the mmap_sem held in write mode.
- 	 */
- 	vma->vm_flags = new_flags;
-+	if (vma->vm_name != new_name) {
-+		if (vma->vm_name)
-+			vma_name_put(vma->vm_name);
-+		if (new_name)
-+			vma_name_get(new_name);
-+		vma->vm_name = new_name;
-+	}
- 
- out:
-+	if (behavior == MADV_NAME && new_name)
-+		vma_name_put(new_name);
- 	if (error == -ENOMEM)
- 		error = -EAGAIN;
- 	return error;
-@@ -371,7 +396,8 @@ static int madvise_hwpoison(int bhv, unsigned long start, unsigned long end)
- 
- static long
- madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
--		unsigned long start, unsigned long end, int behavior)
-+		unsigned long start, unsigned long end, int behavior,
-+		void *arg, size_t arg_len)
- {
- 	switch (behavior) {
- 	case MADV_REMOVE:
-@@ -381,7 +407,8 @@ madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
- 	case MADV_DONTNEED:
- 		return madvise_dontneed(vma, prev, start, end);
- 	default:
--		return madvise_behavior(vma, prev, start, end, behavior);
-+		return madvise_behavior(vma, prev, start, end, behavior, arg,
-+					arg_len);
- 	}
- }
- 
-@@ -407,6 +434,7 @@ madvise_behavior_valid(int behavior)
- #endif
- 	case MADV_DONTDUMP:
- 	case MADV_DODUMP:
-+	case MADV_NAME:
- 		return 1;
- 
- 	default:
-@@ -414,49 +442,52 @@ madvise_behavior_valid(int behavior)
- 	}
- }
- 
-+static void *madvise_get_arg(int behavior, void __user *user_arg,
-+			     size_t arg_len)
-+{
-+	void *arg;
-+	size_t max = NAME_MAX;
-+
-+	if (behavior != MADV_NAME)
-+		return NULL;
-+
-+	if (!arg_len)
-+		return NULL;
-+
-+	if (!user_arg)
-+		return NULL;
-+
-+	arg_len = min(arg_len, max);
-+	arg = kmalloc(arg_len, GFP_KERNEL);
-+	if (!arg)
-+		return ERR_PTR(-ENOMEM);
-+	if (copy_from_user(arg, user_arg, arg_len)) {
-+		kfree(arg);
-+		return ERR_PTR(-EFAULT);
-+	}
-+
-+	return arg;
-+}
-+
-+static void madvise_put_arg(int behavior, void *arg)
-+{
-+	if (behavior == MADV_NAME)
-+		kfree(arg);
-+}
-+
- /*
-- * The madvise(2) system call.
-+ * The madvise2(2) system call.
-  *
-- * Applications can use madvise() to advise the kernel how it should
-- * handle paging I/O in this VM area.  The idea is to help the kernel
-- * use appropriate read-ahead and caching techniques.  The information
-- * provided is advisory only, and can be safely disregarded by the
-- * kernel without affecting the correct operation of the application.
-- *
-- * behavior values:
-- *  MADV_NORMAL - the default behavior is to read clusters.  This
-- *		results in some read-ahead and read-behind.
-- *  MADV_RANDOM - the system should read the minimum amount of data
-- *		on any access, since it is unlikely that the appli-
-- *		cation will need more than what it asks for.
-- *  MADV_SEQUENTIAL - pages in the given range will probably be accessed
-- *		once, so they can be aggressively read ahead, and
-- *		can be freed soon after they are accessed.
-- *  MADV_WILLNEED - the application is notifying the system to read
-- *		some pages ahead.
-- *  MADV_DONTNEED - the application is finished with the given range,
-- *		so the kernel can free resources associated with it.
-- *  MADV_REMOVE - the application wants to free up the given range of
-- *		pages and associated backing store.
-- *  MADV_DONTFORK - omit this area from child's address space when forking:
-- *		typically, to avoid COWing pages pinned by get_user_pages().
-- *  MADV_DOFORK - cancel MADV_DONTFORK: no longer omit this area when forking.
-- *  MADV_MERGEABLE - the application recommends that KSM try to merge pages in
-- *		this area with pages of identical content from other such areas.
-- *  MADV_UNMERGEABLE- cancel MADV_MERGEABLE: no longer merge pages with others.
-- *
-- * return values:
-- *  zero    - success
-- *  -EINVAL - start + len < 0, start is not page-aligned,
-- *		"behavior" is not a valid value, or application
-- *		is attempting to release locked or shared pages.
-- *  -ENOMEM - addresses in the specified range are not currently
-- *		mapped, or are outside the AS of the process.
-- *  -EIO    - an I/O error occurred while paging in data.
-- *  -EBADF  - map exists, but area maps something that isn't a file.
-- *  -EAGAIN - a kernel resource was temporarily unavailable.
-+ * The same as madvise(2), but takes extra parameters.  Applications can use
-+ * madvise2() for all the same behaviors as madvise(), ignoring the user_arg and
-+ * arg_len arguments, or behavior values:
-+ *  MADV_NAME - set name of memory region to string of length arg_len pointed
-+ *		to by arg.  The string does not need to be NULL terminated.
-+ *		Setting arg to NULL or arg_len to 0 will clear the existing
-+ *		name.
-  */
--SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
-+SYSCALL_DEFINE5(madvise2, unsigned long, start, size_t, len_in, int, behavior,
-+	void __user *, arg, size_t, arg_len)
- {
- 	unsigned long end, tmp;
- 	struct vm_area_struct * vma, *prev;
-@@ -465,6 +496,7 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
- 	int write;
- 	size_t len;
- 	struct blk_plug plug;
-+	void *madv_arg;
- 
- #ifdef CONFIG_MEMORY_FAILURE
- 	if (behavior == MADV_HWPOISON || behavior == MADV_SOFT_OFFLINE)
-@@ -489,6 +521,10 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
- 	if (end == start)
- 		return error;
- 
-+	madv_arg = madvise_get_arg(behavior, arg, arg_len);
-+	if (IS_ERR(madv_arg))
-+		return PTR_ERR(madv_arg);
-+
- 	write = madvise_need_mmap_write(behavior);
- 	if (write)
- 		down_write(&current->mm->mmap_sem);
-@@ -525,7 +561,8 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
- 			tmp = end;
- 
- 		/* Here vma->vm_start <= start < tmp <= (end|vma->vm_end). */
--		error = madvise_vma(vma, &prev, start, tmp, behavior);
-+		error = madvise_vma(vma, &prev, start, tmp, behavior, madv_arg,
-+				    arg_len);
- 		if (error)
- 			goto out;
- 		start = tmp;
-@@ -546,5 +583,55 @@ out:
- 	else
- 		up_read(&current->mm->mmap_sem);
- 
-+	madvise_put_arg(behavior, madv_arg);
-+
- 	return error;
- }
-+
-+
-+/*
-+ * The madvise(2) system call.
-+ *
-+ * Applications can use madvise() to advise the kernel how it should
-+ * handle paging I/O in this VM area.  The idea is to help the kernel
-+ * use appropriate read-ahead and caching techniques.  The information
-+ * provided is advisory only, and can be safely disregarded by the
-+ * kernel without affecting the correct operation of the application.
-+ *
-+ * behavior values:
-+ *  MADV_NORMAL - the default behavior is to read clusters.  This
-+ *		results in some read-ahead and read-behind.
-+ *  MADV_RANDOM - the system should read the minimum amount of data
-+ *		on any access, since it is unlikely that the appli-
-+ *		cation will need more than what it asks for.
-+ *  MADV_SEQUENTIAL - pages in the given range will probably be accessed
-+ *		once, so they can be aggressively read ahead, and
-+ *		can be freed soon after they are accessed.
-+ *  MADV_WILLNEED - the application is notifying the system to read
-+ *		some pages ahead.
-+ *  MADV_DONTNEED - the application is finished with the given range,
-+ *		so the kernel can free resources associated with it.
-+ *  MADV_REMOVE - the application wants to free up the given range of
-+ *		pages and associated backing store.
-+ *  MADV_DONTFORK - omit this area from child's address space when forking:
-+ *		typically, to avoid COWing pages pinned by get_user_pages().
-+ *  MADV_DOFORK - cancel MADV_DONTFORK: no longer omit this area when forking.
-+ *  MADV_MERGEABLE - the application recommends that KSM try to merge pages in
-+ *		this area with pages of identical content from other such areas.
-+ *  MADV_UNMERGEABLE- cancel MADV_MERGEABLE: no longer merge pages with others.
-+ *
-+ * return values:
-+ *  zero    - success
-+ *  -EINVAL - start + len < 0, start is not page-aligned,
-+ *		"behavior" is not a valid value, or application
-+ *		is attempting to release locked or shared pages.
-+ *  -ENOMEM - addresses in the specified range are not currently
-+ *		mapped, or are outside the AS of the process.
-+ *  -EIO    - an I/O error occurred while paging in data.
-+ *  -EBADF  - map exists, but area maps something that isn't a file.
-+ *  -EAGAIN - a kernel resource was temporarily unavailable.
-+ */
-+SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
-+{
-+	return sys_madvise2(start, len_in, behavior, NULL, 0);
-+}
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 7431001..11db490 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -728,7 +728,7 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
- 			((vmstart - vma->vm_start) >> PAGE_SHIFT);
- 		prev = vma_merge(mm, prev, vmstart, vmend, vma->vm_flags,
- 				  vma->anon_vma, vma->vm_file, pgoff,
--				  new_pol);
-+				  new_pol, vma->vm_name);
- 		if (prev) {
- 			vma = prev;
- 			next = vma->vm_next;
-diff --git a/mm/mlock.c b/mm/mlock.c
-index 79b7cf7..df2ea44 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -287,7 +287,7 @@ static int mlock_fixup(struct vm_area_struct *vma, struct vm_area_struct **prev,
- 
- 	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
- 	*prev = vma_merge(mm, *prev, start, end, newflags, vma->anon_vma,
--			  vma->vm_file, pgoff, vma_policy(vma));
-+			  vma->vm_file, pgoff, vma_policy(vma), vma->vm_name);
- 	if (*prev) {
- 		vma = *prev;
- 		goto success;
-diff --git a/mm/mmap.c b/mm/mmap.c
-index f681e18..4ddd1a7 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -251,6 +251,8 @@ static struct vm_area_struct *remove_vma(struct vm_area_struct *vma)
- 		vma->vm_ops->close(vma);
- 	if (vma->vm_file)
- 		fput(vma->vm_file);
-+	if (vma->vm_name)
-+		vma_name_put(vma->vm_name);
- 	mpol_put(vma_policy(vma));
- 	kmem_cache_free(vm_area_cachep, vma);
- 	return next;
-@@ -864,6 +866,8 @@ again:			remove_next = 1 + (end > next->vm_end);
- 		}
- 		if (next->anon_vma)
- 			anon_vma_merge(vma, next);
-+		if (next->vm_name)
-+			vma_name_put(next->vm_name);
- 		mm->map_count--;
- 		vma_set_policy(vma, vma_policy(next));
- 		kmem_cache_free(vm_area_cachep, next);
-@@ -893,7 +897,8 @@ again:			remove_next = 1 + (end > next->vm_end);
-  * per-vma resources, so we don't attempt to merge those.
-  */
- static inline int is_mergeable_vma(struct vm_area_struct *vma,
--			struct file *file, unsigned long vm_flags)
-+			struct file *file, unsigned long vm_flags,
-+			struct vma_name *name)
- {
- 	if (vma->vm_flags ^ vm_flags)
- 		return 0;
-@@ -901,6 +906,8 @@ static inline int is_mergeable_vma(struct vm_area_struct *vma,
- 		return 0;
- 	if (vma->vm_ops && vma->vm_ops->close)
- 		return 0;
-+	if (vma->vm_name != name)
-+		return 0;
- 	return 1;
- }
- 
-@@ -931,9 +938,10 @@ static inline int is_mergeable_anon_vma(struct anon_vma *anon_vma1,
-  */
- static int
- can_vma_merge_before(struct vm_area_struct *vma, unsigned long vm_flags,
--	struct anon_vma *anon_vma, struct file *file, pgoff_t vm_pgoff)
-+	struct anon_vma *anon_vma, struct file *file, pgoff_t vm_pgoff,
-+	struct vma_name *name)
- {
--	if (is_mergeable_vma(vma, file, vm_flags) &&
-+	if (is_mergeable_vma(vma, file, vm_flags, name) &&
- 	    is_mergeable_anon_vma(anon_vma, vma->anon_vma, vma)) {
- 		if (vma->vm_pgoff == vm_pgoff)
- 			return 1;
-@@ -950,9 +958,10 @@ can_vma_merge_before(struct vm_area_struct *vma, unsigned long vm_flags,
-  */
- static int
- can_vma_merge_after(struct vm_area_struct *vma, unsigned long vm_flags,
--	struct anon_vma *anon_vma, struct file *file, pgoff_t vm_pgoff)
-+	struct anon_vma *anon_vma, struct file *file, pgoff_t vm_pgoff,
-+	struct vma_name *name)
- {
--	if (is_mergeable_vma(vma, file, vm_flags) &&
-+	if (is_mergeable_vma(vma, file, vm_flags, name) &&
- 	    is_mergeable_anon_vma(anon_vma, vma->anon_vma, vma)) {
- 		pgoff_t vm_pglen;
- 		vm_pglen = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
-@@ -963,7 +972,7 @@ can_vma_merge_after(struct vm_area_struct *vma, unsigned long vm_flags,
- }
- 
- /*
-- * Given a mapping request (addr,end,vm_flags,file,pgoff), figure out
-+ * Given a mapping request (addr,end,vm_flags,file,pgoff, name), figure out
-  * whether that can be merged with its predecessor or its successor.
-  * Or both (it neatly fills a hole).
-  *
-@@ -995,7 +1004,8 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
- 			struct vm_area_struct *prev, unsigned long addr,
- 			unsigned long end, unsigned long vm_flags,
- 		     	struct anon_vma *anon_vma, struct file *file,
--			pgoff_t pgoff, struct mempolicy *policy)
-+			pgoff_t pgoff, struct mempolicy *policy,
-+			struct vma_name *name)
- {
- 	pgoff_t pglen = (end - addr) >> PAGE_SHIFT;
- 	struct vm_area_struct *area, *next;
-@@ -1022,14 +1032,14 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
- 	if (prev && prev->vm_end == addr &&
-   			mpol_equal(vma_policy(prev), policy) &&
- 			can_vma_merge_after(prev, vm_flags,
--						anon_vma, file, pgoff)) {
-+						anon_vma, file, pgoff, name)) {
- 		/*
- 		 * OK, it can.  Can we now merge in the successor as well?
- 		 */
- 		if (next && end == next->vm_start &&
- 				mpol_equal(policy, vma_policy(next)) &&
- 				can_vma_merge_before(next, vm_flags,
--					anon_vma, file, pgoff+pglen) &&
-+					anon_vma, file, pgoff+pglen, name) &&
- 				is_mergeable_anon_vma(prev->anon_vma,
- 						      next->anon_vma, NULL)) {
- 							/* cases 1, 6 */
-@@ -1050,7 +1060,7 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
- 	if (next && end == next->vm_start &&
-  			mpol_equal(policy, vma_policy(next)) &&
- 			can_vma_merge_before(next, vm_flags,
--					anon_vma, file, pgoff+pglen)) {
-+					anon_vma, file, pgoff+pglen, name)) {
- 		if (prev && addr < prev->vm_end)	/* case 4 */
- 			err = vma_adjust(prev, prev->vm_start,
- 				addr, prev->vm_pgoff, NULL);
-@@ -1519,7 +1529,8 @@ munmap_back:
- 	/*
- 	 * Can we just expand an old mapping?
- 	 */
--	vma = vma_merge(mm, prev, addr, addr + len, vm_flags, NULL, file, pgoff, NULL);
-+	vma = vma_merge(mm, prev, addr, addr + len, vm_flags, NULL, file, pgoff,
-+			NULL, NULL);
- 	if (vma)
- 		goto out;
- 
-@@ -2443,6 +2454,9 @@ static int __split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
- 	if (new->vm_file)
- 		get_file(new->vm_file);
- 
-+	if (new->vm_name)
-+		vma_name_get(new->vm_name);
-+
- 	if (new->vm_ops && new->vm_ops->open)
- 		new->vm_ops->open(new);
- 
-@@ -2461,6 +2475,8 @@ static int __split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
- 		new->vm_ops->close(new);
- 	if (new->vm_file)
- 		fput(new->vm_file);
-+	if (new->vm_name)
-+		vma_name_put(new->vm_name);
- 	unlink_anon_vmas(new);
-  out_free_mpol:
- 	mpol_put(pol);
-@@ -2663,7 +2679,7 @@ static unsigned long do_brk(unsigned long addr, unsigned long len)
- 
- 	/* Can we just expand an old private anonymous mapping? */
- 	vma = vma_merge(mm, prev, addr, addr + len, flags,
--					NULL, NULL, pgoff, NULL);
-+					NULL, NULL, pgoff, NULL, NULL);
- 	if (vma)
- 		goto out;
- 
-@@ -2821,7 +2837,8 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
- 	if (find_vma_links(mm, addr, addr + len, &prev, &rb_link, &rb_parent))
- 		return NULL;	/* should never get here */
- 	new_vma = vma_merge(mm, prev, addr, addr + len, vma->vm_flags,
--			vma->anon_vma, vma->vm_file, pgoff, vma_policy(vma));
-+			vma->anon_vma, vma->vm_file, pgoff, vma_policy(vma),
-+			vma->vm_name);
- 	if (new_vma) {
- 		/*
- 		 * Source vma may have been merged into new_vma
-@@ -2860,6 +2877,8 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
- 				goto out_free_mempol;
- 			if (new_vma->vm_file)
- 				get_file(new_vma->vm_file);
-+			if (new_vma->vm_name)
-+				vma_name_get(new_vma->vm_name);
- 			if (new_vma->vm_ops && new_vma->vm_ops->open)
- 				new_vma->vm_ops->open(new_vma);
- 			vma_link(mm, new_vma, prev, rb_link, rb_parent);
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index 94722a4..3fd33f2 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -271,7 +271,8 @@ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
- 	 */
- 	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
- 	*pprev = vma_merge(mm, *pprev, start, end, newflags,
--			vma->anon_vma, vma->vm_file, pgoff, vma_policy(vma));
-+			vma->anon_vma, vma->vm_file, pgoff, vma_policy(vma),
-+			vma->vm_name);
- 	if (*pprev) {
- 		vma = *pprev;
- 		goto success;
-diff --git a/mm/nommu.c b/mm/nommu.c
-index 298884d..8c28572 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -809,6 +809,8 @@ static void delete_vma(struct mm_struct *mm, struct vm_area_struct *vma)
- 		vma->vm_ops->close(vma);
- 	if (vma->vm_file)
- 		fput(vma->vm_file);
-+	if (vma->vm_name)
-+		vma_name_put(vma->vm_name);
- 	put_nommu_region(vma->vm_region);
- 	kmem_cache_free(vm_area_cachep, vma);
- }
-@@ -1576,6 +1578,9 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
- 	if (new->vm_ops && new->vm_ops->open)
- 		new->vm_ops->open(new);
- 
-+	if (new->vm_name)
-+		vma_name_get(new->vm_name);
-+
- 	delete_vma_from_mm(vma);
- 	down_write(&nommu_region_sem);
- 	delete_nommu_region(vma->vm_region);
-diff --git a/mm/vma_name.c b/mm/vma_name.c
-new file mode 100644
-index 0000000..0e65fe4
---- /dev/null
-+++ b/mm/vma_name.c
-@@ -0,0 +1,220 @@
-+/*
-+ * vma_name.c
-+ *
-+ * Copyright (C) 2013 Google, Inc.
-+ *
-+ * Author: Colin Cross <ccross@android.com>
-+ *
-+ * This file creates a cache of strings holding names for VMAs.  If
-+ * vma_name_get_from_str is called with a string that is already used to
-+ * name a VMA it is guaranteed to return the existing vma_name struct.  This
-+ * allows string equality checking by comparing the struct vma_name address.
-+ * The vma_name structures are stored in an rb tree, with the hash, length,
-+ * and string used as the key.  The vma_name is refcount protected, and the
-+ * rbtree is protected by a rwlock.  The write lock is required to decrement
-+ * any vma_name refcount from 1 to 0.
-+ */
-+
-+#include <linux/atomic.h>
-+#include <linux/dcache.h>  /* for full_name_hash() and struct qstr */
-+#include <linux/err.h>
-+#include <linux/kernel.h>
-+#include <linux/limits.h>
-+#include <linux/mm.h>
-+#include <linux/rbtree.h>
-+#include <linux/rwlock.h>
-+#include <linux/slab.h>
-+
-+static struct rb_root vma_name_cache = RB_ROOT;
-+static DEFINE_RWLOCK(vma_name_cache_lock);
-+
-+/* refcounted cached name for one or more VMAs */
-+struct vma_name {
-+	struct rb_node rb_node;
-+	atomic_t refcount;
-+
-+	unsigned int hash;
-+	unsigned int name_len;
-+	char name[0];
-+};
-+
-+/**
-+ * vma_name_get
-+ *
-+ * Increment the refcount of an existing vma_name.  No locks are needed because
-+ * the caller should already be holding a reference, so refcount >= 1.
-+ */
-+void vma_name_get(struct vma_name *vma_name)
-+{
-+	if (WARN_ON(!vma_name))
-+		return;
-+
-+	WARN_ON(!atomic_read(&vma_name->refcount));
-+
-+	atomic_inc(&vma_name->refcount);
-+}
-+
-+/**
-+ * vma_name_put
-+ *
-+ * Decrement the refcount of an existing vma_name and free it if necessary.
-+ * No locks needed, takes the cache lock if it needs to remove the vma_name from
-+ * the cache.
-+ */
-+void vma_name_put(struct vma_name *vma_name)
-+{
-+	int ret;
-+
-+	if (WARN_ON(!vma_name))
-+		return;
-+
-+	WARN_ON(!atomic_read(&vma_name->refcount));
-+
-+	/* fast path: refcount > 1, decrement and return */
-+	if (atomic_add_unless(&vma_name->refcount, -1, 1))
-+		return;
-+
-+	/* slow path: take the lock, decrement, and erase node if count is 0 */
-+	write_lock(&vma_name_cache_lock);
-+
-+	ret = atomic_dec_return(&vma_name->refcount);
-+	if (ret == 0)
-+		rb_erase(&vma_name->rb_node, &vma_name_cache);
-+
-+	write_unlock(&vma_name_cache_lock);
-+
-+	if (ret == 0)
-+		kfree(vma_name);
-+}
-+
-+/*
-+ * Find an existing struct vma_name node in the rb tree with matching hash and
-+ * name.  Returns the existing struct if found, without incrementing the
-+ * refcount.  If not found, adds new_vma_name to the rb tree if not NULL, and
-+ * returns new_vma_name.  Can be used to search the tree by passing new_vma_name
-+ * NULL.  Must be called with the read lock held if new_vma_name is NULL,
-+ * or the write lock if it is non-NULL.
-+ */
-+static struct vma_name *vma_name_tree_find_or_insert(struct qstr *name,
-+						struct vma_name *new_vma_name)
-+{
-+	struct vma_name *vma_name;
-+	struct rb_node **node = &vma_name_cache.rb_node;
-+	struct rb_node *parent = NULL;
-+
-+	while (*node) {
-+		int cmp;
-+
-+		vma_name = container_of(*node, struct vma_name, rb_node);
-+
-+		cmp = name->hash - vma_name->hash;
-+		if (cmp == 0)
-+			cmp = name->len - vma_name->name_len;
-+		if (cmp == 0)
-+			cmp = strncmp(name->name, vma_name->name, name->len);
-+
-+		parent = *node;
-+		if (cmp < 0)
-+			node = &((*node)->rb_left);
-+		else if (cmp > 0)
-+			node = &((*node)->rb_right);
-+		else
-+			return vma_name;
-+	}
-+
-+	if (new_vma_name) {
-+		rb_link_node(&new_vma_name->rb_node, parent, node);
-+		rb_insert_color(&new_vma_name->rb_node, &vma_name_cache);
-+	}
-+
-+	return new_vma_name;
-+}
-+
-+/*
-+ * allocate a new vma_name structure and initialize it with the passed in name.
-+ */
-+static struct vma_name *vma_name_create(struct qstr *name)
-+{
-+	struct vma_name *vma_name;
-+
-+	vma_name = kmalloc(sizeof(struct vma_name) + name->len + 1, GFP_KERNEL);
-+	if (!vma_name)
-+		return NULL;
-+
-+	memcpy(vma_name->name, name->name, name->len);
-+	vma_name->name[name->len] = 0;
-+	vma_name->name_len = name->len;
-+	vma_name->hash = name->hash;
-+	atomic_set(&vma_name->refcount, 1);
-+
-+	return vma_name;
-+}
-+
-+/**
-+ * vma_name_get_from_str
-+ *
-+ * Find an existing struct vma_name * with name arg, or create a new one if
-+ * none exists.  First tries to find an existing one, if that fails then
-+ * drop the lock, allocate a new one, take the lock, and search again.  If
-+ * there is still no existing one, add the new one to the list.  Returns
-+ * NULL on error.
-+ */
-+struct vma_name *vma_name_get_from_str(const char *name, size_t name_len)
-+{
-+	struct vma_name *vma_name;
-+	struct vma_name *new_vma_name = NULL;
-+	struct qstr qstr = QSTR_INIT(name, strnlen(name, name_len));
-+
-+	if (!qstr.len)
-+		return NULL;
-+
-+	qstr.hash = full_name_hash(name, qstr.len);
-+
-+	/* first look for an existing one */
-+	read_lock(&vma_name_cache_lock);
-+
-+	vma_name = vma_name_tree_find_or_insert(&qstr, NULL);
-+	if (vma_name)
-+		vma_name_get(vma_name);
-+
-+	read_unlock(&vma_name_cache_lock);
-+
-+	if (vma_name)
-+		return vma_name;
-+
-+	/* no existing one, allocate a new vma_name without the lock held */
-+	new_vma_name = vma_name_create(&qstr);
-+	if (!new_vma_name)
-+		return NULL;
-+
-+	/* check again for existing ones that were added while we allocated */
-+	write_lock(&vma_name_cache_lock);
-+
-+	vma_name = vma_name_tree_find_or_insert(&qstr, new_vma_name);
-+	if (vma_name == new_vma_name) {
-+		/* new node was inserted */
-+		vma_name = new_vma_name;
-+	} else {
-+		/* raced with another insert of the same name */
-+		vma_name_get(vma_name);
-+		kfree(new_vma_name);
-+	}
-+
-+	write_unlock(&vma_name_cache_lock);
-+
-+	return vma_name;
-+}
-+
-+/**
-+ * vma_name_str
-+ *
-+ * Returns a pointer to the NULL terminated string holding the name of the
-+ * vma.  Must be called with a reference to the vma_name held.
-+ */
-+const char *vma_name_str(struct vma_name *vma_name)
-+{
-+	if (WARN_ON(!vma_name))
-+		return NULL;
-+
-+	return vma_name->name;
-+}
--- 
-1.8.3
+------=_20130703150016000000_41656--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
