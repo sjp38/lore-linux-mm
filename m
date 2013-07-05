@@ -1,52 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 0BD566B0033
-	for <linux-mm@kvack.org>; Fri,  5 Jul 2013 12:57:56 -0400 (EDT)
-Date: Fri, 5 Jul 2013 18:52:26 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH] mm: add sys_madvise2 and MADV_NAME to name vmas
-Message-ID: <20130705165226.GA17120@redhat.com>
-References: <1372901537-31033-1-git-send-email-ccross@android.com> <87txkaq600.fsf@xmission.com> <CAMbhsRTKQM1xF7syiy2aFwuqMEuJPPVYzL+Zhu-YKAfDQDRPgQ@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAMbhsRTKQM1xF7syiy2aFwuqMEuJPPVYzL+Zhu-YKAfDQDRPgQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 1A7096B0033
+	for <linux-mm@kvack.org>; Fri,  5 Jul 2013 13:20:49 -0400 (EDT)
+Received: by mail-pd0-f176.google.com with SMTP id t12so2154300pdi.7
+        for <linux-mm@kvack.org>; Fri, 05 Jul 2013 10:20:48 -0700 (PDT)
+From: Sha Zhengju <handai.szj@gmail.com>
+Subject: [PATCH V4 0/6] Memcg dirty/writeback page accounting
+Date: Sat,  6 Jul 2013 01:18:29 +0800
+Message-Id: <1373044710-27371-1-git-send-email-handai.szj@taobao.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Colin Cross <ccross@android.com>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, lkml <linux-kernel@vger.kernel.org>, Kyungmin Park <kmpark@infradead.org>, Christoph Hellwig <hch@infradead.org>, John Stultz <john.stultz@linaro.org>, Rob Landley <rob@landley.net>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rusty Russell <rusty@rustcorp.com.au>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Anton Vorontsov <anton.vorontsov@linaro.org>, Pekka Enberg <penberg@kernel.org>, Shaohua Li <shli@fusionio.com>, Sasha Levin <sasha.levin@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@kernel.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, "open list:GENERIC INCLUDE/A..." <linux-arch@vger.kernel.org>
+To: linux-mm@kvack.org, cgroups@vger.kernel.org
+Cc: mhocko@suse.cz, gthelen@google.com, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, fengguang.wu@intel.com, mgorman@suse.de, Sha Zhengju <handai.szj@taobao.com>
 
-On 07/03, Colin Cross wrote:
->
-> On Wed, Jul 3, 2013 at 9:54 PM, Eric W. Biederman <ebiederm@xmission.com> wrote:
-> > Colin Cross <ccross@android.com> writes:
-> >
-> > What is the advantage of this?  It looks like it is going to add cache
-> > line contention (atomic_inc/atomic_dec) to every vma operation
-> > especially in the envision use case of heavy vma_name sharing.
-> >
-> > I would expect this will result in a bloated vm_area_struct and a slower
-> > mm subsystem.
->
-> The advantage is better tracking of the impact of various userspace
-> allocations on the overall system.  Userspace could track allocations
-> on its own, but it cannot track things like physical memory usage or
-> Kernel SamePage Merging per allocation.
+Hi, list
 
-What I can't understand completely is why do you need the string to
-mark the vma's.
+This is V4 patch series that provide the ability for each memory cgroup to
+have independent dirty/writeback page statistics.
+Previous version is here:
+  V3 - http://lwn.net/Articles/530776/;
+  V2 - http://lwn.net/Articles/508452/;
+  V1 - http://lwn.net/Articles/504017/;
 
-Just make it "unsigned long vm_id" and avoid all these complications
-with get/put and "struct vma_name". And afaics you can avoid other
-complications too, the new argumnent for vma_merge() is not really
-needed. This patch would be trivial.
+The first two patches are still doing some cleanup and prepare works. Comparing
+to V3, we give up reworking vfs set page dirty routines. Though this may make
+following memcg dirty page accounting a little complicated, but it can avoid
+exporting a new symbol and make vfs review easier. Patch 3/6 and 4/6 are acctually
+doing memcg dirty and writeback page accounting, which adds statistic codes in
+several hot paths. So in order to reduce the overheads, patch 5/6 is trying to do
+some optimization by jump label: if only root memcg exists, there's no possibllity
+of task moving between memcgs, so we can patch some codes out when not used. Note
+that we only patch out mem_cgroup_{begin,end}_update_page_stat() at sometimes, but
+still leave mem_cgroup_update_page_stat() there because we still need root page stat.
+But there seems still some impact on performance, see numbers get by Mel's pft test
+(On a 4g memory and 4-core i5 CPU machine):
 
-> I expect "hand break" is overstating the impact.
+vanilla  : memcg enabled, patch not applied
+account  : memcg enabled, and add dirty/writeback page accounting
+patched  : all patches are patched, including optimization in 5/6
 
-The code complexity (and even size) does matter too ;) It is not clear
-if this new feature worth the trouble.
+* Duration numbers:
+             vanilla     account
+User          395.02      456.68
+System         65.76       69.27
+Elapsed       465.38      531.74(+14.3%)
 
-Oleg.
+             vanilla     patched
+User          395.02      411.57
+System         65.76       65.82
+Elapsed       465.38      481.14(+3.4%)
+
+* Summary numbers:
+vanilla:
+Clients User        System      Elapsed     Faults/cpu  Faults/sec  
+1       0.02        0.19        0.22        925593.267  905793.990  
+2       0.03        0.24        0.14        738464.210  1429302.471 
+3       0.04        0.29        0.12        589251.166  1596685.658 
+4       0.04        0.38        0.12        472565.657  1694854.626
+
+account:
+Clients User        System      Elapsed     Faults/cpu  Faults/sec  
+1       0.02        0.20        0.23        878176.374  863037.483 (-4.7%)
+2       0.03        0.27        0.16        661140.331  1235796.314(-13.5%)
+3       0.03        0.30        0.16        592960.401  1225448.132(-23.3%)
+4       0.04        0.31        0.15        567897.251  1296703.568(-23.5%)
+
+patched:
+Clients User        System      Elapsed     Faults/cpu  Faults/sec  
+1       0.02        0.19        0.22        912709.796  898977.675 (-0.8%)
+2       0.03        0.24        0.14        710928.981  1380878.891(-3.4%)
+3       0.03        0.30        0.12        584247.648  1571436.530(-1.6%)
+4       0.03        0.38        0.12        470335.271  1679938.339(-0.9%)
+
+The performance is lower than vanilla kernel, however I think it's minor. But
+note that I found some fluctuation on these numbers for several rounds, I selected
+the above at the instance of the majority, I don't know if I missed anything..
+I'm not sure if the test case is enough, any advice is welcomed! :)
+
+
+Change log:
+v4 <-- v3:
+	1. give up reworking vfs codes
+	2. change lock order of memcg->move_lock and mapping->tree_lock
+	3. patch out mem_cgroup_{begin,end}_update_page_stat when not used
+	4. rebased to since-3.10 branch
+v3 <-- v2:
+	1. change lock order of mapping->tree_lock and memcg->move_lock
+	2. performance optimization in 6/8 and 7/8
+v2 <-- v1:
+        1. add test numbers
+        2. some small fix and comments
+
+Sha Zhengju (6):
+      memcg: remove MEMCG_NR_FILE_MAPPED
+      fs/ceph: vfs __set_page_dirty_nobuffers interface instead of doing it inside filesystem
+      memcg: add per cgroup dirty pages accounting
+      memcg: add per cgroup writeback pages accounting
+      memcg: patch mem_cgroup_{begin,end}_update_page_stat() out if only root memcg exists
+      memcg: Document cgroup dirty/writeback memory statistics
+
+ Documentation/cgroups/memory.txt |    2 +
+ fs/buffer.c                      |    9 +++++
+ fs/ceph/addr.c                   |   13 +-----
+ include/linux/memcontrol.h       |   44 ++++++++++++++++----
+ mm/filemap.c                     |   14 +++++++
+ mm/memcontrol.c                  |   83 +++++++++++++++++++++++---------------
+ mm/page-writeback.c              |   39 +++++++++++++++++-
+ mm/rmap.c                        |    4 +-
+ mm/truncate.c                    |    6 +++
+ 9 files changed, 158 insertions(+), 56 deletions(-)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
