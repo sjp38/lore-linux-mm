@@ -1,26 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 929716B0033
-	for <linux-mm@kvack.org>; Fri,  5 Jul 2013 09:37:29 -0400 (EDT)
-Date: Fri, 5 Jul 2013 13:37:28 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v3 1/5] mm/slab: Fix drain freelist excessively
-In-Reply-To: <1372898006-6308-1-git-send-email-liwanp@linux.vnet.ibm.com>
-Message-ID: <0000013faf0d3958-00e5e945-25d8-43c1-ac6e-3d3ad69b2718-000000@email.amazonses.com>
-References: <1372898006-6308-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 97E6E6B0036
+	for <linux-mm@kvack.org>; Fri,  5 Jul 2013 11:51:46 -0400 (EDT)
+Subject: [PATCH] mm: cleanup backing_dev_info foo_stamp fields
+From: Maxim Patlasov <mpatlasov@parallels.com>
+Date: Fri, 05 Jul 2013 19:50:41 +0400
+Message-ID: <20130705155018.3532.45042.stgit@maximpc.sw.ru>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: riel@redhat.com, jack@suse.cz, dev@parallels.com, miklos@szeredi.hu, fuse-devel@lists.sourceforge.net, bfoster@redhat.com, xemul@parallels.com, linux-kernel@vger.kernel.org, jbottomley@parallels.com, linux-mm@kvack.org, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, fengguang.wu@intel.com, devel@openvz.org, mgorman@suse.de
 
-On Thu, 4 Jul 2013, Wanpeng Li wrote:
+State clearly that bw_time_stamp is measured in jiffies. Rename other
+foo_stamp fields to reflect that they are in units of number-of-pages.
 
-> This patch fix the callers that pass # of objects. Make sure they pass #
-> of slabs.
+Reported-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Maxim Patlasov <MPatlasov@parallels.com>
+---
+ include/linux/backing-dev.h |    7 ++++---
+ mm/backing-dev.c            |    2 +-
+ mm/page-writeback.c         |    8 ++++----
+ 3 files changed, 9 insertions(+), 8 deletions(-)
 
-Acked-by: Christoph Lameter <cl@linux.com>
+diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+index c388155..ee7eb1a 100644
+--- a/include/linux/backing-dev.h
++++ b/include/linux/backing-dev.h
+@@ -73,9 +73,10 @@ struct backing_dev_info {
+ 
+ 	struct percpu_counter bdi_stat[NR_BDI_STAT_ITEMS];
+ 
+-	unsigned long bw_time_stamp;	/* last time write bw is updated */
+-	unsigned long dirtied_stamp;
+-	unsigned long written_stamp;	/* pages written at bw_time_stamp */
++	unsigned long bw_time_stamp;	/* last time (in jiffies) write bw
++					 * is updated */
++	unsigned long dirtied_nr_stamp;
++	unsigned long written_nr_stamp;	/* pages written at bw_time_stamp */
+ 	unsigned long write_bandwidth;	/* the estimated write bandwidth */
+ 	unsigned long avg_write_bandwidth; /* further smoothed write bw */
+ 
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index 5025174..82efe7f 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -454,7 +454,7 @@ int bdi_init(struct backing_dev_info *bdi)
+ 	bdi->dirty_exceeded = 0;
+ 
+ 	bdi->bw_time_stamp = jiffies;
+-	bdi->written_stamp = 0;
++	bdi->written_nr_stamp = 0;
+ 
+ 	bdi->balanced_dirty_ratelimit = INIT_BW;
+ 	bdi->dirty_ratelimit = INIT_BW;
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 4514ad7..088a8db 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -799,7 +799,7 @@ static void bdi_update_write_bandwidth(struct backing_dev_info *bdi,
+ 	 * write_bandwidth = ---------------------------------------------------
+ 	 *                                          period
+ 	 */
+-	bw = written - bdi->written_stamp;
++	bw = written - bdi->written_nr_stamp;
+ 	bw *= HZ;
+ 	if (unlikely(elapsed > period)) {
+ 		do_div(bw, elapsed);
+@@ -910,7 +910,7 @@ static void bdi_update_dirty_ratelimit(struct backing_dev_info *bdi,
+ 	 * The dirty rate will match the writeout rate in long term, except
+ 	 * when dirty pages are truncated by userspace or re-dirtied by FS.
+ 	 */
+-	dirty_rate = (dirtied - bdi->dirtied_stamp) * HZ / elapsed;
++	dirty_rate = (dirtied - bdi->dirtied_nr_stamp) * HZ / elapsed;
+ 
+ 	pos_ratio = bdi_position_ratio(bdi, thresh, bg_thresh, dirty,
+ 				       bdi_thresh, bdi_dirty);
+@@ -1066,8 +1066,8 @@ void __bdi_update_bandwidth(struct backing_dev_info *bdi,
+ 	bdi_update_write_bandwidth(bdi, elapsed, written);
+ 
+ snapshot:
+-	bdi->dirtied_stamp = dirtied;
+-	bdi->written_stamp = written;
++	bdi->dirtied_nr_stamp = dirtied;
++	bdi->written_nr_stamp = written;
+ 	bdi->bw_time_stamp = now;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
