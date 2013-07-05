@@ -1,149 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id BC9846B003A
-	for <linux-mm@kvack.org>; Fri,  5 Jul 2013 13:34:06 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id z10so2190059pdj.17
-        for <linux-mm@kvack.org>; Fri, 05 Jul 2013 10:34:06 -0700 (PDT)
-From: Sha Zhengju <handai.szj@gmail.com>
-Subject: [PATCH V4 5/6] memcg: patch mem_cgroup_{begin,end}_update_page_stat() out if only root memcg exists
-Date: Sat,  6 Jul 2013 01:33:43 +0800
-Message-Id: <1373045623-27712-1-git-send-email-handai.szj@taobao.com>
-In-Reply-To: <1373044710-27371-1-git-send-email-handai.szj@taobao.com>
-References: <1373044710-27371-1-git-send-email-handai.szj@taobao.com>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 99F216B003B
+	for <linux-mm@kvack.org>; Fri,  5 Jul 2013 13:36:10 -0400 (EDT)
+Date: Fri, 5 Jul 2013 13:36:01 -0400
+From: Dave Jones <davej@redhat.com>
+Subject: Bad page map / swap_free warnings.
+Message-ID: <20130705173601.GA6898@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, cgroups@vger.kernel.org
-Cc: mhocko@suse.cz, gthelen@google.com, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, fengguang.wu@intel.com, mgorman@suse.de, Sha Zhengju <handai.szj@taobao.com>
+To: Linux Kernel <linux-kernel@vger.kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org
 
-From: Sha Zhengju <handai.szj@taobao.com>
-
-If memcg is enabled and no non-root memcg exists, all allocated pages
-belongs to root_mem_cgroup and wil go through root memcg statistics routines.
-So in order to reduce overheads after adding memcg dirty/writeback accounting
-in hot paths, we use jump label to patch mem_cgroup_{begin,end}_update_page_stat()
-in or out when not used. If no non-root memcg comes to life, we do not need to
-accquire moving locks, so patch them out.
-
-Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
-cc: Michal Hocko <mhocko@suse.cz>
-cc: Greg Thelen <gthelen@google.com>
-cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-cc: Andrew Morton <akpm@linux-foundation.org>
-cc: Fengguang Wu <fengguang.wu@intel.com>
-cc: Mel Gorman <mgorman@suse.de>
----
- include/linux/memcontrol.h |   15 +++++++++++++++
- mm/memcontrol.c            |   23 ++++++++++++++++++++++-
- 2 files changed, 37 insertions(+), 1 deletion(-)
-
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index ccd35d8..0483e1a 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -55,6 +55,13 @@ struct mem_cgroup_reclaim_cookie {
- };
- 
- #ifdef CONFIG_MEMCG
-+
-+extern struct static_key memcg_inuse_key;
-+static inline bool mem_cgroup_in_use(void)
-+{
-+	return static_key_false(&memcg_inuse_key);
-+}
-+
- /*
-  * All "charge" functions with gfp_mask should use GFP_KERNEL or
-  * (gfp_mask & GFP_RECLAIM_MASK). In current implementatin, memcg doesn't
-@@ -159,6 +166,8 @@ static inline void mem_cgroup_begin_update_page_stat(struct page *page,
- {
- 	if (mem_cgroup_disabled())
- 		return;
-+	if (!mem_cgroup_in_use())
-+		return;
- 	rcu_read_lock();
- 	*locked = false;
- 	if (atomic_read(&memcg_moving))
-@@ -172,6 +181,8 @@ static inline void mem_cgroup_end_update_page_stat(struct page *page,
- {
- 	if (mem_cgroup_disabled())
- 		return;
-+	if (!mem_cgroup_in_use())
-+		return;
- 	if (*locked)
- 		__mem_cgroup_end_update_page_stat(page, flags);
- 	rcu_read_unlock();
-@@ -215,6 +226,10 @@ void mem_cgroup_print_bad_page(struct page *page);
- #endif
- #else /* CONFIG_MEMCG */
- struct mem_cgroup;
-+static inline bool mem_cgroup_in_use(void)
-+{
-+	return false;
-+}
- 
- static inline int mem_cgroup_newpage_charge(struct page *page,
- 					struct mm_struct *mm, gfp_t gfp_mask)
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 9126abc..a85f7c5 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -463,6 +463,13 @@ enum res_type {
- #define MEM_CGROUP_RECLAIM_SHRINK_BIT	0x1
- #define MEM_CGROUP_RECLAIM_SHRINK	(1 << MEM_CGROUP_RECLAIM_SHRINK_BIT)
- 
-+/* static_key used for marking memcg in use or not. We use this jump label to
-+ * patch some memcg page stat accounting code in or out.
-+ * The key will be increased when non-root memcg is created, and be decreased
-+ * when memcg is destroyed.
-+ */
-+struct static_key memcg_inuse_key;
-+
- /*
-  * The memcg_create_mutex will be held whenever a new cgroup is created.
-  * As a consequence, any change that needs to protect against new child cgroups
-@@ -630,10 +637,22 @@ static void disarm_kmem_keys(struct mem_cgroup *memcg)
- }
- #endif /* CONFIG_MEMCG_KMEM */
- 
-+static void disarm_inuse_keys(struct mem_cgroup *memcg)
-+{
-+	if (!mem_cgroup_is_root(memcg))
-+		static_key_slow_dec(&memcg_inuse_key);
-+}
-+
-+static void arm_inuse_keys(void)
-+{
-+	static_key_slow_inc(&memcg_inuse_key);
-+}
-+
- static void disarm_static_keys(struct mem_cgroup *memcg)
- {
- 	disarm_sock_keys(memcg);
- 	disarm_kmem_keys(memcg);
-+	disarm_inuse_keys(memcg);
- }
- 
- static void drain_all_stock_async(struct mem_cgroup *memcg);
-@@ -2298,7 +2317,6 @@ void mem_cgroup_update_page_stat(struct page *page,
- {
- 	struct mem_cgroup *memcg;
- 	struct page_cgroup *pc = lookup_page_cgroup(page);
--	unsigned long uninitialized_var(flags);
- 
- 	if (mem_cgroup_disabled())
- 		return;
-@@ -6293,6 +6311,9 @@ mem_cgroup_css_online(struct cgroup *cont)
- 	}
- 
- 	error = memcg_init_kmem(memcg, &mem_cgroup_subsys);
-+	if (!error)
-+		arm_inuse_keys();
-+
- 	mutex_unlock(&memcg_create_mutex);
- 	return error;
- }
--- 
-1.7.9.5
+[ 6821.834891] cc (14101) used greatest stack depth: 2256 bytes left
+[ 6838.015259] swap_free: Unused swap offset entry 000ead4c
+[ 6838.015947] BUG: Bad page map in process trinity  pte:1d5a9800 pmd:21e922067
+[ 6838.017491] addr:000000000253a000 vm_flags:00100073 anon_vma:ffff88022fb7c9b0 mapping:          (null) index:253a
+[ 6838.018765] Modules linked in: snd_seq_dummy bnep scsi_transport_iscsi nfnetlink ipt_ULOG rfcomm can_raw af_802154 phonet af_rxrpc af_key llc2 caif_socket caif bluetooth pppoe pppox ppp_generic slhc netrom rose can_bcm can ipx p8023 p8022 irda crc_ccitt x25 nfc rfkill rds ax25 appletalk psnap llc atm snd_hda_codec_realtek snd_hda_codec_hdmi snd_hda_intel pcspkr snd_hda_codec snd_hwdep snd_seq snd_seq_device usb_debug snd_pcm e1000e ptp pps_core snd_page_alloc snd_timer snd soundcore xfs libcrc32c
+[ 6838.027772] CPU: 0 PID: 4486 Comm: trinity Not tainted 3.10.0+ #41 
+[ 6838.030590]  0000000000000000 ffff880225781c90 ffffffff816efaee 000000000253a000
+[ 6838.031532]  ffff880225781cd8 ffffffff811744ac 000000001d5a9800 000000000000253a
+[ 6838.032620]  0000000002600000 ffff88021e9229d0 000000001d5a9800 ffff880225781e00
+[ 6838.033793] Call Trace:
+[ 6838.034156]  [<ffffffff816efaee>] dump_stack+0x4e/0x82
+[ 6838.034861]  [<ffffffff811744ac>] print_bad_pte+0x18c/0x230
+[ 6838.035607]  [<ffffffff81175d25>] unmap_single_vma+0x535/0x890
+[ 6838.036373]  [<ffffffff81177029>] unmap_vmas+0x49/0x90
+[ 6838.037046]  [<ffffffff8117f8c1>] exit_mmap+0xc1/0x170
+[ 6838.037736]  [<ffffffff81049bbf>] mmput+0x6f/0x100
+[ 6838.038377]  [<ffffffff81051c28>] do_exit+0x288/0xcd0
+[ 6838.039067]  [<ffffffff810ba7b5>] ? trace_hardirqs_on_caller+0x115/0x1e0
+[ 6838.039936]  [<ffffffff810ba88d>] ? trace_hardirqs_on+0xd/0x10
+[ 6838.040692]  [<ffffffff810539ec>] do_group_exit+0x4c/0xc0
+[ 6838.041397]  [<ffffffff81053a74>] SyS_exit_group+0x14/0x20
+[ 6838.042257]  [<ffffffff81702a94>] tracesys+0xdd/0xe2
+[ 6838.042861] Disabling lock debugging due to kernel taint
+[ 6838.043508] swap_free: Unused swap offset entry 000ead4e
+[ 6838.045204] BUG: Bad page map in process trinity  pte:1d5a9c00 pmd:21e922067
+[ 6838.048785] addr:000000000253b000 vm_flags:00100073 anon_vma:ffff88022fb7c9b0 mapping:          (null) index:253b
+[ 6838.051054] Modules linked in: snd_seq_dummy bnep scsi_transport_iscsi nfnetlink ipt_ULOG rfcomm can_raw af_802154 phonet af_rxrpc af_key llc2 caif_socket caif bluetooth pppoe pppox ppp_generic slhc netrom rose can_bcm can ipx p8023 p8022 irda crc_ccitt x25 nfc rfkill rds ax25 appletalk psnap llc atm snd_hda_codec_realtek snd_hda_codec_hdmi snd_hda_intel pcspkr snd_hda_codec snd_hwdep snd_seq snd_seq_device usb_debug snd_pcm e1000e ptp pps_core snd_page_alloc snd_timer snd soundcore xfs libcrc32c
+[ 6838.063312] CPU: 0 PID: 4486 Comm: trinity Tainted: G    B        3.10.0+ #41 
+[ 6838.068279]  0000000000000000 ffff880225781c90 ffffffff816efaee 000000000253b000
+[ 6838.070323]  ffff880225781cd8 ffffffff811744ac 000000001d5a9c00 000000000000253b
+[ 6838.072778]  0000000002600000 ffff88021e9229d8 000000001d5a9c00 ffff880225781e00
+[ 6838.075106] Call Trace:
+[ 6838.076537]  [<ffffffff816efaee>] dump_stack+0x4e/0x82
+[ 6838.078269]  [<ffffffff811744ac>] print_bad_pte+0x18c/0x230
+[ 6838.080044]  [<ffffffff81175d25>] unmap_single_vma+0x535/0x890
+[ 6838.081866]  [<ffffffff81177029>] unmap_vmas+0x49/0x90
+[ 6838.083762]  [<ffffffff8117f8c1>] exit_mmap+0xc1/0x170
+[ 6838.085585]  [<ffffffff81049bbf>] mmput+0x6f/0x100
+[ 6838.087284]  [<ffffffff81051c28>] do_exit+0x288/0xcd0
+[ 6838.089013]  [<ffffffff810ba7b5>] ? trace_hardirqs_on_caller+0x115/0x1e0
+[ 6838.090964]  [<ffffffff810ba88d>] ? trace_hardirqs_on+0xd/0x10
+[ 6838.093282]  [<ffffffff810539ec>] do_group_exit+0x4c/0xc0
+[ 6838.095108]  [<ffffffff81053a74>] SyS_exit_group+0x14/0x20
+[ 6838.096867]  [<ffffffff81702a94>] tracesys+0xdd/0xe2
+[ 6838.098540] swap_free: Unused swap offset entry 000ead54
+[ 6838.100232] BUG: Bad page map in process trinity  pte:1d5aa800 pmd:21e922067
+[ 6838.103977] addr:000000000253e000 vm_flags:00100073 anon_vma:ffff88022fb7c9b0 mapping:          (null) index:253e
+[ 6838.106307] Modules linked in: snd_seq_dummy bnep scsi_transport_iscsi nfnetlink ipt_ULOG rfcomm can_raw af_802154 phonet af_rxrpc af_key llc2 caif_socket caif bluetooth pppoe pppox ppp_generic slhc netrom rose can_bcm can ipx p8023 p8022 irda crc_ccitt x25 nfc rfkill rds ax25 appletalk psnap llc atm snd_hda_codec_realtek snd_hda_codec_hdmi snd_hda_intel pcspkr snd_hda_codec snd_hwdep snd_seq snd_seq_device usb_debug snd_pcm e1000e ptp pps_core snd_page_alloc snd_timer snd soundcore xfs libcrc32c
+[ 6838.118518] CPU: 0 PID: 4486 Comm: trinity Tainted: G    B        3.10.0+ #41 
+[ 6838.124135]  0000000000000000 ffff880225781c90 ffffffff816efaee 000000000253e000
+[ 6838.126380]  ffff880225781cd8 ffffffff811744ac 000000001d5aa800 000000000000253e
+[ 6838.128736]  0000000002600000 ffff88021e9229f0 000000001d5aa800 ffff880225781e00
+[ 6838.131153] Call Trace:
+[ 6838.132792]  [<ffffffff816efaee>] dump_stack+0x4e/0x82
+[ 6838.134608]  [<ffffffff811744ac>] print_bad_pte+0x18c/0x230
+[ 6838.136391]  [<ffffffff81175d25>] unmap_single_vma+0x535/0x890
+[ 6838.138183]  [<ffffffff81177029>] unmap_vmas+0x49/0x90
+[ 6838.139877]  [<ffffffff8117f8c1>] exit_mmap+0xc1/0x170
+[ 6838.141546]  [<ffffffff81049bbf>] mmput+0x6f/0x100
+[ 6838.143322]  [<ffffffff81051c28>] do_exit+0x288/0xcd0
+[ 6838.145028]  [<ffffffff810ba7b5>] ? trace_hardirqs_on_caller+0x115/0x1e0
+[ 6838.146841]  [<ffffffff810ba88d>] ? trace_hardirqs_on+0xd/0x10
+[ 6838.148546]  [<ffffffff810539ec>] do_group_exit+0x4c/0xc0
+[ 6838.150195]  [<ffffffff81053a74>] SyS_exit_group+0x14/0x20
+[ 6838.151854]  [<ffffffff81702a94>] tracesys+0xdd/0xe2
+[ 6838.154337] swap_free: Unused swap offset entry 000ead47
+[ 6838.156189] BUG: Bad page map in process trinity  pte:1d5a8e00 pmd:22fa8a067
+[ 6838.159720] addr:00007fffaf3eb000 vm_flags:00100173 anon_vma:ffff88022fb7c7c0 mapping:          (null) index:7fffffff8
+[ 6838.162285] Modules linked in: snd_seq_dummy bnep scsi_transport_iscsi nfnetlink ipt_ULOG rfcomm can_raw af_802154 phonet af_rxrpc af_key llc2 caif_socket caif bluetooth pppoe pppox ppp_generic slhc netrom rose can_bcm can ipx p8023 p8022 irda crc_ccitt x25 nfc rfkill rds ax25 appletalk psnap llc atm snd_hda_codec_realtek snd_hda_codec_hdmi snd_hda_intel pcspkr snd_hda_codec snd_hwdep snd_seq snd_seq_device usb_debug snd_pcm e1000e ptp pps_core snd_page_alloc snd_timer snd soundcore xfs libcrc32c
+[ 6838.190667] CPU: 1 PID: 4486 Comm: trinity Tainted: G    B        3.10.0+ #41 
+[ 6838.203589]  0000000000000000 ffff880225781c90 ffffffff816efaee 00007fffaf3eb000
+[ 6838.209187]  ffff880225781cd8 ffffffff811744ac 000000001d5a8e00 00000007fffffff8
+[ 6838.216944]  00007fffaf3f2000 ffff88022fa8af58 000000001d5a8e00 ffff880225781e00
+[ 6838.224284] Call Trace:
+[ 6838.229487]  [<ffffffff816efaee>] dump_stack+0x4e/0x82
+[ 6838.235111]  [<ffffffff811744ac>] print_bad_pte+0x18c/0x230
+[ 6838.240654]  [<ffffffff81175d25>] unmap_single_vma+0x535/0x890
+[ 6838.245940]  [<ffffffff81177029>] unmap_vmas+0x49/0x90
+[ 6838.251230]  [<ffffffff8117f8c1>] exit_mmap+0xc1/0x170
+[ 6838.256808]  [<ffffffff81049bbf>] mmput+0x6f/0x100
+[ 6838.261524]  [<ffffffff81051c28>] do_exit+0x288/0xcd0
+[ 6838.266976]  [<ffffffff810ba7b5>] ? trace_hardirqs_on_caller+0x115/0x1e0
+[ 6838.272154]  [<ffffffff810ba88d>] ? trace_hardirqs_on+0xd/0x10
+[ 6838.277814]  [<ffffffff810539ec>] do_group_exit+0x4c/0xc0
+[ 6838.282580]  [<ffffffff81053a74>] SyS_exit_group+0x14/0x20
+[ 6838.287494]  [<ffffffff81702a94>] tracesys+0xdd/0xe2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
