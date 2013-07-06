@@ -1,39 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id EF5B46B0033
-	for <linux-mm@kvack.org>; Sat,  6 Jul 2013 06:48:37 -0400 (EDT)
-Date: Sat, 6 Jul 2013 12:47:57 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 6/8] sched: Reschedule task on preferred NUMA node once
- selected
-Message-ID: <20130706104757.GU18898@dyad.programming.kicks-ass.net>
-References: <1372257487-9749-1-git-send-email-mgorman@suse.de>
- <1372257487-9749-7-git-send-email-mgorman@suse.de>
- <20130702120655.GA2959@linux.vnet.ibm.com>
- <20130702181732.GD23916@twins.programming.kicks-ass.net>
- <20130706064408.GB3996@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id B966F6B0033
+	for <linux-mm@kvack.org>; Sat,  6 Jul 2013 07:54:38 -0400 (EDT)
+From: ebiederm@xmission.com (Eric W. Biederman)
+References: <1372901537-31033-1-git-send-email-ccross@android.com>
+	<87txkaq600.fsf@xmission.com> <51D7BA21.4030105@kernel.org>
+Date: Sat, 06 Jul 2013 04:53:47 -0700
+In-Reply-To: <51D7BA21.4030105@kernel.org> (Pekka Enberg's message of "Sat, 06
+	Jul 2013 09:33:05 +0300")
+Message-ID: <87ip0nlx9w.fsf@xmission.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130706064408.GB3996@linux.vnet.ibm.com>
+Content-Type: text/plain
+Subject: Re: [PATCH] mm: add sys_madvise2 and MADV_NAME to name vmas
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Colin Cross <ccross@android.com>, linux-kernel@vger.kernel.org, Kyungmin Park <kmpark@infradead.org>, Christoph Hellwig <hch@infradead.org>, John Stultz <john.stultz@linaro.org>, Rob Landley <rob@landley.net>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rusty Russell <rusty@rustcorp.com.au>, Oleg Nesterov <oleg@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Anton Vorontsov <anton.vorontsov@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@kernel.org>, open@ebiederm.org, list@ebiederm.org, DOCUMENTATION <linux-doc@vger.kernel.org>list@ebiederm.org, MEMORY MANAGEMENT <linux-mm@kvack.org>, linux-arch@vger.kernel.org
 
-On Sat, Jul 06, 2013 at 12:14:08PM +0530, Srikar Dronamraju wrote:
-> * Peter Zijlstra <peterz@infradead.org> [2013-07-02 20:17:32]:
-> 
-> > On Tue, Jul 02, 2013 at 05:36:55PM +0530, Srikar Dronamraju wrote:
-> > > Here, moving tasks this way doesnt update the schedstats at all.
-> > 
-> > Do you actually use schedstats? 
-> > 
-> 
-> Yes, I do use schedstats. Are there any plans to obsolete it?
+Pekka Enberg <penberg@kernel.org> writes:
 
-Not really, its just something I've never used and keeping the stats correct
-made Mel's patch uglier which makes me dislike them more ;-)
+> On 7/4/13 7:54 AM, Eric W. Biederman wrote:
+>> How can adding glittler to /proc/<pid>/maps and /proc/<pid>/smaps
+>> justify putting a hand break on the linux kernel?
+>
+> It's not just glitter, it's potentially very useful for making
+> perf work nicely with JVM, for example, to know about JIT
+> codegen regions and GC regions.
+
+Ah yes.  The old let's make it possible to understand the performance
+and behavior by making the bottleneck case even slower.  At least for
+variants of GC that use occasionally make have use of mprotect that
+seems to be exactly what this patch proposes.
+
+> The implementation seems very heavy-weight though and I'm not
+> convinced a new syscall makes sense.
+
+Strongly agreed.  Oleg's idea of a simple integer (that can be though of
+as a 4 or 8 byte string) seems much more practical.
+
+What puzzles me is what is the point?  What is gained by putting this
+knowledge in the kernel that can not be determend from looking at how
+user space has allocated the memory?  The entire concept feels like a
+layering violation.  Instead of modifying the malloc in glibc or the jvm
+or whatever it is propsed to modify the kernel.
+
+Even after all of the discussion I am still seeing glitter and hand breaks.
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
