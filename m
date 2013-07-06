@@ -1,35 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id C41D86B0033
-	for <linux-mm@kvack.org>; Sat,  6 Jul 2013 02:33:10 -0400 (EDT)
-Received: by mail-lb0-f174.google.com with SMTP id x10so2551214lbi.33
-        for <linux-mm@kvack.org>; Fri, 05 Jul 2013 23:33:08 -0700 (PDT)
-Message-ID: <51D7BA21.4030105@kernel.org>
-Date: Sat, 06 Jul 2013 09:33:05 +0300
-From: Pekka Enberg <penberg@kernel.org>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 395EE6B0036
+	for <linux-mm@kvack.org>; Sat,  6 Jul 2013 02:44:23 -0400 (EDT)
+Received: from /spool/local
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Sat, 6 Jul 2013 00:44:22 -0600
+Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 3F00F3E40044
+	for <linux-mm@kvack.org>; Sat,  6 Jul 2013 00:43:54 -0600 (MDT)
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r666iEmV154688
+	for <linux-mm@kvack.org>; Sat, 6 Jul 2013 00:44:14 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r666iDuB009275
+	for <linux-mm@kvack.org>; Sat, 6 Jul 2013 00:44:14 -0600
+Date: Sat, 6 Jul 2013 12:14:08 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 6/8] sched: Reschedule task on preferred NUMA node once
+ selected
+Message-ID: <20130706064408.GB3996@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <1372257487-9749-1-git-send-email-mgorman@suse.de>
+ <1372257487-9749-7-git-send-email-mgorman@suse.de>
+ <20130702120655.GA2959@linux.vnet.ibm.com>
+ <20130702181732.GD23916@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: add sys_madvise2 and MADV_NAME to name vmas
-References: <1372901537-31033-1-git-send-email-ccross@android.com> <87txkaq600.fsf@xmission.com>
-In-Reply-To: <87txkaq600.fsf@xmission.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20130702181732.GD23916@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Colin Cross <ccross@android.com>, linux-kernel@vger.kernel.org, Kyungmin Park <kmpark@infradead.org>, Christoph Hellwig <hch@infradead.org>, John Stultz <john.stultz@linaro.org>, Rob Landley <rob@landley.net>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rusty Russell <rusty@rustcorp.com.au>, Oleg Nesterov <oleg@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Anton Vorontsov <anton.vorontsov@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@kernel.org>, open@kvack.org, list@kvack.org, DOCUMENTATION <linux-doc@vger.kernel.org>open@kvack.orglist@kvack.org, MEMORY MANAGEMENT <linux-mm@kvack.org>, linux-arch@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 7/4/13 7:54 AM, Eric W. Biederman wrote:
-> How can adding glittler to /proc/<pid>/maps and /proc/<pid>/smaps
-> justify putting a hand break on the linux kernel?
+* Peter Zijlstra <peterz@infradead.org> [2013-07-02 20:17:32]:
 
-It's not just glitter, it's potentially very useful for making
-perf work nicely with JVM, for example, to know about JIT
-codegen regions and GC regions.
+> On Tue, Jul 02, 2013 at 05:36:55PM +0530, Srikar Dronamraju wrote:
+> > Here, moving tasks this way doesnt update the schedstats at all.
+> 
+> Do you actually use schedstats? 
+> 
 
-The implementation seems very heavy-weight though and I'm not
-convinced a new syscall makes sense.
+Yes, I do use schedstats. Are there any plans to obsolete it?
 
-			Pekka
+It gave me good information about how many times we did load balancing
+and how many times we were successful in the load balancing esp across
+domains.
+
+-- 
+Thanks and Regards
+Srikar Dronamraju
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
