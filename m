@@ -1,9 +1,9 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 1/5] mm/slab: Fix drain freelist excessively
-Date: Thu, 4 Jul 2013 07:29:59 +0800
-Message-ID: <47072.8684253574$1372894219@news.gmane.org>
-References: <1372812593-7617-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <0000013fa4cffd1e-e2977e3b-748a-4b7e-9ee6-669b41912abc-000000@email.amazonses.com>
+Subject: Re: [PATCH v3 1/5] mm/slab: Fix drain freelist excessively
+Date: Sun, 7 Jul 2013 17:24:48 +0800
+Message-ID: <23566.9179972776$1373189116@news.gmane.org>
+References: <1372898006-6308-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <0000013faf0d3958-00e5e945-25d8-43c1-ac6e-3d3ad69b2718-000000@email.amazonses.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -11,41 +11,42 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1UuWV0-0003G1-Of
-	for glkm-linux-mm-2@m.gmane.org; Thu, 04 Jul 2013 01:30:11 +0200
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 66FE46B0032
-	for <linux-mm@kvack.org>; Wed,  3 Jul 2013 19:30:08 -0400 (EDT)
+	id 1UvlDQ-0004TR-4I
+	for glkm-linux-mm-2@m.gmane.org; Sun, 07 Jul 2013 11:25:08 +0200
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id CC8B76B0033
+	for <linux-mm@kvack.org>; Sun,  7 Jul 2013 05:25:05 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Thu, 4 Jul 2013 09:20:58 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 15D363578051
-	for <linux-mm@kvack.org>; Thu,  4 Jul 2013 09:30:02 +1000 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r63NF1f357606252
-	for <linux-mm@kvack.org>; Thu, 4 Jul 2013 09:15:02 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r63NU0Ec014696
-	for <linux-mm@kvack.org>; Thu, 4 Jul 2013 09:30:00 +1000
+	Sun, 7 Jul 2013 14:50:01 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id B2EDD1258051
+	for <linux-mm@kvack.org>; Sun,  7 Jul 2013 14:54:03 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r679PPEF20840536
+	for <linux-mm@kvack.org>; Sun, 7 Jul 2013 14:55:25 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r679OoG9027547
+	for <linux-mm@kvack.org>; Sun, 7 Jul 2013 19:24:51 +1000
 Content-Disposition: inline
-In-Reply-To: <0000013fa4cffd1e-e2977e3b-748a-4b7e-9ee6-669b41912abc-000000@email.amazonses.com>
+In-Reply-To: <0000013faf0d3958-00e5e945-25d8-43c1-ac6e-3d3ad69b2718-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Jul 03, 2013 at 01:54:22PM +0000, Christoph Lameter wrote:
->On Wed, 3 Jul 2013, Wanpeng Li wrote:
+On Fri, Jul 05, 2013 at 01:37:28PM +0000, Christoph Lameter wrote:
+>On Thu, 4 Jul 2013, Wanpeng Li wrote:
 >
 >> This patch fix the callers that pass # of objects. Make sure they pass #
 >> of slabs.
 >
->Hmm... These modifications are all the same. Create a new function?
+>Acked-by: Christoph Lameter <cl@linux.com>
 
-Ok, I will introduce a helper function, thanks for your review,
-Christoph. ;-)
+Hi Pekka,
+
+Is it ok for you to pick this patchset? ;-)
 
 Regards,
 Wanpeng Li 
