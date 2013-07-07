@@ -1,124 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 956416B0034
-	for <linux-mm@kvack.org>; Sun,  7 Jul 2013 11:57:10 -0400 (EDT)
-Received: by mail-lb0-f176.google.com with SMTP id z5so3049968lbh.21
-        for <linux-mm@kvack.org>; Sun, 07 Jul 2013 08:57:08 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 3B9946B0037
+	for <linux-mm@kvack.org>; Sun,  7 Jul 2013 11:57:12 -0400 (EDT)
+Received: by mail-la0-f41.google.com with SMTP id fn20so3193210lab.28
+        for <linux-mm@kvack.org>; Sun, 07 Jul 2013 08:57:10 -0700 (PDT)
 From: Glauber Costa <glommer@gmail.com>
-Subject: [PATCH v10 00/16] kmemcg shrinkers
-Date: Sun,  7 Jul 2013 11:56:40 -0400
-Message-Id: <1373212616-11713-1-git-send-email-glommer@openvz.org>
+Subject: [PATCH v10 01/16] memcg: make cache index determination more robust
+Date: Sun,  7 Jul 2013 11:56:41 -0400
+Message-Id: <1373212616-11713-2-git-send-email-glommer@openvz.org>
+In-Reply-To: <1373212616-11713-1-git-send-email-glommer@openvz.org>
+References: <1373212616-11713-1-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-fsdevel@vger.kernel.org, mgorman@suse.de, david@fromorbit.com, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suze.cz, hannes@cmpxchg.org, hughd@google.com, gthelen@google.com, akpm@linux-foundation.org, Glauber Costa <glommer@openvz.org>
+Cc: linux-fsdevel@vger.kernel.org, mgorman@suse.de, david@fromorbit.com, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suze.cz, hannes@cmpxchg.org, hughd@google.com, gthelen@google.com, akpm@linux-foundation.org, Glauber Costa <glommer@gmail.com>, Glauber Costa <glommer@openvz.org>, Michal Hocko <mhocko@suse.cz>
 
-Now that the list_lru seems to have stabilized, I am sending this out for review
-again. This now contains only the memcg part of the patchset, rebased on top of
-today's linux-next. Comments appreciated.
+From: Glauber Costa <glommer@gmail.com>
 
-This patchset implements targeted shrinking for memcg when kmem limits are
-present. So far, we've been accounting kernel objects but failing allocations
-when short of memory. This is because our only option would be to call the
-global shrinker, depleting objects from all caches and breaking isolation.
+I caught myself doing something like the following outside memcg core:
 
-The main idea is to associate per-memcg lists with each of the LRUs. The main
-LRU still provides a single entry point and when adding or removing an element
-from the LRU, we use the page information to figure out which memcg it belongs
-to and relay it to the right list.
+	memcg_id = -1;
+	if (memcg && memcg_kmem_is_active(memcg))
+		memcg_id = memcg_cache_id(memcg);
 
-Main changes from *v9
-* Fixed iteration over all memcgs from list_lru side.
+to be able to handle all possible memcgs in a sane manner. In particular, the
+root cache will have kmemcg_id = -1 (just because we don't call memcg_kmem_init
+to the root cache since it is not limitable). We have always coped with that by
+making sure we sanitize which cache is passed to memcg_cache_id. Although this
+example is given for root, what we really need to know is whether or not a
+cache is kmem active.
 
-Main changes from *v8
-* fixed xfs umount bug
-* rebase to current linux-next
+But outside the memcg core testing for root, for instance, is not trivial since
+we don't export mem_cgroup_is_root. I ended up realizing that this tests really
+belong inside memcg_cache_id. This patch moves a similar but stronger test
+inside memcg_cache_id and make sure it always return a meaningful value.
 
-Main changes from *v7:
-* Fixed races for memcg
-* Enhanced memcg hierarchy walks during global pressure (we were walking only
-  the global list, not all memcgs)
+Signed-off-by: Glauber Costa <glommer@openvz.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/memcontrol.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-Main changes from *v6:
-* Change nr_unused_dentry to long, Dave reported an int not being enough
-* Fixed shrink_list leak, by Dave
-* LRU API now gets a node id, instead of a node mask.
-* per-node deferred work, leading to smoother behavior
-
-Main changes from *v5:
-* Rebased to linux-next, and fix the conflicts with the dcache.
-* Make sure LRU_RETRY only retry once
-* Prevent the bcache shrinker to scan the caches when disabled (by returning
-  0 in the count function)
-* Fix i915 return code when mutex cannot be acquired.
-* Only scan less-than-batch objects in memcg scenarios
-
-Main changes from *v4:
-* Fixed a bug in user-generated memcg pressure
-* Fixed overly-agressive slab shrinker behavior spotted by Mel Gorman
-* Various other fixes and comments by Mel Gorman
-
-Main changes from *v3:
-* Merged suggestions from mailing list.
-* Removed the memcg-walking code from LRU. vmscan now drives all the hierarchy
-  decisions, which makes more sense
-* lazily free the old memcg arrays (needs now to be saved in struct lru). Since
-  we need to call synchronize_rcu, calling it for every LRU can become expensive
-* Moved the dead memcg shrinker to vmpressure. Already independently sent to
-  linux-mm for review.
-* Changed locking convention for LRU_RETRY. It now needs to return locked, which
-  silents warnings about possible lock unbalance (although previous code was
-  correct)
-
-Main changes from *v2:
-* shrink dead memcgs when global pressure kicks in. Uses the new lru API.
-* bugfixes and comments from the mailing list.
-* proper hierarchy-aware walk in shrink_slab.
-
-Main changes from *v1:
-* merged comments from the mailing list
-* reworked lru-memcg API
-* effective proportional shrinking
-* sanitized locking on the memcg side
-* bill user memory first when kmem == umem
-* various bugfixes
-
-*** BLURB HERE ***
-
-Glauber Costa (16):
-  memcg: make cache index determination more robust
-  memcg: consolidate callers of memcg_cache_id
-  vmscan: also shrink slab in memcg pressure
-  memcg: move stop and resume accounting functions
-  memcg,list_lru: duplicate LRUs upon kmemcg creation
-  lru: add an element to a memcg list
-  list_lru: per-memcg walks
-  memcg: move initialization to memcg creation
-  memcg: per-memcg kmem shrinking
-  memcg: scan cache objects hierarchically
-  vmscan: take at least one pass with shrinkers
-  super: targeted memcg reclaim
-  memcg: allow kmem limit to be resized down
-  vmpressure: in-kernel notifications
-  memcg: reap dead memcgs upon global memory pressure
-  memcg: flush memcg items upon memcg destruction
-
- fs/dcache.c                |   7 +-
- fs/inode.c                 |   7 +-
- fs/internal.h              |   5 +-
- fs/super.c                 |  35 ++-
- include/linux/list_lru.h   |  94 +++++++-
- include/linux/memcontrol.h |  43 ++++
- include/linux/shrinker.h   |   6 +-
- include/linux/swap.h       |   2 +
- include/linux/vmpressure.h |   6 +
- mm/list_lru.c              | 246 +++++++++++++++++--
- mm/memcontrol.c            | 574 +++++++++++++++++++++++++++++++++++++++------
- mm/slab_common.c           |   1 -
- mm/vmpressure.c            |  52 +++-
- mm/vmscan.c                | 179 ++++++++++++--
- 14 files changed, 1116 insertions(+), 141 deletions(-)
-
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 6e120e4..506ad46 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3061,7 +3061,9 @@ void memcg_cache_list_add(struct mem_cgroup *memcg, struct kmem_cache *cachep)
+  */
+ int memcg_cache_id(struct mem_cgroup *memcg)
+ {
+-	return memcg ? memcg->kmemcg_id : -1;
++	if (!memcg || !memcg_can_account_kmem(memcg))
++		return -1;
++	return memcg->kmemcg_id;
+ }
+ 
+ /*
 -- 
 1.8.2.1
 
