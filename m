@@ -1,81 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 6EF2E6B0033
-	for <linux-mm@kvack.org>; Sun,  7 Jul 2013 07:53:01 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id fb1so3441446pad.23
-        for <linux-mm@kvack.org>; Sun, 07 Jul 2013 04:53:00 -0700 (PDT)
-Subject: [PATCH] swap: warn when a swap area overflows the maximum size
- (resent)
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id B0E6E6B0036
+	for <linux-mm@kvack.org>; Sun,  7 Jul 2013 07:59:18 -0400 (EDT)
+Received: by mail-ve0-f177.google.com with SMTP id cz10so2773317veb.8
+        for <linux-mm@kvack.org>; Sun, 07 Jul 2013 04:59:17 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1373197978.26573.7.camel@warfang>
+References: <1373197450.26573.5.camel@warfang> <1373197978.26573.7.camel@warfang>
 From: Raymond Jennings <shentino@gmail.com>
-In-Reply-To: <1373197450.26573.5.camel@warfang>
-References: <1373197450.26573.5.camel@warfang>
-Content-Type: text/plain; charset="UTF-8"
-Date: Sun, 07 Jul 2013 04:52:58 -0700
-Message-ID: <1373197978.26573.7.camel@warfang>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Sun, 7 Jul 2013 04:58:37 -0700
+Message-ID: <CAGDaZ_oKhYs3jUjZEJFFVsudd4N1UDiLCd30YBxK-V70CU=zDg@mail.gmail.com>
+Subject: Re: [PATCH] swap: warn when a swap area overflows the maximum size (resent)
+Content-Type: multipart/alternative; boundary=001a11c2577451bb1104e0eaa865
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Rik van Riel <riel@redhat.com>
-Cc: Valdis Kletnieks <valdis.kletnieks@vt.edu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Valdis Kletnieks <valdis.kletnieks@vt.edu>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-Silly me, wrong email address
+--001a11c2577451bb1104e0eaa865
+Content-Type: text/plain; charset=UTF-8
 
-On Sun, 2013-07-07 at 04:44 -0700, Raymond Jennings wrote:
-swap: warn when a swap area overflows the maximum size
+Typo in the second test.
 
-It is possible to swapon a swap area that is too big for the pte width
-to handle.
+The first line should read:
 
-Presently this failure happens silently.
+# lvresize /dev/system/swap --size 64G
 
-Instead, emit a diagnostic to warn the user.
+First ever serious patch, got excited and burned the copypasta.
 
-Signed-off-by: Raymond Jennings <shentino@gmail.com>
-Acked-by: Valdis Kletnieks <valdis.kletnieks@vt.edu>
+--001a11c2577451bb1104e0eaa865
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
-----
+<div dir=3D"ltr"><div><span style=3D"font-family:arial,sans-serif;font-size=
+:13px">Typo in the second test.</span></div><div><span style=3D"font-family=
+:arial,sans-serif;font-size:13px"><br></span></div><div><span style=3D"font=
+-family:arial,sans-serif;font-size:13px">The first line should read:</span>=
+</div>
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 36af6ee..5a4ce53 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1953,6 +1953,12 @@ static unsigned long read_swap_header(struct
-swap_info_struct *p,
- 	 */
- 	maxpages = swp_offset(pte_to_swp_entry(
- 			swp_entry_to_pte(swp_entry(0, ~0UL)))) + 1;
-+	if (maxpages < swap_header->info.last_page) {
-+		printk(KERN_WARNING
-+		       "Truncating oversized swap area, only using %luk out of %luk
-\n",
-+		       maxpages << (PAGE_SHIFT - 10),
-+		       swap_header->info.last_page << (PAGE_SHIFT - 10));
-+	}
- 	if (maxpages > swap_header->info.last_page) {
- 		maxpages = swap_header->info.last_page + 1;
- 		/* p->max is an unsigned int: don't overflow it */
+<div><span style=3D"font-family:arial,sans-serif;font-size:13px"><br></span=
+></div><span style=3D"font-family:arial,sans-serif;font-size:13px"># lvresi=
+ze /dev/system/swap --size 64G</span><br><div class=3D"gmail_extra"><br></d=
+iv>
 
-----
+<div class=3D"gmail_extra">First ever serious patch, got excited and burned=
+ the copypasta.</div><div class=3D"gmail_extra"><br></div></div>
 
-Testing results, root prompt commands and kernel log messages:
-
-# lvresize /dev/system/swap --size 16G
-# mkswap /dev/system/swap
-# swapon /dev/system/swap
-
-Jul  7 04:27:22 warfang kernel: Adding 16777212k swap
-on /dev/mapper/system-swap.  Priority:-1 extents:1 across:16777212k 
-
-# lvresize /dev/system/swap --size 16G
-# mkswap /dev/system/swap
-# swapon /dev/system/swap
-
-Jul  7 04:27:22 warfang kernel: Truncating oversized swap area, only
-using 33554432k out of 67108860k
-Jul  7 04:27:22 warfang kernel: Adding 33554428k swap
-on /dev/mapper/system-swap.  Priority:-1 extents:1 across:33554428k 
-
+--001a11c2577451bb1104e0eaa865--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
