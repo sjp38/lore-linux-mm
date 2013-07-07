@@ -1,54 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 9B88C6B0038
-	for <linux-mm@kvack.org>; Sun,  7 Jul 2013 12:10:28 -0400 (EDT)
-Received: by mail-we0-f171.google.com with SMTP id m46so3043956wev.2
-        for <linux-mm@kvack.org>; Sun, 07 Jul 2013 09:10:27 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 343646B0036
+	for <linux-mm@kvack.org>; Sun,  7 Jul 2013 12:14:44 -0400 (EDT)
+Received: by mail-wg0-f53.google.com with SMTP id y10so3071460wgg.8
+        for <linux-mm@kvack.org>; Sun, 07 Jul 2013 09:14:42 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20130620055011.GB32061@lge.com>
+In-Reply-To: <0000013f583ce865-d803292b-f217-4fb7-a8c2-4366334cb425-000000@email.amazonses.com>
 References: <20130614195500.373711648@linux.com>
-	<0000013f44418a14-7abe9784-a481-4c34-8ff3-c3afe2d57979-000000@email.amazonses.com>
-	<20130619052203.GA12231@lge.com>
-	<0000013f5cd71dac-5c834a4e-c521-4d79-aecc-3e7a6671fb8c-000000@email.amazonses.com>
-	<20130620015056.GC13026@lge.com>
-	<20130620055011.GB32061@lge.com>
-Date: Sun, 7 Jul 2013 19:10:27 +0300
-Message-ID: <CAOJsxLEjye+R1jT65tWErBnoJ=n8beaTkqLd9YgARwuV_SwdEw@mail.gmail.com>
-Subject: Re: [3.11 1/4] slub: Make cpu partial slab support configurable V2
+	<0000013f444bf6e9-d535ba8b-df9e-4053-9ed4-eaba75e2cfd2-000000@email.amazonses.com>
+	<CAOJsxLHPWJdc6Qy9e7-s-7+KWPOgbs8ZR+JpxWb9sykyC9Um8A@mail.gmail.com>
+	<0000013f583ce865-d803292b-f217-4fb7-a8c2-4366334cb425-000000@email.amazonses.com>
+Date: Sun, 7 Jul 2013 19:14:42 +0300
+Message-ID: <CAOJsxLGqaEindeHh9fKgWj7dFToRpwn=50wB4U33bBOT41BdQA@mail.gmail.com>
+Subject: Re: [3.11 3/4] Move kmalloc_node functions to common code
 From: Pekka Enberg <penberg@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Christoph Lameter <cl@linux.com>, Glauber Costa <glommer@parallels.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>
 
-On Thu, Jun 20, 2013 at 8:50 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> On Thu, Jun 20, 2013 at 10:50:56AM +0900, Joonsoo Kim wrote:
->> Hello, Pekka.
->> I attach a right formatted patch with acked by Christoph and
->> signed off by me.
+On Tue, Jun 18, 2013 at 8:02 PM, Christoph Lameter <cl@linux.com> wrote:
+> On Tue, 18 Jun 2013, Pekka Enberg wrote:
+>
+>> I'm seeing this after "make defconfig" on x86-64:
 >>
->> It is based on v3.10-rc6 and top of a patch
->> "slub: do not put a slab to cpu partial list when cpu_partial is 0".
+>>   CC      mm/slub.o
+>> mm/slub.c:2445:7: error: conflicting types for =EF=BF=BDkmem_cache_alloc=
+_node_trace=EF=BF=BD
+>> include/linux/slab.h:311:14: note: previous declaration of
+>> =EF=BF=BDkmem_cache_alloc_node_trace=EF=BF=BD was here
+>> mm/slub.c:2455:1: error: conflicting types for =EF=BF=BDkmem_cache_alloc=
+_node_trace=EF=BF=BD
+>> include/linux/slab.h:311:14: note: previous declaration of
+>> =EF=BF=BDkmem_cache_alloc_node_trace=EF=BF=BD was here
+>> make[1]: *** [mm/slub.o] Error 1
+>> make: *** [mm/slub.o] Error 2
 >
-> One more change is needed in __slab_free(), so I attach v2.
+> Gosh I dropped the size_t parameter from these functions. CONFIG_TRACING
+> needs these.
 >
-> ------------------8<-------------------------------------
-> From 22fef26a9775745a041ca8820971d475714ee351 Mon Sep 17 00:00:00 2001
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Date: Wed, 19 Jun 2013 14:05:52 +0900
-> Subject: [PATCH v2] slub: Make cpu partial slab support configurable
+> Subject: Fix kmem_cache_alloc*_trace parameters
 >
-> cpu partial support can introduce level of indeterminism that is not
-> wanted in certain context (like a realtime kernel). Make it configurable.
+> The size parameter is needed.
 >
-> This patch is based on Christoph Lameter's
-> "slub: Make cpu partial slab support configurable V2".
->
-> Acked-by: Christoph Lameter <cl@linux.com>
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Signed-off-by: Christoph Lameter <cl@linux.com>
 
-Applied, thanks!
+Can you please resend as a single patch against slab/next that compiles?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
