@@ -1,80 +1,194 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id A08756B0034
-	for <linux-mm@kvack.org>; Sun,  7 Jul 2013 20:16:56 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 8 Jul 2013 10:04:56 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 405BC3578051
-	for <linux-mm@kvack.org>; Mon,  8 Jul 2013 10:16:49 +1000 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6801i5N721392
-	for <linux-mm@kvack.org>; Mon, 8 Jul 2013 10:01:45 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r680Gl6X013068
-	for <linux-mm@kvack.org>; Mon, 8 Jul 2013 10:16:48 +1000
-Date: Mon, 8 Jul 2013 08:16:45 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 2/3] mm/slab: Sharing s_next and s_stop between slab and
- slub
-Message-ID: <20130708001644.GA18895@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1372069394-26167-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1372069394-26167-2-git-send-email-liwanp@linux.vnet.ibm.com>
- <alpine.DEB.2.02.1306241421560.25343@chino.kir.corp.google.com>
- <0000013f9aeb70c6-f6dad22c-bb88-4313-8602-538a3f5cedf5-000000@email.amazonses.com>
- <CAOJsxLGXTcB2iVcg5SArVytakjeTSCZqLEqnBWhTrjA4aLnSSQ@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="jRHKVT23PllUwdXP"
-Content-Disposition: inline
-In-Reply-To: <CAOJsxLGXTcB2iVcg5SArVytakjeTSCZqLEqnBWhTrjA4aLnSSQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id D97D66B0036
+	for <linux-mm@kvack.org>; Sun,  7 Jul 2013 21:33:51 -0400 (EDT)
+Message-ID: <1373247199.4446.29.camel@pasglop>
+Subject: Re: [PATCH 4/8] powerpc: Prepare to support kernel handling of
+ IOMMU map/unmap
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Mon, 08 Jul 2013 11:33:19 +1000
+In-Reply-To: <1373123227-22969-5-git-send-email-aik@ozlabs.ru>
+References: <1373123227-22969-1-git-send-email-aik@ozlabs.ru>
+	 <1373123227-22969-5-git-send-email-aik@ozlabs.ru>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Alexey Kardashevskiy <aik@ozlabs.ru>
+Cc: linuxppc-dev@lists.ozlabs.org, David Gibson <david@gibson.dropbear.id.au>, Paul Mackerras <paulus@samba.org>, Alexander Graf <agraf@suse.de>, Alex Williamson <alex.williamson@redhat.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kvm-ppc@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Christoffer Dall <cdall@cs.columbia.edu>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org
+
+On Sun, 2013-07-07 at 01:07 +1000, Alexey Kardashevskiy wrote:
+> The current VFIO-on-POWER implementation supports only user mode
+> driven mapping, i.e. QEMU is sending requests to map/unmap pages.
+> However this approach is really slow, so we want to move that to KVM.
+> Since H_PUT_TCE can be extremely performance sensitive (especially with
+> network adapters where each packet needs to be mapped/unmapped) we chose
+> to implement that as a "fast" hypercall directly in "real
+> mode" (processor still in the guest context but MMU off).
+> 
+> To be able to do that, we need to provide some facilities to
+> access the struct page count within that real mode environment as things
+> like the sparsemem vmemmap mappings aren't accessible.
+> 
+> This adds an API to increment/decrement page counter as
+> get_user_pages API used for user mode mapping does not work
+> in the real mode.
+> 
+> CONFIG_SPARSEMEM_VMEMMAP and CONFIG_FLATMEM are supported.
+
+This patch will need an ack from "mm" people to make sure they are ok
+with our approach and ack the change to the generic header.
+
+(Added linux-mm).
+
+Cheers,
+Ben.
+
+> Reviewed-by: Paul Mackerras <paulus@samba.org>
+> Signed-off-by: Paul Mackerras <paulus@samba.org>
+> Signed-off-by: Alexey Kardashevskiy <aik@ozlabs.ru>
+> 
+> ---
+> 
+> Changes:
+> 2013/06/27:
+> * realmode_get_page() fixed to use get_page_unless_zero(). If failed,
+> the call will be passed from real to virtual mode and safely handled.
+> * added comment to PageCompound() in include/linux/page-flags.h.
+> 
+> 2013/05/20:
+> * PageTail() is replaced by PageCompound() in order to have the same checks
+> for whether the page is huge in realmode_get_page() and realmode_put_page()
+> 
+> Signed-off-by: Alexey Kardashevskiy <aik@ozlabs.ru>
+> ---
+>  arch/powerpc/include/asm/pgtable-ppc64.h |  4 ++
+>  arch/powerpc/mm/init_64.c                | 78 +++++++++++++++++++++++++++++++-
+>  include/linux/page-flags.h               |  4 +-
+>  3 files changed, 84 insertions(+), 2 deletions(-)
+> 
+> diff --git a/arch/powerpc/include/asm/pgtable-ppc64.h b/arch/powerpc/include/asm/pgtable-ppc64.h
+> index e3d55f6f..7b46e5f 100644
+> --- a/arch/powerpc/include/asm/pgtable-ppc64.h
+> +++ b/arch/powerpc/include/asm/pgtable-ppc64.h
+> @@ -376,6 +376,10 @@ static inline pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
+>  }
+>  #endif /* !CONFIG_HUGETLB_PAGE */
+>  
+> +struct page *realmode_pfn_to_page(unsigned long pfn);
+> +int realmode_get_page(struct page *page);
+> +int realmode_put_page(struct page *page);
+> +
+>  #endif /* __ASSEMBLY__ */
+>  
+>  #endif /* _ASM_POWERPC_PGTABLE_PPC64_H_ */
+> diff --git a/arch/powerpc/mm/init_64.c b/arch/powerpc/mm/init_64.c
+> index a90b9c4..7031be3 100644
+> --- a/arch/powerpc/mm/init_64.c
+> +++ b/arch/powerpc/mm/init_64.c
+> @@ -297,5 +297,81 @@ void vmemmap_free(unsigned long start, unsigned long end)
+>  {
+>  }
+>  
+> -#endif /* CONFIG_SPARSEMEM_VMEMMAP */
+> +/*
+> + * We do not have access to the sparsemem vmemmap, so we fallback to
+> + * walking the list of sparsemem blocks which we already maintain for
+> + * the sake of crashdump. In the long run, we might want to maintain
+> + * a tree if performance of that linear walk becomes a problem.
+> + *
+> + * Any of realmode_XXXX functions can fail due to:
+> + * 1) As real sparsemem blocks do not lay in RAM continously (they
+> + * are in virtual address space which is not available in the real mode),
+> + * the requested page struct can be split between blocks so get_page/put_page
+> + * may fail.
+> + * 2) When huge pages are used, the get_page/put_page API will fail
+> + * in real mode as the linked addresses in the page struct are virtual
+> + * too.
+> + * When 1) or 2) takes place, the API returns an error code to cause
+> + * an exit to kernel virtual mode where the operation will be completed.
+> + */
+> +struct page *realmode_pfn_to_page(unsigned long pfn)
+> +{
+> +	struct vmemmap_backing *vmem_back;
+> +	struct page *page;
+> +	unsigned long page_size = 1 << mmu_psize_defs[mmu_vmemmap_psize].shift;
+> +	unsigned long pg_va = (unsigned long) pfn_to_page(pfn);
+>  
+> +	for (vmem_back = vmemmap_list; vmem_back; vmem_back = vmem_back->list) {
+> +		if (pg_va < vmem_back->virt_addr)
+> +			continue;
+> +
+> +		/* Check that page struct is not split between real pages */
+> +		if ((pg_va + sizeof(struct page)) >
+> +				(vmem_back->virt_addr + page_size))
+> +			return NULL;
+> +
+> +		page = (struct page *) (vmem_back->phys + pg_va -
+> +				vmem_back->virt_addr);
+> +		return page;
+> +	}
+> +
+> +	return NULL;
+> +}
+> +EXPORT_SYMBOL_GPL(realmode_pfn_to_page);
+> +
+> +#elif defined(CONFIG_FLATMEM)
+> +
+> +struct page *realmode_pfn_to_page(unsigned long pfn)
+> +{
+> +	struct page *page = pfn_to_page(pfn);
+> +	return page;
+> +}
+> +EXPORT_SYMBOL_GPL(realmode_pfn_to_page);
+> +
+> +#endif /* CONFIG_SPARSEMEM_VMEMMAP/CONFIG_FLATMEM */
+> +
+> +#if defined(CONFIG_SPARSEMEM_VMEMMAP) || defined(CONFIG_FLATMEM)
+> +int realmode_get_page(struct page *page)
+> +{
+> +	if (PageCompound(page))
+> +		return -EAGAIN;
+> +
+> +	if (!get_page_unless_zero(page))
+> +		return -EAGAIN;
+> +
+> +	return 0;
+> +}
+> +EXPORT_SYMBOL_GPL(realmode_get_page);
+> +
+> +int realmode_put_page(struct page *page)
+> +{
+> +	if (PageCompound(page))
+> +		return -EAGAIN;
+> +
+> +	if (!atomic_add_unless(&page->_count, -1, 1))
+> +		return -EAGAIN;
+> +
+> +	return 0;
+> +}
+> +EXPORT_SYMBOL_GPL(realmode_put_page);
+> +#endif
+> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> index 6d53675..98ada58 100644
+> --- a/include/linux/page-flags.h
+> +++ b/include/linux/page-flags.h
+> @@ -329,7 +329,9 @@ static inline void set_page_writeback(struct page *page)
+>   * System with lots of page flags available. This allows separate
+>   * flags for PageHead() and PageTail() checks of compound pages so that bit
+>   * tests can be used in performance sensitive paths. PageCompound is
+> - * generally not used in hot code paths.
+> + * generally not used in hot code paths except arch/powerpc/mm/init_64.c
+> + * and arch/powerpc/kvm/book3s_64_vio_hv.c which use it to detect huge pages
+> + * and avoid handling those in real mode.
+>   */
+>  __PAGEFLAG(Head, head) CLEARPAGEFLAG(Head, head)
+>  __PAGEFLAG(Tail, tail)
 
 
---jRHKVT23PllUwdXP
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-
-On Sun, Jul 07, 2013 at 07:41:54PM +0300, Pekka Enberg wrote:
->On Mon, Jul 1, 2013 at 6:48 PM, Christoph Lameter <cl@linux.com> wrote:
->> On Mon, 24 Jun 2013, David Rientjes wrote:
->>
->>> On Mon, 24 Jun 2013, Wanpeng Li wrote:
->>>
->>> > This patch shares s_next and s_stop between slab and slub.
->>> >
->>>
->>> Just about the entire kernel includes slab.h, so I think you'll need to
->>> give these slab-specific names instead of exporting "s_next" and "s_stop"
->>> to everybody.
->>
->> He put the export into mm/slab.h. The headerfile is only included by
->> mm/sl?b.c .
->
->But he then went on to add globally visible symbols "s_next" and
->"s_stop" which is bad...
->
->Please send me an incremental patch on top of slab/next to fix this
->up. Otherwise I'll revert it before sending a pull request to Linus.
->
->                      Pekka
-
-Hi Pekka,
-
-I attach the incremental patch in attachment. ;-)
-
-Regards,
-Wanpeng Li 
-
-
---jRHKVT23PllUwdXP
-Content-Type: text/x-diff; charset=us-ascii
-Content-Disposition: attachment; filename="0001-slab.patch"
-
-
---jRHKVT23PllUwdXP--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
