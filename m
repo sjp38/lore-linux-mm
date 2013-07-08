@@ -1,47 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 114426B0034
-	for <linux-mm@kvack.org>; Mon,  8 Jul 2013 17:04:21 -0400 (EDT)
-Date: Mon, 8 Jul 2013 14:04:19 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: linux-next: slab shrinkers: BUG at mm/list_lru.c:92
-Message-Id: <20130708140419.d9079dd67111090beb6cef3d@linux-foundation.org>
-In-Reply-To: <20130708125352.GC20149@dhcp22.suse.cz>
-References: <20130629025509.GG9047@dastard>
-	<20130630183349.GA23731@dhcp22.suse.cz>
-	<20130701012558.GB27780@dastard>
-	<20130701075005.GA28765@dhcp22.suse.cz>
-	<20130701081056.GA4072@dastard>
-	<20130702092200.GB16815@dhcp22.suse.cz>
-	<20130702121947.GE14996@dastard>
-	<20130702124427.GG16815@dhcp22.suse.cz>
-	<20130703112403.GP14996@dastard>
-	<20130704163643.GF7833@dhcp22.suse.cz>
-	<20130708125352.GC20149@dhcp22.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id D195F6B0034
+	for <linux-mm@kvack.org>; Mon,  8 Jul 2013 18:30:12 -0400 (EDT)
+Received: by mail-ob0-f175.google.com with SMTP id xn12so6232854obc.34
+        for <linux-mm@kvack.org>; Mon, 08 Jul 2013 15:30:12 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20130708180501.GB6490@redhat.com>
+References: <1372901537-31033-1-git-send-email-ccross@android.com>
+ <20130704202232.GA19287@redhat.com> <CAMbhsRRjGjo_-zSigmdsDvY-kfBhmP49bDQzsgHfj5N-y+ZAdw@mail.gmail.com>
+ <20130708180424.GA6490@redhat.com> <20130708180501.GB6490@redhat.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Mon, 8 Jul 2013 18:29:51 -0400
+Message-ID: <CAHGf_=qPuzH_R1Jfztnhj4JEAX9xfD37461LRKrhHgL4nq-eHg@mail.gmail.com>
+Subject: Re: [PATCH 1/1] mm: mempolicy: fix mbind_range() && vma_adjust() interaction
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Dave Chinner <david@fromorbit.com>, Glauber Costa <glommer@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Colin Cross <ccross@android.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, "Hampson, Steven T" <steven.t.hampson@intel.com>, lkml <linux-kernel@vger.kernel.org>, Kyungmin Park <kmpark@infradead.org>, Christoph Hellwig <hch@infradead.org>, John Stultz <john.stultz@linaro.org>, Rob Landley <rob@landley.net>, Arnd Bergmann <arnd@arndb.de>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Al Viro <viro@zeniv.linux.org.uk>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rusty Russell <rusty@rustcorp.com.au>, "Eric W. Biederman" <ebiederm@xmission.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Anton Vorontsov <anton.vorontsov@linaro.org>, Pekka Enberg <penberg@kernel.org>, Shaohua Li <shli@fusionio.com>, Sasha Levin <sasha.levin@oracle.com>, Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@kernel.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, "open list:GENERIC INCLUDE/A..." <linux-arch@vger.kernel.org>
 
-On Mon, 8 Jul 2013 14:53:52 +0200 Michal Hocko <mhocko@suse.cz> wrote:
+On Mon, Jul 8, 2013 at 2:05 PM, Oleg Nesterov <oleg@redhat.com> wrote:
+> vma_adjust() does vma_set_policy(vma, vma_policy(next)) and this
+> is doubly wrong:
+>
+> 1. This leaks vma->vm_policy if it is not NULL and not equal to
+>    next->vm_policy.
+>
+>    This can happen if vma_merge() expands "area", not prev (case 8).
+>
+> 2. This sets the wrong policy if vma_merge() joins prev and area,
+>    area is the vma the caller needs to update and it still has the
+>    old policy.
+>
+> Revert 1444f92c "mm: merging memory blocks resets mempolicy" which
+> introduced these problems.
 
-> > Good news! The test was running since morning and it didn't hang nor
-> > crashed. So this really looks like the right fix. It will run also
-> > during weekend to be 100% sure. But I guess it is safe to say
-> 
-> Hmm, it seems I was too optimistic or we have yet another issue here (I
-> guess the later is more probable).
-> 
-> The weekend testing got stuck as well. 
-> 
-> The dmesg shows there were some hung tasks:
+Yes, I believe 1444f92c is wrong and should be reverted.
 
-That looks like the classic "we lost an IO completion" trace.
+>
+> Change mbind_range() to recheck mpol_equal() after vma_merge() to
+> fix the problem 1444f92c tried to address.
+>
+> Signed-off-by: Oleg Nesterov <oleg@redhat.com>
+> Cc: <stable@vger.kernel.org>
+> ---
+>  mm/mempolicy.c |    6 +++++-
+>  mm/mmap.c      |    2 +-
+>  2 files changed, 6 insertions(+), 2 deletions(-)
+>
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index 7431001..4baf12e 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -732,7 +732,10 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
+>                 if (prev) {
+>                         vma = prev;
+>                         next = vma->vm_next;
+> -                       continue;
+> +                       if (mpol_equal(vma_policy(vma), new_pol))
+> +                               continue;
+> +                       /* vma_merge() joined vma && vma->next, case 8 */
 
-I think it would be prudent to defer these patches into 3.12.
+case 3 makes the same scenario?
+
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
