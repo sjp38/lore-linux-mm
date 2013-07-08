@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 52DD06B005A
-	for <linux-mm@kvack.org>; Mon,  8 Jul 2013 05:52:18 -0400 (EDT)
-Received: by mail-lb0-f177.google.com with SMTP id 10so3529029lbf.36
-        for <linux-mm@kvack.org>; Mon, 08 Jul 2013 02:52:16 -0700 (PDT)
-Subject: [PATCH 4/5] page_writeback: get rid of account_size argument in
- cancel_dirty_page()
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id CD67E6B005A
+	for <linux-mm@kvack.org>; Mon,  8 Jul 2013 05:52:21 -0400 (EDT)
+Received: by mail-lb0-f171.google.com with SMTP id 13so3511823lba.2
+        for <linux-mm@kvack.org>; Mon, 08 Jul 2013 02:52:20 -0700 (PDT)
+Subject: [PATCH 5/5] page_writeback: put account_page_redirty() after
+ set_page_dirty()
 From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Mon, 08 Jul 2013 13:52:13 +0400
-Message-ID: <20130708095213.13810.38211.stgit@zurg>
+Date: Mon, 08 Jul 2013 13:52:17 +0400
+Message-ID: <20130708095217.13810.22999.stgit@zurg>
 In-Reply-To: <20130708095202.13810.11659.stgit@zurg>
 References: <20130708095202.13810.11659.stgit@zurg>
 MIME-Version: 1.0
@@ -19,73 +19,62 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org
 
-Dirty pages accounting always works with PAGE_CACHE_SIZE granularity.
+Function account_page_redirty() fixes dirty pages counter for redieried pages.
+This patch prevents temporary underflows of dirty pages counters on zone/bdi
+and current->nr_dirtied. This puts decrement after increment.
+
+__set_page_dirty_nobuffers() in redirty_page_for_writeback() always returns true
+because this page is locked and all ptes are write-protected by previously
+called clear_page_dirty_for_io(). Thus nobody can mark it dirty except current
+task. This prevents multy-threaded scenarios of taks->nr_dirtied underflows.
 
 Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 ---
- fs/buffer.c                |    2 +-
- include/linux/page-flags.h |    2 +-
- mm/truncate.c              |    7 +++----
- 3 files changed, 5 insertions(+), 6 deletions(-)
+ fs/btrfs/extent_io.c |    2 +-
+ mm/page-writeback.c  |    7 ++++++-
+ 2 files changed, 7 insertions(+), 2 deletions(-)
 
-diff --git a/fs/buffer.c b/fs/buffer.c
-index 4d74335..37eee33 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -3243,7 +3243,7 @@ int try_to_free_buffers(struct page *page)
- 	 * dirty bit from being lost.
- 	 */
- 	if (ret)
--		cancel_dirty_page(page, PAGE_CACHE_SIZE);
-+		cancel_dirty_page(page);
- 	spin_unlock(&mapping->private_lock);
- out:
- 	if (buffers_to_free) {
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 6d53675..8a88f59 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -314,7 +314,7 @@ static inline void SetPageUptodate(struct page *page)
- 
- CLEARPAGEFLAG(Uptodate, uptodate)
- 
--extern void cancel_dirty_page(struct page *page, unsigned int account_size);
-+extern void cancel_dirty_page(struct page *page);
- 
- int test_clear_page_writeback(struct page *page);
- int test_set_page_writeback(struct page *page);
-diff --git a/mm/truncate.c b/mm/truncate.c
-index 9b4721f..e212252 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -66,7 +66,7 @@ void do_invalidatepage(struct page *page, unsigned int offset,
-  * out all the buffers on a page without actually doing it through
-  * the VM. Can you say "ext3 is horribly ugly"? Tought you could.
-  */
--void cancel_dirty_page(struct page *page, unsigned int account_size)
-+void cancel_dirty_page(struct page *page)
- {
- 	if (TestClearPageDirty(page)) {
- 		struct address_space *mapping = page->mapping;
-@@ -74,8 +74,7 @@ void cancel_dirty_page(struct page *page, unsigned int account_size)
- 			dec_zone_page_state(page, NR_FILE_DIRTY);
- 			dec_bdi_stat(mapping->backing_dev_info,
- 					BDI_RECLAIMABLE);
--			if (account_size)
--				task_io_account_cancelled_write(account_size);
-+			task_io_account_cancelled_write(PAGE_CACHE_SIZE);
- 		}
+diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
+index 6bca947..d17fb9b 100644
+--- a/fs/btrfs/extent_io.c
++++ b/fs/btrfs/extent_io.c
+@@ -1311,8 +1311,8 @@ int extent_range_redirty_for_io(struct inode *inode, u64 start, u64 end)
+ 	while (index <= end_index) {
+ 		page = find_get_page(inode->i_mapping, index);
+ 		BUG_ON(!page); /* Pages should be in the extent_io_tree */
+-		account_page_redirty(page);
+ 		__set_page_dirty_nobuffers(page);
++		account_page_redirty(page);
+ 		page_cache_release(page);
+ 		index++;
  	}
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 4514ad7..a599f38 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -2061,6 +2061,8 @@ EXPORT_SYMBOL(__set_page_dirty_nobuffers);
+  * counters (NR_WRITTEN, BDI_WRITTEN) in long term. The mismatches will lead to
+  * systematic errors in balanced_dirty_ratelimit and the dirty pages position
+  * control.
++ *
++ * Must be called after marking page dirty.
+  */
+ void account_page_redirty(struct page *page)
+ {
+@@ -2080,9 +2082,12 @@ EXPORT_SYMBOL(account_page_redirty);
+  */
+ int redirty_page_for_writepage(struct writeback_control *wbc, struct page *page)
+ {
++	int ret;
++
+ 	wbc->pages_skipped++;
++	ret = __set_page_dirty_nobuffers(page);
+ 	account_page_redirty(page);
+-	return __set_page_dirty_nobuffers(page);
++	return ret;
  }
-@@ -104,7 +103,7 @@ truncate_complete_page(struct address_space *mapping, struct page *page)
- 	 * This is final dirty accounting check. Some filesystems may re-dirty
- 	 * pages during invalidation, hence it's placed after that.
- 	 */
--	cancel_dirty_page(page, PAGE_CACHE_SIZE);
-+	cancel_dirty_page(page);
+ EXPORT_SYMBOL(redirty_page_for_writepage);
  
- 	ClearPageMappedToDisk(page);
- 	delete_from_page_cache(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
