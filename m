@@ -1,87 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 0AB266B0034
-	for <linux-mm@kvack.org>; Mon,  8 Jul 2013 14:10:37 -0400 (EDT)
-Date: Mon, 8 Jul 2013 20:05:01 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: [PATCH 1/1] mm: mempolicy: fix mbind_range() && vma_adjust()
-	interaction
-Message-ID: <20130708180501.GB6490@redhat.com>
-References: <1372901537-31033-1-git-send-email-ccross@android.com> <20130704202232.GA19287@redhat.com> <CAMbhsRRjGjo_-zSigmdsDvY-kfBhmP49bDQzsgHfj5N-y+ZAdw@mail.gmail.com> <20130708180424.GA6490@redhat.com>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 62EFB6B0036
+	for <linux-mm@kvack.org>; Mon,  8 Jul 2013 14:11:48 -0400 (EDT)
+Date: Mon, 8 Jul 2013 14:11:44 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH RFC] fsio: filesystem io accounting cgroup
+Message-ID: <20130708181144.GC9094@redhat.com>
+References: <20130708100046.14417.12932.stgit@zurg>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130708180424.GA6490@redhat.com>
+In-Reply-To: <20130708100046.14417.12932.stgit@zurg>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Colin Cross <ccross@android.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, "Hampson, Steven T" <steven.t.hampson@intel.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, Kyungmin Park <kmpark@infradead.org>, Christoph Hellwig <hch@infradead.org>, John Stultz <john.stultz@linaro.org>, Rob Landley <rob@landley.net>, Arnd Bergmann <arnd@arndb.de>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Al Viro <viro@zeniv.linux.org.uk>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rusty Russell <rusty@rustcorp.com.au>, "Eric W. Biederman" <ebiederm@xmission.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Anton Vorontsov <anton.vorontsov@linaro.org>, Pekka Enberg <penberg@kernel.org>, Shaohua Li <shli@fusionio.com>, Sasha Levin <sasha.levin@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@kernel.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, "open list:GENERIC INCLUDE/A..." <linux-arch@vger.kernel.org>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Sha Zhengju <handai.szj@gmail.com>, devel@openvz.org, Greg Thelen <gthelen@google.com>
 
-vma_adjust() does vma_set_policy(vma, vma_policy(next)) and this
-is doubly wrong:
+On Mon, Jul 08, 2013 at 02:01:39PM +0400, Konstantin Khlebnikov wrote:
+> RESEND: fix CC
+> 
+> This is proof of concept, just basic functionality for IO controller.
+> This cgroup will control filesystem usage on vfs layer, it's main goal is
+> bandwidth control. It's supposed to be much more lightweight than memcg/blkio.
+> 
+> This patch shows easy way for accounting pages in dirty/writeback state in
+> per-inode manner. This is easier that doing this in memcg in per-page manner.
 
-1. This leaks vma->vm_policy if it is not NULL and not equal to
-   next->vm_policy.
+In the past other developers (CC Greg Thelen <gthelen@google.com>) have posted
+patches where inode was associated with a memcg for writeback accounting.
 
-   This can happen if vma_merge() expands "area", not prev (case 8).
+So accounting was per inode and not per page. We lose granularity in the
+process if two processes in different cgroups are doing IO to a file but it
+was considered good enough approximation in general. 
 
-2. This sets the wrong policy if vma_merge() joins prev and area,
-   area is the vma the caller needs to update and it still has the
-   old policy.
+> Main idea is in keeping on each inode pointer (->i_fsio) to cgroup which owns
+> dirty data in that inode. It's settled by fsio_account_page_dirtied() when
+> first dirty tag appears in the inode. Relying to mapping tags gives us locking
+> for free, this patch doesn't add any new locks to hot paths.
+> 
+> Unlike to blkio this method works for all of filesystems, not just disk-backed.
+> Also it's able to handle writeback, because each inode has context which can be
+> used in writeback thread to account io operations.
+> 
+> This is early prototype, I have some plans about extra functionality because
+> this accounting itself is mostly useless, but it can be used as basis for more
+> usefull features.
+> 
+> Planned impovements:
+> * Split bdi into several tiers and account them separately. For example:
+>   hdd/ssd/usb/nfs. In complicated containerized environments that might be
+>   different kinds of storages with different limits and billing. This is more
+>   usefull that independent per-disk accounting and much easier to implement
+>   because all per-tier structures are allocated before disk appearance.
 
-Revert 1444f92c "mm: merging memory blocks resets mempolicy" which
-introduced these problems.
+What does this mean? With-in a cgroup there are different IO rate rules 
+depending on who is backing the bdi? If yes, then can't this info be
+exported to user space (if it is not already) and then user space can
+set the rules accordingly on disk.
 
-Change mbind_range() to recheck mpol_equal() after vma_merge() to
-fix the problem 1444f92c tried to address.
+W.r.t the issue of being able to apply rules only when disk appears, I 
+think we will need a solution for this in user space which applies the
+rules when disk shows up.  I think systemd is planning to take care of of this
+up to some extent where one can specify IO bandwidth limits and these
+limits get applied when disk shows up. I am not sure if it allows
+different limits for different disks or not.
 
-Signed-off-by: Oleg Nesterov <oleg@redhat.com>
-Cc: <stable@vger.kernel.org>
----
- mm/mempolicy.c |    6 +++++-
- mm/mmap.c      |    2 +-
- 2 files changed, 6 insertions(+), 2 deletions(-)
 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 7431001..4baf12e 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -732,7 +732,10 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
- 		if (prev) {
- 			vma = prev;
- 			next = vma->vm_next;
--			continue;
-+			if (mpol_equal(vma_policy(vma), new_pol))
-+				continue;
-+			/* vma_merge() joined vma && vma->next, case 8 */
-+			goto replace;
- 		}
- 		if (vma->vm_start != vmstart) {
- 			err = split_vma(vma->vm_mm, vma, vmstart, 1);
-@@ -744,6 +747,7 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
- 			if (err)
- 				goto out;
- 		}
-+ replace:
- 		err = vma_replace_policy(vma, new_pol);
- 		if (err)
- 			goto out;
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 7fe7f0b..42234b8 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -865,7 +865,7 @@ again:			remove_next = 1 + (end > next->vm_end);
- 		if (next->anon_vma)
- 			anon_vma_merge(vma, next);
- 		mm->map_count--;
--		vma_set_policy(vma, vma_policy(next));
-+		mpol_put(vma_policy(next));
- 		kmem_cache_free(vm_area_cachep, next);
- 		/*
- 		 * In mprotect's case 6 (see comments on vma_merge),
--- 
-1.5.5.1
+> * Add some hooks for accounting actualy issued IO requests (iops).
+> * Implement bandwidth throttlers for each tier individually (bps and iops).
+>   This will be the most tasty feature. I already have very effective prototype.
 
+Can you please give some details here and also explain why blkcg can not
+achieve do the same.
+
+> * Add hook into balance_dirty_pages to limit amount of dirty page for each
+>   cgroup in each tier individually. This is required for accurate throttling,
+>   because if we want to limit speed of writeback we also must limit amount
+>   of dirty pages otherwise we have to inject enourmous delay after each sync().
+
+So there is a separate knob for limiting on buffered write rate and it 
+is not accounted towards direct writes etc?
+
+Anyway, limiting dirty pages per memory cgroup will be required even if
+we use blkcg.
+
+> * Implement filtered writeback requests for writing only data which belongs to
+>   particular fsio cgroup (or cgroups tree) to keep dirty balance in background.
+
+I think Greg had done similar modifications and put inodes into cgroup
+specific writeback lists and modify writeback logic.
+
+So quite a few pieces w.r.t balance_dirty_pages() and inode tagging are
+common even if we support writeback limits using blkcg. Only question we
+will have to figure out why implement all this functinality using a new
+cgroup controller instead of enhancing blkcg.
+
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
