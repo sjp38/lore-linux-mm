@@ -1,75 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id D50E86B0034
-	for <linux-mm@kvack.org>; Sun,  7 Jul 2013 19:42:26 -0400 (EDT)
-Subject: =?utf-8?q?Re=3A_=5BPATCH_for_3=2E2=5D_memcg=3A_do_not_trap_chargers_with_full_callstack_on_OOM?=
-Date: Mon, 08 Jul 2013 01:42:24 +0200
-From: "azurIt" <azurit@pobox.sk>
-References: <20130606160446.GE24115@dhcp22.suse.cz>, <20130606181633.BCC3E02E@pobox.sk>, <20130607131157.GF8117@dhcp22.suse.cz>, <20130617122134.2E072BA8@pobox.sk>, <20130619132614.GC16457@dhcp22.suse.cz>, <20130622220958.D10567A4@pobox.sk>, <20130624201345.GA21822@cmpxchg.org>, <20130628120613.6D6CAD21@pobox.sk>, <20130705181728.GQ17812@cmpxchg.org>, <20130705210246.11D2135A@pobox.sk> <20130705191854.GR17812@cmpxchg.org>
-In-Reply-To: <20130705191854.GR17812@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id A08756B0034
+	for <linux-mm@kvack.org>; Sun,  7 Jul 2013 20:16:56 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Mon, 8 Jul 2013 10:04:56 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 405BC3578051
+	for <linux-mm@kvack.org>; Mon,  8 Jul 2013 10:16:49 +1000 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6801i5N721392
+	for <linux-mm@kvack.org>; Mon, 8 Jul 2013 10:01:45 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r680Gl6X013068
+	for <linux-mm@kvack.org>; Mon, 8 Jul 2013 10:16:48 +1000
+Date: Mon, 8 Jul 2013 08:16:45 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH 2/3] mm/slab: Sharing s_next and s_stop between slab and
+ slub
+Message-ID: <20130708001644.GA18895@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <1372069394-26167-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1372069394-26167-2-git-send-email-liwanp@linux.vnet.ibm.com>
+ <alpine.DEB.2.02.1306241421560.25343@chino.kir.corp.google.com>
+ <0000013f9aeb70c6-f6dad22c-bb88-4313-8602-538a3f5cedf5-000000@email.amazonses.com>
+ <CAOJsxLGXTcB2iVcg5SArVytakjeTSCZqLEqnBWhTrjA4aLnSSQ@mail.gmail.com>
 MIME-Version: 1.0
-Message-Id: <20130708014224.50F06960@pobox.sk>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: multipart/mixed; boundary="jRHKVT23PllUwdXP"
+Content-Disposition: inline
+In-Reply-To: <CAOJsxLGXTcB2iVcg5SArVytakjeTSCZqLEqnBWhTrjA4aLnSSQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
-Cc: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?q?cgroups_mailinglist?= <cgroups@vger.kernel.org>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>
-
-> CC: "Michal Hocko" <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "cgroups mailinglist" <cgroups@vger.kernel.org>, "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
->On Fri, Jul 05, 2013 at 09:02:46PM +0200, azurIt wrote:
->> >I looked at your debug messages but could not find anything that would
->> >hint at a deadlock.  All tasks are stuck in the refrigerator, so I
->> >assume you use the freezer cgroup and enabled it somehow?
->> 
->> 
->> Yes, i'm really using freezer cgroup BUT i was checking if it's not
->> doing problems - unfortunately, several days passed from that day
->> and now i don't fully remember if i was checking it for both cases
->> (unremoveabled cgroups and these freezed processes holding web
->> server port). I'm 100% sure i was checking it for unremoveable
->> cgroups but not so sure for the other problem (i had to act quickly
->> in that case). Are you sure (from stacks) that freezer cgroup was
->> enabled there?
->
->Yeah, all the traces without exception look like this:
->
->1372089762/23433/stack:[<ffffffff81080925>] refrigerator+0x95/0x160
->1372089762/23433/stack:[<ffffffff8106ab7b>] get_signal_to_deliver+0x1cb/0x540
->1372089762/23433/stack:[<ffffffff8100188b>] do_signal+0x6b/0x750
->1372089762/23433/stack:[<ffffffff81001fc5>] do_notify_resume+0x55/0x80
->1372089762/23433/stack:[<ffffffff815cac77>] int_signal+0x12/0x17
->1372089762/23433/stack:[<ffffffffffffffff>] 0xffffffffffffffff
->
->so the freezer was already enabled when you took the backtraces.
->
->> Btw, what about that other stacks? I mean this file:
->> http://watchdog.sk/lkml/memcg-bug-7.tar.gz
->> 
->> It was taken while running the kernel with your patch and from
->> cgroup which was under unresolveable OOM (just like my very original
->> problem).
->
->I looked at these traces too, but none of the tasks are stuck in rmdir
->or the OOM path.  Some /are/ in the page fault path, but they are
->happily doing reclaim and don't appear to be stuck.  So I'm having a
->hard time matching this data to what you otherwise observed.
->
->However, based on what you reported the most likely explanation for
->the continued hangs is the unfinished OOM handling for which I sent
->the followup patch for arch/x86/mm/fault.c.
->
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 
+--jRHKVT23PllUwdXP
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-Johannes,
+On Sun, Jul 07, 2013 at 07:41:54PM +0300, Pekka Enberg wrote:
+>On Mon, Jul 1, 2013 at 6:48 PM, Christoph Lameter <cl@linux.com> wrote:
+>> On Mon, 24 Jun 2013, David Rientjes wrote:
+>>
+>>> On Mon, 24 Jun 2013, Wanpeng Li wrote:
+>>>
+>>> > This patch shares s_next and s_stop between slab and slub.
+>>> >
+>>>
+>>> Just about the entire kernel includes slab.h, so I think you'll need to
+>>> give these slab-specific names instead of exporting "s_next" and "s_stop"
+>>> to everybody.
+>>
+>> He put the export into mm/slab.h. The headerfile is only included by
+>> mm/sl?b.c .
+>
+>But he then went on to add globally visible symbols "s_next" and
+>"s_stop" which is bad...
+>
+>Please send me an incremental patch on top of slab/next to fix this
+>up. Otherwise I'll revert it before sending a pull request to Linus.
+>
+>                      Pekka
 
-today I tested both of your patches but problem with unremovable cgroups, unfortunately, persists.
+Hi Pekka,
 
-azur
+I attach the incremental patch in attachment. ;-)
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Regards,
+Wanpeng Li 
+
+
+--jRHKVT23PllUwdXP
+Content-Type: text/x-diff; charset=us-ascii
+Content-Disposition: attachment; filename="0001-slab.patch"
+
+
+--jRHKVT23PllUwdXP--
