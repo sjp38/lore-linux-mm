@@ -1,76 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 365666B0037
-	for <linux-mm@kvack.org>; Mon,  8 Jul 2013 04:08:36 -0400 (EDT)
-Message-ID: <51DA734B.4060608@asianux.com>
-Date: Mon, 08 Jul 2013 16:07:39 +0800
-From: Chen Gang <gang.chen@asianux.com>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 0DF776B0039
+	for <linux-mm@kvack.org>; Mon,  8 Jul 2013 04:35:04 -0400 (EDT)
+Date: Mon, 8 Jul 2013 09:34:57 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 06/15] sched: Reschedule task on preferred NUMA node once
+ selected
+Message-ID: <20130708083457.GY1875@suse.de>
+References: <1373065742-9753-1-git-send-email-mgorman@suse.de>
+ <1373065742-9753-7-git-send-email-mgorman@suse.de>
+ <20130706103813.GQ18898@dyad.programming.kicks-ass.net>
 MIME-Version: 1.0
-Subject: [PATCH] mm/slub.c: remove 'per_cpu' which is useless variable
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20130706103813.GQ18898@dyad.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cl@linux-foundation.org, penberg@kernel.org, mpm@selenic.com
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Remove 'per_cpu', since it is useless now after the patch: "205ab99
-slub: Update statistics handling for variable order slabs".
+On Sat, Jul 06, 2013 at 12:38:13PM +0200, Peter Zijlstra wrote:
+> On Sat, Jul 06, 2013 at 12:08:53AM +0100, Mel Gorman wrote:
+> > +static int
+> > +find_idlest_cpu_node(int this_cpu, int nid)
+> > +{
+> > +	unsigned long load, min_load = ULONG_MAX;
+> > +	int i, idlest_cpu = this_cpu;
+> > +
+> > +	BUG_ON(cpu_to_node(this_cpu) == nid);
+> > +
+> > +	rcu_read_lock();
+> > +	for_each_cpu(i, cpumask_of_node(nid)) {
+> > +		load = weighted_cpuload(i);
+> > +
+> > +		if (load < min_load) {
+> > +			/*
+> > +			 * Kernel threads can be preempted. For others, do
+> > +			 * not preempt if running on their preferred node
+> > +			 * or pinned.
+> > +			 */
+> > +			struct task_struct *p = cpu_rq(i)->curr;
+> > +			if ((p->flags & PF_KTHREAD) ||
+> > +			    (p->numa_preferred_nid != nid && p->nr_cpus_allowed > 1)) {
+> > +				min_load = load;
+> > +				idlest_cpu = i;
+> > +			}
+> 
+> So I really don't get this stuff.. if it is indeed the idlest cpu preempting
+> others shouldn't matter. Also, migrating a task there doesn't actually mean it
+> will get preempted either.
+> 
 
-Also beautify code with tab alignment.
+At one point this was part of a patch that swapped tasks on the target
+node where it really was preempting the running task as the comment
+describes. Swapping was premature because it was not evaluating if the
+swap would improve performance overall.  You're right, this check should
+be removed entirely and it will be in the next update.
 
-Signed-off-by: Chen Gang <gang.chen@asianux.com>
----
- mm/slub.c |   17 ++++++-----------
- 1 files changed, 6 insertions(+), 11 deletions(-)
+Thanks.
 
-diff --git a/mm/slub.c b/mm/slub.c
-index 2caaa67..aa847eb 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -4271,12 +4271,10 @@ static ssize_t show_slab_objects(struct kmem_cache *s,
- 	int node;
- 	int x;
- 	unsigned long *nodes;
--	unsigned long *per_cpu;
- 
--	nodes = kzalloc(2 * sizeof(unsigned long) * nr_node_ids, GFP_KERNEL);
-+	nodes = kzalloc(sizeof(unsigned long) * nr_node_ids, GFP_KERNEL);
- 	if (!nodes)
- 		return -ENOMEM;
--	per_cpu = nodes + nr_node_ids;
- 
- 	if (flags & SO_CPU) {
- 		int cpu;
-@@ -4307,8 +4305,6 @@ static ssize_t show_slab_objects(struct kmem_cache *s,
- 				total += x;
- 				nodes[node] += x;
- 			}
--
--			per_cpu[node]++;
- 		}
- 	}
- 
-@@ -4318,12 +4314,11 @@ static ssize_t show_slab_objects(struct kmem_cache *s,
- 		for_each_node_state(node, N_NORMAL_MEMORY) {
- 			struct kmem_cache_node *n = get_node(s, node);
- 
--		if (flags & SO_TOTAL)
--			x = atomic_long_read(&n->total_objects);
--		else if (flags & SO_OBJECTS)
--			x = atomic_long_read(&n->total_objects) -
--				count_partial(n, count_free);
--
-+			if (flags & SO_TOTAL)
-+				x = atomic_long_read(&n->total_objects);
-+			else if (flags & SO_OBJECTS)
-+				x = atomic_long_read(&n->total_objects) -
-+					count_partial(n, count_free);
- 			else
- 				x = atomic_long_read(&n->nr_slabs);
- 			total += x;
 -- 
-1.7.7.6
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
