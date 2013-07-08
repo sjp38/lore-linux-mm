@@ -1,41 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 4C06F6B0033
-	for <linux-mm@kvack.org>; Mon,  8 Jul 2013 10:21:14 -0400 (EDT)
-Subject: Re: [PATCH -V3 1/4] mm/cma: Move dma contiguous changes into a seperate config
-Mime-Version: 1.0 (Apple Message framework v1278)
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id 2B8476B0033
+	for <linux-mm@kvack.org>; Mon,  8 Jul 2013 13:00:53 -0400 (EDT)
+Received: by mail-qa0-f52.google.com with SMTP id bv4so2393053qab.11
+        for <linux-mm@kvack.org>; Mon, 08 Jul 2013 10:00:52 -0700 (PDT)
+Date: Mon, 8 Jul 2013 10:00:47 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH RFC] fsio: filesystem io accounting cgroup
+Message-ID: <20130708170047.GA18600@mtj.dyndns.org>
+References: <20130708100046.14417.12932.stgit@zurg>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-From: Alexander Graf <agraf@suse.de>
-In-Reply-To: <1372743918-12293-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Date: Mon, 8 Jul 2013 16:21:05 +0200
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <1C7CE5C5-A66F-4EB1-B9D0-EED8B555E146@suse.de>
-References: <1372743918-12293-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Content-Disposition: inline
+In-Reply-To: <20130708100046.14417.12932.stgit@zurg>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: benh@kernel.crashing.org, paulus@samba.org, m.szyprowski@samsung.com, mina86@mina86.com, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org, kvm@vger.kernel.org
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Sha Zhengju <handai.szj@gmail.com>, devel@openvz.org, Vivek Goyal <vgoyal@redhat.com>, Jens Axboe <axboe@kernel.dk>
 
+(cc'ing Vivek and Jens)
 
-On 02.07.2013, at 07:45, Aneesh Kumar K.V wrote:
+Hello,
 
-> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
->=20
-> We want to use CMA for allocating hash page table and real mode area =
-for
-> PPC64. Hence move DMA contiguous related changes into a seperate =
-config
-> so that ppc64 can enable CMA without requiring DMA contiguous.
->=20
-> Acked-by: Michal Nazarewicz <mina86@mina86.com>
-> Acked-by: Paul Mackerras <paulus@samba.org>
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+On Mon, Jul 08, 2013 at 02:01:39PM +0400, Konstantin Khlebnikov wrote:
+> This is proof of concept, just basic functionality for IO controller.
+> This cgroup will control filesystem usage on vfs layer, it's main goal is
+> bandwidth control. It's supposed to be much more lightweight than memcg/blkio.
 
-Thanks, applied all to kvm-ppc-queue. Please provide a cover letter next =
-time :).
+While blkcg is pretty heavy handed right now, there's no inherent
+reason for it to be that way.  The right thing to do would be updating
+blkcg to be light-weight rather than adding yet another controller.
+Also, all controllers should support full hierarchy.
 
+> Unlike to blkio this method works for all of filesystems, not just disk-backed.
+> Also it's able to handle writeback, because each inode has context which can be
+> used in writeback thread to account io operations.
 
-Alex
+Again, a problem to be fixed in the stack rather than patching up from
+up above.  The right thing to do is to propagate pressure through bdi
+properly and let whatever is backing the bdi generate appropriate
+amount of pressure, be that disk or network.
+
+> This is early prototype, I have some plans about extra functionality because
+> this accounting itself is mostly useless, but it can be used as basis for more
+> usefull features.
+
+I'm afraid it'd have very low chance of making upstream.  If this area
+of work is interesting / important, please look into improving blkcg
+rather than working around it.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
