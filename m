@@ -1,84 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id C63FE6B0032
-	for <linux-mm@kvack.org>; Tue,  9 Jul 2013 13:43:01 -0400 (EDT)
-Received: by mail-la0-f42.google.com with SMTP id eb20so5064280lab.15
-        for <linux-mm@kvack.org>; Tue, 09 Jul 2013 10:42:59 -0700 (PDT)
-Message-ID: <51DC4BA1.3000403@openvz.org>
-Date: Tue, 09 Jul 2013 21:42:57 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH RFC] fsio: filesystem io accounting cgroup
-References: <20130708175201.GB9094@redhat.com> <20130708175607.GB18600@mtj.dyndns.org> <51DBC99F.4030301@openvz.org> <20130709125734.GA2478@htj.dyndns.org> <51DC0CE2.2050906@openvz.org> <20130709131605.GB2478@htj.dyndns.org> <20130709131646.GC2478@htj.dyndns.org> <51DC136E.6020901@openvz.org> <20130709134558.GD2478@htj.dyndns.org> <51DC1FCA.3060904@openvz.org> <20130709150605.GC2237@redhat.com>
-In-Reply-To: <20130709150605.GC2237@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id B49086B0032
+	for <linux-mm@kvack.org>; Tue,  9 Jul 2013 13:50:05 -0400 (EDT)
+Date: Tue, 9 Jul 2013 10:50:32 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: linux-next: slab shrinkers: BUG at mm/list_lru.c:92
+Message-Id: <20130709105032.f9acb85a.akpm@linux-foundation.org>
+In-Reply-To: <20130709173242.GA9098@localhost.localdomain>
+References: <20130630183349.GA23731@dhcp22.suse.cz>
+	<20130701012558.GB27780@dastard>
+	<20130701075005.GA28765@dhcp22.suse.cz>
+	<20130701081056.GA4072@dastard>
+	<20130702092200.GB16815@dhcp22.suse.cz>
+	<20130702121947.GE14996@dastard>
+	<20130702124427.GG16815@dhcp22.suse.cz>
+	<20130703112403.GP14996@dastard>
+	<20130704163643.GF7833@dhcp22.suse.cz>
+	<20130708125352.GC20149@dhcp22.suse.cz>
+	<20130709173242.GA9098@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Sha Zhengju <handai.szj@gmail.com>, devel@openvz.org, Jens Axboe <axboe@kernel.dk>
+To: Glauber Costa <glommer@gmail.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Vivek Goyal wrote:
-> On Tue, Jul 09, 2013 at 06:35:54PM +0400, Konstantin Khlebnikov wrote:
->
-> [..]
->> I'm not interested in QoS or proportional control. Let schedulers do it.
->> I want just bandwidth control. I don't want to write a new scheduler
->> or extend some of existing one. I want implement simple and lightweight
->> accounting and add couple of throttlers on top of that.
->> It can be easily done without violation of that hierarchical design.
->>
->> The same problem already has happened with cpu scheduler. It has really
->> complicated rate limiter which is actually useless in the real world because
->> it triggers all possible priority inversions since it puts bunch of tasks into
->> deep sleep while some of them may hold kernel locks. Perfect.
->>
->> QoS and scheduling policy are good thing, but rate-limiting must be separated
->> and done only in places where it doesn't leads to these problems.
->
-> So what kind of priority inversion you are facing with blkcg and how would
-> you avoid it with your implementation?
->
-> I know that serialization can happen at filesystem level while trying
-> to commit journal. But I think same thing will happen with your
-> implementation too.
+On Tue, 9 Jul 2013 21:32:51 +0400 Glauber Costa <glommer@gmail.com> wrote:
 
-Yes, metadata changes are serialized and and they depends on data commits,
-thus block layer cannot delay write requests without introducing nasty priority
-inversions. Cached read requests cannot be delayed at all. All solutions either
-breaks throttling or adds PI. So block layer is just wrong place for this.
+> > $ dmesg | grep "blocked for more than"
+> > [276962.652076] INFO: task xfs-data/sda9:930 blocked for more than 480 seconds.
+> > [276962.653097] INFO: task kworker/2:2:17823 blocked for more than 480 seconds.
+> > [276962.653940] INFO: task ld:14442 blocked for more than 480 seconds.
+> > [276962.654297] INFO: task ld:14962 blocked for more than 480 seconds.
+> > [277442.652123] INFO: task xfs-data/sda9:930 blocked for more than 480 seconds.
+> > [277442.653153] INFO: task kworker/2:2:17823 blocked for more than 480 seconds.
+> > [277442.653997] INFO: task ld:14442 blocked for more than 480 seconds.
+> > [277442.654353] INFO: task ld:14962 blocked for more than 480 seconds.
+> > [277922.652069] INFO: task xfs-data/sda9:930 blocked for more than 480 seconds.
+> > [277922.653089] INFO: task kworker/2:2:17823 blocked for more than 480 seconds.
+> > 
+> 
+> You seem to have switched to XFS. Dave posted a patch two days ago fixing some
+> missing conversions in the XFS side. AFAIK, Andrew hasn't yet picked the patch.
 
->
-> One simple way of avoiding that will be to throttle IO even earlier
-> but that means we do not take advantage of writeback cache and buffered
-> writes will slow down.
+I can't find that patch.  Please resend?
 
-If we want to control writeback speed we also must control size of dirty set.
-There are several possibilities: we either can start writeback earlier,
-or when dirty set exceeds some threshold we will start charging that dirty
-memory into throttler and slow down all tasks who generates this dirty memory.
-Because dirty memory is charged and accounted we can write it without delays.
-
->
-> So I am curious how would you take care of these serialization issue.
->
-> Also the throttlers you are planning to implement, what kind of throttling
-> do they provide. Is it throttling rate per cgroup or per file per cgroup
-> or rules will be per bdi per cgroup or something else.
-
-Currently I'm thinking about per-cgroup X per-tier. Each bdi will be assigned
-to some tier. It's flexible enough and solves chicken-and-egg problem:
-when disk appears it will be assigned to default tier and can be reassigned.
-
->
-> Thanks
-> Vivek
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email:<a href=mailto:"dont@kvack.org">  email@kvack.org</a>
+There's also "list_lru: fix broken LRU_RETRY behaviour", which I
+assume we need?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
