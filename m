@@ -1,65 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id CF9CB6B0031
-	for <linux-mm@kvack.org>; Tue,  9 Jul 2013 09:54:52 -0400 (EDT)
-Date: Tue, 9 Jul 2013 15:54:50 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH for 3.2] memcg: do not trap chargers with full callstack
- on OOM
-Message-ID: <20130709135450.GI20281@dhcp22.suse.cz>
-References: <20130619132614.GC16457@dhcp22.suse.cz>
- <20130622220958.D10567A4@pobox.sk>
- <20130624201345.GA21822@cmpxchg.org>
- <20130628120613.6D6CAD21@pobox.sk>
- <20130705181728.GQ17812@cmpxchg.org>
- <20130705210246.11D2135A@pobox.sk>
- <20130705191854.GR17812@cmpxchg.org>
- <20130708014224.50F06960@pobox.sk>
- <20130709131029.GH20281@dhcp22.suse.cz>
- <20130709151921.5160C199@pobox.sk>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130709151921.5160C199@pobox.sk>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id BB1AC6B0031
+	for <linux-mm@kvack.org>; Tue,  9 Jul 2013 09:57:02 -0400 (EDT)
+Received: from /spool/local
+	by e06smtp16.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dingel@linux.vnet.ibm.com>;
+	Tue, 9 Jul 2013 14:51:26 +0100
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
+	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 6B17E2190059
+	for <linux-mm@kvack.org>; Tue,  9 Jul 2013 15:00:50 +0100 (BST)
+Received: from d06av08.portsmouth.uk.ibm.com (d06av08.portsmouth.uk.ibm.com [9.149.37.249])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r69Dul6n54853648
+	for <linux-mm@kvack.org>; Tue, 9 Jul 2013 13:56:47 GMT
+Received: from d06av08.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av08.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r69DuvmP008714
+	for <linux-mm@kvack.org>; Tue, 9 Jul 2013 07:56:58 -0600
+From: Dominik Dingel <dingel@linux.vnet.ibm.com>
+Subject: [PATCH 2/4] PF: Make KVM_HVA_ERR_BAD usable on s390
+Date: Tue,  9 Jul 2013 15:56:45 +0200
+Message-Id: <1373378207-10451-3-git-send-email-dingel@linux.vnet.ibm.com>
+In-Reply-To: <1373378207-10451-1-git-send-email-dingel@linux.vnet.ibm.com>
+References: <1373378207-10451-1-git-send-email-dingel@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: azurIt <azurit@pobox.sk>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Gleb Natapov <gleb@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>
+Cc: Christian Borntraeger <borntraeger@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Xiantao Zhang <xiantao.zhang@intel.com>, Alexander Graf <agraf@suse.de>, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Ralf Baechle <ralf@linux-mips.org>, kvm@vger.kernel.org, linux-s390@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dominik Dingel <dingel@linux.vnet.ibm.com>
 
-On Tue 09-07-13 15:19:21, azurIt wrote:
-[...]
-> Now i realized that i forgot to remove UID from that cgroup before
-> trying to remove it, so cgroup cannot be removed anyway (we are using
-> third party cgroup called cgroup-uid from Andrea Righi, which is able
-> to associate all user's processes with target cgroup). Look here for
-> cgroup-uid patch:
-> https://www.develer.com/~arighi/linux/patches/cgroup-uid/cgroup-uid-v8.patch
-> 
-> ANYWAY, i'm 101% sure that 'tasks' file was empty and 'under_oom' was
-> permanently '1'.
+Current common code uses PAGE_OFFSET to indicate a bad host virtual address.
+As this check won't work on architectures that don't map kernel and user memory
+into the same address space (e.g. s390), an additional implementation is made
+available in the case that PAGE_OFFSET == 0.
 
-This is really strange. Could you post the whole diff against stable
-tree you are using (except for grsecurity stuff and the above cgroup-uid
-patch)?
-
-Btw. the bellow patch might help us to point to the exit path which
-leaves wait_on_memcg without mem_cgroup_oom_synchronize:
+Signed-off-by: Dominik Dingel <dingel@linux.vnet.ibm.com>
 ---
-diff --git a/kernel/exit.c b/kernel/exit.c
-index e6e01b9..ad472e0 100644
---- a/kernel/exit.c
-+++ b/kernel/exit.c
-@@ -895,6 +895,7 @@ NORET_TYPE void do_exit(long code)
+ include/linux/kvm_host.h | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
+index a63d83e..f3c04e7 100644
+--- a/include/linux/kvm_host.h
++++ b/include/linux/kvm_host.h
+@@ -85,6 +85,18 @@ static inline bool is_noslot_pfn(pfn_t pfn)
+ 	return pfn == KVM_PFN_NOSLOT;
+ }
  
- 	profile_task_exit(tsk);
++#if (PAGE_OFFSET == 0)
++
++#define KVM_HVA_ERR_BAD		(-1UL)
++#define KVM_HVA_ERR_RO_BAD	(-1UL)
++
++static inline bool kvm_is_error_hva(unsigned long addr)
++{
++	return addr == KVM_HVA_ERR_BAD;
++}
++
++#else
++
+ #define KVM_HVA_ERR_BAD		(PAGE_OFFSET)
+ #define KVM_HVA_ERR_RO_BAD	(PAGE_OFFSET + PAGE_SIZE)
  
-+	WARN_ON(current->memcg_oom.wait_on_memcg);
- 	WARN_ON(blk_needs_flush_plug(tsk));
+@@ -93,6 +105,8 @@ static inline bool kvm_is_error_hva(unsigned long addr)
+ 	return addr >= PAGE_OFFSET;
+ }
  
- 	if (unlikely(in_interrupt()))
++#endif
++
+ #define KVM_ERR_PTR_BAD_PAGE	(ERR_PTR(-ENOENT))
+ 
+ static inline bool is_error_page(struct page *page)
 -- 
-Michal Hocko
-SUSE Labs
+1.8.2.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
