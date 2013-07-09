@@ -1,182 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 8D6196B0032
-	for <linux-mm@kvack.org>; Tue,  9 Jul 2013 11:23:58 -0400 (EDT)
-Date: Tue, 9 Jul 2013 18:23:46 +0300
-From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: [PATCH 1/4] PF: Add FAULT_FLAG_RETRY_NOWAIT for guest fault
-Message-ID: <20130709152346.GG24941@redhat.com>
-References: <1373378207-10451-1-git-send-email-dingel@linux.vnet.ibm.com>
- <1373378207-10451-2-git-send-email-dingel@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 2D18C6B0031
+	for <linux-mm@kvack.org>; Tue,  9 Jul 2013 11:34:30 -0400 (EDT)
+Date: Tue, 9 Jul 2013 17:28:36 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 1/1] mm: mempolicy: fix mbind_range() && vma_adjust()
+	interaction
+Message-ID: <20130709152836.GA10033@redhat.com>
+References: <1372901537-31033-1-git-send-email-ccross@android.com> <20130704202232.GA19287@redhat.com> <CAMbhsRRjGjo_-zSigmdsDvY-kfBhmP49bDQzsgHfj5N-y+ZAdw@mail.gmail.com> <20130708180424.GA6490@redhat.com> <20130708180501.GB6490@redhat.com> <CAHGf_=qPuzH_R1Jfztnhj4JEAX9xfD37461LRKrhHgL4nq-eHg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1373378207-10451-2-git-send-email-dingel@linux.vnet.ibm.com>
+In-Reply-To: <CAHGf_=qPuzH_R1Jfztnhj4JEAX9xfD37461LRKrhHgL4nq-eHg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dominik Dingel <dingel@linux.vnet.ibm.com>
-Cc: Paolo Bonzini <pbonzini@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Xiantao Zhang <xiantao.zhang@intel.com>, Alexander Graf <agraf@suse.de>, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Ralf Baechle <ralf@linux-mips.org>, kvm@vger.kernel.org, linux-s390@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Colin Cross <ccross@android.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, "Hampson, Steven T" <steven.t.hampson@intel.com>, lkml <linux-kernel@vger.kernel.org>, Kyungmin Park <kmpark@infradead.org>, Christoph Hellwig <hch@infradead.org>, John Stultz <john.stultz@linaro.org>, Rob Landley <rob@landley.net>, Arnd Bergmann <arnd@arndb.de>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Al Viro <viro@zeniv.linux.org.uk>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rusty Russell <rusty@rustcorp.com.au>, "Eric W. Biederman" <ebiederm@xmission.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Anton Vorontsov <anton.vorontsov@linaro.org>, Pekka Enberg <penberg@kernel.org>, Shaohua Li <shli@fusionio.com>, Sasha Levin <sasha.levin@oracle.com>, Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@kernel.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, "open list:GENERIC INCLUDE/A..." <linux-arch@vger.kernel.org>
 
-On Tue, Jul 09, 2013 at 03:56:44PM +0200, Dominik Dingel wrote:
-> In case of a fault retry exit sie64() with gmap_fault indication for the
-> running thread set. This makes it possible to handle async page faults
-> without the need for mm notifiers.
-> 
-> Based on a patch from Martin Schwidefsky.
-> 
-For that we will obviously need Christian and Cornelia ACKs. Or it can
-go in via S390 tree.
+On 07/08, KOSAKI Motohiro wrote:
+>
+> On Mon, Jul 8, 2013 at 2:05 PM, Oleg Nesterov <oleg@redhat.com> wrote:
+> > vma_adjust() does vma_set_policy(vma, vma_policy(next)) and this
+> > is doubly wrong:
+> >
+> > 1. This leaks vma->vm_policy if it is not NULL and not equal to
+> >    next->vm_policy.
+> >
+> >    This can happen if vma_merge() expands "area", not prev (case 8).
+> >
+> > 2. This sets the wrong policy if vma_merge() joins prev and area,
+> >    area is the vma the caller needs to update and it still has the
+> >    old policy.
+> >
+> > Revert 1444f92c "mm: merging memory blocks resets mempolicy" which
+> > introduced these problems.
+>
+> Yes, I believe 1444f92c is wrong and should be reverted.
 
-> Signed-off-by: Dominik Dingel <dingel@linux.vnet.ibm.com>
-> ---
->  arch/s390/include/asm/pgtable.h   |  2 ++
->  arch/s390/include/asm/processor.h |  1 +
->  arch/s390/kvm/kvm-s390.c          | 13 +++++++++++++
->  arch/s390/mm/fault.c              | 26 ++++++++++++++++++++++----
->  4 files changed, 38 insertions(+), 4 deletions(-)
-> 
-> diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
-> index 0ea4e59..4a4cc64 100644
-> --- a/arch/s390/include/asm/pgtable.h
-> +++ b/arch/s390/include/asm/pgtable.h
-> @@ -740,6 +740,7 @@ static inline void pgste_set_pte(pte_t *ptep, pte_t entry)
->   * @table: pointer to the page directory
->   * @asce: address space control element for gmap page table
->   * @crst_list: list of all crst tables used in the guest address space
-> + * @pfault_enabled: defines if pfaults are applicable for the guest
->   */
->  struct gmap {
->  	struct list_head list;
-> @@ -748,6 +749,7 @@ struct gmap {
->  	unsigned long asce;
->  	void *private;
->  	struct list_head crst_list;
-> +	unsigned long pfault_enabled;
->  };
->  
->  /**
-> diff --git a/arch/s390/include/asm/processor.h b/arch/s390/include/asm/processor.h
-> index 6b49987..4fa96ca 100644
-> --- a/arch/s390/include/asm/processor.h
-> +++ b/arch/s390/include/asm/processor.h
-> @@ -77,6 +77,7 @@ struct thread_struct {
->          unsigned long ksp;              /* kernel stack pointer             */
->  	mm_segment_t mm_segment;
->  	unsigned long gmap_addr;	/* address of last gmap fault. */
-> +	unsigned int gmap_pfault;	/* signal of a pending guest pfault */
->  	struct per_regs per_user;	/* User specified PER registers */
->  	struct per_event per_event;	/* Cause of the last PER trap */
->  	unsigned long per_flags;	/* Flags to control debug behavior */
-> diff --git a/arch/s390/kvm/kvm-s390.c b/arch/s390/kvm/kvm-s390.c
-> index ba694d2..702daca 100644
-> --- a/arch/s390/kvm/kvm-s390.c
-> +++ b/arch/s390/kvm/kvm-s390.c
-> @@ -682,6 +682,15 @@ static int kvm_s390_handle_requests(struct kvm_vcpu *vcpu)
->  	return 0;
->  }
->  
-> +static void kvm_arch_fault_in_sync(struct kvm_vcpu *vcpu)
-> +{
-> +	hva_t fault = gmap_fault(current->thread.gmap_addr, vcpu->arch.gmap);
-> +	struct mm_struct *mm = current->mm;
-> +	down_read(&mm->mmap_sem);
-> +	get_user_pages(current, mm, fault, 1, 1, 0, NULL, NULL);
-> +	up_read(&mm->mmap_sem);
-> +}
-> +
->  static int __vcpu_run(struct kvm_vcpu *vcpu)
->  {
->  	int rc;
-> @@ -715,6 +724,10 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
->  	if (rc < 0) {
->  		if (kvm_is_ucontrol(vcpu->kvm)) {
->  			rc = SIE_INTERCEPT_UCONTROL;
-> +		} else if (current->thread.gmap_pfault) {
-> +			kvm_arch_fault_in_sync(vcpu);
-> +			current->thread.gmap_pfault = 0;
-> +			rc = 0;
->  		} else {
->  			VCPU_EVENT(vcpu, 3, "%s", "fault in sie instruction");
->  			trace_kvm_s390_sie_fault(vcpu);
-> diff --git a/arch/s390/mm/fault.c b/arch/s390/mm/fault.c
-> index 047c3e4..7d4c4b1 100644
-> --- a/arch/s390/mm/fault.c
-> +++ b/arch/s390/mm/fault.c
-> @@ -50,6 +50,7 @@
->  #define VM_FAULT_BADMAP		0x020000
->  #define VM_FAULT_BADACCESS	0x040000
->  #define VM_FAULT_SIGNAL		0x080000
-> +#define VM_FAULT_PFAULT		0x100000
->  
->  static unsigned long store_indication __read_mostly;
->  
-> @@ -232,6 +233,7 @@ static noinline void do_fault_error(struct pt_regs *regs, int fault)
->  			return;
->  		}
->  	case VM_FAULT_BADCONTEXT:
-> +	case VM_FAULT_PFAULT:
->  		do_no_context(regs);
->  		break;
->  	case VM_FAULT_SIGNAL:
-> @@ -269,6 +271,9 @@ static noinline void do_fault_error(struct pt_regs *regs, int fault)
->   */
->  static inline int do_exception(struct pt_regs *regs, int access)
->  {
-> +#ifdef CONFIG_PGSTE
-> +	struct gmap *gmap;
-> +#endif
->  	struct task_struct *tsk;
->  	struct mm_struct *mm;
->  	struct vm_area_struct *vma;
-> @@ -307,9 +312,10 @@ static inline int do_exception(struct pt_regs *regs, int access)
->  	down_read(&mm->mmap_sem);
->  
->  #ifdef CONFIG_PGSTE
-> -	if ((current->flags & PF_VCPU) && S390_lowcore.gmap) {
-> -		address = __gmap_fault(address,
-> -				     (struct gmap *) S390_lowcore.gmap);
-> +	gmap = (struct gmap *)
-> +		((current->flags & PF_VCPU) ? S390_lowcore.gmap : 0);
-> +	if (gmap) {
-> +		address = __gmap_fault(address, gmap);
->  		if (address == -EFAULT) {
->  			fault = VM_FAULT_BADMAP;
->  			goto out_up;
-> @@ -318,6 +324,8 @@ static inline int do_exception(struct pt_regs *regs, int access)
->  			fault = VM_FAULT_OOM;
->  			goto out_up;
->  		}
-> +		if (test_bit(1, &gmap->pfault_enabled))
-> +			flags |= FAULT_FLAG_RETRY_NOWAIT;
->  	}
->  #endif
->  
-> @@ -374,9 +382,19 @@ retry:
->  				      regs, address);
->  		}
->  		if (fault & VM_FAULT_RETRY) {
-> +#ifdef CONFIG_PGSTE
-> +			if (gmap && (flags & FAULT_FLAG_RETRY_NOWAIT)) {
-> +				/* FAULT_FLAG_RETRY_NOWAIT has been set,
-> +				 * mmap_sem has not been released */
-> +				current->thread.gmap_pfault = 1;
-> +				fault = VM_FAULT_PFAULT;
-> +				goto out_up;
-> +			}
-> +#endif
->  			/* Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk
->  			 * of starvation. */
-> -			flags &= ~FAULT_FLAG_ALLOW_RETRY;
-> +			flags &= ~(FAULT_FLAG_ALLOW_RETRY |
-> +				   FAULT_FLAG_RETRY_NOWAIT);
->  			flags |= FAULT_FLAG_TRIED;
->  			down_read(&mm->mmap_sem);
->  			goto retry;
-> -- 
-> 1.8.2.2
+Yes, but the problem it tried to solve is real, just we can't rely
+on vma_adjust().
 
---
-			Gleb.
+> > Change mbind_range() to recheck mpol_equal() after vma_merge() to
+> > fix the problem 1444f92c tried to address.
+> >
+> > Signed-off-by: Oleg Nesterov <oleg@redhat.com>
+> > Cc: <stable@vger.kernel.org>
+> > ---
+> >  mm/mempolicy.c |    6 +++++-
+> >  mm/mmap.c      |    2 +-
+> >  2 files changed, 6 insertions(+), 2 deletions(-)
+> >
+> > diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> > index 7431001..4baf12e 100644
+> > --- a/mm/mempolicy.c
+> > +++ b/mm/mempolicy.c
+> > @@ -732,7 +732,10 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
+> >                 if (prev) {
+> >                         vma = prev;
+> >                         next = vma->vm_next;
+> > -                       continue;
+> > +                       if (mpol_equal(vma_policy(vma), new_pol))
+> > +                               continue;
+> > +                       /* vma_merge() joined vma && vma->next, case 8 */
+>
+> case 3 makes the same scenario?
+
+Not really, afaics. "case 3" is when vma_merge() "merges" a hole with
+vma, mbind_range() works with the already mmapped regions.
+
+More precisely, unless I misread this code, "case 3" means area == next,
+so vma_adjust(area) actually sets next->vm_start = addr.
+
+I can be easily wrong, but to me vma_adjust() and its usage looks a bit
+overcomplicated. Perhaps it makes sense to distinguish mmapped/hole cases.
+mbind_range/madvise/etc need vma_join(vma, ...), not prev/anon_vma/file.
+Perhaps. not sure.
+
+> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+
+Thanks!
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
