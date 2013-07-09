@@ -1,102 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id CAC1B6B0032
-	for <linux-mm@kvack.org>; Tue,  9 Jul 2013 17:39:36 -0400 (EDT)
-Date: Tue, 9 Jul 2013 14:39:34 -0700
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 3F3156B0034
+	for <linux-mm@kvack.org>; Tue,  9 Jul 2013 17:56:48 -0400 (EDT)
+Date: Tue, 9 Jul 2013 14:56:45 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: linux-next: slab shrinkers: BUG at mm/list_lru.c:92
-Message-Id: <20130709143934.fcd643cc21405ec7b04900f3@linux-foundation.org>
-In-Reply-To: <20130709175749.GA31848@dhcp22.suse.cz>
-References: <20130701012558.GB27780@dastard>
-	<20130701075005.GA28765@dhcp22.suse.cz>
-	<20130701081056.GA4072@dastard>
-	<20130702092200.GB16815@dhcp22.suse.cz>
-	<20130702121947.GE14996@dastard>
-	<20130702124427.GG16815@dhcp22.suse.cz>
-	<20130703112403.GP14996@dastard>
-	<20130704163643.GF7833@dhcp22.suse.cz>
-	<20130708125352.GC20149@dhcp22.suse.cz>
-	<20130709173242.GA9098@localhost.localdomain>
-	<20130709175749.GA31848@dhcp22.suse.cz>
+Subject: Re: [PATCH 1/1] mm: mempolicy: fix mbind_range() && vma_adjust()
+ interaction
+Message-Id: <20130709145645.bd48e31c1a7d9e83d521b845@linux-foundation.org>
+In-Reply-To: <20130708180501.GB6490@redhat.com>
+References: <1372901537-31033-1-git-send-email-ccross@android.com>
+	<20130704202232.GA19287@redhat.com>
+	<CAMbhsRRjGjo_-zSigmdsDvY-kfBhmP49bDQzsgHfj5N-y+ZAdw@mail.gmail.com>
+	<20130708180424.GA6490@redhat.com>
+	<20130708180501.GB6490@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Glauber Costa <glommer@gmail.com>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Colin Cross <ccross@android.com>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, "Hampson, Steven T" <steven.t.hampson@intel.com>, lkml <linux-kernel@vger.kernel.org>, Kyungmin Park <kmpark@infradead.org>, Christoph Hellwig <hch@infradead.org>, John Stultz <john.stultz@linaro.org>, Rob Landley <rob@landley.net>, Arnd Bergmann <arnd@arndb.de>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Al Viro <viro@zeniv.linux.org.uk>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rusty Russell <rusty@rustcorp.com.au>, "Eric W. Biederman" <ebiederm@xmission.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Anton Vorontsov <anton.vorontsov@linaro.org>, Pekka Enberg <penberg@kernel.org>, Shaohua Li <shli@fusionio.com>, Sasha Levin <sasha.levin@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@kernel.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, "open list:GENERIC INCLUDE/A..." <linux-arch@vger.kernel.org>
 
-On Tue, 9 Jul 2013 19:57:49 +0200 Michal Hocko <mhocko@suse.cz> wrote:
+On Mon, 8 Jul 2013 20:05:01 +0200 Oleg Nesterov <oleg@redhat.com> wrote:
 
-> On Tue 09-07-13 21:32:51, Glauber Costa wrote:
-> [...]
-> > You seem to have switched to XFS.
+> vma_adjust() does vma_set_policy(vma, vma_policy(next)) and this
+> is doubly wrong:
 > 
-> Yes, to make sure that the original hang is not fs specific. I can
-> switch to other fs if it helps. This seems to be really hard to
-> reproduce now so I would rather not change things if possible.
+> 1. This leaks vma->vm_policy if it is not NULL and not equal to
+>    next->vm_policy.
 > 
-> > Dave posted a patch two days ago fixing some missing conversions in
-> > the XFS side. AFAIK, Andrew hasn't yet picked the patch.
+>    This can happen if vma_merge() expands "area", not prev (case 8).
 > 
-> Could you point me to those patches, please?
+> 2. This sets the wrong policy if vma_merge() joins prev and area,
+>    area is the vma the caller needs to update and it still has the
+>    old policy.
+> 
+> Revert 1444f92c "mm: merging memory blocks resets mempolicy" which
+> introduced these problems.
+> 
+> Change mbind_range() to recheck mpol_equal() after vma_merge() to
+> fix the problem 1444f92c tried to address.
+> 
 
-This one:
-
-From: Dave Chinner <david@fromorbit.com>
-Subject: xfs: fix dquot isolation hang
-
-The new LRU list isolation code in xfs_qm_dquot_isolate() isn't
-completely up to date.  Firstly, it needs conversion to return enum
-lru_status values, not raw numbers. Secondly - most importantly - it
-fails to unlock the dquot and relock the LRU in the LRU_RETRY path.
-This leads to deadlocks in xfstests generic/232. Fix them.
-
-Signed-off-by: Dave Chinner <dchinner@redhat.com>
-Cc: Glauber Costa <glommer@gmail.com>
-Cc: Michal Hocko <mhocko@suse.cz>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- fs/xfs/xfs_qm.c |   10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
-
-diff -puN fs/xfs/xfs_qm.c~xfs-convert-dquot-cache-lru-to-list_lru-fix-dquot-isolation-hang fs/xfs/xfs_qm.c
---- a/fs/xfs/xfs_qm.c~xfs-convert-dquot-cache-lru-to-list_lru-fix-dquot-isolation-hang
-+++ a/fs/xfs/xfs_qm.c
-@@ -659,7 +659,7 @@ xfs_qm_dquot_isolate(
- 		trace_xfs_dqreclaim_want(dqp);
- 		list_del_init(&dqp->q_lru);
- 		XFS_STATS_DEC(xs_qm_dquot_unused);
--		return 0;
-+		return LRU_REMOVED;
- 	}
- 
- 	/*
-@@ -705,17 +705,19 @@ xfs_qm_dquot_isolate(
- 	XFS_STATS_DEC(xs_qm_dquot_unused);
- 	trace_xfs_dqreclaim_done(dqp);
- 	XFS_STATS_INC(xs_qm_dqreclaims);
--	return 0;
-+	return LRU_REMOVED;
- 
- out_miss_busy:
- 	trace_xfs_dqreclaim_busy(dqp);
- 	XFS_STATS_INC(xs_qm_dqreclaim_misses);
--	return 2;
-+	return LRU_SKIP;
- 
- out_unlock_dirty:
- 	trace_xfs_dqreclaim_busy(dqp);
- 	XFS_STATS_INC(xs_qm_dqreclaim_misses);
--	return 3;
-+	xfs_dqunlock(dqp);
-+	spin_lock(lru_lock);
-+	return LRU_RETRY;
- }
- 
- static unsigned long
-_
+So I assume the kernel still passes Steven's testcase from the
+1444f92c changelog?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
