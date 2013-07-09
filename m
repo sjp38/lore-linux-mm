@@ -1,176 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 08D686B0032
-	for <linux-mm@kvack.org>; Tue,  9 Jul 2013 15:49:07 -0400 (EDT)
-Date: Tue, 9 Jul 2013 21:43:21 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 1/1] mm: mempolicy: fix mbind_range() && vma_adjust()
-	interaction
-Message-ID: <20130709194321.GA31104@redhat.com>
-References: <1372901537-31033-1-git-send-email-ccross@android.com> <20130704202232.GA19287@redhat.com> <CAMbhsRRjGjo_-zSigmdsDvY-kfBhmP49bDQzsgHfj5N-y+ZAdw@mail.gmail.com> <20130708180424.GA6490@redhat.com> <20130708180501.GB6490@redhat.com> <CAHGf_=qPuzH_R1Jfztnhj4JEAX9xfD37461LRKrhHgL4nq-eHg@mail.gmail.com> <20130709152836.GA10033@redhat.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 6270B6B0032
+	for <linux-mm@kvack.org>; Tue,  9 Jul 2013 16:54:35 -0400 (EDT)
+Received: by mail-lb0-f175.google.com with SMTP id r10so5083685lbi.34
+        for <linux-mm@kvack.org>; Tue, 09 Jul 2013 13:54:33 -0700 (PDT)
+Message-ID: <51DC7884.2070104@openvz.org>
+Date: Wed, 10 Jul 2013 00:54:28 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130709152836.GA10033@redhat.com>
+Subject: Re: [PATCH RFC] fsio: filesystem io accounting cgroup
+References: <51DBC99F.4030301@openvz.org> <20130709125734.GA2478@htj.dyndns.org> <51DC0CE2.2050906@openvz.org> <20130709131605.GB2478@htj.dyndns.org> <20130709131646.GC2478@htj.dyndns.org> <51DC136E.6020901@openvz.org> <20130709134558.GD2478@htj.dyndns.org> <51DC1FCA.3060904@openvz.org> <20130709150605.GC2237@redhat.com> <51DC4BA1.3000403@openvz.org> <20130709183534.GE2237@redhat.com>
+In-Reply-To: <20130709183534.GE2237@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Colin Cross <ccross@android.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, "Hampson, Steven T" <steven.t.hampson@intel.com>, lkml <linux-kernel@vger.kernel.org>, Kyungmin Park <kmpark@infradead.org>, Christoph Hellwig <hch@infradead.org>, John Stultz <john.stultz@linaro.org>, Rob Landley <rob@landley.net>, Arnd Bergmann <arnd@arndb.de>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Al Viro <viro@zeniv.linux.org.uk>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rusty Russell <rusty@rustcorp.com.au>, "Eric W. Biederman" <ebiederm@xmission.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Anton Vorontsov <anton.vorontsov@linaro.org>, Pekka Enberg <penberg@kernel.org>, Shaohua Li <shli@fusionio.com>, Sasha Levin <sasha.levin@oracle.com>, Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@kernel.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, "open list:GENERIC INCLUDE/A..." <linux-arch@vger.kernel.org>
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Sha Zhengju <handai.szj@gmail.com>, devel@openvz.org, Jens Axboe <axboe@kernel.dk>
 
-On 07/09, Oleg Nesterov wrote:
+Vivek Goyal wrote:
+> On Tue, Jul 09, 2013 at 09:42:57PM +0400, Konstantin Khlebnikov wrote:
 >
-> I can be easily wrong, but to me vma_adjust() and its usage looks a bit
-> overcomplicated. Perhaps it makes sense to distinguish mmapped/hole cases.
-> mbind_range/madvise/etc need vma_join(vma, ...), not prev/anon_vma/file.
-> Perhaps. not sure.
+> [..]
+>>> So what kind of priority inversion you are facing with blkcg and how would
+>>> you avoid it with your implementation?
+>>>
+>>> I know that serialization can happen at filesystem level while trying
+>>> to commit journal. But I think same thing will happen with your
+>>> implementation too.
+>>
+>> Yes, metadata changes are serialized and and they depends on data commits,
+>> thus block layer cannot delay write requests without introducing nasty priority
+>> inversions.
+>
+> Tejun had some thoughts about this on how to solve this problem. I don't
+> remember the details though. Tejun?
+>
+>> Cached read requests cannot be delayed at all.
+>
+> Who wants to delay the reads which are coming out of cache. That sounds
+> like a mis-feature.
 
-And I am just curious if something like below makes any sense...
+Nope, I'm telling about reading into page cache. If page already here but
+still not uptodate because its read request was delayed then following
+cached read will wait for this delayed request too.
 
-Suppose we add the new helper, vma_update(vma, new). Note that "new" is
-the fake vma, it just describes how do want to change vma.
+>
+>> All solutions either
+>> breaks throttling or adds PI. So block layer is just wrong place for this.
+>
+> Well implmenting throttling at block layer can allow you to cache writes
+> so that application does not see the dealye for small writes at the same
+> time it protects against that burst being visible on device and it
+> impacting other IO going device.
+>
+> Not sure how much does it matter but atleast this was one discussion
+> point in the past. Implementing it at device level provides better
+> control when it comes to avoiding interference from bursty buffered
+> writes.
+>
+>>
+>>>
+>>> One simple way of avoiding that will be to throttle IO even earlier
+>>> but that means we do not take advantage of writeback cache and buffered
+>>> writes will slow down.
+>>
+>> If we want to control writeback speed we also must control size of dirty set.
+>> There are several possibilities: we either can start writeback earlier,
+>> or when dirty set exceeds some threshold we will start charging that dirty
+>> memory into throttler and slow down all tasks who generates this dirty memory.
+>> Because dirty memory is charged and accounted we can write it without delays.
+>
+> Ok, so this is equivalent to allowing bursty IO. Admit bunch of IO burst
+> (dirty set) and then apply throttling rules. Dirty set can be flushed
+> without throttling if sync requires that but future admission of IO will
+> be delayed. That can avoid PI problems due arising due to file system
+> journaling.
+>
+> We have discussed implementing throttling at higher layer in the past
+> too.  Various proof of concept implementations had been posted to do
+> throttling in higher layer.
+>
+> blk-throttle: Throttle buffered WRITEs in balance_dirty_pages()
+> https://lkml.org/lkml/2011/6/28/243
+>
+> buffered write IO controller in balance_dirty_pages()
+> https://lkml.org/lkml/2012/3/28/275
+>
+> Andrea Righi had posted some proof of concept implementations too.
+>
+> None of these implementations ever made any progress. Tejun always
+> liked the idea of doing throttling at lower layers and then generating
+> back pressure on bdi which in turn controls the size of dirty set.
 
-static bool
-can_merge_vma(struct vm_area_struct *prev, struct vm_area_struct *next)
-{
-	if (prev->vm_end != next->vm_start)
-		return false;
-	if (prev->vm_pgoff + vma_pages(prev) != next->vm_pgoff)
-		return false;
+Ok, thanks. I'll see them. I have made similar 'blance_dirty_pages'-like engine
+for our commercial product and works perfectly for several years. At the same
+time prioritization in CFQ never worked for me, and I've give up trying to fix it.
 
-	if (prev->vm_file != next->vm_file)
-		return false;
-	if (prev->vm_flags != next->vm_flags)
-		return false;
-	if (!mpol_equal(vma_policy(prev), vma_policy(next)))
-		return false;
+My idea is in doing accounting at lower layer and injecting delays into tasks who
+generates that pressure. We can avoid PI because delays can be injected in
+safe places where tasks don't hold any locks. I've found that recently
+added 'task_work' interface perfectly fits for injecting delays into tasks,
+probably it's overkill but I really like how it works.
 
-	if (prev->anon_vma != next->anon_vma)	/* WRONG, FIXME !!! */
-		return false;
+>
+> To me sovling the issue of Priority inversion in file systems is
+> important one. If we can't solve that reasonably with existing mechanism
+> it does make a case that why throttling at higher level might be
+> interesting.
+>
+>>
+>>>
+>>> So I am curious how would you take care of these serialization issue.
+>>>
+>>> Also the throttlers you are planning to implement, what kind of throttling
+>>> do they provide. Is it throttling rate per cgroup or per file per cgroup
+>>> or rules will be per bdi per cgroup or something else.
+>>
+>> Currently I'm thinking about per-cgroup X per-tier. Each bdi will be assigned
+>> to some tier. It's flexible enough and solves chicken-and-egg problem:
+>> when disk appears it will be assigned to default tier and can be reassigned.
+>
+> Ok, this is completely orthogonal issue. It has nothing to do with whether
+> to apply throttling at block layer or at higher leayer.
+>
+> To solve the chicken and egg problem we need to take help of user space
+> here and not rely on kernel storing the rules and apply these when devices
+> show up.
+>
+> Also how would you create rules for assigning a bdi to a tier. How would
+> you identify a bdi uniquely in a persistent manner.
 
-	if (next->vm_ops && next->vm_ops->close)
-		return false;
-
-	return true;
-}
-
-struct vm_area_struct *
-vma_update(struct vm_area_struct *vma, struct vm_area_struct *new)
-{
-	struct vm_area_struct *prev = vma->vm_prev;
-	struct vm_area_struct *next = vma->vm_next;
-	struct vm_area_struct *new_ret;
-	unsigned long new_end;
-	int err;
-
-	/* prev/next != vma means we can merge with prev/next */
-	if (!prev || !can_merge_vma(prev, new))
-		prev = vma;
-	if (!next || !can_merge_vma(new, next))
-		next = vma;
-
-	if (new->vm_start > vma->vm_start) {	/* prev == vma */
-		if (next != vma) {
-			/* vma shrinks, next grows, case 4 */
-			new_end = new->vm_start;
-			new_ret = next;
-			goto adjust;
-		}
-		err = split_vma(vma->vm_mm, vma, new->vm_start, 1);
-		if (err)
-			return ERR_PTR(err);
-	}
-
-	if (new->vm_end < vma->vm_end) {	/* next == vma */
-		if (prev != vma) {
-			/* prev grows, vma shrinks, case 5 */
-			new_end = new->vm_end;
-			new_ret = vma;
-			goto adjust;
-		}
-		err = split_vma(vma->vm_mm, vma, new->vm_end, 0);
-		if (err)
-			return ERR_PTR(err);
-	}
-
-	if (prev == next)	/* true if split_vma() was called */
-		return vma;
-
-	new_end = next->vm_end;
-	new_ret = prev;
-adjust:
-	err = vma_adjust(prev, prev->vm_start, new_end, prev->vm_pgoff, NULL);
-	if (err)
-		return ERR_PTR(err);
-	khugepaged_enter_vma_merge(new_ret);
-	return new_ret;
-}
-
-Now we can change madvise_behavior() and other similar users as below.
-
-As for mmap_region() we can add another helper which simply tries to
-expand prev/next (case 1-3).
-
-Oleg.
-
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -46,10 +46,9 @@ static long madvise_behavior(struct vm_area_struct * vma,
- 		     struct vm_area_struct **prev,
- 		     unsigned long start, unsigned long end, int behavior)
- {
--	struct mm_struct * mm = vma->vm_mm;
--	int error = 0;
--	pgoff_t pgoff;
- 	unsigned long new_flags = vma->vm_flags;
-+	struct vm_area_struct new;
-+	int error = 0;
- 
- 	switch (behavior) {
- 	case MADV_NORMAL:
-@@ -100,34 +99,21 @@ static long madvise_behavior(struct vm_area_struct * vma,
- 		goto out;
- 	}
- 
--	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
--	*prev = vma_merge(mm, *prev, start, end, new_flags, vma->anon_vma,
--				vma->vm_file, pgoff, vma_policy(vma));
--	if (*prev) {
--		vma = *prev;
--		goto success;
--	}
--
--	*prev = vma;
-+	new = *vma;
-+	new.vm_flags = new_flags;
-+	new.vm_start = start;
-+	new.vm_end = end;
-+	vma = vma_update(vma, &new);
- 
--	if (start != vma->vm_start) {
--		error = split_vma(mm, vma, start, 1);
--		if (error)
--			goto out;
--	}
--
--	if (end != vma->vm_end) {
--		error = split_vma(mm, vma, end, 0);
--		if (error)
--			goto out;
-+	if (IS_ERR(vma)) {
-+		error = PTR_ERR(vma);
-+		goto out;
- 	}
--
--success:
- 	/*
- 	 * vm_flags is protected by the mmap_sem held in write mode.
- 	 */
- 	vma->vm_flags = new_flags;
--
-+	*prev = vma;
- out:
- 	if (error == -ENOMEM)
- 		error = -EAGAIN;
+That's the point that I don't want do this. I'll let userspace configure this.
+It can precreate bunch of tiers, configure them and assign bdi to tier before
+mounting filesystem or switch them in runtime. Or tell kernel somehow that
+all 'nfs' bdi must be placed there while all 'usb' bdi must be here.
+Looks pretentious.. ok let's leave this question for a while.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
