@@ -1,62 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 399FB6B0031
-	for <linux-mm@kvack.org>; Tue,  9 Jul 2013 08:57:38 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id q10so5225118pdj.24
-        for <linux-mm@kvack.org>; Tue, 09 Jul 2013 05:57:37 -0700 (PDT)
-Date: Tue, 9 Jul 2013 05:57:34 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH RFC] fsio: filesystem io accounting cgroup
-Message-ID: <20130709125734.GA2478@htj.dyndns.org>
-References: <20130708100046.14417.12932.stgit@zurg>
- <20130708170047.GA18600@mtj.dyndns.org>
- <20130708175201.GB9094@redhat.com>
- <20130708175607.GB18600@mtj.dyndns.org>
- <51DBC99F.4030301@openvz.org>
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 4888E6B0031
+	for <linux-mm@kvack.org>; Tue,  9 Jul 2013 09:00:22 -0400 (EDT)
+Date: Tue, 9 Jul 2013 15:00:17 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH for 3.2] memcg: do not trap chargers with full callstack
+ on OOM
+Message-ID: <20130709130017.GE20281@dhcp22.suse.cz>
+References: <20130210174619.24F20488@pobox.sk>
+ <20130211112240.GC19922@dhcp22.suse.cz>
+ <20130222092332.4001E4B6@pobox.sk>
+ <20130606160446.GE24115@dhcp22.suse.cz>
+ <20130606181633.BCC3E02E@pobox.sk>
+ <20130607131157.GF8117@dhcp22.suse.cz>
+ <20130617122134.2E072BA8@pobox.sk>
+ <20130619132614.GC16457@dhcp22.suse.cz>
+ <20130622220958.D10567A4@pobox.sk>
+ <20130624201345.GA21822@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51DBC99F.4030301@openvz.org>
+In-Reply-To: <20130624201345.GA21822@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Vivek Goyal <vgoyal@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Sha Zhengju <handai.szj@gmail.com>, devel@openvz.org, Jens Axboe <axboe@kernel.dk>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: azurIt <azurit@pobox.sk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Hello,
+On Mon 24-06-13 16:13:45, Johannes Weiner wrote:
+> Hi guys,
+> 
+> On Sat, Jun 22, 2013 at 10:09:58PM +0200, azurIt wrote:
+> > >> But i'm sure of one thing - when problem occurs, nothing is able to
+> > >> access hard drives (every process which tries it is freezed until
+> > >> problem is resolved or server is rebooted).
+> > >
+> > >I would be really interesting to see what those tasks are blocked on.
+> > 
+> > I'm trying to get it, stay tuned :)
+> > 
+> > Today i noticed one bug, not 100% sure it is related to 'your' patch
+> > but i didn't seen this before. I noticed that i have lots of cgroups
+> > which cannot be removed - if i do 'rmdir <cgroup_directory>', it
+> > just hangs and never complete. Even more, it's not possible to
+> > access the whole cgroup filesystem until i kill that rmdir
+> > (anything, which tries it, just hangs). All unremoveable cgroups has
+> > this in 'memory.oom_control': oom_kill_disable 0 under_oom 1
+> 
+> Somebody acquires the OOM wait reference to the memcg and marks it
+> under oom but then does not call into mem_cgroup_oom_synchronize() to
+> clean up.  That's why under_oom is set and the rmdir waits for
+> outstanding references.
+> 
+> > And, yes, 'tasks' file is empty.
+> 
+> It's not a kernel thread that does it because all kernel-context
+> handle_mm_fault() are annotated properly, which means the task must be
+> userspace and, since tasks is empty, have exited before synchronizing.
 
-On Tue, Jul 09, 2013 at 12:28:15PM +0400, Konstantin Khlebnikov wrote:
-> Yep, blkio has plenty problems and flaws and I don't get how it's related
-> to vfs layer, dirty set control and non-disk or network backed filesystems.
-> Any problem can be fixed by introducing new abstract layer, except too many
-> abstraction levels. Cgroup is pluggable subsystem, blkio has it's own plugins
-> and it's build on top of io scheduler plugin. All this stuff always have worked
+Yes, well spotted. I have missed that while reviewing your patch.
+The follow up fix looks correct.
 
-What does that have to do with anything?
-
-> with block devices. Now you suggest to handle all filesystems in this stack.
-> I think binding them to unrealated cgroup is rough leveling violation.
-
-How is blkio unrelated to filesystems mounted on block devices?
-You're suggesting a duplicate solution which can't be complete.
-
-> NFS cannot be controlled only by network throttlers because we
-> cannot slow down writeback process when it happens, we must slow
-> down tasks who generates dirty memory.
-
-That's exactly the same problem why blkio doesn't work for async IOs
-right now, so if you're interested in the area, please contribute to
-fixing that problem.
-
-> Plus it's close to impossible to separate several workloads if they
-> share one NFS sb.
-
-Again, the same problem with blkio.  We need separate pressure
-channels on bdi for each cgroup.
-
-Thanks.
+> Can you try with the following patch on top?
+> 
+> diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+> index 5db0490..9a0b152 100644
+> --- a/arch/x86/mm/fault.c
+> +++ b/arch/x86/mm/fault.c
+> @@ -846,17 +846,6 @@ static noinline int
+>  mm_fault_error(struct pt_regs *regs, unsigned long error_code,
+>  	       unsigned long address, unsigned int fault)
+>  {
+> -	/*
+> -	 * Pagefault was interrupted by SIGKILL. We have no reason to
+> -	 * continue pagefault.
+> -	 */
+> -	if (fatal_signal_pending(current)) {
+> -		if (!(fault & VM_FAULT_RETRY))
+> -			up_read(&current->mm->mmap_sem);
+> -		if (!(error_code & PF_USER))
+> -			no_context(regs, error_code, address);
+> -		return 1;
+> -	}
+>  	if (!(fault & VM_FAULT_ERROR))
+>  		return 0;
+>  
 
 -- 
-tejun
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
