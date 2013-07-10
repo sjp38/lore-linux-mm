@@ -1,68 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 6BEC76B0032
-	for <linux-mm@kvack.org>; Wed, 10 Jul 2013 19:20:56 -0400 (EDT)
-Message-ID: <51DDEC52.7010005@intel.com>
-Date: Wed, 10 Jul 2013 16:20:50 -0700
+	by kanga.kvack.org (Postfix) with SMTP id C2B136B0032
+	for <linux-mm@kvack.org>; Wed, 10 Jul 2013 19:38:40 -0400 (EDT)
+Message-ID: <51DDF071.5000309@intel.com>
+Date: Wed, 10 Jul 2013 16:38:25 -0700
 From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH] mm: add sys_madvise2 and MADV_NAME to name vmas
-References: <1372901537-31033-1-git-send-email-ccross@android.com> <20130704085604.GI18898@dyad.programming.kicks-ass.net> <CAMbhsRTD0GKTwLaF8q4_A9qq0VjFL_uDv75=qGt3p5LmX3TN5w@mail.gmail.com>
-In-Reply-To: <CAMbhsRTD0GKTwLaF8q4_A9qq0VjFL_uDv75=qGt3p5LmX3TN5w@mail.gmail.com>
+References: <1372901537-31033-1-git-send-email-ccross@android.com> <51DDE974.6060200@intel.com> <CAMbhsRTio2mS=azWTxSdRdaZJRRf5FfMNoQUZmrFjkB7kv9LSQ@mail.gmail.com>
+In-Reply-To: <CAMbhsRTio2mS=azWTxSdRdaZJRRf5FfMNoQUZmrFjkB7kv9LSQ@mail.gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Colin Cross <ccross@android.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, lkml <linux-kernel@vger.kernel.org>, Kyungmin Park <kmpark@infradead.org>, Christoph Hellwig <hch@infradead.org>, John Stultz <john.stultz@linaro.org>, Rob Landley <rob@landley.net>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Rusty Russell <rusty@rustcorp.com.au>, "Eric W. Biederman" <ebiederm@xmission.com>, Oleg Nesterov <oleg@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Anton Vorontsov <anton.vorontsov@linaro.org>, Pekka Enberg <penberg@kernel.org>, Shaohua Li <shli@fusionio.com>, Sasha Levin <sasha.levin@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@kernel.org>, open@kvack.org, list@kvack.org, DOCUMENTATION <linux-doc@vger.kernel.org>open@kvack.orglist@kvack.org, MEMORY MANAGEMENT <linux-mm@kvack.org>, "open list:GENERIC INCLUDE/A..." <linux-arch@vger.kernel.org>
+Cc: lkml <linux-kernel@vger.kernel.org>, Kyungmin Park <kmpark@infradead.org>, Christoph Hellwig <hch@infradead.org>, John Stultz <john.stultz@linaro.org>, Rob Landley <rob@landley.net>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rusty Russell <rusty@rustcorp.com.au>, "Eric W. Biederman" <ebiederm@xmission.com>, Oleg Nesterov <oleg@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Anton Vorontsov <anton.vorontsov@linaro.org>, Pekka Enberg <penberg@kernel.org>, Shaohua Li <shli@fusionio.com>, Sasha Levin <sasha.levin@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@kernel.org>, open@kvack.org, list@kvack.org, DOCUMENTATION <linux-doc@vger.kernel.org>open@kvack.orglist@kvack.org, MEMORY MANAGEMENT <linux-mm@kvack.org>, "open list:GENERIC INCLUDE/A..." <linux-arch@vger.kernel.org>
 
-On 07/05/2013 01:25 PM, Colin Cross wrote:
-> On Thu, Jul 4, 2013 at 1:56 AM, Peter Zijlstra <peterz@infradead.org> wrote:
->> On Wed, Jul 03, 2013 at 06:31:56PM -0700, Colin Cross wrote:
->>> Userspace processes often have multiple allocators that each do
->>> anonymous mmaps to get memory.  When examining memory usage of
->>> individual processes or systems as a whole, it is useful to be
->>> able to break down the various heaps that were allocated by
->>> each layer and examine their size, RSS, and physical memory
->>> usage.
+On 07/10/2013 04:23 PM, Colin Cross wrote:
+> On Wed, Jul 10, 2013 at 4:08 PM, Dave Hansen <dave.hansen@intel.com> wrote:
+>> On 07/03/2013 06:31 PM, Colin Cross wrote:
+>>> @@ -289,6 +291,7 @@ struct vm_area_struct {
+>>>  #ifdef CONFIG_NUMA
+>>>       struct mempolicy *vm_policy;    /* NUMA policy for the VMA */
+>>>  #endif
+>>> +     struct vma_name *vm_name;
+>>>  };
 >>
->> So why not 'abuse' deleted files?
->>
-> That's effectively what ashmem does for this use case, but it has its
-> issues when allocators ask the kernel for memory multiple times.
-> There are two ways to implement it in userspace, either reusing the
-> same fd or using a new fd for every allocation.
+>> You could probably get rid of the extra pointer by unioning this with
+>> vm_file.  They should not ever get used together.  We would, however,
+>> have to transition away from checking vma->vm_file for "is this vma
+>> file-backed"?  We are out of VM_* flag space which is a bummer.
+> 
+> I considered trying to union with vm_file, but like you said the lack
+> of space in vm_flags makes it hard.
 
-Does mremap() help for expanding/shrinking the mappings?  If you
-mmap()'d the middle of a large, deleted tmpfs file, you should be able
-to expand the VMA either up or down by quite a bit.
+I'd rather see 32 more bits "wasted" on new flags than a pointer that is
+used very rarely.
 
-> Reusing the same fd fundamentally changes the semantics of the memory.
->  It requires the allocator to keep a global fd and offset variable,
-> and extend the file and map the new region to get the kernel to merge
-> the mappings.
+> It would also prevent naming file
+> backed mappings, which is supported by this patch set.  It's not
+> required by my primary use case, but it could be useful to have the
+> dynamic linker identify the various elf segments.
 
-The checkpoint/restart folks had some patches to let you get access to
-file descriptors which were closed but were used to mmap() something.  I
-don't know where those went, but you'd be able to turn a mmap()'d
-address in to a fd with them, I believe.
+That's stretching it a bit. :)
 
-> This inherently ties the memory together - AFAICT the
-> kernel will not reclaim any of the memory until either the whole file
-> is unmapped and the fd is closed, or userspace manually calls
-> MADV_REMOVE.
+Here's one more idea: instead of having a kernel pointer, let's let
+userspace hand the kernel a userspace address, and the kernel will hang
+on to it.  Userspace is responsible for keeping it valid, kind of like
+ARGV[].  When the kernel goes to dump out the /proc/$pid/maps fields, it
+can do a copy_from_user() to get the string back out.  If this fails, it
+can just go and treat it like a non-named VMA, or could output
+"userspace sucks".
 
-Huh?  The kernel can reclaim mapped userspace memory just fine whether
-it's anonymous (or tmpfs) or file-backed.  tmpfs is treated very
-similarly to swappable anonymous memory in this respect.
+That way, the kernel isn't dealing with refcounting and allocating
+strings.  It's got security concerns, just like
+/proc/$pid/cmdline since it'll let you dig around in another process's
+address space via /proc.  But, I think they're manageable.
 
-> It's not immediately clear from the madvise man page
-> what would happen after a fork if one process calls MADV_REMOVE on
-> MAP_PRIVATE tmpfs memory, but if it really goes directly to the
-> backing store won't those pages disappear for both processes?
-
-MAP_PRIVATE means "divorced from the backing store".  MADV_REMOVE only
-affects the caller's address space.
+Hey, doing that would even let you reuse vm_file.  >=PAGE_OFFFSET means
+it's a file.  <PAGE_OFFSET means it's an anonymous string.  :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
