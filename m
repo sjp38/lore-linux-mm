@@ -1,61 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id DA08C6B0032
-	for <linux-mm@kvack.org>; Wed, 10 Jul 2013 11:51:28 -0400 (EDT)
-Date: Wed, 10 Jul 2013 17:45:38 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 1/1] mm: mempolicy: fix mbind_range() && vma_adjust()
-	interaction
-Message-ID: <20130710154538.GA21145@redhat.com>
-References: <1372901537-31033-1-git-send-email-ccross@android.com> <20130704202232.GA19287@redhat.com> <CAMbhsRRjGjo_-zSigmdsDvY-kfBhmP49bDQzsgHfj5N-y+ZAdw@mail.gmail.com> <20130708180424.GA6490@redhat.com> <20130708180501.GB6490@redhat.com> <20130709145645.bd48e31c1a7d9e83d521b845@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 54E786B0032
+	for <linux-mm@kvack.org>; Wed, 10 Jul 2013 12:25:08 -0400 (EDT)
+Subject: =?utf-8?q?Re=3A_=5BPATCH_for_3=2E2=5D_memcg=3A_do_not_trap_chargers_with_full_callstack_on_OOM?=
+Date: Wed, 10 Jul 2013 18:25:06 +0200
+From: "azurIt" <azurit@pobox.sk>
+References: <20130619132614.GC16457@dhcp22.suse.cz>, <20130622220958.D10567A4@pobox.sk>, <20130624201345.GA21822@cmpxchg.org>, <20130628120613.6D6CAD21@pobox.sk>, <20130705181728.GQ17812@cmpxchg.org>, <20130705210246.11D2135A@pobox.sk>, <20130705191854.GR17812@cmpxchg.org>, <20130708014224.50F06960@pobox.sk>, <20130709131029.GH20281@dhcp22.suse.cz>, <20130709151921.5160C199@pobox.sk> <20130709135450.GI20281@dhcp22.suse.cz>
+In-Reply-To: <20130709135450.GI20281@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130709145645.bd48e31c1a7d9e83d521b845@linux-foundation.org>
+Message-Id: <20130710182506.F25DF461@pobox.sk>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Colin Cross <ccross@android.com>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, "Hampson, Steven T" <steven.t.hampson@intel.com>, lkml <linux-kernel@vger.kernel.org>, Kyungmin Park <kmpark@infradead.org>, Christoph Hellwig <hch@infradead.org>, John Stultz <john.stultz@linaro.org>, Rob Landley <rob@landley.net>, Arnd Bergmann <arnd@arndb.de>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Al Viro <viro@zeniv.linux.org.uk>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rusty Russell <rusty@rustcorp.com.au>, "Eric W. Biederman" <ebiederm@xmission.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Anton Vorontsov <anton.vorontsov@linaro.org>, Pekka Enberg <penberg@kernel.org>, Shaohua Li <shli@fusionio.com>, Sasha Levin <sasha.levin@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@kernel.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, "open list:GENERIC INCLUDE/A..." <linux-arch@vger.kernel.org>
+To: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>
+Cc: =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?q?cgroups_mailinglist?= <cgroups@vger.kernel.org>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, righi.andrea@gmail.com
 
-On 07/09, Andrew Morton wrote:
+>> Now i realized that i forgot to remove UID from that cgroup before
+>> trying to remove it, so cgroup cannot be removed anyway (we are using
+>> third party cgroup called cgroup-uid from Andrea Righi, which is able
+>> to associate all user's processes with target cgroup). Look here for
+>> cgroup-uid patch:
+>> https://www.develer.com/~arighi/linux/patches/cgroup-uid/cgroup-uid-v8.patch
+>> 
+>> ANYWAY, i'm 101% sure that 'tasks' file was empty and 'under_oom' was
+>> permanently '1'.
 >
-> On Mon, 8 Jul 2013 20:05:01 +0200 Oleg Nesterov <oleg@redhat.com> wrote:
+>This is really strange. Could you post the whole diff against stable
+>tree you are using (except for grsecurity stuff and the above cgroup-uid
+>patch)?
+
+
+Here are all patches which i applied to kernel 3.2.48 in my last test:
+http://watchdog.sk/lkml/patches3/
+
+Patches marked as 7-* are from Johannes. I'm appling them in order except the grsecurity - it goes as first.
+
+azur
+
+
+
+
+>Btw. the bellow patch might help us to point to the exit path which
+>leaves wait_on_memcg without mem_cgroup_oom_synchronize:
+>---
+>diff --git a/kernel/exit.c b/kernel/exit.c
+>index e6e01b9..ad472e0 100644
+>--- a/kernel/exit.c
+>+++ b/kernel/exit.c
+>@@ -895,6 +895,7 @@ NORET_TYPE void do_exit(long code)
+> 
+> 	profile_task_exit(tsk);
+> 
+>+	WARN_ON(current->memcg_oom.wait_on_memcg);
+> 	WARN_ON(blk_needs_flush_plug(tsk));
+> 
+> 	if (unlikely(in_interrupt()))
+>-- 
+>Michal Hocko
+>SUSE Labs
 >
-> > Change mbind_range() to recheck mpol_equal() after vma_merge() to
-> > fix the problem 1444f92c tried to address.
->
-> So I assume the kernel still passes Steven's testcase from the
-> 1444f92c changelog?
-
-Yes.
-
-Just in case, I had to modify it a little bit so that it can be compiled
-on my machine. But this test-case is not reliable afaics. It should fail
-(without 1444f92c or this fix) only if the subsequent get_unmapped_area()
-allocates the region "right before" the previous mmap.
-
-Please see the simplified and robust test-case below.
-
-Oleg.
-
-int main(void)
-{
-	unsigned long mask[MAXNODE] = { 1 };
-	int pgsz = getpagesize();
-	int policy = -1;
-	unsigned char *p;
-
-	p = mmap(NULL, 2 * pgsz, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS,
-			-1, 0);
-	assert(p != MAP_FAILED);
-
-	assert(syscall(__NR_mbind, p + pgsz, pgsz, MPOL_BIND, mask, MAXNODE, 0) == 0);
-	assert(syscall(__NR_mbind, p, pgsz, MPOL_BIND, mask, MAXNODE, 0) == 0);
-	assert(syscall(__NR_get_mempolicy, &policy, NULL, 0, p, MPOL_F_ADDR) == 0);
-
-	assert(policy == MPOL_BIND);
-	return 0;
-}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
