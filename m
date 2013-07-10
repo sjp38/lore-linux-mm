@@ -1,110 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 0706A6B0033
-	for <linux-mm@kvack.org>; Wed, 10 Jul 2013 05:56:08 -0400 (EDT)
-Date: Wed, 10 Jul 2013 18:56:06 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC PATCH 0/5] Support multiple pages allocation
-Message-ID: <20130710095606.GB5557@lge.com>
-References: <1372840460-5571-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20130703152824.GB30267@dhcp22.suse.cz>
- <51D44890.4080003@gmail.com>
- <51D44AE7.1090701@gmail.com>
- <20130704042450.GA7132@lge.com>
- <20130704100044.GB7833@dhcp22.suse.cz>
- <20130710003142.GA2152@lge.com>
- <51DCB6DB.3070209@cn.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <51DCB6DB.3070209@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 14F586B0032
+	for <linux-mm@kvack.org>; Wed, 10 Jul 2013 06:39:07 -0400 (EDT)
+Subject: Re: [PATCH 3/4] PF: Provide additional direct page notification
+Mime-Version: 1.0 (Apple Message framework v1278)
+Content-Type: text/plain; charset=iso-8859-1
+From: Alexander Graf <agraf@suse.de>
+In-Reply-To: <51DC33E7.1030404@de.ibm.com>
+Date: Wed, 10 Jul 2013 12:39:01 +0200
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <282EB214-206B-4A04-9830-D97679C9F4EC@suse.de>
+References: <1373378207-10451-1-git-send-email-dingel@linux.vnet.ibm.com> <1373378207-10451-4-git-send-email-dingel@linux.vnet.ibm.com> <51DC33E7.1030404@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Zhang Yanfei <zhangyanfei.yes@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christian Borntraeger <borntraeger@de.ibm.com>
+Cc: Dominik Dingel <dingel@linux.vnet.ibm.com>, Gleb Natapov <gleb@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Xiantao Zhang <xiantao.zhang@intel.com>, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Ralf Baechle <ralf@linux-mips.org>, kvm@vger.kernel.org, linux-s390@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Jul 10, 2013 at 09:20:27AM +0800, Zhang Yanfei wrote:
-> ao? 2013/7/10 8:31, Joonsoo Kim a??e??:
-> > On Thu, Jul 04, 2013 at 12:00:44PM +0200, Michal Hocko wrote:
-> >> On Thu 04-07-13 13:24:50, Joonsoo Kim wrote:
-> >>> On Thu, Jul 04, 2013 at 12:01:43AM +0800, Zhang Yanfei wrote:
-> >>>> On 07/03/2013 11:51 PM, Zhang Yanfei wrote:
-> >>>>> On 07/03/2013 11:28 PM, Michal Hocko wrote:
-> >>>>>> On Wed 03-07-13 17:34:15, Joonsoo Kim wrote:
-> >>>>>> [...]
-> >>>>>>> For one page allocation at once, this patchset makes allocator slower than
-> >>>>>>> before (-5%). 
-> >>>>>>
-> >>>>>> Slowing down the most used path is a no-go. Where does this slow down
-> >>>>>> come from?
-> >>>>>
-> >>>>> I guess, it might be: for one page allocation at once, comparing to the original
-> >>>>> code, this patch adds two parameters nr_pages and pages and will do extra checks
-> >>>>> for the parameter nr_pages in the allocation path.
-> >>>>>
-> >>>>
-> >>>> If so, adding a separate path for the multiple allocations seems better.
-> >>>
-> >>> Hello, all.
-> >>>
-> >>> I modify the code for optimizing one page allocation via likely macro.
-> >>> I attach a new one at the end of this mail.
-> >>>
-> >>> In this case, performance degradation for one page allocation at once is -2.5%.
-> >>> I guess, remained overhead comes from two added parameters.
-> >>> Is it unreasonable cost to support this new feature?
-> >>
-> >> Which benchmark you are using for this testing?
-> > 
-> > I use my own module which do allocation repeatedly.
-> > 
-> >>
-> >>> I think that readahead path is one of the most used path, so this penalty looks
-> >>> endurable. And after supporting this feature, we can find more use cases.
-> >>
-> >> What about page faults? I would oppose that page faults are _much_ more
-> >> frequent than read ahead so you really cannot slow them down.
-> > 
-> > You mean page faults for anon?
-> > Yes. I also think that it is much more frequent than read ahead.
-> > Before futher discussion, I will try to add a separate path
-> > for the multiple allocations.
-> 
-> Some days ago, I was thinking that this multiple allocation behaviour
-> may be useful for vmalloc allocations. So I think it is worth trying.
 
-Yeh! I think so!
+On 09.07.2013, at 18:01, Christian Borntraeger wrote:
 
-Thanks.
+> On 09/07/13 15:56, Dominik Dingel wrote:
+>> By setting a Kconfig option, the architecture can control when
+>> guest notifications will be presented by the apf backend.
+>> So there is the default batch mechanism, working as before, where the =
+vcpu thread
+>> should pull in this information. On the other hand there is now the =
+direct
+>> mechanism, this will directly push the information to the guest.
+>>=20
+>> Still the vcpu thread should call check_completion to cleanup =
+leftovers,
+>> that leaves most of the common code untouched.
+>>=20
+>> Signed-off-by: Dominik Dingel <dingel@linux.vnet.ibm.com>
+>=20
+> Acked-by: Christian Borntraeger <borntraeger@de.ibm.com>=20
+> for the "why". We want to use the existing architectured interface.
 
-> 
-> > 
-> > Thanks.
-> > 
-> >>
-> >> [...]
-> >> -- 
-> >> Michal Hocko
-> >> SUSE Labs
-> >>
-> >> --
-> >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> >> the body to majordomo@kvack.org.  For more info on Linux MM,
-> >> see: http://www.linux-mm.org/ .
-> >> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> > 
-> 
-> 
-> -- 
-> Thanks.
-> Zhang Yanfei
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Shouldn't this be a runtime option?
+
+
+Alex
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
