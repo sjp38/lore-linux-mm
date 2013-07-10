@@ -1,126 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id DACCB6B0032
-	for <linux-mm@kvack.org>; Tue,  9 Jul 2013 19:41:28 -0400 (EDT)
-Date: Wed, 10 Jul 2013 01:40:06 +0200 (CEST)
-From: Jiri Kosina <jkosina@suse.cz>
-Subject: Re: [RFC] mm: Honor min_free_kbytes set by user
-In-Reply-To: <20130704162005.GE7833@dhcp22.suse.cz>
-Message-ID: <alpine.LRH.2.00.1307100139220.4045@twin.jikos.cz>
-References: <1372954036-16988-1-git-send-email-mhocko@suse.cz> <1372954239.1886.40.camel@joe-AO722> <20130704161641.GD7833@dhcp22.suse.cz> <20130704162005.GE7833@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 069976B0032
+	for <linux-mm@kvack.org>; Tue,  9 Jul 2013 20:31:43 -0400 (EDT)
+Date: Wed, 10 Jul 2013 09:31:42 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [RFC PATCH 0/5] Support multiple pages allocation
+Message-ID: <20130710003142.GA2152@lge.com>
+References: <1372840460-5571-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <20130703152824.GB30267@dhcp22.suse.cz>
+ <51D44890.4080003@gmail.com>
+ <51D44AE7.1090701@gmail.com>
+ <20130704042450.GA7132@lge.com>
+ <20130704100044.GB7833@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130704100044.GB7833@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: Joe Perches <joe@perches.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Zhang Yanfei <zhangyanfei.yes@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 4 Jul 2013, Michal Hocko wrote:
-
-> On Thu 04-07-13 18:16:41, Michal Hocko wrote:
-> > On Thu 04-07-13 09:10:39, Joe Perches wrote:
-> > > On Thu, 2013-07-04 at 18:07 +0200, Michal Hocko wrote:
-> > > > A warning is printed when the new value is ignored.
+On Thu, Jul 04, 2013 at 12:00:44PM +0200, Michal Hocko wrote:
+> On Thu 04-07-13 13:24:50, Joonsoo Kim wrote:
+> > On Thu, Jul 04, 2013 at 12:01:43AM +0800, Zhang Yanfei wrote:
+> > > On 07/03/2013 11:51 PM, Zhang Yanfei wrote:
+> > > > On 07/03/2013 11:28 PM, Michal Hocko wrote:
+> > > >> On Wed 03-07-13 17:34:15, Joonsoo Kim wrote:
+> > > >> [...]
+> > > >>> For one page allocation at once, this patchset makes allocator slower than
+> > > >>> before (-5%). 
+> > > >>
+> > > >> Slowing down the most used path is a no-go. Where does this slow down
+> > > >> come from?
+> > > > 
+> > > > I guess, it might be: for one page allocation at once, comparing to the original
+> > > > code, this patch adds two parameters nr_pages and pages and will do extra checks
+> > > > for the parameter nr_pages in the allocation path.
+> > > > 
 > > > 
-> > > []
-> > > 
-> > > > +		printk(KERN_WARNING "min_free_kbytes is not updated to %d"
-> > > > +				"because user defined value %d is preferred\n",
-> > > > +				new_min_free_kbytes, user_min_free_kbytes);
-> > > 
-> > > Please use pr_warn and coalesce the format.
+> > > If so, adding a separate path for the multiple allocations seems better.
 > > 
-> > Sure can do that. mm/page_alloc.c doesn't seem to be unified in that
-> > regards (44 printks and only 4 pr_<foo>) so I used printk.
+> > Hello, all.
 > > 
-> > > You'd've noticed a missing space between %d and because.
+> > I modify the code for optimizing one page allocation via likely macro.
+> > I attach a new one at the end of this mail.
 > > 
-> > True
-> > 
+> > In this case, performance degradation for one page allocation at once is -2.5%.
+> > I guess, remained overhead comes from two added parameters.
+> > Is it unreasonable cost to support this new feature?
 > 
-> Checkpatch fixes
-> ---
-> >From 5f089c0b2a57ff6c08710ac9698d65aede06079f Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.cz>
-> Date: Thu, 4 Jul 2013 17:15:54 +0200
-> Subject: [PATCH] mm: Honor min_free_kbytes set by user
-> 
-> min_free_kbytes is updated during memory hotplug (by init_per_zone_wmark_min)
-> currently which is right thing to do in most cases but this could be
-> unexpected if admin increased the value to prevent from allocation
-> failures and the new min_free_kbytes would be decreased as a result of
-> memory hotadd.
-> 
-> This patch saves the user defined value and allows updating
-> min_free_kbytes only if it is higher than the saved one.
-> 
-> A warning is printed when the new value is ignored.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> ---
->  mm/page_alloc.c | 24 +++++++++++++++++-------
->  1 file changed, 17 insertions(+), 7 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 22c528e..9c011fc 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -204,6 +204,7 @@ static char * const zone_names[MAX_NR_ZONES] = {
->  };
->  
->  int min_free_kbytes = 1024;
-> +int user_min_free_kbytes;
+> Which benchmark you are using for this testing?
 
-Minor nit: any reason this can't be static?
+I use my own module which do allocation repeatedly.
 
->  
->  static unsigned long __meminitdata nr_kernel_pages;
->  static unsigned long __meminitdata nr_all_pages;
-> @@ -5592,14 +5593,21 @@ static void __meminit setup_per_zone_inactive_ratio(void)
->  int __meminit init_per_zone_wmark_min(void)
->  {
->  	unsigned long lowmem_kbytes;
-> +	int new_min_free_kbytes;
->  
->  	lowmem_kbytes = nr_free_buffer_pages() * (PAGE_SIZE >> 10);
-> -
-> -	min_free_kbytes = int_sqrt(lowmem_kbytes * 16);
-> -	if (min_free_kbytes < 128)
-> -		min_free_kbytes = 128;
-> -	if (min_free_kbytes > 65536)
-> -		min_free_kbytes = 65536;
-> +	new_min_free_kbytes = int_sqrt(lowmem_kbytes * 16);
-> +
-> +	if (new_min_free_kbytes > user_min_free_kbytes) {
-> +		min_free_kbytes = new_min_free_kbytes;
-> +		if (min_free_kbytes < 128)
-> +			min_free_kbytes = 128;
-> +		if (min_free_kbytes > 65536)
-> +			min_free_kbytes = 65536;
-> +	} else {
-> +		pr_warn("min_free_kbytes is not updated to %d because user defined value %d is preferred\n",
-> +				new_min_free_kbytes, user_min_free_kbytes);
-> +	}
->  	setup_per_zone_wmarks();
->  	refresh_zone_stat_thresholds();
->  	setup_per_zone_lowmem_reserve();
-> @@ -5617,8 +5625,10 @@ int min_free_kbytes_sysctl_handler(ctl_table *table, int write,
->  	void __user *buffer, size_t *length, loff_t *ppos)
->  {
->  	proc_dointvec(table, write, buffer, length, ppos);
-> -	if (write)
-> +	if (write) {
-> +		user_min_free_kbytes = min_free_kbytes;
->  		setup_per_zone_wmarks();
-> +	}
->  	return 0;
->  }
->  
 > 
+> > I think that readahead path is one of the most used path, so this penalty looks
+> > endurable. And after supporting this feature, we can find more use cases.
+> 
+> What about page faults? I would oppose that page faults are _much_ more
+> frequent than read ahead so you really cannot slow them down.
 
--- 
-Jiri Kosina
-SUSE Labs
+You mean page faults for anon?
+Yes. I also think that it is much more frequent than read ahead.
+Before futher discussion, I will try to add a separate path
+for the multiple allocations.
+
+Thanks.
+
+> 
+> [...]
+> -- 
+> Michal Hocko
+> SUSE Labs
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
