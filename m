@@ -1,44 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id D0EDA6B0032
-	for <linux-mm@kvack.org>; Wed, 10 Jul 2013 13:27:37 -0400 (EDT)
-Received: by mail-ve0-f176.google.com with SMTP id c13so6220484vea.7
-        for <linux-mm@kvack.org>; Wed, 10 Jul 2013 10:27:36 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 8FF6C6B0032
+	for <linux-mm@kvack.org>; Wed, 10 Jul 2013 18:53:09 -0400 (EDT)
+Message-ID: <51DDE5BA.9020800@intel.com>
+Date: Wed, 10 Jul 2013 15:52:42 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20130710015936.GC13855@redhat.com>
-References: <51DCBE24.3030406@gmail.com>
-	<20130710015936.GC13855@redhat.com>
-Date: Wed, 10 Jul 2013 13:27:36 -0400
-Message-ID: <CAJzLF9=vWCd2JZTNG0dX4YmLAc=B05x-+bZgU0RaSZCaR5D38g@mail.gmail.com>
-Subject: Re: [REGRESSION] x86 vmalloc issue from recent 3.10.0+ commit
-From: "Michael L. Semon" <mlsemon35@gmail.com>
+Subject: Re: [RFC PATCH 1/5] mm, page_alloc: support multiple pages allocation
+References: <1372840460-5571-1-git-send-email-iamjoonsoo.kim@lge.com> <1372840460-5571-2-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1372840460-5571-2-git-send-email-iamjoonsoo.kim@lge.com>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>, "Michael L. Semon" <mlsemon35@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, d.hatayama@jp.fujitsu.com, akpm@linux-foundation.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>
 
-Thanks.  I'll re-review this, anyway, and re-bisect if time allows.
-The kernel/SGI-XFS combo pulled last night did much better in this
-regard.  The problem is down to a different and single backtrace about
-vmalloc, and the PC is controllable now.  The old git was moved to a
-different folder, though, in case it's still needed.
+On 07/03/2013 01:34 AM, Joonsoo Kim wrote:
+> -		if (page)
+> +		do {
+> +			page = buffered_rmqueue(preferred_zone, zone, order,
+> +							gfp_mask, migratetype);
+> +			if (!page)
+> +				break;
+> +
+> +			if (!nr_pages) {
+> +				count++;
+> +				break;
+> +			}
+> +
+> +			pages[count++] = page;
+> +			if (count >= *nr_pages)
+> +				break;
+> +
+> +			mark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
+> +			if (!zone_watermark_ok(zone, order, mark,
+> +					classzone_idx, alloc_flags))
+> +				break;
+> +		} while (1);
 
-Michael
+I'm really surprised this works as well as it does.  Calling
+buffered_rmqueue() a bunch of times enables/disables interrupts a bunch
+of times, and mucks with the percpu pages lists a whole bunch.
+buffered_rmqueue() is really meant for _single_ pages, not to be called
+a bunch of times in a row.
 
-On Tue, Jul 9, 2013 at 9:59 PM, Dave Jones <davej@redhat.com> wrote:
-> On Tue, Jul 09, 2013 at 09:51:32PM -0400, Michael L. Semon wrote:
->
->  > kernel: [ 2580.395592] vmap allocation for size 20480 failed: use vmalloc=<size> to increase size.
->  > kernel: [ 2580.395761] vmalloc: allocation failure: 16384 bytes
->
-> I was seeing a lot of these recently too.
-> (Though I also saw memory corruption afterwards possibly caused by
->  a broken fallback path somewhere when that vmalloc fails)
->
-> http://comments.gmane.org/gmane.linux.kernel.mm/102895
->
->         Dave
->
+Why not just do a single rmqueue_bulk() call?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
