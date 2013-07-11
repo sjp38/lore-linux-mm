@@ -1,31 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 8DDB96B0096
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2013 18:15:09 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id rl6so8377465pac.1
-        for <linux-mm@kvack.org>; Thu, 11 Jul 2013 15:15:08 -0700 (PDT)
-Date: Thu, 11 Jul 2013 15:15:06 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] madvise: fix checkpatch errors
-In-Reply-To: <1373526037-9134-1-git-send-email-gg.kaspersky@gmail.com>
-Message-ID: <alpine.DEB.2.02.1307111514560.2458@chino.kir.corp.google.com>
-References: <1373526037-9134-1-git-send-email-gg.kaspersky@gmail.com>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id D2BA56B0032
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2013 19:53:32 -0400 (EDT)
+Message-ID: <51DF4540.8060700@asianux.com>
+Date: Fri, 12 Jul 2013 07:52:32 +0800
+From: Chen Gang <gang.chen@asianux.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] mm/slub.c: remove 'per_cpu' which is useless variable
+References: <51DA734B.4060608@asianux.com> <51DE549F.9070505@kernel.org> <51DE55C9.1060908@asianux.com> <0000013fce9f5b32-7d62f3c5-bb35-4dd9-ab19-d72bae4b5bdc-000000@email.amazonses.com> <51DEF935.4040804@kernel.org> <0000013fcf608df8-457e2029-51f9-4e49-9992-bf399a97d953-000000@email.amazonses.com>
+In-Reply-To: <0000013fcf608df8-457e2029-51f9-4e49-9992-bf399a97d953-000000@email.amazonses.com>
+Content-Type: text/plain; charset=GB2312
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Cernov <gg.kaspersky@gmail.com>
-Cc: akpm@linux-foundation.org, sasha.levin@oracle.com, linux@rasmusvillemoes.dk, shli@fusionio.com, khlebnikov@openvz.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, mpm@selenic.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, 11 Jul 2013, Vladimir Cernov wrote:
-
-> This fixes following errors:
-> 	- ERROR: "(foo*)" should be "(foo *)"
-> 	- ERROR: "foo ** bar" should be "foo **bar"
+On 07/12/2013 04:16 AM, Christoph Lameter wrote:
+> On Thu, 11 Jul 2013, Pekka Enberg wrote:
 > 
-> Signed-off-by: Vladimir Cernov <gg.kaspersky@gmail.com>
+>>> Gosh we have some code duplication there. Patch mismerged?
+>>
+>> What duplication are you referring to?
+> 
+> Sorry, no duplicate. The partial list is handled in the same way as the
+> per cpu slab. Yep its ok to remove. Chen: Clean up your patches and then
+> we can merge them.
+> 
 
-Acked-by: David Rientjes <rientjes@google.com>
+OK, thanks. I should send patch v2 for it.
+
+Thanks.
+-- 
+Chen Gang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
