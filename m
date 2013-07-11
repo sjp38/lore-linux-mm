@@ -1,70 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id B8B866B0032
-	for <linux-mm@kvack.org>; Wed, 10 Jul 2013 21:05:09 -0400 (EDT)
-Date: Thu, 11 Jul 2013 10:05:10 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC PATCH 0/5] Support multiple pages allocation
-Message-ID: <20130711010510.GC7756@lge.com>
-References: <1372840460-5571-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20130703152824.GB30267@dhcp22.suse.cz>
- <51D44890.4080003@gmail.com>
- <51D44AE7.1090701@gmail.com>
- <20130704042450.GA7132@lge.com>
- <20130704100044.GB7833@dhcp22.suse.cz>
- <20130710003142.GA2152@lge.com>
- <20130710091703.GD4437@dhcp22.suse.cz>
- <20130710095533.GA5557@lge.com>
- <20130710112737.GG4437@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 2591A6B0032
+	for <linux-mm@kvack.org>; Wed, 10 Jul 2013 22:26:39 -0400 (EDT)
+Date: Thu, 11 Jul 2013 12:26:34 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: linux-next: slab shrinkers: BUG at mm/list_lru.c:92
+Message-ID: <20130711022634.GZ3438@dastard>
+References: <20130701075005.GA28765@dhcp22.suse.cz>
+ <20130701081056.GA4072@dastard>
+ <20130702092200.GB16815@dhcp22.suse.cz>
+ <20130702121947.GE14996@dastard>
+ <20130702124427.GG16815@dhcp22.suse.cz>
+ <20130703112403.GP14996@dastard>
+ <20130704163643.GF7833@dhcp22.suse.cz>
+ <20130708125352.GC20149@dhcp22.suse.cz>
+ <20130710023138.GO3438@dastard>
+ <20130710080605.GC4437@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130710112737.GG4437@dhcp22.suse.cz>
+In-Reply-To: <20130710080605.GC4437@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: Zhang Yanfei <zhangyanfei.yes@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Glauber Costa <glommer@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Jul 10, 2013 at 01:27:37PM +0200, Michal Hocko wrote:
-> On Wed 10-07-13 18:55:33, Joonsoo Kim wrote:
-> > On Wed, Jul 10, 2013 at 11:17:03AM +0200, Michal Hocko wrote:
-> > > On Wed 10-07-13 09:31:42, Joonsoo Kim wrote:
-> > > > On Thu, Jul 04, 2013 at 12:00:44PM +0200, Michal Hocko wrote:
+On Wed, Jul 10, 2013 at 10:06:05AM +0200, Michal Hocko wrote:
+> On Wed 10-07-13 12:31:39, Dave Chinner wrote:
 > [...]
-> > > > > Which benchmark you are using for this testing?
-> > > > 
-> > > > I use my own module which do allocation repeatedly.
-> > > 
-> > > I am not sure this microbenchmark will tell us much. Allocations are
-> > > usually not short lived so the longer time might get amortized.
-> > > If you want to use the multi page allocation for read ahead then try to
-> > > model your numbers on read-ahead workloads.
+> > > 20761 [<ffffffffa0305fdd>] xlog_grant_head_wait+0xdd/0x1a0 [xfs]
+> > > [<ffffffffa0306166>] xlog_grant_head_check+0xc6/0xe0 [xfs]
+> > > [<ffffffffa030627f>] xfs_log_reserve+0xff/0x240 [xfs]
+> > > [<ffffffffa0302ac4>] xfs_trans_reserve+0x234/0x240 [xfs]
+> > > [<ffffffffa02c5999>] xfs_create+0x1a9/0x5c0 [xfs]
+> > > [<ffffffffa02bccca>] xfs_vn_mknod+0x8a/0x1a0 [xfs]
+> > > [<ffffffffa02bce0e>] xfs_vn_create+0xe/0x10 [xfs]
+> > > [<ffffffff811763dd>] vfs_create+0xad/0xd0
+> > > [<ffffffff81177e68>] lookup_open+0x1b8/0x1d0
+> > > [<ffffffff8117815e>] do_last+0x2de/0x780
+> > > [<ffffffff8117ae9a>] path_openat+0xda/0x400
+> > > [<ffffffff8117b303>] do_filp_open+0x43/0xa0
+> > > [<ffffffff81168ee0>] do_sys_open+0x160/0x1e0
+> > > [<ffffffff81168f9c>] sys_open+0x1c/0x20
+> > > [<ffffffff815830e9>] system_call_fastpath+0x16/0x1b
+> > > [<ffffffffffffffff>] 0xffffffffffffffff
 > > 
-> > Of couse. In later, I will get the result on read-ahead workloads or
-> > vmalloc workload which is recommended by Zhang.
+> > That's an XFS log space issue, indicating that it has run out of
+> > space in IO the log and it is waiting for more to come free. That
+> > requires IO completion to occur.
+> >
+> > > [276962.652076] INFO: task xfs-data/sda9:930 blocked for more than 480 seconds.
+> > > [276962.652087] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+> > > [276962.652093] xfs-data/sda9   D ffff88001ffb9cc8     0   930      2 0x00000000
 > > 
-> > I think, without this microbenchmark, we cannot know this modification's
-> > performance effect to single page allocation accurately. Because the impact
-> > to single page allocation is relatively small and it is easily hidden by
-> > other factors.
+> > Oh, that's why. This is the IO completion worker...
 > 
-> The main thing is whether the numbers you get from an artificial
-> microbenchmark matter at all. You might see a regression which cannot be
-> hit in practice because other effects are of magnitude more significant.
+> But that task doesn't seem to be stuck anymore (at least lockup watchdog
+> doesn't report it anymore and I have already rebooted to test with ext3
+> :/). I am sorry if the these lockups logs were more confusing than
+> helpful, but they happened _long_ time ago and the system obviously
+> recovered from them. I am pasting only the traces for processes in D
+> state here again for reference.
 
-Okay. I will keep this in mind.
+Right, there are various triggers that can get XFS out of the
+situation - it takes something to kick the log or metadata writeback
+and that can make space in the log free up and hence things get
+moving again. The problem will be that once in this low memory state
+everything in the filesystem will back up on slow memory allocation
+and it might take minutes to clear the backlog of IO completions....
 
-Thanks for your comment.
+> 20757 [<ffffffffa0305fdd>] xlog_grant_head_wait+0xdd/0x1a0 [xfs]
+> [<ffffffffa0306166>] xlog_grant_head_check+0xc6/0xe0 [xfs]
+> [<ffffffffa030627f>] xfs_log_reserve+0xff/0x240 [xfs]
+> [<ffffffffa0302ac4>] xfs_trans_reserve+0x234/0x240 [xfs]
 
-> -- 
-> Michal Hocko
-> SUSE Labs
+That is the stack of a process waiting for log space to come
+available.
+
+> We are wating for page under writeback but neither of the 2 paths starts
+> in xfs code. So I do not think waiting for PageWriteback causes a
+> deadlock here.
+
+The problem is this: the page that we are waiting for IO on is in
+the IO completion queue, but the IO compeltion requires memory
+allocation to complete the transaction. That memory allocation is
+causing memcg reclaim, which then waits for IO completion on another
+page, which may or may not end up in the same IO completion queue.
+The CMWQ can continue to process new Io completions - up to a point
+- so slow progress will be made. In the worst case, it can deadlock.
+
+GFP_NOFS allocation is the mechanism by which filesystems are
+supposed to be able to avoid this recursive deadlock...
+
+> [...]
+> > ... is running IO completion work and trying to commit a transaction
+> > that is blocked in memory allocation which is waiting for IO
+> > completion. It's disappeared up it's own fundamental orifice.
+> > 
+> > Ok, this has absolutely nothing to do with the LRU changes - this is
+> > a pre-existing XFS/mm interaction problem from around 3.2. The
+> > question is now this: how the hell do I get memory allocation to not
+> > block waiting on IO completion here? This is already being done in
+> > GFP_NOFS allocation context here....
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Just for reference. wait_on_page_writeback is issued only for memcg
+> reclaim because there is no other throttling mechanism to prevent from
+> too many dirty pages on the list, thus pre-mature OOM killer. See
+> e62e384e9d (memcg: prevent OOM with too many dirty pages) for more
+> details. The original patch relied on may_enter_fs but that check
+> disappeared by later changes by c3b94f44fc (memcg: further prevent OOM
+> with too many dirty pages).
+
+Aye. That's the exact code I was looking at yesterday and wondering
+"how the hell is waiting on page writeback valid in GFP_NOFS
+context?". It seems that memcg reclaim is intentionally ignoring
+GFP_NOFS to avoid OOM issues.  That's a memcg implementation problem,
+not a filesystem or LRU infrastructure problem....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
