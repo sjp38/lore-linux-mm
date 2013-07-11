@@ -1,183 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id C26DF6B006C
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2013 12:02:28 -0400 (EDT)
-Date: Thu, 11 Jul 2013 18:02:16 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 7/7] mm: compaction: add compaction to zone_reclaim_mode
-Message-ID: <20130711160216.GA30320@redhat.com>
-References: <1370445037-24144-1-git-send-email-aarcange@redhat.com>
- <1370445037-24144-8-git-send-email-aarcange@redhat.com>
- <20130606100503.GH1936@suse.de>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 26C536B0070
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2013 12:22:18 -0400 (EDT)
+Date: Thu, 11 Jul 2013 18:22:15 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2] vmpressure: make sure memcg stays alive until all
+ users are signaled
+Message-ID: <20130711162215.GM21667@dhcp22.suse.cz>
+References: <20130710184254.GA16979@mtj.dyndns.org>
+ <20130711083110.GC21667@dhcp22.suse.cz>
+ <51DE701C.6010800@huawei.com>
+ <20130711092542.GD21667@dhcp22.suse.cz>
+ <51DE7AAF.6070004@huawei.com>
+ <20130711093300.GE21667@dhcp22.suse.cz>
+ <20130711154408.GA9229@mtj.dyndns.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130606100503.GH1936@suse.de>
+In-Reply-To: <20130711154408.GA9229@mtj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Li Zefan <lizefan@huawei.com>, Anton Vorontsov <anton.vorontsov@linaro.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On Thu, Jun 06, 2013 at 11:05:03AM +0100, Mel Gorman wrote:
-> Again be mindful that improved reliability of zone_reclaim_mode can come
-> at the cost of stalling and process interference for workloads where the
-> processes are not NUMA aware or fit in individual nodes.
-
-This won't risk to affect any system where NUMA locality is a
-secondary priority, unless zone_reclaim_mode is set to 1 manually, so
-it shall be ok.
-
-> Instead of moving the logic from zone_reclaim to here, why was the
-> compaction logic not moved to zone_reclaim or a separate function? This
-> patch adds a lot of logic to get_page_from_freelist() which is unused
-> for most users
-
-I can try to move all checks that aren't passing information
-across different passes from the caller to the callee.
-
-> > -			default:
-> > -				/* did we reclaim enough */
+On Thu 11-07-13 08:44:08, Tejun Heo wrote:
+> Hello, Michal.
+> 
+> On Thu, Jul 11, 2013 at 11:33:00AM +0200, Michal Hocko wrote:
+> > +static inline
+> > +struct mem_cgroup *vmpressure_to_mem_cgroup(struct vmpressure *vmpr)
+> > +{
+> > +	return container_of(vmpr, struct mem_cgroup, vmpressure);
+> > +}
 > > +
-> > +			/*
-> > +			 * We're going to do reclaim so allow
-> > +			 * allocations up to the MIN watermark, so less
-> > +			 * concurrent allocation will fail.
-> > +			 */
-> > +			mark = min_wmark_pages(zone);
+> > +void vmpressure_pin_memcg(struct vmpressure *vmpr)
+> > +{
+> > +	struct mem_cgroup *memcg = vmpressure_to_mem_cgroup(vmpr);
 > > +
-> 
-> If we arrived here from the page allocator fast path then it also means
-> that we potentially miss going into the slow patch and waking kswapd. If
-> kswapd is not woken at the low watermark as normal then there will be
-> stalls due to direct reclaim and the stalls will be abrupt.
-
-What is going on here without my changes is something like this:
-
-1)   hit low wmark
-2)   zone_reclaim()
-3)   check if we're above low wmark
-4)   if yes alloc memory
-5)   if no try the next zone in the zonelist
-
-The current code is already fully synchronous in direct reclaim in the
-way it calls zone_reclaim and kswapd never gets invoked anyway.
-
-This isn't VM reclaim, we're not globally low on memory and we can't
-wake kswapd until we expired all memory from all zones or we risk to
-screw the lru rotation even further (by having kswapd and the thread
-allocating memory racing in a single zone, not even a single node
-which would at least be better).
-
-But the current code totally lack any kind oaf hysteresis. If
-zone_reclaim provides feedback and confirms it did progress, and
-another CPU steals the page before the current CPU has a chance to get
-it, we're going to fall in the wrong zone (point 5 above). Allowing to
-go deeper in to the "min" wmark won't change anything in kswapd wake
-cycle, and we'll still invoke zone_reclaim synchronously forever until
-the "low wmark" is restored so over time we should still linger above
-the low wmark over time. So we should still wake kswapd well before
-all zones are at the "min" (the moment all zones are below "low" we'll
-wake kswapd).
-
-So it shouldn't regress in terms of "stalls", zone_reclai is already
-fully synchronous. It should only reduce a lot the numa allocation
-false negatives. The need of hysteresis that the min wmark check
-fixes, is exactly related the generation of more than 1 hugepage
-between low-min wmarks in previous patches that altered the wmark
-calculation for high order allocations.
-
-BTW, I improved that calculation further in the meanwhile to avoid
-generating any hugepage below the min wmark (min becomes in the order
-> 0 checks, for any order > 0). You'll see it in next submit.
-
-Ideally in fact zone_reclaim should get a per-node zonelist, not just
-a zone, to be more fair in the lru rotations. All this code is pretty
-bad. Not trying to fix it all at once (sticking to passing a zone
-instead of a node to zone_reclaim even if it's wrong in lru terms). In
-order to pass a node to zone_reclaim I should completely drop the
-numa_zonelist_order=z mode (which happens to be the default on my
-hardware according to the flakey heuristic in default_zonelist_order()
-which should be also entirely dropped).
-
-Johannes roundrobin allocator that makes the lru rotations more fair
-in a multi-LRU VM, will completely invalidate any benefit provided by
-the (default on my NUMA hardware) numa_zonelist_order=z model. So
-that's one more reason to nuke that whole zonelist order =n badness.
-
-I introduced long time ago a lowmem reserve ratio, that is the thing
-that is supposed to avoid the OOM conditions with shortage of lowmem
-zones. We don't need to prioritize anymore on the zones that are
-aren't usable by all allocations. lowmem reserve provides a
-significant margin. And the roundrobin allocator will entirely depend
-on the lowmem reserve alone to be safe. In fact we should also add
-some lowmem reserve calculation to compaction free memory checks to be
-more accurate. (low priority)
-
-> > +			/* initialize to avoid warnings */
-> > +			c_ret = COMPACT_SKIPPED;
-> > +			ret = ZONE_RECLAIM_FULL;
+> > +	css_get(&memcg->css);
+> > +}
 > > +
-> > +			repeated_compaction = false;
-> > +			need_compaction = false;
-> > +			if (!compaction_deferred(preferred_zone, order))
-> > +				need_compaction = order &&
-> > +					(gfp_mask & GFP_KERNEL) == GFP_KERNEL;
+> > +void vmpressure_unpin_memcg(struct vmpressure *vmpr)
+> > +{
+> > +	struct mem_cgroup *memcg = vmpressure_to_mem_cgroup(vmpr);
+> > +
+> > +	css_put(&memcg->css);
+> > +}
 > 
-> need_compaction = order will always be true. Because of the bracketing,
-> the comparison is within the conditional block so the second comparison
-> is doing nothing. Not sure what is going on there at all.
+> So, while this *should* work, can't we just cancel/flush the work item
+> from offline? 
 
-if order is zero, need_compaction will be false. If order is not zero,
-need_compaction will be true only if it's a GFP_KERNEL
-allocation. Maybe I'm missing something, I don't see how
-need_compaction is true if order is 0 or if gfp_mask is GFP_ATOMIC.
+I would rather not put vmpressure clean up code into memcg offlining.
+We have reference counting for exactly this purposes so it feels strange
+to overcome it like that.
+Besides that wouldn't be that racy? The work item could be already
+executing and preempted and we do not want vmpr to disappear from under
+our feet. I know this is _highly_ unlikely but why to play games?
 
-> > +			if (need_compaction) {
-> > +			repeat_compaction:
-> > +				c_ret = compact_zone_order(zone, order,
-> > +							   gfp_mask,
-> > +							   repeated_compaction,
-> > +							   &contended);
-> > +				if (c_ret != COMPACT_SKIPPED &&
-> > +				    zone_watermark_ok(zone, order, mark,
-> > +						      classzone_idx,
-> > +						      alloc_flags)) {
-> > +#ifdef CONFIG_COMPACTION
-> > +					preferred_zone->compact_considered = 0;
-> > +					preferred_zone->compact_defer_shift = 0;
-> > +#endif
-> > +					goto try_this_zone;
-> > +				}
-> > +			}
-> 
-> It's a question of taste, but overall I think this could have been done in
-> zone_reclaim and rename it to zone_reclaim_compact to match the concept
-> of reclaim/compaction if you like. Split the compaction part out to have
-> __zone_reclaim and __zone_compact if you like and it'll be hell of a lot
-> easier to follow. Right now, it's a bit twisty and while I can follow it,
-> it's headache inducing.
+> There doesn't seem to be any possible deadlocks from my
+> shallow glance and those mutexes don't seem to be held for long (do
+> they actually need to be mutexes?  what blocks inside them?).
 
-I'll try to move it in a callee function and clean it up.
+Dunno, to be honest. From a quick look they both can be turned to spin
+locks but events_lock might cause long preempt disabled periods when
+zillions of events are registered.
 
-> 
-> With that arrangement it will be a lot easier to add a new zone_reclaim
-> flag if it turns out that zone reclaim compacts too aggressively leading
-> to excessive stalls. Right now, I think this loops in compaction until
-> it gets deferred because of how need_compaction gets set which could be
-> for a long time. I'm not sure that's what you intended.
+> Also, while at it, can you please remove the work_pending() check?
+> They're almost always spurious or racy and should be avoided in
+> general.
 
-I intended to shrink until we successfully shrink cache (zone_reclaim
-won't unmap if zone_reclaim_mode == 1 etc...), until compaction has
-enough free memory to do its work. It shouldn't require that much
-memory. After compaction has enough memory (not return COMPACT_SKIPPED
-anymore) then we stop calling zone_reclaim to shrink caches and we
-just try compaction once.
+sure, this really looks bogus. I will cook patches for both issues and
+send them tomorrow.
 
-This is the last patch I need to update before resending, I hope to
-clean it up for good.
-
-Thanks!
-Andrea
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
