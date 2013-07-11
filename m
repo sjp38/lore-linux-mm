@@ -1,32 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 654FD6B0088
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2013 16:16:20 -0400 (EDT)
-Date: Thu, 11 Jul 2013 20:16:19 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] mm/slub.c: remove 'per_cpu' which is useless variable
-In-Reply-To: <51DEF935.4040804@kernel.org>
-Message-ID: <0000013fcf608df8-457e2029-51f9-4e49-9992-bf399a97d953-000000@email.amazonses.com>
-References: <51DA734B.4060608@asianux.com> <51DE549F.9070505@kernel.org> <51DE55C9.1060908@asianux.com> <0000013fce9f5b32-7d62f3c5-bb35-4dd9-ab19-d72bae4b5bdc-000000@email.amazonses.com> <51DEF935.4040804@kernel.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 0D0E46B008C
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2013 17:50:36 -0400 (EDT)
+Date: Thu, 11 Jul 2013 14:50:34 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [-] drop_caches-add-some-documentation-and-info-messsge.patch
+ removed from -mm tree
+Message-Id: <20130711145034.3ec774d0a44742cf5d8e1177@linux-foundation.org>
+In-Reply-To: <20130711073644.GB21667@dhcp22.suse.cz>
+References: <51ddc31f.zotz9WDKK3lWXtDE%akpm@linux-foundation.org>
+	<20130711073644.GB21667@dhcp22.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Chen Gang <gang.chen@asianux.com>, mpm@selenic.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, dave@linux.vnet.ibm.com, linux-mm@kvack.org
 
-On Thu, 11 Jul 2013, Pekka Enberg wrote:
+On Thu, 11 Jul 2013 09:36:44 +0200 Michal Hocko <mhocko@suse.cz> wrote:
 
-> > Gosh we have some code duplication there. Patch mismerged?
->
-> What duplication are you referring to?
+> On Wed 10-07-13 13:25:03, Andrew Morton wrote:
+> [...]
+> > This patch was dropped because it has gone stale
+> 
+> Is there really a strong reason to not take this patch? 
 
-Sorry, no duplicate. The partial list is handled in the same way as the
-per cpu slab. Yep its ok to remove. Chen: Clean up your patches and then
-we can merge them.
+I flushed out a whole bunch of MM patches which had been floating
+around in indecisive limbo.
 
-
-
+I don't recall all the review issues surrounding this one.  If you
+think the patch is still good, please resend and ensure that the
+changelog adequately addresses all the issues which were raised, so we
+don't just take another trip around the loop.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
