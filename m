@@ -1,40 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id DDE396B0081
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2013 14:28:08 -0400 (EDT)
-Received: by mail-la0-f51.google.com with SMTP id fq12so7003958lab.38
-        for <linux-mm@kvack.org>; Thu, 11 Jul 2013 11:28:07 -0700 (PDT)
-Message-ID: <51DEF935.4040804@kernel.org>
-Date: Thu, 11 Jul 2013 21:28:05 +0300
-From: Pekka Enberg <penberg@kernel.org>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 2E82A6B0083
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2013 14:46:58 -0400 (EDT)
+Received: by mail-pb0-f53.google.com with SMTP id xb12so8184188pbc.26
+        for <linux-mm@kvack.org>; Thu, 11 Jul 2013 11:46:57 -0700 (PDT)
+Message-ID: <51DEFD9E.7010703@mit.edu>
+Date: Thu, 11 Jul 2013 11:46:54 -0700
+From: Andy Lutomirski <luto@amacapital.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/slub.c: remove 'per_cpu' which is useless variable
-References: <51DA734B.4060608@asianux.com> <51DE549F.9070505@kernel.org> <51DE55C9.1060908@asianux.com> <0000013fce9f5b32-7d62f3c5-bb35-4dd9-ab19-d72bae4b5bdc-000000@email.amazonses.com>
-In-Reply-To: <0000013fce9f5b32-7d62f3c5-bb35-4dd9-ab19-d72bae4b5bdc-000000@email.amazonses.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH 4/5] mm: soft-dirty bits for user memory changes tracking
+References: <517FED13.8090806@parallels.com> <517FED64.4020400@parallels.com>
+In-Reply-To: <517FED64.4020400@parallels.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Chen Gang <gang.chen@asianux.com>, mpm@selenic.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Pavel Emelyanov <xemul@parallels.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Matt Mackall <mpm@selenic.com>, Marcelo Tosatti <mtosatti@redhat.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
-On 7/11/13 7:45 PM, Christoph Lameter wrote:
-> On Thu, 11 Jul 2013, Chen Gang wrote:
->
->> On 07/11/2013 02:45 PM, Pekka Enberg wrote:
->>> Hi,
->>>
->>> On 07/08/2013 11:07 AM, Chen Gang wrote:
->>>> Remove 'per_cpu', since it is useless now after the patch: "205ab99
->>>> slub: Update statistics handling for variable order slabs".
->>>
->>> Whoa, that's a really old commit. Christoph?
->
-> Gosh we have some code duplication there. Patch mismerged?
+On 04/30/2013 09:12 AM, Pavel Emelyanov wrote:
+> The soft-dirty is a bit on a PTE which helps to track which pages a task
+> writes to. In order to do this tracking one should
+> 
+>   1. Clear soft-dirty bits from PTEs ("echo 4 > /proc/PID/clear_refs)
+>   2. Wait some time.
+>   3. Read soft-dirty bits (55'th in /proc/PID/pagemap entries)
+> 
+> To do this tracking, the writable bit is cleared from PTEs when the
+> soft-dirty bit is. Thus, after this, when the task tries to modify a page
+> at some virtual address the #PF occurs and the kernel sets the soft-dirty
+> bit on the respective PTE.
+> 
+> Note, that although all the task's address space is marked as r/o after the
+> soft-dirty bits clear, the #PF-s that occur after that are processed fast.
+> This is so, since the pages are still mapped to physical memory, and thus
+> all the kernel does is finds this fact out and puts back writable, dirty
+> and soft-dirty bits on the PTE.
+> 
+> Another thing to note, is that when mremap moves PTEs they are marked with
+> soft-dirty as well, since from the user perspective mremap modifies the
+> virtual memory at mremap's new address.
+> 
+> 
 
-What duplication are you referring to?
+Sorry I'm late to the party -- I didn't notice this until the lwn
+article this week.
 
-			Pekka
+How does this get munmap + mmap right?  mremap marks things soft-dirty,
+but unmapping and remapping seems like it will result in the soft-dirty
+bit being cleared.  For that matter, won't this sequence also end up wrong:
+
+ - clear_refs
+ - Write to mapping
+ - Page and pte evicted due to memory pressure
+ - Read from mapping -- clean page faulted back in
+ - pte soft-dirty is now clear ?!?
+
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
