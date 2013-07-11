@@ -1,150 +1,191 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 79E9F6B0034
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2013 09:25:00 -0400 (EDT)
-Date: Thu, 11 Jul 2013 14:24:56 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 16/16] sched: Select least loaded CPU on preferred NUMA
- node
-Message-ID: <20130711132455.GD2355@suse.de>
-References: <1373536020-2799-1-git-send-email-mgorman@suse.de>
- <1373536020-2799-17-git-send-email-mgorman@suse.de>
- <20130711123902.GI25631@dyad.programming.kicks-ass.net>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 5705D6B0032
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2013 09:40:04 -0400 (EDT)
+Date: Thu, 11 Jul 2013 15:39:58 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH V4 1/6] memcg: remove MEMCG_NR_FILE_MAPPED
+Message-ID: <20130711133958.GH21667@dhcp22.suse.cz>
+References: <1373044710-27371-1-git-send-email-handai.szj@taobao.com>
+ <1373044902-27445-1-git-send-email-handai.szj@taobao.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130711123902.GI25631@dyad.programming.kicks-ass.net>
+In-Reply-To: <1373044902-27445-1-git-send-email-handai.szj@taobao.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, gthelen@google.com, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, fengguang.wu@intel.com, mgorman@suse.de, Sha Zhengju <handai.szj@taobao.com>
 
-On Thu, Jul 11, 2013 at 02:39:02PM +0200, Peter Zijlstra wrote:
-> On Thu, Jul 11, 2013 at 10:47:00AM +0100, Mel Gorman wrote:
-> > +++ b/kernel/sched/fair.c
-> > @@ -841,29 +841,81 @@ static unsigned int task_scan_max(struct task_struct *p)
-> >   */
-> >  unsigned int sysctl_numa_balancing_settle_count __read_mostly = 3;
-> >  
-> > +static unsigned long source_load(int cpu, int type);
-> > +static unsigned long target_load(int cpu, int type);
-> > +static unsigned long power_of(int cpu);
-> > +static long effective_load(struct task_group *tg, int cpu, long wl, long wg);
-> > +
-> > +static int task_numa_find_cpu(struct task_struct *p, int nid)
-> > +{
-> > +	int node_cpu = cpumask_first(cpumask_of_node(nid));
-> > +	int cpu, src_cpu = task_cpu(p), dst_cpu = src_cpu;
-> > +	unsigned long src_load, dst_load;
-> > +	unsigned long min_load = ULONG_MAX;
-> > +	struct task_group *tg = task_group(p);
-> > +	s64 src_eff_load, dst_eff_load;
-> > +	struct sched_domain *sd;
-> > +	unsigned long weight;
-> > +	int imbalance_pct, idx = -1;
-> >  
-> > +	/* No harm being optimistic */
-> > +	if (idle_cpu(node_cpu))
-> > +		return node_cpu;
-> >  
-> > +	/*
-> > +	 * Find the lowest common scheduling domain covering the nodes of both
-> > +	 * the CPU the task is currently running on and the target NUMA node.
-> > +	 */
-> >  	rcu_read_lock();
-> > +	for_each_domain(src_cpu, sd) {
-> > +		if (cpumask_test_cpu(node_cpu, sched_domain_span(sd))) {
-> > +			/*
-> > +			 * busy_idx is used for the load decision as it is the
-> > +			 * same index used by the regular load balancer for an
-> > +			 * active cpu.
-> > +			 */
-> > +			idx = sd->busy_idx;
-> > +			imbalance_pct = sd->imbalance_pct;
-> > +			break;
-> >  		}
-> >  	}
-> >  	rcu_read_unlock();
-> >  
-> > +	if (WARN_ON_ONCE(idx == -1))
-> > +		return src_cpu;
-> > +
-> > +	/*
-> > +	 * XXX the below is mostly nicked from wake_affine(); we should
-> > +	 * see about sharing a bit if at all possible; also it might want
-> > +	 * some per entity weight love.
-> > +	 */
-> > +	weight = p->se.load.weight;
-> > + 
-> > +	src_load = source_load(src_cpu, idx);
-> > +
-> > +	src_eff_load = 100 + (imbalance_pct - 100) / 2;
-> > +	src_eff_load *= power_of(src_cpu);
-> > +	src_eff_load *= src_load + effective_load(tg, src_cpu, -weight, -weight);
-> > +
-> > +	for_each_cpu(cpu, cpumask_of_node(nid)) {
-> > +		dst_load = target_load(cpu, idx);
-> > +
-> > +		/* If the CPU is idle, use it */
-> > +		if (!dst_load)
-> > +			return dst_cpu;
-> > +
-> > +		/* Otherwise check the target CPU load */
-> > +		dst_eff_load = 100;
-> > +		dst_eff_load *= power_of(cpu);
-> > +		dst_eff_load *= dst_load + effective_load(tg, cpu, weight, weight);
+I think this one can go in now also without the rest of the series.
+It is a good clean up
+
+On Sat 06-07-13 01:21:42, Sha Zhengju wrote:
+> From: Sha Zhengju <handai.szj@taobao.com>
 > 
-> So the missing part is:
+> While accounting memcg page stat, it's not worth to use MEMCG_NR_FILE_MAPPED
+> as an extra layer of indirection because of the complexity and presumed
+> performance overhead. We can use MEM_CGROUP_STAT_FILE_MAPPED directly.
 > 
-> 		/*
-> 		 * Do not allow the destination CPU to be loaded significantly
-> 		 * more than the CPU we came from.
-> 		 */
-> 		if (dst_eff_load <= src_eff_load)
-> 			continue;
+> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Acked-by: Michal Hocko <mhocko@suse.cz>
+> Acked-by: Fengguang Wu <fengguang.wu@intel.com>
+> Reviewed-by: Greg Thelen <gthelen@google.com>
+> cc: Andrew Morton <akpm@linux-foundation.org>
+> cc: Mel Gorman <mgorman@suse.de>
+> ---
+>  include/linux/memcontrol.h |   27 +++++++++++++++++++--------
+>  mm/memcontrol.c            |   25 +------------------------
+>  mm/rmap.c                  |    4 ++--
+>  3 files changed, 22 insertions(+), 34 deletions(-)
 > 
-
-Yes, the results with the patch included. I decided to punt it for now as I
-expected that fixing false shared detection would mitigate the problem and
-the requirement of the patch would be reduced. That said, the comparison
-also had another patch in the middle that was dropped before release so
-I'll retest in isolation.
-
-> > +
-> > +		if (dst_load < min_load) {
-> > +			min_load = dst_load;
-> > +			dst_cpu = cpu;
-> > +		}
-> > + 	}
-> > +
-> > +	return dst_cpu;
-> >  }
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 7b4d9d7..d166aeb 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -30,9 +30,20 @@ struct page;
+>  struct mm_struct;
+>  struct kmem_cache;
+>  
+> -/* Stats that can be updated by kernel. */
+> -enum mem_cgroup_page_stat_item {
+> -	MEMCG_NR_FILE_MAPPED, /* # of pages charged as file rss */
+> +/*
+> + * The corresponding mem_cgroup_stat_names is defined in mm/memcontrol.c,
+> + * These two lists should keep in accord with each other.
+> + */
+> +enum mem_cgroup_stat_index {
+> +	/*
+> +	 * For MEM_CONTAINER_TYPE_ALL, usage = pagecache + rss.
+> +	 */
+> +	MEM_CGROUP_STAT_CACHE,		/* # of pages charged as cache */
+> +	MEM_CGROUP_STAT_RSS,		/* # of pages charged as anon rss */
+> +	MEM_CGROUP_STAT_RSS_HUGE,	/* # of pages charged as anon huge */
+> +	MEM_CGROUP_STAT_FILE_MAPPED,	/* # of pages charged as file rss */
+> +	MEM_CGROUP_STAT_SWAP,		/* # of pages, swapped out */
+> +	MEM_CGROUP_STAT_NSTATS,
+>  };
+>  
+>  struct mem_cgroup_reclaim_cookie {
+> @@ -165,17 +176,17 @@ static inline void mem_cgroup_end_update_page_stat(struct page *page,
+>  }
+>  
+>  void mem_cgroup_update_page_stat(struct page *page,
+> -				 enum mem_cgroup_page_stat_item idx,
+> +				 enum mem_cgroup_stat_index idx,
+>  				 int val);
+>  
+>  static inline void mem_cgroup_inc_page_stat(struct page *page,
+> -					    enum mem_cgroup_page_stat_item idx)
+> +					    enum mem_cgroup_stat_index idx)
+>  {
+>  	mem_cgroup_update_page_stat(page, idx, 1);
+>  }
+>  
+>  static inline void mem_cgroup_dec_page_stat(struct page *page,
+> -					    enum mem_cgroup_page_stat_item idx)
+> +					    enum mem_cgroup_stat_index idx)
+>  {
+>  	mem_cgroup_update_page_stat(page, idx, -1);
+>  }
+> @@ -349,12 +360,12 @@ static inline void mem_cgroup_end_update_page_stat(struct page *page,
+>  }
+>  
+>  static inline void mem_cgroup_inc_page_stat(struct page *page,
+> -					    enum mem_cgroup_page_stat_item idx)
+> +					    enum mem_cgroup_stat_index idx)
+>  {
+>  }
+>  
+>  static inline void mem_cgroup_dec_page_stat(struct page *page,
+> -					    enum mem_cgroup_page_stat_item idx)
+> +					    enum mem_cgroup_stat_index idx)
+>  {
+>  }
+>  
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 6e120e4..f9acf49 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -85,21 +85,6 @@ static int really_do_swap_account __initdata = 0;
+>  #endif
+>  
+>  
+> -/*
+> - * Statistics for memory cgroup.
+> - */
+> -enum mem_cgroup_stat_index {
+> -	/*
+> -	 * For MEM_CONTAINER_TYPE_ALL, usage = pagecache + rss.
+> -	 */
+> -	MEM_CGROUP_STAT_CACHE,		/* # of pages charged as cache */
+> -	MEM_CGROUP_STAT_RSS,		/* # of pages charged as anon rss */
+> -	MEM_CGROUP_STAT_RSS_HUGE,	/* # of pages charged as anon huge */
+> -	MEM_CGROUP_STAT_FILE_MAPPED,	/* # of pages charged as file rss */
+> -	MEM_CGROUP_STAT_SWAP,		/* # of pages, swapped out */
+> -	MEM_CGROUP_STAT_NSTATS,
+> -};
+> -
+>  static const char * const mem_cgroup_stat_names[] = {
+>  	"cache",
+>  	"rss",
+> @@ -2307,7 +2292,7 @@ void __mem_cgroup_end_update_page_stat(struct page *page, unsigned long *flags)
+>  }
+>  
+>  void mem_cgroup_update_page_stat(struct page *page,
+> -				 enum mem_cgroup_page_stat_item idx, int val)
+> +				 enum mem_cgroup_stat_index idx, int val)
+>  {
+>  	struct mem_cgroup *memcg;
+>  	struct page_cgroup *pc = lookup_page_cgroup(page);
+> @@ -2320,14 +2305,6 @@ void mem_cgroup_update_page_stat(struct page *page,
+>  	if (unlikely(!memcg || !PageCgroupUsed(pc)))
+>  		return;
+>  
+> -	switch (idx) {
+> -	case MEMCG_NR_FILE_MAPPED:
+> -		idx = MEM_CGROUP_STAT_FILE_MAPPED;
+> -		break;
+> -	default:
+> -		BUG();
+> -	}
+> -
+>  	this_cpu_add(memcg->stat->count[idx], val);
+>  }
+>  
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index cd356df..3a3e03e 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -1114,7 +1114,7 @@ void page_add_file_rmap(struct page *page)
+>  	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
+>  	if (atomic_inc_and_test(&page->_mapcount)) {
+>  		__inc_zone_page_state(page, NR_FILE_MAPPED);
+> -		mem_cgroup_inc_page_stat(page, MEMCG_NR_FILE_MAPPED);
+> +		mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
+>  	}
+>  	mem_cgroup_end_update_page_stat(page, &locked, &flags);
+>  }
+> @@ -1158,7 +1158,7 @@ void page_remove_rmap(struct page *page)
+>  					      NR_ANON_TRANSPARENT_HUGEPAGES);
+>  	} else {
+>  		__dec_zone_page_state(page, NR_FILE_MAPPED);
+> -		mem_cgroup_dec_page_stat(page, MEMCG_NR_FILE_MAPPED);
+> +		mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
+>  		mem_cgroup_end_update_page_stat(page, &locked, &flags);
+>  	}
+>  	if (unlikely(PageMlocked(page)))
+> -- 
+> 1.7.9.5
 > 
-> This is almost a big fat NOP. It did a scan for the least loaded cpu and now it
-> still does.
-
-This version makes more sense and does not fall apart just because the
-number of NUMA tasks running happened to be more than the available CPUs.
-
-> It also doesn't cure the problem Srikar saw where we kept migrating
-> all tasks back to the one node with all the memory.
-> 
-
-No, it doesn't. That problem is still there.
-
-> Task migration must be subject to fairness limits; otherwise there's nothing
-> avoiding heaping all tasks on a single pile.
-> 
-> One thing we could do to maybe relax things a little bit is take away the
-> effective_load() term in the src_eff_load() computation. That way we compare
-> the current src load to the future dst load, instead of using the future load
-> for both.
-> 
-
-I'll try that and get back to you.
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
