@@ -1,43 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 66D0B6B0034
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2013 02:51:47 -0400 (EDT)
-Message-ID: <51DE55C9.1060908@asianux.com>
-Date: Thu, 11 Jul 2013 14:50:49 +0800
-From: Chen Gang <gang.chen@asianux.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm/slub.c: remove 'per_cpu' which is useless variable
-References: <51DA734B.4060608@asianux.com> <51DE549F.9070505@kernel.org>
-In-Reply-To: <51DE549F.9070505@kernel.org>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id DAE3F6B0032
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2013 03:00:53 -0400 (EDT)
+Received: by mail-ea0-f172.google.com with SMTP id q10so5491525eaj.31
+        for <linux-mm@kvack.org>; Thu, 11 Jul 2013 00:00:52 -0700 (PDT)
+From: Vladimir Cernov <gg.kaspersky@gmail.com>
+Subject: [PATCH] madvise: fix checkpatch errors
+Date: Thu, 11 Jul 2013 10:00:37 +0300
+Message-Id: <1373526037-9134-1-git-send-email-gg.kaspersky@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: cl@linux-foundation.org, mpm@selenic.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: akpm@linux-foundation.org
+Cc: sasha.levin@oracle.com, linux@rasmusvillemoes.dk, shli@fusionio.com, khlebnikov@openvz.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vladimir Cernov <gg.kaspersky@gmail.com>
 
-On 07/11/2013 02:45 PM, Pekka Enberg wrote:
-> Hi,
-> 
-> On 07/08/2013 11:07 AM, Chen Gang wrote:
->> Remove 'per_cpu', since it is useless now after the patch: "205ab99
->> slub: Update statistics handling for variable order slabs".
-> 
-> Whoa, that's a really old commit. Christoph?
-> 
+This fixes following errors:
+	- ERROR: "(foo*)" should be "(foo *)"
+	- ERROR: "foo ** bar" should be "foo **bar"
 
-Hmm..., waiting discussing result...  :-)
+Signed-off-by: Vladimir Cernov <gg.kaspersky@gmail.com>
+---
+ mm/madvise.c |   14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
 
->> Also beautify code with tab alignment.
-> 
-> That needs to be a separate patch.
-
-OK, I should send it after get result from above discussion.
-
-
-Thanks.
+diff --git a/mm/madvise.c b/mm/madvise.c
+index 7055883..936799f 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -42,11 +42,11 @@ static int madvise_need_mmap_write(int behavior)
+  * We can potentially split a vm area into separate
+  * areas, each area with its own behavior.
+  */
+-static long madvise_behavior(struct vm_area_struct * vma,
++static long madvise_behavior(struct vm_area_struct *vma,
+ 		     struct vm_area_struct **prev,
+ 		     unsigned long start, unsigned long end, int behavior)
+ {
+-	struct mm_struct * mm = vma->vm_mm;
++	struct mm_struct *mm = vma->vm_mm;
+ 	int error = 0;
+ 	pgoff_t pgoff;
+ 	unsigned long new_flags = vma->vm_flags;
+@@ -215,8 +215,8 @@ static void force_shm_swapin_readahead(struct vm_area_struct *vma,
+ /*
+  * Schedule all required I/O operations.  Do not wait for completion.
+  */
+-static long madvise_willneed(struct vm_area_struct * vma,
+-			     struct vm_area_struct ** prev,
++static long madvise_willneed(struct vm_area_struct *vma,
++			     struct vm_area_struct **prev,
+ 			     unsigned long start, unsigned long end)
+ {
+ 	struct file *file = vma->vm_file;
+@@ -270,8 +270,8 @@ static long madvise_willneed(struct vm_area_struct * vma,
+  * An interface that causes the system to free clean pages and flush
+  * dirty pages is already available as msync(MS_INVALIDATE).
+  */
+-static long madvise_dontneed(struct vm_area_struct * vma,
+-			     struct vm_area_struct ** prev,
++static long madvise_dontneed(struct vm_area_struct *vma,
++			     struct vm_area_struct **prev,
+ 			     unsigned long start, unsigned long end)
+ {
+ 	*prev = vma;
+@@ -459,7 +459,7 @@ madvise_behavior_valid(int behavior)
+ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
+ {
+ 	unsigned long end, tmp;
+-	struct vm_area_struct * vma, *prev;
++	struct vm_area_struct *vma, *prev;
+ 	int unmapped_error = 0;
+ 	int error = -EINVAL;
+ 	int write;
 -- 
-Chen Gang
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
