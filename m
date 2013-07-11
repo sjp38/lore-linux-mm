@@ -1,204 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 8C62E6B0062
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2013 11:53:23 -0400 (EDT)
-Received: by mail-bk0-f53.google.com with SMTP id e11so3350285bkh.26
-        for <linux-mm@kvack.org>; Thu, 11 Jul 2013 08:53:21 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id C26DF6B006C
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2013 12:02:28 -0400 (EDT)
+Date: Thu, 11 Jul 2013 18:02:16 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 7/7] mm: compaction: add compaction to zone_reclaim_mode
+Message-ID: <20130711160216.GA30320@redhat.com>
+References: <1370445037-24144-1-git-send-email-aarcange@redhat.com>
+ <1370445037-24144-8-git-send-email-aarcange@redhat.com>
+ <20130606100503.GH1936@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <20130711133958.GH21667@dhcp22.suse.cz>
-References: <1373044710-27371-1-git-send-email-handai.szj@taobao.com>
-	<1373044902-27445-1-git-send-email-handai.szj@taobao.com>
-	<20130711133958.GH21667@dhcp22.suse.cz>
-Date: Thu, 11 Jul 2013 23:53:21 +0800
-Message-ID: <CAFj3OHUE4pB2-jVAb+x2wxsO_RJ8VRUO9Xi13ZOKyPFCNa6-aQ@mail.gmail.com>
-Subject: Re: [PATCH V4 1/6] memcg: remove MEMCG_NR_FILE_MAPPED
-From: Sha Zhengju <handai.szj@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130606100503.GH1936@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, Greg Thelen <gthelen@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Mel Gorman <mgorman@suse.de>, Sha Zhengju <handai.szj@taobao.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>
 
-On Thu, Jul 11, 2013 at 9:39 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> I think this one can go in now also without the rest of the series.
-> It is a good clean up
+On Thu, Jun 06, 2013 at 11:05:03AM +0100, Mel Gorman wrote:
+> Again be mindful that improved reliability of zone_reclaim_mode can come
+> at the cost of stalling and process interference for workloads where the
+> processes are not NUMA aware or fit in individual nodes.
 
-I'd be happy if you will. : )
+This won't risk to affect any system where NUMA locality is a
+secondary priority, unless zone_reclaim_mode is set to 1 manually, so
+it shall be ok.
 
->
-> On Sat 06-07-13 01:21:42, Sha Zhengju wrote:
->> From: Sha Zhengju <handai.szj@taobao.com>
->>
->> While accounting memcg page stat, it's not worth to use MEMCG_NR_FILE_MAPPED
->> as an extra layer of indirection because of the complexity and presumed
->> performance overhead. We can use MEM_CGROUP_STAT_FILE_MAPPED directly.
->>
->> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
->> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->> Acked-by: Michal Hocko <mhocko@suse.cz>
->> Acked-by: Fengguang Wu <fengguang.wu@intel.com>
->> Reviewed-by: Greg Thelen <gthelen@google.com>
->> cc: Andrew Morton <akpm@linux-foundation.org>
->> cc: Mel Gorman <mgorman@suse.de>
->> ---
->>  include/linux/memcontrol.h |   27 +++++++++++++++++++--------
->>  mm/memcontrol.c            |   25 +------------------------
->>  mm/rmap.c                  |    4 ++--
->>  3 files changed, 22 insertions(+), 34 deletions(-)
->>
->> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
->> index 7b4d9d7..d166aeb 100644
->> --- a/include/linux/memcontrol.h
->> +++ b/include/linux/memcontrol.h
->> @@ -30,9 +30,20 @@ struct page;
->>  struct mm_struct;
->>  struct kmem_cache;
->>
->> -/* Stats that can be updated by kernel. */
->> -enum mem_cgroup_page_stat_item {
->> -     MEMCG_NR_FILE_MAPPED, /* # of pages charged as file rss */
->> +/*
->> + * The corresponding mem_cgroup_stat_names is defined in mm/memcontrol.c,
->> + * These two lists should keep in accord with each other.
->> + */
->> +enum mem_cgroup_stat_index {
->> +     /*
->> +      * For MEM_CONTAINER_TYPE_ALL, usage = pagecache + rss.
->> +      */
->> +     MEM_CGROUP_STAT_CACHE,          /* # of pages charged as cache */
->> +     MEM_CGROUP_STAT_RSS,            /* # of pages charged as anon rss */
->> +     MEM_CGROUP_STAT_RSS_HUGE,       /* # of pages charged as anon huge */
->> +     MEM_CGROUP_STAT_FILE_MAPPED,    /* # of pages charged as file rss */
->> +     MEM_CGROUP_STAT_SWAP,           /* # of pages, swapped out */
->> +     MEM_CGROUP_STAT_NSTATS,
->>  };
->>
->>  struct mem_cgroup_reclaim_cookie {
->> @@ -165,17 +176,17 @@ static inline void mem_cgroup_end_update_page_stat(struct page *page,
->>  }
->>
->>  void mem_cgroup_update_page_stat(struct page *page,
->> -                              enum mem_cgroup_page_stat_item idx,
->> +                              enum mem_cgroup_stat_index idx,
->>                                int val);
->>
->>  static inline void mem_cgroup_inc_page_stat(struct page *page,
->> -                                         enum mem_cgroup_page_stat_item idx)
->> +                                         enum mem_cgroup_stat_index idx)
->>  {
->>       mem_cgroup_update_page_stat(page, idx, 1);
->>  }
->>
->>  static inline void mem_cgroup_dec_page_stat(struct page *page,
->> -                                         enum mem_cgroup_page_stat_item idx)
->> +                                         enum mem_cgroup_stat_index idx)
->>  {
->>       mem_cgroup_update_page_stat(page, idx, -1);
->>  }
->> @@ -349,12 +360,12 @@ static inline void mem_cgroup_end_update_page_stat(struct page *page,
->>  }
->>
->>  static inline void mem_cgroup_inc_page_stat(struct page *page,
->> -                                         enum mem_cgroup_page_stat_item idx)
->> +                                         enum mem_cgroup_stat_index idx)
->>  {
->>  }
->>
->>  static inline void mem_cgroup_dec_page_stat(struct page *page,
->> -                                         enum mem_cgroup_page_stat_item idx)
->> +                                         enum mem_cgroup_stat_index idx)
->>  {
->>  }
->>
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 6e120e4..f9acf49 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -85,21 +85,6 @@ static int really_do_swap_account __initdata = 0;
->>  #endif
->>
->>
->> -/*
->> - * Statistics for memory cgroup.
->> - */
->> -enum mem_cgroup_stat_index {
->> -     /*
->> -      * For MEM_CONTAINER_TYPE_ALL, usage = pagecache + rss.
->> -      */
->> -     MEM_CGROUP_STAT_CACHE,          /* # of pages charged as cache */
->> -     MEM_CGROUP_STAT_RSS,            /* # of pages charged as anon rss */
->> -     MEM_CGROUP_STAT_RSS_HUGE,       /* # of pages charged as anon huge */
->> -     MEM_CGROUP_STAT_FILE_MAPPED,    /* # of pages charged as file rss */
->> -     MEM_CGROUP_STAT_SWAP,           /* # of pages, swapped out */
->> -     MEM_CGROUP_STAT_NSTATS,
->> -};
->> -
->>  static const char * const mem_cgroup_stat_names[] = {
->>       "cache",
->>       "rss",
->> @@ -2307,7 +2292,7 @@ void __mem_cgroup_end_update_page_stat(struct page *page, unsigned long *flags)
->>  }
->>
->>  void mem_cgroup_update_page_stat(struct page *page,
->> -                              enum mem_cgroup_page_stat_item idx, int val)
->> +                              enum mem_cgroup_stat_index idx, int val)
->>  {
->>       struct mem_cgroup *memcg;
->>       struct page_cgroup *pc = lookup_page_cgroup(page);
->> @@ -2320,14 +2305,6 @@ void mem_cgroup_update_page_stat(struct page *page,
->>       if (unlikely(!memcg || !PageCgroupUsed(pc)))
->>               return;
->>
->> -     switch (idx) {
->> -     case MEMCG_NR_FILE_MAPPED:
->> -             idx = MEM_CGROUP_STAT_FILE_MAPPED;
->> -             break;
->> -     default:
->> -             BUG();
->> -     }
->> -
->>       this_cpu_add(memcg->stat->count[idx], val);
->>  }
->>
->> diff --git a/mm/rmap.c b/mm/rmap.c
->> index cd356df..3a3e03e 100644
->> --- a/mm/rmap.c
->> +++ b/mm/rmap.c
->> @@ -1114,7 +1114,7 @@ void page_add_file_rmap(struct page *page)
->>       mem_cgroup_begin_update_page_stat(page, &locked, &flags);
->>       if (atomic_inc_and_test(&page->_mapcount)) {
->>               __inc_zone_page_state(page, NR_FILE_MAPPED);
->> -             mem_cgroup_inc_page_stat(page, MEMCG_NR_FILE_MAPPED);
->> +             mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
->>       }
->>       mem_cgroup_end_update_page_stat(page, &locked, &flags);
->>  }
->> @@ -1158,7 +1158,7 @@ void page_remove_rmap(struct page *page)
->>                                             NR_ANON_TRANSPARENT_HUGEPAGES);
->>       } else {
->>               __dec_zone_page_state(page, NR_FILE_MAPPED);
->> -             mem_cgroup_dec_page_stat(page, MEMCG_NR_FILE_MAPPED);
->> +             mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
->>               mem_cgroup_end_update_page_stat(page, &locked, &flags);
->>       }
->>       if (unlikely(PageMlocked(page)))
->> --
->> 1.7.9.5
->>
->> --
->> To unsubscribe from this list: send the line "unsubscribe cgroups" in
->> the body of a message to majordomo@vger.kernel.org
->> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->
-> --
-> Michal Hocko
-> SUSE Labs
+> Instead of moving the logic from zone_reclaim to here, why was the
+> compaction logic not moved to zone_reclaim or a separate function? This
+> patch adds a lot of logic to get_page_from_freelist() which is unused
+> for most users
 
+I can try to move all checks that aren't passing information
+across different passes from the caller to the callee.
 
+> > -			default:
+> > -				/* did we reclaim enough */
+> > +
+> > +			/*
+> > +			 * We're going to do reclaim so allow
+> > +			 * allocations up to the MIN watermark, so less
+> > +			 * concurrent allocation will fail.
+> > +			 */
+> > +			mark = min_wmark_pages(zone);
+> > +
+> 
+> If we arrived here from the page allocator fast path then it also means
+> that we potentially miss going into the slow patch and waking kswapd. If
+> kswapd is not woken at the low watermark as normal then there will be
+> stalls due to direct reclaim and the stalls will be abrupt.
 
---
-Thanks,
-Sha
+What is going on here without my changes is something like this:
+
+1)   hit low wmark
+2)   zone_reclaim()
+3)   check if we're above low wmark
+4)   if yes alloc memory
+5)   if no try the next zone in the zonelist
+
+The current code is already fully synchronous in direct reclaim in the
+way it calls zone_reclaim and kswapd never gets invoked anyway.
+
+This isn't VM reclaim, we're not globally low on memory and we can't
+wake kswapd until we expired all memory from all zones or we risk to
+screw the lru rotation even further (by having kswapd and the thread
+allocating memory racing in a single zone, not even a single node
+which would at least be better).
+
+But the current code totally lack any kind oaf hysteresis. If
+zone_reclaim provides feedback and confirms it did progress, and
+another CPU steals the page before the current CPU has a chance to get
+it, we're going to fall in the wrong zone (point 5 above). Allowing to
+go deeper in to the "min" wmark won't change anything in kswapd wake
+cycle, and we'll still invoke zone_reclaim synchronously forever until
+the "low wmark" is restored so over time we should still linger above
+the low wmark over time. So we should still wake kswapd well before
+all zones are at the "min" (the moment all zones are below "low" we'll
+wake kswapd).
+
+So it shouldn't regress in terms of "stalls", zone_reclai is already
+fully synchronous. It should only reduce a lot the numa allocation
+false negatives. The need of hysteresis that the min wmark check
+fixes, is exactly related the generation of more than 1 hugepage
+between low-min wmarks in previous patches that altered the wmark
+calculation for high order allocations.
+
+BTW, I improved that calculation further in the meanwhile to avoid
+generating any hugepage below the min wmark (min becomes in the order
+> 0 checks, for any order > 0). You'll see it in next submit.
+
+Ideally in fact zone_reclaim should get a per-node zonelist, not just
+a zone, to be more fair in the lru rotations. All this code is pretty
+bad. Not trying to fix it all at once (sticking to passing a zone
+instead of a node to zone_reclaim even if it's wrong in lru terms). In
+order to pass a node to zone_reclaim I should completely drop the
+numa_zonelist_order=z mode (which happens to be the default on my
+hardware according to the flakey heuristic in default_zonelist_order()
+which should be also entirely dropped).
+
+Johannes roundrobin allocator that makes the lru rotations more fair
+in a multi-LRU VM, will completely invalidate any benefit provided by
+the (default on my NUMA hardware) numa_zonelist_order=z model. So
+that's one more reason to nuke that whole zonelist order =n badness.
+
+I introduced long time ago a lowmem reserve ratio, that is the thing
+that is supposed to avoid the OOM conditions with shortage of lowmem
+zones. We don't need to prioritize anymore on the zones that are
+aren't usable by all allocations. lowmem reserve provides a
+significant margin. And the roundrobin allocator will entirely depend
+on the lowmem reserve alone to be safe. In fact we should also add
+some lowmem reserve calculation to compaction free memory checks to be
+more accurate. (low priority)
+
+> > +			/* initialize to avoid warnings */
+> > +			c_ret = COMPACT_SKIPPED;
+> > +			ret = ZONE_RECLAIM_FULL;
+> > +
+> > +			repeated_compaction = false;
+> > +			need_compaction = false;
+> > +			if (!compaction_deferred(preferred_zone, order))
+> > +				need_compaction = order &&
+> > +					(gfp_mask & GFP_KERNEL) == GFP_KERNEL;
+> 
+> need_compaction = order will always be true. Because of the bracketing,
+> the comparison is within the conditional block so the second comparison
+> is doing nothing. Not sure what is going on there at all.
+
+if order is zero, need_compaction will be false. If order is not zero,
+need_compaction will be true only if it's a GFP_KERNEL
+allocation. Maybe I'm missing something, I don't see how
+need_compaction is true if order is 0 or if gfp_mask is GFP_ATOMIC.
+
+> > +			if (need_compaction) {
+> > +			repeat_compaction:
+> > +				c_ret = compact_zone_order(zone, order,
+> > +							   gfp_mask,
+> > +							   repeated_compaction,
+> > +							   &contended);
+> > +				if (c_ret != COMPACT_SKIPPED &&
+> > +				    zone_watermark_ok(zone, order, mark,
+> > +						      classzone_idx,
+> > +						      alloc_flags)) {
+> > +#ifdef CONFIG_COMPACTION
+> > +					preferred_zone->compact_considered = 0;
+> > +					preferred_zone->compact_defer_shift = 0;
+> > +#endif
+> > +					goto try_this_zone;
+> > +				}
+> > +			}
+> 
+> It's a question of taste, but overall I think this could have been done in
+> zone_reclaim and rename it to zone_reclaim_compact to match the concept
+> of reclaim/compaction if you like. Split the compaction part out to have
+> __zone_reclaim and __zone_compact if you like and it'll be hell of a lot
+> easier to follow. Right now, it's a bit twisty and while I can follow it,
+> it's headache inducing.
+
+I'll try to move it in a callee function and clean it up.
+
+> 
+> With that arrangement it will be a lot easier to add a new zone_reclaim
+> flag if it turns out that zone reclaim compacts too aggressively leading
+> to excessive stalls. Right now, I think this loops in compaction until
+> it gets deferred because of how need_compaction gets set which could be
+> for a long time. I'm not sure that's what you intended.
+
+I intended to shrink until we successfully shrink cache (zone_reclaim
+won't unmap if zone_reclaim_mode == 1 etc...), until compaction has
+enough free memory to do its work. It shouldn't require that much
+memory. After compaction has enough memory (not return COMPACT_SKIPPED
+anymore) then we stop calling zone_reclaim to shrink caches and we
+just try compaction once.
+
+This is the last patch I need to update before resending, I hope to
+clean it up for good.
+
+Thanks!
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
