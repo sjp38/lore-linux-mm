@@ -1,65 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 0ABE36B003D
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2013 11:44:13 -0400 (EDT)
-Received: by mail-qe0-f52.google.com with SMTP id i11so4523972qej.39
-        for <linux-mm@kvack.org>; Thu, 11 Jul 2013 08:44:13 -0700 (PDT)
-Date: Thu, 11 Jul 2013 08:44:08 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v2] vmpressure: make sure memcg stays alive until all
- users are signaled
-Message-ID: <20130711154408.GA9229@mtj.dyndns.org>
-References: <20130710184254.GA16979@mtj.dyndns.org>
- <20130711083110.GC21667@dhcp22.suse.cz>
- <51DE701C.6010800@huawei.com>
- <20130711092542.GD21667@dhcp22.suse.cz>
- <51DE7AAF.6070004@huawei.com>
- <20130711093300.GE21667@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id A94156B004D
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2013 11:45:29 -0400 (EDT)
+Message-ID: <51DED313.6050900@intel.com>
+Date: Thu, 11 Jul 2013 08:45:23 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130711093300.GE21667@dhcp22.suse.cz>
+Subject: Re: [-] drop_caches-add-some-documentation-and-info-messsge.patch
+ removed from -mm tree
+References: <51ddc31f.zotz9WDKK3lWXtDE%akpm@linux-foundation.org> <20130711073644.GB21667@dhcp22.suse.cz> <20130711123903.GF21667@dhcp22.suse.cz> <51DED095.7050803@intel.com> <20130711154249.GL21667@dhcp22.suse.cz>
+In-Reply-To: <20130711154249.GL21667@dhcp22.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: Li Zefan <lizefan@huawei.com>, Anton Vorontsov <anton.vorontsov@linaro.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org
 
-Hello, Michal.
+On 07/11/2013 08:42 AM, Michal Hocko wrote:
+> On Thu 11-07-13 08:34:45, Dave Hansen wrote:
+>> On 07/11/2013 05:39 AM, Michal Hocko wrote:
+>>>> I would turn this into a trace point but that would be much weaker
+>>>> because the one who is debugging an issue would have to think about
+>>>> enabling it before the affected workload starts. Which is not possible
+>>>> quite often. Having logs and looking at them afterwards is so
+>>>> _convinient_.
+>>
+>> It would also be a lot weaker than the printk, but we could always add a
+>> counter for this stuff and at least dump it out in /proc/vmstat.  We
+>> wouldn't know who was doing it, but we'd at least know someone _was_
+>> doing it.  It would also have a decent chance of getting picked up by
+>> existing log collection systems.
+> 
+> But wouldn't be a counter more intrusive code wise? Dunno, but printk
+> serves it purpose and it doesn't add much to the code.
 
-On Thu, Jul 11, 2013 at 11:33:00AM +0200, Michal Hocko wrote:
-> +static inline
-> +struct mem_cgroup *vmpressure_to_mem_cgroup(struct vmpressure *vmpr)
-> +{
-> +	return container_of(vmpr, struct mem_cgroup, vmpressure);
-> +}
-> +
-> +void vmpressure_pin_memcg(struct vmpressure *vmpr)
-> +{
-> +	struct mem_cgroup *memcg = vmpressure_to_mem_cgroup(vmpr);
-> +
-> +	css_get(&memcg->css);
-> +}
-> +
-> +void vmpressure_unpin_memcg(struct vmpressure *vmpr)
-> +{
-> +	struct mem_cgroup *memcg = vmpressure_to_mem_cgroup(vmpr);
-> +
-> +	css_put(&memcg->css);
-> +}
-
-So, while this *should* work, can't we just cancel/flush the work item
-from offline?  There doesn't seem to be any possible deadlocks from my
-shallow glance and those mutexes don't seem to be held for long (do
-they actually need to be mutexes?  what blocks inside them?).
-
-Also, while at it, can you please remove the work_pending() check?
-They're almost always spurious or racy and should be avoided in
-general.
-
-Thanks.
-
--- 
-tejun
+Yeah, I prefer the printk too.  I'd rather see a vmstat entry than a
+tracepoint, though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
