@@ -1,183 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id D43DC6B0032
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2013 10:09:17 -0400 (EDT)
-Date: Thu, 11 Jul 2013 15:09:14 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 08/16] sched: Reschedule task on preferred NUMA node once
- selected
-Message-ID: <20130711140914.GE2355@suse.de>
-References: <1373536020-2799-1-git-send-email-mgorman@suse.de>
- <1373536020-2799-9-git-send-email-mgorman@suse.de>
- <20130711123038.GH25631@dyad.programming.kicks-ass.net>
- <20130711130322.GC2355@suse.de>
- <20130711131158.GJ25631@dyad.programming.kicks-ass.net>
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 55BBF6B0032
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2013 10:31:25 -0400 (EDT)
+Date: Thu, 11 Jul 2013 16:31:20 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH V4 3/6] memcg: add per cgroup dirty pages accounting
+Message-ID: <20130711143120.GI21667@dhcp22.suse.cz>
+References: <1373044710-27371-1-git-send-email-handai.szj@taobao.com>
+ <1373045409-27617-1-git-send-email-handai.szj@taobao.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130711131158.GJ25631@dyad.programming.kicks-ass.net>
+In-Reply-To: <1373045409-27617-1-git-send-email-handai.szj@taobao.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, gthelen@google.com, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, fengguang.wu@intel.com, mgorman@suse.de, Sha Zhengju <handai.szj@taobao.com>
 
-On Thu, Jul 11, 2013 at 03:11:58PM +0200, Peter Zijlstra wrote:
-> On Thu, Jul 11, 2013 at 02:03:22PM +0100, Mel Gorman wrote:
-> > On Thu, Jul 11, 2013 at 02:30:38PM +0200, Peter Zijlstra wrote:
-> > > On Thu, Jul 11, 2013 at 10:46:52AM +0100, Mel Gorman wrote:
-> > > > @@ -829,10 +854,29 @@ static void task_numa_placement(struct task_struct *p)
-> > > >  		}
-> > > >  	}
-> > > >  
-> > > > -	/* Update the tasks preferred node if necessary */
-> > > > +	/*
-> > > > +	 * Record the preferred node as the node with the most faults,
-> > > > +	 * requeue the task to be running on the idlest CPU on the
-> > > > +	 * preferred node and reset the scanning rate to recheck
-> > > > +	 * the working set placement.
-> > > > +	 */
-> > > >  	if (max_faults && max_nid != p->numa_preferred_nid) {
-> > > > +		int preferred_cpu;
-> > > > +
-> > > > +		/*
-> > > > +		 * If the task is not on the preferred node then find the most
-> > > > +		 * idle CPU to migrate to.
-> > > > +		 */
-> > > > +		preferred_cpu = task_cpu(p);
-> > > > +		if (cpu_to_node(preferred_cpu) != max_nid) {
-> > > > +			preferred_cpu = find_idlest_cpu_node(preferred_cpu,
-> > > > +							     max_nid);
-> > > > +		}
-> > > > +
-> > > > +		/* Update the preferred nid and migrate task if possible */
-> > > >  		p->numa_preferred_nid = max_nid;
-> > > >  		p->numa_migrate_seq = 0;
-> > > > +		migrate_task_to(p, preferred_cpu);
-> > > >  	}
-> > > >  }
-> > > 
-> > > Now what happens if the migrations fails? We set numa_preferred_nid to max_nid
-> > > but then never re-try the migration. Should we not re-try the migration every
-> > > so often, regardless of whether max_nid changed?
-> > 
-> > We do this
-> > 
-> > load_balance
-> > -> active_load_balance_cpu_stop
+Please also CC vfs people
+
+On Sat 06-07-13 01:30:09, Sha Zhengju wrote:
+> From: Sha Zhengju <handai.szj@taobao.com>
 > 
-> Note that active balance is rare to begin with.
+> This patch adds memcg routines to count dirty pages, which allows memory controller
+> to maintain an accurate view of the amount of its dirty memory.
 > 
+> After Kame's commit 89c06bd5(memcg: use new logic for page stat accounting), we can
+> use 'struct page' flag to test page state instead of per page_cgroup flag. But memcg
+> has a feature to move a page from a cgroup to another one and may have race between
+> "move" and "page stat accounting". So in order to avoid the race we have designed a
+> bigger lock:
 
-Yeah. I was not sure how rare exactly but it is what motivated the
-introduction of migrate_task_to in the first place. I actually have no
-idea how often the migration fails. I did not check for it.
+Well, bigger lock is little bit an overstatement ;). It is full no-op for
+!CONFIG_MEMCG, almost no-op if memcg is disabled (but compiled in), rcu
+read lock in the most cases (no task is moving) and spin_lock_irqsave on
+top in the slow path.
 
-> >   -> move_one_task
-> >     -> can_migrate_task
-> >       -> migrate_improves_locality
-> > 
-> > If the conditions are right then it'll move the task to the preferred node
-> > for a number of PTE scans. Of course there is no guarantee that the necessary
-> > conditions will occur but I was wary of taking more drastic steps in the
-> > scheduler such as retrying on every fault until the migration succeeds.
-> > 
+It would be good to mention this in the changelog for those who are not
+familiar.
+
 > 
-> Ah, so task_numa_placement() is only called every full scan, not every fault.
-> Also one could throttle it.
+>          mem_cgroup_begin_update_page_stat()
+>          modify page information        -->(a)
+>          mem_cgroup_update_page_stat()  -->(b)
+
+Hmm, mem_cgroup_update_page_stat doesn't do any checking that we use a
+proper locking. Which would be hard but we could at least test for
+rcu_read_lock_held() because RCU is held if !mem_cgroup_disabled().
+This would be a nice preparatory patch. What do you think?
+
+>          mem_cgroup_end_update_page_stat()
+> It requires both (a) and (b)(dirty pages accounting) to be pretected in
+> mem_cgroup_{begin/end}_update_page_stat().
 > 
-> So initially I did all the movement through the regular balancer, but Ingo
-> found that when the machine grows it quickly becomes unlikely we hit the right
-> conditions. Hence he also went to direct migrations in his series.
+> Server places should be added accounting:
+
+Server?
+
+>         incrementing (3):
+>                 __set_page_dirty_buffers
+>                 __set_page_dirty_nobuffers
+> 		mark_buffer_dirty
+>         decrementing (5):
+>                 clear_page_dirty_for_io
+>                 cancel_dirty_page
+> 		delete_from_page_cache
+> 		__delete_from_page_cache
+> 		replace_page_cache_page
 > 
+> The lock order between memcg lock and mapping lock is:
+> 	--> memcg->move_lock
+> 	  --> mapping->private_lock
+>             --> mapping->tree_lock
+> 
+> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+> cc: Michal Hocko <mhocko@suse.cz>
+> cc: Greg Thelen <gthelen@google.com>
+> cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> cc: Andrew Morton <akpm@linux-foundation.org>
+> cc: Fengguang Wu <fengguang.wu@intel.com>
+> cc: Mel Gorman <mgorman@suse.de>
+> ---
+>  fs/buffer.c                |    9 +++++++++
+>  include/linux/memcontrol.h |    1 +
+>  mm/filemap.c               |   14 ++++++++++++++
+>  mm/memcontrol.c            |   30 +++++++++++++++++++++++-------
+>  mm/page-writeback.c        |   24 ++++++++++++++++++++++--
+>  mm/truncate.c              |    6 ++++++
+>  6 files changed, 75 insertions(+), 9 deletions(-)
+> 
+> diff --git a/fs/buffer.c b/fs/buffer.c
+> index 695eb14..7c537f4 100644
+> --- a/fs/buffer.c
+> +++ b/fs/buffer.c
+> @@ -694,10 +694,13 @@ int __set_page_dirty_buffers(struct page *page)
+>  {
+>  	int newly_dirty;
+>  	struct address_space *mapping = page_mapping(page);
+> +	bool locked;
+> +	unsigned long flags;
+>  
+>  	if (unlikely(!mapping))
+>  		return !TestSetPageDirty(page);
 
-I wanted to avoid aggressive scheduling decisions until after the false
-share detection stuff was solid.
+I guess it would be worth mentioning why we do not care about pages
+without mapping.
 
-> Another thing we might consider is counting the number of migration attempts
-> and settling for the n-th best node for the n'th attempt and giving up when n
-> surpasses the quality of the node we're currently on.
+> +	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
+>  	spin_lock(&mapping->private_lock);
+>  	if (page_has_buffers(page)) {
+>  		struct buffer_head *head = page_buffers(page);
+[...]
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index 4b51ac1..5642de6 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+[...]
+> @@ -144,6 +149,7 @@ void __delete_from_page_cache(struct page *page)
 
-That might be necessary when the machine is overloaded. As a
-starting point the following should retry the migrate a number of times
-until success. The retry is checked on every fault but should not fire
-more than once every 100ms.
+This needs a comment that it has to be called from within
+mem_cgroup_{begin,end}_update_page_stat context. Btw. it seems that you
+are missing invalidate_complete_page2 and __remove_mapping
 
-Compile tested only
+>  	 * having removed the page entirely.
+>  	 */
+>  	if (PageDirty(page) && mapping_cap_account_dirty(mapping)) {
+> +		mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_DIRTY);
+>  		dec_zone_page_state(page, NR_FILE_DIRTY);
+>  		dec_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
+>  	}
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index f9acf49..1d31851 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -91,6 +91,7 @@ static const char * const mem_cgroup_stat_names[] = {
+>  	"rss_huge",
+>  	"mapped_file",
+>  	"swap",
+> +	"dirty",
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index d44fbc6..454ad2e 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1505,6 +1505,7 @@ struct task_struct {
- 	int numa_migrate_seq;
- 	unsigned int numa_scan_period;
- 	unsigned int numa_scan_period_max;
-+	unsigned long numa_migrate_retry;
- 	u64 node_stamp;			/* migration stamp  */
- 	struct callback_head numa_work;
- 
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index f2b37e01..a5b6b01 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -934,6 +934,20 @@ static inline int task_faults_idx(int nid, int priv)
- 	return 2 * nid + priv;
- }
- 
-+/* Attempt to migrate a task to a CPU on the preferred node */
-+static void numa_migrate_preferred(struct task_struct *p)
-+{
-+	int preferred_cpu = task_cpu(p);
-+
-+	p->numa_migrate_retry = 0;
-+	if (cpu_to_node(preferred_cpu) != p->numa_preferred_nid) {
-+		preferred_cpu = task_numa_find_cpu(p, p->numa_preferred_nid);
-+
-+		if (!migrate_task_to(p, preferred_cpu))
-+			p->numa_migrate_retry = jiffies + HZ/10;
-+	}
-+}
-+
- static void task_numa_placement(struct task_struct *p)
- {
- 	int seq, nid, max_nid = -1;
-@@ -975,21 +989,12 @@ static void task_numa_placement(struct task_struct *p)
- 	 * the working set placement.
- 	 */
- 	if (max_faults && max_nid != p->numa_preferred_nid) {
--		int preferred_cpu;
- 		int old_migrate_seq = p->numa_migrate_seq;
- 
--		/*
--		 * If the task is not on the preferred node then find 
--		 * a suitable CPU to migrate to.
--		 */
--		preferred_cpu = task_cpu(p);
--		if (cpu_to_node(preferred_cpu) != max_nid)
--			preferred_cpu = task_numa_find_cpu(p, max_nid);
--
- 		/* Update the preferred nid and migrate task if possible */
- 		p->numa_preferred_nid = max_nid;
- 		p->numa_migrate_seq = 0;
--		migrate_task_to(p, preferred_cpu);
-+		numa_migrate_preferred(p);
- 
- 		/*
- 		 * If preferred nodes changes frequently then the scan rate
-@@ -1050,6 +1055,10 @@ void task_numa_fault(int last_nidpid, int node, int pages, bool migrated)
- 
- 	task_numa_placement(p);
- 
-+	/* Retry task to preferred node migration if it previously failed */
-+	if (p->numa_migrate_retry && time_after(jiffies, p->numa_migrate_retry))
-+		numa_migrate_preferred(p);
-+
- 	/* Record the fault, double the weight if pages were migrated */
- 	p->numa_faults_buffer[task_faults_idx(node, priv)] += pages << migrated;
- }
+This doesn't match mem_cgroup_stat_index ordering.
 
+>  };
+>  
+>  enum mem_cgroup_events_index {
+[...]
+> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> index 4514ad7..3900e62 100644
+> --- a/mm/page-writeback.c
+> +++ b/mm/page-writeback.c
+> @@ -1982,6 +1982,11 @@ int __set_page_dirty_no_writeback(struct page *page)
+>  
+>  /*
+>   * Helper function for set_page_dirty family.
+> + *
+> + * The caller must hold mem_cgroup_begin/end_update_page_stat() lock
+> + * while modifying struct page state and accounting dirty pages.
+
+I think "while calling this function" would be sufficient.
+
+> + * See __set_page_dirty_{nobuffers,buffers} for example.
+> + *
+>   * NOTE: This relies on being atomic wrt interrupts.
+>   */
+>  void account_page_dirtied(struct page *page, struct address_space *mapping)
+[...]
+
+Thanks
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
