@@ -1,110 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 3B4346B0034
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2013 02:12:04 -0400 (EDT)
-Date: Thu, 11 Jul 2013 15:12:01 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC PATCH 1/5] mm, page_alloc: support multiple pages allocation
-Message-ID: <20130711061201.GA2400@lge.com>
-References: <1372840460-5571-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1372840460-5571-2-git-send-email-iamjoonsoo.kim@lge.com>
- <51DDE5BA.9020800@intel.com>
- <20130711010248.GB7756@lge.com>
- <51DE44CC.2070700@sr71.net>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 5C8266B0032
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2013 02:45:54 -0400 (EDT)
+Received: by mail-lb0-f171.google.com with SMTP id 13so6330376lba.2
+        for <linux-mm@kvack.org>; Wed, 10 Jul 2013 23:45:52 -0700 (PDT)
+Message-ID: <51DE549F.9070505@kernel.org>
+Date: Thu, 11 Jul 2013 09:45:51 +0300
+From: Pekka Enberg <penberg@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <51DE44CC.2070700@sr71.net>
+Subject: Re: [PATCH] mm/slub.c: remove 'per_cpu' which is useless variable
+References: <51DA734B.4060608@asianux.com>
+In-Reply-To: <51DA734B.4060608@asianux.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Chen Gang <gang.chen@asianux.com>
+Cc: cl@linux-foundation.org, mpm@selenic.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, Jul 10, 2013 at 10:38:20PM -0700, Dave Hansen wrote:
-> On 07/10/2013 06:02 PM, Joonsoo Kim wrote:
-> > On Wed, Jul 10, 2013 at 03:52:42PM -0700, Dave Hansen wrote:
-> >> On 07/03/2013 01:34 AM, Joonsoo Kim wrote:
-> >>> -		if (page)
-> >>> +		do {
-> >>> +			page = buffered_rmqueue(preferred_zone, zone, order,
-> >>> +							gfp_mask, migratetype);
-> >>> +			if (!page)
-> >>> +				break;
-> >>> +
-> >>> +			if (!nr_pages) {
-> >>> +				count++;
-> >>> +				break;
-> >>> +			}
-> >>> +
-> >>> +			pages[count++] = page;
-> >>> +			if (count >= *nr_pages)
-> >>> +				break;
-> >>> +
-> >>> +			mark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
-> >>> +			if (!zone_watermark_ok(zone, order, mark,
-> >>> +					classzone_idx, alloc_flags))
-> >>> +				break;
-> >>> +		} while (1);
-> >>
-> >> I'm really surprised this works as well as it does.  Calling
-> >> buffered_rmqueue() a bunch of times enables/disables interrupts a bunch
-> >> of times, and mucks with the percpu pages lists a whole bunch.
-> >> buffered_rmqueue() is really meant for _single_ pages, not to be called
-> >> a bunch of times in a row.
-> >>
-> >> Why not just do a single rmqueue_bulk() call?
-> > 
-> > rmqueue_bulk() needs a zone lock. If we allocate not so many pages,
-> > for example, 2 or 3 pages, it can have much more overhead rather than
-> > allocationg 1 page multiple times. So, IMHO, it is better that
-> > multiple pages allocation is supported on top of percpu pages list.
-> 
-> It makes _zero_ sense to be doing a number of buffered_rmqueue() calls
-> that are approaching the size of the percpu pages batches.  If you end
-> up doing that, you pay both the overhead in manipulating both the percpu
-> page data _and_ the buddy lists.
-> 
-> You're probably right for small numbers of pages.  But, if we're talking
-> about things that are more than, say, 100 pages (isn't the pcp batch
-> size clamped to 128 4k pages?) you surely don't want to be doing
-> buffered_rmqueue().
+Hi,
 
-Yes, you are right.
-Firstly, I thought that I can use this for readahead. On my machine,
-readahead reads (maximum) 32 pages in advance if faulted. And batch size
-of percpu pages list is close to or larger than 32 pages
-on today's machine. So I didn't consider more than 32 pages before.
-But to cope with a request for more pages, using rmqueue_bulk() is
-a right way. How about using rmqueue_bulk() conditionally?
+On 07/08/2013 11:07 AM, Chen Gang wrote:
+> Remove 'per_cpu', since it is useless now after the patch: "205ab99
+> slub: Update statistics handling for variable order slabs".
 
-> 
-> I'd also like to see some scalability numbers on this.  How do your
-> tests look when all the CPUs on the system are hammering away?
+Whoa, that's a really old commit. Christoph?
 
-What test do you mean?
-Please elaborate on this more.
+> Also beautify code with tab alignment.
 
-> > And I think that enables/disables interrupts a bunch of times help
-> > to avoid a latency problem. If we disable interrupts until the whole works
-> > is finished, interrupts can be handled too lately.
-> > free_hot_cold_page_list() already do enables/disalbed interrupts a bunch of
-> > times.
-> 
-> I don't think interrupt latency is going to be a problem on the scale
-> we're talking about here.  There are much, much, much worse offenders in
-> the kernel.
+That needs to be a separate patch.
 
-Hmm, rmqueue_bulk() doesn't stop until all requested pages are allocated.
-If we request too many pages (1024 pages or more), interrupt latency can
-be a problem.
-
-Thanks!!
-
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
+> Signed-off-by: Chen Gang <gang.chen@asianux.com>
+> ---
+>   mm/slub.c |   17 ++++++-----------
+>   1 files changed, 6 insertions(+), 11 deletions(-)
+>
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 2caaa67..aa847eb 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -4271,12 +4271,10 @@ static ssize_t show_slab_objects(struct kmem_cache *s,
+>   	int node;
+>   	int x;
+>   	unsigned long *nodes;
+> -	unsigned long *per_cpu;
+>
+> -	nodes = kzalloc(2 * sizeof(unsigned long) * nr_node_ids, GFP_KERNEL);
+> +	nodes = kzalloc(sizeof(unsigned long) * nr_node_ids, GFP_KERNEL);
+>   	if (!nodes)
+>   		return -ENOMEM;
+> -	per_cpu = nodes + nr_node_ids;
+>
+>   	if (flags & SO_CPU) {
+>   		int cpu;
+> @@ -4307,8 +4305,6 @@ static ssize_t show_slab_objects(struct kmem_cache *s,
+>   				total += x;
+>   				nodes[node] += x;
+>   			}
+> -
+> -			per_cpu[node]++;
+>   		}
+>   	}
+>
+> @@ -4318,12 +4314,11 @@ static ssize_t show_slab_objects(struct kmem_cache *s,
+>   		for_each_node_state(node, N_NORMAL_MEMORY) {
+>   			struct kmem_cache_node *n = get_node(s, node);
+>
+> -		if (flags & SO_TOTAL)
+> -			x = atomic_long_read(&n->total_objects);
+> -		else if (flags & SO_OBJECTS)
+> -			x = atomic_long_read(&n->total_objects) -
+> -				count_partial(n, count_free);
+> -
+> +			if (flags & SO_TOTAL)
+> +				x = atomic_long_read(&n->total_objects);
+> +			else if (flags & SO_OBJECTS)
+> +				x = atomic_long_read(&n->total_objects) -
+> +					count_partial(n, count_free);
+>   			else
+>   				x = atomic_long_read(&n->nr_slabs);
+>   			total += x;
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
