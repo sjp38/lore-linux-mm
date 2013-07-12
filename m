@@ -1,131 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 593EE6B0034
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 04:44:11 -0400 (EDT)
-Received: by mail-ee0-f45.google.com with SMTP id c1so6084044eek.4
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2013 01:44:09 -0700 (PDT)
-Date: Fri, 12 Jul 2013 10:44:06 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 2/2] mm: add a field to store names for private anonymous
- memory
-Message-ID: <20130712084406.GB4328@gmail.com>
-References: <1373596462-27115-1-git-send-email-ccross@android.com>
- <1373596462-27115-2-git-send-email-ccross@android.com>
- <51DF9682.9040301@kernel.org>
- <20130712081348.GM25631@dyad.programming.kicks-ass.net>
- <20130712081717.GN25631@dyad.programming.kicks-ass.net>
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 05C5A6B0034
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 04:47:32 -0400 (EDT)
+Date: Fri, 12 Jul 2013 10:47:12 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: boot tracing
+Message-ID: <20130712084712.GD24008@pd.tnic>
+References: <1373594635-131067-1-git-send-email-holt@sgi.com>
+ <20130712082756.GA4328@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20130712081717.GN25631@dyad.programming.kicks-ass.net>
+In-Reply-To: <20130712082756.GA4328@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Pekka Enberg <penberg@kernel.org>, Colin Cross <ccross@android.com>, linux-kernel@vger.kernel.org, Kyungmin Park <kmpark@infradead.org>, Christoph Hellwig <hch@infradead.org>, John Stultz <john.stultz@linaro.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Dave Hansen <dave.hansen@intel.com>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, David Howells <dhowells@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Dave Jones <davej@redhat.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Oleg Nesterov <oleg@redhat.com>, Shaohua Li <shli@fusionio.com>, Sasha Levin <sasha.levin@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-doc@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Robin Holt <holt@sgi.com>, Robert Richter <rric@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Nate Zimmer <nzimmer@sgi.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Rob Landley <rob@landley.net>, Mike Travis <travis@sgi.com>, Daniel J Blueman <daniel@numascale-asia.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Yinghai Lu <yinghai@kernel.org>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
+On Fri, Jul 12, 2013 at 10:27:56AM +0200, Ingo Molnar wrote:
+> Robert Richter and Boris Petkov are working on 'persistent events'
+> support for perf, which will eventually allow boot time profiling -
+> I'm not sure if the patches and the tooling support is ready enough
+> yet for your purposes.
 
-* Peter Zijlstra <peterz@infradead.org> wrote:
+Nope, not yet but we're getting there.
 
-> On Fri, Jul 12, 2013 at 10:13:48AM +0200, Peter Zijlstra wrote:
-> > On Fri, Jul 12, 2013 at 08:39:14AM +0300, Pekka Enberg wrote:
-> > > On 07/12/2013 05:34 AM, Colin Cross wrote:
-> > > >Userspace processes often have multiple allocators that each do
-> > > >anonymous mmaps to get memory.  When examining memory usage of
-> > > >individual processes or systems as a whole, it is useful to be
-> > > >able to break down the various heaps that were allocated by
-> > > >each layer and examine their size, RSS, and physical memory
-> > > >usage.
-> > > >
-> > > >This patch adds a user pointer to the shared union in
-> > > >vm_area_struct that points to a null terminated string inside
-> > > >the user process containing a name for the vma.  vmas that
-> > > >point to the same address will be merged, but vmas that
-> > > >point to equivalent strings at different addresses will
-> > > >not be merged.
-> > > >
-> > > >Userspace can set the name for a region of memory by calling
-> > > >prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, start, len, (unsigned long)name);
-> > > >Setting the name to NULL clears it.
-> > > >
-> > > >The names of named anonymous vmas are shown in /proc/pid/maps
-> > > >as [anon:<name>] and in /proc/pid/smaps in a new "Name" field
-> > > >that is only present for named vmas.  If the userspace pointer
-> > > >is no longer valid all or part of the name will be replaced
-> > > >with "<fault>".
-> > > >
-> > > >The idea to store a userspace pointer to reduce the complexity
-> > > >within mm (at the expense of the complexity of reading
-> > > >/proc/pid/mem) came from Dave Hansen.  This results in no
-> > > >runtime overhead in the mm subsystem other than comparing
-> > > >the anon_name pointers when considering vma merging.  The pointer
-> > > >is stored in a union with fieds that are only used on file-backed
-> > > >mappings, so it does not increase memory usage.
-> > > >
-> > > >Signed-off-by: Colin Cross <ccross@android.com>
-> > > 
-> > > Ingo, PeterZ, is this something worthwhile for replacing our
-> > > current JIT symbol hack with perf?
-> > 
-> > I really don't see the point of this stuff; in fact I intensely 
-> > dislike it as I don't think this is something the kernel needs to do 
-> > at all.
-> > 
-> > Why can't these allocators Collin talks about use file maps and/or 
-> > write their own meta-data to file? He is after all only interested in 
-> > Android and they have complete control over the entire userspace 
-> > stack.
+> Robert, Boris, the following workflow would be pretty intuitive:
 > 
-> In fact, nowhere in his entire Changelog does he explain why this needs 
-> be in the kernel; _why_ can't userspace do this?
+>  - kernel developer sets boot flag: perf=boot,freq=1khz,size=16MB
+
+What does perf=boot mean? I assume boot tracing.
+
+If so, does it mean we want to enable *all* tracepoints and collect
+whatever hits us?
+
+What makes more sense to me is to hijack what the function tracer does -
+i.e. simply collect all function calls.
+
+>  - we'd get a single (cycles?) event running once the perf subsystem is up
+>    and running, with a sampling frequency of 1 KHz, sending profiling
+>    trace events to a sufficiently sized profiling buffer of 16 MB per
+>    CPU.
+
+Right, what would those trace events be?
+
+>  - once the system reaches SYSTEM_RUNNING, profiling is stopped either
+>    automatically - or the user stops it via a new tooling command.
+
+Ok.
+
+>  - the profiling buffer is extracted into a regular perf.data via a
+>    special 'perf record' call or some other, new perf tooling 
+>    solution/variant.
 > 
-> He needs to go change his allocators to use the new madv syscall anyway, 
-> he might as well change them to write the stuff to a local file and be 
-> done with it.
-> 
-> what gives?
+>    [ Alternatively the kernel could attempt to construct a 'virtual'
+>      perf.data from the persistent buffer, available via /sys/debug or
+>      elsewhere in /sys - just like the kernel constructs a 'virtual' 
+>      /proc/kcore, etc. That file could be copied or used directly. ]
 
-It makes tons of sense.
+Yeah, that.
 
-Just like we have a task's cmd-name it makes a lot of sense to name 
-objects in a human readable fashion, to help debugging, instrumentation, 
-performance analysis, etc.
+>  - from that point on this workflow joins the regular profiling workflow: 
+>    perf report, perf script et al can be used to analyze the resulting
+>    boot profile.
 
-Yes, in theory user-space could do all that. That's not the point: the 
-point is to make it fast, easy enough and to have a central version (the 
-kernel).
+Agreed.
 
-Doing it via temporary files has various disadvantages:
+-- 
+Regards/Gruss,
+    Boris.
 
- - many tools really like to be filesystem invariant (not touch any files 
-   even in tmpfs, be able to run in a readonly environment, etc.)
-
- - the overhead of opening, writing to and closing a file is an order of
-   magnitude larger than a single prctl() call. [I'd even argue for such
-   user-space tags to be attached to do_mmap(), unfortunately the mmap
-   system call argument space is already pretty full. ]
-
- - stray files hang around (even in tmpfs). Point of instrumentation is to 
-   be non-intrusive and as fool-proof as possible. When we are
-   debugging problems the last thing we want are extra problems
-   and unreliable instrumentation introduced by a fragile temporary file
-   solution...
-
- - user space also tends to get the security model of temporary files
-   wrong. static linking makes the user-space version iteration of such
-   facilities harder. etc. etc. - there's other disadvantages as well.
-
-So using temporary files is an instrumentation and debugging nightmare 
-really. A simple self-contained prctl() variant, with the info stored by 
-the kernel is as convenient as it gets.
-
-I guess the real question is not whether it's useful, I think it clearly 
-is. The question should be: are there real downsides? Does the addition to 
-the anon mmap field blow up the size of vma_struct by a pointer, or is 
-there still space?
-
-Thanks,
-
-	Ingo
+Sent from a fat crate under my desk. Formatting is fine.
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
