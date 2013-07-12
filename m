@@ -1,63 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id BC0936B0034
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 04:53:45 -0400 (EDT)
-Received: by mail-ee0-f54.google.com with SMTP id t10so6083663eei.41
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2013 01:53:44 -0700 (PDT)
-Date: Fri, 12 Jul 2013 10:53:41 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: boot tracing
-Message-ID: <20130712085341.GC4328@gmail.com>
-References: <1373594635-131067-1-git-send-email-holt@sgi.com>
- <20130712082756.GA4328@gmail.com>
- <20130712084712.GD24008@pd.tnic>
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id D4EDE6B0034
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 04:55:21 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id p10so8326302pdj.8
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2013 01:55:21 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130712084712.GD24008@pd.tnic>
+In-Reply-To: <20130712084406.GB4328@gmail.com>
+References: <1373596462-27115-1-git-send-email-ccross@android.com>
+	<1373596462-27115-2-git-send-email-ccross@android.com>
+	<51DF9682.9040301@kernel.org>
+	<20130712081348.GM25631@dyad.programming.kicks-ass.net>
+	<20130712081717.GN25631@dyad.programming.kicks-ass.net>
+	<20130712084406.GB4328@gmail.com>
+Date: Fri, 12 Jul 2013 11:55:20 +0300
+Message-ID: <CAOJsxLEtUGZJR7JLVGu_XctZ60m4X8jRmaaAJ2Dg7c19LyqdUg@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm: add a field to store names for private anonymous memory
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Robin Holt <holt@sgi.com>, Robert Richter <rric@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Nate Zimmer <nzimmer@sgi.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Rob Landley <rob@landley.net>, Mike Travis <travis@sgi.com>, Daniel J Blueman <daniel@numascale-asia.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Yinghai Lu <yinghai@kernel.org>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Colin Cross <ccross@android.com>, LKML <linux-kernel@vger.kernel.org>, Kyungmin Park <kmpark@infradead.org>, Christoph Hellwig <hch@infradead.org>, John Stultz <john.stultz@linaro.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Dave Hansen <dave.hansen@intel.com>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, David Howells <dhowells@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Dave Jones <davej@redhat.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Oleg Nesterov <oleg@redhat.com>, Shaohua Li <shli@fusionio.com>, Sasha Levin <sasha.levin@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, "list@ebiederm.org:DOCUMENTATION <linux-doc@vger.kernel.org>, list@ebiederm.org:MEMORY MANAGEMENT <linux-mm@kvack.org>," <linux-doc@vger.kernel.org>"linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
+On Fri, Jul 12, 2013 at 11:44 AM, Ingo Molnar <mingo@kernel.org> wrote:
+> I guess the real question is not whether it's useful, I think it clearly
+> is. The question should be: are there real downsides? Does the addition to
+> the anon mmap field blow up the size of vma_struct by a pointer, or is
+> there still space?
 
-* Borislav Petkov <bp@alien8.de> wrote:
+No, it's part of an union of 'struct vma_struct' in the current implementation
+so the size doesn't change.
 
-> On Fri, Jul 12, 2013 at 10:27:56AM +0200, Ingo Molnar wrote:
-> > Robert Richter and Boris Petkov are working on 'persistent events'
-> > support for perf, which will eventually allow boot time profiling -
-> > I'm not sure if the patches and the tooling support is ready enough
-> > yet for your purposes.
-> 
-> Nope, not yet but we're getting there.
-> 
-> > Robert, Boris, the following workflow would be pretty intuitive:
-> > 
-> >  - kernel developer sets boot flag: perf=boot,freq=1khz,size=16MB
-> 
-> What does perf=boot mean? I assume boot tracing.
+I'd still like to see something that's not restricted to page aligned memory
+areas, though.
 
-In this case it would mean boot profiling - i.e. a cycles hardware-PMU 
-event collecting into a perf trace buffer as usual.
-
-Essentially a 'perf record -a' work-alike, just one that gets activated as 
-early as practical, and which would allow the profiling of memory 
-initialization.
-
-Now, one extra complication here is that to be able to profile buddy 
-allocator this persistent event would have to work before the buddy 
-allocator is active :-/ So this sort of profiling would have to use 
-memblock_alloc().
-
-Just wanted to highlight this usecase, we might eventually want to support 
-it.
-
-[ Note that this is different from boot tracing of one or more trace 
-  events - but it's a conceptually pretty close cousin. ]
- 
-Thanks,
-
-	Ingo
+                                Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
