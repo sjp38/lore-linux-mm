@@ -1,66 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 632FA6B0032
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 01:47:48 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Fri, 12 Jul 2013 11:10:13 +0530
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 4A03CE0055
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 11:17:30 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6C5mI4W30015542
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 11:18:18 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6C5levK012153
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 15:47:40 +1000
-Date: Fri, 12 Jul 2013 13:47:39 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH] zswap: get swapper address_space by using
- swap_address_space macro
-Message-ID: <20130712054739.GA3736@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1373604175-19562-1-git-send-email-sunghan.suh@samsung.com>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id DCAA36B0032
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 02:03:59 -0400 (EDT)
+Message-ID: <51DF9C33.7040708@huawei.com>
+Date: Fri, 12 Jul 2013 14:03:31 +0800
+From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1373604175-19562-1-git-send-email-sunghan.suh@samsung.com>
+Subject: Re: [PATCH v2] vmpressure: make sure memcg stays alive until all
+ users are signaled
+References: <20130710184254.GA16979@mtj.dyndns.org> <20130711083110.GC21667@dhcp22.suse.cz> <51DE701C.6010800@huawei.com> <20130711092542.GD21667@dhcp22.suse.cz> <51DE7AAF.6070004@huawei.com> <20130711093300.GE21667@dhcp22.suse.cz> <20130711154408.GA9229@mtj.dyndns.org> <20130711162215.GM21667@dhcp22.suse.cz>
+In-Reply-To: <20130711162215.GM21667@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sunghan Suh <sunghan.suh@samsung.com>
-Cc: sjenning@linux.vnet.ibm.com, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Tejun Heo <tj@kernel.org>, Anton Vorontsov <anton.vorontsov@linaro.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On Fri, Jul 12, 2013 at 01:42:55PM +0900, Sunghan Suh wrote:
->Signed-off-by: Sunghan Suh <sunghan.suh@samsung.com>
+On 2013/7/12 0:22, Michal Hocko wrote:
+> On Thu 11-07-13 08:44:08, Tejun Heo wrote:
+>> Hello, Michal.
+>>
+>> On Thu, Jul 11, 2013 at 11:33:00AM +0200, Michal Hocko wrote:
+>>> +static inline
+>>> +struct mem_cgroup *vmpressure_to_mem_cgroup(struct vmpressure *vmpr)
+>>> +{
+>>> +	return container_of(vmpr, struct mem_cgroup, vmpressure);
+>>> +}
+>>> +
+>>> +void vmpressure_pin_memcg(struct vmpressure *vmpr)
+>>> +{
+>>> +	struct mem_cgroup *memcg = vmpressure_to_mem_cgroup(vmpr);
+>>> +
+>>> +	css_get(&memcg->css);
+>>> +}
+>>> +
+>>> +void vmpressure_unpin_memcg(struct vmpressure *vmpr)
+>>> +{
+>>> +	struct mem_cgroup *memcg = vmpressure_to_mem_cgroup(vmpr);
+>>> +
+>>> +	css_put(&memcg->css);
+>>> +}
+>>
+>> So, while this *should* work, can't we just cancel/flush the work item
+>> from offline? 
+> 
+> I would rather not put vmpressure clean up code into memcg offlining.
+> We have reference counting for exactly this purposes so it feels strange
+> to overcome it like that.
 
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-
->---
-> mm/zswap.c | 2 +-
-> 1 file changed, 1 insertion(+), 1 deletion(-)
->
->diff --git a/mm/zswap.c b/mm/zswap.c
->index deda2b6..efed4c8 100644
->--- a/mm/zswap.c
->+++ b/mm/zswap.c
->@@ -409,7 +409,7 @@ static int zswap_get_swap_cache_page(swp_entry_t entry,
-> 				struct page **retpage)
-> {
-> 	struct page *found_page, *new_page = NULL;
->-	struct address_space *swapper_space = &swapper_spaces[swp_type(entry)];
->+	struct address_space *swapper_space = swap_address_space(entry);
-> 	int err;
->
-> 	*retpage = NULL;
->-- 
->1.8.1.2
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+I'd agree with Tejun here. Asynchrously should be avoided if not necessary,
+and the change would be simpler. There's already a vmpressure_init() in
+mem_cgroup_css_alloc(), so it doesn't seem bad to do vmpressure cleanup
+in memcg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
