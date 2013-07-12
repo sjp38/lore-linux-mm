@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id CD9D56B0032
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 01:39:18 -0400 (EDT)
-Received: by mail-lb0-f176.google.com with SMTP id z5so7357831lbh.35
-        for <linux-mm@kvack.org>; Thu, 11 Jul 2013 22:39:17 -0700 (PDT)
-Message-ID: <51DF9682.9040301@kernel.org>
-Date: Fri, 12 Jul 2013 08:39:14 +0300
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id A15C76B0032
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 01:43:52 -0400 (EDT)
+Received: by mail-lb0-f175.google.com with SMTP id r10so7202445lbi.6
+        for <linux-mm@kvack.org>; Thu, 11 Jul 2013 22:43:50 -0700 (PDT)
+Message-ID: <51DF9794.4010000@kernel.org>
+Date: Fri, 12 Jul 2013 08:43:48 +0300
 From: Pekka Enberg <penberg@kernel.org>
 MIME-Version: 1.0
 Subject: Re: [PATCH 2/2] mm: add a field to store names for private anonymous
@@ -54,8 +54,10 @@ On 07/12/2013 05:34 AM, Colin Cross wrote:
 >
 > Signed-off-by: Colin Cross <ccross@android.com>
 
-Ingo, PeterZ, is this something worthwhile for replacing our
-current JIT symbol hack with perf?
+So how does this perform if I do prctl(PR_SET_VMA_ANON_NAME)
+for thousands of relatively small (max 1 KB) JIT generated
+functions? Will we run into MM problems because the VMAs are
+not mergeable?
 
 			Pekka
 
