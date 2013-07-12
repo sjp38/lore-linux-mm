@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 5810C6B0033
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2013 22:04:07 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 8E0B26B0034
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2013 22:04:10 -0400 (EDT)
 From: Robin Holt <holt@sgi.com>
-Subject: [RFC 1/4] memblock: Introduce a for_each_reserved_mem_region iterator.
-Date: Thu, 11 Jul 2013 21:03:52 -0500
-Message-Id: <1373594635-131067-2-git-send-email-holt@sgi.com>
+Subject: [RFC 2/4] Have __free_pages_memory() free in larger chunks.
+Date: Thu, 11 Jul 2013 21:03:53 -0500
+Message-Id: <1373594635-131067-3-git-send-email-holt@sgi.com>
 In-Reply-To: <1373594635-131067-1-git-send-email-holt@sgi.com>
 References: <1373594635-131067-1-git-send-email-holt@sgi.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,11 +13,11 @@ List-ID: <linux-mm.kvack.org>
 To: "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>
 Cc: Robin Holt <holt@sgi.com>, Nate Zimmer <nzimmer@sgi.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Rob Landley <rob@landley.net>, Mike Travis <travis@sgi.com>, Daniel J Blueman <daniel@numascale-asia.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Yinghai Lu <yinghai@kernel.org>, Mel Gorman <mgorman@suse.de>
 
-As part of initializing struct page's in 2MiB chunks, we noticed that
-at the end of free_all_bootmem(), there was nothing which had forced
-the reserved/allocated 4KiB pages to be initialized.
-
-This helper function will be used for that expansion.
+Currently, when free_all_bootmem() calls __free_pages_memory(), the
+number of contiguous pages that __free_pages_memory() passes to the
+buddy allocator is limited to BITS_PER_LONG.  In order to be able to
+free only the first page of a 2MiB chunk, we need that to be increased
+to PTRS_PER_PMD.
 
 Signed-off-by: Robin Holt <holt@sgi.com>
 Signed-off-by: Nate Zimmer <nzimmer@sgi.com>
@@ -33,82 +33,36 @@ Cc: Greg KH <gregkh@linuxfoundation.org>
 Cc: Yinghai Lu <yinghai@kernel.org>
 Cc: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/memblock.h | 18 ++++++++++++++++++
- mm/memblock.c            | 32 ++++++++++++++++++++++++++++++++
- 2 files changed, 50 insertions(+)
+ mm/nobootmem.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index f388203..e99bbd1 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -118,6 +118,24 @@ void __next_free_mem_range_rev(u64 *idx, int nid, phys_addr_t *out_start,
- 	     i != (u64)ULLONG_MAX;					\
- 	     __next_free_mem_range_rev(&i, nid, p_start, p_end, p_nid))
+diff --git a/mm/nobootmem.c b/mm/nobootmem.c
+index bdd3fa2..3b512ca 100644
+--- a/mm/nobootmem.c
++++ b/mm/nobootmem.c
+@@ -83,10 +83,10 @@ void __init free_bootmem_late(unsigned long addr, unsigned long size)
+ static void __init __free_pages_memory(unsigned long start, unsigned long end)
+ {
+ 	unsigned long i, start_aligned, end_aligned;
+-	int order = ilog2(BITS_PER_LONG);
++	int order = ilog2(max(BITS_PER_LONG, PTRS_PER_PMD));
  
-+void __next_reserved_mem_region(u64 *idx, phys_addr_t *out_start,
-+			       phys_addr_t *out_end);
-+
-+/**
-+ * for_earch_reserved_mem_region - iterate over all reserved memblock areas
-+ * @i: u64 used as loop variable
-+ * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
-+ * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
-+ *
-+ * Walks over reserved areas of memblock in. Available as soon as memblock
-+ * is initialized.
-+ */
-+#define for_each_reserved_mem_region(i, p_start, p_end)			\
-+	for (i = 0UL,							\
-+	     __next_reserved_mem_region(&i, p_start, p_end);		\
-+	     i != (u64)ULLONG_MAX;					\
-+	     __next_reserved_mem_region(&i, p_start, p_end))
-+
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- int memblock_set_node(phys_addr_t base, phys_addr_t size, int nid);
+-	start_aligned = (start + (BITS_PER_LONG - 1)) & ~(BITS_PER_LONG - 1);
+-	end_aligned = end & ~(BITS_PER_LONG - 1);
++	start_aligned = (start + ((1UL << order) - 1)) & ~((1UL << order) - 1);
++	end_aligned = end & ~((1UL << order) - 1);
  
-diff --git a/mm/memblock.c b/mm/memblock.c
-index c5fad93..0d7d6e7 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -564,6 +564,38 @@ int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
- }
+ 	if (end_aligned <= start_aligned) {
+ 		for (i = start; i < end; i++)
+@@ -98,7 +98,7 @@ static void __init __free_pages_memory(unsigned long start, unsigned long end)
+ 	for (i = start; i < start_aligned; i++)
+ 		__free_pages_bootmem(pfn_to_page(i), 0);
  
- /**
-+ * __next_reserved_mem_region - next function for for_each_reserved_region()
-+ * @idx: pointer to u64 loop variable
-+ * @out_start: ptr to phys_addr_t for start address of the region, can be %NULL
-+ * @out_end: ptr to phys_addr_t for end address of the region, can be %NULL
-+ *
-+ * Iterate over all reserved memory regions.
-+ */
-+void __init_memblock __next_reserved_mem_region(u64 *idx,
-+					   phys_addr_t *out_start,
-+					   phys_addr_t *out_end)
-+{
-+	struct memblock_type *rsv = &memblock.reserved;
-+
-+	if (*idx >= 0 && *idx < rsv->cnt) {
-+		struct memblock_region *r = &rsv->regions[*idx];
-+		phys_addr_t base = r->base;
-+		phys_addr_t size = r->size;
-+
-+		if (out_start)
-+			*out_start = base;
-+		if (out_end)
-+			*out_end = base + size - 1;
-+
-+		*idx += 1;
-+		return;
-+	}
-+
-+	/* signal end of iteration */
-+	*idx = ULLONG_MAX;
-+}
-+
-+/**
-  * __next_free_mem_range - next function for for_each_free_mem_range()
-  * @idx: pointer to u64 loop variable
-  * @nid: nid: node selector, %MAX_NUMNODES for all nodes
+-	for (i = start_aligned; i < end_aligned; i += BITS_PER_LONG)
++	for (i = start_aligned; i < end_aligned; i += 1 << order)
+ 		__free_pages_bootmem(pfn_to_page(i), order);
+ 
+ 	for (i = end_aligned; i < end; i++)
 -- 
 1.8.2.1
 
