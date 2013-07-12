@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id E19586B0032
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2013 20:24:48 -0400 (EDT)
-Message-ID: <51DF4C94.3060103@asianux.com>
-Date: Fri, 12 Jul 2013 08:23:48 +0800
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 236286B0032
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2013 20:56:33 -0400 (EDT)
+Message-ID: <51DF5404.4060004@asianux.com>
+Date: Fri, 12 Jul 2013 08:55:32 +0800
 From: Chen Gang <gang.chen@asianux.com>
 MIME-Version: 1.0
-Subject: [PATCH v2] mm/slub.c: remove 'per_cpu' which is useless variable
-References: <51DA734B.4060608@asianux.com> <51DE549F.9070505@kernel.org> <51DE55C9.1060908@asianux.com> <0000013fce9f5b32-7d62f3c5-bb35-4dd9-ab19-d72bae4b5bdc-000000@email.amazonses.com> <51DEF935.4040804@kernel.org> <0000013fcf608df8-457e2029-51f9-4e49-9992-bf399a97d953-000000@email.amazonses.com> <51DF4540.8060700@asianux.com>
-In-Reply-To: <51DF4540.8060700@asianux.com>
+Subject: [PATCH] mm/slub.c: add parameter length checking for alloc_loc_track()
+References: <51DA734B.4060608@asianux.com> <51DE549F.9070505@kernel.org> <51DE55C9.1060908@asianux.com> <0000013fce9f5b32-7d62f3c5-bb35-4dd9-ab19-d72bae4b5bdc-000000@email.amazonses.com> <51DEF935.4040804@kernel.org> <0000013fcf608df8-457e2029-51f9-4e49-9992-bf399a97d953-000000@email.amazonses.com> <51DF4540.8060700@asianux.com> <51DF4C94.3060103@asianux.com>
+In-Reply-To: <51DF4C94.3060103@asianux.com>
 Content-Type: text/plain; charset=GB2312
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -16,42 +16,32 @@ List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
 Cc: Pekka Enberg <penberg@kernel.org>, mpm@selenic.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-Remove 'per_cpu', since it is useless now after the patch: "205ab99
-slub: Update statistics handling for variable order slabs". And the
-partial list is handled in the same way as the per cpu slab.
+Since alloc_loc_track() will alloc additional space, and already knows
+about 'max', so need be sure of 'max' must be larger than 't->count'.
+
+The caller may not notice about it, e.g. call from add_location() in
+"mm/slub.c", which only let "max = 2 * max" when "t->count >= t->max"
+
 
 Signed-off-by: Chen Gang <gang.chen@asianux.com>
 ---
- mm/slub.c |    6 +-----
- 1 files changed, 1 insertions(+), 5 deletions(-)
+ mm/slub.c |    3 +++
+ 1 files changed, 3 insertions(+), 0 deletions(-)
 
 diff --git a/mm/slub.c b/mm/slub.c
-index 2b02d66..c94a03f 100644
+index 2b02d66..36f606d 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -4271,12 +4271,10 @@ static ssize_t show_slab_objects(struct kmem_cache *s,
- 	int node;
- 	int x;
- 	unsigned long *nodes;
--	unsigned long *per_cpu;
+@@ -3993,6 +3993,9 @@ static int alloc_loc_track(struct loc_track *t, unsigned long max, gfp_t flags)
+ 	struct location *l;
+ 	int order;
  
--	nodes = kzalloc(2 * sizeof(unsigned long) * nr_node_ids, GFP_KERNEL);
-+	nodes = kzalloc(sizeof(unsigned long) * nr_node_ids, GFP_KERNEL);
- 	if (!nodes)
- 		return -ENOMEM;
--	per_cpu = nodes + nr_node_ids;
++	if (t->count >= max)
++		return 0;
++
+ 	order = get_order(sizeof(struct location) * max);
  
- 	if (flags & SO_CPU) {
- 		int cpu;
-@@ -4307,8 +4305,6 @@ static ssize_t show_slab_objects(struct kmem_cache *s,
- 				total += x;
- 				nodes[node] += x;
- 			}
--
--			per_cpu[node]++;
- 		}
- 	}
- 
+ 	l = (void *)__get_free_pages(flags, order);
 -- 
 1.7.7.6
 
