@@ -1,48 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 2C3E46B0031
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 12:31:49 -0400 (EDT)
-Message-ID: <51E02F6E.1060303@sr71.net>
-Date: Fri, 12 Jul 2013 09:31:42 -0700
-From: Dave Hansen <dave@sr71.net>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 396026B0031
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 14:00:43 -0400 (EDT)
+Received: from /spool/local
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Fri, 12 Jul 2013 19:00:42 +0100
+Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 98DC038C8042
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 14:00:38 -0400 (EDT)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6CI0daR9044420
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 14:00:39 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6CI0D9f006323
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 14:00:14 -0400
+Date: Fri, 12 Jul 2013 13:00:06 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Subject: Re: [PATCH] zswap: get swapper address_space by using
+ swap_address_space macro
+Message-ID: <20130712180006.GB3784@cerebellum>
+References: <1373604175-19562-1-git-send-email-sunghan.suh@samsung.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 1/5] mm, page_alloc: support multiple pages allocation
-References: <1372840460-5571-1-git-send-email-iamjoonsoo.kim@lge.com> <1372840460-5571-2-git-send-email-iamjoonsoo.kim@lge.com> <51DDE5BA.9020800@intel.com> <20130711010248.GB7756@lge.com> <51DE44CC.2070700@sr71.net> <20130711061201.GA2400@lge.com>
-In-Reply-To: <20130711061201.GA2400@lge.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1373604175-19562-1-git-send-email-sunghan.suh@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Sunghan Suh <sunghan.suh@samsung.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On 07/10/2013 11:12 PM, Joonsoo Kim wrote:
-> On Wed, Jul 10, 2013 at 10:38:20PM -0700, Dave Hansen wrote:
->> You're probably right for small numbers of pages.  But, if we're talking
->> about things that are more than, say, 100 pages (isn't the pcp batch
->> size clamped to 128 4k pages?) you surely don't want to be doing
->> buffered_rmqueue().
+On Fri, Jul 12, 2013 at 01:42:55PM +0900, Sunghan Suh wrote:
+> Signed-off-by: Sunghan Suh <sunghan.suh@samsung.com>
+> ---
+>  mm/zswap.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
-> Yes, you are right.
-> Firstly, I thought that I can use this for readahead. On my machine,
-> readahead reads (maximum) 32 pages in advance if faulted. And batch size
-> of percpu pages list is close to or larger than 32 pages
-> on today's machine. So I didn't consider more than 32 pages before.
-> But to cope with a request for more pages, using rmqueue_bulk() is
-> a right way. How about using rmqueue_bulk() conditionally?
+> diff --git a/mm/zswap.c b/mm/zswap.c
+> index deda2b6..efed4c8 100644
+> --- a/mm/zswap.c
+> +++ b/mm/zswap.c
+> @@ -409,7 +409,7 @@ static int zswap_get_swap_cache_page(swp_entry_t entry,
+>  				struct page **retpage)
+>  {
+>  	struct page *found_page, *new_page = NULL;
+> -	struct address_space *swapper_space = &swapper_spaces[swp_type(entry)];
+> +	struct address_space *swapper_space = swap_address_space(entry);
+>  	int err;
+> 
+>  	*retpage = NULL;
 
-How about you test it both ways and see what is faster?
+Thanks Sunghan!
 
-> Hmm, rmqueue_bulk() doesn't stop until all requested pages are allocated.
-> If we request too many pages (1024 pages or more), interrupt latency can
-> be a problem.
+Please add a simple commit message and resend with Andrew Morton on Cc:
+Andrew Morton <akpm@linux-foundation.org>
 
-OK, so only call it for the number of pages you believe allows it to
-have acceptable interrupt latency.  If you want 200 pages, and you can
-only disable interrupts for 100 pages, then just do it in two batches.
+When you resend, include the Reviewed-by tags from Wanpeng and Bob,
+as well as my:
 
-The point is that you want to avoid messing with the buffering by the
-percpu structures.  They're just overhead in your case.
+Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
