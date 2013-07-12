@@ -1,56 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id A59576B0032
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 05:28:56 -0400 (EDT)
-Received: by mail-ea0-f172.google.com with SMTP id q10so6314249eaj.3
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2013 02:28:55 -0700 (PDT)
-Date: Fri, 12 Jul 2013 11:28:51 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 2/2] mm: add a field to store names for private anonymous
- memory
-Message-ID: <20130712092851.GC5315@gmail.com>
-References: <1373596462-27115-1-git-send-email-ccross@android.com>
- <1373596462-27115-2-git-send-email-ccross@android.com>
- <51DF9682.9040301@kernel.org>
- <20130712081348.GM25631@dyad.programming.kicks-ass.net>
- <CAOJsxLHEGBdFtnmhDv2AekUhXB00To5JBjsw0t8eFzJPr8eLZQ@mail.gmail.com>
- <20130712085504.GO25631@dyad.programming.kicks-ass.net>
- <51DFC6AE.3020504@kernel.org>
- <20130712091445.GQ25631@dyad.programming.kicks-ass.net>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id EED0F6B0033
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 05:29:31 -0400 (EDT)
+Date: Fri, 12 Jul 2013 11:29:27 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2] vmpressure: make sure memcg stays alive until all
+ users are signaled
+Message-ID: <20130712092927.GA15307@dhcp22.suse.cz>
+References: <20130711083110.GC21667@dhcp22.suse.cz>
+ <51DE701C.6010800@huawei.com>
+ <20130711092542.GD21667@dhcp22.suse.cz>
+ <51DE7AAF.6070004@huawei.com>
+ <20130711093300.GE21667@dhcp22.suse.cz>
+ <20130711154408.GA9229@mtj.dyndns.org>
+ <20130711162215.GM21667@dhcp22.suse.cz>
+ <20130711163238.GC9229@mtj.dyndns.org>
+ <20130712084039.GA13224@dhcp22.suse.cz>
+ <51DFCA49.4080407@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130712091445.GQ25631@dyad.programming.kicks-ass.net>
+In-Reply-To: <51DFCA49.4080407@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Pekka Enberg <penberg@kernel.org>, Colin Cross <ccross@android.com>, LKML <linux-kernel@vger.kernel.org>, Kyungmin Park <kmpark@infradead.org>, Christoph Hellwig <hch@infradead.org>, John Stultz <john.stultz@linaro.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Dave Hansen <dave.hansen@intel.com>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, David Howells <dhowells@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Dave Jones <davej@redhat.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Oleg Nesterov <oleg@redhat.com>, Shaohua Li <shli@fusionio.com>, Sasha Levin <sasha.levin@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, "list@ebiederm.org:DOCUMENTATION" <linux-doc@vger.kernel.org>, "list@ebiederm.org:MEMORY MANAGEMENT" <linux-mm@kvack.org>
+To: Li Zefan <lizefan@huawei.com>
+Cc: Tejun Heo <tj@kernel.org>, Anton Vorontsov <anton.vorontsov@linaro.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
+On Fri 12-07-13 17:20:09, Li Zefan wrote:
+[...]
+> But if I read the code correctly, even no one registers a vmpressure event,
+> vmpressure() is always running and queue the work item.
 
-* Peter Zijlstra <peterz@infradead.org> wrote:
-
-> > Yeah, I could see that working. It doesn't solve the problems Ingo 
-> > mentioned which are also important, though.
-> 
-> Nothing I've yet seen would do that. Its intrinsic to the fact that we 
-> want 'anonymous' text tied to a process instance but require part of 
-> that text (symbol information at the very least) to be available after 
-> the process instance.
-> 
-> That are two contradictory requirements. You cannot preserve and not 
-> preserve at the same time.
-> 
-> And pushing the symbol info into the kernel isn't going to fix that 
-> either.
-
-I fully agree with you in the JIT case.
-
-I was arguing the utilty of the original, somewhat limited usecase: 
-minimally naming allocator areas/heaps, on a high level.
-
-Thanks,
-
-	Ingo
+True but checking there is somebody is rather impractical. First we
+would have to take a events_lock to check this and then drop it after
+scheduling the work. Which doesn't guarantee that the registered event
+wouldn't go away.
+And even trickier, we would have to do the same for all parents up the
+hierarchy.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
