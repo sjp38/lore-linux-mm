@@ -1,336 +1,388 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id D64156B0037
-	for <linux-mm@kvack.org>; Thu, 11 Jul 2013 22:04:15 -0400 (EDT)
-From: Robin Holt <holt@sgi.com>
-Subject: [RFC 4/4] Sparse initialization of struct page array.
-Date: Thu, 11 Jul 2013 21:03:55 -0500
-Message-Id: <1373594635-131067-5-git-send-email-holt@sgi.com>
-In-Reply-To: <1373594635-131067-1-git-send-email-holt@sgi.com>
-References: <1373594635-131067-1-git-send-email-holt@sgi.com>
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id E41376B0032
+	for <linux-mm@kvack.org>; Thu, 11 Jul 2013 22:34:31 -0400 (EDT)
+Received: by mail-vc0-f202.google.com with SMTP id ha12so792537vcb.1
+        for <linux-mm@kvack.org>; Thu, 11 Jul 2013 19:34:30 -0700 (PDT)
+From: Colin Cross <ccross@android.com>
+Subject: [PATCH 1/2] mm: rearrange madvise code to allow for reuse
+Date: Thu, 11 Jul 2013 19:34:21 -0700
+Message-Id: <1373596462-27115-1-git-send-email-ccross@android.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>
-Cc: Robin Holt <holt@sgi.com>, Nate Zimmer <nzimmer@sgi.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Rob Landley <rob@landley.net>, Mike Travis <travis@sgi.com>, Daniel J Blueman <daniel@numascale-asia.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Yinghai Lu <yinghai@kernel.org>, Mel Gorman <mgorman@suse.de>
+To: linux-kernel@vger.kernel.org
+Cc: Kyungmin Park <kmpark@infradead.org>, Christoph Hellwig <hch@infradead.org>, John Stultz <john.stultz@linaro.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Pekka Enberg <penberg@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Colin Cross <ccross@android.com>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, David Howells <dhowells@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Dave Jones <davej@redhat.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Oleg Nesterov <oleg@redhat.com>, Shaohua Li <shli@fusionio.com>, Sasha Levin <sasha.levin@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@kernel.org>, linux-doc@vger.kernel.org, linux-mm@kvack.org
 
-During boot of large memory machines, a significant portion of boot
-is spent initializing the struct page array.  The vast majority of
-those pages are not referenced during boot.
+This patch refactors the madvise syscall to allow for parts of it
+to be reused by a prctl syscall that affects vmas.
 
-Change this over to only initializing the pages when they are
-actually allocated.
+Move the code that walks vmas in a virtual address range into a
+function that takes a function pointer as a parameter.  The only
+caller for now is sys_madvise, which uses it to call
+madvise_vma_behavior on each vma, but the next patch will add
+an additional caller.
 
-Besides the advantage of boot speed, this allows us the chance to
-use normal performance monitoring tools to determine where the bulk
-of time is spent during page initialization.
+Move handling all vma behaviors inside madvise_behavior, and
+rename it to madvise_vma_behavior.
 
-Signed-off-by: Robin Holt <holt@sgi.com>
-Signed-off-by: Nate Zimmer <nzimmer@sgi.com>
-To: "H. Peter Anvin" <hpa@zytor.com>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>
-Cc: Linux MM <linux-mm@kvack.org>
-Cc: Rob Landley <rob@landley.net>
-Cc: Mike Travis <travis@sgi.com>
-Cc: Daniel J Blueman <daniel@numascale-asia.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Greg KH <gregkh@linuxfoundation.org>
-Cc: Yinghai Lu <yinghai@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>
+Move the code that updates the flags on a vma, including splitting
+or merging the vma as necessary, into a new function called
+madvise_update_vma.  The next patch will add support for updating
+a new anon_name field as well.
+
+Signed-off-by: Colin Cross <ccross@android.com>
 ---
- include/linux/mm.h         |  11 +++++
- include/linux/page-flags.h |   5 +-
- mm/nobootmem.c             |   5 ++
- mm/page_alloc.c            | 117 +++++++++++++++++++++++++++++++++++++++++++--
- 4 files changed, 132 insertions(+), 6 deletions(-)
+ mm/madvise.c | 272 +++++++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 151 insertions(+), 121 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index e0c8528..3de08b5 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1330,8 +1330,19 @@ static inline void __free_reserved_page(struct page *page)
- 	__free_page(page);
+diff --git a/mm/madvise.c b/mm/madvise.c
+index 7055883..b8820fd 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -39,65 +39,20 @@ static int madvise_need_mmap_write(int behavior)
  }
  
-+extern void __reserve_bootmem_region(phys_addr_t start, phys_addr_t end);
-+
-+static inline void __reserve_bootmem_page(struct page *page)
-+{
-+	phys_addr_t start = page_to_pfn(page) << PAGE_SHIFT;
-+	phys_addr_t end = start + PAGE_SIZE;
-+
-+	__reserve_bootmem_region(start, end);
-+}
-+
- static inline void free_reserved_page(struct page *page)
- {
-+	__reserve_bootmem_page(page);
- 	__free_reserved_page(page);
- 	adjust_managed_page_count(page, 1);
- }
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 6d53675..79e8eb7 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -83,6 +83,7 @@ enum pageflags {
- 	PG_owner_priv_1,	/* Owner use. If pagecache, fs may use*/
- 	PG_arch_1,
- 	PG_reserved,
-+	PG_uninitialized2mib,	/* Is this the right spot? ntz - Yes - rmh */
- 	PG_private,		/* If pagecache, has fs-private data */
- 	PG_private_2,		/* If pagecache, has fs aux data */
- 	PG_writeback,		/* Page is under writeback */
-@@ -211,6 +212,8 @@ PAGEFLAG(SwapBacked, swapbacked) __CLEARPAGEFLAG(SwapBacked, swapbacked)
- 
- __PAGEFLAG(SlobFree, slob_free)
- 
-+PAGEFLAG(Uninitialized2Mib, uninitialized2mib)
-+
  /*
-  * Private page markings that may be used by the filesystem that owns the page
-  * for its own purposes.
-@@ -499,7 +502,7 @@ static inline void ClearPageSlabPfmemalloc(struct page *page)
- #define PAGE_FLAGS_CHECK_AT_FREE \
- 	(1 << PG_lru	 | 1 << PG_locked    | \
- 	 1 << PG_private | 1 << PG_private_2 | \
--	 1 << PG_writeback | 1 << PG_reserved | \
-+	 1 << PG_writeback | 1 << PG_reserved | 1 << PG_uninitialized2mib | \
- 	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
- 	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON | \
- 	 __PG_COMPOUND_LOCK)
-diff --git a/mm/nobootmem.c b/mm/nobootmem.c
-index 3b512ca..e3a386d 100644
---- a/mm/nobootmem.c
-+++ b/mm/nobootmem.c
-@@ -126,6 +126,9 @@ static unsigned long __init free_low_memory_core_early(void)
- 	phys_addr_t start, end, size;
- 	u64 i;
- 
-+	for_each_reserved_mem_region(i, &start, &end)
-+		__reserve_bootmem_region(start, end);
-+
- 	for_each_free_mem_range(i, MAX_NUMNODES, &start, &end, NULL)
- 		count += __free_memory_core(start, end);
- 
-@@ -162,6 +165,8 @@ unsigned long __init free_all_bootmem(void)
+- * We can potentially split a vm area into separate
+- * areas, each area with its own behavior.
++ * Update the vm_flags on regiion of a vma, splitting it or merging it as
++ * necessary.  Must be called with mmap_sem held for writing;
+  */
+-static long madvise_behavior(struct vm_area_struct * vma,
+-		     struct vm_area_struct **prev,
+-		     unsigned long start, unsigned long end, int behavior)
++static int madvise_update_vma(struct vm_area_struct *vma,
++		     struct vm_area_struct **prev, unsigned long start,
++		     unsigned long end, unsigned long new_flags)
  {
- 	struct pglist_data *pgdat;
+ 	struct mm_struct * mm = vma->vm_mm;
+-	int error = 0;
+ 	pgoff_t pgoff;
+-	unsigned long new_flags = vma->vm_flags;
+-
+-	switch (behavior) {
+-	case MADV_NORMAL:
+-		new_flags = new_flags & ~VM_RAND_READ & ~VM_SEQ_READ;
+-		break;
+-	case MADV_SEQUENTIAL:
+-		new_flags = (new_flags & ~VM_RAND_READ) | VM_SEQ_READ;
+-		break;
+-	case MADV_RANDOM:
+-		new_flags = (new_flags & ~VM_SEQ_READ) | VM_RAND_READ;
+-		break;
+-	case MADV_DONTFORK:
+-		new_flags |= VM_DONTCOPY;
+-		break;
+-	case MADV_DOFORK:
+-		if (vma->vm_flags & VM_IO) {
+-			error = -EINVAL;
+-			goto out;
+-		}
+-		new_flags &= ~VM_DONTCOPY;
+-		break;
+-	case MADV_DONTDUMP:
+-		new_flags |= VM_DONTDUMP;
+-		break;
+-	case MADV_DODUMP:
+-		if (new_flags & VM_SPECIAL) {
+-			error = -EINVAL;
+-			goto out;
+-		}
+-		new_flags &= ~VM_DONTDUMP;
+-		break;
+-	case MADV_MERGEABLE:
+-	case MADV_UNMERGEABLE:
+-		error = ksm_madvise(vma, start, end, behavior, &new_flags);
+-		if (error)
+-			goto out;
+-		break;
+-	case MADV_HUGEPAGE:
+-	case MADV_NOHUGEPAGE:
+-		error = hugepage_madvise(vma, &new_flags, behavior);
+-		if (error)
+-			goto out;
+-		break;
+-	}
++	int error;
  
-+	memblock_dump_all();
-+
- 	for_each_online_pgdat(pgdat)
- 		reset_node_lowmem_managed_pages(pgdat);
+ 	if (new_flags == vma->vm_flags) {
+ 		*prev = vma;
+-		goto out;
++		return 0;
+ 	}
  
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 635b131..fe51eb9 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -740,6 +740,54 @@ static void __init_single_page(struct page *page, unsigned long zone, int nid, i
- #endif
+ 	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
+@@ -113,13 +68,13 @@ static long madvise_behavior(struct vm_area_struct * vma,
+ 	if (start != vma->vm_start) {
+ 		error = split_vma(mm, vma, start, 1);
+ 		if (error)
+-			goto out;
++			return error;
+ 	}
+ 
+ 	if (end != vma->vm_end) {
+ 		error = split_vma(mm, vma, end, 0);
+ 		if (error)
+-			goto out;
++			return error;
+ 	}
+ 
+ success:
+@@ -128,10 +83,7 @@ success:
+ 	 */
+ 	vma->vm_flags = new_flags;
+ 
+-out:
+-	if (error == -ENOMEM)
+-		error = -EAGAIN;
+-	return error;
++	return 0;
  }
  
-+static void expand_page_initialization(struct page *basepage)
+ #ifdef CONFIG_SWAP
+@@ -337,6 +289,77 @@ static long madvise_remove(struct vm_area_struct *vma,
+ 	return error;
+ }
+ 
++/*
++ * Apply an madvise behavior to a region of a vma.  madvise_update_vma
++ * will handle splitting a vm area into separate areas, each area with its own
++ * behavior.
++ */
++static int madvise_vma_behavior(struct vm_area_struct *vma,
++		     struct vm_area_struct **prev,
++		     unsigned long start, unsigned long end,
++		     unsigned long behavior)
 +{
-+	unsigned long pfn = page_to_pfn(basepage);
-+	unsigned long end_pfn = pfn + PTRS_PER_PMD;
-+	unsigned long zone = page_zonenum(basepage);
-+	int reserved = PageReserved(basepage);
-+	int nid = page_to_nid(basepage);
++	int error = 0;
++	unsigned long new_flags = vma->vm_flags;
 +
-+	ClearPageUninitialized2Mib(basepage);
++	switch (behavior) {
++	case MADV_REMOVE:
++		return madvise_remove(vma, prev, start, end);
++	case MADV_WILLNEED:
++		return madvise_willneed(vma, prev, start, end);
++	case MADV_DONTNEED:
++		return madvise_dontneed(vma, prev, start, end);
++	case MADV_NORMAL:
++		new_flags = new_flags & ~VM_RAND_READ & ~VM_SEQ_READ;
++		break;
++	case MADV_SEQUENTIAL:
++		new_flags = (new_flags & ~VM_RAND_READ) | VM_SEQ_READ;
++		break;
++	case MADV_RANDOM:
++		new_flags = (new_flags & ~VM_SEQ_READ) | VM_RAND_READ;
++		break;
++	case MADV_DONTFORK:
++		new_flags |= VM_DONTCOPY;
++		break;
++	case MADV_DOFORK:
++		if (vma->vm_flags & VM_IO) {
++			error = -EINVAL;
++			goto out;
++		}
++		new_flags &= ~VM_DONTCOPY;
++		break;
++	case MADV_DONTDUMP:
++		new_flags |= VM_DONTDUMP;
++		break;
++	case MADV_DODUMP:
++		if (new_flags & VM_SPECIAL) {
++			error = -EINVAL;
++			goto out;
++		}
++		new_flags &= ~VM_DONTDUMP;
++		break;
++	case MADV_MERGEABLE:
++	case MADV_UNMERGEABLE:
++		error = ksm_madvise(vma, start, end, behavior, &new_flags);
++		if (error)
++			goto out;
++		break;
++	case MADV_HUGEPAGE:
++	case MADV_NOHUGEPAGE:
++		error = hugepage_madvise(vma, &new_flags, behavior);
++		if (error)
++			goto out;
++		break;
++	}
 +
-+	for( pfn++; pfn < end_pfn; pfn++ )
-+		__init_single_page(pfn_to_page(pfn), zone, nid, reserved);
++	error = madvise_update_vma(vma, prev, start, end, new_flags);
++
++out:
++	if (error == -ENOMEM)
++		error = -EAGAIN;
++	return error;
 +}
 +
-+void ensure_pages_are_initialized(unsigned long start_pfn,
-+				  unsigned long end_pfn)
+ #ifdef CONFIG_MEMORY_FAILURE
+ /*
+  * Error injection support for memory error handling.
+@@ -369,22 +392,6 @@ static int madvise_hwpoison(int bhv, unsigned long start, unsigned long end)
+ }
+ #endif
+ 
+-static long
+-madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
+-		unsigned long start, unsigned long end, int behavior)
+-{
+-	switch (behavior) {
+-	case MADV_REMOVE:
+-		return madvise_remove(vma, prev, start, end);
+-	case MADV_WILLNEED:
+-		return madvise_willneed(vma, prev, start, end);
+-	case MADV_DONTNEED:
+-		return madvise_dontneed(vma, prev, start, end);
+-	default:
+-		return madvise_behavior(vma, prev, start, end, behavior);
+-	}
+-}
+-
+ static int
+ madvise_behavior_valid(int behavior)
+ {
+@@ -415,6 +422,73 @@ madvise_behavior_valid(int behavior)
+ }
+ 
+ /*
++ * Walk the vmas in range [start,end), and call the visit function on each one.
++ * The visit function will get start and end parameters that cover the overlap
++ * between the current vma and the original range.  Any unmapped regions in the
++ * original range will result in this function returning -ENOMEM while still
++ * calling the visit function on all of the existing vmas in the range.
++ * Must be called with the mmap_sem held for reading or writing.
++ */
++static
++int madvise_walk_vmas(unsigned long start, unsigned long end,
++		unsigned long arg,
++		int (*visit)(struct vm_area_struct *vma,
++			struct vm_area_struct **prev, unsigned long start,
++			unsigned long end, unsigned long arg))
 +{
-+	unsigned long aligned_start_pfn = start_pfn & ~(PTRS_PER_PMD - 1);
-+	unsigned long aligned_end_pfn;
-+	struct page *page;
++	struct vm_area_struct *vma;
++	struct vm_area_struct *prev;
++	unsigned long tmp;
++	int unmapped_error = 0;
 +
-+	aligned_end_pfn = end_pfn & ~(PTRS_PER_PMD - 1);
-+	aligned_end_pfn += PTRS_PER_PMD;
-+	while (aligned_start_pfn < aligned_end_pfn) {
-+		if (pfn_valid(aligned_start_pfn)) {
-+			page = pfn_to_page(aligned_start_pfn);
++	/*
++	 * If the interval [start,end) covers some unmapped address
++	 * ranges, just ignore them, but return -ENOMEM at the end.
++	 * - different from the way of handling in mlock etc.
++	 */
++	vma = find_vma_prev(current->mm, start, &prev);
++	if (vma && start > vma->vm_start)
++		prev = vma;
 +
-+			if(PageUninitialized2Mib(page))
-+				expand_page_initialization(page);
++	for (;;) {
++		int error;
++
++		/* Still start < end. */
++		if (!vma)
++			return -ENOMEM;
++
++		/* Here start < (end|vma->vm_end). */
++		if (start < vma->vm_start) {
++			unmapped_error = -ENOMEM;
++			start = vma->vm_start;
++			if (start >= end)
++				break;
 +		}
 +
-+		aligned_start_pfn += PTRS_PER_PMD;
++		/* Here vma->vm_start <= start < (end|vma->vm_end) */
++		tmp = vma->vm_end;
++		if (end < tmp)
++			tmp = end;
++
++		/* Here vma->vm_start <= start < tmp <= (end|vma->vm_end). */
++		error = visit(vma, &prev, start, tmp, arg);
++		if (error)
++			return error;
++		start = tmp;
++		if (prev && start < prev->vm_end)
++			start = prev->vm_end;
++		if (start >= end)
++			break;
++		if (prev)
++			vma = prev->vm_next;
++		else	/* madvise_remove dropped mmap_sem */
++			vma = find_vma(current->mm, start);
 +	}
++
++	return unmapped_error;
 +}
 +
-+void __reserve_bootmem_region(phys_addr_t start, phys_addr_t end)
-+{
-+	unsigned long start_pfn = PFN_DOWN(start);
-+	unsigned long end_pfn = PFN_UP(end);
-+
-+	ensure_pages_are_initialized(start_pfn, end_pfn);
-+}
-+
-+static inline void ensure_page_is_initialized(struct page *page)
-+{
-+	__reserve_bootmem_page(page);
-+}
-+
- static bool free_pages_prepare(struct page *page, unsigned int order)
++/*
+  * The madvise(2) system call.
+  *
+  * Applications can use madvise() to advise the kernel how it should
+@@ -458,9 +532,7 @@ madvise_behavior_valid(int behavior)
+  */
+ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
  {
- 	int i;
-@@ -751,7 +799,10 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
- 	if (PageAnon(page))
- 		page->mapping = NULL;
- 	for (i = 0; i < (1 << order); i++)
--		bad += free_pages_check(page + i);
-+		if (PageUninitialized2Mib(page + i))
-+			i += PTRS_PER_PMD - 1;
-+		else
-+			bad += free_pages_check(page + i);
- 	if (bad)
- 		return false;
+-	unsigned long end, tmp;
+-	struct vm_area_struct * vma, *prev;
+-	int unmapped_error = 0;
++	unsigned long end;
+ 	int error = -EINVAL;
+ 	int write;
+ 	size_t len;
+@@ -495,52 +567,10 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
+ 	else
+ 		down_read(&current->mm->mmap_sem);
  
-@@ -795,13 +846,22 @@ void __meminit __free_pages_bootmem(struct page *page, unsigned int order)
- 	unsigned int loop;
- 
- 	prefetchw(page);
--	for (loop = 0; loop < nr_pages; loop++) {
-+	for (loop = 0; loop < nr_pages; ) {
- 		struct page *p = &page[loop];
- 
- 		if (loop + 1 < nr_pages)
- 			prefetchw(p + 1);
+-	/*
+-	 * If the interval [start,end) covers some unmapped address
+-	 * ranges, just ignore them, but return -ENOMEM at the end.
+-	 * - different from the way of handling in mlock etc.
+-	 */
+-	vma = find_vma_prev(current->mm, start, &prev);
+-	if (vma && start > vma->vm_start)
+-		prev = vma;
+-
+ 	blk_start_plug(&plug);
+-	for (;;) {
+-		/* Still start < end. */
+-		error = -ENOMEM;
+-		if (!vma)
+-			goto out;
+-
+-		/* Here start < (end|vma->vm_end). */
+-		if (start < vma->vm_start) {
+-			unmapped_error = -ENOMEM;
+-			start = vma->vm_start;
+-			if (start >= end)
+-				goto out;
+-		}
+-
+-		/* Here vma->vm_start <= start < (end|vma->vm_end) */
+-		tmp = vma->vm_end;
+-		if (end < tmp)
+-			tmp = end;
+-
+-		/* Here vma->vm_start <= start < tmp <= (end|vma->vm_end). */
+-		error = madvise_vma(vma, &prev, start, tmp, behavior);
+-		if (error)
+-			goto out;
+-		start = tmp;
+-		if (prev && start < prev->vm_end)
+-			start = prev->vm_end;
+-		error = unmapped_error;
+-		if (start >= end)
+-			goto out;
+-		if (prev)
+-			vma = prev->vm_next;
+-		else	/* madvise_remove dropped mmap_sem */
+-			vma = find_vma(current->mm, start);
+-	}
+-out:
++	error = madvise_walk_vmas(start, end, behavior, madvise_vma_behavior);
+ 	blk_finish_plug(&plug);
 +
-+		if ((PageUninitialized2Mib(p)) &&
-+		    ((loop + PTRS_PER_PMD) > nr_pages))
-+			ensure_page_is_initialized(p);
-+
- 		__ClearPageReserved(p);
- 		set_page_count(p, 0);
-+		if (PageUninitialized2Mib(p))
-+			loop += PTRS_PER_PMD;
-+		else
-+			loop += 1;
- 	}
- 
- 	page_zone(page)->managed_pages += 1 << order;
-@@ -856,6 +916,7 @@ static inline void expand(struct zone *zone, struct page *page,
- 		area--;
- 		high--;
- 		size >>= 1;
-+		ensure_page_is_initialized(page);
- 		VM_BUG_ON(bad_range(zone, &page[size]));
- 
- #ifdef CONFIG_DEBUG_PAGEALLOC
-@@ -903,6 +964,10 @@ static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
- 
- 	for (i = 0; i < (1 << order); i++) {
- 		struct page *p = page + i;
-+
-+		if (PageUninitialized2Mib(p))
-+			expand_page_initialization(page);
-+
- 		if (unlikely(check_new_page(p)))
- 			return 1;
- 	}
-@@ -985,6 +1050,7 @@ int move_freepages(struct zone *zone,
- 	unsigned long order;
- 	int pages_moved = 0;
- 
-+	ensure_pages_are_initialized(page_to_pfn(start_page), page_to_pfn(end_page));
- #ifndef CONFIG_HOLES_IN_ZONE
- 	/*
- 	 * page_zone is not safe to call in this context when
-@@ -3859,6 +3925,9 @@ static int pageblock_is_reserved(unsigned long start_pfn, unsigned long end_pfn)
- 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
- 		if (!pfn_valid_within(pfn) || PageReserved(pfn_to_page(pfn)))
- 			return 1;
-+
-+		if (PageUninitialized2Mib(pfn_to_page(pfn)))
-+			pfn += PTRS_PER_PMD;
- 	}
- 	return 0;
- }
-@@ -3947,6 +4016,29 @@ static void setup_zone_migrate_reserve(struct zone *zone)
- 	}
- }
- 
-+int __meminit pfn_range_init_avail(unsigned long pfn, unsigned long end_pfn,
-+				   unsigned long size, int nid)
-+{
-+	unsigned long validate_end_pfn = pfn + size;
-+
-+	if (pfn & (size - 1))
-+		return 1;
-+
-+	if (pfn + size >= end_pfn)
-+		return 1;
-+
-+	while (pfn < validate_end_pfn)
-+	{
-+		if (!early_pfn_valid(pfn))
-+			return 1;
-+		if (!early_pfn_in_nid(pfn, nid))
-+			return 1;
-+		pfn++;
-+ 	}
-+
-+	return size;
-+}
-+
- /*
-  * Initially all pages are reserved - free ones are freed
-  * up by free_all_bootmem() once the early boot process is
-@@ -3964,20 +4056,34 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 		highest_memmap_pfn = end_pfn - 1;
- 
- 	z = &NODE_DATA(nid)->node_zones[zone];
--	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
-+	for (pfn = start_pfn; pfn < end_pfn; ) {
- 		/*
- 		 * There can be holes in boot-time mem_map[]s
- 		 * handed to this function.  They do not
- 		 * exist on hotplugged memory.
- 		 */
-+		int pfns = 1;
- 		if (context == MEMMAP_EARLY) {
--			if (!early_pfn_valid(pfn))
-+			if (!early_pfn_valid(pfn)) {
-+				pfn++;
- 				continue;
--			if (!early_pfn_in_nid(pfn, nid))
-+			}
-+			if (!early_pfn_in_nid(pfn, nid)) {
-+				pfn++;
- 				continue;
-+			}
-+
-+			pfns = pfn_range_init_avail(pfn, end_pfn,
-+						    PTRS_PER_PMD, nid);
- 		}
-+
- 		page = pfn_to_page(pfn);
- 		__init_single_page(page, zone, nid, 1);
-+
-+		if (pfns > 1)
-+			SetPageUninitialized2Mib(page);
-+
-+		pfn += pfns;
- 	}
- }
- 
-@@ -6196,6 +6302,7 @@ static const struct trace_print_flags pageflag_names[] = {
- 	{1UL << PG_owner_priv_1,	"owner_priv_1"	},
- 	{1UL << PG_arch_1,		"arch_1"	},
- 	{1UL << PG_reserved,		"reserved"	},
-+	{1UL << PG_uninitialized2mib,	"Uninit_2MiB"	},
- 	{1UL << PG_private,		"private"	},
- 	{1UL << PG_private_2,		"private_2"	},
- 	{1UL << PG_writeback,		"writeback"	},
+ 	if (write)
+ 		up_write(&current->mm->mmap_sem);
+ 	else
 -- 
-1.8.2.1
+1.8.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
