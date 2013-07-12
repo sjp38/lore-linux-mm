@@ -1,66 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 396026B0031
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 14:00:43 -0400 (EDT)
-Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Fri, 12 Jul 2013 19:00:42 +0100
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 98DC038C8042
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 14:00:38 -0400 (EDT)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6CI0daR9044420
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 14:00:39 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6CI0D9f006323
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 14:00:14 -0400
-Date: Fri, 12 Jul 2013 13:00:06 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: Re: [PATCH] zswap: get swapper address_space by using
- swap_address_space macro
-Message-ID: <20130712180006.GB3784@cerebellum>
-References: <1373604175-19562-1-git-send-email-sunghan.suh@samsung.com>
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id C7E0E6B0032
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 14:34:11 -0400 (EDT)
+Received: by mail-ye0-f169.google.com with SMTP id m1so3261597yen.14
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2013 11:34:10 -0700 (PDT)
+Date: Fri, 12 Jul 2013 11:34:04 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v2] vmpressure: make sure memcg stays alive until all
+ users are signaled
+Message-ID: <20130712183404.GA23680@mtj.dyndns.org>
+References: <20130710184254.GA16979@mtj.dyndns.org>
+ <20130711083110.GC21667@dhcp22.suse.cz>
+ <51DE701C.6010800@huawei.com>
+ <20130711092542.GD21667@dhcp22.suse.cz>
+ <51DE7AAF.6070004@huawei.com>
+ <20130711093300.GE21667@dhcp22.suse.cz>
+ <20130711154408.GA9229@mtj.dyndns.org>
+ <20130711162215.GM21667@dhcp22.suse.cz>
+ <20130711163238.GC9229@mtj.dyndns.org>
+ <20130712084039.GA13224@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1373604175-19562-1-git-send-email-sunghan.suh@samsung.com>
+In-Reply-To: <20130712084039.GA13224@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sunghan Suh <sunghan.suh@samsung.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Li Zefan <lizefan@huawei.com>, Anton Vorontsov <anton.vorontsov@linaro.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On Fri, Jul 12, 2013 at 01:42:55PM +0900, Sunghan Suh wrote:
-> Signed-off-by: Sunghan Suh <sunghan.suh@samsung.com>
-> ---
->  mm/zswap.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+Hello, Michal.
+
+On Fri, Jul 12, 2013 at 10:40:39AM +0200, Michal Hocko wrote:
+> > It's not something white and black but for things which can be made
+> > trivially synchrnous, it usually is better to do it that way,
 > 
-> diff --git a/mm/zswap.c b/mm/zswap.c
-> index deda2b6..efed4c8 100644
-> --- a/mm/zswap.c
-> +++ b/mm/zswap.c
-> @@ -409,7 +409,7 @@ static int zswap_get_swap_cache_page(swp_entry_t entry,
->  				struct page **retpage)
->  {
->  	struct page *found_page, *new_page = NULL;
-> -	struct address_space *swapper_space = &swapper_spaces[swp_type(entry)];
-> +	struct address_space *swapper_space = swap_address_space(entry);
->  	int err;
+> True in general but it is also true (in general) that once we have a
+> reference counting for controlling life cycle for an object we should
+> not bypass it.
+
+When you have a reference count with staged destruction like cgroup,
+the object goes two stagages before being released.  It first gets
+deactivated or removed from further access and the base ref is
+dropped.  This state presists until the left-over references drain.
+When all the references are dropped, the object is actually released.
+
+Now, between the initiation of destruction and actual release, the
+object often isn't in the same state as before the destruction
+started.  It depends on the specifics of the subsystem but usually
+only subset of the original functionalities are accessible.  At times,
+it becomes tricky discerning what's safe and what's not and we do end
+up with latent subtle bugs which are only triggered when tricky
+conditions are met - things like certain operations stretching across
+destruction point.
+
+It is important to distinguish the boundary between things which
+remain accessible after destruction point and it often is easier and
+less dangerous to avoid expanding that set unless necessary, so it is
+not "bypassing" an existing mechanism at all.  It is an inherent part
+of that model and various kernel subsystems have been doing that
+forever.
+
+> So I guess we are safe with the code as is but this all is really
+> _tricky_ and deserves a fat comment. So rather than adding flushing work
+> item code we should document it properly.
 > 
->  	*retpage = NULL;
+> Or am I missing something?
 
-Thanks Sunghan!
+Two things.
 
-Please add a simple commit message and resend with Andrew Morton on Cc:
-Andrew Morton <akpm@linux-foundation.org>
+* I have no idea what would prevent the work item execution kicking in
+  way after the inode is released.  The execution is not flushed and
+  the work item isn't pinning the underlying data structure.  There's
+  nothing preventing the work item execution to happen after or
+  stretch across inode release.
 
-When you resend, include the Reviewed-by tags from Wanpeng and Bob,
-as well as my:
+* You're turning something which has a clearly established pattern of
+  usage - work item shutdown which is usually done by disabling
+  issuance and then flushing / canceling - into something really
+  tricky and deserving a fat comment.  In general, kernel engineering
+  is never about finding the most optimal / minimal / ingenious
+  solution for each encountered instances of problems.  In most cases,
+  it's usually about identifying established patterns and applying
+  them so that the code is not only safe and correct but also remains
+  accessible to the fellow kernel developers.
 
-Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+  Here, people who are familiary with workqueue usage would
+  automatically look for shutdown sequence as the work item is
+  contained in a dynamic object.  There are cases where
+  synchronization happens externally and you don't necessarily need
+  flush / cancel, but even then, if you consider readability and
+  maintainability, following the established pattern is often then
+  right thing to do.  It makes the code easier to follow and verify
+  for others and avoids unintentional breakages afterwards as you
+  separate out work item draining from the external synchronization
+  which may change later on without noticing how it's interlocked with
+  work item draining.
 
-Seth
+> OK, I haven't realized the action waits for finishing. /me is not
+> regular work_queue user...
+
+So, please, follow the established patterns.  This really isn't the
+place for ingenuity.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
