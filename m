@@ -1,42 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 0D4A96B0032
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 14:38:35 -0400 (EDT)
-Message-ID: <51E04D1E.8060303@parallels.com>
-Date: Fri, 12 Jul 2013 22:38:22 +0400
-From: Pavel Emelyanov <xemul@parallels.com>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 8378B6B0032
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 14:40:43 -0400 (EDT)
+Received: by mail-gh0-f174.google.com with SMTP id r17so3293501ghr.19
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2013 11:40:41 -0700 (PDT)
+Date: Fri, 12 Jul 2013 11:40:36 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v2] vmpressure: make sure memcg stays alive until all
+ users are signaled
+Message-ID: <20130712184036.GB23680@mtj.dyndns.org>
+References: <20130711083110.GC21667@dhcp22.suse.cz>
+ <51DE701C.6010800@huawei.com>
+ <20130711092542.GD21667@dhcp22.suse.cz>
+ <51DE7AAF.6070004@huawei.com>
+ <20130711093300.GE21667@dhcp22.suse.cz>
+ <20130711154408.GA9229@mtj.dyndns.org>
+ <20130711162215.GM21667@dhcp22.suse.cz>
+ <20130711163238.GC9229@mtj.dyndns.org>
+ <20130712084039.GA13224@dhcp22.suse.cz>
+ <20130712183404.GA23680@mtj.dyndns.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/5] mm: soft-dirty bits for user memory changes tracking
-References: <517FED13.8090806@parallels.com> <517FED64.4020400@parallels.com> <51DEFD9E.7010703@mit.edu>
-In-Reply-To: <51DEFD9E.7010703@mit.edu>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130712183404.GA23680@mtj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Matt Mackall <mpm@selenic.com>, Marcelo Tosatti <mtosatti@redhat.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Li Zefan <lizefan@huawei.com>, Anton Vorontsov <anton.vorontsov@linaro.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On 07/11/2013 10:46 PM, Andy Lutomirski wrote:
-> 
-> Sorry I'm late to the party -- I didn't notice this until the lwn
-> article this week.
-> 
-> How does this get munmap + mmap right?  mremap marks things soft-dirty,
-> but unmapping and remapping seems like it will result in the soft-dirty
-> bit being cleared.  For that matter, won't this sequence also end up wrong:
-> 
->  - clear_refs
->  - Write to mapping
->  - Page and pte evicted due to memory pressure
->  - Read from mapping -- clean page faulted back in
->  - pte soft-dirty is now clear ?!?
+On Fri, Jul 12, 2013 at 11:34:04AM -0700, Tejun Heo wrote:
+> not "bypassing" an existing mechanism at all.  It is an inherent part
+> of that model and various kernel subsystems have been doing that
+> forever.
 
-Yes, it looks like this problem exists. I'll look what can be done about
-it, thank you.
+Just to clarify, I was talking about two staged object release where
+the initial phase shuts down parts which aren't necessary for the
+draining stage.
 
-> --Andy
+Thanks.
 
-Pavel
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
