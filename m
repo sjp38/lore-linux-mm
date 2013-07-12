@@ -1,14 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 0BC986B0031
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 09:53:17 -0400 (EDT)
-Date: Fri, 12 Jul 2013 13:53:16 +0000
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 5BE8D6B0031
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 09:58:33 -0400 (EDT)
+Date: Fri, 12 Jul 2013 13:58:32 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] mm/slub.c: use 'unsigned long' instead of 'int' for
- variable 'slub_debug'
-In-Reply-To: <51DF5F43.3080408@asianux.com>
-Message-ID: <0000013fd3283b9c-b5fe217c-fff3-47fd-be0b-31b00faba1f3-000000@email.amazonses.com>
-References: <51DF5F43.3080408@asianux.com>
+Subject: Re: [PATCH] mm/slub.c: beautify code of this file
+In-Reply-To: <51DF778B.8090701@asianux.com>
+Message-ID: <0000013fd32d0b91-4cab82b6-a24f-42e2-a1d2-ac5df2be6f4c-000000@email.amazonses.com>
+References: <51DF5F43.3080408@asianux.com> <51DF778B.8090701@asianux.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -18,17 +17,22 @@ Cc: Pekka Enberg <penberg@kernel.org>, mpm@selenic.com, linux-mm@kvack.org
 
 On Fri, 12 Jul 2013, Chen Gang wrote:
 
-> Since all values which can be assigned to 'slub_debug' are 'unsigned
-> long', recommend also to define 'slub_debug' as 'unsigned long' to
-> match the type precisely
+> Be sure of 80 column limitation for both code and comments.
+> Correct tab alignment for 'if-else' statement.
 
-The bit definitions in slab.h as well as slub.c all assume that these are
-32 bit entities. See f.e. the defition of the internal slub flags:
+Thanks.
 
-/* Internal SLUB flags */
-#define __OBJECT_POISON         0x80000000UL /* Poison object */
-#define __CMPXCHG_DOUBLE        0x40000000UL /* Use cmpxchg_double */
+> Remove redundancy 'break' statement.
 
+Hmm... I'd rather have the first break removed.
+
+> Remove useless BUG_ON(), since it can never happen.
+
+It may happen if more code is added to that function. Recently the cgroups
+thing was added f.e.
+
+Could you separate this out into multiple patches that each do one thing
+only?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
