@@ -1,77 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 080B46B0032
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 15:08:31 -0400 (EDT)
-Received: by mail-qc0-f174.google.com with SMTP id m15so5143956qcq.19
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2013 12:08:31 -0700 (PDT)
-Message-ID: <51E0543A.5040906@gmail.com>
-Date: Fri, 12 Jul 2013 15:08:42 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id BF0DD6B0032
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 16:51:53 -0400 (EDT)
+Received: by mail-vb0-f52.google.com with SMTP id f12so1887146vbg.39
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2013 13:51:52 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [-] drop_caches-add-some-documentation-and-info-messsge.patch
- removed from -mm tree
-References: <51ddc31f.zotz9WDKK3lWXtDE%akpm@linux-foundation.org> <20130711073644.GB21667@dhcp22.suse.cz> <20130711145034.3ec774d0a44742cf5d8e1177@linux-foundation.org> <20130712115028.GC15307@dhcp22.suse.cz>
-In-Reply-To: <20130712115028.GC15307@dhcp22.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20130712094957.GS25631@dyad.programming.kicks-ass.net>
+References: <1373596462-27115-1-git-send-email-ccross@android.com>
+	<1373596462-27115-2-git-send-email-ccross@android.com>
+	<51DF9682.9040301@kernel.org>
+	<20130712081348.GM25631@dyad.programming.kicks-ass.net>
+	<20130712081717.GN25631@dyad.programming.kicks-ass.net>
+	<20130712084406.GB4328@gmail.com>
+	<20130712090046.GP25631@dyad.programming.kicks-ass.net>
+	<20130712091506.GA5315@gmail.com>
+	<20130712092707.GR25631@dyad.programming.kicks-ass.net>
+	<20130712094044.GD5315@gmail.com>
+	<20130712094957.GS25631@dyad.programming.kicks-ass.net>
+Date: Fri, 12 Jul 2013 13:51:52 -0700
+Message-ID: <CAMbhsRR+ws-psQ8UA9ufekUo9J15cRQE=X-b2+fmfCcCoHQ2tg@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm: add a field to store names for private anonymous memory
+From: Colin Cross <ccross@android.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, Borislav Petkov <bp@suse.de>, Dave Hansen <dave.hansen@intel.com>, kosaki.motohiro@gmail.com
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@kernel.org>, Pekka Enberg <penberg@kernel.org>, lkml <linux-kernel@vger.kernel.org>, Kyungmin Park <kmpark@infradead.org>, Christoph Hellwig <hch@infradead.org>, John Stultz <john.stultz@linaro.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Dave Hansen <dave.hansen@intel.com>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, David Howells <dhowells@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Dave Jones <davej@redhat.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Oleg Nesterov <oleg@redhat.com>, Shaohua Li <shli@fusionio.com>, Sasha Levin <sasha.levin@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-(7/12/13 7:50 AM), Michal Hocko wrote:
-> On Thu 11-07-13 14:50:34, Andrew Morton wrote:
->> On Thu, 11 Jul 2013 09:36:44 +0200 Michal Hocko <mhocko@suse.cz> wrote:
+On Fri, Jul 12, 2013 at 2:49 AM, Peter Zijlstra <peterz@infradead.org> wrote:
+> On Fri, Jul 12, 2013 at 11:40:44AM +0200, Ingo Molnar wrote:
+>> * Peter Zijlstra <peterz@infradead.org> wrote:
 >>
->>> On Wed 10-07-13 13:25:03, Andrew Morton wrote:
->>> [...]
->>>> This patch was dropped because it has gone stale
->>>
->>> Is there really a strong reason to not take this patch?
+>> > On Fri, Jul 12, 2013 at 11:15:06AM +0200, Ingo Molnar wrote:
+>> > >
+>> > > * Peter Zijlstra <peterz@infradead.org> wrote:
+>> > >
+>> > > > We need those files anyway.. The current proposal is that the entire VMA
+>> > > > has a single userspace pointer in it. Or rather a 64bit value.
+>> > >
+>> > > Yes but accessible via /proc/<PID>/mem or so?
+>> >
+>> > *shudder*.. yes. But you're again opening two files. The only advantage
+>> > of this over userspace writing its own files is that the kernel cleans
+>> > things up for you.
 >>
->> I flushed out a whole bunch of MM patches which had been floating
->> around in indecisive limbo.
+>> Opening of the files only occurs in the instrumentation case, which is
+>> rare. But temporary files would be forced upon the regular usecase when no
+>> instrumentation goes on.
+>
+> Well, Colin didn't describe the intended use, but I can imagine a case where
+> its not all that rare. System health monitors might frequently want to update
+> this.
+>
+>> > However from what I understood android runs apps as individual users,
+>> > and I think we can do per user tmpfs mounts. So app dies, user exits,
+>> > mount goes *poof*.
 >>
->> I don't recall all the review issues surrounding this one.
+>> Yes, user-space could be smarter about temporary files.
+>>
+>> Just like big banks could be less risk happy.
+>>
+>> Yet the reality is that if left alone both apps and banks mess up, I don't
+>> think libertarianism works for policy: we are better off offering a
+>> framework that is simple, robust, self-contained, low risk and hard to
+>> mess up?
 >
-> Kosaki was concerned about annoying number of messages if somebody drops
-> caches too often (https://lkml.org/lkml/2010/9/20/450). As I noted in
-> the changelog
-> "
->      Kosaki was worried about possible excessive logging when somebody drops
->      caches too often (but then he claimed he didn't have a strong opinion on
->      that) but I would say opposite.  If somebody does that then I would really
->      like to know that from the log when supporting a system because it almost
->      for sure means that there is something fishy going on.  It is also worth
->      mentioning that only root can write drop caches so this is not an flooding
->      attack vector.
-> "
+> Fair enough; but I still want Colin to tell me why he can't do this in
+> userspace. And what all he wants to go do with this information etc.
 >
-> Kosaki then Acked the patch.
->
-> You were worried (http://lkml.indiana.edu/hypermail/linux/kernel/1210.3/00605.html)
-> about people hating us because they are using this as a solution to
-> their issues. I concur that most of those are just hacks that found
-> their way into scripts looong time agon and stayed there.
->
-> Boris then noted (http://lkml.indiana.edu/hypermail/linux/kernel/1210.3/00659.html)
-> that he is using drop_caches to make s2ram faster but as others noted
-> this just adds the overhead to the resume path so it might work only for
-> certain use cases so a user space solution is more appropriate and
-> Boris' use case really sounds valid.
->
-> As a compromise I can lower the log level. Would KERN_INFO work for
-> you? Or even KERN_DEBUG?
->
-> I still find printk less intrusive than fiddling with vmstat counters.
+> He's basically not told us much at all.
 
-Michal,
+I covered it a little in the thread on the previous version of the
+patch, but I'll try to give more detail (and include it in a patch
+stack description if I post another version).
 
-It's ok to go IMHO. However, please open new thread w/ a rebased patch. Many developers
-don't pay attention a lot to -mm automatic notifications.
+In many userspace applications, and especially in VM based
+applications like Android uses heavily, there are multiple different
+allocators in use.  At a minimum there is libc malloc and the stack,
+and in many cases there are libc malloc, the stack, direct syscalls to
+mmap anonymous memory, and multiple VM heaps (one for small objects,
+one for big objects, etc.).  Each of these layers usually has its own
+tools to inspect its usage; malloc by compiling a debug version, the
+VM through heap inspection tools, and for direct syscalls there is
+usually no way to track them.
 
-Thanks.
+On Android we heavily use a set of tools that use an extended version
+of the logic covered in Documentation/vm/pagemap.txt to walk all pages
+mapped in userspace and slice their usage by process, shared (COW) vs.
+unique mappings, backing, etc.  This can account for real physical
+memory usage even in cases like fork without exec (which Android uses
+heavily to share as many private COW pages as possible between
+processes), Kernel SamePage Merging, and clean zero pages.  It
+produces a measurement of the pages that only exist in that process
+(USS, for unique), and a measurement of the physical memory usage of
+that process with the cost of shared pages being evenly split between
+processes that share them (PSS).  We need the feature to be efficient
+enough to be left on at all times because app developers and end users
+can use similar tools exposed through system reports and bugreports to
+determine the memory usage of apps
 
+If all anonymous memory is indistinguishable then figuring out the
+real physical memory usage of each heap requires either a pagemap
+walking tool that can understand the heap debugging of every layer, or
+for every layer's heap debugging tools to implement the pagemap
+walking logic, in which case it is hard to get a consistent view of
+memory across the whole system.
+
+Tracking the information in userspace leads to all sorts of problems.
+It either needs to be stored inside the process, which means every
+process has to have an API to export its current heap information upon
+request, or it has to be stored externally in a filesystem that
+somebody needs to clean up on crashes.  It needs to be readable while
+the process is still running, so it has to have some sort of
+synchronization with every layer of userspace.  Efficiently tracking
+the ranges requires reimplementing something like the kernel vma
+trees, and linking to it from every layer of userspace.  It requires
+more memory, more syscalls, more runtime cost, and more complexity to
+separately track regions that the kernel is already tracking.
+
+This feature is considered critical enough that Dalvik (Android's VM)
+uses ashmem, which is effectively deleted tmpfs files, solely to name
+their heaps.   I'd like to get rid of as much ashmem use within
+Android as possible, with an eye towards deprecating it.  ashmem heaps
+work reasonably well for a VM, which is likely to want a single
+contiguous region of address space that it will manage on its own, but
+falls apart for malloc, which often wants small kernel-allocated
+address space regions that may or may not merge with adjacent regions.
+ Blindly using ashmem/deleted tmpfs files instead of anonymous mmaps
+in malloc doubled the number of vmas in our main system process and
+was worse for the GLBenchmark process.
+
+As a concrete example of its usefulness (which should not be
+considered the extent of its usefulness, it's just what I happened to
+be looking at), I was recently tracking down why we were seeing many
+dirty private pages that were all zeroes being merged by KSM.  Using a
+mixture of ashmem naming and an early version of this patch, I could
+slice the the number of KSM merged pages per process and per heap,
+which then told me which heap debugging tools I should use to find who
+was dirtying large regions of zeroes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
