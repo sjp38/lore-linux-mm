@@ -1,182 +1,372 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 682786B0033
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 08:26:53 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id fb1so8842626pad.23
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2013 05:26:52 -0700 (PDT)
-Message-ID: <51DFF5FD.8040007@gmail.com>
-Date: Fri, 12 Jul 2013 06:26:37 -0600
-From: Hush Bensen <hush.bensen@gmail.com>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id C52716B0031
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 08:59:26 -0400 (EDT)
+Received: by mail-bk0-f54.google.com with SMTP id it16so3786038bkc.27
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2013 05:59:25 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 7/7] mm: compaction: add compaction to zone_reclaim_mode
-References: <1370445037-24144-1-git-send-email-aarcange@redhat.com> <1370445037-24144-8-git-send-email-aarcange@redhat.com> <20130606100503.GH1936@suse.de> <20130711160216.GA30320@redhat.com>
-In-Reply-To: <20130711160216.GA30320@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20130711145625.GK21667@dhcp22.suse.cz>
+References: <1373044710-27371-1-git-send-email-handai.szj@taobao.com>
+	<1373045623-27712-1-git-send-email-handai.szj@taobao.com>
+	<20130711145625.GK21667@dhcp22.suse.cz>
+Date: Fri, 12 Jul 2013 20:59:24 +0800
+Message-ID: <CAFj3OHV=6YDcbKmSeuF3+oMv1HfZF1RxXHoiLgTk0wH5cJVsiQ@mail.gmail.com>
+Subject: Re: [PATCH V4 5/6] memcg: patch mem_cgroup_{begin,end}_update_page_stat()
+ out if only root memcg exists
+From: Sha Zhengju <handai.szj@gmail.com>
+Content-Type: multipart/alternative; boundary=001a11c36a6a8614bd04e15014d4
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, Greg Thelen <gthelen@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@parallels.com>, Sha Zhengju <handai.szj@taobao.com>
 
-ao? 2013/7/11 10:02, Andrea Arcangeli a??e??:
-> On Thu, Jun 06, 2013 at 11:05:03AM +0100, Mel Gorman wrote:
->> Again be mindful that improved reliability of zone_reclaim_mode can come
->> at the cost of stalling and process interference for workloads where the
->> processes are not NUMA aware or fit in individual nodes.
-> This won't risk to affect any system where NUMA locality is a
-> secondary priority, unless zone_reclaim_mode is set to 1 manually, so
-> it shall be ok.
->
->> Instead of moving the logic from zone_reclaim to here, why was the
->> compaction logic not moved to zone_reclaim or a separate function? This
->> patch adds a lot of logic to get_page_from_freelist() which is unused
->> for most users
-> I can try to move all checks that aren't passing information
-> across different passes from the caller to the callee.
->
->>> -			default:
->>> -				/* did we reclaim enough */
->>> +
->>> +			/*
->>> +			 * We're going to do reclaim so allow
->>> +			 * allocations up to the MIN watermark, so less
->>> +			 * concurrent allocation will fail.
->>> +			 */
->>> +			mark = min_wmark_pages(zone);
->>> +
->> If we arrived here from the page allocator fast path then it also means
->> that we potentially miss going into the slow patch and waking kswapd. If
->> kswapd is not woken at the low watermark as normal then there will be
->> stalls due to direct reclaim and the stalls will be abrupt.
-> What is going on here without my changes is something like this:
->
-> 1)   hit low wmark
-> 2)   zone_reclaim()
-> 3)   check if we're above low wmark
-> 4)   if yes alloc memory
-> 5)   if no try the next zone in the zonelist
->
-> The current code is already fully synchronous in direct reclaim in the
-> way it calls zone_reclaim and kswapd never gets invoked anyway.
->
-> This isn't VM reclaim, we're not globally low on memory and we can't
-> wake kswapd until we expired all memory from all zones or we risk to
-> screw the lru rotation even further (by having kswapd and the thread
+--001a11c36a6a8614bd04e15014d4
+Content-Type: text/plain; charset=ISO-8859-1
 
-What's the meaning of lru rotation?
+Add cc to Glauber
 
-> allocating memory racing in a single zone, not even a single node
-> which would at least be better).
+On Thu, Jul 11, 2013 at 10:56 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> On Sat 06-07-13 01:33:43, Sha Zhengju wrote:
+>> From: Sha Zhengju <handai.szj@taobao.com>
+>>
+>> If memcg is enabled and no non-root memcg exists, all allocated
+>> pages belongs to root_mem_cgroup and wil go through root memcg
+>> statistics routines.  So in order to reduce overheads after adding
+>> memcg dirty/writeback accounting in hot paths, we use jump label to
+>> patch mem_cgroup_{begin,end}_update_page_stat() in or out when not
+>> used.
 >
-> But the current code totally lack any kind oaf hysteresis. If
-> zone_reclaim provides feedback and confirms it did progress, and
-> another CPU steals the page before the current CPU has a chance to get
-> it, we're going to fall in the wrong zone (point 5 above). Allowing to
-> go deeper in to the "min" wmark won't change anything in kswapd wake
-> cycle, and we'll still invoke zone_reclaim synchronously forever until
-> the "low wmark" is restored so over time we should still linger above
-> the low wmark over time. So we should still wake kswapd well before
-> all zones are at the "min" (the moment all zones are below "low" we'll
-> wake kswapd).
+> I do not think this is enough. How much do you save? One atomic read.
+> This doesn't seem like a killer.
 >
-> So it shouldn't regress in terms of "stalls", zone_reclai is already
-> fully synchronous. It should only reduce a lot the numa allocation
-> false negatives. The need of hysteresis that the min wmark check
-> fixes, is exactly related the generation of more than 1 hugepage
-> between low-min wmarks in previous patches that altered the wmark
-> calculation for high order allocations.
+> I hoped we could simply not account at all and move counters to the root
+> cgroup once the label gets enabled.
+
+I have thought of this approach before, but it would probably run into
+another issue, e.g, each zone has a percpu stock named ->pageset to
+optimize the increment and decrement operations, and I haven't figure out a
+simpler and cheaper approach to handle that stock numbers if moving global
+counters to root cgroup, maybe we can just leave them and can afford the
+approximation?
+
+Glauber have already done lots of works here, in his previous patchset he
+also tried to move some global stats to root (
+http://comments.gmane.org/gmane.linux.kernel.cgroups/6291). May I steal
+some of your ideas here, Glauber? :P
+
+
 >
-> BTW, I improved that calculation further in the meanwhile to avoid
-> generating any hugepage below the min wmark (min becomes in the order
->> 0 checks, for any order > 0). You'll see it in next submit.
-> Ideally in fact zone_reclaim should get a per-node zonelist, not just
-> a zone, to be more fair in the lru rotations. All this code is pretty
-> bad. Not trying to fix it all at once (sticking to passing a zone
-> instead of a node to zone_reclaim even if it's wrong in lru terms). In
-> order to pass a node to zone_reclaim I should completely drop the
-> numa_zonelist_order=z mode (which happens to be the default on my
-> hardware according to the flakey heuristic in default_zonelist_order()
-> which should be also entirely dropped).
+> Besides that, the current patch is racy. Consider what happens when:
 >
-> Johannes roundrobin allocator that makes the lru rotations more fair
-> in a multi-LRU VM, will completely invalidate any benefit provided by
-> the (default on my NUMA hardware) numa_zonelist_order=z model. So
-> that's one more reason to nuke that whole zonelist order =n badness.
+> mem_cgroup_begin_update_page_stat
+>                                         arm_inuse_keys
 >
-> I introduced long time ago a lowmem reserve ratio, that is the thing
-> that is supposed to avoid the OOM conditions with shortage of lowmem
-> zones. We don't need to prioritize anymore on the zones that are
-> aren't usable by all allocations. lowmem reserve provides a
-> significant margin. And the roundrobin allocator will entirely depend
-> on the lowmem reserve alone to be safe. In fact we should also add
-> some lowmem reserve calculation to compaction free memory checks to be
-> more accurate. (low priority)
+mem_cgroup_move_account
+> mem_cgroup_move_account_page_stat
+> mem_cgroup_end_update_page_stat
 >
->>> +			/* initialize to avoid warnings */
->>> +			c_ret = COMPACT_SKIPPED;
->>> +			ret = ZONE_RECLAIM_FULL;
->>> +
->>> +			repeated_compaction = false;
->>> +			need_compaction = false;
->>> +			if (!compaction_deferred(preferred_zone, order))
->>> +				need_compaction = order &&
->>> +					(gfp_mask & GFP_KERNEL) == GFP_KERNEL;
->> need_compaction = order will always be true. Because of the bracketing,
->> the comparison is within the conditional block so the second comparison
->> is doing nothing. Not sure what is going on there at all.
-> if order is zero, need_compaction will be false. If order is not zero,
-> need_compaction will be true only if it's a GFP_KERNEL
-> allocation. Maybe I'm missing something, I don't see how
-> need_compaction is true if order is 0 or if gfp_mask is GFP_ATOMIC.
+> The race window is small of course but it is there. I guess we need
+> rcu_read_lock at least.
+
+Yes, you're right. I'm afraid we need to take care of the racy in the next
+updates as well. But mem_cgroup_begin/end_update_page_stat() already have
+rcu lock, so here we maybe only need a synchronize_rcu() after changing
+memcg_inuse_key?
+
+
 >
->>> +			if (need_compaction) {
->>> +			repeat_compaction:
->>> +				c_ret = compact_zone_order(zone, order,
->>> +							   gfp_mask,
->>> +							   repeated_compaction,
->>> +							   &contended);
->>> +				if (c_ret != COMPACT_SKIPPED &&
->>> +				    zone_watermark_ok(zone, order, mark,
->>> +						      classzone_idx,
->>> +						      alloc_flags)) {
->>> +#ifdef CONFIG_COMPACTION
->>> +					preferred_zone->compact_considered = 0;
->>> +					preferred_zone->compact_defer_shift = 0;
->>> +#endif
->>> +					goto try_this_zone;
->>> +				}
->>> +			}
->> It's a question of taste, but overall I think this could have been done in
->> zone_reclaim and rename it to zone_reclaim_compact to match the concept
->> of reclaim/compaction if you like. Split the compaction part out to have
->> __zone_reclaim and __zone_compact if you like and it'll be hell of a lot
->> easier to follow. Right now, it's a bit twisty and while I can follow it,
->> it's headache inducing.
-> I'll try to move it in a callee function and clean it up.
->
->> With that arrangement it will be a lot easier to add a new zone_reclaim
->> flag if it turns out that zone reclaim compacts too aggressively leading
->> to excessive stalls. Right now, I think this loops in compaction until
->> it gets deferred because of how need_compaction gets set which could be
->> for a long time. I'm not sure that's what you intended.
-> I intended to shrink until we successfully shrink cache (zone_reclaim
-> won't unmap if zone_reclaim_mode == 1 etc...), until compaction has
-> enough free memory to do its work. It shouldn't require that much
-> memory. After compaction has enough memory (not return COMPACT_SKIPPED
-> anymore) then we stop calling zone_reclaim to shrink caches and we
-> just try compaction once.
->
-> This is the last patch I need to update before resending, I hope to
-> clean it up for good.
->
-> Thanks!
-> Andrea
+>> If no non-root memcg comes to life, we do not need to accquire moving
+>> locks, so patch them out.
+>>
+>> cc: Michal Hocko <mhocko@suse.cz>
+>> cc: Greg Thelen <gthelen@google.com>
+>> cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> cc: Andrew Morton <akpm@linux-foundation.org>
+>> cc: Fengguang Wu <fengguang.wu@intel.com>
+>> cc: Mel Gorman <mgorman@suse.de>
+>> ---
+>>  include/linux/memcontrol.h |   15 +++++++++++++++
+>>  mm/memcontrol.c            |   23 ++++++++++++++++++++++-
+>>  2 files changed, 37 insertions(+), 1 deletion(-)
+>>
+>> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+>> index ccd35d8..0483e1a 100644
+>> --- a/include/linux/memcontrol.h
+>> +++ b/include/linux/memcontrol.h
+>> @@ -55,6 +55,13 @@ struct mem_cgroup_reclaim_cookie {
+>>  };
+>>
+>>  #ifdef CONFIG_MEMCG
+>> +
+>> +extern struct static_key memcg_inuse_key;
+>> +static inline bool mem_cgroup_in_use(void)
+>> +{
+>> +     return static_key_false(&memcg_inuse_key);
+>> +}
+>> +
+>>  /*
+>>   * All "charge" functions with gfp_mask should use GFP_KERNEL or
+>>   * (gfp_mask & GFP_RECLAIM_MASK). In current implementatin, memcg
+doesn't
+>> @@ -159,6 +166,8 @@ static inline void
+mem_cgroup_begin_update_page_stat(struct page *page,
+>>  {
+>>       if (mem_cgroup_disabled())
+>>               return;
+>> +     if (!mem_cgroup_in_use())
+>> +             return;
+>>       rcu_read_lock();
+>>       *locked = false;
+>>       if (atomic_read(&memcg_moving))
+>> @@ -172,6 +181,8 @@ static inline void
+mem_cgroup_end_update_page_stat(struct page *page,
+>>  {
+>>       if (mem_cgroup_disabled())
+>>               return;
+>> +     if (!mem_cgroup_in_use())
+>> +             return;
+>>       if (*locked)
+>>               __mem_cgroup_end_update_page_stat(page, flags);
+>>       rcu_read_unlock();
+>> @@ -215,6 +226,10 @@ void mem_cgroup_print_bad_page(struct page *page);
+>>  #endif
+>>  #else /* CONFIG_MEMCG */
+>>  struct mem_cgroup;
+>> +static inline bool mem_cgroup_in_use(void)
+>> +{
+>> +     return false;
+>> +}
+>>
+>>  static inline int mem_cgroup_newpage_charge(struct page *page,
+>>                                       struct mm_struct *mm, gfp_t
+gfp_mask)
+>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>> index 9126abc..a85f7c5 100644
+>> --- a/mm/memcontrol.c
+>> +++ b/mm/memcontrol.c
+>> @@ -463,6 +463,13 @@ enum res_type {
+>>  #define MEM_CGROUP_RECLAIM_SHRINK_BIT        0x1
+>>  #define MEM_CGROUP_RECLAIM_SHRINK    (1 <<
+MEM_CGROUP_RECLAIM_SHRINK_BIT)
+>>
+>> +/* static_key used for marking memcg in use or not. We use this jump
+label to
+>> + * patch some memcg page stat accounting code in or out.
+>> + * The key will be increased when non-root memcg is created, and be
+decreased
+>> + * when memcg is destroyed.
+>> + */
+>> +struct static_key memcg_inuse_key;
+>> +
+>>  /*
+>>   * The memcg_create_mutex will be held whenever a new cgroup is created.
+>>   * As a consequence, any change that needs to protect against new child
+cgroups
+>> @@ -630,10 +637,22 @@ static void disarm_kmem_keys(struct mem_cgroup
+*memcg)
+>>  }
+>>  #endif /* CONFIG_MEMCG_KMEM */
+>>
+>> +static void disarm_inuse_keys(struct mem_cgroup *memcg)
+>> +{
+>> +     if (!mem_cgroup_is_root(memcg))
+>> +             static_key_slow_dec(&memcg_inuse_key);
+>> +}
+>> +
+>> +static void arm_inuse_keys(void)
+>> +{
+>> +     static_key_slow_inc(&memcg_inuse_key);
+>> +}
+>> +
+>>  static void disarm_static_keys(struct mem_cgroup *memcg)
+>>  {
+>>       disarm_sock_keys(memcg);
+>>       disarm_kmem_keys(memcg);
+>> +     disarm_inuse_keys(memcg);
+>>  }
+>>
+>>  static void drain_all_stock_async(struct mem_cgroup *memcg);
+>> @@ -2298,7 +2317,6 @@ void mem_cgroup_update_page_stat(struct page *page,
+>>  {
+>>       struct mem_cgroup *memcg;
+>>       struct page_cgroup *pc = lookup_page_cgroup(page);
+>> -     unsigned long uninitialized_var(flags);
+>>
+>>       if (mem_cgroup_disabled())
+>>               return;
+>> @@ -6293,6 +6311,9 @@ mem_cgroup_css_online(struct cgroup *cont)
+>>       }
+>>
+>>       error = memcg_init_kmem(memcg, &mem_cgroup_subsys);
+>> +     if (!error)
+>> +             arm_inuse_keys();
+>> +
+>>       mutex_unlock(&memcg_create_mutex);
+>>       return error;
+>>  }
+>> --
+>> 1.7.9.5
+>>
+>> --
+>> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+>> the body of a message to majordomo@vger.kernel.org
+>> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 >
 > --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Michal Hocko
+> SUSE Labs
+
+
+
+--
+Thanks,
+Sha
+
+--001a11c36a6a8614bd04e15014d4
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div>Add cc to Glauber<br><br>On Thu, Jul 11, 2013 at 10:5=
+6 PM, Michal Hocko &lt;<a href=3D"mailto:mhocko@suse.cz">mhocko@suse.cz</a>=
+&gt; wrote:<br>&gt; On Sat 06-07-13 01:33:43, Sha Zhengju wrote:<br>&gt;&gt=
+; From: Sha Zhengju &lt;<a href=3D"mailto:handai.szj@taobao.com">handai.szj=
+@taobao.com</a>&gt;<br>
+&gt;&gt;<br>&gt;&gt; If memcg is enabled and no non-root memcg exists, all =
+allocated<br>&gt;&gt; pages belongs to root_mem_cgroup and wil go through r=
+oot memcg<br>&gt;&gt; statistics routines. =A0So in order to reduce overhea=
+ds after adding<br>
+&gt;&gt; memcg dirty/writeback accounting in hot paths, we use jump label t=
+o<br>&gt;&gt; patch mem_cgroup_{begin,end}_update_page_stat() in or out whe=
+n not<br>&gt;&gt; used.<br>&gt;<br>&gt; I do not think this is enough. How =
+much do you save? One atomic read.<br>
+&gt; This doesn&#39;t seem like a killer.<br>&gt;<br>&gt; I hoped we could =
+simply not account at all and move counters to the root<br>&gt; cgroup once=
+ the label gets enabled.<br><br>I have thought of this approach before, but=
+ it would probably run into another issue, e.g, each zone has a percpu stoc=
+k named -&gt;pageset to optimize the increment and decrement operations, an=
+d I haven&#39;t figure out a simpler and cheaper approach to handle that st=
+ock numbers if moving global counters to root cgroup, maybe we can just lea=
+ve them and can afford the approximation?<br>
+<br>Glauber have already done lots of works here, in his previous patchset =
+he also tried to move some global stats to root (<a href=3D"http://comments=
+.gmane.org/gmane.linux.kernel.cgroups/6291">http://comments.gmane.org/gmane=
+.linux.kernel.cgroups/6291</a>). May I steal some of your <span class=3D"">=
+</span><span class=3D""></span> ideas here, Glauber? :P<br>
+<br><br>&gt;<br>&gt; Besides that, the current patch is racy. Consider what=
+ happens when:<br>&gt;<br>&gt; mem_cgroup_begin_update_page_stat<br>&gt; =
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 arm_inuse_keys<br>&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 mem_cgroup=
+_move_account<br>
+&gt; mem_cgroup_move_account_page_stat<br>&gt; mem_cgroup_end_update_page_s=
+tat<br>&gt;<br>&gt; The race window is small of course but it is there. I g=
+uess we need<br>&gt; rcu_read_lock at least.<br><br></div>Yes, you&#39;re r=
+ight. I&#39;m afraid we need to take care of the racy in the next updates a=
+s well. But mem_cgroup_begin/end_update_page_stat() already have rcu lock, =
+so here we maybe only need a synchronize_rcu() after changing memcg_inuse_k=
+ey? <br>
+<div><br><div><br>&gt;<br>&gt;&gt; If no non-root memcg comes to life, we d=
+o not need to accquire moving<br>&gt;&gt; locks, so patch them out.<br>&gt;=
+&gt;<br>&gt;&gt; cc: Michal Hocko &lt;<a href=3D"mailto:mhocko@suse.cz">mho=
+cko@suse.cz</a>&gt;<br>
+&gt;&gt; cc: Greg Thelen &lt;<a href=3D"mailto:gthelen@google.com">gthelen@=
+google.com</a>&gt;<br>&gt;&gt; cc: KAMEZAWA Hiroyuki &lt;<a href=3D"mailto:=
+kamezawa.hiroyu@jp.fujitsu.com">kamezawa.hiroyu@jp.fujitsu.com</a>&gt;<br>&=
+gt;&gt; cc: Andrew Morton &lt;<a href=3D"mailto:akpm@linux-foundation.org">=
+akpm@linux-foundation.org</a>&gt;<br>
+&gt;&gt; cc: Fengguang Wu &lt;<a href=3D"mailto:fengguang.wu@intel.com">fen=
+gguang.wu@intel.com</a>&gt;<br>&gt;&gt; cc: Mel Gorman &lt;<a href=3D"mailt=
+o:mgorman@suse.de">mgorman@suse.de</a>&gt;<br>&gt;&gt; ---<br>&gt;&gt; =A0i=
+nclude/linux/memcontrol.h | =A0 15 +++++++++++++++<br>
+&gt;&gt; =A0mm/memcontrol.c =A0 =A0 =A0 =A0 =A0 =A0| =A0 23 +++++++++++++++=
++++++++-<br>&gt;&gt; =A02 files changed, 37 insertions(+), 1 deletion(-)<br=
+>&gt;&gt;<br>&gt;&gt; diff --git a/include/linux/memcontrol.h b/include/lin=
+ux/memcontrol.h<br>
+&gt;&gt; index ccd35d8..0483e1a 100644<br>&gt;&gt; --- a/include/linux/memc=
+ontrol.h<br>&gt;&gt; +++ b/include/linux/memcontrol.h<br>&gt;&gt; @@ -55,6 =
++55,13 @@ struct mem_cgroup_reclaim_cookie {<br>&gt;&gt; =A0};<br>&gt;&gt;<=
+br>
+&gt;&gt; =A0#ifdef CONFIG_MEMCG<br>&gt;&gt; +<br>&gt;&gt; +extern struct st=
+atic_key memcg_inuse_key;<br>&gt;&gt; +static inline bool mem_cgroup_in_use=
+(void)<br>&gt;&gt; +{<br>&gt;&gt; + =A0 =A0 return static_key_false(&amp;me=
+mcg_inuse_key);<br>
+&gt;&gt; +}<br>&gt;&gt; +<br>&gt;&gt; =A0/*<br>&gt;&gt; =A0 * All &quot;cha=
+rge&quot; functions with gfp_mask should use GFP_KERNEL or<br>&gt;&gt; =A0 =
+* (gfp_mask &amp; GFP_RECLAIM_MASK). In current implementatin, memcg doesn&=
+#39;t<br>
+&gt;&gt; @@ -159,6 +166,8 @@ static inline void mem_cgroup_begin_update_pag=
+e_stat(struct page *page,<br>&gt;&gt; =A0{<br>&gt;&gt; =A0 =A0 =A0 if (mem_=
+cgroup_disabled())<br>&gt;&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0 return;<br>&gt;&=
+gt; + =A0 =A0 if (!mem_cgroup_in_use())<br>
+&gt;&gt; + =A0 =A0 =A0 =A0 =A0 =A0 return;<br>&gt;&gt; =A0 =A0 =A0 rcu_read=
+_lock();<br>&gt;&gt; =A0 =A0 =A0 *locked =3D false;<br>&gt;&gt; =A0 =A0 =A0=
+ if (atomic_read(&amp;memcg_moving))<br>&gt;&gt; @@ -172,6 +181,8 @@ static=
+ inline void mem_cgroup_end_update_page_stat(struct page *page,<br>
+&gt;&gt; =A0{<br>&gt;&gt; =A0 =A0 =A0 if (mem_cgroup_disabled())<br>&gt;&gt=
+; =A0 =A0 =A0 =A0 =A0 =A0 =A0 return;<br>&gt;&gt; + =A0 =A0 if (!mem_cgroup=
+_in_use())<br>&gt;&gt; + =A0 =A0 =A0 =A0 =A0 =A0 return;<br>&gt;&gt; =A0 =
+=A0 =A0 if (*locked)<br>&gt;&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0 __mem_cgroup_e=
+nd_update_page_stat(page, flags);<br>
+&gt;&gt; =A0 =A0 =A0 rcu_read_unlock();<br>&gt;&gt; @@ -215,6 +226,10 @@ vo=
+id mem_cgroup_print_bad_page(struct page *page);<br>&gt;&gt; =A0#endif<br>&=
+gt;&gt; =A0#else /* CONFIG_MEMCG */<br>&gt;&gt; =A0struct mem_cgroup;<br>&g=
+t;&gt; +static inline bool mem_cgroup_in_use(void)<br>
+&gt;&gt; +{<br>&gt;&gt; + =A0 =A0 return false;<br>&gt;&gt; +}<br>&gt;&gt;<=
+br>&gt;&gt; =A0static inline int mem_cgroup_newpage_charge(struct page *pag=
+e,<br>&gt;&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 struct mm_struct *mm, gfp_t gfp_mask)<br>
+&gt;&gt; diff --git a/mm/memcontrol.c b/mm/memcontrol.c<br>&gt;&gt; index 9=
+126abc..a85f7c5 100644<br>&gt;&gt; --- a/mm/memcontrol.c<br>&gt;&gt; +++ b/=
+mm/memcontrol.c<br>&gt;&gt; @@ -463,6 +463,13 @@ enum res_type {<br>&gt;&gt=
+; =A0#define MEM_CGROUP_RECLAIM_SHRINK_BIT =A0 =A0 =A0 =A00x1<br>
+&gt;&gt; =A0#define MEM_CGROUP_RECLAIM_SHRINK =A0 =A0(1 &lt;&lt; MEM_CGROUP=
+_RECLAIM_SHRINK_BIT)<br>&gt;&gt;<br>&gt;&gt; +/* static_key used for markin=
+g memcg in use or not. We use this jump label to<br>&gt;&gt; + * patch some=
+ memcg page stat accounting code in or out.<br>
+&gt;&gt; + * The key will be increased when non-root memcg is created, and =
+be decreased<br>&gt;&gt; + * when memcg is destroyed.<br>&gt;&gt; + */<br>&=
+gt;&gt; +struct static_key memcg_inuse_key;<br>&gt;&gt; +<br>&gt;&gt; =A0/*=
+<br>
+&gt;&gt; =A0 * The memcg_create_mutex will be held whenever a new cgroup is=
+ created.<br>&gt;&gt; =A0 * As a consequence, any change that needs to prot=
+ect against new child cgroups<br>&gt;&gt; @@ -630,10 +637,22 @@ static void=
+ disarm_kmem_keys(struct mem_cgroup *memcg)<br>
+&gt;&gt; =A0}<br>&gt;&gt; =A0#endif /* CONFIG_MEMCG_KMEM */<br>&gt;&gt;<br>=
+&gt;&gt; +static void disarm_inuse_keys(struct mem_cgroup *memcg)<br>&gt;&g=
+t; +{<br>&gt;&gt; + =A0 =A0 if (!mem_cgroup_is_root(memcg))<br>&gt;&gt; + =
+=A0 =A0 =A0 =A0 =A0 =A0 static_key_slow_dec(&amp;memcg_inuse_key);<br>
+&gt;&gt; +}<br>&gt;&gt; +<br>&gt;&gt; +static void arm_inuse_keys(void)<br>=
+&gt;&gt; +{<br>&gt;&gt; + =A0 =A0 static_key_slow_inc(&amp;memcg_inuse_key)=
+;<br>&gt;&gt; +}<br>&gt;&gt; +<br>&gt;&gt; =A0static void disarm_static_key=
+s(struct mem_cgroup *memcg)<br>
+&gt;&gt; =A0{<br>&gt;&gt; =A0 =A0 =A0 disarm_sock_keys(memcg);<br>&gt;&gt; =
+=A0 =A0 =A0 disarm_kmem_keys(memcg);<br>&gt;&gt; + =A0 =A0 disarm_inuse_key=
+s(memcg);<br>&gt;&gt; =A0}<br>&gt;&gt;<br>&gt;&gt; =A0static void drain_all=
+_stock_async(struct mem_cgroup *memcg);<br>
+&gt;&gt; @@ -2298,7 +2317,6 @@ void mem_cgroup_update_page_stat(struct page=
+ *page,<br>&gt;&gt; =A0{<br>&gt;&gt; =A0 =A0 =A0 struct mem_cgroup *memcg;<=
+br>&gt;&gt; =A0 =A0 =A0 struct page_cgroup *pc =3D lookup_page_cgroup(page)=
+;<br>&gt;&gt; - =A0 =A0 unsigned long uninitialized_var(flags);<br>
+&gt;&gt;<br>&gt;&gt; =A0 =A0 =A0 if (mem_cgroup_disabled())<br>&gt;&gt; =A0=
+ =A0 =A0 =A0 =A0 =A0 =A0 return;<br>&gt;&gt; @@ -6293,6 +6311,9 @@ mem_cgro=
+up_css_online(struct cgroup *cont)<br>&gt;&gt; =A0 =A0 =A0 }<br>&gt;&gt;<br=
+>&gt;&gt; =A0 =A0 =A0 error =3D memcg_init_kmem(memcg, &amp;mem_cgroup_subs=
+ys);<br>
+&gt;&gt; + =A0 =A0 if (!error)<br>&gt;&gt; + =A0 =A0 =A0 =A0 =A0 =A0 arm_in=
+use_keys();<br>&gt;&gt; +<br>&gt;&gt; =A0 =A0 =A0 mutex_unlock(&amp;memcg_c=
+reate_mutex);<br>&gt;&gt; =A0 =A0 =A0 return error;<br>&gt;&gt; =A0}<br>&gt=
+;&gt; --<br>&gt;&gt; 1.7.9.5<br>
+&gt;&gt;<br>&gt;&gt; --<br>&gt;&gt; To unsubscribe from this list: send the=
+ line &quot;unsubscribe cgroups&quot; in<br>&gt;&gt; the body of a message =
+to <a href=3D"mailto:majordomo@vger.kernel.org">majordomo@vger.kernel.org</=
+a><br>
+&gt;&gt; More majordomo info at =A0<a href=3D"http://vger.kernel.org/majord=
+omo-info.html">http://vger.kernel.org/majordomo-info.html</a><br>&gt;<br>&g=
+t; --<br>&gt; Michal Hocko<br>&gt; SUSE Labs<br><br><br><br>--<br>Thanks,<b=
+r>
+Sha</div></div></div>
+
+--001a11c36a6a8614bd04e15014d4--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
