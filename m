@@ -1,48 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 723F56B0031
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 12:02:00 -0400 (EDT)
-Date: Fri, 12 Jul 2013 18:01:49 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 7/7] mm: compaction: add compaction to zone_reclaim_mode
-Message-ID: <20130712160149.GB4524@redhat.com>
-References: <1370445037-24144-1-git-send-email-aarcange@redhat.com>
- <1370445037-24144-8-git-send-email-aarcange@redhat.com>
- <20130606100503.GH1936@suse.de>
- <20130711160216.GA30320@redhat.com>
- <51DFF5FD.8040007@gmail.com>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 2C3E46B0031
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 12:31:49 -0400 (EDT)
+Message-ID: <51E02F6E.1060303@sr71.net>
+Date: Fri, 12 Jul 2013 09:31:42 -0700
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <51DFF5FD.8040007@gmail.com>
+Subject: Re: [RFC PATCH 1/5] mm, page_alloc: support multiple pages allocation
+References: <1372840460-5571-1-git-send-email-iamjoonsoo.kim@lge.com> <1372840460-5571-2-git-send-email-iamjoonsoo.kim@lge.com> <51DDE5BA.9020800@intel.com> <20130711010248.GB7756@lge.com> <51DE44CC.2070700@sr71.net> <20130711061201.GA2400@lge.com>
+In-Reply-To: <20130711061201.GA2400@lge.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hush Bensen <hush.bensen@gmail.com>
-Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi,
-
-On Fri, Jul 12, 2013 at 06:26:37AM -0600, Hush Bensen wrote:
-> > This isn't VM reclaim, we're not globally low on memory and we can't
-> > wake kswapd until we expired all memory from all zones or we risk to
-> > screw the lru rotation even further (by having kswapd and the thread
+On 07/10/2013 11:12 PM, Joonsoo Kim wrote:
+> On Wed, Jul 10, 2013 at 10:38:20PM -0700, Dave Hansen wrote:
+>> You're probably right for small numbers of pages.  But, if we're talking
+>> about things that are more than, say, 100 pages (isn't the pcp batch
+>> size clamped to 128 4k pages?) you surely don't want to be doing
+>> buffered_rmqueue().
 > 
-> What's the meaning of lru rotation?
+> Yes, you are right.
+> Firstly, I thought that I can use this for readahead. On my machine,
+> readahead reads (maximum) 32 pages in advance if faulted. And batch size
+> of percpu pages list is close to or larger than 32 pages
+> on today's machine. So I didn't consider more than 32 pages before.
+> But to cope with a request for more pages, using rmqueue_bulk() is
+> a right way. How about using rmqueue_bulk() conditionally?
 
-I mean the per-zone LRU walks to shrink the memory (they rotate pages
-through the LRU). To provide for better global working set information
-in the LRUs, we should walk all the zone LRUs in a fair
-way.
+How about you test it both ways and see what is faster?
 
-zone_reclaim_mode however makes it non fair by always shrinking from
-the first NUMA local zone even if the other zones could be shrunk
-too.
+> Hmm, rmqueue_bulk() doesn't stop until all requested pages are allocated.
+> If we request too many pages (1024 pages or more), interrupt latency can
+> be a problem.
 
-When zone_reclaim_mode is disabled instead (default for most hardware
-out there), we wait all candidate zones to be at the low wmark before
-starting the shrinking from any zone (and then we shrink all zones,
-not just one). So when zone_reclaim_mode is disabled, we don't insist
-aging a single zone indefinitely, while leaving the others un-aged.
+OK, so only call it for the number of pages you believe allows it to
+have acceptable interrupt latency.  If you want 200 pages, and you can
+only disable interrupts for 100 pages, then just do it in two batches.
+
+The point is that you want to avoid messing with the buffering by the
+percpu structures.  They're just overhead in your case.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
