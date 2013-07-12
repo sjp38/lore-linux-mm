@@ -1,533 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 2CD936B0032
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 05:40:57 -0400 (EDT)
-Received: by mail-ee0-f51.google.com with SMTP id e52so6187266eek.10
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2013 02:40:55 -0700 (PDT)
-Date: Fri, 12 Jul 2013 11:40:44 +0200
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 13DD06B0032
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 05:45:23 -0400 (EDT)
+Received: by mail-ea0-f182.google.com with SMTP id d10so6264893eaj.27
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2013 02:45:21 -0700 (PDT)
+Date: Fri, 12 Jul 2013 11:45:17 +0200
 From: Ingo Molnar <mingo@kernel.org>
 Subject: Re: [PATCH 2/2] mm: add a field to store names for private anonymous
  memory
-Message-ID: <20130712094044.GD5315@gmail.com>
+Message-ID: <20130712094517.GE5315@gmail.com>
 References: <1373596462-27115-1-git-send-email-ccross@android.com>
  <1373596462-27115-2-git-send-email-ccross@android.com>
  <51DF9682.9040301@kernel.org>
  <20130712081348.GM25631@dyad.programming.kicks-ass.net>
- <20130712081717.GN25631@dyad.programming.kicks-ass.net>
- <20130712084406.GB4328@gmail.com>
- <20130712090046.GP25631@dyad.programming.kicks-ass.net>
- <20130712091506.GA5315@gmail.com>
- <20130712092707.GR25631@dyad.programming.kicks-ass.net>
+ <CAOJsxLHEGBdFtnmhDv2AekUhXB00To5JBjsw0t8eFzJPr8eLZQ@mail.gmail.com>
+ <20130712085504.GO25631@dyad.programming.kicks-ass.net>
+ <51DFC6AE.3020504@kernel.org>
+ <20130712092647.GB5315@gmail.com>
+ <CAOJsxLGBAKCxbxfxF4NTJh5yDZDOOw_ws_ht2rA7-WvBtw-8Ag@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130712092707.GR25631@dyad.programming.kicks-ass.net>
+In-Reply-To: <CAOJsxLGBAKCxbxfxF4NTJh5yDZDOOw_ws_ht2rA7-WvBtw-8Ag@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Pekka Enberg <penberg@kernel.org>, Colin Cross <ccross@android.com>, linux-kernel@vger.kernel.org, Kyungmin Park <kmpark@infradead.org>, Christoph Hellwig <hch@infradead.org>, John Stultz <john.stultz@linaro.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Dave Hansen <dave.hansen@intel.com>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, David Howells <dhowells@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Dave Jones <davej@redhat.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Oleg Nesterov <oleg@redhat.com>, Shaohua Li <shli@fusionio.com>, Sasha Levin <sasha.levin@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-doc@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Colin Cross <ccross@android.com>, LKML <linux-kernel@vger.kernel.org>, Kyungmin Park <kmpark@infradead.org>, Christoph Hellwig <hch@infradead.org>, John Stultz <john.stultz@linaro.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Dave Hansen <dave.hansen@intel.com>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, David Howells <dhowells@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Dave Jones <davej@redhat.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Oleg Nesterov <oleg@redhat.com>, Shaohua Li <shli@fusionio.com>, Sasha Levin <sasha.levin@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, "list@ebiederm.org:DOCUMENTATION" <linux-doc@vger.kernel.org>, "list@ebiederm.org:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
 
-* Peter Zijlstra <peterz@infradead.org> wrote:
+* Pekka Enberg <penberg@kernel.org> wrote:
 
-> On Fri, Jul 12, 2013 at 11:15:06AM +0200, Ingo Molnar wrote:
-> > 
-> > * Peter Zijlstra <peterz@infradead.org> wrote:
-> > 
-> > > We need those files anyway.. The current proposal is that the entire VMA 
-> > > has a single userspace pointer in it. Or rather a 64bit value.
-> > 
-> > Yes but accessible via /proc/<PID>/mem or so?
+> On Fri, Jul 12, 2013 at 12:26 PM, Ingo Molnar <mingo@kernel.org> wrote:
+>
+> > Well, the JIT profiling case is really special - there we are 
+> > constructing code and a symbol table on the fly. Talking to perf via a 
+> > temporary file sounds unavoidable (and thus proper), because symbol 
+> > information on that level is not something the kernel knows (or should 
+> > know) about.
+> >
+> > I was arguing primarily in the context of the original patch: naming 
+> > allocator heaps. Today the kernel makes a few educated guesses about 
+> > what each memory area is about, in /proc/*/maps:
+> >
+> >  34511ac000-34511b0000 r--p 001ac000 08:03 1706770                        /usr/lib64/libc-2.15.so
+> >  34511b0000-34511b2000 rw-p 001b0000 08:03 1706770                        /usr/lib64/libc-2.15.so
+> >  34511b2000-34511b7000 rw-p 00000000 00:00 0
+> >  7f5bdff94000-7f5be63c1000 r--p 00000000 08:03 1710237                    /usr/lib/locale/locale-archive
+> >  7f5be63c1000-7f5be63c4000 rw-p 00000000 00:00 0
+> >  7f5be63d6000-7f5be63d7000 rw-p 00000000 00:00 0
+> >  7fff7677f000-7fff767a0000 rw-p 00000000 00:00 0                          [stack]
+> >  7fff767dd000-7fff767df000 r-xp 00000000 00:00 0                          [vdso]
+> >  ffffffffff600000-ffffffffff601000 r-xp 00000000 00:00 0                  [vsyscall]
+> >
+> > ... but on any larger app there's lots of anon mmap areas that are ... 
+> > anonymous! ;-) User-space could help out a bit by naming them. It's 
+> > not like there's many heaps, so the performance overhead aspect is 
+> > minimal.
+> >
+> > In the JIT case we have something different, a 'file IO' abstraction 
+> > really: the JIT is generating (writing) new code and associated symbol 
+> > records. So using temporary files there is natural and proper and most 
+> > of the disadvantages I list don't apply because the sheer volume of 
+> > new code generated dillutes the overhead of open()/close(), plus we do 
+> > need some space for those symbols so a JIT cannot really expect to be 
+> > able to run in a pure readonly environment.
+> >
+> > In the allocator/heap case we have a _memory_ abstraction it's just 
+> > that we also want to name the heap minimally.
+> >
+> > For any finer than vma granularity user-space attributes the kernel 
+> > cannot help much, it does not know (and probably should not know) 
+> > about all user-space data structures.
+> >
+> > Right now I don't see any good way to merge the two. (might be due to 
+> > lack of imagination)
 > 
-> *shudder*.. yes. But you're again opening two files. The only advantage 
-> of this over userspace writing its own files is that the kernel cleans 
-> things up for you.
-
-Opening of the files only occurs in the instrumentation case, which is 
-rare. But temporary files would be forced upon the regular usecase when no 
-instrumentation goes on.
-
-> However from what I understood android runs apps as individual users, 
-> and I think we can do per user tmpfs mounts. So app dies, user exits, 
-> mount goes *poof*.
-
-Yes, user-space could be smarter about temporary files.
-
-Just like big banks could be less risk happy.
-
-Yet the reality is that if left alone both apps and banks mess up, I don't 
-think libertarianism works for policy: we are better off offering a 
-framework that is simple, robust, self-contained, low risk and hard to 
-mess up?
-
-> > I was thinking about it in the context of its original purpose: naming 
-> > heap areas, which are pretty anonymous right now - /proc/*/maps is 
-> > full of mystery ranges today.
+> I have no trouble with the imagination part but you make a strong point 
+> about the kernel not helping at finer granularity than vma anyway.
 > 
-> It is.. although I've myself never had trouble with that. Most every 
-> memory debugging that I've used/written over the past two decades was 
-> adequately able to identify memory regions.
+> The current functionality is already quite helpful for VMs as well. We 
+> could annotate the different GC and JIT regions and make perf more 
+> human-friendly by default.
 
-So, these 400+ memory ranges are from Firefox's /proc/*/maps file:
+One thing where we could help JITs is to offer a direct channel to any 
+perf profiling process: a prctl(SYS_TRACE) which would send a free-form 
+string to any profiling task interested in it.
 
-7fbf59eff000-7fbf59f00000 ---p 00000000 00:00 0 
-7fbf59f00000-7fbf5a800000 rw-p 00000000 00:00 0 
-7fbf5a900000-7fbf5aa00000 rw-p 00000000 00:00 0 
-7fbf5ad00000-7fbf5ae00000 rw-p 00000000 00:00 0 
-7fbf5af00000-7fbf5b000000 rw-p 00000000 00:00 0 
-7fbf5b100000-7fbf5b200000 rw-p 00000000 00:00 0 
-7fbf5b500000-7fbf5b600000 rw-p 00000000 00:00 0 
-7fbf5b800000-7fbf5b900000 rw-p 00000000 00:00 0 
-7fbf5bb00000-7fbf5bc00000 rw-p 00000000 00:00 0 
-7fbf5c000000-7fbf5c100000 rw-p 00000000 00:00 0 
-7fbf5c200000-7fbf5c300000 rw-p 00000000 00:00 0 
-7fbf5c800000-7fbf5c900000 rw-p 00000000 00:00 0 
-7fbf5ca00000-7fbf5cb00000 rw-p 00000000 00:00 0 
-7fbf5ce00000-7fbf5cf00000 rw-p 00000000 00:00 0 
-7fbf5d200000-7fbf5d300000 rw-p 00000000 00:00 0 
-7fbf5d400000-7fbf5d500000 rw-p 00000000 00:00 0 
-7fbf5db00000-7fbf5dc00000 rw-p 00000000 00:00 0 
-7fbf5dd00000-7fbf5de00000 rw-p 00000000 00:00 0 
-7fbf5df00000-7fbf5e000000 rw-p 00000000 00:00 0 
-7fbf5e300000-7fbf5e400000 rw-p 00000000 00:00 0 
-7fbf5e500000-7fbf5e600000 rw-p 00000000 00:00 0 
-7fbf5e900000-7fbf5ea00000 rw-p 00000000 00:00 0 
-7fbf5eb00000-7fbf5ec00000 rw-p 00000000 00:00 0 
-7fbf5ed00000-7fbf5ef00000 rw-p 00000000 00:00 0 
-7fbf5f2ff000-7fbf5f300000 ---p 00000000 00:00 0 
-7fbf5f300000-7fbf5fc00000 rw-p 00000000 00:00 0 
-7fbf5fd00000-7fbf5fe00000 rw-p 00000000 00:00 0 
-7fbf5ff00000-7fbf60000000 rw-p 00000000 00:00 0 
-7fbf60200000-7fbf60300000 rw-p 00000000 00:00 0 
-7fbf60600000-7fbf60700000 rw-p 00000000 00:00 0 
-7fbf60800000-7fbf60900000 rw-p 00000000 00:00 0 
-7fbf60a00000-7fbf60b00000 rw-p 00000000 00:00 0 
-7fbf60e00000-7fbf60f00000 rw-p 00000000 00:00 0 
-7fbf61000000-7fbf61100000 rw-p 00000000 00:00 0 
-7fbf61a00000-7fbf61b00000 rw-p 00000000 00:00 0 
-7fbf61c00000-7fbf61d00000 rw-p 00000000 00:00 0 
-7fbf62000000-7fbf62100000 rw-p 00000000 00:00 0 
-7fbf62200000-7fbf62300000 rw-p 00000000 00:00 0 
-7fbf62400000-7fbf62500000 rw-p 00000000 00:00 0 
-7fbf62600000-7fbf62700000 rw-p 00000000 00:00 0 
-7fbf62800000-7fbf62a00000 rw-p 00000000 00:00 0 
-7fbf62e00000-7fbf63000000 rw-p 00000000 00:00 0 
-7fbf63100000-7fbf63200000 rw-p 00000000 00:00 0 
-7fbf63300000-7fbf63400000 rw-p 00000000 00:00 0 
-7fbf63600000-7fbf63700000 rw-p 00000000 00:00 0 
-7fbf63900000-7fbf63a00000 rw-p 00000000 00:00 0 
-7fbf63b00000-7fbf63c00000 rw-p 00000000 00:00 0 
-7fbf63d00000-7fbf63e00000 rw-p 00000000 00:00 0 
-7fbf63f00000-7fbf64000000 rw-p 00000000 00:00 0 
-7fbf64100000-7fbf64200000 rw-p 00000000 00:00 0 
-7fbf64300000-7fbf64400000 rw-p 00000000 00:00 0 
-7fbf64500000-7fbf64600000 rw-p 00000000 00:00 0 
-7fbf64700000-7fbf64800000 rw-p 00000000 00:00 0 
-7fbf64a00000-7fbf64b00000 rw-p 00000000 00:00 0 
-7fbf64c00000-7fbf64d00000 rw-p 00000000 00:00 0 
-7fbf64e00000-7fbf64f00000 rw-p 00000000 00:00 0 
-7fbf65400000-7fbf65500000 rw-p 00000000 00:00 0 
-7fbf65600000-7fbf65700000 rw-p 00000000 00:00 0 
-7fbf65800000-7fbf65900000 rw-p 00000000 00:00 0 
-7fbf65a00000-7fbf65b00000 rw-p 00000000 00:00 0 
-7fbf65c00000-7fbf65d00000 rw-p 00000000 00:00 0 
-7fbf65e00000-7fbf65f00000 rw-p 00000000 00:00 0 
-7fbf66000000-7fbf66100000 rw-p 00000000 00:00 0 
-7fbf66200000-7fbf66300000 rw-p 00000000 00:00 0 
-7fbf663ff000-7fbf66400000 ---p 00000000 00:00 0 
-7fbf66400000-7fbf66d00000 rw-p 00000000 00:00 0 
-7fbf66e00000-7fbf66f00000 rw-p 00000000 00:00 0 
-7fbf67000000-7fbf67100000 rw-p 00000000 00:00 0 
-7fbf67200000-7fbf67300000 rw-p 00000000 00:00 0 
-7fbf67400000-7fbf67500000 rw-p 00000000 00:00 0 
-7fbf67600000-7fbf67700000 rw-p 00000000 00:00 0 
-7fbf67800000-7fbf67900000 rw-p 00000000 00:00 0 
-7fbf67a00000-7fbf67b00000 rw-p 00000000 00:00 0 
-7fbf67c00000-7fbf67d00000 rw-p 00000000 00:00 0 
-7fbf67e00000-7fbf67f00000 rw-p 00000000 00:00 0 
-7fbf68000000-7fbf68100000 rw-p 00000000 00:00 0 
-7fbf68200000-7fbf68300000 rw-p 00000000 00:00 0 
-7fbf68400000-7fbf68500000 rw-p 00000000 00:00 0 
-7fbf68600000-7fbf68700000 rw-p 00000000 00:00 0 
-7fbf68800000-7fbf68900000 rw-p 00000000 00:00 0 
-7fbf68a00000-7fbf68b00000 rw-p 00000000 00:00 0 
-7fbf68c00000-7fbf68d00000 rw-p 00000000 00:00 0 
-7fbf68e00000-7fbf68f00000 rw-p 00000000 00:00 0 
-7fbf69000000-7fbf69100000 rw-p 00000000 00:00 0 
-7fbf692ff000-7fbf69300000 ---p 00000000 00:00 0 
-7fbf69e00000-7fbf69f00000 rw-p 00000000 00:00 0 
-7fbf6a000000-7fbf6a100000 rw-p 00000000 00:00 0 
-7fbf6a200000-7fbf6a300000 rw-p 00000000 00:00 0 
-7fbf6a400000-7fbf6a500000 rw-p 00000000 00:00 0 
-7fbf6a600000-7fbf6a700000 rw-p 00000000 00:00 0 
-7fbf6a800000-7fbf6a900000 rw-p 00000000 00:00 0 
-7fbf6aa00000-7fbf6ad00000 rw-p 00000000 00:00 0 
-7fbf6ae00000-7fbf6b000000 rw-p 00000000 00:00 0 
-7fbf6b100000-7fbf6b200000 rw-p 00000000 00:00 0 
-7fbf6b300000-7fbf6b400000 rw-p 00000000 00:00 0 
-7fbf6b700000-7fbf6b800000 rw-p 00000000 00:00 0 
-7fbf6b900000-7fbf6ba00000 rw-p 00000000 00:00 0 
-7fbf6bb00000-7fbf6bd00000 rw-p 00000000 00:00 0 
-7fbf6be00000-7fbf6bf00000 rw-p 00000000 00:00 0 
-7fbf6c000000-7fbf6c100000 rw-p 00000000 00:00 0 
-7fbf6c200000-7fbf6c300000 rw-p 00000000 00:00 0 
-7fbf6c400000-7fbf6c500000 rw-p 00000000 00:00 0 
-7fbf6c600000-7fbf6c700000 rw-p 00000000 00:00 0 
-7fbf6c800000-7fbf6c900000 rw-p 00000000 00:00 0 
-7fbf6ca00000-7fbf6cb00000 rw-p 00000000 00:00 0 
-7fbf6cc00000-7fbf6cd00000 rw-p 00000000 00:00 0 
-7fbf6ce00000-7fbf6d000000 rw-p 00000000 00:00 0 
-7fbf6d100000-7fbf6d200000 rw-p 00000000 00:00 0 
-7fbf6d300000-7fbf6d400000 rw-p 00000000 00:00 0 
-7fbf6d500000-7fbf6da00000 rw-p 00000000 00:00 0 
-7fbf6db00000-7fbf6dc00000 rw-p 00000000 00:00 0 
-7fbf6e100000-7fbf6e200000 rw-p 00000000 00:00 0 
-7fbf6e300000-7fbf6e400000 rw-p 00000000 00:00 0 
-7fbf6e500000-7fbf6e600000 rw-p 00000000 00:00 0 
-7fbf6e700000-7fbf6ed00000 rw-p 00000000 00:00 0 
-7fbf6ee00000-7fbf6ef00000 rw-p 00000000 00:00 0 
-7fbf6f000000-7fbf6f200000 rw-p 00000000 00:00 0 
-7fbf6f300000-7fbf6f400000 rw-p 00000000 00:00 0 
-7fbf6f500000-7fbf6f800000 rw-p 00000000 00:00 0 
-7fbf6f900000-7fbf6fa00000 rw-p 00000000 00:00 0 
-7fbf6fb00000-7fbf6fc00000 rw-p 00000000 00:00 0 
-7fbf6fd00000-7fbf6fe00000 rw-p 00000000 00:00 0 
-7fbf6ff00000-7fbf70000000 rw-p 00000000 00:00 0 
-7fbf70100000-7fbf70200000 rw-p 00000000 00:00 0 
-7fbf70300000-7fbf70400000 rw-p 00000000 00:00 0 
-7fbf70500000-7fbf70600000 rw-p 00000000 00:00 0 
-7fbf70700000-7fbf70800000 rw-p 00000000 00:00 0 
-7fbf70900000-7fbf70b00000 rw-p 00000000 00:00 0 
-7fbf70c00000-7fbf70d00000 rw-p 00000000 00:00 0 
-7fbf70e00000-7fbf71300000 rw-p 00000000 00:00 0 
-7fbf71400000-7fbf71500000 rw-p 00000000 00:00 0 
-7fbf71600000-7fbf71700000 rw-p 00000000 00:00 0 
-7fbf71800000-7fbf71900000 rw-p 00000000 00:00 0 
-7fbf71a00000-7fbf71c00000 rw-p 00000000 00:00 0 
-7fbf71d00000-7fbf71e00000 rw-p 00000000 00:00 0 
-7fbf71f00000-7fbf72000000 rw-p 00000000 00:00 0 
-7fbf72100000-7fbf72200000 rw-p 00000000 00:00 0 
-7fbf72300000-7fbf72400000 rw-p 00000000 00:00 0 
-7fbf72500000-7fbf72600000 rw-p 00000000 00:00 0 
-7fbf72700000-7fbf72800000 rw-p 00000000 00:00 0 
-7fbf72900000-7fbf72a00000 rw-p 00000000 00:00 0 
-7fbf72b00000-7fbf72c00000 rw-p 00000000 00:00 0 
-7fbf72d00000-7fbf72e00000 rw-p 00000000 00:00 0 
-7fbf72f00000-7fbf73000000 rw-p 00000000 00:00 0 
-7fbf73100000-7fbf73200000 rw-p 00000000 00:00 0 
-7fbf73300000-7fbf73400000 rw-p 00000000 00:00 0 
-7fbf734fb000-7fbf734fc000 ---p 00000000 00:00 0 
-7fbf73d00000-7fbf73e00000 rw-p 00000000 00:00 0 
-7fbf73f00000-7fbf74000000 rw-p 00000000 00:00 0 
-7fbf741ff000-7fbf74200000 ---p 00000000 00:00 0 
-7fbf74200000-7fbf74d00000 rw-p 00000000 00:00 0 
-7fbf74e00000-7fbf75000000 rw-p 00000000 00:00 0 
-7fbf75100000-7fbf75400000 rw-p 00000000 00:00 0 
-7fbf754ff000-7fbf75500000 ---p 00000000 00:00 0 
-7fbf75eff000-7fbf75f00000 ---p 00000000 00:00 0 
-7fbf76900000-7fbf76b00000 rw-p 00000000 00:00 0 
-7fbf76c00000-7fbf76d00000 rw-p 00000000 00:00 0 
-7fbf76e00000-7fbf76f00000 rw-p 00000000 00:00 0 
-7fbf77000000-7fbf77100000 rw-p 00000000 00:00 0 
-7fbf77200000-7fbf77300000 rw-p 00000000 00:00 0 
-7fbf77400000-7fbf77500000 rw-p 00000000 00:00 0 
-7fbf77600000-7fbf77700000 rw-p 00000000 00:00 0 
-7fbf77800000-7fbf77900000 rw-p 00000000 00:00 0 
-7fbf77a00000-7fbf77b00000 rw-p 00000000 00:00 0 
-7fbf77c00000-7fbf77e00000 rw-p 00000000 00:00 0 
-7fbf77f00000-7fbf78000000 rw-p 00000000 00:00 0 
-7fbf78100000-7fbf78200000 rw-p 00000000 00:00 0 
-7fbf78300000-7fbf78400000 rw-p 00000000 00:00 0 
-7fbf78500000-7fbf78700000 rw-p 00000000 00:00 0 
-7fbf78800000-7fbf78900000 rw-p 00000000 00:00 0 
-7fbf78a00000-7fbf78b00000 rw-p 00000000 00:00 0 
-7fbf78c00000-7fbf78d00000 rw-p 00000000 00:00 0 
-7fbf78e00000-7fbf78f00000 rw-p 00000000 00:00 0 
-7fbf79000000-7fbf79100000 rw-p 00000000 00:00 0 
-7fbf79200000-7fbf79300000 rw-p 00000000 00:00 0 
-7fbf79400000-7fbf79600000 rw-p 00000000 00:00 0 
-7fbf79700000-7fbf79900000 rw-p 00000000 00:00 0 
-7fbf79a00000-7fbf79b00000 rw-p 00000000 00:00 0 
-7fbf79c00000-7fbf79e00000 rw-p 00000000 00:00 0 
-7fbf79f00000-7fbf7a000000 rw-p 00000000 00:00 0 
-7fbf7a100000-7fbf7a200000 rw-p 00000000 00:00 0 
-7fbf7a300000-7fbf7a600000 rw-p 00000000 00:00 0 
-7fbf7a700000-7fbf7a800000 rw-p 00000000 00:00 0 
-7fbf7ab00000-7fbf7ac00000 rw-p 00000000 00:00 0 
-7fbf7ad00000-7fbf7ae00000 rw-p 00000000 00:00 0 
-7fbf7af00000-7fbf7b000000 rw-p 00000000 00:00 0 
-7fbf84100000-7fbf84200000 rw-p 00000000 00:00 0 
-7fbf84600000-7fbf84f00000 rw-p 00000000 00:00 0 
-7fbf85000000-7fbf85100000 rw-p 00000000 00:00 0 
-7fbf85200000-7fbf85400000 rw-p 00000000 00:00 0 
-7fbf85500000-7fbf85600000 rw-p 00000000 00:00 0 
-7fbf85700000-7fbf85800000 rw-p 00000000 00:00 0 
-7fbf85900000-7fbf85a00000 rw-p 00000000 00:00 0 
-7fbf85b00000-7fbf85d00000 rw-p 00000000 00:00 0 
-7fbf85e00000-7fbf86000000 rw-p 00000000 00:00 0 
-7fbf86100000-7fbf86200000 rw-p 00000000 00:00 0 
-7fbf86300000-7fbf86400000 rw-p 00000000 00:00 0 
-7fbf86500000-7fbf86700000 rw-p 00000000 00:00 0 
-7fbf86800000-7fbf86e00000 rw-p 00000000 00:00 0 
-7fbf86f00000-7fbf87000000 rw-p 00000000 00:00 0 
-7fbf87100000-7fbf87200000 rw-p 00000000 00:00 0 
-7fbf87300000-7fbf87400000 rw-p 00000000 00:00 0 
-7fbf87500000-7fbf87700000 rw-p 00000000 00:00 0 
-7fbf87800000-7fbf87900000 rw-p 00000000 00:00 0 
-7fbf87a00000-7fbf87b00000 rw-p 00000000 00:00 0 
-7fbf87c00000-7fbf87d00000 rw-p 00000000 00:00 0 
-7fbf87e00000-7fbf87f00000 rw-p 00000000 00:00 0 
-7fbf88000000-7fbf88100000 rw-p 00000000 00:00 0 
-7fbf88100000-7fbf88200000 rw-p 00000000 00:00 0 
-7fbf88300000-7fbf88600000 rw-p 00000000 00:00 0 
-7fbf887fe000-7fbf887ff000 ---p 00000000 00:00 0 
-7fbf89100000-7fbf89200000 rw-p 00000000 00:00 0 
-7fbf89300000-7fbf89400000 rw-p 00000000 00:00 0 
-7fbf89500000-7fbf89600000 rw-p 00000000 00:00 0 
-7fbf89700000-7fbf89900000 rw-p 00000000 00:00 0 
-7fbf899f9000-7fbf899fa000 ---p 00000000 00:00 0 
-7fbf8a200000-7fbf8a300000 rw-p 00000000 00:00 0 
-7fbf8a400000-7fbf8a500000 rw-p 00000000 00:00 0 
-7fbf8a600000-7fbf8a700000 rw-p 00000000 00:00 0 
-7fbf8a800000-7fbf8a900000 rw-p 00000000 00:00 0 
-7fbf8aa00000-7fbf8ab00000 rw-p 00000000 00:00 0 
-7fbf8ab00000-7fbf8ad00000 rw-p 00000000 00:00 0 
-7fbf8ae00000-7fbf8af00000 rw-p 00000000 00:00 0 
-7fbf8b000000-7fbf8b100000 rw-p 00000000 00:00 0 
-7fbf8b200000-7fbf8b300000 rw-p 00000000 00:00 0 
-7fbf8b600000-7fbf8b700000 rw-p 00000000 00:00 0 
-7fbf8b800000-7fbf8b900000 rw-p 00000000 00:00 0 
-7fbf8ba00000-7fbf8bc00000 rw-p 00000000 00:00 0 
-7fbf8bd00000-7fbf8be00000 rw-p 00000000 00:00 0 
-7fbf8bf00000-7fbf8c000000 rw-p 00000000 00:00 0 
-7fbf8c100000-7fbf8c200000 rw-p 00000000 00:00 0 
-7fbf8c300000-7fbf8c400000 rw-p 00000000 00:00 0 
-7fbf8c500000-7fbf8c600000 rw-p 00000000 00:00 0 
-7fbf8c700000-7fbf8c800000 rw-p 00000000 00:00 0 
-7fbf8c900000-7fbf8ca00000 rw-p 00000000 00:00 0 
-7fbf8cb00000-7fbf8cc00000 rw-p 00000000 00:00 0 
-7fbf8cd00000-7fbf8d300000 rw-p 00000000 00:00 0 
-7fbf8d400000-7fbf8d600000 rw-p 00000000 00:00 0 
-7fbf8d700000-7fbf8d800000 rw-p 00000000 00:00 0 
-7fbf8d900000-7fbf8da00000 rw-p 00000000 00:00 0 
-7fbf8dafc000-7fbf8dafd000 ---p 00000000 00:00 0 
-7fbf8e2fd000-7fbf8e2fe000 ---p 00000000 00:00 0 
-7fbf8eafe000-7fbf8eaff000 ---p 00000000 00:00 0 
-7fbf8f2ff000-7fbf8f300000 ---p 00000000 00:00 0 
-7fbf8fe00000-7fbf8ff00000 rw-p 00000000 00:00 0 
-7fbf90000000-7fbf90100000 rw-p 00000000 00:00 0 
-7fbf90200000-7fbf90300000 rw-p 00000000 00:00 0 
-7fbf90400000-7fbf90500000 rw-p 00000000 00:00 0 
-7fbf90600000-7fbf90700000 rw-p 00000000 00:00 0 
-7fbf907ff000-7fbf90800000 ---p 00000000 00:00 0 
-7fbf91200000-7fbf91300000 rw-p 00000000 00:00 0 
-7fbf913ff000-7fbf91400000 ---p 00000000 00:00 0 
-7fbf91800000-7fbf91900000 rw-p 00000000 00:00 0 
-7fbf919fe000-7fbf919ff000 ---p 00000000 00:00 0 
-7fbf921ff000-7fbf92200000 ---p 00000000 00:00 0 
-7fbf92c00000-7fbf92d00000 rw-p 00000000 00:00 0 
-7fbf92e00000-7fbf92f00000 rw-p 00000000 00:00 0 
-7fbf93000000-7fbf93100000 rw-p 00000000 00:00 0 
-7fbf93200000-7fbf93300000 rw-p 00000000 00:00 0 
-7fbf93400000-7fbf93500000 rw-p 00000000 00:00 0 
-7fbf93600000-7fbf93700000 rw-p 00000000 00:00 0 
-7fbf937ff000-7fbf93800000 ---p 00000000 00:00 0 
-7fbf94200000-7fbf94300000 rw-p 00000000 00:00 0 
-7fbf94400000-7fbf94500000 rw-p 00000000 00:00 0 
-7fbf94600000-7fbf94700000 rw-p 00000000 00:00 0 
-7fbf94800000-7fbf94900000 rw-p 00000000 00:00 0 
-7fbf94a00000-7fbf94b00000 rw-p 00000000 00:00 0 
-7fbf94c00000-7fbf94d00000 rw-p 00000000 00:00 0 
-7fbf94e00000-7fbf94f00000 rw-p 00000000 00:00 0 
-7fbf95000000-7fbf95100000 rw-p 00000000 00:00 0 
-7fbf95200000-7fbf95300000 rw-p 00000000 00:00 0 
-7fbf95400000-7fbf95500000 rw-p 00000000 00:00 0 
-7fbf95600000-7fbf95700000 rw-p 00000000 00:00 0 
-7fbf95800000-7fbf95900000 rw-p 00000000 00:00 0 
-7fbf95a00000-7fbf95b00000 rw-p 00000000 00:00 0 
-7fbf95c00000-7fbf95d00000 rw-p 00000000 00:00 0 
-7fbf95e00000-7fbf95f00000 rw-p 00000000 00:00 0 
-7fbf96000000-7fbf96100000 rw-p 00000000 00:00 0 
-7fbf96200000-7fbf96300000 rw-p 00000000 00:00 0 
-7fbf96400000-7fbf96500000 rw-p 00000000 00:00 0 
-7fbf96600000-7fbf96700000 rw-p 00000000 00:00 0 
-7fbf96800000-7fbf96a00000 rw-p 00000000 00:00 0 
-7fbf96b00000-7fbf96c00000 rw-p 00000000 00:00 0 
-7fbf96d00000-7fbf96e00000 rw-p 00000000 00:00 0 
-7fbf96f00000-7fbf97000000 rw-p 00000000 00:00 0 
-7fbf97100000-7fbf97200000 rw-p 00000000 00:00 0 
-7fbf97300000-7fbf97400000 rw-p 00000000 00:00 0 
-7fbf97500000-7fbf97600000 rw-p 00000000 00:00 0 
-7fbf97700000-7fbf97800000 rw-p 00000000 00:00 0 
-7fbf97900000-7fbf97a00000 rw-p 00000000 00:00 0 
-7fbf97b00000-7fbf97c00000 rw-p 00000000 00:00 0 
-7fbf97d00000-7fbf97e00000 rw-p 00000000 00:00 0 
-7fbf97f00000-7fbf98000000 rw-p 00000000 00:00 0 
-7fbf98100000-7fbf98200000 rw-p 00000000 00:00 0 
-7fbf98300000-7fbf98400000 rw-p 00000000 00:00 0 
-7fbf98500000-7fbf98600000 rw-p 00000000 00:00 0 
-7fbf98700000-7fbf98800000 rw-p 00000000 00:00 0 
-7fbf98900000-7fbf98a00000 rw-p 00000000 00:00 0 
-7fbf98b00000-7fbf98c00000 rw-p 00000000 00:00 0 
-7fbf98d00000-7fbf98e00000 rw-p 00000000 00:00 0 
-7fbf98f00000-7fbf99000000 rw-p 00000000 00:00 0 
-7fbf99100000-7fbf99200000 rw-p 00000000 00:00 0 
-7fbf99300000-7fbf99400000 rw-p 00000000 00:00 0 
-7fbf99500000-7fbf99600000 rw-p 00000000 00:00 0 
-7fbf99700000-7fbf99800000 rw-p 00000000 00:00 0 
-7fbf99900000-7fbf99a00000 rw-p 00000000 00:00 0 
-7fbf99b00000-7fbf99c00000 rw-p 00000000 00:00 0 
-7fbf99d00000-7fbf99e00000 rw-p 00000000 00:00 0 
-7fbf99f00000-7fbf9a000000 rw-p 00000000 00:00 0 
-7fbf9a100000-7fbf9a200000 rw-p 00000000 00:00 0 
-7fbf9a300000-7fbf9a400000 rw-p 00000000 00:00 0 
-7fbf9a500000-7fbf9a600000 rw-p 00000000 00:00 0 
-7fbf9a700000-7fbf9a800000 rw-p 00000000 00:00 0 
-7fbf9a900000-7fbf9aa00000 rw-p 00000000 00:00 0 
-7fbf9ab00000-7fbf9ac00000 rw-p 00000000 00:00 0 
-7fbf9ad00000-7fbf9ae00000 rw-p 00000000 00:00 0 
-7fbf9af00000-7fbf9b000000 rw-p 00000000 00:00 0 
-7fbf9b100000-7fbf9b200000 rw-p 00000000 00:00 0 
-7fbf9b300000-7fbf9b400000 rw-p 00000000 00:00 0 
-7fbf9b500000-7fbf9b600000 rw-p 00000000 00:00 0 
-7fbf9b700000-7fbf9b900000 rw-p 00000000 00:00 0 
-7fbf9ba00000-7fbf9bb00000 rw-p 00000000 00:00 0 
-7fbf9bc00000-7fbf9bd00000 rw-p 00000000 00:00 0 
-7fbf9be00000-7fbf9bf00000 rw-p 00000000 00:00 0 
-7fbf9c000000-7fbf9c100000 rw-p 00000000 00:00 0 
-7fbf9c200000-7fbf9c700000 rw-p 00000000 00:00 0 
-7fbf9c800000-7fbf9c900000 rw-p 00000000 00:00 0 
-7fbf9ca00000-7fbf9cd00000 rw-p 00000000 00:00 0 
-7fbf9ce00000-7fbf9cf00000 rw-p 00000000 00:00 0 
-7fbf9d000000-7fbf9d100000 rw-p 00000000 00:00 0 
-7fbf9d200000-7fbf9d300000 rw-p 00000000 00:00 0 
-7fbf9d400000-7fbf9d500000 rw-p 00000000 00:00 0 
-7fbf9d600000-7fbf9d700000 rw-p 00000000 00:00 0 
-7fbf9d800000-7fbf9d900000 rw-p 00000000 00:00 0 
-7fbf9da00000-7fbf9db00000 rw-p 00000000 00:00 0 
-7fbf9dc00000-7fbf9dd00000 rw-p 00000000 00:00 0 
-7fbf9de00000-7fbf9df00000 rw-p 00000000 00:00 0 
-7fbf9e000000-7fbf9e100000 rw-p 00000000 00:00 0 
-7fbf9e200000-7fbf9e300000 rw-p 00000000 00:00 0 
-7fbf9e400000-7fbf9e500000 rw-p 00000000 00:00 0 
-7fbf9e600000-7fbf9e700000 rw-p 00000000 00:00 0 
-7fbf9e800000-7fbf9e900000 rw-p 00000000 00:00 0 
-7fbf9ea00000-7fbf9eb00000 rw-p 00000000 00:00 0 
-7fbf9ec00000-7fbf9ed00000 rw-p 00000000 00:00 0 
-7fbf9f200000-7fbf9f300000 rw-p 00000000 00:00 0 
-7fbf9f600000-7fbf9f700000 rw-p 00000000 00:00 0 
-7fbf9fc00000-7fbf9fd00000 rw-p 00000000 00:00 0 
-7fbf9fe00000-7fbf9ff00000 rw-p 00000000 00:00 0 
-7fbfa0400000-7fbfa0c00000 rw-p 00000000 00:00 0 
-7fbfa0d00000-7fbfa0e00000 rw-p 00000000 00:00 0 
-7fbfa0f00000-7fbfa1000000 rw-p 00000000 00:00 0 
-7fbfa1100000-7fbfa1300000 rw-p 00000000 00:00 0 
-7fbfa1400000-7fbfa1700000 rw-p 00000000 00:00 0 
-7fbfa1a00000-7fbfa4a00000 rw-p 00000000 00:00 0 
-7fbfa4e00000-7fbfa7400000 rw-p 00000000 00:00 0 
-7fbfa74fa000-7fbfa74fb000 ---p 00000000 00:00 0 
-7fbfa7cfb000-7fbfa7cfc000 ---p 00000000 00:00 0 
-7fbfa84fc000-7fbfa84fd000 ---p 00000000 00:00 0 
-7fbfa908d000-7fbfa9091000 rw-p 00000000 00:00 0 
-7fbfa94fe000-7fbfa94ff000 ---p 00000000 00:00 0 
-7fbfa9cff000-7fbfa9d00000 ---p 00000000 00:00 0 
-7fbfab2ff000-7fbfab300000 ---p 00000000 00:00 0 
-7fbfac6ff000-7fbfac700000 ---p 00000000 00:00 0 
-7fbfaec2c000-7fbfaec2d000 ---p 00000000 00:00 0 
-7fbfaef00000-7fbfaf300000 rw-p 00000000 00:00 0 
-7fbfafa00000-7fbfafb00000 rw-p 00000000 00:00 0 
-7fbfafc00000-7fbfafd00000 rw-p 00000000 00:00 0 
-7fbfb087c000-7fbfb087d000 rw-p 00000000 00:00 0 
-7fbfb0f00000-7fbfb1000000 rw-p 00000000 00:00 0 
-7fbfb1700000-7fbfb1d00000 rw-p 00000000 00:00 0 
-7fbfb1dff000-7fbfb1e00000 ---p 00000000 00:00 0 
-7fbfb283e000-7fbfb284e000 rwxp 00000000 00:00 0 
-7fbfb2b00000-7fbfb3200000 rw-p 00000000 00:00 0 
-7fbfb3200000-7fbfb3300000 rw-p 00000000 00:00 0 
-7fbfb3500000-7fbfb3c00000 rw-p 00000000 00:00 0 
-7fbfb3c1b000-7fbfb3c3b000 rwxp 00000000 00:00 0 
-7fbfb3cfb000-7fbfb3cfc000 ---p 00000000 00:00 0 
-7fbfb4700000-7fbfb4b00000 rw-p 00000000 00:00 0 
-7fbfb4b00000-7fbfb5200000 rw-p 00000000 00:00 0 
-7fbfb56fd000-7fbfb56fe000 ---p 00000000 00:00 0 
-7fbfb5efe000-7fbfb5eff000 ---p 00000000 00:00 0 
-7fbfb66ff000-7fbfb6700000 ---p 00000000 00:00 0 
-7fbfb70be000-7fbfb70bf000 ---p 00000000 00:00 0 
-7fbfb70ff000-7fbfb7100000 ---p 00000000 00:00 0 
-7fbfb85c2000-7fbfb85f0000 rw-p 00000000 00:00 0 
-7fbfb889b000-7fbfb889c000 rw-p 00000000 00:00 0 
-7fbfb9362000-7fbfb9363000 rw-p 00000000 00:00 0 
-7fbfb987a000-7fbfb987b000 rw-p 00000000 00:00 0 
-7fbfb9ec2000-7fbfb9ec3000 rw-p 00000000 00:00 0 
-7fbfba712000-7fbfba713000 rw-p 00000000 00:00 0 
-7fbfbac2e000-7fbfbac30000 rw-p 00000000 00:00 0 
-7fbfbd7f1000-7fbfbdb00000 rw-p 00000000 00:00 0 
-7fbfbdbfd000-7fbfbdbfe000 ---p 00000000 00:00 0 
-7fbfbe3fe000-7fbfbe3ff000 ---p 00000000 00:00 0 
-7fbfbebff000-7fbfbec00000 ---p 00000000 00:00 0 
-7fbfbf9ff000-7fbfbfa00000 ---p 00000000 00:00 0 
-7fbfc7e00000-7fbfc8500000 rw-p 00000000 00:00 0 
-7fbfc858a000-7fbfc859a000 rwxp 00000000 00:00 0 
-7fbfc859a000-7fbfc859b000 ---p 00000000 00:00 0 
-7fbfc929b000-7fbfc929f000 rw-p 00000000 00:00 0 
-7fbfc9700000-7fbfc9900000 rw-p 00000000 00:00 0 
-7fbfc990b000-7fbfc993b000 rwxp 00000000 00:00 0 
-7fbfc9986000-7fbfc9996000 rwxp 00000000 00:00 0 
-7fbfc99ef000-7fbfc99ff000 rwxp 00000000 00:00 0 
-7fbfc99ff000-7fbfc9a00000 ---p 00000000 00:00 0 
-7fbfcae02000-7fbfcae32000 rwxp 00000000 00:00 0 
-7fbfcae32000-7fbfcae33000 ---p 00000000 00:00 0 
-7fbfcb633000-7fbfcb634000 ---p 00000000 00:00 0 
-7fbfcc234000-7fbfcc235000 ---p 00000000 00:00 0 
-7fbfcca35000-7fbfcca36000 ---p 00000000 00:00 0 
-7fbfcdaf8000-7fbfcdaf9000 rw-p 00000000 00:00 0 
-7fbfcdd00000-7fbfcde00000 rw-p 00000000 00:00 0 
-7fbfcde04000-7fbfcde24000 rwxp 00000000 00:00 0 
-7fbfcde2c000-7fbfcde3c000 rwxp 00000000 00:00 0 
-7fbfcde50000-7fbfcde70000 rwxp 00000000 00:00 0 
-7fbfce0e7000-7fbfce0e8000 ---p 00000000 00:00 0 
-7fbfcef00000-7fbfcf000000 rw-p 00000000 00:00 0 
-7fbfcf005000-7fbfcf015000 rwxp 00000000 00:00 0 
-7fbfcf0ff000-7fbfcf100000 ---p 00000000 00:00 0 
-7fbfcfa0a000-7fbfcfa1a000 rwxp 00000000 00:00 0 
-7fbfd030a000-7fbfd030b000 ---p 00000000 00:00 0 
-7fbfd113c000-7fbfd113e000 rw-p 00000000 00:00 0 
-7fbfd2af6000-7fbfd2af7000 rw-p 00000000 00:00 0 
-7fbfd326d000-7fbfd326e000 rw-p 00000000 00:00 0 
-7fbfd401f000-7fbfd4020000 rw-p 00000000 00:00 0 
-7fbfd48f1000-7fbfd48f2000 rw-p 00000000 00:00 0 
-7fbfd4b8c000-7fbfd4b8d000 rw-p 00000000 00:00 0 
-7fbfd5c00000-7fbfd5d00000 rw-p 00000000 00:00 0 
-7fbfd5d0e000-7fbfd5d3e000 rwxp 00000000 00:00 0 
-7fbfd7f2a000-7fbfd7f2e000 rw-p 00000000 00:00 0 
-7fbfd8b8e000-7fbfd8b92000 rw-p 00000000 00:00 0 
-7fbfd9be0000-7fbfd9be2000 rw-p 00000000 00:00 0 
-7fbfd9e00000-7fbfd9e01000 rw-p 00000000 00:00 0 
-7fbfdbe81000-7fbfdbe82000 rw-p 00000000 00:00 0 
-7fbfdc6ac000-7fbfdc6ae000 rw-p 00000000 00:00 0 
-7fbfdcf07000-7fbfdcf09000 rw-p 00000000 00:00 0 
-7fbfdd20b000-7fbfdd20d000 rw-p 00000000 00:00 0 
-7fbfdd89e000-7fbfdd89f000 rw-p 00000000 00:00 0 
-7fbfde597000-7fbfde598000 rw-p 00000000 00:00 0 
-7fbfe1e0d000-7fbfe1f9c000 rw-p 00000000 00:00 0 
-7fbfe2427000-7fbfe2428000 rw-p 00000000 00:00 0 
-7fbfe2b87000-7fbfe2b89000 rw-p 00000000 00:00 0 
-7fbfe35fd000-7fbfe3700000 rw-p 00000000 00:00 0 
-7fbfe3701000-7fbfe3711000 rwxp 00000000 00:00 0 
-7fbfe3d64000-7fbfe3d69000 rw-p 00000000 00:00 0 
-7fbfe3f82000-7fbfe3f86000 rw-p 00000000 00:00 0 
-7fbfe4579000-7fbfe458e000 rw-p 00000000 00:00 0 
-7fbfe47b7000-7fbfe47b8000 rw-p 00000000 00:00 0 
-7fbfe47b8000-7fbfe47b9000 rwxp 00000000 00:00 0 
-7fbfe47d7000-7fbfe47e7000 rwxp 00000000 00:00 0 
-7fbfe4883000-7fbfe4989000 rw-p 00000000 00:00 0 
-7fbfe49b2000-7fbfe49b4000 rw-p 00000000 00:00 0 
+This would be a glorified anonymous write() in essence, without using a 
+temporary file.
 
-It's about 35% out of 1300+ mappings that Firefox uses.
+The advantage would be that the string could be captured as-is and copied 
+to the ring-buffer of the profiling task - instead of having to recover it 
+later on.
 
-It is likely that the ---p mappings (about 40 of them) are guard pages.
-
-How do I tell what the remaining anonymous areas are about?
+This is a model that I'd generally advocate: a single channel [per 
+CPU-ified] for instrumentation/tracing.
 
 Thanks,
 
