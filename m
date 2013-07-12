@@ -1,80 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 1A8E86B0032
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 04:28:02 -0400 (EDT)
-Received: by mail-ee0-f45.google.com with SMTP id c1so6074671eek.4
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2013 01:28:00 -0700 (PDT)
-Date: Fri, 12 Jul 2013 10:27:56 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [RFC 0/4] Transparent on-demand struct page initialization
- embedded in the buddy allocator
-Message-ID: <20130712082756.GA4328@gmail.com>
-References: <1373594635-131067-1-git-send-email-holt@sgi.com>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 8A3F46B0032
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 04:40:43 -0400 (EDT)
+Date: Fri, 12 Jul 2013 10:40:39 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2] vmpressure: make sure memcg stays alive until all
+ users are signaled
+Message-ID: <20130712084039.GA13224@dhcp22.suse.cz>
+References: <20130710184254.GA16979@mtj.dyndns.org>
+ <20130711083110.GC21667@dhcp22.suse.cz>
+ <51DE701C.6010800@huawei.com>
+ <20130711092542.GD21667@dhcp22.suse.cz>
+ <51DE7AAF.6070004@huawei.com>
+ <20130711093300.GE21667@dhcp22.suse.cz>
+ <20130711154408.GA9229@mtj.dyndns.org>
+ <20130711162215.GM21667@dhcp22.suse.cz>
+ <20130711163238.GC9229@mtj.dyndns.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1373594635-131067-1-git-send-email-holt@sgi.com>
+In-Reply-To: <20130711163238.GC9229@mtj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robin Holt <holt@sgi.com>, Borislav Petkov <bp@alien8.de>, Robert Richter <rric@kernel.org>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Nate Zimmer <nzimmer@sgi.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Rob Landley <rob@landley.net>, Mike Travis <travis@sgi.com>, Daniel J Blueman <daniel@numascale-asia.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Yinghai Lu <yinghai@kernel.org>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Tejun Heo <tj@kernel.org>
+Cc: Li Zefan <lizefan@huawei.com>, Anton Vorontsov <anton.vorontsov@linaro.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-
-* Robin Holt <holt@sgi.com> wrote:
-
-> [...]
+On Thu 11-07-13 09:32:38, Tejun Heo wrote:
+> Hello,
 > 
-> With this patch, we did boot a 16TiB machine.  Without the patches, the 
-> v3.10 kernel with the same configuration took 407 seconds for 
-> free_all_bootmem.  With the patches and operating on 2MiB pages instead 
-> of 1GiB, it took 26 seconds so performance was improved.  I have no feel 
-> for how the 1GiB chunk size will perform.
+> On Thu, Jul 11, 2013 at 06:22:15PM +0200, Michal Hocko wrote:
+> > I would rather not put vmpressure clean up code into memcg offlining.
+> > We have reference counting for exactly this purposes so it feels strange
+> > to overcome it like that.
+> 
+> It's not something white and black but for things which can be made
+> trivially synchrnous, it usually is better to do it that way,
 
-That's pretty impressive.
+True in general but it is also true (in general) that once we have a
+reference counting for controlling life cycle for an object we should
+not bypass it.
 
-It's still a 15x speedup instead of a 512x speedup, so I'd say there's 
-something else being the current bottleneck, besides page init 
-granularity.
+> especially while shutting down objects as they enter a lingering stage
+> where they're de-registered but not destroyed and you should be
+> careful which parts of the object are still accessible.  I haven't
+> read it carefully but here I'm not sure whether it's safe to do event
+> related operations after removal.  From cgroup core side, event list
+> is shut down synchronously from cgroup_destroy_locked().  It doesn't
+> seem like that part is explicitly built to remain accessible
+> afterwards.
 
-Can you boot with just a few gigs of RAM and stuff the rest into hotplug 
-memory, and then hot-add that memory? That would allow easy profiling of 
-remaining overhead.
+/me goes and checks the code
 
-Side note:
+vmpressure_event sends signals to _registered_ events but those are
+unregistered from the work queue context by cgroup_event_remove (via
+vmpressure_unregister_event) queued from cgroup_destroy_locked.
 
-Robert Richter and Boris Petkov are working on 'persistent events' support 
-for perf, which will eventually allow boot time profiling - I'm not sure 
-if the patches and the tooling support is ready enough yet for your 
-purposes.
+I am not sure what are the guarantees for ordering on the workqueue but
+this all suggests that either vmpressure_event sees an empty vmpr->events
+or it can safely send signals as cgroup_event_remove is pending on the
+queue.
 
-Robert, Boris, the following workflow would be pretty intuitive:
+cgroup_event_remove drops a reference to cgrp->dentry after everything
+is unregistered and event->wait removed from the wait queue so
+cgroup_free_fn couldn't have been called yet and so memcg is still
+alive. This means that even css_get/put is not necessary.
 
- - kernel developer sets boot flag: perf=boot,freq=1khz,size=16MB
+So I guess we are safe with the code as is but this all is really
+_tricky_ and deserves a fat comment. So rather than adding flushing work
+item code we should document it properly.
 
- - we'd get a single (cycles?) event running once the perf subsystem is up
-   and running, with a sampling frequency of 1 KHz, sending profiling
-   trace events to a sufficiently sized profiling buffer of 16 MB per
-   CPU.
+Or am I missing something?
 
- - once the system reaches SYSTEM_RUNNING, profiling is stopped either
-   automatically - or the user stops it via a new tooling command.
+> > Besides that wouldn't be that racy? The work item could be already
+> > executing and preempted and we do not want vmpr to disappear from under
+> > our feet. I know this is _highly_ unlikely but why to play games?
+> 
+> Hmmm?  flush_work() and cancel_work_sync() guarantee that the work
+> item isn't executing on return unless it's being requeued.  There's no
+> race condition.
 
- - the profiling buffer is extracted into a regular perf.data via a
-   special 'perf record' call or some other, new perf tooling 
-   solution/variant.
-
-   [ Alternatively the kernel could attempt to construct a 'virtual'
-     perf.data from the persistent buffer, available via /sys/debug or
-     elsewhere in /sys - just like the kernel constructs a 'virtual' 
-     /proc/kcore, etc. That file could be copied or used directly. ]
-
- - from that point on this workflow joins the regular profiling workflow: 
-   perf report, perf script et al can be used to analyze the resulting
-   boot profile.
-
-Thanks,
-
-	Ingo
+OK, I haven't realized the action waits for finishing. /me is not
+regular work_queue user...
+[...]
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
