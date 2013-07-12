@@ -1,69 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id D4D856B0033
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 05:15:48 -0400 (EDT)
-Date: Fri, 12 Jul 2013 11:14:45 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 2/2] mm: add a field to store names for private anonymous
- memory
-Message-ID: <20130712091445.GQ25631@dyad.programming.kicks-ass.net>
-References: <1373596462-27115-1-git-send-email-ccross@android.com>
- <1373596462-27115-2-git-send-email-ccross@android.com>
- <51DF9682.9040301@kernel.org>
- <20130712081348.GM25631@dyad.programming.kicks-ass.net>
- <CAOJsxLHEGBdFtnmhDv2AekUhXB00To5JBjsw0t8eFzJPr8eLZQ@mail.gmail.com>
- <20130712085504.GO25631@dyad.programming.kicks-ass.net>
- <51DFC6AE.3020504@kernel.org>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id B56AA6B0032
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 05:19:18 -0400 (EDT)
+Received: by mail-wg0-f47.google.com with SMTP id l18so8006693wgh.14
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2013 02:19:17 -0700 (PDT)
+Date: Fri, 12 Jul 2013 10:19:09 +0100
+From: Robert Richter <rric@kernel.org>
+Subject: Re: [RFC 0/4] Transparent on-demand struct page initialization
+ embedded in the buddy allocator
+Message-ID: <20130712091909.GC8731@rric.localhost>
+References: <1373594635-131067-1-git-send-email-holt@sgi.com>
+ <20130712082756.GA4328@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51DFC6AE.3020504@kernel.org>
+In-Reply-To: <20130712082756.GA4328@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Colin Cross <ccross@android.com>, LKML <linux-kernel@vger.kernel.org>, Kyungmin Park <kmpark@infradead.org>, Christoph Hellwig <hch@infradead.org>, John Stultz <john.stultz@linaro.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Dave Hansen <dave.hansen@intel.com>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, David Howells <dhowells@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Dave Jones <davej@redhat.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Oleg Nesterov <oleg@redhat.com>, Shaohua Li <shli@fusionio.com>, Sasha Levin <sasha.levin@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@kernel.org>, "list@ebiederm.org:DOCUMENTATION" <linux-doc@vger.kernel.org>, "list@ebiederm.org:MEMORY MANAGEMENT" <linux-mm@kvack.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Robin Holt <holt@sgi.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Nate Zimmer <nzimmer@sgi.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Rob Landley <rob@landley.net>, Mike Travis <travis@sgi.com>, Daniel J Blueman <daniel@numascale-asia.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Yinghai Lu <yinghai@kernel.org>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-On Fri, Jul 12, 2013 at 12:04:46PM +0300, Pekka Enberg wrote:
-> On 07/12/2013 11:55 AM, Peter Zijlstra wrote:
-> >Mmap the file PROT_READ|PROT_WRITE|PROT_EXEC, map the _entire_ file, not just
-> >the text section; make the symbol table larger than you expect. Then write the
-> >symbol name after you've jit'ed the text but before you use it.
-> >
-> >IIRC you once told me you never overwrite text but always append new symbols.
-> >So you can basically fill the DSO with text/symbols use mmap memory writes.
+On 12.07.13 10:27:56, Ingo Molnar wrote:
 > 
-> I don't but I think Hotspot, for example, does recompile method. Dunno
-> if it's a problem really, we could easily come up with a versioning
-> scheme for the methods and teach perf to treat the different memory
-> regions as the same method.
-
-Anything that overwrites symbols is going to have issues with profiling;
-there's really nothing we can do about that.
-
-> On 07/12/2013 11:55 AM, Peter Zijlstra wrote:
-> >Once the DSO is full -- equal to your previous anon-exec region being full,
-> >you simply mmap a new DSO.
-> >
-> >Wouldn't that work?
+> * Robin Holt <holt@sgi.com> wrote:
 > 
-> Okay and then whenever 'perf top' sees a non-mapped IP it reloads the
-> DSO (if it has changed)?
+> > [...]
+> > 
+> > With this patch, we did boot a 16TiB machine.  Without the patches, the 
+> > v3.10 kernel with the same configuration took 407 seconds for 
+> > free_all_bootmem.  With the patches and operating on 2MiB pages instead 
+> > of 1GiB, it took 26 seconds so performance was improved.  I have no feel 
+> > for how the 1GiB chunk size will perform.
+> 
+> That's pretty impressive.
+> 
+> It's still a 15x speedup instead of a 512x speedup, so I'd say there's 
+> something else being the current bottleneck, besides page init 
+> granularity.
+> 
+> Can you boot with just a few gigs of RAM and stuff the rest into hotplug 
+> memory, and then hot-add that memory? That would allow easy profiling of 
+> remaining overhead.
+> 
+> Side note:
+> 
+> Robert Richter and Boris Petkov are working on 'persistent events' support 
+> for perf, which will eventually allow boot time profiling - I'm not sure 
+> if the patches and the tooling support is ready enough yet for your 
+> purposes.
 
-I suppose, yeah. There might be a few issues with determining if a mmap()
-written file has changed though :/
+The latest patch set is still this:
 
-> Yeah, I could see that working. It doesn't solve the problems Ingo mentioned
-> which are also important, though.
+ git://git.kernel.org/pub/scm/linux/kernel/git/rric/oprofile.git persistent-v2
 
-Nothing I've yet seen would do that. Its intrinsic to the fact that we want
-'anonymous' text tied to a process instance but require part of that text
-(symbol information at the very least) to be available after the process
-instance.
+It requires the perf subsystem to be initialized first which might be
+too late, see perf_event_init() in start_kernel(). The patch set is
+currently also limited to tracepoints only.
 
-That are two contradictory requirements. You cannot preserve and not preserve
-at the same time.
+If this is sufficient for you, you might register persistent events
+with the function perf_add_persistent_event_by_id(), see
+mcheck_init_tp() how to do this. Later you can fetch all samples with:
 
-And pushing the symbol info into the kernel isn't going to fix that either.
+ # perf record -e persistent/<tracepoint>/ sleep 1
+
+> Robert, Boris, the following workflow would be pretty intuitive:
+> 
+>  - kernel developer sets boot flag: perf=boot,freq=1khz,size=16MB
+> 
+>  - we'd get a single (cycles?) event running once the perf subsystem is up
+>    and running, with a sampling frequency of 1 KHz, sending profiling
+>    trace events to a sufficiently sized profiling buffer of 16 MB per
+>    CPU.
+
+I am not sure about the event you want to setup here, if it is a
+tracepoint the sample_period should be always 1. The buffer size
+parameter looks interesting, for now it is 512kB per cpu per default
+(as perf tools setup the buffer).
+
+> 
+>  - once the system reaches SYSTEM_RUNNING, profiling is stopped either
+>    automatically - or the user stops it via a new tooling command.
+> 
+>  - the profiling buffer is extracted into a regular perf.data via a
+>    special 'perf record' call or some other, new perf tooling 
+>    solution/variant.
+
+See the perf-record command above...
+
+> 
+>    [ Alternatively the kernel could attempt to construct a 'virtual'
+>      perf.data from the persistent buffer, available via /sys/debug or
+>      elsewhere in /sys - just like the kernel constructs a 'virtual' 
+>      /proc/kcore, etc. That file could be copied or used directly. ]
+> 
+>  - from that point on this workflow joins the regular profiling workflow: 
+>    perf report, perf script et al can be used to analyze the resulting
+>    boot profile.
+
+Ingo, thanks for outlining this workflow. We will look how this could
+fit into the new version of persistent events we currently working on.
+
+Thanks,
+
+-Robert
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
