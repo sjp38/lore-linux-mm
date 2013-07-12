@@ -1,65 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id A15C76B0032
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 01:43:52 -0400 (EDT)
-Received: by mail-lb0-f175.google.com with SMTP id r10so7202445lbi.6
-        for <linux-mm@kvack.org>; Thu, 11 Jul 2013 22:43:50 -0700 (PDT)
-Message-ID: <51DF9794.4010000@kernel.org>
-Date: Fri, 12 Jul 2013 08:43:48 +0300
-From: Pekka Enberg <penberg@kernel.org>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 632FA6B0032
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 01:47:48 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Fri, 12 Jul 2013 11:10:13 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 4A03CE0055
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 11:17:30 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6C5mI4W30015542
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 11:18:18 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6C5levK012153
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 15:47:40 +1000
+Date: Fri, 12 Jul 2013 13:47:39 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH] zswap: get swapper address_space by using
+ swap_address_space macro
+Message-ID: <20130712054739.GA3736@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <1373604175-19562-1-git-send-email-sunghan.suh@samsung.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] mm: add a field to store names for private anonymous
- memory
-References: <1373596462-27115-1-git-send-email-ccross@android.com> <1373596462-27115-2-git-send-email-ccross@android.com>
-In-Reply-To: <1373596462-27115-2-git-send-email-ccross@android.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1373604175-19562-1-git-send-email-sunghan.suh@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Colin Cross <ccross@android.com>
-Cc: linux-kernel@vger.kernel.org, Kyungmin Park <kmpark@infradead.org>, Christoph Hellwig <hch@infradead.org>, John Stultz <john.stultz@linaro.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Dave Hansen <dave.hansen@intel.com>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, David Howells <dhowells@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Dave Jones <davej@redhat.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Oleg Nesterov <oleg@redhat.com>, Shaohua Li <shli@fusionio.com>, Sasha Levin <sasha.levin@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@kernel.org>, linux-doc@vger.kernel.org, linux-mm@kvack.org
+To: Sunghan Suh <sunghan.suh@samsung.com>
+Cc: sjenning@linux.vnet.ibm.com, linux-mm@kvack.org
 
-On 07/12/2013 05:34 AM, Colin Cross wrote:
-> Userspace processes often have multiple allocators that each do
-> anonymous mmaps to get memory.  When examining memory usage of
-> individual processes or systems as a whole, it is useful to be
-> able to break down the various heaps that were allocated by
-> each layer and examine their size, RSS, and physical memory
-> usage.
->
-> This patch adds a user pointer to the shared union in
-> vm_area_struct that points to a null terminated string inside
-> the user process containing a name for the vma.  vmas that
-> point to the same address will be merged, but vmas that
-> point to equivalent strings at different addresses will
-> not be merged.
->
-> Userspace can set the name for a region of memory by calling
-> prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, start, len, (unsigned long)name);
-> Setting the name to NULL clears it.
->
-> The names of named anonymous vmas are shown in /proc/pid/maps
-> as [anon:<name>] and in /proc/pid/smaps in a new "Name" field
-> that is only present for named vmas.  If the userspace pointer
-> is no longer valid all or part of the name will be replaced
-> with "<fault>".
->
-> The idea to store a userspace pointer to reduce the complexity
-> within mm (at the expense of the complexity of reading
-> /proc/pid/mem) came from Dave Hansen.  This results in no
-> runtime overhead in the mm subsystem other than comparing
-> the anon_name pointers when considering vma merging.  The pointer
-> is stored in a union with fieds that are only used on file-backed
-> mappings, so it does not increase memory usage.
->
-> Signed-off-by: Colin Cross <ccross@android.com>
+On Fri, Jul 12, 2013 at 01:42:55PM +0900, Sunghan Suh wrote:
+>Signed-off-by: Sunghan Suh <sunghan.suh@samsung.com>
 
-So how does this perform if I do prctl(PR_SET_VMA_ANON_NAME)
-for thousands of relatively small (max 1 KB) JIT generated
-functions? Will we run into MM problems because the VMAs are
-not mergeable?
+Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-			Pekka
+>---
+> mm/zswap.c | 2 +-
+> 1 file changed, 1 insertion(+), 1 deletion(-)
+>
+>diff --git a/mm/zswap.c b/mm/zswap.c
+>index deda2b6..efed4c8 100644
+>--- a/mm/zswap.c
+>+++ b/mm/zswap.c
+>@@ -409,7 +409,7 @@ static int zswap_get_swap_cache_page(swp_entry_t entry,
+> 				struct page **retpage)
+> {
+> 	struct page *found_page, *new_page = NULL;
+>-	struct address_space *swapper_space = &swapper_spaces[swp_type(entry)];
+>+	struct address_space *swapper_space = swap_address_space(entry);
+> 	int err;
+>
+> 	*retpage = NULL;
+>-- 
+>1.8.1.2
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
