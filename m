@@ -1,50 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 0D74D6B0033
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 14:48:41 -0400 (EDT)
-Received: by mail-ye0-f169.google.com with SMTP id m1so3290671yen.28
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2013 11:48:41 -0700 (PDT)
-Date: Fri, 12 Jul 2013 11:48:36 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 1/3] vmpressure: document why css_get/put is not
- necessary for work queue based signaling
-Message-ID: <20130712184836.GC23680@mtj.dyndns.org>
-References: <20130712084039.GA13224@dhcp22.suse.cz>
- <1373621098-15261-1-git-send-email-mhocko@suse.cz>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 080B46B0032
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 15:08:31 -0400 (EDT)
+Received: by mail-qc0-f174.google.com with SMTP id m15so5143956qcq.19
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2013 12:08:31 -0700 (PDT)
+Message-ID: <51E0543A.5040906@gmail.com>
+Date: Fri, 12 Jul 2013 15:08:42 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1373621098-15261-1-git-send-email-mhocko@suse.cz>
+Subject: Re: [-] drop_caches-add-some-documentation-and-info-messsge.patch
+ removed from -mm tree
+References: <51ddc31f.zotz9WDKK3lWXtDE%akpm@linux-foundation.org> <20130711073644.GB21667@dhcp22.suse.cz> <20130711145034.3ec774d0a44742cf5d8e1177@linux-foundation.org> <20130712115028.GC15307@dhcp22.suse.cz>
+In-Reply-To: <20130712115028.GC15307@dhcp22.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: cgroups@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Anton Vorontsov <anton.vorontsov@linaro.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, Borislav Petkov <bp@suse.de>, Dave Hansen <dave.hansen@intel.com>, kosaki.motohiro@gmail.com
 
-On Fri, Jul 12, 2013 at 11:24:56AM +0200, Michal Hocko wrote:
-> Cgroup events are unregistered from the workqueue context by
-> cgroup_event_remove scheduled by cgroup_destroy_locked (when a cgroup is
-> removed by rmdir).
-> 
-> cgroup_event_remove removes the eventfd wait queue from the work
-> queue, then it unregisters all the registered events and finally
-> puts a reference to the cgroup dentry. css_free which triggers memcg
-> deallocation is called after the last reference is dropped.
-> 
-> The scheduled vmpressure work item either happens before
-> cgroup_event_remove or it is not triggered at all so it always happen
-> _before_ the last dput thus css_free.
+(7/12/13 7:50 AM), Michal Hocko wrote:
+> On Thu 11-07-13 14:50:34, Andrew Morton wrote:
+>> On Thu, 11 Jul 2013 09:36:44 +0200 Michal Hocko <mhocko@suse.cz> wrote:
+>>
+>>> On Wed 10-07-13 13:25:03, Andrew Morton wrote:
+>>> [...]
+>>>> This patch was dropped because it has gone stale
+>>>
+>>> Is there really a strong reason to not take this patch?
+>>
+>> I flushed out a whole bunch of MM patches which had been floating
+>> around in indecisive limbo.
+>>
+>> I don't recall all the review issues surrounding this one.
+>
+> Kosaki was concerned about annoying number of messages if somebody drops
+> caches too often (https://lkml.org/lkml/2010/9/20/450). As I noted in
+> the changelog
+> "
+>      Kosaki was worried about possible excessive logging when somebody drops
+>      caches too often (but then he claimed he didn't have a strong opinion on
+>      that) but I would say opposite.  If somebody does that then I would really
+>      like to know that from the log when supporting a system because it almost
+>      for sure means that there is something fishy going on.  It is also worth
+>      mentioning that only root can write drop caches so this is not an flooding
+>      attack vector.
+> "
+>
+> Kosaki then Acked the patch.
+>
+> You were worried (http://lkml.indiana.edu/hypermail/linux/kernel/1210.3/00605.html)
+> about people hating us because they are using this as a solution to
+> their issues. I concur that most of those are just hacks that found
+> their way into scripts looong time agon and stayed there.
+>
+> Boris then noted (http://lkml.indiana.edu/hypermail/linux/kernel/1210.3/00659.html)
+> that he is using drop_caches to make s2ram faster but as others noted
+> this just adds the overhead to the resume path so it might work only for
+> certain use cases so a user space solution is more appropriate and
+> Boris' use case really sounds valid.
+>
+> As a compromise I can lower the log level. Would KERN_INFO work for
+> you? Or even KERN_DEBUG?
+>
+> I still find printk less intrusive than fiddling with vmstat counters.
 
-I don't follow what the above has to do with ensuring work item
-execution is finished before the underlying data structure is
-released.  How are the above relevant?  What am I missing here?
+Michal,
 
-> This patch just documents this trickiness.
+It's ok to go IMHO. However, please open new thread w/ a rebased patch. Many developers
+don't pay attention a lot to -mm automatic notifications.
 
-This doesn't have to be tricky at all.  It's a *completely* routine
-thing.  Would you please stop making it one?
+Thanks.
 
--- 
-tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
