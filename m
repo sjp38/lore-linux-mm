@@ -1,38 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 5BE8D6B0031
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 09:58:33 -0400 (EDT)
-Date: Fri, 12 Jul 2013 13:58:32 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] mm/slub.c: beautify code of this file
-In-Reply-To: <51DF778B.8090701@asianux.com>
-Message-ID: <0000013fd32d0b91-4cab82b6-a24f-42e2-a1d2-ac5df2be6f4c-000000@email.amazonses.com>
-References: <51DF5F43.3080408@asianux.com> <51DF778B.8090701@asianux.com>
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 723F56B0031
+	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 12:02:00 -0400 (EDT)
+Date: Fri, 12 Jul 2013 18:01:49 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 7/7] mm: compaction: add compaction to zone_reclaim_mode
+Message-ID: <20130712160149.GB4524@redhat.com>
+References: <1370445037-24144-1-git-send-email-aarcange@redhat.com>
+ <1370445037-24144-8-git-send-email-aarcange@redhat.com>
+ <20130606100503.GH1936@suse.de>
+ <20130711160216.GA30320@redhat.com>
+ <51DFF5FD.8040007@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51DFF5FD.8040007@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Gang <gang.chen@asianux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, mpm@selenic.com, linux-mm@kvack.org
+To: Hush Bensen <hush.bensen@gmail.com>
+Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>
 
-On Fri, 12 Jul 2013, Chen Gang wrote:
+Hi,
 
-> Be sure of 80 column limitation for both code and comments.
-> Correct tab alignment for 'if-else' statement.
+On Fri, Jul 12, 2013 at 06:26:37AM -0600, Hush Bensen wrote:
+> > This isn't VM reclaim, we're not globally low on memory and we can't
+> > wake kswapd until we expired all memory from all zones or we risk to
+> > screw the lru rotation even further (by having kswapd and the thread
+> 
+> What's the meaning of lru rotation?
 
-Thanks.
+I mean the per-zone LRU walks to shrink the memory (they rotate pages
+through the LRU). To provide for better global working set information
+in the LRUs, we should walk all the zone LRUs in a fair
+way.
 
-> Remove redundancy 'break' statement.
+zone_reclaim_mode however makes it non fair by always shrinking from
+the first NUMA local zone even if the other zones could be shrunk
+too.
 
-Hmm... I'd rather have the first break removed.
-
-> Remove useless BUG_ON(), since it can never happen.
-
-It may happen if more code is added to that function. Recently the cgroups
-thing was added f.e.
-
-Could you separate this out into multiple patches that each do one thing
-only?
+When zone_reclaim_mode is disabled instead (default for most hardware
+out there), we wait all candidate zones to be at the low wmark before
+starting the shrinking from any zone (and then we shrink all zones,
+not just one). So when zone_reclaim_mode is disabled, we don't insist
+aging a single zone indefinitely, while leaving the others un-aged.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
