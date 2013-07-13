@@ -1,224 +1,380 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 549586B0031
-	for <linux-mm@kvack.org>; Sat, 13 Jul 2013 00:15:41 -0400 (EDT)
-Received: by mail-bk0-f52.google.com with SMTP id d7so4032041bkh.25
-        for <linux-mm@kvack.org>; Fri, 12 Jul 2013 21:15:39 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 8FC1E6B0031
+	for <linux-mm@kvack.org>; Sat, 13 Jul 2013 00:19:13 -0400 (EDT)
+Received: by mail-ie0-f176.google.com with SMTP id ar20so21258721iec.7
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2013 21:19:13 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20130712132550.GD15307@dhcp22.suse.cz>
-References: <1373044710-27371-1-git-send-email-handai.szj@taobao.com>
-	<1373045623-27712-1-git-send-email-handai.szj@taobao.com>
-	<20130711145625.GK21667@dhcp22.suse.cz>
-	<CAFj3OHV=6YDcbKmSeuF3+oMv1HfZF1RxXHoiLgTk0wH5cJVsiQ@mail.gmail.com>
-	<20130712132550.GD15307@dhcp22.suse.cz>
-Date: Sat, 13 Jul 2013 12:15:39 +0800
-Message-ID: <CAFj3OHU3UQ=25J=PMa5qRzkVejN10e92x=nEbQh2s08A8Od7Uw@mail.gmail.com>
-Subject: Re: [PATCH V4 5/6] memcg: patch mem_cgroup_{begin,end}_update_page_stat()
- out if only root memcg exists
-From: Sha Zhengju <handai.szj@gmail.com>
-Content-Type: multipart/alternative; boundary=20cf301cc4b04730ba04e15ce1c5
+In-Reply-To: <1373594635-131067-5-git-send-email-holt@sgi.com>
+References: <1373594635-131067-1-git-send-email-holt@sgi.com>
+	<1373594635-131067-5-git-send-email-holt@sgi.com>
+Date: Fri, 12 Jul 2013 21:19:12 -0700
+Message-ID: <CAE9FiQW1s2UwCY6OjzD3+2wG8SjCr1QyCpajhZbk_XhmnFQW4Q@mail.gmail.com>
+Subject: Re: [RFC 4/4] Sparse initialization of struct page array.
+From: Yinghai Lu <yinghai@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Sha Zhengju <handai.szj@taobao.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Robin Holt <holt@sgi.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Nate Zimmer <nzimmer@sgi.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Rob Landley <rob@landley.net>, Mike Travis <travis@sgi.com>, Daniel J Blueman <daniel@numascale-asia.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Mel Gorman <mgorman@suse.de>
 
---20cf301cc4b04730ba04e15ce1c5
-Content-Type: text/plain; charset=GB2312
-Content-Transfer-Encoding: quoted-printable
-
-=D4=DA 2013-7-12 =CD=ED=C9=CF9:25=A3=AC"Michal Hocko" <mhocko@suse.cz>=D0=
-=B4=B5=C0=A3=BA
+On Thu, Jul 11, 2013 at 7:03 PM, Robin Holt <holt@sgi.com> wrote:
+> During boot of large memory machines, a significant portion of boot
+> is spent initializing the struct page array.  The vast majority of
+> those pages are not referenced during boot.
 >
-> On Fri 12-07-13 20:59:24, Sha Zhengju wrote:
-> > Add cc to Glauber
-> >
-> > On Thu, Jul 11, 2013 at 10:56 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> > > On Sat 06-07-13 01:33:43, Sha Zhengju wrote:
-> > >> From: Sha Zhengju <handai.szj@taobao.com>
-> > >>
-> > >> If memcg is enabled and no non-root memcg exists, all allocated
-> > >> pages belongs to root_mem_cgroup and wil go through root memcg
-> > >> statistics routines.  So in order to reduce overheads after adding
-> > >> memcg dirty/writeback accounting in hot paths, we use jump label to
-> > >> patch mem_cgroup_{begin,end}_update_page_stat() in or out when not
-> > >> used.
-> > >
-> > > I do not think this is enough. How much do you save? One atomic read.
-> > > This doesn't seem like a killer.
-> > >
-> > > I hoped we could simply not account at all and move counters to the
-root
-> > > cgroup once the label gets enabled.
-> >
-> > I have thought of this approach before, but it would probably run into
-> > another issue, e.g, each zone has a percpu stock named ->pageset to
-> > optimize the increment and decrement operations, and I haven't figure
-out a
-> > simpler and cheaper approach to handle that stock numbers if moving
-global
-> > counters to root cgroup, maybe we can just leave them and can afford th=
-e
-> > approximation?
+> Change this over to only initializing the pages when they are
+> actually allocated.
 >
-> You can read per-cpu diffs during transition and tolerate small
-> races. Or maybe simply summing NR_FILE_DIRTY for all zones would be
-> sufficient.
-
-Thanks, I'll have a try.
-
+> Besides the advantage of boot speed, this allows us the chance to
+> use normal performance monitoring tools to determine where the bulk
+> of time is spent during page initialization.
 >
-> > Glauber have already done lots of works here, in his previous patchset
-he
-> > also tried to move some global stats to root (
-> > http://comments.gmane.org/gmane.linux.kernel.cgroups/6291). May I steal
-> > some of your ideas here, Glauber? :P
-> >
-> >
-> > >
-> > > Besides that, the current patch is racy. Consider what happens when:
-> > >
-> > > mem_cgroup_begin_update_page_stat
-> > >                                         arm_inuse_keys
-> > >
-mem_cgroup_move_account
-> > > mem_cgroup_move_account_page_stat
-> > > mem_cgroup_end_update_page_stat
-> > >
-> > > The race window is small of course but it is there. I guess we need
-> > > rcu_read_lock at least.
-> >
-> > Yes, you're right. I'm afraid we need to take care of the racy in the
-next
-> > updates as well. But mem_cgroup_begin/end_update_page_stat() already
-have
-> > rcu lock, so here we maybe only need a synchronize_rcu() after changing
-> > memcg_inuse_key?
+> Signed-off-by: Robin Holt <holt@sgi.com>
+> Signed-off-by: Nate Zimmer <nzimmer@sgi.com>
+> To: "H. Peter Anvin" <hpa@zytor.com>
+> To: Ingo Molnar <mingo@kernel.org>
+> Cc: Linux Kernel <linux-kernel@vger.kernel.org>
+> Cc: Linux MM <linux-mm@kvack.org>
+> Cc: Rob Landley <rob@landley.net>
+> Cc: Mike Travis <travis@sgi.com>
+> Cc: Daniel J Blueman <daniel@numascale-asia.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Greg KH <gregkh@linuxfoundation.org>
+> Cc: Yinghai Lu <yinghai@kernel.org>
+> Cc: Mel Gorman <mgorman@suse.de>
+> ---
+>  include/linux/mm.h         |  11 +++++
+>  include/linux/page-flags.h |   5 +-
+>  mm/nobootmem.c             |   5 ++
+>  mm/page_alloc.c            | 117 +++++++++++++++++++++++++++++++++++++++++++--
+>  4 files changed, 132 insertions(+), 6 deletions(-)
 >
-> Your patch doesn't take rcu_read_lock. synchronize_rcu might work but I
-> am still not sure this would help to prevent from the overhead which
-> IMHO comes from the accounting not a single atomic_read + rcu_read_lock
-> which is the hot path of mem_cgroup_{begin,end}_update_page_stat.
-
-I means I'll try to zero out accounting overhead in next version, but the
-race will probably also occur in that case.
-
-Thanks!
-
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index e0c8528..3de08b5 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1330,8 +1330,19 @@ static inline void __free_reserved_page(struct page *page)
+>         __free_page(page);
+>  }
 >
-> [...]
-> --
-> Michal Hocko
-> SUSE Labs
-
---20cf301cc4b04730ba04e15ce1c5
-Content-Type: text/html; charset=GB2312
-Content-Transfer-Encoding: quoted-printable
-
-<p><br>
-=D4=DA 2013-7-12 =CD=ED=C9=CF9:25=A3=AC&quot;Michal Hocko&quot; &lt;<a href=
-=3D"mailto:mhocko@suse.cz">mhocko@suse.cz</a>&gt;=D0=B4=B5=C0=A3=BA<br>
-&gt;<br>
-&gt; On Fri 12-07-13 20:59:24, Sha Zhengju wrote:<br>
-&gt; &gt; Add cc to Glauber<br>
-&gt; &gt;<br>
-&gt; &gt; On Thu, Jul 11, 2013 at 10:56 PM, Michal Hocko &lt;<a href=3D"mai=
-lto:mhocko@suse.cz">mhocko@suse.cz</a>&gt; wrote:<br>
-&gt; &gt; &gt; On Sat 06-07-13 01:33:43, Sha Zhengju wrote:<br>
-&gt; &gt; &gt;&gt; From: Sha Zhengju &lt;<a href=3D"mailto:handai.szj@taoba=
-o.com">handai.szj@taobao.com</a>&gt;<br>
-&gt; &gt; &gt;&gt;<br>
-&gt; &gt; &gt;&gt; If memcg is enabled and no non-root memcg exists, all al=
-located<br>
-&gt; &gt; &gt;&gt; pages belongs to root_mem_cgroup and wil go through root=
- memcg<br>
-&gt; &gt; &gt;&gt; statistics routines. &nbsp;So in order to reduce overhea=
-ds after adding<br>
-&gt; &gt; &gt;&gt; memcg dirty/writeback accounting in hot paths, we use ju=
-mp label to<br>
-&gt; &gt; &gt;&gt; patch mem_cgroup_{begin,end}_update_page_stat() in or ou=
-t when not<br>
-&gt; &gt; &gt;&gt; used.<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt; I do not think this is enough. How much do you save? One ato=
-mic read.<br>
-&gt; &gt; &gt; This doesn&#39;t seem like a killer.<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt; I hoped we could simply not account at all and move counters=
- to the root<br>
-&gt; &gt; &gt; cgroup once the label gets enabled.<br>
-&gt; &gt;<br>
-&gt; &gt; I have thought of this approach before, but it would probably run=
- into<br>
-&gt; &gt; another issue, e.g, each zone has a percpu stock named -&gt;pages=
-et to<br>
-&gt; &gt; optimize the increment and decrement operations, and I haven&#39;=
-t figure out a<br>
-&gt; &gt; simpler and cheaper approach to handle that stock numbers if movi=
-ng global<br>
-&gt; &gt; counters to root cgroup, maybe we can just leave them and can aff=
-ord the<br>
-&gt; &gt; approximation?<br>
-&gt;<br>
-&gt; You can read per-cpu diffs during transition and tolerate small<br>
-&gt; races. Or maybe simply summing NR_FILE_DIRTY for all zones would be<br=
+> +extern void __reserve_bootmem_region(phys_addr_t start, phys_addr_t end);
+> +
+> +static inline void __reserve_bootmem_page(struct page *page)
+> +{
+> +       phys_addr_t start = page_to_pfn(page) << PAGE_SHIFT;
+> +       phys_addr_t end = start + PAGE_SIZE;
+> +
+> +       __reserve_bootmem_region(start, end);
+> +}
+> +
+>  static inline void free_reserved_page(struct page *page)
+>  {
+> +       __reserve_bootmem_page(page);
+>         __free_reserved_page(page);
+>         adjust_managed_page_count(page, 1);
+>  }
+> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> index 6d53675..79e8eb7 100644
+> --- a/include/linux/page-flags.h
+> +++ b/include/linux/page-flags.h
+> @@ -83,6 +83,7 @@ enum pageflags {
+>         PG_owner_priv_1,        /* Owner use. If pagecache, fs may use*/
+>         PG_arch_1,
+>         PG_reserved,
+> +       PG_uninitialized2mib,   /* Is this the right spot? ntz - Yes - rmh */
+>         PG_private,             /* If pagecache, has fs-private data */
+>         PG_private_2,           /* If pagecache, has fs aux data */
+>         PG_writeback,           /* Page is under writeback */
+> @@ -211,6 +212,8 @@ PAGEFLAG(SwapBacked, swapbacked) __CLEARPAGEFLAG(SwapBacked, swapbacked)
 >
-&gt; sufficient.</p>
-<p>Thanks, I&#39;ll have a try.</p>
-<p>&gt;<br>
-&gt; &gt; Glauber have already done lots of works here, in his previous pat=
-chset he<br>
-&gt; &gt; also tried to move some global stats to root (<br>
-&gt; &gt; <a href=3D"http://comments.gmane.org/gmane.linux.kernel.cgroups/6=
-291">http://comments.gmane.org/gmane.linux.kernel.cgroups/6291</a>). May I =
-steal<br>
-&gt; &gt; some of your ideas here, Glauber? :P<br>
-&gt; &gt;<br>
-&gt; &gt;<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt; Besides that, the current patch is racy. Consider what happe=
-ns when:<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt; mem_cgroup_begin_update_page_stat<br>
-&gt; &gt; &gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbs=
-p; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &n=
-bsp; arm_inuse_keys<br>
-&gt; &gt; &gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbs=
-p; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &n=
-bsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; =
-mem_cgroup_move_account<br>
-&gt; &gt; &gt; mem_cgroup_move_account_page_stat<br>
-&gt; &gt; &gt; mem_cgroup_end_update_page_stat<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt; The race window is small of course but it is there. I guess =
-we need<br>
-&gt; &gt; &gt; rcu_read_lock at least.<br>
-&gt; &gt;<br>
-&gt; &gt; Yes, you&#39;re right. I&#39;m afraid we need to take care of the=
- racy in the next<br>
-&gt; &gt; updates as well. But mem_cgroup_begin/end_update_page_stat() alre=
-ady have<br>
-&gt; &gt; rcu lock, so here we maybe only need a synchronize_rcu() after ch=
-anging<br>
-&gt; &gt; memcg_inuse_key?<br>
-&gt;<br>
-&gt; Your patch doesn&#39;t take rcu_read_lock. synchronize_rcu might work =
-but I<br>
-&gt; am still not sure this would help to prevent from the overhead which<b=
-r>
-&gt; IMHO comes from the accounting not a single atomic_read + rcu_read_loc=
-k<br>
-&gt; which is the hot path of mem_cgroup_{begin,end}_update_page_stat.</p>
-<p>I means I&#39;ll try to zero out accounting overhead in next version, bu=
-t the race will probably also occur in that case.</p>
-<p>Thanks!</p>
-<p>&gt;<br>
-&gt; [...]<br>
-&gt; --<br>
-&gt; Michal Hocko<br>
-&gt; SUSE Labs<br>
-</p>
+>  __PAGEFLAG(SlobFree, slob_free)
+>
+> +PAGEFLAG(Uninitialized2Mib, uninitialized2mib)
+> +
+>  /*
+>   * Private page markings that may be used by the filesystem that owns the page
+>   * for its own purposes.
+> @@ -499,7 +502,7 @@ static inline void ClearPageSlabPfmemalloc(struct page *page)
+>  #define PAGE_FLAGS_CHECK_AT_FREE \
+>         (1 << PG_lru     | 1 << PG_locked    | \
+>          1 << PG_private | 1 << PG_private_2 | \
+> -        1 << PG_writeback | 1 << PG_reserved | \
+> +        1 << PG_writeback | 1 << PG_reserved | 1 << PG_uninitialized2mib | \
+>          1 << PG_slab    | 1 << PG_swapcache | 1 << PG_active | \
+>          1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON | \
+>          __PG_COMPOUND_LOCK)
+> diff --git a/mm/nobootmem.c b/mm/nobootmem.c
+> index 3b512ca..e3a386d 100644
+> --- a/mm/nobootmem.c
+> +++ b/mm/nobootmem.c
+> @@ -126,6 +126,9 @@ static unsigned long __init free_low_memory_core_early(void)
+>         phys_addr_t start, end, size;
+>         u64 i;
+>
+> +       for_each_reserved_mem_region(i, &start, &end)
+> +               __reserve_bootmem_region(start, end);
+> +
 
---20cf301cc4b04730ba04e15ce1c5--
+How about holes that is not in memblock.reserved?
+
+before this patch:
+free_area_init_node/free_area_init_core/memmap_init_zone
+will mark all page in node range to Reserved in struct page, at first.
+
+but those holes is not mapped via kernel low mapping.
+so it should be ok not touch "struct page" for them.
+
+Now you only mark reserved for memblock.reserved at first, and later
+mark {memblock.memory} - { memblock.reserved} to be available.
+And that is ok.
+
+but should split that change to another patch and add some comment
+and change log for the change.
+in case there is some user like UEFI etc do weird thing.
+
+>         for_each_free_mem_range(i, MAX_NUMNODES, &start, &end, NULL)
+>                 count += __free_memory_core(start, end);
+>
+> @@ -162,6 +165,8 @@ unsigned long __init free_all_bootmem(void)
+>  {
+>         struct pglist_data *pgdat;
+>
+> +       memblock_dump_all();
+> +
+
+Not needed.
+
+>         for_each_online_pgdat(pgdat)
+>                 reset_node_lowmem_managed_pages(pgdat);
+>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 635b131..fe51eb9 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -740,6 +740,54 @@ static void __init_single_page(struct page *page, unsigned long zone, int nid, i
+>  #endif
+>  }
+>
+> +static void expand_page_initialization(struct page *basepage)
+> +{
+> +       unsigned long pfn = page_to_pfn(basepage);
+> +       unsigned long end_pfn = pfn + PTRS_PER_PMD;
+> +       unsigned long zone = page_zonenum(basepage);
+> +       int reserved = PageReserved(basepage);
+> +       int nid = page_to_nid(basepage);
+> +
+> +       ClearPageUninitialized2Mib(basepage);
+> +
+> +       for( pfn++; pfn < end_pfn; pfn++ )
+> +               __init_single_page(pfn_to_page(pfn), zone, nid, reserved);
+> +}
+> +
+> +void ensure_pages_are_initialized(unsigned long start_pfn,
+> +                                 unsigned long end_pfn)
+> +{
+> +       unsigned long aligned_start_pfn = start_pfn & ~(PTRS_PER_PMD - 1);
+> +       unsigned long aligned_end_pfn;
+> +       struct page *page;
+> +
+> +       aligned_end_pfn = end_pfn & ~(PTRS_PER_PMD - 1);
+> +       aligned_end_pfn += PTRS_PER_PMD;
+> +       while (aligned_start_pfn < aligned_end_pfn) {
+> +               if (pfn_valid(aligned_start_pfn)) {
+> +                       page = pfn_to_page(aligned_start_pfn);
+> +
+> +                       if(PageUninitialized2Mib(page))
+> +                               expand_page_initialization(page);
+> +               }
+> +
+> +               aligned_start_pfn += PTRS_PER_PMD;
+> +       }
+> +}
+> +
+> +void __reserve_bootmem_region(phys_addr_t start, phys_addr_t end)
+> +{
+> +       unsigned long start_pfn = PFN_DOWN(start);
+> +       unsigned long end_pfn = PFN_UP(end);
+> +
+> +       ensure_pages_are_initialized(start_pfn, end_pfn);
+> +}
+
+that name is confusing, actually it is setting to struct page to Reserved only.
+maybe __reserve_pages_bootmem() to be aligned to free_pages_bootmem ?
+
+> +
+> +static inline void ensure_page_is_initialized(struct page *page)
+> +{
+> +       __reserve_bootmem_page(page);
+> +}
+
+how about use __reserve_page_bootmem directly and add comment in callers site ?
+
+> +
+>  static bool free_pages_prepare(struct page *page, unsigned int order)
+>  {
+>         int i;
+> @@ -751,7 +799,10 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
+>         if (PageAnon(page))
+>                 page->mapping = NULL;
+>         for (i = 0; i < (1 << order); i++)
+> -               bad += free_pages_check(page + i);
+> +               if (PageUninitialized2Mib(page + i))
+> +                       i += PTRS_PER_PMD - 1;
+> +               else
+> +                       bad += free_pages_check(page + i);
+>         if (bad)
+>                 return false;
+>
+> @@ -795,13 +846,22 @@ void __meminit __free_pages_bootmem(struct page *page, unsigned int order)
+>         unsigned int loop;
+>
+>         prefetchw(page);
+> -       for (loop = 0; loop < nr_pages; loop++) {
+> +       for (loop = 0; loop < nr_pages; ) {
+>                 struct page *p = &page[loop];
+>
+>                 if (loop + 1 < nr_pages)
+>                         prefetchw(p + 1);
+> +
+> +               if ((PageUninitialized2Mib(p)) &&
+> +                   ((loop + PTRS_PER_PMD) > nr_pages))
+> +                       ensure_page_is_initialized(p);
+> +
+>                 __ClearPageReserved(p);
+>                 set_page_count(p, 0);
+> +               if (PageUninitialized2Mib(p))
+> +                       loop += PTRS_PER_PMD;
+> +               else
+> +                       loop += 1;
+>         }
+>
+>         page_zone(page)->managed_pages += 1 << order;
+> @@ -856,6 +916,7 @@ static inline void expand(struct zone *zone, struct page *page,
+>                 area--;
+>                 high--;
+>                 size >>= 1;
+> +               ensure_page_is_initialized(page);
+>                 VM_BUG_ON(bad_range(zone, &page[size]));
+>
+>  #ifdef CONFIG_DEBUG_PAGEALLOC
+> @@ -903,6 +964,10 @@ static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
+>
+>         for (i = 0; i < (1 << order); i++) {
+>                 struct page *p = page + i;
+> +
+> +               if (PageUninitialized2Mib(p))
+> +                       expand_page_initialization(page);
+> +
+>                 if (unlikely(check_new_page(p)))
+>                         return 1;
+>         }
+> @@ -985,6 +1050,7 @@ int move_freepages(struct zone *zone,
+>         unsigned long order;
+>         int pages_moved = 0;
+>
+> +       ensure_pages_are_initialized(page_to_pfn(start_page), page_to_pfn(end_page));
+>  #ifndef CONFIG_HOLES_IN_ZONE
+>         /*
+>          * page_zone is not safe to call in this context when
+> @@ -3859,6 +3925,9 @@ static int pageblock_is_reserved(unsigned long start_pfn, unsigned long end_pfn)
+>         for (pfn = start_pfn; pfn < end_pfn; pfn++) {
+>                 if (!pfn_valid_within(pfn) || PageReserved(pfn_to_page(pfn)))
+>                         return 1;
+> +
+> +               if (PageUninitialized2Mib(pfn_to_page(pfn)))
+> +                       pfn += PTRS_PER_PMD;
+>         }
+>         return 0;
+>  }
+> @@ -3947,6 +4016,29 @@ static void setup_zone_migrate_reserve(struct zone *zone)
+>         }
+>  }
+>
+> +int __meminit pfn_range_init_avail(unsigned long pfn, unsigned long end_pfn,
+> +                                  unsigned long size, int nid)
+why not use static ? it seems there is not outside user.
+> +{
+> +       unsigned long validate_end_pfn = pfn + size;
+> +
+> +       if (pfn & (size - 1))
+> +               return 1;
+> +
+> +       if (pfn + size >= end_pfn)
+> +               return 1;
+> +
+> +       while (pfn < validate_end_pfn)
+> +       {
+> +               if (!early_pfn_valid(pfn))
+> +                       return 1;
+> +               if (!early_pfn_in_nid(pfn, nid))
+> +                       return 1;
+> +               pfn++;
+> +       }
+> +
+> +       return size;
+> +}
+> +
+>  /*
+>   * Initially all pages are reserved - free ones are freed
+>   * up by free_all_bootmem() once the early boot process is
+> @@ -3964,20 +4056,34 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+>                 highest_memmap_pfn = end_pfn - 1;
+>
+>         z = &NODE_DATA(nid)->node_zones[zone];
+> -       for (pfn = start_pfn; pfn < end_pfn; pfn++) {
+> +       for (pfn = start_pfn; pfn < end_pfn; ) {
+>                 /*
+>                  * There can be holes in boot-time mem_map[]s
+>                  * handed to this function.  They do not
+>                  * exist on hotplugged memory.
+>                  */
+> +               int pfns = 1;
+>                 if (context == MEMMAP_EARLY) {
+> -                       if (!early_pfn_valid(pfn))
+> +                       if (!early_pfn_valid(pfn)) {
+> +                               pfn++;
+>                                 continue;
+> -                       if (!early_pfn_in_nid(pfn, nid))
+> +                       }
+> +                       if (!early_pfn_in_nid(pfn, nid)) {
+> +                               pfn++;
+>                                 continue;
+> +                       }
+> +
+> +                       pfns = pfn_range_init_avail(pfn, end_pfn,
+> +                                                   PTRS_PER_PMD, nid);
+>                 }
+
+maybe could update memmap_init_zone() only iterate {memblock.memory} -
+{memblock.reserved}, so you do need to check avail ....
+
+as memmap_init_zone do not need to handle holes to mark reserve for them.
+
+> +
+>                 page = pfn_to_page(pfn);
+>                 __init_single_page(page, zone, nid, 1);
+> +
+> +               if (pfns > 1)
+> +                       SetPageUninitialized2Mib(page);
+> +
+> +               pfn += pfns;
+>         }
+>  }
+>
+> @@ -6196,6 +6302,7 @@ static const struct trace_print_flags pageflag_names[] = {
+>         {1UL << PG_owner_priv_1,        "owner_priv_1"  },
+>         {1UL << PG_arch_1,              "arch_1"        },
+>         {1UL << PG_reserved,            "reserved"      },
+> +       {1UL << PG_uninitialized2mib,   "Uninit_2MiB"   },
+
+PG_uninitialized_2m ?
+
+>         {1UL << PG_private,             "private"       },
+>         {1UL << PG_private_2,           "private_2"     },
+>         {1UL << PG_writeback,           "writeback"     },
+
+Yinghai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
