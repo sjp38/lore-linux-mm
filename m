@@ -1,166 +1,224 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id C7F266B0031
-	for <linux-mm@kvack.org>; Fri, 12 Jul 2013 23:29:05 -0400 (EDT)
-Date: Sat, 13 Jul 2013 13:29:00 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: linux-next: slab shrinkers: BUG at mm/list_lru.c:92
-Message-ID: <20130713032900.GC5228@dastard>
-References: <20130702121947.GE14996@dastard>
- <20130702124427.GG16815@dhcp22.suse.cz>
- <20130703112403.GP14996@dastard>
- <20130704163643.GF7833@dhcp22.suse.cz>
- <20130708125352.GC20149@dhcp22.suse.cz>
- <20130710023138.GO3438@dastard>
- <20130710080605.GC4437@dhcp22.suse.cz>
- <20130711022634.GZ3438@dastard>
- <20130711132300.GG21667@dhcp22.suse.cz>
- <alpine.LNX.2.00.1307111741130.2448@eggly.anvils>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 549586B0031
+	for <linux-mm@kvack.org>; Sat, 13 Jul 2013 00:15:41 -0400 (EDT)
+Received: by mail-bk0-f52.google.com with SMTP id d7so4032041bkh.25
+        for <linux-mm@kvack.org>; Fri, 12 Jul 2013 21:15:39 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LNX.2.00.1307111741130.2448@eggly.anvils>
+In-Reply-To: <20130712132550.GD15307@dhcp22.suse.cz>
+References: <1373044710-27371-1-git-send-email-handai.szj@taobao.com>
+	<1373045623-27712-1-git-send-email-handai.szj@taobao.com>
+	<20130711145625.GK21667@dhcp22.suse.cz>
+	<CAFj3OHV=6YDcbKmSeuF3+oMv1HfZF1RxXHoiLgTk0wH5cJVsiQ@mail.gmail.com>
+	<20130712132550.GD15307@dhcp22.suse.cz>
+Date: Sat, 13 Jul 2013 12:15:39 +0800
+Message-ID: <CAFj3OHU3UQ=25J=PMa5qRzkVejN10e92x=nEbQh2s08A8Od7Uw@mail.gmail.com>
+Subject: Re: [PATCH V4 5/6] memcg: patch mem_cgroup_{begin,end}_update_page_stat()
+ out if only root memcg exists
+From: Sha Zhengju <handai.szj@gmail.com>
+Content-Type: multipart/alternative; boundary=20cf301cc4b04730ba04e15ce1c5
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Glauber Costa <glommer@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Sha Zhengju <handai.szj@taobao.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Jul 11, 2013 at 06:42:03PM -0700, Hugh Dickins wrote:
-> On Thu, 11 Jul 2013, Michal Hocko wrote:
-> > On Thu 11-07-13 12:26:34, Dave Chinner wrote:
-> > > > We are wating for page under writeback but neither of the 2 paths starts
-> > > > in xfs code. So I do not think waiting for PageWriteback causes a
-> > > > deadlock here.
-> > > 
-> > > The problem is this: the page that we are waiting for IO on is in
-> > > the IO completion queue, but the IO compeltion requires memory
-> > > allocation to complete the transaction. That memory allocation is
-> > > causing memcg reclaim, which then waits for IO completion on another
-> > > page, which may or may not end up in the same IO completion queue.
-> > > The CMWQ can continue to process new Io completions - up to a point
-> > > - so slow progress will be made. In the worst case, it can deadlock.
-> > 
-> > OK, I thought something like that was going on but I just wanted to be
-> > sure that I didn't manage to confuse you by the lockup messages.
-> > > 
-> > > GFP_NOFS allocation is the mechanism by which filesystems are
-> > > supposed to be able to avoid this recursive deadlock...
-> > 
-> > Yes.
-> > 
-> > > > [...]
-> > > > > ... is running IO completion work and trying to commit a transaction
-> > > > > that is blocked in memory allocation which is waiting for IO
-> > > > > completion. It's disappeared up it's own fundamental orifice.
-> > > > > 
-> > > > > Ok, this has absolutely nothing to do with the LRU changes - this is
-> > > > > a pre-existing XFS/mm interaction problem from around 3.2. The
-> > > > > question is now this: how the hell do I get memory allocation to not
-> > > > > block waiting on IO completion here? This is already being done in
-> > > > > GFP_NOFS allocation context here....
-> > > > 
-> > > > Just for reference. wait_on_page_writeback is issued only for memcg
-> > > > reclaim because there is no other throttling mechanism to prevent from
-> > > > too many dirty pages on the list, thus pre-mature OOM killer. See
-> > > > e62e384e9d (memcg: prevent OOM with too many dirty pages) for more
-> > > > details. The original patch relied on may_enter_fs but that check
-> > > > disappeared by later changes by c3b94f44fc (memcg: further prevent OOM
-> > > > with too many dirty pages).
-> > > 
-> > > Aye. That's the exact code I was looking at yesterday and wondering
-> > > "how the hell is waiting on page writeback valid in GFP_NOFS
-> > > context?". It seems that memcg reclaim is intentionally ignoring
-> > > GFP_NOFS to avoid OOM issues.  That's a memcg implementation problem,
-> > > not a filesystem or LRU infrastructure problem....
-> > 
-> > Agreed and until we have a proper per memcg dirty memory throttling we
-> > will always be in a workaround mode. Which is sad but that is the
-> > reality...
-> > 
-> > I am CCing Hugh (the discussion was long and started with a different
-> > issue but the above should tell about the current xfs hang. It seems
-> > that c3b94f44fc make xfs hang).
-> 
-> The may_enter_fs test came and went several times as we prepared those
-> patches: one set of problems with it in, another set with it out.
-> 
-> When I made c3b94f44fc, I was not imagining that I/O completion might
-> have to wait on a further __GFP_IO allocation.  But I can see the sense
-> of what XFS is doing there: after writing the data, it wants to perform
-> (initiate?) a transaction; but if that happens to fail, wants to mark
-> the written data pages as bad before reaching the end_page_writeback.
-> I've toyed with reordering that, but its order does seem sensible.
-> 
-> I've always thought of GFP_NOFS as meaning "don't recurse into the
-> filesystem" (and wondered what that amounts to since direct reclaim
-> stopped doing filesystem writeback); but here XFS is expecting it
-> to include "and don't wait for PageWriteback to be cleared".
+--20cf301cc4b04730ba04e15ce1c5
+Content-Type: text/plain; charset=GB2312
+Content-Transfer-Encoding: quoted-printable
 
-Well, it's more general than that - my understanding of GFP_NOFS is
-that it means "don't block reclaim on anything filesystem related
-because a filesystem deadlock is possible from this calling
-content". Even without direct reclaim doing writeback, there is
-still shrinkers that need to avoid locking filesystem objects during
-direct reclaim, and the fact that waiting on writeback for specific
-pages to complete may (indirectly) block a memory allocation
-required to complete the writeback of that page. It's the latter
-case that is the problem here...
+=D4=DA 2013-7-12 =CD=ED=C9=CF9:25=A3=AC"Michal Hocko" <mhocko@suse.cz>=D0=
+=B4=B5=C0=A3=BA
+>
+> On Fri 12-07-13 20:59:24, Sha Zhengju wrote:
+> > Add cc to Glauber
+> >
+> > On Thu, Jul 11, 2013 at 10:56 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> > > On Sat 06-07-13 01:33:43, Sha Zhengju wrote:
+> > >> From: Sha Zhengju <handai.szj@taobao.com>
+> > >>
+> > >> If memcg is enabled and no non-root memcg exists, all allocated
+> > >> pages belongs to root_mem_cgroup and wil go through root memcg
+> > >> statistics routines.  So in order to reduce overheads after adding
+> > >> memcg dirty/writeback accounting in hot paths, we use jump label to
+> > >> patch mem_cgroup_{begin,end}_update_page_stat() in or out when not
+> > >> used.
+> > >
+> > > I do not think this is enough. How much do you save? One atomic read.
+> > > This doesn't seem like a killer.
+> > >
+> > > I hoped we could simply not account at all and move counters to the
+root
+> > > cgroup once the label gets enabled.
+> >
+> > I have thought of this approach before, but it would probably run into
+> > another issue, e.g, each zone has a percpu stock named ->pageset to
+> > optimize the increment and decrement operations, and I haven't figure
+out a
+> > simpler and cheaper approach to handle that stock numbers if moving
+global
+> > counters to root cgroup, maybe we can just leave them and can afford th=
+e
+> > approximation?
+>
+> You can read per-cpu diffs during transition and tolerate small
+> races. Or maybe simply summing NR_FILE_DIRTY for all zones would be
+> sufficient.
 
-> I've mused on this for a while, and haven't arrived at any conclusion;
-> but do have several mutterings on different kinds of solution.
-> 
-> Probably the easiest solution, but not necessarily the right solution,
-> would be for XFS to add a KM_NOIO akin to its KM_NOFS, and use KM_NOIO
-> instead of KM_NOFS in xfs_iomap_write_unwritten() (anywhere else?).
-> I'd find that more convincing if it were not so obviously designed
-> to match an assumption I'd once made over in mm/vmscan.c.
+Thanks, I'll have a try.
 
-I'd prefer not to have to start using KM_NOIO in specific places in
-the filesystem layer. I can see how it may be relevant, though,
-because we are in the IO completion path here, and so -technically-
-we are dealing with IO layer interactions here. Hmmm - it looks like
-there is already a task flag to tell memory allocation we are in IO
-context without needing to pass GFP_IO: PF_MEMALLOC_NOIO.
+>
+> > Glauber have already done lots of works here, in his previous patchset
+he
+> > also tried to move some global stats to root (
+> > http://comments.gmane.org/gmane.linux.kernel.cgroups/6291). May I steal
+> > some of your ideas here, Glauber? :P
+> >
+> >
+> > >
+> > > Besides that, the current patch is racy. Consider what happens when:
+> > >
+> > > mem_cgroup_begin_update_page_stat
+> > >                                         arm_inuse_keys
+> > >
+mem_cgroup_move_account
+> > > mem_cgroup_move_account_page_stat
+> > > mem_cgroup_end_update_page_stat
+> > >
+> > > The race window is small of course but it is there. I guess we need
+> > > rcu_read_lock at least.
+> >
+> > Yes, you're right. I'm afraid we need to take care of the racy in the
+next
+> > updates as well. But mem_cgroup_begin/end_update_page_stat() already
+have
+> > rcu lock, so here we maybe only need a synchronize_rcu() after changing
+> > memcg_inuse_key?
+>
+> Your patch doesn't take rcu_read_lock. synchronize_rcu might work but I
+> am still not sure this would help to prevent from the overhead which
+> IMHO comes from the accounting not a single atomic_read + rcu_read_lock
+> which is the hot path of mem_cgroup_{begin,end}_update_page_stat.
 
-[ As an idle thought, if we drove PF_FSTRANS into the memory
-allocation to clear __GFP_FS like PF_MEMALLOC_NOIO clears __GFP_IO,
-we could probably get rid of a large amount of the XFS specific
-memory allocation wrappers. Hmmm, it would solve all the "we
-need to do GFP_NOFS for vmalloc()" problems we have as well, which
-is what DM uses PF_MEMALLOC_NOIO for.... ]
+I means I'll try to zero out accounting overhead in next version, but the
+race will probably also occur in that case.
 
-> A harder solution, but one which I'd expect to have larger benefits,
-> would be to reinstate the may_enter_fs test there in shrink_page_list(),
-> but modify ext4 and xfs and gfs2 to use grab_cache_page_write_begin()
-> without needing AOP_FLAG_NOFS: I think it is very sad that major FS
-> page allocations are made with the limiting GFP_NOFS, and I hope there
-> might be an efficient way to make those page allocations outside of the
-> transaction, with __GFP_FS instead.
+Thanks!
 
-I don't think that helps the AOP_FLAG_NOFS case - even if we aren't
-in a transaction context, we're still holding (multiple) filesystem
-locks when doing memory allocation...
+>
+> [...]
+> --
+> Michal Hocko
+> SUSE Labs
 
-> Another kind of solution: I did originally worry about your e62e384e9d
-> in rather the same way that akpm has, thinking a wait on return from
-> shrink_page_list() more appropriate than waiting on a single page
-> (with a hold on all the other pages of the page_list).  I did have a
-> patch I'd been playing with about the time you posted yours, but we
-> agreed to go ahead with yours unless problems showed up (I think mine
-> was not so pretty as yours).  Maybe I need to dust off my old
-> alternative now - though I've rather forgotten how to test it.
+--20cf301cc4b04730ba04e15ce1c5
+Content-Type: text/html; charset=GB2312
+Content-Transfer-Encoding: quoted-printable
 
-I think that a congestion_wait()-styleange (as Andrew suggested) is
-a workable interim solution but I suspect - like Michal - that we
-need proper memcg awareness in balance_dirty_pages() to really solve
-this problem fully....
+<p><br>
+=D4=DA 2013-7-12 =CD=ED=C9=CF9:25=A3=AC&quot;Michal Hocko&quot; &lt;<a href=
+=3D"mailto:mhocko@suse.cz">mhocko@suse.cz</a>&gt;=D0=B4=B5=C0=A3=BA<br>
+&gt;<br>
+&gt; On Fri 12-07-13 20:59:24, Sha Zhengju wrote:<br>
+&gt; &gt; Add cc to Glauber<br>
+&gt; &gt;<br>
+&gt; &gt; On Thu, Jul 11, 2013 at 10:56 PM, Michal Hocko &lt;<a href=3D"mai=
+lto:mhocko@suse.cz">mhocko@suse.cz</a>&gt; wrote:<br>
+&gt; &gt; &gt; On Sat 06-07-13 01:33:43, Sha Zhengju wrote:<br>
+&gt; &gt; &gt;&gt; From: Sha Zhengju &lt;<a href=3D"mailto:handai.szj@taoba=
+o.com">handai.szj@taobao.com</a>&gt;<br>
+&gt; &gt; &gt;&gt;<br>
+&gt; &gt; &gt;&gt; If memcg is enabled and no non-root memcg exists, all al=
+located<br>
+&gt; &gt; &gt;&gt; pages belongs to root_mem_cgroup and wil go through root=
+ memcg<br>
+&gt; &gt; &gt;&gt; statistics routines. &nbsp;So in order to reduce overhea=
+ds after adding<br>
+&gt; &gt; &gt;&gt; memcg dirty/writeback accounting in hot paths, we use ju=
+mp label to<br>
+&gt; &gt; &gt;&gt; patch mem_cgroup_{begin,end}_update_page_stat() in or ou=
+t when not<br>
+&gt; &gt; &gt;&gt; used.<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; I do not think this is enough. How much do you save? One ato=
+mic read.<br>
+&gt; &gt; &gt; This doesn&#39;t seem like a killer.<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; I hoped we could simply not account at all and move counters=
+ to the root<br>
+&gt; &gt; &gt; cgroup once the label gets enabled.<br>
+&gt; &gt;<br>
+&gt; &gt; I have thought of this approach before, but it would probably run=
+ into<br>
+&gt; &gt; another issue, e.g, each zone has a percpu stock named -&gt;pages=
+et to<br>
+&gt; &gt; optimize the increment and decrement operations, and I haven&#39;=
+t figure out a<br>
+&gt; &gt; simpler and cheaper approach to handle that stock numbers if movi=
+ng global<br>
+&gt; &gt; counters to root cgroup, maybe we can just leave them and can aff=
+ord the<br>
+&gt; &gt; approximation?<br>
+&gt;<br>
+&gt; You can read per-cpu diffs during transition and tolerate small<br>
+&gt; races. Or maybe simply summing NR_FILE_DIRTY for all zones would be<br=
+>
+&gt; sufficient.</p>
+<p>Thanks, I&#39;ll have a try.</p>
+<p>&gt;<br>
+&gt; &gt; Glauber have already done lots of works here, in his previous pat=
+chset he<br>
+&gt; &gt; also tried to move some global stats to root (<br>
+&gt; &gt; <a href=3D"http://comments.gmane.org/gmane.linux.kernel.cgroups/6=
+291">http://comments.gmane.org/gmane.linux.kernel.cgroups/6291</a>). May I =
+steal<br>
+&gt; &gt; some of your ideas here, Glauber? :P<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; Besides that, the current patch is racy. Consider what happe=
+ns when:<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; mem_cgroup_begin_update_page_stat<br>
+&gt; &gt; &gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbs=
+p; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &n=
+bsp; arm_inuse_keys<br>
+&gt; &gt; &gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbs=
+p; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &n=
+bsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; =
+mem_cgroup_move_account<br>
+&gt; &gt; &gt; mem_cgroup_move_account_page_stat<br>
+&gt; &gt; &gt; mem_cgroup_end_update_page_stat<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; The race window is small of course but it is there. I guess =
+we need<br>
+&gt; &gt; &gt; rcu_read_lock at least.<br>
+&gt; &gt;<br>
+&gt; &gt; Yes, you&#39;re right. I&#39;m afraid we need to take care of the=
+ racy in the next<br>
+&gt; &gt; updates as well. But mem_cgroup_begin/end_update_page_stat() alre=
+ady have<br>
+&gt; &gt; rcu lock, so here we maybe only need a synchronize_rcu() after ch=
+anging<br>
+&gt; &gt; memcg_inuse_key?<br>
+&gt;<br>
+&gt; Your patch doesn&#39;t take rcu_read_lock. synchronize_rcu might work =
+but I<br>
+&gt; am still not sure this would help to prevent from the overhead which<b=
+r>
+&gt; IMHO comes from the accounting not a single atomic_read + rcu_read_loc=
+k<br>
+&gt; which is the hot path of mem_cgroup_{begin,end}_update_page_stat.</p>
+<p>I means I&#39;ll try to zero out accounting overhead in next version, bu=
+t the race will probably also occur in that case.</p>
+<p>Thanks!</p>
+<p>&gt;<br>
+&gt; [...]<br>
+&gt; --<br>
+&gt; Michal Hocko<br>
+&gt; SUSE Labs<br>
+</p>
 
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+--20cf301cc4b04730ba04e15ce1c5--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
