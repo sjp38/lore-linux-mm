@@ -1,104 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 44D596B0031
-	for <linux-mm@kvack.org>; Sat, 13 Jul 2013 21:38:35 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id ld11so10155756pab.22
-        for <linux-mm@kvack.org>; Sat, 13 Jul 2013 18:38:34 -0700 (PDT)
-Message-ID: <51E2010F.8070801@gmail.com>
-Date: Sun, 14 Jul 2013 09:38:23 +0800
-From: Simon Jeons <simon.jeons@gmail.com>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id BDC9A6B0033
+	for <linux-mm@kvack.org>; Sat, 13 Jul 2013 23:13:04 -0400 (EDT)
+Received: by mail-ie0-f175.google.com with SMTP id a11so15776132iee.6
+        for <linux-mm@kvack.org>; Sat, 13 Jul 2013 20:13:04 -0700 (PDT)
+Message-ID: <51E2173A.8080003@gmail.com>
+Date: Sun, 14 Jul 2013 11:12:58 +0800
+From: Sam Ben <sam.bennn@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: add sys_madvise2 and MADV_NAME to name vmas
-References: <1372901537-31033-1-git-send-email-ccross@android.com> <87txkaq600.fsf@xmission.com>
-In-Reply-To: <87txkaq600.fsf@xmission.com>
+Subject: Re: [RFC][PATCH] mm: madvise: MADV_POPULATE for quick pre-faulting
+References: <20130627231605.8F9F12E6@viggo.jf.intel.com> <20130628054757.GA10429@gmail.com> <51CDB056.5090308@sr71.net> <51CE4451.4060708@gmail.com> <51D1AB6E.9030905@sr71.net> <20130702023748.GA10366@gmail.com>
+In-Reply-To: <20130702023748.GA10366@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Colin Cross <ccross@android.com>, linux-kernel@vger.kernel.org, Kyungmin Park <kmpark@infradead.org>, Christoph Hellwig <hch@infradead.org>, John Stultz <john.stultz@linaro.org>, Rob Landley <rob@landley.net>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rusty Russell <rusty@rustcorp.com.au>, Oleg Nesterov <oleg@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Anton Vorontsov <anton.vorontsov@linaro.org>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Dave Hansen <dave@sr71.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Eric,
-On 07/04/2013 12:54 PM, Eric W. Biederman wrote:
-> Colin Cross <ccross@android.com> writes:
+On 07/02/2013 10:37 AM, Zheng Liu wrote:
+> On Mon, Jul 01, 2013 at 09:16:46AM -0700, Dave Hansen wrote:
+>> On 06/28/2013 07:20 PM, Zheng Liu wrote:
+>>>>> IOW, a process needing to do a bunch of MAP_POPULATEs isn't
+>>>>> parallelizable, but one using this mechanism would be.
+>>> I look at the code, and it seems that we will handle MAP_POPULATE flag
+>>> after we release mmap_sem locking in vm_mmap_pgoff():
+>>>
+>>>                  down_write(&mm->mmap_sem);
+>>>                  ret = do_mmap_pgoff(file, addr, len, prot, flag, pgoff,
+>>>                                      &populate);
+>>>                  up_write(&mm->mmap_sem);
+>>>                  if (populate)
+>>>                          mm_populate(ret, populate);
+>>>
+>>> Am I missing something?
+>> I went and did my same test using mmap(MAP_POPULATE)/munmap() pair
+>> versus using MADV_POPULATE in 160 threads in parallel.
+>>
+>> MADV_POPULATE was about 10x faster in the threaded configuration.
+>>
+>> With MADV_POPULATE, the biggest cost is shipping the mmap_sem cacheline
+>> around so that we can write the reader count update in to it.  With
+>> mmap(), there is a lot of _contention_ on that lock which is much, much
+>> more expensive than simply bouncing a cacheline around.
+> Thanks for your explanation.
 >
->> Userspace processes often have multiple allocators that each do
->> anonymous mmaps to get memory.  When examining memory usage of
->> individual processes or systems as a whole, it is useful to be
->> able to break down the various heaps that were allocated by
->> each layer and examine their size, RSS, and physical memory
->> usage.
-> What is the advantage of this?  It looks like it is going to add cache
-> line contention (atomic_inc/atomic_dec) to every vma operation
+> FWIW, it would be great if we can let MAP_POPULATE flag support shared
+> mappings because in our product system there has a lot of applications
+> that uses mmap(2) and then pre-faults this mapping.  Currently these
+> applications need to pre-fault the mapping manually.
 
-How to guarantee atomic operation cacheline? atomic_inc/atomic_dec will 
-lock cacheline or....?
+How do you pre-fault the mapping manually in your product system? By 
+walking through the file touching each page?
 
-> especially in the envision use case of heavy vma_name sharing.
 >
-> I would expect this will result in a bloated vm_area_struct and a slower
-> mm subsystem.
->
-> Have you done any benchmarks that stress the mm subsystem?
->
-> How can adding glittler to /proc/<pid>/maps and /proc/<pid>/smaps
-> justify putting a hand break on the linux kernel?
->
-> Eric
->
->> +/**
->> + * vma_name_get
->> + *
->> + * Increment the refcount of an existing vma_name.  No locks are needed because
->> + * the caller should already be holding a reference, so refcount >= 1.
->> + */
->> +void vma_name_get(struct vma_name *vma_name)
->> +{
->> +	if (WARN_ON(!vma_name))
->> +		return;
->> +
->> +	WARN_ON(!atomic_read(&vma_name->refcount));
->> +
->> +	atomic_inc(&vma_name->refcount);
->> +}
->> +
->> +/**
->> + * vma_name_put
->> + *
->> + * Decrement the refcount of an existing vma_name and free it if necessary.
->> + * No locks needed, takes the cache lock if it needs to remove the vma_name from
->> + * the cache.
->> + */
->> +void vma_name_put(struct vma_name *vma_name)
->> +{
->> +	int ret;
->> +
->> +	if (WARN_ON(!vma_name))
->> +		return;
->> +
->> +	WARN_ON(!atomic_read(&vma_name->refcount));
->> +
->> +	/* fast path: refcount > 1, decrement and return */
->> +	if (atomic_add_unless(&vma_name->refcount, -1, 1))
->> +		return;
->> +
->> +	/* slow path: take the lock, decrement, and erase node if count is 0 */
->> +	write_lock(&vma_name_cache_lock);
->> +
->> +	ret = atomic_dec_return(&vma_name->refcount);
->> +	if (ret == 0)
->> +		rb_erase(&vma_name->rb_node, &vma_name_cache);
->> +
->> +	write_unlock(&vma_name_cache_lock);
->> +
->> +	if (ret == 0)
->> +		kfree(vma_name);
->> +}
+> Regards,
+>                                                  - Zheng
 > --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
