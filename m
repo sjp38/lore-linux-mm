@@ -1,86 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id F0BBB6B0034
-	for <linux-mm@kvack.org>; Sun, 14 Jul 2013 10:23:25 -0400 (EDT)
-Date: Sun, 14 Jul 2013 16:17:49 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 2/2] mm: add a field to store names for private
-	anonymous memory
-Message-ID: <20130714141749.GB29815@redhat.com>
-References: <1373596462-27115-1-git-send-email-ccross@android.com> <1373596462-27115-2-git-send-email-ccross@android.com>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 8374E6B0031
+	for <linux-mm@kvack.org>; Sun, 14 Jul 2013 13:07:25 -0400 (EDT)
+Subject: =?utf-8?q?Re=3A_=5BPATCH_for_3=2E2=5D_memcg=3A_do_not_trap_chargers_with_full_callstack_on_OOM?=
+Date: Sun, 14 Jul 2013 19:07:23 +0200
+From: "azurIt" <azurit@pobox.sk>
+References: <20130606160446.GE24115@dhcp22.suse.cz>, <20130606181633.BCC3E02E@pobox.sk>, <20130607131157.GF8117@dhcp22.suse.cz>, <20130617122134.2E072BA8@pobox.sk>, <20130619132614.GC16457@dhcp22.suse.cz>, <20130622220958.D10567A4@pobox.sk>, <20130624201345.GA21822@cmpxchg.org>, <20130628120613.6D6CAD21@pobox.sk>, <20130705181728.GQ17812@cmpxchg.org>, <20130705210246.11D2135A@pobox.sk> <20130705191854.GR17812@cmpxchg.org>
+In-Reply-To: <20130705191854.GR17812@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1373596462-27115-2-git-send-email-ccross@android.com>
+Message-Id: <20130714190723.BF406E48@pobox.sk>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Colin Cross <ccross@android.com>
-Cc: linux-kernel@vger.kernel.org, Kyungmin Park <kmpark@infradead.org>, Christoph Hellwig <hch@infradead.org>, John Stultz <john.stultz@linaro.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Pekka Enberg <penberg@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, David Howells <dhowells@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Dave Jones <davej@redhat.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Shaohua Li <shli@fusionio.com>, Sasha Levin <sasha.levin@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@kernel.org>, linux-doc@vger.kernel.org, linux-mm@kvack.org
+To: =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
+Cc: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?q?cgroups_mailinglist?= <cgroups@vger.kernel.org>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>
 
-On 07/11, Colin Cross wrote:
+> CC: "Michal Hocko" <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "cgroups mailinglist" <cgroups@vger.kernel.org>, "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+>On Fri, Jul 05, 2013 at 09:02:46PM +0200, azurIt wrote:
+>> >I looked at your debug messages but could not find anything that would
+>> >hint at a deadlock.  All tasks are stuck in the refrigerator, so I
+>> >assume you use the freezer cgroup and enabled it somehow?
+>> 
+>> 
+>> Yes, i'm really using freezer cgroup BUT i was checking if it's not
+>> doing problems - unfortunately, several days passed from that day
+>> and now i don't fully remember if i was checking it for both cases
+>> (unremoveabled cgroups and these freezed processes holding web
+>> server port). I'm 100% sure i was checking it for unremoveable
+>> cgroups but not so sure for the other problem (i had to act quickly
+>> in that case). Are you sure (from stacks) that freezer cgroup was
+>> enabled there?
 >
-> +static void seq_print_vma_name(struct seq_file *m, struct vm_area_struct *vma)
-> +{
-> +	const char __user *name = vma_get_anon_name(vma);
-> +	struct mm_struct *mm = vma->vm_mm;
-> +
-> +	unsigned long page_start_vaddr;
-> +	unsigned long page_offset;
-> +	unsigned long num_pages;
-> +	unsigned long max_len = NAME_MAX;
-> +	int i;
-> +
-> +	page_start_vaddr = (unsigned long)name & PAGE_MASK;
-> +	page_offset = (unsigned long)name - page_start_vaddr;
-> +	num_pages = DIV_ROUND_UP(page_offset + max_len, PAGE_SIZE);
-> +
-> +	seq_puts(m, "[anon:");
-> +
-> +	for (i = 0; i < num_pages; i++) {
-> +		int len;
-> +		int write_len;
-> +		const char *kaddr;
-> +		long pages_pinned;
-> +		struct page *page;
-> +
-> +		pages_pinned = get_user_pages(current, mm, page_start_vaddr,
-> +				1, 0, 0, &page, NULL);
-> +		if (pages_pinned < 1) {
-> +			seq_puts(m, "<fault>]");
-> +			return;
-> +		}
-> +
-> +		kaddr = (const char *)kmap(page);
-> +		len = min(max_len, PAGE_SIZE - page_offset);
-> +		write_len = strnlen(kaddr + page_offset, len);
-> +		seq_write(m, kaddr + page_offset, write_len);
-> +		kunmap(page);
-> +		put_page(page);
-> +
-> +		/* if strnlen hit a null terminator then we're done */
-> +		if (write_len != len)
-> +			break;
-> +
-> +		max_len -= len;
-> +		page_offset = 0;
-> +		page_start_vaddr += PAGE_SIZE;
-> +	}
-> +
-> +	seq_putc(m, ']');
-> +}
+>Yeah, all the traces without exception look like this:
+>
+>1372089762/23433/stack:[<ffffffff81080925>] refrigerator+0x95/0x160
+>1372089762/23433/stack:[<ffffffff8106ab7b>] get_signal_to_deliver+0x1cb/0x540
+>1372089762/23433/stack:[<ffffffff8100188b>] do_signal+0x6b/0x750
+>1372089762/23433/stack:[<ffffffff81001fc5>] do_notify_resume+0x55/0x80
+>1372089762/23433/stack:[<ffffffff815cac77>] int_signal+0x12/0x17
+>1372089762/23433/stack:[<ffffffffffffffff>] 0xffffffffffffffff
+>
+>so the freezer was already enabled when you took the backtraces.
+>
+>> Btw, what about that other stacks? I mean this file:
+>> http://watchdog.sk/lkml/memcg-bug-7.tar.gz
+>> 
+>> It was taken while running the kernel with your patch and from
+>> cgroup which was under unresolveable OOM (just like my very original
+>> problem).
+>
+>I looked at these traces too, but none of the tasks are stuck in rmdir
+>or the OOM path.  Some /are/ in the page fault path, but they are
+>happily doing reclaim and don't appear to be stuck.  So I'm having a
+>hard time matching this data to what you otherwise observed.
+>
+>However, based on what you reported the most likely explanation for
+>the continued hangs is the unfinished OOM handling for which I sent
+>the followup patch for arch/x86/mm/fault.c.
 
-Again, sorry if this was already discussed...
 
-But for what? This moves the policy into the kernel and afaics buys nothing.
-Can't it simply print the number?
+Johannes,
 
-If an application reads its own /proc/pid/maps, surely it knows how it should
-interpret the numeric values.
+this problem happened again but was even worse, now i'm sure it wasn't my fault. This time I even wasn't able to access /proc/<pid> of hanged apache process (which was, again, helding web server port and forced me to reboot the server). Everything which tried to access /proc/<pid> just hanged. Server even wasn't able to reboot correctly, it hanged and then done a hard reboot after few minutes.
 
-If another process reads this file, and if it assumes that this number is a
-pointer into that task's memory, it can do sys_process_vm_readv() ?
-
-Oleg.
+azur
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
