@@ -1,70 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 8374E6B0031
-	for <linux-mm@kvack.org>; Sun, 14 Jul 2013 13:07:25 -0400 (EDT)
-Subject: =?utf-8?q?Re=3A_=5BPATCH_for_3=2E2=5D_memcg=3A_do_not_trap_chargers_with_full_callstack_on_OOM?=
-Date: Sun, 14 Jul 2013 19:07:23 +0200
-From: "azurIt" <azurit@pobox.sk>
-References: <20130606160446.GE24115@dhcp22.suse.cz>, <20130606181633.BCC3E02E@pobox.sk>, <20130607131157.GF8117@dhcp22.suse.cz>, <20130617122134.2E072BA8@pobox.sk>, <20130619132614.GC16457@dhcp22.suse.cz>, <20130622220958.D10567A4@pobox.sk>, <20130624201345.GA21822@cmpxchg.org>, <20130628120613.6D6CAD21@pobox.sk>, <20130705181728.GQ17812@cmpxchg.org>, <20130705210246.11D2135A@pobox.sk> <20130705191854.GR17812@cmpxchg.org>
-In-Reply-To: <20130705191854.GR17812@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 85DA16B0034
+	for <linux-mm@kvack.org>; Sun, 14 Jul 2013 15:27:45 -0400 (EDT)
+Received: by mail-ob0-f172.google.com with SMTP id wo10so12982640obc.17
+        for <linux-mm@kvack.org>; Sun, 14 Jul 2013 12:27:44 -0700 (PDT)
 MIME-Version: 1.0
-Message-Id: <20130714190723.BF406E48@pobox.sk>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20130714141154.GA29815@redhat.com>
+References: <1373596462-27115-1-git-send-email-ccross@android.com>
+	<1373596462-27115-2-git-send-email-ccross@android.com>
+	<20130714141154.GA29815@redhat.com>
+Date: Sun, 14 Jul 2013 12:27:44 -0700
+Message-ID: <CAMbhsRRbz=iQad37f1hbrrGq+YvB27N7NkrO92xWqv_UNOS+ew@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm: add a field to store names for private anonymous memory
+From: Colin Cross <ccross@android.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
-Cc: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?q?cgroups_mailinglist?= <cgroups@vger.kernel.org>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, Kyungmin Park <kmpark@infradead.org>, Christoph Hellwig <hch@infradead.org>, John Stultz <john.stultz@linaro.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Pekka Enberg <penberg@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, David Howells <dhowells@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Dave Jones <davej@redhat.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Shaohua Li <shli@fusionio.com>, Sasha Levin <sasha.levin@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-> CC: "Michal Hocko" <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "cgroups mailinglist" <cgroups@vger.kernel.org>, "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
->On Fri, Jul 05, 2013 at 09:02:46PM +0200, azurIt wrote:
->> >I looked at your debug messages but could not find anything that would
->> >hint at a deadlock.  All tasks are stuck in the refrigerator, so I
->> >assume you use the freezer cgroup and enabled it somehow?
->> 
->> 
->> Yes, i'm really using freezer cgroup BUT i was checking if it's not
->> doing problems - unfortunately, several days passed from that day
->> and now i don't fully remember if i was checking it for both cases
->> (unremoveabled cgroups and these freezed processes holding web
->> server port). I'm 100% sure i was checking it for unremoveable
->> cgroups but not so sure for the other problem (i had to act quickly
->> in that case). Are you sure (from stacks) that freezer cgroup was
->> enabled there?
+On Sun, Jul 14, 2013 at 7:11 AM, Oleg Nesterov <oleg@redhat.com> wrote:
+> Sorry if this was already discussed... I am still trying to think if
+> we can make a simpler patch.
 >
->Yeah, all the traces without exception look like this:
+> So, iiuc, the main problem is that if you want to track a vma you need
+> to prevent the merging with other vma's.
 >
->1372089762/23433/stack:[<ffffffff81080925>] refrigerator+0x95/0x160
->1372089762/23433/stack:[<ffffffff8106ab7b>] get_signal_to_deliver+0x1cb/0x540
->1372089762/23433/stack:[<ffffffff8100188b>] do_signal+0x6b/0x750
->1372089762/23433/stack:[<ffffffff81001fc5>] do_notify_resume+0x55/0x80
->1372089762/23433/stack:[<ffffffff815cac77>] int_signal+0x12/0x17
->1372089762/23433/stack:[<ffffffffffffffff>] 0xffffffffffffffff
+> Question: is it important that vma's with the same vma_name should be
+> _merged_ automatically?
 >
->so the freezer was already enabled when you took the backtraces.
+> If not, can't we make "do not merge" a separate feature and then add
+> vma_name?
 >
->> Btw, what about that other stacks? I mean this file:
->> http://watchdog.sk/lkml/memcg-bug-7.tar.gz
->> 
->> It was taken while running the kernel with your patch and from
->> cgroup which was under unresolveable OOM (just like my very original
->> problem).
+> IOW, please forget about vma_name for the moment. Can't we start with
+> the trivial patch below? It simply adds the new vm flag which blocks
+> the merging, and MADV_ to set/clear it.
 >
->I looked at these traces too, but none of the tasks are stuck in rmdir
->or the OOM path.  Some /are/ in the page fault path, but they are
->happily doing reclaim and don't appear to be stuck.  So I'm having a
->hard time matching this data to what you otherwise observed.
+> Yes, this is more limited. Once you set VM_TAINTED this vma is always
+> isolated. If you unmap a page in this vma, you create 2 isolated vma's.
+> If, for example, you do MADV_DONTFORK + MADV_DOFORK inside the tainted
+> vma, you will have 2 adjacent VM_TAINTED vma's with the same flags after
+> that. But you can do MADV_UNTAINT + MADV_TAINT again if you want to
+> merge them back. And perhaps this feature is useful even without the
+> naming. And perhaps we can also add MAP_TAINTED.
 >
->However, based on what you reported the most likely explanation for
->the continued hangs is the unfinished OOM handling for which I sent
->the followup patch for arch/x86/mm/fault.c.
+> Now about vma_name. In this case PR_SET_VMA or MADV_NAME should simply
+> set/overwrite vma_name and nothing else, no need to do merge/split vma.
+>
+> And if we add MAP_TAINTED, MAP_ANONYMOUS can reuse pgoff as vma_name
+> (we only need a simple changes in do_mmap_pgoff and mmap_region). But
+> this is minor.
+>
+> Or this is too simple/ugly? Probably yes, this means that an allocator
+> which simply does a lot of MAP_ANONYMOUS + MADV_TAINT will create more
+> vma's than it needs. So I won't insist but I'd like to ask anyway.
 
-
-Johannes,
-
-this problem happened again but was even worse, now i'm sure it wasn't my fault. This time I even wasn't able to access /proc/<pid> of hanged apache process (which was, again, helding web server port and forced me to reboot the server). Everything which tried to access /proc/<pid> just hanged. Server even wasn't able to reboot correctly, it hanged and then done a hard reboot after few minutes.
-
-azur
+This is no different than using a new tmpfs file for every mmap
+(although it saves the struct file and the inode), it results in a
+huge increase in the number of vmas.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
