@@ -1,65 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id BDC9A6B0033
-	for <linux-mm@kvack.org>; Sat, 13 Jul 2013 23:13:04 -0400 (EDT)
-Received: by mail-ie0-f175.google.com with SMTP id a11so15776132iee.6
-        for <linux-mm@kvack.org>; Sat, 13 Jul 2013 20:13:04 -0700 (PDT)
-Message-ID: <51E2173A.8080003@gmail.com>
-Date: Sun, 14 Jul 2013 11:12:58 +0800
-From: Sam Ben <sam.bennn@gmail.com>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 259E66B0031
+	for <linux-mm@kvack.org>; Sun, 14 Jul 2013 10:17:47 -0400 (EDT)
+Date: Sun, 14 Jul 2013 16:11:54 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 2/2] mm: add a field to store names for private
+	anonymous memory
+Message-ID: <20130714141154.GA29815@redhat.com>
+References: <1373596462-27115-1-git-send-email-ccross@android.com> <1373596462-27115-2-git-send-email-ccross@android.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] mm: madvise: MADV_POPULATE for quick pre-faulting
-References: <20130627231605.8F9F12E6@viggo.jf.intel.com> <20130628054757.GA10429@gmail.com> <51CDB056.5090308@sr71.net> <51CE4451.4060708@gmail.com> <51D1AB6E.9030905@sr71.net> <20130702023748.GA10366@gmail.com>
-In-Reply-To: <20130702023748.GA10366@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1373596462-27115-2-git-send-email-ccross@android.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Colin Cross <ccross@android.com>
+Cc: linux-kernel@vger.kernel.org, Kyungmin Park <kmpark@infradead.org>, Christoph Hellwig <hch@infradead.org>, John Stultz <john.stultz@linaro.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Pekka Enberg <penberg@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, David Howells <dhowells@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Dave Jones <davej@redhat.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Shaohua Li <shli@fusionio.com>, Sasha Levin <sasha.levin@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@kernel.org>, linux-doc@vger.kernel.org, linux-mm@kvack.org
 
-On 07/02/2013 10:37 AM, Zheng Liu wrote:
-> On Mon, Jul 01, 2013 at 09:16:46AM -0700, Dave Hansen wrote:
->> On 06/28/2013 07:20 PM, Zheng Liu wrote:
->>>>> IOW, a process needing to do a bunch of MAP_POPULATEs isn't
->>>>> parallelizable, but one using this mechanism would be.
->>> I look at the code, and it seems that we will handle MAP_POPULATE flag
->>> after we release mmap_sem locking in vm_mmap_pgoff():
->>>
->>>                  down_write(&mm->mmap_sem);
->>>                  ret = do_mmap_pgoff(file, addr, len, prot, flag, pgoff,
->>>                                      &populate);
->>>                  up_write(&mm->mmap_sem);
->>>                  if (populate)
->>>                          mm_populate(ret, populate);
->>>
->>> Am I missing something?
->> I went and did my same test using mmap(MAP_POPULATE)/munmap() pair
->> versus using MADV_POPULATE in 160 threads in parallel.
->>
->> MADV_POPULATE was about 10x faster in the threaded configuration.
->>
->> With MADV_POPULATE, the biggest cost is shipping the mmap_sem cacheline
->> around so that we can write the reader count update in to it.  With
->> mmap(), there is a lot of _contention_ on that lock which is much, much
->> more expensive than simply bouncing a cacheline around.
-> Thanks for your explanation.
->
-> FWIW, it would be great if we can let MAP_POPULATE flag support shared
-> mappings because in our product system there has a lot of applications
-> that uses mmap(2) and then pre-faults this mapping.  Currently these
-> applications need to pre-fault the mapping manually.
+Sorry if this was already discussed... I am still trying to think if
+we can make a simpler patch.
 
-How do you pre-fault the mapping manually in your product system? By 
-walking through the file touching each page?
+So, iiuc, the main problem is that if you want to track a vma you need
+to prevent the merging with other vma's.
 
->
-> Regards,
->                                                  - Zheng
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+Question: is it important that vma's with the same vma_name should be
+_merged_ automatically?
+
+If not, can't we make "do not merge" a separate feature and then add
+vma_name?
+
+IOW, please forget about vma_name for the moment. Can't we start with
+the trivial patch below? It simply adds the new vm flag which blocks
+the merging, and MADV_ to set/clear it.
+
+Yes, this is more limited. Once you set VM_TAINTED this vma is always
+isolated. If you unmap a page in this vma, you create 2 isolated vma's.
+If, for example, you do MADV_DONTFORK + MADV_DOFORK inside the tainted
+vma, you will have 2 adjacent VM_TAINTED vma's with the same flags after
+that. But you can do MADV_UNTAINT + MADV_TAINT again if you want to
+merge them back. And perhaps this feature is useful even without the
+naming. And perhaps we can also add MAP_TAINTED.
+
+Now about vma_name. In this case PR_SET_VMA or MADV_NAME should simply
+set/overwrite vma_name and nothing else, no need to do merge/split vma.
+
+And if we add MAP_TAINTED, MAP_ANONYMOUS can reuse pgoff as vma_name
+(we only need a simple changes in do_mmap_pgoff and mmap_region). But
+this is minor.
+
+Or this is too simple/ugly? Probably yes, this means that an allocator
+which simply does a lot of MAP_ANONYMOUS + MADV_TAINT will create more
+vma's than it needs. So I won't insist but I'd like to ask anyway.
+
+Oleg.
+
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -90,6 +90,8 @@ extern unsigned int kobjsize(const void *objp);
+ #define VM_PFNMAP	0x00000400	/* Page-ranges managed without "struct page", just pure PFN */
+ #define VM_DENYWRITE	0x00000800	/* ETXTBSY on write attempts.. */
+ 
++#define VM_TAINTED	0x00001000
++
+ #define VM_LOCKED	0x00002000
+ #define VM_IO           0x00004000	/* Memory mapped I/O or similar */
+ 
+diff --git a/include/uapi/asm-generic/mman-common.h b/include/uapi/asm-generic/mman-common.h
+index 4164529..888af10 100644
+--- a/include/uapi/asm-generic/mman-common.h
++++ b/include/uapi/asm-generic/mman-common.h
+@@ -52,6 +52,9 @@
+ 					   overrides the coredump filter bits */
+ #define MADV_DODUMP	17		/* Clear the MADV_NODUMP flag */
+ 
++#define MADV_TAINT	18
++#define MADV_UNTAINT	19
++
+ /* compatibility flags */
+ #define MAP_FILE	0
+ 
+diff --git a/mm/madvise.c b/mm/madvise.c
+index 7055883..0ddc76f 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -81,6 +81,12 @@ static long madvise_behavior(struct vm_area_struct * vma,
+ 		}
+ 		new_flags &= ~VM_DONTDUMP;
+ 		break;
++	case MADV_TAINT:
++		new_flags |= VM_TAINTED;
++		break;
++	case MADV_UNTAINT:
++		new_flags &= ~VM_TAINTED;
++		break;
+ 	case MADV_MERGEABLE:
+ 	case MADV_UNMERGEABLE:
+ 		error = ksm_madvise(vma, start, end, behavior, &new_flags);
+@@ -407,6 +413,8 @@ madvise_behavior_valid(int behavior)
+ #endif
+ 	case MADV_DONTDUMP:
+ 	case MADV_DODUMP:
++	case MADV_TAINT:
++	case MADV_UNTAINT:
+ 		return 1;
+ 
+ 	default:
+diff --git a/mm/mmap.c b/mm/mmap.c
+index f681e18..00323b7 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1003,9 +1003,9 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
+ 
+ 	/*
+ 	 * We later require that vma->vm_flags == vm_flags,
+-	 * so this tests vma->vm_flags & VM_SPECIAL, too.
++	 * so this tests vma->vm_flags & VM_XXX, too.
+ 	 */
+-	if (vm_flags & VM_SPECIAL)
++	if (vm_flags & (VM_SPECIAL | VM_TAINTED))
+ 		return NULL;
+ 
+ 	if (prev)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
