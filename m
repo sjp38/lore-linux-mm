@@ -1,251 +1,186 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id B56286B0036
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 16:44:09 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id fa11so8200pad.19
-        for <linux-mm@kvack.org>; Mon, 15 Jul 2013 13:44:09 -0700 (PDT)
-Date: Tue, 16 Jul 2013 04:44:06 +0800
-From: Shaohua Li <shli@kernel.org>
-Subject: [patch 4/4 v6]swap: make cluster allocation per-cpu
-Message-ID: <20130715204406.GD7925@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 922B06B0031
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 17:30:39 -0400 (EDT)
+Date: Mon, 15 Jul 2013 14:30:37 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC 4/4] Sparse initialization of struct page array.
+Message-Id: <20130715143037.8287ffbf2fb0e72bc8efb287@linux-foundation.org>
+In-Reply-To: <1373594635-131067-5-git-send-email-holt@sgi.com>
+References: <1373594635-131067-1-git-send-email-holt@sgi.com>
+	<1373594635-131067-5-git-send-email-holt@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, riel@redhat.com, minchan@kernel.org, kmpark@infradead.org, hughd@google.com, aquini@redhat.com
+To: Robin Holt <holt@sgi.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Nate Zimmer <nzimmer@sgi.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Rob Landley <rob@landley.net>, Mike Travis <travis@sgi.com>, Daniel J Blueman <daniel@numascale-asia.com>, Greg KH <gregkh@linuxfoundation.org>, Yinghai Lu <yinghai@kernel.org>, Mel Gorman <mgorman@suse.de>
 
-swap cluster allocation is to get better request merge to improve performance.
-But the cluster is shared globally, if multiple tasks are doing swap, this will
-cause interleave disk access. While multiple tasks swap is quite common, for
-example, each numa node has a kswapd thread doing swap or multiple
-threads/processes do direct page reclaim.
+On Thu, 11 Jul 2013 21:03:55 -0500 Robin Holt <holt@sgi.com> wrote:
 
-We makes the cluster allocation per-cpu here. The interleave disk access issue
-goes away. All tasks will do sequential swap.
+> During boot of large memory machines, a significant portion of boot
+> is spent initializing the struct page array.  The vast majority of
+> those pages are not referenced during boot.
+> 
+> Change this over to only initializing the pages when they are
+> actually allocated.
+> 
+> Besides the advantage of boot speed, this allows us the chance to
+> use normal performance monitoring tools to determine where the bulk
+> of time is spent during page initialization.
+> 
+> ...
+>
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1330,8 +1330,19 @@ static inline void __free_reserved_page(struct page *page)
+>  	__free_page(page);
+>  }
+>  
+> +extern void __reserve_bootmem_region(phys_addr_t start, phys_addr_t end);
+> +
+> +static inline void __reserve_bootmem_page(struct page *page)
+> +{
+> +	phys_addr_t start = page_to_pfn(page) << PAGE_SHIFT;
+> +	phys_addr_t end = start + PAGE_SIZE;
+> +
+> +	__reserve_bootmem_region(start, end);
+> +}
 
-If one CPU can't get its per-cpu cluster (for example, there is no free cluster
-anymore in the swap), it will fallback to scan swap_map.  The CPU can still
-continue swap. We don't need recycle free swap entries of other CPUs.
+It isn't obvious that this needed to be inlined?
 
-In my test (swap to a 2-disk raid0 partition), this improves around 10%
-swapout throughput, and request size is increased significantly.
+>  static inline void free_reserved_page(struct page *page)
+>  {
+> +	__reserve_bootmem_page(page);
+>  	__free_reserved_page(page);
+>  	adjust_managed_page_count(page, 1);
+>  }
+> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> index 6d53675..79e8eb7 100644
+> --- a/include/linux/page-flags.h
+> +++ b/include/linux/page-flags.h
+> @@ -83,6 +83,7 @@ enum pageflags {
+>  	PG_owner_priv_1,	/* Owner use. If pagecache, fs may use*/
+>  	PG_arch_1,
+>  	PG_reserved,
+> +	PG_uninitialized2mib,	/* Is this the right spot? ntz - Yes - rmh */
 
-How does this impact swap readahead is uncertain though. On one side, page
-reclaim always isolates and swaps several adjancent pages, this will make page
-reclaim write the pages sequentially and benefit readahead. On the other side,
-several CPU write pages interleave means the pages don't live _sequentially_
-but relatively _near_. In the per-cpu allocation case, if adjancent pages are
-written by different cpus, they will live relatively _far_.  So how this
-impacts swap readahead depends on how many pages page reclaim isolates and
-swaps one time. If the number is big, this patch will benefit swap readahead.
-Of course, this is about sequential access pattern. The patch has no impact for
-random access pattern, because the new cluster allocation algorithm is just for
-SSD.
+"mib" creeps me out too.  And it makes me think of SNMP, which I'd
+prefer not to think about.
 
-Signed-off-by: Shaohua Li <shli@fusionio.com>
----
- include/linux/swap.h |    6 ++
- mm/swapfile.c        |  116 ++++++++++++++++++++++++++++++++++++++-------------
- 2 files changed, 93 insertions(+), 29 deletions(-)
+We've traditionally had fears of running out of page flags, but I've
+lost track of how close we are to that happening.  IIRC the answer
+depends on whether you believe there is such a thing as a 32-bit NUMA
+system.
 
-Index: linux/include/linux/swap.h
-===================================================================
---- linux.orig/include/linux/swap.h	2013-07-11 19:14:44.121818963 +0800
-+++ linux/include/linux/swap.h	2013-07-11 19:14:48.945758309 +0800
-@@ -192,6 +192,11 @@ struct swap_cluster_info {
- #define CLUSTER_FLAG_FREE 1 /* This cluster is free */
- #define CLUSTER_FLAG_NEXT_NULL 2 /* This cluster has no next cluster */
- 
-+struct percpu_cluster {
-+	struct swap_cluster_info index; /* Current cluster index */
-+	unsigned int next; /* Likely next allocation offset */
-+};
-+
- /*
-  * The in-memory structure used to track swap areas.
-  */
-@@ -211,6 +216,7 @@ struct swap_info_struct {
- 	unsigned int inuse_pages;	/* number of those currently in use */
- 	unsigned int cluster_next;	/* likely index for next allocation */
- 	unsigned int cluster_nr;	/* countdown to next cluster search */
-+	struct percpu_cluster __percpu *percpu_cluster;
- 	struct swap_extent *curr_swap_extent;
- 	struct swap_extent first_swap_extent;
- 	struct block_device *bdev;	/* swap device or bdev of swap file */
-Index: linux/mm/swapfile.c
-===================================================================
---- linux.orig/mm/swapfile.c	2013-07-11 19:14:46.953783361 +0800
-+++ linux/mm/swapfile.c	2013-07-11 19:14:48.945758309 +0800
-@@ -379,13 +379,73 @@ static void dec_cluster_info_page(struct
-  * It's possible scan_swap_map() uses a free cluster in the middle of free
-  * cluster list. Avoiding such abuse to avoid list corruption.
-  */
--static inline bool scan_swap_map_recheck_cluster(struct swap_info_struct *si,
-+static bool
-+scan_swap_map_ssd_cluster_conflict(struct swap_info_struct *si,
- 	unsigned long offset)
- {
-+	struct percpu_cluster *percpu_cluster;
-+	bool conflict;
-+
- 	offset /= SWAPFILE_CLUSTER;
--	return !cluster_is_null(&si->free_cluster_head) &&
-+	conflict = !cluster_is_null(&si->free_cluster_head) &&
- 		offset != cluster_next(&si->free_cluster_head) &&
- 		cluster_is_free(&si->cluster_info[offset]);
-+
-+	if (!conflict)
-+		return false;
-+
-+	percpu_cluster = this_cpu_ptr(si->percpu_cluster);
-+	cluster_set_null(&percpu_cluster->index);
-+	return true;
-+}
-+
-+static void scan_swap_map_try_ssd_cluster(struct swap_info_struct *si,
-+	unsigned long *offset, unsigned long *scan_base)
-+{
-+	struct percpu_cluster *cluster;
-+	bool found_free;
-+	unsigned long tmp;
-+
-+new_cluster:
-+	cluster = this_cpu_ptr(si->percpu_cluster);
-+	if (cluster_is_null(&cluster->index)) {
-+		if (!cluster_is_null(&si->free_cluster_head)) {
-+			cluster->index = si->free_cluster_head;
-+			cluster->next = cluster_next(&cluster->index) *
-+					SWAPFILE_CLUSTER;
-+		} else if (!cluster_is_null(&si->discard_cluster_head)) {
-+			/*
-+			 * we don't have free cluster but have some clusters in
-+			 * discarding, do discard now and reclaim them
-+			 */
-+			swap_do_scheduled_discard(si);
-+			goto new_cluster;
-+		} else
-+			return;
-+	}
-+
-+	found_free = false;
-+
-+	/*
-+	 * Other CPUs can use our cluster if they can't find a free cluster,
-+	 * check if there is still free entry in the cluster
-+	 */
-+	tmp = cluster->next;
-+	while (tmp < si->max && tmp < (cluster_next(&cluster->index) + 1) *
-+	       SWAPFILE_CLUSTER) {
-+		if (!si->swap_map[tmp]) {
-+			found_free = true;
-+			break;
-+		}
-+		tmp++;
-+	}
-+	if (!found_free) {
-+		cluster_set_null(&cluster->index);
-+		goto new_cluster;
-+	}
-+	cluster->next = tmp + 1;
-+	*offset = tmp;
-+	*scan_base = tmp;
- }
- 
- static unsigned long scan_swap_map(struct swap_info_struct *si,
-@@ -410,36 +470,17 @@ static unsigned long scan_swap_map(struc
- 	si->flags += SWP_SCANNING;
- 	scan_base = offset = si->cluster_next;
- 
-+	/* SSD algorithm */
-+	if (si->cluster_info) {
-+		scan_swap_map_try_ssd_cluster(si, &offset, &scan_base);
-+		goto checks;
-+	}
-+
- 	if (unlikely(!si->cluster_nr--)) {
- 		if (si->pages - si->inuse_pages < SWAPFILE_CLUSTER) {
- 			si->cluster_nr = SWAPFILE_CLUSTER - 1;
- 			goto checks;
- 		}
--check_cluster:
--		if (!cluster_is_null(&si->free_cluster_head)) {
--			offset = cluster_next(&si->free_cluster_head) *
--						SWAPFILE_CLUSTER;
--			last_in_cluster = offset + SWAPFILE_CLUSTER - 1;
--			si->cluster_next = offset;
--			si->cluster_nr = SWAPFILE_CLUSTER - 1;
--			goto checks;
--		} else if (si->cluster_info) {
--			/*
--			 * we don't have free cluster but have some clusters in
--			 * discarding, do discard now and reclaim them
--			 */
--			if (!cluster_is_null(&si->discard_cluster_head)) {
--				swap_do_scheduled_discard(si);
--				goto check_cluster;
--			}
--
--			/*
--			 * Checking free cluster is fast enough, we can do the
--			 * check every time
--			 */
--			si->cluster_nr = 0;
--			goto checks;
--		}
- 
- 		spin_unlock(&si->lock);
- 
-@@ -498,8 +539,11 @@ check_cluster:
- 	}
- 
- checks:
--	if (scan_swap_map_recheck_cluster(si, offset))
--		goto check_cluster;
-+	if (si->cluster_info) {
-+		while (scan_swap_map_ssd_cluster_conflict(si, offset)) {
-+			scan_swap_map_try_ssd_cluster(si, &offset, &scan_base);
-+		}
-+	}
- 	if (!(si->flags & SWP_WRITEOK))
- 		goto no_page;
- 	if (!si->highest_bit)
-@@ -1840,6 +1884,8 @@ SYSCALL_DEFINE1(swapoff, const char __us
- 	spin_unlock(&swap_lock);
- 	frontswap_invalidate_area(type);
- 	mutex_unlock(&swapon_mutex);
-+	free_percpu(p->percpu_cluster);
-+	p->percpu_cluster = NULL;
- 	vfree(swap_map);
- 	vfree(cluster_info);
- 	vfree(frontswap_map);
-@@ -2354,6 +2400,16 @@ SYSCALL_DEFINE2(swapon, const char __use
- 			error = -ENOMEM;
- 			goto bad_swap;
- 		}
-+		p->percpu_cluster = alloc_percpu(struct percpu_cluster);
-+		if (!p->percpu_cluster) {
-+			error = -ENOMEM;
-+			goto bad_swap;
-+		}
-+		for_each_possible_cpu(i) {
-+			struct percpu_cluster *cluster;
-+			cluster = per_cpu_ptr(p->percpu_cluster, i);
-+			cluster_set_null(&cluster->index);
-+		}
- 	}
- 
- 	error = swap_cgroup_swapon(p->type, maxpages);
-@@ -2427,6 +2483,8 @@ SYSCALL_DEFINE2(swapon, const char __use
- 	error = 0;
- 	goto out;
- bad_swap:
-+	free_percpu(p->percpu_cluster);
-+	p->percpu_cluster = NULL;
- 	if (inode && S_ISBLK(inode->i_mode) && p->bdev) {
- 		set_blocksize(p->bdev, p->old_block_size);
- 		blkdev_put(p->bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
+Can this be avoided anyway?  I suspect there's some idiotic combination
+of flags we could use to indicate the state.  PG_reserved|PG_lru or
+something.
+
+"2MB" sounds terribly arch-specific.  Shouldn't we make it more generic
+for when the hexagon64 port wants to use 4MB?
+
+That conversational code comment was already commented on, but it's
+still there?
+
+> 
+> ...
+>
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -740,6 +740,54 @@ static void __init_single_page(struct page *page, unsigned long zone, int nid, i
+>  #endif
+>  }
+>  
+> +static void expand_page_initialization(struct page *basepage)
+> +{
+> +	unsigned long pfn = page_to_pfn(basepage);
+> +	unsigned long end_pfn = pfn + PTRS_PER_PMD;
+> +	unsigned long zone = page_zonenum(basepage);
+> +	int reserved = PageReserved(basepage);
+> +	int nid = page_to_nid(basepage);
+> +
+> +	ClearPageUninitialized2Mib(basepage);
+> +
+> +	for( pfn++; pfn < end_pfn; pfn++ )
+> +		__init_single_page(pfn_to_page(pfn), zone, nid, reserved);
+> +}
+> +
+> +void ensure_pages_are_initialized(unsigned long start_pfn,
+> +				  unsigned long end_pfn)
+
+I think this can be made static.  I hope so, as it's a somewhat
+odd-sounding identifier for a global.
+
+> +{
+> +	unsigned long aligned_start_pfn = start_pfn & ~(PTRS_PER_PMD - 1);
+> +	unsigned long aligned_end_pfn;
+> +	struct page *page;
+> +
+> +	aligned_end_pfn = end_pfn & ~(PTRS_PER_PMD - 1);
+> +	aligned_end_pfn += PTRS_PER_PMD;
+> +	while (aligned_start_pfn < aligned_end_pfn) {
+> +		if (pfn_valid(aligned_start_pfn)) {
+> +			page = pfn_to_page(aligned_start_pfn);
+> +
+> +			if(PageUninitialized2Mib(page))
+
+checkpatch them, please.
+
+> +				expand_page_initialization(page);
+> +		}
+> +
+> +		aligned_start_pfn += PTRS_PER_PMD;
+> +	}
+> +}
+
+Some nice code comments for the above two functions would be helpful.
+
+> 
+> ...
+>
+> +int __meminit pfn_range_init_avail(unsigned long pfn, unsigned long end_pfn,
+> +				   unsigned long size, int nid)
+> +{
+> +	unsigned long validate_end_pfn = pfn + size;
+> +
+> +	if (pfn & (size - 1))
+> +		return 1;
+> +
+> +	if (pfn + size >= end_pfn)
+> +		return 1;
+> +
+> +	while (pfn < validate_end_pfn)
+> +	{
+> +		if (!early_pfn_valid(pfn))
+> +			return 1;
+> +		if (!early_pfn_in_nid(pfn, nid))
+> +			return 1;
+> +		pfn++;
+> + 	}
+> +
+> +	return size;
+> +}
+
+Document it, please.  The return value semantics look odd, so don't
+forget to explain all that as well.
+
+> 
+> ...
+>
+> @@ -6196,6 +6302,7 @@ static const struct trace_print_flags pageflag_names[] = {
+>  	{1UL << PG_owner_priv_1,	"owner_priv_1"	},
+>  	{1UL << PG_arch_1,		"arch_1"	},
+>  	{1UL << PG_reserved,		"reserved"	},
+> +	{1UL << PG_uninitialized2mib,	"Uninit_2MiB"	},
+
+It would be better if the name which is visible in procfs matches the
+name in the kernel source code.
+
+>  	{1UL << PG_private,		"private"	},
+>  	{1UL << PG_private_2,		"private_2"	},
+>  	{1UL << PG_writeback,		"writeback"	},
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
