@@ -1,51 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 15B356B0034
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 09:53:02 -0400 (EDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <1373885274-25249-5-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1373885274-25249-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1373885274-25249-5-git-send-email-kirill.shutemov@linux.intel.com>
-Subject: RE: [PATCH 4/8] mm: cleanup add_to_page_cache_locked()
-Content-Transfer-Encoding: 7bit
-Message-Id: <20130715135547.22A94E0090@blue.fi.intel.com>
-Date: Mon, 15 Jul 2013 16:55:47 +0300 (EEST)
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 802326B0036
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 09:55:52 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Mon, 15 Jul 2013 19:16:16 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 65396E0059
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 19:25:36 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6FDteXQ32964796
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 19:25:40 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6FDtfgm002290
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 23:55:42 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 6/9] mm, hugetlb: do not use a page in page cache for cow optimization
+In-Reply-To: <1373881967-16153-7-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1373881967-16153-1-git-send-email-iamjoonsoo.kim@lge.com> <1373881967-16153-7-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Mon, 15 Jul 2013 19:25:40 +0530
+Message-ID: <87d2qkj5b7.fsf@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>
 
-Kirill A. Shutemov wrote:
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> 
-> The patch makes add_to_page_cache_locked() cleaner:
->  - unindent most code of the function by inverting one condition;
->  - streamline code no-error path;
->  - move insert error path outside normal code path;
->  - call radix_tree_preload_end() earlier;
-> 
-> No functional changes.
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Acked-by: Dave Hansen <dave.hansen@linux.intel.com>
-> ---
+Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
 
-...
+> Currently, we use a page with mapped count 1 in page cache for cow
+> optimization. If we find this condition, we don't allocate a new
+> page and copy contents. Instead, we map this page directly.
+> This may introduce a problem that writting to private mapping overwrite
+> hugetlb file directly. You can find this situation with following code.
+>
+>         size = 20 * MB;
+>         flag = MAP_SHARED;
+>         p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
+>         if (p == MAP_FAILED) {
+>                 fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
+>                 return -1;
+>         }
+>         p[0] = 's';
+>         fprintf(stdout, "BEFORE STEAL PRIVATE WRITE: %c\n", p[0]);
+>         munmap(p, size);
+>
+>         flag = MAP_PRIVATE;
+>         p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
+>         if (p == MAP_FAILED) {
+>                 fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
+>         }
+>         p[0] = 'c';
+>         munmap(p, size);
+>
+>         flag = MAP_SHARED;
+>         p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
+>         if (p == MAP_FAILED) {
+>                 fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
+>                 return -1;
+>         }
+>         fprintf(stdout, "AFTER STEAL PRIVATE WRITE: %c\n", p[0]);
+>         munmap(p, size);
+>
+> We can see that "AFTER STEAL PRIVATE WRITE: c", not "AFTER STEAL
+> PRIVATE WRITE: s". If we turn off this optimization to a page
+> in page cache, the problem is disappeared.
 
-> +	spin_lock_irq(&mapping->tree_lock);
-> +	error = radix_tree_insert(&mapping->page_tree, offset, page);
-> +	radix_tree_preload_end();
-> +	if (unlikely(!error))
-> +		goto err_insert;
+Do we need to trun of the optimization for page cache completely ?
+Can't we check for MAP_PRIVATE case ?
 
-Nadav Shemer noticed mistake here. It should be 'if (unlikely(error))'.
+Also, we may want to add the above test into libhugetlbfs 
 
-I've missed this during becase it was fixed by other patch in my
-thp-pagecache series.
+>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index d4a1695..6c1eb9b 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -2512,7 +2512,6 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+>  {
+>  	struct hstate *h = hstate_vma(vma);
+>  	struct page *old_page, *new_page;
+> -	int avoidcopy;
+>  	int outside_reserve = 0;
+>  	unsigned long mmun_start;	/* For mmu_notifiers */
+>  	unsigned long mmun_end;		/* For mmu_notifiers */
+> @@ -2522,10 +2521,8 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+>  retry_avoidcopy:
+>  	/* If no-one else is actually using this page, avoid the copy
+>  	 * and just make the page writable */
+> -	avoidcopy = (page_mapcount(old_page) == 1);
+> -	if (avoidcopy) {
+> -		if (PageAnon(old_page))
+> -			page_move_anon_rmap(old_page, vma, address);
+> +	if (page_mapcount(old_page) == 1 && PageAnon(old_page)) {
+> +		page_move_anon_rmap(old_page, vma, address);
+>  		set_huge_ptep_writable(vma, address, ptep);
+>  		return 0;
+>  	}
 
-Fixed patch is below. Retested with this patchset applied only.
-Looks okay now.
+-aneesh
 
-Sorry for this.
-
----
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
