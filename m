@@ -1,110 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id AA6EE6B00A4
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 05:14:31 -0400 (EDT)
-Date: Mon, 15 Jul 2013 11:14:28 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: linux-next: slab shrinkers: BUG at mm/list_lru.c:92
-Message-ID: <20130715091428.GA26199@dhcp22.suse.cz>
-References: <20130629025509.GG9047@dastard>
- <20130630183349.GA23731@dhcp22.suse.cz>
- <20130701012558.GB27780@dastard>
- <20130701075005.GA28765@dhcp22.suse.cz>
- <20130701081056.GA4072@dastard>
- <20130702092200.GB16815@dhcp22.suse.cz>
- <20130702121947.GE14996@dastard>
- <20130702124427.GG16815@dhcp22.suse.cz>
- <20130703112403.GP14996@dastard>
- <20130704163643.GF7833@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 1D77B6B00A3
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 05:16:30 -0400 (EDT)
+Date: Mon, 15 Jul 2013 11:16:21 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 7/7] mm: compaction: add compaction to zone_reclaim_mode
+Message-ID: <20130715091621.GQ4081@redhat.com>
+References: <1370445037-24144-1-git-send-email-aarcange@redhat.com>
+ <1370445037-24144-8-git-send-email-aarcange@redhat.com>
+ <20130606100503.GH1936@suse.de>
+ <20130711160216.GA30320@redhat.com>
+ <51DFF5FD.8040007@gmail.com>
+ <20130712160149.GB4524@redhat.com>
+ <51E0900E.9080504@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130704163643.GF7833@dhcp22.suse.cz>
+In-Reply-To: <51E0900E.9080504@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Glauber Costa <glommer@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Hush Bensen <hush.bensen@gmail.com>
+Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>
 
-On Thu 04-07-13 18:36:43, Michal Hocko wrote:
-> On Wed 03-07-13 21:24:03, Dave Chinner wrote:
-> > On Tue, Jul 02, 2013 at 02:44:27PM +0200, Michal Hocko wrote:
-> > > On Tue 02-07-13 22:19:47, Dave Chinner wrote:
-> > > [...]
-> > > > Ok, so it's been leaked from a dispose list somehow. Thanks for the
-> > > > info, Michal, it's time to go look at the code....
-> > > 
-> > > OK, just in case we will need it, I am keeping the machine in this state
-> > > for now. So we still can play with crash and check all the juicy
-> > > internals.
-> > 
-> > My current suspect is the LRU_RETRY code. I don't think what it is
-> > doing is at all valid - list_for_each_safe() is not safe if you drop
-> > the lock that protects the list. i.e. there is nothing that protects
-> > the stored next pointer from being removed from the list by someone
-> > else. Hence what I think is occurring is this:
-> > 
-> > 
-> > thread 1			thread 2
-> > lock(lru)
-> > list_for_each_safe(lru)		lock(lru)
-> >   isolate			......
-> >     lock(i_lock)
-> >     has buffers
-> >       __iget
-> >       unlock(i_lock)
-> >       unlock(lru)
-> >       .....			(gets lru lock)
-> >       				list_for_each_safe(lru)
-> > 				  walks all the inodes
-> > 				  finds inode being isolated by other thread
-> > 				  isolate
-> > 				    i_count > 0
-> > 				      list_del_init(i_lru)
-> > 				      return LRU_REMOVED;
-> > 				   moves to next inode, inode that
-> > 				   other thread has stored as next
-> > 				   isolate
-> > 				     i_state |= I_FREEING
-> > 				     list_move(dispose_list)
-> > 				     return LRU_REMOVED
-> > 				 ....
-> > 				 unlock(lru)
-> >       lock(lru)
-> >       return LRU_RETRY;
-> >   if (!first_pass)
-> >     ....
-> >   --nr_to_scan
-> >   (loop again using next, which has already been removed from the
-> >   LRU by the other thread!)
-> >   isolate
-> >     lock(i_lock)
-> >     if (i_state & ~I_REFERENCED)
-> >       list_del_init(i_lru)	<<<<< inode is on dispose list!
-> > 				<<<<< inode is now isolated, with I_FREEING set
-> >       return LRU_REMOVED;
-> > 
-> > That fits the corpse left on your machine, Michal. One thread has
-> > moved the inode to a dispose list, the other thread thinks it is
-> > still on the LRU and should be removed, and removes it.
-> > 
-> > This also explains the lru item count going negative - the same item
-> > is being removed from the lru twice. So it seems like all the
-> > problems you've been seeing are caused by this one problem....
-> > 
-> > Patch below that should fix this.
-> 
-> Good news! The test was running since morning and it didn't hang nor
-> crashed. So this really looks like the right fix. It will run also
-> during weekend to be 100% sure. But I guess it is safe to say
-> 
-> Tested-by: Michal Hocko <mhocko@suse.cz>
+On Sat, Jul 13, 2013 at 07:23:58AM +0800, Hush Bensen wrote:
+> Do you mean your patch done this fair? There is target zone shrink as 
+> you mentiond in the vanilla kernel, however, your patch also done target 
+> compaction/reclaim, is this fair?
 
-And I can finally confirm this after over weekend testing on ext3.
+It's still not fair, zone_reclaim_mode cannot be (modulo major rework
+at least) as its whole point is to reclaim memory from the local node
+indefinitely, even if there's plenty of "free" or "reclaimable" memory
+in remote nodes.
 
-Thanks a lot for your help Dave!
--- 
-Michal Hocko
-SUSE Labs
+But waking kswapd before all nodes are below the low wmark probably
+would make it even less fair than it is now, or at least it wouldn't
+provide a fariness increase.
+
+The idea of allowing allocations in the min-low wmark range is that
+the "low" wmark would be restored soon anyway at the next
+zone_reclaim() invocation, and the zone_reclaim will still behave
+synchronous (like direct reclaim) without ever waking kswapd,
+regardless if we stop at the low or at the min. But if we stop at the
+"low" we're more susceptible to parallel allocation jitters as the
+jitter-error margin then becomes:
+
+		.nr_to_reclaim = max(nr_pages, SWAP_CLUSTER_MAX),
+
+which is just 1 single high order page in case of (1<<order) >=
+SWAP_CLUSTER_MAX. While if we use the "min" wmark after a successful
+zone_reclaim(zone) to decide if to allocate from the zone (the one
+passed to zone_reclaim, we may have more margin for allocation jitters
+in other CPUs of the same node, or interrupts.
+
+So this again is connected to altering the wmark calculation for high
+order pages in the previous patch (which also is intended to allow
+having more than 1 THP page in the low-min wmark range). We don't need
+many, too many is just a waste of CPU, but a few more than 1
+significantly improves the NUMA locality on first allocation if all
+CPUs in the node are allocating memory at the same time. I also
+trimmed down to zero the high order page requirement for the min
+wmark, as we don't need to guarantee hugepage availability for
+PF_MEMALLOC (which avoids useless compaction work).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
