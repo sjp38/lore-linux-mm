@@ -1,51 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id B66D76B0031
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 10:57:07 -0400 (EDT)
-Date: Mon, 15 Jul 2013 09:56:53 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: Re: Testing results of zswap
-Message-ID: <20130715145653.GA7275@medulla.variantweb.net>
-References: <CAA_GA1fiEJYxqAZ1c0BneuftB5g8d+2_mYBj=4iE=1EcYaTx7w@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id A5B686B0031
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 11:00:41 -0400 (EDT)
+Date: Mon, 15 Jul 2013 10:00:40 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [RFC 0/4] Transparent on-demand struct page initialization
+ embedded in the buddy allocator
+Message-ID: <20130715150040.GA3421@sgi.com>
+References: <1373594635-131067-1-git-send-email-holt@sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAA_GA1fiEJYxqAZ1c0BneuftB5g8d+2_mYBj=4iE=1EcYaTx7w@mail.gmail.com>
+In-Reply-To: <1373594635-131067-1-git-send-email-holt@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Nitin Gupta <ngupta@vflare.org>, bob.liu@oracle.com, Mel Gorman <mgorman@suse.de>
+To: "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>
+Cc: Robin Holt <holt@sgi.com>, Nate Zimmer <nzimmer@sgi.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Rob Landley <rob@landley.net>, Mike Travis <travis@sgi.com>, Daniel J Blueman <daniel@numascale-asia.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Yinghai Lu <yinghai@kernel.org>, Mel Gorman <mgorman@suse.de>
 
-On Mon, Jul 15, 2013 at 10:56:17AM +0800, Bob Liu wrote:
-> As my test results showed in this thread.
-> 1. Zswap only useful when total ram size is large else the performance
-> was worse than disabled it!
-
-I have not observed this.  In my kernbench runs, I was using VMs with ~512MB
-of RAM and saw significant improvement from zswap.
-
+On Thu, Jul 11, 2013 at 09:03:51PM -0500, Robin Holt wrote:
+> We have been working on this since we returned from shutdown and have
+> something to discuss now.  We restricted ourselves to 2MiB initialization
+> to keep the patch set a little smaller and more clear.
 > 
-> 2. Zswap occupies some memory but that's unfair to file pages, more
-> file pages maybe reclaimed during memory pressure.
+> First, I think I want to propose getting rid of the page flag.  If I knew
+> of a concrete way to determine that the page has not been initialized,
+> this patch series would look different.  If there is no definitive
+> way to determine that the struct page has been initialized aside from
+> checking the entire page struct is zero, then I think I would suggest
+> we change the page flag to indicate the page has been initialized.
 
-This is true.  It remains to be explored how the policies that balance anon
-reclaim and page cache reclaim can be respected by zswap.  Until then though,
-the growth of the zswap pool does add memory pressure which causes more
-reclaim in general, both anon and page cache.
+Ingo or HPA,
 
-> I think that's why the performance of the background io-duration was
-> worse than disable zswap.
+Did I implement this wrong or is there a way to get rid of the page flag
+which is not going to impact normal operation?  I don't want to put too
+much more effort into this until I know we are stuck going this direction.
+Currently, the expand() function has a relatively expensive checked
+against the 2MiB aligned pfn's struct page.  I do not know of a way to
+eliminate that check against the other page as the first reference we
+see for a page is in the middle of that 2MiB aligned range.
 
-The I/O load during the parallelio-memcached test shouldn't be effected by 
-page cache reclaim since it is not re-reading anything.  Again, I say that
-that test is not a good and repeatable (across different systems and kernel
-versions) to test zswap.  parallelio-memcached is designed to test
-suboptimal page reclaim decisions, not swap performance.
+To identify this as an area of concern, we had booted with a simulator,
+setting watch points on the struct page array region once the
+Uninitialized flag was set and maintaining that until it was cleared.
 
-Have you tried running kernbench in a memory environment restricted enough
-to cause swapping with zswap enabled?  I think that would be a better test.
-
-Seth
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
