@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 44CA26B00CE
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 06:45:04 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id C5C6D6B00D2
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 06:45:07 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 1/8] mm: drop actor argument of do_generic_file_read()
-Date: Mon, 15 Jul 2013 13:47:47 +0300
-Message-Id: <1373885274-25249-2-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 6/8] thp: move maybe_pmd_mkwrite() out of mk_huge_pmd()
+Date: Mon, 15 Jul 2013 13:47:52 +0300
+Message-Id: <1373885274-25249-7-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1373885274-25249-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1373885274-25249-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,62 +15,67 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-There's only one caller of do_generic_file_read() and the only actor is
-file_read_actor(). No reason to have a callback parameter.
+It's confusing that mk_huge_pmd() has semantics different from mk_pte()
+or mk_pmd(). I spent some time on debugging issue cased by this
+inconsistency.
+
+Let's move maybe_pmd_mkwrite() out of mk_huge_pmd() and adjust
+prototype to match mk_pte().
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Acked-by: Dave Hansen <dave.hansen@linux.intel.com>
 ---
- mm/filemap.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ mm/huge_memory.c | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 4b51ac1..f6fe61f 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1088,7 +1088,6 @@ static void shrink_readahead_size_eio(struct file *filp,
-  * @filp:	the file to read
-  * @ppos:	current file position
-  * @desc:	read_descriptor
-- * @actor:	read method
-  *
-  * This is a generic file read routine, and uses the
-  * mapping->a_ops->readpage() function for the actual low-level stuff.
-@@ -1097,7 +1096,7 @@ static void shrink_readahead_size_eio(struct file *filp,
-  * of the logic when it comes to error handling etc.
-  */
- static void do_generic_file_read(struct file *filp, loff_t *ppos,
--		read_descriptor_t *desc, read_actor_t actor)
-+		read_descriptor_t *desc)
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 04f0749..ec735a9 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -690,11 +690,10 @@ pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma)
+ 	return pmd;
+ }
+ 
+-static inline pmd_t mk_huge_pmd(struct page *page, struct vm_area_struct *vma)
++static inline pmd_t mk_huge_pmd(struct page *page, pgprot_t prot)
  {
- 	struct address_space *mapping = filp->f_mapping;
- 	struct inode *inode = mapping->host;
-@@ -1198,13 +1197,14 @@ page_ok:
- 		 * Ok, we have the page, and it's up-to-date, so
- 		 * now we can copy it to user space...
- 		 *
--		 * The actor routine returns how many bytes were actually used..
-+		 * The file_read_actor routine returns how many bytes were
-+		 * actually used..
- 		 * NOTE! This may not be the same as how much of a user buffer
- 		 * we filled up (we may be padding etc), so we can only update
- 		 * "pos" here (the actor routine has to update the user buffer
- 		 * pointers and the remaining count).
- 		 */
--		ret = actor(desc, page, offset, nr);
-+		ret = file_read_actor(desc, page, offset, nr);
- 		offset += ret;
- 		index += offset >> PAGE_CACHE_SHIFT;
- 		offset &= ~PAGE_CACHE_MASK;
-@@ -1477,7 +1477,7 @@ generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
- 		if (desc.count == 0)
- 			continue;
- 		desc.error = 0;
--		do_generic_file_read(filp, ppos, &desc, file_read_actor);
-+		do_generic_file_read(filp, ppos, &desc);
- 		retval += desc.written;
- 		if (desc.error) {
- 			retval = retval ?: desc.error;
+ 	pmd_t entry;
+-	entry = mk_pmd(page, vma->vm_page_prot);
+-	entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
++	entry = mk_pmd(page, prot);
+ 	entry = pmd_mkhuge(entry);
+ 	return entry;
+ }
+@@ -727,7 +726,8 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
+ 		pte_free(mm, pgtable);
+ 	} else {
+ 		pmd_t entry;
+-		entry = mk_huge_pmd(page, vma);
++		entry = mk_huge_pmd(page, vma->vm_page_prot);
++		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+ 		page_add_new_anon_rmap(page, vma, haddr);
+ 		pgtable_trans_huge_deposit(mm, pmd, pgtable);
+ 		set_pmd_at(mm, haddr, pmd, entry);
+@@ -1210,7 +1210,8 @@ alloc:
+ 		goto out_mn;
+ 	} else {
+ 		pmd_t entry;
+-		entry = mk_huge_pmd(new_page, vma);
++		entry = mk_huge_pmd(new_page, vma->vm_page_prot);
++		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+ 		pmdp_clear_flush(vma, haddr, pmd);
+ 		page_add_new_anon_rmap(new_page, vma, haddr);
+ 		set_pmd_at(mm, haddr, pmd, entry);
+@@ -2356,7 +2357,8 @@ static void collapse_huge_page(struct mm_struct *mm,
+ 	__SetPageUptodate(new_page);
+ 	pgtable = pmd_pgtable(_pmd);
+ 
+-	_pmd = mk_huge_pmd(new_page, vma);
++	_pmd = mk_huge_pmd(new_page, vma->vm_page_prot);
++	_pmd = maybe_pmd_mkwrite(pmd_mkdirty(_pmd), vma);
+ 
+ 	/*
+ 	 * spin_lock() below is not the equivalent of smp_wmb(), so
 -- 
 1.8.3.2
 
