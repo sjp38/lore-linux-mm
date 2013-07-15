@@ -1,207 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 144466B0069
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 11:20:39 -0400 (EDT)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 18/18] sched: Swap tasks when reschuling if a CPU on a target node is imbalanced
-Date: Mon, 15 Jul 2013 16:20:20 +0100
-Message-Id: <1373901620-2021-19-git-send-email-mgorman@suse.de>
-In-Reply-To: <1373901620-2021-1-git-send-email-mgorman@suse.de>
-References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id F0C906B0031
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 11:41:21 -0400 (EDT)
+Date: Mon, 15 Jul 2013 17:41:19 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH for 3.2] memcg: do not trap chargers with full callstack
+ on OOM
+Message-ID: <20130715154119.GA32435@dhcp22.suse.cz>
+References: <20130705210246.11D2135A@pobox.sk>
+ <20130705191854.GR17812@cmpxchg.org>
+ <20130708014224.50F06960@pobox.sk>
+ <20130709131029.GH20281@dhcp22.suse.cz>
+ <20130709151921.5160C199@pobox.sk>
+ <20130709135450.GI20281@dhcp22.suse.cz>
+ <20130710182506.F25DF461@pobox.sk>
+ <20130711072507.GA21667@dhcp22.suse.cz>
+ <20130714012641.C2DA4E05@pobox.sk>
+ <20130714015112.FFCB7AF7@pobox.sk>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130714015112.FFCB7AF7@pobox.sk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
+To: azurIt <azurit@pobox.sk>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, righi.andrea@gmail.com
 
-The scheduler avoids adding load imbalance when scheduling a task on its
-preferred node. This unfortunately can mean that a task continues access
-remote memory. In the event the CPUs are relatively imbalanced this
-patch will check if the task running on the target CPU can be swapped
-with. An attempt will be made to swap with the task if it is not running
-on its preferred node and that moving it would not impair its locality.
+On Sun 14-07-13 01:51:12, azurIt wrote:
+> > CC: "Johannes Weiner" <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "cgroups mailinglist" <cgroups@vger.kernel.org>, "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>, righi.andrea@gmail.com
+> >> CC: "Johannes Weiner" <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "cgroups mailinglist" <cgroups@vger.kernel.org>, "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>, righi.andrea@gmail.com
+> >>On Wed 10-07-13 18:25:06, azurIt wrote:
+> >>> >> Now i realized that i forgot to remove UID from that cgroup before
+> >>> >> trying to remove it, so cgroup cannot be removed anyway (we are using
+> >>> >> third party cgroup called cgroup-uid from Andrea Righi, which is able
+> >>> >> to associate all user's processes with target cgroup). Look here for
+> >>> >> cgroup-uid patch:
+> >>> >> https://www.develer.com/~arighi/linux/patches/cgroup-uid/cgroup-uid-v8.patch
+> >>> >> 
+> >>> >> ANYWAY, i'm 101% sure that 'tasks' file was empty and 'under_oom' was
+> >>> >> permanently '1'.
+> >>> >
+> >>> >This is really strange. Could you post the whole diff against stable
+> >>> >tree you are using (except for grsecurity stuff and the above cgroup-uid
+> >>> >patch)?
+> >>> 
+> >>> 
+> >>> Here are all patches which i applied to kernel 3.2.48 in my last test:
+> >>> http://watchdog.sk/lkml/patches3/
+> >>
+> >>The two patches from Johannes seem correct.
+> >>
+> >>From a quick look even grsecurity patchset shouldn't interfere as it
+> >>doesn't seem to put any code between handle_mm_fault and mm_fault_error
+> >>and there also doesn't seem to be any new handle_mm_fault call sites.
+> >>
+> >>But I cannot tell there aren't other code paths which would lead to a
+> >>memcg charge, thus oom, without proper FAULT_FLAG_KERNEL handling.
+> >
+> >
+> >Michal,
+> >
+> >now i can definitely confirm that problem with unremovable cgroups
+> >persists. What info do you need from me? I applied also your little
+> >'WARN_ON' patch.
+> 
+> Ok, i think you want this:
+> http://watchdog.sk/lkml/kern4.log
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- kernel/sched/core.c  | 39 +++++++++++++++++++++++++++++++++++++--
- kernel/sched/fair.c  | 46 +++++++++++++++++++++++++++++++++++++++++-----
- kernel/sched/sched.h |  3 ++-
- 3 files changed, 80 insertions(+), 8 deletions(-)
+Jul 14 01:11:39 server01 kernel: [  593.589087] [ pid ]   uid  tgid total_vm      rss cpu oom_adj oom_score_adj name
+Jul 14 01:11:39 server01 kernel: [  593.589451] [12021]  1333 12021   172027    64723   4       0             0 apache2
+Jul 14 01:11:39 server01 kernel: [  593.589647] [12030]  1333 12030   172030    64748   2       0             0 apache2
+Jul 14 01:11:39 server01 kernel: [  593.589836] [12031]  1333 12031   172030    64749   3       0             0 apache2
+Jul 14 01:11:39 server01 kernel: [  593.590025] [12032]  1333 12032   170619    63428   3       0             0 apache2
+Jul 14 01:11:39 server01 kernel: [  593.590213] [12033]  1333 12033   167934    60524   2       0             0 apache2
+Jul 14 01:11:39 server01 kernel: [  593.590401] [12034]  1333 12034   170747    63496   4       0             0 apache2
+Jul 14 01:11:39 server01 kernel: [  593.590588] [12035]  1333 12035   169659    62451   1       0             0 apache2
+Jul 14 01:11:39 server01 kernel: [  593.590776] [12036]  1333 12036   167614    60384   3       0             0 apache2
+Jul 14 01:11:39 server01 kernel: [  593.590984] [12037]  1333 12037   166342    58964   3       0             0 apache2
+Jul 14 01:11:39 server01 kernel: [  593.591178] Memory cgroup out of memory: Kill process 12021 (apache2) score 847 or sacrifice child
+Jul 14 01:11:39 server01 kernel: [  593.591370] Killed process 12021 (apache2) total-vm:688108kB, anon-rss:255472kB, file-rss:3420kB
+Jul 14 01:11:41 server01 kernel: [  595.392920] ------------[ cut here ]------------
+Jul 14 01:11:41 server01 kernel: [  595.393096] WARNING: at kernel/exit.c:888 do_exit+0x7d0/0x870()
+Jul 14 01:11:41 server01 kernel: [  595.393256] Hardware name: S5000VSA
+Jul 14 01:11:41 server01 kernel: [  595.393415] Pid: 12037, comm: apache2 Not tainted 3.2.48-grsec #1
+Jul 14 01:11:41 server01 kernel: [  595.393577] Call Trace:
+Jul 14 01:11:41 server01 kernel: [  595.393737]  [<ffffffff8105520a>] warn_slowpath_common+0x7a/0xb0
+Jul 14 01:11:41 server01 kernel: [  595.393903]  [<ffffffff8105525a>] warn_slowpath_null+0x1a/0x20
+Jul 14 01:11:41 server01 kernel: [  595.394068]  [<ffffffff81059c50>] do_exit+0x7d0/0x870
+Jul 14 01:11:41 server01 kernel: [  595.394231]  [<ffffffff81050254>] ? thread_group_times+0x44/0xb0
+Jul 14 01:11:41 server01 kernel: [  595.394392]  [<ffffffff81059d41>] do_group_exit+0x51/0xc0
+Jul 14 01:11:41 server01 kernel: [  595.394551]  [<ffffffff81059dc7>] sys_exit_group+0x17/0x20
+Jul 14 01:11:41 server01 kernel: [  595.394714]  [<ffffffff815caea6>] system_call_fastpath+0x18/0x1d
+Jul 14 01:11:41 server01 kernel: [  595.394921] ---[ end trace 738570e688acf099 ]---
 
-diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 53d8465..d679b01 100644
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
-@@ -4857,10 +4857,13 @@ fail:
- 
- #ifdef CONFIG_NUMA_BALANCING
- /* Migrate current task p to target_cpu */
--int migrate_task_to(struct task_struct *p, int target_cpu)
-+int migrate_task_to(struct task_struct *p, int target_cpu,
-+		    struct task_struct *swap_p)
- {
- 	struct migration_arg arg = { p, target_cpu };
- 	int curr_cpu = task_cpu(p);
-+	struct rq *rq;
-+	int retval;
- 
- 	if (curr_cpu == target_cpu)
- 		return 0;
-@@ -4868,7 +4871,39 @@ int migrate_task_to(struct task_struct *p, int target_cpu)
- 	if (!cpumask_test_cpu(target_cpu, tsk_cpus_allowed(p)))
- 		return -EINVAL;
- 
--	return stop_one_cpu(curr_cpu, migration_cpu_stop, &arg);
-+	if (swap_p == NULL)
-+		return stop_one_cpu(curr_cpu, migration_cpu_stop, &arg);
-+
-+	/* Make sure the target is still running the expected task */
-+	rq = cpu_rq(target_cpu);
-+	local_irq_disable();
-+	raw_spin_lock(&rq->lock);
-+	if (rq->curr != swap_p) {
-+		raw_spin_unlock(&rq->lock);
-+		local_irq_enable();
-+		return -EINVAL;
-+	}
-+
-+	/* Take a reference on the running task on the target cpu */
-+	get_task_struct(swap_p);
-+	raw_spin_unlock(&rq->lock);
-+	local_irq_enable();
-+
-+	/* Move current running task to target CPU */
-+	retval = stop_one_cpu(curr_cpu, migration_cpu_stop, &arg);
-+	if (raw_smp_processor_id() != target_cpu) {
-+		put_task_struct(swap_p);
-+		return retval;
-+	}
-+
-+	/* Move the remote task to the CPU just vacated */
-+	local_irq_disable();
-+	if (raw_smp_processor_id() == target_cpu)
-+		__migrate_task(swap_p, target_cpu, curr_cpu);
-+	local_irq_enable();
-+
-+	put_task_struct(swap_p);
-+	return retval;
- }
- #endif
- 
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 07a9f40..7a8f768 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -851,10 +851,12 @@ static unsigned long target_load(int cpu, int type);
- static unsigned long power_of(int cpu);
- static long effective_load(struct task_group *tg, int cpu, long wl, long wg);
- 
--static int task_numa_find_cpu(struct task_struct *p, int nid)
-+static int task_numa_find_cpu(struct task_struct *p, int nid,
-+			      struct task_struct **swap_p)
- {
- 	int node_cpu = cpumask_first(cpumask_of_node(nid));
- 	int cpu, src_cpu = task_cpu(p), dst_cpu = src_cpu;
-+	int src_cpu_node = cpu_to_node(src_cpu);
- 	unsigned long src_load, dst_load;
- 	unsigned long min_load = ULONG_MAX;
- 	struct task_group *tg = task_group(p);
-@@ -864,6 +866,8 @@ static int task_numa_find_cpu(struct task_struct *p, int nid)
- 	bool balanced;
- 	int imbalance_pct, idx = -1;
- 
-+	*swap_p = NULL;
-+
- 	/* No harm being optimistic */
- 	if (idle_cpu(node_cpu))
- 		return node_cpu;
-@@ -904,6 +908,8 @@ static int task_numa_find_cpu(struct task_struct *p, int nid)
- 	src_eff_load *= src_load + effective_load(tg, src_cpu, -weight, -weight);
- 
- 	for_each_cpu(cpu, cpumask_of_node(nid)) {
-+		struct task_struct *swap_candidate = NULL;
-+
- 		dst_load = target_load(cpu, idx);
- 
- 		/* If the CPU is idle, use it */
-@@ -922,12 +928,41 @@ static int task_numa_find_cpu(struct task_struct *p, int nid)
- 		 * migrate to its preferred node due to load imbalances.
- 		 */
- 		balanced = (dst_eff_load <= src_eff_load);
--		if (!balanced)
--			continue;
-+		if (!balanced) {
-+			struct rq *rq = cpu_rq(cpu);
-+			unsigned long src_faults, dst_faults;
-+
-+			/* Do not move tasks off their preferred node */
-+			if (rq->curr->numa_preferred_nid == nid)
-+				continue;
-+
-+			/* Do not attempt an illegal migration */
-+			if (!cpumask_test_cpu(cpu, tsk_cpus_allowed(rq->curr)))
-+				continue;
-+
-+			/*
-+			 * Do not impair locality for the swap candidate.
-+			 * Destination for the swap candidate is the source cpu
-+			 */
-+			if (rq->curr->numa_faults) {
-+				src_faults = rq->curr->numa_faults[task_faults_idx(nid, 1)];
-+				dst_faults = rq->curr->numa_faults[task_faults_idx(src_cpu_node, 1)];
-+				if (src_faults > dst_faults)
-+					continue;
-+			}
-+
-+			/*
-+			 * The destination is overloaded but running a task
-+			 * that is not running on its preferred node. Consider
-+			 * swapping the CPU tasks are running on.
-+			 */
-+			swap_candidate = rq->curr;
-+		}
- 
- 		if (dst_load < min_load) {
- 			min_load = dst_load;
- 			dst_cpu = cpu;
-+			*swap_p = swap_candidate;
- 		}
- 	}
- 
-@@ -938,6 +973,7 @@ static int task_numa_find_cpu(struct task_struct *p, int nid)
- static void numa_migrate_preferred(struct task_struct *p)
- {
- 	int preferred_cpu = task_cpu(p);
-+	struct task_struct *swap_p;
- 
- 	/* Success if task is already running on preferred CPU */
- 	p->numa_migrate_retry = 0;
-@@ -945,8 +981,8 @@ static void numa_migrate_preferred(struct task_struct *p)
- 		return;
- 
- 	/* Otherwise, try migrate to a CPU on the preferred node */
--	preferred_cpu = task_numa_find_cpu(p, p->numa_preferred_nid);
--	if (migrate_task_to(p, preferred_cpu) != 0)
-+	preferred_cpu = task_numa_find_cpu(p, p->numa_preferred_nid, &swap_p);
-+	if (migrate_task_to(p, preferred_cpu, swap_p) != 0)
- 		p->numa_migrate_retry = jiffies + HZ*5;
- }
- 
-diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
-index 795346d..90ded64 100644
---- a/kernel/sched/sched.h
-+++ b/kernel/sched/sched.h
-@@ -504,7 +504,8 @@ DECLARE_PER_CPU(struct rq, runqueues);
- #define raw_rq()		(&__raw_get_cpu_var(runqueues))
- 
- #ifdef CONFIG_NUMA_BALANCING
--extern int migrate_task_to(struct task_struct *p, int cpu);
-+extern int migrate_task_to(struct task_struct *p, int cpu,
-+			   struct task_struct *swap_p);
- static inline void task_numa_free(struct task_struct *p)
- {
- 	kfree(p->numa_faults);
+OK, so you had an OOM which has been handled by in-kernel oom handler
+(it killed 12021) and 12037 was in the same group. The warning tells us
+that it went through mem_cgroup_oom as well (otherwise it wouldn't have
+memcg_oom.wait_on_memcg set and the warning wouldn't trigger) and then
+it exited on the userspace request (by exit syscall).
+
+I do not see any way how, this could happen though. If mem_cgroup_oom
+is called then we always return CHARGE_NOMEM which turns into ENOMEM
+returned by __mem_cgroup_try_charge (invoke_oom must have been set to
+true).  So if nobody screwed the return value on the way up to page
+fault handler then there is no way to escape.
+
+I will check the code.
 -- 
-1.8.1.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
