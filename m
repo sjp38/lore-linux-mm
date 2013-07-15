@@ -1,142 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 5DF756B0033
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 11:12:03 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 16 Jul 2013 01:09:05 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id BA7CE3578053
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 01:11:57 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6FFBlMb1835456
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 01:11:48 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6FFBtPX030182
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 01:11:56 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 9/9] mm, hugetlb: decrement reserve count if VM_NORESERVE alloc page cache
-In-Reply-To: <1373881967-16153-10-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1373881967-16153-1-git-send-email-iamjoonsoo.kim@lge.com> <1373881967-16153-10-git-send-email-iamjoonsoo.kim@lge.com>
-Date: Mon, 15 Jul 2013 20:41:45 +0530
-Message-ID: <87ip0bj1se.fsf@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 05E1C6B0031
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 11:16:14 -0400 (EDT)
+Date: Mon, 15 Jul 2013 15:16:13 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] mm/slub.c: add parameter length checking for
+ alloc_loc_track()
+In-Reply-To: <51E33F98.8060201@asianux.com>
+Message-ID: <0000013fe2e73e30-817f1bdb-8dc7-4f7b-9b60-b42d5d244fda-000000@email.amazonses.com>
+References: <51DA734B.4060608@asianux.com> <51DE549F.9070505@kernel.org> <51DE55C9.1060908@asianux.com> <0000013fce9f5b32-7d62f3c5-bb35-4dd9-ab19-d72bae4b5bdc-000000@email.amazonses.com> <51DEF935.4040804@kernel.org>
+ <0000013fcf608df8-457e2029-51f9-4e49-9992-bf399a97d953-000000@email.amazonses.com> <51DF4540.8060700@asianux.com> <51DF4C94.3060103@asianux.com> <51DF5404.4060004@asianux.com> <0000013fd3250e40-1832fd38-ede3-41af-8fe3-5a0c10f5e5ce-000000@email.amazonses.com>
+ <51E33F98.8060201@asianux.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>
+To: Chen Gang <gang.chen@asianux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, mpm@selenic.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
+On Mon, 15 Jul 2013, Chen Gang wrote:
 
-> If a vma with VM_NORESERVE allocate a new page for page cache, we should
-> check whether this area is reserved or not. If this address is
-> already reserved by other process(in case of chg == 0), we should
-> decrement reserve count, because this allocated page will go into page
-> cache and currently, there is no way to know that this page comes from
-> reserved pool or not when releasing inode. This may introduce
-> over-counting problem to reserved count. With following example code,
-> you can easily reproduce this situation.
+> On 07/12/2013 09:49 PM, Christoph Lameter wrote:
+> > On Fri, 12 Jul 2013, Chen Gang wrote:
+> >
+> >> Since alloc_loc_track() will alloc additional space, and already knows
+> >> about 'max', so need be sure of 'max' must be larger than 't->count'.
+> >
+> > alloc_loc_track is only called if t->count > max from add_location:
+> >
 >
->         size = 20 * MB;
->         flag = MAP_SHARED;
->         p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
->         if (p == MAP_FAILED) {
->                 fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
->                 return -1;
->         }
+> For add_location(), if "t->count > t->max", it calls alloc_loc_track()
+> with "max == 2 * t->max".
 >
->         flag = MAP_SHARED | MAP_NORESERVE;
->         q = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
->         if (q == MAP_FAILED) {
->                 fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
->         }
->         q[0] = 'c';
->
-> This patch solve this problem.
->
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> In this case we need be sure that "t->count < 2 * t->max".
 
-Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+We are sure about that since t->count is always incremented by one and
+then checked against t->max. The location database is build up from a
+single hardware thread without any concurrency.
 
->
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index ed2d0af..defb180 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -443,10 +443,23 @@ void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
->  }
->
->  /* Returns true if the VMA has associated reserve pages */
-> -static int vma_has_reserves(struct vm_area_struct *vma)
-> +static int vma_has_reserves(struct vm_area_struct *vma, long chg)
->  {
-> -	if (vma->vm_flags & VM_NORESERVE)
-> -		return 0;
-> +	if (vma->vm_flags & VM_NORESERVE) {
-> +		/*
-> +		 * This address is already reserved by other process(chg == 0),
-> +		 * so, we should decreament reserved count. Without
-> +		 * decreamenting, reserve count is remained after releasing
-> +		 * inode, because this allocated page will go into page cache
-> +		 * and is regarded as coming from reserved pool in releasing
-> +		 * step. Currently, we don't have any other solution to deal
-> +		 * with this situation properly, so add work-around here.
-> +		 */
-> +		if (vma->vm_flags & VM_MAYSHARE && chg == 0)
-> +			return 1;
-> +		else
-> +			return 0;
-> +	}
->
->  	/* Shared mappings always use reserves */
->  	if (vma->vm_flags & VM_MAYSHARE)
-> @@ -520,7 +533,8 @@ static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
->
->  static struct page *dequeue_huge_page_vma(struct hstate *h,
->  				struct vm_area_struct *vma,
-> -				unsigned long address, int avoid_reserve)
-> +				unsigned long address, int avoid_reserve,
-> +				long chg)
->  {
->  	struct page *page = NULL;
->  	struct mempolicy *mpol;
-> @@ -535,7 +549,7 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
->  	 * have no page reserves. This check ensures that reservations are
->  	 * not "stolen". The child may still get SIGKILLed
->  	 */
-> -	if (!vma_has_reserves(vma) &&
-> +	if (!vma_has_reserves(vma, chg) &&
->  			h->free_huge_pages - h->resv_huge_pages == 0)
->  		return NULL;
->
-> @@ -553,8 +567,12 @@ retry_cpuset:
->  		if (cpuset_zone_allowed_softwall(zone, htlb_alloc_mask)) {
->  			page = dequeue_huge_page_node(h, zone_to_nid(zone));
->  			if (page) {
-> -				if (!avoid_reserve && vma_has_reserves(vma))
-> -					h->resv_huge_pages--;
-> +				if (avoid_reserve)
-> +					break;
-> +				if (!vma_has_reserves(vma, chg))
-> +					break;
-> +
-> +				h->resv_huge_pages--;
->  				break;
->  			}
->  		}
-> @@ -1139,7 +1157,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
->  	}
->
->  	spin_lock(&hugetlb_lock);
-> -	page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve);
-> +	page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve, chg);
->  	if (!page) {
->  		spin_unlock(&hugetlb_lock);
->  		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
-> -- 
-> 1.7.9.5
+So we do not really need this patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
