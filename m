@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id 14D4D6B003B
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 016396B003A
 	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 11:20:30 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 07/18] sched: Favour moving tasks towards the preferred node
-Date: Mon, 15 Jul 2013 16:20:09 +0100
-Message-Id: <1373901620-2021-8-git-send-email-mgorman@suse.de>
+Subject: [PATCH 08/18] sched: Reschedule task on preferred NUMA node once selected
+Date: Mon, 15 Jul 2013 16:20:10 +0100
+Message-Id: <1373901620-2021-9-git-send-email-mgorman@suse.de>
 In-Reply-To: <1373901620-2021-1-git-send-email-mgorman@suse.de>
 References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,207 +13,126 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 Cc: Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-This patch favours moving tasks towards the preferred NUMA node when it
-has just been selected. Ideally this is self-reinforcing as the longer
-the task runs on that node, the more faults it should incur causing
-task_numa_placement to keep the task running on that node. In reality a
-big weakness is that the nodes CPUs can be overloaded and it would be more
-efficient to queue tasks on an idle node and migrate to the new node. This
-would require additional smarts in the balancer so for now the balancer
-will simply prefer to place the task on the preferred node for a PTE scans
-which is controlled by the numa_balancing_settle_count sysctl. Once the
-settle_count number of scans has complete the schedule is free to place
-the task on an alternative node if the load is imbalanced.
+A preferred node is selected based on the node the most NUMA hinting
+faults was incurred on. There is no guarantee that the task is running
+on that node at the time so this patch rescheules the task to run on
+the most idle CPU of the selected node when selected. This avoids
+waiting for the balancer to make a decision.
 
-[srikar@linux.vnet.ibm.com: Fixed statistics]
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- Documentation/sysctl/kernel.txt |  8 +++++-
- include/linux/sched.h           |  1 +
- kernel/sched/core.c             |  3 ++-
- kernel/sched/fair.c             | 60 ++++++++++++++++++++++++++++++++++++++---
- kernel/sysctl.c                 |  7 +++++
- 5 files changed, 73 insertions(+), 6 deletions(-)
+ kernel/sched/core.c  | 17 +++++++++++++++++
+ kernel/sched/fair.c  | 46 +++++++++++++++++++++++++++++++++++++++++++++-
+ kernel/sched/sched.h |  1 +
+ 3 files changed, 63 insertions(+), 1 deletion(-)
 
-diff --git a/Documentation/sysctl/kernel.txt b/Documentation/sysctl/kernel.txt
-index 0fe678c..246b128 100644
---- a/Documentation/sysctl/kernel.txt
-+++ b/Documentation/sysctl/kernel.txt
-@@ -374,7 +374,8 @@ feature should be disabled. Otherwise, if the system overhead from the
- feature is too high then the rate the kernel samples for NUMA hinting
- faults may be controlled by the numa_balancing_scan_period_min_ms,
- numa_balancing_scan_delay_ms, numa_balancing_scan_period_reset,
--numa_balancing_scan_period_max_ms and numa_balancing_scan_size_mb sysctls.
-+numa_balancing_scan_period_max_ms, numa_balancing_scan_size_mb and
-+numa_balancing_settle_count sysctls.
- 
- ==============================================================
- 
-@@ -418,6 +419,11 @@ scanned for a given scan.
- numa_balancing_scan_period_reset is a blunt instrument that controls how
- often a tasks scan delay is reset to detect sudden changes in task behaviour.
- 
-+numa_balancing_settle_count is how many scan periods must complete before
-+the schedule balancer stops pushing the task towards a preferred node. This
-+gives the scheduler a chance to place the task on an alternative node if the
-+preferred node is overloaded.
-+
- ==============================================================
- 
- osrelease, ostype & version:
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 42f9818..82a6136 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -815,6 +815,7 @@ enum cpu_idle_type {
- #define SD_ASYM_PACKING		0x0800  /* Place busy groups earlier in the domain */
- #define SD_PREFER_SIBLING	0x1000	/* Prefer to place tasks in a sibling domain */
- #define SD_OVERLAP		0x2000	/* sched_domains of this level overlap */
-+#define SD_NUMA			0x4000	/* cross-node balancing */
- 
- extern int __weak arch_sd_sibiling_asym_packing(void);
- 
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 0bd541c..5e02507 100644
+index 5e02507..b67a102 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -1591,7 +1591,7 @@ static void __sched_fork(struct task_struct *p)
+@@ -4856,6 +4856,23 @@ fail:
+ 	return ret;
+ }
  
- 	p->node_stamp = 0ULL;
- 	p->numa_scan_seq = p->mm ? p->mm->numa_scan_seq : 0;
--	p->numa_migrate_seq = p->mm ? p->mm->numa_scan_seq - 1 : 0;
-+	p->numa_migrate_seq = 0;
- 	p->numa_scan_period = sysctl_numa_balancing_scan_delay;
- 	p->numa_preferred_nid = -1;
- 	p->numa_work.next = &p->numa_work;
-@@ -6141,6 +6141,7 @@ sd_numa_init(struct sched_domain_topology_level *tl, int cpu)
- 					| 0*SD_SHARE_PKG_RESOURCES
- 					| 1*SD_SERIALIZE
- 					| 0*SD_PREFER_SIBLING
-+					| 1*SD_NUMA
- 					| sd_local_flags(level)
- 					,
- 		.last_balance		= jiffies,
++#ifdef CONFIG_NUMA_BALANCING
++/* Migrate current task p to target_cpu */
++int migrate_task_to(struct task_struct *p, int target_cpu)
++{
++	struct migration_arg arg = { p, target_cpu };
++	int curr_cpu = task_cpu(p);
++
++	if (curr_cpu == target_cpu)
++		return 0;
++
++	if (!cpumask_test_cpu(target_cpu, tsk_cpus_allowed(p)))
++		return -EINVAL;
++
++	return stop_one_cpu(curr_cpu, migration_cpu_stop, &arg);
++}
++#endif
++
+ /*
+  * migration_cpu_stop - this will be executed by a highprio stopper thread
+  * and performs thread migration by bumping thread off CPU then
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 8c7dd96..49396e1 100644
+index 49396e1..f68fad5 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -791,6 +791,15 @@ unsigned int sysctl_numa_balancing_scan_size = 256;
- /* Scan @scan_size MB every @scan_period after an initial @scan_delay in ms */
- unsigned int sysctl_numa_balancing_scan_delay = 1000;
+@@ -800,6 +800,31 @@ unsigned int sysctl_numa_balancing_scan_delay = 1000;
+  */
+ unsigned int sysctl_numa_balancing_settle_count __read_mostly = 3;
  
-+/*
-+ * Once a preferred node is selected the scheduler balancer will prefer moving
-+ * a task to that node for sysctl_numa_balancing_settle_count number of PTE
-+ * scans. This will give the process the chance to accumulate more faults on
-+ * the preferred node but still allow the scheduler to move the task again if
-+ * the nodes CPUs are overloaded.
-+ */
-+unsigned int sysctl_numa_balancing_settle_count __read_mostly = 3;
++static unsigned long weighted_cpuload(const int cpu);
++
++
++static int
++find_idlest_cpu_node(int this_cpu, int nid)
++{
++	unsigned long load, min_load = ULONG_MAX;
++	int i, idlest_cpu = this_cpu;
++
++	BUG_ON(cpu_to_node(this_cpu) == nid);
++
++	rcu_read_lock();
++	for_each_cpu(i, cpumask_of_node(nid)) {
++		load = weighted_cpuload(i);
++
++		if (load < min_load) {
++			min_load = load;
++			idlest_cpu = i;
++		}
++	}
++	rcu_read_unlock();
++
++	return idlest_cpu;
++}
 +
  static void task_numa_placement(struct task_struct *p)
  {
  	int seq, nid, max_nid = -1;
-@@ -802,6 +811,7 @@ static void task_numa_placement(struct task_struct *p)
- 	if (p->numa_scan_seq == seq)
- 		return;
- 	p->numa_scan_seq = seq;
-+	p->numa_migrate_seq++;
- 
- 	/* Find the node with the highest number of faults */
- 	for (nid = 0; nid < nr_node_ids; nid++) {
-@@ -820,8 +830,10 @@ static void task_numa_placement(struct task_struct *p)
+@@ -829,10 +854,29 @@ static void task_numa_placement(struct task_struct *p)
+ 		}
  	}
  
- 	/* Update the tasks preferred node if necessary */
--	if (max_faults && max_nid != p->numa_preferred_nid)
-+	if (max_faults && max_nid != p->numa_preferred_nid) {
- 		p->numa_preferred_nid = max_nid;
-+		p->numa_migrate_seq = 0;
-+	}
- }
- 
- /*
-@@ -3898,6 +3910,35 @@ task_hot(struct task_struct *p, u64 now, struct sched_domain *sd)
- 	return delta < (s64)sysctl_sched_migration_cost;
- }
- 
-+#ifdef CONFIG_NUMA_BALANCING
-+/* Returns true if the destination node has incurred more faults */
-+static bool migrate_improves_locality(struct task_struct *p, struct lb_env *env)
-+{
-+	int src_nid, dst_nid;
+-	/* Update the tasks preferred node if necessary */
++	/*
++	 * Record the preferred node as the node with the most faults,
++	 * requeue the task to be running on the idlest CPU on the
++	 * preferred node and reset the scanning rate to recheck
++	 * the working set placement.
++	 */
+ 	if (max_faults && max_nid != p->numa_preferred_nid) {
++		int preferred_cpu;
 +
-+	if (!p->numa_faults || !(env->sd->flags & SD_NUMA))
-+		return false;
-+
-+	src_nid = cpu_to_node(env->src_cpu);
-+	dst_nid = cpu_to_node(env->dst_cpu);
-+
-+	if (src_nid == dst_nid ||
-+	    p->numa_migrate_seq >= sysctl_numa_balancing_settle_count)
-+		return false;
-+
-+	if (p->numa_preferred_nid == dst_nid)
-+		return true;
-+
-+	return false;
-+}
-+#else
-+static inline bool migrate_improves_locality(struct task_struct *p,
-+					     struct lb_env *env)
-+{
-+	return false;
-+}
-+#endif
-+
- /*
-  * can_migrate_task - may task p from runqueue rq be migrated to this_cpu?
-  */
-@@ -3946,11 +3987,22 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
- 
- 	/*
- 	 * Aggressive migration if:
--	 * 1) task is cache cold, or
--	 * 2) too many balance attempts have failed.
-+	 * 1) destination numa is preferred
-+	 * 2) task is cache cold, or
-+	 * 3) too many balance attempts have failed.
- 	 */
--
- 	tsk_cache_hot = task_hot(p, env->src_rq->clock_task, env->sd);
-+
-+	if (migrate_improves_locality(p, env)) {
-+#ifdef CONFIG_SCHEDSTATS
-+		if (tsk_cache_hot) {
-+			schedstat_inc(env->sd, lb_hot_gained[env->idle]);
-+			schedstat_inc(p, se.statistics.nr_forced_migrations);
++		/*
++		 * If the task is not on the preferred node then find the most
++		 * idle CPU to migrate to.
++		 */
++		preferred_cpu = task_cpu(p);
++		if (cpu_to_node(preferred_cpu) != max_nid) {
++			preferred_cpu = find_idlest_cpu_node(preferred_cpu,
++							     max_nid);
 +		}
-+#endif
-+		return 1;
-+	}
 +
- 	if (!tsk_cache_hot ||
- 		env->sd->nr_balance_failed > env->sd->cache_nice_tries) {
- #ifdef CONFIG_SCHEDSTATS
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index afc1dc6..263486f 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -393,6 +393,13 @@ static struct ctl_table kern_table[] = {
- 		.mode		= 0644,
- 		.proc_handler	= proc_dointvec,
- 	},
-+	{
-+		.procname       = "numa_balancing_settle_count",
-+		.data           = &sysctl_numa_balancing_settle_count,
-+		.maxlen         = sizeof(unsigned int),
-+		.mode           = 0644,
-+		.proc_handler   = proc_dointvec,
-+	},
- #endif /* CONFIG_NUMA_BALANCING */
- #endif /* CONFIG_SCHED_DEBUG */
- 	{
++		/* Update the preferred nid and migrate task if possible */
+ 		p->numa_preferred_nid = max_nid;
+ 		p->numa_migrate_seq = 0;
++		migrate_task_to(p, preferred_cpu);
+ 	}
+ }
+ 
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index c5f773d..795346d 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -504,6 +504,7 @@ DECLARE_PER_CPU(struct rq, runqueues);
+ #define raw_rq()		(&__raw_get_cpu_var(runqueues))
+ 
+ #ifdef CONFIG_NUMA_BALANCING
++extern int migrate_task_to(struct task_struct *p, int cpu);
+ static inline void task_numa_free(struct task_struct *p)
+ {
+ 	kfree(p->numa_faults);
 -- 
 1.8.1.4
 
