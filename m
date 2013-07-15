@@ -1,48 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 7B88D6B00C9
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 06:35:24 -0400 (EDT)
-Received: by mail-qc0-f170.google.com with SMTP id s1so6169724qcw.29
-        for <linux-mm@kvack.org>; Mon, 15 Jul 2013 03:35:23 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAPB2xN89n=1JLQe7w_+J8A246HsUDv0oP1WCjQ=4OFJnDDGchQ@mail.gmail.com>
-References: <20130705155113.3586.78292.stgit@maximpc.sw.ru>
-	<20130711185104.GC5349@quack.suse.cz>
-	<CAPB2xN89n=1JLQe7w_+J8A246HsUDv0oP1WCjQ=4OFJnDDGchQ@mail.gmail.com>
-Date: Mon, 15 Jul 2013 12:35:23 +0200
-Message-ID: <CAJfpegtNRxacv3Lw0XOK7zuQJB0_NttNzw7p3fQE+J7T_dZHyQ@mail.gmail.com>
-Subject: Re: [PATCH] mm: strictlimit feature -v3
-From: Miklos Szeredi <miklos@szeredi.hu>
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id DCD066B00CB
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 06:45:02 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH, REBASED 0/8] Transparent huge page cache: phase 0, prep work
+Date: Mon, 15 Jul 2013 13:47:46 +0300
+Message-Id: <1373885274-25249-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Maxim Patlasov <MPatlasov@parallels.com>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, Kirill Korotaev <dev@parallels.com>, fuse-devel <fuse-devel@lists.sourceforge.net>, Brian Foster <bfoster@redhat.com>, Pavel Emelianov <xemul@parallels.com>, Kernel Mailing List <linux-kernel@vger.kernel.org>, James Bottomley <jbottomley@parallels.com>, linux-mm@kvack.org, Al Viro <viro@zeniv.linux.org.uk>, Linux-Fsdevel <linux-fsdevel@vger.kernel.org>, fengguang.wu@intel.com, devel@openvz.org, Mel Gorman <mgorman@suse.de>
+To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Thu, Jul 11, 2013 at 11:50 PM, Maxim Patlasov
-<MPatlasov@parallels.com> wrote:
-> On Thu, Jul 11, 2013 at 10:51 PM, Jan Kara <jack@suse.cz> wrote:
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-[snipped]
+[ no changes since last post, only rebased to v3.11-rc1 ]
 
->> If I'm right in the above, then removing NR_WRITEBACK_TEMP would be a nice
->> followup patch.
->
-> I'd rather introduce the notion of trusted fuse filesystem. If system
-> administrator believe given fuse fs "trusted", it works w/o
-> strictlimit, but fuse daemon is supposed to notify the kernel
-> explicitly about threads related to processing writeback. The kernel
-> would raise a per-task flag for those threads. And, calculating
-> nr_dirty in balance_dirty_pages, we'd add NR_WRITEBACK_TEMP for all,
-> excepting tasks with the flag set.  This is very simple and will work
-> perfectly.
+My patchset which introduces transparent huge page cache is pretty big and
+hardly reviewable. Dave Hansen suggested to split it in few parts.
 
-Yes, doing a trusted mode for fuse is a good idea, I think.  And it
-should have a new filesystem type (can't think of a good name though,
-"fusetrusted" is a bit too long).
+This is the first part: preparation work. I think it's useful without rest
+patches.
 
-Thanks,
-Miklos
+There's one fix for bug in lru_add_page_tail(). I doubt it's possible to
+trigger it on current code, but nice to have it upstream anyway.
+Rest is cleanups.
+
+Patch 8 depends on patch 7. Other patches are independent and can be
+applied separately.
+
+Please, consider applying.
+
+Kirill A. Shutemov (8):
+  mm: drop actor argument of do_generic_file_read()
+  thp, mm: avoid PageUnevictable on active/inactive lru lists
+  thp: account anon transparent huge pages into NR_ANON_PAGES
+  mm: cleanup add_to_page_cache_locked()
+  thp, mm: locking tail page is a bug
+  thp: move maybe_pmd_mkwrite() out of mk_huge_pmd()
+  thp: do_huge_pmd_anonymous_page() cleanup
+  thp: consolidate code between handle_mm_fault() and
+    do_huge_pmd_anonymous_page()
+
+ drivers/base/node.c     |   6 ---
+ fs/proc/meminfo.c       |   6 ---
+ include/linux/huge_mm.h |   3 --
+ include/linux/mm.h      |   3 +-
+ mm/filemap.c            |  60 ++++++++++++-----------
+ mm/huge_memory.c        | 125 ++++++++++++++++++++----------------------------
+ mm/memory.c             |   9 ++--
+ mm/rmap.c               |  18 +++----
+ mm/swap.c               |  20 +-------
+ 9 files changed, 104 insertions(+), 146 deletions(-)
+
+-- 
+1.8.3.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
