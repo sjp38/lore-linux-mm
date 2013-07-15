@@ -1,73 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 458B46B00DD
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 07:31:22 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 15 Jul 2013 16:55:46 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 53F2E1258053
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 17:00:33 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6FBV98J28311638
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 17:01:09 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6FBVB2q004860
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 21:31:12 +1000
-Date: Mon, 15 Jul 2013 19:31:09 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 0/6] mm/hugetlb: gigantic hugetlb page pools shrink
- supporting
-Message-ID: <20130715113109.GA22207@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1365066554-29195-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <20130411232907.GC29398@hacker.(null)>
- <20130412152237.GM16732@two.firstfloor.org>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 38E4A6B0033
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 09:12:15 -0400 (EDT)
+Received: by mail-oa0-f41.google.com with SMTP id n10so15858298oag.14
+        for <linux-mm@kvack.org>; Mon, 15 Jul 2013 06:12:14 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130412152237.GM16732@two.firstfloor.org>
+In-Reply-To: <1373881967-16153-3-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1373881967-16153-1-git-send-email-iamjoonsoo.kim@lge.com>
+	<1373881967-16153-3-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Mon, 15 Jul 2013 21:12:14 +0800
+Message-ID: <CAJd=RBAi5HDep42DQRdWOvzO4-Li=x_VDqC7FzYojmM0O7eAzg@mail.gmail.com>
+Subject: Re: [PATCH 2/9] mm, hugetlb: trivial commenting fix
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi Andi,
-On Fri, Apr 12, 2013 at 05:22:37PM +0200, Andi Kleen wrote:
->On Fri, Apr 12, 2013 at 07:29:07AM +0800, Wanpeng Li wrote:
->> Ping Andi,
->> On Thu, Apr 04, 2013 at 05:09:08PM +0800, Wanpeng Li wrote:
->> >order >= MAX_ORDER pages are only allocated at boot stage using the 
->> >bootmem allocator with the "hugepages=xxx" option. These pages are never 
->> >free after boot by default since it would be a one-way street(>= MAX_ORDER
->> >pages cannot be allocated later), but if administrator confirm not to 
->> >use these gigantic pages any more, these pinned pages will waste memory
->> >since other users can't grab free pages from gigantic hugetlb pool even
->> >if OOM, it's not flexible.  The patchset add hugetlb gigantic page pools
->> >shrink supporting. Administrator can enable knob exported in sysctl to
->> >permit to shrink gigantic hugetlb pool.
+On Mon, Jul 15, 2013 at 5:52 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> The name of the mutex written in comment is wrong.
+> Fix it.
+>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>
+Acked-by: Hillf Danton <dhillf@gmail.com>
+
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index d87f70b..d21a33a 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -135,9 +135,9 @@ static inline struct hugepage_subpool *subpool_vma(struct vm_area_struct *vma)
+>   *                    across the pages in a mapping.
+>   *
+>   * The region data structures are protected by a combination of the mmap_sem
+> - * and the hugetlb_instantion_mutex.  To access or modify a region the caller
+> + * and the hugetlb_instantiation_mutex.  To access or modify a region the caller
+>   * must either hold the mmap_sem for write, or the mmap_sem for read and
+> - * the hugetlb_instantiation mutex:
+> + * the hugetlb_instantiation_mutex:
+>   *
+>   *     down_write(&mm->mmap_sem);
+>   * or
+> --
+> 1.7.9.5
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 >
 >
->I originally didn't allow this because it's only one way and it seemed
->dubious.  I've been recently working on a new patchkit to allocate
->GB pages from CMA. With that freeing actually makes sense, as 
->the pages can be reallocated.
-
-How is your allocate hugetlb pages from CMA going on? If you don't have time
-I will have a try. ;-)
-
-Regards,
-Wanpeng Li 
-
->
->-Andi
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
