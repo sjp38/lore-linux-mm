@@ -1,127 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id A366B6B0032
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 16:03:29 -0400 (EDT)
-Date: Mon, 15 Jul 2013 22:03:21 +0200
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 443FC6B0031
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 16:11:17 -0400 (EDT)
+Date: Mon, 15 Jul 2013 22:11:10 +0200
 From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 16/18] sched: Avoid overloading CPUs on a preferred NUMA
- node
-Message-ID: <20130715200321.GN17211@twins.programming.kicks-ass.net>
+Subject: Re: [PATCH 18/18] sched: Swap tasks when reschuling if a CPU on a
+ target node is imbalanced
+Message-ID: <20130715201110.GO17211@twins.programming.kicks-ass.net>
 References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
- <1373901620-2021-17-git-send-email-mgorman@suse.de>
+ <1373901620-2021-19-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1373901620-2021-17-git-send-email-mgorman@suse.de>
+In-Reply-To: <1373901620-2021-19-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
 Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Jul 15, 2013 at 04:20:18PM +0100, Mel Gorman wrote:
-> ---
->  kernel/sched/fair.c | 105 +++++++++++++++++++++++++++++++++++++++++-----------
->  1 file changed, 83 insertions(+), 22 deletions(-)
-> 
-> diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-> index 3f0519c..8ee1c8e 100644
-> --- a/kernel/sched/fair.c
-> +++ b/kernel/sched/fair.c
-> @@ -846,29 +846,92 @@ static inline int task_faults_idx(int nid, int priv)
->  	return 2 * nid + priv;
->  }
+On Mon, Jul 15, 2013 at 04:20:20PM +0100, Mel Gorman wrote:
+> diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+> index 53d8465..d679b01 100644
+> --- a/kernel/sched/core.c
+> +++ b/kernel/sched/core.c
+> @@ -4857,10 +4857,13 @@ fail:
 >  
-> -static unsigned long weighted_cpuload(const int cpu);
-> +static unsigned long source_load(int cpu, int type);
-> +static unsigned long target_load(int cpu, int type);
-> +static unsigned long power_of(int cpu);
-> +static long effective_load(struct task_group *tg, int cpu, long wl, long wg);
+>  #ifdef CONFIG_NUMA_BALANCING
+>  /* Migrate current task p to target_cpu */
+> -int migrate_task_to(struct task_struct *p, int target_cpu)
+> +int migrate_task_to(struct task_struct *p, int target_cpu,
+> +		    struct task_struct *swap_p)
+>  {
+>  	struct migration_arg arg = { p, target_cpu };
+>  	int curr_cpu = task_cpu(p);
+> +	struct rq *rq;
+> +	int retval;
+>  
+>  	if (curr_cpu == target_cpu)
+>  		return 0;
+> @@ -4868,7 +4871,39 @@ int migrate_task_to(struct task_struct *p, int target_cpu)
+>  	if (!cpumask_test_cpu(target_cpu, tsk_cpus_allowed(p)))
+>  		return -EINVAL;
+>  
+> -	return stop_one_cpu(curr_cpu, migration_cpu_stop, &arg);
+> +	if (swap_p == NULL)
+> +		return stop_one_cpu(curr_cpu, migration_cpu_stop, &arg);
 > +
-> +static int task_numa_find_cpu(struct task_struct *p, int nid)
-> +{
-> +	int node_cpu = cpumask_first(cpumask_of_node(nid));
-> +	int cpu, src_cpu = task_cpu(p), dst_cpu = src_cpu;
-> +	unsigned long src_load, dst_load;
-> +	unsigned long min_load = ULONG_MAX;
-> +	struct task_group *tg = task_group(p);
-> +	s64 src_eff_load, dst_eff_load;
-> +	struct sched_domain *sd;
-> +	unsigned long weight;
-> +	bool balanced;
-> +	int imbalance_pct, idx = -1;
->  
-> +	/* No harm being optimistic */
-> +	if (idle_cpu(node_cpu))
-> +		return node_cpu;
->  
-> +	/*
-> +	 * Find the lowest common scheduling domain covering the nodes of both
-> +	 * the CPU the task is currently running on and the target NUMA node.
-> +	 */
-> +	rcu_read_lock();
-> +	for_each_domain(src_cpu, sd) {
-> +		if (cpumask_test_cpu(node_cpu, sched_domain_span(sd))) {
-> +			/*
-> +			 * busy_idx is used for the load decision as it is the
-> +			 * same index used by the regular load balancer for an
-> +			 * active cpu.
-> +			 */
-> +			idx = sd->busy_idx;
-> +			imbalance_pct = sd->imbalance_pct;
-> +			break;
-> +		}
+> +	/* Make sure the target is still running the expected task */
+> +	rq = cpu_rq(target_cpu);
+> +	local_irq_disable();
+> +	raw_spin_lock(&rq->lock);
+
+raw_spin_lock_irq() :-)
+
+> +	if (rq->curr != swap_p) {
+> +		raw_spin_unlock(&rq->lock);
+> +		local_irq_enable();
+> +		return -EINVAL;
 > +	}
-> +	rcu_read_unlock();
->  
-> +	if (WARN_ON_ONCE(idx == -1))
-> +		return src_cpu;
->  
-> +	/*
-> +	 * XXX the below is mostly nicked from wake_affine(); we should
-> +	 * see about sharing a bit if at all possible; also it might want
-> +	 * some per entity weight love.
-> +	 */
-> +	weight = p->se.load.weight;
->  
-> +	src_load = source_load(src_cpu, idx);
 > +
-> +	src_eff_load = 100 + (imbalance_pct - 100) / 2;
-> +	src_eff_load *= power_of(src_cpu);
-> +	src_eff_load *= src_load + effective_load(tg, src_cpu, -weight, -weight);
+> +	/* Take a reference on the running task on the target cpu */
+> +	get_task_struct(swap_p);
+> +	raw_spin_unlock(&rq->lock);
+> +	local_irq_enable();
 
-So did you try with this effective_load() term 'missing'?
+raw_spin_unlock_irq()
 
 > +
-> +	for_each_cpu(cpu, cpumask_of_node(nid)) {
-> +		dst_load = target_load(cpu, idx);
+> +	/* Move current running task to target CPU */
+> +	retval = stop_one_cpu(curr_cpu, migration_cpu_stop, &arg);
+> +	if (raw_smp_processor_id() != target_cpu) {
+> +		put_task_struct(swap_p);
+> +		return retval;
+> +	}
+
+(1)
+
+> +	/* Move the remote task to the CPU just vacated */
+> +	local_irq_disable();
+> +	if (raw_smp_processor_id() == target_cpu)
+> +		__migrate_task(swap_p, target_cpu, curr_cpu);
+> +	local_irq_enable();
 > +
-> +		/* If the CPU is idle, use it */
-> +		if (!dst_load)
-> +			return dst_cpu;
-> +
-> +		/* Otherwise check the target CPU load */
-> +		dst_eff_load = 100;
-> +		dst_eff_load *= power_of(cpu);
-> +		dst_eff_load *= dst_load + effective_load(tg, cpu, weight, weight);
-> +
-> +		/*
-> +		 * Destination is considered balanced if the destination CPU is
-> +		 * less loaded than the source CPU. Unfortunately there is a
-> +		 * risk that a task running on a lightly loaded CPU will not
-> +		 * migrate to its preferred node due to load imbalances.
-> +		 */
-> +		balanced = (dst_eff_load <= src_eff_load);
-> +		if (!balanced)
-> +			continue;
-> +
-> +		if (dst_load < min_load) {
-> +			min_load = dst_load;
-> +			dst_cpu = cpu;
->  		}
->  	}
->  
-> +	return dst_cpu;
+> +	put_task_struct(swap_p);
+> +	return retval;
 >  }
+
+So I know this is very much like what Ingo did in his patches, but
+there's a whole heap of 'problems' with this approach to task flipping.
+
+So at (1) we just moved ourselves to the remote cpu. This might have
+left our original cpu idle and we might have done a newidle balance,
+even though we intend another task to run here.
+
+At (1) we just moved ourselves to the remote cpu, however we might not
+be eligible to run, so moving the other task to our original CPU might
+take a while -- exacerbating the previously mention issue.
+
+Since (1) might take a whole lot of time, it might become rather
+unlikely that our task @swap_p is still queued on the cpu where we
+expected him to be.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
