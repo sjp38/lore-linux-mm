@@ -1,10 +1,11 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [v5][PATCH 6/6] mm: vmscan: drain batch list during long
- operations
-Date: Mon, 15 Jul 2013 07:51:08 +0800
-Message-ID: <22571.456738706$1373845885@news.gmane.org>
-References: <20130603200202.7F5FDE07@viggo.jf.intel.com>
- <20130603200210.259954C3@viggo.jf.intel.com>
+Subject: Re: [PATCH 0/6] mm/hugetlb: gigantic hugetlb page pools shrink
+ supporting
+Date: Mon, 15 Jul 2013 19:31:09 +0800
+Message-ID: <41356.2888782055$1373887897@news.gmane.org>
+References: <1365066554-29195-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <20130411232907.GC29398@hacker.(null)>
+ <20130412152237.GM16732@two.firstfloor.org>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -12,87 +13,60 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1UyW4S-0006q0-3i
-	for glkm-linux-mm-2@m.gmane.org; Mon, 15 Jul 2013 01:51:16 +0200
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 6A7E56B0068
-	for <linux-mm@kvack.org>; Sun, 14 Jul 2013 19:51:14 -0400 (EDT)
+	id 1Uyh03-00023X-3J
+	for glkm-linux-mm-2@m.gmane.org; Mon, 15 Jul 2013 13:31:27 +0200
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 458B46B00DD
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 07:31:22 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 15 Jul 2013 20:46:47 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 804732BB0053
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 09:51:10 +1000 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6ENZmaa55115876
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 09:35:48 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6ENp9ID016167
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 09:51:10 +1000
+	Mon, 15 Jul 2013 16:55:46 +0530
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 53F2E1258053
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 17:00:33 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6FBV98J28311638
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 17:01:09 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6FBVB2q004860
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 21:31:12 +1000
 Content-Disposition: inline
-In-Reply-To: <20130603200210.259954C3@viggo.jf.intel.com>
+In-Reply-To: <20130412152237.GM16732@two.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de, tim.c.chen@linux.intel.com, minchan@kernel.org, Dave Hansen <dave@sr71.net>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Jun 03, 2013 at 01:02:10PM -0700, Dave Hansen wrote:
+Hi Andi,
+On Fri, Apr 12, 2013 at 05:22:37PM +0200, Andi Kleen wrote:
+>On Fri, Apr 12, 2013 at 07:29:07AM +0800, Wanpeng Li wrote:
+>> Ping Andi,
+>> On Thu, Apr 04, 2013 at 05:09:08PM +0800, Wanpeng Li wrote:
+>> >order >= MAX_ORDER pages are only allocated at boot stage using the 
+>> >bootmem allocator with the "hugepages=xxx" option. These pages are never 
+>> >free after boot by default since it would be a one-way street(>= MAX_ORDER
+>> >pages cannot be allocated later), but if administrator confirm not to 
+>> >use these gigantic pages any more, these pinned pages will waste memory
+>> >since other users can't grab free pages from gigantic hugetlb pool even
+>> >if OOM, it's not flexible.  The patchset add hugetlb gigantic page pools
+>> >shrink supporting. Administrator can enable knob exported in sysctl to
+>> >permit to shrink gigantic hugetlb pool.
 >
->From: Dave Hansen <dave.hansen@linux.intel.com>
 >
->This was a suggestion from Mel:
->
->	http://lkml.kernel.org/r/20120914085634.GM11157@csn.ul.ie
->
->Any pages we collect on 'batch_for_mapping_removal' will have
->their lock_page() held during the duration of their stay on the
->list.  If some other user is trying to get at them during this
->time, they might end up having to wait.
->
->This ensures that we drain the batch if we are about to perform a
->pageout() or congestion_wait(), either of which will take some
->time.  We expect this to help mitigate the worst of the latency
->increase that the batching could cause.
->
->I added some statistics to the __remove_mapping_batch() code to
->track how large the lists are that we pass in to it.  With this
->patch, the average list length drops about 10% (from about 4.1 to
->3.8).  The workload here was a make -j4 kernel compile on a VM
->with 200MB of RAM.
->
->I've still got the statistics patch around if anyone is
->interested.
->
->Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
->---
->
+>I originally didn't allow this because it's only one way and it seemed
+>dubious.  I've been recently working on a new patchkit to allocate
+>GB pages from CMA. With that freeing actually makes sense, as 
+>the pages can be reallocated.
 
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+How is your allocate hugetlb pages from CMA going on? If you don't have time
+I will have a try. ;-)
 
-> linux.git-davehans/mm/vmscan.c |   10 ++++++++++
-> 1 file changed, 10 insertions(+)
+Regards,
+Wanpeng Li 
+
 >
->diff -puN mm/vmscan.c~drain-batch-list-during-long-operations mm/vmscan.c
->--- linux.git/mm/vmscan.c~drain-batch-list-during-long-operations	2013-06-03 12:41:31.661762522 -0700
->+++ linux.git-davehans/mm/vmscan.c	2013-06-03 12:41:31.665762700 -0700
->@@ -1001,6 +1001,16 @@ static unsigned long shrink_page_list(st
-> 			if (!sc->may_writepage)
-> 				goto keep_locked;
->
->+			/*
->+			 * We hold a bunch of page locks on the batch.
->+			 * pageout() can take a while, so drain the
->+			 * batch before we perform pageout.
->+			 */
->+			nr_reclaimed +=
->+		               __remove_mapping_batch(&batch_for_mapping_rm,
->+		                                      &ret_pages,
->+		                                      &free_pages);
->+
-> 			/* Page is dirty, try to write it out here */
-> 			switch (pageout(page, mapping, sc)) {
-> 			case PAGE_KEEP:
->_
+>-Andi
 >
 >--
 >To unsubscribe, send a message with 'unsubscribe linux-mm' in
