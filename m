@@ -1,122 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id D0D886B00B9
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 05:52:54 -0400 (EDT)
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH 9/9] mm, hugetlb: decrement reserve count if VM_NORESERVE alloc page cache
-Date: Mon, 15 Jul 2013 18:52:47 +0900
-Message-Id: <1373881967-16153-10-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1373881967-16153-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1373881967-16153-1-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 134846B00C0
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 05:55:04 -0400 (EDT)
+Message-ID: <51E3C6A0.4070308@huawei.com>
+Date: Mon, 15 Jul 2013 17:53:36 +0800
+From: Li Zefan <lizefan@huawei.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2] vmpressure: make sure memcg stays alive until all
+ users are signaled
+References: <20130711093300.GE21667@dhcp22.suse.cz> <20130711154408.GA9229@mtj.dyndns.org> <20130711162215.GM21667@dhcp22.suse.cz> <20130711163238.GC9229@mtj.dyndns.org> <20130712084039.GA13224@dhcp22.suse.cz> <51DFCA49.4080407@huawei.com> <20130712092927.GA15307@dhcp22.suse.cz> <51DFD253.3030501@huawei.com> <20130712103731.GB15307@dhcp22.suse.cz> <51E36788.6080308@huawei.com> <20130715092033.GB26199@dhcp22.suse.cz>
+In-Reply-To: <20130715092033.GB26199@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Tejun Heo <tj@kernel.org>, Anton Vorontsov <anton.vorontsov@linaro.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-If a vma with VM_NORESERVE allocate a new page for page cache, we should
-check whether this area is reserved or not. If this address is
-already reserved by other process(in case of chg == 0), we should
-decrement reserve count, because this allocated page will go into page
-cache and currently, there is no way to know that this page comes from
-reserved pool or not when releasing inode. This may introduce
-over-counting problem to reserved count. With following example code,
-you can easily reproduce this situation.
+On 2013/7/15 17:20, Michal Hocko wrote:
+> On Mon 15-07-13 11:07:52, Li Zefan wrote:
+>> On 2013/7/12 18:37, Michal Hocko wrote:
+>>> On Fri 12-07-13 17:54:27, Li Zefan wrote:
+>>>> On 2013/7/12 17:29, Michal Hocko wrote:
+>>>>> On Fri 12-07-13 17:20:09, Li Zefan wrote:
+>>>>> [...]
+>>>>>> But if I read the code correctly, even no one registers a vmpressure event,
+>>>>>> vmpressure() is always running and queue the work item.
+>>>>>
+>>>>> True but checking there is somebody is rather impractical. First we
+>>>>> would have to take a events_lock to check this and then drop it after
+>>>>> scheduling the work. Which doesn't guarantee that the registered event
+>>>>> wouldn't go away.
+>>>>> And even trickier, we would have to do the same for all parents up the
+>>>>> hierarchy.
+>>>>>
+>>>>
+>>>> The thing is, we can forget about eventfd. eventfd is checked in
+>>>> vmpressure_work_fn(), while vmpressure() is always called no matter what.
+>>>
+>>> But vmpressure is called only for an existing memcg. This means that
+>>> it cannot be called past css_offline so it must happen _before_ cgroup
+>>> eventfd cleanup code.
+>>>
+>>> Or am I missing something?
+>>>
+>>
+>> Yeah.
+>>
+>> The vmpressure work item is queued if we sense some memory pressure, no matter
+>> if there is any eventfd ever registered. This is the point.
+> 
+> But it is queued on vmpr which is embedded in the memcg which is the
+> _target_ of the reclaim. There is _no reclaim_ for a memcg after css has
+> been deactivated which happens _before_ css_offline.
+> 
 
-        size = 20 * MB;
-        flag = MAP_SHARED;
-        p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
-        if (p == MAP_FAILED) {
-                fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
-                return -1;
-        }
+1. vmpressure() is called, and the work is queued.
+2. then we rmdir cgroup, and struct mem_cgroup is freed finally.
+3. workqueue schedules the work to run:
 
-        flag = MAP_SHARED | MAP_NORESERVE;
-        q = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
-        if (q == MAP_FAILED) {
-                fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
-        }
-        q[0] = 'c';
+static void vmpressure_work_fn(struct work_struct *work)
+{
+        struct vmpressure *vmpr = work_to_vmpressure(work)
+...
 
-This patch solve this problem.
+As vmpr is embeded in struct mem_cgroup, and memcg has been freed, this
+leads to invalid memory access.
 
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index ed2d0af..defb180 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -443,10 +443,23 @@ void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
- }
- 
- /* Returns true if the VMA has associated reserve pages */
--static int vma_has_reserves(struct vm_area_struct *vma)
-+static int vma_has_reserves(struct vm_area_struct *vma, long chg)
- {
--	if (vma->vm_flags & VM_NORESERVE)
--		return 0;
-+	if (vma->vm_flags & VM_NORESERVE) {
-+		/*
-+		 * This address is already reserved by other process(chg == 0),
-+		 * so, we should decreament reserved count. Without
-+		 * decreamenting, reserve count is remained after releasing
-+		 * inode, because this allocated page will go into page cache
-+		 * and is regarded as coming from reserved pool in releasing
-+		 * step. Currently, we don't have any other solution to deal
-+		 * with this situation properly, so add work-around here.
-+		 */
-+		if (vma->vm_flags & VM_MAYSHARE && chg == 0)
-+			return 1;
-+		else
-+			return 0;
-+	}
- 
- 	/* Shared mappings always use reserves */
- 	if (vma->vm_flags & VM_MAYSHARE)
-@@ -520,7 +533,8 @@ static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
- 
- static struct page *dequeue_huge_page_vma(struct hstate *h,
- 				struct vm_area_struct *vma,
--				unsigned long address, int avoid_reserve)
-+				unsigned long address, int avoid_reserve,
-+				long chg)
- {
- 	struct page *page = NULL;
- 	struct mempolicy *mpol;
-@@ -535,7 +549,7 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
- 	 * have no page reserves. This check ensures that reservations are
- 	 * not "stolen". The child may still get SIGKILLed
- 	 */
--	if (!vma_has_reserves(vma) &&
-+	if (!vma_has_reserves(vma, chg) &&
- 			h->free_huge_pages - h->resv_huge_pages == 0)
- 		return NULL;
- 
-@@ -553,8 +567,12 @@ retry_cpuset:
- 		if (cpuset_zone_allowed_softwall(zone, htlb_alloc_mask)) {
- 			page = dequeue_huge_page_node(h, zone_to_nid(zone));
- 			if (page) {
--				if (!avoid_reserve && vma_has_reserves(vma))
--					h->resv_huge_pages--;
-+				if (avoid_reserve)
-+					break;
-+				if (!vma_has_reserves(vma, chg))
-+					break;
-+
-+				h->resv_huge_pages--;
- 				break;
- 			}
- 		}
-@@ -1139,7 +1157,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
- 	}
- 
- 	spin_lock(&hugetlb_lock);
--	page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve);
-+	page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve, chg);
- 	if (!page) {
- 		spin_unlock(&hugetlb_lock);
- 		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
--- 
-1.7.9.5
+NOTE: no one ever registered an eventfd!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
