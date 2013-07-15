@@ -1,149 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id E2B9D6B009B
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 00:18:38 -0400 (EDT)
-Received: by mail-lb0-f179.google.com with SMTP id w20so8858022lbh.24
-        for <linux-mm@kvack.org>; Sun, 14 Jul 2013 21:18:37 -0700 (PDT)
-Message-ID: <51E37819.8020207@openvz.org>
-Date: Mon, 15 Jul 2013 08:18:33 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id F14066B009D
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 02:32:31 -0400 (EDT)
+Received: by mail-la0-f42.google.com with SMTP id eb20so9189782lab.1
+        for <linux-mm@kvack.org>; Sun, 14 Jul 2013 23:32:30 -0700 (PDT)
+Date: Mon, 15 Jul 2013 10:32:26 +0400
+From: Glauber Costa <glommer@gmail.com>
+Subject: Re: [PATCH V4 5/6] memcg: patch
+ mem_cgroup_{begin,end}_update_page_stat() out if only root memcg exists
+Message-ID: <20130715063224.GA3745@localhost.localdomain>
+References: <1373044710-27371-1-git-send-email-handai.szj@taobao.com>
+ <1373045623-27712-1-git-send-email-handai.szj@taobao.com>
+ <20130711145625.GK21667@dhcp22.suse.cz>
+ <CAFj3OHV=6YDcbKmSeuF3+oMv1HfZF1RxXHoiLgTk0wH5cJVsiQ@mail.gmail.com>
+ <CAFj3OHXF+ZjnaDS2L6ZmuHPx20+7XC9r-s7Gh=_TYOr4Opr4Bw@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/hugetlb: per-vma instantiation mutexes
-References: <1373671681.2448.10.camel@buesod1.americas.hpqcorp.net>
-In-Reply-To: <1373671681.2448.10.camel@buesod1.americas.hpqcorp.net>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAFj3OHXF+ZjnaDS2L6ZmuHPx20+7XC9r-s7Gh=_TYOr4Opr4Bw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr.bueso@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "AneeshKumarK.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, Greg Thelen <gthelen@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Mel Gorman <mgorman@suse.de>, Sha Zhengju <handai.szj@taobao.com>
 
-This seems incorrect. hugetlb_instantiation_mutex protects chains of struct file_region
-in inode->i_mapping->private_list (VM_MAYSHARE) or vma_resv_map(vma)->regions (!VM_MAYSHARE)
-These chains obviously can be shared between several vmas, so per-vma lock cannot protect them.
+On Fri, Jul 12, 2013 at 09:13:56PM +0800, Sha Zhengju wrote:
+> Ooops.... it seems unreachable, change Glauber's email...
+> 
+> 
+> On Fri, Jul 12, 2013 at 8:59 PM, Sha Zhengju <handai.szj@gmail.com> wrote:
+> 
+> > Add cc to Glauber
+> >
+Thanks
 
-Davidlohr Bueso wrote:
-> The hugetlb_instantiation_mutex serializes hugepage allocation and instantiation
-> in the page directory entry. It was found that this mutex can become quite contended
-> during the early phases of large databases which make use of huge pages - for instance
-> startup and initial runs. One clear example is a 1.5Gb Oracle database, where lockstat
-> reports that this mutex can be one of the top 5 most contended locks in the kernel during
-> the first few minutes:
->
-> hugetlb_instantiation_mutex:      10678     10678
->               ---------------------------
->               hugetlb_instantiation_mutex    10678  [<ffffffff8115e14e>] hugetlb_fault+0x9e/0x340
->               ---------------------------
->               hugetlb_instantiation_mutex    10678  [<ffffffff8115e14e>] hugetlb_fault+0x9e/0x340
->
-> contentions:          10678
-> acquisitions:         99476
-> waittime-total: 76888911.01 us
->
-> Instead of serializing each hugetlb fault, we can deal with concurrent faults for pages
-> in different vmas. The per-vma mutex is initialized when creating a new vma. So, back to
-> the example above, we now get much less contention:
->
->   &vma->hugetlb_instantiation_mutex:  1         1
->         ---------------------------------
->         &vma->hugetlb_instantiation_mutex       1   [<ffffffff8115e216>] hugetlb_fault+0xa6/0x350
->         ---------------------------------
->         &vma->hugetlb_instantiation_mutex       1    [<ffffffff8115e216>] hugetlb_fault+0xa6/0x350
->
-> contentions:          1
-> acquisitions:    108092
-> waittime-total:  621.24 us
->
-> Signed-off-by: Davidlohr Bueso<davidlohr.bueso@hp.com>
-> ---
->   include/linux/mm_types.h |  3 +++
->   mm/hugetlb.c             | 12 +++++-------
->   mm/mmap.c                |  3 +++
->   3 files changed, 11 insertions(+), 7 deletions(-)
->
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index fb425aa..b45fd87 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -289,6 +289,9 @@ struct vm_area_struct {
->   #ifdef CONFIG_NUMA
->   	struct mempolicy *vm_policy;	/* NUMA policy for the VMA */
->   #endif
-> +#ifdef CONFIG_HUGETLB_PAGE
-> +	struct mutex hugetlb_instantiation_mutex;
-> +#endif
->   };
->
->   struct core_thread {
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 83aff0a..12e665b 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -137,12 +137,12 @@ static inline struct hugepage_subpool *subpool_vma(struct vm_area_struct *vma)
->    * The region data structures are protected by a combination of the mmap_sem
->    * and the hugetlb_instantion_mutex.  To access or modify a region the caller
->    * must either hold the mmap_sem for write, or the mmap_sem for read and
-> - * the hugetlb_instantiation mutex:
-> + * the vma's hugetlb_instantiation mutex:
->    *
->    *	down_write(&mm->mmap_sem);
->    * or
->    *	down_read(&mm->mmap_sem);
-> - *	mutex_lock(&hugetlb_instantiation_mutex);
-> + *	mutex_lock(&vma->hugetlb_instantiation_mutex);
->    */
->   struct file_region {
->   	struct list_head link;
-> @@ -2547,7 +2547,7 @@ static int unmap_ref_private(struct mm_struct *mm, struct vm_area_struct *vma,
->
->   /*
->    * Hugetlb_cow() should be called with page lock of the original hugepage held.
-> - * Called with hugetlb_instantiation_mutex held and pte_page locked so we
-> + * Called with the vma's hugetlb_instantiation_mutex held and pte_page locked so we
->    * cannot race with other handlers or page migration.
->    * Keep the pte_same checks anyway to make transition from the mutex easier.
->    */
-> @@ -2847,7 +2847,6 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->   	int ret;
->   	struct page *page = NULL;
->   	struct page *pagecache_page = NULL;
-> -	static DEFINE_MUTEX(hugetlb_instantiation_mutex);
->   	struct hstate *h = hstate_vma(vma);
->
->   	address&= huge_page_mask(h);
-> @@ -2872,7 +2871,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->   	 * get spurious allocation failures if two CPUs race to instantiate
->   	 * the same page in the page cache.
->   	 */
-> -	mutex_lock(&hugetlb_instantiation_mutex);
-> +	mutex_lock(&vma->hugetlb_instantiation_mutex);
->   	entry = huge_ptep_get(ptep);
->   	if (huge_pte_none(entry)) {
->   		ret = hugetlb_no_page(mm, vma, address, ptep, flags);
-> @@ -2943,8 +2942,7 @@ out_page_table_lock:
->   	put_page(page);
->
->   out_mutex:
-> -	mutex_unlock(&hugetlb_instantiation_mutex);
-> -
-> +	mutex_unlock(&vma->hugetlb_instantiation_mutex);
->   	return ret;
->   }
->
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index fbad7b0..8f0b034 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -1543,6 +1543,9 @@ munmap_back:
->   	vma->vm_page_prot = vm_get_page_prot(vm_flags);
->   	vma->vm_pgoff = pgoff;
->   	INIT_LIST_HEAD(&vma->anon_vma_chain);
-> +#ifdef CONFIG_HUGETLB_PAGE
-> +	mutex_init(&vma->hugetlb_instantiation_mutex);
-> +#endif
->
->   	error = -EINVAL;	/* when rejecting VM_GROWSDOWN|VM_GROWSUP */
->
+> >
+> > On Thu, Jul 11, 2013 at 10:56 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> > > On Sat 06-07-13 01:33:43, Sha Zhengju wrote:
+> > >> From: Sha Zhengju <handai.szj@taobao.com>
+> > >>
+> > >> If memcg is enabled and no non-root memcg exists, all allocated
+> > >> pages belongs to root_mem_cgroup and wil go through root memcg
+> > >> statistics routines.  So in order to reduce overheads after adding
+> > >> memcg dirty/writeback accounting in hot paths, we use jump label to
+> > >> patch mem_cgroup_{begin,end}_update_page_stat() in or out when not
+> > >> used.
+> > >
+> > > I do not think this is enough. How much do you save? One atomic read.
+> > > This doesn't seem like a killer.
+> > >
+> > > I hoped we could simply not account at all and move counters to the root
+> > > cgroup once the label gets enabled.
+> >
+> > I have thought of this approach before, but it would probably run into
+> > another issue, e.g, each zone has a percpu stock named ->pageset to
+> > optimize the increment and decrement operations, and I haven't figure out a
+> > simpler and cheaper approach to handle that stock numbers if moving global
+> > counters to root cgroup, maybe we can just leave them and can afford the
+> > approximation?
+> >
+> > Glauber have already done lots of works here, in his previous patchset he
+> > also tried to move some global stats to root (
+> > http://comments.gmane.org/gmane.linux.kernel.cgroups/6291). May I steal
+> > some of your ideas here, Glauber? :P
+> >
+Of course. Please go ahead and keep me posted in my new address.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
