@@ -1,66 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 1D77B6B00A3
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 05:16:30 -0400 (EDT)
-Date: Mon, 15 Jul 2013 11:16:21 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 7/7] mm: compaction: add compaction to zone_reclaim_mode
-Message-ID: <20130715091621.GQ4081@redhat.com>
-References: <1370445037-24144-1-git-send-email-aarcange@redhat.com>
- <1370445037-24144-8-git-send-email-aarcange@redhat.com>
- <20130606100503.GH1936@suse.de>
- <20130711160216.GA30320@redhat.com>
- <51DFF5FD.8040007@gmail.com>
- <20130712160149.GB4524@redhat.com>
- <51E0900E.9080504@gmail.com>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 86DAE6B00A7
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 05:20:35 -0400 (EDT)
+Date: Mon, 15 Jul 2013 11:20:33 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2] vmpressure: make sure memcg stays alive until all
+ users are signaled
+Message-ID: <20130715092033.GB26199@dhcp22.suse.cz>
+References: <20130711093300.GE21667@dhcp22.suse.cz>
+ <20130711154408.GA9229@mtj.dyndns.org>
+ <20130711162215.GM21667@dhcp22.suse.cz>
+ <20130711163238.GC9229@mtj.dyndns.org>
+ <20130712084039.GA13224@dhcp22.suse.cz>
+ <51DFCA49.4080407@huawei.com>
+ <20130712092927.GA15307@dhcp22.suse.cz>
+ <51DFD253.3030501@huawei.com>
+ <20130712103731.GB15307@dhcp22.suse.cz>
+ <51E36788.6080308@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51E0900E.9080504@gmail.com>
+In-Reply-To: <51E36788.6080308@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hush Bensen <hush.bensen@gmail.com>
-Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>
+To: Li Zefan <lizefan@huawei.com>
+Cc: Tejun Heo <tj@kernel.org>, Anton Vorontsov <anton.vorontsov@linaro.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On Sat, Jul 13, 2013 at 07:23:58AM +0800, Hush Bensen wrote:
-> Do you mean your patch done this fair? There is target zone shrink as 
-> you mentiond in the vanilla kernel, however, your patch also done target 
-> compaction/reclaim, is this fair?
+On Mon 15-07-13 11:07:52, Li Zefan wrote:
+> On 2013/7/12 18:37, Michal Hocko wrote:
+> > On Fri 12-07-13 17:54:27, Li Zefan wrote:
+> >> On 2013/7/12 17:29, Michal Hocko wrote:
+> >>> On Fri 12-07-13 17:20:09, Li Zefan wrote:
+> >>> [...]
+> >>>> But if I read the code correctly, even no one registers a vmpressure event,
+> >>>> vmpressure() is always running and queue the work item.
+> >>>
+> >>> True but checking there is somebody is rather impractical. First we
+> >>> would have to take a events_lock to check this and then drop it after
+> >>> scheduling the work. Which doesn't guarantee that the registered event
+> >>> wouldn't go away.
+> >>> And even trickier, we would have to do the same for all parents up the
+> >>> hierarchy.
+> >>>
+> >>
+> >> The thing is, we can forget about eventfd. eventfd is checked in
+> >> vmpressure_work_fn(), while vmpressure() is always called no matter what.
+> > 
+> > But vmpressure is called only for an existing memcg. This means that
+> > it cannot be called past css_offline so it must happen _before_ cgroup
+> > eventfd cleanup code.
+> > 
+> > Or am I missing something?
+> > 
+> 
+> Yeah.
+> 
+> The vmpressure work item is queued if we sense some memory pressure, no matter
+> if there is any eventfd ever registered. This is the point.
 
-It's still not fair, zone_reclaim_mode cannot be (modulo major rework
-at least) as its whole point is to reclaim memory from the local node
-indefinitely, even if there's plenty of "free" or "reclaimable" memory
-in remote nodes.
+But it is queued on vmpr which is embedded in the memcg which is the
+_target_ of the reclaim. There is _no reclaim_ for a memcg after css has
+been deactivated which happens _before_ css_offline.
 
-But waking kswapd before all nodes are below the low wmark probably
-would make it even less fair than it is now, or at least it wouldn't
-provide a fariness increase.
+/me confused.
 
-The idea of allowing allocations in the min-low wmark range is that
-the "low" wmark would be restored soon anyway at the next
-zone_reclaim() invocation, and the zone_reclaim will still behave
-synchronous (like direct reclaim) without ever waking kswapd,
-regardless if we stop at the low or at the min. But if we stop at the
-"low" we're more susceptible to parallel allocation jitters as the
-jitter-error margin then becomes:
-
-		.nr_to_reclaim = max(nr_pages, SWAP_CLUSTER_MAX),
-
-which is just 1 single high order page in case of (1<<order) >=
-SWAP_CLUSTER_MAX. While if we use the "min" wmark after a successful
-zone_reclaim(zone) to decide if to allocate from the zone (the one
-passed to zone_reclaim, we may have more margin for allocation jitters
-in other CPUs of the same node, or interrupts.
-
-So this again is connected to altering the wmark calculation for high
-order pages in the previous patch (which also is intended to allow
-having more than 1 THP page in the low-min wmark range). We don't need
-many, too many is just a waste of CPU, but a few more than 1
-significantly improves the NUMA locality on first allocation if all
-CPUs in the node are allocating memory at the same time. I also
-trimmed down to zero the high order page requirement for the min
-wmark, as we don't need to guarantee hugepage availability for
-PF_MEMALLOC (which avoids useless compaction work).
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
