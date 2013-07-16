@@ -1,71 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id DF87B6B0032
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 20:37:53 -0400 (EDT)
-Date: Tue, 16 Jul 2013 09:37:54 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC PATCH 1/5] mm, page_alloc: support multiple pages allocation
-Message-ID: <20130716003754.GB2430@lge.com>
-References: <1372840460-5571-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1372840460-5571-2-git-send-email-iamjoonsoo.kim@lge.com>
- <51DDE5BA.9020800@intel.com>
- <20130711010248.GB7756@lge.com>
- <51DE44CC.2070700@sr71.net>
- <20130711061201.GA2400@lge.com>
- <51E02F6E.1060303@sr71.net>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 59C4E6B0034
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 20:54:22 -0400 (EDT)
+Message-ID: <51E49982.30402@asianux.com>
+Date: Tue, 16 Jul 2013 08:53:22 +0800
+From: Chen Gang <gang.chen@asianux.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <51E02F6E.1060303@sr71.net>
+Subject: Re: [PATCH] mm/slub.c: use 'unsigned long' instead of 'int' for variable
+ 'slub_debug'
+References: <51DF5F43.3080408@asianux.com> <0000013fd3283b9c-b5fe217c-fff3-47fd-be0b-31b00faba1f3-000000@email.amazonses.com> <51E33FFE.3010200@asianux.com> <0000013fe2b1bd10-efcc76b5-f75b-4a45-a278-a318e87b2571-000000@email.amazonses.com>
+In-Reply-To: <0000013fe2b1bd10-efcc76b5-f75b-4a45-a278-a318e87b2571-000000@email.amazonses.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, mpm@selenic.com, linux-mm@kvack.org
 
-On Fri, Jul 12, 2013 at 09:31:42AM -0700, Dave Hansen wrote:
-> On 07/10/2013 11:12 PM, Joonsoo Kim wrote:
-> > On Wed, Jul 10, 2013 at 10:38:20PM -0700, Dave Hansen wrote:
-> >> You're probably right for small numbers of pages.  But, if we're talking
-> >> about things that are more than, say, 100 pages (isn't the pcp batch
-> >> size clamped to 128 4k pages?) you surely don't want to be doing
-> >> buffered_rmqueue().
-> > 
-> > Yes, you are right.
-> > Firstly, I thought that I can use this for readahead. On my machine,
-> > readahead reads (maximum) 32 pages in advance if faulted. And batch size
-> > of percpu pages list is close to or larger than 32 pages
-> > on today's machine. So I didn't consider more than 32 pages before.
-> > But to cope with a request for more pages, using rmqueue_bulk() is
-> > a right way. How about using rmqueue_bulk() conditionally?
+On 07/15/2013 10:17 PM, Christoph Lameter wrote:
+> On Mon, 15 Jul 2013, Chen Gang wrote:
 > 
-> How about you test it both ways and see what is faster?
+>> > On 07/12/2013 09:53 PM, Christoph Lameter wrote:
+>>> > > On Fri, 12 Jul 2013, Chen Gang wrote:
+>>> > >
+>>>> > >> Since all values which can be assigned to 'slub_debug' are 'unsigned
+>>>> > >> long', recommend also to define 'slub_debug' as 'unsigned long' to
+>>>> > >> match the type precisely
+>>> > >
+>>> > > The bit definitions in slab.h as well as slub.c all assume that these are
+>>> > > 32 bit entities. See f.e. the defition of the internal slub flags:
+>>> > >
+>>> > > /* Internal SLUB flags */
+>>> > > #define __OBJECT_POISON         0x80000000UL /* Poison object */
+>>> > > #define __CMPXCHG_DOUBLE        0x40000000UL /* Use cmpxchg_double */
+>>> > >
+>> >
+>> > As far as I know, 'UL' means "unsigned long", is it correct ?
+> This is the way hex constants are generally specified.
+> 
+> 
 
-It is not easy to test which one is better, because a difference may be
-appeared on certain circumstances only. Do not grab the global lock
-as much as possible is preferable approach to me.
+The C compiler will treat 'UL' as "unsigned long".
 
-> 
-> > Hmm, rmqueue_bulk() doesn't stop until all requested pages are allocated.
-> > If we request too many pages (1024 pages or more), interrupt latency can
-> > be a problem.
-> 
-> OK, so only call it for the number of pages you believe allows it to
-> have acceptable interrupt latency.  If you want 200 pages, and you can
-> only disable interrupts for 100 pages, then just do it in two batches.
-> 
-> The point is that you want to avoid messing with the buffering by the
-> percpu structures.  They're just overhead in your case.
+If we really use 32-bit as unsigned number, better to use 'U' instead of
+'UL' (e.g. 0x80000000U instead of 0x80000000UL).
 
-Okay.
+Since it is unsigned 32-bit number, it is better to use 'unsigned int'
+instead of 'int', which can avoid related warnings if "EXTRA_CFLAGS=-W".
+
 
 Thanks.
-
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+-- 
+Chen Gang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
