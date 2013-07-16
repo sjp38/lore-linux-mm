@@ -1,196 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 2652C6B0034
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 19:33:04 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id AF7CC6B0034
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 19:36:40 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 17 Jul 2013 09:22:49 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id A12393578052
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 09:32:59 +1000 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6GNHi486553860
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 09:17:44 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6GNWwKQ025729
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 09:32:58 +1000
-Date: Wed, 17 Jul 2013 07:32:57 +0800
+	Wed, 17 Jul 2013 20:32:10 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 0A9BF2CE802D
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 09:36:34 +1000 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6GNaOwh6881642
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 09:36:24 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6GNaXqU024649
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 09:36:33 +1000
+Date: Wed, 17 Jul 2013 07:36:32 +0800
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 03/10] mm: zone_reclaim: compaction: don't depend on
- kswapd to invoke reset_isolation_suitable
-Message-ID: <20130716233257.GC30164@hacker.(null)>
+Subject: Re: [PATCH] mm: vmstats: tlb flush counters
+Message-ID: <20130716233632.GD30164@hacker.(null)>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1373982114-19774-1-git-send-email-aarcange@redhat.com>
- <1373982114-19774-4-git-send-email-aarcange@redhat.com>
+References: <20130716155304.AF1A88F8@viggo.jf.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1373982114-19774-4-git-send-email-aarcange@redhat.com>
+In-Reply-To: <20130716155304.AF1A88F8@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>, Hush Bensen <hush.bensen@gmail.com>
+To: Dave Hansen <dave@sr71.net>
+Cc: linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org
 
-On Tue, Jul 16, 2013 at 03:41:47PM +0200, Andrea Arcangeli wrote:
->If kswapd never need to run (only __GFP_NO_KSWAPD allocations and
->plenty of free memory) compaction is otherwise crippled down and stops
->running for a while after the free/isolation cursor meets. After that
->allocation can fail for a full cycle of compaction_deferred, until
->compaction_restarting finally reset it again.
+On Tue, Jul 16, 2013 at 08:53:04AM -0700, Dave Hansen wrote:
+>I was investigating some TLB flush scaling issues and realized
+>that we do not have any good methods for figuring out how many
+>TLB flushes we are doing.
 >
->Stopping compaction for a full cycle after the cursor meets, even if
->it never failed and it's not going to fail, doesn't make sense.
+>It would be nice to be able to do these in generic code, but the
+>arch-independent calls don't explicitly specify whether we
+>actually need to do remote flushes or not.  In the end, we really
+>need to know if we actually _did_ global vs. local invalidations,
+>so that leaves us with few options other than to muck with the
+>counters from arch-specific code.
 >
->We already throttle compaction CPU utilization using
->defer_compaction. We shouldn't prevent compaction to run after each
->pass completes when the cursor meets, unless it failed.
+>Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 >
->This makes direct compaction functional again. The throttling of
->direct compaction is still controlled by the defer_compaction
->logic.
->
->kswapd still won't risk to reset compaction, and it will wait direct
->compaction to do so. Not sure if this is ideal but it at least
->decreases the risk of kswapd doing too much work. kswapd will only run
->one pass of compaction until some allocation invokes compaction again.
->
->This decreased reliability of compaction was introduced in commit
->62997027ca5b3d4618198ed8b1aba40b61b1137b .
->
->Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
->Reviewed-by: Rik van Riel <riel@redhat.com>
->Acked-by: Rafael Aquini <aquini@redhat.com>
->Acked-by: Mel Gorman <mgorman@suse.de>
 
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+There is no context in the patch?
 
->---
-> include/linux/compaction.h |  5 -----
-> include/linux/mmzone.h     |  3 ---
-> mm/compaction.c            | 15 ++++++---------
-> mm/page_alloc.c            |  1 -
-> mm/vmscan.c                |  8 --------
-> 5 files changed, 6 insertions(+), 26 deletions(-)
->
->diff --git a/include/linux/compaction.h b/include/linux/compaction.h
->index 091d72e..fc3f266 100644
->--- a/include/linux/compaction.h
->+++ b/include/linux/compaction.h
->@@ -24,7 +24,6 @@ extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
-> 			int order, gfp_t gfp_mask, nodemask_t *mask,
-> 			bool sync, bool *contended);
-> extern void compact_pgdat(pg_data_t *pgdat, int order);
->-extern void reset_isolation_suitable(pg_data_t *pgdat);
-> extern unsigned long compaction_suitable(struct zone *zone, int order);
->
-> /* Do not skip compaction more than 64 times */
->@@ -84,10 +83,6 @@ static inline void compact_pgdat(pg_data_t *pgdat, int order)
-> {
-> }
->
->-static inline void reset_isolation_suitable(pg_data_t *pgdat)
->-{
->-}
->-
-> static inline unsigned long compaction_suitable(struct zone *zone, int order)
-> {
-> 	return COMPACT_SKIPPED;
->diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
->index 9534a9a..e738871 100644
->--- a/include/linux/mmzone.h
->+++ b/include/linux/mmzone.h
->@@ -354,9 +354,6 @@ struct zone {
-> 	spinlock_t		lock;
-> 	int                     all_unreclaimable; /* All pages pinned */
-> #if defined CONFIG_COMPACTION || defined CONFIG_CMA
->-	/* Set to true when the PG_migrate_skip bits should be cleared */
->-	bool			compact_blockskip_flush;
->-
-> 	/* pfns where compaction scanners should start */
-> 	unsigned long		compact_cached_free_pfn;
-> 	unsigned long		compact_cached_migrate_pfn;
->diff --git a/mm/compaction.c b/mm/compaction.c
->index cac9594..525baaa 100644
->--- a/mm/compaction.c
->+++ b/mm/compaction.c
->@@ -91,7 +91,6 @@ static void __reset_isolation_suitable(struct zone *zone)
->
-> 	zone->compact_cached_migrate_pfn = start_pfn;
-> 	zone->compact_cached_free_pfn = end_pfn;
->-	zone->compact_blockskip_flush = false;
->
-> 	/* Walk the zone and mark every pageblock as suitable for isolation */
-> 	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
->@@ -110,7 +109,7 @@ static void __reset_isolation_suitable(struct zone *zone)
-> 	}
-> }
->
->-void reset_isolation_suitable(pg_data_t *pgdat)
->+static void reset_isolation_suitable(pg_data_t *pgdat)
-> {
-> 	int zoneid;
->
->@@ -120,8 +119,7 @@ void reset_isolation_suitable(pg_data_t *pgdat)
-> 			continue;
->
-> 		/* Only flush if a full compaction finished recently */
->-		if (zone->compact_blockskip_flush)
->-			__reset_isolation_suitable(zone);
->+		__reset_isolation_suitable(zone);
-> 	}
-> }
->
->@@ -828,13 +826,12 @@ static int compact_finished(struct zone *zone,
-> 	/* Compaction run completes if the migrate and free scanner meet */
-> 	if (cc->free_pfn <= cc->migrate_pfn) {
-> 		/*
->-		 * Mark that the PG_migrate_skip information should be cleared
->-		 * by kswapd when it goes to sleep. kswapd does not set the
->-		 * flag itself as the decision to be clear should be directly
->-		 * based on an allocation request.
->+		 * Clear the PG_migrate_skip information. kswapd does
->+		 * not clear it as the decision to be clear should be
->+		 * directly based on an allocation request.
-> 		 */
-> 		if (!current_is_kswapd())
->-			zone->compact_blockskip_flush = true;
->+			__reset_isolation_suitable(zone);
->
-> 		return COMPACT_COMPLETE;
-> 	}
->diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->index b100255..db8fb66 100644
->--- a/mm/page_alloc.c
->+++ b/mm/page_alloc.c
->@@ -2190,7 +2190,6 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
-> 				alloc_flags & ~ALLOC_NO_WATERMARKS,
-> 				preferred_zone, migratetype);
-> 		if (page) {
->-			preferred_zone->compact_blockskip_flush = false;
-> 			preferred_zone->compact_considered = 0;
-> 			preferred_zone->compact_defer_shift = 0;
-> 			if (order >= preferred_zone->compact_order_failed)
->diff --git a/mm/vmscan.c b/mm/vmscan.c
->index 042fdcd..85a0071 100644
->--- a/mm/vmscan.c
->+++ b/mm/vmscan.c
->@@ -3091,14 +3091,6 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
-> 		 */
-> 		set_pgdat_percpu_threshold(pgdat, calculate_normal_threshold);
->
->-		/*
->-		 * Compaction records what page blocks it recently failed to
->-		 * isolate pages from and skips them in the future scanning.
->-		 * When kswapd is going to sleep, it is reasonable to assume
->-		 * that pages and compaction may succeed so reset the cache.
->-		 */
->-		reset_isolation_suitable(pgdat);
->-
-> 		if (!kthread_should_stop())
-> 			schedule();
->
->
 >--
 >To unsubscribe, send a message with 'unsubscribe linux-mm' in
 >the body to majordomo@kvack.org.  For more info on Linux MM,
