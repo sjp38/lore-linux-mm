@@ -1,54 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 611716B0032
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 21:51:34 -0400 (EDT)
-Message-ID: <51E4A719.4020703@redhat.com>
-Date: Mon, 15 Jul 2013 21:51:21 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 6F4496B0032
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 21:55:59 -0400 (EDT)
+Date: Tue, 16 Jul 2013 10:56:00 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 6/9] mm, hugetlb: do not use a page in page cache for cow
+ optimization
+Message-ID: <20130716015600.GH2430@lge.com>
+References: <1373881967-16153-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1373881967-16153-7-git-send-email-iamjoonsoo.kim@lge.com>
+ <87d2qkj5b7.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/hugetlb: per-vma instantiation mutexes
-References: <1373671681.2448.10.camel@buesod1.americas.hpqcorp.net> <alpine.LNX.2.00.1307121729590.3899@eggly.anvils> <1373858204.13826.9.camel@buesod1.americas.hpqcorp.net> <20130715072432.GA28053@voom.fritz.box>
-In-Reply-To: <20130715072432.GA28053@voom.fritz.box>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87d2qkj5b7.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Gibson <david@gibson.dropbear.id.au>
-Cc: Davidlohr Bueso <davidlohr.bueso@hp.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Michal Hocko <mhocko@suse.cz>, "AneeshKumarK.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 07/15/2013 03:24 AM, David Gibson wrote:
-> On Sun, Jul 14, 2013 at 08:16:44PM -0700, Davidlohr Bueso wrote:
+On Mon, Jul 15, 2013 at 07:25:40PM +0530, Aneesh Kumar K.V wrote:
+> Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
+> 
+> > Currently, we use a page with mapped count 1 in page cache for cow
+> > optimization. If we find this condition, we don't allocate a new
+> > page and copy contents. Instead, we map this page directly.
+> > This may introduce a problem that writting to private mapping overwrite
+> > hugetlb file directly. You can find this situation with following code.
+> >
+> >         size = 20 * MB;
+> >         flag = MAP_SHARED;
+> >         p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
+> >         if (p == MAP_FAILED) {
+> >                 fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
+> >                 return -1;
+> >         }
+> >         p[0] = 's';
+> >         fprintf(stdout, "BEFORE STEAL PRIVATE WRITE: %c\n", p[0]);
+> >         munmap(p, size);
+> >
+> >         flag = MAP_PRIVATE;
+> >         p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
+> >         if (p == MAP_FAILED) {
+> >                 fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
+> >         }
+> >         p[0] = 'c';
+> >         munmap(p, size);
+> >
+> >         flag = MAP_SHARED;
+> >         p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
+> >         if (p == MAP_FAILED) {
+> >                 fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
+> >                 return -1;
+> >         }
+> >         fprintf(stdout, "AFTER STEAL PRIVATE WRITE: %c\n", p[0]);
+> >         munmap(p, size);
+> >
+> > We can see that "AFTER STEAL PRIVATE WRITE: c", not "AFTER STEAL
+> > PRIVATE WRITE: s". If we turn off this optimization to a page
+> > in page cache, the problem is disappeared.
+> 
+> Do we need to trun of the optimization for page cache completely ?
+> Can't we check for MAP_PRIVATE case ?
 
->>> Reading the existing comment, this change looks very suspicious to me.
->>> A per-vma mutex is just not going to provide the necessary exclusion, is
->>> it?  (But I recall next to nothing about these regions and
->>> reservations.)
->
-> A per-VMA lock is definitely wrong.  I think it handles one form of
-> the race, between threads sharing a VM on a MAP_PRIVATE mapping.
-> However another form of the race can and does occur between different
-> MAP_SHARED VMAs in the same or different processes.  I think there may
-> be edge cases involving mremap() and MAP_PRIVATE that will also be
-> missed by a per-VMA lock.
->
-> Note that the libhugetlbfs testsuite contains tests for both PRIVATE
-> and SHARED variants of the race.
+IMO, we need to turn off the optimization for page cache completely.
+This optimization works just for MAP_PRIVATE case.
+If we map with MAP_SHARED, we map a page from page cache directly,
+so we don't need this cow optimization.
 
-Can we get away with simply using a mutex in the file?
-Say vma->vm_file->mapping->i_mmap_mutex?
+> 
+> Also, we may want to add the above test into libhugetlbfs 
 
-That might help with multiple processes initializing
-multiple shared memory segments at the same time, and
-should not hurt the case of a process mapping its own
-hugetlbfs area.
+I will submit the above test into libhugetlbfs.
 
-It might have the potential to hurt when getting private
-copies on a MAP_PRIVATE area, though.  I have no idea
-how common it is for multiple processes to MAP_PRIVATE
-the same hugetlbfs file, though...
+Thanks.
 
--- 
-All rights reversed
+> 
+> >
+> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> >
+> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> > index d4a1695..6c1eb9b 100644
+> > --- a/mm/hugetlb.c
+> > +++ b/mm/hugetlb.c
+> > @@ -2512,7 +2512,6 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+> >  {
+> >  	struct hstate *h = hstate_vma(vma);
+> >  	struct page *old_page, *new_page;
+> > -	int avoidcopy;
+> >  	int outside_reserve = 0;
+> >  	unsigned long mmun_start;	/* For mmu_notifiers */
+> >  	unsigned long mmun_end;		/* For mmu_notifiers */
+> > @@ -2522,10 +2521,8 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+> >  retry_avoidcopy:
+> >  	/* If no-one else is actually using this page, avoid the copy
+> >  	 * and just make the page writable */
+> > -	avoidcopy = (page_mapcount(old_page) == 1);
+> > -	if (avoidcopy) {
+> > -		if (PageAnon(old_page))
+> > -			page_move_anon_rmap(old_page, vma, address);
+> > +	if (page_mapcount(old_page) == 1 && PageAnon(old_page)) {
+> > +		page_move_anon_rmap(old_page, vma, address);
+> >  		set_huge_ptep_writable(vma, address, ptep);
+> >  		return 0;
+> >  	}
+> 
+> -aneesh
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
