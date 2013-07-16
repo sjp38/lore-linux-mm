@@ -1,87 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 4B40A6B0032
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 23:36:12 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 16 Jul 2013 08:58:23 +0530
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 99A251258059
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 09:05:25 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6G3angH28115084
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 09:06:49 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6G3a5YF027274
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 13:36:06 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 1/9] mm, hugetlb: move up the code which check availability of free huge page
-In-Reply-To: <20130716011607.GD2430@lge.com>
-References: <1373881967-16153-1-git-send-email-iamjoonsoo.kim@lge.com> <1373881967-16153-2-git-send-email-iamjoonsoo.kim@lge.com> <87a9lnkjlu.fsf@linux.vnet.ibm.com> <20130716011607.GD2430@lge.com>
-Date: Tue, 16 Jul 2013 09:06:04 +0530
-Message-ID: <87a9lni3bv.fsf@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 17B7D6B0032
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 00:26:40 -0400 (EDT)
+Received: by mail-bk0-f47.google.com with SMTP id jg1so64999bkc.6
+        for <linux-mm@kvack.org>; Mon, 15 Jul 2013 21:26:38 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <CAHH2K0avjz=H8k2zo-P-QJt=9f61GoAmq+ceECzGNxdUx1PWbA@mail.gmail.com>
+References: <1373044710-27371-1-git-send-email-handai.szj@taobao.com>
+	<1373045623-27712-1-git-send-email-handai.szj@taobao.com>
+	<20130711145625.GK21667@dhcp22.suse.cz>
+	<CAHH2K0avjz=H8k2zo-P-QJt=9f61GoAmq+ceECzGNxdUx1PWbA@mail.gmail.com>
+Date: Tue, 16 Jul 2013 12:26:38 +0800
+Message-ID: <CAFj3OHX5cRZTyi-xXJHGOrkE8CbnJ0KFkEfB3FUuOr7bk+fWWQ@mail.gmail.com>
+Subject: Re: [PATCH V4 5/6] memcg: patch mem_cgroup_{begin,end}_update_page_stat()
+ out if only root memcg exists
+From: Sha Zhengju <handai.szj@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Greg Thelen <gthelen@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Mel Gorman <mgorman@suse.de>, Sha Zhengju <handai.szj@taobao.com>
 
-Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
+On Tue, Jul 16, 2013 at 1:58 AM, Greg Thelen <gthelen@google.com> wrote:
+> On Thu, Jul 11, 2013 at 7:56 AM, Michal Hocko <mhocko@suse.cz> wrote:
+>> On Sat 06-07-13 01:33:43, Sha Zhengju wrote:
+>>> From: Sha Zhengju <handai.szj@taobao.com>
+>>>
+>>> If memcg is enabled and no non-root memcg exists, all allocated
+>>> pages belongs to root_mem_cgroup and wil go through root memcg
+>>> statistics routines.  So in order to reduce overheads after adding
+>>> memcg dirty/writeback accounting in hot paths, we use jump label to
+>>> patch mem_cgroup_{begin,end}_update_page_stat() in or out when not
+>>> used.
+>>
+>> I do not think this is enough. How much do you save? One atomic read.
+>> This doesn't seem like a killer.
+>
+> Given we're already using mem_cgroup_{begin,end}_update_page_stat(),
+> this optimization seems independent of memcg dirty/writeback
+> accounting.  Does this patch help memcg even before dirty/writeback
+> accounting?  If yes, then we have the option of splitting this
+> optimization out of the series.
 
-> On Mon, Jul 15, 2013 at 07:31:33PM +0530, Aneesh Kumar K.V wrote:
->> Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
->> 
->> > We don't need to proceede the processing if we don't have any usable
->> > free huge page. So move this code up.
->> 
->> I guess you can also mention that since we are holding hugetlb_lock
->> hstate values can't change.
->
-> Okay. I will mention this for v2.
->
->> 
->> 
->> Also.
->> 
->> >
->> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->> >
->> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->> > index e2bfbf7..d87f70b 100644
->> > --- a/mm/hugetlb.c
->> > +++ b/mm/hugetlb.c
->> > @@ -539,10 +539,6 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
->> >  	struct zoneref *z;
->> >  	unsigned int cpuset_mems_cookie;
->> >
->> > -retry_cpuset:
->> > -	cpuset_mems_cookie = get_mems_allowed();
->> > -	zonelist = huge_zonelist(vma, address,
->> > -					htlb_alloc_mask, &mpol, &nodemask);
->> >  	/*
->> >  	 * A child process with MAP_PRIVATE mappings created by their parent
->> >  	 * have no page reserves. This check ensures that reservations are
->> > @@ -550,11 +546,16 @@ retry_cpuset:
->> >  	 */
->> >  	if (!vma_has_reserves(vma) &&
->> >  			h->free_huge_pages - h->resv_huge_pages == 0)
->> > -		goto err;
->> > +		return NULL;
->> >
->> 
->> If you don't do the above change, the patch will be much simpler. 
->
-> The patch will be, but output code will not.
-> With this change, we can remove one goto label('err:') and
-> this makes code more readable.
->
+Set_page_dirty is a hot path, people said I should be careful to the
+overhead of adding a new counting, and the optimization is a must
+before merging.
+But since we have more need of this feature now, if it's blocking
+something, I'm willing to split it.
 
-If you feel stronly about the cleanup, you can do another path for the
-cleanups. Don't mix things in a single patch. That makes review difficult.
-
--aneesh
+--
+Thanks,
+Sha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
