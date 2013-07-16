@@ -1,11 +1,9 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 0/6] mm/hugetlb: gigantic hugetlb page pools shrink
- supporting
-Date: Mon, 15 Jul 2013 19:31:09 +0800
-Message-ID: <41356.2888782055$1373887897@news.gmane.org>
-References: <1365066554-29195-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <20130411232907.GC29398@hacker.(null)>
- <20130412152237.GM16732@two.firstfloor.org>
+Subject: Re: [PATCH 1/8] mm: drop actor argument of do_generic_file_read()
+Date: Tue, 16 Jul 2013 11:31:48 +0800
+Message-ID: <47840.6440387063$1373945531@news.gmane.org>
+References: <1373885274-25249-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1373885274-25249-2-git-send-email-kirill.shutemov@linux.intel.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -13,60 +11,94 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1Uyh03-00023X-3J
-	for glkm-linux-mm-2@m.gmane.org; Mon, 15 Jul 2013 13:31:27 +0200
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 458B46B00DD
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 07:31:22 -0400 (EDT)
+	id 1Uyvze-0003KN-BI
+	for glkm-linux-mm-2@m.gmane.org; Tue, 16 Jul 2013 05:32:02 +0200
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 4AB6A6B0032
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 23:31:58 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 15 Jul 2013 16:55:46 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 53F2E1258053
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 17:00:33 +0530 (IST)
+	Tue, 16 Jul 2013 08:54:15 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 7FB7C3940058
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 09:01:47 +0530 (IST)
 Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6FBV98J28311638
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 17:01:09 +0530
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6G3WZE727459834
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 09:02:35 +0530
 Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6FBVB2q004860
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 21:31:12 +1000
+	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6G3Vnrc013142
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 13:31:49 +1000
 Content-Disposition: inline
-In-Reply-To: <20130412152237.GM16732@two.firstfloor.org>
+In-Reply-To: <1373885274-25249-2-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Hi Andi,
-On Fri, Apr 12, 2013 at 05:22:37PM +0200, Andi Kleen wrote:
->On Fri, Apr 12, 2013 at 07:29:07AM +0800, Wanpeng Li wrote:
->> Ping Andi,
->> On Thu, Apr 04, 2013 at 05:09:08PM +0800, Wanpeng Li wrote:
->> >order >= MAX_ORDER pages are only allocated at boot stage using the 
->> >bootmem allocator with the "hugepages=xxx" option. These pages are never 
->> >free after boot by default since it would be a one-way street(>= MAX_ORDER
->> >pages cannot be allocated later), but if administrator confirm not to 
->> >use these gigantic pages any more, these pinned pages will waste memory
->> >since other users can't grab free pages from gigantic hugetlb pool even
->> >if OOM, it's not flexible.  The patchset add hugetlb gigantic page pools
->> >shrink supporting. Administrator can enable knob exported in sysctl to
->> >permit to shrink gigantic hugetlb pool.
+On Mon, Jul 15, 2013 at 01:47:47PM +0300, Kirill A. Shutemov wrote:
+>From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 >
+>There's only one caller of do_generic_file_read() and the only actor is
+>file_read_actor(). No reason to have a callback parameter.
 >
->I originally didn't allow this because it's only one way and it seemed
->dubious.  I've been recently working on a new patchkit to allocate
->GB pages from CMA. With that freeing actually makes sense, as 
->the pages can be reallocated.
+>Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+>Acked-by: Dave Hansen <dave.hansen@linux.intel.com>
 
-How is your allocate hugetlb pages from CMA going on? If you don't have time
-I will have a try. ;-)
+Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Regards,
-Wanpeng Li 
-
+>---
+> mm/filemap.c | 10 +++++-----
+> 1 file changed, 5 insertions(+), 5 deletions(-)
 >
->-Andi
+>diff --git a/mm/filemap.c b/mm/filemap.c
+>index 4b51ac1..f6fe61f 100644
+>--- a/mm/filemap.c
+>+++ b/mm/filemap.c
+>@@ -1088,7 +1088,6 @@ static void shrink_readahead_size_eio(struct file *filp,
+>  * @filp:	the file to read
+>  * @ppos:	current file position
+>  * @desc:	read_descriptor
+>- * @actor:	read method
+>  *
+>  * This is a generic file read routine, and uses the
+>  * mapping->a_ops->readpage() function for the actual low-level stuff.
+>@@ -1097,7 +1096,7 @@ static void shrink_readahead_size_eio(struct file *filp,
+>  * of the logic when it comes to error handling etc.
+>  */
+> static void do_generic_file_read(struct file *filp, loff_t *ppos,
+>-		read_descriptor_t *desc, read_actor_t actor)
+>+		read_descriptor_t *desc)
+> {
+> 	struct address_space *mapping = filp->f_mapping;
+> 	struct inode *inode = mapping->host;
+>@@ -1198,13 +1197,14 @@ page_ok:
+> 		 * Ok, we have the page, and it's up-to-date, so
+> 		 * now we can copy it to user space...
+> 		 *
+>-		 * The actor routine returns how many bytes were actually used..
+>+		 * The file_read_actor routine returns how many bytes were
+>+		 * actually used..
+> 		 * NOTE! This may not be the same as how much of a user buffer
+> 		 * we filled up (we may be padding etc), so we can only update
+> 		 * "pos" here (the actor routine has to update the user buffer
+> 		 * pointers and the remaining count).
+> 		 */
+>-		ret = actor(desc, page, offset, nr);
+>+		ret = file_read_actor(desc, page, offset, nr);
+> 		offset += ret;
+> 		index += offset >> PAGE_CACHE_SHIFT;
+> 		offset &= ~PAGE_CACHE_MASK;
+>@@ -1477,7 +1477,7 @@ generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
+> 		if (desc.count == 0)
+> 			continue;
+> 		desc.error = 0;
+>-		do_generic_file_read(filp, ppos, &desc, file_read_actor);
+>+		do_generic_file_read(filp, ppos, &desc);
+> 		retval += desc.written;
+> 		if (desc.error) {
+> 			retval = retval ?: desc.error;
+>-- 
+>1.8.3.2
 >
 >--
 >To unsubscribe, send a message with 'unsubscribe linux-mm' in
