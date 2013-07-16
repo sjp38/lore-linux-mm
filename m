@@ -1,68 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 34E656B0032
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 18:49:48 -0400 (EDT)
-Date: Tue, 16 Jul 2013 15:49:45 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 03/11] ipc: drop ipcctl_pre_down
-Message-Id: <20130716154945.91aebe21a18ef3c4580c7a91@linux-foundation.org>
-In-Reply-To: <1371604716-3439-4-git-send-email-davidlohr.bueso@hp.com>
-References: <1371604716-3439-1-git-send-email-davidlohr.bueso@hp.com>
-	<1371604716-3439-4-git-send-email-davidlohr.bueso@hp.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 6F7386B0032
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 19:10:34 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <20130716191010.GC4855@linux.intel.com>
+References: <1373885274-25249-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1373885274-25249-2-git-send-email-kirill.shutemov@linux.intel.com>
+ <20130716191010.GC4855@linux.intel.com>
+Subject: Re: [PATCH 1/8] mm: drop actor argument of do_generic_file_read()
 Content-Transfer-Encoding: 7bit
+Message-Id: <20130716231327.36ED0E0090@blue.fi.intel.com>
+Date: Wed, 17 Jul 2013 02:13:27 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr.bueso@hp.com>
-Cc: riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Matthew Wilcox <willy@linux.intel.com>, Andreas Dilger <andreas.dilger@intel.com>, Peng Tao <tao.peng@emc.com>, Oleg Drokin <oleg.drokin@intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, 18 Jun 2013 18:18:28 -0700 Davidlohr Bueso <davidlohr.bueso@hp.com> wrote:
+Matthew Wilcox wrote:
+> On Mon, Jul 15, 2013 at 01:47:47PM +0300, Kirill A. Shutemov wrote:
+> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> > 
+> > There's only one caller of do_generic_file_read() and the only actor is
+> > file_read_actor(). No reason to have a callback parameter.
+> > 
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > Acked-by: Dave Hansen <dave.hansen@linux.intel.com>
+> 
+> Would it make sense to do the same thing to do_shmem_file_read()?
+> 
+> From: Matthew Wilcox <willy@linux.intel.com>
+> 
+> There's only one caller of do_shmem_file_read() and the only actor is
+> file_read_actor(). No reason to have a callback parameter.
+> 
+> Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
 
-> Now that sem, msgque and shm, through *_down(), all use the lockless
-> variant of ipcctl_pre_down(), go ahead and delete it.
+Looks good to me:
 
-Fixlets:
+Reviewed-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: ipc-drop-ipcctl_pre_down-fix
+v3.11-rc1 brings one more user for read_actor_t -- lustre. But it seemes
+it's artifact of ages when f_op had ->sendfile and it's not in use
+anymore.
 
-fix function name in kerneldoc, cleanups
-
-Cc: Davidlohr Bueso <davidlohr.bueso@hp.com>
-Cc: Manfred Spraul <manfred@colorfullife.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Sedat Dilek <sedat.dilek@gmail.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- ipc/util.c |    6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
-
-diff -puN ipc/util.c~ipc-drop-ipcctl_pre_down-fix ipc/util.c
---- a/ipc/util.c~ipc-drop-ipcctl_pre_down-fix
-+++ a/ipc/util.c
-@@ -733,7 +733,7 @@ int ipc_update_perm(struct ipc64_perm *i
- }
- 
- /**
-- * ipcctl_pre_down - retrieve an ipc and check permissions for some IPC_XXX cmd
-+ * ipcctl_pre_down_nolock - retrieve an ipc and check permissions for some IPC_XXX cmd
-  * @ns:  the ipc namespace
-  * @ids:  the table of ids where to look for the ipc
-  * @id:   the id of the ipc to retrieve
-@@ -751,8 +751,8 @@ int ipc_update_perm(struct ipc64_perm *i
-  * Call holding the both the rw_mutex and the rcu read lock.
-  */
- struct kern_ipc_perm *ipcctl_pre_down_nolock(struct ipc_namespace *ns,
--					     struct ipc_ids *ids, int id, int cmd,
--					     struct ipc64_perm *perm, int extra_perm)
-+					struct ipc_ids *ids, int id, int cmd,
-+					struct ipc64_perm *perm, int extra_perm)
- {
- 	kuid_t euid;
- 	int err = -EPERM;
-_
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
