@@ -1,69 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 70FB06B0032
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 21:49:02 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 81A613EE0AE
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 10:49:00 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 738B745DE4F
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 10:49:00 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E24645DE4E
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 10:49:00 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4CEF21DB803B
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 10:49:00 +0900 (JST)
-Received: from g01jpfmpwkw01.exch.g01.fujitsu.local (g01jpfmpwkw01.exch.g01.fujitsu.local [10.0.193.38])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0267C1DB802F
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 10:49:00 +0900 (JST)
-Message-ID: <51E4A660.7030804@jp.fujitsu.com>
-Date: Tue, 16 Jul 2013 10:48:16 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id 611716B0032
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 21:51:34 -0400 (EDT)
+Message-ID: <51E4A719.4020703@redhat.com>
+Date: Mon, 15 Jul 2013 21:51:21 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: migrate vmalloc area for memory hot-remove
-References: <20130715163701.GA16950@dhcp-192-168-178-175.profitbricks.localdomain>
-In-Reply-To: <20130715163701.GA16950@dhcp-192-168-178-175.profitbricks.localdomain>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Subject: Re: [PATCH] mm/hugetlb: per-vma instantiation mutexes
+References: <1373671681.2448.10.camel@buesod1.americas.hpqcorp.net> <alpine.LNX.2.00.1307121729590.3899@eggly.anvils> <1373858204.13826.9.camel@buesod1.americas.hpqcorp.net> <20130715072432.GA28053@voom.fritz.box>
+In-Reply-To: <20130715072432.GA28053@voom.fritz.box>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
-Cc: linux-mm@kvack.org, tangchen@cn.fujitsu.com
+To: David Gibson <david@gibson.dropbear.id.au>
+Cc: Davidlohr Bueso <davidlohr.bueso@hp.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Michal Hocko <mhocko@suse.cz>, "AneeshKumarK.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Hi Vasilis,
+On 07/15/2013 03:24 AM, David Gibson wrote:
+> On Sun, Jul 14, 2013 at 08:16:44PM -0700, Davidlohr Bueso wrote:
 
-(2013/07/16 1:37), Vasilis Liaskovitis wrote:
-> Hi Yasuaki,
+>>> Reading the existing comment, this change looks very suspicious to me.
+>>> A per-vma mutex is just not going to provide the necessary exclusion, is
+>>> it?  (But I recall next to nothing about these regions and
+>>> reservations.)
 >
-> in your memory hotplug slides at LinuxCon Japan 2013, you mention "migrate
-> vmalloc area" as one of the TODO items (slide 30 / 31):
+> A per-VMA lock is definitely wrong.  I think it handles one form of
+> the race, between threads sharing a VM on a MAP_PRIVATE mapping.
+> However another form of the race can and does occur between different
+> MAP_SHARED VMAs in the same or different processes.  I think there may
+> be edge cases involving mremap() and MAP_PRIVATE that will also be
+> missed by a per-VMA lock.
 >
-> http://events.linuxfoundation.org/sites/events/files/lcjp13_ishimatsu.pdf
->
+> Note that the libhugetlbfs testsuite contains tests for both PRIVATE
+> and SHARED variants of the race.
 
-> can you further explain this problem? Isn't this case handled already from the
-> current page migration code?
->
-> Do you have a specific testcase that can trigger this issue?
+Can we get away with simply using a mutex in the file?
+Say vma->vm_file->mapping->i_mmap_mutex?
 
-This item aims to increase removable memory.
+That might help with multiple processes initializing
+multiple shared memory segments at the same time, and
+should not hurt the case of a process mapping its own
+hugetlbfs area.
 
-When we use memory hot remove, we need to use ZONE_MOVABLE. But the use of
-the zone is limited. The zone can treat only anonymous page and page cache.
+It might have the potential to hurt when getting private
+copies on a MAP_PRIVATE area, though.  I have no idea
+how common it is for multiple processes to MAP_PRIVATE
+the same hugetlbfs file, though...
 
-So I want to enhance the zone to treat vmalloc area. But currently there
-is no patch.
-
-Thanks,
-Yasuaki Ishimatsu
-
->
-> thanks,
->
-> - Vasilis
->
-
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
