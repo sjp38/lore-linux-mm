@@ -1,34 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id A94306B003A
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 20:56:35 -0400 (EDT)
-Message-ID: <51E49A09.3050905@asianux.com>
-Date: Tue, 16 Jul 2013 08:55:37 +0800
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 2ABE56B0039
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 21:04:26 -0400 (EDT)
+Message-ID: <51E49BDF.30008@asianux.com>
+Date: Tue, 16 Jul 2013 09:03:27 +0800
 From: Chen Gang <gang.chen@asianux.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] mm/slub.c: beautify code for 80 column limitation
- and tab alignment.
-References: <51DF5F43.3080408@asianux.com> <51DF778B.8090701@asianux.com> <0000013fd32d0b91-4cab82b6-a24f-42e2-a1d2-ac5df2be6f4c-000000@email.amazonses.com> <51E34AD9.1080405@asianux.com> <0000013fe2b36068-ce1e0578-f0b1-4f3b-89a0-b1638af030bb-000000@email.amazonses.com>
-In-Reply-To: <0000013fe2b36068-ce1e0578-f0b1-4f3b-89a0-b1638af030bb-000000@email.amazonses.com>
+Subject: Re: [PATCH] mm/slub.c: add parameter length checking for alloc_loc_track()
+References: <51DA734B.4060608@asianux.com> <51DE549F.9070505@kernel.org> <51DE55C9.1060908@asianux.com> <0000013fce9f5b32-7d62f3c5-bb35-4dd9-ab19-d72bae4b5bdc-000000@email.amazonses.com> <51DEF935.4040804@kernel.org> <0000013fcf608df8-457e2029-51f9-4e49-9992-bf399a97d953-000000@email.amazonses.com> <51DF4540.8060700@asianux.com> <51DF4C94.3060103@asianux.com> <51DF5404.4060004@asianux.com> <0000013fd3250e40-1832fd38-ede3-41af-8fe3-5a0c10f5e5ce-000000@email.amazonses.com> <51E33F98.8060201@asianux.com> <0000013fe2e73e30-817f1bdb-8dc7-4f7b-9b60-b42d5d244fda-000000@email.amazonses.com>
+In-Reply-To: <0000013fe2e73e30-817f1bdb-8dc7-4f7b-9b60-b42d5d244fda-000000@email.amazonses.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, mpm@selenic.com, linux-mm@kvack.org
+Cc: Pekka Enberg <penberg@kernel.org>, mpm@selenic.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On 07/15/2013 10:19 PM, Christoph Lameter wrote:
+On 07/15/2013 11:16 PM, Christoph Lameter wrote:
 > On Mon, 15 Jul 2013, Chen Gang wrote:
 > 
->> Be sure of 80 column limitation for both code and comments.
+>> > On 07/12/2013 09:49 PM, Christoph Lameter wrote:
+>>> > > On Fri, 12 Jul 2013, Chen Gang wrote:
+>>> > >
+>>>> > >> Since alloc_loc_track() will alloc additional space, and already knows
+>>>> > >> about 'max', so need be sure of 'max' must be larger than 't->count'.
+>>> > >
+>>> > > alloc_loc_track is only called if t->count > max from add_location:
+>>> > >
+>> >
+>> > For add_location(), if "t->count > t->max", it calls alloc_loc_track()
+>> > with "max == 2 * t->max".
+>> >
+>> > In this case we need be sure that "t->count < 2 * t->max".
+> We are sure about that since t->count is always incremented by one and
+> then checked against t->max. The location database is build up from a
+> single hardware thread without any concurrency.
 > 
-> Acked-by: Christoph Lameter <cl@linux.com>
+> So we do not really need this patch.
 > 
 > 
 > 
 
-Thanks.  :-)
+Hmm... what you says above is reasonable.
 
+In this case, since alloc_loc_track() is a static function, it will
+depend on the related maintainers' willing and opinions to decide
+whether add the related check or not (just like add 'BUG_ON' or not).
+
+I need respect the original related maintainers' willing and opinions.
+
+
+Thanks.
 -- 
 Chen Gang
 
