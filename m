@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id CE1746B0032
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 023E96B0034
 	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 09:42:02 -0400 (EDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 07/10] mm: zone_reclaim: compaction: export compact_zone_order()
-Date: Tue, 16 Jul 2013 15:41:51 +0200
-Message-Id: <1373982114-19774-8-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 06/10] mm: zone_reclaim: compaction: increase the high order pages in the watermarks
+Date: Tue, 16 Jul 2013 15:41:50 +0200
+Message-Id: <1373982114-19774-7-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1373982114-19774-1-git-send-email-aarcange@redhat.com>
 References: <1373982114-19774-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,55 +13,27 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>, Hush Bensen <hush.bensen@gmail.com>
 
-Needed by zone_reclaim_mode compaction-awareness.
+Prevent the scaling down to reduce the watermarks too much.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- include/linux/compaction.h | 10 ++++++++++
- mm/compaction.c            |  2 +-
- 2 files changed, 11 insertions(+), 1 deletion(-)
+ mm/page_alloc.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index fc3f266..e953acb 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -23,6 +23,9 @@ extern int fragmentation_index(struct zone *zone, unsigned int order);
- extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 			int order, gfp_t gfp_mask, nodemask_t *mask,
- 			bool sync, bool *contended);
-+extern unsigned long compact_zone_order(struct zone *zone,
-+					int order, gfp_t gfp_mask,
-+					bool sync, bool *contended);
- extern void compact_pgdat(pg_data_t *pgdat, int order);
- extern unsigned long compaction_suitable(struct zone *zone, int order);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d94503d..f5ea1147 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1665,7 +1665,8 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+ 		free_pages -= z->free_area[o].nr_free << o;
  
-@@ -79,6 +82,13 @@ static inline unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 	return COMPACT_CONTINUE;
- }
+ 		/* Require fewer higher order pages to be free */
+-		min >>= 1;
++		if (o < (pageblock_order >> 2))
++			min >>= 1;
  
-+static inline unsigned long compact_zone_order(struct zone *zone,
-+					       int order, gfp_t gfp_mask,
-+					       bool sync, bool *contended)
-+{
-+	return COMPACT_CONTINUE;
-+}
-+
- static inline void compact_pgdat(pg_data_t *pgdat, int order)
- {
- }
-diff --git a/mm/compaction.c b/mm/compaction.c
-index afaf692..a1154c8 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1008,7 +1008,7 @@ out:
- 	return ret;
- }
- 
--static unsigned long compact_zone_order(struct zone *zone,
-+unsigned long compact_zone_order(struct zone *zone,
- 				 int order, gfp_t gfp_mask,
- 				 bool sync, bool *contended)
- {
+ 		if (free_pages <= min)
+ 			return false;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
