@@ -1,57 +1,184 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 59C4E6B0034
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 20:54:22 -0400 (EDT)
-Message-ID: <51E49982.30402@asianux.com>
-Date: Tue, 16 Jul 2013 08:53:22 +0800
-From: Chen Gang <gang.chen@asianux.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm/slub.c: use 'unsigned long' instead of 'int' for variable
- 'slub_debug'
-References: <51DF5F43.3080408@asianux.com> <0000013fd3283b9c-b5fe217c-fff3-47fd-be0b-31b00faba1f3-000000@email.amazonses.com> <51E33FFE.3010200@asianux.com> <0000013fe2b1bd10-efcc76b5-f75b-4a45-a278-a318e87b2571-000000@email.amazonses.com>
-In-Reply-To: <0000013fe2b1bd10-efcc76b5-f75b-4a45-a278-a318e87b2571-000000@email.amazonses.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 3824E6B0037
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 20:54:44 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id fa11so180752pad.33
+        for <linux-mm@kvack.org>; Mon, 15 Jul 2013 17:54:43 -0700 (PDT)
+From: Alexey Kardashevskiy <aik@ozlabs.ru>
+Subject: [PATCH 04/10] powerpc: Prepare to support kernel handling of IOMMU map/unmap
+Date: Tue, 16 Jul 2013 10:53:59 +1000
+Message-Id: <1373936045-22653-5-git-send-email-aik@ozlabs.ru>
+In-Reply-To: <1373936045-22653-1-git-send-email-aik@ozlabs.ru>
+References: <1373936045-22653-1-git-send-email-aik@ozlabs.ru>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, mpm@selenic.com, linux-mm@kvack.org
+To: linuxppc-dev@lists.ozlabs.org
+Cc: Alexey Kardashevskiy <aik@ozlabs.ru>, David Gibson <david@gibson.dropbear.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Alexander Graf <agraf@suse.de>, Alex Williamson <alex.williamson@redhat.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kvm-ppc@vger.kernel.org, linux-mm@kvack.org
 
-On 07/15/2013 10:17 PM, Christoph Lameter wrote:
-> On Mon, 15 Jul 2013, Chen Gang wrote:
-> 
->> > On 07/12/2013 09:53 PM, Christoph Lameter wrote:
->>> > > On Fri, 12 Jul 2013, Chen Gang wrote:
->>> > >
->>>> > >> Since all values which can be assigned to 'slub_debug' are 'unsigned
->>>> > >> long', recommend also to define 'slub_debug' as 'unsigned long' to
->>>> > >> match the type precisely
->>> > >
->>> > > The bit definitions in slab.h as well as slub.c all assume that these are
->>> > > 32 bit entities. See f.e. the defition of the internal slub flags:
->>> > >
->>> > > /* Internal SLUB flags */
->>> > > #define __OBJECT_POISON         0x80000000UL /* Poison object */
->>> > > #define __CMPXCHG_DOUBLE        0x40000000UL /* Use cmpxchg_double */
->>> > >
->> >
->> > As far as I know, 'UL' means "unsigned long", is it correct ?
-> This is the way hex constants are generally specified.
-> 
-> 
+The current VFIO-on-POWER implementation supports only user mode
+driven mapping, i.e. QEMU is sending requests to map/unmap pages.
+However this approach is really slow, so we want to move that to KVM.
+Since H_PUT_TCE can be extremely performance sensitive (especially with
+network adapters where each packet needs to be mapped/unmapped) we chose
+to implement that as a "fast" hypercall directly in "real
+mode" (processor still in the guest context but MMU off).
 
-The C compiler will treat 'UL' as "unsigned long".
+To be able to do that, we need to provide some facilities to
+access the struct page count within that real mode environment as things
+like the sparsemem vmemmap mappings aren't accessible.
 
-If we really use 32-bit as unsigned number, better to use 'U' instead of
-'UL' (e.g. 0x80000000U instead of 0x80000000UL).
+This adds an API to increment/decrement page counter as
+get_user_pages API used for user mode mapping does not work
+in the real mode.
 
-Since it is unsigned 32-bit number, it is better to use 'unsigned int'
-instead of 'int', which can avoid related warnings if "EXTRA_CFLAGS=-W".
+CONFIG_SPARSEMEM_VMEMMAP and CONFIG_FLATMEM are supported.
 
+Cc: linux-mm@kvack.org
+Reviewed-by: Paul Mackerras <paulus@samba.org>
+Signed-off-by: Paul Mackerras <paulus@samba.org>
+Signed-off-by: Alexey Kardashevskiy <aik@ozlabs.ru>
 
-Thanks.
+---
+
+Changes:
+2013/07/10:
+* adjusted comment (removed sentence about virtual mode)
+* get_page_unless_zero replaced with atomic_inc_not_zero to minimize
+effect of a possible get_page_unless_zero() rework (if it ever happens).
+
+2013/06/27:
+* realmode_get_page() fixed to use get_page_unless_zero(). If failed,
+the call will be passed from real to virtual mode and safely handled.
+* added comment to PageCompound() in include/linux/page-flags.h.
+
+2013/05/20:
+* PageTail() is replaced by PageCompound() in order to have the same checks
+for whether the page is huge in realmode_get_page() and realmode_put_page()
+
+Signed-off-by: Alexey Kardashevskiy <aik@ozlabs.ru>
+---
+ arch/powerpc/include/asm/pgtable-ppc64.h |  4 ++
+ arch/powerpc/mm/init_64.c                | 76 +++++++++++++++++++++++++++++++-
+ include/linux/page-flags.h               |  4 +-
+ 3 files changed, 82 insertions(+), 2 deletions(-)
+
+diff --git a/arch/powerpc/include/asm/pgtable-ppc64.h b/arch/powerpc/include/asm/pgtable-ppc64.h
+index 46db094..aa7b169 100644
+--- a/arch/powerpc/include/asm/pgtable-ppc64.h
++++ b/arch/powerpc/include/asm/pgtable-ppc64.h
+@@ -394,6 +394,10 @@ static inline void mark_hpte_slot_valid(unsigned char *hpte_slot_array,
+ 	hpte_slot_array[index] = hidx << 4 | 0x1 << 3;
+ }
+ 
++struct page *realmode_pfn_to_page(unsigned long pfn);
++int realmode_get_page(struct page *page);
++int realmode_put_page(struct page *page);
++
+ static inline char *get_hpte_slot_array(pmd_t *pmdp)
+ {
+ 	/*
+diff --git a/arch/powerpc/mm/init_64.c b/arch/powerpc/mm/init_64.c
+index d0cd9e4..dcbb806 100644
+--- a/arch/powerpc/mm/init_64.c
++++ b/arch/powerpc/mm/init_64.c
+@@ -300,5 +300,79 @@ void vmemmap_free(unsigned long start, unsigned long end)
+ {
+ }
+ 
+-#endif /* CONFIG_SPARSEMEM_VMEMMAP */
++/*
++ * We do not have access to the sparsemem vmemmap, so we fallback to
++ * walking the list of sparsemem blocks which we already maintain for
++ * the sake of crashdump. In the long run, we might want to maintain
++ * a tree if performance of that linear walk becomes a problem.
++ *
++ * Any of realmode_XXXX functions can fail due to:
++ * 1) As real sparsemem blocks do not lay in RAM continously (they
++ * are in virtual address space which is not available in the real mode),
++ * the requested page struct can be split between blocks so get_page/put_page
++ * may fail.
++ * 2) When huge pages are used, the get_page/put_page API will fail
++ * in real mode as the linked addresses in the page struct are virtual
++ * too.
++ */
++struct page *realmode_pfn_to_page(unsigned long pfn)
++{
++	struct vmemmap_backing *vmem_back;
++	struct page *page;
++	unsigned long page_size = 1 << mmu_psize_defs[mmu_vmemmap_psize].shift;
++	unsigned long pg_va = (unsigned long) pfn_to_page(pfn);
+ 
++	for (vmem_back = vmemmap_list; vmem_back; vmem_back = vmem_back->list) {
++		if (pg_va < vmem_back->virt_addr)
++			continue;
++
++		/* Check that page struct is not split between real pages */
++		if ((pg_va + sizeof(struct page)) >
++				(vmem_back->virt_addr + page_size))
++			return NULL;
++
++		page = (struct page *) (vmem_back->phys + pg_va -
++				vmem_back->virt_addr);
++		return page;
++	}
++
++	return NULL;
++}
++EXPORT_SYMBOL_GPL(realmode_pfn_to_page);
++
++#elif defined(CONFIG_FLATMEM)
++
++struct page *realmode_pfn_to_page(unsigned long pfn)
++{
++	struct page *page = pfn_to_page(pfn);
++	return page;
++}
++EXPORT_SYMBOL_GPL(realmode_pfn_to_page);
++
++#endif /* CONFIG_SPARSEMEM_VMEMMAP/CONFIG_FLATMEM */
++
++#if defined(CONFIG_SPARSEMEM_VMEMMAP) || defined(CONFIG_FLATMEM)
++int realmode_get_page(struct page *page)
++{
++	if (PageCompound(page))
++		return -EAGAIN;
++
++	if (!atomic_inc_not_zero(&page->_count))
++		return -EAGAIN;
++
++	return 0;
++}
++EXPORT_SYMBOL_GPL(realmode_get_page);
++
++int realmode_put_page(struct page *page)
++{
++	if (PageCompound(page))
++		return -EAGAIN;
++
++	if (!atomic_add_unless(&page->_count, -1, 1))
++		return -EAGAIN;
++
++	return 0;
++}
++EXPORT_SYMBOL_GPL(realmode_put_page);
++#endif
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 6d53675..98ada58 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -329,7 +329,9 @@ static inline void set_page_writeback(struct page *page)
+  * System with lots of page flags available. This allows separate
+  * flags for PageHead() and PageTail() checks of compound pages so that bit
+  * tests can be used in performance sensitive paths. PageCompound is
+- * generally not used in hot code paths.
++ * generally not used in hot code paths except arch/powerpc/mm/init_64.c
++ * and arch/powerpc/kvm/book3s_64_vio_hv.c which use it to detect huge pages
++ * and avoid handling those in real mode.
+  */
+ __PAGEFLAG(Head, head) CLEARPAGEFLAG(Head, head)
+ __PAGEFLAG(Tail, tail)
 -- 
-Chen Gang
+1.8.3.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
