@@ -1,122 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 9A3D86B0031
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 13:06:40 -0400 (EDT)
-From: Jan Kara <jack@suse.cz>
-Subject: [PATCH RFC] lib: Make radix_tree_node_alloc() irq safe
-Date: Tue, 16 Jul 2013 19:06:30 +0200
-Message-Id: <1373994390-5479-1-git-send-email-jack@suse.cz>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 2B4186B0031
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 13:53:28 -0400 (EDT)
+Subject: Re: Performance regression from switching lock to rw-sem for
+ anon-vma tree
+From: Tim Chen <tim.c.chen@linux.intel.com>
+In-Reply-To: <20130702064538.GB3143@gmail.com>
+References: <20130626095108.GB29181@gmail.com>
+	 <1372282560.22432.139.camel@schen9-DESK>
+	 <1372292701.22432.152.camel@schen9-DESK> <20130627083651.GA3730@gmail.com>
+	 <1372366385.22432.185.camel@schen9-DESK>
+	 <1372375873.22432.200.camel@schen9-DESK> <20130628093809.GB29205@gmail.com>
+	 <1372453461.22432.216.camel@schen9-DESK> <20130629071245.GA5084@gmail.com>
+	 <1372710497.22432.224.camel@schen9-DESK>  <20130702064538.GB3143@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 16 Jul 2013 10:53:15 -0700
+Message-ID: <1373997195.22432.297.camel@schen9-DESK>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Jens Axboe <jaxboe@fusionio.com>, Jan Kara <jack@suse.cz>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, "Shi, Alex" <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-With users of radix_tree_preload() run from interrupt (CFQ is one such
-possible user), the following race can happen:
+On Tue, 2013-07-02 at 08:45 +0200, Ingo Molnar wrote:
+> * Tim Chen <tim.c.chen@linux.intel.com> wrote:
+> 
+> > On Sat, 2013-06-29 at 09:12 +0200, Ingo Molnar wrote:
+> > > * Tim Chen <tim.c.chen@linux.intel.com> wrote:
+> > > 
+> > > > > If my analysis is correct so far then it might be useful to add two 
+> > > > > more stats: did rwsem_spin_on_owner() fail because lock->owner == NULL 
+> > > > > [owner released the rwsem], or because owner_running() failed [owner 
+> > > > > went to sleep]?
+> > > > 
+> > > > Ingo,
+> > > > 
+> > > > I tabulated the cases where rwsem_spin_on_owner returns false and causes 
+> > > > us to stop spinning.
+> > > > 
+> > > > 97.12%  was due to lock's owner switching to another writer
+> > > >  0.01% was due to the owner of the lock sleeping
+> > > >  2.87%  was due to need_resched() 
+> > > > 
+> > > > I made a change to allow us to continue to spin even when lock's owner 
+> > > > switch to another writer.  I did get the lock to be acquired now mostly 
+> > > > (98%) via optimistic spin and lock stealing, but my benchmark's 
+> > > > throughput actually got reduced by 30% (too many cycles spent on useless 
+> > > > spinning?).
+> > > 
+> > > Hm, I'm running out of quick ideas :-/ The writer-ends-spinning sequence 
+> > > is pretty similar in the rwsem and in the mutex case. I'd have a look at 
+> > > one more detail: is the wakeup of another writer in the rwsem case 
+> > > singular, is only a single writer woken? I suspect the answer is yes ...
+> > 
+> > Ingo, we can only wake one writer, right? In __rwsem_do_wake, that is 
+> > indeed the case.  Or you are talking about something else?
+> 
+> Yeah, I was talking about that, and my understanding and reading of the 
+> code says that too - I just wanted to make sure :-)
+> 
+> > >
+> > > A quick glance suggests that the ordering of wakeups of waiters is the 
+> > > same for mutexes and rwsems: FIFO, single waiter woken on 
+> > > slowpath-unlock. So that shouldn't make a big difference.
+> > 
 
-radix_tree_preload()
-...
-radix_tree_insert()
-  radix_tree_node_alloc()
-    if (rtp->nr) {
-      ret = rtp->nodes[rtp->nr - 1];
-<interrupt>
-...
-radix_tree_preload()
-...
-radix_tree_insert()
-  radix_tree_node_alloc()
-    if (rtp->nr) {
-      ret = rtp->nodes[rtp->nr - 1];
+Ingo,
 
-And we give out one radix tree node twice. That clearly results in radix
-tree corruption with different results (usually OOPS) depending on which
-two users of radix tree race.
+I tried MCS locking to order the writers but
+it didn't make much difference on my particular workload.
+After thinking about this some more,  a likely explanation of the
+performance difference between mutex and rwsem performance is:
 
-Fix the problem by disabling interrupts when working with rtp variable.
-In-interrupt user can still deplete our preloaded nodes but at least we
-won't corrupt radix trees.
+1) Jobs acquiring mutex put itself on the wait list only after
+optimistic spinning.  That's only 2% of the time on my
+test workload so they access the wait list rarely.
 
-Signed-off-by: Jan Kara <jack@suse.cz>
----
- lib/radix-tree.c | 19 ++++++++++++++++---
- 1 file changed, 16 insertions(+), 3 deletions(-)
+2) Jobs acquiring rw-sem for write *always* put itself on the wait 
+list first before trying lock stealing and optimistic spinning.  
+This creates a bottleneck at the wait list, and also more 
+cache bouncing.
 
-  There are some questions regarding this patch:
-Do we really want to allow in-interrupt users of radix_tree_preload()?  CFQ
-could certainly do this in older kernels but that particular call site where I
-saw the bug hit isn't there anymore so I'm not sure this can really happen with
-recent kernels.
+One possible optimization is to delay putting the writer on the
+wait list till after optimistic spinning, but we may need to keep
+track of the number of writers waiting.  We could add a WAIT_BIAS 
+to count for each write waiter and remove the WAIT_BIAS each time a
+writer job completes.  This is tricky as I'm changing the
+semantics of the count field and likely will require a number of changes
+to rwsem code.  Your thoughts on a better way to do this?
 
-Also it is actually harmful to do preloading if you are in interrupt context
-anyway. The disadvantage of disallowing radix_tree_preload() in interrupt is
-that we would need to tweak radix_tree_node_alloc() to somehow recognize
-whether the caller wants it to use preloaded nodes or not and that callers
-would have to get it right (although maybe some magic in radix_tree_preload()
-could handle that).
+Thanks.
 
-Opinions?
-
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index e796429..6f1045d 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -209,18 +209,26 @@ radix_tree_node_alloc(struct radix_tree_root *root)
- 
- 	if (!(gfp_mask & __GFP_WAIT)) {
- 		struct radix_tree_preload *rtp;
-+		unsigned long flags;
- 
- 		/*
- 		 * Provided the caller has preloaded here, we will always
- 		 * succeed in getting a node here (and never reach
--		 * kmem_cache_alloc)
-+		 * kmem_cache_alloc)... unless we race with interrupt also
-+		 * consuming preloaded nodes.
- 		 */
- 		rtp = &__get_cpu_var(radix_tree_preloads);
-+		/*
-+		 * Disable interrupts to make sure radix_tree_node_alloc()
-+		 * called from interrupt cannot return the same node as we do.
-+		 */
-+		local_irq_save(flags);
- 		if (rtp->nr) {
- 			ret = rtp->nodes[rtp->nr - 1];
- 			rtp->nodes[rtp->nr - 1] = NULL;
- 			rtp->nr--;
- 		}
-+		local_irq_restore(flags);
- 	}
- 	if (ret == NULL)
- 		ret = kmem_cache_alloc(radix_tree_node_cachep, gfp_mask);
-@@ -269,6 +277,7 @@ int radix_tree_preload(gfp_t gfp_mask)
- 	struct radix_tree_preload *rtp;
- 	struct radix_tree_node *node;
- 	int ret = -ENOMEM;
-+	unsigned long flags;
- 
- 	preempt_disable();
- 	rtp = &__get_cpu_var(radix_tree_preloads);
-@@ -278,11 +287,15 @@ int radix_tree_preload(gfp_t gfp_mask)
- 		if (node == NULL)
- 			goto out;
- 		preempt_disable();
-+		local_irq_save(flags);
- 		rtp = &__get_cpu_var(radix_tree_preloads);
--		if (rtp->nr < ARRAY_SIZE(rtp->nodes))
-+		if (rtp->nr < ARRAY_SIZE(rtp->nodes)) {
- 			rtp->nodes[rtp->nr++] = node;
--		else
-+			local_irq_restore(flags);
-+		} else {
-+			local_irq_restore(flags);
- 			kmem_cache_free(radix_tree_node_cachep, node);
-+		}
- 	}
- 	ret = 0;
- out:
--- 
-1.8.1.4
+Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
