@@ -1,81 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 6420F6B0032
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 01:34:23 -0400 (EDT)
-Date: Tue, 16 Jul 2013 14:34:24 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH] mm/hugetlb: per-vma instantiation mutexes
-Message-ID: <20130716053424.GB30116@lge.com>
-References: <1373671681.2448.10.camel@buesod1.americas.hpqcorp.net>
- <alpine.LNX.2.00.1307121729590.3899@eggly.anvils>
- <1373858204.13826.9.camel@buesod1.americas.hpqcorp.net>
- <20130715072432.GA28053@voom.fritz.box>
- <51E4A719.4020703@redhat.com>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 306246B0032
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 01:47:35 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Tue, 16 Jul 2013 15:35:16 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id DA6AF3578053
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 15:47:28 +1000 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6G5WDak12714028
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 15:32:14 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6G5lQUn029483
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 15:47:27 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 7/9] mm, hugetlb: add VM_NORESERVE check in vma_has_reserves()
+In-Reply-To: <20130716021245.GI2430@lge.com>
+References: <1373881967-16153-1-git-send-email-iamjoonsoo.kim@lge.com> <1373881967-16153-8-git-send-email-iamjoonsoo.kim@lge.com> <87li57j1tb.fsf@linux.vnet.ibm.com> <20130716021245.GI2430@lge.com>
+Date: Tue, 16 Jul 2013 11:17:23 +0530
+Message-ID: <874nbvhx90.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <51E4A719.4020703@redhat.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: David Gibson <david@gibson.dropbear.id.au>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Michal Hocko <mhocko@suse.cz>, "AneeshKumarK.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Jul 15, 2013 at 09:51:21PM -0400, Rik van Riel wrote:
-> On 07/15/2013 03:24 AM, David Gibson wrote:
-> >On Sun, Jul 14, 2013 at 08:16:44PM -0700, Davidlohr Bueso wrote:
-> 
-> >>>Reading the existing comment, this change looks very suspicious to me.
-> >>>A per-vma mutex is just not going to provide the necessary exclusion, is
-> >>>it?  (But I recall next to nothing about these regions and
-> >>>reservations.)
-> >
-> >A per-VMA lock is definitely wrong.  I think it handles one form of
-> >the race, between threads sharing a VM on a MAP_PRIVATE mapping.
-> >However another form of the race can and does occur between different
-> >MAP_SHARED VMAs in the same or different processes.  I think there may
-> >be edge cases involving mremap() and MAP_PRIVATE that will also be
-> >missed by a per-VMA lock.
-> >
-> >Note that the libhugetlbfs testsuite contains tests for both PRIVATE
-> >and SHARED variants of the race.
-> 
-> Can we get away with simply using a mutex in the file?
-> Say vma->vm_file->mapping->i_mmap_mutex?
+Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
 
-I totally agree with this approach :)
+> On Mon, Jul 15, 2013 at 08:41:12PM +0530, Aneesh Kumar K.V wrote:
+>> Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
+>> 
+>> > If we map the region with MAP_NORESERVE and MAP_SHARED,
+>> > we can skip to check reserve counting and eventually we cannot be ensured
+>> > to allocate a huge page in fault time.
+>> > With following example code, you can easily find this situation.
+>> >
+>> > Assume 2MB, nr_hugepages = 100
+>> >
+>> >         fd = hugetlbfs_unlinked_fd();
+>> >         if (fd < 0)
+>> >                 return 1;
+>> >
+>> >         size = 200 * MB;
+>> >         flag = MAP_SHARED;
+>> >         p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
+>> >         if (p == MAP_FAILED) {
+>> >                 fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
+>> >                 return -1;
+>> >         }
+>> >
+>> >         size = 2 * MB;
+>> >         flag = MAP_ANONYMOUS | MAP_SHARED | MAP_HUGETLB | MAP_NORESERVE;
+>> >         p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, -1, 0);
+>> >         if (p == MAP_FAILED) {
+>> >                 fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
+>> >         }
+>> >         p[0] = '0';
+>> >         sleep(10);
+>> >
+>> > During executing sleep(10), run 'cat /proc/meminfo' on another process.
+>> > You'll find a mentioned problem.
+>> >
+>> > Solution is simple. We should check VM_NORESERVE in vma_has_reserves().
+>> > This prevent to use a pre-allocated huge page if free count is under
+>> > the reserve count.
+>> 
+>> You have a problem with this patch, which i guess you are fixing in
+>> patch 9. Consider two process
+>> 
+>> a) MAP_SHARED  on fd
+>> b) MAP_SHARED | MAP_NORESERVE on fd
+>> 
+>> We should allow the (b) to access the page even if VM_NORESERVE is set
+>> and we are out of reserve space .
+>
+> I can't get your point.
+> Please elaborate more on this.
 
-> 
-> That might help with multiple processes initializing
-> multiple shared memory segments at the same time, and
-> should not hurt the case of a process mapping its own
-> hugetlbfs area.
-> 
-> It might have the potential to hurt when getting private
-> copies on a MAP_PRIVATE area, though.  I have no idea
-> how common it is for multiple processes to MAP_PRIVATE
-> the same hugetlbfs file, though...
 
-Currently, getting private copies on a MAP_PRIVATE area is also
-serialized by hugetlb_instantiation_mutex.
-How do we get worse with your approach?
+One process mmap with MAP_SHARED and another one with MAP_SHARED | MAP_NORESERVE
+Now the first process will result in reserving the pages from the hugtlb
+pool. Now if the second process try to dequeue huge page and we don't
+have free space we will fail because
 
-BTW, we have one race problem related to hugetlb_instantiation_mutex.
-It is not right protection for region structure handling. We map the
-area without holding a hugetlb_instantiation_mutex, so there is
-race condition between mapping a new area and faulting the other area.
-Am I missing?
+vma_has_reservers will now return zero because VM_NORESERVE is set 
+and we can have (h->free_huge_pages - h->resv_huge_pages) == 0;
 
-Thanks.
+The below hunk in your patch 9 handles that
 
-> 
-> -- 
-> All rights reversed
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+ +	if (vma->vm_flags & VM_NORESERVE) {
+ +		/*
+ +		 * This address is already reserved by other process(chg == 0),
+ +		 * so, we should decreament reserved count. Without
+ +		 * decreamenting, reserve count is remained after releasing
+ +		 * inode, because this allocated page will go into page cache
+ +		 * and is regarded as coming from reserved pool in releasing
+ +		 * step. Currently, we don't have any other solution to deal
+ +		 * with this situation properly, so add work-around here.
+ +		 */
+ +		if (vma->vm_flags & VM_MAYSHARE && chg == 0)
+ +			return 1;
+ +		else
+ +			return 0;
+ +	}
+
+so may be both of these should be folded ?
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
