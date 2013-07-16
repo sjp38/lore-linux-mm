@@ -1,67 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id B95DD6B0032
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 21:45:57 -0400 (EDT)
-Date: Tue, 16 Jul 2013 10:45:59 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 0/9] mm, hugetlb: clean-up and possible bug fix
-Message-ID: <20130716014558.GG2430@lge.com>
-References: <1373881967-16153-1-git-send-email-iamjoonsoo.kim@lge.com>
- <871u6zkj7b.fsf@linux.vnet.ibm.com>
- <20130716011054.GC2430@lge.com>
- <51E4A181.2030707@gmail.com>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 70FB06B0032
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 21:49:02 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 81A613EE0AE
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 10:49:00 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 738B745DE4F
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 10:49:00 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E24645DE4E
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 10:49:00 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4CEF21DB803B
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 10:49:00 +0900 (JST)
+Received: from g01jpfmpwkw01.exch.g01.fujitsu.local (g01jpfmpwkw01.exch.g01.fujitsu.local [10.0.193.38])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0267C1DB802F
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 10:49:00 +0900 (JST)
+Message-ID: <51E4A660.7030804@jp.fujitsu.com>
+Date: Tue, 16 Jul 2013 10:48:16 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <51E4A181.2030707@gmail.com>
+Subject: Re: migrate vmalloc area for memory hot-remove
+References: <20130715163701.GA16950@dhcp-192-168-178-175.profitbricks.localdomain>
+In-Reply-To: <20130715163701.GA16950@dhcp-192-168-178-175.profitbricks.localdomain>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sam Ben <sam.bennn@gmail.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
+Cc: linux-mm@kvack.org, tangchen@cn.fujitsu.com
 
-On Tue, Jul 16, 2013 at 09:27:29AM +0800, Sam Ben wrote:
-> On 07/16/2013 09:10 AM, Joonsoo Kim wrote:
-> >On Mon, Jul 15, 2013 at 07:40:16PM +0530, Aneesh Kumar K.V wrote:
-> >>Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
-> >>
-> >>>First 5 patches are almost trivial clean-up patches.
-> >>>
-> >>>The others are for fixing three bugs.
-> >>>Perhaps, these problems are minor, because this codes are used
-> >>>for a long time, and there is no bug reporting for these problems.
-> >>>
-> >>>These patches are based on v3.10.0 and
-> >>>passed sanity check of libhugetlbfs.
-> >>does that mean you had run with libhugetlbfs test suite ?
-> >Yes! I can't find any reggression on libhugetlbfs test suite.
-> 
-> Where can get your test case?
+Hi Vasilis,
 
-These are my own test cases.
-I will plan to submit these test cases to libhugetlbfs test suite.
+(2013/07/16 1:37), Vasilis Liaskovitis wrote:
+> Hi Yasuaki,
+>
+> in your memory hotplug slides at LinuxCon Japan 2013, you mention "migrate
+> vmalloc area" as one of the TODO items (slide 30 / 31):
+>
+> http://events.linuxfoundation.org/sites/events/files/lcjp13_ishimatsu.pdf
+>
 
-Thanks.
+> can you further explain this problem? Isn't this case handled already from the
+> current page migration code?
+>
+> Do you have a specific testcase that can trigger this issue?
 
-> 
-> >
-> >>-aneesh
-> >>
-> >>--
-> >>To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> >>the body of a message to majordomo@vger.kernel.org
-> >>More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> >>Please read the FAQ at  http://www.tux.org/lkml/
-> >--
-> >To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> >the body of a message to majordomo@vger.kernel.org
-> >More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> >Please read the FAQ at  http://www.tux.org/lkml/
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+This item aims to increase removable memory.
+
+When we use memory hot remove, we need to use ZONE_MOVABLE. But the use of
+the zone is limited. The zone can treat only anonymous page and page cache.
+
+So I want to enhance the zone to treat vmalloc area. But currently there
+is no patch.
+
+Thanks,
+Yasuaki Ishimatsu
+
+>
+> thanks,
+>
+> - Vasilis
+>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
