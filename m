@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 200C36B0038
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 09:42:04 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id 107CB6B0037
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 09:42:03 -0400 (EDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 05/10] mm: compaction: don't require high order pages below min wmark
-Date: Tue, 16 Jul 2013 15:41:49 +0200
-Message-Id: <1373982114-19774-6-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 01/10] mm: zone_reclaim: remove ZONE_RECLAIM_LOCKED
+Date: Tue, 16 Jul 2013 15:41:45 +0200
+Message-Id: <1373982114-19774-2-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1373982114-19774-1-git-send-email-aarcange@redhat.com>
 References: <1373982114-19774-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,48 +13,60 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>, Hush Bensen <hush.bensen@gmail.com>
 
-The min wmark should be satisfied with just 1 hugepage. And the other
-wmarks should be adjusted accordingly. We need to succeed the low
-wmark check if there's some significant amount of 0 order pages, but
-we don't need plenty of high order pages because the PF_MEMALLOC paths
-don't require those. Creating a ton of high order pages that cannot be
-allocated by the high order allocation paths (no PF_MEMALLOC) is quite
-wasteful because they can be splitted in lower order pages before
-anybody has a chance to allocate them.
+Zone reclaim locked breaks zone_reclaim_mode=1. If more than one
+thread allocates memory at the same time, it forces a premature
+allocation into remote NUMA nodes even when there's plenty of clean
+cache to reclaim in the local nodes.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Acked-by: Rafael Aquini <aquini@redhat.com>
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 ---
- mm/page_alloc.c | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ include/linux/mmzone.h | 6 ------
+ mm/vmscan.c            | 4 ----
+ 2 files changed, 10 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index db8fb66..d94503d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1643,6 +1643,23 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index af4a3b7..9534a9a 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -496,7 +496,6 @@ struct zone {
+ } ____cacheline_internodealigned_in_smp;
  
- 	if (free_pages - free_cma <= min + lowmem_reserve)
- 		return false;
-+	if (!order)
-+		return true;
-+
-+	/*
-+	 * Don't require any high order page under the min
-+	 * wmark. Invoking compaction to create lots of high order
-+	 * pages below the min wmark is wasteful because those
-+	 * hugepages cannot be allocated without PF_MEMALLOC and the
-+	 * PF_MEMALLOC paths must not depend on high order allocations
-+	 * to succeed.
-+	 */
-+	min = mark - z->watermark[WMARK_MIN];
-+	WARN_ON(min < 0);
-+	if (alloc_flags & ALLOC_HIGH)
-+		min -= min / 2;
-+	if (alloc_flags & ALLOC_HARDER)
-+		min -= min / 4;
- 	for (o = 0; o < order; o++) {
- 		/* At the next order, this order's pages become unavailable */
- 		free_pages -= z->free_area[o].nr_free << o;
+ typedef enum {
+-	ZONE_RECLAIM_LOCKED,		/* prevents concurrent reclaim */
+ 	ZONE_OOM_LOCKED,		/* zone is in OOM killer zonelist */
+ 	ZONE_CONGESTED,			/* zone has many dirty pages backed by
+ 					 * a congested BDI
+@@ -540,11 +539,6 @@ static inline int zone_is_reclaim_writeback(const struct zone *zone)
+ 	return test_bit(ZONE_WRITEBACK, &zone->flags);
+ }
+ 
+-static inline int zone_is_reclaim_locked(const struct zone *zone)
+-{
+-	return test_bit(ZONE_RECLAIM_LOCKED, &zone->flags);
+-}
+-
+ static inline int zone_is_oom_locked(const struct zone *zone)
+ {
+ 	return test_bit(ZONE_OOM_LOCKED, &zone->flags);
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 2cff0d4..042fdcd 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -3595,11 +3595,7 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+ 	if (node_state(node_id, N_CPU) && node_id != numa_node_id())
+ 		return ZONE_RECLAIM_NOSCAN;
+ 
+-	if (zone_test_and_set_flag(zone, ZONE_RECLAIM_LOCKED))
+-		return ZONE_RECLAIM_NOSCAN;
+-
+ 	ret = __zone_reclaim(zone, gfp_mask, order);
+-	zone_clear_flag(zone, ZONE_RECLAIM_LOCKED);
+ 
+ 	if (!ret)
+ 		count_vm_event(PGSCAN_ZONE_RECLAIM_FAILED);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
