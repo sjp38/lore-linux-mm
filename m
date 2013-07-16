@@ -1,126 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id C2C186B0032
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 03:12:15 -0400 (EDT)
-Date: Tue, 16 Jul 2013 16:12:17 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 7/9] mm, hugetlb: add VM_NORESERVE check in
- vma_has_reserves()
-Message-ID: <20130716071216.GC30116@lge.com>
-References: <1373881967-16153-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1373881967-16153-8-git-send-email-iamjoonsoo.kim@lge.com>
- <87li57j1tb.fsf@linux.vnet.ibm.com>
- <20130716021245.GI2430@lge.com>
- <874nbvhx90.fsf@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 570836B0032
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 04:23:49 -0400 (EDT)
+Date: Tue, 16 Jul 2013 09:23:42 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 16/18] sched: Avoid overloading CPUs on a preferred NUMA
+ node
+Message-ID: <20130716082342.GF5055@suse.de>
+References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
+ <1373901620-2021-17-git-send-email-mgorman@suse.de>
+ <20130715200321.GN17211@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <874nbvhx90.fsf@linux.vnet.ibm.com>
+In-Reply-To: <20130715200321.GN17211@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Jul 16, 2013 at 11:17:23AM +0530, Aneesh Kumar K.V wrote:
-> Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
+On Mon, Jul 15, 2013 at 10:03:21PM +0200, Peter Zijlstra wrote:
+> On Mon, Jul 15, 2013 at 04:20:18PM +0100, Mel Gorman wrote:
+> > ---
+> >  kernel/sched/fair.c | 105 +++++++++++++++++++++++++++++++++++++++++-----------
+> >  1 file changed, 83 insertions(+), 22 deletions(-)
+> > 
+> > diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+> > index 3f0519c..8ee1c8e 100644
+> > --- a/kernel/sched/fair.c
+> > +++ b/kernel/sched/fair.c
+> > @@ -846,29 +846,92 @@ static inline int task_faults_idx(int nid, int priv)
+> >  	return 2 * nid + priv;
+> >  }
+> >  
+> > -static unsigned long weighted_cpuload(const int cpu);
+> > +static unsigned long source_load(int cpu, int type);
+> > +static unsigned long target_load(int cpu, int type);
+> > +static unsigned long power_of(int cpu);
+> > +static long effective_load(struct task_group *tg, int cpu, long wl, long wg);
+> > +
+> > +static int task_numa_find_cpu(struct task_struct *p, int nid)
+> > +{
+> > +	int node_cpu = cpumask_first(cpumask_of_node(nid));
+> > +	int cpu, src_cpu = task_cpu(p), dst_cpu = src_cpu;
+> > +	unsigned long src_load, dst_load;
+> > +	unsigned long min_load = ULONG_MAX;
+> > +	struct task_group *tg = task_group(p);
+> > +	s64 src_eff_load, dst_eff_load;
+> > +	struct sched_domain *sd;
+> > +	unsigned long weight;
+> > +	bool balanced;
+> > +	int imbalance_pct, idx = -1;
+> >  
+> > +	/* No harm being optimistic */
+> > +	if (idle_cpu(node_cpu))
+> > +		return node_cpu;
+> >  
+> > +	/*
+> > +	 * Find the lowest common scheduling domain covering the nodes of both
+> > +	 * the CPU the task is currently running on and the target NUMA node.
+> > +	 */
+> > +	rcu_read_lock();
+> > +	for_each_domain(src_cpu, sd) {
+> > +		if (cpumask_test_cpu(node_cpu, sched_domain_span(sd))) {
+> > +			/*
+> > +			 * busy_idx is used for the load decision as it is the
+> > +			 * same index used by the regular load balancer for an
+> > +			 * active cpu.
+> > +			 */
+> > +			idx = sd->busy_idx;
+> > +			imbalance_pct = sd->imbalance_pct;
+> > +			break;
+> > +		}
+> > +	}
+> > +	rcu_read_unlock();
+> >  
+> > +	if (WARN_ON_ONCE(idx == -1))
+> > +		return src_cpu;
+> >  
+> > +	/*
+> > +	 * XXX the below is mostly nicked from wake_affine(); we should
+> > +	 * see about sharing a bit if at all possible; also it might want
+> > +	 * some per entity weight love.
+> > +	 */
+> > +	weight = p->se.load.weight;
+> >  
+> > +	src_load = source_load(src_cpu, idx);
+> > +
+> > +	src_eff_load = 100 + (imbalance_pct - 100) / 2;
+> > +	src_eff_load *= power_of(src_cpu);
+> > +	src_eff_load *= src_load + effective_load(tg, src_cpu, -weight, -weight);
 > 
-> > On Mon, Jul 15, 2013 at 08:41:12PM +0530, Aneesh Kumar K.V wrote:
-> >> Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
-> >> 
-> >> > If we map the region with MAP_NORESERVE and MAP_SHARED,
-> >> > we can skip to check reserve counting and eventually we cannot be ensured
-> >> > to allocate a huge page in fault time.
-> >> > With following example code, you can easily find this situation.
-> >> >
-> >> > Assume 2MB, nr_hugepages = 100
-> >> >
-> >> >         fd = hugetlbfs_unlinked_fd();
-> >> >         if (fd < 0)
-> >> >                 return 1;
-> >> >
-> >> >         size = 200 * MB;
-> >> >         flag = MAP_SHARED;
-> >> >         p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
-> >> >         if (p == MAP_FAILED) {
-> >> >                 fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
-> >> >                 return -1;
-> >> >         }
-> >> >
-> >> >         size = 2 * MB;
-> >> >         flag = MAP_ANONYMOUS | MAP_SHARED | MAP_HUGETLB | MAP_NORESERVE;
-> >> >         p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, -1, 0);
-> >> >         if (p == MAP_FAILED) {
-> >> >                 fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
-> >> >         }
-> >> >         p[0] = '0';
-> >> >         sleep(10);
-> >> >
-> >> > During executing sleep(10), run 'cat /proc/meminfo' on another process.
-> >> > You'll find a mentioned problem.
-> >> >
-> >> > Solution is simple. We should check VM_NORESERVE in vma_has_reserves().
-> >> > This prevent to use a pre-allocated huge page if free count is under
-> >> > the reserve count.
-> >> 
-> >> You have a problem with this patch, which i guess you are fixing in
-> >> patch 9. Consider two process
-> >> 
-> >> a) MAP_SHARED  on fd
-> >> b) MAP_SHARED | MAP_NORESERVE on fd
-> >> 
-> >> We should allow the (b) to access the page even if VM_NORESERVE is set
-> >> and we are out of reserve space .
-> >
-> > I can't get your point.
-> > Please elaborate more on this.
+> So did you try with this effective_load() term 'missing'?
 > 
-> 
-> One process mmap with MAP_SHARED and another one with MAP_SHARED | MAP_NORESERVE
-> Now the first process will result in reserving the pages from the hugtlb
-> pool. Now if the second process try to dequeue huge page and we don't
-> have free space we will fail because
-> 
-> vma_has_reservers will now return zero because VM_NORESERVE is set 
-> and we can have (h->free_huge_pages - h->resv_huge_pages) == 0;
 
-I think that this behavior is correct, because a user who mapped with
-VM_NORESERVE should not think their allocation always succeed. With patch 9,
-he can be ensured to succeed, but I think it is side-effect.
+Yes, it performed worse in tests. Looking at it, I figured that it would
+have to perform worse unless effective_load regularly returns negative
+values.
 
-> The below hunk in your patch 9 handles that
-> 
->  +	if (vma->vm_flags & VM_NORESERVE) {
->  +		/*
->  +		 * This address is already reserved by other process(chg == 0),
->  +		 * so, we should decreament reserved count. Without
->  +		 * decreamenting, reserve count is remained after releasing
->  +		 * inode, because this allocated page will go into page cache
->  +		 * and is regarded as coming from reserved pool in releasing
->  +		 * step. Currently, we don't have any other solution to deal
->  +		 * with this situation properly, so add work-around here.
->  +		 */
->  +		if (vma->vm_flags & VM_MAYSHARE && chg == 0)
->  +			return 1;
->  +		else
->  +			return 0;
->  +	}
-> 
-> so may be both of these should be folded ?
-
-I think that these patches should not be folded, because these handle
-two separate issues. Reserve count mismatch issue mentioned in patch 9
-is not introduced by patch 7.
-
-Thanks.
-
-> 
-> -aneesh
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
