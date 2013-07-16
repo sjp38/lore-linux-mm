@@ -1,65 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 1BB046B0033
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 21:56:01 -0400 (EDT)
-Received: by mail-pb0-f52.google.com with SMTP id xa12so127381pbc.39
-        for <linux-mm@kvack.org>; Mon, 15 Jul 2013 18:56:00 -0700 (PDT)
-Message-ID: <51E4A824.3030308@gmail.com>
-Date: Tue, 16 Jul 2013 09:55:48 +0800
-From: Sam Ben <sam.bennn@gmail.com>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 1138E6B0032
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 22:12:44 -0400 (EDT)
+Date: Tue, 16 Jul 2013 11:12:45 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 7/9] mm, hugetlb: add VM_NORESERVE check in
+ vma_has_reserves()
+Message-ID: <20130716021245.GI2430@lge.com>
+References: <1373881967-16153-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1373881967-16153-8-git-send-email-iamjoonsoo.kim@lge.com>
+ <87li57j1tb.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/9] mm, hugetlb: clean-up and possible bug fix
-References: <1373881967-16153-1-git-send-email-iamjoonsoo.kim@lge.com> <871u6zkj7b.fsf@linux.vnet.ibm.com> <20130716011054.GC2430@lge.com> <51E4A181.2030707@gmail.com> <20130716014558.GG2430@lge.com>
-In-Reply-To: <20130716014558.GG2430@lge.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87li57j1tb.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 07/16/2013 09:45 AM, Joonsoo Kim wrote:
-> On Tue, Jul 16, 2013 at 09:27:29AM +0800, Sam Ben wrote:
->> On 07/16/2013 09:10 AM, Joonsoo Kim wrote:
->>> On Mon, Jul 15, 2013 at 07:40:16PM +0530, Aneesh Kumar K.V wrote:
->>>> Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
->>>>
->>>>> First 5 patches are almost trivial clean-up patches.
->>>>>
->>>>> The others are for fixing three bugs.
->>>>> Perhaps, these problems are minor, because this codes are used
->>>>> for a long time, and there is no bug reporting for these problems.
->>>>>
->>>>> These patches are based on v3.10.0 and
->>>>> passed sanity check of libhugetlbfs.
->>>> does that mean you had run with libhugetlbfs test suite ?
->>> Yes! I can't find any reggression on libhugetlbfs test suite.
->> Where can get your test case?
-> These are my own test cases.
-> I will plan to submit these test cases to libhugetlbfs test suite.
+On Mon, Jul 15, 2013 at 08:41:12PM +0530, Aneesh Kumar K.V wrote:
+> Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
+> 
+> > If we map the region with MAP_NORESERVE and MAP_SHARED,
+> > we can skip to check reserve counting and eventually we cannot be ensured
+> > to allocate a huge page in fault time.
+> > With following example code, you can easily find this situation.
+> >
+> > Assume 2MB, nr_hugepages = 100
+> >
+> >         fd = hugetlbfs_unlinked_fd();
+> >         if (fd < 0)
+> >                 return 1;
+> >
+> >         size = 200 * MB;
+> >         flag = MAP_SHARED;
+> >         p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
+> >         if (p == MAP_FAILED) {
+> >                 fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
+> >                 return -1;
+> >         }
+> >
+> >         size = 2 * MB;
+> >         flag = MAP_ANONYMOUS | MAP_SHARED | MAP_HUGETLB | MAP_NORESERVE;
+> >         p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, -1, 0);
+> >         if (p == MAP_FAILED) {
+> >                 fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
+> >         }
+> >         p[0] = '0';
+> >         sleep(10);
+> >
+> > During executing sleep(10), run 'cat /proc/meminfo' on another process.
+> > You'll find a mentioned problem.
+> >
+> > Solution is simple. We should check VM_NORESERVE in vma_has_reserves().
+> > This prevent to use a pre-allocated huge page if free count is under
+> > the reserve count.
+> 
+> You have a problem with this patch, which i guess you are fixing in
+> patch 9. Consider two process
+> 
+> a) MAP_SHARED  on fd
+> b) MAP_SHARED | MAP_NORESERVE on fd
+> 
+> We should allow the (b) to access the page even if VM_NORESERVE is set
+> and we are out of reserve space .
 
-Could you point out where can get libhugetlbfs test suitei 1/4 ? ;-)
+I can't get your point.
+Please elaborate more on this.
 
->
-> Thanks.
->
->>>> -aneesh
->>>>
->>>> --
->>>> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
->>>> the body of a message to majordomo@vger.kernel.org
->>>> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->>>> Please read the FAQ at  http://www.tux.org/lkml/
->>> --
->>> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
->>> the body of a message to majordomo@vger.kernel.org
->>> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->>> Please read the FAQ at  http://www.tux.org/lkml/
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Thanks.
+
+> 
+> so may be you should rearrange the patch ?
+> 
+> >
+> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> >
+> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> > index 6c1eb9b..f6a7a4e 100644
+> > --- a/mm/hugetlb.c
+> > +++ b/mm/hugetlb.c
+> > @@ -464,6 +464,8 @@ void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
+> >  /* Returns true if the VMA has associated reserve pages */
+> >  static int vma_has_reserves(struct vm_area_struct *vma)
+> >  {
+> > +	if (vma->vm_flags & VM_NORESERVE)
+> > +		return 0;
+> >  	if (vma->vm_flags & VM_MAYSHARE)
+> >  		return 1;
+> >  	if (is_vma_resv_set(vma, HPAGE_RESV_OWNER))
+> > -- 
+> > 1.7.9.5
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
