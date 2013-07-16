@@ -1,58 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 2ABE56B0039
-	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 21:04:26 -0400 (EDT)
-Message-ID: <51E49BDF.30008@asianux.com>
-Date: Tue, 16 Jul 2013 09:03:27 +0800
-From: Chen Gang <gang.chen@asianux.com>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id B9A916B0039
+	for <linux-mm@kvack.org>; Mon, 15 Jul 2013 21:10:54 -0400 (EDT)
+Date: Tue, 16 Jul 2013 10:10:55 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 0/9] mm, hugetlb: clean-up and possible bug fix
+Message-ID: <20130716011054.GC2430@lge.com>
+References: <1373881967-16153-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <871u6zkj7b.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/slub.c: add parameter length checking for alloc_loc_track()
-References: <51DA734B.4060608@asianux.com> <51DE549F.9070505@kernel.org> <51DE55C9.1060908@asianux.com> <0000013fce9f5b32-7d62f3c5-bb35-4dd9-ab19-d72bae4b5bdc-000000@email.amazonses.com> <51DEF935.4040804@kernel.org> <0000013fcf608df8-457e2029-51f9-4e49-9992-bf399a97d953-000000@email.amazonses.com> <51DF4540.8060700@asianux.com> <51DF4C94.3060103@asianux.com> <51DF5404.4060004@asianux.com> <0000013fd3250e40-1832fd38-ede3-41af-8fe3-5a0c10f5e5ce-000000@email.amazonses.com> <51E33F98.8060201@asianux.com> <0000013fe2e73e30-817f1bdb-8dc7-4f7b-9b60-b42d5d244fda-000000@email.amazonses.com>
-In-Reply-To: <0000013fe2e73e30-817f1bdb-8dc7-4f7b-9b60-b42d5d244fda-000000@email.amazonses.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <871u6zkj7b.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, mpm@selenic.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 07/15/2013 11:16 PM, Christoph Lameter wrote:
-> On Mon, 15 Jul 2013, Chen Gang wrote:
+On Mon, Jul 15, 2013 at 07:40:16PM +0530, Aneesh Kumar K.V wrote:
+> Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
 > 
->> > On 07/12/2013 09:49 PM, Christoph Lameter wrote:
->>> > > On Fri, 12 Jul 2013, Chen Gang wrote:
->>> > >
->>>> > >> Since alloc_loc_track() will alloc additional space, and already knows
->>>> > >> about 'max', so need be sure of 'max' must be larger than 't->count'.
->>> > >
->>> > > alloc_loc_track is only called if t->count > max from add_location:
->>> > >
->> >
->> > For add_location(), if "t->count > t->max", it calls alloc_loc_track()
->> > with "max == 2 * t->max".
->> >
->> > In this case we need be sure that "t->count < 2 * t->max".
-> We are sure about that since t->count is always incremented by one and
-> then checked against t->max. The location database is build up from a
-> single hardware thread without any concurrency.
+> > First 5 patches are almost trivial clean-up patches.
+> >
+> > The others are for fixing three bugs.
+> > Perhaps, these problems are minor, because this codes are used
+> > for a long time, and there is no bug reporting for these problems.
+> >
+> > These patches are based on v3.10.0 and
+> > passed sanity check of libhugetlbfs.
 > 
-> So we do not really need this patch.
+> does that mean you had run with libhugetlbfs test suite ?
+
+Yes! I can't find any reggression on libhugetlbfs test suite.
+
+>  
+> -aneesh
 > 
-> 
-> 
-
-Hmm... what you says above is reasonable.
-
-In this case, since alloc_loc_track() is a static function, it will
-depend on the related maintainers' willing and opinions to decide
-whether add the related check or not (just like add 'BUG_ON' or not).
-
-I need respect the original related maintainers' willing and opinions.
-
-
-Thanks.
--- 
-Chen Gang
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
