@@ -1,51 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id AC7A96B0032
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 19:44:05 -0400 (EDT)
-Message-ID: <51E5DABC.3060104@sr71.net>
-Date: Tue, 16 Jul 2013 16:43:56 -0700
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 3AEC26B0033
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 19:44:39 -0400 (EDT)
+Subject: [RESEND][PATCH] mm: vmstats: tlb flush counters
 From: Dave Hansen <dave@sr71.net>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm: vmstats: tlb flush counters
-References: <20130716155304.AF1A88F8@viggo.jf.intel.com> <20130716233632.GD30164@hacker.(null)>
-In-Reply-To: <20130716233632.GD30164@hacker.(null)>
-Content-Type: multipart/mixed;
- boundary="------------000800050304070906030309"
+Date: Tue, 16 Jul 2013 16:44:38 -0700
+Message-Id: <20130716234438.C792C316@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org
-
-This is a multi-part message in MIME format.
---------------000800050304070906030309
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-
-On 07/16/2013 04:36 PM, Wanpeng Li wrote:
-> On Tue, Jul 16, 2013 at 08:53:04AM -0700, Dave Hansen wrote:
->> I was investigating some TLB flush scaling issues and realized
->> that we do not have any good methods for figuring out how many
->> TLB flushes we are doing.
->>
->> It would be nice to be able to do these in generic code, but the
->> arch-independent calls don't explicitly specify whether we
->> actually need to do remote flushes or not.  In the end, we really
->> need to know if we actually _did_ global vs. local invalidations,
->> so that leaves us with few options other than to muck with the
->> counters from arch-specific code.
->>
->> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
->>
-> There is no context in the patch?
-
-Weird.  I've attached another copy and I'll resent to the mailing list.
-
---------------000800050304070906030309
-Content-Type: text/x-patch;
- name="tlb-vmstats.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment;
- filename="tlb-vmstats.patch"
+To: linux-kernel@vger.kernel.org
+Cc: x86@kernel.org, linux-mm@kvack.org, Dave Hansen <dave@sr71.net>
 
 
 I was investigating some TLB flush scaling issues and realized
@@ -176,8 +140,6 @@ diff -puN mm/vmstat.c~tlb-vmstats mm/vmstat.c
  #endif /* CONFIG_VM_EVENTS_COUNTERS */
  };
 _
-
---------------000800050304070906030309--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
