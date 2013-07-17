@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id C041C6B0033
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 04:13:14 -0400 (EDT)
-Received: by mail-oa0-f46.google.com with SMTP id h1so2128932oag.5
-        for <linux-mm@kvack.org>; Wed, 17 Jul 2013 01:13:12 -0700 (PDT)
-Message-ID: <51E65210.6040103@gmail.com>
-Date: Wed, 17 Jul 2013 04:13:04 -0400
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 4B1756B003A
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 04:20:37 -0400 (EDT)
+Received: by mail-oa0-f43.google.com with SMTP id i7so2139025oag.2
+        for <linux-mm@kvack.org>; Wed, 17 Jul 2013 01:20:36 -0700 (PDT)
+Message-ID: <51E653CB.6090808@gmail.com>
+Date: Wed, 17 Jul 2013 04:20:27 -0400
 From: Hush Bensen <hush.bensen@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 05/10] mm: compaction: don't require high order pages
- below min wmark
-References: <1373982114-19774-1-git-send-email-aarcange@redhat.com> <1373982114-19774-6-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1373982114-19774-6-git-send-email-aarcange@redhat.com>
+Subject: Re: [PATCH 10/10] mm: zone_reclaim: compaction: add compaction to
+ zone_reclaim_mode
+References: <1373982114-19774-1-git-send-email-aarcange@redhat.com> <1373982114-19774-11-git-send-email-aarcange@redhat.com>
+In-Reply-To: <1373982114-19774-11-git-send-email-aarcange@redhat.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -20,52 +20,198 @@ To: Andrea Arcangeli <aarcange@redhat.com>
 Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>
 
 On 07/16/2013 09:41 AM, Andrea Arcangeli wrote:
-> The min wmark should be satisfied with just 1 hugepage. And the other
-> wmarks should be adjusted accordingly. We need to succeed the low
-> wmark check if there's some significant amount of 0 order pages, but
-> we don't need plenty of high order pages because the PF_MEMALLOC paths
-> don't require those. Creating a ton of high order pages that cannot be
-> allocated by the high order allocation paths (no PF_MEMALLOC) is quite
-> wasteful because they can be splitted in lower order pages before
-> anybody has a chance to allocate them.
+> This adds compaction to zone_reclaim so THP enabled won't decrease the
+> NUMA locality with /proc/sys/vm/zone_reclaim_mode > 0.
+>
+> It is important to boot with numa_zonelist_order=n (n means nodes) to
+> get more accurate NUMA locality if there are multiple zones per node.
 >
 > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 > ---
->   mm/page_alloc.c | 17 +++++++++++++++++
->   1 file changed, 17 insertions(+)
+>   include/linux/swap.h |   8 +++-
+>   mm/page_alloc.c      |   4 +-
+>   mm/vmscan.c          | 111 ++++++++++++++++++++++++++++++++++++++++++---------
+>   3 files changed, 102 insertions(+), 21 deletions(-)
 >
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index d95cde5..d076a54 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -289,10 +289,14 @@ extern unsigned long vm_total_pages;
+>   extern int zone_reclaim_mode;
+>   extern int sysctl_min_unmapped_ratio;
+>   extern int sysctl_min_slab_ratio;
+> -extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
+> +extern int zone_reclaim(struct zone *, struct zone *, gfp_t, unsigned int,
+> +			unsigned long, int, int);
+>   #else
+>   #define zone_reclaim_mode 0
+> -static inline int zone_reclaim(struct zone *z, gfp_t mask, unsigned int order)
+> +static inline int zone_reclaim(struct zone *preferred_zone, struct zone *zone,
+> +			       gfp_t mask, unsigned int order,
+> +			       unsigned long mark, int classzone_idx,
+> +			       int alloc_flags)
+>   {
+>   	return 0;
+>   }
 > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index db8fb66..d94503d 100644
+> index 3690c2e..4101906 100644
 > --- a/mm/page_alloc.c
 > +++ b/mm/page_alloc.c
-> @@ -1643,6 +1643,23 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+> @@ -1953,7 +1953,9 @@ zonelist_scan:
+>   				!zlc_zone_worth_trying(zonelist, z, allowednodes))
+>   				continue;
 >   
->   	if (free_pages - free_cma <= min + lowmem_reserve)
->   		return false;
-> +	if (!order)
-> +		return true;
+> -			ret = zone_reclaim(zone, gfp_mask, order);
+> +			ret = zone_reclaim(preferred_zone, zone, gfp_mask,
+> +					   order,
+> +					   mark, classzone_idx, alloc_flags);
+>   			switch (ret) {
+>   			case ZONE_RECLAIM_NOSCAN:
+>   				/* did not scan */
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 85a0071..80ee2b2 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -3488,6 +3488,24 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+>   	unsigned long nr_slab_pages0, nr_slab_pages1;
+>   
+>   	cond_resched();
 > +
 > +	/*
-> +	 * Don't require any high order page under the min
-> +	 * wmark. Invoking compaction to create lots of high order
-> +	 * pages below the min wmark is wasteful because those
-> +	 * hugepages cannot be allocated without PF_MEMALLOC and the
-> +	 * PF_MEMALLOC paths must not depend on high order allocations
-> +	 * to succeed.
+> +	 * Zone reclaim reclaims unmapped file backed pages and
+> +	 * slab pages if we are over the defined limits.
+> +	 *
+> +	 * A small portion of unmapped file backed pages is needed for
+> +	 * file I/O otherwise pages read by file I/O will be immediately
+> +	 * thrown out if the zone is overallocated. So we do not reclaim
+> +	 * if less than a specified percentage of the zone is used by
+> +	 * unmapped file backed pages.
 > +	 */
-> +	min = mark - z->watermark[WMARK_MIN];
-> +	WARN_ON(min < 0);
-> +	if (alloc_flags & ALLOC_HIGH)
-> +		min -= min / 2;
-> +	if (alloc_flags & ALLOC_HARDER)
-> +		min -= min / 4;
+> +	if (zone_pagecache_reclaimable(zone) <= zone->min_unmapped_pages &&
+> +	    zone_page_state(zone, NR_SLAB_RECLAIMABLE) <= zone->min_slab_pages)
+> +		return ZONE_RECLAIM_FULL;
+> +
+> +	if (zone->all_unreclaimable)
+> +		return ZONE_RECLAIM_FULL;
+> +
+>   	/*
+>   	 * We need to be able to allocate from the reserves for RECLAIM_SWAP
+>   	 * and we also need to be able to write out pages for RECLAIM_WRITE
+> @@ -3549,27 +3567,35 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+>   	return sc.nr_reclaimed >= nr_pages;
+>   }
+>   
+> -int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+> +static int zone_reclaim_compact(struct zone *preferred_zone,
+> +				struct zone *zone, gfp_t gfp_mask,
+> +				unsigned int order,
+> +				bool sync_compaction,
+> +				bool *need_compaction)
+>   {
+> -	int node_id;
+> -	int ret;
+> +	bool contended;
+>   
+> -	/*
+> -	 * Zone reclaim reclaims unmapped file backed pages and
+> -	 * slab pages if we are over the defined limits.
+> -	 *
+> -	 * A small portion of unmapped file backed pages is needed for
+> -	 * file I/O otherwise pages read by file I/O will be immediately
+> -	 * thrown out if the zone is overallocated. So we do not reclaim
+> -	 * if less than a specified percentage of the zone is used by
+> -	 * unmapped file backed pages.
+> -	 */
+> -	if (zone_pagecache_reclaimable(zone) <= zone->min_unmapped_pages &&
+> -	    zone_page_state(zone, NR_SLAB_RECLAIMABLE) <= zone->min_slab_pages)
+> -		return ZONE_RECLAIM_FULL;
+> +	if (compaction_deferred(preferred_zone, order) ||
+> +	    !order ||
+> +	    (gfp_mask & (__GFP_FS|__GFP_IO)) != (__GFP_FS|__GFP_IO)) {
+> +		need_compaction = false;
+> +		return COMPACT_SKIPPED;
+> +	}
+>   
+> -	if (zone->all_unreclaimable)
+> -		return ZONE_RECLAIM_FULL;
+> +	*need_compaction = true;
+> +	return compact_zone_order(zone, order,
+> +				  gfp_mask,
+> +				  sync_compaction,
+> +				  &contended);
+> +}
+> +
+> +int zone_reclaim(struct zone *preferred_zone, struct zone *zone,
+> +		 gfp_t gfp_mask, unsigned int order,
+> +		 unsigned long mark, int classzone_idx, int alloc_flags)
+> +{
+> +	int node_id;
+> +	int ret, c_ret;
+> +	bool sync_compaction = false, need_compaction = false;
+>   
+>   	/*
+>   	 * Do not scan if the allocation should not be delayed.
+> @@ -3587,7 +3613,56 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+>   	if (node_state(node_id, N_CPU) && node_id != numa_node_id())
+>   		return ZONE_RECLAIM_NOSCAN;
+>   
+> +repeat_compaction:
+> +	/*
+> +	 * If this allocation may be satisfied by memory compaction,
+> +	 * run compaction before reclaim.
+> +	 */
+> +	c_ret = zone_reclaim_compact(preferred_zone,
+> +				     zone, gfp_mask, order,
+> +				     sync_compaction,
+> +				     &need_compaction);
+> +	if (need_compaction &&
+> +	    c_ret != COMPACT_SKIPPED &&
+> +	    zone_watermark_ok(zone, order, mark,
+> +			      classzone_idx,
+> +			      alloc_flags)) {
+> +#ifdef CONFIG_COMPACTION
+> +		zone->compact_considered = 0;
+> +		zone->compact_defer_shift = 0;
+> +#endif
+> +		return ZONE_RECLAIM_SUCCESS;
+> +	}
+> +
+> +	/*
+> +	 * reclaim if compaction failed because not enough memory was
+> +	 * available or if compaction didn't run (order 0) or didn't
+> +	 * succeed.
+> +	 */
+>   	ret = __zone_reclaim(zone, gfp_mask, order);
+> +	if (ret == ZONE_RECLAIM_SUCCESS) {
+> +		if (zone_watermark_ok(zone, order, mark,
+> +				      classzone_idx,
+> +				      alloc_flags))
+> +			return ZONE_RECLAIM_SUCCESS;
+> +
+> +		/*
+> +		 * If compaction run but it was skipped and reclaim was
+> +		 * successful keep going.
+> +		 */
+> +		if (need_compaction && c_ret == COMPACT_SKIPPED) {
+> +			/*
+> +			 * If it's ok to wait for I/O we can as well run sync
+> +			 * compaction
+> +			 */
+> +			sync_compaction = !!(zone_reclaim_mode &
+> +					     (RECLAIM_WRITE|RECLAIM_SWAP));
+> +			cond_resched();
+> +			goto repeat_compaction;
+> +		}
+> +	}
+> +	if (need_compaction)
+> +		defer_compaction(preferred_zone, order);
+>   
+>   	if (!ret)
+>   		count_vm_event(PGSCAN_ZONE_RECLAIM_FAILED);
 
-__zone_watermark_ok has these operations for mark, why do it again?
-
-
->   	for (o = 0; o < order; o++) {
->   		/* At the next order, this order's pages become unavailable */
->   		free_pages -= z->free_area[o].nr_free << o;
+These works should be done in slow path, does it mean fast path is not 
+faster any more?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
