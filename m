@@ -1,57 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 54BA76B0031
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 17:09:57 -0400 (EDT)
-Date: Wed, 17 Jul 2013 14:09:53 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 5/8] thp, mm: locking tail page is a bug
-Message-Id: <20130717140953.7560e88e607f8f5df1b1fdd8@linux-foundation.org>
-In-Reply-To: <1373885274-25249-6-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1373885274-25249-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<1373885274-25249-6-git-send-email-kirill.shutemov@linux.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 6538A6B0031
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 17:15:00 -0400 (EDT)
+Message-ID: <0000013fee7c6945-114e9c97-1a81-40ad-88c2-c49bd7cab4f3-000000@email.amazonses.com>
+Date: Wed, 17 Jul 2013 21:14:59 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: C1 [0/2] Sl[auo]b: Common kmalloc V1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-On Mon, 15 Jul 2013 13:47:51 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
-
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> 
-> Locking head page means locking entire compound page.
-> If we try to lock tail page, something went wrong.
-> 
-> ..
->
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -639,6 +639,7 @@ void __lock_page(struct page *page)
->  {
->  	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
->  
-> +	VM_BUG_ON(PageTail(page));
->  	__wait_on_bit_lock(page_waitqueue(page), &wait, sleep_on_page,
->  							TASK_UNINTERRUPTIBLE);
->  }
-> @@ -648,6 +649,7 @@ int __lock_page_killable(struct page *page)
->  {
->  	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
->  
-> +	VM_BUG_ON(PageTail(page));
->  	return __wait_on_bit_lock(page_waitqueue(page), &wait,
->  					sleep_on_page_killable, TASK_KILLABLE);
->  }
-
-lock_page() is a pretty commonly called function, and I assume quite a
-lot of people run with CONFIG_DEBUG_VM=y.
-
-Is the overhead added by this patch really worthwhile?
-
-I'm thinking I might leave it in -mm indefinitely but not send it
-upstream.
+Two patches that provide a common kmalloc framework in slab.h and remove code from include/linux/sl?b_def.h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
