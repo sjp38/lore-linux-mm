@@ -1,15 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 74F416B0032
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 10:46:43 -0400 (EDT)
-Date: Wed, 17 Jul 2013 14:46:42 +0000
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id EBADD6B0033
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 10:47:49 -0400 (EDT)
+Date: Wed, 17 Jul 2013 14:47:48 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] mm/slub.c: use 'unsigned long' instead of 'int' for
- variable 'slub_debug'
-In-Reply-To: <51E49982.30402@asianux.com>
-Message-ID: <0000013fed18f0f2-cb1afad0-560e-4da5-b865-29e854ce5813-000000@email.amazonses.com>
-References: <51DF5F43.3080408@asianux.com> <0000013fd3283b9c-b5fe217c-fff3-47fd-be0b-31b00faba1f3-000000@email.amazonses.com> <51E33FFE.3010200@asianux.com> <0000013fe2b1bd10-efcc76b5-f75b-4a45-a278-a318e87b2571-000000@email.amazonses.com>
- <51E49982.30402@asianux.com>
+Subject: Re: [PATCH 2/2] mm/slub.c: beautify code for removing redundancy
+ 'break' statement.
+In-Reply-To: <51E34B10.5090005@asianux.com>
+Message-ID: <0000013fed19f3d0-5efc1fc8-9119-4859-9862-83f7802b12ad-000000@email.amazonses.com>
+References: <51DF5F43.3080408@asianux.com> <51DF778B.8090701@asianux.com> <0000013fd32d0b91-4cab82b6-a24f-42e2-a1d2-ac5df2be6f4c-000000@email.amazonses.com> <51E34B10.5090005@asianux.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,15 +16,11 @@ List-ID: <linux-mm.kvack.org>
 To: Chen Gang <gang.chen@asianux.com>
 Cc: Pekka Enberg <penberg@kernel.org>, mpm@selenic.com, linux-mm@kvack.org
 
-On Tue, 16 Jul 2013, Chen Gang wrote:
+On Mon, 15 Jul 2013, Chen Gang wrote:
 
-> If we really use 32-bit as unsigned number, better to use 'U' instead of
-> 'UL' (e.g. 0x80000000U instead of 0x80000000UL).
->
-> Since it is unsigned 32-bit number, it is better to use 'unsigned int'
-> instead of 'int', which can avoid related warnings if "EXTRA_CFLAGS=-W".
+> Remove redundancy 'break' statement.
 
-Ok could you go through the kernel source and change that?
+Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
