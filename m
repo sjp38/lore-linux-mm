@@ -1,116 +1,262 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id ADBAF6B0032
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 04:55:21 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 17 Jul 2013 18:47:35 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 220EF2BB0051
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 18:55:13 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6H8dlfq63307792
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 18:39:48 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6H8tAab002803
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 18:55:11 +1000
-Date: Wed, 17 Jul 2013 04:55:09 -0400
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 6/9] mm, hugetlb: do not use a page in page cache for cow
- optimization
-Message-ID: <20130717085508.GA27397@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1373881967-16153-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1373881967-16153-7-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <51E66256.9020203@cn.fujitsu.com>
+Date: Wed, 17 Jul 2013 17:22:30 +0800
+From: Gu Zheng <guz.fnst@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1373881967-16153-7-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH V2 2/2] fs/aio: Add support to aio ring pages migration
+References: <51E518C0.2020908@cn.fujitsu.com> <20130716133450.GD5403@kvack.org>
+In-Reply-To: <20130716133450.GD5403@kvack.org>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>
+To: Benjamin LaHaise <bcrl@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Al Viro <viro@zeniv.linux.org.uk>, tangchen <tangchen@cn.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-On Mon, Jul 15, 2013 at 06:52:44PM +0900, Joonsoo Kim wrote:
->Currently, we use a page with mapped count 1 in page cache for cow
->optimization. If we find this condition, we don't allocate a new
->page and copy contents. Instead, we map this page directly.
->This may introduce a problem that writting to private mapping overwrite
->hugetlb file directly. You can find this situation with following code.
->
->        size = 20 * MB;
->        flag = MAP_SHARED;
->        p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
->        if (p == MAP_FAILED) {
->                fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
->                return -1;
->        }
->        p[0] = 's';
->        fprintf(stdout, "BEFORE STEAL PRIVATE WRITE: %c\n", p[0]);
->        munmap(p, size);
->
->        flag = MAP_PRIVATE;
->        p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
->        if (p == MAP_FAILED) {
->                fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
->        }
->        p[0] = 'c';
->        munmap(p, size);
->
->        flag = MAP_SHARED;
->        p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
->        if (p == MAP_FAILED) {
->                fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
->                return -1;
->        }
->        fprintf(stdout, "AFTER STEAL PRIVATE WRITE: %c\n", p[0]);
->        munmap(p, size);
->
->We can see that "AFTER STEAL PRIVATE WRITE: c", not "AFTER STEAL
->PRIVATE WRITE: s". If we turn off this optimization to a page
->in page cache, the problem is disappeared.
->
->Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->
+As the aio job will pin the ring pages, that will lead to mem migrated
+failed. In order to fix this problem we use an anon inode to manage the aio ring
+pages, and  setup the migratepage callback in the anon inode's address space, so
+that when mem migrating the aio ring pages will be moved to other mem node safely.
 
-Good catch!
+v1->v2:
+	Fix build failed issue if CONFIG_MIGRATION disabled.
+	Fix some minor issues under Benjamin's comments.
 
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Signed-off-by: Gu Zheng <guz.fnst@cn.fujitsu.com>
+---
+ fs/aio.c                |  116 +++++++++++++++++++++++++++++++++++++++++++----
+ include/linux/migrate.h |    9 ++++
+ mm/migrate.c            |    2 +-
+ 3 files changed, 116 insertions(+), 11 deletions(-)
 
->diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->index d4a1695..6c1eb9b 100644
->--- a/mm/hugetlb.c
->+++ b/mm/hugetlb.c
->@@ -2512,7 +2512,6 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
-> {
-> 	struct hstate *h = hstate_vma(vma);
-> 	struct page *old_page, *new_page;
->-	int avoidcopy;
-> 	int outside_reserve = 0;
-> 	unsigned long mmun_start;	/* For mmu_notifiers */
-> 	unsigned long mmun_end;		/* For mmu_notifiers */
->@@ -2522,10 +2521,8 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
-> retry_avoidcopy:
-> 	/* If no-one else is actually using this page, avoid the copy
-> 	 * and just make the page writable */
->-	avoidcopy = (page_mapcount(old_page) == 1);
->-	if (avoidcopy) {
->-		if (PageAnon(old_page))
->-			page_move_anon_rmap(old_page, vma, address);
->+	if (page_mapcount(old_page) == 1 && PageAnon(old_page)) {
->+		page_move_anon_rmap(old_page, vma, address);
-> 		set_huge_ptep_writable(vma, address, ptep);
-> 		return 0;
-> 	}
->-- 
->1.7.9.5
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+diff --git a/fs/aio.c b/fs/aio.c
+index 2bbcacf..15e8a13 100644
+--- a/fs/aio.c
++++ b/fs/aio.c
+@@ -35,6 +35,9 @@
+ #include <linux/eventfd.h>
+ #include <linux/blkdev.h>
+ #include <linux/compat.h>
++#include <linux/anon_inodes.h>
++#include <linux/migrate.h>
++#include <linux/ramfs.h>
+ 
+ #include <asm/kmap_types.h>
+ #include <asm/uaccess.h>
+@@ -108,6 +111,7 @@ struct kioctx {
+ 	} ____cacheline_aligned_in_smp;
+ 
+ 	struct page		*internal_pages[AIO_RING_PAGES];
++	struct file		*aio_ring_file;
+ };
+ 
+ /*------ sysctl variables----*/
+@@ -136,15 +140,78 @@ __initcall(aio_setup);
+ 
+ static void aio_free_ring(struct kioctx *ctx)
+ {
+-	long i;
+-
+-	for (i = 0; i < ctx->nr_pages; i++)
++	int i;
++	struct file *aio_ring_file = ctx->aio_ring_file;
++	for (i = 0; i < ctx->nr_pages; i++) {
++		pr_debug("pid(%d) [%d] page->count=%d\n", current->pid, i,
++				page_count(ctx->ring_pages[i]));
+ 		put_page(ctx->ring_pages[i]);
++	}
+ 
+ 	if (ctx->ring_pages && ctx->ring_pages != ctx->internal_pages)
+ 		kfree(ctx->ring_pages);
++
++	if (aio_ring_file) {
++		truncate_setsize(aio_ring_file->f_inode, 0);
++		pr_debug("pid(%d) i_nlink=%u d_count=%d d_unhashed=%d i_count=%d\n",
++			current->pid, aio_ring_file->f_inode->i_nlink,
++			aio_ring_file->f_path.dentry->d_count,
++			d_unhashed(aio_ring_file->f_path.dentry),
++			atomic_read(&aio_ring_file->f_inode->i_count));
++		fput(aio_ring_file);
++		ctx->aio_ring_file = NULL;
++	}
++}
++
++static int aio_ring_mmap(struct file *file, struct vm_area_struct *vma)
++{
++	vma->vm_ops = &generic_file_vm_ops;
++	return 0;
++}
++
++static const struct file_operations aio_ring_fops = {
++	.mmap = aio_ring_mmap,
++};
++
++static int aio_set_page_dirty(struct page *page)
++{
++	return 0;
+ }
+ 
++static int aio_migratepage(struct address_space *mapping, struct page *new,
++			struct page *old, enum migrate_mode mode)
++{
++	struct kioctx *ctx = mapping->private_data;
++	unsigned long flags;
++	unsigned idx = old->index;
++	int rc;
++
++	/* Writeback must be complete */
++	BUG_ON(PageWriteback(old));
++
++	put_page(old);
++
++	rc = migrate_page_move_mapping(mapping, new, old, NULL, mode);
++	if (rc != MIGRATEPAGE_SUCCESS) {
++		get_page(old);
++		return rc;
++	}
++
++	get_page(new);
++
++	spin_lock_irqsave(&ctx->completion_lock, flags);
++	migrate_page_copy(new, old);
++	ctx->ring_pages[idx] = new;
++	spin_unlock_irqrestore(&ctx->completion_lock, flags);
++
++	return rc;
++}
++
++static const struct address_space_operations aio_ctx_aops = {
++	.set_page_dirty = aio_set_page_dirty,
++	.migratepage	= aio_migratepage,
++};
++
+ static int aio_setup_ring(struct kioctx *ctx)
+ {
+ 	struct aio_ring *ring;
+@@ -152,18 +219,42 @@ static int aio_setup_ring(struct kioctx *ctx)
+ 	struct mm_struct *mm = current->mm;
+ 	unsigned long size, populate;
+ 	int nr_pages;
++	int i;
++	struct file *file;
+ 
+ 	/* Compensate for the ring buffer's head/tail overlap entry */
+ 	nr_events += 2;	/* 1 is required, 2 for good luck */
+ 
+ 	size = sizeof(struct aio_ring);
+ 	size += sizeof(struct io_event) * nr_events;
+-	nr_pages = (size + PAGE_SIZE-1) >> PAGE_SHIFT;
++	nr_pages = PFN_UP(size);
+ 
+ 	if (nr_pages < 0)
+ 		return -EINVAL;
++	file = anon_inode_getfile_private("[aio]", &aio_ring_fops, ctx, O_RDWR);
++	if (IS_ERR(file)) {
++		ctx->aio_ring_file = NULL;
++		return -EAGAIN;
++	}
++	file->f_inode->i_mapping->a_ops = &aio_ctx_aops;
++	file->f_inode->i_mapping->private_data = ctx;
++	file->f_inode->i_size = PAGE_SIZE * (loff_t)nr_pages;
+ 
+-	nr_events = (PAGE_SIZE * nr_pages - sizeof(struct aio_ring)) / sizeof(struct io_event);
++	for (i = 0; i < nr_pages; i++) {
++		struct page *page;
++		page = find_or_create_page(file->f_inode->i_mapping,
++					   i, GFP_HIGHUSER | __GFP_ZERO);
++		if (!page)
++			break;
++		pr_debug("pid(%d) page[%d]->count=%d\n",
++			 current->pid, i, page_count(page));
++		SetPageUptodate(page);
++		SetPageDirty(page);
++		unlock_page(page);
++	}
++	ctx->aio_ring_file = file;
++	nr_events = (PAGE_SIZE * nr_pages - sizeof(struct aio_ring))
++			/ sizeof(struct io_event);
+ 
+ 	ctx->nr_events = 0;
+ 	ctx->ring_pages = ctx->internal_pages;
+@@ -177,20 +268,23 @@ static int aio_setup_ring(struct kioctx *ctx)
+ 	ctx->mmap_size = nr_pages * PAGE_SIZE;
+ 	pr_debug("attempting mmap of %lu bytes\n", ctx->mmap_size);
+ 	down_write(&mm->mmap_sem);
+-	ctx->mmap_base = do_mmap_pgoff(NULL, 0, ctx->mmap_size,
+-				       PROT_READ|PROT_WRITE,
+-				       MAP_ANONYMOUS|MAP_PRIVATE, 0, &populate);
++	ctx->mmap_base = do_mmap_pgoff(ctx->aio_ring_file, 0, ctx->mmap_size,
++				       PROT_READ | PROT_WRITE,
++				       MAP_SHARED | MAP_POPULATE, 0, &populate);
+ 	if (IS_ERR((void *)ctx->mmap_base)) {
+ 		up_write(&mm->mmap_sem);
+ 		ctx->mmap_size = 0;
+ 		aio_free_ring(ctx);
+ 		return -EAGAIN;
+ 	}
++	up_write(&mm->mmap_sem);
++	mm_populate(ctx->mmap_base, populate);
+ 
+ 	pr_debug("mmap address: 0x%08lx\n", ctx->mmap_base);
+ 	ctx->nr_pages = get_user_pages(current, mm, ctx->mmap_base, nr_pages,
+ 				       1, 0, ctx->ring_pages, NULL);
+-	up_write(&mm->mmap_sem);
++	for (i = 0; i < ctx->nr_pages; i++)
++		put_page(ctx->ring_pages[i]);
+ 
+ 	if (unlikely(ctx->nr_pages != nr_pages)) {
+ 		aio_free_ring(ctx);
+@@ -397,6 +491,8 @@ out_cleanup:
+ 	err = -EAGAIN;
+ 	aio_free_ring(ctx);
+ out_freectx:
++	if (ctx->aio_ring_file)
++		fput(ctx->aio_ring_file);
+ 	kmem_cache_free(kioctx_cachep, ctx);
+ 	pr_debug("error allocating ioctx %d\n", err);
+ 	return ERR_PTR(err);
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index a405d3d..db67768 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -55,6 +55,9 @@ extern int migrate_vmas(struct mm_struct *mm,
+ extern void migrate_page_copy(struct page *newpage, struct page *page);
+ extern int migrate_huge_page_move_mapping(struct address_space *mapping,
+ 				  struct page *newpage, struct page *page);
++extern int migrate_page_move_mapping(struct address_space *mapping,
++		struct page *newpage, struct page *page,
++		struct buffer_head *head, enum migrate_mode mode);
+ #else
+ 
+ static inline void putback_lru_pages(struct list_head *l) {}
+@@ -84,6 +87,12 @@ static inline int migrate_huge_page_move_mapping(struct address_space *mapping,
+ {
+ 	return -ENOSYS;
+ }
++static inline int migrate_page_move_mapping(struct address_space *mapping,
++		struct page *newpage, struct page *page,
++		struct buffer_head *head, enum migrate_mode mode)
++{
++	return -ENOSYS;
++}
+ 
+ /* Possible settings for the migrate_page() method in address_operations */
+ #define migrate_page NULL
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 6f0c244..1da0092 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -307,7 +307,7 @@ static inline bool buffer_migrate_lock_buffers(struct buffer_head *head,
+  * 2 for pages with a mapping
+  * 3 for pages with a mapping and PagePrivate/PagePrivate2 set.
+  */
+-static int migrate_page_move_mapping(struct address_space *mapping,
++int migrate_page_move_mapping(struct address_space *mapping,
+ 		struct page *newpage, struct page *page,
+ 		struct buffer_head *head, enum migrate_mode mode)
+ {
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
