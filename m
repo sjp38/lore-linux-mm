@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id 104E16B0031
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 18:00:08 -0400 (EDT)
-Date: Wed, 17 Jul 2013 15:00:07 -0700
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id E109B6B0031
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 18:09:15 -0400 (EDT)
+Date: Wed, 17 Jul 2013 15:09:13 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 1/4 v6]swap: change block allocation algorithm for SSD
-Message-Id: <20130717150007.ff10504603266dc221763315@linux-foundation.org>
-In-Reply-To: <20130715204320.GA7925@kernel.org>
-References: <20130715204320.GA7925@kernel.org>
+Subject: Re: [patch 2/4 v6]swap: make swap discard async
+Message-Id: <20130717150913.1286deef1a27bf2d2712e16f@linux-foundation.org>
+In-Reply-To: <20130715204341.GB7925@kernel.org>
+References: <20130715204341.GB7925@kernel.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -16,98 +16,142 @@ List-ID: <linux-mm.kvack.org>
 To: Shaohua Li <shli@kernel.org>
 Cc: linux-mm@kvack.org, riel@redhat.com, minchan@kernel.org, kmpark@infradead.org, hughd@google.com, aquini@redhat.com
 
-On Tue, 16 Jul 2013 04:43:20 +0800 Shaohua Li <shli@kernel.org> wrote:
+On Tue, 16 Jul 2013 04:43:41 +0800 Shaohua Li <shli@kernel.org> wrote:
 
-> I'm using a fast SSD to do swap. scan_swap_map() sometimes uses up to 20~30%
-> CPU time (when cluster is hard to find, the CPU time can be up to 80%), which
-> becomes a bottleneck.  scan_swap_map() scans a byte array to search a 256 page
-> cluster, which is very slow.
+> swap can do cluster discard for SSD, which is good, but there are some problems
+> here:
+> 1. swap do the discard just before page reclaim gets a swap entry and writes
+> the disk sectors. This is useless for high end SSD, because an overwrite to a
+> sector implies a discard to original sector too. A discard + overwrite ==
+> overwrite.
+> 2. the purpose of doing discard is to improve SSD firmware garbage collection.
+> Idealy we should send discard as early as possible, so firmware can do
+> something smart. Sending discard just after swap entry is freed is considered
+> early compared to sending discard before write. Of course, if workload is
+> already bound to gc speed, sending discard earlier or later doesn't make
+> difference.
+> 3. block discard is a sync API, which will delay scan_swap_map() significantly.
+> 4. Write and discard command can be executed parallel in PCIe SSD. Making
+> swap discard async can make execution more efficiently.
 > 
-> Here I introduced a simple algorithm to search cluster. Since we only care
-> about 256 pages cluster, we can just use a counter to track if a cluster is
-> free. Every 256 pages use one int to store the counter. If the counter of a
-> cluster is 0, the cluster is free. All free clusters will be added to a list,
-> so searching cluster is very efficient. With this, scap_swap_map() overhead
-> disappears.
+> This patch makes swap discard async and move discard to where swap entry is
+> freed. Discard and write have no dependence now, so above issues can be avoided.
+> Idealy we should do discard for any freed sectors, but some SSD discard is very
+> slow. This patch still does discard for a whole cluster. 
 > 
-> This might help low end SD card swap too. Because if the cluster is aligned, SD
-> firmware can do flash erase more efficiently.
+> My test does a several round of 'mmap, write, unmap', which will trigger a lot
+> of swap discard. In a fusionio card, with this patch, the test runtime is
+> reduced to 18% of the time without it, so around 5.5x faster.
 > 
-> We only enable the algorithm for SSD. Hard disk swap isn't fast enough and has
-> downside with the algorithm which might introduce regression (see below).
-> 
-> The patch slightly changes which cluster is choosen. It always adds free
-> cluster to list tail. This can help wear leveling for low end SSD too. And if
-> no cluster found, the scan_swap_map() will do search from the end of last
-> cluster. So if no cluster found, the scan_swap_map() will do search from the
-> end of last free cluster, which is random. For SSD, this isn't a problem at
-> all.
-> 
-> Another downside is the cluster must be aligned to 256 pages, which will reduce
-> the chance to find a cluster. I would expect this isn't a big problem for SSD
-> because of the non-seek penality. (And this is the reason I only enable the
-> algorithm for SSD).
-
-I have to agree with Will here - the patch adds a significant new
-design/algorithm into core MM but there wasn't even an attempt to
-describe it within the code.
-
-The changelog provdes a reasonable overview, most notably the second
-paragraph.  Could you please find a way to flesh that part out a bit
-then integrate it into a code comment?  And yes, the major functions
-should have their own comments explaining how they serve the overall
-scheme.
-
-> --- linux.orig/include/linux/swap.h	2013-07-11 19:14:36.849910383 +0800
-> +++ linux/include/linux/swap.h	2013-07-11 19:14:38.657887654 +0800
-> @@ -182,6 +182,17 @@ enum {
->  #define SWAP_MAP_SHMEM	0xbf	/* Owned by shmem/tmpfs, in first swap_map */
->  
->  /*
-> + * the data field stores next cluster if the cluster is free or cluster counter
-> + * otherwise
-> + */
-> +struct swap_cluster_info {
-> +	unsigned int data:24;
-> +	unsigned int flags:8;
-> +};
-
-If I'm understanding it correctly, the code and data structures which
-this patch adds are all protected by swap_info_struct.lock, yes?  This
-is also worth mentioning in a comment, perhaps at the swap_cluster_info
-definition site
-
-> +#define CLUSTER_FLAG_FREE 1 /* This cluster is free */
-> +#define CLUSTER_FLAG_NEXT_NULL 2 /* This cluster has no next cluster */
->
 > ...
 >
-> @@ -2117,13 +2311,28 @@ SYSCALL_DEFINE2(swapon, const char __use
->  		error = -ENOMEM;
->  		goto bad_swap;
->  	}
-> +	if (p->bdev && blk_queue_nonrot(bdev_get_queue(p->bdev))) {
-> +		p->flags |= SWP_SOLIDSTATE;
-> +		/*
-> +		 * select a random position to start with to help wear leveling
-> +		 * SSD
-> +		 */
-> +		p->cluster_next = 1 + (prandom_u32() % p->highest_bit);
+> +static void swap_do_scheduled_discard(struct swap_info_struct *si)
+> +{
+> +	struct swap_cluster_info *info;
+> +	unsigned int idx;
 > +
-> +		cluster_info = vzalloc(DIV_ROUND_UP(maxpages,
-> +			SWAPFILE_CLUSTER) * sizeof(*cluster_info));
-
-OK, what is the upper bound on the size of this allocation?
-
-A failure here would be bad - perhaps a list is needed, rather than a
-flat array.
-
-> +		if (!cluster_info) {
-> +			error = -ENOMEM;
-> +			goto bad_swap;
+> +	info = si->cluster_info;
+> +
+> +	while (!cluster_is_null(&si->discard_cluster_head)) {
+> +		idx = cluster_next(&si->discard_cluster_head);
+> +
+> +		cluster_set_next_flag(&si->discard_cluster_head,
+> +						cluster_next(&info[idx]), 0);
+> +		if (cluster_next(&si->discard_cluster_tail) == idx) {
+> +			cluster_set_null(&si->discard_cluster_head);
+> +			cluster_set_null(&si->discard_cluster_tail);
 > +		}
+> +		spin_unlock(&si->lock);
+> +
+> +		discard_swap_cluster(si, idx * SWAPFILE_CLUSTER,
+> +				SWAPFILE_CLUSTER);
+> +
+> +		spin_lock(&si->lock);
+> +		cluster_set_flag(&info[idx], CLUSTER_FLAG_FREE);
+
+Wait.  How can we do this?  We dropped the spinlock, so `idx' is now
+invalid.
+
+> +		if (cluster_is_null(&si->free_cluster_head)) {
+> +			cluster_set_next_flag(&si->free_cluster_head,
+> +						idx, 0);
+> +			cluster_set_next_flag(&si->free_cluster_tail,
+> +						idx, 0);
+> +		} else {
+> +			unsigned int next;
+> +
+> +			next = cluster_next(&si->free_cluster_tail);
+> +			cluster_set_next(&info[next], idx);
+> +			cluster_set_next_flag(&si->free_cluster_tail,
+> +						idx, 0);
+
+ditto.
+
+> +		}
+> +		memset(si->swap_map + idx * SWAPFILE_CLUSTER,
+> +				0, SWAPFILE_CLUSTER);
+
+again.
+
 > +	}
+> +}
+> +
+> 
+> ...
 >
+> @@ -331,19 +414,6 @@ static unsigned long scan_swap_map(struc
+>  			si->cluster_nr = SWAPFILE_CLUSTER - 1;
+>  			goto checks;
+>  		}
+> -		if (si->flags & SWP_PAGE_DISCARD) {
+> -			/*
+> -			 * Start range check on racing allocations, in case
+> -			 * they overlap the cluster we eventually decide on
+> -			 * (we scan without swap_lock to allow preemption).
+> -			 * It's hardly conceivable that cluster_nr could be
+> -			 * wrapped during our scan, but don't depend on it.
+> -			 */
+> -			if (si->lowest_alloc)
+> -				goto checks;
+> -			si->lowest_alloc = si->max;
+> -			si->highest_alloc = 0;
+> -		}
+>  check_cluster:
+>  		if (!cluster_is_null(&si->free_cluster_head)) {
+>  			offset = cluster_next(&si->free_cluster_head) *
+> @@ -351,15 +421,22 @@ check_cluster:
+>  			last_in_cluster = offset + SWAPFILE_CLUSTER - 1;
+>  			si->cluster_next = offset;
+>  			si->cluster_nr = SWAPFILE_CLUSTER - 1;
+> -			found_free_cluster = 1;
+>  			goto checks;
+>  		} else if (si->cluster_info) {
+>  			/*
+> +			 * we don't have free cluster but have some clusters in
+> +			 * discarding, do discard now and reclaim them
+> +			 */
+> +			if (!cluster_is_null(&si->discard_cluster_head)) {
+> +				swap_do_scheduled_discard(si);
+> +				goto check_cluster;
+
+Again, swap_do_scheduled_discard() might have dropped the lock.  The
+state which scan_swap_map() has copied in from the swap_info_struct is
+now invalidated.  `scan_base' and `offset' might have changed. 
+si->cluster_nr may have changed.  
+
+
+
+> +			}
+> +
+> +			/*
+>  			 * Checking free cluster is fast enough, we can do the
+>  			 * check every time
+>  			 */
+>  			si->cluster_nr = 0;
+> -			si->lowest_alloc = 0;
+>  			goto checks;
+>  		}
+> 
 > ...
 >
 
