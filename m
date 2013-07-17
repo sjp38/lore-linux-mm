@@ -1,49 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 8BECD6B0032
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 10:30:12 -0400 (EDT)
-Received: from epcpsbgr2.samsung.com
- (u142.gpu120.samsung.co.kr [203.254.230.142])
- by mailout1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTP id <0MQ30083D4A8AZV0@mailout1.samsung.com> for linux-mm@kvack.org;
- Wed, 17 Jul 2013 23:30:10 +0900 (KST)
-From: Heesub Shin <heesub.shin@samsung.com>
-Subject: [PATCH] mm: zbud: fix condition check on allocation size
-Date: Wed, 17 Jul 2013 23:30:10 +0900
-Message-id: <1374071410-9337-1-git-send-email-heesub.shin@samsung.com>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 74F416B0032
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 10:46:43 -0400 (EDT)
+Date: Wed, 17 Jul 2013 14:46:42 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] mm/slub.c: use 'unsigned long' instead of 'int' for
+ variable 'slub_debug'
+In-Reply-To: <51E49982.30402@asianux.com>
+Message-ID: <0000013fed18f0f2-cb1afad0-560e-4da5-b865-29e854ce5813-000000@email.amazonses.com>
+References: <51DF5F43.3080408@asianux.com> <0000013fd3283b9c-b5fe217c-fff3-47fd-be0b-31b00faba1f3-000000@email.amazonses.com> <51E33FFE.3010200@asianux.com> <0000013fe2b1bd10-efcc76b5-f75b-4a45-a278-a318e87b2571-000000@email.amazonses.com>
+ <51E49982.30402@asianux.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dongjun Shin <d.j.shin@samsung.com>, Sunae Seo <sunae.seo@samsung.com>, Heesub Shin <heesub@gmail.com>, Heesub Shin <heesub.shin@samsung.com>
+To: Chen Gang <gang.chen@asianux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, mpm@selenic.com, linux-mm@kvack.org
 
-zbud_alloc() incorrectly verifies the size of allocation limit. It
-should deny the allocation request greater than (PAGE_SIZE -
-ZHDR_SIZE_ALIGNED - CHUNK_SIZE), not (PAGE_SIZE - ZHDR_SIZE_ALIGNED)
-which has no remaining spaces for its buddy. There is no point in
-spending the entire zbud page storing only a single page, since we don't
-have any benefits.
+On Tue, 16 Jul 2013, Chen Gang wrote:
 
-Signed-off-by: Heesub Shin <heesub.shin@samsung.com>
----
- mm/zbud.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+> If we really use 32-bit as unsigned number, better to use 'U' instead of
+> 'UL' (e.g. 0x80000000U instead of 0x80000000UL).
+>
+> Since it is unsigned 32-bit number, it is better to use 'unsigned int'
+> instead of 'int', which can avoid related warnings if "EXTRA_CFLAGS=-W".
 
-diff --git a/mm/zbud.c b/mm/zbud.c
-index 9bb4710..ad1e781 100644
---- a/mm/zbud.c
-+++ b/mm/zbud.c
-@@ -257,7 +257,7 @@ int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
- 
- 	if (size <= 0 || gfp & __GFP_HIGHMEM)
- 		return -EINVAL;
--	if (size > PAGE_SIZE - ZHDR_SIZE_ALIGNED)
-+	if (size > PAGE_SIZE - ZHDR_SIZE_ALIGNED - CHUNK_SIZE)
- 		return -ENOSPC;
- 	chunks = size_to_chunks(size);
- 	spin_lock(&pool->lock);
--- 
-1.8.3.2
+Ok could you go through the kernel source and change that?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
