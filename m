@@ -1,137 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id E093B6B0032
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 06:42:25 -0400 (EDT)
-Message-ID: <51E6750A.9060900@oracle.com>
-Date: Wed, 17 Jul 2013 18:42:18 +0800
-From: Bob Liu <bob.liu@oracle.com>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 26C4D6B0032
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 06:50:45 -0400 (EDT)
+Date: Wed, 17 Jul 2013 12:50:30 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 02/18] sched: Track NUMA hinting faults on per-node basis
+Message-ID: <20130717105030.GB17211@twins.programming.kicks-ass.net>
+References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
+ <1373901620-2021-3-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-Subject: Re: zswap: How to determine whether it is compressing swap pages?
-References: <1674223.HVFdAhB7u5@merkaba>
-In-Reply-To: <1674223.HVFdAhB7u5@merkaba>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1373901620-2021-3-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Martin Steigerwald <Martin@lichtvoll.de>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi Martin,
+On Mon, Jul 15, 2013 at 04:20:04PM +0100, Mel Gorman wrote:
+> index cc03cfd..c5f773d 100644
+> --- a/kernel/sched/sched.h
+> +++ b/kernel/sched/sched.h
+> @@ -503,6 +503,17 @@ DECLARE_PER_CPU(struct rq, runqueues);
+>  #define cpu_curr(cpu)		(cpu_rq(cpu)->curr)
+>  #define raw_rq()		(&__raw_get_cpu_var(runqueues))
+>  
+> +#ifdef CONFIG_NUMA_BALANCING
+> +static inline void task_numa_free(struct task_struct *p)
+> +{
+> +	kfree(p->numa_faults);
+> +}
+> +#else /* CONFIG_NUMA_BALANCING */
+> +static inline void task_numa_free(struct task_struct *p)
+> +{
+> +}
+> +#endif /* CONFIG_NUMA_BALANCING */
+> +
+>  #ifdef CONFIG_SMP
+>  
+>  #define rcu_dereference_check_sched_domain(p) \
 
-On 07/17/2013 06:04 PM, Martin Steigerwald wrote:
-> Hi Seth, hi everyone,
->
-> Yesterday I build 3.11-rc1 with CONFIG_ZSWAP and wanted to test it.
->
-> I added zswap.enabled=1 and get:
->
-> martin@merkaba:~> dmesg | grep zswap
-> [    0.000000] Command line: BOOT_IMAGE=/vmlinuz-3.11.0-rc1-tp520+
-> root=/dev/mapper/merkaba-debian ro rootflags=subvol=root init=/bin/systemd
-> cgroup_enable=memory threadirqs i915.i915_enable_rc6=7 zcache zswap.enabled=1
-> [    0.000000] Kernel command line: BOOT_IMAGE=/vmlinuz-3.11.0-rc1-tp520+
-> root=/dev/mapper/merkaba-debian ro rootflags=subvol=root init=/bin/systemd
-> cgroup_enable=memory threadirqs i915.i915_enable_rc6=7 zcache zswap.enabled=1
-> [    1.452443] zswap: loading zswap
-> [    1.452465] zswap: using lzo compressor
->
->
-> I did a stress -m 1 --vm-keep --vm-bytes 4G on this 8 GB ThinkPad T520 in
-> order to allocate some swap.
->
 
-Thank you for your testing.
-I'm glad to see there is new people interested with memory compression.
+I also need the below hunk to make it compile:
 
-> Still I think zswap didn't do anything:
->
-> merkaba:/sys/kernel/debug/zswap> grep . *
-> duplicate_entry:0
-> pool_limit_hit:0
-> pool_pages:0
-> reject_alloc_fail:0
-> reject_compress_poor:0
-> reject_kmemcache_fail:0
-> reject_reclaim_fail:0
-> stored_pages:0
-> written_back_pages:0
->
->
-> However:
->
-> merkaba:/sys/kernel/slab/zswap_entry> grep . *
-> aliases:9
-> align:8
-> grep: alloc_calls: Die angeforderte Funktion ist nicht implementiert
-> cache_dma:0
-> cpu_partial:0
-> cpu_slabs:4 N0=4
-> destroy_by_rcu:0
-> grep: free_calls: Die angeforderte Funktion ist nicht implementiert
-> hwcache_align:0
-> min_partial:5
-> objects:2550 N0=2550
-> object_size:48
-> objects_partial:0
-> objs_per_slab:85
-> order:0
-> partial:0
-> poison:0
-> reclaim_account:0
-> red_zone:0
-> remote_node_defrag_ratio:100
-> reserved:0
-> sanity_checks:0
-> slabs:30 N0=30
-> slabs_cpu_partial:0(0)
-> slab_size:48
-> store_user:0
-> total_objects:2550 N0=2550
-> trace:0
->
-> It has some objects it seems.
->
->
-> How do I know whether zswap actually does something?
->
-> Will zswap work even with zcache enabled? As I understand zcache compresses
-> swap device pages on the block device level in addition to compressing read
-> cache pages of usual filesystems. Which one takes precedence, zcache or zswap?
-> Can I disable zcache for swap device?
->
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -6,6 +6,7 @@
+ #include <linux/spinlock.h>
+ #include <linux/stop_machine.h>
+ #include <linux/tick.h>
++#include <linux/slab.h>
+ 
+ #include "cpupri.h"
+ #include "cpuacct.h"
 
-Please disable zcache and try again.
 
->
->
-> Here is dmesg for zcache:
->
-> martin@merkaba:~> dmesg | grep zcache
-> [    0.000000] Command line: BOOT_IMAGE=/vmlinuz-3.11.0-rc1-tp520+
-> root=/dev/mapper/merkaba-debian ro rootflags=subvol=root init=/bin/systemd
-> cgroup_enable=memory threadirqs i915.i915_enable_rc6=7 zcache zswap.enabled=1
-> [    0.000000] Kernel command line: BOOT_IMAGE=/vmlinuz-3.11.0-rc1-tp520+
-> root=/dev/mapper/merkaba-debian ro rootflags=subvol=root init=/bin/systemd
-> cgroup_enable=memory threadirqs i915.i915_enable_rc6=7 zcache zswap.enabled=1
-> [    1.453531] zcache: using lzo compressor
-> [    1.453634] zcache: cleancache enabled using kernel transcendent memory and
-> compression buddies
-> [    1.453679] zcache: frontswap enabled using kernel transcendent memory and
-> compression buddies
-> [    1.453722] zcache: frontswap_ops overridden
-> [    5.358288] zcache: created ephemeral local tmem pool, id=0
-> [    8.155684] zcache: created persistent local tmem pool, id=1
-> [    8.331680] zcache: created ephemeral local tmem pool, id=2
-> [    8.593235] zcache: created ephemeral local tmem pool, id=3
-> [    8.743330] zcache: created ephemeral local tmem pool, id=4
->
->
-> Thanks,
->
-
--- 
-Regards,
--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
