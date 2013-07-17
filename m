@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 7CA786B0032
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 11:15:11 -0400 (EDT)
-Message-ID: <1374074109.6458.144.camel@gandalf.local.home>
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id DA6F26B0032
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 11:24:17 -0400 (EDT)
+Message-ID: <1374074655.6458.147.camel@gandalf.local.home>
 Subject: Re: [3.11 1/4] slub: Make cpu partial slab support configurable V2
 From: Steven Rostedt <rostedt@goodmis.org>
-Date: Wed, 17 Jul 2013 11:15:09 -0400
-In-Reply-To: <0000013fed298406-22a9ee3c-e55c-4cc4-8a30-88fc02c8624d-000000@email.amazonses.com>
+Date: Wed, 17 Jul 2013 11:24:15 -0400
+In-Reply-To: <1374074109.6458.144.camel@gandalf.local.home>
 References: <20130614195500.373711648@linux.com>
 	 <0000013f44418a14-7abe9784-a481-4c34-8ff3-c3afe2d57979-000000@email.amazonses.com>
 	 <51BFFFA1.8030402@kernel.org>
@@ -21,6 +21,7 @@ References: <20130614195500.373711648@linux.com>
 	 <CAOJsxLGj8BVUPAXCshtcSfxFjqHzm6+_HdyRsEazhv-gp4XcNA@mail.gmail.com>
 	 <1374063795.6458.125.camel@gandalf.local.home>
 	 <0000013fed298406-22a9ee3c-e55c-4cc4-8a30-88fc02c8624d-000000@email.amazonses.com>
+	 <1374074109.6458.144.camel@gandalf.local.home>
 Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
@@ -29,15 +30,22 @@ List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
 Cc: Pekka Enberg <penberg@kernel.org>, Clark Williams <williams@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Joonsoo Kim <js1304@gmail.com>, Clark Williams <clark@redhat.com>, Glauber Costa <glommer@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>
 
-On Wed, 2013-07-17 at 15:04 +0000, Christoph Lameter wrote:
-> On Wed, 17 Jul 2013, Steven Rostedt wrote:
+On Wed, 2013-07-17 at 11:15 -0400, Steven Rostedt wrote:
+> On Wed, 2013-07-17 at 15:04 +0000, Christoph Lameter wrote:
+> > On Wed, 17 Jul 2013, Steven Rostedt wrote:
+> > 
+> > > I was using the patch that Christoph posted. It was also attached to the
+> > > -rt kernel for 3.6. I could have backported the patch poorly too.
+> > 
+> > Could you try upstream?
 > 
-> > I was using the patch that Christoph posted. It was also attached to the
-> > -rt kernel for 3.6. I could have backported the patch poorly too.
-> 
-> Could you try upstream?
+> Yeah, I'm running it now.
 
-Yeah, I'm running it now.
+It's been running fine for about an hour, where my backport locked up in
+minutes.
+
+Thus, I'm not blaming Christoph here. It could be either -rt related, or
+3.6 backport related.
 
 -- Steve
 
