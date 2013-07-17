@@ -1,73 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id 519616B0032
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 07:01:05 -0400 (EDT)
-Date: Wed, 17 Jul 2013 13:00:53 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 04/18] mm: numa: Do not migrate or account for hinting
- faults on the zero page
-Message-ID: <20130717110053.GD17211@twins.programming.kicks-ass.net>
-References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
- <1373901620-2021-5-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 9FE2B6B0034
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 07:21:08 -0400 (EDT)
+Received: by mail-wi0-f172.google.com with SMTP id c10so5261987wiw.5
+        for <linux-mm@kvack.org>; Wed, 17 Jul 2013 04:21:07 -0700 (PDT)
+Date: Wed, 17 Jul 2013 14:20:58 +0300
+From: Dan Carpenter <error27@gmail.com>
+Subject: Re: list_lru: per-node list infrastructure
+Message-ID: <20130717112058.GA12134@mwanda>
+References: <20130628142202.GA16774@elgon.mountain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1373901620-2021-5-git-send-email-mgorman@suse.de>
+In-Reply-To: <20130628142202.GA16774@elgon.mountain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: dchinner@redhat.com
+Cc: linux-mm@kvack.org
 
-On Mon, Jul 15, 2013 at 04:20:06PM +0100, Mel Gorman wrote:
-> The zero page is not replicated between nodes and is often shared
-> between processes. The data is read-only and likely to be cached in
-> local CPUs if heavily accessed meaning that the remote memory access
-> cost is less of a concern. This patch stops accounting for numa hinting
-> faults on the zero page in both terms of counting faults and scheduling
-> tasks on nodes.
+Ping?
+
+Btw, here is the code from list_lru_walk_node():
+
+		if ((*nr_to_walk)-- == 0)
+			break;
+
+As you can see it wraps to ULONG_MAX before returning.
+
+regards,
+dan carpenter
+
+On Fri, Jun 28, 2013 at 05:22:02PM +0300, Dan Carpenter wrote:
+> Hi Dave,
 > 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> ---
->  mm/huge_memory.c | 9 +++++++++
->  mm/memory.c      | 7 ++++++-
->  2 files changed, 15 insertions(+), 1 deletion(-)
+> The patch a8739514fa91: "list_lru: per-node list infrastructure" in -mm
+> has a signedness bug.
 > 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index e4a79fa..ec938ed 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -1302,6 +1302,15 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  
->  	page = pmd_page(pmd);
->  	get_page(page);
-> +
-> +	/*
-> +	 * Do not account for faults against the huge zero page. The read-only
-> +	 * data is likely to be read-cached on the local CPUs and it is less
-> +	 * useful to know about local versus remote hits on the zero page.
-> +	 */
-> +	if (is_huge_zero_pfn(page_to_pfn(page)))
-> +		goto clear_pmdnuma;
-> +
->  	src_nid = numa_node_id();
->  	count_vm_numa_event(NUMA_HINT_FAULTS);
->  	if (src_nid == page_to_nid(page))
-
-And because of:
-
-  5918d10 thp: fix huge zero page logic for page with pfn == 0
-
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1308,7 +1308,7 @@ int do_huge_pmd_numa_page(struct mm_stru
- 	 * data is likely to be read-cached on the local CPUs and it is less
- 	 * useful to know about local versus remote hits on the zero page.
- 	 */
--	if (is_huge_zero_pfn(page_to_pfn(page)))
-+	if (is_huge_zero_page(page))
- 		goto clear_pmdnuma;
- 
- 	src_nid = numa_node_id();
+> include/linux/list_lru.h
+>    116  static inline unsigned long
+>    117  list_lru_walk(struct list_lru *lru, list_lru_walk_cb isolate,
+>    118                void *cb_arg, unsigned long nr_to_walk)
+>    119  {
+>    120          long isolated = 0;
+>    121          int nid;
+>    122  
+>    123          for_each_node_mask(nid, lru->active_nodes) {
+>    124                  isolated += list_lru_walk_node(lru, nid, isolate,
+>    125                                                 cb_arg, &nr_to_walk);
+>    126                  if (nr_to_walk <= 0)
+>                             ^^^^^^^^^^^^^^^
+> nr_to_walk is unsigned so the timeout value from list_lru_walk_node() is
+> ULONG_MAX (it's not zero).
+> 
+>    127                          break;
+>    128          }
+>    129          return isolated;
+>    130  }
+> 
+> regards,
+> dan carpenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
