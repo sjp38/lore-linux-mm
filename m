@@ -1,85 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 9E8E76B0031
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 19:16:05 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id fa11so2482995pad.5
-        for <linux-mm@kvack.org>; Wed, 17 Jul 2013 16:16:04 -0700 (PDT)
-Message-ID: <51E725B2.7090003@gmail.com>
-Date: Wed, 17 Jul 2013 16:16:02 -0700
-From: David Daney <ddaney.cavm@gmail.com>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id ED7E36B0031
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 19:22:33 -0400 (EDT)
+Received: by mail-ob0-f169.google.com with SMTP id up14so3048340obb.28
+        for <linux-mm@kvack.org>; Wed, 17 Jul 2013 16:22:33 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH RFC] lib: Make radix_tree_node_alloc() irq safe
-References: <1373994390-5479-1-git-send-email-jack@suse.cz> <20130717161200.40a97074623be2685beb8156@linux-foundation.org>
-In-Reply-To: <20130717161200.40a97074623be2685beb8156@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1374097503-25515-1-git-send-email-toshi.kani@hp.com>
+References: <1374097503-25515-1-git-send-email-toshi.kani@hp.com>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Wed, 17 Jul 2013 19:22:12 -0400
+Message-ID: <CAHGf_=pND-R=qMHg7b=Fi5SqS6ahXJCG865WsOS2eKWa6g3A7A@mail.gmail.com>
+Subject: Re: [PATCH] mm/hotplug, x86: Disable ARCH_MEMORY_PROBE by default
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Jens Axboe <jaxboe@fusionio.com>
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, x86@kernel.org, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, vasilis.liaskovitis@profitbricks.com
 
-On 07/17/2013 04:12 PM, Andrew Morton wrote:
-> On Tue, 16 Jul 2013 19:06:30 +0200 Jan Kara <jack@suse.cz> wrote:
+On Wed, Jul 17, 2013 at 5:45 PM, Toshi Kani <toshi.kani@hp.com> wrote:
+> CONFIG_ARCH_MEMORY_PROBE enables /sys/devices/system/memory/probe
+> interface, which allows a given memory address to be hot-added as
+> follows. (See Documentation/memory-hotplug.txt for more detail.)
 >
->> With users of radix_tree_preload() run from interrupt (CFQ is one such
->> possible user), the following race can happen:
->>
->> radix_tree_preload()
->> ...
->> radix_tree_insert()
->>    radix_tree_node_alloc()
->>      if (rtp->nr) {
->>        ret = rtp->nodes[rtp->nr - 1];
->> <interrupt>
->> ...
->> radix_tree_preload()
->> ...
->> radix_tree_insert()
->>    radix_tree_node_alloc()
->>      if (rtp->nr) {
->>        ret = rtp->nodes[rtp->nr - 1];
->>
->> And we give out one radix tree node twice. That clearly results in radix
->> tree corruption with different results (usually OOPS) depending on which
->> two users of radix tree race.
->>
->> Fix the problem by disabling interrupts when working with rtp variable.
->> In-interrupt user can still deplete our preloaded nodes but at least we
->> won't corrupt radix trees.
->>
->> ...
->>
->>    There are some questions regarding this patch:
->> Do we really want to allow in-interrupt users of radix_tree_preload()?  CFQ
->> could certainly do this in older kernels but that particular call site where I
->> saw the bug hit isn't there anymore so I'm not sure this can really happen with
->> recent kernels.
+> # echo start_address_of_new_memory > /sys/devices/system/memory/probe
 >
-> Well, it was never anticipated that interrupt-time code would run
-> radix_tree_preload().  The whole point in the preloading was to be able
-> to perform GFP_KERNEL allocations before entering the spinlocked region
-> which needs to allocate memory.
+> This probe interface is required on powerpc. On x86, however, ACPI
+> notifies a memory hotplug event to the kernel, which performs its
+> hotplug operation as the result. Therefore, users should not be
+> required to use this interface on x86. This probe interface is also
+> error-prone that the kernel blindly adds a given memory address
+> without checking if the memory is present on the system; no probing
+> is done despite of its name. The kernel crashes when a user requests
+> to online a memory block that is not present on the system.
 >
-> Doing all that from within an interrupt is daft, because the interrupt code
-> can't use GFP_KERNEL anyway.
->
->> Also it is actually harmful to do preloading if you are in interrupt context
->> anyway. The disadvantage of disallowing radix_tree_preload() in interrupt is
->> that we would need to tweak radix_tree_node_alloc() to somehow recognize
->> whether the caller wants it to use preloaded nodes or not and that callers
->> would have to get it right (although maybe some magic in radix_tree_preload()
->> could handle that).
->>
->> Opinions?
->
-> BUG_ON(in_interrupt()) :)
+> This patch disables CONFIG_ARCH_MEMORY_PROBE by default on x86,
+> and clarifies it in Documentation/memory-hotplug.txt.
 
-Is is really that severe?  How about...
-
-WARN_ON() instead?
-
-David Daney
-
+Why don't you completely remove it? Who should use this strange interface?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
