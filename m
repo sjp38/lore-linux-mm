@@ -1,183 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 261196B0032
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 07:41:48 -0400 (EDT)
-From: Martin Steigerwald <Martin@lichtvoll.de>
-Subject: Re: zswap: How to determine whether it is compressing swap pages?
-Date: Wed, 17 Jul 2013 13:41:44 +0200
-Message-ID: <3337744.IgTT2hGPE5@merkaba>
-In-Reply-To: <51E6750A.9060900@oracle.com>
-References: <1674223.HVFdAhB7u5@merkaba> <51E6750A.9060900@oracle.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/plain; charset="utf-8"
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 54BED6B0032
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 08:23:21 -0400 (EDT)
+Message-ID: <1374063795.6458.125.camel@gandalf.local.home>
+Subject: Re: [3.11 1/4] slub: Make cpu partial slab support configurable V2
+From: Steven Rostedt <rostedt@goodmis.org>
+Date: Wed, 17 Jul 2013 08:23:15 -0400
+In-Reply-To: <CAOJsxLGj8BVUPAXCshtcSfxFjqHzm6+_HdyRsEazhv-gp4XcNA@mail.gmail.com>
+References: <20130614195500.373711648@linux.com>
+	 <0000013f44418a14-7abe9784-a481-4c34-8ff3-c3afe2d57979-000000@email.amazonses.com>
+	 <51BFFFA1.8030402@kernel.org>
+	 <0000013f57a5b278-d9104e1e-ccec-40ec-bd95-f8b0816a38d9-000000@email.amazonses.com>
+	 <20130618102109.310f4ce1@riff.lan>
+	 <CAOJsxLHsYVThWL7yKEQaQqxTSpgK8RHm-u8n94t_m4=uMjDqzw@mail.gmail.com>
+	 <1372170272.18733.201.camel@gandalf.local.home>
+	 <0000013f9b735739-eb4b29ce-fbc6-4493-ac56-22766da5fdae-000000@email.amazonses.com>
+	 <20130702100913.0ef4cd25@riff.lan>
+	 <0000013fa047b23e-84298a70-911d-43ea-9db3-bc9682bb90b6-000000@email.amazonses.com>
+	 <1374029203.6458.121.camel@gandalf.local.home>
+	 <CAOJsxLGj8BVUPAXCshtcSfxFjqHzm6+_HdyRsEazhv-gp4XcNA@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <bob.liu@oracle.com>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, Clark Williams <williams@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Joonsoo Kim <js1304@gmail.com>, Clark Williams <clark@redhat.com>, Glauber Costa <glommer@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>
 
-Am Mittwoch, 17. Juli 2013, 18:42:18 schrieb Bob Liu:
-> On 07/17/2013 06:04 PM, Martin Steigerwald wrote:
-> > Hi Seth, hi everyone,
-> >
-> > Yesterday I build 3.11-rc1 with CONFIG_ZSWAP and wanted to test it.=
+On Wed, 2013-07-17 at 10:04 +0300, Pekka Enberg wrote:
+> Hi Steven,
+> 
+> On Wed, Jul 17, 2013 at 5:46 AM, Steven Rostedt <rostedt@goodmis.org> wrote:
+> > When I run a stress test of the box (kernel compile along with
+> > hackbench), with that patch applied, the system hangs for long periods
+> > of time. I have no idea why, but the oom killer would trigger
+> > constantly.
+> 
+> Are you using this patch or the modified version by Joonsoo that
+> landed in Linus' tree?
 
-> >
-> > I added zswap.enabled=3D1 and get:
-> >
-> > martin@merkaba:~> dmesg | grep zswap
-> > [    0.000000] Command line: BOOT_IMAGE=3D/vmlinuz-3.11.0-rc1-tp520=
-+
-> > root=3D/dev/mapper/merkaba-debian ro rootflags=3Dsubvol=3Droot init=
-=3D/bin/systemd
-> > cgroup_enable=3Dmemory threadirqs i915.i915_enable_rc6=3D7 zcache z=
-swap.enabled=3D1
-> > [    0.000000] Kernel command line: BOOT_IMAGE=3D/vmlinuz-3.11.0-rc=
-1-tp520+
-> > root=3D/dev/mapper/merkaba-debian ro rootflags=3Dsubvol=3Droot init=
-=3D/bin/systemd
-> > cgroup_enable=3Dmemory threadirqs i915.i915_enable_rc6=3D7 zcache z=
-swap.enabled=3D1
-> > [    1.452443] zswap: loading zswap
-> > [    1.452465] zswap: using lzo compressor
-> >
-> >
-> > I did a stress -m 1 --vm-keep --vm-bytes 4G on this 8 GB ThinkPad T=
-520 in
-> > order to allocate some swap.
-> >
->=20
-> Thank you for your testing.
-> I'm glad to see there is new people interested with memory compressio=
-n.
->=20
-> > Still I think zswap didn=C2=B4t do anything:
-> >
-> > merkaba:/sys/kernel/debug/zswap> grep . *
-> > duplicate_entry:0
-> > pool_limit_hit:0
-> > pool_pages:0
-> > reject_alloc_fail:0
-> > reject_compress_poor:0
-> > reject_kmemcache_fail:0
-> > reject_reclaim_fail:0
-> > stored_pages:0
-> > written_back_pages:0
-> >
-> >
-> > However:
-> >
-> > merkaba:/sys/kernel/slab/zswap_entry> grep . *
-> > aliases:9
-> > align:8
-> > grep: alloc_calls: Die angeforderte Funktion ist nicht implementier=
-t
-> > cache_dma:0
-> > cpu_partial:0
-> > cpu_slabs:4 N0=3D4
-> > destroy_by_rcu:0
-> > grep: free_calls: Die angeforderte Funktion ist nicht implementiert=
+I was using the patch that Christoph posted. It was also attached to the
+-rt kernel for 3.6. I could have backported the patch poorly too.
 
-> > hwcache_align:0
-> > min_partial:5
-> > objects:2550 N0=3D2550
-> > object_size:48
-> > objects_partial:0
-> > objs_per_slab:85
-> > order:0
-> > partial:0
-> > poison:0
-> > reclaim_account:0
-> > red_zone:0
-> > remote_node_defrag_ratio:100
-> > reserved:0
-> > sanity_checks:0
-> > slabs:30 N0=3D30
-> > slabs_cpu_partial:0(0)
-> > slab_size:48
-> > store_user:0
-> > total_objects:2550 N0=3D2550
-> > trace:0
-> >
-> > It has some objects it seems.
-> >
-> >
-> > How do I know whether zswap actually does something?
-> >
-> > Will zswap work even with zcache enabled? As I understand zcache co=
-mpresses
-> > swap device pages on the block device level in addition to compress=
-ing read
-> > cache pages of usual filesystems. Which one takes precedence, zcach=
-e or zswap?
-> > Can I disable zcache for swap device?
-> >
->=20
-> Please disable zcache and try again.
+-- Steve
 
-Okay, this seemed to work.
-
-Shortly after starting stress I got:
-
-merkaba:/sys/kernel/debug/zswap> grep . *
-duplicate_entry:0
-pool_limit_hit:0
-pool_pages:170892
-reject_alloc_fail:0
-reject_compress_poor:0
-reject_kmemcache_fail:0
-reject_reclaim_fail:0
-stored_pages:341791
-written_back_pages:0
-
-
-then zcache reduced pool size again =E2=80=93 while stress was still ru=
-nning:
-
-merkaba:/sys/kernel/debug/zswap> grep . *
-duplicate_entry:0
-pool_limit_hit:0
-pool_pages:38
-reject_alloc_fail:0
-reject_compress_poor:0
-reject_kmemcache_fail:0
-reject_reclaim_fail:0
-stored_pages:66
-written_back_pages:0
-
-
-I assume that on heavy memory pressure zcache shrinks pool again in ode=
-r
-to free memory for other activities? Is that correct?
-
-So zswap would help most on moderate, not heavy and bulky memory pressu=
-re?
-
-
-I was not able to reproduce above behavior even while watching with
-
-merkaba:/sys/kernel/debug/zswap#130> while true; do date; grep . * ; sl=
-eep 1 ; done
-
-
-Zswap just doesn=C2=B4t seem to store packages on that workload anymore=
-.
-
-I will keep it running in regular workloads (two KDE sessions with Akon=
-adi
-and Nepomuk) and observe it a bit.
-
-
-Is there any way to run zcache concurrently with zswap? I.e. use zcache=
- only
-for read caches for filesystem and zswap for swap?
-
-What is better suited for swap? zswap or zcache?
-
-Thanks,
---=20
-Martin 'Helios' Steigerwald - http://www.Lichtvoll.de
-GPG: 03B0 0D6C 0040 0710 4AFA  B82F 991B EAAC A599 84C7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
