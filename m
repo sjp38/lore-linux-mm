@@ -1,26 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id EBADD6B0033
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 10:47:49 -0400 (EDT)
-Date: Wed, 17 Jul 2013 14:47:48 +0000
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 6035E6B0033
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 11:03:12 -0400 (EDT)
+Date: Wed, 17 Jul 2013 15:03:10 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 2/2] mm/slub.c: beautify code for removing redundancy
- 'break' statement.
-In-Reply-To: <51E34B10.5090005@asianux.com>
-Message-ID: <0000013fed19f3d0-5efc1fc8-9119-4859-9862-83f7802b12ad-000000@email.amazonses.com>
-References: <51DF5F43.3080408@asianux.com> <51DF778B.8090701@asianux.com> <0000013fd32d0b91-4cab82b6-a24f-42e2-a1d2-ac5df2be6f4c-000000@email.amazonses.com> <51E34B10.5090005@asianux.com>
+Subject: Re: [PATCH] mm/slub.c: add parameter length checking for
+ alloc_loc_track()
+In-Reply-To: <51E49BDF.30008@asianux.com>
+Message-ID: <0000013fed280250-85b17e35-d4d4-468d-abed-5b2e29cedb94-000000@email.amazonses.com>
+References: <51DA734B.4060608@asianux.com> <51DE549F.9070505@kernel.org> <51DE55C9.1060908@asianux.com> <0000013fce9f5b32-7d62f3c5-bb35-4dd9-ab19-d72bae4b5bdc-000000@email.amazonses.com> <51DEF935.4040804@kernel.org>
+ <0000013fcf608df8-457e2029-51f9-4e49-9992-bf399a97d953-000000@email.amazonses.com> <51DF4540.8060700@asianux.com> <51DF4C94.3060103@asianux.com> <51DF5404.4060004@asianux.com> <0000013fd3250e40-1832fd38-ede3-41af-8fe3-5a0c10f5e5ce-000000@email.amazonses.com>
+ <51E33F98.8060201@asianux.com> <0000013fe2e73e30-817f1bdb-8dc7-4f7b-9b60-b42d5d244fda-000000@email.amazonses.com> <51E49BDF.30008@asianux.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Chen Gang <gang.chen@asianux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, mpm@selenic.com, linux-mm@kvack.org
+Cc: Pekka Enberg <penberg@kernel.org>, mpm@selenic.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, 15 Jul 2013, Chen Gang wrote:
+On Tue, 16 Jul 2013, Chen Gang wrote:
 
-> Remove redundancy 'break' statement.
+> Hmm... what you says above is reasonable.
+>
+> In this case, since alloc_loc_track() is a static function, it will
+> depend on the related maintainers' willing and opinions to decide
+> whether add the related check or not (just like add 'BUG_ON' or not).
+>
+> I need respect the original related maintainers' willing and opinions.
 
-Acked-by: Christoph Lameter <cl@linux.com>
+You are talking to the author of the code.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
