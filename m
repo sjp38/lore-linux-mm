@@ -1,9 +1,11 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 01/10] mm: zone_reclaim: remove ZONE_RECLAIM_LOCKED
-Date: Wed, 17 Jul 2013 07:45:17 +0800
-Message-ID: <45126.5817079276$1374018336@news.gmane.org>
-References: <1373982114-19774-1-git-send-email-aarcange@redhat.com>
- <1373982114-19774-2-git-send-email-aarcange@redhat.com>
+Subject: Re: [PATCH 03/18] mm: numa: Account for THP numa hinting faults on
+ the correct node
+Date: Wed, 17 Jul 2013 09:26:57 +0800
+Message-ID: <12908.9662609205$1374024437@news.gmane.org>
+References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
+ <1373901620-2021-4-git-send-email-mgorman@suse.de>
+ <CAJd=RBD7UR5Fo8u3YtXf-h4dzZhWazMX8YJ0=3dSabcef=w66w@mail.gmail.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -11,89 +13,93 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1UzEvv-00009I-Qt
-	for glkm-linux-mm-2@m.gmane.org; Wed, 17 Jul 2013 01:45:28 +0200
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id BD8C56B0034
-	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 19:45:25 -0400 (EDT)
+	id 1UzGWM-0002lN-3L
+	for glkm-linux-mm-2@m.gmane.org; Wed, 17 Jul 2013 03:27:10 +0200
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id EDF0B6B0032
+	for <linux-mm@kvack.org>; Tue, 16 Jul 2013 21:27:07 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 17 Jul 2013 05:08:44 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id DCF703940057
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 05:15:15 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6GNjFcl24969396
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 05:15:15 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6GNjIjg010565
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 09:45:19 +1000
+	Wed, 17 Jul 2013 11:11:38 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id A97F42BB0051
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 11:27:00 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6H1BZUh8782142
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 11:11:36 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6H1Qw84003754
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 11:26:59 +1000
 Content-Disposition: inline
-In-Reply-To: <1373982114-19774-2-git-send-email-aarcange@redhat.com>
+In-Reply-To: <CAJd=RBD7UR5Fo8u3YtXf-h4dzZhWazMX8YJ0=3dSabcef=w66w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>, Hush Bensen <hush.bensen@gmail.com>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Jul 16, 2013 at 03:41:45PM +0200, Andrea Arcangeli wrote:
->Zone reclaim locked breaks zone_reclaim_mode=1. If more than one
->thread allocates memory at the same time, it forces a premature
->allocation into remote NUMA nodes even when there's plenty of clean
->cache to reclaim in the local nodes.
->
->Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
->Reviewed-by: Rik van Riel <riel@redhat.com>
->Acked-by: Rafael Aquini <aquini@redhat.com>
->Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+On Wed, Jul 17, 2013 at 08:33:13AM +0800, Hillf Danton wrote:
+>On Mon, Jul 15, 2013 at 11:20 PM, Mel Gorman <mgorman@suse.de> wrote:
+>> THP NUMA hinting fault on pages that are not migrated are being
+>> accounted for incorrectly. Currently the fault will be counted as if the
+>> task was running on a node local to the page which is not necessarily
+>> true.
+>>
 
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Hi Hillf,
 
->---
-> include/linux/mmzone.h | 6 ------
-> mm/vmscan.c            | 4 ----
-> 2 files changed, 10 deletions(-)
+>Can you please run test again without this correction and check the difference?
 >
->diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
->index af4a3b7..9534a9a 100644
->--- a/include/linux/mmzone.h
->+++ b/include/linux/mmzone.h
->@@ -496,7 +496,6 @@ struct zone {
-> } ____cacheline_internodealigned_in_smp;
->
-> typedef enum {
->-	ZONE_RECLAIM_LOCKED,		/* prevents concurrent reclaim */
-> 	ZONE_OOM_LOCKED,		/* zone is in OOM killer zonelist */
-> 	ZONE_CONGESTED,			/* zone has many dirty pages backed by
-> 					 * a congested BDI
->@@ -540,11 +539,6 @@ static inline int zone_is_reclaim_writeback(const struct zone *zone)
-> 	return test_bit(ZONE_WRITEBACK, &zone->flags);
-> }
->
->-static inline int zone_is_reclaim_locked(const struct zone *zone)
->-{
->-	return test_bit(ZONE_RECLAIM_LOCKED, &zone->flags);
->-}
->-
-> static inline int zone_is_oom_locked(const struct zone *zone)
-> {
-> 	return test_bit(ZONE_OOM_LOCKED, &zone->flags);
->diff --git a/mm/vmscan.c b/mm/vmscan.c
->index 2cff0d4..042fdcd 100644
->--- a/mm/vmscan.c
->+++ b/mm/vmscan.c
->@@ -3595,11 +3595,7 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
-> 	if (node_state(node_id, N_CPU) && node_id != numa_node_id())
-> 		return ZONE_RECLAIM_NOSCAN;
->
->-	if (zone_test_and_set_flag(zone, ZONE_RECLAIM_LOCKED))
->-		return ZONE_RECLAIM_NOSCAN;
->-
-> 	ret = __zone_reclaim(zone, gfp_mask, order);
->-	zone_clear_flag(zone, ZONE_RECLAIM_LOCKED);
->
-> 	if (!ret)
-> 		count_vm_event(PGSCAN_ZONE_RECLAIM_FAILED);
+
+I think the essential point is which node NUMA hinting faults counts should 
+be accumulated to when thp pages are not migrated. Counts are accounted as 
+local numa hinting fault before this patch, it's not always true and there's 
+bad influence when determine the preferred node with the most numa hinting 
+faults.
+
+Regards,
+Wanpeng Li 
+
+>> Signed-off-by: Mel Gorman <mgorman@suse.de>
+>> ---
+>>  mm/huge_memory.c | 10 +++++-----
+>>  1 file changed, 5 insertions(+), 5 deletions(-)
+>>
+>> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+>> index e2f7f5aa..e4a79fa 100644
+>> --- a/mm/huge_memory.c
+>> +++ b/mm/huge_memory.c
+>> @@ -1293,7 +1293,7 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>>         struct page *page;
+>>         unsigned long haddr = addr & HPAGE_PMD_MASK;
+>>         int target_nid;
+>> -       int current_nid = -1;
+>> +       int src_nid = -1;
+>>         bool migrated;
+>>
+>>         spin_lock(&mm->page_table_lock);
+>> @@ -1302,9 +1302,9 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>>
+>>         page = pmd_page(pmd);
+>>         get_page(page);
+>> -       current_nid = page_to_nid(page);
+>> +       src_nid = numa_node_id();
+>>         count_vm_numa_event(NUMA_HINT_FAULTS);
+>> -       if (current_nid == numa_node_id())
+>> +       if (src_nid == page_to_nid(page))
+>>                 count_vm_numa_event(NUMA_HINT_FAULTS_LOCAL);
+>>
+>>         target_nid = mpol_misplaced(page, vma, haddr);
+>> @@ -1346,8 +1346,8 @@ clear_pmdnuma:
+>>         update_mmu_cache_pmd(vma, addr, pmdp);
+>>  out_unlock:
+>>         spin_unlock(&mm->page_table_lock);
+>> -       if (current_nid != -1)
+>> -               task_numa_fault(current_nid, HPAGE_PMD_NR, false);
+>> +       if (src_nid != -1)
+>> +               task_numa_fault(src_nid, HPAGE_PMD_NR, false);
+>>         return 0;
+>>  }
 >
 >--
 >To unsubscribe, send a message with 'unsubscribe linux-mm' in
