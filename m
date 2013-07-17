@@ -1,282 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 8E3CE6B0034
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 17:15:00 -0400 (EDT)
-Message-ID: <0000013fee7c6bb3-013979a6-eaf2-48b2-b6bf-5af5456d62bc-000000@email.amazonses.com>
-Date: Wed, 17 Jul 2013 21:14:59 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: C1 [2/2] Move kmalloc definitions to slab.h
-References: <20130717211502.352973513@linux.com>
+	by kanga.kvack.org (Postfix) with SMTP id 355376B0031
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 17:46:00 -0400 (EDT)
+From: Toshi Kani <toshi.kani@hp.com>
+Subject: [PATCH] mm/hotplug, x86: Disable ARCH_MEMORY_PROBE by default
+Date: Wed, 17 Jul 2013 15:45:03 -0600
+Message-Id: <1374097503-25515-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, isimatu.yasuaki@jp.fujitsu.com, tangchen@cn.fujitsu.com, vasilis.liaskovitis@profitbricks.com, Toshi Kani <toshi.kani@hp.com>
 
-All the kmallocs are mostly doing the same. Unify them.
+CONFIG_ARCH_MEMORY_PROBE enables /sys/devices/system/memory/probe
+interface, which allows a given memory address to be hot-added as
+follows. (See Documentation/memory-hotplug.txt for more detail.)
 
-slob_def.h becomes empty. So remove it.
+# echo start_address_of_new_memory > /sys/devices/system/memory/probe
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
+This probe interface is required on powerpc. On x86, however, ACPI
+notifies a memory hotplug event to the kernel, which performs its
+hotplug operation as the result. Therefore, users should not be
+required to use this interface on x86. This probe interface is also
+error-prone that the kernel blindly adds a given memory address
+without checking if the memory is present on the system; no probing
+is done despite of its name. The kernel crashes when a user requests
+to online a memory block that is not present on the system.
 
-Index: linux/include/linux/slab.h
-===================================================================
---- linux.orig/include/linux/slab.h	2013-07-15 09:38:40.853127741 -0500
-+++ linux/include/linux/slab.h	2013-07-15 09:39:49.026313739 -0500
-@@ -4,6 +4,8 @@
-  * (C) SGI 2006, Christoph Lameter
-  * 	Cleaned up and restructured to ease the addition of alternative
-  * 	implementations of SLAB allocators.
-+ * (C) Linux Foundation 2008-2013
-+ *      Unified interface for all slab allocators
-  */
+This patch disables CONFIG_ARCH_MEMORY_PROBE by default on x86,
+and clarifies it in Documentation/memory-hotplug.txt.
+
+Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+---
+ Documentation/memory-hotplug.txt |    7 ++++---
+ arch/x86/Kconfig                 |    2 +-
+ 2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotplug.txt
+index 8e5eacb..396d871 100644
+--- a/Documentation/memory-hotplug.txt
++++ b/Documentation/memory-hotplug.txt
+@@ -214,9 +214,10 @@ In some environments, especially virtualized environment, firmware will not
+ notify memory hotplug event to the kernel. For such environment, "probe"
+ interface is supported. This interface depends on CONFIG_ARCH_MEMORY_PROBE.
  
- #ifndef _LINUX_SLAB_H
-@@ -94,6 +96,7 @@
- #define ZERO_OR_NULL_PTR(x) ((unsigned long)(x) <= \
- 				(unsigned long)ZERO_SIZE_PTR)
+-Now, CONFIG_ARCH_MEMORY_PROBE is supported only by powerpc but it does not
+-contain highly architecture codes. Please add config if you need "probe"
+-interface.
++CONFIG_ARCH_MEMORY_PROBE is supported on powerpc only. On x86, this config
++option is disabled by default since ACPI notifies a memory hotplug event to
++the kernel, which performs its hotplug operation as the result. Please
++enable this option if you need the "probe" interface on x86.
  
-+#include <linux/kmemleak.h>
+ Probe interface is located at
+ /sys/devices/system/memory/probe
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index b32ebf9..0729682 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -1344,7 +1344,7 @@ config ARCH_SELECT_MEMORY_MODEL
+ 	depends on ARCH_SPARSEMEM_ENABLE
  
- struct mem_cgroup;
- /*
-@@ -308,6 +311,7 @@ static __always_inline void *kmem_cache_
- #endif
+ config ARCH_MEMORY_PROBE
+-	def_bool y
++	def_bool n
+ 	depends on X86_64 && MEMORY_HOTPLUG
  
- #ifdef CONFIG_TRACING
-+extern void *kmem_cache_alloc_trace(struct kmem_cache *, gfp_t, size_t);
- 
- #ifdef CONFIG_NUMA
- extern void *kmem_cache_alloc_node_trace(struct kmem_cache *s,
-@@ -316,14 +320,20 @@ extern void *kmem_cache_alloc_node_trace
- #else
- static __always_inline void *
- kmem_cache_alloc_node_trace(struct kmem_cache *s,
--				gfp_t gfpflags,
--				int node, size_t size)
-+			      gfp_t gfpflags,
-+			      int node, size_t size)
- {
- 	return kmem_cache_alloc_trace(s, gfpflags, size);
- }
- #endif /* CONFIG_NUMA */
- 
--#else
-+#else /* CONFIG_TRACING */
-+static __always_inline void *kmem_cache_alloc_trace(struct kmem_cache *s,
-+		gfp_t flags, size_t size)
-+{
-+	return kmem_cache_alloc(s, flags);
-+}
-+
- static __always_inline void *
- kmem_cache_alloc_node_trace(struct kmem_cache *s,
- 			      gfp_t gfpflags,
-@@ -341,10 +351,61 @@ kmem_cache_alloc_node_trace(struct kmem_
- #include <linux/slub_def.h>
- #endif
- 
--#ifdef CONFIG_SLOB
--#include <linux/slob_def.h>
-+static __always_inline void *
-+kmalloc_order(size_t size, gfp_t flags, unsigned int order)
-+{
-+	void *ret;
-+
-+	flags |= (__GFP_COMP | __GFP_KMEMCG);
-+	ret = (void *) __get_free_pages(flags, order);
-+	kmemleak_alloc(ret, size, 1, flags);
-+	return ret;
-+}
-+
-+#ifdef CONFIG_TRACING
-+extern void *kmalloc_order_trace(size_t size, gfp_t flags, unsigned int order);
-+#else
-+static __always_inline void *
-+kmalloc_order_trace(size_t size, gfp_t flags, unsigned int order)
-+{
-+	return kmalloc_order(size, flags, order);
-+}
- #endif
- 
-+static __always_inline void *kmalloc_large(size_t size, gfp_t flags)
-+{
-+	unsigned int order = get_order(size);
-+	return kmalloc_order_trace(size, flags, order);
-+}
-+
-+/**
-+ * kmalloc - allocate memory
-+ * @size: how many bytes of memory are required.
-+ * @flags: the type of memory to allocate (see kcalloc).
-+ *
-+ * kmalloc is the normal method of allocating memory
-+ * for objects smaller than page size in the kernel.
-+ */
-+static __always_inline void *kmalloc(size_t size, gfp_t flags)
-+{
-+	if (__builtin_constant_p(size)) {
-+		if (size > KMALLOC_MAX_CACHE_SIZE)
-+			return kmalloc_large(size, flags);
-+#ifndef CONFIG_SLOB
-+		if (!(flags & GFP_DMA)) {
-+			int index = kmalloc_index(size);
-+
-+			if (!index)
-+				return ZERO_SIZE_PTR;
-+
-+			return kmem_cache_alloc_trace(kmalloc_caches[index],
-+					flags, size);
-+		}
-+#endif
-+	}
-+	return __kmalloc(size, flags);
-+}
-+
- /*
-  * Determine size used for the nth kmalloc cache.
-  * return size or 0 if a kmalloc cache for that
-Index: linux/include/linux/slab_def.h
-===================================================================
---- linux.orig/include/linux/slab_def.h	2013-07-15 09:38:40.853127741 -0500
-+++ linux/include/linux/slab_def.h	2013-07-15 09:38:40.853127741 -0500
-@@ -102,44 +102,4 @@ struct kmem_cache {
- 	 */
- };
- 
--#ifdef CONFIG_TRACING
--extern void *kmem_cache_alloc_trace(struct kmem_cache *, gfp_t, size_t);
--#else
--static __always_inline void *
--kmem_cache_alloc_trace(struct kmem_cache *cachep, gfp_t flags, size_t size)
--{
--	return kmem_cache_alloc(cachep, flags);
--}
--#endif
--
--static __always_inline void *kmalloc(size_t size, gfp_t flags)
--{
--	struct kmem_cache *cachep;
--	void *ret;
--
--	if (__builtin_constant_p(size)) {
--		int i;
--
--		if (!size)
--			return ZERO_SIZE_PTR;
--
--		if (WARN_ON_ONCE(size > KMALLOC_MAX_SIZE))
--			return NULL;
--
--		i = kmalloc_index(size);
--
--#ifdef CONFIG_ZONE_DMA
--		if (flags & GFP_DMA)
--			cachep = kmalloc_dma_caches[i];
--		else
--#endif
--			cachep = kmalloc_caches[i];
--
--		ret = kmem_cache_alloc_trace(cachep, flags, size);
--
--		return ret;
--	}
--	return __kmalloc(size, flags);
--}
--
- #endif	/* _LINUX_SLAB_DEF_H */
-Index: linux/include/linux/slub_def.h
-===================================================================
---- linux.orig/include/linux/slub_def.h	2013-07-15 09:38:40.853127741 -0500
-+++ linux/include/linux/slub_def.h	2013-07-15 09:38:40.853127741 -0500
-@@ -12,8 +12,6 @@
- #include <linux/workqueue.h>
- #include <linux/kobject.h>
- 
--#include <linux/kmemleak.h>
--
- enum stat_item {
- 	ALLOC_FASTPATH,		/* Allocation from cpu slab */
- 	ALLOC_SLOWPATH,		/* Allocation by getting a new cpu slab */
-@@ -104,17 +102,6 @@ struct kmem_cache {
- 	struct kmem_cache_node *node[MAX_NUMNODES];
- };
- 
--static __always_inline void *
--kmalloc_order(size_t size, gfp_t flags, unsigned int order)
--{
--	void *ret;
--
--	flags |= (__GFP_COMP | __GFP_KMEMCG);
--	ret = (void *) __get_free_pages(flags, order);
--	kmemleak_alloc(ret, size, 1, flags);
--	return ret;
--}
--
- /**
-  * Calling this on allocated memory will check that the memory
-  * is expected to be in use, and print warnings if not.
-@@ -128,47 +115,4 @@ static inline bool verify_mem_not_delete
- }
- #endif
- 
--#ifdef CONFIG_TRACING
--extern void *
--kmem_cache_alloc_trace(struct kmem_cache *s, gfp_t gfpflags, size_t size);
--extern void *kmalloc_order_trace(size_t size, gfp_t flags, unsigned int order);
--#else
--static __always_inline void *
--kmem_cache_alloc_trace(struct kmem_cache *s, gfp_t gfpflags, size_t size)
--{
--	return kmem_cache_alloc(s, gfpflags);
--}
--
--static __always_inline void *
--kmalloc_order_trace(size_t size, gfp_t flags, unsigned int order)
--{
--	return kmalloc_order(size, flags, order);
--}
--#endif
--
--static __always_inline void *kmalloc_large(size_t size, gfp_t flags)
--{
--	unsigned int order = get_order(size);
--	return kmalloc_order_trace(size, flags, order);
--}
--
--static __always_inline void *kmalloc(size_t size, gfp_t flags)
--{
--	if (__builtin_constant_p(size)) {
--		if (size > KMALLOC_MAX_CACHE_SIZE)
--			return kmalloc_large(size, flags);
--
--		if (!(flags & GFP_DMA)) {
--			int index = kmalloc_index(size);
--
--			if (!index)
--				return ZERO_SIZE_PTR;
--
--			return kmem_cache_alloc_trace(kmalloc_caches[index],
--					flags, size);
--		}
--	}
--	return __kmalloc(size, flags);
--}
--
- #endif /* _LINUX_SLUB_DEF_H */
-Index: linux/include/linux/slob_def.h
-===================================================================
---- linux.orig/include/linux/slob_def.h	2013-07-15 09:38:40.853127741 -0500
-+++ /dev/null	1970-01-01 00:00:00.000000000 +0000
-@@ -1,9 +0,0 @@
--#ifndef __LINUX_SLOB_DEF_H
--#define __LINUX_SLOB_DEF_H
--
--static __always_inline void *kmalloc(size_t size, gfp_t flags)
--{
--	return __kmalloc_node(size, flags, NUMA_NO_NODE);
--}
--
--#endif /* __LINUX_SLOB_DEF_H */
+ config ARCH_PROC_KCORE_TEXT
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
