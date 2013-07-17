@@ -1,262 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Message-ID: <51E66256.9020203@cn.fujitsu.com>
-Date: Wed, 17 Jul 2013 17:22:30 +0800
-From: Gu Zheng <guz.fnst@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id DB74F6B0032
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 05:30:54 -0400 (EDT)
+Date: Wed, 17 Jul 2013 04:30:52 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [RFC 0/4] Transparent on-demand struct page initialization
+ embedded in the buddy allocator
+Message-ID: <20130717093051.GK3421@sgi.com>
+References: <1373594635-131067-1-git-send-email-holt@sgi.com>
+ <51E628F8.6030303@gmail.com>
 MIME-Version: 1.0
-Subject: [PATCH V2 2/2] fs/aio: Add support to aio ring pages migration
-References: <51E518C0.2020908@cn.fujitsu.com> <20130716133450.GD5403@kvack.org>
-In-Reply-To: <20130716133450.GD5403@kvack.org>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51E628F8.6030303@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin LaHaise <bcrl@kvack.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Al Viro <viro@zeniv.linux.org.uk>, tangchen <tangchen@cn.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+To: Sam Ben <sam.bennn@gmail.com>
+Cc: Robin Holt <holt@sgi.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Nate Zimmer <nzimmer@sgi.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Rob Landley <rob@landley.net>, Mike Travis <travis@sgi.com>, Daniel J Blueman <daniel@numascale-asia.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Yinghai Lu <yinghai@kernel.org>, Mel Gorman <mgorman@suse.de>
 
-As the aio job will pin the ring pages, that will lead to mem migrated
-failed. In order to fix this problem we use an anon inode to manage the aio ring
-pages, and  setup the migratepage callback in the anon inode's address space, so
-that when mem migrating the aio ring pages will be moved to other mem node safely.
+On Wed, Jul 17, 2013 at 01:17:44PM +0800, Sam Ben wrote:
+> On 07/12/2013 10:03 AM, Robin Holt wrote:
+> >We have been working on this since we returned from shutdown and have
+> >something to discuss now.  We restricted ourselves to 2MiB initialization
+> >to keep the patch set a little smaller and more clear.
+> >
+> >First, I think I want to propose getting rid of the page flag.  If I knew
+> >of a concrete way to determine that the page has not been initialized,
+> >this patch series would look different.  If there is no definitive
+> >way to determine that the struct page has been initialized aside from
+> >checking the entire page struct is zero, then I think I would suggest
+> >we change the page flag to indicate the page has been initialized.
+> >
+> >The heart of the problem as I see it comes from expand().  We nearly
+> >always see a first reference to a struct page which is in the middle
+> >of the 2MiB region.  Due to that access, the unlikely() check that was
+> >originally proposed really ends up referencing a different page entirely.
+> >We actually did not introduce an unlikely and refactor the patches to
+> >make that unlikely inside a static inline function.  Also, given the
+> >strong warning at the head of expand(), we did not feel experienced
+> >enough to refactor it to make things always reference the 2MiB page
+> >first.
+> >
+> >With this patch, we did boot a 16TiB machine.  Without the patches,
+> >the v3.10 kernel with the same configuration took 407 seconds for
+> >free_all_bootmem.  With the patches and operating on 2MiB pages instead
+> >of 1GiB, it took 26 seconds so performance was improved.  I have no feel
+> >for how the 1GiB chunk size will perform.
+> 
+> How to test how much time spend on free_all_bootmem?
 
-v1->v2:
-	Fix build failed issue if CONFIG_MIGRATION disabled.
-	Fix some minor issues under Benjamin's comments.
+We had put a pr_emerg at the beginning and end of free_all_bootmem and
+then used a modified version of script which record the time in uSecs
+at the beginning of each line of output.
 
-Signed-off-by: Gu Zheng <guz.fnst@cn.fujitsu.com>
----
- fs/aio.c                |  116 +++++++++++++++++++++++++++++++++++++++++++----
- include/linux/migrate.h |    9 ++++
- mm/migrate.c            |    2 +-
- 3 files changed, 116 insertions(+), 11 deletions(-)
+Robin
 
-diff --git a/fs/aio.c b/fs/aio.c
-index 2bbcacf..15e8a13 100644
---- a/fs/aio.c
-+++ b/fs/aio.c
-@@ -35,6 +35,9 @@
- #include <linux/eventfd.h>
- #include <linux/blkdev.h>
- #include <linux/compat.h>
-+#include <linux/anon_inodes.h>
-+#include <linux/migrate.h>
-+#include <linux/ramfs.h>
- 
- #include <asm/kmap_types.h>
- #include <asm/uaccess.h>
-@@ -108,6 +111,7 @@ struct kioctx {
- 	} ____cacheline_aligned_in_smp;
- 
- 	struct page		*internal_pages[AIO_RING_PAGES];
-+	struct file		*aio_ring_file;
- };
- 
- /*------ sysctl variables----*/
-@@ -136,15 +140,78 @@ __initcall(aio_setup);
- 
- static void aio_free_ring(struct kioctx *ctx)
- {
--	long i;
--
--	for (i = 0; i < ctx->nr_pages; i++)
-+	int i;
-+	struct file *aio_ring_file = ctx->aio_ring_file;
-+	for (i = 0; i < ctx->nr_pages; i++) {
-+		pr_debug("pid(%d) [%d] page->count=%d\n", current->pid, i,
-+				page_count(ctx->ring_pages[i]));
- 		put_page(ctx->ring_pages[i]);
-+	}
- 
- 	if (ctx->ring_pages && ctx->ring_pages != ctx->internal_pages)
- 		kfree(ctx->ring_pages);
-+
-+	if (aio_ring_file) {
-+		truncate_setsize(aio_ring_file->f_inode, 0);
-+		pr_debug("pid(%d) i_nlink=%u d_count=%d d_unhashed=%d i_count=%d\n",
-+			current->pid, aio_ring_file->f_inode->i_nlink,
-+			aio_ring_file->f_path.dentry->d_count,
-+			d_unhashed(aio_ring_file->f_path.dentry),
-+			atomic_read(&aio_ring_file->f_inode->i_count));
-+		fput(aio_ring_file);
-+		ctx->aio_ring_file = NULL;
-+	}
-+}
-+
-+static int aio_ring_mmap(struct file *file, struct vm_area_struct *vma)
-+{
-+	vma->vm_ops = &generic_file_vm_ops;
-+	return 0;
-+}
-+
-+static const struct file_operations aio_ring_fops = {
-+	.mmap = aio_ring_mmap,
-+};
-+
-+static int aio_set_page_dirty(struct page *page)
-+{
-+	return 0;
- }
- 
-+static int aio_migratepage(struct address_space *mapping, struct page *new,
-+			struct page *old, enum migrate_mode mode)
-+{
-+	struct kioctx *ctx = mapping->private_data;
-+	unsigned long flags;
-+	unsigned idx = old->index;
-+	int rc;
-+
-+	/* Writeback must be complete */
-+	BUG_ON(PageWriteback(old));
-+
-+	put_page(old);
-+
-+	rc = migrate_page_move_mapping(mapping, new, old, NULL, mode);
-+	if (rc != MIGRATEPAGE_SUCCESS) {
-+		get_page(old);
-+		return rc;
-+	}
-+
-+	get_page(new);
-+
-+	spin_lock_irqsave(&ctx->completion_lock, flags);
-+	migrate_page_copy(new, old);
-+	ctx->ring_pages[idx] = new;
-+	spin_unlock_irqrestore(&ctx->completion_lock, flags);
-+
-+	return rc;
-+}
-+
-+static const struct address_space_operations aio_ctx_aops = {
-+	.set_page_dirty = aio_set_page_dirty,
-+	.migratepage	= aio_migratepage,
-+};
-+
- static int aio_setup_ring(struct kioctx *ctx)
- {
- 	struct aio_ring *ring;
-@@ -152,18 +219,42 @@ static int aio_setup_ring(struct kioctx *ctx)
- 	struct mm_struct *mm = current->mm;
- 	unsigned long size, populate;
- 	int nr_pages;
-+	int i;
-+	struct file *file;
- 
- 	/* Compensate for the ring buffer's head/tail overlap entry */
- 	nr_events += 2;	/* 1 is required, 2 for good luck */
- 
- 	size = sizeof(struct aio_ring);
- 	size += sizeof(struct io_event) * nr_events;
--	nr_pages = (size + PAGE_SIZE-1) >> PAGE_SHIFT;
-+	nr_pages = PFN_UP(size);
- 
- 	if (nr_pages < 0)
- 		return -EINVAL;
-+	file = anon_inode_getfile_private("[aio]", &aio_ring_fops, ctx, O_RDWR);
-+	if (IS_ERR(file)) {
-+		ctx->aio_ring_file = NULL;
-+		return -EAGAIN;
-+	}
-+	file->f_inode->i_mapping->a_ops = &aio_ctx_aops;
-+	file->f_inode->i_mapping->private_data = ctx;
-+	file->f_inode->i_size = PAGE_SIZE * (loff_t)nr_pages;
- 
--	nr_events = (PAGE_SIZE * nr_pages - sizeof(struct aio_ring)) / sizeof(struct io_event);
-+	for (i = 0; i < nr_pages; i++) {
-+		struct page *page;
-+		page = find_or_create_page(file->f_inode->i_mapping,
-+					   i, GFP_HIGHUSER | __GFP_ZERO);
-+		if (!page)
-+			break;
-+		pr_debug("pid(%d) page[%d]->count=%d\n",
-+			 current->pid, i, page_count(page));
-+		SetPageUptodate(page);
-+		SetPageDirty(page);
-+		unlock_page(page);
-+	}
-+	ctx->aio_ring_file = file;
-+	nr_events = (PAGE_SIZE * nr_pages - sizeof(struct aio_ring))
-+			/ sizeof(struct io_event);
- 
- 	ctx->nr_events = 0;
- 	ctx->ring_pages = ctx->internal_pages;
-@@ -177,20 +268,23 @@ static int aio_setup_ring(struct kioctx *ctx)
- 	ctx->mmap_size = nr_pages * PAGE_SIZE;
- 	pr_debug("attempting mmap of %lu bytes\n", ctx->mmap_size);
- 	down_write(&mm->mmap_sem);
--	ctx->mmap_base = do_mmap_pgoff(NULL, 0, ctx->mmap_size,
--				       PROT_READ|PROT_WRITE,
--				       MAP_ANONYMOUS|MAP_PRIVATE, 0, &populate);
-+	ctx->mmap_base = do_mmap_pgoff(ctx->aio_ring_file, 0, ctx->mmap_size,
-+				       PROT_READ | PROT_WRITE,
-+				       MAP_SHARED | MAP_POPULATE, 0, &populate);
- 	if (IS_ERR((void *)ctx->mmap_base)) {
- 		up_write(&mm->mmap_sem);
- 		ctx->mmap_size = 0;
- 		aio_free_ring(ctx);
- 		return -EAGAIN;
- 	}
-+	up_write(&mm->mmap_sem);
-+	mm_populate(ctx->mmap_base, populate);
- 
- 	pr_debug("mmap address: 0x%08lx\n", ctx->mmap_base);
- 	ctx->nr_pages = get_user_pages(current, mm, ctx->mmap_base, nr_pages,
- 				       1, 0, ctx->ring_pages, NULL);
--	up_write(&mm->mmap_sem);
-+	for (i = 0; i < ctx->nr_pages; i++)
-+		put_page(ctx->ring_pages[i]);
- 
- 	if (unlikely(ctx->nr_pages != nr_pages)) {
- 		aio_free_ring(ctx);
-@@ -397,6 +491,8 @@ out_cleanup:
- 	err = -EAGAIN;
- 	aio_free_ring(ctx);
- out_freectx:
-+	if (ctx->aio_ring_file)
-+		fput(ctx->aio_ring_file);
- 	kmem_cache_free(kioctx_cachep, ctx);
- 	pr_debug("error allocating ioctx %d\n", err);
- 	return ERR_PTR(err);
-diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-index a405d3d..db67768 100644
---- a/include/linux/migrate.h
-+++ b/include/linux/migrate.h
-@@ -55,6 +55,9 @@ extern int migrate_vmas(struct mm_struct *mm,
- extern void migrate_page_copy(struct page *newpage, struct page *page);
- extern int migrate_huge_page_move_mapping(struct address_space *mapping,
- 				  struct page *newpage, struct page *page);
-+extern int migrate_page_move_mapping(struct address_space *mapping,
-+		struct page *newpage, struct page *page,
-+		struct buffer_head *head, enum migrate_mode mode);
- #else
- 
- static inline void putback_lru_pages(struct list_head *l) {}
-@@ -84,6 +87,12 @@ static inline int migrate_huge_page_move_mapping(struct address_space *mapping,
- {
- 	return -ENOSYS;
- }
-+static inline int migrate_page_move_mapping(struct address_space *mapping,
-+		struct page *newpage, struct page *page,
-+		struct buffer_head *head, enum migrate_mode mode)
-+{
-+	return -ENOSYS;
-+}
- 
- /* Possible settings for the migrate_page() method in address_operations */
- #define migrate_page NULL
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 6f0c244..1da0092 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -307,7 +307,7 @@ static inline bool buffer_migrate_lock_buffers(struct buffer_head *head,
-  * 2 for pages with a mapping
-  * 3 for pages with a mapping and PagePrivate/PagePrivate2 set.
-  */
--static int migrate_page_move_mapping(struct address_space *mapping,
-+int migrate_page_move_mapping(struct address_space *mapping,
- 		struct page *newpage, struct page *page,
- 		struct buffer_head *head, enum migrate_mode mode)
- {
--- 
-1.7.1
+> 
+> >
+> >I am on vacation for the next three days so I am sorry in advance for
+> >my infrequent or non-existant responses.
+> >
+> >
+> >Signed-off-by: Robin Holt <holt@sgi.com>
+> >Signed-off-by: Nate Zimmer <nzimmer@sgi.com>
+> >To: "H. Peter Anvin" <hpa@zytor.com>
+> >To: Ingo Molnar <mingo@kernel.org>
+> >Cc: Linux Kernel <linux-kernel@vger.kernel.org>
+> >Cc: Linux MM <linux-mm@kvack.org>
+> >Cc: Rob Landley <rob@landley.net>
+> >Cc: Mike Travis <travis@sgi.com>
+> >Cc: Daniel J Blueman <daniel@numascale-asia.com>
+> >Cc: Andrew Morton <akpm@linux-foundation.org>
+> >Cc: Greg KH <gregkh@linuxfoundation.org>
+> >Cc: Yinghai Lu <yinghai@kernel.org>
+> >Cc: Mel Gorman <mgorman@suse.de>
+> >--
+> >To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> >the body of a message to majordomo@vger.kernel.org
+> >More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> >Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
