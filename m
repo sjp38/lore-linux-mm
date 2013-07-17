@@ -1,39 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 679156B0031
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 19:06:04 -0400 (EDT)
-Date: Wed, 17 Jul 2013 16:06:02 -0700
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id DCD876B0031
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 19:12:01 -0400 (EDT)
+Date: Wed, 17 Jul 2013 16:12:00 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/5] initmpfs v2: use tmpfs instead of ramfs for rootfs
-Message-Id: <20130717160602.4b225ac80b1cb6121cbb489c@linux-foundation.org>
-In-Reply-To: <20130715140135.0f896a584fec9f7861049b64@linux-foundation.org>
-References: <20130715140135.0f896a584fec9f7861049b64@linux-foundation.org>
+Subject: Re: [PATCH RFC] lib: Make radix_tree_node_alloc() irq safe
+Message-Id: <20130717161200.40a97074623be2685beb8156@linux-foundation.org>
+In-Reply-To: <1373994390-5479-1-git-send-email-jack@suse.cz>
+References: <1373994390-5479-1-git-send-email-jack@suse.cz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rob Landley <rob@landley.net>
-Cc: linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, "Eric W. Biederman" <ebiederm@xmission.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hugh Dickins <hughd@google.com>, Jeff Layton <jlayton@redhat.com>, Jens Axboe <axboe@kernel.dk>, Jim Cromie <jim.cromie@gmail.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Rusty Russell <rusty@rustcorp.com.au>, Sam Ravnborg <sam@ravnborg.org>, Stephen Warren <swarren@nvidia.com>
+To: Jan Kara <jack@suse.cz>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Jens Axboe <jaxboe@fusionio.com>
 
-On Tue, 16 Jul 2013 08:31:13 -0700 (PDT) Rob Landley <rob@landley.net> wrote:
+On Tue, 16 Jul 2013 19:06:30 +0200 Jan Kara <jack@suse.cz> wrote:
 
-> Use tmpfs for rootfs when CONFIG_TMPFS=y and there's no root=.
-> Specify rootfstype=ramfs to get the old initramfs behavior.
+> With users of radix_tree_preload() run from interrupt (CFQ is one such
+> possible user), the following race can happen:
 > 
-> The previous initramfs code provided a fairly crappy root filesystem:
-> didn't let you --bind mount directories out of it, reported zero
-> size/usage so it didn't show up in "df" and couldn't run things like
-> rpm that query available space before proceeding, would fill up all
-> available memory and panic the system if you wrote too much to it...
-
-The df problem and the mount --bind thing are ramfs issues, are they
-not?  Can we fix them?  If so, that's a less intrusive change, and we
-also get a fixed ramfs.
-
-> Using tmpfs instead provides a much better root filesystem.
+> radix_tree_preload()
+> ...
+> radix_tree_insert()
+>   radix_tree_node_alloc()
+>     if (rtp->nr) {
+>       ret = rtp->nodes[rtp->nr - 1];
+> <interrupt>
+> ...
+> radix_tree_preload()
+> ...
+> radix_tree_insert()
+>   radix_tree_node_alloc()
+>     if (rtp->nr) {
+>       ret = rtp->nodes[rtp->nr - 1];
 > 
-> Changes from last time: use test_and_set_bit() for "once" logic.
+> And we give out one radix tree node twice. That clearly results in radix
+> tree corruption with different results (usually OOPS) depending on which
+> two users of radix tree race.
+> 
+> Fix the problem by disabling interrupts when working with rtp variable.
+> In-interrupt user can still deplete our preloaded nodes but at least we
+> won't corrupt radix trees.
+> 
+> ...
+>
+>   There are some questions regarding this patch:
+> Do we really want to allow in-interrupt users of radix_tree_preload()?  CFQ
+> could certainly do this in older kernels but that particular call site where I
+> saw the bug hit isn't there anymore so I'm not sure this can really happen with
+> recent kernels.
+
+Well, it was never anticipated that interrupt-time code would run
+radix_tree_preload().  The whole point in the preloading was to be able
+to perform GFP_KERNEL allocations before entering the spinlocked region
+which needs to allocate memory.
+
+Doing all that from within an interrupt is daft, because the interrupt code
+can't use GFP_KERNEL anyway.
+
+> Also it is actually harmful to do preloading if you are in interrupt context
+> anyway. The disadvantage of disallowing radix_tree_preload() in interrupt is
+> that we would need to tweak radix_tree_node_alloc() to somehow recognize
+> whether the caller wants it to use preloaded nodes or not and that callers
+> would have to get it right (although maybe some magic in radix_tree_preload()
+> could handle that).
+> 
+> Opinions?
+
+BUG_ON(in_interrupt()) :)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
