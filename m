@@ -1,54 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id D08676B0031
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2013 12:27:46 -0400 (EDT)
-Message-ID: <1374164815.24916.84.camel@misato.fc.hp.com>
-Subject: Re: [PATCH] mm/hotplug, x86: Disable ARCH_MEMORY_PROBE by default
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Thu, 18 Jul 2013 10:26:55 -0600
-In-Reply-To: <51E80973.9000308@intel.com>
-References: <1374097503-25515-1-git-send-email-toshi.kani@hp.com>
-	 <51E80973.9000308@intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 510B96B0031
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2013 12:56:49 -0400 (EDT)
+Received: by mail-pb0-f46.google.com with SMTP id rq2so3384455pbb.5
+        for <linux-mm@kvack.org>; Thu, 18 Jul 2013 09:56:48 -0700 (PDT)
+From: Jerry <uulinux@gmail.com>
+Subject: [PATCH] mm: negative left shift count when PAGE_SHIFT > 20
+Date: Fri, 19 Jul 2013 00:56:12 +0800
+Message-Id: <1374166572-7988-1-git-send-email-uulinux@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, isimatu.yasuaki@jp.fujitsu.com, tangchen@cn.fujitsu.com, vasilis.liaskovitis@profitbricks.com
+To: akpm@linux-foundation.org
+Cc: zhuwei.lu@archermind.com, tianfu.huang@archermind.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jerry <uulinux@gmail.com>
 
-On Thu, 2013-07-18 at 08:27 -0700, Dave Hansen wrote:
-> On 07/17/2013 02:45 PM, Toshi Kani wrote:
-> > +CONFIG_ARCH_MEMORY_PROBE is supported on powerpc only. On x86, this config
-> > +option is disabled by default since ACPI notifies a memory hotplug event to
-> > +the kernel, which performs its hotplug operation as the result. Please
-> > +enable this option if you need the "probe" interface on x86.
-> 
-> There's no prompt for this and no way to override what you've done here
-> without hacking Kconfig/.config files.
-> 
-> It's also completely wrong to say "CONFIG_ARCH_MEMORY_PROBE is supported
-> on powerpc only."  It works just fine on x86.  In fact, I was just using
-> it today without ACPI being around.
+When PAGE_SHIFT > 20, the result of "20 - PAGE_SHIFT" is negative. The
+calculating here will generate an unexpected result. In addition, if
+PAGE_SHIFT > 20, The memory size represented by numentries was already
+integral multiple of 1MB.
 
-This statement has been there in the document (no change), and I
-consider "supported" and "may work" are two different things.
+Signed-off-by: Jerry <uulinux@gmail.com>
+---
+ mm/page_alloc.c | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
 
-> I'd really prefer you don't do this.  Do you really have random
-> processes on your system poking at random sysfs files and then
-> complaining when things break?
-
-I am afraid that the "probe" interface does not provide the level of
-quality suitable for regular users.  It takes any value and blindly
-extends the page table.  Also, we are not aware of the use of this
-interface on x86.  Would you elaborate why you need this interface on
-x86?  Is it for your testing, or is it necessary for end-users?  If the
-former, can you modify .config file to enable it?
-
-Thanks,
--Toshi   
-
-
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index b100255..cd41797 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5745,9 +5745,11 @@ void *__init alloc_large_system_hash(const char *tablename,
+ 	if (!numentries) {
+ 		/* round applicable memory size up to nearest megabyte */
+ 		numentries = nr_kernel_pages;
+-		numentries += (1UL << (20 - PAGE_SHIFT)) - 1;
+-		numentries >>= 20 - PAGE_SHIFT;
+-		numentries <<= 20 - PAGE_SHIFT;
++		if (20 > PAGE_SHIFT) {
++			numentries += (1UL << (20 - PAGE_SHIFT)) - 1;
++			numentries >>= 20 - PAGE_SHIFT;
++			numentries <<= 20 - PAGE_SHIFT;
++		}
+ 
+ 		/* limit to 1 bucket per 2^scale bytes of low memory */
+ 		if (scale > PAGE_SHIFT)
+-- 
+1.8.1.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
