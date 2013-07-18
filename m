@@ -1,27 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 6E68D6B0031
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2013 09:46:23 -0400 (EDT)
-Date: Thu, 18 Jul 2013 13:46:22 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] slub: Remove unnecessary page NULL check
-In-Reply-To: <1374133191-19012-1-git-send-email-huawei.libin@huawei.com>
-Message-ID: <0000013ff2080e94-d489fc54-d262-4314-8591-3187a3f6e829-000000@email.amazonses.com>
-References: <1374133191-19012-1-git-send-email-huawei.libin@huawei.com>
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id B7B146B0031
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2013 09:57:42 -0400 (EDT)
+Message-ID: <51E7F440.2010600@redhat.com>
+Date: Thu, 18 Jul 2013 15:57:20 +0200
+From: Paolo Bonzini <pbonzini@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 4/4] PF: Async page fault support on s390
+References: <1373461195-27628-1-git-send-email-dingel@linux.vnet.ibm.com> <1373461195-27628-5-git-send-email-dingel@linux.vnet.ibm.com> <20130711090411.GA8575@redhat.com> <51DE8BE1.8000902@de.ibm.com>
+In-Reply-To: <51DE8BE1.8000902@de.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Libin <huawei.libin@huawei.com>
-Cc: linux-mm@kvack.org, penberg@kernel.org, akpm@linux-foundation.org, mpm@selenic.com, rostedt@goodmis.org, guohanjun@huawei.com, wujianguo@huawei.com
+To: Christian Borntraeger <borntraeger@de.ibm.com>
+Cc: Gleb Natapov <gleb@redhat.com>, Dominik Dingel <dingel@linux.vnet.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Xiantao Zhang <xiantao.zhang@intel.com>, Alexander Graf <agraf@suse.de>, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Ralf Baechle <ralf@linux-mips.org>, kvm@vger.kernel.org, linux-s390@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 18 Jul 2013, Libin wrote:
+Il 11/07/2013 12:41, Christian Borntraeger ha scritto:
+> On 11/07/13 11:04, Gleb Natapov wrote:
+>> On Wed, Jul 10, 2013 at 02:59:55PM +0200, Dominik Dingel wrote:
+>>> This patch enables async page faults for s390 kvm guests.
+>>> It provides the userspace API to enable, disable or get the status of this
+>>> feature. Also it includes the diagnose code, called by the guest to enable
+>>> async page faults.
+>>>
+>>> The async page faults will use an already existing guest interface for this
+>>> purpose, as described in "CP Programming Services (SC24-6084)".
+>>>
+>>> Signed-off-by: Dominik Dingel <dingel@linux.vnet.ibm.com>
+>> Christian, looks good now?
+> 
+> Looks good, but I just had a  discussion with Dominik about several other cases 
+> (guest driven reboot, qemu driven reboot, life migration). This patch should 
+> allow all these cases (independent from this patch we need an ioctl to flush the
+> list of pending interrupts to do so, but reboot is currently broken in that
+> regard anyway - patch is currently being looked at)
+> 
+> We are currently discussion if we should get rid of the APF_STATUS and let 
+> the kernel wait for outstanding page faults before returning from KVM_RUN
+> or if we go with this patch and let userspace wait for completion. 
+> 
+> Will discuss this with Dominik, Conny and Alex. So lets defer that till next
+> week, ok?
 
-> In commit 4d7868e6(slub: Do not dereference NULL pointer in node_match)
-> had added check for page NULL in node_match.  Thus, it is not needed
-> to check it before node_match, remove it.
+Let us know if we should wait for a v5. :)
 
-Acked-by: Christoph Lameter <cl@linux.com>
+Paolo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
