@@ -1,82 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 35D176B0031
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 5B6116B0033
 	for <linux-mm@kvack.org>; Thu, 18 Jul 2013 17:35:07 -0400 (EDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v3 0/8] extend hugepage migration
-Date: Thu, 18 Jul 2013 17:34:24 -0400
-Message-Id: <1374183272-10153-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 2/8] soft-offline: use migrate_pages() instead of migrate_huge_page()
+Date: Thu, 18 Jul 2013 17:34:26 -0400
+Message-Id: <1374183272-10153-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1374183272-10153-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1374183272-10153-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-Here is the 3rd version of hugepage migration patchset.
-I rebased it onto v3.11-rc1 and applied most of your feedbacks.
+Currently migrate_huge_page() takes a pointer to a hugepage to be
+migrated as an argument, instead of taking a pointer to the list of
+hugepages to be migrated. This behavior was introduced in commit
+189ebff28 ("hugetlb: simplify migrate_huge_page()"), and was OK
+because until now hugepage migration is enabled only for soft-offlining
+which migrates only one hugepage in a single call.
 
-Some works referred to in previous discussion (shown below) are not included
-in this patchset, but likely to be done after this work.
- - using page walker in check_range
- - split page table lock for pmd/pud based hugepage (maybe applicable to thp)
+But the situation will change in the later patches in this series
+which enable other users of page migration to support hugepage migration.
+They can kick migration for both of normal pages and hugepages
+in a single call, so we need to go back to original implementation
+which uses linked lists to collect the hugepages to be migrated.
 
-Thanks,
-Naoya Horiguchi
+With this patch, soft_offline_huge_page() switches to use migrate_pages(),
+and migrate_huge_page() is not used any more. So let's remove it.
 
---- General Description (exactly same with previous post) ---
+ChangeLog v3:
+ - Merged with another cleanup patch (4/10 in previous version)
 
-Hugepage migration is now available only for soft offlining (moving
-data on the half corrupted page to another page to save the data).
-But it's also useful some other users of page migration, so this
-patchset tries to extend some of such users to support hugepage.
-
-The targets of this patchset are NUMA related system calls (i.e.
-migrate_pages(2), move_pages(2), and mbind(2)), and memory hotplug.
-This patchset does not extend page migration in memory compaction,
-because I think that users of memory compaction mainly expect to
-construct thp by arranging raw pages but hugepage migration doesn't
-help it.
-CMA, another user of page migration, can have benefit from hugepage
-migration, but is not enabled to support it now. This is because
-I've never used CMA and need to learn more to extend and/or test
-hugepage migration in CMA. I'll add this in later version if it
-becomes ready, or will post as a separate patchset.
-
-Hugepage migration of 1GB hugepage is not enabled for now, because
-I'm not sure whether users of 1GB hugepage really want it.
-We need to spare free hugepage in order to do migration, but I don't
-think that users want to 1GB memory to idle for that purpose
-(currently we can't expand/shrink 1GB hugepage pool after boot).
-
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 ---
-GitHub:
-  git://github.com/Naoya-Horiguchi/linux.git extend_hugepage_migration.v3
+ include/linux/migrate.h |  5 -----
+ mm/memory-failure.c     | 15 ++++++++++++---
+ mm/migrate.c            | 28 ++--------------------------
+ 3 files changed, 14 insertions(+), 34 deletions(-)
 
-Test code:
-  git://github.com/Naoya-Horiguchi/test_hugepage_migration_extension.git
-
-Naoya Horiguchi (8):
-      migrate: make core migration code aware of hugepage
-      soft-offline: use migrate_pages() instead of migrate_huge_page()
-      migrate: add hugepage migration code to migrate_pages()
-      migrate: add hugepage migration code to move_pages()
-      mbind: add hugepage migration code to mbind()
-      migrate: remove VM_HUGETLB from vma flag check in vma_migratable()
-      memory-hotplug: enable memory hotplug to handle hugepage
-      prepare to remove /proc/sys/vm/hugepages_treat_as_movable
-
- Documentation/sysctl/vm.txt |  13 +----
- include/linux/hugetlb.h     |  15 +++++
- include/linux/mempolicy.h   |   2 +-
- include/linux/migrate.h     |   5 --
- mm/hugetlb.c                | 130 +++++++++++++++++++++++++++++++++++++++-----
- mm/memory-failure.c         |  15 ++++-
- mm/memory.c                 |  12 +++-
- mm/memory_hotplug.c         |  42 +++++++++++---
- mm/mempolicy.c              |  43 +++++++++++++--
- mm/migrate.c                |  51 ++++++++---------
- mm/page_alloc.c             |  12 ++++
- mm/page_isolation.c         |   5 ++
- 12 files changed, 267 insertions(+), 78 deletions(-)
+diff --git v3.11-rc1.orig/include/linux/migrate.h v3.11-rc1/include/linux/migrate.h
+index a405d3dc..6fe5214 100644
+--- v3.11-rc1.orig/include/linux/migrate.h
++++ v3.11-rc1/include/linux/migrate.h
+@@ -41,8 +41,6 @@ extern int migrate_page(struct address_space *,
+ 			struct page *, struct page *, enum migrate_mode);
+ extern int migrate_pages(struct list_head *l, new_page_t x,
+ 		unsigned long private, enum migrate_mode mode, int reason);
+-extern int migrate_huge_page(struct page *, new_page_t x,
+-		unsigned long private, enum migrate_mode mode);
+ 
+ extern int fail_migrate_page(struct address_space *,
+ 			struct page *, struct page *);
+@@ -62,9 +60,6 @@ static inline void putback_movable_pages(struct list_head *l) {}
+ static inline int migrate_pages(struct list_head *l, new_page_t x,
+ 		unsigned long private, enum migrate_mode mode, int reason)
+ 	{ return -ENOSYS; }
+-static inline int migrate_huge_page(struct page *page, new_page_t x,
+-		unsigned long private, enum migrate_mode mode)
+-	{ return -ENOSYS; }
+ 
+ static inline int migrate_prep(void) { return -ENOSYS; }
+ static inline int migrate_prep_local(void) { return -ENOSYS; }
+diff --git v3.11-rc1.orig/mm/memory-failure.c v3.11-rc1/mm/memory-failure.c
+index 2c13aa7..af6f61c 100644
+--- v3.11-rc1.orig/mm/memory-failure.c
++++ v3.11-rc1/mm/memory-failure.c
+@@ -1467,6 +1467,7 @@ static int soft_offline_huge_page(struct page *page, int flags)
+ 	int ret;
+ 	unsigned long pfn = page_to_pfn(page);
+ 	struct page *hpage = compound_head(page);
++	LIST_HEAD(pagelist);
+ 
+ 	/*
+ 	 * This double-check of PageHWPoison is to avoid the race with
+@@ -1482,12 +1483,20 @@ static int soft_offline_huge_page(struct page *page, int flags)
+ 	unlock_page(hpage);
+ 
+ 	/* Keep page count to indicate a given hugepage is isolated. */
+-	ret = migrate_huge_page(hpage, new_page, MPOL_MF_MOVE_ALL,
+-				MIGRATE_SYNC);
+-	put_page(hpage);
++	list_move(&hpage->lru, &pagelist);
++	ret = migrate_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL,
++				MIGRATE_SYNC, MR_MEMORY_FAILURE);
+ 	if (ret) {
+ 		pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
+ 			pfn, ret, page->flags);
++		/*
++		 * We know that soft_offline_huge_page() tries to migrate
++		 * only one hugepage pointed to by hpage, so we need not
++		 * run through the pagelist here.
++		 */
++		putback_active_hugepage(hpage);
++		if (ret > 0)
++			ret = -EIO;
+ 	} else {
+ 		set_page_hwpoison_huge_page(hpage);
+ 		dequeue_hwpoisoned_huge_page(hpage);
+diff --git v3.11-rc1.orig/mm/migrate.c v3.11-rc1/mm/migrate.c
+index b44a067..3ec47d3 100644
+--- v3.11-rc1.orig/mm/migrate.c
++++ v3.11-rc1/mm/migrate.c
+@@ -979,6 +979,8 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
+ 
+ 	unlock_page(hpage);
+ out:
++	if (rc != -EAGAIN)
++		putback_active_hugepage(hpage);
+ 	put_page(new_hpage);
+ 	if (result) {
+ 		if (rc)
+@@ -1066,32 +1068,6 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+ 	return rc;
+ }
+ 
+-int migrate_huge_page(struct page *hpage, new_page_t get_new_page,
+-		      unsigned long private, enum migrate_mode mode)
+-{
+-	int pass, rc;
+-
+-	for (pass = 0; pass < 10; pass++) {
+-		rc = unmap_and_move_huge_page(get_new_page, private,
+-						hpage, pass > 2, mode);
+-		switch (rc) {
+-		case -ENOMEM:
+-			goto out;
+-		case -EAGAIN:
+-			/* try again */
+-			cond_resched();
+-			break;
+-		case MIGRATEPAGE_SUCCESS:
+-			goto out;
+-		default:
+-			rc = -EIO;
+-			goto out;
+-		}
+-	}
+-out:
+-	return rc;
+-}
+-
+ #ifdef CONFIG_NUMA
+ /*
+  * Move a list of individual pages
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
