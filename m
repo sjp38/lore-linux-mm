@@ -1,79 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id E95416B0031
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2013 12:03:09 -0400 (EDT)
-Message-ID: <1374163339.24916.65.camel@misato.fc.hp.com>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id D08676B0031
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2013 12:27:46 -0400 (EDT)
+Message-ID: <1374164815.24916.84.camel@misato.fc.hp.com>
 Subject: Re: [PATCH] mm/hotplug, x86: Disable ARCH_MEMORY_PROBE by default
 From: Toshi Kani <toshi.kani@hp.com>
-Date: Thu, 18 Jul 2013 10:02:19 -0600
-In-Reply-To: <51E74974.9050605@jp.fujitsu.com>
+Date: Thu, 18 Jul 2013 10:26:55 -0600
+In-Reply-To: <51E80973.9000308@intel.com>
 References: <1374097503-25515-1-git-send-email-toshi.kani@hp.com>
-	  <CAHGf_=pND-R=qMHg7b=Fi5SqS6ahXJCG865WsOS2eKWa6g3A7A@mail.gmail.com>
-	  <1374103783.24916.49.camel@misato.fc.hp.com>
-	  <CAHGf_=q-9C4JZgv9Xp1Z3_Ks1a7t_sOArD3e1myj1EdiH5GBHQ@mail.gmail.com>
-	 <1374105078.24916.62.camel@misato.fc.hp.com>
-	 <51E74974.9050605@jp.fujitsu.com>
+	 <51E80973.9000308@intel.com>
 Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, x86@kernel.org, Tang Chen <tangchen@cn.fujitsu.com>, "vasilis.liaskovitis" <vasilis.liaskovitis@profitbricks.com>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, isimatu.yasuaki@jp.fujitsu.com, tangchen@cn.fujitsu.com, vasilis.liaskovitis@profitbricks.com
 
-On Thu, 2013-07-18 at 10:48 +0900, Yasuaki Ishimatsu wrote:
-> (2013/07/18 8:51), Toshi Kani wrote:
-> > On Wed, 2013-07-17 at 19:33 -0400, KOSAKI Motohiro wrote:
-> >> On Wed, Jul 17, 2013 at 7:29 PM, Toshi Kani <toshi.kani@hp.com> wrote:
-> >>> On Wed, 2013-07-17 at 19:22 -0400, KOSAKI Motohiro wrote:
-> >>>> On Wed, Jul 17, 2013 at 5:45 PM, Toshi Kani <toshi.kani@hp.com> wrote:
-> >>>>> CONFIG_ARCH_MEMORY_PROBE enables /sys/devices/system/memory/probe
-> >>>>> interface, which allows a given memory address to be hot-added as
-> >>>>> follows. (See Documentation/memory-hotplug.txt for more detail.)
-> >>>>>
-> >>>>> # echo start_address_of_new_memory > /sys/devices/system/memory/probe
-> >>>>>
-> >>>>> This probe interface is required on powerpc. On x86, however, ACPI
-> >>>>> notifies a memory hotplug event to the kernel, which performs its
-> >>>>> hotplug operation as the result. Therefore, users should not be
-> >>>>> required to use this interface on x86. This probe interface is also
-> >>>>> error-prone that the kernel blindly adds a given memory address
-> >>>>> without checking if the memory is present on the system; no probing
-> >>>>> is done despite of its name. The kernel crashes when a user requests
-> >>>>> to online a memory block that is not present on the system.
-> >>>>>
-> >>>>> This patch disables CONFIG_ARCH_MEMORY_PROBE by default on x86,
-> >>>>> and clarifies it in Documentation/memory-hotplug.txt.
-> >>>>
-> >>>> Why don't you completely remove it? Who should use this strange interface?
-> >>>
-> >>> According to the comment below, this probe interface is used on powerpc.
-> >>> So, we cannot remove it, but to disable it on x86.
-> >>
-> >> I meant x86. Why can't we completely remove ARCH_MEMORY_PROBE section
-> >> from x86 Kconfig?
-> >
-> > Oh, I see what you meant.  I do not expect any need for end-users, but I
-> > was not sure if someone working on the memory hotplug development might
-> > use it for fake hot-add testing.  Yes, if you folks do not see any need,
-> > I will remove it from x86 Kconfig.
+On Thu, 2013-07-18 at 08:27 -0700, Dave Hansen wrote:
+> On 07/17/2013 02:45 PM, Toshi Kani wrote:
+> > +CONFIG_ARCH_MEMORY_PROBE is supported on powerpc only. On x86, this config
+> > +option is disabled by default since ACPI notifies a memory hotplug event to
+> > +the kernel, which performs its hotplug operation as the result. Please
+> > +enable this option if you need the "probe" interface on x86.
 > 
-> I do not think the interface is necessary. So I vote to Kosaki's opinion.
+> There's no prompt for this and no way to override what you've done here
+> without hacking Kconfig/.config files.
+> 
+> It's also completely wrong to say "CONFIG_ARCH_MEMORY_PROBE is supported
+> on powerpc only."  It works just fine on x86.  In fact, I was just using
+> it today without ACPI being around.
 
-Thanks for the confirmation!
--Toshi
+This statement has been there in the document (no change), and I
+consider "supported" and "may work" are two different things.
 
+> I'd really prefer you don't do this.  Do you really have random
+> processes on your system poking at random sysfs files and then
+> complaining when things break?
 
-> 
-> Thanks,
-> Yasuaki Ishimatsu
-> 
-> >
-> > Thanks,
-> > -Toshi
-> >
-> 
-> 
+I am afraid that the "probe" interface does not provide the level of
+quality suitable for regular users.  It takes any value and blindly
+extends the page table.  Also, we are not aware of the use of this
+interface on x86.  Would you elaborate why you need this interface on
+x86?  Is it for your testing, or is it necessary for end-users?  If the
+former, can you modify .config file to enable it?
+
+Thanks,
+-Toshi   
+
 
 
 --
