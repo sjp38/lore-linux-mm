@@ -1,147 +1,264 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 4736B6B0033
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2013 19:18:01 -0400 (EDT)
-Received: by mail-ie0-f169.google.com with SMTP id 10so8496954ied.28
-        for <linux-mm@kvack.org>; Thu, 18 Jul 2013 16:18:00 -0700 (PDT)
-Date: Thu, 18 Jul 2013 18:17:55 -0500
-From: Rob Landley <rob@landley.net>
-Subject: Re: [PATCH 0/5] initmpfs v2: use tmpfs instead of ramfs for rootfs
-In-Reply-To: <alpine.LNX.2.00.1307171706050.4294@eggly.anvils> (from
-	hughd@google.com on Wed Jul 17 19:15:29 2013)
-Message-Id: <1374189475.3719.17@driftwood>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; DelSp=Yes; Format=Flowed
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id ED8206B0031
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2013 19:41:24 -0400 (EDT)
+Received: by mail-gg0-f201.google.com with SMTP id 21so356115ggh.4
+        for <linux-mm@kvack.org>; Thu, 18 Jul 2013 16:41:24 -0700 (PDT)
+Subject: mmotm 2013-07-18-16-40 uploaded
+From: akpm@linux-foundation.org
+Date: Thu, 18 Jul 2013 16:41:22 -0700
+Message-Id: <20130718234123.4170F31C022@corp2gmr1-1.hot.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, "Eric W. Biederman" <ebiederm@xmission.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Jeff Layton <jlayton@redhat.com>, Jens Axboe <axboe@kernel.dk>, Jim Cromie <jim.cromie@gmail.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Rusty Russell <rusty@rustcorp.com.au>, Sam Ravnborg <sam@ravnborg.org>, Stephen Warren <swarren@nvidia.com>
+To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
 
-Andrew: I'll save you the time of reading this message.
+The mm-of-the-moment snapshot 2013-07-18-16-40 has been uploaded to
 
-   tl;dr: "I agree with what Hugh said".
+   http://www.ozlabs.org/~akpm/mmotm/
 
-You're welcome. :)
+mmotm-readme.txt says
 
-On 07/17/2013 07:15:29 PM, Hugh Dickins wrote:
-> On Wed, 17 Jul 2013, Andrew Morton wrote:
-> > On Tue, 16 Jul 2013 08:31:13 -0700 (PDT) Rob Landley =20
-> <rob@landley.net> wrote:
-> >
-> > > Use tmpfs for rootfs when CONFIG_TMPFS=3Dy and there's no root=3D.
-> > > Specify rootfstype=3Dramfs to get the old initramfs behavior.
-> > >
-> > > The previous initramfs code provided a fairly crappy root =20
-> filesystem:
-> > > didn't let you --bind mount directories out of it, reported zero
-> > > size/usage so it didn't show up in "df" and couldn't run things =20
-> like
-> > > rpm that query available space before proceeding, would fill up =20
-> all
-> > > available memory and panic the system if you wrote too much to =20
-> it...
-> >
-> > The df problem and the mount --bind thing are ramfs issues, are they
-> > not?  Can we fix them?  If so, that's a less intrusive change, and =20
-> we
-> > also get a fixed ramfs.
->=20
-> I'll leave others to comment on "mount --bind",
+README for mm-of-the-moment:
 
-It's unrelated to tmpfs but _is_ related to exposing a non-broken rootfs
-to the user.
+http://www.ozlabs.org/~akpm/mmotm/
 
-> but with regard to "df":
-> yes, we could enhance ramfs with accounting such as tmpfs has, to =20
-> allow
-> it to support non-0 "df".  We could have done so years ago; but have
-> always preferred to leave ramfs as minimal, than import tmpfs features
-> into it one by one.
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
 
-Ramfs reporting 0 size is not a new issue, here it is 13 years ago:
+You will need quilt to apply these patches to the latest Linus release (3.x
+or 3.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
 
-http://lkml.indiana.edu/hypermail/linux/kernel/0011.2/0098.html
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
 
-And people proposed adding resource limits to ramfs at the time (yes,
-13 years ago):
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
 
-http://lkml.indiana.edu/hypermail/linux/kernel/0011.2/0713.html
+A git tree which contains the memory management portion of this tree is
+maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+by Michal Hocko.  It contains the patches which are between the
+"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+file, http://www.ozlabs.org/~akpm/mmotm/series.
 
-And Linus complained about complicating ramfs which he thought was a =20
-good
-educational example and could be turned into a reusable code library.
-(Somewhere around =20
-http://lkml.indiana.edu/hypermail/linux/kernel/0112.3/0257.html
-or http://lkml.indiana.edu/hypermail/linux/kernel/0101.0/1167.html or...
-I'd have to dig for that one. I remember reading it but my google roll
-missed.)
 
-Way back when Linus also mentioned embedded users benefitting from
-rootfs, ala:
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
 
-http://lkml.indiana.edu/hypermail/linux/kernel/0112.3/0307.html
+http://git.cmpxchg.org/?p=linux-mmotm.git;a=summary
 
-Which is why I documented rootfs to be ramfs "or tmpfs, if that's
-enabled" back in 2005:
+To develop on top of mmotm git:
 
-http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/Documen=
-tation/filesystems/ramfs-rootfs-initramfs.txt#n57
+  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+  $ git remote update mmotm
+  $ git checkout -b topic mmotm/master
+  <make changes, commit>
+  $ git send-email mmotm/master.. [...]
 
-And when I found out it still wasn't the case a year later I went
-"um, hey!" on the list, but ironically I got pushback from the same
-guy who objected to my perl removal patches as an "academic"
-exercise because it's not how _he_ uses linux...
+To rebase a branch with older patches to a new mmotm release:
 
-http://lkml.indiana.edu/hypermail/linux/kernel/0607.3/2480.html
-https://lkml.org/lkml/2013/3/20/321
+  $ git remote update mmotm
+  $ git rebase --onto mmotm/master <topic base> topic
 
-(And you wonder why embedded guys don't speak up more? I'm an
-outright "bullhorn and plackard" guy in this community. Random
-example: a guy named Rich Felker has been hanging out on the
-busybox and uclibc lists and IRC channels for years, and recently
-wrote musl-libc.org from "git init" to "builds linux from scratch"
-in 2 years. He's on the posix committe list and posts there
-multiple times per week. Number of times he's posted to
-linux-kernel: zero. I'm sure Sarah Sharp just facepalmed...)
 
-I was recently reminded of initmpfs because I'm finishing up a
-contract at Cray and they wanted to do this on their supercomputers
-and I went "oh, that's easy", and then had to make it work.
-(Embedded and supercomputing have always been closer to each other
-than either is to the desktop...) This is very much Not My Area
-but I've been waiting a _decade_ for other people to do this and
-nada. Really, you could see this as just "fixing my documentation"
-from way back when, by changing the code to match the docs. :)
 
-> I prefer Rob's approach of making tmpfs usable for rootfs.
 
-Me too. The resource accounting logic in tmpfs is hundreds of lines,
-with shmem_default_max_blocks and shmem_default_max_inodes to specify
-default size limits, mount-time option parsing to specify different
-values for those limits, plus remount logic (what if you specify a
-smaller size after the fact?), plus displaying the settings per-mount
-in /proc/mounts... see mm/shmem.c lines 2414 through 2581 for the
-largest chunk of it.
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
 
-That's why we got tmpfs/shmfs as a separate filesystem in the first
-place: it's a design decision. Ramfs is intentionally minimalist.
+A git copy of this tree is available at
 
-Ramfs can't say how big it is because it doesn't _know_ how big it is.
-If you write unlimited data to ramfs, the OOM killer zaps everything but
-init and then the system hangs in a page eviction loop. (The OOM killer
-can't free pinned page cache with nowhere to evict it to.)
+	http://git.cmpxchg.org/?p=linux-mmots.git;a=summary
 
-My patch series switching over tmpfs is much smaller than the tmpfs
-size accounting code, and we get the swap backing store for free. Plus
-hooking up years-old existing tested code (instead of putting new =20
-untested
-logic in the boot path), without duplicating functionality.
+and use of this tree is similar to
+http://git.cmpxchg.org/?p=linux-mmotm.git, described above.
 
-I.E. "what Hugh said."
 
-Rob=
+This mmotm tree contains the following patches against 3.11-rc1:
+(patches marked "*" will be included in linux-next)
+
+  origin.patch
+* revert-include-linux-smph-on_each_cpu-switch-back-to-a-macro.patch
+  arch-alpha-kernel-systblss-remove-debug-check.patch
+  i-need-old-gcc.patch
+* mm-mempolicy-fix-mbind_range-vma_adjust-interaction.patch
+* ocfs2-refcounttree-add-the-missing-null-check-of-the-return-value-of-find_or_create_page.patch
+* ocfs2-refcounttree-add-the-missing-null-check-of-the-return-value-of-find_or_create_page-fix.patch
+* dmi_scan-add-comments-on-dmi_present-and-the-loop-in-dmi_scan_machine.patch
+* maintainers-dynamic-debug-jasons-not-there.patch
+* gitignore-ignore-lz4-files.patch
+* rapidio-fix-use-after-free-in-rio_unregister_scan.patch
+* mm-sched-numa-fix-numa-balancing-when-sched_debug.patch
+* arch-x86-platform-ce4100-ce4100c-include-rebooth.patch
+* mm-swapc-clear-pageactive-before-adding-pages-onto-unevictable-list.patch
+* thp-mm-avoid-pageunevictable-on-active-inactive-lru-lists.patch
+* drivers-thermal-x86_pkg_temp_thermalc-fix-lockup-of-cpu_down.patch
+* mm-zbud-fix-condition-check-on-allocation-size.patch
+* documentation-development-process-update-mm-and-next-urls.patch
+* printk-move-to-separate-directory-for-easier-modification.patch
+* printk-add-console_cmdlineh.patch
+* printk-move-braille-console-support-into-separate-braille-files.patch
+* printk-use-pointer-for-console_cmdline-indexing.patch
+* printk-rename-struct-log-to-struct-printk_log.patch
+* x86-make-mem=-option-to-work-for-efi-platform.patch
+* drivers-pcmcia-pd6729c-convert-to-module_pci_driver.patch
+* drivers-pcmcia-yenta_socketc-convert-to-module_pci_driver.patch
+* drm-fb-helper-dont-sleep-for-screen-unblank-when-an-oopps-is-in-progress.patch
+* drm-cirrus-correct-register-values-for-16bpp.patch
+* drm-nouveau-make-vga_switcheroo-code-depend-on-vga_switcheroo.patch
+* drivers-video-acornfbc-remove-dead-code.patch
+* cyber2000fb-avoid-palette-corruption-at-higher-clocks.patch
+* include-linux-interrupth-add-dummy-irq_set_irq_wake-for-generic_hardirqs.patch
+* hrtimer-one-more-expiry-time-overflow-check-in-hrtimer_interrupt.patch
+* drivers-infiniband-core-cmc-convert-to-using-idr_alloc_cyclic.patch
+* drivers-mtd-chips-gen_probec-refactor-call-to-request_module.patch
+* drivers-net-ethernet-ibm-ehea-ehea_mainc-add-alias-entry-for-portn-properties.patch
+* misdn-add-support-for-group-membership-check.patch
+* drivers-atm-he-convert-to-module_pci_driver.patch
+* isdn-clean-up-debug-format-string-usage.patch
+* ocfs2-should-call-ocfs2_journal_access_di-before-ocfs2_delete_entry-in-ocfs2_orphan_del.patch
+* ocfs2-llseek-requires-ocfs2-inode-lock-for-the-file-in-seek_end.patch
+* ocfs2-fix-issue-that-ocfs2_setattr-does-not-deal-with-new_i_size==i_size.patch
+* ocfs2-fix-issue-that-ocfs2_setattr-does-not-deal-with-new_i_size==i_size-v2.patch
+* ocfs2-update-inode-size-after-zeronig-the-hole.patch
+* include-linux-schedh-dont-use-task-pid-tgid-in-same_thread_group-has_group_leader_pid.patch
+* lockdep-introduce-lock_acquire_exclusive-shared-helper-macros.patch
+* lglock-update-lockdep-annotations-to-report-recursive-local-locks.patch
+* drivers-scsi-a100u2w-convert-to-module_pci_driver.patch
+* drivers-scsi-dc395x-convert-to-module_pci_driver.patch
+* drivers-scsi-dmx3191d-convert-to-module_pci_driver.patch
+* drivers-scsi-initio-convert-to-module_pci_driver.patch
+* drivers-scsi-mvumi-convert-to-module_pci_driver.patch
+* drivers-net-irda-donauboe-convert-to-module_pci_driver.patch
+* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
+* watchdog-trigger-all-cpu-backtrace-when-locked-up-and-going-to-panic.patch
+* ssb-fix-alignment-of-struct-bcma_device_id.patch
+  mm.patch
+* mm-mempolicy-turn-vma_set_policy-into-vma_dup_policy.patch
+* mm-madvisec-fix-coding-style-errors.patch
+* swap-warn-when-a-swap-area-overflows-the-maximum-size.patch
+* swap-warn-when-a-swap-area-overflows-the-maximum-size-fix.patch
+* mm-swapfilec-convert-to-pr_foo.patch
+* mm-shift-vm_grows-check-from-mmap_region-to-do_mmap_pgoff.patch
+* mm-do_mmap_pgoff-cleanup-the-usage-of-file_inode.patch
+* mm-mmap_region-kill-correct_wcount-inode-use-allow_write_access.patch
+* mm-zswapc-get-swapper-address_space-by-using-macro.patch
+* mm-drop-actor-argument-of-do_generic_file_read.patch
+* mm-drop-actor-argument-of-do_shmem_file_read.patch
+* thp-account-anon-transparent-huge-pages-into-nr_anon_pages.patch
+* mm-cleanup-add_to_page_cache_locked.patch
+* thp-move-maybe_pmd_mkwrite-out-of-mk_huge_pmd.patch
+* thp-do_huge_pmd_anonymous_page-cleanup.patch
+* thp-consolidate-code-between-handle_mm_fault-and-do_huge_pmd_anonymous_page.patch
+* mm-vmstats-tlb-flush-counters.patch
+* thp-mm-locking-tail-page-is-a-bug.patch
+* swap-add-a-simple-detector-for-inappropriate-swapin-readahead.patch
+* swap-add-a-simple-detector-for-inappropriate-swapin-readahead-fix.patch
+* kernel-wide-fix-missing-validations-on-__get-__put-__copy_to-__copy_from_user.patch
+* kernel-smpc-free-related-resources-when-failure-occurs-in-hotplug_cfd.patch
+* smp-give-warning-when-calling-smp_call_function_many-single-in-serving-irq.patch
+* binfmt_elfc-use-get_random_int-to-fix-entropy-depleting.patch
+* firmware-dmi_scan-drop-obsolete-comment.patch
+* firmware-dmi_scan-fix-most-checkpatch-errors-and-warnings.patch
+* firmware-dmi_scan-constify-strings.patch
+* firmware-dmi_scan-drop-oom-messages.patch
+* autofs4-allow-autofs-to-work-outside-the-initial-pid-namespace.patch
+* autofs4-translate-pids-to-the-right-namespace-for-the-daemon.patch
+* drivers-rtc-rtc-hid-sensor-timec-add-module-alias-to-let-the-module-load-automatically.patch
+* fat-additions-to-support-fat_fallocate.patch
+* fat-additions-to-support-fat_fallocate-fix.patch
+* signals-eventpoll-set-saved_sigmask-at-the-start.patch
+* move-exit_task_namespaces-outside-of-exit_notify-fix.patch
+* memstick-add-support-for-legacy-memorysticks.patch
+* relay-fix-timer-madness.patch
+* relay-fix-timer-madness-v2.patch
+* ipcshm-introduce-lockless-functions-to-obtain-the-ipc-object.patch
+* ipcshm-shorten-critical-region-in-shmctl_down.patch
+* ipc-drop-ipcctl_pre_down.patch
+* ipc-drop-ipcctl_pre_down-fix.patch
+* ipcshm-introduce-shmctl_nolock.patch
+* ipcshm-make-shmctl_nolock-lockless.patch
+* ipcshm-make-shmctl_nolock-lockless-checkpatch-fixes.patch
+* ipcshm-shorten-critical-region-for-shmctl.patch
+* ipcshm-cleanup-do_shmat-pasta.patch
+* ipcshm-shorten-critical-region-for-shmat.patch
+* ipc-rename-ids-rw_mutex.patch
+* ipcmsg-drop-msg_unlock.patch
+* ipc-document-general-ipc-locking-scheme.patch
+* staging-lustre-ldlm-convert-to-shrinkers-to-count-scan-api.patch
+* staging-lustre-obdclass-convert-lu_object-shrinker-to-count-scan-api.patch
+* staging-lustre-ptlrpc-convert-to-new-shrinker-api.patch
+* staging-lustre-libcfs-cleanup-linux-memh.patch
+* staging-lustre-replace-num_physpages-with-totalram_pages.patch
+  linux-next.patch
+  linux-next-git-rejects.patch
+* fs-bump-inode-and-dentry-counters-to-long.patch
+* super-fix-calculation-of-shrinkable-objects-for-small-numbers.patch
+* dcache-convert-dentry_statnr_unused-to-per-cpu-counters.patch
+* dentry-move-to-per-sb-lru-locks.patch
+* dcache-remove-dentries-from-lru-before-putting-on-dispose-list.patch
+* mm-new-shrinker-api.patch
+* shrinker-convert-superblock-shrinkers-to-new-api.patch
+* shrinker-convert-superblock-shrinkers-to-new-api-fix.patch
+* list-add-a-new-lru-list-type.patch
+* inode-convert-inode-lru-list-to-generic-lru-list-code.patch
+* inode-convert-inode-lru-list-to-generic-lru-list-code-inode-move-inode-to-a-different-list-inside-lock.patch
+* dcache-convert-to-use-new-lru-list-infrastructure.patch
+* list_lru-per-node-list-infrastructure.patch
+* list_lru-per-node-list-infrastructure-fix.patch
+* list_lru-per-node-list-infrastructure-fix-broken-lru_retry-behaviour.patch
+* list_lru-per-node-api.patch
+* list_lru-remove-special-case-function-list_lru_dispose_all.patch
+* shrinker-add-node-awareness.patch
+* vmscan-per-node-deferred-work.patch
+* fs-convert-inode-and-dentry-shrinking-to-be-node-aware.patch
+* xfs-convert-buftarg-lru-to-generic-code.patch
+* xfs-convert-buftarg-lru-to-generic-code-fix.patch
+* xfs-rework-buffer-dispose-list-tracking.patch
+* xfs-convert-dquot-cache-lru-to-list_lru.patch
+* xfs-convert-dquot-cache-lru-to-list_lru-fix.patch
+* xfs-convert-dquot-cache-lru-to-list_lru-fix-dquot-isolation-hang.patch
+* fs-convert-fs-shrinkers-to-new-scan-count-api.patch
+* fs-convert-fs-shrinkers-to-new-scan-count-api-fix.patch
+* fs-convert-fs-shrinkers-to-new-scan-count-api-fix-fix.patch
+* drivers-convert-shrinkers-to-new-count-scan-api.patch
+* drivers-convert-shrinkers-to-new-count-scan-api-fix.patch
+* drivers-convert-shrinkers-to-new-count-scan-api-fix-2.patch
+* i915-bail-out-earlier-when-shrinker-cannot-acquire-mutex.patch
+* shrinker-convert-remaining-shrinkers-to-count-scan-api.patch
+* shrinker-convert-remaining-shrinkers-to-count-scan-api-fix.patch
+* hugepage-convert-huge-zero-page-shrinker-to-new-shrinker-api.patch
+* hugepage-convert-huge-zero-page-shrinker-to-new-shrinker-api-fix.patch
+* shrinker-kill-old-shrink-api.patch
+* shrinker-kill-old-shrink-api-fix.patch
+* list_lru-dynamically-adjust-node-arrays.patch
+* list_lru-dynamically-adjust-node-arrays-super-fix-for-destroy-lrus.patch
+  debugging-keep-track-of-page-owners.patch
+  debugging-keep-track-of-page-owners-fix.patch
+  debugging-keep-track-of-page-owners-fix-2.patch
+  debugging-keep-track-of-page-owners-fix-2-fix.patch
+  debugging-keep-track-of-page-owners-fix-2-fix-fix.patch
+  debugging-keep-track-of-page-owners-fix-2-fix-fix-fix.patch
+  debugging-keep-track-of-page-owner-now-depends-on-stacktrace_support.patch
+  make-sure-nobodys-leaking-resources.patch
+  journal_add_journal_head-debug.patch
+  releasing-resources-with-children.patch
+  make-frame_pointer-default=y.patch
+  kernel-forkc-export-kernel_thread-to-modules.patch
+  mutex-subsystem-synchro-test-module.patch
+  slab-leaks3-default-y.patch
+  put_bh-debug.patch
+  add-debugging-aid-for-memory-initialisation-problems.patch
+  workaround-for-a-pci-restoring-bug.patch
+  single_open-seq_release-leak-diagnostics.patch
+  add-a-refcount-check-in-dput.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
