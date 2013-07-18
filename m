@@ -1,47 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id CF0A86B0031
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 20:15:20 -0400 (EDT)
-Received: by mail-pd0-f181.google.com with SMTP id 14so2398325pdj.26
-        for <linux-mm@kvack.org>; Wed, 17 Jul 2013 17:15:20 -0700 (PDT)
-Date: Wed, 17 Jul 2013 17:15:29 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 0/5] initmpfs v2: use tmpfs instead of ramfs for rootfs
-In-Reply-To: <20130717160602.4b225ac80b1cb6121cbb489c@linux-foundation.org>
-Message-ID: <alpine.LNX.2.00.1307171706050.4294@eggly.anvils>
-References: <20130715140135.0f896a584fec9f7861049b64@linux-foundation.org> <20130717160602.4b225ac80b1cb6121cbb489c@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 2D3336B0031
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 20:25:14 -0400 (EDT)
+Received: by mail-ob0-f169.google.com with SMTP id up14so3092952obb.0
+        for <linux-mm@kvack.org>; Wed, 17 Jul 2013 17:25:13 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <1374105078.24916.62.camel@misato.fc.hp.com>
+References: <1374097503-25515-1-git-send-email-toshi.kani@hp.com>
+ <CAHGf_=pND-R=qMHg7b=Fi5SqS6ahXJCG865WsOS2eKWa6g3A7A@mail.gmail.com>
+ <1374103783.24916.49.camel@misato.fc.hp.com> <CAHGf_=q-9C4JZgv9Xp1Z3_Ks1a7t_sOArD3e1myj1EdiH5GBHQ@mail.gmail.com>
+ <1374105078.24916.62.camel@misato.fc.hp.com>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Wed, 17 Jul 2013 20:24:52 -0400
+Message-ID: <CAHGf_=qkYHDuCTP0cg-ZpnHAgaYf=CgngR=6Fh7x0fQhym58BQ@mail.gmail.com>
+Subject: Re: [PATCH] mm/hotplug, x86: Disable ARCH_MEMORY_PROBE by default
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rob Landley <rob@landley.net>, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, "Eric W. Biederman" <ebiederm@xmission.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hugh Dickins <hughd@google.com>, Jeff Layton <jlayton@redhat.com>, Jens Axboe <axboe@kernel.dk>, Jim Cromie <jim.cromie@gmail.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Rusty Russell <rusty@rustcorp.com.au>, Sam Ravnborg <sam@ravnborg.org>, Stephen Warren <swarren@nvidia.com>
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, x86@kernel.org, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, "vasilis.liaskovitis" <vasilis.liaskovitis@profitbricks.com>
 
-On Wed, 17 Jul 2013, Andrew Morton wrote:
-> On Tue, 16 Jul 2013 08:31:13 -0700 (PDT) Rob Landley <rob@landley.net> wrote:
-> 
-> > Use tmpfs for rootfs when CONFIG_TMPFS=y and there's no root=.
-> > Specify rootfstype=ramfs to get the old initramfs behavior.
-> > 
-> > The previous initramfs code provided a fairly crappy root filesystem:
-> > didn't let you --bind mount directories out of it, reported zero
-> > size/usage so it didn't show up in "df" and couldn't run things like
-> > rpm that query available space before proceeding, would fill up all
-> > available memory and panic the system if you wrote too much to it...
-> 
-> The df problem and the mount --bind thing are ramfs issues, are they
-> not?  Can we fix them?  If so, that's a less intrusive change, and we
-> also get a fixed ramfs.
+On Wed, Jul 17, 2013 at 7:51 PM, Toshi Kani <toshi.kani@hp.com> wrote:
+> On Wed, 2013-07-17 at 19:33 -0400, KOSAKI Motohiro wrote:
+>> On Wed, Jul 17, 2013 at 7:29 PM, Toshi Kani <toshi.kani@hp.com> wrote:
+>> > On Wed, 2013-07-17 at 19:22 -0400, KOSAKI Motohiro wrote:
+>> >> On Wed, Jul 17, 2013 at 5:45 PM, Toshi Kani <toshi.kani@hp.com> wrote:
+>> >> > CONFIG_ARCH_MEMORY_PROBE enables /sys/devices/system/memory/probe
+>> >> > interface, which allows a given memory address to be hot-added as
+>> >> > follows. (See Documentation/memory-hotplug.txt for more detail.)
+>> >> >
+>> >> > # echo start_address_of_new_memory > /sys/devices/system/memory/probe
+>> >> >
+>> >> > This probe interface is required on powerpc. On x86, however, ACPI
+>> >> > notifies a memory hotplug event to the kernel, which performs its
+>> >> > hotplug operation as the result. Therefore, users should not be
+>> >> > required to use this interface on x86. This probe interface is also
+>> >> > error-prone that the kernel blindly adds a given memory address
+>> >> > without checking if the memory is present on the system; no probing
+>> >> > is done despite of its name. The kernel crashes when a user requests
+>> >> > to online a memory block that is not present on the system.
+>> >> >
+>> >> > This patch disables CONFIG_ARCH_MEMORY_PROBE by default on x86,
+>> >> > and clarifies it in Documentation/memory-hotplug.txt.
+>> >>
+>> >> Why don't you completely remove it? Who should use this strange interface?
+>> >
+>> > According to the comment below, this probe interface is used on powerpc.
+>> > So, we cannot remove it, but to disable it on x86.
+>>
+>> I meant x86. Why can't we completely remove ARCH_MEMORY_PROBE section
+>> from x86 Kconfig?
+>
+> Oh, I see what you meant.  I do not expect any need for end-users, but I
+> was not sure if someone working on the memory hotplug development might
+> use it for fake hot-add testing.  Yes, if you folks do not see any need,
+> I will remove it from x86 Kconfig.
 
-I'll leave others to comment on "mount --bind", but with regard to "df":
-yes, we could enhance ramfs with accounting such as tmpfs has, to allow
-it to support non-0 "df".  We could have done so years ago; but have
-always preferred to leave ramfs as minimal, than import tmpfs features
-into it one by one.
+Then it's ok to submit your patch now.
 
-I prefer Rob's approach of making tmpfs usable for rootfs.
-
-Hugh
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
