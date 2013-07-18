@@ -1,100 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id E27346B0033
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2013 09:09:34 -0400 (EDT)
-Date: Thu, 18 Jul 2013 15:09:32 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH RFC] lib: Make radix_tree_node_alloc() irq safe
-Message-ID: <20130718130932.GA10419@quack.suse.cz>
-References: <1373994390-5479-1-git-send-email-jack@suse.cz>
- <20130717161200.40a97074623be2685beb8156@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id B46FC6B0033
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2013 09:42:48 -0400 (EDT)
+Date: Thu, 18 Jul 2013 13:42:47 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] mm/slub.c: use 'unsigned long' instead of 'int' for
+ variable 'slub_debug'
+In-Reply-To: <51E73340.5020703@asianux.com>
+Message-ID: <0000013ff204c901-636c5864-ec23-4c31-a308-d7fd58016364-000000@email.amazonses.com>
+References: <51DF5F43.3080408@asianux.com> <0000013fd3283b9c-b5fe217c-fff3-47fd-be0b-31b00faba1f3-000000@email.amazonses.com> <51E33FFE.3010200@asianux.com> <0000013fe2b1bd10-efcc76b5-f75b-4a45-a278-a318e87b2571-000000@email.amazonses.com> <51E49982.30402@asianux.com>
+ <0000013fed18f0f2-cb1afad0-560e-4da5-b865-29e854ce5813-000000@email.amazonses.com> <51E73340.5020703@asianux.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130717161200.40a97074623be2685beb8156@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Jens Axboe <jaxboe@fusionio.com>
+To: Chen Gang <gang.chen@asianux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, mpm@selenic.com, linux-mm@kvack.org
 
-On Wed 17-07-13 16:12:00, Andrew Morton wrote:
-> On Tue, 16 Jul 2013 19:06:30 +0200 Jan Kara <jack@suse.cz> wrote:
-> 
-> > With users of radix_tree_preload() run from interrupt (CFQ is one such
-> > possible user), the following race can happen:
-> > 
-> > radix_tree_preload()
-> > ...
-> > radix_tree_insert()
-> >   radix_tree_node_alloc()
-> >     if (rtp->nr) {
-> >       ret = rtp->nodes[rtp->nr - 1];
-> > <interrupt>
-> > ...
-> > radix_tree_preload()
-> > ...
-> > radix_tree_insert()
-> >   radix_tree_node_alloc()
-> >     if (rtp->nr) {
-> >       ret = rtp->nodes[rtp->nr - 1];
-> > 
-> > And we give out one radix tree node twice. That clearly results in radix
-> > tree corruption with different results (usually OOPS) depending on which
-> > two users of radix tree race.
-> > 
-> > Fix the problem by disabling interrupts when working with rtp variable.
-> > In-interrupt user can still deplete our preloaded nodes but at least we
-> > won't corrupt radix trees.
-> > 
-> > ...
+On Thu, 18 Jul 2013, Chen Gang wrote:
+
+> On 07/17/2013 10:46 PM, Christoph Lameter wrote:
+> > On Tue, 16 Jul 2013, Chen Gang wrote:
 > >
-> >   There are some questions regarding this patch:
-> > Do we really want to allow in-interrupt users of radix_tree_preload()?  CFQ
-> > could certainly do this in older kernels but that particular call site where I
-> > saw the bug hit isn't there anymore so I'm not sure this can really happen with
-> > recent kernels.
-> 
-> Well, it was never anticipated that interrupt-time code would run
-> radix_tree_preload().  The whole point in the preloading was to be able
-> to perform GFP_KERNEL allocations before entering the spinlocked region
-> which needs to allocate memory.
-> 
-> Doing all that from within an interrupt is daft, because the interrupt code
-> can't use GFP_KERNEL anyway.
-  Fully agreed here.
+> >> If we really use 32-bit as unsigned number, better to use 'U' instead of
+> >> 'UL' (e.g. 0x80000000U instead of 0x80000000UL).
+> >>
+> >> Since it is unsigned 32-bit number, it is better to use 'unsigned int'
+> >> instead of 'int', which can avoid related warnings if "EXTRA_CFLAGS=-W".
+> >
+> > Ok could you go through the kernel source and change that?
+> >
+>
+> Yeah, thanks, I should do it.
+>
+> Hmm... for each case of this issue, it need communicate with (review by)
+> various related maintainers.
+>
+> So, I think one patch for one variable (and related macro contents) is
+> enough.
+>
+> Is it OK ?
 
-> > Also it is actually harmful to do preloading if you are in interrupt context
-> > anyway. The disadvantage of disallowing radix_tree_preload() in interrupt is
-> > that we would need to tweak radix_tree_node_alloc() to somehow recognize
-> > whether the caller wants it to use preloaded nodes or not and that callers
-> > would have to get it right (although maybe some magic in radix_tree_preload()
-> > could handle that).
-> > 
-> > Opinions?
-> 
-> BUG_ON(in_interrupt()) :)
-  Or maybe WARN_ON()... But it's not so easy :) Currently radix tree code
-assumes that if gfp_mask doesn't have __GFP_WAIT set caller has performed
-radix_tree_preload(). Clearly this will stop working for in-interrupt users
-of radix tree. So how do we propagate the information from the caller of
-radix_tree_insert() down to radix_tree_node_alloc() whether the preload has
-been performed or not? Will we rely on in_interrupt() or use some special
-gfp_mask bit?
+The fundamental issue is that typically ints are used for flags and I
+would like to keep it that way. Changing the constants in slab.h and the
+allocator code to be unsigned int instead of unsigned long wont be that
+much of a deal.
 
-Secondly, CFQ has this unpleasant property that some functions are
-sometimes called from interrupt context and sometimes not. So these
-functions would have to check in what context they are called and either
-perform preload or not. That's doable but it's going to be a bit ugly and
-has to match the check in radix_tree_node_alloc() whether preload should be
-used or not. So leaving the checking to the users of radix tree looks
-fragile.  So maybe we could just silently exit from radix_tree_preload()
-when we are in_interrupt()?
-
-								Honza
-  
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Will the code then be clean enough for you?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
