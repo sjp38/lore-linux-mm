@@ -1,52 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id B3DCB6B0031
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 20:44:02 -0400 (EDT)
-Message-ID: <51E73A16.8070406@asianux.com>
-Date: Thu, 18 Jul 2013 08:43:02 +0800
-From: Chen Gang <gang.chen@asianux.com>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id A51E26B0031
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 20:58:03 -0400 (EDT)
+Received: by mail-pb0-f53.google.com with SMTP id xb12so2488488pbc.40
+        for <linux-mm@kvack.org>; Wed, 17 Jul 2013 17:58:02 -0700 (PDT)
+Date: Wed, 17 Jul 2013 17:58:13 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 5/8] thp, mm: locking tail page is a bug
+In-Reply-To: <51E71E29.6030703@sr71.net>
+Message-ID: <alpine.LNX.2.00.1307171747210.23502@eggly.anvils>
+References: <1373885274-25249-1-git-send-email-kirill.shutemov@linux.intel.com> <1373885274-25249-6-git-send-email-kirill.shutemov@linux.intel.com> <20130717140953.7560e88e607f8f5df1b1fdd8@linux-foundation.org> <51E71E29.6030703@sr71.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/slub.c: add parameter length checking for alloc_loc_track()
-References: <51DA734B.4060608@asianux.com> <51DE549F.9070505@kernel.org> <51DE55C9.1060908@asianux.com> <0000013fce9f5b32-7d62f3c5-bb35-4dd9-ab19-d72bae4b5bdc-000000@email.amazonses.com> <51DEF935.4040804@kernel.org> <0000013fcf608df8-457e2029-51f9-4e49-9992-bf399a97d953-000000@email.amazonses.com> <51DF4540.8060700@asianux.com> <51DF4C94.3060103@asianux.com> <51DF5404.4060004@asianux.com> <0000013fd3250e40-1832fd38-ede3-41af-8fe3-5a0c10f5e5ce-000000@email.amazonses.com> <51E33F98.8060201@asianux.com> <0000013fe2e73e30-817f1bdb-8dc7-4f7b-9b60-b42d5d244fda-000000@email.amazonses.com> <51E49BDF.30008@asianux.com> <0000013fed280250-85b17e35-d4d4-468d-abed-5b2e29cedb94-000000@email.amazonses.com>
-In-Reply-To: <0000013fed280250-85b17e35-d4d4-468d-abed-5b2e29cedb94-000000@email.amazonses.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, mpm@selenic.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Dave Hansen <dave@sr71.net>
+Cc: Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 07/17/2013 11:03 PM, Christoph Lameter wrote:
-> On Tue, 16 Jul 2013, Chen Gang wrote:
+On Wed, 17 Jul 2013, Dave Hansen wrote:
+> On 07/17/2013 02:09 PM, Andrew Morton wrote:
+> > lock_page() is a pretty commonly called function, and I assume quite a
+> > lot of people run with CONFIG_DEBUG_VM=y.
+> > 
+> > Is the overhead added by this patch really worthwhile?
 > 
->> Hmm... what you says above is reasonable.
->>
->> In this case, since alloc_loc_track() is a static function, it will
->> depend on the related maintainers' willing and opinions to decide
->> whether add the related check or not (just like add 'BUG_ON' or not).
->>
->> I need respect the original related maintainers' willing and opinions.
-> 
-> You are talking to the author of the code.
-> 
+> I always thought of it as a developer-only thing.  I don't think any of
+> the big distros turn it on by default.
 
-Firstly, at least, my this patch is really useless.
+That's how I think of it too (and the problem is often that too few mm
+developers turn it on); but Dave Jones did confirm last November that
+Fedora turns it on.
 
-Hmm... when anybody says "need respect original authors' willing and
-opinions", I think it often means we have found the direct issue, but
-none of us find the root issue.
+I believe Fedora turns it on to help us all, and wouldn't mind a mere
+VM_BUG_ON(PageTail(page)) in __lock_page() if it's helpful to Kirill.
 
-e.g. for our this case:
-  the direct issue is:
-    "whether need check the length with 'max' parameter".
-  but maybe the root issue is:
-    "whether use 'size' as related parameter name instead of 'max'".
-    in alloc_loc_track(), 'max' just plays the 'size' role.
+But if VM_BUG_ONs become expensive, I do think it's for Fedora to
+turn off CONFIG_DEBUG_VM, rather than for mm developers to avoid it.
 
-
-Thanks.
--- 
-Chen Gang
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
