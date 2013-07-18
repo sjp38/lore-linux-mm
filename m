@@ -1,47 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id ED4526B0031
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 20:14:52 -0400 (EDT)
-Message-ID: <51E73340.5020703@asianux.com>
-Date: Thu, 18 Jul 2013 08:13:52 +0800
-From: Chen Gang <gang.chen@asianux.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id CF0A86B0031
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 20:15:20 -0400 (EDT)
+Received: by mail-pd0-f181.google.com with SMTP id 14so2398325pdj.26
+        for <linux-mm@kvack.org>; Wed, 17 Jul 2013 17:15:20 -0700 (PDT)
+Date: Wed, 17 Jul 2013 17:15:29 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 0/5] initmpfs v2: use tmpfs instead of ramfs for rootfs
+In-Reply-To: <20130717160602.4b225ac80b1cb6121cbb489c@linux-foundation.org>
+Message-ID: <alpine.LNX.2.00.1307171706050.4294@eggly.anvils>
+References: <20130715140135.0f896a584fec9f7861049b64@linux-foundation.org> <20130717160602.4b225ac80b1cb6121cbb489c@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/slub.c: use 'unsigned long' instead of 'int' for variable
- 'slub_debug'
-References: <51DF5F43.3080408@asianux.com> <0000013fd3283b9c-b5fe217c-fff3-47fd-be0b-31b00faba1f3-000000@email.amazonses.com> <51E33FFE.3010200@asianux.com> <0000013fe2b1bd10-efcc76b5-f75b-4a45-a278-a318e87b2571-000000@email.amazonses.com> <51E49982.30402@asianux.com> <0000013fed18f0f2-cb1afad0-560e-4da5-b865-29e854ce5813-000000@email.amazonses.com>
-In-Reply-To: <0000013fed18f0f2-cb1afad0-560e-4da5-b865-29e854ce5813-000000@email.amazonses.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, mpm@selenic.com, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rob Landley <rob@landley.net>, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, "Eric W. Biederman" <ebiederm@xmission.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hugh Dickins <hughd@google.com>, Jeff Layton <jlayton@redhat.com>, Jens Axboe <axboe@kernel.dk>, Jim Cromie <jim.cromie@gmail.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Rusty Russell <rusty@rustcorp.com.au>, Sam Ravnborg <sam@ravnborg.org>, Stephen Warren <swarren@nvidia.com>
 
-On 07/17/2013 10:46 PM, Christoph Lameter wrote:
-> On Tue, 16 Jul 2013, Chen Gang wrote:
+On Wed, 17 Jul 2013, Andrew Morton wrote:
+> On Tue, 16 Jul 2013 08:31:13 -0700 (PDT) Rob Landley <rob@landley.net> wrote:
 > 
->> If we really use 32-bit as unsigned number, better to use 'U' instead of
->> 'UL' (e.g. 0x80000000U instead of 0x80000000UL).
->>
->> Since it is unsigned 32-bit number, it is better to use 'unsigned int'
->> instead of 'int', which can avoid related warnings if "EXTRA_CFLAGS=-W".
+> > Use tmpfs for rootfs when CONFIG_TMPFS=y and there's no root=.
+> > Specify rootfstype=ramfs to get the old initramfs behavior.
+> > 
+> > The previous initramfs code provided a fairly crappy root filesystem:
+> > didn't let you --bind mount directories out of it, reported zero
+> > size/usage so it didn't show up in "df" and couldn't run things like
+> > rpm that query available space before proceeding, would fill up all
+> > available memory and panic the system if you wrote too much to it...
 > 
-> Ok could you go through the kernel source and change that?
-> 
+> The df problem and the mount --bind thing are ramfs issues, are they
+> not?  Can we fix them?  If so, that's a less intrusive change, and we
+> also get a fixed ramfs.
 
-Yeah, thanks, I should do it.
+I'll leave others to comment on "mount --bind", but with regard to "df":
+yes, we could enhance ramfs with accounting such as tmpfs has, to allow
+it to support non-0 "df".  We could have done so years ago; but have
+always preferred to leave ramfs as minimal, than import tmpfs features
+into it one by one.
 
-Hmm... for each case of this issue, it need communicate with (review by)
-various related maintainers.
+I prefer Rob's approach of making tmpfs usable for rootfs.
 
-So, I think one patch for one variable (and related macro contents) is
-enough.
-
-Is it OK ?
-
-Thanks.
--- 
-Chen Gang
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
