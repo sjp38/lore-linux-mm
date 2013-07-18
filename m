@@ -1,73 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 603246B0031
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 20:31:27 -0400 (EDT)
-Message-ID: <1374107437.24916.64.camel@misato.fc.hp.com>
-Subject: Re: [PATCH] mm/hotplug, x86: Disable ARCH_MEMORY_PROBE by default
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Wed, 17 Jul 2013 18:30:37 -0600
-In-Reply-To: <CAHGf_=qkYHDuCTP0cg-ZpnHAgaYf=CgngR=6Fh7x0fQhym58BQ@mail.gmail.com>
-References: <1374097503-25515-1-git-send-email-toshi.kani@hp.com>
-	 <CAHGf_=pND-R=qMHg7b=Fi5SqS6ahXJCG865WsOS2eKWa6g3A7A@mail.gmail.com>
-	 <1374103783.24916.49.camel@misato.fc.hp.com>
-	 <CAHGf_=q-9C4JZgv9Xp1Z3_Ks1a7t_sOArD3e1myj1EdiH5GBHQ@mail.gmail.com>
-	 <1374105078.24916.62.camel@misato.fc.hp.com>
-	 <CAHGf_=qkYHDuCTP0cg-ZpnHAgaYf=CgngR=6Fh7x0fQhym58BQ@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id B3DCB6B0031
+	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 20:44:02 -0400 (EDT)
+Message-ID: <51E73A16.8070406@asianux.com>
+Date: Thu, 18 Jul 2013 08:43:02 +0800
+From: Chen Gang <gang.chen@asianux.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm/slub.c: add parameter length checking for alloc_loc_track()
+References: <51DA734B.4060608@asianux.com> <51DE549F.9070505@kernel.org> <51DE55C9.1060908@asianux.com> <0000013fce9f5b32-7d62f3c5-bb35-4dd9-ab19-d72bae4b5bdc-000000@email.amazonses.com> <51DEF935.4040804@kernel.org> <0000013fcf608df8-457e2029-51f9-4e49-9992-bf399a97d953-000000@email.amazonses.com> <51DF4540.8060700@asianux.com> <51DF4C94.3060103@asianux.com> <51DF5404.4060004@asianux.com> <0000013fd3250e40-1832fd38-ede3-41af-8fe3-5a0c10f5e5ce-000000@email.amazonses.com> <51E33F98.8060201@asianux.com> <0000013fe2e73e30-817f1bdb-8dc7-4f7b-9b60-b42d5d244fda-000000@email.amazonses.com> <51E49BDF.30008@asianux.com> <0000013fed280250-85b17e35-d4d4-468d-abed-5b2e29cedb94-000000@email.amazonses.com>
+In-Reply-To: <0000013fed280250-85b17e35-d4d4-468d-abed-5b2e29cedb94-000000@email.amazonses.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, x86@kernel.org, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, "vasilis.liaskovitis" <vasilis.liaskovitis@profitbricks.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, mpm@selenic.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, 2013-07-17 at 20:24 -0400, KOSAKI Motohiro wrote:
-> On Wed, Jul 17, 2013 at 7:51 PM, Toshi Kani <toshi.kani@hp.com> wrote:
-> > On Wed, 2013-07-17 at 19:33 -0400, KOSAKI Motohiro wrote:
-> >> On Wed, Jul 17, 2013 at 7:29 PM, Toshi Kani <toshi.kani@hp.com> wrote:
-> >> > On Wed, 2013-07-17 at 19:22 -0400, KOSAKI Motohiro wrote:
-> >> >> On Wed, Jul 17, 2013 at 5:45 PM, Toshi Kani <toshi.kani@hp.com> wrote:
-> >> >> > CONFIG_ARCH_MEMORY_PROBE enables /sys/devices/system/memory/probe
-> >> >> > interface, which allows a given memory address to be hot-added as
-> >> >> > follows. (See Documentation/memory-hotplug.txt for more detail.)
-> >> >> >
-> >> >> > # echo start_address_of_new_memory > /sys/devices/system/memory/probe
-> >> >> >
-> >> >> > This probe interface is required on powerpc. On x86, however, ACPI
-> >> >> > notifies a memory hotplug event to the kernel, which performs its
-> >> >> > hotplug operation as the result. Therefore, users should not be
-> >> >> > required to use this interface on x86. This probe interface is also
-> >> >> > error-prone that the kernel blindly adds a given memory address
-> >> >> > without checking if the memory is present on the system; no probing
-> >> >> > is done despite of its name. The kernel crashes when a user requests
-> >> >> > to online a memory block that is not present on the system.
-> >> >> >
-> >> >> > This patch disables CONFIG_ARCH_MEMORY_PROBE by default on x86,
-> >> >> > and clarifies it in Documentation/memory-hotplug.txt.
-> >> >>
-> >> >> Why don't you completely remove it? Who should use this strange interface?
-> >> >
-> >> > According to the comment below, this probe interface is used on powerpc.
-> >> > So, we cannot remove it, but to disable it on x86.
-> >>
-> >> I meant x86. Why can't we completely remove ARCH_MEMORY_PROBE section
-> >> from x86 Kconfig?
-> >
-> > Oh, I see what you meant.  I do not expect any need for end-users, but I
-> > was not sure if someone working on the memory hotplug development might
-> > use it for fake hot-add testing.  Yes, if you folks do not see any need,
-> > I will remove it from x86 Kconfig.
+On 07/17/2013 11:03 PM, Christoph Lameter wrote:
+> On Tue, 16 Jul 2013, Chen Gang wrote:
 > 
-> Then it's ok to submit your patch now.
+>> Hmm... what you says above is reasonable.
+>>
+>> In this case, since alloc_loc_track() is a static function, it will
+>> depend on the related maintainers' willing and opinions to decide
+>> whether add the related check or not (just like add 'BUG_ON' or not).
+>>
+>> I need respect the original related maintainers' willing and opinions.
+> 
+> You are talking to the author of the code.
+> 
 
-Great!  I will submit an updated patch tomorrow.
+Firstly, at least, my this patch is really useless.
 
-> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Hmm... when anybody says "need respect original authors' willing and
+opinions", I think it often means we have found the direct issue, but
+none of us find the root issue.
 
-Thanks!
--Toshi
+e.g. for our this case:
+  the direct issue is:
+    "whether need check the length with 'max' parameter".
+  but maybe the root issue is:
+    "whether use 'size' as related parameter name instead of 'max'".
+    in alloc_loc_track(), 'max' just plays the 'size' role.
 
 
+Thanks.
+-- 
+Chen Gang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
