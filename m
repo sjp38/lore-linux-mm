@@ -1,59 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id CA58A6B0031
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2013 16:29:30 -0400 (EDT)
-Received: by mail-pb0-f45.google.com with SMTP id mc8so3579154pbc.18
-        for <linux-mm@kvack.org>; Thu, 18 Jul 2013 13:29:30 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id CDB576B0034
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2013 16:29:36 -0400 (EDT)
+Message-ID: <51E85016.2090403@intel.com>
+Date: Thu, 18 Jul 2013 13:29:10 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.02.1306271340240.17334@chino.kir.corp.google.com>
-References: <51BB1802.8050108@yandex-team.ru>
-	<0000013f4319cb46-a5a3de58-1207-4037-ae39-574b58135ea2-000000@email.amazonses.com>
-	<alpine.DEB.2.02.1306141322490.17237@chino.kir.corp.google.com>
-	<51BF024F.2080609@yandex-team.ru>
-	<20130617142715.GB8853@dhcp22.suse.cz>
-	<51CBFC95.9070002@yandex-team.ru>
-	<alpine.DEB.2.02.1306271340240.17334@chino.kir.corp.google.com>
-Date: Thu, 18 Jul 2013 13:29:29 -0700
-Message-ID: <CACKvgLF7TKAJ1CFg=9vtk0Azga0mm02devKFbh2YGLCap2NcRA@mail.gmail.com>
-Subject: Re: [PATCH] slub: Avoid direct compaction if possible
-From: Vinson Lee <vlee@freedesktop.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH] mm/hotplug, x86: Disable ARCH_MEMORY_PROBE by default
+References: <1374097503-25515-1-git-send-email-toshi.kani@hp.com>   <51E80973.9000308@intel.com> <1374164815.24916.84.camel@misato.fc.hp.com>  <51E83536.6070100@sr71.net> <1374178250.24916.131.camel@misato.fc.hp.com>
+In-Reply-To: <1374178250.24916.131.camel@misato.fc.hp.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Roman Gushchin <klamm@yandex-team.ru>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@gentwo.org>, penberg@kernel.org, mpm@selenic.com, akpm@linux-foundation.org, mgorman@suse.de, glommer@parallels.com, hannes@cmpxchg.org, minchan@kernel.org, jiang.liu@huawei.com, linux-mm@kvack.org, li@jasper.es
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: Dave Hansen <dave@sr71.net>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, isimatu.yasuaki@jp.fujitsu.com, tangchen@cn.fujitsu.com, vasilis.liaskovitis@profitbricks.com
 
-On Thu, Jun 27, 2013 at 1:41 PM, David Rientjes <rientjes@google.com> wrote:
-> On Thu, 27 Jun 2013, Roman Gushchin wrote:
->
->> > They certainly aren't enough, the kernel you're running suffers from a
->> > couple different memory compaction issues that were fixed in 3.7.  I
->> > couldn't sympathize with your situation more, I faced the same issue
->> > because of thp and not slub (we use slab).
->> >
->> > > I'll try to reproduce the issue on raw 3.9.
->> > >
+On 07/18/2013 01:10 PM, Toshi Kani wrote:
+> On Thu, 2013-07-18 at 11:34 -0700, Dave Hansen wrote:
+> I do not think so.  Using echo command to write a value to /dev/sda is
+> not how it is instructed to use in the document.  I am not saying that
+> we need to protect from a privileged user doing something crazy.
+
+If the document is the issue, then let's fix the document.
+
+>> All that I'm asking is that you either leave it the way it is, or make a
+>> Kconfig menu entry for it.
 >>
->> I can't reproduce the issue on 3.9.
->> It seems that compaction fixes in 3.7 solve the problem.
->>
->
-> Yeah, we had significant problems with memory compaction in 3.3 and 3.4
-> kernels, so if you need to run with such a kernel you'll want to backport
-> the listed commits.  I'm not sure we could get such invasive changes into
-> a stable release, unfortunately.
+>> But, really, what's the problem that you're solving?  Has this caused
+>> you issues somehow?  It's been there for, what, 10 years?  Surely it's
+>> part of the ABI.
+> 
+> The problem is that the probe interface is documented as one of the
+> steps that may be necessary for memory hotplug.  A typical user may or
+> may not know if his/her platform generates a hotplug notification to the
+> kernel to decide if this step is necessary.
 
-Hi.
+A typical user will never see any of this stuff.  It's buried deep under
+the covers.
 
-Can the diff with the backport of the listed patches be posted? The
-patches don't easily apply to 3.4.
+> If the user performs this
+> step on x86, it will likely mess up the system.  Since we do not need it
+> on x86, a prudent approach to protect such user is to disable or remove
+> the interface on x86 and document it accordingly.  We have not seen this
+> issue yet because we do not have many platforms that support memory
+> hotplug today.  Once memory hotplug support in KVM gets merged into the
+> mainline, anyone can start using this feature on their systems.  At that
+> time, their choice of a stable kernel may be 3.12.x.  This interface has
+> been there for while, but we need to fix it before the memory hotplug
+> feature becomes available for everyone.
 
-I think I'm seeing memory compaction issues as well with Linux kernel
-3.4 and would welcome any help. I'm planning to try the backporting
-approach to see if it improves things on my side.
+It sounds like you're arguing that anyone using memory hotplug on x86
+might be confused by the probe file.  There's been a lot of hardware out
+there that's supported memory hotplug for many, many years.  I've never
+heard a complaint about it in practice.  Are KVM users more apt to be
+confused than folks running on bare-metal? :)
 
-Cheers,
-Vinson
+> Does it make sense?  I understand that you are using this interface for
+> your testing.  If I make a Kconfig menu entry, are you OK to disable
+> this option by default?
+
+I kinda wish you wouldn't mess with it.  But, sure, put it in the memory
+debugging, and make sure it stays enabled on powerpc by default.
+
+Another method would be to just change the default permissions of the
+file on x86 instead of disabling it completely:
+
+	# chmod u-w /sys/devices/system/memory/probe
+	# echo x > /sys/devices/system/memory/probe
+	bash: /sys/devices/system/memory/probe: Permission denied
+
+That way folks can re-chmod it if they *really* want it back (me), and
+they can still use it for testing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
