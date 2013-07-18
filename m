@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 456556B0036
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2013 17:35:10 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 50F2F6B0036
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2013 17:35:12 -0400 (EDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 4/8] migrate: add hugepage migration code to move_pages()
-Date: Thu, 18 Jul 2013 17:34:28 -0400
-Message-Id: <1374183272-10153-5-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 6/8] migrate: remove VM_HUGETLB from vma flag check in vma_migratable()
+Date: Thu, 18 Jul 2013 17:34:30 -0400
+Message-Id: <1374183272-10153-7-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1374183272-10153-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1374183272-10153-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,98 +13,27 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-This patch extends move_pages() to handle vma with VM_HUGETLB set.
-We will be able to migrate hugepage with move_pages(2) after
-applying the enablement patch which comes later in this series.
-
-We avoid getting refcount on tail pages of hugepage, because unlike thp,
-hugepage is not split and we need not care about races with splitting.
-
-And migration of larger (1GB for x86_64) hugepage are not enabled.
-
-ChangeLog v3:
- - revert introducing migrate_movable_pages
- - follow_page_mask(FOLL_GET) returns NULL for tail pages
- - use isolate_huge_page
-
-ChangeLog v2:
- - updated description and renamed patch title
+This patch enables hugepage migration from migrate_pages(2),
+move_pages(2), and mbind(2).
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 ---
- mm/memory.c  | 12 ++++++++++--
- mm/migrate.c | 13 +++++++++++--
- 2 files changed, 21 insertions(+), 4 deletions(-)
+ include/linux/mempolicy.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git v3.11-rc1.orig/mm/memory.c v3.11-rc1/mm/memory.c
-index 1ce2e2a..8c9a2cb 100644
---- v3.11-rc1.orig/mm/memory.c
-+++ v3.11-rc1/mm/memory.c
-@@ -1496,7 +1496,8 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
- 	if (pud_none(*pud))
- 		goto no_page_table;
- 	if (pud_huge(*pud) && vma->vm_flags & VM_HUGETLB) {
--		BUG_ON(flags & FOLL_GET);
-+		if (flags & FOLL_GET)
-+			goto out;
- 		page = follow_huge_pud(mm, address, pud, flags & FOLL_WRITE);
- 		goto out;
- 	}
-@@ -1507,8 +1508,15 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
- 	if (pmd_none(*pmd))
- 		goto no_page_table;
- 	if (pmd_huge(*pmd) && vma->vm_flags & VM_HUGETLB) {
--		BUG_ON(flags & FOLL_GET);
- 		page = follow_huge_pmd(mm, address, pmd, flags & FOLL_WRITE);
-+		if (flags & FOLL_GET) {
-+			if (PageHead(page))
-+				get_page_foll(page);
-+			else {
-+				page = NULL;
-+				goto out;
-+			}
-+		}
- 		goto out;
- 	}
- 	if ((flags & FOLL_NUMA) && pmd_numa(*pmd))
-diff --git v3.11-rc1.orig/mm/migrate.c v3.11-rc1/mm/migrate.c
-index 3ec47d3..d313737 100644
---- v3.11-rc1.orig/mm/migrate.c
-+++ v3.11-rc1/mm/migrate.c
-@@ -1092,7 +1092,11 @@ static struct page *new_page_node(struct page *p, unsigned long private,
- 
- 	*result = &pm->status;
- 
--	return alloc_pages_exact_node(pm->node,
-+	if (PageHuge(p))
-+		return alloc_huge_page_node(page_hstate(compound_head(p)),
-+					pm->node);
-+	else
-+		return alloc_pages_exact_node(pm->node,
- 				GFP_HIGHUSER_MOVABLE | GFP_THISNODE, 0);
- }
- 
-@@ -1152,6 +1156,11 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
- 				!migrate_all)
- 			goto put_and_set;
- 
-+		if (PageHuge(page)) {
-+			isolate_huge_page(page, &pagelist);
-+			goto put_and_set;
-+		}
-+
- 		err = isolate_lru_page(page);
- 		if (!err) {
- 			list_add_tail(&page->lru, &pagelist);
-@@ -1174,7 +1183,7 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
- 		err = migrate_pages(&pagelist, new_page_node,
- 				(unsigned long)pm, MIGRATE_SYNC, MR_SYSCALL);
- 		if (err)
--			putback_lru_pages(&pagelist);
-+			putback_movable_pages(&pagelist);
- 	}
- 
- 	up_read(&mm->mmap_sem);
+diff --git v3.11-rc1.orig/include/linux/mempolicy.h v3.11-rc1/include/linux/mempolicy.h
+index 0d7df39..2e475b5 100644
+--- v3.11-rc1.orig/include/linux/mempolicy.h
++++ v3.11-rc1/include/linux/mempolicy.h
+@@ -173,7 +173,7 @@ extern int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol);
+ /* Check if a vma is migratable */
+ static inline int vma_migratable(struct vm_area_struct *vma)
+ {
+-	if (vma->vm_flags & (VM_IO | VM_HUGETLB | VM_PFNMAP))
++	if (vma->vm_flags & (VM_IO | VM_PFNMAP))
+ 		return 0;
+ 	/*
+ 	 * Migration allocates pages in the highest zone. If we cannot
 -- 
 1.8.3.1
 
