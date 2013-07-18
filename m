@@ -1,77 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id CDB576B0034
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2013 16:29:36 -0400 (EDT)
-Message-ID: <51E85016.2090403@intel.com>
-Date: Thu, 18 Jul 2013 13:29:10 -0700
-From: Dave Hansen <dave.hansen@intel.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm/hotplug, x86: Disable ARCH_MEMORY_PROBE by default
-References: <1374097503-25515-1-git-send-email-toshi.kani@hp.com>   <51E80973.9000308@intel.com> <1374164815.24916.84.camel@misato.fc.hp.com>  <51E83536.6070100@sr71.net> <1374178250.24916.131.camel@misato.fc.hp.com>
-In-Reply-To: <1374178250.24916.131.camel@misato.fc.hp.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 648186B0031
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2013 16:51:59 -0400 (EDT)
+Date: Thu, 18 Jul 2013 13:51:57 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RESEND][PATCH] mm: vmstats: tlb flush counters
+Message-Id: <20130718135157.2262e28b2c6e0f43a4d0fe7a@linux-foundation.org>
+In-Reply-To: <20130717072100.GA14359@gmail.com>
+References: <20130716234438.C792C316@viggo.jf.intel.com>
+	<20130717072100.GA14359@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: Dave Hansen <dave@sr71.net>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, isimatu.yasuaki@jp.fujitsu.com, tangchen@cn.fujitsu.com, vasilis.liaskovitis@profitbricks.com
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Dave Hansen <dave@sr71.net>, linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-On 07/18/2013 01:10 PM, Toshi Kani wrote:
-> On Thu, 2013-07-18 at 11:34 -0700, Dave Hansen wrote:
-> I do not think so.  Using echo command to write a value to /dev/sda is
-> not how it is instructed to use in the document.  I am not saying that
-> we need to protect from a privileged user doing something crazy.
+On Wed, 17 Jul 2013 09:21:00 +0200 Ingo Molnar <mingo@kernel.org> wrote:
 
-If the document is the issue, then let's fix the document.
-
->> All that I'm asking is that you either leave it the way it is, or make a
->> Kconfig menu entry for it.
->>
->> But, really, what's the problem that you're solving?  Has this caused
->> you issues somehow?  It's been there for, what, 10 years?  Surely it's
->> part of the ABI.
 > 
-> The problem is that the probe interface is documented as one of the
-> steps that may be necessary for memory hotplug.  A typical user may or
-> may not know if his/her platform generates a hotplug notification to the
-> kernel to decide if this step is necessary.
+> * Dave Hansen <dave@sr71.net> wrote:
+> 
+> > I was investigating some TLB flush scaling issues and realized
+> > that we do not have any good methods for figuring out how many
+> > TLB flushes we are doing.
+> > 
+> > It would be nice to be able to do these in generic code, but the
+> > arch-independent calls don't explicitly specify whether we
+> > actually need to do remote flushes or not.  In the end, we really
+> > need to know if we actually _did_ global vs. local invalidations,
+> > so that leaves us with few options other than to muck with the
+> > counters from arch-specific code.
 
-A typical user will never see any of this stuff.  It's buried deep under
-the covers.
+Spose so, if you really think it's worth it.  It's all downside for
+uniprocessor machines.  And for architectures which don't implement the
+counters, of course.
 
-> If the user performs this
-> step on x86, it will likely mess up the system.  Since we do not need it
-> on x86, a prudent approach to protect such user is to disable or remove
-> the interface on x86 and document it accordingly.  We have not seen this
-> issue yet because we do not have many platforms that support memory
-> hotplug today.  Once memory hotplug support in KVM gets merged into the
-> mainline, anyone can start using this feature on their systems.  At that
-> time, their choice of a stable kernel may be 3.12.x.  This interface has
-> been there for while, but we need to fix it before the memory hotplug
-> feature becomes available for everyone.
+> > --- linux.git/include/linux/vm_event_item.h~tlb-vmstats	2013-07-16 16:41:56.478280438 -0700
+> > +++ linux.git-davehans/include/linux/vm_event_item.h	2013-07-16 16:41:56.483280658 -0700
+> > @@ -70,6 +70,11 @@ enum vm_event_item { PGPGIN, PGPGOUT, PS
+> >  		THP_ZERO_PAGE_ALLOC,
+> >  		THP_ZERO_PAGE_ALLOC_FAILED,
+> >  #endif
+> >
+> > +		NR_TLB_REMOTE_FLUSH,	/* cpu tried to flush others' tlbs */
+> > +		NR_TLB_REMOTE_FLUSH_RECEIVED,/* cpu received ipi for flush */
+> > +		NR_TLB_LOCAL_FLUSH_ALL,
+> > +		NR_TLB_LOCAL_FLUSH_ONE,
+> > +		NR_TLB_LOCAL_FLUSH_ONE_KERNEL,
+> 
+> Please fix the vertical alignment of comments.
 
-It sounds like you're arguing that anyone using memory hotplug on x86
-might be confused by the probe file.  There's been a lot of hardware out
-there that's supported memory hotplug for many, many years.  I've never
-heard a complaint about it in practice.  Are KVM users more apt to be
-confused than folks running on bare-metal? :)
+I looked - this isn't practical.
 
-> Does it make sense?  I understand that you are using this interface for
-> your testing.  If I make a Kconfig menu entry, are you OK to disable
-> this option by default?
-
-I kinda wish you wouldn't mess with it.  But, sure, put it in the memory
-debugging, and make sure it stays enabled on powerpc by default.
-
-Another method would be to just change the default permissions of the
-file on x86 instead of disabling it completely:
-
-	# chmod u-w /sys/devices/system/memory/probe
-	# echo x > /sys/devices/system/memory/probe
-	bash: /sys/devices/system/memory/probe: Permission denied
-
-That way folks can re-chmod it if they *really* want it back (me), and
-they can still use it for testing.
+It would be nice to actually document these things though.  We don't
+*have* to squeeze the comment into the RHS.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
