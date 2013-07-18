@@ -1,52 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id B46FC6B0033
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2013 09:42:48 -0400 (EDT)
-Date: Thu, 18 Jul 2013 13:42:47 +0000
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 5CCE56B0036
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2013 09:45:42 -0400 (EDT)
+Date: Thu, 18 Jul 2013 13:45:41 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] mm/slub.c: use 'unsigned long' instead of 'int' for
- variable 'slub_debug'
-In-Reply-To: <51E73340.5020703@asianux.com>
-Message-ID: <0000013ff204c901-636c5864-ec23-4c31-a308-d7fd58016364-000000@email.amazonses.com>
-References: <51DF5F43.3080408@asianux.com> <0000013fd3283b9c-b5fe217c-fff3-47fd-be0b-31b00faba1f3-000000@email.amazonses.com> <51E33FFE.3010200@asianux.com> <0000013fe2b1bd10-efcc76b5-f75b-4a45-a278-a318e87b2571-000000@email.amazonses.com> <51E49982.30402@asianux.com>
- <0000013fed18f0f2-cb1afad0-560e-4da5-b865-29e854ce5813-000000@email.amazonses.com> <51E73340.5020703@asianux.com>
+Subject: Re: [PATCH] mm/slub.c: add parameter length checking for
+ alloc_loc_track()
+In-Reply-To: <51E73A16.8070406@asianux.com>
+Message-ID: <0000013ff2076fb0-b52e0245-8fb5-4842-b0dd-d812ce2c9f62-000000@email.amazonses.com>
+References: <51DA734B.4060608@asianux.com> <51DE549F.9070505@kernel.org> <51DE55C9.1060908@asianux.com> <0000013fce9f5b32-7d62f3c5-bb35-4dd9-ab19-d72bae4b5bdc-000000@email.amazonses.com> <51DEF935.4040804@kernel.org>
+ <0000013fcf608df8-457e2029-51f9-4e49-9992-bf399a97d953-000000@email.amazonses.com> <51DF4540.8060700@asianux.com> <51DF4C94.3060103@asianux.com> <51DF5404.4060004@asianux.com> <0000013fd3250e40-1832fd38-ede3-41af-8fe3-5a0c10f5e5ce-000000@email.amazonses.com>
+ <51E33F98.8060201@asianux.com> <0000013fe2e73e30-817f1bdb-8dc7-4f7b-9b60-b42d5d244fda-000000@email.amazonses.com> <51E49BDF.30008@asianux.com> <0000013fed280250-85b17e35-d4d4-468d-abed-5b2e29cedb94-000000@email.amazonses.com>
+ <51E73A16.8070406@asianux.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Chen Gang <gang.chen@asianux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, mpm@selenic.com, linux-mm@kvack.org
+Cc: Pekka Enberg <penberg@kernel.org>, mpm@selenic.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
 On Thu, 18 Jul 2013, Chen Gang wrote:
 
-> On 07/17/2013 10:46 PM, Christoph Lameter wrote:
-> > On Tue, 16 Jul 2013, Chen Gang wrote:
-> >
-> >> If we really use 32-bit as unsigned number, better to use 'U' instead of
-> >> 'UL' (e.g. 0x80000000U instead of 0x80000000UL).
-> >>
-> >> Since it is unsigned 32-bit number, it is better to use 'unsigned int'
-> >> instead of 'int', which can avoid related warnings if "EXTRA_CFLAGS=-W".
-> >
-> > Ok could you go through the kernel source and change that?
-> >
->
-> Yeah, thanks, I should do it.
->
-> Hmm... for each case of this issue, it need communicate with (review by)
-> various related maintainers.
->
-> So, I think one patch for one variable (and related macro contents) is
-> enough.
->
-> Is it OK ?
+> Hmm... when anybody says "need respect original authors' willing and
+> opinions", I think it often means we have found the direct issue, but
+> none of us find the root issue.
 
-The fundamental issue is that typically ints are used for flags and I
-would like to keep it that way. Changing the constants in slab.h and the
-allocator code to be unsigned int instead of unsigned long wont be that
-much of a deal.
+Is there an actual problem / failure being addressed by this patch?
 
-Will the code then be clean enough for you?
+> e.g. for our this case:
+>   the direct issue is:
+>     "whether need check the length with 'max' parameter".
+>   but maybe the root issue is:
+>     "whether use 'size' as related parameter name instead of 'max'".
+>     in alloc_loc_track(), 'max' just plays the 'size' role.
+
+"max" determines the size of the loc_track structure. So these can
+roughly mean the same thing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
