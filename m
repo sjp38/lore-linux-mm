@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 50F2F6B0036
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2013 17:35:12 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id AD2CE6B0038
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2013 17:35:13 -0400 (EDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 6/8] migrate: remove VM_HUGETLB from vma flag check in vma_migratable()
-Date: Thu, 18 Jul 2013 17:34:30 -0400
-Message-Id: <1374183272-10153-7-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 5/8] mbind: add hugepage migration code to mbind()
+Date: Thu, 18 Jul 2013 17:34:29 -0400
+Message-Id: <1374183272-10153-6-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1374183272-10153-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1374183272-10153-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,27 +13,92 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-This patch enables hugepage migration from migrate_pages(2),
-move_pages(2), and mbind(2).
+This patch extends do_mbind() to handle vma with VM_HUGETLB set.
+We will be able to migrate hugepage with mbind(2) after
+applying the enablement patch which comes later in this series.
+
+ChangeLog v3:
+ - revert introducing migrate_movable_pages
+ - added alloc_huge_page_noerr free from ERR_VALUE
+
+ChangeLog v2:
+ - updated description and renamed patch title
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 ---
- include/linux/mempolicy.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ include/linux/hugetlb.h |  3 +++
+ mm/hugetlb.c            | 14 ++++++++++++++
+ mm/mempolicy.c          |  4 +++-
+ 3 files changed, 20 insertions(+), 1 deletion(-)
 
-diff --git v3.11-rc1.orig/include/linux/mempolicy.h v3.11-rc1/include/linux/mempolicy.h
-index 0d7df39..2e475b5 100644
---- v3.11-rc1.orig/include/linux/mempolicy.h
-+++ v3.11-rc1/include/linux/mempolicy.h
-@@ -173,7 +173,7 @@ extern int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol);
- /* Check if a vma is migratable */
- static inline int vma_migratable(struct vm_area_struct *vma)
+diff --git v3.11-rc1.orig/include/linux/hugetlb.h v3.11-rc1/include/linux/hugetlb.h
+index 0b7a9e7..768ebbe 100644
+--- v3.11-rc1.orig/include/linux/hugetlb.h
++++ v3.11-rc1/include/linux/hugetlb.h
+@@ -267,6 +267,8 @@ struct huge_bootmem_page {
+ };
+ 
+ struct page *alloc_huge_page_node(struct hstate *h, int nid);
++struct page *alloc_huge_page_noerr(struct vm_area_struct *vma,
++				unsigned long addr, int avoid_reserve);
+ 
+ /* arch callback */
+ int __init alloc_bootmem_huge_page(struct hstate *h);
+@@ -380,6 +382,7 @@ static inline pgoff_t basepage_index(struct page *page)
+ #else	/* CONFIG_HUGETLB_PAGE */
+ struct hstate {};
+ #define alloc_huge_page_node(h, nid) NULL
++#define alloc_huge_page_noerr(v, a, r) NULL
+ #define alloc_bootmem_huge_page(h) NULL
+ #define hstate_file(f) NULL
+ #define hstate_sizelog(s) NULL
+diff --git v3.11-rc1.orig/mm/hugetlb.c v3.11-rc1/mm/hugetlb.c
+index 4c48a70..fab29a1 100644
+--- v3.11-rc1.orig/mm/hugetlb.c
++++ v3.11-rc1/mm/hugetlb.c
+@@ -1195,6 +1195,20 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 	return page;
+ }
+ 
++/*
++ * alloc_huge_page()'s wrapper which simply returns the page if allocation
++ * succeeds, otherwise NULL. This function is called from new_vma_page(),
++ * where no ERR_VALUE is expected to be returned.
++ */
++struct page *alloc_huge_page_noerr(struct vm_area_struct *vma,
++				unsigned long addr, int avoid_reserve)
++{
++	struct page *page = alloc_huge_page(vma, addr, avoid_reserve);
++	if (IS_ERR(page))
++		page = NULL;
++	return page;
++}
++
+ int __weak alloc_bootmem_huge_page(struct hstate *h)
  {
--	if (vma->vm_flags & (VM_IO | VM_HUGETLB | VM_PFNMAP))
-+	if (vma->vm_flags & (VM_IO | VM_PFNMAP))
- 		return 0;
+ 	struct huge_bootmem_page *m;
+diff --git v3.11-rc1.orig/mm/mempolicy.c v3.11-rc1/mm/mempolicy.c
+index f3b65c0..d8ced3e 100644
+--- v3.11-rc1.orig/mm/mempolicy.c
++++ v3.11-rc1/mm/mempolicy.c
+@@ -1180,6 +1180,8 @@ static struct page *new_vma_page(struct page *page, unsigned long private, int *
+ 		vma = vma->vm_next;
+ 	}
+ 
++	if (PageHuge(page))
++		return alloc_huge_page_noerr(vma, address, 1);
  	/*
- 	 * Migration allocates pages in the highest zone. If we cannot
+ 	 * if !vma, alloc_page_vma() will use task or system default policy
+ 	 */
+@@ -1290,7 +1292,7 @@ static long do_mbind(unsigned long start, unsigned long len,
+ 					(unsigned long)vma,
+ 					MIGRATE_SYNC, MR_MEMPOLICY_MBIND);
+ 			if (nr_failed)
+-				putback_lru_pages(&pagelist);
++				putback_movable_pages(&pagelist);
+ 		}
+ 
+ 		if (nr_failed && (flags & MPOL_MF_STRICT))
 -- 
 1.8.3.1
 
