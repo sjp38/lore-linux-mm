@@ -1,54 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 7FDE66B0031
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2013 08:43:47 -0400 (EDT)
-Message-ID: <51E7E2FC.3070807@oracle.com>
-Date: Thu, 18 Jul 2013 20:43:40 +0800
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 9681B6B0031
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2013 08:48:08 -0400 (EDT)
+Message-ID: <51E7E400.4070705@oracle.com>
+Date: Thu, 18 Jul 2013 20:48:00 +0800
 From: Bob Liu <bob.liu@oracle.com>
 MIME-Version: 1.0
-Subject: Re: zswap: How to determine whether it is compressing swap pages?
-References: <1674223.HVFdAhB7u5@merkaba> <3337744.IgTT2hGPE5@merkaba> <20130717143834.GA4379@variantweb.net> <3125575.Ki4S75m1kx@merkaba>
-In-Reply-To: <3125575.Ki4S75m1kx@merkaba>
+Subject: Re: [PATCH] mm: zbud: fix condition check on allocation size
+References: <1374071410-9337-1-git-send-email-heesub.shin@samsung.com>
+In-Reply-To: <1374071410-9337-1-git-send-email-heesub.shin@samsung.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Martin Steigerwald <Martin@lichtvoll.de>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Heesub Shin <heesub.shin@samsung.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dongjun Shin <d.j.shin@samsung.com>, Sunae Seo <sunae.seo@samsung.com>, Heesub Shin <heesub@gmail.com>
 
-Hi Martin,
-
-On 07/18/2013 03:38 AM, Martin Steigerwald wrote:
-> Am Mittwoch, 17. Juli 2013, 09:38:34 schrieb Seth Jennings:
->> On Wed, Jul 17, 2013 at 01:41:44PM +0200, Martin Steigerwald wrote:
->>> Is there any way to run zcache concurrently with zswap? I.e. use zcache only
->>> for read caches for filesystem and zswap for swap?
->>
->> No, at least not with zcache's frontswap features enabled.  frontswap is a very
->> simple API that allows only one "backend" to register with it at a time.  So
->> that means _either_ zswap or zcache.
->>
->> The only way they can be used in a meaningful way together is to use the
->> "nofrontswap" zcache option in the kernel boot parameters to prevent
->> zcache overriding zswap's frontswap registration.
->>
->> But the general answer is no, they shouldn't be used together.
->>
->>
->>>
->>> What is better suited for swap? zswap or zcache?
->>
->> zswap targets the specific case of caching swapped out pages in a compressed
->> cache and this is much simpler than zcache. zswap is also in mainline as of
->> 3.11-rc1.
+On 07/17/2013 10:30 PM, Heesub Shin wrote:
+> zbud_alloc() incorrectly verifies the size of allocation limit. It
+> should deny the allocation request greater than (PAGE_SIZE -
+> ZHDR_SIZE_ALIGNED - CHUNK_SIZE), not (PAGE_SIZE - ZHDR_SIZE_ALIGNED)
+> which has no remaining spaces for its buddy. There is no point in
+> spending the entire zbud page storing only a single page, since we don't
+> have any benefits.
 > 
-> Thanks.
-> 
-> Okay, then I will test zswap for now. I have a nice use case for it: Playing
+> Signed-off-by: Heesub Shin <heesub.shin@samsung.com>
 
-Could you make some test by kernel compiling? Something like kernbench.
-During my testing, I found that the swap ins/outs operations reduced but
-the kernel compile time didn't reduce accordingly.
+Looks good to me, although I'm thinking to make it more aggressive.
+eg. minus two or three times of CHUNK_SIZE.
+
+> ---
+>  mm/zbud.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/zbud.c b/mm/zbud.c
+> index 9bb4710..ad1e781 100644
+> --- a/mm/zbud.c
+> +++ b/mm/zbud.c
+> @@ -257,7 +257,7 @@ int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
+>  
+>  	if (size <= 0 || gfp & __GFP_HIGHMEM)
+>  		return -EINVAL;
+> -	if (size > PAGE_SIZE - ZHDR_SIZE_ALIGNED)
+> +	if (size > PAGE_SIZE - ZHDR_SIZE_ALIGNED - CHUNK_SIZE)
+>  		return -ENOSPC;
+>  	chunks = size_to_chunks(size);
+>  	spin_lock(&pool->lock);
+> 
 
 -- 
 Regards,
