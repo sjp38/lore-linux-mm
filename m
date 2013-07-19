@@ -1,136 +1,199 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 6FDED6B0032
-	for <linux-mm@kvack.org>; Fri, 19 Jul 2013 15:58:19 -0400 (EDT)
-Date: Fri, 19 Jul 2013 15:58:12 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: mmotm 2013-07-18-16-40 uploaded
-Message-ID: <20130719195812.GJ17812@cmpxchg.org>
-References: <20130718234123.4170F31C022@corp2gmr1-1.hot.corp.google.com>
- <51E8B34B.1070200@gmail.com>
- <20130719180035.GI17812@cmpxchg.org>
- <20130719111744.ce87390c8d8fa6b0b1c52eb6@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130719111744.ce87390c8d8fa6b0b1c52eb6@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id A21926B0031
+	for <linux-mm@kvack.org>; Fri, 19 Jul 2013 16:40:05 -0400 (EDT)
+Subject: [PATCH] mm: vmstats: track TLB flush stats on UP too
+From: Dave Hansen <dave@sr71.net>
+Date: Fri, 19 Jul 2013 13:40:04 -0700
+Message-Id: <20130719204004.B28D1C10@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Paul Bolle <paul.bollee@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, Michal Hocko <mhocko@suse.cz>
+To: linux-kernel@vger.kernel.org
+Cc: x86@kernel.org, linux-mm@kvack.org, Dave Hansen <dave@sr71.net>
 
-On Fri, Jul 19, 2013 at 11:17:44AM -0700, Andrew Morton wrote:
-> On Fri, 19 Jul 2013 14:00:35 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
-> 
-> > > >A git tree which contains the memory management portion of this tree is
-> > > >maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-> > > >by Michal Hocko.  It contains the patches which are between the
-> > > >"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
-> > > >file, http://www.ozlabs.org/~akpm/mmotm/series.
-> > > >
-> > > >
-> > > >A full copy of the full kernel tree with the linux-next and mmotm patches
-> > > >already applied is available through git within an hour of the mmotm
-> > > >release.  Individual mmotm releases are tagged.  The master branch always
-> > > >points to the latest release, so it's constantly rebasing.
-> > > >
-> > > >http://git.cmpxchg.org/?p=linux-mmotm.git;a=summary
-> > > >
-> > > >To develop on top of mmotm git:
-> > > >
-> > > >   $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-> > > >   $ git remote update mmotm
-> > > >   $ git checkout -b topic mmotm/master
-> > > >   <make changes, commit>
-> > > >   $ git send-email mmotm/master.. [...]
-> > > >
-> > > >To rebase a branch with older patches to a new mmotm release:
-> > > >
-> > > >   $ git remote update mmotm
-> > > >   $ git rebase --onto mmotm/master <topic base> topic
-> > 
-> > Andrew, that workflow is actually meant for
-> > http://git.cmpxchg.org/?p=linux-mmotm.git;a=summary, not Michal's tree
-> > (i.e. the git remote add mmotm <michal's tree> does not make much
-> > sense).  Michal's tree is append-only, so all this precision-rebasing
-> > is unnecessary.
-> 
-> Gee, I haven't looked at that text in a while...
-> 
-> Could you guys please check it, propose any fixes we should make?
-> 
-> 
-> 
-> README for mm-of-the-moment:
-> 
-> http://www.ozlabs.org/~akpm/mmotm/
-> 
-> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-> more than once a week.
-> 
-> You will need quilt to apply these patches to the latest Linus release (3.x
-> or 3.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
-> http://ozlabs.org/~akpm/mmotm/series
-> 
-> The file broken-out.tar.gz contains two datestamp files: .DATE and
-> .DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
-> followed by the base kernel version against which this patch series is to
-> be applied.
-> 
-> This tree is partially included in linux-next.  To see which patches are
-> included in linux-next, consult the `series' file.  Only the patches
-> within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
-> linux-next.
-> 
-> A git tree which contains the memory management portion of this tree is
 
-                                                                ^^^
-                                                       on top of the latest
-                                                       Linus release
+Andrew, this fixes up the TLB flush vmstats for UP.  It's on top
+of the previous patch, but I'm happy to combine them and send a
+replacement if you'd prefer.
 
-maybe?
+This also removes the NR_TLB_LOCAL_FLUSH_ONE_KERNEL counter.  We
+do not have a good API on UP to separate out the kernel from the
+non-kernel flushes.  It's probably not an important distinction
+anyway.
 
-> maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-> by Michal Hocko.  It contains the patches which are between the
-> "#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
-> file, http://www.ozlabs.org/~akpm/mmotm/series.
->
-> A full copy of the full kernel tree with the linux-next and mmotm patches
-> already applied is available through git within an hour of the mmotm
-> release.  Individual mmotm releases are tagged.  The master branch always
-> points to the latest release, so it's constantly rebasing.
-> 
-> http://git.cmpxchg.org/?p=linux-mmotm.git;a=summary
-> 
-> To develop on top of mmotm git:
-> 
->   $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+Compile and boot tested on 64-bit SMP and UP.  Compile tested
+for x86_32 SMP.
 
-                           git://git.cmpxchg.org/linux-mmotm.git
+--
 
->   $ git remote update mmotm
->   $ git checkout -b topic mmotm/master
->   <make changes, commit>
->   $ git send-email mmotm/master.. [...]
-> 
-> To rebase a branch with older patches to a new mmotm release:
-> 
->   $ git remote update mmotm
->   $ git rebase --onto mmotm/master <topic base> topic
+The previous patch doing vmstats for TLB flushes effectively
+missed UP since arch/x86/mm/tlb.c is only compiled for SMP.
 
-Michal started his mm.git to have a stable memory management
-development base, yet here is a long section on how to work with the
-much more awkward mmotm.git.  So I wonder if this whole section on how
-to develop against mmotm.git should be removed and only a reference to
-where it could be found left in.
+UP systems do not do remote TLB flushes, so compile those
+counters out on UP.
 
-However, I have actually no idea what people use as an mm development
-base these days...  I know I base smaller things on the latest
-mmotm.git and send it out fairly quickly before even having to deal
-with rebasing and tracking changes in there.  Long term stuff I just
-base on the latest Linus release (suboptimal, I know).
+arch/x86/kernel/cpu/mtrr/generic.c calls __flush_tlb() directly.
+This is probably an optimization since both the mtrr code and
+__flush_tlb() write cr4.  It would probably be safe to make that
+a flush_tlb_all() (and then get these statistics), but the mtrr
+code is ancient and I'm hesitant to touch it other than to just
+stick in the counters.
 
-Michal?
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+---
+
+ linux.git-davehans/arch/x86/include/asm/tlbflush.h    |   38 +++++++++++++++---
+ linux.git-davehans/arch/x86/kernel/cpu/mtrr/generic.c |    2 
+ linux.git-davehans/arch/x86/mm/tlb.c                  |    4 -
+ linux.git-davehans/include/linux/vm_event_item.h      |    3 -
+ linux.git-davehans/mm/vmstat.c                        |    3 -
+ 5 files changed, 39 insertions(+), 11 deletions(-)
+
+diff -puN include/linux/vm_event_item.h~compile-useless-stats-out-on-up include/linux/vm_event_item.h
+--- linux.git/include/linux/vm_event_item.h~compile-useless-stats-out-on-up	2013-07-19 08:21:37.408237538 -0700
++++ linux.git-davehans/include/linux/vm_event_item.h	2013-07-19 09:13:16.903143205 -0700
+@@ -70,11 +70,12 @@ enum vm_event_item { PGPGIN, PGPGOUT, PS
+ 		THP_ZERO_PAGE_ALLOC,
+ 		THP_ZERO_PAGE_ALLOC_FAILED,
+ #endif
++#ifdef CONFIG_SMP
+ 		NR_TLB_REMOTE_FLUSH,	/* cpu tried to flush others' tlbs */
+ 		NR_TLB_REMOTE_FLUSH_RECEIVED,/* cpu received ipi for flush */
++#endif
+ 		NR_TLB_LOCAL_FLUSH_ALL,
+ 		NR_TLB_LOCAL_FLUSH_ONE,
+-		NR_TLB_LOCAL_FLUSH_ONE_KERNEL,
+ 		NR_VM_EVENT_ITEMS
+ };
+ 
+diff -puN mm/vmstat.c~compile-useless-stats-out-on-up mm/vmstat.c
+--- linux.git/mm/vmstat.c~compile-useless-stats-out-on-up	2013-07-19 08:21:37.410237627 -0700
++++ linux.git-davehans/mm/vmstat.c	2013-07-19 09:13:29.388694341 -0700
+@@ -817,11 +817,12 @@ const char * const vmstat_text[] = {
+ 	"thp_zero_page_alloc",
+ 	"thp_zero_page_alloc_failed",
+ #endif
++#ifdef CONFIG_SMP
+ 	"nr_tlb_remote_flush",
+ 	"nr_tlb_remote_flush_received",
++#endif
+ 	"nr_tlb_local_flush_all",
+ 	"nr_tlb_local_flush_one",
+-	"nr_tlb_local_flush_one_kernel",
+ 
+ #endif /* CONFIG_VM_EVENTS_COUNTERS */
+ };
+diff -puN arch/x86/mm/tlb.c~compile-useless-stats-out-on-up arch/x86/mm/tlb.c
+--- linux.git/arch/x86/mm/tlb.c~compile-useless-stats-out-on-up	2013-07-19 08:21:37.411237672 -0700
++++ linux.git-davehans/arch/x86/mm/tlb.c	2013-07-19 09:10:16.183165988 -0700
+@@ -280,10 +280,8 @@ static void do_kernel_range_flush(void *
+ 	unsigned long addr;
+ 
+ 	/* flush range by one by one 'invlpg' */
+-	for (addr = f->flush_start; addr < f->flush_end; addr += PAGE_SIZE) {
+-		count_vm_event(NR_TLB_LOCAL_FLUSH_ONE_KERNEL);
++	for (addr = f->flush_start; addr < f->flush_end; addr += PAGE_SIZE)
+ 		__flush_tlb_single(addr);
+-	}
+ }
+ 
+ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
+diff -puN arch/x86/mm/Makefile~compile-useless-stats-out-on-up arch/x86/mm/Makefile
+diff -puN arch/x86/kernel/cpu/mtrr/generic.c~compile-useless-stats-out-on-up arch/x86/kernel/cpu/mtrr/generic.c
+--- linux.git/arch/x86/kernel/cpu/mtrr/generic.c~compile-useless-stats-out-on-up	2013-07-19 08:30:41.081279304 -0700
++++ linux.git-davehans/arch/x86/kernel/cpu/mtrr/generic.c	2013-07-19 13:21:55.160158221 -0700
+@@ -683,6 +683,7 @@ static void prepare_set(void) __acquires
+ 	}
+ 
+ 	/* Flush all TLBs via a mov %cr3, %reg; mov %reg, %cr3 */
++	count_vm_event(NR_TLB_LOCAL_FLUSH_ALL);
+ 	__flush_tlb();
+ 
+ 	/* Save MTRR state */
+@@ -696,6 +697,7 @@ static void prepare_set(void) __acquires
+ static void post_set(void) __releases(set_atomicity_lock)
+ {
+ 	/* Flush TLBs (no need to flush caches - they are disabled) */
++	count_vm_event(NR_TLB_LOCAL_FLUSH_ALL);
+ 	__flush_tlb();
+ 
+ 	/* Intel (P6) standard MTRRs */
+diff -puN arch/x86/include/asm/paravirt.h~compile-useless-stats-out-on-up arch/x86/include/asm/paravirt.h
+diff -puN arch/x86/include/asm/tlbflush.h~compile-useless-stats-out-on-up arch/x86/include/asm/tlbflush.h
+--- linux.git/arch/x86/include/asm/tlbflush.h~compile-useless-stats-out-on-up	2013-07-19 08:31:48.158245363 -0700
++++ linux.git-davehans/arch/x86/include/asm/tlbflush.h	2013-07-19 13:24:14.022307785 -0700
+@@ -62,6 +62,7 @@ static inline void __flush_tlb_all(void)
+ 
+ static inline void __flush_tlb_one(unsigned long addr)
+ {
++	count_vm_event(NR_TLB_LOCAL_FLUSH_ONE);
+ 	__flush_tlb_single(addr);
+ }
+ 
+@@ -84,14 +85,39 @@ static inline void __flush_tlb_one(unsig
+ 
+ #ifndef CONFIG_SMP
+ 
+-#define flush_tlb() __flush_tlb()
+-#define flush_tlb_all() __flush_tlb_all()
+-#define local_flush_tlb() __flush_tlb()
++/* "_up" is for UniProcessor
++ *
++ * This is a helper for other header functions.  *Not*
++ * intended to be called directly.  All global TLB
++ * flushes need to either call this, or do the bump the
++ * vm statistics themselves.
++ */
++static inline void __flush_tlb_up(void)
++{
++	count_vm_event(NR_TLB_LOCAL_FLUSH_ALL);
++	__flush_tlb();
++}
++
++static inline void flush_tlb_all(void)
++{
++	count_vm_event(NR_TLB_LOCAL_FLUSH_ALL);
++	__flush_tlb_all();
++}
++
++static inline void flush_tlb(void)
++{
++	__flush_tlb_up();
++}
++
++static inline void local_flush_tlb(void)
++{
++	__flush_tlb_up();
++}
+ 
+ static inline void flush_tlb_mm(struct mm_struct *mm)
+ {
+ 	if (mm == current->active_mm)
+-		__flush_tlb();
++		__flush_tlb_up();
+ }
+ 
+ static inline void flush_tlb_page(struct vm_area_struct *vma,
+@@ -105,14 +131,14 @@ static inline void flush_tlb_range(struc
+ 				   unsigned long start, unsigned long end)
+ {
+ 	if (vma->vm_mm == current->active_mm)
+-		__flush_tlb();
++		__flush_tlb_up();
+ }
+ 
+ static inline void flush_tlb_mm_range(struct mm_struct *mm,
+ 	   unsigned long start, unsigned long end, unsigned long vmflag)
+ {
+ 	if (mm == current->active_mm)
+-		__flush_tlb();
++		__flush_tlb_up();
+ }
+ 
+ static inline void native_flush_tlb_others(const struct cpumask *cpumask,
+diff -puN arch/x86/include/asm/cpufeature.h~compile-useless-stats-out-on-up arch/x86/include/asm/cpufeature.h
+diff -puN arch/x86/mm/init_64.c~compile-useless-stats-out-on-up arch/x86/mm/init_64.c
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
