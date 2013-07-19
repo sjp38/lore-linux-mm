@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 38BD86B003D
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id CFE126B0044
 	for <linux-mm@kvack.org>; Fri, 19 Jul 2013 04:01:01 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH 17/21] page_alloc, mem-hotplug: Improve movablecore to {en|dis}able using SRAT.
-Date: Fri, 19 Jul 2013 15:59:30 +0800
-Message-Id: <1374220774-29974-18-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH 07/21] x86, acpi: Initialize ACPI root table list earlier.
+Date: Fri, 19 Jul 2013 15:59:20 +0800
+Message-Id: <1374220774-29974-8-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,108 +13,136 @@ List-ID: <linux-mm.kvack.org>
 To: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-The Hot-Pluggable fired in SRAT specifies which memory is hotpluggable.
-As we mentioned before, if hotpluggable memory is used by the kernel,
-it cannot be hot-removed. So memory hotplug users may want to set all
-hotpluggable memory in ZONE_MOVABLE so that the kernel won't use it.
+We have split acpi_table_init() into two steps:
+1. Pares RSDT or XSDT, and initialize acpi_gbl_root_table_list.
+   This step will record all tables' physical address in memory.
+2. Check acpi initrd table override and install all tables into
+   acpi_gbl_root_table_list.
 
-Memory hotplug users may also set a node as movable node, which has
-ZONE_MOVABLE only, so that the whole node can be hot-removed.
+This patch does step 1 earlier, right after memblock is ready.
 
-But the kernel cannot use memory in ZONE_MOVABLE. By doing this, the
-kernel cannot use memory in movable nodes. This will cause NUMA
-performance down. And other users may be unhappy.
+When memblock_x86_fill() is called to fulfill memblock.memory[],
+memblock is able to allocate memory.
 
-So we need a way to allow users to enable and disable this functionality.
-In this patch, we improve movablecore boot option to allow users to
-choose to reserve hotpluggable memory and set it as ZONE_MOVABLE or not.
+This patch introduces a new function acpi_root_table_init() to
+do step 1, and call this function right after memblock_x86_fill()
+is called.
 
-Users can specify "movablecore=acpi" in kernel commandline to enable this
-functionality. For those who don't use memory hotplug or who don't want
-to lose their NUMA performance, just don't specify anything. The kernel
-will work as before.
-
-Suggested-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- arch/x86/kernel/setup.c        |    8 +++++++-
- include/linux/memory_hotplug.h |    3 +++
- mm/page_alloc.c                |   13 +++++++++++++
- 3 files changed, 23 insertions(+), 1 deletions(-)
+ arch/x86/kernel/acpi/boot.c |   38 +++++++++++++++++++++++---------------
+ arch/x86/kernel/setup.c     |    3 +++
+ drivers/acpi/tables.c       |    7 +++++--
+ include/linux/acpi.h        |    2 ++
+ 4 files changed, 33 insertions(+), 17 deletions(-)
 
-diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-index 9717760..9d08a03 100644
---- a/arch/x86/kernel/setup.c
-+++ b/arch/x86/kernel/setup.c
-@@ -1083,8 +1083,14 @@ void __init setup_arch(char **cmdline_p)
- 	 * Linux kernel cannot migrate kernel pages, as a result, memory used
- 	 * by the kernel cannot be hot-removed. Reserve hotpluggable memory to
- 	 * prevent memblock from allocating hotpluggable memory for the kernel.
-+	 *
-+	 * If all the memory in a node is hotpluggable, then the kernel won't
-+	 * be able to use memory on that node. This will cause NUMA performance
-+	 * down. So by default, we don't reserve any hotpluggable memory. users
-+	 * may use "movablecore=acpi" boot option to enable this functionality.
- 	 */
--	reserve_hotpluggable_memory();
-+	if (movablecore_enable_srat)
-+		reserve_hotpluggable_memory();
- #endif
- 
- 	/*
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 681b97f..9f26e29 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -33,6 +33,9 @@ enum {
- 	ONLINE_MOVABLE,
+diff --git a/arch/x86/kernel/acpi/boot.c b/arch/x86/kernel/acpi/boot.c
+index 230c8ea..3da5b3c 100644
+--- a/arch/x86/kernel/acpi/boot.c
++++ b/arch/x86/kernel/acpi/boot.c
+@@ -1491,6 +1491,28 @@ static struct dmi_system_id __initdata acpi_dmi_table_late[] = {
  };
  
-+/* Enable/disable SRAT in movablecore boot option */
-+extern bool movablecore_enable_srat;
-+
  /*
-  * pgdat resizing functions
-  */
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index c3edb62..6271c36 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -209,6 +209,8 @@ static unsigned long __initdata required_kernelcore;
- static unsigned long __initdata required_movablecore;
- static unsigned long __meminitdata zone_movable_pfn[MAX_NUMNODES];
- 
-+bool __initdata movablecore_enable_srat;
-+
- /* movable_zone is the "real" zone pages in ZONE_MOVABLE are taken from */
- int movable_zone;
- EXPORT_SYMBOL(movable_zone);
-@@ -5112,6 +5114,12 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
- 	}
- }
- 
-+static void __init cmdline_movablecore_srat(char *p)
++ * acpi_root_table_init - Initialize acpi_gbl_root_table_list.
++ *
++ * This function will parse RSDT or XSDT, find all tables' phys addr,
++ * initialize acpi_gbl_root_table_list, and record all tables' phys addr
++ * in acpi_gbl_root_table_list.
++ */
++void __init acpi_root_table_init(void)
 +{
-+	if (p && !strcmp(p, "acpi"))
-+		movablecore_enable_srat = true;
++	dmi_check_system(acpi_dmi_table);
++
++	/* If acpi_disabled, bail out */
++	if (acpi_disabled)
++		return;
++
++	/* Initialize the ACPI boot-time table parser */
++	if (acpi_table_init()) {
++		disable_acpi();
++		return;
++	}
 +}
 +
- static int __init cmdline_parse_core(char *p, unsigned long *core)
++/*
+  * acpi_boot_table_init() and acpi_boot_init()
+  *  called from setup_arch(), always.
+  *	1. checksums all tables
+@@ -1511,21 +1533,7 @@ static struct dmi_system_id __initdata acpi_dmi_table_late[] = {
+ 
+ void __init acpi_boot_table_init(void)
  {
- 	unsigned long long coremem;
-@@ -5142,6 +5150,11 @@ static int __init cmdline_parse_kernelcore(char *p)
-  */
- static int __init cmdline_parse_movablecore(char *p)
- {
-+	cmdline_movablecore_srat(p);
+-	dmi_check_system(acpi_dmi_table);
+-
+-	/*
+-	 * If acpi_disabled, bail out
+-	 */
+-	if (acpi_disabled)
+-		return; 
+-
+-	/*
+-	 * Initialize the ACPI boot-time table parser.
+-	 */
+-	if (acpi_table_init()) {
+-		disable_acpi();
+-		return;
+-	}
++	acpi_install_root_table();
+ 
+ 	acpi_table_parse(ACPI_SIG_BOOT, acpi_parse_sbf);
+ 
+diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+index 56f7fcf..38a5952 100644
+--- a/arch/x86/kernel/setup.c
++++ b/arch/x86/kernel/setup.c
+@@ -1075,6 +1075,9 @@ void __init setup_arch(char **cmdline_p)
+ 	memblock.current_limit = ISA_END_ADDRESS;
+ 	memblock_x86_fill();
+ 
++	/* Initialize ACPI root table */
++	acpi_root_table_init();
 +
-+	if (movablecore_enable_srat)
-+		return 0;
-+
- 	return cmdline_parse_core(p, &required_movablecore);
+ 	/*
+ 	 * The EFI specification says that boot service code won't be called
+ 	 * after ExitBootServices(). This is, in fact, a lie.
+diff --git a/drivers/acpi/tables.c b/drivers/acpi/tables.c
+index 8860e79..60ecbb8 100644
+--- a/drivers/acpi/tables.c
++++ b/drivers/acpi/tables.c
+@@ -353,10 +353,13 @@ int __init acpi_table_init(void)
+ 	if (ACPI_FAILURE(status))
+ 		return 1;
+ 
+-	acpi_tb_install_root_table();
++	return 0;
++}
+ 
++void __init acpi_install_root_table(void)
++{
++	acpi_tb_install_root_table();
+ 	check_multiple_madt();
+-	return 0;
  }
  
+ static int __init acpi_parse_apic_instance(char *str)
+diff --git a/include/linux/acpi.h b/include/linux/acpi.h
+index 17b5b59..95f600c 100644
+--- a/include/linux/acpi.h
++++ b/include/linux/acpi.h
+@@ -92,10 +92,12 @@ void __acpi_unmap_table(char *map, unsigned long size);
+ int early_acpi_boot_init(void);
+ int acpi_boot_init (void);
+ void acpi_boot_table_init (void);
++void acpi_root_table_init(void);
+ int acpi_mps_check (void);
+ int acpi_numa_init (void);
+ 
+ int acpi_table_init (void);
++void acpi_install_root_table(void);
+ int acpi_table_parse(char *id, acpi_tbl_table_handler handler);
+ int __init acpi_table_parse_entries(char *id, unsigned long table_size,
+ 				    int entry_id,
 -- 
 1.7.1
 
