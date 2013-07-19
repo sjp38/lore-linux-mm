@@ -1,73 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 6CB046B0034
-	for <linux-mm@kvack.org>; Fri, 19 Jul 2013 10:00:40 -0400 (EDT)
-Date: Fri, 19 Jul 2013 14:00:39 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] mm/slub.c: use 'unsigned long' instead of 'int' for
- variable 'slub_debug'
-In-Reply-To: <51E88D6F.3000905@gmail.com>
-Message-ID: <0000013ff73b8090-4aef0610-aff7-420a-8a7d-e1120607c382-000000@email.amazonses.com>
-References: <51DF5F43.3080408@asianux.com> <0000013fd3283b9c-b5fe217c-fff3-47fd-be0b-31b00faba1f3-000000@email.amazonses.com> <51E33FFE.3010200@asianux.com> <0000013fe2b1bd10-efcc76b5-f75b-4a45-a278-a318e87b2571-000000@email.amazonses.com> <51E49982.30402@asianux.com>
- <0000013fed18f0f2-cb1afad0-560e-4da5-b865-29e854ce5813-000000@email.amazonses.com> <51E73340.5020703@asianux.com> <0000013ff204c901-636c5864-ec23-4c31-a308-d7fd58016364-000000@email.amazonses.com> <51E88D6F.3000905@gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id E28126B0031
+	for <linux-mm@kvack.org>; Fri, 19 Jul 2013 10:40:31 -0400 (EDT)
+Date: Fri, 19 Jul 2013 10:39:56 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1374244796-ur27gtic-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <CAJd=RBBs7R1e4BaGDORcO+X3trQWcgmEm4UX2EpwXQyDqw2m9w@mail.gmail.com>
+References: <1374183272-10153-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1374183272-10153-8-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <CAJd=RBBs7R1e4BaGDORcO+X3trQWcgmEm4UX2EpwXQyDqw2m9w@mail.gmail.com>
+Subject: Re: [PATCH 7/8] memory-hotplug: enable memory hotplug to handle
+ hugepage
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Gang F T <chen.gang.flying.transformer@gmail.com>
-Cc: Chen Gang <gang.chen@asianux.com>, Pekka Enberg <penberg@kernel.org>, mpm@selenic.com, linux-mm@kvack.org
+To: Hillf Danton <dhillf@gmail.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Fri, 19 Jul 2013, Chen Gang F T wrote:
-
-> > The fundamental issue is that typically ints are used for flags and I
-> > would like to keep it that way. Changing the constants in slab.h and the
-> > allocator code to be unsigned int instead of unsigned long wont be that
-> > much of a deal.
+On Fri, Jul 19, 2013 at 01:40:38PM +0800, Hillf Danton wrote:
+> On Fri, Jul 19, 2013 at 5:34 AM, Naoya Horiguchi
+> <n-horiguchi@ah.jp.nec.com> wrote:
+> > @@ -518,9 +519,11 @@ static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
+> >  {
+> >         struct page *page;
 > >
->
-> At least, we need use 'unsigned' instead of 'signed'.
+> > -       if (list_empty(&h->hugepage_freelists[nid]))
+> > +       list_for_each_entry(page, &h->hugepage_freelists[nid], lru)
+> > +               if (!is_migrate_isolate_page(page))
+> > +                       break;
+> > +       if (&h->hugepage_freelists[nid] == &page->lru)
+> 
+> For what is this check?
 
-Ok.
+This check returns true unless a non-isolated free hugepage is found.
+In "not found" case page points to h->hugepage_freelists, so without
+this check successive code doesn't work fine.
 
-> Hmm... Things maybe seem more complex, please see bellow:
->
-> For 'SLAB_RED_ZONE' (or the other constants), they also can be assigned
-> to "struct kmem_cache" member variable 'flags'.
->
-> But for "struct kmem_cache", it has 2 different definitions, they share
-> with the 'SLAB_RED_ZONE' (or the other constants).
->
-> One defines 'flags' as 'unsigned int' in "include/linux/slab_def.h"
->
->  16 /*
->  17  * struct kmem_cache
->  18  *
->  19  * manages a cache.
->  20  */
->  21
->  22 struct kmem_cache {
->  23 /* 1) Cache tunables. Protected by cache_chain_mutex */
->  24         unsigned int batchcount;
->  25         unsigned int limit;
->  26         unsigned int shared;
->  27
->  28         unsigned int size;
->  29         u32 reciprocal_buffer_size;
->  30 /* 2) touched by every alloc & free from the backend */
->  31
->  32         unsigned int flags;             /* constant flags */
->  33         unsigned int num;               /* # of objs per slab */
-> ...
->
-> The other defines 'flags' as 'unsigned long' in "include/linux/slub_def.h"
-> (but from its comments, it even says it is for 'Slab' cache management !!)
+Thanks,
+Naoya
 
-SLUB is slab allocator so there is nothing wrong with that.
-
-> Maybe it is also related with our discussion ('unsigned int' or 'unsigned long') ?
-
-Well we can make this uniformly unsigned int or long I guess. What would
-be the benefits of one vs the other?
+> >                 return NULL;
+> > -       page = list_entry(h->hugepage_freelists[nid].next, struct page, lru);
+> >         list_move(&page->lru, &h->hugepage_activelist);
+> >         set_page_refcounted(page);
+> >         h->free_huge_pages--;
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
