@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id A2CC06B0031
-	for <linux-mm@kvack.org>; Fri, 19 Jul 2013 04:00:54 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id EA4A66B0036
+	for <linux-mm@kvack.org>; Fri, 19 Jul 2013 04:00:56 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH 01/21] acpi: Print Hot-Pluggable Field in SRAT.
-Date: Fri, 19 Jul 2013 15:59:14 +0800
-Message-Id: <1374220774-29974-2-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH 04/21] acpi: Remove "continue" in macro INVALID_TABLE().
+Date: Fri, 19 Jul 2013 15:59:17 +0800
+Message-Id: <1374220774-29974-5-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,52 +13,99 @@ List-ID: <linux-mm.kvack.org>
 To: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-The Hot-Pluggable field in SRAT suggests if the memory could be
-hotplugged while the system is running. Print it as well when
-parsing SRAT will help users to know which memory is hotpluggable.
+The macro INVALID_TABLE() is defined like this:
+
+ #define INVALID_TABLE(x, path, name)                                    \
+         { pr_err("ACPI OVERRIDE: " x " [%s%s]\n", path, name); continue; }
+
+And it is used like this:
+
+	for (...) {
+		...
+		if (...)
+			INVALID_TABLE()
+		...
+	}
+
+The "continue" in the macro makes the code hard to understand.
+Change it to the style like other macros:
+
+ #define INVALID_TABLE(x, path, name)                                    \
+         do { pr_err("ACPI OVERRIDE: " x " [%s%s]\n", path, name); } while (0)
+
+So after this patch, this macro should be used like this:
+
+	for (...) {
+		...
+		if (...) {
+			INVALID_TABLE()
+			continue;
+		}
+		...
+	}
+
+Add the "continue" wherever the macro is called.
+(For now, it is only called in acpi_initrd_override().)
+
+The idea is from Yinghai Lu <yinghai@kernel.org>.
 
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Signed-off-by: Yinghai Lu <yinghai@kernel.org>
 ---
- arch/x86/mm/srat.c |   11 +++++++----
- 1 files changed, 7 insertions(+), 4 deletions(-)
+ drivers/acpi/osl.c |   18 +++++++++++++-----
+ 1 files changed, 13 insertions(+), 5 deletions(-)
 
-diff --git a/arch/x86/mm/srat.c b/arch/x86/mm/srat.c
-index cdd0da9..15ba3a9 100644
---- a/arch/x86/mm/srat.c
-+++ b/arch/x86/mm/srat.c
-@@ -146,6 +146,7 @@ int __init
- acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
- {
- 	u64 start, end;
-+	u32 hotpluggable;
- 	int node, pxm;
+diff --git a/drivers/acpi/osl.c b/drivers/acpi/osl.c
+index e721863..91d9f54 100644
+--- a/drivers/acpi/osl.c
++++ b/drivers/acpi/osl.c
+@@ -565,7 +565,7 @@ static const char * const table_sigs[] = {
  
- 	if (srat_disabled())
-@@ -154,7 +155,8 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
- 		goto out_err_bad_srat;
- 	if ((ma->flags & ACPI_SRAT_MEM_ENABLED) == 0)
- 		goto out_err;
--	if ((ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE) && !save_add_info())
-+	hotpluggable = ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE;
-+	if (hotpluggable && !save_add_info())
- 		goto out_err;
+ /* Non-fatal errors: Affected tables/files are ignored */
+ #define INVALID_TABLE(x, path, name)					\
+-	{ pr_err("ACPI OVERRIDE: " x " [%s%s]\n", path, name); continue; }
++	do { pr_err("ACPI OVERRIDE: " x " [%s%s]\n", path, name); } while (0)
  
- 	start = ma->base_address;
-@@ -174,9 +176,10 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
+ #define ACPI_HEADER_SIZE sizeof(struct acpi_table_header)
  
- 	node_set(node, numa_nodes_parsed);
+@@ -593,9 +593,11 @@ void __init acpi_initrd_override(void *data, size_t size)
+ 		data += offset;
+ 		size -= offset;
  
--	printk(KERN_INFO "SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]\n",
--	       node, pxm,
--	       (unsigned long long) start, (unsigned long long) end - 1);
-+	pr_info("SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx] %s\n",
-+		node, pxm,
-+		(unsigned long long) start, (unsigned long long) end - 1,
-+		hotpluggable ? "Hot Pluggable" : "");
+-		if (file.size < sizeof(struct acpi_table_header))
++		if (file.size < sizeof(struct acpi_table_header)) {
+ 			INVALID_TABLE("Table smaller than ACPI header",
+ 				      cpio_path, file.name);
++			continue;
++		}
  
- 	return 0;
- out_err_bad_srat:
+ 		table = file.data;
+ 
+@@ -603,15 +605,21 @@ void __init acpi_initrd_override(void *data, size_t size)
+ 			if (!memcmp(table->signature, table_sigs[sig], 4))
+ 				break;
+ 
+-		if (!table_sigs[sig])
++		if (!table_sigs[sig]) {
+ 			INVALID_TABLE("Unknown signature",
+ 				      cpio_path, file.name);
+-		if (file.size != table->length)
++			continue;
++		}
++		if (file.size != table->length) {
+ 			INVALID_TABLE("File length does not match table length",
+ 				      cpio_path, file.name);
+-		if (acpi_table_checksum(file.data, table->length))
++			continue;
++		}
++		if (acpi_table_checksum(file.data, table->length)) {
+ 			INVALID_TABLE("Bad table checksum",
+ 				      cpio_path, file.name);
++			continue;
++		}
+ 
+ 		pr_info("%4.4s ACPI table found in initrd [%s%s][0x%x]\n",
+ 			table->signature, cpio_path, file.name, table->length);
 -- 
 1.7.1
 
