@@ -1,106 +1,188 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 1A4096B0031
-	for <linux-mm@kvack.org>; Fri, 19 Jul 2013 03:14:28 -0400 (EDT)
-Date: Fri, 19 Jul 2013 17:14:32 +1000
-From: David Gibson <david@gibson.dropbear.id.au>
-Subject: Re: [PATCH] hugepage: allow parallelization of the hugepage fault
- path
-Message-ID: <20130719071432.GB19634@voom.fritz.box>
-References: <1373671681.2448.10.camel@buesod1.americas.hpqcorp.net>
- <alpine.LNX.2.00.1307121729590.3899@eggly.anvils>
- <1373858204.13826.9.camel@buesod1.americas.hpqcorp.net>
- <20130715072432.GA28053@voom.fritz.box>
- <20130715160802.9d0cdc0ee012b5e119317a98@linux-foundation.org>
- <1374090625.15271.2.camel@buesod1.americas.hpqcorp.net>
- <20130718084235.GA9761@lge.com>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="DKU6Jbt7q3WqK7+M"
-Content-Disposition: inline
-In-Reply-To: <20130718084235.GA9761@lge.com>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id B2C536B0031
+	for <linux-mm@kvack.org>; Fri, 19 Jul 2013 03:29:10 -0400 (EDT)
+Received: from epcpsbgr2.samsung.com
+ (u142.gpu120.samsung.co.kr [203.254.230.142])
+ by mailout2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTP id <0MQ600MGNA4BZTP0@mailout2.samsung.com> for linux-mm@kvack.org;
+ Fri, 19 Jul 2013 16:29:09 +0900 (KST)
+From: Jingoo Han <jg1.han@samsung.com>
+Subject: [PATCH] mm: replace strict_strtoul() with kstrtoul()
+Date: Fri, 19 Jul 2013 16:29:07 +0900
+Message-id: <001e01ce8451$a7840e70$f68c2b50$@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-transfer-encoding: 7bit
+Content-language: ko
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Davidlohr Bueso <davidlohr.bueso@hp.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Michal Hocko <mhocko@suse.cz>, "AneeshKumarK.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Eric B Munson <emunson@mgebm.net>, Anton Blanchard <anton@samba.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Jingoo Han <jg1.han@samsung.com>
 
+The usage of strict_strtoul() is not preferred, because
+strict_strtoul() is obsolete. Thus, kstrtoul() should be
+used.
 
---DKU6Jbt7q3WqK7+M
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Signed-off-by: Jingoo Han <jg1.han@samsung.com>
+---
+ mm/huge_memory.c |    8 ++++----
+ mm/hugetlb.c     |    4 ++--
+ mm/kmemleak.c    |    2 +-
+ mm/ksm.c         |    6 +++---
+ mm/slub.c        |    8 ++++----
+ 5 files changed, 14 insertions(+), 14 deletions(-)
 
-On Thu, Jul 18, 2013 at 05:42:35PM +0900, Joonsoo Kim wrote:
-> On Wed, Jul 17, 2013 at 12:50:25PM -0700, Davidlohr Bueso wrote:
-> > From: David Gibson <david@gibson.dropbear.id.au>
-> >=20
-> > At present, the page fault path for hugepages is serialized by a
-> > single mutex. This is used to avoid spurious out-of-memory conditions
-> > when the hugepage pool is fully utilized (two processes or threads can
-> > race to instantiate the same mapping with the last hugepage from the
-> > pool, the race loser returning VM_FAULT_OOM).  This problem is
-> > specific to hugepages, because it is normal to want to use every
-> > single hugepage in the system - with normal pages we simply assume
-> > there will always be a few spare pages which can be used temporarily
-> > until the race is resolved.
-> >=20
-> > Unfortunately this serialization also means that clearing of hugepages
-> > cannot be parallelized across multiple CPUs, which can lead to very
-> > long process startup times when using large numbers of hugepages.
-> >=20
-> > This patch improves the situation by replacing the single mutex with a
-> > table of mutexes, selected based on a hash, which allows us to know
-> > which page in the file we're instantiating. For shared mappings, the
-> > hash key is selected based on the address space and file offset being f=
-aulted.
-> > Similarly, for private mappings, the mm and virtual address are used.
-> >=20
->=20
-> Hello.
->=20
-> With this table mutex, we cannot protect region tracking structure.
-> See below comment.
->=20
-> /*
->  * Region tracking -- allows tracking of reservations and instantiated pa=
-ges
->  *                    across the pages in a mapping.
->  *
->  * The region data structures are protected by a combination of the mmap_=
-sem
->  * and the hugetlb_instantion_mutex.  To access or modify a region the ca=
-ller
->  * must either hold the mmap_sem for write, or the mmap_sem for read and
->  * the hugetlb_instantiation mutex:
->  *
->  *      down_write(&mm->mmap_sem);
->  * or
->  *      down_read(&mm->mmap_sem);
->  *      mutex_lock(&hugetlb_instantiation_mutex);
->  */
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index ed26ccb..f6a75af0 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -422,7 +422,7 @@ static ssize_t scan_sleep_millisecs_store(struct kobject *kobj,
+ 	unsigned long msecs;
+ 	int err;
+ 
+-	err = strict_strtoul(buf, 10, &msecs);
++	err = kstrtoul(buf, 10, &msecs);
+ 	if (err || msecs > UINT_MAX)
+ 		return -EINVAL;
+ 
+@@ -449,7 +449,7 @@ static ssize_t alloc_sleep_millisecs_store(struct kobject *kobj,
+ 	unsigned long msecs;
+ 	int err;
+ 
+-	err = strict_strtoul(buf, 10, &msecs);
++	err = kstrtoul(buf, 10, &msecs);
+ 	if (err || msecs > UINT_MAX)
+ 		return -EINVAL;
+ 
+@@ -475,7 +475,7 @@ static ssize_t pages_to_scan_store(struct kobject *kobj,
+ 	int err;
+ 	unsigned long pages;
+ 
+-	err = strict_strtoul(buf, 10, &pages);
++	err = kstrtoul(buf, 10, &pages);
+ 	if (err || !pages || pages > UINT_MAX)
+ 		return -EINVAL;
+ 
+@@ -543,7 +543,7 @@ static ssize_t khugepaged_max_ptes_none_store(struct kobject *kobj,
+ 	int err;
+ 	unsigned long max_ptes_none;
+ 
+-	err = strict_strtoul(buf, 10, &max_ptes_none);
++	err = kstrtoul(buf, 10, &max_ptes_none);
+ 	if (err || max_ptes_none > HPAGE_PMD_NR-1)
+ 		return -EINVAL;
+ 
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 83aff0a..f9263ec 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1526,7 +1526,7 @@ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
+ 	struct hstate *h;
+ 	NODEMASK_ALLOC(nodemask_t, nodes_allowed, GFP_KERNEL | __GFP_NORETRY);
+ 
+-	err = strict_strtoul(buf, 10, &count);
++	err = kstrtoul(buf, 10, &count);
+ 	if (err)
+ 		goto out;
+ 
+@@ -1617,7 +1617,7 @@ static ssize_t nr_overcommit_hugepages_store(struct kobject *kobj,
+ 	if (h->order >= MAX_ORDER)
+ 		return -EINVAL;
+ 
+-	err = strict_strtoul(buf, 10, &input);
++	err = kstrtoul(buf, 10, &input);
+ 	if (err)
+ 		return err;
+ 
+diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+index c8d7f31..e126b0e 100644
+--- a/mm/kmemleak.c
++++ b/mm/kmemleak.c
+@@ -1639,7 +1639,7 @@ static ssize_t kmemleak_write(struct file *file, const char __user *user_buf,
+ 	else if (strncmp(buf, "scan=", 5) == 0) {
+ 		unsigned long secs;
+ 
+-		ret = strict_strtoul(buf + 5, 0, &secs);
++		ret = kstrtoul(buf + 5, 0, &secs);
+ 		if (ret < 0)
+ 			goto out;
+ 		stop_scan_thread();
+diff --git a/mm/ksm.c b/mm/ksm.c
+index b6afe0c..0bea2b2 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -2194,7 +2194,7 @@ static ssize_t sleep_millisecs_store(struct kobject *kobj,
+ 	unsigned long msecs;
+ 	int err;
+ 
+-	err = strict_strtoul(buf, 10, &msecs);
++	err = kstrtoul(buf, 10, &msecs);
+ 	if (err || msecs > UINT_MAX)
+ 		return -EINVAL;
+ 
+@@ -2217,7 +2217,7 @@ static ssize_t pages_to_scan_store(struct kobject *kobj,
+ 	int err;
+ 	unsigned long nr_pages;
+ 
+-	err = strict_strtoul(buf, 10, &nr_pages);
++	err = kstrtoul(buf, 10, &nr_pages);
+ 	if (err || nr_pages > UINT_MAX)
+ 		return -EINVAL;
+ 
+@@ -2239,7 +2239,7 @@ static ssize_t run_store(struct kobject *kobj, struct kobj_attribute *attr,
+ 	int err;
+ 	unsigned long flags;
+ 
+-	err = strict_strtoul(buf, 10, &flags);
++	err = kstrtoul(buf, 10, &flags);
+ 	if (err || flags > UINT_MAX)
+ 		return -EINVAL;
+ 	if (flags > KSM_RUN_UNMERGE)
+diff --git a/mm/slub.c b/mm/slub.c
+index 59eb122..c54b1a1 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -4438,7 +4438,7 @@ static ssize_t order_store(struct kmem_cache *s,
+ 	unsigned long order;
+ 	int err;
+ 
+-	err = strict_strtoul(buf, 10, &order);
++	err = kstrtoul(buf, 10, &order);
+ 	if (err)
+ 		return err;
+ 
+@@ -4466,7 +4466,7 @@ static ssize_t min_partial_store(struct kmem_cache *s, const char *buf,
+ 	unsigned long min;
+ 	int err;
+ 
+-	err = strict_strtoul(buf, 10, &min);
++	err = kstrtoul(buf, 10, &min);
+ 	if (err)
+ 		return err;
+ 
+@@ -4486,7 +4486,7 @@ static ssize_t cpu_partial_store(struct kmem_cache *s, const char *buf,
+ 	unsigned long objects;
+ 	int err;
+ 
+-	err = strict_strtoul(buf, 10, &objects);
++	err = kstrtoul(buf, 10, &objects);
+ 	if (err)
+ 		return err;
+ 	if (objects && !kmem_cache_has_cpu_partial(s))
+@@ -4802,7 +4802,7 @@ static ssize_t remote_node_defrag_ratio_store(struct kmem_cache *s,
+ 	unsigned long ratio;
+ 	int err;
+ 
+-	err = strict_strtoul(buf, 10, &ratio);
++	err = kstrtoul(buf, 10, &ratio);
+ 	if (err)
+ 		return err;
+ 
+-- 
+1.7.10.4
 
-Ugh.  Who the hell added that.  I guess you'll need to split of
-another mutex for that purpose, afaict there should be no interaction
-with the actual, intended purpose of the instantiation mutex.
-
---=20
-David Gibson			| I'll have my music baroque, and my code
-david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
-				| _way_ _around_!
-http://www.ozlabs.org/~dgibson
-
---DKU6Jbt7q3WqK7+M
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.13 (GNU/Linux)
-
-iEYEARECAAYFAlHo51gACgkQaILKxv3ab8Zn9wCdHYvc1EFMgILPkcigkxwZ5JDG
-0PcAn1iauHw+cLwCGVDnPjgpTfw/vHRe
-=AG8T
------END PGP SIGNATURE-----
-
---DKU6Jbt7q3WqK7+M--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
