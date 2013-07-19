@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 5F7486B0032
-	for <linux-mm@kvack.org>; Fri, 19 Jul 2013 16:55:42 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id E4C4A6B0033
+	for <linux-mm@kvack.org>; Fri, 19 Jul 2013 16:55:43 -0400 (EDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 1/3] mm: vmscan: fix numa reclaim balance problem in kswapd
-Date: Fri, 19 Jul 2013 16:55:23 -0400
-Message-Id: <1374267325-22865-2-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 2/3] mm: page_alloc: rearrange watermark checking in get_page_from_freelist
+Date: Fri, 19 Jul 2013 16:55:24 -0400
+Message-Id: <1374267325-22865-3-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1374267325-22865-1-git-send-email-hannes@cmpxchg.org>
 References: <1374267325-22865-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -13,46 +13,58 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-When the page allocator fails to get a page from all zones in its
-given zonelist, it wakes up the per-node kswapds for all zones that
-are at their low watermark.
-
-However, with a system under load and the free page counters being
-per-cpu approximations, the observed counter value in a zone can
-fluctuate enough that the allocation fails but the kswapd wakeup is
-also skipped while the zone is still really close to the low
-watermark.
-
-When one node misses a wakeup like this, it won't be aged before all
-the other node's zones are down to their low watermarks again.  And
-skipping a full aging cycle is an obvious fairness problem.
-
-Kswapd runs until the high watermarks are restored, so it should also
-be woken when the high watermarks are not met.  This ages nodes more
-equally and creates a safety margin for the page counter fluctuation.
-
-By using zone_balanced(), it will now check, in addition to the
-watermark, if compaction requires more order-0 pages to create a
-higher order page.
+Allocations that do not have to respect the watermarks are rare
+high-priority events.  Reorder the code such that per-zone dirty
+limits and future checks important only to regular page allocations
+are ignored in these extraordinary situations.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/vmscan.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/page_alloc.c | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index e364542..bccc6d3 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -3277,7 +3277,7 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
- 	}
- 	if (!waitqueue_active(&pgdat->kswapd_wait))
- 		return;
--	if (zone_watermark_ok_safe(zone, order, low_wmark_pages(zone), 0, 0))
-+	if (zone_balanced(zone, order, 0, 0))
- 		return;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d9df57d..af1d956b 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1867,12 +1867,17 @@ zonelist_scan:
+ 	 */
+ 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+ 						high_zoneidx, nodemask) {
++		unsigned long mark;
++
+ 		if (IS_ENABLED(CONFIG_NUMA) && zlc_active &&
+ 			!zlc_zone_worth_trying(zonelist, z, allowednodes))
+ 				continue;
+ 		if ((alloc_flags & ALLOC_CPUSET) &&
+ 			!cpuset_zone_allowed_softwall(zone, gfp_mask))
+ 				continue;
++		BUILD_BUG_ON(ALLOC_NO_WATERMARKS < NR_WMARK);
++		if (alloc_flags & ALLOC_NO_WATERMARKS)
++			goto try_this_zone;
+ 		/*
+ 		 * When allocating a page cache page for writing, we
+ 		 * want to get it from a zone that is within its dirty
+@@ -1903,16 +1908,11 @@ zonelist_scan:
+ 		    (gfp_mask & __GFP_WRITE) && !zone_dirty_ok(zone))
+ 			goto this_zone_full;
  
- 	trace_mm_vmscan_wakeup_kswapd(pgdat->node_id, zone_idx(zone), order);
+-		BUILD_BUG_ON(ALLOC_NO_WATERMARKS < NR_WMARK);
+-		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
+-			unsigned long mark;
++		mark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
++		if (!zone_watermark_ok(zone, order, mark,
++				       classzone_idx, alloc_flags)) {
+ 			int ret;
+ 
+-			mark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
+-			if (zone_watermark_ok(zone, order, mark,
+-				    classzone_idx, alloc_flags))
+-				goto try_this_zone;
+-
+ 			if (IS_ENABLED(CONFIG_NUMA) &&
+ 					!did_zlc_setup && nr_online_nodes > 1) {
+ 				/*
 -- 
 1.8.3.2
 
