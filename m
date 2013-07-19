@@ -1,84 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 31A136B0031
-	for <linux-mm@kvack.org>; Fri, 19 Jul 2013 01:09:56 -0400 (EDT)
-Date: Fri, 19 Jul 2013 01:09:28 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1374210568-rf0863qx-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <CAJd=RBDxVdkAhuozG04kDVwr71c9Yy+nQNjqHPeVbq-KbKb4MA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 612C56B0031
+	for <linux-mm@kvack.org>; Fri, 19 Jul 2013 01:26:13 -0400 (EDT)
+Received: by mail-ob0-f182.google.com with SMTP id va7so4710132obc.41
+        for <linux-mm@kvack.org>; Thu, 18 Jul 2013 22:26:12 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1374183272-10153-7-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1374183272-10153-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1374183272-10153-2-git-send-email-n-horiguchi@ah.jp.nec.com>
- <CAJd=RBD-uCuqyD0OTJ119woikBSyd8=A7uhHp5kUJeweS+2okQ@mail.gmail.com>
- <1374203899-w7jwqowi-mutt-n-horiguchi@ah.jp.nec.com>
- <CAJd=RBDxVdkAhuozG04kDVwr71c9Yy+nQNjqHPeVbq-KbKb4MA@mail.gmail.com>
-Subject: Re: [PATCH 1/8] migrate: make core migration code aware of hugepage
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+	<1374183272-10153-7-git-send-email-n-horiguchi@ah.jp.nec.com>
+Date: Fri, 19 Jul 2013 13:26:12 +0800
+Message-ID: <CAJd=RBD4SNTpA=6ODXswGycBMq9LRhm=rZ4p2N7=RputH2O8bw@mail.gmail.com>
+Subject: Re: [PATCH 6/8] migrate: remove VM_HUGETLB from vma flag check in vma_migratable()
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Fri, Jul 19, 2013 at 12:04:56PM +0800, Hillf Danton wrote:
-...
-> >> > +
-> >> > +void putback_active_hugepage(struct page *page)
-> >> > +{
-> >> > +       VM_BUG_ON(!PageHead(page));
-> >> > +       spin_lock(&hugetlb_lock);
-> >> > +       list_move_tail(&page->lru, &(page_hstate(page))->hugepage_activelist);
-> >> > +       spin_unlock(&hugetlb_lock);
-> >> > +       put_page(page);
-> >> > +}
-> >> > +
-> >> > +void putback_active_hugepages(struct list_head *l)
-> >> > +{
-> >> > +       struct page *page;
-> >> > +       struct page *page2;
-> >> > +
-> >> > +       list_for_each_entry_safe(page, page2, l, lru)
-> >> > +               putback_active_hugepage(page);
-> >>
-> >> Can we acquire hugetlb_lock only once?
-> >
-> > I'm not sure which is the best. In general, fine-grained locking is
-> > preferred because other lock contenders wait less.
-> > Could you tell some specific reason to hold lock outside the loop?
-> >
-> No anything special, looks we can do list splice after taking lock,
-> then we no longer contend it.
-> 
-> >> > @@ -1025,7 +1029,11 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
-> >> >                 list_for_each_entry_safe(page, page2, from, lru) {
-> >> >                         cond_resched();
-> >> >
-> >> > -                       rc = unmap_and_move(get_new_page, private,
-> >> > +                       if (PageHuge(page))
-> >> > +                               rc = unmap_and_move_huge_page(get_new_page,
-> >> > +                                               private, page, pass > 2, mode);
-> >> > +                       else
-> >> > +                               rc = unmap_and_move(get_new_page, private,
-> >> >                                                 page, pass > 2, mode);
-> >> >
-> >> Is this hunk unclean merge?
-> >
-> > Sorry, I don't catch the point. This patch is based on v3.11-rc1 and
-> > the present HEAD has no changes from that release.
-> > Or do you mean that other trees have some conflicts? (my brief checking
-> > on -mm/-next didn't find that...)
-> >
-> Looks this hunk should appear in 2/8 or later, as 1/8 is focusing
-> on hugepage->lru?
+On Fri, Jul 19, 2013 at 5:34 AM, Naoya Horiguchi
+<n-horiguchi@ah.jp.nec.com> wrote:
+> This patch enables hugepage migration from migrate_pages(2),
+> move_pages(2), and mbind(2).
+>
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> ---
 
-I intended that 1/8 prepares common code used by all users of hugepage
-migration. If I put this hunk on a patch which implements one of the
-users, the other patchs implementing other users depends on it, which
-looks to me an odd dependency...
+Acked-by: Hillf Danton <dhillf@gmail.com>
 
-Naoya
+>  include/linux/mempolicy.h | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+>
+> diff --git v3.11-rc1.orig/include/linux/mempolicy.h v3.11-rc1/include/linux/mempolicy.h
+> index 0d7df39..2e475b5 100644
+> --- v3.11-rc1.orig/include/linux/mempolicy.h
+> +++ v3.11-rc1/include/linux/mempolicy.h
+> @@ -173,7 +173,7 @@ extern int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol);
+>  /* Check if a vma is migratable */
+>  static inline int vma_migratable(struct vm_area_struct *vma)
+>  {
+> -       if (vma->vm_flags & (VM_IO | VM_HUGETLB | VM_PFNMAP))
+> +       if (vma->vm_flags & (VM_IO | VM_PFNMAP))
+>                 return 0;
+>         /*
+>          * Migration allocates pages in the highest zone. If we cannot
+> --
+> 1.8.3.1
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
