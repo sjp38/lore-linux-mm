@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 7E6546B0071
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id D92566B0070
 	for <linux-mm@kvack.org>; Fri, 19 Jul 2013 04:01:07 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH 05/21] acpi: Introduce acpi_invalid_table() to check if a table is invalid.
-Date: Fri, 19 Jul 2013 15:59:18 +0800
-Message-Id: <1374220774-29974-6-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH 10/21] earlycpio.c: Fix the confusing comment of find_cpio_data().
+Date: Fri, 19 Jul 2013 15:59:23 +0800
+Message-Id: <1374220774-29974-11-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,122 +13,45 @@ List-ID: <linux-mm.kvack.org>
 To: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-In acpi_initrd_override(), it checks several things to ensure the
-table it found is valid. In later patches, we need to do these check
-somewhere else. So this patch introduces a common function
-acpi_invalid_table() to do all these checks, and reuse it in different
-places. The function will be used in the subsequent patches.
+The comments of find_cpio_data() says:
+
+  * @offset: When a matching file is found, this is the offset to the
+  *          beginning of the cpio. ......
+
+But according to the code,
+
+  dptr = PTR_ALIGN(p + ch[C_NAMESIZE], 4);
+  nptr = PTR_ALIGN(dptr + ch[C_FILESIZE], 4);
+  ....
+  *offset = (long)nptr - (long)data;	/* data is the cpio file */
+
+@offset is the offset of the next file, not the matching file itself.
+This is confused and may cause unnecessary waste of time to debug.
+So fix it.
 
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 ---
- drivers/acpi/osl.c |   82 ++++++++++++++++++++++++++++++++++++----------------
- 1 files changed, 57 insertions(+), 25 deletions(-)
+ lib/earlycpio.c |    7 ++++---
+ 1 files changed, 4 insertions(+), 3 deletions(-)
 
-diff --git a/drivers/acpi/osl.c b/drivers/acpi/osl.c
-index 91d9f54..4531920 100644
---- a/drivers/acpi/osl.c
-+++ b/drivers/acpi/osl.c
-@@ -572,9 +572,64 @@ static const char * const table_sigs[] = {
- /* Must not increase 10 or needs code modification below */
- #define ACPI_OVERRIDE_TABLES 10
- 
-+/**
-+ * acpi_invalid_table - Check if an acpi table found in initrd is invalid.
-+ * @file: The cpio file returned by find_cpio_data().
-+ * @path: The path storing acpi overriding tables in cpio file.
-+ * @signature: The table signature to be checked.
-+ *
-+ * @signature can be NULL. If it is NULL, the function will check if the
-+ * table signature matches any signature in table_sigs[].
-+ *
-+ * Return 0 if it passes all the checks, -EINVAL if any check fails.
-+ */
-+int __init acpi_invalid_table(struct cpio_data *file,
-+			      const char *path, const char *signature)
-+{
-+	int idx;
-+	struct acpi_table_header *table = file->data;
-+
-+	if (file->size < sizeof(struct acpi_table_header)) {
-+		INVALID_TABLE("Table smaller than ACPI header",
-+			      path, file->name);
-+		return -EINVAL;
-+	}
-+
-+	if (signature) {
-+		if (memcmp(table->signature, signature, 4)) {
-+			INVALID_TABLE("Table signature does not match",
-+				      path, file->name);
-+			return -EINVAL;
-+		}
-+	} else {
-+		for (idx = 0; table_sigs[idx]; idx++)
-+			if (!memcmp(table->signature, table_sigs[idx], 4))
-+				break;
-+
-+		if (!table_sigs[idx]) {
-+			INVALID_TABLE("Unknown signature", path, file->name);
-+			return -EINVAL;
-+		}
-+	}
-+
-+	if (file->size != table->length) {
-+		INVALID_TABLE("File length does not match table length",
-+			      path, file->name);
-+		return -EINVAL;
-+	}
-+
-+	if (acpi_table_checksum(file->data, table->length)) {
-+		INVALID_TABLE("Bad table checksum",
-+			      path, file->name);
-+		return -EINVAL;
-+	}
-+
-+	return 0;
-+}
-+
- void __init acpi_initrd_override(void *data, size_t size)
- {
--	int sig, no, table_nr = 0, total_offset = 0;
-+	int no, table_nr = 0, total_offset = 0;
- 	long offset = 0;
- 	struct acpi_table_header *table;
- 	char cpio_path[32] = "kernel/firmware/acpi/";
-@@ -593,33 +648,10 @@ void __init acpi_initrd_override(void *data, size_t size)
- 		data += offset;
- 		size -= offset;
- 
--		if (file.size < sizeof(struct acpi_table_header)) {
--			INVALID_TABLE("Table smaller than ACPI header",
--				      cpio_path, file.name);
--			continue;
--		}
--
- 		table = file.data;
- 
--		for (sig = 0; table_sigs[sig]; sig++)
--			if (!memcmp(table->signature, table_sigs[sig], 4))
--				break;
--
--		if (!table_sigs[sig]) {
--			INVALID_TABLE("Unknown signature",
--				      cpio_path, file.name);
--			continue;
--		}
--		if (file.size != table->length) {
--			INVALID_TABLE("File length does not match table length",
--				      cpio_path, file.name);
--			continue;
--		}
--		if (acpi_table_checksum(file.data, table->length)) {
--			INVALID_TABLE("Bad table checksum",
--				      cpio_path, file.name);
-+		if (acpi_invalid_table(&file, cpio_path, NULL))
- 			continue;
--		}
- 
- 		pr_info("%4.4s ACPI table found in initrd [%s%s][0x%x]\n",
- 			table->signature, cpio_path, file.name, table->length);
+diff --git a/lib/earlycpio.c b/lib/earlycpio.c
+index 8078ef4..53ccbf7 100644
+--- a/lib/earlycpio.c
++++ b/lib/earlycpio.c
+@@ -52,9 +52,10 @@ enum cpio_fields {
+  * @path:   The directory to search for, including a slash at the end
+  * @data:   Pointer to the the cpio archive or a header inside
+  * @len:    Remaining length of the cpio based on data pointer
+- * @offset: When a matching file is found, this is the offset to the
+- *          beginning of the cpio. It can be used to iterate through
+- *          the cpio to find all files inside of a directory path
++ * @offset: When a matching file is found, this is the offset from the
++ *          beginning of the cpio to the beginning of the next file, not the
++ *          matching file itself. It can be used to iterate through the cpio
++ *          to find all files inside of a directory path
+  *
+  * @return: struct cpio_data containing the address, length and
+  *          filename (with the directory path cut off) of the found file.
 -- 
 1.7.1
 
