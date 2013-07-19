@@ -1,60 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 378226B0031
-	for <linux-mm@kvack.org>; Fri, 19 Jul 2013 11:50:13 -0400 (EDT)
-Date: Fri, 19 Jul 2013 11:49:36 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1374248976-te4ek4ys-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20130719153332.GG6123@two.firstfloor.org>
-References: <1374183272-10153-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20130719153332.GG6123@two.firstfloor.org>
-Subject: Re: [PATCH v3 0/8] extend hugepage migration
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id 007406B0031
+	for <linux-mm@kvack.org>; Fri, 19 Jul 2013 11:52:07 -0400 (EDT)
+Message-ID: <51E9609D.4030201@sr71.net>
+Date: Fri, 19 Jul 2013 08:51:57 -0700
+From: Dave Hansen <dave@sr71.net>
+MIME-Version: 1.0
+Subject: Re: [RESEND][PATCH] mm: vmstats: tlb flush counters
+References: <20130716234438.C792C316@viggo.jf.intel.com> <20130717072100.GA14359@gmail.com> <20130718135157.2262e28b2c6e0f43a4d0fe7a@linux-foundation.org> <20130719082848.GA25784@gmail.com>
+In-Reply-To: <20130719082848.GA25784@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-On Fri, Jul 19, 2013 at 05:33:32PM +0200, Andi Kleen wrote:
-> On Thu, Jul 18, 2013 at 05:34:24PM -0400, Naoya Horiguchi wrote:
-> > Here is the 3rd version of hugepage migration patchset.
-> > I rebased it onto v3.11-rc1 and applied most of your feedbacks.
-> > 
-> > Some works referred to in previous discussion (shown below) are not included
-> > in this patchset, but likely to be done after this work.
-> >  - using page walker in check_range
-> >  - split page table lock for pmd/pud based hugepage (maybe applicable to thp)
+On 07/19/2013 01:28 AM, Ingo Molnar wrote:
+> UP is slowly going extinct, but in any case these counters ought to inform 
+> us about TLB flushes even on UP systems:
 > 
-> I did a quick read through the patchkit and it looks all good to me.
-> It also closes a long standing gap. Thanks!
+>>>> > > > +		NR_TLB_LOCAL_FLUSH_ALL,
+>>>> > > > +		NR_TLB_LOCAL_FLUSH_ONE,
+>>>> > > > +		NR_TLB_LOCAL_FLUSH_ONE_KERNEL,
+> While these ought to be compiled out on UP kernels:
 > 
-> Acked-by: Andi Kleen <ak@linux.intel.com>
+>>>> > > > +		NR_TLB_REMOTE_FLUSH,	/* cpu tried to flush others' tlbs */
+>>>> > > > +		NR_TLB_REMOTE_FLUSH_RECEIVED,/* cpu received ipi for flush */
+> Right?
 
-Thank you.
-Can I add your Ack on the whole series?
-
-> > Hugepage migration of 1GB hugepage is not enabled for now, because
-> > I'm not sure whether users of 1GB hugepage really want it.
-> > We need to spare free hugepage in order to do migration, but I don't
-> > think that users want to 1GB memory to idle for that purpose
-> > (currently we can't expand/shrink 1GB hugepage pool after boot).
-> 
-> I think we'll need 1GB migration sooner or later. As memory sizes
-> go up 1GB use will be more common, and the limitation of not
-> expanding/shrinking 1GB will be eventually fixed.
-> 
-> It would be just a straight forward extension of your patchkit,
-> right?
-
-Right, I'm preparing for 1GB hugepages migration, but it's still
-lack of testing.
-
-Thanks,
-Naoya
+Yeah, it's useful on UP too.  But I realized that my changes were
+confined to the SMP code.  The UP code is almost all in one of the
+headers, and I didn't touch it.  So I've got some work there to fix it up.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
