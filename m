@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 46FD36B003A
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 792F46B0039
 	for <linux-mm@kvack.org>; Fri, 19 Jul 2013 04:01:00 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH 03/21] x86, acpi, numa, mem-hotplug: Introduce MEMBLK_HOTPLUGGABLE to reserve hotpluggable memory.
-Date: Fri, 19 Jul 2013 15:59:16 +0800
-Message-Id: <1374220774-29974-4-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH 06/21] x86, acpi: Split acpi_boot_table_init() into two parts.
+Date: Fri, 19 Jul 2013 15:59:19 +0800
+Message-Id: <1374220774-29974-7-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,64 +13,121 @@ List-ID: <linux-mm.kvack.org>
 To: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-Pages used by the kernel cannot be migrated. As a result, hotpluggable
-memory used by the kernel cannot be hot-removed. So for memory
-hotplug users, the kernel should not use hotpluggable memory.
+In ACPI, SRAT(System Resource Affinity Table) contains NUMA info.
+The memory affinities in SRAT record every memory range in the
+system, and also, flags specifying if the memory range is
+hotpluggable.
+(Please refer to ACPI spec 5.0 5.2.16)
 
-Since now we have flags in memblock, we introduce a MEMBLK_HOTPLUGGABLE
-flag to mark hotpluggable memory. At the early time, we use memblock to
-reserve hotpluggable memory, and mark it with MEMBLK_HOTPLUGGABLE flag.
-When the system is up, we free these memory with MEMBLK_HOTPLUGGABLE
-flag to the buddy, and arrange them into ZONE_MOVABLE. In this way, the
-kernel won't be able to use it.
+memblock starts to work at very early time, and SRAT has not been
+parsed. So we don't know which memory is hotpluggable. In order
+to use memblock to reserve hotpluggable memory, we need to obtain
+SRAT memory affinity info earlier.
 
-This patch introduces MEMBLK_HOTPLUGGABLE flag, and an API to reserve
-memory with MEMBLK_HOTPLUGGABLE flag. This is a preparation for the
-coming patches.
+In the current acpi_boot_table_init(), it does the following:
+1. Parse RSDT, so that we can find all the tables.
+2. Initialize acpi_gbl_root_table_list, an array of acpi table
+   descriptorsused to store each table's address, length, signature,
+   and so on.
+3. Check if there is any table in initrd intending to override
+   tables from firmware. If so, override the firmware tables.
+4. Initialize all the data in acpi_gbl_root_table_list.
+
+In order to parse SRAT at early time, we need to do similar job as
+step 1 and 2 above earlier to obtain SRAT. It will be very convenient
+if we have acpi_gbl_root_table_list initialized. We can use address
+and signature to find SRAT.
+
+Since step 1 and 2 allocates no memory, it is OK to do these two
+steps earlier.
+
+But step 3 will check acpi initrd table override, not just SRAT,
+but also all the other tables. So it is better to keep it untouched.
+
+This patch splits acpi_boot_table_init() into two steps:
+1. Parse RSDT, which cannot be overrided, and initialize
+   acpi_gbl_root_table_list. (step 1 + 2 above)
+2. Install all ACPI tables into acpi_gbl_root_table_list.
+   (step 3 + 4 above)
+
+In later patches, we will do step 1 + 2 earlier.
 
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 ---
- include/linux/memblock.h |    2 ++
- mm/memblock.c            |    6 ++++++
- 2 files changed, 8 insertions(+), 0 deletions(-)
+ drivers/acpi/acpica/tbutils.c |   25 ++++++++++++++++++++++---
+ drivers/acpi/tables.c         |    2 ++
+ include/acpi/acpixf.h         |    2 ++
+ 3 files changed, 26 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 93f3453..90b49ee 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -21,6 +21,7 @@
+diff --git a/drivers/acpi/acpica/tbutils.c b/drivers/acpi/acpica/tbutils.c
+index ce3d5db..9d68ffc 100644
+--- a/drivers/acpi/acpica/tbutils.c
++++ b/drivers/acpi/acpica/tbutils.c
+@@ -766,9 +766,30 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
+ 	 */
+ 	acpi_os_unmap_memory(table, length);
  
- /* Definition of memblock flags. */
- #define MEMBLK_FLAGS_DEFAULT	0x0	/* default flag */
-+#define MEMBLK_HOTPLUGGABLE	0x1	/* hotpluggable region */
- 
- struct memblock_region {
- 	phys_addr_t base;
-@@ -61,6 +62,7 @@ int memblock_add(phys_addr_t base, phys_addr_t size);
- int memblock_remove(phys_addr_t base, phys_addr_t size);
- int memblock_free(phys_addr_t base, phys_addr_t size);
- int memblock_reserve(phys_addr_t base, phys_addr_t size);
-+int memblock_reserve_hotpluggable(phys_addr_t base, phys_addr_t size, int nid);
- void memblock_trim_memory(phys_addr_t align);
- 
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 9e871e9..73fe62d 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -586,6 +586,12 @@ int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
- 				       MEMBLK_FLAGS_DEFAULT);
- }
- 
-+int __init_memblock memblock_reserve_hotpluggable(phys_addr_t base,
-+						  phys_addr_t size, int nid)
-+{
-+	return memblock_reserve_region(base, size, nid, MEMBLK_HOTPLUGGABLE);
++	return_ACPI_STATUS(AE_OK);
 +}
 +
- /**
-  * __next_free_mem_range - next function for for_each_free_mem_range()
-  * @idx: pointer to u64 loop variable
++/*******************************************************************************
++ *
++ * FUNCTION:    acpi_tb_install_root_table
++ *
++ * DESCRIPTION: This function installs all the ACPI tables in RSDT into
++ *              acpi_gbl_root_table_list.
++ *
++ ******************************************************************************/
++
++void __init
++acpi_tb_install_root_table()
++{
++	int i;
++
+ 	/*
+ 	 * Complete the initialization of the root table array by examining
+-	 * the header of each table
++	 * the header of each table.
++	 *
++	 * First two entries in the table array are reserved for the DSDT
++	 * and FACS, which are not actually present in the RSDT/XSDT - they
++	 * come from the FADT.
+ 	 */
+ 	for (i = 2; i < acpi_gbl_root_table_list.current_table_count; i++) {
+ 		acpi_tb_install_table(acpi_gbl_root_table_list.tables[i].
+@@ -782,6 +803,4 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
+ 			acpi_tb_parse_fadt(i);
+ 		}
+ 	}
+-
+-	return_ACPI_STATUS(AE_OK);
+ }
+diff --git a/drivers/acpi/tables.c b/drivers/acpi/tables.c
+index d67a1fe..8860e79 100644
+--- a/drivers/acpi/tables.c
++++ b/drivers/acpi/tables.c
+@@ -353,6 +353,8 @@ int __init acpi_table_init(void)
+ 	if (ACPI_FAILURE(status))
+ 		return 1;
+ 
++	acpi_tb_install_root_table();
++
+ 	check_multiple_madt();
+ 	return 0;
+ }
+diff --git a/include/acpi/acpixf.h b/include/acpi/acpixf.h
+index 454881e..f5549b5 100644
+--- a/include/acpi/acpixf.h
++++ b/include/acpi/acpixf.h
+@@ -116,6 +116,8 @@ acpi_status
+ acpi_initialize_tables(struct acpi_table_desc *initial_storage,
+ 		       u32 initial_table_count, u8 allow_resize);
+ 
++void acpi_tb_install_root_table(void);
++
+ acpi_status __init acpi_initialize_subsystem(void);
+ 
+ acpi_status acpi_enable_subsystem(u32 flags);
 -- 
 1.7.1
 
