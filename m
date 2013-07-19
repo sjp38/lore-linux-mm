@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 57C786B0044
-	for <linux-mm@kvack.org>; Fri, 19 Jul 2013 04:01:03 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 549C76B005C
+	for <linux-mm@kvack.org>; Fri, 19 Jul 2013 04:01:04 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH 13/21] x86, acpi: Try to find SRAT in firmware earlier.
-Date: Fri, 19 Jul 2013 15:59:26 +0800
-Message-Id: <1374220774-29974-14-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH 16/21] x86, memblock, mem-hotplug: Free hotpluggable memory reserved by memblock.
+Date: Fri, 19 Jul 2013 15:59:29 +0800
+Message-Id: <1374220774-29974-17-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,162 +13,73 @@ List-ID: <linux-mm.kvack.org>
 To: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-This patch introduce early_acpi_firmware_srat() to find the
-phys addr of SRAT provided by firmware. And call it in
-reserve_hotpluggable_memory().
+We reserved hotpluggable memory in memblock at early time. And when memory
+initialization is done, we have to free it to buddy system.
 
-Since we have initialized acpi_gbl_root_table_list earlier,
-and store all the tables' phys addrs and signatures in it,
-it is easy to find the SRAT.
+This patch free memory reserved by memblock with flag MEMBLK_HOTPLUGGABLE.
 
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- drivers/acpi/acpica/tbxface.c |   34 ++++++++++++++++++++++++++++++++++
- drivers/acpi/osl.c            |   24 ++++++++++++++++++++++++
- include/acpi/acpixf.h         |    4 ++++
- include/linux/acpi.h          |    4 ++++
- mm/memory_hotplug.c           |   10 +++++++---
- 5 files changed, 73 insertions(+), 3 deletions(-)
+ include/linux/memblock.h |    1 +
+ mm/memblock.c            |   17 +++++++++++++++++
+ mm/nobootmem.c           |    3 +++
+ 3 files changed, 21 insertions(+), 0 deletions(-)
 
-diff --git a/drivers/acpi/acpica/tbxface.c b/drivers/acpi/acpica/tbxface.c
-index ad11162..95f8d1b 100644
---- a/drivers/acpi/acpica/tbxface.c
-+++ b/drivers/acpi/acpica/tbxface.c
-@@ -181,6 +181,40 @@ acpi_status acpi_reallocate_root_table(void)
- 	return_ACPI_STATUS(status);
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index 90b49ee..8d71795 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -63,6 +63,7 @@ int memblock_remove(phys_addr_t base, phys_addr_t size);
+ int memblock_free(phys_addr_t base, phys_addr_t size);
+ int memblock_reserve(phys_addr_t base, phys_addr_t size);
+ int memblock_reserve_hotpluggable(phys_addr_t base, phys_addr_t size, int nid);
++void memblock_free_hotpluggable(void);
+ void memblock_trim_memory(phys_addr_t align);
+ 
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 73fe62d..631b727 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -565,6 +565,23 @@ int __init_memblock memblock_free(phys_addr_t base, phys_addr_t size)
+ 	return __memblock_remove(&memblock.reserved, base, size);
  }
  
-+/*
-+ * acpi_get_table_desc - Get the acpi table descriptor of a specific table.
-+ * @signature: The signature of the table to be found.
-+ * @out_desc: The out returned descriptor.
-+ *
-+ * This function iterates acpi_gbl_root_table_list and find the specified
-+ * table's descriptor.
-+ *
-+ * NOTE: The caller has the responsibility to allocate memory for @out_desc.
-+ *
-+ * Return AE_OK on success, AE_NOT_FOUND if the table is not found.
-+ */
-+acpi_status acpi_get_table_desc(char *signature,
-+				struct acpi_table_desc *out_desc)
++static void __init_memblock memblock_free_flags(unsigned long flags)
 +{
-+	int pos;
++	int i;
++	struct memblock_type *reserved = &memblock.reserved;
 +
-+	for (pos = 0;
-+	     pos < acpi_gbl_root_table_list.current_table_count;
-+	     pos++) {
-+		if (!ACPI_COMPARE_NAME
-+		    (&(acpi_gbl_root_table_list.tables[pos].signature),
-+		    signature))
-+			continue;
-+
-+		memcpy(out_desc, &acpi_gbl_root_table_list.tables[pos],
-+		       sizeof(struct acpi_table_desc));
-+
-+		return_ACPI_STATUS(AE_OK);
++	for (i = 0; i < reserved->cnt; i++) {
++		if (reserved->regions[i].flags == flags)
++			memblock_remove_region(reserved, i);
 +	}
-+
-+	return_ACPI_STATUS(AE_NOT_FOUND);
 +}
 +
- /*******************************************************************************
-  *
-  * FUNCTION:    acpi_get_table_header
-diff --git a/drivers/acpi/osl.c b/drivers/acpi/osl.c
-index fa6b973..a2e4596 100644
---- a/drivers/acpi/osl.c
-+++ b/drivers/acpi/osl.c
-@@ -53,6 +53,7 @@
- #include <acpi/acpi.h>
- #include <acpi/acpi_bus.h>
- #include <acpi/processor.h>
-+#include <acpi/acpixf.h>
- 
- #define _COMPONENT		ACPI_OS_SERVICES
- ACPI_MODULE_NAME("osl");
-@@ -750,6 +751,29 @@ void __init acpi_initrd_override(void *data, size_t size)
- }
- #endif /* CONFIG_ACPI_INITRD_TABLE_OVERRIDE */
- 
-+#ifdef CONFIG_ACPI_NUMA
-+#include <asm/numa.h>
-+#include <linux/memblock.h>
-+
-+/*
-+ * early_acpi_firmware_srat - Get the phys addr of SRAT provide by firmware.
-+ *
-+ * This function iterate acpi_gbl_root_table_list, find SRAT and return the
-+ * phys addr of SRAT.
-+ *
-+ * Return the phys addr of SRAT, or 0 on error.
-+ */
-+phys_addr_t __init early_acpi_firmware_srat()
++void __init_memblock memblock_free_hotpluggable()
 +{
-+	struct acpi_table_desc table_desc;
-+
-+	if (acpi_get_table_desc(ACPI_SIG_SRAT, &table_desc))
-+		return 0;
-+
-+	return table_desc.address;
++	memblock_dbg("memblock: free all hotpluggable memory");
++	memblock_free_flags(MEMBLK_HOTPLUGGABLE);
 +}
-+#endif	/* CONFIG_ACPI_NUMA */
 +
- static void acpi_table_taint(struct acpi_table_header *table)
- {
- 	pr_warn(PREFIX
-diff --git a/include/acpi/acpixf.h b/include/acpi/acpixf.h
-index f5549b5..1d94f89 100644
---- a/include/acpi/acpixf.h
-+++ b/include/acpi/acpixf.h
-@@ -184,6 +184,10 @@ acpi_status acpi_find_root_pointer(acpi_size *rsdp_address);
- acpi_status acpi_unload_table_id(acpi_owner_id id);
+ static int __init_memblock memblock_reserve_region(phys_addr_t base,
+ 						   phys_addr_t size,
+ 						   int nid,
+diff --git a/mm/nobootmem.c b/mm/nobootmem.c
+index bdd3fa2..dbfbcb9 100644
+--- a/mm/nobootmem.c
++++ b/mm/nobootmem.c
+@@ -165,6 +165,9 @@ unsigned long __init free_all_bootmem(void)
+ 	for_each_online_pgdat(pgdat)
+ 		reset_node_lowmem_managed_pages(pgdat);
  
- acpi_status
-+acpi_get_table_desc(char *signature,
-+		    struct acpi_table_desc *out_desc);
++	/* Hotpluggable memory reserved by memblock should also be freed. */
++	memblock_free_hotpluggable();
 +
-+acpi_status
- acpi_get_table_header(acpi_string signature,
- 		      u32 instance, struct acpi_table_header *out_table_header);
- 
-diff --git a/include/linux/acpi.h b/include/linux/acpi.h
-index 17155bc..6fa7543 100644
---- a/include/linux/acpi.h
-+++ b/include/linux/acpi.h
-@@ -97,6 +97,10 @@ static inline phys_addr_t early_acpi_override_srat(void)
- }
- #endif	/* CONFIG_ACPI_INITRD_TABLE_OVERRIDE */
- 
-+#ifdef CONFIG_ACPI_NUMA
-+phys_addr_t early_acpi_firmware_srat(void);
-+#endif  /* CONFIG_ACPI_NUMA */
-+
- char * __acpi_map_table (unsigned long phys_addr, unsigned long size);
- void __acpi_unmap_table(char *map, unsigned long size);
- int early_acpi_boot_init(void);
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 066873e..15b11d3 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -106,10 +106,14 @@ void __init reserve_hotpluggable_memory(void)
- {
- 	phys_addr_t srat_paddr;
- 
--	/* Try to find if SRAT is overrided */
-+	/* Try to find out if SRAT is overrided */
- 	srat_paddr = early_acpi_override_srat();
--	if (!srat_paddr)
--		return;
-+	if (!srat_paddr) {
-+		/* Try to find SRAT from firmware if it wasn't overrided */
-+		srat_paddr = early_acpi_firmware_srat();
-+		if (!srat_paddr)
-+			return;
-+	}
- 
- 	/* Will reserve hotpluggable memory here */
- }
+ 	/*
+ 	 * We need to use MAX_NUMNODES instead of NODE_DATA(0)->node_id
+ 	 *  because in some case like Node0 doesn't have RAM installed
 -- 
 1.7.1
 
