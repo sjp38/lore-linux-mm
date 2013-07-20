@@ -1,51 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 56C096B0031
-	for <linux-mm@kvack.org>; Sat, 20 Jul 2013 06:04:23 -0400 (EDT)
-Received: by mail-oa0-f49.google.com with SMTP id n12so2462980oag.36
-        for <linux-mm@kvack.org>; Sat, 20 Jul 2013 03:04:22 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 4D2CA6B0031
+	for <linux-mm@kvack.org>; Sat, 20 Jul 2013 09:02:32 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <raghavendra.kt@linux.vnet.ibm.com>;
+	Sat, 20 Jul 2013 18:25:44 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 1BA9AE0054
+	for <linux-mm@kvack.org>; Sat, 20 Jul 2013 18:32:22 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6KD3CxL20775030
+	for <linux-mm@kvack.org>; Sat, 20 Jul 2013 18:33:13 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6KD2Nep005577
+	for <linux-mm@kvack.org>; Sat, 20 Jul 2013 23:02:24 +1000
+Message-ID: <51EA8C23.5070408@linux.vnet.ibm.com>
+Date: Sat, 20 Jul 2013 18:39:55 +0530
+From: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <1374244796-ur27gtic-mutt-n-horiguchi@ah.jp.nec.com>
-References: <1374183272-10153-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-	<1374183272-10153-8-git-send-email-n-horiguchi@ah.jp.nec.com>
-	<CAJd=RBBs7R1e4BaGDORcO+X3trQWcgmEm4UX2EpwXQyDqw2m9w@mail.gmail.com>
-	<1374244796-ur27gtic-mutt-n-horiguchi@ah.jp.nec.com>
-Date: Sat, 20 Jul 2013 18:04:22 +0800
-Message-ID: <CAJd=RBC0ML7ocNT-BiZ4qN3kz3jFeuFV6qyMYQqRcrC9PAOyAA@mail.gmail.com>
-Subject: Re: [PATCH 7/8] memory-hotplug: enable memory hotplug to handle hugepage
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [RESEND][PATCH] mm: vmstats: tlb flush counters
+References: <20130716234438.C792C316@viggo.jf.intel.com> <CAC4Lta1mHixqfRSJKpydH3X9M_nQPCY3QSD86Tm=cnQ+KxpGYw@mail.gmail.com> <51E95932.5030902@sr71.net>
+In-Reply-To: <51E95932.5030902@sr71.net>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Dave Hansen <dave@sr71.net>
+Cc: Raghavendra KT <raghavendra.kt.linux@gmail.com>, linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org
 
-On Fri, Jul 19, 2013 at 10:39 PM, Naoya Horiguchi
-<n-horiguchi@ah.jp.nec.com> wrote:
-> On Fri, Jul 19, 2013 at 01:40:38PM +0800, Hillf Danton wrote:
->> On Fri, Jul 19, 2013 at 5:34 AM, Naoya Horiguchi
->> <n-horiguchi@ah.jp.nec.com> wrote:
->> > @@ -518,9 +519,11 @@ static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
->> >  {
->> >         struct page *page;
->> >
->> > -       if (list_empty(&h->hugepage_freelists[nid]))
->> > +       list_for_each_entry(page, &h->hugepage_freelists[nid], lru)
->> > +               if (!is_migrate_isolate_page(page))
->> > +                       break;
->> > +       if (&h->hugepage_freelists[nid] == &page->lru)
->>
->> For what is this check?
+On 07/19/2013 08:50 PM, Dave Hansen wrote:
+> On 07/19/2013 04:38 AM, Raghavendra KT wrote:
+>> While measuring non - PLE performance, one of the bottleneck, I am seeing is
+>> flush tlbs.
+>> perf had helped in alaysing a bit there, but this patch would help
+>> in precise calculation. It will aslo help in tuning the PLE window
+>> experiments (larger PLE window
+>> would affect remote flush TLBs)
 >
-> This check returns true unless a non-isolated free hugepage is found.
-> In "not found" case page points to h->hugepage_freelists, so without
-> this check successive code doesn't work fine.
+> Interesting.  What workload is that?  I've been having problems finding
+> workloads that are too consumed with TLB flushes.
 >
-Thanks for your explanation, and looks another local variable
-struct page *found for easing reader.
 
-Good weekend
-Hillf
+Dave,
+ebizzy is the one. and dbench to some small extent.
+
+[root@codeblue ~]# cat /proc/vmstat  |grep nr_tlb ; 
+/root/data/script/do_ebizzy.sh;  cat /proc/vmstat  |grep nr_tlb
+nr_tlb_remote_flush 721
+nr_tlb_remote_flush_received 923
+nr_tlb_local_flush_all 13992
+nr_tlb_local_flush_one 0
+nr_tlb_local_flush_one_kernel 0
+7482 records/s
+real 120.00 s
+user 86.69 s
+sys  3746.57 s
+nr_tlb_remote_flush 912896
+nr_tlb_remote_flush_received 28261974
+nr_tlb_local_flush_all 926272
+nr_tlb_local_flush_one 0
+nr_tlb_local_flush_one_kernel 0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
