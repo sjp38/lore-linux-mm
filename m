@@ -1,141 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 70FB06B0031
-	for <linux-mm@kvack.org>; Sat, 20 Jul 2013 23:55:07 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id kq13so305908pab.11
-        for <linux-mm@kvack.org>; Sat, 20 Jul 2013 20:55:06 -0700 (PDT)
-From: SeungHun Lee <waydi1@gmail.com>
-Subject: [PATCH] mm: fix coding style
-Date: Sun, 21 Jul 2013 12:54:44 +0900
-Message-Id: <1374378884-19886-1-git-send-email-waydi1@gmail.com>
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 5B97D6B0031
+	for <linux-mm@kvack.org>; Sun, 21 Jul 2013 12:30:55 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id kx10so6234199pab.27
+        for <linux-mm@kvack.org>; Sun, 21 Jul 2013 09:30:54 -0700 (PDT)
+Received: from [71.84.184.93] (71-84-184-93.dhcp.mdfd.or.charter.com. [71.84.184.93])
+        by mx.google.com with ESMTPSA id pv5sm34297607pac.14.2013.07.21.09.30.53
+        for <linux-mm@kvack.org>
+        (version=SSLv3 cipher=RC4-SHA bits=128/128);
+        Sun, 21 Jul 2013 09:30:53 -0700 (PDT)
+Subject: [Fwd: mmotm: swap overflow warning patch: mangled description and
+ missing review tag]
+From: Raymond Jennings <shentino@gmail.com>
+Content-Type: multipart/mixed; boundary="=-gbivq+4PdClbf1kEEtsG"
+Date: Sun, 21 Jul 2013 09:30:51 -0700
+Message-ID: <1374424251.14112.5.camel@localhost>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Seunghun Lee <waydi1@gmail.com>
 
-From: Seunghun Lee <waydi1@gmail.com>
 
-Fix coding style of page_alloc.c
+--=-gbivq+4PdClbf1kEEtsG
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
 
-Signed-off-by: SeungHun Lee <waydi1@gmail.com>
+Screwed up and used the wrong domain for linux-mm.
+
+--=-gbivq+4PdClbf1kEEtsG
+Content-Disposition: inline
+Content-Description: Forwarded message - mmotm: swap overflow warning
+ patch: mangled description and missing review tag
+Content-Type: message/rfc822
+
+Return-Path: <shentino@gmail.com>
+Received: from [71.84.184.93] (71-84-184-93.dhcp.mdfd.or.charter.com.
+ [71.84.184.93]) by mx.google.com with ESMTPSA id
+ eq5sm31012196pbc.15.2013.07.21.09.29.28 for <multiple recipients>
+ (version=SSLv3 cipher=RC4-SHA bits=128/128); Sun, 21 Jul 2013 09:29:29
+ -0700 (PDT)
+Subject: mmotm: swap overflow warning patch: mangled description and
+ missing review tag
+From: Raymond Jennings <shentino@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Valdis Kletnieks <valdis.kletnieks@vt.edu>, Rik van Riel
+ <riel@redhat.com>,  Hugh Dickins <hughd@google.com>,
+ linux-kernel@vger.kernel.org, linux-mm@vger.kernel.org
+Content-Type: text/plain; charset="UTF-8"
+Date: Sun, 21 Jul 2013 09:29:27 -0700
+Message-ID: <1374424167.14112.4.camel@localhost>
+Mime-Version: 1.0
+X-Mailer: Evolution 2.32.3 
+Content-Transfer-Encoding: 7bit
+
+I checked the mmotm queue and it seems that my mid-air corrections got
+the patch mangled when it was saved to your mail queue, and in addition
+to a missing correction of a typo in my testing log, Rik van Riel's
+Reviewed-By tag vanished
+
+http://www.ozlabs.org/~akpm/mmotm/broken-out/swap-warn-when-a-swap-area-overflows-the-maximum-size.patch
+
+If you could fix my test transcript and properly credit Rik for
+reviewing my patch before you ship it to linus I'd appreciate it.
+
+The correctly formatted patch and description with corrections and tags
+follows:
+----
+From: Raymond Jennings <shentino@gmail.com>
+Subject: swap: warn when a swap area overflows the maximum size
+
+It is possible to swapon a swap area that is too big for the pte width
+to handle.
+
+Presently this failure happens silently.
+
+Instead, emit a diagnostic to warn the user.
+
+Testing results, root prompt commands and kernel log messages:
+
+# lvresize /dev/system/swap --size 16G
+# mkswap /dev/system/swap
+# swapon /dev/system/swap
+
+Jul  7 04:27:22 warfang kernel: Adding 16777212k swap
+on /dev/mapper/system-swap.  Priority:-1 extents:1 across:16777212k 
+
+# lvresize /dev/system/swap --size 64G
+# mkswap /dev/system/swap
+# swapon /dev/system/swap
+
+Jul  7 04:27:22 warfang kernel: Truncating oversized swap area, only
+using 33554432k out of 67108860k
+Jul  7 04:27:22 warfang kernel: Adding 33554428k swap
+on /dev/mapper/system-swap.  Priority:-1 extents:1 across:33554428k 
+
+Signed-off-by: Raymond Jennings <shentino@gmail.com>
+Acked-by: Valdis Kletnieks <valdis.kletnieks@vt.edu>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Cc: Hugh Dickins <hughd@google.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
- mm/page_alloc.c |   32 +++++++++++++++++---------------
- 1 files changed, 17 insertions(+), 15 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index b100255..049724c 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -721,7 +721,7 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
- 		return false;
- 
- 	if (!PageHighMem(page)) {
--		debug_check_no_locks_freed(page_address(page),PAGE_SIZE<<order);
-+		debug_check_no_locks_freed(page_address(page), PAGE_SIZE<<order);
- 		debug_check_no_obj_freed(page_address(page),
- 					   PAGE_SIZE << order);
- 	}
-@@ -885,7 +885,7 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
- 						int migratetype)
- {
- 	unsigned int current_order;
--	struct free_area * area;
-+	struct free_area *area;
- 	struct page *page;
- 
- 	/* Find a page of the appropriate size in the preferred list */
-@@ -1011,7 +1011,7 @@ static void change_pageblock_range(struct page *pageblock_page,
- static inline struct page *
- __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
- {
--	struct free_area * area;
-+	struct free_area *area;
- 	int current_order;
- 	struct page *page;
- 	int migratetype, i;
-@@ -3104,7 +3104,7 @@ void show_free_areas(unsigned int filter)
- 	}
- 
- 	for_each_populated_zone(zone) {
-- 		unsigned long nr[MAX_ORDER], flags, order, total = 0;
-+		unsigned long nr[MAX_ORDER], flags, order, total = 0;
- 		unsigned char types[MAX_ORDER];
- 
- 		if (skip_free_areas_node(filter, zone_to_nid(zone)))
-@@ -3416,11 +3416,11 @@ static void build_zonelists_in_zone_order(pg_data_t *pgdat, int nr_nodes)
- static int default_zonelist_order(void)
- {
- 	int nid, zone_type;
--	unsigned long low_kmem_size,total_size;
-+	unsigned long low_kmem_size, total_size;
- 	struct zone *z;
- 	int average_size;
- 	/*
--         * ZONE_DMA and ZONE_DMA32 can be very small area in the system.
-+	 * ZONE_DMA and ZONE_DMA32 can be very small area in the system.
- 	 * If they are really small and used heavily, the system can fall
- 	 * into OOM very easily.
- 	 * This function detect ZONE_DMA/DMA32 size and configures zone order.
-@@ -3452,9 +3452,9 @@ static int default_zonelist_order(void)
- 		return ZONELIST_ORDER_NODE;
- 	/*
- 	 * look into each node's config.
--  	 * If there is a node whose DMA/DMA32 memory is very big area on
-- 	 * local memory, NODE_ORDER may be suitable.
--         */
-+	 * If there is a node whose DMA/DMA32 memory is very big area on
-+	 * local memory, NODE_ORDER may be suitable.
-+	 */
- 	average_size = total_size /
- 				(nodes_weight(node_states[N_MEMORY]) + 1);
- 	for_each_online_node(nid) {
-@@ -4180,7 +4180,7 @@ int zone_wait_table_init(struct zone *zone, unsigned long zone_size_pages)
- 	if (!zone->wait_table)
- 		return -ENOMEM;
- 
--	for(i = 0; i < zone->wait_table_hash_nr_entries; ++i)
-+	for (i = 0; i < zone->wait_table_hash_nr_entries; ++i)
- 		init_waitqueue_head(zone->wait_table + i);
- 
- 	return 0;
-@@ -4930,7 +4930,7 @@ static unsigned long __init early_calculate_totalpages(void)
- 		if (pages)
- 			node_set_state(nid, N_MEMORY);
- 	}
--  	return totalpages;
-+	return totalpages;
- }
- 
- /*
-@@ -5286,8 +5286,10 @@ void __init mem_init_print_info(const char *str)
- 	 * 3) .rodata.* may be embedded into .text or .data sections.
+ mm/swapfile.c |    6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff -puN
+mm/swapfile.c~swap-warn-when-a-swap-area-overflows-the-maximum-size
+mm/swapfile.c
+---
+a/mm/swapfile.c~swap-warn-when-a-swap-area-overflows-the-maximum-size
++++ a/mm/swapfile.c
+@@ -1953,6 +1953,12 @@ static unsigned long read_swap_header(st
  	 */
- #define adj_init_size(start, end, size, pos, adj) \
--	if (start <= pos && pos < end && size > adj) \
--		size -= adj;
-+	do { \
-+		if (start <= pos && pos < end && size > adj) \
-+			size -= adj; \
-+	} while (0)
- 
- 	adj_init_size(__init_begin, __init_end, init_data_size,
- 		     _sinittext, init_code_size);
-@@ -5614,11 +5616,11 @@ int __meminit init_per_zone_wmark_min(void)
- module_init(init_per_zone_wmark_min)
- 
- /*
-- * min_free_kbytes_sysctl_handler - just a wrapper around proc_dointvec() so 
-+ * min_free_kbytes_sysctl_handler - just a wrapper around proc_dointvec() so
-  *	that we can call two helper functions whenever min_free_kbytes
-  *	changes.
-  */
--int min_free_kbytes_sysctl_handler(ctl_table *table, int write, 
-+int min_free_kbytes_sysctl_handler(ctl_table *table, int write,
- 	void __user *buffer, size_t *length, loff_t *ppos)
- {
- 	proc_dointvec(table, write, buffer, length, ppos);
--- 
-1.7.0.4
+ 	maxpages = swp_offset(pte_to_swp_entry(
+ 			swp_entry_to_pte(swp_entry(0, ~0UL)))) + 1;
++	if (swap_header->info.last_page > maxpages) {
++		printk(KERN_WARNING
++			"Truncating oversized swap area, only using %luk out of %luk\n",
++			maxpages << (PAGE_SHIFT - 10),
++			swap_header->info.last_page << (PAGE_SHIFT - 10));
++	}
+ 	if (maxpages > swap_header->info.last_page) {
+ 		maxpages = swap_header->info.last_page + 1;
+ 		/* p->max is an unsigned int: don't overflow it */
+
+
+
+--=-gbivq+4PdClbf1kEEtsG--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
