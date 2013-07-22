@@ -1,10 +1,18 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 7/9] mm, hugetlb: add VM_NORESERVE check in
- vma_has_reserves()
-Date: Wed, 17 Jul 2013 22:03:58 -0400
-Message-ID: <12164.9124580019$1374113058@news.gmane.org>
-References: <1373881967-16153-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1373881967-16153-8-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH] mm/slub.c: add parameter length checking for
+ alloc_loc_track()
+Date: Mon, 22 Jul 2013 08:42:55 +0800
+Message-ID: <10987.6432725743$1374453794@news.gmane.org>
+References: <51DF5404.4060004@asianux.com>
+ <0000013fd3250e40-1832fd38-ede3-41af-8fe3-5a0c10f5e5ce-000000@email.amazonses.com>
+ <51E33F98.8060201@asianux.com>
+ <0000013fe2e73e30-817f1bdb-8dc7-4f7b-9b60-b42d5d244fda-000000@email.amazonses.com>
+ <51E49BDF.30008@asianux.com>
+ <0000013fed280250-85b17e35-d4d4-468d-abed-5b2e29cedb94-000000@email.amazonses.com>
+ <51E73A16.8070406@asianux.com>
+ <0000013ff2076fb0-b52e0245-8fb5-4842-b0dd-d812ce2c9f62-000000@email.amazonses.com>
+ <51E882E1.4000504@gmail.com>
+ <0000013ff73897b8-9d8f4486-1632-470c-8f1f-caf44932cef1-000000@email.amazonses.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -12,86 +20,62 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1UzdZh-0000Kt-Lc
-	for glkm-linux-mm-2@m.gmane.org; Thu, 18 Jul 2013 04:04:09 +0200
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id BAB016B0036
-	for <linux-mm@kvack.org>; Wed, 17 Jul 2013 22:04:07 -0400 (EDT)
+	id 1V14DR-00026E-FI
+	for glkm-linux-mm-2@m.gmane.org; Mon, 22 Jul 2013 02:43:05 +0200
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id ED4B06B0032
+	for <linux-mm@kvack.org>; Sun, 21 Jul 2013 20:43:02 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Thu, 18 Jul 2013 11:54:00 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 51BAD2CE802D
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2013 12:04:01 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6I1mZOg852472
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2013 11:48:35 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6I23xL0026920
-	for <linux-mm@kvack.org>; Thu, 18 Jul 2013 12:04:00 +1000
+	Mon, 22 Jul 2013 06:07:17 +0530
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 3A1F33940057
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 06:12:53 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6M0greY29818992
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 06:12:54 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6M0guoD005418
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 10:42:56 +1000
 Content-Disposition: inline
-In-Reply-To: <1373881967-16153-8-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <0000013ff73897b8-9d8f4486-1632-470c-8f1f-caf44932cef1-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Chen Gang F T <chen.gang.flying.transformer@gmail.com>, Chen Gang <gang.chen@asianux.com>, Pekka Enberg <penberg@kernel.org>, mpm@selenic.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, Jul 15, 2013 at 06:52:45PM +0900, Joonsoo Kim wrote:
->If we map the region with MAP_NORESERVE and MAP_SHARED,
->we can skip to check reserve counting and eventually we cannot be ensured
->to allocate a huge page in fault time.
->With following example code, you can easily find this situation.
+On Fri, Jul 19, 2013 at 01:57:28PM +0000, Christoph Lameter wrote:
+>On Fri, 19 Jul 2013, Chen Gang F T wrote:
 >
->Assume 2MB, nr_hugepages = 100
+>> Yes, "'max' can roughly mean the same thing", but they are still a
+>> little different.
+>>
+>> 'max' also means: "the caller tells callee: I have told you the
+>> maximize buffer length, so I need not check the buffer length to be
+>> sure of no memory overflow, you need be sure of it".
+>>
+>> 'size' means: "the caller tells callee: you should use the size which I
+>> give you, I am sure it is OK, do not care about whether it can cause
+>> memory overflow or not".
 >
->        fd = hugetlbfs_unlinked_fd();
->        if (fd < 0)
->                return 1;
+>Ok that makes sense.
 >
->        size = 200 * MB;
->        flag = MAP_SHARED;
->        p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
->        if (p == MAP_FAILED) {
->                fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
->                return -1;
->        }
+>> The diff may like this:
 >
->        size = 2 * MB;
->        flag = MAP_ANONYMOUS | MAP_SHARED | MAP_HUGETLB | MAP_NORESERVE;
->        p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, -1, 0);
->        if (p == MAP_FAILED) {
->                fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
->        }
->        p[0] = '0';
->        sleep(10);
+>I am fine with such a patch.
 >
->During executing sleep(10), run 'cat /proc/meminfo' on another process.
->You'll find a mentioned problem.
->
->Solution is simple. We should check VM_NORESERVE in vma_has_reserves().
->This prevent to use a pre-allocated huge page if free count is under
->the reserve count.
->
+>Ultimately I would like the tracking and debugging technology to be
+>abstracted from the slub allocator and made generally useful by putting it
+>into mm/slab_common.c. SLAB has similar things but does not have all the
+>features.
+	
+Coincidence, I am doing this work recently and will post patches soon.
+;-)
 
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Regards,
+Wanpeng Li 
 
->Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->
->diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->index 6c1eb9b..f6a7a4e 100644
->--- a/mm/hugetlb.c
->+++ b/mm/hugetlb.c
->@@ -464,6 +464,8 @@ void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
-> /* Returns true if the VMA has associated reserve pages */
-> static int vma_has_reserves(struct vm_area_struct *vma)
-> {
->+	if (vma->vm_flags & VM_NORESERVE)
->+		return 0;
-> 	if (vma->vm_flags & VM_MAYSHARE)
-> 		return 1;
-> 	if (is_vma_resv_set(vma, HPAGE_RESV_OWNER))
->-- 
->1.7.9.5
 >
 >--
 >To unsubscribe, send a message with 'unsubscribe linux-mm' in
