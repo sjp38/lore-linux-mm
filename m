@@ -1,47 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 72F6B6B0033
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 10:46:34 -0400 (EDT)
-Date: Mon, 22 Jul 2013 16:46:32 +0200
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 4C32F6B0036
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 10:51:52 -0400 (EDT)
+Date: Mon, 22 Jul 2013 16:51:50 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 2/9] mm, hugetlb: trivial commenting fix
-Message-ID: <20130722144632.GE24400@dhcp22.suse.cz>
+Subject: Re: [PATCH 3/9] mm, hugetlb: clean-up alloc_huge_page()
+Message-ID: <20130722145150.GF24400@dhcp22.suse.cz>
 References: <1373881967-16153-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1373881967-16153-3-git-send-email-iamjoonsoo.kim@lge.com>
+ <1373881967-16153-4-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1373881967-16153-3-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1373881967-16153-4-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>
 
-On Mon 15-07-13 18:52:40, Joonsoo Kim wrote:
-> The name of the mutex written in comment is wrong.
-> Fix it.
-> 
+On Mon 15-07-13 18:52:41, Joonsoo Kim wrote:
+> We can unify some codes for succeed allocation.
+> This makes code more readable.
+> There is no functional difference.
+
+"This patch unifies successful allocation paths to make the code more
+readable. There are no functional changes."
+
+Better?
+
 > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
 Acked-by: Michal Hocko <mhocko@suse.cz>
 
 > 
 > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index d87f70b..d21a33a 100644
+> index d21a33a..0067cf4 100644
 > --- a/mm/hugetlb.c
 > +++ b/mm/hugetlb.c
-> @@ -135,9 +135,9 @@ static inline struct hugepage_subpool *subpool_vma(struct vm_area_struct *vma)
->   *                    across the pages in a mapping.
->   *
->   * The region data structures are protected by a combination of the mmap_sem
-> - * and the hugetlb_instantion_mutex.  To access or modify a region the caller
-> + * and the hugetlb_instantiation_mutex.  To access or modify a region the caller
->   * must either hold the mmap_sem for write, or the mmap_sem for read and
-> - * the hugetlb_instantiation mutex:
-> + * the hugetlb_instantiation_mutex:
->   *
->   *	down_write(&mm->mmap_sem);
->   * or
+> @@ -1144,29 +1144,25 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+>  		hugepage_subpool_put_pages(spool, chg);
+>  		return ERR_PTR(-ENOSPC);
+>  	}
+> +
+>  	spin_lock(&hugetlb_lock);
+>  	page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve);
+> -	if (page) {
+> -		/* update page cgroup details */
+> -		hugetlb_cgroup_commit_charge(idx, pages_per_huge_page(h),
+> -					     h_cg, page);
+> -		spin_unlock(&hugetlb_lock);
+> -	} else {
+> +	if (!page) {
+>  		spin_unlock(&hugetlb_lock);
+>  		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
+>  		if (!page) {
+>  			hugetlb_cgroup_uncharge_cgroup(idx,
+> -						       pages_per_huge_page(h),
+> -						       h_cg);
+> +						pages_per_huge_page(h), h_cg);
+>  			hugepage_subpool_put_pages(spool, chg);
+>  			return ERR_PTR(-ENOSPC);
+>  		}
+> +
+>  		spin_lock(&hugetlb_lock);
+> -		hugetlb_cgroup_commit_charge(idx, pages_per_huge_page(h),
+> -					     h_cg, page);
+>  		list_move(&page->lru, &h->hugepage_activelist);
+> -		spin_unlock(&hugetlb_lock);
+> +		/* Fall through */
+>  	}
+> +	hugetlb_cgroup_commit_charge(idx, pages_per_huge_page(h), h_cg, page);
+> +	spin_unlock(&hugetlb_lock);
+>  
+>  	set_page_private(page, (unsigned long)spool);
+>  
 > -- 
 > 1.7.9.5
 > 
