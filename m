@@ -1,59 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id B51F26B0032
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 03:30:06 -0400 (EDT)
-Message-ID: <51ECDF41.10808@asianux.com>
-Date: Mon, 22 Jul 2013 15:29:05 +0800
-From: Chen Gang <gang.chen@asianux.com>
-MIME-Version: 1.0
-Subject: [PATCH] mm/page_alloc.c: use '__paginginit' instead of '__init'
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 521386B0032
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 04:36:37 -0400 (EDT)
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: [PATCH v2 00/10] mm, hugetlb: clean-up and possible bug fix
+Date: Mon, 22 Jul 2013 17:36:21 +0900
+Message-Id: <1374482191-3500-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, jiang.liu@huawei.com, minchan@kernel.org, cody@linux.vnet.ibm.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-set_pageblock_order() may be called when memory hotplug, so need use
-'__paginginit' instead of '__init'.
+First 6 patches are almost trivial clean-up patches.
 
-The related warning:
+The others are for fixing three bugs.
+Perhaps, these problems are minor, because this codes are used
+for a long time, and there is no bug reporting for these problems.
 
-  The function __meminit .free_area_init_node() references
-  a function __init .set_pageblock_order().
-  If .set_pageblock_order is only used by .free_area_init_node then
-  annotate .set_pageblock_order with a matching annotation.
+These patches are based on v3.10.0 and
+passed the libhugetlbfs test suite.
 
+Changes from v1.
+Split patch 1 into two patches to clear it's purpose.
+Remove useless indentation changes in 'clean-up alloc_huge_page()'
+Fix new iteration code bug.
+Add reviewed-by or acked-by.
 
-Signed-off-by: Chen Gang <gang.chen@asianux.com>
----
- mm/page_alloc.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+Joonsoo Kim (10):
+  mm, hugetlb: move up the code which check availability of free huge
+    page
+  mm, hugetlb: remove err label in dequeue_huge_page_vma()
+  mm, hugetlb: trivial commenting fix
+  mm, hugetlb: clean-up alloc_huge_page()
+  mm, hugetlb: fix and clean-up node iteration code to alloc or free
+  mm, hugetlb: remove redundant list_empty check in
+    gather_surplus_pages()
+  mm, hugetlb: do not use a page in page cache for cow optimization
+  mm, hugetlb: add VM_NORESERVE check in vma_has_reserves()
+  mm, hugetlb: remove decrement_hugepage_resv_vma()
+  mm, hugetlb: decrement reserve count if VM_NORESERVE alloc page cache
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index b100255..4c58635 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4586,7 +4586,7 @@ static inline void setup_usemap(struct pglist_data *pgdat, struct zone *zone,
- #ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
- 
- /* Initialise the number of pages represented by NR_PAGEBLOCK_BITS */
--void __init set_pageblock_order(void)
-+void __paginginit set_pageblock_order(void)
- {
- 	unsigned int order;
- 
-@@ -4614,7 +4614,7 @@ void __init set_pageblock_order(void)
-  * include/linux/pageblock-flags.h for the values of pageblock_order based on
-  * the kernel config
-  */
--void __init set_pageblock_order(void)
-+void __paginginit set_pageblock_order(void)
- {
- }
- 
+ mm/hugetlb.c |  250 ++++++++++++++++++++++++++--------------------------------
+ 1 file changed, 112 insertions(+), 138 deletions(-)
+
 -- 
-1.7.7.6
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
