@@ -1,56 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id D60F96B0033
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 13:01:22 -0400 (EDT)
-Date: Mon, 22 Jul 2013 13:01:12 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 0/3] mm: improve page aging fairness between zones/nodes
-Message-ID: <20130722170112.GE715@cmpxchg.org>
-References: <1374267325-22865-1-git-send-email-hannes@cmpxchg.org>
- <51ED6274.3000509@bitsync.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <51ED6274.3000509@bitsync.net>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 5D7FD6B0033
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 13:12:56 -0400 (EDT)
+Message-ID: <1374513120.16322.21.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v2] mm/hotplug, x86: Disable ARCH_MEMORY_PROBE by default
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Mon, 22 Jul 2013 11:12:00 -0600
+In-Reply-To: <20130722083721.GC25976@gmail.com>
+References: <1374256068-26016-1-git-send-email-toshi.kani@hp.com>
+	 <20130722083721.GC25976@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zlatko Calusic <zcalusic@bitsync.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, dave@sr71.net, kosaki.motohiro@gmail.com, isimatu.yasuaki@jp.fujitsu.com, tangchen@cn.fujitsu.com, vasilis.liaskovitis@profitbricks.com
 
-Hi Zlatko,
-
-On Mon, Jul 22, 2013 at 06:48:52PM +0200, Zlatko Calusic wrote:
-> On 19.07.2013 22:55, Johannes Weiner wrote:
-> >The way the page allocator interacts with kswapd creates aging
-> >imbalances, where the amount of time a userspace page gets in memory
-> >under reclaim pressure is dependent on which zone, which node the
-> >allocator took the page frame from.
-> >
-> >#1 fixes missed kswapd wakeups on NUMA systems, which lead to some
-> >    nodes falling behind for a full reclaim cycle relative to the other
-> >    nodes in the system
-> >
-> >#3 fixes an interaction where kswapd and a continuous stream of page
-> >    allocations keep the preferred zone of a task between the high and
-> >    low watermark (allocations succeed + kswapd does not go to sleep)
-> >    indefinitely, completely underutilizing the lower zones and
-> >    thrashing on the preferred zone
-> >
-> >These patches are the aging fairness part of the thrash-detection
-> >based file LRU balancing.  Andrea recommended to submit them
-> >separately as they are bugfixes in their own right.
-> >
+On Mon, 2013-07-22 at 10:37 +0200, Ingo Molnar wrote:
+> * Toshi Kani <toshi.kani@hp.com> wrote:
 > 
-> I have the patch applied and under testing. So far, so good. It
-> looks like it could finally fix the bug that I was chasing few
-> months ago (nicely described in your bullet #3). But, few more days
-> of testing will be needed before I can reach a quality verdict.
+> > CONFIG_ARCH_MEMORY_PROBE enables /sys/devices/system/memory/probe
+> > interface, which allows a given memory address to be hot-added as
+> > follows. (See Documentation/memory-hotplug.txt for more detail.)
+> > 
+> > # echo start_address_of_new_memory > /sys/devices/system/memory/probe
+> > 
+> > This probe interface is required on powerpc. On x86, however, ACPI
+> > notifies a memory hotplug event to the kernel, which performs its
+> > hotplug operation as the result. Therefore, regular users do not need
+> > this interface on x86. This probe interface is also error-prone and
+> > misleading that the kernel blindly adds a given memory address without
+> > checking if the memory is present on the system; no probing is done
+> > despite of its name. The kernel crashes when a user requests to online
+> > a memory block that is not present on the system. This interface is
+> > currently used for testing as it can fake a hotplug event.
+> > 
+> > This patch disables CONFIG_ARCH_MEMORY_PROBE by default on x86, adds
+> > its Kconfig menu entry on x86, and clarifies its use in Documentation/
+> > memory-hotplug.txt.
+> 
+> Could we please also fix it to never crash the kernel, even if stupid 
+> ranges are provided?
 
-I should have remembered that you talked about this problem... Thanks
-a lot for testing!
+Yes, this probe interface can be enhanced to verify the firmware
+information before adding a given memory address.  However, such change
+would interfere its test use of "fake" hotplug, which is only the known
+use-case of this interface on x86.
 
-May I ask for the zone layout of your test machine(s)?  I.e. how many
-nodes if NUMA, how big Normal and DMA32 (on Node 0) are.
+In order to verify if a given memory address is enabled at run-time (as
+opposed to boot-time), we need to check with ACPI memory device objects
+on x86.  However, system vendors tend to not implement memory device
+objects unless their systems support memory hotplug.  Dave Hansen is
+using this interface for his testing as a way to fake a hotplug event on
+a system that does not support memory hotplug.
+
+Thanks,
+-Toshi
+
+
+
+  
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
