@@ -1,95 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id DCCD26B0032
-	for <linux-mm@kvack.org>; Sun, 21 Jul 2013 20:59:32 -0400 (EDT)
-Date: Mon, 22 Jul 2013 09:59:41 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH] hugepage: allow parallelization of the hugepage fault
- path
-Message-ID: <20130722005940.GA7506@lge.com>
-References: <1373671681.2448.10.camel@buesod1.americas.hpqcorp.net>
- <alpine.LNX.2.00.1307121729590.3899@eggly.anvils>
- <1373858204.13826.9.camel@buesod1.americas.hpqcorp.net>
- <20130715072432.GA28053@voom.fritz.box>
- <20130715160802.9d0cdc0ee012b5e119317a98@linux-foundation.org>
- <1374090625.15271.2.camel@buesod1.americas.hpqcorp.net>
- <20130718084235.GA9761@lge.com>
- <20130719071432.GB19634@voom.fritz.box>
- <1374269055.9305.19.camel@buesod1.americas.hpqcorp.net>
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 9F02A6B0032
+	for <linux-mm@kvack.org>; Sun, 21 Jul 2013 21:20:47 -0400 (EDT)
+Message-ID: <51EC88B3.7080506@asianux.com>
+Date: Mon, 22 Jul 2013 09:19:47 +0800
+From: Chen Gang <gang.chen@asianux.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1374269055.9305.19.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH] mm/slub.c: use 'unsigned long' instead of 'int' for variable
+ 'slub_debug'
+References: <51DF5F43.3080408@asianux.com> <0000013fd3283b9c-b5fe217c-fff3-47fd-be0b-31b00faba1f3-000000@email.amazonses.com> <51E33FFE.3010200@asianux.com> <0000013fe2b1bd10-efcc76b5-f75b-4a45-a278-a318e87b2571-000000@email.amazonses.com> <51E49982.30402@asianux.com> <0000013fed18f0f2-cb1afad0-560e-4da5-b865-29e854ce5813-000000@email.amazonses.com> <51E73340.5020703@asianux.com> <0000013ff204c901-636c5864-ec23-4c31-a308-d7fd58016364-000000@email.amazonses.com> <51E88D6F.3000905@gmail.com> <0000013ff73b8090-4aef0610-aff7-420a-8a7d-e1120607c382-000000@email.amazonses.com>
+In-Reply-To: <0000013ff73b8090-4aef0610-aff7-420a-8a7d-e1120607c382-000000@email.amazonses.com>
+Content-Type: text/plain; charset=GB2312
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr.bueso@hp.com>
-Cc: David Gibson <david@gibson.dropbear.id.au>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Michal Hocko <mhocko@suse.cz>, "AneeshKumarK.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Eric B Munson <emunson@mgebm.net>, Anton Blanchard <anton@samba.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Chen Gang F T <chen.gang.flying.transformer@gmail.com>, Pekka Enberg <penberg@kernel.org>, mpm@selenic.com, linux-mm@kvack.org
 
-On Fri, Jul 19, 2013 at 02:24:15PM -0700, Davidlohr Bueso wrote:
-> On Fri, 2013-07-19 at 17:14 +1000, David Gibson wrote:
-> > On Thu, Jul 18, 2013 at 05:42:35PM +0900, Joonsoo Kim wrote:
-> > > On Wed, Jul 17, 2013 at 12:50:25PM -0700, Davidlohr Bueso wrote:
-> > > > From: David Gibson <david@gibson.dropbear.id.au>
-> > > > 
-> > > > At present, the page fault path for hugepages is serialized by a
-> > > > single mutex. This is used to avoid spurious out-of-memory conditions
-> > > > when the hugepage pool is fully utilized (two processes or threads can
-> > > > race to instantiate the same mapping with the last hugepage from the
-> > > > pool, the race loser returning VM_FAULT_OOM).  This problem is
-> > > > specific to hugepages, because it is normal to want to use every
-> > > > single hugepage in the system - with normal pages we simply assume
-> > > > there will always be a few spare pages which can be used temporarily
-> > > > until the race is resolved.
-> > > > 
-> > > > Unfortunately this serialization also means that clearing of hugepages
-> > > > cannot be parallelized across multiple CPUs, which can lead to very
-> > > > long process startup times when using large numbers of hugepages.
-> > > > 
-> > > > This patch improves the situation by replacing the single mutex with a
-> > > > table of mutexes, selected based on a hash, which allows us to know
-> > > > which page in the file we're instantiating. For shared mappings, the
-> > > > hash key is selected based on the address space and file offset being faulted.
-> > > > Similarly, for private mappings, the mm and virtual address are used.
-> > > > 
-> > > 
-> > > Hello.
-> > > 
-> > > With this table mutex, we cannot protect region tracking structure.
-> > > See below comment.
-> > > 
-> > > /*
-> > >  * Region tracking -- allows tracking of reservations and instantiated pages
-> > >  *                    across the pages in a mapping.
-> > >  *
-> > >  * The region data structures are protected by a combination of the mmap_sem
-> > >  * and the hugetlb_instantion_mutex.  To access or modify a region the caller
-> > >  * must either hold the mmap_sem for write, or the mmap_sem for read and
-> > >  * the hugetlb_instantiation mutex:
-> > >  *
-> > >  *      down_write(&mm->mmap_sem);
-> > >  * or
-> > >  *      down_read(&mm->mmap_sem);
-> > >  *      mutex_lock(&hugetlb_instantiation_mutex);
-> > >  */
-> > 
-> > Ugh.  Who the hell added that.  I guess you'll need to split of
-> > another mutex for that purpose, afaict there should be no interaction
-> > with the actual, intended purpose of the instantiation mutex.
+On 07/19/2013 10:00 PM, Christoph Lameter wrote:
+> On Fri, 19 Jul 2013, Chen Gang F T wrote:
 > 
-> This was added in commit 84afd99b. One way to go would be to add a
-> spinlock to protect changes to the regions - however reading the
-> changelog, and based on David's previous explanation for the
-> instantiation mutex, I don't see why it was added. In fact several
-> places modify regions without holding the instantiation mutex, ie:
-> hugetlb_reserve_pages()
+>>> The fundamental issue is that typically ints are used for flags and I
+>>> would like to keep it that way. Changing the constants in slab.h and the
+>>> allocator code to be unsigned int instead of unsigned long wont be that
+>>> much of a deal.
+>>>
+>>
+>> At least, we need use 'unsigned' instead of 'signed'.
 > 
-> Am I missing something here?
+> Ok.
+> 
+>> Hmm... Things maybe seem more complex, please see bellow:
+>>
+>> For 'SLAB_RED_ZONE' (or the other constants), they also can be assigned
+>> to "struct kmem_cache" member variable 'flags'.
+>>
+>> But for "struct kmem_cache", it has 2 different definitions, they share
+>> with the 'SLAB_RED_ZONE' (or the other constants).
+>>
+>> One defines 'flags' as 'unsigned int' in "include/linux/slab_def.h"
+>>
+>>  16 /*
+>>  17  * struct kmem_cache
+>>  18  *
+>>  19  * manages a cache.
+>>  20  */
+>>  21
+>>  22 struct kmem_cache {
+>>  23 /* 1) Cache tunables. Protected by cache_chain_mutex */
+>>  24         unsigned int batchcount;
+>>  25         unsigned int limit;
+>>  26         unsigned int shared;
+>>  27
+>>  28         unsigned int size;
+>>  29         u32 reciprocal_buffer_size;
+>>  30 /* 2) touched by every alloc & free from the backend */
+>>  31
+>>  32         unsigned int flags;             /* constant flags */
+>>  33         unsigned int num;               /* # of objs per slab */
+>> ...
+>>
+>> The other defines 'flags' as 'unsigned long' in "include/linux/slub_def.h"
+>> (but from its comments, it even says it is for 'Slab' cache management !!)
+> 
+> SLUB is slab allocator so there is nothing wrong with that.
+> 
 
-hugetlb_reserve_pages() is called with down_write(mmap_sem),
-so fault flow which require down_read(mmap_sem) cannot interfere
-to change the region.
+OK, thanks.
+
+>> Maybe it is also related with our discussion ('unsigned int' or 'unsigned long') ?
+> 
+> Well we can make this uniformly unsigned int or long I guess. What would
+> be the benefits of one vs the other?
+> 
+
+Yeah, need let the 2 'flags' with the same type: "make this uniformly
+unsigned int or long".
+
+
+Hmm... Flags variable is always the solid length variable, so it is not
+suitable to use 'unsigned long' which length depends on 32/64 machine
+automatically.
+
+If the 'unsigned int' is not enough, we need use 'unsigned long long'
+instead of. Else (it's enough), better to still use 'unsigned int' to
+save memory usage.
+
+'unsigned long' is useful(necessary) for some variables (e.g. address
+related variables), but is not suitable for the always solid length
+variable.
+
 
 Thanks.
+-- 
+Chen Gang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
