@@ -1,114 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 954DE6B0033
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 14:51:50 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 36CBB6B0032
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 15:34:56 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Tue, 23 Jul 2013 04:41:25 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id AACDA2BB004F
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 04:51:46 +1000 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6MIpahH5964034
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 04:51:36 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6MIpjYA015843
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 04:51:46 +1000
-From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Subject: [PATCH 2/2] mm: Fix the value of fallback_migratetype in
- alloc_extfrag tracepoint
-Date: Tue, 23 Jul 2013 00:18:12 +0530
-Message-ID: <20130722184812.9573.16042.stgit@srivatsabhat.in.ibm.com>
-In-Reply-To: <20130722184805.9573.78514.stgit@srivatsabhat.in.ibm.com>
-References: <20130722184805.9573.78514.stgit@srivatsabhat.in.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Mon, 22 Jul 2013 13:34:25 -0600
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id DD1973E40039
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 13:33:59 -0600 (MDT)
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6MJYAbk121020
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 13:34:10 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6MJY7QA005476
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 13:34:07 -0600
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Subject: [PATCH] mm: zswap: add runtime enable/disable
+Date: Mon, 22 Jul 2013 14:34:02 -0500
+Message-Id: <1374521642-25478-1-git-send-email-sjenning@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mgorman@suse.de, minchan@kernel.org, cody@linux.vnet.ibm.com
-Cc: rostedt@goodmis.org, jiang.liu@huawei.com, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Dave Hansen <dave@sr71.net>, Bob Liu <lliubbo@gmail.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-In the current code, the value of fallback_migratetype that is printed
-using the mm_page_alloc_extfrag tracepoint, is the value of the migratetype
-*after* it has been set to the preferred migratetype (if the ownership was
-changed). Obviously that wouldn't have been the original intent. (We already
-have a separate 'change_ownership' field to tell whether the ownership of the
-pageblock was changed from the fallback_migratetype to the preferred type.)
+Right now, zswap can only be enabled at boot time.  This patch
+modifies zswap so that it can be dynamically enabled or disabled
+at runtime.
 
-The intent of the fallback_migratetype field is to show the migratetype
-from which we borrowed pages in order to satisfy the allocation request.
-So fix the code to print that value correctly.
+In order to allow this ability, zswap unconditionally registers as a
+frontswap backend regardless of whether or not zswap.enabled=1 is passed
+in the boot parameters or not.  This introduces a very small overhead
+for systems that have zswap disabled as calls to frontswap_store() will
+call zswap_frontswap_store(), but there is a fast path to immediately
+return if zswap is disabled.
 
-Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
+Disabling zswap does not unregister zswap from frontswap.  It simply
+blocks all future stores.
+
+Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
 ---
+ Documentation/vm/zswap.txt | 18 ++++++++++++++++--
+ mm/zswap.c                 |  9 +++------
+ 2 files changed, 19 insertions(+), 8 deletions(-)
 
- include/trace/events/kmem.h |   10 +++++++---
- mm/page_alloc.c             |    5 +++--
- 2 files changed, 10 insertions(+), 5 deletions(-)
-
-diff --git a/include/trace/events/kmem.h b/include/trace/events/kmem.h
-index 6bc943e..d0c6134 100644
---- a/include/trace/events/kmem.h
-+++ b/include/trace/events/kmem.h
-@@ -268,11 +268,13 @@ TRACE_EVENT(mm_page_alloc_extfrag,
+diff --git a/Documentation/vm/zswap.txt b/Documentation/vm/zswap.txt
+index 7e492d8..d588477 100644
+--- a/Documentation/vm/zswap.txt
++++ b/Documentation/vm/zswap.txt
+@@ -26,8 +26,22 @@ Zswap evicts pages from compressed cache on an LRU basis to the backing swap
+ device when the compressed pool reaches it size limit.  This requirement had
+ been identified in prior community discussions.
  
- 	TP_PROTO(struct page *page,
- 			int alloc_order, int fallback_order,
--			int alloc_migratetype, int fallback_migratetype),
-+			int alloc_migratetype, int fallback_migratetype,
-+			int change_ownership),
+-To enabled zswap, the "enabled" attribute must be set to 1 at boot time.  e.g.
+-zswap.enabled=1
++Zswap is disabled by default but can be enabled at boot time by setting
++the "enabled" attribute to 1 at boot time. e.g. zswap.enabled=1.  Zswap
++can also be enabled and disabled at runtime using the sysfs interface.
++An exmaple command to enable zswap at runtime, assuming sysfs is mounted
++at /sys, is:
++
++echo 1 > /sys/modules/zswap/parameters/enabled
++
++When zswap is disabled at runtime, it will stop storing pages that are
++being swapped out.  However, it will _not_ immediately write out or
++fault back into memory all of the pages stored in the compressed pool.
++The pages stored in zswap will continue to remain in the compressed pool
++until they are either invalidated or faulted back into memory.  In order
++to force all pages out of the compressed pool, a swapoff on the swap
++device(s) will fault all swapped out pages, included those in the
++compressed pool, back into memory.
  
- 	TP_ARGS(page,
- 		alloc_order, fallback_order,
--		alloc_migratetype, fallback_migratetype),
-+		alloc_migratetype, fallback_migratetype,
-+		change_ownership),
+ Design:
  
- 	TP_STRUCT__entry(
- 		__field(	struct page *,	page			)
-@@ -280,6 +282,7 @@ TRACE_EVENT(mm_page_alloc_extfrag,
- 		__field(	int,		fallback_order		)
- 		__field(	int,		alloc_migratetype	)
- 		__field(	int,		fallback_migratetype	)
-+		__field(	int,		change_ownership	)
- 	),
+diff --git a/mm/zswap.c b/mm/zswap.c
+index deda2b6..199b1b0 100644
+--- a/mm/zswap.c
++++ b/mm/zswap.c
+@@ -75,9 +75,9 @@ static u64 zswap_duplicate_entry;
+ /*********************************
+ * tunables
+ **********************************/
+-/* Enable/disable zswap (disabled by default, fixed at boot for now) */
++/* Enable/disable zswap (disabled by default) */
+ static bool zswap_enabled __read_mostly;
+-module_param_named(enabled, zswap_enabled, bool, 0);
++module_param_named(enabled, zswap_enabled, bool, 0644);
  
- 	TP_fast_assign(
-@@ -288,6 +291,7 @@ TRACE_EVENT(mm_page_alloc_extfrag,
- 		__entry->fallback_order		= fallback_order;
- 		__entry->alloc_migratetype	= alloc_migratetype;
- 		__entry->fallback_migratetype	= fallback_migratetype;
-+		__entry->change_ownership	= change_ownership;
- 	),
+ /* Compressor to be used by zswap (fixed at boot for now) */
+ #define ZSWAP_COMPRESSOR_DEFAULT "lzo"
+@@ -612,7 +612,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+ 	u8 *src, *dst;
+ 	struct zswap_header *zhdr;
  
- 	TP_printk("page=%p pfn=%lu alloc_order=%d fallback_order=%d pageblock_order=%d alloc_migratetype=%d fallback_migratetype=%d fragmenting=%d change_ownership=%d",
-@@ -299,7 +303,7 @@ TRACE_EVENT(mm_page_alloc_extfrag,
- 		__entry->alloc_migratetype,
- 		__entry->fallback_migratetype,
- 		__entry->fallback_order < pageblock_order,
--		__entry->alloc_migratetype == __entry->fallback_migratetype)
-+		__entry->change_ownership)
- );
- 
- #endif /* _TRACE_KMEM_H */
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 027d417..af5571d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1101,8 +1101,9 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
- 			       is_migrate_cma(migratetype)
- 			     ? migratetype : start_migratetype);
- 
--			trace_mm_page_alloc_extfrag(page, order, current_order,
--				start_migratetype, new_type);
-+			trace_mm_page_alloc_extfrag(page, order,
-+				current_order, start_migratetype, migratetype,
-+				new_type == start_migratetype);
- 
- 			return page;
- 		}
+-	if (!tree) {
++	if (!zswap_enabled || !tree) {
+ 		ret = -ENODEV;
+ 		goto reject;
+ 	}
+@@ -908,9 +908,6 @@ static void __exit zswap_debugfs_exit(void) { }
+ **********************************/
+ static int __init init_zswap(void)
+ {
+-	if (!zswap_enabled)
+-		return 0;
+-
+ 	pr_info("loading zswap\n");
+ 	if (zswap_entry_cache_create()) {
+ 		pr_err("entry cache creation failed\n");
+-- 
+1.8.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
