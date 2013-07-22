@@ -1,54 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id BA2B66B0032
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 18:49:03 -0400 (EDT)
-Message-ID: <51EDB6D9.30100@redhat.com>
-Date: Mon, 22 Jul 2013 18:48:57 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 720176B0032
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 19:25:38 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Tue, 23 Jul 2013 04:47:42 +0530
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id EEF49394004E
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 04:55:26 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6MNPRgC40173680
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 04:55:27 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6MNPUgc004367
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 09:25:31 +1000
+Date: Tue, 23 Jul 2013 07:25:29 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm: zswap: add runtime enable/disable
+Message-ID: <20130722232529.GA23208@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <1374521642-25478-1-git-send-email-sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [patch 3/3] mm: page_alloc: fair zone allocator policy
-References: <1374267325-22865-1-git-send-email-hannes@cmpxchg.org> <1374267325-22865-4-git-send-email-hannes@cmpxchg.org> <51ED9433.60707@redhat.com> <20130722210423.GG715@cmpxchg.org>
-In-Reply-To: <20130722210423.GG715@cmpxchg.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1374521642-25478-1-git-send-email-sjenning@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave@sr71.net>, Bob Liu <lliubbo@gmail.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 07/22/2013 05:04 PM, Johannes Weiner wrote:
-> On Mon, Jul 22, 2013 at 04:21:07PM -0400, Rik van Riel wrote:
->> On 07/19/2013 04:55 PM, Johannes Weiner wrote:
->>
->>> @@ -1984,7 +1992,8 @@ this_zone_full:
->>>   		goto zonelist_scan;
->>>   	}
->>>
->>> -	if (page)
->>> +	if (page) {
->>> +		atomic_sub(1U << order, &zone->alloc_batch);
->>>   		/*
->>>   		 * page->pfmemalloc is set when ALLOC_NO_WATERMARKS was
->>>   		 * necessary to allocate the page. The expectation is
->>
->> Could this be moved into the slow path in buffered_rmqueue and
->> rmqueue_bulk, or would the effect of ignoring the pcp buffers be
->> too detrimental to keeping the balance between zones?
+On Mon, Jul 22, 2013 at 02:34:02PM -0500, Seth Jennings wrote:
+>Right now, zswap can only be enabled at boot time.  This patch
+>modifies zswap so that it can be dynamically enabled or disabled
+>at runtime.
 >
-> What I'm worried about is not the inaccury that comes from the buffer
-> size but the fact that there are no guaranteed buffer empty+refill
-> cycles.  The reclaimer could end up feeding the pcp list that the
-> allocator is using indefinitely, which brings us back to the original
-> problem.  If you have >= NR_CPU jobs running, the kswapds are bound to
-> share CPUs with the allocating tasks, so the scenario is not unlikely.
+>In order to allow this ability, zswap unconditionally registers as a
+>frontswap backend regardless of whether or not zswap.enabled=1 is passed
+>in the boot parameters or not.  This introduces a very small overhead
+>for systems that have zswap disabled as calls to frontswap_store() will
+>call zswap_frontswap_store(), but there is a fast path to immediately
+>return if zswap is disabled.
+>
+>Disabling zswap does not unregister zswap from frontswap.  It simply
+>blocks all future stores.
+>
+>Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+>---
+> Documentation/vm/zswap.txt | 18 ++++++++++++++++--
+> mm/zswap.c                 |  9 +++------
+> 2 files changed, 19 insertions(+), 8 deletions(-)
+>
+>diff --git a/Documentation/vm/zswap.txt b/Documentation/vm/zswap.txt
+>index 7e492d8..d588477 100644
+>--- a/Documentation/vm/zswap.txt
+>+++ b/Documentation/vm/zswap.txt
+>@@ -26,8 +26,22 @@ Zswap evicts pages from compressed cache on an LRU basis to the backing swap
+> device when the compressed pool reaches it size limit.  This requirement had
+> been identified in prior community discussions.
+>
+>-To enabled zswap, the "enabled" attribute must be set to 1 at boot time.  e.g.
+>-zswap.enabled=1
+>+Zswap is disabled by default but can be enabled at boot time by setting
+>+the "enabled" attribute to 1 at boot time. e.g. zswap.enabled=1.  Zswap
+>+can also be enabled and disabled at runtime using the sysfs interface.
+>+An exmaple command to enable zswap at runtime, assuming sysfs is mounted
+>+at /sys, is:
+>+
+>+echo 1 > /sys/modules/zswap/parameters/enabled
+>+
+>+When zswap is disabled at runtime, it will stop storing pages that are
+>+being swapped out.  However, it will _not_ immediately write out or
+>+fault back into memory all of the pages stored in the compressed pool.
+>+The pages stored in zswap will continue to remain in the compressed pool
+>+until they are either invalidated or faulted back into memory.  In order
+>+to force all pages out of the compressed pool, a swapoff on the swap
+>+device(s) will fault all swapped out pages, included those in the
+>+compressed pool, back into memory.
+>
+> Design:
+>
+>diff --git a/mm/zswap.c b/mm/zswap.c
+>index deda2b6..199b1b0 100644
+>--- a/mm/zswap.c
+>+++ b/mm/zswap.c
+>@@ -75,9 +75,9 @@ static u64 zswap_duplicate_entry;
+> /*********************************
+> * tunables
+> **********************************/
+>-/* Enable/disable zswap (disabled by default, fixed at boot for now) */
+>+/* Enable/disable zswap (disabled by default) */
+> static bool zswap_enabled __read_mostly;
+>-module_param_named(enabled, zswap_enabled, bool, 0);
+>+module_param_named(enabled, zswap_enabled, bool, 0644);
+>
+> /* Compressor to be used by zswap (fixed at boot for now) */
+> #define ZSWAP_COMPRESSOR_DEFAULT "lzo"
+>@@ -612,7 +612,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+> 	u8 *src, *dst;
+> 	struct zswap_header *zhdr;
+>
+>-	if (!tree) {
+>+	if (!zswap_enabled || !tree) {
 
-You are absolutely right.  Thinking about it some more,
-I cannot think of a better way to do this than your patch.
+If this check should be added to all hooks in zswap?
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
-
--- 
-All rights reversed
+> 		ret = -ENODEV;
+> 		goto reject;
+> 	}
+>@@ -908,9 +908,6 @@ static void __exit zswap_debugfs_exit(void) { }
+> **********************************/
+> static int __init init_zswap(void)
+> {
+>-	if (!zswap_enabled)
+>-		return 0;
+>-
+> 	pr_info("loading zswap\n");
+> 	if (zswap_entry_cache_create()) {
+> 		pr_err("entry cache creation failed\n");
+>-- 
+>1.8.1.2
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
