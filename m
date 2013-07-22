@@ -1,56 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 23D1C6B0032
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 10:55:43 -0400 (EDT)
-Date: Mon, 22 Jul 2013 16:55:41 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 5/9] mm, hugetlb: remove redundant list_empty check in
- gather_surplus_pages()
-Message-ID: <20130722145541.GG24400@dhcp22.suse.cz>
-References: <1373881967-16153-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1373881967-16153-6-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 9142C6B0032
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 11:21:42 -0400 (EDT)
+Date: Mon, 22 Jul 2013 17:21:37 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH RFC] lib: Make radix_tree_node_alloc() irq safe
+Message-ID: <20130722152137.GH23658@quack.suse.cz>
+References: <1373994390-5479-1-git-send-email-jack@suse.cz>
+ <20130717161200.40a97074623be2685beb8156@linux-foundation.org>
+ <20130718130932.GA10419@quack.suse.cz>
+ <51E85E73.608@kernel.dk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1373881967-16153-6-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <51E85E73.608@kernel.dk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>
+To: Jens Axboe <axboe@kernel.dk>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Mon 15-07-13 18:52:43, Joonsoo Kim wrote:
-> If list is empty, list_for_each_entry_safe() doesn't do anything.
-> So, this check is redundant. Remove it.
+On Thu 18-07-13 15:30:27, Jens Axboe wrote:
+> On 07/18/2013 07:09 AM, Jan Kara wrote:
+> > On Wed 17-07-13 16:12:00, Andrew Morton wrote:
+> >> On Tue, 16 Jul 2013 19:06:30 +0200 Jan Kara <jack@suse.cz> wrote:
+> >>
+> >>> With users of radix_tree_preload() run from interrupt (CFQ is one such
+> >>> possible user), the following race can happen:
+> >>>
+> >>> radix_tree_preload()
+> >>> ...
+> >>> radix_tree_insert()
+> >>>   radix_tree_node_alloc()
+> >>>     if (rtp->nr) {
+> >>>       ret = rtp->nodes[rtp->nr - 1];
+> >>> <interrupt>
+> >>> ...
+> >>> radix_tree_preload()
+> >>> ...
+> >>> radix_tree_insert()
+> >>>   radix_tree_node_alloc()
+> >>>     if (rtp->nr) {
+> >>>       ret = rtp->nodes[rtp->nr - 1];
+> >>>
+> >>> And we give out one radix tree node twice. That clearly results in radix
+> >>> tree corruption with different results (usually OOPS) depending on which
+> >>> two users of radix tree race.
+> >>>
+> >>> Fix the problem by disabling interrupts when working with rtp variable.
+> >>> In-interrupt user can still deplete our preloaded nodes but at least we
+> >>> won't corrupt radix trees.
+> >>>
+> >>> ...
+> >>>
+> >>>   There are some questions regarding this patch:
+> >>> Do we really want to allow in-interrupt users of radix_tree_preload()?  CFQ
+> >>> could certainly do this in older kernels but that particular call site where I
+> >>> saw the bug hit isn't there anymore so I'm not sure this can really happen with
+> >>> recent kernels.
+> >>
+> >> Well, it was never anticipated that interrupt-time code would run
+> >> radix_tree_preload().  The whole point in the preloading was to be able
+> >> to perform GFP_KERNEL allocations before entering the spinlocked region
+> >> which needs to allocate memory.
+> >>
+> >> Doing all that from within an interrupt is daft, because the interrupt code
+> >> can't use GFP_KERNEL anyway.
+> >   Fully agreed here.
+> > 
+> >>> Also it is actually harmful to do preloading if you are in interrupt context
+> >>> anyway. The disadvantage of disallowing radix_tree_preload() in interrupt is
+> >>> that we would need to tweak radix_tree_node_alloc() to somehow recognize
+> >>> whether the caller wants it to use preloaded nodes or not and that callers
+> >>> would have to get it right (although maybe some magic in radix_tree_preload()
+> >>> could handle that).
+> >>>
+> >>> Opinions?
+> >>
+> >> BUG_ON(in_interrupt()) :)
+> >   Or maybe WARN_ON()... But it's not so easy :) Currently radix tree code
+> > assumes that if gfp_mask doesn't have __GFP_WAIT set caller has performed
+> > radix_tree_preload(). Clearly this will stop working for in-interrupt users
+> > of radix tree. So how do we propagate the information from the caller of
+> > radix_tree_insert() down to radix_tree_node_alloc() whether the preload has
+> > been performed or not? Will we rely on in_interrupt() or use some special
+> > gfp_mask bit?
 > 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Should have read the full thread... in_interrupt() is ugly to base
+> decisions on, imho. I'd say just use __GFP_WAIT to signal this.
+  Yeah, probably that would be nicer and doable in radix_tree_preload().
+But in radix_tree_node_alloc() we get gfp_mask as set for the radix tree
+and thus it's always going to be GFP_ATOMIC in case of ioc radix tree. So
+there we have to have something different if we don't want in interrupt
+users to use preallocated nodes. As Andrew suggests maybe that's not
+necessary but then my original patch is what you end up with.
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
-
+> > Secondly, CFQ has this unpleasant property that some functions are
+> > sometimes called from interrupt context and sometimes not. So these
+> > functions would have to check in what context they are called and either
+> > perform preload or not. That's doable but it's going to be a bit ugly and
+> > has to match the check in radix_tree_node_alloc() whether preload should be
+> > used or not. So leaving the checking to the users of radix tree looks
+> > fragile.  So maybe we could just silently exit from radix_tree_preload()
+> > when we are in_interrupt()?
 > 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index a838e6b..d4a1695 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1019,10 +1019,8 @@ free:
->  	spin_unlock(&hugetlb_lock);
->  
->  	/* Free unnecessary surplus pages to the buddy allocator */
-> -	if (!list_empty(&surplus_list)) {
-> -		list_for_each_entry_safe(page, tmp, &surplus_list, lru) {
-> -			put_page(page);
-> -		}
-> +	list_for_each_entry_safe(page, tmp, &surplus_list, lru) {
-> +		put_page(page);
->  	}
->  	spin_lock(&hugetlb_lock);
->  
-> -- 
-> 1.7.9.5
-> 
+> Which CFQ functions are these? Generally we get callbacks from the
+> drivers on both queue and complete times that can be done at various
+> contexts, so it's not something that is easily solvable. I'm assuming
+> you are referring to the blk-ioc.c functions here, though?
+  Yes, that's exactly what I'm referring to.
 
+									Honza
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
