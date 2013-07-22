@@ -1,96 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 3E7B66B0032
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 08:42:29 -0400 (EDT)
-Received: by mail-ie0-f171.google.com with SMTP id 10so175691ied.2
-        for <linux-mm@kvack.org>; Mon, 22 Jul 2013 05:42:28 -0700 (PDT)
-Message-ID: <51ED28AC.4080300@gmail.com>
-Date: Mon, 22 Jul 2013 20:42:20 +0800
-From: Paul Bolle <paul.bollee@gmail.com>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 6AF456B0032
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 10:45:53 -0400 (EDT)
+Date: Mon, 22 Jul 2013 16:45:48 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 1/9] mm, hugetlb: move up the code which check
+ availability of free huge page
+Message-ID: <20130722144548.GD24400@dhcp22.suse.cz>
+References: <1373881967-16153-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1373881967-16153-2-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
-Subject: Re: mmotm 2013-07-18-16-40 uploaded
-References: <20130718234123.4170F31C022@corp2gmr1-1.hot.corp.google.com> <51E8B34B.1070200@gmail.com> <20130719180035.GI17812@cmpxchg.org>
-In-Reply-To: <20130719180035.GI17812@cmpxchg.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1373881967-16153-2-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>
 
-On 07/20/2013 02:00 AM, Johannes Weiner wrote:
-> On Thu, Jul 18, 2013 at 11:32:27PM -0400, Paul Bolle wrote:
->> On 07/18/2013 07:41 PM, akpm@linux-foundation.org wrote:
->>> The mm-of-the-moment snapshot 2013-07-18-16-40 has been uploaded to
->>>
->>>     http://www.ozlabs.org/~akpm/mmotm/
->>>
->>> mmotm-readme.txt says
->>>
->>> README for mm-of-the-moment:
->>>
->>> http://www.ozlabs.org/~akpm/mmotm/
->>>
->>> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
->>> more than once a week.
->>>
->>> You will need quilt to apply these patches to the latest Linus release (3.x
->>> or 3.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
->>> http://ozlabs.org/~akpm/mmotm/series
->>>
->>> The file broken-out.tar.gz contains two datestamp files: .DATE and
->>> .DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
->>> followed by the base kernel version against which this patch series is to
->>> be applied.
->>>
->>> This tree is partially included in linux-next.  To see which patches are
->>> included in linux-next, consult the `series' file.  Only the patches
->>> within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
->>> linux-next.
->>>
->>> A git tree which contains the memory management portion of this tree is
->>> maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
->>> by Michal Hocko.  It contains the patches which are between the
->>> "#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
->>> file, http://www.ozlabs.org/~akpm/mmotm/series.
->>>
->>>
->>> A full copy of the full kernel tree with the linux-next and mmotm patches
->>> already applied is available through git within an hour of the mmotm
->>> release.  Individual mmotm releases are tagged.  The master branch always
->>> points to the latest release, so it's constantly rebasing.
->>>
->>> http://git.cmpxchg.org/?p=linux-mmotm.git;a=summary
->>>
->>> To develop on top of mmotm git:
->>>
->>>    $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
->>>    $ git remote update mmotm
->>>    $ git checkout -b topic mmotm/master
->>>    <make changes, commit>
->>>    $ git send-email mmotm/master.. [...]
->>>
->>> To rebase a branch with older patches to a new mmotm release:
->>>
->>>    $ git remote update mmotm
->>>    $ git rebase --onto mmotm/master <topic base> topic
-> Andrew, that workflow is actually meant for
-> http://git.cmpxchg.org/?p=linux-mmotm.git;a=summary, not Michal's tree
-> (i.e. the git remote add mmotm <michal's tree> does not make much
-> sense).  Michal's tree is append-only, so all this precision-rebasing
-> is unnecessary.
->
->> The -mm tree is
->> git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git or
->> linux-next -mm branch?
-> It depends what you want for the base.  What's in linux-next is based
-> on linux-next, so the latest and greatest.
->
-> Michal's -mm tree is based on the latest Linus release, and so more
-> stable.  Or at least the craziness is contained to mm stuff.
+On Mon 15-07-13 18:52:39, Joonsoo Kim wrote:
+> We don't need to proceede the processing if we don't have any usable
+> free huge page. So move this code up.
+> 
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
--mm branch against linux-next is newer than master branch against 
-linux-next. Michal's -mm tree is newer than Linus's tree or older?
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
+after you add a note about hugetlb_lock which stabilizes hstate so the
+retry doesn't have to re-check reserves and other stuff as suggested by
+Aneesh.
+
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index e2bfbf7..d87f70b 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -539,10 +539,6 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
+>  	struct zoneref *z;
+>  	unsigned int cpuset_mems_cookie;
+>  
+> -retry_cpuset:
+> -	cpuset_mems_cookie = get_mems_allowed();
+> -	zonelist = huge_zonelist(vma, address,
+> -					htlb_alloc_mask, &mpol, &nodemask);
+>  	/*
+>  	 * A child process with MAP_PRIVATE mappings created by their parent
+>  	 * have no page reserves. This check ensures that reservations are
+> @@ -550,11 +546,16 @@ retry_cpuset:
+>  	 */
+>  	if (!vma_has_reserves(vma) &&
+>  			h->free_huge_pages - h->resv_huge_pages == 0)
+> -		goto err;
+> +		return NULL;
+>  
+>  	/* If reserves cannot be used, ensure enough pages are in the pool */
+>  	if (avoid_reserve && h->free_huge_pages - h->resv_huge_pages == 0)
+> -		goto err;
+> +		return NULL;
+> +
+> +retry_cpuset:
+> +	cpuset_mems_cookie = get_mems_allowed();
+> +	zonelist = huge_zonelist(vma, address,
+> +					htlb_alloc_mask, &mpol, &nodemask);
+>  
+>  	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+>  						MAX_NR_ZONES - 1, nodemask) {
+> @@ -572,10 +573,6 @@ retry_cpuset:
+>  	if (unlikely(!put_mems_allowed(cpuset_mems_cookie) && !page))
+>  		goto retry_cpuset;
+>  	return page;
+> -
+> -err:
+> -	mpol_cond_put(mpol);
+> -	return NULL;
+>  }
+>  
+>  static void update_and_free_page(struct hstate *h, struct page *page)
+> -- 
+> 1.7.9.5
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
