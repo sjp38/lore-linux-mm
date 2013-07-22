@@ -1,132 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 5B97D6B0031
-	for <linux-mm@kvack.org>; Sun, 21 Jul 2013 12:30:55 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id kx10so6234199pab.27
-        for <linux-mm@kvack.org>; Sun, 21 Jul 2013 09:30:54 -0700 (PDT)
-Received: from [71.84.184.93] (71-84-184-93.dhcp.mdfd.or.charter.com. [71.84.184.93])
-        by mx.google.com with ESMTPSA id pv5sm34297607pac.14.2013.07.21.09.30.53
-        for <linux-mm@kvack.org>
-        (version=SSLv3 cipher=RC4-SHA bits=128/128);
-        Sun, 21 Jul 2013 09:30:53 -0700 (PDT)
-Subject: [Fwd: mmotm: swap overflow warning patch: mangled description and
- missing review tag]
-From: Raymond Jennings <shentino@gmail.com>
-Content-Type: multipart/mixed; boundary="=-gbivq+4PdClbf1kEEtsG"
-Date: Sun, 21 Jul 2013 09:30:51 -0700
-Message-ID: <1374424251.14112.5.camel@localhost>
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 9DFD26B0033
+	for <linux-mm@kvack.org>; Sun, 21 Jul 2013 20:28:55 -0400 (EDT)
+Message-ID: <51EC7C8B.7030609@asianux.com>
+Date: Mon, 22 Jul 2013 08:27:55 +0800
+From: Chen Gang <gang.chen@asianux.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm/slub.c: add parameter length checking for alloc_loc_track()
+References: <51DA734B.4060608@asianux.com> <51DE549F.9070505@kernel.org> <51DE55C9.1060908@asianux.com> <0000013fce9f5b32-7d62f3c5-bb35-4dd9-ab19-d72bae4b5bdc-000000@email.amazonses.com> <51DEF935.4040804@kernel.org> <0000013fcf608df8-457e2029-51f9-4e49-9992-bf399a97d953-000000@email.amazonses.com> <51DF4540.8060700@asianux.com> <51DF4C94.3060103@asianux.com> <51DF5404.4060004@asianux.com> <0000013fd3250e40-1832fd38-ede3-41af-8fe3-5a0c10f5e5ce-000000@email.amazonses.com> <51E33F98.8060201@asianux.com> <0000013fe2e73e30-817f1bdb-8dc7-4f7b-9b60-b42d5d244fda-000000@email.amazonses.com> <51E49BDF.30008@asianux.com> <0000013fed280250-85b17e35-d4d4-468d-abed-5b2e29cedb94-000000@email.amazonses.com> <51E73A16.8070406@asianux.com> <0000013ff2076fb0-b52e0245-8fb5-4842-b0dd-d812ce2c9f62-000000@email.amazonses.com> <51E882E1.4000504@gmail.com> <0000013ff73897b8-9d8f4486-1632-470c-8f1f-caf44932cef1-000000@email.amazonses.com>
+In-Reply-To: <0000013ff73897b8-9d8f4486-1632-470c-8f1f-caf44932cef1-000000@email.amazonses.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Chen Gang F T <chen.gang.flying.transformer@gmail.com>, Pekka Enberg <penberg@kernel.org>, mpm@selenic.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+
+On 07/19/2013 09:57 PM, Christoph Lameter wrote:
+> On Fri, 19 Jul 2013, Chen Gang F T wrote:
+> 
+>> > Yes, "'max' can roughly mean the same thing", but they are still a
+>> > little different.
+>> >
+>> > 'max' also means: "the caller tells callee: I have told you the
+>> > maximize buffer length, so I need not check the buffer length to be
+>> > sure of no memory overflow, you need be sure of it".
+>> >
+>> > 'size' means: "the caller tells callee: you should use the size which I
+>> > give you, I am sure it is OK, do not care about whether it can cause
+>> > memory overflow or not".
+> Ok that makes sense.
+> 
+
+Thanks.
+
+>> > The diff may like this:
+> I am fine with such a patch.
+> 
+
+If suitable,  I should send the related patch for it.
+
+Is it necessary to send the related patch for it ?
 
 
---=-gbivq+4PdClbf1kEEtsG
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
+> Ultimately I would like the tracking and debugging technology to be
+> abstracted from the slub allocator and made generally useful by putting it
+> into mm/slab_common.c. SLAB has similar things but does not have all the
+> features.
+> 
 
-Screwed up and used the wrong domain for linux-mm.
+At least for me, it is reasonable and necessary.
 
---=-gbivq+4PdClbf1kEEtsG
-Content-Disposition: inline
-Content-Description: Forwarded message - mmotm: swap overflow warning
- patch: mangled description and missing review tag
-Content-Type: message/rfc822
+If possible, I'd like to do with it.
 
-Return-Path: <shentino@gmail.com>
-Received: from [71.84.184.93] (71-84-184-93.dhcp.mdfd.or.charter.com.
- [71.84.184.93]) by mx.google.com with ESMTPSA id
- eq5sm31012196pbc.15.2013.07.21.09.29.28 for <multiple recipients>
- (version=SSLv3 cipher=RC4-SHA bits=128/128); Sun, 21 Jul 2013 09:29:29
- -0700 (PDT)
-Subject: mmotm: swap overflow warning patch: mangled description and
- missing review tag
-From: Raymond Jennings <shentino@gmail.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Valdis Kletnieks <valdis.kletnieks@vt.edu>, Rik van Riel
- <riel@redhat.com>,  Hugh Dickins <hughd@google.com>,
- linux-kernel@vger.kernel.org, linux-mm@vger.kernel.org
-Content-Type: text/plain; charset="UTF-8"
-Date: Sun, 21 Jul 2013 09:29:27 -0700
-Message-ID: <1374424167.14112.4.camel@localhost>
-Mime-Version: 1.0
-X-Mailer: Evolution 2.32.3 
-Content-Transfer-Encoding: 7bit
-
-I checked the mmotm queue and it seems that my mid-air corrections got
-the patch mangled when it was saved to your mail queue, and in addition
-to a missing correction of a typo in my testing log, Rik van Riel's
-Reviewed-By tag vanished
-
-http://www.ozlabs.org/~akpm/mmotm/broken-out/swap-warn-when-a-swap-area-overflows-the-maximum-size.patch
-
-If you could fix my test transcript and properly credit Rik for
-reviewing my patch before you ship it to linus I'd appreciate it.
-
-The correctly formatted patch and description with corrections and tags
-follows:
-----
-From: Raymond Jennings <shentino@gmail.com>
-Subject: swap: warn when a swap area overflows the maximum size
-
-It is possible to swapon a swap area that is too big for the pte width
-to handle.
-
-Presently this failure happens silently.
-
-Instead, emit a diagnostic to warn the user.
-
-Testing results, root prompt commands and kernel log messages:
-
-# lvresize /dev/system/swap --size 16G
-# mkswap /dev/system/swap
-# swapon /dev/system/swap
-
-Jul  7 04:27:22 warfang kernel: Adding 16777212k swap
-on /dev/mapper/system-swap.  Priority:-1 extents:1 across:16777212k 
-
-# lvresize /dev/system/swap --size 64G
-# mkswap /dev/system/swap
-# swapon /dev/system/swap
-
-Jul  7 04:27:22 warfang kernel: Truncating oversized swap area, only
-using 33554432k out of 67108860k
-Jul  7 04:27:22 warfang kernel: Adding 33554428k swap
-on /dev/mapper/system-swap.  Priority:-1 extents:1 across:33554428k 
-
-Signed-off-by: Raymond Jennings <shentino@gmail.com>
-Acked-by: Valdis Kletnieks <valdis.kletnieks@vt.edu>
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Cc: Hugh Dickins <hughd@google.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- mm/swapfile.c |    6 ++++++
- 1 file changed, 6 insertions(+)
-
-diff -puN
-mm/swapfile.c~swap-warn-when-a-swap-area-overflows-the-maximum-size
-mm/swapfile.c
----
-a/mm/swapfile.c~swap-warn-when-a-swap-area-overflows-the-maximum-size
-+++ a/mm/swapfile.c
-@@ -1953,6 +1953,12 @@ static unsigned long read_swap_header(st
- 	 */
- 	maxpages = swp_offset(pte_to_swp_entry(
- 			swp_entry_to_pte(swp_entry(0, ~0UL)))) + 1;
-+	if (swap_header->info.last_page > maxpages) {
-+		printk(KERN_WARNING
-+			"Truncating oversized swap area, only using %luk out of %luk\n",
-+			maxpages << (PAGE_SHIFT - 10),
-+			swap_header->info.last_page << (PAGE_SHIFT - 10));
-+	}
- 	if (maxpages > swap_header->info.last_page) {
- 		maxpages = swap_header->info.last_page + 1;
- 		/* p->max is an unsigned int: don't overflow it */
+Excuse me, I have to do another things within this month. If really may
+let me do, I should finish within next month (2013-08-31), is it OK ?
 
 
-
---=-gbivq+4PdClbf1kEEtsG--
+Thanks.
+-- 
+Chen Gang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
