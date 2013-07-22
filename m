@@ -1,36 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id B14916B0032
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 12:59:51 -0400 (EDT)
-Message-ID: <51ED64FC.8090104@sr71.net>
-Date: Mon, 22 Jul 2013 09:59:40 -0700
-From: Dave Hansen <dave@sr71.net>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id D60F96B0033
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 13:01:22 -0400 (EDT)
+Date: Mon, 22 Jul 2013 13:01:12 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 0/3] mm: improve page aging fairness between zones/nodes
+Message-ID: <20130722170112.GE715@cmpxchg.org>
+References: <1374267325-22865-1-git-send-email-hannes@cmpxchg.org>
+ <51ED6274.3000509@bitsync.net>
 MIME-Version: 1.0
-Subject: Re: [RESEND][PATCH] mm: vmstats: tlb flush counters
-References: <20130716234438.C792C316@viggo.jf.intel.com> <CAC4Lta1mHixqfRSJKpydH3X9M_nQPCY3QSD86Tm=cnQ+KxpGYw@mail.gmail.com> <51E95932.5030902@sr71.net> <20130722100605.GA1148@gmail.com>
-In-Reply-To: <20130722100605.GA1148@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51ED6274.3000509@bitsync.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Raghavendra KT <raghavendra.kt.linux@gmail.com>, linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, Raghavendra KT <raghavendra.kt@linux.vnet.ibm.com>
+To: Zlatko Calusic <zcalusic@bitsync.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 07/22/2013 03:06 AM, Ingo Molnar wrote:
-> Btw., would be nice to also integrate these VM counters into perf as well, 
-> as an instrumentation variant/option.
+Hi Zlatko,
+
+On Mon, Jul 22, 2013 at 06:48:52PM +0200, Zlatko Calusic wrote:
+> On 19.07.2013 22:55, Johannes Weiner wrote:
+> >The way the page allocator interacts with kswapd creates aging
+> >imbalances, where the amount of time a userspace page gets in memory
+> >under reclaim pressure is dependent on which zone, which node the
+> >allocator took the page frame from.
+> >
+> >#1 fixes missed kswapd wakeups on NUMA systems, which lead to some
+> >    nodes falling behind for a full reclaim cycle relative to the other
+> >    nodes in the system
+> >
+> >#3 fixes an interaction where kswapd and a continuous stream of page
+> >    allocations keep the preferred zone of a task between the high and
+> >    low watermark (allocations succeed + kswapd does not go to sleep)
+> >    indefinitely, completely underutilizing the lower zones and
+> >    thrashing on the preferred zone
+> >
+> >These patches are the aging fairness part of the thrash-detection
+> >based file LRU balancing.  Andrea recommended to submit them
+> >separately as they are bugfixes in their own right.
+> >
 > 
-> It could be done in an almost zero overhead fashion using jump-labels I 
-> think.
-> 
-> [ Just in case someone is bored to death and is looking for an interesting 
->   side project ;-) ]
+> I have the patch applied and under testing. So far, so good. It
+> looks like it could finally fix the bug that I was chasing few
+> months ago (nicely described in your bullet #3). But, few more days
+> of testing will be needed before I can reach a quality verdict.
 
-I'd actually been thinking about making them in to tracepoints, but the
-tracepoint macros seem to create #include messes if you try to use them
-in very common headers.
+I should have remembered that you talked about this problem... Thanks
+a lot for testing!
 
-Agree it would be an interesting side project, though. :)
+May I ask for the zone layout of your test machine(s)?  I.e. how many
+nodes if NUMA, how big Normal and DMA32 (on Node 0) are.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
