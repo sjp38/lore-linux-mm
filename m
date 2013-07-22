@@ -1,59 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id C256F6B0032
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 12:39:05 -0400 (EDT)
-Date: Mon, 22 Jul 2013 12:38:36 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 2/2] mm: page_alloc: avoid slowpath for more than
- MAX_ORDER allocation.
-Message-ID: <20130722163836.GD715@cmpxchg.org>
-References: <1374492762-17735-1-git-send-email-pintu.k@samsung.com>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 5C0C36B0032
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 12:49:02 -0400 (EDT)
+Message-ID: <51ED6274.3000509@bitsync.net>
+Date: Mon, 22 Jul 2013 18:48:52 +0200
+From: Zlatko Calusic <zcalusic@bitsync.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1374492762-17735-1-git-send-email-pintu.k@samsung.com>
+Subject: Re: [patch 0/3] mm: improve page aging fairness between zones/nodes
+References: <1374267325-22865-1-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1374267325-22865-1-git-send-email-hannes@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pintu Kumar <pintu.k@samsung.com>
-Cc: akpm@linux-foundation.org, mgorman@suse.de, jiang.liu@huawei.com, minchan@kernel.org, cody@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cpgs@samsung.com, pintu_agarwal@yahoo.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Pintu,
+On 19.07.2013 22:55, Johannes Weiner wrote:
+> The way the page allocator interacts with kswapd creates aging
+> imbalances, where the amount of time a userspace page gets in memory
+> under reclaim pressure is dependent on which zone, which node the
+> allocator took the page frame from.
+>
+> #1 fixes missed kswapd wakeups on NUMA systems, which lead to some
+>     nodes falling behind for a full reclaim cycle relative to the other
+>     nodes in the system
+>
+> #3 fixes an interaction where kswapd and a continuous stream of page
+>     allocations keep the preferred zone of a task between the high and
+>     low watermark (allocations succeed + kswapd does not go to sleep)
+>     indefinitely, completely underutilizing the lower zones and
+>     thrashing on the preferred zone
+>
+> These patches are the aging fairness part of the thrash-detection
+> based file LRU balancing.  Andrea recommended to submit them
+> separately as they are bugfixes in their own right.
+>
 
-On Mon, Jul 22, 2013 at 05:02:42PM +0530, Pintu Kumar wrote:
-> It was observed that if order is passed as more than MAX_ORDER
-> allocation in __alloc_pages_nodemask, it will unnecessarily go to
-> slowpath and then return failure.
-> Since we know that more than MAX_ORDER will anyways fail, we can
-> avoid slowpath by returning failure in nodemask itself.
-> 
-> Signed-off-by: Pintu Kumar <pintu.k@samsung.com>
-> ---
->  mm/page_alloc.c |    4 ++++
->  1 file changed, 4 insertions(+)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 202ab58..6d38e75 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1564,6 +1564,10 @@ __setup("fail_page_alloc=", setup_fail_page_alloc);
->  
->  static bool should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
->  {
-> +	if (order >= MAX_ORDER) {
-> +		WARN_ON(!(gfp_mask & __GFP_NOWARN));
-> +		return false;
-> +	}
+I have the patch applied and under testing. So far, so good. It looks 
+like it could finally fix the bug that I was chasing few months ago 
+(nicely described in your bullet #3). But, few more days of testing will 
+be needed before I can reach a quality verdict.
 
-I don't see how this solves what you describe (should return true?)
-
-It would also not be a good place to put performance optimization,
-because this function is only called as part of a debugging mechanism
-that is usually disabled.
-
-Lastly, order >= MAX_ORDER is not supported by the page allocator, and
-we do not want to punish 99.999% of all legitimate page allocations in
-the fast path in order to catch an unlikely situation like this.
-Having the check only in the slowpath is a good thing.
+Good job!
+-- 
+Zlatko
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
