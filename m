@@ -1,287 +1,192 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 2F3A06B0033
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 06:07:20 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id 10so6656471pdc.19
-        for <linux-mm@kvack.org>; Mon, 22 Jul 2013 03:07:19 -0700 (PDT)
-Date: Mon, 22 Jul 2013 18:06:54 +0800
-From: Shaohua Li <shli@kernel.org>
-Subject: [patch 4/4 v6]swap: make cluster allocation per-cpu
-Message-ID: <20130722100654.GD17386@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 18BAB6B0032
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 07:32:53 -0400 (EDT)
+Received: from epcpsbgr5.samsung.com
+ (u145.gpu120.samsung.co.kr [203.254.230.145])
+ by mailout1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTP id <0MQC004T65ELBEU0@mailout1.samsung.com> for linux-mm@kvack.org;
+ Mon, 22 Jul 2013 20:32:46 +0900 (KST)
+From: Pintu Kumar <pintu.k@samsung.com>
+Subject: [PATCH 1/2] mm: page_alloc: fixed checkpatch errors and spell
+Date: Mon, 22 Jul 2013 17:01:19 +0530
+Message-id: <1374492679-17700-1-git-send-email-pintu.k@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, riel@redhat.com, minchan@kernel.org, kmpark@infradead.org, hughd@google.com, aquini@redhat.com
+To: akpm@linux-foundation.org, mgorman@suse.de, jiang.liu@huawei.com, minchan@kernel.org, cody@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: cpgs@samsung.com, pintu.k@samsung.com, pintu_agarwal@yahoo.com
 
+This patch set fixes all errors reported by checkpatch.
+It also fixes the very small spell mistakes.
 
-swap cluster allocation is to get better request merge to improve performance.
-But the cluster is shared globally, if multiple tasks are doing swap, this will
-cause interleave disk access. While multiple tasks swap is quite common, for
-example, each numa node has a kswapd thread doing swap and multiple
-threads/processes doing direct page reclaim.
-
-ioscheduler can't help too much here, because tasks don't send swapout IO down
-to block layer in the meantime. Block layer does merge some IOs, but a lot not,
-depending on how many tasks are doing swapout concurrently. In practice, I've
-seen a lot of small size IO in swapout workloads.
-
-We makes the cluster allocation per-cpu here. The interleave disk access issue
-goes away. All tasks swapout to their own cluster, so swapout will become
-sequential, which can be easily merged to big size IO. If one CPU can't get its
-per-cpu cluster (for example, there is no free cluster anymore in the swap), it
-will fallback to scan swap_map. The CPU can still continue swap. We don't need
-recycle free swap entries of other CPUs.
-
-In my test (swap to a 2-disk raid0 partition), this improves around 10%
-swapout throughput, and request size is increased significantly.
-
-How does this impact swap readahead is uncertain though. On one side, page
-reclaim always isolates and swaps several adjancent pages, this will make page
-reclaim write the pages sequentially and benefit readahead. On the other side,
-several CPU write pages interleave means the pages don't live _sequentially_
-but relatively _near_. In the per-cpu allocation case, if adjancent pages are
-written by different cpus, they will live relatively _far_.  So how this
-impacts swap readahead depends on how many pages page reclaim isolates and
-swaps one time. If the number is big, this patch will benefit swap readahead.
-Of course, this is about sequential access pattern. The patch has no impact for
-random access pattern, because the new cluster allocation algorithm is just for
-SSD.
-
-Alternative solution is organizing swap layout to be per-mm instead of this
-per-cpu approach. In the per-mm layout, we allocate a disk range for each mm,
-so pages of one mm live in swap disk adjacently. per-mm layout has potential
-issues of lock contention if multiple reclaimers are swap pages from one mm.
-For a sequential workload, per-mm layout is better to implement swap readahead,
-because pages from the mm are adjacent in disk. But per-cpu layout isn't very
-bad in this workload, as page reclaim always isolates and swaps several pages
-one time, such pages will still live in disk sequentially and readahead can
-utilize this. For a random workload, per-mm layout isn't beneficial of request
-merge, because it's quite possible pages from different mm are swapout in the
-meantime and IO can't be merged in per-mm layout. while with per-cpu layout we
-can merge requests from any mm. Considering random workload is more popular in
-workloads with swap (and per-cpu approach isn't too bad for sequential workload
-too), I'm choosing per-cpu layout.
-
-Signed-off-by: Shaohua Li <shli@fusionio.com>
+Signed-off-by: Pintu Kumar <pintu.k@samsung.com>
 ---
- include/linux/swap.h |   11 ++++
- mm/swapfile.c        |  126 +++++++++++++++++++++++++++++++++++++--------------
- 2 files changed, 103 insertions(+), 34 deletions(-)
+ mm/page_alloc.c |   45 ++++++++++++++++++++++++---------------------
+ 1 file changed, 24 insertions(+), 21 deletions(-)
 
-Index: linux/include/linux/swap.h
-===================================================================
---- linux.orig/include/linux/swap.h	2013-07-22 09:42:07.287148443 +0800
-+++ linux/include/linux/swap.h	2013-07-22 10:11:13.097202127 +0800
-@@ -199,6 +199,16 @@ struct swap_cluster_info {
- #define CLUSTER_FLAG_NEXT_NULL 2 /* This cluster has no next cluster */
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index b100255..202ab58 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -721,7 +721,8 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
+ 		return false;
  
- /*
-+ * We assign a cluster to each CPU, so each CPU can allocate swap entry from
-+ * its own cluster and swapout sequentially. The purpose is to optimize swapout
-+ * throughput.
-+ */
-+struct percpu_cluster {
-+	struct swap_cluster_info index; /* Current cluster index */
-+	unsigned int next; /* Likely next allocation offset */
-+};
-+
-+/*
-  * The in-memory structure used to track swap areas.
-  */
- struct swap_info_struct {
-@@ -217,6 +227,7 @@ struct swap_info_struct {
- 	unsigned int inuse_pages;	/* number of those currently in use */
- 	unsigned int cluster_next;	/* likely index for next allocation */
- 	unsigned int cluster_nr;	/* countdown to next cluster search */
-+	struct percpu_cluster __percpu *percpu_cluster; /* per cpu's swap location */
- 	struct swap_extent *curr_swap_extent;
- 	struct swap_extent first_swap_extent;
- 	struct block_device *bdev;	/* swap device or bdev of swap file */
-Index: linux/mm/swapfile.c
-===================================================================
---- linux.orig/mm/swapfile.c	2013-07-22 10:07:27.484038790 +0800
-+++ linux/mm/swapfile.c	2013-07-22 10:21:24.961508367 +0800
-@@ -392,13 +392,78 @@ static void dec_cluster_info_page(struct
-  * It's possible scan_swap_map() uses a free cluster in the middle of free
-  * cluster list. Avoiding such abuse to avoid list corruption.
-  */
--static inline bool scan_swap_map_recheck_cluster(struct swap_info_struct *si,
-+static bool
-+scan_swap_map_ssd_cluster_conflict(struct swap_info_struct *si,
- 	unsigned long offset)
+ 	if (!PageHighMem(page)) {
+-		debug_check_no_locks_freed(page_address(page),PAGE_SIZE<<order);
++		debug_check_no_locks_freed(page_address(page),
++					   PAGE_SIZE << order);
+ 		debug_check_no_obj_freed(page_address(page),
+ 					   PAGE_SIZE << order);
+ 	}
+@@ -885,7 +886,7 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
+ 						int migratetype)
  {
-+	struct percpu_cluster *percpu_cluster;
-+	bool conflict;
-+
- 	offset /= SWAPFILE_CLUSTER;
--	return !cluster_is_null(&si->free_cluster_head) &&
-+	conflict = !cluster_is_null(&si->free_cluster_head) &&
- 		offset != cluster_next(&si->free_cluster_head) &&
- 		cluster_is_free(&si->cluster_info[offset]);
-+
-+	if (!conflict)
-+		return false;
-+
-+	percpu_cluster = this_cpu_ptr(si->percpu_cluster);
-+	cluster_set_null(&percpu_cluster->index);
-+	return true;
-+}
-+
-+/*
-+ * Try to get a swap entry from current cpu's swap entry pool (a cluster). This
-+ * might involve allocating a new cluster for current CPU too.
-+ */
-+static void scan_swap_map_try_ssd_cluster(struct swap_info_struct *si,
-+	unsigned long *offset, unsigned long *scan_base)
-+{
-+	struct percpu_cluster *cluster;
-+	bool found_free;
-+	unsigned long tmp;
-+
-+new_cluster:
-+	cluster = this_cpu_ptr(si->percpu_cluster);
-+	if (cluster_is_null(&cluster->index)) {
-+		if (!cluster_is_null(&si->free_cluster_head)) {
-+			cluster->index = si->free_cluster_head;
-+			cluster->next = cluster_next(&cluster->index) *
-+					SWAPFILE_CLUSTER;
-+		} else if (!cluster_is_null(&si->discard_cluster_head)) {
-+			/*
-+			 * we don't have free cluster but have some clusters in
-+			 * discarding, do discard now and reclaim them
-+			 */
-+			swap_do_scheduled_discard(si);
-+			*scan_base = *offset = si->cluster_next;
-+			goto new_cluster;
-+		} else
-+			return;
-+	}
-+
-+	found_free = false;
-+
-+	/*
-+	 * Other CPUs can use our cluster if they can't find a free cluster,
-+	 * check if there is still free entry in the cluster
+ 	unsigned int current_order;
+-	struct free_area * area;
++	struct free_area *area;
+ 	struct page *page;
+ 
+ 	/* Find a page of the appropriate size in the preferred list */
+@@ -1011,7 +1012,7 @@ static void change_pageblock_range(struct page *pageblock_page,
+ static inline struct page *
+ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+ {
+-	struct free_area * area;
++	struct free_area *area;
+ 	int current_order;
+ 	struct page *page;
+ 	int migratetype, i;
+@@ -3104,7 +3105,7 @@ void show_free_areas(unsigned int filter)
+ 	}
+ 
+ 	for_each_populated_zone(zone) {
+- 		unsigned long nr[MAX_ORDER], flags, order, total = 0;
++		unsigned long nr[MAX_ORDER], flags, order, total = 0;
+ 		unsigned char types[MAX_ORDER];
+ 
+ 		if (skip_free_areas_node(filter, zone_to_nid(zone)))
+@@ -3416,11 +3417,11 @@ static void build_zonelists_in_zone_order(pg_data_t *pgdat, int nr_nodes)
+ static int default_zonelist_order(void)
+ {
+ 	int nid, zone_type;
+-	unsigned long low_kmem_size,total_size;
++	unsigned long low_kmem_size, total_size;
+ 	struct zone *z;
+ 	int average_size;
+ 	/*
+-         * ZONE_DMA and ZONE_DMA32 can be very small area in the system.
++	 * ZONE_DMA and ZONE_DMA32 can be very small area in the system.
+ 	 * If they are really small and used heavily, the system can fall
+ 	 * into OOM very easily.
+ 	 * This function detect ZONE_DMA/DMA32 size and configures zone order.
+@@ -3452,9 +3453,9 @@ static int default_zonelist_order(void)
+ 		return ZONELIST_ORDER_NODE;
+ 	/*
+ 	 * look into each node's config.
+-  	 * If there is a node whose DMA/DMA32 memory is very big area on
+- 	 * local memory, NODE_ORDER may be suitable.
+-         */
++	 * If there is a node whose DMA/DMA32 memory is very big area on
++	 * local memory, NODE_ORDER may be suitable.
 +	 */
-+	tmp = cluster->next;
-+	while (tmp < si->max && tmp < (cluster_next(&cluster->index) + 1) *
-+	       SWAPFILE_CLUSTER) {
-+		if (!si->swap_map[tmp]) {
-+			found_free = true;
-+			break;
-+		}
-+		tmp++;
-+	}
-+	if (!found_free) {
-+		cluster_set_null(&cluster->index);
-+		goto new_cluster;
-+	}
-+	cluster->next = tmp + 1;
-+	*offset = tmp;
-+	*scan_base = tmp;
+ 	average_size = total_size /
+ 				(nodes_weight(node_states[N_MEMORY]) + 1);
+ 	for_each_online_node(nid) {
+@@ -4180,7 +4181,7 @@ int zone_wait_table_init(struct zone *zone, unsigned long zone_size_pages)
+ 	if (!zone->wait_table)
+ 		return -ENOMEM;
+ 
+-	for(i = 0; i < zone->wait_table_hash_nr_entries; ++i)
++	for (i = 0; i < zone->wait_table_hash_nr_entries; ++i)
+ 		init_waitqueue_head(zone->wait_table + i);
+ 
+ 	return 0;
+@@ -4930,7 +4931,7 @@ static unsigned long __init early_calculate_totalpages(void)
+ 		if (pages)
+ 			node_set_state(nid, N_MEMORY);
+ 	}
+-  	return totalpages;
++	return totalpages;
  }
  
- static unsigned long scan_swap_map(struct swap_info_struct *si,
-@@ -423,41 +488,17 @@ static unsigned long scan_swap_map(struc
- 	si->flags += SWP_SCANNING;
- 	scan_base = offset = si->cluster_next;
+ /*
+@@ -5047,7 +5048,7 @@ restart:
+ 			/*
+ 			 * Some kernelcore has been met, update counts and
+ 			 * break if the kernelcore for this node has been
+-			 * satisified
++			 * satisfied
+ 			 */
+ 			required_kernelcore -= min(required_kernelcore,
+ 								size_pages);
+@@ -5061,7 +5062,7 @@ restart:
+ 	 * If there is still required_kernelcore, we do another pass with one
+ 	 * less node in the count. This will push zone_movable_pfn[nid] further
+ 	 * along on the nodes that still have memory until kernelcore is
+-	 * satisified
++	 * satisfied
+ 	 */
+ 	usable_nodes--;
+ 	if (usable_nodes && required_kernelcore > usable_nodes)
+@@ -5286,8 +5287,10 @@ void __init mem_init_print_info(const char *str)
+ 	 * 3) .rodata.* may be embedded into .text or .data sections.
+ 	 */
+ #define adj_init_size(start, end, size, pos, adj) \
+-	if (start <= pos && pos < end && size > adj) \
+-		size -= adj;
++	do { \
++		if (start <= pos && pos < end && size > adj) \
++			size -= adj; \
++	} while (0)
  
-+	/* SSD algorithm */
-+	if (si->cluster_info) {
-+		scan_swap_map_try_ssd_cluster(si, &offset, &scan_base);
-+		goto checks;
-+	}
-+
- 	if (unlikely(!si->cluster_nr--)) {
- 		if (si->pages - si->inuse_pages < SWAPFILE_CLUSTER) {
- 			si->cluster_nr = SWAPFILE_CLUSTER - 1;
- 			goto checks;
- 		}
--check_cluster:
--		if (!cluster_is_null(&si->free_cluster_head)) {
--			offset = cluster_next(&si->free_cluster_head) *
--						SWAPFILE_CLUSTER;
--			last_in_cluster = offset + SWAPFILE_CLUSTER - 1;
--			si->cluster_next = offset;
--			si->cluster_nr = SWAPFILE_CLUSTER - 1;
--			goto checks;
--		} else if (si->cluster_info) {
--			/*
--			 * we don't have free cluster but have some clusters in
--			 * discarding, do discard now and reclaim them
--			 */
--			if (!cluster_is_null(&si->discard_cluster_head)) {
--				si->cluster_nr = 0;
--				swap_do_scheduled_discard(si);
--				scan_base = offset = si->cluster_next;
--				if (!si->cluster_nr)
--					goto check_cluster;
--				si->cluster_nr --;
--				goto checks;
--			}
--
--			/*
--			 * Checking free cluster is fast enough, we can do the
--			 * check every time
--			 */
--			si->cluster_nr = 0;
--			goto checks;
--		}
+ 	adj_init_size(__init_begin, __init_end, init_data_size,
+ 		     _sinittext, init_code_size);
+@@ -5570,7 +5573,7 @@ static void __meminit setup_per_zone_inactive_ratio(void)
+  * we want it large (64MB max).  But it is not linear, because network
+  * bandwidth does not increase linearly with machine size.  We use
+  *
+- * 	min_free_kbytes = 4 * sqrt(lowmem_kbytes), for better accuracy:
++ *	min_free_kbytes = 4 * sqrt(lowmem_kbytes), for better accuracy:
+  *	min_free_kbytes = sqrt(lowmem_kbytes * 16)
+  *
+  * which yields
+@@ -5614,11 +5617,11 @@ int __meminit init_per_zone_wmark_min(void)
+ module_init(init_per_zone_wmark_min)
  
- 		spin_unlock(&si->lock);
+ /*
+- * min_free_kbytes_sysctl_handler - just a wrapper around proc_dointvec() so 
++ * min_free_kbytes_sysctl_handler - just a wrapper around proc_dointvec() so
+  *	that we can call two helper functions whenever min_free_kbytes
+  *	changes.
+  */
+-int min_free_kbytes_sysctl_handler(ctl_table *table, int write, 
++int min_free_kbytes_sysctl_handler(ctl_table *table, int write,
+ 	void __user *buffer, size_t *length, loff_t *ppos)
+ {
+ 	proc_dointvec(table, write, buffer, length, ppos);
+@@ -5682,8 +5685,8 @@ int lowmem_reserve_ratio_sysctl_handler(ctl_table *table, int write,
  
-@@ -516,8 +557,11 @@ check_cluster:
- 	}
- 
- checks:
--	if (scan_swap_map_recheck_cluster(si, offset))
--		goto check_cluster;
-+	if (si->cluster_info) {
-+		while (scan_swap_map_ssd_cluster_conflict(si, offset)) {
-+			scan_swap_map_try_ssd_cluster(si, &offset, &scan_base);
-+		}
-+	}
- 	if (!(si->flags & SWP_WRITEOK))
- 		goto no_page;
- 	if (!si->highest_bit)
-@@ -1869,6 +1913,8 @@ SYSCALL_DEFINE1(swapoff, const char __us
- 	spin_unlock(&swap_lock);
- 	frontswap_invalidate_area(type);
- 	mutex_unlock(&swapon_mutex);
-+	free_percpu(p->percpu_cluster);
-+	p->percpu_cluster = NULL;
- 	vfree(swap_map);
- 	vfree(cluster_info);
- 	vfree(frontswap_map);
-@@ -2388,6 +2434,16 @@ SYSCALL_DEFINE2(swapon, const char __use
- 			error = -ENOMEM;
- 			goto bad_swap;
- 		}
-+		p->percpu_cluster = alloc_percpu(struct percpu_cluster);
-+		if (!p->percpu_cluster) {
-+			error = -ENOMEM;
-+			goto bad_swap;
-+		}
-+		for_each_possible_cpu(i) {
-+			struct percpu_cluster *cluster;
-+			cluster = per_cpu_ptr(p->percpu_cluster, i);
-+			cluster_set_null(&cluster->index);
-+		}
- 	}
- 
- 	error = swap_cgroup_swapon(p->type, maxpages);
-@@ -2460,6 +2516,8 @@ SYSCALL_DEFINE2(swapon, const char __use
- 	error = 0;
- 	goto out;
- bad_swap:
-+	free_percpu(p->percpu_cluster);
-+	p->percpu_cluster = NULL;
- 	if (inode && S_ISBLK(inode->i_mode) && p->bdev) {
- 		set_blocksize(p->bdev, p->old_block_size);
- 		blkdev_put(p->bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
+ /*
+  * percpu_pagelist_fraction - changes the pcp->high for each zone on each
+- * cpu.  It is the fraction of total pages in each zone that a hot per cpu pagelist
+- * can have before it gets flushed back to buddy allocator.
++ * cpu.  It is the fraction of total pages in each zone that a hot per cpu
++ * pagelist can have before it gets flushed back to buddy allocator.
+  */
+ int percpu_pagelist_fraction_sysctl_handler(ctl_table *table, int write,
+ 	void __user *buffer, size_t *length, loff_t *ppos)
+@@ -5900,7 +5903,7 @@ void set_pageblock_flags_group(struct page *page, unsigned long flags,
+  * This function checks whether pageblock includes unmovable pages or not.
+  * If @count is not zero, it is okay to include less @count unmovable pages
+  *
+- * PageLRU check wihtout isolation or lru_lock could race so that
++ * PageLRU check without isolation or lru_lock could race so that
+  * MIGRATE_MOVABLE block might include unmovable pages. It means you can't
+  * expect this function should be exact.
+  */
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
