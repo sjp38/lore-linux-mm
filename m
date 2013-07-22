@@ -1,82 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id ED4B06B0032
-	for <linux-mm@kvack.org>; Sun, 21 Jul 2013 20:43:02 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 22 Jul 2013 06:07:17 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 3A1F33940057
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 06:12:53 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6M0greY29818992
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 06:12:54 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6M0guoD005418
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 10:42:56 +1000
-Date: Mon, 22 Jul 2013 08:42:55 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm/slub.c: add parameter length checking for
- alloc_loc_track()
-Message-ID: <20130722004255.GA13225@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <51DF5404.4060004@asianux.com>
- <0000013fd3250e40-1832fd38-ede3-41af-8fe3-5a0c10f5e5ce-000000@email.amazonses.com>
- <51E33F98.8060201@asianux.com>
- <0000013fe2e73e30-817f1bdb-8dc7-4f7b-9b60-b42d5d244fda-000000@email.amazonses.com>
- <51E49BDF.30008@asianux.com>
- <0000013fed280250-85b17e35-d4d4-468d-abed-5b2e29cedb94-000000@email.amazonses.com>
- <51E73A16.8070406@asianux.com>
- <0000013ff2076fb0-b52e0245-8fb5-4842-b0dd-d812ce2c9f62-000000@email.amazonses.com>
- <51E882E1.4000504@gmail.com>
- <0000013ff73897b8-9d8f4486-1632-470c-8f1f-caf44932cef1-000000@email.amazonses.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id BB63D6B0032
+	for <linux-mm@kvack.org>; Sun, 21 Jul 2013 20:47:52 -0400 (EDT)
+Date: Mon, 22 Jul 2013 10:47:41 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: Linux Plumbers IO & File System Micro-conference
+Message-ID: <20130722004741.GC11674@dastard>
+References: <51E03AFB.1000000@gmail.com>
+ <51E998E0.10207@itwm.fraunhofer.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <0000013ff73897b8-9d8f4486-1632-470c-8f1f-caf44932cef1-000000@email.amazonses.com>
+In-Reply-To: <51E998E0.10207@itwm.fraunhofer.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Chen Gang F T <chen.gang.flying.transformer@gmail.com>, Chen Gang <gang.chen@asianux.com>, Pekka Enberg <penberg@kernel.org>, mpm@selenic.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Bernd Schubert <bernd.schubert@itwm.fraunhofer.de>
+Cc: Ric Wheeler <ricwheeler@gmail.com>, linux-mm@kvack.org, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, Andreas Dilger <adilger@dilger.ca>, sage@inktank.com
 
-On Fri, Jul 19, 2013 at 01:57:28PM +0000, Christoph Lameter wrote:
->On Fri, 19 Jul 2013, Chen Gang F T wrote:
->
->> Yes, "'max' can roughly mean the same thing", but they are still a
->> little different.
->>
->> 'max' also means: "the caller tells callee: I have told you the
->> maximize buffer length, so I need not check the buffer length to be
->> sure of no memory overflow, you need be sure of it".
->>
->> 'size' means: "the caller tells callee: you should use the size which I
->> give you, I am sure it is OK, do not care about whether it can cause
->> memory overflow or not".
->
->Ok that makes sense.
->
->> The diff may like this:
->
->I am fine with such a patch.
->
->Ultimately I would like the tracking and debugging technology to be
->abstracted from the slub allocator and made generally useful by putting it
->into mm/slab_common.c. SLAB has similar things but does not have all the
->features.
-	
-Coincidence, I am doing this work recently and will post patches soon.
-;-)
+On Fri, Jul 19, 2013 at 09:52:00PM +0200, Bernd Schubert wrote:
+> Hello Ric, hi all,
+> 
+> On 07/12/2013 07:20 PM, Ric Wheeler wrote:
+> >
+> >If you have topics that you would like to add, wait until the
+> >instructions get posted at the link above. If you are impatient, feel
+> >free to email me directly (but probably best to drop the broad mailing
+> >lists from the reply).
+> 
+> sorry, that will be a rather long introduction, the short conclusion
+> is below.
+> 
+> 
+> Introduction to the meta-cache issue:
+> =====================================
+> For quite a while we are redesigning our FhGFS storage layout to
+> workaround meta-cache issues of underlying file systems. However,
+> there are constraints as data and meta-data are distributed on
+> between several targets/servers. Other distributed file systems,
+> such as Lustre and (I think) cepfs should have the similar issues.
+> 
+> So the main issue we have is that streaming reads/writes evict
+> meta-pages from the page-cache. I.e. this results in lots of
+> directory-block reads on creating files. So FhGFS, Lustre an (I
+> believe) cephfs are using hash-directories to store object files.
+> Access to files in these hash-directories is rather random and with
+> increasing number of files, access to hash directory-blocks/pages
+> also gets entirely random. Streaming IO easily evicts these pages,
+> which results in high latencies when users perform file
+> creates/deletes, as corresponding directory blocks have to be
+> re-read from disk again and again.
 
-Regards,
-Wanpeng Li 
+Sounds like a filesystem specific problem. Different filesystems
+have different ways of caching metadata and respond differently to
+page cache pressure.
 
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+For example, we changed XFS to have it's own metdata buffer cache
+reclaim mechanisms driven by a shrinker that uses prioritised cache
+reclaim to ensure we reclaim less important metadata buffers before
+ones that are more frequently hit (e.g. to reclaim tree leaves
+before nodes and roots). This was done because the page cache based
+reclaim of metadata was completely inadequate (i.e. mostly random!)
+and would frequently reclaim the wrong thing and cause performance
+under memory pressure to tank....
+
+> From my point of view, there should be a small, but configurable,
+> number pages reserved for meta-data only. If streaming IO wouldn't
+> be able evict these pages, our and other file systems meta-cache
+> issues probably would be entire solved at all.
+
+That's effectively what XFS does automatically - it doesn't reserve
+pages, but it holds onto the frequently hit metadata buffers much,
+much harder than any other Linux filesystem....
+
+> Example:
+> ========
+> 
+> Just a very basic simple bonnie++ test with 60000 files on ext4 with
+> inlined data to reduce block and bitmap lookups and writes.
+> 
+> Entirely cached hash directories (16384), which are populated with
+> about 16 million files, so 1000 files per hash-dir.
+> 
+> >Version  1.96       ------Sequential Create------ --------Random Create--------
+> >fslab3              -Create-- --Read--- -Delete-- -Create-- --Read--- -Delete--
+> >files:max:min        /sec %CP  /sec %CP  /sec %CP  /sec %CP  /sec %CP  /sec %CP
+> >           60:32:32  1702  14  2025  12  1332   4  1873  16  2047  13  1266   3
+> >Latency              3874ms    6645ms    8659ms     505ms    7257ms    9627ms
+> >1.96,1.96,fslab3,1,1374655110,,,,,,,,,,,,,,60,32,32,,,1702,14,2025,12,1332,4,1873,16,2047,13,1266,3,,,,,,,3874ms,6645ms,8659ms,505ms,7257ms,9627ms
+
+Command line parameters, details of storage, the scripts you are
+running, etc please. RAM as well, as 16 million files are going to
+require at least 20GB RAM to fully cache...
+
+Numbers without context or with "handwavy context" are meaningless
+for the purpose of analysis and understanding.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
