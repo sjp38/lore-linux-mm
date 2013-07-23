@@ -1,62 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 30CB56B0031
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 10:01:23 -0400 (EDT)
-Date: Tue, 23 Jul 2013 16:01:20 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: hugepage related lockdep trace.
-Message-ID: <20130723140120.GG8677@dhcp22.suse.cz>
-References: <20130717153223.GD27731@redhat.com>
- <20130718000901.GA31972@blaptop>
- <87hafrdatb.fsf@linux.vnet.ibm.com>
- <20130719001303.GB23354@blaptop>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id E2E3C6B0031
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 10:53:25 -0400 (EDT)
+Received: from mail140-va3 (localhost [127.0.0.1])	by
+ mail140-va3-R.bigfish.com (Postfix) with ESMTP id 93628E01C3	for
+ <linux-mm@kvack.org>; Tue, 23 Jul 2013 14:53:24 +0000 (UTC)
+Received: from VA3EHSMHS032.bigfish.com (unknown [10.7.14.239])	by
+ mail140-va3.bigfish.com (Postfix) with ESMTP id 9C84416004D	for
+ <linux-mm@kvack.org>; Tue, 23 Jul 2013 14:53:23 +0000 (UTC)
+Received: from mail137-db9 (localhost [127.0.0.1])	by
+ mail137-db9-R.bigfish.com (Postfix) with ESMTP id A6E4A2E035D	for
+ <linux-mm@kvack.org.FOPE.CONNECTOR.OVERRIDE>; Tue, 23 Jul 2013 14:52:43 +0000
+ (UTC)
+From: KY Srinivasan <kys@microsoft.com>
+Subject: RE: [PATCH 1/1] Drivers: base: memory: Export symbols for onlining
+ memory blocks
+Date: Tue, 23 Jul 2013 14:52:36 +0000
+Message-ID: <e06fced3ca42408b980f8aa68f4a29f3@SN2PR03MB061.namprd03.prod.outlook.com>
+References: <1374261785-1615-1-git-send-email-kys@microsoft.com>
+ <20130722123716.GB24400@dhcp22.suse.cz>
+In-Reply-To: <20130722123716.GB24400@dhcp22.suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130719001303.GB23354@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "apw@canonical.com" <apw@canonical.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kamezawa.hiroyuki@gmail.com" <kamezawa.hiroyuki@gmail.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "yinghan@google.com" <yinghan@google.com>, "jasowang@redhat.com" <jasowang@redhat.com>, "kay@vrfy.org" <kay@vrfy.org>
 
-On Fri 19-07-13 09:13:03, Minchan Kim wrote:
-> On Thu, Jul 18, 2013 at 11:12:24PM +0530, Aneesh Kumar K.V wrote:
-[...]
-> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> > index 83aff0a..2cb1be3 100644
-> > --- a/mm/hugetlb.c
-> > +++ b/mm/hugetlb.c
-> > @@ -3266,8 +3266,8 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
-> >  		put_page(virt_to_page(spte));
-> >  	spin_unlock(&mm->page_table_lock);
-> >  out:
-> > -	pte = (pte_t *)pmd_alloc(mm, pud, addr);
-> >  	mutex_unlock(&mapping->i_mmap_mutex);
-> > +	pte = (pte_t *)pmd_alloc(mm, pud, addr);
-> >  	return pte;
-> 
-> I am blind on hugetlb but not sure it doesn't break eb48c071.
-> Michal?
 
-Well, it is some time since I debugged the race and all the details
-vanished in the meantime. But this part of the changelog suggests that
-this indeed breaks the fix:
-"
-    This patch addresses the issue by moving pmd_alloc into huge_pmd_share
-    which guarantees that the shared pud is populated in the same critical
-    section as pmd.  This also means that huge_pte_offset test in
-    huge_pmd_share is serialized correctly now which in turn means that the
-    success of the sharing will be higher as the racing tasks see the pud
-    and pmd populated together.
-"
 
-Besides that I fail to see how moving pmd_alloc down changes anything.
-Even if pmd_alloc triggered reclaim then we cannot trip over the same
-i_mmap_mutex as hugetlb pages are not reclaimable because they are not
-on the LRU.
--- 
-Michal Hocko
-SUSE Labs
+> -----Original Message-----
+> From: Michal Hocko [mailto:mhocko@suse.cz]
+> Sent: Monday, July 22, 2013 8:37 AM
+> To: KY Srinivasan
+> Cc: gregkh@linuxfoundation.org; linux-kernel@vger.kernel.org;
+> devel@linuxdriverproject.org; olaf@aepfle.de; apw@canonical.com;
+> andi@firstfloor.org; akpm@linux-foundation.org; linux-mm@kvack.org;
+> kamezawa.hiroyuki@gmail.com; hannes@cmpxchg.org; yinghan@google.com;
+> jasowang@redhat.com; kay@vrfy.org
+> Subject: Re: [PATCH 1/1] Drivers: base: memory: Export symbols for onlini=
+ng
+> memory blocks
+>=20
+> On Fri 19-07-13 12:23:05, K. Y. Srinivasan wrote:
+> > The current machinery for hot-adding memory requires having udev
+> > rules to bring the memory segments online. Export the necessary functio=
+nality
+> > to to bring the memory segment online without involving user space code=
+.
+>=20
+> Why? Who is going to use it and for what purpose?
+> If you need to do it from the kernel cannot you use usermod helper
+> thread?
+>=20
+> Besides that this is far from being complete. memory_block_change_state
+> seems to depend on device_hotplug_lock and find_memory_block is
+> currently called with mem_sysfs_mutex held. None of them is exported
+> AFAICS.
+
+You are right; not all of the required symbols are exported (yet). Let me a=
+nswer your
+other questions first:
+
+The Hyper-V balloon driver can use this functionality. I have prototyped th=
+e in-kernel
+"onlining" of hot added memory without requiring any help from user level c=
+ode that
+performs significantly better than having user level code involved in the h=
+ot add process.
+With this change, I am able to successfully hot-add and online the hot-adde=
+d memory
+even under extreme memory pressure which is what you would want given that =
+we are
+hot-adding memory to alleviate memory pressure. The current scheme of invol=
+ving user
+level code to close this loop obviously does not perform well under high me=
+mory pressure.
+
+
+I can, if you prefer export all of the necessary functionality in one patch=
+.
+
+
+Regards,
+
+K. Y
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
