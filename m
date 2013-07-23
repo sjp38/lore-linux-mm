@@ -1,46 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 2C7F56B0032
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 12:01:10 -0400 (EDT)
-Message-ID: <51EEA89F.9070309@intel.com>
-Date: Tue, 23 Jul 2013 09:00:31 -0700
-From: Dave Hansen <dave.hansen@intel.com>
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 98EF26B0032
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 12:01:59 -0400 (EDT)
+Date: Tue, 23 Jul 2013 09:01:58 -0700
+From: Greg KH <gregkh@linuxfoundation.org>
 Subject: Re: [PATCH 1/1] Drivers: base: memory: Export symbols for onlining
  memory blocks
-References: <1374261785-1615-1-git-send-email-kys@microsoft.com> <20130722123716.GB24400@dhcp22.suse.cz> <e06fced3ca42408b980f8aa68f4a29f3@SN2PR03MB061.namprd03.prod.outlook.com> <51EEA11D.4030007@intel.com> <3318be0a96cb4d05838d76dc9d088cc0@SN2PR03MB061.namprd03.prod.outlook.com>
-In-Reply-To: <3318be0a96cb4d05838d76dc9d088cc0@SN2PR03MB061.namprd03.prod.outlook.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Message-ID: <20130723160158.GC27054@kroah.com>
+References: <1374261785-1615-1-git-send-email-kys@microsoft.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1374261785-1615-1-git-send-email-kys@microsoft.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KY Srinivasan <kys@microsoft.com>
-Cc: Michal Hocko <mhocko@suse.cz>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "apw@canonical.com" <apw@canonical.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kamezawa.hiroyuki@gmail.com" <kamezawa.hiroyuki@gmail.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "yinghan@google.com" <yinghan@google.com>, "jasowang@redhat.com" <jasowang@redhat.com>, "kay@vrfy.org" <kay@vrfy.org>
+To: "K. Y. Srinivasan" <kys@microsoft.com>
+Cc: linux-kernel@vger.kernel.org, devel@linuxdriverproject.org, olaf@aepfle.de, apw@canonical.com, andi@firstfloor.org, akpm@linux-foundation.org, linux-mm@kvack.org, kamezawa.hiroyuki@gmail.com, mhocko@suse.cz, hannes@cmpxchg.org, yinghan@google.com, jasowang@redhat.com, kay@vrfy.org
 
-On 07/23/2013 08:54 AM, KY Srinivasan wrote:
->> > Adding memory usually requires allocating some large, contiguous areas
->> > of memory for use as mem_map[] and other VM structures.  That's really
->> > hard to do under heavy memory pressure.  How are you accomplishing this?
-> I cannot avoid failures because of lack of memory. In this case I notify the host of
-> the failure and also tag the failure as transient. Host retries the operation after some
-> delay. There is no guarantee it will succeed though.
+On Fri, Jul 19, 2013 at 12:23:05PM -0700, K. Y. Srinivasan wrote:
+> The current machinery for hot-adding memory requires having udev
+> rules to bring the memory segments online. Export the necessary functionality
+> to to bring the memory segment online without involving user space code. 
+> 
+> Signed-off-by: K. Y. Srinivasan <kys@microsoft.com>
+> ---
+>  drivers/base/memory.c  |    5 ++++-
+>  include/linux/memory.h |    4 ++++
+>  2 files changed, 8 insertions(+), 1 deletions(-)
+> 
+> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+> index 2b7813e..a8204ac 100644
+> --- a/drivers/base/memory.c
+> +++ b/drivers/base/memory.c
+> @@ -328,7 +328,7 @@ static int __memory_block_change_state_uevent(struct memory_block *mem,
+>  	return ret;
+>  }
+>  
+> -static int memory_block_change_state(struct memory_block *mem,
+> +int memory_block_change_state(struct memory_block *mem,
+>  		unsigned long to_state, unsigned long from_state_req,
+>  		int online_type)
+>  {
+> @@ -341,6 +341,8 @@ static int memory_block_change_state(struct memory_block *mem,
+>  
+>  	return ret;
+>  }
+> +EXPORT_SYMBOL(memory_block_change_state);
 
-You didn't really answer the question.
+EXPORT_SYMBOL_GPL() for all of these please.
 
-You have allocated some large, physically contiguous areas of memory
-under heavy pressure.  But you also contend that there is too much
-memory pressure to run a small userspace helper.  Under heavy memory
-pressure, I'd expect large, kernel allocations to fail much more often
-than running a small userspace helper.
+And as others have pointed out, I can't export symbols without a user of
+those symbols going into the tree at the same time.  So I'll drop this
+patch for now and wait for your consumer of these symbols to be
+submitted.
 
-It _sounds_ like you really want to be able to have the host retry the
-operation if it fails, and you return success/failure from inside the
-kernel.  It's hard for you to tell if running the userspace helper
-failed, so your solution is to move what what previously done in
-userspace in to the kernel so that you can more easily tell if it failed
-or succeeded.
+thanks,
 
-Is that right?
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
