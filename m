@@ -1,29 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 6E4896B0033
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 11:28:41 -0400 (EDT)
-Message-ID: <51EEA11D.4030007@intel.com>
-Date: Tue, 23 Jul 2013 08:28:29 -0700
-From: Dave Hansen <dave.hansen@intel.com>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 236126B0032
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 11:33:15 -0400 (EDT)
+Date: Tue, 23 Jul 2013 11:32:57 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC 2/4] Have __free_pages_memory() free in larger chunks.
+Message-ID: <20130723153257.GK715@cmpxchg.org>
+References: <1373594635-131067-1-git-send-email-holt@sgi.com>
+ <1373594635-131067-3-git-send-email-holt@sgi.com>
+ <51E5447D.70901@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/1] Drivers: base: memory: Export symbols for onlining
- memory blocks
-References: <1374261785-1615-1-git-send-email-kys@microsoft.com> <20130722123716.GB24400@dhcp22.suse.cz> <e06fced3ca42408b980f8aa68f4a29f3@SN2PR03MB061.namprd03.prod.outlook.com>
-In-Reply-To: <e06fced3ca42408b980f8aa68f4a29f3@SN2PR03MB061.namprd03.prod.outlook.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51E5447D.70901@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KY Srinivasan <kys@microsoft.com>
-Cc: Michal Hocko <mhocko@suse.cz>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "apw@canonical.com" <apw@canonical.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kamezawa.hiroyuki@gmail.com" <kamezawa.hiroyuki@gmail.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "yinghan@google.com" <yinghan@google.com>, "jasowang@redhat.com" <jasowang@redhat.com>, "kay@vrfy.org" <kay@vrfy.org>
+To: Sam Ben <sam.bennn@gmail.com>
+Cc: Robin Holt <holt@sgi.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Nate Zimmer <nzimmer@sgi.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Rob Landley <rob@landley.net>, Mike Travis <travis@sgi.com>, Daniel J Blueman <daniel@numascale-asia.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Yinghai Lu <yinghai@kernel.org>, Mel Gorman <mgorman@suse.de>
 
-On 07/23/2013 07:52 AM, KY Srinivasan wrote:
->  The current scheme of involving user
-> level code to close this loop obviously does not perform well under high memory pressure.
+On Tue, Jul 16, 2013 at 09:02:53PM +0800, Sam Ben wrote:
+> Hi Robin,
+> On 07/12/2013 10:03 AM, Robin Holt wrote:
+> >Currently, when free_all_bootmem() calls __free_pages_memory(), the
+> >number of contiguous pages that __free_pages_memory() passes to the
+> >buddy allocator is limited to BITS_PER_LONG.  In order to be able to
+> 
+> I fail to understand this. Why the original page number is BITS_PER_LONG?
 
-Adding memory usually requires allocating some large, contiguous areas
-of memory for use as mem_map[] and other VM structures.  That's really
-hard to do under heavy memory pressure.  How are you accomplishing this?
+The mm/bootmem.c implementation uses a bitmap to keep track of
+free/reserved pages.  It walks that bitmap in BITS_PER_LONG steps
+because it is the biggest chunk that is still trivial and cheap to
+check if all pages are free in it (chunk == ~0UL).
+
+nobootmem.c was written based on the bootmem.c interface, so it was
+probably adapted to keep things similar between the two, short of a
+pressing reason not to.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
