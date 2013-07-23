@@ -1,50 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id AE0CE6B0034
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 12:18:36 -0400 (EDT)
-Received: by mail-gg0-f182.google.com with SMTP id f1so2372866ggn.41
-        for <linux-mm@kvack.org>; Tue, 23 Jul 2013 09:18:35 -0700 (PDT)
-Date: Tue, 23 Jul 2013 12:18:25 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH resend 3/3] vmpressure: Make sure there are no events
- queued after memcg is offlined
-Message-ID: <20130723161825.GC21100@mtj.dyndns.org>
-References: <1374252671-11939-1-git-send-email-mhocko@suse.cz>
- <1374252671-11939-3-git-send-email-mhocko@suse.cz>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 041A06B0032
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 12:56:31 -0400 (EDT)
+Received: from mail164-va3 (localhost [127.0.0.1])	by
+ mail164-va3-R.bigfish.com (Postfix) with ESMTP id C55784E0132	for
+ <linux-mm@kvack.org>; Tue, 23 Jul 2013 16:56:30 +0000 (UTC)
+Received: from VA3EHSMHS033.bigfish.com (unknown [10.7.14.240])	by
+ mail164-va3.bigfish.com (Postfix) with ESMTP id 24EB04000BD	for
+ <linux-mm@kvack.org>; Tue, 23 Jul 2013 16:56:28 +0000 (UTC)
+Received: from mail198-co9 (localhost [127.0.0.1])	by
+ mail198-co9-R.bigfish.com (Postfix) with ESMTP id 37DD1880117	for
+ <linux-mm@kvack.org.FOPE.CONNECTOR.OVERRIDE>; Tue, 23 Jul 2013 16:54:56 +0000
+ (UTC)
+From: KY Srinivasan <kys@microsoft.com>
+Subject: RE: [PATCH 1/1] Drivers: base: memory: Export symbols for onlining
+ memory blocks
+Date: Tue, 23 Jul 2013 16:54:50 +0000
+Message-ID: <84917bea4f304a649eaf640f8926f09b@SN2PR03MB061.namprd03.prod.outlook.com>
+References: <1374261785-1615-1-git-send-email-kys@microsoft.com>
+ <20130723160158.GC27054@kroah.com>
+In-Reply-To: <20130723160158.GC27054@kroah.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1374252671-11939-3-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Anton Vorontsov <anton.vorontsov@linaro.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Li Zefan <lizefan@huawei.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Greg KH <gregkh@linuxfoundation.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "apw@canonical.com" <apw@canonical.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kamezawa.hiroyuki@gmail.com" <kamezawa.hiroyuki@gmail.com>, "mhocko@suse.cz" <mhocko@suse.cz>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "yinghan@google.com" <yinghan@google.com>, "jasowang@redhat.com" <jasowang@redhat.com>, "kay@vrfy.org" <kay@vrfy.org>
 
-On Fri, Jul 19, 2013 at 06:51:11PM +0200, Michal Hocko wrote:
-> vmpressure is called synchronously from the reclaim where the
-> target_memcg is guaranteed to be alive but the eventfd is signaled from
-> the work queue context. This means that memcg (along with vmpressure
-> structure which is embedded into it) might go away while the work item
-> is pending which would result in use-after-release bug.
-> 
-> We have two possible ways how to fix this. Either vmpressure pins memcg
-> before it schedules vmpr->work and unpin it in vmpressure_work_fn or
-> explicitely flush the work item from the css_offline context (as
-> suggested by Tejun).
-> 
-> This patch implements the later one and it introduces vmpressure_cleanup
-> which flushes the vmpressure work queue item item. It hooks into
-> mem_cgroup_css_offline after the memcg itself is cleaned up.
-> 
-> Reported-by: Tejun Heo <tj@kernel.org>
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
 
-Acked-by: Tejun Heo <tj@kernel.org>
 
-Thanks!
+> -----Original Message-----
+> From: Greg KH [mailto:gregkh@linuxfoundation.org]
+> Sent: Tuesday, July 23, 2013 12:02 PM
+> To: KY Srinivasan
+> Cc: linux-kernel@vger.kernel.org; devel@linuxdriverproject.org; olaf@aepf=
+le.de;
+> apw@canonical.com; andi@firstfloor.org; akpm@linux-foundation.org; linux-
+> mm@kvack.org; kamezawa.hiroyuki@gmail.com; mhocko@suse.cz;
+> hannes@cmpxchg.org; yinghan@google.com; jasowang@redhat.com;
+> kay@vrfy.org
+> Subject: Re: [PATCH 1/1] Drivers: base: memory: Export symbols for onlini=
+ng
+> memory blocks
+>=20
+> On Fri, Jul 19, 2013 at 12:23:05PM -0700, K. Y. Srinivasan wrote:
+> > The current machinery for hot-adding memory requires having udev
+> > rules to bring the memory segments online. Export the necessary functio=
+nality
+> > to to bring the memory segment online without involving user space code=
+.
+> >
+> > Signed-off-by: K. Y. Srinivasan <kys@microsoft.com>
+> > ---
+> >  drivers/base/memory.c  |    5 ++++-
+> >  include/linux/memory.h |    4 ++++
+> >  2 files changed, 8 insertions(+), 1 deletions(-)
+> >
+> > diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+> > index 2b7813e..a8204ac 100644
+> > --- a/drivers/base/memory.c
+> > +++ b/drivers/base/memory.c
+> > @@ -328,7 +328,7 @@ static int
+> __memory_block_change_state_uevent(struct memory_block *mem,
+> >  	return ret;
+> >  }
+> >
+> > -static int memory_block_change_state(struct memory_block *mem,
+> > +int memory_block_change_state(struct memory_block *mem,
+> >  		unsigned long to_state, unsigned long from_state_req,
+> >  		int online_type)
+> >  {
+> > @@ -341,6 +341,8 @@ static int memory_block_change_state(struct
+> memory_block *mem,
+> >
+> >  	return ret;
+> >  }
+> > +EXPORT_SYMBOL(memory_block_change_state);
+>=20
+> EXPORT_SYMBOL_GPL() for all of these please.
 
--- 
-tejun
+Will do.
+>=20
+> And as others have pointed out, I can't export symbols without a user of
+> those symbols going into the tree at the same time.  So I'll drop this
+> patch for now and wait for your consumer of these symbols to be
+> submitted.
+
+I will submit the consumer as well.
+
+Thanks,
+
+K. Y
+=20
+> greg k-h
+>=20
+>=20
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
