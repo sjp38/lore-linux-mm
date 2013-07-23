@@ -1,96 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id D8C156B0032
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 13:32:23 -0400 (EDT)
-Date: Tue, 23 Jul 2013 12:32:23 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm: zswap: add runtime enable/disable
-Message-ID: <20130723173223.GB5820@medulla.variantweb.net>
-References: <1374521642-25478-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <51EE49D7.4060501@oracle.com>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id B62DE6B0032
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 14:48:50 -0400 (EDT)
+Received: by mail-ye0-f182.google.com with SMTP id m12so2582573yen.13
+        for <linux-mm@kvack.org>; Tue, 23 Jul 2013 11:48:49 -0700 (PDT)
+Date: Tue, 23 Jul 2013 14:48:43 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 01/21] acpi: Print Hot-Pluggable Field in SRAT.
+Message-ID: <20130723184843.GG21100@mtj.dyndns.org>
+References: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com>
+ <1374220774-29974-2-git-send-email-tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51EE49D7.4060501@oracle.com>
+In-Reply-To: <1374220774-29974-2-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <bob.liu@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave@sr71.net>, Bob Liu <lliubbo@gmail.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-On Tue, Jul 23, 2013 at 05:16:07PM +0800, Bob Liu wrote:
-> On 07/23/2013 03:34 AM, Seth Jennings wrote:
-> > Right now, zswap can only be enabled at boot time.  This patch
-> > modifies zswap so that it can be dynamically enabled or disabled
-> > at runtime.
-> > 
-> > In order to allow this ability, zswap unconditionally registers as a
-> > frontswap backend regardless of whether or not zswap.enabled=1 is passed
-> > in the boot parameters or not.  This introduces a very small overhead
-> > for systems that have zswap disabled as calls to frontswap_store() will
-> > call zswap_frontswap_store(), but there is a fast path to immediately
-> > return if zswap is disabled.
+On Fri, Jul 19, 2013 at 03:59:14PM +0800, Tang Chen wrote:
+> The Hot-Pluggable field in SRAT suggests if the memory could be
+> hotplugged while the system is running. Print it as well when
+> parsing SRAT will help users to know which memory is hotpluggable.
 > 
-> There is also overhead in frontswap_load() after all pages are faulted
-> back into memory.
+> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+> Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-This is true.  However frontswap_load() (__frontswap_load() to be more
-precise) will not call into the backend since the bit in the
-frontswap_map will not be set.  But there is the overhead of checking
-that bit, you're right.
+Acked-by: Tejun Heo <tj@kernel.org>
 
-> 
-> > 
-> > Disabling zswap does not unregister zswap from frontswap.  It simply
-> > blocks all future stores.
-> > 
-> > Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
-> > ---
-> >  Documentation/vm/zswap.txt | 18 ++++++++++++++++--
-> >  mm/zswap.c                 |  9 +++------
-> >  2 files changed, 19 insertions(+), 8 deletions(-)
-> > 
-> > diff --git a/Documentation/vm/zswap.txt b/Documentation/vm/zswap.txt
-> > index 7e492d8..d588477 100644
-> > --- a/Documentation/vm/zswap.txt
-> > +++ b/Documentation/vm/zswap.txt
-> > @@ -26,8 +26,22 @@ Zswap evicts pages from compressed cache on an LRU basis to the backing swap
-> >  device when the compressed pool reaches it size limit.  This requirement had
-> >  been identified in prior community discussions.
-> >  
-> > -To enabled zswap, the "enabled" attribute must be set to 1 at boot time.  e.g.
-> > -zswap.enabled=1
-> > +Zswap is disabled by default but can be enabled at boot time by setting
-> > +the "enabled" attribute to 1 at boot time. e.g. zswap.enabled=1.  Zswap
-> > +can also be enabled and disabled at runtime using the sysfs interface.
-> > +An exmaple command to enable zswap at runtime, assuming sysfs is mounted
-> > +at /sys, is:
-> > +
-> > +echo 1 > /sys/modules/zswap/parameters/enabled
-> > +
-> > +When zswap is disabled at runtime, it will stop storing pages that are
-> > +being swapped out.  However, it will _not_ immediately write out or
-> > +fault back into memory all of the pages stored in the compressed pool.
-> 
-> I don't know what's you use case of adding this feature.
+But a nit below
 
-Dave expressed interest in having it, useful for testing, and I can see
-people that just wanting to try it out enabling it manually at runtime.
+> +	pr_info("SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx] %s\n",
+> +		node, pxm,
+> +		(unsigned long long) start, (unsigned long long) end - 1,
+> +		hotpluggable ? "Hot Pluggable" : "");
 
-> In my opinion I'd perfer to flush all the pages stored in zswap when
-> disabled it, so that I can run testing without rebooting the machine.
+The following would be more conventional.
 
-Why would you have to reboot your machine?  If you want to force all
-the pages out of the compressed pool, a swapoff should do it as now
-noted in the Documentation file (below).
+  "...10Lx]%s\n", ..., hotpluggable ? " Hot Pluggable" : ""
 
-Seth 
+Also, isn't "Hot Pluggable" a bit too verbose?  "hotplug" should be
+fine, I think.
 
-> 
-> > +The pages stored in zswap will continue to remain in the compressed pool
-> > +until they are either invalidated or faulted back into memory.  In order
-> > +to force all pages out of the compressed pool, a swapoff on the swap
-> > +device(s) will fault all swapped out pages, included those in the
-> > +compressed pool, back into memory.
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
