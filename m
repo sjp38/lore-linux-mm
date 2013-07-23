@@ -1,112 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id A07496B0033
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 13:23:04 -0400 (EDT)
-Received: from mail44-co1 (localhost [127.0.0.1])	by mail44-co1-R.bigfish.com
- (Postfix) with ESMTP id 2B4A4D8027C	for <linux-mm@kvack.org>; Tue, 23 Jul
- 2013 17:23:02 +0000 (UTC)
-Received: from CO1EHSMHS025.bigfish.com (unknown [10.243.78.253])	by
- mail44-co1.bigfish.com (Postfix) with ESMTP id CFF0E100047	for
- <linux-mm@kvack.org>; Tue, 23 Jul 2013 17:23:00 +0000 (UTC)
-Received: from mail136-ch1 (localhost [127.0.0.1])	by
- mail136-ch1-R.bigfish.com (Postfix) with ESMTP id 86A05180217	for
- <linux-mm@kvack.org.FOPE.CONNECTOR.OVERRIDE>; Tue, 23 Jul 2013 17:21:13 +0000
- (UTC)
-From: KY Srinivasan <kys@microsoft.com>
-Subject: RE: [PATCH 1/1] Drivers: base: memory: Export symbols for onlining
- memory blocks
-Date: Tue, 23 Jul 2013 17:21:08 +0000
-Message-ID: <9f351a549e76483d9148f87535567ea0@SN2PR03MB061.namprd03.prod.outlook.com>
-References: <1374261785-1615-1-git-send-email-kys@microsoft.com>
- <20130722123716.GB24400@dhcp22.suse.cz>
- <e06fced3ca42408b980f8aa68f4a29f3@SN2PR03MB061.namprd03.prod.outlook.com>
- <51EEA11D.4030007@intel.com>
- <3318be0a96cb4d05838d76dc9d088cc0@SN2PR03MB061.namprd03.prod.outlook.com>
- <51EEA89F.9070309@intel.com>
-In-Reply-To: <51EEA89F.9070309@intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id D8C156B0032
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 13:32:23 -0400 (EDT)
+Date: Tue, 23 Jul 2013 12:32:23 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm: zswap: add runtime enable/disable
+Message-ID: <20130723173223.GB5820@medulla.variantweb.net>
+References: <1374521642-25478-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <51EE49D7.4060501@oracle.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51EE49D7.4060501@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Michal Hocko <mhocko@suse.cz>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "apw@canonical.com" <apw@canonical.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kamezawa.hiroyuki@gmail.com" <kamezawa.hiroyuki@gmail.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "yinghan@google.com" <yinghan@google.com>, "jasowang@redhat.com" <jasowang@redhat.com>, "kay@vrfy.org" <kay@vrfy.org>
+To: Bob Liu <bob.liu@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave@sr71.net>, Bob Liu <lliubbo@gmail.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+On Tue, Jul 23, 2013 at 05:16:07PM +0800, Bob Liu wrote:
+> On 07/23/2013 03:34 AM, Seth Jennings wrote:
+> > Right now, zswap can only be enabled at boot time.  This patch
+> > modifies zswap so that it can be dynamically enabled or disabled
+> > at runtime.
+> > 
+> > In order to allow this ability, zswap unconditionally registers as a
+> > frontswap backend regardless of whether or not zswap.enabled=1 is passed
+> > in the boot parameters or not.  This introduces a very small overhead
+> > for systems that have zswap disabled as calls to frontswap_store() will
+> > call zswap_frontswap_store(), but there is a fast path to immediately
+> > return if zswap is disabled.
+> 
+> There is also overhead in frontswap_load() after all pages are faulted
+> back into memory.
 
+This is true.  However frontswap_load() (__frontswap_load() to be more
+precise) will not call into the backend since the bit in the
+frontswap_map will not be set.  But there is the overhead of checking
+that bit, you're right.
 
-> -----Original Message-----
-> From: Dave Hansen [mailto:dave.hansen@intel.com]
-> Sent: Tuesday, July 23, 2013 12:01 PM
-> To: KY Srinivasan
-> Cc: Michal Hocko; gregkh@linuxfoundation.org; linux-kernel@vger.kernel.or=
-g;
-> devel@linuxdriverproject.org; olaf@aepfle.de; apw@canonical.com;
-> andi@firstfloor.org; akpm@linux-foundation.org; linux-mm@kvack.org;
-> kamezawa.hiroyuki@gmail.com; hannes@cmpxchg.org; yinghan@google.com;
-> jasowang@redhat.com; kay@vrfy.org
-> Subject: Re: [PATCH 1/1] Drivers: base: memory: Export symbols for onlini=
-ng
-> memory blocks
->=20
-> On 07/23/2013 08:54 AM, KY Srinivasan wrote:
-> >> > Adding memory usually requires allocating some large, contiguous are=
-as
-> >> > of memory for use as mem_map[] and other VM structures.  That's real=
-ly
-> >> > hard to do under heavy memory pressure.  How are you accomplishing t=
-his?
-> > I cannot avoid failures because of lack of memory. In this case I notif=
-y the host
-> of
-> > the failure and also tag the failure as transient. Host retries the ope=
-ration after
-> some
-> > delay. There is no guarantee it will succeed though.
->=20
-> You didn't really answer the question.
->=20
-> You have allocated some large, physically contiguous areas of memory
-> under heavy pressure.  But you also contend that there is too much
-> memory pressure to run a small userspace helper.  Under heavy memory
-> pressure, I'd expect large, kernel allocations to fail much more often
-> than running a small userspace helper.
+> 
+> > 
+> > Disabling zswap does not unregister zswap from frontswap.  It simply
+> > blocks all future stores.
+> > 
+> > Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+> > ---
+> >  Documentation/vm/zswap.txt | 18 ++++++++++++++++--
+> >  mm/zswap.c                 |  9 +++------
+> >  2 files changed, 19 insertions(+), 8 deletions(-)
+> > 
+> > diff --git a/Documentation/vm/zswap.txt b/Documentation/vm/zswap.txt
+> > index 7e492d8..d588477 100644
+> > --- a/Documentation/vm/zswap.txt
+> > +++ b/Documentation/vm/zswap.txt
+> > @@ -26,8 +26,22 @@ Zswap evicts pages from compressed cache on an LRU basis to the backing swap
+> >  device when the compressed pool reaches it size limit.  This requirement had
+> >  been identified in prior community discussions.
+> >  
+> > -To enabled zswap, the "enabled" attribute must be set to 1 at boot time.  e.g.
+> > -zswap.enabled=1
+> > +Zswap is disabled by default but can be enabled at boot time by setting
+> > +the "enabled" attribute to 1 at boot time. e.g. zswap.enabled=1.  Zswap
+> > +can also be enabled and disabled at runtime using the sysfs interface.
+> > +An exmaple command to enable zswap at runtime, assuming sysfs is mounted
+> > +at /sys, is:
+> > +
+> > +echo 1 > /sys/modules/zswap/parameters/enabled
+> > +
+> > +When zswap is disabled at runtime, it will stop storing pages that are
+> > +being swapped out.  However, it will _not_ immediately write out or
+> > +fault back into memory all of the pages stored in the compressed pool.
+> 
+> I don't know what's you use case of adding this feature.
 
-I am only reporting what I am seeing. Broadly, I have two main failure cond=
-itions to
-deal with: (a) resource related failure (add_memory() returning -ENOMEM) an=
-d (b) not being
-able to online a segment that has been successfully hot-added. I have seen =
-both these failures
-under high memory pressure. By supporting "in context" onlining, we can eli=
-minate one failure
-case. Our inability to online is not a recoverable failure from the host's =
-point of view - the memory
-is committed to the guest (since hot add succeeded) but is not usable since=
- it is not onlined.
->=20
-> It _sounds_ like you really want to be able to have the host retry the
-> operation if it fails, and you return success/failure from inside the
-> kernel.  It's hard for you to tell if running the userspace helper
-> failed, so your solution is to move what what previously done in
-> userspace in to the kernel so that you can more easily tell if it failed
-> or succeeded.
->=20
-> Is that right?
+Dave expressed interest in having it, useful for testing, and I can see
+people that just wanting to try it out enabling it manually at runtime.
 
-No; I am able to get the proper error code for recoverable failures (hot ad=
-d failures
-because of lack of memory). By doing what I am proposing here, we can avoid=
- one class
-of failures completely and I think this is what resulted in a better "hot a=
-dd" experience in the
-guest.
+> In my opinion I'd perfer to flush all the pages stored in zswap when
+> disabled it, so that I can run testing without rebooting the machine.
 
-K. Y=20
->=20
->=20
+Why would you have to reboot your machine?  If you want to force all
+the pages out of the compressed pool, a swapoff should do it as now
+noted in the Documentation file (below).
 
+Seth 
 
+> 
+> > +The pages stored in zswap will continue to remain in the compressed pool
+> > +until they are either invalidated or faulted back into memory.  In order
+> > +to force all pages out of the compressed pool, a swapoff on the swap
+> > +device(s) will fault all swapped out pages, included those in the
+> > +compressed pool, back into memory.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
