@@ -1,136 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id C798D6B0032
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 07:41:52 -0400 (EDT)
-Date: Tue, 23 Jul 2013 06:41:50 -0500
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [RFC 4/4] Sparse initialization of struct page array.
-Message-ID: <20130723114150.GH3421@sgi.com>
-References: <1373594635-131067-1-git-send-email-holt@sgi.com>
- <1373594635-131067-5-git-send-email-holt@sgi.com>
- <CAE9FiQW1s2UwCY6OjzD3+2wG8SjCr1QyCpajhZbk_XhmnFQW4Q@mail.gmail.com>
- <20130715174551.GA58640@asylum.americas.sgi.com>
- <51E4375E.1010704@zytor.com>
- <20130715182615.GF3421@sgi.com>
- <51E43F91.1040906@zytor.com>
- <20130723083211.GE16088@gmail.com>
- <20130723110947.GF3421@sgi.com>
- <20130723111549.GG3421@sgi.com>
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 31A4D6B0033
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 07:45:56 -0400 (EDT)
+Date: Tue, 23 Jul 2013 13:45:50 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2 07/10] mm, hugetlb: do not use a page in page cache
+ for cow optimization
+Message-ID: <20130723114550.GB8677@dhcp22.suse.cz>
+References: <1374482191-3500-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1374482191-3500-8-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130723111549.GG3421@sgi.com>
+In-Reply-To: <1374482191-3500-8-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Robin Holt <holt@sgi.com>, Nathan Zimmer <nzimmer@sgi.com>, Yinghai Lu <yinghai@kernel.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Rob Landley <rob@landley.net>, Mike Travis <travis@sgi.com>, Daniel J Blueman <daniel@numascale-asia.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Mel Gorman <mgorman@suse.de>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>
 
-On Tue, Jul 23, 2013 at 06:15:49AM -0500, Robin Holt wrote:
-> I think the other critical path which is affected is in expand().
-> There, we just call ensure_page_is_initialized() blindly which does
-> the check against the other page.  The below is a nearly zero addition.
-> Sorry for the confusion.  My morning coffee has not kicked in yet.
+On Mon 22-07-13 17:36:28, Joonsoo Kim wrote:
+> Currently, we use a page with mapped count 1 in page cache for cow
+> optimization. If we find this condition, we don't allocate a new
+> page and copy contents. Instead, we map this page directly.
+> This may introduce a problem that writting to private mapping overwrite
+> hugetlb file directly. You can find this situation with following code.
+> 
+>         size = 20 * MB;
+>         flag = MAP_SHARED;
+>         p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
+>         if (p == MAP_FAILED) {
+>                 fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
+>                 return -1;
+>         }
+>         p[0] = 's';
+>         fprintf(stdout, "BEFORE STEAL PRIVATE WRITE: %c\n", p[0]);
+>         munmap(p, size);
+> 
+>         flag = MAP_PRIVATE;
+>         p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
+>         if (p == MAP_FAILED) {
+>                 fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
+>         }
+>         p[0] = 'c';
+>         munmap(p, size);
+> 
+>         flag = MAP_SHARED;
+>         p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
+>         if (p == MAP_FAILED) {
+>                 fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
+>                 return -1;
+>         }
+>         fprintf(stdout, "AFTER STEAL PRIVATE WRITE: %c\n", p[0]);
+>         munmap(p, size);
+> 
+> We can see that "AFTER STEAL PRIVATE WRITE: c", not "AFTER STEAL
+> PRIVATE WRITE: s". If we turn off this optimization to a page
+> in page cache, the problem is disappeared.
 
-I don't have access to the 16TiB system until Thursday unless the other
-testing on it fails early.  I did boot a 2TiB system with the a change
-which set the Unitialized_2m flag on all pages in that 2MiB range
-during memmap_init_zone.  That makes the expand check test against
-the referenced page instead of having to go back to the 2MiB page.
-It appears to have added less than a second to the 2TiB boot so I hope
-it has equally little impact to the 16TiB boot.
+It would be nice to describe the fix here as well. It is far from being
+intuitive and trivial.
 
-I will clean up this patch some more and resend the currently untested
-set later today.
+The fix seems to be correct.
 
-Thanks,
-Robin
+> Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
 > 
-> Robin
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 7ca8733..8a61638 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -2508,7 +2508,6 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+>  {
+>  	struct hstate *h = hstate_vma(vma);
+>  	struct page *old_page, *new_page;
+> -	int avoidcopy;
+>  	int outside_reserve = 0;
+>  	unsigned long mmun_start;	/* For mmu_notifiers */
+>  	unsigned long mmun_end;		/* For mmu_notifiers */
+> @@ -2518,10 +2517,8 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+>  retry_avoidcopy:
+>  	/* If no-one else is actually using this page, avoid the copy
+>  	 * and just make the page writable */
+> -	avoidcopy = (page_mapcount(old_page) == 1);
+> -	if (avoidcopy) {
+> -		if (PageAnon(old_page))
+> -			page_move_anon_rmap(old_page, vma, address);
+> +	if (page_mapcount(old_page) == 1 && PageAnon(old_page)) {
+> +		page_move_anon_rmap(old_page, vma, address);
+>  		set_huge_ptep_writable(vma, address, ptep);
+>  		return 0;
+>  	}
+> -- 
+> 1.7.9.5
 > 
-> On Tue, Jul 23, 2013 at 06:09:47AM -0500, Robin Holt wrote:
-> > On Tue, Jul 23, 2013 at 10:32:11AM +0200, Ingo Molnar wrote:
-> > > 
-> > > * H. Peter Anvin <hpa@zytor.com> wrote:
-> > > 
-> > > > On 07/15/2013 11:26 AM, Robin Holt wrote:
-> > > >
-> > > > > Is there a fairly cheap way to determine definitively that the struct 
-> > > > > page is not initialized?
-> > > > 
-> > > > By definition I would assume no.  The only way I can think of would be 
-> > > > to unmap the memory associated with the struct page in the TLB and 
-> > > > initialize the struct pages at trap time.
-> > > 
-> > > But ... the only fastpath impact I can see of delayed initialization right 
-> > > now is this piece of logic in prep_new_page():
-> > > 
-> > > @@ -903,6 +964,10 @@ static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
-> > > 
-> > >         for (i = 0; i < (1 << order); i++) {
-> > >                 struct page *p = page + i;
-> > > +
-> > > +               if (PageUninitialized2Mib(p))
-> > > +                       expand_page_initialization(page);
-> > > +
-> > >                 if (unlikely(check_new_page(p)))
-> > >                         return 1;
-> > > 
-> > > That is where I think it can be made zero overhead in the 
-> > > already-initialized case, because page-flags are already used in 
-> > > check_new_page():
-> > 
-> > The problem I see here is that the page flags we need to check for the
-> > uninitialized flag are in the "other" page for the page aligned at the
-> > 2MiB virtual address, not the page currently being referenced.
-> > 
-> > Let me try a version of the patch where we set the PG_unintialized_2m
-> > flag on all pages, including the aligned pages and see what that does
-> > to performance.
-> > 
-> > Robin
-> > 
-> > > 
-> > > static inline int check_new_page(struct page *page)
-> > > {
-> > >         if (unlikely(page_mapcount(page) |
-> > >                 (page->mapping != NULL)  |
-> > >                 (atomic_read(&page->_count) != 0)  |
-> > >                 (page->flags & PAGE_FLAGS_CHECK_AT_PREP) |
-> > >                 (mem_cgroup_bad_page_check(page)))) {
-> > >                 bad_page(page);
-> > >                 return 1;
-> > > 
-> > > see that PAGE_FLAGS_CHECK_AT_PREP flag? That always gets checked for every 
-> > > struct page on allocation.
-> > > 
-> > > We can micro-optimize that low overhead to zero-overhead, by integrating 
-> > > the PageUninitialized2Mib() check into check_new_page(). This can be done 
-> > > by adding PG_uninitialized2mib to PAGE_FLAGS_CHECK_AT_PREP and doing:
-> > > 
-> > > 
-> > > 	if (unlikely(page->flags & PAGE_FLAGS_CHECK_AT_PREP)) {
-> > > 		if (PageUninitialized2Mib(p))
-> > > 			expand_page_initialization(page);
-> > > 		...
-> > > 	}
-> > > 
-> > >         if (unlikely(page_mapcount(page) |
-> > >                 (page->mapping != NULL)  |
-> > >                 (atomic_read(&page->_count) != 0)  |
-> > >                 (mem_cgroup_bad_page_check(page)))) {
-> > >                 bad_page(page);
-> > > 
-> > >                 return 1;
-> > > 
-> > > this will result in making it essentially zero-overhead, the 
-> > > expand_page_initialization() logic is now in a slowpath.
-> > > 
-> > > Am I missing anything here?
-> > > 
-> > > Thanks,
-> > > 
-> > > 	Ingo
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
