@@ -1,160 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 610C16B0031
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 23:33:29 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 24 Jul 2013 13:30:25 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 259622CE804D
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 13:33:22 +1000 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6O3HvbG8978712
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 13:17:58 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6O3XJmL027467
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 13:33:21 +1000
-Date: Wed, 24 Jul 2013 11:33:18 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 3/8] migrate: add hugepage migration code to
- migrate_pages()
-Message-ID: <20130724033318.GE22680@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1374183272-10153-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1374183272-10153-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 57F446B0031
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 23:38:43 -0400 (EDT)
+Received: by mail-vc0-f178.google.com with SMTP id hr11so5149811vcb.37
+        for <linux-mm@kvack.org>; Tue, 23 Jul 2013 20:38:42 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1374183272-10153-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <89813612683626448B837EE5A0B6A7CB3B62F8F61A@SC-VEXCH4.marvell.com>
+References: <89813612683626448B837EE5A0B6A7CB3B62F8F272@SC-VEXCH4.marvell.com>
+	<CAA_GA1ciCDJeBqZv1gHNpQ2VVyDRAVF9_au+fo2dwVvLqnkygA@mail.gmail.com>
+	<89813612683626448B837EE5A0B6A7CB3B62F8F61A@SC-VEXCH4.marvell.com>
+Date: Wed, 24 Jul 2013 11:38:42 +0800
+Message-ID: <CAA_GA1cruj2-T-+bLb-SfEjC+MuCA7VyopczQSFc=Rx-6s-2kg@mail.gmail.com>
+Subject: Re: Possible deadloop in direct reclaim?
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Lisa Du <cldu@marvell.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>
 
-On Thu, Jul 18, 2013 at 05:34:27PM -0400, Naoya Horiguchi wrote:
->This patch extends check_range() to handle vma with VM_HUGETLB set.
->We will be able to migrate hugepage with migrate_pages(2) after
->applying the enablement patch which comes later in this series.
->
->Note that for larger hugepages (covered by pud entries, 1GB for
->x86_64 for example), we simply skip it now.
->
->Note that using pmd_huge/pud_huge assumes that hugepages are pointed to
->by pmd/pud. This is not true in some architectures implementing hugepage
->with other mechanisms like ia64, but it's OK because pmd_huge/pud_huge
->simply return 0 in such arch and page walker simply ignores such hugepages.
->
->ChangeLog v3:
-> - revert introducing migrate_movable_pages
-> - use isolate_huge_page
->
->ChangeLog v2:
-> - remove unnecessary extern
-> - fix page table lock in check_hugetlb_pmd_range
-> - updated description and renamed patch title
+On Wed, Jul 24, 2013 at 10:23 AM, Lisa Du <cldu@marvell.com> wrote:
+> Dear Bob
+>    Also from my check before kswapd sleep, though nr_slab =3D 0 but zone_=
+reclaimable(zone) returns true, so zone->all_unreclaimable can't be changed=
+ to 1; So even when change the nr_slab to sc->nr_reclaimed, it can't help.
 >
 
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Then the other fix might be set zone->all_unreclaimable in direct
+reclaim path also, like:
 
->Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
->---
-> mm/mempolicy.c | 39 ++++++++++++++++++++++++++++++++++-----
-> 1 file changed, 34 insertions(+), 5 deletions(-)
+@@ -2278,6 +2278,8 @@ static bool shrink_zones(struct zonelist
+*zonelist, struct scan_control *sc)
+                }
+
+                shrink_zone(zone, sc);
++               if (sc->nr_reclaimed =3D=3D 0 && !zone_reclaimable(zone))
++                       zone->all_unreclaimable =3D 1;
+        }
+
+> Thanks!
 >
->diff --git v3.11-rc1.orig/mm/mempolicy.c v3.11-rc1/mm/mempolicy.c
->index 7431001..f3b65c0 100644
->--- v3.11-rc1.orig/mm/mempolicy.c
->+++ v3.11-rc1/mm/mempolicy.c
->@@ -512,6 +512,27 @@ static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
-> 	return addr != end;
-> }
+> Best Regards
+> Lisa Du
 >
->+static void check_hugetlb_pmd_range(struct vm_area_struct *vma, pmd_t *pmd,
->+		const nodemask_t *nodes, unsigned long flags,
->+				    void *private)
->+{
->+#ifdef CONFIG_HUGETLB_PAGE
->+	int nid;
->+	struct page *page;
->+
->+	spin_lock(&vma->vm_mm->page_table_lock);
->+	page = pte_page(huge_ptep_get((pte_t *)pmd));
->+	nid = page_to_nid(page);
->+	if (node_isset(nid, *nodes) != !!(flags & MPOL_MF_INVERT)
->+	    && ((flags & MPOL_MF_MOVE && page_mapcount(page) == 1)
->+		|| flags & MPOL_MF_MOVE_ALL))
->+		isolate_huge_page(page, private);
->+	spin_unlock(&vma->vm_mm->page_table_lock);
->+#else
->+	BUG();
->+#endif
->+}
->+
-> static inline int check_pmd_range(struct vm_area_struct *vma, pud_t *pud,
-> 		unsigned long addr, unsigned long end,
-> 		const nodemask_t *nodes, unsigned long flags,
->@@ -523,6 +544,11 @@ static inline int check_pmd_range(struct vm_area_struct *vma, pud_t *pud,
-> 	pmd = pmd_offset(pud, addr);
-> 	do {
-> 		next = pmd_addr_end(addr, end);
->+		if (pmd_huge(*pmd) && is_vm_hugetlb_page(vma)) {
->+			check_hugetlb_pmd_range(vma, pmd, nodes,
->+						flags, private);
->+			continue;
->+		}
-> 		split_huge_page_pmd(vma, addr, pmd);
-> 		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
-> 			continue;
->@@ -544,6 +570,8 @@ static inline int check_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
-> 	pud = pud_offset(pgd, addr);
-> 	do {
-> 		next = pud_addr_end(addr, end);
->+		if (pud_huge(*pud) && is_vm_hugetlb_page(vma))
->+			continue;
-> 		if (pud_none_or_clear_bad(pud))
-> 			continue;
-> 		if (check_pmd_range(vma, pud, addr, next, nodes,
->@@ -635,9 +663,6 @@ check_range(struct mm_struct *mm, unsigned long start, unsigned long end,
-> 				return ERR_PTR(-EFAULT);
-> 		}
 >
->-		if (is_vm_hugetlb_page(vma))
->-			goto next;
->-
-> 		if (flags & MPOL_MF_LAZY) {
-> 			change_prot_numa(vma, start, endvma);
-> 			goto next;
->@@ -986,7 +1011,11 @@ static void migrate_page_add(struct page *page, struct list_head *pagelist,
+> -----Original Message-----
+> From: Lisa Du
+> Sent: 2013=E5=B9=B47=E6=9C=8824=E6=97=A5 9:31
+> To: 'Bob Liu'
+> Cc: linux-mm@kvack.org; Christoph Lameter; Mel Gorman
+> Subject: RE: Possible deadloop in direct reclaim?
 >
-> static struct page *new_node_page(struct page *page, unsigned long node, int **x)
-> {
->-	return alloc_pages_exact_node(node, GFP_HIGHUSER_MOVABLE, 0);
->+	if (PageHuge(page))
->+		return alloc_huge_page_node(page_hstate(compound_head(page)),
->+					node);
->+	else
->+		return alloc_pages_exact_node(node, GFP_HIGHUSER_MOVABLE, 0);
-> }
+> Dear Bob
+>     Thank you so much for the careful review, Yes, it's a typo, I mean zo=
+ne->all_unreclaimable =3D 0.
+>     You mentioned add the check in kswapd_shrink_zone(), sorry that I did=
+n't find this function in kernel3.4 or kernel3.9.
+>     Is this function called in direct_reclaim?
+>     As I mentioned this issue happened after kswapd thread sleep, if it o=
+nly called in kswapd, then I think it can't help.
 >
-> /*
->@@ -1016,7 +1045,7 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
-> 		err = migrate_pages(&pagelist, new_node_page, dest,
-> 					MIGRATE_SYNC, MR_SYSCALL);
-> 		if (err)
->-			putback_lru_pages(&pagelist);
->+			putback_movable_pages(&pagelist);
-> 	}
+> Thanks!
 >
-> 	return err;
->-- 
->1.8.3.1
+> Best Regards
+> Lisa Du
 >
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
+> -----Original Message-----
+> From: Bob Liu [mailto:lliubbo@gmail.com]
+> Sent: 2013=E5=B9=B47=E6=9C=8824=E6=97=A5 9:18
+> To: Lisa Du
+> Cc: linux-mm@kvack.org; Christoph Lameter; Mel Gorman
+> Subject: Re: Possible deadloop in direct reclaim?
+>
+> On Tue, Jul 23, 2013 at 12:58 PM, Lisa Du <cldu@marvell.com> wrote:
+>> Dear Sir:
+>>
+>> Currently I met a possible deadloop in direct reclaim. After run plenty =
+of
+>> the application, system run into a status that system memory is very
+>> fragmentized. Like only order-0 and order-1 memory left.
+>>
+>> Then one process required a order-2 buffer but it enter an endless direc=
+t
+>> reclaim. From my trace log, I can see this loop already over 200,000 tim=
+es.
+>> Kswapd was first wake up and then go back to sleep as it cannot rebalanc=
+e
+>> this order=E2=80=99s memory. But zone->all_unreclaimable remains 1.
+>>
+>> Though direct_reclaim every time returns no pages, but as
+>> zone->all_unreclaimable =3D 1, so it loop again and again. Even when
+>> zone->pages_scanned also becomes very large. It will block the process f=
+or
+>> long time, until some watchdog thread detect this and kill this process.
+>> Though it=E2=80=99s in __alloc_pages_slowpath, but it=E2=80=99s too slow=
+ right? Maybe cost
+>> over 50 seconds or even more.
+>
+> You must be mean zone->all_unreclaimable =3D 0?
+>
+>>
+>> I think it=E2=80=99s not as expected right?  Can we also add below check=
+ in the
+>> function all_unreclaimable() to terminate this loop?
+>>
+>>
+>>
+>> @@ -2355,6 +2355,8 @@ static bool all_unreclaimable(struct zonelist
+>> *zonelist,
+>>
+>>                         continue;
+>>
+>>                 if (!zone->all_unreclaimable)
+>>
+>>                         return false;
+>>
+>> +               if (sc->nr_reclaimed =3D=3D 0 && !zone_reclaimable(zone)=
+)
+>>
+>> +                       return true;
+>>
+>
+> How about replace the checking in kswapd_shrink_zone()?
+>
+> @@ -2824,7 +2824,7 @@ static bool kswapd_shrink_zone(struct zone *zone,
+>         /* Account for the number of pages attempted to reclaim */
+>         *nr_attempted +=3D sc->nr_to_reclaim;
+>
+> -       if (nr_slab =3D=3D 0 && !zone_reclaimable(zone))
+> +       if (sc->nr_reclaimed =3D=3D 0 && !zone_reclaimable(zone))
+>                 zone->all_unreclaimable =3D 1;
+>
+>         zone_clear_flag(zone, ZONE_WRITEBACK);
+>
+>
+> I think the current check is wrong, reclaimed a slab doesn't mean
+> reclaimed a page.
+>
+> --
+> Regards,
+> --Bob
+
+
+
+--=20
+Regards,
+--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
