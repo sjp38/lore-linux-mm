@@ -1,61 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id C43546B0031
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 14:22:07 -0400 (EDT)
-Received: by mail-ve0-f174.google.com with SMTP id cy12so1497003veb.5
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2013 11:22:06 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id F09336B0031
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 14:34:01 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nfont@linux.vnet.ibm.com>;
+	Thu, 25 Jul 2013 04:30:58 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 431752BB0054
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 04:33:56 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6OIICEA1835308
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 04:18:22 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6OIXjkZ027310
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 04:33:45 +1000
+Message-ID: <51F01E06.6090800@linux.vnet.ibm.com>
+Date: Wed, 24 Jul 2013 13:33:42 -0500
+From: Nathan Fontenot <nfont@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20130724181516.GI8508@moon>
-References: <20130724160826.GD24851@moon> <CALCETrXYnkonpBANnUuX+aJ=B=EYFwecZO27yrqcEU8WErz9DA@mail.gmail.com>
- <20130724163734.GE24851@moon> <CALCETrVWgSMrM2ujpO092ZLQa3pWEQM4vdmHhCVUohUUcoR8AQ@mail.gmail.com>
- <20130724171728.GH8508@moon> <1374687373.7382.22.camel@dabdike>
- <CALCETrV5MD1qCQsyz4=t+QW1BJuTBYainewzDfEaXW12S91K=A@mail.gmail.com> <20130724181516.GI8508@moon>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Wed, 24 Jul 2013 11:21:46 -0700
-Message-ID: <CALCETrV5NojErxWOc2RpuYKE0g8FfOmKB31oDz46CRu27hmDBA@mail.gmail.com>
-Subject: Re: [PATCH] mm: Save soft-dirty bits on swapped pages
+Subject: [PATCH 0/8] Correct memory hot add/remove for powerpc
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyrill Gorcunov <gorcunov@gmail.com>
-Cc: James Bottomley <James.Bottomley@hansenpartnership.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Pavel Emelyanov <xemul@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Marcelo Tosatti <mtosatti@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Stephen Rothwell <sfr@canb.auug.org.au>
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linuxppc-dev@lists.ozlabs.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, isimatu.yasuaki@jp.fujitsu.com
 
-On Wed, Jul 24, 2013 at 11:15 AM, Cyrill Gorcunov <gorcunov@gmail.com> wrote:
-> On Wed, Jul 24, 2013 at 10:42:24AM -0700, Andy Lutomirski wrote:
->> >
->> > Lets just be clear about the problem first: the vmscan pass referred to
->> > above happens only on clean pages, so the soft dirty bit could only be
->> > set if the page was previously dirty and got written back.  Now it's an
->> > exercise for the reader whether we want to reinstantiate a cleaned
->> > evicted page for the purpose of doing an iterative migration or whether
->> > we want to flip the page in the migrated entity to be evicted (so if it
->> > gets referred to, it pulls in an up to date copy) ... assuming the
->> > backing file also gets transferred, of course.
->
-> Good question! I rather forward it to Pavel as an author for soft dirty
-> bit feature. Pavel?
->
->> I think I understand your distinction.  Nonetheless, given the loss of
->> the soft-dirty bit, the migration tool could fail to notice that the
->> pages was dirtied and subsequently cleaned and evicted.  I'm
->> unconvinced that doing this on a per-PTE basis is the right way,
->> though.
->
-> I fear for tracking soft-dirty-bit for swapped entries we sinply have
-> no other place than pte (still i'm quite open for ideas, maybe there
-> are a better way which I've missed).
+The current implementation of memory hot add and remove for powerpc is broken.
+This patch set both corrects this issue and updates the memory hot add and
+remove code for powerpc so that it can be done properly in the kernel.
 
-I know approximately nothing about how swap and anon_vma work.
+The first two patches update the powerpc hot add and remove code to work with
+all of the updates that have gone in to enable memory remove with sparse
+vmemmap enabled. With these two patches applied the powerpc code is back to
+working, but not working properly.
 
-For files, sticking it in struct page seems potentially nicer,
-although finding a free bit might be tough.  (FWIW, I have plans to
-free up a page flag on x86 some time moderately soon as part of a
-completely unrelated project.)  I think this stuff really belongs to
-the address_space more than it belongs to the pte.
+The remaining patches update the powerpc memory add and remove code so the
+work can be done in the kernel and all while holding the memory hotplug lock.
+The current powerpc implementation does some of the work in the kernel and
+some of the work in userspace. While this code did work at one time, it has
+a problem in that it does part of the work to add and remove memory without
+holding the memory hotplug lock. In this scheme memory could be added and
+removed fast enough to cause the system to crash. This was a result of
+doing part of the add or remove without holding the lock.
 
-How do you handle the write syscall?
+In order to do memory hot remove in the kernel, this patch set introduces
+a sysfs release file (/sys/device/system/memory/release) which one
+can write the physical address of the memory to be removed to. Additionally
+there is a new set of flags defined for the memory notification chain to
+indicate that memory is being hot added or hot removed. This allows any work
+that may need to be done prior to or after memory is hot added or removed
+to be performed.
 
---Andy
+The remaining patches in the patch set update the powerpc to properly do
+memory hot add and remove in the kernel.
+
+Nathan Fontenot
+---
+ Documentation/memory-hotplug.txt                      |   26 ++++
+ arch/powerpc/mm/mem.c                                 |   35 +++++-
+ arch/powerpc/platforms/pseries/hotplug-memory.c       |   95 +---------------
+ drivers/base/memory.c                                 |   81 ++++++++++++--
+ linux/Documentation/memory-hotplug.txt                |   34 ++++-
+ linux/arch/powerpc/Kconfig                            |    2 
+ linux/arch/powerpc/mm/init_64.c                       |    6 +
+ linux/arch/powerpc/mm/mem.c                           |    9 +
+ linux/arch/powerpc/platforms/pseries/dlpar.c          |  103 ++++++++++++++++++
+ linux/arch/powerpc/platforms/pseries/hotplug-memory.c |   60 +---------
+ linux/arch/x86/Kconfig                                |    2 
+ linux/drivers/base/memory.c                           |   20 +--
+ linux/include/linux/memory.h                          |    6 +
+ linux/mm/Kconfig                                      |    2 
+ linux/mm/memory_hotplug.c                             |   25 +++-
+ 15 files changed, 322 insertions(+), 184 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
