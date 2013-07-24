@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id AF31A6B0034
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 14:41:23 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id A76406B0034
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 14:44:31 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <nfont@linux.vnet.ibm.com>;
-	Thu, 25 Jul 2013 00:02:46 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 68855394002D
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 00:11:10 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6OIfB8v44564572
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 00:11:11 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6OIfF6w010434
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 04:41:15 +1000
-Message-ID: <51F01FC7.5040403@linux.vnet.ibm.com>
-Date: Wed, 24 Jul 2013 13:41:11 -0500
+	Thu, 25 Jul 2013 00:09:11 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 72B2F1258051
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 00:13:48 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6OIiJlY36765826
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 00:14:20 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6OIiMKY002873
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 04:44:22 +1000
+Message-ID: <51F02083.7040700@linux.vnet.ibm.com>
+Date: Wed, 24 Jul 2013 13:44:19 -0500
 From: Nathan Fontenot <nfont@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: [PATCH 5/8] Add notifiers for memory hot add/remove
+Subject: [PATCH 6/8] Update the powerpc arch specific memory add/remove handlers
 References: <51F01E06.6090800@linux.vnet.ibm.com>
 In-Reply-To: <51F01E06.6090800@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1
@@ -27,169 +27,150 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linuxppc-dev@lists.ozlabs.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, isimatu.yasuaki@jp.fujitsu.com
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-In order to allow architectures or other subsystems to do any needed
-work prior to hot adding or hot removing memory the memory notifier
-chain should be updated to provide notifications of these events.
+In order to properly hot add and remove memory for powerpc the arch
+specific callouts need to now complete all of the required work to
+fully add or remove the memory.
 
-This patch adds the notifications for memory hot add and hot remove.
+With this update we can also remove the handler for memory node add
+because the powerpc arch specific memory add handler will do all the
+work needed. We do still need the memory node remove handler because
+systems with memory specified in the memory@XXX nodes in the device tree
+we have to use the removal of the node to trigger memory hot remove.
+
+For systems on newer firmware with memory specified in the
+ibm,dynamic-reconfiguration-memory node of the device tree this is not an
+issue.
 
 Signed-off-by: Nathan Fontenot <nfont@linux.vnet.ibm.com>
---
- Documentation/memory-hotplug.txt |   26 +++++++++++++++++++++++---
- include/linux/memory.h           |    6 ++++++
- mm/memory_hotplug.c              |   25 ++++++++++++++++++++++---
- 3 files changed, 51 insertions(+), 6 deletions(-)
+---
+ arch/powerpc/mm/mem.c                           |   33 +++++++++++++++++++---
+ arch/powerpc/platforms/pseries/hotplug-memory.c |   35 ------------------------
+ 2 files changed, 29 insertions(+), 39 deletions(-)
 
-Index: linux/include/linux/memory.h
+Index: linux/arch/powerpc/mm/mem.c
 ===================================================================
---- linux.orig/include/linux/memory.h
-+++ linux/include/linux/memory.h
-@@ -50,6 +50,12 @@ int arch_get_memory_phys_device(unsigned
- #define	MEM_GOING_ONLINE	(1<<3)
- #define	MEM_CANCEL_ONLINE	(1<<4)
- #define	MEM_CANCEL_OFFLINE	(1<<5)
-+#define MEM_BEING_HOT_REMOVED	(1<<6)
-+#define MEM_HOT_REMOVED		(1<<7)
-+#define MEM_CANCEL_HOT_REMOVE	(1<<8)
-+#define MEM_BEING_HOT_ADDED	(1<<9)
-+#define MEM_HOT_ADDED		(1<<10)
-+#define MEM_CANCEL_HOT_ADD	(1<<11)
-
- struct memory_notify {
- 	unsigned long start_pfn;
-Index: linux/mm/memory_hotplug.c
-===================================================================
---- linux.orig/mm/memory_hotplug.c
-+++ linux/mm/memory_hotplug.c
-@@ -1073,17 +1073,25 @@ out:
- int __ref add_memory(int nid, u64 start, u64 size)
- {
- 	pg_data_t *pgdat = NULL;
--	bool new_pgdat;
-+	bool new_pgdat = false;
- 	bool new_node;
--	struct resource *res;
-+	struct resource *res = NULL;
-+	struct memory_notify arg;
- 	int ret;
-
- 	lock_memory_hotplug();
-
-+	arg.start_pfn = start >> PAGE_SHIFT;
-+	arg.nr_pages = size / PAGE_SIZE;
-+	ret = memory_notify(MEM_BEING_HOT_ADDED, &arg);
-+	ret = notifier_to_errno(ret);
+--- linux.orig/arch/powerpc/mm/mem.c
++++ linux/arch/powerpc/mm/mem.c
+@@ -35,6 +35,7 @@
+ #include <linux/memblock.h>
+ #include <linux/hugetlb.h>
+ #include <linux/slab.h>
++#include <linux/vmalloc.h>
+ 
+ #include <asm/pgalloc.h>
+ #include <asm/prom.h>
+@@ -120,17 +121,24 @@ int arch_add_memory(int nid, u64 start,
+ 	struct zone *zone;
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
++	u64 va_start;
++	int ret;
+ 
+ 	pgdata = NODE_DATA(nid);
+ 
+-	start = (unsigned long)__va(start);
+-	if (create_section_mapping(start, start + size))
++	va_start = (unsigned long)__va(start);
++	if (create_section_mapping(va_start, va_start + size))
+ 		return -EINVAL;
+ 
+ 	/* this should work for most non-highmem platforms */
+ 	zone = pgdata->node_zones;
+ 
+-	return __add_pages(nid, zone, start_pfn, nr_pages);
++	ret = __add_pages(nid, zone, start_pfn, nr_pages);
 +	if (ret)
-+		goto error;
++		return ret;
 +
- 	res = register_memory_resource(start, size);
- 	ret = -EEXIST;
- 	if (!res)
--		goto out;
-+		goto error;
-
- 	{	/* Stupid hack to suppress address-never-null warning */
- 		void *p = NODE_DATA(nid);
-@@ -1119,9 +1127,12 @@ int __ref add_memory(int nid, u64 start,
- 	/* create new memmap entry */
- 	firmware_map_add_hotplug(start, start + size, "System RAM");
-
-+	memory_notify(MEM_HOT_ADDED, &arg);
- 	goto out;
-
- error:
-+	memory_notify(MEM_CANCEL_HOT_ADD, &arg);
-+
- 	/* rollback pgdat allocation and others */
- 	if (new_pgdat)
- 		rollback_node_hotadd(nid, pgdat);
-@@ -1784,10 +1795,15 @@ EXPORT_SYMBOL(try_offline_node);
-
- void __ref remove_memory(int nid, u64 start, u64 size)
++	ret = memblock_add(start, size);
++	return ret;
+ }
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+@@ -138,10 +146,27 @@ int arch_remove_memory(u64 start, u64 si
  {
-+	struct memory_notify arg;
- 	int ret;
-
- 	lock_memory_hotplug();
-
-+	arg.start_pfn = start >> PAGE_SHIFT;
-+	arg.nr_pages = size / PAGE_SIZE;
-+	memory_notify(MEM_BEING_HOT_REMOVED, &arg);
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
++	unsigned long va_addr;
+ 	struct zone *zone;
++	int ret;
+ 
+ 	zone = page_zone(pfn_to_page(start_pfn));
+-	return __remove_pages(zone, start_pfn, nr_pages);
++	ret = __remove_pages(zone, start_pfn, nr_pages);
++	if (ret)
++		return ret;
 +
- 	/*
- 	 * All memory blocks must be offlined before removing memory.  Check
- 	 * whether all memory blocks in question are offline and trigger a BUG()
-@@ -1796,6 +1812,7 @@ void __ref remove_memory(int nid, u64 st
- 	ret = walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1), NULL,
- 				is_memblock_offlined_cb);
- 	if (ret) {
-+		memory_notify(MEM_CANCEL_HOT_REMOVE, &arg);
- 		unlock_memory_hotplug();
- 		BUG();
- 	}
-@@ -1807,6 +1824,8 @@ void __ref remove_memory(int nid, u64 st
-
- 	try_offline_node(nid);
-
-+	memory_notify(MEM_HOT_REMOVED, &arg);
++	memblock_remove(start, size);
 +
- 	unlock_memory_hotplug();
++	/* remove htab bolted mappings */
++	va_addr = (unsigned long)__va(start);
++	ret = remove_section_mapping(va_addr, va_addr + size);
++
++	/* Ensure all vmalloc mappings are flushed in case they also
++	 * hit that section of memory.
++	 */
++	vm_unmap_aliases();
++
++	return ret;
  }
- EXPORT_SYMBOL_GPL(remove_memory);
-Index: linux/Documentation/memory-hotplug.txt
+ #endif
+ #endif /* CONFIG_MEMORY_HOTPLUG */
+Index: linux/arch/powerpc/platforms/pseries/hotplug-memory.c
 ===================================================================
---- linux.orig/Documentation/memory-hotplug.txt
-+++ linux/Documentation/memory-hotplug.txt
-@@ -371,7 +371,9 @@ Need more implementation yet....
- --------------------------------
- 8. Memory hotplug event notifier
- --------------------------------
--Memory hotplug has event notifier. There are 6 types of notification.
-+Memory hotplug has event notifier. There are 12 types of notification, the
-+first six relate to memory hotplug and the second six relate to memory hot
-+add/remove.
-
- MEMORY_GOING_ONLINE
-   Generated before new memory becomes available in order to be able to
-@@ -398,6 +400,24 @@ MEMORY_CANCEL_OFFLINE
- MEMORY_OFFLINE
-   Generated after offlining memory is complete.
-
-+MEMORY_BEING_HOT_REMOVED
-+  Generated prior to the process of hot removing memory.
-+
-+MEMORY_CANCEL_HOT_REMOVE
-+  Generated if MEMORY_BEING_HOT_REMOVED fails.
-+
-+MEMORY_HOT_REMOVED
-+  Generated when memory has been successfully hot removed.
-+
-+MEMORY_BEING_HOT_ADDED
-+  Generated prior to the process of hot adding memory.
-+
-+MEMORY_HOT_ADD_CANCEL
-+  Generated if MEMORY_BEING_HOT_ADDED fails.
-+
-+MEMORY_HOT_ADDED
-+  Generated when memory has successfully been hot added.
-+
- A callback routine can be registered by
-   hotplug_memory_notifier(callback_func, priority)
-
-@@ -412,8 +432,8 @@ struct memory_notify {
-        int status_change_nid;
+--- linux.orig/arch/powerpc/platforms/pseries/hotplug-memory.c
++++ linux/arch/powerpc/platforms/pseries/hotplug-memory.c
+@@ -166,38 +166,6 @@ static inline int pseries_remove_memory(
  }
-
--start_pfn is start_pfn of online/offline memory.
--nr_pages is # of pages of online/offline memory.
-+start_pfn is start_pfn of online/offline/add/remove memory.
-+nr_pages is # of pages of online/offline/add/remove memory.
- status_change_nid_normal is set node id when N_NORMAL_MEMORY of nodemask
- is (will be) set/clear, if this is -1, then nodemask status is not changed.
- status_change_nid_high is set node id when N_HIGH_MEMORY of nodemask
-
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+ 
+-static int pseries_add_memory(struct device_node *np)
+-{
+-	const char *type;
+-	const unsigned int *regs;
+-	unsigned long base;
+-	unsigned int lmb_size;
+-	int ret = -EINVAL;
+-
+-	/*
+-	 * Check to see if we are actually adding memory
+-	 */
+-	type = of_get_property(np, "device_type", NULL);
+-	if (type == NULL || strcmp(type, "memory") != 0)
+-		return 0;
+-
+-	/*
+-	 * Find the base and size of the memblock
+-	 */
+-	regs = of_get_property(np, "reg", NULL);
+-	if (!regs)
+-		return ret;
+-
+-	base = *(unsigned long *)regs;
+-	lmb_size = regs[3];
+-
+-	/*
+-	 * Update memory region to represent the memory add
+-	 */
+-	ret = memblock_add(base, lmb_size);
+-	return (ret < 0) ? -EINVAL : 0;
+-}
+-
+ static int pseries_update_drconf_memory(struct of_prop_reconfig *pr)
+ {
+ 	struct of_drconf_cell *new_drmem, *old_drmem;
+@@ -251,9 +219,6 @@ static int pseries_memory_notifier(struc
+ 	int err = 0;
+ 
+ 	switch (action) {
+-	case OF_RECONFIG_ATTACH_NODE:
+-		err = pseries_add_memory(node);
+-		break;
+ 	case OF_RECONFIG_DETACH_NODE:
+ 		err = pseries_remove_memory(node);
+ 		break;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
