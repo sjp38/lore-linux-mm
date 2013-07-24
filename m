@@ -1,79 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 8CDC86B0033
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 23:50:10 -0400 (EDT)
-Message-ID: <51EF4F95.1050308@cn.fujitsu.com>
-Date: Wed, 24 Jul 2013 11:52:53 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 4DAAF6B0033
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 00:20:46 -0400 (EDT)
+Received: by mail-ee0-f41.google.com with SMTP id d51so735460eek.14
+        for <linux-mm@kvack.org>; Tue, 23 Jul 2013 21:20:44 -0700 (PDT)
+Date: Wed, 24 Jul 2013 06:20:41 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH v2] mm/hotplug, x86: Disable ARCH_MEMORY_PROBE by default
+Message-ID: <20130724042041.GA8504@gmail.com>
+References: <1374256068-26016-1-git-send-email-toshi.kani@hp.com>
+ <20130722083721.GC25976@gmail.com>
+ <1374513120.16322.21.camel@misato.fc.hp.com>
+ <20130723080101.GB15255@gmail.com>
+ <1374612301.16322.136.camel@misato.fc.hp.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 11/21] x86: get pg_data_t's memory from other node
-References: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com> <1374220774-29974-12-git-send-email-tangchen@cn.fujitsu.com> <20130723200924.GP21100@mtj.dyndns.org>
-In-Reply-To: <20130723200924.GP21100@mtj.dyndns.org>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1374612301.16322.136.camel@misato.fc.hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
-
-On 07/24/2013 04:09 AM, Tejun Heo wrote:
-> On Fri, Jul 19, 2013 at 03:59:24PM +0800, Tang Chen wrote:
->> From: Yasuaki Ishimatsu<isimatu.yasuaki@jp.fujitsu.com>
->>
->> If system can create movable node which all memory of the
->> node is allocated as ZONE_MOVABLE, setup_node_data() cannot
->> allocate memory for the node's pg_data_t.
->> So, use memblock_alloc_try_nid() instead of memblock_alloc_nid()
->> to retry when the first allocation fails. Otherwise, the system
->> could failed to boot.
-......
->> -	nd_pa = memblock_alloc_nid(nd_size, SMP_CACHE_BYTES, nid);
->> +	nd_pa = memblock_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
->>   	if (!nd_pa) {
->> -		pr_err("Cannot find %zu bytes in node %d\n",
->> -		       nd_size, nid);
->> +		pr_err("Cannot find %zu bytes in any node\n", nd_size);
->
-> Hmm... we want the node data to be colocated on the same node and I
-> don't think being hotpluggable necessarily requires the node data to
-> be allocated on a different node.  Does node data of a hotpluggable
-> node need to stay around after hotunplug?
->
-> I don't think it's a huge issue but it'd be great if we can clarify
-> where the restriction is coming from.
->
-
-You are right, the node data could be on hotpluggable node. And Yinghai
-also said pagetable and vmemmap could be on hotpluggable node.
-
-But for now, doing so will break memory hot-remove path. I should have
-mentioned so in the log, which I didn't do.
-
-A node could have several memory devices. And the device who holds node
-data should be hot-removed in the last place. But in NUAM level, we don't
-know which memory_block (/sys/devices/system/node/nodeX/memoryXXX) belongs
-to which memory device. We only have node. So we can only do node hotplug.
-
-Also as Yinghai's previous patch-set did, he put pagetable on local node.
-And we met the same problem. when hot-removing memory, we have to ensure
-the memory device containing pagetable being hot-removed in the last place.
-
-But in virtualization, developers are now developing memory hotplug in qemu,
-which support a single memory device hotplug. So a whole node hotplug will
-not satisfy virtualization users.
-
-At last, we concluded that we'd better do memory hotplug and local node
-things (local node node data, pagetable, vmemmap, ...) in two steps.
-Please refer to https://lkml.org/lkml/2013/6/19/73
-
-The node data should be on local, I agree with that. I'm not saying I
-won't do it. Just for now, it will be complicated to fix memory hot-remove
-path. So I think pushing this patch for now, and do the local node things
-in the next step.
-
-Thanks.
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, dave@sr71.net, kosaki.motohiro@gmail.com, isimatu.yasuaki@jp.fujitsu.com, tangchen@cn.fujitsu.com, vasilis.liaskovitis@profitbricks.com
 
 
+* Toshi Kani <toshi.kani@hp.com> wrote:
+
+> On Tue, 2013-07-23 at 10:01 +0200, Ingo Molnar wrote:
+> > * Toshi Kani <toshi.kani@hp.com> wrote:
+> > 
+> > > > Could we please also fix it to never crash the kernel, even if stupid 
+> > > > ranges are provided?
+> > > 
+> > > Yes, this probe interface can be enhanced to verify the firmware 
+> > > information before adding a given memory address.  However, such change 
+> > > would interfere its test use of "fake" hotplug, which is only the known 
+> > > use-case of this interface on x86.
+> > 
+> > Not crashing the kernel is not a novel concept even for test interfaces...
+> 
+> Agreed.
+> 
+> > Where does the possible crash come from - from using invalid RAM ranges, 
+> > right? I.e. on x86 to fix the crash we need to check the RAM is present in 
+> > the e820 maps, is marked RAM there, and is not already registered with the 
+> > kernel, or so?
+> 
+> Yes, the crash comes from using invalid RAM ranges.  How to check if the
+> RAM is present is different if the system supports hotplug or not.
+> 
+> > > In order to verify if a given memory address is enabled at run-time (as 
+> > > opposed to boot-time), we need to check with ACPI memory device objects 
+> > > on x86.  However, system vendors tend to not implement memory device 
+> > > objects unless their systems support memory hotplug.  Dave Hansen is 
+> > > using this interface for his testing as a way to fake a hotplug event on 
+> > > a system that does not support memory hotplug.
+> > 
+> > All vendors implement e820 maps for the memory present at boot time.
+> 
+> Yes for boot time.  At run-time, e820 is not guaranteed to represent a
+> new memory added. [...]
+
+Yes I know that, the e820 map is boot only.
+
+You claimed that the only purpose of this on x86 was that testing was done 
+on non-hotplug systems, using this interface. Non-hotplug systems have 
+e820 maps.
+
+> > How does the hotplug event based approach solve double adds? Relies on 
+> > the hardware not sending a hot-add event twice for the same memory 
+> > area or for an invalid memory area, or does it include fail-safes and 
+> > double checks as well to avoid double adds and adding invalid memory? 
+> > If yes then that could be utilized here as well.
+> 
+> In high-level, here is how ACPI memory hotplug works:
+> 
+> 1. ACPI sends a hotplug event to a new ACPI memory device object that is
+> hot-added.
+> 2. The kernel is notified, and verifies if the new memory device object
+> has not been attached by any handler yet.
+> 3. The memory handler is called, and obtains a new memory range from the
+> ACPI memory device object. 
+> 4. The memory handler calls add_memory() with the new address range.
+> 
+> The above step 1-4 proceeds automatically within the kernel.  No user 
+> input (nor sysfs interface) is necessary.  Step 2 prevents double adds 
+> [...]
+
+If this 'new memory device object' is some ACPI detail then I don't see 
+how it protects the kernel from a buggy ACPI implementation double adding 
+the same physical memory range.
+
+> and step 3 gets a valid address range from the firmware directly.  Step 
+> 4 is basically the same as the "probe" interface, but with all the 
+> verification up front, this step is safe.
+
+So what verification does the kernel do to ensure that a buggy ACPI 
+implementation does not pass us a crappy memory range, such a double 
+physical range (represented via separate 'memory device objects'), or a 
+range overlapping with an existing physical memory range already known to 
+the kernel, or a totally nonsensical range the CPU cannot even access 
+physically, etc.?
+
+Also, is there any verification done to make sure that the new memory 
+range is actually RAM - i.e. we could write the first and last word of it 
+and see whether it gets modified correctly [to keep the sanity check 
+fast]?
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
