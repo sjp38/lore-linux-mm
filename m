@@ -1,12 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 183DB6B0033
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 06:02:42 -0400 (EDT)
-Message-ID: <51EFA5C7.40504@huawei.com>
-Date: Wed, 24 Jul 2013 18:00:39 +0800
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 892216B0036
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 06:02:56 -0400 (EDT)
+Message-ID: <51EFA62B.3020508@huawei.com>
+Date: Wed, 24 Jul 2013 18:02:19 +0800
 From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Subject: [PATCH v2 3/8] cgroup: implement cgroup_from_id()
+Subject: [PATCH v2 6/8] memcg: fail to create cgroup if the cgroup id is too
+ big
 References: <51EFA554.6080801@huawei.com>
 In-Reply-To: <51EFA554.6080801@huawei.com>
 Content-Type: text/plain; charset="GB2312"
@@ -16,57 +17,40 @@ List-ID: <linux-mm.kvack.org>
 To: Tejun Heo <tj@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-This will be used as a replacement for css_lookup().
-
-There's a difference with cgroup id and css id. cgroup id starts with 0,
-while css id starts with 1.
+memcg requires the cgroup id to be smaller than 65536.
 
 Signed-off-by: Li Zefan <lizefan@huawei.com>
 ---
- include/linux/cgroup.h |  2 ++
- kernel/cgroup.c        | 16 ++++++++++++++++
- 2 files changed, 18 insertions(+)
+ mm/memcontrol.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
 
-diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
-index 8c107e9..e8eb361 100644
---- a/include/linux/cgroup.h
-+++ b/include/linux/cgroup.h
-@@ -553,6 +553,8 @@ int task_cgroup_path_from_hierarchy(struct task_struct *task, int hierarchy_id,
- 
- int cgroup_task_count(const struct cgroup *cgrp);
- 
-+struct cgroup *cgroup_from_id(struct cgroup_subsys *ss, int id);
-+
- /*
-  * Control Group taskset, used to pass around set of tasks to cgroup_subsys
-  * methods.
-diff --git a/kernel/cgroup.c b/kernel/cgroup.c
-index ee3c02e..9b27775 100644
---- a/kernel/cgroup.c
-+++ b/kernel/cgroup.c
-@@ -5536,6 +5536,22 @@ struct cgroup_subsys_state *cgroup_css_from_dir(struct file *f, int id)
- 	return css ? css : ERR_PTR(-ENOENT);
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 35d8286..403c8d9 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -512,6 +512,12 @@ static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
+ 	return (memcg == root_mem_cgroup);
  }
  
-+/**
-+ * cgroup_from_id - lookup cgroup by id
-+ * @ss: cgroup subsys to be looked into
-+ * @id: the cgroup id
-+ *
-+ * Returns the cgroup is there's valid one with @id, otherwise returns Null.
-+ * Should be called under rcu_readlock().
++/*
++ * We restrict the id in the range of [1, 65535], so it can fit into
++ * an unsigned short.
 + */
-+struct cgroup *cgroup_from_id(struct cgroup_subsys *ss, int id)
-+{
-+	rcu_lockdep_assert(rcu_read_lock_held(),
-+			   "cgroup_from_id() needs rcu_read_lock()"
-+			   " protection");
-+	return idr_find(&ss->root->cgroup_idr, id);
-+}
++#define MEM_CGROUP_ID_MAX	(65535)
 +
- #ifdef CONFIG_CGROUP_DEBUG
- static struct cgroup_subsys_state *debug_css_alloc(struct cgroup *cgrp)
+ static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
  {
+ 	/*
+@@ -6243,6 +6249,9 @@ mem_cgroup_css_alloc(struct cgroup *cont)
+ 	long error = -ENOMEM;
+ 	int node;
+ 
++	if (cont->id > MEM_CGROUP_ID_MAX)
++		return ERR_PTR(-ENOSPC);
++
+ 	memcg = mem_cgroup_alloc();
+ 	if (!memcg)
+ 		return ERR_PTR(error);
 -- 
 1.8.0.2
 
