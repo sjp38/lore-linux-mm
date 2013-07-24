@@ -1,74 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 911AC6B0031
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 10:27:53 -0400 (EDT)
-Date: Wed, 24 Jul 2013 16:27:51 +0200
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 2AC6D6B0033
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 10:30:02 -0400 (EDT)
+Date: Wed, 24 Jul 2013 16:30:00 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2 6/8] memcg: fail to create cgroup if the cgroup id is
- too big
-Message-ID: <20130724142751.GI2540@dhcp22.suse.cz>
+Subject: Re: [PATCH v2 7/8] memcg: stop using css id
+Message-ID: <20130724143000.GJ2540@dhcp22.suse.cz>
 References: <51EFA554.6080801@huawei.com>
- <51EFA62B.3020508@huawei.com>
+ <51EFA657.1090107@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51EFA62B.3020508@huawei.com>
+In-Reply-To: <51EFA657.1090107@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Li Zefan <lizefan@huawei.com>
 Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-On Wed 24-07-13 18:02:19, Li Zefan wrote:
-> memcg requires the cgroup id to be smaller than 65536.
+On Wed 24-07-13 18:03:03, Li Zefan wrote:
+> Now memcg uses cgroup id instead of css id. Update some comments and
+> set mem_cgroup_subsys->use_id to 0.
 > 
 > Signed-off-by: Li Zefan <lizefan@huawei.com>
 
 Acked-by: Michal Hocko <mhocko@suse.cz>
 
-One suggestion bellow
-
 > ---
->  mm/memcontrol.c | 9 +++++++++
->  1 file changed, 9 insertions(+)
+>  mm/memcontrol.c | 23 ++++++++---------------
+>  1 file changed, 8 insertions(+), 15 deletions(-)
 > 
 > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 35d8286..403c8d9 100644
+> index 403c8d9..03c8bf7 100644
 > --- a/mm/memcontrol.c
 > +++ b/mm/memcontrol.c
-> @@ -512,6 +512,12 @@ static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
->  	return (memcg == root_mem_cgroup);
->  }
+> @@ -598,16 +598,11 @@ static void disarm_sock_keys(struct mem_cgroup *memcg)
+>  #ifdef CONFIG_MEMCG_KMEM
+>  /*
+>   * This will be the memcg's index in each cache's ->memcg_params->memcg_caches.
+> - * There are two main reasons for not using the css_id for this:
+> - *  1) this works better in sparse environments, where we have a lot of memcgs,
+> - *     but only a few kmem-limited. Or also, if we have, for instance, 200
+> - *     memcgs, and none but the 200th is kmem-limited, we'd have to have a
+> - *     200 entry array for that.
+> - *
+> - *  2) In order not to violate the cgroup API, we would like to do all memory
+> - *     allocation in ->create(). At that point, we haven't yet allocated the
+> - *     css_id. Having a separate index prevents us from messing with the cgroup
+> - *     core for this
+> + * The main reason for not using cgroup id for this:
+> + *  this works better in sparse environments, where we have a lot of memcgs,
+> + *  but only a few kmem-limited. Or also, if we have, for instance, 200
+> + *  memcgs, and none but the 200th is kmem-limited, we'd have to have a
+> + *  200 entry array for that.
+>   *
+>   * The current size of the caches array is stored in
+>   * memcg_limited_groups_array_size.  It will double each time we have to
+> @@ -622,14 +617,14 @@ int memcg_limited_groups_array_size;
+>   * cgroups is a reasonable guess. In the future, it could be a parameter or
+>   * tunable, but that is strictly not necessary.
+>   *
+> - * MAX_SIZE should be as large as the number of css_ids. Ideally, we could get
+> + * MAX_SIZE should be as large as the number of cgrp_ids. Ideally, we could get
+>   * this constant directly from cgroup, but it is understandable that this is
+>   * better kept as an internal representation in cgroup.c. In any case, the
+> - * css_id space is not getting any smaller, and we don't have to necessarily
+> + * cgrp_id space is not getting any smaller, and we don't have to necessarily
+>   * increase ours as well if it increases.
+>   */
+>  #define MEMCG_CACHES_MIN_SIZE 4
+> -#define MEMCG_CACHES_MAX_SIZE 65535
+> +#define MEMCG_CACHES_MAX_SIZE MEM_CGROUP_ID_MAX
 >  
-> +/*
-> + * We restrict the id in the range of [1, 65535], so it can fit into
-> + * an unsigned short.
-> + */
-> +#define MEM_CGROUP_ID_MAX	(65535)
-
-USHRT_MAX
-
-> +
->  static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
->  {
->  	/*
-> @@ -6243,6 +6249,9 @@ mem_cgroup_css_alloc(struct cgroup *cont)
->  	long error = -ENOMEM;
->  	int node;
+>  /*
+>   * A lot of the calls to the cache allocation functions are expected to be
+> @@ -6183,7 +6178,6 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
+>  	size_t size = memcg_size();
 >  
-> +	if (cont->id > MEM_CGROUP_ID_MAX)
-> +		return ERR_PTR(-ENOSPC);
-> +
->  	memcg = mem_cgroup_alloc();
->  	if (!memcg)
->  		return ERR_PTR(error);
+>  	mem_cgroup_remove_from_trees(memcg);
+> -	free_css_id(&mem_cgroup_subsys, &memcg->css);
+>  
+>  	for_each_node(node)
+>  		free_mem_cgroup_per_zone_info(memcg, node);
+> @@ -6980,7 +6974,6 @@ struct cgroup_subsys mem_cgroup_subsys = {
+>  	.bind = mem_cgroup_bind,
+>  	.base_cftypes = mem_cgroup_files,
+>  	.early_init = 0,
+> -	.use_id = 1,
+>  };
+>  
+>  #ifdef CONFIG_MEMCG_SWAP
 > -- 
 > 1.8.0.2
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
 Michal Hocko
