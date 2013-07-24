@@ -1,106 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 4F1386B0034
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 22:44:30 -0400 (EDT)
-Date: Wed, 24 Jul 2013 11:44:28 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: hugepage related lockdep trace.
-Message-ID: <20130724024428.GA14795@bbox>
-References: <20130717153223.GD27731@redhat.com>
- <20130718000901.GA31972@blaptop>
- <87hafrdatb.fsf@linux.vnet.ibm.com>
- <20130719001303.GB23354@blaptop>
- <20130723140120.GG8677@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id EDAB46B0031
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 22:50:31 -0400 (EDT)
+Message-ID: <51EF4196.8050303@cn.fujitsu.com>
+Date: Wed, 24 Jul 2013 10:53:10 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130723140120.GG8677@dhcp22.suse.cz>
+Subject: Re: [PATCH 02/21] memblock, numa: Introduce flag into memblock.
+References: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com> <1374220774-29974-3-git-send-email-tangchen@cn.fujitsu.com> <20130723190928.GH21100@mtj.dyndns.org>
+In-Reply-To: <20130723190928.GH21100@mtj.dyndns.org>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-On Tue, Jul 23, 2013 at 04:01:20PM +0200, Michal Hocko wrote:
-> On Fri 19-07-13 09:13:03, Minchan Kim wrote:
-> > On Thu, Jul 18, 2013 at 11:12:24PM +0530, Aneesh Kumar K.V wrote:
-> [...]
-> > > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> > > index 83aff0a..2cb1be3 100644
-> > > --- a/mm/hugetlb.c
-> > > +++ b/mm/hugetlb.c
-> > > @@ -3266,8 +3266,8 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
-> > >  		put_page(virt_to_page(spte));
-> > >  	spin_unlock(&mm->page_table_lock);
-> > >  out:
-> > > -	pte = (pte_t *)pmd_alloc(mm, pud, addr);
-> > >  	mutex_unlock(&mapping->i_mmap_mutex);
-> > > +	pte = (pte_t *)pmd_alloc(mm, pud, addr);
-> > >  	return pte;
-> > 
-> > I am blind on hugetlb but not sure it doesn't break eb48c071.
-> > Michal?
-> 
-> Well, it is some time since I debugged the race and all the details
-> vanished in the meantime. But this part of the changelog suggests that
-> this indeed breaks the fix:
-> "
->     This patch addresses the issue by moving pmd_alloc into huge_pmd_share
->     which guarantees that the shared pud is populated in the same critical
->     section as pmd.  This also means that huge_pte_offset test in
->     huge_pmd_share is serialized correctly now which in turn means that the
->     success of the sharing will be higher as the racing tasks see the pud
->     and pmd populated together.
-> "
-> 
-> Besides that I fail to see how moving pmd_alloc down changes anything.
-> Even if pmd_alloc triggered reclaim then we cannot trip over the same
-> i_mmap_mutex as hugetlb pages are not reclaimable because they are not
-> on the LRU.
+On 07/24/2013 03:09 AM, Tejun Heo wrote:
+> Hello,
+>
+> On Fri, Jul 19, 2013 at 03:59:15PM +0800, Tang Chen wrote:
+>> +#define MEMBLK_FLAGS_DEFAULT	0x0	/* default flag */
+>
+> Please don't do this.  Just clearing the struct as zero is enough.
+>
+>> @@ -439,12 +449,14 @@ repeat:
+>>   int __init_memblock memblock_add_node(phys_addr_t base, phys_addr_t size,
+>>   				       int nid)
+>>   {
+>> -	return memblock_add_region(&memblock.memory, base, size, nid);
+>> +	return memblock_add_region(&memblock.memory, base, size,
+>> +				   nid, MEMBLK_FLAGS_DEFAULT);
+>
+> And just use zero for no flag.  Doing something like the above gets
+> weird with actual flags.  e.g. if you add a flag, say, MEMBLK_HOTPLUG,
+> should it be MEMBLK_FLAGS_DEFAULT | MEMBLK_HOTPLUG or just
+> MEMBLK_HOTPLUG?  If latter, the knowledge that DEFAULT is zero is
+> implicit, and, if so, why do it at all?
 
-I thought we could map some part of binary with normal page and other part
-of the one with MAP_HUGETLB so that a address space could have both normal
-page and HugeTLB page. Okay, it's impossible so HugeTLB pages are not on LRU.
-Then, above lockdep warning is totally false positive.
-Best solution is avoiding pmd_alloc with holding i_mmap_mutex but we need it
-to fix eb48c071 so how about this if we couldn't have a better idea?
+OK, will remove MEMBLK_FLAGS_DEFAULT, and use 0 by default.
+
+>
+>> +static int __init_memblock memblock_reserve_region(phys_addr_t base,
+>> +						   phys_addr_t size,
+>> +						   int nid,
+>> +						   unsigned long flags)
+>>   {
+>>   	struct memblock_type *_rgn =&memblock.reserved;
+>>
+>> -	memblock_dbg("memblock_reserve: [%#016llx-%#016llx] %pF\n",
+>> +	memblock_dbg("memblock_reserve: [%#016llx-%#016llx] with flags %#016lx %pF\n",
+>
+> Let's please drop "with" and do we really need to print full 16
+> digits?
+
+Sure, will remove "with". But I think printing out the full flags is batter.
+The output seems more tidy.
 
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 83aff0a..e7c3a15 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -3240,7 +3240,15 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
- 	if (!vma_shareable(vma, addr))
- 		return (pte_t *)pmd_alloc(mm, pud, addr);
- 
--	mutex_lock(&mapping->i_mmap_mutex);
-+	/*
-+	 * It annotates to shut lockdep's warning up casued by i_mmap_mutex
-+	 * Below pmd_alloc try to allocate memory with GFP_KERNEL while
-+	 * holding i_mmap_mutex so that it could enter direct reclaim path
-+	 * that rmap try to hold i_mmap_mutex again. But it's no problem
-+	 * for hugetlb because pages on hugetlb never could live in LRU so
-+	 * it's false positive. I hope someone fixes it with avoiding pmd_alloc
-+        * with holding i_mmap_mutex rather than nesting annotation.
-+	 */
-+	mutex_lock_nested(&mapping->i_mmap_mutex, SINGLE_DEPTH_NESTING);
- 	vma_interval_tree_foreach(svma, &mapping->i_mmap, idx, idx) {
- 		if (svma == vma)
- 			continue;
-
-> -- 
-> Michal Hocko
-> SUSE Labs
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
