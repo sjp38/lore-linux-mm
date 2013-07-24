@@ -1,112 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id AEFCF6B0031
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 09:52:26 -0400 (EDT)
-Received: by mail-ob0-f169.google.com with SMTP id up14so13215070obb.0
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2013 06:52:25 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 19BEF6B0031
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 10:07:06 -0400 (EDT)
+Date: Wed, 24 Jul 2013 16:07:02 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2 1/8] cgroup: convert cgroup_ida to cgroup_idr
+Message-ID: <20130724140702.GD2540@dhcp22.suse.cz>
+References: <51EFA554.6080801@huawei.com>
+ <51EFA570.5020907@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <20130722150702.GB4706@variantweb.net>
-References: <1374331018-11045-1-git-send-email-bob.liu@oracle.com>
-	<20130722150702.GB4706@variantweb.net>
-Date: Wed, 24 Jul 2013 21:52:25 +0800
-Message-ID: <CAA_GA1dUdNzwPFJdPr6Ysvf4t+08t9A=tcE4SGL8K73m27meNw@mail.gmail.com>
-Subject: Re: [PATCH 0/2] zcache: a new start for upstream
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51EFA570.5020907@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Linux-Kernel <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>, Linux-MM <linux-mm@kvack.org>
+To: Li Zefan <lizefan@huawei.com>
+Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-Hi Seth,
+On Wed 24-07-13 17:59:12, Li Zefan wrote:
+> This enables us to lookup a cgroup by its id.
+> 
+> Signed-off-by: Li Zefan <lizefan@huawei.com>
 
-On Mon, Jul 22, 2013 at 11:07 PM, Seth Jennings
-<sjenning@linux.vnet.ibm.com> wrote:
-> Sorry for the dup Bob, last reply only went to linux-mm
->
-> On Sat, Jul 20, 2013 at 10:36:56PM +0800, Bob Liu wrote:
->> We already have zswap helps reducing the swap out/in IO operations by
->> compressing anon pages.
->> It has been merged into v3.11-rc1 together with the zbud allocation layer.
->>
->> However there is another kind of pages(clean file pages) suitable for
->> compression as well. Upstream has already merged its frontend(cleancache).
->> Now we are lacking of a backend of cleancache as zswap to frontswap.
->>
->> Furthermore, we need to balance the number of compressed anon and file pages,
->> E.g. it's unfair to normal file pages if zswap pool occupies too much memory for
->> the storage of compressed anon pages.
->>
->> Although the current version of zcache in staging tree has already done those
->> works mentioned above, the implementation is too complicated to be merged into
->> upstream.
->>
->> What I'm looking for is a new way for zcache towards upstream.
->> The first change is no more staging tree.
->> Second is implemented a simple cleancache backend at first, which is based on
->> the zbud allocation same as zswap.
->
-> I like the approach of distilling zcache down to only page cache compression
-> as a start.
->
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-Thank you for your review!
+One nit/question bellow
+[...]
+> @@ -4268,15 +4271,19 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
+>  	if (!cgrp)
+>  		return -ENOMEM;
+>  
+> +	/*
+> +	 * Temporarily set the pointer to NULL, so idr_find() won't return
+> +	 * a half-baked cgroup.
+> +	 */
+> +	cgrp->id = idr_alloc(&root->cgroup_idr, NULL, 1, 0, GFP_KERNEL);
+> +	if (cgrp->id < 0)
+> +		goto err_free_cgrp;
+> +
+>  	name = cgroup_alloc_name(dentry);
+>  	if (!name)
+> -		goto err_free_cgrp;
+> +		goto err_free_id;
+>  	rcu_assign_pointer(cgrp->name, name);
+>  
+> -	cgrp->id = ida_simple_get(&root->cgroup_ida, 1, 0, GFP_KERNEL);
+> -	if (cgrp->id < 0)
+> -		goto err_free_name;
+> -
 
-> However, there is still the unresolved issue of the streaming read regression.
-> If the workload does streaming reads (i.e. reads from a set much larger than
-> RAM and does no rereads), zcache will regress that workload because it will
-> be compressing pages that will quickly be tossed out of the second chance
-> cache too.
->
-> This is a difficult problem when it comes to page cache compression: how
-> to know whether a page will be used again.  In the case of zswap, the
-> page is persistent in memory and therefore MUST be maintained.  With
-> page cache compression, that isn't that case.  There is the option to
-> just toss it and reread from disk.
+Is the move necessary? You would safe few lines in the patch if you kept
+the ordering.
 
-Probably we can add checking whether the file page used to at the active list!
-Only putting reclaimed file pages which are from active list to cleancache!
-
-Of course this way can't fix this problem totally, but I think we can
-get a higher hit rate!
-
->
-> The assumption is that keeping as many cached pages as possible, regardless
-> of the overhead to do so, is always a win.  But this is not always true.
->
->>
->> At the end, I hope we can combine the new cleancache backend with
->> zswap(frontswap backend), in order to have a generic in-kernel memory
->> compression solution in upstream.
->
-> I don't see a need to combine them since, afaict, you'd really never use them
-> at the same time as zswap (anon memory pressure in general) shreds the page
-> cache and would aggressively shrink zcache to the point of uselessness.
->
-
-Make sense, but is there any way to share the compression functions
-and per-cpu functions?
-
->>
->> Bob Liu (2):
->>   zcache: staging: %s/ZCACHE/ZCACHE_OLD
->>   mm: zcache: core functions added
->>
->>  drivers/staging/zcache/Kconfig  |   12 +-
->>  drivers/staging/zcache/Makefile |    4 +-
->>  mm/Kconfig                      |   18 +
->>  mm/Makefile                     |    1 +
->>  mm/zcache.c                     |  840 +++++++++++++++++++++++++++++++++++++++
->>  5 files changed, 867 insertions(+), 8 deletions(-)
->>  create mode 100644 mm/zcache.c
->
-> No code?
->
-> Seth
-
+>  	/*
+>  	 * Only live parents can have children.  Note that the liveliness
+>  	 * check isn't strictly necessary because cgroup_mkdir() and
+> @@ -4286,7 +4293,7 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
+>  	 */
+>  	if (!cgroup_lock_live_group(parent)) {
+>  		err = -ENODEV;
+> -		goto err_free_id;
+> +		goto err_free_name;
+>  	}
+>  
+>  	/* Grab a reference on the superblock so the hierarchy doesn't
+> @@ -4371,6 +4378,8 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
+>  		}
+>  	}
+>  
+> +	idr_replace(&root->cgroup_idr, cgrp, cgrp->id);
+> +
+>  	err = cgroup_addrm_files(cgrp, NULL, cgroup_base_files, true);
+>  	if (err)
+>  		goto err_destroy;
+> @@ -4396,10 +4405,10 @@ err_free_all:
+>  	mutex_unlock(&cgroup_mutex);
+>  	/* Release the reference count that we took on the superblock */
+>  	deactivate_super(sb);
+> -err_free_id:
+> -	ida_simple_remove(&root->cgroup_ida, cgrp->id);
+>  err_free_name:
+>  	kfree(rcu_dereference_raw(cgrp->name));
+> +err_free_id:
+> +	idr_remove(&root->cgroup_idr, cgrp->id);
+>  err_free_cgrp:
+>  	kfree(cgrp);
+>  	return err;
+[...]
 -- 
-Regards,
---Bob
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
