@@ -1,73 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 64D256B0031
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 21:12:26 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 24 Jul 2013 06:34:27 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id DB319E0057
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 06:42:19 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6O1DAUv39321710
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 06:43:10 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6O1CHcp024324
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 11:12:18 +1000
-Date: Wed, 24 Jul 2013 09:12:16 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 06/10] mm, hugetlb: remove redundant list_empty check
- in gather_surplus_pages()
-Message-ID: <20130724011216.GB22680@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1374482191-3500-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1374482191-3500-7-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 62F806B0033
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 21:18:11 -0400 (EDT)
+Received: by mail-vc0-f176.google.com with SMTP id ha11so752836vcb.7
+        for <linux-mm@kvack.org>; Tue, 23 Jul 2013 18:18:10 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1374482191-3500-7-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <89813612683626448B837EE5A0B6A7CB3B62F8F272@SC-VEXCH4.marvell.com>
+References: <89813612683626448B837EE5A0B6A7CB3B62F8F272@SC-VEXCH4.marvell.com>
+Date: Wed, 24 Jul 2013 09:18:10 +0800
+Message-ID: <CAA_GA1ciCDJeBqZv1gHNpQ2VVyDRAVF9_au+fo2dwVvLqnkygA@mail.gmail.com>
+Subject: Re: Possible deadloop in direct reclaim?
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>
+To: Lisa Du <cldu@marvell.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>
 
-On Mon, Jul 22, 2013 at 05:36:27PM +0900, Joonsoo Kim wrote:
->If list is empty, list_for_each_entry_safe() doesn't do anything.
->So, this check is redundant. Remove it.
+On Tue, Jul 23, 2013 at 12:58 PM, Lisa Du <cldu@marvell.com> wrote:
+> Dear Sir:
 >
->Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
->Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Currently I met a possible deadloop in direct reclaim. After run plenty o=
+f
+> the application, system run into a status that system memory is very
+> fragmentized. Like only order-0 and order-1 memory left.
+>
+> Then one process required a order-2 buffer but it enter an endless direct
+> reclaim. From my trace log, I can see this loop already over 200,000 time=
+s.
+> Kswapd was first wake up and then go back to sleep as it cannot rebalance
+> this order=E2=80=99s memory. But zone->all_unreclaimable remains 1.
+>
+> Though direct_reclaim every time returns no pages, but as
+> zone->all_unreclaimable =3D 1, so it loop again and again. Even when
+> zone->pages_scanned also becomes very large. It will block the process fo=
+r
+> long time, until some watchdog thread detect this and kill this process.
+> Though it=E2=80=99s in __alloc_pages_slowpath, but it=E2=80=99s too slow =
+right? Maybe cost
+> over 50 seconds or even more.
+
+You must be mean zone->all_unreclaimable =3D 0?
+
+>
+> I think it=E2=80=99s not as expected right?  Can we also add below check =
+in the
+> function all_unreclaimable() to terminate this loop?
+>
+>
+>
+> @@ -2355,6 +2355,8 @@ static bool all_unreclaimable(struct zonelist
+> *zonelist,
+>
+>                         continue;
+>
+>                 if (!zone->all_unreclaimable)
+>
+>                         return false;
+>
+> +               if (sc->nr_reclaimed =3D=3D 0 && !zone_reclaimable(zone))
+>
+> +                       return true;
 >
 
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+How about replace the checking in kswapd_shrink_zone()?
 
->diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->index 3ac0a6f..7ca8733 100644
->--- a/mm/hugetlb.c
->+++ b/mm/hugetlb.c
->@@ -1017,11 +1017,8 @@ free:
-> 	spin_unlock(&hugetlb_lock);
->
-> 	/* Free unnecessary surplus pages to the buddy allocator */
->-	if (!list_empty(&surplus_list)) {
->-		list_for_each_entry_safe(page, tmp, &surplus_list, lru) {
->-			put_page(page);
->-		}
->-	}
->+	list_for_each_entry_safe(page, tmp, &surplus_list, lru)
->+		put_page(page);
-> 	spin_lock(&hugetlb_lock);
->
-> 	return ret;
->-- 
->1.7.9.5
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+@@ -2824,7 +2824,7 @@ static bool kswapd_shrink_zone(struct zone *zone,
+        /* Account for the number of pages attempted to reclaim */
+        *nr_attempted +=3D sc->nr_to_reclaim;
+
+-       if (nr_slab =3D=3D 0 && !zone_reclaimable(zone))
++       if (sc->nr_reclaimed =3D=3D 0 && !zone_reclaimable(zone))
+                zone->all_unreclaimable =3D 1;
+
+        zone_clear_flag(zone, ZONE_WRITEBACK);
+
+
+I think the current check is wrong, reclaimed a slab doesn't mean
+reclaimed a page.
+
+--=20
+Regards,
+--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
