@@ -1,47 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id B9FA56B0031
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 12:14:12 -0400 (EDT)
-Received: by mail-ye0-f177.google.com with SMTP id m4so1414379yen.22
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2013 09:14:11 -0700 (PDT)
-Date: Wed, 24 Jul 2013 12:14:07 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v2 0/8] memcg, cgroup: kill css_id
-Message-ID: <20130724161407.GD20377@mtj.dyndns.org>
-References: <51EFA554.6080801@huawei.com>
- <20130724143214.GL2540@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id E829A6B0031
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 12:23:35 -0400 (EDT)
+Received: by mail-ve0-f169.google.com with SMTP id m1so7227457ves.0
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2013 09:23:34 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130724143214.GL2540@dhcp22.suse.cz>
+In-Reply-To: <20130724160826.GD24851@moon>
+References: <20130724160826.GD24851@moon>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Wed, 24 Jul 2013 09:23:14 -0700
+Message-ID: <CALCETrXYnkonpBANnUuX+aJ=B=EYFwecZO27yrqcEU8WErz9DA@mail.gmail.com>
+Subject: Re: [PATCH] mm: Save soft-dirty bits on swapped pages
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Li Zefan <lizefan@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
+To: Cyrill Gorcunov <gorcunov@gmail.com>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Pavel Emelyanov <xemul@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Marcelo Tosatti <mtosatti@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Stephen Rothwell <sfr@canb.auug.org.au>
 
-On Wed, Jul 24, 2013 at 04:32:14PM +0200, Michal Hocko wrote:
-> On Wed 24-07-13 17:58:44, Li Zefan wrote:
-> > This patchset converts memcg to use cgroup->id, and then we can remove
-> > cgroup css_id.
-> > 
-> > As we've removed memcg's own refcnt, converting memcg to use cgroup->id
-> > is very straight-forward.
-> > 
-> > The patchset is based on Tejun's cgroup tree.
-> 
-> Does it depend on any particular patches? I am asking because I would
-> need to cherry pick those and apply them into my -mm git tree before
-> these.
+On Wed, Jul 24, 2013 at 9:08 AM, Cyrill Gorcunov <gorcunov@gmail.com> wrote:
+> Andy Lutomirski reported that in case if a page with _PAGE_SOFT_DIRTY
+> bit set get swapped out, the bit is getting lost and no longer
+> available when pte read back.
 
-I'll set up a branch with the prep cgroup patches bsaed on top of
-v3.10 which you can pull into your tree (let's please not cherry-pick)
-and the memcg part and actual css_id removal can be carried through
--mm.
+Potentially silly question (due to my completely lack of understanding
+of how swapping works in Linux): what about file-backed pages?
+(Arguably these would be best supported by filesystems instead of by
+the core vm, in which case it might make sense to drop soft-dirty
+support for these pages entirely.)
 
-Thanks.
-
--- 
-tejun
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
