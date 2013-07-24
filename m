@@ -1,82 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 721966B0031
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 20:57:26 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id 500CD6B0031
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 21:00:59 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 24 Jul 2013 10:41:39 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id A3AC33578050
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 10:57:18 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6O0v7Zu10682746
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 10:57:08 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6O0vGLn024298
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 10:57:17 +1000
-Date: Wed, 24 Jul 2013 08:57:15 +0800
+	Wed, 24 Jul 2013 06:21:54 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 825B6E0059
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 06:30:54 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6O11iJD21037182
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 06:31:45 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6O10mKk030930
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 11:00:51 +1000
+Date: Wed, 24 Jul 2013 09:00:41 +0800
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 01/10] mm, hugetlb: move up the code which check
- availability of free huge page
-Message-ID: <20130724005715.GA17662@hacker.(null)>
+Subject: Re: [PATCH v2 03/10] mm, hugetlb: trivial commenting fix
+Message-ID: <20130724010041.GB17662@hacker.(null)>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 References: <1374482191-3500-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1374482191-3500-2-git-send-email-iamjoonsoo.kim@lge.com>
+ <1374482191-3500-4-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1374482191-3500-2-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1374482191-3500-4-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>
 
-On Mon, Jul 22, 2013 at 05:36:22PM +0900, Joonsoo Kim wrote:
->In this time we are holding a hugetlb_lock, so hstate values can't
->be changed. If we don't have any usable free huge page in this time,
->we don't need to proceede the processing. So move this code up.
+On Mon, Jul 22, 2013 at 05:36:24PM +0900, Joonsoo Kim wrote:
+>The name of the mutex written in comment is wrong.
+>Fix it.
 >
+>Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+>Acked-by: Hillf Danton <dhillf@gmail.com>
 >Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 >
-
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-
 >diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->index e2bfbf7..fc4988c 100644
+>index d87f70b..d21a33a 100644
 >--- a/mm/hugetlb.c
 >+++ b/mm/hugetlb.c
->@@ -539,10 +539,6 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
-> 	struct zoneref *z;
-> 	unsigned int cpuset_mems_cookie;
->
->-retry_cpuset:
->-	cpuset_mems_cookie = get_mems_allowed();
->-	zonelist = huge_zonelist(vma, address,
->-					htlb_alloc_mask, &mpol, &nodemask);
-> 	/*
-> 	 * A child process with MAP_PRIVATE mappings created by their parent
-> 	 * have no page reserves. This check ensures that reservations are
->@@ -556,6 +552,11 @@ retry_cpuset:
-> 	if (avoid_reserve && h->free_huge_pages - h->resv_huge_pages == 0)
-> 		goto err;
->
->+retry_cpuset:
->+	cpuset_mems_cookie = get_mems_allowed();
->+	zonelist = huge_zonelist(vma, address,
->+					htlb_alloc_mask, &mpol, &nodemask);
->+
-> 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
-> 						MAX_NR_ZONES - 1, nodemask) {
-> 		if (cpuset_zone_allowed_softwall(zone, htlb_alloc_mask)) {
->@@ -574,7 +575,6 @@ retry_cpuset:
-> 	return page;
->
-> err:
->-	mpol_cond_put(mpol);
-> 	return NULL;
-> }
->
+>@@ -135,9 +135,9 @@ static inline struct hugepage_subpool *subpool_vma(struct vm_area_struct *vma)
+>  *                    across the pages in a mapping.
+>  *
+>  * The region data structures are protected by a combination of the mmap_sem
+>- * and the hugetlb_instantion_mutex.  To access or modify a region the caller
+>+ * and the hugetlb_instantiation_mutex.  To access or modify a region the caller
+>  * must either hold the mmap_sem for write, or the mmap_sem for read and
+>- * the hugetlb_instantiation mutex:
+>+ * the hugetlb_instantiation_mutex:
+
+What changed?
+
+>  *
+>  *	down_write(&mm->mmap_sem);
+>  * or
 >-- 
 >1.7.9.5
 >
