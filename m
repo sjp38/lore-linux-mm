@@ -1,110 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id AB04C6B0031
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 02:54:52 -0400 (EDT)
-Message-ID: <51EF7ADD.6050500@cn.fujitsu.com>
-Date: Wed, 24 Jul 2013 14:57:33 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 2FFDE6B0031
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 04:51:43 -0400 (EDT)
+Date: Wed, 24 Jul 2013 17:51:48 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 07/10] mm, hugetlb: do not use a page in page cache
+ for cow optimization
+Message-ID: <20130724085148.GD2266@lge.com>
+References: <1374482191-3500-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1374482191-3500-8-git-send-email-iamjoonsoo.kim@lge.com>
+ <20130723114550.GB8677@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 12/21] x86, acpi: Try to find if SRAT is overrided earlier.
-References: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com> <1374220774-29974-13-git-send-email-tangchen@cn.fujitsu.com> <20130723202746.GQ21100@mtj.dyndns.org>
-In-Reply-To: <20130723202746.GQ21100@mtj.dyndns.org>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130723114550.GB8677@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 07/24/2013 04:27 AM, Tejun Heo wrote:
-> On Fri, Jul 19, 2013 at 03:59:25PM +0800, Tang Chen wrote:
->> As we mentioned in previous patches, to prevent the kernel
->
-> Prolly best to briefly describe what the overall goal is about.
+On Tue, Jul 23, 2013 at 01:45:50PM +0200, Michal Hocko wrote:
+> On Mon 22-07-13 17:36:28, Joonsoo Kim wrote:
+> > Currently, we use a page with mapped count 1 in page cache for cow
+> > optimization. If we find this condition, we don't allocate a new
+> > page and copy contents. Instead, we map this page directly.
+> > This may introduce a problem that writting to private mapping overwrite
+> > hugetlb file directly. You can find this situation with following code.
+> > 
+> >         size = 20 * MB;
+> >         flag = MAP_SHARED;
+> >         p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
+> >         if (p == MAP_FAILED) {
+> >                 fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
+> >                 return -1;
+> >         }
+> >         p[0] = 's';
+> >         fprintf(stdout, "BEFORE STEAL PRIVATE WRITE: %c\n", p[0]);
+> >         munmap(p, size);
+> > 
+> >         flag = MAP_PRIVATE;
+> >         p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
+> >         if (p == MAP_FAILED) {
+> >                 fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
+> >         }
+> >         p[0] = 'c';
+> >         munmap(p, size);
+> > 
+> >         flag = MAP_SHARED;
+> >         p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
+> >         if (p == MAP_FAILED) {
+> >                 fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
+> >                 return -1;
+> >         }
+> >         fprintf(stdout, "AFTER STEAL PRIVATE WRITE: %c\n", p[0]);
+> >         munmap(p, size);
+> > 
+> > We can see that "AFTER STEAL PRIVATE WRITE: c", not "AFTER STEAL
+> > PRIVATE WRITE: s". If we turn off this optimization to a page
+> > in page cache, the problem is disappeared.
+> 
+> It would be nice to describe the fix here as well. It is far from being
+> intuitive and trivial.
 
-Sure. Here is the overall picture, and will add it to log.
+Okay. I will describe how I fix the problem in all patches you pointed out.
 
-Linux cannot migrate pages used by the kernel due to the direct mapping
-(va = pa + PAGE_OFFSET), any memory used by the kernel cannot be 
-hot-removed.
-So in memory hotplug platform, we have to prevent the kernel from using
-hotpluggable memory.
+Thanks for reviewing!
 
-The ACPI table SRAT (System Resource Affinity Table) contains info to 
-specify
-which memory is hotpluggble. After SRAT is parsed, we are aware of which
-memory is hotpluggable.
-
-At the early time when system is booting, SRAT has not been parsed. The boot
-memory allocator memblock will allocate any memory to the kernel. So we need
-SRAT parsed before memblock starts to work.
-
-In this patch, we are going to parse SRAT earlier, right after memblock 
-is ready.
-
-Generally speaking, SRAT is provided by firmware. But 
-ACPI_INITRD_TABLE_OVERRIDE
-functionality allows users to customize their own SRAT in initrd, and 
-override
-the one from firmware. So if we want to parse SRAT earlier, we also need 
-to do
-SRAT override earlier.
-
-First, we introduce early_acpi_override_srat() to check if SRAT will be 
-overridden
-from initrd.
-
-Second, we introduce reserve_hotpluggable_memory() to reserve 
-hotpluggable memory,
-which will firstly call early_acpi_override_srat() to find out which 
-memory is
-hotpluggable in the override SRAT.
-
->
->> diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
->> index 28d2e60..9717760 100644
->> --- a/arch/x86/kernel/setup.c
->> +++ b/arch/x86/kernel/setup.c
->> @@ -1078,6 +1078,15 @@ void __init setup_arch(char **cmdline_p)
->>   	/* Initialize ACPI root table */
->>   	acpi_root_table_init();
->>
->> +#ifdef CONFIG_ACPI_NUMA
->> +	/*
->> +	 * Linux kernel cannot migrate kernel pages, as a result, memory used
->> +	 * by the kernel cannot be hot-removed. Reserve hotpluggable memory to
->> +	 * prevent memblock from allocating hotpluggable memory for the kernel.
->> +	 */
->> +	reserve_hotpluggable_memory();
->> +#endif
->
-> Hmmm, so you're gonna reserve all hotpluggable memory areas until
-> everything is up and running, which probably is why allocating
-> node_data on hotpluggable node doesn't work, right?
-
-Yes, that's right. The node_data of hotpluggable node is now put on another
-unhotpluggable node.
-
->
-......
->> +phys_addr_t __init early_acpi_override_srat(void)
->> +{
->> +	int i;
->> +	u32 length;
->> +	long offset;
->> +	void *ramdisk_vaddr;
->> +	struct acpi_table_header *table;
->> +	unsigned long map_step = NR_FIX_BTMAPS<<  PAGE_SHIFT;
->> +	phys_addr_t ramdisk_image = get_ramdisk_image();
->> +	char cpio_path[32] = "kernel/firmware/acpi/";
->> +	struct cpio_data file;
->
-> Don't we usually put variable declarations with initializers before
-> others?  For some reason, the above block is painful to look at.
-
-OK, followed.
-
-Thanks.
+> 
+> The fix seems to be correct.
+> 
+> > Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> 
+> Acked-by: Michal Hocko <mhocko@suse.cz>
+> 
+> > 
+> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> > index 7ca8733..8a61638 100644
+> > --- a/mm/hugetlb.c
+> > +++ b/mm/hugetlb.c
+> > @@ -2508,7 +2508,6 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+> >  {
+> >  	struct hstate *h = hstate_vma(vma);
+> >  	struct page *old_page, *new_page;
+> > -	int avoidcopy;
+> >  	int outside_reserve = 0;
+> >  	unsigned long mmun_start;	/* For mmu_notifiers */
+> >  	unsigned long mmun_end;		/* For mmu_notifiers */
+> > @@ -2518,10 +2517,8 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+> >  retry_avoidcopy:
+> >  	/* If no-one else is actually using this page, avoid the copy
+> >  	 * and just make the page writable */
+> > -	avoidcopy = (page_mapcount(old_page) == 1);
+> > -	if (avoidcopy) {
+> > -		if (PageAnon(old_page))
+> > -			page_move_anon_rmap(old_page, vma, address);
+> > +	if (page_mapcount(old_page) == 1 && PageAnon(old_page)) {
+> > +		page_move_anon_rmap(old_page, vma, address);
+> >  		set_huge_ptep_writable(vma, address, ptep);
+> >  		return 0;
+> >  	}
+> > -- 
+> > 1.7.9.5
+> > 
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
