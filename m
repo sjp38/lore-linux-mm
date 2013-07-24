@@ -1,88 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 62F806B0033
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 21:18:11 -0400 (EDT)
-Received: by mail-vc0-f176.google.com with SMTP id ha11so752836vcb.7
-        for <linux-mm@kvack.org>; Tue, 23 Jul 2013 18:18:10 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <89813612683626448B837EE5A0B6A7CB3B62F8F272@SC-VEXCH4.marvell.com>
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 190646B0031
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 21:21:46 -0400 (EDT)
+From: Lisa Du <cldu@marvell.com>
+Date: Tue, 23 Jul 2013 18:21:29 -0700
+Subject: RE: Possible deadloop in direct reclaim?
+Message-ID: <89813612683626448B837EE5A0B6A7CB3B62F8F5C3@SC-VEXCH4.marvell.com>
 References: <89813612683626448B837EE5A0B6A7CB3B62F8F272@SC-VEXCH4.marvell.com>
-Date: Wed, 24 Jul 2013 09:18:10 +0800
-Message-ID: <CAA_GA1ciCDJeBqZv1gHNpQ2VVyDRAVF9_au+fo2dwVvLqnkygA@mail.gmail.com>
-Subject: Re: Possible deadloop in direct reclaim?
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+ <000001400d38469d-a121fb96-4483-483a-9d3e-fc552e413892-000000@email.amazonses.com>
+In-Reply-To: <000001400d38469d-a121fb96-4483-483a-9d3e-fc552e413892-000000@email.amazonses.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="gb2312"
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lisa Du <cldu@marvell.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>
+To: Christoph Lameter <cl@linux.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Bob Liu <lliubbo@gmail.com>
 
-On Tue, Jul 23, 2013 at 12:58 PM, Lisa Du <cldu@marvell.com> wrote:
-> Dear Sir:
->
-> Currently I met a possible deadloop in direct reclaim. After run plenty o=
-f
-> the application, system run into a status that system memory is very
-> fragmentized. Like only order-0 and order-1 memory left.
->
-> Then one process required a order-2 buffer but it enter an endless direct
-> reclaim. From my trace log, I can see this loop already over 200,000 time=
-s.
-> Kswapd was first wake up and then go back to sleep as it cannot rebalance
-> this order=E2=80=99s memory. But zone->all_unreclaimable remains 1.
->
-> Though direct_reclaim every time returns no pages, but as
-> zone->all_unreclaimable =3D 1, so it loop again and again. Even when
-> zone->pages_scanned also becomes very large. It will block the process fo=
-r
-> long time, until some watchdog thread detect this and kill this process.
-> Though it=E2=80=99s in __alloc_pages_slowpath, but it=E2=80=99s too slow =
-right? Maybe cost
-> over 50 seconds or even more.
-
-You must be mean zone->all_unreclaimable =3D 0?
-
->
-> I think it=E2=80=99s not as expected right?  Can we also add below check =
-in the
-> function all_unreclaimable() to terminate this loop?
->
->
->
-> @@ -2355,6 +2355,8 @@ static bool all_unreclaimable(struct zonelist
-> *zonelist,
->
->                         continue;
->
->                 if (!zone->all_unreclaimable)
->
->                         return false;
->
-> +               if (sc->nr_reclaimed =3D=3D 0 && !zone_reclaimable(zone))
->
-> +                       return true;
->
-
-How about replace the checking in kswapd_shrink_zone()?
-
-@@ -2824,7 +2824,7 @@ static bool kswapd_shrink_zone(struct zone *zone,
-        /* Account for the number of pages attempted to reclaim */
-        *nr_attempted +=3D sc->nr_to_reclaim;
-
--       if (nr_slab =3D=3D 0 && !zone_reclaimable(zone))
-+       if (sc->nr_reclaimed =3D=3D 0 && !zone_reclaimable(zone))
-                zone->all_unreclaimable =3D 1;
-
-        zone_clear_flag(zone, ZONE_WRITEBACK);
-
-
-I think the current check is wrong, reclaimed a slab doesn't mean
-reclaimed a page.
-
---=20
-Regards,
---Bob
+RGVhciBDaHJpc3RvcGgNCiAgIFRoYW5rcyBhIGxvdCBmb3IgeW91ciBjb21tZW50LiBXaGVuIHRo
+aXMgaXNzdWUgaGFwcGVuIEkganVzdCB0cmlnZ2VyIGEga2VybmVsIHBhbmljIGFuZCBnb3QgdGhl
+IGtkdW1wLg0KRnJvbSB0aGUga2R1bXAsIEkgZ290IHRoZSBnbG9iYWwgdmFyaWFibGUgcGdfZGF0
+YV90IGNvbmdpdF9wYWdlX2RhdGEuIEZyb20gdGhpcyBzdHJ1Y3R1cmUsIEkgY2FuIHNlZSBpbiBu
+b3JtYWwgem9uZSwgb25seSBvcmRlci0wJ3MgbnJfZnJlZSA9IDE4NDQyLCBvcmRlci0xJ3MgbnJf
+ZnJlZSA9IDM2NywgYWxsIHRoZSBvdGhlciBvcmRlcidzIG5yX2ZyZWUgaXMgMC4NCg0KVGhhbmtz
+IQ0KDQpCZXN0IFJlZ2FyZHMNCkxpc2EgRHUNCg0KDQotLS0tLU9yaWdpbmFsIE1lc3NhZ2UtLS0t
+LQ0KRnJvbTogQ2hyaXN0b3BoIExhbWV0ZXIgW21haWx0bzpjbEBsaW51eC5jb21dIA0KU2VudDog
+MjAxM8TqN9TCMjTI1SA0OjI5DQpUbzogTGlzYSBEdQ0KQ2M6IGxpbnV4LW1tQGt2YWNrLm9yZzsg
+TWVsIEdvcm1hbg0KU3ViamVjdDogUmU6IFBvc3NpYmxlIGRlYWRsb29wIGluIGRpcmVjdCByZWNs
+YWltPw0KDQpPbiBNb24sIDIyIEp1bCAyMDEzLCBMaXNhIER1IHdyb3RlOg0KDQo+IEN1cnJlbnRs
+eSBJIG1ldCBhIHBvc3NpYmxlIGRlYWRsb29wIGluIGRpcmVjdCByZWNsYWltLiBBZnRlciBydW4g
+cGxlbnR5IG9mIHRoZSBhcHBsaWNhdGlvbiwgc3lzdGVtIHJ1biBpbnRvIGEgc3RhdHVzIHRoYXQg
+c3lzdGVtIG1lbW9yeSBpcyB2ZXJ5IGZyYWdtZW50aXplZC4gTGlrZSBvbmx5IG9yZGVyLTAgYW5k
+IG9yZGVyLTEgbWVtb3J5IGxlZnQuDQoNCkNhbiB5b3UgdmVyaWZ5IHRoYXQgYnkgZG9pbmcgYQ0K
+DQogY2F0IC9wcm9jL2J1ZGR5aW5mbw0KDQo/DQoNCj4gVGhlbiBvbmUgcHJvY2VzcyByZXF1aXJl
+ZCBhIG9yZGVyLTIgYnVmZmVyIGJ1dCBpdCBlbnRlciBhbiBlbmRsZXNzDQo+IGRpcmVjdCByZWNs
+YWltLiBGcm9tIG15IHRyYWNlIGxvZywgSSBjYW4gc2VlIHRoaXMgbG9vcCBhbHJlYWR5IG92ZXIN
+Cj4gMjAwLDAwMCB0aW1lcy4gS3N3YXBkIHdhcyBmaXJzdCB3YWtlIHVwIGFuZCB0aGVuIGdvIGJh
+Y2sgdG8gc2xlZXAgYXMgaXQNCj4gY2Fubm90IHJlYmFsYW5jZSB0aGlzIG9yZGVyJ3MgbWVtb3J5
+LiBCdXQgem9uZS0+YWxsX3VucmVjbGFpbWFibGUNCj4gcmVtYWlucyAxLiBUaG91Z2ggZGlyZWN0
+X3JlY2xhaW0gZXZlcnkgdGltZSByZXR1cm5zIG5vIHBhZ2VzLCBidXQgYXMNCj4gem9uZS0+YWxs
+X3VucmVjbGFpbWFibGUgPSAxLCBzbyBpdCBsb29wIGFnYWluIGFuZCBhZ2Fpbi4gRXZlbiB3aGVu
+DQo+IHpvbmUtPnBhZ2VzX3NjYW5uZWQgYWxzbyBiZWNvbWVzIHZlcnkgbGFyZ2UuIEl0IHdpbGwg
+YmxvY2sgdGhlIHByb2Nlc3MNCj4gZm9yIGxvbmcgdGltZSwgdW50aWwgc29tZSB3YXRjaGRvZyB0
+aHJlYWQgZGV0ZWN0IHRoaXMgYW5kIGtpbGwgdGhpcw0KPiBwcm9jZXNzLiBUaG91Z2ggaXQncyBp
+biBfX2FsbG9jX3BhZ2VzX3Nsb3dwYXRoLCBidXQgaXQncyB0b28gc2xvdyByaWdodD8NCj4gTWF5
+YmUgY29zdCBvdmVyIDUwIHNlY29uZHMgb3IgZXZlbiBtb3JlLg0KDQo+IEkgdGhpbmsgaXQncyBu
+b3QgYXMgZXhwZWN0ZWQgcmlnaHQ/ICBDYW4gd2UgYWxzbyBhZGQgYmVsb3cgY2hlY2sgaW4gdGhl
+DQo+IGZ1bmN0aW9uIGFsbF91bnJlY2xhaW1hYmxlKCkgdG8gdGVybWluYXRlIHRoaXMgbG9vcD8N
+Cj4NCj4gQEAgLTIzNTUsNiArMjM1NSw4IEBAIHN0YXRpYyBib29sIGFsbF91bnJlY2xhaW1hYmxl
+KHN0cnVjdCB6b25lbGlzdCAqem9uZWxpc3QsDQo+ICAgICAgICAgICAgICAgICAgICAgICAgIGNv
+bnRpbnVlOw0KPiAgICAgICAgICAgICAgICAgaWYgKCF6b25lLT5hbGxfdW5yZWNsYWltYWJsZSkN
+Cj4gICAgICAgICAgICAgICAgICAgICAgICAgcmV0dXJuIGZhbHNlOw0KPiArICAgICAgICAgICAg
+ICAgaWYgKHNjLT5ucl9yZWNsYWltZWQgPT0gMCAmJiAhem9uZV9yZWNsYWltYWJsZSh6b25lKSkN
+Cj4gKyAgICAgICAgICAgICAgICAgICAgICAgcmV0dXJuIHRydWU7DQo+ICAgICAgICAgfQ0KDQpN
+ZWw/DQoNCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
