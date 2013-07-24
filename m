@@ -1,72 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 028CB6B0033
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 21:31:37 -0400 (EDT)
-From: Lisa Du <cldu@marvell.com>
-Date: Tue, 23 Jul 2013 18:31:02 -0700
-Subject: RE: Possible deadloop in direct reclaim?
-Message-ID: <89813612683626448B837EE5A0B6A7CB3B62F8F5CE@SC-VEXCH4.marvell.com>
-References: <89813612683626448B837EE5A0B6A7CB3B62F8F272@SC-VEXCH4.marvell.com>
- <CAA_GA1ciCDJeBqZv1gHNpQ2VVyDRAVF9_au+fo2dwVvLqnkygA@mail.gmail.com>
-In-Reply-To: <CAA_GA1ciCDJeBqZv1gHNpQ2VVyDRAVF9_au+fo2dwVvLqnkygA@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 26EE16B0031
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 21:43:57 -0400 (EDT)
+Message-ID: <51EF31FA.3030602@cn.fujitsu.com>
+Date: Wed, 24 Jul 2013 09:46:34 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
+Subject: Re: [PATCH 01/21] acpi: Print Hot-Pluggable Field in SRAT.
+References: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com> <1374220774-29974-2-git-send-email-tangchen@cn.fujitsu.com> <20130723184843.GG21100@mtj.dyndns.org>
+In-Reply-To: <20130723184843.GG21100@mtj.dyndns.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>
+To: Tejun Heo <tj@kernel.org>, joJoee@perches.com
+Cc: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-RGVhciBCb2INCiAgICBUaGFuayB5b3Ugc28gbXVjaCBmb3IgdGhlIGNhcmVmdWwgcmV2aWV3LCBZ
-ZXMsIGl0J3MgYSB0eXBvLCBJIG1lYW4gem9uZS0+YWxsX3VucmVjbGFpbWFibGUgPSAwLg0KICAg
-IFlvdSBtZW50aW9uZWQgYWRkIHRoZSBjaGVjayBpbiBrc3dhcGRfc2hyaW5rX3pvbmUoKSwgc29y
-cnkgdGhhdCBJIGRpZG4ndCBmaW5kIHRoaXMgZnVuY3Rpb24gaW4ga2VybmVsMy40IG9yIGtlcm5l
-bDMuOS4NCiAgICBJcyB0aGlzIGZ1bmN0aW9uIGNhbGxlZCBpbiBkaXJlY3RfcmVjbGFpbT8gDQog
-ICAgQXMgSSBtZW50aW9uZWQgdGhpcyBpc3N1ZSBoYXBwZW5lZCBhZnRlciBrc3dhcGQgdGhyZWFk
-IHNsZWVwLCBpZiBpdCBvbmx5IGNhbGxlZCBpbiBrc3dhcGQsIHRoZW4gSSB0aGluayBpdCBjYW4n
-dCBoZWxwLg0KDQpUaGFua3MhDQoNCkJlc3QgUmVnYXJkcw0KTGlzYSBEdQ0KDQoNCi0tLS0tT3Jp
-Z2luYWwgTWVzc2FnZS0tLS0tDQpGcm9tOiBCb2IgTGl1IFttYWlsdG86bGxpdWJib0BnbWFpbC5j
-b21dIA0KU2VudDogMjAxM+W5tDfmnIgyNOaXpSA5OjE4DQpUbzogTGlzYSBEdQ0KQ2M6IGxpbnV4
-LW1tQGt2YWNrLm9yZzsgQ2hyaXN0b3BoIExhbWV0ZXI7IE1lbCBHb3JtYW4NClN1YmplY3Q6IFJl
-OiBQb3NzaWJsZSBkZWFkbG9vcCBpbiBkaXJlY3QgcmVjbGFpbT8NCg0KT24gVHVlLCBKdWwgMjMs
-IDIwMTMgYXQgMTI6NTggUE0sIExpc2EgRHUgPGNsZHVAbWFydmVsbC5jb20+IHdyb3RlOg0KPiBE
-ZWFyIFNpcjoNCj4NCj4gQ3VycmVudGx5IEkgbWV0IGEgcG9zc2libGUgZGVhZGxvb3AgaW4gZGly
-ZWN0IHJlY2xhaW0uIEFmdGVyIHJ1biBwbGVudHkgb2YNCj4gdGhlIGFwcGxpY2F0aW9uLCBzeXN0
-ZW0gcnVuIGludG8gYSBzdGF0dXMgdGhhdCBzeXN0ZW0gbWVtb3J5IGlzIHZlcnkNCj4gZnJhZ21l
-bnRpemVkLiBMaWtlIG9ubHkgb3JkZXItMCBhbmQgb3JkZXItMSBtZW1vcnkgbGVmdC4NCj4NCj4g
-VGhlbiBvbmUgcHJvY2VzcyByZXF1aXJlZCBhIG9yZGVyLTIgYnVmZmVyIGJ1dCBpdCBlbnRlciBh
-biBlbmRsZXNzIGRpcmVjdA0KPiByZWNsYWltLiBGcm9tIG15IHRyYWNlIGxvZywgSSBjYW4gc2Vl
-IHRoaXMgbG9vcCBhbHJlYWR5IG92ZXIgMjAwLDAwMCB0aW1lcy4NCj4gS3N3YXBkIHdhcyBmaXJz
-dCB3YWtlIHVwIGFuZCB0aGVuIGdvIGJhY2sgdG8gc2xlZXAgYXMgaXQgY2Fubm90IHJlYmFsYW5j
-ZQ0KPiB0aGlzIG9yZGVy4oCZcyBtZW1vcnkuIEJ1dCB6b25lLT5hbGxfdW5yZWNsYWltYWJsZSBy
-ZW1haW5zIDEuDQo+DQo+IFRob3VnaCBkaXJlY3RfcmVjbGFpbSBldmVyeSB0aW1lIHJldHVybnMg
-bm8gcGFnZXMsIGJ1dCBhcw0KPiB6b25lLT5hbGxfdW5yZWNsYWltYWJsZSA9IDEsIHNvIGl0IGxv
-b3AgYWdhaW4gYW5kIGFnYWluLiBFdmVuIHdoZW4NCj4gem9uZS0+cGFnZXNfc2Nhbm5lZCBhbHNv
-IGJlY29tZXMgdmVyeSBsYXJnZS4gSXQgd2lsbCBibG9jayB0aGUgcHJvY2VzcyBmb3INCj4gbG9u
-ZyB0aW1lLCB1bnRpbCBzb21lIHdhdGNoZG9nIHRocmVhZCBkZXRlY3QgdGhpcyBhbmQga2lsbCB0
-aGlzIHByb2Nlc3MuDQo+IFRob3VnaCBpdOKAmXMgaW4gX19hbGxvY19wYWdlc19zbG93cGF0aCwg
-YnV0IGl04oCZcyB0b28gc2xvdyByaWdodD8gTWF5YmUgY29zdA0KPiBvdmVyIDUwIHNlY29uZHMg
-b3IgZXZlbiBtb3JlLg0KDQpZb3UgbXVzdCBiZSBtZWFuIHpvbmUtPmFsbF91bnJlY2xhaW1hYmxl
-ID0gMD8NCg0KPg0KPiBJIHRoaW5rIGl04oCZcyBub3QgYXMgZXhwZWN0ZWQgcmlnaHQ/ICBDYW4g
-d2UgYWxzbyBhZGQgYmVsb3cgY2hlY2sgaW4gdGhlDQo+IGZ1bmN0aW9uIGFsbF91bnJlY2xhaW1h
-YmxlKCkgdG8gdGVybWluYXRlIHRoaXMgbG9vcD8NCj4NCj4NCj4NCj4gQEAgLTIzNTUsNiArMjM1
-NSw4IEBAIHN0YXRpYyBib29sIGFsbF91bnJlY2xhaW1hYmxlKHN0cnVjdCB6b25lbGlzdA0KPiAq
-em9uZWxpc3QsDQo+DQo+ICAgICAgICAgICAgICAgICAgICAgICAgIGNvbnRpbnVlOw0KPg0KPiAg
-ICAgICAgICAgICAgICAgaWYgKCF6b25lLT5hbGxfdW5yZWNsYWltYWJsZSkNCj4NCj4gICAgICAg
-ICAgICAgICAgICAgICAgICAgcmV0dXJuIGZhbHNlOw0KPg0KPiArICAgICAgICAgICAgICAgaWYg
-KHNjLT5ucl9yZWNsYWltZWQgPT0gMCAmJiAhem9uZV9yZWNsYWltYWJsZSh6b25lKSkNCj4NCj4g
-KyAgICAgICAgICAgICAgICAgICAgICAgcmV0dXJuIHRydWU7DQo+DQoNCkhvdyBhYm91dCByZXBs
-YWNlIHRoZSBjaGVja2luZyBpbiBrc3dhcGRfc2hyaW5rX3pvbmUoKT8NCg0KQEAgLTI4MjQsNyAr
-MjgyNCw3IEBAIHN0YXRpYyBib29sIGtzd2FwZF9zaHJpbmtfem9uZShzdHJ1Y3Qgem9uZSAqem9u
-ZSwNCiAgICAgICAgLyogQWNjb3VudCBmb3IgdGhlIG51bWJlciBvZiBwYWdlcyBhdHRlbXB0ZWQg
-dG8gcmVjbGFpbSAqLw0KICAgICAgICAqbnJfYXR0ZW1wdGVkICs9IHNjLT5ucl90b19yZWNsYWlt
-Ow0KDQotICAgICAgIGlmIChucl9zbGFiID09IDAgJiYgIXpvbmVfcmVjbGFpbWFibGUoem9uZSkp
-DQorICAgICAgIGlmIChzYy0+bnJfcmVjbGFpbWVkID09IDAgJiYgIXpvbmVfcmVjbGFpbWFibGUo
-em9uZSkpDQogICAgICAgICAgICAgICAgem9uZS0+YWxsX3VucmVjbGFpbWFibGUgPSAxOw0KDQog
-ICAgICAgIHpvbmVfY2xlYXJfZmxhZyh6b25lLCBaT05FX1dSSVRFQkFDSyk7DQoNCg0KSSB0aGlu
-ayB0aGUgY3VycmVudCBjaGVjayBpcyB3cm9uZywgcmVjbGFpbWVkIGEgc2xhYiBkb2Vzbid0IG1l
-YW4NCnJlY2xhaW1lZCBhIHBhZ2UuDQoNCi0tIA0KUmVnYXJkcywNCi0tQm9iDQo=
+On 07/24/2013 02:48 AM, Tejun Heo wrote:
+> On Fri, Jul 19, 2013 at 03:59:14PM +0800, Tang Chen wrote:
+>> The Hot-Pluggable field in SRAT suggests if the memory could be
+>> hotplugged while the system is running. Print it as well when
+>> parsing SRAT will help users to know which memory is hotpluggable.
+>>
+>> Signed-off-by: Tang Chen<tangchen@cn.fujitsu.com>
+>> Reviewed-by: Wanpeng Li<liwanp@linux.vnet.ibm.com>
+>
+> Acked-by: Tejun Heo<tj@kernel.org>
+>
+> But a nit below
+>
+>> +	pr=5Finfo("SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx] %s\n",
+>> +		node, pxm,
+>> +		(unsigned long long) start, (unsigned long long) end - 1,
+>> +		hotpluggable ? "Hot Pluggable" : "");
+>
+> The following would be more conventional.
+>
+>    "...10Lx]%s\n", ..., hotpluggable ? " Hot Pluggable" : ""
+>
+> Also, isn't "Hot Pluggable" a bit too verbose?  "hotplug" should be
+> fine, I think.
+>
+
+Hi tj, Joe,
+
+OK=EF=BC=8Cwill change it as you guys said.
+Thank you very much.
+
+Thanks.
+
+=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
