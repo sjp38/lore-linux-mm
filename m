@@ -1,71 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 6884C6B0033
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 04:52:48 -0400 (EDT)
-Date: Wed, 24 Jul 2013 17:52:55 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2 03/10] mm, hugetlb: trivial commenting fix
-Message-ID: <20130724085255.GE2266@lge.com>
-References: <1374482191-3500-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1374482191-3500-4-git-send-email-iamjoonsoo.kim@lge.com>
- <51ef274e.0605e00a.246a.ffffa5c9SMTPIN_ADDED_BROKEN@mx.google.com>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 0E5216B0031
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 05:40:41 -0400 (EDT)
+Received: by mail-bk0-f43.google.com with SMTP id jm2so78687bkc.30
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2013 02:40:40 -0700 (PDT)
+Date: Wed, 24 Jul 2013 11:40:36 +0200
+From: Jan Glauber <jan.glauber@gmail.com>
+Subject: Re: [PATCH] mm: add sys_madvise2 and MADV_NAME to name vmas
+Message-ID: <20130724094035.GA28894@hal>
+References: <1372901537-31033-1-git-send-email-ccross@android.com>
+ <20130704202232.GA19287@redhat.com>
+ <CAMbhsRRjGjo_-zSigmdsDvY-kfBhmP49bDQzsgHfj5N-y+ZAdw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51ef274e.0605e00a.246a.ffffa5c9SMTPIN_ADDED_BROKEN@mx.google.com>
+In-Reply-To: <CAMbhsRRjGjo_-zSigmdsDvY-kfBhmP49bDQzsgHfj5N-y+ZAdw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Colin Cross <ccross@android.com>
+Cc: Oleg Nesterov <oleg@redhat.com>, lkml <linux-kernel@vger.kernel.org>, Kyungmin Park <kmpark@infradead.org>, Christoph Hellwig <hch@infradead.org>, John Stultz <john.stultz@linaro.org>, Rob Landley <rob@landley.net>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rusty Russell <rusty@rustcorp.com.au>, "Eric W. Biederman" <ebiederm@xmission.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Anton Vorontsov <anton.vorontsov@linaro.org>, Pekka Enberg <penberg@kernel.org>, Shaohua Li <shli@fusionio.com>, Sasha Levin <sasha.levin@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@kernel.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, "open list:GENERIC INCLUDE/A..." <linux-arch@vger.kernel.org>
 
-On Wed, Jul 24, 2013 at 09:00:41AM +0800, Wanpeng Li wrote:
-> On Mon, Jul 22, 2013 at 05:36:24PM +0900, Joonsoo Kim wrote:
-> >The name of the mutex written in comment is wrong.
-> >Fix it.
+On Fri, Jul 05, 2013 at 12:40:50PM -0700, Colin Cross wrote:
+> On Thu, Jul 4, 2013 at 1:22 PM, Oleg Nesterov <oleg@redhat.com> wrote:
+> > On 07/03, Colin Cross wrote:
+> >>
+> >> The names of named anonymous vmas are shown in /proc/pid/maps
+> >> as [anon:<name>].  The name of all named vmas are shown in
+> >> /proc/pid/smaps in a new "Name" field that is only present
+> >> for named vmas.
 > >
-> >Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> >Acked-by: Hillf Danton <dhillf@gmail.com>
-> >Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> >
-> >diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> >index d87f70b..d21a33a 100644
-> >--- a/mm/hugetlb.c
-> >+++ b/mm/hugetlb.c
-> >@@ -135,9 +135,9 @@ static inline struct hugepage_subpool *subpool_vma(struct vm_area_struct *vma)
-> >  *                    across the pages in a mapping.
-> >  *
-> >  * The region data structures are protected by a combination of the mmap_sem
-> >- * and the hugetlb_instantion_mutex.  To access or modify a region the caller
-> >+ * and the hugetlb_instantiation_mutex.  To access or modify a region the caller
-> >  * must either hold the mmap_sem for write, or the mmap_sem for read and
-> >- * the hugetlb_instantiation mutex:
-> >+ * the hugetlb_instantiation_mutex:
+> > And this is the only purpose, yes?
 > 
-> What changed?
 
-hugetlb_instantiation_mutex
-                     ^ here!
+The heuristics used for the thread stack annotation is not working always:
 
-Thanks for review!
+https://lkml.org/lkml/2013/6/26/256
 
-> 
-> >  *
-> >  *	down_write(&mm->mmap_sem);
-> >  * or
-> >-- 
-> >1.7.9.5
-> >
-> >--
-> >To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> >the body to majordomo@kvack.org.  For more info on Linux MM,
-> >see: http://www.linux-mm.org/ .
-> >Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Maybe we can get rid of the heuristic if there is an explicit interface to
+mark vma's?
+
+OTOH, a new flag bit instead of a string would be enough to mark the thread
+stacks correctly.
+
+--Jan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
