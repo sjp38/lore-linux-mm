@@ -1,8 +1,10 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm: zswap: add runtime enable/disable
-Date: Tue, 23 Jul 2013 07:25:29 +0800
-Message-ID: <6536.98015162281$1374535548@news.gmane.org>
-References: <1374521642-25478-1-git-send-email-sjenning@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 01/10] mm, hugetlb: move up the code which check
+ availability of free huge page
+Date: Wed, 24 Jul 2013 08:57:15 +0800
+Message-ID: <29379.7426078983$1374627458@news.gmane.org>
+References: <1374482191-3500-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1374482191-3500-2-git-send-email-iamjoonsoo.kim@lge.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -10,120 +12,77 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1V1PU4-00057Q-Re
-	for glkm-linux-mm-2@m.gmane.org; Tue, 23 Jul 2013 01:25:41 +0200
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 720176B0032
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2013 19:25:38 -0400 (EDT)
+	id 1V1nOT-0005h7-Ie
+	for glkm-linux-mm-2@m.gmane.org; Wed, 24 Jul 2013 02:57:29 +0200
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 721966B0031
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 20:57:26 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 23 Jul 2013 04:47:42 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id EEF49394004E
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 04:55:26 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6MNPRgC40173680
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 04:55:27 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6MNPUgc004367
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 09:25:31 +1000
+	Wed, 24 Jul 2013 10:41:39 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id A3AC33578050
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 10:57:18 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6O0v7Zu10682746
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 10:57:08 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6O0vGLn024298
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 10:57:17 +1000
 Content-Disposition: inline
-In-Reply-To: <1374521642-25478-1-git-send-email-sjenning@linux.vnet.ibm.com>
+In-Reply-To: <1374482191-3500-2-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dave Hansen <dave@sr71.net>, Bob Liu <lliubbo@gmail.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Mon, Jul 22, 2013 at 02:34:02PM -0500, Seth Jennings wrote:
->Right now, zswap can only be enabled at boot time.  This patch
->modifies zswap so that it can be dynamically enabled or disabled
->at runtime.
+On Mon, Jul 22, 2013 at 05:36:22PM +0900, Joonsoo Kim wrote:
+>In this time we are holding a hugetlb_lock, so hstate values can't
+>be changed. If we don't have any usable free huge page in this time,
+>we don't need to proceede the processing. So move this code up.
 >
->In order to allow this ability, zswap unconditionally registers as a
->frontswap backend regardless of whether or not zswap.enabled=1 is passed
->in the boot parameters or not.  This introduces a very small overhead
->for systems that have zswap disabled as calls to frontswap_store() will
->call zswap_frontswap_store(), but there is a fast path to immediately
->return if zswap is disabled.
+>Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 >
->Disabling zswap does not unregister zswap from frontswap.  It simply
->blocks all future stores.
+
+Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+
+>diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+>index e2bfbf7..fc4988c 100644
+>--- a/mm/hugetlb.c
+>+++ b/mm/hugetlb.c
+>@@ -539,10 +539,6 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
+> 	struct zoneref *z;
+> 	unsigned int cpuset_mems_cookie;
 >
->Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
->---
-> Documentation/vm/zswap.txt | 18 ++++++++++++++++--
-> mm/zswap.c                 |  9 +++------
-> 2 files changed, 19 insertions(+), 8 deletions(-)
+>-retry_cpuset:
+>-	cpuset_mems_cookie = get_mems_allowed();
+>-	zonelist = huge_zonelist(vma, address,
+>-					htlb_alloc_mask, &mpol, &nodemask);
+> 	/*
+> 	 * A child process with MAP_PRIVATE mappings created by their parent
+> 	 * have no page reserves. This check ensures that reservations are
+>@@ -556,6 +552,11 @@ retry_cpuset:
+> 	if (avoid_reserve && h->free_huge_pages - h->resv_huge_pages == 0)
+> 		goto err;
 >
->diff --git a/Documentation/vm/zswap.txt b/Documentation/vm/zswap.txt
->index 7e492d8..d588477 100644
->--- a/Documentation/vm/zswap.txt
->+++ b/Documentation/vm/zswap.txt
->@@ -26,8 +26,22 @@ Zswap evicts pages from compressed cache on an LRU basis to the backing swap
-> device when the compressed pool reaches it size limit.  This requirement had
-> been identified in prior community discussions.
->
->-To enabled zswap, the "enabled" attribute must be set to 1 at boot time.  e.g.
->-zswap.enabled=1
->+Zswap is disabled by default but can be enabled at boot time by setting
->+the "enabled" attribute to 1 at boot time. e.g. zswap.enabled=1.  Zswap
->+can also be enabled and disabled at runtime using the sysfs interface.
->+An exmaple command to enable zswap at runtime, assuming sysfs is mounted
->+at /sys, is:
+>+retry_cpuset:
+>+	cpuset_mems_cookie = get_mems_allowed();
+>+	zonelist = huge_zonelist(vma, address,
+>+					htlb_alloc_mask, &mpol, &nodemask);
 >+
->+echo 1 > /sys/modules/zswap/parameters/enabled
->+
->+When zswap is disabled at runtime, it will stop storing pages that are
->+being swapped out.  However, it will _not_ immediately write out or
->+fault back into memory all of the pages stored in the compressed pool.
->+The pages stored in zswap will continue to remain in the compressed pool
->+until they are either invalidated or faulted back into memory.  In order
->+to force all pages out of the compressed pool, a swapoff on the swap
->+device(s) will fault all swapped out pages, included those in the
->+compressed pool, back into memory.
+> 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+> 						MAX_NR_ZONES - 1, nodemask) {
+> 		if (cpuset_zone_allowed_softwall(zone, htlb_alloc_mask)) {
+>@@ -574,7 +575,6 @@ retry_cpuset:
+> 	return page;
 >
-> Design:
+> err:
+>-	mpol_cond_put(mpol);
+> 	return NULL;
+> }
 >
->diff --git a/mm/zswap.c b/mm/zswap.c
->index deda2b6..199b1b0 100644
->--- a/mm/zswap.c
->+++ b/mm/zswap.c
->@@ -75,9 +75,9 @@ static u64 zswap_duplicate_entry;
-> /*********************************
-> * tunables
-> **********************************/
->-/* Enable/disable zswap (disabled by default, fixed at boot for now) */
->+/* Enable/disable zswap (disabled by default) */
-> static bool zswap_enabled __read_mostly;
->-module_param_named(enabled, zswap_enabled, bool, 0);
->+module_param_named(enabled, zswap_enabled, bool, 0644);
->
-> /* Compressor to be used by zswap (fixed at boot for now) */
-> #define ZSWAP_COMPRESSOR_DEFAULT "lzo"
->@@ -612,7 +612,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
-> 	u8 *src, *dst;
-> 	struct zswap_header *zhdr;
->
->-	if (!tree) {
->+	if (!zswap_enabled || !tree) {
-
-If this check should be added to all hooks in zswap?
-
-> 		ret = -ENODEV;
-> 		goto reject;
-> 	}
->@@ -908,9 +908,6 @@ static void __exit zswap_debugfs_exit(void) { }
-> **********************************/
-> static int __init init_zswap(void)
-> {
->-	if (!zswap_enabled)
->-		return 0;
->-
-> 	pr_info("loading zswap\n");
-> 	if (zswap_entry_cache_create()) {
-> 		pr_err("entry cache creation failed\n");
 >-- 
->1.8.1.2
+>1.7.9.5
 >
 >--
 >To unsubscribe, send a message with 'unsubscribe linux-mm' in
