@@ -1,162 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 856C16B0031
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 16:32:15 -0400 (EDT)
-Date: Wed, 24 Jul 2013 16:32:05 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 3/5] x86: finish fault error path with fatal signal
-Message-ID: <20130724203205.GL715@cmpxchg.org>
-References: <20130711072507.GA21667@dhcp22.suse.cz>
- <20130714012641.C2DA4E05@pobox.sk>
- <20130714015112.FFCB7AF7@pobox.sk>
- <20130715154119.GA32435@dhcp22.suse.cz>
- <20130715160006.GB32435@dhcp22.suse.cz>
- <20130716153544.GX17812@cmpxchg.org>
- <20130716160905.GA20018@dhcp22.suse.cz>
- <20130716164830.GZ17812@cmpxchg.org>
- <20130719042124.GC17812@cmpxchg.org>
- <20130719042502.GF17812@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130719042502.GF17812@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id DACDA6B0034
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 16:51:43 -0400 (EDT)
+From: "K. Y. Srinivasan" <kys@microsoft.com>
+Subject: [PATCH 2/2] Drivers: hv: balloon: Online the hot-added memory "in context"
+Date: Wed, 24 Jul 2013 14:29:59 -0700
+Message-Id: <1374701399-30842-2-git-send-email-kys@microsoft.com>
+In-Reply-To: <1374701399-30842-1-git-send-email-kys@microsoft.com>
+References: <1374701355-30799-1-git-send-email-kys@microsoft.com>
+ <1374701399-30842-1-git-send-email-kys@microsoft.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: azurIt <azurit@pobox.sk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, righi.andrea@gmail.com
+To: gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, devel@linuxdriverproject.org, olaf@aepfle.de, apw@canonical.com, andi@firstfloor.org, akpm@linux-foundation.org, linux-mm@kvack.org, kamezawa.hiroyuki@gmail.com, mhocko@suse.cz, hannes@cmpxchg.org, yinghan@google.com, dave@sr71.net
+Cc: "K. Y. Srinivasan" <kys@microsoft.com>
 
-On Fri, Jul 19, 2013 at 12:25:02AM -0400, Johannes Weiner wrote:
-> The x86 fault handler bails in the middle of error handling when the
-> task has been killed.  For the next patch this is a problem, because
-> it relies on pagefault_out_of_memory() being called even when the task
-> has been killed, to perform proper OOM state unwinding.
-> 
-> This is a rather minor optimization, just remove it.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  arch/x86/mm/fault.c | 11 -----------
->  1 file changed, 11 deletions(-)
-> 
-> diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-> index 1cebabe..90248c9 100644
-> --- a/arch/x86/mm/fault.c
-> +++ b/arch/x86/mm/fault.c
-> @@ -846,17 +846,6 @@ static noinline int
->  mm_fault_error(struct pt_regs *regs, unsigned long error_code,
->  	       unsigned long address, unsigned int fault)
->  {
-> -	/*
-> -	 * Pagefault was interrupted by SIGKILL. We have no reason to
-> -	 * continue pagefault.
-> -	 */
-> -	if (fatal_signal_pending(current)) {
-> -		if (!(fault & VM_FAULT_RETRY))
-> -			up_read(&current->mm->mmap_sem);
-> -		if (!(error_code & PF_USER))
-> -			no_context(regs, error_code, address);
-> -		return 1;
+Leverage the newly exported functionality to bring memory online
+without involving user level code.
 
-This is broken but I only hit it now after testing for a while.
-
-The patch has the right idea: in case of an OOM kill, we should
-continue the fault and not abort.  What I missed is that in case of a
-kill during lock_page, i.e. VM_FAULT_RETRY && fatal_signal, we have to
-exit the fault and not do up_read() etc.  This introduced a locking
-imbalance that would get everybody hung on mmap_sem.
-
-I moved the retry handling outside of mm_fault_error() (come on...)
-and stole some documentation from arm.  It's now a little bit more
-explicit and comparable to other architectures.
-
-I'll send an updated series, patch for reference:
-
+Signed-off-by: K. Y. Srinivasan <kys@microsoft.com>
 ---
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch] x86: finish fault error path with fatal signal
+ drivers/hv/hv_balloon.c |   20 +++-----------------
+ 1 files changed, 3 insertions(+), 17 deletions(-)
 
-The x86 fault handler bails in the middle of error handling when the
-task has been killed.  For the next patch this is a problem, because
-it relies on pagefault_out_of_memory() being called even when the task
-has been killed, to perform proper OOM state unwinding.
-
-This is a rather minor optimization that cuts short the fault handling
-by a few instructions in rare cases.  Just remove it.
-
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- arch/x86/mm/fault.c | 33 +++++++++++++--------------------
- 1 file changed, 13 insertions(+), 20 deletions(-)
-
-diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-index 6d77c38..0c18beb 100644
---- a/arch/x86/mm/fault.c
-+++ b/arch/x86/mm/fault.c
-@@ -842,31 +842,17 @@ do_sigbus(struct pt_regs *regs, unsigned long error_code, unsigned long address,
- 	force_sig_info_fault(SIGBUS, code, address, tsk, fault);
- }
- 
--static noinline int
-+static noinline void
- mm_fault_error(struct pt_regs *regs, unsigned long error_code,
- 	       unsigned long address, unsigned int fault)
- {
--	/*
--	 * Pagefault was interrupted by SIGKILL. We have no reason to
--	 * continue pagefault.
--	 */
--	if (fatal_signal_pending(current)) {
--		if (!(fault & VM_FAULT_RETRY))
--			up_read(&current->mm->mmap_sem);
--		if (!(error_code & PF_USER))
--			no_context(regs, error_code, address, 0, 0);
--		return 1;
--	}
--	if (!(fault & VM_FAULT_ERROR))
--		return 0;
--
- 	if (fault & VM_FAULT_OOM) {
- 		/* Kernel mode? Handle exceptions or die: */
- 		if (!(error_code & PF_USER)) {
- 			up_read(&current->mm->mmap_sem);
- 			no_context(regs, error_code, address,
- 				   SIGSEGV, SEGV_MAPERR);
--			return 1;
-+			return;
- 		}
- 
- 		up_read(&current->mm->mmap_sem);
-@@ -884,7 +870,6 @@ mm_fault_error(struct pt_regs *regs, unsigned long error_code,
- 		else
- 			BUG();
- 	}
--	return 1;
- }
- 
- static int spurious_fault_check(unsigned long error_code, pte_t *pte)
-@@ -1189,9 +1174,17 @@ good_area:
- 	 */
- 	fault = handle_mm_fault(mm, vma, address, flags);
- 
--	if (unlikely(fault & (VM_FAULT_RETRY|VM_FAULT_ERROR))) {
--		if (mm_fault_error(regs, error_code, address, fault))
--			return;
-+	/*
-+	 * If we need to retry but a fatal signal is pending, handle the
-+	 * signal first. We do not need to release the mmap_sem because it
-+	 * would already be released in __lock_page_or_retry in mm/filemap.c.
-+	 */
-+	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
-+		return;
-+
-+	if (unlikely(fault & VM_FAULT_ERROR)) {
-+		mm_fault_error(regs, error_code, address, fault);
-+		return;
- 	}
+diff --git a/drivers/hv/hv_balloon.c b/drivers/hv/hv_balloon.c
+index 2d094cf..c2eec17 100644
+--- a/drivers/hv/hv_balloon.c
++++ b/drivers/hv/hv_balloon.c
+@@ -515,11 +515,6 @@ struct hv_dynmem_device {
+ 	bool host_specified_ha_region;
  
  	/*
+-	 * State to synchronize hot-add.
+-	 */
+-	struct completion  ol_waitevent;
+-	bool ha_waiting;
+-	/*
+ 	 * This thread handles hot-add
+ 	 * requests from the host as well as notifying
+ 	 * the host with regards to memory pressure in
+@@ -581,9 +576,6 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
+ 
+ 		has->covered_end_pfn +=  processed_pfn;
+ 
+-		init_completion(&dm_device.ol_waitevent);
+-		dm_device.ha_waiting = true;
+-
+ 		nid = memory_add_physaddr_to_nid(PFN_PHYS(start_pfn));
+ 		ret = add_memory(nid, PFN_PHYS((start_pfn)),
+ 				(HA_CHUNK << PAGE_SHIFT));
+@@ -606,12 +598,10 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
+ 		}
+ 
+ 		/*
+-		 * Wait for the memory block to be onlined.
+-		 * Since the hot add has succeeded, it is ok to
+-		 * proceed even if the pages in the hot added region
+-		 * have not been "onlined" within the allowed time.
++		 * Before proceeding to hot add the next segment,
++		 * online the segment that has been hot added.
+ 		 */
+-		wait_for_completion_timeout(&dm_device.ol_waitevent, 5*HZ);
++		online_memory_block(start_pfn);
+ 
+ 	}
+ 
+@@ -625,10 +615,6 @@ static void hv_online_page(struct page *pg)
+ 	unsigned long cur_start_pgp;
+ 	unsigned long cur_end_pgp;
+ 
+-	if (dm_device.ha_waiting) {
+-		dm_device.ha_waiting = false;
+-		complete(&dm_device.ol_waitevent);
+-	}
+ 
+ 	list_for_each(cur, &dm_device.ha_region_list) {
+ 		has = list_entry(cur, struct hv_hotadd_state, list);
 -- 
-1.8.3.2
+1.7.4.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
