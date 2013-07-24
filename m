@@ -1,81 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id BBC616B0034
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 12:43:14 -0400 (EDT)
-Message-ID: <51F00415.8070104@sr71.net>
-Date: Wed, 24 Jul 2013 09:43:01 -0700
-From: Dave Hansen <dave@sr71.net>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/1] Drivers: base: memory: Export symbols for onlining
- memory blocks
-References: <1374261785-1615-1-git-send-email-kys@microsoft.com> <20130722123716.GB24400@dhcp22.suse.cz> <e06fced3ca42408b980f8aa68f4a29f3@SN2PR03MB061.namprd03.prod.outlook.com> <51EEA11D.4030007@intel.com> <3318be0a96cb4d05838d76dc9d088cc0@SN2PR03MB061.namprd03.prod.outlook.com> <51EEA89F.9070309@intel.com> <9f351a549e76483d9148f87535567ea0@SN2PR03MB061.namprd03.prod.outlook.com>
-In-Reply-To: <9f351a549e76483d9148f87535567ea0@SN2PR03MB061.namprd03.prod.outlook.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id AB2C26B0031
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 12:59:37 -0400 (EDT)
+Message-ID: <1374685121.16322.218.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v2] mm/hotplug, x86: Disable ARCH_MEMORY_PROBE by default
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Wed, 24 Jul 2013 10:58:41 -0600
+In-Reply-To: <20130724042041.GA8504@gmail.com>
+References: <1374256068-26016-1-git-send-email-toshi.kani@hp.com>
+	 <20130722083721.GC25976@gmail.com>
+	 <1374513120.16322.21.camel@misato.fc.hp.com>
+	 <20130723080101.GB15255@gmail.com>
+	 <1374612301.16322.136.camel@misato.fc.hp.com>
+	 <20130724042041.GA8504@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KY Srinivasan <kys@microsoft.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.cz>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "apw@canonical.com" <apw@canonical.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kamezawa.hiroyuki@gmail.com" <kamezawa.hiroyuki@gmail.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "yinghan@google.com" <yinghan@google.com>, "jasowang@redhat.com" <jasowang@redhat.com>, "kay@vrfy.org" <kay@vrfy.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, dave@sr71.net, kosaki.motohiro@gmail.com, isimatu.yasuaki@jp.fujitsu.com, tangchen@cn.fujitsu.com, vasilis.liaskovitis@profitbricks.com
 
-On 07/23/2013 10:21 AM, KY Srinivasan wrote:
->> You have allocated some large, physically contiguous areas of memory
->> under heavy pressure.  But you also contend that there is too much
->> memory pressure to run a small userspace helper.  Under heavy memory
->> pressure, I'd expect large, kernel allocations to fail much more often
->> than running a small userspace helper.
+On Wed, 2013-07-24 at 06:20 +0200, Ingo Molnar wrote:
+> * Toshi Kani <toshi.kani@hp.com> wrote:
 > 
-> I am only reporting what I am seeing. Broadly, I have two main failure conditions to
-> deal with: (a) resource related failure (add_memory() returning -ENOMEM) and (b) not being
-> able to online a segment that has been successfully hot-added. I have seen both these failures
-> under high memory pressure. By supporting "in context" onlining, we can eliminate one failure
-> case. Our inability to online is not a recoverable failure from the host's point of view - the memory
-> is committed to the guest (since hot add succeeded) but is not usable since it is not onlined.
-
-Could you please precisely report on what you are seeing in detail?
-Where are the -ENOMEMs coming from?  Which allocation site?  Are you
-seeing OOMs or page allocation failure messages on the console?
-
-The operation was split up in to two parts for good reason.  It's
-actually for your _precise_ use case.
-
-A system under memory pressure is going to have troubles doing a
-hot-add.  You need memory to add memory.  Of the two operations ("add"
-and "online"), "add" is the one vastly more likely to fail.  It has to
-allocate several large swaths of contiguous physical memory.  For that
-reason, the system was designed so that you could "add" and "online"
-separately.  The intention was that you could "add" far in advance and
-then "online" under memory pressure, with the "online" having *VASTLY*
-smaller memory requirements and being much more likely to succeed.
-
-You're lumping the "allocate several large swaths of contiguous physical
-memory" failures in to the same class as "run a small userspace helper".
- They are _really_ different problems.  Both prone to allocation
-failures for sure, but _very_ separate problems.  Please don't conflate
-them.
-
->> It _sounds_ like you really want to be able to have the host retry the
->> operation if it fails, and you return success/failure from inside the
->> kernel.  It's hard for you to tell if running the userspace helper
->> failed, so your solution is to move what what previously done in
->> userspace in to the kernel so that you can more easily tell if it failed
->> or succeeded.
->>
->> Is that right?
+> > On Tue, 2013-07-23 at 10:01 +0200, Ingo Molnar wrote:
+> > > * Toshi Kani <toshi.kani@hp.com> wrote:
+> > > 
+> > > > > Could we please also fix it to never crash the kernel, even if stupid 
+> > > > > ranges are provided?
+> > > > 
+> > > > Yes, this probe interface can be enhanced to verify the firmware 
+> > > > information before adding a given memory address.  However, such change 
+> > > > would interfere its test use of "fake" hotplug, which is only the known 
+> > > > use-case of this interface on x86.
+> > > 
+> > > Not crashing the kernel is not a novel concept even for test interfaces...
+> > 
+> > Agreed.
+> > 
+> > > Where does the possible crash come from - from using invalid RAM ranges, 
+> > > right? I.e. on x86 to fix the crash we need to check the RAM is present in 
+> > > the e820 maps, is marked RAM there, and is not already registered with the 
+> > > kernel, or so?
+> > 
+> > Yes, the crash comes from using invalid RAM ranges.  How to check if the
+> > RAM is present is different if the system supports hotplug or not.
+> > 
+> > > > In order to verify if a given memory address is enabled at run-time (as 
+> > > > opposed to boot-time), we need to check with ACPI memory device objects 
+> > > > on x86.  However, system vendors tend to not implement memory device 
+> > > > objects unless their systems support memory hotplug.  Dave Hansen is 
+> > > > using this interface for his testing as a way to fake a hotplug event on 
+> > > > a system that does not support memory hotplug.
+> > > 
+> > > All vendors implement e820 maps for the memory present at boot time.
+> > 
+> > Yes for boot time.  At run-time, e820 is not guaranteed to represent a
+> > new memory added. [...]
 > 
-> No; I am able to get the proper error code for recoverable failures (hot add failures
-> because of lack of memory). By doing what I am proposing here, we can avoid one class
-> of failures completely and I think this is what resulted in a better "hot add" experience in the
-> guest.
+> Yes I know that, the e820 map is boot only.
+> 
+> You claimed that the only purpose of this on x86 was that testing was done 
+> on non-hotplug systems, using this interface. Non-hotplug systems have 
+> e820 maps.
 
-I think you're taking a huge leap here: "We could not online memory,
-thus we must take userspace out of the loop."
+Right.  Sorry, I first thought that the interface needed to work as
+defined, i.e. detect a new memory.  But for the test purpose on
+non-hotplug systems, that is not necessary.  So, I agree that we can
+check e820.
 
-You might be right.  There might be only one way out of this situation.
- But you need to provide a little more supporting evidence before we all
-arrive at the same conclusion.
+I summarized two options in the email below.
+https://lkml.org/lkml/2013/7/23/602
 
-BTW, it doesn't _require_ udev.  There could easily be another listener
-for hotplug events.
+Option 1) adds a check with e820.  Option 2) deprecates the interface by
+removing the config option from x86 Kconfig.  I was thinking that we
+could evaluate two options after this patch gets in.  Does it make
+sense?   
+
+> > > How does the hotplug event based approach solve double adds? Relies on 
+> > > the hardware not sending a hot-add event twice for the same memory 
+> > > area or for an invalid memory area, or does it include fail-safes and 
+> > > double checks as well to avoid double adds and adding invalid memory? 
+> > > If yes then that could be utilized here as well.
+> > 
+> > In high-level, here is how ACPI memory hotplug works:
+> > 
+> > 1. ACPI sends a hotplug event to a new ACPI memory device object that is
+> > hot-added.
+> > 2. The kernel is notified, and verifies if the new memory device object
+> > has not been attached by any handler yet.
+> > 3. The memory handler is called, and obtains a new memory range from the
+> > ACPI memory device object. 
+> > 4. The memory handler calls add_memory() with the new address range.
+> > 
+> > The above step 1-4 proceeds automatically within the kernel.  No user 
+> > input (nor sysfs interface) is necessary.  Step 2 prevents double adds 
+> > [...]
+> 
+> If this 'new memory device object' is some ACPI detail then I don't see 
+> how it protects the kernel from a buggy ACPI implementation double adding 
+> the same physical memory range.
+
+You are right that the kernel is not fully protected from buggy ACPI.
+In case of double adding, though, such hot-add operation fails
+gracefully since add_memory() returns with -EEXIST.  But if buggy ACPI
+returns an invalid RAM range, then it can crash the system, just like an
+invalid address in e820 can crash the system as well.
+
+> > and step 3 gets a valid address range from the firmware directly.  Step 
+> > 4 is basically the same as the "probe" interface, but with all the 
+> > verification up front, this step is safe.
+> 
+> So what verification does the kernel do to ensure that a buggy ACPI 
+> implementation does not pass us a crappy memory range, such a double 
+> physical range (represented via separate 'memory device objects'), or a 
+> range overlapping with an existing physical memory range already known to 
+> the kernel, or a totally nonsensical range the CPU cannot even access 
+> physically, etc.?
+
+The kernel checks if the status of an ACPI memory device object is
+marked as enabled.  But it does not protect from buggy ACPI because
+anything can be wrong... 
+
+Overlapping and double add cases are verified in add_memory(), i.e.
+register_memory_resource() fails.
+
+If an address range is unique & wrong, we have no protection from it.
+
+> Also, is there any verification done to make sure that the new memory 
+> range is actually RAM - i.e. we could write the first and last word of it 
+> and see whether it gets modified correctly [to keep the sanity check 
+> fast]?
+
+No such check is performed -- just like we don't at boot-time.
+
+This may sound bad, but in my experience, such obvious bugs are quickly
+found and fixed during the FW development phase.
+
+
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
