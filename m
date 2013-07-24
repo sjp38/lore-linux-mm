@@ -1,66 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 81F386B0031
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 10:10:47 -0400 (EDT)
-Date: Wed, 24 Jul 2013 16:10:45 +0200
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 0ABE76B0031
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 10:20:46 -0400 (EDT)
+Date: Wed, 24 Jul 2013 16:20:44 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2 3/8] cgroup: implement cgroup_from_id()
-Message-ID: <20130724141045.GF2540@dhcp22.suse.cz>
+Subject: Re: [PATCH v2 4/8] memcg: convert to use cgroup_is_descendant()
+Message-ID: <20130724142044.GG2540@dhcp22.suse.cz>
 References: <51EFA554.6080801@huawei.com>
- <51EFA5C7.40504@huawei.com>
+ <51EFA5F5.3020406@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51EFA5C7.40504@huawei.com>
+In-Reply-To: <51EFA5F5.3020406@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Li Zefan <lizefan@huawei.com>
 Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-On Wed 24-07-13 18:00:39, Li Zefan wrote:
-> This will be used as a replacement for css_lookup().
-> 
-> There's a difference with cgroup id and css id. cgroup id starts with 0,
-> while css id starts with 1.
+On Wed 24-07-13 18:01:25, Li Zefan wrote:
+> This is a preparation to kill css_id.
 > 
 > Signed-off-by: Li Zefan <lizefan@huawei.com>
 
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
+css_is_ancestor doesn't depend on the depth of the hierarchy while
+cgroup_is_descendant does. I do not think this would be an issue though
+as __mem_cgroup_same_or_subtree is not called from any hot path.
 
-Typo fix bellow
-[...]
-> diff --git a/kernel/cgroup.c b/kernel/cgroup.c
-> index ee3c02e..9b27775 100644
-> --- a/kernel/cgroup.c
-> +++ b/kernel/cgroup.c
-> @@ -5536,6 +5536,22 @@ struct cgroup_subsys_state *cgroup_css_from_dir(struct file *f, int id)
->  	return css ? css : ERR_PTR(-ENOENT);
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
+> ---
+>  mm/memcontrol.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index d12ca6f..626c426 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1434,7 +1434,7 @@ bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
+>  		return true;
+>  	if (!root_memcg->use_hierarchy || !memcg)
+>  		return false;
+> -	return css_is_ancestor(&memcg->css, &root_memcg->css);
+> +	return cgroup_is_descendant(memcg->css.cgroup, root_memcg->css.cgroup);
 >  }
 >  
-> +/**
-> + * cgroup_from_id - lookup cgroup by id
-> + * @ss: cgroup subsys to be looked into
-> + * @id: the cgroup id
-> + *
-> + * Returns the cgroup is there's valid one with @id, otherwise returns Null.
-
-s/ is / if /
-
-> + * Should be called under rcu_readlock().
-> + */
-> +struct cgroup *cgroup_from_id(struct cgroup_subsys *ss, int id)
-> +{
-> +	rcu_lockdep_assert(rcu_read_lock_held(),
-> +			   "cgroup_from_id() needs rcu_read_lock()"
-> +			   " protection");
-> +	return idr_find(&ss->root->cgroup_idr, id);
-> +}
-> +
->  #ifdef CONFIG_CGROUP_DEBUG
->  static struct cgroup_subsys_state *debug_css_alloc(struct cgroup *cgrp)
->  {
+>  static bool mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
 > -- 
 > 1.8.0.2
+> 
 
 -- 
 Michal Hocko
