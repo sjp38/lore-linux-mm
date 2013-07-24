@@ -1,35 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id E9E0D6B0031
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 17:15:09 -0400 (EDT)
-From: "K. Y. Srinivasan" <kys@microsoft.com>
-Subject: [PATCH 0/2] Drivers: hv: balloon: Online memory segments "in context" 
-Date: Wed, 24 Jul 2013 14:29:15 -0700
-Message-Id: <1374701355-30799-1-git-send-email-kys@microsoft.com>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 3C4856B0031
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 18:43:04 -0400 (EDT)
+Date: Wed, 24 Jul 2013 15:43:01 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 04/10] powerpc: Prepare to support kernel handling of
+ IOMMU map/unmap
+Message-Id: <20130724154301.2af75867c51870fc0c32819b@linux-foundation.org>
+In-Reply-To: <51EDE903.6010608@ozlabs.ru>
+References: <1373936045-22653-1-git-send-email-aik@ozlabs.ru>
+	<1373936045-22653-5-git-send-email-aik@ozlabs.ru>
+	<51EDE903.6010608@ozlabs.ru>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, devel@linuxdriverproject.org, olaf@aepfle.de, apw@canonical.com, andi@firstfloor.org, akpm@linux-foundation.org, linux-mm@kvack.org, kamezawa.hiroyuki@gmail.com, mhocko@suse.cz, hannes@cmpxchg.org, yinghan@google.com, dave@sr71.net
-Cc: "K. Y. Srinivasan" <kys@microsoft.com>
+To: Alexey Kardashevskiy <aik@ozlabs.ru>
+Cc: linuxppc-dev@lists.ozlabs.org, David Gibson <david@gibson.dropbear.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Alexander Graf <agraf@suse.de>, Alex Williamson <alex.williamson@redhat.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kvm-ppc@vger.kernel.org, linux-mm@kvack.org, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>
 
-The current code depends on user level code to bring online memory
-segments that have been hot added. Change this code to online memory
-in the same context that is hot adding the memory.
+On Tue, 23 Jul 2013 12:22:59 +1000 Alexey Kardashevskiy <aik@ozlabs.ru> wrote:
 
-This patch set implements the necessary infrastructure for making
-it possible to online memory segments from within a driver.
+> Ping, anyone, please?
 
-K. Y. Srinivasan (2):
-  Drivers: base: memory: Export functionality for "in kernel" onlining
-    of memory
-  Drivers: hv: balloon: Online the hot-added memory "in context"
+ew, you top-posted.
 
- drivers/base/memory.c   |   35 +++++++++++++++++++++++++++++++++++
- drivers/hv/hv_balloon.c |   20 +++-----------------
- include/linux/memory.h  |    5 +++++
- 3 files changed, 43 insertions(+), 17 deletions(-)
+> Ben needs ack from any of MM people before proceeding with this patch. Thanks!
 
--- 
-1.7.4.1
+For what?  The three lines of comment in page-flags.h?   ack :)
+
+Manipulating page->_count directly is considered poor form.  Don't
+blame us if we break your code ;)
+
+Actually, the manipulation in realmode_get_page() duplicates the
+existing get_page_unless_zero() and the one in realmode_put_page()
+could perhaps be placed in mm.h with a suitable name and some
+documentation.  That would improve your form and might protect the code
+from getting broken later on.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
