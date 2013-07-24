@@ -1,185 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 71E7F6B0031
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 19:27:09 -0400 (EDT)
-Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Tue, 23 Jul 2013 17:27:08 -0600
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id B8B093E4003F
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 17:26:44 -0600 (MDT)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6NNR612142772
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 17:27:06 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6NNR5wc022472
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 17:27:06 -0600
-Message-ID: <51EF1143.1020503@linux.vnet.ibm.com>
-Date: Tue, 23 Jul 2013 16:26:59 -0700
-From: Cody P Schafer <cody@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 047FF6B0031
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 20:18:11 -0400 (EDT)
+Received: by mail-ob0-f195.google.com with SMTP id eh20so2393044obb.10
+        for <linux-mm@kvack.org>; Tue, 23 Jul 2013 17:18:11 -0700 (PDT)
+Message-ID: <51EF1D38.60503@gmail.com>
+Date: Wed, 24 Jul 2013 08:18:00 +0800
+From: Hush Bensen <hush.bensen@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 13/21] x86, acpi: Try to find SRAT in firmware earlier.
-References: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com> <1374220774-29974-14-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1374220774-29974-14-git-send-email-tangchen@cn.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH v2] mm/hotplug, x86: Disable ARCH_MEMORY_PROBE by default
+References: <1374256068-26016-1-git-send-email-toshi.kani@hp.com>  <20130722083721.GC25976@gmail.com>  <1374513120.16322.21.camel@misato.fc.hp.com>  <20130723080101.GB15255@gmail.com> <1374612301.16322.136.camel@misato.fc.hp.com>
+In-Reply-To: <1374612301.16322.136.camel@misato.fc.hp.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: Ingo Molnar <mingo@kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, dave@sr71.net, kosaki.motohiro@gmail.com, isimatu.yasuaki@jp.fujitsu.com, tangchen@cn.fujitsu.com, vasilis.liaskovitis@profitbricks.com
 
-On 07/19/2013 12:59 AM, Tang Chen wrote:
-> This patch introduce early_acpi_firmware_srat() to find the
-> phys addr of SRAT provided by firmware. And call it in
-> reserve_hotpluggable_memory().
+On 07/24/2013 04:45 AM, Toshi Kani wrote:
+> On Tue, 2013-07-23 at 10:01 +0200, Ingo Molnar wrote:
+>> * Toshi Kani <toshi.kani@hp.com> wrote:
+>>
+>>>> Could we please also fix it to never crash the kernel, even if stupid
+>>>> ranges are provided?
+>>> Yes, this probe interface can be enhanced to verify the firmware
+>>> information before adding a given memory address.  However, such change
+>>> would interfere its test use of "fake" hotplug, which is only the known
+>>> use-case of this interface on x86.
+>> Not crashing the kernel is not a novel concept even for test interfaces...
+> Agreed.
 >
-> Since we have initialized acpi_gbl_root_table_list earlier,
-> and store all the tables' phys addrs and signatures in it,
-> it is easy to find the SRAT.
+>> Where does the possible crash come from - from using invalid RAM ranges,
+>> right? I.e. on x86 to fix the crash we need to check the RAM is present in
+>> the e820 maps, is marked RAM there, and is not already registered with the
+>> kernel, or so?
+> Yes, the crash comes from using invalid RAM ranges.  How to check if the
+> RAM is present is different if the system supports hotplug or not.
+
+Could you explain different methods to check the RAM is present if the 
+system supports hotplkug or not?
+
 >
-> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-> ---
->   drivers/acpi/acpica/tbxface.c |   34 ++++++++++++++++++++++++++++++++++
->   drivers/acpi/osl.c            |   24 ++++++++++++++++++++++++
->   include/acpi/acpixf.h         |    4 ++++
->   include/linux/acpi.h          |    4 ++++
->   mm/memory_hotplug.c           |   10 +++++++---
->   5 files changed, 73 insertions(+), 3 deletions(-)
+>>> In order to verify if a given memory address is enabled at run-time (as
+>>> opposed to boot-time), we need to check with ACPI memory device objects
+>>> on x86.  However, system vendors tend to not implement memory device
+>>> objects unless their systems support memory hotplug.  Dave Hansen is
+>>> using this interface for his testing as a way to fake a hotplug event on
+>>> a system that does not support memory hotplug.
+>> All vendors implement e820 maps for the memory present at boot time.
+> Yes for boot time.  At run-time, e820 is not guaranteed to represent a
+> new memory added.  Here is a quote from ACPI spec.
 >
-> diff --git a/drivers/acpi/acpica/tbxface.c b/drivers/acpi/acpica/tbxface.c
-> index ad11162..95f8d1b 100644
-> --- a/drivers/acpi/acpica/tbxface.c
-> +++ b/drivers/acpi/acpica/tbxface.c
-> @@ -181,6 +181,40 @@ acpi_status acpi_reallocate_root_table(void)
->   	return_ACPI_STATUS(status);
->   }
+> ===
+> 15.1 INT 15H, E820H - Query System Address Map
+>   :
+> The memory map conveyed by this interface is not required to reflect any
+> changes in available physical memory that have occurred after the BIOS
+> has initially passed control to the operating system. For example, if
+> memory is added dynamically, this interface is not required to reflect
+> the new system memory configuration.
+> ===
 >
-> +/*
-> + * acpi_get_table_desc - Get the acpi table descriptor of a specific table.
-> + * @signature: The signature of the table to be found.
-> + * @out_desc: The out returned descriptor.
-
-The "@out_desc:" line looks funky. Also, I believe changes to this file 
-need to go in via acpica & probably conform to their commenting standards?
-
-> + *
-> + * This function iterates acpi_gbl_root_table_list and find the specified
-> + * table's descriptor.
-> + *
-> + * NOTE: The caller has the responsibility to allocate memory for @out_desc.
-> + *
-> + * Return AE_OK on success, AE_NOT_FOUND if the table is not found.
-> + */
-> +acpi_status acpi_get_table_desc(char *signature,
-> +				struct acpi_table_desc *out_desc)
-> +{
-> +	int pos;
-> +
-> +	for (pos = 0;
-> +	     pos < acpi_gbl_root_table_list.current_table_count;
-> +	     pos++) {
-> +		if (!ACPI_COMPARE_NAME
-> +		    (&(acpi_gbl_root_table_list.tables[pos].signature),
-> +		    signature))
-> +			continue;
-> +
-> +		memcpy(out_desc, &acpi_gbl_root_table_list.tables[pos],
-> +		       sizeof(struct acpi_table_desc));
-> +
-> +		return_ACPI_STATUS(AE_OK);
-> +	}
-> +
-> +	return_ACPI_STATUS(AE_NOT_FOUND);
-> +}
-> +
->   /*******************************************************************************
->    *
->    * FUNCTION:    acpi_get_table_header
-> diff --git a/drivers/acpi/osl.c b/drivers/acpi/osl.c
-> index fa6b973..a2e4596 100644
-> --- a/drivers/acpi/osl.c
-> +++ b/drivers/acpi/osl.c
-> @@ -53,6 +53,7 @@
->   #include <acpi/acpi.h>
->   #include <acpi/acpi_bus.h>
->   #include <acpi/processor.h>
-> +#include <acpi/acpixf.h>
+> By definition, the "probe" interface is used for the kernel to recognize
+> a new memory added at run-time.  So, it should check ACPI memory device
+> objects (which represents run-time state) for the verification.  On x86,
+> however, ACPI also sends a hotplug event to the kernel, which triggers
+> the kernel to recognize the new physical memory properly.  Hence, users
+> do not need this "probe" interface.
 >
->   #define _COMPONENT		ACPI_OS_SERVICES
->   ACPI_MODULE_NAME("osl");
-> @@ -750,6 +751,29 @@ void __init acpi_initrd_override(void *data, size_t size)
->   }
->   #endif /* CONFIG_ACPI_INITRD_TABLE_OVERRIDE */
+>> How is the testing done by Dave Hansen? If it's done by booting with less
+>> RAM than available (via say the mem=1g boot parameter), and then
+>> hot-adding some of the missing RAM, then this could be made safe via the
+>> e820 maps and by consultig the physical memory maps (to avoid double
+>> registry), right?
+> If we focus on this test scenario on a system that does not support
+> hotplug, yes, I agree that we can check with e820 since it is safe to
+> assume that the system has no change after boot.  IOW, it is unsafe to
+> check with e820 if the system supports hotplug, but there is no use in
+> this interface for testing if the system supports hotplug.  So, this may
+> be a good idea.
 >
-> +#ifdef CONFIG_ACPI_NUMA
-> +#include <asm/numa.h>
-> +#include <linux/memblock.h>
-> +
-> +/*
-> + * early_acpi_firmware_srat - Get the phys addr of SRAT provide by firmware.
-
-s/provide/provided/
-
-> + *
-> + * This function iterate acpi_gbl_root_table_list, find SRAT and return the
-
-Perhaps: "Iterate over acpi_gbl_root_table_list to find SRAT then return 
-its phys addr"
-
-Though I wonder if this comment is even needed, as the iteration is done 
-in acpi_get_table_desc() (added above).
-
-> + * phys addr of SRAT.
-> + *
-> + * Return the phys addr of SRAT, or 0 on error.
-
-
-
-> + */
-> +phys_addr_t __init early_acpi_firmware_srat()
-> +{
-> +	struct acpi_table_desc table_desc;
-> +
-> +	if (acpi_get_table_desc(ACPI_SIG_SRAT, &table_desc))
-> +		return 0;
-> +
-> +	return table_desc.address;
-> +}
-> +#endif	/* CONFIG_ACPI_NUMA */
-> +
->   static void acpi_table_taint(struct acpi_table_header *table)
->   {
->   	pr_warn(PREFIX
-
-[...]
-
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 066873e..15b11d3 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -106,10 +106,14 @@ void __init reserve_hotpluggable_memory(void)
->   {
->   	phys_addr_t srat_paddr;
+> Dave, is this how you are testing?  Do you always specify a valid memory
+> address for your testing?
 >
-> -	/* Try to find if SRAT is overrided */
-> +	/* Try to find out if SRAT is overrided */
->   	srat_paddr = early_acpi_override_srat();
-> -	if (!srat_paddr)
-> -		return;
-> +	if (!srat_paddr) {
-> +		/* Try to find SRAT from firmware if it wasn't overrided */
-
-s/overrided/overridden/
-
-> +		srat_paddr = early_acpi_firmware_srat();
-> +		if (!srat_paddr)
-> +			return;
-> +	}
+>> How does the hotplug event based approach solve double adds? Relies on the
+>> hardware not sending a hot-add event twice for the same memory area or for
+>> an invalid memory area, or does it include fail-safes and double checks as
+>> well to avoid double adds and adding invalid memory? If yes then that
+>> could be utilized here as well.
+> In high-level, here is how ACPI memory hotplug works:
 >
->   	/* Will reserve hotpluggable memory here */
->   }
+> 1. ACPI sends a hotplug event to a new ACPI memory device object that is
+> hot-added.
+> 2. The kernel is notified, and verifies if the new memory device object
+> has not been attached by any handler yet.
+> 3. The memory handler is called, and obtains a new memory range from the
+> ACPI memory device object.
+> 4. The memory handler calls add_memory() with the new address range.
 >
+> The above step 1-4 proceeds automatically within the kernel.  No user
+> input (nor sysfs interface) is necessary.  Step 2 prevents double adds
+> and step 3 gets a valid address range from the firmware directly.  Step
+> 4 is basically the same as the "probe" interface, but with all the
+> verification up front, this step is safe.
+
+This is hot-added part, could you also explain how ACPI memory hotplug 
+works for hot-remove?
+
+>
+> Thanks,
+> -Toshi
+>
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
