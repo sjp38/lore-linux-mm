@@ -1,55 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 26EE16B0031
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 21:43:57 -0400 (EDT)
-Message-ID: <51EF31FA.3030602@cn.fujitsu.com>
-Date: Wed, 24 Jul 2013 09:46:34 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 91A6F6B0031
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2013 22:23:38 -0400 (EDT)
+From: Lisa Du <cldu@marvell.com>
+Date: Tue, 23 Jul 2013 19:23:34 -0700
+Subject: RE: Possible deadloop in direct reclaim?
+Message-ID: <89813612683626448B837EE5A0B6A7CB3B62F8F61A@SC-VEXCH4.marvell.com>
+References: <89813612683626448B837EE5A0B6A7CB3B62F8F272@SC-VEXCH4.marvell.com>
+ <CAA_GA1ciCDJeBqZv1gHNpQ2VVyDRAVF9_au+fo2dwVvLqnkygA@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Subject: Re: [PATCH 01/21] acpi: Print Hot-Pluggable Field in SRAT.
-References: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com> <1374220774-29974-2-git-send-email-tangchen@cn.fujitsu.com> <20130723184843.GG21100@mtj.dyndns.org>
-In-Reply-To: <20130723184843.GG21100@mtj.dyndns.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>, joJoee@perches.com
-Cc: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Lisa Du <cldu@marvell.com>, Bob Liu <lliubbo@gmail.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>
 
-On 07/24/2013 02:48 AM, Tejun Heo wrote:
-> On Fri, Jul 19, 2013 at 03:59:14PM +0800, Tang Chen wrote:
->> The Hot-Pluggable field in SRAT suggests if the memory could be
->> hotplugged while the system is running. Print it as well when
->> parsing SRAT will help users to know which memory is hotpluggable.
->>
->> Signed-off-by: Tang Chen<tangchen@cn.fujitsu.com>
->> Reviewed-by: Wanpeng Li<liwanp@linux.vnet.ibm.com>
->
-> Acked-by: Tejun Heo<tj@kernel.org>
->
-> But a nit below
->
->> +	pr=5Finfo("SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx] %s\n",
->> +		node, pxm,
->> +		(unsigned long long) start, (unsigned long long) end - 1,
->> +		hotpluggable ? "Hot Pluggable" : "");
->
-> The following would be more conventional.
->
->    "...10Lx]%s\n", ..., hotpluggable ? " Hot Pluggable" : ""
->
-> Also, isn't "Hot Pluggable" a bit too verbose?  "hotplug" should be
-> fine, I think.
->
-
-Hi tj, Joe,
-
-OK=EF=BC=8Cwill change it as you guys said.
-Thank you very much.
-
-Thanks.
-
-=
+RGVhciBCb2INCiAgIEFsc28gZnJvbSBteSBjaGVjayBiZWZvcmUga3N3YXBkIHNsZWVwLCB0aG91
+Z2ggbnJfc2xhYiA9IDAgYnV0IHpvbmVfcmVjbGFpbWFibGUoem9uZSkgcmV0dXJucyB0cnVlLCBz
+byB6b25lLT5hbGxfdW5yZWNsYWltYWJsZSBjYW4ndCBiZSBjaGFuZ2VkIHRvIDE7IFNvIGV2ZW4g
+d2hlbiBjaGFuZ2UgdGhlIG5yX3NsYWIgdG8gc2MtPm5yX3JlY2xhaW1lZCwgaXQgY2FuJ3QgaGVs
+cC4NCg0KVGhhbmtzIQ0KDQpCZXN0IFJlZ2FyZHMNCkxpc2EgRHUNCg0KDQotLS0tLU9yaWdpbmFs
+IE1lc3NhZ2UtLS0tLQ0KRnJvbTogTGlzYSBEdSANClNlbnQ6IDIwMTPlubQ35pyIMjTml6UgOToz
+MQ0KVG86ICdCb2IgTGl1Jw0KQ2M6IGxpbnV4LW1tQGt2YWNrLm9yZzsgQ2hyaXN0b3BoIExhbWV0
+ZXI7IE1lbCBHb3JtYW4NClN1YmplY3Q6IFJFOiBQb3NzaWJsZSBkZWFkbG9vcCBpbiBkaXJlY3Qg
+cmVjbGFpbT8NCg0KRGVhciBCb2INCiAgICBUaGFuayB5b3Ugc28gbXVjaCBmb3IgdGhlIGNhcmVm
+dWwgcmV2aWV3LCBZZXMsIGl0J3MgYSB0eXBvLCBJIG1lYW4gem9uZS0+YWxsX3VucmVjbGFpbWFi
+bGUgPSAwLg0KICAgIFlvdSBtZW50aW9uZWQgYWRkIHRoZSBjaGVjayBpbiBrc3dhcGRfc2hyaW5r
+X3pvbmUoKSwgc29ycnkgdGhhdCBJIGRpZG4ndCBmaW5kIHRoaXMgZnVuY3Rpb24gaW4ga2VybmVs
+My40IG9yIGtlcm5lbDMuOS4NCiAgICBJcyB0aGlzIGZ1bmN0aW9uIGNhbGxlZCBpbiBkaXJlY3Rf
+cmVjbGFpbT8gDQogICAgQXMgSSBtZW50aW9uZWQgdGhpcyBpc3N1ZSBoYXBwZW5lZCBhZnRlciBr
+c3dhcGQgdGhyZWFkIHNsZWVwLCBpZiBpdCBvbmx5IGNhbGxlZCBpbiBrc3dhcGQsIHRoZW4gSSB0
+aGluayBpdCBjYW4ndCBoZWxwLg0KDQpUaGFua3MhDQoNCkJlc3QgUmVnYXJkcw0KTGlzYSBEdQ0K
+DQoNCi0tLS0tT3JpZ2luYWwgTWVzc2FnZS0tLS0tDQpGcm9tOiBCb2IgTGl1IFttYWlsdG86bGxp
+dWJib0BnbWFpbC5jb21dIA0KU2VudDogMjAxM+W5tDfmnIgyNOaXpSA5OjE4DQpUbzogTGlzYSBE
+dQ0KQ2M6IGxpbnV4LW1tQGt2YWNrLm9yZzsgQ2hyaXN0b3BoIExhbWV0ZXI7IE1lbCBHb3JtYW4N
+ClN1YmplY3Q6IFJlOiBQb3NzaWJsZSBkZWFkbG9vcCBpbiBkaXJlY3QgcmVjbGFpbT8NCg0KT24g
+VHVlLCBKdWwgMjMsIDIwMTMgYXQgMTI6NTggUE0sIExpc2EgRHUgPGNsZHVAbWFydmVsbC5jb20+
+IHdyb3RlOg0KPiBEZWFyIFNpcjoNCj4NCj4gQ3VycmVudGx5IEkgbWV0IGEgcG9zc2libGUgZGVh
+ZGxvb3AgaW4gZGlyZWN0IHJlY2xhaW0uIEFmdGVyIHJ1biBwbGVudHkgb2YNCj4gdGhlIGFwcGxp
+Y2F0aW9uLCBzeXN0ZW0gcnVuIGludG8gYSBzdGF0dXMgdGhhdCBzeXN0ZW0gbWVtb3J5IGlzIHZl
+cnkNCj4gZnJhZ21lbnRpemVkLiBMaWtlIG9ubHkgb3JkZXItMCBhbmQgb3JkZXItMSBtZW1vcnkg
+bGVmdC4NCj4NCj4gVGhlbiBvbmUgcHJvY2VzcyByZXF1aXJlZCBhIG9yZGVyLTIgYnVmZmVyIGJ1
+dCBpdCBlbnRlciBhbiBlbmRsZXNzIGRpcmVjdA0KPiByZWNsYWltLiBGcm9tIG15IHRyYWNlIGxv
+ZywgSSBjYW4gc2VlIHRoaXMgbG9vcCBhbHJlYWR5IG92ZXIgMjAwLDAwMCB0aW1lcy4NCj4gS3N3
+YXBkIHdhcyBmaXJzdCB3YWtlIHVwIGFuZCB0aGVuIGdvIGJhY2sgdG8gc2xlZXAgYXMgaXQgY2Fu
+bm90IHJlYmFsYW5jZQ0KPiB0aGlzIG9yZGVy4oCZcyBtZW1vcnkuIEJ1dCB6b25lLT5hbGxfdW5y
+ZWNsYWltYWJsZSByZW1haW5zIDEuDQo+DQo+IFRob3VnaCBkaXJlY3RfcmVjbGFpbSBldmVyeSB0
+aW1lIHJldHVybnMgbm8gcGFnZXMsIGJ1dCBhcw0KPiB6b25lLT5hbGxfdW5yZWNsYWltYWJsZSA9
+IDEsIHNvIGl0IGxvb3AgYWdhaW4gYW5kIGFnYWluLiBFdmVuIHdoZW4NCj4gem9uZS0+cGFnZXNf
+c2Nhbm5lZCBhbHNvIGJlY29tZXMgdmVyeSBsYXJnZS4gSXQgd2lsbCBibG9jayB0aGUgcHJvY2Vz
+cyBmb3INCj4gbG9uZyB0aW1lLCB1bnRpbCBzb21lIHdhdGNoZG9nIHRocmVhZCBkZXRlY3QgdGhp
+cyBhbmQga2lsbCB0aGlzIHByb2Nlc3MuDQo+IFRob3VnaCBpdOKAmXMgaW4gX19hbGxvY19wYWdl
+c19zbG93cGF0aCwgYnV0IGl04oCZcyB0b28gc2xvdyByaWdodD8gTWF5YmUgY29zdA0KPiBvdmVy
+IDUwIHNlY29uZHMgb3IgZXZlbiBtb3JlLg0KDQpZb3UgbXVzdCBiZSBtZWFuIHpvbmUtPmFsbF91
+bnJlY2xhaW1hYmxlID0gMD8NCg0KPg0KPiBJIHRoaW5rIGl04oCZcyBub3QgYXMgZXhwZWN0ZWQg
+cmlnaHQ/ICBDYW4gd2UgYWxzbyBhZGQgYmVsb3cgY2hlY2sgaW4gdGhlDQo+IGZ1bmN0aW9uIGFs
+bF91bnJlY2xhaW1hYmxlKCkgdG8gdGVybWluYXRlIHRoaXMgbG9vcD8NCj4NCj4NCj4NCj4gQEAg
+LTIzNTUsNiArMjM1NSw4IEBAIHN0YXRpYyBib29sIGFsbF91bnJlY2xhaW1hYmxlKHN0cnVjdCB6
+b25lbGlzdA0KPiAqem9uZWxpc3QsDQo+DQo+ICAgICAgICAgICAgICAgICAgICAgICAgIGNvbnRp
+bnVlOw0KPg0KPiAgICAgICAgICAgICAgICAgaWYgKCF6b25lLT5hbGxfdW5yZWNsYWltYWJsZSkN
+Cj4NCj4gICAgICAgICAgICAgICAgICAgICAgICAgcmV0dXJuIGZhbHNlOw0KPg0KPiArICAgICAg
+ICAgICAgICAgaWYgKHNjLT5ucl9yZWNsYWltZWQgPT0gMCAmJiAhem9uZV9yZWNsYWltYWJsZSh6
+b25lKSkNCj4NCj4gKyAgICAgICAgICAgICAgICAgICAgICAgcmV0dXJuIHRydWU7DQo+DQoNCkhv
+dyBhYm91dCByZXBsYWNlIHRoZSBjaGVja2luZyBpbiBrc3dhcGRfc2hyaW5rX3pvbmUoKT8NCg0K
+QEAgLTI4MjQsNyArMjgyNCw3IEBAIHN0YXRpYyBib29sIGtzd2FwZF9zaHJpbmtfem9uZShzdHJ1
+Y3Qgem9uZSAqem9uZSwNCiAgICAgICAgLyogQWNjb3VudCBmb3IgdGhlIG51bWJlciBvZiBwYWdl
+cyBhdHRlbXB0ZWQgdG8gcmVjbGFpbSAqLw0KICAgICAgICAqbnJfYXR0ZW1wdGVkICs9IHNjLT5u
+cl90b19yZWNsYWltOw0KDQotICAgICAgIGlmIChucl9zbGFiID09IDAgJiYgIXpvbmVfcmVjbGFp
+bWFibGUoem9uZSkpDQorICAgICAgIGlmIChzYy0+bnJfcmVjbGFpbWVkID09IDAgJiYgIXpvbmVf
+cmVjbGFpbWFibGUoem9uZSkpDQogICAgICAgICAgICAgICAgem9uZS0+YWxsX3VucmVjbGFpbWFi
+bGUgPSAxOw0KDQogICAgICAgIHpvbmVfY2xlYXJfZmxhZyh6b25lLCBaT05FX1dSSVRFQkFDSyk7
+DQoNCg0KSSB0aGluayB0aGUgY3VycmVudCBjaGVjayBpcyB3cm9uZywgcmVjbGFpbWVkIGEgc2xh
+YiBkb2Vzbid0IG1lYW4NCnJlY2xhaW1lZCBhIHBhZ2UuDQoNCi0tIA0KUmVnYXJkcywNCi0tQm9i
+DQo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
