@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id CFAB86B0034
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 14:39:37 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id AF31A6B0034
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 14:41:23 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <nfont@linux.vnet.ibm.com>;
-	Thu, 25 Jul 2013 04:29:09 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id F27D32BB004F
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 04:39:32 +1000 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6OINxb13015028
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 04:23:59 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6OIdW3i008104
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 04:39:32 +1000
-Message-ID: <51F01F61.6010609@linux.vnet.ibm.com>
-Date: Wed, 24 Jul 2013 13:39:29 -0500
+	Thu, 25 Jul 2013 00:02:46 +0530
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 68855394002D
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 00:11:10 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6OIfB8v44564572
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 00:11:11 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6OIfF6w010434
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 04:41:15 +1000
+Message-ID: <51F01FC7.5040403@linux.vnet.ibm.com>
+Date: Wed, 24 Jul 2013 13:41:11 -0500
 From: Nathan Fontenot <nfont@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: [PATCH 4/8] Create a sysfs release file for hot removing memory
+Subject: [PATCH 5/8] Add notifiers for memory hot add/remove
 References: <51F01E06.6090800@linux.vnet.ibm.com>
 In-Reply-To: <51F01E06.6090800@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1
@@ -29,246 +29,167 @@ List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linuxppc-dev@lists.ozlabs.org
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, isimatu.yasuaki@jp.fujitsu.com
 
-Provide a sysfs interface to hot remove memory.
+In order to allow architectures or other subsystems to do any needed
+work prior to hot adding or hot removing memory the memory notifier
+chain should be updated to provide notifications of these events.
 
-This patch updates the sysfs interface for hot add of memory to also
-provide a sysfs interface to hot remove memory. The use of this interface
-is controlled with the ARCH_MEMORY_PROBE config option, currently used
-by x86 and powerpc. This patch also updates the name of this option to
-CONFIG_ARCH_MEMORY_PROBE_RELEASE to indicate that it controls the probe
-and release sysfs interfaces.
+This patch adds the notifications for memory hot add and hot remove.
 
 Signed-off-by: Nathan Fontenot <nfont@linux.vnet.ibm.com>
----
- Documentation/memory-hotplug.txt |   34 ++++++++++++----
- arch/powerpc/Kconfig             |    2 
- arch/x86/Kconfig                 |    2 
- drivers/base/memory.c            |   81 ++++++++++++++++++++++++++++++++++-----
- 4 files changed, 100 insertions(+), 19 deletions(-)
+--
+ Documentation/memory-hotplug.txt |   26 +++++++++++++++++++++++---
+ include/linux/memory.h           |    6 ++++++
+ mm/memory_hotplug.c              |   25 ++++++++++++++++++++++---
+ 3 files changed, 51 insertions(+), 6 deletions(-)
 
-Index: linux/drivers/base/memory.c
+Index: linux/include/linux/memory.h
 ===================================================================
---- linux.orig/drivers/base/memory.c
-+++ linux/drivers/base/memory.c
-@@ -129,22 +129,30 @@ static ssize_t show_mem_end_phys_index(s
- 	return sprintf(buf, "%08lx\n", phys_index);
- }
- 
-+static int is_memblock_removable(unsigned long start_section_nr)
-+{
-+	unsigned long pfn;
-+	int i, ret = 1;
-+
-+	for (i = 0; i < sections_per_block; i++) {
-+		pfn = section_nr_to_pfn(start_section_nr + i);
-+		ret &= is_mem_section_removable(pfn, PAGES_PER_SECTION);
-+	}
-+
-+	return ret;
-+}
-+
- /*
-  * Show whether the section of memory is likely to be hot-removable
-  */
- static ssize_t show_mem_removable(struct device *dev,
- 			struct device_attribute *attr, char *buf)
+--- linux.orig/include/linux/memory.h
++++ linux/include/linux/memory.h
+@@ -50,6 +50,12 @@ int arch_get_memory_phys_device(unsigned
+ #define	MEM_GOING_ONLINE	(1<<3)
+ #define	MEM_CANCEL_ONLINE	(1<<4)
+ #define	MEM_CANCEL_OFFLINE	(1<<5)
++#define MEM_BEING_HOT_REMOVED	(1<<6)
++#define MEM_HOT_REMOVED		(1<<7)
++#define MEM_CANCEL_HOT_REMOVE	(1<<8)
++#define MEM_BEING_HOT_ADDED	(1<<9)
++#define MEM_HOT_ADDED		(1<<10)
++#define MEM_CANCEL_HOT_ADD	(1<<11)
+
+ struct memory_notify {
+ 	unsigned long start_pfn;
+Index: linux/mm/memory_hotplug.c
+===================================================================
+--- linux.orig/mm/memory_hotplug.c
++++ linux/mm/memory_hotplug.c
+@@ -1073,17 +1073,25 @@ out:
+ int __ref add_memory(int nid, u64 start, u64 size)
  {
--	unsigned long i, pfn;
--	int ret = 1;
-+	int ret;
- 	struct memory_block *mem =
- 		container_of(dev, struct memory_block, dev);
- 
--	for (i = 0; i < sections_per_block; i++) {
--		pfn = section_nr_to_pfn(mem->start_section_nr + i);
--		ret &= is_mem_section_removable(pfn, PAGES_PER_SECTION);
--	}
--
-+	ret = is_memblock_removable(mem->start_section_nr);
- 	return sprintf(buf, "%d\n", ret);
- }
- 
-@@ -421,7 +429,7 @@ static DEVICE_ATTR(block_size_bytes, 044
-  * as well as ppc64 will do all of their discovery in userspace
-  * and will require this interface.
-  */
--#ifdef CONFIG_ARCH_MEMORY_PROBE
-+#ifdef CONFIG_ARCH_MEMORY_PROBE_RELEASE
- static ssize_t
- memory_probe_store(struct device *dev, struct device_attribute *attr,
- 		   const char *buf, size_t count)
-@@ -444,6 +452,60 @@ memory_probe_store(struct device *dev, s
- }
- 
- static DEVICE_ATTR(probe, S_IWUSR, NULL, memory_probe_store);
-+
-+static int is_memblock_offline(struct memory_block *mem, void *arg)
-+{
-+	if (mem->state == MEM_ONLINE)
-+		return 1;
-+
-+	return 0;
-+}
-+
-+static ssize_t
-+memory_release_store(struct device *dev, struct device_attribute *attr,
-+		     const char *buf, size_t count)
-+{
-+	u64 phys_addr;
-+	int nid, ret = 0;
-+	unsigned long block_size, pfn;
-+	unsigned long pages_per_block = PAGES_PER_SECTION * sections_per_block;
-+
-+	lock_device_hotplug();
-+
-+	ret = kstrtoull(buf, 0, &phys_addr);
+ 	pg_data_t *pgdat = NULL;
+-	bool new_pgdat;
++	bool new_pgdat = false;
+ 	bool new_node;
+-	struct resource *res;
++	struct resource *res = NULL;
++	struct memory_notify arg;
+ 	int ret;
+
+ 	lock_memory_hotplug();
+
++	arg.start_pfn = start >> PAGE_SHIFT;
++	arg.nr_pages = size / PAGE_SIZE;
++	ret = memory_notify(MEM_BEING_HOT_ADDED, &arg);
++	ret = notifier_to_errno(ret);
 +	if (ret)
-+		goto out;
++		goto error;
 +
-+	if (phys_addr & ((pages_per_block << PAGE_SHIFT) - 1)) {
-+		ret = -EINVAL;
-+		goto out;
-+	}
+ 	res = register_memory_resource(start, size);
+ 	ret = -EEXIST;
+ 	if (!res)
+-		goto out;
++		goto error;
+
+ 	{	/* Stupid hack to suppress address-never-null warning */
+ 		void *p = NODE_DATA(nid);
+@@ -1119,9 +1127,12 @@ int __ref add_memory(int nid, u64 start,
+ 	/* create new memmap entry */
+ 	firmware_map_add_hotplug(start, start + size, "System RAM");
+
++	memory_notify(MEM_HOT_ADDED, &arg);
+ 	goto out;
+
+ error:
++	memory_notify(MEM_CANCEL_HOT_ADD, &arg);
 +
-+	block_size = get_memory_block_size();
-+	nid = memory_add_physaddr_to_nid(phys_addr);
+ 	/* rollback pgdat allocation and others */
+ 	if (new_pgdat)
+ 		rollback_node_hotadd(nid, pgdat);
+@@ -1784,10 +1795,15 @@ EXPORT_SYMBOL(try_offline_node);
+
+ void __ref remove_memory(int nid, u64 start, u64 size)
+ {
++	struct memory_notify arg;
+ 	int ret;
+
+ 	lock_memory_hotplug();
+
++	arg.start_pfn = start >> PAGE_SHIFT;
++	arg.nr_pages = size / PAGE_SIZE;
++	memory_notify(MEM_BEING_HOT_REMOVED, &arg);
 +
-+	/* Ensure memory is offline and removable before removing it. */
-+	ret = walk_memory_range(PFN_DOWN(phys_addr),
-+				PFN_UP(phys_addr + block_size - 1), NULL,
-+				is_memblock_offline);
-+	if (!ret) {
-+		pfn = phys_addr >> PAGE_SHIFT;
-+		ret = !is_memblock_removable(pfn_to_section_nr(pfn));
-+	}
+ 	/*
+ 	 * All memory blocks must be offlined before removing memory.  Check
+ 	 * whether all memory blocks in question are offline and trigger a BUG()
+@@ -1796,6 +1812,7 @@ void __ref remove_memory(int nid, u64 st
+ 	ret = walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1), NULL,
+ 				is_memblock_offlined_cb);
+ 	if (ret) {
++		memory_notify(MEM_CANCEL_HOT_REMOVE, &arg);
+ 		unlock_memory_hotplug();
+ 		BUG();
+ 	}
+@@ -1807,6 +1824,8 @@ void __ref remove_memory(int nid, u64 st
+
+ 	try_offline_node(nid);
+
++	memory_notify(MEM_HOT_REMOVED, &arg);
 +
-+	if (ret) {
-+		ret = -EINVAL;
-+		goto out;
-+	}
-+
-+	remove_memory(nid, phys_addr, block_size);
-+
-+out:
-+	unlock_device_hotplug();
-+	return ret ? ret : count;
-+}
-+
-+static DEVICE_ATTR(release, S_IWUSR, NULL, memory_release_store);
- #endif
- 
- #ifdef CONFIG_MEMORY_FAILURE
-@@ -694,8 +756,9 @@ bool is_memblock_offlined(struct memory_
+ 	unlock_memory_hotplug();
  }
- 
- static struct attribute *memory_root_attrs[] = {
--#ifdef CONFIG_ARCH_MEMORY_PROBE
-+#ifdef CONFIG_ARCH_MEMORY_PROBE_RELEASE
- 	&dev_attr_probe.attr,
-+	&dev_attr_release.attr,
- #endif
- 
- #ifdef CONFIG_MEMORY_FAILURE
-Index: linux/arch/powerpc/Kconfig
-===================================================================
---- linux.orig/arch/powerpc/Kconfig
-+++ linux/arch/powerpc/Kconfig
-@@ -438,7 +438,7 @@ config SYS_SUPPORTS_HUGETLBFS
- 
- source "mm/Kconfig"
- 
--config ARCH_MEMORY_PROBE
-+config ARCH_MEMORY_PROBE_RELEASE
- 	def_bool y
- 	depends on MEMORY_HOTPLUG
- 
-Index: linux/arch/x86/Kconfig
-===================================================================
---- linux.orig/arch/x86/Kconfig
-+++ linux/arch/x86/Kconfig
-@@ -1343,7 +1343,7 @@ config ARCH_SELECT_MEMORY_MODEL
- 	def_bool y
- 	depends on ARCH_SPARSEMEM_ENABLE
- 
--config ARCH_MEMORY_PROBE
-+config ARCH_MEMORY_PROBE_RELEASE
- 	def_bool y
- 	depends on X86_64 && MEMORY_HOTPLUG
- 
+ EXPORT_SYMBOL_GPL(remove_memory);
 Index: linux/Documentation/memory-hotplug.txt
 ===================================================================
 --- linux.orig/Documentation/memory-hotplug.txt
 +++ linux/Documentation/memory-hotplug.txt
-@@ -17,7 +17,9 @@ be changed often.
- 3. sysfs files for memory hotplug
- 4. Physical memory hot-add phase
-   4.1 Hardware(Firmware) Support
--  4.2 Notify memory hot-add event by hand
-+  4.2 Notify memory hot-addand hot-remove event by hand
-+     4.2.1 Probe interface
-+     4.2.2 Release interface
- 5. Logical Memory hot-add phase
-   5.1. State of memory
-   5.2. How to online memory
-@@ -69,7 +71,7 @@ management tables, and makes sysfs files
- 
- If firmware supports notification of connection of new memory to OS,
- this phase is triggered automatically. ACPI can notify this event. If not,
--"probe" operation by system administration is used instead.
-+"probe" and "release" operations by system administration is used instead.
- (see Section 4.).
- 
- Logical Memory Hotplug phase is to change memory state into
-@@ -208,20 +210,23 @@ calls hotplug code for all of objects wh
- If memory device is found, memory hotplug code will be called.
- 
- 
--4.2 Notify memory hot-add event by hand
-+4.2 Notify memory hot-add and hot-remove event by hand
- ------------
- In some environments, especially virtualized environment, firmware will not
- notify memory hotplug event to the kernel. For such environment, "probe"
--interface is supported. This interface depends on CONFIG_ARCH_MEMORY_PROBE.
-+and "release" interfaces are supported. This interface depends on
-+CONFIG_ARCH_MEMORY_PROBE_RELEASE.
- 
--Now, CONFIG_ARCH_MEMORY_PROBE is supported only by powerpc but it does not
--contain highly architecture codes. Please add config if you need "probe"
--interface.
-+Now, CONFIG_ARCH_MEMORY_PROBE_RELEASE is supported only by powerpc but it does
-+not contain highly architecture codes. Please add config if you need "probe"
-+and "release" interfaces.
- 
-+4.2.1 "probe" interface
-+------------
- Probe interface is located at
- /sys/devices/system/memory/probe
- 
--You can tell the physical address of new memory to the kernel by
-+You can tell the physical address of new memory to hot-add to the kernel by
- 
- % echo start_address_of_new_memory > /sys/devices/system/memory/probe
- 
-@@ -230,6 +235,19 @@ memory range is hot-added. In this case,
- current implementation). You'll have to online memory by yourself.
- Please see "How to online memory" in this text.
- 
-+4.2.2 "release" interface
-+------------
-+Release interface is located at
-+/sys/devices/system/memory/release
+@@ -371,7 +371,9 @@ Need more implementation yet....
+ --------------------------------
+ 8. Memory hotplug event notifier
+ --------------------------------
+-Memory hotplug has event notifier. There are 6 types of notification.
++Memory hotplug has event notifier. There are 12 types of notification, the
++first six relate to memory hotplug and the second six relate to memory hot
++add/remove.
+
+ MEMORY_GOING_ONLINE
+   Generated before new memory becomes available in order to be able to
+@@ -398,6 +400,24 @@ MEMORY_CANCEL_OFFLINE
+ MEMORY_OFFLINE
+   Generated after offlining memory is complete.
+
++MEMORY_BEING_HOT_REMOVED
++  Generated prior to the process of hot removing memory.
 +
-+You can tell the physical address of memory to hot-remove from the kernel by
++MEMORY_CANCEL_HOT_REMOVE
++  Generated if MEMORY_BEING_HOT_REMOVED fails.
 +
-+% echo start_address_of_memory > /sys/devices/system/memory/release
++MEMORY_HOT_REMOVED
++  Generated when memory has been successfully hot removed.
 +
-+Then, [start_address_of_memory, start_address_of_memory + section_size)
-+memory range is hot-removed. You will need to ensure all of the memory in
-+this range has been offlined prior to using this interface, please see
-+"How to offline memory" in this text.
- 
- 
- ------------------------------
++MEMORY_BEING_HOT_ADDED
++  Generated prior to the process of hot adding memory.
++
++MEMORY_HOT_ADD_CANCEL
++  Generated if MEMORY_BEING_HOT_ADDED fails.
++
++MEMORY_HOT_ADDED
++  Generated when memory has successfully been hot added.
++
+ A callback routine can be registered by
+   hotplug_memory_notifier(callback_func, priority)
+
+@@ -412,8 +432,8 @@ struct memory_notify {
+        int status_change_nid;
+ }
+
+-start_pfn is start_pfn of online/offline memory.
+-nr_pages is # of pages of online/offline memory.
++start_pfn is start_pfn of online/offline/add/remove memory.
++nr_pages is # of pages of online/offline/add/remove memory.
+ status_change_nid_normal is set node id when N_NORMAL_MEMORY of nodemask
+ is (will be) set/clear, if this is -1, then nodemask status is not changed.
+ status_change_nid_high is set node id when N_HIGH_MEMORY of nodemask
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
