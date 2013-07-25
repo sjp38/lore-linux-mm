@@ -1,76 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id E534C6B0034
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 11:48:21 -0400 (EDT)
-Message-ID: <1374767240.16322.228.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v2] mm/hotplug, x86: Disable ARCH_MEMORY_PROBE by default
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Thu, 25 Jul 2013 09:47:20 -0600
-In-Reply-To: <51F06E87.1060902@gmail.com>
-References: <1374256068-26016-1-git-send-email-toshi.kani@hp.com>
-	   <20130722083721.GC25976@gmail.com>
-	   <1374513120.16322.21.camel@misato.fc.hp.com>
-	   <20130723080101.GB15255@gmail.com>
-	  <1374612301.16322.136.camel@misato.fc.hp.com> <51EF1D38.60503@gmail.com>
-	 <1374681742.16322.180.camel@misato.fc.hp.com> <51F06E87.1060902@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 9ED076B0034
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 11:50:29 -0400 (EDT)
+Received: from mail137-co1 (localhost [127.0.0.1])	by
+ mail137-co1-R.bigfish.com (Postfix) with ESMTP id 460BEDC0170	for
+ <linux-mm@kvack.org>; Thu, 25 Jul 2013 15:50:27 +0000 (UTC)
+Received: from CO1EHSMHS022.bigfish.com (unknown [10.243.78.249])	by
+ mail137-co1.bigfish.com (Postfix) with ESMTP id 9579860004C	for
+ <linux-mm@kvack.org>; Thu, 25 Jul 2013 15:50:23 +0000 (UTC)
+Received: from mail214-ch1 (localhost [127.0.0.1])	by
+ mail214-ch1-R.bigfish.com (Postfix) with ESMTP id C1F81140235	for
+ <linux-mm@kvack.org.FOPE.CONNECTOR.OVERRIDE>; Thu, 25 Jul 2013 15:50:00 +0000
+ (UTC)
+From: KY Srinivasan <kys@microsoft.com>
+Subject: RE: [PATCH 1/1] Drivers: base: memory: Export symbols for onlining
+ memory blocks
+Date: Thu, 25 Jul 2013 15:49:00 +0000
+Message-ID: <828d748273884d6f9c24b658964f97c3@SN2PR03MB061.namprd03.prod.outlook.com>
+References: <1374261785-1615-1-git-send-email-kys@microsoft.com>
+ <20130722123716.GB24400@dhcp22.suse.cz>
+ <e06fced3ca42408b980f8aa68f4a29f3@SN2PR03MB061.namprd03.prod.outlook.com>
+ <51EEA11D.4030007@intel.com>
+ <3318be0a96cb4d05838d76dc9d088cc0@SN2PR03MB061.namprd03.prod.outlook.com>
+ <51EEA89F.9070309@intel.com>
+ <9f351a549e76483d9148f87535567ea0@SN2PR03MB061.namprd03.prod.outlook.com>
+ <51F00415.8070104@sr71.net>
+ <d1f80c05986b439cbeef12bcd595b264@BLUPR03MB050.namprd03.prod.outlook.com>
+ <51F040E8.1030507@intel <51F13E51.7040808@sr71.net>
+In-Reply-To: <51F13E51.7040808@sr71.net>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hush Bensen <hush.bensen@gmail.com>
-Cc: Ingo Molnar <mingo@kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, dave@sr71.net, kosaki.motohiro@gmail.com, isimatu.yasuaki@jp.fujitsu.com, tangchen@cn.fujitsu.com, vasilis.liaskovitis@profitbricks.com
+To: Dave Hansen <dave@sr71.net>
+Cc: Michal Hocko <mhocko@suse.cz>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "apw@canonical.com" <apw@canonical.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kamezawa.hiroyuki@gmail.com" <kamezawa.hiroyuki@gmail.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "yinghan@google.com" <yinghan@google.com>, "jasowang@redhat.com" <jasowang@redhat.com>, "kay@vrfy.org" <kay@vrfy.org>
 
-On Thu, 2013-07-25 at 08:17 +0800, Hush Bensen wrote:
- :
-> Thanks for your explaination, very useful for me. ;-) Btw, what's the 
-> eject method done?
 
-On bare metal, the eject method makes a target device electrically
-isolated and physically removable.  On virtualized environment, the
-eject method makes a target device unassigned and released.
 
-> Could you give me the calltrace of add_memory and remove_memory? I
-> don't have machine support hotplug, but I hope to investigate how
-> ACPI part works for memory hotplug. ;-)
+> -----Original Message-----
+> From: Dave Hansen [mailto:dave@sr71.net]
+> Sent: Thursday, July 25, 2013 11:04 AM
+> To: KY Srinivasan
+> Cc: Michal Hocko; gregkh@linuxfoundation.org; linux-kernel@vger.kernel.or=
+g;
+> devel@linuxdriverproject.org; olaf@aepfle.de; apw@canonical.com;
+> andi@firstfloor.org; akpm@linux-foundation.org; linux-mm@kvack.org;
+> kamezawa.hiroyuki@gmail.com; hannes@cmpxchg.org; yinghan@google.com;
+> jasowang@redhat.com; kay@vrfy.org
+> Subject: Re: [PATCH 1/1] Drivers: base: memory: Export symbols for onlini=
+ng
+> memory blocks
+>=20
+> On 07/25/2013 04:14 AM, KY Srinivasan wrote:
+> > As promised, I have sent out the patches for (a) an implementation of a=
+n in-
+> kernel API
+> > for onlining  and a consumer for this API. While I don't know the exact=
+ reason
+> why the
+> > user mode code is delayed (under some low memory conditions), what is t=
+he
+> harm in having
+> > a mechanism to online memory that has been hot added without involving =
+user
+> space code.
+>=20
+> KY, your potential problem, not being able to online more memory because
+> of a shortage of memory, is a serious one.
 
-Here you go.
+All I can say is that the online is not happening within the allowed time (=
+5 seconds in
+the current code).
+>=20
+> However, this potential issue exists in long-standing code, and
+> potentially affects all users of memory hotplug.  The problem has not
+> been described in sufficient detail for the rest of the developers to
+> tell if you are facing a new problem, or whether *any* proposed solution
+> will help the problem you face.
+>=20
+> Your propsed solution changes the semantics of existing user/kernel
+> interfaces, duplicates existing functionality, and adds code complexity
+> to the kernel.
 
-[   84.883517]  [<ffffffff8153e8a4>] add_memory+0x24/0x185
-[   84.883525]  [<ffffffff812ca331>] ? acpi_get_pxm+0x2b/0x4e
-[   84.883533]  [<ffffffff81303418>] acpi_memory_device_add+0x144/0x274
-[   84.883539]  [<ffffffff812c1b25>] acpi_bus_device_attach+0x80/0xd9
-[   84.883545]  [<ffffffff812c2b65>] acpi_bus_scan+0x65/0x9f
-[   84.883551]  [<ffffffff812c2c1d>] acpi_scan_bus_device_check
-+0x7e/0x10f
-[   84.883556]  [<ffffffff812c2cc1>] acpi_scan_device_check+0x13/0x15
-[   84.883562]  [<ffffffff812bbdab>] acpi_os_execute_deferred+0x25/0x32
-[   84.883568]  [<ffffffff81057cbc>] process_one_work+0x229/0x3d3
-[   84.883573]  [<ffffffff81057bfa>] ? process_one_work+0x167/0x3d3
-[   84.883579]  [<ffffffff81058248>] worker_thread+0x133/0x200
-[   84.883584]  [<ffffffff81058115>] ? rescuer_thread+0x280/0x280
-[   84.883591]  [<ffffffff8105e0c3>] kthread+0xb1/0xb9
-[   84.883598]  [<ffffffff8105e012>] ? __kthread_parkme+0x65/0x65
-[   84.883604]  [<ffffffff81556c9c>] ret_from_fork+0x7c/0xb0
-[   84.883610]  [<ffffffff8105e012>] ? __kthread_parkme+0x65/0x65
+How so? All I am doing is to use the existing infrastructure to online
+memory. The only change I have made is to export an API that allows
+onlining without involving any user space code. I don't see how  this
+adds complexity to the kernel. This would be an useful extension as can
+be seen from its usage in the Hyper-V balloon driver.
 
-[  129.586622]  [<ffffffff8153f4b1>] remove_memory+0x22/0x85
-[  129.586627]  [<ffffffff813031c6>] acpi_memory_device_remove+0x77/0xa7
-[  129.586631]  [<ffffffff812c0f95>] acpi_bus_device_detach+0x3d/0x5e
-[  129.586634]  [<ffffffff812c0ff8>] acpi_bus_trim+0x42/0x7a
-[  129.586637]  [<ffffffff812c1587>] acpi_scan_hot_remove+0x1ba/0x261
-[  129.586641]  [<ffffffff812c16ce>] acpi_bus_device_eject+0xa0/0xd0
-[  129.586644]  [<ffffffff812bbdab>] acpi_os_execute_deferred+0x25/0x32
-[  129.586648]  [<ffffffff81057cbc>] process_one_work+0x229/0x3d3
-[  129.586652]  [<ffffffff81057bfa>] ? process_one_work+0x167/0x3d3
-[  129.586655]  [<ffffffff81058248>] worker_thread+0x133/0x200
-[  129.586658]  [<ffffffff81058115>] ? rescuer_thread+0x280/0x280
-[  129.586663]  [<ffffffff8105e0c3>] kthread+0xb1/0xb9
-[  129.586667]  [<ffffffff8105e012>] ? __kthread_parkme+0x65/0x65
-[  129.586671]  [<ffffffff81556c9c>] ret_from_fork+0x7c/0xb0
-[  129.586675]  [<ffffffff8105e012>] ? __kthread_parkme+0x65/0x65
+In my particular use case, I need to wait for the memory to be onlined befo=
+re
+I can proceed to hot add the next chunk. This synchronization can be comple=
+tely
+avoided if we can avoid the involvement of user level code. I would submit =
+to you that
+this is a valid use case that we ought to be able to support.
 
--Toshi
+Regards,
+
+K. Y
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
