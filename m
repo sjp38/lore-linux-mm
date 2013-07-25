@@ -1,77 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 0A7206B0034
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 12:35:18 -0400 (EDT)
-Message-ID: <51F153BA.1010106@sr71.net>
-Date: Thu, 25 Jul 2013 09:35:06 -0700
-From: Dave Hansen <dave@sr71.net>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/1] Drivers: base: memory: Export symbols for onlining
- memory blocks
-References: <1374261785-1615-1-git-send-email-kys@microsoft.com> <20130722123716.GB24400@dhcp22.suse.cz> <e06fced3ca42408b980f8aa68f4a29f3@SN2PR03MB061.namprd03.prod.outlook.com> <51EEA11D.4030007@intel.com> <3318be0a96cb4d05838d76dc9d088cc0@SN2PR03MB061.namprd03.prod.outlook.com> <51EEA89F.9070309@intel.com> <9f351a549e76483d9148f87535567ea0@SN2PR03MB061.namprd03.prod.outlook.com> <51F00415.8070104@sr71.net> <d1f80c05986b439cbeef12bcd595b264@BLUPR03MB050.namprd03.prod.outlook.com> <51F040E8.1030507@intel.com> <20130725075705.GD12818@dhcp22.suse.cz> <4f440c8d96f34711a3f06fb18702a297@SN2PR03MB061.namprd03.prod.outlook.com> <51F13E51.7040808@sr71.net> <CAPXgP10BqFoYLOS+e=aTMqM6mAZrtuWHsrsSJ4+44m+LuzRwiQ@mail.gmail.com>
-In-Reply-To: <CAPXgP10BqFoYLOS+e=aTMqM6mAZrtuWHsrsSJ4+44m+LuzRwiQ@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 33DCF6B0031
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 13:22:08 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rcjenn@linux.vnet.ibm.com>;
+	Fri, 26 Jul 2013 14:17:17 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 60CF42BB0053
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2013 03:21:57 +1000 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6PH6VjX1573318
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2013 03:06:31 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6PHLufO029151
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2013 03:21:56 +1000
+From: Robert Jennings <rcj@linux.vnet.ibm.com>
+Subject: [RFC PATCH 1/2] vmsplice unmap gifted pages for recipient
+Date: Thu, 25 Jul 2013 12:21:45 -0500
+Message-Id: <1374772906-21511-2-git-send-email-rcj@linux.vnet.ibm.com>
+In-Reply-To: <1374772906-21511-1-git-send-email-rcj@linux.vnet.ibm.com>
+References: <1374772906-21511-1-git-send-email-rcj@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kay Sievers <kay@vrfy.org>
-Cc: KY Srinivasan <kys@microsoft.com>, Michal Hocko <mhocko@suse.cz>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "apw@canonical.com" <apw@canonical.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kamezawa.hiroyuki@gmail.com" <kamezawa.hiroyuki@gmail.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "yinghan@google.com" <yinghan@google.com>, "jasowang@redhat.com" <jasowang@redhat.com>
+To: linux-kernel@vger.kernel.org
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave@sr71.net>, Robert Jennings <rcj@linux.vnet.ibm.com>, Matt Helsley <matt.helsley@gmail.com>, Anthony Liguori <aliguori@us.ibm.com>, Michael Roth <mdroth@linux.vnet.ibm.com>, Lei Li <lilei@linux.vnet.ibm.com>, Leonardo Garcia <lagarcia@linux.vnet.ibm.com>
 
-On 07/25/2013 08:15 AM, Kay Sievers wrote:
-> Complexity, well, it's just a bit of code which belongs in the kernel.
-> The mentioned unconditional hotplug loop through userspace is
-> absolutely pointless. Such defaults never belong in userspace tools if
-> they do not involve data that is only available in userspace and
-> something would make a decision about that. Saying "hello" to
-> userspace and usrspace has a hardcoded "yes" in return makes no sense
-> at all. The kernel can just go ahead and do its job, like it does for
-> all other devices it finds too.
+From: Matt Helsley <matthltc@us.ibm.com>
 
-Sorry, but memory is different than all other devices.  You never need a
-mouse in order to add another mouse to the kernel.
+Introduce use of the unused SPLICE_F_MOVE flag for vmsplice to zap
+pages.
 
-I'll repaste something I said earlier in this thread:
+When vmsplice is called with flags (SPLICE_F_GIFT | SPLICE_F_MOVE) the
+writer's gift'ed pages would be zapped.  This patch supports further work
+to move vmsplice'd pages rather than copying them.  That patch has the
+restriction that the page must not be mapped by the source for the move,
+otherwise it will fall back to copying the page.
 
-> A system under memory pressure is going to have troubles doing a
-> hot-add.  You need memory to add memory.  Of the two operations ("add"
-> and "online"), "add" is the one vastly more likely to fail.  It has to
-> allocate several large swaths of contiguous physical memory.  For that
-> reason, the system was designed so that you could "add" and "online"
-> separately.  The intention was that you could "add" far in advance and
-> then "online" under memory pressure, with the "online" having *VASTLY*
-> smaller memory requirements and being much more likely to succeed.
+Signed-off-by: Matt Helsley <matthltc@us.ibm.com>
+Signed-off-by: Matt Helsley <matt.helsley@gmail.com>
+Signed-off-by: Robert Jennings <rcj@linux.vnet.ibm.com>
+---
+ fs/splice.c            | 25 ++++++++++++++++++++++++-
+ include/linux/splice.h |  1 +
+ 2 files changed, 25 insertions(+), 1 deletion(-)
 
-So, no, it makes no sense to just have userspace always unconditionally
-online all the memory that the kernel adds.  But, the way it's set up,
-we _have_ a method that can work under lots memory pressure, and it is
-available for users that want it.  It was designed 10 years ago, and
-maybe it's outdated, or history has proved that nobody is going to use
-it the way it was designed.
-
-If I had it to do over again, I'd probably set up configurable per-node
-sets of spare kernel metadata.  That way, you could say "make sure we
-have enough memory reserved to add $FOO sections to node $BAR".  Use
-that for the largest allocations, then depend on PF_MEMALLOC to get us
-enough for the other little bits along the way.
-
-Also, if this is a problem, it's going to be a problem for *EVERY* user
-of memory hotplug, not just hyperv.  So, let's see it fixed generically
-for *EVERY* user.  Something along the lines of:
-
-1. Come up with an interface that specifies a default policy for
-   newly-added memory sections.  Currently, added memory gets "added",
-   but not "onlined", and the default should stay doing that.
-2. Make sure that we at least WARN_ONCE() if someone tries to online an
-   already-kernel-onlined memory section.  That way, if someone trips
-   over this new policy, we have a _chance_ of explaining to them what
-   is going on.
-3. Think about what we do in the failure case where we are able to
-   "add", but fail to "online" in the kernel.  Do we tear the
-   newly-added structures down and back out of the operation, or do
-   we leave the memory added, but offline (what happens in the normal
-   case now)?
-
-
+diff --git a/fs/splice.c b/fs/splice.c
+index 3b7ee65..6aa964f 100644
+--- a/fs/splice.c
++++ b/fs/splice.c
+@@ -172,6 +172,18 @@ static void wakeup_pipe_readers(struct pipe_inode_info *pipe)
+ 	kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
+ }
+ 
++static void zap_buf_page(unsigned long useraddr)
++{
++	struct vm_area_struct *vma;
++
++	down_read(&current->mm->mmap_sem);
++	vma = find_vma_intersection(current->mm, useraddr,
++			useraddr + PAGE_SIZE);
++	if (!IS_ERR_OR_NULL(vma))
++		zap_page_range(vma, useraddr, PAGE_SIZE, NULL);
++	up_read(&current->mm->mmap_sem);
++}
++
+ /**
+  * splice_to_pipe - fill passed data into a pipe
+  * @pipe:	pipe to fill
+@@ -212,8 +224,16 @@ ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
+ 			buf->len = spd->partial[page_nr].len;
+ 			buf->private = spd->partial[page_nr].private;
+ 			buf->ops = spd->ops;
+-			if (spd->flags & SPLICE_F_GIFT)
++			if (spd->flags & SPLICE_F_GIFT) {
++				unsigned long useraddr =
++						spd->partial[page_nr].useraddr;
++
++				if ((spd->flags & SPLICE_F_MOVE) &&
++				    !buf->offset && (buf->len == PAGE_SIZE))
++					/* Can move page aligned buf */
++					zap_buf_page(useraddr);
+ 				buf->flags |= PIPE_BUF_FLAG_GIFT;
++			}
+ 
+ 			pipe->nrbufs++;
+ 			page_nr++;
+@@ -485,6 +505,7 @@ fill_it:
+ 
+ 		spd.partial[page_nr].offset = loff;
+ 		spd.partial[page_nr].len = this_len;
++		spd.partial[page_nr].useraddr = index << PAGE_CACHE_SHIFT;
+ 		len -= this_len;
+ 		loff = 0;
+ 		spd.nr_pages++;
+@@ -656,6 +677,7 @@ ssize_t default_file_splice_read(struct file *in, loff_t *ppos,
+ 		this_len = min_t(size_t, vec[i].iov_len, res);
+ 		spd.partial[i].offset = 0;
+ 		spd.partial[i].len = this_len;
++		spd.partial[i].useraddr = (unsigned long)vec[i].iov_base;
+ 		if (!this_len) {
+ 			__free_page(spd.pages[i]);
+ 			spd.pages[i] = NULL;
+@@ -1475,6 +1497,7 @@ static int get_iovec_page_array(const struct iovec __user *iov,
+ 
+ 			partial[buffers].offset = off;
+ 			partial[buffers].len = plen;
++			partial[buffers].useraddr = (unsigned long)base;
+ 
+ 			off = 0;
+ 			len -= plen;
+diff --git a/include/linux/splice.h b/include/linux/splice.h
+index 74575cb..56661e3 100644
+--- a/include/linux/splice.h
++++ b/include/linux/splice.h
+@@ -44,6 +44,7 @@ struct partial_page {
+ 	unsigned int offset;
+ 	unsigned int len;
+ 	unsigned long private;
++	unsigned long useraddr;
+ };
+ 
+ /*
+-- 
+1.8.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
