@@ -1,56 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id D37686B0031
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 02:51:15 -0400 (EDT)
-Received: by mail-pb0-f53.google.com with SMTP id xb12so375721pbc.26
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2013 23:51:15 -0700 (PDT)
-Message-ID: <51F0CACE.7040609@gmail.com>
-Date: Thu, 25 Jul 2013 14:50:54 +0800
-From: Paul Bolle <paul.bollee@gmail.com>
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id ABABC6B0031
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 03:07:22 -0400 (EDT)
+Received: by mail-lb0-f172.google.com with SMTP id a16so1244187lbj.3
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2013 00:07:20 -0700 (PDT)
+Date: Thu, 25 Jul 2013 11:07:19 +0400
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [PATCH] mm: Save soft-dirty bits on swapped pages
+Message-ID: <20130725070719.GB27992@moon>
+References: <CALCETrVWgSMrM2ujpO092ZLQa3pWEQM4vdmHhCVUohUUcoR8AQ@mail.gmail.com>
+ <20130724171728.GH8508@moon>
+ <1374687373.7382.22.camel@dabdike>
+ <CALCETrV5MD1qCQsyz4=t+QW1BJuTBYainewzDfEaXW12S91K=A@mail.gmail.com>
+ <20130724181516.GI8508@moon>
+ <CALCETrV5NojErxWOc2RpuYKE0g8FfOmKB31oDz46CRu27hmDBA@mail.gmail.com>
+ <20130724185256.GA24365@moon>
+ <51F0232D.6060306@parallels.com>
+ <20130724190453.GJ8508@moon>
+ <CALCETrVRQBLrQBL8_Zu0VqBRkDXXr2np57-gt4T59A4jG9jMZw@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [patch 3/3] mm: page_alloc: fair zone allocator policy
-References: <1374267325-22865-1-git-send-email-hannes@cmpxchg.org> <1374267325-22865-4-git-send-email-hannes@cmpxchg.org> <51ED9433.60707@redhat.com>
-In-Reply-To: <51ED9433.60707@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALCETrVRQBLrQBL8_Zu0VqBRkDXXr2np57-gt4T59A4jG9jMZw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Pavel Emelyanov <xemul@parallels.com>, James Bottomley <James.Bottomley@hansenpartnership.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Marcelo Tosatti <mtosatti@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Stephen Rothwell <sfr@canb.auug.org.au>
 
-On 07/23/2013 04:21 AM, Rik van Riel wrote:
-> On 07/19/2013 04:55 PM, Johannes Weiner wrote:
->
->> @@ -1984,7 +1992,8 @@ this_zone_full:
->>           goto zonelist_scan;
->>       }
->>
->> -    if (page)
->> +    if (page) {
->> +        atomic_sub(1U << order, &zone->alloc_batch);
->>           /*
->>            * page->pfmemalloc is set when ALLOC_NO_WATERMARKS was
->>            * necessary to allocate the page. The expectation is
->
-> Could this be moved into the slow path in buffered_rmqueue and
-> rmqueue_bulk, or would the effect of ignoring the pcp buffers be
-> too detrimental to keeping the balance between zones?
->
-> It would be kind of nice to not have this atomic operation on every
-> page allocation...
+On Wed, Jul 24, 2013 at 12:40:22PM -0700, Andy Lutomirski wrote:
+> 
+> Hmm.  So there are at least three kinds of memory:
+> 
+> Anonymous pages: soft-dirty works
+> Shared file-backed pages: soft-dirty does not work
+> Private file-backed pages: soft-dirty works (but see below)
+> 
+> Perhaps another bit should be allocated to expose to userspace either
+> "soft-dirty", "soft-clean", or "soft-dirty unsupported"?
 
-atomic operation will lock cache line or memory bus? And cmpxchg will 
-lock cache line or memory bus? ;-)
+> There's another possible issue with private file-backed pages, though:
+> how do you distinguish clean-and-not-cowed from cowed-but-soft-clean?
+> (The former will reflect changes in the underlying file, I think, but
+> the latter won't.)
 
->
-> As a side benefit, higher-order buffered_rmqueue and rmqueue_bulk
-> both happen under the zone->lock, so moving this accounting down
-> to that layer might allow you to get rid of the atomics alltogether.
->
-> I like the overall approach though. This is something Linux has needed
-> for a long time, and could be extremely useful to automatic NUMA
-> balancing as well...
->
+When fault happens with cow allocation (on write) the pte get soft dirty
+bit set (the code uses pte_mkdirty(entry) in __do_fault) and until we
+explicitly clean the bit it remains set. Or you mean something else?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
