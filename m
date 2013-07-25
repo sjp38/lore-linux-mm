@@ -1,70 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 381356B0031
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 08:50:58 -0400 (EDT)
-Received: by mail-ob0-f182.google.com with SMTP id wo10so1392316obc.27
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2013 05:50:57 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 9BC2E6B0031
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 09:30:43 -0400 (EDT)
+Date: Thu, 25 Jul 2013 15:30:40 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: hugepage related lockdep trace.
+Message-ID: <20130725133040.GI12818@dhcp22.suse.cz>
+References: <20130717153223.GD27731@redhat.com>
+ <20130718000901.GA31972@blaptop>
+ <87hafrdatb.fsf@linux.vnet.ibm.com>
+ <20130719001303.GB23354@blaptop>
+ <20130723140120.GG8677@dhcp22.suse.cz>
+ <20130724024428.GA14795@bbox>
 MIME-Version: 1.0
-In-Reply-To: <20130725022543.GR3421@sgi.com>
-References: <1373594635-131067-1-git-send-email-holt@sgi.com>
-	<1373594635-131067-5-git-send-email-holt@sgi.com>
-	<CAE9FiQW1s2UwCY6OjzD3+2wG8SjCr1QyCpajhZbk_XhmnFQW4Q@mail.gmail.com>
-	<20130725022543.GR3421@sgi.com>
-Date: Thu, 25 Jul 2013 05:50:57 -0700
-Message-ID: <CAE9FiQV7Va8iAESoXsPCFJo8-jeA=-7SW2b9BmKnUrVonLV1=g@mail.gmail.com>
-Subject: Re: [RFC 4/4] Sparse initialization of struct page array.
-From: Yinghai Lu <yinghai@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130724024428.GA14795@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Nate Zimmer <nzimmer@sgi.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Rob Landley <rob@landley.net>, Mike Travis <travis@sgi.com>, Daniel J Blueman <daniel@numascale-asia.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Mel Gorman <mgorman@suse.de>
+To: Minchan Kim <minchan@kernel.org>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, Jul 24, 2013 at 7:25 PM, Robin Holt <holt@sgi.com> wrote:
->>
->> How about holes that is not in memblock.reserved?
->>
->> before this patch:
->> free_area_init_node/free_area_init_core/memmap_init_zone
->> will mark all page in node range to Reserved in struct page, at first.
->>
->> but those holes is not mapped via kernel low mapping.
->> so it should be ok not touch "struct page" for them.
->>
->> Now you only mark reserved for memblock.reserved at first, and later
->> mark {memblock.memory} - { memblock.reserved} to be available.
->> And that is ok.
->>
->> but should split that change to another patch and add some comment
->> and change log for the change.
->> in case there is some user like UEFI etc do weird thing.
->
-> Nate and I talked this over today.  Sorry for the delay, but it was the
-> first time we were both free.  Neither of us quite understands what you
-> are asking for here.  My interpretation is that you would like us to
-> change the use of the PageReserved flag such that during boot, we do not
-> set the flag at all from memmap_init_zone, and then only set it on pages
-> which, at the time of free_all_bootmem, have been allocated/reserved in
-> the memblock allocator.  Is that correct?  I will start to work that up
-> on the assumption that is what you are asking for.
+On Wed 24-07-13 11:44:28, Minchan Kim wrote:
+> On Tue, Jul 23, 2013 at 04:01:20PM +0200, Michal Hocko wrote:
+> > On Fri 19-07-13 09:13:03, Minchan Kim wrote:
+> > > On Thu, Jul 18, 2013 at 11:12:24PM +0530, Aneesh Kumar K.V wrote:
+> > [...]
+> > > > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> > > > index 83aff0a..2cb1be3 100644
+> > > > --- a/mm/hugetlb.c
+> > > > +++ b/mm/hugetlb.c
+> > > > @@ -3266,8 +3266,8 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
+> > > >  		put_page(virt_to_page(spte));
+> > > >  	spin_unlock(&mm->page_table_lock);
+> > > >  out:
+> > > > -	pte = (pte_t *)pmd_alloc(mm, pud, addr);
+> > > >  	mutex_unlock(&mapping->i_mmap_mutex);
+> > > > +	pte = (pte_t *)pmd_alloc(mm, pud, addr);
+> > > >  	return pte;
+> > > 
+> > > I am blind on hugetlb but not sure it doesn't break eb48c071.
+> > > Michal?
+> > 
+> > Well, it is some time since I debugged the race and all the details
+> > vanished in the meantime. But this part of the changelog suggests that
+> > this indeed breaks the fix:
+> > "
+> >     This patch addresses the issue by moving pmd_alloc into huge_pmd_share
+> >     which guarantees that the shared pud is populated in the same critical
+> >     section as pmd.  This also means that huge_pte_offset test in
+> >     huge_pmd_share is serialized correctly now which in turn means that the
+> >     success of the sharing will be higher as the racing tasks see the pud
+> >     and pmd populated together.
+> > "
+> > 
+> > Besides that I fail to see how moving pmd_alloc down changes anything.
+> > Even if pmd_alloc triggered reclaim then we cannot trip over the same
+> > i_mmap_mutex as hugetlb pages are not reclaimable because they are not
+> > on the LRU.
+> 
+> I thought we could map some part of binary with normal page and other part
+> of the one with MAP_HUGETLB so that a address space could have both normal
+> page and HugeTLB page. Okay, it's impossible so HugeTLB pages are not on LRU.
+> Then, above lockdep warning is totally false positive.
+> Best solution is avoiding pmd_alloc with holding i_mmap_mutex but we need it
+> to fix eb48c071 so how about this if we couldn't have a better idea?
 
-Not exactly.
+Shouldn't we rather use a hugetlb specific lock_class_key. I am not
+familiar with lockdep much but something like bellow should do the
+trick?
 
-your change should be right, but there is some subtle change about
-holes handling.
-
-before mem holes between memory ranges in memblock.memory, get struct page,
-and initialized with to Reserved in memmap_init_zone.
-Those holes is not in memory.reserved, with your patches, those hole's
-struct page
-will still have all 0.
-
-Please separate change about set page to reserved according to memory.reserved
-to another patch.
-
-Thanks
-
-Yinghai
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index a3f868a..40a61f6 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -463,6 +463,8 @@ static struct inode *hugetlbfs_get_root(struct super_block *sb,
+ 	return inode;
+ }
+ 
++struct lock_class_key hugetlbfs_i_mmap_mutex_key;
++
+ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
+ 					struct inode *dir,
+ 					umode_t mode, dev_t dev)
+@@ -474,6 +476,7 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
+ 		struct hugetlbfs_inode_info *info;
+ 		inode->i_ino = get_next_ino();
+ 		inode_init_owner(inode, dir, mode);
++		lockdep_set_class(&inode->i_mapping->i_mmap_mutex, &hugetlbfs_i_mmap_mutex_key);
+ 		inode->i_mapping->a_ops = &hugetlbfs_aops;
+ 		inode->i_mapping->backing_dev_info =&hugetlbfs_backing_dev_info;
+ 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
