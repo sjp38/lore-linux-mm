@@ -1,54 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id F11556B0031
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 11:09:21 -0400 (EDT)
-Received: by mail-yh0-f50.google.com with SMTP id a41so595992yho.9
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2013 08:09:20 -0700 (PDT)
-Date: Thu, 25 Jul 2013 11:09:13 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 17/21] page_alloc, mem-hotplug: Improve movablecore to
- {en|dis}able using SRAT.
-Message-ID: <20130725150913.GD26107@mtj.dyndns.org>
-References: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com>
- <1374220774-29974-18-git-send-email-tangchen@cn.fujitsu.com>
- <20130723210435.GV21100@mtj.dyndns.org>
- <20130723211119.GW21100@mtj.dyndns.org>
- <51F0A074.403@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 443886B0031
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 11:10:59 -0400 (EDT)
+Date: Thu, 25 Jul 2013 11:10:49 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 3/3] mm: page_alloc: fair zone allocator policy
+Message-ID: <20130725151049.GM715@cmpxchg.org>
+References: <1374267325-22865-1-git-send-email-hannes@cmpxchg.org>
+ <1374267325-22865-4-git-send-email-hannes@cmpxchg.org>
+ <51ED9433.60707@redhat.com>
+ <51F0CACE.7040609@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51F0A074.403@cn.fujitsu.com>
+In-Reply-To: <51F0CACE.7040609@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Paul Bolle <paul.bollee@gmail.com>
+Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Paul Bolle <pebolle@tiscali.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello, Tang.
+Hi Paul Bolle^W^W Sam Ben^W^W Hush Bensen^W^W Mtrr Patt^W^W Ric
+Mason^W^W Will Huck^W^W Simon Jeons^W^W Jaeguk Hanse^W^W Ni zhan
+Chen^W^W^W Wanpeng Li
 
-On Thu, Jul 25, 2013 at 11:50:12AM +0800, Tang Chen wrote:
-> movablecore boot option was used to specify the size of ZONE_MOVABLE. And
-> this patch-set aims to arrange ZONE_MOVABLE with SRAT info. So my original
-> thinking is to reuse movablecore.
+[ I Cc'd Paul Bolle at pebolle@tiscali.nl as well, his English was
+  better from there ]
+
+On Thu, Jul 25, 2013 at 02:50:54PM +0800, Paul Bolle wrote:
+> On 07/23/2013 04:21 AM, Rik van Riel wrote:
+> >On 07/19/2013 04:55 PM, Johannes Weiner wrote:
+> >
+> >>@@ -1984,7 +1992,8 @@ this_zone_full:
+> >>          goto zonelist_scan;
+> >>      }
+> >>
+> >>-    if (page)
+> >>+    if (page) {
+> >>+        atomic_sub(1U << order, &zone->alloc_batch);
+> >>          /*
+> >>           * page->pfmemalloc is set when ALLOC_NO_WATERMARKS was
+> >>           * necessary to allocate the page. The expectation is
+> >
+> >Could this be moved into the slow path in buffered_rmqueue and
+> >rmqueue_bulk, or would the effect of ignoring the pcp buffers be
+> >too detrimental to keeping the balance between zones?
+> >
+> >It would be kind of nice to not have this atomic operation on every
+> >page allocation...
 > 
-> Since you said above, I think we have two problems here:
-> 1. Should not let users care about where the hotplug info comes from.
-> 2. Should not distinguish movable node and memory hotplug, since for now,
->    to use memory hotplug is to use movable node.
-> 
-> So how about something like "movablenode", just like "quiet" boot option.
-> If users specify "movablenode", then memblock will reserve hotpluggable
-> memory, and create movable nodes if any. If users specify nothing, then
-> the kernel acts as before.
+> atomic operation will lock cache line or memory bus? And cmpxchg
+> will lock cache line or memory bus? ;-)
 
-Maybe I'm confused but memory hotplug isn't likely to work without
-this, right?  If so, wouldn't it make more sense to have
-"memory_hotplug" option rather than "movablecore=acpi" which in no way
-indicates that it has something to do with memory hotplug?
-
-Thanks.
-
--- 
-tejun
+Sure, why not ;-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
