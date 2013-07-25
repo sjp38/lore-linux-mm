@@ -1,62 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 296C96B0031
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 06:44:54 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id AD9996B0031
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 06:46:22 -0400 (EDT)
 Received: from /spool/local
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
-	Thu, 25 Jul 2013 11:36:23 +0100
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
-	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 9EFC92190066
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 11:48:59 +0100 (BST)
+	Thu, 25 Jul 2013 11:41:38 +0100
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
+	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id B4286219005A
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 11:50:28 +0100 (BST)
 Received: from d06av10.portsmouth.uk.ibm.com (d06av10.portsmouth.uk.ibm.com [9.149.37.251])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6PAicZR44892320
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 10:44:38 GMT
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6PAk7cx786880
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 10:46:07 GMT
 Received: from d06av10.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av10.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r6PAimud022821
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 04:44:49 -0600
-Message-ID: <51F101A0.3050104@de.ibm.com>
-Date: Thu, 25 Jul 2013 12:44:48 +0200
+	by d06av10.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r6PAkHlZ026551
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 04:46:18 -0600
+Message-ID: <51F101F9.3090308@de.ibm.com>
+Date: Thu, 25 Jul 2013 12:46:17 +0200
 From: Christian Borntraeger <borntraeger@de.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 0/2] s390/kvm: add kvm support for guest page hinting
- v2
-References: <1374742461-29160-1-git-send-email-schwidefsky@de.ibm.com>
-In-Reply-To: <1374742461-29160-1-git-send-email-schwidefsky@de.ibm.com>
+Subject: Re: [PATCH 1/2] mm: add support for discard of unused ptes
+References: <1374742461-29160-1-git-send-email-schwidefsky@de.ibm.com> <1374742461-29160-2-git-send-email-schwidefsky@de.ibm.com>
+In-Reply-To: <1374742461-29160-2-git-send-email-schwidefsky@de.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Nick Piggin <npiggin@kernel.dk>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Nick Piggin <npiggin@kernel.dk>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Weitz <konstantin.weitz@gmail.com>
 
 On 25/07/13 10:54, Martin Schwidefsky wrote:
-> v1->v2:
->  - found a way to simplify the common code patch
+> From: Konstantin Weitz <konstantin.weitz@gmail.com>
 > 
-> Linux on s390 as a guest under z/VM has been using the guest page
-> hinting interface (alias collaborative memory management) for a long
-> time. The full version with volatile states has been deemed to be too
-> complicated (see the old discussion about guest page hinting e.g. on
-> http://marc.info/?l=linux-mm&m=123816662017742&w=2).
-> What is currently implemented for the guest is the unused and stable
-> states to mark unallocated pages as freely available to the host.
-> This works just fine with z/VM as the host.
+> In a virtualized environment and given an appropriate interface the guest
+> can mark pages as unused while they are free (for the s390 implementation
+> see git commit 45e576b1c3d00206 "guest page hinting light"). For the host
+> the unused state is a property of the pte.
 > 
-> The two patches in this series implement the guest page hinting
-> interface for the unused and stable states in the KVM host.
-> Most of the code specific to s390 but there is a common memory
-> management part as well, see patch #1.
+> This patch adds the primitive 'pte_unused' and code to the host swap out
+> handler so that pages marked as unused by all mappers are not swapped out
+> but discarded instead, thus saving one IO for swap out and potentially
+> another one for swap in.
 > 
-> The code is working stable now, from my point of view this is ready
-> for prime-time.
+> [ Martin Schwidefsky: patch reordering and simplification ]
 > 
-> Konstantin Weitz (2):
->   mm: add support for discard of unused ptes
->   s390/kvm: support collaborative memory management
+> Signed-off-by: Konstantin Weitz <konstantin.weitz@gmail.com>
+> Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Reviewed-by: Christian Borntraeger <borntraeger@de.ibm.com>
 
-Can you also add the patch from our tree that reset the usage states
-on reboot (diag 308 subcode 3 and 4)?
+> ---
+>  include/asm-generic/pgtable.h |   13 +++++++++++++
+>  mm/rmap.c                     |   10 ++++++++++
+>  2 files changed, 23 insertions(+)
+> 
+> diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+> index 2f47ade..ec540c5 100644
+> --- a/include/asm-generic/pgtable.h
+> +++ b/include/asm-generic/pgtable.h
+> @@ -193,6 +193,19 @@ static inline int pte_same(pte_t pte_a, pte_t pte_b)
+>  }
+>  #endif
+> 
+> +#ifndef __HAVE_ARCH_PTE_UNUSED
+> +/*
+> + * Some architectures provide facilities to virtualization guests
+> + * so that they can flag allocated pages as unused. This allows the
+> + * host to transparently reclaim unused pages. This function returns
+> + * whether the pte's page is unused.
+> + */
+> +static inline int pte_unused(pte_t pte)
+> +{
+> +	return 0;
+> +}
+> +#endif
+> +
+>  #ifndef __HAVE_ARCH_PMD_SAME
+>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>  static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index cd356df..2291f25 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -1234,6 +1234,16 @@ int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+>  		}
+>  		set_pte_at(mm, address, pte,
+>  			   swp_entry_to_pte(make_hwpoison_entry(page)));
+> +	} else if (pte_unused(pteval)) {
+> +		/*
+> +		 * The guest indicated that the page content is of no
+> +		 * interest anymore. Simply discard the pte, vmscan
+> +		 * will take care of the rest.
+> +		 */
+> +		if (PageAnon(page))
+> +			dec_mm_counter(mm, MM_ANONPAGES);
+> +		else
+> +			dec_mm_counter(mm, MM_FILEPAGES);
+>  	} else if (PageAnon(page)) {
+>  		swp_entry_t entry = { .val = page_private(page) };
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
