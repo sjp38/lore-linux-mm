@@ -1,76 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id C019B6B0034
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 02:28:30 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Thu, 25 Jul 2013 16:25:03 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 6C74C2BB0051
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 16:27:42 +1000 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6P6C4Dl52822166
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 16:12:08 +1000
-Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r6P6RbI3032372
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 16:27:38 +1000
-Message-ID: <51F0C47E.4000900@linux.vnet.ibm.com>
-Date: Thu, 25 Jul 2013 11:53:58 +0530
-From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 7557D6B0034
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 02:33:07 -0400 (EDT)
+Received: by mail-oa0-f49.google.com with SMTP id n12so3355032oag.22
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2013 23:33:06 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] mm: Restructure free-page stealing code and fix a
- bug
-References: <20130722184805.9573.78514.stgit@srivatsabhat.in.ibm.com> <20130725031040.GA29193@hacker.(null)>
-In-Reply-To: <20130725031040.GA29193@hacker.(null)>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1374728103-17468-6-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1374728103-17468-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<1374728103-17468-6-git-send-email-n-horiguchi@ah.jp.nec.com>
+Date: Thu, 25 Jul 2013 14:33:06 +0800
+Message-ID: <CAJd=RBCzdiV1gDY_ySjNqZkyUMuG54grqtZqrOEcjvocRu2uuQ@mail.gmail.com>
+Subject: Re: [PATCH 5/8] mbind: add hugepage migration code to mbind()
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, mgorman@suse.de, minchan@kernel.org, cody@linux.vnet.ibm.com, rostedt@goodmis.org, jiang.liu@huawei.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On 07/25/2013 08:40 AM, Wanpeng Li wrote:
-> On Tue, Jul 23, 2013 at 12:18:06AM +0530, Srivatsa S. Bhat wrote:
->> The free-page stealing code in __rmqueue_fallback() is somewhat hard to
->> follow, and has an incredible amount of subtlety hidden inside!
->>
->> First off, there is a minor bug in the reporting of change-of-ownership of
->> pageblocks. Under some conditions, we try to move upto 'pageblock_nr_pages'
->> no. of pages to the preferred allocation list. But we change the ownership
->> of that pageblock to the preferred type only if we manage to successfully
->> move atleast half of that pageblock (or if page_group_by_mobility_disabled
->> is set).
->>
->> However, the current code ignores the latter part and sets the 'migratetype'
->> variable to the preferred type, irrespective of whether we actually changed
->> the pageblock migratetype of that block or not. So, the page_alloc_extfrag
->> tracepoint can end up printing incorrect info (i.e., 'change_ownership'
->> might be shown as 1 when it must have been 0).
->>
->> So fixing this involves moving the update of the 'migratetype' variable to
->> the right place. But looking closer, we observe that the 'migratetype' variable
->> is used subsequently for checks such as "is_migrate_cma()". Obviously the
->> intent there is to check if the *fallback* type is MIGRATE_CMA, but since we
->> already set the 'migratetype' variable to start_migratetype, we end up checking
->> if the *preferred* type is MIGRATE_CMA!!
->>
->> To make things more interesting, this actually doesn't cause a bug in practice,
->> because we never change *anything* if the fallback type is CMA.
->>
->> So, restructure the code in such a way that it is trivial to understand what
->> is going on, and also fix the above mentioned bug. And while at it, also add a
->> comment explaining the subtlety behind the migratetype used in the call to
->> expand().
->>
-> 
-> Greate catch!
-> 
+On Thu, Jul 25, 2013 at 12:55 PM, Naoya Horiguchi
+<n-horiguchi@ah.jp.nec.com> wrote:
+> This patch extends do_mbind() to handle vma with VM_HUGETLB set.
+> We will be able to migrate hugepage with mbind(2) after
+> applying the enablement patch which comes later in this series.
+>
+> ChangeLog v3:
+>  - revert introducing migrate_movable_pages
+>  - added alloc_huge_page_noerr free from ERR_VALUE
+>
+> ChangeLog v2:
+>  - updated description and renamed patch title
+>
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Acked-by: Andi Kleen <ak@linux.intel.com>
+> Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+> ---
+Acked-by: Hillf Danton <dhillf@gmail.com>
 
-Thank you :-)
-
-Regards,
-Srivatsa S. Bhat
+>  include/linux/hugetlb.h |  3 +++
+>  mm/hugetlb.c            | 14 ++++++++++++++
+>  mm/mempolicy.c          |  4 +++-
+>  3 files changed, 20 insertions(+), 1 deletion(-)
+>
+> diff --git v3.11-rc1.orig/include/linux/hugetlb.h v3.11-rc1/include/linux/hugetlb.h
+> index c7a14a4..cae5539 100644
+> --- v3.11-rc1.orig/include/linux/hugetlb.h
+> +++ v3.11-rc1/include/linux/hugetlb.h
+> @@ -267,6 +267,8 @@ struct huge_bootmem_page {
+>  };
+>
+>  struct page *alloc_huge_page_node(struct hstate *h, int nid);
+> +struct page *alloc_huge_page_noerr(struct vm_area_struct *vma,
+> +                               unsigned long addr, int avoid_reserve);
+>
+>  /* arch callback */
+>  int __init alloc_bootmem_huge_page(struct hstate *h);
+> @@ -380,6 +382,7 @@ static inline pgoff_t basepage_index(struct page *page)
+>  #else  /* CONFIG_HUGETLB_PAGE */
+>  struct hstate {};
+>  #define alloc_huge_page_node(h, nid) NULL
+> +#define alloc_huge_page_noerr(v, a, r) NULL
+>  #define alloc_bootmem_huge_page(h) NULL
+>  #define hstate_file(f) NULL
+>  #define hstate_sizelog(s) NULL
+> diff --git v3.11-rc1.orig/mm/hugetlb.c v3.11-rc1/mm/hugetlb.c
+> index 506d195..f6d8d67 100644
+> --- v3.11-rc1.orig/mm/hugetlb.c
+> +++ v3.11-rc1/mm/hugetlb.c
+> @@ -1195,6 +1195,20 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+>         return page;
+>  }
+>
+> +/*
+> + * alloc_huge_page()'s wrapper which simply returns the page if allocation
+> + * succeeds, otherwise NULL. This function is called from new_vma_page(),
+> + * where no ERR_VALUE is expected to be returned.
+> + */
+> +struct page *alloc_huge_page_noerr(struct vm_area_struct *vma,
+> +                               unsigned long addr, int avoid_reserve)
+> +{
+> +       struct page *page = alloc_huge_page(vma, addr, avoid_reserve);
+> +       if (IS_ERR(page))
+> +               page = NULL;
+> +       return page;
+> +}
+> +
+>  int __weak alloc_bootmem_huge_page(struct hstate *h)
+>  {
+>         struct huge_bootmem_page *m;
+> diff --git v3.11-rc1.orig/mm/mempolicy.c v3.11-rc1/mm/mempolicy.c
+> index d96afc1..4a03c14 100644
+> --- v3.11-rc1.orig/mm/mempolicy.c
+> +++ v3.11-rc1/mm/mempolicy.c
+> @@ -1183,6 +1183,8 @@ static struct page *new_vma_page(struct page *page, unsigned long private, int *
+>                 vma = vma->vm_next;
+>         }
+>
+> +       if (PageHuge(page))
+> +               return alloc_huge_page_noerr(vma, address, 1);
+>         /*
+>          * if !vma, alloc_page_vma() will use task or system default policy
+>          */
+> @@ -1293,7 +1295,7 @@ static long do_mbind(unsigned long start, unsigned long len,
+>                                         (unsigned long)vma,
+>                                         MIGRATE_SYNC, MR_MEMPOLICY_MBIND);
+>                         if (nr_failed)
+> -                               putback_lru_pages(&pagelist);
+> +                               putback_movable_pages(&pagelist);
+>                 }
+>
+>                 if (nr_failed && (flags & MPOL_MF_STRICT))
+> --
+> 1.8.3.1
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
