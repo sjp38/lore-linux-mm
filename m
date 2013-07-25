@@ -1,76 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id E93C96B0031
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 11:17:26 -0400 (EDT)
-Received: by mail-yh0-f44.google.com with SMTP id t59so601081yho.17
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2013 08:17:26 -0700 (PDT)
-Date: Thu, 25 Jul 2013 11:17:19 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 14/21] x86, acpi, numa: Reserve hotpluggable memory at
- early time.
-Message-ID: <20130725151719.GE26107@mtj.dyndns.org>
-References: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com>
- <1374220774-29974-15-git-send-email-tangchen@cn.fujitsu.com>
- <20130723205557.GS21100@mtj.dyndns.org>
- <20130723213212.GA21100@mtj.dyndns.org>
- <51F089C1.4010402@cn.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <51F089C1.4010402@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id AFA4C6B0031
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 11:20:54 -0400 (EDT)
+Message-ID: <1374765652.29835.57.camel@x61.thuisdomein>
+Subject: Re: [patch 3/3] mm: page_alloc: fair zone allocator policy
+From: Paul Bolle <pebolle@tiscali.nl>
+Date: Thu, 25 Jul 2013 17:20:52 +0200
+In-Reply-To: <20130725151049.GM715@cmpxchg.org>
+References: <1374267325-22865-1-git-send-email-hannes@cmpxchg.org>
+	 <1374267325-22865-4-git-send-email-hannes@cmpxchg.org>
+	 <51ED9433.60707@redhat.com> <51F0CACE.7040609@gmail.com>
+	 <20130725151049.GM715@cmpxchg.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Paul Bolle <paul.bollee@gmail.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello,
+On Thu, 2013-07-25 at 11:10 -0400, Johannes Weiner wrote:
+> [ I Cc'd Paul Bolle at pebolle@tiscali.nl as well, his English was
+>   better from there ]
 
-On Thu, Jul 25, 2013 at 10:13:21AM +0800, Tang Chen wrote:
-> >>This is rather hacky.  Why not just introduce MEMBLOCK_NO_MERGE flag?
-> 
-> The original thinking is to merge regions with the same nid. So I used pxm.
-> And then refresh the nid field when nids are mapped.
-> 
-> I will try to introduce MEMBLOCK_NO_MERGE and make it less hacky.
+Namespace collission! That's not me! 
 
-I kinda don't follow why it's necessary to disallow merging BTW.  Can
-you plesae elaborate?  Shouldn't it be enough to mark the regions
-hotpluggable?  Why does it matter whether they get merged or not?  If
-they belong to different nodes, they'll be separated during the
-isolation phase while setting nids, which is the modus operandi of
-memblock anyway.
+Could my double perhaps use another name, like say, Paul Bollee? Or
+something even less confusing?
 
-> In order to let memblock control the allocation, we have to store the
-> hotpluggable ranges somewhere, and keep the allocated range out of the
-> hotpluggable regions. I just think reserving the hotpluggable regions
-> and then memblock won't allocate them. No need to do any other limitation.
+Thanks!
 
-It isn't different from what you're doing right now.  Just tell
-memblock that the areas are hotpluggable and the default memblock
-allocation functions stay away from the areas.  That way you can later
-add functions which may allocate from hotpluggable areas for
-node-local data without resorting to tricks like unreserving part of
-it and trying allocation or what not.  As it currently stands, you're
-scattering hotpluggable memory handling across memblock and acpi which
-is kinda nasty.  Please make acpi feed information into memblock and
-make memblock handle hotpluggable regions appropriately.
 
-> And also, the acpi side modification in this patch-set is to get SRAT
-> and parse it. I think most of the logic in
-> acpi_reserve_hotpluggable_memory()
-> is necessary. I don't think letting memblock control the allocation will
-> make the acpi side easier.
-
-It's about proper layering.  The code change involved in either case
-aren't big but splitting it right would give us less headache when we
-later try to support a different firmware or add more features, and
-more importantly, it makes things logical and lowers the all important
-WTH factor and makes things easier to follow.
-
-Thanks.
-
--- 
-tejun
+Paul Bolle
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
