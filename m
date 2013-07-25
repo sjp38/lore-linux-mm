@@ -1,118 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 5D1E86B0031
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 14:53:27 -0400 (EDT)
-Message-ID: <1374778405.1957.21.camel@joe-AO722>
-Subject: [trivial PATCH] treewide: Fix printks with 0x%#
-From: Joe Perches <joe@perches.com>
-Date: Thu, 25 Jul 2013 11:53:25 -0700
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id CDB196B0031
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 16:28:54 -0400 (EDT)
+Received: by mail-yh0-f45.google.com with SMTP id i72so735084yha.32
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2013 13:28:53 -0700 (PDT)
+Message-ID: <51F18A99.7000306@gmail.com>
+Date: Thu, 25 Jul 2013 16:29:13 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [patch 3/5] x86: finish fault error path with fatal signal
+References: <20130711072507.GA21667@dhcp22.suse.cz> <20130714012641.C2DA4E05@pobox.sk> <20130714015112.FFCB7AF7@pobox.sk> <20130715154119.GA32435@dhcp22.suse.cz> <20130715160006.GB32435@dhcp22.suse.cz> <20130716153544.GX17812@cmpxchg.org> <20130716160905.GA20018@dhcp22.suse.cz> <20130716164830.GZ17812@cmpxchg.org> <20130719042124.GC17812@cmpxchg.org> <20130719042502.GF17812@cmpxchg.org> <20130724203205.GL715@cmpxchg.org>
+In-Reply-To: <20130724203205.GL715@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiri Kosina <trivial@kernel.org>
-Cc: "James E.J. Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>, John Stultz <john.stultz@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Daniele Venzano <venza@brownhat.org>, Andi Kleen <andi@firstfloor.org>, Jaroslav Kysela <perex@perex.cz>, Takashi Iwai <tiwai@suse.de>, linux-parisc@vger.kernel.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, alsa-devel <alsa-devel@alsa-project.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>, azurIt <azurit@pobox.sk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, righi.andrea@gmail.com, kosaki.motohiro@gmail.com
 
+(7/24/13 4:32 PM), Johannes Weiner wrote:
+> On Fri, Jul 19, 2013 at 12:25:02AM -0400, Johannes Weiner wrote:
+>> The x86 fault handler bails in the middle of error handling when the
+>> task has been killed.  For the next patch this is a problem, because
+>> it relies on pagefault_out_of_memory() being called even when the task
+>> has been killed, to perform proper OOM state unwinding.
+>>
+>> This is a rather minor optimization, just remove it.
+>>
+>> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+>> ---
+>>   arch/x86/mm/fault.c | 11 -----------
+>>   1 file changed, 11 deletions(-)
+>>
+>> diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+>> index 1cebabe..90248c9 100644
+>> --- a/arch/x86/mm/fault.c
+>> +++ b/arch/x86/mm/fault.c
+>> @@ -846,17 +846,6 @@ static noinline int
+>>   mm_fault_error(struct pt_regs *regs, unsigned long error_code,
+>>   	       unsigned long address, unsigned int fault)
+>>   {
+>> -	/*
+>> -	 * Pagefault was interrupted by SIGKILL. We have no reason to
+>> -	 * continue pagefault.
+>> -	 */
+>> -	if (fatal_signal_pending(current)) {
+>> -		if (!(fault & VM_FAULT_RETRY))
+>> -			up_read(&current->mm->mmap_sem);
+>> -		if (!(error_code & PF_USER))
+>> -			no_context(regs, error_code, address);
+>> -		return 1;
+>
+> This is broken but I only hit it now after testing for a while.
+>
+> The patch has the right idea: in case of an OOM kill, we should
+> continue the fault and not abort.  What I missed is that in case of a
+> kill during lock_page, i.e. VM_FAULT_RETRY && fatal_signal, we have to
+> exit the fault and not do up_read() etc.  This introduced a locking
+> imbalance that would get everybody hung on mmap_sem.
+>
+> I moved the retry handling outside of mm_fault_error() (come on...)
+> and stole some documentation from arm.  It's now a little bit more
+> explicit and comparable to other architectures.
+>
+> I'll send an updated series, patch for reference:
+>
+> ---
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Subject: [patch] x86: finish fault error path with fatal signal
+>
+> The x86 fault handler bails in the middle of error handling when the
+> task has been killed.  For the next patch this is a problem, because
+> it relies on pagefault_out_of_memory() being called even when the task
+> has been killed, to perform proper OOM state unwinding.
+>
+> This is a rather minor optimization that cuts short the fault handling
+> by a few instructions in rare cases.  Just remove it.
+>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>   arch/x86/mm/fault.c | 33 +++++++++++++--------------------
+>   1 file changed, 13 insertions(+), 20 deletions(-)
+>
+> diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+> index 6d77c38..0c18beb 100644
+> --- a/arch/x86/mm/fault.c
+> +++ b/arch/x86/mm/fault.c
+> @@ -842,31 +842,17 @@ do_sigbus(struct pt_regs *regs, unsigned long error_code, unsigned long address,
+>   	force_sig_info_fault(SIGBUS, code, address, tsk, fault);
+>   }
+>
+> -static noinline int
+> +static noinline void
+>   mm_fault_error(struct pt_regs *regs, unsigned long error_code,
+>   	       unsigned long address, unsigned int fault)
+>   {
+> -	/*
+> -	 * Pagefault was interrupted by SIGKILL. We have no reason to
+> -	 * continue pagefault.
+> -	 */
+> -	if (fatal_signal_pending(current)) {
+> -		if (!(fault & VM_FAULT_RETRY))
+> -			up_read(&current->mm->mmap_sem);
+> -		if (!(error_code & PF_USER))
+> -			no_context(regs, error_code, address, 0, 0);
+> -		return 1;
+> -	}
+> -	if (!(fault & VM_FAULT_ERROR))
+> -		return 0;
+> -
+>   	if (fault & VM_FAULT_OOM) {
+>   		/* Kernel mode? Handle exceptions or die: */
+>   		if (!(error_code & PF_USER)) {
+>   			up_read(&current->mm->mmap_sem);
+>   			no_context(regs, error_code, address,
+>   				   SIGSEGV, SEGV_MAPERR);
+> -			return 1;
+> +			return;
+>   		}
+>
+>   		up_read(&current->mm->mmap_sem);
+> @@ -884,7 +870,6 @@ mm_fault_error(struct pt_regs *regs, unsigned long error_code,
+>   		else
+>   			BUG();
+>   	}
+> -	return 1;
+>   }
+>
+>   static int spurious_fault_check(unsigned long error_code, pte_t *pte)
+> @@ -1189,9 +1174,17 @@ good_area:
+>   	 */
+>   	fault = handle_mm_fault(mm, vma, address, flags);
+>
+> -	if (unlikely(fault & (VM_FAULT_RETRY|VM_FAULT_ERROR))) {
+> -		if (mm_fault_error(regs, error_code, address, fault))
+> -			return;
+> +	/*
+> +	 * If we need to retry but a fatal signal is pending, handle the
+> +	 * signal first. We do not need to release the mmap_sem because it
+> +	 * would already be released in __lock_page_or_retry in mm/filemap.c.
+> +	 */
+> +	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+> +		return;
+> +
+> +	if (unlikely(fault & VM_FAULT_ERROR)) {
+> +		mm_fault_error(regs, error_code, address, fault);
+> +		return;
+>   	}
 
-Using 0x%# emits 0x0x.  Only one is necessary.
+When I made the patch you removed code, Ingo suggested we need put all rare case code
+into if(unlikely()) block. Yes, this is purely micro optimization. But it is not costly
+to maintain.
 
-Signed-off-by: Joe Perches <joe@perches.com>
----
- arch/parisc/kernel/signal.c       | 2 +-
- drivers/clocksource/acpi_pm.c     | 4 ++--
- drivers/net/ethernet/sis/sis900.c | 2 +-
- mm/memory-failure.c               | 2 +-
- sound/pci/ens1370.c               | 2 +-
- sound/pci/via82xx.c               | 2 +-
- 6 files changed, 7 insertions(+), 7 deletions(-)
-
-diff --git a/arch/parisc/kernel/signal.c b/arch/parisc/kernel/signal.c
-index 940188d..35c5bf1 100644
---- a/arch/parisc/kernel/signal.c
-+++ b/arch/parisc/kernel/signal.c
-@@ -85,7 +85,7 @@ restore_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs)
- 	err |= __copy_from_user(regs->iaoq, sc->sc_iaoq, sizeof(regs->iaoq));
- 	err |= __copy_from_user(regs->iasq, sc->sc_iasq, sizeof(regs->iasq));
- 	err |= __get_user(regs->sar, &sc->sc_sar);
--	DBG(2,"restore_sigcontext: iaoq is 0x%#lx / 0x%#lx\n", 
-+	DBG(2,"restore_sigcontext: iaoq is %#lx / %#lx\n",
- 			regs->iaoq[0],regs->iaoq[1]);
- 	DBG(2,"restore_sigcontext: r28 is %ld\n", regs->gr[28]);
- 	return err;
-diff --git a/drivers/clocksource/acpi_pm.c b/drivers/clocksource/acpi_pm.c
-index 6efe4d1..6eab889 100644
---- a/drivers/clocksource/acpi_pm.c
-+++ b/drivers/clocksource/acpi_pm.c
-@@ -200,14 +200,14 @@ static int __init init_acpi_pm_clocksource(void)
- 			if ((value2 < value1) && ((value2) < 0xFFF))
- 				break;
- 			printk(KERN_INFO "PM-Timer had inconsistent results:"
--			       " 0x%#llx, 0x%#llx - aborting.\n",
-+			       " %#llx, %#llx - aborting.\n",
- 			       value1, value2);
- 			pmtmr_ioport = 0;
- 			return -EINVAL;
- 		}
- 		if (i == ACPI_PM_READ_CHECKS) {
- 			printk(KERN_INFO "PM-Timer failed consistency check "
--			       " (0x%#llx) - aborting.\n", value1);
-+			       " (%#llx) - aborting.\n", value1);
- 			pmtmr_ioport = 0;
- 			return -ENODEV;
- 		}
-diff --git a/drivers/net/ethernet/sis/sis900.c b/drivers/net/ethernet/sis/sis900.c
-index eb4aea3..6c1e34c 100644
---- a/drivers/net/ethernet/sis/sis900.c
-+++ b/drivers/net/ethernet/sis/sis900.c
-@@ -1723,7 +1723,7 @@ static irqreturn_t sis900_interrupt(int irq, void *dev_instance)
- 
- 	if(netif_msg_intr(sis_priv))
- 		printk(KERN_DEBUG "%s: exiting interrupt, "
--		       "interrupt status = 0x%#8.8x.\n",
-+		       "interrupt status = %#8.8x\n",
- 		       net_dev->name, sr32(isr));
- 
- 	spin_unlock (&sis_priv->lock);
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 09ae111..29d3f38 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1267,7 +1267,7 @@ void memory_failure_queue(unsigned long pfn, int trapno, int flags)
- 	if (kfifo_put(&mf_cpu->fifo, &entry))
- 		schedule_work_on(smp_processor_id(), &mf_cpu->work);
- 	else
--		pr_err("Memory failure: buffer overflow when queuing memory failure at 0x%#lx\n",
-+		pr_err("Memory failure: buffer overflow when queuing memory failure at %#lx\n",
- 		       pfn);
- 	spin_unlock_irqrestore(&mf_cpu->lock, proc_flags);
- 	put_cpu_var(memory_failure_cpu);
-diff --git a/sound/pci/ens1370.c b/sound/pci/ens1370.c
-index ca8929b..61262f3 100644
---- a/sound/pci/ens1370.c
-+++ b/sound/pci/ens1370.c
-@@ -1842,7 +1842,7 @@ static int snd_ensoniq_create_gameport(struct ensoniq *ensoniq, int dev)
- 
- 	default:
- 		if (!request_region(io_port, 8, "ens137x: gameport")) {
--			printk(KERN_WARNING "ens137x: gameport io port 0x%#x in use\n",
-+			printk(KERN_WARNING "ens137x: gameport io port %#x in use\n",
- 			       io_port);
- 			return -EBUSY;
- 		}
-diff --git a/sound/pci/via82xx.c b/sound/pci/via82xx.c
-index 3c511d0..5ae6f04 100644
---- a/sound/pci/via82xx.c
-+++ b/sound/pci/via82xx.c
-@@ -1940,7 +1940,7 @@ static int snd_via686_create_gameport(struct via82xx *chip, unsigned char *legac
- 
- 	r = request_region(JOYSTICK_ADDR, 8, "VIA686 gameport");
- 	if (!r) {
--		printk(KERN_WARNING "via82xx: cannot reserve joystick port 0x%#x\n",
-+		printk(KERN_WARNING "via82xx: cannot reserve joystick port %#x\n",
- 		       JOYSTICK_ADDR);
- 		return -EBUSY;
- 	}
 
 
 
