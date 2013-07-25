@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 8CF446B0036
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id E9A4D6B0037
 	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 00:55:44 -0400 (EDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 4/8] migrate: add hugepage migration code to move_pages()
-Date: Thu, 25 Jul 2013 00:54:59 -0400
-Message-Id: <1374728103-17468-5-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 3/8] migrate: add hugepage migration code to migrate_pages()
+Date: Thu, 25 Jul 2013 00:54:58 -0400
+Message-Id: <1374728103-17468-4-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1374728103-17468-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1374728103-17468-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,109 +13,125 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 Cc: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-This patch extends move_pages() to handle vma with VM_HUGETLB set.
-We will be able to migrate hugepage with move_pages(2) after
+This patch extends check_range() to handle vma with VM_HUGETLB set.
+We will be able to migrate hugepage with migrate_pages(2) after
 applying the enablement patch which comes later in this series.
 
-We avoid getting refcount on tail pages of hugepage, because unlike thp,
-hugepage is not split and we need not care about races with splitting.
+Note that for larger hugepages (covered by pud entries, 1GB for
+x86_64 for example), we simply skip it now.
 
-And migration of larger (1GB for x86_64) hugepage are not enabled.
+Note that using pmd_huge/pud_huge assumes that hugepages are pointed to
+by pmd/pud. This is not true in some architectures implementing hugepage
+with other mechanisms like ia64, but it's OK because pmd_huge/pud_huge
+simply return 0 in such arch and page walker simply ignores such hugepages.
 
 ChangeLog v4:
- - use get_page instead of get_page_foll
- - add comment in follow_page_mask
+ - refactored check_hugetlb_pmd_range for better readability
 
 ChangeLog v3:
  - revert introducing migrate_movable_pages
- - follow_page_mask(FOLL_GET) returns NULL for tail pages
  - use isolate_huge_page
 
 ChangeLog v2:
+ - remove unnecessary extern
+ - fix page table lock in check_hugetlb_pmd_range
  - updated description and renamed patch title
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Acked-by: Andi Kleen <ak@linux.intel.com>
 Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- mm/memory.c  | 17 +++++++++++++++--
- mm/migrate.c | 13 +++++++++++--
- 2 files changed, 26 insertions(+), 4 deletions(-)
+ mm/mempolicy.c | 42 +++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 37 insertions(+), 5 deletions(-)
 
-diff --git v3.11-rc1.orig/mm/memory.c v3.11-rc1/mm/memory.c
-index 1ce2e2a..7ec1252 100644
---- v3.11-rc1.orig/mm/memory.c
-+++ v3.11-rc1/mm/memory.c
-@@ -1496,7 +1496,8 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
- 	if (pud_none(*pud))
- 		goto no_page_table;
- 	if (pud_huge(*pud) && vma->vm_flags & VM_HUGETLB) {
--		BUG_ON(flags & FOLL_GET);
-+		if (flags & FOLL_GET)
-+			goto out;
- 		page = follow_huge_pud(mm, address, pud, flags & FOLL_WRITE);
- 		goto out;
- 	}
-@@ -1507,8 +1508,20 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
- 	if (pmd_none(*pmd))
- 		goto no_page_table;
- 	if (pmd_huge(*pmd) && vma->vm_flags & VM_HUGETLB) {
--		BUG_ON(flags & FOLL_GET);
- 		page = follow_huge_pmd(mm, address, pmd, flags & FOLL_WRITE);
-+		if (flags & FOLL_GET) {
-+			/*
-+			 * Refcount on tail pages are not well-defined and
-+			 * shouldn't be taken. The caller should handle a NULL
-+			 * return when trying to follow tail pages.
-+			 */
-+			if (PageHead(page))
-+				get_page(page);
-+			else {
-+				page = NULL;
-+				goto out;
-+			}
-+		}
- 		goto out;
- 	}
- 	if ((flags & FOLL_NUMA) && pmd_numa(*pmd))
-diff --git v3.11-rc1.orig/mm/migrate.c v3.11-rc1/mm/migrate.c
-index 3ec47d3..d313737 100644
---- v3.11-rc1.orig/mm/migrate.c
-+++ v3.11-rc1/mm/migrate.c
-@@ -1092,7 +1092,11 @@ static struct page *new_page_node(struct page *p, unsigned long private,
- 
- 	*result = &pm->status;
- 
--	return alloc_pages_exact_node(pm->node,
-+	if (PageHuge(p))
-+		return alloc_huge_page_node(page_hstate(compound_head(p)),
-+					pm->node);
-+	else
-+		return alloc_pages_exact_node(pm->node,
- 				GFP_HIGHUSER_MOVABLE | GFP_THISNODE, 0);
+diff --git v3.11-rc1.orig/mm/mempolicy.c v3.11-rc1/mm/mempolicy.c
+index 7431001..d96afc1 100644
+--- v3.11-rc1.orig/mm/mempolicy.c
++++ v3.11-rc1/mm/mempolicy.c
+@@ -512,6 +512,30 @@ static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 	return addr != end;
  }
  
-@@ -1152,6 +1156,11 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
- 				!migrate_all)
- 			goto put_and_set;
- 
-+		if (PageHuge(page)) {
-+			isolate_huge_page(page, &pagelist);
-+			goto put_and_set;
-+		}
++static void check_hugetlb_pmd_range(struct vm_area_struct *vma, pmd_t *pmd,
++		const nodemask_t *nodes, unsigned long flags,
++				    void *private)
++{
++#ifdef CONFIG_HUGETLB_PAGE
++	int nid;
++	struct page *page;
 +
- 		err = isolate_lru_page(page);
- 		if (!err) {
- 			list_add_tail(&page->lru, &pagelist);
-@@ -1174,7 +1183,7 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
- 		err = migrate_pages(&pagelist, new_page_node,
- 				(unsigned long)pm, MIGRATE_SYNC, MR_SYSCALL);
++	spin_lock(&vma->vm_mm->page_table_lock);
++	page = pte_page(huge_ptep_get((pte_t *)pmd));
++	nid = page_to_nid(page);
++	if (node_isset(nid, *nodes) == !!(flags & MPOL_MF_INVERT))
++		goto unlock;
++	/* With MPOL_MF_MOVE, we migrate only unshared hugepage. */
++	if (flags & (MPOL_MF_MOVE_ALL) ||
++	    (flags & MPOL_MF_MOVE && page_mapcount(page) == 1))
++		isolate_huge_page(page, private);
++unlock:
++	spin_unlock(&vma->vm_mm->page_table_lock);
++#else
++	BUG();
++#endif
++}
++
+ static inline int check_pmd_range(struct vm_area_struct *vma, pud_t *pud,
+ 		unsigned long addr, unsigned long end,
+ 		const nodemask_t *nodes, unsigned long flags,
+@@ -523,6 +547,11 @@ static inline int check_pmd_range(struct vm_area_struct *vma, pud_t *pud,
+ 	pmd = pmd_offset(pud, addr);
+ 	do {
+ 		next = pmd_addr_end(addr, end);
++		if (pmd_huge(*pmd) && is_vm_hugetlb_page(vma)) {
++			check_hugetlb_pmd_range(vma, pmd, nodes,
++						flags, private);
++			continue;
++		}
+ 		split_huge_page_pmd(vma, addr, pmd);
+ 		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
+ 			continue;
+@@ -544,6 +573,8 @@ static inline int check_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
+ 	pud = pud_offset(pgd, addr);
+ 	do {
+ 		next = pud_addr_end(addr, end);
++		if (pud_huge(*pud) && is_vm_hugetlb_page(vma))
++			continue;
+ 		if (pud_none_or_clear_bad(pud))
+ 			continue;
+ 		if (check_pmd_range(vma, pud, addr, next, nodes,
+@@ -635,9 +666,6 @@ check_range(struct mm_struct *mm, unsigned long start, unsigned long end,
+ 				return ERR_PTR(-EFAULT);
+ 		}
+ 
+-		if (is_vm_hugetlb_page(vma))
+-			goto next;
+-
+ 		if (flags & MPOL_MF_LAZY) {
+ 			change_prot_numa(vma, start, endvma);
+ 			goto next;
+@@ -986,7 +1014,11 @@ static void migrate_page_add(struct page *page, struct list_head *pagelist,
+ 
+ static struct page *new_node_page(struct page *page, unsigned long node, int **x)
+ {
+-	return alloc_pages_exact_node(node, GFP_HIGHUSER_MOVABLE, 0);
++	if (PageHuge(page))
++		return alloc_huge_page_node(page_hstate(compound_head(page)),
++					node);
++	else
++		return alloc_pages_exact_node(node, GFP_HIGHUSER_MOVABLE, 0);
+ }
+ 
+ /*
+@@ -1016,7 +1048,7 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
+ 		err = migrate_pages(&pagelist, new_node_page, dest,
+ 					MIGRATE_SYNC, MR_SYSCALL);
  		if (err)
 -			putback_lru_pages(&pagelist);
 +			putback_movable_pages(&pagelist);
  	}
  
- 	up_read(&mm->mmap_sem);
+ 	return err;
 -- 
 1.8.3.1
 
