@@ -1,31 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 3B1586B0031
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 21:10:20 -0400 (EDT)
-Message-ID: <51F07AAB.2040607@huawei.com>
-Date: Thu, 25 Jul 2013 09:08:59 +0800
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id BFB936B0031
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 21:54:10 -0400 (EDT)
+Message-ID: <51F08505.6050402@huawei.com>
+Date: Thu, 25 Jul 2013 09:53:09 +0800
 From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 1/8] cgroup: convert cgroup_ida to cgroup_idr
-References: <51EFA554.6080801@huawei.com> <51EFA570.5020907@huawei.com> <20130724140702.GD2540@dhcp22.suse.cz>
-In-Reply-To: <20130724140702.GD2540@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: [PATCH] memcg: remove redundant code in mem_cgroup_force_empty_write()
+Content-Type: text/plain; charset="GB2312"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Cgroups <cgroups@vger.kernel.org>, Tejun Heo <tj@kernel.org>
 
-On 2013/7/24 22:07, Michal Hocko wrote:
-> On Wed 24-07-13 17:59:12, Li Zefan wrote:
->> This enables us to lookup a cgroup by its id.
->>
->> Signed-off-by: Li Zefan <lizefan@huawei.com>
-> 
-> Reviewed-by: Michal Hocko <mhocko@suse.cz>
+vfs guarantees the cgroup won't be destroyed, so it's redundant
+to get a css reference.
 
-Thanks for the review! I'll wait a couple of days for other comments,
-and then update the patchset.
+Signed-off-by: Li Zefan <lizefan@huawei.com>
+---
+ mm/memcontrol.c | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 03c8bf7..aa3e478 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -5015,15 +5015,10 @@ static int mem_cgroup_force_empty(struct mem_cgroup *memcg)
+ static int mem_cgroup_force_empty_write(struct cgroup *cont, unsigned int event)
+ {
+ 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+-	int ret;
+ 
+ 	if (mem_cgroup_is_root(memcg))
+ 		return -EINVAL;
+-	css_get(&memcg->css);
+-	ret = mem_cgroup_force_empty(memcg);
+-	css_put(&memcg->css);
+-
+-	return ret;
++	return mem_cgroup_force_empty(memcg);
+ }
+ 
+ 
+-- 
+1.8.0.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
