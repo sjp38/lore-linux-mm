@@ -1,111 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 1933A6B0031
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 06:40:21 -0400 (EDT)
-Date: Thu, 25 Jul 2013 12:40:09 +0200
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id A36AE6B0033
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 06:41:40 -0400 (EDT)
+Date: Thu, 25 Jul 2013 12:41:30 +0200
 From: Peter Zijlstra <peterz@infradead.org>
-Subject: [PATCH] sched, numa: migrates_degrades_locality()
-Message-ID: <20130725104009.GO27075@twins.programming.kicks-ass.net>
+Subject: [PATCH] sched, numa: Improve scanner
+Message-ID: <20130725104130.GP27075@twins.programming.kicks-ass.net>
 References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
- <1373901620-2021-8-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1373901620-2021-8-git-send-email-mgorman@suse.de>
+In-Reply-To: <1373901620-2021-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
 Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
 
-Subject: sched, numa: migrates_degrades_locality()
+Subject: sched, numa: Improve scanner
 From: Peter Zijlstra <peterz@infradead.org>
-Date: Mon Jul 22 14:02:54 CEST 2013
+Date: Tue Jul 23 17:02:38 CEST 2013
 
-It just makes heaps of sense; so add it and make both it and
-migrate_improve_locality() a sched_feat().
+With a trace_printk("working\n"); right after the cmpxchg in
+task_numa_work() we can see that of a 4 thread process, its always the
+same task winning the race and doing the protection change.
+
+This is a problem since the task doing the protection change has a
+penalty for taking faults -- it is busy when marking the PTEs. If its
+always the same task the ->numa_faults[] get severely skewed.
+
+Avoid this by delaying the task doing the protection change such that
+it is unlikely to win the privilege again.
+
+Before:
+
+root@interlagos:~# grep "thread 0/.*working" /debug/tracing/trace | tail -15
+      thread 0/0-3232  [022] ....   212.787402: task_numa_work: working
+      thread 0/0-3232  [022] ....   212.888473: task_numa_work: working
+      thread 0/0-3232  [022] ....   212.989538: task_numa_work: working
+      thread 0/0-3232  [022] ....   213.090602: task_numa_work: working
+      thread 0/0-3232  [022] ....   213.191667: task_numa_work: working
+      thread 0/0-3232  [022] ....   213.292734: task_numa_work: working
+      thread 0/0-3232  [022] ....   213.393804: task_numa_work: working
+      thread 0/0-3232  [022] ....   213.494869: task_numa_work: working
+      thread 0/0-3232  [022] ....   213.596937: task_numa_work: working
+      thread 0/0-3232  [022] ....   213.699000: task_numa_work: working
+      thread 0/0-3232  [022] ....   213.801067: task_numa_work: working
+      thread 0/0-3232  [022] ....   213.903155: task_numa_work: working
+      thread 0/0-3232  [022] ....   214.005201: task_numa_work: working
+      thread 0/0-3232  [022] ....   214.107266: task_numa_work: working
+      thread 0/0-3232  [022] ....   214.209342: task_numa_work: working
+
+After:
+
+root@interlagos:~# grep "thread 0/.*working" /debug/tracing/trace | tail -15
+      thread 0/0-3253  [005] ....   136.865051: task_numa_work: working
+      thread 0/2-3255  [026] ....   136.965134: task_numa_work: working
+      thread 0/3-3256  [024] ....   137.065217: task_numa_work: working
+      thread 0/3-3256  [024] ....   137.165302: task_numa_work: working
+      thread 0/3-3256  [024] ....   137.265382: task_numa_work: working
+      thread 0/0-3253  [004] ....   137.366465: task_numa_work: working
+      thread 0/2-3255  [026] ....   137.466549: task_numa_work: working
+      thread 0/0-3253  [004] ....   137.566629: task_numa_work: working
+      thread 0/0-3253  [004] ....   137.666711: task_numa_work: working
+      thread 0/1-3254  [028] ....   137.766799: task_numa_work: working
+      thread 0/0-3253  [004] ....   137.866876: task_numa_work: working
+      thread 0/2-3255  [026] ....   137.966960: task_numa_work: working
+      thread 0/1-3254  [028] ....   138.067041: task_numa_work: working
+      thread 0/2-3255  [026] ....   138.167123: task_numa_work: working
+      thread 0/3-3256  [024] ....   138.267207: task_numa_work: working
 
 Signed-off-by: Peter Zijlstra <peterz@infradead.org>
-Link: http://lkml.kernel.org/n/tip-fwfjk3f8a29o3zx03h1ejb0y@git.kernel.org
 ---
- kernel/sched/fair.c     |   35 +++++++++++++++++++++++++++++++++--
- kernel/sched/features.h |    2 ++
- 2 files changed, 35 insertions(+), 2 deletions(-)
+ kernel/sched/fair.c |    8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
 
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -4323,7 +4323,7 @@ static bool migrate_improves_locality(st
- {
- 	int src_nid, dst_nid;
+@@ -1316,6 +1316,12 @@ void task_numa_work(struct callback_head
+ 		return;
  
--	if (!sched_feat(NUMA_BALANCE))
-+	if (!sched_feat(NUMA_BALANCE) || !sched_feat(NUMA_FAULTS_UP))
- 		return false;
+ 	/*
++	 * Delay this task enough that another task of this mm will likely win
++	 * the next time around.
++	 */
++	p->node_stamp += 2 * TICK_NSEC;
++
++	/*
+ 	 * Do not set pte_numa if the current running node is rate-limited.
+ 	 * This loses statistics on the fault but if we are unwilling to
+ 	 * migrate to this node, it is less likely we can do useful work
+@@ -1405,7 +1411,7 @@ void task_tick_numa(struct rq *rq, struc
+ 	if (now - curr->node_stamp > period) {
+ 		if (!curr->node_stamp)
+ 			curr->numa_scan_period = task_scan_min(curr);
+-		curr->node_stamp = now;
++		curr->node_stamp += period;
  
- 	if (!p->numa_faults || !(env->sd->flags & SD_NUMA))
-@@ -4336,7 +4336,30 @@ static bool migrate_improves_locality(st
- 	    p->numa_migrate_seq >= sysctl_numa_balancing_settle_count)
- 		return false;
- 
--	if (p->numa_preferred_nid == dst_nid)
-+	if (task_faults(p, dst_nid) > task_faults(p, src_nid))
-+		return true;
-+
-+	return false;
-+}
-+
-+static bool migrate_degrades_locality(struct task_struct *p, struct lb_env *env)
-+{
-+	int src_nid, dst_nid;
-+
-+	if (!sched_feat(NUMA_BALANCE) || !sched_feat(NUMA_FAULTS_DOWN))
-+		return false;
-+
-+	if (!p->numa_faults || !(env->sd->flags & SD_NUMA))
-+		return false;
-+
-+	src_nid = cpu_to_node(env->src_cpu);
-+	dst_nid = cpu_to_node(env->dst_cpu);
-+
-+	if (src_nid == dst_nid ||
-+	    p->numa_migrate_seq >= sysctl_numa_balancing_settle_count)
-+		return false;
-+
-+	if (task_faults(p, dst_nid) < task_faults(p, src_nid))
- 		return true;
- 
- 	return false;
-@@ -4347,6 +4370,12 @@ static inline bool migrate_improves_loca
- {
- 	return false;
- }
-+
-+static inline bool migrate_degrades_locality(struct task_struct *p,
-+					     struct lb_env *env)
-+{
-+	return false;
-+}
- #endif
- 
- /*
-@@ -4409,6 +4438,8 @@ int can_migrate_task(struct task_struct
- 	 * 3) too many balance attempts have failed.
- 	 */
- 	tsk_cache_hot = task_hot(p, rq_clock_task(env->src_rq), env->sd);
-+	if (!tsk_cache_hot)
-+		tsk_cache_hot = migrate_degrades_locality(p, env);
- 
- 	if (migrate_improves_locality(p, env)) {
- #ifdef CONFIG_SCHEDSTATS
---- a/kernel/sched/features.h
-+++ b/kernel/sched/features.h
-@@ -70,4 +70,6 @@ SCHED_FEAT(LB_MIN, false)
- SCHED_FEAT(NUMA,	false)
- SCHED_FEAT(NUMA_FORCE,	false)
- SCHED_FEAT(NUMA_BALANCE, true)
-+SCHED_FEAT(NUMA_FAULTS_UP, true)
-+SCHED_FEAT(NUMA_FAULTS_DOWN, false)
- #endif
+ 		if (!time_before(jiffies, curr->mm->numa_next_scan)) {
+ 			init_task_work(work, task_numa_work); /* TODO: move this into sched_fork() */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
