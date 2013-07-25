@@ -1,59 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 757C16B0031
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 11:15:34 -0400 (EDT)
-Received: by mail-wg0-f45.google.com with SMTP id x12so1798435wgg.12
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2013 08:15:32 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id E93C96B0031
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 11:17:26 -0400 (EDT)
+Received: by mail-yh0-f44.google.com with SMTP id t59so601081yho.17
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2013 08:17:26 -0700 (PDT)
+Date: Thu, 25 Jul 2013 11:17:19 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 14/21] x86, acpi, numa: Reserve hotpluggable memory at
+ early time.
+Message-ID: <20130725151719.GE26107@mtj.dyndns.org>
+References: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com>
+ <1374220774-29974-15-git-send-email-tangchen@cn.fujitsu.com>
+ <20130723205557.GS21100@mtj.dyndns.org>
+ <20130723213212.GA21100@mtj.dyndns.org>
+ <51F089C1.4010402@cn.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <51F13E51.7040808@sr71.net>
-References: <1374261785-1615-1-git-send-email-kys@microsoft.com>
- <20130722123716.GB24400@dhcp22.suse.cz> <e06fced3ca42408b980f8aa68f4a29f3@SN2PR03MB061.namprd03.prod.outlook.com>
- <51EEA11D.4030007@intel.com> <3318be0a96cb4d05838d76dc9d088cc0@SN2PR03MB061.namprd03.prod.outlook.com>
- <51EEA89F.9070309@intel.com> <9f351a549e76483d9148f87535567ea0@SN2PR03MB061.namprd03.prod.outlook.com>
- <51F00415.8070104@sr71.net> <d1f80c05986b439cbeef12bcd595b264@BLUPR03MB050.namprd03.prod.outlook.com>
- <51F040E8.1030507@intel.com> <20130725075705.GD12818@dhcp22.suse.cz>
- <4f440c8d96f34711a3f06fb18702a297@SN2PR03MB061.namprd03.prod.outlook.com> <51F13E51.7040808@sr71.net>
-From: Kay Sievers <kay@vrfy.org>
-Date: Thu, 25 Jul 2013 17:15:11 +0200
-Message-ID: <CAPXgP10BqFoYLOS+e=aTMqM6mAZrtuWHsrsSJ4+44m+LuzRwiQ@mail.gmail.com>
-Subject: Re: [PATCH 1/1] Drivers: base: memory: Export symbols for onlining
- memory blocks
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51F089C1.4010402@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: KY Srinivasan <kys@microsoft.com>, Michal Hocko <mhocko@suse.cz>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "apw@canonical.com" <apw@canonical.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kamezawa.hiroyuki@gmail.com" <kamezawa.hiroyuki@gmail.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "yinghan@google.com" <yinghan@google.com>, "jasowang@redhat.com" <jasowang@redhat.com>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-On Thu, Jul 25, 2013 at 5:03 PM, Dave Hansen <dave@sr71.net> wrote:
-> On 07/25/2013 04:14 AM, KY Srinivasan wrote:
->> As promised, I have sent out the patches for (a) an implementation of an in-kernel API
->> for onlining  and a consumer for this API. While I don't know the exact reason why the
->> user mode code is delayed (under some low memory conditions), what is the harm in having
->> a mechanism to online memory that has been hot added without involving user space code.
->
-> KY, your potential problem, not being able to online more memory because
-> of a shortage of memory, is a serious one.
->
-> However, this potential issue exists in long-standing code, and
-> potentially affects all users of memory hotplug.  The problem has not
-> been described in sufficient detail for the rest of the developers to
-> tell if you are facing a new problem, or whether *any* proposed solution
-> will help the problem you face.
->
-> Your propsed solution changes the semantics of existing user/kernel
-> interfaces, duplicates existing functionality, and adds code complexity
-> to the kernel.
+Hello,
 
-Complexity, well, it's just a bit of code which belongs in the kernel.
-The mentioned unconditional hotplug loop through userspace is
-absolutely pointless. Such defaults never belong in userspace tools if
-they do not involve data that is only available in userspace and
-something would make a decision about that. Saying "hello" to
-userspace and usrspace has a hardcoded "yes" in return makes no sense
-at all. The kernel can just go ahead and do its job, like it does for
-all other devices it finds too.
+On Thu, Jul 25, 2013 at 10:13:21AM +0800, Tang Chen wrote:
+> >>This is rather hacky.  Why not just introduce MEMBLOCK_NO_MERGE flag?
+> 
+> The original thinking is to merge regions with the same nid. So I used pxm.
+> And then refresh the nid field when nids are mapped.
+> 
+> I will try to introduce MEMBLOCK_NO_MERGE and make it less hacky.
 
-Kay
+I kinda don't follow why it's necessary to disallow merging BTW.  Can
+you plesae elaborate?  Shouldn't it be enough to mark the regions
+hotpluggable?  Why does it matter whether they get merged or not?  If
+they belong to different nodes, they'll be separated during the
+isolation phase while setting nids, which is the modus operandi of
+memblock anyway.
+
+> In order to let memblock control the allocation, we have to store the
+> hotpluggable ranges somewhere, and keep the allocated range out of the
+> hotpluggable regions. I just think reserving the hotpluggable regions
+> and then memblock won't allocate them. No need to do any other limitation.
+
+It isn't different from what you're doing right now.  Just tell
+memblock that the areas are hotpluggable and the default memblock
+allocation functions stay away from the areas.  That way you can later
+add functions which may allocate from hotpluggable areas for
+node-local data without resorting to tricks like unreserving part of
+it and trying allocation or what not.  As it currently stands, you're
+scattering hotpluggable memory handling across memblock and acpi which
+is kinda nasty.  Please make acpi feed information into memblock and
+make memblock handle hotpluggable regions appropriately.
+
+> And also, the acpi side modification in this patch-set is to get SRAT
+> and parse it. I think most of the logic in
+> acpi_reserve_hotpluggable_memory()
+> is necessary. I don't think letting memblock control the allocation will
+> make the acpi side easier.
+
+It's about proper layering.  The code change involved in either case
+aren't big but splitting it right would give us less headache when we
+later try to support a different firmware or add more features, and
+more importantly, it makes things logical and lowers the all important
+WTH factor and makes things easier to follow.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
