@@ -1,63 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id A9AB46B0031
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 04:43:39 -0400 (EDT)
-Message-ID: <51F0E52C.1080101@parallels.com>
-Date: Thu, 25 Jul 2013 12:43:24 +0400
-From: Pavel Emelyanov <xemul@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm: Save soft-dirty bits on swapped pages
-References: <CALCETrXYnkonpBANnUuX+aJ=B=EYFwecZO27yrqcEU8WErz9DA@mail.gmail.com> <20130724163734.GE24851@moon> <CALCETrVWgSMrM2ujpO092ZLQa3pWEQM4vdmHhCVUohUUcoR8AQ@mail.gmail.com> <20130724171728.GH8508@moon> <1374687373.7382.22.camel@dabdike> <CALCETrV5MD1qCQsyz4=t+QW1BJuTBYainewzDfEaXW12S91K=A@mail.gmail.com> <20130724181516.GI8508@moon> <CALCETrV5NojErxWOc2RpuYKE0g8FfOmKB31oDz46CRu27hmDBA@mail.gmail.com> <20130724185256.GA24365@moon> <51F0232D.6060306@parallels.com> <20130724190453.GJ8508@moon> <CALCETrVRQBLrQBL8_Zu0VqBRkDXXr2np57-gt4T59A4jG9jMZw@mail.gmail.com> <51F0D3CA.3080902@parallels.com> <51F0E144.9030304@gmail.com>
-In-Reply-To: <51F0E144.9030304@gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 327C06B0031
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 04:55:15 -0400 (EDT)
+Received: from /spool/local
+	by e06smtp17.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
+	Thu, 25 Jul 2013 09:50:43 +0100
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
+	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 438DE2190066
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 09:59:20 +0100 (BST)
+Received: from d06av06.portsmouth.uk.ibm.com (d06av06.portsmouth.uk.ibm.com [9.149.37.217])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6P8sxAl50004038
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 08:54:59 GMT
+Received: from d06av06.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av06.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r6P8t9oU025872
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 02:55:10 -0600
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: [PATCH 1/2] mm: add support for discard of unused ptes
+Date: Thu, 25 Jul 2013 10:54:20 +0200
+Message-Id: <1374742461-29160-2-git-send-email-schwidefsky@de.ibm.com>
+In-Reply-To: <1374742461-29160-1-git-send-email-schwidefsky@de.ibm.com>
+References: <1374742461-29160-1-git-send-email-schwidefsky@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hush Bensen <hush.bensen@gmail.com>
-Cc: Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@gmail.com>, James Bottomley <James.Bottomley@hansenpartnership.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Marcelo Tosatti <mtosatti@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Stephen Rothwell <sfr@canb.auug.org.au>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Nick Piggin <npiggin@kernel.dk>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>, Konstantin Weitz <konstantin.weitz@gmail.com>
 
-On 07/25/2013 12:26 PM, Hush Bensen wrote:
-> On 07/25/2013 03:29 PM, Pavel Emelyanov wrote:
->> On 07/24/2013 11:40 PM, Andy Lutomirski wrote:
->>> On Wed, Jul 24, 2013 at 12:04 PM, Cyrill Gorcunov <gorcunov@gmail.com> wrote:
->>>> On Wed, Jul 24, 2013 at 10:55:41PM +0400, Pavel Emelyanov wrote:
->>>>>> Well, some part of information already lays in pte (such as 'file' bit,
->>>>>> swap entries) so it looks natural i think to work on this level. but
->>>>>> letme think if use page struct for that be more convenient...
->>>>> It hardly will be. Consider we have a page shared between two tasks,
->>>>> then first one "touches" it and soft-dirty is put onto his PTE and,
->>>>> subsequently, the page itself. The we go and clear sofr-dirty for the
->>>>> 2nd task. What should we do with the soft-dirty bit on the page?
->>>> Indeed, this won't help. Well then, bippidy-boppidy-boo, our
->>>> pants are metaphorically on fire (c)
->>> Hmm.  So there are at least three kinds of memory:
->>>
->>> Anonymous pages: soft-dirty works
->>> Shared file-backed pages: soft-dirty does not work
->>> Private file-backed pages: soft-dirty works (but see below)
->> The shared file-backed pages case works, but unmap-map case doesn't
-> 
-> What's the meaning of unmap-map case?
+From: Konstantin Weitz <konstantin.weitz@gmail.com>
 
-Unmap is what happens when Linux runs out of memory, starts memory
-reclaim procedure and removes a page from task's address space, replacing
-the respective pte with an information where (in swap or in file) the
-page can be found.
+In a virtualized environment and given an appropriate interface the guest
+can mark pages as unused while they are free (for the s390 implementation
+see git commit 45e576b1c3d00206 "guest page hinting light"). For the host
+the unused state is a property of the pte.
 
-Map is what occurs when the task touches the unmapped page again, the
-respective page is read back from file/swap and the respective pte if
-filled with its pfn.
+This patch adds the primitive 'pte_unused' and code to the host swap out
+handler so that pages marked as unused by all mappers are not swapped out
+but discarded instead, thus saving one IO for swap out and potentially
+another one for swap in.
 
-This patch fixes the soft-dirty bit preservation during the unmap-map cycle
-for pages, that go to swap.
+[ Martin Schwidefsky: patch reordering and simplification ]
 
-Sorry for confusion.
+Signed-off-by: Konstantin Weitz <konstantin.weitz@gmail.com>
+Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
+---
+ include/asm-generic/pgtable.h |   13 +++++++++++++
+ mm/rmap.c                     |   10 ++++++++++
+ 2 files changed, 23 insertions(+)
 
->> preserve the soft-dirty bit. Just like the private file did. We'll
->> fix this case next.
-
-Thanks,
-Pavel
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index 2f47ade..ec540c5 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -193,6 +193,19 @@ static inline int pte_same(pte_t pte_a, pte_t pte_b)
+ }
+ #endif
+ 
++#ifndef __HAVE_ARCH_PTE_UNUSED
++/*
++ * Some architectures provide facilities to virtualization guests
++ * so that they can flag allocated pages as unused. This allows the
++ * host to transparently reclaim unused pages. This function returns
++ * whether the pte's page is unused.
++ */
++static inline int pte_unused(pte_t pte)
++{
++	return 0;
++}
++#endif
++
+ #ifndef __HAVE_ARCH_PMD_SAME
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
+diff --git a/mm/rmap.c b/mm/rmap.c
+index cd356df..2291f25 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1234,6 +1234,16 @@ int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 		}
+ 		set_pte_at(mm, address, pte,
+ 			   swp_entry_to_pte(make_hwpoison_entry(page)));
++	} else if (pte_unused(pteval)) {
++		/*
++		 * The guest indicated that the page content is of no
++		 * interest anymore. Simply discard the pte, vmscan
++		 * will take care of the rest.
++		 */
++		if (PageAnon(page))
++			dec_mm_counter(mm, MM_ANONPAGES);
++		else
++			dec_mm_counter(mm, MM_FILEPAGES);
+ 	} else if (PageAnon(page)) {
+ 		swp_entry_t entry = { .val = page_private(page) };
+ 
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
