@@ -1,12 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 497616B0031
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 06:36:30 -0400 (EDT)
-Date: Thu, 25 Jul 2013 12:36:20 +0200
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id C64536B0033
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 06:38:55 -0400 (EDT)
+Date: Thu, 25 Jul 2013 12:38:45 +0200
 From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 0/18] Basic scheduler support for automatic NUMA
- balancing V5
-Message-ID: <20130725103620.GM27075@twins.programming.kicks-ass.net>
+Subject: [PATCH] mm, numa: Sanitize task_numa_fault() callsites
+Message-ID: <20130725103845.GN27075@twins.programming.kicks-ass.net>
 References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -18,130 +17,214 @@ To: Mel Gorman <mgorman@suse.de>
 Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
 
-Subject: sched, numa: Break stuff..
+Subject: mm, numa: Sanitize task_numa_fault() callsites
 From: Peter Zijlstra <peterz@infradead.org>
-Date: Tue Jul 23 14:58:41 CEST 2013
+Date: Mon Jul 22 10:42:38 CEST 2013
 
-This patch is mostly a comment in code. I don't believe the current
-scan period adjustment scheme can work properly nor do I think it a
-good idea to ratelimit the numa faults as a whole based on migration.
+There are three callers of task_numa_fault():
 
-Reasons are in the modified comments...
+ - do_huge_pmd_numa_page():
+     Accounts against the current node, not the node where the
+     page resides, unless we migrated, in which case it accounts
+     against the node we migrated to.
+
+ - do_numa_page():
+     Accounts against the current node, not the node where the
+     page resides, unless we migrated, in which case it accounts
+     against the node we migrated to.
+
+ - do_pmd_numa_page():
+     Accounts not at all when the page isn't migrated, otherwise
+     accounts against the node we migrated towards.
+
+This seems wrong to me; all three sites should have the same
+sementaics, furthermore we should accounts against where the page
+really is, we already know where the task is.
+
+So modify all three sites to always account; we did after all receive
+the fault; and always account to where the page is after migration,
+regardless of success.
+
+They all still differ on when they clear the PTE/PMD; ideally that
+would get sorted too.
 
 Signed-off-by: Peter Zijlstra <peterz@infradead.org>
 ---
- kernel/sched/fair.c |   41 ++++++++++++++++++++++++++++++++---------
- 1 file changed, 32 insertions(+), 9 deletions(-)
+ mm/huge_memory.c |   24 ++++++++++++++----------
+ mm/memory.c      |   52 ++++++++++++++++++++++------------------------------
+ 2 files changed, 36 insertions(+), 40 deletions(-)
 
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -1108,7 +1108,6 @@ static void task_numa_placement(struct t
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1292,9 +1292,9 @@ int do_huge_pmd_numa_page(struct mm_stru
+ {
+ 	struct page *page;
+ 	unsigned long haddr = addr & HPAGE_PMD_MASK;
++	int page_nid = -1, this_nid = numa_node_id();
+ 	int target_nid, last_nidpid;
+-	int src_nid = -1;
+-	bool migrated;
++	bool migrated = false;
  
- 	/* Preferred node as the node with the most faults */
- 	if (max_faults && max_nid != p->numa_preferred_nid) {
--		int old_migrate_seq = p->numa_migrate_seq;
+ 	spin_lock(&mm->page_table_lock);
+ 	if (unlikely(!pmd_same(pmd, *pmdp)))
+@@ -1311,9 +1311,9 @@ int do_huge_pmd_numa_page(struct mm_stru
+ 	if (is_huge_zero_page(page))
+ 		goto clear_pmdnuma;
  
- 		/* Queue task on preferred node if possible */
- 		p->numa_preferred_nid = max_nid;
-@@ -1116,14 +1115,19 @@ static void task_numa_placement(struct t
- 		numa_migrate_preferred(p);
+-	src_nid = numa_node_id();
++	page_nid = page_to_nid(page);
+ 	count_vm_numa_event(NUMA_HINT_FAULTS);
+-	if (src_nid == page_to_nid(page))
++	if (page_nid == this_nid)
+ 		count_vm_numa_event(NUMA_HINT_FAULTS_LOCAL);
  
- 		/*
-+		int old_migrate_seq = p->numa_migrate_seq;
-+		 *
- 		 * If preferred nodes changes frequently then the scan rate
- 		 * will be continually high. Mitigate this by increasing the
- 		 * scan rate only if the task was settled.
--		 */
-+		 *
-+		 * APZ: disabled because we don't lower it again :/
-+		 *
- 		if (old_migrate_seq >= sysctl_numa_balancing_settle_count) {
- 			p->numa_scan_period = max(p->numa_scan_period >> 1,
- 					task_scan_min(p));
- 		}
-+		 */
- 	}
+ 	last_nidpid = page_nidpid_last(page);
+@@ -1327,7 +1327,7 @@ int do_huge_pmd_numa_page(struct mm_stru
+ 	spin_unlock(&mm->page_table_lock);
+ 	lock_page(page);
+ 
+-	/* Confirm the PTE did not while locked */
++	/* Confirm the PMD didn't change while we released the page_table_lock */
+ 	spin_lock(&mm->page_table_lock);
+ 	if (unlikely(!pmd_same(pmd, *pmdp))) {
+ 		unlock_page(page);
+@@ -1339,11 +1339,12 @@ int do_huge_pmd_numa_page(struct mm_stru
+ 	/* Migrate the THP to the requested node */
+ 	migrated = migrate_misplaced_transhuge_page(mm, vma,
+ 				pmdp, pmd, addr, page, target_nid);
+-	if (!migrated)
++	if (migrated)
++		page_nid = target_nid;
++	else
+ 		goto check_same;
+ 
+-	task_numa_fault(last_nidpid, target_nid, HPAGE_PMD_NR, true);
+-	return 0;
++	goto out;
+ 
+ check_same:
+ 	spin_lock(&mm->page_table_lock);
+@@ -1356,8 +1357,11 @@ int do_huge_pmd_numa_page(struct mm_stru
+ 	update_mmu_cache_pmd(vma, addr, pmdp);
+ out_unlock:
+ 	spin_unlock(&mm->page_table_lock);
+-	if (src_nid != -1)
+-		task_numa_fault(last_nidpid, src_nid, HPAGE_PMD_NR, false);
++
++out:
++	if (page_nid != -1)
++		task_numa_fault(last_nidpid, page_nid, HPAGE_PMD_NR, migrated);
++
+ 	return 0;
  }
  
-@@ -1167,10 +1171,20 @@ void task_numa_fault(int last_nidpid, in
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3533,8 +3533,8 @@ int do_numa_page(struct mm_struct *mm, s
+ {
+ 	struct page *page = NULL;
+ 	spinlock_t *ptl;
+-	int current_nid = -1, last_nidpid;
+-	int target_nid;
++	int page_nid = -1;
++	int target_nid, last_nidpid;
+ 	bool migrated = false;
+ 
  	/*
- 	 * If pages are properly placed (did not migrate) then scan slower.
- 	 * This is reset periodically in case of phase changes
--	 */
--        if (!migrated)
-+	 *
-+	 * APZ: it seems to me that one can get a ton of !migrated faults;
-+	 * consider the scenario where two threads fight over a shared memory
-+	 * segment. We'll win half the faults, half of that will be local, half
-+	 * of that will be remote. This means we'll see 1/4-th of the total
-+	 * memory being !migrated. Using a fixed increment will completely
-+	 * flatten the scan speed for a sufficiently large workload. Another
-+	 * scenario is due to that migration rate limit.
-+	 *
-+        if (!migrated) {
- 		p->numa_scan_period = min(p->numa_scan_period_max,
- 			p->numa_scan_period + jiffies_to_msecs(10));
-+	}
-+	 */
- 
- 	task_numa_placement(p);
- 
-@@ -1216,12 +1230,15 @@ void task_numa_work(struct callback_head
- 	if (p->flags & PF_EXITING)
- 		return;
- 
-+#if 0
- 	/*
- 	 * We do not care about task placement until a task runs on a node
- 	 * other than the first one used by the address space. This is
- 	 * largely because migrations are driven by what CPU the task
- 	 * is running on. If it's never scheduled on another node, it'll
- 	 * not migrate so why bother trapping the fault.
-+	 *
-+	 * APZ: seems like a bad idea for pure shared memory workloads.
- 	 */
- 	if (mm->first_nid == NUMA_PTE_SCAN_INIT)
- 		mm->first_nid = numa_node_id();
-@@ -1233,6 +1250,7 @@ void task_numa_work(struct callback_head
- 
- 		mm->first_nid = NUMA_PTE_SCAN_ACTIVE;
+@@ -3569,15 +3569,10 @@ int do_numa_page(struct mm_struct *mm, s
  	}
-+#endif
  
- 	/*
- 	 * Enforce maximal scan/migration frequency..
-@@ -1254,9 +1272,14 @@ void task_numa_work(struct callback_head
- 	 * Do not set pte_numa if the current running node is rate-limited.
- 	 * This loses statistics on the fault but if we are unwilling to
- 	 * migrate to this node, it is less likely we can do useful work
--	 */
-+	 *
-+	 * APZ: seems like a bad idea; even if this node can't migrate anymore
-+	 * other nodes might and we want up-to-date information to do balance
-+	 * decisions.
-+	 *
- 	if (migrate_ratelimited(numa_node_id()))
- 		return;
-+	 */
- 
- 	start = mm->numa_scan_offset;
- 	pages = sysctl_numa_balancing_scan_size;
-@@ -1297,10 +1320,10 @@ void task_numa_work(struct callback_head
+ 	last_nidpid = page_nidpid_last(page);
+-	current_nid = page_to_nid(page);
+-	target_nid = numa_migrate_prep(page, vma, addr, current_nid);
++	page_nid = page_to_nid(page);
++	target_nid = numa_migrate_prep(page, vma, addr, page_nid);
+ 	pte_unmap_unlock(ptep, ptl);
+ 	if (target_nid == -1) {
+-		/*
+-		 * Account for the fault against the current node if it not
+-		 * being replaced regardless of where the page is located.
+-		 */
+-		current_nid = numa_node_id();
+ 		put_page(page);
+ 		goto out;
+ 	}
+@@ -3585,11 +3580,12 @@ int do_numa_page(struct mm_struct *mm, s
+ 	/* Migrate to the requested node */
+ 	migrated = migrate_misplaced_page(page, vma, target_nid);
+ 	if (migrated)
+-		current_nid = target_nid;
++		page_nid = target_nid;
  
  out:
- 	/*
--	 * It is possible to reach the end of the VMA list but the last few VMAs are
--	 * not guaranteed to the vma_migratable. If they are not, we would find the
--	 * !migratable VMA on the next scan but not reset the scanner to the start
--	 * so check it now.
-+	 * It is possible to reach the end of the VMA list but the last few
-+	 * VMAs are not guaranteed to the vma_migratable. If they are not, we
-+	 * would find the !migratable VMA on the next scan but not reset the
-+	 * scanner to the start so check it now.
- 	 */
- 	if (vma)
- 		mm->numa_scan_offset = start;
+-	if (current_nid != -1)
+-		task_numa_fault(last_nidpid, current_nid, 1, migrated);
++	if (page_nid != -1)
++		task_numa_fault(last_nidpid, page_nid, 1, migrated);
++
+ 	return 0;
+ }
+ 
+@@ -3604,7 +3600,6 @@ static int do_pmd_numa_page(struct mm_st
+ 	unsigned long offset;
+ 	spinlock_t *ptl;
+ 	bool numa = false;
+-	int local_nid = numa_node_id();
+ 	int last_nidpid;
+ 
+ 	spin_lock(&mm->page_table_lock);
+@@ -3628,9 +3623,10 @@ static int do_pmd_numa_page(struct mm_st
+ 	for (addr = _addr + offset; addr < _addr + PMD_SIZE; pte++, addr += PAGE_SIZE) {
+ 		pte_t pteval = *pte;
+ 		struct page *page;
+-		int curr_nid = local_nid;
++		int page_nid = -1;
+ 		int target_nid;
+-		bool migrated;
++		bool migrated = false;
++
+ 		if (!pte_present(pteval))
+ 			continue;
+ 		if (!pte_numa(pteval))
+@@ -3649,26 +3645,22 @@ static int do_pmd_numa_page(struct mm_st
+ 		if (unlikely(!page))
+ 			continue;
+ 
+-		/*
+-		 * Note that the NUMA fault is later accounted to either
+-		 * the node that is currently running or where the page is
+-		 * migrated to.
+-		 */
+-		curr_nid = local_nid;
+ 		last_nidpid = page_nidpid_last(page);
++		page_nid = page_to_nid(page);
+ 		target_nid = numa_migrate_prep(page, vma, addr,
+-					       page_to_nid(page));
+-		if (target_nid == -1) {
++				               page_nid);
++		pte_unmap_unlock(pte, ptl);
++
++		if (target_nid != -1) {
++			migrated = migrate_misplaced_page(page, vma, target_nid);
++			if (migrated)
++				page_nid = target_nid;
++		} else {
+ 			put_page(page);
+-			continue;
+ 		}
+ 
+-		/* Migrate to the requested node */
+-		pte_unmap_unlock(pte, ptl);
+-		migrated = migrate_misplaced_page(page, vma, target_nid);
+-		if (migrated)
+-			curr_nid = target_nid;
+-		task_numa_fault(last_nidpid, curr_nid, 1, migrated);
++		if (page_nid != -1)
++			task_numa_fault(last_nidpid, page_nid, 1, migrated);
+ 
+ 		pte = pte_offset_map_lock(mm, pmdp, addr, &ptl);
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
