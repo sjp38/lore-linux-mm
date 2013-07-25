@@ -1,60 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id D5CDB6B0031
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 17:38:27 -0400 (EDT)
-Received: by mail-ee0-f45.google.com with SMTP id b15so1191032eek.32
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2013 14:38:26 -0700 (PDT)
-Date: Thu, 25 Jul 2013 23:38:22 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH v2] mm/hotplug, x86: Disable ARCH_MEMORY_PROBE by default
-Message-ID: <20130725213822.GG18254@gmail.com>
-References: <1374256068-26016-1-git-send-email-toshi.kani@hp.com>
- <20130722083721.GC25976@gmail.com>
- <1374513120.16322.21.camel@misato.fc.hp.com>
- <20130723080101.GB15255@gmail.com>
- <1374612301.16322.136.camel@misato.fc.hp.com>
- <20130724042041.GA8504@gmail.com>
- <1374685121.16322.218.camel@misato.fc.hp.com>
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 7AFAB6B0031
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 17:50:44 -0400 (EDT)
+Date: Thu, 25 Jul 2013 17:50:33 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 3/5] x86: finish fault error path with fatal signal
+Message-ID: <20130725215033.GP715@cmpxchg.org>
+References: <20130714015112.FFCB7AF7@pobox.sk>
+ <20130715154119.GA32435@dhcp22.suse.cz>
+ <20130715160006.GB32435@dhcp22.suse.cz>
+ <20130716153544.GX17812@cmpxchg.org>
+ <20130716160905.GA20018@dhcp22.suse.cz>
+ <20130716164830.GZ17812@cmpxchg.org>
+ <20130719042124.GC17812@cmpxchg.org>
+ <20130719042502.GF17812@cmpxchg.org>
+ <20130724203205.GL715@cmpxchg.org>
+ <51F18A99.7000306@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1374685121.16322.218.camel@misato.fc.hp.com>
+In-Reply-To: <51F18A99.7000306@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, dave@sr71.net, kosaki.motohiro@gmail.com, isimatu.yasuaki@jp.fujitsu.com, tangchen@cn.fujitsu.com, vasilis.liaskovitis@profitbricks.com
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Michal Hocko <mhocko@suse.cz>, azurIt <azurit@pobox.sk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, righi.andrea@gmail.com
 
-
-* Toshi Kani <toshi.kani@hp.com> wrote:
-
-> > You claimed that the only purpose of this on x86 was 
-> > that testing was done on non-hotplug systems, using 
-> > this interface. Non-hotplug systems have e820 maps.
+On Thu, Jul 25, 2013 at 04:29:13PM -0400, KOSAKI Motohiro wrote:
+> (7/24/13 4:32 PM), Johannes Weiner wrote:
+> >@@ -1189,9 +1174,17 @@ good_area:
+> >  	 */
+> >  	fault = handle_mm_fault(mm, vma, address, flags);
+> >
+> >-	if (unlikely(fault & (VM_FAULT_RETRY|VM_FAULT_ERROR))) {
+> >-		if (mm_fault_error(regs, error_code, address, fault))
+> >-			return;
+> >+	/*
+> >+	 * If we need to retry but a fatal signal is pending, handle the
+> >+	 * signal first. We do not need to release the mmap_sem because it
+> >+	 * would already be released in __lock_page_or_retry in mm/filemap.c.
+> >+	 */
+> >+	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+> >+		return;
+> >+
+> >+	if (unlikely(fault & VM_FAULT_ERROR)) {
+> >+		mm_fault_error(regs, error_code, address, fault);
+> >+		return;
+> >  	}
 > 
-> Right.  Sorry, I first thought that the interface needed 
-> to work as defined, i.e. detect a new memory.  But for 
-> the test purpose on non-hotplug systems, that is not 
-> necessary.  So, I agree that we can check e820.
-> 
-> I summarized two options in the email below.
-> https://lkml.org/lkml/2013/7/23/602
-> 
-> Option 1) adds a check with e820.  Option 2) deprecates 
-> the interface by removing the config option from x86 
-> Kconfig.  I was thinking that we could evaluate two 
-> options after this patch gets in.  Does it make sense?
+> When I made the patch you removed code, Ingo suggested we need put all rare case code
+> into if(unlikely()) block. Yes, this is purely micro optimization. But it is not costly
+> to maintain.
 
-Yeah.
-
-That having said, if the e820 check is too difficult to 
-pull off straight away, I also don't mind keeping it as-is 
-if it's useful for testing. Just make sure you document it 
-as "you need to be careful with this" (beyond it being a 
-root-only interface to begin with).
-
-Thanks,
-
-	Ingo
+Fair enough, thanks for the heads up!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
