@@ -1,8 +1,8 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm: Fix potential NULL pointer dereference
-Date: Thu, 25 Jul 2013 07:32:49 +0800
-Message-ID: <16645.7208608792$1374708788@news.gmane.org>
-References: <1374637699-25704-1-git-send-email-huawei.libin@huawei.com>
+Subject: Re: [PATCH 1/2] mm: Restructure free-page stealing code and fix a bug
+Date: Thu, 25 Jul 2013 11:10:40 +0800
+Message-ID: <5854.61540981687$1374721890@news.gmane.org>
+References: <20130722184805.9573.78514.stgit@srivatsabhat.in.ibm.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -10,59 +10,202 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1V28YG-0000Hb-8d
-	for glkm-linux-mm-2@m.gmane.org; Thu, 25 Jul 2013 01:33:00 +0200
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id BD7FA6B0031
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 19:32:57 -0400 (EDT)
+	id 1V2Bxa-00071k-9T
+	for glkm-linux-mm-2@m.gmane.org; Thu, 25 Jul 2013 05:11:22 +0200
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 0C2286B0031
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 23:11:19 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Thu, 25 Jul 2013 04:54:57 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 70754E004F
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 05:02:53 +0530 (IST)
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6ONXmsk37683358
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 05:03:48 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6ONWn5b018268
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 23:32:50 GMT
+	Thu, 25 Jul 2013 12:55:07 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id BDB702BB004F
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 13:10:50 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6P2t9kN61341750
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 12:55:17 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6P3AgEi017327
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 13:10:42 +1000
 Content-Disposition: inline
-In-Reply-To: <1374637699-25704-1-git-send-email-huawei.libin@huawei.com>
+In-Reply-To: <20130722184805.9573.78514.stgit@srivatsabhat.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Libin <huawei.libin@huawei.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mgorman@suse.de, xiaoguangrong@linux.vnet.ibm.com, wujianguo@huawei.com
+Cc: akpm@linux-foundation.org, mgorman@suse.de, minchan@kernel.org, cody@linux.vnet.ibm.com, rostedt@goodmis.org, jiang.liu@huawei.com, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Jul 24, 2013 at 11:48:19AM +0800, Libin wrote:
->find_vma may return NULL, thus check the return
->value to avoid NULL pointer dereference.
+On Tue, Jul 23, 2013 at 12:18:06AM +0530, Srivatsa S. Bhat wrote:
+>The free-page stealing code in __rmqueue_fallback() is somewhat hard to
+>follow, and has an incredible amount of subtlety hidden inside!
+>
+>First off, there is a minor bug in the reporting of change-of-ownership of
+>pageblocks. Under some conditions, we try to move upto 'pageblock_nr_pages'
+>no. of pages to the preferred allocation list. But we change the ownership
+>of that pageblock to the preferred type only if we manage to successfully
+>move atleast half of that pageblock (or if page_group_by_mobility_disabled
+>is set).
+>
+>However, the current code ignores the latter part and sets the 'migratetype'
+>variable to the preferred type, irrespective of whether we actually changed
+>the pageblock migratetype of that block or not. So, the page_alloc_extfrag
+>tracepoint can end up printing incorrect info (i.e., 'change_ownership'
+>might be shown as 1 when it must have been 0).
+>
+>So fixing this involves moving the update of the 'migratetype' variable to
+>the right place. But looking closer, we observe that the 'migratetype' variable
+>is used subsequently for checks such as "is_migrate_cma()". Obviously the
+>intent there is to check if the *fallback* type is MIGRATE_CMA, but since we
+>already set the 'migratetype' variable to start_migratetype, we end up checking
+>if the *preferred* type is MIGRATE_CMA!!
+>
+>To make things more interesting, this actually doesn't cause a bug in practice,
+>because we never change *anything* if the fallback type is CMA.
+>
+>So, restructure the code in such a way that it is trivial to understand what
+>is going on, and also fix the above mentioned bug. And while at it, also add a
+>comment explaining the subtlety behind the migratetype used in the call to
+>expand().
 >
 
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Greate catch!
 
->Signed-off-by: Libin <huawei.libin@huawei.com>
+>Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
 >---
-> mm/huge_memory.c | 2 ++
-> 1 file changed, 2 insertions(+)
 >
->diff --git a/mm/huge_memory.c b/mm/huge_memory.c
->index 243e710..d4423f4 100644
->--- a/mm/huge_memory.c
->+++ b/mm/huge_memory.c
->@@ -2294,6 +2294,8 @@ static void collapse_huge_page(struct mm_struct *mm,
-> 		goto out;
+> mm/page_alloc.c |   96 ++++++++++++++++++++++++++++++++++---------------------
+> 1 file changed, 60 insertions(+), 36 deletions(-)
 >
-> 	vma = find_vma(mm, address);
->+	if (!vma)
->+		goto out;
-> 	hstart = (vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK;
-> 	hend = vma->vm_end & HPAGE_PMD_MASK;
-> 	if (address < hstart || address + HPAGE_PMD_SIZE > hend)
->-- 
->1.8.2.1
+>diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>index b100255..027d417 100644
+>--- a/mm/page_alloc.c
+>+++ b/mm/page_alloc.c
+>@@ -1007,6 +1007,53 @@ static void change_pageblock_range(struct page *pageblock_page,
+> 	}
+> }
 >
+>+/*
+>+ * If breaking a large block of pages, move all free pages to the preferred
+>+ * allocation list. If falling back for a reclaimable kernel allocation, be
+>+ * more aggressive about taking ownership of free pages.
+>+ *
+>+ * On the other hand, never change migration type of MIGRATE_CMA pageblocks
+>+ * nor move CMA pages to different free lists. We don't want unmovable pages
+>+ * to be allocated from MIGRATE_CMA areas.
+>+ *
+>+ * Returns the new migratetype of the pageblock (or the same old migratetype
+>+ * if it was unchanged).
+>+ */
+>+static inline int try_to_steal_freepages(struct zone *zone, struct page *page,
+>+					 int start_type, int fallback_type)
+>+{
+>+	int current_order = page_order(page);
+>+
+>+	if (is_migrate_cma(fallback_type))
+>+		return fallback_type;
+>+
+>+	/* Take ownership for orders >= pageblock_order */
+>+	if (current_order >= pageblock_order) {
+>+		change_pageblock_range(page, current_order, start_type);
+>+		return start_type;
+>+	}
+>+
+>+	if (current_order >= pageblock_order / 2 ||
+>+	    start_type == MIGRATE_RECLAIMABLE ||
+>+	    page_group_by_mobility_disabled) {
+>+
+>+		int pages;
+>+
+>+		pages = move_freepages_block(zone, page, start_type);
+>+
+>+		/* Claim the whole block if over half of it is free */
+>+		if (pages >= (1 << (pageblock_order-1)) ||
+>+				page_group_by_mobility_disabled) {
+>+
+>+			set_pageblock_migratetype(page, start_type);
+>+			return start_type;
+>+		}
+>+
+>+	}
+>+
+>+	return fallback_type;
+>+}
+>+
+> /* Remove an element from the buddy allocator from the fallback list */
+> static inline struct page *
+> __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+>@@ -1014,7 +1061,7 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+> 	struct free_area * area;
+> 	int current_order;
+> 	struct page *page;
+>-	int migratetype, i;
+>+	int migratetype, new_type, i;
+>
+> 	/* Find the largest possible block of pages in the other list */
+> 	for (current_order = MAX_ORDER-1; current_order >= order;
+>@@ -1034,51 +1081,28 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+> 					struct page, lru);
+> 			area->nr_free--;
+>
+>-			/*
+>-			 * If breaking a large block of pages, move all free
+>-			 * pages to the preferred allocation list. If falling
+>-			 * back for a reclaimable kernel allocation, be more
+>-			 * aggressive about taking ownership of free pages
+>-			 *
+>-			 * On the other hand, never change migration
+>-			 * type of MIGRATE_CMA pageblocks nor move CMA
+>-			 * pages on different free lists. We don't
+>-			 * want unmovable pages to be allocated from
+>-			 * MIGRATE_CMA areas.
+>-			 */
+>-			if (!is_migrate_cma(migratetype) &&
+>-			    (current_order >= pageblock_order / 2 ||
+>-			     start_migratetype == MIGRATE_RECLAIMABLE ||
+>-			     page_group_by_mobility_disabled)) {
+>-				int pages;
+>-				pages = move_freepages_block(zone, page,
+>-								start_migratetype);
+>-
+>-				/* Claim the whole block if over half of it is free */
+>-				if (pages >= (1 << (pageblock_order-1)) ||
+>-						page_group_by_mobility_disabled)
+>-					set_pageblock_migratetype(page,
+>-								start_migratetype);
+>-
+>-				migratetype = start_migratetype;
+>-			}
+>+			new_type = try_to_steal_freepages(zone, page,
+>+							  start_migratetype,
+>+							  migratetype);
+>
+> 			/* Remove the page from the freelists */
+> 			list_del(&page->lru);
+> 			rmv_page_order(page);
+>
+>-			/* Take ownership for orders >= pageblock_order */
+>-			if (current_order >= pageblock_order &&
+>-			    !is_migrate_cma(migratetype))
+>-				change_pageblock_range(page, current_order,
+>-							start_migratetype);
+>-
+>+			/*
+>+			 * Borrow the excess buddy pages as well, irrespective
+>+			 * of whether we stole freepages, or took ownership of
+>+			 * the pageblock or not.
+>+			 *
+>+			 * Exception: When borrowing from MIGRATE_CMA, release
+>+			 * the excess buddy pages to CMA itself.
+>+			 */
+> 			expand(zone, page, order, current_order, area,
+> 			       is_migrate_cma(migratetype)
+> 			     ? migratetype : start_migratetype);
+>
+> 			trace_mm_page_alloc_extfrag(page, order, current_order,
+>-				start_migratetype, migratetype);
+>+				start_migratetype, new_type);
+>
+> 			return page;
+> 		}
 >
 >--
 >To unsubscribe, send a message with 'unsubscribe linux-mm' in
