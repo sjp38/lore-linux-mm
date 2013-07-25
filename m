@@ -1,31 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id BBB176B0031
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 14:19:41 -0400 (EDT)
-Received: by mail-oa0-f51.google.com with SMTP id i4so5036621oah.24
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2013 11:19:40 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <89813612683626448B837EE5A0B6A7CB3B62F8F5C3@SC-VEXCH4.marvell.com>
-References: <89813612683626448B837EE5A0B6A7CB3B62F8F272@SC-VEXCH4.marvell.com>
- <000001400d38469d-a121fb96-4483-483a-9d3e-fc552e413892-000000@email.amazonses.com>
- <89813612683626448B837EE5A0B6A7CB3B62F8F5C3@SC-VEXCH4.marvell.com>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Thu, 25 Jul 2013 14:19:20 -0400
-Message-ID: <CAHGf_=q8JZQ42R-3yzie7DXUEq8kU+TZXgcX9s=dn8nVigXv8g@mail.gmail.com>
-Subject: Re: Possible deadloop in direct reclaim?
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 5D1E86B0031
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 14:53:27 -0400 (EDT)
+Message-ID: <1374778405.1957.21.camel@joe-AO722>
+Subject: [trivial PATCH] treewide: Fix printks with 0x%#
+From: Joe Perches <joe@perches.com>
+Date: Thu, 25 Jul 2013 11:53:25 -0700
+Content-Type: text/plain; charset="ISO-8859-1"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lisa Du <cldu@marvell.com>
-Cc: Christoph Lameter <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Bob Liu <lliubbo@gmail.com>
+To: Jiri Kosina <trivial@kernel.org>
+Cc: "James E.J. Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>, John Stultz <john.stultz@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Daniele Venzano <venza@brownhat.org>, Andi Kleen <andi@firstfloor.org>, Jaroslav Kysela <perex@perex.cz>, Takashi Iwai <tiwai@suse.de>, linux-parisc@vger.kernel.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, alsa-devel <alsa-devel@alsa-project.org>
 
-On Tue, Jul 23, 2013 at 9:21 PM, Lisa Du <cldu@marvell.com> wrote:
-> Dear Christoph
->    Thanks a lot for your comment. When this issue happen I just trigger a kernel panic and got the kdump.
-> From the kdump, I got the global variable pg_data_t congit_page_data. From this structure, I can see in normal zone, only order-0's nr_free = 18442, order-1's nr_free = 367, all the other order's nr_free is 0.
 
-Don't you use compaction? Of if use, please get a log by tracepoints.
-We need to know why it doesn't work.
+Using 0x%# emits 0x0x.  Only one is necessary.
+
+Signed-off-by: Joe Perches <joe@perches.com>
+---
+ arch/parisc/kernel/signal.c       | 2 +-
+ drivers/clocksource/acpi_pm.c     | 4 ++--
+ drivers/net/ethernet/sis/sis900.c | 2 +-
+ mm/memory-failure.c               | 2 +-
+ sound/pci/ens1370.c               | 2 +-
+ sound/pci/via82xx.c               | 2 +-
+ 6 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/arch/parisc/kernel/signal.c b/arch/parisc/kernel/signal.c
+index 940188d..35c5bf1 100644
+--- a/arch/parisc/kernel/signal.c
++++ b/arch/parisc/kernel/signal.c
+@@ -85,7 +85,7 @@ restore_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs)
+ 	err |= __copy_from_user(regs->iaoq, sc->sc_iaoq, sizeof(regs->iaoq));
+ 	err |= __copy_from_user(regs->iasq, sc->sc_iasq, sizeof(regs->iasq));
+ 	err |= __get_user(regs->sar, &sc->sc_sar);
+-	DBG(2,"restore_sigcontext: iaoq is 0x%#lx / 0x%#lx\n", 
++	DBG(2,"restore_sigcontext: iaoq is %#lx / %#lx\n",
+ 			regs->iaoq[0],regs->iaoq[1]);
+ 	DBG(2,"restore_sigcontext: r28 is %ld\n", regs->gr[28]);
+ 	return err;
+diff --git a/drivers/clocksource/acpi_pm.c b/drivers/clocksource/acpi_pm.c
+index 6efe4d1..6eab889 100644
+--- a/drivers/clocksource/acpi_pm.c
++++ b/drivers/clocksource/acpi_pm.c
+@@ -200,14 +200,14 @@ static int __init init_acpi_pm_clocksource(void)
+ 			if ((value2 < value1) && ((value2) < 0xFFF))
+ 				break;
+ 			printk(KERN_INFO "PM-Timer had inconsistent results:"
+-			       " 0x%#llx, 0x%#llx - aborting.\n",
++			       " %#llx, %#llx - aborting.\n",
+ 			       value1, value2);
+ 			pmtmr_ioport = 0;
+ 			return -EINVAL;
+ 		}
+ 		if (i == ACPI_PM_READ_CHECKS) {
+ 			printk(KERN_INFO "PM-Timer failed consistency check "
+-			       " (0x%#llx) - aborting.\n", value1);
++			       " (%#llx) - aborting.\n", value1);
+ 			pmtmr_ioport = 0;
+ 			return -ENODEV;
+ 		}
+diff --git a/drivers/net/ethernet/sis/sis900.c b/drivers/net/ethernet/sis/sis900.c
+index eb4aea3..6c1e34c 100644
+--- a/drivers/net/ethernet/sis/sis900.c
++++ b/drivers/net/ethernet/sis/sis900.c
+@@ -1723,7 +1723,7 @@ static irqreturn_t sis900_interrupt(int irq, void *dev_instance)
+ 
+ 	if(netif_msg_intr(sis_priv))
+ 		printk(KERN_DEBUG "%s: exiting interrupt, "
+-		       "interrupt status = 0x%#8.8x.\n",
++		       "interrupt status = %#8.8x\n",
+ 		       net_dev->name, sr32(isr));
+ 
+ 	spin_unlock (&sis_priv->lock);
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index 09ae111..29d3f38 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -1267,7 +1267,7 @@ void memory_failure_queue(unsigned long pfn, int trapno, int flags)
+ 	if (kfifo_put(&mf_cpu->fifo, &entry))
+ 		schedule_work_on(smp_processor_id(), &mf_cpu->work);
+ 	else
+-		pr_err("Memory failure: buffer overflow when queuing memory failure at 0x%#lx\n",
++		pr_err("Memory failure: buffer overflow when queuing memory failure at %#lx\n",
+ 		       pfn);
+ 	spin_unlock_irqrestore(&mf_cpu->lock, proc_flags);
+ 	put_cpu_var(memory_failure_cpu);
+diff --git a/sound/pci/ens1370.c b/sound/pci/ens1370.c
+index ca8929b..61262f3 100644
+--- a/sound/pci/ens1370.c
++++ b/sound/pci/ens1370.c
+@@ -1842,7 +1842,7 @@ static int snd_ensoniq_create_gameport(struct ensoniq *ensoniq, int dev)
+ 
+ 	default:
+ 		if (!request_region(io_port, 8, "ens137x: gameport")) {
+-			printk(KERN_WARNING "ens137x: gameport io port 0x%#x in use\n",
++			printk(KERN_WARNING "ens137x: gameport io port %#x in use\n",
+ 			       io_port);
+ 			return -EBUSY;
+ 		}
+diff --git a/sound/pci/via82xx.c b/sound/pci/via82xx.c
+index 3c511d0..5ae6f04 100644
+--- a/sound/pci/via82xx.c
++++ b/sound/pci/via82xx.c
+@@ -1940,7 +1940,7 @@ static int snd_via686_create_gameport(struct via82xx *chip, unsigned char *legac
+ 
+ 	r = request_region(JOYSTICK_ADDR, 8, "VIA686 gameport");
+ 	if (!r) {
+-		printk(KERN_WARNING "via82xx: cannot reserve joystick port 0x%#x\n",
++		printk(KERN_WARNING "via82xx: cannot reserve joystick port %#x\n",
+ 		       JOYSTICK_ADDR);
+ 		return -EBUSY;
+ 	}
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
