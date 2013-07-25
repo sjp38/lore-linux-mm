@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 9144F6B0031
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 20:17:20 -0400 (EDT)
-Received: by mail-pb0-f42.google.com with SMTP id un1so33674pbc.15
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2013 17:17:19 -0700 (PDT)
-Message-ID: <51F06E87.1060902@gmail.com>
-Date: Thu, 25 Jul 2013 08:17:11 +0800
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id BB0096B0031
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2013 20:44:54 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id lf11so1300962pab.38
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2013 17:44:53 -0700 (PDT)
+Message-ID: <51F074FA.3010703@gmail.com>
+Date: Thu, 25 Jul 2013 08:44:42 +0800
 From: Hush Bensen <hush.bensen@gmail.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH v2] mm/hotplug, x86: Disable ARCH_MEMORY_PROBE by default
@@ -123,8 +123,9 @@ On 07/25/2013 12:02 AM, Toshi Kani wrote:
 > 4. The memory handler calls remove_memory() with the address range.
 > 5. The kernel calls eject method of the ACPI memory device object.
 
-Thanks for your explaination, very useful for me. ;-) Btw, what's the 
-eject method done?
+Could you give me the calltrace of add_memory and remove_memory? I don't 
+have machine support hotplug, but I hope to investigate how ACPI part 
+works for memory hotplug. ;-)
 
 >
 > Thanks,
