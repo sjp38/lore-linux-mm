@@ -1,95 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 0144A6B0037
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 07:15:06 -0400 (EDT)
-Received: from mail196-co9 (localhost [127.0.0.1])	by
- mail196-co9-R.bigfish.com (Postfix) with ESMTP id 8C2A1500195	for
- <linux-mm@kvack.org>; Thu, 25 Jul 2013 11:15:05 +0000 (UTC)
-Received: from CO9EHSMHS032.bigfish.com (unknown [10.236.132.244])	by
- mail196-co9.bigfish.com (Postfix) with ESMTP id 290F5C801C6	for
- <linux-mm@kvack.org>; Thu, 25 Jul 2013 11:15:03 +0000 (UTC)
-Received: from mail210-co9 (localhost [127.0.0.1])	by
- mail210-co9-R.bigfish.com (Postfix) with ESMTP id B8232940252	for
- <linux-mm@kvack.org.FOPE.CONNECTOR.OVERRIDE>; Thu, 25 Jul 2013 11:14:25 +0000
- (UTC)
-From: KY Srinivasan <kys@microsoft.com>
-Subject: RE: [PATCH 1/1] Drivers: base: memory: Export symbols for onlining
- memory blocks
-Date: Thu, 25 Jul 2013 11:14:18 +0000
-Message-ID: <4f440c8d96f34711a3f06fb18702a297@SN2PR03MB061.namprd03.prod.outlook.com>
-References: <1374261785-1615-1-git-send-email-kys@microsoft.com>
- <20130722123716.GB24400@dhcp22.suse.cz>
- <e06fced3ca42408b980f8aa68f4a29f3@SN2PR03MB061.namprd03.prod.outlook.com>
- <51EEA11D.4030007@intel.com>
- <3318be0a96cb4d05838d76dc9d088cc0@SN2PR03MB061.namprd03.prod.outlook.com>
- <51EEA89F.9070309@intel.com>
- <9f351a549e76483d9148f87535567ea0@SN2PR03MB061.namprd03.prod.outlook.com>
- <51F00415.8070104@sr71.net>
- <d1f80c05986b439cbeef12bcd595b264@BLUPR03MB050.namprd03.prod.outlook.com>
- <51F040E8.1030507@intel.com> <20130725075705.GD12818@dhcp22.suse.cz>
-In-Reply-To: <20130725075705.GD12818@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 381356B0031
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 08:50:58 -0400 (EDT)
+Received: by mail-ob0-f182.google.com with SMTP id wo10so1392316obc.27
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2013 05:50:57 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <20130725022543.GR3421@sgi.com>
+References: <1373594635-131067-1-git-send-email-holt@sgi.com>
+	<1373594635-131067-5-git-send-email-holt@sgi.com>
+	<CAE9FiQW1s2UwCY6OjzD3+2wG8SjCr1QyCpajhZbk_XhmnFQW4Q@mail.gmail.com>
+	<20130725022543.GR3421@sgi.com>
+Date: Thu, 25 Jul 2013 05:50:57 -0700
+Message-ID: <CAE9FiQV7Va8iAESoXsPCFJo8-jeA=-7SW2b9BmKnUrVonLV1=g@mail.gmail.com>
+Subject: Re: [RFC 4/4] Sparse initialization of struct page array.
+From: Yinghai Lu <yinghai@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave.hansen@intel.com>
-Cc: Dave Hansen <dave@sr71.net>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "apw@canonical.com" <apw@canonical.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kamezawa.hiroyuki@gmail.com" <kamezawa.hiroyuki@gmail.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "yinghan@google.com" <yinghan@google.com>, "jasowang@redhat.com" <jasowang@redhat.com>, "kay@vrfy.org" <kay@vrfy.org>
+To: Robin Holt <holt@sgi.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Nate Zimmer <nzimmer@sgi.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Rob Landley <rob@landley.net>, Mike Travis <travis@sgi.com>, Daniel J Blueman <daniel@numascale-asia.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Mel Gorman <mgorman@suse.de>
 
+On Wed, Jul 24, 2013 at 7:25 PM, Robin Holt <holt@sgi.com> wrote:
+>>
+>> How about holes that is not in memblock.reserved?
+>>
+>> before this patch:
+>> free_area_init_node/free_area_init_core/memmap_init_zone
+>> will mark all page in node range to Reserved in struct page, at first.
+>>
+>> but those holes is not mapped via kernel low mapping.
+>> so it should be ok not touch "struct page" for them.
+>>
+>> Now you only mark reserved for memblock.reserved at first, and later
+>> mark {memblock.memory} - { memblock.reserved} to be available.
+>> And that is ok.
+>>
+>> but should split that change to another patch and add some comment
+>> and change log for the change.
+>> in case there is some user like UEFI etc do weird thing.
+>
+> Nate and I talked this over today.  Sorry for the delay, but it was the
+> first time we were both free.  Neither of us quite understands what you
+> are asking for here.  My interpretation is that you would like us to
+> change the use of the PageReserved flag such that during boot, we do not
+> set the flag at all from memmap_init_zone, and then only set it on pages
+> which, at the time of free_all_bootmem, have been allocated/reserved in
+> the memblock allocator.  Is that correct?  I will start to work that up
+> on the assumption that is what you are asking for.
 
+Not exactly.
 
-> -----Original Message-----
-> From: Michal Hocko [mailto:mhocko@suse.cz]
-> Sent: Thursday, July 25, 2013 3:57 AM
-> To: Dave Hansen
-> Cc: KY Srinivasan; Dave Hansen; gregkh@linuxfoundation.org; linux-
-> kernel@vger.kernel.org; devel@linuxdriverproject.org; olaf@aepfle.de;
-> apw@canonical.com; andi@firstfloor.org; akpm@linux-foundation.org; linux-
-> mm@kvack.org; kamezawa.hiroyuki@gmail.com; hannes@cmpxchg.org;
-> yinghan@google.com; jasowang@redhat.com; kay@vrfy.org
-> Subject: Re: [PATCH 1/1] Drivers: base: memory: Export symbols for onlini=
-ng
-> memory blocks
->=20
-> On Wed 24-07-13 14:02:32, Dave Hansen wrote:
-> > On 07/24/2013 12:45 PM, KY Srinivasan wrote:
-> > > All I am saying is that I see two classes of failures: (a) Our
-> > > inability to allocate memory to manage the memory that is being hot a=
-dded
-> > > and (b) Our inability to bring the hot added memory online within a
-> reasonable
-> > > amount of time. I am not sure the cause for (b) and I was just specul=
-ating that
-> > > this could be memory related. What is interesting is that I have seen=
- failure
-> related
-> > > to our inability to online the memory after having succeeded in hot a=
-dding the
-> > > memory.
-> >
-> > I think we should hold off on this patch and other like it until we've
-> > been sufficiently able to explain how (b) happens.
->=20
-> Agreed.
+your change should be right, but there is some subtle change about
+holes handling.
 
-As promised, I have sent out the patches for (a) an implementation of an in=
--kernel API
-for onlining  and a consumer for this API. While I don't know the exact rea=
-son why the
-user mode code is delayed (under some low memory conditions), what is the h=
-arm in having
-a mechanism to online memory that has been hot added without involving user=
- space code.
-Based on Michal's feedback, the onlininig API hides all of the internal det=
-ails and presents a
-generic interface.
+before mem holes between memory ranges in memblock.memory, get struct page,
+and initialized with to Reserved in memmap_init_zone.
+Those holes is not in memory.reserved, with your patches, those hole's
+struct page
+will still have all 0.
 
-Regards,
+Please separate change about set page to reserved according to memory.reserved
+to another patch.
 
-K. Y
+Thanks
 
-
+Yinghai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
