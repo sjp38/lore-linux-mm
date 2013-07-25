@@ -1,192 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 943076B0033
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 11:07:14 -0400 (EDT)
-From: =?iso-8859-1?q?C=E9dric_Villemain?= <cedric@2ndquadrant.com>
-Reply-To: cedric@2ndquadrant.com
-Subject: Re: mincore() & fincore()
-Date: Thu, 25 Jul 2013 17:07:10 +0200
-References: <201307251658.33548.cedric@2ndquadrant.com>
-In-Reply-To: <201307251658.33548.cedric@2ndquadrant.com>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id F11556B0031
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 11:09:21 -0400 (EDT)
+Received: by mail-yh0-f50.google.com with SMTP id a41so595992yho.9
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2013 08:09:20 -0700 (PDT)
+Date: Thu, 25 Jul 2013 11:09:13 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 17/21] page_alloc, mem-hotplug: Improve movablecore to
+ {en|dis}able using SRAT.
+Message-ID: <20130725150913.GD26107@mtj.dyndns.org>
+References: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com>
+ <1374220774-29974-18-git-send-email-tangchen@cn.fujitsu.com>
+ <20130723210435.GV21100@mtj.dyndns.org>
+ <20130723211119.GW21100@mtj.dyndns.org>
+ <51F0A074.403@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-  boundary="Boundary-01=_e8T8R0HEwjRLbF3"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201307251707.11159.cedric@2ndquadrant.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51F0A074.403@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Johannes Weiner <hannes@cmpxchg.org>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
---Boundary-01=_e8T8R0HEwjRLbF3
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+Hello, Tang.
 
-[sorry, previous mail was sent earlier than expected]
+On Thu, Jul 25, 2013 at 11:50:12AM +0800, Tang Chen wrote:
+> movablecore boot option was used to specify the size of ZONE_MOVABLE. And
+> this patch-set aims to arrange ZONE_MOVABLE with SRAT info. So my original
+> thinking is to reuse movablecore.
+> 
+> Since you said above, I think we have two problems here:
+> 1. Should not let users care about where the hotplug info comes from.
+> 2. Should not distinguish movable node and memory hotplug, since for now,
+>    to use memory hotplug is to use movable node.
+> 
+> So how about something like "movablenode", just like "quiet" boot option.
+> If users specify "movablenode", then memblock will reserve hotpluggable
+> memory, and create movable nodes if any. If users specify nothing, then
+> the kernel acts as before.
 
-> First, the proposed changes in this email are to be used at least for=20
-> PostgreSQL extensions, maybe for core.
->=20
-> Purpose is to offer better monitoring/tracking of the hot/cold areas (and=
-=20
-> read/write paterns) in the tables and indexes, in PostgreSQL those are by=
- default=20
-> written in segments of 1GB.
->=20
-> There are some possible usecase already:
->=20
->  * planning of hardware upgrade
->  * easier configuration setup (both PostgreSQL and linux)
->  * provide more informations to the planner/executor of PostgreSQL
->=20
-> My ideas so far are to=20
->=20
->  * improve mincore() in linux and add it information like in freeBSD (at=
-=20
->    least adding 'mincore_modified' to track clean vs dirty pages).
->  * adding fincore() to make the information easier to grab from PostgreSQ=
-L (no=20
->    mmap)
->  * maybe some access to those stats in /proc/
->=20
-> It makes years that libprefetch, mincore() and fincore() are discussed on=
- linux=20
-> mailling lists. And they got a good feedback... So I hope it is ok to kee=
-p on=20
-> those and provide updated patches.
+Maybe I'm confused but memory hotplug isn't likely to work without
+this, right?  If so, wouldn't it make more sense to have
+"memory_hotplug" option rather than "movablecore=acpi" which in no way
+indicates that it has something to do with memory hotplug?
 
-Johannes, I add you in CC because you're the last one who proposed somethin=
-g.=20
-Can I update your patch with previous suggestions from reviewers ?
+Thanks.
 
-I'm also asking for feedback in this area, others ideas are very welcome.
-
-=2D-=20
-C=E9dric Villemain +33 (0)6 20 30 22 52
-http://2ndQuadrant.fr/
-PostgreSQL: Support 24x7 - D=E9veloppement, Expertise et Formation
-
---Boundary-01=_e8T8R0HEwjRLbF3
-Content-Type: text/html;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-=
-html40/strict.dtd">
-<html><head><meta name=3D"qrichtext" content=3D"1" /><style type=3D"text/cs=
-s">
-p, li { white-space: pre-wrap; }
-</style></head><body style=3D" font-family:'DejaVu Sans Mono'; font-size:9p=
-t; font-weight:400; font-style:normal;">
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">[sorry, pre=
-vious mail was sent earlier than expected]</p>
-<p style=3D"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; ma=
-rgin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; ">&nb=
-sp;</p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">&gt; First,=
- the proposed changes in this email are to be used at least for </p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">&gt; Postgr=
-eSQL extensions, maybe for core.</p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">&gt; </p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">&gt; Purpos=
-e is to offer better monitoring/tracking of the hot/cold areas (and </p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">&gt; read/w=
-rite paterns) in the tables and indexes, in PostgreSQL those are by default=
- </p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">&gt; writte=
-n in segments of 1GB.</p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">&gt; </p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">&gt; There =
-are some possible usecase already:</p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">&gt; </p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">&gt;  * pla=
-nning of hardware upgrade</p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">&gt;  * eas=
-ier configuration setup (both PostgreSQL and linux)</p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">&gt;  * pro=
-vide more informations to the planner/executor of PostgreSQL</p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">&gt; </p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">&gt; My ide=
-as so far are to </p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">&gt; </p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">&gt;  * imp=
-rove mincore() in linux and add it information like in freeBSD (at </p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">&gt;    lea=
-st adding 'mincore_modified' to track clean vs dirty pages).</p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">&gt;  * add=
-ing fincore() to make the information easier to grab from PostgreSQL (no </=
-p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">&gt;    mma=
-p)</p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">&gt;  * may=
-be some access to those stats in /proc/</p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">&gt; </p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">&gt; It mak=
-es years that libprefetch, mincore() and fincore() are discussed on linux <=
-/p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">&gt; mailli=
-ng lists. And they got a good feedback... So I hope it is ok to keep on </p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">&gt; those =
-and provide updated patches.</p>
-<p style=3D"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; ma=
-rgin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; ">&nb=
-sp;</p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">Johannes, I=
- add you in CC because you're the last one who proposed something. </p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">Can I updat=
-e your patch with previous suggestions from reviewers ?</p>
-<p style=3D"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; ma=
-rgin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; ">&nb=
-sp;</p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">I'm also as=
-king for feedback in this area, others ideas are very welcome.</p>
-<p style=3D"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; ma=
-rgin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; ">&nb=
-sp;</p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">-- </p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">C=E9dric Vi=
-llemain +33 (0)6 20 30 22 52</p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">http://2ndQ=
-uadrant.fr/</p>
-<p style=3D" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-rig=
-ht:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">PostgreSQL:=
- Support 24x7 - D=E9veloppement, Expertise et Formation</p>
-<p style=3D"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; ma=
-rgin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; ">&nb=
-sp;</p></body></html>
---Boundary-01=_e8T8R0HEwjRLbF3--
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
