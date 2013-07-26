@@ -1,197 +1,224 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 08A186B0031
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2013 10:35:32 -0400 (EDT)
-Received: from itwm2.itwm.fhg.de (itwm2.itwm.fhg.de [131.246.191.3])
-	by mailgw1.uni-kl.de (8.14.3/8.14.3/Debian-9.4) with ESMTP id r6QEZNXB001246
-	(version=TLSv1/SSLv3 cipher=EDH-RSA-DES-CBC3-SHA bits=168 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2013 16:35:23 +0200
-Message-ID: <51F28926.8060502@itwm.fraunhofer.de>
-Date: Fri, 26 Jul 2013 16:35:18 +0200
-From: Bernd Schubert <bernd.schubert@itwm.fraunhofer.de>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 61AD76B0031
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2013 10:43:14 -0400 (EDT)
+Date: Fri, 26 Jul 2013 16:43:10 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 6/6] mm: memcg: do not trap chargers with full callstack
+ on OOM
+Message-ID: <20130726144310.GH17761@dhcp22.suse.cz>
+References: <1374791138-15665-1-git-send-email-hannes@cmpxchg.org>
+ <1374791138-15665-7-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: Linux Plumbers IO & File System Micro-conference
-References: <51E03AFB.1000000@gmail.com> <51E998E0.10207@itwm.fraunhofer.de> <20130722004741.GC11674@dastard> <51ED274B.1060103@itwm.fraunhofer.de> <20130723062559.GI19986@dastard>
-In-Reply-To: <20130723062559.GI19986@dastard>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1374791138-15665-7-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Ric Wheeler <ricwheeler@gmail.com>, linux-mm@kvack.org, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, Andreas Dilger <adilger@dilger.ca>, sage@inktank.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, azurIt <azurit@pobox.sk>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 07/23/2013 08:25 AM, Dave Chinner wrote:
-> On Mon, Jul 22, 2013 at 02:36:27PM +0200, Bernd Schubert wrote:
->> On 07/22/2013 02:47 AM, Dave Chinner wrote:
->>> On Fri, Jul 19, 2013 at 09:52:00PM +0200, Bernd Schubert wrote:
->>>> Hello Ric, hi all,
->>>>
->>>> On 07/12/2013 07:20 PM, Ric Wheeler wrote:
->>>>>
+On Thu 25-07-13 18:25:38, Johannes Weiner wrote:
+> The memcg OOM handling is incredibly fragile and can deadlock.  When a
+> task fails to charge memory, it invokes the OOM killer and loops right
+> there in the charge code until it succeeds.  Comparably, any other
+> task that enters the charge path at this point will go to a waitqueue
+> right then and there and sleep until the OOM situation is resolved.
+> The problem is that these tasks may hold filesystem locks and the
+> mmap_sem; locks that the selected OOM victim may need to exit.
+> 
+> For example, in one reported case, the task invoking the OOM killer
+> was about to charge a page cache page during a write(), which holds
+> the i_mutex.  The OOM killer selected a task that was just entering
+> truncate() and trying to acquire the i_mutex:
+> 
+> OOM invoking task:
+> [<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
+> [<ffffffff8110b5ab>] T.1146+0x5ab/0x5c0
+> [<ffffffff8110c22e>] mem_cgroup_cache_charge+0xbe/0xe0
+> [<ffffffff810ca28c>] add_to_page_cache_locked+0x4c/0x140
+> [<ffffffff810ca3a2>] add_to_page_cache_lru+0x22/0x50
+> [<ffffffff810ca45b>] grab_cache_page_write_begin+0x8b/0xe0
+> [<ffffffff81193a18>] ext3_write_begin+0x88/0x270
+> [<ffffffff810c8fc6>] generic_file_buffered_write+0x116/0x290
+> [<ffffffff810cb3cc>] __generic_file_aio_write+0x27c/0x480
+> [<ffffffff810cb646>] generic_file_aio_write+0x76/0xf0           # takes ->i_mutex
+> [<ffffffff8111156a>] do_sync_write+0xea/0x130
+> [<ffffffff81112183>] vfs_write+0xf3/0x1f0
+> [<ffffffff81112381>] sys_write+0x51/0x90
+> [<ffffffff815b5926>] system_call_fastpath+0x18/0x1d
+> [<ffffffffffffffff>] 0xffffffffffffffff
+> 
+> OOM kill victim:
+> [<ffffffff811109b8>] do_truncate+0x58/0xa0              # takes i_mutex
+> [<ffffffff81121c90>] do_last+0x250/0xa30
+> [<ffffffff81122547>] path_openat+0xd7/0x440
+> [<ffffffff811229c9>] do_filp_open+0x49/0xa0
+> [<ffffffff8110f7d6>] do_sys_open+0x106/0x240
+> [<ffffffff8110f950>] sys_open+0x20/0x30
+> [<ffffffff815b5926>] system_call_fastpath+0x18/0x1d
+> [<ffffffffffffffff>] 0xffffffffffffffff
+> 
+> The OOM handling task will retry the charge indefinitely while the OOM
+> killed task is not releasing any resources.
+> 
+> A similar scenario can happen when the kernel OOM killer for a memcg
+> is disabled and a userspace task is in charge of resolving OOM
+> situations.  In this case, ALL tasks that enter the OOM path will be
+> made to sleep on the OOM waitqueue and wait for userspace to free
+> resources or increase the group's limit.  But a userspace OOM handler
+> is prone to deadlock itself on the locks held by the waiting tasks.
+> For example one of the sleeping tasks may be stuck in a brk() call
+> with the mmap_sem held for writing but the userspace handler, in order
+> to pick an optimal victim, may need to read files from /proc/<pid>,
+> which tries to acquire the same mmap_sem for reading and deadlocks.
+> 
+> This patch changes the way tasks behave after detecting a memcg OOM
+> and makes sure nobody loops or sleeps with locks held:
+> 
+> 1. When OOMing in a user fault, invoke the OOM killer and restart the
+>    fault instead of looping on the charge attempt.  This way, the OOM
+>    victim can not get stuck on locks the looping task may hold.
+> 
+> 2. When OOMing in a user fault but somebody else is handling it
+>    (either the kernel OOM killer or a userspace handler), don't go to
+>    sleep in the charge context.  Instead, remember the OOMing memcg in
+>    the task struct and then fully unwind the page fault stack with
+>    -ENOMEM.  pagefault_out_of_memory() will then call back into the
+>    memcg code to check if the -ENOMEM came from the memcg, and then
+>    either put the task to sleep on the memcg's OOM waitqueue or just
+>    restart the fault.  The OOM victim can no longer get stuck on any
+>    lock a sleeping task may hold.
+> 
+> This relies on the memcg OOM killer only being enabled when an
+> allocation failure will result in a call to pagefault_out_of_memory().
+> 
+> While reworking the OOM routine, also remove a needless OOM waitqueue
+> wakeup when invoking the killer.  In addition to the wakeup implied in
+> the kill signal delivery, only uncharges and limit increases, things
+> that actually change the memory situation, should poke the waitqueue.
+> 
+> Reported-by: Reported-by: azurIt <azurit@pobox.sk>
+> Debugged-by: Michal Hocko <mhocko@suse.cz>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+
+Looks good just one remark bellow.
 
 [...]
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 30ae46a..029a3a8 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+[...]
+> @@ -2189,31 +2191,20 @@ static void memcg_oom_recover(struct mem_cgroup *memcg)
+>  }
+>  
+>  /*
+> - * try to call OOM killer. returns false if we should exit memory-reclaim loop.
+> + * try to call OOM killer
+>   */
+> -static bool mem_cgroup_handle_oom(struct mem_cgroup *memcg, gfp_t mask,
+> -				  int order)
+> +static void mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
+>  {
+> -	struct oom_wait_info owait;
+> -	bool locked, need_to_kill;
+> +	bool locked, need_to_kill = true;
+>  
+> -	owait.memcg = memcg;
+> -	owait.wait.flags = 0;
+> -	owait.wait.func = memcg_oom_wake_function;
+> -	owait.wait.private = current;
+> -	INIT_LIST_HEAD(&owait.wait.task_list);
+> -	need_to_kill = true;
+> -	mem_cgroup_mark_under_oom(memcg);
 
->>> For example, we changed XFS to have it's own metdata buffer cache
->>> reclaim mechanisms driven by a shrinker that uses prioritised cache
->>> reclaim to ensure we reclaim less important metadata buffers before
->>> ones that are more frequently hit (e.g. to reclaim tree leaves
->>> before nodes and roots). This was done because the page cache based
->>> reclaim of metadata was completely inadequate (i.e. mostly random!)
->>> and would frequently reclaim the wrong thing and cause performance
->>> under memory pressure to tank....
->>
->> Well, especially with XFS I see reads all the time and btrace tells
->> me these are meta-reads. So far I didn't find a way to make XFS to
->> cache meta data permanenly and so far I didn't track that down any
->> further.
->
-> Sure. That's what *I* want to confirm - what sort of metadata is
-> being read. And what I see is the inode and dentry caches getting
-> trashed, and that results in directory reads to repopulate the
-> dentry cache....
->
->> For reference and without full bonnie output, with XFS I got about
->> 800 to 1000 creates/s.
->> Somewhat that seems to confirm my idea not to let file systems try
->> to handle it themselves, but to introduce a generic way to cache
->> meta data.
->
-> We already have generic metadata caches - the inode and dentry
-> caches.
->
-> The reason some filesystems have their own caches is that the
-> generic caches are not always suited to the physical metadata
-> structure of the filesystem, and hence they have their own
-> multi-level caches and reclaim implementations that are more optimal
-> than the generic cache mechanisms.
->
-> IOWs, there isn't an "optimal" generic metadata caching mechanism
-> that can be implemented.
+You are marking memcg under_oom only for the sleepers. So if we have
+no sleepers then the memcg will never report it is under oom which
+is a behavior change. On the other hand who-ever relies on under_oom
+under such conditions (it would basically mean a busy loop reading
+memory.oom_control) would be racy anyway so it is questionable it
+matters at all. At least now when we do not have any active notification
+that under_oom has changed.
 
-Maybe just the generic framework should be improved?
+Anyway, this shouldn't be a part of this patch so if you want it because
+it saves a pointless hierarchy traversal then make it a separate patch
+with explanation why the new behavior is still OK.
 
->
->>>> Entirely cached hash directories (16384), which are populated with
->>>> about 16 million files, so 1000 files per hash-dir.
->>>>
->>>>> Version  1.96       ------Sequential Create------ --------Random Create--------
->>>>> fslab3              -Create-- --Read--- -Delete-- -Create-- --Read--- -Delete--
->>>>> files:max:min        /sec %CP  /sec %CP  /sec %CP  /sec %CP  /sec %CP  /sec %CP
->>>>>            60:32:32  1702  14  2025  12  1332   4  1873  16  2047  13  1266   3
->>>>> Latency              3874ms    6645ms    8659ms     505ms    7257ms    9627ms
->>>>> 1.96,1.96,fslab3,1,1374655110,,,,,,,,,,,,,,60,32,32,,,1702,14,2025,12,1332,4,1873,16,2047,13,1266,3,,,,,,,3874ms,6645ms,8659ms,505ms,7257ms,9627ms
->>>
->>> Command line parameters, details of storage, the scripts you are
->>> running, etc please. RAM as well, as 16 million files are going to
->>> require at least 20GB RAM to fully cache...
->>
->> 16 million files are only laying around in the hash directories and
->> are not touched at all when new files are created. So I don't know
->> where you take 20GB from.
->
-> Each inode in memory requires between 1-1.4k of memory depending on
-> the filesystem they belong to.  Then there's another ~200 bytes per
-> dentry per inode, and if the names are long enough, then another 64+
-> bytes for the name of the file held by the dentry.  So caching 16
-> million inodes (directory or files) requires 15-25GB of RAM to
-> cache.
-
-Yes, but the 16 million files just lay around, I don't want to cache 
-them. With ext4 it works fine just to cache corresponding disk directory 
-blocks. So if a new file is created it can lookup from these blocks that 
-the file does not exist.
-
->
-> FWIW, have you tried experimenting with
-> /proc/sys/vm/vfs_cache_pressure to change the ratio of metadata to
-> page cache reclaim? You might find that all you need to do is change
-> this ratio and your problem is solved.....
-
-Did you try that with kernels < 3.11? I did and others did, see for 
-example here https://nf.nci.org.au/training/talks/rjh.lug2011.pdfa??
-In the past it did not help at all. However, and that is really good 
-news, with 3.11 it eventually works. Probably due to Mel patches. Thanks 
-Mel!
-
->
->> Our file names have a typical size of 21 bytes, so with a classical
->> ext2 layout that gives 29 bytes, with alignment that makes 32 bytes
->> per directory entry. Ignoring '.' and '..' we need 125000 x 4kiB
->> directory blocks, so about 500MB + some overhead.
->
-> If the dentry cache stays populated, then how the filesystem lays
-> out dirents on disk is irrelevant - you won't ever be reading them
-> more than once....
-
-How does the dentry cache help you for file creates of new files? The 
-dentry cache cannot know if the file exists on disk or not? Or do you 
-want to have a negative dentry cache of all possible file name combinations?
-
->
->>> Numbers without context or with "handwavy context" are meaningless
->>> for the purpose of analysis and understanding.
->>
->> I just wanted to show here, that creating new files introduces reads
->> when meta-data have been evicted from the cache and how easily that
->> can happen. From my point of view the hardware does not matter much
->> for that purpose.
->
-> In my experience, hardware always matters when you are asking
-> someone else to understand and reproduce your performance
-> problem. It's often the single most critical aspect that we need to
-> understand....
->
->> This was with rotating disks as typically used to store huge amounts
->> of HPC data. With SSDs the effect would have been smaller, but even
->> SSDs are not as fast as in-memory-cache lookups.
-> ....
->> Our customer systems usually have >=64GiB RAM and often _less_ than
->> 16 million files per server. But still meta-reads impact latency and
->> streaming performance.
-> .....
->> Please not that bonnie++ is not ideally suitable for
->> meta-benchmarks, but as I said above, I just wanted to demonstrate
->> cache evictions.
->
-> Sure. On the other hand, you're describing a well known workload and
-> memory pressure eviction pattern that can be entirely prevented from
-> userspace.  Do you reuse any of the data that is streamed to disk
-> before it is evicted from memory by other streaming data? I suspect
-> the data cache hit rate for the workloads you are describing (HPC
-> and bulk data storage) is around 0%.
->
-> If so, why aren't you making use of fadvise(DONTNEED) to tell the
-> kernel it doesn't need to cache that data that is being
-> read/written? That will prevent streaming Io from creating memory
-> pressure, and that will prevent the hot data and metadata caches
-> from being trashed by cold streaming IO. I know of several large
-> scale/distributed storage server implementations that do exactly
-> this...
-
-I'm afraid it is not that easy. For example we have several users 
-running OpenFoam over FhGFS. And while I really think that someone 
-should fix OpenFoams IO routines, OpenFoam as it is has cache hit of 
-99%. So already due to this single program I cannot simple disable 
-caching on the FhGFS storage side. And there are many other examples 
-were caching helps. And then as  fadvise(DONTNEED) does not even notify 
-the file systems, it does not help to implement an RPC for well behaved 
-applications - there would be no code path to call this RPC.
-I already thought some time ago to write a simple patch, but then the 
-FhGFS client is not in the kernel and servers are closed source, so 
-chances to get such a patch accepted without a user in the kernel are 
-almost zero.
-
-> Remember: not all IO problems need to be solved by changing kernel
-> code ;)
-
-Yes sure, therefore I'm working on different fhgfs storage layout to 
-allow better caching. But I think it still would be useful if file 
-systems could use a more suitable generic framework for caching their 
-metadata and if admins would have better control over that.
-
-
-Cheers,
-Bernd
+> +	if (!current->memcg_oom.may_oom)
+> +		return;
+> +
+> +	current->memcg_oom.in_memcg_oom = 1;
+>  
+>  	/* At first, try to OOM lock hierarchy under memcg.*/
+>  	spin_lock(&memcg_oom_lock);
+>  	locked = mem_cgroup_oom_lock(memcg);
+> -	/*
+> -	 * Even if signal_pending(), we can't quit charge() loop without
+> -	 * accounting. So, UNINTERRUPTIBLE is appropriate. But SIGKILL
+> -	 * under OOM is always welcomed, use TASK_KILLABLE here.
+> -	 */
+> -	prepare_to_wait(&memcg_oom_waitq, &owait.wait, TASK_KILLABLE);
+>  	if (!locked || memcg->oom_kill_disable)
+>  		need_to_kill = false;
+>  	if (locked)
+> @@ -2221,24 +2212,100 @@ static bool mem_cgroup_handle_oom(struct mem_cgroup *memcg, gfp_t mask,
+>  	spin_unlock(&memcg_oom_lock);
+>  
+>  	if (need_to_kill) {
+> -		finish_wait(&memcg_oom_waitq, &owait.wait);
+>  		mem_cgroup_out_of_memory(memcg, mask, order);
+>  	} else {
+> -		schedule();
+> -		finish_wait(&memcg_oom_waitq, &owait.wait);
+> +		/*
+> +		 * A system call can just return -ENOMEM, but if this
+> +		 * is a page fault and somebody else is handling the
+> +		 * OOM already, we need to sleep on the OOM waitqueue
+> +		 * for this memcg until the situation is resolved.
+> +		 * Which can take some time because it might be
+> +		 * handled by a userspace task.
+> +		 *
+> +		 * However, this is the charge context, which means
+> +		 * that we may sit on a large call stack and hold
+> +		 * various filesystem locks, the mmap_sem etc. and we
+> +		 * don't want the OOM handler to deadlock on them
+> +		 * while we sit here and wait.  Store the current OOM
+> +		 * context in the task_struct, then return -ENOMEM.
+> +		 * At the end of the page fault handler, with the
+> +		 * stack unwound, pagefault_out_of_memory() will check
+> +		 * back with us by calling
+> +		 * mem_cgroup_oom_synchronize(), possibly putting the
+> +		 * task to sleep.
+> +		 */
+> +		mem_cgroup_mark_under_oom(memcg);
+> +		current->memcg_oom.wakeups = atomic_read(&memcg->oom_wakeups);
+> +		css_get(&memcg->css);
+> +		current->memcg_oom.wait_on_memcg = memcg;
+>  	}
+> -	spin_lock(&memcg_oom_lock);
+> -	if (locked)
+> +
+> +	if (locked) {
+> +		spin_lock(&memcg_oom_lock);
+>  		mem_cgroup_oom_unlock(memcg);
+> -	memcg_wakeup_oom(memcg);
+> -	spin_unlock(&memcg_oom_lock);
+> +		/*
+> +		 * Sleeping tasks might have been killed, make sure
+> +		 * they get scheduled so they can exit.
+> +		 */
+> +		if (need_to_kill)
+> +			memcg_oom_recover(memcg);
+> +		spin_unlock(&memcg_oom_lock);
+> +	}
+> +}
+>  
+> -	mem_cgroup_unmark_under_oom(memcg);
+[...]
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
