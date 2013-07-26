@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id EBA886B0031
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 23:42:53 -0400 (EDT)
-Message-ID: <51F1F0E0.7040800@cn.fujitsu.com>
-Date: Fri, 26 Jul 2013 11:45:36 +0800
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 52E586B0031
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 23:56:01 -0400 (EDT)
+Message-ID: <51F1F3F5.9030906@cn.fujitsu.com>
+Date: Fri, 26 Jul 2013 11:58:45 +0800
 From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 14/21] x86, acpi, numa: Reserve hotpluggable memory at
- early time.
-References: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com> <1374220774-29974-15-git-send-email-tangchen@cn.fujitsu.com> <20130723205557.GS21100@mtj.dyndns.org> <20130723213212.GA21100@mtj.dyndns.org> <51F089C1.4010402@cn.fujitsu.com> <20130725151719.GE26107@mtj.dyndns.org>
-In-Reply-To: <20130725151719.GE26107@mtj.dyndns.org>
+Subject: Re: [PATCH 17/21] page_alloc, mem-hotplug: Improve movablecore to
+ {en|dis}able using SRAT.
+References: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com> <1374220774-29974-18-git-send-email-tangchen@cn.fujitsu.com> <20130723210435.GV21100@mtj.dyndns.org> <20130723211119.GW21100@mtj.dyndns.org> <51F0A074.403@cn.fujitsu.com> <20130725150913.GD26107@mtj.dyndns.org>
+In-Reply-To: <20130725150913.GD26107@mtj.dyndns.org>
 Content-Transfer-Encoding: 7bit
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
@@ -17,82 +17,58 @@ List-ID: <linux-mm.kvack.org>
 To: Tejun Heo <tj@kernel.org>
 Cc: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-On 07/25/2013 11:17 PM, Tejun Heo wrote:
-> Hello,
+On 07/25/2013 11:09 PM, Tejun Heo wrote:
+> Hello, Tang.
 >
-> On Thu, Jul 25, 2013 at 10:13:21AM +0800, Tang Chen wrote:
->>>> This is rather hacky.  Why not just introduce MEMBLOCK_NO_MERGE flag?
+> On Thu, Jul 25, 2013 at 11:50:12AM +0800, Tang Chen wrote:
+>> movablecore boot option was used to specify the size of ZONE_MOVABLE. And
+>> this patch-set aims to arrange ZONE_MOVABLE with SRAT info. So my original
+>> thinking is to reuse movablecore.
 >>
->> The original thinking is to merge regions with the same nid. So I used pxm.
->> And then refresh the nid field when nids are mapped.
+>> Since you said above, I think we have two problems here:
+>> 1. Should not let users care about where the hotplug info comes from.
+>> 2. Should not distinguish movable node and memory hotplug, since for now,
+>>     to use memory hotplug is to use movable node.
 >>
->> I will try to introduce MEMBLOCK_NO_MERGE and make it less hacky.
+>> So how about something like "movablenode", just like "quiet" boot option.
+>> If users specify "movablenode", then memblock will reserve hotpluggable
+>> memory, and create movable nodes if any. If users specify nothing, then
+>> the kernel acts as before.
 >
-> I kinda don't follow why it's necessary to disallow merging BTW.  Can
-> you plesae elaborate?  Shouldn't it be enough to mark the regions
-> hotpluggable?  Why does it matter whether they get merged or not?  If
-> they belong to different nodes, they'll be separated during the
-> isolation phase while setting nids, which is the modus operandi of
-> memblock anyway.
+> Maybe I'm confused but memory hotplug isn't likely to work without
+> this, right?
 
-Sorry, I didn't make it clear enough.
+I don't think so. On x86, I think you are right because we cannot hotplug
+a single memory_block (128MB on x86), which is only a small part of a modern
+memory device. And now x86 kernel doesn't support a single memory device
+hotplug, and what we are trying to do is node hotplug. So on x86, memory
+hotplug won't work without movable node.
 
-The reason why disallowing merging is that in [Patch 20/21], I wanted to
-use the nid in each reserved region to set the start address of ZONE_MOVABLE
-in each node. And this is only my idea. It is OK without doing this.
+But on other platform, memory hotplug may work without this.
 
-But as you said, the isolation phase in memblock_set_node() will split the
-specified region and set the nid, I think it is OK to merge the regions 
-here.
+>If so, wouldn't it make more sense to have
+> "memory_hotplug" option rather than "movablecore=acpi" which in no way
+> indicates that it has something to do with memory hotplug?
 
-I'll just let it merged here, and not store the pxm.
+I'm not working on ppcm, but I heard that memory hotplug was introduced 
+firstly
+on ppc, and a memory_block on ppc is only 16MB, which can be hotplugged. It
+doesn't need movable node support.
 
->
->> In order to let memblock control the allocation, we have to store the
->> hotpluggable ranges somewhere, and keep the allocated range out of the
->> hotpluggable regions. I just think reserving the hotpluggable regions
->> and then memblock won't allocate them. No need to do any other limitation.
->
-> It isn't different from what you're doing right now.  Just tell
-> memblock that the areas are hotpluggable and the default memblock
-> allocation functions stay away from the areas.  That way you can later
-> add functions which may allocate from hotpluggable areas for
-> node-local data without resorting to tricks like unreserving part of
-> it and trying allocation or what not.
+Here, 16MB memory_block hotplug is not the physical device hotplug, I think.
+Just logically remove it from one OS, and add it to another OS running 
+on one
+ppc server. This is done by the hardware.
 
-I just don't want to any new variables to store the hotpluggable regions.
-But without a new shared variable, it seems difficult to achieve the goal
-you said below.
+But on x86, we don't have this kind of functionality. A single memory_block
+hotplug means nothing. Actually I think struct memory_block is useless 
+on x86.
+But for other platforms, we have to keep this structure.
 
->As it currently stands, you're
-> scattering hotpluggable memory handling across memblock and acpi which
-> is kinda nasty.  Please make acpi feed information into memblock and
-> make memblock handle hotpluggable regions appropriately.
+So for the same reason, I think we cannot just introduce a boot option like
+"memory_hotplug" to enable/disable what we are doing in this patch-set.
 
-Now, when SRAT is found in acpi side, I reserve the region directly in 
-memblock.
-I think this is the one you don't like.
-
-So how about this.
-1. Introduce a new global list used to store hotpluggable regions.
-2. On acpi side, find and fulfill the list.
-3. On memblock side, make the default allocation function stay away from
-    these regions.
-
->
->> And also, the acpi side modification in this patch-set is to get SRAT
->> and parse it. I think most of the logic in
->> acpi_reserve_hotpluggable_memory()
->> is necessary. I don't think letting memblock control the allocation will
->> make the acpi side easier.
->
-> It's about proper layering.  The code change involved in either case
-> aren't big but splitting it right would give us less headache when we
-> later try to support a different firmware or add more features, and
-> more importantly, it makes things logical and lowers the all important
-> WTH factor and makes things easier to follow.
-
-OK, followed.
+Sorry I didn't clarify this earlier.
 
 Thanks.
 
