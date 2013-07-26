@@ -1,297 +1,197 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id 701306B0038
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2013 10:27:58 -0400 (EDT)
-From: Davidlohr Bueso <davidlohr.bueso@hp.com>
-Subject: [PATCH 2/2] hugepage: allow parallelization of the hugepage fault path
-Date: Fri, 26 Jul 2013 07:27:25 -0700
-Message-Id: <1374848845-1429-3-git-send-email-davidlohr.bueso@hp.com>
-In-Reply-To: <1374848845-1429-1-git-send-email-davidlohr.bueso@hp.com>
-References: <1374848845-1429-1-git-send-email-davidlohr.bueso@hp.com>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 08A186B0031
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2013 10:35:32 -0400 (EDT)
+Received: from itwm2.itwm.fhg.de (itwm2.itwm.fhg.de [131.246.191.3])
+	by mailgw1.uni-kl.de (8.14.3/8.14.3/Debian-9.4) with ESMTP id r6QEZNXB001246
+	(version=TLSv1/SSLv3 cipher=EDH-RSA-DES-CBC3-SHA bits=168 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2013 16:35:23 +0200
+Message-ID: <51F28926.8060502@itwm.fraunhofer.de>
+Date: Fri, 26 Jul 2013 16:35:18 +0200
+From: Bernd Schubert <bernd.schubert@itwm.fraunhofer.de>
+MIME-Version: 1.0
+Subject: Re: Linux Plumbers IO & File System Micro-conference
+References: <51E03AFB.1000000@gmail.com> <51E998E0.10207@itwm.fraunhofer.de> <20130722004741.GC11674@dastard> <51ED274B.1060103@itwm.fraunhofer.de> <20130723062559.GI19986@dastard>
+In-Reply-To: <20130723062559.GI19986@dastard>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "AneeshKumarK.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Gibson <david@gibson.dropbear.id.au>, Eric B Munson <emunson@mgebm.net>, Anton Blanchard <anton@samba.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <davidlohr.bueso@hp.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Ric Wheeler <ricwheeler@gmail.com>, linux-mm@kvack.org, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, Andreas Dilger <adilger@dilger.ca>, sage@inktank.com
 
-From: David Gibson <david@gibson.dropbear.id.au>
+On 07/23/2013 08:25 AM, Dave Chinner wrote:
+> On Mon, Jul 22, 2013 at 02:36:27PM +0200, Bernd Schubert wrote:
+>> On 07/22/2013 02:47 AM, Dave Chinner wrote:
+>>> On Fri, Jul 19, 2013 at 09:52:00PM +0200, Bernd Schubert wrote:
+>>>> Hello Ric, hi all,
+>>>>
+>>>> On 07/12/2013 07:20 PM, Ric Wheeler wrote:
+>>>>>
 
-At present, the page fault path for hugepages is serialized by a
-single mutex.  This is used to avoid spurious out-of-memory conditions
-when the hugepage pool is fully utilized (two processes or threads can
-race to instantiate the same mapping with the last hugepage from the
-pool, the race loser returning VM_FAULT_OOM).  This problem is
-specific to hugepages, because it is normal to want to use every
-single hugepage in the system - with normal pages we simply assume
-there will always be a few spare pages which can be used temporarily
-until the race is resolved.
+[...]
 
-Unfortunately this serialization also means that clearing of hugepages
-cannot be parallelized across multiple CPUs, which can lead to very
-long process startup times when using large numbers of hugepages.
+>>> For example, we changed XFS to have it's own metdata buffer cache
+>>> reclaim mechanisms driven by a shrinker that uses prioritised cache
+>>> reclaim to ensure we reclaim less important metadata buffers before
+>>> ones that are more frequently hit (e.g. to reclaim tree leaves
+>>> before nodes and roots). This was done because the page cache based
+>>> reclaim of metadata was completely inadequate (i.e. mostly random!)
+>>> and would frequently reclaim the wrong thing and cause performance
+>>> under memory pressure to tank....
+>>
+>> Well, especially with XFS I see reads all the time and btrace tells
+>> me these are meta-reads. So far I didn't find a way to make XFS to
+>> cache meta data permanenly and so far I didn't track that down any
+>> further.
+>
+> Sure. That's what *I* want to confirm - what sort of metadata is
+> being read. And what I see is the inode and dentry caches getting
+> trashed, and that results in directory reads to repopulate the
+> dentry cache....
+>
+>> For reference and without full bonnie output, with XFS I got about
+>> 800 to 1000 creates/s.
+>> Somewhat that seems to confirm my idea not to let file systems try
+>> to handle it themselves, but to introduce a generic way to cache
+>> meta data.
+>
+> We already have generic metadata caches - the inode and dentry
+> caches.
+>
+> The reason some filesystems have their own caches is that the
+> generic caches are not always suited to the physical metadata
+> structure of the filesystem, and hence they have their own
+> multi-level caches and reclaim implementations that are more optimal
+> than the generic cache mechanisms.
+>
+> IOWs, there isn't an "optimal" generic metadata caching mechanism
+> that can be implemented.
 
-This patch improves the situation by replacing the single mutex with a
-table of mutexes, selected based on a hash, which allows us to know
-which page in the file we're instantiating. For shared mappings, the
-hash key is selected based on the address space and file offset being faulted.
-Similarly, for private mappings, the mm and virtual address are used.
+Maybe just the generic framework should be improved?
 
-From: Anton Blanchard <anton@samba.org>
-[https://lkml.org/lkml/2011/7/15/31]
-Forward ported and made a few changes:
+>
+>>>> Entirely cached hash directories (16384), which are populated with
+>>>> about 16 million files, so 1000 files per hash-dir.
+>>>>
+>>>>> Version  1.96       ------Sequential Create------ --------Random Create--------
+>>>>> fslab3              -Create-- --Read--- -Delete-- -Create-- --Read--- -Delete--
+>>>>> files:max:min        /sec %CP  /sec %CP  /sec %CP  /sec %CP  /sec %CP  /sec %CP
+>>>>>            60:32:32  1702  14  2025  12  1332   4  1873  16  2047  13  1266   3
+>>>>> Latency              3874ms    6645ms    8659ms     505ms    7257ms    9627ms
+>>>>> 1.96,1.96,fslab3,1,1374655110,,,,,,,,,,,,,,60,32,32,,,1702,14,2025,12,1332,4,1873,16,2047,13,1266,3,,,,,,,3874ms,6645ms,8659ms,505ms,7257ms,9627ms
+>>>
+>>> Command line parameters, details of storage, the scripts you are
+>>> running, etc please. RAM as well, as 16 million files are going to
+>>> require at least 20GB RAM to fully cache...
+>>
+>> 16 million files are only laying around in the hash directories and
+>> are not touched at all when new files are created. So I don't know
+>> where you take 20GB from.
+>
+> Each inode in memory requires between 1-1.4k of memory depending on
+> the filesystem they belong to.  Then there's another ~200 bytes per
+> dentry per inode, and if the names are long enough, then another 64+
+> bytes for the name of the file held by the dentry.  So caching 16
+> million inodes (directory or files) requires 15-25GB of RAM to
+> cache.
 
-- Use the Jenkins hash to scatter the hash, better than using just the
-  low bits.
+Yes, but the 16 million files just lay around, I don't want to cache 
+them. With ext4 it works fine just to cache corresponding disk directory 
+blocks. So if a new file is created it can lookup from these blocks that 
+the file does not exist.
 
-- Always round num_fault_mutexes to a power of two to avoid an
-  expensive modulus in the hash calculation.
+>
+> FWIW, have you tried experimenting with
+> /proc/sys/vm/vfs_cache_pressure to change the ratio of metadata to
+> page cache reclaim? You might find that all you need to do is change
+> this ratio and your problem is solved.....
 
-I also tested this patch on a large POWER7 box using a simple parallel
-fault testcase:
+Did you try that with kernels < 3.11? I did and others did, see for 
+example here https://nf.nci.org.au/training/talks/rjh.lug2011.pdfa??
+In the past it did not help at all. However, and that is really good 
+news, with 3.11 it eventually works. Probably due to Mel patches. Thanks 
+Mel!
 
-http://ozlabs.org/~anton/junkcode/parallel_fault.c
+>
+>> Our file names have a typical size of 21 bytes, so with a classical
+>> ext2 layout that gives 29 bytes, with alignment that makes 32 bytes
+>> per directory entry. Ignoring '.' and '..' we need 125000 x 4kiB
+>> directory blocks, so about 500MB + some overhead.
+>
+> If the dentry cache stays populated, then how the filesystem lays
+> out dirents on disk is irrelevant - you won't ever be reading them
+> more than once....
 
-Command line options:
+How does the dentry cache help you for file creates of new files? The 
+dentry cache cannot know if the file exists on disk or not? Or do you 
+want to have a negative dentry cache of all possible file name combinations?
 
-parallel_fault <nr_threads> <size in kB> <skip in kB>
+>
+>>> Numbers without context or with "handwavy context" are meaningless
+>>> for the purpose of analysis and understanding.
+>>
+>> I just wanted to show here, that creating new files introduces reads
+>> when meta-data have been evicted from the cache and how easily that
+>> can happen. From my point of view the hardware does not matter much
+>> for that purpose.
+>
+> In my experience, hardware always matters when you are asking
+> someone else to understand and reproduce your performance
+> problem. It's often the single most critical aspect that we need to
+> understand....
+>
+>> This was with rotating disks as typically used to store huge amounts
+>> of HPC data. With SSDs the effect would have been smaller, but even
+>> SSDs are not as fast as in-memory-cache lookups.
+> ....
+>> Our customer systems usually have >=64GiB RAM and often _less_ than
+>> 16 million files per server. But still meta-reads impact latency and
+>> streaming performance.
+> .....
+>> Please not that bonnie++ is not ideally suitable for
+>> meta-benchmarks, but as I said above, I just wanted to demonstrate
+>> cache evictions.
+>
+> Sure. On the other hand, you're describing a well known workload and
+> memory pressure eviction pattern that can be entirely prevented from
+> userspace.  Do you reuse any of the data that is streamed to disk
+> before it is evicted from memory by other streaming data? I suspect
+> the data cache hit rate for the workloads you are describing (HPC
+> and bulk data storage) is around 0%.
+>
+> If so, why aren't you making use of fadvise(DONTNEED) to tell the
+> kernel it doesn't need to cache that data that is being
+> read/written? That will prevent streaming Io from creating memory
+> pressure, and that will prevent the hot data and metadata caches
+> from being trashed by cold streaming IO. I know of several large
+> scale/distributed storage server implementations that do exactly
+> this...
 
-First the time taken to fault 128GB of 16MB hugepages:
+I'm afraid it is not that easy. For example we have several users 
+running OpenFoam over FhGFS. And while I really think that someone 
+should fix OpenFoams IO routines, OpenFoam as it is has cache hit of 
+99%. So already due to this single program I cannot simple disable 
+caching on the FhGFS storage side. And there are many other examples 
+were caching helps. And then as  fadvise(DONTNEED) does not even notify 
+the file systems, it does not help to implement an RPC for well behaved 
+applications - there would be no code path to call this RPC.
+I already thought some time ago to write a simple patch, but then the 
+FhGFS client is not in the kernel and servers are closed source, so 
+chances to get such a patch accepted without a user in the kernel are 
+almost zero.
 
-40.68 seconds
+> Remember: not all IO problems need to be solved by changing kernel
+> code ;)
 
-Now the same test with 64 concurrent threads:
-39.34 seconds
+Yes sure, therefore I'm working on different fhgfs storage layout to 
+allow better caching. But I think it still would be useful if file 
+systems could use a more suitable generic framework for caching their 
+metadata and if admins would have better control over that.
 
-Hardly any speedup. Finally the 64 concurrent threads test with
-this patch applied:
-0.85 seconds
 
-We go from 40.68 seconds to 0.85 seconds, an improvement of 47.9x
-
-This was tested with the libhugetlbfs test suite, and the PASS/FAIL
-count was the same before and after this patch.
-
-From: Davidlohr Bueso <davidlohr.bueso@hp.com>
-- Cleaned up and forward ported to Linus' latest.
-- Cache aligned mutexes.
-- Keep non SMP systems using a single mutex.
-
-It was found that this mutex can become quite contended
-during the early phases of large databases which make use of huge pages - for instance
-startup and initial runs. One clear example is a 1.5Gb Oracle database, where lockstat
-reports that this mutex can be one of the top 5 most contended locks in the kernel during
-the first few minutes:
-
-    	     hugetlb_instantiation_mutex:   10678     10678
-             ---------------------------
-             hugetlb_instantiation_mutex    10678  [<ffffffff8115e14e>] hugetlb_fault+0x9e/0x340
-             ---------------------------
-             hugetlb_instantiation_mutex    10678  [<ffffffff8115e14e>] hugetlb_fault+0x9e/0x340
-
-contentions:          10678
-acquisitions:         99476
-waittime-total: 76888911.01 us
-
-With this patch we see a much less contention and wait time:
-
-              &htlb_fault_mutex_table[i]:   383
-              --------------------------
-              &htlb_fault_mutex_table[i]    383   [<ffffffff8115e27b>] hugetlb_fault+0x1eb/0x440
-              --------------------------
-              &htlb_fault_mutex_table[i]    383   [<ffffffff8115e27b>] hugetlb_fault+0x1eb/0x440
-
-contentions:        383
-acquisitions:    120546
-waittime-total: 1381.72 us
-
-Signed-off-by: David Gibson <david@gibson.dropbear.id.au>
-Signed-off-by: Anton Blanchard <anton@samba.org>
-Tested-by: Eric B Munson <emunson@mgebm.net>
-Signed-off-by: Davidlohr Bueso <davidlohr.bueso@hp.com>
----
- mm/hugetlb.c | 87 ++++++++++++++++++++++++++++++++++++++++++++++++++----------
- 1 file changed, 73 insertions(+), 14 deletions(-)
-
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 4c3f4f0..1426e44 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -21,6 +21,7 @@
- #include <linux/rmap.h>
- #include <linux/swap.h>
- #include <linux/swapops.h>
-+#include <linux/jhash.h>
- 
- #include <asm/page.h>
- #include <asm/pgtable.h>
-@@ -52,6 +53,13 @@ static unsigned long __initdata default_hstate_size;
-  */
- DEFINE_SPINLOCK(hugetlb_lock);
- 
-+/*
-+ * Serializes faults on the same logical page.  This is used to
-+ * prevent spurious OOMs when the hugepage pool is fully utilized.
-+ */
-+static int num_fault_mutexes;
-+static struct mutex *htlb_fault_mutex_table ____cacheline_aligned_in_smp;
-+
- static inline void unlock_or_release_subpool(struct hugepage_subpool *spool)
- {
- 	bool free = (spool->count == 0) && (spool->used_hpages == 0);
-@@ -1915,13 +1923,15 @@ static void __exit hugetlb_exit(void)
- 	for_each_hstate(h) {
- 		kobject_put(hstate_kobjs[hstate_index(h)]);
- 	}
--
-+	kfree(htlb_fault_mutex_table);
- 	kobject_put(hugepages_kobj);
- }
- module_exit(hugetlb_exit);
- 
- static int __init hugetlb_init(void)
- {
-+	int i;
-+
- 	/* Some platform decide whether they support huge pages at boot
- 	 * time. On these, such as powerpc, HPAGE_SHIFT is set to 0 when
- 	 * there is no such support
-@@ -1946,6 +1956,19 @@ static int __init hugetlb_init(void)
- 	hugetlb_register_all_nodes();
- 	hugetlb_cgroup_file_init();
- 
-+#ifdef CONFIG_SMP
-+	num_fault_mutexes = roundup_pow_of_two(2 * num_possible_cpus());
-+#else
-+	num_fault_mutexes = 1;
-+#endif
-+	htlb_fault_mutex_table =
-+		kmalloc(sizeof(struct mutex) * num_fault_mutexes, GFP_KERNEL);
-+	if (!htlb_fault_mutex_table)
-+		return -ENOMEM;
-+
-+	for (i = 0; i < num_fault_mutexes; i++)
-+		mutex_init(&htlb_fault_mutex_table[i]);
-+
- 	return 0;
- }
- module_init(hugetlb_init);
-@@ -2728,15 +2751,14 @@ static bool hugetlbfs_pagecache_present(struct hstate *h,
- }
- 
- static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
--			unsigned long address, pte_t *ptep, unsigned int flags)
-+			   struct address_space *mapping, pgoff_t idx,
-+			   unsigned long address, pte_t *ptep, unsigned int flags)
- {
- 	struct hstate *h = hstate_vma(vma);
- 	int ret = VM_FAULT_SIGBUS;
- 	int anon_rmap = 0;
--	pgoff_t idx;
- 	unsigned long size;
- 	struct page *page;
--	struct address_space *mapping;
- 	pte_t new_pte;
- 
- 	/*
-@@ -2750,9 +2772,6 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		return ret;
- 	}
- 
--	mapping = vma->vm_file->f_mapping;
--	idx = vma_hugecache_offset(h, vma, address);
--
- 	/*
- 	 * Use page lock to guard against racing truncation
- 	 * before we get page_table_lock.
-@@ -2858,15 +2877,51 @@ backout_unlocked:
- 	goto out;
- }
- 
-+#ifdef CONFIG_SMP
-+static u32 fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
-+			    struct vm_area_struct *vma,
-+			    struct address_space *mapping,
-+			    pgoff_t idx, unsigned long address)
-+{
-+	unsigned long key[2];
-+	u32 hash;
-+
-+	if (vma->vm_flags & VM_SHARED) {
-+		key[0] = (unsigned long)mapping;
-+		key[1] = idx;
-+	} else {
-+		key[0] = (unsigned long)mm;
-+		key[1] = address >> huge_page_shift(h);
-+	}
-+
-+	hash = jhash2((u32 *)&key, sizeof(key)/sizeof(u32), 0);
-+
-+	return hash & (num_fault_mutexes - 1);
-+}
-+#else
-+/*
-+ * For uniprocesor systems we always use a single mutex, so just
-+ * return 0 and avoid the hashing overhead.
-+ */
-+static u32 fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
-+			    struct vm_area_struct *vma,
-+			    struct address_space *mapping,
-+			    pgoff_t idx, unsigned long address)
-+{
-+	return 0;
-+}
-+#endif
-+
- int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 			unsigned long address, unsigned int flags)
- {
--	pte_t *ptep;
--	pte_t entry;
-+	pgoff_t idx;
- 	int ret;
-+	u32 hash;
-+	pte_t *ptep, entry;
- 	struct page *page = NULL;
-+	struct address_space *mapping;
- 	struct page *pagecache_page = NULL;
--	static DEFINE_MUTEX(hugetlb_instantiation_mutex);
- 	struct hstate *h = hstate_vma(vma);
- 
- 	address &= huge_page_mask(h);
-@@ -2886,15 +2941,20 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	if (!ptep)
- 		return VM_FAULT_OOM;
- 
-+	mapping = vma->vm_file->f_mapping;
-+	idx = vma_hugecache_offset(h, vma, address);
-+
- 	/*
- 	 * Serialize hugepage allocation and instantiation, so that we don't
- 	 * get spurious allocation failures if two CPUs race to instantiate
- 	 * the same page in the page cache.
- 	 */
--	mutex_lock(&hugetlb_instantiation_mutex);
-+	hash = fault_mutex_hash(h, mm, vma, mapping, idx, address);
-+	mutex_lock(&htlb_fault_mutex_table[hash]);
-+
- 	entry = huge_ptep_get(ptep);
- 	if (huge_pte_none(entry)) {
--		ret = hugetlb_no_page(mm, vma, address, ptep, flags);
-+		ret = hugetlb_no_page(mm, vma, mapping, idx, address, ptep, flags);
- 		goto out_mutex;
- 	}
- 
-@@ -2962,8 +3022,7 @@ out_page_table_lock:
- 	put_page(page);
- 
- out_mutex:
--	mutex_unlock(&hugetlb_instantiation_mutex);
--
-+	mutex_unlock(&htlb_fault_mutex_table[hash]);
- 	return ret;
- }
- 
--- 
-1.7.11.7
+Cheers,
+Bernd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
