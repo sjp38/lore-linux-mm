@@ -1,96 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id BCBF66B0070
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2013 17:37:58 -0400 (EDT)
-Date: Fri, 26 Jul 2013 17:37:50 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH resend] drop_caches: add some documentation and info
- message
-Message-ID: <20130726213750.GE17975@cmpxchg.org>
-References: <1374842669-22844-1-git-send-email-mhocko@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1374842669-22844-1-git-send-email-mhocko@suse.cz>
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 01C406B0031
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2013 18:45:35 -0400 (EDT)
+Date: Fri, 26 Jul 2013 15:45:33 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 0/3] mm: improve page aging fairness between zones/nodes
+Message-Id: <20130726154533.aebd39c603ffe8de3b2c76fb@linux-foundation.org>
+In-Reply-To: <1374267325-22865-1-git-send-email-hannes@cmpxchg.org>
+References: <1374267325-22865-1-git-send-email-hannes@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, bp@suse.de, Dave Hansen <dave@linux.vnet.ibm.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jul 26, 2013 at 02:44:29PM +0200, Michal Hocko wrote:
-> I would like to resurrect Dave's patch.  It was originally posted here
-> https://lkml.org/lkml/2010/9/16/250 and I have resurrected it here
-> https://lkml.org/lkml/2012/10/12/175 for the first time. There didn't
-> seem to be any strong opposition but the patch has been dropped later
-> from the mm tree.
+On Fri, 19 Jul 2013 16:55:22 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
+
+> The way the page allocator interacts with kswapd creates aging
+> imbalances, where the amount of time a userspace page gets in memory
+> under reclaim pressure is dependent on which zone, which node the
+> allocator took the page frame from.
 > 
-> To summarize concerns:
-> Kosaki was worried about possible excessive logging when somebody drops
-> caches too often (but then he claimed he didn't have a strong opinion on
-> that) and later acked the patch (https://lkml.org/lkml/2012/10/12/350).
-> I would even dare to say opposite. If somebody drops caches too often
-> then I would really like to know that from the log when supporting a
-> system because it almost for sure means that there is something fishy
-> going on. It is also worth mentioning that only root can write drop
-> caches so this is not an flooding attack vector.
-
-Agreed.
-
-> Andrew was worried (http://lkml.indiana.edu/hypermail/linux/kernel/1210.3/00605.html)
-> about people hating us because they are using this as a solution to
-> their issues. I concur that most of those are just hacks that found
-> their way into scripts looong time agon and stayed there. We should
-> rather not feed these cargo cults and rather fix the real bugs. History
-> has been showing us that users are usually getting rid of old hacks when
-> something starts screeming at them. So let's screem.
-
-Agreed.  The whole point of this is to be a pain in the ass in order
-to establish a feedback loop.
-
-> Boris then noted (http://lkml.indiana.edu/hypermail/linux/kernel/1210.3/00659.html)
-> that he is using drop_caches to make s2ram faster but as others noted
-> this just adds the overhead to the resume path so it might work only for
-> certain use cases. Having a low priority message under such conditions
-> shouldn't such a big deal.
-
-A oneliner like this should drown in the overall noise of the
-suspend-resume path.
-
-> I am bringing the patch up again because this has proved being really
-> helpful when chasing strange performance issues which (surprise
-> surprise) turn out to be related to artificially dropped caches done
-> because the admin thinks this would help... So mostly those who support
-> machines which are not in their hands would benefit from such a change.
+> #1 fixes missed kswapd wakeups on NUMA systems, which lead to some
+>    nodes falling behind for a full reclaim cycle relative to the other
+>    nodes in the system
 > 
-> I have just refreshed the original patch on top of the current mm tree
-> and lowered priority to KERN_INFO to make the message less hysterical.
+> #3 fixes an interaction where kswapd and a continuous stream of page
+>    allocations keep the preferred zone of a task between the high and
+>    low watermark (allocations succeed + kswapd does not go to sleep)
+>    indefinitely, completely underutilizing the lower zones and
+>    thrashing on the preferred zone
 > 
-> : From: Dave Hansen <dave@linux.vnet.ibm.com>
-> : Date: Fri, 12 Oct 2012 14:30:54 +0200
-> :
-> : There is plenty of anecdotal evidence and a load of blog posts
-> : suggesting that using "drop_caches" periodically keeps your system
-> : running in "tip top shape".  Perhaps adding some kernel
-> : documentation will increase the amount of accurate data on its use.
-> :
-> : If we are not shrinking caches effectively, then we have real bugs.
-> : Using drop_caches will simply mask the bugs and make them harder
-> : to find, but certainly does not fix them, nor is it an appropriate
-> : "workaround" to limit the size of the caches.
-> :
-> : It's a great debugging tool, and is really handy for doing things
-> : like repeatable benchmark runs.  So, add a bit more documentation
-> : about it, and add a little KERN_NOTICE.  It should help developers
-> : who are chasing down reclaim-related bugs.
+> These patches are the aging fairness part of the thrash-detection
+> based file LRU balancing.  Andrea recommended to submit them
+> separately as they are bugfixes in their own right.
 > 
-> [mhocko@suse.cz: refreshed to current -mm tree]
-> [akpm@linux-foundation.org: checkpatch fixes]
-> Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> The following test ran a foreground workload (memcachetest) with
+> background IO of various sizes on a 4 node 8G system (similar results
+> were observed with single-node 4G systems):
+> 
+> parallelio
+>                                                BAS                    FAIRALLO
+>                                               BASE                   FAIRALLOC
+> Ops memcachetest-0M              5170.00 (  0.00%)           5283.00 (  2.19%)
+> Ops memcachetest-791M            4740.00 (  0.00%)           5293.00 ( 11.67%)
+> Ops memcachetest-2639M           2551.00 (  0.00%)           4950.00 ( 94.04%)
+> Ops memcachetest-4487M           2606.00 (  0.00%)           3922.00 ( 50.50%)
+> Ops io-duration-0M                  0.00 (  0.00%)              0.00 (  0.00%)
+> Ops io-duration-791M               55.00 (  0.00%)             18.00 ( 67.27%)
+> Ops io-duration-2639M             235.00 (  0.00%)            103.00 ( 56.17%)
+> Ops io-duration-4487M             278.00 (  0.00%)            173.00 ( 37.77%)
+> Ops swaptotal-0M                    0.00 (  0.00%)              0.00 (  0.00%)
+> Ops swaptotal-791M             245184.00 (  0.00%)              0.00 (  0.00%)
+> Ops swaptotal-2639M            468069.00 (  0.00%)         108778.00 ( 76.76%)
+> Ops swaptotal-4487M            452529.00 (  0.00%)          76623.00 ( 83.07%)
+> Ops swapin-0M                       0.00 (  0.00%)              0.00 (  0.00%)
+> Ops swapin-791M                108297.00 (  0.00%)              0.00 (  0.00%)
+> Ops swapin-2639M               169537.00 (  0.00%)          50031.00 ( 70.49%)
+> Ops swapin-4487M               167435.00 (  0.00%)          34178.00 ( 79.59%)
+> Ops minorfaults-0M            1518666.00 (  0.00%)        1503993.00 (  0.97%)
+> Ops minorfaults-791M          1676963.00 (  0.00%)        1520115.00 (  9.35%)
+> Ops minorfaults-2639M         1606035.00 (  0.00%)        1799717.00 (-12.06%)
+> Ops minorfaults-4487M         1612118.00 (  0.00%)        1583825.00 (  1.76%)
+> Ops majorfaults-0M                  6.00 (  0.00%)              0.00 (  0.00%)
+> Ops majorfaults-791M            13836.00 (  0.00%)             10.00 ( 99.93%)
+> Ops majorfaults-2639M           22307.00 (  0.00%)           6490.00 ( 70.91%)
+> Ops majorfaults-4487M           21631.00 (  0.00%)           4380.00 ( 79.75%)
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+A reminder whether positive numbers are good or bad would be useful ;)
+
+>                  BAS    FAIRALLO
+>                 BASE   FAIRALLOC
+> User          287.78      460.97
+> System       2151.67     3142.51
+> Elapsed      9737.00     8879.34
+
+Confused.  Why would the amount of user time increase so much?
+
+And that's a tremendous increase in system time.  Am I interpreting
+this correctly?
+ 
+>                                    BAS    FAIRALLO
+>                                   BASE   FAIRALLOC
+> Minor Faults                  53721925    57188551
+> Major Faults                    392195       15157
+> Swap Ins                       2994854      112770
+> Swap Outs                      4907092      134982
+> Direct pages scanned                 0       41824
+> Kswapd pages scanned          32975063     8128269
+> Kswapd pages reclaimed         6323069     7093495
+> Direct pages reclaimed               0       41824
+> Kswapd efficiency                  19%         87%
+> Kswapd velocity               3386.573     915.414
+> Direct efficiency                 100%        100%
+> Direct velocity                  0.000       4.710
+> Percentage direct scans             0%          0%
+> Zone normal velocity          2011.338     550.661
+> Zone dma32 velocity           1365.623     369.221
+> Zone dma velocity                9.612       0.242
+> Page writes by reclaim    18732404.000  614807.000
+> Page writes file              13825312      479825
+> Page writes anon               4907092      134982
+> Page reclaim immediate           85490        5647
+> Sector Reads                  12080532      483244
+> Sector Writes                 88740508    65438876
+> Page rescued immediate               0           0
+> Slabs scanned                    82560       12160
+> Direct inode steals                  0           0
+> Kswapd inode steals              24401       40013
+> Kswapd skipped wait                  0           0
+> THP fault alloc                      6           8
+> THP collapse alloc                5481        5812
+> THP splits                          75          22
+> THP fault fallback                   0           0
+> THP collapse fail                    0           0
+> Compaction stalls                    0          54
+> Compaction success                   0          45
+> Compaction failures                  0           9
+> Page migrate success            881492       82278
+> Page migrate failure                 0           0
+> Compaction pages isolated            0       60334
+> Compaction migrate scanned           0       53505
+> Compaction free scanned              0     1537605
+> Compaction cost                    914          86
+> NUMA PTE updates              46738231    41988419
+> NUMA hint faults              31175564    24213387
+> NUMA hint local faults        10427393     6411593
+> NUMA pages migrated             881492       55344
+> AutoNUMA cost                   156221      121361
+
+Some nice numbers there.
+
+> The overall runtime was reduced, throughput for both the foreground
+> workload as well as the background IO improved, major faults, swapping
+> and reclaim activity shrunk significantly, reclaim efficiency more
+> than quadrupled.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
