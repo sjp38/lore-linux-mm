@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 96BC86B0038
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id A21C06B003A
 	for <linux-mm@kvack.org>; Fri, 26 Jul 2013 17:14:23 -0400 (EDT)
 Received: from /spool/local
 	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
 	Fri, 26 Jul 2013 17:14:22 -0400
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 7927A6E8041
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2013 17:14:15 -0400 (EDT)
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id AE067C90041
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2013 17:14:17 -0400 (EDT)
 Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6QLEK35116192
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2013 17:14:20 -0400
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6QLEJAh157126
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2013 17:14:19 -0400
 Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6QLEJLp013542
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2013 18:14:20 -0300
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6QLEH0s013440
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2013 18:14:18 -0300
 From: Cody P Schafer <cody@linux.vnet.ibm.com>
-Subject: [PATCH 5/5] mm/zswap: use postorder iteration when destroying rbtree
-Date: Fri, 26 Jul 2013 14:13:43 -0700
-Message-Id: <1374873223-25557-6-git-send-email-cody@linux.vnet.ibm.com>
+Subject: [PATCH 3/5] rbtree_test: add test for postorder iteration
+Date: Fri, 26 Jul 2013 14:13:41 -0700
+Message-Id: <1374873223-25557-4-git-send-email-cody@linux.vnet.ibm.com>
 In-Reply-To: <1374873223-25557-1-git-send-email-cody@linux.vnet.ibm.com>
 References: <1374873223-25557-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,43 +26,43 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, David Woodhouse <David.Woodhouse@intel.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
+Just check that we examine all nodes in the tree for the postorder iteration.
+
 Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
 ---
- mm/zswap.c | 15 ++-------------
- 1 file changed, 2 insertions(+), 13 deletions(-)
+ lib/rbtree_test.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
 
-diff --git a/mm/zswap.c b/mm/zswap.c
-index deda2b6..98d99c4 100644
---- a/mm/zswap.c
-+++ b/mm/zswap.c
-@@ -791,25 +791,14 @@ static void zswap_frontswap_invalidate_area(unsigned type)
+diff --git a/lib/rbtree_test.c b/lib/rbtree_test.c
+index 122f02f..31dd4cc 100644
+--- a/lib/rbtree_test.c
++++ b/lib/rbtree_test.c
+@@ -114,6 +114,16 @@ static int black_path_count(struct rb_node *rb)
+ 	return count;
+ }
+ 
++static void check_postorder(int nr_nodes)
++{
++	struct rb_node *rb;
++	int count = 0;
++	for (rb = rb_first_postorder(&root); rb; rb = rb_next_postorder(rb))
++		count++;
++
++	WARN_ON_ONCE(count != nr_nodes);
++}
++
+ static void check(int nr_nodes)
  {
- 	struct zswap_tree *tree = zswap_trees[type];
- 	struct rb_node *node;
--	struct zswap_entry *entry;
-+	struct zswap_entry *entry, *n;
+ 	struct rb_node *rb;
+@@ -136,6 +146,8 @@ static void check(int nr_nodes)
  
- 	if (!tree)
- 		return;
+ 	WARN_ON_ONCE(count != nr_nodes);
+ 	WARN_ON_ONCE(count < (1 << black_path_count(rb_last(&root))) - 1);
++
++	check_postorder(nr_nodes);
+ }
  
- 	/* walk the tree and free everything */
- 	spin_lock(&tree->lock);
--	/*
--	 * TODO: Even though this code should not be executed because
--	 * the try_to_unuse() in swapoff should have emptied the tree,
--	 * it is very wasteful to rebalance the tree after every
--	 * removal when we are freeing the whole tree.
--	 *
--	 * If post-order traversal code is ever added to the rbtree
--	 * implementation, it should be used here.
--	 */
--	while ((node = rb_first(&tree->rbroot))) {
--		entry = rb_entry(node, struct zswap_entry, rbnode);
--		rb_erase(&entry->rbnode, &tree->rbroot);
-+	rbtree_postorder_for_each_entry_safe(entry, n, &tree->rbroot, rbnode) {
- 		zbud_free(tree->pool, entry->handle);
- 		zswap_entry_cache_free(entry);
- 		atomic_dec(&zswap_stored_pages);
+ static void check_augmented(int nr_nodes)
 -- 
 1.8.3.4
 
