@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 52E586B0031
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 23:56:01 -0400 (EDT)
-Message-ID: <51F1F3F5.9030906@cn.fujitsu.com>
-Date: Fri, 26 Jul 2013 11:58:45 +0800
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 1B5756B0031
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 23:57:41 -0400 (EDT)
+Message-ID: <51F1F453.8060602@cn.fujitsu.com>
+Date: Fri, 26 Jul 2013 12:00:19 +0800
 From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 17/21] page_alloc, mem-hotplug: Improve movablecore to
- {en|dis}able using SRAT.
-References: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com> <1374220774-29974-18-git-send-email-tangchen@cn.fujitsu.com> <20130723210435.GV21100@mtj.dyndns.org> <20130723211119.GW21100@mtj.dyndns.org> <51F0A074.403@cn.fujitsu.com> <20130725150913.GD26107@mtj.dyndns.org>
-In-Reply-To: <20130725150913.GD26107@mtj.dyndns.org>
+Subject: Re: [PATCH 18/21] x86, numa: Synchronize nid info in memblock.reserve
+ with numa_meminfo.
+References: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com> <1374220774-29974-19-git-send-email-tangchen@cn.fujitsu.com> <20130723212548.GZ21100@mtj.dyndns.org> <51F0A4F9.2060802@cn.fujitsu.com> <20130725150554.GC26107@mtj.dyndns.org>
+In-Reply-To: <20130725150554.GC26107@mtj.dyndns.org>
 Content-Transfer-Encoding: 7bit
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
@@ -17,58 +17,40 @@ List-ID: <linux-mm.kvack.org>
 To: Tejun Heo <tj@kernel.org>
 Cc: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-On 07/25/2013 11:09 PM, Tejun Heo wrote:
+On 07/25/2013 11:05 PM, Tejun Heo wrote:
 > Hello, Tang.
 >
-> On Thu, Jul 25, 2013 at 11:50:12AM +0800, Tang Chen wrote:
->> movablecore boot option was used to specify the size of ZONE_MOVABLE. And
->> this patch-set aims to arrange ZONE_MOVABLE with SRAT info. So my original
->> thinking is to reuse movablecore.
->>
->> Since you said above, I think we have two problems here:
->> 1. Should not let users care about where the hotplug info comes from.
->> 2. Should not distinguish movable node and memory hotplug, since for now,
->>     to use memory hotplug is to use movable node.
->>
->> So how about something like "movablenode", just like "quiet" boot option.
->> If users specify "movablenode", then memblock will reserve hotpluggable
->> memory, and create movable nodes if any. If users specify nothing, then
->> the kernel acts as before.
+> On Thu, Jul 25, 2013 at 12:09:29PM +0800, Tang Chen wrote:
+>> And as in [patch 14/21], when reserving hotpluggable memory, we use
+>> pxm. So my
 >
-> Maybe I'm confused but memory hotplug isn't likely to work without
-> this, right?
+> Which is kinda nasty.
 
-I don't think so. On x86, I think you are right because we cannot hotplug
-a single memory_block (128MB on x86), which is only a small part of a modern
-memory device. And now x86 kernel doesn't support a single memory device
-hotplug, and what we are trying to do is node hotplug. So on x86, memory
-hotplug won't work without movable node.
+Yes, will remove it.
 
-But on other platform, memory hotplug may work without this.
+>
+>> idea was to do a nid sync in numa_init(). After this, memblock will
+>> set nid when
+>> it allocates memory.
+>
+> Sure, that's the only place we can set the numa node IDs but my point
+> is that you don't need to add another interface.  Jet let
+> memblock_set_node() handle both memblock.memory and .reserved ranges.
+> That way, you can make memblock simpler to use and less error-prone.
 
->If so, wouldn't it make more sense to have
-> "memory_hotplug" option rather than "movablecore=acpi" which in no way
-> indicates that it has something to do with memory hotplug?
+Yes, I missed the isolation phase in memblock_set_node().
+So followed.
 
-I'm not working on ppcm, but I heard that memory hotplug was introduced 
-firstly
-on ppc, and a memory_block on ppc is only 16MB, which can be hotplugged. It
-doesn't need movable node support.
+>
+>> If we want to let memblock_set_node() and alloc functions set nid on
+>> the reserved
+>> regions, we should setup nid<->  pxm mapping when we parst SRAT for
+>> the first time.
+>
+> I don't follow why it has to be different.  Why do you need to do
+> anything differently?  What am I missing here?
 
-Here, 16MB memory_block hotplug is not the physical device hotplug, I think.
-Just logically remove it from one OS, and add it to another OS running 
-on one
-ppc server. This is done by the hardware.
-
-But on x86, we don't have this kind of functionality. A single memory_block
-hotplug means nothing. Actually I think struct memory_block is useless 
-on x86.
-But for other platforms, we have to keep this structure.
-
-So for the same reason, I think we cannot just introduce a boot option like
-"memory_hotplug" to enable/disable what we are doing in this patch-set.
-
-Sorry I didn't clarify this earlier.
+No, it was me who missed the isolation phase in memblock_set_node().
 
 Thanks.
 
