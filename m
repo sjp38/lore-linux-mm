@@ -1,54 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id ED9CA6B0031
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 21:11:34 -0400 (EDT)
-From: Lisa Du <cldu@marvell.com>
-Date: Thu, 25 Jul 2013 18:11:08 -0700
-Subject: RE: Possible deadloop in direct reclaim?
-Message-ID: <89813612683626448B837EE5A0B6A7CB3B62F8FE33@SC-VEXCH4.marvell.com>
-References: <89813612683626448B837EE5A0B6A7CB3B62F8F272@SC-VEXCH4.marvell.com>
- <000001400d38469d-a121fb96-4483-483a-9d3e-fc552e413892-000000@email.amazonses.com>
- <89813612683626448B837EE5A0B6A7CB3B62F8F5C3@SC-VEXCH4.marvell.com>
- <CAHGf_=q8JZQ42R-3yzie7DXUEq8kU+TZXgcX9s=dn8nVigXv8g@mail.gmail.com>
-In-Reply-To: <CAHGf_=q8JZQ42R-3yzie7DXUEq8kU+TZXgcX9s=dn8nVigXv8g@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 2A8AE6B0031
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 21:17:28 -0400 (EDT)
+Message-ID: <51F1CE0B.7070502@huawei.com>
+Date: Fri, 26 Jul 2013 09:16:59 +0800
+From: Libin <huawei.libin@huawei.com>
 MIME-Version: 1.0
+Subject: Re: [PATCH] mm: Fix potential NULL pointer dereference
+References: <1374637699-25704-1-git-send-email-huawei.libin@huawei.com> <20130724042208.GJ22680@hacker.(null)> <20130724043531.GA22357@hacker.(null)>
+In-Reply-To: <20130724043531.GA22357@hacker.(null)>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Bob Liu <lliubbo@gmail.com>
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mgorman@suse.de, xiaoguangrong@linux.vnet.ibm.com, wujianguo@huawei.com
 
-RGVhciBLT1NBS0kNCiAgIEluIG15IHRlc3QsIEkgZGlkbid0IHNldCBjb21wYWN0aW9uLiBNYXli
-ZSBjb21wYWN0aW9uIGlzIGhlbHBmdWwgdG8gYXZvaWQgdGhpcyBpc3N1ZS4gSSBjYW4gaGF2ZSB0
-cnkgbGF0ZXIuDQogICBJbiBteSBtaW5kIENPTkZJR19DT01QQUNUSU9OIGlzIGFuIG9wdGlvbmFs
-IGNvbmZpZ3VyYXRpb24gcmlnaHQ/IA0KICAgSWYgd2UgZG9uJ3QgdXNlLCBhbmQgbWV0IHN1Y2gg
-YW4gaXNzdWUsIGhvdyBzaG91bGQgd2UgZGVhbCB3aXRoIHN1Y2ggaW5maW5pdGUgbG9vcD8NCg0K
-ICAgSSBtYWRlIGEgY2hhbmdlIGluIGFsbF9yZWNsYWltYWJsZSgpIGZ1bmN0aW9uLCBwYXNzZWQg
-b3Zlcm5pZ2h0IHRlc3RzLCBwbGVhc2UgaGVscCByZXZpZXcsIHRoYW5rcyBpbiBhZHZhbmNlIQ0K
-QEAgLTIzNTMsNyArMjM1Myw5IEBAIHN0YXRpYyBib29sIGFsbF91bnJlY2xhaW1hYmxlKHN0cnVj
-dCB6b25lbGlzdCAqem9uZWxpc3QsDQogICAgICAgICAgICAgICAgICAgICAgICBjb250aW51ZTsN
-CiAgICAgICAgICAgICAgICBpZiAoIWNwdXNldF96b25lX2FsbG93ZWRfaGFyZHdhbGwoem9uZSwg
-R0ZQX0tFUk5FTCkpDQogICAgICAgICAgICAgICAgICAgICAgICBjb250aW51ZTsNCi0gICAgICAg
-ICAgICAgICBpZiAoIXpvbmUtPmFsbF91bnJlY2xhaW1hYmxlKQ0KKyAgICAgICAgICAgICAgIGlm
-ICh6b25lLT5hbGxfdW5yZWNsYWltYWJsZSkNCisgICAgICAgICAgICAgICAgICAgICAgIGNvbnRp
-bnVlOw0KKyAgICAgICAgICAgICAgIGlmICh6b25lX3JlY2xhaW1hYmxlKHpvbmUpKQ0KICAgICAg
-ICAgICAgICAgICAgICAgICAgcmV0dXJuIGZhbHNlOw0KICAgICAgICB9DQoNClRoYW5rcyENCg0K
-QmVzdCBSZWdhcmRzDQpMaXNhIER1DQoNCg0KLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCkZy
-b206IEtPU0FLSSBNb3RvaGlybyBbbWFpbHRvOmtvc2FraS5tb3RvaGlyb0BnbWFpbC5jb21dIA0K
-U2VudDogMjAxM8TqN9TCMjbI1SAyOjE5DQpUbzogTGlzYSBEdQ0KQ2M6IENocmlzdG9waCBMYW1l
-dGVyOyBsaW51eC1tbUBrdmFjay5vcmc7IE1lbCBHb3JtYW47IEJvYiBMaXUNClN1YmplY3Q6IFJl
-OiBQb3NzaWJsZSBkZWFkbG9vcCBpbiBkaXJlY3QgcmVjbGFpbT8NCg0KT24gVHVlLCBKdWwgMjMs
-IDIwMTMgYXQgOToyMSBQTSwgTGlzYSBEdSA8Y2xkdUBtYXJ2ZWxsLmNvbT4gd3JvdGU6DQo+IERl
-YXIgQ2hyaXN0b3BoDQo+ICAgIFRoYW5rcyBhIGxvdCBmb3IgeW91ciBjb21tZW50LiBXaGVuIHRo
-aXMgaXNzdWUgaGFwcGVuIEkganVzdCB0cmlnZ2VyIGEga2VybmVsIHBhbmljIGFuZCBnb3QgdGhl
-IGtkdW1wLg0KPiBGcm9tIHRoZSBrZHVtcCwgSSBnb3QgdGhlIGdsb2JhbCB2YXJpYWJsZSBwZ19k
-YXRhX3QgY29uZ2l0X3BhZ2VfZGF0YS4gRnJvbSB0aGlzIHN0cnVjdHVyZSwgSSBjYW4gc2VlIGlu
-IG5vcm1hbCB6b25lLCBvbmx5IG9yZGVyLTAncyBucl9mcmVlID0gMTg0NDIsIG9yZGVyLTEncyBu
-cl9mcmVlID0gMzY3LCBhbGwgdGhlIG90aGVyIG9yZGVyJ3MgbnJfZnJlZSBpcyAwLg0KDQpEb24n
-dCB5b3UgdXNlIGNvbXBhY3Rpb24/IE9mIGlmIHVzZSwgcGxlYXNlIGdldCBhIGxvZyBieSB0cmFj
-ZXBvaW50cy4NCldlIG5lZWQgdG8ga25vdyB3aHkgaXQgZG9lc24ndCB3b3JrLg0K
+On 2013/7/24 12:35, Wanpeng Li wrote:
+> On Wed, Jul 24, 2013 at 12:22:08PM +0800, Wanpeng Li wrote:
+>> On Wed, Jul 24, 2013 at 11:48:19AM +0800, Libin wrote:
+>>> find_vma may return NULL, thus check the return
+>>> value to avoid NULL pointer dereference.
+>>>
+>>
+>> When can this happen since down_read(&mm->mmap_sem) is held?
+>>
+> 
+> Between mmap_sem read lock released and write lock held I think.
+> 
+
+Yes, In khugepaged_alloc_page mmap_sem read lock was released.
+Thanks for your reply.
+Libin.
+
+>>> Signed-off-by: Libin <huawei.libin@huawei.com>
+>>> ---
+>>> mm/huge_memory.c | 2 ++
+>>> 1 file changed, 2 insertions(+)
+>>>
+>>> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+>>> index 243e710..d4423f4 100644
+>>> --- a/mm/huge_memory.c
+>>> +++ b/mm/huge_memory.c
+>>> @@ -2294,6 +2294,8 @@ static void collapse_huge_page(struct mm_struct *mm,
+>>> 		goto out;
+>>>
+>>> 	vma = find_vma(mm, address);
+>>> +	if (!vma)
+>>> +		goto out;
+>>> 	hstart = (vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK;
+>>> 	hend = vma->vm_end & HPAGE_PMD_MASK;
+>>> 	if (address < hstart || address + HPAGE_PMD_SIZE > hend)
+>>> -- 
+>>> 1.8.2.1
+>>>
+>>>
+>>> --
+>>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>>> see: http://www.linux-mm.org/ .
+>>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+> 
+> .
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
