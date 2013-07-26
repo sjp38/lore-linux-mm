@@ -1,111 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 2045A6B0031
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2013 05:55:42 -0400 (EDT)
-Date: Fri, 26 Jul 2013 11:55:28 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH] mm, sched, numa: Create a per-task MPOL_INTERLEAVE policy
-Message-ID: <20130726095528.GB20909@twins.programming.kicks-ass.net>
-References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
- <20130725104633.GQ27075@twins.programming.kicks-ass.net>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 120036B0031
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2013 06:26:14 -0400 (EDT)
+Received: by mail-ve0-f177.google.com with SMTP id cz10so1139459veb.22
+        for <linux-mm@kvack.org>; Fri, 26 Jul 2013 03:26:13 -0700 (PDT)
+Date: Fri, 26 Jul 2013 06:26:09 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 14/21] x86, acpi, numa: Reserve hotpluggable memory at
+ early time.
+Message-ID: <20130726102609.GB30786@mtj.dyndns.org>
+References: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com>
+ <1374220774-29974-15-git-send-email-tangchen@cn.fujitsu.com>
+ <20130723205557.GS21100@mtj.dyndns.org>
+ <20130723213212.GA21100@mtj.dyndns.org>
+ <51F089C1.4010402@cn.fujitsu.com>
+ <20130725151719.GE26107@mtj.dyndns.org>
+ <51F1F0E0.7040800@cn.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130725104633.GQ27075@twins.programming.kicks-ass.net>
+In-Reply-To: <51F1F0E0.7040800@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-On Thu, Jul 25, 2013 at 12:46:33PM +0200, Peter Zijlstra wrote:
-> @@ -2234,12 +2236,13 @@ static void sp_free(struct sp_node *n)
->   * Policy determination "mimics" alloc_page_vma().
->   * Called from fault path where we know the vma and faulting address.
->   */
-> -int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long addr)
-> +int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long addr, int *account_node)
->  {
->  	struct mempolicy *pol;
->  	struct zone *zone;
->  	int curnid = page_to_nid(page);
->  	unsigned long pgoff;
-> +	int thisnid = numa_node_id();
->  	int polnid = -1;
->  	int ret = -1;
->  
-> @@ -2261,7 +2264,7 @@ int mpol_misplaced(struct page *page, st
->  
->  	case MPOL_PREFERRED:
->  		if (pol->flags & MPOL_F_LOCAL)
-> -			polnid = numa_node_id();
-> +			polnid = thisnid;
->  		else
->  			polnid = pol->v.preferred_node;
->  		break;
-> @@ -2276,7 +2279,7 @@ int mpol_misplaced(struct page *page, st
->  		if (node_isset(curnid, pol->v.nodes))
->  			goto out;
->  		(void)first_zones_zonelist(
-> -				node_zonelist(numa_node_id(), GFP_HIGHUSER),
-> +				node_zonelist(thisnid, GFP_HIGHUSER),
->  				gfp_zone(GFP_HIGHUSER),
->  				&pol->v.nodes, &zone);
->  		polnid = zone->node;
-> @@ -2291,8 +2294,7 @@ int mpol_misplaced(struct page *page, st
->  		int last_nidpid;
->  		int this_nidpid;
->  
-> -		polnid = numa_node_id();
-> -		this_nidpid = nid_pid_to_nidpid(polnid, current->pid);;
-> +		this_nidpid = nid_pid_to_nidpid(thisnid, current->pid);;
->  
->  		/*
->  		 * Multi-stage node selection is used in conjunction
-> @@ -2318,6 +2320,39 @@ int mpol_misplaced(struct page *page, st
->  		last_nidpid = page_nidpid_xchg_last(page, this_nidpid);
->  		if (!nidpid_pid_unset(last_nidpid) && nidpid_to_nid(last_nidpid) != polnid)
+On Fri, Jul 26, 2013 at 11:45:36AM +0800, Tang Chen wrote:
+> I just don't want to any new variables to store the hotpluggable regions.
+> But without a new shared variable, it seems difficult to achieve the goal
+> you said below.
 
-That should've become:
+Why can't it be done with the .flags field that was added anyway?
 
-		if (!nidpid_pid_unset(last_nidpid) && nidpid_to_nid(last_nidpid) != thisnid)
+> So how about this.
+> 1. Introduce a new global list used to store hotpluggable regions.
+> 2. On acpi side, find and fulfill the list.
+> 3. On memblock side, make the default allocation function stay away from
+>    these regions.
 
->  			goto out;
-> +
-> +		/*
-> +		 * Preserve interleave pages while allowing useful
-> +		 * ->numa_faults[] statistics.
-> +		 *
-> +		 * When migrating into an interleave set, migrate to
-> +		 * the correct interleaved node but account against the
-> +		 * current node (where the task is running).
-> +		 *
-> +		 * Not doing this would result in ->numa_faults[] being
-> +		 * flat across the interleaved nodes, making it
-> +		 * impossible to shrink the node list even when all
-> +		 * tasks are running on a single node.
-> +		 *
-> +		 * src dst    migrate      account
-> +		 *  0   0  -- this_node    $page_node
-> +		 *  0   1  -- policy_node  this_node
-> +		 *  1   0  -- this_node    $page_node
-> +		 *  1   1  -- policy_node  this_node
-> +		 *
-> +		 */
-> +		switch (pol->mode) {
-> +		case MPOL_INTERLEAVE:
-> +			if (node_isset(thisnid, pol->v.nodes)) {
-> +				if (account_node)
-> +					*account_node = thisnid;
-> +			}
-> +			break;
-> +
-> +		default:
-> +			polnid = thisnid;
-> +			break;
-> +		}
->  	}
->  
->  	if (curnid != polnid)
+I was thinking more along the line of
+
+1. Mark hotpluggable regions with a flag in memblock.
+2. On ACPI side, find and mark hotpluggable regions.
+3. Make memblock avoid giving out hotpluggable regions for normal
+   allocations.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
