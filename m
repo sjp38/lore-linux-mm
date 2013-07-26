@@ -1,58 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 1B5756B0031
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2013 23:57:41 -0400 (EDT)
-Message-ID: <51F1F453.8060602@cn.fujitsu.com>
-Date: Fri, 26 Jul 2013 12:00:19 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 9CDC36B0031
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2013 01:22:28 -0400 (EDT)
+From: Libin <huawei.libin@huawei.com>
+Subject: [PATCH] mm: Fix potential NULL pointer dereference
+Date: Fri, 26 Jul 2013 13:21:31 +0800
+Message-ID: <1374816091-30328-1-git-send-email-huawei.libin@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 18/21] x86, numa: Synchronize nid info in memblock.reserve
- with numa_meminfo.
-References: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com> <1374220774-29974-19-git-send-email-tangchen@cn.fujitsu.com> <20130723212548.GZ21100@mtj.dyndns.org> <51F0A4F9.2060802@cn.fujitsu.com> <20130725150554.GC26107@mtj.dyndns.org>
-In-Reply-To: <20130725150554.GC26107@mtj.dyndns.org>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, liwanp@linux.vnet.ibm.com, mgorman@suse.de, gregkh@linuxfoundation.org, xiaoguangrong@linux.vnet.ibm.com, guohanjun@huawei.com, wujianguo@huawei.com
 
-On 07/25/2013 11:05 PM, Tejun Heo wrote:
-> Hello, Tang.
->
-> On Thu, Jul 25, 2013 at 12:09:29PM +0800, Tang Chen wrote:
->> And as in [patch 14/21], when reserving hotpluggable memory, we use
->> pxm. So my
->
-> Which is kinda nasty.
+v1->v2: Add description about the bug potential trigger condition.
+	Thanks for the review/suggestion of Michal Hocko &
+	Wanpeng Li.
 
-Yes, will remove it.
+In collapse_huge_page, there is a race window between release
+the mmap_sem read lock and hold the mmap_sem write lock, so
+find_vma() may return NULL, thus check the return value to
+avoid NULL pointer dereference.
 
->
->> idea was to do a nid sync in numa_init(). After this, memblock will
->> set nid when
->> it allocates memory.
->
-> Sure, that's the only place we can set the numa node IDs but my point
-> is that you don't need to add another interface.  Jet let
-> memblock_set_node() handle both memblock.memory and .reserved ranges.
-> That way, you can make memblock simpler to use and less error-prone.
+collapse_huge_page
+	khugepaged_alloc_page
+		up_read(&mm->mmap_sem)
+	down_write(&mm->mmap_sem)
+	vma = find_vma(mm, address)
 
-Yes, I missed the isolation phase in memblock_set_node().
-So followed.
+Signed-off-by: Libin <huawei.libin@huawei.com>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+Cc: <stable@vger.kernel.org> # v3.0+
+---
+ mm/huge_memory.c | 2 ++
+ 1 file changed, 2 insertions(+)
 
->
->> If we want to let memblock_set_node() and alloc functions set nid on
->> the reserved
->> regions, we should setup nid<->  pxm mapping when we parst SRAT for
->> the first time.
->
-> I don't follow why it has to be different.  Why do you need to do
-> anything differently?  What am I missing here?
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 243e710..d4423f4 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2294,6 +2294,8 @@ static void collapse_huge_page(struct mm_struct *mm,
+ 		goto out;
+ 
+ 	vma = find_vma(mm, address);
++	if (!vma)
++		goto out;
+ 	hstart = (vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK;
+ 	hend = vma->vm_end & HPAGE_PMD_MASK;
+ 	if (address < hstart || address + HPAGE_PMD_SIZE > hend)
+-- 
+1.8.2.1
 
-No, it was me who missed the isolation phase in memblock_set_node().
-
-Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
