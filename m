@@ -1,70 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 6CBFA6B0031
-	for <linux-mm@kvack.org>; Sat, 27 Jul 2013 13:06:22 -0400 (EDT)
-Received: by mail-ve0-f173.google.com with SMTP id jw11so2032608veb.32
-        for <linux-mm@kvack.org>; Sat, 27 Jul 2013 10:06:21 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id EED796B0031
+	for <linux-mm@kvack.org>; Sat, 27 Jul 2013 13:35:15 -0400 (EDT)
+Message-ID: <51F404D0.6070004@parallels.com>
+Date: Sat, 27 Jul 2013 21:35:12 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <20130727062512.GC8508@moon>
-References: <20130726201807.GJ8661@moon> <CALCETrUJa-Y40vnb6YOPry0dCXb3zCQ0y19i2yHWdzKR75HUzg@mail.gmail.com>
- <20130726211844.GB8508@moon> <CALCETrW7Ukh8KfKzpNgRc1D_5OK1o7bmEmFbtQTYoSoFiOSeKw@mail.gmail.com>
- <20130727062512.GC8508@moon>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Sat, 27 Jul 2013 10:06:01 -0700
-Message-ID: <CALCETrWbF_e98w0d9-0tLOaTUv-mZv_RQgqOpuNiVaDOacHT0g@mail.gmail.com>
-Subject: Re: [PATCH] mm: Save soft-dirty bits on file pages
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH RFC] pram: persistent over-kexec memory file system
+References: <1374841763-11958-1-git-send-email-vdavydov@parallels.com> <51F3EA2A.3090905@gmail.com>
+In-Reply-To: <51F3EA2A.3090905@gmail.com>
+Content-Type: text/plain; charset="ISO-8859-15"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyrill Gorcunov <gorcunov@gmail.com>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Pavel Emelyanov <xemul@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Marcelo Tosatti <mtosatti@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Stephen Rothwell <sfr@canb.auug.org.au>
+To: Marco Stornelli <marco.stornelli@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, criu@openvz.org, devel@openvz.org, xemul@parallels.com
 
-On Fri, Jul 26, 2013 at 11:25 PM, Cyrill Gorcunov <gorcunov@gmail.com> wrote:
-> On Fri, Jul 26, 2013 at 02:36:51PM -0700, Andy Lutomirski wrote:
->> >> Unless I'm misunderstanding this, it's saving the bit in the
->> >> non-present PTE.  This sounds wrong -- what happens if the entire pmd
->> >
->> > It's the same as encoding pgoff in pte entry (pte is not present),
->> > but together with pgoff we save soft-bit status, later on #pf we decode
->> > pgoff and restore softbit back if it was there, pte itself can't disappear
->> > since it holds pgoff information.
+On 07/27/2013 07:41 PM, Marco Stornelli wrote:
+> Il 26/07/2013 14:29, Vladimir Davydov ha scritto:
+>> Hi,
 >>
->> Isn't that only the case for nonlinear mappings?
+>> We want to propose a way to upgrade a kernel on a machine without
+>> restarting all the user-space services. This is to be done with CRIU
+>> project, but we need help from the kernel to preserve some data in
+>> memory while doing kexec.
+>>
+>> The key point of our implementation is leaving process memory in-place
+>> during reboot. This should eliminate most io operations the services
+>> would produce during initialization. To achieve this, we have
+>> implemented a pseudo file system that preserves its content during
+>> kexec. We propose saving CRIU dump files to this file system, kexec'ing
+>> and then restoring the processes in the newly booted kernel.
+>>
 >
-> Andy, I'm somehow lost, pte either exist with file encoded, either not,
-> when pud/ptes are zapped and any access to it should cause #pf pointing
-> kernel to read/write data from file to a page, if it happens on write
-> the pte is obtaining dirty bit (which always set together with soft
-> bit).
+> http://pramfs.sourceforge.net/
 
-Hmm.  I may have been wrong.
+AFAIU it's a bit different thing: PRAMFS as well as pstore, which has 
+already been merged, requires hardware support for over-reboot 
+persistency, so called non-volatile RAM, i.e. RAM which is not directly 
+accessible and so is not used by the kernel. On the contrary, what we'd 
+like to have is preserving usual RAM on kexec. It is possible, because 
+RAM is not reset during kexec. This would allow leaving applications 
+working set as well as filesystem caches in place, speeding the reboot 
+process as a whole and reducing the downtime significantly.
 
-By my reading of this stuff, when a pte is freed to reclaim memory, if
-it's an un-cowed file mapping, it's cleared completely by
-zap_pte_range -- no swap entry is left behind.  That's this code in
-zap_pte_range:
-
-				/*
-				 * unmap_shared_mapping_pages() wants to
-				 * invalidate cache without truncating:
-				 * unmap shared but keep private pages.
-				 */
-				if (details->check_mapping &&
-				    details->check_mapping != page->mapping)
-					continue;
-
-In theory, if you map 2MB (on x86_64) of a file as MAP_PRIVATE,
-aligned, then you get a whole pmd.  If you don't write any of it
-(triggering COW), the kernel could, in theory, free all those ptes, so
-you can't save any state in there.  (I can't find any code that does
-this, though.)
-
-That being said, a MAP_PRIVATE, un-cowed mapping must be clean -- if
-it had been (soft-)dirtied, it would also have been cowed.  So you
-might be okay.
-
-
---Andy
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
