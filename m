@@ -1,16 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id BB26F6B0031
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 05:39:06 -0400 (EDT)
-Received: by mail-ob0-f181.google.com with SMTP id dn14so8530674obc.40
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2013 02:39:05 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 450C96B0031
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 05:43:14 -0400 (EDT)
+Received: by mail-ob0-f180.google.com with SMTP id up14so753170obb.39
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2013 02:43:13 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1375075701-5998-9-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1375075701-5998-10-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1375075701-5998-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<1375075701-5998-9-git-send-email-iamjoonsoo.kim@lge.com>
-Date: Mon, 29 Jul 2013 17:39:05 +0800
-Message-ID: <CAJd=RBAFLneY_k-dPKAe02QHVXtmyr-n5_cNfBfZLqzjwrSznA@mail.gmail.com>
-Subject: Re: [PATCH v3 8/9] mm, hugetlb: remove decrement_hugepage_resv_vma()
+	<1375075701-5998-10-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Mon, 29 Jul 2013 17:43:13 +0800
+Message-ID: <CAJd=RBAAt6a-pSd-dkgyC9F0ao6+p-9Pe=C9ZeFinzhgHz3bvQ@mail.gmail.com>
+Subject: Re: [PATCH v3 9/9] mm, hugetlb: decrement reserve count if
+ VM_NORESERVE alloc page cache
 From: Hillf Danton <dhillf@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -19,11 +20,43 @@ To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
 On Mon, Jul 29, 2013 at 1:28 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> Now, Checking condition of decrement_hugepage_resv_vma() and
-> vma_has_reserves() is same, so we can clean-up this function with
-> vma_has_reserves(). Additionally, decrement_hugepage_resv_vma() has only
-> one call site, so we can remove function and embed it into
-> dequeue_huge_page_vma() directly. This patch implement it.
+> If a vma with VM_NORESERVE allocate a new page for page cache, we should
+> check whether this area is reserved or not. If this address is
+> already reserved by other process(in case of chg == 0), we should
+> decrement reserve count, because this allocated page will go into page
+> cache and currently, there is no way to know that this page comes from
+> reserved pool or not when releasing inode. This may introduce
+> over-counting problem to reserved count. With following example code,
+> you can easily reproduce this situation.
+>
+> Assume 2MB, nr_hugepages = 100
+>
+>         size = 20 * MB;
+>         flag = MAP_SHARED;
+>         p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
+>         if (p == MAP_FAILED) {
+>                 fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
+>                 return -1;
+>         }
+>
+>         flag = MAP_SHARED | MAP_NORESERVE;
+>         q = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
+>         if (q == MAP_FAILED) {
+>                 fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
+>         }
+>         q[0] = 'c';
+>
+> After finish the program, run 'cat /proc/meminfo'.
+> You can see below result.
+>
+> HugePages_Free:      100
+> HugePages_Rsvd:        1
+>
+> To fix this, we should check our mapping type and tracked region.
+> If our mapping is VM_NORESERVE, VM_MAYSHARE and chg is 0, this imply
+> that current allocated page will go into page cache which is already
+> reserved region when mapping is created. In this case, we should decrease
+> reserve count. As implementing above, this patch solve the problem.
 >
 > Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 > Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
@@ -32,65 +65,79 @@ On Mon, Jul 29, 2013 at 1:28 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
 Acked-by: Hillf Danton <dhillf@gmail.com>
 
 > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index ca15854..4b1b043 100644
+> index 4b1b043..b3b8252 100644
 > --- a/mm/hugetlb.c
 > +++ b/mm/hugetlb.c
-> @@ -434,25 +434,6 @@ static int is_vma_resv_set(struct vm_area_struct *vma, unsigned long flag)
->         return (get_vma_private_data(vma) & flag) != 0;
+> @@ -443,10 +443,23 @@ void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
 >  }
 >
-> -/* Decrement the reserved pages in the hugepage pool by one */
-> -static void decrement_hugepage_resv_vma(struct hstate *h,
-> -                       struct vm_area_struct *vma)
-> -{
+>  /* Returns true if the VMA has associated reserve pages */
+> -static int vma_has_reserves(struct vm_area_struct *vma)
+> +static int vma_has_reserves(struct vm_area_struct *vma, long chg)
+>  {
 > -       if (vma->vm_flags & VM_NORESERVE)
-> -               return;
-> -
-> -       if (vma->vm_flags & VM_MAYSHARE) {
-> -               /* Shared mappings always use reserves */
-> -               h->resv_huge_pages--;
-> -       } else if (is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
-> -               /*
-> -                * Only the process that called mmap() has reserves for
-> -                * private mappings.
-> -                */
-> -               h->resv_huge_pages--;
-> -       }
-> -}
-> -
->  /* Reset counters to 0 and clear all HPAGE_RESV_* flags */
->  void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
->  {
-> @@ -466,10 +447,18 @@ static int vma_has_reserves(struct vm_area_struct *vma)
->  {
->         if (vma->vm_flags & VM_NORESERVE)
->                 return 0;
-> +
-> +       /* Shared mappings always use reserves */
->         if (vma->vm_flags & VM_MAYSHARE)
->                 return 1;
-> +
-> +       /*
-> +        * Only the process that called mmap() has reserves for
-> +        * private mappings.
-> +        */
->         if (is_vma_resv_set(vma, HPAGE_RESV_OWNER))
->                 return 1;
-> +
->         return 0;
->  }
+> -               return 0;
+> +       if (vma->vm_flags & VM_NORESERVE) {
+> +               /*
+> +                * This address is already reserved by other process(chg == 0),
+> +                * so, we should decreament reserved count. Without
+> +                * decreamenting, reserve count is remained after releasing
+> +                * inode, because this allocated page will go into page cache
+> +                * and is regarded as coming from reserved pool in releasing
+> +                * step. Currently, we don't have any other solution to deal
+> +                * with this situation properly, so add work-around here.
+> +                */
+> +               if (vma->vm_flags & VM_MAYSHARE && chg == 0)
+> +                       return 1;
+> +               else
+> +                       return 0;
+> +       }
 >
-> @@ -564,8 +553,8 @@ retry_cpuset:
+>         /* Shared mappings always use reserves */
+>         if (vma->vm_flags & VM_MAYSHARE)
+> @@ -520,7 +533,8 @@ static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
+>
+>  static struct page *dequeue_huge_page_vma(struct hstate *h,
+>                                 struct vm_area_struct *vma,
+> -                               unsigned long address, int avoid_reserve)
+> +                               unsigned long address, int avoid_reserve,
+> +                               long chg)
+>  {
+>         struct page *page = NULL;
+>         struct mempolicy *mpol;
+> @@ -535,7 +549,7 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
+>          * have no page reserves. This check ensures that reservations are
+>          * not "stolen". The child may still get SIGKILLed
+>          */
+> -       if (!vma_has_reserves(vma) &&
+> +       if (!vma_has_reserves(vma, chg) &&
+>                         h->free_huge_pages - h->resv_huge_pages == 0)
+>                 goto err;
+>
+> @@ -553,8 +567,12 @@ retry_cpuset:
 >                 if (cpuset_zone_allowed_softwall(zone, htlb_alloc_mask)) {
 >                         page = dequeue_huge_page_node(h, zone_to_nid(zone));
 >                         if (page) {
-> -                               if (!avoid_reserve)
-> -                                       decrement_hugepage_resv_vma(h, vma);
-> +                               if (!avoid_reserve && vma_has_reserves(vma))
-> +                                       h->resv_huge_pages--;
+> -                               if (!avoid_reserve && vma_has_reserves(vma))
+> -                                       h->resv_huge_pages--;
+> +                               if (avoid_reserve)
+> +                                       break;
+> +                               if (!vma_has_reserves(vma, chg))
+> +                                       break;
+> +
+> +                               h->resv_huge_pages--;
 >                                 break;
 >                         }
 >                 }
+> @@ -1138,7 +1156,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+>                 return ERR_PTR(-ENOSPC);
+>         }
+>         spin_lock(&hugetlb_lock);
+> -       page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve);
+> +       page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve, chg);
+>         if (!page) {
+>                 spin_unlock(&hugetlb_lock);
+>                 page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
 > --
 > 1.7.9.5
 >
