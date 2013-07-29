@@ -1,72 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 27CDB6B0031
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 13:10:35 -0400 (EDT)
-Received: by mail-gh0-f181.google.com with SMTP id z12so1790326ghb.26
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2013 10:10:34 -0700 (PDT)
-Date: Mon, 29 Jul 2013 13:10:25 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 14/21] x86, acpi, numa: Reserve hotpluggable memory at
- early time.
-Message-ID: <20130729171025.GH22605@mtj.dyndns.org>
-References: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com>
- <1374220774-29974-15-git-send-email-tangchen@cn.fujitsu.com>
- <20130723205557.GS21100@mtj.dyndns.org>
- <20130723213212.GA21100@mtj.dyndns.org>
- <51F089C1.4010402@cn.fujitsu.com>
- <20130725151719.GE26107@mtj.dyndns.org>
- <51F1F0E0.7040800@cn.fujitsu.com>
- <20130726102609.GB30786@mtj.dyndns.org>
- <51F5CF98.1080101@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id B9A936B0031
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 13:33:14 -0400 (EDT)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
+	Mon, 29 Jul 2013 13:33:13 -0400
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id BD7306E8054
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 13:33:05 -0400 (EDT)
+Received: from d03av05.boulder.ibm.com (d03av05.boulder.ibm.com [9.17.195.85])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6THX8Jl103990
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 13:33:09 -0400
+Received: from d03av05.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av05.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6THX4Wf018419
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 11:33:05 -0600
+Message-ID: <51F6A74B.1060008@linux.vnet.ibm.com>
+Date: Mon, 29 Jul 2013 10:32:59 -0700
+From: Cody P Schafer <cody@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <51F5CF98.1080101@cn.fujitsu.com>
+Subject: Re: [PATCH 1/5] rbtree: add postorder iteration functions
+References: <1374873223-25557-1-git-send-email-cody@linux.vnet.ibm.com> <1374873223-25557-2-git-send-email-cody@linux.vnet.ibm.com> <20130729150147.GA4381@variantweb.net>
+In-Reply-To: <20130729150147.GA4381@variantweb.net>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, David Woodhouse <David.Woodhouse@intel.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>
 
-Hello, Tang.
-
-On Mon, Jul 29, 2013 at 10:12:40AM +0800, Tang Chen wrote:
-> So the point is, how to mark the hotpluggable regions and at the
-> same time, make
-> ACPI and memblock parts independent, right ?
-
-No, not at all.  My point is that the roles need to be divided
-clearly.  The firmware (be that ACPI or whatever) knows memory areas
-are hotpluggable but it shouldn't be making policy decisions like not
-dispending hotpluggable memory through memblock allocator because that
-part of logic has *nothing* to do with ACPI.  That is the generic
-kernel memory management policy which will apply regardless of what
-type of firmware the machine happens to be running on top of.
-
-So, please make ACPI inform memblock of the hotpluggable regions and
-implement the allocation policies inside memblock proper.
-
-> So are you saying mark the hotpluggable regions in memblock.memory, but not
-> reserve them in memblock.reserved, and make the default allocate
-> function avoid
-> the hotpluggable regions in memblock.memory ?
+On 07/29/2013 08:01 AM, Seth Jennings wrote:
+> On Fri, Jul 26, 2013 at 02:13:39PM -0700, Cody P Schafer wrote:
+>> diff --git a/lib/rbtree.c b/lib/rbtree.c
+>> index c0e31fe..65f4eff 100644
+>> --- a/lib/rbtree.c
+>> +++ b/lib/rbtree.c
+>> @@ -518,3 +518,43 @@ void rb_replace_node(struct rb_node *victim, struct rb_node *new,
+>>   	*new = *victim;
+>>   }
+>>   EXPORT_SYMBOL(rb_replace_node);
+>> +
+>> +static struct rb_node *rb_left_deepest_node(const struct rb_node *node)
+>> +{
+>> +	for (;;) {
+>> +		if (node->rb_left)
+>> +			node = node->rb_left;
 >
-> This way will be convenient when we put the node_data on local node
-> (don't need
-> to free regions from memblock.reserved, as you mentioned before), right?
+> Assigning to an argument passed as const seems weird to me.  I would
+> think it shouldn't compile but it does.  I guess my understanding of
+> const is incomplete.
+>
 
-I don't care too much about the specifics and it's likely that you'll
-find out which way (flag in memblock.memory, separate region array or
-whatever) is better as implementation progresses, but let's please put
-things where they belong; otherwise, we end up with weird mess, and,
-later on, have to do things like freeing part of reserved hotpluggable
-memory for node data from firmware side as you said above, which
-basically moves part of memory allocation logic into ACPI, which is
-just horrible.
+Ya, that is due to const's binding:
+	const struct rb_node *node1; // the thing pointed to is const
+	const struct rb_node node2;  // node is const
+	struct rb_node *const node3; // node is const
+	const struct rb_node *const node4; // both node and the thing
+					   // pointed too are const
 
-Thanks.
+And so ends up being perfectly legal (I use the first case listed here).
 
--- 
-tejun
+>> +		else if (node->rb_right)
+>> +			node = node->rb_right;
+>> +		else
+>> +			return (struct rb_node *)node;
+>> +	}
+>> +}
+>> +
+>> +struct rb_node *rb_next_postorder(const struct rb_node *node)
+>> +{
+>> +	const struct rb_node *parent;
+>> +	if (!node)
+>> +		return NULL;
+>> +	parent = rb_parent(node);
+>
+> Again here.
+>
+> Seth
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
