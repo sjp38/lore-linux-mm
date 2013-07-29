@@ -1,38 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 60B736B0039
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 14:28:41 -0400 (EDT)
-Received: by mail-gg0-f172.google.com with SMTP id n5so1735750ggj.17
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2013 11:28:40 -0700 (PDT)
-Date: Mon, 29 Jul 2013 14:28:35 -0400
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 69CE16B0039
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 14:31:45 -0400 (EDT)
+Received: by mail-ye0-f169.google.com with SMTP id r13so1338291yen.0
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2013 11:31:44 -0700 (PDT)
+Date: Mon, 29 Jul 2013 14:31:39 -0400
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v3 1/8] cgroup: convert cgroup_ida to cgroup_idr
-Message-ID: <20130729182835.GD26076@mtj.dyndns.org>
+Subject: Re: [PATCH v3 3/8] cgroup: implement cgroup_from_id()
+Message-ID: <20130729183139.GE26076@mtj.dyndns.org>
 References: <51F614B2.6010503@huawei.com>
- <51F614C4.7060602@huawei.com>
+ <51F614DF.9010508@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51F614C4.7060602@huawei.com>
+In-Reply-To: <51F614DF.9010508@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Li Zefan <lizefan@huawei.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-Hello,
+On Mon, Jul 29, 2013 at 03:08:15PM +0800, Li Zefan wrote:
+> +struct cgroup *cgroup_from_id(struct cgroup_subsys *ss, int id)
+> +{
+> +	rcu_lockdep_assert(rcu_read_lock_held(),
+> +			   "cgroup_from_id() needs rcu_read_lock()"
+> +			   " protection");
 
-On Mon, Jul 29, 2013 at 03:07:48PM +0800, Li Zefan wrote:
-> @@ -4590,6 +4599,9 @@ static void cgroup_offline_fn(struct work_struct *work)
->  	/* delete this cgroup from parent->children */
->  	list_del_rcu(&cgrp->sibling);
->  
-> +	if (cgrp->id)
-> +		idr_remove(&cgrp->root->cgroup_idr, cgrp->id);
-> +
+Maybe we want to add notation for &cgroup_mutex for completeness?
 
-Yeap, if we're gonna allow lookups, removal should happen here but can
-we please add short comment explaining why that is?  Also, do we want
-to clear cgrp->id?
+> +	return idr_find(&ss->root->cgroup_idr, id);
+> +}
+
+And maybe inline it?
 
 Thanks.
 
