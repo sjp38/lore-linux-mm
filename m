@@ -1,41 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 8B93E6B005A
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 15:00:28 -0400 (EDT)
-Received: by mail-ve0-f176.google.com with SMTP id b10so1179610vea.35
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2013 12:00:27 -0700 (PDT)
-Message-ID: <51F6BBEC.5070203@gmail.com>
-Date: Mon, 29 Jul 2013 15:01:00 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [patch 4/6] x86: finish user fault error path with fatal signal
-References: <1374791138-15665-1-git-send-email-hannes@cmpxchg.org> <1374791138-15665-5-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1374791138-15665-5-git-send-email-hannes@cmpxchg.org>
-Content-Type: text/plain; charset=ISO-2022-JP
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id A7ED56B0068
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 15:05:49 -0400 (EDT)
+Date: Mon, 29 Jul 2013 15:05:37 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1375124737-9w10y4c4-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1375075929-6119-16-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1375075929-6119-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1375075929-6119-16-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 15/18] mm, hugetlb: move up anon_vma_prepare()
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, azurIt <azurit@pobox.sk>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@gmail.com
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Hillf Danton <dhillf@gmail.com>
 
-(7/25/13 6:25 PM), Johannes Weiner wrote:
-> The x86 fault handler bails in the middle of error handling when the
-> task has a fatal signal pending.  For a subsequent patch this is a
-> problem in OOM situations because it relies on
-> pagefault_out_of_memory() being called even when the task has been
-> killed, to perform proper per-task OOM state unwinding.
+On Mon, Jul 29, 2013 at 02:32:06PM +0900, Joonsoo Kim wrote:
+> If we fail with a allocated hugepage, it is hard to recover properly.
+> One such example is reserve count. We don't have any method to recover
+> reserve count. Although, I will introduce a function to recover reserve
+> count in following patch, it is better not to allocate a hugepage
+> as much as possible. So move up anon_vma_prepare() which can be failed
+> in OOM situation.
 > 
-> Shortcutting the fault like this is a rather minor optimization that
-> saves a few instructions in rare cases.  Just remove it for
-> user-triggered faults.
-> 
-> Use the opportunity to split the fault retry handling from actual
-> fault errors and add locking documentation that reads suprisingly
-> similar to ARM's.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 683fd38..bb8a45f 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -2536,6 +2536,15 @@ retry_avoidcopy:
+>  	/* Drop page_table_lock as buddy allocator may be called */
+>  	spin_unlock(&mm->page_table_lock);
+>  
+> +	/*
+> +	 * When the original hugepage is shared one, it does not have
+> +	 * anon_vma prepared.
+> +	 */
+> +	if (unlikely(anon_vma_prepare(vma))) {
+> +		ret = VM_FAULT_OOM;
+> +		goto out_old_page;
+> +	}
+> +
+>  	use_reserve = vma_has_reserves(h, vma, address);
+>  	if (use_reserve == -ENOMEM) {
+>  		ret = VM_FAULT_OOM;
+> @@ -2590,15 +2599,6 @@ retry_avoidcopy:
+>  		goto out_lock;
+>  	}
+>  
+> -	/*
+> -	 * When the original hugepage is shared one, it does not have
+> -	 * anon_vma prepared.
+> -	 */
+> -	if (unlikely(anon_vma_prepare(vma))) {
+> -		ret = VM_FAULT_OOM;
+> -		goto out_new_page;
+> -	}
+> -
+>  	copy_user_huge_page(new_page, old_page, address, vma,
+>  			    pages_per_huge_page(h));
+>  	__SetPageUptodate(new_page);
+> @@ -2625,7 +2625,6 @@ retry_avoidcopy:
+>  	spin_unlock(&mm->page_table_lock);
+>  	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
+>  
+> -out_new_page:
+>  	page_cache_release(new_page);
+>  out_old_page:
+>  	page_cache_release(old_page);
+> -- 
+> 1.7.9.5
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
