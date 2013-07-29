@@ -1,88 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 5A4096B0031
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 13:41:14 -0400 (EDT)
-Received: from /spool/local
-	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Mon, 29 Jul 2013 13:41:13 -0400
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id ED05B6E8044
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 13:41:04 -0400 (EDT)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6THf9An163914
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 13:41:09 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6THf9vO008446
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 14:41:09 -0300
-Message-ID: <51F6A933.4050301@linux.vnet.ibm.com>
-Date: Mon, 29 Jul 2013 10:41:07 -0700
-From: Cody P Schafer <cody@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 63BB86B0037
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 13:48:26 -0400 (EDT)
+Date: Mon, 29 Jul 2013 19:48:21 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [patch 3/3] mm: page_alloc: fair zone allocator policy
+Message-ID: <20130729174820.GF3476@redhat.com>
+References: <1374267325-22865-1-git-send-email-hannes@cmpxchg.org>
+ <1374267325-22865-4-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/5] rbtree: add rbtree_postorder_for_each_entry_safe()
- helper
-References: <1374873223-25557-1-git-send-email-cody@linux.vnet.ibm.com> <1374873223-25557-3-git-send-email-cody@linux.vnet.ibm.com> <20130729150624.GB4381@variantweb.net>
-In-Reply-To: <20130729150624.GB4381@variantweb.net>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1374267325-22865-4-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, David Woodhouse <David.Woodhouse@intel.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 07/29/2013 08:06 AM, Seth Jennings wrote:
-> On Fri, Jul 26, 2013 at 02:13:40PM -0700, Cody P Schafer wrote:
->> Because deletion (of the entire tree) is a relatively common use of the
->> rbtree_postorder iteration, and because doing it safely means fiddling
->> with temporary storage, provide a helper to simplify postorder rbtree
->> iteration.
->>
->> Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
->> ---
->>   include/linux/rbtree.h | 17 +++++++++++++++++
->>   1 file changed, 17 insertions(+)
->>
->> diff --git a/include/linux/rbtree.h b/include/linux/rbtree.h
->> index 2879e96..64ab98b 100644
->> --- a/include/linux/rbtree.h
->> +++ b/include/linux/rbtree.h
->> @@ -85,4 +85,21 @@ static inline void rb_link_node(struct rb_node * node, struct rb_node * parent,
->>   	*rb_link = node;
->>   }
->>
->> +/**
->> + * rbtree_postorder_for_each_entry_safe - iterate over rb_root in post order of
->> + * given type safe against removal of rb_node entry
->> + *
->> + * @pos:	the 'type *' to use as a loop cursor.
->> + * @n:		another 'type *' to use as temporary storage
->> + * @root:	'rb_root *' of the rbtree.
->> + * @field:	the name of the rb_node field within 'type'.
->> + */
->> +#define rbtree_postorder_for_each_entry_safe(pos, n, root, field) \
->> +	for (pos = rb_entry(rb_first_postorder(root), typeof(*pos), field),\
->> +	      n = rb_entry(rb_next_postorder(&pos->field), \
->> +		      typeof(*pos), field); \
->> +	     &pos->field; \
->> +	     pos = n, \
->> +	      n = rb_entry(rb_next_postorder(&pos->field), typeof(*pos), field))
->
-> One too many spaces.  Also mix of tabs and spaces is weird, but
-> checkpatch doesn't complain so...
->
-> Seth
+Hi Johannes,
 
-The extra space is to set off ';' vs ',' in the macro. And I did that 
-instead of a tab to avoid wrapping. I've adjusted them (in the next 
-version) to use the same style as list.h's list_for_each*() macros. 
-Which results in more wrapping :( .
+On Fri, Jul 19, 2013 at 04:55:25PM -0400, Johannes Weiner wrote:
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index af1d956b..d938b67 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1879,6 +1879,14 @@ zonelist_scan:
+>  		if (alloc_flags & ALLOC_NO_WATERMARKS)
+>  			goto try_this_zone;
+>  		/*
+> +		 * Distribute pages in proportion to the individual
+> +		 * zone size to ensure fair page aging.  The zone a
+> +		 * page was allocated in should have no effect on the
+> +		 * time the page has in memory before being reclaimed.
+> +		 */
+> +		if (atomic_read(&zone->alloc_batch) <= 0)
+> +			continue;
+> +		/*
+>  		 * When allocating a page cache page for writing, we
+>  		 * want to get it from a zone that is within its dirty
+>  		 * limit, such that no single zone holds more than its
 
->
->> +
->>   #endif	/* _LINUX_RBTREE_H */
->> --
->> 1.8.3.4
->>
+I rebased the zone_reclaim_mode and compaction fixes on top of the
+zone fair allocator (it applied without rejects, lucky) but the above
+breaks zone_reclaim_mode (it regress for pagecache too, which
+currently works), so then in turn my THP/compaction tests break too.
+
+zone_reclaim_mode isn't LRU-fair, and cannot be... (even migrating
+cache around nodes to try to keep LRU fariness would not be worth it,
+especially with ssds). But we can still increase the fairness within
+the zones of the current node (for those nodes that have more than 1
+zone).
+
+I think to fix it we need an additional first pass of the fast path,
+and if alloc_batch is <= 0 for any zone in the current node, we then
+forbid allocating from the zones not in the current node (even if
+alloc_batch would allow it) during the first pass, only if
+zone_reclaim_mode is enabled. If first pass fails, we need to reset
+alloc_batch for all zones in the current node (and only in the current
+zone), goto zonelist_scan and continue as we do now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
