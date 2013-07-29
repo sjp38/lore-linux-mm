@@ -1,46 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 4DDE46B0031
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 12:43:36 -0400 (EDT)
-Received: by mail-vc0-f171.google.com with SMTP id ij15so2252996vcb.2
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2013 09:43:35 -0700 (PDT)
-Message-ID: <51F69BD7.2060407@gmail.com>
-Date: Mon, 29 Jul 2013 12:44:07 -0400
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id E6EDE6B0031
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 12:45:44 -0400 (EDT)
+Received: by mail-vb0-f54.google.com with SMTP id q14so894377vbe.27
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2013 09:45:43 -0700 (PDT)
+Message-ID: <51F69C59.10307@gmail.com>
+Date: Mon, 29 Jul 2013 12:46:17 -0400
 From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
 Subject: Re: Possible deadloop in direct reclaim?
-References: <89813612683626448B837EE5A0B6A7CB3B62F8F272@SC-VEXCH4.marvell.com> <000001400d38469d-a121fb96-4483-483a-9d3e-fc552e413892-000000@email.amazonses.com> <89813612683626448B837EE5A0B6A7CB3B62F8F5C3@SC-VEXCH4.marvell.com> <CAHGf_=q8JZQ42R-3yzie7DXUEq8kU+TZXgcX9s=dn8nVigXv8g@mail.gmail.com> <89813612683626448B837EE5A0B6A7CB3B62F8FE33@SC-VEXCH4.marvell.com>
-In-Reply-To: <89813612683626448B837EE5A0B6A7CB3B62F8FE33@SC-VEXCH4.marvell.com>
-Content-Type: text/plain; charset=GB2312
+References: <89813612683626448B837EE5A0B6A7CB3B62F8F272@SC-VEXCH4.marvell.com> <CAA_GA1ciCDJeBqZv1gHNpQ2VVyDRAVF9_au+fo2dwVvLqnkygA@mail.gmail.com> <CAHGf_=oSiz8TKhrz9unxGSkxO10jveae9n+U8GPDoppe2jmYxw@mail.gmail.com> <CAA_GA1frSpEzKraDAuM2hMgwPcu76NfJEATAKBrDco25B-TRyA@mail.gmail.com>
+In-Reply-To: <CAA_GA1frSpEzKraDAuM2hMgwPcu76NfJEATAKBrDco25B-TRyA@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lisa Du <cldu@marvell.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Christoph Lameter <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Bob Liu <lliubbo@gmail.com>
+To: Bob Liu <lliubbo@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Lisa Du <cldu@marvell.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>
 
-(7/25/13 9:11 PM), Lisa Du wrote:
-> Dear KOSAKI
->     In my test, I didn't set compaction. Maybe compaction is helpful to avoid this issue. I can have try later.
->     In my mind CONFIG_COMPACTION is an optional configuration right?
+(7/25/13 9:22 PM), Bob Liu wrote:
+> Hi Kosaki,
+>
+> On Fri, Jul 26, 2013 at 2:14 AM, KOSAKI Motohiro
+> <kosaki.motohiro@gmail.com> wrote:
+>>> How about replace the checking in kswapd_shrink_zone()?
+>>>
+>>> @@ -2824,7 +2824,7 @@ static bool kswapd_shrink_zone(struct zone *zone,
+>>>          /* Account for the number of pages attempted to reclaim */
+>>>          *nr_attempted += sc->nr_to_reclaim;
+>>>
+>>> -       if (nr_slab == 0 && !zone_reclaimable(zone))
+>>> +       if (sc->nr_reclaimed == 0 && !zone_reclaimable(zone))
+>>>                  zone->all_unreclaimable = 1;
+>>>
+>>>          zone_clear_flag(zone, ZONE_WRITEBACK);
+>>>
+>>>
+>>> I think the current check is wrong, reclaimed a slab doesn't mean
+>>> reclaimed a page.
+>>
+>> The code is correct, at least, it works as intentional. page reclaim
+>> status is checked by zone_reclaimable() and slab shrinking status is
+>> checked by nr_slab.
+>
+> I'm afraid in some special cases, nr_slab = 1 or any small number
+> which means we reclaimed some slab objects.
+> Then we don't set zone->all_unreclaimeabled =1.
+>
+> But even though we reclaimed some slab objects, there may be no pages freed.
+> Because one page may contain several objects.
 
-Right. But if you don't set it, application must NOT use >1 order allocations. It doesn't work and it is expected
-result.
-That's your application mistake.
+Right. This is a limitation of current slab shrinker's implementation.
+We are welcome you contribution this area.
 
->     If we don't use, and met such an issue, how should we deal with such infinite loop?
-> 
->     I made a change in all_reclaimable() function, passed overnight tests, please help review, thanks in advance!
-> @@ -2353,7 +2353,9 @@ static bool all_unreclaimable(struct zonelist *zonelist,
->                          continue;
->                  if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
->                          continue;
-> -               if (!zone->all_unreclaimable)
-> +               if (zone->all_unreclaimable)
-> +                       continue;
-> +               if (zone_reclaimable(zone))
->                          return false;
 
-Please tell me why you chaned here.
+> If we reclaimed some slab objects but without actual pages, we need to
+> set zone->all_unreclaimeabled=1!
+> So I think we should check sc->nr_reclaimed == 0 instead of nr_slab == 0.
+
+sc->nr_reclaimed doesn't check how much pages freed from slab.
+
 
 
 
