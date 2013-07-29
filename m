@@ -1,67 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id E6EDE6B0031
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 12:45:44 -0400 (EDT)
-Received: by mail-vb0-f54.google.com with SMTP id q14so894377vbe.27
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2013 09:45:43 -0700 (PDT)
-Message-ID: <51F69C59.10307@gmail.com>
-Date: Mon, 29 Jul 2013 12:46:17 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 27CDB6B0031
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 13:10:35 -0400 (EDT)
+Received: by mail-gh0-f181.google.com with SMTP id z12so1790326ghb.26
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2013 10:10:34 -0700 (PDT)
+Date: Mon, 29 Jul 2013 13:10:25 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 14/21] x86, acpi, numa: Reserve hotpluggable memory at
+ early time.
+Message-ID: <20130729171025.GH22605@mtj.dyndns.org>
+References: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com>
+ <1374220774-29974-15-git-send-email-tangchen@cn.fujitsu.com>
+ <20130723205557.GS21100@mtj.dyndns.org>
+ <20130723213212.GA21100@mtj.dyndns.org>
+ <51F089C1.4010402@cn.fujitsu.com>
+ <20130725151719.GE26107@mtj.dyndns.org>
+ <51F1F0E0.7040800@cn.fujitsu.com>
+ <20130726102609.GB30786@mtj.dyndns.org>
+ <51F5CF98.1080101@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: Possible deadloop in direct reclaim?
-References: <89813612683626448B837EE5A0B6A7CB3B62F8F272@SC-VEXCH4.marvell.com> <CAA_GA1ciCDJeBqZv1gHNpQ2VVyDRAVF9_au+fo2dwVvLqnkygA@mail.gmail.com> <CAHGf_=oSiz8TKhrz9unxGSkxO10jveae9n+U8GPDoppe2jmYxw@mail.gmail.com> <CAA_GA1frSpEzKraDAuM2hMgwPcu76NfJEATAKBrDco25B-TRyA@mail.gmail.com>
-In-Reply-To: <CAA_GA1frSpEzKraDAuM2hMgwPcu76NfJEATAKBrDco25B-TRyA@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51F5CF98.1080101@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Lisa Du <cldu@marvell.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-(7/25/13 9:22 PM), Bob Liu wrote:
-> Hi Kosaki,
+Hello, Tang.
+
+On Mon, Jul 29, 2013 at 10:12:40AM +0800, Tang Chen wrote:
+> So the point is, how to mark the hotpluggable regions and at the
+> same time, make
+> ACPI and memblock parts independent, right ?
+
+No, not at all.  My point is that the roles need to be divided
+clearly.  The firmware (be that ACPI or whatever) knows memory areas
+are hotpluggable but it shouldn't be making policy decisions like not
+dispending hotpluggable memory through memblock allocator because that
+part of logic has *nothing* to do with ACPI.  That is the generic
+kernel memory management policy which will apply regardless of what
+type of firmware the machine happens to be running on top of.
+
+So, please make ACPI inform memblock of the hotpluggable regions and
+implement the allocation policies inside memblock proper.
+
+> So are you saying mark the hotpluggable regions in memblock.memory, but not
+> reserve them in memblock.reserved, and make the default allocate
+> function avoid
+> the hotpluggable regions in memblock.memory ?
 >
-> On Fri, Jul 26, 2013 at 2:14 AM, KOSAKI Motohiro
-> <kosaki.motohiro@gmail.com> wrote:
->>> How about replace the checking in kswapd_shrink_zone()?
->>>
->>> @@ -2824,7 +2824,7 @@ static bool kswapd_shrink_zone(struct zone *zone,
->>>          /* Account for the number of pages attempted to reclaim */
->>>          *nr_attempted += sc->nr_to_reclaim;
->>>
->>> -       if (nr_slab == 0 && !zone_reclaimable(zone))
->>> +       if (sc->nr_reclaimed == 0 && !zone_reclaimable(zone))
->>>                  zone->all_unreclaimable = 1;
->>>
->>>          zone_clear_flag(zone, ZONE_WRITEBACK);
->>>
->>>
->>> I think the current check is wrong, reclaimed a slab doesn't mean
->>> reclaimed a page.
->>
->> The code is correct, at least, it works as intentional. page reclaim
->> status is checked by zone_reclaimable() and slab shrinking status is
->> checked by nr_slab.
->
-> I'm afraid in some special cases, nr_slab = 1 or any small number
-> which means we reclaimed some slab objects.
-> Then we don't set zone->all_unreclaimeabled =1.
->
-> But even though we reclaimed some slab objects, there may be no pages freed.
-> Because one page may contain several objects.
+> This way will be convenient when we put the node_data on local node
+> (don't need
+> to free regions from memblock.reserved, as you mentioned before), right?
 
-Right. This is a limitation of current slab shrinker's implementation.
-We are welcome you contribution this area.
+I don't care too much about the specifics and it's likely that you'll
+find out which way (flag in memblock.memory, separate region array or
+whatever) is better as implementation progresses, but let's please put
+things where they belong; otherwise, we end up with weird mess, and,
+later on, have to do things like freeing part of reserved hotpluggable
+memory for node data from firmware side as you said above, which
+basically moves part of memory allocation logic into ACPI, which is
+just horrible.
 
+Thanks.
 
-> If we reclaimed some slab objects but without actual pages, we need to
-> set zone->all_unreclaimeabled=1!
-> So I think we should check sc->nr_reclaimed == 0 instead of nr_slab == 0.
-
-sc->nr_reclaimed doesn't check how much pages freed from slab.
-
-
-
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
