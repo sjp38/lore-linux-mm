@@ -1,106 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id AC0A76B0031
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 18:24:48 -0400 (EDT)
-Date: Mon, 29 Jul 2013 18:24:39 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 3/3] mm: page_alloc: fair zone allocator policy
-Message-ID: <20130729222439.GZ715@cmpxchg.org>
-References: <1374267325-22865-1-git-send-email-hannes@cmpxchg.org>
- <1374267325-22865-4-git-send-email-hannes@cmpxchg.org>
- <20130729174820.GF3476@redhat.com>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id A60496B0031
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 18:26:38 -0400 (EDT)
+Received: by mail-pb0-f53.google.com with SMTP id up15so4491260pbc.40
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2013 15:26:37 -0700 (PDT)
+In-Reply-To: <alpine.DEB.2.02.1307291511020.29771@chino.kir.corp.google.com>
+References: <1375022906-1164-1-git-send-email-waydi1@gmail.com> <alpine.DEB.2.02.1307291511020.29771@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130729174820.GF3476@redhat.com>
+Content-Type: multipart/alternative; boundary="----5DH60NOZLVSVISDZZB1G5WQONMJ8LF"
+Subject: Re: [PATCH 2/2] mm: page_alloc: Add unlikely for MAX_ORDER check
+From: zhouxinxing <xinxing2zhou@gmail.com>
+Date: Tue, 30 Jul 2013 06:26:58 +0800
+Message-ID: <f529c247-704e-4e3a-bb57-888141808eeb@email.android.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>, SeungHun Lee <waydi1@gmail.com>
+Cc: linux-mm@kvack.org
 
-On Mon, Jul 29, 2013 at 07:48:21PM +0200, Andrea Arcangeli wrote:
-> Hi Johannes,
-> 
-> On Fri, Jul 19, 2013 at 04:55:25PM -0400, Johannes Weiner wrote:
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index af1d956b..d938b67 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -1879,6 +1879,14 @@ zonelist_scan:
-> >  		if (alloc_flags & ALLOC_NO_WATERMARKS)
-> >  			goto try_this_zone;
-> >  		/*
-> > +		 * Distribute pages in proportion to the individual
-> > +		 * zone size to ensure fair page aging.  The zone a
-> > +		 * page was allocated in should have no effect on the
-> > +		 * time the page has in memory before being reclaimed.
-> > +		 */
-> > +		if (atomic_read(&zone->alloc_batch) <= 0)
-> > +			continue;
-> > +		/*
-> >  		 * When allocating a page cache page for writing, we
-> >  		 * want to get it from a zone that is within its dirty
-> >  		 * limit, such that no single zone holds more than its
-> 
-> I rebased the zone_reclaim_mode and compaction fixes on top of the
-> zone fair allocator (it applied without rejects, lucky) but the above
-> breaks zone_reclaim_mode (it regress for pagecache too, which
-> currently works), so then in turn my THP/compaction tests break too.
+------5DH60NOZLVSVISDZZB1G5WQONMJ8LF
+Content-Type: text/plain;
+ charset=UTF-8
+Content-Transfer-Encoding: 8bit
 
-Ah yeah, we spill too eagerly to other nodes when we should try to
-reclaim the local one first.
+unlikely indeed makes this code more elegant, however, it's difficult to tell how much the performance will be improved.
 
-> zone_reclaim_mode isn't LRU-fair, and cannot be... (even migrating
-> cache around nodes to try to keep LRU fariness would not be worth it,
-> especially with ssds). But we can still increase the fairness within
-> the zones of the current node (for those nodes that have more than 1
-> zone).
-> 
-> I think to fix it we need an additional first pass of the fast path,
-> and if alloc_batch is <= 0 for any zone in the current node, we then
-> forbid allocating from the zones not in the current node (even if
-> alloc_batch would allow it) during the first pass, only if
-> zone_reclaim_mode is enabled. If first pass fails, we need to reset
-> alloc_batch for all zones in the current node (and only in the current
-> zone), goto zonelist_scan and continue as we do now.
+David Rientjes <rientjes@google.com> wrote:
 
-How sensible are the various settings of zone_reclaim_mode and the way
-zone reclaim is invoked right now?
+>On Sun, 28 Jul 2013, SeungHun Lee wrote:
+>
+>> "order >= MAX_ORDER" case is occur rarely.
+>> 
+>> So I add unlikely for this check.
+>
+>This needs your signed-off-by line.
+>
+>When that's done:
+>
+>Acked-by: David Rientjes <rientjes@google.com>
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-zone_reclaim_mode == 1 tries to reclaim clean page cache in the
-preferred zone before falling back to other zones.  Great, kswapd also
-tries clean cache first and avoids writeout and swapping as long as
-possible.  And if zone_reclaim() fails, kswapd has to be woken up
-anyway because filling remote zones without reclaiming them is hardly
-sustainable.  Using kswapd would have the advantage that it reclaims
-the whole local node and not just the first zone in it, which would
-make much more sense in the first place.
+-- 
+Sent from my Android device with Gmail Plus. Please excuse my brevity.
+------5DH60NOZLVSVISDZZB1G5WQONMJ8LF
+Content-Type: text/html;
+ charset=utf-8
+Content-Transfer-Encoding: 8bit
 
-Same for zone_reclaim_mode at higher settings.
-
-So could we cut all this short and just restrict any allocation with
-zone_reclaim_mode != 0 to zones in reclaim distance, and if that
-fails, wake kswapd and enter the slowpath? (ALLOC_WMARK_LOW marks the
-fast path)
-
-It would be even cooler to remove the zone_reclaim() call further
-down, but that might be too much reliance on kswapd...
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index f03d2f2..8ddf9ac 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1875,6 +1875,10 @@ zonelist_scan:
- 		BUILD_BUG_ON(ALLOC_NO_WATERMARKS < NR_WMARK);
- 		if (alloc_flags & ALLOC_NO_WATERMARKS)
- 			goto try_this_zone;
-+		if ((alloc_flags & ALLOC_WMARK_LOW) &&
-+		    zone_reclaim_mode &&
-+		    !zone_allows_reclaim(preferred_zone, zone))
-+			continue;
- 		/*
- 		 * Distribute pages in proportion to the individual
- 		 * zone size to ensure fair page aging.  The zone a
+<html><head/><body><html><head></head><body>unlikely indeed makes this code more elegant, however, it&#39;s difficult to tell how much the performance will be improved.<br><br><div class="gmail_quote">David Rientjes &lt;rientjes@google.com&gt; wrote:<blockquote class="gmail_quote" style="margin: 0pt 0pt 0pt 0.8ex; border-left: 1px solid rgb(204, 204, 204); padding-left: 1ex;">
+<pre style="white-space: pre-wrap; word-wrap:break-word; font-family: sans-serif; margin-top: 0px">On Sun, 28 Jul 2013, SeungHun Lee wrote:<br /><br /><blockquote class="gmail_quote" style="margin: 0pt 0pt 1ex 0.8ex; border-left: 1px solid #729fcf; padding-left: 1ex;">"order &gt;= MAX_ORDER" case is occur rarely.<br /><br />So I add unlikely for this check.</blockquote><br />This needs your signed-off-by line.<br /><br />When that's done:<br /><br />Acked-by: David Rientjes &lt;rientjes@google.com&gt;<br /><br />--<br />To unsubscribe, send a message with 'unsubscribe linux-mm' in<br />the body to majordomo@kvack.org.  For more info on Linux MM,<br />see: <a href="http://www.linux-mm.org">http://www.linux-mm.org</a>/ .<br />Don't email: &lt;a href=mailto:"dont@kvack.org"&gt; email@kvack.org &lt;/a&gt;<br /></pre></blockquote></div><br>
+-- <br>
+Sent from my Android device with Gmail Plus. Please excuse my brevity.</body></html></body></html>
+------5DH60NOZLVSVISDZZB1G5WQONMJ8LF--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
