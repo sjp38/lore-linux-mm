@@ -1,74 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 384C56B0031
-	for <linux-mm@kvack.org>; Sun, 28 Jul 2013 21:32:51 -0400 (EDT)
-From: Lisa Du <cldu@marvell.com>
-Date: Sun, 28 Jul 2013 18:32:46 -0700
-Subject: RE: Possible deadloop in direct reclaim?
-Message-ID: <89813612683626448B837EE5A0B6A7CB3B6301CCE2@SC-VEXCH4.marvell.com>
-References: <89813612683626448B837EE5A0B6A7CB3B62F8F272@SC-VEXCH4.marvell.com>
- <000001400d38469d-a121fb96-4483-483a-9d3e-fc552e413892-000000@email.amazonses.com>
- <89813612683626448B837EE5A0B6A7CB3B62F8F5C3@SC-VEXCH4.marvell.com>
- <CAHGf_=q8JZQ42R-3yzie7DXUEq8kU+TZXgcX9s=dn8nVigXv8g@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 8EC886B0031
+	for <linux-mm@kvack.org>; Sun, 28 Jul 2013 22:10:01 -0400 (EDT)
+Message-ID: <51F5CF98.1080101@cn.fujitsu.com>
+Date: Mon, 29 Jul 2013 10:12:40 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
+Subject: Re: [PATCH 14/21] x86, acpi, numa: Reserve hotpluggable memory at
+ early time.
+References: <1374220774-29974-1-git-send-email-tangchen@cn.fujitsu.com> <1374220774-29974-15-git-send-email-tangchen@cn.fujitsu.com> <20130723205557.GS21100@mtj.dyndns.org> <20130723213212.GA21100@mtj.dyndns.org> <51F089C1.4010402@cn.fujitsu.com> <20130725151719.GE26107@mtj.dyndns.org> <51F1F0E0.7040800@cn.fujitsu.com> <20130726102609.GB30786@mtj.dyndns.org>
+In-Reply-To: <20130726102609.GB30786@mtj.dyndns.org>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lisa Du <cldu@marvell.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Bob Liu <lliubbo@gmail.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-RGVhciBLb3Nha2kNCiAgIERvIHlvdSBoYXZlIHRoZSBjaGFuY2UgdG8gcmV2aWV3IG15IGNoYW5n
-ZSBpbiB0aGUgZnVuY3Rpb24gYWxsX3VucmVjbGFpbWFibGUoKT8NCkBAIC0yMzUzLDcgKzIzNTMs
-OSBAQCBzdGF0aWMgYm9vbCBhbGxfdW5yZWNsYWltYWJsZShzdHJ1Y3Qgem9uZWxpc3QgKnpvbmVs
-aXN0LA0KICAgICAgICAgICAgICAgICAgICAgICAgY29udGludWU7DQogICAgICAgICAgICAgICAg
-aWYgKCFjcHVzZXRfem9uZV9hbGxvd2VkX2hhcmR3YWxsKHpvbmUsIEdGUF9LRVJORUwpKQ0KICAg
-ICAgICAgICAgICAgICAgICAgICAgY29udGludWU7DQotICAgICAgICAgICAgICAgaWYgKCF6b25l
-LT5hbGxfdW5yZWNsYWltYWJsZSkNCisgICAgICAgICAgICAgICBpZiAoem9uZS0+YWxsX3VucmVj
-bGFpbWFibGUpDQorICAgICAgICAgICAgICAgICAgICAgICBjb250aW51ZTsNCisgICAgICAgICAg
-ICAgICBpZiAoem9uZV9yZWNsYWltYWJsZSh6b25lKSkNCiAgICAgICAgICAgICAgICAgICAgICAg
-IHJldHVybiBmYWxzZTsNCiAgICAgICAgfQ0KICAgSW4gbXkgdGVzdCwgaXQgaGVscGVkIHRvIGF2
-b2lkIHRoZSBpbmZpbml0ZSBsb29wIGluIGRpcmVjdF9yZWNsYWltIHBhdGgsIGFuZCBJIHRoaW5r
-IGl0IHNob3VsZCBhbHNvIGF2b2lkIHRoZSBrZXJuZWwgaGFuZ2luZyB1cCBpc3N1ZSB5b3UgbWV0
-IGluIHRoZSBjb21taXQ6IDkyOWJlYTdjNzE0MjIwLg0KICAgSW4gYSB3b3JkLCBJIHRoaW5rIG5l
-aXRoZXIgY2hlY2sgdGhlIHpvbmUtPmFsbF91bnJlY2xhaW1hYmxlIG5vciB6b25lX3JlY2xhaW1h
-YmxlKCkgaXMgZW5vdWdoIGluIHRoZSBmdW5jdGlvbiBhbGxfdW5yZWNsYWltYWJsZSgpLCBzbyBz
-aGFsbCB3ZSBjaGVjayBib3RoIHRvIGNvbmZpcm0gaWYgYSB6b25lIGlzIGFsbF91bnJlY2xhaW1h
-YmxlPw0KDQpUaGFua3MhDQoNCkJlc3QgUmVnYXJkcw0KTGlzYSBEdQ0KDQotLS0tLU9yaWdpbmFs
-IE1lc3NhZ2UtLS0tLQ0KRnJvbTogTGlzYSBEdSANClNlbnQ6IDIwMTPE6jfUwjI2yNUgOToxMQ0K
-VG86ICdLT1NBS0kgTW90b2hpcm8nDQpDYzogQ2hyaXN0b3BoIExhbWV0ZXI7IGxpbnV4LW1tQGt2
-YWNrLm9yZzsgTWVsIEdvcm1hbjsgQm9iIExpdQ0KU3ViamVjdDogUkU6IFBvc3NpYmxlIGRlYWRs
-b29wIGluIGRpcmVjdCByZWNsYWltPw0KDQpEZWFyIEtPU0FLSQ0KICAgSW4gbXkgdGVzdCwgSSBk
-aWRuJ3Qgc2V0IGNvbXBhY3Rpb24uIE1heWJlIGNvbXBhY3Rpb24gaXMgaGVscGZ1bCB0byBhdm9p
-ZCB0aGlzIGlzc3VlLiBJIGNhbiBoYXZlIHRyeSBsYXRlci4NCiAgIEluIG15IG1pbmQgQ09ORklH
-X0NPTVBBQ1RJT04gaXMgYW4gb3B0aW9uYWwgY29uZmlndXJhdGlvbiByaWdodD8gDQogICBJZiB3
-ZSBkb24ndCB1c2UsIGFuZCBtZXQgc3VjaCBhbiBpc3N1ZSwgaG93IHNob3VsZCB3ZSBkZWFsIHdp
-dGggc3VjaCBpbmZpbml0ZSBsb29wPw0KDQogICBJIG1hZGUgYSBjaGFuZ2UgaW4gYWxsX3JlY2xh
-aW1hYmxlKCkgZnVuY3Rpb24sIHBhc3NlZCBvdmVybmlnaHQgdGVzdHMsIHBsZWFzZSBoZWxwIHJl
-dmlldywgdGhhbmtzIGluIGFkdmFuY2UhDQpAQCAtMjM1Myw3ICsyMzUzLDkgQEAgc3RhdGljIGJv
-b2wgYWxsX3VucmVjbGFpbWFibGUoc3RydWN0IHpvbmVsaXN0ICp6b25lbGlzdCwNCiAgICAgICAg
-ICAgICAgICAgICAgICAgIGNvbnRpbnVlOw0KICAgICAgICAgICAgICAgIGlmICghY3B1c2V0X3pv
-bmVfYWxsb3dlZF9oYXJkd2FsbCh6b25lLCBHRlBfS0VSTkVMKSkNCiAgICAgICAgICAgICAgICAg
-ICAgICAgIGNvbnRpbnVlOw0KLSAgICAgICAgICAgICAgIGlmICghem9uZS0+YWxsX3VucmVjbGFp
-bWFibGUpDQorICAgICAgICAgICAgICAgaWYgKHpvbmUtPmFsbF91bnJlY2xhaW1hYmxlKQ0KKyAg
-ICAgICAgICAgICAgICAgICAgICAgY29udGludWU7DQorICAgICAgICAgICAgICAgaWYgKHpvbmVf
-cmVjbGFpbWFibGUoem9uZSkpDQogICAgICAgICAgICAgICAgICAgICAgICByZXR1cm4gZmFsc2U7
-DQogICAgICAgIH0NCg0KVGhhbmtzIQ0KDQpCZXN0IFJlZ2FyZHMNCkxpc2EgRHUNCg0KDQotLS0t
-LU9yaWdpbmFsIE1lc3NhZ2UtLS0tLQ0KRnJvbTogS09TQUtJIE1vdG9oaXJvIFttYWlsdG86a29z
-YWtpLm1vdG9oaXJvQGdtYWlsLmNvbV0gDQpTZW50OiAyMDEzxOo31MIyNsjVIDI6MTkNClRvOiBM
-aXNhIER1DQpDYzogQ2hyaXN0b3BoIExhbWV0ZXI7IGxpbnV4LW1tQGt2YWNrLm9yZzsgTWVsIEdv
-cm1hbjsgQm9iIExpdQ0KU3ViamVjdDogUmU6IFBvc3NpYmxlIGRlYWRsb29wIGluIGRpcmVjdCBy
-ZWNsYWltPw0KDQpPbiBUdWUsIEp1bCAyMywgMjAxMyBhdCA5OjIxIFBNLCBMaXNhIER1IDxjbGR1
-QG1hcnZlbGwuY29tPiB3cm90ZToNCj4gRGVhciBDaHJpc3RvcGgNCj4gICAgVGhhbmtzIGEgbG90
-IGZvciB5b3VyIGNvbW1lbnQuIFdoZW4gdGhpcyBpc3N1ZSBoYXBwZW4gSSBqdXN0IHRyaWdnZXIg
-YSBrZXJuZWwgcGFuaWMgYW5kIGdvdCB0aGUga2R1bXAuDQo+IEZyb20gdGhlIGtkdW1wLCBJIGdv
-dCB0aGUgZ2xvYmFsIHZhcmlhYmxlIHBnX2RhdGFfdCBjb25naXRfcGFnZV9kYXRhLiBGcm9tIHRo
-aXMgc3RydWN0dXJlLCBJIGNhbiBzZWUgaW4gbm9ybWFsIHpvbmUsIG9ubHkgb3JkZXItMCdzIG5y
-X2ZyZWUgPSAxODQ0Miwgb3JkZXItMSdzIG5yX2ZyZWUgPSAzNjcsIGFsbCB0aGUgb3RoZXIgb3Jk
-ZXIncyBucl9mcmVlIGlzIDAuDQoNCkRvbid0IHlvdSB1c2UgY29tcGFjdGlvbj8gT2YgaWYgdXNl
-LCBwbGVhc2UgZ2V0IGEgbG9nIGJ5IHRyYWNlcG9pbnRzLg0KV2UgbmVlZCB0byBrbm93IHdoeSBp
-dCBkb2Vzbid0IHdvcmsuDQo=
+On 07/26/2013 06:26 PM, Tejun Heo wrote:
+> On Fri, Jul 26, 2013 at 11:45:36AM +0800, Tang Chen wrote:
+>> I just don't want to any new variables to store the hotpluggable regions.
+>> But without a new shared variable, it seems difficult to achieve the goal
+>> you said below.
+>
+> Why can't it be done with the .flags field that was added anyway?
+
+I'm sorry but I'm a little misunderstanding here. There are some more 
+things I
+want to confirm, thanks for your patient. :)
+
+By "the goal" above, I mean making ACPI and memblock parts more 
+independent from
+each other. I think in this patch-set, I called memblock_reserve() which 
+made
+these two parts interactive.
+
+So the point is, how to mark the hotpluggable regions and at the same 
+time, make
+ACPI and memblock parts independent, right ?
+
+But, please see below.
+
+>
+>> So how about this.
+>> 1. Introduce a new global list used to store hotpluggable regions.
+>> 2. On acpi side, find and fulfill the list.
+>> 3. On memblock side, make the default allocation function stay away from
+>>     these regions.
+>
+> I was thinking more along the line of
+>
+> 1. Mark hotpluggable regions with a flag in memblock.
+> 2. On ACPI side, find and mark hotpluggable regions.
+
+But marking hotpluggable regions on ACPI side will also make ACPI and 
+memblock
+parts more interactive. In this patch-set, I just called memblock_reserve()
+directly on ACPI side.
+
+I think marking hotpluggable regions on ACPI side is much the same as 
+reserving
+the regions. I will just call something like memblock_mark_flags() to 
+mark the
+regions. The only difference will be a different memblock_xxx() function 
+call,
+right ?
+
+In the last mail, I suggested a global array. So both sides will just 
+use the
+array, and it seems to be independent. But I think the global array and 
+the flags
+in memblock are redundant. They are for the same goal.
+
+Actually I want to use flags. I think it is also useful when we try to 
+put thins
+on local node, such as node_data.
+
+So, is it OK to mark the hotpluggable regions on ACPI side ?
+
+
+> 3. Make memblock avoid giving out hotpluggable regions for normal
+>     allocations.
+
+This step3 is different from this patch-set. I reserved hotpluggable 
+regions in
+memblock.reserved.
+
+So are you saying mark the hotpluggable regions in memblock.memory, but not
+reserve them in memblock.reserved, and make the default allocate 
+function avoid
+the hotpluggable regions in memblock.memory ?
+
+This way will be convenient when we put the node_data on local node 
+(don't need
+to free regions from memblock.reserved, as you mentioned before), right?
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
