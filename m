@@ -1,68 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id B60416B0031
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 14:06:05 -0400 (EDT)
-Date: Mon, 29 Jul 2013 14:05:51 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1375121151-dxyftdvy-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1375075929-6119-9-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1375075929-6119-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1375075929-6119-9-git-send-email-iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 08/18] mm, hugetlb: do hugepage_subpool_get_pages() when
- avoid_reserve
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 69AC96B0033
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 14:26:39 -0400 (EDT)
+Received: by mail-ye0-f177.google.com with SMTP id m4so1520778yen.8
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2013 11:26:38 -0700 (PDT)
+Date: Mon, 29 Jul 2013 14:26:32 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v3 2/8] cgroup: document how cgroup IDs are assigned
+Message-ID: <20130729182632.GC26076@mtj.dyndns.org>
+References: <51F614B2.6010503@huawei.com>
+ <51F614D4.6000703@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <51F614D4.6000703@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Hillf Danton <dhillf@gmail.com>
+To: Li Zefan <lizefan@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-On Mon, Jul 29, 2013 at 02:31:59PM +0900, Joonsoo Kim wrote:
-> When we try to get a huge page with avoid_reserve, we don't consume
-> a reserved page. So it is treated like as non-reserve case.
-
-This patch will be completely overwritten with 9/18.
-So is this patch necessary?
-
-Naoya Horiguchi
-
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+On Mon, Jul 29, 2013 at 03:08:04PM +0800, Li Zefan wrote:
+> As cgroup id has been used in netprio cgroup and will be used in memcg,
+> it's important to make it clear how a cgroup id is allocated.
 > 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 1426c03..749629e 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1149,12 +1149,13 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
->  	if (has_reserve < 0)
->  		return ERR_PTR(-ENOMEM);
->  
-> -	if (!has_reserve && (hugepage_subpool_get_pages(spool, 1) < 0))
-> +	if ((!has_reserve || avoid_reserve)
-> +		&& (hugepage_subpool_get_pages(spool, 1) < 0))
->  			return ERR_PTR(-ENOSPC);
->  
->  	ret = hugetlb_cgroup_charge_cgroup(idx, pages_per_huge_page(h), &h_cg);
->  	if (ret) {
-> -		if (!has_reserve)
-> +		if (!has_reserve || avoid_reserve)
->  			hugepage_subpool_put_pages(spool, 1);
->  		return ERR_PTR(-ENOSPC);
->  	}
-> @@ -1167,7 +1168,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
->  			hugetlb_cgroup_uncharge_cgroup(idx,
->  						       pages_per_huge_page(h),
->  						       h_cg);
-> -			if (!has_reserve)
-> +			if (!has_reserve || avoid_reserve)
->  				hugepage_subpool_put_pages(spool, 1);
->  			return ERR_PTR(-ENOSPC);
->  		}
-> -- 
-> 1.7.9.5
->
+> For example, in netprio cgroup, the id is used as index of anarray.
+> 
+> Signed-off-by: Li Zefan <lizefan@huwei.com>
+> Reviewed-by: Michal Hocko <mhocko@suse.cz>
+
+We can merge this into the first patch?
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
