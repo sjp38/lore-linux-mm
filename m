@@ -1,64 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id AD9DA6B0039
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 02:18:21 -0400 (EDT)
-Date: Mon, 29 Jul 2013 15:18:20 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 0/2] hugepage: optimize page fault path locking
-Message-ID: <20130729061820.GA4784@lge.com>
-References: <1374848845-1429-1-git-send-email-davidlohr.bueso@hp.com>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 086A66B0036
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 03:08:28 -0400 (EDT)
+Message-ID: <51F614C4.7060602@huawei.com>
+Date: Mon, 29 Jul 2013 15:07:48 +0800
+From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1374848845-1429-1-git-send-email-davidlohr.bueso@hp.com>
+Subject: [PATCH v3 1/8] cgroup: convert cgroup_ida to cgroup_idr
+References: <51F614B2.6010503@huawei.com>
+In-Reply-To: <51F614B2.6010503@huawei.com>
+Content-Type: text/plain; charset="GB2312"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr.bueso@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "AneeshKumarK.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, David Gibson <david@gibson.dropbear.id.au>, Eric B Munson <emunson@mgebm.net>, Anton Blanchard <anton@samba.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-On Fri, Jul 26, 2013 at 07:27:23AM -0700, Davidlohr Bueso wrote:
-> This patchset attempts to reduce the amount of contention we impose
-> on the hugetlb_instantiation_mutex by replacing the global mutex with
-> a table of mutexes, selected based on a hash. The original discussion can 
-> be found here: http://lkml.org/lkml/2013/7/12/428
+This enables us to lookup a cgroup by its id.
 
-Hello, Davidlohr.
+v3:
+- on success, idr_alloc() returns the id but not 0, so fix the BUG_ON()
+  in cgroup_init().
+- pass the right value to idr_alloc() so that the id for dummy cgroup is 0.
 
-I recently sent a patchset which remove the hugetlb_instantiation_mutex
-entirely ('mm, hugetlb: remove a hugetlb_instantiation_mutex').
-This patchset can be found here: https://lkml.org/lkml/2013/7/29/54
+Signed-off-by: Li Zefan <lizefan@huawei.com>
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+---
+ include/linux/cgroup.h |  4 ++--
+ kernel/cgroup.c        | 28 ++++++++++++++++++++++------
+ 2 files changed, 24 insertions(+), 8 deletions(-)
 
-If possible, could you review it and test it whether your problem is
-disappered with it or not?
-
-Thanks.
-
-> 
-> Patch 1: Allows the file region tracking list to be serialized by its own rwsem.
-> This is necessary because the next patch allows concurrent hugepage fault paths,
-> getting rid of the hugetlb_instantiation_mutex - which protects chains of struct 
-> file_regionin inode->i_mapping->private_list (VM_MAYSHARE) or vma_resv_map(vma)->regions 
-> (!VM_MAYSHARE).
-> 
-> Patch 2: From David Gibson, for some reason never made it into the kernel. 
-> Further cleanups and enhancements from Anton Blanchard and myself.
-> Details of how the hash key is selected is in the patch.
-> 
-> Davidlohr Bueso (2):
->   hugepage: protect file regions with rwsem
->   hugepage: allow parallelization of the hugepage fault path
-> 
->  mm/hugetlb.c | 134 ++++++++++++++++++++++++++++++++++++++++++++++-------------
->  1 file changed, 106 insertions(+), 28 deletions(-)
-> 
-> -- 
-> 1.7.11.7
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
+index 297462b..2bd052d 100644
+--- a/include/linux/cgroup.h
++++ b/include/linux/cgroup.h
+@@ -161,7 +161,7 @@ struct cgroup_name {
+ struct cgroup {
+ 	unsigned long flags;		/* "unsigned long" so bitops work */
+ 
+-	int id;				/* ida allocated in-hierarchy ID */
++	int id;				/* idr allocated in-hierarchy ID */
+ 
+ 	/*
+ 	 * We link our 'sibling' struct into our parent's 'children'.
+@@ -322,7 +322,7 @@ struct cgroupfs_root {
+ 	unsigned long flags;
+ 
+ 	/* IDs for cgroups in this hierarchy */
+-	struct ida cgroup_ida;
++	struct idr cgroup_idr;
+ 
+ 	/* The path to use for release notifications. */
+ 	char release_agent_path[PATH_MAX];
+diff --git a/kernel/cgroup.c b/kernel/cgroup.c
+index 345fac8..b7c7c68 100644
+--- a/kernel/cgroup.c
++++ b/kernel/cgroup.c
+@@ -866,8 +866,6 @@ static void cgroup_free_fn(struct work_struct *work)
+ 	 */
+ 	dput(cgrp->parent->dentry);
+ 
+-	ida_simple_remove(&cgrp->root->cgroup_ida, cgrp->id);
+-
+ 	/*
+ 	 * Drop the active superblock reference that we took when we
+ 	 * created the cgroup. This will free cgrp->root, if we are
+@@ -1379,6 +1377,7 @@ static void init_cgroup_root(struct cgroupfs_root *root)
+ 	cgrp->root = root;
+ 	RCU_INIT_POINTER(cgrp->name, &root_cgroup_name);
+ 	init_cgroup_housekeeping(cgrp);
++	idr_init(&root->cgroup_idr);
+ }
+ 
+ static int cgroup_init_root_id(struct cgroupfs_root *root, int start, int end)
+@@ -1451,7 +1450,6 @@ static struct cgroupfs_root *cgroup_root_from_opts(struct cgroup_sb_opts *opts)
+ 	 */
+ 	root->subsys_mask = opts->subsys_mask;
+ 	root->flags = opts->flags;
+-	ida_init(&root->cgroup_ida);
+ 	if (opts->release_agent)
+ 		strcpy(root->release_agent_path, opts->release_agent);
+ 	if (opts->name)
+@@ -1467,7 +1465,7 @@ static void cgroup_free_root(struct cgroupfs_root *root)
+ 		/* hierarhcy ID shoulid already have been released */
+ 		WARN_ON_ONCE(root->hierarchy_id);
+ 
+-		ida_destroy(&root->cgroup_ida);
++		idr_destroy(&root->cgroup_idr);
+ 		kfree(root);
+ 	}
+ }
+@@ -1582,6 +1580,11 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
+ 		mutex_lock(&cgroup_mutex);
+ 		mutex_lock(&cgroup_root_mutex);
+ 
++		root_cgrp->id = idr_alloc(&root->cgroup_idr, root_cgrp,
++					   0, 1, GFP_KERNEL);
++		if (root_cgrp->id < 0)
++			goto unlock_drop;
++
+ 		/* Check for name clashes with existing mounts */
+ 		ret = -EBUSY;
+ 		if (strlen(root->name))
+@@ -4273,7 +4276,11 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
+ 		goto err_free_cgrp;
+ 	rcu_assign_pointer(cgrp->name, name);
+ 
+-	cgrp->id = ida_simple_get(&root->cgroup_ida, 1, 0, GFP_KERNEL);
++	/*
++	 * Temporarily set the pointer to NULL, so idr_find() won't return
++	 * a half-baked cgroup.
++	 */
++	cgrp->id = idr_alloc(&root->cgroup_idr, NULL, 1, 0, GFP_KERNEL);
+ 	if (cgrp->id < 0)
+ 		goto err_free_name;
+ 
+@@ -4371,6 +4378,8 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
+ 		}
+ 	}
+ 
++	idr_replace(&root->cgroup_idr, cgrp, cgrp->id);
++
+ 	err = cgroup_addrm_files(cgrp, NULL, cgroup_base_files, true);
+ 	if (err)
+ 		goto err_destroy;
+@@ -4397,7 +4406,7 @@ err_free_all:
+ 	/* Release the reference count that we took on the superblock */
+ 	deactivate_super(sb);
+ err_free_id:
+-	ida_simple_remove(&root->cgroup_ida, cgrp->id);
++	idr_remove(&root->cgroup_idr, cgrp->id);
+ err_free_name:
+ 	kfree(rcu_dereference_raw(cgrp->name));
+ err_free_cgrp:
+@@ -4590,6 +4599,9 @@ static void cgroup_offline_fn(struct work_struct *work)
+ 	/* delete this cgroup from parent->children */
+ 	list_del_rcu(&cgrp->sibling);
+ 
++	if (cgrp->id)
++		idr_remove(&cgrp->root->cgroup_idr, cgrp->id);
++
+ 	dput(d);
+ 
+ 	set_bit(CGRP_RELEASABLE, &parent->flags);
+@@ -4915,6 +4927,10 @@ int __init cgroup_init(void)
+ 
+ 	BUG_ON(cgroup_init_root_id(&cgroup_dummy_root, 0, 1));
+ 
++	err = idr_alloc(&cgroup_dummy_root.cgroup_idr, cgroup_dummy_top,
++			0, 1, GFP_KERNEL);
++	BUG_ON(err < 0);
++
+ 	mutex_unlock(&cgroup_root_mutex);
+ 	mutex_unlock(&cgroup_mutex);
+ 
+-- 
+1.8.0.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
