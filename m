@@ -1,40 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 0BFB06B0031
-	for <linux-mm@kvack.org>; Sun, 28 Jul 2013 10:48:38 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id kp13so3702838pab.35
-        for <linux-mm@kvack.org>; Sun, 28 Jul 2013 07:48:38 -0700 (PDT)
-From: SeungHun Lee <waydi1@gmail.com>
-Subject: [PATCH 2/2] mm: page_alloc: Add unlikely for MAX_ORDER check
-Date: Sun, 28 Jul 2013 23:48:26 +0900
-Message-Id: <1375022906-1164-1-git-send-email-waydi1@gmail.com>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 384C56B0031
+	for <linux-mm@kvack.org>; Sun, 28 Jul 2013 21:32:51 -0400 (EDT)
+From: Lisa Du <cldu@marvell.com>
+Date: Sun, 28 Jul 2013 18:32:46 -0700
+Subject: RE: Possible deadloop in direct reclaim?
+Message-ID: <89813612683626448B837EE5A0B6A7CB3B6301CCE2@SC-VEXCH4.marvell.com>
+References: <89813612683626448B837EE5A0B6A7CB3B62F8F272@SC-VEXCH4.marvell.com>
+ <000001400d38469d-a121fb96-4483-483a-9d3e-fc552e413892-000000@email.amazonses.com>
+ <89813612683626448B837EE5A0B6A7CB3B62F8F5C3@SC-VEXCH4.marvell.com>
+ <CAHGf_=q8JZQ42R-3yzie7DXUEq8kU+TZXgcX9s=dn8nVigXv8g@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="gb2312"
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: SeungHun Lee <waydi1@gmail.com>
+To: Lisa Du <cldu@marvell.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Christoph Lameter <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Bob Liu <lliubbo@gmail.com>
 
-"order >= MAX_ORDER" case is occur rarely.
-
-So I add unlikely for this check.
----
- mm/page_alloc.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index b8475ed..e644cf5 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2408,7 +2408,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	 * be using allocators in order of preference for an area that is
- 	 * too large.
- 	 */
--	if (order >= MAX_ORDER) {
-+	if (unlikely(order >= MAX_ORDER)) {
- 		WARN_ON_ONCE(!(gfp_mask & __GFP_NOWARN));
- 		return NULL;
- 	}
--- 
-1.7.0.4
+RGVhciBLb3Nha2kNCiAgIERvIHlvdSBoYXZlIHRoZSBjaGFuY2UgdG8gcmV2aWV3IG15IGNoYW5n
+ZSBpbiB0aGUgZnVuY3Rpb24gYWxsX3VucmVjbGFpbWFibGUoKT8NCkBAIC0yMzUzLDcgKzIzNTMs
+OSBAQCBzdGF0aWMgYm9vbCBhbGxfdW5yZWNsYWltYWJsZShzdHJ1Y3Qgem9uZWxpc3QgKnpvbmVs
+aXN0LA0KICAgICAgICAgICAgICAgICAgICAgICAgY29udGludWU7DQogICAgICAgICAgICAgICAg
+aWYgKCFjcHVzZXRfem9uZV9hbGxvd2VkX2hhcmR3YWxsKHpvbmUsIEdGUF9LRVJORUwpKQ0KICAg
+ICAgICAgICAgICAgICAgICAgICAgY29udGludWU7DQotICAgICAgICAgICAgICAgaWYgKCF6b25l
+LT5hbGxfdW5yZWNsYWltYWJsZSkNCisgICAgICAgICAgICAgICBpZiAoem9uZS0+YWxsX3VucmVj
+bGFpbWFibGUpDQorICAgICAgICAgICAgICAgICAgICAgICBjb250aW51ZTsNCisgICAgICAgICAg
+ICAgICBpZiAoem9uZV9yZWNsYWltYWJsZSh6b25lKSkNCiAgICAgICAgICAgICAgICAgICAgICAg
+IHJldHVybiBmYWxzZTsNCiAgICAgICAgfQ0KICAgSW4gbXkgdGVzdCwgaXQgaGVscGVkIHRvIGF2
+b2lkIHRoZSBpbmZpbml0ZSBsb29wIGluIGRpcmVjdF9yZWNsYWltIHBhdGgsIGFuZCBJIHRoaW5r
+IGl0IHNob3VsZCBhbHNvIGF2b2lkIHRoZSBrZXJuZWwgaGFuZ2luZyB1cCBpc3N1ZSB5b3UgbWV0
+IGluIHRoZSBjb21taXQ6IDkyOWJlYTdjNzE0MjIwLg0KICAgSW4gYSB3b3JkLCBJIHRoaW5rIG5l
+aXRoZXIgY2hlY2sgdGhlIHpvbmUtPmFsbF91bnJlY2xhaW1hYmxlIG5vciB6b25lX3JlY2xhaW1h
+YmxlKCkgaXMgZW5vdWdoIGluIHRoZSBmdW5jdGlvbiBhbGxfdW5yZWNsYWltYWJsZSgpLCBzbyBz
+aGFsbCB3ZSBjaGVjayBib3RoIHRvIGNvbmZpcm0gaWYgYSB6b25lIGlzIGFsbF91bnJlY2xhaW1h
+YmxlPw0KDQpUaGFua3MhDQoNCkJlc3QgUmVnYXJkcw0KTGlzYSBEdQ0KDQotLS0tLU9yaWdpbmFs
+IE1lc3NhZ2UtLS0tLQ0KRnJvbTogTGlzYSBEdSANClNlbnQ6IDIwMTPE6jfUwjI2yNUgOToxMQ0K
+VG86ICdLT1NBS0kgTW90b2hpcm8nDQpDYzogQ2hyaXN0b3BoIExhbWV0ZXI7IGxpbnV4LW1tQGt2
+YWNrLm9yZzsgTWVsIEdvcm1hbjsgQm9iIExpdQ0KU3ViamVjdDogUkU6IFBvc3NpYmxlIGRlYWRs
+b29wIGluIGRpcmVjdCByZWNsYWltPw0KDQpEZWFyIEtPU0FLSQ0KICAgSW4gbXkgdGVzdCwgSSBk
+aWRuJ3Qgc2V0IGNvbXBhY3Rpb24uIE1heWJlIGNvbXBhY3Rpb24gaXMgaGVscGZ1bCB0byBhdm9p
+ZCB0aGlzIGlzc3VlLiBJIGNhbiBoYXZlIHRyeSBsYXRlci4NCiAgIEluIG15IG1pbmQgQ09ORklH
+X0NPTVBBQ1RJT04gaXMgYW4gb3B0aW9uYWwgY29uZmlndXJhdGlvbiByaWdodD8gDQogICBJZiB3
+ZSBkb24ndCB1c2UsIGFuZCBtZXQgc3VjaCBhbiBpc3N1ZSwgaG93IHNob3VsZCB3ZSBkZWFsIHdp
+dGggc3VjaCBpbmZpbml0ZSBsb29wPw0KDQogICBJIG1hZGUgYSBjaGFuZ2UgaW4gYWxsX3JlY2xh
+aW1hYmxlKCkgZnVuY3Rpb24sIHBhc3NlZCBvdmVybmlnaHQgdGVzdHMsIHBsZWFzZSBoZWxwIHJl
+dmlldywgdGhhbmtzIGluIGFkdmFuY2UhDQpAQCAtMjM1Myw3ICsyMzUzLDkgQEAgc3RhdGljIGJv
+b2wgYWxsX3VucmVjbGFpbWFibGUoc3RydWN0IHpvbmVsaXN0ICp6b25lbGlzdCwNCiAgICAgICAg
+ICAgICAgICAgICAgICAgIGNvbnRpbnVlOw0KICAgICAgICAgICAgICAgIGlmICghY3B1c2V0X3pv
+bmVfYWxsb3dlZF9oYXJkd2FsbCh6b25lLCBHRlBfS0VSTkVMKSkNCiAgICAgICAgICAgICAgICAg
+ICAgICAgIGNvbnRpbnVlOw0KLSAgICAgICAgICAgICAgIGlmICghem9uZS0+YWxsX3VucmVjbGFp
+bWFibGUpDQorICAgICAgICAgICAgICAgaWYgKHpvbmUtPmFsbF91bnJlY2xhaW1hYmxlKQ0KKyAg
+ICAgICAgICAgICAgICAgICAgICAgY29udGludWU7DQorICAgICAgICAgICAgICAgaWYgKHpvbmVf
+cmVjbGFpbWFibGUoem9uZSkpDQogICAgICAgICAgICAgICAgICAgICAgICByZXR1cm4gZmFsc2U7
+DQogICAgICAgIH0NCg0KVGhhbmtzIQ0KDQpCZXN0IFJlZ2FyZHMNCkxpc2EgRHUNCg0KDQotLS0t
+LU9yaWdpbmFsIE1lc3NhZ2UtLS0tLQ0KRnJvbTogS09TQUtJIE1vdG9oaXJvIFttYWlsdG86a29z
+YWtpLm1vdG9oaXJvQGdtYWlsLmNvbV0gDQpTZW50OiAyMDEzxOo31MIyNsjVIDI6MTkNClRvOiBM
+aXNhIER1DQpDYzogQ2hyaXN0b3BoIExhbWV0ZXI7IGxpbnV4LW1tQGt2YWNrLm9yZzsgTWVsIEdv
+cm1hbjsgQm9iIExpdQ0KU3ViamVjdDogUmU6IFBvc3NpYmxlIGRlYWRsb29wIGluIGRpcmVjdCBy
+ZWNsYWltPw0KDQpPbiBUdWUsIEp1bCAyMywgMjAxMyBhdCA5OjIxIFBNLCBMaXNhIER1IDxjbGR1
+QG1hcnZlbGwuY29tPiB3cm90ZToNCj4gRGVhciBDaHJpc3RvcGgNCj4gICAgVGhhbmtzIGEgbG90
+IGZvciB5b3VyIGNvbW1lbnQuIFdoZW4gdGhpcyBpc3N1ZSBoYXBwZW4gSSBqdXN0IHRyaWdnZXIg
+YSBrZXJuZWwgcGFuaWMgYW5kIGdvdCB0aGUga2R1bXAuDQo+IEZyb20gdGhlIGtkdW1wLCBJIGdv
+dCB0aGUgZ2xvYmFsIHZhcmlhYmxlIHBnX2RhdGFfdCBjb25naXRfcGFnZV9kYXRhLiBGcm9tIHRo
+aXMgc3RydWN0dXJlLCBJIGNhbiBzZWUgaW4gbm9ybWFsIHpvbmUsIG9ubHkgb3JkZXItMCdzIG5y
+X2ZyZWUgPSAxODQ0Miwgb3JkZXItMSdzIG5yX2ZyZWUgPSAzNjcsIGFsbCB0aGUgb3RoZXIgb3Jk
+ZXIncyBucl9mcmVlIGlzIDAuDQoNCkRvbid0IHlvdSB1c2UgY29tcGFjdGlvbj8gT2YgaWYgdXNl
+LCBwbGVhc2UgZ2V0IGEgbG9nIGJ5IHRyYWNlcG9pbnRzLg0KV2UgbmVlZCB0byBrbm93IHdoeSBp
+dCBkb2Vzbid0IHdvcmsuDQo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
