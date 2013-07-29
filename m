@@ -1,45 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 3150D6B0033
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 18:45:42 -0400 (EDT)
-Message-ID: <51F6F087.9060109@linux.intel.com>
-Date: Mon, 29 Jul 2013 15:45:27 -0700
-From: Dave Hansen <dave.hansen@linux.intel.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] mm: page_alloc: Add unlikely for MAX_ORDER check
-References: <1375022906-1164-1-git-send-email-waydi1@gmail.com>
-In-Reply-To: <1375022906-1164-1-git-send-email-waydi1@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 8E0156B0031
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 19:41:10 -0400 (EDT)
+Date: Mon, 29 Jul 2013 16:41:06 -0700 (PDT)
+Message-Id: <20130729.164106.943996066712571180.davem@davemloft.net>
+Subject: Re: [PATCH] mm: Fix the TLB range flushed when __tlb_remove_page()
+ runs out of slots
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <1369832173-15088-1-git-send-email-vgupta@synopsys.com>
+References: <1369832173-15088-1-git-send-email-vgupta@synopsys.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: SeungHun Lee <waydi1@gmail.com>
-Cc: linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, xinxing2zhou@gmail.com
+To: Vineet.Gupta1@synopsys.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de, hughd@google.com, riel@redhat.com, rientjes@google.com, peterz@infradead.org, linux-arch@vger.kernel.org, catalin.marinas@arm.com, jcmvbkbc@gmail.com
 
-On 07/28/2013 07:48 AM, SeungHun Lee wrote:
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index b8475ed..e644cf5 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2408,7 +2408,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	 * be using allocators in order of preference for an area that is
->  	 * too large.
->  	 */
-> -	if (order >= MAX_ORDER) {
-> +	if (unlikely(order >= MAX_ORDER)) {
->  		WARN_ON_ONCE(!(gfp_mask & __GFP_NOWARN));
->  		return NULL;
->  	}
+From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Date: Wed, 29 May 2013 18:26:13 +0530
 
-What problem is this patch solving?  I can see doing this in hot paths,
-or places where the compiler is known to be generating bad or suboptimal
-code.  but, this costs me 512 bytes of text size:
+> zap_pte_range loops from @addr to @end. In the middle, if it runs out of
+> batching slots, TLB entries needs to be flushed for @start to @interim,
+> NOT @interim to @end.
+> 
+> Since ARC port doesn't use page free batching I can't test it myself but
+> this seems like the right thing to do.
+> Observed this when working on a fix for the issue at thread:
+> 	http://www.spinics.net/lists/linux-arch/msg21736.html
+> 
+> Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
 
- 898384 Jul 29 15:40 mm/page_alloc.o.nothing
- 898896 Jul 29 15:40 mm/page_alloc.o.unlikely
+As this bug can cause pretty serious memory corruption, I'd like to
+see this submitted to -stable.
 
-I really don't think we should be adding these without having _concrete_
-reasons for it.
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
