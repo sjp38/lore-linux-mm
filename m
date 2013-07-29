@@ -1,151 +1,197 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 8F2286B003C
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 15:16:49 -0400 (EDT)
-Message-ID: <1375125400.2089.13.camel@buesod1.americas.hpqcorp.net>
-Subject: Re: [PATCH 2/2] hugepage: allow parallelization of the hugepage
- fault path
-From: Davidlohr Bueso <davidlohr.bueso@hp.com>
-Date: Mon, 29 Jul 2013 12:16:40 -0700
-In-Reply-To: <CAJd=RBCakVQ_-xxF8poU9FDjuF0k+VGSpu_aHC1A9cW8TDYr_Q@mail.gmail.com>
-References: <1374848845-1429-1-git-send-email-davidlohr.bueso@hp.com>
-	 <1374848845-1429-3-git-send-email-davidlohr.bueso@hp.com>
-	 <CAJd=RBCakVQ_-xxF8poU9FDjuF0k+VGSpu_aHC1A9cW8TDYr_Q@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id B25126B0072
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 15:18:04 -0400 (EDT)
+Received: by mail-vb0-f44.google.com with SMTP id e13so1452980vbg.3
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2013 12:18:03 -0700 (PDT)
+Message-ID: <51F6C00C.5050702@gmail.com>
+Date: Mon, 29 Jul 2013 15:18:36 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [patch 5/6] mm: memcg: enable memcg OOM killer only for user
+ faults
+References: <1374791138-15665-1-git-send-email-hannes@cmpxchg.org> <1374791138-15665-6-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1374791138-15665-6-git-send-email-hannes@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "AneeshKumarK.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Gibson <david@gibson.dropbear.id.au>, Eric B Munson <emunson@mgebm.net>, Anton Blanchard <anton@samba.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, azurIt <azurit@pobox.sk>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@gmail.com
 
-On Sun, 2013-07-28 at 14:00 +0800, Hillf Danton wrote:
-> On Fri, Jul 26, 2013 at 10:27 PM, Davidlohr Bueso
-> <davidlohr.bueso@hp.com> wrote:
-> > From: David Gibson <david@gibson.dropbear.id.au>
-> >
-> > At present, the page fault path for hugepages is serialized by a
-> > single mutex.  This is used to avoid spurious out-of-memory conditions
-> > when the hugepage pool is fully utilized (two processes or threads can
-> > race to instantiate the same mapping with the last hugepage from the
-> > pool, the race loser returning VM_FAULT_OOM).  This problem is
-> > specific to hugepages, because it is normal to want to use every
-> > single hugepage in the system - with normal pages we simply assume
-> > there will always be a few spare pages which can be used temporarily
-> > until the race is resolved.
-> >
-> > Unfortunately this serialization also means that clearing of hugepages
-> > cannot be parallelized across multiple CPUs, which can lead to very
-> > long process startup times when using large numbers of hugepages.
-> >
-> > This patch improves the situation by replacing the single mutex with a
-> > table of mutexes, selected based on a hash, which allows us to know
-> > which page in the file we're instantiating. For shared mappings, the
-> > hash key is selected based on the address space and file offset being faulted.
-> > Similarly, for private mappings, the mm and virtual address are used.
-> >
-> > From: Anton Blanchard <anton@samba.org>
-> > [https://lkml.org/lkml/2011/7/15/31]
-> > Forward ported and made a few changes:
-> >
-> > - Use the Jenkins hash to scatter the hash, better than using just the
-> >   low bits.
-> >
-> > - Always round num_fault_mutexes to a power of two to avoid an
-> >   expensive modulus in the hash calculation.
-> >
-> > I also tested this patch on a large POWER7 box using a simple parallel
-> > fault testcase:
-> >
-> > http://ozlabs.org/~anton/junkcode/parallel_fault.c
-> >
-> > Command line options:
-> >
-> > parallel_fault <nr_threads> <size in kB> <skip in kB>
-> >
-> > First the time taken to fault 128GB of 16MB hugepages:
-> >
-> > 40.68 seconds
-> >
-> > Now the same test with 64 concurrent threads:
-> > 39.34 seconds
-> >
-> > Hardly any speedup. Finally the 64 concurrent threads test with
-> > this patch applied:
-> > 0.85 seconds
-> >
-> > We go from 40.68 seconds to 0.85 seconds, an improvement of 47.9x
-> >
-> > This was tested with the libhugetlbfs test suite, and the PASS/FAIL
-> > count was the same before and after this patch.
-> >
-> > From: Davidlohr Bueso <davidlohr.bueso@hp.com>
-> > - Cleaned up and forward ported to Linus' latest.
-> > - Cache aligned mutexes.
-> > - Keep non SMP systems using a single mutex.
-> >
-> > It was found that this mutex can become quite contended
-> > during the early phases of large databases which make use of huge pages - for instance
-> > startup and initial runs. One clear example is a 1.5Gb Oracle database, where lockstat
-> > reports that this mutex can be one of the top 5 most contended locks in the kernel during
-> > the first few minutes:
-> >
-> >              hugetlb_instantiation_mutex:   10678     10678
-> >              ---------------------------
-> >              hugetlb_instantiation_mutex    10678  [<ffffffff8115e14e>] hugetlb_fault+0x9e/0x340
-> >              ---------------------------
-> >              hugetlb_instantiation_mutex    10678  [<ffffffff8115e14e>] hugetlb_fault+0x9e/0x340
-> >
-> > contentions:          10678
-> > acquisitions:         99476
-> > waittime-total: 76888911.01 us
-> >
-> > With this patch we see a much less contention and wait time:
-> >
-> >               &htlb_fault_mutex_table[i]:   383
-> >               --------------------------
-> >               &htlb_fault_mutex_table[i]    383   [<ffffffff8115e27b>] hugetlb_fault+0x1eb/0x440
-> >               --------------------------
-> >               &htlb_fault_mutex_table[i]    383   [<ffffffff8115e27b>] hugetlb_fault+0x1eb/0x440
-> >
-> > contentions:        383
-> > acquisitions:    120546
-> > waittime-total: 1381.72 us
-> >
-> I see same figures in the message of Jul 18,
-> contentions:          10678
-> acquisitions:         99476
-> waittime-total: 76888911.01 us
-> and
-> contentions:        383
-> acquisitions:    120546
-> waittime-total: 1381.72 us
-> if I copy and paste correctly.
+(7/25/13 6:25 PM), Johannes Weiner wrote:
+> System calls and kernel faults (uaccess, gup) can handle an out of
+> memory situation gracefully and just return -ENOMEM.
 > 
-> Were they measured with the global semaphore introduced in 1/8 for
-> serializing changes in file regions?
+> Enable the memcg OOM killer only for user faults, where it's really
+> the only option available.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>   include/linux/memcontrol.h | 23 +++++++++++++++++++++++
+>   include/linux/sched.h      |  3 +++
+>   mm/filemap.c               | 11 ++++++++++-
+>   mm/memcontrol.c            |  2 +-
+>   mm/memory.c                | 40 ++++++++++++++++++++++++++++++----------
+>   5 files changed, 67 insertions(+), 12 deletions(-)
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 7b4d9d7..9bb5eeb 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -125,6 +125,24 @@ extern void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
+>   extern void mem_cgroup_replace_page_cache(struct page *oldpage,
+>   					struct page *newpage);
+>   
+> +/**
+> + * mem_cgroup_xchg_may_oom - toggle the memcg OOM killer for a task
+> + * @p: task
+> + * @new: true to enable, false to disable
+> + *
+> + * Toggle whether a failed memcg charge should invoke the OOM killer
+> + * or just return -ENOMEM.  Returns the previous toggle state.
+> + */
+> +static inline bool mem_cgroup_xchg_may_oom(struct task_struct *p, bool new)
+> +{
+> +	bool old;
+> +
+> +	old = p->memcg_oom.may_oom;
+> +	p->memcg_oom.may_oom = new;
+> +
+> +	return old;
+> +}
 
-They were, but I copied the wrong text:
+The name of xchg strongly suggest the function use compare-swap op. So, it seems
+misleading name. I suggest just use "set_*" or something else. In linux kernel,
+many setter functions already return old value. Don't mind.
+ 
+> diff --git a/include/linux/sched.h b/include/linux/sched.h
+> index fc09d21..4b3effc 100644
+> --- a/include/linux/sched.h
+> +++ b/include/linux/sched.h
+> @@ -1398,6 +1398,9 @@ struct task_struct {
+>   		unsigned long memsw_nr_pages; /* uncharged mem+swap usage */
+>   	} memcg_batch;
+>   	unsigned int memcg_kmem_skip_account;
+> +	struct memcg_oom_info {
+> +		unsigned int may_oom:1;
+> +	} memcg_oom;
 
-for the htlb mutex:
+This ":1" makes slower but doesn't diet any memory space, right? I suggest
+to use bool. If anybody need to diet in future, he may change it to bit field.
+That's ok, let's stop too early and questionable micro optimization.
 
-contentions: 453
-acquisitions: 154786
-waittime-total: 117765.59 us
 
-For the new lock, this particular workload only uses region_add() and
-region_chg() calls:
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index a6981fe..2932810 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -1617,6 +1617,7 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+>   	struct file_ra_state *ra = &file->f_ra;
+>   	struct inode *inode = mapping->host;
+>   	pgoff_t offset = vmf->pgoff;
+> +	unsigned int may_oom;
 
-region_rwsem-W:
-contentions: 4
-acquisitions: 20077
-waittime-total: 2244.64 us
+Why don't you use bool? your mem_cgroup_xchg_may_oom() uses bool and it seems cleaner more.
 
-region_rwsem-R:
-contentions: 0
-acquisitions: 2
-waittime-total: 0 us
+> @@ -1626,7 +1627,11 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+>   		return VM_FAULT_SIGBUS;
+>   
+>   	/*
+> -	 * Do we have something in the page cache already?
+> +	 * Do we have something in the page cache already?  Either
+> +	 * way, try readahead, but disable the memcg OOM killer for it
+> +	 * as readahead is optional and no errors are propagated up
+> +	 * the fault stack.  The OOM killer is enabled while trying to
+> +	 * instantiate the faulting page individually below.
+>   	 */
+>   	page = find_get_page(mapping, offset);
+>   	if (likely(page) && !(vmf->flags & FAULT_FLAG_TRIED)) {
+> @@ -1634,10 +1639,14 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+>   		 * We found the page, so try async readahead before
+>   		 * waiting for the lock.
+>   		 */
+> +		may_oom = mem_cgroup_xchg_may_oom(current, 0);
+>   		do_async_mmap_readahead(vma, ra, file, page, offset);
+> +		mem_cgroup_xchg_may_oom(current, may_oom);
+>   	} else if (!page) {
+>   		/* No page in the page cache at all */
+> +		may_oom = mem_cgroup_xchg_may_oom(current, 0);
+>   		do_sync_mmap_readahead(vma, ra, file, offset);
+> +		mem_cgroup_xchg_may_oom(current, may_oom);
+>   		count_vm_event(PGMAJFAULT);
+>   		mem_cgroup_count_vm_event(vma->vm_mm, PGMAJFAULT);
+>   		ret = VM_FAULT_MAJOR;
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 00a7a66..30ae46a 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2614,7 +2614,7 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+>   		return CHARGE_RETRY;
+>   
+>   	/* If we don't need to call oom-killer at el, return immediately */
+> -	if (!oom_check)
+> +	if (!oom_check || !current->memcg_oom.may_oom)
+>   		return CHARGE_NOMEM;
+>   	/* check OOM */
+>   	if (!mem_cgroup_handle_oom(mem_over_limit, gfp_mask, get_order(csize)))
+> diff --git a/mm/memory.c b/mm/memory.c
+> index f2ab2a8..5ea7b47 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -3752,22 +3752,14 @@ unlock:
+>   /*
+>    * By the time we get here, we already hold the mm semaphore
+>    */
+> -int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+> -		unsigned long address, unsigned int flags)
+> +static int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+> +			     unsigned long address, unsigned int flags)
+>   {
+>   	pgd_t *pgd;
+>   	pud_t *pud;
+>   	pmd_t *pmd;
+>   	pte_t *pte;
+>   
+> -	__set_current_state(TASK_RUNNING);
+> -
+> -	count_vm_event(PGFAULT);
+> -	mem_cgroup_count_vm_event(mm, PGFAULT);
+> -
+> -	/* do counter updates before entering really critical section. */
+> -	check_sync_rss_stat(current);
+> -
+>   	if (unlikely(is_vm_hugetlb_page(vma)))
+>   		return hugetlb_fault(mm, vma, address, flags);
+>   
+> @@ -3851,6 +3843,34 @@ retry:
+>   	return handle_pte_fault(mm, vma, address, pte, pmd, flags);
+>   }
+>   
+> +int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+> +		    unsigned long address, unsigned int flags)
+> +{
+> +	int ret;
+> +
+> +	__set_current_state(TASK_RUNNING);
+> +
+> +	count_vm_event(PGFAULT);
+> +	mem_cgroup_count_vm_event(mm, PGFAULT);
+> +
+> +	/* do counter updates before entering really critical section. */
+> +	check_sync_rss_stat(current);
+> +
+> +	/*
+> +	 * Enable the memcg OOM handling for faults triggered in user
+> +	 * space.  Kernel faults are handled more gracefully.
+> +	 */
+> +	if (flags & FAULT_FLAG_USER)
+> +		WARN_ON(mem_cgroup_xchg_may_oom(current, true) == true);
 
+Please don't assume WARN_ON never erase any code. I'm not surprised if embedded
+guys replace WARN_ON with nop in future.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
