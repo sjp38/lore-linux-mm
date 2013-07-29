@@ -1,140 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 201596B0037
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 14:28:06 -0400 (EDT)
-Date: Mon, 29 Jul 2013 14:27:54 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1375122474-w2vygb3x-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1375075929-6119-11-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1375075929-6119-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1375075929-6119-11-git-send-email-iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 10/18] mm, hugetlb: call vma_has_reserve() before entering
- alloc_huge_page()
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 60B736B0039
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 14:28:41 -0400 (EDT)
+Received: by mail-gg0-f172.google.com with SMTP id n5so1735750ggj.17
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2013 11:28:40 -0700 (PDT)
+Date: Mon, 29 Jul 2013 14:28:35 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v3 1/8] cgroup: convert cgroup_ida to cgroup_idr
+Message-ID: <20130729182835.GD26076@mtj.dyndns.org>
+References: <51F614B2.6010503@huawei.com>
+ <51F614C4.7060602@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <51F614C4.7060602@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Hillf Danton <dhillf@gmail.com>
+To: Li Zefan <lizefan@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-On Mon, Jul 29, 2013 at 02:32:01PM +0900, Joonsoo Kim wrote:
-> To implement a graceful failure handling, we need to know whether
-> allocation request is for reserved pool or not, on higher level.
-> In this patch, we just move up vma_has_reseve() to caller function
-> in order to know it. There is no functional change.
-> 
-> Following patches implement a grace failure handling and remove
-> a hugetlb_instantiation_mutex.
-> 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index a66226e..5f31ca5 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1123,12 +1123,12 @@ static void vma_commit_reservation(struct hstate *h,
->  }
+Hello,
+
+On Mon, Jul 29, 2013 at 03:07:48PM +0800, Li Zefan wrote:
+> @@ -4590,6 +4599,9 @@ static void cgroup_offline_fn(struct work_struct *work)
+>  	/* delete this cgroup from parent->children */
+>  	list_del_rcu(&cgrp->sibling);
 >  
->  static struct page *alloc_huge_page(struct vm_area_struct *vma,
-> -				    unsigned long addr, int avoid_reserve)
-> +				    unsigned long addr, int use_reserve)
->  {
->  	struct hugepage_subpool *spool = subpool_vma(vma);
->  	struct hstate *h = hstate_vma(vma);
->  	struct page *page;
-> -	int ret, idx, use_reserve;
-> +	int ret, idx;
->  	struct hugetlb_cgroup *h_cg;
->  
->  	idx = hstate_index(h);
-> @@ -1140,11 +1140,6 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
->  	 * need pages and subpool limit allocated allocated if no reserve
->  	 * mapping overlaps.
->  	 */
-> -	use_reserve = vma_has_reserves(h, vma, addr);
-> -	if (use_reserve < 0)
-> -		return ERR_PTR(-ENOMEM);
-> -
-> -	use_reserve = use_reserve && !avoid_reserve;
->  	if (!use_reserve && (hugepage_subpool_get_pages(spool, 1) < 0))
->  			return ERR_PTR(-ENOSPC);
->  
-> @@ -2520,7 +2515,7 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
->  {
->  	struct hstate *h = hstate_vma(vma);
->  	struct page *old_page, *new_page;
-> -	int outside_reserve = 0;
-> +	int use_reserve, outside_reserve = 0;
->  	unsigned long mmun_start;	/* For mmu_notifiers */
->  	unsigned long mmun_end;		/* For mmu_notifiers */
->  
-> @@ -2553,7 +2548,18 @@ retry_avoidcopy:
->  
->  	/* Drop page_table_lock as buddy allocator may be called */
->  	spin_unlock(&mm->page_table_lock);
-> -	new_page = alloc_huge_page(vma, address, outside_reserve);
+> +	if (cgrp->id)
+> +		idr_remove(&cgrp->root->cgroup_idr, cgrp->id);
 > +
-> +	use_reserve = vma_has_reserves(h, vma, address);
-> +	if (use_reserve == -ENOMEM) {
-> +		page_cache_release(old_page);
-> +
-> +		/* Caller expects lock to be held */
-> +		spin_lock(&mm->page_table_lock);
-> +		return VM_FAULT_OOM;
-> +	}
-> +	use_reserve = use_reserve && !outside_reserve;
 
-When outside_reserve is true, we don't have to call vma_has_reserves
-because then use_reserve is always false. So something like:
+Yeap, if we're gonna allow lookups, removal should happen here but can
+we please add short comment explaining why that is?  Also, do we want
+to clear cgrp->id?
 
-  use_reserve = 0;
-  if (!outside_reserve) {
-          use_reserve = vma_has_reserves(...);
-          ...
-  }
+Thanks.
 
-looks better to me.
-Or if you expect vma_has_reserves to change resv_map implicitly,
-could you add a comment about it.
-
-Thanks,
-Naoya Horiguchi
-
-> +
-> +	new_page = alloc_huge_page(vma, address, use_reserve);
->  
->  	if (IS_ERR(new_page)) {
->  		long err = PTR_ERR(new_page);
-> @@ -2679,6 +2685,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  	struct page *page;
->  	struct address_space *mapping;
->  	pte_t new_pte;
-> +	int use_reserve = 0;
->  
->  	/*
->  	 * Currently, we are forced to kill the process in the event the
-> @@ -2704,7 +2711,14 @@ retry:
->  		size = i_size_read(mapping->host) >> huge_page_shift(h);
->  		if (idx >= size)
->  			goto out;
-> -		page = alloc_huge_page(vma, address, 0);
-> +
-> +		use_reserve = vma_has_reserves(h, vma, address);
-> +		if (use_reserve == -ENOMEM) {
-> +			ret = VM_FAULT_OOM;
-> +			goto out;
-> +		}
-> +
-> +		page = alloc_huge_page(vma, address, use_reserve);
->  		if (IS_ERR(page)) {
->  			ret = PTR_ERR(page);
->  			if (ret == -ENOMEM)
-> -- 
-> 1.7.9.5
->
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
