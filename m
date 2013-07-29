@@ -1,197 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id B25126B0072
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 15:18:04 -0400 (EDT)
-Received: by mail-vb0-f44.google.com with SMTP id e13so1452980vbg.3
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2013 12:18:03 -0700 (PDT)
-Message-ID: <51F6C00C.5050702@gmail.com>
-Date: Mon, 29 Jul 2013 15:18:36 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [patch 5/6] mm: memcg: enable memcg OOM killer only for user
- faults
-References: <1374791138-15665-1-git-send-email-hannes@cmpxchg.org> <1374791138-15665-6-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1374791138-15665-6-git-send-email-hannes@cmpxchg.org>
-Content-Type: text/plain; charset=ISO-2022-JP
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 8A0CB6B0074
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 15:19:26 -0400 (EDT)
+Date: Mon, 29 Jul 2013 15:19:15 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1375125555-yuwxqz39-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1375124737-9w10y4c4-mutt-n-horiguchi@ah.jp.nec.com>
+References: <1375075929-6119-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1375075929-6119-16-git-send-email-iamjoonsoo.kim@lge.com>
+ <1375124737-9w10y4c4-mutt-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 15/18] mm, hugetlb: move up anon_vma_prepare()
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, azurIt <azurit@pobox.sk>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@gmail.com
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Hillf Danton <dhillf@gmail.com>
 
-(7/25/13 6:25 PM), Johannes Weiner wrote:
-> System calls and kernel faults (uaccess, gup) can handle an out of
-> memory situation gracefully and just return -ENOMEM.
+On Mon, Jul 29, 2013 at 03:05:37PM -0400, Naoya Horiguchi wrote:
+> On Mon, Jul 29, 2013 at 02:32:06PM +0900, Joonsoo Kim wrote:
+> > If we fail with a allocated hugepage, it is hard to recover properly.
+> > One such example is reserve count. We don't have any method to recover
+> > reserve count. Although, I will introduce a function to recover reserve
+> > count in following patch, it is better not to allocate a hugepage
+> > as much as possible. So move up anon_vma_prepare() which can be failed
+> > in OOM situation.
+> > 
+> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > 
-> Enable the memcg OOM killer only for user faults, where it's really
-> the only option available.
+> Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+
+Sorry, let me suspend this Reviewed for a question.
+If alloc_huge_page failed after we succeeded anon_vma_parepare,
+the allocated anon_vma_chain and/or anon_vma are safely freed?
+Or don't we have to free them?
+
+Thanks,
+Naoya Horiguchi
+
+> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> > index 683fd38..bb8a45f 100644
+> > --- a/mm/hugetlb.c
+> > +++ b/mm/hugetlb.c
+> > @@ -2536,6 +2536,15 @@ retry_avoidcopy:
+> >  	/* Drop page_table_lock as buddy allocator may be called */
+> >  	spin_unlock(&mm->page_table_lock);
+> >  
+> > +	/*
+> > +	 * When the original hugepage is shared one, it does not have
+> > +	 * anon_vma prepared.
+> > +	 */
+> > +	if (unlikely(anon_vma_prepare(vma))) {
+> > +		ret = VM_FAULT_OOM;
+> > +		goto out_old_page;
+> > +	}
+> > +
+> >  	use_reserve = vma_has_reserves(h, vma, address);
+> >  	if (use_reserve == -ENOMEM) {
+> >  		ret = VM_FAULT_OOM;
+> > @@ -2590,15 +2599,6 @@ retry_avoidcopy:
+> >  		goto out_lock;
+> >  	}
+> >  
+> > -	/*
+> > -	 * When the original hugepage is shared one, it does not have
+> > -	 * anon_vma prepared.
+> > -	 */
+> > -	if (unlikely(anon_vma_prepare(vma))) {
+> > -		ret = VM_FAULT_OOM;
+> > -		goto out_new_page;
+> > -	}
+> > -
+> >  	copy_user_huge_page(new_page, old_page, address, vma,
+> >  			    pages_per_huge_page(h));
+> >  	__SetPageUptodate(new_page);
+> > @@ -2625,7 +2625,6 @@ retry_avoidcopy:
+> >  	spin_unlock(&mm->page_table_lock);
+> >  	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
+> >  
+> > -out_new_page:
+> >  	page_cache_release(new_page);
+> >  out_old_page:
+> >  	page_cache_release(old_page);
+> > -- 
+> > 1.7.9.5
+> > 
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> >
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->   include/linux/memcontrol.h | 23 +++++++++++++++++++++++
->   include/linux/sched.h      |  3 +++
->   mm/filemap.c               | 11 ++++++++++-
->   mm/memcontrol.c            |  2 +-
->   mm/memory.c                | 40 ++++++++++++++++++++++++++++++----------
->   5 files changed, 67 insertions(+), 12 deletions(-)
-> 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 7b4d9d7..9bb5eeb 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -125,6 +125,24 @@ extern void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
->   extern void mem_cgroup_replace_page_cache(struct page *oldpage,
->   					struct page *newpage);
->   
-> +/**
-> + * mem_cgroup_xchg_may_oom - toggle the memcg OOM killer for a task
-> + * @p: task
-> + * @new: true to enable, false to disable
-> + *
-> + * Toggle whether a failed memcg charge should invoke the OOM killer
-> + * or just return -ENOMEM.  Returns the previous toggle state.
-> + */
-> +static inline bool mem_cgroup_xchg_may_oom(struct task_struct *p, bool new)
-> +{
-> +	bool old;
-> +
-> +	old = p->memcg_oom.may_oom;
-> +	p->memcg_oom.may_oom = new;
-> +
-> +	return old;
-> +}
-
-The name of xchg strongly suggest the function use compare-swap op. So, it seems
-misleading name. I suggest just use "set_*" or something else. In linux kernel,
-many setter functions already return old value. Don't mind.
- 
-> diff --git a/include/linux/sched.h b/include/linux/sched.h
-> index fc09d21..4b3effc 100644
-> --- a/include/linux/sched.h
-> +++ b/include/linux/sched.h
-> @@ -1398,6 +1398,9 @@ struct task_struct {
->   		unsigned long memsw_nr_pages; /* uncharged mem+swap usage */
->   	} memcg_batch;
->   	unsigned int memcg_kmem_skip_account;
-> +	struct memcg_oom_info {
-> +		unsigned int may_oom:1;
-> +	} memcg_oom;
-
-This ":1" makes slower but doesn't diet any memory space, right? I suggest
-to use bool. If anybody need to diet in future, he may change it to bit field.
-That's ok, let's stop too early and questionable micro optimization.
-
-
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index a6981fe..2932810 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -1617,6 +1617,7 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
->   	struct file_ra_state *ra = &file->f_ra;
->   	struct inode *inode = mapping->host;
->   	pgoff_t offset = vmf->pgoff;
-> +	unsigned int may_oom;
-
-Why don't you use bool? your mem_cgroup_xchg_may_oom() uses bool and it seems cleaner more.
-
-> @@ -1626,7 +1627,11 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
->   		return VM_FAULT_SIGBUS;
->   
->   	/*
-> -	 * Do we have something in the page cache already?
-> +	 * Do we have something in the page cache already?  Either
-> +	 * way, try readahead, but disable the memcg OOM killer for it
-> +	 * as readahead is optional and no errors are propagated up
-> +	 * the fault stack.  The OOM killer is enabled while trying to
-> +	 * instantiate the faulting page individually below.
->   	 */
->   	page = find_get_page(mapping, offset);
->   	if (likely(page) && !(vmf->flags & FAULT_FLAG_TRIED)) {
-> @@ -1634,10 +1639,14 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
->   		 * We found the page, so try async readahead before
->   		 * waiting for the lock.
->   		 */
-> +		may_oom = mem_cgroup_xchg_may_oom(current, 0);
->   		do_async_mmap_readahead(vma, ra, file, page, offset);
-> +		mem_cgroup_xchg_may_oom(current, may_oom);
->   	} else if (!page) {
->   		/* No page in the page cache at all */
-> +		may_oom = mem_cgroup_xchg_may_oom(current, 0);
->   		do_sync_mmap_readahead(vma, ra, file, offset);
-> +		mem_cgroup_xchg_may_oom(current, may_oom);
->   		count_vm_event(PGMAJFAULT);
->   		mem_cgroup_count_vm_event(vma->vm_mm, PGMAJFAULT);
->   		ret = VM_FAULT_MAJOR;
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 00a7a66..30ae46a 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2614,7 +2614,7 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
->   		return CHARGE_RETRY;
->   
->   	/* If we don't need to call oom-killer at el, return immediately */
-> -	if (!oom_check)
-> +	if (!oom_check || !current->memcg_oom.may_oom)
->   		return CHARGE_NOMEM;
->   	/* check OOM */
->   	if (!mem_cgroup_handle_oom(mem_over_limit, gfp_mask, get_order(csize)))
-> diff --git a/mm/memory.c b/mm/memory.c
-> index f2ab2a8..5ea7b47 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -3752,22 +3752,14 @@ unlock:
->   /*
->    * By the time we get here, we already hold the mm semaphore
->    */
-> -int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-> -		unsigned long address, unsigned int flags)
-> +static int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-> +			     unsigned long address, unsigned int flags)
->   {
->   	pgd_t *pgd;
->   	pud_t *pud;
->   	pmd_t *pmd;
->   	pte_t *pte;
->   
-> -	__set_current_state(TASK_RUNNING);
-> -
-> -	count_vm_event(PGFAULT);
-> -	mem_cgroup_count_vm_event(mm, PGFAULT);
-> -
-> -	/* do counter updates before entering really critical section. */
-> -	check_sync_rss_stat(current);
-> -
->   	if (unlikely(is_vm_hugetlb_page(vma)))
->   		return hugetlb_fault(mm, vma, address, flags);
->   
-> @@ -3851,6 +3843,34 @@ retry:
->   	return handle_pte_fault(mm, vma, address, pte, pmd, flags);
->   }
->   
-> +int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-> +		    unsigned long address, unsigned int flags)
-> +{
-> +	int ret;
-> +
-> +	__set_current_state(TASK_RUNNING);
-> +
-> +	count_vm_event(PGFAULT);
-> +	mem_cgroup_count_vm_event(mm, PGFAULT);
-> +
-> +	/* do counter updates before entering really critical section. */
-> +	check_sync_rss_stat(current);
-> +
-> +	/*
-> +	 * Enable the memcg OOM handling for faults triggered in user
-> +	 * space.  Kernel faults are handled more gracefully.
-> +	 */
-> +	if (flags & FAULT_FLAG_USER)
-> +		WARN_ON(mem_cgroup_xchg_may_oom(current, true) == true);
-
-Please don't assume WARN_ON never erase any code. I'm not surprised if embedded
-guys replace WARN_ON with nop in future.
-
-Thanks.
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
