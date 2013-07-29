@@ -1,61 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id ACFF06B0034
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 08:45:32 -0400 (EDT)
-Date: Mon, 29 Jul 2013 14:45:28 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 4/6] x86: finish user fault error path with fatal signal
-Message-ID: <20130729124528.GE4678@dhcp22.suse.cz>
-References: <1374791138-15665-1-git-send-email-hannes@cmpxchg.org>
- <1374791138-15665-5-git-send-email-hannes@cmpxchg.org>
- <20130726135207.GF17761@dhcp22.suse.cz>
- <20130726184657.GR715@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id A3CB16B0031
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 10:09:18 -0400 (EDT)
+Message-ID: <51F67777.6060609@parallels.com>
+Date: Mon, 29 Jul 2013 18:08:55 +0400
+From: Pavel Emelyanov <xemul@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130726184657.GR715@cmpxchg.org>
+Subject: Re: [PATCH] mm: Save soft-dirty bits on file pages
+References: <20130726201807.GJ8661@moon>
+In-Reply-To: <20130726201807.GJ8661@moon>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, azurIt <azurit@pobox.sk>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Cyrill Gorcunov <gorcunov@gmail.com>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Marcelo Tosatti <mtosatti@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Stephen Rothwell <sfr@canb.auug.org.au>
 
-On Fri 26-07-13 14:46:57, Johannes Weiner wrote:
-> On Fri, Jul 26, 2013 at 03:52:07PM +0200, Michal Hocko wrote:
-> > On Thu 25-07-13 18:25:36, Johannes Weiner wrote:
-> > > The x86 fault handler bails in the middle of error handling when the
-> > > task has a fatal signal pending.  For a subsequent patch this is a
-> > > problem in OOM situations because it relies on
-> > > pagefault_out_of_memory() being called even when the task has been
-> > > killed, to perform proper per-task OOM state unwinding.
-> > > 
-> > > Shortcutting the fault like this is a rather minor optimization that
-> > > saves a few instructions in rare cases.  Just remove it for
-> > > user-triggered faults.
-> > 
-> > OK, I thought that this optimization tries to prevent calling OOM
-> > because the current might release some memory but that wasn't the
-> > intention of b80ef10e8 (x86: Move do_page_fault()'s error path under
-> > unlikely()).
+On 07/27/2013 12:18 AM, Cyrill Gorcunov wrote:
+> Andy reported that if file page get reclaimed we loose soft-dirty bit
+> if it was there, so save _PAGE_BIT_SOFT_DIRTY bit when page address
+> get encoded into pte entry. Thus when #pf happens on such non-present
+> pte we can restore it back.
 > 
-> out_of_memory() also checks the caller for pending signals, so it
-> would not actually invoke the OOM killer if the caller is already
-> dying.
+> Reported-by: Andy Lutomirski <luto@amacapital.net>
+> Signed-off-by: Cyrill Gorcunov <gorcunov@openvz.org>
+> Cc: Pavel Emelyanov <xemul@parallels.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Matt Mackall <mpm@selenic.com>
+> Cc: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+> Cc: Marcelo Tosatti <mtosatti@redhat.com>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+> Cc: Stephen Rothwell <sfr@canb.auug.org.au>
+> ---
 
-Ohh, right you are! I should have checked deeper in the call chain.
+> @@ -57,17 +57,25 @@ static int install_file_pte(struct mm_st
+>  		unsigned long addr, unsigned long pgoff, pgprot_t prot)
+>  {
+>  	int err = -ENOMEM;
+> -	pte_t *pte;
+> +	pte_t *pte, ptfile;
+>  	spinlock_t *ptl;
+>  
+>  	pte = get_locked_pte(mm, addr, &ptl);
+>  	if (!pte)
+>  		goto out;
+>  
+> -	if (!pte_none(*pte))
+> +	ptfile = pgoff_to_pte(pgoff);
+> +
+> +	if (!pte_none(*pte)) {
+> +#ifdef CONFIG_MEM_SOFT_DIRTY
+> +		if (pte_present(*pte) &&
+> +		    pte_soft_dirty(*pte))
 
-> > > Use the opportunity to split the fault retry handling from actual
-> > > fault errors and add locking documentation that reads suprisingly
-> > > similar to ARM's.
-> > > 
-> > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> > 
-> > Reviewed-by: Michal Hocko <mhocko@suse.cz>
-> 
-> Thanks!
+I think there's no need in wrapping every such if () inside #ifdef CONFIG_...,
+since the pte_soft_dirty() routine itself would be 0 for non-soft-dirty case
+and compiler would optimize this code out.
 
--- 
-Michal Hocko
-SUSE Labs
+> +			pte_file_mksoft_dirty(ptfile);
+> +#endif
+>  		zap_pte(mm, vma, addr, pte);
+> +	}
+>  
+> -	set_pte_at(mm, addr, pte, pgoff_to_pte(pgoff));
+> +	set_pte_at(mm, addr, pte, ptfile);
+>  	/*
+>  	 * We don't need to run update_mmu_cache() here because the "file pte"
+>  	 * being installed by install_file_pte() is not a real pte - it's a
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
