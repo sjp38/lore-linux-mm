@@ -1,17 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 5218B6B0031
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 05:33:29 -0400 (EDT)
-Received: by mail-ob0-f180.google.com with SMTP id up14so726615obb.25
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2013 02:33:28 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 40E4A6B0031
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 05:34:54 -0400 (EDT)
+Received: by mail-ob0-f171.google.com with SMTP id tb18so8882504obb.16
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2013 02:34:53 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1375075701-5998-7-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1375075701-5998-8-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1375075701-5998-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<1375075701-5998-7-git-send-email-iamjoonsoo.kim@lge.com>
-Date: Mon, 29 Jul 2013 17:33:28 +0800
-Message-ID: <CAJd=RBArqpk6+7u3zMkUyEpMmvjZwr35cNy_5t0BcEz2sV9=bw@mail.gmail.com>
-Subject: Re: [PATCH v3 6/9] mm, hugetlb: do not use a page in page cache for
- cow optimization
+	<1375075701-5998-8-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Mon, 29 Jul 2013 17:34:53 +0800
+Message-ID: <CAJd=RBCMhdGQ6QVSHH2DL66AJqHd8CCFg7wuD=yq-q_RD3e_fA@mail.gmail.com>
+Subject: Re: [PATCH v3 7/9] mm, hugetlb: add VM_NORESERVE check in vma_has_reserves()
 From: Hillf Danton <dhillf@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -20,80 +19,72 @@ To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
 On Mon, Jul 29, 2013 at 1:28 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> Currently, we use a page with mapped count 1 in page cache for cow
-> optimization. If we find this condition, we don't allocate a new
-> page and copy contents. Instead, we map this page directly.
-> This may introduce a problem that writting to private mapping overwrite
-> hugetlb file directly. You can find this situation with following code.
+> If we map the region with MAP_NORESERVE and MAP_SHARED,
+> we can skip to check reserve counting and eventually we cannot be ensured
+> to allocate a huge page in fault time.
+> With following example code, you can easily find this situation.
 >
->         size = 20 * MB;
+> Assume 2MB, nr_hugepages = 100
+>
+>         fd = hugetlbfs_unlinked_fd();
+>         if (fd < 0)
+>                 return 1;
+>
+>         size = 200 * MB;
 >         flag = MAP_SHARED;
 >         p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
 >         if (p == MAP_FAILED) {
 >                 fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
 >                 return -1;
 >         }
->         p[0] = 's';
->         fprintf(stdout, "BEFORE STEAL PRIVATE WRITE: %c\n", p[0]);
->         munmap(p, size);
 >
->         flag = MAP_PRIVATE;
->         p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
+>         size = 2 * MB;
+>         flag = MAP_ANONYMOUS | MAP_SHARED | MAP_HUGETLB | MAP_NORESERVE;
+>         p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, -1, 0);
 >         if (p == MAP_FAILED) {
 >                 fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
 >         }
->         p[0] = 'c';
->         munmap(p, size);
+>         p[0] = '0';
+>         sleep(10);
 >
->         flag = MAP_SHARED;
->         p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
->         if (p == MAP_FAILED) {
->                 fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
->                 return -1;
->         }
->         fprintf(stdout, "AFTER STEAL PRIVATE WRITE: %c\n", p[0]);
->         munmap(p, size);
+> During executing sleep(10), run 'cat /proc/meminfo' on another process.
 >
-> We can see that "AFTER STEAL PRIVATE WRITE: c", not "AFTER STEAL
-> PRIVATE WRITE: s". If we turn off this optimization to a page
-> in page cache, the problem is disappeared.
+> HugePages_Free:       99
+> HugePages_Rsvd:      100
 >
-> So, I change the trigger condition of optimization. If this page is not
-> AnonPage, we don't do optimization. This makes this optimization turning
-> off for a page cache.
+> Number of free should be higher or equal than number of reserve,
+> but this aren't. This represent that non reserved shared mapping steal
+> a reserved page. Non reserved shared mapping should not eat into
+> reserve space.
 >
-> Acked-by: Michal Hocko <mhocko@suse.cz>
+> If we consider VM_NORESERVE in vma_has_reserve() and return 0 which mean
+> that we don't have reserved pages, then we check that we have enough
+> free pages in dequeue_huge_page_vma(). This prevent to steal
+> a reserved page.
+>
+> With this change, above test generate a SIGBUG which is correct,
+> because all free pages are reserved and non reserved shared mapping
+> can't get a free page.
+>
 > Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-> Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 >
 Acked-by: Hillf Danton <dhillf@gmail.com>
 
 > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 2e52afea..1f6b3a6 100644
+> index 1f6b3a6..ca15854 100644
 > --- a/mm/hugetlb.c
 > +++ b/mm/hugetlb.c
-> @@ -2511,7 +2511,6 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+> @@ -464,6 +464,8 @@ void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
+>  /* Returns true if the VMA has associated reserve pages */
+>  static int vma_has_reserves(struct vm_area_struct *vma)
 >  {
->         struct hstate *h = hstate_vma(vma);
->         struct page *old_page, *new_page;
-> -       int avoidcopy;
->         int outside_reserve = 0;
->         unsigned long mmun_start;       /* For mmu_notifiers */
->         unsigned long mmun_end;         /* For mmu_notifiers */
-> @@ -2521,10 +2520,8 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
->  retry_avoidcopy:
->         /* If no-one else is actually using this page, avoid the copy
->          * and just make the page writable */
-> -       avoidcopy = (page_mapcount(old_page) == 1);
-> -       if (avoidcopy) {
-> -               if (PageAnon(old_page))
-> -                       page_move_anon_rmap(old_page, vma, address);
-> +       if (page_mapcount(old_page) == 1 && PageAnon(old_page)) {
-> +               page_move_anon_rmap(old_page, vma, address);
->                 set_huge_ptep_writable(vma, address, ptep);
->                 return 0;
->         }
+> +       if (vma->vm_flags & VM_NORESERVE)
+> +               return 0;
+>         if (vma->vm_flags & VM_MAYSHARE)
+>                 return 1;
+>         if (is_vma_resv_set(vma, HPAGE_RESV_OWNER))
 > --
 > 1.7.9.5
 >
