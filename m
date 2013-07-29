@@ -1,105 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 201BD6B0033
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 10:53:11 -0400 (EDT)
-Date: Mon, 29 Jul 2013 16:53:08 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: hugepage related lockdep trace.
-Message-ID: <20130729145308.GG4678@dhcp22.suse.cz>
-References: <20130717153223.GD27731@redhat.com>
- <20130718000901.GA31972@blaptop>
- <87hafrdatb.fsf@linux.vnet.ibm.com>
- <20130719001303.GB23354@blaptop>
- <20130723140120.GG8677@dhcp22.suse.cz>
- <20130724024428.GA14795@bbox>
- <20130725133040.GI12818@dhcp22.suse.cz>
- <20130729082453.GB29129@bbox>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 4FC866B0033
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 10:55:45 -0400 (EDT)
+Date: Mon, 29 Jul 2013 10:55:29 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 6/6] mm: memcg: do not trap chargers with full callstack
+ on OOM
+Message-ID: <20130729145529.GW715@cmpxchg.org>
+References: <1374791138-15665-1-git-send-email-hannes@cmpxchg.org>
+ <1374791138-15665-7-git-send-email-hannes@cmpxchg.org>
+ <20130726144310.GH17761@dhcp22.suse.cz>
+ <20130726212808.GD17975@cmpxchg.org>
+ <20130729141250.GF4678@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130729082453.GB29129@bbox>
+In-Reply-To: <20130729141250.GF4678@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, azurIt <azurit@pobox.sk>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon 29-07-13 17:24:53, Minchan Kim wrote:
-> Hi Michal,
-> 
-> On Thu, Jul 25, 2013 at 03:30:40PM +0200, Michal Hocko wrote:
-> > On Wed 24-07-13 11:44:28, Minchan Kim wrote:
-> > > On Tue, Jul 23, 2013 at 04:01:20PM +0200, Michal Hocko wrote:
-> > > > On Fri 19-07-13 09:13:03, Minchan Kim wrote:
-> > > > > On Thu, Jul 18, 2013 at 11:12:24PM +0530, Aneesh Kumar K.V wrote:
-> > > > [...]
-> > > > > > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> > > > > > index 83aff0a..2cb1be3 100644
-> > > > > > --- a/mm/hugetlb.c
-> > > > > > +++ b/mm/hugetlb.c
-> > > > > > @@ -3266,8 +3266,8 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
-> > > > > >  		put_page(virt_to_page(spte));
-> > > > > >  	spin_unlock(&mm->page_table_lock);
-> > > > > >  out:
-> > > > > > -	pte = (pte_t *)pmd_alloc(mm, pud, addr);
-> > > > > >  	mutex_unlock(&mapping->i_mmap_mutex);
-> > > > > > +	pte = (pte_t *)pmd_alloc(mm, pud, addr);
-> > > > > >  	return pte;
-> > > > > 
-> > > > > I am blind on hugetlb but not sure it doesn't break eb48c071.
-> > > > > Michal?
-> > > > 
-> > > > Well, it is some time since I debugged the race and all the details
-> > > > vanished in the meantime. But this part of the changelog suggests that
-> > > > this indeed breaks the fix:
-> > > > "
-> > > >     This patch addresses the issue by moving pmd_alloc into huge_pmd_share
-> > > >     which guarantees that the shared pud is populated in the same critical
-> > > >     section as pmd.  This also means that huge_pte_offset test in
-> > > >     huge_pmd_share is serialized correctly now which in turn means that the
-> > > >     success of the sharing will be higher as the racing tasks see the pud
-> > > >     and pmd populated together.
-> > > > "
-> > > > 
-> > > > Besides that I fail to see how moving pmd_alloc down changes anything.
-> > > > Even if pmd_alloc triggered reclaim then we cannot trip over the same
-> > > > i_mmap_mutex as hugetlb pages are not reclaimable because they are not
-> > > > on the LRU.
+On Mon, Jul 29, 2013 at 04:12:50PM +0200, Michal Hocko wrote:
+> On Fri 26-07-13 17:28:09, Johannes Weiner wrote:
+> > On Fri, Jul 26, 2013 at 04:43:10PM +0200, Michal Hocko wrote:
+> > > On Thu 25-07-13 18:25:38, Johannes Weiner wrote:
+> > > > @@ -2189,31 +2191,20 @@ static void memcg_oom_recover(struct mem_cgroup *memcg)
+> > > >  }
+> > > >  
+> > > >  /*
+> > > > - * try to call OOM killer. returns false if we should exit memory-reclaim loop.
+> > > > + * try to call OOM killer
+> > > >   */
+> > > > -static bool mem_cgroup_handle_oom(struct mem_cgroup *memcg, gfp_t mask,
+> > > > -				  int order)
+> > > > +static void mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
+> > > >  {
+> > > > -	struct oom_wait_info owait;
+> > > > -	bool locked, need_to_kill;
+> > > > +	bool locked, need_to_kill = true;
+> > > >  
+> > > > -	owait.memcg = memcg;
+> > > > -	owait.wait.flags = 0;
+> > > > -	owait.wait.func = memcg_oom_wake_function;
+> > > > -	owait.wait.private = current;
+> > > > -	INIT_LIST_HEAD(&owait.wait.task_list);
+> > > > -	need_to_kill = true;
+> > > > -	mem_cgroup_mark_under_oom(memcg);
 > > > 
-> > > I thought we could map some part of binary with normal page and other part
-> > > of the one with MAP_HUGETLB so that a address space could have both normal
-> > > page and HugeTLB page. Okay, it's impossible so HugeTLB pages are not on LRU.
-> > > Then, above lockdep warning is totally false positive.
-> > > Best solution is avoiding pmd_alloc with holding i_mmap_mutex but we need it
-> > > to fix eb48c071 so how about this if we couldn't have a better idea?
+> > > You are marking memcg under_oom only for the sleepers. So if we have
+> > > no sleepers then the memcg will never report it is under oom which
+> > > is a behavior change. On the other hand who-ever relies on under_oom
+> > > under such conditions (it would basically mean a busy loop reading
+> > > memory.oom_control) would be racy anyway so it is questionable it
+> > > matters at all. At least now when we do not have any active notification
+> > > that under_oom has changed.
+> > > 
+> > > Anyway, this shouldn't be a part of this patch so if you want it because
+> > > it saves a pointless hierarchy traversal then make it a separate patch
+> > > with explanation why the new behavior is still OK.
 > > 
-> > Shouldn't we rather use a hugetlb specific lock_class_key. I am not
-> > familiar with lockdep much but something like bellow should do the
-> > trick?
+> > This made me think again about how the locking and waking in there
+> > works and I found a bug in this patch.
+> > 
+> > Basically, we have an open-coded sleeping lock in there and it's all
+> > obfuscated by having way too much stuffed into the memcg_oom_lock
+> > section.
+> > 
+> > Removing all the clutter, it becomes clear that I can't remove that
+> > (undocumented) final wakeup at the end of the function.  As with any
+> > lock, a contender has to be woken up after unlock.  We can't rely on
+> > the lock holder's OOM kill to trigger uncharges and wakeups, because a
+> > contender for the OOM lock could show up after the OOM kill but before
+> > the lock is released.  If there weren't any more wakeups, the
+> > contender would sleep indefinitely.
 > 
-> Looks good to me.
-> Could you resend it with formal patch with Ccing Peter for Dave to confirm it?
-> Below just a nitpick.
+> I have checked that path again and I still do not see how wakeup_oom
+> helps here. What prevents us from the following race then?
+> 
+> spin_lock(&memcg_oom_lock)
+> locked = mem_cgroup_oom_lock(memcg) # true
+> spin_unlock(&memcg_oom_lock)
 
-I would have posted it already but I have to confess I am really not
-familiar with lockdep and what is the good way to fix such a false
-positive.
+                                                prepare_to_wait()
 
-Peter, for you context the lockdep splat has been reported
-here: https://lkml.org/lkml/2013/7/17/381
-
-Minchan has proposed to workaround it by using SINGLE_DEPTH_NESTING
-https://lkml.org/lkml/2013/7/23/812
-
-my idea was to use a separate class key for hugetlb as it is quite
-special in many ways:
-https://lkml.org/lkml/2013/7/25/277
-
-What is the preferred way of fixing such an issue?
-
-Thanks!
--- 
-Michal Hocko
-SUSE Labs
+> 						spin_lock(&memcg_oom_lock)
+> 						locked = mem_cgroup_oom_lock(memcg) # false
+> 						spin_unlock(&memcg_oom_lock)
+> 						<resched>
+> mem_cgroup_out_of_memory()
+> 			<uncharge & memcg_oom_recover>
+> spin_lock(&memcg_oom_lock)
+> mem_cgroup_oom_unlock(memcg)
+> memcg_wakeup_oom(memcg)
+> 						schedule()
+> spin_unlock(&memcg_oom_lock)
+> mem_cgroup_unmark_under_oom(memcg)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
