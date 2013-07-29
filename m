@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 999176B0034
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id CB0996B0062
 	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 01:32:22 -0400 (EDT)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH 03/18] mm, hugetlb: unify region structure handling
-Date: Mon, 29 Jul 2013 14:31:54 +0900
-Message-Id: <1375075929-6119-4-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 06/18] mm, hugetlb: remove vma_need_reservation()
+Date: Mon, 29 Jul 2013 14:31:57 +0900
+Message-Id: <1375075929-6119-7-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1375075929-6119-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1375075929-6119-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,179 +13,219 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Currently, to track a reserved and allocated region, we use two different
-ways for MAP_SHARED and MAP_PRIVATE. For MAP_SHARED, we use
-address_mapping's private_list and, for MAP_PRIVATE, we use a resv_map.
-Now, we are preparing to change a coarse grained lock which protect
-a region structure to fine grained lock, and this difference hinder it.
-So, before changing it, unify region structure handling.
+vma_need_reservation() can be substituted by vma_has_reserves()
+with minor change. These function do almost same thing,
+so unifying them is better to maintain.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index a3f868a..a1ae3ada 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -366,7 +366,12 @@ static void truncate_hugepages(struct inode *inode, loff_t lstart)
- 
- static void hugetlbfs_evict_inode(struct inode *inode)
- {
-+	struct resv_map *resv_map;
-+
- 	truncate_hugepages(inode, 0);
-+	resv_map = (struct resv_map *)inode->i_mapping->private_data;
-+	if (resv_map)
-+		kref_put(&resv_map->refs, resv_map_release);
- 	clear_inode(inode);
- }
- 
-@@ -468,6 +473,11 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
- 					umode_t mode, dev_t dev)
- {
- 	struct inode *inode;
-+	struct resv_map *resv_map;
-+
-+	resv_map = resv_map_alloc();
-+	if (!resv_map)
-+		return NULL;
- 
- 	inode = new_inode(sb);
- 	if (inode) {
-@@ -477,7 +487,7 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
- 		inode->i_mapping->a_ops = &hugetlbfs_aops;
- 		inode->i_mapping->backing_dev_info =&hugetlbfs_backing_dev_info;
- 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
--		INIT_LIST_HEAD(&inode->i_mapping->private_list);
-+		inode->i_mapping->private_data = resv_map;
- 		info = HUGETLBFS_I(inode);
- 		/*
- 		 * The policy is initialized here even if we are creating a
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 6b4890f..2677c07 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -5,6 +5,8 @@
- #include <linux/fs.h>
- #include <linux/hugetlb_inline.h>
- #include <linux/cgroup.h>
-+#include <linux/list.h>
-+#include <linux/kref.h>
- 
- struct ctl_table;
- struct user_struct;
-@@ -22,6 +24,13 @@ struct hugepage_subpool {
- 	long max_hpages, used_hpages;
- };
- 
-+struct resv_map {
-+	struct kref refs;
-+	struct list_head regions;
-+};
-+extern struct resv_map *resv_map_alloc(void);
-+void resv_map_release(struct kref *ref);
-+
- extern spinlock_t hugetlb_lock;
- extern int hugetlb_max_hstate __read_mostly;
- #define for_each_hstate(h) \
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 12b6581..35f6b12 100644
+index bf2ee11..ff46a2c 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -375,12 +375,7 @@ static void set_vma_private_data(struct vm_area_struct *vma,
- 	vma->vm_private_data = (void *)value;
+@@ -451,8 +451,18 @@ void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
+ 		vma->vm_private_data = (void *)0;
  }
  
--struct resv_map {
--	struct kref refs;
--	struct list_head regions;
--};
--
--static struct resv_map *resv_map_alloc(void)
-+struct resv_map *resv_map_alloc(void)
+-/* Returns true if the VMA has associated reserve pages */
+-static int vma_has_reserves(struct vm_area_struct *vma, long chg)
++/*
++ * Determine if the huge page at addr within the vma has an associated
++ * reservation.  Where it does not we will need to logically increase
++ * reservation and actually increase subpool usage before an allocation
++ * can occur.  Where any new reservation would be required the
++ * reservation change is prepared, but not committed.  Once the page
++ * has been allocated from the subpool and instantiated the change should
++ * be committed via vma_commit_reservation.  No action is required on
++ * failure.
++ */
++static int vma_has_reserves(struct hstate *h,
++			struct vm_area_struct *vma, unsigned long addr)
  {
- 	struct resv_map *resv_map = kmalloc(sizeof(*resv_map), GFP_KERNEL);
- 	if (!resv_map)
-@@ -392,7 +387,7 @@ static struct resv_map *resv_map_alloc(void)
- 	return resv_map;
- }
- 
--static void resv_map_release(struct kref *ref)
-+void resv_map_release(struct kref *ref)
- {
- 	struct resv_map *resv_map = container_of(ref, struct resv_map, refs);
- 
-@@ -1086,8 +1081,9 @@ static long vma_needs_reservation(struct hstate *h,
- 
- 	if (vma->vm_flags & VM_MAYSHARE) {
- 		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
--		return region_chg(&inode->i_mapping->private_list,
--							idx, idx + 1);
-+		struct resv_map *resv = inode->i_mapping->private_data;
+ 	if (vma->vm_flags & VM_NORESERVE) {
+ 		/*
+@@ -464,10 +474,22 @@ static int vma_has_reserves(struct vm_area_struct *vma, long chg)
+ 		 * step. Currently, we don't have any other solution to deal
+ 		 * with this situation properly, so add work-around here.
+ 		 */
+-		if (vma->vm_flags & VM_MAYSHARE && chg == 0)
+-			return 1;
+-		else
+-			return 0;
++		if (vma->vm_flags & VM_MAYSHARE) {
++			struct address_space *mapping = vma->vm_file->f_mapping;
++			struct inode *inode = mapping->host;
++			pgoff_t idx = vma_hugecache_offset(h, vma, addr);
++			struct resv_map *resv = inode->i_mapping->private_data;
++			long chg;
 +
-+		return region_chg(&resv->regions, idx, idx + 1);
++			chg = region_chg(resv, idx, idx + 1);
++			if (chg < 0)
++				return -ENOMEM;
++
++			if (chg == 0)
++				return 1;
++		}
++
++		return 0;
+ 	}
  
- 	} else if (!is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
+ 	/* Shared mappings always use reserves */
+@@ -478,8 +500,16 @@ static int vma_has_reserves(struct vm_area_struct *vma, long chg)
+ 	 * Only the process that called mmap() has reserves for
+ 	 * private mappings.
+ 	 */
+-	if (is_vma_resv_set(vma, HPAGE_RESV_OWNER))
++	if (is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
++		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
++		struct resv_map *resv = vma_resv_map(vma);
++
++		/* Just for allocating region structure */
++		if (region_chg(resv, idx, idx + 1) < 0)
++			return -ENOMEM;
++
  		return 1;
-@@ -1111,7 +1107,9 @@ static void vma_commit_reservation(struct hstate *h,
++	}
  
- 	if (vma->vm_flags & VM_MAYSHARE) {
- 		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
--		region_add(&inode->i_mapping->private_list, idx, idx + 1);
-+		struct resv_map *resv = inode->i_mapping->private_data;
-+
-+		region_add(&resv->regions, idx, idx + 1);
- 
- 	} else if (is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
- 		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
-@@ -3061,6 +3059,7 @@ int hugetlb_reserve_pages(struct inode *inode,
- 	long ret, chg;
- 	struct hstate *h = hstate_inode(inode);
- 	struct hugepage_subpool *spool = subpool_inode(inode);
-+	struct resv_map *resv_map;
- 
- 	/*
- 	 * Only apply hugepage reservation if asked. At fault time, an
-@@ -3076,10 +3075,13 @@ int hugetlb_reserve_pages(struct inode *inode,
- 	 * to reserve the full area even if read-only as mprotect() may be
- 	 * called to make the mapping read-write. Assume !vma is a shm mapping
- 	 */
--	if (!vma || vma->vm_flags & VM_MAYSHARE)
--		chg = region_chg(&inode->i_mapping->private_list, from, to);
--	else {
--		struct resv_map *resv_map = resv_map_alloc();
-+	if (!vma || vma->vm_flags & VM_MAYSHARE) {
-+		resv_map = inode->i_mapping->private_data;
-+
-+		chg = region_chg(&resv_map->regions, from, to);
-+
-+	} else {
-+		resv_map = resv_map_alloc();
- 		if (!resv_map)
- 			return -ENOMEM;
- 
-@@ -3122,7 +3124,7 @@ int hugetlb_reserve_pages(struct inode *inode,
- 	 * else has to be done for private mappings here
- 	 */
- 	if (!vma || vma->vm_flags & VM_MAYSHARE)
--		region_add(&inode->i_mapping->private_list, from, to);
-+		region_add(&resv_map->regions, from, to);
  	return 0;
- out_err:
- 	if (vma)
-@@ -3133,9 +3135,12 @@ out_err:
- void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
- {
- 	struct hstate *h = hstate_inode(inode);
--	long chg = region_truncate(&inode->i_mapping->private_list, offset);
-+	struct resv_map *resv_map = inode->i_mapping->private_data;
-+	long chg = 0;
- 	struct hugepage_subpool *spool = subpool_inode(inode);
+ }
+@@ -542,8 +572,7 @@ static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
  
-+	if (resv_map)
-+		chg = region_truncate(&resv_map->regions, offset);
- 	spin_lock(&inode->i_lock);
- 	inode->i_blocks -= (blocks_per_huge_page(h) * freed);
- 	spin_unlock(&inode->i_lock);
+ static struct page *dequeue_huge_page_vma(struct hstate *h,
+ 				struct vm_area_struct *vma,
+-				unsigned long address, int avoid_reserve,
+-				long chg)
++				unsigned long address, int avoid_reserve)
+ {
+ 	struct page *page = NULL;
+ 	struct mempolicy *mpol;
+@@ -558,7 +587,7 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
+ 	 * have no page reserves. This check ensures that reservations are
+ 	 * not "stolen". The child may still get SIGKILLed
+ 	 */
+-	if (!vma_has_reserves(vma, chg) &&
++	if (!vma_has_reserves(h, vma, address) &&
+ 			h->free_huge_pages - h->resv_huge_pages == 0)
+ 		return NULL;
+ 
+@@ -578,7 +607,7 @@ retry_cpuset:
+ 			if (page) {
+ 				if (avoid_reserve)
+ 					break;
+-				if (!vma_has_reserves(vma, chg))
++				if (!vma_has_reserves(h, vma, address))
+ 					break;
+ 
+ 				h->resv_huge_pages--;
+@@ -1077,42 +1106,6 @@ static void return_unused_surplus_pages(struct hstate *h,
+ 	}
+ }
+ 
+-/*
+- * Determine if the huge page at addr within the vma has an associated
+- * reservation.  Where it does not we will need to logically increase
+- * reservation and actually increase subpool usage before an allocation
+- * can occur.  Where any new reservation would be required the
+- * reservation change is prepared, but not committed.  Once the page
+- * has been allocated from the subpool and instantiated the change should
+- * be committed via vma_commit_reservation.  No action is required on
+- * failure.
+- */
+-static long vma_needs_reservation(struct hstate *h,
+-			struct vm_area_struct *vma, unsigned long addr)
+-{
+-	struct address_space *mapping = vma->vm_file->f_mapping;
+-	struct inode *inode = mapping->host;
+-
+-	if (vma->vm_flags & VM_MAYSHARE) {
+-		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
+-		struct resv_map *resv = inode->i_mapping->private_data;
+-
+-		return region_chg(resv, idx, idx + 1);
+-
+-	} else if (!is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
+-		return 1;
+-
+-	} else  {
+-		long err;
+-		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
+-		struct resv_map *resv = vma_resv_map(vma);
+-
+-		err = region_chg(resv, idx, idx + 1);
+-		if (err < 0)
+-			return err;
+-		return 0;
+-	}
+-}
+ static void vma_commit_reservation(struct hstate *h,
+ 			struct vm_area_struct *vma, unsigned long addr)
+ {
+@@ -1140,8 +1133,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 	struct hugepage_subpool *spool = subpool_vma(vma);
+ 	struct hstate *h = hstate_vma(vma);
+ 	struct page *page;
+-	long chg;
+-	int ret, idx;
++	int ret, idx, has_reserve;
+ 	struct hugetlb_cgroup *h_cg;
+ 
+ 	idx = hstate_index(h);
+@@ -1153,20 +1145,21 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 	 * need pages and subpool limit allocated allocated if no reserve
+ 	 * mapping overlaps.
+ 	 */
+-	chg = vma_needs_reservation(h, vma, addr);
+-	if (chg < 0)
++	has_reserve = vma_has_reserves(h, vma, addr);
++	if (has_reserve < 0)
+ 		return ERR_PTR(-ENOMEM);
+-	if (chg)
+-		if (hugepage_subpool_get_pages(spool, chg))
++
++	if (!has_reserve && (hugepage_subpool_get_pages(spool, 1) < 0))
+ 			return ERR_PTR(-ENOSPC);
+ 
+ 	ret = hugetlb_cgroup_charge_cgroup(idx, pages_per_huge_page(h), &h_cg);
+ 	if (ret) {
+-		hugepage_subpool_put_pages(spool, chg);
++		if (!has_reserve)
++			hugepage_subpool_put_pages(spool, 1);
+ 		return ERR_PTR(-ENOSPC);
+ 	}
+ 	spin_lock(&hugetlb_lock);
+-	page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve, chg);
++	page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve);
+ 	if (!page) {
+ 		spin_unlock(&hugetlb_lock);
+ 		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
+@@ -1174,7 +1167,8 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 			hugetlb_cgroup_uncharge_cgroup(idx,
+ 						       pages_per_huge_page(h),
+ 						       h_cg);
+-			hugepage_subpool_put_pages(spool, chg);
++			if (!has_reserve)
++				hugepage_subpool_put_pages(spool, 1);
+ 			return ERR_PTR(-ENOSPC);
+ 		}
+ 		spin_lock(&hugetlb_lock);
+@@ -2769,7 +2763,7 @@ retry:
+ 	 * the spinlock.
+ 	 */
+ 	if ((flags & FAULT_FLAG_WRITE) && !(vma->vm_flags & VM_SHARED))
+-		if (vma_needs_reservation(h, vma, address) < 0) {
++		if (vma_has_reserves(h, vma, address) < 0) {
+ 			ret = VM_FAULT_OOM;
+ 			goto backout_unlocked;
+ 		}
+@@ -2860,7 +2854,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	 * consumed.
+ 	 */
+ 	if ((flags & FAULT_FLAG_WRITE) && !huge_pte_write(entry)) {
+-		if (vma_needs_reservation(h, vma, address) < 0) {
++		if (vma_has_reserves(h, vma, address) < 0) {
+ 			ret = VM_FAULT_OOM;
+ 			goto out_mutex;
+ 		}
 -- 
 1.7.9.5
 
