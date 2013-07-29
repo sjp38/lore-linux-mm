@@ -1,72 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id A3CB16B0031
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 10:09:18 -0400 (EDT)
-Message-ID: <51F67777.6060609@parallels.com>
-Date: Mon, 29 Jul 2013 18:08:55 +0400
-From: Pavel Emelyanov <xemul@parallels.com>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id DE2E56B0031
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 10:12:53 -0400 (EDT)
+Date: Mon, 29 Jul 2013 16:12:50 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 6/6] mm: memcg: do not trap chargers with full callstack
+ on OOM
+Message-ID: <20130729141250.GF4678@dhcp22.suse.cz>
+References: <1374791138-15665-1-git-send-email-hannes@cmpxchg.org>
+ <1374791138-15665-7-git-send-email-hannes@cmpxchg.org>
+ <20130726144310.GH17761@dhcp22.suse.cz>
+ <20130726212808.GD17975@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: Save soft-dirty bits on file pages
-References: <20130726201807.GJ8661@moon>
-In-Reply-To: <20130726201807.GJ8661@moon>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130726212808.GD17975@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyrill Gorcunov <gorcunov@gmail.com>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Marcelo Tosatti <mtosatti@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Stephen Rothwell <sfr@canb.auug.org.au>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, azurIt <azurit@pobox.sk>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 07/27/2013 12:18 AM, Cyrill Gorcunov wrote:
-> Andy reported that if file page get reclaimed we loose soft-dirty bit
-> if it was there, so save _PAGE_BIT_SOFT_DIRTY bit when page address
-> get encoded into pte entry. Thus when #pf happens on such non-present
-> pte we can restore it back.
+On Fri 26-07-13 17:28:09, Johannes Weiner wrote:
+> On Fri, Jul 26, 2013 at 04:43:10PM +0200, Michal Hocko wrote:
+> > On Thu 25-07-13 18:25:38, Johannes Weiner wrote:
+> > > @@ -2189,31 +2191,20 @@ static void memcg_oom_recover(struct mem_cgroup *memcg)
+> > >  }
+> > >  
+> > >  /*
+> > > - * try to call OOM killer. returns false if we should exit memory-reclaim loop.
+> > > + * try to call OOM killer
+> > >   */
+> > > -static bool mem_cgroup_handle_oom(struct mem_cgroup *memcg, gfp_t mask,
+> > > -				  int order)
+> > > +static void mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
+> > >  {
+> > > -	struct oom_wait_info owait;
+> > > -	bool locked, need_to_kill;
+> > > +	bool locked, need_to_kill = true;
+> > >  
+> > > -	owait.memcg = memcg;
+> > > -	owait.wait.flags = 0;
+> > > -	owait.wait.func = memcg_oom_wake_function;
+> > > -	owait.wait.private = current;
+> > > -	INIT_LIST_HEAD(&owait.wait.task_list);
+> > > -	need_to_kill = true;
+> > > -	mem_cgroup_mark_under_oom(memcg);
+> > 
+> > You are marking memcg under_oom only for the sleepers. So if we have
+> > no sleepers then the memcg will never report it is under oom which
+> > is a behavior change. On the other hand who-ever relies on under_oom
+> > under such conditions (it would basically mean a busy loop reading
+> > memory.oom_control) would be racy anyway so it is questionable it
+> > matters at all. At least now when we do not have any active notification
+> > that under_oom has changed.
+> > 
+> > Anyway, this shouldn't be a part of this patch so if you want it because
+> > it saves a pointless hierarchy traversal then make it a separate patch
+> > with explanation why the new behavior is still OK.
 > 
-> Reported-by: Andy Lutomirski <luto@amacapital.net>
-> Signed-off-by: Cyrill Gorcunov <gorcunov@openvz.org>
-> Cc: Pavel Emelyanov <xemul@parallels.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Matt Mackall <mpm@selenic.com>
-> Cc: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
-> Cc: Marcelo Tosatti <mtosatti@redhat.com>
-> Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-> Cc: Stephen Rothwell <sfr@canb.auug.org.au>
-> ---
+> This made me think again about how the locking and waking in there
+> works and I found a bug in this patch.
+> 
+> Basically, we have an open-coded sleeping lock in there and it's all
+> obfuscated by having way too much stuffed into the memcg_oom_lock
+> section.
+> 
+> Removing all the clutter, it becomes clear that I can't remove that
+> (undocumented) final wakeup at the end of the function.  As with any
+> lock, a contender has to be woken up after unlock.  We can't rely on
+> the lock holder's OOM kill to trigger uncharges and wakeups, because a
+> contender for the OOM lock could show up after the OOM kill but before
+> the lock is released.  If there weren't any more wakeups, the
+> contender would sleep indefinitely.
 
-> @@ -57,17 +57,25 @@ static int install_file_pte(struct mm_st
->  		unsigned long addr, unsigned long pgoff, pgprot_t prot)
->  {
->  	int err = -ENOMEM;
-> -	pte_t *pte;
-> +	pte_t *pte, ptfile;
->  	spinlock_t *ptl;
->  
->  	pte = get_locked_pte(mm, addr, &ptl);
->  	if (!pte)
->  		goto out;
->  
-> -	if (!pte_none(*pte))
-> +	ptfile = pgoff_to_pte(pgoff);
-> +
-> +	if (!pte_none(*pte)) {
-> +#ifdef CONFIG_MEM_SOFT_DIRTY
-> +		if (pte_present(*pte) &&
-> +		    pte_soft_dirty(*pte))
+I have checked that path again and I still do not see how wakeup_oom
+helps here. What prevents us from the following race then?
 
-I think there's no need in wrapping every such if () inside #ifdef CONFIG_...,
-since the pte_soft_dirty() routine itself would be 0 for non-soft-dirty case
-and compiler would optimize this code out.
+spin_lock(&memcg_oom_lock)
+locked = mem_cgroup_oom_lock(memcg) # true
+spin_unlock(&memcg_oom_lock)
+						spin_lock(&memcg_oom_lock)
+						locked = mem_cgroup_oom_lock(memcg) # false
+						spin_unlock(&memcg_oom_lock)
+						<resched>
+mem_cgroup_out_of_memory()
+			<uncharge & memcg_oom_recover>
+spin_lock(&memcg_oom_lock)
+mem_cgroup_oom_unlock(memcg)
+memcg_wakeup_oom(memcg)
+						schedule()
+spin_unlock(&memcg_oom_lock)
+mem_cgroup_unmark_under_oom(memcg)
 
-> +			pte_file_mksoft_dirty(ptfile);
-> +#endif
->  		zap_pte(mm, vma, addr, pte);
-> +	}
->  
-> -	set_pte_at(mm, addr, pte, pgoff_to_pte(pgoff));
-> +	set_pte_at(mm, addr, pte, ptfile);
->  	/*
->  	 * We don't need to run update_mmu_cache() here because the "file pte"
->  	 * being installed by install_file_pte() is not a real pte - it's a
+> It also becomes clear that I can't remove the
+> mem_cgroup_mark_under_oom() like that because it is key in receiving
+> wakeups.  And as with any sleeping lock, we need to listen to wakeups
+> before attempting the trylock, or we might miss the wakeup from the
+> unlock.
+> 
+> It definitely became a separate patch, which cleans up this unholy
+> mess first before putting new things on top:
+
+I will check the patch tomorrow with a clean head.
+[...]
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
