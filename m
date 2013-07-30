@@ -1,49 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id DD7FC6B0033
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 20:16:13 -0400 (EDT)
-Date: Mon, 29 Jul 2013 17:16:11 -0700
-From: Greg KH <greg@kroah.com>
-Subject: Re: [PATCH] mm: Fix the TLB range flushed when __tlb_remove_page()
- runs out of slots
-Message-ID: <20130730001611.GA15007@kroah.com>
-References: <1369832173-15088-1-git-send-email-vgupta@synopsys.com>
- <20130729.164106.943996066712571180.davem@davemloft.net>
- <20130729164658.0dfa1ff602bc131fe2ec0b1b@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id E317D6B0031
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 20:36:52 -0400 (EDT)
+Received: from /spool/local
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
+	Tue, 30 Jul 2013 01:36:51 +0100
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 8131838C8045
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 20:36:48 -0400 (EDT)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6U0anps163000
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 20:36:49 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6U0an0L014856
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 20:36:49 -0400
+Message-ID: <51F70A9F.2000309@linux.vnet.ibm.com>
+Date: Mon, 29 Jul 2013 17:36:47 -0700
+From: Cody P Schafer <cody@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130729164658.0dfa1ff602bc131fe2ec0b1b@linux-foundation.org>
+Subject: Re: [PATCH 2/2] mm: page_alloc: Add unlikely for MAX_ORDER check
+References: <1375022906-1164-1-git-send-email-waydi1@gmail.com> <51F6F087.9060109@linux.intel.com>
+In-Reply-To: <51F6F087.9060109@linux.intel.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Miller <davem@davemloft.net>, Vineet.Gupta1@synopsys.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de, hughd@google.com, riel@redhat.com, rientjes@google.com, peterz@infradead.org, linux-arch@vger.kernel.org, catalin.marinas@arm.com, jcmvbkbc@gmail.com, stable@vger.kernel.org
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: SeungHun Lee <waydi1@gmail.com>, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, xinxing2zhou@gmail.com
 
-On Mon, Jul 29, 2013 at 04:46:58PM -0700, Andrew Morton wrote:
-> On Mon, 29 Jul 2013 16:41:06 -0700 (PDT) David Miller <davem@davemloft.net> wrote:
-> 
-> > From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-> > Date: Wed, 29 May 2013 18:26:13 +0530
-> > 
-> > > zap_pte_range loops from @addr to @end. In the middle, if it runs out of
-> > > batching slots, TLB entries needs to be flushed for @start to @interim,
-> > > NOT @interim to @end.
-> > > 
-> > > Since ARC port doesn't use page free batching I can't test it myself but
-> > > this seems like the right thing to do.
-> > > Observed this when working on a fix for the issue at thread:
-> > > 	http://www.spinics.net/lists/linux-arch/msg21736.html
-> > > 
-> > > Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
-> > 
-> > As this bug can cause pretty serious memory corruption, I'd like to
-> > see this submitted to -stable.
-> 
-> Greg, e6c495a96ce02574e765d5140039a64c8d4e8c9e from mainline, please.
+On 07/29/2013 03:45 PM, Dave Hansen wrote:
+> On 07/28/2013 07:48 AM, SeungHun Lee wrote:
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index b8475ed..e644cf5 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -2408,7 +2408,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>>   	 * be using allocators in order of preference for an area that is
+>>   	 * too large.
+>>   	 */
+>> -	if (order >= MAX_ORDER) {
+>> +	if (unlikely(order >= MAX_ORDER)) {
+>>   		WARN_ON_ONCE(!(gfp_mask & __GFP_NOWARN));
+>>   		return NULL;
+>>   	}
+>
+> What problem is this patch solving?  I can see doing this in hot paths,
+> or places where the compiler is known to be generating bad or suboptimal
+> code.  but, this costs me 512 bytes of text size:
+>
+>   898384 Jul 29 15:40 mm/page_alloc.o.nothing
+>   898896 Jul 29 15:40 mm/page_alloc.o.unlikely
 
-Now applied to 3.10-stable, thanks.
+I took a look at this on my system.
 
-greg k-h
+With gcc version 4.6.3 (Ubuntu/Linaro 4.6.3-1ubuntu5):
+
+-rw-rw-r-- 1 cody cody 841160 Jul 29 16:47 unlikely/mm/page_alloc.o
+-rw-rw-r-- 1 cody cody 840584 Jul 29 16:59 normal/mm/page_alloc.o
+
+    text	   data	    bss	    dec	    hex	filename
+   33799	   1414	    184	  35397	   8a45	unlikely/mm/page_alloc.o
+   33799	   1414	    184	  35397	   8a45	normal/mm/page_alloc.o
+
+Well, where are are those extra bytes coming from, then?
+
+Using readelf -S + `git diff --no-index --word-diff` shows:
+.debug_info      shrinks from 1e991 to 1e98f
+.rela.debug_info shrinks from 33a80 to 33a68
+.debug_loc         grows from 15e1d to 15ecb
+.rela.debug_loc    grows from 26f40 to 270f0
+.debug_line        grows from 038eb to 038ed
+.debug_str       shrinks from 0adb6 to 0adb2
+
+The sizes of all other sections are unchanged.
+
+Also: comparing vmlinux sizes:
+-rwxrwxr-x 1 cody cody 94121230 Jul 29 17:00 normal/vmlinux
+-rwxrwxr-x 1 cody cody 94121294 Jul 29 16:51 unlikely/vmlinux
+
+And the bzImage sizes:
+-rw-rw-r-- 1 cody cody 2942240 Jul 29 16:51 unlikely/arch/x86/boot/bzImage
+-rw-rw-r-- 1 cody cody 2942208 Jul 29 17:00 normal/arch/x86/boot/bzImage
+
+I build this kernel with debug info built in though, what happens when 
+it is removed?
+
+-rwxrwxr-x 1 cody cody 16392454 Jul 29 17:33 normal/vmlinux
+-rwxrwxr-x 1 cody cody 16392454 Jul 29 17:33 unlikely/vmlinux
+
+-rw-rw-r-- 1 cody cody 2942208 Jul 29 17:33 normal/arch/x86/boot/bzImage
+-rw-rw-r-- 1 cody cody 2942208 Jul 29 17:33 unlikely/arch/x86/boot/bzImage
+
+So, it looks like the only difference in size due to this patch is in 
+the debug info.
+
+> I really don't think we should be adding these without having _concrete_
+> reasons for it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
