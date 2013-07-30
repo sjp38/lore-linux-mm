@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 1C8AA6B003A
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 03:49:38 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 455776B003A
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 03:49:46 -0400 (EDT)
 Received: from /spool/local
-	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Tue, 30 Jul 2013 01:49:37 -0600
-Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 91A7E19D8043
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 01:49:23 -0600 (MDT)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6U7nZZ3155888
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 01:49:35 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6U7nYN5015142
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 01:49:35 -0600
+	Tue, 30 Jul 2013 08:49:44 +0100
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 2C6316E803F
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 03:49:37 -0400 (EDT)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6U7ngPa138456
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 03:49:42 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6U7nf55003881
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 03:49:42 -0400
 From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: [RFC PATCH 06/10] sched: Limit migrations from a node
-Date: Tue, 30 Jul 2013 13:18:21 +0530
-Message-Id: <1375170505-5967-7-git-send-email-srikar@linux.vnet.ibm.com>
+Subject: [RFC PATCH 07/10] sched: Pass hint to active balancer about the task to be chosen
+Date: Tue, 30 Jul 2013 13:18:22 +0530
+Message-Id: <1375170505-5967-8-git-send-email-srikar@linux.vnet.ibm.com>
 In-Reply-To: <1375170505-5967-1-git-send-email-srikar@linux.vnet.ibm.com>
 References: <1375170505-5967-1-git-send-email-srikar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,95 +26,90 @@ List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Preeti U Murthy <preeti@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 
-While tasks are being moved from one node to another, run-queue's look
-at nodes that have least numa affinity. However this can lead to more
-requests to pull tasks from a single node than the available non-local
-tasks on that node.
+If a task to be active balanced, which improves the numa affinity is
+already chosen, then pass the task to the actual migration.
 
-Add a counter that limits the number of simultaneous
-migrations. With this counter, if a source node (that acts as a node with
-least numa affinity for a address-space) has enough requests to
-relinquish  tasks, then we choose a node with the next least number of
-affinity threads for a address-space.
+This helps in 2 ways.
+- Dont have to iterate through the list of tasks and again chose a
+  task.
+- If the chosen task has already moved out of runqueue, avoid moving
+  some other task that may or may not provide consolidation.
 
 Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 ---
- fs/exec.c                |    1 +
- include/linux/mm_types.h |    1 +
- kernel/fork.c            |    1 +
- kernel/sched/fair.c      |    9 +++++++++
- 4 files changed, 12 insertions(+), 0 deletions(-)
+ kernel/sched/fair.c  |   20 +++++++++++++++++++-
+ kernel/sched/sched.h |    3 +++
+ 2 files changed, 22 insertions(+), 1 deletions(-)
 
-diff --git a/fs/exec.c b/fs/exec.c
-index b086e9e..9ce5cab 100644
---- a/fs/exec.c
-+++ b/fs/exec.c
-@@ -835,6 +835,7 @@ static int exec_mmap(struct mm_struct *mm)
- 	arch_pick_mmap_layout(mm);
- #ifdef CONFIG_NUMA_BALANCING
- 	mm->numa_weights = kzalloc(sizeof(atomic_t) * (nr_node_ids + 1), GFP_KERNEL);
-+	mm->limit_migrations = kzalloc(sizeof(atomic_t) * nr_node_ids, GFP_KERNEL);
- 	atomic_inc(&mm->numa_weights[cpu_to_node(task_cpu(tsk))]);
- 	atomic_inc(&mm->numa_weights[nr_node_ids]);
- #endif
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 45d02df..4b0ba71 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -436,6 +436,7 @@ struct mm_struct {
- 	 */
- 	int first_nid;
- 	atomic_t *numa_weights;
-+	atomic_t *limit_migrations;
- #endif
- 	struct uprobes_state uprobes_state;
- };
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 21421bd..2b55676 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -847,6 +847,7 @@ struct mm_struct *dup_mm(struct task_struct *tsk)
- #ifdef CONFIG_NUMA_BALANCING
- 	mm->first_nid = NUMA_PTE_SCAN_INIT;
- 	mm->numa_weights = kzalloc(sizeof(atomic_t) * (nr_node_ids + 1), GFP_KERNEL);
-+	mm->limit_migrations = kzalloc(sizeof(atomic_t) * nr_node_ids, GFP_KERNEL);
- #endif
- 	return mm;
- 
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 43af8d9..17027e0 100644
+index 17027e0..e04703e 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -5673,6 +5673,12 @@ select_node_to_pull(struct mm_struct *mm, unsigned int nr_running, int nid)
- 		if (nr_running * other_running >= other_nr_running * running)
- 			continue;
+@@ -4057,6 +4057,18 @@ static int move_one_task(struct lb_env *env)
+ {
+ 	struct task_struct *p, *n;
  
-+		if (!atomic_add_unless(&mm->limit_migrations[other_node], 1, other_running))
++#ifdef CONFIG_NUMA_BALANCING
++	p = env->src_rq->push_task;
++	if (p) {
++		if (p->on_rq && task_cpu(p) == env->src_rq->cpu) {
++			move_task(p, env);
++			schedstat_inc(env->sd, lb_gained[env->idle]);
++			return 1;
++		}
++		return 0;
++	}
++#endif
++
+ again:
+ 	list_for_each_entry_safe(p, n, &env->src_rq->cfs_tasks, se.group_node) {
+ 		if (!preferred_node(p, env))
+@@ -5471,6 +5483,9 @@ static int active_load_balance_cpu_stop(void *data)
+ 	double_unlock_balance(busiest_rq, target_rq);
+ out_unlock:
+ 	busiest_rq->active_balance = 0;
++#ifdef CONFIG_NUMA_BALANCING
++	busiest_rq->push_task = NULL;
++#endif
+ 	raw_spin_unlock_irq(&busiest_rq->lock);
+ 	return 0;
+ }
+@@ -5621,6 +5636,8 @@ select_task_to_pull(struct mm_struct *this_mm, int this_cpu, int nid)
+ 		rq = cpu_rq(cpu);
+ 		mm = rq->curr->mm;
+ 
++		if (rq->push_task)
 +			continue;
-+
-+		if (least_node != -1)
-+			atomic_dec(&mm->limit_migrations[least_node]);
-+
- 		least_running = other_running;
- 		least_node = other_node;
- 	}
-@@ -5801,6 +5807,7 @@ static void rebalance_domains(int cpu, enum cpu_idle_type idle)
- 			p = select_task_to_pull(mm, cpu, other_node);
- 			if (p)
- 				break;
-+			atomic_dec(&mm->limit_migrations[other_node]);
- 		}
- 		if (p) {
- 			struct rq *this_rq;
-@@ -5827,6 +5834,8 @@ static void rebalance_domains(int cpu, enum cpu_idle_type idle)
- 
- 			if (active_balance)
- 				active_load_balance(this_rq);
-+
-+			atomic_dec(&mm->limit_migrations[other_node]);
- 		}
- 	}
+ 		if (mm == this_mm) {
+ 			if (cpumask_test_cpu(this_cpu, tsk_cpus_allowed(rq->curr)))
+ 				return rq->curr;
+@@ -5823,10 +5840,11 @@ static void rebalance_domains(int cpu, enum cpu_idle_type idle)
+ 			 * only after active load balance is finished.
+ 			 */
+ 			raw_spin_lock_irqsave(&this_rq->lock, flags);
+-			if (task_rq(p) == this_rq) {
++			if (task_rq(p) == this_rq && !this_rq->push_task) {
+ 				if (!this_rq->active_balance) {
+ 					this_rq->active_balance = 1;
+ 					this_rq->push_cpu = cpu;
++					this_rq->push_task = p;
+ 					active_balance = 1;
+ 				}
+ 			}
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index cc03cfd..9f60d74 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -484,6 +484,9 @@ struct rq {
  #endif
+ 
+ 	struct sched_avg avg;
++#ifdef CONFIG_NUMA_BALANCING
++	struct task_struct *push_task;
++#endif
+ };
+ 
+ static inline int cpu_of(struct rq *rq)
 -- 
 1.7.1
 
