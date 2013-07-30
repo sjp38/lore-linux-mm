@@ -1,39 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id A27FC6B0031
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 16:34:10 -0400 (EDT)
-Subject: Re: Performance regression from switching lock to rw-sem for
- anon-vma tree
-From: Tim Chen <tim.c.chen@linux.intel.com>
-In-Reply-To: <1375214394.11122.4.camel@buesod1.americas.hpqcorp.net>
-References: <1372366385.22432.185.camel@schen9-DESK>
-	 <1372375873.22432.200.camel@schen9-DESK> <20130628093809.GB29205@gmail.com>
-	 <1372453461.22432.216.camel@schen9-DESK> <20130629071245.GA5084@gmail.com>
-	 <1372710497.22432.224.camel@schen9-DESK> <20130702064538.GB3143@gmail.com>
-	 <1373997195.22432.297.camel@schen9-DESK> <20130723094513.GA24522@gmail.com>
-	 <20130723095124.GW27075@twins.programming.kicks-ass.net>
-	 <20130723095306.GA26174@gmail.com> <1375143209.22432.419.camel@schen9-DESK>
-	 <1375214394.11122.4.camel@buesod1.americas.hpqcorp.net>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 30 Jul 2013 13:34:11 -0700
-Message-ID: <1375216452.22432.422.camel@schen9-DESK>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 30EEF6B0031
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 16:44:24 -0400 (EDT)
+Date: Tue, 30 Jul 2013 13:44:22 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/2] mm: add support for discard of unused ptes
+Message-Id: <20130730134422.98c0977eada81d3ac41a08bb@linux-foundation.org>
+In-Reply-To: <1374742461-29160-2-git-send-email-schwidefsky@de.ibm.com>
+References: <1374742461-29160-1-git-send-email-schwidefsky@de.ibm.com>
+	<1374742461-29160-2-git-send-email-schwidefsky@de.ibm.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>
-Cc: Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, "Shi, Alex" <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Nick Piggin <npiggin@kernel.dk>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Weitz <konstantin.weitz@gmail.com>
 
-On Tue, 2013-07-30 at 12:59 -0700, Davidlohr Bueso wrote:
-> cc'ing Dave Chinner for XFS
+On Thu, 25 Jul 2013 10:54:20 +0200 Martin Schwidefsky <schwidefsky@de.ibm.com> wrote:
+
+> From: Konstantin Weitz <konstantin.weitz@gmail.com>
 > 
+> In a virtualized environment and given an appropriate interface the guest
+> can mark pages as unused while they are free (for the s390 implementation
+> see git commit 45e576b1c3d00206 "guest page hinting light"). For the host
+> the unused state is a property of the pte.
+> 
+> This patch adds the primitive 'pte_unused' and code to the host swap out
+> handler so that pages marked as unused by all mappers are not swapped out
+> but discarded instead, thus saving one IO for swap out and potentially
+> another one for swap in.
+> 
+> ...
+>
+> --- a/include/asm-generic/pgtable.h
+> +++ b/include/asm-generic/pgtable.h
+> @@ -193,6 +193,19 @@ static inline int pte_same(pte_t pte_a, pte_t pte_b)
+>  }
+>  #endif
+>  
+> +#ifndef __HAVE_ARCH_PTE_UNUSED
+> +/*
+> + * Some architectures provide facilities to virtualization guests
+> + * so that they can flag allocated pages as unused. This allows the
+> + * host to transparently reclaim unused pages. This function returns
+> + * whether the pte's page is unused.
+> + */
+> +static inline int pte_unused(pte_t pte)
+> +{
+> +	return 0;
+> +}
+> +#endif
+> +
+>  #ifndef __HAVE_ARCH_PMD_SAME
+>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>  static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index cd356df..2291f25 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -1234,6 +1234,16 @@ int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+>  		}
+>  		set_pte_at(mm, address, pte,
+>  			   swp_entry_to_pte(make_hwpoison_entry(page)));
+> +	} else if (pte_unused(pteval)) {
+> +		/*
+> +		 * The guest indicated that the page content is of no
+> +		 * interest anymore. Simply discard the pte, vmscan
+> +		 * will take care of the rest.
+> +		 */
+> +		if (PageAnon(page))
+> +			dec_mm_counter(mm, MM_ANONPAGES);
+> +		else
+> +			dec_mm_counter(mm, MM_FILEPAGES);
+>  	} else if (PageAnon(page)) {
+>  		swp_entry_t entry = { .val = page_private(page) };
 
-Davidlohr,
-
-I also wonder it this change benefit your workload.  Will
-be interested to know of your performance numbers.
-
-Tim
+Obviously harmless.  Please include this in whatever tree carries
+"[PATCH 2/2] s390/kvm: support collaborative memory management".
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
