@@ -1,26 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 882F56B0031
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 12:49:47 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id E83956B0033
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 12:51:00 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Wed, 31 Jul 2013 02:33:44 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id E315E357804E
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 02:49:41 +1000 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6UGnOM17340288
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 02:49:31 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6UGnX0j009088
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 02:49:34 +1000
+	Tue, 30 Jul 2013 22:13:52 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 98CD51258056
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 22:20:22 +0530 (IST)
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6UGprtD43253780
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 22:21:53 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6UGopb5020899
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 02:50:52 +1000
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 01/18] mm, hugetlb: protect reserved pages when softofflining requests the pages
-In-Reply-To: <1375075929-6119-2-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1375075929-6119-1-git-send-email-iamjoonsoo.kim@lge.com> <1375075929-6119-2-git-send-email-iamjoonsoo.kim@lge.com>
-Date: Tue, 30 Jul 2013 22:19:28 +0530
-Message-ID: <8761vsq9gn.fsf@linux.vnet.ibm.com>
+Subject: Re: [PATCH 02/18] mm, hugetlb: change variable name reservations to resv
+In-Reply-To: <1375075929-6119-3-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1375075929-6119-1-git-send-email-iamjoonsoo.kim@lge.com> <1375075929-6119-3-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Tue, 30 Jul 2013 22:20:51 +0530
+Message-ID: <87zjt4outw.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -30,40 +30,96 @@ Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <
 
 Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
 
-> alloc_huge_page_node() use dequeue_huge_page_node() without
-> any validation check, so it can steal reserved page unconditionally.
-> To fix it, check the number of free_huge_page in
-> alloc_huge_page_node().
-
-
-May be we should say. Don't use the reserve pool when soft offlining a huge
-page. Check we have free pages outside the reserve pool before we
-dequeue the huge page 
+> 'reservations' is so long name as a variable and we use 'resv_map'
+> to represent 'struct resv_map' in other place. To reduce confusion and
+> unreadability, change it.
+>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
 Reviewed-by: Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>
 
-
->
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 >
 > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 6782b41..d971233 100644
+> index d971233..12b6581 100644
 > --- a/mm/hugetlb.c
 > +++ b/mm/hugetlb.c
-> @@ -935,10 +935,11 @@ static struct page *alloc_buddy_huge_page(struct hstate *h, int nid)
->   */
->  struct page *alloc_huge_page_node(struct hstate *h, int nid)
+> @@ -1095,9 +1095,9 @@ static long vma_needs_reservation(struct hstate *h,
+>  	} else  {
+>  		long err;
+>  		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
+> -		struct resv_map *reservations = vma_resv_map(vma);
+> +		struct resv_map *resv = vma_resv_map(vma);
+>
+> -		err = region_chg(&reservations->regions, idx, idx + 1);
+> +		err = region_chg(&resv->regions, idx, idx + 1);
+>  		if (err < 0)
+>  			return err;
+>  		return 0;
+> @@ -1115,10 +1115,10 @@ static void vma_commit_reservation(struct hstate *h,
+>
+>  	} else if (is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
+>  		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
+> -		struct resv_map *reservations = vma_resv_map(vma);
+> +		struct resv_map *resv = vma_resv_map(vma);
+>
+>  		/* Mark this page used in the map. */
+> -		region_add(&reservations->regions, idx, idx + 1);
+> +		region_add(&resv->regions, idx, idx + 1);
+>  	}
+>  }
+>
+> @@ -2168,7 +2168,7 @@ out:
+>
+>  static void hugetlb_vm_op_open(struct vm_area_struct *vma)
 >  {
-> -	struct page *page;
-> +	struct page *page = NULL;
+> -	struct resv_map *reservations = vma_resv_map(vma);
+> +	struct resv_map *resv = vma_resv_map(vma);
 >
->  	spin_lock(&hugetlb_lock);
-> -	page = dequeue_huge_page_node(h, nid);
-> +	if (h->free_huge_pages - h->resv_huge_pages > 0)
-> +		page = dequeue_huge_page_node(h, nid);
->  	spin_unlock(&hugetlb_lock);
+>  	/*
+>  	 * This new VMA should share its siblings reservation map if present.
+> @@ -2178,34 +2178,34 @@ static void hugetlb_vm_op_open(struct vm_area_struct *vma)
+>  	 * after this open call completes.  It is therefore safe to take a
+>  	 * new reference here without additional locking.
+>  	 */
+> -	if (reservations)
+> -		kref_get(&reservations->refs);
+> +	if (resv)
+> +		kref_get(&resv->refs);
+>  }
 >
->  	if (!page)
+>  static void resv_map_put(struct vm_area_struct *vma)
+>  {
+> -	struct resv_map *reservations = vma_resv_map(vma);
+> +	struct resv_map *resv = vma_resv_map(vma);
+>
+> -	if (!reservations)
+> +	if (!resv)
+>  		return;
+> -	kref_put(&reservations->refs, resv_map_release);
+> +	kref_put(&resv->refs, resv_map_release);
+>  }
+>
+>  static void hugetlb_vm_op_close(struct vm_area_struct *vma)
+>  {
+>  	struct hstate *h = hstate_vma(vma);
+> -	struct resv_map *reservations = vma_resv_map(vma);
+> +	struct resv_map *resv = vma_resv_map(vma);
+>  	struct hugepage_subpool *spool = subpool_vma(vma);
+>  	unsigned long reserve;
+>  	unsigned long start;
+>  	unsigned long end;
+>
+> -	if (reservations) {
+> +	if (resv) {
+>  		start = vma_hugecache_offset(h, vma, vma->vm_start);
+>  		end = vma_hugecache_offset(h, vma, vma->vm_end);
+>
+>  		reserve = (end - start) -
+> -			region_count(&reservations->regions, start, end);
+> +			region_count(&resv->regions, start, end);
+>
+>  		resv_map_put(vma);
+>
 > -- 
 > 1.7.9.5
 
