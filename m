@@ -1,204 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 638FB6B0031
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 10:32:40 -0400 (EDT)
-Date: Tue, 30 Jul 2013 10:32:28 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 6/6] mm: memcg: do not trap chargers with full callstack
- on OOM
-Message-ID: <20130730143228.GD715@cmpxchg.org>
-References: <1374791138-15665-1-git-send-email-hannes@cmpxchg.org>
- <1374791138-15665-7-git-send-email-hannes@cmpxchg.org>
- <20130726144310.GH17761@dhcp22.suse.cz>
- <20130726212808.GD17975@cmpxchg.org>
- <20130730140913.GC15847@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 7A5666B0037
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 10:32:48 -0400 (EDT)
+Date: Tue, 30 Jul 2013 16:32:37 +0200
+From: Uwe =?iso-8859-1?Q?Kleine-K=F6nig?= <u.kleine-koenig@pengutronix.de>
+Subject: Re: [PATCH v2 1/2] uio: provide vm access to UIO_MEM_PHYS maps
+Message-ID: <20130730143237.GU1754@pengutronix.de>
+References: <20130727214911.GK1754@pengutronix.de>
+ <1374962978-1860-1-git-send-email-u.kleine-koenig@pengutronix.de>
+ <20130729200914.GA6146@kroah.com>
+ <20130730075239.GN1754@pengutronix.de>
+ <20130730134950.GA27962@kroah.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20130730140913.GC15847@dhcp22.suse.cz>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20130730134950.GA27962@kroah.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, azurIt <azurit@pobox.sk>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "Hans J. Koch" <hjk@hansjkoch.de>, linux-kernel@vger.kernel.org, kernel@pengutronix.de, linux-mm@kvack.org
 
-On Tue, Jul 30, 2013 at 04:09:13PM +0200, Michal Hocko wrote:
-> On Fri 26-07-13 17:28:09, Johannes Weiner wrote:
-> [...]
-> > From: Johannes Weiner <hannes@cmpxchg.org>
-> > Subject: [patch] mm: memcg: rework and document OOM serialization
+Hello Greg,
+
+On Tue, Jul 30, 2013 at 06:49:50AM -0700, Greg Kroah-Hartman wrote:
+> On Tue, Jul 30, 2013 at 09:52:39AM +0200, Uwe Kleine-Konig wrote:
+> > [expanding Cc: to also include akpm and linux-mm]
 > > 
-> > 1. Remove the return value of mem_cgroup_oom_unlock().
+> > Hello,
 > > 
-> > 2. Rename mem_cgroup_oom_lock() to mem_cgroup_oom_trylock().
+> > On Mon, Jul 29, 2013 at 01:09:14PM -0700, Greg Kroah-Hartman wrote:
+> > > On Sun, Jul 28, 2013 at 12:09:37AM +0200, Uwe Kleine-Konig wrote:
+> > > > This makes it possible to let gdb access mappings of the process that is
+> > > > being debugged.
+> > > > 
+> > > > uio_mmap_logical was moved and uio_vm_ops renamed to group related code
+> > > > and differentiate to new stuff.
+> > > > 
+> > > > Signed-off-by: Uwe Kleine-Konig <u.kleine-koenig@pengutronix.de>
+> > > > ---
+> > > > Changes since v1:
+> > > >     - only use generic_access_phys ifdef CONFIG_HAVE_IOREMAP_PROT
+> > > >     - fix all users of renamed struct
+> > > 
+> > > I still get a build error with this patch:
+> > > 
+> > >   MODPOST 384 modules
+> > > ERROR: "generic_access_phys" [drivers/uio/uio.ko] undefined!
+> > > 
+> > > So something isn't quite right.
+> > Ah, you built as a module and generic_access_phys isn't exported. The
+> > other users of generic_access_phys (arch/x86/pci/i386.c and
+> > drivers/char/mem.c) can only be builtin.
 > > 
-> > 3. Pull the prepare_to_wait() out of the memcg_oom_lock scope.  This
-> >    makes it more obvious that the task has to be on the waitqueue
-> >    before attempting to OOM-trylock the hierarchy, to not miss any
-> >    wakeups before going to sleep.  It just didn't matter until now
-> >    because it was all lumped together into the global memcg_oom_lock
-> >    spinlock section.
-> > 
-> > 4. Pull the mem_cgroup_oom_notify() out of the memcg_oom_lock scope.
-> >    It is proctected by the hierarchical OOM-lock.
-> > 
-> > 5. The memcg_oom_lock spinlock is only required to propagate the OOM
-> >    lock in any given hierarchy atomically.  Restrict its scope to
-> >    mem_cgroup_oom_(trylock|unlock).
-> > 
-> > 6. Do not wake up the waitqueue unconditionally at the end of the
-> >    function.  Only the lockholder has to wake up the next in line
-> >    after releasing the lock.
-> > 
-> >    Note that the lockholder kicks off the OOM-killer, which in turn
-> >    leads to wakeups from the uncharges of the exiting task.  But any
-> >    contender is not guaranteed to see them if it enters the OOM path
-> >    after the OOM kills but before the lockholder releases the lock.
-> >    Thus the wakeup has to be explicitely after releasing the lock.
-> > 
-> > 7. Put the OOM task on the waitqueue before marking the hierarchy as
-> >    under OOM as that is the point where we start to receive wakeups.
-> >    No point in listening before being on the waitqueue.
-> > 
-> > 8. Likewise, unmark the hierarchy before finishing the sleep, for
-> >    symmetry.
-> > 
+> > So the IMHO best option is to add an EXPORT_SYMBOL(generic_access_phys)
+> > to mm/memory.c.
 > 
-> OK, this looks better than what we have today, but still could be done
-> better IMO ;)
-> 
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> > ---
-> >  mm/memcontrol.c | 85 +++++++++++++++++++++++++++++++--------------------------
-> >  1 file changed, 47 insertions(+), 38 deletions(-)
-> > 
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index 30ae46a..0d923df 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -2076,15 +2076,18 @@ static int mem_cgroup_soft_reclaim(struct mem_cgroup *root_memcg,
-> >  	return total;
-> >  }
-> >  
-> 
-> /* Protects oom_lock hierarchy consistent state and oom_notify chain */
+> EXPORT_SYMBOL_GPL() perhaps?
+Yeah, that would work just fine, too. Who takes care for mm/memory.c,
+Andrew? Should I send a separate patch or is it ok to do it in the patch
+making use of it and let it go in via Greg?
+ 
+> And why all of a sudden does the uio driver need this change?  It is
+> working just fine right now without it, right?
+Yeah it works. But if you gdb your userspace driver, gdb cannot access
+the mappings without my patch.
 
-See 4. :-)
+Best regards
+Uwe
 
-> > +static DEFINE_SPINLOCK(memcg_oom_lock);
-> > +
-> >  /*
-> >   * Check OOM-Killer is already running under our hierarchy.
-> >   * If someone is running, return false.
-> > - * Has to be called with memcg_oom_lock
-> >   */
-> [...]
-> > @@ -2195,45 +2197,52 @@ static bool mem_cgroup_handle_oom(struct mem_cgroup *memcg, gfp_t mask,
-> >  				  int order)
-> >  {
-> >  	struct oom_wait_info owait;
-> > -	bool locked, need_to_kill;
-> > +	bool locked;
-> >  
-> >  	owait.memcg = memcg;
-> >  	owait.wait.flags = 0;
-> >  	owait.wait.func = memcg_oom_wake_function;
-> >  	owait.wait.private = current;
-> >  	INIT_LIST_HEAD(&owait.wait.task_list);
-> > -	need_to_kill = true;
-> > -	mem_cgroup_mark_under_oom(memcg);
-> >  
-> > -	/* At first, try to OOM lock hierarchy under memcg.*/
-> > -	spin_lock(&memcg_oom_lock);
-> > -	locked = mem_cgroup_oom_lock(memcg);
-> >  	/*
-> > +	 * As with any blocking lock, a contender needs to start
-> > +	 * listening for wakeups before attempting the trylock,
-> > +	 * otherwise it can miss the wakeup from the unlock and sleep
-> > +	 * indefinitely.  This is just open-coded because our locking
-> > +	 * is so particular to memcg hierarchies.
-> > +	 *
-> >  	 * Even if signal_pending(), we can't quit charge() loop without
-> >  	 * accounting. So, UNINTERRUPTIBLE is appropriate. But SIGKILL
-> >  	 * under OOM is always welcomed, use TASK_KILLABLE here.
-> 
-> Could you take care of this paragraph as well, while you are at it,
-> please? I've always found it it confusing. I would remove it completely
-> I would remove it completely.
-
-It's removed completely in the same series, that's why I didn't
-bother.
-
-> >  	 */
-> >  	prepare_to_wait(&memcg_oom_waitq, &owait.wait, TASK_KILLABLE);
-> > -	if (!locked || memcg->oom_kill_disable)
-> > -		need_to_kill = false;
-> > +	mem_cgroup_mark_under_oom(memcg);
-> > +
-> > +	locked = mem_cgroup_oom_trylock(memcg);
-> > +
-> >  	if (locked)
-> >  		mem_cgroup_oom_notify(memcg);
-> > -	spin_unlock(&memcg_oom_lock);
-> >  
-> > -	if (need_to_kill) {
-> > +	if (locked && !memcg->oom_kill_disable) {
-> > +		mem_cgroup_unmark_under_oom(memcg);
-> >  		finish_wait(&memcg_oom_waitq, &owait.wait);
-> >  		mem_cgroup_out_of_memory(memcg, mask, order);
-> 
-> Killing under hierarchy which is not under_oom sounds strange to me.
-> Cannot we just move finish_wait & unmark down after unlock? It would
-> also take care about incorrect memcg_oom_recover you have in oom_unlock
-> path. The ordering would also be more natural
-> 	prepare_wait
-> 	mark_under_oom
-> 	trylock
-> 	unlock
-> 	unmark_under_oom
-> 	finish_wait
-
-That makes no sense.  The waitqueue is for when you failed the trylock
-and need to sleep until the holder unlocks.  If you acquire the lock,
-what's the point in staying on the waitqueue?
-
-Look at __mutex_lock_common() in kernel/mutex.c.
-
-There is also no point in leaving the under_oom set during the kill,
-this flag is so transient if the in-kernel OOM killer is enabled.
-Whether we leave it set during mem_cgroup_out_of_memory() or not, how
-would you possibly read it and base any meaningful decisions on it
-from userspace?
-
-> >  	} else {
-> >  		schedule();
-> > +		mem_cgroup_unmark_under_oom(memcg);
-> >  		finish_wait(&memcg_oom_waitq, &owait.wait);
-> >  	}
-> > -	spin_lock(&memcg_oom_lock);
-> > -	if (locked)
-> > -		mem_cgroup_oom_unlock(memcg);
-> > -	memcg_wakeup_oom(memcg);
-> > -	spin_unlock(&memcg_oom_lock);
-> >  
-> > -	mem_cgroup_unmark_under_oom(memcg);
-> > +	if (locked) {
-> > +		mem_cgroup_oom_unlock(memcg);
-> > +		/*
-> > +		 * There is no guarantee that a OOM-lock contender
-> > +		 * sees the wakeups triggered by the OOM kill
-> > +		 * uncharges.  Wake any sleepers explicitely.
-> > +		 */
-> > +		memcg_oom_recover(memcg);
-> 
-> This will be a noop because memcg is no longer under_oom (you wanted
-> memcg_wakeup_oom here I guess). Moreover, even the killed wouldn't wake
-> up anybody for the same reason.
-
-Anybody entering this path will increase the under_oom counter.  The
-killer decreases it again, but everybody who is sleeping because they
-failed the trylock still hasn't unmarked the hierarchy (they call
-schedule() before unmark_under_oom()).  So we issue wakeups when there
-is somebody waiting for the lock.
+-- 
+Pengutronix e.K.                           | Uwe Kleine-Konig            |
+Industrial Linux Solutions                 | http://www.pengutronix.de/  |
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
