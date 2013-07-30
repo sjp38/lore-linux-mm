@@ -1,82 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 303F46B0031
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 13:27:47 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Wed, 31 Jul 2013 03:19:46 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id E2C7B2CE804C
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 03:27:42 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6UHRWOS7012726
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 03:27:32 +1000
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r6UHRfg0021455
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 03:27:42 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 03/18] mm, hugetlb: unify region structure handling
-In-Reply-To: <1375075929-6119-4-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1375075929-6119-1-git-send-email-iamjoonsoo.kim@lge.com> <1375075929-6119-4-git-send-email-iamjoonsoo.kim@lge.com>
-Date: Tue, 30 Jul 2013 22:57:37 +0530
-Message-ID: <87wqo8ot4m.fsf@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 3A6816B0031
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 13:45:46 -0400 (EDT)
+Date: Tue, 30 Jul 2013 13:45:39 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 1/3] mm: vmscan: fix numa reclaim balance problem in
+ kswapd
+Message-ID: <20130730174539.GF715@cmpxchg.org>
+References: <1374267325-22865-1-git-send-email-hannes@cmpxchg.org>
+ <1374267325-22865-2-git-send-email-hannes@cmpxchg.org>
+ <20130726155319.21e8a191456bf8a0ff724199@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130726155319.21e8a191456bf8a0ff724199@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
+On Fri, Jul 26, 2013 at 03:53:19PM -0700, Andrew Morton wrote:
+> On Fri, 19 Jul 2013 16:55:23 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
+> 
+> > When the page allocator fails to get a page from all zones in its
+> > given zonelist, it wakes up the per-node kswapds for all zones that
+> > are at their low watermark.
+> > 
+> > However, with a system under load and the free page counters being
+> > per-cpu approximations, the observed counter value in a zone can
+> > fluctuate enough that the allocation fails but the kswapd wakeup is
+> > also skipped while the zone is still really close to the low
+> > watermark.
+> > 
+> > When one node misses a wakeup like this, it won't be aged before all
+> > the other node's zones are down to their low watermarks again.  And
+> > skipping a full aging cycle is an obvious fairness problem.
+> > 
+> > Kswapd runs until the high watermarks are restored, so it should also
+> > be woken when the high watermarks are not met.  This ages nodes more
+> > equally and creates a safety margin for the page counter fluctuation.
+> 
+> Well yes, but what guarantee is there that the per-cpu counter error
+> problem is reliably fixed?  AFAICT this patch "fixes" it because the
+> gap between the low and high watermarks happens to be larger than the
+> per-cpu counter fluctuation, yes?  If so, there are surely all sorts of
+> situations where it will break again.
+> 
+> To fix this reliably, we should be looking at constraining counter
+> batch sizes or performing a counter summation to get the more accurate
+> estimate?
 
-> Currently, to track a reserved and allocated region, we use two different
-> ways for MAP_SHARED and MAP_PRIVATE. For MAP_SHARED, we use
-> address_mapping's private_list and, for MAP_PRIVATE, we use a resv_map.
-> Now, we are preparing to change a coarse grained lock which protect
-> a region structure to fine grained lock, and this difference hinder it.
-> So, before changing it, unify region structure handling.
->
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->
-> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-> index a3f868a..a1ae3ada 100644
-> --- a/fs/hugetlbfs/inode.c
-> +++ b/fs/hugetlbfs/inode.c
-> @@ -366,7 +366,12 @@ static void truncate_hugepages(struct inode *inode, loff_t lstart)
->
->  static void hugetlbfs_evict_inode(struct inode *inode)
->  {
-> +	struct resv_map *resv_map;
-> +
->  	truncate_hugepages(inode, 0);
-> +	resv_map = (struct resv_map *)inode->i_mapping->private_data;
-> +	if (resv_map)
+Thinking about this some more, the per-cpu fluctuation appears to be a
+red herring in this case.  Kswapd wakeup uses the safe version of the
+watermark checking code.  A percpu inaccuracy would result in the
+allocator waking kswapd a little too early or too late, but once it
+decides to wake it, we are getting an accurate picture on all zones.
+The safe watermark checks are designed to catch percpu inaccuracies
+between the low and the min watermark, the distance between low and
+high is twice as big, so we should be good.
 
-can resv_map == NULL ?
-
-
-> +		kref_put(&resv_map->refs, resv_map_release);
-
-Also the kref_put is confusing. For shared mapping we don't have ref
-count incremented right ? So may be you can directly call
-resv_map_release or add a comment around explaining this more ?
-
-
->  	clear_inode(inode);
->  }
->
-> @@ -468,6 +473,11 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
->  					umode_t mode, dev_t dev)
->  {
->  	struct inode *inode;
-> +	struct resv_map *resv_map;
-> +
-> +	resv_map = resv_map_alloc();
-> +	if (!resv_map)
-> +		return NULL;
-
--aneesh
+The fluctuation that makes individual zones miss full aging cycles
+comes from true free page variation under load when the NOT OK
+threshold for the allocator is the same value as the OK threshold for
+skipping kswapd wakeups.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
