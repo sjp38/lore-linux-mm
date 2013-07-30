@@ -1,57 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 341396B0033
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 04:26:21 -0400 (EDT)
-Date: Tue, 30 Jul 2013 01:25:44 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH resend] drop_caches: add some documentation and info
- message
-Message-Id: <20130730012544.2f33ebf6.akpm@linux-foundation.org>
-In-Reply-To: <20130730074531.GA10584@dhcp22.suse.cz>
-References: <1374842669-22844-1-git-send-email-mhocko@suse.cz>
-	<20130729135743.c04224fb5d8e64b2730d8263@linux-foundation.org>
-	<20130730074531.GA10584@dhcp22.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 5BCC66B0031
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 05:03:57 -0400 (EDT)
+Received: from /spool/local
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Tue, 30 Jul 2013 03:03:56 -0600
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 4E72F19D8043
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 03:03:41 -0600 (MDT)
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6U93pCb133238
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 03:03:52 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6U93oqA010134
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 03:03:51 -0600
+Date: Tue, 30 Jul 2013 14:33:45 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [RFC PATCH 00/10] Improve numa scheduling by consolidating tasks
+Message-ID: <20130730090345.GA22201@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <1375170505-5967-1-git-send-email-srikar@linux.vnet.ibm.com>
+ <20130730081755.GF3008@twins.programming.kicks-ass.net>
+ <20130730082001.GG3008@twins.programming.kicks-ass.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20130730082001.GG3008@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, bp@suse.de, Dave Hansen <dave@linux.vnet.ibm.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Preeti U Murthy <preeti@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Tue, 30 Jul 2013 09:45:31 +0200 Michal Hocko <mhocko@suse.cz> wrote:
+* Peter Zijlstra <peterz@infradead.org> [2013-07-30 10:20:01]:
 
-> On Mon 29-07-13 13:57:43, Andrew Morton wrote:
-> > On Fri, 26 Jul 2013 14:44:29 +0200 Michal Hocko <mhocko@suse.cz> wrote:
-> [...]
-> > > --- a/fs/drop_caches.c
-> > > +++ b/fs/drop_caches.c
-> > > @@ -59,6 +59,8 @@ int drop_caches_sysctl_handler(ctl_table *table, int write,
-> > >  	if (ret)
-> > >  		return ret;
-> > >  	if (write) {
-> > > +		printk(KERN_INFO "%s (%d): dropped kernel caches: %d\n",
-> > > +		       current->comm, task_pid_nr(current), sysctl_drop_caches);
-> > >  		if (sysctl_drop_caches & 1)
-> > >  			iterate_supers(drop_pagecache_sb, NULL);
-> > >  		if (sysctl_drop_caches & 2)
+> On Tue, Jul 30, 2013 at 10:17:55AM +0200, Peter Zijlstra wrote:
+> > On Tue, Jul 30, 2013 at 01:18:15PM +0530, Srikar Dronamraju wrote:
+> > > Here is an approach that looks to consolidate workloads across nodes.
+> > > This results in much improved performance. Again I would assume this work
+> > > is complementary to Mel's work with numa faulting.
 > > 
-> > How about we do
-> > 
-> > 	if (!(sysctl_drop_caches & 4))
-> > 		printk(....)
-> >
-> > so people can turn it off if it's causing problems?
+> > I highly dislike the use of task weights here. It seems completely
+> > unrelated to the problem at hand.
 > 
-> I am OK with that  but can we use a top bit instead. Maybe we never have
-> other entities to drop in the future but it would be better to have a room for them
-> just in case.
+> I also don't particularly like the fact that it's purely process based.
+> The faults information we have gives much richer task relations.
+> 
 
-If we add another flag in the future it can use bit 3?
+With just pure fault information based approach, I am not seeing any
+major improvement in tasks/memory consolidation. I still see memory
+spread across different nodes and tasks getting ping-ponged to different
+nodes. And if there are multiple unrelated processes, then we see a mix
+of tasks of different processes in each of the node.
 
-> So what about using 1<<31 instead?
+This spreading of load as per my observation, isn't helping the
+performance. This is esp true with bigger boxes and would take this as a
+hint that we need to consolidate tasks for better performance.
 
-Could, but negative (or is it positive?) numbers are a bit of a pain.
+Now I can just use the number of tasks rather than task weights as I do
+with the current patchset. But I don't think that would be ideal either.
+Esp this wouldn't work with Fair share scheduling.
+
+For example: lets say there are 2 vm's running similar loads on a 2 node
+machine. We would get the best performance if we could easily segregate
+the load. I know all problems cannot be generalized into just this set.
+My thinking is to get atleast these set of problems solved.
+
+Do you see any alternatives other than numa faults/task weights that we
+could use to better consolidate tasks?
+
+-- 
+Thanks and Regards
+Srikar Dronamraju
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
