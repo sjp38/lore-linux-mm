@@ -1,46 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id F3BF96B0031
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 02:49:22 -0400 (EDT)
-Message-ID: <51F761E7.5090403@huawei.com>
-Date: Tue, 30 Jul 2013 14:49:11 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 545B06B0031
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 03:45:35 -0400 (EDT)
+Date: Tue, 30 Jul 2013 09:45:31 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH resend] drop_caches: add some documentation and info
+ message
+Message-ID: <20130730074531.GA10584@dhcp22.suse.cz>
+References: <1374842669-22844-1-git-send-email-mhocko@suse.cz>
+ <20130729135743.c04224fb5d8e64b2730d8263@linux-foundation.org>
 MIME-Version: 1.0
-Subject: [PATCH] mm/hotplug: remove unnecessary BUG_ON in __offline_pages()
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130729135743.c04224fb5d8e64b2730d8263@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, bp@suse.de, Dave Hansen <dave@linux.vnet.ibm.com>
 
-I think we can remove "BUG_ON(start_pfn >= end_pfn)" in __offline_pages(),
-because in memory_block_action() "nr_pages = PAGES_PER_SECTION * sections_per_block" 
-is always greater than 0.
+On Mon 29-07-13 13:57:43, Andrew Morton wrote:
+> On Fri, 26 Jul 2013 14:44:29 +0200 Michal Hocko <mhocko@suse.cz> wrote:
+[...]
+> > --- a/fs/drop_caches.c
+> > +++ b/fs/drop_caches.c
+> > @@ -59,6 +59,8 @@ int drop_caches_sysctl_handler(ctl_table *table, int write,
+> >  	if (ret)
+> >  		return ret;
+> >  	if (write) {
+> > +		printk(KERN_INFO "%s (%d): dropped kernel caches: %d\n",
+> > +		       current->comm, task_pid_nr(current), sysctl_drop_caches);
+> >  		if (sysctl_drop_caches & 1)
+> >  			iterate_supers(drop_pagecache_sb, NULL);
+> >  		if (sysctl_drop_caches & 2)
+> 
+> How about we do
+> 
+> 	if (!(sysctl_drop_caches & 4))
+> 		printk(....)
+>
+> so people can turn it off if it's causing problems?
 
-memory_block_action()
-	offline_pages()
-		__offline_pages()
-			BUG_ON(start_pfn >= end_pfn)
+I am OK with that  but can we use a top bit instead. Maybe we never have
+other entities to drop in the future but it would be better to have a room for them
+just in case. So what about using 1<<31 instead?
 
-Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
----
- mm/memory_hotplug.c | 1 -
- 1 file changed, 1 deletion(-)
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index ca1dd3a..8e333f9 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1472,7 +1472,6 @@ static int __ref __offline_pages(unsigned long start_pfn,
- 	struct zone *zone;
- 	struct memory_notify arg;
- 
--	BUG_ON(start_pfn >= end_pfn);
- 	/* at least, alignment against pageblock is necessary */
- 	if (!IS_ALIGNED(start_pfn, pageblock_nr_pages))
- 		return -EINVAL;
 -- 
-1.8.2.2
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
