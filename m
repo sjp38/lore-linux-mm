@@ -1,57 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id E3F2B6B0031
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 11:40:29 -0400 (EDT)
-Message-ID: <1375198768.10300.9.camel@misato.fc.hp.com>
-Subject: Re: [PATCH] mm/hotplug: remove unnecessary BUG_ON in
- __offline_pages()
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Tue, 30 Jul 2013 09:39:28 -0600
-In-Reply-To: <51F761E7.5090403@huawei.com>
-References: <51F761E7.5090403@huawei.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 3C5626B0031
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 12:48:10 -0400 (EDT)
+Message-ID: <51F7ED29.7080606@intel.com>
+Date: Tue, 30 Jul 2013 09:43:21 -0700
+From: Dave Hansen <dave.hansen@intel.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/2] mm: page_alloc: Add unlikely for MAX_ORDER check
+References: <1375022906-1164-1-git-send-email-waydi1@gmail.com> <51F6F087.9060109@linux.intel.com> <51F70A9F.2000309@linux.vnet.ibm.com> <51F714D4.9070005@linux.vnet.ibm.com>
+In-Reply-To: <51F714D4.9070005@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Cody P Schafer <cody@linux.vnet.ibm.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, SeungHun Lee <waydi1@gmail.com>, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, xinxing2zhou@gmail.com
 
-On Tue, 2013-07-30 at 14:49 +0800, Xishi Qiu wrote:
-> I think we can remove "BUG_ON(start_pfn >= end_pfn)" in __offline_pages(),
-> because in memory_block_action() "nr_pages = PAGES_PER_SECTION * sections_per_block" 
-> is always greater than 0.
+Cody, it's a good point that we shouldn't be looking at something as
+simplistic as the file sizes.  I also used whole vmlinux's and turned
+off debuginfo:
 
-BUG_ON() is used for checking a condition that should never happen,
-unless there is a bug.  So, to me, what you described seems to match
-with the use of BUG_ON() to prevent a potential bug in the caller.
+   text	   data	    bss	    dec	    hex	filename
+10064322	1980968	3051520	15096810	 e65bea	vmlinux.nothing
+10064451	1980968	3051520	15096939	 e65c6b	vmlinux.unlikely
 
-Thanks,
--Toshi
+So it still cost ~130 bytes of text.  Also, perusing the vmlinux
+objdump, adding the unlikely() does look to take
+__alloc_pages_direct_compact and move it _closer_ to the page allocation
+code.
 
-
-> memory_block_action()
-> 	offline_pages()
-> 		__offline_pages()
-> 			BUG_ON(start_pfn >= end_pfn)
-> 
-> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
-> ---
->  mm/memory_hotplug.c | 1 -
->  1 file changed, 1 deletion(-)
-> 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index ca1dd3a..8e333f9 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1472,7 +1472,6 @@ static int __ref __offline_pages(unsigned long start_pfn,
->  	struct zone *zone;
->  	struct memory_notify arg;
->  
-> -	BUG_ON(start_pfn >= end_pfn);
->  	/* at least, alignment against pageblock is necessary */
->  	if (!IS_ALIGNED(start_pfn, pageblock_nr_pages))
->  		return -EINVAL;
+What does this all mean?  Hell if I know.  It's up to the patch
+submitter to explain the implications of the patch. ;)
 
 
 --
