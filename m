@@ -1,70 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 28CD16B0037
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 08:55:29 -0400 (EDT)
-Date: Tue, 30 Jul 2013 14:55:25 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH resend] drop_caches: add some documentation and info
- message
-Message-ID: <20130730125525.GB15847@dhcp22.suse.cz>
-References: <1374842669-22844-1-git-send-email-mhocko@suse.cz>
- <20130729135743.c04224fb5d8e64b2730d8263@linux-foundation.org>
- <20130730074531.GA10584@dhcp22.suse.cz>
- <20130730012544.2f33ebf6.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 7F8F36B0031
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 09:48:33 -0400 (EDT)
+Date: Tue, 30 Jul 2013 06:49:50 -0700
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH v2 1/2] uio: provide vm access to UIO_MEM_PHYS maps
+Message-ID: <20130730134950.GA27962@kroah.com>
+References: <20130727214911.GK1754@pengutronix.de>
+ <1374962978-1860-1-git-send-email-u.kleine-koenig@pengutronix.de>
+ <20130729200914.GA6146@kroah.com>
+ <20130730075239.GN1754@pengutronix.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20130730012544.2f33ebf6.akpm@linux-foundation.org>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20130730075239.GN1754@pengutronix.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, bp@suse.de, Dave Hansen <dave@linux.vnet.ibm.com>
+To: Uwe =?iso-8859-1?Q?Kleine-K=F6nig?= <u.kleine-koenig@pengutronix.de>
+Cc: "Hans J. Koch" <hjk@hansjkoch.de>, linux-kernel@vger.kernel.org, kernel@pengutronix.de, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Tue 30-07-13 01:25:44, Andrew Morton wrote:
-> On Tue, 30 Jul 2013 09:45:31 +0200 Michal Hocko <mhocko@suse.cz> wrote:
+On Tue, Jul 30, 2013 at 09:52:39AM +0200, Uwe Kleine-Konig wrote:
+> [expanding Cc: to also include akpm and linux-mm]
 > 
-> > On Mon 29-07-13 13:57:43, Andrew Morton wrote:
-> > > On Fri, 26 Jul 2013 14:44:29 +0200 Michal Hocko <mhocko@suse.cz> wrote:
-> > [...]
-> > > > --- a/fs/drop_caches.c
-> > > > +++ b/fs/drop_caches.c
-> > > > @@ -59,6 +59,8 @@ int drop_caches_sysctl_handler(ctl_table *table, int write,
-> > > >  	if (ret)
-> > > >  		return ret;
-> > > >  	if (write) {
-> > > > +		printk(KERN_INFO "%s (%d): dropped kernel caches: %d\n",
-> > > > +		       current->comm, task_pid_nr(current), sysctl_drop_caches);
-> > > >  		if (sysctl_drop_caches & 1)
-> > > >  			iterate_supers(drop_pagecache_sb, NULL);
-> > > >  		if (sysctl_drop_caches & 2)
+> Hello,
+> 
+> On Mon, Jul 29, 2013 at 01:09:14PM -0700, Greg Kroah-Hartman wrote:
+> > On Sun, Jul 28, 2013 at 12:09:37AM +0200, Uwe Kleine-Konig wrote:
+> > > This makes it possible to let gdb access mappings of the process that is
+> > > being debugged.
 > > > 
-> > > How about we do
+> > > uio_mmap_logical was moved and uio_vm_ops renamed to group related code
+> > > and differentiate to new stuff.
 > > > 
-> > > 	if (!(sysctl_drop_caches & 4))
-> > > 		printk(....)
-> > >
-> > > so people can turn it off if it's causing problems?
+> > > Signed-off-by: Uwe Kleine-Konig <u.kleine-koenig@pengutronix.de>
+> > > ---
+> > > Changes since v1:
+> > >     - only use generic_access_phys ifdef CONFIG_HAVE_IOREMAP_PROT
+> > >     - fix all users of renamed struct
 > > 
-> > I am OK with that  but can we use a top bit instead. Maybe we never have
-> > other entities to drop in the future but it would be better to have a room for them
-> > just in case.
+> > I still get a build error with this patch:
+> > 
+> >   MODPOST 384 modules
+> > ERROR: "generic_access_phys" [drivers/uio/uio.ko] undefined!
+> > 
+> > So something isn't quite right.
+> Ah, you built as a module and generic_access_phys isn't exported. The
+> other users of generic_access_phys (arch/x86/pci/i386.c and
+> drivers/char/mem.c) can only be builtin.
 > 
-> If we add another flag in the future it can use bit 3?
+> So the IMHO best option is to add an EXPORT_SYMBOL(generic_access_phys)
+> to mm/memory.c.
 
-What if we get crazy and need more of them?
+EXPORT_SYMBOL_GPL() perhaps?
 
-> > So what about using 1<<31 instead?
-> 
-> Could, but negative (or is it positive?) numbers are a bit of a pain.
+And why all of a sudden does the uio driver need this change?  It is
+working just fine right now without it, right?
 
-Yes, that was the point ;), I would like to make a new usage a dance on
-the meadows.
-But I do not care much, let's use 1<<30 if negative sounds too bad but I
-would leave some room for further entities.
+thanks,
 
--- 
-Michal Hocko
-SUSE Labs
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
