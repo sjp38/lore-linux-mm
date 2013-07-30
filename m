@@ -1,73 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id A2FB06B0031
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2013 21:27:31 -0400 (EDT)
-From: Lisa Du <cldu@marvell.com>
-Date: Mon, 29 Jul 2013 18:27:26 -0700
-Subject: RE: Possible deadloop in direct reclaim?
-Message-ID: <89813612683626448B837EE5A0B6A7CB3B6301D0B2@SC-VEXCH4.marvell.com>
-References: <89813612683626448B837EE5A0B6A7CB3B62F8F272@SC-VEXCH4.marvell.com>
- <000001400d38469d-a121fb96-4483-483a-9d3e-fc552e413892-000000@email.amazonses.com>
- <89813612683626448B837EE5A0B6A7CB3B62F8F5C3@SC-VEXCH4.marvell.com>
- <CAHGf_=q8JZQ42R-3yzie7DXUEq8kU+TZXgcX9s=dn8nVigXv8g@mail.gmail.com>
- <89813612683626448B837EE5A0B6A7CB3B62F8FE33@SC-VEXCH4.marvell.com>
- <51F69BD7.2060407@gmail.com>
-In-Reply-To: <51F69BD7.2060407@gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id F3BF96B0031
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 02:49:22 -0400 (EDT)
+Message-ID: <51F761E7.5090403@huawei.com>
+Date: Tue, 30 Jul 2013 14:49:11 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
+Subject: [PATCH] mm/hotplug: remove unnecessary BUG_ON in __offline_pages()
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Bob Liu <lliubbo@gmail.com>, Neil Zhang <zhangwm@marvell.com>
+To: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-LS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCkZyb206IEtPU0FLSSBNb3RvaGlybyBbbWFpbHRv
-Omtvc2FraS5tb3RvaGlyb0BnbWFpbC5jb21dIA0KU2VudDogMjAxM8TqN9TCMzDI1SAwOjQ0DQpU
-bzogTGlzYSBEdQ0KQ2M6IEtPU0FLSSBNb3RvaGlybzsgQ2hyaXN0b3BoIExhbWV0ZXI7IGxpbnV4
-LW1tQGt2YWNrLm9yZzsgTWVsIEdvcm1hbjsgQm9iIExpdQ0KU3ViamVjdDogUmU6IFBvc3NpYmxl
-IGRlYWRsb29wIGluIGRpcmVjdCByZWNsYWltPw0KDQooNy8yNS8xMyA5OjExIFBNKSwgTGlzYSBE
-dSB3cm90ZToNCj4gRGVhciBLT1NBS0kNCj4gICAgIEluIG15IHRlc3QsIEkgZGlkbid0IHNldCBj
-b21wYWN0aW9uLiBNYXliZSBjb21wYWN0aW9uIGlzIGhlbHBmdWwgdG8gYXZvaWQgdGhpcyBpc3N1
-ZS4gSSBjYW4gaGF2ZSB0cnkgbGF0ZXIuDQo+ICAgICBJbiBteSBtaW5kIENPTkZJR19DT01QQUNU
-SU9OIGlzIGFuIG9wdGlvbmFsIGNvbmZpZ3VyYXRpb24gcmlnaHQ/DQoNClJpZ2h0LiBCdXQgaWYg
-eW91IGRvbid0IHNldCBpdCwgYXBwbGljYXRpb24gbXVzdCBOT1QgdXNlID4xIG9yZGVyIGFsbG9j
-YXRpb25zLiBJdCBkb2Vzbid0IHdvcmsgYW5kIGl0IGlzIGV4cGVjdGVkDQpyZXN1bHQuDQpUaGF0
-J3MgeW91ciBhcHBsaWNhdGlvbiBtaXN0YWtlLg0KRGVhciBLb3Nha2ksIEkgaGF2ZSB0d28gcXVl
-c3Rpb25zIG9uIHlvdXIgZXhwbGFuYXRpb246IGEpIHlvdSBzYWlkIGlmIGRvbid0IHNldCBDT05G
-SUdfQ09NUEFUSU9OLCBhcHBsaWNhdGlvbiBtdXN0IE5PVCB1c2UgPjEgb3JkZXIgYWxsb2NhdGlv
-bnMsIGlzIHRoZXJlIGFueSBkb2N1bWVudGF0aW9uIGZvciB0aGlzIHRoZW9yeT8gIGIpIE15IG9y
-ZGVyLTIgYWxsb2NhdGlvbiBub3QgY29tZXMgZnJvbSBhcHBsaWNhdGlvbiwgYnV0IGZyb20gZG9f
-Zm9yayB3aGljaCBpcyBpbiBrZXJuZWwgc3BhY2UsIGluIG15IG1pbmQgd2hlbiBhIHBhcmVudCBw
-cm9jZXNzIGZvcmtzIGEgY2hpbGQgcHJvY2VzcywgaXQgbmVlZCB0byBhbGxvY2F0ZSBhIG9yZGVy
-LTIgbWVtb3J5LCBpZiBhKSBpcyByaWdodCwgdGhlbiBDT05GSUdfQ09NUEFUSU9OIHNob3VsZCBi
-ZSBhIE1VU1QgY29uZmlndXJhdGlvbiBmb3IgbGludXgga2VybmVsIGJ1dCBub3Qgb3B0aW9uYWw/
-IA0KPiAgICAgSWYgd2UgZG9uJ3QgdXNlLCBhbmQgbWV0IHN1Y2ggYW4gaXNzdWUsIGhvdyBzaG91
-bGQgd2UgZGVhbCB3aXRoIHN1Y2ggaW5maW5pdGUgbG9vcD8NCj4gDQo+ICAgICBJIG1hZGUgYSBj
-aGFuZ2UgaW4gYWxsX3JlY2xhaW1hYmxlKCkgZnVuY3Rpb24sIHBhc3NlZCBvdmVybmlnaHQgdGVz
-dHMsIHBsZWFzZSBoZWxwIHJldmlldywgdGhhbmtzIGluIGFkdmFuY2UhDQo+IEBAIC0yMzUzLDcg
-KzIzNTMsOSBAQCBzdGF0aWMgYm9vbCBhbGxfdW5yZWNsYWltYWJsZShzdHJ1Y3Qgem9uZWxpc3Qg
-KnpvbmVsaXN0LA0KPiAgICAgICAgICAgICAgICAgICAgICAgICAgY29udGludWU7DQo+ICAgICAg
-ICAgICAgICAgICAgaWYgKCFjcHVzZXRfem9uZV9hbGxvd2VkX2hhcmR3YWxsKHpvbmUsIEdGUF9L
-RVJORUwpKQ0KPiAgICAgICAgICAgICAgICAgICAgICAgICAgY29udGludWU7DQo+IC0gICAgICAg
-ICAgICAgICBpZiAoIXpvbmUtPmFsbF91bnJlY2xhaW1hYmxlKQ0KPiArICAgICAgICAgICAgICAg
-aWYgKHpvbmUtPmFsbF91bnJlY2xhaW1hYmxlKQ0KPiArICAgICAgICAgICAgICAgICAgICAgICBj
-b250aW51ZTsNCj4gKyAgICAgICAgICAgICAgIGlmICh6b25lX3JlY2xhaW1hYmxlKHpvbmUpKQ0K
-PiAgICAgICAgICAgICAgICAgICAgICAgICAgcmV0dXJuIGZhbHNlOw0KDQpQbGVhc2UgdGVsbCBt
-ZSB3aHkgeW91IGNoYW5lZCBoZXJlLg0KVGhlIG9yaWdpbmFsIGNoZWNrIGlzIG9uY2UgZm91bmQg
-em9uZS0+YWxsX3VucmVjbGFpbWFibGUgaXMgZmFsc2UsIGl0IHdpbGwgcmV0dXJuIGZhbHNlLCB0
-aGVuIGl0IHdpbGwgc2V0IGRpZF9zb21lX3Byb2dyZXNzIG5vbi16ZXJvLg0KVGhlbiBhbm90aGVy
-IGxvb3Agb2YgZGlyZWN0X3JlY2xhaW1lZCBwZXJmb3JtZWQuIEJ1dCBJIHRoaW5rIHpvbmUtPmFs
-bF91bnJlY2xhaW1hYmxlIGlzIG5vdCBhbHdheXMgcmVsaWFibGUgc3VjaCBhcyBpbiBteSBjYXNl
-LCBrc3dhcGQgZ28gdG8gc2xlZXAgYW5kIG5vIG9uZSB3aWxsIGNoYW5nZSB0aGlzIGZsYWcuIFdl
-IHNob3VsZCBhbHNvIGNoZWNrIHpvbmVfcmVjbGFpbWFsYmUoem9uZSkgaWYgem9uZS0+YWxsX3Vu
-cmVjbGFpbWFsYmUgPSAwIHRvIGRvdWJsZSBjb25maXJtIGlmIGEgem9uZSBpcyByZWNsYWltYWJs
-ZTsNClRoaXMgY2hhbmdlIGFsc28gYXZvaWQgdGhlIGlzc3VlIHlvdSBkZXNjcmliZWQgaW4gYmVs
-b3cgY29tbWl0Og0KY29tbWl0IDkyOWJlYTdjNzE0MjIwZmM3NmNlM2Y3NWJlZjkwNTY0NzdjMjhl
-NzQNCkF1dGhvcjogS09TQUtJIE1vdG9oaXJvIDxrb3Nha2kubW90b2hpcm9AanAuZnVqaXRzdS5j
-b20+DQpEYXRlOiAgIFRodSBBcHIgMTQgMTU6MjI6MTIgMjAxMSAtMDcwMA0KDQogICAgdm1zY2Fu
-OiBhbGxfdW5yZWNsYWltYWJsZSgpIHVzZSB6b25lLT5hbGxfdW5yZWNsYWltYWJsZSBhcyBhIG5h
-bWUNCg==
+I think we can remove "BUG_ON(start_pfn >= end_pfn)" in __offline_pages(),
+because in memory_block_action() "nr_pages = PAGES_PER_SECTION * sections_per_block" 
+is always greater than 0.
+
+memory_block_action()
+	offline_pages()
+		__offline_pages()
+			BUG_ON(start_pfn >= end_pfn)
+
+Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+---
+ mm/memory_hotplug.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index ca1dd3a..8e333f9 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1472,7 +1472,6 @@ static int __ref __offline_pages(unsigned long start_pfn,
+ 	struct zone *zone;
+ 	struct memory_notify arg;
+ 
+-	BUG_ON(start_pfn >= end_pfn);
+ 	/* at least, alignment against pageblock is necessary */
+ 	if (!IS_ALIGNED(start_pfn, pageblock_nr_pages))
+ 		return -EINVAL;
+-- 
+1.8.2.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
