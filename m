@@ -1,26 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id E83956B0033
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 12:51:00 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 303F46B0031
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 13:27:47 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 30 Jul 2013 22:13:52 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 98CD51258056
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 22:20:22 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6UGprtD43253780
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 22:21:53 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6UGopb5020899
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 02:50:52 +1000
+	Wed, 31 Jul 2013 03:19:46 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id E2C7B2CE804C
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 03:27:42 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6UHRWOS7012726
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 03:27:32 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r6UHRfg0021455
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 03:27:42 +1000
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 02/18] mm, hugetlb: change variable name reservations to resv
-In-Reply-To: <1375075929-6119-3-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1375075929-6119-1-git-send-email-iamjoonsoo.kim@lge.com> <1375075929-6119-3-git-send-email-iamjoonsoo.kim@lge.com>
-Date: Tue, 30 Jul 2013 22:20:51 +0530
-Message-ID: <87zjt4outw.fsf@linux.vnet.ibm.com>
+Subject: Re: [PATCH 03/18] mm, hugetlb: unify region structure handling
+In-Reply-To: <1375075929-6119-4-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1375075929-6119-1-git-send-email-iamjoonsoo.kim@lge.com> <1375075929-6119-4-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Tue, 30 Jul 2013 22:57:37 +0530
+Message-ID: <87wqo8ot4m.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -30,98 +30,53 @@ Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <
 
 Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
 
-> 'reservations' is so long name as a variable and we use 'resv_map'
-> to represent 'struct resv_map' in other place. To reduce confusion and
-> unreadability, change it.
+> Currently, to track a reserved and allocated region, we use two different
+> ways for MAP_SHARED and MAP_PRIVATE. For MAP_SHARED, we use
+> address_mapping's private_list and, for MAP_PRIVATE, we use a resv_map.
+> Now, we are preparing to change a coarse grained lock which protect
+> a region structure to fine grained lock, and this difference hinder it.
+> So, before changing it, unify region structure handling.
 >
 > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>
+> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+> index a3f868a..a1ae3ada 100644
+> --- a/fs/hugetlbfs/inode.c
+> +++ b/fs/hugetlbfs/inode.c
+> @@ -366,7 +366,12 @@ static void truncate_hugepages(struct inode *inode, loff_t lstart)
+>
+>  static void hugetlbfs_evict_inode(struct inode *inode)
+>  {
+> +	struct resv_map *resv_map;
+> +
+>  	truncate_hugepages(inode, 0);
+> +	resv_map = (struct resv_map *)inode->i_mapping->private_data;
+> +	if (resv_map)
 
-Reviewed-by: Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>
+can resv_map == NULL ?
 
->
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index d971233..12b6581 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1095,9 +1095,9 @@ static long vma_needs_reservation(struct hstate *h,
->  	} else  {
->  		long err;
->  		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
-> -		struct resv_map *reservations = vma_resv_map(vma);
-> +		struct resv_map *resv = vma_resv_map(vma);
->
-> -		err = region_chg(&reservations->regions, idx, idx + 1);
-> +		err = region_chg(&resv->regions, idx, idx + 1);
->  		if (err < 0)
->  			return err;
->  		return 0;
-> @@ -1115,10 +1115,10 @@ static void vma_commit_reservation(struct hstate *h,
->
->  	} else if (is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
->  		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
-> -		struct resv_map *reservations = vma_resv_map(vma);
-> +		struct resv_map *resv = vma_resv_map(vma);
->
->  		/* Mark this page used in the map. */
-> -		region_add(&reservations->regions, idx, idx + 1);
-> +		region_add(&resv->regions, idx, idx + 1);
->  	}
+
+> +		kref_put(&resv_map->refs, resv_map_release);
+
+Also the kref_put is confusing. For shared mapping we don't have ref
+count incremented right ? So may be you can directly call
+resv_map_release or add a comment around explaining this more ?
+
+
+>  	clear_inode(inode);
 >  }
 >
-> @@ -2168,7 +2168,7 @@ out:
->
->  static void hugetlb_vm_op_open(struct vm_area_struct *vma)
+> @@ -468,6 +473,11 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
+>  					umode_t mode, dev_t dev)
 >  {
-> -	struct resv_map *reservations = vma_resv_map(vma);
-> +	struct resv_map *resv = vma_resv_map(vma);
->
->  	/*
->  	 * This new VMA should share its siblings reservation map if present.
-> @@ -2178,34 +2178,34 @@ static void hugetlb_vm_op_open(struct vm_area_struct *vma)
->  	 * after this open call completes.  It is therefore safe to take a
->  	 * new reference here without additional locking.
->  	 */
-> -	if (reservations)
-> -		kref_get(&reservations->refs);
-> +	if (resv)
-> +		kref_get(&resv->refs);
->  }
->
->  static void resv_map_put(struct vm_area_struct *vma)
->  {
-> -	struct resv_map *reservations = vma_resv_map(vma);
-> +	struct resv_map *resv = vma_resv_map(vma);
->
-> -	if (!reservations)
-> +	if (!resv)
->  		return;
-> -	kref_put(&reservations->refs, resv_map_release);
-> +	kref_put(&resv->refs, resv_map_release);
->  }
->
->  static void hugetlb_vm_op_close(struct vm_area_struct *vma)
->  {
->  	struct hstate *h = hstate_vma(vma);
-> -	struct resv_map *reservations = vma_resv_map(vma);
-> +	struct resv_map *resv = vma_resv_map(vma);
->  	struct hugepage_subpool *spool = subpool_vma(vma);
->  	unsigned long reserve;
->  	unsigned long start;
->  	unsigned long end;
->
-> -	if (reservations) {
-> +	if (resv) {
->  		start = vma_hugecache_offset(h, vma, vma->vm_start);
->  		end = vma_hugecache_offset(h, vma, vma->vm_end);
->
->  		reserve = (end - start) -
-> -			region_count(&reservations->regions, start, end);
-> +			region_count(&resv->regions, start, end);
->
->  		resv_map_put(vma);
->
-> -- 
-> 1.7.9.5
+>  	struct inode *inode;
+> +	struct resv_map *resv_map;
+> +
+> +	resv_map = resv_map_alloc();
+> +	if (!resv_map)
+> +		return NULL;
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
