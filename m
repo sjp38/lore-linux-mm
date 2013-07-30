@@ -1,83 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 16DB16B0033
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 10:58:44 -0400 (EDT)
-Date: Tue, 30 Jul 2013 16:58:34 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH] hugetlb: fix lockdep splat caused by pmd sharing
-Message-ID: <20130730145834.GA32226@laptop.programming.kicks-ass.net>
-References: <20130730142957.GG15847@dhcp22.suse.cz>
- <1375195560-23888-1-git-send-email-mhocko@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1375195560-23888-1-git-send-email-mhocko@suse.cz>
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 878496B0038
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 11:08:49 -0400 (EDT)
+Date: Tue, 30 Jul 2013 08:08:10 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH resend] drop_caches: add some documentation and info
+ message
+Message-Id: <20130730080810.9a0a2d71.akpm@linux-foundation.org>
+In-Reply-To: <51F7D1F0.20309@intel.com>
+References: <1374842669-22844-1-git-send-email-mhocko@suse.cz>
+	<20130729135743.c04224fb5d8e64b2730d8263@linux-foundation.org>
+	<20130730074531.GA10584@dhcp22.suse.cz>
+	<20130730012544.2f33ebf6.akpm@linux-foundation.org>
+	<20130730125525.GB15847@dhcp22.suse.cz>
+	<51F7D1F0.20309@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, bp@suse.de, Dave Hansen <dave@linux.vnet.ibm.com>
 
-On Tue, Jul 30, 2013 at 04:46:00PM +0200, Michal Hocko wrote:
-> which is a false positive caused by hugetlb pmd sharing code which
-> allocates a new pmd from withing mappint->i_mmap_mutex. If this
-> allocation causes reclaim then the lockdep detector complains that we
-> might self-deadlock.
-> 
-> This is not correct though, because hugetlb pages are not reclaimable so
-> their mapping will be never touched from the reclaim path.
-> 
-> The patch tells lockup detector that hugetlb i_mmap_mutex is special
-> by assigning it a separate lockdep class so it won't report possible
-> deadlocks on unrelated mappings.
-> 
-> Reported-by: Dave Jones <davej@redhat.com>
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> ---
->  fs/hugetlbfs/inode.c | 8 ++++++++
->  1 file changed, 8 insertions(+)
-> 
-> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-> index a3f868a..230533d 100644
-> --- a/fs/hugetlbfs/inode.c
-> +++ b/fs/hugetlbfs/inode.c
-> @@ -463,6 +463,12 @@ static struct inode *hugetlbfs_get_root(struct super_block *sb,
->  	return inode;
->  }
->  
-> +/*
-> + * Now, reclaim path never holds hugetlbfs_inode->i_mmap_mutex while it could
-> + * hold normal inode->i_mmap_mutex so this annotation avoids a lockdep splat.
+On Tue, 30 Jul 2013 07:47:12 -0700 Dave Hansen <dave.hansen@intel.com> wrote:
 
-How about something like:
-
-/*
- * Hugetlbfs is not reclaimable; therefore its i_mmap_mutex will never
- * be taken from reclaim -- unlike regular filesystems. This needs an
- * annotation because huge_pmd_share() does an allocation under
- * i_mmap_mutex.
- */
-
-It clarifies the exact conditions and makes easier to verify the
-validity of the annotation.
-
-> + */
-> +struct lock_class_key hugetlbfs_i_mmap_mutex_key;
-> +
->  static struct inode *hugetlbfs_get_inode(struct super_block *sb,
->  					struct inode *dir,
->  					umode_t mode, dev_t dev)
-> @@ -474,6 +480,8 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
->  		struct hugetlbfs_inode_info *info;
->  		inode->i_ino = get_next_ino();
->  		inode_init_owner(inode, dir, mode);
-> +		lockdep_set_class(&inode->i_mapping->i_mmap_mutex,
-> +				&hugetlbfs_i_mmap_mutex_key);
->  		inode->i_mapping->a_ops = &hugetlbfs_aops;
->  		inode->i_mapping->backing_dev_info =&hugetlbfs_backing_dev_info;
->  		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-> -- 
-> 1.8.3.2
+> On 07/30/2013 05:55 AM, Michal Hocko wrote:
+> >> > If we add another flag in the future it can use bit 3?
+> > What if we get crazy and need more of them?
 > 
+> I really hate using bits for these kinds of interfaces.  I'm forgetful
+> and never remember which bit is which, and they're possible to run out of.
+> 
+> I'm not saying do it now, but we can switch over to:
+> 
+> 	echo 'slab|pagecache' > drop_caches
+> or
+> 	echo 'quiet|slab' > drop_caches
+> 
+> any time we want and still have compatibility with the existing bitwise
+> interface.
+
+	/bin/drop_caches "slab|pagecache"
+
+That we always insist on doing such things in the kernel instead is
+exhibit #1 in Why We Suck.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
