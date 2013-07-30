@@ -1,82 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 293906B0031
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 10:37:41 -0400 (EDT)
-Date: Tue, 30 Jul 2013 07:38:57 -0700
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH v2 1/2] uio: provide vm access to UIO_MEM_PHYS maps
-Message-ID: <20130730143857.GA29376@kroah.com>
-References: <20130727214911.GK1754@pengutronix.de>
- <1374962978-1860-1-git-send-email-u.kleine-koenig@pengutronix.de>
- <20130729200914.GA6146@kroah.com>
- <20130730075239.GN1754@pengutronix.de>
- <20130730134950.GA27962@kroah.com>
- <20130730143237.GU1754@pengutronix.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20130730143237.GU1754@pengutronix.de>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id BFFDC6B0033
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2013 10:40:34 -0400 (EDT)
+Date: Tue, 30 Jul 2013 07:39:56 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH resend] drop_caches: add some documentation and info
+ message
+Message-Id: <20130730073956.3047e3c7.akpm@linux-foundation.org>
+In-Reply-To: <20130730125525.GB15847@dhcp22.suse.cz>
+References: <1374842669-22844-1-git-send-email-mhocko@suse.cz>
+	<20130729135743.c04224fb5d8e64b2730d8263@linux-foundation.org>
+	<20130730074531.GA10584@dhcp22.suse.cz>
+	<20130730012544.2f33ebf6.akpm@linux-foundation.org>
+	<20130730125525.GB15847@dhcp22.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Uwe =?iso-8859-1?Q?Kleine-K=F6nig?= <u.kleine-koenig@pengutronix.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Hans J. Koch" <hjk@hansjkoch.de>, linux-kernel@vger.kernel.org, kernel@pengutronix.de, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, bp@suse.de, Dave Hansen <dave@linux.vnet.ibm.com>
 
-On Tue, Jul 30, 2013 at 04:32:37PM +0200, Uwe Kleine-Konig wrote:
-> Hello Greg,
-> 
-> On Tue, Jul 30, 2013 at 06:49:50AM -0700, Greg Kroah-Hartman wrote:
-> > On Tue, Jul 30, 2013 at 09:52:39AM +0200, Uwe Kleine-Konig wrote:
-> > > [expanding Cc: to also include akpm and linux-mm]
-> > > 
-> > > Hello,
-> > > 
-> > > On Mon, Jul 29, 2013 at 01:09:14PM -0700, Greg Kroah-Hartman wrote:
-> > > > On Sun, Jul 28, 2013 at 12:09:37AM +0200, Uwe Kleine-Konig wrote:
-> > > > > This makes it possible to let gdb access mappings of the process that is
-> > > > > being debugged.
-> > > > > 
-> > > > > uio_mmap_logical was moved and uio_vm_ops renamed to group related code
-> > > > > and differentiate to new stuff.
-> > > > > 
-> > > > > Signed-off-by: Uwe Kleine-Konig <u.kleine-koenig@pengutronix.de>
-> > > > > ---
-> > > > > Changes since v1:
-> > > > >     - only use generic_access_phys ifdef CONFIG_HAVE_IOREMAP_PROT
-> > > > >     - fix all users of renamed struct
-> > > > 
-> > > > I still get a build error with this patch:
-> > > > 
-> > > >   MODPOST 384 modules
-> > > > ERROR: "generic_access_phys" [drivers/uio/uio.ko] undefined!
-> > > > 
-> > > > So something isn't quite right.
-> > > Ah, you built as a module and generic_access_phys isn't exported. The
-> > > other users of generic_access_phys (arch/x86/pci/i386.c and
-> > > drivers/char/mem.c) can only be builtin.
-> > > 
-> > > So the IMHO best option is to add an EXPORT_SYMBOL(generic_access_phys)
-> > > to mm/memory.c.
+On Tue, 30 Jul 2013 14:55:25 +0200 Michal Hocko <mhocko@suse.cz> wrote:
+
+> > > I am OK with that  but can we use a top bit instead. Maybe we never have
+> > > other entities to drop in the future but it would be better to have a room for them
+> > > just in case.
 > > 
-> > EXPORT_SYMBOL_GPL() perhaps?
-> Yeah, that would work just fine, too. Who takes care for mm/memory.c,
-> Andrew? Should I send a separate patch or is it ok to do it in the patch
-> making use of it and let it go in via Greg?
+> > If we add another flag in the future it can use bit 3?
+> 
+> What if we get crazy and need more of them?
 
-I can take it, in a patch before this one, if I get the acks from Andrew
-and anyone else who "owns" that file (use get_maintainer.pl to determine
-the proper people please.)
+Then we use bit 4.  Then 5.  Then 6.
 
-> > And why all of a sudden does the uio driver need this change?  It is
-> > working just fine right now without it, right?
-> Yeah it works. But if you gdb your userspace driver, gdb cannot access
-> the mappings without my patch.
-
-Ah, but who needs to use a debugger... :)
-
-thanks,
-
-greg k-h
+I'm really not understanding your point here ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
