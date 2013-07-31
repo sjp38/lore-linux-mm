@@ -1,121 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id B1D306B0031
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 06:48:20 -0400 (EDT)
-Date: Wed, 31 Jul 2013 12:48:14 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 0/18] Basic scheduler support for automatic NUMA
- balancing V5
-Message-ID: <20130731104814.GA3008@twins.programming.kicks-ass.net>
-References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
- <20130725103620.GM27075@twins.programming.kicks-ass.net>
- <20130731103052.GR2296@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130731103052.GR2296@suse.de>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 017D56B0031
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 07:18:06 -0400 (EDT)
+Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
+ by mailout2.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0MQS00IATSPWLG40@mailout2.samsung.com> for
+ linux-mm@kvack.org; Wed, 31 Jul 2013 20:18:05 +0900 (KST)
+From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Subject: Re: [PATCH] Revert
+ "mm/memory-hotplug: fix lowmem count overflow when offline pages"
+Date: Wed, 31 Jul 2013 13:17:46 +0200
+Message-id: <1572085.gN7iX7IvMe@amdc1032>
+In-reply-to: <1375260602-2462-1-git-send-email-jy0922.shim@samsung.com>
+References: <1375260602-2462-1-git-send-email-jy0922.shim@samsung.com>
+MIME-version: 1.0
+Content-transfer-encoding: 7Bit
+Content-type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Joonyoung Shim <jy0922.shim@samsung.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, liuj97@gmail.com, kosaki.motohiro@gmail.com
 
-On Wed, Jul 31, 2013 at 11:30:52AM +0100, Mel Gorman wrote:
-> I'm not sure I understand your point. The scan rate is decreased again if
-> the page is found to be properly placed in the future. It's in the next
-> hunk you modify although the periodically reset comment is now out of date.
 
-Yeah its because of the next hunk. I figured that if we don't lower it,
-we shouldn't raise it either.
+Hi,
 
-> > @@ -1167,10 +1171,20 @@ void task_numa_fault(int last_nidpid, in
-> >  	/*
-> >  	 * If pages are properly placed (did not migrate) then scan slower.
-> >  	 * This is reset periodically in case of phase changes
-> > -	 */
-> > -        if (!migrated)
-> > +	 *
-> > +	 * APZ: it seems to me that one can get a ton of !migrated faults;
-> > +	 * consider the scenario where two threads fight over a shared memory
-> > +	 * segment. We'll win half the faults, half of that will be local, half
-> > +	 * of that will be remote. This means we'll see 1/4-th of the total
-> > +	 * memory being !migrated. Using a fixed increment will completely
-> > +	 * flatten the scan speed for a sufficiently large workload. Another
-> > +	 * scenario is due to that migration rate limit.
-> > +	 *
-> > +        if (!migrated) {
-> >  		p->numa_scan_period = min(p->numa_scan_period_max,
-> >  			p->numa_scan_period + jiffies_to_msecs(10));
-> > +	}
-> > +	 */
+On Wednesday, July 31, 2013 05:50:02 PM Joonyoung Shim wrote:
+> This reverts commit cea27eb2a202959783f81254c48c250ddd80e129.
+
+Could you please also include commit descriptions, i.e.
+commit cea27eb2a202959783f81254c48c250ddd80e129 ("mm/memory-hotplug: fix
+lowmem count overflow when offline pages")?
+
+> Fixed to adjust totalhigh_pages when hot-removing memory by commit
+> 3dcc0571cd64816309765b7c7e4691a4cadf2ee7, so that commit occurs
+> duplicated decreasing of totalhigh_pages.
+
+Could you please describe it a bit more (because it is non-obvious) how
+the commit cea27eb effectively does the same totalhigh_pages adjustment
+that is present in the commit 3dcc057?
+
+> Signed-off-by: Joonyoung Shim <jy0922.shim@samsung.com>
+> ---
+> The commit cea27eb2a202959783f81254c48c250ddd80e129 is only for stable,
+> is it right?
+
+It is in Linus' tree now but you're probably right that it should be
+limited to stable tree.
+
+Best regards,
+--
+Bartlomiej Zolnierkiewicz
+Samsung R&D Institute Poland
+Samsung Electronics
+
+>  mm/page_alloc.c | 4 ----
+>  1 file changed, 4 deletions(-)
 > 
-> FWIW, I'm also not happy with how the scan rate is reduced but did not
-> come up with a better alternative that was not fragile or depended on
-> gathering too much state. Granted, I also have not been treating it as a
-> high priority problem.
-
-Right, so what Ingo did is have the scan rate depend on the convergence.
-What exactly did you dislike about that?
-
-We could define the convergence as all the faults inside the interleave
-mask vs the total faults, and then run at: min + (1 - c)*(max-min).
-
-> > +#if 0
-> >  	/*
-> >  	 * We do not care about task placement until a task runs on a node
-> >  	 * other than the first one used by the address space. This is
-> >  	 * largely because migrations are driven by what CPU the task
-> >  	 * is running on. If it's never scheduled on another node, it'll
-> >  	 * not migrate so why bother trapping the fault.
-> > +	 *
-> > +	 * APZ: seems like a bad idea for pure shared memory workloads.
-> >  	 */
-> >  	if (mm->first_nid == NUMA_PTE_SCAN_INIT)
-> >  		mm->first_nid = numa_node_id();
-> 
-> At some point in the past scan starts were based on waiting a fixed interval
-> but that seemed like a hack designed to get around hurting kernel compile
-> benchmarks. I'll give it more thought and see can I think of a better
-> alternative that is based on an event but not this event.
-
-Ah, well the reasoning on that was that all this NUMA business is
-'expensive' so we'd better only bother with tasks that persist long
-enough for it to pay off.
-
-In that regard it makes perfect sense to wait a fixed amount of runtime
-before we start scanning.
-
-So it was not a pure hack to make kbuild work again.. that is did was
-good though.
-
-> > @@ -1254,9 +1272,14 @@ void task_numa_work(struct callback_head
-> >  	 * Do not set pte_numa if the current running node is rate-limited.
-> >  	 * This loses statistics on the fault but if we are unwilling to
-> >  	 * migrate to this node, it is less likely we can do useful work
-> > -	 */
-> > +	 *
-> > +	 * APZ: seems like a bad idea; even if this node can't migrate anymore
-> > +	 * other nodes might and we want up-to-date information to do balance
-> > +	 * decisions.
-> > +	 *
-> >  	if (migrate_ratelimited(numa_node_id()))
-> >  		return;
-> > +	 */
-> >  
-> 
-> Ingo also disliked this but I wanted to avoid a situation where the
-> workload suffered because of a corner case where the interconnect was
-> filled with migration traffic.
-
-Right, but you already rate limit the actual migrations, this should
-leave enough bandwidth to allow the non-migrating scanning.
-
-I think its important we keep up-to-date information if we're going to
-do placement based on it.
-
-On that rate-limit, this looks to be a hard-coded number unrelated to
-the actual hardware. I think we should at the very least make it a
-configurable number and preferably scale the number with the SLIT info.
-Or alternatively actually measure the node to node bandwidth.
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index b100255..2b28216 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -6274,10 +6274,6 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+>  		list_del(&page->lru);
+>  		rmv_page_order(page);
+>  		zone->free_area[order].nr_free--;
+> -#ifdef CONFIG_HIGHMEM
+> -		if (PageHighMem(page))
+> -			totalhigh_pages -= 1 << order;
+> -#endif
+>  		for (i = 0; i < (1 << order); i++)
+>  			SetPageReserved((page+i));
+>  		pfn += (1 << order);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
