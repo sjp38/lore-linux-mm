@@ -1,11 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 4C8556B0034
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 03:32:01 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id DC8816B0037
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 03:32:55 -0400 (EDT)
 From: Qiang Huang <h.huangqiang@huawei.com>
-Subject: [PATCH 0/4] memcg: fix memcg resource limit overflow issues
-Date: Wed, 31 Jul 2013 15:31:21 +0800
-Message-ID: <1375255885-10648-1-git-send-email-h.huangqiang@huawei.com>
+Subject: [PATCH 4/4] memcg: reduce function dereference
+Date: Wed, 31 Jul 2013 15:31:25 +0800
+Message-ID: <1375255885-10648-5-git-send-email-h.huangqiang@huawei.com>
+In-Reply-To: <1375255885-10648-1-git-send-email-h.huangqiang@huawei.com>
+References: <1375255885-10648-1-git-send-email-h.huangqiang@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -13,27 +15,57 @@ List-ID: <linux-mm.kvack.org>
 To: cgroups@vger.kernel.org, linux-mm@kvack.org
 Cc: handai.szj@taobao.com, lizefan@huawei.com, nishimura@mxp.nes.nec.co.jp, akpm@linux-foundation.org, mhocko@suse.cz, jeff.liu@oracle.com
 
-This issue is first discussed in:
-http://marc.info/?l=linux-mm&m=136574878704295&w=2
+This function dereferences res far too often, so optimize it.
 
-Then a second version sent to:
-http://marc.info/?l=linux-mm&m=136776855928310&w=2
+Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+Signed-off-by: Qiang Huang <h.huangqiang@huawei.com>
+---
+ kernel/res_counter.c | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)
 
-We contacted Sha a month ago, she seems have no time to deal with it 
-recently, but we quite need this patch. So I modified and resent it.
-
-Qiang Huang (4):
-  memcg: correct RESOURCE_MAX to ULLONG_MAX
-  memcg: rename RESOURCE_MAX to RES_COUNTER_MAX
-  memcg: avoid overflow caused by PAGE_ALIGN
-  memcg: reduce function dereference
-
- include/linux/res_counter.h |  2 +-
- kernel/res_counter.c        | 25 ++++++++++++++++---------
- mm/memcontrol.c             |  4 ++--
- net/ipv4/tcp_memcontrol.c   | 10 +++++-----
- 4 files changed, 24 insertions(+), 17 deletions(-)
-
+diff --git a/kernel/res_counter.c b/kernel/res_counter.c
+index 085d3ae..4aa8a30 100644
+--- a/kernel/res_counter.c
++++ b/kernel/res_counter.c
+@@ -178,27 +178,30 @@ u64 res_counter_read_u64(struct res_counter *counter, int member)
+ #endif
+ 
+ int res_counter_memparse_write_strategy(const char *buf,
+-					unsigned long long *res)
++					unsigned long long *resp)
+ {
+ 	char *end;
++	unsigned long long res;
+ 
+ 	/* return RES_COUNTER_MAX(unlimited) if "-1" is specified */
+ 	if (*buf == '-') {
+-		*res = simple_strtoull(buf + 1, &end, 10);
+-		if (*res != 1 || *end != '\0')
++		res = simple_strtoull(buf + 1, &end, 10);
++		if (res != 1 || *end != '\0')
+ 			return -EINVAL;
+-		*res = RES_COUNTER_MAX;
++		*resp = RES_COUNTER_MAX;
+ 		return 0;
+ 	}
+ 
+-	*res = memparse(buf, &end);
++	res = memparse(buf, &end);
+ 	if (*end != '\0')
+ 		return -EINVAL;
+ 
+-	if (PAGE_ALIGN(*res) >= *res)
+-		*res = PAGE_ALIGN(*res);
++	if (PAGE_ALIGN(res) >= res)
++		res = PAGE_ALIGN(res);
+ 	else
+-		*res = RES_COUNTER_MAX;
++		res = RES_COUNTER_MAX;
++
++	*resp = res;
+ 
+ 	return 0;
+ }
 -- 
 1.8.3
 
