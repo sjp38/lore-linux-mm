@@ -1,136 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id B57396B0031
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 05:29:42 -0400 (EDT)
-Date: Wed, 31 Jul 2013 10:29:38 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 15/18] sched: Set preferred NUMA node based on number of
- private faults
-Message-ID: <20130731092938.GM2296@suse.de>
-References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
- <1373901620-2021-16-git-send-email-mgorman@suse.de>
- <20130726112050.GJ27075@twins.programming.kicks-ass.net>
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 6EB956B0031
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 05:33:42 -0400 (EDT)
+Message-ID: <51F8D9F3.4040108@bitsync.net>
+Date: Wed, 31 Jul 2013 11:33:39 +0200
+From: Zlatko Calusic <zcalusic@bitsync.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20130726112050.GJ27075@twins.programming.kicks-ass.net>
+Subject: Re: [patch 0/3] mm: improve page aging fairness between zones/nodes
+References: <1374267325-22865-1-git-send-email-hannes@cmpxchg.org> <51ED6274.3000509@bitsync.net> <51EFB80B.1090302@bitsync.net>
+In-Reply-To: <51EFB80B.1090302@bitsync.net>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jul 26, 2013 at 01:20:50PM +0200, Peter Zijlstra wrote:
-> On Mon, Jul 15, 2013 at 04:20:17PM +0100, Mel Gorman wrote:
-> > diff --git a/mm/mprotect.c b/mm/mprotect.c
-> > index cacc64a..04c9469 100644
-> > --- a/mm/mprotect.c
-> > +++ b/mm/mprotect.c
-> > @@ -37,14 +37,15 @@ static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
-> >  
-> >  static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
-> >  		unsigned long addr, unsigned long end, pgprot_t newprot,
-> > -		int dirty_accountable, int prot_numa, bool *ret_all_same_node)
-> > +		int dirty_accountable, int prot_numa, bool *ret_all_same_nidpid)
-> >  {
-> >  	struct mm_struct *mm = vma->vm_mm;
-> >  	pte_t *pte, oldpte;
-> >  	spinlock_t *ptl;
-> >  	unsigned long pages = 0;
-> > -	bool all_same_node = true;
-> > +	bool all_same_nidpid = true;
-> >  	int last_nid = -1;
-> > +	int last_pid = -1;
-> >  
-> >  	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
-> >  	arch_enter_lazy_mmu_mode();
-> > @@ -64,10 +65,17 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
-> >  				page = vm_normal_page(vma, addr, oldpte);
-> >  				if (page) {
-> >  					int this_nid = page_to_nid(page);
-> > +					int nidpid = page_nidpid_last(page);
-> > +					int this_pid = nidpid_to_pid(nidpid);
-> > +
-> >  					if (last_nid == -1)
-> >  						last_nid = this_nid;
-> > -					if (last_nid != this_nid)
-> > -						all_same_node = false;
-> > +					if (last_pid == -1)
-> > +						last_pid = this_pid;
-> > +					if (last_nid != this_nid ||
-> > +					    last_pid != this_pid) {
-> > +						all_same_nidpid = false;
-> > +					}
-> 
-> At this point I would've expected something like:
-> 
-> 		int nidpid = page_nidpid_last(page);
-> 		int thisnid = nidpid_to_nid(nidpid);
-> 		int thispid = nidpit_to_pid(nidpit);
-> 
-> It seems 'weird' to mix the state like you did; is there a reason the
-> above is incorrect?
-> 
+On 24.07.2013 13:18, Zlatko Calusic wrote:
+> On 22.07.2013 18:48, Zlatko Calusic wrote:
+>> On 19.07.2013 22:55, Johannes Weiner wrote:
+>>> The way the page allocator interacts with kswapd creates aging
+>>> imbalances, where the amount of time a userspace page gets in memory
+>>> under reclaim pressure is dependent on which zone, which node the
+>>> allocator took the page frame from.
+>>>
+>>> #1 fixes missed kswapd wakeups on NUMA systems, which lead to some
+>>>     nodes falling behind for a full reclaim cycle relative to the other
+>>>     nodes in the system
+>>>
+>>> #3 fixes an interaction where kswapd and a continuous stream of page
+>>>     allocations keep the preferred zone of a task between the high and
+>>>     low watermark (allocations succeed + kswapd does not go to sleep)
+>>>     indefinitely, completely underutilizing the lower zones and
+>>>     thrashing on the preferred zone
+>>>
+>>> These patches are the aging fairness part of the thrash-detection
+>>> based file LRU balancing.  Andrea recommended to submit them
+>>> separately as they are bugfixes in their own right.
+>>>
+>>
+>> I have the patch applied and under testing. So far, so good. It looks
+>> like it could finally fix the bug that I was chasing few months ago
+>> (nicely described in your bullet #3). But, few more days of testing will
+>> be needed before I can reach a quality verdict.
+>>
+>
+> Well, only 2 days later it's already obvious that the patch is perfect! :)
+>
 
-No there isn't and it looks like a brain fart. I've changed it to what
-you suggested.
+Additionaly, on the patched kernel, kswapd burns 30% less CPU cycles. 
+Nice to see that restored balance also eases kswapd's job, but that was 
+to be expected. Measured on the real workload, twice, to be sure.
 
-> >  
-> >  					if (!pte_numa(oldpte)) {
-> >  						ptent = pte_mknuma(ptent);
-> > @@ -106,7 +114,7 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
-> >  	arch_leave_lazy_mmu_mode();
-> >  	pte_unmap_unlock(pte - 1, ptl);
-> >  
-> > -	*ret_all_same_node = all_same_node;
-> > +	*ret_all_same_nidpid = all_same_nidpid;
-> >  	return pages;
-> >  }
-> >  
-> > @@ -133,7 +141,7 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
-> >  	pmd_t *pmd;
-> >  	unsigned long next;
-> >  	unsigned long pages = 0;
-> > -	bool all_same_node;
-> > +	bool all_same_nidpid;
-> >  
-> >  	pmd = pmd_offset(pud, addr);
-> >  	do {
-> > @@ -151,7 +159,7 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
-> >  		if (pmd_none_or_clear_bad(pmd))
-> >  			continue;
-> >  		pages += change_pte_range(vma, pmd, addr, next, newprot,
-> > -				 dirty_accountable, prot_numa, &all_same_node);
-> > +				 dirty_accountable, prot_numa, &all_same_nidpid);
-> >  
-> >  		/*
-> >  		 * If we are changing protections for NUMA hinting faults then
-> > @@ -159,7 +167,7 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
-> >  		 * node. This allows a regular PMD to be handled as one fault
-> >  		 * and effectively batches the taking of the PTL
-> >  		 */
-> > -		if (prot_numa && all_same_node)
-> > +		if (prot_numa && all_same_nidpid)
-> >  			change_pmd_protnuma(vma->vm_mm, addr, pmd);
-> >  	} while (pmd++, addr = next, addr != end);
-> >  
-> 
-> Hurmph I just stumbled upon this PMD 'trick' and I'm not at all sure I
-> like it. If an application would pre-fault/initialize its memory with
-> the main thread we'll collapse it into a PMDs and forever thereafter (by
-> virtue of do_pmd_numa_page()) they'll all stay the same. Resulting in
-> PMD granularity.
-> 
-
-Potentially yes. When that PMD trick was introduced it was because the cost
-of faults was very high due to a high scanning rate. The trick mitigated
-worse-case scenarios until faults were properly accounted for and the scan
-rates were better controlled. As these *should* be addressed by the series
-I think I will be adding a patch to kick away this PMD crutch and see how
-it looks in profiles.
-
+Regards,
 -- 
-Mel Gorman
-SUSE Labs
+Zlatko
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
