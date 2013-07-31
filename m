@@ -1,44 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id A77D76B0032
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 03:54:54 -0400 (EDT)
-Date: Wed, 31 Jul 2013 08:54:51 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 02/18] sched: Track NUMA hinting faults on per-node basis
-Message-ID: <20130731075451.GE2296@suse.de>
-References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
- <1373901620-2021-3-git-send-email-mgorman@suse.de>
- <20130729101059.GC3008@twins.programming.kicks-ass.net>
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id 71FF86B0031
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 04:00:16 -0400 (EDT)
+Date: Wed, 31 Jul 2013 10:00:12 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 1/4] memcg: correct RESOURCE_MAX to ULLONG_MAX
+Message-ID: <20130731080012.GE30514@dhcp22.suse.cz>
+References: <1375255885-10648-1-git-send-email-h.huangqiang@huawei.com>
+ <1375255885-10648-2-git-send-email-h.huangqiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130729101059.GC3008@twins.programming.kicks-ass.net>
+In-Reply-To: <1375255885-10648-2-git-send-email-h.huangqiang@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Qiang Huang <h.huangqiang@huawei.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, handai.szj@taobao.com, lizefan@huawei.com, nishimura@mxp.nes.nec.co.jp, akpm@linux-foundation.org, jeff.liu@oracle.com
 
-On Mon, Jul 29, 2013 at 12:10:59PM +0200, Peter Zijlstra wrote:
-> On Mon, Jul 15, 2013 at 04:20:04PM +0100, Mel Gorman wrote:
-> > +++ b/kernel/sched/fair.c
-> > @@ -815,7 +815,14 @@ void task_numa_fault(int node, int pages, bool migrated)
-> >  	if (!sched_feat_numa(NUMA))
-> >  		return;
-> >  
-> > -	/* FIXME: Allocate task-specific structure for placement policy here */
-> > +	/* Allocate buffer to track faults on a per-node basis */
-> > +	if (unlikely(!p->numa_faults)) {
-> > +		int size = sizeof(*p->numa_faults) * nr_node_ids;
-> > +
-> > +		p->numa_faults = kzalloc(size, GFP_KERNEL);
+On Wed 31-07-13 15:31:22, Qiang Huang wrote:
+> Current RESOURCE_MAX is ULONG_MAX, but the value we used to set resource
+> limit is unsigned long long, so we can set bigger value than that which
+> is strange. The XXX_MAX should be reasonable max value, bigger than that
+> should be overflow.
 > 
-> We should probably stick a __GFP_NOWARN in there.
+> Notice that this change will affect user output of default *.limit_in_bytes:
+> before change:
+> $ cat /cgroup/memory/memory.limit_in_bytes
+> 9223372036854775807
 > 
+> after change:
+> $ cat /cgroup/memory/memory.limit_in_bytes
+> 18446744073709551615
+> 
+> But it doesn't alter the API in term of input - we can still use
+> "echo -1 > *.limit_in_bytes" to reset the numbers to "unlimited".
+> 
+> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+> Signed-off-by: Qiang Huang <h.huangqiang@huawei.com>
 
-Yes.
+I thought this would be better marked as cgroup wide change but memcg
+seems to be the only user currently
+
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
+> ---
+>  include/linux/res_counter.h | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
+> index 96a509b..586bc7c 100644
+> --- a/include/linux/res_counter.h
+> +++ b/include/linux/res_counter.h
+> @@ -54,7 +54,7 @@ struct res_counter {
+>  	struct res_counter *parent;
+>  };
+>  
+> -#define RESOURCE_MAX (unsigned long long)LLONG_MAX
+> +#define RESOURCE_MAX ULLONG_MAX
+>  
+>  /**
+>   * Helpers to interact with userspace
+> -- 
+> 1.8.3
+> 
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
