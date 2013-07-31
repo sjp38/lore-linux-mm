@@ -1,23 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 63F216B0031
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 05:51:28 -0400 (EDT)
-Message-ID: <51F8DE05.5020606@huawei.com>
-Date: Wed, 31 Jul 2013 17:51:01 +0800
-From: Qiang Huang <h.huangqiang@huawei.com>
+	by kanga.kvack.org (Postfix) with SMTP id D5EFC6B0031
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 05:54:16 -0400 (EDT)
+Message-ID: <51F8DE1E.2020305@huawei.com>
+Date: Wed, 31 Jul 2013 17:51:26 +0800
+From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH 0/4] memcg: fix memcg resource limit overflow issues
-References: <1375255885-10648-1-git-send-email-h.huangqiang@huawei.com> <CAFj3OHX4WLaecyE_zFbnFKs9wrCWTq2eDAUDMxqPg8=TYt18gg@mail.gmail.com> <51F8D016.4090009@huawei.com> <51F8D0E1.4010007@huawei.com> <CAFj3OHUEVM+BtoYS8wbXRU42Q8_=1X5qaQm7QY8oBc=ONAdfOA@mail.gmail.com>
-In-Reply-To: <CAFj3OHUEVM+BtoYS8wbXRU42Q8_=1X5qaQm7QY8oBc=ONAdfOA@mail.gmail.com>
+References: <1375255885-10648-1-git-send-email-h.huangqiang@huawei.com> <CAFj3OHX4WLaecyE_zFbnFKs9wrCWTq2eDAUDMxqPg8=TYt18gg@mail.gmail.com> <51F8D016.4090009@huawei.com> <51F8D0E1.4010007@huawei.com> <51F8DA1E.3040900@oracle.com>
+In-Reply-To: <51F8DA1E.3040900@oracle.com>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sha Zhengju <handai.szj@gmail.com>
-Cc: Li Zefan <lizefan@huawei.com>, Cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Sha Zhengju <handai.szj@taobao.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Jeff Liu <jeff.liu@oracle.com>
+To: Jeff Liu <jeff.liu@oracle.com>
+Cc: Qiang Huang <h.huangqiang@huawei.com>, Sha Zhengju <handai.szj@gmail.com>, Cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Sha Zhengju <handai.szj@taobao.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>
 
-On 2013/7/31 17:39, Sha Zhengju wrote:
-> On Wed, Jul 31, 2013 at 4:54 PM, Li Zefan <lizefan@huawei.com> wrote:
+On 2013/7/31 17:34, Jeff Liu wrote:
+> On 07/31/2013 04:54 PM, Li Zefan wrote:
+> 
 >> On 2013/7/31 16:51, Qiang Huang wrote:
 >>> On 2013/7/31 16:23, Sha Zhengju wrote:
 >>>> Hi list,
@@ -60,21 +61,18 @@ On 2013/7/31 17:39, Sha Zhengju wrote:
 >> in the beginning of the email:
 >>
 >> From: Sha Zhengju <handai.szj@taobao.com>
->>
 > 
-> Cooperation is welcomed and I just hated this kind of behavior. I
-> don't want to block the community, since they're urgent to the patches
-> and Michal has already reviewed them just now,  I won't be so caustic
-> on it. I'm OK of letting the codes in under the rules of community.
+> This is the usual way to credit the original author.  But in this case, Qiang
+> should get a confirmation from Sha at first.
+> 
+> IMO, that would make a mess of a project if anybody can take over an on-going
+> task without an approval from the author just because he is looking forward to
+> see something will happen on mainline shortly.
 > 
 
-OK, thank you Sha, I just confirmed again, Libo did get your reply, we
-made a mistake, sorry for that.
-
-It is my fault didn't get your permission before the rework, I didn't notice
-this is that big deal, I'll be more careful next time :). Thanks again.
-
-
+This happens from time to time, but mostly it's because of mistakes or lack of
+communication or unfamiliarity about the rules rather than deliberatly stealing
+someone else's credits.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
