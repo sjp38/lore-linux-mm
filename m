@@ -1,32 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 3E7196B0032
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 04:17:05 -0400 (EDT)
-Message-ID: <51F8C7F4.9020504@parallels.com>
-Date: Wed, 31 Jul 2013 12:16:52 +0400
-From: Pavel Emelyanov <xemul@parallels.com>
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 32B456B0031
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 04:20:31 -0400 (EDT)
+Date: Wed, 31 Jul 2013 10:20:29 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 4/4] memcg: reduce function dereference
+Message-ID: <20130731082029.GH30514@dhcp22.suse.cz>
+References: <1375255885-10648-1-git-send-email-h.huangqiang@huawei.com>
+ <1375255885-10648-5-git-send-email-h.huangqiang@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [patch 2/2] [PATCH] mm: Save soft-dirty bits on file pages
-References: <20130730204154.407090410@gmail.com> <20130730204654.966378702@gmail.com>
-In-Reply-To: <20130730204654.966378702@gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1375255885-10648-5-git-send-email-h.huangqiang@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyrill Gorcunov <gorcunov@gmail.com>, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, luto@amacapital.net, gorcunov@openvz.org, mpm@selenic.com, xiaoguangrong@linux.vnet.ibm.com, mtosatti@redhat.com, kosaki.motohiro@gmail.com, sfr@canb.auug.org.au, peterz@infradead.org, aneesh.kumar@linux.vnet.ibm.com
+To: Qiang Huang <h.huangqiang@huawei.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, handai.szj@taobao.com, lizefan@huawei.com, nishimura@mxp.nes.nec.co.jp, akpm@linux-foundation.org, jeff.liu@oracle.com
 
-On 07/31/2013 12:41 AM, Cyrill Gorcunov wrote:
-
-> Andy reported that if file page get reclaimed we loose soft-dirty bit
-> if it was there, so save _PAGE_BIT_SOFT_DIRTY bit when page address
-> get encoded into pte entry. Thus when #pf happens on such non-present
-> pte we can restore it back.
+On Wed 31-07-13 15:31:25, Qiang Huang wrote:
+> This function dereferences res far too often, so optimize it.
 > 
-> Reported-by: Andy Lutomirski <luto@amacapital.net>
-> Signed-off-by: Cyrill Gorcunov <gorcunov@openvz.org>
+> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+> Signed-off-by: Qiang Huang <h.huangqiang@huawei.com>
 
-Acked-by: Pavel Emelyanov <xemul@parallels.com>
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+
+> ---
+>  kernel/res_counter.c | 19 +++++++++++--------
+>  1 file changed, 11 insertions(+), 8 deletions(-)
+> 
+> diff --git a/kernel/res_counter.c b/kernel/res_counter.c
+> index 085d3ae..4aa8a30 100644
+> --- a/kernel/res_counter.c
+> +++ b/kernel/res_counter.c
+> @@ -178,27 +178,30 @@ u64 res_counter_read_u64(struct res_counter *counter, int member)
+>  #endif
+>  
+>  int res_counter_memparse_write_strategy(const char *buf,
+> -					unsigned long long *res)
+> +					unsigned long long *resp)
+>  {
+>  	char *end;
+> +	unsigned long long res;
+>  
+>  	/* return RES_COUNTER_MAX(unlimited) if "-1" is specified */
+>  	if (*buf == '-') {
+> -		*res = simple_strtoull(buf + 1, &end, 10);
+> -		if (*res != 1 || *end != '\0')
+> +		res = simple_strtoull(buf + 1, &end, 10);
+> +		if (res != 1 || *end != '\0')
+>  			return -EINVAL;
+> -		*res = RES_COUNTER_MAX;
+> +		*resp = RES_COUNTER_MAX;
+>  		return 0;
+>  	}
+>  
+> -	*res = memparse(buf, &end);
+> +	res = memparse(buf, &end);
+>  	if (*end != '\0')
+>  		return -EINVAL;
+>  
+> -	if (PAGE_ALIGN(*res) >= *res)
+> -		*res = PAGE_ALIGN(*res);
+> +	if (PAGE_ALIGN(res) >= res)
+> +		res = PAGE_ALIGN(res);
+>  	else
+> -		*res = RES_COUNTER_MAX;
+> +		res = RES_COUNTER_MAX;
+> +
+> +	*resp = res;
+>  
+>  	return 0;
+>  }
+> -- 
+> 1.8.3
+> 
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
