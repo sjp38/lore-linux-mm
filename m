@@ -1,75 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id E73786B0032
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 05:34:32 -0400 (EDT)
-Message-ID: <51F8DA1E.3040900@oracle.com>
-Date: Wed, 31 Jul 2013 17:34:22 +0800
-From: Jeff Liu <jeff.liu@oracle.com>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id CFA176B0034
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 05:34:42 -0400 (EDT)
+Date: Wed, 31 Jul 2013 11:34:37 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 15/18] sched: Set preferred NUMA node based on number of
+ private faults
+Message-ID: <20130731093437.GX3008@twins.programming.kicks-ass.net>
+References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
+ <1373901620-2021-16-git-send-email-mgorman@suse.de>
+ <20130726112050.GJ27075@twins.programming.kicks-ass.net>
+ <20130731092938.GM2296@suse.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/4] memcg: fix memcg resource limit overflow issues
-References: <1375255885-10648-1-git-send-email-h.huangqiang@huawei.com> <CAFj3OHX4WLaecyE_zFbnFKs9wrCWTq2eDAUDMxqPg8=TYt18gg@mail.gmail.com> <51F8D016.4090009@huawei.com> <51F8D0E1.4010007@huawei.com>
-In-Reply-To: <51F8D0E1.4010007@huawei.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130731092938.GM2296@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Zefan <lizefan@huawei.com>
-Cc: Qiang Huang <h.huangqiang@huawei.com>, Sha Zhengju <handai.szj@gmail.com>, Cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Sha Zhengju <handai.szj@taobao.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 07/31/2013 04:54 PM, Li Zefan wrote:
-
-> On 2013/7/31 16:51, Qiang Huang wrote:
->> On 2013/7/31 16:23, Sha Zhengju wrote:
->>> Hi list,
->>>
->>> On Wed, Jul 31, 2013 at 3:31 PM, Qiang Huang <h.huangqiang@huawei.com> wrote:
->>>> This issue is first discussed in:
->>>> http://marc.info/?l=linux-mm&m=136574878704295&w=2
->>>>
->>>> Then a second version sent to:
->>>> http://marc.info/?l=linux-mm&m=136776855928310&w=2
->>>>
->>>> We contacted Sha a month ago, she seems have no time to deal with it
->>>> recently, but we quite need this patch. So I modified and resent it.
->>>
->>>
->>> No, I didn't receive any of YOUR message, only a engineer named Libo
->>> Chen from Huawei connected me recently. I don't approve you to resent
->>> them on behalf of me, and just before you send this you even don't
->>> send me a mail. Besides, after a rough look, I do not see any
->>> innovative ideas from yourself but just rework patches from my last
->>> version.
->>> So I'm strong against this patchset.
->>
->> Sorry if this troubles you.
->> Libo Chen is my colleague, we work together, he sent an email to you on
->> 25 June, to ask about this issue, you said you'll resent it soon, but it
->> didn't happen until now :(, and he asked again the other day and you didn't
->> reply. As we really need to fix this problem(and need it in upstream), so
->> I modified it and sent out.
->>
->> I think split patches, rewrite changelogs and tests, they all kind of work
->> right? Of course, if you mind, I can change it, I just need this fix merged
->> to upstream ASAP.
->>
->> So you want me rewrite this patchset and SOB only you or you want resent this
->> by yourself? I'm ok with both :)
->>
+On Wed, Jul 31, 2013 at 10:29:38AM +0100, Mel Gorman wrote:
+> > Hurmph I just stumbled upon this PMD 'trick' and I'm not at all sure I
+> > like it. If an application would pre-fault/initialize its memory with
+> > the main thread we'll collapse it into a PMDs and forever thereafter (by
+> > virtue of do_pmd_numa_page()) they'll all stay the same. Resulting in
+> > PMD granularity.
+> > 
 > 
-> No, you can't send out patches without your SOB...but you can add a line
-> in the beginning of the email:
-> 
-> From: Sha Zhengju <handai.szj@taobao.com>
+> Potentially yes. When that PMD trick was introduced it was because the cost
+> of faults was very high due to a high scanning rate. The trick mitigated
+> worse-case scenarios until faults were properly accounted for and the scan
+> rates were better controlled. As these *should* be addressed by the series
+> I think I will be adding a patch to kick away this PMD crutch and see how
+> it looks in profiles.
 
-This is the usual way to credit the original author.  But in this case, Qiang
-should get a confirmation from Sha at first.
+I've been thinking on this a bit and I think we should split these and
+thp pages when we get shared faults from different nodes on them and
+refuse thp collapses when the pages are on different nodes.
 
-IMO, that would make a mess of a project if anybody can take over an on-going
-task without an approval from the author just because he is looking forward to
-see something will happen on mainline shortly.
-
-Thanks,
--Jeff
+With the exception that when we introduce the interleave mempolicies we
+should define 'different node' as being outside of the interleave mask.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
