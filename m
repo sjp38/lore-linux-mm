@@ -1,54 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 6492E6B0031
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 04:50:02 -0400 (EDT)
-Received: from epcpsbgr3.samsung.com
- (u143.gpu120.samsung.co.kr [203.254.230.143])
- by mailout1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTP id <0MQS00GW2LVC72L0@mailout1.samsung.com> for linux-mm@kvack.org;
- Wed, 31 Jul 2013 17:50:00 +0900 (KST)
-From: Joonyoung Shim <jy0922.shim@samsung.com>
-Subject: [PATCH] Revert
- "mm/memory-hotplug: fix lowmem count overflow when offline pages"
-Date: Wed, 31 Jul 2013 17:50:02 +0900
-Message-id: <1375260602-2462-1-git-send-email-jy0922.shim@samsung.com>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id B68106B0032
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 04:50:28 -0400 (EDT)
+Date: Wed, 31 Jul 2013 10:50:18 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH] sched, numa: migrates_degrades_locality()
+Message-ID: <20130731085018.GW3008@twins.programming.kicks-ass.net>
+References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
+ <1373901620-2021-8-git-send-email-mgorman@suse.de>
+ <20130725104009.GO27075@twins.programming.kicks-ass.net>
+ <20130731084411.GG2296@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130731084411.GG2296@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, liuj97@gmail.com, kosaki.motohiro@gmail.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-This reverts commit cea27eb2a202959783f81254c48c250ddd80e129.
+On Wed, Jul 31, 2013 at 09:44:11AM +0100, Mel Gorman wrote:
+> On Thu, Jul 25, 2013 at 12:40:09PM +0200, Peter Zijlstra wrote:
+> > 
+> > Subject: sched, numa: migrates_degrades_locality()
+> > From: Peter Zijlstra <peterz@infradead.org>
+> > Date: Mon Jul 22 14:02:54 CEST 2013
+> > 
+> > It just makes heaps of sense; so add it and make both it and
+> > migrate_improve_locality() a sched_feat().
+> > 
+> 
+> Ok. I'll be splitting this patch and merging part of it into "sched:
+> Favour moving tasks towards the preferred node" and keeping the
+> degrades_locality as a separate patch. I'm also not a fan of the
+> tunables names NUMA_FAULTS_UP and NUMA_FAULTS_DOWN because it is hard to
+> guess what they mean. NUMA_FAVOUR_HIGHER, NUMA_RESIST_LOWER?
 
-Fixed to adjust totalhigh_pages when hot-removing memory by commit
-3dcc0571cd64816309765b7c7e4691a4cadf2ee7, so that commit occurs
-duplicated decreasing of totalhigh_pages.
-
-Signed-off-by: Joonyoung Shim <jy0922.shim@samsung.com>
----
-The commit cea27eb2a202959783f81254c48c250ddd80e129 is only for stable,
-is it right?
-
- mm/page_alloc.c | 4 ----
- 1 file changed, 4 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index b100255..2b28216 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -6274,10 +6274,6 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
- 		list_del(&page->lru);
- 		rmv_page_order(page);
- 		zone->free_area[order].nr_free--;
--#ifdef CONFIG_HIGHMEM
--		if (PageHighMem(page))
--			totalhigh_pages -= 1 << order;
--#endif
- 		for (i = 0; i < (1 << order); i++)
- 			SetPageReserved((page+i));
- 		pfn += (1 << order);
--- 
-1.8.1.2
+Sure, I don't much care about the names.. ideally you'd never use them
+anyway ;-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
