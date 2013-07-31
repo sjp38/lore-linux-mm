@@ -1,77 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id 017D56B0031
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 07:18:06 -0400 (EDT)
-Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
- by mailout2.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MQS00IATSPWLG40@mailout2.samsung.com> for
- linux-mm@kvack.org; Wed, 31 Jul 2013 20:18:05 +0900 (KST)
-From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Subject: Re: [PATCH] Revert
- "mm/memory-hotplug: fix lowmem count overflow when offline pages"
-Date: Wed, 31 Jul 2013 13:17:46 +0200
-Message-id: <1572085.gN7iX7IvMe@amdc1032>
-In-reply-to: <1375260602-2462-1-git-send-email-jy0922.shim@samsung.com>
-References: <1375260602-2462-1-git-send-email-jy0922.shim@samsung.com>
-MIME-version: 1.0
-Content-transfer-encoding: 7Bit
-Content-type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id BD4D46B0034
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 07:25:15 -0400 (EDT)
+Date: Wed, 31 Jul 2013 12:25:10 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm, numa: Sanitize task_numa_fault() callsites
+Message-ID: <20130731112510.GS2296@suse.de>
+References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
+ <20130725103845.GN27075@twins.programming.kicks-ass.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20130725103845.GN27075@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonyoung Shim <jy0922.shim@samsung.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, liuj97@gmail.com, kosaki.motohiro@gmail.com
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-
-Hi,
-
-On Wednesday, July 31, 2013 05:50:02 PM Joonyoung Shim wrote:
-> This reverts commit cea27eb2a202959783f81254c48c250ddd80e129.
-
-Could you please also include commit descriptions, i.e.
-commit cea27eb2a202959783f81254c48c250ddd80e129 ("mm/memory-hotplug: fix
-lowmem count overflow when offline pages")?
-
-> Fixed to adjust totalhigh_pages when hot-removing memory by commit
-> 3dcc0571cd64816309765b7c7e4691a4cadf2ee7, so that commit occurs
-> duplicated decreasing of totalhigh_pages.
-
-Could you please describe it a bit more (because it is non-obvious) how
-the commit cea27eb effectively does the same totalhigh_pages adjustment
-that is present in the commit 3dcc057?
-
-> Signed-off-by: Joonyoung Shim <jy0922.shim@samsung.com>
-> ---
-> The commit cea27eb2a202959783f81254c48c250ddd80e129 is only for stable,
-> is it right?
-
-It is in Linus' tree now but you're probably right that it should be
-limited to stable tree.
-
-Best regards,
---
-Bartlomiej Zolnierkiewicz
-Samsung R&D Institute Poland
-Samsung Electronics
-
->  mm/page_alloc.c | 4 ----
->  1 file changed, 4 deletions(-)
+On Thu, Jul 25, 2013 at 12:38:45PM +0200, Peter Zijlstra wrote:
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index b100255..2b28216 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -6274,10 +6274,6 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
->  		list_del(&page->lru);
->  		rmv_page_order(page);
->  		zone->free_area[order].nr_free--;
-> -#ifdef CONFIG_HIGHMEM
-> -		if (PageHighMem(page))
-> -			totalhigh_pages -= 1 << order;
-> -#endif
->  		for (i = 0; i < (1 << order); i++)
->  			SetPageReserved((page+i));
->  		pfn += (1 << order);
+> Subject: mm, numa: Sanitize task_numa_fault() callsites
+> From: Peter Zijlstra <peterz@infradead.org>
+> Date: Mon Jul 22 10:42:38 CEST 2013
+> 
+> There are three callers of task_numa_fault():
+> 
+>  - do_huge_pmd_numa_page():
+>      Accounts against the current node, not the node where the
+>      page resides, unless we migrated, in which case it accounts
+>      against the node we migrated to.
+> 
+>  - do_numa_page():
+>      Accounts against the current node, not the node where the
+>      page resides, unless we migrated, in which case it accounts
+>      against the node we migrated to.
+> 
+>  - do_pmd_numa_page():
+>      Accounts not at all when the page isn't migrated, otherwise
+>      accounts against the node we migrated towards.
+> 
+> This seems wrong to me; all three sites should have the same
+> sementaics, furthermore we should accounts against where the page
+> really is, we already know where the task is.
+> 
+
+Agreed. To allow the scheduler parts to still be evaluated in proper
+isolation I moved this patch to much earlier in the series.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
