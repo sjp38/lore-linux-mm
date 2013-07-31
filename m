@@ -1,64 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 40F9B6B0031
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 02:37:41 -0400 (EDT)
-Date: Wed, 31 Jul 2013 15:37:40 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 01/18] mm, hugetlb: protect reserved pages when
- softofflining requests the pages
-Message-ID: <20130731063740.GA4212@lge.com>
-References: <1375075929-6119-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1375075929-6119-2-git-send-email-iamjoonsoo.kim@lge.com>
- <CAJd=RBCUJg5GJEQ2_heCt8S9LZzedGLbvYvivFkmvfMChPqaCg@mail.gmail.com>
- <20130731022751.GA2548@lge.com>
- <CAJd=RBD=SNm9TG-kxKcd-BiMduOhLUubq=JpRwCy_MmiDtO9Tw@mail.gmail.com>
- <20130731044101.GE2548@lge.com>
- <CAJd=RBDr72T+O+aNdb-HyB3U+k5JiVWMoXfPNA0y-Hxw-wDD-g@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id E3DB36B0031
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 03:31:55 -0400 (EDT)
+From: Qiang Huang <h.huangqiang@huawei.com>
+Subject: [PATCH 1/4] memcg: correct RESOURCE_MAX to ULLONG_MAX
+Date: Wed, 31 Jul 2013 15:31:22 +0800
+Message-ID: <1375255885-10648-2-git-send-email-h.huangqiang@huawei.com>
+In-Reply-To: <1375255885-10648-1-git-send-email-h.huangqiang@huawei.com>
+References: <1375255885-10648-1-git-send-email-h.huangqiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAJd=RBDr72T+O+aNdb-HyB3U+k5JiVWMoXfPNA0y-Hxw-wDD-g@mail.gmail.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: cgroups@vger.kernel.org, linux-mm@kvack.org
+Cc: handai.szj@taobao.com, lizefan@huawei.com, nishimura@mxp.nes.nec.co.jp, akpm@linux-foundation.org, mhocko@suse.cz, jeff.liu@oracle.com
 
-On Wed, Jul 31, 2013 at 02:21:38PM +0800, Hillf Danton wrote:
-> On Wed, Jul 31, 2013 at 12:41 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> > On Wed, Jul 31, 2013 at 10:49:24AM +0800, Hillf Danton wrote:
-> >> On Wed, Jul 31, 2013 at 10:27 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> >> > On Mon, Jul 29, 2013 at 03:24:46PM +0800, Hillf Danton wrote:
-> >> >> On Mon, Jul 29, 2013 at 1:31 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> >> >> > alloc_huge_page_node() use dequeue_huge_page_node() without
-> >> >> > any validation check, so it can steal reserved page unconditionally.
-> >> >>
-> >> >> Well, why is it illegal to use reserved page here?
-> >> >
-> >> > If we use reserved page here, other processes which are promised to use
-> >> > enough hugepages cannot get enough hugepages and can die. This is
-> >> > unexpected result to them.
-> >> >
-> >> But, how do you determine that a huge page is requested by a process
-> >> that is not allowed to use reserved pages?
-> >
-> > Reserved page is just one for each address or file offset. If we need to
-> > move this page, this means that it already use it's own reserved page, this
-> > page is it. So we should not use other reserved page for moving this page.
-> >
-> Hm, how do you determine "this page" is not buddy?
+Current RESOURCE_MAX is ULONG_MAX, but the value we used to set resource
+limit is unsigned long long, so we can set bigger value than that which
+is strange. The XXX_MAX should be reasonable max value, bigger than that
+should be overflow.
 
-If this page comes from the buddy, it doesn't matter. It imply that
-this mapping cannot use reserved page pool, because we always allocate
-a page from reserved page pool first.
+Notice that this change will affect user output of default *.limit_in_bytes:
+before change:
+$ cat /cgroup/memory/memory.limit_in_bytes
+9223372036854775807
 
-Thanks.
+after change:
+$ cat /cgroup/memory/memory.limit_in_bytes
+18446744073709551615
 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+But it doesn't alter the API in term of input - we can still use
+"echo -1 > *.limit_in_bytes" to reset the numbers to "unlimited".
+
+Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+Signed-off-by: Qiang Huang <h.huangqiang@huawei.com>
+---
+ include/linux/res_counter.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
+index 96a509b..586bc7c 100644
+--- a/include/linux/res_counter.h
++++ b/include/linux/res_counter.h
+@@ -54,7 +54,7 @@ struct res_counter {
+ 	struct res_counter *parent;
+ };
+ 
+-#define RESOURCE_MAX (unsigned long long)LLONG_MAX
++#define RESOURCE_MAX ULLONG_MAX
+ 
+ /**
+  * Helpers to interact with userspace
+-- 
+1.8.3
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
