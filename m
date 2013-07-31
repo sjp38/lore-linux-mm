@@ -1,87 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id BFC1A6B0031
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 04:44:15 -0400 (EDT)
-Date: Wed, 31 Jul 2013 09:44:11 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] sched, numa: migrates_degrades_locality()
-Message-ID: <20130731084411.GG2296@suse.de>
-References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
- <1373901620-2021-8-git-send-email-mgorman@suse.de>
- <20130725104009.GO27075@twins.programming.kicks-ass.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20130725104009.GO27075@twins.programming.kicks-ass.net>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 6492E6B0031
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 04:50:02 -0400 (EDT)
+Received: from epcpsbgr3.samsung.com
+ (u143.gpu120.samsung.co.kr [203.254.230.143])
+ by mailout1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTP id <0MQS00GW2LVC72L0@mailout1.samsung.com> for linux-mm@kvack.org;
+ Wed, 31 Jul 2013 17:50:00 +0900 (KST)
+From: Joonyoung Shim <jy0922.shim@samsung.com>
+Subject: [PATCH] Revert
+ "mm/memory-hotplug: fix lowmem count overflow when offline pages"
+Date: Wed, 31 Jul 2013 17:50:02 +0900
+Message-id: <1375260602-2462-1-git-send-email-jy0922.shim@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, liuj97@gmail.com, kosaki.motohiro@gmail.com
 
-On Thu, Jul 25, 2013 at 12:40:09PM +0200, Peter Zijlstra wrote:
-> 
-> Subject: sched, numa: migrates_degrades_locality()
-> From: Peter Zijlstra <peterz@infradead.org>
-> Date: Mon Jul 22 14:02:54 CEST 2013
-> 
-> It just makes heaps of sense; so add it and make both it and
-> migrate_improve_locality() a sched_feat().
-> 
+This reverts commit cea27eb2a202959783f81254c48c250ddd80e129.
 
-Ok. I'll be splitting this patch and merging part of it into "sched:
-Favour moving tasks towards the preferred node" and keeping the
-degrades_locality as a separate patch. I'm also not a fan of the
-tunables names NUMA_FAULTS_UP and NUMA_FAULTS_DOWN because it is hard to
-guess what they mean. NUMA_FAVOUR_HIGHER, NUMA_RESIST_LOWER?
+Fixed to adjust totalhigh_pages when hot-removing memory by commit
+3dcc0571cd64816309765b7c7e4691a4cadf2ee7, so that commit occurs
+duplicated decreasing of totalhigh_pages.
 
-Change to just the parent patch looks is as follows. task_faults() is
-not introduced yet in the series which is why it is still missing.
+Signed-off-by: Joonyoung Shim <jy0922.shim@samsung.com>
+---
+The commit cea27eb2a202959783f81254c48c250ddd80e129 is only for stable,
+is it right?
 
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 78bfbea..5ea3afe 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -3978,8 +3978,10 @@ static bool migrate_improves_locality(struct task_struct *p, struct lb_env *env)
- {
- 	int src_nid, dst_nid;
- 
--	if (!p->numa_faults || !(env->sd->flags & SD_NUMA))
-+	if (!sched_feat(NUMA_FAVOUR_HIGHER || !p->numa_faults ||
-+	    !(env->sd->flags & SD_NUMA))) {
- 		return false;
-+	}
- 
- 	src_nid = cpu_to_node(env->src_cpu);
- 	dst_nid = cpu_to_node(env->dst_cpu);
-@@ -3988,7 +3990,7 @@ static bool migrate_improves_locality(struct task_struct *p, struct lb_env *env)
- 	    p->numa_migrate_seq >= sysctl_numa_balancing_settle_count)
- 		return false;
- 
--	if (p->numa_preferred_nid == dst_nid)
-+	if (p->numa_faults[dst_nid] > p->numa_faults[src_nid])
- 		return true;
- 
- 	return false;
-diff --git a/kernel/sched/features.h b/kernel/sched/features.h
-index 99399f8..97a1136 100644
---- a/kernel/sched/features.h
-+++ b/kernel/sched/features.h
-@@ -69,4 +69,11 @@ SCHED_FEAT(LB_MIN, false)
- #ifdef CONFIG_NUMA_BALANCING
- SCHED_FEAT(NUMA,	false)
- SCHED_FEAT(NUMA_FORCE,	false)
-+
-+/*
-+ * NUMA_FAVOUR_HIGHER will favor moving tasks towards nodes where a
-+ * higher number of hinting faults are recorded during active load
-+ * balancing.
-+ */
-+SCHED_FEAT(NUMA_FAVOUR_HIGHER, true)
- #endif
+ mm/page_alloc.c | 4 ----
+ 1 file changed, 4 deletions(-)
 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index b100255..2b28216 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6274,10 +6274,6 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+ 		list_del(&page->lru);
+ 		rmv_page_order(page);
+ 		zone->free_area[order].nr_free--;
+-#ifdef CONFIG_HIGHMEM
+-		if (PageHighMem(page))
+-			totalhigh_pages -= 1 << order;
+-#endif
+ 		for (i = 0; i < (1 << order); i++)
+ 			SetPageReserved((page+i));
+ 		pfn += (1 << order);
 -- 
-Mel Gorman
-SUSE Labs
+1.8.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
