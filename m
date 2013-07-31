@@ -1,45 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 375546B0031
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 00:53:25 -0400 (EDT)
-Date: Wed, 31 Jul 2013 13:53:24 +0900
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 551436B0034
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 00:56:31 -0400 (EDT)
+Date: Wed, 31 Jul 2013 13:56:30 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Subject: Re: [PATCH 06/18] mm, hugetlb: remove vma_need_reservation()
-Message-ID: <20130731045324.GF2548@lge.com>
+Message-ID: <20130731045630.GG2548@lge.com>
 References: <1375075929-6119-1-git-send-email-iamjoonsoo.kim@lge.com>
  <1375075929-6119-7-git-send-email-iamjoonsoo.kim@lge.com>
- <1375120372-yje05ifc-mutt-n-horiguchi@ah.jp.nec.com>
+ <87siywos3d.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1375120372-yje05ifc-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <87siywos3d.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Hillf Danton <dhillf@gmail.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
 
-Hello, Naoya.
-
-On Mon, Jul 29, 2013 at 01:52:52PM -0400, Naoya Horiguchi wrote:
-> Hi, 
+On Tue, Jul 30, 2013 at 11:19:58PM +0530, Aneesh Kumar K.V wrote:
+> Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
 > 
-> On Mon, Jul 29, 2013 at 02:31:57PM +0900, Joonsoo Kim wrote:
 > > vma_need_reservation() can be substituted by vma_has_reserves()
 > > with minor change. These function do almost same thing,
 > > so unifying them is better to maintain.
 > 
-> I think it could, but not with minor changes.
-> vma_has_reserves is mostly the negation of the vma_needs_reservation,
-> but not exactly (consider that vma(VM_NORESERVE) does not have nor
-> need any reservation.)
+> I found the resulting code confusing and complex. I am sure there is
+> more that what is explained in the commit message. If you are just doing
+> this for cleanup, may be we should avoid doing this  ?
 
-Yes, currently not exactly same, but we can merge these functions.
-I think that confusion comes from selection of base function. If I merge
-vma_has_reserve() into vma_need_reservation(), it may be more trivial.
+I may need this cleanup, because I want to decide whether this page comes
+from reserved page pool or not, more clearly. Without this, this decision
+can be harder.
+Anyway, I should describe the purpose of this patch in detail.
+
+Thanks.
 
 > 
+> 
+> >
 > > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > 
+> >
 > > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
 > > index bf2ee11..ff46a2c 100644
 > > --- a/mm/hugetlb.c
@@ -47,7 +48,7 @@ vma_has_reserve() into vma_need_reservation(), it may be more trivial.
 > > @@ -451,8 +451,18 @@ void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
 > >  		vma->vm_private_data = (void *)0;
 > >  }
-> >  
+> >
 > > -/* Returns true if the VMA has associated reserve pages */
 > > -static int vma_has_reserves(struct vm_area_struct *vma, long chg)
 > > +/*
@@ -65,20 +66,6 @@ vma_has_reserve() into vma_need_reservation(), it may be more trivial.
 > >  {
 > >  	if (vma->vm_flags & VM_NORESERVE) {
 > >  		/*
-> 
-> Could you add more detailed comment on top of the function for better
-> maintenability? What is the expected behavior, or what is the returned
-> values for each case with what reasons?
-
-Okay. I should do it.
-
-> And this function is not a simple reserve checker any more, but it can
-> change reservation maps, so it would be nice to give more suitable name,
-> though I don't have any good suggestions.
-
-Okay.
-
-> 
 > > @@ -464,10 +474,22 @@ static int vma_has_reserves(struct vm_area_struct *vma, long chg)
 > >  		 * step. Currently, we don't have any other solution to deal
 > >  		 * with this situation properly, so add work-around here.
@@ -92,13 +79,6 @@ Okay.
 > > +			struct inode *inode = mapping->host;
 > > +			pgoff_t idx = vma_hugecache_offset(h, vma, addr);
 > > +			struct resv_map *resv = inode->i_mapping->private_data;
-> 
-> It would be nice if we can get resv_map from vma in a single function for
-> VM_MAYSHARE, so can you add it on vma_resv_map?
-
-Yes, that's good idea. I will consider it.
-
-> 
 > > +			long chg;
 > > +
 > > +			chg = region_chg(resv, idx, idx + 1);
@@ -111,7 +91,7 @@ Yes, that's good idea. I will consider it.
 > > +
 > > +		return 0;
 > >  	}
-> >  
+> >
 > >  	/* Shared mappings always use reserves */
 > > @@ -478,8 +500,16 @@ static int vma_has_reserves(struct vm_area_struct *vma, long chg)
 > >  	 * Only the process that called mmap() has reserves for
@@ -128,11 +108,11 @@ Yes, that's good idea. I will consider it.
 > > +
 > >  		return 1;
 > > +	}
-> >  
+> >
 > >  	return 0;
 > >  }
 > > @@ -542,8 +572,7 @@ static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
-> >  
+> >
 > >  static struct page *dequeue_huge_page_vma(struct hstate *h,
 > >  				struct vm_area_struct *vma,
 > > -				unsigned long address, int avoid_reserve,
@@ -149,7 +129,7 @@ Yes, that's good idea. I will consider it.
 > > +	if (!vma_has_reserves(h, vma, address) &&
 > >  			h->free_huge_pages - h->resv_huge_pages == 0)
 > >  		return NULL;
-> >  
+> >
 > > @@ -578,7 +607,7 @@ retry_cpuset:
 > >  			if (page) {
 > >  				if (avoid_reserve)
@@ -157,12 +137,12 @@ Yes, that's good idea. I will consider it.
 > > -				if (!vma_has_reserves(vma, chg))
 > > +				if (!vma_has_reserves(h, vma, address))
 > >  					break;
-> >  
+> >
 > >  				h->resv_huge_pages--;
 > > @@ -1077,42 +1106,6 @@ static void return_unused_surplus_pages(struct hstate *h,
 > >  	}
 > >  }
-> >  
+> >
 > > -/*
 > > - * Determine if the huge page at addr within the vma has an associated
 > > - * reservation.  Where it does not we will need to logically increase
@@ -210,7 +190,7 @@ Yes, that's good idea. I will consider it.
 > > -	int ret, idx;
 > > +	int ret, idx, has_reserve;
 > >  	struct hugetlb_cgroup *h_cg;
-> >  
+> >
 > >  	idx = hstate_index(h);
 > > @@ -1153,20 +1145,21 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
 > >  	 * need pages and subpool limit allocated allocated if no reserve
@@ -226,23 +206,12 @@ Yes, that's good idea. I will consider it.
 > > +
 > > +	if (!has_reserve && (hugepage_subpool_get_pages(spool, 1) < 0))
 > >  			return ERR_PTR(-ENOSPC);
+> >
 > >  	ret = hugetlb_cgroup_charge_cgroup(idx, pages_per_huge_page(h), &h_cg);
 > >  	if (ret) {
 > > -		hugepage_subpool_put_pages(spool, chg);
 > > +		if (!has_reserve)
 > > +			hugepage_subpool_put_pages(spool, 1);
-> 
-> It seems that this fixes the subpool accounting, so worth separating to
-> another patch or writing on the description.
-
-Okay!
-
-Thanks.
-
-> 
-> Thanks,
-> Naoya Horiguchi
-> 
 > >  		return ERR_PTR(-ENOSPC);
 > >  	}
 > >  	spin_lock(&hugetlb_lock);
@@ -281,7 +250,6 @@ Thanks.
 > >  		}
 > > -- 
 > > 1.7.9.5
-> >
 > 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
