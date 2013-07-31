@@ -1,78 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id 04AD96B0031
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 05:39:45 -0400 (EDT)
-Received: by mail-bk0-f43.google.com with SMTP id jm2so159280bkc.30
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2013 02:39:44 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id B91466B0031
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 05:49:19 -0400 (EDT)
+Date: Wed, 31 Jul 2013 10:49:14 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 16/18] sched: Avoid overloading CPUs on a preferred NUMA
+ node
+Message-ID: <20130731094914.GN2296@suse.de>
+References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
+ <1373901620-2021-17-git-send-email-mgorman@suse.de>
+ <20130717105423.GC17211@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
-In-Reply-To: <51F8D0E1.4010007@huawei.com>
-References: <1375255885-10648-1-git-send-email-h.huangqiang@huawei.com>
-	<CAFj3OHX4WLaecyE_zFbnFKs9wrCWTq2eDAUDMxqPg8=TYt18gg@mail.gmail.com>
-	<51F8D016.4090009@huawei.com>
-	<51F8D0E1.4010007@huawei.com>
-Date: Wed, 31 Jul 2013 17:39:43 +0800
-Message-ID: <CAFj3OHUEVM+BtoYS8wbXRU42Q8_=1X5qaQm7QY8oBc=ONAdfOA@mail.gmail.com>
-Subject: Re: [PATCH 0/4] memcg: fix memcg resource limit overflow issues
-From: Sha Zhengju <handai.szj@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20130717105423.GC17211@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Zefan <lizefan@huawei.com>
-Cc: Qiang Huang <h.huangqiang@huawei.com>, Cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Sha Zhengju <handai.szj@taobao.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Jeff Liu <jeff.liu@oracle.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Jul 31, 2013 at 4:54 PM, Li Zefan <lizefan@huawei.com> wrote:
-> On 2013/7/31 16:51, Qiang Huang wrote:
->> On 2013/7/31 16:23, Sha Zhengju wrote:
->>> Hi list,
->>>
->>> On Wed, Jul 31, 2013 at 3:31 PM, Qiang Huang <h.huangqiang@huawei.com> wrote:
->>>> This issue is first discussed in:
->>>> http://marc.info/?l=linux-mm&m=136574878704295&w=2
->>>>
->>>> Then a second version sent to:
->>>> http://marc.info/?l=linux-mm&m=136776855928310&w=2
->>>>
->>>> We contacted Sha a month ago, she seems have no time to deal with it
->>>> recently, but we quite need this patch. So I modified and resent it.
->>>
->>>
->>> No, I didn't receive any of YOUR message, only a engineer named Libo
->>> Chen from Huawei connected me recently. I don't approve you to resent
->>> them on behalf of me, and just before you send this you even don't
->>> send me a mail. Besides, after a rough look, I do not see any
->>> innovative ideas from yourself but just rework patches from my last
->>> version.
->>> So I'm strong against this patchset.
->>
->> Sorry if this troubles you.
->> Libo Chen is my colleague, we work together, he sent an email to you on
->> 25 June, to ask about this issue, you said you'll resent it soon, but it
->> didn't happen until now :(, and he asked again the other day and you didn't
->> reply. As we really need to fix this problem(and need it in upstream), so
->> I modified it and sent out.
->>
->> I think split patches, rewrite changelogs and tests, they all kind of work
->> right? Of course, if you mind, I can change it, I just need this fix merged
->> to upstream ASAP.
->>
->> So you want me rewrite this patchset and SOB only you or you want resent this
->> by yourself? I'm ok with both :)
->>
->
-> No, you can't send out patches without your SOB...but you can add a line
-> in the beginning of the email:
->
-> From: Sha Zhengju <handai.szj@taobao.com>
->
+On Wed, Jul 17, 2013 at 12:54:23PM +0200, Peter Zijlstra wrote:
+> On Mon, Jul 15, 2013 at 04:20:18PM +0100, Mel Gorman wrote:
+> > +static long effective_load(struct task_group *tg, int cpu, long wl, long wg);
+> 
+> And this
 
-Cooperation is welcomed and I just hated this kind of behavior. I
-don't want to block the community, since they're urgent to the patches
-and Michal has already reviewed them just now,  I won't be so caustic
-on it. I'm OK of letting the codes in under the rules of community.
+> -- which suggests you always build with cgroups enabled?
+
+Yes, the test kernel configuration is one taken from an opensuse kernel
+with a bunch of unnecessary drivers removed.
+
+> I generally
+> try and disable all that nonsense when building new stuff, the scheduler is a
+> 'lot' simpler that way. Once that works make it 'interesting' again.
+> 
+
+Understood. I'll disable CONFIG_CGROUPS in the next round of testing which
+will be based against 3.11-rc3 once I plough this set of feedback.
+
+Thanks.
 
 -- 
-Thanks,
-Sha
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
