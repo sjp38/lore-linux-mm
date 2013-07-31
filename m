@@ -1,47 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id B91466B0031
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 05:49:19 -0400 (EDT)
-Date: Wed, 31 Jul 2013 10:49:14 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 16/18] sched: Avoid overloading CPUs on a preferred NUMA
- node
-Message-ID: <20130731094914.GN2296@suse.de>
-References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
- <1373901620-2021-17-git-send-email-mgorman@suse.de>
- <20130717105423.GC17211@twins.programming.kicks-ass.net>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id A897A6B0032
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 05:50:14 -0400 (EDT)
+Date: Wed, 31 Jul 2013 11:50:10 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 0/4] memcg: fix memcg resource limit overflow issues
+Message-ID: <20130731095010.GA5012@dhcp22.suse.cz>
+References: <1375255885-10648-1-git-send-email-h.huangqiang@huawei.com>
+ <CAFj3OHX4WLaecyE_zFbnFKs9wrCWTq2eDAUDMxqPg8=TYt18gg@mail.gmail.com>
+ <51F8D016.4090009@huawei.com>
+ <51F8D0E1.4010007@huawei.com>
+ <CAFj3OHUEVM+BtoYS8wbXRU42Q8_=1X5qaQm7QY8oBc=ONAdfOA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130717105423.GC17211@twins.programming.kicks-ass.net>
+In-Reply-To: <CAFj3OHUEVM+BtoYS8wbXRU42Q8_=1X5qaQm7QY8oBc=ONAdfOA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: Li Zefan <lizefan@huawei.com>, Qiang Huang <h.huangqiang@huawei.com>, Cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Sha Zhengju <handai.szj@taobao.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Jeff Liu <jeff.liu@oracle.com>
 
-On Wed, Jul 17, 2013 at 12:54:23PM +0200, Peter Zijlstra wrote:
-> On Mon, Jul 15, 2013 at 04:20:18PM +0100, Mel Gorman wrote:
-> > +static long effective_load(struct task_group *tg, int cpu, long wl, long wg);
-> 
-> And this
+On Wed 31-07-13 17:39:43, Sha Zhengju wrote:
+> I don't want to block the community, since they're urgent to the
+> patches and Michal has already reviewed them just now, I won't be
+> so caustic on it. I'm OK of letting the codes in under the rules of
+> community.
 
-> -- which suggests you always build with cgroups enabled?
+Your s-o-b has been preserved which was sufficient for me, but
+preserving the original From would be polity and sorry I have missed
+that, I would have screamed as well. It should be added in the next
+repost.
 
-Yes, the test kernel configuration is one taken from an opensuse kernel
-with a bunch of unnecessary drivers removed.
+Qiang Huang s-o-b is appropriate as well as he has rebased and reposted
+the series, though.
 
-> I generally
-> try and disable all that nonsense when building new stuff, the scheduler is a
-> 'lot' simpler that way. Once that works make it 'interesting' again.
-> 
-
-Understood. I'll disable CONFIG_CGROUPS in the next round of testing which
-will be based against 3.11-rc3 once I plough this set of feedback.
-
-Thanks.
+Anyway, I do not see any reason to postpone this series as it is a good
+improvement.
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
