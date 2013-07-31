@@ -1,50 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 5D1C66B0034
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 12:56:16 -0400 (EDT)
-Message-ID: <51F9419F.6070306@intel.com>
-Date: Wed, 31 Jul 2013 09:55:59 -0700
-From: Dave Hansen <dave.hansen@intel.com>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 446016B0034
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 13:04:51 -0400 (EDT)
+Date: Wed, 31 Jul 2013 17:04:49 +0000
+From: Christoph Lameter <cl@gentwo.org>
+Subject: Re: mm/slab: ppc: ubi: kmalloc_slab WARNING / PPC + UBI driver
+In-Reply-To: <51F93C64.4090601@gmail.com>
+Message-ID: <0000014035b06a9d-e8b10680-e321-4d3b-95a8-0833fa3fb7c9-000000@email.amazonses.com>
+References: <51F8F827.6020108@gmail.com> <alpine.DEB.2.02.1307310858150.30572@gentwo.org> <alpine.DEB.2.02.1307311015320.30997@gentwo.org> <000001403567762a-60a27288-f0b2-4855-b88c-6a6f21ec537c-000000@email.amazonses.com> <51F93C64.4090601@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/hotplug: remove unnecessary BUG_ON in __offline_pages()
-References: <51F761E7.5090403@huawei.com>
-In-Reply-To: <51F761E7.5090403@huawei.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Wladislav Wiebe <wladislav.kw@gmail.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, dedekind1@gmail.com, dwmw2@infradead.org, linux-mtd@lists.infradead.org, Mel Gorman <mel@csn.ul.ie>
 
-On 07/29/2013 11:49 PM, Xishi Qiu wrote:
-> I think we can remove "BUG_ON(start_pfn >= end_pfn)" in __offline_pages(),
-> because in memory_block_action() "nr_pages = PAGES_PER_SECTION * sections_per_block" 
-> is always greater than 0.
-...
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1472,7 +1472,6 @@ static int __ref __offline_pages(unsigned long start_pfn,
->  	struct zone *zone;
->  	struct memory_notify arg;
->  
-> -	BUG_ON(start_pfn >= end_pfn);
->  	/* at least, alignment against pageblock is necessary */
->  	if (!IS_ALIGNED(start_pfn, pageblock_nr_pages))
->  		return -EINVAL;
+On Wed, 31 Jul 2013, Wladislav Wiebe wrote:
 
-I think you're saying that you don't see a way to hit this BUG_ON() in
-practice.  That does appear to be true, unless sections_per_block ended
-up 0 or negative.  The odds of getting in to this code if
-'sections_per_block' was bogus are pretty small.
+> Thanks for the point, do you plan to make kmalloc_large available for extern access in a separate mainline patch?
+> Since kmalloc_large is statically defined in slub_def.h and when including it to seq_file.c
+> we have a lot of conflicting types:
 
-Or, is this a theoretical thing that folks might run in to when adding
-new features or developing?  It's in a cold path and the cost of the
-check is miniscule.  The original author (cc'd) also saw a need to put
-this in probably because he actually ran in to this.
+You cannot separatly include slub_def.h. slab.h includes slub_def.h for
+you. What problem did you try to fix by doing so?
 
-In any case, it looks fairly safe to me:
+There is a patch pending that moves kmalloc_large to slab.h. So maybe we
+have to wait a merge period in order to be able to use it with other
+allocators than slub.
 
-Reviewed-by: Dave Hansen <dave.hansen@linux.intel.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
