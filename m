@@ -1,53 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id A693E6B0034
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 12:44:07 -0400 (EDT)
-Date: Wed, 31 Jul 2013 12:43:52 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1375289032-ksc4vltc-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20130731051221.GK2548@lge.com>
-References: <1375075929-6119-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1375075929-6119-16-git-send-email-iamjoonsoo.kim@lge.com>
- <1375124737-9w10y4c4-mutt-n-horiguchi@ah.jp.nec.com>
- <1375125555-yuwxqz39-mutt-n-horiguchi@ah.jp.nec.com>
- <20130731051221.GK2548@lge.com>
-Subject: Re: [PATCH 15/18] mm, hugetlb: move up anon_vma_prepare()
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 5D1C66B0034
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 12:56:16 -0400 (EDT)
+Message-ID: <51F9419F.6070306@intel.com>
+Date: Wed, 31 Jul 2013 09:55:59 -0700
+From: Dave Hansen <dave.hansen@intel.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm/hotplug: remove unnecessary BUG_ON in __offline_pages()
+References: <51F761E7.5090403@huawei.com>
+In-Reply-To: <51F761E7.5090403@huawei.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Hillf Danton <dhillf@gmail.com>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Wed, Jul 31, 2013 at 02:12:21PM +0900, Joonsoo Kim wrote:
-> On Mon, Jul 29, 2013 at 03:19:15PM -0400, Naoya Horiguchi wrote:
-> > On Mon, Jul 29, 2013 at 03:05:37PM -0400, Naoya Horiguchi wrote:
-> > > On Mon, Jul 29, 2013 at 02:32:06PM +0900, Joonsoo Kim wrote:
-> > > > If we fail with a allocated hugepage, it is hard to recover properly.
-> > > > One such example is reserve count. We don't have any method to recover
-> > > > reserve count. Although, I will introduce a function to recover reserve
-> > > > count in following patch, it is better not to allocate a hugepage
-> > > > as much as possible. So move up anon_vma_prepare() which can be failed
-> > > > in OOM situation.
-> > > > 
-> > > > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > > 
-> > > Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > 
-> > Sorry, let me suspend this Reviewed for a question.
-> > If alloc_huge_page failed after we succeeded anon_vma_parepare,
-> > the allocated anon_vma_chain and/or anon_vma are safely freed?
-> > Or don't we have to free them?
-> 
-> Yes, it will be freed by free_pgtables() and then unlink_anon_vmas()
-> when a task terminate. So, we don't have to free them.
+On 07/29/2013 11:49 PM, Xishi Qiu wrote:
+> I think we can remove "BUG_ON(start_pfn >= end_pfn)" in __offline_pages(),
+> because in memory_block_action() "nr_pages = PAGES_PER_SECTION * sections_per_block" 
+> is always greater than 0.
+...
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1472,7 +1472,6 @@ static int __ref __offline_pages(unsigned long start_pfn,
+>  	struct zone *zone;
+>  	struct memory_notify arg;
+>  
+> -	BUG_ON(start_pfn >= end_pfn);
+>  	/* at least, alignment against pageblock is necessary */
+>  	if (!IS_ALIGNED(start_pfn, pageblock_nr_pages))
+>  		return -EINVAL;
 
-OK, thanks for clarification.
+I think you're saying that you don't see a way to hit this BUG_ON() in
+practice.  That does appear to be true, unless sections_per_block ended
+up 0 or negative.  The odds of getting in to this code if
+'sections_per_block' was bogus are pretty small.
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Or, is this a theoretical thing that folks might run in to when adding
+new features or developing?  It's in a cold path and the cost of the
+check is miniscule.  The original author (cc'd) also saw a need to put
+this in probably because he actually ran in to this.
+
+In any case, it looks fairly safe to me:
+
+Reviewed-by: Dave Hansen <dave.hansen@linux.intel.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
