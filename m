@@ -1,55 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 7751D6B0034
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 06:04:32 -0400 (EDT)
-Received: by mail-bk0-f47.google.com with SMTP id jg9so166920bkc.20
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2013 03:04:30 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 189F06B0031
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 06:05:12 -0400 (EDT)
+Date: Wed, 31 Jul 2013 12:05:05 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 17/18] sched: Retry migration of tasks to CPU on a
+ preferred node
+Message-ID: <20130731100505.GZ3008@twins.programming.kicks-ass.net>
+References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
+ <1373901620-2021-18-git-send-email-mgorman@suse.de>
+ <20130725103352.GK27075@twins.programming.kicks-ass.net>
+ <20130731100330.GO2296@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <20130731095010.GA5012@dhcp22.suse.cz>
-References: <1375255885-10648-1-git-send-email-h.huangqiang@huawei.com>
-	<CAFj3OHX4WLaecyE_zFbnFKs9wrCWTq2eDAUDMxqPg8=TYt18gg@mail.gmail.com>
-	<51F8D016.4090009@huawei.com>
-	<51F8D0E1.4010007@huawei.com>
-	<CAFj3OHUEVM+BtoYS8wbXRU42Q8_=1X5qaQm7QY8oBc=ONAdfOA@mail.gmail.com>
-	<20130731095010.GA5012@dhcp22.suse.cz>
-Date: Wed, 31 Jul 2013 18:04:30 +0800
-Message-ID: <CAFj3OHWOKn3NdbBzhKq5iCoB8BaiZVuf=VauLuB=NthyuDgZdQ@mail.gmail.com>
-Subject: Re: [PATCH 0/4] memcg: fix memcg resource limit overflow issues
-From: Sha Zhengju <handai.szj@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130731100330.GO2296@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Li Zefan <lizefan@huawei.com>, Qiang Huang <h.huangqiang@huawei.com>, Cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Sha Zhengju <handai.szj@taobao.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Jeff Liu <jeff.liu@oracle.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Jul 31, 2013 at 5:50 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> On Wed 31-07-13 17:39:43, Sha Zhengju wrote:
->> I don't want to block the community, since they're urgent to the
->> patches and Michal has already reviewed them just now, I won't be
->> so caustic on it. I'm OK of letting the codes in under the rules of
->> community.
->
-> Your s-o-b has been preserved which was sufficient for me, but
-> preserving the original From would be polity and sorry I have missed
-> that, I would have screamed as well. It should be added in the next
-> repost.
+On Wed, Jul 31, 2013 at 11:03:31AM +0100, Mel Gorman wrote:
+> On Thu, Jul 25, 2013 at 12:33:52PM +0200, Peter Zijlstra wrote:
+> > 
+> > Subject: stop_machine: Introduce stop_two_cpus()
+> > From: Peter Zijlstra <peterz@infradead.org>
+> > Date: Sun Jul 21 12:24:09 CEST 2013
+> > 
+> > Introduce stop_two_cpus() in order to allow controlled swapping of two
+> > tasks. It repurposes the stop_machine() state machine but only stops
+> > the two cpus which we can do with on-stack structures and avoid
+> > machine wide synchronization issues.
+> > 
+> > Signed-off-by: Peter Zijlstra <peterz@infradead.org>
+> 
+> Clever! I did not spot any problems so will be pulling this (and
+> presumably the next patch) into the series. Thanks!
 
-Thanks for the support.
-
-> Qiang Huang s-o-b is appropriate as well as he has rebased and reposted
-> the series, though.
->
-> Anyway, I do not see any reason to postpone this series as it is a good
-> improvement.
->
-
-Yeah, I thought the problem it tries to solve is rarely encountered
-when I sent it last time. But now I also glad to see it merged soon.
-
-
-
-Thanks,
-Sha
+You mean aside from the glaring lack of hotplug handling? :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
