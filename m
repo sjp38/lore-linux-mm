@@ -1,62 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id A17196B0034
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id A3DC56B0036
 	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 13:22:50 -0400 (EDT)
-Message-ID: <0000014035c0e66c-98875436-a963-4e74-be1c-361e58652bec-000000@email.amazonses.com>
+Message-Id: <0000014035c0e64c-eec61d48-9927-417b-8907-d437f9ab251f-000000@email.amazonses.com>
 Date: Wed, 31 Jul 2013 17:22:49 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: [3.12 3/5] slabs: Remove unnecessary #includes
+Subject: [3.12 5/5] seq_file: Use kmalloc_large for page sized allocation
 References: <20130731171257.629155011@linux.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
-Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+Cc: Joonsoo Kim <js1304@gmail.com>, Wladislav Wiebe <wladislav.kw@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-Now that there are only some struct definitions left in
-sl?b_def.h we can remove most of the #include statements.
+There is no point in using the slab allocation functions for
+large page order allocation. Use kmalloc_large().
+
+This fixes the warning about large allocs but it will still cause
+large contiguous allocs that could fail because of memory fragmentation.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
-Index: linux/include/linux/slab_def.h
+Index: linux/fs/seq_file.c
 ===================================================================
---- linux.orig/include/linux/slab_def.h	2013-07-18 11:11:59.757679886 -0500
-+++ linux/include/linux/slab_def.h	2013-07-18 11:11:59.753679819 -0500
-@@ -3,20 +3,6 @@
+--- linux.orig/fs/seq_file.c	2013-07-31 10:39:03.050472030 -0500
++++ linux/fs/seq_file.c	2013-07-31 10:39:03.050472030 -0500
+@@ -136,7 +136,7 @@ static int traverse(struct seq_file *m,
+ Eoverflow:
+ 	m->op->stop(m, p);
+ 	kfree(m->buf);
+-	m->buf = kmalloc(m->size <<= 1, GFP_KERNEL);
++	m->buf = kmalloc_large(m->size <<= 1, GFP_KERNEL);
+ 	return !m->buf ? -ENOMEM : -EAGAIN;
+ }
  
- /*
-  * Definitions unique to the original Linux SLAB allocator.
-- *
-- * What we provide here is a way to optimize the frequent kmalloc
-- * calls in the kernel by selecting the appropriate general cache
-- * if kmalloc was called with a size that can be established at
-- * compile time.
-- */
--
--#include <linux/init.h>
--#include <linux/compiler.h>
--
--/*
-- * struct kmem_cache
-- *
-- * manages a cache.
-  */
- 
- struct kmem_cache {
-Index: linux/include/linux/slub_def.h
-===================================================================
---- linux.orig/include/linux/slub_def.h	2013-07-18 11:11:59.757679886 -0500
-+++ linux/include/linux/slub_def.h	2013-07-18 11:13:32.000000000 -0500
-@@ -6,10 +6,6 @@
-  *
-  * (C) 2007 SGI, Christoph Lameter
-  */
--#include <linux/types.h>
--#include <linux/gfp.h>
--#include <linux/bug.h>
--#include <linux/workqueue.h>
- #include <linux/kobject.h>
- 
- enum stat_item {
+@@ -232,7 +232,7 @@ ssize_t seq_read(struct file *file, char
+ 			goto Fill;
+ 		m->op->stop(m, p);
+ 		kfree(m->buf);
+-		m->buf = kmalloc(m->size <<= 1, GFP_KERNEL);
++		m->buf = kmalloc_large(m->size <<= 1, GFP_KERNEL);
+ 		if (!m->buf)
+ 			goto Enomem;
+ 		m->count = 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
