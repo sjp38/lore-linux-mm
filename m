@@ -1,120 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 36DEC6B0037
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 13:32:11 -0400 (EDT)
-Message-ID: <0000014035c9719b-5fe4aee8-6924-4bff-92d9-a8775f23b1ee-000000@email.amazonses.com>
-Date: Wed, 31 Jul 2013 17:32:09 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: [3.12 1/3] vmstat: Create separate function to fold per cpu diffs into glocal counters.
-References: <20130731173202.150701040@linux.com>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 514BA6B0034
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 13:34:43 -0400 (EDT)
+Date: Wed, 31 Jul 2013 20:34:34 +0300
+From: Aaro Koskinen <aaro.koskinen@iki.fi>
+Subject: Re: mm/slab: ppc: ubi: kmalloc_slab WARNING / PPC + UBI driver
+Message-ID: <20130731173434.GA27470@blackmetal.musicnaut.iki.fi>
+References: <51F8F827.6020108@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51F8F827.6020108@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linuxfoundation.org
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Joonsoo Kim <js1304@gmail.com>, Alexey Dobriyan <adobriyan@gmail.com>, linux-mm@kvack.org
+To: Wladislav Wiebe <wladislav.kw@gmail.com>
+Cc: penberg@kernel.org, cl@linux.com, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, dedekind1@gmail.com, dwmw2@infradead.org, linux-mtd@lists.infradead.org
 
-It is better to have a separate folding function because refresh_cpu_vm_stats()
-also does other things like expire pages in the page allocator caches.
+Hi,
 
-If we have a separate function then refresh_cpu_vm_stats() is only
-called from the local cpu which allows additional optimizations.
+On Wed, Jul 31, 2013 at 01:42:31PM +0200, Wladislav Wiebe wrote:
+> DEBUG: xxx kmalloc_slab, requested 'size' = 8388608, KMALLOC_MAX_SIZE = 4194304
+[...]
+> [ccd3be60] [c0099fd4] kmalloc_slab+0x48/0xe8 (unreliable)
+> [ccd3be70] [c00ae650] __kmalloc+0x20/0x1b4
+> [ccd3be90] [c00d46f4] seq_read+0x2a4/0x540
+> [ccd3bee0] [c00fe09c] proc_reg_read+0x5c/0x90
+> [ccd3bef0] [c00b4e1c] vfs_read+0xa4/0x150
+> [ccd3bf10] [c00b500c] SyS_read+0x4c/0x84
+> [ccd3bf40] [c000be80] ret_from_syscall+0x0/0x3c
 
-The folding function is only called when a cpu is being downed and
-therefore no other processor will be accessing the counters. Also
-simplifies synchronization.
+It seems some procfs file is trying to dump 8 MB at a single go. You
+need to fix that to return data in smaller chunks. What file is it?
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
-
-Index: linux/include/linux/vmstat.h
-===================================================================
---- linux.orig/include/linux/vmstat.h	2013-07-26 10:36:41.547909803 -0500
-+++ linux/include/linux/vmstat.h	2013-07-26 10:36:41.543909722 -0500
-@@ -198,7 +198,7 @@ extern void __inc_zone_state(struct zone
- extern void dec_zone_state(struct zone *, enum zone_stat_item);
- extern void __dec_zone_state(struct zone *, enum zone_stat_item);
- 
--void refresh_cpu_vm_stats(int);
-+void cpu_vm_stats_fold(int);
- void refresh_zone_stat_thresholds(void);
- 
- void drain_zonestat(struct zone *zone, struct per_cpu_pageset *);
-Index: linux/mm/page_alloc.c
-===================================================================
---- linux.orig/mm/page_alloc.c	2013-07-26 10:36:41.547909803 -0500
-+++ linux/mm/page_alloc.c	2013-07-26 10:36:41.547909803 -0500
-@@ -5361,7 +5361,7 @@ static int page_alloc_cpu_notify(struct
- 		 * This is only okay since the processor is dead and cannot
- 		 * race with what we are doing.
- 		 */
--		refresh_cpu_vm_stats(cpu);
-+		cpu_vm_stats_fold(cpu);
- 	}
- 	return NOTIFY_OK;
- }
-Index: linux/mm/vmstat.c
-===================================================================
---- linux.orig/mm/vmstat.c	2013-07-26 10:36:41.547909803 -0500
-+++ linux/mm/vmstat.c	2013-07-26 10:36:58.328247861 -0500
-@@ -415,11 +415,7 @@ EXPORT_SYMBOL(dec_zone_page_state);
- #endif
- 
- /*
-- * Update the zone counters for one cpu.
-- *
-- * The cpu specified must be either the current cpu or a processor that
-- * is not online. If it is the current cpu then the execution thread must
-- * be pinned to the current cpu.
-+ * Update the zone counters for the current cpu.
-  *
-  * Note that refresh_cpu_vm_stats strives to only access
-  * node local memory. The per cpu pagesets on remote zones are placed
-@@ -432,7 +428,7 @@ EXPORT_SYMBOL(dec_zone_page_state);
-  * with the global counters. These could cause remote node cache line
-  * bouncing and will have to be only done when necessary.
-  */
--void refresh_cpu_vm_stats(int cpu)
-+static void refresh_cpu_vm_stats(int cpu)
- {
- 	struct zone *zone;
- 	int i;
-@@ -489,6 +485,38 @@ void refresh_cpu_vm_stats(int cpu)
- 	}
- 
- 	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
-+		if (global_diff[i])
-+			atomic_long_add(global_diff[i], &vm_stat[i]);
-+}
-+
-+/*
-+ * Fold the data for an offline cpu into the global array.
-+ * There cannot be any access by the offline cpu and therefore
-+ * synchronization is simplified.
-+ */
-+void cpu_vm_stats_fold(int cpu)
-+{
-+	struct zone *zone;
-+	int i;
-+	int global_diff[NR_VM_ZONE_STAT_ITEMS] = { 0, };
-+
-+	for_each_populated_zone(zone) {
-+		struct per_cpu_pageset *p;
-+
-+		p = per_cpu_ptr(zone->pageset, cpu);
-+
-+		for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
-+			if (p->vm_stat_diff[i]) {
-+				int v;
-+
-+				v = p->vm_stat_diff[i];
-+				p->vm_stat_diff[i] = 0;
-+				atomic_long_add(v, &zone->vm_stat[i]);
-+				global_diff[i] += v;
-+			}
-+	}
-+
-+	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
- 		if (global_diff[i])
- 			atomic_long_add(global_diff[i], &vm_stat[i]);
- }
+A.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
