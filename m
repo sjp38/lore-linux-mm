@@ -1,62 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id B9A376B0034
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 11:25:05 -0400 (EDT)
-Received: by mail-ob0-f176.google.com with SMTP id uz19so1577289obc.7
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2013 08:25:04 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 46C126B0034
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 11:30:24 -0400 (EDT)
+Date: Wed, 31 Jul 2013 17:30:18 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 0/18] Basic scheduler support for automatic NUMA
+ balancing V5
+Message-ID: <20130731153018.GD3008@twins.programming.kicks-ass.net>
+References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
+ <20130725103620.GM27075@twins.programming.kicks-ass.net>
+ <20130731103052.GR2296@suse.de>
+ <20130731104814.GA3008@twins.programming.kicks-ass.net>
+ <20130731115719.GT2296@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <20130731063740.GA4212@lge.com>
-References: <1375075929-6119-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<1375075929-6119-2-git-send-email-iamjoonsoo.kim@lge.com>
-	<CAJd=RBCUJg5GJEQ2_heCt8S9LZzedGLbvYvivFkmvfMChPqaCg@mail.gmail.com>
-	<20130731022751.GA2548@lge.com>
-	<CAJd=RBD=SNm9TG-kxKcd-BiMduOhLUubq=JpRwCy_MmiDtO9Tw@mail.gmail.com>
-	<20130731044101.GE2548@lge.com>
-	<CAJd=RBDr72T+O+aNdb-HyB3U+k5JiVWMoXfPNA0y-Hxw-wDD-g@mail.gmail.com>
-	<20130731063740.GA4212@lge.com>
-Date: Wed, 31 Jul 2013 23:25:04 +0800
-Message-ID: <CAJd=RBCj_wAHjv10FhhX+Fzx8p4ybeGykEfvqF=jZaok3s+j9w@mail.gmail.com>
-Subject: Re: [PATCH 01/18] mm, hugetlb: protect reserved pages when
- softofflining requests the pages
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130731115719.GT2296@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Jul 31, 2013 at 2:37 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> On Wed, Jul 31, 2013 at 02:21:38PM +0800, Hillf Danton wrote:
->> On Wed, Jul 31, 2013 at 12:41 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
->> > On Wed, Jul 31, 2013 at 10:49:24AM +0800, Hillf Danton wrote:
->> >> On Wed, Jul 31, 2013 at 10:27 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
->> >> > On Mon, Jul 29, 2013 at 03:24:46PM +0800, Hillf Danton wrote:
->> >> >> On Mon, Jul 29, 2013 at 1:31 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
->> >> >> > alloc_huge_page_node() use dequeue_huge_page_node() without
->> >> >> > any validation check, so it can steal reserved page unconditionally.
->> >> >>
->> >> >> Well, why is it illegal to use reserved page here?
->> >> >
->> >> > If we use reserved page here, other processes which are promised to use
->> >> > enough hugepages cannot get enough hugepages and can die. This is
->> >> > unexpected result to them.
->> >> >
->> >> But, how do you determine that a huge page is requested by a process
->> >> that is not allowed to use reserved pages?
->> >
->> > Reserved page is just one for each address or file offset. If we need to
->> > move this page, this means that it already use it's own reserved page, this
->> > page is it. So we should not use other reserved page for moving this page.
->> >
->> Hm, how do you determine "this page" is not buddy?
->
-> If this page comes from the buddy, it doesn't matter. It imply that
-> this mapping cannot use reserved page pool, because we always allocate
-> a page from reserved page pool first.
->
-A buddy page also implies, if the mapping can use reserved pages, that no
-reserved page was available when requested. Now we can try reserved
-page again.
+On Wed, Jul 31, 2013 at 12:57:19PM +0100, Mel Gorman wrote:
+
+> > Right, so what Ingo did is have the scan rate depend on the convergence.
+> > What exactly did you dislike about that?
+> > 
+> 
+> It depended entirely on properly detecting if we are converged or not. As
+> things like false share detection within THP is still not there I was
+> worried that it was too easy to make the wrong decision here and keep it
+> pinned at the maximum scan rate.
+> 
+> > We could define the convergence as all the faults inside the interleave
+> > mask vs the total faults, and then run at: min + (1 - c)*(max-min).
+> > 
+> 
+> And when we have such things properly in place then I think we can kick
+> away the current crutch.
+
+OK, so I'll go write that patch I suppose ;-)
+
+> > Ah, well the reasoning on that was that all this NUMA business is
+> > 'expensive' so we'd better only bother with tasks that persist long
+> > enough for it to pay off.
+> > 
+> 
+> Which is fair enough but tasks that lasted *just* longer than the interval
+> still got punished. Processes running with a slightly slower CPU gets
+> hurts meaning that it would be a difficult bug report to digest.
+> 
+> > In that regard it makes perfect sense to wait a fixed amount of runtime
+> > before we start scanning.
+> > 
+> > So it was not a pure hack to make kbuild work again.. that is did was
+> > good though.
+> > 
+> 
+> Maybe we should reintroduce the delay then but I really would prefer that
+> it was triggered on some sort of event.
+
+Humm:
+
+kernel/sched/fair.c:
+
+/* Scan @scan_size MB every @scan_period after an initial @scan_delay in ms */
+unsigned int sysctl_numa_balancing_scan_delay = 1000;
+
+
+kernel/sched/core.c:__sched_fork():
+
+	numa_scan_period = sysctl_numa_balancing_scan_delay
+
+
+It seems its still there, no need to resuscitate.
+
+I share your preference for a clear event, although nothing really comes
+to mind. The entire multi-process space seems devoid of useful triggers.
+
+> > On that rate-limit, this looks to be a hard-coded number unrelated to
+> > the actual hardware.
+> 
+> Guesstimate.
+> 
+> > I think we should at the very least make it a
+> > configurable number and preferably scale the number with the SLIT info.
+> > Or alternatively actually measure the node to node bandwidth.
+> > 
+> 
+> Ideally we should just kick it away because scan rate limiting works
+> properly. Lets not make it a tunable just yet so we can avoid having to
+> deprecate it later.
+
+I'm not seeing how the rate-limit as per the convergence is going to
+help here. Suppose we migrate the task to another node and its going to
+stay there. Then our convergence is going down to 0 (all our memory is
+remote) so we end up at the max scan rate migrating every single page
+ASAP.
+
+This would completely and utterly saturate any interconnect.
+
+Also, in the case we don't have a fully connected system the memory
+transfers will need multiple hops, which greatly complicates the entire
+accounting trick :-)
+
+I'm not particularly arguing one way or another, just saying we could
+probably blow the interconnect whatever we do.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
