@@ -1,110 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id AA3FC6B0031
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 01:37:54 -0400 (EDT)
-Date: Wed, 31 Jul 2013 14:37:53 +0900
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id BD2276B0031
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 01:41:55 -0400 (EDT)
+Date: Wed, 31 Jul 2013 14:41:55 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 17/18] mm, hugetlb: retry if we fail to allocate a
- hugepage with use_reserve
-Message-ID: <20130731053753.GM2548@lge.com>
-References: <1375075929-6119-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1375075929-6119-18-git-send-email-iamjoonsoo.kim@lge.com>
- <20130729072823.GD29970@voom.fritz.box>
+Subject: Re: [PATCH v3 6/9] mm, hugetlb: do not use a page in page cache for
+ cow optimization
+Message-ID: <20130731054154.GN2548@lge.com>
+References: <1375075701-5998-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1375075701-5998-7-git-send-email-iamjoonsoo.kim@lge.com>
+ <20130729223708.GG29970@voom.fritz.box>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130729072823.GD29970@voom.fritz.box>
+In-Reply-To: <20130729223708.GG29970@voom.fritz.box>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Gibson <david@gibson.dropbear.id.au>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
 
-Hello, David.
-
-On Mon, Jul 29, 2013 at 05:28:23PM +1000, David Gibson wrote:
-> On Mon, Jul 29, 2013 at 02:32:08PM +0900, Joonsoo Kim wrote:
-> > If parallel fault occur, we can fail to allocate a hugepage,
-> > because many threads dequeue a hugepage to handle a fault of same address.
-> > This makes reserved pool shortage just for a little while and this cause
-> > faulting thread who is ensured to have enough reserved hugepages
-> > to get a SIGBUS signal.
-> 
-> It's not just about reserved pages.  The same race can happen
-> perfectly well when you're really, truly allocating the last hugepage
-> in the system.
-
-Yes, you are right.
-This is a critical comment to this patchset :(
-
-IIUC, the case you mentioned is about tasks which have a mapping
-with MAP_NORESERVE. Should we ensure them to allocate the last hugepage?
-They map a region with MAP_NORESERVE, so don't assume that their requests
-always succeed.
-
-> 
+On Tue, Jul 30, 2013 at 08:37:08AM +1000, David Gibson wrote:
+> On Mon, Jul 29, 2013 at 02:28:18PM +0900, Joonsoo Kim wrote:
+> > Currently, we use a page with mapped count 1 in page cache for cow
+> > optimization. If we find this condition, we don't allocate a new
+> > page and copy contents. Instead, we map this page directly.
+> > This may introduce a problem that writting to private mapping overwrite
+> > hugetlb file directly. You can find this situation with following code.
 > > 
-> > To solve this problem, we already have a nice solution, that is,
-> > a hugetlb_instantiation_mutex. This blocks other threads to dive into
-> > a fault handler. This solve the problem clearly, but it introduce
-> > performance degradation, because it serialize all fault handling.
+> >         size = 20 * MB;
+> >         flag = MAP_SHARED;
+> >         p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
+> >         if (p == MAP_FAILED) {
+> >                 fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
+> >                 return -1;
+> >         }
+> >         p[0] = 's';
+> >         fprintf(stdout, "BEFORE STEAL PRIVATE WRITE: %c\n", p[0]);
+> >         munmap(p, size);
 > > 
-> > Now, I try to remove a hugetlb_instantiation_mutex to get rid of
-> > performance degradation. A prerequisite is that other thread should
-> > not get a SIGBUS if they are ensured to have enough reserved pages.
+> >         flag = MAP_PRIVATE;
+> >         p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
+> >         if (p == MAP_FAILED) {
+> >                 fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
+> >         }
+> >         p[0] = 'c';
+> >         munmap(p, size);
 > > 
-> > For this purpose, if we fail to allocate a new hugepage with use_reserve,
-> > we return just 0, instead of VM_FAULT_SIGBUS. use_reserve
-> > represent that this user is legimate one who are ensured to have enough
-> > reserved pages. This prevent these thread not to get a SIGBUS signal and
-> > make these thread retrying fault handling.
+> >         flag = MAP_SHARED;
+> >         p = mmap(NULL, size, PROT_READ|PROT_WRITE, flag, fd, 0);
+> >         if (p == MAP_FAILED) {
+> >                 fprintf(stderr, "mmap() failed: %s\n", strerror(errno));
+> >                 return -1;
+> >         }
+> >         fprintf(stdout, "AFTER STEAL PRIVATE WRITE: %c\n", p[0]);
+> >         munmap(p, size);
+> > 
+> > We can see that "AFTER STEAL PRIVATE WRITE: c", not "AFTER STEAL
+> > PRIVATE WRITE: s". If we turn off this optimization to a page
+> > in page cache, the problem is disappeared.
 > 
-> Not sufficient, since it can happen without reserved pages.
+> Please add this testcase to libhugetlbfs as well.
 
-Ditto.
-
-> 
-> Also, I think there are edge cases where even reserved mappings can
-> run out, in particular with the interaction between MAP_PRIVATE,
-> fork() and reservations.  In this case, when you have a genuine out of
-> memory condition, you will spin forever on the fault.
-
-If there are edge cases, we can fix it. It doesn't matter.
-If you find it, please tell me in more detail.
+Okay!
 
 Thanks.
 
-> 
-> > 
-> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > 
-> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> > index 6a9ec69..909075b 100644
-> > --- a/mm/hugetlb.c
-> > +++ b/mm/hugetlb.c
-> > @@ -2623,7 +2623,10 @@ retry_avoidcopy:
-> >  			WARN_ON_ONCE(1);
-> >  		}
-> >  
-> > -		ret = VM_FAULT_SIGBUS;
-> > +		if (use_reserve)
-> > +			ret = 0;
-> > +		else
-> > +			ret = VM_FAULT_SIGBUS;
-> >  		goto out_lock;
-> >  	}
-> >  
-> > @@ -2741,7 +2744,10 @@ retry:
-> >  
-> >  		page = alloc_huge_page(vma, address, use_reserve);
-> >  		if (IS_ERR(page)) {
-> > -			ret = VM_FAULT_SIGBUS;
-> > +			if (use_reserve)
-> > +				ret = 0;
-> > +			else
-> > +				ret = VM_FAULT_SIGBUS;
-> >  			goto out;
-> >  		}
-> >  		clear_huge_page(page, address, pages_per_huge_page(h));
 > 
 > -- 
 > David Gibson			| I'll have my music baroque, and my code
