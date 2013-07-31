@@ -1,69 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id DB80A6B0031
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 04:11:34 -0400 (EDT)
-Date: Wed, 31 Jul 2013 09:11:30 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 04/18] mm: numa: Do not migrate or account for hinting
- faults on the zero page
-Message-ID: <20130731081130.GF2296@suse.de>
-References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
- <1373901620-2021-5-git-send-email-mgorman@suse.de>
- <20130717110053.GD17211@twins.programming.kicks-ass.net>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id DA1C16B0031
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 04:14:43 -0400 (EDT)
+Date: Wed, 31 Jul 2013 10:14:41 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 3/4] memcg: avoid overflow caused by PAGE_ALIGN
+Message-ID: <20130731081441.GG30514@dhcp22.suse.cz>
+References: <1375255885-10648-1-git-send-email-h.huangqiang@huawei.com>
+ <1375255885-10648-4-git-send-email-h.huangqiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130717110053.GD17211@twins.programming.kicks-ass.net>
+In-Reply-To: <1375255885-10648-4-git-send-email-h.huangqiang@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Qiang Huang <h.huangqiang@huawei.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, handai.szj@taobao.com, lizefan@huawei.com, nishimura@mxp.nes.nec.co.jp, akpm@linux-foundation.org, jeff.liu@oracle.com
 
-On Wed, Jul 17, 2013 at 01:00:53PM +0200, Peter Zijlstra wrote:
-> On Mon, Jul 15, 2013 at 04:20:06PM +0100, Mel Gorman wrote:
-> > The zero page is not replicated between nodes and is often shared
-> > between processes. The data is read-only and likely to be cached in
-> > local CPUs if heavily accessed meaning that the remote memory access
-> > cost is less of a concern. This patch stops accounting for numa hinting
-> > faults on the zero page in both terms of counting faults and scheduling
-> > tasks on nodes.
-> > 
-> > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> > ---
-> >  mm/huge_memory.c | 9 +++++++++
-> >  mm/memory.c      | 7 ++++++-
-> >  2 files changed, 15 insertions(+), 1 deletion(-)
-> > 
-> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> > index e4a79fa..ec938ed 100644
-> > --- a/mm/huge_memory.c
-> > +++ b/mm/huge_memory.c
-> > @@ -1302,6 +1302,15 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
-> >  
-> >  	page = pmd_page(pmd);
-> >  	get_page(page);
-> > +
-> > +	/*
-> > +	 * Do not account for faults against the huge zero page. The read-only
-> > +	 * data is likely to be read-cached on the local CPUs and it is less
-> > +	 * useful to know about local versus remote hits on the zero page.
-> > +	 */
-> > +	if (is_huge_zero_pfn(page_to_pfn(page)))
-> > +		goto clear_pmdnuma;
-> > +
-> >  	src_nid = numa_node_id();
-> >  	count_vm_numa_event(NUMA_HINT_FAULTS);
-> >  	if (src_nid == page_to_nid(page))
+On Wed 31-07-13 15:31:24, Qiang Huang wrote:
+> Since PAGE_ALIGN is aligning up(the next page boundary), so after PAGE_ALIGN,
+> the value might be overflow, such as write the MAX value to *.limit_in_bytes.
 > 
-> And because of:
+> $ cat /cgroup/memory/memory.limit_in_bytes
+> 18446744073709551615
 > 
->   5918d10 thp: fix huge zero page logic for page with pfn == 0
+> # echo 18446744073709551615 > /cgroup/memory/memory.limit_in_bytes
+> bash: echo: write error: Invalid argument
 > 
+> Some user programs might depend on such behaviours(like libcg, we read the
+> value in snapshot, then use the value to reset cgroup later), and that
+> will cause confusion. So we need to fix it.
+> 
+> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+> Signed-off-by: Qiang Huang <h.huangqiang@huawei.com>
 
-Yes. Thanks.
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+
+> ---
+>  kernel/res_counter.c | 6 +++++-
+>  1 file changed, 5 insertions(+), 1 deletion(-)
+> 
+> diff --git a/kernel/res_counter.c b/kernel/res_counter.c
+> index 3f0417f..085d3ae 100644
+> --- a/kernel/res_counter.c
+> +++ b/kernel/res_counter.c
+> @@ -195,6 +195,10 @@ int res_counter_memparse_write_strategy(const char *buf,
+>  	if (*end != '\0')
+>  		return -EINVAL;
+>  
+> -	*res = PAGE_ALIGN(*res);
+> +	if (PAGE_ALIGN(*res) >= *res)
+> +		*res = PAGE_ALIGN(*res);
+> +	else
+> +		*res = RES_COUNTER_MAX;
+> +
+>  	return 0;
+>  }
+> -- 
+> 1.8.3
+> 
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
