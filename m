@@ -1,54 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 33F6E6B0034
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 12:39:10 -0400 (EDT)
-Date: Wed, 31 Jul 2013 18:39:03 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 0/18] Basic scheduler support for automatic NUMA
- balancing V5
-Message-ID: <20130731163903.GG3008@twins.programming.kicks-ass.net>
-References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
- <20130725103620.GM27075@twins.programming.kicks-ass.net>
- <20130731103052.GR2296@suse.de>
- <20130731104814.GA3008@twins.programming.kicks-ass.net>
- <20130731115719.GT2296@suse.de>
- <20130731153018.GD3008@twins.programming.kicks-ass.net>
- <20130731161141.GX2296@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id A693E6B0034
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 12:44:07 -0400 (EDT)
+Date: Wed, 31 Jul 2013 12:43:52 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1375289032-ksc4vltc-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20130731051221.GK2548@lge.com>
+References: <1375075929-6119-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1375075929-6119-16-git-send-email-iamjoonsoo.kim@lge.com>
+ <1375124737-9w10y4c4-mutt-n-horiguchi@ah.jp.nec.com>
+ <1375125555-yuwxqz39-mutt-n-horiguchi@ah.jp.nec.com>
+ <20130731051221.GK2548@lge.com>
+Subject: Re: [PATCH 15/18] mm, hugetlb: move up anon_vma_prepare()
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20130731161141.GX2296@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Hillf Danton <dhillf@gmail.com>
 
-On Wed, Jul 31, 2013 at 05:11:41PM +0100, Mel Gorman wrote:
-> RSS was another option it felt as arbitrary as a plain delay.
+On Wed, Jul 31, 2013 at 02:12:21PM +0900, Joonsoo Kim wrote:
+> On Mon, Jul 29, 2013 at 03:19:15PM -0400, Naoya Horiguchi wrote:
+> > On Mon, Jul 29, 2013 at 03:05:37PM -0400, Naoya Horiguchi wrote:
+> > > On Mon, Jul 29, 2013 at 02:32:06PM +0900, Joonsoo Kim wrote:
+> > > > If we fail with a allocated hugepage, it is hard to recover properly.
+> > > > One such example is reserve count. We don't have any method to recover
+> > > > reserve count. Although, I will introduce a function to recover reserve
+> > > > count in following patch, it is better not to allocate a hugepage
+> > > > as much as possible. So move up anon_vma_prepare() which can be failed
+> > > > in OOM situation.
+> > > > 
+> > > > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > > 
+> > > Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > 
+> > Sorry, let me suspend this Reviewed for a question.
+> > If alloc_huge_page failed after we succeeded anon_vma_parepare,
+> > the allocated anon_vma_chain and/or anon_vma are safely freed?
+> > Or don't we have to free them?
+> 
+> Yes, it will be freed by free_pgtables() and then unlink_anon_vmas()
+> when a task terminate. So, we don't have to free them.
 
-Right, it would avoid 'small' programs getting scanning done with the
-rationale that their cost isn't that large since they don't have much
-memory to begin with.
+OK, thanks for clarification.
 
-The same can be said for tasks that don't run much -- irrespective of
-how much absolute runtime they've gathered.
-
-Is there any other group of tasks that we do not want to scan?
-
-Maybe if we can list all the various exclusions we can get to a proper
-quantifier that way.
-
-So far we've got:
-
- - doesn't run long
- - doesn't run much
- - doesn't have much memory
-
-> Should I revert 5bca23035391928c4c7301835accca3551b96cc2 with an
-> explanation that it potentially is completely useless in the purely
-> multi-process shared case?
-
-Yeah I suppose so..
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
