@@ -1,47 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id A3DC56B0036
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id A98046B0037
 	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 13:22:50 -0400 (EDT)
-Message-Id: <0000014035c0e64c-eec61d48-9927-417b-8907-d437f9ab251f-000000@email.amazonses.com>
+Message-ID: <0000014035c0e66a-8d14330a-608d-4fa6-87b7-4b3822fda7d0-000000@email.amazonses.com>
 Date: Wed, 31 Jul 2013 17:22:49 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: [3.12 5/5] seq_file: Use kmalloc_large for page sized allocation
+Subject: [3.12 4/5] slub: remove verify_mem_not_deleted()
 References: <20130731171257.629155011@linux.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
-Cc: Joonsoo Kim <js1304@gmail.com>, Wladislav Wiebe <wladislav.kw@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-There is no point in using the slab allocation functions for
-large page order allocation. Use kmalloc_large().
-
-This fixes the warning about large allocs but it will still cause
-large contiguous allocs that could fail because of memory fragmentation.
+I do not see any user for this code in the tree.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
-Index: linux/fs/seq_file.c
+Index: linux/include/linux/slub_def.h
 ===================================================================
---- linux.orig/fs/seq_file.c	2013-07-31 10:39:03.050472030 -0500
-+++ linux/fs/seq_file.c	2013-07-31 10:39:03.050472030 -0500
-@@ -136,7 +136,7 @@ static int traverse(struct seq_file *m,
- Eoverflow:
- 	m->op->stop(m, p);
- 	kfree(m->buf);
--	m->buf = kmalloc(m->size <<= 1, GFP_KERNEL);
-+	m->buf = kmalloc_large(m->size <<= 1, GFP_KERNEL);
- 	return !m->buf ? -ENOMEM : -EAGAIN;
- }
+--- linux.orig/include/linux/slub_def.h	2013-07-19 09:08:35.184029519 -0500
++++ linux/include/linux/slub_def.h	2013-07-19 09:08:35.180029449 -0500
+@@ -98,17 +98,4 @@ struct kmem_cache {
+ 	struct kmem_cache_node *node[MAX_NUMNODES];
+ };
  
-@@ -232,7 +232,7 @@ ssize_t seq_read(struct file *file, char
- 			goto Fill;
- 		m->op->stop(m, p);
- 		kfree(m->buf);
--		m->buf = kmalloc(m->size <<= 1, GFP_KERNEL);
-+		m->buf = kmalloc_large(m->size <<= 1, GFP_KERNEL);
- 		if (!m->buf)
- 			goto Enomem;
- 		m->count = 0;
+-/**
+- * Calling this on allocated memory will check that the memory
+- * is expected to be in use, and print warnings if not.
+- */
+-#ifdef CONFIG_SLUB_DEBUG
+-extern bool verify_mem_not_deleted(const void *x);
+-#else
+-static inline bool verify_mem_not_deleted(const void *x)
+-{
+-	return true;
+-}
+-#endif
+-
+ #endif /* _LINUX_SLUB_DEF_H */
+Index: linux/mm/slub.c
+===================================================================
+--- linux.orig/mm/slub.c	2013-07-19 09:06:36.000000000 -0500
++++ linux/mm/slub.c	2013-07-19 09:09:02.492486583 -0500
+@@ -3319,42 +3319,6 @@ size_t ksize(const void *object)
+ }
+ EXPORT_SYMBOL(ksize);
+ 
+-#ifdef CONFIG_SLUB_DEBUG
+-bool verify_mem_not_deleted(const void *x)
+-{
+-	struct page *page;
+-	void *object = (void *)x;
+-	unsigned long flags;
+-	bool rv;
+-
+-	if (unlikely(ZERO_OR_NULL_PTR(x)))
+-		return false;
+-
+-	local_irq_save(flags);
+-
+-	page = virt_to_head_page(x);
+-	if (unlikely(!PageSlab(page))) {
+-		/* maybe it was from stack? */
+-		rv = true;
+-		goto out_unlock;
+-	}
+-
+-	slab_lock(page);
+-	if (on_freelist(page->slab_cache, page, object)) {
+-		object_err(page->slab_cache, page, object, "Object is on free-list");
+-		rv = false;
+-	} else {
+-		rv = true;
+-	}
+-	slab_unlock(page);
+-
+-out_unlock:
+-	local_irq_restore(flags);
+-	return rv;
+-}
+-EXPORT_SYMBOL(verify_mem_not_deleted);
+-#endif
+-
+ void kfree(const void *x)
+ {
+ 	struct page *page;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
