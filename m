@@ -1,77 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 74C576B0034
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 11:17:57 -0400 (EDT)
-Date: Wed, 31 Jul 2013 15:17:56 +0000
-From: Christoph Lameter <cl@gentwo.org>
-Subject: Re: mm/slab: ppc: ubi: kmalloc_slab WARNING / PPC + UBI driver
-In-Reply-To: <alpine.DEB.2.02.1307310858150.30572@gentwo.org>
-Message-ID: <00000140354e9118-9bafa70a-cb37-40a5-a6f3-4d39581f4942-000000@email.amazonses.com>
-References: <51F8F827.6020108@gmail.com> <alpine.DEB.2.02.1307310858150.30572@gentwo.org>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id B9A376B0034
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 11:25:05 -0400 (EDT)
+Received: by mail-ob0-f176.google.com with SMTP id uz19so1577289obc.7
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2013 08:25:04 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20130731063740.GA4212@lge.com>
+References: <1375075929-6119-1-git-send-email-iamjoonsoo.kim@lge.com>
+	<1375075929-6119-2-git-send-email-iamjoonsoo.kim@lge.com>
+	<CAJd=RBCUJg5GJEQ2_heCt8S9LZzedGLbvYvivFkmvfMChPqaCg@mail.gmail.com>
+	<20130731022751.GA2548@lge.com>
+	<CAJd=RBD=SNm9TG-kxKcd-BiMduOhLUubq=JpRwCy_MmiDtO9Tw@mail.gmail.com>
+	<20130731044101.GE2548@lge.com>
+	<CAJd=RBDr72T+O+aNdb-HyB3U+k5JiVWMoXfPNA0y-Hxw-wDD-g@mail.gmail.com>
+	<20130731063740.GA4212@lge.com>
+Date: Wed, 31 Jul 2013 23:25:04 +0800
+Message-ID: <CAJd=RBCj_wAHjv10FhhX+Fzx8p4ybeGykEfvqF=jZaok3s+j9w@mail.gmail.com>
+Subject: Re: [PATCH 01/18] mm, hugetlb: protect reserved pages when
+ softofflining requests the pages
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wladislav Wiebe <wladislav.kw@gmail.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, dedekind1@gmail.com, dwmw2@infradead.org, linux-mtd@lists.infradead.org, Mel Gorman <mel@csn.ul.ie>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-This patch will suppress the warnings by using the page allocator wrappers
-of the slab allocators. These are page sized allocs after all.
-
-
-Subject: seq_file: Use kmalloc_large for page sized allocation
-
-There is no point in using the slab allocation functions for large page
-order allocation. Use the kmalloc_large() wrappers which will cause calls
-to the page alocator instead.
-
-This fixes the warning about large allocs but it will still cause
-high order allocs to occur that could fail because of memory
-fragmentation. Maybe switch to vmalloc if we really want to allocate multi
-megabyte buffers for proc fs?
-
-Signed-off-by: Christoph Lameter <cl@linux.com>
-
-Index: linux/fs/seq_file.c
-===================================================================
---- linux.orig/fs/seq_file.c	2013-07-10 14:03:15.367134544 -0500
-+++ linux/fs/seq_file.c	2013-07-31 10:11:42.671736131 -0500
-@@ -96,7 +96,7 @@ static int traverse(struct seq_file *m,
- 		return 0;
- 	}
- 	if (!m->buf) {
--		m->buf = kmalloc(m->size = PAGE_SIZE, GFP_KERNEL);
-+		m->buf = kmalloc_large(m->size = PAGE_SIZE, GFP_KERNEL);
- 		if (!m->buf)
- 			return -ENOMEM;
- 	}
-@@ -136,7 +136,7 @@ static int traverse(struct seq_file *m,
- Eoverflow:
- 	m->op->stop(m, p);
- 	kfree(m->buf);
--	m->buf = kmalloc(m->size <<= 1, GFP_KERNEL);
-+	m->buf = kmalloc_large(m->size <<= 1, GFP_KERNEL);
- 	return !m->buf ? -ENOMEM : -EAGAIN;
- }
-
-@@ -191,7 +191,7 @@ ssize_t seq_read(struct file *file, char
-
- 	/* grab buffer if we didn't have one */
- 	if (!m->buf) {
--		m->buf = kmalloc(m->size = PAGE_SIZE, GFP_KERNEL);
-+		m->buf = kmalloc_large(m->size = PAGE_SIZE, GFP_KERNEL);
- 		if (!m->buf)
- 			goto Enomem;
- 	}
-@@ -232,7 +232,7 @@ ssize_t seq_read(struct file *file, char
- 			goto Fill;
- 		m->op->stop(m, p);
- 		kfree(m->buf);
--		m->buf = kmalloc(m->size <<= 1, GFP_KERNEL);
-+		m->buf = kmalloc_large(m->size <<= 1, GFP_KERNEL);
- 		if (!m->buf)
- 			goto Enomem;
- 		m->count = 0;
+On Wed, Jul 31, 2013 at 2:37 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> On Wed, Jul 31, 2013 at 02:21:38PM +0800, Hillf Danton wrote:
+>> On Wed, Jul 31, 2013 at 12:41 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+>> > On Wed, Jul 31, 2013 at 10:49:24AM +0800, Hillf Danton wrote:
+>> >> On Wed, Jul 31, 2013 at 10:27 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+>> >> > On Mon, Jul 29, 2013 at 03:24:46PM +0800, Hillf Danton wrote:
+>> >> >> On Mon, Jul 29, 2013 at 1:31 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+>> >> >> > alloc_huge_page_node() use dequeue_huge_page_node() without
+>> >> >> > any validation check, so it can steal reserved page unconditionally.
+>> >> >>
+>> >> >> Well, why is it illegal to use reserved page here?
+>> >> >
+>> >> > If we use reserved page here, other processes which are promised to use
+>> >> > enough hugepages cannot get enough hugepages and can die. This is
+>> >> > unexpected result to them.
+>> >> >
+>> >> But, how do you determine that a huge page is requested by a process
+>> >> that is not allowed to use reserved pages?
+>> >
+>> > Reserved page is just one for each address or file offset. If we need to
+>> > move this page, this means that it already use it's own reserved page, this
+>> > page is it. So we should not use other reserved page for moving this page.
+>> >
+>> Hm, how do you determine "this page" is not buddy?
+>
+> If this page comes from the buddy, it doesn't matter. It imply that
+> this mapping cannot use reserved page pool, because we always allocate
+> a page from reserved page pool first.
+>
+A buddy page also implies, if the mapping can use reserved pages, that no
+reserved page was available when requested. Now we can try reserved
+page again.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
