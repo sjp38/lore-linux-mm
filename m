@@ -1,53 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 9110A6B0031
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 11:44:06 -0400 (EDT)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Wed, 31 Jul 2013 11:44:05 -0400
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 7B04138C8039
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 11:44:02 -0400 (EDT)
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r6VFi3qr157232
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 11:44:03 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r6VFi10g013910
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 12:44:03 -0300
-Date: Wed, 31 Jul 2013 21:13:55 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH 00/10] Improve numa scheduling by consolidating tasks
-Message-ID: <20130731154355.GD4880@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <1375170505-5967-1-git-send-email-srikar@linux.vnet.ibm.com>
- <1375277624.11541.27.camel@oc6622382223.ibm.com>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 2A5816B0032
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 11:45:11 -0400 (EDT)
+Date: Wed, 31 Jul 2013 15:45:09 +0000
+From: Christoph Lameter <cl@gentwo.org>
+Subject: Re: mm/slab: ppc: ubi: kmalloc_slab WARNING / PPC + UBI driver
+In-Reply-To: <alpine.DEB.2.02.1307311015320.30997@gentwo.org>
+Message-ID: <000001403567762a-60a27288-f0b2-4855-b88c-6a6f21ec537c-000000@email.amazonses.com>
+References: <51F8F827.6020108@gmail.com> <alpine.DEB.2.02.1307310858150.30572@gentwo.org> <alpine.DEB.2.02.1307311015320.30997@gentwo.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <1375277624.11541.27.camel@oc6622382223.ibm.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Theurer <habanero@linux.vnet.ibm.com>
-Cc: Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Preeti U Murthy <preeti@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Wladislav Wiebe <wladislav.kw@gmail.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, dedekind1@gmail.com, dwmw2@infradead.org, linux-mtd@lists.infradead.org, Mel Gorman <mel@csn.ul.ie>
 
-* Andrew Theurer <habanero@linux.vnet.ibm.com> [2013-07-31 08:33:44]:
->              -----------    -----------    -----------    -----------  
->  VM-node00|   49153(006%)   673792(083%)    51712(006%)   36352(004%) 
-> 
-> I think the consolidation is a nice concept, but it needs a much tighter
-> integration with numa balancing.  The action to clump tasks on same node's
-> runqueues should be triggered by detecting that they also access
-> the same memory.
-> 
+Crap you cannot do PAGE_SIZE allocations with kmalloc_large. Fails when
+freeing pages. Need to only do the multiple page allocs with
+kmalloc_large.
 
-Thanks Andrew for testing and reporting your results and analysis.
-Will try to focus on getting consolidation + tighter integration with
-numa balancing.
+Subject: seq_file: Use kmalloc_large for page sized allocation
 
--- 
-Thanks and Regards
-Srikar Dronamraju
+There is no point in using the slab allocation functions for
+large page order allocation. Use kmalloc_large().
+
+This fixes the warning about large allocs but it will still cause
+large contiguous allocs that could fail because of memory fragmentation.
+
+Signed-off-by: Christoph Lameter <cl@linux.com>
+
+Index: linux/fs/seq_file.c
+===================================================================
+--- linux.orig/fs/seq_file.c	2013-07-31 10:39:03.050472030 -0500
++++ linux/fs/seq_file.c	2013-07-31 10:39:03.050472030 -0500
+@@ -136,7 +136,7 @@ static int traverse(struct seq_file *m,
+ Eoverflow:
+ 	m->op->stop(m, p);
+ 	kfree(m->buf);
+-	m->buf = kmalloc(m->size <<= 1, GFP_KERNEL);
++	m->buf = kmalloc_large(m->size <<= 1, GFP_KERNEL);
+ 	return !m->buf ? -ENOMEM : -EAGAIN;
+ }
+
+@@ -232,7 +232,7 @@ ssize_t seq_read(struct file *file, char
+ 			goto Fill;
+ 		m->op->stop(m, p);
+ 		kfree(m->buf);
+-		m->buf = kmalloc(m->size <<= 1, GFP_KERNEL);
++		m->buf = kmalloc_large(m->size <<= 1, GFP_KERNEL);
+ 		if (!m->buf)
+ 			goto Enomem;
+ 		m->count = 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
