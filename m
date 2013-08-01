@@ -1,117 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 6DBA86B0031
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 14:59:36 -0400 (EDT)
-Received: from /spool/local
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Thu, 1 Aug 2013 12:59:35 -0600
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 133B91FF001B
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 12:54:06 -0600 (MDT)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r71IxJCH172578
-	for <linux-mm@kvack.org>; Thu, 1 Aug 2013 12:59:20 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r71IxHha027624
-	for <linux-mm@kvack.org>; Thu, 1 Aug 2013 12:59:19 -0600
-Message-ID: <51FAB000.9050407@linux.vnet.ibm.com>
-Date: Thu, 01 Aug 2013 11:59:12 -0700
-From: Cody P Schafer <cody@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 392216B0032
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 15:58:34 -0400 (EDT)
+Date: Thu, 1 Aug 2013 15:58:23 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 3/3] mm: page_alloc: fair zone allocator policy
+Message-ID: <20130801195823.GN715@cmpxchg.org>
+References: <1374267325-22865-1-git-send-email-hannes@cmpxchg.org>
+ <1374267325-22865-4-git-send-email-hannes@cmpxchg.org>
+ <20130801025636.GC19540@bbox>
+ <51F9E4A6.2090909@redhat.com>
+ <20130801155111.GO25926@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/hotplug: fix a drain pcp bug when offline pages
-References: <51FA2800.9070706@huawei.com>
-In-Reply-To: <51FA2800.9070706@huawei.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130801155111.GO25926@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Liujiang <jiang.liu@huawei.com>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, b.zolnierkie@samsung.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 08/01/2013 02:18 AM, Xishi Qiu wrote:
-> __offline_pages()
->     start_isolate_page_range()
->        set_migratetype_isolate()
->           set_pageblock_migratetype() -> this pageblock will be marked as MIGRATE_ISOLATE
->           move_freepages_block() -> pages in PageBuddy will be moved into MIGRATE_ISOLATE list
->           drain_all_pages() -> drain PCP
->              free_pcppages_bulk()
->                 mt = get_freepage_migratetype(page); -> PCP's migratetype is not MIGRATE_ISOLATE
->                 __free_one_page(page, zone, 0, mt); -> so PCP will not be freed into into MIGRATE_ISOLATE list
->
-> In this case, the PCP may be allocated again, because they are not in
-> PageBuddy's MIGRATE_ISOLATE list. This will cause offline_pages failed.
->
-> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
-> ---
->   mm/page_alloc.c     |   10 ++++++----
->   mm/page_isolation.c |   15 ++++++++++++++-
->   2 files changed, 20 insertions(+), 5 deletions(-)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index b100255..d873471 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -965,11 +965,13 @@ int move_freepages(struct zone *zone,
->   		}
->
->   		order = page_order(page);
-> -		list_move(&page->lru,
-> -			  &zone->free_area[order].free_list[migratetype]);
-> -		set_freepage_migratetype(page, migratetype);
-> +		if (get_freepage_migratetype(page) != migratetype) {
-> +			list_move(&page->lru,
-> +				&zone->free_area[order].free_list[migratetype]);
-> +			set_freepage_migratetype(page, migratetype);
-> +			pages_moved += 1 << order;
-> +		}
->   		page += 1 << order;
-> -		pages_moved += 1 << order;
+On Thu, Aug 01, 2013 at 05:51:11PM +0200, Andrea Arcangeli wrote:
+> On Thu, Aug 01, 2013 at 12:31:34AM -0400, Rik van Riel wrote:
+> > On 07/31/2013 10:56 PM, Minchan Kim wrote:
+> > 
+> > > Yes, it's not really slow path because it could return to normal status
+> > > without calling significant slow functions by reset batchcount of
+> > > prepare_slowpath.
+> > >
+> > > I think it's tradeoff and I am biased your approach although we would
+> > > lose a little performance because fair aging would recover the loss by
+> > > fastpath's overhead. But who knows? Someone has a concern.
+> > >
+> > > So we should mention about such problems.
+> > 
+> > If the atomic operation in the fast path turns out to be a problem,
+> > I suspect we may be able to fix it by using per-cpu counters, and
+> > consolidating those every once in a while.
+> > 
+> > However, it may be good to see whether there is a problem in the
+> > first place, before adding complexity.
+> 
+> prepare_slowpath is racy anyway, so I don't see the point in wanting
+> to do atomic ops in the first place.
+> 
+> Much better to do the increment in assembly in a single insn to reduce
+> the window, but there's no point in using the lock prefix when
+> atomic_set will screw it over while somebody does atomic_dec under it
+> anyway. atomic_set cannot be atomic, so it'll screw over any
+> perfectly accurate accounted atomic_dec anyway.
+> 
+> I think it should be done in C without atomic_dec or by introducing an
+> __atomic_dec that isn't using the lock prefix and just tries to do the
+> dec in a single (or as few as possible) asm insn.
 
-So this looks like it changes the return from move_freepages() to be the 
-"pages moved" from "the pages now belonging to the passed migrate type".
+Well the reset is not synchronized to the atomic_dec(), but we are
+guaranteed that after n page allocations we wake up kswapd, while
+without atomic ops we might miss a couple allocations when allocators
+race during the RMW.
 
-The user of move_freepages_block()'s return value (and thus the return 
-value of move_freepages()) in mm/page_alloc.c expects that it is the 
-original meaning. The users in page_isolation.c expect it is the new 
-meaning. Those need to be reconciled.
+But we might be able to get away with a small error.
 
->   	}
->
->   	return pages_moved;
-> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> index 383bdbb..ba1afc9 100644
-> --- a/mm/page_isolation.c
-> +++ b/mm/page_isolation.c
-> @@ -65,8 +65,21 @@ out:
->   	}
->
->   	spin_unlock_irqrestore(&zone->lock, flags);
-> -	if (!ret)
-> +
-> +	if (!ret) {
->   		drain_all_pages();
-> +		/*
-> +		 * When drain_all_pages() frees cached pages into the buddy
-> +		 * system, it uses the stale migratetype cached in the
-> +		 * page->index field, so try to move free pages to ISOLATE
-> +		 * list again.
-> +		 */
-> +		spin_lock_irqsave(&zone->lock, flags);
-> +		nr_pages = move_freepages_block(zone, page, MIGRATE_ISOLATE);
-> +		__mod_zone_freepage_state(zone, -nr_pages, migratetype);
-> +		spin_unlock_irqrestore(&zone->lock, flags);
-> +	}
-> +
+> And because the whole thing is racy, after prepare_slowpath (which I
+> think is a too generic name and should be renamed
+> reset_zonelist_alloc_batch), this last attempt before invoking
+> reclaim:
+> 
+> 	/* This is the last chance, in general, before the goto nopage. */
+> 	page = get_page_from_freelist(gfp_mask, nodemask, order, zonelist,
+> 			high_zoneidx, alloc_flags & ~ALLOC_NO_WATERMARKS,
+> 			preferred_zone, migratetype);
+> 
+> which is trying again with the MIN wmark, should be also altered so
+> that we do one pass totally disregarding alloc_batch, just before
+> declaring MIN-wmark failure in the allocation, and invoking direct
+> reclaim.
+> 
+> Either we add a (alloc_flags | ALLOC_NO_ALLOC_BATCH) to the above
+> alloc_flags in the above call, or we run a second
+> get_page_from_freelist if the above one fails with
+> ALLOC_NO_ALLOC_BATCH set.
+> 
+> Otherwise because of the inherent racy behavior of the alloc_batch
+> logic, what will happen is that we'll eventually have enough hugepage
+> allocations in enough CPUs to hit the alloc_batch limit again in
+> between the prepare_slowpath and the above get_page_from_freelist,
+> that will lead us to call spurious direct_reclaim invocations, when it
+> was just a false negative of alloc_batch.
 
-Could we teach drain_all_pages() to use the right migrate type instead 
-(or add something similar that does)? (pages could be reallocated 
-between the drain_all_pages() and move_freepages_block()).
+So the discussion diverged between on-list and off-list.  I suggested
+ignoring the alloc_batch in the slowpath completely (since allocations
+are very unlikely to fail due to the batches immediately after they
+were reset, and the occasional glitch does not matter).  This should
+solve the problem of spurious direct reclaim invocations.  The
+zone_reclaim_mode allocation sequence would basically be:
 
->   	return ret;
->   }
->
+1. Try zones in the local node with low watermark while maintaining
+   fairness with the allocation batch and invoking zone reclaim if
+   necessary
+
+2. If that fails, wake up kswapd and reset the alloc batches on the
+   local node
+
+3. Try zones in order of preference with the min watermark, invoking
+   zone reclaim if necessary, ignoring allocation batches.
+
+So in the fastpath we try to be local and fair, in the slow path we
+are likely to be local and fair, unless we have to spill into remote
+nodes.  But then there is nothing we can do anyway.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
