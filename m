@@ -1,141 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 3798B6B006C
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 03:08:19 -0400 (EDT)
-From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v2 17/18] mem-hotplug: Introduce movablenode boot option to {en|dis}able using SRAT.
-Date: Thu, 1 Aug 2013 15:06:39 +0800
-Message-Id: <1375340800-19332-18-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1375340800-19332-1-git-send-email-tangchen@cn.fujitsu.com>
-References: <1375340800-19332-1-git-send-email-tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id AD8086B0031
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 03:10:23 -0400 (EDT)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Thu, 1 Aug 2013 03:10:22 -0400
+Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 1C13B6E803A
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 03:10:15 -0400 (EDT)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r717AJOo37027910
+	for <linux-mm@kvack.org>; Thu, 1 Aug 2013 03:10:19 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r717AIUY021405
+	for <linux-mm@kvack.org>; Thu, 1 Aug 2013 03:10:19 -0400
+Date: Thu, 1 Aug 2013 12:40:13 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 16/18] sched: Avoid overloading CPUs on a preferred NUMA
+ node
+Message-ID: <20130801071013.GG4880@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
+ <1373901620-2021-17-git-send-email-mgorman@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1373901620-2021-17-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
-Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-The Hot-Pluggable fired in SRAT specifies which memory is hotpluggable.
-As we mentioned before, if hotpluggable memory is used by the kernel,
-it cannot be hot-removed. So memory hotplug users may want to set all
-hotpluggable memory in ZONE_MOVABLE so that the kernel won't use it.
+> +static int task_numa_find_cpu(struct task_struct *p, int nid)
+> +{
+> +	int node_cpu = cpumask_first(cpumask_of_node(nid));
+> +	int cpu, src_cpu = task_cpu(p), dst_cpu = src_cpu;
+> +	unsigned long src_load, dst_load;
+> +	unsigned long min_load = ULONG_MAX;
+> +	struct task_group *tg = task_group(p);
+> +	s64 src_eff_load, dst_eff_load;
+> +	struct sched_domain *sd;
+> +	unsigned long weight;
+> +	bool balanced;
+> +	int imbalance_pct, idx = -1;
+> 
+> +	/* No harm being optimistic */
+> +	if (idle_cpu(node_cpu))
+> +		return node_cpu;
 
-Memory hotplug users may also set a node as movable node, which has
-ZONE_MOVABLE only, so that the whole node can be hot-removed.
+Cant this lead to lot of imbalance across nodes? Wont this lead to lot
+of ping-pong of tasks between different nodes resulting in performance
+hit? Lets say the system is not fully loaded, something like a numa01
+but with far lesser number of threads probably nr_cpus/2 or nr_cpus/4,
+then all threads will try to move to single node as we can keep seeing
+idle threads. No? Wont it lead all load moving to one node and load
+balancer spreading it out...
 
-But the kernel cannot use memory in ZONE_MOVABLE. By doing this, the
-kernel cannot use memory in movable nodes. This will cause NUMA
-performance down. And other users may be unhappy.
+> 
+> -static int
+> -find_idlest_cpu_node(int this_cpu, int nid)
+> -{
+> -	unsigned long load, min_load = ULONG_MAX;
+> -	int i, idlest_cpu = this_cpu;
+> +	/*
+> +	 * Find the lowest common scheduling domain covering the nodes of both
+> +	 * the CPU the task is currently running on and the target NUMA node.
+> +	 */
+> +	rcu_read_lock();
+> +	for_each_domain(src_cpu, sd) {
+> +		if (cpumask_test_cpu(node_cpu, sched_domain_span(sd))) {
+> +			/*
+> +			 * busy_idx is used for the load decision as it is the
+> +			 * same index used by the regular load balancer for an
+> +			 * active cpu.
+> +			 */
+> +			idx = sd->busy_idx;
+> +			imbalance_pct = sd->imbalance_pct;
+> +			break;
+> +		}
+> +	}
+> +	rcu_read_unlock();
+> 
+> -	BUG_ON(cpu_to_node(this_cpu) == nid);
+> +	if (WARN_ON_ONCE(idx == -1))
+> +		return src_cpu;
+> 
+> -	rcu_read_lock();
+> -	for_each_cpu(i, cpumask_of_node(nid)) {
+> -		load = weighted_cpuload(i);
+> +	/*
+> +	 * XXX the below is mostly nicked from wake_affine(); we should
+> +	 * see about sharing a bit if at all possible; also it might want
+> +	 * some per entity weight love.
+> +	 */
+> +	weight = p->se.load.weight;
+> 
+> -		if (load < min_load) {
+> -			min_load = load;
+> -			idlest_cpu = i;
+> +	src_load = source_load(src_cpu, idx);
+> +
+> +	src_eff_load = 100 + (imbalance_pct - 100) / 2;
+> +	src_eff_load *= power_of(src_cpu);
+> +	src_eff_load *= src_load + effective_load(tg, src_cpu, -weight, -weight);
+> +
+> +	for_each_cpu(cpu, cpumask_of_node(nid)) {
+> +		dst_load = target_load(cpu, idx);
+> +
+> +		/* If the CPU is idle, use it */
+> +		if (!dst_load)
+> +			return dst_cpu;
+> +
+> +		/* Otherwise check the target CPU load */
+> +		dst_eff_load = 100;
+> +		dst_eff_load *= power_of(cpu);
+> +		dst_eff_load *= dst_load + effective_load(tg, cpu, weight, weight);
+> +
+> +		/*
+> +		 * Destination is considered balanced if the destination CPU is
+> +		 * less loaded than the source CPU. Unfortunately there is a
+> +		 * risk that a task running on a lightly loaded CPU will not
+> +		 * migrate to its preferred node due to load imbalances.
+> +		 */
+> +		balanced = (dst_eff_load <= src_eff_load);
+> +		if (!balanced)
+> +			continue;
+> +
 
-So we need a way to allow users to enable and disable this functionality.
-In this patch, we introduce movablenode boot option to allow users to
-choose to reserve hotpluggable memory and set it as ZONE_MOVABLE or not.
+Okay same case as above, the cpu could be lightly loaded, but the
+destination node could be heavier than the source node. No?
 
-Users can specify "movablenode" in kernel commandline to enable this
-functionality. For those who don't use memory hotplug or who don't want
-to lose their NUMA performance, just don't specify anything. The kernel
-will work as before.
+> +		if (dst_load < min_load) {
+> +			min_load = dst_load;
+> +			dst_cpu = cpu;
+>  		}
+>  	}
+> -	rcu_read_unlock();
+> 
+> -	return idlest_cpu;
+> +	return dst_cpu;
+>  }
+> 
 
-Suggested-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
----
- Documentation/kernel-parameters.txt |   15 +++++++++++++++
- arch/x86/kernel/setup.c             |   10 ++++++++--
- include/linux/memory_hotplug.h      |    3 +++
- mm/memory_hotplug.c                 |   11 +++++++++++
- 4 files changed, 37 insertions(+), 2 deletions(-)
-
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index 2fe6e76..3f77ba3 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -1714,6 +1714,21 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
- 			that the amount of memory usable for all allocations
- 			is not too small.
- 
-+	movablenode		[KNL,X86] This parameter enables/disables the
-+			kernel to arrange hotpluggable memory ranges recorded
-+			in ACPI SRAT(System Resource Affinity Table) as
-+			ZONE_MOVABLE. And these memory can be hot-removed when
-+			the system is up.
-+			By specifying this option, all the hotpluggable memory
-+			will be in ZONE_MOVABLE, which the kernel cannot use.
-+			This will cause NUMA performance down. For users who
-+			care about NUMA performance, just don't use it.
-+			If all the memory ranges in the system are hotpluggable,
-+			then the ones used by the kernel at early time, such as
-+			kernel code and data segments, initrd file and so on,
-+			won't be set as ZONE_MOVABLE, and won't be hotpluggable.
-+			Otherwise the kernel won't have enough memory to boot.
-+
- 	MTD_Partition=	[MTD]
- 			Format: <name>,<region-number>,<size>,<offset>
- 
-diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-index 8b1bddd..7c94e92 100644
---- a/arch/x86/kernel/setup.c
-+++ b/arch/x86/kernel/setup.c
-@@ -1060,14 +1060,20 @@ void __init setup_arch(char **cmdline_p)
- 	/* Initialize ACPI root table */
- 	acpi_root_table_init();
- 
--#ifdef CONFIG_ACPI_NUMA
-+#if defined(CONFIG_ACPI_NUMA) && defined(CONFIG_MOVABLE_NODE)
- 	/*
- 	 * Linux kernel cannot migrate kernel pages, as a result, memory used
- 	 * by the kernel cannot be hot-removed. Find and mark hotpluggable
- 	 * memory in memblock to prevent memblock from allocating hotpluggable
- 	 * memory for the kernel.
-+	 *
-+	 * If all the memory in a node is hotpluggable, then the kernel won't
-+	 * be able to use memory on that node. This will cause NUMA performance
-+	 * down. So by default, we don't reserve any hotpluggable memory. Users
-+	 * may use "movablenode" boot option to enable this functionality.
- 	 */
--	find_hotpluggable_memory();
-+	if (movablenode_enable_srat)
-+		find_hotpluggable_memory();
- #endif
- 
- 	/*
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index c32af49..65b2a48 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -33,6 +33,9 @@ enum {
- 	ONLINE_MOVABLE,
- };
- 
-+/* Enable/disable SRAT in movablenode boot option */
-+extern bool movablenode_enable_srat;
-+
- /*
-  * pgdat resizing functions
-  */
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 3e95fe5..97eb26b 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -93,6 +93,17 @@ static void release_memory_resource(struct resource *res)
- }
- 
- #ifdef CONFIG_ACPI_NUMA
-+#ifdef CONFIG_MOVABLE_NODE
-+bool __initdata movablenode_enable_srat;
-+
-+static int __init cmdline_parse_movablenode(char *p)
-+{
-+	movablenode_enable_srat = true;
-+	return 0;
-+}
-+early_param("movablenode", cmdline_parse_movablenode);
-+#endif	/* CONFIG_MOVABLE_NODE */
-+
- /**
-  * kernel_resides_in_range - Check if kernel resides in a memory region.
-  * @base: The base address of the memory region.
 -- 
-1.7.1
+Thanks and Regards
+Srikar Dronamraju
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
