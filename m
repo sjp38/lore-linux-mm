@@ -1,58 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 7E8A56B0031
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 01:53:21 -0400 (EDT)
-Received: by mail-lb0-f169.google.com with SMTP id u10so1080192lbi.28
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2013 22:53:19 -0700 (PDT)
-Date: Thu, 1 Aug 2013 09:53:03 +0400
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [patch 1/2] [PATCH] mm: Save soft-dirty bits on swapped pages
-Message-ID: <20130801055303.GA1764@moon>
-References: <20130730204154.407090410@gmail.com>
- <20130730204654.844299768@gmail.com>
- <20130801005132.GB19540@bbox>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 7A93E6B0032
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 02:00:02 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Thu, 1 Aug 2013 15:53:12 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 91F033578054
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 15:59:46 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r715iCwd31195354
+	for <linux-mm@kvack.org>; Thu, 1 Aug 2013 15:44:13 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r715xiIa017673
+	for <linux-mm@kvack.org>; Thu, 1 Aug 2013 15:59:45 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 8/8] prepare to remove /proc/sys/vm/hugepages_treat_as_movable
+In-Reply-To: <1375302249-scfvftrh-mutt-n-horiguchi@ah.jp.nec.com>
+References: <1374728103-17468-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1374728103-17468-9-git-send-email-n-horiguchi@ah.jp.nec.com> <87k3k7q4ox.fsf@linux.vnet.ibm.com> <1375302249-scfvftrh-mutt-n-horiguchi@ah.jp.nec.com>
+Date: Thu, 01 Aug 2013 11:29:39 +0530
+Message-ID: <87vc3qvtmc.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130801005132.GB19540@bbox>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, luto@amacapital.net, xemul@parallels.com, akpm@linux-foundation.org, mpm@selenic.com, xiaoguangrong@linux.vnet.ibm.com, mtosatti@redhat.com, kosaki.motohiro@gmail.com, sfr@canb.auug.org.au, peterz@infradead.org, aneesh.kumar@linux.vnet.ibm.com
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Thu, Aug 01, 2013 at 09:51:32AM +0900, Minchan Kim wrote:
-> > Index: linux-2.6.git/include/linux/swapops.h
-> > ===================================================================
-> > --- linux-2.6.git.orig/include/linux/swapops.h
-> > +++ linux-2.6.git/include/linux/swapops.h
-> > @@ -67,6 +67,8 @@ static inline swp_entry_t pte_to_swp_ent
-> >  	swp_entry_t arch_entry;
-> >  
-> >  	BUG_ON(pte_file(pte));
-> > +	if (pte_swp_soft_dirty(pte))
-> > +		pte = pte_swp_clear_soft_dirty(pte);
-> 
-> Why do you remove soft-dirty flag whenever pte_to_swp_entry is called?
-> Isn't there any problem if we use mincore?
+Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
 
-No, there is no problem. pte_to_swp_entry caller when we know that pte
-we're decoding is having swap format (except the case in swap code which
-figures out the number of bits allowed for offset). Still since this bit
-is set on "higher" level than __swp_type/__swp_offset helpers it should
-be cleaned before the value from pte comes to "one level down" helpers
-function.
+> On Wed, Jul 31, 2013 at 12:02:30AM +0530, Aneesh Kumar K.V wrote:
+>> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
+>> 
+>> > Now hugepages are definitely movable. So allocating hugepages from
+>> > ZONE_MOVABLE is natural and we have no reason to keep this parameter.
+>> > In order to allow userspace to prepare for the removal, let's leave
+>> > this sysctl handler as noop for a while.
+>> 
+>> I guess you still need to handle architectures for which pmd_huge is
+>> 
+>> int pmd_huge(pmd_t pmd)
+>> {
+>> 	return 0;
+>> }
+>> 
+>> embedded powerpc is one. They don't store pte information at the PMD
+>> level. Instead pmd contains a pointer to hugepage directory which
+>> contain huge pte.
+>
+> It seems that this comment is for the whole series, not just for this
+> patch, right?
+>
+> Some users of hugepage migration (mbind, move_pages, migrate_pages)
+> walk over page tables to collect hugepages to be migrated, where
+> hugepages are just ignored in such architectures due to pmd_huge.
+> So no problem for these users.
+>
+> But the other users (softoffline, memory hotremove) choose hugepages
+> to be migrated based on pfn, where they don't check pmd_huge.
+> As you wrote, this can be problematic for such architectures.
+> So I think of adding pmd_huge() check somewhere (in unmap_and_move_huge_page
+> for example) to make it fail for such architectures.
 
-> > +static inline int maybe_same_pte(pte_t pte, pte_t swp_pte)
-> 
-> Nitpick.
-> If maybe_same_pte is used widely, it looks good to me
-> but it's used for only swapoff at the moment so I think pte_swap_same
-> would be better name.
+Considering that we have architectures that won't support migrating
+explicit hugepages with this patch series, is it ok to use
+GFP_HIGHUSER_MOVABLE for hugepage allocation ?
 
-I don't see much difference, but sure, lets rename it on top once series
-in -mm tree, sounds good?
-
-	Cyrill
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
