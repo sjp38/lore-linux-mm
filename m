@@ -1,78 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 96D886B0031
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 12:35:52 -0400 (EDT)
-Message-ID: <51FA8E3D.4070204@redhat.com>
-Date: Thu, 01 Aug 2013 12:35:09 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 6F3156B0031
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 14:27:50 -0400 (EDT)
+Date: Thu, 1 Aug 2013 11:27:49 -0700 (PDT)
+From: Sage Weil <sage@inktank.com>
+Subject: Re: [PATCH V5 2/8] fs/ceph: vfs __set_page_dirty_nobuffers interface
+ instead of doing it inside filesystem
+In-Reply-To: <CAAM7YAmxmmA6g2WPVtGN1-42rtDBYzLhF-gvNXxcBN6dUveBYQ@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1308011121080.22584@cobra.newdream.net>
+References: <1375357402-9811-1-git-send-email-handai.szj@taobao.com> <1375357892-10188-1-git-send-email-handai.szj@taobao.com> <CAAM7YAmxmmA6g2WPVtGN1-42rtDBYzLhF-gvNXxcBN6dUveBYQ@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH,RFC] numa,sched: use group fault statistics in numa placement
-References: <1373901620-2021-1-git-send-email-mgorman@suse.de> <20130730113857.GR3008@twins.programming.kicks-ass.net> <20130801022319.4a6a977a@annuminas.surriel.com> <20130801103713.GO3008@twins.programming.kicks-ass.net>
-In-Reply-To: <20130801103713.GO3008@twins.programming.kicks-ass.net>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: MULTIPART/MIXED; BOUNDARY="557981400-154103058-1375381669=:22584"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Mel Gorman <mgorman@suse.de>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: "Yan, Zheng" <ukernel@gmail.com>
+Cc: Sha Zhengju <handai.szj@gmail.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, ceph-devel <ceph-devel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, cgroups@vger.kernel.org, mhocko@suse.cz, kamezawa.hiroyu@jp.fujitsu.com, glommer@gmail.com, Greg Thelen <gthelen@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Sha Zhengju <handai.szj@taobao.com>
 
-On 08/01/2013 06:37 AM, Peter Zijlstra wrote:
-> On Thu, Aug 01, 2013 at 02:23:19AM -0400, Rik van Riel wrote:
->> Subject: [PATCH,RFC] numa,sched: use group fault statistics in numa placement
->>
->> Here is a quick strawman on how the group fault stuff could be used
->> to help pick the best node for a task. This is likely to be quite
->> suboptimal and in need of tweaking. My main goal is to get this to
->> Peter & Mel before it's breakfast time on their side of the Atlantic...
->>
->> This goes on top of "sched, numa: Use {cpu, pid} to create task groups for shared faults"
->>
->> Enjoy :)
->>
->> +	/*
->> +	 * Should we stay on our own, or move in with the group?
->> +	 * The absolute count of faults may not be useful, but comparing
->> +	 * the fraction of accesses in each top node may give us a hint
->> +	 * where to start looking for a migration target.
->> +	 *
->> +	 *  max_group_faults     max_faults
->> +	 * ------------------ > ------------
->> +	 * total_group_faults   total_faults
->> +	 */
->> +	if (max_group_nid >= 0 && max_group_nid != max_nid) {
->> +		if (max_group_faults * total_faults >
->> +				max_faults * total_group_faults)
->> +			max_nid = max_group_nid;
->> +	}
->
-> This makes sense.. another part of the problem, which you might already
-> have spotted is selecting a task to swap with.
->
-> If you only look at per task faults its often impossible to find a
-> suitable swap task because moving you to a more suitable node would
-> degrade the other task -- below a patch you've already seen but I
-> haven't yet posted because I'm not at all sure its something 'sane' :-)
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-I did not realize you had not posted that patch yet, and was
-actually building on top of it :)
+--557981400-154103058-1375381669=:22584
+Content-Type: TEXT/PLAIN; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-I suspect that comparing both per-task and per-group fault weights
-in task_numa_compare should make your code do the right thing in
-task_numa_migrate.
+On Thu, 1 Aug 2013, Yan, Zheng wrote:
+> On Thu, Aug 1, 2013 at 7:51 PM, Sha Zhengju <handai.szj@gmail.com> wrot=
+e:
+> > From: Sha Zhengju <handai.szj@taobao.com>
+> >
+> > Following we will begin to add memcg dirty page accounting around
+> __set_page_dirty_
+> > {buffers,nobuffers} in vfs layer, so we'd better use vfs interface to
+> avoid exporting
+> > those details to filesystems.
+> >
+> > Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+> > ---
+> > =A0fs/ceph/addr.c | =A0 13 +------------
+> > =A01 file changed, 1 insertion(+), 12 deletions(-)
+> >
+> > diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
+> > index 3e68ac1..1445bf1 100644
+> > --- a/fs/ceph/addr.c
+> > +++ b/fs/ceph/addr.c
+> > @@ -76,7 +76,7 @@ static int ceph_set_page_dirty(struct page *page)
+> > =A0 =A0 =A0 =A0 if (unlikely(!mapping))
+> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return !TestSetPageDirty(page);
+> >
+> > - =A0 =A0 =A0 if (TestSetPageDirty(page)) {
+> > + =A0 =A0 =A0 if (!__set_page_dirty_nobuffers(page)) {
+> it's too early to set the radix tree tag here. We should set page's sna=
+pshot
+> context and increase the i_wrbuffer_ref first. This is because once the=
+ tag
+> is set, writeback thread can find and start flushing the page.
 
-I suspect there will be enough randomness in accesses that they
-will never be exactly the same, so we might not need an explicit
-tie breaker.
+Unfortunately I only remember being frustrated by this code.  :)  Looking=
+=20
+at it now, though, it seems like the minimum fix is to set the=20
+page->private before marking the page dirty.  I don't know the locking=20
+rules around that, though.  If that is potentially racy, maybe the safest=
+=20
+thing would be if __set_page_dirty_nobuffers() took a void* to set=20
+page->private to atomically while holding the tree_lock.
 
-However, if numa_migrate_preferred fails, we may want to try
-migrating to any node that has a better score than the current
-one.  After all, if we have a group of tasks that would fit in
-2 NUMA nodes, we don't want half of the tasks to not migrate
-at all because the top node is full. We want them to move to
-the #2 node at some point.
+sage
 
--- 
-All rights reversed
+>=20
+> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 dout("%p set_page_dirty %p idx %lu --=
+ already dirty\n",
+> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mapping->host, page, page-=
+>index);
+> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return 0;
+> > @@ -107,14 +107,7 @@ static int ceph_set_page_dirty(struct page *page=
+)
+> > =A0 =A0 =A0 =A0 =A0 =A0 =A0snapc, snapc->seq, snapc->num_snaps);
+> > =A0 =A0 =A0 =A0 spin_unlock(&ci->i_ceph_lock);
+> >
+> > - =A0 =A0 =A0 /* now adjust page */
+> > - =A0 =A0 =A0 spin_lock_irq(&mapping->tree_lock);
+> > =A0 =A0 =A0 =A0 if (page->mapping) { =A0 =A0/* Race with truncate? */
+> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 WARN_ON_ONCE(!PageUptodate(page));
+> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 account_page_dirtied(page, page->mappin=
+g);
+> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 radix_tree_tag_set(&mapping->page_tree,
+> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 page_in=
+dex(page), PAGECACHE_TAG_DIRTY);
+> > -
+>=20
+> this code was coped from __set_page_dirty_nobuffers(). I think the reas=
+on
+> Sage did this is to handle the race described in
+> __set_page_dirty_nobuffers()'s comment. But I'm wonder if "page->mappin=
+g =3D=3D
+> NULL" can still happen here. Because truncate_inode_page() unmap page f=
+rom
+> processes's address spaces first, then delete page from page cache.
+>=20
+> Regards
+> Yan, Zheng
+>=20
+> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
+> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* Reference snap context in page->=
+private. =A0Also set
+> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* PagePrivate so that we get inval=
+idatepage callback.
+> > @@ -126,14 +119,10 @@ static int ceph_set_page_dirty(struct page *pag=
+e)
+> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 undo =3D 1;
+> > =A0 =A0 =A0 =A0 }
+> >
+> > - =A0 =A0 =A0 spin_unlock_irq(&mapping->tree_lock);
+>=20
+>=20
+>=20
+>=20
+> > -
+> > =A0 =A0 =A0 =A0 if (undo)
+> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* whoops, we failed to dirty the pag=
+e */
+> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ceph_put_wrbuffer_cap_refs(ci, 1, sna=
+pc);
+> >
+> > - =A0 =A0 =A0 __mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
+> > -
+> > =A0 =A0 =A0 =A0 BUG_ON(!PageDirty(page));
+> > =A0 =A0 =A0 =A0 return 1;
+> > =A0}
+> > --
+> > 1.7.9.5
+> >
+> > --
+> > To unsubscribe from this list: send the line "unsubscribe ceph-devel"=
+ in
+> > the body of a message to majordomo@vger.kernel.org
+> > More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
+>=20
+>=20
+>=20
+--557981400-154103058-1375381669=:22584--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
