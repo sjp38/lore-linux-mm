@@ -1,264 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 138726B0031
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 18:37:16 -0400 (EDT)
-Date: Thu, 1 Aug 2013 18:36:46 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: [RFC PATCH -v2] numa,sched: use group fault statistics in numa
- placement
-Message-ID: <20130801183646.37b04171@annuminas.surriel.com>
-In-Reply-To: <20130730113857.GR3008@twins.programming.kicks-ass.net>
-References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
-	<20130730113857.GR3008@twins.programming.kicks-ass.net>
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 0EA8E6B0031
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 19:33:17 -0400 (EDT)
+Message-ID: <1375399931.10300.36.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v2 05/18] x86, acpi: Split acpi_boot_table_init() into
+ two parts.
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Thu, 01 Aug 2013 17:32:11 -0600
+In-Reply-To: <1375340800-19332-6-git-send-email-tangchen@cn.fujitsu.com>
+References: <1375340800-19332-1-git-send-email-tangchen@cn.fujitsu.com>
+	 <1375340800-19332-6-git-send-email-tangchen@cn.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Mel Gorman <mgorman@suse.de>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org, robert.moore@intel.com
 
-On Tue, 30 Jul 2013 13:38:57 +0200
-Peter Zijlstra <peterz@infradead.org> wrote:
-
+On Thu, 2013-08-01 at 15:06 +0800, Tang Chen wrote:
+> In ACPI, SRAT(System Resource Affinity Table) contains NUMA info.
+> The memory affinities in SRAT record every memory range in the
+> system, and also, flags specifying if the memory range is
+> hotpluggable.
+> (Please refer to ACPI spec 5.0 5.2.16)
 > 
-> Subject: sched, numa: Use {cpu, pid} to create task groups for shared faults
-> From: Peter Zijlstra <peterz@infradead.org>
-> Date: Tue Jul 30 10:40:20 CEST 2013
+> memblock starts to work at very early time, and SRAT has not been
+> parsed. So we don't know which memory is hotpluggable. In order
+> to use memblock to reserve hotpluggable memory, we need to obtain
+> SRAT memory affinity info earlier.
 > 
-> A very simple/straight forward shared fault task grouping
-> implementation.
+> In the current acpi_boot_table_init(), it does the following:
+> 1. Parse RSDT, so that we can find all the tables.
+> 2. Initialize acpi_gbl_root_table_list, an array of acpi table
+>    descriptorsused to store each table's address, length, signature,
+>    and so on.
+> 3. Check if there is any table in initrd intending to override
+>    tables from firmware. If so, override the firmware tables.
+> 4. Initialize all the data in acpi_gbl_root_table_list.
+> 
+> In order to parse SRAT at early time, we need to do similar job as
+> step 1 and 2 above earlier to obtain SRAT. It will be very convenient
+> if we have acpi_gbl_root_table_list initialized. We can use address
+> and signature to find SRAT.
+> 
+> Since step 1 and 2 allocates no memory, it is OK to do these two
+> steps earlier.
+> 
+> But step 3 will check acpi initrd table override, not just SRAT,
+> but also all the other tables. So it is better to keep it untouched.
+> 
+> This patch splits acpi_boot_table_init() into two steps:
+> 1. Parse RSDT, which cannot be overrided, and initialize
+>    acpi_gbl_root_table_list. (step 1 + 2 above)
+> 2. Install all ACPI tables into acpi_gbl_root_table_list.
+>    (step 3 + 4 above)
+> 
+> In later patches, we will do step 1 + 2 earlier.
+> 
+> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+> Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+> ---
+>  drivers/acpi/acpica/tbutils.c |   25 ++++++++++++++++++++++---
+>  drivers/acpi/tables.c         |    2 ++
+>  include/acpi/acpixf.h         |    2 ++
+>  3 files changed, 26 insertions(+), 3 deletions(-)
+> 
+> diff --git a/drivers/acpi/acpica/tbutils.c b/drivers/acpi/acpica/tbutils.c
 
-Here is another (untested) version of task placement on top of
-your task grouping. Better send it to you now, rather than on
-your friday evening :)
+This patch needs to be reviewed by ACPICA folks.  I'd suggest to change
+the patch title to "x86, ACPICA:".  I added Bob to the list.
 
-The algorithm is loosely based on Andrea's placement algorithm,
-but not as strict because I am not entirely confident that the
-task grouping code works right yet...
-
-It also has no "fall back to a better node than the current one" 
-code yet, for the case where we fail to migrate to the best node,
-but that should be a separate patch anyway.
+Thanks,
+-Toshi
 
 
-Subject: [PATCH,RFC] numa,sched: use group fault statistics in numa placement
 
-This version uses the fraction of faults on a particular node for
-both task and group, to figure out the best node to place a task.
+> index ce3d5db..9d68ffc 100644
+> --- a/drivers/acpi/acpica/tbutils.c
+> +++ b/drivers/acpi/acpica/tbutils.c
+> @@ -766,9 +766,30 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
+>  	 */
+>  	acpi_os_unmap_memory(table, length);
+>  
+> +	return_ACPI_STATUS(AE_OK);
+> +}
+> +
+> +/*******************************************************************************
+> + *
+> + * FUNCTION:    acpi_tb_install_root_table
+> + *
+> + * DESCRIPTION: This function installs all the ACPI tables in RSDT into
+> + *              acpi_gbl_root_table_list.
+> + *
+> + ******************************************************************************/
+> +
+> +void __init
+> +acpi_tb_install_root_table()
+> +{
+> +	int i;
+> +
+>  	/*
+>  	 * Complete the initialization of the root table array by examining
+> -	 * the header of each table
+> +	 * the header of each table.
+> +	 *
+> +	 * First two entries in the table array are reserved for the DSDT
+> +	 * and FACS, which are not actually present in the RSDT/XSDT - they
+> +	 * come from the FADT.
+>  	 */
+>  	for (i = 2; i < acpi_gbl_root_table_list.current_table_count; i++) {
+>  		acpi_tb_install_table(acpi_gbl_root_table_list.tables[i].
+> @@ -782,6 +803,4 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
+>  			acpi_tb_parse_fadt(i);
+>  		}
+>  	}
+> -
+> -	return_ACPI_STATUS(AE_OK);
+>  }
+> diff --git a/drivers/acpi/tables.c b/drivers/acpi/tables.c
+> index d67a1fe..8860e79 100644
+> --- a/drivers/acpi/tables.c
+> +++ b/drivers/acpi/tables.c
+> @@ -353,6 +353,8 @@ int __init acpi_table_init(void)
+>  	if (ACPI_FAILURE(status))
+>  		return 1;
+>  
+> +	acpi_tb_install_root_table();
+> +
+>  	check_multiple_madt();
+>  	return 0;
+>  }
+> diff --git a/include/acpi/acpixf.h b/include/acpi/acpixf.h
+> index 454881e..f5549b5 100644
+> --- a/include/acpi/acpixf.h
+> +++ b/include/acpi/acpixf.h
+> @@ -116,6 +116,8 @@ acpi_status
+>  acpi_initialize_tables(struct acpi_table_desc *initial_storage,
+>  		       u32 initial_table_count, u8 allow_resize);
+>  
+> +void acpi_tb_install_root_table(void);
+> +
+>  acpi_status __init acpi_initialize_subsystem(void);
+>  
+>  acpi_status acpi_enable_subsystem(u32 flags);
 
-I wish I had benchmark numbers to report, but our timezones just
-don't seem to work out that way. Enjoy at your own peril :)
-
-I will be testing these tomorrow.
-
-Signed-off-by: Rik van Riel <riel@redhat.com>
----
- include/linux/sched.h |  1 +
- kernel/sched/fair.c   | 94 +++++++++++++++++++++++++++++++++++++++++----------
- 2 files changed, 77 insertions(+), 18 deletions(-)
-
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 9e7fcfe..5e175ae 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1355,6 +1355,7 @@ struct task_struct {
- 	 * The values remain static for the duration of a PTE scan
- 	 */
- 	unsigned long *numa_faults;
-+	unsigned long total_numa_faults;
- 
- 	/*
- 	 * numa_faults_buffer records faults per node during the current
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 6a06bef..3ef4d45 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -844,6 +844,18 @@ static unsigned int task_scan_max(struct task_struct *p)
-  */
- unsigned int sysctl_numa_balancing_settle_count __read_mostly = 3;
- 
-+struct numa_group {
-+	atomic_t refcount;
-+
-+	spinlock_t lock; /* nr_tasks, tasks */
-+	int nr_tasks;
-+	struct list_head task_list;
-+
-+	struct rcu_head rcu;
-+	atomic_long_t total_faults;
-+	atomic_long_t faults[0];
-+};
-+
- static inline int task_faults_idx(int nid, int priv)
- {
- 	return 2 * nid + priv;
-@@ -857,6 +869,38 @@ static inline unsigned long task_faults(struct task_struct *p, int nid)
- 	return p->numa_faults[2*nid] + p->numa_faults[2*nid+1];
- }
- 
-+static inline unsigned long group_faults(struct task_struct *p, int nid)
-+{
-+	if (!p->numa_group)
-+		return 0;
-+
-+	return atomic_long_read(&p->numa_group->faults[2*nid]) +
-+	       atomic_long_read(&p->numa_group->faults[2*nid+1]);
-+}
-+
-+/*
-+ * These return the fraction of accesses done by a particular task, or
-+ * task group, on a particular numa node.  The group weight is given a
-+ * larger multiplier, in order to group tasks together that are almost
-+ * evenly spread out between numa nodes.
-+ */
-+static inline unsigned long task_weight(struct task_struct *p, int nid)
-+{
-+	if (!p->numa_faults)
-+		return 0;
-+
-+	return 1000 * task_faults(p, nid) / p->total_numa_faults;
-+}
-+
-+static inline unsigned long group_weight(struct task_struct *p, int nid)
-+{
-+	if (!p->numa_group)
-+		return 0;
-+
-+	return 1200 * group_faults(p, nid) /
-+			atomic_long_read(&p->numa_group->total_faults);
-+}
-+
- /*
-  * Create/Update p->mempolicy MPOL_INTERLEAVE to match p->numa_faults[].
-  */
-@@ -979,8 +1023,10 @@ static void task_numa_compare(struct task_numa_env *env, long imp)
- 		cur = NULL;
- 
- 	if (cur) {
--		imp += task_faults(cur, env->src_nid) -
--		       task_faults(cur, env->dst_nid);
-+		imp += task_faults(cur, env->src_nid) +
-+		       group_faults(cur, env->src_nid) -
-+		       task_faults(cur, env->dst_nid) -
-+		       group_faults(cur, env->dst_nid);
- 	}
- 
- 	trace_printk("compare[%d] task:%s/%d improvement: %ld\n",
-@@ -1067,7 +1113,7 @@ static int task_numa_migrate(struct task_struct *p)
- 	}
- 	rcu_read_unlock();
- 
--	faults = task_faults(p, env.src_nid);
-+	faults = task_faults(p, env.src_nid) + group_faults(p, env.src_nid);
- 	update_numa_stats(&env.src_stats, env.src_nid);
- 
- 	for_each_online_node(nid) {
-@@ -1076,7 +1122,7 @@ static int task_numa_migrate(struct task_struct *p)
- 		if (nid == env.src_nid)
- 			continue;
- 
--		imp = task_faults(p, nid) - faults;
-+		imp = task_faults(p, nid) + group_faults(p, nid) - faults;
- 		if (imp < 0)
- 			continue;
- 
-@@ -1122,21 +1168,10 @@ static void numa_migrate_preferred(struct task_struct *p)
- 	p->numa_migrate_retry = jiffies + HZ/10;
- }
- 
--struct numa_group {
--	atomic_t refcount;
--
--	spinlock_t lock; /* nr_tasks, tasks */
--	int nr_tasks;
--	struct list_head task_list;
--
--	struct rcu_head rcu;
--	atomic_long_t faults[0];
--};
--
- static void task_numa_placement(struct task_struct *p)
- {
--	int seq, nid, max_nid = -1;
--	unsigned long max_faults = 0;
-+	int seq, nid, max_nid = -1, max_group_nid = -1;
-+	unsigned long max_faults = 0, max_group_faults = 0;
- 
- 	seq = ACCESS_ONCE(p->mm->numa_scan_seq);
- 	if (p->numa_scan_seq == seq)
-@@ -1148,7 +1183,7 @@ static void task_numa_placement(struct task_struct *p)
- 
- 	/* Find the node with the highest number of faults */
- 	for (nid = 0; nid < nr_node_ids; nid++) {
--		unsigned long faults = 0;
-+		unsigned long faults = 0, group_faults = 0;
- 		int priv, i;
- 
- 		for (priv = 0; priv < 2; priv++) {
-@@ -1161,6 +1196,7 @@ static void task_numa_placement(struct task_struct *p)
- 			/* Decay existing window, copy faults since last scan */
- 			p->numa_faults[i] >>= 1;
- 			p->numa_faults[i] += p->numa_faults_buffer[i];
-+			p->total_numa_faults += p->numa_faults_buffer[i];
- 			p->numa_faults_buffer[i] = 0;
- 
- 			diff += p->numa_faults[i];
-@@ -1169,6 +1205,8 @@ static void task_numa_placement(struct task_struct *p)
- 			if (p->numa_group) {
- 				/* safe because we can only change our own group */
- 				atomic_long_add(diff, &p->numa_group->faults[i]);
-+				atomic_long_add(diff, &p->numa_group->total_faults);
-+				group_faults += atomic_long_read(&p->numa_group->faults[i]);
- 			}
- 		}
- 
-@@ -1176,11 +1214,29 @@ static void task_numa_placement(struct task_struct *p)
- 			max_faults = faults;
- 			max_nid = nid;
- 		}
-+
-+		if (group_faults > max_group_faults) {
-+			max_group_faults = group_faults;
-+			max_group_nid = nid;
-+		}
- 	}
- 
- 	if (sched_feat(NUMA_INTERLEAVE))
- 		task_numa_mempol(p, max_faults);
- 
-+	/*
-+	 * Should we stay on our own, or move in with the group?
-+	 * If the task's memory accesses are concentrated on one node, go
-+	 * to (more likely, stay on) that node. If the group's accesses
-+	 * are more concentrated than the task's accesses, join the group.
-+	 *
-+	 *  max_group_faults     max_faults
-+	 * ------------------ > ------------
-+	 * total_group_faults   total_faults
-+	 */
-+	if (group_weight(p, max_group_nid) > task_weight(p, max_nid))
-+		max_nid = max_group_nid;
-+
- 	/* Preferred node as the node with the most faults */
- 	if (max_faults && max_nid != p->numa_preferred_nid) {
- 
-@@ -1242,6 +1298,7 @@ void task_numa_group(struct task_struct *p, int cpu, int pid)
- 		atomic_set(&grp->refcount, 1);
- 		spin_lock_init(&grp->lock);
- 		INIT_LIST_HEAD(&grp->task_list);
-+		atomic_long_set(&grp->total_faults, 0);
- 
- 		spin_lock(&p->numa_lock);
- 		list_add(&p->numa_entry, &grp->task_list);
-@@ -1336,6 +1393,7 @@ void task_numa_fault(int last_cpupid, int node, int pages, bool migrated)
- 
- 		BUG_ON(p->numa_faults_buffer);
- 		p->numa_faults_buffer = p->numa_faults + (2 * nr_node_ids);
-+		p->total_numa_faults = 0;
- 	}
- 
- 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
