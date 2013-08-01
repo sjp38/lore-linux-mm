@@ -1,94 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id F3C0F6B0036
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 02:16:05 -0400 (EDT)
-Date: Thu, 1 Aug 2013 15:16:32 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [patch 1/2] [PATCH] mm: Save soft-dirty bits on swapped pages
-Message-ID: <20130801061632.GE19540@bbox>
-References: <20130730204154.407090410@gmail.com>
- <20130730204654.844299768@gmail.com>
- <20130801005132.GB19540@bbox>
- <20130801055303.GA1764@moon>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130801055303.GA1764@moon>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 422FD6B0037
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 02:23:58 -0400 (EDT)
+Date: Thu, 1 Aug 2013 02:23:19 -0400
+From: Rik van Riel <riel@redhat.com>
+Subject: [PATCH,RFC] numa,sched: use group fault statistics in numa
+ placement
+Message-ID: <20130801022319.4a6a977a@annuminas.surriel.com>
+In-Reply-To: <20130730113857.GR3008@twins.programming.kicks-ass.net>
+References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
+	<20130730113857.GR3008@twins.programming.kicks-ass.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyrill Gorcunov <gorcunov@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, luto@amacapital.net, xemul@parallels.com, akpm@linux-foundation.org, mpm@selenic.com, xiaoguangrong@linux.vnet.ibm.com, mtosatti@redhat.com, kosaki.motohiro@gmail.com, sfr@canb.auug.org.au, peterz@infradead.org, aneesh.kumar@linux.vnet.ibm.com
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Mel Gorman <mgorman@suse.de>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Aug 01, 2013 at 09:53:03AM +0400, Cyrill Gorcunov wrote:
-> On Thu, Aug 01, 2013 at 09:51:32AM +0900, Minchan Kim wrote:
-> > > Index: linux-2.6.git/include/linux/swapops.h
-> > > ===================================================================
-> > > --- linux-2.6.git.orig/include/linux/swapops.h
-> > > +++ linux-2.6.git/include/linux/swapops.h
-> > > @@ -67,6 +67,8 @@ static inline swp_entry_t pte_to_swp_ent
-> > >  	swp_entry_t arch_entry;
-> > >  
-> > >  	BUG_ON(pte_file(pte));
-> > > +	if (pte_swp_soft_dirty(pte))
-> > > +		pte = pte_swp_clear_soft_dirty(pte);
-> > 
-> > Why do you remove soft-dirty flag whenever pte_to_swp_entry is called?
-> > Isn't there any problem if we use mincore?
-> 
-> No, there is no problem. pte_to_swp_entry caller when we know that pte
-> we're decoding is having swap format (except the case in swap code which
-> figures out the number of bits allowed for offset). Still since this bit
-> is set on "higher" level than __swp_type/__swp_offset helpers it should
-> be cleaned before the value from pte comes to "one level down" helpers
-> function.
+Subject: [PATCH,RFC] numa,sched: use group fault statistics in numa placement
 
-I don't get it. Could you correct me with below example?
+Here is a quick strawman on how the group fault stuff could be used
+to help pick the best node for a task. This is likely to be quite
+suboptimal and in need of tweaking. My main goal is to get this to
+Peter & Mel before it's breakfast time on their side of the Atlantic...
 
-Process A context
-        try_to_unmap
-                swp_pte = swp_entry_to_pte /* change generic swp into arch swap */
-                swp_pte = pte_swp_mksoft_dirty(swp_pte);
-                set_pte_at(, swp_pte);
+This goes on top of "sched, numa: Use {cpu, pid} to create task groups for shared faults"
 
-Process A context
-        ..
-        mincore_pte_range
-                pte_to_swp_entry
-                        pte = pte_swp_clear_soft_dirty  <=== 1)
-                        change arch swp with generic swp
-                mincore_page 
+Enjoy :)
 
-Process B want to know dirty state of the page
-        ..
-        pagemap_read
-        pte_to_pagemap_entry
-        is_swap_pte
-                if (pte_swap_soft_dirty(pte)) <=== but failed by 1)
+Signed-off-by: Rik van Riel <riel@redhat.com>
+---
+ kernel/sched/fair.c | 32 +++++++++++++++++++++++++++++---
+ 1 file changed, 29 insertions(+), 3 deletions(-)
 
-So, Process B can't get the dirty status from process A's the page.
-
-> 
-> > > +static inline int maybe_same_pte(pte_t pte, pte_t swp_pte)
-> > 
-> > Nitpick.
-> > If maybe_same_pte is used widely, it looks good to me
-> > but it's used for only swapoff at the moment so I think pte_swap_same
-> > would be better name.
-> 
-> I don't see much difference, but sure, lets rename it on top once series
-> in -mm tree, sounds good?
-> 
-> 	Cyrill
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 6a06bef..fb2e229 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -1135,8 +1135,9 @@ struct numa_group {
+ 
+ static void task_numa_placement(struct task_struct *p)
+ {
+-	int seq, nid, max_nid = -1;
+-	unsigned long max_faults = 0;
++	int seq, nid, max_nid = -1, max_group_nid = -1;
++	unsigned long max_faults = 0, max_group_faults = 0;
++	unsigned long total_faults = 0, total_group_faults = 0;
+ 
+ 	seq = ACCESS_ONCE(p->mm->numa_scan_seq);
+ 	if (p->numa_scan_seq == seq)
+@@ -1148,7 +1149,7 @@ static void task_numa_placement(struct task_struct *p)
+ 
+ 	/* Find the node with the highest number of faults */
+ 	for (nid = 0; nid < nr_node_ids; nid++) {
+-		unsigned long faults = 0;
++		unsigned long faults = 0, group_faults = 0;
+ 		int priv, i;
+ 
+ 		for (priv = 0; priv < 2; priv++) {
+@@ -1169,6 +1170,7 @@ static void task_numa_placement(struct task_struct *p)
+ 			if (p->numa_group) {
+ 				/* safe because we can only change our own group */
+ 				atomic_long_add(diff, &p->numa_group->faults[i]);
++				group_faults += atomic_long_read(&p->numa_group->faults[i]);
+ 			}
+ 		}
+ 
+@@ -1176,11 +1178,35 @@ static void task_numa_placement(struct task_struct *p)
+ 			max_faults = faults;
+ 			max_nid = nid;
+ 		}
++
++		if (group_faults > max_group_faults) {
++			max_group_faults = group_faults;
++			max_group_nid = nid;
++		}
++
++		total_faults += faults;
++		total_group_faults += group_faults;
+ 	}
+ 
+ 	if (sched_feat(NUMA_INTERLEAVE))
+ 		task_numa_mempol(p, max_faults);
+ 
++	/*
++	 * Should we stay on our own, or move in with the group?
++	 * The absolute count of faults may not be useful, but comparing
++	 * the fraction of accesses in each top node may give us a hint
++	 * where to start looking for a migration target.
++	 *
++	 *  max_group_faults     max_faults
++	 * ------------------ > ------------
++	 * total_group_faults   total_faults
++	 */
++	if (max_group_nid >= 0 && max_group_nid != max_nid) {
++		if (max_group_faults * total_faults >
++				max_faults * total_group_faults)
++			max_nid = max_group_nid;
++	}
++
+ 	/* Preferred node as the node with the most faults */
+ 	if (max_faults && max_nid != p->numa_preferred_nid) {
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
