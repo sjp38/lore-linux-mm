@@ -1,42 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id EF2406B0034
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 08:01:07 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id bg4so2058893pad.32
-        for <linux-mm@kvack.org>; Thu, 01 Aug 2013 05:01:07 -0700 (PDT)
-From: Sha Zhengju <handai.szj@gmail.com>
-Subject: [PATCH V5 8/8] memcg: Document cgroup dirty/writeback memory statistics
-Date: Thu,  1 Aug 2013 20:00:43 +0800
-Message-Id: <1375358443-10817-1-git-send-email-handai.szj@taobao.com>
-In-Reply-To: <1375357402-9811-1-git-send-email-handai.szj@taobao.com>
-References: <1375357402-9811-1-git-send-email-handai.szj@taobao.com>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 9354E6B0031
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 09:42:23 -0400 (EDT)
+Received: by mail-qa0-f50.google.com with SMTP id f14so1097548qak.2
+        for <linux-mm@kvack.org>; Thu, 01 Aug 2013 06:42:22 -0700 (PDT)
+Date: Thu, 1 Aug 2013 09:42:18 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v2 13/18] x86, numa, mem_hotplug: Skip all the regions
+ the kernel resides in.
+Message-ID: <20130801134218.GA29323@htj.dyndns.org>
+References: <1375340800-19332-1-git-send-email-tangchen@cn.fujitsu.com>
+ <1375340800-19332-14-git-send-email-tangchen@cn.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1375340800-19332-14-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, cgroups@vger.kernel.org
-Cc: mhocko@suse.cz, kamezawa.hiroyu@jp.fujitsu.com, glommer@gmail.com, gthelen@google.com, fengguang.wu@intel.com, akpm@linux-foundation.org, Sha Zhengju <handai.szj@taobao.com>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-From: Sha Zhengju <handai.szj@taobao.com>
+> On Thu, Aug 01, 2013 at 03:06:35PM +0800, Tang Chen wrote:
+> 
+> At early time, memblock will reserve some memory for the kernel,
+> such as the kernel code and data segments, initrd file, and so on=EF=BC=8C
+> which means the kernel resides in these memory regions.
+> 
+> Even if these memory regions are hotpluggable, we should not
+> mark them as hotpluggable. Otherwise the kernel won't have enough
+> memory to boot.
+> 
+> This patch finds out which memory regions the kernel resides in,
+> and skip them when finding all hotpluggable memory regions.
+> 
+> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+> Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+> ---
+>  mm/memory=5Fhotplug.c |   45 +++++++++++++++++++++++++++++++++++++++++++++
+>   1 files changed, 45 insertions(+), 0 deletions(-)
+> 
+> diff --git a/mm/memory=5Fhotplug.c b/mm/memory=5Fhotplug.c
+> index 326e2f2..b800c9c 100644
+> --- a/mm/memory=5Fhotplug.c
+> +++ b/mm/memory=5Fhotplug.c
+> @@ -31,6 +31,7 @@
+>  #include <linux/firmware-map.h>
+>  #include <linux/stop=5Fmachine.h>
+>  #include <linux/acpi.h>
+> +#include <linux/memblock.h>
+> =20
+>  #include <asm/tlbflush.h>
+> =20
 
-Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
----
- Documentation/cgroups/memory.txt |    2 ++
- 1 file changed, 2 insertions(+)
+This patch is contaminated.  Can you please resend?
 
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-index 327acec..7ed4fa9 100644
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -490,6 +490,8 @@ pgpgin		- # of charging events to the memory cgroup. The charging
- pgpgout		- # of uncharging events to the memory cgroup. The uncharging
- 		event happens each time a page is unaccounted from the cgroup.
- swap		- # of bytes of swap usage
-+dirty          - # of bytes of file cache that are not in sync with the disk copy.
-+writeback      - # of bytes of file/anon cache that are queued for syncing to disk.
- inactive_anon	- # of bytes of anonymous memory and swap cache memory on
- 		LRU list.
- active_anon	- # of bytes of anonymous and swap cache memory on active
+Thanks.
+
 -- 
-1.7.9.5
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
