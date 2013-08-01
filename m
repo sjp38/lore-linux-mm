@@ -1,50 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id C98DF6B0031
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 00:22:09 -0400 (EDT)
-Message-ID: <51F9E265.7030503@oracle.com>
-Date: Thu, 01 Aug 2013 12:21:57 +0800
-From: Bob Liu <bob.liu@oracle.com>
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 966D66B0031
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 00:31:50 -0400 (EDT)
+Message-ID: <51F9E4A6.2090909@redhat.com>
+Date: Thu, 01 Aug 2013 00:31:34 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: Possible deadloop in direct reclaim?
-References: <89813612683626448B837EE5A0B6A7CB3B62F8F272@SC-VEXCH4.marvell.com> <000001400d38469d-a121fb96-4483-483a-9d3e-fc552e413892-000000@email.amazonses.com> <89813612683626448B837EE5A0B6A7CB3B62F8F5C3@SC-VEXCH4.marvell.com> <CAHGf_=q8JZQ42R-3yzie7DXUEq8kU+TZXgcX9s=dn8nVigXv8g@mail.gmail.com> <89813612683626448B837EE5A0B6A7CB3B62F8FE33@SC-VEXCH4.marvell.com> <51F69BD7.2060407@gmail.com> <89813612683626448B837EE5A0B6A7CB3B630BDF99@SC-VEXCH4.marvell.com> <51F9CBC0.2020006@gmail.com>
-In-Reply-To: <51F9CBC0.2020006@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [patch 3/3] mm: page_alloc: fair zone allocator policy
+References: <1374267325-22865-1-git-send-email-hannes@cmpxchg.org> <1374267325-22865-4-git-send-email-hannes@cmpxchg.org> <20130801025636.GC19540@bbox>
+In-Reply-To: <20130801025636.GC19540@bbox>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Lisa Du <cldu@marvell.com>, Christoph Lameter <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Bob Liu <lliubbo@gmail.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi KOSAKI,
+On 07/31/2013 10:56 PM, Minchan Kim wrote:
 
-On 08/01/2013 10:45 AM, KOSAKI Motohiro wrote:
+> Yes, it's not really slow path because it could return to normal status
+> without calling significant slow functions by reset batchcount of
+> prepare_slowpath.
+>
+> I think it's tradeoff and I am biased your approach although we would
+> lose a little performance because fair aging would recover the loss by
+> fastpath's overhead. But who knows? Someone has a concern.
+>
+> So we should mention about such problems.
 
-> 
-> Please read more older code. Your pointed code is temporary change and I
-> changed back for fixing
-> bugs.
-> If you look at the status in middle direct reclaim, we can't avoid race
-> condition from multi direct
-> reclaim issues. Moreover, if kswapd doesn't awaken, it is a problem.
-> This is a reason why current code
-> behave as you described.
-> I agree we should fix your issue as far as possible. But I can't agree
-> your analysis.
-> 
+If the atomic operation in the fast path turns out to be a problem,
+I suspect we may be able to fix it by using per-cpu counters, and
+consolidating those every once in a while.
 
-I found this thread:
-mm, vmscan: fix do_try_to_free_pages() livelock
-https://lkml.org/lkml/2012/6/14/74
-
-I think that's the same issue Lisa met.
-
-But I didn't find out why your patch didn't get merged?
-There were already many acks.
+However, it may be good to see whether there is a problem in the
+first place, before adding complexity.
 
 -- 
-Regards,
--Bob
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
