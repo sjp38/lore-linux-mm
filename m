@@ -1,154 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 46CE66B0031
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 01:24:26 -0400 (EDT)
-From: Lisa Du <cldu@marvell.com>
-Date: Wed, 31 Jul 2013 22:19:53 -0700
-Subject: RE: Possible deadloop in direct reclaim?
-Message-ID: <89813612683626448B837EE5A0B6A7CB3B630BE028@SC-VEXCH4.marvell.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id C27D96B0032
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 01:43:11 -0400 (EDT)
+Date: Thu, 1 Aug 2013 14:43:38 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: Possible deadloop in direct reclaim?
+Message-ID: <20130801054338.GD19540@bbox>
 References: <89813612683626448B837EE5A0B6A7CB3B62F8F272@SC-VEXCH4.marvell.com>
- <000001400d38469d-a121fb96-4483-483a-9d3e-fc552e413892-000000@email.amazonses.com>
- <89813612683626448B837EE5A0B6A7CB3B62F8F5C3@SC-VEXCH4.marvell.com>
- <CAHGf_=q8JZQ42R-3yzie7DXUEq8kU+TZXgcX9s=dn8nVigXv8g@mail.gmail.com>
- <89813612683626448B837EE5A0B6A7CB3B62F8FE33@SC-VEXCH4.marvell.com>
- <51F69BD7.2060407@gmail.com>
- <89813612683626448B837EE5A0B6A7CB3B630BDF99@SC-VEXCH4.marvell.com>
- <51F9CBC0.2020006@gmail.com>
-In-Reply-To: <51F9CBC0.2020006@gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <89813612683626448B837EE5A0B6A7CB3B62F8F272@SC-VEXCH4.marvell.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>
-Cc: Christoph Lameter <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Bob Liu <lliubbo@gmail.com>, Neil Zhang <zhangwm@marvell.com>
+To: Lisa Du <cldu@marvell.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Loop in Russel King.
-Would you please help to comment below questions Mr Motohiro asked about fo=
-rk allocating order-2 memory? Thanks in advance!
->(7/31/13 10:24 PM), Lisa Du wrote:
->> Dear Kosaki
->>     Would you please help to check my comment as below:
->>> (7/25/13 9:11 PM), Lisa Du wrote:
->>>> Dear KOSAKI
->>>>      In my test, I didn't set compaction. Maybe compaction is helpful
->to
->>> avoid this issue. I can have try later.
->>>>      In my mind CONFIG_COMPACTION is an optional configuration
->>> right?
->>>
->>> Right. But if you don't set it, application must NOT use >1 order
->allocations.
->>> It doesn't work and it is expected
->>> result.
->>> That's your application mistake.
->> Dear Kosaki, I have two questions on your explanation:
->> a) you said if don't set CONFIG_COMPATION, application must NOT use >1
->order allocations, is there any documentation
->   for this theory?
->
->Sorry I don't understand what "this" mean. I mean, Even though you use
->desktop or server machine, no compaction kernel
->easily makes no order-2 situations.
->Then, our in-kernel subsystems don't use order-2 allocations as far as
->possible.
-Thanks, now I got your point.=20
->
->
->> b) My order-2 allocation not comes from application, but from do_fork
->which is in kernel space,
->    in my mind when a parent process forks a child process, it need to
->allocate a order-2 memory,
->   if a) is right, then CONFIG_COMPATION should be a MUST configuration
->for linux kernel but not optional?
->
->???
->fork alloc order-1 memory for stack. Where and why alloc order-2? If it is
->arch specific code, please
->contact arch maintainer.
-Yes arch do_fork allocate order-2 memory when copy_process.=20
-Hi, Russel
-What's your opinion about this question? =20
-If we really need order-2 memory for fork, then we'd better set CONFIG_COMP=
-ATION right?
->
->
->
->>>
->>>>      If we don't use, and met such an issue, how should we deal with
->>> such infinite loop?
->>>>
->>>>      I made a change in all_reclaimable() function, passed overnight
->tests,
->>> please help review, thanks in advance!
->>>> @@ -2353,7 +2353,9 @@ static bool all_unreclaimable(struct zonelist
->>> *zonelist,
->>>>                           continue;
->>>>                   if (!cpuset_zone_allowed_hardwall(zone,
->>> GFP_KERNEL))
->>>>                           continue;
->>>> -               if (!zone->all_unreclaimable)
->>>> +               if (zone->all_unreclaimable)
->>>> +                       continue;
->>>> +               if (zone_reclaimable(zone))
->>>>                           return false;
->>>
->>> Please tell me why you chaned here.
->> The original check is once found zone->all_unreclaimable is false, it wi=
-ll
->return false, then
->>it will set did_some_progress non-zero. Then another loop of
->direct_reclaimed performed.
->>  But I think zone->all_unreclaimable is not always reliable such as in m=
-y
->case, kswapd go to
->>  sleep and no one will change this flag. We should also check
->zone_reclaimalbe(zone) if
->>  zone->all_unreclaimalbe =3D 0 to double confirm if a zone is reclaimabl=
-e;
->This change also
->>  avoid the issue you described in below commit:
->
->Please read more older code. Your pointed code is temporary change and I
->changed back for fixing
->bugs.
->If you look at the status in middle direct reclaim, we can't avoid race
->condition from multi direct
->reclaim issues. Moreover, if kswapd doesn't awaken, it is a problem. This =
-is
->a reason why current code
->behave as you described.
->I agree we should fix your issue as far as possible. But I can't agree you=
-r
->analysis.
-I read the code you modified which check the zone->all_unreclaimable instea=
-d of zone_reclaimable(zone);
-(In the commit 929bea7c714 vmscan: all_unreclaimable() use zone->all_unrecl=
-aimable as a name)
-Your patch was trying to fix the issue of zone->all_unreclaimable =3D 1, bu=
-t zone->pages_scanned =3D 0 which result all_unreclaimable() return false.
-Is there anything else I missed or misunderstanding?
-In my change, I'll first check zone->all_unreclaimable, if it was set 1, th=
-en I wouldn't check zone->pages_scanned value.
-My point is zone->all_unreclaimable =3D 0 doesn't mean this zone is always =
-reclaimable. As zone->all_unreclaimable can only be set in kswapd.
-And kswapd already fully scan all zones and still can't rebalance the syste=
-m for high-order allocations.  Instead it recheck all watermarks at order-0=
-, and watermarks ok will let kswapd back to sleep. Unfortunately, Kswapd do=
-esn't awaken because long time no higher order allocation wake it up. But t=
-his process continue direct reclaim again and again as zone->all_unreclaima=
-ble remains 0.
-So I also checked the zone->pages_scanned when zone->all_unreclaimable =3D =
-0, if zone_reclaimable() return true, then it's really reclaimable for dire=
-ct reclaimer. This change would break your bug fix right?
+Hello,
 
-Thanks Bob's finding, I read through below thread, and the patch your are t=
-rying to fix is the same issue as mine:
-mm, vmscan: fix do_try_to_free_pages() livelock
-https://lkml.org/lkml/2012/6/14/74
-I have the same question as Bob, you already find this issue, why this patc=
-h wasn't got merged?=20
+On Mon, Jul 22, 2013 at 09:58:17PM -0700, Lisa Du wrote:
+> Dear Sir:
+> Currently I met a possible deadloop in direct reclaim. After run plenty of the application, system run into a status that system memory is very fragmentized. Like only order-0 and order-1 memory left.
+> Then one process required a order-2 buffer but it enter an endless direct reclaim. From my trace log, I can see this loop already over 200,000 times. Kswapd was first wake up and then go back to sleep as it cannot rebalance this order's memory. But zone->all_unreclaimable remains 1.
+> Though direct_reclaim every time returns no pages, but as zone->all_unreclaimable = 1, so it loop again and again. Even when zone->pages_scanned also becomes very large. It will block the process for long time, until some watchdog thread detect this and kill this process. Though it's in __alloc_pages_slowpath, but it's too slow right? Maybe cost over 50 seconds or even more.
+> I think it's not as expected right?  Can we also add below check in the function all_unreclaimable() to terminate this loop?
+> 
+> @@ -2355,6 +2355,8 @@ static bool all_unreclaimable(struct zonelist *zonelist,
+>                         continue;
+>                 if (!zone->all_unreclaimable)
+>                         return false;
+> +               if (sc->nr_reclaimed == 0 && !zone_reclaimable(zone))
+> +                       return true;
+>         }
+>          BTW: I'm using kernel3.4, I also try to search in the kernel3.9, didn't see a possible fix for such issue. Or is anyone also met such issue before? Any comment will be welcomed, looking forward to your reply!
+> 
+> Thanks!
+
+I'd like to ask somethigs.
+
+1. Do you have enabled swap?
+2. Do you enable CONFIG_COMPACTION?
+3. Could we get your zoneinfo via cat /proc/zoneinfo?
+4. If you disabled watchdog thread, you could see OOM sometime
+   although it takes very long time?
+
+
+> 
+> Best Regards
+> Lisa Du
+> 
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
