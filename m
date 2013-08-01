@@ -1,57 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 676946B0031
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 04:57:13 -0400 (EDT)
-Date: Thu, 1 Aug 2013 09:56:53 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: Possible deadloop in direct reclaim?
-Message-ID: <20130801085653.GD24642@n2100.arm.linux.org.uk>
-References: <89813612683626448B837EE5A0B6A7CB3B62F8F272@SC-VEXCH4.marvell.com> <000001400d38469d-a121fb96-4483-483a-9d3e-fc552e413892-000000@email.amazonses.com> <89813612683626448B837EE5A0B6A7CB3B62F8F5C3@SC-VEXCH4.marvell.com> <CAHGf_=q8JZQ42R-3yzie7DXUEq8kU+TZXgcX9s=dn8nVigXv8g@mail.gmail.com> <89813612683626448B837EE5A0B6A7CB3B62F8FE33@SC-VEXCH4.marvell.com> <51F69BD7.2060407@gmail.com> <89813612683626448B837EE5A0B6A7CB3B630BDF99@SC-VEXCH4.marvell.com> <51F9CBC0.2020006@gmail.com> <89813612683626448B837EE5A0B6A7CB3B630BE028@SC-VEXCH4.marvell.com>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 17AD86B0031
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 05:19:28 -0400 (EDT)
+Message-ID: <51FA2800.9070706@huawei.com>
+Date: Thu, 1 Aug 2013 17:18:56 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <89813612683626448B837EE5A0B6A7CB3B630BE028@SC-VEXCH4.marvell.com>
+Subject: [PATCH] mm/hotplug: fix a drain pcp bug when offline pages
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lisa Du <cldu@marvell.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Christoph Lameter <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Bob Liu <lliubbo@gmail.com>, Neil Zhang <zhangwm@marvell.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, cody@linux.vnet.ibm.com, Liujiang <jiang.liu@huawei.com>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, b.zolnierkie@samsung.com
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Jul 31, 2013 at 10:19:53PM -0700, Lisa Du wrote:
-> >fork alloc order-1 memory for stack. Where and why alloc order-2? If it is
-> >arch specific code, please
-> >contact arch maintainer.
-> Yes arch do_fork allocate order-2 memory when copy_process. 
-> Hi, Russel
-> What's your opinion about this question?  
-> If we really need order-2 memory for fork, then we'd better set
-> CONFIG_COMPATION right?
+__offline_pages()
+   start_isolate_page_range()
+      set_migratetype_isolate()
+         set_pageblock_migratetype() -> this pageblock will be marked as MIGRATE_ISOLATE
+         move_freepages_block() -> pages in PageBuddy will be moved into MIGRATE_ISOLATE list
+         drain_all_pages() -> drain PCP
+            free_pcppages_bulk()
+               mt = get_freepage_migratetype(page); -> PCP's migratetype is not MIGRATE_ISOLATE
+               __free_one_page(page, zone, 0, mt); -> so PCP will not be freed into into MIGRATE_ISOLATE list
 
-Well, I gave up trying to read the original messages because the quoting
-style is a total mess, so I don't have a full understanding of what the
-issue is.
+In this case, the PCP may be allocated again, because they are not in 
+PageBuddy's MIGRATE_ISOLATE list. This will cause offline_pages failed.
 
-However, we have always required order-2 memory for fork, going back to
-the 1.x kernel days - it's fundamental to ARM to have that.  The order-2
-allocation os for the 1st level page table.  No order-2 allocation, no
-page tables for the new thread.
+Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+---
+ mm/page_alloc.c     |   10 ++++++----
+ mm/page_isolation.c |   15 ++++++++++++++-
+ 2 files changed, 20 insertions(+), 5 deletions(-)
 
-Looking at this commit:
-
-commit 05106e6a54aed321191b4bb5c9ee09538cbad3b1
-Author: Rik van Riel <riel@redhat.com>
-Date:   Mon Oct 8 16:33:03 2012 -0700
-
-    mm: enable CONFIG_COMPACTION by default
-
-    Now that lumpy reclaim has been removed, compaction is the only way left
-    to free up contiguous memory areas.  It is time to just enable
-    CONFIG_COMPACTION by default.
-
-it seems to indicate that everyone should have this enabled - however,
-the way the change has been done, anyone building from defconfigs before
-that change will not have that option enabled.
-
-So yes, this option should be turned on.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index b100255..d873471 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -965,11 +965,13 @@ int move_freepages(struct zone *zone,
+ 		}
+ 
+ 		order = page_order(page);
+-		list_move(&page->lru,
+-			  &zone->free_area[order].free_list[migratetype]);
+-		set_freepage_migratetype(page, migratetype);
++		if (get_freepage_migratetype(page) != migratetype) {
++			list_move(&page->lru,
++				&zone->free_area[order].free_list[migratetype]);
++			set_freepage_migratetype(page, migratetype);
++			pages_moved += 1 << order;
++		}
+ 		page += 1 << order;
+-		pages_moved += 1 << order;
+ 	}
+ 
+ 	return pages_moved;
+diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+index 383bdbb..ba1afc9 100644
+--- a/mm/page_isolation.c
++++ b/mm/page_isolation.c
+@@ -65,8 +65,21 @@ out:
+ 	}
+ 
+ 	spin_unlock_irqrestore(&zone->lock, flags);
+-	if (!ret)
++
++	if (!ret) {
+ 		drain_all_pages();
++		/*
++		 * When drain_all_pages() frees cached pages into the buddy
++		 * system, it uses the stale migratetype cached in the
++		 * page->index field, so try to move free pages to ISOLATE
++		 * list again.
++		 */
++		spin_lock_irqsave(&zone->lock, flags);
++		nr_pages = move_freepages_block(zone, page, MIGRATE_ISOLATE);
++		__mod_zone_freepage_state(zone, -nr_pages, migratetype);
++		spin_unlock_irqrestore(&zone->lock, flags);
++	}
++
+ 	return ret;
+ }
+ 
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
