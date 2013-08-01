@@ -1,228 +1,274 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 520FB6B005C
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 03:33:04 -0400 (EDT)
-Date: Thu, 1 Aug 2013 16:33:30 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: Possible deadloop in direct reclaim?
-Message-ID: <20130801073330.GG19540@bbox>
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 2CD716B0032
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 04:24:17 -0400 (EDT)
+From: Lisa Du <cldu@marvell.com>
+Date: Thu, 1 Aug 2013 01:20:34 -0700
+Subject: RE: Possible deadloop in direct reclaim?
+Message-ID: <89813612683626448B837EE5A0B6A7CB3B630BE0E3@SC-VEXCH4.marvell.com>
 References: <89813612683626448B837EE5A0B6A7CB3B62F8F272@SC-VEXCH4.marvell.com>
  <20130801054338.GD19540@bbox>
  <89813612683626448B837EE5A0B6A7CB3B630BE04E@SC-VEXCH4.marvell.com>
+ <20130801073330.GG19540@bbox>
+In-Reply-To: <20130801073330.GG19540@bbox>
+Content-Language: en-US
+Content-Type: text/plain; charset="gb2312"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <89813612683626448B837EE5A0B6A7CB3B630BE04E@SC-VEXCH4.marvell.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lisa Du <cldu@marvell.com>
+To: Minchan Kim <minchan@kernel.org>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On Wed, Jul 31, 2013 at 11:13:07PM -0700, Lisa Du wrote:
-> >On Mon, Jul 22, 2013 at 09:58:17PM -0700, Lisa Du wrote:
-> >> Dear Sir:
-> >> Currently I met a possible deadloop in direct reclaim. After run plenty of
-> >the application, system run into a status that system memory is very
-> >fragmentized. Like only order-0 and order-1 memory left.
-> >> Then one process required a order-2 buffer but it enter an endless direct
-> >reclaim. From my trace log, I can see this loop already over 200,000 times.
-> >Kswapd was first wake up and then go back to sleep as it cannot rebalance
-> >this order's memory. But zone->all_unreclaimable remains 1.
-> >> Though direct_reclaim every time returns no pages, but as
-> >zone->all_unreclaimable = 1, so it loop again and again. Even when
-> >zone->pages_scanned also becomes very large. It will block the process for
-> >long time, until some watchdog thread detect this and kill this process.
-> >Though it's in __alloc_pages_slowpath, but it's too slow right? Maybe cost
-> >over 50 seconds or even more.
-> >> I think it's not as expected right?  Can we also add below check in the
-> >function all_unreclaimable() to terminate this loop?
-> >>
-> >> @@ -2355,6 +2355,8 @@ static bool all_unreclaimable(struct zonelist
-> >*zonelist,
-> >>                         continue;
-> >>                 if (!zone->all_unreclaimable)
-> >>                         return false;
-> >> +               if (sc->nr_reclaimed == 0 && !zone_reclaimable(zone))
-> >> +                       return true;
-> >>         }
-> >>          BTW: I'm using kernel3.4, I also try to search in the kernel3.9,
-> >didn't see a possible fix for such issue. Or is anyone also met such issue
-> >before? Any comment will be welcomed, looking forward to your reply!
-> >>
-> >> Thanks!
-> >
-> >I'd like to ask somethigs.
-> >
-> >1. Do you have enabled swap?
-> I set CONFIG_SWAP=y, but I didn't really have a swap partition, that means my swap buffer size is 0;
-> >2. Do you enable CONFIG_COMPACTION?
-> No, I didn't enable;
-> >3. Could we get your zoneinfo via cat /proc/zoneinfo?
-> I dump some info from ramdump, please review:
+Pi0tLS0tT3JpZ2luYWwgTWVzc2FnZS0tLS0tDQo+RnJvbTogTWluY2hhbiBLaW0gW21haWx0bzpt
+aW5jaGFuQGtlcm5lbC5vcmddDQo+U2VudDogMjAxM8TqONTCMcjVIDE1OjM0DQo+VG86IExpc2Eg
+RHUNCj5DYzogbGludXgtbW1Aa3ZhY2sub3JnOyBLT1NBS0kgTW90b2hpcm8NCj5TdWJqZWN0OiBS
+ZTogUG9zc2libGUgZGVhZGxvb3AgaW4gZGlyZWN0IHJlY2xhaW0/DQo+DQo+T24gV2VkLCBKdWwg
+MzEsIDIwMTMgYXQgMTE6MTM6MDdQTSAtMDcwMCwgTGlzYSBEdSB3cm90ZToNCj4+ID5PbiBNb24s
+IEp1bCAyMiwgMjAxMyBhdCAwOTo1ODoxN1BNIC0wNzAwLCBMaXNhIER1IHdyb3RlOg0KPj4gPj4g
+RGVhciBTaXI6DQo+PiA+PiBDdXJyZW50bHkgSSBtZXQgYSBwb3NzaWJsZSBkZWFkbG9vcCBpbiBk
+aXJlY3QgcmVjbGFpbS4gQWZ0ZXIgcnVuIHBsZW50eQ0KPm9mDQo+PiA+dGhlIGFwcGxpY2F0aW9u
+LCBzeXN0ZW0gcnVuIGludG8gYSBzdGF0dXMgdGhhdCBzeXN0ZW0gbWVtb3J5IGlzIHZlcnkNCj4+
+ID5mcmFnbWVudGl6ZWQuIExpa2Ugb25seSBvcmRlci0wIGFuZCBvcmRlci0xIG1lbW9yeSBsZWZ0
+Lg0KPj4gPj4gVGhlbiBvbmUgcHJvY2VzcyByZXF1aXJlZCBhIG9yZGVyLTIgYnVmZmVyIGJ1dCBp
+dCBlbnRlciBhbiBlbmRsZXNzDQo+ZGlyZWN0DQo+PiA+cmVjbGFpbS4gRnJvbSBteSB0cmFjZSBs
+b2csIEkgY2FuIHNlZSB0aGlzIGxvb3AgYWxyZWFkeSBvdmVyIDIwMCwwMDANCj50aW1lcy4NCj4+
+ID5Lc3dhcGQgd2FzIGZpcnN0IHdha2UgdXAgYW5kIHRoZW4gZ28gYmFjayB0byBzbGVlcCBhcyBp
+dCBjYW5ub3QNCj5yZWJhbGFuY2UNCj4+ID50aGlzIG9yZGVyJ3MgbWVtb3J5LiBCdXQgem9uZS0+
+YWxsX3VucmVjbGFpbWFibGUgcmVtYWlucyAxLg0KPj4gPj4gVGhvdWdoIGRpcmVjdF9yZWNsYWlt
+IGV2ZXJ5IHRpbWUgcmV0dXJucyBubyBwYWdlcywgYnV0IGFzDQo+PiA+em9uZS0+YWxsX3VucmVj
+bGFpbWFibGUgPSAxLCBzbyBpdCBsb29wIGFnYWluIGFuZCBhZ2Fpbi4gRXZlbiB3aGVuDQo+PiA+
+em9uZS0+cGFnZXNfc2Nhbm5lZCBhbHNvIGJlY29tZXMgdmVyeSBsYXJnZS4gSXQgd2lsbCBibG9j
+ayB0aGUgcHJvY2Vzcw0KPmZvcg0KPj4gPmxvbmcgdGltZSwgdW50aWwgc29tZSB3YXRjaGRvZyB0
+aHJlYWQgZGV0ZWN0IHRoaXMgYW5kIGtpbGwgdGhpcyBwcm9jZXNzLg0KPj4gPlRob3VnaCBpdCdz
+IGluIF9fYWxsb2NfcGFnZXNfc2xvd3BhdGgsIGJ1dCBpdCdzIHRvbyBzbG93IHJpZ2h0PyBNYXli
+ZQ0KPmNvc3QNCj4+ID5vdmVyIDUwIHNlY29uZHMgb3IgZXZlbiBtb3JlLg0KPj4gPj4gSSB0aGlu
+ayBpdCdzIG5vdCBhcyBleHBlY3RlZCByaWdodD8gIENhbiB3ZSBhbHNvIGFkZCBiZWxvdyBjaGVj
+ayBpbiB0aGUNCj4+ID5mdW5jdGlvbiBhbGxfdW5yZWNsYWltYWJsZSgpIHRvIHRlcm1pbmF0ZSB0
+aGlzIGxvb3A/DQo+PiA+Pg0KPj4gPj4gQEAgLTIzNTUsNiArMjM1NSw4IEBAIHN0YXRpYyBib29s
+IGFsbF91bnJlY2xhaW1hYmxlKHN0cnVjdCB6b25lbGlzdA0KPj4gPip6b25lbGlzdCwNCj4+ID4+
+ICAgICAgICAgICAgICAgICAgICAgICAgIGNvbnRpbnVlOw0KPj4gPj4gICAgICAgICAgICAgICAg
+IGlmICghem9uZS0+YWxsX3VucmVjbGFpbWFibGUpDQo+PiA+PiAgICAgICAgICAgICAgICAgICAg
+ICAgICByZXR1cm4gZmFsc2U7DQo+PiA+PiArICAgICAgICAgICAgICAgaWYgKHNjLT5ucl9yZWNs
+YWltZWQgPT0gMA0KPiYmICF6b25lX3JlY2xhaW1hYmxlKHpvbmUpKQ0KPj4gPj4gKyAgICAgICAg
+ICAgICAgICAgICAgICAgcmV0dXJuIHRydWU7DQo+PiA+PiAgICAgICAgIH0NCj4+ID4+ICAgICAg
+ICAgIEJUVzogSSdtIHVzaW5nIGtlcm5lbDMuNCwgSSBhbHNvIHRyeSB0byBzZWFyY2ggaW4gdGhl
+DQo+a2VybmVsMy45LA0KPj4gPmRpZG4ndCBzZWUgYSBwb3NzaWJsZSBmaXggZm9yIHN1Y2ggaXNz
+dWUuIE9yIGlzIGFueW9uZSBhbHNvIG1ldCBzdWNoIGlzc3VlDQo+PiA+YmVmb3JlPyBBbnkgY29t
+bWVudCB3aWxsIGJlIHdlbGNvbWVkLCBsb29raW5nIGZvcndhcmQgdG8geW91ciByZXBseSENCj4+
+ID4+DQo+PiA+PiBUaGFua3MhDQo+PiA+DQo+PiA+SSdkIGxpa2UgdG8gYXNrIHNvbWV0aGlncy4N
+Cj4+ID4NCj4+ID4xLiBEbyB5b3UgaGF2ZSBlbmFibGVkIHN3YXA/DQo+PiBJIHNldCBDT05GSUdf
+U1dBUD15LCBidXQgSSBkaWRuJ3QgcmVhbGx5IGhhdmUgYSBzd2FwIHBhcnRpdGlvbiwgdGhhdA0K
+Pm1lYW5zIG15IHN3YXAgYnVmZmVyIHNpemUgaXMgMDsNCj4+ID4yLiBEbyB5b3UgZW5hYmxlIENP
+TkZJR19DT01QQUNUSU9OPw0KPj4gTm8sIEkgZGlkbid0IGVuYWJsZTsNCj4+ID4zLiBDb3VsZCB3
+ZSBnZXQgeW91ciB6b25laW5mbyB2aWEgY2F0IC9wcm9jL3pvbmVpbmZvPw0KPj4gSSBkdW1wIHNv
+bWUgaW5mbyBmcm9tIHJhbWR1bXAsIHBsZWFzZSByZXZpZXc6DQo+DQo+VGhhbmtzIGZvciB0aGUg
+aW5mb3JtYXRpb24uDQo+WW91IHNhaWQgb3JkZXItMiBhbGxvY2F0aW9uIHdhcyBmYWlsZWQgc28g
+SSB3aWxsIGFzc3VtZSBwcmVmZXJyZWQgem9uZQ0KPmlzIG5vcm1hbCB6b25lLCBub3QgaGlnaCB6
+b25lIGJlY2F1c2UgaGlnaCBvcmRlciBhbGxvY2F0aW9uIGluIGtlcm5lbCBzaWRlDQo+aXNuJ3Qg
+ZnJvbSBoaWdoIHpvbmUuDQpZZXMsIHRoYXQncyByaWdodCENCj4NCj4+IGNyYXNoPiBrbWVtIC16
+DQo+PiBOT0RFOiAwICBaT05FOiAwICBBRERSOiBjMDg0NjBjMCAgTkFNRTogIk5vcm1hbCINCj4+
+ICAgU0laRTogMTkyNTEyICBQUkVTRU5UOiAxODIzMDQgIE1JTi9MT1cvSElHSDogODUzLzEwNjYv
+MTI3OQ0KPg0KPjcxMk0gbm9ybWFsIG1lbW9yeS4NCj4NCj4+ICAgVk1fU1RBVDoNCj4+ICAgICAg
+ICAgICBOUl9GUkVFX1BBR0VTOiAxNjA5Mg0KPg0KPlRoZXJlIGFyZSBwbGVudHkgb2YgZnJlZSBw
+YWdlcyBvdmVyIGhpZ2ggd2F0ZXJtYXJrIGJ1dCB0aGVyZSBhcmUgaGVhdnkNCj5mcmFnbWVudGF0
+aW9uIGFzIEkgc2VlIGJlbG93IGluZm9ybWF0aW9uLg0KPg0KPlNvLCBrc3dhcGQgZG9lc24ndCBz
+Y2FuIHRoaXMgem9uZSBsb29wIGl0ZXJhdGlvbiBpcyBkb25lIHdpdGggb3JkZXItMi4NCj5JIG1l
+YW4ga3N3YXBkIHdpbGwgc2NhbiB0aGlzIHpvbmUgd2l0aCBvcmRlci0wIGlmIGZpcnN0IGl0ZXJh
+dGlvbiBpcw0KPmRvbmUgYnkgdGhpcw0KPg0KPiAgICAgICAgb3JkZXIgPSBzYy5vcmRlciA9IDA7
+DQo+DQo+ICAgICAgICBnb3RvIGxvb3BfYWdhaW47DQo+DQo+QnV0IHRoaXMgdGltZSwgem9uZV93
+YXRlcm1hcmtfb2tfc2FmZSB3aXRoIHRlc3RvcmRlciA9IDAgb24gbm9ybWFsIHpvbmUNCj5pcyBh
+bHdheXMgdHJ1ZSBzbyB0aGF0IHNjYW5uaW5nIG9mIHpvbmUgd2lsbCBiZSBza2lwcGVkLiBJdCBt
+ZWFucyBrc3dhcGQNCj5uZXZlciBzZXQgem9uZS0+dW5yZWNsYWltYWJsZSB0byAxLg0KWWVzLCBk
+ZWZpbml0ZWx5IQ0KPg0KPj4gICAgICAgIE5SX0lOQUNUSVZFX0FOT046IDE3DQo+PiAgICAgICAg
+ICBOUl9BQ1RJVkVfQU5PTjogNTUwOTENCj4+ICAgICAgICBOUl9JTkFDVElWRV9GSUxFOiAxNw0K
+Pj4gICAgICAgICAgTlJfQUNUSVZFX0ZJTEU6IDE3DQo+PiAgICAgICAgICBOUl9VTkVWSUNUQUJM
+RTogMA0KPj4gICAgICAgICAgICAgICAgTlJfTUxPQ0s6IDANCj4+ICAgICAgICAgICBOUl9BTk9O
+X1BBR0VTOiA1NTA3Nw0KPg0KPlRoZXJlIGFyZSBhYm91dCAyMDBNIGFub24gcGFnZXMgYW5kIGZl
+dyBmaWxlIHBhZ2VzLg0KPllvdSBkb24ndCBoYXZlIHN3YXAgc28gdGhhdCByZWNsYWltZXIgY291
+bGRuJ3QgZ28gZmFyLg0KPg0KPj4gICAgICAgICAgTlJfRklMRV9NQVBQRUQ6IDQyDQo+PiAgICAg
+ICAgICAgTlJfRklMRV9QQUdFUzogNjkNCj4+ICAgICAgICAgICBOUl9GSUxFX0RJUlRZOiAwDQo+
+PiAgICAgICAgICAgIE5SX1dSSVRFQkFDSzogMA0KPj4gICAgIE5SX1NMQUJfUkVDTEFJTUFCTEU6
+IDEyMjYNCj4+ICAgTlJfU0xBQl9VTlJFQ0xBSU1BQkxFOiA5MzczDQo+PiAgICAgICAgICAgIE5S
+X1BBR0VUQUJMRTogMjc3Ng0KPj4gICAgICAgICBOUl9LRVJORUxfU1RBQ0s6IDc5OA0KPj4gICAg
+ICAgICBOUl9VTlNUQUJMRV9ORlM6IDANCj4+ICAgICAgICAgICAgICAgTlJfQk9VTkNFOiAwDQo+
+PiAgICAgICAgIE5SX1ZNU0NBTl9XUklURTogOTENCj4+ICAgICBOUl9WTVNDQU5fSU1NRURJQVRF
+OiAxMTUzODENCj4+ICAgICAgIE5SX1dSSVRFQkFDS19URU1QOiAwDQo+PiAgICAgICAgTlJfSVNP
+TEFURURfQU5PTjogMA0KPj4gICAgICAgIE5SX0lTT0xBVEVEX0ZJTEU6IDANCj4+ICAgICAgICAg
+ICAgICAgIE5SX1NITUVNOiAzMQ0KPj4gICAgICAgICAgICAgIE5SX0RJUlRJRUQ6IDE1MjU2DQo+
+PiAgICAgICAgICAgICAgTlJfV1JJVFRFTjogMTE5ODENCj4+IE5SX0FOT05fVFJBTlNQQVJFTlRf
+SFVHRVBBR0VTOiAwDQo+Pg0KPj4gTk9ERTogMCAgWk9ORTogMSAgQUREUjogYzA4NDY0YzAgIE5B
+TUU6ICJIaWdoTWVtIg0KPj4gICBTSVpFOiA2OTYzMiAgUFJFU0VOVDogNjkwODggIE1JTi9MT1cv
+SElHSDogNjcvMTQ3LzIyOA0KPj4gICBWTV9TVEFUOg0KPj4gICAgICAgICAgIE5SX0ZSRUVfUEFH
+RVM6IDE2MQ0KPg0KPlJlY2xhaW1lciBzaG91bGQgcmVjbGFpbSB0aGlzIHpvbmUuDQo+DQo+PiAg
+ICAgICAgTlJfSU5BQ1RJVkVfQU5PTjogMTA0DQo+PiAgICAgICAgICBOUl9BQ1RJVkVfQU5PTjog
+NDYxMTQNCj4+ICAgICAgICBOUl9JTkFDVElWRV9GSUxFOiA5NzIyDQo+PiAgICAgICAgICBOUl9B
+Q1RJVkVfRklMRTogMTIyNjMNCj4NCj5JdCBzZWVtcyB0aGVyZSBhcmUgbG90cyBvZiByb29tIHRv
+IGV2aWN0IGZpbGUgcGFnZXMuDQo+DQo+PiAgICAgICAgICBOUl9VTkVWSUNUQUJMRTogMTY4DQo+
+PiAgICAgICAgICAgICAgICBOUl9NTE9DSzogMA0KPj4gICAgICAgICAgIE5SX0FOT05fUEFHRVM6
+IDQ2MTAyDQo+PiAgICAgICAgICBOUl9GSUxFX01BUFBFRDogMTIyMjcNCj4+ICAgICAgICAgICBO
+Ul9GSUxFX1BBR0VTOiAyMjI3MA0KPj4gICAgICAgICAgIE5SX0ZJTEVfRElSVFk6IDENCj4+ICAg
+ICAgICAgICAgTlJfV1JJVEVCQUNLOiAwDQo+PiAgICAgTlJfU0xBQl9SRUNMQUlNQUJMRTogMA0K
+Pj4gICBOUl9TTEFCX1VOUkVDTEFJTUFCTEU6IDANCj4+ICAgICAgICAgICAgTlJfUEFHRVRBQkxF
+OiAwDQo+PiAgICAgICAgIE5SX0tFUk5FTF9TVEFDSzogMA0KPj4gICAgICAgICBOUl9VTlNUQUJM
+RV9ORlM6IDANCj4+ICAgICAgICAgICAgICAgTlJfQk9VTkNFOiAwDQo+PiAgICAgICAgIE5SX1ZN
+U0NBTl9XUklURTogMA0KPj4gICAgIE5SX1ZNU0NBTl9JTU1FRElBVEU6IDANCj4+ICAgICAgIE5S
+X1dSSVRFQkFDS19URU1QOiAwDQo+PiAgICAgICAgTlJfSVNPTEFURURfQU5PTjogMA0KPj4gICAg
+ICAgIE5SX0lTT0xBVEVEX0ZJTEU6IDANCj4+ICAgICAgICAgICAgICAgIE5SX1NITUVNOiAxMTcN
+Cj4+ICAgICAgICAgICAgICBOUl9ESVJUSUVEOiA3MzY0DQo+PiAgICAgICAgICAgICAgTlJfV1JJ
+VFRFTjogNjk4OQ0KPj4gTlJfQU5PTl9UUkFOU1BBUkVOVF9IVUdFUEFHRVM6IDANCj4+DQo+PiBa
+T05FICBOQU1FICAgICAgICBTSVpFICAgIEZSRUUgIE1FTV9NQVAgICBTVEFSVF9QQUREUg0KPlNU
+QVJUX01BUE5SDQo+PiAgIDAgICBOb3JtYWwgICAgMTkyNTEyICAgMTYwOTIgIGMxMjAwMDAwICAg
+ICAgIDAgICAgICAgICAgICAwDQo+PiBBUkVBICAgIFNJWkUgIEZSRUVfQVJFQV9TVFJVQ1QgIEJM
+T0NLUyAgUEFHRVMNCj4+ICAgMCAgICAgICA0ayAgICAgIGMwODQ2MGYwICAgICAgICAgICAzICAg
+ICAgMw0KPj4gICAwICAgICAgIDRrICAgICAgYzA4NDYwZjggICAgICAgICA0MzYgICAgNDM2DQo+
+PiAgIDAgICAgICAgNGsgICAgICBjMDg0NjEwMCAgICAgICAxNTIzNyAgMTUyMzcNCj4+ICAgMCAg
+ICAgICA0ayAgICAgIGMwODQ2MTA4ICAgICAgICAgICAwICAgICAgMA0KPj4gICAwICAgICAgIDRr
+ICAgICAgYzA4NDYxMTAgICAgICAgICAgIDAgICAgICAwDQo+PiAgIDEgICAgICAgOGsgICAgICBj
+MDg0NjExYyAgICAgICAgICAzOSAgICAgNzgNCj4+ICAgMSAgICAgICA4ayAgICAgIGMwODQ2MTI0
+ICAgICAgICAgICAwICAgICAgMA0KPj4gICAxICAgICAgIDhrICAgICAgYzA4NDYxMmMgICAgICAg
+ICAxNjkgICAgMzM4DQo+PiAgIDEgICAgICAgOGsgICAgICBjMDg0NjEzNCAgICAgICAgICAgMCAg
+ICAgIDANCj4+ICAgMSAgICAgICA4ayAgICAgIGMwODQ2MTNjICAgICAgICAgICAwICAgICAgMA0K
+Pj4gICAyICAgICAgMTZrICAgICAgYzA4NDYxNDggICAgICAgICAgIDAgICAgICAwDQo+PiAgIDIg
+ICAgICAxNmsgICAgICBjMDg0NjE1MCAgICAgICAgICAgMCAgICAgIDANCj4+ICAgMiAgICAgIDE2
+ayAgICAgIGMwODQ2MTU4ICAgICAgICAgICAwICAgICAgMA0KPj4gLS0tLS0tLS0tTm9ybWFsIHpv
+bmUgYWxsIG9yZGVyID4gMSBoYXMgbm8gZnJlZSBwYWdlcw0KPj4gWk9ORSAgTkFNRSAgICAgICAg
+U0laRSAgICBGUkVFICBNRU1fTUFQICAgU1RBUlRfUEFERFINCj5TVEFSVF9NQVBOUg0KPj4gICAx
+ICAgSGlnaE1lbSAgICA2OTYzMiAgICAgMTYxICBjMTdlMDAwMCAgICAyZjAwMDAwMA0KPjE5MjUx
+Mg0KPj4gQVJFQSAgICBTSVpFICBGUkVFX0FSRUFfU1RSVUNUICBCTE9DS1MgIFBBR0VTDQo+PiAg
+IDAgICAgICAgNGsgICAgICBjMDg0NjRmMCAgICAgICAgICAxMiAgICAgMTINCj4+ICAgMCAgICAg
+ICA0ayAgICAgIGMwODQ2NGY4ICAgICAgICAgICAwICAgICAgMA0KPj4gICAwICAgICAgIDRrICAg
+ICAgYzA4NDY1MDAgICAgICAgICAgMTQgICAgIDE0DQo+PiAgIDAgICAgICAgNGsgICAgICBjMDg0
+NjUwOCAgICAgICAgICAgMyAgICAgIDMNCj4+ICAgMCAgICAgICA0ayAgICAgIGMwODQ2NTEwICAg
+ICAgICAgICAwICAgICAgMA0KPj4gICAxICAgICAgIDhrICAgICAgYzA4NDY1MWMgICAgICAgICAg
+IDAgICAgICAwDQo+PiAgIDEgICAgICAgOGsgICAgICBjMDg0NjUyNCAgICAgICAgICAgMCAgICAg
+IDANCj4+ICAgMSAgICAgICA4ayAgICAgIGMwODQ2NTJjICAgICAgICAgICAwICAgICAgMA0KPj4g
+ICAyICAgICAgMTZrICAgICAgYzA4NDY1NDggICAgICAgICAgIDAgICAgICAwDQo+PiAgIDIgICAg
+ICAxNmsgICAgICBjMDg0NjU1MCAgICAgICAgICAgMCAgICAgIDANCj4+ICAgMiAgICAgIDE2ayAg
+ICAgIGMwODQ2NTU4ICAgICAgICAgICAwICAgICAgMA0KPj4gICAyICAgICAgMTZrICAgICAgYzA4
+NDY1NjAgICAgICAgICAgIDEgICAgICA0DQo+PiAgIDIgICAgICAxNmsgICAgICBjMDg0NjU2OCAg
+ICAgICAgICAgMCAgICAgIDANCj4+ICAgNSAgICAgMTI4ayAgICAgIGMwODQ2NWNjICAgICAgICAg
+ICAwICAgICAgMA0KPj4gICA1ICAgICAxMjhrICAgICAgYzA4NDY1ZDQgICAgICAgICAgIDAgICAg
+ICAwDQo+PiAgIDUgICAgIDEyOGsgICAgICBjMDg0NjVkYyAgICAgICAgICAgMCAgICAgIDANCj4+
+ICAgNSAgICAgMTI4ayAgICAgIGMwODQ2NWU0ICAgICAgICAgICA0ICAgIDEyOA0KPj4gICA1ICAg
+ICAxMjhrICAgICAgYzA4NDY1ZWMgICAgICAgICAgIDAgICAgICAwDQo+PiAtLS0tLS1PdGhlcidz
+IGFsbCB6ZXJvDQo+Pg0KPj4gU29tZSBvdGhlciB6b25lIGluZm9ybWF0aW9uIEkgZHVtcCBmcm9t
+IHBnbGlzdF9kYXRhDQo+PiB7DQo+PiAJd2F0ZXJtYXJrID0gezg1MywgMTA2NiwgMTI3OX0sDQo+
+PiAgICAgICBwZXJjcHVfZHJpZnRfbWFyayA9IDAsDQo+PiAgICAgICBsb3dtZW1fcmVzZXJ2ZSA9
+IHswLCAyMTU5LCAyMTU5fSwNCj4+ICAgICAgIGRpcnR5X2JhbGFuY2VfcmVzZXJ2ZSA9IDM0Mzgs
+DQo+PiAgICAgICBwYWdlc2V0ID0gMHhjMDdmNjE0NCwNCj4+ICAgICAgIGxvY2sgPSB7DQo+PiAg
+ICAgICAgIHsNCj4+ICAgICAgICAgICBybG9jayA9IHsNCj4+ICAgICAgICAgICAgIHJhd19sb2Nr
+ID0gew0KPj4gICAgICAgICAgICAgICBsb2NrID0gMA0KPj4gICAgICAgICAgICAgfSwNCj4+ICAg
+ICAgICAgICAgIGJyZWFrX2xvY2sgPSAwDQo+PiAgICAgICAgICAgfQ0KPj4gICAgICAgICB9DQo+
+PiAgICAgICB9LA0KPj4gCWFsbF91bnJlY2xhaW1hYmxlID0gMCwNCj4+ICAgICAgIHJlY2xhaW1f
+c3RhdCA9IHsNCj4+ICAgICAgICAgcmVjZW50X3JvdGF0ZWQgPSB7OTAzMzU1LCA5NjA5MTJ9LA0K
+Pj4gICAgICAgICByZWNlbnRfc2Nhbm5lZCA9IHs5MzI0MDQsIDI0NjIwMTd9DQo+PiAgICAgICB9
+LA0KPj4gICAgICAgcGFnZXNfc2Nhbm5lZCA9IDg0MjMxLA0KPg0KPk1vc3Qgb2Ygc2NhbiBoYXBw
+ZW5zIGluIGRpcmVjdCByZWNsYWltIHBhdGgsIEkgZ3Vlc3MNCj5idXQgZGlyZWN0IHJlY2xhaW0g
+Y291bGRuJ3QgcmVjbGFpbSBhbnkgcGFnZXMgZHVlIHRvIGxhY2sgb2Ygc3dhcCBkZXZpY2UuDQo+
+DQo+SXQgbWVhbnMgd2UgaGF2ZSB0byBzZXQgem9uZS0+YWxsX3VucmVjbGFpbWFibGUgaW4gZGly
+ZWN0IHJlY2xhaW0gcGF0aCwNCj50b28uDQo+QmVsb3cgcGF0Y2ggZml4IHlvdXIgcHJvYmxlbT8N
+ClllcywgeW91ciBwYXRjaCBzaG91bGQgZml4IG15IHByb2JsZW0hIA0KQWN0dWFsbHkgSSBhbHNv
+IGRpZCBhbm90aGVyIHBhdGNoLCBhZnRlciB0ZXN0LCBzaG91bGQgYWxzbyBmaXggbXkgaXNzdWUs
+IA0KYnV0IEkgZGlkbid0IHNldCB6b25lLT5hbGxfdW5yZWNsYWltYWJsZSBpbiBkaXJlY3QgcmVj
+bGFpbSBwYXRoIGFzIHlvdSwgDQpqdXN0IGRvdWJsZSBjaGVjayB6b25lX3JlY2xhaW1hYmxlKCkg
+c3RhdHVzIGluIGFsbF91bnJlY2xhaW1hYmxlKCkgZnVuY3Rpb24uDQpNYXliZSB5b3VyIHBhdGNo
+IGlzIGJldHRlciENCg0KY29tbWl0IDI2ZDJiNjBkMDYyMzQ2ODNhODE2NjZkYTU1MTI5ZjljOTgy
+MjcxYTUNCkF1dGhvcjogTGlzYSBEdSA8Y2xkdUBtYXJ2ZWxsLmNvbT4NCkRhdGU6ICAgVGh1IEF1
+ZyAxIDEwOjE2OjMyIDIwMTMgKzA4MDANCg0KICAgIG1tOiBmaXggaW5maW5pdGUgZGlyZWN0X3Jl
+Y2xhaW0gd2hlbiBtZW1vcnkgaXMgdmVyeSBmcmFnbWVudGl6ZWQNCiAgICANCiAgICBsYXRlc3Qg
+YWxsX3VucmVjbGFpbWFibGUgY2hlY2sgaW4gZGlyZWN0IHJlY2xhaW0gaXMgdGhlIGZvbGxvd2lu
+ZyBjb21taXQuDQogICAgMjAxMSBBcHIgMTQ7IGNvbW1pdCA5MjliZWE3Yzsgdm1zY2FuOiAgYWxs
+X3VucmVjbGFpbWFibGUoKSB1c2UNCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgem9u
+ZS0+YWxsX3VucmVjbGFpbWFibGUgYXMgYSBuYW1lDQogICAgYW5kIGluIGFkZGl0aW9uLCBhZGQg
+b29tX2tpbGxlcl9kaXNhYmxlZCBjaGVjayB0byBhdm9pZCByZWludHJvZHVjZSB0aGUNCiAgICBp
+c3N1ZSBvZiBjb21taXQgZDE5MDgzNjIgKCJ2bXNjYW46IGNoZWNrIGFsbF91bnJlY2xhaW1hYmxl
+IGluIGRpcmVjdCByZWNsYWltIHBhdGgiKS4NCiAgICANCiAgICBCdXQgZXhjZXB0IHRoZSBoaWJl
+cm5hdGlvbiBjYXNlIGluIHdoaWNoIGtzd2FwZCBpcyBmcmVlemVkLCB0aGVyZSdzIGFsc28gb3Ro
+ZXIgY2FzZQ0KICAgIHdoaWNoIG1heSBsZWFkIGluZmluaXRlIGxvb3AgaW4gZGlyZWN0IHJlbGFp
+bS4gSW4gYSByZWFsIHRlc3QsIGRpcmVjdF9yZWxhaW1lciBkaWQNCiAgICBvdmVyIDIwMDAwMCB0
+aW1lcyByZWJhbGFuY2UgaW4gX19hbGxvY19wYWdlc19zbG93cGF0aCgpLCBzbyB0aGlzIHByb2Nl
+c3Mgd2lsbCBiZQ0KICAgIGJsb2NrZWQgdW50aWwgd2F0Y2hkb2cgZGV0ZWN0IGFuZCBraWxsIGl0
+LiBUaGUgcm9vdCBjYXVzZSBpcyBhcyBiZWxvdzoNCiAgICANCiAgICBJZiBzeXN0ZW0gbWVtb3J5
+IGlzIHZlcnkgZnJhZ21lbnRpemVkIGxpa2Ugb25seSBvcmRlci0wIGFuZCBvcmRlci0xIGxlZnQs
+DQogICAga3N3YXBkIHdpbGwgZ28gdG8gc2xlZXAgYXMgc3lzdGVtIGNhbm4ndCByZWJhbGFuY2Vk
+IGZvciBoaWdoLW9yZGVyIGFsbG9jYXRpb25zLg0KICAgIEJ1dCBkaXJlY3RfcmVjbGFpbSBzdGls
+bCB3b3JrcyBmb3IgaGlnaGVyIG9yZGVyIHJlcXVlc3QuIFNvIHpvbmVzIGNhbiBiZWNvbWUgYSBz
+dGF0ZQ0KICAgIHpvbmUtPmFsbF91bnJlY2xhaW1hYmxlID0gMCBidXQgem9uZS0+cGFnZXNfc2Nh
+bm5lZCA+IHpvbmVfcmVjbGFpbWFibGVfcGFnZXMoem9uZSkgKiA2Lg0KICAgIEluIHRoaXMgY2Fz
+ZSBpZiBhIHByb2Nlc3MgbGlrZSBkb19mb3JrIHRyeSB0byBhbGxvY2F0ZSBhbiBvcmRlci0yIG1l
+bW9yeSB3aGljaCBpcyBub3QNCiAgICBhIENPU1RMWV9PUkRFUiwgYXMgZGlyZWN0X3JlY2xhaW0g
+YWx3YXlzIHNhaWQgaXQgZGlkX3NvbWVfcHJvZ3Jlc3MsIHNvIHJlYmFsYW5jZSBhZ2Fpbg0KICAg
+IGFuZCBhZ2FpbiBpbiBfX2FsbG9jX3BhZ2VzX3Nsb3dwYXRoKCkuIFRoaXMgaXNzdWUgaXMgZWFz
+aWx5IGhhcHBlbiBpbiBubyBzd2FwIGFuZCBubw0KICAgIGNvbXBhY3Rpb24gZW52aXJvbWVudC4N
+CiAgICANCiAgICBTbyBhZGQgZnVydGh1ciBjaGVjayBpbiBhbGxfdW5yZWNsYWltYWJsZSgpIHRv
+IGF2b2lkIHN1Y2ggY2FzZS4NCiAgICANCiAgICBDaGFuZ2UtSWQ6IElkMzI2NmI0N2M2M2Y1Yjk2
+YWFiNDY2ZmQ5ZjFmNDRkMzdlMTZjZGNiDQogICAgU2lnbmVkLW9mZi1ieTogTGlzYSBEdSA8Y2xk
+dUBtYXJ2ZWxsLmNvbT4NCg0KZGlmZiAtLWdpdCBhL21tL3Ztc2Nhbi5jIGIvbW0vdm1zY2FuLmMN
+CmluZGV4IDJjZmYwZDQuLjM0NTgyZDkgMTAwNjQ0DQotLS0gYS9tbS92bXNjYW4uYw0KKysrIGIv
+bW0vdm1zY2FuLmMNCkBAIC0yMzAxLDcgKzIzMDEsOSBAQCBzdGF0aWMgYm9vbCBhbGxfdW5yZWNs
+YWltYWJsZShzdHJ1Y3Qgem9uZWxpc3QgKnpvbmVsaXN0LA0KICAgICAgICAgICAgICAgICAgICAg
+ICAgY29udGludWU7DQogICAgICAgICAgICAgICAgaWYgKCFjcHVzZXRfem9uZV9hbGxvd2VkX2hh
+cmR3YWxsKHpvbmUsIEdGUF9LRVJORUwpKQ0KICAgICAgICAgICAgICAgICAgICAgICAgY29udGlu
+dWU7DQotICAgICAgICAgICAgICAgaWYgKCF6b25lLT5hbGxfdW5yZWNsYWltYWJsZSkNCisgICAg
+ICAgICAgICAgICBpZiAoem9uZS0+YWxsX3VucmVjbGFpbWFibGUpDQorICAgICAgICAgICAgICAg
+ICAgICAgICBjb250aW51ZTsNCisgICAgICAgICAgICAgICBpZiAoem9uZV9yZWNsYWltYWJsZSh6
+b25lKSkNCiAgICAgICAgICAgICAgICAgICAgICAgIHJldHVybiBmYWxzZTsNCiAgICAgICAgfQ0K
+Pg0KPkZyb20gYTVkODIxNTliOThmM2Q5MGMyZjlmZjllNDg2Njk5ZmI0YzY3Y2NlZCBNb24gU2Vw
+IDE3IDAwOjAwOjAwDQo+MjAwMQ0KPkZyb206IE1pbmNoYW4gS2ltIDxtaW5jaGFuQGtlcm5lbC5v
+cmc+DQo+RGF0ZTogVGh1LCAxIEF1ZyAyMDEzIDE2OjE4OjAwICswOTAwDQo+U3ViamVjdDpbUEFU
+Q0hdIG1tOiBzZXQgem9uZS0+YWxsX3VucmVjbGFpbWFibGUgaW4gZGlyZWN0IHJlY2xhaW0NCj4g
+cGF0aA0KPg0KPkxpc2EgcmVwb3J0ZWQgdGhlcmUgYXJlIGxvdHMgb2YgZnJlZSBwYWdlcyBpbiBh
+IHpvbmUgYnV0IG1vc3Qgb2YgdGhlbQ0KPmlzIG9yZGVyLTAgcGFnZXMgc28gaXQgbWVhbnMgdGhl
+IHpvbmUgaXMgaGVhdmlseSBmcmFnZW1lbnRlZC4NCj5UaGVuLCBoaWdoIG9yZGVyIGFsbG9jYXRp
+b24gY291bGQgbWFrZSBkaXJlY3QgcmVjbGFpbSBwYXRoJ3Nsb25nIHN0YWxsKA0KPmV4LCA1MCBz
+ZWNvbmQpIGluIG5vIHN3YXAgYW5kIG5vIGNvbXBhY3Rpb24gZW52aXJvbm1lbnQuDQo+DQo+VGhl
+IHJlYXNvbiBpcyBrc3dhcGQgY2FuIHNraXAgdGhlIHpvbmUncyBzY2FubmluZyBiZWNhdXNlIHRo
+ZSB6b25lDQo+aXMgbG90cyBvZiBmcmVlIHBhZ2VzIGFuZCBrc3dhcGQgY2hhbmdlcyBzY2Fubmlu
+ZyBvcmRlciBmcm9tIGhpZ2gtb3JkZXINCj50byAwLW9yZGVyIGFmdGVyIGhpcyBmaXJzdCBpdGVy
+YXRpb24gaXMgZG9uZSBiZWNhdXNlIGtzd2FwZCB0aGluaw0KPm9yZGVyLTAgYWxsb2NhdGlvbiBp
+cyB0aGUgbW9zdCBpbXBvcnRhbnQuDQo+TG9vayBhdCA3M2NlMDJlOSBpbiBkZXRhaWwuDQo+DQo+
+VGhlIHByb2JsZW0gZnJvbSB0aGF0IGlzIHRoYXQgb25seSBrc3dhcGQgY2FuIHNldCB6b25lLT5h
+bGxfdW5yZWNsYWltYWJsZQ0KPnRvIDEgYXQgdGhlIG1vbWVudCBzbyBkaXJlY3QgcmVjbGFpbSBw
+YXRoIHNob3VsZCBsb29wIGZvcmV2ZXIgdW50aWwgYSBnaG9zdA0KPmNhbiBzZXQgdGhlIHpvbmUt
+PmFsbF91bnJlY2xhaW1hYmxlIHRvIDEuDQo+DQo+VGhpcyBwYXRjaCBtYWtlcyBkaXJlY3QgcmVj
+bGFpbSBwYXRoIHRvIHNldCB6b25lLT5hbGxfdW5yZWNsYWltYWJsZQ0KPnRvIGF2b2lkIGluZmlu
+aXRlIGxvb3AuIFNvIG5vdyB3ZSBkb24ndCBuZWVkIGEgZ2hvc3QuDQo+DQo+UmVwb3J0ZWQtYnk6
+IExpc2EgRHUgPGNsZHVAbWFydmVsbC5jb20+DQo+U2lnbmVkLW9mZi1ieTogTWluY2hhbiBLaW0g
+PG1pbmNoYW5Aa2VybmVsLm9yZz4NCj4tLS0NCj4gbW0vdm1zY2FuLmMgfCAgIDI5ICsrKysrKysr
+KysrKysrKysrKysrKysrKysrKystDQo+IDEgZmlsZSBjaGFuZ2VkLCAyOCBpbnNlcnRpb25zKCsp
+LCAxIGRlbGV0aW9uKC0pDQo+DQo+ZGlmZiAtLWdpdCBhL21tL3Ztc2Nhbi5jIGIvbW0vdm1zY2Fu
+LmMNCj5pbmRleCAzM2RjMjU2Li5mOTU3ZTg3IDEwMDY0NA0KPi0tLSBhL21tL3Ztc2Nhbi5jDQo+
+KysrIGIvbW0vdm1zY2FuLmMNCj5AQCAtMjMxNyw2ICsyMzE3LDIzIEBAIHN0YXRpYyBib29sIGFs
+bF91bnJlY2xhaW1hYmxlKHN0cnVjdCB6b25lbGlzdA0KPip6b25lbGlzdCwNCj4gCXJldHVybiB0
+cnVlOw0KPiB9DQo+DQo+K3N0YXRpYyB2b2lkIGNoZWNrX3pvbmVzX3VucmVjbGFpbWFibGUoc3Ry
+dWN0IHpvbmVsaXN0ICp6b25lbGlzdCwNCj4rCQkJCQlzdHJ1Y3Qgc2Nhbl9jb250cm9sICpzYykN
+Cj4rew0KPisJc3RydWN0IHpvbmVyZWYgKno7DQo+KwlzdHJ1Y3Qgem9uZSAqem9uZTsNCj4rDQo+
+Kwlmb3JfZWFjaF96b25lX3pvbmVsaXN0X25vZGVtYXNrKHpvbmUsIHosIHpvbmVsaXN0LA0KPisJ
+CQlnZnBfem9uZShzYy0+Z2ZwX21hc2spLCBzYy0+bm9kZW1hc2spIHsNCj4rCQlpZiAoIXBvcHVs
+YXRlZF96b25lKHpvbmUpKQ0KPisJCQljb250aW51ZTsNCj4rCQlpZiAoIWNwdXNldF96b25lX2Fs
+bG93ZWRfaGFyZHdhbGwoem9uZSwgR0ZQX0tFUk5FTCkpDQo+KwkJCWNvbnRpbnVlOw0KPisJCWlm
+ICghem9uZV9yZWNsYWltYWJsZSh6b25lKSkNCj4rCQkJem9uZS0+YWxsX3VucmVjbGFpbWFibGUg
+PSAxOw0KPisJfQ0KPit9DQo+Kw0KPiAvKg0KPiAgKiBUaGlzIGlzIHRoZSBtYWluIGVudHJ5IHBv
+aW50IHRvIGRpcmVjdCBwYWdlIHJlY2xhaW0uDQo+ICAqDQo+QEAgLTIzNzAsNyArMjM4NywxNyBA
+QCBzdGF0aWMgdW5zaWduZWQgbG9uZw0KPmRvX3RyeV90b19mcmVlX3BhZ2VzKHN0cnVjdCB6b25l
+bGlzdCAqem9uZWxpc3QsDQo+IAkJCQlscnVfcGFnZXMgKz0gem9uZV9yZWNsYWltYWJsZV9wYWdl
+cyh6b25lKTsNCj4gCQkJfQ0KPg0KPi0JCQlzaHJpbmtfc2xhYihzaHJpbmssIHNjLT5ucl9zY2Fu
+bmVkLCBscnVfcGFnZXMpOw0KPisJCQkvKg0KPisJCQkgKiBXaGVuIGEgem9uZSBoYXMgZW5vdWdo
+IG9yZGVyLTAgZnJlZSBtZW1vcnkgYnV0DQo+KwkJCSAqIHpvbmUgaXMgaGVhdmlseSBmcmFnbWVu
+dGVkIGFuZCB3ZSBuZWVkIGhpZ2ggb3JkZXINCj4rCQkJICogcGFnZSBmcm9tIHRoZSB6b25lLCBr
+c3dhcGQgY291bGQgc2tpcCB0aGUgem9uZQ0KPisJCQkgKiBhZnRlciBmaXJzdCBpdGVyYXRpb24g
+d2l0aCBoaWdoIG9yZGVyLiBTbywga3N3YXBkDQo+KwkJCSAqIG5ldmVyIHNldCB0aGUgem9uZS0+
+YWxsX3VucmVjbGFpbWFibGUgdG8gMSBzbw0KPisJCQkgKiBkaXJlY3QgcmVjbGFpbSBwYXRoIG5l
+ZWRzIHRoZSBjaGVjay4NCj4rCQkJICovDQo+KwkJCWlmICghc2hyaW5rX3NsYWIoc2hyaW5rLCBz
+Yy0+bnJfc2Nhbm5lZCwgbHJ1X3BhZ2VzKSkNCj4rCQkJCWNoZWNrX3pvbmVzX3VucmVjbGFpbWFi
+bGUoem9uZWxpc3QsIHNjKTsNCj4rDQo+IAkJCWlmIChyZWNsYWltX3N0YXRlKSB7DQo+IAkJCQlz
+Yy0+bnJfcmVjbGFpbWVkICs9IHJlY2xhaW1fc3RhdGUtPnJlY2xhaW1lZF9zbGFiOw0KPiAJCQkJ
+cmVjbGFpbV9zdGF0ZS0+cmVjbGFpbWVkX3NsYWIgPSAwOw0KPi0tDQo+MS43LjkuNQ0KPg0KPi0t
+DQo+S2luZCByZWdhcmRzLA0KPk1pbmNoYW4gS2ltDQo=
 
-Thanks for the information.
-You said order-2 allocation was failed so I will assume preferred zone
-is normal zone, not high zone because high order allocation in kernel side
-isn't from high zone.
-
-> crash> kmem -z
-> NODE: 0  ZONE: 0  ADDR: c08460c0  NAME: "Normal"
->   SIZE: 192512  PRESENT: 182304  MIN/LOW/HIGH: 853/1066/1279
-
-712M normal memory.
-
->   VM_STAT:
->           NR_FREE_PAGES: 16092
-
-There are plenty of free pages over high watermark but there are heavy
-fragmentation as I see below information.
-
-So, kswapd doesn't scan this zone loop iteration is done with order-2.
-I mean kswapd will scan this zone with order-0 if first iteration is
-done by this
-
-        order = sc.order = 0;
-        
-        goto loop_again;
-
-But this time, zone_watermark_ok_safe with testorder = 0 on normal zone
-is always true so that scanning of zone will be skipped. It means kswapd
-never set zone->unreclaimable to 1.
-
->        NR_INACTIVE_ANON: 17
->          NR_ACTIVE_ANON: 55091
->        NR_INACTIVE_FILE: 17
->          NR_ACTIVE_FILE: 17
->          NR_UNEVICTABLE: 0
->                NR_MLOCK: 0
->           NR_ANON_PAGES: 55077
-
-There are about 200M anon pages and few file pages.
-You don't have swap so that reclaimer couldn't go far.
-
->          NR_FILE_MAPPED: 42
->           NR_FILE_PAGES: 69
->           NR_FILE_DIRTY: 0
->            NR_WRITEBACK: 0
->     NR_SLAB_RECLAIMABLE: 1226
->   NR_SLAB_UNRECLAIMABLE: 9373
->            NR_PAGETABLE: 2776
->         NR_KERNEL_STACK: 798
->         NR_UNSTABLE_NFS: 0
->               NR_BOUNCE: 0
->         NR_VMSCAN_WRITE: 91
->     NR_VMSCAN_IMMEDIATE: 115381
->       NR_WRITEBACK_TEMP: 0
->        NR_ISOLATED_ANON: 0
->        NR_ISOLATED_FILE: 0
->                NR_SHMEM: 31
->              NR_DIRTIED: 15256
->              NR_WRITTEN: 11981
-> NR_ANON_TRANSPARENT_HUGEPAGES: 0
-> 
-> NODE: 0  ZONE: 1  ADDR: c08464c0  NAME: "HighMem"
->   SIZE: 69632  PRESENT: 69088  MIN/LOW/HIGH: 67/147/228
->   VM_STAT:
->           NR_FREE_PAGES: 161
-
-Reclaimer should reclaim this zone.
-
->        NR_INACTIVE_ANON: 104
->          NR_ACTIVE_ANON: 46114
->        NR_INACTIVE_FILE: 9722
->          NR_ACTIVE_FILE: 12263
-
-It seems there are lots of room to evict file pages.
-
->          NR_UNEVICTABLE: 168
->                NR_MLOCK: 0
->           NR_ANON_PAGES: 46102
->          NR_FILE_MAPPED: 12227
->           NR_FILE_PAGES: 22270
->           NR_FILE_DIRTY: 1
->            NR_WRITEBACK: 0
->     NR_SLAB_RECLAIMABLE: 0
->   NR_SLAB_UNRECLAIMABLE: 0
->            NR_PAGETABLE: 0
->         NR_KERNEL_STACK: 0
->         NR_UNSTABLE_NFS: 0
->               NR_BOUNCE: 0
->         NR_VMSCAN_WRITE: 0
->     NR_VMSCAN_IMMEDIATE: 0
->       NR_WRITEBACK_TEMP: 0
->        NR_ISOLATED_ANON: 0
->        NR_ISOLATED_FILE: 0
->                NR_SHMEM: 117
->              NR_DIRTIED: 7364
->              NR_WRITTEN: 6989
-> NR_ANON_TRANSPARENT_HUGEPAGES: 0
-> 
-> ZONE  NAME        SIZE    FREE  MEM_MAP   START_PADDR  START_MAPNR
->   0   Normal    192512   16092  c1200000       0            0     
-> AREA    SIZE  FREE_AREA_STRUCT  BLOCKS  PAGES
->   0       4k      c08460f0           3      3
->   0       4k      c08460f8         436    436
->   0       4k      c0846100       15237  15237
->   0       4k      c0846108           0      0
->   0       4k      c0846110           0      0
->   1       8k      c084611c          39     78
->   1       8k      c0846124           0      0
->   1       8k      c084612c         169    338
->   1       8k      c0846134           0      0
->   1       8k      c084613c           0      0
->   2      16k      c0846148           0      0
->   2      16k      c0846150           0      0
->   2      16k      c0846158           0      0
-> ---------Normal zone all order > 1 has no free pages
-> ZONE  NAME        SIZE    FREE  MEM_MAP   START_PADDR  START_MAPNR
->   1   HighMem    69632     161  c17e0000    2f000000      192512  
-> AREA    SIZE  FREE_AREA_STRUCT  BLOCKS  PAGES
->   0       4k      c08464f0          12     12
->   0       4k      c08464f8           0      0
->   0       4k      c0846500          14     14
->   0       4k      c0846508           3      3
->   0       4k      c0846510           0      0
->   1       8k      c084651c           0      0
->   1       8k      c0846524           0      0
->   1       8k      c084652c           0      0
->   2      16k      c0846548           0      0
->   2      16k      c0846550           0      0
->   2      16k      c0846558           0      0
->   2      16k      c0846560           1      4
->   2      16k      c0846568           0      0
->   5     128k      c08465cc           0      0
->   5     128k      c08465d4           0      0
->   5     128k      c08465dc           0      0
->   5     128k      c08465e4           4    128
->   5     128k      c08465ec           0      0
-> ------Other's all zero
-> 
-> Some other zone information I dump from pglist_data
-> {
-> 	watermark = {853, 1066, 1279}, 
->       percpu_drift_mark = 0, 
->       lowmem_reserve = {0, 2159, 2159}, 
->       dirty_balance_reserve = 3438, 
->       pageset = 0xc07f6144, 
->       lock = {
->         {
->           rlock = {
->             raw_lock = {
->               lock = 0
->             }, 
->             break_lock = 0
->           }
->         }
->       },       
-> 	all_unreclaimable = 0,
->       reclaim_stat = {
->         recent_rotated = {903355, 960912}, 
->         recent_scanned = {932404, 2462017}
->       }, 
->       pages_scanned = 84231,
-
-Most of scan happens in direct reclaim path, I guess
-but direct reclaim couldn't reclaim any pages due to lack of swap device.
-
-It means we have to set zone->all_unreclaimable in direct reclaim path, too.
-Below patch fix your problem?
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
