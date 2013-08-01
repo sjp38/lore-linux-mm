@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 9974E6B0031
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 07:54:00 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id kq13so2043774pab.25
-        for <linux-mm@kvack.org>; Thu, 01 Aug 2013 04:53:59 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 1C1AD6B0031
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 07:54:37 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id kl13so2057153pab.34
+        for <linux-mm@kvack.org>; Thu, 01 Aug 2013 04:54:36 -0700 (PDT)
 From: Sha Zhengju <handai.szj@gmail.com>
-Subject: [PATCH V5 4/8] memcg: add per cgroup dirty pages accounting
-Date: Thu,  1 Aug 2013 19:53:37 +0800
-Message-Id: <1375358017-10268-1-git-send-email-handai.szj@taobao.com>
+Subject: [PATCH V5 5/8] memcg: add per cgroup writeback pages accounting
+Date: Thu,  1 Aug 2013 19:54:11 +0800
+Message-Id: <1375358051-10306-1-git-send-email-handai.szj@taobao.com>
 In-Reply-To: <1375357402-9811-1-git-send-email-handai.szj@taobao.com>
 References: <1375357402-9811-1-git-send-email-handai.szj@taobao.com>
 Sender: owner-linux-mm@kvack.org
@@ -17,429 +17,124 @@ Cc: mhocko@suse.cz, kamezawa.hiroyu@jp.fujitsu.com, glommer@gmail.com, gthelen@g
 
 From: Sha Zhengju <handai.szj@taobao.com>
 
-This patch adds memcg routines to count dirty pages, which allows memory controller
-to maintain an accurate view of the amount of its dirty memory.
+Similar to dirty page, we add per cgroup writeback pages accounting. The lock
+rule still is:
+        mem_cgroup_begin_update_page_stat()
+        modify page WRITEBACK stat
+        mem_cgroup_update_page_stat()
+        mem_cgroup_end_update_page_stat()
 
-After Kame's commit 89c06bd5(memcg: use new logic for page stat accounting), we can
-use 'struct page' flag to test page state instead of per page_cgroup flag. But memcg
-has a feature to move a page from a cgroup to another one and may have race between
-"move" and "page stat accounting". So in order to avoid the race we have designed a
-new lock:
-
-         mem_cgroup_begin_update_page_stat()
-         modify page information        -->(a)
-         mem_cgroup_update_page_stat()  -->(b)
-         mem_cgroup_end_update_page_stat()
-
-It requires both (a) and (b)(dirty pages accounting) to be pretected in
-mem_cgroup_{begin/end}_update_page_stat(). It's full no-op for !CONFIG_MEMCG, almost
-no-op if memcg is disabled (but compiled in), rcu read lock in the most cases
-(no task is moving), and spin_lock_irqsave on top in the slow path.
-
-several places should be added accounting:
-        incrementing (3):
-                __set_page_dirty_buffers
-                __set_page_dirty_nobuffers
-		mark_buffer_dirty
-        decrementing (7):
-                clear_page_dirty_for_io
-                cancel_dirty_page
-		delete_from_page_cache
-		__delete_from_page_cache
-		replace_page_cache_page
-		invalidate_complete_page2
-		__remove_mapping
-
-The lock order between memcg lock and mapping lock is:
+There're two writeback interfaces to modify: test_{clear/set}_page_writeback().
+Lock order:
 	--> memcg->move_lock
-	  --> mapping->private_lock
-            --> mapping->tree_lock
+	  --> mapping->tree_lock
 
 Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
 ---
- fs/buffer.c                |   13 +++++++++++++
  include/linux/memcontrol.h |    1 +
- mm/filemap.c               |   17 ++++++++++++++++-
- mm/memcontrol.c            |   30 +++++++++++++++++++++++-------
- mm/page-writeback.c        |   24 ++++++++++++++++++++++--
- mm/truncate.c              |   12 ++++++++++++
- mm/vmscan.c                |    7 +++++++
- 7 files changed, 94 insertions(+), 10 deletions(-)
+ mm/memcontrol.c            |    5 +++++
+ mm/page-writeback.c        |   15 +++++++++++++++
+ 3 files changed, 21 insertions(+)
 
-diff --git a/fs/buffer.c b/fs/buffer.c
-index 695eb14..2d92d60 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -694,10 +694,17 @@ int __set_page_dirty_buffers(struct page *page)
- {
- 	int newly_dirty;
- 	struct address_space *mapping = page_mapping(page);
-+	bool locked;
-+	unsigned long flags;
- 
- 	if (unlikely(!mapping))
- 		return !TestSetPageDirty(page);
- 
-+	/* The main concern is page stat accounting, the lock is used to protect
-+	 * both SetPageDirty and accounting, so let the above !mapping checking
-+	 * outside.
-+	 */
-+	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
- 	spin_lock(&mapping->private_lock);
- 	if (page_has_buffers(page)) {
- 		struct buffer_head *head = page_buffers(page);
-@@ -713,6 +720,7 @@ int __set_page_dirty_buffers(struct page *page)
- 
- 	if (newly_dirty)
- 		__set_page_dirty(page, mapping, 1);
-+	mem_cgroup_end_update_page_stat(page, &locked, &flags);
- 	return newly_dirty;
- }
- EXPORT_SYMBOL(__set_page_dirty_buffers);
-@@ -1169,11 +1177,16 @@ void mark_buffer_dirty(struct buffer_head *bh)
- 
- 	if (!test_set_buffer_dirty(bh)) {
- 		struct page *page = bh->b_page;
-+		bool locked;
-+		unsigned long flags;
-+
-+		mem_cgroup_begin_update_page_stat(page, &locked, &flags);
- 		if (!TestSetPageDirty(page)) {
- 			struct address_space *mapping = page_mapping(page);
- 			if (mapping)
- 				__set_page_dirty(page, mapping, 0);
- 		}
-+		mem_cgroup_end_update_page_stat(page, &locked, &flags);
- 	}
- }
- EXPORT_SYMBOL(mark_buffer_dirty);
 diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index d166aeb..f952be6 100644
+index f952be6..ccd35d8 100644
 --- a/include/linux/memcontrol.h
 +++ b/include/linux/memcontrol.h
-@@ -42,6 +42,7 @@ enum mem_cgroup_stat_index {
- 	MEM_CGROUP_STAT_RSS,		/* # of pages charged as anon rss */
+@@ -43,6 +43,7 @@ enum mem_cgroup_stat_index {
  	MEM_CGROUP_STAT_RSS_HUGE,	/* # of pages charged as anon huge */
  	MEM_CGROUP_STAT_FILE_MAPPED,	/* # of pages charged as file rss */
-+	MEM_CGROUP_STAT_FILE_DIRTY,	/* # of dirty pages in page cache */
+ 	MEM_CGROUP_STAT_FILE_DIRTY,	/* # of dirty pages in page cache */
++	MEM_CGROUP_STAT_WRITEBACK,	/* # of pages under writeback */
  	MEM_CGROUP_STAT_SWAP,		/* # of pages, swapped out */
  	MEM_CGROUP_STAT_NSTATS,
  };
-diff --git a/mm/filemap.c b/mm/filemap.c
-index a6981fe..690e4d7 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -65,6 +65,11 @@
-  *      ->swap_lock		(exclusive_swap_page, others)
-  *        ->mapping->tree_lock
-  *
-+ *  ->memcg->move_lock	(mem_cgroup_begin_update_page_stat->
-+ *						move_lock_mem_cgroup)
-+ *    ->private_lock		(__set_page_dirty_buffers)
-+ *        ->mapping->tree_lock
-+ *
-  *  ->i_mutex
-  *    ->i_mmap_mutex		(truncate->unmap_mapping_range)
-  *
-@@ -110,7 +115,8 @@
- /*
-  * Delete a page from the page cache and free it. Caller has to make
-  * sure the page is locked and that nobody else uses it - or that usage
-- * is safe.  The caller must hold the mapping's tree_lock.
-+ * is safe.  The caller must hold the mapping's tree_lock and
-+ * mem_cgroup_begin/end_update_page_stat() lock.
-  */
- void __delete_from_page_cache(struct page *page)
- {
-@@ -144,6 +150,7 @@ void __delete_from_page_cache(struct page *page)
- 	 * having removed the page entirely.
- 	 */
- 	if (PageDirty(page) && mapping_cap_account_dirty(mapping)) {
-+		mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_DIRTY);
- 		dec_zone_page_state(page, NR_FILE_DIRTY);
- 		dec_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
- 	}
-@@ -161,13 +168,17 @@ void delete_from_page_cache(struct page *page)
- {
- 	struct address_space *mapping = page->mapping;
- 	void (*freepage)(struct page *);
-+	bool locked;
-+	unsigned long flags;
- 
- 	BUG_ON(!PageLocked(page));
- 
- 	freepage = mapping->a_ops->freepage;
-+	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
- 	spin_lock_irq(&mapping->tree_lock);
- 	__delete_from_page_cache(page);
- 	spin_unlock_irq(&mapping->tree_lock);
-+	mem_cgroup_end_update_page_stat(page, &locked, &flags);
- 	mem_cgroup_uncharge_cache_page(page);
- 
- 	if (freepage)
-@@ -417,6 +428,8 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
- 	if (!error) {
- 		struct address_space *mapping = old->mapping;
- 		void (*freepage)(struct page *);
-+		bool locked;
-+		unsigned long flags;
- 
- 		pgoff_t offset = old->index;
- 		freepage = mapping->a_ops->freepage;
-@@ -425,6 +438,7 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
- 		new->mapping = mapping;
- 		new->index = offset;
- 
-+		mem_cgroup_begin_update_page_stat(old, &locked, &flags);
- 		spin_lock_irq(&mapping->tree_lock);
- 		__delete_from_page_cache(old);
- 		error = radix_tree_insert(&mapping->page_tree, offset, new);
-@@ -434,6 +448,7 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
- 		if (PageSwapBacked(new))
- 			__inc_zone_page_state(new, NR_SHMEM);
- 		spin_unlock_irq(&mapping->tree_lock);
-+		mem_cgroup_end_update_page_stat(old, &locked, &flags);
- 		/* mem_cgroup codes must not be called under tree_lock */
- 		mem_cgroup_replace_page_cache(old, new);
- 		radix_tree_preload_end();
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 4a55d46..8f3e514 100644
+index 8f3e514..6c18a6d 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -90,6 +90,7 @@ static const char * const mem_cgroup_stat_names[] = {
- 	"rss",
+@@ -91,6 +91,7 @@ static const char * const mem_cgroup_stat_names[] = {
  	"rss_huge",
  	"mapped_file",
-+	"dirty",
+ 	"dirty",
++	"writeback",
  	"swap",
  };
  
-@@ -3744,6 +3745,20 @@ void mem_cgroup_split_huge_fixup(struct page *head)
- }
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+@@ -3812,6 +3813,10 @@ static int mem_cgroup_move_account(struct page *page,
+ 		mem_cgroup_move_account_page_stat(from, to, nr_pages,
+ 			MEM_CGROUP_STAT_FILE_DIRTY);
  
-+static inline
-+void mem_cgroup_move_account_page_stat(struct mem_cgroup *from,
-+					struct mem_cgroup *to,
-+					unsigned int nr_pages,
-+					enum mem_cgroup_stat_index idx)
-+{
-+	/* Update stat data for mem_cgroup */
-+	preempt_disable();
-+	WARN_ON_ONCE(from->stat->count[idx] < nr_pages);
-+	__this_cpu_add(from->stat->count[idx], -nr_pages);
-+	__this_cpu_add(to->stat->count[idx], nr_pages);
-+	preempt_enable();
-+}
-+
- /**
-  * mem_cgroup_move_account - move account of the page
-  * @page: the page
-@@ -3789,13 +3804,14 @@ static int mem_cgroup_move_account(struct page *page,
- 
- 	move_lock_mem_cgroup(from, &flags);
- 
--	if (!anon && page_mapped(page)) {
--		/* Update mapped_file data for mem_cgroup */
--		preempt_disable();
--		__this_cpu_dec(from->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
--		__this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
--		preempt_enable();
--	}
-+	if (!anon && page_mapped(page))
++	if (PageWriteback(page))
 +		mem_cgroup_move_account_page_stat(from, to, nr_pages,
-+			MEM_CGROUP_STAT_FILE_MAPPED);
-+
-+	if (!anon && PageDirty(page))
-+		mem_cgroup_move_account_page_stat(from, to, nr_pages,
-+			MEM_CGROUP_STAT_FILE_DIRTY);
++			MEM_CGROUP_STAT_WRITEBACK);
 +
  	mem_cgroup_charge_statistics(from, page, anon, -nr_pages);
  
  	/* caller should have done css_get */
 diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 4514ad7..a09f518 100644
+index a09f518..2fa6a52 100644
 --- a/mm/page-writeback.c
 +++ b/mm/page-writeback.c
-@@ -1982,6 +1982,11 @@ int __set_page_dirty_no_writeback(struct page *page)
+@@ -2008,11 +2008,17 @@ EXPORT_SYMBOL(account_page_dirtied);
  
  /*
-  * Helper function for set_page_dirty family.
+  * Helper function for set_page_writeback family.
 + *
 + * The caller must hold mem_cgroup_begin/end_update_page_stat() lock
 + * while calling this function.
-+ * See __set_page_dirty_{nobuffers,buffers} for example.
++ * See test_set_page_writeback for example.
 + *
-  * NOTE: This relies on being atomic wrt interrupts.
+  * NOTE: Unlike account_page_dirtied this does not rely on being atomic
+  * wrt interrupts.
   */
- void account_page_dirtied(struct page *page, struct address_space *mapping)
-@@ -1989,6 +1994,7 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
- 	trace_writeback_dirty_page(page, mapping);
- 
- 	if (mapping_cap_account_dirty(mapping)) {
-+		mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_FILE_DIRTY);
- 		__inc_zone_page_state(page, NR_FILE_DIRTY);
- 		__inc_zone_page_state(page, NR_DIRTIED);
- 		__inc_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
-@@ -2028,6 +2034,11 @@ EXPORT_SYMBOL(account_page_writeback);
-  */
- int __set_page_dirty_nobuffers(struct page *page)
+ void account_page_writeback(struct page *page)
  {
-+	bool locked;
-+	unsigned long flags;
-+
-+
-+	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
- 	if (!TestSetPageDirty(page)) {
- 		struct address_space *mapping = page_mapping(page);
- 		struct address_space *mapping2;
-@@ -2045,12 +2056,15 @@ int __set_page_dirty_nobuffers(struct page *page)
- 				page_index(page), PAGECACHE_TAG_DIRTY);
- 		}
- 		spin_unlock_irq(&mapping->tree_lock);
-+		mem_cgroup_end_update_page_stat(page, &locked, &flags);
-+
- 		if (mapping->host) {
- 			/* !PageAnon && !swapper_space */
- 			__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
- 		}
- 		return 1;
- 	}
-+	mem_cgroup_end_update_page_stat(page, &locked, &flags);
- 	return 0;
++	mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_WRITEBACK);
+ 	inc_zone_page_state(page, NR_WRITEBACK);
  }
- EXPORT_SYMBOL(__set_page_dirty_nobuffers);
-@@ -2166,6 +2180,9 @@ EXPORT_SYMBOL(set_page_dirty_lock);
- int clear_page_dirty_for_io(struct page *page)
+ EXPORT_SYMBOL(account_page_writeback);
+@@ -2243,7 +2249,10 @@ int test_clear_page_writeback(struct page *page)
  {
  	struct address_space *mapping = page_mapping(page);
+ 	int ret;
 +	bool locked;
-+	unsigned long flags;
-+	int ret = 0;
++	unsigned long memcg_flags;
  
- 	BUG_ON(!PageLocked(page));
- 
-@@ -2207,13 +2224,16 @@ int clear_page_dirty_for_io(struct page *page)
- 		 * the desired exclusion. See mm/memory.c:do_wp_page()
- 		 * for more comments.
- 		 */
-+		mem_cgroup_begin_update_page_stat(page, &locked, &flags);
- 		if (TestClearPageDirty(page)) {
-+			mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_DIRTY);
- 			dec_zone_page_state(page, NR_FILE_DIRTY);
- 			dec_bdi_stat(mapping->backing_dev_info,
- 					BDI_RECLAIMABLE);
--			return 1;
-+			ret = 1;
- 		}
--		return 0;
-+		mem_cgroup_end_update_page_stat(page, &locked, &flags);
-+		return ret;
++	mem_cgroup_begin_update_page_stat(page, &locked, &memcg_flags);
+ 	if (mapping) {
+ 		struct backing_dev_info *bdi = mapping->backing_dev_info;
+ 		unsigned long flags;
+@@ -2264,9 +2273,11 @@ int test_clear_page_writeback(struct page *page)
+ 		ret = TestClearPageWriteback(page);
  	}
- 	return TestClearPageDirty(page);
- }
-diff --git a/mm/truncate.c b/mm/truncate.c
-index c75b736..ed41636 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -73,9 +73,14 @@ static inline void truncate_partial_page(struct page *page, unsigned partial)
-  */
- void cancel_dirty_page(struct page *page, unsigned int account_size)
- {
-+	bool locked;
-+	unsigned long flags;
-+
-+	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
- 	if (TestClearPageDirty(page)) {
- 		struct address_space *mapping = page->mapping;
- 		if (mapping && mapping_cap_account_dirty(mapping)) {
-+			mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_DIRTY);
- 			dec_zone_page_state(page, NR_FILE_DIRTY);
- 			dec_bdi_stat(mapping->backing_dev_info,
- 					BDI_RECLAIMABLE);
-@@ -83,6 +88,7 @@ void cancel_dirty_page(struct page *page, unsigned int account_size)
- 				task_io_account_cancelled_write(account_size);
- 		}
+ 	if (ret) {
++		mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_WRITEBACK);
+ 		dec_zone_page_state(page, NR_WRITEBACK);
+ 		inc_zone_page_state(page, NR_WRITTEN);
  	}
-+	mem_cgroup_end_update_page_stat(page, &locked, &flags);
++	mem_cgroup_end_update_page_stat(page, &locked, &memcg_flags);
+ 	return ret;
  }
- EXPORT_SYMBOL(cancel_dirty_page);
  
-@@ -386,12 +392,16 @@ EXPORT_SYMBOL(invalidate_mapping_pages);
- static int
- invalidate_complete_page2(struct address_space *mapping, struct page *page)
+@@ -2274,7 +2285,10 @@ int test_set_page_writeback(struct page *page)
  {
+ 	struct address_space *mapping = page_mapping(page);
+ 	int ret;
 +	bool locked;
 +	unsigned long flags;
-+
- 	if (page->mapping != mapping)
- 		return 0;
- 
- 	if (page_has_private(page) && !try_to_release_page(page, GFP_KERNEL))
- 		return 0;
  
 +	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
- 	spin_lock_irq(&mapping->tree_lock);
- 	if (PageDirty(page))
- 		goto failed;
-@@ -399,6 +409,7 @@ invalidate_complete_page2(struct address_space *mapping, struct page *page)
- 	BUG_ON(page_has_private(page));
- 	__delete_from_page_cache(page);
- 	spin_unlock_irq(&mapping->tree_lock);
+ 	if (mapping) {
+ 		struct backing_dev_info *bdi = mapping->backing_dev_info;
+ 		unsigned long flags;
+@@ -2301,6 +2315,7 @@ int test_set_page_writeback(struct page *page)
+ 	}
+ 	if (!ret)
+ 		account_page_writeback(page);
 +	mem_cgroup_end_update_page_stat(page, &locked, &flags);
- 	mem_cgroup_uncharge_cache_page(page);
+ 	return ret;
  
- 	if (mapping->a_ops->freepage)
-@@ -408,6 +419,7 @@ invalidate_complete_page2(struct address_space *mapping, struct page *page)
- 	return 1;
- failed:
- 	spin_unlock_irq(&mapping->tree_lock);
-+	mem_cgroup_end_update_page_stat(page, &locked, &flags);
- 	return 0;
  }
- 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index e364542..ba1ad4a 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -486,9 +486,13 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
-  */
- static int __remove_mapping(struct address_space *mapping, struct page *page)
- {
-+	bool locked;
-+	unsigned long flags;
-+
- 	BUG_ON(!PageLocked(page));
- 	BUG_ON(mapping != page_mapping(page));
- 
-+	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
- 	spin_lock_irq(&mapping->tree_lock);
- 	/*
- 	 * The non racy check for a busy page.
-@@ -527,6 +531,7 @@ static int __remove_mapping(struct address_space *mapping, struct page *page)
- 		swp_entry_t swap = { .val = page_private(page) };
- 		__delete_from_swap_cache(page);
- 		spin_unlock_irq(&mapping->tree_lock);
-+		mem_cgroup_end_update_page_stat(page, &locked, &flags);
- 		swapcache_free(swap, page);
- 	} else {
- 		void (*freepage)(struct page *);
-@@ -535,6 +540,7 @@ static int __remove_mapping(struct address_space *mapping, struct page *page)
- 
- 		__delete_from_page_cache(page);
- 		spin_unlock_irq(&mapping->tree_lock);
-+		mem_cgroup_end_update_page_stat(page, &locked, &flags);
- 		mem_cgroup_uncharge_cache_page(page);
- 
- 		if (freepage != NULL)
-@@ -545,6 +551,7 @@ static int __remove_mapping(struct address_space *mapping, struct page *page)
- 
- cannot_free:
- 	spin_unlock_irq(&mapping->tree_lock);
-+	mem_cgroup_end_update_page_stat(page, &locked, &flags);
- 	return 0;
- }
- 
 -- 
 1.7.9.5
 
