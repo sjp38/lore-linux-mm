@@ -1,151 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id AD8086B0031
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 03:10:23 -0400 (EDT)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Thu, 1 Aug 2013 03:10:22 -0400
-Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 1C13B6E803A
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 03:10:15 -0400 (EDT)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r717AJOo37027910
-	for <linux-mm@kvack.org>; Thu, 1 Aug 2013 03:10:19 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r717AIUY021405
-	for <linux-mm@kvack.org>; Thu, 1 Aug 2013 03:10:19 -0400
-Date: Thu, 1 Aug 2013 12:40:13 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 16/18] sched: Avoid overloading CPUs on a preferred NUMA
- node
-Message-ID: <20130801071013.GG4880@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
- <1373901620-2021-17-git-send-email-mgorman@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <1373901620-2021-17-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 204576B0036
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 03:14:22 -0400 (EDT)
+From: Tang Chen <tangchen@cn.fujitsu.com>
+Subject: [PATCH v2 18/18] x86, numa, acpi, memory-hotplug: Make movablenode have higher priority.
+Date: Thu, 1 Aug 2013 15:06:40 +0800
+Message-Id: <1375340800-19332-19-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1375340800-19332-1-git-send-email-tangchen@cn.fujitsu.com>
+References: <1375340800-19332-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
+Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-> +static int task_numa_find_cpu(struct task_struct *p, int nid)
-> +{
-> +	int node_cpu = cpumask_first(cpumask_of_node(nid));
-> +	int cpu, src_cpu = task_cpu(p), dst_cpu = src_cpu;
-> +	unsigned long src_load, dst_load;
-> +	unsigned long min_load = ULONG_MAX;
-> +	struct task_group *tg = task_group(p);
-> +	s64 src_eff_load, dst_eff_load;
-> +	struct sched_domain *sd;
-> +	unsigned long weight;
-> +	bool balanced;
-> +	int imbalance_pct, idx = -1;
-> 
-> +	/* No harm being optimistic */
-> +	if (idle_cpu(node_cpu))
-> +		return node_cpu;
+Arrange hotpluggable memory as ZONE_MOVABLE will cause NUMA performance down
+because the kernel cannot use movable memory. For users who don't use memory
+hotplug and who don't want to lose their NUMA performance, they need a way to
+disable this functionality. So we improved movablecore boot option.
 
-Cant this lead to lot of imbalance across nodes? Wont this lead to lot
-of ping-pong of tasks between different nodes resulting in performance
-hit? Lets say the system is not fully loaded, something like a numa01
-but with far lesser number of threads probably nr_cpus/2 or nr_cpus/4,
-then all threads will try to move to single node as we can keep seeing
-idle threads. No? Wont it lead all load moving to one node and load
-balancer spreading it out...
+If users specify the original movablecore=nn@ss boot option, the kernel will
+arrange [ss, ss+nn) as ZONE_MOVABLE. The kernelcore=nn@ss boot option is similar
+except it specifies ZONE_NORMAL ranges.
 
-> 
-> -static int
-> -find_idlest_cpu_node(int this_cpu, int nid)
-> -{
-> -	unsigned long load, min_load = ULONG_MAX;
-> -	int i, idlest_cpu = this_cpu;
-> +	/*
-> +	 * Find the lowest common scheduling domain covering the nodes of both
-> +	 * the CPU the task is currently running on and the target NUMA node.
-> +	 */
-> +	rcu_read_lock();
-> +	for_each_domain(src_cpu, sd) {
-> +		if (cpumask_test_cpu(node_cpu, sched_domain_span(sd))) {
-> +			/*
-> +			 * busy_idx is used for the load decision as it is the
-> +			 * same index used by the regular load balancer for an
-> +			 * active cpu.
-> +			 */
-> +			idx = sd->busy_idx;
-> +			imbalance_pct = sd->imbalance_pct;
-> +			break;
-> +		}
-> +	}
-> +	rcu_read_unlock();
-> 
-> -	BUG_ON(cpu_to_node(this_cpu) == nid);
-> +	if (WARN_ON_ONCE(idx == -1))
-> +		return src_cpu;
-> 
-> -	rcu_read_lock();
-> -	for_each_cpu(i, cpumask_of_node(nid)) {
-> -		load = weighted_cpuload(i);
-> +	/*
-> +	 * XXX the below is mostly nicked from wake_affine(); we should
-> +	 * see about sharing a bit if at all possible; also it might want
-> +	 * some per entity weight love.
-> +	 */
-> +	weight = p->se.load.weight;
-> 
-> -		if (load < min_load) {
-> -			min_load = load;
-> -			idlest_cpu = i;
-> +	src_load = source_load(src_cpu, idx);
-> +
-> +	src_eff_load = 100 + (imbalance_pct - 100) / 2;
-> +	src_eff_load *= power_of(src_cpu);
-> +	src_eff_load *= src_load + effective_load(tg, src_cpu, -weight, -weight);
-> +
-> +	for_each_cpu(cpu, cpumask_of_node(nid)) {
-> +		dst_load = target_load(cpu, idx);
-> +
-> +		/* If the CPU is idle, use it */
-> +		if (!dst_load)
-> +			return dst_cpu;
-> +
-> +		/* Otherwise check the target CPU load */
-> +		dst_eff_load = 100;
-> +		dst_eff_load *= power_of(cpu);
-> +		dst_eff_load *= dst_load + effective_load(tg, cpu, weight, weight);
-> +
-> +		/*
-> +		 * Destination is considered balanced if the destination CPU is
-> +		 * less loaded than the source CPU. Unfortunately there is a
-> +		 * risk that a task running on a lightly loaded CPU will not
-> +		 * migrate to its preferred node due to load imbalances.
-> +		 */
-> +		balanced = (dst_eff_load <= src_eff_load);
-> +		if (!balanced)
-> +			continue;
-> +
+Now, if users specify "movablenode" in kernel commandline, the kernel will
+arrange hotpluggable memory in SRAT as ZONE_MOVABLE. And if users do this, all
+the other movablecore=nn@ss and kernelcore=nn@ss options should be ignored.
 
-Okay same case as above, the cpu could be lightly loaded, but the
-destination node could be heavier than the source node. No?
+For those who don't want this, just specify nothing. The kernel will act as
+before.
 
-> +		if (dst_load < min_load) {
-> +			min_load = dst_load;
-> +			dst_cpu = cpu;
->  		}
->  	}
-> -	rcu_read_unlock();
-> 
-> -	return idlest_cpu;
-> +	return dst_cpu;
->  }
-> 
+Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+---
+ include/linux/memblock.h |    1 +
+ mm/memblock.c            |    5 +++++
+ mm/page_alloc.c          |   31 ++++++++++++++++++++++++++++---
+ 3 files changed, 34 insertions(+), 3 deletions(-)
 
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index 637ec3d..545d143 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -64,6 +64,7 @@ int memblock_reserve(phys_addr_t base, phys_addr_t size);
+ void memblock_trim_memory(phys_addr_t align);
+ 
+ int memblock_mark_hotplug(phys_addr_t base, phys_addr_t size);
++bool memblock_is_hotpluggable(struct memblock_region *region);
+ 
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+ void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 84bd568..97d7f41 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -610,6 +610,11 @@ int __init_memblock memblock_mark_hotplug(phys_addr_t base, phys_addr_t size)
+ 	return 0;
+ }
+ 
++bool __init_memblock memblock_is_hotpluggable(struct memblock_region *region)
++{
++	return region->flags & MEMBLOCK_HOTPLUG;
++}
++
+ /**
+  * __next_free_mem_range - next function for for_each_free_mem_range()
+  * @idx: pointer to u64 loop variable
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index c3edb62..21017d3 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4878,9 +4878,35 @@ static void __init find_zone_movable_pfns_for_nodes(void)
+ 	nodemask_t saved_node_state = node_states[N_MEMORY];
+ 	unsigned long totalpages = early_calculate_totalpages();
+ 	int usable_nodes = nodes_weight(node_states[N_MEMORY]);
++	struct memblock_type *type = &memblock.memory;
+ 
++	/* Need to find movable_zone earlier when movablenode is specified. */
++	find_usable_zone_for_movable();
++
++#ifdef CONFIG_MOVABLE_NODE
+ 	/*
+-	 * If movablecore was specified, calculate what size of
++	 * If movablenode is specified, ignore kernelcore and movablecore
++	 * options.
++	 */
++	if (movablenode_enable_srat) {
++		for (i = 0; i < type->cnt; i++) {
++			if (!memblock_is_hotpluggable(&type->regions[i]))
++				continue;
++
++			nid = type->regions[i].nid;
++
++			usable_startpfn = PFN_DOWN(type->regions[i].base);
++			zone_movable_pfn[nid] = zone_movable_pfn[nid] ?
++				min(usable_startpfn, zone_movable_pfn[nid]) :
++				usable_startpfn;
++		}
++
++		goto out;
++	}
++#endif
++
++	/*
++	 * If movablecore=nn[KMG] was specified, calculate what size of
+ 	 * kernelcore that corresponds so that memory usable for
+ 	 * any allocation type is evenly spread. If both kernelcore
+ 	 * and movablecore are specified, then the value of kernelcore
+@@ -4906,7 +4932,6 @@ static void __init find_zone_movable_pfns_for_nodes(void)
+ 		goto out;
+ 
+ 	/* usable_startpfn is the lowest possible pfn ZONE_MOVABLE can be at */
+-	find_usable_zone_for_movable();
+ 	usable_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
+ 
+ restart:
+@@ -4997,12 +5022,12 @@ restart:
+ 	if (usable_nodes && required_kernelcore > usable_nodes)
+ 		goto restart;
+ 
++out:
+ 	/* Align start of ZONE_MOVABLE on all nids to MAX_ORDER_NR_PAGES */
+ 	for (nid = 0; nid < MAX_NUMNODES; nid++)
+ 		zone_movable_pfn[nid] =
+ 			roundup(zone_movable_pfn[nid], MAX_ORDER_NR_PAGES);
+ 
+-out:
+ 	/* restore the node_state */
+ 	node_states[N_MEMORY] = saved_node_state;
+ }
 -- 
-Thanks and Regards
-Srikar Dronamraju
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
