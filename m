@@ -1,88 +1,246 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id CDEF26B0031
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 22:45:23 -0400 (EDT)
-Received: by mail-ye0-f174.google.com with SMTP id q9so576291yen.33
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2013 19:45:22 -0700 (PDT)
-Message-ID: <51F9CBC0.2020006@gmail.com>
-Date: Wed, 31 Jul 2013 22:45:20 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 107546B0031
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 22:56:10 -0400 (EDT)
+Date: Thu, 1 Aug 2013 11:56:36 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [patch 3/3] mm: page_alloc: fair zone allocator policy
+Message-ID: <20130801025636.GC19540@bbox>
+References: <1374267325-22865-1-git-send-email-hannes@cmpxchg.org>
+ <1374267325-22865-4-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: Possible deadloop in direct reclaim?
-References: <89813612683626448B837EE5A0B6A7CB3B62F8F272@SC-VEXCH4.marvell.com> <000001400d38469d-a121fb96-4483-483a-9d3e-fc552e413892-000000@email.amazonses.com> <89813612683626448B837EE5A0B6A7CB3B62F8F5C3@SC-VEXCH4.marvell.com> <CAHGf_=q8JZQ42R-3yzie7DXUEq8kU+TZXgcX9s=dn8nVigXv8g@mail.gmail.com> <89813612683626448B837EE5A0B6A7CB3B62F8FE33@SC-VEXCH4.marvell.com> <51F69BD7.2060407@gmail.com> <89813612683626448B837EE5A0B6A7CB3B630BDF99@SC-VEXCH4.marvell.com>
-In-Reply-To: <89813612683626448B837EE5A0B6A7CB3B630BDF99@SC-VEXCH4.marvell.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1374267325-22865-4-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lisa Du <cldu@marvell.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Christoph Lameter <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Bob Liu <lliubbo@gmail.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-(7/31/13 10:24 PM), Lisa Du wrote:
-> Dear Kosaki
->     Would you please help to check my comment as below:
->> (7/25/13 9:11 PM), Lisa Du wrote:
->>> Dear KOSAKI
->>>      In my test, I didn't set compaction. Maybe compaction is helpful to
->> avoid this issue. I can have try later.
->>>      In my mind CONFIG_COMPACTION is an optional configuration
->> right?
->>
->> Right. But if you don't set it, application must NOT use >1 order allocations.
->> It doesn't work and it is expected
->> result.
->> That's your application mistake.
-> Dear Kosaki, I have two questions on your explanation:
-> a) you said if don't set CONFIG_COMPATION, application must NOT use >1 order allocations, is there any documentation
-   for this theory?
+Hi Hannes,
 
-Sorry I don't understand what "this" mean. I mean, Even though you use desktop or server machine, no compaction kernel
-easily makes no order-2 situations.
-Then, our in-kernel subsystems don't use order-2 allocations as far as possible.
+On Fri, Jul 19, 2013 at 04:55:25PM -0400, Johannes Weiner wrote:
+> Each zone that holds userspace pages of one workload must be aged at a
+> speed proportional to the zone size.  Otherwise, the time an
+> individual page gets to stay in memory depends on the zone it happened
+> to be allocated in.  Asymmetry in the zone aging creates rather
+> unpredictable aging behavior and results in the wrong pages being
+> reclaimed, activated etc.
+> 
+> But exactly this happens right now because of the way the page
+> allocator and kswapd interact.  The page allocator uses per-node lists
+> of all zones in the system, ordered by preference, when allocating a
+> new page.  When the first iteration does not yield any results, kswapd
+> is woken up and the allocator retries.  Due to the way kswapd reclaims
+> zones below the high watermark while a zone can be allocated from when
+> it is above the low watermark, the allocator may keep kswapd running
+> while kswapd reclaim ensures that the page allocator can keep
+> allocating from the first zone in the zonelist for extended periods of
+> time.  Meanwhile the other zones rarely see new allocations and thus
+> get aged much slower in comparison.
+> 
+> The result is that the occasional page placed in lower zones gets
+> relatively more time in memory, even get promoted to the active list
+> after its peers have long been evicted.  Meanwhile, the bulk of the
+> working set may be thrashing on the preferred zone even though there
+> may be significant amounts of memory available in the lower zones.
+> 
+> Even the most basic test -- repeatedly reading a file slightly bigger
+> than memory -- shows how broken the zone aging is.  In this scenario,
+> no single page should be able stay in memory long enough to get
+> referenced twice and activated, but activation happens in spades:
+> 
+>   $ grep active_file /proc/zoneinfo
+>       nr_inactive_file 0
+>       nr_active_file 0
+>       nr_inactive_file 0
+>       nr_active_file 8
+>       nr_inactive_file 1582
+>       nr_active_file 11994
+>   $ cat data data data data >/dev/null
+>   $ grep active_file /proc/zoneinfo
+>       nr_inactive_file 0
+>       nr_active_file 70
+>       nr_inactive_file 258753
+>       nr_active_file 443214
+>       nr_inactive_file 149793
+>       nr_active_file 12021
+> 
+> Fix this with a very simple round robin allocator.  Each zone is
+> allowed a batch of allocations that is proportional to the zone's
+> size, after which it is treated as full.  The batch counters are reset
+> when all zones have been tried and the allocator enters the slowpath
+> and kicks off kswapd reclaim:
+> 
+>   $ grep active_file /proc/zoneinfo
+>       nr_inactive_file 0
+>       nr_active_file 0
+>       nr_inactive_file 174
+>       nr_active_file 4865
+>       nr_inactive_file 53
+>       nr_active_file 860
+>   $ cat data data data data >/dev/null
+>   $ grep active_file /proc/zoneinfo
+>       nr_inactive_file 0
+>       nr_active_file 0
+>       nr_inactive_file 666622
+>       nr_active_file 4988
+>       nr_inactive_file 190969
+>       nr_active_file 937
 
+First of all, I should appreciate your great work!
+It's amazing and I saw Zlatko proved it enhances real works.
+Thanks Zlatko, too!
 
-> b) My order-2 allocation not comes from application, but from do_fork which is in kernel space,
-    in my mind when a parent process forks a child process, it need to allocate a order-2 memory,
-   if a) is right, then CONFIG_COMPATION should be a MUST configuration for linux kernel but not optional?
+So, I don't want to prevent merging but I think at least, we should
+discuss some issues.
 
-???
-fork alloc order-1 memory for stack. Where and why alloc order-2? If it is arch specific code, please
-contact arch maintainer.
+The concern I have is that it could accelerate low memory pinning
+problems like mlock. Actually, I don't have such workload that makes
+pin lots of pages but that's why we introduced lowmem_reserve_ratio,
+as you know well so we should cover this issue, at least.
 
+Other thing of my concerns is to add overhead in fast path.
+Sometime, we are really reluctant to add simple even "if" condition
+in fastpath but you are adding atomic op whenever page is allocated and
+enter slowpath whenever all of given zones's batchcount is zero.
+Yes, it's not really slow path because it could return to normal status
+without calling significant slow functions by reset batchcount of
+prepare_slowpath.
 
+I think it's tradeoff and I am biased your approach although we would
+lose a little performance because fair aging would recover the loss by
+fastpath's overhead. But who knows? Someone has a concern.
 
->>
->>>      If we don't use, and met such an issue, how should we deal with
->> such infinite loop?
->>>
->>>      I made a change in all_reclaimable() function, passed overnight tests,
->> please help review, thanks in advance!
->>> @@ -2353,7 +2353,9 @@ static bool all_unreclaimable(struct zonelist
->> *zonelist,
->>>                           continue;
->>>                   if (!cpuset_zone_allowed_hardwall(zone,
->> GFP_KERNEL))
->>>                           continue;
->>> -               if (!zone->all_unreclaimable)
->>> +               if (zone->all_unreclaimable)
->>> +                       continue;
->>> +               if (zone_reclaimable(zone))
->>>                           return false;
->>
->> Please tell me why you chaned here.
-> The original check is once found zone->all_unreclaimable is false, it will return false, then
->it will set did_some_progress non-zero. Then another loop of direct_reclaimed performed.
->  But I think zone->all_unreclaimable is not always reliable such as in my case, kswapd go to
->  sleep and no one will change this flag. We should also check zone_reclaimalbe(zone) if
->  zone->all_unreclaimalbe = 0 to double confirm if a zone is reclaimable; This change also
->  avoid the issue you described in below commit:
+So we should mention about such problems.
 
-Please read more older code. Your pointed code is temporary change and I changed back for fixing
-bugs.
-If you look at the status in middle direct reclaim, we can't avoid race condition from multi direct
-reclaim issues. Moreover, if kswapd doesn't awaken, it is a problem. This is a reason why current code
-behave as you described.
-I agree we should fix your issue as far as possible. But I can't agree your analysis.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>  include/linux/mmzone.h |  1 +
+>  mm/page_alloc.c        | 39 +++++++++++++++++++++++++++++----------
+>  2 files changed, 30 insertions(+), 10 deletions(-)
+> 
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index af4a3b7..0c41d59 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -352,6 +352,7 @@ struct zone {
+>  	 * free areas of different sizes
+>  	 */
+>  	spinlock_t		lock;
+> +	atomic_t		alloc_batch;
+>  	int                     all_unreclaimable; /* All pages pinned */
+>  #if defined CONFIG_COMPACTION || defined CONFIG_CMA
+>  	/* Set to true when the PG_migrate_skip bits should be cleared */
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index af1d956b..d938b67 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1879,6 +1879,14 @@ zonelist_scan:
+>  		if (alloc_flags & ALLOC_NO_WATERMARKS)
+>  			goto try_this_zone;
+>  		/*
+> +		 * Distribute pages in proportion to the individual
+> +		 * zone size to ensure fair page aging.  The zone a
+> +		 * page was allocated in should have no effect on the
+> +		 * time the page has in memory before being reclaimed.
+> +		 */
+> +		if (atomic_read(&zone->alloc_batch) <= 0)
+> +			continue;
+> +		/*
+>  		 * When allocating a page cache page for writing, we
+>  		 * want to get it from a zone that is within its dirty
+>  		 * limit, such that no single zone holds more than its
+> @@ -1984,7 +1992,8 @@ this_zone_full:
+>  		goto zonelist_scan;
+>  	}
+>  
+> -	if (page)
+> +	if (page) {
+> +		atomic_sub(1U << order, &zone->alloc_batch);
+>  		/*
+>  		 * page->pfmemalloc is set when ALLOC_NO_WATERMARKS was
+>  		 * necessary to allocate the page. The expectation is
+> @@ -1993,6 +2002,7 @@ this_zone_full:
+>  		 * for !PFMEMALLOC purposes.
+>  		 */
+>  		page->pfmemalloc = !!(alloc_flags & ALLOC_NO_WATERMARKS);
+> +	}
+>  
+>  	return page;
+>  }
+> @@ -2342,16 +2352,20 @@ __alloc_pages_high_priority(gfp_t gfp_mask, unsigned int order,
+>  	return page;
+>  }
+>  
+> -static inline
+> -void wake_all_kswapd(unsigned int order, struct zonelist *zonelist,
+> -						enum zone_type high_zoneidx,
+> -						enum zone_type classzone_idx)
+> +static void prepare_slowpath(gfp_t gfp_mask, unsigned int order,
+> +			     struct zonelist *zonelist,
+> +			     enum zone_type high_zoneidx,
+> +			     enum zone_type classzone_idx)
+>  {
+>  	struct zoneref *z;
+>  	struct zone *zone;
+>  
+> -	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx)
+> -		wakeup_kswapd(zone, order, classzone_idx);
+> +	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
+> +		atomic_set(&zone->alloc_batch,
+> +			   high_wmark_pages(zone) - low_wmark_pages(zone));
+> +		if (!(gfp_mask & __GFP_NO_KSWAPD))
+> +			wakeup_kswapd(zone, order, classzone_idx);
+> +	}
+>  }
+>  
+>  static inline int
+> @@ -2447,9 +2461,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  		goto nopage;
+>  
+>  restart:
+> -	if (!(gfp_mask & __GFP_NO_KSWAPD))
+> -		wake_all_kswapd(order, zonelist, high_zoneidx,
+> -						zone_idx(preferred_zone));
+> +	prepare_slowpath(gfp_mask, order, zonelist,
+> +			 high_zoneidx, zone_idx(preferred_zone));
+>  
+>  	/*
+>  	 * OK, we're below the kswapd watermark and have kicked background
+> @@ -4758,6 +4771,9 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+>  		zone_seqlock_init(zone);
+>  		zone->zone_pgdat = pgdat;
+>  
+> +		/* For bootup, initialized properly in watermark setup */
+> +		atomic_set(&zone->alloc_batch, zone->managed_pages);
+> +
+>  		zone_pcp_init(zone);
+>  		lruvec_init(&zone->lruvec);
+>  		if (!size)
+> @@ -5533,6 +5549,9 @@ static void __setup_per_zone_wmarks(void)
+>  		zone->watermark[WMARK_LOW]  = min_wmark_pages(zone) + (tmp >> 2);
+>  		zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) + (tmp >> 1);
+>  
+> +		atomic_set(&zone->alloc_batch,
+> +			   high_wmark_pages(zone) - low_wmark_pages(zone));
+> +
+>  		setup_zone_migrate_reserve(zone);
+>  		spin_unlock_irqrestore(&zone->lock, flags);
+>  	}
+> -- 
+> 1.8.3.2
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
