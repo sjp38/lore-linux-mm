@@ -1,40 +1,53 @@
-From: Li Zefan <lizefan@huawei.com>
-Subject: [PATCH v3 0/8] memcg, cgroup: kill css_id
-Date: Mon, 29 Jul 2013 15:07:30 +0800
-Message-ID: <51F614B2.6010503@huawei.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="GB2312"
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id C98DF6B0031
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 00:22:09 -0400 (EDT)
+Message-ID: <51F9E265.7030503@oracle.com>
+Date: Thu, 01 Aug 2013 12:21:57 +0800
+From: Bob Liu <bob.liu@oracle.com>
+MIME-Version: 1.0
+Subject: Re: Possible deadloop in direct reclaim?
+References: <89813612683626448B837EE5A0B6A7CB3B62F8F272@SC-VEXCH4.marvell.com> <000001400d38469d-a121fb96-4483-483a-9d3e-fc552e413892-000000@email.amazonses.com> <89813612683626448B837EE5A0B6A7CB3B62F8F5C3@SC-VEXCH4.marvell.com> <CAHGf_=q8JZQ42R-3yzie7DXUEq8kU+TZXgcX9s=dn8nVigXv8g@mail.gmail.com> <89813612683626448B837EE5A0B6A7CB3B62F8FE33@SC-VEXCH4.marvell.com> <51F69BD7.2060407@gmail.com> <89813612683626448B837EE5A0B6A7CB3B630BDF99@SC-VEXCH4.marvell.com> <51F9CBC0.2020006@gmail.com>
+In-Reply-To: <51F9CBC0.2020006@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner@vger.kernel.org>
-Sender: linux-kernel-owner@vger.kernel.org
-To: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
-List-Id: linux-mm.kvack.org
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Lisa Du <cldu@marvell.com>, Christoph Lameter <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Bob Liu <lliubbo@gmail.com>
 
-This patchset converts memcg to use cgroup->id, and then we can remove
-cgroup css_id.
+Hi KOSAKI,
 
-As we've removed memcg's own refcnt, converting memcg to use cgroup->id
-is very straight-forward.
+On 08/01/2013 10:45 AM, KOSAKI Motohiro wrote:
 
-The patchset is based on Tejun's cgroup tree.
+> 
+> Please read more older code. Your pointed code is temporary change and I
+> changed back for fixing
+> bugs.
+> If you look at the status in middle direct reclaim, we can't avoid race
+> condition from multi direct
+> reclaim issues. Moreover, if kswapd doesn't awaken, it is a problem.
+> This is a reason why current code
+> behave as you described.
+> I agree we should fix your issue as far as possible. But I can't agree
+> your analysis.
+> 
 
+I found this thread:
+mm, vmscan: fix do_try_to_free_pages() livelock
+https://lkml.org/lkml/2012/6/14/74
 
-v2->v3:
-- some minor cleanups suggested by Michal.
-- fixed the call to idr_alloc() in cgroup_init() in the first patch.
+I think that's the same issue Lisa met.
 
-Li Zefan (8):
-      cgroup: convert cgroup_ida to cgroup_idr
-      cgroup: document how cgroup IDs are assigned
-      cgroup: implement cgroup_from_id()
-      memcg: convert to use cgroup_is_descendant()
-      memcg: convert to use cgroup id
-      memcg: fail to create cgroup if the cgroup id is too big
-      memcg: stop using css id
-      cgroup: kill css_id
+But I didn't find out why your patch didn't get merged?
+There were already many acks.
+
+-- 
+Regards,
+-Bob
+
 --
- include/linux/cgroup.h |  49 ++--------
- kernel/cgroup.c        | 296 ++++++++---------------------------------------------------
- mm/memcontrol.c        |  68 ++++++++------
- 3 files changed, 91 insertions(+), 322 deletions(-)
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
