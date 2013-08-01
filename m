@@ -1,207 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id C2A4F6B0032
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 03:08:10 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 701896B0034
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 03:08:11 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v2 00/18] Arrange hotpluggable memory as ZONE_MOVABLE.
-Date: Thu, 1 Aug 2013 15:06:22 +0800
-Message-Id: <1375340800-19332-1-git-send-email-tangchen@cn.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Subject: [PATCH v2 04/18] acpi: Introduce acpi_invalid_table() to check if a table is invalid.
+Date: Thu, 1 Aug 2013 15:06:26 +0800
+Message-Id: <1375340800-19332-5-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1375340800-19332-1-git-send-email-tangchen@cn.fujitsu.com>
+References: <1375340800-19332-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-This patch-set aims to solve some problems at system boot time
-to enhance memory hotplug functionality.
+In acpi_initrd_override(), it checks several things to ensure the
+table it found is valid. In later patches, we need to do these check
+somewhere else. So this patch introduces a common function
+acpi_invalid_table() to do all these checks, and reuse it in different
+places. The function will be used in the subsequent patches.
 
-[Background]
+Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+---
+ drivers/acpi/osl.c |   86 +++++++++++++++++++++++++++++++++++++---------------
+ 1 files changed, 61 insertions(+), 25 deletions(-)
 
-The Linux kernel cannot migrate pages used by the kernel because
-of the kernel direct mapping. Since va =3D pa + PAGE=5FOFFSET, if the
-physical address is changed, we cannot simply update the kernel
-pagetable. On the contrary, we have to update all the pointers
-pointing to the virtual address, which is very difficult to do.
-
-In order to do memory hotplug, we should prevent the kernel to use
-hotpluggable memory.
-
-In ACPI, there is a table named SRAT(System Resource Affinity Table).
-It contains system NUMA info (CPUs, memory ranges, PXM), and also a
-flag field indicating which memory ranges are hotpluggable.
-
-
-[Problem to be solved]
-
-At the very early time when the system is booting, we use a bootmem
-allocator, named memblock, to allocate memory for the kernel.
-memblock will start to work before the kernel parse SRAT, which
-means memblock won't know which memory is hotpluggable before SRAT
-is parsed.
-
-So at this time, memblock could allocate hotpluggable memory for
-the kernel to use permanently. For example, the kernel may allocate
-pagetables in hotpluggable memory, which cannot be freed when the
-system is up.
-
-So we have to prevent memblock allocating hotpluggable memory for
-the kernel at the early boot time.
-
-
-[Earlier solutions]
-
-We have tried to parse SRAT earlier, before memblock is ready. To
-do this, we also have to do ACPI=5FINITRD=5FTABLE=5FOVERRIDE earlier.
-Otherwise the override tables won't be able to effect.
-
-This is not that easy to do because memblock is ready before direct
-mapping is setup. So Yinghai split the ACPI=5FINITRD=5FTABLE=5FOVERRIDE
-procedure into two steps: find and copy. Please refer to the
-following patch-set:
-        https://lkml.org/lkml/2013/6/13/587
-
-To this solution, tj gave a lot of comments and the following
-suggestions.
-
-
-[Suggestion from tj]
-
-tj mainly gave the following suggestions:
-
-1. Necessary reordering is OK, but we should not rely on
-   reordering to achieve the goal because it makes the kernel
-   too fragile.
-
-2. Memory allocated to kernel for temporary usage is OK because
-   it will be freed when the system is up. Doing relocation
-   for permanent allocated hotpluggable memory will make the
-   the kernel more robust.
-
-3. Need to enhance memblock to discover and complain if any
-   hotpluggable memory is allocated to kernel.
-
-After a long thinking, we choose not to do the relocation for
-the following reasons:
-
-1. It's easy to find out the allocated hotpluggable memory. But
-   memblock will merge the adjoined ranges owned by different users
-   and used for different purposes. It's hard to find the owners.
-
-2. Different memory has different way to be relocated. I think one
-   function for each kind of memory will make the code too messy.
-
-3. Pagetable could be in hotpluggable memory. Relocating pagetable
-   is too difficult and risky. We have to update all PUD, PMD pages.
-   And also, ACPI=5FINITRD=5FTABLE=5FOVERRIDE and parsing SRAT procedures
-   are not long after pagetable is initialized. If we relocate the
-   pagetable not long after it was initialized, the code will be
-   very ugly.
-
-
-[Solution in this patch-set]
-
-In this patch-set, we still do the reordering, but in a new way.
-
-1. Improve memblock with flags, so that it is able to differentiate
-   memory regions for different usage. And also a MEMBLOCK=5FHOTPLUG
-   flag to mark hotpluggable memory.
-
-2. When memblock is ready (memblock=5Fx86=5Ffill() is called), initialize
-   acpi=5Fgbl=5Froot=5Ftable=5Flist, fulfill all the ACPI tables' phys addr=
-s.
-   Now, we have all the ACPI tables' phys addrs provided by firmware.
-
-3. Check if there is a SRAT in initrd file used to override the one
-   provided by firmware. If so, get its phys addr.
-
-4. If no override SRAT in initrd, get the phys addr of the SRAT
-   provided by firmware.
-
-   Now, we have the phys addr of the to be used SRAT, the one in
-   initrd or the one in firmware.
-
-5. Parse only the memory affinities in SRAT, find out all the
-   hotpluggable memory regions and mark them in memblock.memory with
-   MEMBLOCK=5FHOTPLUG flag.
-
-6. The kernel goes through the current path. Any other related parts,
-   such as ACPI=5FINITRD=5FTABLE=5FOVERRIDE path, the current parsing ACPI
-   tables pathes, global variable numa=5Fmeminfo, and so on, are not
-   modified. They work as before.
-
-7. Make memblock default allocator skip hotpluggable memory.
-
-8. Introduce movablenode boot option to allow users to enable
-   and disable this functionality.
-
-
-In summary, in order to get hotpluggable memory info as early as possible,
-this patch-set only parse memory affinities in SRAT one more time right
-after memblock is ready, and leave all the other pathes untouched. With
-the hotpluggable memory info, we can arrange hotpluggable memory in
-ZONE=5FMOVABLE to prevent the kernel to use it.
-
-
-change log v1 -> v2:
-1. According to Tejun's advice, make ACPI side report which memory regions
-   are hotpluggable, and memblock side handle the memory allocation.
-2. Change "movablecore=3Dacpi" boot option to "movablenode" boot option.
-
-Thanks.=20
-
-
-Tang Chen (17):
-  acpi: Print Hot-Pluggable Field in SRAT.
-  earlycpio.c: Fix the confusing comment of find=5Fcpio=5Fdata().
-  acpi: Remove "continue" in macro INVALID=5FTABLE().
-  acpi: Introduce acpi=5Finvalid=5Ftable() to check if a table is invalid.
-  x86, acpi: Split acpi=5Fboot=5Ftable=5Finit() into two parts.
-  x86, acpi: Initialize ACPI root table list earlier.
-  x86, acpi: Also initialize signature and length when parsing root
-    table.
-  x86: Make get=5Framdisk=5F{image|size}() global.
-  x86, acpi: Try to find if SRAT is overrided earlier.
-  x86, acpi: Try to find SRAT in firmware earlier.
-  x86, acpi, numa, mem=5Fhotplug: Find hotpluggable memory in SRAT memory
-    affinities.
-  x86, numa, mem=5Fhotplug: Skip all the regions the kernel resides in.
-  memblock, numa: Introduce flag into memblock.
-  memblock, mem=5Fhotplug: Introduce MEMBLOCK=5FHOTPLUG flag to mark
-    hotpluggable regions.
-  memblock, mem=5Fhotplug: Make memblock skip hotpluggable regions by
-    default.
-  mem-hotplug: Introduce movablenode boot option to {en|dis}able using
-    SRAT.
-  x86, numa, acpi, memory-hotplug: Make movablenode have higher
-    priority.
-
-Yasuaki Ishimatsu (1):
-  x86: get pg=5Fdata=5Ft's memory from other node
-
- Documentation/kernel-parameters.txt |   15 ++
- arch/x86/include/asm/setup.h        |   21 +++
- arch/x86/kernel/acpi/boot.c         |   38 ++++--
- arch/x86/kernel/setup.c             |   37 +++---
- arch/x86/mm/numa.c                  |    5 +-
- arch/x86/mm/srat.c                  |   11 +-
- drivers/acpi/acpica/tbutils.c       |   47 ++++++-
- drivers/acpi/acpica/tbxface.c       |   32 +++++
- drivers/acpi/osl.c                  |  247 +++++++++++++++++++++++++++++++=
-+---
- drivers/acpi/tables.c               |    7 +-
- include/acpi/acpixf.h               |    6 +
- include/linux/acpi.h                |   22 +++-
- include/linux/memblock.h            |   14 ++
- include/linux/memory=5Fhotplug.h      |    5 +
- lib/earlycpio.c                     |   27 ++--
- mm/memblock.c                       |   92 +++++++++++--
- mm/memory=5Fhotplug.c                 |  104 +++++++++++++++-
- mm/page=5Falloc.c                     |   31 ++++-
- 18 files changed, 664 insertions(+), 97 deletions(-)
-
-=
+diff --git a/drivers/acpi/osl.c b/drivers/acpi/osl.c
+index 91d9f54..8df8a93 100644
+--- a/drivers/acpi/osl.c
++++ b/drivers/acpi/osl.c
+@@ -572,9 +572,68 @@ static const char * const table_sigs[] = {
+ /* Must not increase 10 or needs code modification below */
+ #define ACPI_OVERRIDE_TABLES 10
+ 
++/*******************************************************************************
++ *
++ * FUNCTION:    acpi_invalid_table
++ *
++ * PARAMETERS:  File               - The initrd file
++ *              Path               - Path to acpi overriding tables in cpio file
++ *              Signature          - Signature of the table
++ *
++ * RETURN:      0 if it passes all the checks, -EINVAL if any check fails.
++ *
++ * DESCRIPTION: Check if an acpi table found in initrd is invalid.
++ *              @signature can be NULL. If it is NULL, the function will check
++ *              if the table signature matches any signature in table_sigs[].
++ *
++ ******************************************************************************/
++int __init acpi_invalid_table(struct cpio_data *file,
++			      const char *path, const char *signature)
++{
++	int idx;
++	struct acpi_table_header *table = file->data;
++
++	if (file->size < sizeof(struct acpi_table_header)) {
++		INVALID_TABLE("Table smaller than ACPI header",
++			      path, file->name);
++		return -EINVAL;
++	}
++
++	if (signature) {
++		if (memcmp(table->signature, signature, 4)) {
++			INVALID_TABLE("Table signature does not match",
++				      path, file->name);
++			return -EINVAL;
++		}
++	} else {
++		for (idx = 0; table_sigs[idx]; idx++)
++			if (!memcmp(table->signature, table_sigs[idx], 4))
++				break;
++
++		if (!table_sigs[idx]) {
++			INVALID_TABLE("Unknown signature", path, file->name);
++			return -EINVAL;
++		}
++	}
++
++	if (file->size != table->length) {
++		INVALID_TABLE("File length does not match table length",
++			      path, file->name);
++		return -EINVAL;
++	}
++
++	if (acpi_table_checksum(file->data, table->length)) {
++		INVALID_TABLE("Bad table checksum",
++			      path, file->name);
++		return -EINVAL;
++	}
++
++	return 0;
++}
++
+ void __init acpi_initrd_override(void *data, size_t size)
+ {
+-	int sig, no, table_nr = 0, total_offset = 0;
++	int no, table_nr = 0, total_offset = 0;
+ 	long offset = 0;
+ 	struct acpi_table_header *table;
+ 	char cpio_path[32] = "kernel/firmware/acpi/";
+@@ -593,33 +652,10 @@ void __init acpi_initrd_override(void *data, size_t size)
+ 		data += offset;
+ 		size -= offset;
+ 
+-		if (file.size < sizeof(struct acpi_table_header)) {
+-			INVALID_TABLE("Table smaller than ACPI header",
+-				      cpio_path, file.name);
+-			continue;
+-		}
+-
+ 		table = file.data;
+ 
+-		for (sig = 0; table_sigs[sig]; sig++)
+-			if (!memcmp(table->signature, table_sigs[sig], 4))
+-				break;
+-
+-		if (!table_sigs[sig]) {
+-			INVALID_TABLE("Unknown signature",
+-				      cpio_path, file.name);
++		if (acpi_invalid_table(&file, cpio_path, NULL))
+ 			continue;
+-		}
+-		if (file.size != table->length) {
+-			INVALID_TABLE("File length does not match table length",
+-				      cpio_path, file.name);
+-			continue;
+-		}
+-		if (acpi_table_checksum(file.data, table->length)) {
+-			INVALID_TABLE("Bad table checksum",
+-				      cpio_path, file.name);
+-			continue;
+-		}
+ 
+ 		pr_info("%4.4s ACPI table found in initrd [%s%s][0x%x]\n",
+ 			table->signature, cpio_path, file.name, table->length);
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
