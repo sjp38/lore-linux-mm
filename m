@@ -1,70 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 7C1B16B0031
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 11:39:02 -0400 (EDT)
-Date: Thu, 1 Aug 2013 16:38:57 +0100
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id B89976B0031
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 11:42:41 -0400 (EDT)
+Date: Thu, 1 Aug 2013 16:42:28 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 08/18] sched: Reschedule task on preferred NUMA node once
- selected
-Message-ID: <20130801153857.GD2296@suse.de>
+Subject: Re: [PATCH 16/18] sched: Avoid overloading CPUs on a preferred NUMA
+ node
+Message-ID: <20130801154228.GE2296@suse.de>
 References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
- <1373901620-2021-9-git-send-email-mgorman@suse.de>
- <20130801044757.GA6151@linux.vnet.ibm.com>
+ <1373901620-2021-17-git-send-email-mgorman@suse.de>
+ <20130801071013.GG4880@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20130801044757.GA6151@linux.vnet.ibm.com>
+In-Reply-To: <20130801071013.GG4880@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Aug 01, 2013 at 10:17:57AM +0530, Srikar Dronamraju wrote:
-> * Mel Gorman <mgorman@suse.de> [2013-07-15 16:20:10]:
-> 
-> > A preferred node is selected based on the node the most NUMA hinting
-> > faults was incurred on. There is no guarantee that the task is running
-> > on that node at the time so this patch rescheules the task to run on
-> > the most idle CPU of the selected node when selected. This avoids
-> > waiting for the balancer to make a decision.
-> > 
-> > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> > ---
-> >  kernel/sched/core.c  | 17 +++++++++++++++++
-> >  kernel/sched/fair.c  | 46 +++++++++++++++++++++++++++++++++++++++++++++-
-> >  kernel/sched/sched.h |  1 +
-> >  3 files changed, 63 insertions(+), 1 deletion(-)
-> > 
-> > diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-> > index 5e02507..b67a102 100644
-> > --- a/kernel/sched/core.c
-> > +++ b/kernel/sched/core.c
-> > @@ -4856,6 +4856,23 @@ fail:
-> >  	return ret;
-> >  }
-> > 
-> > +#ifdef CONFIG_NUMA_BALANCING
-> > +/* Migrate current task p to target_cpu */
-> > +int migrate_task_to(struct task_struct *p, int target_cpu)
+On Thu, Aug 01, 2013 at 12:40:13PM +0530, Srikar Dronamraju wrote:
+> > +static int task_numa_find_cpu(struct task_struct *p, int nid)
 > > +{
-> > +	struct migration_arg arg = { p, target_cpu };
-> > +	int curr_cpu = task_cpu(p);
-> > +
-> > +	if (curr_cpu == target_cpu)
-> > +		return 0;
-> > +
-> > +	if (!cpumask_test_cpu(target_cpu, tsk_cpus_allowed(p)))
-> > +		return -EINVAL;
-> > +
-> > +	return stop_one_cpu(curr_cpu, migration_cpu_stop, &arg);
+> > +	int node_cpu = cpumask_first(cpumask_of_node(nid));
+> > +	int cpu, src_cpu = task_cpu(p), dst_cpu = src_cpu;
+> > +	unsigned long src_load, dst_load;
+> > +	unsigned long min_load = ULONG_MAX;
+> > +	struct task_group *tg = task_group(p);
+> > +	s64 src_eff_load, dst_eff_load;
+> > +	struct sched_domain *sd;
+> > +	unsigned long weight;
+> > +	bool balanced;
+> > +	int imbalance_pct, idx = -1;
+> > 
+> > +	/* No harm being optimistic */
+> > +	if (idle_cpu(node_cpu))
+> > +		return node_cpu;
 > 
-> As I had noted earlier, this upsets schedstats badly.
-> Can we add a TODO for this patch, which mentions that schedstats need to
-> taken care.
+> Cant this lead to lot of imbalance across nodes? Wont this lead to lot
+> of ping-pong of tasks between different nodes resulting in performance
+> hit?
+
+Ideally it wouldn't because if we are trying to migrate the task to here in
+the first place then it must have been scheduled there for long enough to
+accumulate those faults. Now, there might be a ping-pong effect because a
+tasks gets moved off by the load balancer because the CPUs are overloaded and
+now we're trying to move it back. If we can detect that this is happening
+then one way of dealing with it would be to clear p->numa_faults[] when
+a task is moved off a node due to compute overload.
+
+> Lets say the system is not fully loaded, something like a numa01
+> but with far lesser number of threads probably nr_cpus/2 or nr_cpus/4,
+> then all threads will try to move to single node as we can keep seeing
+> idle threads. No? Wont it lead all load moving to one node and load
+> balancer spreading it out...
 > 
 
-I added a TODO comment because there is a possibility that this will all
-change again with the stop_two_cpus patch.
+I cannot be 100% certain. I'm not strong enough on the scheduler yet and
+the compute overloading handling is currently too weak.
 
 -- 
 Mel Gorman
