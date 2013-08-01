@@ -1,86 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id D2CB26B0031
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 00:48:24 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 4EF7F6B0031
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 01:00:19 -0400 (EDT)
 Received: from /spool/local
 	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Wed, 31 Jul 2013 22:48:24 -0600
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id E48141FF001C
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 22:42:58 -0600 (MDT)
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r714mFvQ078186
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 22:48:18 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r714mDlF014007
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2013 22:48:15 -0600
-Date: Thu, 1 Aug 2013 10:17:57 +0530
+	Wed, 31 Jul 2013 23:00:18 -0600
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 83F446E803A
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 01:00:10 -0400 (EDT)
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7150FE8156028
+	for <linux-mm@kvack.org>; Thu, 1 Aug 2013 01:00:15 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r7150FAe015554
+	for <linux-mm@kvack.org>; Thu, 1 Aug 2013 02:00:15 -0300
+Date: Thu, 1 Aug 2013 10:29:58 +0530
 From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 08/18] sched: Reschedule task on preferred NUMA node once
- selected
-Message-ID: <20130801044757.GA6151@linux.vnet.ibm.com>
+Subject: Re: [PATCH 18/18] sched: Swap tasks when reschuling if a CPU on a
+ target node is imbalanced
+Message-ID: <20130801045958.GB6151@linux.vnet.ibm.com>
 Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
- <1373901620-2021-9-git-send-email-mgorman@suse.de>
+ <1373901620-2021-19-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <1373901620-2021-9-git-send-email-mgorman@suse.de>
+In-Reply-To: <1373901620-2021-19-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-* Mel Gorman <mgorman@suse.de> [2013-07-15 16:20:10]:
-
-> A preferred node is selected based on the node the most NUMA hinting
-> faults was incurred on. There is no guarantee that the task is running
-> on that node at the time so this patch rescheules the task to run on
-> the most idle CPU of the selected node when selected. This avoids
-> waiting for the balancer to make a decision.
+> @@ -904,6 +908,8 @@ static int task_numa_find_cpu(struct task_struct *p, int nid)
+>  	src_eff_load *= src_load + effective_load(tg, src_cpu, -weight, -weight);
 > 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> ---
->  kernel/sched/core.c  | 17 +++++++++++++++++
->  kernel/sched/fair.c  | 46 +++++++++++++++++++++++++++++++++++++++++++++-
->  kernel/sched/sched.h |  1 +
->  3 files changed, 63 insertions(+), 1 deletion(-)
+>  	for_each_cpu(cpu, cpumask_of_node(nid)) {
+> +		struct task_struct *swap_candidate = NULL;
+> +
+>  		dst_load = target_load(cpu, idx);
 > 
-> diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-> index 5e02507..b67a102 100644
-> --- a/kernel/sched/core.c
-> +++ b/kernel/sched/core.c
-> @@ -4856,6 +4856,23 @@ fail:
->  	return ret;
->  }
+>  		/* If the CPU is idle, use it */
+> @@ -922,12 +928,41 @@ static int task_numa_find_cpu(struct task_struct *p, int nid)
+>  		 * migrate to its preferred node due to load imbalances.
+>  		 */
+>  		balanced = (dst_eff_load <= src_eff_load);
+> -		if (!balanced)
+> -			continue;
+> +		if (!balanced) {
+> +			struct rq *rq = cpu_rq(cpu);
+> +			unsigned long src_faults, dst_faults;
+> +
+> +			/* Do not move tasks off their preferred node */
+> +			if (rq->curr->numa_preferred_nid == nid)
+> +				continue;
+> +
+> +			/* Do not attempt an illegal migration */
+> +			if (!cpumask_test_cpu(cpu, tsk_cpus_allowed(rq->curr)))
+> +				continue;
+> +
+> +			/*
+> +			 * Do not impair locality for the swap candidate.
+> +			 * Destination for the swap candidate is the source cpu
+> +			 */
+> +			if (rq->curr->numa_faults) {
+> +				src_faults = rq->curr->numa_faults[task_faults_idx(nid, 1)];
+> +				dst_faults = rq->curr->numa_faults[task_faults_idx(src_cpu_node, 1)];
+> +				if (src_faults > dst_faults)
+> +					continue;
+> +			}
+> +
+> +			/*
+> +			 * The destination is overloaded but running a task
+> +			 * that is not running on its preferred node. Consider
+> +			 * swapping the CPU tasks are running on.
+> +			 */
+> +			swap_candidate = rq->curr;
+> +		}
 > 
-> +#ifdef CONFIG_NUMA_BALANCING
-> +/* Migrate current task p to target_cpu */
-> +int migrate_task_to(struct task_struct *p, int target_cpu)
-> +{
-> +	struct migration_arg arg = { p, target_cpu };
-> +	int curr_cpu = task_cpu(p);
-> +
-> +	if (curr_cpu == target_cpu)
-> +		return 0;
-> +
-> +	if (!cpumask_test_cpu(target_cpu, tsk_cpus_allowed(p)))
-> +		return -EINVAL;
-> +
-> +	return stop_one_cpu(curr_cpu, migration_cpu_stop, &arg);
+>  		if (dst_load < min_load) {
+>  			min_load = dst_load;
+>  			dst_cpu = cpu;
+> +			*swap_p = swap_candidate;
 
-As I had noted earlier, this upsets schedstats badly.
-Can we add a TODO for this patch, which mentions that schedstats need to
-taken care.
+Are we some times passing a wrong candidate?
+Lets say the first cpu balanced is false and we set the swap_candidate,
+but find the second cpu(/or later cpus) to be idle or has lesser effective load, then we
+could be sending the task that is running on the first cpu as the swap
+candidate.
 
-One alternative that I can think of is to have a per scheduling class
-routine that gets called and does the needful.
-for example: for fair share, it could update the schedstats as well as
-check for cfs_throttling.
+Then would the preferred cpu and swap_candidate match?
 
-But I think its an issue that needs some fix or we should obsolete
-schedstats.
+-- 
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
