@@ -1,58 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id C27D96B0032
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 01:43:11 -0400 (EDT)
-Date: Thu, 1 Aug 2013 14:43:38 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: Possible deadloop in direct reclaim?
-Message-ID: <20130801054338.GD19540@bbox>
-References: <89813612683626448B837EE5A0B6A7CB3B62F8F272@SC-VEXCH4.marvell.com>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 7E8A56B0031
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 01:53:21 -0400 (EDT)
+Received: by mail-lb0-f169.google.com with SMTP id u10so1080192lbi.28
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2013 22:53:19 -0700 (PDT)
+Date: Thu, 1 Aug 2013 09:53:03 +0400
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [patch 1/2] [PATCH] mm: Save soft-dirty bits on swapped pages
+Message-ID: <20130801055303.GA1764@moon>
+References: <20130730204154.407090410@gmail.com>
+ <20130730204654.844299768@gmail.com>
+ <20130801005132.GB19540@bbox>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <89813612683626448B837EE5A0B6A7CB3B62F8F272@SC-VEXCH4.marvell.com>
+In-Reply-To: <20130801005132.GB19540@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lisa Du <cldu@marvell.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, luto@amacapital.net, xemul@parallels.com, akpm@linux-foundation.org, mpm@selenic.com, xiaoguangrong@linux.vnet.ibm.com, mtosatti@redhat.com, kosaki.motohiro@gmail.com, sfr@canb.auug.org.au, peterz@infradead.org, aneesh.kumar@linux.vnet.ibm.com
 
-Hello,
-
-On Mon, Jul 22, 2013 at 09:58:17PM -0700, Lisa Du wrote:
-> Dear Sir:
-> Currently I met a possible deadloop in direct reclaim. After run plenty of the application, system run into a status that system memory is very fragmentized. Like only order-0 and order-1 memory left.
-> Then one process required a order-2 buffer but it enter an endless direct reclaim. From my trace log, I can see this loop already over 200,000 times. Kswapd was first wake up and then go back to sleep as it cannot rebalance this order's memory. But zone->all_unreclaimable remains 1.
-> Though direct_reclaim every time returns no pages, but as zone->all_unreclaimable = 1, so it loop again and again. Even when zone->pages_scanned also becomes very large. It will block the process for long time, until some watchdog thread detect this and kill this process. Though it's in __alloc_pages_slowpath, but it's too slow right? Maybe cost over 50 seconds or even more.
-> I think it's not as expected right?  Can we also add below check in the function all_unreclaimable() to terminate this loop?
+On Thu, Aug 01, 2013 at 09:51:32AM +0900, Minchan Kim wrote:
+> > Index: linux-2.6.git/include/linux/swapops.h
+> > ===================================================================
+> > --- linux-2.6.git.orig/include/linux/swapops.h
+> > +++ linux-2.6.git/include/linux/swapops.h
+> > @@ -67,6 +67,8 @@ static inline swp_entry_t pte_to_swp_ent
+> >  	swp_entry_t arch_entry;
+> >  
+> >  	BUG_ON(pte_file(pte));
+> > +	if (pte_swp_soft_dirty(pte))
+> > +		pte = pte_swp_clear_soft_dirty(pte);
 > 
-> @@ -2355,6 +2355,8 @@ static bool all_unreclaimable(struct zonelist *zonelist,
->                         continue;
->                 if (!zone->all_unreclaimable)
->                         return false;
-> +               if (sc->nr_reclaimed == 0 && !zone_reclaimable(zone))
-> +                       return true;
->         }
->          BTW: I'm using kernel3.4, I also try to search in the kernel3.9, didn't see a possible fix for such issue. Or is anyone also met such issue before? Any comment will be welcomed, looking forward to your reply!
+> Why do you remove soft-dirty flag whenever pte_to_swp_entry is called?
+> Isn't there any problem if we use mincore?
+
+No, there is no problem. pte_to_swp_entry caller when we know that pte
+we're decoding is having swap format (except the case in swap code which
+figures out the number of bits allowed for offset). Still since this bit
+is set on "higher" level than __swp_type/__swp_offset helpers it should
+be cleaned before the value from pte comes to "one level down" helpers
+function.
+
+> > +static inline int maybe_same_pte(pte_t pte, pte_t swp_pte)
 > 
-> Thanks!
+> Nitpick.
+> If maybe_same_pte is used widely, it looks good to me
+> but it's used for only swapoff at the moment so I think pte_swap_same
+> would be better name.
 
-I'd like to ask somethigs.
+I don't see much difference, but sure, lets rename it on top once series
+in -mm tree, sounds good?
 
-1. Do you have enabled swap?
-2. Do you enable CONFIG_COMPACTION?
-3. Could we get your zoneinfo via cat /proc/zoneinfo?
-4. If you disabled watchdog thread, you could see OOM sometime
-   although it takes very long time?
-
-
-> 
-> Best Regards
-> Lisa Du
-> 
-
--- 
-Kind regards,
-Minchan Kim
+	Cyrill
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
