@@ -1,42 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id B27B66B0032
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 13:52:06 -0400 (EDT)
-Message-ID: <51FBF1BA.9030801@surriel.com>
-Date: Fri, 02 Aug 2013 13:51:54 -0400
-From: Rik van Riel <riel@surriel.com>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id F3E1F6B0032
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 15:05:10 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nfont@linux.vnet.ibm.com>;
+	Sat, 3 Aug 2013 16:00:06 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 1774E3578051
+	for <linux-mm@kvack.org>; Sat,  3 Aug 2013 05:05:05 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r72J4lEL9437612
+	for <linux-mm@kvack.org>; Sat, 3 Aug 2013 05:04:54 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r72J4vY4006767
+	for <linux-mm@kvack.org>; Sat, 3 Aug 2013 05:04:57 +1000
+Message-ID: <51FC02D6.6050202@linux.vnet.ibm.com>
+Date: Fri, 02 Aug 2013 14:04:54 -0500
+From: Nathan Fontenot <nfont@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [patch v2 3/3] mm: page_alloc: fair zone allocator policy
-References: <1375457846-21521-1-git-send-email-hannes@cmpxchg.org> <1375457846-21521-4-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1375457846-21521-4-git-send-email-hannes@cmpxchg.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: [PATCH 1/8] register bootmem pages for powerpc when sparse vmemmap
+ is not defined
+References: <51F01E06.6090800@linux.vnet.ibm.com> <51F01E5F.80307@linux.vnet.ibm.com> <20130802022703.GA1680@concordia>
+In-Reply-To: <20130802022703.GA1680@concordia>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michael Ellerman <michael@ellerman.id.au>
+Cc: linux-mm <linux-mm@kvack.org>, isimatu.yasuaki@jp.fujitsu.com, linuxppc-dev@lists.ozlabs.org, LKML <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-On 08/02/2013 11:37 AM, Johannes Weiner wrote:
-> Each zone that holds userspace pages of one workload must be aged at a
-> speed proportional to the zone size.  Otherwise, the time an
-> individual page gets to stay in memory depends on the zone it happened
-> to be allocated in.  Asymmetry in the zone aging creates rather
-> unpredictable aging behavior and results in the wrong pages being
-> reclaimed, activated etc.
+On 08/01/2013 09:27 PM, Michael Ellerman wrote:
+> On Wed, Jul 24, 2013 at 01:35:11PM -0500, Nathan Fontenot wrote:
+>> Previous commit 46723bfa540... introduced a new config option
+>> HAVE_BOOTMEM_INFO_NODE that ended up breaking memory hot-remove for powerpc
+>> when sparse vmemmap is not defined.
+> 
+> So that's a bug fix that should go into 3.10 stable?
+> 
 
+Yes, I believe this one as well as patch 2/8 should go into 3.10 stable.
 
-> When zone_reclaim_mode is enabled, allocations will now spread out to
-> all zones on the local node, not just the first preferred zone (which
-> on a 4G node might be a tiny Normal zone).
->
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Tested-by: Zlatko Calusic <zcalusic@bitsync.net>
+I'll re-send with linux stable added.
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
-
-
--- 
-All rights reversed.
+-Nathan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
