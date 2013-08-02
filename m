@@ -1,131 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id ECA126B0031
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 23:53:03 -0400 (EDT)
-Date: Fri, 2 Aug 2013 12:53:33 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: Possible deadloop in direct reclaim?
-Message-ID: <20130802035333.GD32486@bbox>
-References: <89813612683626448B837EE5A0B6A7CB3B62F8F272@SC-VEXCH4.marvell.com>
- <20130801054338.GD19540@bbox>
- <89813612683626448B837EE5A0B6A7CB3B630BE04E@SC-VEXCH4.marvell.com>
- <20130801073330.GG19540@bbox>
- <89813612683626448B837EE5A0B6A7CB3B630BE0E3@SC-VEXCH4.marvell.com>
- <20130801084259.GA32486@bbox>
- <20130802015241.GB32486@bbox>
- <89813612683626448B837EE5A0B6A7CB3B630BE43E@SC-VEXCH4.marvell.com>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 9A4626B0031
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 00:32:19 -0400 (EDT)
+Received: by mail-bk0-f47.google.com with SMTP id jg9so51744bkc.6
+        for <linux-mm@kvack.org>; Thu, 01 Aug 2013 21:32:17 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <89813612683626448B837EE5A0B6A7CB3B630BE43E@SC-VEXCH4.marvell.com>
+In-Reply-To: <20130801162012.GA23319@cmpxchg.org>
+References: <1375357402-9811-1-git-send-email-handai.szj@taobao.com>
+	<1375358407-10777-1-git-send-email-handai.szj@taobao.com>
+	<20130801162012.GA23319@cmpxchg.org>
+Date: Fri, 2 Aug 2013 12:32:17 +0800
+Message-ID: <CAFj3OHUxir9kUXgHfOb1m6LDzO8HBG68CDi3MzV54sC0jdP=iQ@mail.gmail.com>
+Subject: Re: [PATCH V5 7/8] memcg: don't account root memcg page stats if only
+ root exists
+From: Sha Zhengju <handai.szj@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lisa Du <cldu@marvell.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Bob Liu <lliubbo@gmail.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Glauber Costa <glommer@gmail.com>, Greg Thelen <gthelen@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Sha Zhengju <handai.szj@taobao.com>
 
-On Thu, Aug 01, 2013 at 08:17:56PM -0700, Lisa Du wrote:
-> >-----Original Message-----
-> >From: Minchan Kim [mailto:minchan@kernel.org]
-> >Sent: 2013a1'8ae??2ae?JPY 10:26
-> >To: Lisa Du
-> >Cc: linux-mm@kvack.org; KOSAKI Motohiro
-> >Subject: Re: Possible deadloop in direct reclaim?
-> >
-> >Hello Lisa and KOSAKI,
-> >
-> >Lisa's quote style is very hard to follow so I'd like to write at bottom
-> >as ignoring line by line rule.
-> >
-> >Lisa, please correct your MUA.
-> I'm really sorry for my quote style, will improve it in my following mails.
-> >
-> >
-> >I reviewed current mmotm because recently Mel changed kswapd a lot and
-> >all_unreclaimable patch history today.
-> >What I see is recent mmotm has a same problem, too if system have no swap
-> >and no compaction. Of course, compaction is default yes option so we could
-> >recommend to enable if system works well but it's up to user and we should
-> >avoid direct reclaim hang although user disable compaction.
-> >
-> >When I see the patch history, real culprit is 929bea7c.
-> >
-> >"  zone->all_unreclaimable and zone->pages_scanned are neigher atomic
-> >    variables nor protected by lock.  Therefore zones can become a state of
-> >    zone->page_scanned=0 and zone->all_unreclaimable=1.  In this case, current
-> >    all_unreclaimable() return false even though zone->all_unreclaimabe=1."
-> >
-> >I understand the problem but apparently, it makes Lisa's problem because
-> >kswapd can give up balancing when high order allocation happens to prevent
-> >excessive reclaim with assuming the process requested high order allocation
-> >can do direct reclaim/compaction. But what if the process can't reclaim
-> >by no swap but lots of anon pages and can't compact by !CONFIG_COMPACTION?
-> >
-> >In such system, OOM kill is natural but not hang.
-> >So, a solution we can fix simply introduces zone_reclaimable check again in
-> >all_unreclaimabe() like this.
-> >
-> >What do you think about it?
-> >
-> >It's a same patch Lisa posted so we should give a credit
-> >to her/him(Sorry I'm not sure) if we agree thie approach.
-> >
-> >Lisa, If KOSAKI agree with this, could you resend this patch with your SOB?
-> >
-> >Thanks.
-> >
-> >diff --git a/mm/vmscan.c b/mm/vmscan.c
-> >index a3bf7fd..78f46d8 100644
-> >--- a/mm/vmscan.c
-> >+++ b/mm/vmscan.c
-> >@@ -2367,7 +2367,15 @@ static bool all_unreclaimable(struct zonelist *zonelist,
-> > 			continue;
-> > 		if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
-> > 			continue;
-> >-		if (!zone->all_unreclaimable)
-> >+		/*
-> >+		 * zone->page_scanned and could be raced so we need
-> >+		 * dobule check by zone->all_unreclaimable. Morever, kswapd
-> >+		 * could skip (zone->all_unreclaimable = 1) if the zone
-> >+		 * is heavily fragmented but enough free pages to meet
-> >+		 * high watermark. In such case, kswapd never set
-> >+		 * all_unreclaimable to 1 so we need zone_reclaimable, too.
-> >+		 */
-> >+		if (!zone->all_unreclaimable || zone_reclaimable(zone))
-> > 			return false;
-> > 	}
->    I'm afraid this patch may can't help.
->    zone->all_unreclaimable = 0 will always result the false return,
->    zone_reclaimable(zone) check wouldn't take effect no matter
->    it's true of false right?
+On Fri, Aug 2, 2013 at 12:20 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> On Thu, Aug 01, 2013 at 08:00:07PM +0800, Sha Zhengju wrote:
+>> @@ -6303,6 +6360,49 @@ mem_cgroup_css_online(struct cgroup *cont)
+>>       }
+>>
+>>       error = memcg_init_kmem(memcg, &mem_cgroup_subsys);
+>> +     if (!error) {
+>> +             if (!mem_cgroup_in_use()) {
+>> +                     /* I'm the first non-root memcg, move global stats to root memcg.
+>> +                      * Memcg creating is serialized by cgroup locks(cgroup_mutex),
+>> +                      * so the mem_cgroup_in_use() checking is safe.
+>> +                      *
+>> +                      * We use global_page_state() to get global page stats, but
+>> +                      * because of the optimized inc/dec functions in SMP while
+>> +                      * updating each zone's stats, We may lose some numbers
+>> +                      * in a stock(zone->pageset->vm_stat_diff) which brings some
+>> +                      * inaccuracy. But places where kernel use these page stats to
+>> +                      * steer next decision e.g. dirty page throttling or writeback
+>> +                      * also use global_page_state(), so here it's enough too.
+>> +                      */
+>> +                     spin_lock(&root_mem_cgroup->pcp_counter_lock);
+>> +                     root_mem_cgroup->stats_base.count[MEM_CGROUP_STAT_FILE_MAPPED] =
+>> +                                             global_page_state(NR_FILE_MAPPED);
+>> +                     root_mem_cgroup->stats_base.count[MEM_CGROUP_STAT_FILE_DIRTY] =
+>> +                                             global_page_state(NR_FILE_DIRTY);
+>> +                     root_mem_cgroup->stats_base.count[MEM_CGROUP_STAT_WRITEBACK] =
+>> +                                             global_page_state(NR_WRITEBACK);
+>> +                     spin_unlock(&root_mem_cgroup->pcp_counter_lock);
+>> +             }
+>
+> If inaccuracies in these counters are okay, why do we go through an
+> elaborate locking scheme that sprinkles memcg callbacks everywhere
+> just to be 100% reliable in the rare case somebody moves memory
+> between cgroups?
 
-You're right. It was not what I want but check both conditions.
+IMO they are not the same thing. Moving between cgroups may happen
+many times, if we ignore the inaccuracy between moving, then the
+cumulative inaccuracies caused by this back and forth behavior can
+become very large.
 
-> 
-> Also Bob found below thread, seems Kosaki also found same issue:
-> mm, vmscan: fix do_try_to_free_pages() livelock
-> https://lkml.org/lkml/2012/6/14/74
+But the transferring above occurs only once since we do it only when
+the first non-root memcg creating, so the error is at most
+zone->pageset->stat_threshold. This threshold depends on the amount of
+zone memory and  the number of processors, and its maximum value is
+125, so I thought using global_page_state() is enough. Of course we
+can add the stock to seek for greater perfection, but there are also
+possibilities of inaccuracy because of racy.
 
-I remember it and AFAIRC, I had a concern because description was
-too vague without detailed example and I fixed Aaditya's problem with
-another approach. That's why it wasn't merged at that time.
-
-Now, we have a real problem and analysis so I think KOSAKI's patch makes
-perfect to me.
-
-Lisa, Could you resend KOSAKI's patch with more detailed description?
-
-> 
-> >
-> >
-> >
-> >--
-> >Kind regards,
-> >Minchan Kim
 
 -- 
-Kind regards,
-Minchan Kim
+Thanks,
+Sha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
