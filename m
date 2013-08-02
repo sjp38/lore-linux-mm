@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 94B166B003C
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 12:06:45 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id B94666B003D
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 12:06:46 -0400 (EDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 3/9] mm: zone_reclaim: compaction: don't depend on kswapd to invoke reset_isolation_suitable
-Date: Fri,  2 Aug 2013 18:06:30 +0200
-Message-Id: <1375459596-30061-4-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 9/9] mm: zone_reclaim: compaction: add compaction to zone_reclaim_mode
+Date: Fri,  2 Aug 2013 18:06:36 +0200
+Message-Id: <1375459596-30061-10-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1375459596-30061-1-git-send-email-aarcange@redhat.com>
 References: <1375459596-30061-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,160 +13,195 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Johannes Weiner <jweiner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hush Bensen <hush.bensen@gmail.com>
 
-If kswapd never need to run (only __GFP_NO_KSWAPD allocations and
-plenty of free memory) compaction is otherwise crippled down and stops
-running for a while after the free/isolation cursor meets. After that
-allocation can fail for a full cycle of compaction_deferred, until
-compaction_restarting finally reset it again.
+This adds compaction to zone_reclaim so THP enabled won't decrease the
+NUMA locality with /proc/sys/vm/zone_reclaim_mode > 0.
 
-Stopping compaction for a full cycle after the cursor meets, even if
-it never failed and it's not going to fail, doesn't make sense.
-
-We already throttle compaction CPU utilization using
-defer_compaction. We shouldn't prevent compaction to run after each
-pass completes when the cursor meets, unless it failed.
-
-This makes direct compaction functional again. The throttling of
-direct compaction is still controlled by the defer_compaction
-logic.
-
-kswapd still won't risk to reset compaction, and it will wait direct
-compaction to do so. Not sure if this is ideal but it at least
-decreases the risk of kswapd doing too much work. kswapd will only run
-one pass of compaction until some allocation invokes compaction again.
-
-This decreased reliability of compaction was introduced in commit
-62997027ca5b3d4618198ed8b1aba40b61b1137b .
+It is important to boot with numa_zonelist_order=n (n means nodes) to
+get more accurate NUMA locality if there are multiple zones per node.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Acked-by: Rafael Aquini <aquini@redhat.com>
-Acked-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/compaction.h |  5 -----
- include/linux/mmzone.h     |  3 ---
- mm/compaction.c            | 15 ++++++---------
- mm/page_alloc.c            |  1 -
- mm/vmscan.c                |  8 --------
- 5 files changed, 6 insertions(+), 26 deletions(-)
+ include/linux/swap.h |   8 +++-
+ mm/page_alloc.c      |   4 +-
+ mm/vmscan.c          | 111 ++++++++++++++++++++++++++++++++++++++++++---------
+ 3 files changed, 102 insertions(+), 21 deletions(-)
 
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index 091d72e..fc3f266 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -24,7 +24,6 @@ extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 			int order, gfp_t gfp_mask, nodemask_t *mask,
- 			bool sync, bool *contended);
- extern void compact_pgdat(pg_data_t *pgdat, int order);
--extern void reset_isolation_suitable(pg_data_t *pgdat);
- extern unsigned long compaction_suitable(struct zone *zone, int order);
- 
- /* Do not skip compaction more than 64 times */
-@@ -84,10 +83,6 @@ static inline void compact_pgdat(pg_data_t *pgdat, int order)
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index d95cde5..d076a54 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -289,10 +289,14 @@ extern unsigned long vm_total_pages;
+ extern int zone_reclaim_mode;
+ extern int sysctl_min_unmapped_ratio;
+ extern int sysctl_min_slab_ratio;
+-extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
++extern int zone_reclaim(struct zone *, struct zone *, gfp_t, unsigned int,
++			unsigned long, int, int);
+ #else
+ #define zone_reclaim_mode 0
+-static inline int zone_reclaim(struct zone *z, gfp_t mask, unsigned int order)
++static inline int zone_reclaim(struct zone *preferred_zone, struct zone *zone,
++			       gfp_t mask, unsigned int order,
++			       unsigned long mark, int classzone_idx,
++			       int alloc_flags)
  {
+ 	return 0;
  }
- 
--static inline void reset_isolation_suitable(pg_data_t *pgdat)
--{
--}
--
- static inline unsigned long compaction_suitable(struct zone *zone, int order)
- {
- 	return COMPACT_SKIPPED;
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 1badcc9..5904b32 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -355,9 +355,6 @@ struct zone {
- 	int			alloc_batch;
- 	int                     all_unreclaimable; /* All pages pinned */
- #if defined CONFIG_COMPACTION || defined CONFIG_CMA
--	/* Set to true when the PG_migrate_skip bits should be cleared */
--	bool			compact_blockskip_flush;
--
- 	/* pfns where compaction scanners should start */
- 	unsigned long		compact_cached_free_pfn;
- 	unsigned long		compact_cached_migrate_pfn;
-diff --git a/mm/compaction.c b/mm/compaction.c
-index cac9594..525baaa 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -91,7 +91,6 @@ static void __reset_isolation_suitable(struct zone *zone)
- 
- 	zone->compact_cached_migrate_pfn = start_pfn;
- 	zone->compact_cached_free_pfn = end_pfn;
--	zone->compact_blockskip_flush = false;
- 
- 	/* Walk the zone and mark every pageblock as suitable for isolation */
- 	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
-@@ -110,7 +109,7 @@ static void __reset_isolation_suitable(struct zone *zone)
- 	}
- }
- 
--void reset_isolation_suitable(pg_data_t *pgdat)
-+static void reset_isolation_suitable(pg_data_t *pgdat)
- {
- 	int zoneid;
- 
-@@ -120,8 +119,7 @@ void reset_isolation_suitable(pg_data_t *pgdat)
- 			continue;
- 
- 		/* Only flush if a full compaction finished recently */
--		if (zone->compact_blockskip_flush)
--			__reset_isolation_suitable(zone);
-+		__reset_isolation_suitable(zone);
- 	}
- }
- 
-@@ -828,13 +826,12 @@ static int compact_finished(struct zone *zone,
- 	/* Compaction run completes if the migrate and free scanner meet */
- 	if (cc->free_pfn <= cc->migrate_pfn) {
- 		/*
--		 * Mark that the PG_migrate_skip information should be cleared
--		 * by kswapd when it goes to sleep. kswapd does not set the
--		 * flag itself as the decision to be clear should be directly
--		 * based on an allocation request.
-+		 * Clear the PG_migrate_skip information. kswapd does
-+		 * not clear it as the decision to be clear should be
-+		 * directly based on an allocation request.
- 		 */
- 		if (!current_is_kswapd())
--			zone->compact_blockskip_flush = true;
-+			__reset_isolation_suitable(zone);
- 
- 		return COMPACT_COMPLETE;
- 	}
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 8ccedd5..092b30d 100644
+index 879a3fd..c0bdde6 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -2222,7 +2222,6 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
- 				alloc_flags & ~ALLOC_NO_WATERMARKS,
- 				preferred_zone, migratetype);
- 		if (page) {
--			preferred_zone->compact_blockskip_flush = false;
- 			preferred_zone->compact_considered = 0;
- 			preferred_zone->compact_defer_shift = 0;
- 			if (order >= preferred_zone->compact_order_failed)
+@@ -1982,7 +1982,9 @@ zonelist_scan:
+ 				!zlc_zone_worth_trying(zonelist, z, allowednodes))
+ 				continue;
+ 
+-			ret = zone_reclaim(zone, gfp_mask, order);
++			ret = zone_reclaim(preferred_zone, zone, gfp_mask,
++					   order,
++					   mark, classzone_idx, alloc_flags);
+ 			switch (ret) {
+ 			case ZONE_RECLAIM_NOSCAN:
+ 				/* did not scan */
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 4b2da9e..f2ada36 100644
+index f2ada36..f28dc00 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -3091,14 +3091,6 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
- 		 */
- 		set_pgdat_percpu_threshold(pgdat, calculate_normal_threshold);
+@@ -3488,6 +3488,24 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+ 	unsigned long nr_slab_pages0, nr_slab_pages1;
  
--		/*
--		 * Compaction records what page blocks it recently failed to
--		 * isolate pages from and skips them in the future scanning.
--		 * When kswapd is going to sleep, it is reasonable to assume
--		 * that pages and compaction may succeed so reset the cache.
--		 */
--		reset_isolation_suitable(pgdat);
--
- 		if (!kthread_should_stop())
- 			schedule();
+ 	cond_resched();
++
++	/*
++	 * Zone reclaim reclaims unmapped file backed pages and
++	 * slab pages if we are over the defined limits.
++	 *
++	 * A small portion of unmapped file backed pages is needed for
++	 * file I/O otherwise pages read by file I/O will be immediately
++	 * thrown out if the zone is overallocated. So we do not reclaim
++	 * if less than a specified percentage of the zone is used by
++	 * unmapped file backed pages.
++	 */
++	if (zone_pagecache_reclaimable(zone) <= zone->min_unmapped_pages &&
++	    zone_page_state(zone, NR_SLAB_RECLAIMABLE) <= zone->min_slab_pages)
++		return ZONE_RECLAIM_FULL;
++
++	if (zone->all_unreclaimable)
++		return ZONE_RECLAIM_FULL;
++
+ 	/*
+ 	 * We need to be able to allocate from the reserves for RECLAIM_SWAP
+ 	 * and we also need to be able to write out pages for RECLAIM_WRITE
+@@ -3549,27 +3567,35 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+ 	return sc.nr_reclaimed >= nr_pages;
+ }
  
+-int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
++static int zone_reclaim_compact(struct zone *preferred_zone,
++				struct zone *zone, gfp_t gfp_mask,
++				unsigned int order,
++				bool sync_compaction,
++				bool *need_compaction)
+ {
+-	int node_id;
+-	int ret;
++	bool contended;
+ 
+-	/*
+-	 * Zone reclaim reclaims unmapped file backed pages and
+-	 * slab pages if we are over the defined limits.
+-	 *
+-	 * A small portion of unmapped file backed pages is needed for
+-	 * file I/O otherwise pages read by file I/O will be immediately
+-	 * thrown out if the zone is overallocated. So we do not reclaim
+-	 * if less than a specified percentage of the zone is used by
+-	 * unmapped file backed pages.
+-	 */
+-	if (zone_pagecache_reclaimable(zone) <= zone->min_unmapped_pages &&
+-	    zone_page_state(zone, NR_SLAB_RECLAIMABLE) <= zone->min_slab_pages)
+-		return ZONE_RECLAIM_FULL;
++	if (compaction_deferred(preferred_zone, order) ||
++	    !order ||
++	    (gfp_mask & (__GFP_FS|__GFP_IO)) != (__GFP_FS|__GFP_IO)) {
++		need_compaction = false;
++		return COMPACT_SKIPPED;
++	}
+ 
+-	if (zone->all_unreclaimable)
+-		return ZONE_RECLAIM_FULL;
++	*need_compaction = true;
++	return compact_zone_order(zone, order,
++				  gfp_mask,
++				  sync_compaction,
++				  &contended);
++}
++
++int zone_reclaim(struct zone *preferred_zone, struct zone *zone,
++		 gfp_t gfp_mask, unsigned int order,
++		 unsigned long mark, int classzone_idx, int alloc_flags)
++{
++	int node_id;
++	int ret, c_ret;
++	bool sync_compaction = false, need_compaction = false;
+ 
+ 	/*
+ 	 * Do not scan if the allocation should not be delayed.
+@@ -3587,7 +3613,56 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+ 	if (node_state(node_id, N_CPU) && node_id != numa_node_id())
+ 		return ZONE_RECLAIM_NOSCAN;
+ 
++repeat_compaction:
++	/*
++	 * If this allocation may be satisfied by memory compaction,
++	 * run compaction before reclaim.
++	 */
++	c_ret = zone_reclaim_compact(preferred_zone,
++				     zone, gfp_mask, order,
++				     sync_compaction,
++				     &need_compaction);
++	if (need_compaction &&
++	    c_ret != COMPACT_SKIPPED &&
++	    zone_watermark_ok(zone, order, mark,
++			      classzone_idx,
++			      alloc_flags)) {
++#ifdef CONFIG_COMPACTION
++		zone->compact_considered = 0;
++		zone->compact_defer_shift = 0;
++#endif
++		return ZONE_RECLAIM_SUCCESS;
++	}
++
++	/*
++	 * reclaim if compaction failed because not enough memory was
++	 * available or if compaction didn't run (order 0) or didn't
++	 * succeed.
++	 */
+ 	ret = __zone_reclaim(zone, gfp_mask, order);
++	if (ret == ZONE_RECLAIM_SUCCESS) {
++		if (zone_watermark_ok(zone, order, mark,
++				      classzone_idx,
++				      alloc_flags))
++			return ZONE_RECLAIM_SUCCESS;
++
++		/*
++		 * If compaction run but it was skipped and reclaim was
++		 * successful keep going.
++		 */
++		if (need_compaction && c_ret == COMPACT_SKIPPED) {
++			/*
++			 * If it's ok to wait for I/O we can as well run sync
++			 * compaction
++			 */
++			sync_compaction = !!(zone_reclaim_mode &
++					     (RECLAIM_WRITE|RECLAIM_SWAP));
++			cond_resched();
++			goto repeat_compaction;
++		}
++	}
++	if (need_compaction)
++		defer_compaction(preferred_zone, order);
+ 
+ 	if (!ret)
+ 		count_vm_event(PGSCAN_ZONE_RECLAIM_FAILED);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
