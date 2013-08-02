@@ -1,70 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 5B6C36B0032
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 12:06:35 -0400 (EDT)
-Message-ID: <1375459527.10300.77.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v2 10/18] x86, acpi: Try to find if SRAT is overrided
- earlier.
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Fri, 02 Aug 2013 10:05:27 -0600
-In-Reply-To: <51FB485A.9070801@cn.fujitsu.com>
-References: <1375340800-19332-1-git-send-email-tangchen@cn.fujitsu.com>
-	  <1375340800-19332-11-git-send-email-tangchen@cn.fujitsu.com>
-	 <1375406353.10300.73.camel@misato.fc.hp.com>
-	 <51FB485A.9070801@cn.fujitsu.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 1BBDD6B0033
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 12:06:44 -0400 (EDT)
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: [PATCH 8/9] mm: zone_reclaim: after a successful zone_reclaim check the min watermark
+Date: Fri,  2 Aug 2013 18:06:35 +0200
+Message-Id: <1375459596-30061-9-git-send-email-aarcange@redhat.com>
+In-Reply-To: <1375459596-30061-1-git-send-email-aarcange@redhat.com>
+References: <1375459596-30061-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Johannes Weiner <jweiner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hush Bensen <hush.bensen@gmail.com>
 
-On Fri, 2013-08-02 at 13:49 +0800, Tang Chen wrote:
-> On 08/02/2013 09:19 AM, Toshi Kani wrote:
-> ......
-> >> +phys_addr_t __init early_acpi_override_srat(void)
-> >> +{
-> >> +	int i;
-> >> +	u32 length;
-> >> +	long offset;
-> >> +	void *ramdisk_vaddr;
-> >> +	struct acpi_table_header *table;
-> >> +	struct cpio_data file;
-> >> +	unsigned long map_step = NR_FIX_BTMAPS<<  PAGE_SHIFT;
-> >> +	phys_addr_t ramdisk_image = get_ramdisk_image();
-> >> +	char cpio_path[32] = "kernel/firmware/acpi/";
-> >
-> > Don't you need to check if ramdisk is present before parsing the table?
-> > You may need something like:
-> >
-> >    if (!ramdisk_image || !get_ramdisk_size())
-> >          return 0;
-> 
-> Yes, it is better to do such a check here. But is there a possibility that
-> no ramdisk is present and we come to setup_arch() ?
+If we're in the fast path and we succeeded zone_reclaim(), it means we
+freed enough memory and we can use the min watermark to have some
+margin against concurrent allocations from other CPUs or interrupts.
 
-Without a ramdisk, the boot procedure will likely fail in mounting the
-root disk due to missing drivers.  But it should come to setup_arch()
-without it.
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+ mm/page_alloc.c | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)
 
-Thanks,
--Toshi
-
-
-> 
-> ......
-> >> +
-> >> +	return ramdisk_image;
-> >
-> > Doesn't this function return a physical address regardless of SRAT if a
-> > ramdisk is present?
-> 
-> Yes, and it is not good. I'll add the check above so that this won't happen.
-> 
-> Thanks.
-> 
-
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index b32ecde..879a3fd 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1990,8 +1990,26 @@ zonelist_scan:
+ 			case ZONE_RECLAIM_FULL:
+ 				/* scanned but unreclaimable */
+ 				continue;
++			case ZONE_RECLAIM_SUCCESS:
++				/*
++				 * If we successfully reclaimed
++				 * enough, allow allocations up to the
++				 * min watermark (instead of stopping
++				 * at "mark"). This provides some more
++				 * margin against parallel
++				 * allocations. Using the min
++				 * watermark doesn't alter when we
++				 * wakeup kswapd. It also doesn't
++				 * alter the synchronous direct
++				 * reclaim behavior of zone_reclaim()
++				 * that will still be invoked at the
++				 * next pass if we're still below the
++				 * low watermark (even if kswapd isn't
++				 * woken).
++				 */
++				mark = min_wmark_pages(zone);
++				/* Fall through */
+ 			default:
+-				/* did we reclaim enough */
+ 				if (zone_watermark_ok(zone, order, mark,
+ 						classzone_idx, alloc_flags))
+ 					goto try_this_zone;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
