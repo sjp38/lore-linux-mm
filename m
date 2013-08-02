@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 5F4686B0036
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id C10926B0034
 	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 05:16:10 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v2 RESEND 07/18] x86, ACPI: Also initialize signature and length when parsing root table.
-Date: Fri, 2 Aug 2013 17:14:26 +0800
-Message-Id: <1375434877-20704-8-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v2 RESEND 03/18] acpi: Remove "continue" in macro INVALID_TABLE().
+Date: Fri, 2 Aug 2013 17:14:22 +0800
+Message-Id: <1375434877-20704-4-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1375434877-20704-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1375434877-20704-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,59 +13,112 @@ List-ID: <linux-mm.kvack.org>
 To: robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-Besides the phys addr of the acpi tables, it will be very convenient if
-we also have the signature of each table in acpi_gbl_root_table_list at
-early time. We can find SRAT easily by comparing the signature.
+The macro INVALID_TABLE() is defined like this:
 
-This patch alse record signature and some other info in
-acpi_gbl_root_table_list at early time.
+ #define INVALID_TABLE(x, path, name)                                    \
+         { pr_err("ACPI OVERRIDE: " x " [%s%s]\n", path, name); continue; }
+
+And it is used like this:
+
+	for (...) {
+		...
+		if (...)
+			INVALID_TABLE()
+		...
+	}
+
+The "continue" in the macro makes the code hard to understand.
+Change it to the style like other macros:
+
+ #define INVALID_TABLE(x, path, name)                                    \
+         do { pr_err("ACPI OVERRIDE: " x " [%s%s]\n", path, name); } while (0)
+
+And also, INVALID_TABLE() is used to checkout acpi tables, so rename it to
+ACPI_INVALID_TABLE(). This is suggested by Toshi Kani <toshi.kani@hp.com>.
+
+So after this patch, this macro should be used like this:
+
+	for (...) {
+		...
+		if (...) {
+			ACPI_INVALID_TABLE()
+			continue;
+		}
+		...
+	}
+
+Add the "continue" wherever the macro is called.
+(For now, it is only called in acpi_initrd_override().)
+
+The idea is from Yinghai Lu <yinghai@kernel.org>.
 
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+Signed-off-by: Yinghai Lu <yinghai@kernel.org>
+Acked-by: Tejun Heo <tj@kernel.org>
+Acked-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+Acked-by: Toshi Kani <toshi.kani@hp.com>
 Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 ---
- drivers/acpi/acpica/tbutils.c |   22 ++++++++++++++++++++++
- 1 files changed, 22 insertions(+), 0 deletions(-)
+ drivers/acpi/osl.c |   28 ++++++++++++++++++----------
+ 1 files changed, 18 insertions(+), 10 deletions(-)
 
-diff --git a/drivers/acpi/acpica/tbutils.c b/drivers/acpi/acpica/tbutils.c
-index e3621cf..af942fe 100644
---- a/drivers/acpi/acpica/tbutils.c
-+++ b/drivers/acpi/acpica/tbutils.c
-@@ -438,6 +438,7 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
- 	u32 i;
- 	u32 table_count;
- 	struct acpi_table_header *table;
-+	struct acpi_table_desc *table_desc;
- 	acpi_physical_address address;
- 	acpi_physical_address uninitialized_var(rsdt_address);
- 	u32 length;
-@@ -577,6 +578,27 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
- 	 */
- 	acpi_os_unmap_memory(table, length);
+diff --git a/drivers/acpi/osl.c b/drivers/acpi/osl.c
+index 6ab2c35..3b8bab2 100644
+--- a/drivers/acpi/osl.c
++++ b/drivers/acpi/osl.c
+@@ -564,8 +564,8 @@ static const char * const table_sigs[] = {
+ 	ACPI_SIG_RSDT, ACPI_SIG_XSDT, ACPI_SIG_SSDT, NULL };
  
-+	/*
-+	 * Also initialize the table entries here, so that later we can use them
-+	 * to find SRAT at very eraly time to reserve hotpluggable memory.
-+	 */
-+	for (i = 2; i < acpi_gbl_root_table_list.current_table_count; i++) {
-+		table = acpi_os_map_memory(
-+				acpi_gbl_root_table_list.tables[i].address,
-+				sizeof(struct acpi_table_header));
-+		if (!table)
-+			return_ACPI_STATUS(AE_NO_MEMORY);
-+
-+		table_desc = &acpi_gbl_root_table_list.tables[i];
-+
-+		table_desc->pointer = NULL;
-+		table_desc->length = table->length;
-+		table_desc->flags = ACPI_TABLE_ORIGIN_MAPPED;
-+		ACPI_MOVE_32_TO_32(table_desc->signature.ascii, table->signature);
-+
-+		acpi_os_unmap_memory(table, sizeof(struct acpi_table_header));
-+	}
-+
- 	return_ACPI_STATUS(AE_OK);
- }
+ /* Non-fatal errors: Affected tables/files are ignored */
+-#define INVALID_TABLE(x, path, name)					\
+-	{ pr_err("ACPI OVERRIDE: " x " [%s%s]\n", path, name); continue; }
++#define ACPI_INVALID_TABLE(x, path, name)					\
++	do { pr_err("ACPI OVERRIDE: " x " [%s%s]\n", path, name); } while (0)
  
+ #define ACPI_HEADER_SIZE sizeof(struct acpi_table_header)
+ 
+@@ -593,9 +593,11 @@ void __init acpi_initrd_override(void *data, size_t size)
+ 		data += offset;
+ 		size -= offset;
+ 
+-		if (file.size < sizeof(struct acpi_table_header))
+-			INVALID_TABLE("Table smaller than ACPI header",
++		if (file.size < sizeof(struct acpi_table_header)) {
++			ACPI_INVALID_TABLE("Table smaller than ACPI header",
+ 				      cpio_path, file.name);
++			continue;
++		}
+ 
+ 		table = file.data;
+ 
+@@ -603,15 +605,21 @@ void __init acpi_initrd_override(void *data, size_t size)
+ 			if (!memcmp(table->signature, table_sigs[sig], 4))
+ 				break;
+ 
+-		if (!table_sigs[sig])
+-			INVALID_TABLE("Unknown signature",
++		if (!table_sigs[sig]) {
++			ACPI_INVALID_TABLE("Unknown signature",
+ 				      cpio_path, file.name);
+-		if (file.size != table->length)
+-			INVALID_TABLE("File length does not match table length",
++			continue;
++		}
++		if (file.size != table->length) {
++			ACPI_INVALID_TABLE("File length does not match table length",
+ 				      cpio_path, file.name);
+-		if (acpi_table_checksum(file.data, table->length))
+-			INVALID_TABLE("Bad table checksum",
++			continue;
++		}
++		if (acpi_table_checksum(file.data, table->length)) {
++			ACPI_INVALID_TABLE("Bad table checksum",
+ 				      cpio_path, file.name);
++			continue;
++		}
+ 
+ 		pr_info("%4.4s ACPI table found in initrd [%s%s][0x%x]\n",
+ 			table->signature, cpio_path, file.name, table->length);
 -- 
 1.7.1
 
