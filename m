@@ -1,81 +1,75 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 92DB76B0032
-	for <linux-mm@kvack.org>; Sat, 31 Aug 2013 20:06:50 -0400 (EDT)
-Received: by mail-qa0-f74.google.com with SMTP id i13so70132qae.1
-        for <linux-mm@kvack.org>; Sat, 31 Aug 2013 17:06:49 -0700 (PDT)
-From: Greg Thelen <gthelen@google.com>
-Subject: [PATCH] memcg: fix multiple large threshold notifications
-Date: Sat, 31 Aug 2013 17:06:42 -0700
-Message-Id: <1377994002-1857-1-git-send-email-gthelen@google.com>
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/2] mm, vmalloc: remove useless variable in vmap_block
+Date: Fri, 2 Aug 2013 16:14:01 +0800
+Message-ID: <34229.0818029598$1375431265@news.gmane.org>
+References: <1375408621-16563-1-git-send-email-iamjoonsoo.kim@lge.com>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Return-path: <owner-linux-mm@kvack.org>
+Received: from kanga.kvack.org ([205.233.56.17])
+	by plane.gmane.org with esmtp (Exim 4.69)
+	(envelope-from <owner-linux-mm@kvack.org>)
+	id 1V5AV7-0002Un-LC
+	for glkm-linux-mm-2@m.gmane.org; Fri, 02 Aug 2013 10:14:17 +0200
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 4BFC46B0031
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 04:14:15 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Fri, 2 Aug 2013 13:33:57 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 0E89B1258052
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 13:43:39 +0530 (IST)
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r728F97I32702654
+	for <linux-mm@kvack.org>; Fri, 2 Aug 2013 13:45:12 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r728E3nB012849
+	for <linux-mm@kvack.org>; Fri, 2 Aug 2013 18:14:04 +1000
+Content-Disposition: inline
+In-Reply-To: <1375408621-16563-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Joonsoo Kim <js1304@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-A memory cgroup with (1) multiple threshold notifications and (2) at
-least one threshold >=2G was not reliable.  Specifically the
-notifications would either not fire or would not fire in the proper
-order.
+On Fri, Aug 02, 2013 at 10:57:00AM +0900, Joonsoo Kim wrote:
+>vbq in vmap_block isn't used. So remove it.
+>
+>Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>
 
-The __mem_cgroup_threshold() signaling logic depends on keeping 64 bit
-thresholds in sorted order.  mem_cgroup_usage_register_event() sorts
-them with compare_thresholds(), which returns the difference of two 64
-bit thresholds as an int.  If the difference is positive but has
-bit[31] set, then sort() treats the difference as negative and breaks
-sort order.
+Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-This fix compares the two arbitrary 64 bit thresholds returning the
-classic -1, 0, 1 result.
-
-The test below sets two notifications (at 0x1000 and 0x81001000):
-  cd /sys/fs/cgroup/memory
-  mkdir x
-  for x in 4096 2164264960; do
-    cgroup_event_listener x/memory.usage_in_bytes $x | sed "s/^/$x listener:/" &
-  done
-  echo $$ > x/cgroup.procs
-  anon_leaker 500M
-
-v3.11-rc7 fails to signal the 4096 event listener:
-  Leaking...
-  Done leaking pages.
-
-Patched v3.11-rc7 properly notifies:
-  Leaking...
-  4096 listener:2013:8:31:14:13:36
-  Done leaking pages.
-
-The fixed bug is old.  It appears to date back to the introduction of
-memcg threshold notifications in v2.6.34-rc1-116-g2e72b6347c94 "memcg:
-implement memory thresholds"
-
-Signed-off-by: Greg Thelen <gthelen@google.com>
----
- mm/memcontrol.c | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 0878ff7..aa44621 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -5616,7 +5616,13 @@ static int compare_thresholds(const void *a, const void *b)
- 	const struct mem_cgroup_threshold *_a = a;
- 	const struct mem_cgroup_threshold *_b = b;
- 
--	return _a->threshold - _b->threshold;
-+	if (_a->threshold > _b->threshold)
-+		return 1;
-+
-+	if (_a->threshold < _b->threshold)
-+		return -1;
-+
-+	return 0;
- }
- 
- static int mem_cgroup_oom_notify_cb(struct mem_cgroup *memcg)
--- 
-1.8.4
+>diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+>index 13a5495..d23c432 100644
+>--- a/mm/vmalloc.c
+>+++ b/mm/vmalloc.c
+>@@ -752,7 +752,6 @@ struct vmap_block_queue {
+> struct vmap_block {
+> 	spinlock_t lock;
+> 	struct vmap_area *va;
+>-	struct vmap_block_queue *vbq;
+> 	unsigned long free, dirty;
+> 	DECLARE_BITMAP(dirty_map, VMAP_BBMAP_BITS);
+> 	struct list_head free_list;
+>@@ -830,7 +829,6 @@ static struct vmap_block *new_vmap_block(gfp_t gfp_mask)
+> 	radix_tree_preload_end();
+>
+> 	vbq = &get_cpu_var(vmap_block_queue);
+>-	vb->vbq = vbq;
+> 	spin_lock(&vbq->lock);
+> 	list_add_rcu(&vb->free_list, &vbq->free);
+> 	spin_unlock(&vbq->lock);
+>-- 
+>1.7.9.5
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
