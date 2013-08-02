@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 062A66B0039
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 05:16:11 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 5398A6B0038
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 05:16:12 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v2 RESEND 06/18] x86, acpi, ACPICA: Initialize ACPI root table list earlier.
-Date: Fri, 2 Aug 2013 17:14:25 +0800
-Message-Id: <1375434877-20704-7-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v2 RESEND 05/18] x86, ACPICA: Split acpi_boot_table_init() into two parts.
+Date: Fri, 2 Aug 2013 17:14:24 +0800
+Message-Id: <1375434877-20704-6-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1375434877-20704-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1375434877-20704-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,153 +13,122 @@ List-ID: <linux-mm.kvack.org>
 To: robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-We have split acpi_table_init() into two steps:
-1. Pares RSDT or XSDT, and initialize acpi_gbl_root_table_list.
-   This step will record all tables' physical address in memory.
-2. Check acpi initrd table override and install all tables into
-   acpi_gbl_root_table_list.
+In ACPI, SRAT(System Resource Affinity Table) contains NUMA info.
+The memory affinities in SRAT record every memory range in the
+system, and also, flags specifying if the memory range is
+hotpluggable.
+(Please refer to ACPI spec 5.0 5.2.16)
 
-This patch does step 1 earlier, right after memblock is ready.
+memblock starts to work at very early time, and SRAT has not been
+parsed. So we don't know which memory is hotpluggable. In order
+to use memblock to reserve hotpluggable memory, we need to obtain
+SRAT memory affinity info earlier.
 
-When memblock_x86_fill() is called to fulfill memblock.memory[],
-memblock is able to allocate memory.
+In the current acpi_boot_table_init(), it does the following:
+1. Parse RSDT, so that we can find all the tables.
+2. Initialize acpi_gbl_root_table_list, an array of acpi table
+   descriptors used to store each table's address, length, signature,
+   and so on.
+3. Check if there is any table in initrd intending to override
+   tables from firmware. If so, override the firmware tables.
+4. Initialize all the data in acpi_gbl_root_table_list.
 
-This patch introduces a new function acpi_root_table_init() to
-do step 1, and call this function right after memblock_x86_fill()
-is called.
+In order to parse SRAT at early time, we need to do similar job as
+step 1 and 2 above earlier to obtain SRAT. It will be very convenient
+if we have acpi_gbl_root_table_list initialized. We can use address
+and signature to find SRAT.
+
+Since step 1 and 2 allocates no memory, it is OK to do these two
+steps earlier.
+
+But step 3 will check acpi initrd table override, not just SRAT,
+but also all the other tables. So it is better to keep it untouched.
+
+This patch splits acpi_boot_table_init() into two steps:
+1. Parse RSDT, which cannot be overrided, and initialize
+   acpi_gbl_root_table_list. (step 1 + 2 above)
+2. Install all ACPI tables into acpi_gbl_root_table_list.
+   (step 3 + 4 above)
+
+In later patches, we will do step 1 + 2 earlier.
 
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 ---
- arch/x86/kernel/acpi/boot.c |   45 +++++++++++++++++++++++++++---------------
- arch/x86/kernel/setup.c     |    3 ++
- drivers/acpi/tables.c       |    7 ++++-
- include/linux/acpi.h        |    2 +
- 4 files changed, 39 insertions(+), 18 deletions(-)
+ drivers/acpi/acpica/tbutils.c |   25 ++++++++++++++++++++++---
+ drivers/acpi/tables.c         |    2 ++
+ include/acpi/acpixf.h         |    2 ++
+ 3 files changed, 26 insertions(+), 3 deletions(-)
 
-diff --git a/arch/x86/kernel/acpi/boot.c b/arch/x86/kernel/acpi/boot.c
-index 2627a81..dcdf3e3 100644
---- a/arch/x86/kernel/acpi/boot.c
-+++ b/arch/x86/kernel/acpi/boot.c
-@@ -1497,6 +1497,32 @@ static struct dmi_system_id __initdata acpi_dmi_table_late[] = {
- 	{}
- };
+diff --git a/drivers/acpi/acpica/tbutils.c b/drivers/acpi/acpica/tbutils.c
+index bffdfc7..e3621cf 100644
+--- a/drivers/acpi/acpica/tbutils.c
++++ b/drivers/acpi/acpica/tbutils.c
+@@ -577,9 +577,30 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
+ 	 */
+ 	acpi_os_unmap_memory(table, length);
  
-+/**
-+ * early_acpi_boot_table_init - Initialize acpi_gbl_root_table_list.
-+ *
-+ * This function will parse RSDT or XSDT, find all tables' phys addr,
-+ * initialize acpi_gbl_root_table_list, and record all tables' phys addr
-+ * in acpi_gbl_root_table_list.
-+ *
-+ * acpi_table_init() is separate to allow reading SRAT without
-+ * other side effects.
-+ *
-+ */
-+void __init early_acpi_boot_table_init(void)
-+{
-+	dmi_check_system(acpi_dmi_table);
-+
-+	/* If acpi_disabled, bail out */
-+	if (acpi_disabled)
-+		return;
-+
-+	/* Initialize the ACPI boot-time table parser */
-+	if (acpi_table_init()) {
-+		disable_acpi();
-+		return;
-+	}
++	return_ACPI_STATUS(AE_OK);
 +}
 +
- /*
-  * acpi_boot_table_init() and acpi_boot_init()
-  *  called from setup_arch(), always.
-@@ -1504,9 +1530,6 @@ static struct dmi_system_id __initdata acpi_dmi_table_late[] = {
-  *	2. enumerates lapics
-  *	3. enumerates io-apics
-  *
-- * acpi_table_init() is separate to allow reading SRAT without
-- * other side effects.
-- *
-  * side effects of acpi_boot_init:
-  *	acpi_lapic = 1 if LAPIC found
-  *	acpi_ioapic = 1 if IOAPIC found
-@@ -1518,21 +1541,11 @@ static struct dmi_system_id __initdata acpi_dmi_table_late[] = {
- 
- void __init acpi_boot_table_init(void)
- {
--	dmi_check_system(acpi_dmi_table);
--
--	/*
--	 * If acpi_disabled, bail out
--	 */
-+	/* If acpi_disabled, bail out */
- 	if (acpi_disabled)
--		return; 
--
--	/*
--	 * Initialize the ACPI boot-time table parser.
--	 */
--	if (acpi_table_init()) {
--		disable_acpi();
- 		return;
--	}
++/*******************************************************************************
++ *
++ * FUNCTION:    acpi_tb_install_root_table
++ *
++ * DESCRIPTION: This function installs all the ACPI tables in RSDT into
++ *              acpi_gbl_root_table_list.
++ *
++ ******************************************************************************/
 +
-+	acpi_install_root_table();
- 
- 	acpi_table_parse(ACPI_SIG_BOOT, acpi_parse_sbf);
- 
-diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-index f8ec578..53d4ac7 100644
---- a/arch/x86/kernel/setup.c
-+++ b/arch/x86/kernel/setup.c
-@@ -1073,6 +1073,9 @@ void __init setup_arch(char **cmdline_p)
- 	memblock.current_limit = ISA_END_ADDRESS;
- 	memblock_x86_fill();
- 
-+	/* Initialize ACPI global root table list. */
-+	early_acpi_boot_table_init();
++void __init
++acpi_tb_install_root_table()
++{
++	int i;
 +
  	/*
- 	 * The EFI specification says that boot service code won't be called
- 	 * after ExitBootServices(). This is, in fact, a lie.
+ 	 * Complete the initialization of the root table array by examining
+-	 * the header of each table
++	 * the header of each table.
++	 *
++	 * First two entries in the table array are reserved for the DSDT
++	 * and FACS, which are not actually present in the RSDT/XSDT - they
++	 * come from the FADT.
+ 	 */
+ 	for (i = 2; i < acpi_gbl_root_table_list.current_table_count; i++) {
+ 		acpi_tb_install_table(acpi_gbl_root_table_list.tables[i].
+@@ -593,6 +614,4 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
+ 			acpi_tb_parse_fadt(i);
+ 		}
+ 	}
+-
+-	return_ACPI_STATUS(AE_OK);
+ }
 diff --git a/drivers/acpi/tables.c b/drivers/acpi/tables.c
-index 8860e79..60ecbb8 100644
+index d67a1fe..8860e79 100644
 --- a/drivers/acpi/tables.c
 +++ b/drivers/acpi/tables.c
-@@ -353,10 +353,13 @@ int __init acpi_table_init(void)
+@@ -353,6 +353,8 @@ int __init acpi_table_init(void)
  	if (ACPI_FAILURE(status))
  		return 1;
  
--	acpi_tb_install_root_table();
-+	return 0;
-+}
- 
-+void __init acpi_install_root_table(void)
-+{
 +	acpi_tb_install_root_table();
++
  	check_multiple_madt();
--	return 0;
+ 	return 0;
  }
+diff --git a/include/acpi/acpixf.h b/include/acpi/acpixf.h
+index 22d497e..e9c9b88 100644
+--- a/include/acpi/acpixf.h
++++ b/include/acpi/acpixf.h
+@@ -118,6 +118,8 @@ acpi_status
+ acpi_initialize_tables(struct acpi_table_desc *initial_storage,
+ 		       u32 initial_table_count, u8 allow_resize);
  
- static int __init acpi_parse_apic_instance(char *str)
-diff --git a/include/linux/acpi.h b/include/linux/acpi.h
-index 353ba25..b722183 100644
---- a/include/linux/acpi.h
-+++ b/include/linux/acpi.h
-@@ -92,10 +92,12 @@ void __acpi_unmap_table(char *map, unsigned long size);
- int early_acpi_boot_init(void);
- int acpi_boot_init (void);
- void acpi_boot_table_init (void);
-+void early_acpi_boot_table_init(void);
- int acpi_mps_check (void);
- int acpi_numa_init (void);
++void acpi_tb_install_root_table(void);
++
+ acpi_status __init acpi_initialize_subsystem(void);
  
- int acpi_table_init (void);
-+void acpi_install_root_table(void);
- int acpi_table_parse(char *id, acpi_tbl_table_handler handler);
- int __init acpi_table_parse_entries(char *id, unsigned long table_size,
- 				    int entry_id,
+ acpi_status acpi_enable_subsystem(u32 flags);
 -- 
 1.7.1
 
