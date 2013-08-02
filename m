@@ -1,38 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 3E0A46B0034
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 13:10:49 -0400 (EDT)
-Message-ID: <51FBE807.6040907@intel.com>
-Date: Fri, 02 Aug 2013 10:10:31 -0700
-From: Dave Hansen <dave.hansen@intel.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH resend] drop_caches: add some documentation and info message
-References: <1375459442.8422.1@driftwood>
-In-Reply-To: <1375459442.8422.1@driftwood>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 3ADC96B0032
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 13:44:41 -0400 (EDT)
+From: Nathan Zimmer <nzimmer@sgi.com>
+Subject: [RFC v2 0/5] Transparent on-demand struct page initialization embedded in the buddy allocator
+Date: Fri,  2 Aug 2013 12:44:22 -0500
+Message-Id: <1375465467-40488-1-git-send-email-nzimmer@sgi.com>
+In-Reply-To: <1373594635-131067-1-git-send-email-holt@sgi.com>
+References: <1373594635-131067-1-git-send-email-holt@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rob Landley <rob@landley.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, mhocko@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, bp@suse.de, dave@linux.vnet.ibm.com
+To: hpa@zytor.com, mingo@kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, holt@sgi.com, nzimmer@sgi.com, rob@landley.net, travis@sgi.com, daniel@numascale-asia.com, akpm@linux-foundation.org, gregkh@linuxfoundation.org, yinghai@kernel.org, mgorman@suse.de
 
-On 08/02/2013 09:04 AM, Rob Landley wrote:
-> I'd be surprised if anybody who does this sees the printk and thinks
-> "hey, I'll dig into the VM's balancing logic and come up to speed on the
-> tradeoffs sufficient to contribute to kernel development" because of
-> something in dmesg. Anybody actually annoyed by it will chop out the
-> printk (you barely need to know C to do that), the rest won't notice.
+We are still restricting ourselves ourselves to 2MiB initialization to keep the
+patch set a little smaller and more clear.
 
-All that I expect is that this will get _some_ of these folks in to a
-feedback loop with us.  They'll see this in dmesg and either go asking
-questions within their respective companies, file bugs with distros, or
-post to LKML.
+We are still struggling with the expand().  Nearly always the first reference
+to a struct page which is in the middle of the 2MiB region.  We were unable to
+find a good solution.  Also, given the strong warning at the head of expand(),
+we did not feel experienced enough to refactor it to make things always
+reference the 2MiB page first.
+The only other fastpath impact left is the expansion in prep_new_page.
 
-Some of them are going to say things like "My Database Vendor told me
-this optimizes my server!", or that the documentation told them to do it
-so they don't run out of memory.  Some of them might even be running in
-to _legitimate_ VM or filesystem bugs that they're working around with this.
+With this patch, we did boot a 16TiB machine.
+The two main areas that benefit from this patch is free_all_bootmem and
+memmap_init_zone.  Without the patches it took 407 seconds and 1151 seconds
+respectively.  With the patches it took 220 and 49 seconds respectively.
+This is a total savings of 1289 seconds (21 minutes).
+These times were aquired using a modified version of script which record the
+time in uSecs at the beginning of each line of output.
 
+The previous patch set was faster through free_all_bootmem but I wanted to
+include Yinghai suggestion.  Hopefully I didn't miss the mark too much with
+that patch and yes I do still need to optimize it.
+
+I know there are some still rough parts but I wanted to check in with the full
+patch set.
+
+Nathan Zimmer (1):
+  Only set page reserved in the memblock region
+
+Robin Holt (4):
+  memblock: Introduce a for_each_reserved_mem_region iterator.
+  Have __free_pages_memory() free in larger chunks.
+  Move page initialization into a separate function.
+  Sparse initialization of struct page array.
+
+ include/linux/memblock.h   |  18 +++++
+ include/linux/mm.h         |   2 +
+ include/linux/page-flags.h |   5 +-
+ mm/memblock.c              |  32 ++++++++
+ mm/mm_init.c               |   2 +-
+ mm/nobootmem.c             |  28 +++----
+ mm/page_alloc.c            | 194 ++++++++++++++++++++++++++++++++++++---------
+ 7 files changed, 225 insertions(+), 56 deletions(-)
+
+-- 
+1.8.2.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
