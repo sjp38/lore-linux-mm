@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 7D9766B0039
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 94B166B003C
 	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 12:06:45 -0400 (EDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 6/9] mm: zone_reclaim: compaction: increase the high order pages in the watermarks
-Date: Fri,  2 Aug 2013 18:06:33 +0200
-Message-Id: <1375459596-30061-7-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 3/9] mm: zone_reclaim: compaction: don't depend on kswapd to invoke reset_isolation_suitable
+Date: Fri,  2 Aug 2013 18:06:30 +0200
+Message-Id: <1375459596-30061-4-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1375459596-30061-1-git-send-email-aarcange@redhat.com>
 References: <1375459596-30061-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,27 +13,160 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Johannes Weiner <jweiner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hush Bensen <hush.bensen@gmail.com>
 
-Prevent the scaling down to reduce the watermarks too much.
+If kswapd never need to run (only __GFP_NO_KSWAPD allocations and
+plenty of free memory) compaction is otherwise crippled down and stops
+running for a while after the free/isolation cursor meets. After that
+allocation can fail for a full cycle of compaction_deferred, until
+compaction_restarting finally reset it again.
+
+Stopping compaction for a full cycle after the cursor meets, even if
+it never failed and it's not going to fail, doesn't make sense.
+
+We already throttle compaction CPU utilization using
+defer_compaction. We shouldn't prevent compaction to run after each
+pass completes when the cursor meets, unless it failed.
+
+This makes direct compaction functional again. The throttling of
+direct compaction is still controlled by the defer_compaction
+logic.
+
+kswapd still won't risk to reset compaction, and it will wait direct
+compaction to do so. Not sure if this is ideal but it at least
+decreases the risk of kswapd doing too much work. kswapd will only run
+one pass of compaction until some allocation invokes compaction again.
+
+This decreased reliability of compaction was introduced in commit
+62997027ca5b3d4618198ed8b1aba40b61b1137b .
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Acked-by: Rafael Aquini <aquini@redhat.com>
+Acked-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/page_alloc.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ include/linux/compaction.h |  5 -----
+ include/linux/mmzone.h     |  3 ---
+ mm/compaction.c            | 15 ++++++---------
+ mm/page_alloc.c            |  1 -
+ mm/vmscan.c                |  8 --------
+ 5 files changed, 6 insertions(+), 26 deletions(-)
 
+diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+index 091d72e..fc3f266 100644
+--- a/include/linux/compaction.h
++++ b/include/linux/compaction.h
+@@ -24,7 +24,6 @@ extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
+ 			int order, gfp_t gfp_mask, nodemask_t *mask,
+ 			bool sync, bool *contended);
+ extern void compact_pgdat(pg_data_t *pgdat, int order);
+-extern void reset_isolation_suitable(pg_data_t *pgdat);
+ extern unsigned long compaction_suitable(struct zone *zone, int order);
+ 
+ /* Do not skip compaction more than 64 times */
+@@ -84,10 +83,6 @@ static inline void compact_pgdat(pg_data_t *pgdat, int order)
+ {
+ }
+ 
+-static inline void reset_isolation_suitable(pg_data_t *pgdat)
+-{
+-}
+-
+ static inline unsigned long compaction_suitable(struct zone *zone, int order)
+ {
+ 	return COMPACT_SKIPPED;
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 1badcc9..5904b32 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -355,9 +355,6 @@ struct zone {
+ 	int			alloc_batch;
+ 	int                     all_unreclaimable; /* All pages pinned */
+ #if defined CONFIG_COMPACTION || defined CONFIG_CMA
+-	/* Set to true when the PG_migrate_skip bits should be cleared */
+-	bool			compact_blockskip_flush;
+-
+ 	/* pfns where compaction scanners should start */
+ 	unsigned long		compact_cached_free_pfn;
+ 	unsigned long		compact_cached_migrate_pfn;
+diff --git a/mm/compaction.c b/mm/compaction.c
+index cac9594..525baaa 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -91,7 +91,6 @@ static void __reset_isolation_suitable(struct zone *zone)
+ 
+ 	zone->compact_cached_migrate_pfn = start_pfn;
+ 	zone->compact_cached_free_pfn = end_pfn;
+-	zone->compact_blockskip_flush = false;
+ 
+ 	/* Walk the zone and mark every pageblock as suitable for isolation */
+ 	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
+@@ -110,7 +109,7 @@ static void __reset_isolation_suitable(struct zone *zone)
+ 	}
+ }
+ 
+-void reset_isolation_suitable(pg_data_t *pgdat)
++static void reset_isolation_suitable(pg_data_t *pgdat)
+ {
+ 	int zoneid;
+ 
+@@ -120,8 +119,7 @@ void reset_isolation_suitable(pg_data_t *pgdat)
+ 			continue;
+ 
+ 		/* Only flush if a full compaction finished recently */
+-		if (zone->compact_blockskip_flush)
+-			__reset_isolation_suitable(zone);
++		__reset_isolation_suitable(zone);
+ 	}
+ }
+ 
+@@ -828,13 +826,12 @@ static int compact_finished(struct zone *zone,
+ 	/* Compaction run completes if the migrate and free scanner meet */
+ 	if (cc->free_pfn <= cc->migrate_pfn) {
+ 		/*
+-		 * Mark that the PG_migrate_skip information should be cleared
+-		 * by kswapd when it goes to sleep. kswapd does not set the
+-		 * flag itself as the decision to be clear should be directly
+-		 * based on an allocation request.
++		 * Clear the PG_migrate_skip information. kswapd does
++		 * not clear it as the decision to be clear should be
++		 * directly based on an allocation request.
+ 		 */
+ 		if (!current_is_kswapd())
+-			zone->compact_blockskip_flush = true;
++			__reset_isolation_suitable(zone);
+ 
+ 		return COMPACT_COMPLETE;
+ 	}
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4401983..b32ecde 100644
+index 8ccedd5..092b30d 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1665,7 +1665,8 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
- 		free_pages -= z->free_area[o].nr_free << o;
+@@ -2222,7 +2222,6 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ 				alloc_flags & ~ALLOC_NO_WATERMARKS,
+ 				preferred_zone, migratetype);
+ 		if (page) {
+-			preferred_zone->compact_blockskip_flush = false;
+ 			preferred_zone->compact_considered = 0;
+ 			preferred_zone->compact_defer_shift = 0;
+ 			if (order >= preferred_zone->compact_order_failed)
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 4b2da9e..f2ada36 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -3091,14 +3091,6 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
+ 		 */
+ 		set_pgdat_percpu_threshold(pgdat, calculate_normal_threshold);
  
- 		/* Require fewer higher order pages to be free */
--		min >>= 1;
-+		if (o < (pageblock_order >> 2))
-+			min >>= 1;
+-		/*
+-		 * Compaction records what page blocks it recently failed to
+-		 * isolate pages from and skips them in the future scanning.
+-		 * When kswapd is going to sleep, it is reasonable to assume
+-		 * that pages and compaction may succeed so reset the cache.
+-		 */
+-		reset_isolation_suitable(pgdat);
+-
+ 		if (!kthread_should_stop())
+ 			schedule();
  
- 		if (free_pages <= min)
- 			return false;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
