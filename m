@@ -1,117 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id EAFEC6B004D
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 05:16:17 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 1D6216B003A
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 05:16:18 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v2 RESEND 13/18] x86, numa, mem_hotplug: Skip all the regions the kernel resides in.
-Date: Fri, 2 Aug 2013 17:14:32 +0800
-Message-Id: <1375434877-20704-14-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v2 RESEND 15/18] memblock, mem_hotplug: Introduce MEMBLOCK_HOTPLUG flag to mark hotpluggable regions.
+Date: Fri, 2 Aug 2013 17:14:34 +0800
+Message-Id: <1375434877-20704-16-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1375434877-20704-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1375434877-20704-1-git-send-email-tangchen@cn.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-At early time, memblock will reserve some memory for the kernel,
-such as the kernel code and data segments, initrd file, and so on=EF=BC=8C
-which means the kernel resides in these memory regions.
+In find_hotpluggable_memory, once we find out a memory region which is
+hotpluggable, we want to mark them in memblock.memory. So that we could
+control memblock allocator not to allocte hotpluggable memory for the kernel
+later.
 
-Even if these memory regions are hotpluggable, we should not
-mark them as hotpluggable. Otherwise the kernel won't have enough
-memory to boot.
-
-This patch finds out which memory regions the kernel resides in,
-and skip them when finding all hotpluggable memory regions.
+To achieve this goal, we introduce MEMBLOCK_HOTPLUG flag to indicate the
+hotpluggable memory regions in memblock and a function memblock_mark_hotplug()
+to mark hotpluggable memory if we find one.
 
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 ---
- mm/memory=5Fhotplug.c |   45 +++++++++++++++++++++++++++++++++++++++++++++
- 1 files changed, 45 insertions(+), 0 deletions(-)
+ include/linux/memblock.h |   11 +++++++++++
+ mm/memblock.c            |   26 ++++++++++++++++++++++++++
+ mm/memory_hotplug.c      |    3 ++-
+ 3 files changed, 39 insertions(+), 1 deletions(-)
 
-diff --git a/mm/memory=5Fhotplug.c b/mm/memory=5Fhotplug.c
-index ef9ccf8..10a30ef 100644
---- a/mm/memory=5Fhotplug.c
-+++ b/mm/memory=5Fhotplug.c
-@@ -31,6 +31,7 @@
- #include <linux/firmware-map.h>
- #include <linux/stop=5Fmachine.h>
- #include <linux/acpi.h>
-+#include <linux/memblock.h>
-=20
- #include <asm/tlbflush.h>
-=20
-@@ -93,6 +94,40 @@ static void release=5Fmemory=5Fresource(struct resource =
-*res)
-=20
- #ifdef CONFIG=5FACPI=5FNUMA
- /**
-+ * kernel=5Fresides=5Fin=5Frange - Check if kernel resides in a memory reg=
-ion.
-+ * @base: The base address of the memory region.
-+ * @length: The length of the memory region.
-+ *
-+ * This function is used at early time. It iterates memblock.reserved and =
-check
-+ * if the kernel has used any memory in [@base, @base + @length).
-+ *
-+ * Return true if the kernel resides in the memory region, false otherwise.
-+ */
-+static bool =5F=5Finit kernel=5Fresides=5Fin=5Fregion(phys=5Faddr=5Ft base=
-, u64 length)
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index e89e0cd..c0bd31c 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -19,6 +19,9 @@
+ 
+ #define INIT_MEMBLOCK_REGIONS	128
+ 
++/* Definition of memblock flags. */
++#define MEMBLOCK_HOTPLUG	0x1	/* hotpluggable region */
++
+ struct memblock_region {
+ 	phys_addr_t base;
+ 	phys_addr_t size;
+@@ -60,6 +63,8 @@ int memblock_free(phys_addr_t base, phys_addr_t size);
+ int memblock_reserve(phys_addr_t base, phys_addr_t size);
+ void memblock_trim_memory(phys_addr_t align);
+ 
++int memblock_mark_hotplug(phys_addr_t base, phys_addr_t size);
++
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+ void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
+ 			  unsigned long *out_end_pfn, int *out_nid);
+@@ -119,6 +124,12 @@ void __next_free_mem_range_rev(u64 *idx, int nid, phys_addr_t *out_start,
+ 	     i != (u64)ULLONG_MAX;					\
+ 	     __next_free_mem_range_rev(&i, nid, p_start, p_end, p_nid))
+ 
++static inline void memblock_set_region_flags(struct memblock_region *r,
++					     unsigned long flags)
 +{
-+	int i;
-+	phys=5Faddr=5Ft start, end;
-+	struct memblock=5Fregion *region;
-+	struct memblock=5Ftype *reserved =3D &memblock.reserved;
++	r->flags = flags;
++}
 +
-+	for (i =3D 0; i < reserved->cnt; i++) {
-+		region =3D &reserved->regions[i];
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+ int memblock_set_node(phys_addr_t base, phys_addr_t size, int nid);
+ 
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 0841a6e..ecd8568 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -585,6 +585,32 @@ int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
+ }
+ 
+ /**
++ * memblock_mark_hotplug - Mark hotpluggable memory with flag MEMBLOCK_HOTPLUG.
++ * @base: the base phys addr of the region
++ * @size: the size of the region
++ *
++ * This function isolates region [@base, @base + @size), and mark it with flag
++ * MEMBLOCK_HOTPLUG.
++ *
++ * Return 0 on succees, -errno on failure.
++ */
++int __init_memblock memblock_mark_hotplug(phys_addr_t base, phys_addr_t size)
++{
++	struct memblock_type *type = &memblock.memory;
++	int i, ret, start_rgn, end_rgn;
 +
-+		if (region->flags !=3D MEMBLOCK=5FHOTPLUG)
-+			continue;
++	ret = memblock_isolate_range(type, base, size, &start_rgn, &end_rgn);
++	if (ret)
++		return ret;
 +
-+		start =3D region->base;
-+		end =3D region->base + region->size;
-+		if (end <=3D base || start >=3D base + length)
-+			continue;
++	for (i = start_rgn; i < end_rgn; i++)
++		memblock_set_region_flags(&type->regions[i], MEMBLOCK_HOTPLUG);
 +
-+		return true;
-+	}
-+
-+	return false;
++	memblock_merge_regions(type);
++	return 0;
 +}
 +
 +/**
-  * find=5Fhotpluggable=5Fmemory - Find out hotpluggable memory from ACPI S=
-RAT.
-  *
-  * This function did the following:
-@@ -129,6 +164,16 @@ void =5F=5Finit find=5Fhotpluggable=5Fmemory(void)
-=20
- 	while (ACPI=5FSUCCESS(acpi=5Fhotplug=5Fmem=5Faffinity(srat=5Fvaddr, &base,
- 						      &size, &offset))) {
-+		/*
-+		 * At early time, memblock will reserve some memory for the
-+		 * kernel, such as the kernel code and data segments, initrd
-+		 * file, and so on=EF=BC=8Cwhich means the kernel resides in these
-+		 * memory regions. These regions should not be hotpluggable.
-+		 * So do not mark them as hotpluggable.
-+		 */
-+		if (kernel=5Fresides=5Fin=5Fregion(base, size))
-+			continue;
-+
- 		/* Will mark hotpluggable memory regions here */
+  * __next_free_mem_range - next function for for_each_free_mem_range()
+  * @idx: pointer to u64 loop variable
+  * @nid: node selector, %MAX_NUMNODES for all nodes
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 10a30ef..4c6182d 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -174,7 +174,8 @@ void __init find_hotpluggable_memory(void)
+ 		if (kernel_resides_in_region(base, size))
+ 			continue;
+ 
+-		/* Will mark hotpluggable memory regions here */
++		/* Mark hotpluggable memory regions in memblock.memory */
++		memblock_mark_hotplug(base, size);
  	}
-=20
---=20
+ 
+ 	early_iounmap(srat_vaddr, length);
+-- 
 1.7.1
-
-=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
