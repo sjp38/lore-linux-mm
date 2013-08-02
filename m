@@ -1,138 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id B9C1A6B0037
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 23:26:12 -0400 (EDT)
-From: Qiang Huang <h.huangqiang@huawei.com>
-Subject: [PATCH v2 2/4] memcg: rename RESOURCE_MAX to RES_COUNTER_MAX
-Date: Fri, 2 Aug 2013 11:25:31 +0800
-Message-ID: <1375413933-10732-3-git-send-email-h.huangqiang@huawei.com>
-In-Reply-To: <1375413933-10732-1-git-send-email-h.huangqiang@huawei.com>
-References: <1375413933-10732-1-git-send-email-h.huangqiang@huawei.com>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id ECA126B0031
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 23:53:03 -0400 (EDT)
+Date: Fri, 2 Aug 2013 12:53:33 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: Possible deadloop in direct reclaim?
+Message-ID: <20130802035333.GD32486@bbox>
+References: <89813612683626448B837EE5A0B6A7CB3B62F8F272@SC-VEXCH4.marvell.com>
+ <20130801054338.GD19540@bbox>
+ <89813612683626448B837EE5A0B6A7CB3B630BE04E@SC-VEXCH4.marvell.com>
+ <20130801073330.GG19540@bbox>
+ <89813612683626448B837EE5A0B6A7CB3B630BE0E3@SC-VEXCH4.marvell.com>
+ <20130801084259.GA32486@bbox>
+ <20130802015241.GB32486@bbox>
+ <89813612683626448B837EE5A0B6A7CB3B630BE43E@SC-VEXCH4.marvell.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <89813612683626448B837EE5A0B6A7CB3B630BE43E@SC-VEXCH4.marvell.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mhocko@suse.cz, lizefan@huawei.com, handai.szj@taobao.com, handai.szj@gmail.com, jeff.liu@oracle.com, nishimura@mxp.nes.nec.co.jp, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: Lisa Du <cldu@marvell.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Bob Liu <lliubbo@gmail.com>
 
-From: Sha Zhengju <handai.szj@taobao.com>
+On Thu, Aug 01, 2013 at 08:17:56PM -0700, Lisa Du wrote:
+> >-----Original Message-----
+> >From: Minchan Kim [mailto:minchan@kernel.org]
+> >Sent: 2013a1'8ae??2ae?JPY 10:26
+> >To: Lisa Du
+> >Cc: linux-mm@kvack.org; KOSAKI Motohiro
+> >Subject: Re: Possible deadloop in direct reclaim?
+> >
+> >Hello Lisa and KOSAKI,
+> >
+> >Lisa's quote style is very hard to follow so I'd like to write at bottom
+> >as ignoring line by line rule.
+> >
+> >Lisa, please correct your MUA.
+> I'm really sorry for my quote style, will improve it in my following mails.
+> >
+> >
+> >I reviewed current mmotm because recently Mel changed kswapd a lot and
+> >all_unreclaimable patch history today.
+> >What I see is recent mmotm has a same problem, too if system have no swap
+> >and no compaction. Of course, compaction is default yes option so we could
+> >recommend to enable if system works well but it's up to user and we should
+> >avoid direct reclaim hang although user disable compaction.
+> >
+> >When I see the patch history, real culprit is 929bea7c.
+> >
+> >"  zone->all_unreclaimable and zone->pages_scanned are neigher atomic
+> >    variables nor protected by lock.  Therefore zones can become a state of
+> >    zone->page_scanned=0 and zone->all_unreclaimable=1.  In this case, current
+> >    all_unreclaimable() return false even though zone->all_unreclaimabe=1."
+> >
+> >I understand the problem but apparently, it makes Lisa's problem because
+> >kswapd can give up balancing when high order allocation happens to prevent
+> >excessive reclaim with assuming the process requested high order allocation
+> >can do direct reclaim/compaction. But what if the process can't reclaim
+> >by no swap but lots of anon pages and can't compact by !CONFIG_COMPACTION?
+> >
+> >In such system, OOM kill is natural but not hang.
+> >So, a solution we can fix simply introduces zone_reclaimable check again in
+> >all_unreclaimabe() like this.
+> >
+> >What do you think about it?
+> >
+> >It's a same patch Lisa posted so we should give a credit
+> >to her/him(Sorry I'm not sure) if we agree thie approach.
+> >
+> >Lisa, If KOSAKI agree with this, could you resend this patch with your SOB?
+> >
+> >Thanks.
+> >
+> >diff --git a/mm/vmscan.c b/mm/vmscan.c
+> >index a3bf7fd..78f46d8 100644
+> >--- a/mm/vmscan.c
+> >+++ b/mm/vmscan.c
+> >@@ -2367,7 +2367,15 @@ static bool all_unreclaimable(struct zonelist *zonelist,
+> > 			continue;
+> > 		if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
+> > 			continue;
+> >-		if (!zone->all_unreclaimable)
+> >+		/*
+> >+		 * zone->page_scanned and could be raced so we need
+> >+		 * dobule check by zone->all_unreclaimable. Morever, kswapd
+> >+		 * could skip (zone->all_unreclaimable = 1) if the zone
+> >+		 * is heavily fragmented but enough free pages to meet
+> >+		 * high watermark. In such case, kswapd never set
+> >+		 * all_unreclaimable to 1 so we need zone_reclaimable, too.
+> >+		 */
+> >+		if (!zone->all_unreclaimable || zone_reclaimable(zone))
+> > 			return false;
+> > 	}
+>    I'm afraid this patch may can't help.
+>    zone->all_unreclaimable = 0 will always result the false return,
+>    zone_reclaimable(zone) check wouldn't take effect no matter
+>    it's true of false right?
 
-RESOURCE_MAX is far too general name, change it to RES_COUNTER_MAX.
+You're right. It was not what I want but check both conditions.
 
-Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
-Signed-off-by: Qiang Huang <h.huangqiang@huawei.com>
-Acked-by: Michal Hocko <mhocko@suse.cz>
----
- include/linux/res_counter.h |  2 +-
- kernel/res_counter.c        |  8 ++++----
- mm/memcontrol.c             |  4 ++--
- net/ipv4/tcp_memcontrol.c   | 10 +++++-----
- 4 files changed, 12 insertions(+), 12 deletions(-)
+> 
+> Also Bob found below thread, seems Kosaki also found same issue:
+> mm, vmscan: fix do_try_to_free_pages() livelock
+> https://lkml.org/lkml/2012/6/14/74
 
-diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
-index 586bc7c..201a697 100644
---- a/include/linux/res_counter.h
-+++ b/include/linux/res_counter.h
-@@ -54,7 +54,7 @@ struct res_counter {
- 	struct res_counter *parent;
- };
- 
--#define RESOURCE_MAX ULLONG_MAX
-+#define RES_COUNTER_MAX ULLONG_MAX
- 
- /**
-  * Helpers to interact with userspace
-diff --git a/kernel/res_counter.c b/kernel/res_counter.c
-index ff55247..3f0417f 100644
---- a/kernel/res_counter.c
-+++ b/kernel/res_counter.c
-@@ -17,8 +17,8 @@
- void res_counter_init(struct res_counter *counter, struct res_counter *parent)
- {
- 	spin_lock_init(&counter->lock);
--	counter->limit = RESOURCE_MAX;
--	counter->soft_limit = RESOURCE_MAX;
-+	counter->limit = RES_COUNTER_MAX;
-+	counter->soft_limit = RES_COUNTER_MAX;
- 	counter->parent = parent;
- }
- 
-@@ -182,12 +182,12 @@ int res_counter_memparse_write_strategy(const char *buf,
- {
- 	char *end;
- 
--	/* return RESOURCE_MAX(unlimited) if "-1" is specified */
-+	/* return RES_COUNTER_MAX(unlimited) if "-1" is specified */
- 	if (*buf == '-') {
- 		*res = simple_strtoull(buf + 1, &end, 10);
- 		if (*res != 1 || *end != '\0')
- 			return -EINVAL;
--		*res = RESOURCE_MAX;
-+		*res = RES_COUNTER_MAX;
- 		return 0;
- 	}
- 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 1947218..f621cf5 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -5117,7 +5117,7 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
- 	 */
- 	mutex_lock(&memcg_create_mutex);
- 	mutex_lock(&set_limit_mutex);
--	if (!memcg->kmem_account_flags && val != RESOURCE_MAX) {
-+	if (!memcg->kmem_account_flags && val != RES_COUNTER_MAX) {
- 		if (cgroup_task_count(cont) || memcg_has_children(memcg)) {
- 			ret = -EBUSY;
- 			goto out;
-@@ -5127,7 +5127,7 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
- 
- 		ret = memcg_update_cache_sizes(memcg);
- 		if (ret) {
--			res_counter_set_limit(&memcg->kmem, RESOURCE_MAX);
-+			res_counter_set_limit(&memcg->kmem, RES_COUNTER_MAX);
- 			goto out;
- 		}
- 		static_key_slow_inc(&memcg_kmem_enabled_key);
-diff --git a/net/ipv4/tcp_memcontrol.c b/net/ipv4/tcp_memcontrol.c
-index da14436..90550f4 100644
---- a/net/ipv4/tcp_memcontrol.c
-+++ b/net/ipv4/tcp_memcontrol.c
-@@ -87,8 +87,8 @@ static int tcp_update_limit(struct mem_cgroup *memcg, u64 val)
- 	if (!cg_proto)
- 		return -EINVAL;
- 
--	if (val > RESOURCE_MAX)
--		val = RESOURCE_MAX;
-+	if (val > RES_COUNTER_MAX)
-+		val = RES_COUNTER_MAX;
- 
- 	tcp = tcp_from_cgproto(cg_proto);
- 
-@@ -101,9 +101,9 @@ static int tcp_update_limit(struct mem_cgroup *memcg, u64 val)
- 		tcp->tcp_prot_mem[i] = min_t(long, val >> PAGE_SHIFT,
- 					     net->ipv4.sysctl_tcp_mem[i]);
- 
--	if (val == RESOURCE_MAX)
-+	if (val == RES_COUNTER_MAX)
- 		clear_bit(MEMCG_SOCK_ACTIVE, &cg_proto->flags);
--	else if (val != RESOURCE_MAX) {
-+	else if (val != RES_COUNTER_MAX) {
- 		/*
- 		 * The active bit needs to be written after the static_key
- 		 * update. This is what guarantees that the socket activation
-@@ -187,7 +187,7 @@ static u64 tcp_cgroup_read(struct cgroup *cont, struct cftype *cft)
- 
- 	switch (cft->private) {
- 	case RES_LIMIT:
--		val = tcp_read_stat(memcg, RES_LIMIT, RESOURCE_MAX);
-+		val = tcp_read_stat(memcg, RES_LIMIT, RES_COUNTER_MAX);
- 		break;
- 	case RES_USAGE:
- 		val = tcp_read_usage(memcg);
+I remember it and AFAIRC, I had a concern because description was
+too vague without detailed example and I fixed Aaditya's problem with
+another approach. That's why it wasn't merged at that time.
+
+Now, we have a real problem and analysis so I think KOSAKI's patch makes
+perfect to me.
+
+Lisa, Could you resend KOSAKI's patch with more detailed description?
+
+> 
+> >
+> >
+> >
+> >--
+> >Kind regards,
+> >Minchan Kim
+
 -- 
-1.8.3
-
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
