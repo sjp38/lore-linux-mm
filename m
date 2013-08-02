@@ -1,59 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 9AA906B0031
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 05:14:59 -0400 (EDT)
-Message-ID: <51FB7836.3040202@cn.fujitsu.com>
-Date: Fri, 02 Aug 2013 17:13:26 +0800
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 3533F6B0032
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 05:16:09 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2 05/18] x86, acpi: Split acpi_boot_table_init() into
- two parts.
-References: <1375340800-19332-1-git-send-email-tangchen@cn.fujitsu.com>  <1375340800-19332-6-git-send-email-tangchen@cn.fujitsu.com> <1375399931.10300.36.camel@misato.fc.hp.com> <1AE640813FDE7649BE1B193DEA596E8802437AC8@SHSMSX101.ccr.corp.intel.com> <51FB5948.6080802@cn.fujitsu.com> <1AE640813FDE7649BE1B193DEA596E8802437C47@SHSMSX101.ccr.corp.intel.com> <51FB6DE6.6040200@cn.fujitsu.com> <1AE640813FDE7649BE1B193DEA596E8802437C78@SHSMSX101.ccr.corp.intel.com>
-In-Reply-To: <1AE640813FDE7649BE1B193DEA596E8802437C78@SHSMSX101.ccr.corp.intel.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: quoted-printable
+Subject: [PATCH v2 RESEND 02/18] earlycpio.c: Fix the confusing comment of find_cpio_data().
+Date: Fri, 2 Aug 2013 17:14:21 +0800
+Message-Id: <1375434877-20704-3-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1375434877-20704-1-git-send-email-tangchen@cn.fujitsu.com>
+References: <1375434877-20704-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Zheng, Lv" <lv.zheng@intel.com>
-Cc: Toshi Kani <toshi.kani@hp.com>, "rjw@sisk.pl" <rjw@sisk.pl>, "lenb@kernel.org" <lenb@kernel.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@elte.hu" <mingo@elte.hu>, "hpa@zytor.com" <hpa@zytor.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "tj@kernel.org" <tj@kernel.org>, "trenn@suse.de" <trenn@suse.de>, "yinghai@kernel.org" <yinghai@kernel.org>, "jiang.liu@huawei.com" <jiang.liu@huawei.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "laijs@cn.fujitsu.com" <laijs@cn.fujitsu.com>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "izumi.taku@jp.fujitsu.com" <izumi.taku@jp.fujitsu.com>, "mgorman@suse.de" <mgorman@suse.de>, "minchan@kernel.org" <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, "vasilis.liaskovitis@profitbricks.com" <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "riel@redhat.com" <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "prarit@redhat.com" <prarit@redhat.com>, "zhangyanfei@cn.fujitsu.com" <zhangyanfei@cn.fujitsu.com>, "yanghy@cn.fujitsu.com" <yanghy@cn.fujitsu.com>, "x86@kernel.org" <x86@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "Moore, Robert" <robert.moore@intel.com>
+To: robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
+Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-On 08/02/2013 04:54 PM, Zheng, Lv wrote:
->> From: Tang Chen [mailto:tangchen@cn.fujitsu.com]
->> Sent: Friday, August 02, 2013 4:29 PM
->>
->> On 08/02/2013 04:23 PM, Zheng, Lv wrote:
->> ......
->>>> According to what you've explained, what you didn=E2=80=99t want to be
->> called
->>>> earlier is exactly "acpi initrd table override", please split only thi=
-s logic
->> to
->>>> the step 2 and leave the others remained.
->>>> I think you should write a function named as acpi=5Foverride=5Ftables(=
-) or
->>>> likewise in tbxface.c to be executed as the OSPM entry of the step 2.
->>>> Inside this function, acpi=5Ftb=5Ftable=5Foverride() should be called.
->> ......
->>
->> OK, I understand what you are suggesting now. It is reasonable.
->> I'll update the patch-set in the next version.
->>
->> But today, I just rebased it to the latest kernel. I'll resend this
->> rebased v2 patch-set so that Tj and other guys can review it.
->>
->> I'll include all of your comments in the v3 patch-set. Thank you very
->> much. :)
->
-> If the review process takes longer time, you could also let ACPICA folks =
-to do this first in ACPICA, you'll find the commit in the next release cycl=
-e.
-> In this way, there won't be source code divergences between Linux and ACP=
-ICA.
+The comments of find_cpio_data() says:
 
-Thank you very much. Will add you and Bob to the cc list.
+  * @offset: When a matching file is found, this is the offset to the
+  *          beginning of the cpio. ......
 
-Thanks.
-=
+But according to the code,
+
+  dptr = PTR_ALIGN(p + ch[C_NAMESIZE], 4);
+  nptr = PTR_ALIGN(dptr + ch[C_FILESIZE], 4);
+  ....
+  *offset = (long)nptr - (long)data;	/* data is the cpio file */
+
+@offset is the offset of the next file, not the matching file itself.
+This is confused and may cause unnecessary waste of time to debug.
+So fix it.
+
+v1 -> v2:
+As tj suggested, rename @offset to @nextoff which is more clear to
+users. And also adjust the new comments.
+
+Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+---
+ lib/earlycpio.c |   27 ++++++++++++++-------------
+ 1 files changed, 14 insertions(+), 13 deletions(-)
+
+diff --git a/lib/earlycpio.c b/lib/earlycpio.c
+index 7aa7ce2..c7ae5ed 100644
+--- a/lib/earlycpio.c
++++ b/lib/earlycpio.c
+@@ -49,22 +49,23 @@ enum cpio_fields {
+ 
+ /**
+  * cpio_data find_cpio_data - Search for files in an uncompressed cpio
+- * @path:   The directory to search for, including a slash at the end
+- * @data:   Pointer to the the cpio archive or a header inside
+- * @len:    Remaining length of the cpio based on data pointer
+- * @offset: When a matching file is found, this is the offset to the
+- *          beginning of the cpio. It can be used to iterate through
+- *          the cpio to find all files inside of a directory path
++ * @path:       The directory to search for, including a slash at the end
++ * @data:       Pointer to the the cpio archive or a header inside
++ * @len:        Remaining length of the cpio based on data pointer
++ * @nextoff:    When a matching file is found, this is the offset from the
++ *              beginning of the cpio to the beginning of the next file, not the
++ *              matching file itself. It can be used to iterate through the cpio
++ *              to find all files inside of a directory path 
+  *
+- * @return: struct cpio_data containing the address, length and
+- *          filename (with the directory path cut off) of the found file.
+- *          If you search for a filename and not for files in a directory,
+- *          pass the absolute path of the filename in the cpio and make sure
+- *          the match returned an empty filename string.
++ * @return:     struct cpio_data containing the address, length and
++ *              filename (with the directory path cut off) of the found file.
++ *              If you search for a filename and not for files in a directory,
++ *              pass the absolute path of the filename in the cpio and make sure
++ *              the match returned an empty filename string.
+  */
+ 
+ struct cpio_data find_cpio_data(const char *path, void *data,
+-					  size_t len,  long *offset)
++				size_t len,  long *nextoff)
+ {
+ 	const size_t cpio_header_len = 8*C_NFIELDS - 2;
+ 	struct cpio_data cd = { NULL, 0, "" };
+@@ -124,7 +125,7 @@ struct cpio_data find_cpio_data(const char *path, void *data,
+ 		if ((ch[C_MODE] & 0170000) == 0100000 &&
+ 		    ch[C_NAMESIZE] >= mypathsize &&
+ 		    !memcmp(p, path, mypathsize)) {
+-			*offset = (long)nptr - (long)data;
++			*nextoff = (long)nptr - (long)data;
+ 			if (ch[C_NAMESIZE] - mypathsize >= MAX_CPIO_FILE_NAME) {
+ 				pr_warn(
+ 				"File %s exceeding MAX_CPIO_FILE_NAME [%d]\n",
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
