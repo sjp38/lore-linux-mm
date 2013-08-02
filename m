@@ -1,46 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 09CB16B0033
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 16:31:22 -0400 (EDT)
-Date: Fri, 2 Aug 2013 21:59:59 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [patch v2 0/3] mm: improve page aging fairness between
- zones/nodes
-Message-ID: <20130802195959.GF26919@redhat.com>
-References: <1375457846-21521-1-git-send-email-hannes@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id AFBBA6B0032
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 16:47:22 -0400 (EDT)
+Date: Fri, 2 Aug 2013 16:47:10 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 1/4] mm, page_alloc: add likely macro to help compiler
+ optimization
+Message-ID: <20130802204710.GX715@cmpxchg.org>
+References: <1375409279-16919-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <20130802162722.GA29220@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1375457846-21521-1-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <20130802162722.GA29220@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@surriel.com>, Zlatko Calusic <zcalusic@bitsync.net>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
 
-On Fri, Aug 02, 2013 at 11:37:23AM -0400, Johannes Weiner wrote:
-> Changes in version 2:
+On Fri, Aug 02, 2013 at 06:27:22PM +0200, Michal Hocko wrote:
+> On Fri 02-08-13 11:07:56, Joonsoo Kim wrote:
+> > We rarely allocate a page with ALLOC_NO_WATERMARKS and it is used
+> > in slow path. For making fast path more faster, add likely macro to
+> > help compiler optimization.
+> 
+> The code is different in mmotm tree (see mm: page_alloc: rearrange
+> watermark checking in get_page_from_freelist)
 
-v2 looks great to me.
+Yes, please rebase this on top.
 
-                zone->alloc_batch -= 1U << order;
-    3147:       d3 e0                   shl    %cl,%eax
-    3149:       29 42 54                sub    %eax,0x54(%rdx)
+> Besides that, make sure you provide numbers which prove your claims
+> about performance optimizations.
 
-gcc builds it as one asm insn too.
-
-Considering we depend on gcc to be optimal and to update ptes in a
-single insn (and if it doesn't we'll corrupt memory), keeping it in C
-should always provide the update in a single insn.
-
-I believe the error introduced when mulptiple CPUs of the same NUMA
-node step on each other is going to be unmeasurable.
-
-ACK the whole series.
-
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-
-Thanks,
-Andrea
+Isn't that a bit overkill?  We know it's a likely path (we would
+deadlock constantly if a sizable portion of allocations were to ignore
+the watermarks).  Does he have to justify that likely in general makes
+sense?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
