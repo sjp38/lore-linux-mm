@@ -1,34 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 43F3B6B0031
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 22:02:46 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 607DE6B0031
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 22:08:02 -0400 (EDT)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH] mm, slab_common: add 'unlikely' to size check of kmalloc_slab()
-Date: Fri,  2 Aug 2013 11:02:42 +0900
-Message-Id: <1375408962-16743-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 1/4] mm, page_alloc: add likely macro to help compiler optimization
+Date: Fri,  2 Aug 2013 11:07:56 +0900
+Message-Id: <1375409279-16919-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Size is usually below than KMALLOC_MAX_SIZE.
-If we add a 'unlikely' macro, compiler can make better code.
+We rarely allocate a page with ALLOC_NO_WATERMARKS and it is used
+in slow path. For making fast path more faster, add likely macro to
+help compiler optimization.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 538bade..f0410eb 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -373,7 +373,7 @@ struct kmem_cache *kmalloc_slab(size_t size, gfp_t flags)
- {
- 	int index;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index b100255..86ad44b 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1901,7 +1901,7 @@ zonelist_scan:
+ 			goto this_zone_full;
  
--	if (size > KMALLOC_MAX_SIZE) {
-+	if (unlikely(size > KMALLOC_MAX_SIZE)) {
- 		WARN_ON_ONCE(!(flags & __GFP_NOWARN));
- 		return NULL;
- 	}
+ 		BUILD_BUG_ON(ALLOC_NO_WATERMARKS < NR_WMARK);
+-		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
++		if (likely(!(alloc_flags & ALLOC_NO_WATERMARKS))) {
+ 			unsigned long mark;
+ 			int ret;
+ 
 -- 
 1.7.9.5
 
