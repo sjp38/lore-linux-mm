@@ -1,78 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 39D9B6B0034
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 22:43:39 -0400 (EDT)
-Date: Thu, 01 Aug 2013 22:43:16 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1375411396-bw4cbhso-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <87vc3qvtmc.fsf@linux.vnet.ibm.com>
-References: <1374728103-17468-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1374728103-17468-9-git-send-email-n-horiguchi@ah.jp.nec.com>
- <87k3k7q4ox.fsf@linux.vnet.ibm.com>
- <1375302249-scfvftrh-mutt-n-horiguchi@ah.jp.nec.com>
- <87vc3qvtmc.fsf@linux.vnet.ibm.com>
-Subject: Re: [PATCH 8/8] prepare to remove
- /proc/sys/vm/hugepages_treat_as_movable
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 393A16B0031
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 23:20:51 -0400 (EDT)
+From: Lisa Du <cldu@marvell.com>
+Date: Thu, 1 Aug 2013 20:17:56 -0700
+Subject: RE: Possible deadloop in direct reclaim?
+Message-ID: <89813612683626448B837EE5A0B6A7CB3B630BE43E@SC-VEXCH4.marvell.com>
+References: <89813612683626448B837EE5A0B6A7CB3B62F8F272@SC-VEXCH4.marvell.com>
+ <20130801054338.GD19540@bbox>
+ <89813612683626448B837EE5A0B6A7CB3B630BE04E@SC-VEXCH4.marvell.com>
+ <20130801073330.GG19540@bbox>
+ <89813612683626448B837EE5A0B6A7CB3B630BE0E3@SC-VEXCH4.marvell.com>
+ <20130801084259.GA32486@bbox> <20130802015241.GB32486@bbox>
+In-Reply-To: <20130802015241.GB32486@bbox>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Bob Liu <lliubbo@gmail.com>
 
-On Thu, Aug 01, 2013 at 11:29:39AM +0530, Aneesh Kumar K.V wrote:
-> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
-> 
-> > On Wed, Jul 31, 2013 at 12:02:30AM +0530, Aneesh Kumar K.V wrote:
-> >> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
-> >> 
-> >> > Now hugepages are definitely movable. So allocating hugepages from
-> >> > ZONE_MOVABLE is natural and we have no reason to keep this parameter.
-> >> > In order to allow userspace to prepare for the removal, let's leave
-> >> > this sysctl handler as noop for a while.
-> >> 
-> >> I guess you still need to handle architectures for which pmd_huge is
-> >> 
-> >> int pmd_huge(pmd_t pmd)
-> >> {
-> >> 	return 0;
-> >> }
-> >> 
-> >> embedded powerpc is one. They don't store pte information at the PMD
-> >> level. Instead pmd contains a pointer to hugepage directory which
-> >> contain huge pte.
-> >
-> > It seems that this comment is for the whole series, not just for this
-> > patch, right?
-> >
-> > Some users of hugepage migration (mbind, move_pages, migrate_pages)
-> > walk over page tables to collect hugepages to be migrated, where
-> > hugepages are just ignored in such architectures due to pmd_huge.
-> > So no problem for these users.
-> >
-> > But the other users (softoffline, memory hotremove) choose hugepages
-> > to be migrated based on pfn, where they don't check pmd_huge.
-> > As you wrote, this can be problematic for such architectures.
-> > So I think of adding pmd_huge() check somewhere (in unmap_and_move_huge_page
-> > for example) to make it fail for such architectures.
-> 
-> Considering that we have architectures that won't support migrating
-> explicit hugepages with this patch series, is it ok to use
-> GFP_HIGHUSER_MOVABLE for hugepage allocation ?
-
-Originally this parameter was introduced to make hugepage pool on ZONE_MOVABLE.
-The benefit is that we can extend the hugepage pool more easily,
-because external fragmentation less likely happens than other zone type
-by rearranging fragmented pages with page migration/reclaim.
-
-So I think using ZONE_MOVABLE for hugepage allocation by default makes sense
-even on the architectures which don't support hugepage migration.
-
-Thanks,
-Naoya Horiguchi
+Pi0tLS0tT3JpZ2luYWwgTWVzc2FnZS0tLS0tDQo+RnJvbTogTWluY2hhbiBLaW0gW21haWx0bzpt
+aW5jaGFuQGtlcm5lbC5vcmddDQo+U2VudDogMjAxM+W5tDjmnIgy5pelIDEwOjI2DQo+VG86IExp
+c2EgRHUNCj5DYzogbGludXgtbW1Aa3ZhY2sub3JnOyBLT1NBS0kgTW90b2hpcm8NCj5TdWJqZWN0
+OiBSZTogUG9zc2libGUgZGVhZGxvb3AgaW4gZGlyZWN0IHJlY2xhaW0/DQo+DQo+SGVsbG8gTGlz
+YSBhbmQgS09TQUtJLA0KPg0KPkxpc2EncyBxdW90ZSBzdHlsZSBpcyB2ZXJ5IGhhcmQgdG8gZm9s
+bG93IHNvIEknZCBsaWtlIHRvIHdyaXRlIGF0IGJvdHRvbQ0KPmFzIGlnbm9yaW5nIGxpbmUgYnkg
+bGluZSBydWxlLg0KPg0KPkxpc2EsIHBsZWFzZSBjb3JyZWN0IHlvdXIgTVVBLg0KSSdtIHJlYWxs
+eSBzb3JyeSBmb3IgbXkgcXVvdGUgc3R5bGUsIHdpbGwgaW1wcm92ZSBpdCBpbiBteSBmb2xsb3dp
+bmcgbWFpbHMuDQo+DQo+DQo+SSByZXZpZXdlZCBjdXJyZW50IG1tb3RtIGJlY2F1c2UgcmVjZW50
+bHkgTWVsIGNoYW5nZWQga3N3YXBkIGEgbG90IGFuZA0KPmFsbF91bnJlY2xhaW1hYmxlIHBhdGNo
+IGhpc3RvcnkgdG9kYXkuDQo+V2hhdCBJIHNlZSBpcyByZWNlbnQgbW1vdG0gaGFzIGEgc2FtZSBw
+cm9ibGVtLCB0b28gaWYgc3lzdGVtIGhhdmUgbm8gc3dhcA0KPmFuZCBubyBjb21wYWN0aW9uLiBP
+ZiBjb3Vyc2UsIGNvbXBhY3Rpb24gaXMgZGVmYXVsdCB5ZXMgb3B0aW9uIHNvIHdlIGNvdWxkDQo+
+cmVjb21tZW5kIHRvIGVuYWJsZSBpZiBzeXN0ZW0gd29ya3Mgd2VsbCBidXQgaXQncyB1cCB0byB1
+c2VyIGFuZCB3ZSBzaG91bGQNCj5hdm9pZCBkaXJlY3QgcmVjbGFpbSBoYW5nIGFsdGhvdWdoIHVz
+ZXIgZGlzYWJsZSBjb21wYWN0aW9uLg0KPg0KPldoZW4gSSBzZWUgdGhlIHBhdGNoIGhpc3Rvcnks
+IHJlYWwgY3VscHJpdCBpcyA5MjliZWE3Yy4NCj4NCj4iICB6b25lLT5hbGxfdW5yZWNsYWltYWJs
+ZSBhbmQgem9uZS0+cGFnZXNfc2Nhbm5lZCBhcmUgbmVpZ2hlciBhdG9taWMNCj4gICAgdmFyaWFi
+bGVzIG5vciBwcm90ZWN0ZWQgYnkgbG9jay4gIFRoZXJlZm9yZSB6b25lcyBjYW4gYmVjb21lIGEg
+c3RhdGUgb2YNCj4gICAgem9uZS0+cGFnZV9zY2FubmVkPTAgYW5kIHpvbmUtPmFsbF91bnJlY2xh
+aW1hYmxlPTEuICBJbiB0aGlzIGNhc2UsIGN1cnJlbnQNCj4gICAgYWxsX3VucmVjbGFpbWFibGUo
+KSByZXR1cm4gZmFsc2UgZXZlbiB0aG91Z2ggem9uZS0+YWxsX3VucmVjbGFpbWFiZT0xLiINCj4N
+Cj5JIHVuZGVyc3RhbmQgdGhlIHByb2JsZW0gYnV0IGFwcGFyZW50bHksIGl0IG1ha2VzIExpc2En
+cyBwcm9ibGVtIGJlY2F1c2UNCj5rc3dhcGQgY2FuIGdpdmUgdXAgYmFsYW5jaW5nIHdoZW4gaGln
+aCBvcmRlciBhbGxvY2F0aW9uIGhhcHBlbnMgdG8gcHJldmVudA0KPmV4Y2Vzc2l2ZSByZWNsYWlt
+IHdpdGggYXNzdW1pbmcgdGhlIHByb2Nlc3MgcmVxdWVzdGVkIGhpZ2ggb3JkZXIgYWxsb2NhdGlv
+bg0KPmNhbiBkbyBkaXJlY3QgcmVjbGFpbS9jb21wYWN0aW9uLiBCdXQgd2hhdCBpZiB0aGUgcHJv
+Y2VzcyBjYW4ndCByZWNsYWltDQo+Ynkgbm8gc3dhcCBidXQgbG90cyBvZiBhbm9uIHBhZ2VzIGFu
+ZCBjYW4ndCBjb21wYWN0IGJ5ICFDT05GSUdfQ09NUEFDVElPTj8NCj4NCj5JbiBzdWNoIHN5c3Rl
+bSwgT09NIGtpbGwgaXMgbmF0dXJhbCBidXQgbm90IGhhbmcuDQo+U28sIGEgc29sdXRpb24gd2Ug
+Y2FuIGZpeCBzaW1wbHkgaW50cm9kdWNlcyB6b25lX3JlY2xhaW1hYmxlIGNoZWNrIGFnYWluIGlu
+DQo+YWxsX3VucmVjbGFpbWFiZSgpIGxpa2UgdGhpcy4NCj4NCj5XaGF0IGRvIHlvdSB0aGluayBh
+Ym91dCBpdD8NCj4NCj5JdCdzIGEgc2FtZSBwYXRjaCBMaXNhIHBvc3RlZCBzbyB3ZSBzaG91bGQg
+Z2l2ZSBhIGNyZWRpdA0KPnRvIGhlci9oaW0oU29ycnkgSSdtIG5vdCBzdXJlKSBpZiB3ZSBhZ3Jl
+ZSB0aGllIGFwcHJvYWNoLg0KPg0KPkxpc2EsIElmIEtPU0FLSSBhZ3JlZSB3aXRoIHRoaXMsIGNv
+dWxkIHlvdSByZXNlbmQgdGhpcyBwYXRjaCB3aXRoIHlvdXIgU09CPw0KPg0KPlRoYW5rcy4NCj4N
+Cj5kaWZmIC0tZ2l0IGEvbW0vdm1zY2FuLmMgYi9tbS92bXNjYW4uYw0KPmluZGV4IGEzYmY3ZmQu
+Ljc4ZjQ2ZDggMTAwNjQ0DQo+LS0tIGEvbW0vdm1zY2FuLmMNCj4rKysgYi9tbS92bXNjYW4uYw0K
+PkBAIC0yMzY3LDcgKzIzNjcsMTUgQEAgc3RhdGljIGJvb2wgYWxsX3VucmVjbGFpbWFibGUoc3Ry
+dWN0IHpvbmVsaXN0ICp6b25lbGlzdCwNCj4gCQkJY29udGludWU7DQo+IAkJaWYgKCFjcHVzZXRf
+em9uZV9hbGxvd2VkX2hhcmR3YWxsKHpvbmUsIEdGUF9LRVJORUwpKQ0KPiAJCQljb250aW51ZTsN
+Cj4tCQlpZiAoIXpvbmUtPmFsbF91bnJlY2xhaW1hYmxlKQ0KPisJCS8qDQo+KwkJICogem9uZS0+
+cGFnZV9zY2FubmVkIGFuZCBjb3VsZCBiZSByYWNlZCBzbyB3ZSBuZWVkDQo+KwkJICogZG9idWxl
+IGNoZWNrIGJ5IHpvbmUtPmFsbF91bnJlY2xhaW1hYmxlLiBNb3JldmVyLCBrc3dhcGQNCj4rCQkg
+KiBjb3VsZCBza2lwICh6b25lLT5hbGxfdW5yZWNsYWltYWJsZSA9IDEpIGlmIHRoZSB6b25lDQo+
+KwkJICogaXMgaGVhdmlseSBmcmFnbWVudGVkIGJ1dCBlbm91Z2ggZnJlZSBwYWdlcyB0byBtZWV0
+DQo+KwkJICogaGlnaCB3YXRlcm1hcmsuIEluIHN1Y2ggY2FzZSwga3N3YXBkIG5ldmVyIHNldA0K
+PisJCSAqIGFsbF91bnJlY2xhaW1hYmxlIHRvIDEgc28gd2UgbmVlZCB6b25lX3JlY2xhaW1hYmxl
+LCB0b28uDQo+KwkJICovDQo+KwkJaWYgKCF6b25lLT5hbGxfdW5yZWNsYWltYWJsZSB8fCB6b25l
+X3JlY2xhaW1hYmxlKHpvbmUpKQ0KPiAJCQlyZXR1cm4gZmFsc2U7DQo+IAl9DQogICBJJ20gYWZy
+YWlkIHRoaXMgcGF0Y2ggbWF5IGNhbid0IGhlbHAuDQogICB6b25lLT5hbGxfdW5yZWNsYWltYWJs
+ZSA9IDAgd2lsbCBhbHdheXMgcmVzdWx0IHRoZSBmYWxzZSByZXR1cm4sDQogICB6b25lX3JlY2xh
+aW1hYmxlKHpvbmUpIGNoZWNrIHdvdWxkbid0IHRha2UgZWZmZWN0IG5vIG1hdHRlcg0KICAgaXQn
+cyB0cnVlIG9mIGZhbHNlIHJpZ2h0Pw0KDQpBbHNvIEJvYiBmb3VuZCBiZWxvdyB0aHJlYWQsIHNl
+ZW1zIEtvc2FraSBhbHNvIGZvdW5kIHNhbWUgaXNzdWU6DQptbSwgdm1zY2FuOiBmaXggZG9fdHJ5
+X3RvX2ZyZWVfcGFnZXMoKSBsaXZlbG9jaw0KaHR0cHM6Ly9sa21sLm9yZy9sa21sLzIwMTIvNi8x
+NC83NA0KDQo+DQo+DQo+DQo+LS0NCj5LaW5kIHJlZ2FyZHMsDQo+TWluY2hhbiBLaW0NCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
