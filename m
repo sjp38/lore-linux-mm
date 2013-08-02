@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 992AD6B0069
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id C63366B005C
 	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 05:16:19 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v2 RESEND 17/18] mem-hotplug: Introduce movablenode boot option to {en|dis}able using SRAT.
-Date: Fri, 2 Aug 2013 17:14:36 +0800
-Message-Id: <1375434877-20704-18-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v2 RESEND 18/18] x86, numa, acpi, memory-hotplug: Make movablenode have higher priority.
+Date: Fri, 2 Aug 2013 17:14:37 +0800
+Message-Id: <1375434877-20704-19-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1375434877-20704-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1375434877-20704-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,127 +13,122 @@ List-ID: <linux-mm.kvack.org>
 To: robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-The Hot-Pluggable fired in SRAT specifies which memory is hotpluggable.
-As we mentioned before, if hotpluggable memory is used by the kernel,
-it cannot be hot-removed. So memory hotplug users may want to set all
-hotpluggable memory in ZONE_MOVABLE so that the kernel won't use it.
+Arrange hotpluggable memory as ZONE_MOVABLE will cause NUMA performance down
+because the kernel cannot use movable memory. For users who don't use memory
+hotplug and who don't want to lose their NUMA performance, they need a way to
+disable this functionality. So we improved movablecore boot option.
 
-Memory hotplug users may also set a node as movable node, which has
-ZONE_MOVABLE only, so that the whole node can be hot-removed.
+If users specify the original movablecore=nn@ss boot option, the kernel will
+arrange [ss, ss+nn) as ZONE_MOVABLE. The kernelcore=nn@ss boot option is similar
+except it specifies ZONE_NORMAL ranges.
 
-But the kernel cannot use memory in ZONE_MOVABLE. By doing this, the
-kernel cannot use memory in movable nodes. This will cause NUMA
-performance down. And other users may be unhappy.
+Now, if users specify "movablenode" in kernel commandline, the kernel will
+arrange hotpluggable memory in SRAT as ZONE_MOVABLE. And if users do this, all
+the other movablecore=nn@ss and kernelcore=nn@ss options should be ignored.
 
-So we need a way to allow users to enable and disable this functionality.
-In this patch, we introduce movablenode boot option to allow users to
-choose to reserve hotpluggable memory and set it as ZONE_MOVABLE or not.
+For those who don't want this, just specify nothing. The kernel will act as
+before.
 
-Users can specify "movablenode" in kernel commandline to enable this
-functionality. For those who don't use memory hotplug or who don't want
-to lose their NUMA performance, just don't specify anything. The kernel
-will work as before.
-
-Suggested-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 ---
- Documentation/kernel-parameters.txt |   15 +++++++++++++++
- arch/x86/kernel/setup.c             |   10 ++++++++--
- include/linux/memory_hotplug.h      |    3 +++
- mm/memory_hotplug.c                 |   11 +++++++++++
- 4 files changed, 37 insertions(+), 2 deletions(-)
+ include/linux/memblock.h |    1 +
+ mm/memblock.c            |    5 +++++
+ mm/page_alloc.c          |   31 ++++++++++++++++++++++++++++---
+ 3 files changed, 34 insertions(+), 3 deletions(-)
 
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index 15356ac..7349d1f 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -1718,6 +1718,21 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
- 			that the amount of memory usable for all allocations
- 			is not too small.
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index c0bd31c..e78e32f 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -64,6 +64,7 @@ int memblock_reserve(phys_addr_t base, phys_addr_t size);
+ void memblock_trim_memory(phys_addr_t align);
  
-+	movablenode		[KNL,X86] This parameter enables/disables the
-+			kernel to arrange hotpluggable memory ranges recorded
-+			in ACPI SRAT(System Resource Affinity Table) as
-+			ZONE_MOVABLE. And these memory can be hot-removed when
-+			the system is up.
-+			By specifying this option, all the hotpluggable memory
-+			will be in ZONE_MOVABLE, which the kernel cannot use.
-+			This will cause NUMA performance down. For users who
-+			care about NUMA performance, just don't use it.
-+			If all the memory ranges in the system are hotpluggable,
-+			then the ones used by the kernel at early time, such as
-+			kernel code and data segments, initrd file and so on,
-+			won't be set as ZONE_MOVABLE, and won't be hotpluggable.
-+			Otherwise the kernel won't have enough memory to boot.
-+
- 	MTD_Partition=	[MTD]
- 			Format: <name>,<region-number>,<size>,<offset>
+ int memblock_mark_hotplug(phys_addr_t base, phys_addr_t size);
++bool memblock_is_hotpluggable(struct memblock_region *region);
  
-diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-index c23e6a7..08029d4 100644
---- a/arch/x86/kernel/setup.c
-+++ b/arch/x86/kernel/setup.c
-@@ -1058,14 +1058,20 @@ void __init setup_arch(char **cmdline_p)
- 	/* Initialize ACPI global root table list. */
- 	early_acpi_boot_table_init();
- 
--#ifdef CONFIG_ACPI_NUMA
-+#if defined(CONFIG_ACPI_NUMA) && defined(CONFIG_MOVABLE_NODE)
- 	/*
- 	 * Linux kernel cannot migrate kernel pages, as a result, memory used
- 	 * by the kernel cannot be hot-removed. Find and mark hotpluggable
- 	 * memory in memblock to prevent memblock from allocating hotpluggable
- 	 * memory for the kernel.
-+	 *
-+	 * If all the memory in a node is hotpluggable, then the kernel won't
-+	 * be able to use memory on that node. This will cause NUMA performance
-+	 * down. So by default, we don't reserve any hotpluggable memory. Users
-+	 * may use "movablenode" boot option to enable this functionality.
- 	 */
--	find_hotpluggable_memory();
-+	if (movablenode_enable_srat)
-+		find_hotpluggable_memory();
- #endif
- 
- 	/*
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 463efa9..43eb373 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -33,6 +33,9 @@ enum {
- 	ONLINE_MOVABLE,
- };
- 
-+/* Enable/disable SRAT in movablenode boot option */
-+extern bool movablenode_enable_srat;
-+
- /*
-  * pgdat resizing functions
-  */
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 4c6182d..b06d7bc 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -93,6 +93,17 @@ static void release_memory_resource(struct resource *res)
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+ void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 3ea4301..c8eb5d2 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -610,6 +610,11 @@ int __init_memblock memblock_mark_hotplug(phys_addr_t base, phys_addr_t size)
+ 	return 0;
  }
  
- #ifdef CONFIG_ACPI_NUMA
-+#ifdef CONFIG_MOVABLE_NODE
-+bool __initdata movablenode_enable_srat;
-+
-+static int __init cmdline_parse_movablenode(char *p)
++bool __init_memblock memblock_is_hotpluggable(struct memblock_region *region)
 +{
-+	movablenode_enable_srat = true;
-+	return 0;
++	return region->flags & MEMBLOCK_HOTPLUG;
 +}
-+early_param("movablenode", cmdline_parse_movablenode);
-+#endif	/* CONFIG_MOVABLE_NODE */
 +
  /**
-  * kernel_resides_in_range - Check if kernel resides in a memory region.
-  * @base: The base address of the memory region.
+  * __next_free_mem_range - next function for for_each_free_mem_range()
+  * @idx: pointer to u64 loop variable
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index b100255..86d4381 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4948,9 +4948,35 @@ static void __init find_zone_movable_pfns_for_nodes(void)
+ 	nodemask_t saved_node_state = node_states[N_MEMORY];
+ 	unsigned long totalpages = early_calculate_totalpages();
+ 	int usable_nodes = nodes_weight(node_states[N_MEMORY]);
++	struct memblock_type *type = &memblock.memory;
+ 
++	/* Need to find movable_zone earlier when movablenode is specified. */
++	find_usable_zone_for_movable();
++
++#ifdef CONFIG_MOVABLE_NODE
+ 	/*
+-	 * If movablecore was specified, calculate what size of
++	 * If movablenode is specified, ignore kernelcore and movablecore
++	 * options.
++	 */
++	if (movablenode_enable_srat) {
++		for (i = 0; i < type->cnt; i++) {
++			if (!memblock_is_hotpluggable(&type->regions[i]))
++				continue;
++
++			nid = type->regions[i].nid;
++
++			usable_startpfn = PFN_DOWN(type->regions[i].base);
++			zone_movable_pfn[nid] = zone_movable_pfn[nid] ?
++				min(usable_startpfn, zone_movable_pfn[nid]) :
++				usable_startpfn;
++		}
++
++		goto out;
++	}
++#endif
++
++	/*
++	 * If movablecore=nn[KMG] was specified, calculate what size of
+ 	 * kernelcore that corresponds so that memory usable for
+ 	 * any allocation type is evenly spread. If both kernelcore
+ 	 * and movablecore are specified, then the value of kernelcore
+@@ -4976,7 +5002,6 @@ static void __init find_zone_movable_pfns_for_nodes(void)
+ 		goto out;
+ 
+ 	/* usable_startpfn is the lowest possible pfn ZONE_MOVABLE can be at */
+-	find_usable_zone_for_movable();
+ 	usable_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
+ 
+ restart:
+@@ -5067,12 +5092,12 @@ restart:
+ 	if (usable_nodes && required_kernelcore > usable_nodes)
+ 		goto restart;
+ 
++out:
+ 	/* Align start of ZONE_MOVABLE on all nids to MAX_ORDER_NR_PAGES */
+ 	for (nid = 0; nid < MAX_NUMNODES; nid++)
+ 		zone_movable_pfn[nid] =
+ 			roundup(zone_movable_pfn[nid], MAX_ORDER_NR_PAGES);
+ 
+-out:
+ 	/* restore the node_state */
+ 	node_states[N_MEMORY] = saved_node_state;
+ }
 -- 
 1.7.1
 
