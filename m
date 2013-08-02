@@ -1,67 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 400056B0032
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 11:50:42 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjennings@variantweb.net>;
-	Sat, 3 Aug 2013 01:40:43 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 307772BB004F
-	for <linux-mm@kvack.org>; Sat,  3 Aug 2013 01:50:34 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r72FYk2e55574724
-	for <linux-mm@kvack.org>; Sat, 3 Aug 2013 01:34:50 +1000
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r72FoTrW014323
-	for <linux-mm@kvack.org>; Sat, 3 Aug 2013 01:50:29 +1000
-Date: Fri, 2 Aug 2013 10:50:26 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: Re: [PATCH] drivers: base: new memory config sysfs driver for large
- memory systems
-Message-ID: <20130802155026.GA4550@variantweb.net>
-References: <1374786680-26197-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <20130725234007.GB18349@kroah.com>
- <20130726144251.GB4379@variantweb.net>
- <20130801205724.GA13585@kroah.com>
- <51FADD6F.3040804@linux.intel.com>
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id CFCED6B0032
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 12:04:08 -0400 (EDT)
+Received: by mail-oa0-f45.google.com with SMTP id m1so1715837oag.32
+        for <linux-mm@kvack.org>; Fri, 02 Aug 2013 09:04:08 -0700 (PDT)
+Date: Fri, 02 Aug 2013 11:04:02 -0500
+From: Rob Landley <rob@landley.net>
+Subject: Re: [PATCH resend] drop_caches: add some documentation and info
+ message
+In-Reply-To: <20130731201708.efa5ae87.akpm@linux-foundation.org> (from
+	akpm@linux-foundation.org on Wed Jul 31 22:17:08 2013)
+Message-Id: <1375459442.8422.1@driftwood>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=us-ascii; DelSp=Yes; Format=Flowed
 Content-Disposition: inline
-In-Reply-To: <51FADD6F.3040804@linux.intel.com>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Nivedita Singhvi <niv@us.ibm.com>, Michael J Wolf <mjwolf@us.ibm.com>, linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, mhocko@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, kamezawa.hiroyu@jp.fujitsu.com, bp@suse.de, dave@linux.vnet.ibm.com
 
-On Thu, Aug 01, 2013 at 03:13:03PM -0700, Dave Hansen wrote:
-> On 08/01/2013 01:57 PM, Greg Kroah-Hartman wrote:
-> >> > "memory" is the name used by the current sysfs memory layout code in
-> >> > drivers/base/memory.c. So it can't be the same unless we are going to
-> >> > create a toggle a boot time to select between the models, which is
-> >> > something I am looking to add if this code/design is acceptable to
-> >> > people.
-> > I know it can't be the same, but this is like "memory_v2" or something,
-> > right?  I suggest you make it an either/or option, given that you feel
-> > the existing layout just will not work properly for you.
-> 
-> If there are existing tools or applications that look for memory hotplug
-> events, how does this interact with those?  I know you guys have control
-> over the ppc software that actually performs the probe/online
-> operations, but what about other apps?
+On 07/31/2013 10:17:08 PM, Andrew Morton wrote:
+> On Wed, 31 Jul 2013 23:11:50 -0400 KOSAKI Motohiro =20
+> <kosaki.motohiro@jp.fujitsu.com> wrote:
+>=20
+> > >> --- a/fs/drop_caches.c
+> > >> +++ b/fs/drop_caches.c
+> > >> @@ -59,6 +59,8 @@ int drop_caches_sysctl_handler(ctl_table =20
+> *table, int write,
+> > >>  	if (ret)
+> > >>  		return ret;
+> > >>  	if (write) {
+> > >> +		printk(KERN_INFO "%s (%d): dropped kernel =20
+> caches: %d\n",
+> > >> +		       current->comm, task_pid_nr(current), =20
+> sysctl_drop_caches);
+> > >>  		if (sysctl_drop_caches & 1)
+> > >>  			iterate_supers(drop_pagecache_sb, NULL);
+> > >>  		if (sysctl_drop_caches & 2)
+> > >
+> > > How about we do
+> > >
+> > > 	if (!(sysctl_drop_caches & 4))
+> > > 		printk(....)
+> > >
+> > > so people can turn it off if it's causing problems?
+> >
+> > The best interface depends on the purpose. If you want to detect =20
+> crazy application,
+> > we can't assume an application co-operate us. So, I doubt this =20
+> works.
+>=20
+> You missed the "!".  I'm proposing that setting the new bit 2 will
+> permit people to prevent the new printk if it is causing them =20
+> problems.
 
-After taking a closer look, I've decided to rework this to preserve more
-of the existing layout.  Should be posting it next Monday.
+Or an alternative for those planning to patch it down to a KERN_DEBUG =20
+locally.
 
-> 
-> I also don't seem to see the original post to LKML.  Did you send
-> privately to Greg, then he cc'd LKML on his reply?
+I'd be surprised if anybody who does this sees the printk and thinks =20
+"hey, I'll dig into the VM's balancing logic and come up to speed on =20
+the tradeoffs sufficient to contribute to kernel development" because =20
+of something in dmesg. Anybody actually annoyed by it will chop out the =20
+printk (you barely need to know C to do that), the rest won't notice.
 
-Yeah :-/  My mail relay settings were messed up and my system tried to
-deliver the mail directly to recipients; some of which worked and some
-failed (spam/firewall filters, etc).  Sigh...
-
-Seth
+Rob=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
