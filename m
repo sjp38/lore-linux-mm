@@ -1,40 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 3730A6B0032
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 21:35:42 -0400 (EDT)
-Message-ID: <51FB0C95.8040207@cn.fujitsu.com>
-Date: Fri, 02 Aug 2013 09:34:13 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 652B86B0031
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 21:40:09 -0400 (EDT)
+Received: by mail-ob0-f174.google.com with SMTP id wd6so148501obb.33
+        for <linux-mm@kvack.org>; Thu, 01 Aug 2013 18:40:08 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 04/18] acpi: Introduce acpi_invalid_table() to check
- if a table is invalid.
-References: <1375340800-19332-1-git-send-email-tangchen@cn.fujitsu.com>  <1375340800-19332-5-git-send-email-tangchen@cn.fujitsu.com> <1375396019.10300.32.camel@misato.fc.hp.com>
-In-Reply-To: <1375396019.10300.32.camel@misato.fc.hp.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8; format=flowed
+In-Reply-To: <20130731201708.efa5ae87.akpm@linux-foundation.org>
+References: <1374842669-22844-1-git-send-email-mhocko@suse.cz>
+ <20130729135743.c04224fb5d8e64b2730d8263@linux-foundation.org>
+ <51F9D1F6.4080001@jp.fujitsu.com> <20130731201708.efa5ae87.akpm@linux-foundation.org>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Thu, 1 Aug 2013 21:39:48 -0400
+Message-ID: <CAHGf_=r7mek+ueJWfu_6giMOueDTnMs8dY1jJrKyX+gfPys6uA@mail.gmail.com>
+Subject: Re: [PATCH resend] drop_caches: add some documentation and info message
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, dave.hansen@intel.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, bp@suse.de, Dave Hansen <dave@linux.vnet.ibm.com>
 
-On 08/02/2013 06:26 AM, Toshi Kani wrote:
-......
->> +int __init acpi_invalid_table(struct cpio_data *file,
->> +			      const char *path, const char *signature)
+On Wed, Jul 31, 2013 at 11:17 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Wed, 31 Jul 2013 23:11:50 -0400 KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 >
-> Since this function verifies a given acpi table in initrd (not that the
-> table is invalid), I'd suggest to rename it something like
-> acpi_verify_initrd().  Otherwise, it looks good to me.
+>> >> --- a/fs/drop_caches.c
+>> >> +++ b/fs/drop_caches.c
+>> >> @@ -59,6 +59,8 @@ int drop_caches_sysctl_handler(ctl_table *table, int write,
+>> >>    if (ret)
+>> >>            return ret;
+>> >>    if (write) {
+>> >> +          printk(KERN_INFO "%s (%d): dropped kernel caches: %d\n",
+>> >> +                 current->comm, task_pid_nr(current), sysctl_drop_caches);
+>> >>            if (sysctl_drop_caches & 1)
+>> >>                    iterate_supers(drop_pagecache_sb, NULL);
+>> >>            if (sysctl_drop_caches & 2)
+>> >
+>> > How about we do
+>> >
+>> >     if (!(sysctl_drop_caches & 4))
+>> >             printk(....)
+>> >
+>> > so people can turn it off if it's causing problems?
+>>
+>> The best interface depends on the purpose. If you want to detect crazy application,
+>> we can't assume an application co-operate us. So, I doubt this works.
 >
+> You missed the "!".  I'm proposing that setting the new bit 2 will
+> permit people to prevent the new printk if it is causing them problems.
 
-Hi Toshi-san,
-
-Thanks, will change the name.
-
-Thanks.
-
-> Acked-by: Toshi Kani<toshi.kani@hp.com>
->
+No I don't. I'm sure almost all abuse users think our usage is correct. Then,
+I can imagine all crazy applications start to use this flag eventually.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
