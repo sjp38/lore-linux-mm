@@ -1,62 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id D879C6B0032
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 21:57:06 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 43F3B6B0031
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 22:02:46 -0400 (EDT)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH 2/2] mm, vmalloc: use well-defined find_last_bit() func
-Date: Fri,  2 Aug 2013 10:57:01 +0900
-Message-Id: <1375408621-16563-2-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1375408621-16563-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1375408621-16563-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH] mm, slab_common: add 'unlikely' to size check of kmalloc_slab()
+Date: Fri,  2 Aug 2013 11:02:42 +0900
+Message-Id: <1375408962-16743-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Joonsoo Kim <js1304@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Our intention in here is to find last_bit within the region to flush.
-There is well-defined function, find_last_bit() for this purpose and
-it's performance may be slightly better than current implementation.
-So change it.
+Size is usually below than KMALLOC_MAX_SIZE.
+If we add a 'unlikely' macro, compiler can make better code.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index d23c432..93d3182 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1016,15 +1016,16 @@ void vm_unmap_aliases(void)
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 538bade..f0410eb 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -373,7 +373,7 @@ struct kmem_cache *kmalloc_slab(size_t size, gfp_t flags)
+ {
+ 	int index;
  
- 		rcu_read_lock();
- 		list_for_each_entry_rcu(vb, &vbq->free, free_list) {
--			int i;
-+			int i, j;
- 
- 			spin_lock(&vb->lock);
- 			i = find_first_bit(vb->dirty_map, VMAP_BBMAP_BITS);
--			while (i < VMAP_BBMAP_BITS) {
-+			if (i < VMAP_BBMAP_BITS) {
- 				unsigned long s, e;
--				int j;
--				j = find_next_zero_bit(vb->dirty_map,
--					VMAP_BBMAP_BITS, i);
-+
-+				j = find_last_bit(vb->dirty_map,
-+							VMAP_BBMAP_BITS);
-+				j = j + 1; /* need exclusive index */
- 
- 				s = vb->va->va_start + (i << PAGE_SHIFT);
- 				e = vb->va->va_start + (j << PAGE_SHIFT);
-@@ -1034,10 +1035,6 @@ void vm_unmap_aliases(void)
- 					start = s;
- 				if (e > end)
- 					end = e;
--
--				i = j;
--				i = find_next_bit(vb->dirty_map,
--							VMAP_BBMAP_BITS, i);
- 			}
- 			spin_unlock(&vb->lock);
- 		}
+-	if (size > KMALLOC_MAX_SIZE) {
++	if (unlikely(size > KMALLOC_MAX_SIZE)) {
+ 		WARN_ON_ONCE(!(flags & __GFP_NOWARN));
+ 		return NULL;
+ 	}
 -- 
 1.7.9.5
 
