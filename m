@@ -1,55 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 652B86B0031
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 21:40:09 -0400 (EDT)
-Received: by mail-ob0-f174.google.com with SMTP id wd6so148501obb.33
-        for <linux-mm@kvack.org>; Thu, 01 Aug 2013 18:40:08 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20130731201708.efa5ae87.akpm@linux-foundation.org>
-References: <1374842669-22844-1-git-send-email-mhocko@suse.cz>
- <20130729135743.c04224fb5d8e64b2730d8263@linux-foundation.org>
- <51F9D1F6.4080001@jp.fujitsu.com> <20130731201708.efa5ae87.akpm@linux-foundation.org>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Thu, 1 Aug 2013 21:39:48 -0400
-Message-ID: <CAHGf_=r7mek+ueJWfu_6giMOueDTnMs8dY1jJrKyX+gfPys6uA@mail.gmail.com>
-Subject: Re: [PATCH resend] drop_caches: add some documentation and info message
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 630A06B0031
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 21:57:05 -0400 (EDT)
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: [PATCH 1/2] mm, vmalloc: remove useless variable in vmap_block
+Date: Fri,  2 Aug 2013 10:57:00 +0900
+Message-Id: <1375408621-16563-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, dave.hansen@intel.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, bp@suse.de, Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Joonsoo Kim <js1304@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Wed, Jul 31, 2013 at 11:17 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Wed, 31 Jul 2013 23:11:50 -0400 KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
->
->> >> --- a/fs/drop_caches.c
->> >> +++ b/fs/drop_caches.c
->> >> @@ -59,6 +59,8 @@ int drop_caches_sysctl_handler(ctl_table *table, int write,
->> >>    if (ret)
->> >>            return ret;
->> >>    if (write) {
->> >> +          printk(KERN_INFO "%s (%d): dropped kernel caches: %d\n",
->> >> +                 current->comm, task_pid_nr(current), sysctl_drop_caches);
->> >>            if (sysctl_drop_caches & 1)
->> >>                    iterate_supers(drop_pagecache_sb, NULL);
->> >>            if (sysctl_drop_caches & 2)
->> >
->> > How about we do
->> >
->> >     if (!(sysctl_drop_caches & 4))
->> >             printk(....)
->> >
->> > so people can turn it off if it's causing problems?
->>
->> The best interface depends on the purpose. If you want to detect crazy application,
->> we can't assume an application co-operate us. So, I doubt this works.
->
-> You missed the "!".  I'm proposing that setting the new bit 2 will
-> permit people to prevent the new printk if it is causing them problems.
+vbq in vmap_block isn't used. So remove it.
 
-No I don't. I'm sure almost all abuse users think our usage is correct. Then,
-I can imagine all crazy applications start to use this flag eventually.
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 13a5495..d23c432 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -752,7 +752,6 @@ struct vmap_block_queue {
+ struct vmap_block {
+ 	spinlock_t lock;
+ 	struct vmap_area *va;
+-	struct vmap_block_queue *vbq;
+ 	unsigned long free, dirty;
+ 	DECLARE_BITMAP(dirty_map, VMAP_BBMAP_BITS);
+ 	struct list_head free_list;
+@@ -830,7 +829,6 @@ static struct vmap_block *new_vmap_block(gfp_t gfp_mask)
+ 	radix_tree_preload_end();
+ 
+ 	vbq = &get_cpu_var(vmap_block_queue);
+-	vb->vbq = vbq;
+ 	spin_lock(&vbq->lock);
+ 	list_add_rcu(&vb->free_list, &vbq->free);
+ 	spin_unlock(&vbq->lock);
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
