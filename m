@@ -1,57 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 7E84F6B0032
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 11:40:07 -0400 (EDT)
-Message-ID: <51FBD2DF.50506@parallels.com>
-Date: Fri, 2 Aug 2013 19:40:15 +0400
-From: Maxim Patlasov <mpatlasov@parallels.com>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 400056B0032
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 11:50:42 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjennings@variantweb.net>;
+	Sat, 3 Aug 2013 01:40:43 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 307772BB004F
+	for <linux-mm@kvack.org>; Sat,  3 Aug 2013 01:50:34 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r72FYk2e55574724
+	for <linux-mm@kvack.org>; Sat, 3 Aug 2013 01:34:50 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r72FoTrW014323
+	for <linux-mm@kvack.org>; Sat, 3 Aug 2013 01:50:29 +1000
+Date: Fri, 2 Aug 2013 10:50:26 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Subject: Re: [PATCH] drivers: base: new memory config sysfs driver for large
+ memory systems
+Message-ID: <20130802155026.GA4550@variantweb.net>
+References: <1374786680-26197-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <20130725234007.GB18349@kroah.com>
+ <20130726144251.GB4379@variantweb.net>
+ <20130801205724.GA13585@kroah.com>
+ <51FADD6F.3040804@linux.intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 10/16] fuse: Implement writepages callback
-References: <20130629172211.20175.70154.stgit@maximpc.sw.ru> <20130629174525.20175.18987.stgit@maximpc.sw.ru> <20130719165037.GA18358@tucsk.piliscsaba.szeredi.hu>
-In-Reply-To: <20130719165037.GA18358@tucsk.piliscsaba.szeredi.hu>
-Content-Type: text/plain; charset="UTF-8"; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51FADD6F.3040804@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: riel@redhat.com, dev@parallels.com, xemul@parallels.com, fuse-devel@lists.sourceforge.net, bfoster@redhat.com, linux-kernel@vger.kernel.org, jbottomley@parallels.com, linux-mm@kvack.org, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, akpm@linux-foundation.org, fengguang.wu@intel.com, devel@openvz.org, mgorman@suse.de
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Nivedita Singhvi <niv@us.ibm.com>, Michael J Wolf <mjwolf@us.ibm.com>, linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>
 
-07/19/2013 08:50 PM, Miklos Szeredi D?D,N?DuN?:
-> On Sat, Jun 29, 2013 at 09:45:29PM +0400, Maxim Patlasov wrote:
->> From: Pavel Emelyanov <xemul@openvz.org>
->>
->> The .writepages one is required to make each writeback request carry more than
->> one page on it. The patch enables optimized behaviour unconditionally,
->> i.e. mmap-ed writes will benefit from the patch even if fc->writeback_cache=0.
-> I rewrote this a bit, so we won't have to do the thing in two passes, which
-> makes it simpler and more robust.  Waiting for page writeback here is wrong
-> anyway, see comment above fuse_page_mkwrite().  BTW we had a race there because
-> fuse_page_mkwrite() didn't take the page lock.  I've also fixed that up and
-> pushed a series containing these patches up to implementing ->writepages() to
->
->    git://git.kernel.org/pub/scm/linux/kernel/git/mszeredi/fuse.git writepages
->
-> Passed some trivial testing but more is needed.
+On Thu, Aug 01, 2013 at 03:13:03PM -0700, Dave Hansen wrote:
+> On 08/01/2013 01:57 PM, Greg Kroah-Hartman wrote:
+> >> > "memory" is the name used by the current sysfs memory layout code in
+> >> > drivers/base/memory.c. So it can't be the same unless we are going to
+> >> > create a toggle a boot time to select between the models, which is
+> >> > something I am looking to add if this code/design is acceptable to
+> >> > people.
+> > I know it can't be the same, but this is like "memory_v2" or something,
+> > right?  I suggest you make it an either/or option, given that you feel
+> > the existing layout just will not work properly for you.
+> 
+> If there are existing tools or applications that look for memory hotplug
+> events, how does this interact with those?  I know you guys have control
+> over the ppc software that actually performs the probe/online
+> operations, but what about other apps?
 
-Thanks a lot for efforts. The approach you implemented looks promising, 
-but it introduces the following assumption: a page cannot become dirty 
-before we have a chance to wait on fuse writeback holding the page 
-locked. This is already true for mmap-ed writes (due to your fixes) and 
-it seems doable for cached writes as well (like we do in 
-fuse_perform_write). But the assumption seems to be broken in case of 
-direct read from local fs (e.g. ext4) to a memory region mmap-ed to a 
-file on fuse fs. See how dio_bio_submit() marks pages dirty by 
-bio_set_pages_dirty(). I can't see any solution for this use-case. Do you?
+After taking a closer look, I've decided to rework this to preserve more
+of the existing layout.  Should be posting it next Monday.
 
-Thanks,
-Maxim
+> 
+> I also don't seem to see the original post to LKML.  Did you send
+> privately to Greg, then he cc'd LKML on his reply?
 
->
-> I'll get to the rest of the patches next week.
->
-> Thanks,
-> Miklos
->
+Yeah :-/  My mail relay settings were messed up and my system tried to
+deliver the mail directly to recipients; some of which worked and some
+failed (spam/firewall filters, etc).  Sigh...
+
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
