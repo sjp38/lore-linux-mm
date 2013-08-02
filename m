@@ -1,223 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 1072F6B0032
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 12:50:39 -0400 (EDT)
-Date: Fri, 2 Aug 2013 18:50:32 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: [PATCH] mm, numa: Do not group on RO pages
-Message-ID: <20130802165032.GQ27162@twins.programming.kicks-ass.net>
-References: <1373901620-2021-1-git-send-email-mgorman@suse.de>
- <20130730113857.GR3008@twins.programming.kicks-ass.net>
- <20130731150751.GA15144@twins.programming.kicks-ass.net>
- <51F93105.8020503@hp.com>
- <20130802164715.GP27162@twins.programming.kicks-ass.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130802164715.GP27162@twins.programming.kicks-ass.net>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id C2C9D6B0039
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 12:58:49 -0400 (EDT)
+Message-ID: <1375462662.10300.91.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v2 06/18] x86, acpi: Initialize ACPI root table list
+ earlier.
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Fri, 02 Aug 2013 10:57:42 -0600
+In-Reply-To: <51FB646F.30604@cn.fujitsu.com>
+References: <1375340800-19332-1-git-send-email-tangchen@cn.fujitsu.com>
+	  <1375340800-19332-7-git-send-email-tangchen@cn.fujitsu.com>
+	 <1375401251.10300.53.camel@misato.fc.hp.com>
+	 <51FB646F.30604@cn.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Don Morris <don.morris@hp.com>
-Cc: Mel Gorman <mgorman@suse.de>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, riel@redhat.com
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
+On Fri, 2013-08-02 at 15:49 +0800, Tang Chen wrote:
+> On 08/02/2013 07:54 AM, Toshi Kani wrote:
+> ......
+> >>   /*
+> >> + * acpi_root_table_init - Initialize acpi_gbl_root_table_list.
+> >> + *
+> >> + * This function will parse RSDT or XSDT, find all tables' phys addr,
+> >> + * initialize acpi_gbl_root_table_list, and record all tables' phys addr
+> >> + * in acpi_gbl_root_table_list.
+> >> + */
+> >> +void __init acpi_root_table_init(void)
+> >
+> > I think acpi_root_table_init() is a bit confusing with
+> > acpi_boot_table_init().  Perhaps, something like
+> > acpi_boot_table_pre_init() or early_acpi_boot_table_init() is better to
+> > indicate that this new function is called before acpi_boot_table_init().
+> >
+> 
+> OK, will change it to early_acpi_boot_table_init().
+> 
+> >> +{
+> >> +	dmi_check_system(acpi_dmi_table);
+> >> +
+> >> +	/* If acpi_disabled, bail out */
+> >> +	if (acpi_disabled)
+> >> +		return;
+> >> +
+> >> +	/* Initialize the ACPI boot-time table parser */
+> >> +	if (acpi_table_init()) {
+> >> +		disable_acpi();
+> >> +		return;
+> >> +	}
+> >> +}
+> >> +
+> >> +/*
+> >>    * acpi_boot_table_init() and acpi_boot_init()
+> >>    *  called from setup_arch(), always.
+> >>    *	1. checksums all tables
+> >> @@ -1511,21 +1533,7 @@ static struct dmi_system_id __initdata acpi_dmi_table_late[] = {
+> >>
+> >>   void __init acpi_boot_table_init(void)
+> >
+> > The comment of this function needs to be updated.  For instance, it
+> > describes acpi_table_init(), which you just relocated.
+> >
+> >   * acpi_table_init() is separate to allow reading SRAT without
+> >   * other side effects.
+> >   *
+> 
+> Sure. But I don't quite understand this comment. It seems that
+> acpi_table_init() has nothing to do with SRAT.
+> 
+> Do you know anything about this ?
 
-Subject: mm, numa: Do not group on RO pages
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Fri Aug 2 18:38:34 CEST 2013
+Well, I do not know, either.  But if I have to guess, it might mean that
+"acpi_table_init() is separated from acpi_boot_init() to allow reading
+SRAT without the conditional flags, ex. acpi_lapic and acpi_ioapic, in
+acpi_boot_init()."
 
-And here's a little something to make sure not the whole world ends up
-in a single group.
+I'd suggest you simply rephrase it to match with your change, instead of
+trying to keep such old history.
 
-As while we don't migrate shared executable pages, we do scan/fault on
-them. And since everybody links to libc, everybody ends up in the same
-group.
-
-Sugested-by: Rik van Riel <riel@redhat.com>
-Signed-off-by: Peter Zijlstra <peterz@infradead.org>
----
- include/linux/sched.h |    7 +++++--
- kernel/sched/fair.c   |    5 +++--
- mm/huge_memory.c      |   15 +++++++++++++--
- mm/memory.c           |   31 ++++++++++++++++++++++++++-----
- 4 files changed, 47 insertions(+), 11 deletions(-)
-
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1438,12 +1438,15 @@ struct task_struct {
- /* Future-safe accessor for struct task_struct's cpus_allowed. */
- #define tsk_cpus_allowed(tsk) (&(tsk)->cpus_allowed)
- 
-+#define TNF_MIGRATED	0x01
-+#define TNF_NO_GROUP	0x02
-+
- #ifdef CONFIG_NUMA_BALANCING
--extern void task_numa_fault(int last_node, int node, int pages, bool migrated);
-+extern void task_numa_fault(int last_node, int node, int pages, int flags);
- extern void set_numabalancing_state(bool enabled);
- #else
- static inline void task_numa_fault(int last_node, int node, int pages,
--				   bool migrated)
-+				   int flags)
- {
- }
- static inline void set_numabalancing_state(bool enabled)
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -1371,9 +1371,10 @@ void task_numa_free(struct task_struct *
- /*
-  * Got a PROT_NONE fault for a page on @node.
-  */
--void task_numa_fault(int last_cpupid, int node, int pages, bool migrated)
-+void task_numa_fault(int last_cpupid, int node, int pages, int flags)
- {
- 	struct task_struct *p = current;
-+	bool migrated = flags & TNF_MIGRATED;
- 	int priv;
- 
- 	if (!numabalancing_enabled)
-@@ -1409,7 +1410,7 @@ void task_numa_fault(int last_cpupid, in
- 		pid = cpupid_to_pid(last_cpupid);
- 
- 		priv = (pid == (p->pid & LAST__PID_MASK));
--		if (!priv)
-+		if (!priv && !(flags & TNF_NO_GROUP))
- 			task_numa_group(p, cpu, pid);
- 	}
- 
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1295,6 +1295,7 @@ int do_huge_pmd_numa_page(struct mm_stru
- 	int page_nid = -1, account_nid = -1, this_nid = numa_node_id();
- 	int target_nid, last_cpupid;
- 	bool migrated = false;
-+	int flags = 0;
- 
- 	spin_lock(&mm->page_table_lock);
- 	if (unlikely(!pmd_same(pmd, *pmdp)))
-@@ -1333,6 +1334,15 @@ int do_huge_pmd_numa_page(struct mm_stru
- 		account_nid = page_nid = -1; /* someone else took our fault */
- 		goto out_unlock;
- 	}
-+
-+	/*
-+	 * Avoid grouping on DSO/COW pages in specific and RO pages
-+	 * in general, RO pages shouldn't hurt as much anyway since
-+	 * they can be in shared cache state.
-+	 */
-+	if (page_mapcount(page) != 1 && !pmd_write(pmd))
-+		flags |= TNF_NO_GROUP;
-+
- 	spin_unlock(&mm->page_table_lock);
- 
- 	/* Migrate the THP to the requested node */
-@@ -1341,7 +1351,8 @@ int do_huge_pmd_numa_page(struct mm_stru
- 	if (!migrated) {
- 		account_nid = -1; /* account against the old page */
- 		goto check_same;
--	}
-+	} else
-+		flags |= TNF_MIGRATED;
- 
- 	page_nid = target_nid;
- 	goto out;
-@@ -1364,7 +1375,7 @@ int do_huge_pmd_numa_page(struct mm_stru
- 	if (account_nid == -1)
- 		account_nid = page_nid;
- 	if (account_nid != -1)
--		task_numa_fault(last_cpupid, account_nid, HPAGE_PMD_NR, migrated);
-+		task_numa_fault(last_cpupid, account_nid, HPAGE_PMD_NR, flags);
- 
- 	return 0;
- }
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3537,6 +3537,7 @@ int do_numa_page(struct mm_struct *mm, s
- 	int page_nid = -1, account_nid = -1;
- 	int target_nid, last_cpupid;
- 	bool migrated = false;
-+	int flags = 0;
- 
- 	/*
- 	* The "pte" at this point cannot be used safely without
-@@ -3569,6 +3570,14 @@ int do_numa_page(struct mm_struct *mm, s
- 		return 0;
- 	}
- 
-+	/*
-+	 * Avoid grouping on DSO/COW pages in specific and RO pages
-+	 * in general, RO pages shouldn't hurt as much anyway since
-+	 * they can be in shared cache state.
-+	 */
-+	if (page_mapcount(page) != 1 && !pte_write(pte))
-+		flags |= TNF_NO_GROUP;
-+
- 	last_cpupid = page_cpupid_last(page);
- 	page_nid = page_to_nid(page);
- 	target_nid = numa_migrate_prep(page, vma, addr, page_nid, &account_nid);
-@@ -3580,14 +3589,16 @@ int do_numa_page(struct mm_struct *mm, s
- 
- 	/* Migrate to the requested node */
- 	migrated = migrate_misplaced_page(page, vma, target_nid);
--	if (migrated)
-+	if (migrated) {
- 		page_nid = target_nid;
-+		flags |= TNF_MIGRATED;
-+	}
- 
- out:
- 	if (account_nid == -1)
- 		account_nid = page_nid;
- 	if (account_nid != -1)
--		task_numa_fault(last_cpupid, account_nid, 1, migrated);
-+		task_numa_fault(last_cpupid, account_nid, 1, flags);
- 
- 	return 0;
- }
-@@ -3632,6 +3643,7 @@ static int do_pmd_numa_page(struct mm_st
- 		int page_nid = -1, account_nid = -1;
- 		int target_nid;
- 		bool migrated = false;
-+		int flags = 0;
- 
- 		if (!pte_present(pteval))
- 			continue;
-@@ -3651,6 +3663,14 @@ static int do_pmd_numa_page(struct mm_st
- 		if (unlikely(!page))
- 			continue;
- 
-+		/*
-+		 * Avoid grouping on DSO/COW pages in specific and RO pages
-+		 * in general, RO pages shouldn't hurt as much anyway since
-+		 * they can be in shared cache state.
-+		 */
-+		if (page_mapcount(page) != 1 && !pte_write(pteval))
-+			flags |= TNF_NO_GROUP;
-+
- 		last_cpupid = page_cpupid_last(page);
- 		page_nid = page_to_nid(page);
- 		target_nid = numa_migrate_prep(page, vma, addr,
-@@ -3659,9 +3679,10 @@ static int do_pmd_numa_page(struct mm_st
- 
- 		if (target_nid != -1) {
- 			migrated = migrate_misplaced_page(page, vma, target_nid);
--			if (migrated)
-+			if (migrated) {
- 				page_nid = target_nid;
--			else
-+				flags |= TNF_MIGRATED;
-+			} else
- 				account_nid = -1;
- 		} else {
- 			put_page(page);
-@@ -3670,7 +3691,7 @@ static int do_pmd_numa_page(struct mm_st
- 		if (account_nid == -1)
- 			account_nid = page_nid;
- 		if (account_nid != -1)
--			task_numa_fault(last_cpupid, account_nid, 1, migrated);
-+			task_numa_fault(last_cpupid, account_nid, 1, flags);
- 
- 		cond_resched();
- 
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
