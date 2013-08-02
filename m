@@ -1,90 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 28BDA6B0031
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 05:04:35 -0400 (EDT)
-Received: by mail-bk0-f48.google.com with SMTP id jf20so116906bkc.21
-        for <linux-mm@kvack.org>; Fri, 02 Aug 2013 02:04:33 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 9AA906B0031
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 05:14:59 -0400 (EDT)
+Message-ID: <51FB7836.3040202@cn.fujitsu.com>
+Date: Fri, 02 Aug 2013 17:13:26 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <CAAM7YAmxmmA6g2WPVtGN1-42rtDBYzLhF-gvNXxcBN6dUveBYQ@mail.gmail.com>
-References: <1375357402-9811-1-git-send-email-handai.szj@taobao.com>
-	<1375357892-10188-1-git-send-email-handai.szj@taobao.com>
-	<CAAM7YAmxmmA6g2WPVtGN1-42rtDBYzLhF-gvNXxcBN6dUveBYQ@mail.gmail.com>
-Date: Fri, 2 Aug 2013 17:04:33 +0800
-Message-ID: <CAFj3OHXR=PqHwLcXCub8YezcGFF7kbKX3X2dV=6FQM78K__D8g@mail.gmail.com>
-Subject: Re: [PATCH V5 2/8] fs/ceph: vfs __set_page_dirty_nobuffers interface
- instead of doing it inside filesystem
-From: Sha Zhengju <handai.szj@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH v2 05/18] x86, acpi: Split acpi_boot_table_init() into
+ two parts.
+References: <1375340800-19332-1-git-send-email-tangchen@cn.fujitsu.com>  <1375340800-19332-6-git-send-email-tangchen@cn.fujitsu.com> <1375399931.10300.36.camel@misato.fc.hp.com> <1AE640813FDE7649BE1B193DEA596E8802437AC8@SHSMSX101.ccr.corp.intel.com> <51FB5948.6080802@cn.fujitsu.com> <1AE640813FDE7649BE1B193DEA596E8802437C47@SHSMSX101.ccr.corp.intel.com> <51FB6DE6.6040200@cn.fujitsu.com> <1AE640813FDE7649BE1B193DEA596E8802437C78@SHSMSX101.ccr.corp.intel.com>
+In-Reply-To: <1AE640813FDE7649BE1B193DEA596E8802437C78@SHSMSX101.ccr.corp.intel.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Yan, Zheng" <ukernel@gmail.com>
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, ceph-devel <ceph-devel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, Sage Weil <sage@inktank.com>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Glauber Costa <glommer@gmail.com>, Greg Thelen <gthelen@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Sha Zhengju <handai.szj@taobao.com>
+To: "Zheng, Lv" <lv.zheng@intel.com>
+Cc: Toshi Kani <toshi.kani@hp.com>, "rjw@sisk.pl" <rjw@sisk.pl>, "lenb@kernel.org" <lenb@kernel.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@elte.hu" <mingo@elte.hu>, "hpa@zytor.com" <hpa@zytor.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "tj@kernel.org" <tj@kernel.org>, "trenn@suse.de" <trenn@suse.de>, "yinghai@kernel.org" <yinghai@kernel.org>, "jiang.liu@huawei.com" <jiang.liu@huawei.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "laijs@cn.fujitsu.com" <laijs@cn.fujitsu.com>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "izumi.taku@jp.fujitsu.com" <izumi.taku@jp.fujitsu.com>, "mgorman@suse.de" <mgorman@suse.de>, "minchan@kernel.org" <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, "vasilis.liaskovitis@profitbricks.com" <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "riel@redhat.com" <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "prarit@redhat.com" <prarit@redhat.com>, "zhangyanfei@cn.fujitsu.com" <zhangyanfei@cn.fujitsu.com>, "yanghy@cn.fujitsu.com" <yanghy@cn.fujitsu.com>, "x86@kernel.org" <x86@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "Moore, Robert" <robert.moore@intel.com>
 
-On Thu, Aug 1, 2013 at 11:19 PM, Yan, Zheng <ukernel@gmail.com> wrote:
-> On Thu, Aug 1, 2013 at 7:51 PM, Sha Zhengju <handai.szj@gmail.com> wrote:
->> From: Sha Zhengju <handai.szj@taobao.com>
+On 08/02/2013 04:54 PM, Zheng, Lv wrote:
+>> From: Tang Chen [mailto:tangchen@cn.fujitsu.com]
+>> Sent: Friday, August 02, 2013 4:29 PM
 >>
->> Following we will begin to add memcg dirty page accounting around
->> __set_page_dirty_
->> {buffers,nobuffers} in vfs layer, so we'd better use vfs interface to
->> avoid exporting
->> those details to filesystems.
+>> On 08/02/2013 04:23 PM, Zheng, Lv wrote:
+>> ......
+>>>> According to what you've explained, what you didn=E2=80=99t want to be
+>> called
+>>>> earlier is exactly "acpi initrd table override", please split only thi=
+s logic
+>> to
+>>>> the step 2 and leave the others remained.
+>>>> I think you should write a function named as acpi=5Foverride=5Ftables(=
+) or
+>>>> likewise in tbxface.c to be executed as the OSPM entry of the step 2.
+>>>> Inside this function, acpi=5Ftb=5Ftable=5Foverride() should be called.
+>> ......
 >>
->> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
->> ---
->>  fs/ceph/addr.c |   13 +------------
->>  1 file changed, 1 insertion(+), 12 deletions(-)
+>> OK, I understand what you are suggesting now. It is reasonable.
+>> I'll update the patch-set in the next version.
 >>
->> diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
->> index 3e68ac1..1445bf1 100644
->> --- a/fs/ceph/addr.c
->> +++ b/fs/ceph/addr.c
->> @@ -76,7 +76,7 @@ static int ceph_set_page_dirty(struct page *page)
->>         if (unlikely(!mapping))
->>                 return !TestSetPageDirty(page);
+>> But today, I just rebased it to the latest kernel. I'll resend this
+>> rebased v2 patch-set so that Tj and other guys can review it.
 >>
->> -       if (TestSetPageDirty(page)) {
->> +       if (!__set_page_dirty_nobuffers(page)) {
+>> I'll include all of your comments in the v3 patch-set. Thank you very
+>> much. :)
 >
-> it's too early to set the radix tree tag here. We should set page's snapshot
-> context and increase the i_wrbuffer_ref first. This is because once the tag
-> is set, writeback thread can find and start flushing the page.
+> If the review process takes longer time, you could also let ACPICA folks =
+to do this first in ACPICA, you'll find the commit in the next release cycl=
+e.
+> In this way, there won't be source code divergences between Linux and ACP=
+ICA.
 
-OK, thanks for pointing it out.
+Thank you very much. Will add you and Bob to the cc list.
 
->
->
->>                 dout("%p set_page_dirty %p idx %lu -- already dirty\n",
->>                      mapping->host, page, page->index);
->>                 return 0;
->> @@ -107,14 +107,7 @@ static int ceph_set_page_dirty(struct page *page)
->>              snapc, snapc->seq, snapc->num_snaps);
->>         spin_unlock(&ci->i_ceph_lock);
->>
->> -       /* now adjust page */
->> -       spin_lock_irq(&mapping->tree_lock);
->>         if (page->mapping) {    /* Race with truncate? */
->> -               WARN_ON_ONCE(!PageUptodate(page));
->> -               account_page_dirtied(page, page->mapping);
->> -               radix_tree_tag_set(&mapping->page_tree,
->> -                               page_index(page), PAGECACHE_TAG_DIRTY);
->> -
->
-> this code was coped from __set_page_dirty_nobuffers(). I think the reason
-> Sage did this is to handle the race described in
-> __set_page_dirty_nobuffers()'s comment. But I'm wonder if "page->mapping ==
-> NULL" can still happen here. Because truncate_inode_page() unmap page from
-> processes's address spaces first, then delete page from page cache.
-
-But in non-mmap case, doesn't it has no relation to 'unmap page from
-address spaces'?
-The check is exactly avoiding racy with delete_from_page_cache(),
-since the two both need to hold mapping->tree_lock, and if truncate
-goes first then __set_page_dirty_nobuffers() may have NULL mapping.
-
-
-Thanks,
-Sha
+Thanks.
+=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
