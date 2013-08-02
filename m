@@ -1,148 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 76D546B0031
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 04:11:19 -0400 (EDT)
-From: "Zheng, Lv" <lv.zheng@intel.com>
-Subject: RE: [PATCH v2 05/18] x86, acpi: Split acpi_boot_table_init() into
- two parts.
-Date: Fri, 2 Aug 2013 08:11:15 +0000
-Message-ID: <1AE640813FDE7649BE1B193DEA596E8802437C27@SHSMSX101.ccr.corp.intel.com>
-References: <1375340800-19332-1-git-send-email-tangchen@cn.fujitsu.com>
-  <1375340800-19332-6-git-send-email-tangchen@cn.fujitsu.com>
- <1375399931.10300.36.camel@misato.fc.hp.com>
- <1AE640813FDE7649BE1B193DEA596E8802437AC8@SHSMSX101.ccr.corp.intel.com>
- <51FB5948.6080802@cn.fujitsu.com>
-In-Reply-To: <51FB5948.6080802@cn.fujitsu.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 4BFC46B0031
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 04:14:15 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Fri, 2 Aug 2013 13:33:57 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 0E89B1258052
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 13:43:39 +0530 (IST)
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r728F97I32702654
+	for <linux-mm@kvack.org>; Fri, 2 Aug 2013 13:45:12 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r728E3nB012849
+	for <linux-mm@kvack.org>; Fri, 2 Aug 2013 18:14:04 +1000
+Date: Fri, 2 Aug 2013 16:14:01 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/2] mm, vmalloc: remove useless variable in vmap_block
+Message-ID: <20130802081401.GA14447@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <1375408621-16563-1-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1375408621-16563-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: Toshi Kani <toshi.kani@hp.com>, "rjw@sisk.pl" <rjw@sisk.pl>, "lenb@kernel.org" <lenb@kernel.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@elte.hu" <mingo@elte.hu>, "hpa@zytor.com" <hpa@zytor.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "tj@kernel.org" <tj@kernel.org>, "trenn@suse.de" <trenn@suse.de>, "yinghai@kernel.org" <yinghai@kernel.org>, "jiang.liu@huawei.com" <jiang.liu@huawei.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "laijs@cn.fujitsu.com" <laijs@cn.fujitsu.com>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "izumi.taku@jp.fujitsu.com" <izumi.taku@jp.fujitsu.com>, "mgorman@suse.de" <mgorman@suse.de>, "minchan@kernel.org" <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, "vasilis.liaskovitis@profitbricks.com" <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "riel@redhat.com" <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "prarit@redhat.com" <prarit@redhat.com>, "zhangyanfei@cn.fujitsu.com" <zhangyanfei@cn.fujitsu.com>, "yanghy@cn.fujitsu.com" <yanghy@cn.fujitsu.com>, "x86@kernel.org" <x86@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "Moore, Robert" <robert.moore@intel.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Joonsoo Kim <js1304@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-PiBGcm9tOiBUYW5nIENoZW4gW21haWx0bzp0YW5nY2hlbkBjbi5mdWppdHN1LmNvbV0NCj4gU2Vu
-dDogRnJpZGF5LCBBdWd1c3QgMDIsIDIwMTMgMzowMSBQTQ0KPiANCj4gT24gMDgvMDIvMjAxMyAw
-MToyNSBQTSwgWmhlbmcsIEx2IHdyb3RlOg0KPiAuLi4uLi4NCj4gPj4+IGluZGV4IGNlM2Q1ZGIu
-LjlkNjhmZmMgMTAwNjQ0DQo+ID4+PiAtLS0gYS9kcml2ZXJzL2FjcGkvYWNwaWNhL3RidXRpbHMu
-Yw0KPiA+Pj4gKysrIGIvZHJpdmVycy9hY3BpL2FjcGljYS90YnV0aWxzLmMNCj4gPj4+IEBAIC03
-NjYsOSArNzY2LDMwIEBADQo+ID4+IGFjcGlfdGJfcGFyc2Vfcm9vdF90YWJsZShhY3BpX3BoeXNp
-Y2FsX2FkZHJlc3MgcnNkcF9hZGRyZXNzKQ0KPiA+Pj4gICAJKi8NCj4gPj4+ICAgCWFjcGlfb3Nf
-dW5tYXBfbWVtb3J5KHRhYmxlLCBsZW5ndGgpOw0KPiA+Pj4NCj4gPj4+ICsJcmV0dXJuX0FDUElf
-U1RBVFVTKEFFX09LKTsNCj4gPj4+ICt9DQo+ID4+PiArDQo+ID4+Pg0KPiA+DQo+ID4gSSBkb24n
-dCB0aGluayB5b3UgY2FuIHNwbGl0IHRoZSBmdW5jdGlvbiBoZXJlLg0KPiA+IEFDUElDQSBzdGls
-bCBuZWVkIHRvIGNvbnRpbnVlIHRvIHBhcnNlIHRoZSB0YWJsZSB1c2luZyB0aGUgbG9naWMNCj4g
-aW1wbGVtZW50ZWQgaW4gdGhlIGFjcGlfdGJfaW5zdGFsbF90YWJsZSgpIGFuZCBhY3BpX3RiX3Bh
-cnNlX2ZhZHQoKS4NCj4gKGZvciBleGFtcGxlLCBlbmRpYW5lc3Mgb2YgdGhlIHNpZ25hdHVyZSku
-DQo+ID4gWW91J2QgYmV0dGVyIHRvIGtlZXAgdGhlbSBhcyBpcyBhbmQgc3BsaXQgc29tZSBjb2Rl
-cyBmcm9tDQo+ICdhY3BpX3RiX2luc3RhbGxfdGFibGUnIHRvIGZvcm0gYW5vdGhlciBmdW5jdGlv
-bjoNCj4gYWNwaV90Yl9vdmVycmlkZV90YWJsZSgpLg0KPiANCj4gSSdtIHNvcnJ5LCBJIGRvbid0
-IHF1aXRlIGZvbGxvdyB0aGlzLg0KPiANCj4gSSBzcGxpdCBhY3BpX3RiX3BhcnNlX3Jvb3RfdGFi
-bGUoKSwgbm90IGFjcGlfdGJfaW5zdGFsbF90YWJsZSgpIGFuZA0KPiBhY3BpX3RiX3BhcnNlX2Zh
-ZHQoKS4NCj4gSWYgQUNQSUNBIHdhbnRzIHRvIHVzZSB0aGVzZSB0d28gZnVuY3Rpb25zIHNvbWV3
-aGVyZSBlbHNlLCBJIHRoaW5rIGl0IGlzDQo+IE9LLCBpc24ndCBpdD8NCj4gDQo+IEFuZCB0aGUg
-cmVhc29uIEkgZGlkIHRoaXMsIHBsZWFzZSBzZWUgYmVsb3cuDQo+IA0KPiAuLi4uLi4NCj4gPj4+
-ICsgKg0KPiA+Pj4gKyAqIEZVTkNUSU9OOiAgICBhY3BpX3RiX2luc3RhbGxfcm9vdF90YWJsZQ0K
-PiA+DQo+ID4gSSB0aGluayB0aGlzIGZ1bmN0aW9uIHNob3VsZCBiZSBhY3BpX3RiX292ZXJyaWRl
-X3RhYmxlcywgYW5kIGNhbGwNCj4gYWNwaV90Yl9vdmVycmlkZV90YWJsZSgpIGluc2lkZSB0aGlz
-IGZ1bmN0aW9uIGZvciBlYWNoIHRhYmxlLg0KPiANCj4gSXQgaXMgbm90IGp1c3QgYWJvdXQgYWNw
-aSBpbml0cmQgdGFibGUgb3ZlcnJpZGUuDQo+IA0KPiBhY3BpX3RiX3BhcnNlX3Jvb3RfdGFibGUo
-KSB3YXMgc3BsaXQgaW50byB0d28gc3RlcHM6DQo+IDEuIGluaXRpYWxpemUgYWNwaV9nYmxfcm9v
-dF90YWJsZV9saXN0DQo+IDIuIGluc3RhbGwgdGFibGVzIGludG8gYWNwaV9nYmxfcm9vdF90YWJs
-ZV9saXN0DQo+IA0KPiBJIG5lZWQgc3RlcDEgZWFybGllciBiZWNhdXNlIEkgd2FudCB0byBmaW5k
-IFNSQVQgYXQgZWFybHkgdGltZS4NCj4gQnV0IEkgZG9uJ3Qgd2FudCBzdGVwMiBlYXJsaWVyIGJl
-Y2F1c2UgYmVmb3JlIGluc3RhbGwgdGhlIHRhYmxlcyBpbg0KPiBmaXJtd2FyZSwNCj4gYWNwaSBp
-bml0cmQgdGFibGUgb3ZlcnJpZGUgY291bGQgaGFwcGVuLiBJIHdhbnQgb25seSBTUkFULCBJIGRv
-bid0IHdhbnQgdG8NCj4gdG91Y2ggbXVjaCBleGlzdGluZyBjb2RlLg0KDQpBY2NvcmRpbmcgdG8g
-d2hhdCB5b3UndmUgZXhwbGFpbmVkLCB3aGF0IHlvdSBkaWRu4oCZdCB3YW50IHRvIGJlIGNhbGxl
-ZCBlYXJsaWVyIGlzIGV4YWN0bHkgImFjcGkgaW5pdHJkIHRhYmxlIG92ZXJyaWRlIiwgcGxlYXNl
-IHNwbGl0IG9ubHkgdGhpcyBsb2dpYyB0byB0aGUgc3RlcCAyIGFuZCBsZWF2ZSB0aGUgb3RoZXJz
-IHJlbWFpbmVkLg0KSSB0aGluayB5b3Ugc2hvdWxkIHdyaXRlIGEgZnVuY3Rpb24gbmFtZWQgYXMg
-YWNwaV9vdmVycmlkZV90YWJsZXMoKSBvciBsaWtld2lzZSBpbiB0YnhmYWNlLmMgdG8gYmUgZXhl
-Y3V0ZWQgYXMgdGhlIE9TUE0gZW50cnkgb2YgdGhlIHN0ZXAgMi4NCkluc2lkZSB0aGlzIGZ1bmN0
-aW9uLCBhY3BpX3RiX3RhYmxlX292ZXJyaWRlKCkgc2hvdWxkIGJlIGNhbGxlZC4NCg0KMjY4IHZv
-aWQNCjI2OSBhY3BpX3RiX2luc3RhbGxfdGFibGUoYWNwaV9waHlzaWNhbF9hZGRyZXNzIGFkZHJl
-c3MsDQoyNzAgICAgICAgICAgICAgICAgICAgICAgIGNoYXIgKnNpZ25hdHVyZSwgdTMyIHRhYmxl
-X2luZGV4KQ0KMjcxIHsNCg0KSSB0aGluayB5b3Ugc3RpbGwgbmVlZCB0aGUgZm9sbG93aW5nIGNv
-ZGVzIHRvIGJlIGNhbGxlZCBhdCB0aGUgZWFybHkgc3RhZ2UuDQoNCjI3MiAgICAgICAgIHN0cnVj
-dCBhY3BpX3RhYmxlX2hlYWRlciAqdGFibGU7DQoyNzMgICAgICAgICBzdHJ1Y3QgYWNwaV90YWJs
-ZV9oZWFkZXIgKmZpbmFsX3RhYmxlOw0KMjc0ICAgICAgICAgc3RydWN0IGFjcGlfdGFibGVfZGVz
-YyAqdGFibGVfZGVzYzsNCjI3NSANCjI3NiAgICAgICAgIGlmICghYWRkcmVzcykgew0KMjc3ICAg
-ICAgICAgICAgICAgICBBQ1BJX0VSUk9SKChBRV9JTkZPLA0KMjc4ICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAiTnVsbCBwaHlzaWNhbCBhZGRyZXNzIGZvciBBQ1BJIHRhYmxlIFslc10iLA0K
-Mjc5ICAgICAgICAgICAgICAgICAgICAgICAgICAgICBzaWduYXR1cmUpKTsNCjI4MCAgICAgICAg
-ICAgICAgICAgcmV0dXJuOw0KMjgxICAgICAgICAgfQ0KMjgyIA0KMjgzICAgICAgICAgLyogTWFw
-IGp1c3QgdGhlIHRhYmxlIGhlYWRlciAqLw0KMjg0IA0KMjg1ICAgICAgICAgdGFibGUgPSBhY3Bp
-X29zX21hcF9tZW1vcnkoYWRkcmVzcywgc2l6ZW9mKHN0cnVjdCBhY3BpX3RhYmxlX2hlYWRlcikp
-Ow0KMjg2ICAgICAgICAgaWYgKCF0YWJsZSkgew0KMjg3ICAgICAgICAgICAgICAgICBBQ1BJX0VS
-Uk9SKChBRV9JTkZPLA0KMjg4ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAiQ291bGQgbm90
-IG1hcCBtZW1vcnkgZm9yIHRhYmxlIFslc10gYXQgJXAiLA0KMjg5ICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICBzaWduYXR1cmUsIEFDUElfQ0FTVF9QVFIodm9pZCwgYWRkcmVzcykpKTsNCjI5
-MCAgICAgICAgICAgICAgICAgcmV0dXJuOw0KMjkxICAgICAgICAgfQ0KMjkyIA0KMjkzICAgICAg
-ICAgLyogSWYgYSBwYXJ0aWN1bGFyIHNpZ25hdHVyZSBpcyBleHBlY3RlZCAoRFNEVC9GQUNTKSwg
-aXQgbXVzdCBtYXRjaCAqLw0KMjk0IA0KMjk1ICAgICAgICAgaWYgKHNpZ25hdHVyZSAmJiAhQUNQ
-SV9DT01QQVJFX05BTUUodGFibGUtPnNpZ25hdHVyZSwgc2lnbmF0dXJlKSkgew0KMjk2ICAgICAg
-ICAgICAgICAgICBBQ1BJX0JJT1NfRVJST1IoKEFFX0lORk8sDQoyOTcgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgIkludmFsaWQgc2lnbmF0dXJlIDB4JVggZm9yIEFDUEkgdGFibGUs
-IGV4cGVjdGVkIFslc10iLA0KMjk4ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICpB
-Q1BJX0NBU1RfUFRSKHUzMiwgdGFibGUtPnNpZ25hdHVyZSksDQoyOTkgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgc2lnbmF0dXJlKSk7DQozMDAgICAgICAgICAgICAgICAgIGdvdG8g
-dW5tYXBfYW5kX2V4aXQ7DQozMDEgICAgICAgICB9DQozMDIgDQozMDMgICAgICAgICAvKg0KMzA0
-ICAgICAgICAgICogSW5pdGlhbGl6ZSB0aGUgdGFibGUgZW50cnkuIFNldCB0aGUgcG9pbnRlciB0
-byBOVUxMLCBzaW5jZSB0aGUNCjMwNSAgICAgICAgICAqIHRhYmxlIGlzIG5vdCBmdWxseSBtYXBw
-ZWQgYXQgdGhpcyB0aW1lLg0KMzA2ICAgICAgICAgICovDQozMDcgICAgICAgICB0YWJsZV9kZXNj
-ID0gJmFjcGlfZ2JsX3Jvb3RfdGFibGVfbGlzdC50YWJsZXNbdGFibGVfaW5kZXhdOw0KMzA4IA0K
-MzA5ICAgICAgICAgdGFibGVfZGVzYy0+YWRkcmVzcyA9IGFkZHJlc3M7DQozMTAgICAgICAgICB0
-YWJsZV9kZXNjLT5wb2ludGVyID0gTlVMTDsNCjMxMSAgICAgICAgIHRhYmxlX2Rlc2MtPmxlbmd0
-aCA9IHRhYmxlLT5sZW5ndGg7DQozMTIgICAgICAgICB0YWJsZV9kZXNjLT5mbGFncyA9IEFDUElf
-VEFCTEVfT1JJR0lOX01BUFBFRDsNCjMxMyAgICAgICAgIEFDUElfTU9WRV8zMl9UT18zMih0YWJs
-ZV9kZXNjLT5zaWduYXR1cmUuYXNjaWksIHRhYmxlLT5zaWduYXR1cmUpOw0KMzE0IA0KDQpZb3Ug
-c2hvdWxkIGRlbGV0ZSB0aGUgZm9sbG93aW5nIGNvZGVzOg0KDQozMTUgICAgICAgICAvKg0KMzE2
-ICAgICAgICAgICogQUNQSSBUYWJsZSBPdmVycmlkZToNCjMxNyAgICAgICAgICAqDQozMTggICAg
-ICAgICAgKiBCZWZvcmUgd2UgaW5zdGFsbCB0aGUgdGFibGUsIGxldCB0aGUgaG9zdCBPUyBvdmVy
-cmlkZSBpdCB3aXRoIGEgbmV3DQozMTkgICAgICAgICAgKiBvbmUgaWYgZGVzaXJlZC4gQW55IHRh
-YmxlIHdpdGhpbiB0aGUgUlNEVC9YU0RUIGNhbiBiZSByZXBsYWNlZCwNCjMyMCAgICAgICAgICAq
-IGluY2x1ZGluZyB0aGUgRFNEVCB3aGljaCBpcyBwb2ludGVkIHRvIGJ5IHRoZSBGQURULg0KMzIx
-ICAgICAgICAgICoNCjMyMiAgICAgICAgICAqIE5PVEU6IElmIHRoZSB0YWJsZSBpcyBvdmVycmlk
-ZGVuLCB0aGVuIGZpbmFsX3RhYmxlIHdpbGwgY29udGFpbiBhDQozMjMgICAgICAgICAgKiBtYXBw
-ZWQgcG9pbnRlciB0byB0aGUgZnVsbCBuZXcgdGFibGUuIElmIHRoZSB0YWJsZSBpcyBub3Qgb3Zl
-cnJpZGRlbiwNCjMyNCAgICAgICAgICAqIG9yIGlmIHRoZXJlIGhhcyBiZWVuIGEgcGh5c2ljYWwg
-b3ZlcnJpZGUsIHRoZW4gdGhlIHRhYmxlIHdpbGwgYmUNCjMyNSAgICAgICAgICAqIGZ1bGx5IG1h
-cHBlZCBsYXRlciAoaW4gdmVyaWZ5IHRhYmxlKS4gSW4gYW55IGNhc2UsIHdlIG11c3QNCjMyNiAg
-ICAgICAgICAqIHVubWFwIHRoZSBoZWFkZXIgdGhhdCB3YXMgbWFwcGVkIGFib3ZlLg0KMzI3ICAg
-ICAgICAgICovDQozMjggICAgICAgICBmaW5hbF90YWJsZSA9IGFjcGlfdGJfdGFibGVfb3ZlcnJp
-ZGUodGFibGUsIHRhYmxlX2Rlc2MpOw0KMzI5ICAgICAgICAgaWYgKCFmaW5hbF90YWJsZSkgew0K
-MzMwICAgICAgICAgICAgICAgICBmaW5hbF90YWJsZSA9IHRhYmxlOyAgICAvKiBUaGVyZSB3YXMg
-bm8gb3ZlcnJpZGUgKi8NCjMzMSAgICAgICAgIH0NCjMzMiANCg0KWW91IHN0aWxsIG5lZWQgdG8g
-a2VlcCB0aGUgZm9sbG93aW5nIGxvZ2ljLg0KDQozMzMgICAgICAgICBhY3BpX3RiX3ByaW50X3Rh
-YmxlX2hlYWRlcih0YWJsZV9kZXNjLT5hZGRyZXNzLCBmaW5hbF90YWJsZSk7DQozMzQgDQozMzUg
-ICAgICAgICAvKiBTZXQgdGhlIGdsb2JhbCBpbnRlZ2VyIHdpZHRoIChiYXNlZCB1cG9uIHJldmlz
-aW9uIG9mIHRoZSBEU0RUKSAqLw0KMzM2IA0KMzM3ICAgICAgICAgaWYgKHRhYmxlX2luZGV4ID09
-IEFDUElfVEFCTEVfSU5ERVhfRFNEVCkgew0KMzM4ICAgICAgICAgICAgICAgICBhY3BpX3V0X3Nl
-dF9pbnRlZ2VyX3dpZHRoKGZpbmFsX3RhYmxlLT5yZXZpc2lvbik7DQozMzkgICAgICAgICB9DQoz
-NDAgDQoNCllvdSBzaG91bGQgZGVsZXRlIHRoZSBmb2xsb3dpbmcgY29kZXM6DQoNCjM0MSAgICAg
-ICAgIC8qDQozNDIgICAgICAgICAgKiBJZiB3ZSBoYXZlIGEgcGh5c2ljYWwgb3ZlcnJpZGUgZHVy
-aW5nIHRoaXMgZWFybHkgbG9hZGluZyBvZiB0aGUgQUNQSQ0KMzQzICAgICAgICAgICogdGFibGVz
-LCB1bm1hcCB0aGUgdGFibGUgZm9yIG5vdy4gSXQgd2lsbCBiZSBtYXBwZWQgYWdhaW4gbGF0ZXIg
-d2hlbg0KMzQ0ICAgICAgICAgICogaXQgaXMgYWN0dWFsbHkgdXNlZC4gVGhpcyBzdXBwb3J0cyB2
-ZXJ5IGVhcmx5IGxvYWRpbmcgb2YgQUNQSSB0YWJsZXMsDQozNDUgICAgICAgICAgKiBiZWZvcmUg
-dmlydHVhbCBtZW1vcnkgaXMgZnVsbHkgaW5pdGlhbGl6ZWQgYW5kIHJ1bm5pbmcgd2l0aGluIHRo
-ZQ0KMzQ2ICAgICAgICAgICogaG9zdCBPUy4gTm90ZTogQSBsb2dpY2FsIG92ZXJyaWRlIGhhcyB0
-aGUgQUNQSV9UQUJMRV9PUklHSU5fT1ZFUlJJREUNCjM0NyAgICAgICAgICAqIGZsYWcgc2V0IGFu
-ZCB3aWxsIG5vdCBiZSBkZWxldGVkIGJlbG93Lg0KMzQ4ICAgICAgICAgICovDQozNDkgICAgICAg
-ICBpZiAoZmluYWxfdGFibGUgIT0gdGFibGUpIHsNCjM1MCAgICAgICAgICAgICAgICAgYWNwaV90
-Yl9kZWxldGVfdGFibGUodGFibGVfZGVzYyk7DQozNTEgICAgICAgICB9DQoNCktlZXAgdGhlIGZv
-bGxvd2luZy4NCg0KMzUyIA0KMzUzICAgICAgIHVubWFwX2FuZF9leGl0Og0KMzU0IA0KMzU1ICAg
-ICAgICAgLyogQWx3YXlzIHVubWFwIHRoZSB0YWJsZSBoZWFkZXIgdGhhdCB3ZSBtYXBwZWQgYWJv
-dmUgKi8NCjM1NiANCjM1NyAgICAgICAgIGFjcGlfb3NfdW5tYXBfbWVtb3J5KHRhYmxlLCBzaXpl
-b2Yoc3RydWN0IGFjcGlfdGFibGVfaGVhZGVyKSk7DQozNTggfQ0KDQpJJ20gbm90IHN1cmUgaWYg
-dGhpcyBjYW4gbWFrZSBteSBjb25jZXJucyBjbGVhcmVyIGZvciB5b3Ugbm93Lg0KDQpUaGFua3Mg
-YW5kIGJlc3QgcmVnYXJkcw0KLUx2DQoNCj4gDQo+IFdvdWxkIHlvdSBwbGVhc2UgZXhwbGFpbiBt
-b3JlIGFib3V0IHlvdXIgY29tbWVudCA/IEkgdGhpbmsgbWF5YmUgSQ0KPiBtaXNzZWQgc29tZXRo
-aW5nDQo+IGltcG9ydGFudCB0byB5b3UgZ3V5cy4gOikNCj4gDQo+IEFuZCBhbGwgdGhlIG90aGVy
-IEFDUElDQSBydWxlcyB3aWxsIGJlIGZvbGxvd2VkIGluIHRoZSBuZXh0IHZlcnNpb24uDQo+IA0K
-PiBUaGFua3MuDQo=
+On Fri, Aug 02, 2013 at 10:57:00AM +0900, Joonsoo Kim wrote:
+>vbq in vmap_block isn't used. So remove it.
+>
+>Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>
+
+Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+
+>diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+>index 13a5495..d23c432 100644
+>--- a/mm/vmalloc.c
+>+++ b/mm/vmalloc.c
+>@@ -752,7 +752,6 @@ struct vmap_block_queue {
+> struct vmap_block {
+> 	spinlock_t lock;
+> 	struct vmap_area *va;
+>-	struct vmap_block_queue *vbq;
+> 	unsigned long free, dirty;
+> 	DECLARE_BITMAP(dirty_map, VMAP_BBMAP_BITS);
+> 	struct list_head free_list;
+>@@ -830,7 +829,6 @@ static struct vmap_block *new_vmap_block(gfp_t gfp_mask)
+> 	radix_tree_preload_end();
+>
+> 	vbq = &get_cpu_var(vmap_block_queue);
+>-	vb->vbq = vbq;
+> 	spin_lock(&vbq->lock);
+> 	list_add_rcu(&vb->free_list, &vbq->free);
+> 	spin_unlock(&vbq->lock);
+>-- 
+>1.7.9.5
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
