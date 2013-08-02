@@ -1,111 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id DBAD36B0031
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 19:55:19 -0400 (EDT)
-Message-ID: <1375401251.10300.53.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v2 06/18] x86, acpi: Initialize ACPI root table list
- earlier.
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 3597D6B0031
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 20:11:59 -0400 (EDT)
+Message-ID: <1375402250.10300.57.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v2 07/18] x86, acpi: Also initialize signature and
+ length when parsing root table.
 From: Toshi Kani <toshi.kani@hp.com>
-Date: Thu, 01 Aug 2013 17:54:11 -0600
-In-Reply-To: <1375340800-19332-7-git-send-email-tangchen@cn.fujitsu.com>
+Date: Thu, 01 Aug 2013 18:10:50 -0600
+In-Reply-To: <1375340800-19332-8-git-send-email-tangchen@cn.fujitsu.com>
 References: <1375340800-19332-1-git-send-email-tangchen@cn.fujitsu.com>
-	 <1375340800-19332-7-git-send-email-tangchen@cn.fujitsu.com>
+	 <1375340800-19332-8-git-send-email-tangchen@cn.fujitsu.com>
 Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+Cc: rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org, robert.moore@intel.com
 
 On Thu, 2013-08-01 at 15:06 +0800, Tang Chen wrote:
-> We have split acpi_table_init() into two steps:
-> 1. Pares RSDT or XSDT, and initialize acpi_gbl_root_table_list.
->    This step will record all tables' physical address in memory.
-> 2. Check acpi initrd table override and install all tables into
->    acpi_gbl_root_table_list.
+> Besides the phys addr of the acpi tables, it will be very convenient if
+> we also have the signature of each table in acpi_gbl_root_table_list at
+> early time. We can find SRAT easily by comparing the signature.
 > 
-> This patch does step 1 earlier, right after memblock is ready.
-> 
-> When memblock_x86_fill() is called to fulfill memblock.memory[],
-> memblock is able to allocate memory.
-> 
-> This patch introduces a new function acpi_root_table_init() to
-> do step 1, and call this function right after memblock_x86_fill()
-> is called.
+> This patch alse record signature and some other info in
+> acpi_gbl_root_table_list at early time.
 > 
 > Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 > Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 > ---
->  arch/x86/kernel/acpi/boot.c |   38 +++++++++++++++++++++++---------------
->  arch/x86/kernel/setup.c     |    3 +++
->  drivers/acpi/tables.c       |    7 +++++--
->  include/linux/acpi.h        |    2 ++
->  4 files changed, 33 insertions(+), 17 deletions(-)
+>  drivers/acpi/acpica/tbutils.c |   22 ++++++++++++++++++++++
+>  1 files changed, 22 insertions(+), 0 deletions(-)
 > 
-> diff --git a/arch/x86/kernel/acpi/boot.c b/arch/x86/kernel/acpi/boot.c
-> index 230c8ea..3da5b3c 100644
-> --- a/arch/x86/kernel/acpi/boot.c
-> +++ b/arch/x86/kernel/acpi/boot.c
-> @@ -1491,6 +1491,28 @@ static struct dmi_system_id __initdata acpi_dmi_table_late[] = {
->  };
->  
->  /*
-> + * acpi_root_table_init - Initialize acpi_gbl_root_table_list.
-> + *
-> + * This function will parse RSDT or XSDT, find all tables' phys addr,
-> + * initialize acpi_gbl_root_table_list, and record all tables' phys addr
-> + * in acpi_gbl_root_table_list.
-> + */
-> +void __init acpi_root_table_init(void)
+> diff --git a/drivers/acpi/acpica/tbutils.c b/drivers/acpi/acpica/tbutils.c
 
-I think acpi_root_table_init() is a bit confusing with
-acpi_boot_table_init().  Perhaps, something like
-acpi_boot_table_pre_init() or early_acpi_boot_table_init() is better to
-indicate that this new function is called before acpi_boot_table_init().
-
-> +{
-> +	dmi_check_system(acpi_dmi_table);
-> +
-> +	/* If acpi_disabled, bail out */
-> +	if (acpi_disabled)
-> +		return;
-> +
-> +	/* Initialize the ACPI boot-time table parser */
-> +	if (acpi_table_init()) {
-> +		disable_acpi();
-> +		return;
-> +	}
-> +}
-> +
-> +/*
->   * acpi_boot_table_init() and acpi_boot_init()
->   *  called from setup_arch(), always.
->   *	1. checksums all tables
-> @@ -1511,21 +1533,7 @@ static struct dmi_system_id __initdata acpi_dmi_table_late[] = {
->  
->  void __init acpi_boot_table_init(void)
-
-The comment of this function needs to be updated.  For instance, it
-describes acpi_table_init(), which you just relocated.
-
- * acpi_table_init() is separate to allow reading SRAT without
- * other side effects.
- *
-
->  {
-> -	dmi_check_system(acpi_dmi_table);
-> -
-> -	/*
-> -	 * If acpi_disabled, bail out
-> -	 */
-> -	if (acpi_disabled)
-> -		return; 
-
-I think this check is still necessary.
+Same as patch 5/18.  Please change the title to "x86, ACPICA:".  Added
+Bob.
 
 Thanks,
 -Toshi
+
+
+> index 9d68ffc..5d31887 100644
+> --- a/drivers/acpi/acpica/tbutils.c
+> +++ b/drivers/acpi/acpica/tbutils.c
+> @@ -627,6 +627,7 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
+>  	u32 i;
+>  	u32 table_count;
+>  	struct acpi_table_header *table;
+> +	struct acpi_table_desc *table_desc;
+>  	acpi_physical_address address;
+>  	acpi_physical_address uninitialized_var(rsdt_address);
+>  	u32 length;
+> @@ -766,6 +767,27 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
+>  	 */
+>  	acpi_os_unmap_memory(table, length);
+>  
+> +	/*
+> +	 * Also initialize the table entries here, so that later we can use them
+> +	 * to find SRAT at very eraly time to reserve hotpluggable memory.
+> +	 */
+> +	for (i = 2; i < acpi_gbl_root_table_list.current_table_count; i++) {
+> +		table = acpi_os_map_memory(
+> +				acpi_gbl_root_table_list.tables[i].address,
+> +				sizeof(struct acpi_table_header));
+> +		if (!table)
+> +			return_ACPI_STATUS(AE_NO_MEMORY);
+> +
+> +		table_desc = &acpi_gbl_root_table_list.tables[i];
+> +
+> +		table_desc->pointer = NULL;
+> +		table_desc->length = table->length;
+> +		table_desc->flags = ACPI_TABLE_ORIGIN_MAPPED;
+> +		ACPI_MOVE_32_TO_32(table_desc->signature.ascii, table->signature);
+> +
+> +		acpi_os_unmap_memory(table, sizeof(struct acpi_table_header));
+> +	}
+> +
+>  	return_ACPI_STATUS(AE_OK);
+>  }
+>  
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
