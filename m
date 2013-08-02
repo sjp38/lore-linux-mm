@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 22A2C6B0036
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 630516B0037
 	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 12:06:45 -0400 (EDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 1/9] mm: zone_reclaim: remove ZONE_RECLAIM_LOCKED
-Date: Fri,  2 Aug 2013 18:06:28 +0200
-Message-Id: <1375459596-30061-2-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 4/9] mm: zone_reclaim: compaction: reset before initializing the scan cursors
+Date: Fri,  2 Aug 2013 18:06:31 +0200
+Message-Id: <1375459596-30061-5-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1375459596-30061-1-git-send-email-aarcange@redhat.com>
 References: <1375459596-30061-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,60 +13,55 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Johannes Weiner <jweiner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hush Bensen <hush.bensen@gmail.com>
 
-Zone reclaim locked breaks zone_reclaim_mode=1. If more than one
-thread allocates memory at the same time, it forces a premature
-allocation into remote NUMA nodes even when there's plenty of clean
-cache to reclaim in the local nodes.
+Correct the location where we reset the scan cursors, otherwise the
+first iteration of compaction (after restarting it) will only do a
+partial scan.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Reviewed-by: Rik van Riel <riel@redhat.com>
+Acked-by: Mel Gorman <mgorman@suse.de>
 Acked-by: Rafael Aquini <aquini@redhat.com>
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 ---
- include/linux/mmzone.h | 6 ------
- mm/vmscan.c            | 4 ----
- 2 files changed, 10 deletions(-)
+ mm/compaction.c | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index dcad2ab..1badcc9 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -497,7 +497,6 @@ struct zone {
- } ____cacheline_internodealigned_in_smp;
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 525baaa..afaf692 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -934,6 +934,17 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+ 	}
  
- typedef enum {
--	ZONE_RECLAIM_LOCKED,		/* prevents concurrent reclaim */
- 	ZONE_OOM_LOCKED,		/* zone is in OOM killer zonelist */
- 	ZONE_CONGESTED,			/* zone has many dirty pages backed by
- 					 * a congested BDI
-@@ -541,11 +540,6 @@ static inline int zone_is_reclaim_writeback(const struct zone *zone)
- 	return test_bit(ZONE_WRITEBACK, &zone->flags);
- }
+ 	/*
++	 * Clear pageblock skip if there were failures recently and
++	 * compaction is about to be retried after being
++	 * deferred. kswapd does not do this reset and it will wait
++	 * direct compaction to do so either when the cursor meets
++	 * after one compaction pass is complete or if compaction is
++	 * restarted after being deferred for a while.
++	 */
++	if ((compaction_restarting(zone, cc->order)) && !current_is_kswapd())
++		__reset_isolation_suitable(zone);
++
++	/*
+ 	 * Setup to move all movable pages to the end of the zone. Used cached
+ 	 * information on where the scanners should start but check that it
+ 	 * is initialised by ensuring the values are within zone boundaries.
+@@ -949,14 +960,6 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+ 		zone->compact_cached_migrate_pfn = cc->migrate_pfn;
+ 	}
  
--static inline int zone_is_reclaim_locked(const struct zone *zone)
--{
--	return test_bit(ZONE_RECLAIM_LOCKED, &zone->flags);
--}
+-	/*
+-	 * Clear pageblock skip if there were failures recently and compaction
+-	 * is about to be retried after being deferred. kswapd does not do
+-	 * this reset as it'll reset the cached information when going to sleep.
+-	 */
+-	if (compaction_restarting(zone, cc->order) && !current_is_kswapd())
+-		__reset_isolation_suitable(zone);
 -
- static inline int zone_is_oom_locked(const struct zone *zone)
- {
- 	return test_bit(ZONE_OOM_LOCKED, &zone->flags);
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 758540d..4b2da9e 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -3595,11 +3595,7 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
- 	if (node_state(node_id, N_CPU) && node_id != numa_node_id())
- 		return ZONE_RECLAIM_NOSCAN;
+ 	migrate_prep_local();
  
--	if (zone_test_and_set_flag(zone, ZONE_RECLAIM_LOCKED))
--		return ZONE_RECLAIM_NOSCAN;
--
- 	ret = __zone_reclaim(zone, gfp_mask, order);
--	zone_clear_flag(zone, ZONE_RECLAIM_LOCKED);
- 
- 	if (!ret)
- 		count_vm_event(PGSCAN_ZONE_RECLAIM_FAILED);
+ 	while ((ret = compact_finished(zone, cc)) == COMPACT_CONTINUE) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
