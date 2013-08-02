@@ -1,90 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 377AD6B0034
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 08:53:44 -0400 (EDT)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [PATCH v2 RESEND 07/18] x86, ACPI: Also initialize signature and length when parsing root table.
-Date: Fri, 02 Aug 2013 15:03:56 +0200
-Message-ID: <3299662.WAS8YLIUlv@vostro.rjw.lan>
-In-Reply-To: <1375434877-20704-8-git-send-email-tangchen@cn.fujitsu.com>
-References: <1375434877-20704-1-git-send-email-tangchen@cn.fujitsu.com> <1375434877-20704-8-git-send-email-tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id EDF296B0037
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 09:11:40 -0400 (EDT)
+Received: by mail-lb0-f181.google.com with SMTP id o10so429584lbi.26
+        for <linux-mm@kvack.org>; Fri, 02 Aug 2013 06:11:39 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <CAFj3OHXR=PqHwLcXCub8YezcGFF7kbKX3X2dV=6FQM78K__D8g@mail.gmail.com>
+References: <1375357402-9811-1-git-send-email-handai.szj@taobao.com>
+	<1375357892-10188-1-git-send-email-handai.szj@taobao.com>
+	<CAAM7YAmxmmA6g2WPVtGN1-42rtDBYzLhF-gvNXxcBN6dUveBYQ@mail.gmail.com>
+	<CAFj3OHXR=PqHwLcXCub8YezcGFF7kbKX3X2dV=6FQM78K__D8g@mail.gmail.com>
+Date: Fri, 2 Aug 2013 21:11:38 +0800
+Message-ID: <CAAM7YAnVYZ-=LXVuDHj38Bh88Fd+Rw9w7Efs1_efmv9X90-D1Q@mail.gmail.com>
+Subject: Re: [PATCH V5 2/8] fs/ceph: vfs __set_page_dirty_nobuffers interface
+ instead of doing it inside filesystem
+From: "Yan, Zheng" <ukernel@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: robert.moore@intel.com, lv.zheng@intel.com, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, ceph-devel <ceph-devel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, Sage Weil <sage@inktank.com>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Glauber Costa <glommer@gmail.com>, Greg Thelen <gthelen@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Sha Zhengju <handai.szj@taobao.com>
 
-On Friday, August 02, 2013 05:14:26 PM Tang Chen wrote:
-> Besides the phys addr of the acpi tables, it will be very convenient if
-> we also have the signature of each table in acpi_gbl_root_table_list at
-> early time. We can find SRAT easily by comparing the signature.
-> 
-> This patch alse record signature and some other info in
-> acpi_gbl_root_table_list at early time.
-> 
-> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-> Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+On Fri, Aug 2, 2013 at 5:04 PM, Sha Zhengju <handai.szj@gmail.com> wrote:
+>
+> On Thu, Aug 1, 2013 at 11:19 PM, Yan, Zheng <ukernel@gmail.com> wrote:
+> > On Thu, Aug 1, 2013 at 7:51 PM, Sha Zhengju <handai.szj@gmail.com> wrote:
+> >> From: Sha Zhengju <handai.szj@taobao.com>
+> >>
+> >> Following we will begin to add memcg dirty page accounting around
+> >> __set_page_dirty_
+> >> {buffers,nobuffers} in vfs layer, so we'd better use vfs interface to
+> >> avoid exporting
+> >> those details to filesystems.
+> >>
+> >> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+> >> ---
+> >>  fs/ceph/addr.c |   13 +------------
+> >>  1 file changed, 1 insertion(+), 12 deletions(-)
+> >>
+> >> diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
+> >> index 3e68ac1..1445bf1 100644
+> >> --- a/fs/ceph/addr.c
+> >> +++ b/fs/ceph/addr.c
+> >> @@ -76,7 +76,7 @@ static int ceph_set_page_dirty(struct page *page)
+> >>         if (unlikely(!mapping))
+> >>                 return !TestSetPageDirty(page);
+> >>
+> >> -       if (TestSetPageDirty(page)) {
+> >> +       if (!__set_page_dirty_nobuffers(page)) {
+> >
+> > it's too early to set the radix tree tag here. We should set page's snapshot
+> > context and increase the i_wrbuffer_ref first. This is because once the tag
+> > is set, writeback thread can find and start flushing the page.
+>
+> OK, thanks for pointing it out.
+>
+> >
+> >
+> >>                 dout("%p set_page_dirty %p idx %lu -- already dirty\n",
+> >>                      mapping->host, page, page->index);
+> >>                 return 0;
+> >> @@ -107,14 +107,7 @@ static int ceph_set_page_dirty(struct page *page)
+> >>              snapc, snapc->seq, snapc->num_snaps);
+> >>         spin_unlock(&ci->i_ceph_lock);
+> >>
+> >> -       /* now adjust page */
+> >> -       spin_lock_irq(&mapping->tree_lock);
+> >>         if (page->mapping) {    /* Race with truncate? */
+> >> -               WARN_ON_ONCE(!PageUptodate(page));
+> >> -               account_page_dirtied(page, page->mapping);
+> >> -               radix_tree_tag_set(&mapping->page_tree,
+> >> -                               page_index(page), PAGECACHE_TAG_DIRTY);
+> >> -
+> >
+> > this code was coped from __set_page_dirty_nobuffers(). I think the reason
+> > Sage did this is to handle the race described in
+> > __set_page_dirty_nobuffers()'s comment. But I'm wonder if "page->mapping ==
+> > NULL" can still happen here. Because truncate_inode_page() unmap page from
+> > processes's address spaces first, then delete page from page cache.
+>
+> But in non-mmap case, doesn't it has no relation to 'unmap page from
+> address spaces'?
 
-The subject is misleading, as the change is in ACPICA and therefore affects not
-only x86.
+In non-mmap case, page is locked when the set_page_dirty() callback is called.
+truncate_inode_page() waits until the page is unlocked, then delete it from the
+page cache.
 
-Also I think the same comments as for the other ACPICA patch is this series
-applies: You shouldn't modify acpi_tbl_parse_root_table() in ways that would
-require the other OSes using ACPICA to be modified.
+Regards
+Yan, Zheng
 
-> ---
->  drivers/acpi/acpica/tbutils.c |   22 ++++++++++++++++++++++
->  1 files changed, 22 insertions(+), 0 deletions(-)
-> 
-> diff --git a/drivers/acpi/acpica/tbutils.c b/drivers/acpi/acpica/tbutils.c
-> index e3621cf..af942fe 100644
-> --- a/drivers/acpi/acpica/tbutils.c
-> +++ b/drivers/acpi/acpica/tbutils.c
-> @@ -438,6 +438,7 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
->  	u32 i;
->  	u32 table_count;
->  	struct acpi_table_header *table;
-> +	struct acpi_table_desc *table_desc;
->  	acpi_physical_address address;
->  	acpi_physical_address uninitialized_var(rsdt_address);
->  	u32 length;
-> @@ -577,6 +578,27 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
->  	 */
->  	acpi_os_unmap_memory(table, length);
->  
-> +	/*
-> +	 * Also initialize the table entries here, so that later we can use them
-> +	 * to find SRAT at very eraly time to reserve hotpluggable memory.
-> +	 */
-> +	for (i = 2; i < acpi_gbl_root_table_list.current_table_count; i++) {
-> +		table = acpi_os_map_memory(
-> +				acpi_gbl_root_table_list.tables[i].address,
-> +				sizeof(struct acpi_table_header));
-> +		if (!table)
-> +			return_ACPI_STATUS(AE_NO_MEMORY);
-> +
-> +		table_desc = &acpi_gbl_root_table_list.tables[i];
-> +
-> +		table_desc->pointer = NULL;
-> +		table_desc->length = table->length;
-> +		table_desc->flags = ACPI_TABLE_ORIGIN_MAPPED;
-> +		ACPI_MOVE_32_TO_32(table_desc->signature.ascii, table->signature);
-> +
-> +		acpi_os_unmap_memory(table, sizeof(struct acpi_table_header));
-> +	}
-> +
->  	return_ACPI_STATUS(AE_OK);
->  }
-
-Thanks,
-Rafael
-
-
--- 
-I speak only for myself.
-Rafael J. Wysocki, Intel Open Source Technology Center.
+> The check is exactly avoiding racy with delete_from_page_cache(),
+> since the two both need to hold mapping->tree_lock, and if truncate
+> goes first then __set_page_dirty_nobuffers() may have NULL mapping.
+>
+>
+> Thanks,
+> Sha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
