@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id EADD06B0032
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 22:08:03 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 86B7A6B0034
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2013 22:08:05 -0400 (EDT)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH 2/4] mm, migrate: allocation new page lazyily in unmap_and_move()
-Date: Fri,  2 Aug 2013 11:07:57 +0900
-Message-Id: <1375409279-16919-2-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 3/4] mm: move pgtable related functions to right place
+Date: Fri,  2 Aug 2013 11:07:58 +0900
+Message-Id: <1375409279-16919-3-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1375409279-16919-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1375409279-16919-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,49 +13,81 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-We don't need a new page and then go out immediately if some condition
-is met. Allocation has overhead in comparison with some condition check,
-so allocating lazyily is preferable solution.
+pgtable related functions are mostly in pgtable-generic.c.
+So move remaining functions from memory.c to pgtable-generic.c.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 6f0c244..86db87e 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -864,10 +864,7 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
- {
- 	int rc = 0;
- 	int *result = NULL;
--	struct page *newpage = get_new_page(page, private, &result);
+diff --git a/mm/memory.c b/mm/memory.c
+index 1ce2e2a..26bce51 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -374,30 +374,6 @@ void tlb_remove_table(struct mmu_gather *tlb, void *table)
+ #endif /* CONFIG_HAVE_RCU_TABLE_FREE */
+ 
+ /*
+- * If a p?d_bad entry is found while walking page tables, report
+- * the error, before resetting entry to p?d_none.  Usually (but
+- * very seldom) called out from the p?d_none_or_clear_bad macros.
+- */
 -
--	if (!newpage)
--		return -ENOMEM;
-+	struct page *newpage = NULL;
+-void pgd_clear_bad(pgd_t *pgd)
+-{
+-	pgd_ERROR(*pgd);
+-	pgd_clear(pgd);
+-}
+-
+-void pud_clear_bad(pud_t *pud)
+-{
+-	pud_ERROR(*pud);
+-	pud_clear(pud);
+-}
+-
+-void pmd_clear_bad(pmd_t *pmd)
+-{
+-	pmd_ERROR(*pmd);
+-	pmd_clear(pmd);
+-}
+-
+-/*
+  * Note: this doesn't free the actual pages themselves. That
+  * has been handled earlier when unmapping all the memory regions.
+  */
+diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
+index e1a6e4f..3929a40 100644
+--- a/mm/pgtable-generic.c
++++ b/mm/pgtable-generic.c
+@@ -10,6 +10,30 @@
+ #include <asm/tlb.h>
+ #include <asm-generic/pgtable.h>
  
- 	if (page_count(page) == 1) {
- 		/* page was freed from under us. So we are done. */
-@@ -878,6 +875,10 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
- 		if (unlikely(split_huge_page(page)))
- 			goto out;
- 
-+	newpage = get_new_page(page, private, &result);
-+	if (!newpage)
-+		return -ENOMEM;
++/*
++ * If a p?d_bad entry is found while walking page tables, report
++ * the error, before resetting entry to p?d_none.  Usually (but
++ * very seldom) called out from the p?d_none_or_clear_bad macros.
++ */
 +
- 	rc = __unmap_and_move(page, newpage, force, mode);
- 
- 	if (unlikely(rc == MIGRATEPAGE_BALLOON_SUCCESS)) {
-@@ -908,7 +909,8 @@ out:
- 	 * Move the new page to the LRU. If migration was not successful
- 	 * then this will free the page.
- 	 */
--	putback_lru_page(newpage);
-+	if (newpage)
-+		putback_lru_page(newpage);
- 	if (result) {
- 		if (rc)
- 			*result = rc;
++void pgd_clear_bad(pgd_t *pgd)
++{
++	pgd_ERROR(*pgd);
++	pgd_clear(pgd);
++}
++
++void pud_clear_bad(pud_t *pud)
++{
++	pud_ERROR(*pud);
++	pud_clear(pud);
++}
++
++void pmd_clear_bad(pmd_t *pmd)
++{
++	pmd_ERROR(*pmd);
++	pmd_clear(pmd);
++}
++
+ #ifndef __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
+ /*
+  * Only sets the access flags (dirty, accessed), as well as write 
 -- 
 1.7.9.5
 
