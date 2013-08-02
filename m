@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id EB1936B0039
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 05:16:13 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 3496E6B003B
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 05:16:14 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v2 RESEND 08/18] x86: get pg_data_t's memory from other node
-Date: Fri, 2 Aug 2013 17:14:27 +0800
-Message-Id: <1375434877-20704-9-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v2 RESEND 09/18] x86: Make get_ramdisk_{image|size}() global.
+Date: Fri, 2 Aug 2013 17:14:28 +0800
+Message-Id: <1375434877-20704-10-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1375434877-20704-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1375434877-20704-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,65 +13,82 @@ List-ID: <linux-mm.kvack.org>
 To: robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+In the following patches, we need to call get_ramdisk_{image|size}()
+to get initrd file's address and size. So make these two functions
+global.
 
-If system can create movable node which all memory of the node is allocated
-as ZONE_MOVABLE, setup_node_data() cannot allocate memory for the node's
-pg_data_t. So, use memblock_alloc_try_nid() instead of memblock_alloc_nid()
-to retry when the first allocation fails. Otherwise, the system could failed
-to boot.
+v1 -> v2:
+As tj suggested, make these two function static inline in
+arch/x86/include/asm/setup.h.
 
-The node_data could be on hotpluggable node. And so could pagetable and
-vmemmap. But for now, doing so will break memory hot-remove path.
-
-A node could have several memory devices. And the device who holds node
-data should be hot-removed in the last place. But in NUMA level, we don't
-know which memory_block (/sys/devices/system/node/nodeX/memoryXXX) belongs
-to which memory device. We only have node. So we can only do node hotplug.
-
-But in virtualization, developers are now developing memory hotplug in qemu,
-which support a single memory device hotplug. So a whole node hotplug will
-not satisfy virtualization users.
-
-So at last, we concluded that we'd better do memory hotplug and local node
-things (local node node data, pagetable, vmemmap, ...) in two steps.
-Please refer to https://lkml.org/lkml/2013/6/19/73
-
-For now, we put node_data of movable node to another node, and then improve
-it in the future.
-
-In the later patches, a boot option will be introduced to enable/disable this
-functionality. If users disable it, the node_data will still be put on the
-local node.
-
-Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-Acked-by: Toshi Kani <toshi.kani@hp.com>
 ---
- arch/x86/mm/numa.c |    5 ++---
- 1 files changed, 2 insertions(+), 3 deletions(-)
+ arch/x86/include/asm/setup.h |   21 +++++++++++++++++++++
+ arch/x86/kernel/setup.c      |   18 ------------------
+ 2 files changed, 21 insertions(+), 18 deletions(-)
 
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index 8bf93ba..d532b6d 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -209,10 +209,9 @@ static void __init setup_node_data(int nid, u64 start, u64 end)
- 	 * Allocate node data.  Try node-local memory and then any node.
- 	 * Never allocate in DMA zone.
- 	 */
--	nd_pa = memblock_alloc_nid(nd_size, SMP_CACHE_BYTES, nid);
-+	nd_pa = memblock_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
- 	if (!nd_pa) {
--		pr_err("Cannot find %zu bytes in node %d\n",
--		       nd_size, nid);
-+		pr_err("Cannot find %zu bytes in any node\n", nd_size);
- 		return;
- 	}
- 	nd = __va(nd_pa);
+diff --git a/arch/x86/include/asm/setup.h b/arch/x86/include/asm/setup.h
+index b7bf350..cfdb55d 100644
+--- a/arch/x86/include/asm/setup.h
++++ b/arch/x86/include/asm/setup.h
+@@ -106,6 +106,27 @@ void *extend_brk(size_t size, size_t align);
+ 	RESERVE_BRK(name, sizeof(type) * entries)
+ 
+ extern void probe_roms(void);
++
++#ifdef CONFIG_BLK_DEV_INITRD
++static inline u64 __init get_ramdisk_image(void)
++{
++	u64 ramdisk_image = boot_params.hdr.ramdisk_image;
++
++	ramdisk_image |= (u64)boot_params.ext_ramdisk_image << 32;
++
++	return ramdisk_image;
++}
++
++static inline u64 __init get_ramdisk_size(void)
++{
++	u64 ramdisk_size = boot_params.hdr.ramdisk_size;
++
++	ramdisk_size |= (u64)boot_params.ext_ramdisk_size << 32;
++
++	return ramdisk_size;
++}
++#endif /* CONFIG_BLK_DEV_INITRD */
++
+ #ifdef __i386__
+ 
+ void __init i386_start_kernel(void);
+diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+index 53d4ac7..b2ce0dc 100644
+--- a/arch/x86/kernel/setup.c
++++ b/arch/x86/kernel/setup.c
+@@ -296,24 +296,6 @@ static void __init reserve_brk(void)
+ }
+ 
+ #ifdef CONFIG_BLK_DEV_INITRD
+-
+-static u64 __init get_ramdisk_image(void)
+-{
+-	u64 ramdisk_image = boot_params.hdr.ramdisk_image;
+-
+-	ramdisk_image |= (u64)boot_params.ext_ramdisk_image << 32;
+-
+-	return ramdisk_image;
+-}
+-static u64 __init get_ramdisk_size(void)
+-{
+-	u64 ramdisk_size = boot_params.hdr.ramdisk_size;
+-
+-	ramdisk_size |= (u64)boot_params.ext_ramdisk_size << 32;
+-
+-	return ramdisk_size;
+-}
+-
+ #define MAX_MAP_CHUNK	(NR_FIX_BTMAPS << PAGE_SHIFT)
+ static void __init relocate_initrd(void)
+ {
 -- 
 1.7.1
 
