@@ -1,70 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id CFCED6B0032
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 12:04:08 -0400 (EDT)
-Received: by mail-oa0-f45.google.com with SMTP id m1so1715837oag.32
-        for <linux-mm@kvack.org>; Fri, 02 Aug 2013 09:04:08 -0700 (PDT)
-Date: Fri, 02 Aug 2013 11:04:02 -0500
-From: Rob Landley <rob@landley.net>
-Subject: Re: [PATCH resend] drop_caches: add some documentation and info
- message
-In-Reply-To: <20130731201708.efa5ae87.akpm@linux-foundation.org> (from
-	akpm@linux-foundation.org on Wed Jul 31 22:17:08 2013)
-Message-Id: <1375459442.8422.1@driftwood>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; DelSp=Yes; Format=Flowed
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 5B6C36B0032
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 12:06:35 -0400 (EDT)
+Message-ID: <1375459527.10300.77.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v2 10/18] x86, acpi: Try to find if SRAT is overrided
+ earlier.
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Fri, 02 Aug 2013 10:05:27 -0600
+In-Reply-To: <51FB485A.9070801@cn.fujitsu.com>
+References: <1375340800-19332-1-git-send-email-tangchen@cn.fujitsu.com>
+	  <1375340800-19332-11-git-send-email-tangchen@cn.fujitsu.com>
+	 <1375406353.10300.73.camel@misato.fc.hp.com>
+	 <51FB485A.9070801@cn.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, mhocko@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, kamezawa.hiroyu@jp.fujitsu.com, bp@suse.de, dave@linux.vnet.ibm.com
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-On 07/31/2013 10:17:08 PM, Andrew Morton wrote:
-> On Wed, 31 Jul 2013 23:11:50 -0400 KOSAKI Motohiro =20
-> <kosaki.motohiro@jp.fujitsu.com> wrote:
->=20
-> > >> --- a/fs/drop_caches.c
-> > >> +++ b/fs/drop_caches.c
-> > >> @@ -59,6 +59,8 @@ int drop_caches_sysctl_handler(ctl_table =20
-> *table, int write,
-> > >>  	if (ret)
-> > >>  		return ret;
-> > >>  	if (write) {
-> > >> +		printk(KERN_INFO "%s (%d): dropped kernel =20
-> caches: %d\n",
-> > >> +		       current->comm, task_pid_nr(current), =20
-> sysctl_drop_caches);
-> > >>  		if (sysctl_drop_caches & 1)
-> > >>  			iterate_supers(drop_pagecache_sb, NULL);
-> > >>  		if (sysctl_drop_caches & 2)
-> > >
-> > > How about we do
-> > >
-> > > 	if (!(sysctl_drop_caches & 4))
-> > > 		printk(....)
-> > >
-> > > so people can turn it off if it's causing problems?
+On Fri, 2013-08-02 at 13:49 +0800, Tang Chen wrote:
+> On 08/02/2013 09:19 AM, Toshi Kani wrote:
+> ......
+> >> +phys_addr_t __init early_acpi_override_srat(void)
+> >> +{
+> >> +	int i;
+> >> +	u32 length;
+> >> +	long offset;
+> >> +	void *ramdisk_vaddr;
+> >> +	struct acpi_table_header *table;
+> >> +	struct cpio_data file;
+> >> +	unsigned long map_step = NR_FIX_BTMAPS<<  PAGE_SHIFT;
+> >> +	phys_addr_t ramdisk_image = get_ramdisk_image();
+> >> +	char cpio_path[32] = "kernel/firmware/acpi/";
 > >
-> > The best interface depends on the purpose. If you want to detect =20
-> crazy application,
-> > we can't assume an application co-operate us. So, I doubt this =20
-> works.
->=20
-> You missed the "!".  I'm proposing that setting the new bit 2 will
-> permit people to prevent the new printk if it is causing them =20
-> problems.
+> > Don't you need to check if ramdisk is present before parsing the table?
+> > You may need something like:
+> >
+> >    if (!ramdisk_image || !get_ramdisk_size())
+> >          return 0;
+> 
+> Yes, it is better to do such a check here. But is there a possibility that
+> no ramdisk is present and we come to setup_arch() ?
 
-Or an alternative for those planning to patch it down to a KERN_DEBUG =20
-locally.
+Without a ramdisk, the boot procedure will likely fail in mounting the
+root disk due to missing drivers.  But it should come to setup_arch()
+without it.
 
-I'd be surprised if anybody who does this sees the printk and thinks =20
-"hey, I'll dig into the VM's balancing logic and come up to speed on =20
-the tradeoffs sufficient to contribute to kernel development" because =20
-of something in dmesg. Anybody actually annoyed by it will chop out the =20
-printk (you barely need to know C to do that), the rest won't notice.
+Thanks,
+-Toshi
 
-Rob=
+
+> 
+> ......
+> >> +
+> >> +	return ramdisk_image;
+> >
+> > Doesn't this function return a physical address regardless of SRAT if a
+> > ramdisk is present?
+> 
+> Yes, and it is not good. I'll add the check above so that this won't happen.
+> 
+> Thanks.
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
