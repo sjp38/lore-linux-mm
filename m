@@ -1,84 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id D36A66B0031
-	for <linux-mm@kvack.org>; Sat,  3 Aug 2013 13:00:30 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 62C6D6B0033
+	for <linux-mm@kvack.org>; Sat,  3 Aug 2013 13:00:32 -0400 (EDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 0/7] improve memcg oom killer robustness v2
-Date: Sat,  3 Aug 2013 12:59:53 -0400
-Message-Id: <1375549200-19110-1-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 1/7] arch: mm: remove obsolete init OOM protection
+Date: Sat,  3 Aug 2013 12:59:54 -0400
+Message-Id: <1375549200-19110-2-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1375549200-19110-1-git-send-email-hannes@cmpxchg.org>
+References: <1375549200-19110-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, azurIt <azurit@pobox.sk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Changes in version 2:
-o use user_mode() instead of open coding it on s390 (Heiko Carstens)
-o clean up memcg OOM enable/disable toggling (Michal Hocko & KOSAKI
-  Motohiro)
-o add a separate patch to rework and document OOM locking
-o fix a problem with lost wakeups when sleeping on the OOM lock
-o fix OOM unlocking & wakeups with userspace OOM handling
+Back before smart OOM killing, when faulting tasks where killed
+directly on allocation failures, the arch-specific fault handlers
+needed special protection for the init process.
 
-The memcg code can trap tasks in the context of the failing allocation
-until an OOM situation is resolved.  They can hold all kinds of locks
-(fs, mm) at this point, which makes it prone to deadlocking.
+Now that all fault handlers call into the generic OOM killer (609838c
+"mm: invoke oom-killer from remaining unconverted page fault
+handlers"), which already provides init protection, the arch-specific
+leftovers can be removed.
 
-This series converts memcg OOM handling into a two step process that
-is started in the charge context, but any waiting is done after the
-fault stack is fully unwound.
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ arch/arc/mm/fault.c   | 5 -----
+ arch/score/mm/fault.c | 6 ------
+ arch/tile/mm/fault.c  | 6 ------
+ 3 files changed, 17 deletions(-)
 
-Patches 1-4 prepare architecture handlers to support the new memcg
-requirements, but in doing so they also remove old cruft and unify
-out-of-memory behavior across architectures.
-
-Patch 5 disables the memcg OOM handling for syscalls, readahead,
-kernel faults, because they can gracefully unwind the stack with
--ENOMEM.  OOM handling is restricted to user triggered faults that
-have no other option.
-
-Patch 6 reworks memcg's hierarchical OOM locking to make it a little
-more obvious wth is going on in there: reduce locked regions, rename
-locking functions, reorder and document.
-
-Patch 7 implements the two-part OOM handling such that tasks are never
-trapped with the full charge stack in an OOM situation.
-
- arch/alpha/mm/fault.c      |   7 +-
- arch/arc/mm/fault.c        |  11 +--
- arch/arm/mm/fault.c        |  23 +++--
- arch/arm64/mm/fault.c      |  23 +++--
- arch/avr32/mm/fault.c      |   4 +-
- arch/cris/mm/fault.c       |   6 +-
- arch/frv/mm/fault.c        |  10 +-
- arch/hexagon/mm/vm_fault.c |   6 +-
- arch/ia64/mm/fault.c       |   6 +-
- arch/m32r/mm/fault.c       |  10 +-
- arch/m68k/mm/fault.c       |   2 +
- arch/metag/mm/fault.c      |   6 +-
- arch/microblaze/mm/fault.c |   7 +-
- arch/mips/mm/fault.c       |   8 +-
- arch/mn10300/mm/fault.c    |   2 +
- arch/openrisc/mm/fault.c   |   1 +
- arch/parisc/mm/fault.c     |   7 +-
- arch/powerpc/mm/fault.c    |   7 +-
- arch/s390/mm/fault.c       |   2 +
- arch/score/mm/fault.c      |  13 ++-
- arch/sh/mm/fault.c         |   9 +-
- arch/sparc/mm/fault_32.c   |  12 ++-
- arch/sparc/mm/fault_64.c   |   8 +-
- arch/tile/mm/fault.c       |  13 +--
- arch/um/kernel/trap.c      |  22 +++--
- arch/unicore32/mm/fault.c  |  22 +++--
- arch/x86/mm/fault.c        |  43 ++++-----
- arch/xtensa/mm/fault.c     |   2 +
- include/linux/memcontrol.h |  65 +++++++++++++
- include/linux/mm.h         |   1 +
- include/linux/sched.h      |   7 ++
- mm/filemap.c               |  11 ++-
- mm/memcontrol.c            | 229 +++++++++++++++++++++++++++++----------------
- mm/memory.c                |  43 +++++++--
- mm/oom_kill.c              |   7 +-
- 35 files changed, 444 insertions(+), 211 deletions(-)
+diff --git a/arch/arc/mm/fault.c b/arch/arc/mm/fault.c
+index 0fd1f0d..6b0bb41 100644
+--- a/arch/arc/mm/fault.c
++++ b/arch/arc/mm/fault.c
+@@ -122,7 +122,6 @@ good_area:
+ 			goto bad_area;
+ 	}
+ 
+-survive:
+ 	/*
+ 	 * If for any reason at all we couldn't handle the fault,
+ 	 * make sure we exit gracefully rather than endlessly redo
+@@ -201,10 +200,6 @@ no_context:
+ 	die("Oops", regs, address);
+ 
+ out_of_memory:
+-	if (is_global_init(tsk)) {
+-		yield();
+-		goto survive;
+-	}
+ 	up_read(&mm->mmap_sem);
+ 
+ 	if (user_mode(regs)) {
+diff --git a/arch/score/mm/fault.c b/arch/score/mm/fault.c
+index 6b18fb0..4b71a62 100644
+--- a/arch/score/mm/fault.c
++++ b/arch/score/mm/fault.c
+@@ -100,7 +100,6 @@ good_area:
+ 			goto bad_area;
+ 	}
+ 
+-survive:
+ 	/*
+ 	* If for any reason at all we couldn't handle the fault,
+ 	* make sure we exit gracefully rather than endlessly redo
+@@ -167,11 +166,6 @@ no_context:
+ 	*/
+ out_of_memory:
+ 	up_read(&mm->mmap_sem);
+-	if (is_global_init(tsk)) {
+-		yield();
+-		down_read(&mm->mmap_sem);
+-		goto survive;
+-	}
+ 	if (!user_mode(regs))
+ 		goto no_context;
+ 	pagefault_out_of_memory();
+diff --git a/arch/tile/mm/fault.c b/arch/tile/mm/fault.c
+index f7f99f9..ac553ee 100644
+--- a/arch/tile/mm/fault.c
++++ b/arch/tile/mm/fault.c
+@@ -430,7 +430,6 @@ good_area:
+ 			goto bad_area;
+ 	}
+ 
+- survive:
+ 	/*
+ 	 * If for any reason at all we couldn't handle the fault,
+ 	 * make sure we exit gracefully rather than endlessly redo
+@@ -568,11 +567,6 @@ no_context:
+  */
+ out_of_memory:
+ 	up_read(&mm->mmap_sem);
+-	if (is_global_init(tsk)) {
+-		yield();
+-		down_read(&mm->mmap_sem);
+-		goto survive;
+-	}
+ 	if (is_kernel_mode)
+ 		goto no_context;
+ 	pagefault_out_of_memory();
+-- 
+1.8.3.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
