@@ -1,73 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 4B88B6B0031
-	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 04:25:14 -0400 (EDT)
-Received: by mail-ee0-f43.google.com with SMTP id e52so1047613eek.2
-        for <linux-mm@kvack.org>; Sun, 04 Aug 2013 01:25:12 -0700 (PDT)
-Date: Sun, 4 Aug 2013 10:25:09 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 02/23] memcg, thp: charge huge cache pages
-Message-ID: <20130804082509.GC24005@dhcp22.suse.cz>
-References: <1375582645-29274-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1375582645-29274-3-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id ADBBA6B0031
+	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 05:48:38 -0400 (EDT)
+Date: Sat, 3 Aug 2013 20:43:02 +1000
+From: David Gibson <david@gibson.dropbear.id.au>
+Subject: Re: [PATCH 17/18] mm, hugetlb: retry if we fail to allocate a
+ hugepage with use_reserve
+Message-ID: <20130803104302.GC19115@voom.redhat.com>
+References: <1375075929-6119-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1375075929-6119-18-git-send-email-iamjoonsoo.kim@lge.com>
+ <20130729072823.GD29970@voom.fritz.box>
+ <20130731053753.GM2548@lge.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="i7F3eY7HS/tUJxUd"
 Content-Disposition: inline
-In-Reply-To: <1375582645-29274-3-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20130731053753.GM2548@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Ning Qu <quning@google.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
 
-On Sun 04-08-13 05:17:04, Kirill A. Shutemov wrote:
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> 
-> mem_cgroup_cache_charge() has check for PageCompound(). The check
-> prevents charging huge cache pages.
-> 
-> I don't see a reason why the check is present. Looks like it's just
-> legacy (introduced in 52d4b9a memcg: allocate all page_cgroup at boot).
-> 
-> Let's just drop it.
 
-If the page cache charging path only sees THP as compound pages then OK.
-Can we keep at least VM_BUG_ON(PageCompound(page) && !PageTransHuge(page))
+--i7F3eY7HS/tUJxUd
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Otherwise mem_cgroup_charge_common would be confused and charge such a
-page as order-0
- 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Acked-by: Dave Hansen <dave.hansen@linux.intel.com>
+On Wed, Jul 31, 2013 at 02:37:53PM +0900, Joonsoo Kim wrote:
+> Hello, David.
+>=20
+> On Mon, Jul 29, 2013 at 05:28:23PM +1000, David Gibson wrote:
+> > On Mon, Jul 29, 2013 at 02:32:08PM +0900, Joonsoo Kim wrote:
+> > > If parallel fault occur, we can fail to allocate a hugepage,
+> > > because many threads dequeue a hugepage to handle a fault of same add=
+ress.
+> > > This makes reserved pool shortage just for a little while and this ca=
+use
+> > > faulting thread who is ensured to have enough reserved hugepages
+> > > to get a SIGBUS signal.
+> >=20
+> > It's not just about reserved pages.  The same race can happen
+> > perfectly well when you're really, truly allocating the last hugepage
+> > in the system.
+>=20
+> Yes, you are right.
+> This is a critical comment to this patchset :(
+>=20
+> IIUC, the case you mentioned is about tasks which have a mapping
+> with MAP_NORESERVE.
 
-Other than that, looks good to me.
-Acked-by: Michal Hocko <mhocko@suse.cz>
+Any mapping that doesn't use the reserved pool, not just
+MAP_NORESERVE.  For example, if a process makes a MAP_PRIVATE mapping,
+then fork()s then the mapping is instantiated in the child, that will
+not draw from the reserved pool.
 
-> ---
->  mm/memcontrol.c | 2 --
->  1 file changed, 2 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index b6cd870..dc50c1a 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3921,8 +3921,6 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
->  
->  	if (mem_cgroup_disabled())
->  		return 0;
-> -	if (PageCompound(page))
-> -		return 0;
->  
->  	if (!PageSwapCache(page))
->  		ret = mem_cgroup_charge_common(page, mm, gfp_mask, type);
-> -- 
-> 1.8.3.2
-> 
+> Should we ensure them to allocate the last hugepage?
+> They map a region with MAP_NORESERVE, so don't assume that their requests
+> always succeed.
 
--- 
-Michal Hocko
-SUSE Labs
+If the pages are available, people get cranky if it fails for no
+apparent reason, MAP_NORESERVE or not.  They get especially cranky if
+it sometimes fails and sometimes doesn't due to a race condition.
+
+--=20
+David Gibson			| I'll have my music baroque, and my code
+david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
+				| _way_ _around_!
+http://www.ozlabs.org/~dgibson
+
+--i7F3eY7HS/tUJxUd
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.13 (GNU/Linux)
+
+iEYEARECAAYFAlH83rYACgkQaILKxv3ab8a6mACeMcPoIM7Q8waoJo5GgwcXbXSf
+XG4An3cwsVzfNm5tifu9JOOLiDzisiap
+=dFyv
+-----END PGP SIGNATURE-----
+
+--i7F3eY7HS/tUJxUd--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
