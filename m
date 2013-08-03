@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 840336B0039
-	for <linux-mm@kvack.org>; Sat,  3 Aug 2013 13:00:42 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 879656B003A
+	for <linux-mm@kvack.org>; Sat,  3 Aug 2013 13:00:44 -0400 (EDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 6/7] mm: memcg: rework and document OOM waiting and wakeup
-Date: Sat,  3 Aug 2013 12:59:59 -0400
-Message-Id: <1375549200-19110-7-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 7/7] mm: memcg: do not trap chargers with full callstack on OOM
+Date: Sat,  3 Aug 2013 13:00:00 -0400
+Message-Id: <1375549200-19110-8-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1375549200-19110-1-git-send-email-hannes@cmpxchg.org>
 References: <1375549200-19110-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -13,197 +13,216 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, azurIt <azurit@pobox.sk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-The memcg OOM handler open-codes a sleeping lock for OOM serialization
-(trylock, wait, repeat) because the required locking is so specific to
-memcg hierarchies.  However, it would be nice if this construct would
-be clearly recognizable and not be as obfuscated as it is right now.
-Clean up as follows:
+The memcg OOM handling is incredibly fragile and can deadlock.  When a
+task fails to charge memory, it invokes the OOM killer and loops right
+there in the charge code until it succeeds.  Comparably, any other
+task that enters the charge path at this point will go to a waitqueue
+right then and there and sleep until the OOM situation is resolved.
+The problem is that these tasks may hold filesystem locks and the
+mmap_sem; locks that the selected OOM victim may need to exit.
 
-1. Remove the return value of mem_cgroup_oom_unlock()
+For example, in one reported case, the task invoking the OOM killer
+was about to charge a page cache page during a write(), which holds
+the i_mutex.  The OOM killer selected a task that was just entering
+truncate() and trying to acquire the i_mutex:
 
-2. Rename mem_cgroup_oom_lock() to mem_cgroup_oom_trylock().
+OOM invoking task:
+[<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
+[<ffffffff8110b5ab>] T.1146+0x5ab/0x5c0
+[<ffffffff8110c22e>] mem_cgroup_cache_charge+0xbe/0xe0
+[<ffffffff810ca28c>] add_to_page_cache_locked+0x4c/0x140
+[<ffffffff810ca3a2>] add_to_page_cache_lru+0x22/0x50
+[<ffffffff810ca45b>] grab_cache_page_write_begin+0x8b/0xe0
+[<ffffffff81193a18>] ext3_write_begin+0x88/0x270
+[<ffffffff810c8fc6>] generic_file_buffered_write+0x116/0x290
+[<ffffffff810cb3cc>] __generic_file_aio_write+0x27c/0x480
+[<ffffffff810cb646>] generic_file_aio_write+0x76/0xf0           # takes ->i_mutex
+[<ffffffff8111156a>] do_sync_write+0xea/0x130
+[<ffffffff81112183>] vfs_write+0xf3/0x1f0
+[<ffffffff81112381>] sys_write+0x51/0x90
+[<ffffffff815b5926>] system_call_fastpath+0x18/0x1d
+[<ffffffffffffffff>] 0xffffffffffffffff
 
-3. Pull the prepare_to_wait() out of the memcg_oom_lock scope.  This
-   makes it more obvious that the task has to be on the waitqueue
-   before attempting to OOM-trylock the hierarchy, to not miss any
-   wakeups before going to sleep.  It just didn't matter until now
-   because it was all lumped together into the global memcg_oom_lock
-   spinlock section.
+OOM kill victim:
+[<ffffffff811109b8>] do_truncate+0x58/0xa0              # takes i_mutex
+[<ffffffff81121c90>] do_last+0x250/0xa30
+[<ffffffff81122547>] path_openat+0xd7/0x440
+[<ffffffff811229c9>] do_filp_open+0x49/0xa0
+[<ffffffff8110f7d6>] do_sys_open+0x106/0x240
+[<ffffffff8110f950>] sys_open+0x20/0x30
+[<ffffffff815b5926>] system_call_fastpath+0x18/0x1d
+[<ffffffffffffffff>] 0xffffffffffffffff
 
-4. Pull the mem_cgroup_oom_notify() out of the memcg_oom_lock scope.
-   It is proctected by the hierarchical OOM-lock.
+The OOM handling task will retry the charge indefinitely while the OOM
+killed task is not releasing any resources.
 
-5. The memcg_oom_lock spinlock is only required to propagate the OOM
-   lock in any given hierarchy atomically.  Restrict its scope to
-   mem_cgroup_oom_(trylock|unlock).
+A similar scenario can happen when the kernel OOM killer for a memcg
+is disabled and a userspace task is in charge of resolving OOM
+situations.  In this case, ALL tasks that enter the OOM path will be
+made to sleep on the OOM waitqueue and wait for userspace to free
+resources or increase the group's limit.  But a userspace OOM handler
+is prone to deadlock itself on the locks held by the waiting tasks.
+For example one of the sleeping tasks may be stuck in a brk() call
+with the mmap_sem held for writing but the userspace handler, in order
+to pick an optimal victim, may need to read files from /proc/<pid>,
+which tries to acquire the same mmap_sem for reading and deadlocks.
 
-6. Do not wake up the waitqueue unconditionally at the end of the
-   function.  Only the lockholder has to wake up the next in line
-   after releasing the lock.
+This patch changes the way tasks behave after detecting a memcg OOM
+and makes sure nobody loops or sleeps with locks held:
 
-   Note that the lockholder kicks off the OOM-killer, which in turn
-   leads to wakeups from the uncharges of the exiting task.  But a
-   contender is not guaranteed to see them if it enters the OOM path
-   after the OOM kills but before the lockholder releases the lock.
-   Thus there has to be an explicit wakeup after releasing the lock.
+1. When OOMing in a user fault, invoke the OOM killer and restart the
+   fault instead of looping on the charge attempt.  This way, the OOM
+   victim can not get stuck on locks the looping task may hold.
 
-7. Put the OOM task on the waitqueue before marking the hierarchy as
-   under OOM as that is the point where we start to receive wakeups.
-   No point in listening before being on the waitqueue.
+2. When OOMing in a user fault but somebody else is handling it
+   (either the kernel OOM killer or a userspace handler), don't go to
+   sleep in the charge context.  Instead, remember the OOMing memcg in
+   the task struct and then fully unwind the page fault stack with
+   -ENOMEM.  pagefault_out_of_memory() will then call back into the
+   memcg code to check if the -ENOMEM came from the memcg, and then
+   either put the task to sleep on the memcg's OOM waitqueue or just
+   restart the fault.  The OOM victim can no longer get stuck on any
+   lock a sleeping task may hold.
 
-8. Likewise, unmark the hierarchy before finishing the sleep, for
-   symmetry.
-
+Reported-by: Reported-by: azurIt <azurit@pobox.sk>
+Debugged-by: Michal Hocko <mhocko@suse.cz>
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Acked-by: Michal Hocko <mhocko@suse.cz>
 ---
- mm/memcontrol.c | 85 +++++++++++++++++++++++++++++++--------------------------
- 1 file changed, 47 insertions(+), 38 deletions(-)
+ include/linux/memcontrol.h |  21 +++++++
+ include/linux/sched.h      |   4 ++
+ mm/memcontrol.c            | 154 +++++++++++++++++++++++++++++++--------------
+ mm/memory.c                |   3 +
+ mm/oom_kill.c              |   7 ++-
+ 5 files changed, 140 insertions(+), 49 deletions(-)
 
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 9c449c1..cb84058 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -131,6 +131,10 @@ extern void mem_cgroup_replace_page_cache(struct page *oldpage,
+  *
+  * Toggle whether a failed memcg charge should invoke the OOM killer
+  * or just return -ENOMEM.  Returns the previous toggle state.
++ *
++ * NOTE: Any path that enables the OOM killer before charging must
++ *       call mem_cgroup_oom_synchronize() afterward to finalize the
++ *       OOM handling and clean up.
+  */
+ static inline bool mem_cgroup_toggle_oom(bool new)
+ {
+@@ -156,6 +160,13 @@ static inline void mem_cgroup_disable_oom(void)
+ 	WARN_ON(old == false);
+ }
+ 
++static inline bool task_in_memcg_oom(struct task_struct *p)
++{
++	return p->memcg_oom.in_memcg_oom;
++}
++
++bool mem_cgroup_oom_synchronize(void);
++
+ #ifdef CONFIG_MEMCG_SWAP
+ extern int do_swap_account;
+ #endif
+@@ -392,6 +403,16 @@ static inline void mem_cgroup_disable_oom(void)
+ {
+ }
+ 
++static inline bool task_in_memcg_oom(struct task_struct *p)
++{
++	return false;
++}
++
++static inline bool mem_cgroup_oom_synchronize(void)
++{
++	return false;
++}
++
+ static inline void mem_cgroup_inc_page_stat(struct page *page,
+ 					    enum mem_cgroup_page_stat_item idx)
+ {
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 4b3effc..4593e27 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1400,6 +1400,10 @@ struct task_struct {
+ 	unsigned int memcg_kmem_skip_account;
+ 	struct memcg_oom_info {
+ 		unsigned int may_oom:1;
++		unsigned int in_memcg_oom:1;
++		unsigned int oom_locked:1;
++		int wakeups;
++		struct mem_cgroup *wait_on_memcg;
+ 	} memcg_oom;
+ #endif
+ #ifdef CONFIG_UPROBES
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 30ae46a..3d0c1d3 100644
+index 3d0c1d3..b30c67a 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -2076,15 +2076,18 @@ static int mem_cgroup_soft_reclaim(struct mem_cgroup *root_memcg,
- 	return total;
+@@ -280,6 +280,7 @@ struct mem_cgroup {
+ 
+ 	bool		oom_lock;
+ 	atomic_t	under_oom;
++	atomic_t	oom_wakeups;
+ 
+ 	int	swappiness;
+ 	/* OOM-Killer disable */
+@@ -2180,6 +2181,7 @@ static int memcg_oom_wake_function(wait_queue_t *wait,
+ 
+ static void memcg_wakeup_oom(struct mem_cgroup *memcg)
+ {
++	atomic_inc(&memcg->oom_wakeups);
+ 	/* for filtering, pass "memcg" as argument. */
+ 	__wake_up(&memcg_oom_waitq, TASK_NORMAL, 0, memcg);
+ }
+@@ -2191,19 +2193,17 @@ static void memcg_oom_recover(struct mem_cgroup *memcg)
  }
  
-+static DEFINE_SPINLOCK(memcg_oom_lock);
-+
  /*
-  * Check OOM-Killer is already running under our hierarchy.
-  * If someone is running, return false.
-- * Has to be called with memcg_oom_lock
+- * try to call OOM killer. returns false if we should exit memory-reclaim loop.
++ * try to call OOM killer
   */
--static bool mem_cgroup_oom_lock(struct mem_cgroup *memcg)
-+static bool mem_cgroup_oom_trylock(struct mem_cgroup *memcg)
+-static bool mem_cgroup_handle_oom(struct mem_cgroup *memcg, gfp_t mask,
+-				  int order)
++static void mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
  {
- 	struct mem_cgroup *iter, *failed = NULL;
+-	struct oom_wait_info owait;
+ 	bool locked;
++	int wakeups;
  
-+	spin_lock(&memcg_oom_lock);
+-	owait.memcg = memcg;
+-	owait.wait.flags = 0;
+-	owait.wait.func = memcg_oom_wake_function;
+-	owait.wait.private = current;
+-	INIT_LIST_HEAD(&owait.wait.task_list);
++	if (!current->memcg_oom.may_oom)
++		return;
 +
- 	for_each_mem_cgroup_tree(iter, memcg) {
- 		if (iter->oom_lock) {
- 			/*
-@@ -2098,33 +2101,33 @@ static bool mem_cgroup_oom_lock(struct mem_cgroup *memcg)
- 			iter->oom_lock = true;
- 	}
++	current->memcg_oom.in_memcg_oom = 1;
  
--	if (!failed)
--		return true;
--
--	/*
--	 * OK, we failed to lock the whole subtree so we have to clean up
--	 * what we set up to the failing subtree
--	 */
--	for_each_mem_cgroup_tree(iter, memcg) {
--		if (iter == failed) {
--			mem_cgroup_iter_break(memcg, iter);
--			break;
-+	if (failed) {
-+		/*
-+		 * OK, we failed to lock the whole subtree so we have
-+		 * to clean up what we set up to the failing subtree
-+		 */
-+		for_each_mem_cgroup_tree(iter, memcg) {
-+			if (iter == failed) {
-+				mem_cgroup_iter_break(memcg, iter);
-+				break;
-+			}
-+			iter->oom_lock = false;
- 		}
--		iter->oom_lock = false;
--	}
--	return false;
-+	}	
-+
-+	spin_unlock(&memcg_oom_lock);
-+
-+	return !failed;
- }
- 
--/*
-- * Has to be called with memcg_oom_lock
-- */
--static int mem_cgroup_oom_unlock(struct mem_cgroup *memcg)
-+static void mem_cgroup_oom_unlock(struct mem_cgroup *memcg)
- {
- 	struct mem_cgroup *iter;
- 
-+	spin_lock(&memcg_oom_lock);
- 	for_each_mem_cgroup_tree(iter, memcg)
- 		iter->oom_lock = false;
--	return 0;
-+	spin_unlock(&memcg_oom_lock);
- }
- 
- static void mem_cgroup_mark_under_oom(struct mem_cgroup *memcg)
-@@ -2148,7 +2151,6 @@ static void mem_cgroup_unmark_under_oom(struct mem_cgroup *memcg)
- 		atomic_add_unless(&iter->under_oom, -1, 0);
- }
- 
--static DEFINE_SPINLOCK(memcg_oom_lock);
- static DECLARE_WAIT_QUEUE_HEAD(memcg_oom_waitq);
- 
- struct oom_wait_info {
-@@ -2195,45 +2197,52 @@ static bool mem_cgroup_handle_oom(struct mem_cgroup *memcg, gfp_t mask,
- 				  int order)
- {
- 	struct oom_wait_info owait;
--	bool locked, need_to_kill;
-+	bool locked;
- 
- 	owait.memcg = memcg;
- 	owait.wait.flags = 0;
- 	owait.wait.func = memcg_oom_wake_function;
- 	owait.wait.private = current;
- 	INIT_LIST_HEAD(&owait.wait.task_list);
--	need_to_kill = true;
--	mem_cgroup_mark_under_oom(memcg);
- 
--	/* At first, try to OOM lock hierarchy under memcg.*/
--	spin_lock(&memcg_oom_lock);
--	locked = mem_cgroup_oom_lock(memcg);
  	/*
-+	 * As with any blocking lock, a contender needs to start
-+	 * listening for wakeups before attempting the trylock,
-+	 * otherwise it can miss the wakeup from the unlock and sleep
-+	 * indefinitely.  This is just open-coded because our locking
-+	 * is so particular to memcg hierarchies.
-+	 *
- 	 * Even if signal_pending(), we can't quit charge() loop without
- 	 * accounting. So, UNINTERRUPTIBLE is appropriate. But SIGKILL
- 	 * under OOM is always welcomed, use TASK_KILLABLE here.
+ 	 * As with any blocking lock, a contender needs to start
+@@ -2211,12 +2211,8 @@ static bool mem_cgroup_handle_oom(struct mem_cgroup *memcg, gfp_t mask,
+ 	 * otherwise it can miss the wakeup from the unlock and sleep
+ 	 * indefinitely.  This is just open-coded because our locking
+ 	 * is so particular to memcg hierarchies.
+-	 *
+-	 * Even if signal_pending(), we can't quit charge() loop without
+-	 * accounting. So, UNINTERRUPTIBLE is appropriate. But SIGKILL
+-	 * under OOM is always welcomed, use TASK_KILLABLE here.
  	 */
- 	prepare_to_wait(&memcg_oom_waitq, &owait.wait, TASK_KILLABLE);
--	if (!locked || memcg->oom_kill_disable)
--		need_to_kill = false;
-+	mem_cgroup_mark_under_oom(memcg);
-+
-+	locked = mem_cgroup_oom_trylock(memcg);
-+
- 	if (locked)
- 		mem_cgroup_oom_notify(memcg);
--	spin_unlock(&memcg_oom_lock);
+-	prepare_to_wait(&memcg_oom_waitq, &owait.wait, TASK_KILLABLE);
++	wakeups = atomic_read(&memcg->oom_wakeups);
+ 	mem_cgroup_mark_under_oom(memcg);
  
--	if (need_to_kill) {
-+	if (locked && !memcg->oom_kill_disable) {
-+		mem_cgroup_unmark_under_oom(memcg);
- 		finish_wait(&memcg_oom_waitq, &owait.wait);
+ 	locked = mem_cgroup_oom_trylock(memcg);
+@@ -2226,15 +2222,95 @@ static bool mem_cgroup_handle_oom(struct mem_cgroup *memcg, gfp_t mask,
+ 
+ 	if (locked && !memcg->oom_kill_disable) {
+ 		mem_cgroup_unmark_under_oom(memcg);
+-		finish_wait(&memcg_oom_waitq, &owait.wait);
  		mem_cgroup_out_of_memory(memcg, mask, order);
- 	} else {
- 		schedule();
-+		mem_cgroup_unmark_under_oom(memcg);
- 		finish_wait(&memcg_oom_waitq, &owait.wait);
- 	}
--	spin_lock(&memcg_oom_lock);
--	if (locked)
--		mem_cgroup_oom_unlock(memcg);
--	memcg_wakeup_oom(memcg);
--	spin_unlock(&memcg_oom_lock);
- 
--	mem_cgroup_unmark_under_oom(memcg);
-+	if (locked) {
 +		mem_cgroup_oom_unlock(memcg);
 +		/*
 +		 * There is no guarantee that an OOM-lock contender
@@ -211,10 +230,219 @@ index 30ae46a..3d0c1d3 100644
 +		 * uncharges.  Wake any sleepers explicitely.
 +		 */
 +		memcg_oom_recover(memcg);
-+	}
+ 	} else {
+-		schedule();
+-		mem_cgroup_unmark_under_oom(memcg);
+-		finish_wait(&memcg_oom_waitq, &owait.wait);
++		/*
++		 * A system call can just return -ENOMEM, but if this
++		 * is a page fault and somebody else is handling the
++		 * OOM already, we need to sleep on the OOM waitqueue
++		 * for this memcg until the situation is resolved.
++		 * Which can take some time because it might be
++		 * handled by a userspace task.
++		 *
++		 * However, this is the charge context, which means
++		 * that we may sit on a large call stack and hold
++		 * various filesystem locks, the mmap_sem etc. and we
++		 * don't want the OOM handler to deadlock on them
++		 * while we sit here and wait.  Store the current OOM
++		 * context in the task_struct, then return -ENOMEM.
++		 * At the end of the page fault handler, with the
++		 * stack unwound, pagefault_out_of_memory() will check
++		 * back with us by calling
++		 * mem_cgroup_oom_synchronize(), possibly putting the
++		 * task to sleep.
++		 */
++		current->memcg_oom.oom_locked = locked;
++		current->memcg_oom.wakeups = wakeups;
++		css_get(&memcg->css);
++		current->memcg_oom.wait_on_memcg = memcg;
+ 	}
++}
++
++/**
++ * mem_cgroup_oom_synchronize - complete memcg OOM handling
++ *
++ * This has to be called at the end of a page fault if the the memcg
++ * OOM handler was enabled and the fault is returning %VM_FAULT_OOM.
++ *
++ * Memcg supports userspace OOM handling, so failed allocations must
++ * sleep on a waitqueue until the userspace task resolves the
++ * situation.  Sleeping directly in the charge context with all kinds
++ * of locks held is not a good idea, instead we remember an OOM state
++ * in the task and mem_cgroup_oom_synchronize() has to be called at
++ * the end of the page fault to put the task to sleep and clean up the
++ * OOM state.
++ *
++ * Returns %true if an ongoing memcg OOM situation was detected and
++ * finalized, %false otherwise.
++ */
++bool mem_cgroup_oom_synchronize(void)
++{
++	struct oom_wait_info owait;
++	struct mem_cgroup *memcg;
++
++	/* OOM is global, do not handle */
++	if (!current->memcg_oom.in_memcg_oom)
++		return false;
++
++	/*
++	 * We invoked the OOM killer but there is a chance that a kill
++	 * did not free up any charges.  Everybody else might already
++	 * be sleeping, so restart the fault and keep the rampage
++	 * going until some charges are released.
++	 */
++	memcg = current->memcg_oom.wait_on_memcg;
++	if (!memcg)
++		goto out;
++
++	if (test_thread_flag(TIF_MEMDIE) || fatal_signal_pending(current))
++		goto out_memcg;
++
++	owait.memcg = memcg;
++	owait.wait.flags = 0;
++	owait.wait.func = memcg_oom_wake_function;
++	owait.wait.private = current;
++	INIT_LIST_HEAD(&owait.wait.task_list);
  
- 	if (test_thread_flag(TIF_MEMDIE) || fatal_signal_pending(current))
- 		return false;
+-	if (locked) {
++	prepare_to_wait(&memcg_oom_waitq, &owait.wait, TASK_KILLABLE);
++	/* Only sleep if we didn't miss any wakeups since OOM */
++	if (atomic_read(&memcg->oom_wakeups) == current->memcg_oom.wakeups)
++		schedule();
++	finish_wait(&memcg_oom_waitq, &owait.wait);
++out_memcg:
++	mem_cgroup_unmark_under_oom(memcg);
++	if (current->memcg_oom.oom_locked) {
+ 		mem_cgroup_oom_unlock(memcg);
+ 		/*
+ 		 * There is no guarantee that an OOM-lock contender
+@@ -2243,11 +2319,10 @@ static bool mem_cgroup_handle_oom(struct mem_cgroup *memcg, gfp_t mask,
+ 		 */
+ 		memcg_oom_recover(memcg);
+ 	}
+-
+-	if (test_thread_flag(TIF_MEMDIE) || fatal_signal_pending(current))
+-		return false;
+-	/* Give chance to dying process */
+-	schedule_timeout_uninterruptible(1);
++	css_put(&memcg->css);
++	current->memcg_oom.wait_on_memcg = NULL;
++out:
++	current->memcg_oom.in_memcg_oom = 0;
+ 	return true;
+ }
+ 
+@@ -2560,12 +2635,11 @@ enum {
+ 	CHARGE_RETRY,		/* need to retry but retry is not bad */
+ 	CHARGE_NOMEM,		/* we can't do more. return -ENOMEM */
+ 	CHARGE_WOULDBLOCK,	/* GFP_WAIT wasn't set and no enough res. */
+-	CHARGE_OOM_DIE,		/* the current is killed because of OOM */
+ };
+ 
+ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 				unsigned int nr_pages, unsigned int min_pages,
+-				bool oom_check)
++				bool invoke_oom)
+ {
+ 	unsigned long csize = nr_pages * PAGE_SIZE;
+ 	struct mem_cgroup *mem_over_limit;
+@@ -2622,14 +2696,10 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	if (mem_cgroup_wait_acct_move(mem_over_limit))
+ 		return CHARGE_RETRY;
+ 
+-	/* If we don't need to call oom-killer at el, return immediately */
+-	if (!oom_check || !current->memcg_oom.may_oom)
+-		return CHARGE_NOMEM;
+-	/* check OOM */
+-	if (!mem_cgroup_handle_oom(mem_over_limit, gfp_mask, get_order(csize)))
+-		return CHARGE_OOM_DIE;
++	if (invoke_oom)
++		mem_cgroup_oom(mem_over_limit, gfp_mask, get_order(csize));
+ 
+-	return CHARGE_RETRY;
++	return CHARGE_NOMEM;
+ }
+ 
+ /*
+@@ -2732,7 +2802,7 @@ again:
+ 	}
+ 
+ 	do {
+-		bool oom_check;
++		bool invoke_oom = oom && !nr_oom_retries;
+ 
+ 		/* If killed, bypass charge */
+ 		if (fatal_signal_pending(current)) {
+@@ -2740,14 +2810,8 @@ again:
+ 			goto bypass;
+ 		}
+ 
+-		oom_check = false;
+-		if (oom && !nr_oom_retries) {
+-			oom_check = true;
+-			nr_oom_retries = MEM_CGROUP_RECLAIM_RETRIES;
+-		}
+-
+-		ret = mem_cgroup_do_charge(memcg, gfp_mask, batch, nr_pages,
+-		    oom_check);
++		ret = mem_cgroup_do_charge(memcg, gfp_mask, batch,
++					   nr_pages, invoke_oom);
+ 		switch (ret) {
+ 		case CHARGE_OK:
+ 			break;
+@@ -2760,16 +2824,12 @@ again:
+ 			css_put(&memcg->css);
+ 			goto nomem;
+ 		case CHARGE_NOMEM: /* OOM routine works */
+-			if (!oom) {
++			if (!oom || invoke_oom) {
+ 				css_put(&memcg->css);
+ 				goto nomem;
+ 			}
+-			/* If oom, we never return -ENOMEM */
+ 			nr_oom_retries--;
+ 			break;
+-		case CHARGE_OOM_DIE: /* Killed by OOM Killer */
+-			css_put(&memcg->css);
+-			goto bypass;
+ 		}
+ 	} while (ret != CHARGE_OK);
+ 
+diff --git a/mm/memory.c b/mm/memory.c
+index 58ef726..91da6fb 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3868,6 +3868,9 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	if (flags & FAULT_FLAG_USER)
+ 		mem_cgroup_disable_oom();
+ 
++	if (WARN_ON(task_in_memcg_oom(current) && !(ret & VM_FAULT_OOM)))
++		mem_cgroup_oom_synchronize();
++
+ 	return ret;
+ }
+ 
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 98e75f2..314e9d2 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -678,9 +678,12 @@ out:
+  */
+ void pagefault_out_of_memory(void)
+ {
+-	struct zonelist *zonelist = node_zonelist(first_online_node,
+-						  GFP_KERNEL);
++	struct zonelist *zonelist;
+ 
++	if (mem_cgroup_oom_synchronize())
++		return;
++
++	zonelist = node_zonelist(first_online_node, GFP_KERNEL);
+ 	if (try_set_zonelist_oom(zonelist, GFP_KERNEL)) {
+ 		out_of_memory(NULL, 0, 0, NULL, false);
+ 		clear_zonelist_oom(zonelist, GFP_KERNEL);
 -- 
 1.8.3.2
 
