@@ -1,46 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id A2F756B0031
-	for <linux-mm@kvack.org>; Sat,  3 Aug 2013 16:17:06 -0400 (EDT)
-Message-ID: <51FD653A.3060004@jp.fujitsu.com>
-Date: Sat, 03 Aug 2013 16:16:58 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id B8CEC6B0031
+	for <linux-mm@kvack.org>; Sat,  3 Aug 2013 17:22:08 -0400 (EDT)
+Received: by mail-qa0-f52.google.com with SMTP id bq6so305563qab.4
+        for <linux-mm@kvack.org>; Sat, 03 Aug 2013 14:22:07 -0700 (PDT)
+Message-ID: <51FD7483.5060504@gmail.com>
+Date: Sat, 03 Aug 2013 17:22:11 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH resend] drop_caches: add some documentation and info message
-References: <1374842669-22844-1-git-send-email-mhocko@suse.cz> <20130729135743.c04224fb5d8e64b2730d8263@linux-foundation.org> <51F9D1F6.4080001@jp.fujitsu.com> <20130731201708.efa5ae87.akpm@linux-foundation.org> <CAHGf_=r7mek+ueJWfu_6giMOueDTnMs8dY1jJrKyX+gfPys6uA@mail.gmail.com> <20130802073304.GA17746@dhcp22.suse.cz>
-In-Reply-To: <20130802073304.GA17746@dhcp22.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: Possible deadloop in direct reclaim?
+References: <89813612683626448B837EE5A0B6A7CB3B62F8F272@SC-VEXCH4.marvell.com> <000001400d38469d-a121fb96-4483-483a-9d3e-fc552e413892-000000@email.amazonses.com> <89813612683626448B837EE5A0B6A7CB3B62F8F5C3@SC-VEXCH4.marvell.com> <CAHGf_=q8JZQ42R-3yzie7DXUEq8kU+TZXgcX9s=dn8nVigXv8g@mail.gmail.com> <89813612683626448B837EE5A0B6A7CB3B62F8FE33@SC-VEXCH4.marvell.com> <51F69BD7.2060407@gmail.com> <89813612683626448B837EE5A0B6A7CB3B630BDF99@SC-VEXCH4.marvell.com> <51F9CBC0.2020006@gmail.com> <51F9E265.7030503@oracle.com>
+In-Reply-To: <51F9E265.7030503@oracle.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.cz
-Cc: kosaki.motohiro@jp.fujitsu.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, kamezawa.hiroyu@jp.fujitsu.com, bp@suse.de, dave@linux.vnet.ibm.com
+To: Bob Liu <bob.liu@oracle.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Lisa Du <cldu@marvell.com>, Christoph Lameter <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Bob Liu <lliubbo@gmail.com>
 
->>> You missed the "!".  I'm proposing that setting the new bit 2 will
->>> permit people to prevent the new printk if it is causing them problems.
+(8/1/13 12:21 AM), Bob Liu wrote:
+> Hi KOSAKI,
+>
+> On 08/01/2013 10:45 AM, KOSAKI Motohiro wrote:
+>
 >>
->> No I don't. I'm sure almost all abuse users think our usage is correct. Then,
->> I can imagine all crazy applications start to use this flag eventually.
-> 
-> I guess we do not care about those. If somebody wants to shoot his feet
-> then we cannot do much about it. The primary motivation was to find out
-> those that think this is right and they are willing to change the setup
-> once they know this is not the right way to do things.
-> 
-> I think that giving a way to suppress the warning is a good step. Log
-> level might be to coarse and sysctl would be an overkill.
+>> Please read more older code. Your pointed code is temporary change and I
+>> changed back for fixing
+>> bugs.
+>> If you look at the status in middle direct reclaim, we can't avoid race
+>> condition from multi direct
+>> reclaim issues. Moreover, if kswapd doesn't awaken, it is a problem.
+>> This is a reason why current code
+>> behave as you described.
+>> I agree we should fix your issue as far as possible. But I can't agree
+>> your analysis.
+>>
+>
+> I found this thread:
+> mm, vmscan: fix do_try_to_free_pages() livelock
+> https://lkml.org/lkml/2012/6/14/74
+>
+> I think that's the same issue Lisa met.
+>
+> But I didn't find out why your patch didn't get merged?
+> There were already many acks.
 
-When Dave Hansen reported this issue originally, he explained a lot of userland
-developer misuse /proc/drop_caches because they don't understand what
-drop_caches do.
-So, if they never understand the fact, why can we trust them? I have no
-idea.
-Or, if you have different motivation w/ Dave, please let me know it.
-
-While the purpose is to shoot misuse, I don't think we can trust userland app.
-If "If somebody wants to shoot his feet then we cannot do much about it." is true,
-this patch is useless. OK, we still catch the right user. But we never want to know
-who is the right users, right?
+Just because I misunderstood the patch has already been merged. OK, I'll
+resend this.
 
 
 --
