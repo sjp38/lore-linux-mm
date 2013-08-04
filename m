@@ -1,51 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 969546B0031
-	for <linux-mm@kvack.org>; Sat,  3 Aug 2013 19:54:59 -0400 (EDT)
-Received: by mail-oa0-f41.google.com with SMTP id j6so3930024oag.28
-        for <linux-mm@kvack.org>; Sat, 03 Aug 2013 16:54:58 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20130801083608.GJ221@brightrain.aerifal.cx>
-References: <CAMbhsRQU=xrcum+ZUbG3S+JfFUJK_qm_VB96Vz=PpL=vQYhUvg@mail.gmail.com>
- <20130622103158.GA16304@infradead.org> <CAMbhsRTz246dWPQOburNor2HvrgbN-AWb2jT_AEywtJHFbKWsA@mail.gmail.com>
- <20130801082951.GA23563@infradead.org> <20130801083608.GJ221@brightrain.aerifal.cx>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Sat, 3 Aug 2013 19:54:38 -0400
-Message-ID: <CAHGf_=pY=ap-T3R0bK4675THvGikzH1KpMbEz3==_EwPBkebRQ@mail.gmail.com>
-Subject: Re: RFC: named anonymous vmas
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 839A56B0031
+	for <linux-mm@kvack.org>; Sat,  3 Aug 2013 22:14:26 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH 02/23] memcg, thp: charge huge cache pages
+Date: Sun,  4 Aug 2013 05:17:04 +0300
+Message-Id: <1375582645-29274-3-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1375582645-29274-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1375582645-29274-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rich Felker <dalias@aerifal.cx>
-Cc: Christoph Hellwig <hch@infradead.org>, Colin Cross <ccross@google.com>, lkml <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Android Kernel Team <kernel-team@android.com>, John Stultz <john.stultz@linaro.org>, libc-alpha <libc-alpha@sourceware.org>
+To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Ning Qu <quning@google.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Thu, Aug 1, 2013 at 4:36 AM, Rich Felker <dalias@aerifal.cx> wrote:
-> On Thu, Aug 01, 2013 at 01:29:51AM -0700, Christoph Hellwig wrote:
->> Btw, FreeBSD has an extension to shm_open to create unnamed but fd
->> passable segments.  From their man page:
->>
->>     As a FreeBSD extension, the constant SHM_ANON may be used for the path
->>     argument to shm_open().  In this case, an anonymous, unnamed shared
->>     memory object is created.  Since the object has no name, it cannot be
->>     removed via a subsequent call to shm_unlink().  Instead, the shared
->>     memory object will be garbage collected when the last reference to the
->>     shared memory object is removed.  The shared memory object may be shared
->>     with other processes by sharing the file descriptor via fork(2) or
->>     sendmsg(2).  Attempting to open an anonymous shared memory object with
->>     O_RDONLY will fail with EINVAL. All other flags are ignored.
->>
->> To me this sounds like the best way to expose this functionality to the
->> user.  Implementing it is another question as shm_open sits in libc,
->> we could either take it and shm_unlink to the kernel, or use O_TMPFILE
->> on tmpfs as the backend.
->
-> I'm not sure what the purpose is. shm_open with a long random filename
-> and O_EXCL|O_CREAT, followed immediately by shm_unlink, is just as
-> good except in the case where you have a malicious user killing the
-> process in between these two operations.
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Practically, filename length is restricted by NAME_MAX(255bytes). Several
-people don't think it is enough long length. The point is, race free API.
+mem_cgroup_cache_charge() has check for PageCompound(). The check
+prevents charging huge cache pages.
+
+I don't see a reason why the check is present. Looks like it's just
+legacy (introduced in 52d4b9a memcg: allocate all page_cgroup at boot).
+
+Let's just drop it.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Acked-by: Dave Hansen <dave.hansen@linux.intel.com>
+---
+ mm/memcontrol.c | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index b6cd870..dc50c1a 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3921,8 +3921,6 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+ 
+ 	if (mem_cgroup_disabled())
+ 		return 0;
+-	if (PageCompound(page))
+-		return 0;
+ 
+ 	if (!PageSwapCache(page))
+ 		ret = mem_cgroup_charge_common(page, mm, gfp_mask, type);
+-- 
+1.8.3.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
