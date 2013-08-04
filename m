@@ -1,46 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id A07D26B006E
-	for <linux-mm@kvack.org>; Sat,  3 Aug 2013 22:14:37 -0400 (EDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 22/23] thp, mm: split huge page on mmap file page
-Date: Sun,  4 Aug 2013 05:17:24 +0300
-Message-Id: <1375582645-29274-23-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1375582645-29274-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1375582645-29274-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 834BB6B0031
+	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 01:10:06 -0400 (EDT)
+Received: by mail-oa0-f47.google.com with SMTP id g12so4108100oah.34
+        for <linux-mm@kvack.org>; Sat, 03 Aug 2013 22:10:05 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <87siytwfl0.fsf@linux.vnet.ibm.com>
+References: <1375075929-6119-1-git-send-email-iamjoonsoo.kim@lge.com>
+	<1375075929-6119-2-git-send-email-iamjoonsoo.kim@lge.com>
+	<CAJd=RBCUJg5GJEQ2_heCt8S9LZzedGLbvYvivFkmvfMChPqaCg@mail.gmail.com>
+	<20130731022751.GA2548@lge.com>
+	<CAJd=RBD=SNm9TG-kxKcd-BiMduOhLUubq=JpRwCy_MmiDtO9Tw@mail.gmail.com>
+	<20130731044101.GE2548@lge.com>
+	<CAJd=RBDr72T+O+aNdb-HyB3U+k5JiVWMoXfPNA0y-Hxw-wDD-g@mail.gmail.com>
+	<20130731063740.GA4212@lge.com>
+	<CAJd=RBCj_wAHjv10FhhX+Fzx8p4ybeGykEfvqF=jZaok3s+j9w@mail.gmail.com>
+	<87siytwfl0.fsf@linux.vnet.ibm.com>
+Date: Sun, 4 Aug 2013 13:10:05 +0800
+Message-ID: <CAJd=RBBUVt5GJbjow=Rocqkqjm92MS7Jf9RfzDYPf05sQd2PZA@mail.gmail.com>
+Subject: Re: [PATCH 01/18] mm, hugetlb: protect reserved pages when
+ softofflining requests the pages
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Ning Qu <quning@google.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+On Fri, Aug 2, 2013 at 12:17 AM, Aneesh Kumar K.V
+<aneesh.kumar@linux.vnet.ibm.com> wrote:
+> Hillf Danton <dhillf@gmail.com> writes:
+>
+>> On Wed, Jul 31, 2013 at 2:37 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+>>> On Wed, Jul 31, 2013 at 02:21:38PM +0800, Hillf Danton wrote:
+>>>> On Wed, Jul 31, 2013 at 12:41 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+>>>> > On Wed, Jul 31, 2013 at 10:49:24AM +0800, Hillf Danton wrote:
+>>>> >> On Wed, Jul 31, 2013 at 10:27 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+>>>> >> > On Mon, Jul 29, 2013 at 03:24:46PM +0800, Hillf Danton wrote:
+>>>> >> >> On Mon, Jul 29, 2013 at 1:31 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+>>>> >> >> > alloc_huge_page_node() use dequeue_huge_page_node() without
+>>>> >> >> > any validation check, so it can steal reserved page unconditionally.
+>>>> >> >>
+>>>> >> >> Well, why is it illegal to use reserved page here?
+>>>> >> >
+>>>> >> > If we use reserved page here, other processes which are promised to use
+>>>> >> > enough hugepages cannot get enough hugepages and can die. This is
+>>>> >> > unexpected result to them.
+>>>> >> >
+>>>> >> But, how do you determine that a huge page is requested by a process
+>>>> >> that is not allowed to use reserved pages?
+>>>> >
+>>>> > Reserved page is just one for each address or file offset. If we need to
+>>>> > move this page, this means that it already use it's own reserved page, this
+>>>> > page is it. So we should not use other reserved page for moving this page.
+>>>> >
+>>>> Hm, how do you determine "this page" is not buddy?
+>>>
+>>> If this page comes from the buddy, it doesn't matter. It imply that
+>>> this mapping cannot use reserved page pool, because we always allocate
+>>> a page from reserved page pool first.
+>>>
+>> A buddy page also implies, if the mapping can use reserved pages, that no
+>> reserved page was available when requested. Now we can try reserved
+>> page again.
+>
+> I didn't quiet get that. My understanding is, the new page we are
 
-We are not ready to mmap file-backed tranparent huge pages. Let's split
-them on fault attempt.
+Neither did I ;)
 
-Later we'll implement mmap() properly and this code path be used for
-fallback cases.
-
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- mm/filemap.c | 2 ++
- 1 file changed, 2 insertions(+)
-
-diff --git a/mm/filemap.c b/mm/filemap.c
-index ed65af5..f7857ef 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1743,6 +1743,8 @@ retry_find:
- 			goto no_cached_page;
- 	}
- 
-+	if (PageTransCompound(page))
-+		split_huge_page(compound_trans_head(page));
- 	if (!lock_page_or_retry(page, vma->vm_mm, vmf->flags)) {
- 		page_cache_release(page);
- 		return ret | VM_FAULT_RETRY;
--- 
-1.8.3.2
+> allocating here for soft offline should not be allocated from the
+> reserve pool. If we do that we may possibly have allocation failure
+> later for a request that had done page reservation. Now to
+> avoid that we make sure we have enough free pages outside reserve pool
+> so that we can dequeue the huge page. If not we use buddy to allocate
+> the hugepage.
+>
+What if it is a mapping with HPAGE_RESV_OWNER set?
+Or can we block owner from using any page available here?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
