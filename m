@@ -1,49 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 839A56B0031
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id C28D26B0034
 	for <linux-mm@kvack.org>; Sat,  3 Aug 2013 22:14:26 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 02/23] memcg, thp: charge huge cache pages
-Date: Sun,  4 Aug 2013 05:17:04 +0300
-Message-Id: <1375582645-29274-3-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 04/23] thp, mm: introduce mapping_can_have_hugepages() predicate
+Date: Sun,  4 Aug 2013 05:17:06 +0300
+Message-Id: <1375582645-29274-5-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1375582645-29274-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1375582645-29274-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Ning Qu <quning@google.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Ning Qu <quning@google.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-mem_cgroup_cache_charge() has check for PageCompound(). The check
-prevents charging huge cache pages.
-
-I don't see a reason why the check is present. Looks like it's just
-legacy (introduced in 52d4b9a memcg: allocate all page_cgroup at boot).
-
-Let's just drop it.
+Returns true if mapping can have huge pages. Just check for __GFP_COMP
+in gfp mask of the mapping for now.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Acked-by: Dave Hansen <dave.hansen@linux.intel.com>
 ---
- mm/memcontrol.c | 2 --
- 1 file changed, 2 deletions(-)
+ include/linux/pagemap.h | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index b6cd870..dc50c1a 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3921,8 +3921,6 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index e8ca8cf..47b5082 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -84,6 +84,20 @@ static inline void mapping_set_gfp_mask(struct address_space *m, gfp_t mask)
+ 				(__force unsigned long)mask;
+ }
  
- 	if (mem_cgroup_disabled())
- 		return 0;
--	if (PageCompound(page))
--		return 0;
- 
- 	if (!PageSwapCache(page))
- 		ret = mem_cgroup_charge_common(page, mm, gfp_mask, type);
++static inline bool mapping_can_have_hugepages(struct address_space *m)
++{
++	gfp_t gfp_mask = mapping_gfp_mask(m);
++
++	if (!transparent_hugepage_pagecache())
++		return false;
++
++	/*
++	 * It's up to filesystem what gfp mask to use.
++	 * The only part of GFP_TRANSHUGE which matters for us is __GFP_COMP.
++	 */
++	return !!(gfp_mask & __GFP_COMP);
++}
++
+ /*
+  * The page cache can done in larger chunks than
+  * one page, because it allows for more efficient
 -- 
 1.8.3.2
 
