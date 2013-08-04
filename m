@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id D26E36B003C
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 0F0516B0038
 	for <linux-mm@kvack.org>; Sat,  3 Aug 2013 22:14:31 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 09/23] thp, mm: rewrite delete_from_page_cache() to support huge pages
-Date: Sun,  4 Aug 2013 05:17:11 +0300
-Message-Id: <1375582645-29274-10-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 13/23] thp, mm: allocate huge pages in grab_cache_page_write_begin()
+Date: Sun,  4 Aug 2013 05:17:15 +0300
+Message-Id: <1375582645-29274-14-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1375582645-29274-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1375582645-29274-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,63 +15,75 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-As with add_to_page_cache_locked() we handle HPAGE_CACHE_NR pages a
-time.
+Try to allocate huge page if flags has AOP_FLAG_TRANSHUGE.
+
+If, for some reason, it's not possible allocate a huge page at this
+possition, it returns NULL. Caller should take care of fallback to
+small pages.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/filemap.c | 21 +++++++++++++++------
- 1 file changed, 15 insertions(+), 6 deletions(-)
+ include/linux/fs.h |  1 +
+ mm/filemap.c       | 24 ++++++++++++++++++++++--
+ 2 files changed, 23 insertions(+), 2 deletions(-)
 
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index b09ddc0..d5f58b3 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -282,6 +282,7 @@ enum positive_aop_returns {
+ #define AOP_FLAG_NOFS			0x0004 /* used by filesystem to direct
+ 						* helper code (eg buffer layer)
+ 						* to clear GFP_FS from alloc */
++#define AOP_FLAG_TRANSHUGE		0x0008 /* allocate transhuge page */
+ 
+ /*
+  * oh the beauties of C type declarations.
 diff --git a/mm/filemap.c b/mm/filemap.c
-index 619e6cb..b75bdf5 100644
+index 28f4927..b17ebb9 100644
 --- a/mm/filemap.c
 +++ b/mm/filemap.c
-@@ -115,6 +115,7 @@
- void __delete_from_page_cache(struct page *page)
- {
- 	struct address_space *mapping = page->mapping;
-+	int i, nr;
- 
- 	trace_mm_filemap_delete_from_page_cache(page);
- 	/*
-@@ -127,13 +128,21 @@ void __delete_from_page_cache(struct page *page)
- 	else
- 		cleancache_invalidate_page(mapping, page);
- 
--	radix_tree_delete(&mapping->page_tree, page->index);
-+	nr = hpagecache_nr_pages(page);
-+	for (i = 0; i < nr; i++) {
-+		page[i].mapping = NULL;
-+		radix_tree_delete(&mapping->page_tree, page->index + i);
-+	}
-+	/* thp */
-+	if (nr > 1)
-+		__dec_zone_page_state(page, NR_FILE_TRANSPARENT_HUGEPAGES);
+@@ -2313,18 +2313,38 @@ struct page *grab_cache_page_write_begin(struct address_space *mapping,
+ 	gfp_t gfp_mask;
+ 	struct page *page;
+ 	gfp_t gfp_notmask = 0;
++	bool must_use_thp = (flags & AOP_FLAG_TRANSHUGE) &&
++		IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE);
 +
- 	page->mapping = NULL;
- 	/* Leave page->index set: truncation lookup relies upon it */
--	mapping->nrpages--;
--	__dec_zone_page_state(page, NR_FILE_PAGES);
-+	mapping->nrpages -= nr;
-+	__mod_zone_page_state(page_zone(page), NR_FILE_PAGES, -nr);
- 	if (PageSwapBacked(page))
--		__dec_zone_page_state(page, NR_SHMEM);
-+		__mod_zone_page_state(page_zone(page), NR_SHMEM, -nr);
- 	BUG_ON(page_mapped(page));
  
- 	/*
-@@ -144,8 +153,8 @@ void __delete_from_page_cache(struct page *page)
- 	 * having removed the page entirely.
- 	 */
- 	if (PageDirty(page) && mapping_cap_account_dirty(mapping)) {
--		dec_zone_page_state(page, NR_FILE_DIRTY);
--		dec_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
-+		mod_zone_page_state(page_zone(page), NR_FILE_DIRTY, -nr);
-+		add_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE, -nr);
- 	}
- }
+ 	gfp_mask = mapping_gfp_mask(mapping);
++	if (must_use_thp) {
++		BUG_ON(index & HPAGE_CACHE_INDEX_MASK);
++		BUG_ON(!(gfp_mask & __GFP_COMP));
++	}
+ 	if (mapping_cap_account_dirty(mapping))
+ 		gfp_mask |= __GFP_WRITE;
+ 	if (flags & AOP_FLAG_NOFS)
+ 		gfp_notmask = __GFP_FS;
+ repeat:
+ 	page = find_lock_page(mapping, index);
+-	if (page)
++	if (page) {
++		if (must_use_thp && !PageTransHuge(page)) {
++			unlock_page(page);
++			page_cache_release(page);
++			return NULL;
++		}
+ 		goto found;
++	}
  
+-	page = __page_cache_alloc(gfp_mask & ~gfp_notmask);
++	if (must_use_thp) {
++		page = alloc_pages(gfp_mask & ~gfp_notmask, HPAGE_PMD_ORDER);
++		if (page)
++			count_vm_event(THP_WRITE_ALLOC);
++		else
++			count_vm_event(THP_WRITE_ALLOC_FAILED);
++	} else
++		page = __page_cache_alloc(gfp_mask & ~gfp_notmask);
+ 	if (!page)
+ 		return NULL;
+ 	status = add_to_page_cache_lru(page, mapping, index,
 -- 
 1.8.3.2
 
