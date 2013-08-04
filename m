@@ -1,76 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 663446B0031
-	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 04:07:55 -0400 (EDT)
-Received: by mail-ea0-f169.google.com with SMTP id z7so1037512eaf.14
-        for <linux-mm@kvack.org>; Sun, 04 Aug 2013 01:07:53 -0700 (PDT)
-Date: Sun, 4 Aug 2013 10:07:51 +0200
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 95DED6B0031
+	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 04:09:58 -0400 (EDT)
+Received: by mail-ee0-f46.google.com with SMTP id c13so1037400eek.5
+        for <linux-mm@kvack.org>; Sun, 04 Aug 2013 01:09:56 -0700 (PDT)
+Date: Sun, 4 Aug 2013 10:09:54 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH resend] drop_caches: add some documentation and info
- message
-Message-ID: <20130804080751.GA24005@dhcp22.suse.cz>
-References: <1374842669-22844-1-git-send-email-mhocko@suse.cz>
- <20130729135743.c04224fb5d8e64b2730d8263@linux-foundation.org>
- <51F9D1F6.4080001@jp.fujitsu.com>
- <20130731201708.efa5ae87.akpm@linux-foundation.org>
- <CAHGf_=r7mek+ueJWfu_6giMOueDTnMs8dY1jJrKyX+gfPys6uA@mail.gmail.com>
- <20130802073304.GA17746@dhcp22.suse.cz>
- <51FD653A.3060004@jp.fujitsu.com>
+Subject: Re: [PATCH] MM: Make Contiguous Memory Allocator depends on MMU
+Message-ID: <20130804080954.GB24005@dhcp22.suse.cz>
+References: <1375593061-11350-1-git-send-email-manjunath.goudar@linaro.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <51FD653A.3060004@jp.fujitsu.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1375593061-11350-1-git-send-email-manjunath.goudar@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, kamezawa.hiroyu@jp.fujitsu.com, bp@suse.de, dave@linux.vnet.ibm.com
+To: Manjunath Goudar <manjunath.goudar@linaro.org>
+Cc: linux-arm-kernel@lists.infradead.org, patches@linaro.org, arnd@linaro.org, dsaxena@linaro.org, linaro-kernel@lists.linaro.org, IWAMOTO Toshihiro <iwamoto@valinux.co.jp>, Hirokazu Takahashi <taka@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Sat 03-08-13 16:16:58, KOSAKI Motohiro wrote:
-> >>> You missed the "!".  I'm proposing that setting the new bit 2 will
-> >>> permit people to prevent the new printk if it is causing them problems.
-> >>
-> >> No I don't. I'm sure almost all abuse users think our usage is correct. Then,
-> >> I can imagine all crazy applications start to use this flag eventually.
-> > 
-> > I guess we do not care about those. If somebody wants to shoot his feet
-> > then we cannot do much about it. The primary motivation was to find out
-> > those that think this is right and they are willing to change the setup
-> > once they know this is not the right way to do things.
-> > 
-> > I think that giving a way to suppress the warning is a good step. Log
-> > level might be to coarse and sysctl would be an overkill.
+On Sun 04-08-13 10:41:01, Manjunath Goudar wrote:
+> s patch adds a Kconfig dependency on an MMU being available before
+> CMA can be enabled.  Without this patch, CMA can be enabled on an
+> MMU-less system which can lead to issues. This was discovered during
+> randconfig testing, in which CMA was enabled w/o MMU being enabled,
+> leading to the following error:
 > 
-> When Dave Hansen reported this issue originally, he explained a lot of userland
-> developer misuse /proc/drop_caches because they don't understand what
-> drop_caches do.
-> So, if they never understand the fact, why can we trust them? I have no
-> idea.
+>  CC      mm/migrate.o
+> mm/migrate.c: In function a??remove_migration_ptea??:
+> mm/migrate.c:134:3: error: implicit declaration of function a??pmd_trans_hugea??
+> [-Werror=implicit-function-declaration]
+>    if (pmd_trans_huge(*pmd))
+>    ^
+> mm/migrate.c:137:3: error: implicit declaration of function a??pte_offset_mapa??
+> [-Werror=implicit-function-declaration]
+>    ptep = pte_offset_map(pmd, addr);
 
-Well, most of that usage I have come across was legacy scripts which
-happened to work at a certain point in time because we sucked.
-Thinks have changed but such scripts happen to survive a long time.
-We are primarily interested in those.
+This is a migration code but you are updating configuration for CMA
+which doesn't make much sense to me.
+I guess you wanted to disable migration for CMA instead?
 
-> Or, if you have different motivation w/ Dave, please let me know it.
+> Signed-off-by: Manjunath Goudar <manjunath.goudar@linaro.org>
+> Acked-by: Arnd Bergmann <arnd@linaro.org>
+> Cc: Deepak Saxena <dsaxena@linaro.org>
+> Cc: IWAMOTO Toshihiro <iwamoto@valinux.co.jp>
+> Cc: Hirokazu Takahashi <taka@valinux.co.jp>
+> Cc: Dave Hansen <haveblue@us.ibm.com>
+> Cc: linux-mm@kvack.org
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Balbir Singh <bsingharora@gmail.com>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  mm/Kconfig |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index 256bfd0..ad6b98e 100644
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -522,7 +522,7 @@ config MEM_SOFT_DIRTY
+>  
+>  config CMA
+>  	bool "Contiguous Memory Allocator"
+> -	depends on HAVE_MEMBLOCK
+> +	depends on MMU && HAVE_MEMBLOCK
+>  	select MIGRATION
+>  	select MEMORY_ISOLATION
+>  	help
+> -- 
+> 1.7.9.5
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-We have seen reports where users complained about performance drop down
-when in fact the real culprit turned out to be such a clever script
-which dropped caches on the background thinking it will help to free
-some memory. Such cases are tedious to reveal.
-
-> While the purpose is to shoot misuse, I don't think we can trust
-> userland app.  If "If somebody wants to shoot his feet then we cannot
-> do much about it." is true, this patch is useless. OK, we still catch
-> the right user.
-
-I do not think it is useless. It will print a message for all those
-users initially. It is a matter of user how to deal with it.
-
-> But we never want to know who is the right users, right?
-
-Well, those that are curious about a new message in the lock and come
-back to us asking what is going on are those we are primarily interested
-in.
 -- 
 Michal Hocko
 SUSE Labs
