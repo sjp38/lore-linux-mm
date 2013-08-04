@@ -1,103 +1,62 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Subject: Re: [PATCH] MM: Make Contiguous Memory Allocator depends on MMU
 Date: Sun, 4 Aug 2013 15:54:34 +0800
-Message-ID: <7202.9001814828$1375602895@news.gmane.org>
+Message-ID: <30323.4191415415$1375602955@news.gmane.org>
 References: <1375593061-11350-1-git-send-email-manjunath.goudar@linaro.org>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Return-path: <owner-linux-mm@kvack.org>
-Received: from kanga.kvack.org ([205.233.56.17])
-	by plane.gmane.org with esmtp (Exim 4.69)
-	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1V5t9K-0002ln-Nb
-	for glkm-linux-mm-2@m.gmane.org; Sun, 04 Aug 2013 09:54:46 +0200
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 4BDD96B0031
-	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 03:54:44 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Sun, 4 Aug 2013 13:18:39 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id E4319E0053
-	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 13:24:48 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r747tlhu36896798
-	for <linux-mm@kvack.org>; Sun, 4 Aug 2013 13:25:47 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r747sa0Z029185
-	for <linux-mm@kvack.org>; Sun, 4 Aug 2013 17:54:36 +1000
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
+Return-path: <linux-arm-kernel-bounces+linux-arm-kernel=m.gmane.org@lists.infradead.org>
 Content-Disposition: inline
 In-Reply-To: <1375593061-11350-1-git-send-email-manjunath.goudar@linaro.org>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-Cc: linux-arm-kernel@lists.infradead.org, patches@linaro.org, arnd@linaro.org, dsaxena@linaro.org, manjunath.goudar@linaro.org, linaro-kernel@lists.linaro.org, IWAMOTO Toshihiro <iwamoto@valinux.co.jp>, Hirokazu Takahashi <taka@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+List-Unsubscribe: <http://lists.infradead.org/mailman/options/linux-arm-kernel>,
+ <mailto:linux-arm-kernel-request@lists.infradead.org?subject=unsubscribe>
+List-Archive: <http://lists.infradead.org/pipermail/linux-arm-kernel/>
+List-Post: <mailto:linux-arm-kernel@lists.infradead.org>
+List-Help: <mailto:linux-arm-kernel-request@lists.infradead.org?subject=help>
+List-Subscribe: <http://lists.infradead.org/mailman/listinfo/linux-arm-kernel>,
+ <mailto:linux-arm-kernel-request@lists.infradead.org?subject=subscribe>
+Sender: "linux-arm-kernel" <linux-arm-kernel-bounces@lists.infradead.org>
+Errors-To: linux-arm-kernel-bounces+linux-arm-kernel=m.gmane.org@lists.infradead.org
+Cc: Michal Hocko <mhocko@suse.cz>, linaro-kernel@lists.linaro.org, IWAMOTO Toshihiro <iwamoto@valinux.co.jp>, patches@linaro.org, manjunath.goudar@linaro.org, Dave Hansen <haveblue@us.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Hirokazu Takahashi <taka@valinux.co.jp>, linux-mm@kvack.org, dsaxena@linaro.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, arnd@linaro.org, linux-arm-kernel@lists.infradead.org
+List-Id: linux-mm.kvack.org
 
-On Sun, Aug 04, 2013 at 10:41:01AM +0530, Manjunath Goudar wrote:
->s patch adds a Kconfig dependency on an MMU being available before
->CMA can be enabled.  Without this patch, CMA can be enabled on an
->MMU-less system which can lead to issues. This was discovered during
->randconfig testing, in which CMA was enabled w/o MMU being enabled,
->leading to the following error:
->
-> CC      mm/migrate.o
->mm/migrate.c: In function =E2=80=98remove_migration_pte=E2=80=99:
->mm/migrate.c:134:3: error: implicit declaration of function =E2=80=98pmd=
-_trans_huge=E2=80=99
->[-Werror=3Dimplicit-function-declaration]
->   if (pmd_trans_huge(*pmd))
->   ^
->mm/migrate.c:137:3: error: implicit declaration of function =E2=80=98pte=
-_offset_map=E2=80=99
->[-Werror=3Dimplicit-function-declaration]
->   ptep =3D pte_offset_map(pmd, addr);
->
-
-Similar one.
-
-http://marc.info/?l=3Dlinux-mm&m=3D137532486405085&w=3D2
-
->Signed-off-by: Manjunath Goudar <manjunath.goudar@linaro.org>
->Acked-by: Arnd Bergmann <arnd@linaro.org>
->Cc: Deepak Saxena <dsaxena@linaro.org>
->Cc: IWAMOTO Toshihiro <iwamoto@valinux.co.jp>
->Cc: Hirokazu Takahashi <taka@valinux.co.jp>
->Cc: Dave Hansen <haveblue@us.ibm.com>
->Cc: linux-mm@kvack.org
->Cc: Johannes Weiner <hannes@cmpxchg.org>
->Cc: Michal Hocko <mhocko@suse.cz>
->Cc: Balbir Singh <bsingharora@gmail.com>
->Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->---
-> mm/Kconfig |    2 +-
-> 1 file changed, 1 insertion(+), 1 deletion(-)
->
->diff --git a/mm/Kconfig b/mm/Kconfig
->index 256bfd0..ad6b98e 100644
->--- a/mm/Kconfig
->+++ b/mm/Kconfig
->@@ -522,7 +522,7 @@ config MEM_SOFT_DIRTY
->
-> config CMA
-> 	bool "Contiguous Memory Allocator"
->-	depends on HAVE_MEMBLOCK
->+	depends on MMU && HAVE_MEMBLOCK
-> 	select MIGRATION
-> 	select MEMORY_ISOLATION
-> 	help
->--=20
->1.7.9.5
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+T24gU3VuLCBBdWcgMDQsIDIwMTMgYXQgMTA6NDE6MDFBTSArMDUzMCwgTWFuanVuYXRoIEdvdWRh
+ciB3cm90ZToKPnMgcGF0Y2ggYWRkcyBhIEtjb25maWcgZGVwZW5kZW5jeSBvbiBhbiBNTVUgYmVp
+bmcgYXZhaWxhYmxlIGJlZm9yZQo+Q01BIGNhbiBiZSBlbmFibGVkLiAgV2l0aG91dCB0aGlzIHBh
+dGNoLCBDTUEgY2FuIGJlIGVuYWJsZWQgb24gYW4KPk1NVS1sZXNzIHN5c3RlbSB3aGljaCBjYW4g
+bGVhZCB0byBpc3N1ZXMuIFRoaXMgd2FzIGRpc2NvdmVyZWQgZHVyaW5nCj5yYW5kY29uZmlnIHRl
+c3RpbmcsIGluIHdoaWNoIENNQSB3YXMgZW5hYmxlZCB3L28gTU1VIGJlaW5nIGVuYWJsZWQsCj5s
+ZWFkaW5nIHRvIHRoZSBmb2xsb3dpbmcgZXJyb3I6Cj4KPiBDQyAgICAgIG1tL21pZ3JhdGUubwo+
+bW0vbWlncmF0ZS5jOiBJbiBmdW5jdGlvbiDigJhyZW1vdmVfbWlncmF0aW9uX3B0ZeKAmToKPm1t
+L21pZ3JhdGUuYzoxMzQ6MzogZXJyb3I6IGltcGxpY2l0IGRlY2xhcmF0aW9uIG9mIGZ1bmN0aW9u
+IOKAmHBtZF90cmFuc19odWdl4oCZCj5bLVdlcnJvcj1pbXBsaWNpdC1mdW5jdGlvbi1kZWNsYXJh
+dGlvbl0KPiAgIGlmIChwbWRfdHJhbnNfaHVnZSgqcG1kKSkKPiAgIF4KPm1tL21pZ3JhdGUuYzox
+Mzc6MzogZXJyb3I6IGltcGxpY2l0IGRlY2xhcmF0aW9uIG9mIGZ1bmN0aW9uIOKAmHB0ZV9vZmZz
+ZXRfbWFw4oCZCj5bLVdlcnJvcj1pbXBsaWNpdC1mdW5jdGlvbi1kZWNsYXJhdGlvbl0KPiAgIHB0
+ZXAgPSBwdGVfb2Zmc2V0X21hcChwbWQsIGFkZHIpOwo+CgpTaW1pbGFyIG9uZS4KCmh0dHA6Ly9t
+YXJjLmluZm8vP2w9bGludXgtbW0mbT0xMzc1MzI0ODY0MDUwODUmdz0yCgo+U2lnbmVkLW9mZi1i
+eTogTWFuanVuYXRoIEdvdWRhciA8bWFuanVuYXRoLmdvdWRhckBsaW5hcm8ub3JnPgo+QWNrZWQt
+Ynk6IEFybmQgQmVyZ21hbm4gPGFybmRAbGluYXJvLm9yZz4KPkNjOiBEZWVwYWsgU2F4ZW5hIDxk
+c2F4ZW5hQGxpbmFyby5vcmc+Cj5DYzogSVdBTU9UTyBUb3NoaWhpcm8gPGl3YW1vdG9AdmFsaW51
+eC5jby5qcD4KPkNjOiBIaXJva2F6dSBUYWthaGFzaGkgPHRha2FAdmFsaW51eC5jby5qcD4KPkNj
+OiBEYXZlIEhhbnNlbiA8aGF2ZWJsdWVAdXMuaWJtLmNvbT4KPkNjOiBsaW51eC1tbUBrdmFjay5v
+cmcKPkNjOiBKb2hhbm5lcyBXZWluZXIgPGhhbm5lc0BjbXB4Y2hnLm9yZz4KPkNjOiBNaWNoYWwg
+SG9ja28gPG1ob2Nrb0BzdXNlLmN6Pgo+Q2M6IEJhbGJpciBTaW5naCA8YnNpbmdoYXJvcmFAZ21h
+aWwuY29tPgo+Q2M6IEtBTUVaQVdBIEhpcm95dWtpIDxrYW1lemF3YS5oaXJveXVAanAuZnVqaXRz
+dS5jb20+Cj4tLS0KPiBtbS9LY29uZmlnIHwgICAgMiArLQo+IDEgZmlsZSBjaGFuZ2VkLCAxIGlu
+c2VydGlvbigrKSwgMSBkZWxldGlvbigtKQo+Cj5kaWZmIC0tZ2l0IGEvbW0vS2NvbmZpZyBiL21t
+L0tjb25maWcKPmluZGV4IDI1NmJmZDAuLmFkNmI5OGUgMTAwNjQ0Cj4tLS0gYS9tbS9LY29uZmln
+Cj4rKysgYi9tbS9LY29uZmlnCj5AQCAtNTIyLDcgKzUyMiw3IEBAIGNvbmZpZyBNRU1fU09GVF9E
+SVJUWQo+Cj4gY29uZmlnIENNQQo+IAlib29sICJDb250aWd1b3VzIE1lbW9yeSBBbGxvY2F0b3Ii
+Cj4tCWRlcGVuZHMgb24gSEFWRV9NRU1CTE9DSwo+KwlkZXBlbmRzIG9uIE1NVSAmJiBIQVZFX01F
+TUJMT0NLCj4gCXNlbGVjdCBNSUdSQVRJT04KPiAJc2VsZWN0IE1FTU9SWV9JU09MQVRJT04KPiAJ
+aGVscAo+LS0gCj4xLjcuOS41Cj4KPi0tCj5UbyB1bnN1YnNjcmliZSwgc2VuZCBhIG1lc3NhZ2Ug
+d2l0aCAndW5zdWJzY3JpYmUgbGludXgtbW0nIGluCj50aGUgYm9keSB0byBtYWpvcmRvbW9Aa3Zh
+Y2sub3JnLiAgRm9yIG1vcmUgaW5mbyBvbiBMaW51eCBNTSwKPnNlZTogaHR0cDovL3d3dy5saW51
+eC1tbS5vcmcvIC4KPkRvbid0IGVtYWlsOiA8YSBocmVmPW1haWx0bzoiZG9udEBrdmFjay5vcmci
+PiBlbWFpbEBrdmFjay5vcmcgPC9hPgoKCl9fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19f
+X19fX19fX19fX19fX19fCmxpbnV4LWFybS1rZXJuZWwgbWFpbGluZyBsaXN0CmxpbnV4LWFybS1r
+ZXJuZWxAbGlzdHMuaW5mcmFkZWFkLm9yZwpodHRwOi8vbGlzdHMuaW5mcmFkZWFkLm9yZy9tYWls
+bWFuL2xpc3RpbmZvL2xpbnV4LWFybS1rZXJuZWwK
