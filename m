@@ -1,85 +1,103 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH] Revert "mm/memory-hotplug: fix lowmem count overflow
- when offline pages"
-Date: Sun, 4 Aug 2013 15:49:56 +0800
-Message-ID: <27662.2366662652$1375602624@news.gmane.org>
-References: <1375260602-2462-1-git-send-email-jy0922.shim@samsung.com>
+Subject: Re: [PATCH] MM: Make Contiguous Memory Allocator depends on MMU
+Date: Sun, 4 Aug 2013 15:54:34 +0800
+Message-ID: <7202.9001814828$1375602895@news.gmane.org>
+References: <1375593061-11350-1-git-send-email-manjunath.goudar@linaro.org>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1V5t4z-00085F-AK
-	for glkm-linux-mm-2@m.gmane.org; Sun, 04 Aug 2013 09:50:17 +0200
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 02E1C6B0031
-	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 03:50:13 -0400 (EDT)
+	id 1V5t9K-0002ln-Nb
+	for glkm-linux-mm-2@m.gmane.org; Sun, 04 Aug 2013 09:54:46 +0200
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 4BDD96B0031
+	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 03:54:44 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Sun, 4 Aug 2013 13:12:51 +0530
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 75E07E004F
-	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 13:20:11 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r747p6RG32178356
-	for <linux-mm@kvack.org>; Sun, 4 Aug 2013 13:21:07 +0530
-Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r747nwnx005701
-	for <linux-mm@kvack.org>; Sun, 4 Aug 2013 13:19:58 +0530
+	Sun, 4 Aug 2013 13:18:39 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id E4319E0053
+	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 13:24:48 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r747tlhu36896798
+	for <linux-mm@kvack.org>; Sun, 4 Aug 2013 13:25:47 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r747sa0Z029185
+	for <linux-mm@kvack.org>; Sun, 4 Aug 2013 17:54:36 +1000
 Content-Disposition: inline
-In-Reply-To: <1375260602-2462-1-git-send-email-jy0922.shim@samsung.com>
+In-Reply-To: <1375593061-11350-1-git-send-email-manjunath.goudar@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonyoung Shim <jy0922.shim@samsung.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, liuj97@gmail.com, kosaki.motohiro@gmail.com
+Cc: linux-arm-kernel@lists.infradead.org, patches@linaro.org, arnd@linaro.org, dsaxena@linaro.org, manjunath.goudar@linaro.org, linaro-kernel@lists.linaro.org, IWAMOTO Toshihiro <iwamoto@valinux.co.jp>, Hirokazu Takahashi <taka@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Wed, Jul 31, 2013 at 05:50:02PM +0900, Joonyoung Shim wrote:
->This reverts commit cea27eb2a202959783f81254c48c250ddd80e129.
+On Sun, Aug 04, 2013 at 10:41:01AM +0530, Manjunath Goudar wrote:
+>s patch adds a Kconfig dependency on an MMU being available before
+>CMA can be enabled.  Without this patch, CMA can be enabled on an
+>MMU-less system which can lead to issues. This was discovered during
+>randconfig testing, in which CMA was enabled w/o MMU being enabled,
+>leading to the following error:
 >
->Fixed to adjust totalhigh_pages when hot-removing memory by commit
->3dcc0571cd64816309765b7c7e4691a4cadf2ee7, so that commit occurs
->duplicated decreasing of totalhigh_pages.
+> CC      mm/migrate.o
+>mm/migrate.c: In function =E2=80=98remove_migration_pte=E2=80=99:
+>mm/migrate.c:134:3: error: implicit declaration of function =E2=80=98pmd=
+_trans_huge=E2=80=99
+>[-Werror=3Dimplicit-function-declaration]
+>   if (pmd_trans_huge(*pmd))
+>   ^
+>mm/migrate.c:137:3: error: implicit declaration of function =E2=80=98pte=
+_offset_map=E2=80=99
+>[-Werror=3Dimplicit-function-declaration]
+>   ptep =3D pte_offset_map(pmd, addr);
 >
 
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Similar one.
 
->Signed-off-by: Joonyoung Shim <jy0922.shim@samsung.com>
+http://marc.info/?l=3Dlinux-mm&m=3D137532486405085&w=3D2
+
+>Signed-off-by: Manjunath Goudar <manjunath.goudar@linaro.org>
+>Acked-by: Arnd Bergmann <arnd@linaro.org>
+>Cc: Deepak Saxena <dsaxena@linaro.org>
+>Cc: IWAMOTO Toshihiro <iwamoto@valinux.co.jp>
+>Cc: Hirokazu Takahashi <taka@valinux.co.jp>
+>Cc: Dave Hansen <haveblue@us.ibm.com>
+>Cc: linux-mm@kvack.org
+>Cc: Johannes Weiner <hannes@cmpxchg.org>
+>Cc: Michal Hocko <mhocko@suse.cz>
+>Cc: Balbir Singh <bsingharora@gmail.com>
+>Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 >---
->The commit cea27eb2a202959783f81254c48c250ddd80e129 is only for stable,
->is it right?
+> mm/Kconfig |    2 +-
+> 1 file changed, 1 insertion(+), 1 deletion(-)
 >
-> mm/page_alloc.c | 4 ----
-> 1 file changed, 4 deletions(-)
+>diff --git a/mm/Kconfig b/mm/Kconfig
+>index 256bfd0..ad6b98e 100644
+>--- a/mm/Kconfig
+>+++ b/mm/Kconfig
+>@@ -522,7 +522,7 @@ config MEM_SOFT_DIRTY
 >
->diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->index b100255..2b28216 100644
->--- a/mm/page_alloc.c
->+++ b/mm/page_alloc.c
->@@ -6274,10 +6274,6 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
-> 		list_del(&page->lru);
-> 		rmv_page_order(page);
-> 		zone->free_area[order].nr_free--;
->-#ifdef CONFIG_HIGHMEM
->-		if (PageHighMem(page))
->-			totalhigh_pages -= 1 << order;
->-#endif
-> 		for (i = 0; i < (1 << order); i++)
-> 			SetPageReserved((page+i));
-> 		pfn += (1 << order);
->-- 
->1.8.1.2
+> config CMA
+> 	bool "Contiguous Memory Allocator"
+>-	depends on HAVE_MEMBLOCK
+>+	depends on MMU && HAVE_MEMBLOCK
+> 	select MIGRATION
+> 	select MEMORY_ISOLATION
+> 	help
+>--=20
+>1.7.9.5
 >
 >--
 >To unsubscribe, send a message with 'unsubscribe linux-mm' in
 >the body to majordomo@kvack.org.  For more info on Linux MM,
 >see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
 see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
