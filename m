@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 7BC9D6B0069
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id B6BBF6B0070
 	for <linux-mm@kvack.org>; Sat,  3 Aug 2013 22:14:36 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 17/23] thp, libfs: initial thp support
-Date: Sun,  4 Aug 2013 05:17:19 +0300
-Message-Id: <1375582645-29274-18-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 16/23] thp, mm: handle transhuge pages in do_generic_file_read()
+Date: Sun,  4 Aug 2013 05:17:18 +0300
+Message-Id: <1375582645-29274-17-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1375582645-29274-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1375582645-29274-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,131 +15,104 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-simple_readpage() and simple_write_end() are modified to handle huge
-pages.
+If a transhuge page is already in page cache (up to date and not
+readahead) we go usual path: read from relevant subpage (head or tail).
 
-simple_thp_write_begin() is introduced to allocate huge pages on write.
+If page is not cached (sparse file in ramfs case) and the mapping can
+have hugepage we try allocate a new one and read it.
+
+If a page is not up to date or in readahead, we have to move 'page' to
+head page of the compound page, since it represents state of whole
+transhuge page. We will switch back to relevant subpage when page is
+ready to be read ('page_ok' label).
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- fs/libfs.c              | 53 +++++++++++++++++++++++++++++++++++++++++++++----
- include/linux/fs.h      |  7 +++++++
- include/linux/pagemap.h |  8 ++++++++
- 3 files changed, 64 insertions(+), 4 deletions(-)
+ mm/filemap.c | 57 +++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 55 insertions(+), 2 deletions(-)
 
-diff --git a/fs/libfs.c b/fs/libfs.c
-index 3a3a9b5..934778b 100644
---- a/fs/libfs.c
-+++ b/fs/libfs.c
-@@ -364,7 +364,7 @@ EXPORT_SYMBOL(simple_setattr);
- 
- int simple_readpage(struct file *file, struct page *page)
- {
--	clear_highpage(page);
-+	clear_pagecache_page(page);
- 	flush_dcache_page(page);
- 	SetPageUptodate(page);
- 	unlock_page(page);
-@@ -424,9 +424,14 @@ int simple_write_end(struct file *file, struct address_space *mapping,
- 
- 	/* zero the stale part of the page if we did a short copy */
- 	if (copied < len) {
--		unsigned from = pos & (PAGE_CACHE_SIZE - 1);
--
--		zero_user(page, from + copied, len - copied);
-+		unsigned from;
-+		if (PageTransHuge(page)) {
-+			from = pos & ~HPAGE_PMD_MASK;
-+			zero_huge_user(page, from + copied, len - copied);
-+		} else {
-+			from = pos & ~PAGE_CACHE_MASK;
-+			zero_user(page, from + copied, len - copied);
+diff --git a/mm/filemap.c b/mm/filemap.c
+index c31d296..ed65af5 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1175,8 +1175,28 @@ find_page:
+ 					ra, filp,
+ 					index, last_index - index);
+ 			page = find_get_page(mapping, index);
+-			if (unlikely(page == NULL))
+-				goto no_cached_page;
++			if (unlikely(page == NULL)) {
++				if (mapping_can_have_hugepages(mapping))
++					goto no_cached_page_thp;
++				else
++					goto no_cached_page;
++			}
 +		}
- 	}
- 
- 	if (!PageUptodate(page))
-@@ -445,6 +450,46 @@ int simple_write_end(struct file *file, struct address_space *mapping,
- 	return copied;
- }
- 
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE
-+int simple_thp_write_begin(struct file *file, struct address_space *mapping,
-+		loff_t pos, unsigned len, unsigned flags,
-+		struct page **pagep, void **fsdata)
-+{
-+	struct page *page = NULL;
-+	pgoff_t index;
++		if (PageTransCompound(page)) {
++			struct page *head = compound_trans_head(page);
 +
-+	index = pos >> PAGE_CACHE_SHIFT;
++			if (!PageReadahead(head) && PageUptodate(page))
++				goto page_ok;
 +
-+	if (mapping_can_have_hugepages(mapping)) {
-+		page = grab_cache_page_write_begin(mapping,
-+				index & ~HPAGE_CACHE_INDEX_MASK,
-+				flags | AOP_FLAG_TRANSHUGE);
-+		/* fallback to small page */
++			/*
++			 * Switch 'page' to head page. That's needed to handle
++			 * readahead or make page uptodate.
++			 * It will be switched back to the right tail page at
++			 * the begining 'page_ok'.
++			 */
++			page_cache_get(head);
++			page_cache_release(page);
++			page = head;
+ 		}
+ 		if (PageReadahead(page)) {
+ 			page_cache_async_readahead(mapping,
+@@ -1198,6 +1218,18 @@ find_page:
+ 			unlock_page(page);
+ 		}
+ page_ok:
++		/* Switch back to relevant tail page, if needed */
++		if (PageTransCompoundCache(page) && !PageTransTail(page)) {
++			int off = index & HPAGE_CACHE_INDEX_MASK;
++			if (off){
++				page_cache_get(page + off);
++				page_cache_release(page);
++				page += off;
++			}
++		}
++
++		VM_BUG_ON(page->index != index);
++
+ 		/*
+ 		 * i_size must be checked after we know the page is Uptodate.
+ 		 *
+@@ -1329,6 +1361,27 @@ readpage_error:
+ 		page_cache_release(page);
+ 		goto out;
+ 
++no_cached_page_thp:
++		page = alloc_pages(mapping_gfp_mask(mapping) | __GFP_COLD,
++				HPAGE_PMD_ORDER);
 +		if (!page) {
-+			unsigned long offset;
-+			offset = pos & ~PAGE_CACHE_MASK;
-+			/* adjust the len to not cross small page boundary */
-+			len = min_t(unsigned long,
-+					len, PAGE_CACHE_SIZE - offset);
++			count_vm_event(THP_READ_ALLOC_FAILED);
++			goto no_cached_page;
 +		}
-+		BUG_ON(page && !PageTransHuge(page));
-+	}
-+	if (!page)
-+		return simple_write_begin(file, mapping, pos, len, flags,
-+				pagep, fsdata);
++		count_vm_event(THP_READ_ALLOC);
 +
-+	*pagep = page;
++		error = add_to_page_cache_lru(page, mapping,
++				index & ~HPAGE_CACHE_INDEX_MASK, GFP_KERNEL);
++		if (!error)
++			goto readpage;
 +
-+	if (!PageUptodate(page) && len != HPAGE_PMD_SIZE) {
-+		unsigned from = pos & ~HPAGE_PMD_MASK;
++		page_cache_release(page);
++		if (error != -EEXIST && error != -ENOSPC) {
++			desc->error = error;
++			goto out;
++		}
 +
-+		zero_huge_user_segment(page, 0, from);
-+		zero_huge_user_segment(page, from + len, HPAGE_PMD_SIZE);
-+	}
-+	return 0;
-+}
-+#endif
-+
- /*
-  * the inodes created here are not hashed. If you use iunique to generate
-  * unique inode values later for this filesystem, then you must take care
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index d5f58b3..c1dbf43 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -2553,6 +2553,13 @@ extern int simple_write_begin(struct file *file, struct address_space *mapping,
- extern int simple_write_end(struct file *file, struct address_space *mapping,
- 			loff_t pos, unsigned len, unsigned copied,
- 			struct page *page, void *fsdata);
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE
-+extern int simple_thp_write_begin(struct file *file,
-+		struct address_space *mapping, loff_t pos, unsigned len,
-+		unsigned flags,	struct page **pagep, void **fsdata);
-+#else
-+#define simple_thp_write_begin simple_write_begin
-+#endif
- 
- extern struct dentry *simple_lookup(struct inode *, struct dentry *, unsigned int flags);
- extern ssize_t generic_read_dir(struct file *, char __user *, size_t, loff_t *);
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index d459b38..eb484f2 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -591,4 +591,12 @@ static inline int add_to_page_cache(struct page *page,
- 	return error;
- }
- 
-+static inline void clear_pagecache_page(struct page *page)
-+{
-+	if (PageTransHuge(page))
-+		zero_huge_user(page, 0, HPAGE_PMD_SIZE);
-+	else
-+		clear_highpage(page);
-+}
-+
- #endif /* _LINUX_PAGEMAP_H */
++		/* Fallback to small page */
+ no_cached_page:
+ 		/*
+ 		 * Ok, it wasn't cached, so we need to create a new
 -- 
 1.8.3.2
 
