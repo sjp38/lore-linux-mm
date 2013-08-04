@@ -1,79 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 23F1F6B0034
-	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 06:09:00 -0400 (EDT)
-Received: by mail-ee0-f47.google.com with SMTP id d49so1063000eek.20
-        for <linux-mm@kvack.org>; Sun, 04 Aug 2013 03:08:58 -0700 (PDT)
-Date: Sun, 4 Aug 2013 12:08:55 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH V5 5/8] memcg: add per cgroup writeback pages accounting
-Message-ID: <20130804100855.GD24005@dhcp22.suse.cz>
-References: <1375357402-9811-1-git-send-email-handai.szj@taobao.com>
- <1375358051-10306-1-git-send-email-handai.szj@taobao.com>
- <20130801145302.GJ5198@dhcp22.suse.cz>
- <CAFj3OHV-VCKJfe6bv4UMvv+uj4LELDXsieRZFJD06Yrdyy=XxA@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAFj3OHV-VCKJfe6bv4UMvv+uj4LELDXsieRZFJD06Yrdyy=XxA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 66E176B0031
+	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 12:07:34 -0400 (EDT)
+Received: by mail-qc0-f177.google.com with SMTP id e11so1219129qcx.8
+        for <linux-mm@kvack.org>; Sun, 04 Aug 2013 09:07:33 -0700 (PDT)
+From: Tejun Heo <tj@kernel.org>
+Subject: [PATCHSET cgroup/for-3.12] cgroup: make cgroup_event specific to memcg
+Date: Sun,  4 Aug 2013 12:07:21 -0400
+Message-Id: <1375632446-2581-1-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sha Zhengju <handai.szj@gmail.com>
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Glauber Costa <glommer@gmail.com>, Greg Thelen <gthelen@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Sha Zhengju <handai.szj@taobao.com>
+To: lizefan@huawei.com, hannes@cmpxchg.org, mhocko@suse.cz, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat 03-08-13 17:25:01, Sha Zhengju wrote:
-> On Thu, Aug 1, 2013 at 10:53 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> > On Thu 01-08-13 19:54:11, Sha Zhengju wrote:
-> >> From: Sha Zhengju <handai.szj@taobao.com>
-> >>
-> >> Similar to dirty page, we add per cgroup writeback pages accounting. The lock
-> >> rule still is:
-> >>         mem_cgroup_begin_update_page_stat()
-> >>         modify page WRITEBACK stat
-> >>         mem_cgroup_update_page_stat()
-> >>         mem_cgroup_end_update_page_stat()
-> >>
-> >> There're two writeback interfaces to modify: test_{clear/set}_page_writeback().
-> >> Lock order:
-> >>       --> memcg->move_lock
-> >>         --> mapping->tree_lock
-> >>
-> >> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
-> >
-> > Looks good to me. Maybe I would suggest moving this patch up the stack
-> > so that it might get merged earlier as it is simpler than dirty pages
-> > accounting. Unless you insist on having the full series merged at once.
-> 
-> I think the following three patches can be merged earlier:
->       1/8 memcg: remove MEMCG_NR_FILE_MAPPED
->       3/8 memcg: check for proper lock held in mem_cgroup_update_page_stat
->       5/8 memcg: add per cgroup writeback pages accounting
-> 
-> Do I need to resent them again for you or they're enough?
+Hello,
 
-This is a question for Andrew. I would go with them as they are.
- 
-> One more word, since dirty accounting is essential to future memcg
-> dirty page throttling and it is not an optional feature now, I suspect
-> whether we can merge the following two as well and leave the overhead
-> optimization a separate series.  :p
+Like many other things in cgroup, cgroup_event is way too flexible and
+complex - it strives to provide completely flexible event monitoring
+facility in cgroup proper which allows any number of users to monitor
+custom events.  This is overboard, to say the least, and I strongly
+think that cgroup should not any new usages of this facility and
+preferably deprecate the existing usages if at all possible.
 
-I wouldn't hurry it. We need numbers for serious testing to see the
-overhead. It is still just a small step towards dirty throttling.
+Fortunately, memcg along with vmpressure is the only user of the
+facility and gets to keep it.  This patchset makes cgroup_event
+specific to memcg, moves all related code into mm/memcontrol.c and
+renames it to mem_cgroup_event so that its usage can't spread to other
+subsystems and later deprecation and cleanup can be localized.
 
->       4/5 memcg: add per cgroup dirty pages accounting
->       8/8 memcg: Document cgroup dirty/writeback memory statistics
-> 
-> The 2/8 ceph one still need more improvement, I'll separate it next version.
-> 
-> >
-> > Acked-by: Michal Hocko <mhocko@suse.cz>
-> 
-> Thank you.
-[...]
--- 
-Michal Hocko
-SUSE Labs
+Note that after this patchset, cgroup.event_control file exists only
+for the hierarchy which has memcg attached to it.  This is a userland
+visible change but unlikely to be noticeable as the file has never
+been meaningful outside memcg.  If this ever becomes problematic, we
+can add a dummy file on hierarchies w/o memcg when !sane_behavior.
+
+This patchset is consited of the following five patches.
+
+ 0001-cgroup-implement-CFTYPE_NO_PREFIX.patch
+ 0002-cgroup-export-__cgroup_from_dentry-and-__cgroup_dput.patch
+ 0003-cgroup-memcg-move-cgroup_event-implementation-to-mem.patch
+ 0004-cgroup-memcg-move-cgroup-event_list-_lock-and-event-.patch
+ 0005-memcg-rename-cgroup_event-to-mem_cgroup_event.patch
+
+The patchset is on top of
+
+  cgroup/for-3.12 61584e3f4 ("cgroup: Merge branch 'for-3.11-fixes' into for-3.12")
++ [1] cgroup: use cgroup_subsys_state as the primary subsystem interface handle
+
+and available in the following branch.
+
+ git://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git review-memcg_event
+
+diffstat follows.
+
+ Documentation/cgroups/cgroups.txt |   19 --
+ include/linux/cgroup.h            |   29 ---
+ include/linux/vmpressure.h        |    1
+ kernel/cgroup.c                   |  265 +--------------------------------
+ mm/memcontrol.c                   |  302 ++++++++++++++++++++++++++++++++++++--
+ 5 files changed, 315 insertions(+), 301 deletions(-)
+
+Thanks.
+
+--
+tejun
+
+[1] https://lkml.org/lkml/2013/8/1/722
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
