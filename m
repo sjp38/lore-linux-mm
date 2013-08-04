@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 85CC16B0039
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id B82216B0036
 	for <linux-mm@kvack.org>; Sat,  3 Aug 2013 22:14:31 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 11/23] thp, mm: handle tail pages in page_cache_get_speculative()
-Date: Sun,  4 Aug 2013 05:17:13 +0300
-Message-Id: <1375582645-29274-12-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 07/23] mm: trace filemap: dump page order
+Date: Sun,  4 Aug 2013 05:17:09 +0300
+Message-Id: <1375582645-29274-8-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1375582645-29274-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1375582645-29274-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,73 +15,50 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-For tail pages we need to take two refcounters:
- - ->_count for its head page;
- - ->_mapcount for the tail page;
-
-To protect against splitting we take compound lock and re-check that we
-still have tail page before taking ->_mapcount reference.
-If the page was split we drop ->_count reference from head page and
-return 0 to indicate caller that it must retry.
+Dump page order to trace to be able to distinguish between small page
+and huge page in page cache.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Acked-by: Dave Hansen <dave.hansen@linux.intel.com>
 ---
- include/linux/pagemap.h | 26 ++++++++++++++++++++++----
- 1 file changed, 22 insertions(+), 4 deletions(-)
+ include/trace/events/filemap.h | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index 47b5082..d459b38 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -161,6 +161,8 @@ void release_pages(struct page **pages, int nr, int cold);
-  */
- static inline int page_cache_get_speculative(struct page *page)
- {
-+	struct page *page_head = compound_trans_head(page);
-+
- 	VM_BUG_ON(in_interrupt());
+diff --git a/include/trace/events/filemap.h b/include/trace/events/filemap.h
+index 0421f49..7e14b13 100644
+--- a/include/trace/events/filemap.h
++++ b/include/trace/events/filemap.h
+@@ -21,6 +21,7 @@ DECLARE_EVENT_CLASS(mm_filemap_op_page_cache,
+ 		__field(struct page *, page)
+ 		__field(unsigned long, i_ino)
+ 		__field(unsigned long, index)
++		__field(int, order)
+ 		__field(dev_t, s_dev)
+ 	),
  
- #ifdef CONFIG_TINY_RCU
-@@ -176,11 +178,11 @@ static inline int page_cache_get_speculative(struct page *page)
- 	 * disabling preempt, and hence no need for the "speculative get" that
- 	 * SMP requires.
- 	 */
--	VM_BUG_ON(page_count(page) == 0);
--	atomic_inc(&page->_count);
-+	VM_BUG_ON(page_count(page_head) == 0);
-+	atomic_inc(&page_head->_count);
+@@ -28,18 +29,20 @@ DECLARE_EVENT_CLASS(mm_filemap_op_page_cache,
+ 		__entry->page = page;
+ 		__entry->i_ino = page->mapping->host->i_ino;
+ 		__entry->index = page->index;
++		__entry->order = compound_order(page);
+ 		if (page->mapping->host->i_sb)
+ 			__entry->s_dev = page->mapping->host->i_sb->s_dev;
+ 		else
+ 			__entry->s_dev = page->mapping->host->i_rdev;
+ 	),
  
- #else
--	if (unlikely(!get_page_unless_zero(page))) {
-+	if (unlikely(!get_page_unless_zero(page_head))) {
- 		/*
- 		 * Either the page has been freed, or will be freed.
- 		 * In either case, retry here and the caller should
-@@ -189,7 +191,23 @@ static inline int page_cache_get_speculative(struct page *page)
- 		return 0;
- 	}
- #endif
--	VM_BUG_ON(PageTail(page));
-+
-+	if (unlikely(PageTransTail(page))) {
-+		unsigned long flags;
-+		int got = 0;
-+
-+		flags = compound_lock_irqsave(page_head);
-+		if (likely(PageTransTail(page))) {
-+			atomic_inc(&page->_mapcount);
-+			got = 1;
-+		}
-+		compound_unlock_irqrestore(page_head, flags);
-+
-+		if (unlikely(!got))
-+			atomic_dec(&page_head->_count);
-+
-+		return got;
-+	}
+-	TP_printk("dev %d:%d ino %lx page=%p pfn=%lu ofs=%lu",
++	TP_printk("dev %d:%d ino %lx page=%p pfn=%lu ofs=%lu order=%d",
+ 		MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
+ 		__entry->i_ino,
+ 		__entry->page,
+ 		page_to_pfn(__entry->page),
+-		__entry->index << PAGE_SHIFT)
++		__entry->index << PAGE_SHIFT,
++		__entry->order)
+ );
  
- 	return 1;
- }
+ DEFINE_EVENT(mm_filemap_op_page_cache, mm_filemap_delete_from_page_cache,
 -- 
 1.8.3.2
 
