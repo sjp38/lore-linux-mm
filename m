@@ -1,82 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 834BB6B0031
-	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 01:10:06 -0400 (EDT)
-Received: by mail-oa0-f47.google.com with SMTP id g12so4108100oah.34
-        for <linux-mm@kvack.org>; Sat, 03 Aug 2013 22:10:05 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id C5C766B0033
+	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 01:11:17 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id kx1so2102763pab.27
+        for <linux-mm@kvack.org>; Sat, 03 Aug 2013 22:11:17 -0700 (PDT)
+From: Manjunath Goudar <manjunath.goudar@linaro.org>
+Subject: [PATCH] MM: Make Contiguous Memory Allocator depends on MMU
+Date: Sun,  4 Aug 2013 10:41:01 +0530
+Message-Id: <1375593061-11350-1-git-send-email-manjunath.goudar@linaro.org>
 MIME-Version: 1.0
-In-Reply-To: <87siytwfl0.fsf@linux.vnet.ibm.com>
-References: <1375075929-6119-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<1375075929-6119-2-git-send-email-iamjoonsoo.kim@lge.com>
-	<CAJd=RBCUJg5GJEQ2_heCt8S9LZzedGLbvYvivFkmvfMChPqaCg@mail.gmail.com>
-	<20130731022751.GA2548@lge.com>
-	<CAJd=RBD=SNm9TG-kxKcd-BiMduOhLUubq=JpRwCy_MmiDtO9Tw@mail.gmail.com>
-	<20130731044101.GE2548@lge.com>
-	<CAJd=RBDr72T+O+aNdb-HyB3U+k5JiVWMoXfPNA0y-Hxw-wDD-g@mail.gmail.com>
-	<20130731063740.GA4212@lge.com>
-	<CAJd=RBCj_wAHjv10FhhX+Fzx8p4ybeGykEfvqF=jZaok3s+j9w@mail.gmail.com>
-	<87siytwfl0.fsf@linux.vnet.ibm.com>
-Date: Sun, 4 Aug 2013 13:10:05 +0800
-Message-ID: <CAJd=RBBUVt5GJbjow=Rocqkqjm92MS7Jf9RfzDYPf05sQd2PZA@mail.gmail.com>
-Subject: Re: [PATCH 01/18] mm, hugetlb: protect reserved pages when
- softofflining requests the pages
-From: Hillf Danton <dhillf@gmail.com>
 Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: linux-arm-kernel@lists.infradead.org
+Cc: patches@linaro.org, arnd@linaro.org, dsaxena@linaro.org, manjunath.goudar@linaro.org, linaro-kernel@lists.linaro.org, IWAMOTO Toshihiro <iwamoto@valinux.co.jp>, Hirokazu Takahashi <taka@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Fri, Aug 2, 2013 at 12:17 AM, Aneesh Kumar K.V
-<aneesh.kumar@linux.vnet.ibm.com> wrote:
-> Hillf Danton <dhillf@gmail.com> writes:
->
->> On Wed, Jul 31, 2013 at 2:37 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
->>> On Wed, Jul 31, 2013 at 02:21:38PM +0800, Hillf Danton wrote:
->>>> On Wed, Jul 31, 2013 at 12:41 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
->>>> > On Wed, Jul 31, 2013 at 10:49:24AM +0800, Hillf Danton wrote:
->>>> >> On Wed, Jul 31, 2013 at 10:27 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
->>>> >> > On Mon, Jul 29, 2013 at 03:24:46PM +0800, Hillf Danton wrote:
->>>> >> >> On Mon, Jul 29, 2013 at 1:31 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
->>>> >> >> > alloc_huge_page_node() use dequeue_huge_page_node() without
->>>> >> >> > any validation check, so it can steal reserved page unconditionally.
->>>> >> >>
->>>> >> >> Well, why is it illegal to use reserved page here?
->>>> >> >
->>>> >> > If we use reserved page here, other processes which are promised to use
->>>> >> > enough hugepages cannot get enough hugepages and can die. This is
->>>> >> > unexpected result to them.
->>>> >> >
->>>> >> But, how do you determine that a huge page is requested by a process
->>>> >> that is not allowed to use reserved pages?
->>>> >
->>>> > Reserved page is just one for each address or file offset. If we need to
->>>> > move this page, this means that it already use it's own reserved page, this
->>>> > page is it. So we should not use other reserved page for moving this page.
->>>> >
->>>> Hm, how do you determine "this page" is not buddy?
->>>
->>> If this page comes from the buddy, it doesn't matter. It imply that
->>> this mapping cannot use reserved page pool, because we always allocate
->>> a page from reserved page pool first.
->>>
->> A buddy page also implies, if the mapping can use reserved pages, that no
->> reserved page was available when requested. Now we can try reserved
->> page again.
->
-> I didn't quiet get that. My understanding is, the new page we are
+s patch adds a Kconfig dependency on an MMU being available before
+CMA can be enabled.  Without this patch, CMA can be enabled on an
+MMU-less system which can lead to issues. This was discovered during
+randconfig testing, in which CMA was enabled w/o MMU being enabled,
+leading to the following error:
 
-Neither did I ;)
+ CC      mm/migrate.o
+mm/migrate.c: In function a??remove_migration_ptea??:
+mm/migrate.c:134:3: error: implicit declaration of function a??pmd_trans_hugea??
+[-Werror=implicit-function-declaration]
+   if (pmd_trans_huge(*pmd))
+   ^
+mm/migrate.c:137:3: error: implicit declaration of function a??pte_offset_mapa??
+[-Werror=implicit-function-declaration]
+   ptep = pte_offset_map(pmd, addr);
 
-> allocating here for soft offline should not be allocated from the
-> reserve pool. If we do that we may possibly have allocation failure
-> later for a request that had done page reservation. Now to
-> avoid that we make sure we have enough free pages outside reserve pool
-> so that we can dequeue the huge page. If not we use buddy to allocate
-> the hugepage.
->
-What if it is a mapping with HPAGE_RESV_OWNER set?
-Or can we block owner from using any page available here?
+Signed-off-by: Manjunath Goudar <manjunath.goudar@linaro.org>
+Acked-by: Arnd Bergmann <arnd@linaro.org>
+Cc: Deepak Saxena <dsaxena@linaro.org>
+Cc: IWAMOTO Toshihiro <iwamoto@valinux.co.jp>
+Cc: Hirokazu Takahashi <taka@valinux.co.jp>
+Cc: Dave Hansen <haveblue@us.ibm.com>
+Cc: linux-mm@kvack.org
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Balbir Singh <bsingharora@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/Kconfig |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 256bfd0..ad6b98e 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -522,7 +522,7 @@ config MEM_SOFT_DIRTY
+ 
+ config CMA
+ 	bool "Contiguous Memory Allocator"
+-	depends on HAVE_MEMBLOCK
++	depends on MMU && HAVE_MEMBLOCK
+ 	select MIGRATION
+ 	select MEMORY_ISOLATION
+ 	help
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
