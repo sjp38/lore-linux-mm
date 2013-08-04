@@ -1,9 +1,9 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 2/2] mm, vmalloc: use well-defined find_last_bit() func
-Date: Fri, 2 Aug 2013 16:28:28 +0800
-Message-ID: <28866.8905072429$1375432130@news.gmane.org>
-References: <1375408621-16563-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1375408621-16563-2-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH] Revert "mm/memory-hotplug: fix lowmem count overflow
+ when offline pages"
+Date: Sun, 4 Aug 2013 15:49:56 +0800
+Message-ID: <27662.2366662652$1375602624@news.gmane.org>
+References: <1375260602-2462-1-git-send-email-jy0922.shim@samsung.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -11,80 +11,66 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1V5Aj3-0007L6-NO
-	for glkm-linux-mm-2@m.gmane.org; Fri, 02 Aug 2013 10:28:41 +0200
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 2E2076B0031
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 04:28:39 -0400 (EDT)
+	id 1V5t4z-00085F-AK
+	for glkm-linux-mm-2@m.gmane.org; Sun, 04 Aug 2013 09:50:17 +0200
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 02E1C6B0031
+	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 03:50:13 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Fri, 2 Aug 2013 18:15:47 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 191F92BB0053
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2013 18:28:31 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r728CuAr4456820
-	for <linux-mm@kvack.org>; Fri, 2 Aug 2013 18:12:56 +1000
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r728SUws005550
-	for <linux-mm@kvack.org>; Fri, 2 Aug 2013 18:28:30 +1000
+	Sun, 4 Aug 2013 13:12:51 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 75E07E004F
+	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 13:20:11 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r747p6RG32178356
+	for <linux-mm@kvack.org>; Sun, 4 Aug 2013 13:21:07 +0530
+Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r747nwnx005701
+	for <linux-mm@kvack.org>; Sun, 4 Aug 2013 13:19:58 +0530
 Content-Disposition: inline
-In-Reply-To: <1375408621-16563-2-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1375260602-2462-1-git-send-email-jy0922.shim@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Joonsoo Kim <js1304@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Joonyoung Shim <jy0922.shim@samsung.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, liuj97@gmail.com, kosaki.motohiro@gmail.com
 
-On Fri, Aug 02, 2013 at 10:57:01AM +0900, Joonsoo Kim wrote:
->Our intention in here is to find last_bit within the region to flush.
->There is well-defined function, find_last_bit() for this purpose and
->it's performance may be slightly better than current implementation.
->So change it.
+On Wed, Jul 31, 2013 at 05:50:02PM +0900, Joonyoung Shim wrote:
+>This reverts commit cea27eb2a202959783f81254c48c250ddd80e129.
 >
->Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>Fixed to adjust totalhigh_pages when hot-removing memory by commit
+>3dcc0571cd64816309765b7c7e4691a4cadf2ee7, so that commit occurs
+>duplicated decreasing of totalhigh_pages.
+>
 
 Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
+>Signed-off-by: Joonyoung Shim <jy0922.shim@samsung.com>
+>---
+>The commit cea27eb2a202959783f81254c48c250ddd80e129 is only for stable,
+>is it right?
 >
->diff --git a/mm/vmalloc.c b/mm/vmalloc.c
->index d23c432..93d3182 100644
->--- a/mm/vmalloc.c
->+++ b/mm/vmalloc.c
->@@ -1016,15 +1016,16 @@ void vm_unmap_aliases(void)
+> mm/page_alloc.c | 4 ----
+> 1 file changed, 4 deletions(-)
 >
-> 		rcu_read_lock();
-> 		list_for_each_entry_rcu(vb, &vbq->free, free_list) {
->-			int i;
->+			int i, j;
->
-> 			spin_lock(&vb->lock);
-> 			i = find_first_bit(vb->dirty_map, VMAP_BBMAP_BITS);
->-			while (i < VMAP_BBMAP_BITS) {
->+			if (i < VMAP_BBMAP_BITS) {
-> 				unsigned long s, e;
->-				int j;
->-				j = find_next_zero_bit(vb->dirty_map,
->-					VMAP_BBMAP_BITS, i);
->+
->+				j = find_last_bit(vb->dirty_map,
->+							VMAP_BBMAP_BITS);
->+				j = j + 1; /* need exclusive index */
->
-> 				s = vb->va->va_start + (i << PAGE_SHIFT);
-> 				e = vb->va->va_start + (j << PAGE_SHIFT);
->@@ -1034,10 +1035,6 @@ void vm_unmap_aliases(void)
-> 					start = s;
-> 				if (e > end)
-> 					end = e;
->-
->-				i = j;
->-				i = find_next_bit(vb->dirty_map,
->-							VMAP_BBMAP_BITS, i);
-> 			}
-> 			spin_unlock(&vb->lock);
-> 		}
+>diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>index b100255..2b28216 100644
+>--- a/mm/page_alloc.c
+>+++ b/mm/page_alloc.c
+>@@ -6274,10 +6274,6 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+> 		list_del(&page->lru);
+> 		rmv_page_order(page);
+> 		zone->free_area[order].nr_free--;
+>-#ifdef CONFIG_HIGHMEM
+>-		if (PageHighMem(page))
+>-			totalhigh_pages -= 1 << order;
+>-#endif
+> 		for (i = 0; i < (1 << order); i++)
+> 			SetPageReserved((page+i));
+> 		pfn += (1 << order);
 >-- 
->1.7.9.5
+>1.8.1.2
 >
 >--
 >To unsubscribe, send a message with 'unsubscribe linux-mm' in
