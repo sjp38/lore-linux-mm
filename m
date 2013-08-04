@@ -1,232 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id CB1B66B0033
-	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 12:55:39 -0400 (EDT)
-Date: Sun, 4 Aug 2013 18:55:26 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 9/9] mm: zone_reclaim: compaction: add compaction to
- zone_reclaim_mode
-Message-ID: <20130804165526.GG27921@redhat.com>
-References: <1375459596-30061-1-git-send-email-aarcange@redhat.com>
- <1375459596-30061-10-git-send-email-aarcange@redhat.com>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id AEE816B0031
+	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 14:48:20 -0400 (EDT)
+Received: by mail-ve0-f202.google.com with SMTP id ox1so252571veb.5
+        for <linux-mm@kvack.org>; Sun, 04 Aug 2013 11:48:19 -0700 (PDT)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [PATCH V5 3/8] memcg: check for proper lock held in mem_cgroup_update_page_stat
+References: <1375357402-9811-1-git-send-email-handai.szj@taobao.com>
+	<1375357946-10228-1-git-send-email-handai.szj@taobao.com>
+Date: Sun, 04 Aug 2013 11:48:18 -0700
+Message-ID: <xr93a9kxwavh.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1375459596-30061-10-git-send-email-aarcange@redhat.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Johannes Weiner <jweiner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hush Bensen <hush.bensen@gmail.com>
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, mhocko@suse.cz, kamezawa.hiroyu@jp.fujitsu.com, glommer@gmail.com, fengguang.wu@intel.com, akpm@linux-foundation.org, Sha Zhengju <handai.szj@taobao.com>
 
-On Fri, Aug 02, 2013 at 06:06:36PM +0200, Andrea Arcangeli wrote:
-> +		need_compaction = false;
+On Thu, Aug 01 2013, Sha Zhengju wrote:
 
-This should be changed to "*need_compaction = false". It's actually a
-cleanup because it's a nooperational change at runtime.
-need_compaction was initialized to false by the only caller so it
-couldn't harm. But it's better to fix it to avoid
-confusion. Alternatively the above line can be dropped entirely but I
-thought it was cleaner to have a defined value as result of the
-function.
+> From: Sha Zhengju <handai.szj@taobao.com>
+>
+> We should call mem_cgroup_begin_update_page_stat() before
+> mem_cgroup_update_page_stat() to get proper locks, however the
+> latter doesn't do any checking that we use proper locking, which
+> would be hard. Suggested by Michal Hock we could at least test for
+                                     ^^ Hocko
+> rcu_read_lock_held() because RCU is held if !mem_cgroup_disabled().
+>
+> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
 
-Found by Fengguang kbuild robot.
+Reviewed-by: Greg Thelen <gthelen@google.com>
 
-A new replacement patch 9/9 is appended below:
-
-===
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH] mm: zone_reclaim: compaction: add compaction to
- zone_reclaim_mode
-
-This adds compaction to zone_reclaim so THP enabled won't decrease the
-NUMA locality with /proc/sys/vm/zone_reclaim_mode > 0.
-
-It is important to boot with numa_zonelist_order=n (n means nodes) to
-get more accurate NUMA locality if there are multiple zones per node.
-
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
- include/linux/swap.h |   8 +++-
- mm/page_alloc.c      |   4 +-
- mm/vmscan.c          | 111 ++++++++++++++++++++++++++++++++++++++++++---------
- 3 files changed, 102 insertions(+), 21 deletions(-)
-
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index d95cde5..d076a54 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -289,10 +289,14 @@ extern unsigned long vm_total_pages;
- extern int zone_reclaim_mode;
- extern int sysctl_min_unmapped_ratio;
- extern int sysctl_min_slab_ratio;
--extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
-+extern int zone_reclaim(struct zone *, struct zone *, gfp_t, unsigned int,
-+			unsigned long, int, int);
- #else
- #define zone_reclaim_mode 0
--static inline int zone_reclaim(struct zone *z, gfp_t mask, unsigned int order)
-+static inline int zone_reclaim(struct zone *preferred_zone, struct zone *zone,
-+			       gfp_t mask, unsigned int order,
-+			       unsigned long mark, int classzone_idx,
-+			       int alloc_flags)
- {
- 	return 0;
- }
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 879a3fd..c0bdde6 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1982,7 +1982,9 @@ zonelist_scan:
- 				!zlc_zone_worth_trying(zonelist, z, allowednodes))
- 				continue;
- 
--			ret = zone_reclaim(zone, gfp_mask, order);
-+			ret = zone_reclaim(preferred_zone, zone, gfp_mask,
-+					   order,
-+					   mark, classzone_idx, alloc_flags);
- 			switch (ret) {
- 			case ZONE_RECLAIM_NOSCAN:
- 				/* did not scan */
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index f2ada36..fedb246 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -3488,6 +3488,24 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
- 	unsigned long nr_slab_pages0, nr_slab_pages1;
- 
- 	cond_resched();
-+
-+	/*
-+	 * Zone reclaim reclaims unmapped file backed pages and
-+	 * slab pages if we are over the defined limits.
-+	 *
-+	 * A small portion of unmapped file backed pages is needed for
-+	 * file I/O otherwise pages read by file I/O will be immediately
-+	 * thrown out if the zone is overallocated. So we do not reclaim
-+	 * if less than a specified percentage of the zone is used by
-+	 * unmapped file backed pages.
-+	 */
-+	if (zone_pagecache_reclaimable(zone) <= zone->min_unmapped_pages &&
-+	    zone_page_state(zone, NR_SLAB_RECLAIMABLE) <= zone->min_slab_pages)
-+		return ZONE_RECLAIM_FULL;
-+
-+	if (zone->all_unreclaimable)
-+		return ZONE_RECLAIM_FULL;
-+
- 	/*
- 	 * We need to be able to allocate from the reserves for RECLAIM_SWAP
- 	 * and we also need to be able to write out pages for RECLAIM_WRITE
-@@ -3549,27 +3567,35 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
- 	return sc.nr_reclaimed >= nr_pages;
- }
- 
--int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
-+static int zone_reclaim_compact(struct zone *preferred_zone,
-+				struct zone *zone, gfp_t gfp_mask,
-+				unsigned int order,
-+				bool sync_compaction,
-+				bool *need_compaction)
- {
--	int node_id;
--	int ret;
-+	bool contended;
- 
--	/*
--	 * Zone reclaim reclaims unmapped file backed pages and
--	 * slab pages if we are over the defined limits.
--	 *
--	 * A small portion of unmapped file backed pages is needed for
--	 * file I/O otherwise pages read by file I/O will be immediately
--	 * thrown out if the zone is overallocated. So we do not reclaim
--	 * if less than a specified percentage of the zone is used by
--	 * unmapped file backed pages.
--	 */
--	if (zone_pagecache_reclaimable(zone) <= zone->min_unmapped_pages &&
--	    zone_page_state(zone, NR_SLAB_RECLAIMABLE) <= zone->min_slab_pages)
--		return ZONE_RECLAIM_FULL;
-+	if (compaction_deferred(preferred_zone, order) ||
-+	    !order ||
-+	    (gfp_mask & (__GFP_FS|__GFP_IO)) != (__GFP_FS|__GFP_IO)) {
-+		*need_compaction = false;
-+		return COMPACT_SKIPPED;
-+	}
- 
--	if (zone->all_unreclaimable)
--		return ZONE_RECLAIM_FULL;
-+	*need_compaction = true;
-+	return compact_zone_order(zone, order,
-+				  gfp_mask,
-+				  sync_compaction,
-+				  &contended);
-+}
-+
-+int zone_reclaim(struct zone *preferred_zone, struct zone *zone,
-+		 gfp_t gfp_mask, unsigned int order,
-+		 unsigned long mark, int classzone_idx, int alloc_flags)
-+{
-+	int node_id;
-+	int ret, c_ret;
-+	bool sync_compaction = false, need_compaction = false;
- 
- 	/*
- 	 * Do not scan if the allocation should not be delayed.
-@@ -3587,7 +3613,56 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
- 	if (node_state(node_id, N_CPU) && node_id != numa_node_id())
- 		return ZONE_RECLAIM_NOSCAN;
- 
-+repeat_compaction:
-+	/*
-+	 * If this allocation may be satisfied by memory compaction,
-+	 * run compaction before reclaim.
-+	 */
-+	c_ret = zone_reclaim_compact(preferred_zone,
-+				     zone, gfp_mask, order,
-+				     sync_compaction,
-+				     &need_compaction);
-+	if (need_compaction &&
-+	    c_ret != COMPACT_SKIPPED &&
-+	    zone_watermark_ok(zone, order, mark,
-+			      classzone_idx,
-+			      alloc_flags)) {
-+#ifdef CONFIG_COMPACTION
-+		zone->compact_considered = 0;
-+		zone->compact_defer_shift = 0;
-+#endif
-+		return ZONE_RECLAIM_SUCCESS;
-+	}
-+
-+	/*
-+	 * reclaim if compaction failed because not enough memory was
-+	 * available or if compaction didn't run (order 0) or didn't
-+	 * succeed.
-+	 */
- 	ret = __zone_reclaim(zone, gfp_mask, order);
-+	if (ret == ZONE_RECLAIM_SUCCESS) {
-+		if (zone_watermark_ok(zone, order, mark,
-+				      classzone_idx,
-+				      alloc_flags))
-+			return ZONE_RECLAIM_SUCCESS;
-+
-+		/*
-+		 * If compaction run but it was skipped and reclaim was
-+		 * successful keep going.
-+		 */
-+		if (need_compaction && c_ret == COMPACT_SKIPPED) {
-+			/*
-+			 * If it's ok to wait for I/O we can as well run sync
-+			 * compaction
-+			 */
-+			sync_compaction = !!(zone_reclaim_mode &
-+					     (RECLAIM_WRITE|RECLAIM_SWAP));
-+			cond_resched();
-+			goto repeat_compaction;
-+		}
-+	}
-+	if (need_compaction)
-+		defer_compaction(preferred_zone, order);
- 
- 	if (!ret)
- 		count_vm_event(PGSCAN_ZONE_RECLAIM_FAILED);
+> ---
+>  mm/memcontrol.c |    1 +
+>  1 file changed, 1 insertion(+)
+>
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 7691cef..4a55d46 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2301,6 +2301,7 @@ void mem_cgroup_update_page_stat(struct page *page,
+>  	if (mem_cgroup_disabled())
+>  		return;
+>  
+> +	VM_BUG_ON(!rcu_read_lock_held());
+>  	memcg = pc->mem_cgroup;
+>  	if (unlikely(!memcg || !PageCgroupUsed(pc)))
+>  		return;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
