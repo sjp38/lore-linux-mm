@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id B6BBF6B0070
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id A9D2A6B006E
 	for <linux-mm@kvack.org>; Sat,  3 Aug 2013 22:14:36 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 16/23] thp, mm: handle transhuge pages in do_generic_file_read()
-Date: Sun,  4 Aug 2013 05:17:18 +0300
-Message-Id: <1375582645-29274-17-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 19/23] truncate: support huge pages
+Date: Sun,  4 Aug 2013 05:17:21 +0300
+Message-Id: <1375582645-29274-20-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1375582645-29274-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1375582645-29274-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,104 +15,189 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-If a transhuge page is already in page cache (up to date and not
-readahead) we go usual path: read from relevant subpage (head or tail).
+truncate_inode_pages_range() drops whole huge page at once if it's fully
+inside the range.
 
-If page is not cached (sparse file in ramfs case) and the mapping can
-have hugepage we try allocate a new one and read it.
+If a huge page is only partly in the range we zero out the part,
+exactly like we do for partial small pages.
 
-If a page is not up to date or in readahead, we have to move 'page' to
-head page of the compound page, since it represents state of whole
-transhuge page. We will switch back to relevant subpage when page is
-ready to be read ('page_ok' label).
+invalidate_mapping_pages() just skips huge pages if they are not fully
+in the range.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/filemap.c | 57 +++++++++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 55 insertions(+), 2 deletions(-)
+ mm/truncate.c | 108 +++++++++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 84 insertions(+), 24 deletions(-)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index c31d296..ed65af5 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1175,8 +1175,28 @@ find_page:
- 					ra, filp,
- 					index, last_index - index);
- 			page = find_get_page(mapping, index);
--			if (unlikely(page == NULL))
--				goto no_cached_page;
-+			if (unlikely(page == NULL)) {
-+				if (mapping_can_have_hugepages(mapping))
-+					goto no_cached_page_thp;
-+				else
-+					goto no_cached_page;
-+			}
-+		}
-+		if (PageTransCompound(page)) {
-+			struct page *head = compound_trans_head(page);
-+
-+			if (!PageReadahead(head) && PageUptodate(page))
-+				goto page_ok;
-+
-+			/*
-+			 * Switch 'page' to head page. That's needed to handle
-+			 * readahead or make page uptodate.
-+			 * It will be switched back to the right tail page at
-+			 * the begining 'page_ok'.
-+			 */
-+			page_cache_get(head);
-+			page_cache_release(page);
-+			page = head;
- 		}
- 		if (PageReadahead(page)) {
- 			page_cache_async_readahead(mapping,
-@@ -1198,6 +1218,18 @@ find_page:
- 			unlock_page(page);
- 		}
- page_ok:
-+		/* Switch back to relevant tail page, if needed */
-+		if (PageTransCompoundCache(page) && !PageTransTail(page)) {
-+			int off = index & HPAGE_CACHE_INDEX_MASK;
-+			if (off){
-+				page_cache_get(page + off);
-+				page_cache_release(page);
-+				page += off;
-+			}
-+		}
-+
-+		VM_BUG_ON(page->index != index);
-+
- 		/*
- 		 * i_size must be checked after we know the page is Uptodate.
- 		 *
-@@ -1329,6 +1361,27 @@ readpage_error:
- 		page_cache_release(page);
- 		goto out;
+diff --git a/mm/truncate.c b/mm/truncate.c
+index 353b683..fcef7cb 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -205,8 +205,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ {
+ 	pgoff_t		start;		/* inclusive */
+ 	pgoff_t		end;		/* exclusive */
+-	unsigned int	partial_start;	/* inclusive */
+-	unsigned int	partial_end;	/* exclusive */
++	bool		partial_thp_start = false, partial_thp_end = false;
+ 	struct pagevec	pvec;
+ 	pgoff_t		index;
+ 	int		i;
+@@ -215,15 +214,9 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 	if (mapping->nrpages == 0)
+ 		return;
  
-+no_cached_page_thp:
-+		page = alloc_pages(mapping_gfp_mask(mapping) | __GFP_COLD,
-+				HPAGE_PMD_ORDER);
-+		if (!page) {
-+			count_vm_event(THP_READ_ALLOC_FAILED);
-+			goto no_cached_page;
+-	/* Offsets within partial pages */
+-	partial_start = lstart & (PAGE_CACHE_SIZE - 1);
+-	partial_end = (lend + 1) & (PAGE_CACHE_SIZE - 1);
+-
+ 	/*
+ 	 * 'start' and 'end' always covers the range of pages to be fully
+-	 * truncated. Partial pages are covered with 'partial_start' at the
+-	 * start of the range and 'partial_end' at the end of the range.
+-	 * Note that 'end' is exclusive while 'lend' is inclusive.
++	 * truncated. Note that 'end' is exclusive while 'lend' is inclusive.
+ 	 */
+ 	start = (lstart + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+ 	if (lend == -1)
+@@ -249,6 +242,23 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 			if (index >= end)
+ 				break;
+ 
++			if (PageTransTailCache(page)) {
++				/* part of already handled huge page */
++				if (!page->mapping)
++					continue;
++				/* the range starts in middle of huge page */
++				partial_thp_start = true;
++				start = index & ~HPAGE_CACHE_INDEX_MASK;
++				continue;
++			}
++			/* the range ends on huge page */
++			if (PageTransHugeCache(page) &&
++				index == (end & ~HPAGE_CACHE_INDEX_MASK)) {
++				partial_thp_end = true;
++				end = index;
++				break;
++			}
++
+ 			if (!trylock_page(page))
+ 				continue;
+ 			WARN_ON(page->index != index);
+@@ -265,34 +275,74 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 		index++;
+ 	}
+ 
+-	if (partial_start) {
+-		struct page *page = find_lock_page(mapping, start - 1);
++	if (partial_thp_start || lstart & ~PAGE_CACHE_MASK) {
++		pgoff_t off;
++		struct page *page;
++		unsigned pstart, pend;
++		void (*zero_segment)(struct page *page,
++				unsigned start, unsigned len);
++retry_partial_start:
++		if (partial_thp_start) {
++			zero_segment = zero_huge_user_segment;
++			off = (start - 1) & ~HPAGE_CACHE_INDEX_MASK;
++			pstart = lstart & ~HPAGE_PMD_MASK;
++			if ((end & ~HPAGE_CACHE_INDEX_MASK) == off)
++				pend = (lend - 1) & ~HPAGE_PMD_MASK;
++			else
++				pend = HPAGE_PMD_SIZE;
++		} else {
++			zero_segment = zero_user_segment;
++			off = start - 1;
++			pstart = lstart & ~PAGE_CACHE_MASK;
++			if (start > end)
++				pend = (lend - 1) & ~PAGE_CACHE_MASK;
++			else
++				pend = PAGE_CACHE_SIZE;
 +		}
-+		count_vm_event(THP_READ_ALLOC);
 +
-+		error = add_to_page_cache_lru(page, mapping,
-+				index & ~HPAGE_CACHE_INDEX_MASK, GFP_KERNEL);
-+		if (!error)
-+			goto readpage;
++		page = find_get_page(mapping, off);
+ 		if (page) {
+-			unsigned int top = PAGE_CACHE_SIZE;
+-			if (start > end) {
+-				/* Truncation within a single page */
+-				top = partial_end;
+-				partial_end = 0;
++			/* the last tail page*/
++			if (PageTransTailCache(page)) {
++				partial_thp_start = true;
++				page_cache_release(page);
++				goto retry_partial_start;
+ 			}
 +
-+		page_cache_release(page);
-+		if (error != -EEXIST && error != -ENOSPC) {
-+			desc->error = error;
-+			goto out;
++			lock_page(page);
+ 			wait_on_page_writeback(page);
+-			zero_user_segment(page, partial_start, top);
++			zero_segment(page, pstart, pend);
+ 			cleancache_invalidate_page(mapping, page);
+ 			if (page_has_private(page))
+-				do_invalidatepage(page, partial_start,
+-						  top - partial_start);
++				do_invalidatepage(page, pstart,
++						pend - pstart);
+ 			unlock_page(page);
+ 			page_cache_release(page);
+ 		}
+ 	}
+-	if (partial_end) {
+-		struct page *page = find_lock_page(mapping, end);
++	if (partial_thp_end || (lend + 1) & ~PAGE_CACHE_MASK) {
++		pgoff_t off;
++		struct page *page;
++		unsigned pend;
++		void (*zero_segment)(struct page *page,
++				unsigned start, unsigned len);
++		if (partial_thp_end) {
++			zero_segment = zero_huge_user_segment;
++			off = end & ~HPAGE_CACHE_INDEX_MASK;
++			pend = (lend - 1) & ~HPAGE_PMD_MASK;
++		} else {
++			zero_segment = zero_user_segment;
++			off = end;
++			pend = (lend - 1) & ~PAGE_CACHE_MASK;
 +		}
 +
-+		/* Fallback to small page */
- no_cached_page:
- 		/*
- 		 * Ok, it wasn't cached, so we need to create a new
++		page = find_lock_page(mapping, end);
+ 		if (page) {
+ 			wait_on_page_writeback(page);
+-			zero_user_segment(page, 0, partial_end);
++			zero_segment(page, 0, pend);
+ 			cleancache_invalidate_page(mapping, page);
+ 			if (page_has_private(page))
+-				do_invalidatepage(page, 0,
+-						  partial_end);
++				do_invalidatepage(page, 0, pend);
+ 			unlock_page(page);
+ 			page_cache_release(page);
+ 		}
+@@ -327,6 +377,9 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 			if (index >= end)
+ 				break;
+ 
++			if (PageTransTailCache(page))
++				continue;
++
+ 			lock_page(page);
+ 			WARN_ON(page->index != index);
+ 			wait_on_page_writeback(page);
+@@ -401,6 +454,13 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
+ 			if (index > end)
+ 				break;
+ 
++			/* skip huge page if it's not fully in the range */
++			if (PageTransHugeCache(page) &&
++					index + HPAGE_CACHE_NR - 1 > end)
++				continue;
++			if (PageTransTailCache(page))
++				continue;
++
+ 			if (!trylock_page(page))
+ 				continue;
+ 			WARN_ON(page->index != index);
 -- 
 1.8.3.2
 
