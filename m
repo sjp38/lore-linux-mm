@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id A9D2A6B006E
-	for <linux-mm@kvack.org>; Sat,  3 Aug 2013 22:14:36 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 4B6BE6B005C
+	for <linux-mm@kvack.org>; Sat,  3 Aug 2013 22:14:37 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 19/23] truncate: support huge pages
-Date: Sun,  4 Aug 2013 05:17:21 +0300
-Message-Id: <1375582645-29274-20-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 23/23] ramfs: enable transparent huge page cache
+Date: Sun,  4 Aug 2013 05:17:25 +0300
+Message-Id: <1375582645-29274-24-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1375582645-29274-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1375582645-29274-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,189 +15,58 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-truncate_inode_pages_range() drops whole huge page at once if it's fully
-inside the range.
+ramfs is the most simple fs from page cache point of view. Let's start
+transparent huge page cache enabling here.
 
-If a huge page is only partly in the range we zero out the part,
-exactly like we do for partial small pages.
+ramfs pages are not movable[1] and switching to transhuge pages doesn't
+affect that. We need to fix this eventually.
 
-invalidate_mapping_pages() just skips huge pages if they are not fully
-in the range.
+[1] http://lkml.org/lkml/2013/4/2/720
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/truncate.c | 108 +++++++++++++++++++++++++++++++++++++++++++++-------------
- 1 file changed, 84 insertions(+), 24 deletions(-)
+ fs/ramfs/file-mmu.c | 3 ++-
+ fs/ramfs/inode.c    | 6 +++++-
+ 2 files changed, 7 insertions(+), 2 deletions(-)
 
-diff --git a/mm/truncate.c b/mm/truncate.c
-index 353b683..fcef7cb 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -205,8 +205,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
- {
- 	pgoff_t		start;		/* inclusive */
- 	pgoff_t		end;		/* exclusive */
--	unsigned int	partial_start;	/* inclusive */
--	unsigned int	partial_end;	/* exclusive */
-+	bool		partial_thp_start = false, partial_thp_end = false;
- 	struct pagevec	pvec;
- 	pgoff_t		index;
- 	int		i;
-@@ -215,15 +214,9 @@ void truncate_inode_pages_range(struct address_space *mapping,
- 	if (mapping->nrpages == 0)
- 		return;
+diff --git a/fs/ramfs/file-mmu.c b/fs/ramfs/file-mmu.c
+index 4884ac5..3236e41 100644
+--- a/fs/ramfs/file-mmu.c
++++ b/fs/ramfs/file-mmu.c
+@@ -32,7 +32,7 @@
  
--	/* Offsets within partial pages */
--	partial_start = lstart & (PAGE_CACHE_SIZE - 1);
--	partial_end = (lend + 1) & (PAGE_CACHE_SIZE - 1);
--
- 	/*
- 	 * 'start' and 'end' always covers the range of pages to be fully
--	 * truncated. Partial pages are covered with 'partial_start' at the
--	 * start of the range and 'partial_end' at the end of the range.
--	 * Note that 'end' is exclusive while 'lend' is inclusive.
-+	 * truncated. Note that 'end' is exclusive while 'lend' is inclusive.
- 	 */
- 	start = (lstart + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
- 	if (lend == -1)
-@@ -249,6 +242,23 @@ void truncate_inode_pages_range(struct address_space *mapping,
- 			if (index >= end)
- 				break;
+ const struct address_space_operations ramfs_aops = {
+ 	.readpage	= simple_readpage,
+-	.write_begin	= simple_write_begin,
++	.write_begin	= simple_thp_write_begin,
+ 	.write_end	= simple_write_end,
+ 	.set_page_dirty = __set_page_dirty_no_writeback,
+ };
+@@ -47,6 +47,7 @@ const struct file_operations ramfs_file_operations = {
+ 	.splice_read	= generic_file_splice_read,
+ 	.splice_write	= generic_file_splice_write,
+ 	.llseek		= generic_file_llseek,
++	.release	= simple_thp_release,
+ };
  
-+			if (PageTransTailCache(page)) {
-+				/* part of already handled huge page */
-+				if (!page->mapping)
-+					continue;
-+				/* the range starts in middle of huge page */
-+				partial_thp_start = true;
-+				start = index & ~HPAGE_CACHE_INDEX_MASK;
-+				continue;
-+			}
-+			/* the range ends on huge page */
-+			if (PageTransHugeCache(page) &&
-+				index == (end & ~HPAGE_CACHE_INDEX_MASK)) {
-+				partial_thp_end = true;
-+				end = index;
-+				break;
-+			}
-+
- 			if (!trylock_page(page))
- 				continue;
- 			WARN_ON(page->index != index);
-@@ -265,34 +275,74 @@ void truncate_inode_pages_range(struct address_space *mapping,
- 		index++;
- 	}
- 
--	if (partial_start) {
--		struct page *page = find_lock_page(mapping, start - 1);
-+	if (partial_thp_start || lstart & ~PAGE_CACHE_MASK) {
-+		pgoff_t off;
-+		struct page *page;
-+		unsigned pstart, pend;
-+		void (*zero_segment)(struct page *page,
-+				unsigned start, unsigned len);
-+retry_partial_start:
-+		if (partial_thp_start) {
-+			zero_segment = zero_huge_user_segment;
-+			off = (start - 1) & ~HPAGE_CACHE_INDEX_MASK;
-+			pstart = lstart & ~HPAGE_PMD_MASK;
-+			if ((end & ~HPAGE_CACHE_INDEX_MASK) == off)
-+				pend = (lend - 1) & ~HPAGE_PMD_MASK;
-+			else
-+				pend = HPAGE_PMD_SIZE;
-+		} else {
-+			zero_segment = zero_user_segment;
-+			off = start - 1;
-+			pstart = lstart & ~PAGE_CACHE_MASK;
-+			if (start > end)
-+				pend = (lend - 1) & ~PAGE_CACHE_MASK;
-+			else
-+				pend = PAGE_CACHE_SIZE;
-+		}
-+
-+		page = find_get_page(mapping, off);
- 		if (page) {
--			unsigned int top = PAGE_CACHE_SIZE;
--			if (start > end) {
--				/* Truncation within a single page */
--				top = partial_end;
--				partial_end = 0;
-+			/* the last tail page*/
-+			if (PageTransTailCache(page)) {
-+				partial_thp_start = true;
-+				page_cache_release(page);
-+				goto retry_partial_start;
- 			}
-+
-+			lock_page(page);
- 			wait_on_page_writeback(page);
--			zero_user_segment(page, partial_start, top);
-+			zero_segment(page, pstart, pend);
- 			cleancache_invalidate_page(mapping, page);
- 			if (page_has_private(page))
--				do_invalidatepage(page, partial_start,
--						  top - partial_start);
-+				do_invalidatepage(page, pstart,
-+						pend - pstart);
- 			unlock_page(page);
- 			page_cache_release(page);
- 		}
- 	}
--	if (partial_end) {
--		struct page *page = find_lock_page(mapping, end);
-+	if (partial_thp_end || (lend + 1) & ~PAGE_CACHE_MASK) {
-+		pgoff_t off;
-+		struct page *page;
-+		unsigned pend;
-+		void (*zero_segment)(struct page *page,
-+				unsigned start, unsigned len);
-+		if (partial_thp_end) {
-+			zero_segment = zero_huge_user_segment;
-+			off = end & ~HPAGE_CACHE_INDEX_MASK;
-+			pend = (lend - 1) & ~HPAGE_PMD_MASK;
-+		} else {
-+			zero_segment = zero_user_segment;
-+			off = end;
-+			pend = (lend - 1) & ~PAGE_CACHE_MASK;
-+		}
-+
-+		page = find_lock_page(mapping, end);
- 		if (page) {
- 			wait_on_page_writeback(page);
--			zero_user_segment(page, 0, partial_end);
-+			zero_segment(page, 0, pend);
- 			cleancache_invalidate_page(mapping, page);
- 			if (page_has_private(page))
--				do_invalidatepage(page, 0,
--						  partial_end);
-+				do_invalidatepage(page, 0, pend);
- 			unlock_page(page);
- 			page_cache_release(page);
- 		}
-@@ -327,6 +377,9 @@ void truncate_inode_pages_range(struct address_space *mapping,
- 			if (index >= end)
- 				break;
- 
-+			if (PageTransTailCache(page))
-+				continue;
-+
- 			lock_page(page);
- 			WARN_ON(page->index != index);
- 			wait_on_page_writeback(page);
-@@ -401,6 +454,13 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
- 			if (index > end)
- 				break;
- 
-+			/* skip huge page if it's not fully in the range */
-+			if (PageTransHugeCache(page) &&
-+					index + HPAGE_CACHE_NR - 1 > end)
-+				continue;
-+			if (PageTransTailCache(page))
-+				continue;
-+
- 			if (!trylock_page(page))
- 				continue;
- 			WARN_ON(page->index != index);
+ const struct inode_operations ramfs_file_inode_operations = {
+diff --git a/fs/ramfs/inode.c b/fs/ramfs/inode.c
+index 39d1465..5dafdfc 100644
+--- a/fs/ramfs/inode.c
++++ b/fs/ramfs/inode.c
+@@ -61,7 +61,11 @@ struct inode *ramfs_get_inode(struct super_block *sb,
+ 		inode_init_owner(inode, dir, mode);
+ 		inode->i_mapping->a_ops = &ramfs_aops;
+ 		inode->i_mapping->backing_dev_info = &ramfs_backing_dev_info;
+-		mapping_set_gfp_mask(inode->i_mapping, GFP_HIGHUSER);
++		/*
++		 * TODO: make ramfs pages movable
++		 */
++		mapping_set_gfp_mask(inode->i_mapping,
++				GFP_TRANSHUGE & ~__GFP_MOVABLE);
+ 		mapping_set_unevictable(inode->i_mapping);
+ 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+ 		switch (mode & S_IFMT) {
 -- 
 1.8.3.2
 
