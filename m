@@ -1,280 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 5D4CF6B0031
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 06:38:22 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 5 Aug 2013 15:58:44 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 73F201258053
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 16:07:43 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r75AdG4Z41549896
-	for <linux-mm@kvack.org>; Mon, 5 Aug 2013 16:09:17 +0530
-Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r75Ac83u023069
-	for <linux-mm@kvack.org>; Mon, 5 Aug 2013 16:08:08 +0530
-Date: Mon, 5 Aug 2013 18:34:56 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [patch v2 3/3] mm: page_alloc: fair zone allocator policy
-Message-ID: <20130805103456.GB1039@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1375457846-21521-1-git-send-email-hannes@cmpxchg.org>
- <1375457846-21521-4-git-send-email-hannes@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 930756B0031
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 07:17:45 -0400 (EDT)
+Date: Mon, 5 Aug 2013 13:17:39 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 01/23] radix-tree: implement preload for multiple
+ contiguous elements
+Message-ID: <20130805111739.GA25691@quack.suse.cz>
+References: <1375582645-29274-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1375582645-29274-2-git-send-email-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1375457846-21521-4-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1375582645-29274-2-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@surriel.com>, Andrea Arcangeli <aarcange@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Ning Qu <quning@google.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri, Aug 02, 2013 at 11:37:26AM -0400, Johannes Weiner wrote:
->Each zone that holds userspace pages of one workload must be aged at a
->speed proportional to the zone size.  Otherwise, the time an
->individual page gets to stay in memory depends on the zone it happened
->to be allocated in.  Asymmetry in the zone aging creates rather
->unpredictable aging behavior and results in the wrong pages being
->reclaimed, activated etc.
->
->But exactly this happens right now because of the way the page
->allocator and kswapd interact.  The page allocator uses per-node lists
->of all zones in the system, ordered by preference, when allocating a
->new page.  When the first iteration does not yield any results, kswapd
->is woken up and the allocator retries.  Due to the way kswapd reclaims
->zones below the high watermark while a zone can be allocated from when
->it is above the low watermark, the allocator may keep kswapd running
->while kswapd reclaim ensures that the page allocator can keep
->allocating from the first zone in the zonelist for extended periods of
->time.  Meanwhile the other zones rarely see new allocations and thus
->get aged much slower in comparison.
->
->The result is that the occasional page placed in lower zones gets
->relatively more time in memory, even gets promoted to the active list
->after its peers have long been evicted.  Meanwhile, the bulk of the
->working set may be thrashing on the preferred zone even though there
->may be significant amounts of memory available in the lower zones.
->
->Even the most basic test -- repeatedly reading a file slightly bigger
->than memory -- shows how broken the zone aging is.  In this scenario,
->no single page should be able stay in memory long enough to get
->referenced twice and activated, but activation happens in spades:
->
->  $ grep active_file /proc/zoneinfo
->      nr_inactive_file 0
->      nr_active_file 0
->      nr_inactive_file 0
->      nr_active_file 8
->      nr_inactive_file 1582
->      nr_active_file 11994
->  $ cat data data data data >/dev/null
->  $ grep active_file /proc/zoneinfo
->      nr_inactive_file 0
->      nr_active_file 70
->      nr_inactive_file 258753
->      nr_active_file 443214
->      nr_inactive_file 149793
->      nr_active_file 12021
->
->Fix this with a very simple round robin allocator.  Each zone is
->allowed a batch of allocations that is proportional to the zone's
->size, after which it is treated as full.  The batch counters are reset
->when all zones have been tried and the allocator enters the slowpath
->and kicks off kswapd reclaim.  Allocation and reclaim is now fairly
->spread out to all available/allowable zones:
->
->  $ grep active_file /proc/zoneinfo
->      nr_inactive_file 0
->      nr_active_file 0
->      nr_inactive_file 174
->      nr_active_file 4865
->      nr_inactive_file 53
->      nr_active_file 860
->  $ cat data data data data >/dev/null
->  $ grep active_file /proc/zoneinfo
->      nr_inactive_file 0
->      nr_active_file 0
->      nr_inactive_file 666622
->      nr_active_file 4988
->      nr_inactive_file 190969
->      nr_active_file 937
->
+On Sun 04-08-13 05:17:03, Kirill A. Shutemov wrote:
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> 
+> The radix tree is variable-height, so an insert operation not only has
+> to build the branch to its corresponding item, it also has to build the
+> branch to existing items if the size has to be increased (by
+> radix_tree_extend).
+> 
+> The worst case is a zero height tree with just a single item at index 0,
+> and then inserting an item at index ULONG_MAX. This requires 2 new branches
+> of RADIX_TREE_MAX_PATH size to be created, with only the root node shared.
+> 
+> Radix tree is usually protected by spin lock. It means we want to
+> pre-allocate required memory before taking the lock.
+> 
+> Currently radix_tree_preload() only guarantees enough nodes to insert
+> one element. It's a hard limit. For transparent huge page cache we want
+> to insert HPAGE_PMD_NR (512 on x86-64) entries to address_space at once.
+> 
+> This patch introduces radix_tree_preload_count(). It allows to
+> preallocate nodes enough to insert a number of *contiguous* elements.
+> The feature costs about 5KiB per-CPU, details below.
+> 
+> Worst case for adding N contiguous items is adding entries at indexes
+> (ULONG_MAX - N) to ULONG_MAX. It requires nodes to insert single worst-case
+> item plus extra nodes if you cross the boundary from one node to the next.
+> 
+> Preload uses per-CPU array to store nodes. The total cost of preload is
+> "array size" * sizeof(void*) * NR_CPUS. We want to increase array size
+> to be able to handle 512 entries at once.
+> 
+> Size of array depends on system bitness and on RADIX_TREE_MAP_SHIFT.
+> 
+> We have three possible RADIX_TREE_MAP_SHIFT:
+> 
+>  #ifdef __KERNEL__
+>  #define RADIX_TREE_MAP_SHIFT	(CONFIG_BASE_SMALL ? 4 : 6)
+>  #else
+>  #define RADIX_TREE_MAP_SHIFT	3	/* For more stressful testing */
+>  #endif
+> 
+> On 64-bit system:
+> For RADIX_TREE_MAP_SHIFT=3, old array size is 43, new is 107.
+> For RADIX_TREE_MAP_SHIFT=4, old array size is 31, new is 63.
+> For RADIX_TREE_MAP_SHIFT=6, old array size is 21, new is 30.
+> 
+> On 32-bit system:
+> For RADIX_TREE_MAP_SHIFT=3, old array size is 21, new is 84.
+> For RADIX_TREE_MAP_SHIFT=4, old array size is 15, new is 46.
+> For RADIX_TREE_MAP_SHIFT=6, old array size is 11, new is 19.
+> 
+> On most machines we will have RADIX_TREE_MAP_SHIFT=6. In this case,
+> on 64-bit system the per-CPU feature overhead is
+>  for preload array:
+>    (30 - 21) * sizeof(void*) = 72 bytes
+>  plus, if the preload array is full
+>    (30 - 21) * sizeof(struct radix_tree_node) = 9 * 560 = 5040 bytes
+>  total: 5112 bytes
+> 
+> on 32-bit system the per-CPU feature overhead is
+>  for preload array:
+>    (19 - 11) * sizeof(void*) = 32 bytes
+>  plus, if the preload array is full
+>    (19 - 11) * sizeof(struct radix_tree_node) = 8 * 296 = 2368 bytes
+>  total: 2400 bytes
+> 
+> Since only THP uses batched preload at the moment, we disable (set max
+> preload to 1) it if !CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE. This can be
+> changed in the future.
+> 
+> Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Acked-by: Dave Hansen <dave.hansen@linux.intel.com>
+> ---
+>  include/linux/radix-tree.h | 11 +++++++++++
+>  lib/radix-tree.c           | 41 ++++++++++++++++++++++++++++++++---------
+>  2 files changed, 43 insertions(+), 9 deletions(-)
+...
+> diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+> index 7811ed3..99ab73c 100644
+> --- a/lib/radix-tree.c
+> +++ b/lib/radix-tree.c
+> @@ -82,16 +82,24 @@ static struct kmem_cache *radix_tree_node_cachep;
+>   * The worst case is a zero height tree with just a single item at index 0,
+>   * and then inserting an item at index ULONG_MAX. This requires 2 new branches
+>   * of RADIX_TREE_MAX_PATH size to be created, with only the root node shared.
+> + *
+> + * Worst case for adding N contiguous items is adding entries at indexes
+> + * (ULONG_MAX - N) to ULONG_MAX. It requires nodes to insert single worst-case
+> + * item plus extra nodes if you cross the boundary from one node to the next.
+> + *
+>   * Hence:
+>   */
+> -#define RADIX_TREE_PRELOAD_SIZE (RADIX_TREE_MAX_PATH * 2 - 1)
+> +#define RADIX_TREE_PRELOAD_MIN (RADIX_TREE_MAX_PATH * 2 - 1)
+> +#define RADIX_TREE_PRELOAD_MAX \
+> +	(RADIX_TREE_PRELOAD_MIN + \
+> +	 DIV_ROUND_UP(RADIX_TREE_PRELOAD_NR - 1, RADIX_TREE_MAP_SIZE))
+  Umm, is this really correct? I see two problems:
+1) You may need internal tree nodes at various levels but you seem to
+account only for the level 1.
+2) The rounding doesn't seem right because RADIX_TREE_MAP_SIZE+2 nodes may
+require 3 nodes at level 1 if the indexes are like:
+i_0 | i_1 .. i_{RADIX_TREE_MAP_SIZE} | i_{RADIX_TREE_MAP_SIZE+1}
+    ^                                ^
+    node boundary                    node boundary
 
-Why round robin allocator don't consume ZONE_DMA?
+  Otherwise the patch looks good.
 
->When zone_reclaim_mode is enabled, allocations will now spread out to
->all zones on the local node, not just the first preferred zone (which
->on a 4G node might be a tiny Normal zone).
->
->Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
->Tested-by: Zlatko Calusic <zcalusic@bitsync.net>
->---
-> include/linux/mmzone.h |  1 +
-> mm/page_alloc.c        | 69 ++++++++++++++++++++++++++++++++++++++++++--------
-> 2 files changed, 60 insertions(+), 10 deletions(-)
->
->diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
->index af4a3b7..dcad2ab 100644
->--- a/include/linux/mmzone.h
->+++ b/include/linux/mmzone.h
->@@ -352,6 +352,7 @@ struct zone {
-> 	 * free areas of different sizes
-> 	 */
-> 	spinlock_t		lock;
->+	int			alloc_batch;
-> 	int                     all_unreclaimable; /* All pages pinned */
-> #if defined CONFIG_COMPACTION || defined CONFIG_CMA
-> 	/* Set to true when the PG_migrate_skip bits should be cleared */
->diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->index 3b27d3e..b2cdfd0 100644
->--- a/mm/page_alloc.c
->+++ b/mm/page_alloc.c
->@@ -1817,6 +1817,11 @@ static void zlc_clear_zones_full(struct zonelist *zonelist)
-> 	bitmap_zero(zlc->fullzones, MAX_ZONES_PER_ZONELIST);
-> }
->
->+static bool zone_local(struct zone *local_zone, struct zone *zone)
->+{
->+	return node_distance(local_zone->node, zone->node) == LOCAL_DISTANCE;
->+}
->+
-> static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
-> {
-> 	return node_isset(local_zone->node, zone->zone_pgdat->reclaim_nodes);
->@@ -1854,6 +1859,11 @@ static void zlc_clear_zones_full(struct zonelist *zonelist)
-> {
-> }
->
->+static bool zone_local(struct zone *local_zone, struct zone *zone)
->+{
->+	return true;
->+}
->+
-> static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
-> {
-> 	return true;
->@@ -1901,6 +1911,26 @@ zonelist_scan:
-> 		if (alloc_flags & ALLOC_NO_WATERMARKS)
-> 			goto try_this_zone;
-> 		/*
->+		 * Distribute pages in proportion to the individual
->+		 * zone size to ensure fair page aging.  The zone a
->+		 * page was allocated in should have no effect on the
->+		 * time the page has in memory before being reclaimed.
->+		 *
->+		 * When zone_reclaim_mode is enabled, try to stay in
->+		 * local zones in the fastpath.  If that fails, the
->+		 * slowpath is entered, which will do another pass
->+		 * starting with the local zones, but ultimately fall
->+		 * back to remote zones that do not partake in the
->+		 * fairness round-robin cycle of this zonelist.
->+		 */
->+		if (alloc_flags & ALLOC_WMARK_LOW) {
->+			if (zone->alloc_batch <= 0)
->+				continue;
->+			if (zone_reclaim_mode &&
->+			    !zone_local(preferred_zone, zone))
->+				continue;
->+		}
->+		/*
-> 		 * When allocating a page cache page for writing, we
-> 		 * want to get it from a zone that is within its dirty
-> 		 * limit, such that no single zone holds more than its
->@@ -2006,7 +2036,8 @@ this_zone_full:
-> 		goto zonelist_scan;
-> 	}
->
->-	if (page)
->+	if (page) {
->+		zone->alloc_batch -= 1U << order;
-> 		/*
-> 		 * page->pfmemalloc is set when ALLOC_NO_WATERMARKS was
-> 		 * necessary to allocate the page. The expectation is
->@@ -2015,6 +2046,7 @@ this_zone_full:
-> 		 * for !PFMEMALLOC purposes.
-> 		 */
-> 		page->pfmemalloc = !!(alloc_flags & ALLOC_NO_WATERMARKS);
->+	}
->
-> 	return page;
-> }
->@@ -2346,16 +2378,28 @@ __alloc_pages_high_priority(gfp_t gfp_mask, unsigned int order,
-> 	return page;
-> }
->
->-static inline
->-void wake_all_kswapd(unsigned int order, struct zonelist *zonelist,
->-						enum zone_type high_zoneidx,
->-						enum zone_type classzone_idx)
->+static void prepare_slowpath(gfp_t gfp_mask, unsigned int order,
->+			     struct zonelist *zonelist,
->+			     enum zone_type high_zoneidx,
->+			     struct zone *preferred_zone)
-> {
-> 	struct zoneref *z;
-> 	struct zone *zone;
->
->-	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx)
->-		wakeup_kswapd(zone, order, classzone_idx);
->+	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
->+		if (!(gfp_mask & __GFP_NO_KSWAPD))
->+			wakeup_kswapd(zone, order, zone_idx(preferred_zone));
->+		/*
->+		 * Only reset the batches of zones that were actually
->+		 * considered in the fast path, we don't want to
->+		 * thrash fairness information for zones that are not
->+		 * actually part of this zonelist's round-robin cycle.
->+		 */
->+		if (zone_reclaim_mode && !zone_local(preferred_zone, zone))
->+			continue;
->+		zone->alloc_batch = high_wmark_pages(zone) -
->+			low_wmark_pages(zone);
->+	}
-> }
->
-> static inline int
->@@ -2451,9 +2495,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
-> 		goto nopage;
->
-> restart:
->-	if (!(gfp_mask & __GFP_NO_KSWAPD))
->-		wake_all_kswapd(order, zonelist, high_zoneidx,
->-						zone_idx(preferred_zone));
->+	prepare_slowpath(gfp_mask, order, zonelist,
->+			 high_zoneidx, preferred_zone);
->
-> 	/*
-> 	 * OK, we're below the kswapd watermark and have kicked background
->@@ -4754,6 +4797,9 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
-> 		zone_seqlock_init(zone);
-> 		zone->zone_pgdat = pgdat;
->
->+		/* For bootup, initialized properly in watermark setup */
->+		zone->alloc_batch = zone->managed_pages;
->+
-> 		zone_pcp_init(zone);
-> 		lruvec_init(&zone->lruvec);
-> 		if (!size)
->@@ -5525,6 +5571,9 @@ static void __setup_per_zone_wmarks(void)
-> 		zone->watermark[WMARK_LOW]  = min_wmark_pages(zone) + (tmp >> 2);
-> 		zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) + (tmp >> 1);
->
->+		zone->alloc_batch = high_wmark_pages(zone) -
->+			low_wmark_pages(zone);
->+
-> 		setup_zone_migrate_reserve(zone);
-> 		spin_unlock_irqrestore(&zone->lock, flags);
-> 	}
->-- 
->1.8.3.2
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
