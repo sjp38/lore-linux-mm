@@ -1,122 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 544AC6B0033
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 05:05:41 -0400 (EDT)
-Date: Mon, 5 Aug 2013 11:05:39 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm/Kconfig: add MMU dependency for MIGRATION.
-Message-ID: <20130805090539.GH10146@dhcp22.suse.cz>
-References: <51F9CA7D.2070506@asianux.com>
- <20130805073233.GB10146@dhcp22.suse.cz>
- <51FF6656.4070809@gmail.com>
- <20130805090301.GF10146@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 0A7956B0034
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 05:05:44 -0400 (EDT)
+Message-ID: <51FF6ADE.8060306@huawei.com>
+Date: Mon, 5 Aug 2013 17:05:34 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130805090301.GF10146@dhcp22.suse.cz>
+Subject: Re: [PATCH 1/2] cma: use macro PFN_DOWN when converting size to pages
+References: <51FF62C4.9010001@huawei.com> <20130805085404.GA22170@kroah.com>
+In-Reply-To: <20130805085404.GA22170@kroah.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Gang F T <chen.gang.flying.transformer@gmail.com>
-Cc: Chen Gang <gang.chen@asianux.com>, "sfr@canb.auug.org.au" <sfr@canb.auug.org.au>, rientjes@google.com, riel@redhat.com, isimatu.yasuaki@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon 05-08-13 11:03:01, Michal Hocko wrote:
-> On Mon 05-08-13 16:46:14, Chen Gang F T wrote:
-> > On 08/05/2013 03:32 PM, Michal Hocko wrote:
-> > > On Thu 01-08-13 10:39:57, Chen Gang wrote:
-> > >> MIGRATION need depend on MMU, or allmodconfig for sh architecture which
-> > >> without MMU will be fail for compiling.
-> > >>
-> > >> The related error: 
-> > >>
-> > >>     CC      mm/migrate.o
-> > >>   mm/migrate.c: In function 'remove_migration_pte':
-> > >>   mm/migrate.c:134:3: error: implicit declaration of function 'pmd_trans_huge' [-Werror=implicit-function-declaration]
-> > >>      if (pmd_trans_huge(*pmd))
-> > >>      ^
-> > >>   mm/migrate.c:149:2: error: implicit declaration of function 'is_swap_pte' [-Werror=implicit-function-declaration]
-> > >>     if (!is_swap_pte(pte))
-> > >>     ^
-> > >>   ...
-> > >>
-> > >>
-> > >> Signed-off-by: Chen Gang <gang.chen@asianux.com>
-> > >> ---
-> > >>  mm/Kconfig |    4 ++--
-> > >>  1 files changed, 2 insertions(+), 2 deletions(-)
-> > >>
-> > >> diff --git a/mm/Kconfig b/mm/Kconfig
-> > >> index 256bfd0..e847f19 100644
-> > >> --- a/mm/Kconfig
-> > >> +++ b/mm/Kconfig
-> > >> @@ -245,7 +245,7 @@ config COMPACTION
-> > >>  config MIGRATION
-> > >>  	bool "Page migration"
-> > >>  	def_bool y
-> > >> -	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION || CMA
-> > >> +	depends on (NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION || CMA) && MMU
-> > >>  	help
-> > >>  	  Allows the migration of the physical location of pages of processes
-> > >>  	  while the virtual addresses are not changed. This is useful in
-> > >> @@ -522,7 +522,7 @@ config MEM_SOFT_DIRTY
-> > >>  
-> > >>  config CMA
-> > >>  	bool "Contiguous Memory Allocator"
-> > >> -	depends on HAVE_MEMBLOCK
-> > >> +	depends on HAVE_MEMBLOCK && MMU
-> > > 
-> > > Why CMA has to depend on MMU as well? The MIGRATION part should be
-> > > sufficient.
-> > > 
-> > 
-> > MIGRATION need depend on MMU, when NOMMU, if select CMA, it will select
-> > MIGRATION by force.
+On 2013/8/5 16:54, Greg Kroah-Hartman wrote:
+
+> On Mon, Aug 05, 2013 at 04:31:00PM +0800, Xishi Qiu wrote:
+>> Use "PFN_DOWN(r->size)" instead of "r->size >> PAGE_SHIFT".
+>>
+>> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+>> ---
+>>  drivers/base/dma-contiguous.c |    5 ++---
+>>  1 files changed, 2 insertions(+), 3 deletions(-)
+>>
+>> diff --git a/drivers/base/dma-contiguous.c b/drivers/base/dma-contiguous.c
+>> index 0ca5442..1bcfaed 100644
+>> --- a/drivers/base/dma-contiguous.c
+>> +++ b/drivers/base/dma-contiguous.c
+>> @@ -201,13 +201,12 @@ static int __init cma_init_reserved_areas(void)
+>>  {
+>>  	struct cma_reserved *r = cma_reserved;
+>>  	unsigned i = cma_reserved_count;
+>> +	struct cma *cma;
 > 
-> Ohh, I wasn't aware of this Kcofing limitation. You are right then and
-> CMA needs a dependency as well.
-
-Could you mention this in the changelog please.
-Feel free to add
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
-
-> > e.g. for allmodconfig with sh architecture, if we only let MIGRATION
-> > depend on MMU, not let CMA depend on MMU, it will report the warning
-> > below:
-> > 
-> >   scripts/kconfig/conf --allmodconfig Kconfig
-> >   warning: (COMPACTION && CMA) selects MIGRATION which has unmet direct dependencies ((NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION || CMA) && MMU)
-> > 
-> > And for the final config file, MIGRATION is still enabled, although MMU
-> > is not defined.
-> > 
-> > 
-> > >>  	select MIGRATION
-> > >>  	select MEMORY_ISOLATION
-> > >>  	help
-> > > 
-> > 
-> > Thanks.
-> > -- 
-> > Chen Gang
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Why change this?
 > 
-> -- 
-> Michal Hocko
-> SUSE Labs
+>>  
+>>  	pr_debug("%s()\n", __func__);
+>>  
+>>  	for (; i; --i, ++r) {
+>> -		struct cma *cma;
+>> -		cma = cma_create_area(PFN_DOWN(r->start),
+>> -				      r->size >> PAGE_SHIFT);
+>> +		cma = cma_create_area(PFN_DOWN(r->start), PFN_DOWN(r->size));
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> That's reasonable to clean up, but nothing major.  Care to resend this
+> without the cma change?
+> 
 
--- 
-Michal Hocko
-SUSE Labs
+Thank you and I will resend it soon.
+
+Thanks,
+Xishi Qiu
+
+> thanks,
+> 
+> greg k-h
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
