@@ -1,39 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 44E076B0033
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 14:30:51 -0400 (EDT)
-Received: by mail-oa0-f42.google.com with SMTP id i18so7107525oag.1
-        for <linux-mm@kvack.org>; Mon, 05 Aug 2013 11:30:50 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id CF7B36B0031
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 14:35:51 -0400 (EDT)
+Message-ID: <51FFF078.8020203@redhat.com>
+Date: Mon, 05 Aug 2013 14:35:36 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <51FFEDD6.7020906@intel.com>
-References: <CAA25o9RO5+gYCTQuouNsJ5COTWdA+wbPUH--B-STSmySjTxBAQ@mail.gmail.com>
-	<51FFEDD6.7020906@intel.com>
-Date: Mon, 5 Aug 2013 11:30:50 -0700
-Message-ID: <CAA25o9RXOj6JrNj7ttzYQ38Vzrw3o9nLMxhzqycDxoJT6u6_fQ@mail.gmail.com>
-Subject: Re: swap behavior during fast allocation
-From: Luigi Semenzato <semenzato@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 5/9] mm: compaction: don't require high order pages below
+ min wmark
+References: <1375459596-30061-1-git-send-email-aarcange@redhat.com> <1375459596-30061-6-git-send-email-aarcange@redhat.com>
+In-Reply-To: <1375459596-30061-6-git-send-email-aarcange@redhat.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Johannes Weiner <jweiner@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hush Bensen <hush.bensen@gmail.com>
 
-On Mon, Aug 5, 2013 at 11:24 AM, Dave Hansen <dave.hansen@intel.com> wrote:
-> On 08/05/2013 11:04 AM, Luigi Semenzato wrote:
->> We can reproduce this by running a few processes that mmap large
->> chunks of memory, then randomly touch pages to fault them in.  We also
->> think this happens when a process writes a large amount of data using
->> buffered I/O, and the "Buffers" field in /proc/meminfo exceeds 1GB.
->> (This is something that can and should be corrected by using
->> unbuffered I/O instead, but it's a data point.)
+On 08/02/2013 12:06 PM, Andrea Arcangeli wrote:
+> The min wmark should be satisfied with just 1 hugepage. And the other
+> wmarks should be adjusted accordingly. We need to succeed the low
+> wmark check if there's some significant amount of 0 order pages, but
+> we don't need plenty of high order pages because the PF_MEMALLOC paths
+> don't require those. Creating a ton of high order pages that cannot be
+> allocated by the high order allocation paths (no PF_MEMALLOC) is quite
+> wasteful because they can be splitted in lower order pages before
+> anybody has a chance to allocate them.
 >
-> Where are all the buffers coming from?  Most I/O to/from filesystems
-> should be instantiating relatively modest amounts of Buffers.  Are you
-> doing I/O directly to devices for some reason?
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 
-Correct.  This is the autoupdate process, which writes the changed
-kernel and filesystem blocks directly to raw partitions.  (The
-filesystem partition is obviously not currently in use.)
+Acked-by: Rik van Riel <riel@redhat.com>
+
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
