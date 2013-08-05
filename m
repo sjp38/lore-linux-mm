@@ -1,59 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 255E16B0031
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 09:39:52 -0400 (EDT)
-Message-ID: <51FFAAD1.9040405@cn.fujitsu.com>
-Date: Mon, 05 Aug 2013 21:38:25 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2 00/18] Arrange hotpluggable memory as ZONE_MOVABLE.
-References: <1375340800-19332-1-git-send-email-tangchen@cn.fujitsu.com> <51FFA393.2080301@zytor.com>
-In-Reply-To: <51FFA393.2080301@zytor.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 2203D6B0033
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 10:32:17 -0400 (EDT)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [RFC PATCH 1/6] mm: putback_lru_page: remove unnecessary call to page_lru_base_type()
+Date: Mon,  5 Aug 2013 16:32:00 +0200
+Message-Id: <1375713125-18163-2-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1375713125-18163-1-git-send-email-vbabka@suse.cz>
+References: <1375713125-18163-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: joern@logfs.org
+Cc: mgorman@suse.de, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>
 
+In putback_lru_page() since commit c53954a092 (""mm: remove lru parameter from
+__lru_cache_add and lru_cache_add_lru") it is no longer needed to determine lru
+list via page_lru_base_type().
 
-Hi hpa,
+This patch replaces it with simple flag is_unevictable which says that the page
+was put on the inevictable list. This is the only information that matters in
+subsequent tests.
 
-I'm sorry but I don't quite following it.
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ mm/vmscan.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
 
-On 08/05/2013 09:07 PM, H. Peter Anvin wrote:
-> On 08/01/2013 12:06 AM, Tang Chen wrote:
->> This patch-set aims to solve some problems at system boot time
->> to enhance memory hotplug functionality.
->>
->> [Background]
->>
->> The Linux kernel cannot migrate pages used by the kernel because
->> of the kernel direct mapping. Since va = pa + PAGE_OFFSET, if the
->> physical address is changed, we cannot simply update the kernel
->> pagetable. On the contrary, we have to update all the pointers
->> pointing to the virtual address, which is very difficult to do.
->>
->
-> It does beg the question if that "since" statement should be changed ...
-
-Do you mean we are going to do kernel page migration in the future ?
-
-> we already have it handled differently on Xen PV, but that is kind of
-> "special".  There are a whole bunch of other issues with moving kernel
-> memory around: you have to worry what might have a physical address
-> cached somewhere and what might be in active use and so on...
-
-The current solution is to hotplug ZONE_MOVABLE, which the kernel won't
-use. So do you mean if I want to do kernel page migration (which I'm not
-doing), I need to worry about what you said above ?
-
->I am not
-> really suggesting it as anything but food for thought at this time.
-
-Sorry for my poor English, and I really cannot understand this one.
-
-Thanks.
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 2cff0d4..0fa537e 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -545,7 +545,7 @@ int remove_mapping(struct address_space *mapping, struct page *page)
+  */
+ void putback_lru_page(struct page *page)
+ {
+-	int lru;
++	bool is_unevictable;
+ 	int was_unevictable = PageUnevictable(page);
+ 
+ 	VM_BUG_ON(PageLRU(page));
+@@ -560,14 +560,14 @@ redo:
+ 		 * unevictable page on [in]active list.
+ 		 * We know how to handle that.
+ 		 */
+-		lru = page_lru_base_type(page);
++		is_unevictable = false;
+ 		lru_cache_add(page);
+ 	} else {
+ 		/*
+ 		 * Put unevictable pages directly on zone's unevictable
+ 		 * list.
+ 		 */
+-		lru = LRU_UNEVICTABLE;
++		is_unevictable = true;
+ 		add_page_to_unevictable_list(page);
+ 		/*
+ 		 * When racing with an mlock or AS_UNEVICTABLE clearing
+@@ -587,7 +587,7 @@ redo:
+ 	 * page is on unevictable list, it never be freed. To avoid that,
+ 	 * check after we added it to the list, again.
+ 	 */
+-	if (lru == LRU_UNEVICTABLE && page_evictable(page)) {
++	if (is_unevictable && page_evictable(page)) {
+ 		if (!isolate_lru_page(page)) {
+ 			put_page(page);
+ 			goto redo;
+@@ -598,9 +598,9 @@ redo:
+ 		 */
+ 	}
+ 
+-	if (was_unevictable && lru != LRU_UNEVICTABLE)
++	if (was_unevictable && !is_unevictable)
+ 		count_vm_event(UNEVICTABLE_PGRESCUED);
+-	else if (!was_unevictable && lru == LRU_UNEVICTABLE)
++	else if (!was_unevictable && is_unevictable)
+ 		count_vm_event(UNEVICTABLE_PGCULLED);
+ 
+ 	put_page(page);		/* drop ref from isolate */
+-- 
+1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
