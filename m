@@ -1,73 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id BC3BF6B0031
-	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 23:27:13 -0400 (EDT)
-Message-ID: <51FF1B7A.8070607@huawei.com>
-Date: Mon, 5 Aug 2013 11:26:50 +0800
-From: Li Zefan <lizefan@huawei.com>
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id CE32F6B0031
+	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 23:43:24 -0400 (EDT)
+Date: Sun, 4 Aug 2013 23:43:04 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch v2 3/3] mm: page_alloc: fair zone allocator policy
+Message-ID: <20130805034304.GC23319@cmpxchg.org>
+References: <1375457846-21521-1-git-send-email-hannes@cmpxchg.org>
+ <1375457846-21521-4-git-send-email-hannes@cmpxchg.org>
+ <20130805011546.GI32486@bbox>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/5] memcg: rename cgroup_event to mem_cgroup_event
-References: <1375632446-2581-1-git-send-email-tj@kernel.org> <1375632446-2581-6-git-send-email-tj@kernel.org>
-In-Reply-To: <1375632446-2581-6-git-send-email-tj@kernel.org>
-Content-Type: text/plain; charset="GB2312"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130805011546.GI32486@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: hannes@cmpxchg.org, mhocko@suse.cz, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@surriel.com>, Andrea Arcangeli <aarcange@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 2013/8/5 0:07, Tejun Heo wrote:
-> cgroup_event is only available in memcg now.  Let's brand it that way.
-> While at it, add a comment encouraging deprecation of the feature and
-> remove the respective section from cgroup documentation.
+On Mon, Aug 05, 2013 at 10:15:46AM +0900, Minchan Kim wrote:
+> Hello Hannes,
 > 
-> This patch is cosmetic.
+> On Fri, Aug 02, 2013 at 11:37:26AM -0400, Johannes Weiner wrote:
+> > Each zone that holds userspace pages of one workload must be aged at a
+> > speed proportional to the zone size.  Otherwise, the time an
+> > individual page gets to stay in memory depends on the zone it happened
+> > to be allocated in.  Asymmetry in the zone aging creates rather
+> > unpredictable aging behavior and results in the wrong pages being
+> > reclaimed, activated etc.
+> > 
+> > But exactly this happens right now because of the way the page
+> > allocator and kswapd interact.  The page allocator uses per-node lists
+> > of all zones in the system, ordered by preference, when allocating a
+> > new page.  When the first iteration does not yield any results, kswapd
+> > is woken up and the allocator retries.  Due to the way kswapd reclaims
+> > zones below the high watermark while a zone can be allocated from when
+> > it is above the low watermark, the allocator may keep kswapd running
+> > while kswapd reclaim ensures that the page allocator can keep
+> > allocating from the first zone in the zonelist for extended periods of
+> > time.  Meanwhile the other zones rarely see new allocations and thus
+> > get aged much slower in comparison.
+> > 
+> > The result is that the occasional page placed in lower zones gets
+> > relatively more time in memory, even gets promoted to the active list
+> > after its peers have long been evicted.  Meanwhile, the bulk of the
+> > working set may be thrashing on the preferred zone even though there
+> > may be significant amounts of memory available in the lower zones.
+> > 
+> > Even the most basic test -- repeatedly reading a file slightly bigger
+> > than memory -- shows how broken the zone aging is.  In this scenario,
+> > no single page should be able stay in memory long enough to get
+> > referenced twice and activated, but activation happens in spades:
+> > 
+> >   $ grep active_file /proc/zoneinfo
+> >       nr_inactive_file 0
+> >       nr_active_file 0
+> >       nr_inactive_file 0
+> >       nr_active_file 8
+> >       nr_inactive_file 1582
+> >       nr_active_file 11994
+> >   $ cat data data data data >/dev/null
+> >   $ grep active_file /proc/zoneinfo
+> >       nr_inactive_file 0
+> >       nr_active_file 70
+> >       nr_inactive_file 258753
+> >       nr_active_file 443214
+> >       nr_inactive_file 149793
+> >       nr_active_file 12021
+> > 
+> > Fix this with a very simple round robin allocator.  Each zone is
+> > allowed a batch of allocations that is proportional to the zone's
+> > size, after which it is treated as full.  The batch counters are reset
+> > when all zones have been tried and the allocator enters the slowpath
+> > and kicks off kswapd reclaim.  Allocation and reclaim is now fairly
+> > spread out to all available/allowable zones:
+> > 
+> >   $ grep active_file /proc/zoneinfo
+> >       nr_inactive_file 0
+> >       nr_active_file 0
+> >       nr_inactive_file 174
+> >       nr_active_file 4865
+> >       nr_inactive_file 53
+> >       nr_active_file 860
+> >   $ cat data data data data >/dev/null
+> >   $ grep active_file /proc/zoneinfo
+> >       nr_inactive_file 0
+> >       nr_active_file 0
+> >       nr_inactive_file 666622
+> >       nr_active_file 4988
+> >       nr_inactive_file 190969
+> >       nr_active_file 937
+> > 
+> > When zone_reclaim_mode is enabled, allocations will now spread out to
+> > all zones on the local node, not just the first preferred zone (which
+> > on a 4G node might be a tiny Normal zone).
 > 
-> Signed-off-by: Tejun Heo <tj@kernel.org>
-> ---
->  Documentation/cgroups/cgroups.txt | 19 -------------
->  mm/memcontrol.c                   | 57 +++++++++++++++++++++++++--------------
->  2 files changed, 37 insertions(+), 39 deletions(-)
+> I really want to give Reviewed-by but before that, I'd like to clear out
+> my concern which didn't handle enoughly in previous iteration.
 > 
-> diff --git a/Documentation/cgroups/cgroups.txt b/Documentation/cgroups/cgroups.txt
-> index 638bf17..ca5aee9 100644
-> --- a/Documentation/cgroups/cgroups.txt
-> +++ b/Documentation/cgroups/cgroups.txt
-> @@ -472,25 +472,6 @@ you give a subsystem a name.
->  The name of the subsystem appears as part of the hierarchy description
->  in /proc/mounts and /proc/<pid>/cgroups.
+> Let's assume system has normal zone : 800M High zone : 800M
+> and there are two parallel workloads.
 > 
+> 1. alloc_pages(GFP_KERNEL) : 800M
+> 2. alloc_pages(GFP_MOVABLE) + mlocked : 800M
+> 
+> With old behavior, allocation from both workloads is fulfilled happily
+> because most of allocation from GFP_KERNEL would be done in normal zone
+> while most of allocation from GFP_MOVABLE would be done in high zone.
+> There is no OOM kill in this scenario.
 
-2. Usage Examples and Syntax
-  2.1 Basic Usage
-  2.2 Attaching processes
-  2.3 Mounting hierarchies by name
-  2.4 Notification API
+If you have used ANY cache before, the movable pages will spill into
+lowmem.
 
-remove the index ?
- 
-> -2.4 Notification API
-> ---------------------
-> -
-> -There is mechanism which allows to get notifications about changing
-> -status of a cgroup.
-> -
-> -To register a new notification handler you need to:
-> - - create a file descriptor for event notification using eventfd(2);
-> - - open a control file to be monitored (e.g. memory.usage_in_bytes);
-> - - write "<event_fd> <control_fd> <args>" to cgroup.event_control.
-> -   Interpretation of args is defined by control file implementation;
-> -
-> -eventfd will be woken up by control file implementation or when the
-> -cgroup is removed.
-> -
-> -To unregister a notification handler just close eventfd.
-> -
-> -NOTE: Support of notifications should be implemented for the control
-> -file. See documentation for the subsystem.
->  
+> With you change, normal zone would be fullfilled with GFP_KERNEL:400M
+> and GFP_MOVABLE:400M while high zone will have GFP_MOVABLE:400 + free 400M.
+> Then, someone would be OOM killed.
+>
+> Of course, you can argue that if there is such workloads, he should make
+> sure it via lowmem_reseve but it's rather overkill if we consider more examples
+> because any movable pages couldn't be allocated from normal zone so memory
+> efficieny would be very bad.
 
-Why not move this section to Documentation/cgroups/memory.txt?
+That's exactly what lowmem reserves are for: protect low memory from
+data that can sit in high memory, so that you have enough for data
+that can only be in low memory.
+
+If we find those reserves to be inadequate, we have to increase them.
+You can't assume you get more lowmem than the lowmem reserves, period.
+
+And while I don't mean to break highmem machines, I really can't find
+it in my heart to care about theoretical performance variations in
+highmem cornercases (which is already a redundancy).
+
+> As I said, I like your approach because I have no idea to handle unbalanced
+> aging problem better and we can get more benefits rather than lost by above
+> corner case but at least, I'd like to confirm what you think about
+> above problem before further steps. Maybe we can introduce "mlock with
+> newly-allocation or already-mapped page could be migrated to high memory zone"
+> when someone reported out? (we thougt mlocked page migration would be problem
+> RT latency POV but Peter confirmed it's no problem.)
+
+And you think increasing lowmem reserves would be overkill? ;-)
+
+These patches fix real page aging problems.  Making trade offs to work
+properly on as many setups as possible is one thing, but a highmem
+configuration where you need exactly 100% of lowmem and mlock 100% of
+highmem?
+
+Come on, Minchan...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
