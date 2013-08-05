@@ -1,58 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id F3B626B0033
-	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 22:58:50 -0400 (EDT)
-Message-ID: <51FF14C5.4040003@huawei.com>
-Date: Mon, 5 Aug 2013 10:58:13 +0800
-From: Li Zefan <lizefan@huawei.com>
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id A597C6B0031
+	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 23:11:16 -0400 (EDT)
+Date: Mon, 5 Aug 2013 13:11:12 +1000
+From: Michael Ellerman <michael@ellerman.id.au>
+Subject: Re: [PATCH 2/8] Mark powerpc memory resources as busy
+Message-ID: <20130805031111.GA5347@concordia>
+References: <51F01E06.6090800@linux.vnet.ibm.com>
+ <51F01EB2.9060802@linux.vnet.ibm.com>
+ <20130802022827.GB1680@concordia>
+ <51FC0315.1010601@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/5] cgroup: export __cgroup_from_dentry() and __cgroup_dput()
-References: <1375632446-2581-1-git-send-email-tj@kernel.org> <1375632446-2581-3-git-send-email-tj@kernel.org>
-In-Reply-To: <1375632446-2581-3-git-send-email-tj@kernel.org>
-Content-Type: text/plain; charset="GB2312"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51FC0315.1010601@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: hannes@cmpxchg.org, mhocko@suse.cz, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nathan Fontenot <nfont@linux.vnet.ibm.com>
+Cc: linux-mm <linux-mm@kvack.org>, isimatu.yasuaki@jp.fujitsu.com, linuxppc-dev@lists.ozlabs.org, LKML <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-> +struct cgroup *__cgroup_from_dentry(struct dentry *dentry, struct cftype **cftp)
->  {
-> -	if (file_inode(file)->i_fop != &cgroup_file_operations)
-> -		return ERR_PTR(-EINVAL);
-> -	return __d_cft(file->f_dentry);
-> +	if (!dentry->d_inode ||
-> +	    dentry->d_inode->i_op != &cgroup_file_inode_operations)
-> +		return NULL;
-> +
-> +	if (cftp)
-> +		*cftp = __d_cft(dentry);
-> +	return __d_cgrp(dentry->d_parent);
->  }
-> +EXPORT_SYMBOL_GPL(__cgroup_from_dentry);
+On Fri, Aug 02, 2013 at 02:05:57PM -0500, Nathan Fontenot wrote:
+> On 08/01/2013 09:28 PM, Michael Ellerman wrote:
+> > On Wed, Jul 24, 2013 at 01:36:34PM -0500, Nathan Fontenot wrote:
+> >> Memory I/O resources need to be marked as busy or else we cannot remove
+> >> them when doing memory hot remove.
+> > 
+> > I would have thought it was the opposite?
+> 
+> Me too.
+> 
+> As it turns out the code in kernel/resource.c checks to make sure the
+> IORESOURCE_BUSY flag is set when trying to release a resource.
 
-As we don't expect new users, why export this symbol? memcg can't be
-built as a module.
+OK, I guess there's probably some sane reason, but it does seem
+backward.
 
->  
->  static int cgroup_create_file(struct dentry *dentry, umode_t mode,
->  				struct super_block *sb)
-> @@ -3953,7 +3956,7 @@ static int cgroup_write_notify_on_release(struct cgroup_subsys_state *css,
->   *
->   * That's why we hold a reference before dput() and drop it right after.
->   */
-> -static void cgroup_dput(struct cgroup *cgrp)
-> +void __cgroup_dput(struct cgroup *cgrp)
->  {
->  	struct super_block *sb = cgrp->root->sb;
->  
-> @@ -3961,6 +3964,7 @@ static void cgroup_dput(struct cgroup *cgrp)
->  	dput(cgrp->dentry);
->  	deactivate_super(sb);
->  }
-> +EXPORT_SYMBOL_GPL(__cgroup_dput);
-
-ditto
+cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
