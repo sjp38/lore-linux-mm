@@ -1,101 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 0CD6D6B0031
-	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 23:14:24 -0400 (EDT)
-Message-ID: <51FF187C.4070002@huawei.com>
-Date: Mon, 5 Aug 2013 11:14:04 +0800
-From: Li Zefan <lizefan@huawei.com>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id ABFD56B0031
+	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 23:23:26 -0400 (EDT)
+Message-ID: <51FF1A4F.1050309@cn.fujitsu.com>
+Date: Mon, 05 Aug 2013 11:21:51 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/5] cgroup, memcg: move cgroup_event implementation to
- memcg
-References: <1375632446-2581-1-git-send-email-tj@kernel.org> <1375632446-2581-4-git-send-email-tj@kernel.org>
-In-Reply-To: <1375632446-2581-4-git-send-email-tj@kernel.org>
-Content-Type: text/plain; charset="GB2312"
-Content-Transfer-Encoding: 8bit
+Subject: Re: [PATCH v2 RESEND 05/18] x86, ACPICA: Split acpi_boot_table_init()
+ into two parts.
+References: <1375434877-20704-1-git-send-email-tangchen@cn.fujitsu.com> <1375434877-20704-6-git-send-email-tangchen@cn.fujitsu.com> <7364455.HW1C4G1skW@vostro.rjw.lan>
+In-Reply-To: <7364455.HW1C4G1skW@vostro.rjw.lan>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: hannes@cmpxchg.org, mhocko@suse.cz, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: robert.moore@intel.com, lv.zheng@intel.com, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-OU 2013/8/5 0:07, Tejun Heo D'uA:
-> cgroup_event is way over-designed and tries to build a generic
-> flexible event mechanism into cgroup - fully customizable event
-> specification for each user of the interface.  This is utterly
-> unnecessary and overboard especially in the light of the planned
-> unified hierarchy as there's gonna be single agent.  Simply generating
-> events at fixed points, or if that's too restrictive, configureable
-> cadence or single set of configureable points should be enough.
-> 
-> Thankfully, memcg is the only user and gets to keep it.  Replacing it
-> with something simpler on sane_behavior is strongly recommended.
-> 
-> This patch moves cgroup_event and "cgroup.event_control"
-> implementation to mm/memcontrol.c.  Clearing of events on cgroup
-> destruction is moved from cgroup_destroy_locked() to
-> mem_cgroup_css_offline(), which shouldn't make any noticeable
-> difference.
-> 
-> Note that "cgroup.event_control" will now exist only on the hierarchy
-> with memcg attached to it.  While this change is visible to userland,
-> it is unlikely to be noticeable as the file has never been meaningful
-> outside memcg.
-> 
-> Signed-off-by: Tejun Heo <tj@kernel.org>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Cc: Balbir Singh <bsingharora@gmail.com>
-> ---
->  kernel/cgroup.c | 237 -------------------------------------------------------
->  mm/memcontrol.c | 238 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
->  2 files changed, 238 insertions(+), 237 deletions(-)
-> 
+Hi Rafael,
 
-init/Kconfig needs to be updated too:
+On 08/02/2013 09:00 PM, Rafael J. Wysocki wrote:
+......
+>> This patch splits acpi_boot_table_init() into two steps:
+>> 1. Parse RSDT, which cannot be overrided, and initialize
+>>     acpi_gbl_root_table_list. (step 1 + 2 above)
+>> 2. Install all ACPI tables into acpi_gbl_root_table_list.
+>>     (step 3 + 4 above)
+>>
+>> In later patches, we will do step 1 + 2 earlier.
+>
+> Please note that Linux is not the only user of the code you're modifying, so
+> you need to make it possible to use the existing functions.
+>
+> In particular, acpi_tb_parse_root_table() can't be modified the way you did it,
+> because that would require all of the users of ACPICA to be modified.
 
-menuconfig CGROUPS
-        boolean "Control Group support"
-        depends on EVENTFD
-...
-config SCHED_AUTOGROUP
-        bool "Automatic process group scheduling"
-        select EVENTFD
-        select CGROUPS
+OK, I understand it. Then how about acpi_tb_install_table() ?
 
-> diff --git a/kernel/cgroup.c b/kernel/cgroup.c
-> index 2583b7b..a0b5e22 100644
-> --- a/kernel/cgroup.c
-> +++ b/kernel/cgroup.c
-> @@ -56,7 +56,6 @@
->  #include <linux/pid_namespace.h>
->  #include <linux/idr.h>
->  #include <linux/vmalloc.h> /* TODO: replace with more sophisticated array */
-> -#include <linux/eventfd.h>
->  #include <linux/poll.h>
+acpi_tb_install_table() is also an ACPICA API. But can we split the
+acpi_initrd_table_override part out ? Like the following:
 
-poll.h also can be removed.
+1. Initialize acpi_gbl_root_table_list earlier, and install all tables
+    provided by firmware.
+2. Find SRAT in initrd. If no overridden SRAT, get the SRAT in 
+acpi_gbl_root_table_list
+    directly. And mark hotpluggable memory. (This the job I want to do.)
+3. DO acpi_initrd_table_override job.
 
->  #include <linux/flex_array.h> /* used in cgroup_attach_task */
->  #include <linux/kthread.h>
-> @@ -154,36 +153,6 @@ struct css_id {
->  	unsigned short stack[0]; /* Array of Length (depth+1) */
->  };
->  
+Finally it will work like the current kernel. The only difference is:
+Before the patch-set, it try to do override first, and then install 
+firmware tables.
+After the patch-set, it installs firmware tables, and then do the override.
 
-[...]
-
->  
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 2885e3e..3700b65 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-
-#include <linux/eventfd.h>
-#include <linux/poll.h>
-
-> @@ -239,6 +239,36 @@ struct mem_cgroup_eventfd_list {
->  	struct eventfd_ctx *eventfd;
->  };
-
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
