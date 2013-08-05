@@ -1,68 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id A6F4B6B0031
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 17:44:26 -0400 (EDT)
-Date: Tue, 6 Aug 2013 01:41:35 +0400
-From: Andrew Vagin <avagin@parallels.com>
-Subject: Re: [PATCH] memcg: don't initialize kmem-cache destroying work for
- root caches
-Message-ID: <20130805214135.GA4958@paralelels.com>
-References: <1375718980-22154-1-git-send-email-avagin@openvz.org>
- <20130805130530.fd38ec4866ba7f1d9a400218@linux-foundation.org>
- <20130805210128.GA2772@paralelels.com>
- <20130805141609.777a0d6dee55091f6981c39b@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id A84646B0033
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 17:59:03 -0400 (EDT)
+Date: Mon, 5 Aug 2013 17:58:52 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH V5 7/8] memcg: don't account root memcg page stats if
+ only root exists
+Message-ID: <20130805215852.GF1845@cmpxchg.org>
+References: <1375357402-9811-1-git-send-email-handai.szj@taobao.com>
+ <1375358407-10777-1-git-send-email-handai.szj@taobao.com>
+ <20130801162012.GA23319@cmpxchg.org>
+ <CAFj3OHUxir9kUXgHfOb1m6LDzO8HBG68CDi3MzV54sC0jdP=iQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="koi8-r"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130805141609.777a0d6dee55091f6981c39b@linux-foundation.org>
+In-Reply-To: <CAFj3OHUxir9kUXgHfOb1m6LDzO8HBG68CDi3MzV54sC0jdP=iQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrey Vagin <avagin@openvz.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Glauber Costa <glommer@openvz.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, stable@vger.kernel.org
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Glauber Costa <glommer@gmail.com>, Greg Thelen <gthelen@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Sha Zhengju <handai.szj@taobao.com>
 
-On Mon, Aug 05, 2013 at 02:16:09PM -0700, Andrew Morton wrote:
-> On Tue, 6 Aug 2013 01:01:28 +0400 Andrew Vagin <avagin@parallels.com> wrote:
+On Fri, Aug 02, 2013 at 12:32:17PM +0800, Sha Zhengju wrote:
+> On Fri, Aug 2, 2013 at 12:20 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > On Thu, Aug 01, 2013 at 08:00:07PM +0800, Sha Zhengju wrote:
+> >> @@ -6303,6 +6360,49 @@ mem_cgroup_css_online(struct cgroup *cont)
+> >>       }
+> >>
+> >>       error = memcg_init_kmem(memcg, &mem_cgroup_subsys);
+> >> +     if (!error) {
+> >> +             if (!mem_cgroup_in_use()) {
+> >> +                     /* I'm the first non-root memcg, move global stats to root memcg.
+> >> +                      * Memcg creating is serialized by cgroup locks(cgroup_mutex),
+> >> +                      * so the mem_cgroup_in_use() checking is safe.
+> >> +                      *
+> >> +                      * We use global_page_state() to get global page stats, but
+> >> +                      * because of the optimized inc/dec functions in SMP while
+> >> +                      * updating each zone's stats, We may lose some numbers
+> >> +                      * in a stock(zone->pageset->vm_stat_diff) which brings some
+> >> +                      * inaccuracy. But places where kernel use these page stats to
+> >> +                      * steer next decision e.g. dirty page throttling or writeback
+> >> +                      * also use global_page_state(), so here it's enough too.
+> >> +                      */
+> >> +                     spin_lock(&root_mem_cgroup->pcp_counter_lock);
+> >> +                     root_mem_cgroup->stats_base.count[MEM_CGROUP_STAT_FILE_MAPPED] =
+> >> +                                             global_page_state(NR_FILE_MAPPED);
+> >> +                     root_mem_cgroup->stats_base.count[MEM_CGROUP_STAT_FILE_DIRTY] =
+> >> +                                             global_page_state(NR_FILE_DIRTY);
+> >> +                     root_mem_cgroup->stats_base.count[MEM_CGROUP_STAT_WRITEBACK] =
+> >> +                                             global_page_state(NR_WRITEBACK);
+> >> +                     spin_unlock(&root_mem_cgroup->pcp_counter_lock);
+> >> +             }
+> >
+> > If inaccuracies in these counters are okay, why do we go through an
+> > elaborate locking scheme that sprinkles memcg callbacks everywhere
+> > just to be 100% reliable in the rare case somebody moves memory
+> > between cgroups?
 > 
-> > On Mon, Aug 05, 2013 at 01:05:30PM -0700, Andrew Morton wrote:
-> > > On Mon,  5 Aug 2013 20:09:40 +0400 Andrey Vagin <avagin@openvz.org> wrote:
-> > > 
-> > > > struct memcg_cache_params has a union. Different parts of this union
-> > > > are used for root and non-root caches. A part with destroying work is
-> > > > used only for non-root caches.
-> > > > 
-> > > > I fixed the same problem in another place v3.9-rc1-16204-gf101a94, but
-> > > > didn't notice this one.
-> > > > 
-> > > > Cc: <stable@vger.kernel.org>    [3.9.x]
-> > > 
-> > > hm, why the cc:stable?
-> > 
-> > Because this patch fixes the kernel panic:
-> > 
-> > [   46.848187] BUG: unable to handle kernel paging request at 000000fffffffeb8
-> > [   46.849026] IP: [<ffffffff811a484c>] kmem_cache_destroy_memcg_children+0x6c/0xc0
-> > [   46.849092] PGD 0
-> > [   46.849092] Oops: 0000 [#1] SMP
+> IMO they are not the same thing. Moving between cgroups may happen
+> many times, if we ignore the inaccuracy between moving, then the
+> cumulative inaccuracies caused by this back and forth behavior can
+> become very large.
 > 
-> OK, pretty soon we'll have a changelog!
+> But the transferring above occurs only once since we do it only when
+> the first non-root memcg creating, so the error is at most
+> zone->pageset->stat_threshold. This threshold depends on the amount of
+> zone memory and  the number of processors, and its maximum value is
+> 125, so I thought using global_page_state() is enough. Of course we
+> can add the stock to seek for greater perfection, but there are also
+> possibilities of inaccuracy because of racy.
 
-Sorry, probably I had to write all these in the initial commit message. I
-just thought that this patch is an additional part of v3.9-rc1-16204-gf101a94.
+File pages may get unmapped/dirtied/put under writeback/finish
+writeback between reading the stats and arming the inuse keys (before
+which you are not collecting any percpu deltas).
 
-> 
-> What does one do to trigger this oops?  The bug has been there since
-> 3.9, so the means-of-triggering must be quite special?
-
-I don't think that so many people use cgroups with limits of the kernel memory.
-
-I use the vzctl utility to operate with containers. vzctl limits the
-kernel memory of containers by default. A container should be started
-and stoped a few times (five or four) to reproduce the bug.
-
-And one more thing is that nf_conntrack should be loaded. It creates
-a new kmem_cache for each network namespace.
-
-Thanks
+The error is not from the percpu inaccuracies but because you don't
+snapshot the counters and start accounting changes atomically wrt
+ongoing counter modificatcions.  This means the error is unbounded.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
