@@ -1,85 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id EA9B86B0031
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 18:08:20 -0400 (EDT)
-Subject: Re: Performance regression from switching lock to rw-sem for
- anon-vma tree
-From: Tim Chen <tim.c.chen@linux.intel.com>
-In-Reply-To: <20130730192455.GA22259@gmail.com>
-References: <20130628093809.GB29205@gmail.com>
-	 <1372453461.22432.216.camel@schen9-DESK> <20130629071245.GA5084@gmail.com>
-	 <1372710497.22432.224.camel@schen9-DESK> <20130702064538.GB3143@gmail.com>
-	 <1373997195.22432.297.camel@schen9-DESK> <20130723094513.GA24522@gmail.com>
-	 <20130723095124.GW27075@twins.programming.kicks-ass.net>
-	 <20130723095306.GA26174@gmail.com> <1375143209.22432.419.camel@schen9-DESK>
-	 <20130730192455.GA22259@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 05 Aug 2013 15:08:23 -0700
-Message-ID: <1375740503.22432.429.camel@schen9-DESK>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 0F96A6B0031
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 18:25:50 -0400 (EDT)
+Date: Mon, 5 Aug 2013 18:25:39 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 3/7] arch: mm: pass userspace fault flag to generic fault
+ handler
+Message-ID: <20130805222539.GD715@cmpxchg.org>
+References: <1375549200-19110-1-git-send-email-hannes@cmpxchg.org>
+ <1375549200-19110-4-git-send-email-hannes@cmpxchg.org>
+ <20130805150618.47d699f5ce9f42242ee2e7c3@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130805150618.47d699f5ce9f42242ee2e7c3@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, "Shi,
- Alex" <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, azurIt <azurit@pobox.sk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, 2013-07-30 at 21:24 +0200, Ingo Molnar wrote:
-
+On Mon, Aug 05, 2013 at 03:06:18PM -0700, Andrew Morton wrote:
+> On Sat,  3 Aug 2013 12:59:56 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
+> 
+> > Unlike global OOM handling, memory cgroup code will invoke the OOM
+> > killer in any OOM situation because it has no way of telling faults
+> > occuring in kernel context - which could be handled more gracefully -
+> > from user-triggered faults.
 > > 
-> > Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
+> > Pass a flag that identifies faults originating in user space from the
+> > architecture-specific fault handlers to generic code so that memcg OOM
+> > handling can be improved.
 > 
-> > +config RWSEM_SPIN_ON_WRITE_OWNER
-> > +	bool "Optimistic spin write acquisition for writer owned rw-sem"
-> > +	default n
-> > +	depends on SMP
-> > +	help
-> > +	  Allows a writer to perform optimistic spinning if another writer own
-> > +	  the read write semaphore.  If the lock owner is running, it is likely
-> > +	  to release the lock soon. Spinning gives a greater chance for writer to
-> > +	  acquire a semaphore before putting it to sleep.
+> arch/arm64/mm/fault.c has changed.  Here's what I came up with:
 > 
-> The way you've worded this new Kconfig option makes it 
-> sound as if it's not just for testing, and I'm not a big 
-> believer in extra Kconfig degrees of freedom for 
-> scalability features of core locking primitives like 
-> rwsems, in production kernels ...
+> --- a/arch/arm64/mm/fault.c~arch-mm-pass-userspace-fault-flag-to-generic-fault-handler
+> +++ a/arch/arm64/mm/fault.c
+> @@ -199,13 +199,6 @@ static int __kprobes do_page_fault(unsig
+>  	unsigned long vm_flags = VM_READ | VM_WRITE | VM_EXEC;
+>  	unsigned int mm_flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+>  
+> -	if (esr & ESR_LNX_EXEC) {
+> -		vm_flags = VM_EXEC;
+> -	} else if ((esr & ESR_WRITE) && !(esr & ESR_CM)) {
+> -		vm_flags = VM_WRITE;
+> -		mm_flags |= FAULT_FLAG_WRITE;
+> -	}
+> -
+>  	tsk = current;
+>  	mm  = tsk->mm;
+>  
+> @@ -220,6 +213,16 @@ static int __kprobes do_page_fault(unsig
+>  	if (in_atomic() || !mm)
+>  		goto no_context;
+>  
+> +	if (user_mode(regs))
+> +		mm_flags |= FAULT_FLAG_USER;
+> +
+> +	if (esr & ESR_LNX_EXEC) {
+> +		vm_flags = VM_EXEC;
+> +	} else if ((esr & ESR_WRITE) && !(esr & ESR_CM)) {
+> +		vm_flags = VM_WRITE;
+> +		mm_flags |= FAULT_FLAG_WRITE;
+> +	}
+> +
+>  	/*
+>  	 * As per x86, we may deadlock here. However, since the kernel only
+>  	 * validly references user space from well defined areas of the code,
 > 
-> So the bad news is that such scalability optimizations 
-> really need to work for everyone.
-> 
-> The good news is that I don't think there's anything 
-> particularly controversial about making the rwsem write 
-> side perform just as well as mutexes - it would in fact be 
-> a very nice quality of implementation feature: it gives 
-> people freedom to switch between mutexes and rwsems without 
-> having to worry about scalability differences too much.
-> 
+> But I'm not terribly confident in it.
 
-Sorry for replying to your email late as I was pulled to
-some other tasks.
+It looks good to me.  They added the vm_flags but they are not used
+any earlier than the mm_flags (__do_page_fault), which I moved to the
+same location as you did in this fixup.
 
-Ingo, any objection if I make the optimistic writer spin the
-default for SMP without an extra config? This will make 
-the rw_semaphore structure grow a bit to accommodate the
-owner and spin_mlock field.
-
-Thanks.
-
-Tim
-> Once readers are mixed into the workload can we keep the 
-> XFS assumptions, if they are broken in any way?
-> 
-> We are spinning here so we have full awareness about the 
-> state of the lock and we can react to a new reader in very 
-> short order - so at a quick glance I don't see any 
-> fundamental difficulty in being able to resolve it - beyond 
-> the SMOP aspect that is ... :-)
-> 
-> Thanks,
-> 
-> 	Ingo
-
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
