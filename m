@@ -1,95 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 4E1ED6B0031
-	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 20:29:44 -0400 (EDT)
-Date: Mon, 5 Aug 2013 10:29:17 +1000
-From: NeilBrown <neilb@suse.de>
-Subject: Re: [PATCH 15/23] mm, fs: avoid page allocation beyond i_size on
- read
-Message-ID: <20130805102917.315976e5@notabene.brown>
-In-Reply-To: <1375582645-29274-16-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1375582645-29274-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<1375582645-29274-16-git-send-email-kirill.shutemov@linux.intel.com>
-Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=PGP-SHA1;
- boundary="Sig_/TN0Ce_QHwvPupUYNU45S851"; protocol="application/pgp-signature"
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 358686B0031
+	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 21:14:05 -0400 (EDT)
+Received: by mail-oa0-f47.google.com with SMTP id g12so5042696oah.34
+        for <linux-mm@kvack.org>; Sun, 04 Aug 2013 18:14:04 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20130804080751.GA24005@dhcp22.suse.cz>
+References: <1374842669-22844-1-git-send-email-mhocko@suse.cz>
+ <20130729135743.c04224fb5d8e64b2730d8263@linux-foundation.org>
+ <51F9D1F6.4080001@jp.fujitsu.com> <20130731201708.efa5ae87.akpm@linux-foundation.org>
+ <CAHGf_=r7mek+ueJWfu_6giMOueDTnMs8dY1jJrKyX+gfPys6uA@mail.gmail.com>
+ <20130802073304.GA17746@dhcp22.suse.cz> <51FD653A.3060004@jp.fujitsu.com> <20130804080751.GA24005@dhcp22.suse.cz>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Sun, 4 Aug 2013 21:13:44 -0400
+Message-ID: <CAHGf_=o19rxB=neUPzZAeL9eeLnksKcbqCJjc+vg=EhYtnuwCw@mail.gmail.com>
+Subject: Re: [PATCH resend] drop_caches: add some documentation and info message
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill  A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Ning Qu <quning@google.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, dave.hansen@intel.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, bp@suse.de, Dave Hansen <dave@linux.vnet.ibm.com>
 
---Sig_/TN0Ce_QHwvPupUYNU45S851
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+On Sun, Aug 4, 2013 at 4:07 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> On Sat 03-08-13 16:16:58, KOSAKI Motohiro wrote:
+>> >>> You missed the "!".  I'm proposing that setting the new bit 2 will
+>> >>> permit people to prevent the new printk if it is causing them problems.
+>> >>
+>> >> No I don't. I'm sure almost all abuse users think our usage is correct. Then,
+>> >> I can imagine all crazy applications start to use this flag eventually.
+>> >
+>> > I guess we do not care about those. If somebody wants to shoot his feet
+>> > then we cannot do much about it. The primary motivation was to find out
+>> > those that think this is right and they are willing to change the setup
+>> > once they know this is not the right way to do things.
+>> >
+>> > I think that giving a way to suppress the warning is a good step. Log
+>> > level might be to coarse and sysctl would be an overkill.
+>>
+>> When Dave Hansen reported this issue originally, he explained a lot of userland
+>> developer misuse /proc/drop_caches because they don't understand what
+>> drop_caches do.
+>> So, if they never understand the fact, why can we trust them? I have no
+>> idea.
+>
+> Well, most of that usage I have come across was legacy scripts which
+> happened to work at a certain point in time because we sucked.
+> Thinks have changed but such scripts happen to survive a long time.
+> We are primarily interested in those.
 
-On Sun,  4 Aug 2013 05:17:17 +0300 "Kirill A. Shutemov"
-<kirill.shutemov@linux.intel.com> wrote:
+Well, if the main target is shell script, task_comm and pid don't help us
+a lot. I suggest to add ppid too.
 
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
->=20
-> I've noticed that we allocated unneeded page for cache on read beyond
-> i_size. Simple test case (I checked it on ramfs):
->=20
-> $ touch testfile
-> $ cat testfile
->=20
-> It triggers 'no_cached_page' code path in do_generic_file_read().
->=20
-> Looks like it's regression since commit a32ea1e. Let's fix it.
->=20
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: NeilBrown <neilb@suse.de>
-> ---
->  mm/filemap.c | 4 ++++
->  1 file changed, 4 insertions(+)
->=20
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index 066bbff..c31d296 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -1163,6 +1163,10 @@ static void do_generic_file_read(struct file *filp=
-, loff_t *ppos,
->  		loff_t isize;
->  		unsigned long nr, ret;
-> =20
-> +		isize =3D i_size_read(inode);
-> +		if (!isize || index > (isize - 1) >> PAGE_CACHE_SHIFT)
-> +			goto out;
-> +
->  		cond_resched();
->  find_page:
->  		page =3D find_get_page(mapping, index);
+>
+>> Or, if you have different motivation w/ Dave, please let me know it.
+>
+> We have seen reports where users complained about performance drop down
+> when in fact the real culprit turned out to be such a clever script
+> which dropped caches on the background thinking it will help to free
+> some memory. Such cases are tedious to reveal.
 
-Looks good to me.
+Imagine such script have bit-2 and no logging output. Because
+the script author think "we are doing the right thing".
+Why distro guys want such suppress messages?
 
-Acked-by: NeilBrown <neilb@suse.de>
 
-Thanks,
-NeilBrown
+>> While the purpose is to shoot misuse, I don't think we can trust
+>> userland app.  If "If somebody wants to shoot his feet then we cannot
+>> do much about it." is true, this patch is useless. OK, we still catch
+>> the right user.
+>
+> I do not think it is useless. It will print a message for all those
+> users initially. It is a matter of user how to deal with it.
 
---Sig_/TN0Ce_QHwvPupUYNU45S851
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Disposition: attachment; filename=signature.asc
+If it is userland matter, we don't need additional logging at all. userland
+can write their own log. Again, if a crazy guys write blog "Hey! we should
+use echo 7 > /proc/sys/vm/drop_caches" always, we will come back the
+original problem. You and Dave wrote we need to care wrong, rumor and
+crazy drop_caches usage. And if so, you need to think new additional
+crazy rumor.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.19 (GNU/Linux)
 
-iQIVAwUBUf7x3Tnsnt1WYoG5AQKnxA//Xeu579goDJa3UAOJn8qIIfXGnCI6T24M
-hRmhG+FPLHVm8FwfD6WzoLNXy/Y8VIqKCIP1y36DocTxHcNzlKkJvlvrhJJezt7E
-0Owc6T1shHaxs3wYCr6KwJZWPddJT2piq+PSLe8fV0L3PmTTOsKcNbP+e/tLt0uk
-fW+YL7BoShQiOPs+Bmj9VRntqTLBMZiIBkNmCTJPDluAkSb/dGuWsMiWy+G8jLMi
-vVkEkvDTi1qQ6sv97nMZWQC9Sj4p7+qLg/ZUSnINz5bVno8A6EEx8MVu29khhiKw
-bQwuQCY6uYDIvmu1oHQVI8xK495YkUsiMTA9DOQ+Bua+UXI0TFa+LKHzAoE/g6Ok
-axI56Bimq39xjl5DwzjUhSbfqFds4iLcbccw9w1Jin0Oh7wc1FHQOc0V6PfisESw
-m5iidTB75AtMVjDiTXtXUOppUTA5Z2Lz34sFU0NQAKkozaBfzoY4IhZHNXuBgjOd
-Ya/smkoCwXIKWDqAnZHl1WvG+OKQw/wZcsTx00RYQ87JVOJ99T/Pyg8NuoQ41J3x
-77JuCnY8R3hahGVO3/EgrrVt1CkX2Bm4GhisgbyRMehur/Hm8sQUOq3q3fdjX0vd
-JX5D3O5I8oAjZVasV68NPhT0kMnPglSAZBwJV35Nb7vA0v4babiedViVk8JfQzAk
-y7WLUMDnbT0=
-=h+wg
------END PGP SIGNATURE-----
+>> But we never want to know who is the right users, right?
+>
+> Well, those that are curious about a new message in the lock and come
+> back to us asking what is going on are those we are primarily interested
+> in.
 
---Sig_/TN0Ce_QHwvPupUYNU45S851--
+I didn't say the message is useless. I did say hidden drop-cache user
+is useless.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
