@@ -1,110 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 4EE336B0031
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 15:16:46 -0400 (EDT)
-Received: by mail-ea0-f174.google.com with SMTP id z15so1788030ead.5
-        for <linux-mm@kvack.org>; Mon, 05 Aug 2013 12:16:44 -0700 (PDT)
-Date: Mon, 5 Aug 2013 21:16:41 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCHSET cgroup/for-3.12] cgroup: make cgroup_event specific to
- memcg
-Message-ID: <20130805191641.GA24003@dhcp22.suse.cz>
-References: <1375632446-2581-1-git-send-email-tj@kernel.org>
- <20130805160107.GM10146@dhcp22.suse.cz>
- <20130805162958.GF19631@mtj.dyndns.org>
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id CB6366B0031
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 15:32:20 -0400 (EDT)
+Date: Mon, 5 Aug 2013 15:32:13 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 3/9] mm: zone_reclaim: compaction: don't depend on kswapd
+ to invoke reset_isolation_suitable
+Message-ID: <20130805193213.GC1845@cmpxchg.org>
+References: <1375459596-30061-1-git-send-email-aarcange@redhat.com>
+ <1375459596-30061-4-git-send-email-aarcange@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130805162958.GF19631@mtj.dyndns.org>
+In-Reply-To: <1375459596-30061-4-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: lizefan@huawei.com, hannes@cmpxchg.org, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Johannes Weiner <jweiner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hush Bensen <hush.bensen@gmail.com>
 
-On Mon 05-08-13 12:29:58, Tejun Heo wrote:
-> Hello, Michal.
+On Fri, Aug 02, 2013 at 06:06:30PM +0200, Andrea Arcangeli wrote:
+> If kswapd never need to run (only __GFP_NO_KSWAPD allocations and
+> plenty of free memory) compaction is otherwise crippled down and stops
+> running for a while after the free/isolation cursor meets. After that
+> allocation can fail for a full cycle of compaction_deferred, until
+> compaction_restarting finally reset it again.
 > 
-> On Mon, Aug 05, 2013 at 06:01:07PM +0200, Michal Hocko wrote:
-> > Could you be more specific about what is so "overboard" about this
-> > interface? I am not familiar with internals much, so I cannot judge the
-> > complexity part, but I thought that eventfd was intended for this kind
-> > of kernel->userspace notifications.
+> Stopping compaction for a full cycle after the cursor meets, even if
+> it never failed and it's not going to fail, doesn't make sense.
 > 
-> It's just way over-engineered like many other things in cgroup, most
-> likely misguided by the appearance that cgroup could be delegated and
-> accessed by multiple actors concurrently.
-
-I keep hearing that over and over. And I also keep hearing that there
-are users who do not like many simplifications because they are breaking
-their usecases. Users are those who matter to me. Hey some of them are
-even sane...
-
-> The most clear example would be the vmpressure event.  When it could
-> have just called fsnotify_modify() unconditionally when the state
-> changes, now it involves parsing, dynamic list of events and so on
-> without actually adding any benefits.
-
-I am neither author nor user of this interface but my understanding is
-that there are different requirements from different usecases and it
-would be hard to satisfy them without having a way for userspace
-to tell the kernel what it is interested in. There was a discussion
-about edge vs. all-events triggered signaling recently for example.
-
-Besides that, is fsnotify really an interface to be used under memory
-pressure? I might be wrong but from a quick look fsnotify depends on
-GFP_KERNEL allocation which would be no-go for oom_control at least.
-How does the reclaim context gets to struct file to notify? I am pretty
-sure we would get to more and more questions when digging further.
-
-I am all for simplifications, but removing interfaces just because you
-feel they are "over-done" is not a way to go IMHO. In this particular
-case you are removing an interface from cgroup core which has users,
-and will have to support them for very long time. "It is just memcg
-so move it there" is not a way that different subsystems should work
-together and I am _not_ going to ack such a move. All the flexibility that
-you are so complaining about is hidden from the cgroup core in register
-callbacks and the rest is only the core infrastructure (registration and
-unregistration).
-
-And btw. a common notification interface at least makes things
-consistent and prevents controllers to invent their one purpose
-solutions.
-
-So I am really skeptical about this patch set. It doesn't give anything.
-It just moves a code which you do not like out of your sight hoping that
-something will change.
-
-There were mistakes done in the past. And some interfaces are really too
-flexible but that doesn't mean we should be militant about everything.
-
-> For the usage ones, configurability makes some sense but even then
-> just giving it a single array of event points of limited size would be
-> sufficient.
-
-This would be a question for users. I am not one of those so I cannot
-tell you but I certainly cannot claim that something more coarse would
-be sufficient either.
-
-> It's just way over-done.
-
-> > So you think that vmpressure, oom notification or thresholds are
-> > an abuse of this interface? What would you consider a reasonable
-> > replacement for those notifications?  Or do you think that controller
-> > shouldn't be signaling any conditions to the userspace at all?
+> We already throttle compaction CPU utilization using
+> defer_compaction. We shouldn't prevent compaction to run after each
+> pass completes when the cursor meets, unless it failed.
 > 
-> I don't think the ability to generate events are an abuse, just that
-> the facility itself is way over-engineered.  Just generate a file
-> changed event unconditionally for vmpressure and oom and maybe
-> implement configureable cadence or single set of threshold array for
-> threshold events.  These are things which can and should be done in a
-> a few tens of lines of code with far simpler interface. 
+> This makes direct compaction functional again. The throttling of
+> direct compaction is still controlled by the defer_compaction
+> logic.
+> 
+> kswapd still won't risk to reset compaction, and it will wait direct
+> compaction to do so. Not sure if this is ideal but it at least
+> decreases the risk of kswapd doing too much work. kswapd will only run
+> one pass of compaction until some allocation invokes compaction again.
+> 
+> This decreased reliability of compaction was introduced in commit
+> 62997027ca5b3d4618198ed8b1aba40b61b1137b .
+> 
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> Reviewed-by: Rik van Riel <riel@redhat.com>
+> Acked-by: Rafael Aquini <aquini@redhat.com>
+> Acked-by: Mel Gorman <mgorman@suse.de>
 
-These are strong words without any justification.
-
-[...]
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
