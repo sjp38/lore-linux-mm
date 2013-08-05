@@ -1,122 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id C292A6B0031
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 01:01:36 -0400 (EDT)
-Date: Mon, 5 Aug 2013 01:01:19 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch v2 3/3] mm: page_alloc: fair zone allocator policy
-Message-ID: <20130805050119.GA715@cmpxchg.org>
-References: <1375457846-21521-1-git-send-email-hannes@cmpxchg.org>
- <1375457846-21521-4-git-send-email-hannes@cmpxchg.org>
- <20130805011546.GI32486@bbox>
- <20130805034304.GC23319@cmpxchg.org>
- <20130805044858.GN32486@bbox>
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 127826B0033
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 01:01:53 -0400 (EDT)
+Date: Mon, 5 Aug 2013 14:02:34 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [resend] [PATCH] mm: vmscan: fix do_try_to_free_pages() livelock
+Message-ID: <20130805050234.GO32486@bbox>
+References: <89813612683626448B837EE5A0B6A7CB3B630BE80B@SC-VEXCH4.marvell.com>
+ <20130805045343.GD23319@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130805044858.GN32486@bbox>
+In-Reply-To: <20130805045343.GD23319@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@surriel.com>, Andrea Arcangeli <aarcange@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Lisa Du <cldu@marvell.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Bob Liu <lliubbo@gmail.com>, Neil Zhang <zhangwm@marvell.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>
 
-On Mon, Aug 05, 2013 at 01:48:58PM +0900, Minchan Kim wrote:
-> On Sun, Aug 04, 2013 at 11:43:04PM -0400, Johannes Weiner wrote:
-> > On Mon, Aug 05, 2013 at 10:15:46AM +0900, Minchan Kim wrote:
-> > > I really want to give Reviewed-by but before that, I'd like to clear out
-> > > my concern which didn't handle enoughly in previous iteration.
-> > > 
-> > > Let's assume system has normal zone : 800M High zone : 800M
-> > > and there are two parallel workloads.
-> > > 
-> > > 1. alloc_pages(GFP_KERNEL) : 800M
-> > > 2. alloc_pages(GFP_MOVABLE) + mlocked : 800M
-> > > 
-> > > With old behavior, allocation from both workloads is fulfilled happily
-> > > because most of allocation from GFP_KERNEL would be done in normal zone
-> > > while most of allocation from GFP_MOVABLE would be done in high zone.
-> > > There is no OOM kill in this scenario.
+On Mon, Aug 05, 2013 at 12:53:43AM -0400, Johannes Weiner wrote:
+> On Sun, Aug 04, 2013 at 07:26:38PM -0700, Lisa Du wrote:
+> > From: Lisa Du <cldu@marvell.com>
+> > Date: Mon, 5 Aug 2013 09:26:57 +0800
+> > Subject: [PATCH] mm: vmscan: fix do_try_to_free_pages() livelock
 > > 
-> > If you have used ANY cache before, the movable pages will spill into
-> > lowmem.
-> 
-> Indeed, my example was just depends on luck.
-> I just wanted to discuss such corner case issue to notice cons at least,
-> someone. 
-> 
+> > This patch is based on KOSAKI's work and I add a little more
+> > description, please refer https://lkml.org/lkml/2012/6/14/74.
 > > 
-> > > With you change, normal zone would be fullfilled with GFP_KERNEL:400M
-> > > and GFP_MOVABLE:400M while high zone will have GFP_MOVABLE:400 + free 400M.
-> > > Then, someone would be OOM killed.
-> > >
-> > > Of course, you can argue that if there is such workloads, he should make
-> > > sure it via lowmem_reseve but it's rather overkill if we consider more examples
-> > > because any movable pages couldn't be allocated from normal zone so memory
-> > > efficieny would be very bad.
+> > Currently, I found system can enter a state that there are lots
+> > of free pages in a zone but only order-0 and order-1 pages which
+> > means the zone is heavily fragmented, then high order allocation
+> > could make direct reclaim path's long stall(ex, 60 seconds)
+> > especially in no swap and no compaciton enviroment. This problem
+> > happened on v3.4, but it seems issue still lives in current tree,
+> > the reason is do_try_to_free_pages enter live lock:
 > > 
-> > That's exactly what lowmem reserves are for: protect low memory from
-> > data that can sit in high memory, so that you have enough for data
-> > that can only be in low memory.
+> > kswapd will go to sleep if the zones have been fully scanned
+> > and are still not balanced. As kswapd thinks there's little point
+> > trying all over again to avoid infinite loop. Instead it changes
+> > order from high-order to 0-order because kswapd think order-0 is the
+> > most important. Look at 73ce02e9 in detail. If watermarks are ok,
+> > kswapd will go back to sleep and may leave zone->all_unreclaimable = 0.
+> > It assume high-order users can still perform direct reclaim if they wish.
 > > 
-> > If we find those reserves to be inadequate, we have to increase them.
-> > You can't assume you get more lowmem than the lowmem reserves, period.
-> 
-> Theoretically, true.
-> 
+> > Direct reclaim continue to reclaim for a high order which is not a
+> > COSTLY_ORDER without oom-killer until kswapd turn on zone->all_unreclaimble.
+> > This is because to avoid too early oom-kill. So it means direct_reclaim
+> > depends on kswapd to break this loop.
 > > 
-> > And while I don't mean to break highmem machines, I really can't find
-> > it in my heart to care about theoretical performance variations in
-> > highmem cornercases (which is already a redundancy).
-> 
-> Yes. as I said, I don't know such workload, even embedded world.
-> But, recent mobile phone start to use 3G DRAM and maybe 2G would be a high
-> memory in 32bit machine. That's why I had a concern about this patch.
-> I think It's likely to pin lowmem more than old.
->
-> > > As I said, I like your approach because I have no idea to handle unbalanced
-> > > aging problem better and we can get more benefits rather than lost by above
-> > > corner case but at least, I'd like to confirm what you think about
-> > > above problem before further steps. Maybe we can introduce "mlock with
-> > > newly-allocation or already-mapped page could be migrated to high memory zone"
-> > > when someone reported out? (we thougt mlocked page migration would be problem
-> > > RT latency POV but Peter confirmed it's no problem.)
+> > In worst case, direct-reclaim may continue to page reclaim forever
+> > when kswapd sleeps forever until someone like watchdog detect and finally
+> > kill the process. As described in:
+> > http://thread.gmane.org/gmane.linux.kernel.mm/103737
 > > 
-> > And you think increasing lowmem reserves would be overkill? ;-)
-> 
-> If possible, I would like to avoid. ;-)
-> 
-> Peak workload : 800M average workload : 100M 
-> int foo[800M] vs int *bar = malloc(800M);
-> 
+> > We can't turn on zone->all_unreclaimable from direct reclaim path
+> > because direct reclaim path don't take any lock and this way is racy.
+> > Thus this patch removes zone->all_unreclaimable field completely and
+> > recalculates zone reclaimable state every time.
 > > 
-> > These patches fix real page aging problems.  Making trade offs to work
+> > Note: we can't take the idea that direct-reclaim see zone->pages_scanned
+> > directly and kswapd continue to use zone->all_unreclaimable. Because, it
+> > is racy. commit 929bea7c71 (vmscan: all_unreclaimable() use
+> > zone->all_unreclaimable as a name) describes the detail.
+> > 
+> > Change-Id: If3b44e33e400c1db0e42a5e2fc9ebc7a265f2aae
+> > Cc: Aaditya Kumar <aaditya.kumar.30@gmail.com>
+> > Cc: Ying Han <yinghan@google.com>
+> > Cc: Nick Piggin <npiggin@gmail.com>
+> > Acked-by: Rik van Riel <riel@redhat.com>
+> > Cc: Michal Hocko <mhocko@suse.cz>
+> > Cc: Johannes Weiner <hannes@cmpxchg.org>
+> > Cc: Mel Gorman <mel@csn.ul.ie>
+> > Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > Cc: Minchan Kim <minchan.kim@gmail.com>
+> > Cc: Bob Liu <lliubbo@gmail.com>
+> > Cc: Neil Zhang <zhangwm@marvell.com>
+> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > Signed-off-by: Lisa Du <cldu@marvell.com>
 > 
-> Indeed!
+> Wow, the original patch is over a year old.  As before:
 > 
-> > properly on as many setups as possible is one thing, but a highmem
-> > configuration where you need exactly 100% of lowmem and mlock 100% of
-> > highmem?
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 > 
-> Nope. Apprently, I don't know.
-> I just wanted to record that we should already cover such claims
-> in review phase so that if such problem happens in future, we can answer
-> easily "Just rasise your lowmem reserve ratio because you have been
-> depends on the luck until now". And I don't want to argue with other mm
-> guys such solution in future again.
+> One comment:
+> 
+> > @@ -2244,8 +2244,8 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+> >  		if (global_reclaim(sc)) {
+> >  			if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
+> >  				continue;
+> > -			if (zone->all_unreclaimable &&
+> > -					sc->priority != DEF_PRIORITY)
+> > +			if (!zone_reclaimable(zone) &&
+> > +			    sc->priority != DEF_PRIORITY)
+> >  				continue;	/* Let kswapd poll it */
+> >  			if (IS_ENABLED(CONFIG_COMPACTION)) {
+> >  				/*
+> 
+> As Michal pointed out last time, it would make sense to reorder these
+> checks because the priority test is much lighter than calculating the
+> reclaimable pages.  Would make DEF_PRIORITY cycles slightly lighter.
+> 
+> It's not necessarily about the performance but if we leave it like
+> this there will be boring patches in the future that change it to do
+> the light-weight check first, claiming it will improve performance,
+> and then somebody else will ask them for benchmark results and they
+> will ask how page reclaim is usually benchmarked and everybody will
+> shrug their shoulders and go "good question" until somebody blames
+> memory cgroups.
+> 
+> So, please, save us from all this drama and reorder the checks.
 
-That's fair enough.
++1
 
-I would definitely suggest increasing the lowmem reserves in that case
-but I don't expect anybody to actually rely on the exact placement on
-a pristine system.  Not for performance, much less for _correctness_.
+I don't want to pay my money for soap opera.
 
-> I think as reviewer, it's enough as it is.
-> 
-> All three patches,
-> 
-> Reviewed-by: Minchan Kim <minchan@kernel.org>
-
-Thank you very much!
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
