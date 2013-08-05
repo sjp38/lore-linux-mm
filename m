@@ -1,52 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 0B11A6B0031
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 11:40:21 -0400 (EDT)
-Received: by mail-qc0-f179.google.com with SMTP id n10so1733871qcx.24
-        for <linux-mm@kvack.org>; Mon, 05 Aug 2013 08:40:21 -0700 (PDT)
-Date: Mon, 5 Aug 2013 11:40:16 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 2/5] cgroup: export __cgroup_from_dentry() and
- __cgroup_dput()
-Message-ID: <20130805154016.GE19631@mtj.dyndns.org>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id E968E6B0033
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 12:01:10 -0400 (EDT)
+Date: Mon, 5 Aug 2013 18:01:07 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCHSET cgroup/for-3.12] cgroup: make cgroup_event specific to
+ memcg
+Message-ID: <20130805160107.GM10146@dhcp22.suse.cz>
 References: <1375632446-2581-1-git-send-email-tj@kernel.org>
- <1375632446-2581-3-git-send-email-tj@kernel.org>
- <51FF14C5.4040003@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51FF14C5.4040003@huawei.com>
+In-Reply-To: <1375632446-2581-1-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Zefan <lizefan@huawei.com>
-Cc: hannes@cmpxchg.org, mhocko@suse.cz, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: lizefan@huawei.com, hannes@cmpxchg.org, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Aug 05, 2013 at 10:58:13AM +0800, Li Zefan wrote:
-> > +struct cgroup *__cgroup_from_dentry(struct dentry *dentry, struct cftype **cftp)
-> >  {
-> > -	if (file_inode(file)->i_fop != &cgroup_file_operations)
-> > -		return ERR_PTR(-EINVAL);
-> > -	return __d_cft(file->f_dentry);
-> > +	if (!dentry->d_inode ||
-> > +	    dentry->d_inode->i_op != &cgroup_file_inode_operations)
-> > +		return NULL;
-> > +
-> > +	if (cftp)
-> > +		*cftp = __d_cft(dentry);
-> > +	return __d_cgrp(dentry->d_parent);
-> >  }
-> > +EXPORT_SYMBOL_GPL(__cgroup_from_dentry);
-> 
-> As we don't expect new users, why export this symbol? memcg can't be
-> built as a module.
+On Sun 04-08-13 12:07:21, Tejun Heo wrote:
+> Hello,
 
-Yeah, I for some reason was thinking memcg could be bulit as module.
-Brainfart.  Dropped.
+Hi Tejun,
 
-Thanks.
+> Like many other things in cgroup, cgroup_event is way too flexible and
+> complex - it strives to provide completely flexible event monitoring
+> facility in cgroup proper which allows any number of users to monitor
+> custom events.  This is overboard, to say the least,
 
+Could you be more specific about what is so "overboard" about this
+interface? I am not familiar with internals much, so I cannot judge the
+complexity part, but I thought that eventfd was intended for this kind
+of kernel->userspace notifications.
+
+> and I strongly think that cgroup should not any new usages of this
+> facility and preferably deprecate the existing usages if at all
+> possible.
+
+So you think that vmpressure, oom notification or thresholds are
+an abuse of this interface? What would you consider a reasonable
+replacement for those notifications?  Or do you think that controller
+shouldn't be signaling any conditions to the userspace at all?
+
+[...]
 -- 
-tejun
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
