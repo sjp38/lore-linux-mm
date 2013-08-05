@@ -1,92 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id D89B86B0031
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 04:47:38 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id lj1so3049202pab.1
-        for <linux-mm@kvack.org>; Mon, 05 Aug 2013 01:47:38 -0700 (PDT)
-Message-ID: <51FF6656.4070809@gmail.com>
-Date: Mon, 05 Aug 2013 16:46:14 +0800
-From: Chen Gang F T <chen.gang.flying.transformer@gmail.com>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 989CE6B0031
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 04:50:32 -0400 (EDT)
+Date: Mon, 5 Aug 2013 17:50:41 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 1/4] mm, page_alloc: add likely macro to help compiler
+ optimization
+Message-ID: <20130805085041.GG27240@lge.com>
+References: <1375409279-16919-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <20130802162722.GA29220@dhcp22.suse.cz>
+ <20130802204710.GX715@cmpxchg.org>
+ <20130802213607.GA4742@dhcp22.suse.cz>
+ <20130805081008.GF27240@lge.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/Kconfig: add MMU dependency for MIGRATION.
-References: <51F9CA7D.2070506@asianux.com> <20130805073233.GB10146@dhcp22.suse.cz>
-In-Reply-To: <20130805073233.GB10146@dhcp22.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130805081008.GF27240@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: Chen Gang <gang.chen@asianux.com>, "sfr@canb.auug.org.au" <sfr@canb.auug.org.au>, rientjes@google.com, riel@redhat.com, isimatu.yasuaki@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
 
-On 08/05/2013 03:32 PM, Michal Hocko wrote:
-> On Thu 01-08-13 10:39:57, Chen Gang wrote:
->> MIGRATION need depend on MMU, or allmodconfig for sh architecture which
->> without MMU will be fail for compiling.
->>
->> The related error: 
->>
->>     CC      mm/migrate.o
->>   mm/migrate.c: In function 'remove_migration_pte':
->>   mm/migrate.c:134:3: error: implicit declaration of function 'pmd_trans_huge' [-Werror=implicit-function-declaration]
->>      if (pmd_trans_huge(*pmd))
->>      ^
->>   mm/migrate.c:149:2: error: implicit declaration of function 'is_swap_pte' [-Werror=implicit-function-declaration]
->>     if (!is_swap_pte(pte))
->>     ^
->>   ...
->>
->>
->> Signed-off-by: Chen Gang <gang.chen@asianux.com>
->> ---
->>  mm/Kconfig |    4 ++--
->>  1 files changed, 2 insertions(+), 2 deletions(-)
->>
->> diff --git a/mm/Kconfig b/mm/Kconfig
->> index 256bfd0..e847f19 100644
->> --- a/mm/Kconfig
->> +++ b/mm/Kconfig
->> @@ -245,7 +245,7 @@ config COMPACTION
->>  config MIGRATION
->>  	bool "Page migration"
->>  	def_bool y
->> -	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION || CMA
->> +	depends on (NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION || CMA) && MMU
->>  	help
->>  	  Allows the migration of the physical location of pages of processes
->>  	  while the virtual addresses are not changed. This is useful in
->> @@ -522,7 +522,7 @@ config MEM_SOFT_DIRTY
->>  
->>  config CMA
->>  	bool "Contiguous Memory Allocator"
->> -	depends on HAVE_MEMBLOCK
->> +	depends on HAVE_MEMBLOCK && MMU
+On Mon, Aug 05, 2013 at 05:10:08PM +0900, Joonsoo Kim wrote:
+> Hello, Michal.
 > 
-> Why CMA has to depend on MMU as well? The MIGRATION part should be
-> sufficient.
+> On Fri, Aug 02, 2013 at 11:36:07PM +0200, Michal Hocko wrote:
+> > On Fri 02-08-13 16:47:10, Johannes Weiner wrote:
+> > > On Fri, Aug 02, 2013 at 06:27:22PM +0200, Michal Hocko wrote:
+> > > > On Fri 02-08-13 11:07:56, Joonsoo Kim wrote:
+> > > > > We rarely allocate a page with ALLOC_NO_WATERMARKS and it is used
+> > > > > in slow path. For making fast path more faster, add likely macro to
+> > > > > help compiler optimization.
+> > > > 
+> > > > The code is different in mmotm tree (see mm: page_alloc: rearrange
+> > > > watermark checking in get_page_from_freelist)
+> > > 
+> > > Yes, please rebase this on top.
+> > > 
+> > > > Besides that, make sure you provide numbers which prove your claims
+> > > > about performance optimizations.
+> > > 
+> > > Isn't that a bit overkill?  We know it's a likely path (we would
+> > > deadlock constantly if a sizable portion of allocations were to ignore
+> > > the watermarks).  Does he have to justify that likely in general makes
+> > > sense?
+> > 
+> > That was more a generic comment. If there is a claim that something
+> > would be faster it would be nice to back that claim by some numbers
+> > (e.g. smaller hot path).
+> > 
+> > In this particular case, unlikely(alloc_flags & ALLOC_NO_WATERMARKS)
+> > doesn't make any change to the generated code with gcc 4.8.1 resp.
+> > 4.3.4 I have here.
+> > Maybe other versions of gcc would benefit from the hint but changelog
+> > didn't tell us. I wouldn't add the anotation if it doesn't make any
+> > difference for the resulting code.
 > 
-
-MIGRATION need depend on MMU, when NOMMU, if select CMA, it will select
-MIGRATION by force.
-
-e.g. for allmodconfig with sh architecture, if we only let MIGRATION
-depend on MMU, not let CMA depend on MMU, it will report the warning
-below:
-
-  scripts/kconfig/conf --allmodconfig Kconfig
-  warning: (COMPACTION && CMA) selects MIGRATION which has unmet direct dependencies ((NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION || CMA) && MMU)
-
-And for the final config file, MIGRATION is still enabled, although MMU
-is not defined.
-
-
->>  	select MIGRATION
->>  	select MEMORY_ISOLATION
->>  	help
+> Hmm, Is there no change with gcc 4.8.1 and 4.3.4?
 > 
+> I found a change with gcc 4.6.3 and v3.10 kernel.
+
+Ah... I did a test on mmotm (Johannes's git) and found that this patch
+doesn't make any effect. I guess, a change from Johannes ('rearrange
+watermark checking in get_page_from_freelist') already makes better code
+for !ALLOC_NO_WATERMARKS case. IMHO, although there is no effect, it is
+better to add likely macro, because arrangement can be changed from time
+to time without any consideration of assembly code generation. How about
+your opinion, Johannes and Michal?
 
 Thanks.
--- 
-Chen Gang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
