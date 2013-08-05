@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id CF7B36B0031
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 14:35:51 -0400 (EDT)
-Message-ID: <51FFF078.8020203@redhat.com>
-Date: Mon, 05 Aug 2013 14:35:36 -0400
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id A39F56B0033
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 14:36:47 -0400 (EDT)
+Message-ID: <51FFF0A7.2040402@redhat.com>
+Date: Mon, 05 Aug 2013 14:36:23 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/9] mm: compaction: don't require high order pages below
- min wmark
-References: <1375459596-30061-1-git-send-email-aarcange@redhat.com> <1375459596-30061-6-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1375459596-30061-6-git-send-email-aarcange@redhat.com>
+Subject: Re: [PATCH 6/9] mm: zone_reclaim: compaction: increase the high order
+ pages in the watermarks
+References: <1375459596-30061-1-git-send-email-aarcange@redhat.com> <1375459596-30061-7-git-send-email-aarcange@redhat.com>
+In-Reply-To: <1375459596-30061-7-git-send-email-aarcange@redhat.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -18,16 +18,11 @@ To: Andrea Arcangeli <aarcange@redhat.com>
 Cc: linux-mm@kvack.org, Johannes Weiner <jweiner@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hush Bensen <hush.bensen@gmail.com>
 
 On 08/02/2013 12:06 PM, Andrea Arcangeli wrote:
-> The min wmark should be satisfied with just 1 hugepage. And the other
-> wmarks should be adjusted accordingly. We need to succeed the low
-> wmark check if there's some significant amount of 0 order pages, but
-> we don't need plenty of high order pages because the PF_MEMALLOC paths
-> don't require those. Creating a ton of high order pages that cannot be
-> allocated by the high order allocation paths (no PF_MEMALLOC) is quite
-> wasteful because they can be splitted in lower order pages before
-> anybody has a chance to allocate them.
+> Prevent the scaling down to reduce the watermarks too much.
 >
 > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+
+Not super fond of the magic number, but I don't have a better idea...
 
 Acked-by: Rik van Riel <riel@redhat.com>
 
