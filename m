@@ -1,43 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 94BEB6B0031
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 09:08:35 -0400 (EDT)
-Message-ID: <51FFA393.2080301@zytor.com>
-Date: Mon, 05 Aug 2013 06:07:31 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id C7B116B0031
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 09:12:09 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Mon, 5 Aug 2013 23:04:01 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id BE3972BB0055
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 23:12:05 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r75Cu99v5505150
+	for <linux-mm@kvack.org>; Mon, 5 Aug 2013 22:56:18 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r75DBtiP014325
+	for <linux-mm@kvack.org>; Mon, 5 Aug 2013 23:11:56 +1000
+Date: Mon, 5 Aug 2013 21:11:53 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [patch v2 3/3] mm: page_alloc: fair zone allocator policy
+Message-ID: <20130805130919.GA7104@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <1375457846-21521-1-git-send-email-hannes@cmpxchg.org>
+ <1375457846-21521-4-git-send-email-hannes@cmpxchg.org>
+ <20130805103456.GB1039@hacker.(null)>
+ <20130805113423.GB6703@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 00/18] Arrange hotpluggable memory as ZONE_MOVABLE.
-References: <1375340800-19332-1-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1375340800-19332-1-git-send-email-tangchen@cn.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130805113423.GB6703@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@surriel.com>, Zlatko Calusic <zcalusic@bitsync.net>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 08/01/2013 12:06 AM, Tang Chen wrote:
-> This patch-set aims to solve some problems at system boot time
-> to enhance memory hotplug functionality.
-> 
-> [Background]
-> 
-> The Linux kernel cannot migrate pages used by the kernel because
-> of the kernel direct mapping. Since va = pa + PAGE_OFFSET, if the
-> physical address is changed, we cannot simply update the kernel
-> pagetable. On the contrary, we have to update all the pointers
-> pointing to the virtual address, which is very difficult to do.
-> 
+On Mon, Aug 05, 2013 at 01:34:23PM +0200, Andrea Arcangeli wrote:
+>On Mon, Aug 05, 2013 at 06:34:56PM +0800, Wanpeng Li wrote:
+>> Why round robin allocator don't consume ZONE_DMA?
+>
+>I guess lowmem reserve reserves it all, 4GB/256(ratio)=16MB.
+>
 
-It does beg the question if that "since" statement should be changed ...
-we already have it handled differently on Xen PV, but that is kind of
-"special".  There are a whole bunch of other issues with moving kernel
-memory around: you have to worry what might have a physical address
-cached somewhere and what might be in active use and so on... I am not
-really suggesting it as anything but food for thought at this time.
+Ah, lowmem reservation reserve all ZONE_DMA:
 
-	-hpa
+x86_64 4GB
 
+protection: (0, 3251, 4009, 4009)
+
+Thanks for pointing out. ;-)
+
+>The only way to relax it would be 1) to account depending on memblock
+>types and allow only the movable ones to bypass the lowmem reserve and
+>prevent a change from movable type if lowmem reserve doesn't pass, 2)
+>use memory migration to move the movable pages from the lower zones to
+>the highest zone if reclaim fails if __GFP_DMA32 or __GFP_DMA is set,
+>or highmem is missing on 32bit kernels. The last point involving
+>memory migration would work similarly to compaction but it isn't black
+>and white, and it would cost CPU as well. The memory used by the
+>simple lowmem reserve mechanism is probably not significant enough to
+>warrant such an effort.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
