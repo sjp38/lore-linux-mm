@@ -1,50 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id E968E6B0033
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 12:01:10 -0400 (EDT)
-Date: Mon, 5 Aug 2013 18:01:07 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCHSET cgroup/for-3.12] cgroup: make cgroup_event specific to
- memcg
-Message-ID: <20130805160107.GM10146@dhcp22.suse.cz>
-References: <1375632446-2581-1-git-send-email-tj@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1375632446-2581-1-git-send-email-tj@kernel.org>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 153156B0033
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 12:12:48 -0400 (EDT)
+From: Andrey Vagin <avagin@openvz.org>
+Subject: [PATCH] memcg: don't initialize kmem-cache destroying work for root caches
+Date: Mon,  5 Aug 2013 20:09:40 +0400
+Message-Id: <1375718980-22154-1-git-send-email-avagin@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: lizefan@huawei.com, hannes@cmpxchg.org, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Andrey Vagin <avagin@openvz.org>, Glauber Costa <glommer@openvz.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, stable@vger.kernel.org
 
-On Sun 04-08-13 12:07:21, Tejun Heo wrote:
-> Hello,
+struct memcg_cache_params has a union. Different parts of this union
+are used for root and non-root caches. A part with destroying work is
+used only for non-root caches.
 
-Hi Tejun,
+I fixed the same problem in another place v3.9-rc1-16204-gf101a94, but
+didn't notice this one.
 
-> Like many other things in cgroup, cgroup_event is way too flexible and
-> complex - it strives to provide completely flexible event monitoring
-> facility in cgroup proper which allows any number of users to monitor
-> custom events.  This is overboard, to say the least,
+Cc: Glauber Costa <glommer@openvz.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Balbir Singh <bsingharora@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: <stable@vger.kernel.org>    [3.9.x]
+Signed-off-by: Andrey Vagin <avagin@openvz.org>
+---
+ mm/memcontrol.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-Could you be more specific about what is so "overboard" about this
-interface? I am not familiar with internals much, so I cannot judge the
-complexity part, but I thought that eventfd was intended for this kind
-of kernel->userspace notifications.
-
-> and I strongly think that cgroup should not any new usages of this
-> facility and preferably deprecate the existing usages if at all
-> possible.
-
-So you think that vmpressure, oom notification or thresholds are
-an abuse of this interface? What would you consider a reasonable
-replacement for those notifications?  Or do you think that controller
-shouldn't be signaling any conditions to the userspace at all?
-
-[...]
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index c290a1c..c5792a5 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3195,11 +3195,11 @@ int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
+ 	if (!s->memcg_params)
+ 		return -ENOMEM;
+ 
+-	INIT_WORK(&s->memcg_params->destroy,
+-			kmem_cache_destroy_work_func);
+ 	if (memcg) {
+ 		s->memcg_params->memcg = memcg;
+ 		s->memcg_params->root_cache = root_cache;
++		INIT_WORK(&s->memcg_params->destroy,
++				kmem_cache_destroy_work_func);
+ 	} else
+ 		s->memcg_params->is_root_cache = true;
+ 
 -- 
-Michal Hocko
-SUSE Labs
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
