@@ -1,32 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 754986B0031
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 14:24:41 -0400 (EDT)
-Message-ID: <51FFEDD6.7020906@intel.com>
-Date: Mon, 05 Aug 2013 11:24:22 -0700
-From: Dave Hansen <dave.hansen@intel.com>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 480DC6B0031
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 14:30:35 -0400 (EDT)
+Date: Mon, 5 Aug 2013 14:30:28 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 1/9] mm: zone_reclaim: remove ZONE_RECLAIM_LOCKED
+Message-ID: <20130805183028.GA1845@cmpxchg.org>
+References: <1375459596-30061-1-git-send-email-aarcange@redhat.com>
+ <1375459596-30061-2-git-send-email-aarcange@redhat.com>
 MIME-Version: 1.0
-Subject: Re: swap behavior during fast allocation
-References: <CAA25o9RO5+gYCTQuouNsJ5COTWdA+wbPUH--B-STSmySjTxBAQ@mail.gmail.com>
-In-Reply-To: <CAA25o9RO5+gYCTQuouNsJ5COTWdA+wbPUH--B-STSmySjTxBAQ@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1375459596-30061-2-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luigi Semenzato <semenzato@google.com>
-Cc: linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Johannes Weiner <jweiner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hush Bensen <hush.bensen@gmail.com>
 
-On 08/05/2013 11:04 AM, Luigi Semenzato wrote:
-> We can reproduce this by running a few processes that mmap large
-> chunks of memory, then randomly touch pages to fault them in.  We also
-> think this happens when a process writes a large amount of data using
-> buffered I/O, and the "Buffers" field in /proc/meminfo exceeds 1GB.
-> (This is something that can and should be corrected by using
-> unbuffered I/O instead, but it's a data point.)
+On Fri, Aug 02, 2013 at 06:06:28PM +0200, Andrea Arcangeli wrote:
+> Zone reclaim locked breaks zone_reclaim_mode=1. If more than one
+> thread allocates memory at the same time, it forces a premature
+> allocation into remote NUMA nodes even when there's plenty of clean
+> cache to reclaim in the local nodes.
+> 
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> Reviewed-by: Rik van Riel <riel@redhat.com>
+> Acked-by: Rafael Aquini <aquini@redhat.com>
+> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Where are all the buffers coming from?  Most I/O to/from filesystems
-should be instantiating relatively modest amounts of Buffers.  Are you
-doing I/O directly to devices for some reason?
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
