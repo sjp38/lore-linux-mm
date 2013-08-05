@@ -1,49 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 8CDB56B0031
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 15:58:12 -0400 (EDT)
-Date: Mon, 5 Aug 2013 15:58:05 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH V2] cma: use macro PFN_DOWN when converting size to pages
-Message-ID: <20130805195805.GE1845@cmpxchg.org>
-References: <51FF6BBD.2090606@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <51FF6BBD.2090606@huawei.com>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id A2D3C6B0031
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 16:05:32 -0400 (EDT)
+Date: Mon, 5 Aug 2013 13:05:30 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] memcg: don't initialize kmem-cache destroying work for
+ root caches
+Message-Id: <20130805130530.fd38ec4866ba7f1d9a400218@linux-foundation.org>
+In-Reply-To: <1375718980-22154-1-git-send-email-avagin@openvz.org>
+References: <1375718980-22154-1-git-send-email-avagin@openvz.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrey Vagin <avagin@openvz.org>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Glauber Costa <glommer@openvz.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, stable@vger.kernel.org
 
-On Mon, Aug 05, 2013 at 05:09:17PM +0800, Xishi Qiu wrote:
-> Use "PFN_DOWN(r->size)" instead of "r->size >> PAGE_SHIFT".
+On Mon,  5 Aug 2013 20:09:40 +0400 Andrey Vagin <avagin@openvz.org> wrote:
+
+> struct memcg_cache_params has a union. Different parts of this union
+> are used for root and non-root caches. A part with destroying work is
+> used only for non-root caches.
 > 
-> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
-> ---
->  drivers/base/dma-contiguous.c |    3 +--
->  1 files changed, 1 insertions(+), 2 deletions(-)
+> I fixed the same problem in another place v3.9-rc1-16204-gf101a94, but
+> didn't notice this one.
 > 
-> diff --git a/drivers/base/dma-contiguous.c b/drivers/base/dma-contiguous.c
-> index 0ca5442..b3d711d 100644
-> --- a/drivers/base/dma-contiguous.c
-> +++ b/drivers/base/dma-contiguous.c
-> @@ -206,8 +206,7 @@ static int __init cma_init_reserved_areas(void)
+> Cc: <stable@vger.kernel.org>    [3.9.x]
+
+hm, why the cc:stable?
+
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -3195,11 +3195,11 @@ int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
+>  	if (!s->memcg_params)
+>  		return -ENOMEM;
 >  
->  	for (; i; --i, ++r) {
->  		struct cma *cma;
-> -		cma = cma_create_area(PFN_DOWN(r->start),
-> -				      r->size >> PAGE_SHIFT);
-> +		cma = cma_create_area(PFN_DOWN(r->start), PFN_DOWN(r->size));
+> -	INIT_WORK(&s->memcg_params->destroy,
+> -			kmem_cache_destroy_work_func);
+>  	if (memcg) {
+>  		s->memcg_params->memcg = memcg;
+>  		s->memcg_params->root_cache = root_cache;
+> +		INIT_WORK(&s->memcg_params->destroy,
+> +				kmem_cache_destroy_work_func);
+>  	} else
+>  		s->memcg_params->is_root_cache = true;
 
-PFN_DOWN(r->start) makes sense because you are dividing and rounding a
-byte-granular address to a PFN.
+So the bug here is that we'll scribble on some entries in
+memcg_caches[].  Those scribbles may or may not be within the part of
+that array which is actually used.  If there's code which expects
+memcg_caches[] entries to be zeroed at initialisation then yes, we have
+a problem.
 
-r->size >> PAGE_SHIFT translates number of bytes into number of pages.
+But I rather doubt whether this bug was causing runtime problems?
 
-It ends up being the same arithmetic operation to do both things, but
-the units are different; the result of the second expression is not a
-PFN.  I think this change actually worsens readability of the code.
+
+Presently memcg_register_cache() allocates too much memory for the
+memcg_caches[] array.  If that was fixed then this INIT_WORK() might
+scribble into unknown memory, which is of course serious.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
