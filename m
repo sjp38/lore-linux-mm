@@ -1,310 +1,377 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id DAAFF6B0031
-	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 22:16:35 -0400 (EDT)
-Date: Mon, 5 Aug 2013 11:17:15 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [patch 1/2] [PATCH] mm: Save soft-dirty bits on swapped pages
-Message-ID: <20130805021715.GJ32486@bbox>
-References: <20130730204154.407090410@gmail.com>
- <20130730204654.844299768@gmail.com>
- <51ff047d.2768310a.2fc4.340fSMTPIN_ADDED_BROKEN@mx.google.com>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 8A5BB6B0031
+	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 22:27:29 -0400 (EDT)
+From: Lisa Du <cldu@marvell.com>
+Date: Sun, 4 Aug 2013 19:26:38 -0700
+Subject: [resend] [PATCH] mm: vmscan: fix do_try_to_free_pages() livelock
+Message-ID: <89813612683626448B837EE5A0B6A7CB3B630BE80B@SC-VEXCH4.marvell.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <51ff047d.2768310a.2fc4.340fSMTPIN_ADDED_BROKEN@mx.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Cyrill Gorcunov <gorcunov@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, luto@amacapital.net, gorcunov@openvz.org, xemul@parallels.com, akpm@linux-foundation.org, mpm@selenic.com, xiaoguangrong@linux.vnet.ibm.com, mtosatti@redhat.com, kosaki.motohiro@gmail.com, sfr@canb.auug.org.au, peterz@infradead.org, aneesh.kumar@linux.vnet.ibm.com
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>, Minchan Kim <minchan@kernel.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Bob Liu <lliubbo@gmail.com>, Neil Zhang <zhangwm@marvell.com>
+Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>
 
-Hello Wanpeng,
+From: Lisa Du <cldu@marvell.com>
+Date: Mon, 5 Aug 2013 09:26:57 +0800
+Subject: [PATCH] mm: vmscan: fix do_try_to_free_pages() livelock
 
-On Mon, Aug 05, 2013 at 09:48:29AM +0800, Wanpeng Li wrote:
-> On Wed, Jul 31, 2013 at 12:41:55AM +0400, Cyrill Gorcunov wrote:
-> >Andy Lutomirski reported that in case if a page with _PAGE_SOFT_DIRTY
-> >bit set get swapped out, the bit is getting lost and no longer
-> >available when pte read back.
-> >
-> >To resolve this we introduce _PTE_SWP_SOFT_DIRTY bit which is
-> >saved in pte entry for the page being swapped out. When such page
-> >is to be read back from a swap cache we check for bit presence
-> >and if it's there we clear it and restore the former _PAGE_SOFT_DIRTY
-> >bit back.
-> >
-> >One of the problem was to find a place in pte entry where we can
-> >save the _PTE_SWP_SOFT_DIRTY bit while page is in swap. The
-> >_PAGE_PSE was chosen for that, it doesn't intersect with swap
-> >entry format stored in pte.
-> >
-> >Reported-by: Andy Lutomirski <luto@amacapital.net>
-> >Signed-off-by: Cyrill Gorcunov <gorcunov@openvz.org>
-> >Cc: Pavel Emelyanov <xemul@parallels.com>
-> >Cc: Andrew Morton <akpm@linux-foundation.org>
-> >Cc: Matt Mackall <mpm@selenic.com>
-> >Cc: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
-> >Cc: Marcelo Tosatti <mtosatti@redhat.com>
-> >Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-> >Cc: Stephen Rothwell <sfr@canb.auug.org.au>
-> >Cc: Peter Zijlstra <peterz@infradead.org>
-> >Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> >---
-> > arch/x86/include/asm/pgtable.h       |   15 +++++++++++++++
-> > arch/x86/include/asm/pgtable_types.h |   13 +++++++++++++
-> > fs/proc/task_mmu.c                   |   21 +++++++++++++++------
-> > include/asm-generic/pgtable.h        |   15 +++++++++++++++
-> > include/linux/swapops.h              |    2 ++
-> > mm/memory.c                          |    2 ++
-> > mm/rmap.c                            |    6 +++++-
-> > mm/swapfile.c                        |   19 +++++++++++++++++--
-> > 8 files changed, 84 insertions(+), 9 deletions(-)
-> >
-> >Index: linux-2.6.git/arch/x86/include/asm/pgtable.h
-> >===================================================================
-> >--- linux-2.6.git.orig/arch/x86/include/asm/pgtable.h
-> >+++ linux-2.6.git/arch/x86/include/asm/pgtable.h
-> >@@ -314,6 +314,21 @@ static inline pmd_t pmd_mksoft_dirty(pmd
-> > 	return pmd_set_flags(pmd, _PAGE_SOFT_DIRTY);
-> > }
-> >
-> >+static inline pte_t pte_swp_mksoft_dirty(pte_t pte)
-> >+{
-> >+	return pte_set_flags(pte, _PAGE_SWP_SOFT_DIRTY);
-> >+}
-> >+
-> >+static inline int pte_swp_soft_dirty(pte_t pte)
-> >+{
-> >+	return pte_flags(pte) & _PAGE_SWP_SOFT_DIRTY;
-> >+}
-> >+
-> >+static inline pte_t pte_swp_clear_soft_dirty(pte_t pte)
-> >+{
-> >+	return pte_clear_flags(pte, _PAGE_SWP_SOFT_DIRTY);
-> >+}
-> >+
-> > /*
-> >  * Mask out unsupported bits in a present pgprot.  Non-present pgprots
-> >  * can use those bits for other purposes, so leave them be.
-> >Index: linux-2.6.git/arch/x86/include/asm/pgtable_types.h
-> >===================================================================
-> >--- linux-2.6.git.orig/arch/x86/include/asm/pgtable_types.h
-> >+++ linux-2.6.git/arch/x86/include/asm/pgtable_types.h
-> >@@ -67,6 +67,19 @@
-> > #define _PAGE_SOFT_DIRTY	(_AT(pteval_t, 0))
-> > #endif
-> >
-> >+/*
-> >+ * Tracking soft dirty bit when a page goes to a swap is tricky.
-> >+ * We need a bit which can be stored in pte _and_ not conflict
-> >+ * with swap entry format. On x86 bits 6 and 7 are *not* involved
-> >+ * into swap entry computation, but bit 6 is used for nonlinear
-> >+ * file mapping, so we borrow bit 7 for soft dirty tracking.
-> >+ */
-> >+#ifdef CONFIG_MEM_SOFT_DIRTY
-> >+#define _PAGE_SWP_SOFT_DIRTY	_PAGE_PSE
-> >+#else
-> >+#define _PAGE_SWP_SOFT_DIRTY	(_AT(pteval_t, 0))
-> >+#endif
-> >+
-> > #if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
-> > #define _PAGE_NX	(_AT(pteval_t, 1) << _PAGE_BIT_NX)
-> > #else
-> >Index: linux-2.6.git/fs/proc/task_mmu.c
-> >===================================================================
-> >--- linux-2.6.git.orig/fs/proc/task_mmu.c
-> >+++ linux-2.6.git/fs/proc/task_mmu.c
-> >@@ -730,8 +730,14 @@ static inline void clear_soft_dirty(stru
-> > 	 * of how soft-dirty works.
-> > 	 */
-> > 	pte_t ptent = *pte;
-> >-	ptent = pte_wrprotect(ptent);
-> >-	ptent = pte_clear_flags(ptent, _PAGE_SOFT_DIRTY);
-> >+
-> >+	if (pte_present(ptent)) {
-> >+		ptent = pte_wrprotect(ptent);
-> >+		ptent = pte_clear_flags(ptent, _PAGE_SOFT_DIRTY);
-> >+	} else if (is_swap_pte(ptent)) {
-> >+		ptent = pte_swp_clear_soft_dirty(ptent);
-> >+	}
-> >+
-> > 	set_pte_at(vma->vm_mm, addr, pte, ptent);
-> > #endif
-> > }
-> >@@ -752,14 +758,15 @@ static int clear_refs_pte_range(pmd_t *p
-> > 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
-> > 	for (; addr != end; pte++, addr += PAGE_SIZE) {
-> > 		ptent = *pte;
-> >-		if (!pte_present(ptent))
-> >-			continue;
-> >
-> > 		if (cp->type == CLEAR_REFS_SOFT_DIRTY) {
-> > 			clear_soft_dirty(vma, addr, pte);
-> > 			continue;
-> > 		}
-> >
-> >+		if (!pte_present(ptent))
-> >+			continue;
-> >+
-> > 		page = vm_normal_page(vma, addr, ptent);
-> > 		if (!page)
-> > 			continue;
-> >@@ -930,8 +937,10 @@ static void pte_to_pagemap_entry(pagemap
-> > 		flags = PM_PRESENT;
-> > 		page = vm_normal_page(vma, addr, pte);
-> > 	} else if (is_swap_pte(pte)) {
-> >-		swp_entry_t entry = pte_to_swp_entry(pte);
-> >-
-> >+		swp_entry_t entry;
-> >+		if (pte_swp_soft_dirty(pte))
-> >+			flags2 |= __PM_SOFT_DIRTY;
-> >+		entry = pte_to_swp_entry(pte);
-> > 		frame = swp_type(entry) |
-> > 			(swp_offset(entry) << MAX_SWAPFILES_SHIFT);
-> > 		flags = PM_SWAP;
-> >Index: linux-2.6.git/include/asm-generic/pgtable.h
-> >===================================================================
-> >--- linux-2.6.git.orig/include/asm-generic/pgtable.h
-> >+++ linux-2.6.git/include/asm-generic/pgtable.h
-> >@@ -417,6 +417,21 @@ static inline pmd_t pmd_mksoft_dirty(pmd
-> > {
-> > 	return pmd;
-> > }
-> >+
-> >+static inline pte_t pte_swp_mksoft_dirty(pte_t pte)
-> >+{
-> >+	return pte;
-> >+}
-> >+
-> >+static inline int pte_swp_soft_dirty(pte_t pte)
-> >+{
-> >+	return 0;
-> >+}
-> >+
-> >+static inline pte_t pte_swp_clear_soft_dirty(pte_t pte)
-> >+{
-> >+	return pte;
-> >+}
-> > #endif
-> >
-> > #ifndef __HAVE_PFNMAP_TRACKING
-> >Index: linux-2.6.git/include/linux/swapops.h
-> >===================================================================
-> >--- linux-2.6.git.orig/include/linux/swapops.h
-> >+++ linux-2.6.git/include/linux/swapops.h
-> >@@ -67,6 +67,8 @@ static inline swp_entry_t pte_to_swp_ent
-> > 	swp_entry_t arch_entry;
-> >
-> > 	BUG_ON(pte_file(pte));
-> >+	if (pte_swp_soft_dirty(pte))
-> >+		pte = pte_swp_clear_soft_dirty(pte);
-> > 	arch_entry = __pte_to_swp_entry(pte);
-> > 	return swp_entry(__swp_type(arch_entry), __swp_offset(arch_entry));
-> > }
-> >Index: linux-2.6.git/mm/memory.c
-> >===================================================================
-> >--- linux-2.6.git.orig/mm/memory.c
-> >+++ linux-2.6.git/mm/memory.c
-> >@@ -3115,6 +3115,8 @@ static int do_swap_page(struct mm_struct
-> > 		exclusive = 1;
-> > 	}
-> > 	flush_icache_page(vma, page);
-> >+	if (pte_swp_soft_dirty(orig_pte))
-> >+		pte = pte_mksoft_dirty(pte);
-> 
-> entry = pte_to_swp_entry(orig_pte);
-> orig_pte's _PTE_SWP_SOFT_DIRTY bit has already been cleared. 
+This patch is based on KOSAKI's work and I add a little more
+description, please refer https://lkml.org/lkml/2012/6/14/74.
 
-You seem to walk same way with me.
-Please look at my stupid questions in this thread.
+Currently, I found system can enter a state that there are lots
+of free pages in a zone but only order-0 and order-1 pages which
+means the zone is heavily fragmented, then high order allocation
+could make direct reclaim path's long stall(ex, 60 seconds)
+especially in no swap and no compaciton enviroment. This problem
+happened on v3.4, but it seems issue still lives in current tree,
+the reason is do_try_to_free_pages enter live lock:
 
-> 
-> > 	set_pte_at(mm, address, page_table, pte);
-> > 	if (page == swapcache)
-> > 		do_page_add_anon_rmap(page, vma, address, exclusive);
-> >Index: linux-2.6.git/mm/rmap.c
-> >===================================================================
-> >--- linux-2.6.git.orig/mm/rmap.c
-> >+++ linux-2.6.git/mm/rmap.c
-> >@@ -1236,6 +1236,7 @@ int try_to_unmap_one(struct page *page,
-> > 			   swp_entry_to_pte(make_hwpoison_entry(page)));
-> > 	} else if (PageAnon(page)) {
-> > 		swp_entry_t entry = { .val = page_private(page) };
-> >+		pte_t swp_pte;
-> >
-> > 		if (PageSwapCache(page)) {
-> > 			/*
-> >@@ -1264,7 +1265,10 @@ int try_to_unmap_one(struct page *page,
-> > 			BUG_ON(TTU_ACTION(flags) != TTU_MIGRATION);
-> > 			entry = make_migration_entry(page, pte_write(pteval));
-> > 		}
-> >-		set_pte_at(mm, address, pte, swp_entry_to_pte(entry));
-> >+		swp_pte = swp_entry_to_pte(entry);
-> >+		if (pte_soft_dirty(pteval))
-> >+			swp_pte = pte_swp_mksoft_dirty(swp_pte);
-> >+		set_pte_at(mm, address, pte, swp_pte);
-> > 		BUG_ON(pte_file(*pte));
-> > 	} else if (IS_ENABLED(CONFIG_MIGRATION) &&
-> > 		   (TTU_ACTION(flags) == TTU_MIGRATION)) {
-> >Index: linux-2.6.git/mm/swapfile.c
-> >===================================================================
-> >--- linux-2.6.git.orig/mm/swapfile.c
-> >+++ linux-2.6.git/mm/swapfile.c
-> >@@ -866,6 +866,21 @@ unsigned int count_swap_pages(int type,
-> > }
-> > #endif /* CONFIG_HIBERNATION */
-> >
-> >+static inline int maybe_same_pte(pte_t pte, pte_t swp_pte)
-> >+{
-> >+#ifdef CONFIG_MEM_SOFT_DIRTY
-> >+	/*
-> >+	 * When pte keeps soft dirty bit the pte generated
-> >+	 * from swap entry does not has it, still it's same
-> >+	 * pte from logical point of view.
-> >+	 */
-> >+	pte_t swp_pte_dirty = pte_swp_mksoft_dirty(swp_pte);
-> >+	return pte_same(pte, swp_pte) || pte_same(pte, swp_pte_dirty);
-> >+#else
-> >+	return pte_same(pte, swp_pte);
-> >+#endif
-> >+}
-> >+
-> > /*
-> >  * No need to decide whether this PTE shares the swap entry with others,
-> >  * just let do_wp_page work it out if a write is requested later - to
-> >@@ -892,7 +907,7 @@ static int unuse_pte(struct vm_area_stru
-> > 	}
-> >
-> > 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
-> >-	if (unlikely(!pte_same(*pte, swp_entry_to_pte(entry)))) {
-> >+	if (unlikely(!maybe_same_pte(*pte, swp_entry_to_pte(entry)))) {
-> > 		mem_cgroup_cancel_charge_swapin(memcg);
-> > 		ret = 0;
-> > 		goto out;
-> >@@ -947,7 +962,7 @@ static int unuse_pte_range(struct vm_are
-> > 		 * swapoff spends a _lot_ of time in this loop!
-> > 		 * Test inline before going to call unuse_pte.
-> > 		 */
-> >-		if (unlikely(pte_same(*pte, swp_pte))) {
-> >+		if (unlikely(maybe_same_pte(*pte, swp_pte))) {
-> > 			pte_unmap(pte);
-> > 			ret = unuse_pte(vma, pmd, addr, entry, page);
-> > 			if (ret)
-> >
-> >--
-> >To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> >the body to majordomo@kvack.org.  For more info on Linux MM,
-> >see: http://www.linux-mm.org/ .
-> >Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+kswapd will go to sleep if the zones have been fully scanned
+and are still not balanced. As kswapd thinks there's little point
+trying all over again to avoid infinite loop. Instead it changes
+order from high-order to 0-order because kswapd think order-0 is the
+most important. Look at 73ce02e9 in detail. If watermarks are ok,
+kswapd will go back to sleep and may leave zone->all_unreclaimable =3D 0.
+It assume high-order users can still perform direct reclaim if they wish.
 
--- 
-Kind regards,
-Minchan Kim
+Direct reclaim continue to reclaim for a high order which is not a
+COSTLY_ORDER without oom-killer until kswapd turn on zone->all_unreclaimble=
+.
+This is because to avoid too early oom-kill. So it means direct_reclaim
+depends on kswapd to break this loop.
+
+In worst case, direct-reclaim may continue to page reclaim forever
+when kswapd sleeps forever until someone like watchdog detect and finally
+kill the process. As described in:
+http://thread.gmane.org/gmane.linux.kernel.mm/103737
+
+We can't turn on zone->all_unreclaimable from direct reclaim path
+because direct reclaim path don't take any lock and this way is racy.
+Thus this patch removes zone->all_unreclaimable field completely and
+recalculates zone reclaimable state every time.
+
+Note: we can't take the idea that direct-reclaim see zone->pages_scanned
+directly and kswapd continue to use zone->all_unreclaimable. Because, it
+is racy. commit 929bea7c71 (vmscan: all_unreclaimable() use
+zone->all_unreclaimable as a name) describes the detail.
+
+Change-Id: If3b44e33e400c1db0e42a5e2fc9ebc7a265f2aae
+Cc: Aaditya Kumar <aaditya.kumar.30@gmail.com>
+Cc: Ying Han <yinghan@google.com>
+Cc: Nick Piggin <npiggin@gmail.com>
+Acked-by: Rik van Riel <riel@redhat.com>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Mel Gorman <mel@csn.ul.ie>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>
+Cc: Bob Liu <lliubbo@gmail.com>
+Cc: Neil Zhang <zhangwm@marvell.com>
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Lisa Du <cldu@marvell.com>
+---
+ include/linux/mm_inline.h |   20 ++++++++++++++++++++
+ include/linux/mmzone.h    |    1 -
+ include/linux/vmstat.h    |    1 -
+ mm/page-writeback.c       |    1 +
+ mm/page_alloc.c           |    5 ++---
+ mm/vmscan.c               |   43 ++++++++++-------------------------------=
+--
+ mm/vmstat.c               |    3 ++-
+ 7 files changed, 35 insertions(+), 39 deletions(-)
+
+diff --git a/include/linux/mm_inline.h b/include/linux/mm_inline.h
+index 1397ccf..e212fae 100644
+--- a/include/linux/mm_inline.h
++++ b/include/linux/mm_inline.h
+@@ -2,6 +2,7 @@
+ #define LINUX_MM_INLINE_H
+=20
+ #include <linux/huge_mm.h>
++#include <linux/swap.h>
+=20
+ /**
+  * page_is_file_cache - should the page be on a file LRU or anon LRU?
+@@ -99,4 +100,23 @@ static __always_inline enum lru_list page_lru(struct pa=
+ge *page)
+ 	return lru;
+ }
+=20
++static inline unsigned long zone_reclaimable_pages(struct zone *zone)
++{
++	int nr;
++
++	nr =3D zone_page_state(zone, NR_ACTIVE_FILE) +
++	     zone_page_state(zone, NR_INACTIVE_FILE);
++
++	if (get_nr_swap_pages() > 0)
++		nr +=3D zone_page_state(zone, NR_ACTIVE_ANON) +
++		      zone_page_state(zone, NR_INACTIVE_ANON);
++
++	return nr;
++}
++
++static inline bool zone_reclaimable(struct zone *zone)
++{
++	return zone->pages_scanned < zone_reclaimable_pages(zone) * 6;
++}
++
+ #endif
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index af4a3b7..e835974 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -352,7 +352,6 @@ struct zone {
+ 	 * free areas of different sizes
+ 	 */
+ 	spinlock_t		lock;
+-	int                     all_unreclaimable; /* All pages pinned */
+ #if defined CONFIG_COMPACTION || defined CONFIG_CMA
+ 	/* Set to true when the PG_migrate_skip bits should be cleared */
+ 	bool			compact_blockskip_flush;
+diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+index c586679..6fff004 100644
+--- a/include/linux/vmstat.h
++++ b/include/linux/vmstat.h
+@@ -143,7 +143,6 @@ static inline unsigned long zone_page_state_snapshot(st=
+ruct zone *zone,
+ }
+=20
+ extern unsigned long global_reclaimable_pages(void);
+-extern unsigned long zone_reclaimable_pages(struct zone *zone);
+=20
+ #ifdef CONFIG_NUMA
+ /*
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 3f0c895..62bfd92 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -36,6 +36,7 @@
+ #include <linux/pagevec.h>
+ #include <linux/timer.h>
+ #include <linux/sched/rt.h>
++#include <linux/mm_inline.h>
+ #include <trace/events/writeback.h>
+=20
+ /*
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index b100255..19a18c0 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -60,6 +60,7 @@
+ #include <linux/page-debug-flags.h>
+ #include <linux/hugetlb.h>
+ #include <linux/sched/rt.h>
++#include <linux/mm_inline.h>
+=20
+ #include <asm/sections.h>
+ #include <asm/tlbflush.h>
+@@ -647,7 +648,6 @@ static void free_pcppages_bulk(struct zone *zone, int c=
+ount,
+ 	int to_free =3D count;
+=20
+ 	spin_lock(&zone->lock);
+-	zone->all_unreclaimable =3D 0;
+ 	zone->pages_scanned =3D 0;
+=20
+ 	while (to_free) {
+@@ -696,7 +696,6 @@ static void free_one_page(struct zone *zone, struct pag=
+e *page, int order,
+ 				int migratetype)
+ {
+ 	spin_lock(&zone->lock);
+-	zone->all_unreclaimable =3D 0;
+ 	zone->pages_scanned =3D 0;
+=20
+ 	__free_one_page(page, zone, order, migratetype);
+@@ -3095,7 +3094,7 @@ void show_free_areas(unsigned int filter)
+ 			K(zone_page_state(zone, NR_FREE_CMA_PAGES)),
+ 			K(zone_page_state(zone, NR_WRITEBACK_TEMP)),
+ 			zone->pages_scanned,
+-			(zone->all_unreclaimable ? "yes" : "no")
++			(!zone_reclaimable(zone) ? "yes" : "no")
+ 			);
+ 		printk("lowmem_reserve[]:");
+ 		for (i =3D 0; i < MAX_NR_ZONES; i++)
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 2cff0d4..7501d1e 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1789,7 +1789,7 @@ static void get_scan_count(struct lruvec *lruvec, str=
+uct scan_control *sc,
+ 	 * latencies, so it's better to scan a minimum amount there as
+ 	 * well.
+ 	 */
+-	if (current_is_kswapd() && zone->all_unreclaimable)
++	if (current_is_kswapd() && !zone_reclaimable(zone))
+ 		force_scan =3D true;
+ 	if (!global_reclaim(sc))
+ 		force_scan =3D true;
+@@ -2244,8 +2244,8 @@ static bool shrink_zones(struct zonelist *zonelist, s=
+truct scan_control *sc)
+ 		if (global_reclaim(sc)) {
+ 			if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
+ 				continue;
+-			if (zone->all_unreclaimable &&
+-					sc->priority !=3D DEF_PRIORITY)
++			if (!zone_reclaimable(zone) &&
++			    sc->priority !=3D DEF_PRIORITY)
+ 				continue;	/* Let kswapd poll it */
+ 			if (IS_ENABLED(CONFIG_COMPACTION)) {
+ 				/*
+@@ -2283,11 +2283,6 @@ static bool shrink_zones(struct zonelist *zonelist, =
+struct scan_control *sc)
+ 	return aborted_reclaim;
+ }
+=20
+-static bool zone_reclaimable(struct zone *zone)
+-{
+-	return zone->pages_scanned < zone_reclaimable_pages(zone) * 6;
+-}
+-
+ /* All zones in zonelist are unreclaimable? */
+ static bool all_unreclaimable(struct zonelist *zonelist,
+ 		struct scan_control *sc)
+@@ -2301,7 +2296,7 @@ static bool all_unreclaimable(struct zonelist *zoneli=
+st,
+ 			continue;
+ 		if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
+ 			continue;
+-		if (!zone->all_unreclaimable)
++		if (zone_reclaimable(zone))
+ 			return false;
+ 	}
+=20
+@@ -2712,7 +2707,7 @@ static bool pgdat_balanced(pg_data_t *pgdat, int orde=
+r, int classzone_idx)
+ 		 * DEF_PRIORITY. Effectively, it considers them balanced so
+ 		 * they must be considered balanced here as well!
+ 		 */
+-		if (zone->all_unreclaimable) {
++		if (!zone_reclaimable(zone)) {
+ 			balanced_pages +=3D zone->managed_pages;
+ 			continue;
+ 		}
+@@ -2773,7 +2768,6 @@ static bool kswapd_shrink_zone(struct zone *zone,
+ 			       unsigned long lru_pages,
+ 			       unsigned long *nr_attempted)
+ {
+-	unsigned long nr_slab;
+ 	int testorder =3D sc->order;
+ 	unsigned long balance_gap;
+ 	struct reclaim_state *reclaim_state =3D current->reclaim_state;
+@@ -2818,15 +2812,12 @@ static bool kswapd_shrink_zone(struct zone *zone,
+ 	shrink_zone(zone, sc);
+=20
+ 	reclaim_state->reclaimed_slab =3D 0;
+-	nr_slab =3D shrink_slab(&shrink, sc->nr_scanned, lru_pages);
++	shrink_slab(&shrink, sc->nr_scanned, lru_pages);
+ 	sc->nr_reclaimed +=3D reclaim_state->reclaimed_slab;
+=20
+ 	/* Account for the number of pages attempted to reclaim */
+ 	*nr_attempted +=3D sc->nr_to_reclaim;
+=20
+-	if (nr_slab =3D=3D 0 && !zone_reclaimable(zone))
+-		zone->all_unreclaimable =3D 1;
+-
+ 	zone_clear_flag(zone, ZONE_WRITEBACK);
+=20
+ 	/*
+@@ -2835,7 +2826,7 @@ static bool kswapd_shrink_zone(struct zone *zone,
+ 	 * BDIs but as pressure is relieved, speculatively avoid congestion
+ 	 * waits.
+ 	 */
+-	if (!zone->all_unreclaimable &&
++	if (zone_reclaimable(zone) &&
+ 	    zone_balanced(zone, testorder, 0, classzone_idx)) {
+ 		zone_clear_flag(zone, ZONE_CONGESTED);
+ 		zone_clear_flag(zone, ZONE_TAIL_LRU_DIRTY);
+@@ -2901,7 +2892,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, =
+int order,
+ 			if (!populated_zone(zone))
+ 				continue;
+=20
+-			if (zone->all_unreclaimable &&
++			if (!zone_reclaimable(zone) &&
+ 			    sc.priority !=3D DEF_PRIORITY)
+ 				continue;
+=20
+@@ -2980,7 +2971,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, =
+int order,
+ 			if (!populated_zone(zone))
+ 				continue;
+=20
+-			if (zone->all_unreclaimable &&
++			if (!zone_reclaimable(zone) &&
+ 			    sc.priority !=3D DEF_PRIORITY)
+ 				continue;
+=20
+@@ -3265,20 +3256,6 @@ unsigned long global_reclaimable_pages(void)
+ 	return nr;
+ }
+=20
+-unsigned long zone_reclaimable_pages(struct zone *zone)
+-{
+-	int nr;
+-
+-	nr =3D zone_page_state(zone, NR_ACTIVE_FILE) +
+-	     zone_page_state(zone, NR_INACTIVE_FILE);
+-
+-	if (get_nr_swap_pages() > 0)
+-		nr +=3D zone_page_state(zone, NR_ACTIVE_ANON) +
+-		      zone_page_state(zone, NR_INACTIVE_ANON);
+-
+-	return nr;
+-}
+-
+ #ifdef CONFIG_HIBERNATION
+ /*
+  * Try to free `nr_to_reclaim' of memory, system-wide, and return the numb=
+er of
+@@ -3576,7 +3553,7 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, u=
+nsigned int order)
+ 	    zone_page_state(zone, NR_SLAB_RECLAIMABLE) <=3D zone->min_slab_pages)
+ 		return ZONE_RECLAIM_FULL;
+=20
+-	if (zone->all_unreclaimable)
++	if (!zone_reclaimable(zone))
+ 		return ZONE_RECLAIM_FULL;
+=20
+ 	/*
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 20c2ef4..c48f75b 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -19,6 +19,7 @@
+ #include <linux/math64.h>
+ #include <linux/writeback.h>
+ #include <linux/compaction.h>
++#include <linux/mm_inline.h>
+=20
+ #ifdef CONFIG_VM_EVENT_COUNTERS
+ DEFINE_PER_CPU(struct vm_event_state, vm_event_states) =3D {{0}};
+@@ -1052,7 +1053,7 @@ static void zoneinfo_show_print(struct seq_file *m, p=
+g_data_t *pgdat,
+ 		   "\n  all_unreclaimable: %u"
+ 		   "\n  start_pfn:         %lu"
+ 		   "\n  inactive_ratio:    %u",
+-		   zone->all_unreclaimable,
++		   !zone_reclaimable(zone),
+ 		   zone->zone_start_pfn,
+ 		   zone->inactive_ratio);
+ 	seq_putc(m, '\n');
+--=20
+1.7.0.4
+
+
+Thanks!
+
+Best Regards
+Lisa Du
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
