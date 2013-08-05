@@ -1,113 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 8BABC6B0031
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 16:56:14 -0400 (EDT)
-Date: Mon, 5 Aug 2013 16:56:04 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 7/7] mm: memcg: do not trap chargers with full callstack
- on OOM
-Message-ID: <20130805205604.GC715@cmpxchg.org>
-References: <1375549200-19110-1-git-send-email-hannes@cmpxchg.org>
- <1375549200-19110-8-git-send-email-hannes@cmpxchg.org>
- <20130805095429.GJ10146@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id C7B4C6B0031
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 17:04:21 -0400 (EDT)
+Date: Tue, 6 Aug 2013 01:01:28 +0400
+From: Andrew Vagin <avagin@parallels.com>
+Subject: Re: [PATCH] memcg: don't initialize kmem-cache destroying work for
+ root caches
+Message-ID: <20130805210128.GA2772@paralelels.com>
+References: <1375718980-22154-1-git-send-email-avagin@openvz.org>
+ <20130805130530.fd38ec4866ba7f1d9a400218@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="koi8-r"
 Content-Disposition: inline
-In-Reply-To: <20130805095429.GJ10146@dhcp22.suse.cz>
+In-Reply-To: <20130805130530.fd38ec4866ba7f1d9a400218@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, azurIt <azurit@pobox.sk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrey Vagin <avagin@openvz.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Glauber Costa <glommer@openvz.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, stable@vger.kernel.org
 
-On Mon, Aug 05, 2013 at 11:54:29AM +0200, Michal Hocko wrote:
-> On Sat 03-08-13 13:00:00, Johannes Weiner wrote:
-> > The memcg OOM handling is incredibly fragile and can deadlock.  When a
-> > task fails to charge memory, it invokes the OOM killer and loops right
-> > there in the charge code until it succeeds.  Comparably, any other
-> > task that enters the charge path at this point will go to a waitqueue
-> > right then and there and sleep until the OOM situation is resolved.
-> > The problem is that these tasks may hold filesystem locks and the
-> > mmap_sem; locks that the selected OOM victim may need to exit.
-> > 
-> > For example, in one reported case, the task invoking the OOM killer
-> > was about to charge a page cache page during a write(), which holds
-> > the i_mutex.  The OOM killer selected a task that was just entering
-> > truncate() and trying to acquire the i_mutex:
-> > 
-> > OOM invoking task:
-> > [<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
-> > [<ffffffff8110b5ab>] T.1146+0x5ab/0x5c0
-> > [<ffffffff8110c22e>] mem_cgroup_cache_charge+0xbe/0xe0
-> > [<ffffffff810ca28c>] add_to_page_cache_locked+0x4c/0x140
-> > [<ffffffff810ca3a2>] add_to_page_cache_lru+0x22/0x50
-> > [<ffffffff810ca45b>] grab_cache_page_write_begin+0x8b/0xe0
-> > [<ffffffff81193a18>] ext3_write_begin+0x88/0x270
-> > [<ffffffff810c8fc6>] generic_file_buffered_write+0x116/0x290
-> > [<ffffffff810cb3cc>] __generic_file_aio_write+0x27c/0x480
-> > [<ffffffff810cb646>] generic_file_aio_write+0x76/0xf0           # takes ->i_mutex
-> > [<ffffffff8111156a>] do_sync_write+0xea/0x130
-> > [<ffffffff81112183>] vfs_write+0xf3/0x1f0
-> > [<ffffffff81112381>] sys_write+0x51/0x90
-> > [<ffffffff815b5926>] system_call_fastpath+0x18/0x1d
-> > [<ffffffffffffffff>] 0xffffffffffffffff
-> > 
-> > OOM kill victim:
-> > [<ffffffff811109b8>] do_truncate+0x58/0xa0              # takes i_mutex
-> > [<ffffffff81121c90>] do_last+0x250/0xa30
-> > [<ffffffff81122547>] path_openat+0xd7/0x440
-> > [<ffffffff811229c9>] do_filp_open+0x49/0xa0
-> > [<ffffffff8110f7d6>] do_sys_open+0x106/0x240
-> > [<ffffffff8110f950>] sys_open+0x20/0x30
-> > [<ffffffff815b5926>] system_call_fastpath+0x18/0x1d
-> > [<ffffffffffffffff>] 0xffffffffffffffff
-> > 
-> > The OOM handling task will retry the charge indefinitely while the OOM
-> > killed task is not releasing any resources.
-> > 
-> > A similar scenario can happen when the kernel OOM killer for a memcg
-> > is disabled and a userspace task is in charge of resolving OOM
-> > situations.  In this case, ALL tasks that enter the OOM path will be
-> > made to sleep on the OOM waitqueue and wait for userspace to free
-> > resources or increase the group's limit.  But a userspace OOM handler
-> > is prone to deadlock itself on the locks held by the waiting tasks.
-> > For example one of the sleeping tasks may be stuck in a brk() call
-> > with the mmap_sem held for writing but the userspace handler, in order
-> > to pick an optimal victim, may need to read files from /proc/<pid>,
-> > which tries to acquire the same mmap_sem for reading and deadlocks.
-> > 
-> > This patch changes the way tasks behave after detecting a memcg OOM
-> > and makes sure nobody loops or sleeps with locks held:
-> > 
-> > 1. When OOMing in a user fault, invoke the OOM killer and restart the
-> >    fault instead of looping on the charge attempt.  This way, the OOM
-> >    victim can not get stuck on locks the looping task may hold.
-> > 
-> > 2. When OOMing in a user fault but somebody else is handling it
-> >    (either the kernel OOM killer or a userspace handler), don't go to
-> >    sleep in the charge context.  Instead, remember the OOMing memcg in
-> >    the task struct and then fully unwind the page fault stack with
-> >    -ENOMEM.  pagefault_out_of_memory() will then call back into the
-> >    memcg code to check if the -ENOMEM came from the memcg, and then
-> >    either put the task to sleep on the memcg's OOM waitqueue or just
-> >    restart the fault.  The OOM victim can no longer get stuck on any
-> >    lock a sleeping task may hold.
-> > 
-> > Reported-by: Reported-by: azurIt <azurit@pobox.sk>
-> > Debugged-by: Michal Hocko <mhocko@suse.cz>
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+On Mon, Aug 05, 2013 at 01:05:30PM -0700, Andrew Morton wrote:
+> On Mon,  5 Aug 2013 20:09:40 +0400 Andrey Vagin <avagin@openvz.org> wrote:
 > 
-> I was thinking whether we should add task_in_memcg_oom into return to
-> the userspace path just in case but this should be OK for now and new
-> users of mem_cgroup_enable_oom will be fought against hard.
+> > struct memcg_cache_params has a union. Different parts of this union
+> > are used for root and non-root caches. A part with destroying work is
+> > used only for non-root caches.
+> > 
+> > I fixed the same problem in another place v3.9-rc1-16204-gf101a94, but
+> > didn't notice this one.
+> > 
+> > Cc: <stable@vger.kernel.org>    [3.9.x]
+> 
+> hm, why the cc:stable?
 
-Absolutely, I would have liked it to be at the lowest possible point
-in the stack as well, but this seemed like a good trade off.  And I
-expect the sites enabling and disabling memcg OOM killing to be fairly
-static.
+Because this patch fixes the kernel panic:
 
-> Acked-by: Michal Hocko <mhocko@suse.cz>
+[   46.848187] BUG: unable to handle kernel paging request at 000000fffffffeb8
+[   46.849026] IP: [<ffffffff811a484c>] kmem_cache_destroy_memcg_children+0x6c/0xc0
+[   46.849092] PGD 0
+[   46.849092] Oops: 0000 [#1] SMP
+[   46.849092] Modules linked in: vzethdev vznetdev pio_direct pfmt_raw pfmt_ploop1 ploop simfs ipt_MASQUERADE nf_conntrack_netbios_ns nf_conntrack_broadcast ip6table_mangle ip6t_REJECT nf_conntrack_ipv6 nf_defrag_ipv6 iptable_nat nf_nat_ipv4 nf_nat iptable_mangle nf_conntrack_ipv4 nf_defrag_ipv4 xt_conntrack nf_conntrack ebtable_filter ebtables ip6table_filter ip6_tables vzevent microcode joydev pcspkr virtio_balloon i2c_piix4 i2c_core virtio_net virtio_blk floppy
+[   46.849092] CPU 0
+[   46.849092] Pid: 6, comm: kworker/u:0 ve: 0 Not tainted 3.9.4+ #42 ovz.2.4 Red Hat KVM
+[   46.849092] RIP: 0010:[<ffffffff811a484c>]  [<ffffffff811a484c>] kmem_cache_destroy_memcg_children+0x6c/0xc0
+[   46.849092] RSP: 0018:ffff88007c7dfcd8  EFLAGS: 00010206
+[   46.849092] RAX: ffff88007b65f180 RBX: 000000fffffffe00 RCX: 0000000000000004
+[   46.849092] RDX: 0000000000000005 RSI: ffff88007fc17cc8 RDI: ffffffff81c5e5a0
+[   46.849092] RBP: ffff88007c7dfcf8 R08: ffffea0001ee1b20 R09: 0000000000000000
+[   46.849092] R10: ffff88007fbe5fe0 R11: 0000000000000000 R12: 0000000000000005
+[   46.849092] R13: ffff88007b8c2400 R14: 0000000000000000 R15: ffff88007c008005
+[   46.849092] FS:  0000000000000000(0000) GS:ffff88007fc00000(0000) knlGS:0000000000000000
+[   46.849092] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[   46.849092] CR2: 000000fffffffeb8 CR3: 00000000375a3000 CR4: 00000000000006f0
+[   46.849092] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[   46.849092] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+[   46.849092] Process kworker/u:0 (pid: 6, ve: 0, threadinfo ffff88007c7de000, task ffff88007c7e8000)
+[   46.849092] Stack:
+[   46.849092]  ffff88007bc90870 ffff88007b8c2400 ffff88007bc90000 ffff88007bc90870
+[   46.849092]  ffff88007c7dfd18 ffffffff81166a14 0000000080000003 ffff88007bc90000
+[   46.849092]  ffff88007c7dfd48 ffffffffa007b3c8 ffff88007c7dfd48 ffff88007bc90000
+[   46.849092] Call Trace:
+[   46.849092]  [<ffffffff81166a14>] kmem_cache_destroy+0x14/0xf0
+[   46.849092]  [<ffffffffa007b3c8>] nf_conntrack_cleanup_net+0xf8/0x120 [nf_conntrack]
+[   46.849092]  [<ffffffffa007d221>] nf_conntrack_pernet_exit+0x41/0x50 [nf_conntrack]
+[   46.849092]  [<ffffffff81536779>] ops_exit_list+0x39/0x60
+[   46.849092]  [<ffffffff81536cfb>] cleanup_net+0xfb/0x200
+[   46.849092]  [<ffffffff8107f43b>] process_one_work+0x17b/0x3d0
+[   46.849092]  [<ffffffff81082639>] worker_thread+0x119/0x380
+[   46.849092]  [<ffffffff81082520>] ? manage_workers+0x350/0x350
+[   46.849092]  [<ffffffff8108796e>] kthread+0xce/0xe0
+[   46.849092]  [<ffffffff810878a0>] ? kthread_freezable_should_stop+0x70/0x70
+[   46.849092]  [<ffffffff8163faec>] ret_from_fork+0x7c/0xb0
+[   46.849092]  [<ffffffff810878a0>] ? kthread_freezable_should_stop+0x70/0x70
+[   46.849092] Code: fb 48 00 8b 1d 6e f0 1d 01 85 db 7e 4e 45 31 e4 0f 1f 80 00 00 00 00 49 8b 85 b8 00 00 00 49 63 d4 48 8b 5c d0 08 48 85 db 74 23 <48> 8b 83 b8 00 00 00 c6 40 28 00 48 8b bb b8 00 00 00 48 83 c7
 
-Thanks!
+This bug was added by v3.9-rc1-221-g15cf17d
+
+> 
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -3195,11 +3195,11 @@ int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
+> >  	if (!s->memcg_params)
+> >  		return -ENOMEM;
+> >  
+> > -	INIT_WORK(&s->memcg_params->destroy,
+> > -			kmem_cache_destroy_work_func);
+> >  	if (memcg) {
+> >  		s->memcg_params->memcg = memcg;
+> >  		s->memcg_params->root_cache = root_cache;
+> > +		INIT_WORK(&s->memcg_params->destroy,
+> > +				kmem_cache_destroy_work_func);
+> >  	} else
+> >  		s->memcg_params->is_root_cache = true;
+> 
+> So the bug here is that we'll scribble on some entries in
+> memcg_caches[].  Those scribbles may or may not be within the part of
+> that array which is actually used.  If there's code which expects
+> memcg_caches[] entries to be zeroed at initialisation then yes, we have
+> a problem.
+
+INIT_WORK() sets s->memcg_params->memcg_caches[5] to 0xfffffffe00.
+
+Look at kmem_cache_destroy_memcg_children()
+
+        for (i = 0; i < memcg_limited_groups_array_size; i++) {
+                c = s->memcg_params->memcg_caches[i];
+                if (!c)
+                        continue;
+...
+		c->memcg_params->dead = false;
+
+This code tries dereference 0xfffffffe00->dead and the kernel panics
+
+> 
+> But I rather doubt whether this bug was causing runtime problems?
+> 
+> 
+> Presently memcg_register_cache() allocates too much memory for the
+> memcg_caches[] array.  If that was fixed then this INIT_WORK() might
+> scribble into unknown memory, which is of course serious.
+
+Looks like you find another bug:
+
+struct memcg_cache_params {
+        bool is_root_cache;
+        union {
+                struct kmem_cache *memcg_caches[0];
+                struct {
+                        struct mem_cgroup *memcg;
+                        struct list_head list;
+                        struct kmem_cache *root_cache;
+                        bool dead;
+                        atomic_t nr_pages;
+                        struct work_struct destroy;
+                };
+        };
+};
+
+The size of this strcture is 80 bytes, then look at memcg_register_cache()
+
+size_t size = sizeof(struct memcg_cache_params);
+
+if (!memcg_kmem_enabled())
+        return 0;
+
+if (!memcg)
+        size += memcg_limited_groups_array_size * sizeof(void *);
+
+s->memcg_params = kzalloc(size, GFP_KERNEL);
+
+Actually it allocates too much memory. It allocates memory as if struct
+memcg_cache_params would have been written without union.
+
+Actually you already suggested to rework this code
+https://lkml.org/lkml/2013/5/28/585
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
