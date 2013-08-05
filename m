@@ -1,302 +1,314 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id A738F6B0033
-	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 21:15:09 -0400 (EDT)
-Date: Mon, 5 Aug 2013 10:15:46 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [patch v2 3/3] mm: page_alloc: fair zone allocator policy
-Message-ID: <20130805011546.GI32486@bbox>
-References: <1375457846-21521-1-git-send-email-hannes@cmpxchg.org>
- <1375457846-21521-4-git-send-email-hannes@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id CB7166B0031
+	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 21:35:06 -0400 (EDT)
+Message-ID: <51FF00EC.1030609@cn.fujitsu.com>
+Date: Mon, 05 Aug 2013 09:33:32 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1375457846-21521-4-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [PATCH v2 RESEND 07/18] x86, ACPI: Also initialize signature
+ and length when parsing root table.
+References: <1375434877-20704-1-git-send-email-tangchen@cn.fujitsu.com> <1375434877-20704-8-git-send-email-tangchen@cn.fujitsu.com> <3299662.WAS8YLIUlv@vostro.rjw.lan>
+In-Reply-To: <3299662.WAS8YLIUlv@vostro.rjw.lan>
+Content-Type: multipart/mixed;
+ boundary="------------050205050209030200080600"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@surriel.com>, Andrea Arcangeli <aarcange@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: robert.moore@intel.com, lv.zheng@intel.com, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-Hello Hannes,
+This is a multi-part message in MIME format.
+--------------050205050209030200080600
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8; format=flowed
 
-On Fri, Aug 02, 2013 at 11:37:26AM -0400, Johannes Weiner wrote:
-> Each zone that holds userspace pages of one workload must be aged at a
-> speed proportional to the zone size.  Otherwise, the time an
-> individual page gets to stay in memory depends on the zone it happened
-> to be allocated in.  Asymmetry in the zone aging creates rather
-> unpredictable aging behavior and results in the wrong pages being
-> reclaimed, activated etc.
-> 
-> But exactly this happens right now because of the way the page
-> allocator and kswapd interact.  The page allocator uses per-node lists
-> of all zones in the system, ordered by preference, when allocating a
-> new page.  When the first iteration does not yield any results, kswapd
-> is woken up and the allocator retries.  Due to the way kswapd reclaims
-> zones below the high watermark while a zone can be allocated from when
-> it is above the low watermark, the allocator may keep kswapd running
-> while kswapd reclaim ensures that the page allocator can keep
-> allocating from the first zone in the zonelist for extended periods of
-> time.  Meanwhile the other zones rarely see new allocations and thus
-> get aged much slower in comparison.
-> 
-> The result is that the occasional page placed in lower zones gets
-> relatively more time in memory, even gets promoted to the active list
-> after its peers have long been evicted.  Meanwhile, the bulk of the
-> working set may be thrashing on the preferred zone even though there
-> may be significant amounts of memory available in the lower zones.
-> 
-> Even the most basic test -- repeatedly reading a file slightly bigger
-> than memory -- shows how broken the zone aging is.  In this scenario,
-> no single page should be able stay in memory long enough to get
-> referenced twice and activated, but activation happens in spades:
-> 
->   $ grep active_file /proc/zoneinfo
->       nr_inactive_file 0
->       nr_active_file 0
->       nr_inactive_file 0
->       nr_active_file 8
->       nr_inactive_file 1582
->       nr_active_file 11994
->   $ cat data data data data >/dev/null
->   $ grep active_file /proc/zoneinfo
->       nr_inactive_file 0
->       nr_active_file 70
->       nr_inactive_file 258753
->       nr_active_file 443214
->       nr_inactive_file 149793
->       nr_active_file 12021
-> 
-> Fix this with a very simple round robin allocator.  Each zone is
-> allowed a batch of allocations that is proportional to the zone's
-> size, after which it is treated as full.  The batch counters are reset
-> when all zones have been tried and the allocator enters the slowpath
-> and kicks off kswapd reclaim.  Allocation and reclaim is now fairly
-> spread out to all available/allowable zones:
-> 
->   $ grep active_file /proc/zoneinfo
->       nr_inactive_file 0
->       nr_active_file 0
->       nr_inactive_file 174
->       nr_active_file 4865
->       nr_inactive_file 53
->       nr_active_file 860
->   $ cat data data data data >/dev/null
->   $ grep active_file /proc/zoneinfo
->       nr_inactive_file 0
->       nr_active_file 0
->       nr_inactive_file 666622
->       nr_active_file 4988
->       nr_inactive_file 190969
->       nr_active_file 937
-> 
-> When zone_reclaim_mode is enabled, allocations will now spread out to
-> all zones on the local node, not just the first preferred zone (which
-> on a 4G node might be a tiny Normal zone).
+Hi Rafael,
 
-I really want to give Reviewed-by but before that, I'd like to clear out
-my concern which didn't handle enoughly in previous iteration.
+On 08/02/2013 09:03 PM, Rafael J. Wysocki wrote:
+> On Friday, August 02, 2013 05:14:26 PM Tang Chen wrote:
+>> Besides the phys addr of the acpi tables, it will be very convenient if
+>> we also have the signature of each table in acpi_gbl_root_table_list at
+>> early time. We can find SRAT easily by comparing the signature.
+>>
+>> This patch alse record signature and some other info in
+>> acpi_gbl_root_table_list at early time.
+>>
+>> Signed-off-by: Tang Chen<tangchen@cn.fujitsu.com>
+>> Reviewed-by: Zhang Yanfei<zhangyanfei@cn.fujitsu.com>
+>
+> The subject is misleading, as the change is in ACPICA and therefore affects not
+> only x86.
 
-Let's assume system has normal zone : 800M High zone : 800M
-and there are two parallel workloads.
+OK, will change it.
 
-1. alloc_pages(GFP_KERNEL) : 800M
-2. alloc_pages(GFP_MOVABLE) + mlocked : 800M
+>
+> Also I think the same comments as for the other ACPICA patch is this series
+> applies: You shouldn't modify acpi_tbl_parse_root_table() in ways that would
+> require the other OSes using ACPICA to be modified.
+>
 
-With old behavior, allocation from both workloads is fulfilled happily
-because most of allocation from GFP_KERNEL would be done in normal zone
-while most of allocation from GFP_MOVABLE would be done in high zone.
-There is no OOM kill in this scenario.
+Thank you for the reminding. Please refer to the attachment.
+How do you think of the idea from Zheng ?
 
-With you change, normal zone would be fullfilled with GFP_KERNEL:400M
-and GFP_MOVABLE:400M while high zone will have GFP_MOVABLE:400 + free 400M.
-Then, someone would be OOM killed.
+Thanks.
 
-Of course, you can argue that if there is such workloads, he should make
-sure it via lowmem_reseve but it's rather overkill if we consider more examples
-because any movable pages couldn't be allocated from normal zone so memory
-efficieny would be very bad.
+--------------050205050209030200080600
+Content-Transfer-Encoding: 7bit
+Content-Type: message/rfc822;
+ name="Re: [PATCH v2 05_18] x86, acpi: Split acpi_boot_table_init() into two parts..eml"
+Content-Disposition: attachment;
+ filename*0="Re: [PATCH v2 05_18] x86, acpi: Split acpi_boot_table_init()";
+ filename*1=" into two parts..eml"
 
-As I said, I like your approach because I have no idea to handle unbalanced
-aging problem better and we can get more benefits rather than lost by above
-corner case but at least, I'd like to confirm what you think about
-above problem before further steps. Maybe we can introduce "mlock with
-newly-allocation or already-mapped page could be migrated to high memory zone"
-when someone reported out? (we thougt mlocked page migration would be problem
-RT latency POV but Peter confirmed it's no problem.)
+Content-Transfer-Encoding: base64
+X-Account-Key: account1
+X-Mozilla-Keys: $label1                                                                         
+Received: from edo.cn.fujitsu.com ([10.167.33.5])
+          by fnstmail02.fnst.cn.fujitsu.com (Lotus Domino Release 8.5.3)
+          with ESMTP id 2013080216101235-361118 ;
+          Fri, 2 Aug 2013 16:10:12 +0800
+Received: from heian.cn.fujitsu.com (localhost.localdomain [127.0.0.1])
+	by edo.cn.fujitsu.com (8.14.3/8.13.1) with ESMTP id r728BRPO032041;
+	Fri, 2 Aug 2013 16:11:27 +0800
+Received: from mga14.intel.com ([143.182.124.37])
+  by heian.cn.fujitsu.com with ESMTP; 02 Aug 2013 16:09:46 +0800
+Received: from fmsmga001.fm.intel.com ([10.253.24.23])
+  by azsmga102.ch.intel.com with ESMTP; 02 Aug 2013 01:11:18 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="4.89,799,1367996400";
+   d="scan'208";a="375023522"
+Received: from fmsmsx106.amr.corp.intel.com ([10.19.9.37])
+  by fmsmga001.fm.intel.com with ESMTP; 02 Aug 2013 01:11:17 -0700
+Received: from fmsmsx154.amr.corp.intel.com (10.18.116.70) by
+ FMSMSX106.amr.corp.intel.com (10.19.9.37) with Microsoft SMTP Server (TLS) id
+ 14.3.123.3; Fri, 2 Aug 2013 01:11:17 -0700
+Received: from shsmsx102.ccr.corp.intel.com (10.239.4.154) by
+ FMSMSX154.amr.corp.intel.com (10.18.116.70) with Microsoft SMTP Server (TLS)
+ id 14.3.123.3; Fri, 2 Aug 2013 01:11:17 -0700
+Received: from shsmsx101.ccr.corp.intel.com ([169.254.1.99]) by
+ SHSMSX102.ccr.corp.intel.com ([169.254.2.81]) with mapi id 14.03.0123.003;
+ Fri, 2 Aug 2013 16:11:15 +0800
+From: "Zheng, Lv" <lv.zheng@intel.com>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+CC: Toshi Kani <toshi.kani@hp.com>, "rjw@sisk.pl" <rjw@sisk.pl>,
+        "lenb@kernel.org" <lenb@kernel.org>,
+        "tglx@linutronix.de"
+	<tglx@linutronix.de>,
+        "mingo@elte.hu" <mingo@elte.hu>, "hpa@zytor.com"
+	<hpa@zytor.com>,
+        "akpm@linux-foundation.org" <akpm@linux-foundation.org>,
+        "tj@kernel.org" <tj@kernel.org>, "trenn@suse.de" <trenn@suse.de>,
+        "yinghai@kernel.org" <yinghai@kernel.org>,
+        "jiang.liu@huawei.com"
+	<jiang.liu@huawei.com>,
+        "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>,
+        "laijs@cn.fujitsu.com" <laijs@cn.fujitsu.com>,
+        "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>,
+        "izumi.taku@jp.fujitsu.com" <izumi.taku@jp.fujitsu.com>,
+        "mgorman@suse.de"
+	<mgorman@suse.de>,
+        "minchan@kernel.org" <minchan@kernel.org>,
+        "mina86@mina86.com" <mina86@mina86.com>,
+        "gong.chen@linux.intel.com"
+	<gong.chen@linux.intel.com>,
+        "vasilis.liaskovitis@profitbricks.com"
+	<vasilis.liaskovitis@profitbricks.com>,
+        "lwoodman@redhat.com"
+	<lwoodman@redhat.com>,
+        "riel@redhat.com" <riel@redhat.com>,
+        "jweiner@redhat.com" <jweiner@redhat.com>,
+        "prarit@redhat.com"
+	<prarit@redhat.com>,
+        "zhangyanfei@cn.fujitsu.com"
+	<zhangyanfei@cn.fujitsu.com>,
+        "yanghy@cn.fujitsu.com"
+	<yanghy@cn.fujitsu.com>,
+        "x86@kernel.org" <x86@kernel.org>,
+        "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>,
+        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+        "linux-mm@kvack.org" <linux-mm@kvack.org>,
+        "linux-acpi@vger.kernel.org"
+	<linux-acpi@vger.kernel.org>,
+        "Moore, Robert" <robert.moore@intel.com>
+Subject: RE: [PATCH v2 05/18] x86, acpi: Split acpi_boot_table_init() into
+ two parts.
+Thread-Topic: [PATCH v2 05/18] x86, acpi: Split acpi_boot_table_init() into
+ two parts.
+Thread-Index: AQHOjoaq7VOPC5wsY06gQsg+OI/gRpmAe4eAgADlMFD//5hXAIAAkoKQ
+Date: Fri, 2 Aug 2013 08:11:15 +0000
+Message-ID: <1AE640813FDE7649BE1B193DEA596E8802437C27@SHSMSX101.ccr.corp.intel.com>
+References: <1375340800-19332-1-git-send-email-tangchen@cn.fujitsu.com>
+  <1375340800-19332-6-git-send-email-tangchen@cn.fujitsu.com>
+ <1375399931.10300.36.camel@misato.fc.hp.com>
+ <1AE640813FDE7649BE1B193DEA596E8802437AC8@SHSMSX101.ccr.corp.intel.com>
+ <51FB5948.6080802@cn.fujitsu.com>
+In-Reply-To: <51FB5948.6080802@cn.fujitsu.com>
+Accept-Language: zh-CN, en-US
+X-MS-Has-Attach: 
+X-MS-TNEF-Correlator: 
+x-originating-ip: [10.239.127.40]
+MIME-Version: 1.0
+X-MIMETrack: Itemize by SMTP Server on mailserver/fnst(Release 8.5.3|September 15, 2011) at
+ 2013/08/02 16:10:12,
+	Serialize by POP3 Server on mailserver/fnst(Release 8.5.3|September 15, 2011) at
+ 2013/08/02 16:15:47,
+	Serialize complete at 2013/08/02 16:15:47
+X-Notes-Item: 2F32E130:12322441-68900C14:BF435236;
+ type=4; name=$REF
+X-Notes-Item: 7D42B491:7CB6D2DF-F0748EE8:9EB946E9;
+ type=4; name=$INetOrig
+X-Notes-Item: Fri, 2 Aug 2013 08:11:15 +0000;
+ type=400; name=$Created
+X-Notes-Item: Memo;
+ name=Form
+X-Notes-Item: CN=mailserver/O=fnst;
+ type=501; flags=44; name=$UpdatedBy
+X-Notes-Item: CA7CDA8B:2FD73949-48257BBB:002CE144;
+ type=4; name=$Orig
+X-Notes-Item: ;
+ type=501; name=Categories
+X-Notes-Item: ;
+ type=401; name=$Revisions
+X-Notes-Item: CN=mailserver/O=fnst;
+ type=501; flags=0; name=RouteServers
+X-Notes-Item: 02-Aug-2013 16:10:12 ZE8/02-Aug-2013 16:10:12 ZE8;
+ type=401; flags=0; name=RouteTimes
+X-Notes-Item: Fri, 2 Aug 2013 16:10:12 +0800;
+ type=400; name=DeliveredDate
+X-Notes-Item: =?UTF-8?B?PiBGcm9tOiBUYW5nIENoZW4gW21haWx0bzp0YW5nY2hlbkBjbi5mdWppdHN1?=
+ =?UTF-8?B?LmNvbV0gPiBTZW50OiBGcmlkYXksIEF1Z3VzdCAwMiwgMjAxMyAzOjAxIFBN?=;
+ flags=6; name=$Abstract
+X-Notes-Item: 2F32E130:12322441-68900C14:BF435236, 2F32E130:12322441-68900C14:BF435236;
+ type=4; name=$TUA
+X-Notes-Item: 1;
+ name=$NoteHasNativeMIME
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+
+PiBGcm9tOiBUYW5nIENoZW4gW21haWx0bzp0YW5nY2hlbkBjbi5mdWppdHN1LmNvbV0NCj4gU2Vu
+dDogRnJpZGF5LCBBdWd1c3QgMDIsIDIwMTMgMzowMSBQTQ0KPiANCj4gT24gMDgvMDIvMjAxMyAw
+MToyNSBQTSwgWmhlbmcsIEx2IHdyb3RlOg0KPiAuLi4uLi4NCj4gPj4+IGluZGV4IGNlM2Q1ZGIu
+LjlkNjhmZmMgMTAwNjQ0DQo+ID4+PiAtLS0gYS9kcml2ZXJzL2FjcGkvYWNwaWNhL3RidXRpbHMu
+Yw0KPiA+Pj4gKysrIGIvZHJpdmVycy9hY3BpL2FjcGljYS90YnV0aWxzLmMNCj4gPj4+IEBAIC03
+NjYsOSArNzY2LDMwIEBADQo+ID4+IGFjcGlfdGJfcGFyc2Vfcm9vdF90YWJsZShhY3BpX3BoeXNp
+Y2FsX2FkZHJlc3MgcnNkcF9hZGRyZXNzKQ0KPiA+Pj4gICAJKi8NCj4gPj4+ICAgCWFjcGlfb3Nf
+dW5tYXBfbWVtb3J5KHRhYmxlLCBsZW5ndGgpOw0KPiA+Pj4NCj4gPj4+ICsJcmV0dXJuX0FDUElf
+U1RBVFVTKEFFX09LKTsNCj4gPj4+ICt9DQo+ID4+PiArDQo+ID4+Pg0KPiA+DQo+ID4gSSBkb24n
+dCB0aGluayB5b3UgY2FuIHNwbGl0IHRoZSBmdW5jdGlvbiBoZXJlLg0KPiA+IEFDUElDQSBzdGls
+bCBuZWVkIHRvIGNvbnRpbnVlIHRvIHBhcnNlIHRoZSB0YWJsZSB1c2luZyB0aGUgbG9naWMNCj4g
+aW1wbGVtZW50ZWQgaW4gdGhlIGFjcGlfdGJfaW5zdGFsbF90YWJsZSgpIGFuZCBhY3BpX3RiX3Bh
+cnNlX2ZhZHQoKS4NCj4gKGZvciBleGFtcGxlLCBlbmRpYW5lc3Mgb2YgdGhlIHNpZ25hdHVyZSku
+DQo+ID4gWW91J2QgYmV0dGVyIHRvIGtlZXAgdGhlbSBhcyBpcyBhbmQgc3BsaXQgc29tZSBjb2Rl
+cyBmcm9tDQo+ICdhY3BpX3RiX2luc3RhbGxfdGFibGUnIHRvIGZvcm0gYW5vdGhlciBmdW5jdGlv
+bjoNCj4gYWNwaV90Yl9vdmVycmlkZV90YWJsZSgpLg0KPiANCj4gSSdtIHNvcnJ5LCBJIGRvbid0
+IHF1aXRlIGZvbGxvdyB0aGlzLg0KPiANCj4gSSBzcGxpdCBhY3BpX3RiX3BhcnNlX3Jvb3RfdGFi
+bGUoKSwgbm90IGFjcGlfdGJfaW5zdGFsbF90YWJsZSgpIGFuZA0KPiBhY3BpX3RiX3BhcnNlX2Zh
+ZHQoKS4NCj4gSWYgQUNQSUNBIHdhbnRzIHRvIHVzZSB0aGVzZSB0d28gZnVuY3Rpb25zIHNvbWV3
+aGVyZSBlbHNlLCBJIHRoaW5rIGl0IGlzDQo+IE9LLCBpc24ndCBpdD8NCj4gDQo+IEFuZCB0aGUg
+cmVhc29uIEkgZGlkIHRoaXMsIHBsZWFzZSBzZWUgYmVsb3cuDQo+IA0KPiAuLi4uLi4NCj4gPj4+
+ICsgKg0KPiA+Pj4gKyAqIEZVTkNUSU9OOiAgICBhY3BpX3RiX2luc3RhbGxfcm9vdF90YWJsZQ0K
+PiA+DQo+ID4gSSB0aGluayB0aGlzIGZ1bmN0aW9uIHNob3VsZCBiZSBhY3BpX3RiX292ZXJyaWRl
+X3RhYmxlcywgYW5kIGNhbGwNCj4gYWNwaV90Yl9vdmVycmlkZV90YWJsZSgpIGluc2lkZSB0aGlz
+IGZ1bmN0aW9uIGZvciBlYWNoIHRhYmxlLg0KPiANCj4gSXQgaXMgbm90IGp1c3QgYWJvdXQgYWNw
+aSBpbml0cmQgdGFibGUgb3ZlcnJpZGUuDQo+IA0KPiBhY3BpX3RiX3BhcnNlX3Jvb3RfdGFibGUo
+KSB3YXMgc3BsaXQgaW50byB0d28gc3RlcHM6DQo+IDEuIGluaXRpYWxpemUgYWNwaV9nYmxfcm9v
+dF90YWJsZV9saXN0DQo+IDIuIGluc3RhbGwgdGFibGVzIGludG8gYWNwaV9nYmxfcm9vdF90YWJs
+ZV9saXN0DQo+IA0KPiBJIG5lZWQgc3RlcDEgZWFybGllciBiZWNhdXNlIEkgd2FudCB0byBmaW5k
+IFNSQVQgYXQgZWFybHkgdGltZS4NCj4gQnV0IEkgZG9uJ3Qgd2FudCBzdGVwMiBlYXJsaWVyIGJl
+Y2F1c2UgYmVmb3JlIGluc3RhbGwgdGhlIHRhYmxlcyBpbg0KPiBmaXJtd2FyZSwNCj4gYWNwaSBp
+bml0cmQgdGFibGUgb3ZlcnJpZGUgY291bGQgaGFwcGVuLiBJIHdhbnQgb25seSBTUkFULCBJIGRv
+bid0IHdhbnQgdG8NCj4gdG91Y2ggbXVjaCBleGlzdGluZyBjb2RlLg0KDQpBY2NvcmRpbmcgdG8g
+d2hhdCB5b3UndmUgZXhwbGFpbmVkLCB3aGF0IHlvdSBkaWRu4oCZdCB3YW50IHRvIGJlIGNhbGxl
+ZCBlYXJsaWVyIGlzIGV4YWN0bHkgImFjcGkgaW5pdHJkIHRhYmxlIG92ZXJyaWRlIiwgcGxlYXNl
+IHNwbGl0IG9ubHkgdGhpcyBsb2dpYyB0byB0aGUgc3RlcCAyIGFuZCBsZWF2ZSB0aGUgb3RoZXJz
+IHJlbWFpbmVkLg0KSSB0aGluayB5b3Ugc2hvdWxkIHdyaXRlIGEgZnVuY3Rpb24gbmFtZWQgYXMg
+YWNwaV9vdmVycmlkZV90YWJsZXMoKSBvciBsaWtld2lzZSBpbiB0YnhmYWNlLmMgdG8gYmUgZXhl
+Y3V0ZWQgYXMgdGhlIE9TUE0gZW50cnkgb2YgdGhlIHN0ZXAgMi4NCkluc2lkZSB0aGlzIGZ1bmN0
+aW9uLCBhY3BpX3RiX3RhYmxlX292ZXJyaWRlKCkgc2hvdWxkIGJlIGNhbGxlZC4NCg0KMjY4IHZv
+aWQNCjI2OSBhY3BpX3RiX2luc3RhbGxfdGFibGUoYWNwaV9waHlzaWNhbF9hZGRyZXNzIGFkZHJl
+c3MsDQoyNzAgICAgICAgICAgICAgICAgICAgICAgIGNoYXIgKnNpZ25hdHVyZSwgdTMyIHRhYmxl
+X2luZGV4KQ0KMjcxIHsNCg0KSSB0aGluayB5b3Ugc3RpbGwgbmVlZCB0aGUgZm9sbG93aW5nIGNv
+ZGVzIHRvIGJlIGNhbGxlZCBhdCB0aGUgZWFybHkgc3RhZ2UuDQoNCjI3MiAgICAgICAgIHN0cnVj
+dCBhY3BpX3RhYmxlX2hlYWRlciAqdGFibGU7DQoyNzMgICAgICAgICBzdHJ1Y3QgYWNwaV90YWJs
+ZV9oZWFkZXIgKmZpbmFsX3RhYmxlOw0KMjc0ICAgICAgICAgc3RydWN0IGFjcGlfdGFibGVfZGVz
+YyAqdGFibGVfZGVzYzsNCjI3NSANCjI3NiAgICAgICAgIGlmICghYWRkcmVzcykgew0KMjc3ICAg
+ICAgICAgICAgICAgICBBQ1BJX0VSUk9SKChBRV9JTkZPLA0KMjc4ICAgICAgICAgICAgICAgICAg
+ICAgICAgICAgICAiTnVsbCBwaHlzaWNhbCBhZGRyZXNzIGZvciBBQ1BJIHRhYmxlIFslc10iLA0K
+Mjc5ICAgICAgICAgICAgICAgICAgICAgICAgICAgICBzaWduYXR1cmUpKTsNCjI4MCAgICAgICAg
+ICAgICAgICAgcmV0dXJuOw0KMjgxICAgICAgICAgfQ0KMjgyIA0KMjgzICAgICAgICAgLyogTWFw
+IGp1c3QgdGhlIHRhYmxlIGhlYWRlciAqLw0KMjg0IA0KMjg1ICAgICAgICAgdGFibGUgPSBhY3Bp
+X29zX21hcF9tZW1vcnkoYWRkcmVzcywgc2l6ZW9mKHN0cnVjdCBhY3BpX3RhYmxlX2hlYWRlcikp
+Ow0KMjg2ICAgICAgICAgaWYgKCF0YWJsZSkgew0KMjg3ICAgICAgICAgICAgICAgICBBQ1BJX0VS
+Uk9SKChBRV9JTkZPLA0KMjg4ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAiQ291bGQgbm90
+IG1hcCBtZW1vcnkgZm9yIHRhYmxlIFslc10gYXQgJXAiLA0KMjg5ICAgICAgICAgICAgICAgICAg
+ICAgICAgICAgICBzaWduYXR1cmUsIEFDUElfQ0FTVF9QVFIodm9pZCwgYWRkcmVzcykpKTsNCjI5
+MCAgICAgICAgICAgICAgICAgcmV0dXJuOw0KMjkxICAgICAgICAgfQ0KMjkyIA0KMjkzICAgICAg
+ICAgLyogSWYgYSBwYXJ0aWN1bGFyIHNpZ25hdHVyZSBpcyBleHBlY3RlZCAoRFNEVC9GQUNTKSwg
+aXQgbXVzdCBtYXRjaCAqLw0KMjk0IA0KMjk1ICAgICAgICAgaWYgKHNpZ25hdHVyZSAmJiAhQUNQ
+SV9DT01QQVJFX05BTUUodGFibGUtPnNpZ25hdHVyZSwgc2lnbmF0dXJlKSkgew0KMjk2ICAgICAg
+ICAgICAgICAgICBBQ1BJX0JJT1NfRVJST1IoKEFFX0lORk8sDQoyOTcgICAgICAgICAgICAgICAg
+ICAgICAgICAgICAgICAgICAgIkludmFsaWQgc2lnbmF0dXJlIDB4JVggZm9yIEFDUEkgdGFibGUs
+IGV4cGVjdGVkIFslc10iLA0KMjk4ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICpB
+Q1BJX0NBU1RfUFRSKHUzMiwgdGFibGUtPnNpZ25hdHVyZSksDQoyOTkgICAgICAgICAgICAgICAg
+ICAgICAgICAgICAgICAgICAgc2lnbmF0dXJlKSk7DQozMDAgICAgICAgICAgICAgICAgIGdvdG8g
+dW5tYXBfYW5kX2V4aXQ7DQozMDEgICAgICAgICB9DQozMDIgDQozMDMgICAgICAgICAvKg0KMzA0
+ICAgICAgICAgICogSW5pdGlhbGl6ZSB0aGUgdGFibGUgZW50cnkuIFNldCB0aGUgcG9pbnRlciB0
+byBOVUxMLCBzaW5jZSB0aGUNCjMwNSAgICAgICAgICAqIHRhYmxlIGlzIG5vdCBmdWxseSBtYXBw
+ZWQgYXQgdGhpcyB0aW1lLg0KMzA2ICAgICAgICAgICovDQozMDcgICAgICAgICB0YWJsZV9kZXNj
+ID0gJmFjcGlfZ2JsX3Jvb3RfdGFibGVfbGlzdC50YWJsZXNbdGFibGVfaW5kZXhdOw0KMzA4IA0K
+MzA5ICAgICAgICAgdGFibGVfZGVzYy0+YWRkcmVzcyA9IGFkZHJlc3M7DQozMTAgICAgICAgICB0
+YWJsZV9kZXNjLT5wb2ludGVyID0gTlVMTDsNCjMxMSAgICAgICAgIHRhYmxlX2Rlc2MtPmxlbmd0
+aCA9IHRhYmxlLT5sZW5ndGg7DQozMTIgICAgICAgICB0YWJsZV9kZXNjLT5mbGFncyA9IEFDUElf
+VEFCTEVfT1JJR0lOX01BUFBFRDsNCjMxMyAgICAgICAgIEFDUElfTU9WRV8zMl9UT18zMih0YWJs
+ZV9kZXNjLT5zaWduYXR1cmUuYXNjaWksIHRhYmxlLT5zaWduYXR1cmUpOw0KMzE0IA0KDQpZb3Ug
+c2hvdWxkIGRlbGV0ZSB0aGUgZm9sbG93aW5nIGNvZGVzOg0KDQozMTUgICAgICAgICAvKg0KMzE2
+ICAgICAgICAgICogQUNQSSBUYWJsZSBPdmVycmlkZToNCjMxNyAgICAgICAgICAqDQozMTggICAg
+ICAgICAgKiBCZWZvcmUgd2UgaW5zdGFsbCB0aGUgdGFibGUsIGxldCB0aGUgaG9zdCBPUyBvdmVy
+cmlkZSBpdCB3aXRoIGEgbmV3DQozMTkgICAgICAgICAgKiBvbmUgaWYgZGVzaXJlZC4gQW55IHRh
+YmxlIHdpdGhpbiB0aGUgUlNEVC9YU0RUIGNhbiBiZSByZXBsYWNlZCwNCjMyMCAgICAgICAgICAq
+IGluY2x1ZGluZyB0aGUgRFNEVCB3aGljaCBpcyBwb2ludGVkIHRvIGJ5IHRoZSBGQURULg0KMzIx
+ICAgICAgICAgICoNCjMyMiAgICAgICAgICAqIE5PVEU6IElmIHRoZSB0YWJsZSBpcyBvdmVycmlk
+ZGVuLCB0aGVuIGZpbmFsX3RhYmxlIHdpbGwgY29udGFpbiBhDQozMjMgICAgICAgICAgKiBtYXBw
+ZWQgcG9pbnRlciB0byB0aGUgZnVsbCBuZXcgdGFibGUuIElmIHRoZSB0YWJsZSBpcyBub3Qgb3Zl
+cnJpZGRlbiwNCjMyNCAgICAgICAgICAqIG9yIGlmIHRoZXJlIGhhcyBiZWVuIGEgcGh5c2ljYWwg
+b3ZlcnJpZGUsIHRoZW4gdGhlIHRhYmxlIHdpbGwgYmUNCjMyNSAgICAgICAgICAqIGZ1bGx5IG1h
+cHBlZCBsYXRlciAoaW4gdmVyaWZ5IHRhYmxlKS4gSW4gYW55IGNhc2UsIHdlIG11c3QNCjMyNiAg
+ICAgICAgICAqIHVubWFwIHRoZSBoZWFkZXIgdGhhdCB3YXMgbWFwcGVkIGFib3ZlLg0KMzI3ICAg
+ICAgICAgICovDQozMjggICAgICAgICBmaW5hbF90YWJsZSA9IGFjcGlfdGJfdGFibGVfb3ZlcnJp
+ZGUodGFibGUsIHRhYmxlX2Rlc2MpOw0KMzI5ICAgICAgICAgaWYgKCFmaW5hbF90YWJsZSkgew0K
+MzMwICAgICAgICAgICAgICAgICBmaW5hbF90YWJsZSA9IHRhYmxlOyAgICAvKiBUaGVyZSB3YXMg
+bm8gb3ZlcnJpZGUgKi8NCjMzMSAgICAgICAgIH0NCjMzMiANCg0KWW91IHN0aWxsIG5lZWQgdG8g
+a2VlcCB0aGUgZm9sbG93aW5nIGxvZ2ljLg0KDQozMzMgICAgICAgICBhY3BpX3RiX3ByaW50X3Rh
+YmxlX2hlYWRlcih0YWJsZV9kZXNjLT5hZGRyZXNzLCBmaW5hbF90YWJsZSk7DQozMzQgDQozMzUg
+ICAgICAgICAvKiBTZXQgdGhlIGdsb2JhbCBpbnRlZ2VyIHdpZHRoIChiYXNlZCB1cG9uIHJldmlz
+aW9uIG9mIHRoZSBEU0RUKSAqLw0KMzM2IA0KMzM3ICAgICAgICAgaWYgKHRhYmxlX2luZGV4ID09
+IEFDUElfVEFCTEVfSU5ERVhfRFNEVCkgew0KMzM4ICAgICAgICAgICAgICAgICBhY3BpX3V0X3Nl
+dF9pbnRlZ2VyX3dpZHRoKGZpbmFsX3RhYmxlLT5yZXZpc2lvbik7DQozMzkgICAgICAgICB9DQoz
+NDAgDQoNCllvdSBzaG91bGQgZGVsZXRlIHRoZSBmb2xsb3dpbmcgY29kZXM6DQoNCjM0MSAgICAg
+ICAgIC8qDQozNDIgICAgICAgICAgKiBJZiB3ZSBoYXZlIGEgcGh5c2ljYWwgb3ZlcnJpZGUgZHVy
+aW5nIHRoaXMgZWFybHkgbG9hZGluZyBvZiB0aGUgQUNQSQ0KMzQzICAgICAgICAgICogdGFibGVz
+LCB1bm1hcCB0aGUgdGFibGUgZm9yIG5vdy4gSXQgd2lsbCBiZSBtYXBwZWQgYWdhaW4gbGF0ZXIg
+d2hlbg0KMzQ0ICAgICAgICAgICogaXQgaXMgYWN0dWFsbHkgdXNlZC4gVGhpcyBzdXBwb3J0cyB2
+ZXJ5IGVhcmx5IGxvYWRpbmcgb2YgQUNQSSB0YWJsZXMsDQozNDUgICAgICAgICAgKiBiZWZvcmUg
+dmlydHVhbCBtZW1vcnkgaXMgZnVsbHkgaW5pdGlhbGl6ZWQgYW5kIHJ1bm5pbmcgd2l0aGluIHRo
+ZQ0KMzQ2ICAgICAgICAgICogaG9zdCBPUy4gTm90ZTogQSBsb2dpY2FsIG92ZXJyaWRlIGhhcyB0
+aGUgQUNQSV9UQUJMRV9PUklHSU5fT1ZFUlJJREUNCjM0NyAgICAgICAgICAqIGZsYWcgc2V0IGFu
+ZCB3aWxsIG5vdCBiZSBkZWxldGVkIGJlbG93Lg0KMzQ4ICAgICAgICAgICovDQozNDkgICAgICAg
+ICBpZiAoZmluYWxfdGFibGUgIT0gdGFibGUpIHsNCjM1MCAgICAgICAgICAgICAgICAgYWNwaV90
+Yl9kZWxldGVfdGFibGUodGFibGVfZGVzYyk7DQozNTEgICAgICAgICB9DQoNCktlZXAgdGhlIGZv
+bGxvd2luZy4NCg0KMzUyIA0KMzUzICAgICAgIHVubWFwX2FuZF9leGl0Og0KMzU0IA0KMzU1ICAg
+ICAgICAgLyogQWx3YXlzIHVubWFwIHRoZSB0YWJsZSBoZWFkZXIgdGhhdCB3ZSBtYXBwZWQgYWJv
+dmUgKi8NCjM1NiANCjM1NyAgICAgICAgIGFjcGlfb3NfdW5tYXBfbWVtb3J5KHRhYmxlLCBzaXpl
+b2Yoc3RydWN0IGFjcGlfdGFibGVfaGVhZGVyKSk7DQozNTggfQ0KDQpJJ20gbm90IHN1cmUgaWYg
+dGhpcyBjYW4gbWFrZSBteSBjb25jZXJucyBjbGVhcmVyIGZvciB5b3Ugbm93Lg0KDQpUaGFua3Mg
+YW5kIGJlc3QgcmVnYXJkcw0KLUx2DQoNCj4gDQo+IFdvdWxkIHlvdSBwbGVhc2UgZXhwbGFpbiBt
+b3JlIGFib3V0IHlvdXIgY29tbWVudCA/IEkgdGhpbmsgbWF5YmUgSQ0KPiBtaXNzZWQgc29tZXRo
+aW5nDQo+IGltcG9ydGFudCB0byB5b3UgZ3V5cy4gOikNCj4gDQo+IEFuZCBhbGwgdGhlIG90aGVy
+IEFDUElDQSBydWxlcyB3aWxsIGJlIGZvbGxvd2VkIGluIHRoZSBuZXh0IHZlcnNpb24uDQo+IA0K
+PiBUaGFua3MuDQo=
 
 
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Tested-by: Zlatko Calusic <zcalusic@bitsync.net>
-> ---
->  include/linux/mmzone.h |  1 +
->  mm/page_alloc.c        | 69 ++++++++++++++++++++++++++++++++++++++++++--------
->  2 files changed, 60 insertions(+), 10 deletions(-)
-> 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index af4a3b7..dcad2ab 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -352,6 +352,7 @@ struct zone {
->  	 * free areas of different sizes
->  	 */
->  	spinlock_t		lock;
-> +	int			alloc_batch;
->  	int                     all_unreclaimable; /* All pages pinned */
->  #if defined CONFIG_COMPACTION || defined CONFIG_CMA
->  	/* Set to true when the PG_migrate_skip bits should be cleared */
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 3b27d3e..b2cdfd0 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1817,6 +1817,11 @@ static void zlc_clear_zones_full(struct zonelist *zonelist)
->  	bitmap_zero(zlc->fullzones, MAX_ZONES_PER_ZONELIST);
->  }
->  
-> +static bool zone_local(struct zone *local_zone, struct zone *zone)
-> +{
-> +	return node_distance(local_zone->node, zone->node) == LOCAL_DISTANCE;
-> +}
-> +
->  static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
->  {
->  	return node_isset(local_zone->node, zone->zone_pgdat->reclaim_nodes);
-> @@ -1854,6 +1859,11 @@ static void zlc_clear_zones_full(struct zonelist *zonelist)
->  {
->  }
->  
-> +static bool zone_local(struct zone *local_zone, struct zone *zone)
-> +{
-> +	return true;
-> +}
-> +
->  static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
->  {
->  	return true;
-> @@ -1901,6 +1911,26 @@ zonelist_scan:
->  		if (alloc_flags & ALLOC_NO_WATERMARKS)
->  			goto try_this_zone;
->  		/*
-> +		 * Distribute pages in proportion to the individual
-> +		 * zone size to ensure fair page aging.  The zone a
-> +		 * page was allocated in should have no effect on the
-> +		 * time the page has in memory before being reclaimed.
-> +		 *
-> +		 * When zone_reclaim_mode is enabled, try to stay in
-> +		 * local zones in the fastpath.  If that fails, the
-> +		 * slowpath is entered, which will do another pass
-> +		 * starting with the local zones, but ultimately fall
-> +		 * back to remote zones that do not partake in the
-> +		 * fairness round-robin cycle of this zonelist.
-> +		 */
-> +		if (alloc_flags & ALLOC_WMARK_LOW) {
-> +			if (zone->alloc_batch <= 0)
-> +				continue;
-> +			if (zone_reclaim_mode &&
-> +			    !zone_local(preferred_zone, zone))
-> +				continue;
-> +		}
-> +		/*
->  		 * When allocating a page cache page for writing, we
->  		 * want to get it from a zone that is within its dirty
->  		 * limit, such that no single zone holds more than its
-> @@ -2006,7 +2036,8 @@ this_zone_full:
->  		goto zonelist_scan;
->  	}
->  
-> -	if (page)
-> +	if (page) {
-> +		zone->alloc_batch -= 1U << order;
->  		/*
->  		 * page->pfmemalloc is set when ALLOC_NO_WATERMARKS was
->  		 * necessary to allocate the page. The expectation is
-> @@ -2015,6 +2046,7 @@ this_zone_full:
->  		 * for !PFMEMALLOC purposes.
->  		 */
->  		page->pfmemalloc = !!(alloc_flags & ALLOC_NO_WATERMARKS);
-> +	}
->  
->  	return page;
->  }
-> @@ -2346,16 +2378,28 @@ __alloc_pages_high_priority(gfp_t gfp_mask, unsigned int order,
->  	return page;
->  }
->  
-> -static inline
-> -void wake_all_kswapd(unsigned int order, struct zonelist *zonelist,
-> -						enum zone_type high_zoneidx,
-> -						enum zone_type classzone_idx)
-> +static void prepare_slowpath(gfp_t gfp_mask, unsigned int order,
-> +			     struct zonelist *zonelist,
-> +			     enum zone_type high_zoneidx,
-> +			     struct zone *preferred_zone)
->  {
->  	struct zoneref *z;
->  	struct zone *zone;
->  
-> -	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx)
-> -		wakeup_kswapd(zone, order, classzone_idx);
-> +	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
-> +		if (!(gfp_mask & __GFP_NO_KSWAPD))
-> +			wakeup_kswapd(zone, order, zone_idx(preferred_zone));
-> +		/*
-> +		 * Only reset the batches of zones that were actually
-> +		 * considered in the fast path, we don't want to
-> +		 * thrash fairness information for zones that are not
-> +		 * actually part of this zonelist's round-robin cycle.
-> +		 */
-> +		if (zone_reclaim_mode && !zone_local(preferred_zone, zone))
-> +			continue;
-> +		zone->alloc_batch = high_wmark_pages(zone) -
-> +			low_wmark_pages(zone);
-> +	}
->  }
->  
->  static inline int
-> @@ -2451,9 +2495,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  		goto nopage;
->  
->  restart:
-> -	if (!(gfp_mask & __GFP_NO_KSWAPD))
-> -		wake_all_kswapd(order, zonelist, high_zoneidx,
-> -						zone_idx(preferred_zone));
-> +	prepare_slowpath(gfp_mask, order, zonelist,
-> +			 high_zoneidx, preferred_zone);
->  
->  	/*
->  	 * OK, we're below the kswapd watermark and have kicked background
-> @@ -4754,6 +4797,9 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
->  		zone_seqlock_init(zone);
->  		zone->zone_pgdat = pgdat;
->  
-> +		/* For bootup, initialized properly in watermark setup */
-> +		zone->alloc_batch = zone->managed_pages;
-> +
->  		zone_pcp_init(zone);
->  		lruvec_init(&zone->lruvec);
->  		if (!size)
-> @@ -5525,6 +5571,9 @@ static void __setup_per_zone_wmarks(void)
->  		zone->watermark[WMARK_LOW]  = min_wmark_pages(zone) + (tmp >> 2);
->  		zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) + (tmp >> 1);
->  
-> +		zone->alloc_batch = high_wmark_pages(zone) -
-> +			low_wmark_pages(zone);
-> +
->  		setup_zone_migrate_reserve(zone);
->  		spin_unlock_irqrestore(&zone->lock, flags);
->  	}
-> -- 
-> 1.8.3.2
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-
--- 
-Kind regards,
-Minchan Kim
+--------------050205050209030200080600--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
