@@ -1,63 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id C7B116B0031
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 09:12:09 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 5 Aug 2013 23:04:01 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id BE3972BB0055
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 23:12:05 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r75Cu99v5505150
-	for <linux-mm@kvack.org>; Mon, 5 Aug 2013 22:56:18 +1000
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r75DBtiP014325
-	for <linux-mm@kvack.org>; Mon, 5 Aug 2013 23:11:56 +1000
-Date: Mon, 5 Aug 2013 21:11:53 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [patch v2 3/3] mm: page_alloc: fair zone allocator policy
-Message-ID: <20130805130919.GA7104@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1375457846-21521-1-git-send-email-hannes@cmpxchg.org>
- <1375457846-21521-4-git-send-email-hannes@cmpxchg.org>
- <20130805103456.GB1039@hacker.(null)>
- <20130805113423.GB6703@redhat.com>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 4E5D66B0031
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 09:16:25 -0400 (EDT)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [PATCH v2 RESEND 05/18] x86, ACPICA: Split acpi_boot_table_init() into two parts.
+Date: Mon, 05 Aug 2013 15:26:37 +0200
+Message-ID: <2500845.tndtCsERty@vostro.rjw.lan>
+In-Reply-To: <51FF1A4F.1050309@cn.fujitsu.com>
+References: <1375434877-20704-1-git-send-email-tangchen@cn.fujitsu.com> <7364455.HW1C4G1skW@vostro.rjw.lan> <51FF1A4F.1050309@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130805113423.GB6703@redhat.com>
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@surriel.com>, Zlatko Calusic <zcalusic@bitsync.net>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: robert.moore@intel.com, lv.zheng@intel.com, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-On Mon, Aug 05, 2013 at 01:34:23PM +0200, Andrea Arcangeli wrote:
->On Mon, Aug 05, 2013 at 06:34:56PM +0800, Wanpeng Li wrote:
->> Why round robin allocator don't consume ZONE_DMA?
->
->I guess lowmem reserve reserves it all, 4GB/256(ratio)=16MB.
->
+On Monday, August 05, 2013 11:21:51 AM Tang Chen wrote:
+> Hi Rafael,
+> 
+> On 08/02/2013 09:00 PM, Rafael J. Wysocki wrote:
+> ......
+> >> This patch splits acpi_boot_table_init() into two steps:
+> >> 1. Parse RSDT, which cannot be overrided, and initialize
+> >>     acpi_gbl_root_table_list. (step 1 + 2 above)
+> >> 2. Install all ACPI tables into acpi_gbl_root_table_list.
+> >>     (step 3 + 4 above)
+> >>
+> >> In later patches, we will do step 1 + 2 earlier.
+> >
+> > Please note that Linux is not the only user of the code you're modifying, so
+> > you need to make it possible to use the existing functions.
+> >
+> > In particular, acpi_tb_parse_root_table() can't be modified the way you did it,
+> > because that would require all of the users of ACPICA to be modified.
+> 
+> OK, I understand it. Then how about acpi_tb_install_table() ?
+> 
+> acpi_tb_install_table() is also an ACPICA API. But can we split the
+> acpi_initrd_table_override part out ? Like the following:
 
-Ah, lowmem reservation reserve all ZONE_DMA:
+I'm not sure what you mean.  acpi_tb_install_table() doesn't call
+acpi_initrd_table_override() directly.
 
-x86_64 4GB
+Do you want to split the acpi_tb_table_override() call out of it?
 
-protection: (0, 3251, 4009, 4009)
+I'm afraid that still wouldn't be OK.
 
-Thanks for pointing out. ;-)
+> 1. Initialize acpi_gbl_root_table_list earlier, and install all tables
+>     provided by firmware.
+> 2. Find SRAT in initrd. If no overridden SRAT, get the SRAT in 
+> acpi_gbl_root_table_list
+>     directly. And mark hotpluggable memory. (This the job I want to do.)
+> 3. DO acpi_initrd_table_override job.
+> 
+> Finally it will work like the current kernel. The only difference is:
+> Before the patch-set, it try to do override first, and then install 
+> firmware tables.
+> After the patch-set, it installs firmware tables, and then do the override.
 
->The only way to relax it would be 1) to account depending on memblock
->types and allow only the movable ones to bypass the lowmem reserve and
->prevent a change from movable type if lowmem reserve doesn't pass, 2)
->use memory migration to move the movable pages from the lower zones to
->the highest zone if reclaim fails if __GFP_DMA32 or __GFP_DMA is set,
->or highmem is missing on 32bit kernels. The last point involving
->memory migration would work similarly to compaction but it isn't black
->and white, and it would cost CPU as well. The memory used by the
->simple lowmem reserve mechanism is probably not significant enough to
->warrant such an effort.
+I think I understand what you're trying to achieve and I don't have objections
+agaist the goal, but the matter is *how* to do that.
+
+Why don't you do something like this:
+(1) Introduce two new functions that will each do part of
+    acpi_tb_parse_root_table() such that calling them in sequence, one right
+    after the other, will be exactly equivalent to the current
+    acpi_tb_parse_root_table().
+(2) Redefine acpi_tb_parse_root_table() as a wrapper calling those two new
+    function one right after the other.
+(3) Make Linux use the two new functions directly instead of calling
+    acpi_tb_parse_root_table()?
+
+Then, Linux will use your new functions and won't call acpi_tb_parse_root_table()
+at all, but the other existing users of ACPICA may still call it without any
+modifications.
+
+Does this make sense to you?
+
+Rafael
+
+
+-- 
+I speak only for myself.
+Rafael J. Wysocki, Intel Open Source Technology Center.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
