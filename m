@@ -1,38 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 2F41B6B0031
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 07:34:36 -0400 (EDT)
-Date: Mon, 5 Aug 2013 13:34:23 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [patch v2 3/3] mm: page_alloc: fair zone allocator policy
-Message-ID: <20130805113423.GB6703@redhat.com>
-References: <1375457846-21521-1-git-send-email-hannes@cmpxchg.org>
- <1375457846-21521-4-git-send-email-hannes@cmpxchg.org>
- <20130805103456.GB1039@hacker.(null)>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 94BEB6B0031
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 09:08:35 -0400 (EDT)
+Message-ID: <51FFA393.2080301@zytor.com>
+Date: Mon, 05 Aug 2013 06:07:31 -0700
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130805103456.GB1039@hacker.(null)>
+Subject: Re: [PATCH v2 00/18] Arrange hotpluggable memory as ZONE_MOVABLE.
+References: <1375340800-19332-1-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1375340800-19332-1-git-send-email-tangchen@cn.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@surriel.com>, Zlatko Calusic <zcalusic@bitsync.net>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-On Mon, Aug 05, 2013 at 06:34:56PM +0800, Wanpeng Li wrote:
-> Why round robin allocator don't consume ZONE_DMA?
+On 08/01/2013 12:06 AM, Tang Chen wrote:
+> This patch-set aims to solve some problems at system boot time
+> to enhance memory hotplug functionality.
+> 
+> [Background]
+> 
+> The Linux kernel cannot migrate pages used by the kernel because
+> of the kernel direct mapping. Since va = pa + PAGE_OFFSET, if the
+> physical address is changed, we cannot simply update the kernel
+> pagetable. On the contrary, we have to update all the pointers
+> pointing to the virtual address, which is very difficult to do.
+> 
 
-I guess lowmem reserve reserves it all, 4GB/256(ratio)=16MB.
+It does beg the question if that "since" statement should be changed ...
+we already have it handled differently on Xen PV, but that is kind of
+"special".  There are a whole bunch of other issues with moving kernel
+memory around: you have to worry what might have a physical address
+cached somewhere and what might be in active use and so on... I am not
+really suggesting it as anything but food for thought at this time.
 
-The only way to relax it would be 1) to account depending on memblock
-types and allow only the movable ones to bypass the lowmem reserve and
-prevent a change from movable type if lowmem reserve doesn't pass, 2)
-use memory migration to move the movable pages from the lower zones to
-the highest zone if reclaim fails if __GFP_DMA32 or __GFP_DMA is set,
-or highmem is missing on 32bit kernels. The last point involving
-memory migration would work similarly to compaction but it isn't black
-and white, and it would cost CPU as well. The memory used by the
-simple lowmem reserve mechanism is probably not significant enough to
-warrant such an effort.
+	-hpa
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
