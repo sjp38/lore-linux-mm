@@ -1,81 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id A84646B0033
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 17:59:03 -0400 (EDT)
-Date: Mon, 5 Aug 2013 17:58:52 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH V5 7/8] memcg: don't account root memcg page stats if
- only root exists
-Message-ID: <20130805215852.GF1845@cmpxchg.org>
-References: <1375357402-9811-1-git-send-email-handai.szj@taobao.com>
- <1375358407-10777-1-git-send-email-handai.szj@taobao.com>
- <20130801162012.GA23319@cmpxchg.org>
- <CAFj3OHUxir9kUXgHfOb1m6LDzO8HBG68CDi3MzV54sC0jdP=iQ@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAFj3OHUxir9kUXgHfOb1m6LDzO8HBG68CDi3MzV54sC0jdP=iQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 1BF8D6B0031
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 18:06:21 -0400 (EDT)
+Date: Mon, 5 Aug 2013 15:06:18 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 3/7] arch: mm: pass userspace fault flag to generic
+ fault handler
+Message-Id: <20130805150618.47d699f5ce9f42242ee2e7c3@linux-foundation.org>
+In-Reply-To: <1375549200-19110-4-git-send-email-hannes@cmpxchg.org>
+References: <1375549200-19110-1-git-send-email-hannes@cmpxchg.org>
+	<1375549200-19110-4-git-send-email-hannes@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sha Zhengju <handai.szj@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Glauber Costa <glommer@gmail.com>, Greg Thelen <gthelen@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Sha Zhengju <handai.szj@taobao.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, azurIt <azurit@pobox.sk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri, Aug 02, 2013 at 12:32:17PM +0800, Sha Zhengju wrote:
-> On Fri, Aug 2, 2013 at 12:20 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > On Thu, Aug 01, 2013 at 08:00:07PM +0800, Sha Zhengju wrote:
-> >> @@ -6303,6 +6360,49 @@ mem_cgroup_css_online(struct cgroup *cont)
-> >>       }
-> >>
-> >>       error = memcg_init_kmem(memcg, &mem_cgroup_subsys);
-> >> +     if (!error) {
-> >> +             if (!mem_cgroup_in_use()) {
-> >> +                     /* I'm the first non-root memcg, move global stats to root memcg.
-> >> +                      * Memcg creating is serialized by cgroup locks(cgroup_mutex),
-> >> +                      * so the mem_cgroup_in_use() checking is safe.
-> >> +                      *
-> >> +                      * We use global_page_state() to get global page stats, but
-> >> +                      * because of the optimized inc/dec functions in SMP while
-> >> +                      * updating each zone's stats, We may lose some numbers
-> >> +                      * in a stock(zone->pageset->vm_stat_diff) which brings some
-> >> +                      * inaccuracy. But places where kernel use these page stats to
-> >> +                      * steer next decision e.g. dirty page throttling or writeback
-> >> +                      * also use global_page_state(), so here it's enough too.
-> >> +                      */
-> >> +                     spin_lock(&root_mem_cgroup->pcp_counter_lock);
-> >> +                     root_mem_cgroup->stats_base.count[MEM_CGROUP_STAT_FILE_MAPPED] =
-> >> +                                             global_page_state(NR_FILE_MAPPED);
-> >> +                     root_mem_cgroup->stats_base.count[MEM_CGROUP_STAT_FILE_DIRTY] =
-> >> +                                             global_page_state(NR_FILE_DIRTY);
-> >> +                     root_mem_cgroup->stats_base.count[MEM_CGROUP_STAT_WRITEBACK] =
-> >> +                                             global_page_state(NR_WRITEBACK);
-> >> +                     spin_unlock(&root_mem_cgroup->pcp_counter_lock);
-> >> +             }
-> >
-> > If inaccuracies in these counters are okay, why do we go through an
-> > elaborate locking scheme that sprinkles memcg callbacks everywhere
-> > just to be 100% reliable in the rare case somebody moves memory
-> > between cgroups?
+On Sat,  3 Aug 2013 12:59:56 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
+
+> Unlike global OOM handling, memory cgroup code will invoke the OOM
+> killer in any OOM situation because it has no way of telling faults
+> occuring in kernel context - which could be handled more gracefully -
+> from user-triggered faults.
 > 
-> IMO they are not the same thing. Moving between cgroups may happen
-> many times, if we ignore the inaccuracy between moving, then the
-> cumulative inaccuracies caused by this back and forth behavior can
-> become very large.
-> 
-> But the transferring above occurs only once since we do it only when
-> the first non-root memcg creating, so the error is at most
-> zone->pageset->stat_threshold. This threshold depends on the amount of
-> zone memory and  the number of processors, and its maximum value is
-> 125, so I thought using global_page_state() is enough. Of course we
-> can add the stock to seek for greater perfection, but there are also
-> possibilities of inaccuracy because of racy.
+> Pass a flag that identifies faults originating in user space from the
+> architecture-specific fault handlers to generic code so that memcg OOM
+> handling can be improved.
 
-File pages may get unmapped/dirtied/put under writeback/finish
-writeback between reading the stats and arming the inuse keys (before
-which you are not collecting any percpu deltas).
+arch/arm64/mm/fault.c has changed.  Here's what I came up with:
 
-The error is not from the percpu inaccuracies but because you don't
-snapshot the counters and start accounting changes atomically wrt
-ongoing counter modificatcions.  This means the error is unbounded.
+--- a/arch/arm64/mm/fault.c~arch-mm-pass-userspace-fault-flag-to-generic-fault-handler
++++ a/arch/arm64/mm/fault.c
+@@ -199,13 +199,6 @@ static int __kprobes do_page_fault(unsig
+ 	unsigned long vm_flags = VM_READ | VM_WRITE | VM_EXEC;
+ 	unsigned int mm_flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+ 
+-	if (esr & ESR_LNX_EXEC) {
+-		vm_flags = VM_EXEC;
+-	} else if ((esr & ESR_WRITE) && !(esr & ESR_CM)) {
+-		vm_flags = VM_WRITE;
+-		mm_flags |= FAULT_FLAG_WRITE;
+-	}
+-
+ 	tsk = current;
+ 	mm  = tsk->mm;
+ 
+@@ -220,6 +213,16 @@ static int __kprobes do_page_fault(unsig
+ 	if (in_atomic() || !mm)
+ 		goto no_context;
+ 
++	if (user_mode(regs))
++		mm_flags |= FAULT_FLAG_USER;
++
++	if (esr & ESR_LNX_EXEC) {
++		vm_flags = VM_EXEC;
++	} else if ((esr & ESR_WRITE) && !(esr & ESR_CM)) {
++		vm_flags = VM_WRITE;
++		mm_flags |= FAULT_FLAG_WRITE;
++	}
++
+ 	/*
+ 	 * As per x86, we may deadlock here. However, since the kernel only
+ 	 * validly references user space from well defined areas of the code,
+
+But I'm not terribly confident in it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
