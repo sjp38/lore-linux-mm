@@ -1,55 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 050B16B0033
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 14:38:42 -0400 (EDT)
-Message-ID: <51FFF122.6020203@redhat.com>
-Date: Mon, 05 Aug 2013 14:38:26 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 6A3E76B0031
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 14:46:04 -0400 (EDT)
+Date: Mon, 5 Aug 2013 14:45:59 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 2/9] mm: zone_reclaim: compaction: scan all memory with
+ /proc/sys/vm/compact_memory
+Message-ID: <20130805184559.GB1845@cmpxchg.org>
+References: <1375459596-30061-1-git-send-email-aarcange@redhat.com>
+ <1375459596-30061-3-git-send-email-aarcange@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 9/9] mm: zone_reclaim: compaction: add compaction to zone_reclaim_mode
-References: <1375459596-30061-1-git-send-email-aarcange@redhat.com> <1375459596-30061-10-git-send-email-aarcange@redhat.com> <20130804165526.GG27921@redhat.com>
-In-Reply-To: <20130804165526.GG27921@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1375459596-30061-3-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Johannes Weiner <jweiner@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hush Bensen <hush.bensen@gmail.com>
+Cc: linux-mm@kvack.org, Johannes Weiner <jweiner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hush Bensen <hush.bensen@gmail.com>
 
-On 08/04/2013 12:55 PM, Andrea Arcangeli wrote:
-> On Fri, Aug 02, 2013 at 06:06:36PM +0200, Andrea Arcangeli wrote:
->> +		need_compaction = false;
->
-> This should be changed to "*need_compaction = false". It's actually a
-> cleanup because it's a nooperational change at runtime.
-> need_compaction was initialized to false by the only caller so it
-> couldn't harm. But it's better to fix it to avoid
-> confusion. Alternatively the above line can be dropped entirely but I
-> thought it was cleaner to have a defined value as result of the
-> function.
->
-> Found by Fengguang kbuild robot.
->
-> A new replacement patch 9/9 is appended below:
->
-> ===
-> From: Andrea Arcangeli <aarcange@redhat.com>
-> Subject: [PATCH] mm: zone_reclaim: compaction: add compaction to
->   zone_reclaim_mode
->
-> This adds compaction to zone_reclaim so THP enabled won't decrease the
-> NUMA locality with /proc/sys/vm/zone_reclaim_mode > 0.
->
-> It is important to boot with numa_zonelist_order=n (n means nodes) to
-> get more accurate NUMA locality if there are multiple zones per node.
->
+On Fri, Aug 02, 2013 at 06:06:29PM +0200, Andrea Arcangeli wrote:
+> Reset the stats so /proc/sys/vm/compact_memory will scan all memory.
+> 
 > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> Reviewed-by: Rik van Riel <riel@redhat.com>
+> Acked-by: Rafael Aquini <aquini@redhat.com>
+> Acked-by: Mel Gorman <mgorman@suse.de>
 
-Acked-by: Rik van Riel <riel@redhat.com>
+It somehow feels wrong that this operation should have a destructive
+side effect, rather than just ignore the cached info for the one run
+(like cc.ignore_skip_hint).  But I don't really have a strong reason
+against it, so...
 
-
--- 
-All rights reversed
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
