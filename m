@@ -1,53 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id 7FE536B0031
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 11:13:03 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id jh10so3415359pab.17
-        for <linux-mm@kvack.org>; Mon, 05 Aug 2013 08:13:02 -0700 (PDT)
-Message-ID: <51FFC0EC.6060805@gmail.com>
-Date: Mon, 05 Aug 2013 23:12:44 +0800
-From: Zhang Yanfei <zhangyanfei.yes@gmail.com>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 0B11A6B0031
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 11:40:21 -0400 (EDT)
+Received: by mail-qc0-f179.google.com with SMTP id n10so1733871qcx.24
+        for <linux-mm@kvack.org>; Mon, 05 Aug 2013 08:40:21 -0700 (PDT)
+Date: Mon, 5 Aug 2013 11:40:16 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 2/5] cgroup: export __cgroup_from_dentry() and
+ __cgroup_dput()
+Message-ID: <20130805154016.GE19631@mtj.dyndns.org>
+References: <1375632446-2581-1-git-send-email-tj@kernel.org>
+ <1375632446-2581-3-git-send-email-tj@kernel.org>
+ <51FF14C5.4040003@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 RESEND 13/18] x86, numa, mem_hotplug: Skip all the
- regions the kernel resides in.
-References: <1375434877-20704-1-git-send-email-tangchen@cn.fujitsu.com> <1375434877-20704-14-git-send-email-tangchen@cn.fujitsu.com> <51FF44B7.8050704@cn.fujitsu.com> <20130805145212.GA19631@mtj.dyndns.org>
-In-Reply-To: <20130805145212.GA19631@mtj.dyndns.org>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51FF14C5.4040003@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Li Zefan <lizefan@huawei.com>
+Cc: hannes@cmpxchg.org, mhocko@suse.cz, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi tj,
-
-On 08/05/2013 10:52 PM, Tejun Heo wrote:
-> On Mon, Aug 05, 2013 at 02:22:47PM +0800, Tang Chen wrote:
->> I have resent the v2 patch-set. Would you please give some more
->> comments about the memblock and x86 booting code modification ?
+On Mon, Aug 05, 2013 at 10:58:13AM +0800, Li Zefan wrote:
+> > +struct cgroup *__cgroup_from_dentry(struct dentry *dentry, struct cftype **cftp)
+> >  {
+> > -	if (file_inode(file)->i_fop != &cgroup_file_operations)
+> > -		return ERR_PTR(-EINVAL);
+> > -	return __d_cft(file->f_dentry);
+> > +	if (!dentry->d_inode ||
+> > +	    dentry->d_inode->i_op != &cgroup_file_inode_operations)
+> > +		return NULL;
+> > +
+> > +	if (cftp)
+> > +		*cftp = __d_cft(dentry);
+> > +	return __d_cgrp(dentry->d_parent);
+> >  }
+> > +EXPORT_SYMBOL_GPL(__cgroup_from_dentry);
 > 
-> Patch 13 still seems corrupt.  Is it a problem on my side maybe?
-> Nope, gmane raw message is corrupt too.
-> 
->  http://article.gmane.org/gmane.linux.kernel.mm/104549/raw
-> 
-> Can you please verify your mail setup?  It's not very nice to repeat
-> the same problem.
-> 
+> As we don't expect new users, why export this symbol? memcg can't be
+> built as a module.
 
-Sorry for this format problem again. Maybe our mail client does have some
-problem. We will check tomorrow when we go to our company since we are at
-night now....
+Yeah, I for some reason was thinking memcg could be bulit as module.
+Brainfart.  Dropped.
 
-And could you please kindly help reviewing other memblock and bootstrap related
-patches, so we could have a discussion with you and come to an agreement as soon
-as possible.
-
-Thanks in advance!
+Thanks.
 
 -- 
-Thanks.
-Zhang Yanfei
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
