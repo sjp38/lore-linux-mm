@@ -1,74 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 989CE6B0031
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 04:50:32 -0400 (EDT)
-Date: Mon, 5 Aug 2013 17:50:41 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 1/4] mm, page_alloc: add likely macro to help compiler
- optimization
-Message-ID: <20130805085041.GG27240@lge.com>
-References: <1375409279-16919-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20130802162722.GA29220@dhcp22.suse.cz>
- <20130802204710.GX715@cmpxchg.org>
- <20130802213607.GA4742@dhcp22.suse.cz>
- <20130805081008.GF27240@lge.com>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 20A3B6B0031
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 04:52:47 -0400 (EDT)
+Date: Mon, 5 Aug 2013 16:54:04 +0800
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH 1/2] cma: use macro PFN_DOWN when converting size to pages
+Message-ID: <20130805085404.GA22170@kroah.com>
+References: <51FF62C4.9010001@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130805081008.GF27240@lge.com>
+In-Reply-To: <51FF62C4.9010001@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Aug 05, 2013 at 05:10:08PM +0900, Joonsoo Kim wrote:
-> Hello, Michal.
+On Mon, Aug 05, 2013 at 04:31:00PM +0800, Xishi Qiu wrote:
+> Use "PFN_DOWN(r->size)" instead of "r->size >> PAGE_SHIFT".
 > 
-> On Fri, Aug 02, 2013 at 11:36:07PM +0200, Michal Hocko wrote:
-> > On Fri 02-08-13 16:47:10, Johannes Weiner wrote:
-> > > On Fri, Aug 02, 2013 at 06:27:22PM +0200, Michal Hocko wrote:
-> > > > On Fri 02-08-13 11:07:56, Joonsoo Kim wrote:
-> > > > > We rarely allocate a page with ALLOC_NO_WATERMARKS and it is used
-> > > > > in slow path. For making fast path more faster, add likely macro to
-> > > > > help compiler optimization.
-> > > > 
-> > > > The code is different in mmotm tree (see mm: page_alloc: rearrange
-> > > > watermark checking in get_page_from_freelist)
-> > > 
-> > > Yes, please rebase this on top.
-> > > 
-> > > > Besides that, make sure you provide numbers which prove your claims
-> > > > about performance optimizations.
-> > > 
-> > > Isn't that a bit overkill?  We know it's a likely path (we would
-> > > deadlock constantly if a sizable portion of allocations were to ignore
-> > > the watermarks).  Does he have to justify that likely in general makes
-> > > sense?
-> > 
-> > That was more a generic comment. If there is a claim that something
-> > would be faster it would be nice to back that claim by some numbers
-> > (e.g. smaller hot path).
-> > 
-> > In this particular case, unlikely(alloc_flags & ALLOC_NO_WATERMARKS)
-> > doesn't make any change to the generated code with gcc 4.8.1 resp.
-> > 4.3.4 I have here.
-> > Maybe other versions of gcc would benefit from the hint but changelog
-> > didn't tell us. I wouldn't add the anotation if it doesn't make any
-> > difference for the resulting code.
+> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+> ---
+>  drivers/base/dma-contiguous.c |    5 ++---
+>  1 files changed, 2 insertions(+), 3 deletions(-)
 > 
-> Hmm, Is there no change with gcc 4.8.1 and 4.3.4?
-> 
-> I found a change with gcc 4.6.3 and v3.10 kernel.
+> diff --git a/drivers/base/dma-contiguous.c b/drivers/base/dma-contiguous.c
+> index 0ca5442..1bcfaed 100644
+> --- a/drivers/base/dma-contiguous.c
+> +++ b/drivers/base/dma-contiguous.c
+> @@ -201,13 +201,12 @@ static int __init cma_init_reserved_areas(void)
+>  {
+>  	struct cma_reserved *r = cma_reserved;
+>  	unsigned i = cma_reserved_count;
+> +	struct cma *cma;
 
-Ah... I did a test on mmotm (Johannes's git) and found that this patch
-doesn't make any effect. I guess, a change from Johannes ('rearrange
-watermark checking in get_page_from_freelist') already makes better code
-for !ALLOC_NO_WATERMARKS case. IMHO, although there is no effect, it is
-better to add likely macro, because arrangement can be changed from time
-to time without any consideration of assembly code generation. How about
-your opinion, Johannes and Michal?
+Why change this?
 
-Thanks.
+>  
+>  	pr_debug("%s()\n", __func__);
+>  
+>  	for (; i; --i, ++r) {
+> -		struct cma *cma;
+> -		cma = cma_create_area(PFN_DOWN(r->start),
+> -				      r->size >> PAGE_SHIFT);
+> +		cma = cma_create_area(PFN_DOWN(r->start), PFN_DOWN(r->size));
+
+That's reasonable to clean up, but nothing major.  Care to resend this
+without the cma change?
+
+thanks,
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
