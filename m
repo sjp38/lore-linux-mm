@@ -1,13 +1,9 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [patch 1/2] [PATCH] mm: Save soft-dirty bits on swapped pages
-Date: Mon, 5 Aug 2013 10:58:35 +0800
-Message-ID: <28784.617703832$1375671546@news.gmane.org>
-References: <20130730204154.407090410@gmail.com>
- <20130730204654.844299768@gmail.com>
- <51ff047d.2768310a.2fc4.340fSMTPIN_ADDED_BROKEN@mx.google.com>
- <20130805021715.GJ32486@bbox>
- <51ff1053.ab47310a.5d3f.566cSMTPIN_ADDED_BROKEN@mx.google.com>
- <20130805025437.GK32486@bbox>
+Subject: Re: [patch v2 3/3] mm: page_alloc: fair zone allocator policy
+Date: Mon, 5 Aug 2013 18:34:56 +0800
+Message-ID: <31100.7594842978$1375699113@news.gmane.org>
+References: <1375457846-21521-1-git-send-email-hannes@cmpxchg.org>
+ <1375457846-21521-4-git-send-email-hannes@cmpxchg.org>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -15,347 +11,275 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1V6B0U-0001zY-FZ
-	for glkm-linux-mm-2@m.gmane.org; Mon, 05 Aug 2013 04:58:51 +0200
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id DCA866B0031
-	for <linux-mm@kvack.org>; Sun,  4 Aug 2013 22:58:47 -0400 (EDT)
+	id 1V6IBF-0003HZ-9i
+	for glkm-linux-mm-2@m.gmane.org; Mon, 05 Aug 2013 12:38:26 +0200
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 5D4CF6B0031
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 06:38:22 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 5 Aug 2013 23:53:38 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id BDCC62BB0054
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 12:58:42 +1000 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r752h0BZ65011806
-	for <linux-mm@kvack.org>; Mon, 5 Aug 2013 12:43:04 +1000
-Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r752wbqN023183
-	for <linux-mm@kvack.org>; Mon, 5 Aug 2013 12:58:38 +1000
+	Mon, 5 Aug 2013 15:58:44 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 73F201258053
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 16:07:43 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r75AdG4Z41549896
+	for <linux-mm@kvack.org>; Mon, 5 Aug 2013 16:09:17 +0530
+Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r75Ac83u023069
+	for <linux-mm@kvack.org>; Mon, 5 Aug 2013 16:08:08 +0530
 Content-Disposition: inline
-In-Reply-To: <20130805025437.GK32486@bbox>
+In-Reply-To: <1375457846-21521-4-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Cyrill Gorcunov <gorcunov@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, luto@amacapital.net, gorcunov@openvz.org, xemul@parallels.com, akpm@linux-foundation.org, mpm@selenic.com, xiaoguangrong@linux.vnet.ibm.com, mtosatti@redhat.com, kosaki.motohiro@gmail.com, sfr@canb.auug.org.au, peterz@infradead.org, aneesh.kumar@linux.vnet.ibm.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@surriel.com>, Andrea Arcangeli <aarcange@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Aug 05, 2013 at 11:54:37AM +0900, Minchan Kim wrote:
->On Mon, Aug 05, 2013 at 10:38:58AM +0800, Wanpeng Li wrote:
->> Hi Minchan,
->> 
->> On Mon, Aug 05, 2013 at 11:17:15AM +0900, Minchan Kim wrote:
->> >Hello Wanpeng,
->> >
->> >On Mon, Aug 05, 2013 at 09:48:29AM +0800, Wanpeng Li wrote:
->> >> On Wed, Jul 31, 2013 at 12:41:55AM +0400, Cyrill Gorcunov wrote:
->> >> >Andy Lutomirski reported that in case if a page with _PAGE_SOFT_DIRTY
->> >> >bit set get swapped out, the bit is getting lost and no longer
->> >> >available when pte read back.
->> >> >
->> >> >To resolve this we introduce _PTE_SWP_SOFT_DIRTY bit which is
->> >> >saved in pte entry for the page being swapped out. When such page
->> >> >is to be read back from a swap cache we check for bit presence
->> >> >and if it's there we clear it and restore the former _PAGE_SOFT_DIRTY
->> >> >bit back.
->> >> >
->> >> >One of the problem was to find a place in pte entry where we can
->> >> >save the _PTE_SWP_SOFT_DIRTY bit while page is in swap. The
->> >> >_PAGE_PSE was chosen for that, it doesn't intersect with swap
->> >> >entry format stored in pte.
->> >> >
->> >> >Reported-by: Andy Lutomirski <luto@amacapital.net>
->> >> >Signed-off-by: Cyrill Gorcunov <gorcunov@openvz.org>
->> >> >Cc: Pavel Emelyanov <xemul@parallels.com>
->> >> >Cc: Andrew Morton <akpm@linux-foundation.org>
->> >> >Cc: Matt Mackall <mpm@selenic.com>
->> >> >Cc: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
->> >> >Cc: Marcelo Tosatti <mtosatti@redhat.com>
->> >> >Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
->> >> >Cc: Stephen Rothwell <sfr@canb.auug.org.au>
->> >> >Cc: Peter Zijlstra <peterz@infradead.org>
->> >> >Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
->> >> >---
->> >> > arch/x86/include/asm/pgtable.h       |   15 +++++++++++++++
->> >> > arch/x86/include/asm/pgtable_types.h |   13 +++++++++++++
->> >> > fs/proc/task_mmu.c                   |   21 +++++++++++++++------
->> >> > include/asm-generic/pgtable.h        |   15 +++++++++++++++
->> >> > include/linux/swapops.h              |    2 ++
->> >> > mm/memory.c                          |    2 ++
->> >> > mm/rmap.c                            |    6 +++++-
->> >> > mm/swapfile.c                        |   19 +++++++++++++++++--
->> >> > 8 files changed, 84 insertions(+), 9 deletions(-)
->> >> >
->> >> >Index: linux-2.6.git/arch/x86/include/asm/pgtable.h
->> >> >===================================================================
->> >> >--- linux-2.6.git.orig/arch/x86/include/asm/pgtable.h
->> >> >+++ linux-2.6.git/arch/x86/include/asm/pgtable.h
->> >> >@@ -314,6 +314,21 @@ static inline pmd_t pmd_mksoft_dirty(pmd
->> >> > 	return pmd_set_flags(pmd, _PAGE_SOFT_DIRTY);
->> >> > }
->> >> >
->> >> >+static inline pte_t pte_swp_mksoft_dirty(pte_t pte)
->> >> >+{
->> >> >+	return pte_set_flags(pte, _PAGE_SWP_SOFT_DIRTY);
->> >> >+}
->> >> >+
->> >> >+static inline int pte_swp_soft_dirty(pte_t pte)
->> >> >+{
->> >> >+	return pte_flags(pte) & _PAGE_SWP_SOFT_DIRTY;
->> >> >+}
->> >> >+
->> >> >+static inline pte_t pte_swp_clear_soft_dirty(pte_t pte)
->> >> >+{
->> >> >+	return pte_clear_flags(pte, _PAGE_SWP_SOFT_DIRTY);
->> >> >+}
->> >> >+
->> >> > /*
->> >> >  * Mask out unsupported bits in a present pgprot.  Non-present pgprots
->> >> >  * can use those bits for other purposes, so leave them be.
->> >> >Index: linux-2.6.git/arch/x86/include/asm/pgtable_types.h
->> >> >===================================================================
->> >> >--- linux-2.6.git.orig/arch/x86/include/asm/pgtable_types.h
->> >> >+++ linux-2.6.git/arch/x86/include/asm/pgtable_types.h
->> >> >@@ -67,6 +67,19 @@
->> >> > #define _PAGE_SOFT_DIRTY	(_AT(pteval_t, 0))
->> >> > #endif
->> >> >
->> >> >+/*
->> >> >+ * Tracking soft dirty bit when a page goes to a swap is tricky.
->> >> >+ * We need a bit which can be stored in pte _and_ not conflict
->> >> >+ * with swap entry format. On x86 bits 6 and 7 are *not* involved
->> >> >+ * into swap entry computation, but bit 6 is used for nonlinear
->> >> >+ * file mapping, so we borrow bit 7 for soft dirty tracking.
->> >> >+ */
->> >> >+#ifdef CONFIG_MEM_SOFT_DIRTY
->> >> >+#define _PAGE_SWP_SOFT_DIRTY	_PAGE_PSE
->> >> >+#else
->> >> >+#define _PAGE_SWP_SOFT_DIRTY	(_AT(pteval_t, 0))
->> >> >+#endif
->> >> >+
->> >> > #if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
->> >> > #define _PAGE_NX	(_AT(pteval_t, 1) << _PAGE_BIT_NX)
->> >> > #else
->> >> >Index: linux-2.6.git/fs/proc/task_mmu.c
->> >> >===================================================================
->> >> >--- linux-2.6.git.orig/fs/proc/task_mmu.c
->> >> >+++ linux-2.6.git/fs/proc/task_mmu.c
->> >> >@@ -730,8 +730,14 @@ static inline void clear_soft_dirty(stru
->> >> > 	 * of how soft-dirty works.
->> >> > 	 */
->> >> > 	pte_t ptent = *pte;
->> >> >-	ptent = pte_wrprotect(ptent);
->> >> >-	ptent = pte_clear_flags(ptent, _PAGE_SOFT_DIRTY);
->> >> >+
->> >> >+	if (pte_present(ptent)) {
->> >> >+		ptent = pte_wrprotect(ptent);
->> >> >+		ptent = pte_clear_flags(ptent, _PAGE_SOFT_DIRTY);
->> >> >+	} else if (is_swap_pte(ptent)) {
->> >> >+		ptent = pte_swp_clear_soft_dirty(ptent);
->> >> >+	}
->> >> >+
->> >> > 	set_pte_at(vma->vm_mm, addr, pte, ptent);
->> >> > #endif
->> >> > }
->> >> >@@ -752,14 +758,15 @@ static int clear_refs_pte_range(pmd_t *p
->> >> > 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
->> >> > 	for (; addr != end; pte++, addr += PAGE_SIZE) {
->> >> > 		ptent = *pte;
->> >> >-		if (!pte_present(ptent))
->> >> >-			continue;
->> >> >
->> >> > 		if (cp->type == CLEAR_REFS_SOFT_DIRTY) {
->> >> > 			clear_soft_dirty(vma, addr, pte);
->> >> > 			continue;
->> >> > 		}
->> >> >
->> >> >+		if (!pte_present(ptent))
->> >> >+			continue;
->> >> >+
->> >> > 		page = vm_normal_page(vma, addr, ptent);
->> >> > 		if (!page)
->> >> > 			continue;
->> >> >@@ -930,8 +937,10 @@ static void pte_to_pagemap_entry(pagemap
->> >> > 		flags = PM_PRESENT;
->> >> > 		page = vm_normal_page(vma, addr, pte);
->> >> > 	} else if (is_swap_pte(pte)) {
->> >> >-		swp_entry_t entry = pte_to_swp_entry(pte);
->> >> >-
->> >> >+		swp_entry_t entry;
->> >> >+		if (pte_swp_soft_dirty(pte))
->> >> >+			flags2 |= __PM_SOFT_DIRTY;
->> >> >+		entry = pte_to_swp_entry(pte);
->> >> > 		frame = swp_type(entry) |
->> >> > 			(swp_offset(entry) << MAX_SWAPFILES_SHIFT);
->> >> > 		flags = PM_SWAP;
->> >> >Index: linux-2.6.git/include/asm-generic/pgtable.h
->> >> >===================================================================
->> >> >--- linux-2.6.git.orig/include/asm-generic/pgtable.h
->> >> >+++ linux-2.6.git/include/asm-generic/pgtable.h
->> >> >@@ -417,6 +417,21 @@ static inline pmd_t pmd_mksoft_dirty(pmd
->> >> > {
->> >> > 	return pmd;
->> >> > }
->> >> >+
->> >> >+static inline pte_t pte_swp_mksoft_dirty(pte_t pte)
->> >> >+{
->> >> >+	return pte;
->> >> >+}
->> >> >+
->> >> >+static inline int pte_swp_soft_dirty(pte_t pte)
->> >> >+{
->> >> >+	return 0;
->> >> >+}
->> >> >+
->> >> >+static inline pte_t pte_swp_clear_soft_dirty(pte_t pte)
->> >> >+{
->> >> >+	return pte;
->> >> >+}
->> >> > #endif
->> >> >
->> >> > #ifndef __HAVE_PFNMAP_TRACKING
->> >> >Index: linux-2.6.git/include/linux/swapops.h
->> >> >===================================================================
->> >> >--- linux-2.6.git.orig/include/linux/swapops.h
->> >> >+++ linux-2.6.git/include/linux/swapops.h
->> >> >@@ -67,6 +67,8 @@ static inline swp_entry_t pte_to_swp_ent
->> >> > 	swp_entry_t arch_entry;
->> >> >
->> >> > 	BUG_ON(pte_file(pte));
->> >> >+	if (pte_swp_soft_dirty(pte))
->> >> >+		pte = pte_swp_clear_soft_dirty(pte);
->> >> > 	arch_entry = __pte_to_swp_entry(pte);
->> >> > 	return swp_entry(__swp_type(arch_entry), __swp_offset(arch_entry));
->> >> > }
->> >> >Index: linux-2.6.git/mm/memory.c
->> >> >===================================================================
->> >> >--- linux-2.6.git.orig/mm/memory.c
->> >> >+++ linux-2.6.git/mm/memory.c
->> >> >@@ -3115,6 +3115,8 @@ static int do_swap_page(struct mm_struct
->> >> > 		exclusive = 1;
->> >> > 	}
->> >> > 	flush_icache_page(vma, page);
->> >> >+	if (pte_swp_soft_dirty(orig_pte))
->> >> >+		pte = pte_mksoft_dirty(pte);
->> >> 
->> >> entry = pte_to_swp_entry(orig_pte);
->> >> orig_pte's _PTE_SWP_SOFT_DIRTY bit has already been cleared. 
->> >
->> >You seem to walk same way with me.
->> >Please look at my stupid questions in this thread.
->> >
->> 
->> I see your discussion with Cyrill, however, pte_to_swp_entry and pte_swp_soft_dirty
->> both against orig_pte, where I miss? ;-)
+On Fri, Aug 02, 2013 at 11:37:26AM -0400, Johannes Weiner wrote:
+>Each zone that holds userspace pages of one workload must be aged at a
+>speed proportional to the zone size.  Otherwise, the time an
+>individual page gets to stay in memory depends on the zone it happened
+>to be allocated in.  Asymmetry in the zone aging creates rather
+>unpredictable aging behavior and results in the wrong pages being
+>reclaimed, activated etc.
 >
->pte_to_swp_entry is passed orig_pte by vaule, not a pointer
->so although pte_to_swp_entry clear out _PTE_SWP_SOFT_DIRTY, it does it in local-copy.
->So orig_pte is never changed.
-
-Ouch! Thanks for pointing out. ;-)
-
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-
+>But exactly this happens right now because of the way the page
+>allocator and kswapd interact.  The page allocator uses per-node lists
+>of all zones in the system, ordered by preference, when allocating a
+>new page.  When the first iteration does not yield any results, kswapd
+>is woken up and the allocator retries.  Due to the way kswapd reclaims
+>zones below the high watermark while a zone can be allocated from when
+>it is above the low watermark, the allocator may keep kswapd running
+>while kswapd reclaim ensures that the page allocator can keep
+>allocating from the first zone in the zonelist for extended periods of
+>time.  Meanwhile the other zones rarely see new allocations and thus
+>get aged much slower in comparison.
 >
->> 
->> >> 
->> >> > 	set_pte_at(mm, address, page_table, pte);
->> >> > 	if (page == swapcache)
->> >> > 		do_page_add_anon_rmap(page, vma, address, exclusive);
->> >> >Index: linux-2.6.git/mm/rmap.c
->> >> >===================================================================
->> >> >--- linux-2.6.git.orig/mm/rmap.c
->> >> >+++ linux-2.6.git/mm/rmap.c
->> >> >@@ -1236,6 +1236,7 @@ int try_to_unmap_one(struct page *page,
->> >> > 			   swp_entry_to_pte(make_hwpoison_entry(page)));
->> >> > 	} else if (PageAnon(page)) {
->> >> > 		swp_entry_t entry = { .val = page_private(page) };
->> >> >+		pte_t swp_pte;
->> >> >
->> >> > 		if (PageSwapCache(page)) {
->> >> > 			/*
->> >> >@@ -1264,7 +1265,10 @@ int try_to_unmap_one(struct page *page,
->> >> > 			BUG_ON(TTU_ACTION(flags) != TTU_MIGRATION);
->> >> > 			entry = make_migration_entry(page, pte_write(pteval));
->> >> > 		}
->> >> >-		set_pte_at(mm, address, pte, swp_entry_to_pte(entry));
->> >> >+		swp_pte = swp_entry_to_pte(entry);
->> >> >+		if (pte_soft_dirty(pteval))
->> >> >+			swp_pte = pte_swp_mksoft_dirty(swp_pte);
->> >> >+		set_pte_at(mm, address, pte, swp_pte);
->> >> > 		BUG_ON(pte_file(*pte));
->> >> > 	} else if (IS_ENABLED(CONFIG_MIGRATION) &&
->> >> > 		   (TTU_ACTION(flags) == TTU_MIGRATION)) {
->> >> >Index: linux-2.6.git/mm/swapfile.c
->> >> >===================================================================
->> >> >--- linux-2.6.git.orig/mm/swapfile.c
->> >> >+++ linux-2.6.git/mm/swapfile.c
->> >> >@@ -866,6 +866,21 @@ unsigned int count_swap_pages(int type,
->> >> > }
->> >> > #endif /* CONFIG_HIBERNATION */
->> >> >
->> >> >+static inline int maybe_same_pte(pte_t pte, pte_t swp_pte)
->> >> >+{
->> >> >+#ifdef CONFIG_MEM_SOFT_DIRTY
->> >> >+	/*
->> >> >+	 * When pte keeps soft dirty bit the pte generated
->> >> >+	 * from swap entry does not has it, still it's same
->> >> >+	 * pte from logical point of view.
->> >> >+	 */
->> >> >+	pte_t swp_pte_dirty = pte_swp_mksoft_dirty(swp_pte);
->> >> >+	return pte_same(pte, swp_pte) || pte_same(pte, swp_pte_dirty);
->> >> >+#else
->> >> >+	return pte_same(pte, swp_pte);
->> >> >+#endif
->> >> >+}
->> >> >+
->> >> > /*
->> >> >  * No need to decide whether this PTE shares the swap entry with others,
->> >> >  * just let do_wp_page work it out if a write is requested later - to
->> >> >@@ -892,7 +907,7 @@ static int unuse_pte(struct vm_area_stru
->> >> > 	}
->> >> >
->> >> > 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
->> >> >-	if (unlikely(!pte_same(*pte, swp_entry_to_pte(entry)))) {
->> >> >+	if (unlikely(!maybe_same_pte(*pte, swp_entry_to_pte(entry)))) {
->> >> > 		mem_cgroup_cancel_charge_swapin(memcg);
->> >> > 		ret = 0;
->> >> > 		goto out;
->> >> >@@ -947,7 +962,7 @@ static int unuse_pte_range(struct vm_are
->> >> > 		 * swapoff spends a _lot_ of time in this loop!
->> >> > 		 * Test inline before going to call unuse_pte.
->> >> > 		 */
->> >> >-		if (unlikely(pte_same(*pte, swp_pte))) {
->> >> >+		if (unlikely(maybe_same_pte(*pte, swp_pte))) {
->> >> > 			pte_unmap(pte);
->> >> > 			ret = unuse_pte(vma, pmd, addr, entry, page);
->> >> > 			if (ret)
->> >> >
->> >> >--
->> >> >To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> >> >the body to majordomo@kvack.org.  For more info on Linux MM,
->> >> >see: http://www.linux-mm.org/ .
->> >> >Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->> >> 
->> >> --
->> >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> >> the body to majordomo@kvack.org.  For more info on Linux MM,
->> >> see: http://www.linux-mm.org/ .
->> >> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->> >
->> >-- 
->> >Kind regards,
->> >Minchan Kim
->> 
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>The result is that the occasional page placed in lower zones gets
+>relatively more time in memory, even gets promoted to the active list
+>after its peers have long been evicted.  Meanwhile, the bulk of the
+>working set may be thrashing on the preferred zone even though there
+>may be significant amounts of memory available in the lower zones.
 >
+>Even the most basic test -- repeatedly reading a file slightly bigger
+>than memory -- shows how broken the zone aging is.  In this scenario,
+>no single page should be able stay in memory long enough to get
+>referenced twice and activated, but activation happens in spades:
+>
+>  $ grep active_file /proc/zoneinfo
+>      nr_inactive_file 0
+>      nr_active_file 0
+>      nr_inactive_file 0
+>      nr_active_file 8
+>      nr_inactive_file 1582
+>      nr_active_file 11994
+>  $ cat data data data data >/dev/null
+>  $ grep active_file /proc/zoneinfo
+>      nr_inactive_file 0
+>      nr_active_file 70
+>      nr_inactive_file 258753
+>      nr_active_file 443214
+>      nr_inactive_file 149793
+>      nr_active_file 12021
+>
+>Fix this with a very simple round robin allocator.  Each zone is
+>allowed a batch of allocations that is proportional to the zone's
+>size, after which it is treated as full.  The batch counters are reset
+>when all zones have been tried and the allocator enters the slowpath
+>and kicks off kswapd reclaim.  Allocation and reclaim is now fairly
+>spread out to all available/allowable zones:
+>
+>  $ grep active_file /proc/zoneinfo
+>      nr_inactive_file 0
+>      nr_active_file 0
+>      nr_inactive_file 174
+>      nr_active_file 4865
+>      nr_inactive_file 53
+>      nr_active_file 860
+>  $ cat data data data data >/dev/null
+>  $ grep active_file /proc/zoneinfo
+>      nr_inactive_file 0
+>      nr_active_file 0
+>      nr_inactive_file 666622
+>      nr_active_file 4988
+>      nr_inactive_file 190969
+>      nr_active_file 937
+>
+
+Why round robin allocator don't consume ZONE_DMA?
+
+>When zone_reclaim_mode is enabled, allocations will now spread out to
+>all zones on the local node, not just the first preferred zone (which
+>on a 4G node might be a tiny Normal zone).
+>
+>Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+>Tested-by: Zlatko Calusic <zcalusic@bitsync.net>
+>---
+> include/linux/mmzone.h |  1 +
+> mm/page_alloc.c        | 69 ++++++++++++++++++++++++++++++++++++++++++--------
+> 2 files changed, 60 insertions(+), 10 deletions(-)
+>
+>diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+>index af4a3b7..dcad2ab 100644
+>--- a/include/linux/mmzone.h
+>+++ b/include/linux/mmzone.h
+>@@ -352,6 +352,7 @@ struct zone {
+> 	 * free areas of different sizes
+> 	 */
+> 	spinlock_t		lock;
+>+	int			alloc_batch;
+> 	int                     all_unreclaimable; /* All pages pinned */
+> #if defined CONFIG_COMPACTION || defined CONFIG_CMA
+> 	/* Set to true when the PG_migrate_skip bits should be cleared */
+>diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>index 3b27d3e..b2cdfd0 100644
+>--- a/mm/page_alloc.c
+>+++ b/mm/page_alloc.c
+>@@ -1817,6 +1817,11 @@ static void zlc_clear_zones_full(struct zonelist *zonelist)
+> 	bitmap_zero(zlc->fullzones, MAX_ZONES_PER_ZONELIST);
+> }
+>
+>+static bool zone_local(struct zone *local_zone, struct zone *zone)
+>+{
+>+	return node_distance(local_zone->node, zone->node) == LOCAL_DISTANCE;
+>+}
+>+
+> static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
+> {
+> 	return node_isset(local_zone->node, zone->zone_pgdat->reclaim_nodes);
+>@@ -1854,6 +1859,11 @@ static void zlc_clear_zones_full(struct zonelist *zonelist)
+> {
+> }
+>
+>+static bool zone_local(struct zone *local_zone, struct zone *zone)
+>+{
+>+	return true;
+>+}
+>+
+> static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
+> {
+> 	return true;
+>@@ -1901,6 +1911,26 @@ zonelist_scan:
+> 		if (alloc_flags & ALLOC_NO_WATERMARKS)
+> 			goto try_this_zone;
+> 		/*
+>+		 * Distribute pages in proportion to the individual
+>+		 * zone size to ensure fair page aging.  The zone a
+>+		 * page was allocated in should have no effect on the
+>+		 * time the page has in memory before being reclaimed.
+>+		 *
+>+		 * When zone_reclaim_mode is enabled, try to stay in
+>+		 * local zones in the fastpath.  If that fails, the
+>+		 * slowpath is entered, which will do another pass
+>+		 * starting with the local zones, but ultimately fall
+>+		 * back to remote zones that do not partake in the
+>+		 * fairness round-robin cycle of this zonelist.
+>+		 */
+>+		if (alloc_flags & ALLOC_WMARK_LOW) {
+>+			if (zone->alloc_batch <= 0)
+>+				continue;
+>+			if (zone_reclaim_mode &&
+>+			    !zone_local(preferred_zone, zone))
+>+				continue;
+>+		}
+>+		/*
+> 		 * When allocating a page cache page for writing, we
+> 		 * want to get it from a zone that is within its dirty
+> 		 * limit, such that no single zone holds more than its
+>@@ -2006,7 +2036,8 @@ this_zone_full:
+> 		goto zonelist_scan;
+> 	}
+>
+>-	if (page)
+>+	if (page) {
+>+		zone->alloc_batch -= 1U << order;
+> 		/*
+> 		 * page->pfmemalloc is set when ALLOC_NO_WATERMARKS was
+> 		 * necessary to allocate the page. The expectation is
+>@@ -2015,6 +2046,7 @@ this_zone_full:
+> 		 * for !PFMEMALLOC purposes.
+> 		 */
+> 		page->pfmemalloc = !!(alloc_flags & ALLOC_NO_WATERMARKS);
+>+	}
+>
+> 	return page;
+> }
+>@@ -2346,16 +2378,28 @@ __alloc_pages_high_priority(gfp_t gfp_mask, unsigned int order,
+> 	return page;
+> }
+>
+>-static inline
+>-void wake_all_kswapd(unsigned int order, struct zonelist *zonelist,
+>-						enum zone_type high_zoneidx,
+>-						enum zone_type classzone_idx)
+>+static void prepare_slowpath(gfp_t gfp_mask, unsigned int order,
+>+			     struct zonelist *zonelist,
+>+			     enum zone_type high_zoneidx,
+>+			     struct zone *preferred_zone)
+> {
+> 	struct zoneref *z;
+> 	struct zone *zone;
+>
+>-	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx)
+>-		wakeup_kswapd(zone, order, classzone_idx);
+>+	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
+>+		if (!(gfp_mask & __GFP_NO_KSWAPD))
+>+			wakeup_kswapd(zone, order, zone_idx(preferred_zone));
+>+		/*
+>+		 * Only reset the batches of zones that were actually
+>+		 * considered in the fast path, we don't want to
+>+		 * thrash fairness information for zones that are not
+>+		 * actually part of this zonelist's round-robin cycle.
+>+		 */
+>+		if (zone_reclaim_mode && !zone_local(preferred_zone, zone))
+>+			continue;
+>+		zone->alloc_batch = high_wmark_pages(zone) -
+>+			low_wmark_pages(zone);
+>+	}
+> }
+>
+> static inline int
+>@@ -2451,9 +2495,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+> 		goto nopage;
+>
+> restart:
+>-	if (!(gfp_mask & __GFP_NO_KSWAPD))
+>-		wake_all_kswapd(order, zonelist, high_zoneidx,
+>-						zone_idx(preferred_zone));
+>+	prepare_slowpath(gfp_mask, order, zonelist,
+>+			 high_zoneidx, preferred_zone);
+>
+> 	/*
+> 	 * OK, we're below the kswapd watermark and have kicked background
+>@@ -4754,6 +4797,9 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+> 		zone_seqlock_init(zone);
+> 		zone->zone_pgdat = pgdat;
+>
+>+		/* For bootup, initialized properly in watermark setup */
+>+		zone->alloc_batch = zone->managed_pages;
+>+
+> 		zone_pcp_init(zone);
+> 		lruvec_init(&zone->lruvec);
+> 		if (!size)
+>@@ -5525,6 +5571,9 @@ static void __setup_per_zone_wmarks(void)
+> 		zone->watermark[WMARK_LOW]  = min_wmark_pages(zone) + (tmp >> 2);
+> 		zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) + (tmp >> 1);
+>
+>+		zone->alloc_batch = high_wmark_pages(zone) -
+>+			low_wmark_pages(zone);
+>+
+> 		setup_zone_migrate_reserve(zone);
+> 		spin_unlock_irqrestore(&zone->lock, flags);
+> 	}
 >-- 
->Kind regards,
->Minchan Kim
+>1.8.3.2
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
