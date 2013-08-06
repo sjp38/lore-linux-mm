@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 19F166B0034
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 07:37:06 -0400 (EDT)
-Received: by mail-pd0-f173.google.com with SMTP id p11so232705pdj.32
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2013 04:37:05 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 2A21D6B0036
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 07:37:20 -0400 (EDT)
+Received: by mail-pb0-f42.google.com with SMTP id un15so296787pbc.29
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2013 04:37:19 -0700 (PDT)
 From: Bob Liu <lliubbo@gmail.com>
-Subject: [PATCH v2 2/4] zcache: staging: %s/ZCACHE/ZCACHE_OLD
-Date: Tue,  6 Aug 2013 19:36:15 +0800
-Message-Id: <1375788977-12105-3-git-send-email-bob.liu@oracle.com>
+Subject: [PATCH v2 3/4] mm: zcache: add evict zpages supporting
+Date: Tue,  6 Aug 2013 19:36:16 +0800
+Message-Id: <1375788977-12105-4-git-send-email-bob.liu@oracle.com>
 In-Reply-To: <1375788977-12105-1-git-send-email-bob.liu@oracle.com>
 References: <1375788977-12105-1-git-send-email-bob.liu@oracle.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,74 +15,122 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: gregkh@linuxfoundation.org, ngupta@vflare.org, akpm@linux-foundation.org, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, riel@redhat.com, mgorman@suse.de, kyungmin.park@samsung.com, p.sarna@partner.samsung.com, barry.song@csr.com, penberg@kernel.org, Bob Liu <bob.liu@oracle.com>
 
-If nobody are using it, I'll drop it from staging.
-Zcache in staging then split to zswap and zcache in mm/, and can be merged
-again in future if there is requriement.
+Implemented zbud_ops->evict, so that compressed zpages can be evicted from zbud
+memory pool in the case that the compressed pool is full.
+
+zbud already managered the compressed pool based on LRU. The evict was
+implemented just by dropping the compressed file page data directly, if the data
+is required again then no more disk reading can be saved.
 
 Signed-off-by: Bob Liu <bob.liu@oracle.com>
 ---
- drivers/staging/zcache/Kconfig  |   12 ++++++------
- drivers/staging/zcache/Makefile |    4 ++--
- 2 files changed, 8 insertions(+), 8 deletions(-)
+ mm/zcache.c |   53 +++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 47 insertions(+), 6 deletions(-)
 
-diff --git a/drivers/staging/zcache/Kconfig b/drivers/staging/zcache/Kconfig
-index 2d7b2da..f96fb12 100644
---- a/drivers/staging/zcache/Kconfig
-+++ b/drivers/staging/zcache/Kconfig
-@@ -1,4 +1,4 @@
--config ZCACHE
-+config ZCACHE_OLD
- 	tristate "Dynamic compression of swap pages and clean pagecache pages"
- 	depends on CRYPTO=y && SWAP=y && CLEANCACHE && FRONTSWAP
- 	select CRYPTO_LZO
-@@ -10,9 +10,9 @@ config ZCACHE
- 	  memory to store clean page cache pages and swap in RAM,
- 	  providing a noticeable reduction in disk I/O.
+diff --git a/mm/zcache.c b/mm/zcache.c
+index ec1a0eb..8c3222e 100644
+--- a/mm/zcache.c
++++ b/mm/zcache.c
+@@ -65,6 +65,9 @@ static u64 zcache_pool_limit_hit;
+ static u64 zcache_dup_entry;
+ static u64 zcache_zbud_alloc_fail;
+ static u64 zcache_pool_pages;
++static u64 zcache_evict_zpages;
++static u64 zcache_evict_filepages;
++static u64 zcache_reclaim_fail;
+ static atomic_t zcache_stored_pages = ATOMIC_INIT(0);
  
--config ZCACHE_DEBUG
-+config ZCACHE_OLD_DEBUG
- 	bool "Enable debug statistics"
--	depends on DEBUG_FS && ZCACHE
-+	depends on DEBUG_FS && ZCACHE_OLD
- 	default n
- 	help
- 	  This is used to provide an debugfs directory with counters of
-@@ -20,7 +20,7 @@ config ZCACHE_DEBUG
+ /*
+@@ -129,6 +132,7 @@ struct zcache_ra_handle {
+ 	int rb_index;			/* Redblack tree index */
+ 	int ra_index;			/* Radix tree index */
+ 	int zlen;			/* Compressed page size */
++	struct zcache_pool *zpool;	/* Finding zcache_pool during evict */
+ };
  
- config RAMSTER
- 	tristate "Cross-machine RAM capacity sharing, aka peer-to-peer tmem"
--	depends on CONFIGFS_FS=y && SYSFS=y && !HIGHMEM && ZCACHE
-+	depends on CONFIGFS_FS=y && SYSFS=y && !HIGHMEM && ZCACHE_OLD
- 	depends on NET
- 	# must ensure struct page is 8-byte aligned
- 	select HAVE_ALIGNED_STRUCT_PAGE if !64BIT
-@@ -45,9 +45,9 @@ config RAMSTER_DEBUG
- # __add_to_swap_cache, and implement __swap_writepage (which is swap_writepage
- # without the frontswap call. When these are in-tree, the dependency on
- # BROKEN can be removed
--config ZCACHE_WRITEBACK
-+config ZCACHE_OLD_WRITEBACK
- 	bool "Allow compressed swap pages to be writtenback to swap disk"
--	depends on ZCACHE=y && BROKEN
-+	depends on ZCACHE_OLD=y && BROKEN
- 	default n
- 	help
- 	  Zcache caches compressed swap pages (and other data) in RAM which
-diff --git a/drivers/staging/zcache/Makefile b/drivers/staging/zcache/Makefile
-index 845a5c2..34d27bd 100644
---- a/drivers/staging/zcache/Makefile
-+++ b/drivers/staging/zcache/Makefile
-@@ -1,8 +1,8 @@
- zcache-y	:=		zcache-main.o tmem.o zbud.o
--zcache-$(CONFIG_ZCACHE_DEBUG) += debug.o
-+zcache-$(CONFIG_ZCACHE_OLD_DEBUG) += debug.o
- zcache-$(CONFIG_RAMSTER_DEBUG) += ramster/debug.o
- zcache-$(CONFIG_RAMSTER)	+=	ramster/ramster.o ramster/r2net.o
- zcache-$(CONFIG_RAMSTER)	+=	ramster/nodemanager.o ramster/tcp.o
- zcache-$(CONFIG_RAMSTER)	+=	ramster/heartbeat.o ramster/masklog.o
+ static struct kmem_cache *zcache_rbnode_cache;
+@@ -493,7 +497,16 @@ static void zcache_store_page(int pool_id, struct cleancache_filekey key,
  
--obj-$(CONFIG_ZCACHE)	+=	zcache.o
-+obj-$(CONFIG_ZCACHE_OLD)	+=	zcache.o
+ 	if (zcache_is_full()) {
+ 		zcache_pool_limit_hit++;
+-		return;
++		if (zbud_reclaim_page(zpool->pool, 8)) {
++			zcache_reclaim_fail++;
++			return;
++		} else {
++			/*
++			 * Continue if eclaimed a page frame succ.
++			 */
++			zcache_evict_filepages++;
++			zcache_pool_pages = zbud_get_pool_size(zpool->pool);
++		}
+ 	}
+ 
+ 	/* compress */
+@@ -521,6 +534,8 @@ static void zcache_store_page(int pool_id, struct cleancache_filekey key,
+ 	zhandle->ra_index = index;
+ 	zhandle->rb_index = key.u.ino;
+ 	zhandle->zlen = zlen;
++	zhandle->zpool = zpool;
++
+ 	/* Compressed page data stored at the end of zcache_ra_handle */
+ 	zpage = (u8 *)(zhandle + 1);
+ 	memcpy(zpage, dst, zlen);
+@@ -692,16 +707,36 @@ static void zcache_flush_fs(int pool_id)
+ }
+ 
+ /*
+- * Evict pages from zcache pool on an LRU basis after the compressed pool is
+- * full.
++ * Evict compressed pages from zcache pool on an LRU basis after the compressed
++ * pool is full.
+  */
+-static int zcache_evict_entry(struct zbud_pool *pool, unsigned long zaddr)
++static int zcache_evict_zpage(struct zbud_pool *pool, unsigned long zaddr)
+ {
+-	return -1;
++	struct zcache_pool *zpool;
++	struct zcache_ra_handle *zhandle;
++	void *zaddr_intree;
++
++	zhandle = (struct zcache_ra_handle *)zbud_map(pool, zaddr);
++
++	zpool = zhandle->zpool;
++	BUG_ON(!zpool);
++	BUG_ON(pool != zpool->pool);
++
++	zaddr_intree = zcache_load_delete_zaddr(zpool, zhandle->rb_index,
++			zhandle->ra_index);
++	if (zaddr_intree) {
++		BUG_ON((unsigned long)zaddr_intree != zaddr);
++		zbud_unmap(pool, zaddr);
++		zbud_free(pool, zaddr);
++		atomic_dec(&zcache_stored_pages);
++		zcache_pool_pages = zbud_get_pool_size(pool);
++		zcache_evict_zpages++;
++	}
++	return 0;
+ }
+ 
+ static struct zbud_ops zcache_zbud_ops = {
+-	.evict = zcache_evict_entry
++	.evict = zcache_evict_zpage
+ };
+ 
+ /* Return pool id */
+@@ -832,6 +867,12 @@ static int __init zcache_debugfs_init(void)
+ 			&zcache_pool_pages);
+ 	debugfs_create_atomic_t("stored_pages", S_IRUGO, zcache_debugfs_root,
+ 			&zcache_stored_pages);
++	debugfs_create_u64("evicted_zpages", S_IRUGO, zcache_debugfs_root,
++			&zcache_evict_zpages);
++	debugfs_create_u64("evicted_filepages", S_IRUGO, zcache_debugfs_root,
++			&zcache_evict_filepages);
++	debugfs_create_u64("reclaim_fail", S_IRUGO, zcache_debugfs_root,
++			&zcache_reclaim_fail);
+ 	return 0;
+ }
+ 
 -- 
 1.7.10.4
 
