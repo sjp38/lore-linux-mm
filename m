@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id DE94E6B0033
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 04:37:38 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 8303D6B0036
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 04:37:40 -0400 (EDT)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH v2 mmotm 2/3] mm: move pgtable related functions to right place
-Date: Tue,  6 Aug 2013 17:37:34 +0900
-Message-Id: <1375778255-31398-2-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v2 mmotm 3/3] swap: clean-up #ifdef in page_mapping()
+Date: Tue,  6 Aug 2013 17:37:35 +0900
+Message-Id: <1375778255-31398-3-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1375778255-31398-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1375778255-31398-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,81 +13,45 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-pgtable related functions are mostly in pgtable-generic.c.
-So move remaining functions from memory.c to pgtable-generic.c.
+PageSwapCache() is always false when !CONFIG_SWAP, so compiler
+properly discard related code. Therefore, we don't need #ifdef explicitly.
 
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-diff --git a/mm/memory.c b/mm/memory.c
-index f2ab2a8..8fd4d42 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -374,30 +374,6 @@ void tlb_remove_table(struct mmu_gather *tlb, void *table)
- #endif /* CONFIG_HAVE_RCU_TABLE_FREE */
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 24db914..c03c139 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -447,6 +447,7 @@ mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout)
  
- /*
-- * If a p?d_bad entry is found while walking page tables, report
-- * the error, before resetting entry to p?d_none.  Usually (but
-- * very seldom) called out from the p?d_none_or_clear_bad macros.
-- */
--
--void pgd_clear_bad(pgd_t *pgd)
--{
--	pgd_ERROR(*pgd);
--	pgd_clear(pgd);
--}
--
--void pud_clear_bad(pud_t *pud)
--{
--	pud_ERROR(*pud);
--	pud_clear(pud);
--}
--
--void pmd_clear_bad(pmd_t *pmd)
--{
--	pmd_ERROR(*pmd);
--	pmd_clear(pmd);
--}
--
--/*
-  * Note: this doesn't free the actual pages themselves. That
-  * has been handled earlier when unmapping all the memory regions.
-  */
-diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
-index e1a6e4f..3929a40 100644
---- a/mm/pgtable-generic.c
-+++ b/mm/pgtable-generic.c
-@@ -10,6 +10,30 @@
- #include <asm/tlb.h>
- #include <asm-generic/pgtable.h>
+ #else /* CONFIG_SWAP */
  
-+/*
-+ * If a p?d_bad entry is found while walking page tables, report
-+ * the error, before resetting entry to p?d_none.  Usually (but
-+ * very seldom) called out from the p?d_none_or_clear_bad macros.
-+ */
-+
-+void pgd_clear_bad(pgd_t *pgd)
-+{
-+	pgd_ERROR(*pgd);
-+	pgd_clear(pgd);
-+}
-+
-+void pud_clear_bad(pud_t *pud)
-+{
-+	pud_ERROR(*pud);
-+	pud_clear(pud);
-+}
-+
-+void pmd_clear_bad(pmd_t *pmd)
-+{
-+	pmd_ERROR(*pmd);
-+	pmd_clear(pmd);
-+}
-+
- #ifndef __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
- /*
-  * Only sets the access flags (dirty, accessed), as well as write 
++#define swap_address_space(entry)		(NULL)
+ #define get_nr_swap_pages()			0L
+ #define total_swap_pages			0L
+ #define total_swapcache_pages()			0UL
+diff --git a/mm/util.c b/mm/util.c
+index 7441c41..eaf63fc2 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -388,15 +388,12 @@ struct address_space *page_mapping(struct page *page)
+ 	struct address_space *mapping = page->mapping;
+ 
+ 	VM_BUG_ON(PageSlab(page));
+-#ifdef CONFIG_SWAP
+ 	if (unlikely(PageSwapCache(page))) {
+ 		swp_entry_t entry;
+ 
+ 		entry.val = page_private(page);
+ 		mapping = swap_address_space(entry);
+-	} else
+-#endif
+-	if ((unsigned long)mapping & PAGE_MAPPING_ANON)
++	} else if ((unsigned long)mapping & PAGE_MAPPING_ANON)
+ 		mapping = NULL;
+ 	return mapping;
+ }
 -- 
 1.7.9.5
 
