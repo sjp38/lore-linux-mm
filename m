@@ -1,80 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id CF6996B0031
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 14:53:02 -0400 (EDT)
-Date: Tue, 6 Aug 2013 14:52:55 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 6/9] mm: zone_reclaim: compaction: increase the high
- order pages in the watermarks
-Message-ID: <20130806185255.GE715@cmpxchg.org>
-References: <1375459596-30061-1-git-send-email-aarcange@redhat.com>
- <1375459596-30061-7-git-send-email-aarcange@redhat.com>
- <20130806160838.GI1845@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 95AF06B0031
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 14:58:00 -0400 (EDT)
+Date: Tue, 6 Aug 2013 13:57:59 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Subject: Re: [RFC PATCH 3/4] mm: add zbud flag to page flags
+Message-ID: <20130806185759.GE5765@medulla.variantweb.net>
+References: <1375771361-8388-1-git-send-email-k.kozlowski@samsung.com>
+ <1375771361-8388-4-git-send-email-k.kozlowski@samsung.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130806160838.GI1845@cmpxchg.org>
+In-Reply-To: <1375771361-8388-4-git-send-email-k.kozlowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Johannes Weiner <jweiner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hush Bensen <hush.bensen@gmail.com>
+To: Krzysztof Kozlowski <k.kozlowski@samsung.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
 
-On Tue, Aug 06, 2013 at 12:08:38PM -0400, Johannes Weiner wrote:
-> On Fri, Aug 02, 2013 at 06:06:33PM +0200, Andrea Arcangeli wrote:
-> > Prevent the scaling down to reduce the watermarks too much.
-> > 
-> > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> > ---
-> >  mm/page_alloc.c | 3 ++-
-> >  1 file changed, 2 insertions(+), 1 deletion(-)
-> > 
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 4401983..b32ecde 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -1665,7 +1665,8 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
-> >  		free_pages -= z->free_area[o].nr_free << o;
-> >  
-> >  		/* Require fewer higher order pages to be free */
-> > -		min >>= 1;
-> > +		if (o < (pageblock_order >> 2))
-> > +			min >>= 1;
-> 
-> Okay, bear with me here:
->
-> After an allocation, the watermark has to be met, all available pages
-> considered.  That is reasonable because we don't want to deadlock and
-> order-0 pages can be served from any page block.
-> 
-> Now say we have an order-2 allocation: in addition to the order-0 view
-> on the watermark, after the allocation a quarter of the watermark has
-> to be met with order-2 pages and up.  Okay, maybe we always want a few
-> < PAGE_ALLOC_COSTLY_ORDER pages at our disposal, who knows.
->
-> Then it kind of sizzles out towards higher order pages but it always
-> requires the remainder to be positive, i.e. at least one page at the
-> checked order available.  Only the actually requested order is not
-> checked, so for an order-9 we only make sure that we could serve at
-> least one order-8 page, maybe more depending on the zone size.
+On Tue, Aug 06, 2013 at 08:42:40AM +0200, Krzysztof Kozlowski wrote:
+> Add PageZbud flag to page flags to distinguish pages allocated in zbud.
+> Currently these pages do not have any flags set.
 
-Argh, brainfart.  It subtracts free order-8 and what's left is order-9
-and up.  So it makes sure there are watermark >> 9 worth of order-9
-and up page blocks available after the allocation of an order-9 page.
+Yeah, using a page flags for zbud is probably not going to be
+acceptable.  We'll have to find some other way to identify zbud pages.
 
-> You're proposing to check at least for
-> 
->   (watermark - min_watermark) >> (pageblock_order >> 2)
-> 
-> worth of order-8 pages instead.
-
-Wouldn't it be enough to meet watermarks from an order-0 perspective,
-maybe require *some* buffer up to PAGE_ALLOC_COSTLY_ORDER, and then be
-okay with a single order-n page?  Why do we need more than one?
-
-Anyway, I think the changelog should be a bit more verbose about the
-motivation ;-)
-
-Thanks!
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
