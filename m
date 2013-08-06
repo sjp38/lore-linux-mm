@@ -1,82 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id D20156B0031
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 17:55:41 -0400 (EDT)
-Message-ID: <520170CA.4040409@sr71.net>
-Date: Tue, 06 Aug 2013 14:55:22 -0700
-From: Dave Hansen <dave@sr71.net>
-MIME-Version: 1.0
-Subject: Re: [PATCH 19/23] truncate: support huge pages
-References: <1375582645-29274-1-git-send-email-kirill.shutemov@linux.intel.com> <1375582645-29274-20-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1375582645-29274-20-git-send-email-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id CA72C6B0034
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 18:23:19 -0400 (EDT)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch 0/9] mm: thrash detection-based file cache sizing v3
+Date: Tue,  6 Aug 2013 18:22:49 -0400
+Message-Id: <1375827778-12357-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Ning Qu <quning@google.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman@kvack.org, "Gushchin <klamm"@yandex-team.ru, Ozgun Erdogan <ozgun@citusdata.com>, Metin Doslu <metin@citusdata.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 08/03/2013 07:17 PM, Kirill A. Shutemov wrote:
-> If a huge page is only partly in the range we zero out the part,
-> exactly like we do for partial small pages.
+Changes in version 3:
 
-What's the logic behind this behaviour?  Seems like the kind of place
-that we would really want to be splitting pages.
+o Lazily remove inodes without shadow entries from the global list to
+  reduce modifications of said list to an absolute minimum.  Global
+  list operations are now reduced to when an inode has its first cache
+  page reclaimed (rare) and when a linked inode is destroyed (rare) or
+  when the inode's shadows are shrunk (rare) to zero (rare).  These
+  events should be even rarer than the per-sb inode list operations,
+  which take a global lock.  Based on feedback from Peter Zijlstra.
 
-> +	if (partial_thp_start || lstart & ~PAGE_CACHE_MASK) {
-> +		pgoff_t off;
-> +		struct page *page;
-> +		unsigned pstart, pend;
-> +		void (*zero_segment)(struct page *page,
-> +				unsigned start, unsigned len);
-> +retry_partial_start:
-> +		if (partial_thp_start) {
-> +			zero_segment = zero_huge_user_segment;
+o Drop global working set time, store zone ID in addition to
+  zone-specific timestamp in radix tree instead.  Balance zones based
+  on their own refaults only.  This allows the refault detecting side
+  to be much sleaker too and removes a lot of changes to the page
+  allocator interface.  Based on feedback from Peter Zijlstra.
 
-That's a pretty hackish way to conditionally call a function, especially
-since its done twice in one function. :)
+o Document all interfaces properly
 
-I seem to recall zero_user_segment() vs. zero_huge_user_segment() being
-something that caused some ugliness in the previous versions too.
-What's the barrier to just having a smart zero_..._user_segment()
-function that can conditionally perform huge or base page-zeroing?
+o Split out fair allocator patches (in -mmotm)
 
-> +		if (partial_thp_end) {
-> +			zero_segment = zero_huge_user_segment;
-> +			off = end & ~HPAGE_CACHE_INDEX_MASK;
-> +			pend = (lend - 1) & ~HPAGE_PMD_MASK;
-> +		} else {
-> +			zero_segment = zero_user_segment;
-> +			off = end;
-> +			pend = (lend - 1) & ~PAGE_CACHE_MASK;
-> +		}
+---
 
-We went though a similar exercise for the fault code (I think), but I
-really think you need to refactor this.  Way too much of the code is in
-the style:
+The VM maintains cached filesystem pages on two types of lists.  One
+list holds the pages recently faulted into the cache, the other list
+holds pages that have been referenced repeatedly on that first list.
+The idea is to prefer reclaiming young pages over those that have
+shown to benefit from caching in the past.  We call the recently used
+list "inactive list" and the frequently used list "active list".
 
-	if (thp) {
-		// new behavior
-	} else {
-		// old behavior
-	}
+The tricky part of this model is finding the right balance between
+them.  A big inactive list may not leave enough room for the active
+list to protect all the frequently used pages.  A big active list may
+not leave enough room for the inactive list for a new set of
+frequently used pages, "working set", to establish itself because the
+young pages get pushed out of memory before having a chance to get
+promoted.
 
-To me, that's just a recipe that makes it hard to review, and I also bet
-it'll make the thp much more prone to bitrot.  Maybe something like this?
+Historically, every reclaim scan of the inactive list also took a
+smaller number of pages from the tail of the active list and moved
+them to the head of the inactive list.  This model gave established
+working sets more gracetime in the face of temporary use once streams,
+but was not satisfactory when use once streaming persisted over longer
+periods of time and the established working set was temporarily
+suspended, like a nightly backup evicting all the interactive user
+program data.
+    
+Subsequently, the rules were changed to only age active pages when
+they exceeded the amount of inactive pages, i.e. leave the working set
+alone as long as the other half of memory is easy to reclaim use once
+pages.  This works well until working set transitions exceed the size
+of half of memory and the average access distance between the pages of
+the new working set is bigger than the inactive list.  The VM will
+mistake the thrashing new working set for use once streaming, while
+the unused old working set pages are stuck on the active list.
 
-	size_t page_cache_mask = PAGE_CACHE_MASK;
-	unsigned long end_mask = 0UL;
-	
-	if (partial_thp_end) {
-		page_cache_mask = HPAGE_PMD_MASK;
-		end_mask = HPAGE_CACHE_INDEX_MASK;
-	}
-	...
-	magic_zero_user_segment(...);
-	off = end & ~end_mask;
-	pend = (lend - 1) & ~page_cache_mask;
+This happens on file servers and media streaming servers, where the
+popular set of files changes over time.  Even though the individual
+files might be smaller than half of memory, concurrent access to many
+of them may still result in their inter-reference distance being
+greater than half of memory.  It's also been reported as a problem on
+database workloads that switch back and forth between tables that are
+bigger than half of memory.  In these cases the VM never recognizes
+the new working set and will for the remainder of the workload thrash
+disk data which could easily live in memory.
 
-Like I said before, I somehow like to rewrite your code. :)
+This series solves the problem by maintaining a history of pages
+evicted from the inactive list, enabling the VM to tell streaming IO
+from thrashing and rebalance the page cache lists when appropriate.
+
+ drivers/staging/lustre/lustre/llite/dir.c |   2 +-
+ fs/block_dev.c                            |   2 +-
+ fs/btrfs/compression.c                    |   4 +-
+ fs/cachefiles/rdwr.c                      |  13 +-
+ fs/ceph/xattr.c                           |   2 +-
+ fs/inode.c                                |   6 +-
+ fs/logfs/readwrite.c                      |   6 +-
+ fs/nfs/blocklayout/blocklayout.c          |   2 +-
+ fs/nilfs2/inode.c                         |   4 +-
+ fs/ntfs/file.c                            |   7 +-
+ fs/splice.c                               |   6 +-
+ include/linux/fs.h                        |   3 +
+ include/linux/mm.h                        |   8 +
+ include/linux/mmzone.h                    |   7 +
+ include/linux/pagemap.h                   |  55 +++-
+ include/linux/pagevec.h                   |   3 +
+ include/linux/radix-tree.h                |   5 +-
+ include/linux/shmem_fs.h                  |   1 +
+ include/linux/swap.h                      |  10 +
+ include/linux/writeback.h                 |   1 +
+ lib/radix-tree.c                          | 105 ++-----
+ mm/Makefile                               |   2 +-
+ mm/filemap.c                              | 265 +++++++++++++---
+ mm/mincore.c                              |  20 +-
+ mm/page-writeback.c                       |   2 +-
+ mm/readahead.c                            |   8 +-
+ mm/shmem.c                                | 122 ++------
+ mm/swap.c                                 |  22 ++
+ mm/truncate.c                             |  78 ++++-
+ mm/vmscan.c                               |  62 +++-
+ mm/vmstat.c                               |   4 +
+ mm/workingset.c                           | 461 ++++++++++++++++++++++++++++
+ net/ceph/pagelist.c                       |   4 +-
+ net/ceph/pagevec.c                        |   2 +-
+ 34 files changed, 1005 insertions(+), 299 deletions(-)
+
+Based on the latest -mmotm, which includes the required page allocator
+fairness patches.  All that: http://git.cmpxchg.org/cgit/linux-jw.git/
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
