@@ -1,36 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 6CA966B0031
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 09:23:29 -0400 (EDT)
-Date: Tue, 6 Aug 2013 09:23:21 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 5/9] mm: compaction: don't require high order pages below
- min wmark
-Message-ID: <20130806132321.GH1845@cmpxchg.org>
-References: <1375459596-30061-1-git-send-email-aarcange@redhat.com>
- <1375459596-30061-6-git-send-email-aarcange@redhat.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 127406B0031
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 09:27:56 -0400 (EDT)
+Message-ID: <5200F9D9.5090405@suse.cz>
+Date: Tue, 06 Aug 2013 15:27:53 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1375459596-30061-6-git-send-email-aarcange@redhat.com>
+Subject: Re: [RFC PATCH 3/6] mm: munlock: batch non-THP page isolation and
+ munlock+putback using pagevec
+References: <1375713125-18163-1-git-send-email-vbabka@suse.cz> <1375713125-18163-4-git-send-email-vbabka@suse.cz> <20130805172142.GB470@logfs.org>
+In-Reply-To: <20130805172142.GB470@logfs.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Johannes Weiner <jweiner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hush Bensen <hush.bensen@gmail.com>
+To: =?UTF-8?B?SsO2cm4gRW5nZWw=?= <joern@logfs.org>
+Cc: mgorman@suse.de, linux-mm@kvack.org
 
-On Fri, Aug 02, 2013 at 06:06:32PM +0200, Andrea Arcangeli wrote:
-> The min wmark should be satisfied with just 1 hugepage. And the other
-> wmarks should be adjusted accordingly. We need to succeed the low
-> wmark check if there's some significant amount of 0 order pages, but
-> we don't need plenty of high order pages because the PF_MEMALLOC paths
-> don't require those. Creating a ton of high order pages that cannot be
-> allocated by the high order allocation paths (no PF_MEMALLOC) is quite
-> wasteful because they can be splitted in lower order pages before
-> anybody has a chance to allocate them.
-> 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+On 08/05/2013 07:21 PM, JA?rn Engel wrote:
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Hi and thanks for the review!
+> On Mon, 5 August 2013 16:32:02 +0200, Vlastimil Babka wrote:
+>>  
+>>  /*
+>> + * Munlock a batch of pages from the same zone
+>> + *
+>> + * The work is split to two main phases. First phase clears the Mlocked flag
+>> + * and attempts to isolate the pages, all under a single zone lru lock.
+>> + * The second phase finishes the munlock only for pages where isolation
+>> + * succeeded.
+>> + */
+>> +static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
+>> +{
+>> +	int i;
+>> +	int nr = pagevec_count(pvec);
+>> +
+>> +	/* Phase 1: page isolation */
+>> +	spin_lock_irq(&zone->lru_lock);
+>> +	for (i = 0; i < nr; i++) {
+>> +		struct page *page = pvec->pages[i];
+>> +
+>> +		if (TestClearPageMlocked(page)) {
+>> +			struct lruvec *lruvec;
+>> +			int lru;
+>> +
+>> +			/* we have disabled interrupts */
+>> +			__mod_zone_page_state(zone, NR_MLOCK, -1);
+>> +
+>> +			switch (__isolate_lru_page(page,
+>> +						ISOLATE_UNEVICTABLE)) {
+>> +			case 0:
+>> +				lruvec = mem_cgroup_page_lruvec(page, zone);
+>> +				lru = page_lru(page);
+>> +				del_page_from_lru_list(page, lruvec, lru);
+>> +				break;
+>> +
+>> +			case -EINVAL:
+>> +				__munlock_isolation_failed(page);
+>> +				goto skip_munlock;
+>> +
+>> +			default:
+>> +				BUG();
+>> +			}
+> On purely aesthetic grounds I don't like the switch too much.  A bit
+Right, I just saw this function used like this elsewhere so it seemed
+like the right thing to do if I was to reuse as much existing code as
+possible. But I already got a suggestion that this is too big of a
+hammer for this call path where three simple statements are sufficient
+instead, and subsequent patches also replace this.
+> more serious is that you don't handle -EBUSY gracefully.  I guess you
+> would have to mlock() the empty zero page to excercise this code path.
+>
+>From what I see in the implementation, -EBUSY can only happen with flags
+that I don't use, or when get_page_unless_zero() fails. But it cannot
+fail since I already have get_page() from follow_page_mask(). (the
+function is about zero get_page() pins, not about being zero page).
+>> +		} else {
+>> +skip_munlock:
+>> +			/*
+>> +			 * We won't be munlocking this page in the next phase
+>> +			 * but we still need to release the follow_page_mask()
+>> +			 * pin.
+>> +			 */
+>> +			pvec->pages[i] = NULL;
+>> +			put_page(page);
+>> +		}
+>> +	}
+>> +	spin_unlock_irq(&zone->lru_lock);
+>> +
+>> +	/* Phase 2: page munlock and putback */
+>> +	for (i = 0; i < nr; i++) {
+>> +		struct page *page = pvec->pages[i];
+>> +
+>> +		if (unlikely(!page))
+>> +			continue;
+> Whenever I see likely() or unlikely() I wonder whether it really makes
+> a difference or whether it is just cargo-cult programming.  My best
+> guess is that about half of them are cargo-cult.
+Yeah that's another thing I saw being used around and seemed to make
+sense. But in truth I'm also not sure if contemporary processors gain
+anything from it. I will drop it then.
+> +			}
+> +			if (PageTransHuge(page)) {
+> +				/*
+> +				 * THP pages are not handled by pagevec due
+> +				 * to their possible split (see below).
+> +				 */
+> +				if (pagevec_count(&pvec))
+> +					__munlock_pagevec(&pvec, zone);
+> Should you re-initialize the pvec after this call?
+__munlock_pagevec() does it as the last thing
+
+Thanks,
+Vlastimil
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
