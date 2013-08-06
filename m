@@ -1,289 +1,426 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id B126A6B0033
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 02:43:03 -0400 (EDT)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout1.w1.samsung.com
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id A1BCC6B0034
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 02:43:10 -0400 (EDT)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout3.w1.samsung.com
  (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MR300247JZC8N30@mailout1.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 06 Aug 2013 07:43:01 +0100 (BST)
+ 17 2011)) with ESMTP id <0MR300EBZJZ5FG30@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 06 Aug 2013 07:43:09 +0100 (BST)
 From: Krzysztof Kozlowski <k.kozlowski@samsung.com>
-Subject: [RFC PATCH 1/4] zbud: use page ref counter for zbud pages
-Date: Tue, 06 Aug 2013 08:42:38 +0200
-Message-id: <1375771361-8388-2-git-send-email-k.kozlowski@samsung.com>
+Subject: [RFC PATCH 2/4] mm: split code for unusing swap entries from
+ try_to_unuse
+Date: Tue, 06 Aug 2013 08:42:39 +0200
+Message-id: <1375771361-8388-3-git-send-email-k.kozlowski@samsung.com>
 In-reply-to: <1375771361-8388-1-git-send-email-k.kozlowski@samsung.com>
 References: <1375771361-8388-1-git-send-email-k.kozlowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Krzysztof Kozlowski <k.kozlowski@samsung.com>, Tomasz Stanislawski <t.stanislaws@samsung.com>
+Cc: Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Krzysztof Kozlowski <k.kozlowski@samsung.com>
 
-Use page reference counter for zbud pages. The ref counter replaces
-zbud_header.under_reclaim flag and ensures that zbud page won't be freed
-when zbud_free() is called during reclaim. It allows implementation of
-additional reclaim paths.
-
-The page count is incremented when:
- - a handle is created and passed to zswap (in zbud_alloc()),
- - user-supplied eviction callback is called (in zbud_reclaim_page()).
+Move out the code for unusing swap entries from loop in try_to_unuse()
+to separate function: try_to_unuse_swp_entry(). Export this new function
+in swapfile.h just like try_to_unuse() is exported.
 
 Signed-off-by: Krzysztof Kozlowski <k.kozlowski@samsung.com>
-Signed-off-by: Tomasz Stanislawski <t.stanislaws@samsung.com>
 ---
- mm/zbud.c |  150 +++++++++++++++++++++++++++++++++++--------------------------
- 1 file changed, 86 insertions(+), 64 deletions(-)
+ include/linux/swapfile.h |    2 +
+ mm/swapfile.c            |  354 ++++++++++++++++++++++++----------------------
+ 2 files changed, 187 insertions(+), 169 deletions(-)
 
-diff --git a/mm/zbud.c b/mm/zbud.c
-index ad1e781..a8e986f 100644
---- a/mm/zbud.c
-+++ b/mm/zbud.c
-@@ -109,7 +109,6 @@ struct zbud_header {
- 	struct list_head lru;
- 	unsigned int first_chunks;
- 	unsigned int last_chunks;
--	bool under_reclaim;
- };
+diff --git a/include/linux/swapfile.h b/include/linux/swapfile.h
+index e282624..68c24a7 100644
+--- a/include/linux/swapfile.h
++++ b/include/linux/swapfile.h
+@@ -9,5 +9,7 @@ extern spinlock_t swap_lock;
+ extern struct swap_list_t swap_list;
+ extern struct swap_info_struct *swap_info[];
+ extern int try_to_unuse(unsigned int, bool, unsigned long);
++extern int try_to_unuse_swp_entry(struct mm_struct **start_mm,
++		struct swap_info_struct *si, swp_entry_t entry);
  
- /*****************
-@@ -138,16 +137,9 @@ static struct zbud_header *init_zbud_page(struct page *page)
- 	zhdr->last_chunks = 0;
- 	INIT_LIST_HEAD(&zhdr->buddy);
- 	INIT_LIST_HEAD(&zhdr->lru);
--	zhdr->under_reclaim = 0;
- 	return zhdr;
+ #endif /* _LINUX_SWAPFILE_H */
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 36af6ee..331d0b8 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -1100,6 +1100,189 @@ static unsigned int find_next_to_unuse(struct swap_info_struct *si,
  }
  
--/* Resets the struct page fields and frees the page */
--static void free_zbud_page(struct zbud_header *zhdr)
--{
--	__free_page(virt_to_page(zhdr));
--}
--
  /*
-  * Encodes the handle of a particular buddy within a zbud page
-  * Pool lock should be held as this function accesses first|last_chunks
-@@ -188,6 +180,65 @@ static int num_free_chunks(struct zbud_header *zhdr)
- 	return NCHUNKS - zhdr->first_chunks - zhdr->last_chunks - 1;
- }
- 
-+/*
-+ * Called after zbud_free() or zbud_alloc().
-+ * Checks whether given zbud page has to be:
-+ *  - removed from buddied/unbuddied/LRU lists completetely (zbud_free).
-+ *  - moved from buddied to unbuddied list
-+ *    and to beginning of LRU (zbud_alloc, zbud_free),
-+ *  - added to buddied list and LRU (zbud_alloc),
-+ *
-+ * The page must be already removed from buddied/unbuddied lists.
-+ * Must be called under pool->lock.
++ * Returns:
++ *  - negative on error,
++ *  - 0 on success (entry unused)
 + */
-+static void rebalance_lists(struct zbud_pool *pool, struct zbud_header *zhdr)
++int try_to_unuse_swp_entry(struct mm_struct **start_mm,
++		struct swap_info_struct *si, swp_entry_t entry)
 +{
-+	if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
-+		/* zbud_free() */
-+		list_del(&zhdr->lru);
-+		return;
-+	} else if (zhdr->first_chunks == 0 || zhdr->last_chunks == 0) {
-+		/* zbud_free() or zbud_alloc() */
-+		int freechunks = num_free_chunks(zhdr);
-+		list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
-+	} else {
-+		/* zbud_alloc() */
-+		list_add(&zhdr->buddy, &pool->buddied);
++	pgoff_t offset = swp_offset(entry);
++	unsigned char *swap_map;
++	unsigned char swcount;
++	struct page *page;
++	int retval = 0;
++
++	if (signal_pending(current)) {
++		retval = -EINTR;
++		goto out;
 +	}
-+	/* Add/move zbud page to beginning of LRU */
-+	if (!list_empty(&zhdr->lru))
-+		list_del(&zhdr->lru);
-+	list_add(&zhdr->lru, &pool->lru);
-+}
 +
-+/*
-+ * Increases ref count for zbud page.
-+ */
-+static void get_zbud_page(struct zbud_header *zhdr)
-+{
-+	get_page(virt_to_page(zhdr));
-+}
-+
-+/*
-+ * Decreases ref count for zbud page and frees the page if it reaches 0
-+ * (no external references, e.g. handles).
-+ *
-+ * Must be called under pool->lock.
-+ *
-+ * Returns 1 if page was freed and 0 otherwise.
-+ */
-+static int put_zbud_page(struct zbud_pool *pool, struct zbud_header *zhdr)
-+{
-+	struct page *page = virt_to_page(zhdr);
-+	if (put_page_testzero(page)) {
-+		free_hot_cold_page(page, 0);
-+		pool->pages_nr--;
-+		return 1;
-+	}
-+	return 0;
-+}
-+
-+
- /*****************
-  * API Functions
- *****************/
-@@ -250,7 +301,7 @@ void zbud_destroy_pool(struct zbud_pool *pool)
- int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
- 			unsigned long *handle)
- {
--	int chunks, i, freechunks;
-+	int chunks, i;
- 	struct zbud_header *zhdr = NULL;
- 	enum buddy bud;
- 	struct page *page;
-@@ -273,6 +324,7 @@ int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
- 				bud = FIRST;
- 			else
- 				bud = LAST;
-+			get_zbud_page(zhdr);
- 			goto found;
- 		}
- 	}
-@@ -284,6 +336,10 @@ int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
- 		return -ENOMEM;
- 	spin_lock(&pool->lock);
- 	pool->pages_nr++;
 +	/*
-+	 * We will be using zhdr instead of page, so
-+	 * don't increase the page count.
++	 * Get a page for the entry, using the existing swap
++	 * cache page if there is one.  Otherwise, get a clean
++	 * page and read the swap into it.
 +	 */
- 	zhdr = init_zbud_page(page);
- 	bud = FIRST;
- 
-@@ -293,19 +349,7 @@ found:
- 	else
- 		zhdr->last_chunks = chunks;
- 
--	if (zhdr->first_chunks == 0 || zhdr->last_chunks == 0) {
--		/* Add to unbuddied list */
--		freechunks = num_free_chunks(zhdr);
--		list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
--	} else {
--		/* Add to buddied list */
--		list_add(&zhdr->buddy, &pool->buddied);
--	}
--
--	/* Add/move zbud page to beginning of LRU */
--	if (!list_empty(&zhdr->lru))
--		list_del(&zhdr->lru);
--	list_add(&zhdr->lru, &pool->lru);
-+	rebalance_lists(pool, zhdr);
- 
- 	*handle = encode_handle(zhdr, bud);
- 	spin_unlock(&pool->lock);
-@@ -326,10 +370,10 @@ found:
- void zbud_free(struct zbud_pool *pool, unsigned long handle)
- {
- 	struct zbud_header *zhdr;
--	int freechunks;
- 
- 	spin_lock(&pool->lock);
- 	zhdr = handle_to_zbud_header(handle);
-+	BUG_ON(zhdr->last_chunks == 0 && zhdr->first_chunks == 0);
- 
- 	/* If first buddy, handle will be page aligned */
- 	if ((handle - ZHDR_SIZE_ALIGNED) & ~PAGE_MASK)
-@@ -337,26 +381,9 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle)
- 	else
- 		zhdr->first_chunks = 0;
- 
--	if (zhdr->under_reclaim) {
--		/* zbud page is under reclaim, reclaim will free */
--		spin_unlock(&pool->lock);
--		return;
--	}
--
--	/* Remove from existing buddy list */
- 	list_del(&zhdr->buddy);
--
--	if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
--		/* zbud page is empty, free */
--		list_del(&zhdr->lru);
--		free_zbud_page(zhdr);
--		pool->pages_nr--;
--	} else {
--		/* Add to unbuddied list */
--		freechunks = num_free_chunks(zhdr);
--		list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
--	}
--
-+	rebalance_lists(pool, zhdr);
-+	put_zbud_page(pool, zhdr);
- 	spin_unlock(&pool->lock);
- }
- 
-@@ -400,7 +427,7 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle)
-  */
- int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
- {
--	int i, ret, freechunks;
-+	int i, ret;
- 	struct zbud_header *zhdr;
- 	unsigned long first_handle = 0, last_handle = 0;
- 
-@@ -411,11 +438,24 @@ int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
- 		return -EINVAL;
- 	}
- 	for (i = 0; i < retries; i++) {
-+		if (list_empty(&pool->lru)) {
-+			/*
-+			 * LRU was emptied during evict calls in previous
-+			 * iteration but put_zbud_page() returned 0 meaning
-+			 * that someone still holds the page. This may
-+			 * happen when some other mm mechanism increased
-+			 * the page count.
-+			 * In such case we succedded with reclaim.
-+			 */
-+			return 0;
++	swap_map = &si->swap_map[offset];
++	page = read_swap_cache_async(entry,
++				GFP_HIGHUSER_MOVABLE, NULL, 0);
++	if (!page) {
++		/*
++		 * Either swap_duplicate() failed because entry
++		 * has been freed independently, and will not be
++		 * reused since sys_swapoff() already disabled
++		 * allocation from here, or alloc_page() failed.
++		 */
++		if (!*swap_map)
++			retval = 0;
++		else
++			retval = -ENOMEM;
++		goto out;
++	}
++
++	/*
++	 * Don't hold on to start_mm if it looks like exiting.
++	 */
++	if (atomic_read(&(*start_mm)->mm_users) == 1) {
++		mmput(*start_mm);
++		*start_mm = &init_mm;
++		atomic_inc(&init_mm.mm_users);
++	}
++
++	/*
++	 * Wait for and lock page.  When do_swap_page races with
++	 * try_to_unuse, do_swap_page can handle the fault much
++	 * faster than try_to_unuse can locate the entry.  This
++	 * apparently redundant "wait_on_page_locked" lets try_to_unuse
++	 * defer to do_swap_page in such a case - in some tests,
++	 * do_swap_page and try_to_unuse repeatedly compete.
++	 */
++	wait_on_page_locked(page);
++	wait_on_page_writeback(page);
++	lock_page(page);
++	wait_on_page_writeback(page);
++
++	/*
++	 * Remove all references to entry.
++	 */
++	swcount = *swap_map;
++	if (swap_count(swcount) == SWAP_MAP_SHMEM) {
++		retval = shmem_unuse(entry, page);
++		VM_BUG_ON(retval > 0);
++		/* page has already been unlocked and released */
++		goto out;
++	}
++	if (swap_count(swcount) && *start_mm != &init_mm)
++		retval = unuse_mm(*start_mm, entry, page);
++
++	if (swap_count(*swap_map)) {
++		int set_start_mm = (*swap_map >= swcount);
++		struct list_head *p = &(*start_mm)->mmlist;
++		struct mm_struct *new_start_mm = *start_mm;
++		struct mm_struct *prev_mm = *start_mm;
++		struct mm_struct *mm;
++
++		atomic_inc(&new_start_mm->mm_users);
++		atomic_inc(&prev_mm->mm_users);
++		spin_lock(&mmlist_lock);
++		while (swap_count(*swap_map) && !retval &&
++				(p = p->next) != &(*start_mm)->mmlist) {
++			mm = list_entry(p, struct mm_struct, mmlist);
++			if (!atomic_inc_not_zero(&mm->mm_users))
++				continue;
++			spin_unlock(&mmlist_lock);
++			mmput(prev_mm);
++			prev_mm = mm;
++
++			cond_resched();
++
++			swcount = *swap_map;
++			if (!swap_count(swcount)) /* any usage ? */
++				;
++			else if (mm == &init_mm)
++				set_start_mm = 1;
++			else
++				retval = unuse_mm(mm, entry, page);
++
++			if (set_start_mm && *swap_map < swcount) {
++				mmput(new_start_mm);
++				atomic_inc(&mm->mm_users);
++				new_start_mm = mm;
++				set_start_mm = 0;
++			}
++			spin_lock(&mmlist_lock);
 +		}
- 		zhdr = list_tail_entry(&pool->lru, struct zbud_header, lru);
-+		BUG_ON(zhdr->first_chunks == 0 && zhdr->last_chunks == 0);
-+		/* Move this last element to beginning of LRU */
- 		list_del(&zhdr->lru);
--		list_del(&zhdr->buddy);
-+		list_add(&zhdr->lru, &pool->lru);
- 		/* Protect zbud page against free */
--		zhdr->under_reclaim = true;
-+		get_zbud_page(zhdr);
- 		/*
- 		 * We need encode the handles before unlocking, since we can
- 		 * race with free that will set (first|last)_chunks to 0
-@@ -441,28 +481,10 @@ int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
- 		}
- next:
- 		spin_lock(&pool->lock);
--		zhdr->under_reclaim = false;
--		if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
--			/*
--			 * Both buddies are now free, free the zbud page and
--			 * return success.
--			 */
--			free_zbud_page(zhdr);
--			pool->pages_nr--;
-+		if (put_zbud_page(pool, zhdr)) {
- 			spin_unlock(&pool->lock);
- 			return 0;
--		} else if (zhdr->first_chunks == 0 ||
--				zhdr->last_chunks == 0) {
--			/* add to unbuddied list */
--			freechunks = num_free_chunks(zhdr);
--			list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
--		} else {
--			/* add to buddied list */
--			list_add(&zhdr->buddy, &pool->buddied);
- 		}
++		spin_unlock(&mmlist_lock);
++		mmput(prev_mm);
++		mmput(*start_mm);
++		*start_mm = new_start_mm;
++	}
++	if (retval) {
++		unlock_page(page);
++		page_cache_release(page);
++		goto out;
++	}
++
++	/*
++	 * If a reference remains (rare), we would like to leave
++	 * the page in the swap cache; but try_to_unmap could
++	 * then re-duplicate the entry once we drop page lock,
++	 * so we might loop indefinitely; also, that page could
++	 * not be swapped out to other storage meanwhile.  So:
++	 * delete from cache even if there's another reference,
++	 * after ensuring that the data has been saved to disk -
++	 * since if the reference remains (rarer), it will be
++	 * read from disk into another page.  Splitting into two
++	 * pages would be incorrect if swap supported "shared
++	 * private" pages, but they are handled by tmpfs files.
++	 *
++	 * Given how unuse_vma() targets one particular offset
++	 * in an anon_vma, once the anon_vma has been determined,
++	 * this splitting happens to be just what is needed to
++	 * handle where KSM pages have been swapped out: re-reading
++	 * is unnecessarily slow, but we can fix that later on.
++	 */
++	if (swap_count(*swap_map) &&
++	     PageDirty(page) && PageSwapCache(page)) {
++		struct writeback_control wbc = {
++			.sync_mode = WB_SYNC_NONE,
++		};
++
++		swap_writepage(page, &wbc);
++		lock_page(page);
++		wait_on_page_writeback(page);
++	}
++
++	/*
++	 * It is conceivable that a racing task removed this page from
++	 * swap cache just before we acquired the page lock at the top,
++	 * or while we dropped it in unuse_mm().  The page might even
++	 * be back in swap cache on another swap area: that we must not
++	 * delete, since it may not have been written out to swap yet.
++	 */
++	if (PageSwapCache(page) &&
++	    likely(page_private(page) == entry.val))
++		delete_from_swap_cache(page);
++
++	/*
++	 * So we could skip searching mms once swap count went
++	 * to 1, we did not mark any present ptes as dirty: must
++	 * mark page dirty so shrink_page_list will preserve it.
++	 */
++	SetPageDirty(page);
++	unlock_page(page);
++	page_cache_release(page);
++
++	/*
++	 * Make sure that we aren't completely killing
++	 * interactive performance.
++	 */
++	cond_resched();
++out:
++	return retval;
++}
++
++/*
+  * We completely avoid races by reading each swap page in advance,
+  * and then search for the process using it.  All the necessary
+  * page table adjustments can then be made atomically.
+@@ -1112,10 +1295,6 @@ int try_to_unuse(unsigned int type, bool frontswap,
+ {
+ 	struct swap_info_struct *si = swap_info[type];
+ 	struct mm_struct *start_mm;
+-	unsigned char *swap_map;
+-	unsigned char swcount;
+-	struct page *page;
+-	swp_entry_t entry;
+ 	unsigned int i = 0;
+ 	int retval = 0;
+ 
+@@ -1142,172 +1321,9 @@ int try_to_unuse(unsigned int type, bool frontswap,
+ 	 * there are races when an instance of an entry might be missed.
+ 	 */
+ 	while ((i = find_next_to_unuse(si, i, frontswap)) != 0) {
+-		if (signal_pending(current)) {
+-			retval = -EINTR;
+-			break;
+-		}
 -
--		/* add to beginning of LRU */
--		list_add(&zhdr->lru, &pool->lru);
- 	}
- 	spin_unlock(&pool->lock);
- 	return -EAGAIN;
+-		/*
+-		 * Get a page for the entry, using the existing swap
+-		 * cache page if there is one.  Otherwise, get a clean
+-		 * page and read the swap into it.
+-		 */
+-		swap_map = &si->swap_map[i];
+-		entry = swp_entry(type, i);
+-		page = read_swap_cache_async(entry,
+-					GFP_HIGHUSER_MOVABLE, NULL, 0);
+-		if (!page) {
+-			/*
+-			 * Either swap_duplicate() failed because entry
+-			 * has been freed independently, and will not be
+-			 * reused since sys_swapoff() already disabled
+-			 * allocation from here, or alloc_page() failed.
+-			 */
+-			if (!*swap_map)
+-				continue;
+-			retval = -ENOMEM;
+-			break;
+-		}
+-
+-		/*
+-		 * Don't hold on to start_mm if it looks like exiting.
+-		 */
+-		if (atomic_read(&start_mm->mm_users) == 1) {
+-			mmput(start_mm);
+-			start_mm = &init_mm;
+-			atomic_inc(&init_mm.mm_users);
+-		}
+-
+-		/*
+-		 * Wait for and lock page.  When do_swap_page races with
+-		 * try_to_unuse, do_swap_page can handle the fault much
+-		 * faster than try_to_unuse can locate the entry.  This
+-		 * apparently redundant "wait_on_page_locked" lets try_to_unuse
+-		 * defer to do_swap_page in such a case - in some tests,
+-		 * do_swap_page and try_to_unuse repeatedly compete.
+-		 */
+-		wait_on_page_locked(page);
+-		wait_on_page_writeback(page);
+-		lock_page(page);
+-		wait_on_page_writeback(page);
+-
+-		/*
+-		 * Remove all references to entry.
+-		 */
+-		swcount = *swap_map;
+-		if (swap_count(swcount) == SWAP_MAP_SHMEM) {
+-			retval = shmem_unuse(entry, page);
+-			/* page has already been unlocked and released */
+-			if (retval < 0)
+-				break;
+-			continue;
+-		}
+-		if (swap_count(swcount) && start_mm != &init_mm)
+-			retval = unuse_mm(start_mm, entry, page);
+-
+-		if (swap_count(*swap_map)) {
+-			int set_start_mm = (*swap_map >= swcount);
+-			struct list_head *p = &start_mm->mmlist;
+-			struct mm_struct *new_start_mm = start_mm;
+-			struct mm_struct *prev_mm = start_mm;
+-			struct mm_struct *mm;
+-
+-			atomic_inc(&new_start_mm->mm_users);
+-			atomic_inc(&prev_mm->mm_users);
+-			spin_lock(&mmlist_lock);
+-			while (swap_count(*swap_map) && !retval &&
+-					(p = p->next) != &start_mm->mmlist) {
+-				mm = list_entry(p, struct mm_struct, mmlist);
+-				if (!atomic_inc_not_zero(&mm->mm_users))
+-					continue;
+-				spin_unlock(&mmlist_lock);
+-				mmput(prev_mm);
+-				prev_mm = mm;
+-
+-				cond_resched();
+-
+-				swcount = *swap_map;
+-				if (!swap_count(swcount)) /* any usage ? */
+-					;
+-				else if (mm == &init_mm)
+-					set_start_mm = 1;
+-				else
+-					retval = unuse_mm(mm, entry, page);
+-
+-				if (set_start_mm && *swap_map < swcount) {
+-					mmput(new_start_mm);
+-					atomic_inc(&mm->mm_users);
+-					new_start_mm = mm;
+-					set_start_mm = 0;
+-				}
+-				spin_lock(&mmlist_lock);
+-			}
+-			spin_unlock(&mmlist_lock);
+-			mmput(prev_mm);
+-			mmput(start_mm);
+-			start_mm = new_start_mm;
+-		}
+-		if (retval) {
+-			unlock_page(page);
+-			page_cache_release(page);
++		if (try_to_unuse_swp_entry(&start_mm, si,
++					swp_entry(type, i)) != 0)
+ 			break;
+-		}
+-
+-		/*
+-		 * If a reference remains (rare), we would like to leave
+-		 * the page in the swap cache; but try_to_unmap could
+-		 * then re-duplicate the entry once we drop page lock,
+-		 * so we might loop indefinitely; also, that page could
+-		 * not be swapped out to other storage meanwhile.  So:
+-		 * delete from cache even if there's another reference,
+-		 * after ensuring that the data has been saved to disk -
+-		 * since if the reference remains (rarer), it will be
+-		 * read from disk into another page.  Splitting into two
+-		 * pages would be incorrect if swap supported "shared
+-		 * private" pages, but they are handled by tmpfs files.
+-		 *
+-		 * Given how unuse_vma() targets one particular offset
+-		 * in an anon_vma, once the anon_vma has been determined,
+-		 * this splitting happens to be just what is needed to
+-		 * handle where KSM pages have been swapped out: re-reading
+-		 * is unnecessarily slow, but we can fix that later on.
+-		 */
+-		if (swap_count(*swap_map) &&
+-		     PageDirty(page) && PageSwapCache(page)) {
+-			struct writeback_control wbc = {
+-				.sync_mode = WB_SYNC_NONE,
+-			};
+-
+-			swap_writepage(page, &wbc);
+-			lock_page(page);
+-			wait_on_page_writeback(page);
+-		}
+-
+-		/*
+-		 * It is conceivable that a racing task removed this page from
+-		 * swap cache just before we acquired the page lock at the top,
+-		 * or while we dropped it in unuse_mm().  The page might even
+-		 * be back in swap cache on another swap area: that we must not
+-		 * delete, since it may not have been written out to swap yet.
+-		 */
+-		if (PageSwapCache(page) &&
+-		    likely(page_private(page) == entry.val))
+-			delete_from_swap_cache(page);
+-
+-		/*
+-		 * So we could skip searching mms once swap count went
+-		 * to 1, we did not mark any present ptes as dirty: must
+-		 * mark page dirty so shrink_page_list will preserve it.
+-		 */
+-		SetPageDirty(page);
+-		unlock_page(page);
+-		page_cache_release(page);
+-
+-		/*
+-		 * Make sure that we aren't completely killing
+-		 * interactive performance.
+-		 */
+-		cond_resched();
+ 		if (frontswap && pages_to_unuse > 0) {
+ 			if (!--pages_to_unuse)
+ 				break;
 -- 
 1.7.9.5
 
