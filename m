@@ -1,215 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 67AF46B0034
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 12:26:43 -0400 (EDT)
-Received: by mail-ob0-f170.google.com with SMTP id eh20so1349686obb.15
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2013 09:26:42 -0700 (PDT)
-Date: Tue, 6 Aug 2013 11:26:40 -0500
-From: Eric Boxer <boxerspam1@gmail.com>
-Message-ID: <088AF050-3C88-4FBD-9004-33C7AFFC1517@gmail.com>
-In-Reply-To: <CAJfpegtr4+vv_ZzuM7EE7MkHPqNi4brQamg4ZOWb2Me+iG87JQ@mail.gmail.com>
-References: <20130629172211.20175.70154.stgit@maximpc.sw.ru>
- <20130629174525.20175.18987.stgit@maximpc.sw.ru>
- <20130719165037.GA18358@tucsk.piliscsaba.szeredi.hu>
- <51FBD2DF.50506@parallels.com>
- <CAJfpegtr4+vv_ZzuM7EE7MkHPqNi4brQamg4ZOWb2Me+iG87JQ@mail.gmail.com>
-Subject: Re: [PATCH 10/16] fuse: Implement writepages callback
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id A41646B0031
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 12:34:18 -0400 (EDT)
+Date: Tue, 6 Aug 2013 12:34:14 -0400
+From: Matthew Wilcox <willy@linux.intel.com>
+Subject: Re: [PATCH 01/23] radix-tree: implement preload for multiple
+ contiguous elements
+Message-ID: <20130806163414.GA4707@linux.intel.com>
+References: <1375582645-29274-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1375582645-29274-2-git-send-email-kirill.shutemov@linux.intel.com>
+ <20130805111739.GA25691@quack.suse.cz>
 MIME-Version: 1.0
-Content-Type: multipart/alternative; boundary="520123c0_507ed7ab_13e"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130805111739.GA25691@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: James Bottomley <jbottomley@parallels.com>, devel <devel@openvz.org>, Kirill Korotaev <dev@parallels.com>, Brian Foster <bfoster@redhat.com>, linux-mm <linux-mm@kvack.org>, Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-Fsdevel <linux-fsdevel@vger.kernel.org>, fuse-devel <fuse-devel@lists.sourceforge.net>, riel <riel@redhat.com>, Pavel Emelianov <xemul@parallels.com>, Al Viro <viro@zeniv.linux.org.uk>, Maxim Patlasov <mpatlasov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, fengguang wu <fengguang.wu@intel.com>, Mel Gorman <mgorman@suse.de>
+To: Jan Kara <jack@suse.cz>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Ning Qu <quning@google.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
---520123c0_507ed7ab_13e
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-
-
-Ok
-
-On =46ri, Aug 2, 2013 at 5:40 PM, Maxim Patlasov <mpatlasov=40parallels.c=
-om> wrote:
-
-> 07/19/2013 08:50 PM, Miklos Szeredi =D0=BF=D0=B8=D1=88=D0=B5=D1=82:
-
+On Mon, Aug 05, 2013 at 01:17:39PM +0200, Jan Kara wrote:
+> On Sun 04-08-13 05:17:03, Kirill A. Shutemov wrote:
+> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> > The radix tree is variable-height, so an insert operation not only has
+> > to build the branch to its corresponding item, it also has to build the
+> > branch to existing items if the size has to be increased (by
+> > radix_tree_extend).
+> > @@ -82,16 +82,24 @@ static struct kmem_cache *radix_tree_node_cachep;
+> >   * The worst case is a zero height tree with just a single item at index 0,
+> >   * and then inserting an item at index ULONG_MAX. This requires 2 new branches
+> >   * of RADIX_TREE_MAX_PATH size to be created, with only the root node shared.
+> > + *
+> > + * Worst case for adding N contiguous items is adding entries at indexes
+> > + * (ULONG_MAX - N) to ULONG_MAX. It requires nodes to insert single worst-case
+> > + * item plus extra nodes if you cross the boundary from one node to the next.
+> > + *
+> >   * Hence:
+> >   */
+> > -#define RADIX_TREE_PRELOAD_SIZE (RADIX_TREE_MAX_PATH * 2 - 1)
+> > +#define RADIX_TREE_PRELOAD_MIN (RADIX_TREE_MAX_PATH * 2 - 1)
+> > +#define RADIX_TREE_PRELOAD_MAX \
+> > +	(RADIX_TREE_PRELOAD_MIN + \
+> > +	 DIV_ROUND_UP(RADIX_TREE_PRELOAD_NR - 1, RADIX_TREE_MAP_SIZE))
 >
+>   Umm, is this really correct? I see two problems:
+> 1) You may need internal tree nodes at various levels but you seem to
+> account only for the level 1.
+> 2) The rounding doesn't seem right because RADIX_TREE_MAP_SIZE+2 nodes may
+> require 3 nodes at level 1 if the indexes are like:
+> i_0 | i_1 .. i_{RADIX_TREE_MAP_SIZE} | i_{RADIX_TREE_MAP_SIZE+1}
+>     ^                                ^
+>     node boundary                    node boundary
+> 
+>   Otherwise the patch looks good.
 
->> On Sat, Jun 29, 2013 at 09:45:29PM +0400, Maxim Patlasov wrote:
+You are correct that in the fully general case, these things are needed,
+and the patch undercounts the number of nodes needed.  However, in the
+specific case of THP pagecache, insertions are naturally aligned, and
+we end up needing very few internal nodes (so few that we've never hit
+the end of this array in some fairly heavy testing).
 
->>>
+There are two penalties for getting the general case correct.  One is
+that the calculation becomes harder to understand, and the other is
+that we consume more per-CPU memory.  I think we should document that
+the current code requires "natural alignment", and include a note about
+what things will need to change in order to support arbitrary alignment
+in case anybody needs to do it in the future, but not include support
+for arbitrary alignment in this patchset.
 
->>> =46rom: Pavel Emelyanov <xemul=40openvz.org>
-
->>>
-
->>> The .writepages one is required to make each writeback request carry =
-more
-
->>> than
-
->>> one page on it. The patch enables optimized behaviour unconditionally=
-,
-
->>> i.e. mmap-ed writes will benefit from the patch even if
-
->>> fc->writeback=5Fcache=3D0.
-
->>
-
->> I rewrote this a bit, so we won't have to do the thing in two passes,
-=
-
->> which
-
->> makes it simpler and more robust.  Waiting for page writeback here is
-=
-
->> wrong
-
->> anyway, see comment above fuse=5Fpage=5Fmkwrite().  BTW we had a race =
-there
-
->> because
-
->> fuse=5Fpage=5Fmkwrite() didn't take the page lock.  I've also fixed th=
-at up
-
->> and
-
->> pushed a series containing these patches up to implementing ->writepag=
-es()
-
->> to
-
->>
-
->>    git://git.kernel.org/pub/scm/linux/kernel/git/mszeredi/fuse.git
-
->> writepages
-
->>
-
->> Passed some trivial testing but more is needed.
-
->
-
->
-
-> Thanks a lot for efforts. The approach you implemented looks promising,=
- but
-
-> it introduces the following assumption: a page cannot become dirty befo=
-re we
-
-> have a chance to wait on fuse writeback holding the page locked. This i=
-s
-
-> already true for mmap-ed writes (due to your fixes) and it seems doable=
- for
-
-> cached writes as well (like we do in fuse=5Fperform=5Fwrite). But the a=
-ssumption
-
-> seems to be broken in case of direct read from local fs (e.g. ext4) to =
-a
-
-> memory region mmap-ed to a file on fuse fs. See how dio=5Fbio=5Fsubmit(=
-) marks
-
-> pages dirty by bio=5Fset=5Fpages=5Fdirty(). I can't see any solution fo=
-r this
-
-> use-case. Do you=3F
-
-
-
-Hmm.  Direct IO on an mmaped file will do get=5Fuser=5Fpages() which will=
-
-
-do the necessary page fault magic and ->page=5Fmkwrite() will be called.
-=
-
-At least A=46AICS.
-
-
-
-The page cannot become dirty through a memory mapping without first
-
-switching the pte from read-only to read-write first.  Page accounting
-
-logic relies on this too.  The other way the page can become dirty is
-
-through write(2) on the fs.  But we do get notified about that too.
-
-
-
-Thanks,
-
-Miklos
-
---
-
-To unsubscribe from this list: send the line =22unsubscribe linux-kernel=22=
- in
-
-the body of a message to majordomo=40vger.kernel.org
-
-More majordomo info at  http://vger.kernel.org/majordomo-info.html
-
-Please read the =46AQ at  http://www.tux.org/lkml/
-
-
---520123c0_507ed7ab_13e
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-<br><br><div id=3D=22boxer-meta=22></div>Ok<span id=3D=22draft-break=22><=
-/span><div><div>On Tue, Aug 06, 2013 at 11:25 AM, Miklos Szeredi <miklos=40=
-szeredi.hu> wrote:<br><blockquote type=3D=22cite=22><div>On =46ri, Aug 2,=
- 2013 at 5:40 PM, Maxim Patlasov <mpatlasov=40parallels.com> wrote:<br>&g=
-t; 07/19/2013 08:50 PM, Miklos Szeredi =D0=BF=D0=B8=D1=88=D0=B5=D1=82:<br=
->&gt;<br>&gt;&gt; On Sat, Jun 29, 2013 at 09:45:29PM +0400, Maxim Patlaso=
-v wrote:<br>&gt;&gt;&gt;<br>&gt;&gt;&gt; =46rom: Pavel Emelyanov <xemul=40=
-openvz.org><br>&gt;&gt;&gt;<br>&gt;&gt;&gt; The .writepages one is requir=
-ed to make each writeback request carry more<br>&gt;&gt;&gt; than<br>&gt;=
-&gt;&gt; one page on it. The patch enables optimized behaviour unconditio=
-nally,<br>&gt;&gt;&gt; i.e. mmap-ed writes will benefit from the patch ev=
-en if<br>&gt;&gt;&gt; fc-&gt;writeback=5Fcache=3D0.<br>&gt;&gt;<br>&gt;&g=
-t; I rewrote this a bit, so we won't have to do the thing in two passes,<=
-br>&gt;&gt; which<br>&gt;&gt; makes it simpler and more robust.  Waiting =
-for page writeback here is<br>&gt;&gt; wrong<br>&gt;&gt; anyway, see comm=
-ent above fuse=5Fpage=5Fmkwrite().  BTW we had a race there<br>&gt;&gt; b=
-ecause<br>&gt;&gt; fuse=5Fpage=5Fmkwrite() didn't take the page lock.  I'=
-ve also fixed that up<br>&gt;&gt; and<br>&gt;&gt; pushed a series contain=
-ing these patches up to implementing -&gt;writepages()<br>&gt;&gt; to<br>=
-&gt;&gt;<br>&gt;&gt;    git://git.kernel.org/pub/scm/linux/kernel/git/msz=
-eredi/fuse.git<br>&gt;&gt; writepages<br>&gt;&gt;<br>&gt;&gt; Passed some=
- trivial testing but more is needed.<br>&gt;<br>&gt;<br>&gt; Thanks a lot=
- for efforts. The approach you implemented looks promising, but<br>&gt; i=
-t introduces the following assumption: a page cannot become dirty before =
-we<br>&gt; have a chance to wait on fuse writeback holding the page locke=
-d. This is<br>&gt; already true for mmap-ed writes (due to your fixes) an=
-d it seems doable for<br>&gt; cached writes as well (like we do in fuse=5F=
-perform=5Fwrite). But the assumption<br>&gt; seems to be broken in case o=
-f direct read from local fs (e.g. ext4) to a<br>&gt; memory region mmap-e=
-d to a file on fuse fs. See how dio=5Fbio=5Fsubmit() marks<br>&gt; pages =
-dirty by bio=5Fset=5Fpages=5Fdirty(). I can't see any solution for this<b=
-r>&gt; use-case. Do you=3F<br><br>Hmm.  Direct IO on an mmaped file will =
-do get=5Fuser=5Fpages() which will<br>do the necessary page fault magic a=
-nd -&gt;page=5Fmkwrite() will be called.<br>At least A=46AICS.<br><br>The=
- page cannot become dirty through a memory mapping without first<br>switc=
-hing the pte from read-only to read-write first.  Page accounting<br>logi=
-c relies on this too.  The other way the page can become dirty is<br>thro=
-ugh write(2) on the fs.  But we do get notified about that too.<br><br>Th=
-anks,<br>Miklos<br>--<br>To unsubscribe from this list: send the line =22=
-unsubscribe linux-kernel=22 in<br>the body of a message to majordomo=40vg=
-er.kernel.org<br>More majordomo info at  http://vger.kernel.org/majordomo=
--info.html<br>Please read the =46AQ at  http://www.tux.org/lkml/<br></xem=
-ul=40openvz.org></mpatlasov=40parallels.com></div></blockquote></miklos=40=
-szeredi.hu></div></div>
---520123c0_507ed7ab_13e--
+What do you think?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
