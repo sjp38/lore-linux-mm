@@ -1,92 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 3410E6B0036
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 12:15:17 -0400 (EDT)
-Received: by mail-qe0-f50.google.com with SMTP id q19so327579qeb.37
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2013 09:15:16 -0700 (PDT)
-Date: Tue, 6 Aug 2013 12:15:09 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCHSET cgroup/for-3.12] cgroup: make cgroup_event specific to
- memcg
-Message-ID: <20130806161509.GB10779@mtj.dyndns.org>
-References: <1375632446-2581-1-git-send-email-tj@kernel.org>
- <20130805160107.GM10146@dhcp22.suse.cz>
- <20130805162958.GF19631@mtj.dyndns.org>
- <20130805191641.GA24003@dhcp22.suse.cz>
- <20130805194431.GD23751@mtj.dyndns.org>
- <20130806155804.GC31138@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id C23236B0031
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 12:25:23 -0400 (EDT)
+Received: by mail-qe0-f47.google.com with SMTP id b10so336086qen.20
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2013 09:25:22 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130806155804.GC31138@dhcp22.suse.cz>
+In-Reply-To: <51FBD2DF.50506@parallels.com>
+References: <20130629172211.20175.70154.stgit@maximpc.sw.ru>
+	<20130629174525.20175.18987.stgit@maximpc.sw.ru>
+	<20130719165037.GA18358@tucsk.piliscsaba.szeredi.hu>
+	<51FBD2DF.50506@parallels.com>
+Date: Tue, 6 Aug 2013 18:25:22 +0200
+Message-ID: <CAJfpegtr4+vv_ZzuM7EE7MkHPqNi4brQamg4ZOWb2Me+iG87JQ@mail.gmail.com>
+Subject: Re: [PATCH 10/16] fuse: Implement writepages callback
+From: Miklos Szeredi <miklos@szeredi.hu>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: lizefan@huawei.com, hannes@cmpxchg.org, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Maxim Patlasov <mpatlasov@parallels.com>
+Cc: riel@redhat.com, Kirill Korotaev <dev@parallels.com>, Pavel Emelianov <xemul@parallels.com>, fuse-devel <fuse-devel@lists.sourceforge.net>, Brian Foster <bfoster@redhat.com>, Kernel Mailing List <linux-kernel@vger.kernel.org>, James Bottomley <jbottomley@parallels.com>, linux-mm@kvack.org, Al Viro <viro@zeniv.linux.org.uk>, Linux-Fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, fengguang.wu@intel.com, devel@openvz.org, Mel Gorman <mgorman@suse.de>
 
-Hello, Michal.
+On Fri, Aug 2, 2013 at 5:40 PM, Maxim Patlasov <mpatlasov@parallels.com> wr=
+ote:
+> 07/19/2013 08:50 PM, Miklos Szeredi =D0=BF=D0=B8=D1=88=D0=B5=D1=82:
+>
+>> On Sat, Jun 29, 2013 at 09:45:29PM +0400, Maxim Patlasov wrote:
+>>>
+>>> From: Pavel Emelyanov <xemul@openvz.org>
+>>>
+>>> The .writepages one is required to make each writeback request carry mo=
+re
+>>> than
+>>> one page on it. The patch enables optimized behaviour unconditionally,
+>>> i.e. mmap-ed writes will benefit from the patch even if
+>>> fc->writeback_cache=3D0.
+>>
+>> I rewrote this a bit, so we won't have to do the thing in two passes,
+>> which
+>> makes it simpler and more robust.  Waiting for page writeback here is
+>> wrong
+>> anyway, see comment above fuse_page_mkwrite().  BTW we had a race there
+>> because
+>> fuse_page_mkwrite() didn't take the page lock.  I've also fixed that up
+>> and
+>> pushed a series containing these patches up to implementing ->writepages=
+()
+>> to
+>>
+>>    git://git.kernel.org/pub/scm/linux/kernel/git/mszeredi/fuse.git
+>> writepages
+>>
+>> Passed some trivial testing but more is needed.
+>
+>
+> Thanks a lot for efforts. The approach you implemented looks promising, b=
+ut
+> it introduces the following assumption: a page cannot become dirty before=
+ we
+> have a chance to wait on fuse writeback holding the page locked. This is
+> already true for mmap-ed writes (due to your fixes) and it seems doable f=
+or
+> cached writes as well (like we do in fuse_perform_write). But the assumpt=
+ion
+> seems to be broken in case of direct read from local fs (e.g. ext4) to a
+> memory region mmap-ed to a file on fuse fs. See how dio_bio_submit() mark=
+s
+> pages dirty by bio_set_pages_dirty(). I can't see any solution for this
+> use-case. Do you?
 
-On Tue, Aug 06, 2013 at 05:58:04PM +0200, Michal Hocko wrote:
-> I am objecting to moving the generic part of that code into memcg. The
-> memcg part and the additional complexity (all the parsing and conditions
-> for signalling) is already in the memcg code.
+Hmm.  Direct IO on an mmaped file will do get_user_pages() which will
+do the necessary page fault magic and ->page_mkwrite() will be called.
+At least AFAICS.
 
-But how is it generic if it's specific to memcg?  The practical
-purpose here is making it clear that the interface is only used by
-memcg and preventing any new usages from sprining up and the best way
-to achieve that is making the code actually memcg-specific.  It also
-helps cleaning up cftype in general.  I'm not sure what you're
-objecting to here.
+The page cannot become dirty through a memory mapping without first
+switching the pte from read-only to read-write first.  Page accounting
+logic relies on this too.  The other way the page can become dirty is
+through write(2) on the fs.  But we do get notified about that too.
 
-> Such an interface would be really welcome but I would also ask how
-> it would implement/allow context passing. E.g. how do we know which
-> treshold has been reached? How do we find out the vmpressure level? Is
-> the consumer supposed to do an additional action after it gets
-> notification?
-> Etc.
-
-Yeap, exactly and that's how it should have been from the beginning.
-Attaching information to notification itself isn't a particularly good
-design (anyone remembers rtsig?) if there's polling mechanism to
-report the current state.  It essentially amounts to duplicate
-delivery mechanisms for the same information, which you usually don't
-want.  Here, the inconvenience / performance implications are
-negligible or even net-positive.  Plain file modified notification is
-way more familiar / conventional and the overhead of an extra read
-call, which is highly unlikely to be relevant given the expected
-frequency of the events we're talking about, is small compared to the
-action of event delivery and context switch.
-
-> Really that natural? So memcg should touch internals like cgroup dentry
-
-Functionally, it is completely specific to memcg at this point.  It's
-the only user and will stay the only user.
-
-> reference counting. You seem have forgotten all the hassles with
-> cgroup_mutex, haven't you?
-
-Was the above sentence necessary?
-
-> No that part doesn't belong to memcg! You can discourage from new usage
-> of this interface of course.
-
-Oh, if you're objecting to the details of the implementation, we of
-course can clean it up.  It should conceptually and functionally be
-part of memcg and that is the guiding line we follow.  Implementations
-follow the concepts and functions, not the other way around.  The
-refcnt of course can be replaced with memcg css refcnting and we can
-of course factor out dentry comparison in a prettier form.
-
-Compare it to the other way around - having event callbacks in cftype
-and clearing code embedded in cgroup core destruction path when both
-of which are completely irrelevant to all other controllers.  Let's
-clean up the implementation details and put things where they belong.
-What's the excuse for not doing so when it's almost trivially doable?
-
-Thanks.
-
--- 
-tejun
+Thanks,
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
