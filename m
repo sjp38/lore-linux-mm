@@ -1,64 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 372AE6B0031
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 08:59:02 -0400 (EDT)
-Date: Tue, 6 Aug 2013 08:58:54 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 1/4] mm, rmap: do easy-job first in anon_vma_fork
-Message-ID: <20130806125854.GG1845@cmpxchg.org>
-References: <1375778620-31593-1-git-send-email-iamjoonsoo.kim@lge.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1375778620-31593-1-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 5D95D6B0031
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 09:05:18 -0400 (EDT)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout3.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0MR4002G31NX1190@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 06 Aug 2013 14:05:16 +0100 (BST)
+Message-id: <1375794314.13955.6.camel@AMDC1943>
+Subject: Re: [RFC PATCH 0/4] mm: reclaim zbud pages on migration and compaction
+From: Krzysztof Kozlowski <k.kozlowski@samsung.com>
+Date: Tue, 06 Aug 2013 15:05:14 +0200
+In-reply-to: <5200BEEF.7060904@oracle.com>
+References: <1375771361-8388-1-git-send-email-k.kozlowski@samsung.com>
+ <5200BEEF.7060904@oracle.com>
+Content-type: text/plain; charset=UTF-8
+Content-transfer-encoding: 7bit
+MIME-version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>
+To: Bob Liu <bob.liu@oracle.com>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
 
-On Tue, Aug 06, 2013 at 05:43:37PM +0900, Joonsoo Kim wrote:
-> If we fail due to some errorous situation, it is better to quit
-> without doing heavy work. So changing order of execution.
+On wto, 2013-08-06 at 17:16 +0800, Bob Liu wrote:
+> On 08/06/2013 02:42 PM, Krzysztof Kozlowski wrote:
+> > This reclaim process is different than zbud_reclaim_page(). It acts more
+> > like swapoff() by trying to unuse pages stored in zbud page and bring
+> > them back to memory. The standard zbud_reclaim_page() on the other hand
+> > tries to write them back.
 > 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> 
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index a149e3a..c2f51cb 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -278,19 +278,19 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
->  	if (!pvma->anon_vma)
->  		return 0;
->  
-> +	/* First, allocate required objects */
-> +	avc = anon_vma_chain_alloc(GFP_KERNEL);
-> +	if (!avc)
-> +		goto out_error;
-> +	anon_vma = anon_vma_alloc();
-> +	if (!anon_vma)
-> +		goto out_error_free_avc;
-> +
->  	/*
-> -	 * First, attach the new VMA to the parent VMA's anon_vmas,
-> +	 * Then attach the new VMA to the parent VMA's anon_vmas,
->  	 * so rmap can find non-COWed pages in child processes.
->  	 */
->  	if (anon_vma_clone(vma, pvma))
-> -		return -ENOMEM;
-> -
-> -	/* Then add our own anon_vma. */
-> -	anon_vma = anon_vma_alloc();
-> -	if (!anon_vma)
-> -		goto out_error;
-> -	avc = anon_vma_chain_alloc(GFP_KERNEL);
-> -	if (!avc)
->  		goto out_error_free_anon_vma;
+> I prefer to migrate zbud pages directly if it's possible than reclaiming
+> them during compaction.
 
-Which heavy work?  anon_vma_clone() is anon_vma_chain_alloc() in a
-loop.
+I think it is possible however it would be definitely more complex. In
+case of migration the zswap handles should be updated as they are just
+virtual addresses. Am I right?
 
-Optimizing error paths only makes sense if they are common and you
-actually could save something by reordering.  This matches neither.
+Best regards,
+Krzysztof
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
