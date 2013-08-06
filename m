@@ -1,93 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 3BA796B0031
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 12:03:03 -0400 (EDT)
-Received: by mail-vb0-f51.google.com with SMTP id x16so588181vbf.38
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2013 09:03:02 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 507286B0031
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 12:08:45 -0400 (EDT)
+Date: Tue, 6 Aug 2013 12:08:38 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 6/9] mm: zone_reclaim: compaction: increase the high
+ order pages in the watermarks
+Message-ID: <20130806160838.GI1845@cmpxchg.org>
+References: <1375459596-30061-1-git-send-email-aarcange@redhat.com>
+ <1375459596-30061-7-git-send-email-aarcange@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20130806140904.GA9814@mtj.dyndns.org>
-References: <1375632446-2581-1-git-send-email-tj@kernel.org>
-	<1375632446-2581-4-git-send-email-tj@kernel.org>
-	<CAKTCnz=DdG6QD0yPJ1poRZk0NYrYHdkmabvCXY-AR2qC1GSzYA@mail.gmail.com>
-	<20130806140904.GA9814@mtj.dyndns.org>
-Date: Tue, 6 Aug 2013 21:33:01 +0530
-Message-ID: <CAKTCnzm+wXebh1SAvRq0MkqAWtLvTyhsafa7-U6B84P1zj9bRg@mail.gmail.com>
-Subject: Re: [PATCH 3/5] cgroup, memcg: move cgroup_event implementation to memcg
-From: Balbir Singh <bsingharora@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1375459596-30061-7-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: lizefan@huawei.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Johannes Weiner <jweiner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hush Bensen <hush.bensen@gmail.com>
 
-On Tue, Aug 6, 2013 at 7:39 PM, Tejun Heo <tj@kernel.org> wrote:
-> Hello, Balbir.
->
-> On Tue, Aug 06, 2013 at 08:56:34AM +0530, Balbir Singh wrote:
->> [off-topic] Has the unified hierarchy been agreed upon? I did not
->> follow that thread
->
-> I consider it agreed upon enough.  There of course are objections but
-> I feel fairly comfortable with the amount of existing consensus and
-> considering the current state of cgroup in general, especially the API
-> leaks, I don't think we have many other choices.  The devil is always
-> in the details but unless we meet a major technical barrier, I'm
-> pretty sure it's happening.
->
+On Fri, Aug 02, 2013 at 06:06:33PM +0200, Andrea Arcangeli wrote:
+> Prevent the scaling down to reduce the watermarks too much.
+> 
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+>  mm/page_alloc.c | 3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 4401983..b32ecde 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1665,7 +1665,8 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+>  		free_pages -= z->free_area[o].nr_free << o;
+>  
+>  		/* Require fewer higher order pages to be free */
+> -		min >>= 1;
+> +		if (o < (pageblock_order >> 2))
+> +			min >>= 1;
 
-I guess we'll need to see what the details look like :)
+Okay, bear with me here:
 
->> > events at fixed points, or if that's too restrictive, configureable
->> > cadence or single set of configureable points should be enough.
->>
->> Nit-pick: typo on the spelling of configurable
->
-> Will update.
->
->> Tejun, I think the framework was designed to be flexible. Do you see
->> cgroup subsystems never using this?
->
-> I can't be a hundred percent sure that we won't need events which are
-> configureable per-listener but it's highly unlikely given that we're
-> moving onto single agent model and the nature of event delivery -
-> spurious events are unlikely to be noticeable unless the frequency is
-> very high.  In general, as anything, aiming for extremes isn't a
-> healthy design practice.  Maximum flexibility sounds good in isolation
-> but nothing is free and it entails unneeded complexity both in
-> implementation and usage.  Note that even for memcg, both oom and
-> vmpressure don't benefit in any way from all the added complexity at
-> all.  The only other place that I can see event being useful at the
-> moment is freezer state change notification and that also would only
-> require unconditional file modified notification.
->
+After an allocation, the watermark has to be met, all available pages
+considered.  That is reasonable because we don't want to deadlock and
+order-0 pages can be served from any page block.
 
-Hmm.. I think it would be interesting to set thresholds on other
-resources instead of pure monitoring. One might want to set thresholds
-for CPUACCT usage for example. Freezer is another example like you
-mentioned.
+Now say we have an order-2 allocation: in addition to the order-0 view
+on the watermark, after the allocation a quarter of the watermark has
+to be met with order-2 pages and up.  Okay, maybe we always want a few
+< PAGE_ALLOC_COSTLY_ORDER pages at our disposal, who knows.
 
->> > +static int cgroup_write_event_control(struct cgroup_subsys_state *css,
->> > +                                     struct cftype *cft, const char *buffer)
->> > +{
->> > +       struct cgroup *cgrp = css->cgroup;
->> > +       struct cgroup_event *event;
->> > +       struct cgroup *cgrp_cfile;
->> > +       unsigned int efd, cfd;
->> > +       struct file *efile;
->> > +       struct file *cfile;
->> > +       char *endp;
->> > +       int ret;
->> > +
->>
->> Can we assert that buffer is NOT NULL here?
->
-> The patch moves the code as-is as things become difficult to review
-> otherwise.  After the patchset, it belongs to memcg, please feel free
-> to modify as memcg people see fit.
+Then it kind of sizzles out towards higher order pages but it always
+requires the remainder to be positive, i.e. at least one page at the
+checked order available.  Only the actually requested order is not
+checked, so for an order-9 we only make sure that we could serve at
+least one order-8 page, maybe more depending on the zone size.
 
-OK, Thanks
+You're proposing to check at least for
 
-Balbir Singh
+  (watermark - min_watermark) >> (pageblock_order >> 2)
+
+worth of order-8 pages instead.
+
+How does any of this make any sense?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
