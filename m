@@ -1,80 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 10D086B0031
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 05:11:40 -0400 (EDT)
-Message-ID: <5200BD8C.5050409@asianux.com>
-Date: Tue, 06 Aug 2013 17:10:36 +0800
-From: Chen Gang <gang.chen@asianux.com>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 083986B0034
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 05:16:40 -0400 (EDT)
+Message-ID: <5200BEEF.7060904@oracle.com>
+Date: Tue, 06 Aug 2013 17:16:31 +0800
+From: Bob Liu <bob.liu@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm/Kconfig: add MMU dependency for MIGRATION.
-References: <51F9CA7D.2070506@asianux.com> <20130805073233.GB10146@dhcp22.suse.cz> <51FF6656.4070809@gmail.com> <20130805090301.GF10146@dhcp22.suse.cz> <20130805090539.GH10146@dhcp22.suse.cz> <51FF6CC2.3060308@gmail.com> <51FF6E67.80909@asianux.com>
-In-Reply-To: <51FF6E67.80909@asianux.com>
+Subject: Re: [RFC PATCH 0/4] mm: reclaim zbud pages on migration and compaction
+References: <1375771361-8388-1-git-send-email-k.kozlowski@samsung.com>
+In-Reply-To: <1375771361-8388-1-git-send-email-k.kozlowski@samsung.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: "sfr@canb.auug.org.au" <sfr@canb.auug.org.au>, rientjes@google.com, riel@redhat.com, isimatu.yasuaki@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Krzysztof Kozlowski <k.kozlowski@samsung.com>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
 
-On 08/05/2013 05:20 PM, Chen Gang wrote:
+On 08/06/2013 02:42 PM, Krzysztof Kozlowski wrote:
+> Hi,
 > 
+> Currently zbud pages are not movable and they cannot be allocated from CMA
+> region. These patches try to address the problem by:
+> 1. Adding a new form of reclaim of zbud pages.
+> 2. Reclaiming zbud pages during migration and compaction.
+> 3. Allocating zbud pages with __GFP_RECLAIMABLE flag.
 > 
-> 
+> This reclaim process is different than zbud_reclaim_page(). It acts more
+> like swapoff() by trying to unuse pages stored in zbud page and bring
+> them back to memory. The standard zbud_reclaim_page() on the other hand
+> tries to write them back.
 
-Sorry for my careless sending: reserving so many waste empty lines.
+I prefer to migrate zbud pages directly if it's possible than reclaiming
+them during compaction.
 
-> MIGRATION need depend on MMU, or allmodconfig for sh architecture which
-> without MMU will be fail for compiling.
 > 
-> The related error: 
+> One of patches introduces a new flag: PageZbud. This flag is used in
+> isolate_migratepages_range() to grab zbud pages and pass them later
+> for reclaim. Probably this could be replaced with something
+> smarter than a flag used only in one case.
+> Any ideas for a better solution are welcome.
 > 
->     CC      mm/migrate.o
->   mm/migrate.c: In function 'remove_migration_pte':
->   mm/migrate.c:134:3: error: implicit declaration of function 'pmd_trans_huge' [-Werror=implicit-function-declaration]
->      if (pmd_trans_huge(*pmd))
->      ^
->   mm/migrate.c:149:2: error: implicit declaration of function 'is_swap_pte' [-Werror=implicit-function-declaration]
->     if (!is_swap_pte(pte))
->     ^
->   ...
+> This patch set is based on Linux 3.11-rc4.
 > 
-> Also need let CMA depend on MMU, or when NOMMU, if select CMA, it will
-> select MIGRATION by force.
+> TODOs:
+> 1. Replace PageZbud flag with other solution.
+> 
+> Best regards,
+> Krzysztof Kozlowski
 > 
 > 
-> Signed-off-by: Chen Gang <gang.chen@asianux.com>
-> Reviewed-by: Michal Hocko <mhocko@suse.cz>
-> ---
->  mm/Kconfig |    4 ++--
->  1 files changed, 2 insertions(+), 2 deletions(-)
+> Krzysztof Kozlowski (4):
+>   zbud: use page ref counter for zbud pages
+>   mm: split code for unusing swap entries from try_to_unuse
+>   mm: add zbud flag to page flags
+>   mm: reclaim zbud pages on migration and compaction
 > 
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index 256bfd0..e847f19 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -245,7 +245,7 @@ config COMPACTION
->  config MIGRATION
->  	bool "Page migration"
->  	def_bool y
-> -	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION || CMA
-> +	depends on (NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION || CMA) && MMU
->  	help
->  	  Allows the migration of the physical location of pages of processes
->  	  while the virtual addresses are not changed. This is useful in
-> @@ -522,7 +522,7 @@ config MEM_SOFT_DIRTY
->  
->  config CMA
->  	bool "Contiguous Memory Allocator"
-> -	depends on HAVE_MEMBLOCK
-> +	depends on HAVE_MEMBLOCK && MMU
->  	select MIGRATION
->  	select MEMORY_ISOLATION
->  	help
+>  include/linux/page-flags.h |   12 ++
+>  include/linux/swapfile.h   |    2 +
+>  include/linux/zbud.h       |   11 +-
+>  mm/compaction.c            |   20 ++-
+>  mm/internal.h              |    1 +
+>  mm/page_alloc.c            |    9 ++
+>  mm/swapfile.c              |  354 +++++++++++++++++++++++---------------------
+>  mm/zbud.c                  |  301 +++++++++++++++++++++++++------------
+>  mm/zswap.c                 |   57 ++++++-
+>  9 files changed, 499 insertions(+), 268 deletions(-)
 > 
-
 
 -- 
-Chen Gang
+Regards,
+-Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
