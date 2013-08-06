@@ -1,74 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id A41646B0031
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 12:34:18 -0400 (EDT)
-Date: Tue, 6 Aug 2013 12:34:14 -0400
-From: Matthew Wilcox <willy@linux.intel.com>
-Subject: Re: [PATCH 01/23] radix-tree: implement preload for multiple
- contiguous elements
-Message-ID: <20130806163414.GA4707@linux.intel.com>
-References: <1375582645-29274-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1375582645-29274-2-git-send-email-kirill.shutemov@linux.intel.com>
- <20130805111739.GA25691@quack.suse.cz>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id B40556B0031
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 12:59:12 -0400 (EDT)
+Message-ID: <52012B35.90801@intel.com>
+Date: Tue, 06 Aug 2013 09:58:29 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130805111739.GA25691@quack.suse.cz>
+Subject: Re: [RFC PATCH 3/4] mm: add zbud flag to page flags
+References: <1375771361-8388-1-git-send-email-k.kozlowski@samsung.com> <1375771361-8388-4-git-send-email-k.kozlowski@samsung.com>
+In-Reply-To: <1375771361-8388-4-git-send-email-k.kozlowski@samsung.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Ning Qu <quning@google.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Krzysztof Kozlowski <k.kozlowski@samsung.com>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
 
-On Mon, Aug 05, 2013 at 01:17:39PM +0200, Jan Kara wrote:
-> On Sun 04-08-13 05:17:03, Kirill A. Shutemov wrote:
-> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> > The radix tree is variable-height, so an insert operation not only has
-> > to build the branch to its corresponding item, it also has to build the
-> > branch to existing items if the size has to be increased (by
-> > radix_tree_extend).
-> > @@ -82,16 +82,24 @@ static struct kmem_cache *radix_tree_node_cachep;
-> >   * The worst case is a zero height tree with just a single item at index 0,
-> >   * and then inserting an item at index ULONG_MAX. This requires 2 new branches
-> >   * of RADIX_TREE_MAX_PATH size to be created, with only the root node shared.
-> > + *
-> > + * Worst case for adding N contiguous items is adding entries at indexes
-> > + * (ULONG_MAX - N) to ULONG_MAX. It requires nodes to insert single worst-case
-> > + * item plus extra nodes if you cross the boundary from one node to the next.
-> > + *
-> >   * Hence:
-> >   */
-> > -#define RADIX_TREE_PRELOAD_SIZE (RADIX_TREE_MAX_PATH * 2 - 1)
-> > +#define RADIX_TREE_PRELOAD_MIN (RADIX_TREE_MAX_PATH * 2 - 1)
-> > +#define RADIX_TREE_PRELOAD_MAX \
-> > +	(RADIX_TREE_PRELOAD_MIN + \
-> > +	 DIV_ROUND_UP(RADIX_TREE_PRELOAD_NR - 1, RADIX_TREE_MAP_SIZE))
->
->   Umm, is this really correct? I see two problems:
-> 1) You may need internal tree nodes at various levels but you seem to
-> account only for the level 1.
-> 2) The rounding doesn't seem right because RADIX_TREE_MAP_SIZE+2 nodes may
-> require 3 nodes at level 1 if the indexes are like:
-> i_0 | i_1 .. i_{RADIX_TREE_MAP_SIZE} | i_{RADIX_TREE_MAP_SIZE+1}
->     ^                                ^
->     node boundary                    node boundary
-> 
->   Otherwise the patch looks good.
+On 08/05/2013 11:42 PM, Krzysztof Kozlowski wrote:
+> +#ifdef CONFIG_ZBUD
+> +	/* Allocated by zbud. Flag is necessary to find zbud pages to unuse
+> +	 * during migration/compaction.
+> +	 */
+> +	PG_zbud,
+> +#endif
 
-You are correct that in the fully general case, these things are needed,
-and the patch undercounts the number of nodes needed.  However, in the
-specific case of THP pagecache, insertions are naturally aligned, and
-we end up needing very few internal nodes (so few that we've never hit
-the end of this array in some fairly heavy testing).
+Do you _really_ need an absolutely new, unshared page flag?
+The zbud code doesn't really look like it uses any of the space in
+'struct page'.
 
-There are two penalties for getting the general case correct.  One is
-that the calculation becomes harder to understand, and the other is
-that we consume more per-CPU memory.  I think we should document that
-the current code requires "natural alignment", and include a note about
-what things will need to change in order to support arbitrary alignment
-in case anybody needs to do it in the future, but not include support
-for arbitrary alignment in this patchset.
-
-What do you think?
+I think you could pretty easily alias PG_zbud=PG_slab, then use the
+page->{private,slab_cache} (or some other unused field) in 'struct page'
+to store a cookie to differentiate slab and zbud pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
