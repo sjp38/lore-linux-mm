@@ -1,96 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 8178C6B0031
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 05:00:20 -0400 (EDT)
-Message-ID: <5200BB18.9010105@oracle.com>
-Date: Tue, 06 Aug 2013 17:00:08 +0800
-From: Bob Liu <bob.liu@oracle.com>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 10D086B0031
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 05:11:40 -0400 (EDT)
+Message-ID: <5200BD8C.5050409@asianux.com>
+Date: Tue, 06 Aug 2013 17:10:36 +0800
+From: Chen Gang <gang.chen@asianux.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 1/4] zbud: use page ref counter for zbud pages
-References: <1375771361-8388-1-git-send-email-k.kozlowski@samsung.com> <1375771361-8388-2-git-send-email-k.kozlowski@samsung.com>
-In-Reply-To: <1375771361-8388-2-git-send-email-k.kozlowski@samsung.com>
+Subject: Re: [PATCH v2] mm/Kconfig: add MMU dependency for MIGRATION.
+References: <51F9CA7D.2070506@asianux.com> <20130805073233.GB10146@dhcp22.suse.cz> <51FF6656.4070809@gmail.com> <20130805090301.GF10146@dhcp22.suse.cz> <20130805090539.GH10146@dhcp22.suse.cz> <51FF6CC2.3060308@gmail.com> <51FF6E67.80909@asianux.com>
+In-Reply-To: <51FF6E67.80909@asianux.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Krzysztof Kozlowski <k.kozlowski@samsung.com>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Tomasz Stanislawski <t.stanislaws@samsung.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: "sfr@canb.auug.org.au" <sfr@canb.auug.org.au>, rientjes@google.com, riel@redhat.com, isimatu.yasuaki@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-Hi Krzysztof,
-
-On 08/06/2013 02:42 PM, Krzysztof Kozlowski wrote:
-> Use page reference counter for zbud pages. The ref counter replaces
-> zbud_header.under_reclaim flag and ensures that zbud page won't be freed
-> when zbud_free() is called during reclaim. It allows implementation of
-> additional reclaim paths.
+On 08/05/2013 05:20 PM, Chen Gang wrote:
 > 
-> The page count is incremented when:
->  - a handle is created and passed to zswap (in zbud_alloc()),
->  - user-supplied eviction callback is called (in zbud_reclaim_page()).
 > 
-> Signed-off-by: Krzysztof Kozlowski <k.kozlowski@samsung.com>
-> Signed-off-by: Tomasz Stanislawski <t.stanislaws@samsung.com>
+> 
 
-Looks good to me.
-Reviewed-by: Bob Liu <bob.liu@oracle.com>
+Sorry for my careless sending: reserving so many waste empty lines.
 
+> MIGRATION need depend on MMU, or allmodconfig for sh architecture which
+> without MMU will be fail for compiling.
+> 
+> The related error: 
+> 
+>     CC      mm/migrate.o
+>   mm/migrate.c: In function 'remove_migration_pte':
+>   mm/migrate.c:134:3: error: implicit declaration of function 'pmd_trans_huge' [-Werror=implicit-function-declaration]
+>      if (pmd_trans_huge(*pmd))
+>      ^
+>   mm/migrate.c:149:2: error: implicit declaration of function 'is_swap_pte' [-Werror=implicit-function-declaration]
+>     if (!is_swap_pte(pte))
+>     ^
+>   ...
+> 
+> Also need let CMA depend on MMU, or when NOMMU, if select CMA, it will
+> select MIGRATION by force.
+> 
+> 
+> Signed-off-by: Chen Gang <gang.chen@asianux.com>
+> Reviewed-by: Michal Hocko <mhocko@suse.cz>
 > ---
->  mm/zbud.c |  150 +++++++++++++++++++++++++++++++++++--------------------------
->  1 file changed, 86 insertions(+), 64 deletions(-)
+>  mm/Kconfig |    4 ++--
+>  1 files changed, 2 insertions(+), 2 deletions(-)
 > 
-> diff --git a/mm/zbud.c b/mm/zbud.c
-> index ad1e781..a8e986f 100644
-> --- a/mm/zbud.c
-> +++ b/mm/zbud.c
-> @@ -109,7 +109,6 @@ struct zbud_header {
->  	struct list_head lru;
->  	unsigned int first_chunks;
->  	unsigned int last_chunks;
-> -	bool under_reclaim;
->  };
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index 256bfd0..e847f19 100644
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -245,7 +245,7 @@ config COMPACTION
+>  config MIGRATION
+>  	bool "Page migration"
+>  	def_bool y
+> -	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION || CMA
+> +	depends on (NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION || CMA) && MMU
+>  	help
+>  	  Allows the migration of the physical location of pages of processes
+>  	  while the virtual addresses are not changed. This is useful in
+> @@ -522,7 +522,7 @@ config MEM_SOFT_DIRTY
 >  
->  /*****************
-> @@ -138,16 +137,9 @@ static struct zbud_header *init_zbud_page(struct page *page)
->  	zhdr->last_chunks = 0;
->  	INIT_LIST_HEAD(&zhdr->buddy);
->  	INIT_LIST_HEAD(&zhdr->lru);
-> -	zhdr->under_reclaim = 0;
->  	return zhdr;
->  }
->  
-> -/* Resets the struct page fields and frees the page */
-> -static void free_zbud_page(struct zbud_header *zhdr)
-> -{
-> -	__free_page(virt_to_page(zhdr));
-> -}
-> -
->  /*
->   * Encodes the handle of a particular buddy within a zbud page
->   * Pool lock should be held as this function accesses first|last_chunks
-> @@ -188,6 +180,65 @@ static int num_free_chunks(struct zbud_header *zhdr)
->  	return NCHUNKS - zhdr->first_chunks - zhdr->last_chunks - 1;
->  }
->  
-> +/*
-> + * Called after zbud_free() or zbud_alloc().
-> + * Checks whether given zbud page has to be:
-> + *  - removed from buddied/unbuddied/LRU lists completetely (zbud_free).
-> + *  - moved from buddied to unbuddied list
-> + *    and to beginning of LRU (zbud_alloc, zbud_free),
-> + *  - added to buddied list and LRU (zbud_alloc),
-> + *
-> + * The page must be already removed from buddied/unbuddied lists.
-> + * Must be called under pool->lock.
-> + */
-> +static void rebalance_lists(struct zbud_pool *pool, struct zbud_header *zhdr)
-> +{
+>  config CMA
+>  	bool "Contiguous Memory Allocator"
+> -	depends on HAVE_MEMBLOCK
+> +	depends on HAVE_MEMBLOCK && MMU
+>  	select MIGRATION
+>  	select MEMORY_ISOLATION
+>  	help
+> 
 
-Nit picker, how about change the name to adjust_lists() or something
-like this because we don't do any rebalancing.
 
 -- 
-Regards,
--Bob
+Chen Gang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
