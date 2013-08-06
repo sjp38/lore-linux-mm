@@ -1,68 +1,100 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [patch v2 3/3] mm: page_alloc: fair zone allocator policy
-Date: Mon, 5 Aug 2013 21:11:53 +0800
-Message-ID: <30304.3512547903$1375708345@news.gmane.org>
-References: <1375457846-21521-1-git-send-email-hannes@cmpxchg.org>
- <1375457846-21521-4-git-send-email-hannes@cmpxchg.org>
- <20130805103456.GB1039@hacker.(null)>
- <20130805113423.GB6703@redhat.com>
+Subject: Re: Testing results of zswap
+Date: Tue, 6 Aug 2013 19:37:49 +0800
+Message-ID: <20340.5151529752$1375789096@news.gmane.org>
+References: <CAA_GA1fiEJYxqAZ1c0BneuftB5g8d+2_mYBj=4iE=1EcYaTx7w@mail.gmail.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/mixed; boundary="5vNYLRcllDrimb99"
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1V6Ka3-0006tU-UE
-	for glkm-linux-mm-2@m.gmane.org; Mon, 05 Aug 2013 15:12:12 +0200
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id C7B116B0031
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 09:12:09 -0400 (EDT)
+	id 1V6faX-0001D4-CT
+	for glkm-linux-mm-2@m.gmane.org; Tue, 06 Aug 2013 13:38:05 +0200
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id A6BF16B0038
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 07:38:03 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 5 Aug 2013 23:04:01 +1000
+	Tue, 6 Aug 2013 21:31:08 +1000
 Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id BE3972BB0055
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2013 23:12:05 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r75Cu99v5505150
-	for <linux-mm@kvack.org>; Mon, 5 Aug 2013 22:56:18 +1000
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r75DBtiP014325
-	for <linux-mm@kvack.org>; Mon, 5 Aug 2013 23:11:56 +1000
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 3D9093578050
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 21:37:56 +1000 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r76BM2Fj4653452
+	for <linux-mm@kvack.org>; Tue, 6 Aug 2013 21:22:07 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r76Bboto021906
+	for <linux-mm@kvack.org>; Tue, 6 Aug 2013 21:37:50 +1000
 Content-Disposition: inline
-In-Reply-To: <20130805113423.GB6703@redhat.com>
+In-Reply-To: <CAA_GA1fiEJYxqAZ1c0BneuftB5g8d+2_mYBj=4iE=1EcYaTx7w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@surriel.com>, Zlatko Calusic <zcalusic@bitsync.net>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Bob Liu <lliubbo@gmail.com>
+Cc: Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, bob.liu@oracle.com, Mel Gorman <mgorman@suse.de>
 
-On Mon, Aug 05, 2013 at 01:34:23PM +0200, Andrea Arcangeli wrote:
->On Mon, Aug 05, 2013 at 06:34:56PM +0800, Wanpeng Li wrote:
->> Why round robin allocator don't consume ZONE_DMA?
+
+--5vNYLRcllDrimb99
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+
+On Thu, Jun 27, 2013 at 10:03:52AM +0800, Bob Liu wrote:
+>Hi All,
 >
->I guess lowmem reserve reserves it all, 4GB/256(ratio)=16MB.
+>These days I have been testing zswap.
+>I found that the total ram size of my testing machine effected the
+>testing result.
+>
+>If I limit  RAM size to 2G using "mem=", the performance of zswap is
+>very disappointing,
+>But if I use larger RAM size such as 8G, the performance is much better.
+>Even with RAM size 8G, zswap will slow down the speed of parallelio.
+>
+>I run the testing(mmtest-0.10 with
+>config-global-dhp__parallelio-memcachetest) after the default
+>distribution booted every time.
 >
 
-Ah, lowmem reservation reserve all ZONE_DMA:
+Hi Bob,
 
-x86_64 4GB
+I see improvement against v3.11-rc1 w/ 2G memory.
 
-protection: (0, 3251, 4009, 4009)
 
-Thanks for pointing out. ;-)
+--5vNYLRcllDrimb99
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: attachment; filename=test
 
->The only way to relax it would be 1) to account depending on memblock
->types and allow only the movable ones to bypass the lowmem reserve and
->prevent a change from movable type if lowmem reserve doesn't pass, 2)
->use memory migration to move the movable pages from the lower zones to
->the highest zone if reclaim fails if __GFP_DMA32 or __GFP_DMA is set,
->or highmem is missing on 32bit kernels. The last point involving
->memory migration would work similarly to compaction but it isn't black
->and white, and it would cost CPU as well. The memory used by the
->simple lowmem reserve mechanism is probably not significant enough to
->warrant such an effort.
+                                          nozswap2                      zswap2
+                                         nozswap2G                     zswap2G
+Ops memcachetest-0M             12731.00 (  0.00%)          11561.00 ( -9.19%)
+Ops memcachetest-201M           11373.00 (  0.00%)          11084.00 ( -2.54%)
+Ops memcachetest-672M           11350.00 (  0.00%)          10910.00 ( -3.88%)
+Ops memcachetest-1142M          11057.00 (  0.00%)          11060.00 (  0.03%)
+Ops io-duration-0M                  0.00 (  0.00%)              0.00 (  0.00%)
+Ops io-duration-201M                4.00 (  0.00%)              5.00 (-25.00%)
+Ops io-duration-672M                9.00 (  0.00%)              7.00 ( 22.22%)
+Ops io-duration-1142M              11.00 (  0.00%)             13.00 (-18.18%)
+Ops swaptotal-0M                  451.00 (  0.00%)          26208.00 (-5711.09%)
+Ops swaptotal-201M             158775.00 (  0.00%)          37548.00 ( 76.35%)
+Ops swaptotal-672M             139599.00 (  0.00%)          42514.00 ( 69.55%)
+Ops swaptotal-1142M            137789.00 (  0.00%)          34580.00 ( 74.90%)
+Ops swapin-0M                     451.00 (  0.00%)          11830.00 (-2523.06%)
+Ops swapin-201M                 29082.00 (  0.00%)          16169.00 ( 44.40%)
+Ops swapin-672M                 26611.00 (  0.00%)          19574.00 ( 26.44%)
+Ops swapin-1142M                27238.00 (  0.00%)          15625.00 ( 42.64%)
+Ops minorfaults-0M             557891.00 (  0.00%)         575357.00 ( -3.13%)
+Ops minorfaults-201M           743922.00 (  0.00%)         595238.00 ( 19.99%)
+Ops minorfaults-672M           727870.00 (  0.00%)         653777.00 ( 10.18%)
+Ops minorfaults-1142M          722946.00 (  0.00%)         595093.00 ( 17.68%)
+Ops majorfaults-0M                116.00 (  0.00%)           4053.00 (-3393.97%)
+Ops majorfaults-201M             4251.00 (  0.00%)           4412.00 ( -3.79%)
+Ops majorfaults-672M             3854.00 (  0.00%)           4971.00 (-28.98%)
+Ops majorfaults-1142M            3910.00 (  0.00%)           4033.00 ( -3.15%)
+
+
+--5vNYLRcllDrimb99--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
