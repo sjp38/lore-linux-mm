@@ -1,60 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id AF1BC6B0031
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 03:17:13 -0400 (EDT)
-Received: by mail-ee0-f41.google.com with SMTP id d17so19310eek.0
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2013 00:17:12 -0700 (PDT)
-Message-ID: <5200A29C.9060702@gmail.com>
-Date: Tue, 06 Aug 2013 09:15:40 +0200
-From: Wladislav Wiebe <wladislav.kw@gmail.com>
-MIME-Version: 1.0
-Subject: Re: mm/slab: ppc: ubi: kmalloc_slab WARNING / PPC + UBI driver
-References: <51F8F827.6020108@gmail.com> <alpine.DEB.2.02.1307310858150.30572@gentwo.org> <alpine.DEB.2.02.1307311015320.30997@gentwo.org> <000001403567762a-60a27288-f0b2-4855-b88c-6a6f21ec537c-000000@email.amazonses.com> <51F93C64.4090601@gmail.com> <0000014035b06a9d-e8b10680-e321-4d3b-95a8-0833fa3fb7c9-000000@email.amazonses.com>
-In-Reply-To: <0000014035b06a9d-e8b10680-e321-4d3b-95a8-0833fa3fb7c9-000000@email.amazonses.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 5C5236B0031
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 04:37:37 -0400 (EDT)
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: [PATCH v2 mmotm 1/3] mm, page_alloc: add unlikely macro to help compiler optimization
+Date: Tue,  6 Aug 2013 17:37:33 +0900
+Message-Id: <1375778255-31398-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@gentwo.org>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, dedekind1@gmail.com, dwmw2@infradead.org, linux-mtd@lists.infradead.org, Mel Gorman <mel@csn.ul.ie>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Hi,
+We rarely allocate a page with ALLOC_NO_WATERMARKS and it is used
+in slow path. For helping compiler optimization, add unlikely macro to
+ALLOC_NO_WATERMARKS checking.
 
-On 31/07/13 19:04, Christoph Lameter wrote:
-> On Wed, 31 Jul 2013, Wladislav Wiebe wrote:
-> 
->> Thanks for the point, do you plan to make kmalloc_large available for extern access in a separate mainline patch?
->> Since kmalloc_large is statically defined in slub_def.h and when including it to seq_file.c
->> we have a lot of conflicting types:
-> 
-> You cannot separatly include slub_def.h. slab.h includes slub_def.h for
-> you. What problem did you try to fix by doing so?
-> 
-> There is a patch pending that moves kmalloc_large to slab.h. So maybe we
-> have to wait a merge period in order to be able to use it with other
-> allocators than slub.
-> 
-> 
+This patch doesn't have any effect now, because gcc already optimize
+this properly. But we cannot assume that gcc always does right and nobody
+re-evaluate if gcc do proper optimization with their change, for example,
+it is not optimized properly on v3.10. So adding compiler hint here
+is reasonable.
 
-ok, just saw in slab/for-linus branch that those stuff is reverted again..
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-commit 4932163637fbb9aaa654ca0703c5a624b7809da2
-Author: Pekka Enberg <penberg@kernel.org>
-Date:   Wed Jul 10 10:16:01 2013 +0300
-
-    Revert "mm/sl[aou]b: Move kmalloc_node functions to common code"
-
-..
-
-commit 35be03cafb8f5ddcc1236e90144b6ec76296b789
-Author: Pekka Enberg <penberg@kernel.org>
-Date:   Wed Jul 10 09:56:49 2013 +0300
-
-    Revert "mm/sl[aou]b: Move kmalloc definitions to slab.h"
-
-
---
-WBR, WLadislav Wiebe
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index f5c549c..04bec49 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1901,7 +1901,7 @@ zonelist_scan:
+ 			!cpuset_zone_allowed_softwall(zone, gfp_mask))
+ 				continue;
+ 		BUILD_BUG_ON(ALLOC_NO_WATERMARKS < NR_WMARK);
+-		if (alloc_flags & ALLOC_NO_WATERMARKS)
++		if (unlikely(alloc_flags & ALLOC_NO_WATERMARKS))
+ 			goto try_this_zone;
+ 		/*
+ 		 * Distribute pages in proportion to the individual
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
