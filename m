@@ -1,55 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 2E7DC6B0031
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 01:50:57 -0400 (EDT)
-Date: Tue, 6 Aug 2013 07:50:40 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 2/9] mm: zone_reclaim: compaction: scan all memory with
- /proc/sys/vm/compact_memory
-Message-ID: <20130806055040.GD15161@redhat.com>
-References: <1375459596-30061-1-git-send-email-aarcange@redhat.com>
- <1375459596-30061-3-git-send-email-aarcange@redhat.com>
- <20130805184559.GB1845@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id ADE166B0031
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 02:35:10 -0400 (EDT)
+Message-ID: <52009908.3070609@synopsys.com>
+Date: Tue, 6 Aug 2013 12:04:48 +0530
+From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130805184559.GB1845@cmpxchg.org>
+Subject: Re: [patch 1/7] arch: mm: remove obsolete init OOM protection
+References: <1375549200-19110-1-git-send-email-hannes@cmpxchg.org> <1375549200-19110-2-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1375549200-19110-2-git-send-email-hannes@cmpxchg.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, Johannes Weiner <jweiner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hush Bensen <hush.bensen@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, azurIt <azurit@pobox.sk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hi!
+Hi Johannes,
 
-On Mon, Aug 05, 2013 at 02:45:59PM -0400, Johannes Weiner wrote:
-> On Fri, Aug 02, 2013 at 06:06:29PM +0200, Andrea Arcangeli wrote:
-> > Reset the stats so /proc/sys/vm/compact_memory will scan all memory.
-> > 
-> > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> > Reviewed-by: Rik van Riel <riel@redhat.com>
-> > Acked-by: Rafael Aquini <aquini@redhat.com>
-> > Acked-by: Mel Gorman <mgorman@suse.de>
+Thk for the cleanup.
+
+On 08/03/2013 10:29 PM, Johannes Weiner wrote:
+> Back before smart OOM killing, when faulting tasks where killed
+> directly on allocation failures, the arch-specific fault handlers
+> needed special protection for the init process.
 > 
-> It somehow feels wrong that this operation should have a destructive
-> side effect, rather than just ignore the cached info for the one run
-> (like cc.ignore_skip_hint).  But I don't really have a strong reason
-> against it, so...
-
-But what benefit would provide to keep the cached cursor positions
-alive after we already compacted the whole memory from the start to
-the end? The cached cursors provide useful information when we compact
-in small steps and they represent the unscanned part of the
-memory. But after a full compaction completed unless some memory
-activity has happened there will be nothing to compact anymore. So we
-just need to find what may have changed as result of the memory
-activity and in turn there should be no benefit in starting at the
-previously cached cursors positions.
-
+> Now that all fault handlers call into the generic OOM killer (609838c
+> "mm: invoke oom-killer from remaining unconverted page fault
+> handlers"), which already provides init protection, the arch-specific
+> leftovers can be removed.
 > 
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Reviewed-by: Michal Hocko <mhocko@suse.cz>
+> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> ---
+>  arch/arc/mm/fault.c   | 5 -----
+>  arch/score/mm/fault.c | 6 ------
+>  arch/tile/mm/fault.c  | 6 ------
+>  3 files changed, 17 deletions(-)
 
-Thanks!
-Andrea
+Acked-by: Vineet Gupta <vgupta@synopsys.com>  [arch/arc bits]
+
+-Vineet
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
