@@ -1,44 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id B9C896B0031
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 00:07:30 -0400 (EDT)
-Message-ID: <52007660.7070907@huawei.com>
-Date: Tue, 6 Aug 2013 12:06:56 +0800
-From: Jianguo Wu <wujianguo@huawei.com>
-MIME-Version: 1.0
-Subject: [PATCH] mm/mempolicy: return NULL if node is NUMA_NO_NODE in get_task_policy
-Content-Type: text/plain; charset="UTF-8"
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 2874B6B0031
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 00:30:44 -0400 (EDT)
+Date: Tue, 06 Aug 2013 00:30:03 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1375763403-g7t50glu-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <87haf3oabh.fsf@linux.vnet.ibm.com>
+References: <1374728103-17468-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1374728103-17468-9-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <87k3k7q4ox.fsf@linux.vnet.ibm.com>
+ <1375302249-scfvftrh-mutt-n-horiguchi@ah.jp.nec.com>
+ <87vc3qvtmc.fsf@linux.vnet.ibm.com>
+ <1375411396-bw4cbhso-mutt-n-horiguchi@ah.jp.nec.com>
+ <87haf3oabh.fsf@linux.vnet.ibm.com>
+Subject: Re: [PATCH 8/8] prepare to remove
+ /proc/sys/vm/hugepages_treat_as_movable
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hanjun Guo <guohanjun@huawei.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-If node == NUMA_NO_NODE, pol is NULL, we should return NULL instead of
-do "if (!pol->mode)" check.
+On Tue, Aug 06, 2013 at 07:22:02AM +0530, Aneesh Kumar K.V wrote:
+> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
+> >> 
+> >> Considering that we have architectures that won't support migrating
+> >> explicit hugepages with this patch series, is it ok to use
+> >> GFP_HIGHUSER_MOVABLE for hugepage allocation ?
+> >
+> > Originally this parameter was introduced to make hugepage pool on ZONE_MOVABLE.
+> > The benefit is that we can extend the hugepage pool more easily,
+> > because external fragmentation less likely happens than other zone type
+> > by rearranging fragmented pages with page migration/reclaim.
+> >
+> > So I think using ZONE_MOVABLE for hugepage allocation by default makes sense
+> > even on the architectures which don't support hugepage migration.
+> 
+> But allocating hugepages from ZONE_MOVABLE means we have pages in that
+> zone which we can't migrate. Doesn't that impact other features like
+> hotplug ?
 
-Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
----
- mm/mempolicy.c | 2 ++
- 1 file changed, 2 insertions(+)
+Memory blocks occupied by hugepages are not removable before this patchset,
+whether they are from ZONE_MOVABLE or not, and the hugepage users accepted
+it for now. So I think this change doesn't make things worse than now. 
 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 4baf12e..e0e3398 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -129,6 +129,8 @@ static struct mempolicy *get_task_policy(struct task_struct *p)
- 		node = numa_node_id();
- 		if (node != NUMA_NO_NODE)
- 			pol = &preferred_node_policy[node];
-+		else
-+			return NULL;
- 
- 		/* preferred_node_policy is not initialised early in boot */
- 		if (!pol->mode)
--- 
-1.8.2.2
+It can be more preferable to switch on/off __GFP_MOVABLE flag depending on
+archs without using the tunable parameter. I'm ok for this direction, but
+I want to do it as a separate work.
 
-
+Thanks,
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
