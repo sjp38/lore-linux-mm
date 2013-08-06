@@ -1,67 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 507286B0031
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 12:08:45 -0400 (EDT)
-Date: Tue, 6 Aug 2013 12:08:38 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 6/9] mm: zone_reclaim: compaction: increase the high
- order pages in the watermarks
-Message-ID: <20130806160838.GI1845@cmpxchg.org>
-References: <1375459596-30061-1-git-send-email-aarcange@redhat.com>
- <1375459596-30061-7-git-send-email-aarcange@redhat.com>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 3410E6B0036
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 12:15:17 -0400 (EDT)
+Received: by mail-qe0-f50.google.com with SMTP id q19so327579qeb.37
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2013 09:15:16 -0700 (PDT)
+Date: Tue, 6 Aug 2013 12:15:09 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCHSET cgroup/for-3.12] cgroup: make cgroup_event specific to
+ memcg
+Message-ID: <20130806161509.GB10779@mtj.dyndns.org>
+References: <1375632446-2581-1-git-send-email-tj@kernel.org>
+ <20130805160107.GM10146@dhcp22.suse.cz>
+ <20130805162958.GF19631@mtj.dyndns.org>
+ <20130805191641.GA24003@dhcp22.suse.cz>
+ <20130805194431.GD23751@mtj.dyndns.org>
+ <20130806155804.GC31138@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1375459596-30061-7-git-send-email-aarcange@redhat.com>
+In-Reply-To: <20130806155804.GC31138@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Johannes Weiner <jweiner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hush Bensen <hush.bensen@gmail.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: lizefan@huawei.com, hannes@cmpxchg.org, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Aug 02, 2013 at 06:06:33PM +0200, Andrea Arcangeli wrote:
-> Prevent the scaling down to reduce the watermarks too much.
-> 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> ---
->  mm/page_alloc.c | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 4401983..b32ecde 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1665,7 +1665,8 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
->  		free_pages -= z->free_area[o].nr_free << o;
->  
->  		/* Require fewer higher order pages to be free */
-> -		min >>= 1;
-> +		if (o < (pageblock_order >> 2))
-> +			min >>= 1;
+Hello, Michal.
 
-Okay, bear with me here:
+On Tue, Aug 06, 2013 at 05:58:04PM +0200, Michal Hocko wrote:
+> I am objecting to moving the generic part of that code into memcg. The
+> memcg part and the additional complexity (all the parsing and conditions
+> for signalling) is already in the memcg code.
 
-After an allocation, the watermark has to be met, all available pages
-considered.  That is reasonable because we don't want to deadlock and
-order-0 pages can be served from any page block.
+But how is it generic if it's specific to memcg?  The practical
+purpose here is making it clear that the interface is only used by
+memcg and preventing any new usages from sprining up and the best way
+to achieve that is making the code actually memcg-specific.  It also
+helps cleaning up cftype in general.  I'm not sure what you're
+objecting to here.
 
-Now say we have an order-2 allocation: in addition to the order-0 view
-on the watermark, after the allocation a quarter of the watermark has
-to be met with order-2 pages and up.  Okay, maybe we always want a few
-< PAGE_ALLOC_COSTLY_ORDER pages at our disposal, who knows.
+> Such an interface would be really welcome but I would also ask how
+> it would implement/allow context passing. E.g. how do we know which
+> treshold has been reached? How do we find out the vmpressure level? Is
+> the consumer supposed to do an additional action after it gets
+> notification?
+> Etc.
 
-Then it kind of sizzles out towards higher order pages but it always
-requires the remainder to be positive, i.e. at least one page at the
-checked order available.  Only the actually requested order is not
-checked, so for an order-9 we only make sure that we could serve at
-least one order-8 page, maybe more depending on the zone size.
+Yeap, exactly and that's how it should have been from the beginning.
+Attaching information to notification itself isn't a particularly good
+design (anyone remembers rtsig?) if there's polling mechanism to
+report the current state.  It essentially amounts to duplicate
+delivery mechanisms for the same information, which you usually don't
+want.  Here, the inconvenience / performance implications are
+negligible or even net-positive.  Plain file modified notification is
+way more familiar / conventional and the overhead of an extra read
+call, which is highly unlikely to be relevant given the expected
+frequency of the events we're talking about, is small compared to the
+action of event delivery and context switch.
 
-You're proposing to check at least for
+> Really that natural? So memcg should touch internals like cgroup dentry
 
-  (watermark - min_watermark) >> (pageblock_order >> 2)
+Functionally, it is completely specific to memcg at this point.  It's
+the only user and will stay the only user.
 
-worth of order-8 pages instead.
+> reference counting. You seem have forgotten all the hassles with
+> cgroup_mutex, haven't you?
 
-How does any of this make any sense?
+Was the above sentence necessary?
+
+> No that part doesn't belong to memcg! You can discourage from new usage
+> of this interface of course.
+
+Oh, if you're objecting to the details of the implementation, we of
+course can clean it up.  It should conceptually and functionally be
+part of memcg and that is the guiding line we follow.  Implementations
+follow the concepts and functions, not the other way around.  The
+refcnt of course can be replaced with memcg css refcnting and we can
+of course factor out dentry comparison in a prettier form.
+
+Compare it to the other way around - having event callbacks in cftype
+and clearing code embedded in cgroup core destruction path when both
+of which are completely irrelevant to all other controllers.  Let's
+clean up the implementation details and put things where they belong.
+What's the excuse for not doing so when it's almost trivially doable?
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
