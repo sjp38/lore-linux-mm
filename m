@@ -1,66 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 856706B0031
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 04:43:41 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 230706B0033
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 04:43:43 -0400 (EDT)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH 1/4] mm, rmap: do easy-job first in anon_vma_fork
-Date: Tue,  6 Aug 2013 17:43:37 +0900
-Message-Id: <1375778620-31593-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 2/4] mm, rmap: allocate anon_vma_chain before starting to link anon_vma_chain
+Date: Tue,  6 Aug 2013 17:43:38 +0900
+Message-Id: <1375778620-31593-2-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1375778620-31593-1-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1375778620-31593-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-If we fail due to some errorous situation, it is better to quit
-without doing heavy work. So changing order of execution.
+If we allocate anon_vma_chain before starting to link, we can reduce
+the lock hold time. This patch implement it.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
 diff --git a/mm/rmap.c b/mm/rmap.c
-index a149e3a..c2f51cb 100644
+index c2f51cb..1603f64 100644
 --- a/mm/rmap.c
 +++ b/mm/rmap.c
-@@ -278,19 +278,19 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
- 	if (!pvma->anon_vma)
- 		return 0;
- 
-+	/* First, allocate required objects */
-+	avc = anon_vma_chain_alloc(GFP_KERNEL);
-+	if (!avc)
-+		goto out_error;
-+	anon_vma = anon_vma_alloc();
-+	if (!anon_vma)
-+		goto out_error_free_avc;
+@@ -240,18 +240,21 @@ int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
+ {
+ 	struct anon_vma_chain *avc, *pavc;
+ 	struct anon_vma *root = NULL;
++	LIST_HEAD(avc_list);
 +
- 	/*
--	 * First, attach the new VMA to the parent VMA's anon_vmas,
-+	 * Then attach the new VMA to the parent VMA's anon_vmas,
- 	 * so rmap can find non-COWed pages in child processes.
- 	 */
- 	if (anon_vma_clone(vma, pvma))
--		return -ENOMEM;
--
--	/* Then add our own anon_vma. */
--	anon_vma = anon_vma_alloc();
--	if (!anon_vma)
--		goto out_error;
--	avc = anon_vma_chain_alloc(GFP_KERNEL);
--	if (!avc)
- 		goto out_error_free_anon_vma;
++	list_for_each_entry(pavc, &src->anon_vma_chain, same_vma) {
++		avc = anon_vma_chain_alloc(GFP_KERNEL);
++		if (unlikely(!avc))
++			goto enomem_failure;
++
++		list_add_tail(&avc->same_vma, &avc_list);
++	}
  
- 	/*
-@@ -312,10 +312,11 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
+ 	list_for_each_entry_reverse(pavc, &src->anon_vma_chain, same_vma) {
+ 		struct anon_vma *anon_vma;
  
+-		avc = anon_vma_chain_alloc(GFP_NOWAIT | __GFP_NOWARN);
+-		if (unlikely(!avc)) {
+-			unlock_anon_vma_root(root);
+-			root = NULL;
+-			avc = anon_vma_chain_alloc(GFP_KERNEL);
+-			if (!avc)
+-				goto enomem_failure;
+-		}
++		avc = list_entry((&avc_list)->next, typeof(*avc), same_vma);
++		list_del(&avc->same_vma);
+ 		anon_vma = pavc->anon_vma;
+ 		root = lock_anon_vma_root(root, anon_vma);
+ 		anon_vma_chain_link(dst, avc, anon_vma);
+@@ -259,8 +262,11 @@ int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
+ 	unlock_anon_vma_root(root);
  	return 0;
  
-- out_error_free_anon_vma:
-+out_error_free_anon_vma:
- 	put_anon_vma(anon_vma);
-- out_error:
--	unlink_anon_vmas(vma);
-+out_error_free_avc:
-+	anon_vma_chain_free(avc);
-+out_error:
+- enomem_failure:
+-	unlink_anon_vmas(dst);
++enomem_failure:
++	list_for_each_entry_safe(avc, pavc, &avc_list, same_vma) {
++		list_del(&avc->same_vma);
++		anon_vma_chain_free(avc);
++	}
  	return -ENOMEM;
  }
  
