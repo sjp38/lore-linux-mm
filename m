@@ -1,45 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 4A88B6B0070
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 03:16:22 -0400 (EDT)
-Date: Wed, 7 Aug 2013 16:16:24 +0900
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 73FA86B0071
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 03:17:23 -0400 (EDT)
+Date: Wed, 7 Aug 2013 16:17:26 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 1/4] mm, rmap: do easy-job first in anon_vma_fork
-Message-ID: <20130807071624.GA32449@lge.com>
+Subject: Re: [PATCH 2/4] mm, rmap: allocate anon_vma_chain before starting to
+ link anon_vma_chain
+Message-ID: <20130807071726.GB32449@lge.com>
 References: <1375778620-31593-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20130806125854.GG1845@cmpxchg.org>
+ <1375778620-31593-2-git-send-email-iamjoonsoo.kim@lge.com>
+ <20130807060803.GJ1845@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130806125854.GG1845@cmpxchg.org>
+In-Reply-To: <20130807060803.GJ1845@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>
 
-Hello, Johannes.
-
-On Tue, Aug 06, 2013 at 08:58:54AM -0400, Johannes Weiner wrote:
-> >  	if (anon_vma_clone(vma, pvma))
-> > -		return -ENOMEM;
-> > -
-> > -	/* Then add our own anon_vma. */
-> > -	anon_vma = anon_vma_alloc();
-> > -	if (!anon_vma)
-> > -		goto out_error;
-> > -	avc = anon_vma_chain_alloc(GFP_KERNEL);
-> > -	if (!avc)
-> >  		goto out_error_free_anon_vma;
+On Wed, Aug 07, 2013 at 02:08:03AM -0400, Johannes Weiner wrote:
+> >  
+> >  	list_for_each_entry_reverse(pavc, &src->anon_vma_chain, same_vma) {
+> >  		struct anon_vma *anon_vma;
+> >  
+> > -		avc = anon_vma_chain_alloc(GFP_NOWAIT | __GFP_NOWARN);
+> > -		if (unlikely(!avc)) {
+> > -			unlock_anon_vma_root(root);
+> > -			root = NULL;
+> > -			avc = anon_vma_chain_alloc(GFP_KERNEL);
+> > -			if (!avc)
+> > -				goto enomem_failure;
+> > -		}
+> > +		avc = list_entry((&avc_list)->next, typeof(*avc), same_vma);
 > 
-> Which heavy work?  anon_vma_clone() is anon_vma_chain_alloc() in a
-> loop.
+> list_first_entry() please
+
+Okay. I will send next version soon.
+
 > 
-> Optimizing error paths only makes sense if they are common and you
-> actually could save something by reordering.  This matches neither.
+> > +		list_del(&avc->same_vma);
+> >  		anon_vma = pavc->anon_vma;
+> >  		root = lock_anon_vma_root(root, anon_vma);
+> >  		anon_vma_chain_link(dst, avc, anon_vma);
+> > @@ -259,8 +262,11 @@ int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
+> >  	unlock_anon_vma_root(root);
+> >  	return 0;
+> >  
+> > - enomem_failure:
+> > -	unlink_anon_vmas(dst);
+> > +enomem_failure:
+> > +	list_for_each_entry_safe(avc, pavc, &avc_list, same_vma) {
+> > +		list_del(&avc->same_vma);
+> > +		anon_vma_chain_free(avc);
+> > +	}
+> >  	return -ENOMEM;
+> >  }
+> 
+> Otherwise, looks good.
 
-Yes, you are right. I drop this one.
-
-Thanks.
+Thank you!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
