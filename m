@@ -1,83 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 06A0F6B00DD
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 09:36:49 -0400 (EDT)
-Received: by mail-vb0-f54.google.com with SMTP id q14so1777149vbe.41
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2013 06:36:48 -0700 (PDT)
-Date: Wed, 7 Aug 2013 09:36:45 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCHSET cgroup/for-3.12] cgroup: make cgroup_event specific to
- memcg
-Message-ID: <20130807133645.GE27006@htj.dyndns.org>
-References: <1375632446-2581-1-git-send-email-tj@kernel.org>
- <20130805160107.GM10146@dhcp22.suse.cz>
- <20130805162958.GF19631@mtj.dyndns.org>
- <20130805191641.GA24003@dhcp22.suse.cz>
- <20130805194431.GD23751@mtj.dyndns.org>
- <20130806155804.GC31138@dhcp22.suse.cz>
- <20130806161509.GB10779@mtj.dyndns.org>
- <20130807121836.GF8184@dhcp22.suse.cz>
- <20130807124321.GA27006@htj.dyndns.org>
- <20130807132613.GH8184@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 433126B00E0
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 09:37:49 -0400 (EDT)
+Date: Wed, 7 Aug 2013 15:37:46 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 2/3] memcg: Limit the number of events registered on
+ oom_control
+Message-ID: <20130807133746.GI8184@dhcp22.suse.cz>
+References: <1375874907-22013-1-git-send-email-mhocko@suse.cz>
+ <1375874907-22013-2-git-send-email-mhocko@suse.cz>
+ <20130807130836.GB27006@htj.dyndns.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130807132613.GH8184@dhcp22.suse.cz>
+In-Reply-To: <20130807130836.GB27006@htj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: lizefan@huawei.com, hannes@cmpxchg.org, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Anton Vorontsov <anton.vorontsov@linaro.org>
 
-Hello, Michal.
+On Wed 07-08-13 09:08:36, Tejun Heo wrote:
+> Hello, Michal.
+> 
+> On Wed, Aug 07, 2013 at 01:28:26PM +0200, Michal Hocko wrote:
+> > There is no limit for the maximum number of oom_control events
+> > registered per memcg. This might lead to an user triggered memory
+> > depletion if a regular user is allowed to register events.
+> > 
+> > Let's be more strict and cap the number of events that might be
+> > registered. MAX_OOM_NOTIFY_EVENTS value is more or less random. The
+> > expectation is that it should be high enough to cover reasonable
+> > usecases while not too high to allow excessive resources consumption.
+> > 1024 events consume something like 24KB which shouldn't be a big deal
+> > and it should be good enough (even 1024 oom notification events sounds
+> > crazy).
+> 
+> I think putting restriction on usage_event makes sense as that builds
+> a shared contiguous table from all events which can't be attributed
+> correctly and makes it easy to trigger allocation failures due to
+> large order allocation but is this necessary for oom and vmpressure,
+> both of which allocate only for the listening task?
 
-On Wed, Aug 07, 2013 at 03:26:13PM +0200, Michal Hocko wrote:
-> I would rather see it not changed unless it really is a big win in the
-> cgroup core. So far I do not see anything like that (just look at
-> __cgroup_from_dentry which needs to be exported to allow for the move).
+Once I was there I made them consistent in that regards.
 
-The end goal is cleaning up cftype so that it becomes a thin wrapper
-around seq_file and I'd really like to keep the interface minimal so
-that it's difficult to misunderstand.
+> It isn't different from listening from epoll, for example.
 
-> You reduce the amount of code in cgroup.c, alright, but the code
-> doesn't go away really. It just moves out of your sight and moves the
-> same burden on somebody else without providing a new generic interface.
+epoll limits the number of watchers, no?
 
-If the implementation details are all that you're objecting, I'll be
-happy to restructure it.  I just didn't pay too much attention to it
-because I considered it to be mostly deprecated.  I don't think it'll
-be too much work and strongly think it'll be worth the effort.  Our
-code base is extremely nasty is and I'll try to get any ounce of
-cleanup I can get.
+> If there needs to be kernel memory limit, shouldn't that be handled by
+> kmemcg?
 
-> If somebody needs a notification interface (and there is no one available
-> right now) then you cannot prevent from such a pointless work anyway...
+kmemcg would surely help but turning it on just because of potential
+abuse of the event registration API sounds like an overkill.
 
-I'm gonna add one for freezer state transitions.  It'll be simple
-"this file changed" thing and will probably apply that to at least oom
-and vmpressure.  I'm relatively confident that it's gonna be pretty
-simple and that's gonna be the cgroup event mechanism.
-
-> cgroup_event_* don't sound memcg specific at all. They are playing with
-> cgroup dentry reference counting and do a generic functionality which
-> memcg doesn't need to know about.
-
-Sure, I'll try to clean it up so that it doesn't meddle with cgroup
-internals directly.
-
-> I wouldn't object to having non-cgroup internals playing variant. I just
-> do not think it makes sense to invest time to something that should go
-> away long term.
-
-I suppose it's priority thing.  To me, cleaning up cgroup core API is
-quite important and I'd be happy to sink time and effort into it and
-it's not like we can drop the event thing in a release cycle or two.
-We'd have to carry it for years, so I think the effort is justified.
-
-Thanks.
-
+I think having a cap for user trigable kernel resources is a good thing
+in general.
 -- 
-tejun
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
