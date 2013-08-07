@@ -1,63 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 433126B00E0
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 09:37:49 -0400 (EDT)
-Date: Wed, 7 Aug 2013 15:37:46 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 2/3] memcg: Limit the number of events registered on
- oom_control
-Message-ID: <20130807133746.GI8184@dhcp22.suse.cz>
-References: <1375874907-22013-1-git-send-email-mhocko@suse.cz>
- <1375874907-22013-2-git-send-email-mhocko@suse.cz>
- <20130807130836.GB27006@htj.dyndns.org>
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 8E62C6B00DF
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 09:41:00 -0400 (EDT)
+Date: Wed, 7 Aug 2013 15:40:58 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [RFC 0/3] Add madvise(..., MADV_WILLWRITE)
+Message-ID: <20130807134058.GC12843@quack.suse.cz>
+References: <cover.1375729665.git.luto@amacapital.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130807130836.GB27006@htj.dyndns.org>
+In-Reply-To: <cover.1375729665.git.luto@amacapital.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Anton Vorontsov <anton.vorontsov@linaro.org>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed 07-08-13 09:08:36, Tejun Heo wrote:
-> Hello, Michal.
+On Mon 05-08-13 12:43:58, Andy Lutomirski wrote:
+> My application fallocates and mmaps (shared, writable) a lot (several
+> GB) of data at startup.  Those mappings are mlocked, and they live on
+> ext4.  The first write to any given page is slow because
+> ext4_da_get_block_prep can block.  This means that, to get decent
+> performance, I need to write something to all of these pages at
+> startup.  This, in turn, causes a giant IO storm as several GB of
+> zeros get pointlessly written to disk.
 > 
-> On Wed, Aug 07, 2013 at 01:28:26PM +0200, Michal Hocko wrote:
-> > There is no limit for the maximum number of oom_control events
-> > registered per memcg. This might lead to an user triggered memory
-> > depletion if a regular user is allowed to register events.
-> > 
-> > Let's be more strict and cap the number of events that might be
-> > registered. MAX_OOM_NOTIFY_EVENTS value is more or less random. The
-> > expectation is that it should be high enough to cover reasonable
-> > usecases while not too high to allow excessive resources consumption.
-> > 1024 events consume something like 24KB which shouldn't be a big deal
-> > and it should be good enough (even 1024 oom notification events sounds
-> > crazy).
+> This series is an attempt to add madvise(..., MADV_WILLWRITE) to
+> signal to the kernel that I will eventually write to the referenced
+> pages.  It should cause any expensive operations that happen on the
+> first write to happen immediately, but it should not result in
+> dirtying the pages.
 > 
-> I think putting restriction on usage_event makes sense as that builds
-> a shared contiguous table from all events which can't be attributed
-> correctly and makes it easy to trigger allocation failures due to
-> large order allocation but is this necessary for oom and vmpressure,
-> both of which allocate only for the listening task?
+> madvice(addr, len, MADV_WILLWRITE) returns the number of bytes that
+> the operation succeeded on or a negative error code if there was an
+> actual failure.  A return value of zero signifies that the kernel
+> doesn't know how to "willwrite" the range and that userspace should
+> implement a fallback.
+> 
+> For now, it only works on shared writable ext4 mappings.  Eventually
+> it should support other filesystems as well as private pages (it
+> should COW the pages but not cause swap IO) and anonymous pages (it
+> should COW the zero page if applicable).
+> 
+> The implementation leaves much to be desired.  In particular, it
+> generates dirty buffer heads on a clean page, and this scares me.
+> 
+> Thoughts?
+  One question before I look at the patches: Why don't you use fallocate()
+in your application? The functionality you require seems to be pretty
+similar to it - writing to an already allocated block is usually quick.
 
-Once I was there I made them consistent in that regards.
 
-> It isn't different from listening from epoll, for example.
+								Honza
 
-epoll limits the number of watchers, no?
-
-> If there needs to be kernel memory limit, shouldn't that be handled by
-> kmemcg?
-
-kmemcg would surely help but turning it on just because of potential
-abuse of the event registration API sounds like an overkill.
-
-I think having a cap for user trigable kernel resources is a good thing
-in general.
+> Andy Lutomirski (3):
+>   mm: Add MADV_WILLWRITE to indicate that a range will be written to
+>   fs: Add block_willwrite
+>   ext4: Implement willwrite for the delalloc case
+> 
+>  fs/buffer.c                            | 57 ++++++++++++++++++++++++++++++++++
+>  fs/ext4/ext4.h                         |  2 ++
+>  fs/ext4/file.c                         |  1 +
+>  fs/ext4/inode.c                        | 22 +++++++++++++
+>  include/linux/buffer_head.h            |  3 ++
+>  include/linux/mm.h                     | 12 +++++++
+>  include/uapi/asm-generic/mman-common.h |  3 ++
+>  mm/madvise.c                           | 28 +++++++++++++++--
+>  8 files changed, 126 insertions(+), 2 deletions(-)
+> 
+> -- 
+> 1.8.3.1
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-ext4" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
