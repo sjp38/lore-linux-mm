@@ -1,58 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id F39C36B0033
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 20:02:39 -0400 (EDT)
-Received: by mail-gh0-f177.google.com with SMTP id f20so334664ghb.22
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2013 17:02:38 -0700 (PDT)
-Date: Tue, 6 Aug 2013 21:02:23 -0300
-From: Mauro Dreissig <mukadr@gmail.com>
-Subject: [PATCH] mm: numa: fix NULL pointer dereference
-Message-ID: <20130807000154.GA3507@z460>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id E14D76B0033
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 20:08:11 -0400 (EDT)
+Message-ID: <1375834084.2134.44.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH 0/2] hugepage: optimize page fault path locking
+From: Davidlohr Bueso <davidlohr@hp.com>
+Date: Tue, 06 Aug 2013 17:08:04 -0700
+In-Reply-To: <20130729061820.GA4784@lge.com>
+References: <1374848845-1429-1-git-send-email-davidlohr.bueso@hp.com>
+	 <20130729061820.GA4784@lge.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: mukadr@gmail.com
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Davidlohr Bueso <davidlohr.bueso@hp.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "AneeshKumarK.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, David Gibson <david@gibson.dropbear.id.au>, Eric B Munson <emunson@mgebm.net>, Anton Blanchard <anton@samba.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Mauro Dreissig <mukadr@gmail.com>
+On Mon, 2013-07-29 at 15:18 +0900, Joonsoo Kim wrote:
+> On Fri, Jul 26, 2013 at 07:27:23AM -0700, Davidlohr Bueso wrote:
+> > This patchset attempts to reduce the amount of contention we impose
+> > on the hugetlb_instantiation_mutex by replacing the global mutex with
+> > a table of mutexes, selected based on a hash. The original discussion can 
+> > be found here: http://lkml.org/lkml/2013/7/12/428
+> 
+> Hello, Davidlohr.
+> 
+> I recently sent a patchset which remove the hugetlb_instantiation_mutex
+> entirely ('mm, hugetlb: remove a hugetlb_instantiation_mutex').
+> This patchset can be found here: https://lkml.org/lkml/2013/7/29/54
+> 
+> If possible, could you review it and test it whether your problem is
+> disappered with it or not?
 
-The "pol->mode" field is accessed even when no mempolicy
-is assigned to the "pol" variable.
+This patchset applies on top of https://lkml.org/lkml/2013/7/22/96
+"[PATCH v2 00/10] mm, hugetlb: clean-up and possible bug fix", right?
 
-Signed-off-by: Mauro Dreissig <mukadr@gmail.com>
----
- mm/mempolicy.c | 12 ++++++++----
- 1 file changed, 8 insertions(+), 4 deletions(-)
+AFAIK those changes are the ones Andrew picked up a few weeks ago and
+are now in linux-next, right? I was able to apply those just fine, but
+couldn't apply your 'remove a hugetlb_instantiation_mutex series' (IIRC
+pach 1/18 failed). I guess you'll send out a v2 anyway so I'll wait
+until then.
 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 6b1d426..105fff0 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -127,12 +127,16 @@ static struct mempolicy *get_task_policy(struct task_struct *p)
- 
- 	if (!pol) {
- 		node = numa_node_id();
--		if (node != NUMA_NO_NODE)
-+		if (node != NUMA_NO_NODE) {
- 			pol = &preferred_node_policy[node];
- 
--		/* preferred_node_policy is not initialised early in boot */
--		if (!pol->mode)
--			pol = NULL;
-+			/*
-+			 * preferred_node_policy is not initialised early
-+			 * in boot
-+			 */
-+			if (!pol->mode)
-+				pol = NULL;
-+		}
- 	}
- 
- 	return pol;
--- 
-1.8.1.2
+In any case I'm not seeing an actual performance issue with the
+hugetlb_instantiation_mutex, all I noticed was that under large DB
+workloads that make use of hugepages, such as Oracle, this lock becomes
+quite hot during the first few minutes of startup, which makes sense in
+the fault path it is contended. So I'll try out your patches, but, in
+this particular case, I just cannot compare with the lock vs without the
+lock situations.
+
+Thanks,
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
