@@ -1,45 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 2DFF06B00E3
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 11:13:08 -0400 (EDT)
-Date: Wed, 7 Aug 2013 16:13:03 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 1/9] mm: zone_reclaim: remove ZONE_RECLAIM_LOCKED
-Message-ID: <20130807151303.GR2296@suse.de>
-References: <1375459596-30061-1-git-send-email-aarcange@redhat.com>
- <1375459596-30061-2-git-send-email-aarcange@redhat.com>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 506F56B0032
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 11:30:43 -0400 (EDT)
+Date: Wed, 7 Aug 2013 11:30:30 -0400
+From: Dave Jones <davej@redhat.com>
+Subject: Re: unused swap offset / bad page map.
+Message-ID: <20130807153030.GA25515@redhat.com>
+References: <20130807055157.GA32278@redhat.com>
+ <CAJd=RBCJv7=Qj6dPW2Ha=nq6JctnK3r7wYCAZTm=REVOZUNowg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1375459596-30061-2-git-send-email-aarcange@redhat.com>
+In-Reply-To: <CAJd=RBCJv7=Qj6dPW2Ha=nq6JctnK3r7wYCAZTm=REVOZUNowg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hush Bensen <hush.bensen@gmail.com>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: linux-mm@kvack.org, Linux Kernel <linux-kernel@vger.kernel.org>
 
-On Fri, Aug 02, 2013 at 06:06:28PM +0200, Andrea Arcangeli wrote:
-> Zone reclaim locked breaks zone_reclaim_mode=1. If more than one
-> thread allocates memory at the same time, it forces a premature
-> allocation into remote NUMA nodes even when there's plenty of clean
-> cache to reclaim in the local nodes.
-> 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> Reviewed-by: Rik van Riel <riel@redhat.com>
-> Acked-by: Rafael Aquini <aquini@redhat.com>
-> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+On Wed, Aug 07, 2013 at 06:04:20PM +0800, Hillf Danton wrote:
+ > > There were a slew of these. same trace, different addr/anon_vma/index.
+ > > mapping always null.
+ > >
+ > Would you please run again with the debug info added?
+ > ---
+ > --- a/mm/swapfile.c	Wed Aug  7 17:27:22 2013
+ > +++ b/mm/swapfile.c	Wed Aug  7 17:57:20 2013
+ > @@ -509,6 +509,7 @@ static struct swap_info_struct *swap_inf
+ >  {
+ >  	struct swap_info_struct *p;
+ >  	unsigned long offset, type;
+ > +	int race = 0;
+ > 
+ >  	if (!entry.val)
+ >  		goto out;
+ > @@ -524,10 +525,17 @@ static struct swap_info_struct *swap_inf
+ >  	if (!p->swap_map[offset])
+ >  		goto bad_free;
+ >  	spin_lock(&p->lock);
+ > +	if (!p->swap_map[offset]) {
+ > +		race = 1;
+ > +		spin_unlock(&p->lock);
+ > +		goto bad_free;
+ > +	}
+ >  	return p;
+ > 
+ >  bad_free:
+ >  	printk(KERN_ERR "swap_free: %s%08lx\n", Unused_offset, entry.val);
+ > +	if (race)
+ > +		printk(KERN_ERR "but due to race\n");
+ >  	goto out;
+ >  bad_offset:
+ >  	printk(KERN_ERR "swap_free: %s%08lx\n", Bad_offset, entry.val);
+ > --
 
-I would have preferred if the changelog included the history of why this
-exists at all (prevents excessive reclaim from parallel allocation requests)
-and why it should not currently be a problem (SWAP_CLUSTER_MAX should
-be strictly obeyed limiting the excessive reclaim to SWAP_CLUSTER_MAX *
-nr_parallel_requests). Hopefully we'll remember to connect any bugs about
-excessive reclaim + zone_reclaim to this patch :)
+printk didn't trigger.
+This time around the oom killer was going off the same time.
+I'm wondering if we have some allocations somewhere in the swap code that
+don't handle failure correctly.
 
-Acked-by: Mel Gorman <mgorman@suse.de>
-
--- 
-Mel Gorman
-SUSE Labs
+	Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
