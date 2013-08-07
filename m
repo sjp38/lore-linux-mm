@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 631CC6B00C0
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id D8C856B00C1
 	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 07:13:41 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v3 14/25] x86, acpi: Initialize acpi golbal root table list earlier.
-Date: Wed, 7 Aug 2013 18:52:05 +0800
-Message-Id: <1375872736-4822-15-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v3 03/25] acpi: Remove "continue" in macro INVALID_TABLE().
+Date: Wed, 7 Aug 2013 18:51:54 +0800
+Message-Id: <1375872736-4822-4-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1375872736-4822-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1375872736-4822-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,120 +13,112 @@ List-ID: <linux-mm.kvack.org>
 To: robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-As the previous patches split the acpi_gbl_root_table_list initialization
-procedure into two steps: install and override, this patch does the "install"
-steps earlier, right after memblock is ready.
+The macro INVALID_TABLE() is defined like this:
 
-In this way, we are able to find SRAT in firmware earlier. And then, we can
-prevent memblock from allocating hotpluggable memory for the kernel.
+ #define INVALID_TABLE(x, path, name)                                    \
+         { pr_err("ACPI OVERRIDE: " x " [%s%s]\n", path, name); continue; }
+
+And it is used like this:
+
+	for (...) {
+		...
+		if (...)
+			INVALID_TABLE()
+		...
+	}
+
+The "continue" in the macro makes the code hard to understand.
+Change it to the style like other macros:
+
+ #define INVALID_TABLE(x, path, name)                                    \
+         do { pr_err("ACPI OVERRIDE: " x " [%s%s]\n", path, name); } while (0)
+
+And also, INVALID_TABLE() is used to checkout acpi tables, so rename it to
+ACPI_INVALID_TABLE(). This is suggested by Toshi Kani <toshi.kani@hp.com>.
+
+So after this patch, this macro should be used like this:
+
+	for (...) {
+		...
+		if (...) {
+			ACPI_INVALID_TABLE()
+			continue;
+		}
+		...
+	}
+
+Add the "continue" wherever the macro is called.
+(For now, it is only called in acpi_initrd_override().)
+
+The idea is from Yinghai Lu <yinghai@kernel.org>.
 
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+Signed-off-by: Yinghai Lu <yinghai@kernel.org>
+Acked-by: Tejun Heo <tj@kernel.org>
+Acked-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+Acked-by: Toshi Kani <toshi.kani@hp.com>
 Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 ---
- arch/x86/kernel/acpi/boot.c |   30 +++++++++++++++++-------------
- arch/x86/kernel/setup.c     |    8 +++++++-
- include/linux/acpi.h        |    1 +
- 3 files changed, 25 insertions(+), 14 deletions(-)
+ drivers/acpi/osl.c |   28 ++++++++++++++++++----------
+ 1 files changed, 18 insertions(+), 10 deletions(-)
 
-diff --git a/arch/x86/kernel/acpi/boot.c b/arch/x86/kernel/acpi/boot.c
-index ddb0bc1..30daefd 100644
---- a/arch/x86/kernel/acpi/boot.c
-+++ b/arch/x86/kernel/acpi/boot.c
-@@ -1497,6 +1497,23 @@ static struct dmi_system_id __initdata acpi_dmi_table_late[] = {
- 	{}
- };
+diff --git a/drivers/acpi/osl.c b/drivers/acpi/osl.c
+index 6ab2c35..3b8bab2 100644
+--- a/drivers/acpi/osl.c
++++ b/drivers/acpi/osl.c
+@@ -564,8 +564,8 @@ static const char * const table_sigs[] = {
+ 	ACPI_SIG_RSDT, ACPI_SIG_XSDT, ACPI_SIG_SSDT, NULL };
  
-+void __init early_acpi_boot_table_init(void)
-+{
-+	dmi_check_system(acpi_dmi_table);
-+
-+	/*
-+	 * If acpi_disabled, bail out
-+	 */
-+	if (acpi_disabled)
-+		return; 
-+
-+	/*
-+	 * Initialize the ACPI boot-time table parser.
-+	 */
-+	if (acpi_table_init_firmware())
-+		disable_acpi();
-+}
-+
- /*
-  * acpi_boot_table_init() and acpi_boot_init()
-  *  called from setup_arch(), always.
-@@ -1504,9 +1521,6 @@ static struct dmi_system_id __initdata acpi_dmi_table_late[] = {
-  *	2. enumerates lapics
-  *	3. enumerates io-apics
-  *
-- * acpi_table_init() is separate to allow reading SRAT without
-- * other side effects.
-- *
-  * side effects of acpi_boot_init:
-  *	acpi_lapic = 1 if LAPIC found
-  *	acpi_ioapic = 1 if IOAPIC found
-@@ -1518,22 +1532,12 @@ static struct dmi_system_id __initdata acpi_dmi_table_late[] = {
+ /* Non-fatal errors: Affected tables/files are ignored */
+-#define INVALID_TABLE(x, path, name)					\
+-	{ pr_err("ACPI OVERRIDE: " x " [%s%s]\n", path, name); continue; }
++#define ACPI_INVALID_TABLE(x, path, name)					\
++	do { pr_err("ACPI OVERRIDE: " x " [%s%s]\n", path, name); } while (0)
  
- void __init acpi_boot_table_init(void)
- {
--	dmi_check_system(acpi_dmi_table);
--
- 	/*
- 	 * If acpi_disabled, bail out
- 	 */
- 	if (acpi_disabled)
- 		return; 
+ #define ACPI_HEADER_SIZE sizeof(struct acpi_table_header)
  
--	/*
--	 * Initialize the ACPI boot-time table parser.
--	 */
--	if (acpi_table_init_firmware()) {
--		disable_acpi();
--		return;
--	}
--
- 	acpi_table_init_override();
+@@ -593,9 +593,11 @@ void __init acpi_initrd_override(void *data, size_t size)
+ 		data += offset;
+ 		size -= offset;
  
- 	acpi_check_multiple_madt();
-diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-index f8ec578..fdb5a26 100644
---- a/arch/x86/kernel/setup.c
-+++ b/arch/x86/kernel/setup.c
-@@ -1074,6 +1074,12 @@ void __init setup_arch(char **cmdline_p)
- 	memblock_x86_fill();
+-		if (file.size < sizeof(struct acpi_table_header))
+-			INVALID_TABLE("Table smaller than ACPI header",
++		if (file.size < sizeof(struct acpi_table_header)) {
++			ACPI_INVALID_TABLE("Table smaller than ACPI header",
+ 				      cpio_path, file.name);
++			continue;
++		}
  
- 	/*
-+	 * Parse the ACPI tables from firmware for possible boot-time SMP
-+	 * configuration.
-+	 */
-+	early_acpi_boot_table_init();
-+
-+	/*
- 	 * The EFI specification says that boot service code won't be called
- 	 * after ExitBootServices(). This is, in fact, a lie.
- 	 */
-@@ -1130,7 +1136,7 @@ void __init setup_arch(char **cmdline_p)
- 	io_delay_init();
+ 		table = file.data;
  
- 	/*
--	 * Parse the ACPI tables for possible boot-time SMP configuration.
-+	 * Finish parsing the ACPI tables.
- 	 */
- 	acpi_boot_table_init();
+@@ -603,15 +605,21 @@ void __init acpi_initrd_override(void *data, size_t size)
+ 			if (!memcmp(table->signature, table_sigs[sig], 4))
+ 				break;
  
-diff --git a/include/linux/acpi.h b/include/linux/acpi.h
-index 44a3e5f..c5e7b2a 100644
---- a/include/linux/acpi.h
-+++ b/include/linux/acpi.h
-@@ -91,6 +91,7 @@ char * __acpi_map_table (unsigned long phys_addr, unsigned long size);
- void __acpi_unmap_table(char *map, unsigned long size);
- int early_acpi_boot_init(void);
- int acpi_boot_init (void);
-+void early_acpi_boot_table_init (void);
- void acpi_boot_table_init (void);
- int acpi_mps_check (void);
- int acpi_numa_init (void);
+-		if (!table_sigs[sig])
+-			INVALID_TABLE("Unknown signature",
++		if (!table_sigs[sig]) {
++			ACPI_INVALID_TABLE("Unknown signature",
+ 				      cpio_path, file.name);
+-		if (file.size != table->length)
+-			INVALID_TABLE("File length does not match table length",
++			continue;
++		}
++		if (file.size != table->length) {
++			ACPI_INVALID_TABLE("File length does not match table length",
+ 				      cpio_path, file.name);
+-		if (acpi_table_checksum(file.data, table->length))
+-			INVALID_TABLE("Bad table checksum",
++			continue;
++		}
++		if (acpi_table_checksum(file.data, table->length)) {
++			ACPI_INVALID_TABLE("Bad table checksum",
+ 				      cpio_path, file.name);
++			continue;
++		}
+ 
+ 		pr_info("%4.4s ACPI table found in initrd [%s%s][0x%x]\n",
+ 			table->signature, cpio_path, file.name, table->length);
 -- 
 1.7.1
 
