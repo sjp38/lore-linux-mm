@@ -1,135 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id A24076B003D
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 22:10:25 -0400 (EDT)
-Received: by mail-qe0-f43.google.com with SMTP id k5so689972qej.30
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2013 19:10:24 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 1EA036B004D
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 01:52:07 -0400 (EDT)
+Date: Wed, 7 Aug 2013 01:51:57 -0400
+From: Dave Jones <davej@redhat.com>
+Subject: unused swap offset / bad page map.
+Message-ID: <20130807055157.GA32278@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20130807000154.GA3507@z460>
-References: <20130807000154.GA3507@z460>
-Date: Tue, 6 Aug 2013 23:10:24 -0300
-Message-ID: <CABk0prQj7DjQ0+oX59KL1vGqLw3NM9tQ9XfUFgoB0fS5ZesZ3Q@mail.gmail.com>
-Subject: Re: [PATCH] mm: numa: fix NULL pointer dereference
-From: Mauro Dreissig <mukadr@gmail.com>
-Content-Type: multipart/alternative; boundary=047d7b6da3d26082a804e3520b33
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Mauro D <mukadr@gmail.com>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>
 
---047d7b6da3d26082a804e3520b33
-Content-Type: text/plain; charset=ISO-8859-1
+Seen while fuzzing with lots of child processes.
 
-2013/8/6 Mauro Dreissig <mukadr@gmail.com>
+swap_free: Unused swap offset entry 001263f5
+BUG: Bad page map in process trinity-child29  pte:24c7ea00 pmd:09fec067
+addr:00007f9db958d000 vm_flags:00100073 anon_vma:ffff88022c004ba0 mapping:          (null) index:f99
+Modules linked in: fuse ipt_ULOG snd_seq_dummy tun sctp scsi_transport_iscsi can_raw can_bcm rfcomm bnep nfnetlink hidp appletalk bluetooth rose can af_802154 phonet x25 af_rxrpc llc2 nfc rfkill af_key pppoe rds pppox ppp_generic slhc caif_socket caif irda crc_ccitt atm netrom ax25 ipx p8023 psnap p8022 llc snd_hda_codec_realtek pcspkr usb_debug snd_seq snd_seq_device snd_hda_intel snd_hda_codec snd_hwdep e1000e snd_pcm ptp pps_core snd_page_alloc snd_timer snd soundcore xfs libcrc32c
+CPU: 1 PID: 2624 Comm: trinity-child29 Not tainted 3.11.0-rc4+ #1
+ 0000000000000000 ffff8801fd7ddc90 ffffffff81700f2c 00007f9db958d000
+ ffff8801fd7ddcd8 ffffffff8117cba7 0000000024c7ea00 0000000000000f99
+ 00007f9db9600000 ffff880009fecc68 0000000024c7ea00 ffff8801fd7dde00
+Call Trace:
+ [<ffffffff81700f2c>] dump_stack+0x4e/0x82
+ [<ffffffff8117cba7>] print_bad_pte+0x187/0x220
+ [<ffffffff8117e415>] unmap_single_vma+0x535/0x890
+ [<ffffffff8117f719>] unmap_vmas+0x49/0x90
+ [<ffffffff81187ef1>] exit_mmap+0xc1/0x170
+ [<ffffffff810510ef>] mmput+0x6f/0x100
+ [<ffffffff81055818>] do_exit+0x288/0xcd0
+ [<ffffffff810c1da5>] ? trace_hardirqs_on_caller+0x115/0x1e0
+ [<ffffffff810c1e7d>] ? trace_hardirqs_on+0xd/0x10
+ [<ffffffff810575dc>] do_group_exit+0x4c/0xc0
+ [<ffffffff81057664>] SyS_exit_group+0x14/0x20
+ [<ffffffff81713dd4>] tracesys+0xdd/0xe2
 
-> From: Mauro Dreissig <mukadr@gmail.com>
->
-> The "pol->mode" field is accessed even when no mempolicy
-> is assigned to the "pol" variable.
->
-> Signed-off-by: Mauro Dreissig <mukadr@gmail.com>
-> ---
->  mm/mempolicy.c | 12 ++++++++----
->  1 file changed, 8 insertions(+), 4 deletions(-)
->
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index 6b1d426..105fff0 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -127,12 +127,16 @@ static struct mempolicy *get_task_policy(struct
-> task_struct *p)
->
->         if (!pol) {
->                 node = numa_node_id();
-> -               if (node != NUMA_NO_NODE)
-> +               if (node != NUMA_NO_NODE) {
->                         pol = &preferred_node_policy[node];
->
-> -               /* preferred_node_policy is not initialised early in boot
-> */
-> -               if (!pol->mode)
-> -                       pol = NULL;
-> +                       /*
-> +                        * preferred_node_policy is not initialised early
-> +                        * in boot
-> +                        */
-> +                       if (!pol->mode)
-> +                               pol = NULL;
-> +               }
->         }
->
->         return pol;
-> --
-> 1.8.1.2
->
->
-A patch about this issue already exist, please ignore my message.
+There were a slew of these. same trace, different addr/anon_vma/index.
+mapping always null.
 
-http://marc.info/?l=linux-mm&m=137576205227365&w=2
-
---047d7b6da3d26082a804e3520b33
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr"><div>2013/8/6 Mauro Dreissig <span dir=3D"ltr">&lt;<a href=
-=3D"mailto:mukadr@gmail.com" target=3D"_blank">mukadr@gmail.com</a>&gt;</sp=
-an><br></div><div class=3D"gmail_extra"><div class=3D"gmail_quote"><blockqu=
-ote class=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8ex;border-left-wid=
-th:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-l=
-eft:1ex">
-From: Mauro Dreissig &lt;<a href=3D"mailto:mukadr@gmail.com">mukadr@gmail.c=
-om</a>&gt;<br>
-<br>
-The &quot;pol-&gt;mode&quot; field is accessed even when no mempolicy<br>
-is assigned to the &quot;pol&quot; variable.<br>
-<br>
-Signed-off-by: Mauro Dreissig &lt;<a href=3D"mailto:mukadr@gmail.com">mukad=
-r@gmail.com</a>&gt;<br>
----<br>
-=A0mm/mempolicy.c | 12 ++++++++----<br>
-=A01 file changed, 8 insertions(+), 4 deletions(-)<br>
-<br>
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c<br>
-index 6b1d426..105fff0 100644<br>
---- a/mm/mempolicy.c<br>
-+++ b/mm/mempolicy.c<br>
-@@ -127,12 +127,16 @@ static struct mempolicy *get_task_policy(struct task_=
-struct *p)<br>
-<br>
-=A0 =A0 =A0 =A0 if (!pol) {<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 node =3D numa_node_id();<br>
-- =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (node !=3D NUMA_NO_NODE)<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (node !=3D NUMA_NO_NODE) {<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 pol =3D &amp;preferred_node=
-_policy[node];<br>
-<br>
-- =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* preferred_node_policy is not initialised e=
-arly in boot */<br>
-- =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!pol-&gt;mode)<br>
-- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 pol =3D NULL;<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* preferred_node_policy is=
- not initialised early<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* in boot<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!pol-&gt;mode)<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 pol =3D NULL;=
-<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 }<br>
-=A0 =A0 =A0 =A0 }<br>
-<br>
-=A0 =A0 =A0 =A0 return pol;<br>
-<span class=3D""><font color=3D"#888888">--<br>
-1.8.1.2<br>
-<br>
-</font></span></blockquote></div><div><br></div><div>A patch about this iss=
-ue already exist, please ignore my message.<br></div><div><div><br></div><d=
-iv><a href=3D"http://marc.info/?l=3Dlinux-mm&amp;m=3D137576205227365&amp;w=
-=3D2">http://marc.info/?l=3Dlinux-mm&amp;m=3D137576205227365&amp;w=3D2</a><=
-/div>
-</div><div><br></div></div></div>
-
---047d7b6da3d26082a804e3520b33--
+	Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
