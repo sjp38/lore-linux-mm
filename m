@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 13C406B0099
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 06:53:44 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 7907E6B009D
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 06:53:46 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v3 09/25] acpi, acpica: Split acpi_initialize_tables() into two parts.
-Date: Wed, 7 Aug 2013 18:52:00 +0800
-Message-Id: <1375872736-4822-10-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v3 10/25] x86, acpi: Call two new functions instead of acpi_initialize_tables() in acpi_table_init().
+Date: Wed, 7 Aug 2013 18:52:01 +0800
+Message-Id: <1375872736-4822-11-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1375872736-4822-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1375872736-4822-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,117 +13,57 @@ List-ID: <linux-mm.kvack.org>
 To: robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-This patch splits acpi_initialize_tables() into two steps, and
-introduces two new functions:
-    acpi_initialize_tables_firmware() and acpi_tb_root_table_override(),
+The previous patch introduces two new functions:
+    acpi_initialize_tables_firmware() and acpi_initialize_tables_override(),
 which work just the same as acpi_initialize_tables() if they are called
 in sequence.
+
+In order to split acpi_table_init() on acpi side, call these two functions
+in acpi_table_init().
+
+Since acpi_table_init() is also used in ia64, we keep it works as before.
 
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 ---
- drivers/acpi/acpica/tbxface.c |   64 ++++++++++++++++++++++++++++++++++++----
- 1 files changed, 57 insertions(+), 7 deletions(-)
+ drivers/acpi/tables.c |    5 ++++-
+ include/acpi/acpixf.h |    4 ++++
+ 2 files changed, 8 insertions(+), 1 deletions(-)
 
-diff --git a/drivers/acpi/acpica/tbxface.c b/drivers/acpi/acpica/tbxface.c
-index 98e4cad..ecaa5e1 100644
---- a/drivers/acpi/acpica/tbxface.c
-+++ b/drivers/acpi/acpica/tbxface.c
-@@ -72,8 +72,7 @@ acpi_status acpi_allocate_root_table(u32 initial_table_count)
- }
- 
- /*******************************************************************************
-- *
-- * FUNCTION:    acpi_initialize_tables
-+ * FUNCTION:    acpi_initialize_tables_firmware
-  *
-  * PARAMETERS:  initial_table_array - Pointer to an array of pre-allocated
-  *                                    struct acpi_table_desc structures. If NULL, the
-@@ -86,8 +85,6 @@ acpi_status acpi_allocate_root_table(u32 initial_table_count)
-  *
-  * RETURN:      Status
-  *
-- * DESCRIPTION: Initialize the table manager, get the RSDP and RSDT/XSDT.
-- *
-  * NOTE:        Allows static allocation of the initial table array in order
-  *              to avoid the use of dynamic memory in confined environments
-  *              such as the kernel boot sequence where it may not be available.
-@@ -98,8 +95,8 @@ acpi_status acpi_allocate_root_table(u32 initial_table_count)
-  ******************************************************************************/
- 
- acpi_status __init
--acpi_initialize_tables(struct acpi_table_desc * initial_table_array,
--		       u32 initial_table_count, u8 allow_resize)
-+acpi_initialize_tables_firmware(struct acpi_table_desc * initial_table_array,
-+				u32 initial_table_count, u8 allow_resize)
+diff --git a/drivers/acpi/tables.c b/drivers/acpi/tables.c
+index d67a1fe..c8f2d01 100644
+--- a/drivers/acpi/tables.c
++++ b/drivers/acpi/tables.c
+@@ -349,10 +349,13 @@ int __init acpi_table_init(void)
  {
- 	acpi_physical_address rsdp_address;
  	acpi_status status;
-@@ -144,10 +141,63 @@ acpi_initialize_tables(struct acpi_table_desc * initial_table_array,
- 	 * in a common, more useable format.
- 	 */
- 	status = acpi_tb_root_table_install(rsdp_address);
-+
-+	return_ACPI_STATUS(status);
-+}
-+
-+/*******************************************************************************
-+ *
-+ * FUNCTION:    acpi_initialize_tables
-+ *
-+ * PARAMETERS:  None
-+ *
-+ * RETURN:      None
-+ *
-+ * DESCRIPTION: Allow host OS to replace any table installed in global root
-+ *              table list.
-+ *
-+ ******************************************************************************/
-+
-+void acpi_initialize_tables_override(void)
-+{
-+	acpi_tb_root_table_override();
-+}
-+
-+/*******************************************************************************
-+ *
-+ * FUNCTION:    acpi_initialize_tables
-+ *
-+ * PARAMETERS:  initial_table_array - Pointer to an array of pre-allocated
-+ *                                    struct acpi_table_desc structures. If NULL, the
-+ *                                    array is dynamically allocated.
-+ *              initial_table_count - Size of initial_table_array, in number of
-+ *                                    struct acpi_table_desc structures
-+ *              allow_resize        - Flag to tell Table Manager if resize of
-+ *                                    pre-allocated array is allowed. Ignored
-+ *                                    if initial_table_array is NULL.
-+ *
-+ * RETURN:      Status
-+ *
-+ * DESCRIPTION: Initialize the table manager, get the RSDP and RSDT/XSDT.
-+ *
-+ ******************************************************************************/
-+
-+acpi_status __init
-+acpi_initialize_tables(struct acpi_table_desc * initial_table_array,
-+		       u32 initial_table_count, u8 allow_resize)
-+{
-+	acpi_status status;
-+
-+	status = acpi_initialize_tables_firmware(initial_table_array,
-+					initial_table_count, allow_resize);
+ 
+-	status = acpi_initialize_tables(initial_tables, ACPI_MAX_TABLES, 0);
++	status = acpi_initialize_tables_firmware(initial_tables,
++						 ACPI_MAX_TABLES, 0);
  	if (ACPI_FAILURE(status))
- 		return_ACPI_STATUS(status);
+ 		return 1;
  
--	acpi_tb_root_table_override();
-+	/*
-+	 * Allow host OS to replace any table installed in global root
-+	 * table list.
-+	 */
 +	acpi_initialize_tables_override();
- 
- 	return_ACPI_STATUS(AE_OK);
++
+ 	check_multiple_madt();
+ 	return 0;
  }
+diff --git a/include/acpi/acpixf.h b/include/acpi/acpixf.h
+index 22d497e..99c9d7b 100644
+--- a/include/acpi/acpixf.h
++++ b/include/acpi/acpixf.h
+@@ -115,6 +115,10 @@ extern u32 acpi_rsdt_forced;
+  * Initialization
+  */
+ acpi_status
++acpi_initialize_tables_firmware(struct acpi_table_desc *initial_storage,
++				u32 initial_table_count, u8 allow_resize);
++void acpi_initialize_tables_override(void);
++acpi_status
+ acpi_initialize_tables(struct acpi_table_desc *initial_storage,
+ 		       u32 initial_table_count, u8 allow_resize);
+ 
 -- 
 1.7.1
 
