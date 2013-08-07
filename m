@@ -1,70 +1,190 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 675896B0032
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 17:27:57 -0400 (EDT)
-Date: Wed, 7 Aug 2013 14:27:55 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] aoe: adjust ref of head for compound page tails
-Message-Id: <20130807142755.5cd89e02e4286f7dca88b80d@linux-foundation.org>
-In-Reply-To: <20130807141835.533816143f8b37175c50d58d@linux-foundation.org>
-References: <cover.1375320764.git.ecashin@coraid.com>
-	<0c8aff39249c1da6b9cc3356650149d065c3ebd2.1375320764.git.ecashin@coraid.com>
-	<20130807135804.e62b75f6986e9568ab787562@linux-foundation.org>
-	<8DFEA276-4EE1-44B4-9669-5634631D7BBC@coraid.com>
-	<20130807141835.533816143f8b37175c50d58d@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 2B6AE6B0032
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 17:34:27 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <20130807203650.GI26516@quack.suse.cz>
+References: <1375582645-29274-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1375582645-29274-2-git-send-email-kirill.shutemov@linux.intel.com>
+ <20130805111739.GA25691@quack.suse.cz>
+ <20130807163236.0F17DE0090@blue.fi.intel.com>
+ <20130807200032.GE26516@quack.suse.cz>
+ <20130807202403.7BCEEE0090@blue.fi.intel.com>
+ <20130807203650.GI26516@quack.suse.cz>
+Subject: Re: [PATCH 01/23] radix-tree: implement preload for multiple
+ contiguous elements
 Content-Transfer-Encoding: 7bit
+Message-Id: <20130807213736.AC732E0090@blue.fi.intel.com>
+Date: Thu,  8 Aug 2013 00:37:36 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ed Cashin <ecashin@coraid.com>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org
+To: Jan Kara <jack@suse.cz>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Ning Qu <quning@google.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, 7 Aug 2013 14:18:35 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
+Jan Kara wrote:
+> On Wed 07-08-13 23:24:03, Kirill A. Shutemov wrote:
+> > Jan Kara wrote:
+> > > On Wed 07-08-13 19:32:36, Kirill A. Shutemov wrote:
+> > > > Jan Kara wrote:
+> > > > > On Sun 04-08-13 05:17:03, Kirill A. Shutemov wrote:
+> > > > > > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> > > > > > 
+> > > > > > The radix tree is variable-height, so an insert operation not only has
+> > > > > > to build the branch to its corresponding item, it also has to build the
+> > > > > > branch to existing items if the size has to be increased (by
+> > > > > > radix_tree_extend).
+> > > > > > 
+> > > > > > The worst case is a zero height tree with just a single item at index 0,
+> > > > > > and then inserting an item at index ULONG_MAX. This requires 2 new branches
+> > > > > > of RADIX_TREE_MAX_PATH size to be created, with only the root node shared.
+> > > > > > 
+> > > > > > Radix tree is usually protected by spin lock. It means we want to
+> > > > > > pre-allocate required memory before taking the lock.
+> > > > > > 
+> > > > > > Currently radix_tree_preload() only guarantees enough nodes to insert
+> > > > > > one element. It's a hard limit. For transparent huge page cache we want
+> > > > > > to insert HPAGE_PMD_NR (512 on x86-64) entries to address_space at once.
+> > > > > > 
+> > > > > > This patch introduces radix_tree_preload_count(). It allows to
+> > > > > > preallocate nodes enough to insert a number of *contiguous* elements.
+> > > > > > The feature costs about 5KiB per-CPU, details below.
+> > > > > > 
+> > > > > > Worst case for adding N contiguous items is adding entries at indexes
+> > > > > > (ULONG_MAX - N) to ULONG_MAX. It requires nodes to insert single worst-case
+> > > > > > item plus extra nodes if you cross the boundary from one node to the next.
+> > > > > > 
+> > > > > > Preload uses per-CPU array to store nodes. The total cost of preload is
+> > > > > > "array size" * sizeof(void*) * NR_CPUS. We want to increase array size
+> > > > > > to be able to handle 512 entries at once.
+> > > > > > 
+> > > > > > Size of array depends on system bitness and on RADIX_TREE_MAP_SHIFT.
+> > > > > > 
+> > > > > > We have three possible RADIX_TREE_MAP_SHIFT:
+> > > > > > 
+> > > > > >  #ifdef __KERNEL__
+> > > > > >  #define RADIX_TREE_MAP_SHIFT	(CONFIG_BASE_SMALL ? 4 : 6)
+> > > > > >  #else
+> > > > > >  #define RADIX_TREE_MAP_SHIFT	3	/* For more stressful testing */
+> > > > > >  #endif
+> > > > > > 
+> > > > > > On 64-bit system:
+> > > > > > For RADIX_TREE_MAP_SHIFT=3, old array size is 43, new is 107.
+> > > > > > For RADIX_TREE_MAP_SHIFT=4, old array size is 31, new is 63.
+> > > > > > For RADIX_TREE_MAP_SHIFT=6, old array size is 21, new is 30.
+> > > > > > 
+> > > > > > On 32-bit system:
+> > > > > > For RADIX_TREE_MAP_SHIFT=3, old array size is 21, new is 84.
+> > > > > > For RADIX_TREE_MAP_SHIFT=4, old array size is 15, new is 46.
+> > > > > > For RADIX_TREE_MAP_SHIFT=6, old array size is 11, new is 19.
+> > > > > > 
+> > > > > > On most machines we will have RADIX_TREE_MAP_SHIFT=6. In this case,
+> > > > > > on 64-bit system the per-CPU feature overhead is
+> > > > > >  for preload array:
+> > > > > >    (30 - 21) * sizeof(void*) = 72 bytes
+> > > > > >  plus, if the preload array is full
+> > > > > >    (30 - 21) * sizeof(struct radix_tree_node) = 9 * 560 = 5040 bytes
+> > > > > >  total: 5112 bytes
+> > > > > > 
+> > > > > > on 32-bit system the per-CPU feature overhead is
+> > > > > >  for preload array:
+> > > > > >    (19 - 11) * sizeof(void*) = 32 bytes
+> > > > > >  plus, if the preload array is full
+> > > > > >    (19 - 11) * sizeof(struct radix_tree_node) = 8 * 296 = 2368 bytes
+> > > > > >  total: 2400 bytes
+> > > > > > 
+> > > > > > Since only THP uses batched preload at the moment, we disable (set max
+> > > > > > preload to 1) it if !CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE. This can be
+> > > > > > changed in the future.
+> > > > > > 
+> > > > > > Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
+> > > > > > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > > > > > Acked-by: Dave Hansen <dave.hansen@linux.intel.com>
+> > > > > > ---
+> > > > > >  include/linux/radix-tree.h | 11 +++++++++++
+> > > > > >  lib/radix-tree.c           | 41 ++++++++++++++++++++++++++++++++---------
+> > > > > >  2 files changed, 43 insertions(+), 9 deletions(-)
+> > > > > ...
+> > > > > > diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+> > > > > > index 7811ed3..99ab73c 100644
+> > > > > > --- a/lib/radix-tree.c
+> > > > > > +++ b/lib/radix-tree.c
+> > > > > > @@ -82,16 +82,24 @@ static struct kmem_cache *radix_tree_node_cachep;
+> > > > > >   * The worst case is a zero height tree with just a single item at index 0,
+> > > > > >   * and then inserting an item at index ULONG_MAX. This requires 2 new branches
+> > > > > >   * of RADIX_TREE_MAX_PATH size to be created, with only the root node shared.
+> > > > > > + *
+> > > > > > + * Worst case for adding N contiguous items is adding entries at indexes
+> > > > > > + * (ULONG_MAX - N) to ULONG_MAX. It requires nodes to insert single worst-case
+> > > > > > + * item plus extra nodes if you cross the boundary from one node to the next.
+> > > > > > + *
+> > > > > >   * Hence:
+> > > > > >   */
+> > > > > > -#define RADIX_TREE_PRELOAD_SIZE (RADIX_TREE_MAX_PATH * 2 - 1)
+> > > > > > +#define RADIX_TREE_PRELOAD_MIN (RADIX_TREE_MAX_PATH * 2 - 1)
+> > > > > > +#define RADIX_TREE_PRELOAD_MAX \
+> > > > > > +	(RADIX_TREE_PRELOAD_MIN + \
+> > > > > > +	 DIV_ROUND_UP(RADIX_TREE_PRELOAD_NR - 1, RADIX_TREE_MAP_SIZE))
+> > > > >   Umm, is this really correct? I see two problems:
+> > > > > 1) You may need internal tree nodes at various levels but you seem to
+> > > > > account only for the level 1.
+> > > > > 2) The rounding doesn't seem right because RADIX_TREE_MAP_SIZE+2 nodes may
+> > > > > require 3 nodes at level 1 if the indexes are like:
+> > > > > i_0 | i_1 .. i_{RADIX_TREE_MAP_SIZE} | i_{RADIX_TREE_MAP_SIZE+1}
+> > > > >     ^                                ^
+> > > > >     node boundary                    node boundary
+> > > > 
+> > > > My bad. Let's try to calculate once again.
+> > > > 
+> > > > We want to insert N contiguous items without restriction on alignment.
+> > > > 
+> > > > Let's limit N <= 1UL << (2 * RADIX_TREE_MAP_SHIFT), without
+> > > > CONFIG_BASE_SMALL it's 4096. It will simplify calculation a bit.
+> > > > 
+> > > > Worst case scenario, I can imagine, is tree with only one element at index
+> > > > 0 and we add N items where at least one index requires max tree high and
+> > > > we cross boundary between items in root node.
+> > > > 
+> > > > Basically, at least one index is less then
+> > > > 
+> > > > 1UL << ((RADIX_TREE_MAX_PATH - 1) * RADIX_TREE_MAP_SHIFT)
+> > > > 
+> > > > and one equal or more.
+> > > > 
+> > > > In this case we need:
+> > > > 
+> > > > - RADIX_TREE_MAX_PATH nodes to build new path to item with index 0;
+> > > > - DIV_ROUND_UP(N, RADIX_TREE_MAP_SIZE) nodes for last level nodes for new
+> > > >   items;
+> > >   Here, I think you need to count with
+> > > DIV_ROUND_UP(N + RADIX_TREE_MAP_SIZE - 1, RADIX_TREE_MAP_SIZE) to propely
+> > > account for the situation b) I described.
+> > 
+> > It's not obvious for me why it's needed. Since we limit N, we can cross
+> > second (or above) level node boundary only once.
+> > 
+> > I've tried to confirm the math with my kvm (see *ugly* patch below) and
+> > I was not able to find anything that is not covered.
+> > 
+> > Could you demonstrate the case you are talking about.
+>   Sure. So let RADIX_TREE_MAP_SHIFT be 6 (i.e. RADIX_TREE_MAP_SIZE == 64).
+> Let's have radix tree with single element from index 0. We insert 66 elements
+> starting from index 127. So for nodes at the last level we need - node for
+> index 127, node for indexes 128 .. 191, node for index 192. That is
+> together three nodes. But DIV_ROUND_UP(66, 64) = 2. The problem happens
+> because starting index 127 isn't multiple of RADIX_TREE_MAP_SIZE so we can
+> have partially used nodes both at the beginning and at the end of the
+> range.
 
-> On Wed, 7 Aug 2013 17:12:36 -0400 Ed Cashin <ecashin@coraid.com> wrote:
-> 
-> > 
-> > On Aug 7, 2013, at 4:58 PM, Andrew Morton wrote:
-> > 
-> > > On Thu, 1 Aug 2013 21:29:59 -0400 Ed Cashin <ecashin@coraid.com> wrote:
-> > > 
-> > >> As discussed previously,
-> > > 
-> > > I think I missed that.
-> > > 
-> > >> the fact that some users of the block
-> > >> layer provide bios that point to pages with a zero _count means
-> > >> that it is not OK for the network layer to do a put_page on the
-> > >> skb frags during an skb_linearize, so the aoe driver gets a
-> > >> reference to pages in bios and puts the reference before ending
-> > >> the bio.  And because it cannot use get_page on a page with a
-> > >> zero _count, it manipulates the value directly.
-> > > 
-> > > Eh?  What code is putting count==0 pages into bios?  That sounds very
-> > > weird and broken.
-> > 
-> > I thought so in 2007 but couldn't solicit a clear "this is wrong" consensus from the discussion.
-> > 
-> >   http://article.gmane.org/gmane.linux.kernel/499197
-> >   https://lkml.org/lkml/2007/1/19/56
-> >   https://lkml.org/lkml/2006/12/18/230
-> > 
-> > We were seeing zero-count pages in bios from XFS, but Christoph Hellwig pointed out that kmalloced pages can also come from ext3 when it's doing log recovery, and they'll have zero page counts.
-> 
-> aiiee!
-> 
-> It is (I suppose) reasonable to put kmalloced memory into a BIO's page
-> array.  And it is perfectly reasonable for a user of that bio to do a
-> get_page/put_page against that page.  It is utterly unreasonable for
-> the damn page to get freed as a result!
-> 
-> I'd claim that slab is broken.  The page is in use, so it should have an
-> elevated refcount, full stop.
-> 
+I see. Looks like you are correct.
 
-err, no.  slab.c uses alloc_pages(), so the underlying page indeed has
-a proper refcount.  I'm still not understanding how this situation comes
-about.
+So with patch in previous mail, it should be triable if we set
+RADIX_TREE_PRELOAD_NR to 514 and off to
+(1UL << ((RADIX_TREE_MAX_PATH - 1) * RADIX_TREE_MAP_SHIFT)) - RADIX_TREE_MAP_SIZE - 1
+
+In this case it should use 39 nodes, but it uses only 38. I can't understand why. :(
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
