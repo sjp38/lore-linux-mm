@@ -1,42 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 7C4EE6B0081
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 05:10:51 -0400 (EDT)
-Message-ID: <52020EF1.2060003@huawei.com>
-Date: Wed, 7 Aug 2013 17:10:09 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id A29466B0087
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 05:18:29 -0400 (EDT)
+Date: Wed, 7 Aug 2013 18:18:32 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 17/18] mm, hugetlb: retry if we fail to allocate a
+ hugepage with use_reserve
+Message-ID: <20130807091832.GD32449@lge.com>
+References: <1375075929-6119-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1375075929-6119-18-git-send-email-iamjoonsoo.kim@lge.com>
+ <20130729072823.GD29970@voom.fritz.box>
+ <20130731053753.GM2548@lge.com>
+ <20130803104302.GC19115@voom.redhat.com>
+ <20130805073647.GD27240@lge.com>
+ <1375834724.2134.49.camel@buesod1.americas.hpqcorp.net>
+ <20130807010312.GA17110@voom.redhat.com>
+ <1375839529.2134.50.camel@buesod1.americas.hpqcorp.net>
 MIME-Version: 1.0
-Subject: [PATCH 3/3] mm: use zone_is_initialized() instead of if(zone->wait_table)
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1375839529.2134.50.camel@buesod1.americas.hpqcorp.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Cody P Schafer <cody@linux.vnet.ibm.com>, Xishi Qiu <qiuxishi@huawei.com>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: David Gibson <david@gibson.dropbear.id.au>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
 
-Use "zone_is_initialized()" instead of "if (zone->wait_table)".
-Simplify the code, no functional change.
+On Tue, Aug 06, 2013 at 06:38:49PM -0700, Davidlohr Bueso wrote:
+> On Wed, 2013-08-07 at 11:03 +1000, David Gibson wrote:
+> > On Tue, Aug 06, 2013 at 05:18:44PM -0700, Davidlohr Bueso wrote:
+> > > On Mon, 2013-08-05 at 16:36 +0900, Joonsoo Kim wrote:
+> > > > > Any mapping that doesn't use the reserved pool, not just
+> > > > > MAP_NORESERVE.  For example, if a process makes a MAP_PRIVATE mapping,
+> > > > > then fork()s then the mapping is instantiated in the child, that will
+> > > > > not draw from the reserved pool.
+> > > > > 
+> > > > > > Should we ensure them to allocate the last hugepage?
+> > > > > > They map a region with MAP_NORESERVE, so don't assume that their requests
+> > > > > > always succeed.
+> > > > > 
+> > > > > If the pages are available, people get cranky if it fails for no
+> > > > > apparent reason, MAP_NORESERVE or not.  They get especially cranky if
+> > > > > it sometimes fails and sometimes doesn't due to a race condition.
+> > > > 
+> > > > Hello,
+> > > > 
+> > > > Hmm... Okay. I will try to implement another way to protect race condition.
+> > > > Maybe it is the best to use a table mutex :)
+> > > > Anyway, please give me a time, guys.
+> > > 
+> > > So another option is to take the mutex table patchset for now as it
+> > > *does* improve things a great deal, then, when ready, get rid of the
+> > > instantiation lock all together.
+> > 
+> > We still don't have a solid proposal for doing that. Joonsoo Kim's
+> > patchset misses cases (non reserved mappings).  I'm also not certain
+> > there aren't a few edge cases which can lead to even reserved mappings
+> > failing, and if that happens the patches will lead to livelock.
+> > 
+> 
+> Exactly, which is why I suggest minimizing the lock contention until we
+> do have such a proposal.
 
-Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
----
- mm/memory_hotplug.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+Okay. my proposal is not complete and maybe much time is needed.
+And I'm not sure that my *retry* approach can eventually cover all
+the race situations, currently.
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index f3fcac1..387654b 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -194,7 +194,7 @@ void register_page_bootmem_info_node(struct pglist_data *pgdat)
- 
- 	zone = &pgdat->node_zones[0];
- 	for (; zone < pgdat->node_zones + MAX_NR_ZONES - 1; zone++) {
--		if (zone->wait_table) {
-+		if (zone_is_initialized(zone)) {
- 			nr_pages = zone->wait_table_hash_nr_entries
- 				* sizeof(wait_queue_head_t);
- 			nr_pages = PAGE_ALIGN(nr_pages) >> PAGE_SHIFT;
--- 
-1.7.1
+If you have to hurry, I don't have strong objection to your patches,
+but, IMHO, we should go slow, because it is not just trivial change.
+Hugetlb code is too subtle, so it is hard to confirm it's solidness.
+Following is the race problem what I found with those patches.
+
+I assume that nr_free_hugepage is 2.
+
+1. parent process map an 1 hugepage sizeid region with MAP_PRIVATE
+2. parent process write something to this region, so fault occur.
+3. fault handling.
+4. fork
+5. parent process write something to this hugepage, so cow-fault occur.
+6. while parent allocate a new page and do copy_user_huge_page()
+	in fault handler, child process write something to this hugepage,
+	so cow-fault occur. This access is not protected by table mutex,
+	because mm is different.
+7. child process die, because there is no free hugepage.
+
+If we have no race, child process would not die,
+because all we needed is only 2 hugepages, one for parent,
+and the other for child.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
