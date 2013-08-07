@@ -1,90 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 946776B008C
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 06:04:21 -0400 (EDT)
-Received: by mail-oa0-f42.google.com with SMTP id i18so3018225oag.15
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2013 03:04:20 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20130807055157.GA32278@redhat.com>
-References: <20130807055157.GA32278@redhat.com>
-Date: Wed, 7 Aug 2013 18:04:20 +0800
-Message-ID: <CAJd=RBCJv7=Qj6dPW2Ha=nq6JctnK3r7wYCAZTm=REVOZUNowg@mail.gmail.com>
-Subject: Re: unused swap offset / bad page map.
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 2908D6B0093
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 06:53:43 -0400 (EDT)
+From: Tang Chen <tangchen@cn.fujitsu.com>
+Subject: [PATCH v3 06/25] acpi, acpica: Call two new functions instead of acpi_tb_install_table() in acpi_tb_parse_root_table().
+Date: Wed, 7 Aug 2013 18:51:57 +0800
+Message-Id: <1375872736-4822-7-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1375872736-4822-1-git-send-email-tangchen@cn.fujitsu.com>
+References: <1375872736-4822-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>, linux-mm@kvack.org, Linux Kernel <linux-kernel@vger.kernel.org>
+To: robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
+Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-Hello Dave
+The previous patch introduced two new functions:
+    acpi_tb_install_table_firmware() and acpi_tb_install_table_override().
 
-On Wed, Aug 7, 2013 at 1:51 PM, Dave Jones <davej@redhat.com> wrote:
-> Seen while fuzzing with lots of child processes.
->
-> swap_free: Unused swap offset entry 001263f5
-> BUG: Bad page map in process trinity-child29  pte:24c7ea00 pmd:09fec067
-> addr:00007f9db958d000 vm_flags:00100073 anon_vma:ffff88022c004ba0 mapping=
-:          (null) index:f99
-> Modules linked in: fuse ipt_ULOG snd_seq_dummy tun sctp scsi_transport_is=
-csi can_raw can_bcm rfcomm bnep nfnetlink hidp appletalk bluetooth rose can=
- af_802154 phonet x25 af_rxrpc llc2 nfc rfkill af_key pppoe rds pppox ppp_g=
-eneric slhc caif_socket caif irda crc_ccitt atm netrom ax25 ipx p8023 psnap=
- p8022 llc snd_hda_codec_realtek pcspkr usb_debug snd_seq snd_seq_device sn=
-d_hda_intel snd_hda_codec snd_hwdep e1000e snd_pcm ptp pps_core snd_page_al=
-loc snd_timer snd soundcore xfs libcrc32c
-> CPU: 1 PID: 2624 Comm: trinity-child29 Not tainted 3.11.0-rc4+ #1
->  0000000000000000 ffff8801fd7ddc90 ffffffff81700f2c 00007f9db958d000
->  ffff8801fd7ddcd8 ffffffff8117cba7 0000000024c7ea00 0000000000000f99
->  00007f9db9600000 ffff880009fecc68 0000000024c7ea00 ffff8801fd7dde00
-> Call Trace:
->  [<ffffffff81700f2c>] dump_stack+0x4e/0x82
->  [<ffffffff8117cba7>] print_bad_pte+0x187/0x220
->  [<ffffffff8117e415>] unmap_single_vma+0x535/0x890
->  [<ffffffff8117f719>] unmap_vmas+0x49/0x90
->  [<ffffffff81187ef1>] exit_mmap+0xc1/0x170
->  [<ffffffff810510ef>] mmput+0x6f/0x100
->  [<ffffffff81055818>] do_exit+0x288/0xcd0
->  [<ffffffff810c1da5>] ? trace_hardirqs_on_caller+0x115/0x1e0
->  [<ffffffff810c1e7d>] ? trace_hardirqs_on+0xd/0x10
->  [<ffffffff810575dc>] do_group_exit+0x4c/0xc0
->  [<ffffffff81057664>] SyS_exit_group+0x14/0x20
->  [<ffffffff81713dd4>] tracesys+0xdd/0xe2
->
-> There were a slew of these. same trace, different addr/anon_vma/index.
-> mapping always null.
->
-Would you please run again with the debug info added?
+They are the same as acpi_tb_install_table() if they are called in sequence.
+
+In order to split acpi_tb_parse_root_table(), we call these two functions
+instead of acpi_tb_install_table() in acpi_tb_parse_root_table(). This will
+keep acpi_tb_parse_root_table() works as before.
+
+Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 ---
---- a/mm/swapfile.c	Wed Aug  7 17:27:22 2013
-+++ b/mm/swapfile.c	Wed Aug  7 17:57:20 2013
-@@ -509,6 +509,7 @@ static struct swap_info_struct *swap_inf
- {
- 	struct swap_info_struct *p;
- 	unsigned long offset, type;
-+	int race =3D 0;
+ drivers/acpi/acpica/tbutils.c |    9 +++++++--
+ 1 files changed, 7 insertions(+), 2 deletions(-)
 
- 	if (!entry.val)
- 		goto out;
-@@ -524,10 +525,17 @@ static struct swap_info_struct *swap_inf
- 	if (!p->swap_map[offset])
- 		goto bad_free;
- 	spin_lock(&p->lock);
-+	if (!p->swap_map[offset]) {
-+		race =3D 1;
-+		spin_unlock(&p->lock);
-+		goto bad_free;
-+	}
- 	return p;
-
- bad_free:
- 	printk(KERN_ERR "swap_free: %s%08lx\n", Unused_offset, entry.val);
-+	if (race)
-+		printk(KERN_ERR "but due to race\n");
- 	goto out;
- bad_offset:
- 	printk(KERN_ERR "swap_free: %s%08lx\n", Bad_offset, entry.val);
---
+diff --git a/drivers/acpi/acpica/tbutils.c b/drivers/acpi/acpica/tbutils.c
+index 2db068c..9bef44b 100644
+--- a/drivers/acpi/acpica/tbutils.c
++++ b/drivers/acpi/acpica/tbutils.c
+@@ -670,8 +670,13 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
+ 	 * the header of each table
+ 	 */
+ 	for (i = 2; i < acpi_gbl_root_table_list.current_table_count; i++) {
+-		acpi_tb_install_table(acpi_gbl_root_table_list.tables[i].
+-				      address, NULL, i);
++		/* Install tables in firmware into acpi_gbl_root_table_list */
++		acpi_tb_install_table_firmware(acpi_gbl_root_table_list.
++					       tables[i].address, NULL, i);
++
++		/* Override the installed tables if any */
++		acpi_tb_install_table_override(acpi_gbl_root_table_list.
++					       tables[i].address, NULL, i);
+ 
+ 		/* Special case for FADT - get the DSDT and FACS */
+ 
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
