@@ -1,64 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 5223D6B00E6
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 09:57:37 -0400 (EDT)
-Date: Wed, 7 Aug 2013 15:57:34 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 2/3] memcg: Limit the number of events registered on
- oom_control
-Message-ID: <20130807135734.GK8184@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 8C5D76B00E9
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 09:58:22 -0400 (EDT)
+Received: by mail-ve0-f170.google.com with SMTP id 15so1816811vea.15
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2013 06:58:21 -0700 (PDT)
+Date: Wed, 7 Aug 2013 09:58:18 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 1/3] memcg: limit the number of thresholds per-memcg
+Message-ID: <20130807135818.GG27006@htj.dyndns.org>
 References: <1375874907-22013-1-git-send-email-mhocko@suse.cz>
- <1375874907-22013-2-git-send-email-mhocko@suse.cz>
- <20130807130836.GB27006@htj.dyndns.org>
- <20130807133746.GI8184@dhcp22.suse.cz>
- <20130807134741.GF27006@htj.dyndns.org>
+ <20130807132210.GD27006@htj.dyndns.org>
+ <20130807134654.GJ8184@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130807134741.GF27006@htj.dyndns.org>
+In-Reply-To: <20130807134654.GJ8184@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Anton Vorontsov <anton.vorontsov@linaro.org>
 
-On Wed 07-08-13 09:47:41, Tejun Heo wrote:
-> Hello,
-> 
-> On Wed, Aug 07, 2013 at 03:37:46PM +0200, Michal Hocko wrote:
-> > > It isn't different from listening from epoll, for example.
-> > 
-> > epoll limits the number of watchers, no?
-> 
-> Not that I know of.  It'll be limited by max open fds but I don't
-> think there are other limits. 
+Hello,
 
-max_user_watches seems to be a limit (4% of lowmem in maximum).
+On Wed, Aug 07, 2013 at 03:46:54PM +0200, Michal Hocko wrote:
+> OK, I have obviously misunderstood your concern mentioned in the other
+> email. Could you be more specific what is the DoS scenario which was
+> your concern, then?
 
-> Why would there be?
+So, let's say the file is write-accessible to !priv user which is
+under reasonable resource limits.  Normally this shouldn't affect priv
+system tools which are monitoring the same event as it shouldn't be
+able to deplete resources as long as the resource control mechanisms
+are configured and functioning properly; however, the memory usage
+event puts all event listeners into a single contiguous table which a
+!priv user can easily expand to a size where the table can no longer
+be enlarged and if a priv system tool or another user tries to
+register event afterwards, it'll fail.  IOW, it creates a shared
+resource which isn't properly provisioned and can be trivially filled
+up making it an easy DoS target.
 
-Because userspace should hog kernel resources without any limit.
+Putting an extra limit on it isn't an actual solution but could be
+better, I think.  It at least makes it clear that this is a limited
+global resource.
 
-> > > If there needs to be kernel memory limit, shouldn't that be handled by
-> > > kmemcg?
-> > 
-> > kmemcg would surely help but turning it on just because of potential
-> > abuse of the event registration API sounds like an overkill.
-> > 
-> > I think having a cap for user trigable kernel resources is a good thing
-> > in general.
-> 
-> I don't know.  It's just very arbitrary because listening to events
-> itself isn't (and shouldn't) be something which consumes resource
-> which isn't attributed to the listener and this artificially creates a
-> global resource.  The problem with memory usage event is breaching
-> that rule with shared kmalloc() so putting well-defined limit on it is
-> fine but the latter two create additional artificial restrictions
-> which are both unnecessary and unconventional.  No?
+Thanks.
 
-Hmm, OK so you think that the fd limit is sufficient already?
 -- 
-Michal Hocko
-SUSE Labs
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
