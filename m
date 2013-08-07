@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 4AADF6B00BF
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id DC2EA6B00C1
 	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 07:13:40 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v3 16/25] x86: Make get_ramdisk_{image|size}() global.
-Date: Wed, 7 Aug 2013 18:52:07 +0800
-Message-Id: <1375872736-4822-17-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v3 23/25] memblock, mem_hotplug: Make memblock skip hotpluggable regions by default.
+Date: Wed, 7 Aug 2013 18:52:14 +0800
+Message-Id: <1375872736-4822-24-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1375872736-4822-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1375872736-4822-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,82 +13,66 @@ List-ID: <linux-mm.kvack.org>
 To: robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-In the following patches, we need to call get_ramdisk_{image|size}()
-to get initrd file's address and size. So make these two functions
-global.
+Linux kernel cannot migrate pages used by the kernel. As a result, hotpluggable
+memory used by the kernel won't be able to be hot-removed. To solve this
+problem, the basic idea is to prevent memblock from allocating hotpluggable
+memory for the kernel at early time, and arrange all hotpluggable memory in
+ACPI SRAT(System Resource Affinity Table) as ZONE_MOVABLE when initializing
+zones.
 
-v1 -> v2:
-As tj suggested, make these two function static inline in
-arch/x86/include/asm/setup.h.
+In the previous patches, we have marked hotpluggable memory regions with
+MEMBLOCK_HOTPLUG flag in memblock.memory.
+
+In this patch, we make memblock skip these hotpluggable memory regions in
+the default allocate function.
+
+memblock_find_in_range_node()
+  |-->for_each_free_mem_range_reverse()
+        |-->__next_free_mem_range_rev()
+
+The above is the only place where __next_free_mem_range_rev() is used. So
+skip hotpluggable memory regions when iterating memblock.memory to find
+free memory.
+
+In the later patches, a boot option named "movablenode" will be introduced
+to enable/disable using SRAT to arrange ZONE_MOVABLE.
+
+NOTE: This check will always be done. It is OK because if users didn't specify
+      movablenode option, the hotpluggable memory won't be marked. So this
+      check won't skip any memory, which means the kernel will act as before.
 
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 ---
- arch/x86/include/asm/setup.h |   21 +++++++++++++++++++++
- arch/x86/kernel/setup.c      |   18 ------------------
- 2 files changed, 21 insertions(+), 18 deletions(-)
+ mm/memblock.c |    8 ++++++++
+ 1 files changed, 8 insertions(+), 0 deletions(-)
 
-diff --git a/arch/x86/include/asm/setup.h b/arch/x86/include/asm/setup.h
-index b7bf350..cfdb55d 100644
---- a/arch/x86/include/asm/setup.h
-+++ b/arch/x86/include/asm/setup.h
-@@ -106,6 +106,27 @@ void *extend_brk(size_t size, size_t align);
- 	RESERVE_BRK(name, sizeof(type) * entries)
+diff --git a/mm/memblock.c b/mm/memblock.c
+index ecd8568..3ea4301 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -695,6 +695,10 @@ void __init_memblock __next_free_mem_range(u64 *idx, int nid,
+  * @out_nid: ptr to int for nid of the range, can be %NULL
+  *
+  * Reverse of __next_free_mem_range().
++ *
++ * Linux kernel cannot migrate pages used by itself. Memory hotplug users won't
++ * be able to hot-remove hotpluggable memory used by the kernel. So this
++ * function skip hotpluggable regions when allocating memory for the kernel.
+  */
+ void __init_memblock __next_free_mem_range_rev(u64 *idx, int nid,
+ 					   phys_addr_t *out_start,
+@@ -719,6 +723,10 @@ void __init_memblock __next_free_mem_range_rev(u64 *idx, int nid,
+ 		if (nid != MAX_NUMNODES && nid != memblock_get_region_node(m))
+ 			continue;
  
- extern void probe_roms(void);
++		/* skip hotpluggable memory regions */
++		if (m->flags & MEMBLOCK_HOTPLUG)
++			continue;
 +
-+#ifdef CONFIG_BLK_DEV_INITRD
-+static inline u64 __init get_ramdisk_image(void)
-+{
-+	u64 ramdisk_image = boot_params.hdr.ramdisk_image;
-+
-+	ramdisk_image |= (u64)boot_params.ext_ramdisk_image << 32;
-+
-+	return ramdisk_image;
-+}
-+
-+static inline u64 __init get_ramdisk_size(void)
-+{
-+	u64 ramdisk_size = boot_params.hdr.ramdisk_size;
-+
-+	ramdisk_size |= (u64)boot_params.ext_ramdisk_size << 32;
-+
-+	return ramdisk_size;
-+}
-+#endif /* CONFIG_BLK_DEV_INITRD */
-+
- #ifdef __i386__
- 
- void __init i386_start_kernel(void);
-diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-index fdb5a26..da44353 100644
---- a/arch/x86/kernel/setup.c
-+++ b/arch/x86/kernel/setup.c
-@@ -296,24 +296,6 @@ static void __init reserve_brk(void)
- }
- 
- #ifdef CONFIG_BLK_DEV_INITRD
--
--static u64 __init get_ramdisk_image(void)
--{
--	u64 ramdisk_image = boot_params.hdr.ramdisk_image;
--
--	ramdisk_image |= (u64)boot_params.ext_ramdisk_image << 32;
--
--	return ramdisk_image;
--}
--static u64 __init get_ramdisk_size(void)
--{
--	u64 ramdisk_size = boot_params.hdr.ramdisk_size;
--
--	ramdisk_size |= (u64)boot_params.ext_ramdisk_size << 32;
--
--	return ramdisk_size;
--}
--
- #define MAX_MAP_CHUNK	(NR_FIX_BTMAPS << PAGE_SHIFT)
- static void __init relocate_initrd(void)
- {
+ 		/* scan areas before each reservation for intersection */
+ 		for ( ; ri >= 0; ri--) {
+ 			struct memblock_region *r = &rsv->regions[ri];
 -- 
 1.7.1
 
