@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 3FCFA6B00AA
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 06:53:50 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 31EA46B00AE
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 06:53:51 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v3 19/25] x86, acpi, numa, mem_hotplug: Find hotpluggable memory in SRAT memory affinities.
-Date: Wed, 7 Aug 2013 18:52:10 +0800
-Message-Id: <1375872736-4822-20-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v3 21/25] memblock, numa: Introduce flag into memblock.
+Date: Wed, 7 Aug 2013 18:52:12 +0800
+Message-Id: <1375872736-4822-22-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1375872736-4822-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1375872736-4822-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,176 +13,248 @@ List-ID: <linux-mm.kvack.org>
 To: robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-In ACPI SRAT(System Resource Affinity Table), there is a memory affinity for each
-memory range in the system. In each memory affinity, there is a field indicating
-that if the memory range is hotpluggable.
+There is no flag in memblock to describe what type the memory is.
+Sometimes, we may use memblock to reserve some memory for special usage.
+And we want to know what kind of memory it is. So we need a way to
+differentiate memory for different usage.
 
-This patch parses all the memory affinities in SRAT only, and find out all the
-hotpluggable memory ranges in the system.
+In hotplug environment, we want to reserve hotpluggable memory so the
+kernel won't be able to use it. And when the system is up, we have to
+free these hotpluggable memory to buddy. So we need to mark these memory
+first.
 
-This patch doesn't mark hotpluggable memory in memblock. Memory marked as hotplug
-won't be allocated to the kernel. If all the memory in the system is hotpluggable,
-then the system won't have enough memory to boot. The basic idea to solve this
-problem is making the nodes the kerenl resides in unhotpluggable. So, before we do
-this, we don't mark any hotpluggable memory in memory so that to keep memblock
-working as before.
+In order to do so, we need to mark out these special memory in memblock.
+In this patch, we introduce a new "flags" member into memblock_region:
+   struct memblock_region {
+           phys_addr_t base;
+           phys_addr_t size;
+           unsigned long flags;		/* This is new. */
+   #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+           int nid;
+   #endif
+   };
 
+This patch does the following things:
+1) Add "flags" member to memblock_region.
+2) Modify the following APIs' prototype:
+	memblock_add_region()
+	memblock_insert_region()
+3) Add memblock_reserve_region() to support reserve memory with flags, and keep
+   memblock_reserve()'s prototype unmodified.
+4) Modify other APIs to support flags, but keep their prototype unmodified.
+
+The idea is from Wen Congyang <wency@cn.fujitsu.com> and Liu Jiang <jiang.liu@huawei.com>.
+
+v1 -> v2:
+As tj suggested, a zero flag MEMBLK_DEFAULT will make users confused. If
+we want to specify any other flag, such MEMBLK_HOTPLUG, users don't know
+to use MEMBLK_DEFAULT | MEMBLK_HOTPLUG or just MEMBLK_HOTPLUG. So remove
+MEMBLK_DEFAULT (which is 0), and just use 0 by default to avoid confusions
+to users.
+
+Suggested-by: Wen Congyang <wency@cn.fujitsu.com>
+Suggested-by: Liu Jiang <jiang.liu@huawei.com>
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 ---
- drivers/acpi/osl.c   |   85 ++++++++++++++++++++++++++++++++++++++++++++++++++
- include/linux/acpi.h |    2 +
- mm/memory_hotplug.c  |   22 ++++++++++++-
- 3 files changed, 107 insertions(+), 2 deletions(-)
+ include/linux/memblock.h |    1 +
+ mm/memblock.c            |   53 +++++++++++++++++++++++++++++++++-------------
+ 2 files changed, 39 insertions(+), 15 deletions(-)
 
-diff --git a/drivers/acpi/osl.c b/drivers/acpi/osl.c
-index ec490fe..d01202d 100644
---- a/drivers/acpi/osl.c
-+++ b/drivers/acpi/osl.c
-@@ -780,6 +780,91 @@ phys_addr_t __init early_acpi_firmware_srat(void)
- 
- 	return table_desc.address;
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index f388203..e89e0cd 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -22,6 +22,7 @@
+ struct memblock_region {
+ 	phys_addr_t base;
+ 	phys_addr_t size;
++	unsigned long flags;
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+ 	int nid;
+ #endif
+diff --git a/mm/memblock.c b/mm/memblock.c
+index a847bfe..0841a6e 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -157,6 +157,7 @@ static void __init_memblock memblock_remove_region(struct memblock_type *type, u
+ 		type->cnt = 1;
+ 		type->regions[0].base = 0;
+ 		type->regions[0].size = 0;
++		type->regions[0].flags = 0;
+ 		memblock_set_region_node(&type->regions[0], MAX_NUMNODES);
+ 	}
  }
-+
-+/*******************************************************************************
-+ *
-+ * FUNCTION:    acpi_hotplug_mem_affinity
-+ *
-+ * PARAMETERS:  Srat_vaddr         - Virt addr of SRAT
-+ *              Base               - The base address of the found hotpluggable
-+ *                                   memory region
-+ *              Size               - The size of the found hotpluggable memory
-+ *                                   region
-+ *              Offset             - Offset of the found memory affinity
-+ *
-+ * RETURN:      Status
-+ *
-+ * DESCRIPTION: This function iterates SRAT affinities list to find memory
-+ *              affinities with hotpluggable memory one by one. Return the
-+ *              offset of the found memory affinity through @offset. @offset
-+ *              can be used to iterate the SRAT affinities list to find all the
-+ *              hotpluggable memory affinities. If @offset is 0, it is the first
-+ *              time of the iteration.
-+ *
-+ ******************************************************************************/
-+acpi_status __init
-+acpi_hotplug_mem_affinity(void *srat_vaddr, u64 *base, u64 *size,
-+			  unsigned long *offset)
-+{
-+	struct acpi_table_header *table_header;
-+	struct acpi_subtable_header *entry;
-+	struct acpi_srat_mem_affinity *ma;
-+	unsigned long table_end, curr;
-+
-+	if (!offset)
-+		return_ACPI_STATUS(AE_BAD_PARAMETER);
-+
-+	table_header = (struct acpi_table_header *)srat_vaddr;
-+	table_end = (unsigned long)table_header + table_header->length;
-+
-+	entry = (struct acpi_subtable_header *)
-+		((unsigned long)table_header + *offset);
-+
-+	if (*offset) {
-+		/*
-+		 * @offset is the offset of the last affinity found in the
-+		 * last call. So need to move to the next affinity.
-+		 */
-+		entry = (struct acpi_subtable_header *)
-+			((unsigned long)entry + entry->length);
-+	} else {
-+		/*
-+		 * Offset of the first affinity is the size of SRAT
-+		 * table header.
-+		 */
-+		entry = (struct acpi_subtable_header *)
-+			((unsigned long)entry + sizeof(struct acpi_table_srat));
-+	}
-+
-+	while (((unsigned long)entry) + sizeof(struct acpi_subtable_header) <
-+	       table_end) {
-+		if (entry->length == 0)
-+			break;
-+
-+		if (entry->type != ACPI_SRAT_TYPE_MEMORY_AFFINITY)
-+			goto next;
-+
-+		ma = (struct acpi_srat_mem_affinity *)entry;
-+
-+		if (!(ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE))
-+			goto next;
-+
-+		if (base)
-+			*base = ma->base_address;
-+
-+		if (size)
-+			*size = ma->length;
-+
-+		*offset = (unsigned long)entry - (unsigned long)srat_vaddr;
-+		return_ACPI_STATUS(AE_OK);
-+
-+next:
-+		entry = (struct acpi_subtable_header *)
-+			((unsigned long)entry + entry->length);
-+	}
-+
-+	return_ACPI_STATUS(AE_NOT_FOUND);
-+}
- #endif	/* CONFIG_ACPI_NUMA */
+@@ -307,7 +308,8 @@ static void __init_memblock memblock_merge_regions(struct memblock_type *type)
  
- static void acpi_table_taint(struct acpi_table_header *table)
-diff --git a/include/linux/acpi.h b/include/linux/acpi.h
-index 280078c..f103e91 100644
---- a/include/linux/acpi.h
-+++ b/include/linux/acpi.h
-@@ -99,6 +99,8 @@ static inline phys_addr_t early_acpi_override_srat(void)
- 
- #ifdef CONFIG_ACPI_NUMA
- phys_addr_t early_acpi_firmware_srat(void);
-+acpi_status acpi_hotplug_mem_affinity(void *srat_vaddr, u64 *base,
-+				      u64 *size, unsigned long *offset);
- #endif  /* CONFIG_ACPI_NUMA */
- 
- char * __acpi_map_table (unsigned long phys_addr, unsigned long size);
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 2dfb06f..ef9ccf8 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -103,7 +103,11 @@ static void release_memory_resource(struct resource *res)
+ 		if (this->base + this->size != next->base ||
+ 		    memblock_get_region_node(this) !=
+-		    memblock_get_region_node(next)) {
++		    memblock_get_region_node(next) ||
++		    this->flags != next->flags) {
+ 			BUG_ON(this->base + this->size > next->base);
+ 			i++;
+ 			continue;
+@@ -327,13 +329,15 @@ static void __init_memblock memblock_merge_regions(struct memblock_type *type)
+  * @base:	base address of the new region
+  * @size:	size of the new region
+  * @nid:	node id of the new region
++ * @flags:	flags of the new region
+  *
+  * Insert new memblock region [@base,@base+@size) into @type at @idx.
+  * @type must already have extra room to accomodate the new region.
   */
- void __init find_hotpluggable_memory(void)
+ static void __init_memblock memblock_insert_region(struct memblock_type *type,
+ 						   int idx, phys_addr_t base,
+-						   phys_addr_t size, int nid)
++						   phys_addr_t size,
++						   int nid, unsigned long flags)
  {
--	phys_addr_t srat_paddr;
-+	void *srat_vaddr;
-+	phys_addr_t srat_paddr, base, size;
-+	u32 length;
-+	struct acpi_table_header *srat_header;
-+	unsigned long offset = 0;
+ 	struct memblock_region *rgn = &type->regions[idx];
  
- 	/* Try to find if SRAT is overridden */
- 	srat_paddr = early_acpi_override_srat();
-@@ -114,7 +118,21 @@ void __init find_hotpluggable_memory(void)
- 			return;
+@@ -341,6 +345,7 @@ static void __init_memblock memblock_insert_region(struct memblock_type *type,
+ 	memmove(rgn + 1, rgn, (type->cnt - idx) * sizeof(*rgn));
+ 	rgn->base = base;
+ 	rgn->size = size;
++	rgn->flags = flags;
+ 	memblock_set_region_node(rgn, nid);
+ 	type->cnt++;
+ 	type->total_size += size;
+@@ -352,6 +357,7 @@ static void __init_memblock memblock_insert_region(struct memblock_type *type,
+  * @base: base address of the new region
+  * @size: size of the new region
+  * @nid: nid of the new region
++ * @flags: flags of the new region
+  *
+  * Add new memblock region [@base,@base+@size) into @type.  The new region
+  * is allowed to overlap with existing ones - overlaps don't affect already
+@@ -362,7 +368,8 @@ static void __init_memblock memblock_insert_region(struct memblock_type *type,
+  * 0 on success, -errno on failure.
+  */
+ static int __init_memblock memblock_add_region(struct memblock_type *type,
+-				phys_addr_t base, phys_addr_t size, int nid)
++				phys_addr_t base, phys_addr_t size,
++				int nid, unsigned long flags)
+ {
+ 	bool insert = false;
+ 	phys_addr_t obase = base;
+@@ -377,6 +384,7 @@ static int __init_memblock memblock_add_region(struct memblock_type *type,
+ 		WARN_ON(type->cnt != 1 || type->total_size);
+ 		type->regions[0].base = base;
+ 		type->regions[0].size = size;
++		type->regions[0].flags = flags;
+ 		memblock_set_region_node(&type->regions[0], nid);
+ 		type->total_size = size;
+ 		return 0;
+@@ -407,7 +415,8 @@ repeat:
+ 			nr_new++;
+ 			if (insert)
+ 				memblock_insert_region(type, i++, base,
+-						       rbase - base, nid);
++						       rbase - base, nid,
++						       flags);
+ 		}
+ 		/* area below @rend is dealt with, forget about it */
+ 		base = min(rend, end);
+@@ -417,7 +426,8 @@ repeat:
+ 	if (base < end) {
+ 		nr_new++;
+ 		if (insert)
+-			memblock_insert_region(type, i, base, end - base, nid);
++			memblock_insert_region(type, i, base, end - base,
++					       nid, flags);
  	}
  
--	/* Will parse SRAT and find out hotpluggable memory here */
-+	/* Get the length of SRAT */
-+	srat_header = early_ioremap(srat_paddr,
-+				    sizeof(struct acpi_table_header));
-+	length = srat_header->length;
-+	early_iounmap(srat_header, sizeof(struct acpi_table_header));
-+
-+	/* Find all the hotpluggable memory regions */
-+	srat_vaddr = early_ioremap(srat_paddr, length);
-+
-+	while (ACPI_SUCCESS(acpi_hotplug_mem_affinity(srat_vaddr, &base,
-+						      &size, &offset))) {
-+		/* Will mark hotpluggable memory regions here */
-+	}
-+
-+	early_iounmap(srat_vaddr, length);
+ 	/*
+@@ -439,12 +449,13 @@ repeat:
+ int __init_memblock memblock_add_node(phys_addr_t base, phys_addr_t size,
+ 				       int nid)
+ {
+-	return memblock_add_region(&memblock.memory, base, size, nid);
++	return memblock_add_region(&memblock.memory, base, size, nid, 0);
  }
- #endif	/* CONFIG_ACPI_NUMA */
+ 
+ int __init_memblock memblock_add(phys_addr_t base, phys_addr_t size)
+ {
+-	return memblock_add_region(&memblock.memory, base, size, MAX_NUMNODES);
++	return memblock_add_region(&memblock.memory, base, size,
++				   MAX_NUMNODES, 0);
+ }
+ 
+ /**
+@@ -499,7 +510,8 @@ static int __init_memblock memblock_isolate_range(struct memblock_type *type,
+ 			rgn->size -= base - rbase;
+ 			type->total_size -= base - rbase;
+ 			memblock_insert_region(type, i, rbase, base - rbase,
+-					       memblock_get_region_node(rgn));
++					       memblock_get_region_node(rgn),
++					       rgn->flags);
+ 		} else if (rend > end) {
+ 			/*
+ 			 * @rgn intersects from above.  Split and redo the
+@@ -509,7 +521,8 @@ static int __init_memblock memblock_isolate_range(struct memblock_type *type,
+ 			rgn->size -= end - rbase;
+ 			type->total_size -= end - rbase;
+ 			memblock_insert_region(type, i--, rbase, end - rbase,
+-					       memblock_get_region_node(rgn));
++					       memblock_get_region_node(rgn),
++					       rgn->flags);
+ 		} else {
+ 			/* @rgn is fully contained, record it */
+ 			if (!*end_rgn)
+@@ -551,16 +564,24 @@ int __init_memblock memblock_free(phys_addr_t base, phys_addr_t size)
+ 	return __memblock_remove(&memblock.reserved, base, size);
+ }
+ 
+-int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
++static int __init_memblock memblock_reserve_region(phys_addr_t base,
++						   phys_addr_t size,
++						   int nid,
++						   unsigned long flags)
+ {
+ 	struct memblock_type *_rgn = &memblock.reserved;
+ 
+-	memblock_dbg("memblock_reserve: [%#016llx-%#016llx] %pF\n",
++	memblock_dbg("memblock_reserve: [%#016llx-%#016llx] flags %#02lx %pF\n",
+ 		     (unsigned long long)base,
+ 		     (unsigned long long)base + size,
+-		     (void *)_RET_IP_);
++		     flags, (void *)_RET_IP_);
++
++	return memblock_add_region(_rgn, base, size, nid, flags);
++}
+ 
+-	return memblock_add_region(_rgn, base, size, MAX_NUMNODES);
++int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
++{
++	return memblock_reserve_region(base, size, MAX_NUMNODES, 0);
+ }
+ 
+ /**
+@@ -985,6 +1006,7 @@ void __init_memblock memblock_set_current_limit(phys_addr_t limit)
+ static void __init_memblock memblock_dump(struct memblock_type *type, char *name)
+ {
+ 	unsigned long long base, size;
++	unsigned long flags;
+ 	int i;
+ 
+ 	pr_info(" %s.cnt  = 0x%lx\n", name, type->cnt);
+@@ -995,13 +1017,14 @@ static void __init_memblock memblock_dump(struct memblock_type *type, char *name
+ 
+ 		base = rgn->base;
+ 		size = rgn->size;
++		flags = rgn->flags;
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+ 		if (memblock_get_region_node(rgn) != MAX_NUMNODES)
+ 			snprintf(nid_buf, sizeof(nid_buf), " on node %d",
+ 				 memblock_get_region_node(rgn));
+ #endif
+-		pr_info(" %s[%#x]\t[%#016llx-%#016llx], %#llx bytes%s\n",
+-			name, i, base, base + size - 1, size, nid_buf);
++		pr_info(" %s[%#x]\t[%#016llx-%#016llx], %#llx bytes%s flags: %#lx\n",
++			name, i, base, base + size - 1, size, nid_buf, flags);
+ 	}
+ }
  
 -- 
 1.7.1
