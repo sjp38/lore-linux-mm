@@ -1,48 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 7E62F6B00EB
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 10:01:07 -0400 (EDT)
-Received: by mail-ve0-f179.google.com with SMTP id c13so1814024vea.10
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2013 07:01:06 -0700 (PDT)
-Date: Wed, 7 Aug 2013 10:01:03 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 2/3] memcg: Limit the number of events registered on
- oom_control
-Message-ID: <20130807140103.GH27006@htj.dyndns.org>
-References: <1375874907-22013-1-git-send-email-mhocko@suse.cz>
- <1375874907-22013-2-git-send-email-mhocko@suse.cz>
- <20130807130836.GB27006@htj.dyndns.org>
- <20130807133746.GI8184@dhcp22.suse.cz>
- <20130807134741.GF27006@htj.dyndns.org>
- <20130807135734.GK8184@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id B9BE16B00ED
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 10:16:00 -0400 (EDT)
+Date: Wed, 7 Aug 2013 15:15:55 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [patch v2 1/3] mm: vmscan: fix numa reclaim balance problem in
+ kswapd
+Message-ID: <20130807141555.GO2296@suse.de>
+References: <1375457846-21521-1-git-send-email-hannes@cmpxchg.org>
+ <1375457846-21521-2-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20130807135734.GK8184@dhcp22.suse.cz>
+In-Reply-To: <1375457846-21521-2-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Anton Vorontsov <anton.vorontsov@linaro.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@surriel.com>, Andrea Arcangeli <aarcange@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Aug 07, 2013 at 03:57:34PM +0200, Michal Hocko wrote:
-> On Wed 07-08-13 09:47:41, Tejun Heo wrote:
-> > Hello,
-> > 
-> > On Wed, Aug 07, 2013 at 03:37:46PM +0200, Michal Hocko wrote:
-> > > > It isn't different from listening from epoll, for example.
-> > > 
-> > > epoll limits the number of watchers, no?
-> > 
-> > Not that I know of.  It'll be limited by max open fds but I don't
-> > think there are other limits. 
+On Fri, Aug 02, 2013 at 11:37:24AM -0400, Johannes Weiner wrote:
+> When the page allocator fails to get a page from all zones in its
+> given zonelist, it wakes up the per-node kswapds for all zones that
+> are at their low watermark.
 > 
-> max_user_watches seems to be a limit (4% of lowmem in maximum).
+> However, with a system under load the free pages in a zone can
+> fluctuate enough that the allocation fails but the kswapd wakeup is
+> also skipped while the zone is still really close to the low
+> watermark.
+> 
+> When one node misses a wakeup like this, it won't be aged before all
+> the other node's zones are down to their low watermarks again.  And
+> skipping a full aging cycle is an obvious fairness problem.
+> 
+> Kswapd runs until the high watermarks are restored, so it should also
+> be woken when the high watermarks are not met.  This ages nodes more
+> equally and creates a safety margin for the page counter fluctuation.
+> 
+> By using zone_balanced(), it will now check, in addition to the
+> watermark, if compaction requires more order-0 pages to create a
+> higher order page.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Reviewed-by: Rik van Riel <riel@redhat.com>
 
-That's per *user* not per event source.  The problem here is creating
-a global (across securit domains) resource shared by all users.
+Acked-by: Mel Gorman <mgorman@suse.de>
 
 -- 
-tejun
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
