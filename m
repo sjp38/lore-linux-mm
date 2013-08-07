@@ -1,141 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id CC1D36B00B8
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 06:53:53 -0400 (EDT)
-From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v3 24/25] mem-hotplug: Introduce movablenode boot option to {en|dis}able using SRAT.
-Date: Wed, 7 Aug 2013 18:52:15 +0800
-Message-Id: <1375872736-4822-25-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1375872736-4822-1-git-send-email-tangchen@cn.fujitsu.com>
-References: <1375872736-4822-1-git-send-email-tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 136C26B00B8
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 07:03:42 -0400 (EDT)
+From: =?UTF-8?q?Uwe=20Kleine-K=C3=B6nig?= <u.kleine-koenig@pengutronix.de>
+Subject: [PATCH v3 1/3] mm: make generic_access_phys available for modules
+Date: Wed,  7 Aug 2013 13:02:52 +0200
+Message-Id: <1375873374-12601-1-git-send-email-u.kleine-koenig@pengutronix.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
-Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Hans J. Koch" <hjk@hansjkoch.de>, linux-kernel@vger.kernel.org, kernel@pengutronix.de, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org
 
-The Hot-Pluggable fired in SRAT specifies which memory is hotpluggable.
-As we mentioned before, if hotpluggable memory is used by the kernel,
-it cannot be hot-removed. So memory hotplug users may want to set all
-hotpluggable memory in ZONE_MOVABLE so that the kernel won't use it.
+In the next commit this function will be used in the uio subsystem
 
-Memory hotplug users may also set a node as movable node, which has
-ZONE_MOVABLE only, so that the whole node can be hot-removed.
-
-But the kernel cannot use memory in ZONE_MOVABLE. By doing this, the
-kernel cannot use memory in movable nodes. This will cause NUMA
-performance down. And other users may be unhappy.
-
-So we need a way to allow users to enable and disable this functionality.
-In this patch, we introduce movablenode boot option to allow users to
-choose to reserve hotpluggable memory and set it as ZONE_MOVABLE or not.
-
-Users can specify "movablenode" in kernel commandline to enable this
-functionality. For those who don't use memory hotplug or who don't want
-to lose their NUMA performance, just don't specify anything. The kernel
-will work as before.
-
-Suggested-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Signed-off-by: Uwe Kleine-KA?nig <u.kleine-koenig@pengutronix.de>
 ---
- Documentation/kernel-parameters.txt |   15 +++++++++++++++
- arch/x86/kernel/setup.c             |   10 ++++++++--
- include/linux/memory_hotplug.h      |    3 +++
- mm/memory_hotplug.c                 |   11 +++++++++++
- 4 files changed, 37 insertions(+), 2 deletions(-)
+Hello,
 
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index 15356ac..7349d1f 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -1718,6 +1718,21 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
- 			that the amount of memory usable for all allocations
- 			is not too small.
+Greg suggested to take this patch together with the next one via his uio
+tree with the appropriate acks.
+
+Best regards
+Uwe
+
+ mm/memory.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/mm/memory.c b/mm/memory.c
+index 1ce2e2a..8d9255b 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -4066,6 +4066,7 @@ int generic_access_phys(struct vm_area_struct *vma, unsigned long addr,
  
-+	movablenode		[KNL,X86] This parameter enables/disables the
-+			kernel to arrange hotpluggable memory ranges recorded
-+			in ACPI SRAT(System Resource Affinity Table) as
-+			ZONE_MOVABLE. And these memory can be hot-removed when
-+			the system is up.
-+			By specifying this option, all the hotpluggable memory
-+			will be in ZONE_MOVABLE, which the kernel cannot use.
-+			This will cause NUMA performance down. For users who
-+			care about NUMA performance, just don't use it.
-+			If all the memory ranges in the system are hotpluggable,
-+			then the ones used by the kernel at early time, such as
-+			kernel code and data segments, initrd file and so on,
-+			won't be set as ZONE_MOVABLE, and won't be hotpluggable.
-+			Otherwise the kernel won't have enough memory to boot.
-+
- 	MTD_Partition=	[MTD]
- 			Format: <name>,<region-number>,<size>,<offset>
- 
-diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-index 36d7fe8..abdfed7 100644
---- a/arch/x86/kernel/setup.c
-+++ b/arch/x86/kernel/setup.c
-@@ -1061,14 +1061,20 @@ void __init setup_arch(char **cmdline_p)
- 	 */
- 	early_acpi_boot_table_init();
- 
--#ifdef CONFIG_ACPI_NUMA
-+#if defined(CONFIG_ACPI_NUMA) && defined(CONFIG_MOVABLE_NODE)
- 	/*
- 	 * Linux kernel cannot migrate kernel pages, as a result, memory used
- 	 * by the kernel cannot be hot-removed. Find and mark hotpluggable
- 	 * memory in memblock to prevent memblock from allocating hotpluggable
- 	 * memory for the kernel.
-+	 *
-+	 * If all the memory in a node is hotpluggable, then the kernel won't
-+	 * be able to use memory on that node. This will cause NUMA performance
-+	 * down. So by default, we don't reserve any hotpluggable memory. Users
-+	 * may use "movablenode" boot option to enable this functionality.
- 	 */
--	find_hotpluggable_memory();
-+	if (movablenode_enable_srat)
-+		find_hotpluggable_memory();
+ 	return len;
+ }
++EXPORT_SYMBOL_GPL(generic_access_phys);
  #endif
  
- 	/*
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 463efa9..43eb373 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -33,6 +33,9 @@ enum {
- 	ONLINE_MOVABLE,
- };
- 
-+/* Enable/disable SRAT in movablenode boot option */
-+extern bool movablenode_enable_srat;
-+
  /*
-  * pgdat resizing functions
-  */
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 0a69ceb..64e9f7e 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -93,6 +93,17 @@ static void release_memory_resource(struct resource *res)
- }
- 
- #ifdef CONFIG_ACPI_NUMA
-+#ifdef CONFIG_MOVABLE_NODE
-+bool __initdata movablenode_enable_srat;
-+
-+static int __init cmdline_parse_movablenode(char *p)
-+{
-+	movablenode_enable_srat = true;
-+	return 0;
-+}
-+early_param("movablenode", cmdline_parse_movablenode);
-+#endif	/* CONFIG_MOVABLE_NODE */
-+
- /**
-  * kernel_resides_in_range - Check if kernel resides in a memory region.
-  * @base: The base address of the memory region.
 -- 
-1.7.1
+1.8.4.rc1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
