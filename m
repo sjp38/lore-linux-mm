@@ -1,97 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id CD53C6B0033
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 16:57:18 -0400 (EDT)
-Message-ID: <201308072057.r77KvHSa017925@farm-0012.internal.tilera.com>
-In-Reply-To: <20130807204527.GB28039@mtj.dyndns.org>
-References: <20130807204527.GB28039@mtj.dyndns.org>
-From: Chris Metcalf <cmetcalf@tilera.com>
-Date: Wed, 7 Aug 2013 16:52:22 -0400
-Subject: [PATCH v3 2/2] mm: make lru_add_drain_all() selective
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id F187A6B0032
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 17:18:36 -0400 (EDT)
+Date: Wed, 7 Aug 2013 14:18:35 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] aoe: adjust ref of head for compound page tails
+Message-Id: <20130807141835.533816143f8b37175c50d58d@linux-foundation.org>
+In-Reply-To: <8DFEA276-4EE1-44B4-9669-5634631D7BBC@coraid.com>
+References: <cover.1375320764.git.ecashin@coraid.com>
+	<0c8aff39249c1da6b9cc3356650149d065c3ebd2.1375320764.git.ecashin@coraid.com>
+	<20130807135804.e62b75f6986e9568ab787562@linux-foundation.org>
+	<8DFEA276-4EE1-44B4-9669-5634631D7BBC@coraid.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Frederic Weisbecker <fweisbec@gmail.com>
+To: Ed Cashin <ecashin@coraid.com>
+Cc: linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org
 
-This change makes lru_add_drain_all() only selectively interrupt
-the cpus that have per-cpu free pages that can be drained.
+On Wed, 7 Aug 2013 17:12:36 -0400 Ed Cashin <ecashin@coraid.com> wrote:
 
-This is important in nohz mode where calling mlockall(), for
-example, otherwise will interrupt every core unnecessarily.
+> 
+> On Aug 7, 2013, at 4:58 PM, Andrew Morton wrote:
+> 
+> > On Thu, 1 Aug 2013 21:29:59 -0400 Ed Cashin <ecashin@coraid.com> wrote:
+> > 
+> >> As discussed previously,
+> > 
+> > I think I missed that.
+> > 
+> >> the fact that some users of the block
+> >> layer provide bios that point to pages with a zero _count means
+> >> that it is not OK for the network layer to do a put_page on the
+> >> skb frags during an skb_linearize, so the aoe driver gets a
+> >> reference to pages in bios and puts the reference before ending
+> >> the bio.  And because it cannot use get_page on a page with a
+> >> zero _count, it manipulates the value directly.
+> > 
+> > Eh?  What code is putting count==0 pages into bios?  That sounds very
+> > weird and broken.
+> 
+> I thought so in 2007 but couldn't solicit a clear "this is wrong" consensus from the discussion.
+> 
+>   http://article.gmane.org/gmane.linux.kernel/499197
+>   https://lkml.org/lkml/2007/1/19/56
+>   https://lkml.org/lkml/2006/12/18/230
+> 
+> We were seeing zero-count pages in bios from XFS, but Christoph Hellwig pointed out that kmalloced pages can also come from ext3 when it's doing log recovery, and they'll have zero page counts.
 
-Signed-off-by: Chris Metcalf <cmetcalf@tilera.com>
----
-v3: split commit into two, one for workqueue and one for mm, though both
-should probably be taken through -mm.
+aiiee!
 
- mm/swap.c | 37 ++++++++++++++++++++++++++++++++++++-
- 1 file changed, 36 insertions(+), 1 deletion(-)
+It is (I suppose) reasonable to put kmalloced memory into a BIO's page
+array.  And it is perfectly reasonable for a user of that bio to do a
+get_page/put_page against that page.  It is utterly unreasonable for
+the damn page to get freed as a result!
 
-diff --git a/mm/swap.c b/mm/swap.c
-index 4a1d0d2..d4a862b 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -405,6 +405,11 @@ static void activate_page_drain(int cpu)
- 		pagevec_lru_move_fn(pvec, __activate_page, NULL);
- }
- 
-+static bool need_activate_page_drain(int cpu)
-+{
-+	return pagevec_count(&per_cpu(activate_page_pvecs, cpu)) != 0;
-+}
-+
- void activate_page(struct page *page)
- {
- 	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
-@@ -422,6 +427,11 @@ static inline void activate_page_drain(int cpu)
- {
- }
- 
-+static bool need_activate_page_drain(int cpu)
-+{
-+	return false;
-+}
-+
- void activate_page(struct page *page)
- {
- 	struct zone *zone = page_zone(page);
-@@ -683,7 +693,32 @@ static void lru_add_drain_per_cpu(struct work_struct *dummy)
-  */
- int lru_add_drain_all(void)
- {
--	return schedule_on_each_cpu(lru_add_drain_per_cpu);
-+	cpumask_var_t mask;
-+	int cpu, rc;
-+
-+	if (!alloc_cpumask_var(&mask, GFP_KERNEL))
-+		return -ENOMEM;
-+	cpumask_clear(mask);
-+
-+	/*
-+	 * Figure out which cpus need flushing.  It's OK if we race
-+	 * with changes to the per-cpu lru pvecs, since it's no worse
-+	 * than if we flushed all cpus, since a cpu could still end
-+	 * up putting pages back on its pvec before we returned.
-+	 * And this avoids interrupting other cpus unnecessarily.
-+	 */
-+	for_each_online_cpu(cpu) {
-+		if (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
-+		    pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
-+		    pagevec_count(&per_cpu(lru_deactivate_pvecs, cpu)) ||
-+		    need_activate_page_drain(cpu))
-+			cpumask_set_cpu(cpu, mask);
-+	}
-+
-+	rc = schedule_on_cpu_mask(lru_add_drain_per_cpu, mask);
-+
-+	free_cpumask_var(mask);
-+	return rc;
- }
- 
- /*
--- 
-1.8.3.1
+I'd claim that slab is broken.  The page is in use, so it should have an
+elevated refcount, full stop.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
