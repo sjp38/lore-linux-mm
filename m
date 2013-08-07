@@ -1,93 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 748576B0031
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 20:55:14 -0400 (EDT)
-Message-ID: <52019ACF.1020006@huawei.com>
-Date: Wed, 7 Aug 2013 08:54:39 +0800
-From: Jianguo Wu <wujianguo@huawei.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm/mempolicy: return NULL if node is NUMA_NO_NODE in
- get_task_policy
-References: <52007660.7070907@huawei.com> <20130806140326.1d0d75874e6be221a432c3bc@linux-foundation.org>
-In-Reply-To: <20130806140326.1d0d75874e6be221a432c3bc@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id CD8086B0033
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 20:56:25 -0400 (EDT)
+Subject: Re: Performance regression from switching lock to rw-sem for
+ anon-vma tree
+From: Tim Chen <tim.c.chen@linux.intel.com>
+In-Reply-To: <1375833325.2134.36.camel@buesod1.americas.hpqcorp.net>
+References: <1372366385.22432.185.camel@schen9-DESK>
+	 <1372375873.22432.200.camel@schen9-DESK> <20130628093809.GB29205@gmail.com>
+	 <1372453461.22432.216.camel@schen9-DESK> <20130629071245.GA5084@gmail.com>
+	 <1372710497.22432.224.camel@schen9-DESK> <20130702064538.GB3143@gmail.com>
+	 <1373997195.22432.297.camel@schen9-DESK> <20130723094513.GA24522@gmail.com>
+	 <20130723095124.GW27075@twins.programming.kicks-ass.net>
+	 <20130723095306.GA26174@gmail.com> <1375143209.22432.419.camel@schen9-DESK>
+	 <1375833325.2134.36.camel@buesod1.americas.hpqcorp.net>
 Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 06 Aug 2013 17:56:28 -0700
+Message-ID: <1375836988.22432.435.camel@schen9-DESK>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hanjun Guo <guohanjun@huawei.com>
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, "Shi, Alex" <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-Hi Andrew,
+On Tue, 2013-08-06 at 16:55 -0700, Davidlohr Bueso wrote:
 
-On 2013/8/7 5:03, Andrew Morton wrote:
+> I got good numbers, recovering the performance drop I noticed with the
+> i_mmap_mutex to rwsem patches.
 
-> On Tue, 6 Aug 2013 12:06:56 +0800 Jianguo Wu <wujianguo@huawei.com> wrote:
-> 
->> If node == NUMA_NO_NODE, pol is NULL, we should return NULL instead of
->> do "if (!pol->mode)" check.
->>
->> Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
->> ---
->>  mm/mempolicy.c | 2 ++
->>  1 file changed, 2 insertions(+)
->>
->> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
->> index 4baf12e..e0e3398 100644
->> --- a/mm/mempolicy.c
->> +++ b/mm/mempolicy.c
->> @@ -129,6 +129,8 @@ static struct mempolicy *get_task_policy(struct task_struct *p)
->>  		node = numa_node_id();
->>  		if (node != NUMA_NO_NODE)
->>  			pol = &preferred_node_policy[node];
->> +		else
->> +			return NULL;
->>  
->>  		/* preferred_node_policy is not initialised early in boot */
->>  		if (!pol->mode)
-> 
-> Well yes, it'll dereference a null pointer
-> 
-> This is neater, I think:
-> 
+That's good.  I remembered that the earlier version of the patch not
+only recovered the performance drop, but also provide some boost when
+you switch from i_mmap_mutex to rwsem for aim7.  Do you see similar
+boost with this version?
 
-Yes, this is more readable, Thanks.
-
-> --- a/mm/mempolicy.c~mm-mempolicy-return-null-if-node-is-numa_no_node-in-get_task_policy
-> +++ a/mm/mempolicy.c
-> @@ -123,16 +123,19 @@ static struct mempolicy preferred_node_p
->  static struct mempolicy *get_task_policy(struct task_struct *p)
->  {
->  	struct mempolicy *pol = p->mempolicy;
-> -	int node;
->  
->  	if (!pol) {
-> -		node = numa_node_id();
-> -		if (node != NUMA_NO_NODE)
-> -			pol = &preferred_node_policy[node];
-> +		int node = numa_node_id();
->  
-> -		/* preferred_node_policy is not initialised early in boot */
-> -		if (!pol->mode)
-> -			pol = NULL;
-> +		if (node != NUMA_NO_NODE) {
-> +			pol = &preferred_node_policy[node];
-> +			/*
-> +			 * preferred_node_policy is not initialised early in
-> +			 * boot
-> +			 */
-> +			if (!pol->mode)
-> +				pol = NULL;
-> +		}
->  	}
->  
->  	return pol;
-> _
+>  Looking forward to a more upstreamable
+> patchset that deals with this work, including the previous patches.
 > 
-> 
-> .
-> 
+> One thing that's bugging me about this series though is the huge amount
+> of duplicated code being introduced to rwsems from mutexes. We can share
+> common functionality such as mcs locking (perhaps in a new file under
+> lib/), can_spin_on_owner() and owner_running(), perhaps moving those
+> functions into sheduler code, were AFAIK they were originally.
 
+I think that MCS locking is worth breaking out as its
+own library.  After we've done that, the rest of
+the duplication are minimal. It is easier
+to keep them separate as there are some rwsem 
+specific logic that may require tweaking
+to can_spin_on_owner and owner_running.  
 
+Thanks.
+
+Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
