@@ -1,26 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id D49666B0033
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 13:38:13 -0400 (EDT)
-Message-ID: <201308091738.r79HcBY7003695@farm-0021.internal.tilera.com>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 0F5076B0031
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 13:38:26 -0400 (EDT)
+Message-ID: <201308091738.r79HcPKE003698@farm-0021.internal.tilera.com>
 In-Reply-To: <20130809163029.GT20515@mtj.dyndns.org>
 From: Chris Metcalf <cmetcalf@tilera.com>
-Date: Wed, 7 Aug 2013 16:49:44 -0400
-Subject: [PATCH v5 1/2] workqueue: add new schedule_on_cpu_mask() API
+Date: Wed, 7 Aug 2013 16:52:22 -0400
+Subject: [PATCH v5 2/2] mm: make lru_add_drain_all() selective
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Frederic Weisbecker <fweisbec@gmail.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-This primitive allows scheduling work to run on a particular set of
-cpus described by a "struct cpumask".  This can be useful, for example,
-if you have a per-cpu variable that requires code execution only if the
-per-cpu variable has a certain value (for example, is a non-empty list).
+This change makes lru_add_drain_all() only selectively interrupt
+the cpus that have per-cpu free pages that can be drained.
+
+This is important in nohz mode where calling mlockall(), for
+example, otherwise will interrupt every core unnecessarily.
 
 Signed-off-by: Chris Metcalf <cmetcalf@tilera.com>
 ---
-v5: provide validity checking on the cpumask for schedule_on_cpu_mask.
+v5: provide validity checking on the cpumask for schedule_on_cpu_mask
 By providing an all-or-nothing EINVAL check, we impose the requirement
 that the calling code actually know clearly what it's trying to do.
 (Note: no change to the mm/swap.c commit)
@@ -31,142 +32,71 @@ v4: don't lose possible -ENOMEM in schedule_on_each_cpu()
 v3: split commit into two, one for workqueue and one for mm, though both
 should probably be taken through -mm.
 
- include/linux/workqueue.h |  3 +++
- kernel/workqueue.c        | 51 ++++++++++++++++++++++++++++++++++++++---------
- 2 files changed, 45 insertions(+), 9 deletions(-)
+ mm/swap.c | 37 ++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 36 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/workqueue.h b/include/linux/workqueue.h
-index a0ed78a..71a3fe7 100644
---- a/include/linux/workqueue.h
-+++ b/include/linux/workqueue.h
-@@ -13,6 +13,8 @@
- #include <linux/atomic.h>
- #include <linux/cpumask.h>
- 
-+struct cpumask;
-+
- struct workqueue_struct;
- 
- struct work_struct;
-@@ -470,6 +472,7 @@ extern void flush_workqueue(struct workqueue_struct *wq);
- extern void drain_workqueue(struct workqueue_struct *wq);
- extern void flush_scheduled_work(void);
- 
-+extern int schedule_on_cpu_mask(work_func_t func, const struct cpumask *mask);
- extern int schedule_on_each_cpu(work_func_t func);
- 
- int execute_in_process_context(work_func_t fn, struct execute_work *);
-diff --git a/kernel/workqueue.c b/kernel/workqueue.c
-index f02c4a4..63d504a 100644
---- a/kernel/workqueue.c
-+++ b/kernel/workqueue.c
-@@ -292,6 +292,9 @@ static DEFINE_SPINLOCK(wq_mayday_lock);	/* protects wq->maydays list */
- static LIST_HEAD(workqueues);		/* PL: list of all workqueues */
- static bool workqueue_freezing;		/* PL: have wqs started freezing? */
- 
-+/* set of cpus that are valid for per-cpu workqueue scheduling */
-+static struct cpumask wq_valid_cpus;
-+
- /* the per-cpu worker pools */
- static DEFINE_PER_CPU_SHARED_ALIGNED(struct worker_pool [NR_STD_WORKER_POOLS],
- 				     cpu_worker_pools);
-@@ -2962,43 +2965,66 @@ bool cancel_delayed_work_sync(struct delayed_work *dwork)
- EXPORT_SYMBOL(cancel_delayed_work_sync);
- 
- /**
-- * schedule_on_each_cpu - execute a function synchronously on each online CPU
-+ * schedule_on_cpu_mask - execute a function synchronously on each listed CPU
-  * @func: the function to call
-+ * @mask: the cpumask to invoke the function on
-  *
-- * schedule_on_each_cpu() executes @func on each online CPU using the
-+ * schedule_on_cpu_mask() executes @func on each listed CPU using the
-  * system workqueue and blocks until all CPUs have completed.
-- * schedule_on_each_cpu() is very slow.
-+ * schedule_on_cpu_mask() is very slow.  You may only specify CPUs
-+ * that are online or have previously been online; specifying an
-+ * invalid CPU mask will return -EINVAL without scheduling any work.
-  *
-  * RETURNS:
-  * 0 on success, -errno on failure.
-  */
--int schedule_on_each_cpu(work_func_t func)
-+int schedule_on_cpu_mask(work_func_t func, const struct cpumask *mask)
- {
- 	int cpu;
- 	struct work_struct __percpu *works;
- 
-+	if (!cpumask_subset(mask, &wq_valid_cpus))
-+		return -EINVAL;
-+
- 	works = alloc_percpu(struct work_struct);
- 	if (!works)
- 		return -ENOMEM;
- 
--	get_online_cpus();
--
--	for_each_online_cpu(cpu) {
-+	for_each_cpu(cpu, mask) {
- 		struct work_struct *work = per_cpu_ptr(works, cpu);
- 
- 		INIT_WORK(work, func);
- 		schedule_work_on(cpu, work);
- 	}
- 
--	for_each_online_cpu(cpu)
-+	for_each_cpu(cpu, mask)
- 		flush_work(per_cpu_ptr(works, cpu));
- 
--	put_online_cpus();
- 	free_percpu(works);
- 	return 0;
+diff --git a/mm/swap.c b/mm/swap.c
+index 4a1d0d2..d4a862b 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -405,6 +405,11 @@ static void activate_page_drain(int cpu)
+ 		pagevec_lru_move_fn(pvec, __activate_page, NULL);
  }
  
- /**
-+ * schedule_on_each_cpu - execute a function synchronously on each online CPU
-+ * @func: the function to call
-+ *
-+ * schedule_on_each_cpu() executes @func on each online CPU using the
-+ * system workqueue and blocks until all CPUs have completed.
-+ * schedule_on_each_cpu() is very slow.
-+ *
-+ * RETURNS:
-+ * 0 on success, -errno on failure.
-+ */
-+int schedule_on_each_cpu(work_func_t func)
++static bool need_activate_page_drain(int cpu)
 +{
-+	int ret;
-+	get_online_cpus();
-+	ret = schedule_on_cpu_mask(func, cpu_online_mask);
-+	put_online_cpus();
-+	return ret;
++	return pagevec_count(&per_cpu(activate_page_pvecs, cpu)) != 0;
 +}
 +
-+/**
-  * flush_scheduled_work - ensure that any scheduled work has run to completion.
-  *
-  * Forces execution of the kernel-global workqueue and blocks until its
-@@ -4687,6 +4713,9 @@ static int __cpuinit workqueue_cpu_up_callback(struct notifier_block *nfb,
- 		list_for_each_entry(wq, &workqueues, list)
- 			wq_update_unbound_numa(wq, cpu, true);
- 
-+		/* track the set of cpus that have ever been online */
-+		cpumask_set_cpu(cpu, &wq_valid_cpus);
-+
- 		mutex_unlock(&wq_pool_mutex);
- 		break;
- 	}
-@@ -5011,6 +5040,10 @@ static int __init init_workqueues(void)
- 	       !system_unbound_wq || !system_freezable_wq ||
- 	       !system_power_efficient_wq ||
- 	       !system_freezable_power_efficient_wq);
-+
-+	/* mark startup cpu as valid */
-+	cpumask_set_cpu(smp_processor_id(), &wq_valid_cpus);
-+
- 	return 0;
+ void activate_page(struct page *page)
+ {
+ 	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
+@@ -422,6 +427,11 @@ static inline void activate_page_drain(int cpu)
+ {
  }
- early_initcall(init_workqueues);
+ 
++static bool need_activate_page_drain(int cpu)
++{
++	return false;
++}
++
+ void activate_page(struct page *page)
+ {
+ 	struct zone *zone = page_zone(page);
+@@ -683,7 +693,32 @@ static void lru_add_drain_per_cpu(struct work_struct *dummy)
+  */
+ int lru_add_drain_all(void)
+ {
+-	return schedule_on_each_cpu(lru_add_drain_per_cpu);
++	cpumask_var_t mask;
++	int cpu, rc;
++
++	if (!alloc_cpumask_var(&mask, GFP_KERNEL))
++		return -ENOMEM;
++	cpumask_clear(mask);
++
++	/*
++	 * Figure out which cpus need flushing.  It's OK if we race
++	 * with changes to the per-cpu lru pvecs, since it's no worse
++	 * than if we flushed all cpus, since a cpu could still end
++	 * up putting pages back on its pvec before we returned.
++	 * And this avoids interrupting other cpus unnecessarily.
++	 */
++	for_each_online_cpu(cpu) {
++		if (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
++		    pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
++		    pagevec_count(&per_cpu(lru_deactivate_pvecs, cpu)) ||
++		    need_activate_page_drain(cpu))
++			cpumask_set_cpu(cpu, mask);
++	}
++
++	rc = schedule_on_cpu_mask(lru_add_drain_per_cpu, mask);
++
++	free_cpumask_var(mask);
++	return rc;
+ }
+ 
+ /*
 -- 
 1.8.3.1
 
