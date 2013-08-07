@@ -1,21 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 1EE116B0031
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 14:16:42 -0400 (EDT)
-Date: Wed, 7 Aug 2013 18:16:40 +0000
-From: Christoph Lameter <cl@gentwo.org>
-Subject: Re: [PATCH v2 1/2] mm: make vmstat_update periodic run conditional
-In-Reply-To: <0000013f61e7609b-a8d1907b-8169-4f77-ab83-a624a8d0ab4a-000000@email.amazonses.com>
-Message-ID: <0000014059feb970-d3c945ce-da75-4a07-a8bc-eabbf54702d2-000000@email.amazonses.com>
-References: <CAOtvUMc5w3zNe8ed6qX0OOM__3F_hOTqvFa1AkdXF0PHvzGZqg@mail.gmail.com> <1371672168-9869-1-git-send-email-gilad@benyossef.com> <0000013f61e7609b-a8d1907b-8169-4f77-ab83-a624a8d0ab4a-000000@email.amazonses.com>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 036B06B0032
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 15:08:17 -0400 (EDT)
+Received: by mail-vb0-f42.google.com with SMTP id e12so2271970vbg.29
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2013 12:08:16 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20130806152357.40031f6702c92ce9f0d10fca@linux-foundation.org>
+References: <1375778440-31503-1-git-send-email-iamjoonsoo.kim@lge.com>
+	<20130806152357.40031f6702c92ce9f0d10fca@linux-foundation.org>
+Date: Thu, 8 Aug 2013 04:08:16 +0900
+Message-ID: <CAAmzW4NMPLKae8kRDmGtciTPBam+mPF+qPtf8HindD+-xn2siQ@mail.gmail.com>
+Subject: Re: [PATCH] mm, page_alloc: optimize batch count in free_pcppages_bulk()
+From: JoonSoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben-Yossef <gilad@benyossef.com>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Frederic Weisbecker <fweisbec@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
 
-Is there any work in progress on this issue?
+Hello, Andrew.
+
+2013/8/7 Andrew Morton <akpm@linux-foundation.org>:
+> On Tue,  6 Aug 2013 17:40:40 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+>
+>> If we use a division operation, we can compute a batch count more closed
+>> to ideal value. With this value, we can finish our job within
+>> MIGRATE_PCPTYPES iteration. In addition, batching to free more pages
+>> may be helpful to cache usage.
+>>
+>
+> hm, maybe.  The .text got 120 bytes larger so the code now will
+> eject two of someone else's cachelines, which can't be good.  I need
+> more convincing, please ;)
+>
+> (bss got larger too - I don't have a clue why this happens).
+
+In my testing, it makes .text just 64 byes larger.
+I think that I cannot avoid such few increasing size.
+
+Current round-robin freeing algorithm access 'struct page' at random
+order, because
+it change it's migrate type and list on every iteration and a page on
+different list
+may be far from each other. If we do more batch free, we have more
+probability to access
+adjacent 'struct page' than before, so I think that this is
+cache-friendly. But this is just
+theoretical argument, so I'm not sure whether it is useful or not :)
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
