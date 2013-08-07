@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 6684B6B00CC
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 07:28:38 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 899CB6B00CF
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 07:28:39 -0400 (EDT)
 From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH 2/3] memcg: Limit the number of events registered on oom_control
-Date: Wed,  7 Aug 2013 13:28:26 +0200
-Message-Id: <1375874907-22013-2-git-send-email-mhocko@suse.cz>
+Subject: [PATCH 3/3] vmpressure: limit the number of registered events
+Date: Wed,  7 Aug 2013 13:28:27 +0200
+Message-Id: <1375874907-22013-3-git-send-email-mhocko@suse.cz>
 In-Reply-To: <1375874907-22013-1-git-send-email-mhocko@suse.cz>
 References: <1375874907-22013-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -13,79 +13,97 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Anton Vorontsov <anton.vorontsov@linaro.org>
 
-There is no limit for the maximum number of oom_control events
-registered per memcg. This might lead to an user triggered memory
-depletion if a regular user is allowed to register events.
+There is no limit for the maximum number of vmpressure events registered
+per memcg. This might lead to an user triggered memory depletion if a
+regular user is allowed to register events.
 
 Let's be more strict and cap the number of events that might be
-registered. MAX_OOM_NOTIFY_EVENTS value is more or less random. The
+registered. MAX_VMPRESSURE_EVENTS value is more or less random. The
 expectation is that it should be high enough to cover reasonable
 usecases while not too high to allow excessive resources consumption.
-1024 events consume something like 24KB which shouldn't be a big deal
-and it should be good enough (even 1024 oom notification events sounds
-crazy).
+1024 events consume something like 32KB which shouldn't be a big deal
+and it should be good enough.
 
 Signed-off-by: Michal Hocko <mhocko@suse.cz>
 ---
- mm/memcontrol.c |   21 ++++++++++++++++++++-
- 1 file changed, 20 insertions(+), 1 deletion(-)
+ include/linux/vmpressure.h |    2 ++
+ mm/vmpressure.c            |   21 +++++++++++++++++----
+ 2 files changed, 19 insertions(+), 4 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 8247db3..233317a 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -273,6 +273,7 @@ struct mem_cgroup {
- 	struct mem_cgroup_thresholds memsw_thresholds;
+diff --git a/include/linux/vmpressure.h b/include/linux/vmpressure.h
+index 7dc17e2..474230c 100644
+--- a/include/linux/vmpressure.h
++++ b/include/linux/vmpressure.h
+@@ -14,6 +14,8 @@ struct vmpressure {
+ 	/* The lock is used to keep the scanned/reclaimed above in sync. */
+ 	struct spinlock sr_lock;
  
- 	/* For oom notifier event fd */
-+	unsigned int oom_notify_count;
- 	struct list_head oom_notify;
- 
- 	/*
-@@ -5571,6 +5572,8 @@ unlock:
- 	mutex_unlock(&memcg->thresholds_lock);
++	/* Number of registered events. */
++	unsigned int events_count;
+ 	/* The list of vmpressure_event structs. */
+ 	struct list_head events;
+ 	/* Have to grab the lock on events traversal or modifications. */
+diff --git a/mm/vmpressure.c b/mm/vmpressure.c
+index 0c1e37d..bc9d546 100644
+--- a/mm/vmpressure.c
++++ b/mm/vmpressure.c
+@@ -281,6 +281,9 @@ void vmpressure_prio(gfp_t gfp, struct mem_cgroup *memcg, int prio)
+ 	vmpressure(gfp, memcg, vmpressure_win, 0);
  }
  
-+/* Maximum number of oom notify events per memcg */
-+#define MAX_OOM_NOTIFY_EVENTS 1024
- static int mem_cgroup_oom_register_event(struct cgroup *cgrp,
- 	struct cftype *cft, struct eventfd_ctx *eventfd, const char *args)
- {
-@@ -5578,10 +5581,25 @@ static int mem_cgroup_oom_register_event(struct cgroup *cgrp,
- 	struct mem_cgroup_eventfd_list *event;
- 	enum res_type type = MEMFILE_TYPE(cft->private);
- 
-+	spin_lock(&memcg_oom_lock);
-+	if (memcg->oom_notify_count == MAX_OOM_NOTIFY_EVENTS) {
-+		spin_unlock(&memcg_oom_lock);
-+		return -ENOSPC;
-+	}
-+	/*
-+	 * Be optimistic that the allocation succeds and increase the count
-+	 * now. This all is done because we have to drop the memcg_oom_lock
-+	 * while allocating.
-+	 */
-+	memcg->oom_notify_count++;
-+	spin_unlock(&memcg_oom_lock);
++/* Maximum number of events registered per group */
++#define MAX_VMPRESSURE_EVENTS 1024
 +
- 	BUG_ON(type != _OOM_TYPE);
- 	event = kmalloc(sizeof(*event),	GFP_KERNEL);
--	if (!event)
-+	if (!event) {
-+		memcg->oom_notify_count--;
- 		return -ENOMEM;
+ /**
+  * vmpressure_register_event() - Bind vmpressure notifications to an eventfd
+  * @cg:		cgroup that is interested in vmpressure notifications
+@@ -304,6 +307,7 @@ int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
+ 	struct vmpressure *vmpr = cg_to_vmpressure(cg);
+ 	struct vmpressure_event *ev;
+ 	int level;
++	int ret = 0;
+ 
+ 	for (level = 0; level < VMPRESSURE_NUM_LEVELS; level++) {
+ 		if (!strcmp(vmpressure_str_levels[level], args))
+@@ -313,18 +317,26 @@ int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
+ 	if (level >= VMPRESSURE_NUM_LEVELS)
+ 		return -EINVAL;
+ 
++	mutex_lock(&vmpr->events_lock);
++	if (vmpr->events_count == MAX_VMPRESSURE_EVENTS) {
++		ret = -ENOSPC;
++		goto unlock;
++	}
+ 	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
+-	if (!ev)
+-		return -ENOMEM;
++	if (!ev) {
++		ret = -ENOMEM;
++		goto unlock;
 +	}
  
- 	spin_lock(&memcg_oom_lock);
+ 	ev->efd = eventfd;
+ 	ev->level = level;
  
-@@ -5611,6 +5629,7 @@ static void mem_cgroup_oom_unregister_event(struct cgroup *cgrp,
- 		if (ev->eventfd == eventfd) {
- 			list_del(&ev->list);
- 			kfree(ev);
-+			memcg->oom_notify_count--;
- 		}
- 	}
+-	mutex_lock(&vmpr->events_lock);
++	vmpr->events_count++;
+ 	list_add(&ev->node, &vmpr->events);
++unlock:
+ 	mutex_unlock(&vmpr->events_lock);
  
+-	return 0;
++	return ret;
+ }
+ 
+ /**
+@@ -351,6 +363,7 @@ void vmpressure_unregister_event(struct cgroup *cg, struct cftype *cft,
+ 	list_for_each_entry(ev, &vmpr->events, node) {
+ 		if (ev->efd != eventfd)
+ 			continue;
++		vmpr->events_count--;
+ 		list_del(&ev->node);
+ 		kfree(ev);
+ 		break;
 -- 
 1.7.10.4
 
