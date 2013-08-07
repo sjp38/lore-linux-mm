@@ -1,141 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 80E236B003B
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 19:48:11 -0400 (EDT)
-Date: Thu, 8 Aug 2013 01:48:00 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 9/9] mm: zone_reclaim: compaction: add compaction to
- zone_reclaim_mode
-Message-ID: <20130807234800.GG4661@redhat.com>
-References: <1375459596-30061-1-git-send-email-aarcange@redhat.com>
- <1375459596-30061-10-git-send-email-aarcange@redhat.com>
- <20130804165526.GG27921@redhat.com>
- <20130807161837.GW2296@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130807161837.GW2296@suse.de>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id C3C166B003C
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 19:48:18 -0400 (EDT)
+Subject: Re: [PATCH] aoe: adjust ref of head for compound page tails
+MIME-Version: 1.0 (Apple Message framework v1085)
+Content-Type: text/plain; charset="us-ascii"
+From: Ed Cashin <ecashin@coraid.com>
+In-Reply-To: <3F0FBDD9-129C-45F4-A20C-3EB2E8EFC9C8@coraid.com>
+Date: Wed, 7 Aug 2013 19:48:15 -0400
+Content-Transfer-Encoding: quoted-printable
+Message-ID: <B5AF5A8D-2849-4027-A524-BA31BBCF8C8F@coraid.com>
+References: <cover.1375320764.git.ecashin@coraid.com> <0c8aff39249c1da6b9cc3356650149d065c3ebd2.1375320764.git.ecashin@coraid.com> <20130807135804.e62b75f6986e9568ab787562@linux-foundation.org> <8DFEA276-4EE1-44B4-9669-5634631D7BBC@coraid.com> <20130807141835.533816143f8b37175c50d58d@linux-foundation.org> <20130807142755.5cd89e02e4286f7dca88b80d@linux-foundation.org> <3F0FBDD9-129C-45F4-A20C-3EB2E8EFC9C8@coraid.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-mm@kvack.org, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hush Bensen <hush.bensen@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org
 
-On Wed, Aug 07, 2013 at 05:18:37PM +0100, Mel Gorman wrote:
-> > It is important to boot with numa_zonelist_order=n (n means nodes) to
-> > get more accurate NUMA locality if there are multiple zones per node.
-> > 
-> 
-> This appears to be an unrelated observation.
 
-But things still don't work ok without it. After alloc_batch changes
-it matters only in the slowpath but it still related.
+On Aug 7, 2013, at 7:41 PM, Ed Cashin wrote:
 
-> 
-> > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> > ---
-> >  include/linux/swap.h |   8 +++-
-> >  mm/page_alloc.c      |   4 +-
-> >  mm/vmscan.c          | 111 ++++++++++++++++++++++++++++++++++++++++++---------
-> >  3 files changed, 102 insertions(+), 21 deletions(-)
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index f2ada36..fedb246 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> >
-> > <SNIP>
-> >
-> > @@ -3549,27 +3567,35 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
-> >  	return sc.nr_reclaimed >= nr_pages;
-> >  }
-> >  
-> > -int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
-> > +static int zone_reclaim_compact(struct zone *preferred_zone,
-> > +				struct zone *zone, gfp_t gfp_mask,
-> > +				unsigned int order,
-> > +				bool sync_compaction,
-> > +				bool *need_compaction)
-> >  {
-> > -	int node_id;
-> > -	int ret;
-> > +	bool contended;
-> >  
-> > -	/*
-> > -	 * Zone reclaim reclaims unmapped file backed pages and
-> > -	 * slab pages if we are over the defined limits.
-> > -	 *
-> > -	 * A small portion of unmapped file backed pages is needed for
-> > -	 * file I/O otherwise pages read by file I/O will be immediately
-> > -	 * thrown out if the zone is overallocated. So we do not reclaim
-> > -	 * if less than a specified percentage of the zone is used by
-> > -	 * unmapped file backed pages.
-> > -	 */
-> > -	if (zone_pagecache_reclaimable(zone) <= zone->min_unmapped_pages &&
-> > -	    zone_page_state(zone, NR_SLAB_RECLAIMABLE) <= zone->min_slab_pages)
-> > -		return ZONE_RECLAIM_FULL;
-> > +	if (compaction_deferred(preferred_zone, order) ||
-> > +	    !order ||
-> > +	    (gfp_mask & (__GFP_FS|__GFP_IO)) != (__GFP_FS|__GFP_IO)) {
-> > +		*need_compaction = false;
-> > +		return COMPACT_SKIPPED;
-> > +	}
-> >  
-> > -	if (zone->all_unreclaimable)
-> > -		return ZONE_RECLAIM_FULL;
-> > +	*need_compaction = true;
-> > +	return compact_zone_order(zone, order,
-> > +				  gfp_mask,
-> > +				  sync_compaction,
-> > +				  &contended);
-> > +}
-> > +
-> > +int zone_reclaim(struct zone *preferred_zone, struct zone *zone,
-> > +		 gfp_t gfp_mask, unsigned int order,
-> > +		 unsigned long mark, int classzone_idx, int alloc_flags)
-> > +{
-> > +	int node_id;
-> > +	int ret, c_ret;
-> > +	bool sync_compaction = false, need_compaction = false;
-> >  
-> >  	/*
-> >  	 * Do not scan if the allocation should not be delayed.
-> > @@ -3587,7 +3613,56 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
-> >  	if (node_state(node_id, N_CPU) && node_id != numa_node_id())
-> >  		return ZONE_RECLAIM_NOSCAN;
-> >  
-> > +repeat_compaction:
-> > +	/*
-> > +	 * If this allocation may be satisfied by memory compaction,
-> > +	 * run compaction before reclaim.
-> > +	 */
-> > +	c_ret = zone_reclaim_compact(preferred_zone,
-> > +				     zone, gfp_mask, order,
-> > +				     sync_compaction,
-> > +				     &need_compaction);
-> > +	if (need_compaction &&
-> > +	    c_ret != COMPACT_SKIPPED &&
-> 
-> need_compaction records whether compaction was attempted or not. Why
-> not just check for COMPACT_SKIPPED and have compact_zone_order return
-> COMPACT_SKIPPED if !CONFIG_COMPACTION?
+> It sounds like it's wrong to give block pages with a zero count, so =
+why not just have aoe BUG_ON(compound_trans_head(bv->page->_count) =3D=3D =
+0) until we're sure nobody does that anymore?
 
-How can it be ok that try_to_compact_pages returns COMPACT_CONTINUE
-but compact_zone order returns the opposite? I mean either we change
-both or none.
+Ugh.  I goofed the parens and such.  I meant,
 
-static inline unsigned long try_to_compact_pages(struct zonelist *zonelist,
-			int order, gfp_t gfp_mask, nodemask_t *nodemask,
-			bool sync, bool *contended)
-{
-	return COMPACT_CONTINUE;
-}
+  BUG_ON(compound_trans_head(bv->bv_page)->_count =3D=3D 0)
 
-static inline unsigned long compact_zone_order(struct zone *zone,
-					       int order, gfp_t gfp_mask,
-					       bool sync, bool *contended)
-{
-	return COMPACT_CONTINUE;
-}
+... will catch the cases we think should not be occurring.
+
+> If that idea makes sense to you, I will submit a new patch to follow =
+the one under discussion.
+
+--=20
+  Ed Cashin
+  ecashin@coraid.com
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
