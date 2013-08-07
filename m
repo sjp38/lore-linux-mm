@@ -1,86 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id E8A9B6B0032
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 18:04:33 -0400 (EDT)
-Date: Thu, 8 Aug 2013 01:05:13 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 1/3] memcg: limit the number of thresholds per-memcg
-Message-ID: <20130807220513.GA8068@shutemov.name>
-References: <1375874907-22013-1-git-send-email-mhocko@suse.cz>
- <20130807132210.GD27006@htj.dyndns.org>
- <20130807134654.GJ8184@dhcp22.suse.cz>
- <20130807135818.GG27006@htj.dyndns.org>
- <20130807143727.GA13279@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 8AB346B0032
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 18:48:17 -0400 (EDT)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
+	Wed, 7 Aug 2013 18:48:16 -0400
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 64A1B38C803B
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 18:48:12 -0400 (EDT)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r77MmD9u182992
+	for <linux-mm@kvack.org>; Wed, 7 Aug 2013 18:48:13 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r77MmDeq009810
+	for <linux-mm@kvack.org>; Wed, 7 Aug 2013 18:48:13 -0400
+Message-ID: <5202CEAA.9040204@linux.vnet.ibm.com>
+Date: Wed, 07 Aug 2013 15:48:10 -0700
+From: Cody P Schafer <cody@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130807143727.GA13279@dhcp22.suse.cz>
+Subject: Re: [PATCH v2] mm: make lru_add_drain_all() selective
+References: <201308071458.r77EwuJV013106@farm-0012.internal.tilera.com> <201308071551.r77FpWTf022475@farm-0012.internal.tilera.com>
+In-Reply-To: <201308071551.r77FpWTf022475@farm-0012.internal.tilera.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Anton Vorontsov <anton.vorontsov@linaro.org>
+To: Chris Metcalf <cmetcalf@tilera.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Frederic Weisbecker <fweisbec@gmail.com>
 
-On Wed, Aug 07, 2013 at 04:37:27PM +0200, Michal Hocko wrote:
-> On Wed 07-08-13 09:58:18, Tejun Heo wrote:
-> > Hello,
-> > 
-> > On Wed, Aug 07, 2013 at 03:46:54PM +0200, Michal Hocko wrote:
-> > > OK, I have obviously misunderstood your concern mentioned in the other
-> > > email. Could you be more specific what is the DoS scenario which was
-> > > your concern, then?
-> > 
-> > So, let's say the file is write-accessible to !priv user which is
-> > under reasonable resource limits.  Normally this shouldn't affect priv
-> > system tools which are monitoring the same event as it shouldn't be
-> > able to deplete resources as long as the resource control mechanisms
-> > are configured and functioning properly; however, the memory usage
-> > event puts all event listeners into a single contiguous table which a
-> > !priv user can easily expand to a size where the table can no longer
-> > be enlarged and if a priv system tool or another user tries to
-> > register event afterwards, it'll fail.  IOW, it creates a shared
-> > resource which isn't properly provisioned and can be trivially filled
-> > up making it an easy DoS target.
-> 
-> OK, got your point. You are right and I haven't considered the size of
-> the table and the size restrictions of kmalloc. Thanks for pointing this
-> out!
-> ---
-> From cde8a3333296eddd288780e78803610127401b6a Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.cz>
-> Date: Wed, 7 Aug 2013 11:11:22 +0200
-> Subject: [PATCH] memcg: limit the number of thresholds per-memcg
-> 
-> There is no limit for the maximum number of threshold events registered
-> per memcg. It is even worse that all the events are stored in a
-> per-memcg table which is enlarged when a new event is registered. This
-> can lead to the following issue mentioned by Tejun:
-> "
-> So, let's say the file is write-accessible to !priv user which is
-> under reasonable resource limits.  Normally this shouldn't affect priv
-> system tools which are monitoring the same event as it shouldn't be
-> able to deplete resources as long as the resource control mechanisms
-> are configured and functioning properly; however, the memory usage
-> event puts all event listeners into a single contiguous table which a
-> !priv user can easily expand to a size where the table can no longer
-> be enlarged and if a priv system tool or another user tries to
-> register event afterwards, it'll fail.  IOW, it creates a shared
-> resource which isn't properly provisioned and can be trivially filled
-> up making it an easy DoS target.
-> "
-> 
-> Let's be more strict and cap the number of events that might be
-> registered. MAX_THRESHOLD_EVENTS value is more or less random. The
-> expectation is that it should be high enough to cover reasonable
-> usecases while not too high to allow excessive resources consumption.
-> 1024 events consume something like 16KB which shouldn't be a big deal
-> and it should be good enough.
+On 08/06/2013 01:22 PM, Chris Metcalf wrote:
+[...]
 
-Is it correct that you fix one local DoS by introducing a new one?
-With the page the !priv user can block root from registering a threshold.
-Is it really the way we want to fix it?
+>
+>   /**
+> + * schedule_on_each_cpu - execute a function synchronously on each online CPU
+> + * @func: the function to call
+> + *
+> + * schedule_on_each_cpu() executes @func on each online CPU using the
+> + * system workqueue and blocks until all CPUs have completed.
+> + * schedule_on_each_cpu() is very slow.
+> + *
+> + * RETURNS:
+> + * 0 on success, -errno on failure.
+> + */
+> +int schedule_on_each_cpu(work_func_t func)
+> +{
+> +	get_online_cpus();
+> +	schedule_on_cpu_mask(func, cpu_online_mask);
 
--- 
- Kirill A. Shutemov
+Looks like the return value gets lost here.
+
+> +	put_online_cpus();
+> +	return 0;
+> +}
+> +
+> +/**
+>    * flush_scheduled_work - ensure that any scheduled work has run to completion.
+>    *
+>    * Forces execution of the kernel-global workqueue and blocks until its
+
+[...]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
