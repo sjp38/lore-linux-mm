@@ -1,91 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id A29466B0087
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 05:18:29 -0400 (EDT)
-Date: Wed, 7 Aug 2013 18:18:32 +0900
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 7F7BE6B0089
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 05:21:25 -0400 (EDT)
+Date: Wed, 7 Aug 2013 18:21:28 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 17/18] mm, hugetlb: retry if we fail to allocate a
- hugepage with use_reserve
-Message-ID: <20130807091832.GD32449@lge.com>
-References: <1375075929-6119-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1375075929-6119-18-git-send-email-iamjoonsoo.kim@lge.com>
- <20130729072823.GD29970@voom.fritz.box>
- <20130731053753.GM2548@lge.com>
- <20130803104302.GC19115@voom.redhat.com>
- <20130805073647.GD27240@lge.com>
- <1375834724.2134.49.camel@buesod1.americas.hpqcorp.net>
- <20130807010312.GA17110@voom.redhat.com>
- <1375839529.2134.50.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH 0/2] hugepage: optimize page fault path locking
+Message-ID: <20130807092128.GE32449@lge.com>
+References: <1374848845-1429-1-git-send-email-davidlohr.bueso@hp.com>
+ <20130729061820.GA4784@lge.com>
+ <1375834084.2134.44.camel@buesod1.americas.hpqcorp.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1375839529.2134.50.camel@buesod1.americas.hpqcorp.net>
+In-Reply-To: <1375834084.2134.44.camel@buesod1.americas.hpqcorp.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Davidlohr Bueso <davidlohr@hp.com>
-Cc: David Gibson <david@gibson.dropbear.id.au>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
+Cc: Davidlohr Bueso <davidlohr.bueso@hp.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "AneeshKumarK.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, David Gibson <david@gibson.dropbear.id.au>, Eric B Munson <emunson@mgebm.net>, Anton Blanchard <anton@samba.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Aug 06, 2013 at 06:38:49PM -0700, Davidlohr Bueso wrote:
-> On Wed, 2013-08-07 at 11:03 +1000, David Gibson wrote:
-> > On Tue, Aug 06, 2013 at 05:18:44PM -0700, Davidlohr Bueso wrote:
-> > > On Mon, 2013-08-05 at 16:36 +0900, Joonsoo Kim wrote:
-> > > > > Any mapping that doesn't use the reserved pool, not just
-> > > > > MAP_NORESERVE.  For example, if a process makes a MAP_PRIVATE mapping,
-> > > > > then fork()s then the mapping is instantiated in the child, that will
-> > > > > not draw from the reserved pool.
-> > > > > 
-> > > > > > Should we ensure them to allocate the last hugepage?
-> > > > > > They map a region with MAP_NORESERVE, so don't assume that their requests
-> > > > > > always succeed.
-> > > > > 
-> > > > > If the pages are available, people get cranky if it fails for no
-> > > > > apparent reason, MAP_NORESERVE or not.  They get especially cranky if
-> > > > > it sometimes fails and sometimes doesn't due to a race condition.
-> > > > 
-> > > > Hello,
-> > > > 
-> > > > Hmm... Okay. I will try to implement another way to protect race condition.
-> > > > Maybe it is the best to use a table mutex :)
-> > > > Anyway, please give me a time, guys.
-> > > 
-> > > So another option is to take the mutex table patchset for now as it
-> > > *does* improve things a great deal, then, when ready, get rid of the
-> > > instantiation lock all together.
+On Tue, Aug 06, 2013 at 05:08:04PM -0700, Davidlohr Bueso wrote:
+> On Mon, 2013-07-29 at 15:18 +0900, Joonsoo Kim wrote:
+> > On Fri, Jul 26, 2013 at 07:27:23AM -0700, Davidlohr Bueso wrote:
+> > > This patchset attempts to reduce the amount of contention we impose
+> > > on the hugetlb_instantiation_mutex by replacing the global mutex with
+> > > a table of mutexes, selected based on a hash. The original discussion can 
+> > > be found here: http://lkml.org/lkml/2013/7/12/428
 > > 
-> > We still don't have a solid proposal for doing that. Joonsoo Kim's
-> > patchset misses cases (non reserved mappings).  I'm also not certain
-> > there aren't a few edge cases which can lead to even reserved mappings
-> > failing, and if that happens the patches will lead to livelock.
+> > Hello, Davidlohr.
 > > 
+> > I recently sent a patchset which remove the hugetlb_instantiation_mutex
+> > entirely ('mm, hugetlb: remove a hugetlb_instantiation_mutex').
+> > This patchset can be found here: https://lkml.org/lkml/2013/7/29/54
+> > 
+> > If possible, could you review it and test it whether your problem is
+> > disappered with it or not?
 > 
-> Exactly, which is why I suggest minimizing the lock contention until we
-> do have such a proposal.
+> This patchset applies on top of https://lkml.org/lkml/2013/7/22/96
+> "[PATCH v2 00/10] mm, hugetlb: clean-up and possible bug fix", right?
+> 
+> AFAIK those changes are the ones Andrew picked up a few weeks ago and
+> are now in linux-next, right? I was able to apply those just fine, but
+> couldn't apply your 'remove a hugetlb_instantiation_mutex series' (IIRC
+> pach 1/18 failed). I guess you'll send out a v2 anyway so I'll wait
+> until then.
+> 
+> In any case I'm not seeing an actual performance issue with the
+> hugetlb_instantiation_mutex, all I noticed was that under large DB
+> workloads that make use of hugepages, such as Oracle, this lock becomes
+> quite hot during the first few minutes of startup, which makes sense in
+> the fault path it is contended. So I'll try out your patches, but, in
+> this particular case, I just cannot compare with the lock vs without the
+> lock situations.
 
-Okay. my proposal is not complete and maybe much time is needed.
-And I'm not sure that my *retry* approach can eventually cover all
-the race situations, currently.
-
-If you have to hurry, I don't have strong objection to your patches,
-but, IMHO, we should go slow, because it is not just trivial change.
-Hugetlb code is too subtle, so it is hard to confirm it's solidness.
-Following is the race problem what I found with those patches.
-
-I assume that nr_free_hugepage is 2.
-
-1. parent process map an 1 hugepage sizeid region with MAP_PRIVATE
-2. parent process write something to this region, so fault occur.
-3. fault handling.
-4. fork
-5. parent process write something to this hugepage, so cow-fault occur.
-6. while parent allocate a new page and do copy_user_huge_page()
-	in fault handler, child process write something to this hugepage,
-	so cow-fault occur. This access is not protected by table mutex,
-	because mm is different.
-7. child process die, because there is no free hugepage.
-
-If we have no race, child process would not die,
-because all we needed is only 2 hugepages, one for parent,
-and the other for child.
+Okay. I just want to know that lock contention is reduced by my patches
+in the first few minutes of startup. I will send v2 soon.
 
 Thanks.
 
