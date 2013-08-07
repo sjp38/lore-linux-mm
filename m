@@ -1,63 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 8746A6B0033
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 16:28:14 -0400 (EDT)
-Date: Wed, 7 Aug 2013 13:28:12 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 2/2] [PATCH] mm: Save soft-dirty bits on file pages
-Message-Id: <20130807132812.60ad4bfe85127794094d385e@linux-foundation.org>
-In-Reply-To: <20130730204654.966378702@gmail.com>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id D0AB86B0033
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 16:29:17 -0400 (EDT)
+Received: by mail-lb0-f174.google.com with SMTP id w20so1879424lbh.19
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2013 13:29:15 -0700 (PDT)
+Date: Thu, 8 Aug 2013 00:29:14 +0400
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [patch 1/2] [PATCH] mm: Save soft-dirty bits on swapped pages
+Message-ID: <20130807202914.GO7999@moon>
 References: <20130730204154.407090410@gmail.com>
-	<20130730204654.966378702@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20130730204654.844299768@gmail.com>
+ <20130807132156.e97bbcc3d543cf88d5a0997d@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130807132156.e97bbcc3d543cf88d5a0997d@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyrill Gorcunov <gorcunov@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, luto@amacapital.net, gorcunov@openvz.org, xemul@parallels.com, mpm@selenic.com, xiaoguangrong@linux.vnet.ibm.com, mtosatti@redhat.com, kosaki.motohiro@gmail.com, sfr@canb.auug.org.au, peterz@infradead.org, aneesh.kumar@linux.vnet.ibm.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, luto@amacapital.net, xemul@parallels.com, mpm@selenic.com, xiaoguangrong@linux.vnet.ibm.com, mtosatti@redhat.com, kosaki.motohiro@gmail.com, sfr@canb.auug.org.au, peterz@infradead.org, aneesh.kumar@linux.vnet.ibm.com
 
-On Wed, 31 Jul 2013 00:41:56 +0400 Cyrill Gorcunov <gorcunov@gmail.com> wrote:
+On Wed, Aug 07, 2013 at 01:21:56PM -0700, Andrew Morton wrote:
+> > 
+> > One of the problem was to find a place in pte entry where we can
+> > save the _PTE_SWP_SOFT_DIRTY bit while page is in swap. The
+> > _PAGE_PSE was chosen for that, it doesn't intersect with swap
+> > entry format stored in pte.
+> 
+> So the implication is that if another architecture wants to support
+> this (and, realistically, wants to support CRIU), that architecture
+> must find a spare pte bit to implement _PTE_SWP_SOFT_DIRTY.  Yes?
 
-> +#define pte_to_pgoff(pte)						\
-> +	((((pte).pte_low >> (PTE_FILE_SHIFT1))				\
-> +	  & ((1U << PTE_FILE_BITS1) - 1)))				\
-> +	+ ((((pte).pte_low >> (PTE_FILE_SHIFT2))			\
-> +	    & ((1U << PTE_FILE_BITS2) - 1))				\
-> +	   << (PTE_FILE_BITS1))						\
-> +	+ ((((pte).pte_low >> (PTE_FILE_SHIFT3))			\
-> +	    & ((1U << PTE_FILE_BITS3) - 1))				\
-> +	   << (PTE_FILE_BITS1 + PTE_FILE_BITS2))			\
-> +	+ ((((pte).pte_low >> (PTE_FILE_SHIFT4)))			\
-> +	    << (PTE_FILE_BITS1 + PTE_FILE_BITS2 + PTE_FILE_BITS3))
-> +
-> +#define pgoff_to_pte(off)						\
-> +	((pte_t) { .pte_low =						\
-> +	 ((((off)) & ((1U << PTE_FILE_BITS1) - 1)) << PTE_FILE_SHIFT1)	\
-> +	 + ((((off) >> PTE_FILE_BITS1)					\
-> +	     & ((1U << PTE_FILE_BITS2) - 1))				\
-> +	    << PTE_FILE_SHIFT2)						\
-> +	 + ((((off) >> (PTE_FILE_BITS1 + PTE_FILE_BITS2))		\
-> +	     & ((1U << PTE_FILE_BITS3) - 1))				\
-> +	    << PTE_FILE_SHIFT3)						\
-> +	 + ((((off) >>							\
-> +	      (PTE_FILE_BITS1 + PTE_FILE_BITS2 + PTE_FILE_BITS3)))	\
-> +	    << PTE_FILE_SHIFT4)						\
-> +	 + _PAGE_FILE })
-
-Good god.
-
-I wonder if these can be turned into out-of-line functions in some form
-which humans can understand.
-
-or
-
-#define pte_to_pgoff(pte)
-	frob(pte, PTE_FILE_SHIFT1, PTE_FILE_BITS1) +
-	frob(PTE_FILE_SHIFT2, PTE_FILE_BITS2) +
-	frob(PTE_FILE_SHIFT3, PTE_FILE_BITS3) +
-	frob(PTE_FILE_SHIFT4, PTE_FILE_BITS1 + PTE_FILE_BITS2 + PTE_FILE_BITS3)
-
+Exactly.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
