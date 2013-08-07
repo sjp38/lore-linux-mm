@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 48BCF6B00B2
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 05BC46B00B1
 	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 06:53:52 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v3 15/25] x86: get pg_data_t's memory from other node
-Date: Wed, 7 Aug 2013 18:52:06 +0800
-Message-Id: <1375872736-4822-16-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v3 22/25] memblock, mem_hotplug: Introduce MEMBLOCK_HOTPLUG flag to mark hotpluggable regions.
+Date: Wed, 7 Aug 2013 18:52:13 +0800
+Message-Id: <1375872736-4822-23-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1375872736-4822-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1375872736-4822-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,65 +13,110 @@ List-ID: <linux-mm.kvack.org>
 To: robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+In find_hotpluggable_memory, once we find out a memory region which is
+hotpluggable, we want to mark them in memblock.memory. So that we could
+control memblock allocator not to allocte hotpluggable memory for the kernel
+later.
 
-If system can create movable node which all memory of the node is allocated
-as ZONE_MOVABLE, setup_node_data() cannot allocate memory for the node's
-pg_data_t. So, use memblock_alloc_try_nid() instead of memblock_alloc_nid()
-to retry when the first allocation fails. Otherwise, the system could failed
-to boot.
+To achieve this goal, we introduce MEMBLOCK_HOTPLUG flag to indicate the
+hotpluggable memory regions in memblock and a function memblock_mark_hotplug()
+to mark hotpluggable memory if we find one.
 
-The node_data could be on hotpluggable node. And so could pagetable and
-vmemmap. But for now, doing so will break memory hot-remove path.
-
-A node could have several memory devices. And the device who holds node
-data should be hot-removed in the last place. But in NUMA level, we don't
-know which memory_block (/sys/devices/system/node/nodeX/memoryXXX) belongs
-to which memory device. We only have node. So we can only do node hotplug.
-
-But in virtualization, developers are now developing memory hotplug in qemu,
-which support a single memory device hotplug. So a whole node hotplug will
-not satisfy virtualization users.
-
-So at last, we concluded that we'd better do memory hotplug and local node
-things (local node node data, pagetable, vmemmap, ...) in two steps.
-Please refer to https://lkml.org/lkml/2013/6/19/73
-
-For now, we put node_data of movable node to another node, and then improve
-it in the future.
-
-In the later patches, a boot option will be introduced to enable/disable this
-functionality. If users disable it, the node_data will still be put on the
-local node.
-
-Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-Acked-by: Toshi Kani <toshi.kani@hp.com>
 ---
- arch/x86/mm/numa.c |    5 ++---
- 1 files changed, 2 insertions(+), 3 deletions(-)
+ include/linux/memblock.h |   11 +++++++++++
+ mm/memblock.c            |   26 ++++++++++++++++++++++++++
+ mm/memory_hotplug.c      |    3 ++-
+ 3 files changed, 39 insertions(+), 1 deletions(-)
 
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index 8bf93ba..d532b6d 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -209,10 +209,9 @@ static void __init setup_node_data(int nid, u64 start, u64 end)
- 	 * Allocate node data.  Try node-local memory and then any node.
- 	 * Never allocate in DMA zone.
- 	 */
--	nd_pa = memblock_alloc_nid(nd_size, SMP_CACHE_BYTES, nid);
-+	nd_pa = memblock_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
- 	if (!nd_pa) {
--		pr_err("Cannot find %zu bytes in node %d\n",
--		       nd_size, nid);
-+		pr_err("Cannot find %zu bytes in any node\n", nd_size);
- 		return;
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index e89e0cd..c0bd31c 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -19,6 +19,9 @@
+ 
+ #define INIT_MEMBLOCK_REGIONS	128
+ 
++/* Definition of memblock flags. */
++#define MEMBLOCK_HOTPLUG	0x1	/* hotpluggable region */
++
+ struct memblock_region {
+ 	phys_addr_t base;
+ 	phys_addr_t size;
+@@ -60,6 +63,8 @@ int memblock_free(phys_addr_t base, phys_addr_t size);
+ int memblock_reserve(phys_addr_t base, phys_addr_t size);
+ void memblock_trim_memory(phys_addr_t align);
+ 
++int memblock_mark_hotplug(phys_addr_t base, phys_addr_t size);
++
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+ void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
+ 			  unsigned long *out_end_pfn, int *out_nid);
+@@ -119,6 +124,12 @@ void __next_free_mem_range_rev(u64 *idx, int nid, phys_addr_t *out_start,
+ 	     i != (u64)ULLONG_MAX;					\
+ 	     __next_free_mem_range_rev(&i, nid, p_start, p_end, p_nid))
+ 
++static inline void memblock_set_region_flags(struct memblock_region *r,
++					     unsigned long flags)
++{
++	r->flags = flags;
++}
++
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+ int memblock_set_node(phys_addr_t base, phys_addr_t size, int nid);
+ 
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 0841a6e..ecd8568 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -585,6 +585,32 @@ int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
+ }
+ 
+ /**
++ * memblock_mark_hotplug - Mark hotpluggable memory with flag MEMBLOCK_HOTPLUG.
++ * @base: the base phys addr of the region
++ * @size: the size of the region
++ *
++ * This function isolates region [@base, @base + @size), and mark it with flag
++ * MEMBLOCK_HOTPLUG.
++ *
++ * Return 0 on succees, -errno on failure.
++ */
++int __init_memblock memblock_mark_hotplug(phys_addr_t base, phys_addr_t size)
++{
++	struct memblock_type *type = &memblock.memory;
++	int i, ret, start_rgn, end_rgn;
++
++	ret = memblock_isolate_range(type, base, size, &start_rgn, &end_rgn);
++	if (ret)
++		return ret;
++
++	for (i = start_rgn; i < end_rgn; i++)
++		memblock_set_region_flags(&type->regions[i], MEMBLOCK_HOTPLUG);
++
++	memblock_merge_regions(type);
++	return 0;
++}
++
++/**
+  * __next_free_mem_range - next function for for_each_free_mem_range()
+  * @idx: pointer to u64 loop variable
+  * @nid: node selector, %MAX_NUMNODES for all nodes
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 3d760fc..0a69ceb 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -174,7 +174,8 @@ void __init find_hotpluggable_memory(void)
+ 		if (kernel_resides_in_region(base, size))
+ 			continue;
+ 
+-		/* Will mark hotpluggable memory regions here */
++		/* Mark hotpluggable memory regions in memblock.memory */
++		memblock_mark_hotplug(base, size);
  	}
- 	nd = __va(nd_pa);
+ 
+ 	early_iounmap(srat_vaddr, length);
 -- 
 1.7.1
 
