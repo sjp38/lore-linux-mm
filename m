@@ -1,47 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 1EA036B004D
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 01:52:07 -0400 (EDT)
-Date: Wed, 7 Aug 2013 01:51:57 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: unused swap offset / bad page map.
-Message-ID: <20130807055157.GA32278@redhat.com>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id D05BA6B005C
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 02:08:12 -0400 (EDT)
+Date: Wed, 7 Aug 2013 02:08:03 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 2/4] mm, rmap: allocate anon_vma_chain before starting to
+ link anon_vma_chain
+Message-ID: <20130807060803.GJ1845@cmpxchg.org>
+References: <1375778620-31593-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1375778620-31593-2-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <1375778620-31593-2-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>
 
-Seen while fuzzing with lots of child processes.
+On Tue, Aug 06, 2013 at 05:43:38PM +0900, Joonsoo Kim wrote:
+> If we allocate anon_vma_chain before starting to link, we can reduce
+> the lock hold time. This patch implement it.
+> 
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> 
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index c2f51cb..1603f64 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -240,18 +240,21 @@ int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
+>  {
+>  	struct anon_vma_chain *avc, *pavc;
+>  	struct anon_vma *root = NULL;
+> +	LIST_HEAD(avc_list);
+> +
+> +	list_for_each_entry(pavc, &src->anon_vma_chain, same_vma) {
+> +		avc = anon_vma_chain_alloc(GFP_KERNEL);
+> +		if (unlikely(!avc))
+> +			goto enomem_failure;
+> +
+> +		list_add_tail(&avc->same_vma, &avc_list);
+> +	}
+>  
+>  	list_for_each_entry_reverse(pavc, &src->anon_vma_chain, same_vma) {
+>  		struct anon_vma *anon_vma;
+>  
+> -		avc = anon_vma_chain_alloc(GFP_NOWAIT | __GFP_NOWARN);
+> -		if (unlikely(!avc)) {
+> -			unlock_anon_vma_root(root);
+> -			root = NULL;
+> -			avc = anon_vma_chain_alloc(GFP_KERNEL);
+> -			if (!avc)
+> -				goto enomem_failure;
+> -		}
+> +		avc = list_entry((&avc_list)->next, typeof(*avc), same_vma);
 
-swap_free: Unused swap offset entry 001263f5
-BUG: Bad page map in process trinity-child29  pte:24c7ea00 pmd:09fec067
-addr:00007f9db958d000 vm_flags:00100073 anon_vma:ffff88022c004ba0 mapping:          (null) index:f99
-Modules linked in: fuse ipt_ULOG snd_seq_dummy tun sctp scsi_transport_iscsi can_raw can_bcm rfcomm bnep nfnetlink hidp appletalk bluetooth rose can af_802154 phonet x25 af_rxrpc llc2 nfc rfkill af_key pppoe rds pppox ppp_generic slhc caif_socket caif irda crc_ccitt atm netrom ax25 ipx p8023 psnap p8022 llc snd_hda_codec_realtek pcspkr usb_debug snd_seq snd_seq_device snd_hda_intel snd_hda_codec snd_hwdep e1000e snd_pcm ptp pps_core snd_page_alloc snd_timer snd soundcore xfs libcrc32c
-CPU: 1 PID: 2624 Comm: trinity-child29 Not tainted 3.11.0-rc4+ #1
- 0000000000000000 ffff8801fd7ddc90 ffffffff81700f2c 00007f9db958d000
- ffff8801fd7ddcd8 ffffffff8117cba7 0000000024c7ea00 0000000000000f99
- 00007f9db9600000 ffff880009fecc68 0000000024c7ea00 ffff8801fd7dde00
-Call Trace:
- [<ffffffff81700f2c>] dump_stack+0x4e/0x82
- [<ffffffff8117cba7>] print_bad_pte+0x187/0x220
- [<ffffffff8117e415>] unmap_single_vma+0x535/0x890
- [<ffffffff8117f719>] unmap_vmas+0x49/0x90
- [<ffffffff81187ef1>] exit_mmap+0xc1/0x170
- [<ffffffff810510ef>] mmput+0x6f/0x100
- [<ffffffff81055818>] do_exit+0x288/0xcd0
- [<ffffffff810c1da5>] ? trace_hardirqs_on_caller+0x115/0x1e0
- [<ffffffff810c1e7d>] ? trace_hardirqs_on+0xd/0x10
- [<ffffffff810575dc>] do_group_exit+0x4c/0xc0
- [<ffffffff81057664>] SyS_exit_group+0x14/0x20
- [<ffffffff81713dd4>] tracesys+0xdd/0xe2
+list_first_entry() please
 
-There were a slew of these. same trace, different addr/anon_vma/index.
-mapping always null.
+> +		list_del(&avc->same_vma);
+>  		anon_vma = pavc->anon_vma;
+>  		root = lock_anon_vma_root(root, anon_vma);
+>  		anon_vma_chain_link(dst, avc, anon_vma);
+> @@ -259,8 +262,11 @@ int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
+>  	unlock_anon_vma_root(root);
+>  	return 0;
+>  
+> - enomem_failure:
+> -	unlink_anon_vmas(dst);
+> +enomem_failure:
+> +	list_for_each_entry_safe(avc, pavc, &avc_list, same_vma) {
+> +		list_del(&avc->same_vma);
+> +		anon_vma_chain_free(avc);
+> +	}
+>  	return -ENOMEM;
+>  }
 
-	Dave
+Otherwise, looks good.
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
