@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id DC2EA6B00C1
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 07:13:40 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 631CC6B00C0
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 07:13:41 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v3 23/25] memblock, mem_hotplug: Make memblock skip hotpluggable regions by default.
-Date: Wed, 7 Aug 2013 18:52:14 +0800
-Message-Id: <1375872736-4822-24-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v3 14/25] x86, acpi: Initialize acpi golbal root table list earlier.
+Date: Wed, 7 Aug 2013 18:52:05 +0800
+Message-Id: <1375872736-4822-15-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1375872736-4822-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1375872736-4822-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,66 +13,120 @@ List-ID: <linux-mm.kvack.org>
 To: robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-Linux kernel cannot migrate pages used by the kernel. As a result, hotpluggable
-memory used by the kernel won't be able to be hot-removed. To solve this
-problem, the basic idea is to prevent memblock from allocating hotpluggable
-memory for the kernel at early time, and arrange all hotpluggable memory in
-ACPI SRAT(System Resource Affinity Table) as ZONE_MOVABLE when initializing
-zones.
+As the previous patches split the acpi_gbl_root_table_list initialization
+procedure into two steps: install and override, this patch does the "install"
+steps earlier, right after memblock is ready.
 
-In the previous patches, we have marked hotpluggable memory regions with
-MEMBLOCK_HOTPLUG flag in memblock.memory.
-
-In this patch, we make memblock skip these hotpluggable memory regions in
-the default allocate function.
-
-memblock_find_in_range_node()
-  |-->for_each_free_mem_range_reverse()
-        |-->__next_free_mem_range_rev()
-
-The above is the only place where __next_free_mem_range_rev() is used. So
-skip hotpluggable memory regions when iterating memblock.memory to find
-free memory.
-
-In the later patches, a boot option named "movablenode" will be introduced
-to enable/disable using SRAT to arrange ZONE_MOVABLE.
-
-NOTE: This check will always be done. It is OK because if users didn't specify
-      movablenode option, the hotpluggable memory won't be marked. So this
-      check won't skip any memory, which means the kernel will act as before.
+In this way, we are able to find SRAT in firmware earlier. And then, we can
+prevent memblock from allocating hotpluggable memory for the kernel.
 
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 ---
- mm/memblock.c |    8 ++++++++
- 1 files changed, 8 insertions(+), 0 deletions(-)
+ arch/x86/kernel/acpi/boot.c |   30 +++++++++++++++++-------------
+ arch/x86/kernel/setup.c     |    8 +++++++-
+ include/linux/acpi.h        |    1 +
+ 3 files changed, 25 insertions(+), 14 deletions(-)
 
-diff --git a/mm/memblock.c b/mm/memblock.c
-index ecd8568..3ea4301 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -695,6 +695,10 @@ void __init_memblock __next_free_mem_range(u64 *idx, int nid,
-  * @out_nid: ptr to int for nid of the range, can be %NULL
-  *
-  * Reverse of __next_free_mem_range().
-+ *
-+ * Linux kernel cannot migrate pages used by itself. Memory hotplug users won't
-+ * be able to hot-remove hotpluggable memory used by the kernel. So this
-+ * function skip hotpluggable regions when allocating memory for the kernel.
-  */
- void __init_memblock __next_free_mem_range_rev(u64 *idx, int nid,
- 					   phys_addr_t *out_start,
-@@ -719,6 +723,10 @@ void __init_memblock __next_free_mem_range_rev(u64 *idx, int nid,
- 		if (nid != MAX_NUMNODES && nid != memblock_get_region_node(m))
- 			continue;
+diff --git a/arch/x86/kernel/acpi/boot.c b/arch/x86/kernel/acpi/boot.c
+index ddb0bc1..30daefd 100644
+--- a/arch/x86/kernel/acpi/boot.c
++++ b/arch/x86/kernel/acpi/boot.c
+@@ -1497,6 +1497,23 @@ static struct dmi_system_id __initdata acpi_dmi_table_late[] = {
+ 	{}
+ };
  
-+		/* skip hotpluggable memory regions */
-+		if (m->flags & MEMBLOCK_HOTPLUG)
-+			continue;
++void __init early_acpi_boot_table_init(void)
++{
++	dmi_check_system(acpi_dmi_table);
 +
- 		/* scan areas before each reservation for intersection */
- 		for ( ; ri >= 0; ri--) {
- 			struct memblock_region *r = &rsv->regions[ri];
++	/*
++	 * If acpi_disabled, bail out
++	 */
++	if (acpi_disabled)
++		return; 
++
++	/*
++	 * Initialize the ACPI boot-time table parser.
++	 */
++	if (acpi_table_init_firmware())
++		disable_acpi();
++}
++
+ /*
+  * acpi_boot_table_init() and acpi_boot_init()
+  *  called from setup_arch(), always.
+@@ -1504,9 +1521,6 @@ static struct dmi_system_id __initdata acpi_dmi_table_late[] = {
+  *	2. enumerates lapics
+  *	3. enumerates io-apics
+  *
+- * acpi_table_init() is separate to allow reading SRAT without
+- * other side effects.
+- *
+  * side effects of acpi_boot_init:
+  *	acpi_lapic = 1 if LAPIC found
+  *	acpi_ioapic = 1 if IOAPIC found
+@@ -1518,22 +1532,12 @@ static struct dmi_system_id __initdata acpi_dmi_table_late[] = {
+ 
+ void __init acpi_boot_table_init(void)
+ {
+-	dmi_check_system(acpi_dmi_table);
+-
+ 	/*
+ 	 * If acpi_disabled, bail out
+ 	 */
+ 	if (acpi_disabled)
+ 		return; 
+ 
+-	/*
+-	 * Initialize the ACPI boot-time table parser.
+-	 */
+-	if (acpi_table_init_firmware()) {
+-		disable_acpi();
+-		return;
+-	}
+-
+ 	acpi_table_init_override();
+ 
+ 	acpi_check_multiple_madt();
+diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+index f8ec578..fdb5a26 100644
+--- a/arch/x86/kernel/setup.c
++++ b/arch/x86/kernel/setup.c
+@@ -1074,6 +1074,12 @@ void __init setup_arch(char **cmdline_p)
+ 	memblock_x86_fill();
+ 
+ 	/*
++	 * Parse the ACPI tables from firmware for possible boot-time SMP
++	 * configuration.
++	 */
++	early_acpi_boot_table_init();
++
++	/*
+ 	 * The EFI specification says that boot service code won't be called
+ 	 * after ExitBootServices(). This is, in fact, a lie.
+ 	 */
+@@ -1130,7 +1136,7 @@ void __init setup_arch(char **cmdline_p)
+ 	io_delay_init();
+ 
+ 	/*
+-	 * Parse the ACPI tables for possible boot-time SMP configuration.
++	 * Finish parsing the ACPI tables.
+ 	 */
+ 	acpi_boot_table_init();
+ 
+diff --git a/include/linux/acpi.h b/include/linux/acpi.h
+index 44a3e5f..c5e7b2a 100644
+--- a/include/linux/acpi.h
++++ b/include/linux/acpi.h
+@@ -91,6 +91,7 @@ char * __acpi_map_table (unsigned long phys_addr, unsigned long size);
+ void __acpi_unmap_table(char *map, unsigned long size);
+ int early_acpi_boot_init(void);
+ int acpi_boot_init (void);
++void early_acpi_boot_table_init (void);
+ void acpi_boot_table_init (void);
+ int acpi_mps_check (void);
+ int acpi_numa_init (void);
 -- 
 1.7.1
 
