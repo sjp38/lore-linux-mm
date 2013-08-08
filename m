@@ -1,41 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id EB8C08D0001
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 10:59:37 -0400 (EDT)
-Date: Thu, 8 Aug 2013 14:59:36 +0000
-From: Christoph Lameter <cl@gentwo.org>
-Subject: Re: [PATCH v2 1/2] mm: make vmstat_update periodic run conditional
-In-Reply-To: <CAOtvUMe=QQni4Ouu=P_vh8QSb4ZdnaX_fW1twn3QFcOjYgJBGA@mail.gmail.com>
-Message-ID: <000001405e70a92f-3b2a0b89-f807-45d7-af70-9e7292156dd4-000000@email.amazonses.com>
-References: <CAOtvUMc5w3zNe8ed6qX0OOM__3F_hOTqvFa1AkdXF0PHvzGZqg@mail.gmail.com> <1371672168-9869-1-git-send-email-gilad@benyossef.com> <0000013f61e7609b-a8d1907b-8169-4f77-ab83-a624a8d0ab4a-000000@email.amazonses.com>
- <CAOtvUMe=QQni4Ouu=P_vh8QSb4ZdnaX_fW1twn3QFcOjYgJBGA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 7371F8D0002
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 11:20:29 -0400 (EDT)
+Received: by mail-oa0-f47.google.com with SMTP id g12so5422465oah.20
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2013 08:20:28 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20130807153030.GA25515@redhat.com>
+References: <20130807055157.GA32278@redhat.com>
+	<CAJd=RBCJv7=Qj6dPW2Ha=nq6JctnK3r7wYCAZTm=REVOZUNowg@mail.gmail.com>
+	<20130807153030.GA25515@redhat.com>
+Date: Thu, 8 Aug 2013 23:20:28 +0800
+Message-ID: <CAJd=RBCyZU8PR7mbFUdKsWq3OH+5HccEWKMEH5u7GNHNy3esWg@mail.gmail.com>
+Subject: Re: unused swap offset / bad page map.
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben-Yossef <gilad@benyossef.com>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Frederic Weisbecker <fweisbec@gmail.com>
+To: Dave Jones <davej@redhat.com>, Hillf Danton <dhillf@gmail.com>, linux-mm@kvack.org, Linux Kernel <linux-kernel@vger.kernel.org>
 
-On Thu, 8 Aug 2013, Gilad Ben-Yossef wrote:
-
-> vmstat_update runs from the vmstat work queue item by the workqueue
-> kernel thread.
+On Wed, Aug 7, 2013 at 11:30 PM, Dave Jones <davej@redhat.com> wrote:
+> printk didn't trigger.
 >
-> If this code is running, it means there are at least two schedulable tasks:
-> 1. The workqueue kernel thread, because it is running.
-> 2. At least one more task, otherwise were were in idle and the
-> workqueue kernel thread
-> would not execute this work item.
->
-> Unfortunately, having two schedulable tasks means we're not running
-> tickless, so the check
-> will never trigger - or have I've missed something obvious?
-
-The vmstat update is deferrable work. As such it is not required to run
-and can be pushed off. It will not be considered for the calculation of
-the next timer interupt. See __next_timer_interrupt().
+Is a corrupted page table entry encountered, according to the
+comment of swap_duplicate()?
 
 
+--- a/mm/swapfile.c	Wed Aug  7 17:27:22 2013
++++ b/mm/swapfile.c	Thu Aug  8 23:12:30 2013
+@@ -770,6 +770,7 @@ int free_swap_and_cache(swp_entry_t entr
+ 		unlock_page(page);
+ 		page_cache_release(page);
+ 	}
++	return 1;
+ 	return p != NULL;
+ }
+
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
