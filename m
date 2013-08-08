@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id E9FFF900002
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 10:00:46 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 33A87900002
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 10:00:48 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 03/27] mm: numa: Account for THP numa hinting faults on the correct node
-Date: Thu,  8 Aug 2013 15:00:15 +0100
-Message-Id: <1375970439-5111-4-git-send-email-mgorman@suse.de>
+Subject: [PATCH 04/27] mm: numa: Do not migrate or account for hinting faults on the zero page
+Date: Thu,  8 Aug 2013 15:00:16 +0100
+Message-Id: <1375970439-5111-5-git-send-email-mgorman@suse.de>
 In-Reply-To: <1375970439-5111-1-git-send-email-mgorman@suse.de>
 References: <1375970439-5111-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,52 +13,59 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
 Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-THP NUMA hinting fault on pages that are not migrated are being
-accounted for incorrectly. Currently the fault will be counted as if the
-task was running on a node local to the page which is not necessarily
-true.
+The zero page is not replicated between nodes and is often shared
+between processes. The data is read-only and likely to be cached in
+local CPUs if heavily accessed meaning that the remote memory access
+cost is less of a concern. This patch stops accounting for numa hinting
+faults on the zero page in both terms of counting faults and scheduling
+tasks on nodes.
 
+[peterz@infradead.org: Correct use of is_huge_zero_page]
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/huge_memory.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ mm/huge_memory.c | 9 +++++++++
+ mm/memory.c      | 7 ++++++-
+ 2 files changed, 15 insertions(+), 1 deletion(-)
 
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 45ef9dc..e52c131 100644
+index e52c131..4ebe3aa 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -1293,7 +1293,7 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	struct page *page;
- 	unsigned long haddr = addr & HPAGE_PMD_MASK;
- 	int target_nid;
--	int current_nid = -1;
-+	int src_nid = -1;
- 	bool migrated;
- 
- 	spin_lock(&mm->page_table_lock);
-@@ -1302,9 +1302,9 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+@@ -1301,6 +1301,15 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		goto out_unlock;
  
  	page = pmd_page(pmd);
++
++	/*
++	 * Do not account for faults against the huge zero page. The read-only
++	 * data is likely to be read-cached on the local CPUs and it is less
++	 * useful to know about local versus remote hits on the zero page.
++	 */
++	if (is_huge_zero_page(page))
++		goto clear_pmdnuma;
++
  	get_page(page);
--	current_nid = page_to_nid(page);
-+	src_nid = numa_node_id();
+ 	src_nid = numa_node_id();
  	count_vm_numa_event(NUMA_HINT_FAULTS);
--	if (current_nid == numa_node_id())
-+	if (src_nid == page_to_nid(page))
- 		count_vm_numa_event(NUMA_HINT_FAULTS_LOCAL);
+diff --git a/mm/memory.c b/mm/memory.c
+index 1ce2e2a..871b881 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3557,8 +3557,13 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	set_pte_at(mm, addr, ptep, pte);
+ 	update_mmu_cache(vma, addr, ptep);
  
- 	target_nid = mpol_misplaced(page, vma, haddr);
-@@ -1346,8 +1346,8 @@ clear_pmdnuma:
- 	update_mmu_cache_pmd(vma, addr, pmdp);
- out_unlock:
- 	spin_unlock(&mm->page_table_lock);
--	if (current_nid != -1)
--		task_numa_fault(current_nid, HPAGE_PMD_NR, false);
-+	if (src_nid != -1)
-+		task_numa_fault(src_nid, HPAGE_PMD_NR, false);
- 	return 0;
- }
- 
++	/*
++	 * Do not account for faults against the zero page. The read-only data
++	 * is likely to be read-cached on the local CPUs and it is less useful
++	 * to know about local versus remote hits on the zero page.
++	 */
+ 	page = vm_normal_page(vma, addr, pte);
+-	if (!page) {
++	if (!page || is_zero_pfn(page_to_pfn(page))) {
+ 		pte_unmap_unlock(ptep, ptl);
+ 		return 0;
+ 	}
 -- 
 1.8.1.4
 
