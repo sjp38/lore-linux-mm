@@ -1,53 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 40F546B0032
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 03:26:38 -0400 (EDT)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout4.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MR700LK5BBWDH50@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 08 Aug 2013 08:26:36 +0100 (BST)
-Message-id: <1375946794.25843.1.camel@AMDC1943>
-Subject: Re: [RFC PATCH 3/4] mm: add zbud flag to page flags
-From: Krzysztof Kozlowski <k.kozlowski@samsung.com>
-Date: Thu, 08 Aug 2013 09:26:34 +0200
-In-reply-to: <52012B35.90801@intel.com>
-References: <1375771361-8388-1-git-send-email-k.kozlowski@samsung.com>
- <1375771361-8388-4-git-send-email-k.kozlowski@samsung.com>
- <52012B35.90801@intel.com>
-Content-type: text/plain; charset=UTF-8
-Content-transfer-encoding: 7bit
-MIME-version: 1.0
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 860A96B0032
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 04:23:03 -0400 (EDT)
+Date: Thu, 8 Aug 2013 09:22:57 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 9/9] mm: zone_reclaim: compaction: add compaction to
+ zone_reclaim_mode
+Message-ID: <20130808082257.GY2296@suse.de>
+References: <1375459596-30061-1-git-send-email-aarcange@redhat.com>
+ <1375459596-30061-10-git-send-email-aarcange@redhat.com>
+ <20130804165526.GG27921@redhat.com>
+ <20130807161837.GW2296@suse.de>
+ <20130807234800.GG4661@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20130807234800.GG4661@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hush Bensen <hush.bensen@gmail.com>
 
-Hi,
-
-On wto, 2013-08-06 at 09:58 -0700, Dave Hansen wrote:
-> On 08/05/2013 11:42 PM, Krzysztof Kozlowski wrote:
-> > +#ifdef CONFIG_ZBUD
-> > +	/* Allocated by zbud. Flag is necessary to find zbud pages to unuse
-> > +	 * during migration/compaction.
-> > +	 */
-> > +	PG_zbud,
-> > +#endif
+On Thu, Aug 08, 2013 at 01:48:00AM +0200, Andrea Arcangeli wrote:
+> On Wed, Aug 07, 2013 at 05:18:37PM +0100, Mel Gorman wrote:
+> > > It is important to boot with numa_zonelist_order=n (n means nodes) to
+> > > get more accurate NUMA locality if there are multiple zones per node.
+> > > 
+> > 
+> > This appears to be an unrelated observation.
 > 
-> Do you _really_ need an absolutely new, unshared page flag?
-> The zbud code doesn't really look like it uses any of the space in
-> 'struct page'.
+> But things still don't work ok without it. After alloc_batch changes
+> it matters only in the slowpath but it still related.
 > 
-> I think you could pretty easily alias PG_zbud=PG_slab, then use the
-> page->{private,slab_cache} (or some other unused field) in 'struct page'
-> to store a cookie to differentiate slab and zbud pages.
 
-How about using page->_mapcount with negative value (-129)? Just like
-PageBuddy()?
+Ok, that's curious in itself but I'm not going to dig into the why.
 
+> > > <SNIP>
+> > > @@ -3587,7 +3613,56 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+> > >  	if (node_state(node_id, N_CPU) && node_id != numa_node_id())
+> > >  		return ZONE_RECLAIM_NOSCAN;
+> > >  
+> > > +repeat_compaction:
+> > > +	/*
+> > > +	 * If this allocation may be satisfied by memory compaction,
+> > > +	 * run compaction before reclaim.
+> > > +	 */
+> > > +	c_ret = zone_reclaim_compact(preferred_zone,
+> > > +				     zone, gfp_mask, order,
+> > > +				     sync_compaction,
+> > > +				     &need_compaction);
+> > > +	if (need_compaction &&
+> > > +	    c_ret != COMPACT_SKIPPED &&
+> > 
+> > need_compaction records whether compaction was attempted or not. Why
+> > not just check for COMPACT_SKIPPED and have compact_zone_order return
+> > COMPACT_SKIPPED if !CONFIG_COMPACTION?
+> 
+> How can it be ok that try_to_compact_pages returns COMPACT_CONTINUE
+> but compact_zone order returns the opposite?
 
-Best regards,
-Krzysztof
+Good question and I expect it was because the return value of
+try_to_compact_pages was never used in the !CONFIG_COMPACTION case and I
+did not think it through properly. try_to_compact_pages has only one caller
+in the CONFIG_COMPACTION case and zero callers in the !CONFIG_COMPACTION
+making the return value was irrelevant. COMPACT_SKIPPED would still have
+been a better choice to indicate "compaction didn't start as it was not
+possible or direct reclaim was more suitable"
+
+> I mean either we change both or none.
+> 
+
+I think both to COMPACT_SKIPPED would be a better fit for the documented
+meaning of COMPACT_SKIPPED.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
