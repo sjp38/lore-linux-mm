@@ -1,84 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 860A96B0032
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 04:23:03 -0400 (EDT)
-Date: Thu, 8 Aug 2013 09:22:57 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 9/9] mm: zone_reclaim: compaction: add compaction to
- zone_reclaim_mode
-Message-ID: <20130808082257.GY2296@suse.de>
-References: <1375459596-30061-1-git-send-email-aarcange@redhat.com>
- <1375459596-30061-10-git-send-email-aarcange@redhat.com>
- <20130804165526.GG27921@redhat.com>
- <20130807161837.GW2296@suse.de>
- <20130807234800.GG4661@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20130807234800.GG4661@redhat.com>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 88C718D0001
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 04:42:15 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <20130807213736.AC732E0090@blue.fi.intel.com>
+References: <1375582645-29274-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1375582645-29274-2-git-send-email-kirill.shutemov@linux.intel.com>
+ <20130805111739.GA25691@quack.suse.cz>
+ <20130807163236.0F17DE0090@blue.fi.intel.com>
+ <20130807200032.GE26516@quack.suse.cz>
+ <20130807202403.7BCEEE0090@blue.fi.intel.com>
+ <20130807203650.GI26516@quack.suse.cz>
+ <20130807213736.AC732E0090@blue.fi.intel.com>
+Subject: Re: [PATCH 01/23] radix-tree: implement preload for multiple
+ contiguous elements
+Content-Transfer-Encoding: 7bit
+Message-Id: <20130808084505.31EACE0090@blue.fi.intel.com>
+Date: Thu,  8 Aug 2013 11:45:05 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hush Bensen <hush.bensen@gmail.com>
+To: Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@linux.intel.com>, Dave Hansen <dave@sr71.net>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Ning Qu <quning@google.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, Aug 08, 2013 at 01:48:00AM +0200, Andrea Arcangeli wrote:
-> On Wed, Aug 07, 2013 at 05:18:37PM +0100, Mel Gorman wrote:
-> > > It is important to boot with numa_zonelist_order=n (n means nodes) to
-> > > get more accurate NUMA locality if there are multiple zones per node.
-> > > 
-> > 
-> > This appears to be an unrelated observation.
-> 
-> But things still don't work ok without it. After alloc_batch changes
-> it matters only in the slowpath but it still related.
-> 
+Kirill A. Shutemov wrote:
+> In this case it should use 39 nodes, but it uses only 38. I can't understand why. :(
 
-Ok, that's curious in itself but I'm not going to dig into the why.
+Okay, I've got it. We share one 2nd level node.
 
-> > > <SNIP>
-> > > @@ -3587,7 +3613,56 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
-> > >  	if (node_state(node_id, N_CPU) && node_id != numa_node_id())
-> > >  		return ZONE_RECLAIM_NOSCAN;
-> > >  
-> > > +repeat_compaction:
-> > > +	/*
-> > > +	 * If this allocation may be satisfied by memory compaction,
-> > > +	 * run compaction before reclaim.
-> > > +	 */
-> > > +	c_ret = zone_reclaim_compact(preferred_zone,
-> > > +				     zone, gfp_mask, order,
-> > > +				     sync_compaction,
-> > > +				     &need_compaction);
-> > > +	if (need_compaction &&
-> > > +	    c_ret != COMPACT_SKIPPED &&
-> > 
-> > need_compaction records whether compaction was attempted or not. Why
-> > not just check for COMPACT_SKIPPED and have compact_zone_order return
-> > COMPACT_SKIPPED if !CONFIG_COMPACTION?
-> 
-> How can it be ok that try_to_compact_pages returns COMPACT_CONTINUE
-> but compact_zone order returns the opposite?
-
-Good question and I expect it was because the return value of
-try_to_compact_pages was never used in the !CONFIG_COMPACTION case and I
-did not think it through properly. try_to_compact_pages has only one caller
-in the CONFIG_COMPACTION case and zero callers in the !CONFIG_COMPACTION
-making the return value was irrelevant. COMPACT_SKIPPED would still have
-been a better choice to indicate "compaction didn't start as it was not
-possible or direct reclaim was more suitable"
-
-> I mean either we change both or none.
-> 
-
-I think both to COMPACT_SKIPPED would be a better fit for the documented
-meaning of COMPACT_SKIPPED.
-
--- 
-Mel Gorman
-SUSE Labs
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Patch is below. Please review.
