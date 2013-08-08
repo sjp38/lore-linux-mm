@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id A24FC6B0036
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 06:17:47 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id 468546B0034
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 06:17:48 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH part5 1/7] x86: get pg_data_t's memory from other node
-Date: Thu, 8 Aug 2013 18:16:13 +0800
-Message-Id: <1375956979-31877-2-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH part5 5/7] memblock, mem_hotplug: Make memblock skip hotpluggable regions by default.
+Date: Thu, 8 Aug 2013 18:16:17 +0800
+Message-Id: <1375956979-31877-6-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1375956979-31877-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1375956979-31877-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,65 +13,66 @@ List-ID: <linux-mm.kvack.org>
 To: robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Linux kernel cannot migrate pages used by the kernel. As a result, hotpluggable
+memory used by the kernel won't be able to be hot-removed. To solve this
+problem, the basic idea is to prevent memblock from allocating hotpluggable
+memory for the kernel at early time, and arrange all hotpluggable memory in
+ACPI SRAT(System Resource Affinity Table) as ZONE_MOVABLE when initializing
+zones.
 
-If system can create movable node which all memory of the node is allocated
-as ZONE_MOVABLE, setup_node_data() cannot allocate memory for the node's
-pg_data_t. So, use memblock_alloc_try_nid() instead of memblock_alloc_nid()
-to retry when the first allocation fails. Otherwise, the system could failed
-to boot.
+In the previous patches, we have marked hotpluggable memory regions with
+MEMBLOCK_HOTPLUG flag in memblock.memory.
 
-The node_data could be on hotpluggable node. And so could pagetable and
-vmemmap. But for now, doing so will break memory hot-remove path.
+In this patch, we make memblock skip these hotpluggable memory regions in
+the default allocate function.
 
-A node could have several memory devices. And the device who holds node
-data should be hot-removed in the last place. But in NUMA level, we don't
-know which memory_block (/sys/devices/system/node/nodeX/memoryXXX) belongs
-to which memory device. We only have node. So we can only do node hotplug.
+memblock_find_in_range_node()
+  |-->for_each_free_mem_range_reverse()
+        |-->__next_free_mem_range_rev()
 
-But in virtualization, developers are now developing memory hotplug in qemu,
-which support a single memory device hotplug. So a whole node hotplug will
-not satisfy virtualization users.
+The above is the only place where __next_free_mem_range_rev() is used. So
+skip hotpluggable memory regions when iterating memblock.memory to find
+free memory.
 
-So at last, we concluded that we'd better do memory hotplug and local node
-things (local node node data, pagetable, vmemmap, ...) in two steps.
-Please refer to https://lkml.org/lkml/2013/6/19/73
+In the later patches, a boot option named "movablenode" will be introduced
+to enable/disable using SRAT to arrange ZONE_MOVABLE.
 
-For now, we put node_data of movable node to another node, and then improve
-it in the future.
+NOTE: This check will always be done. It is OK because if users didn't specify
+      movablenode option, the hotpluggable memory won't be marked. So this
+      check won't skip any memory, which means the kernel will act as before.
 
-In the later patches, a boot option will be introduced to enable/disable this
-functionality. If users disable it, the node_data will still be put on the
-local node.
-
-Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-Acked-by: Toshi Kani <toshi.kani@hp.com>
 ---
- arch/x86/mm/numa.c |    5 ++---
- 1 files changed, 2 insertions(+), 3 deletions(-)
+ mm/memblock.c |    8 ++++++++
+ 1 files changed, 8 insertions(+), 0 deletions(-)
 
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index 8bf93ba..d532b6d 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -209,10 +209,9 @@ static void __init setup_node_data(int nid, u64 start, u64 end)
- 	 * Allocate node data.  Try node-local memory and then any node.
- 	 * Never allocate in DMA zone.
- 	 */
--	nd_pa = memblock_alloc_nid(nd_size, SMP_CACHE_BYTES, nid);
-+	nd_pa = memblock_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
- 	if (!nd_pa) {
--		pr_err("Cannot find %zu bytes in node %d\n",
--		       nd_size, nid);
-+		pr_err("Cannot find %zu bytes in any node\n", nd_size);
- 		return;
- 	}
- 	nd = __va(nd_pa);
+diff --git a/mm/memblock.c b/mm/memblock.c
+index ecd8568..3ea4301 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -695,6 +695,10 @@ void __init_memblock __next_free_mem_range(u64 *idx, int nid,
+  * @out_nid: ptr to int for nid of the range, can be %NULL
+  *
+  * Reverse of __next_free_mem_range().
++ *
++ * Linux kernel cannot migrate pages used by itself. Memory hotplug users won't
++ * be able to hot-remove hotpluggable memory used by the kernel. So this
++ * function skip hotpluggable regions when allocating memory for the kernel.
+  */
+ void __init_memblock __next_free_mem_range_rev(u64 *idx, int nid,
+ 					   phys_addr_t *out_start,
+@@ -719,6 +723,10 @@ void __init_memblock __next_free_mem_range_rev(u64 *idx, int nid,
+ 		if (nid != MAX_NUMNODES && nid != memblock_get_region_node(m))
+ 			continue;
+ 
++		/* skip hotpluggable memory regions */
++		if (m->flags & MEMBLOCK_HOTPLUG)
++			continue;
++
+ 		/* scan areas before each reservation for intersection */
+ 		for ( ; ri >= 0; ri--) {
+ 			struct memblock_region *r = &rsv->regions[ri];
 -- 
 1.7.1
 
