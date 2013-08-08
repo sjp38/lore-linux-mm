@@ -1,64 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 00E846B0032
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 01:27:28 -0400 (EDT)
-Message-ID: <1375939646.2424.132.camel@joe-AO722>
-Subject: Re: [PATCH part2 3/4] acpi: Remove "continue" in macro
- INVALID_TABLE().
-From: Joe Perches <joe@perches.com>
-Date: Wed, 07 Aug 2013 22:27:26 -0700
-In-Reply-To: <1375938239-18769-4-git-send-email-tangchen@cn.fujitsu.com>
-References: <1375938239-18769-1-git-send-email-tangchen@cn.fujitsu.com>
-	 <1375938239-18769-4-git-send-email-tangchen@cn.fujitsu.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 948CF6B0032
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 02:28:08 -0400 (EDT)
+Received: by mail-la0-f52.google.com with SMTP id fq13so1840106lab.11
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2013 23:28:06 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <0000014059feb970-d3c945ce-da75-4a07-a8bc-eabbf54702d2-000000@email.amazonses.com>
+References: <CAOtvUMc5w3zNe8ed6qX0OOM__3F_hOTqvFa1AkdXF0PHvzGZqg@mail.gmail.com>
+	<1371672168-9869-1-git-send-email-gilad@benyossef.com>
+	<0000013f61e7609b-a8d1907b-8169-4f77-ab83-a624a8d0ab4a-000000@email.amazonses.com>
+	<0000014059feb970-d3c945ce-da75-4a07-a8bc-eabbf54702d2-000000@email.amazonses.com>
+Date: Thu, 8 Aug 2013 09:28:06 +0300
+Message-ID: <CAOtvUMcogZBH3JtNiY9mv=0gv_N6C92OSheQHUVw8Jj0LKpmpQ@mail.gmail.com>
+Subject: Re: [PATCH v2 1/2] mm: make vmstat_update periodic run conditional
+From: Gilad Ben-Yossef <gilad@benyossef.com>
+Content-Type: multipart/alternative; boundary=001a11c379ecd47ca504e369c2b2
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Christoph Lameter <cl@gentwo.org>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Frederic Weisbecker <fweisbec@gmail.com>
 
-On Thu, 2013-08-08 at 13:03 +0800, Tang Chen wrote:
+--001a11c379ecd47ca504e369c2b2
+Content-Type: text/plain; charset=ISO-8859-1
 
-> Change it to the style like other macros:
-> 
->  #define INVALID_TABLE(x, path, name)                                    \
->          do { pr_err("ACPI OVERRIDE: " x " [%s%s]\n", path, name); } while (0)
+On Wed, Aug 7, 2013 at 9:16 PM, Christoph Lameter <cl@gentwo.org> wrote:
 
-Single statement macros do _not_ need to use 
-	"do { foo(); } while (0)"
-and should be written as
-	"foo()"
+> Is there any work in progress on this issue?
+>
 
-> diff --git a/drivers/acpi/osl.c b/drivers/acpi/osl.c
-[]
-> @@ -564,8 +564,8 @@ static const char * const table_sigs[] = {
->  	ACPI_SIG_RSDT, ACPI_SIG_XSDT, ACPI_SIG_SSDT, NULL };
->  
->  /* Non-fatal errors: Affected tables/files are ignored */
-> -#define INVALID_TABLE(x, path, name)					\
-> -	{ pr_err("ACPI OVERRIDE: " x " [%s%s]\n", path, name); continue; }
-> +#define ACPI_INVALID_TABLE(x, path, name)					\
-> +	do { pr_err("ACPI OVERRIDE: " x " [%s%s]\n", path, name); } while (0)
+Sorry, I dropped the ball following up on this one. Let me check up on it
+now...
 
-Just remove the silly macro altogether
+Gilad
 
-> @@ -593,9 +593,11 @@ void __init acpi_initrd_override(void *data, size_t size)
-[]
-> -		if (file.size < sizeof(struct acpi_table_header))
-> -			INVALID_TABLE("Table smaller than ACPI header",
-> +		if (file.size < sizeof(struct acpi_table_header)) {
-> +			ACPI_INVALID_TABLE("Table smaller than ACPI header",
->  				      cpio_path, file.name);
+-- 
+Gilad Ben-Yossef
+Chief Coffee Drinker
+gilad@benyossef.com
+Israel Cell: +972-52-8260388
+US Cell: +1-973-8260388
+http://benyossef.com
 
-and use the normal style
+"If you take a class in large-scale robotics, can you end up in a situation
+where the homework eats your dog?"
+ -- Jean-Baptiste Queru
 
-			pr_err("ACPI OVERRIDE: Table smaller than ACPI header [%s%s]\n",
-			       cpio_path, file.name);
+--001a11c379ecd47ca504e369c2b2
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-> @@ -603,15 +605,21 @@ void __init acpi_initrd_override(void *data, size_t size)
+<div dir=3D"ltr"><br><br><div class=3D"gmail_quote">On Wed, Aug 7, 2013 at =
+9:16 PM, Christoph Lameter <span dir=3D"ltr">&lt;<a href=3D"mailto:cl@gentw=
+o.org" target=3D"_blank">cl@gentwo.org</a>&gt;</span> wrote:<br><blockquote=
+ class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc soli=
+d;padding-left:1ex">
+Is there any work in progress on this issue?<br>
+</blockquote></div><br>Sorry, I dropped the ball following up on this one. =
+Let me check up on it now...<div><br></div><div>Gilad<br clear=3D"all"><div=
+><br></div>-- <br>Gilad Ben-Yossef<br>Chief Coffee Drinker<br><a href=3D"ma=
+ilto:gilad@benyossef.com" target=3D"_blank">gilad@benyossef.com</a><br>
+Israel Cell: +972-52-8260388<br>US Cell: +1-973-8260388<br><a href=3D"http:=
+//benyossef.com" target=3D"_blank">http://benyossef.com</a><br><br>&quot;If=
+ you take a class in large-scale robotics, can you end up in a situation wh=
+ere the homework eats your dog?&quot;<br>
+ =A0-- Jean-Baptiste Queru
+</div></div>
 
-etc...
+--001a11c379ecd47ca504e369c2b2--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
