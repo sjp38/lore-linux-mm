@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 1C0C46B0033
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id B4AAD6B0034
 	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 05:42:56 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH part4 1/4] x86: Make get_ramdisk_{image|size}() global.
-Date: Thu, 8 Aug 2013 17:41:20 +0800
-Message-Id: <1375954883-30225-2-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH part4 3/4] x86, acpica, acpi: Try to find SRAT in firmware earlier.
+Date: Thu, 8 Aug 2013 17:41:22 +0800
+Message-Id: <1375954883-30225-4-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1375954883-30225-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1375954883-30225-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,82 +13,156 @@ List-ID: <linux-mm.kvack.org>
 To: robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-In the following patches, we need to call get_ramdisk_{image|size}()
-to get initrd file's address and size. So make these two functions
-global.
+This patch introduce early_acpi_firmware_srat() to find the
+phys addr of SRAT provided by firmware. And call it in
+find_hotpluggable_memory().
 
-v1 -> v2:
-As tj suggested, make these two function static inline in
-arch/x86/include/asm/setup.h.
+Since we have initialized acpi_gbl_root_table_list earlier,
+and store all the tables' phys addrs and signatures in it,
+it is easy to find the SRAT.
 
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 ---
- arch/x86/include/asm/setup.h |   21 +++++++++++++++++++++
- arch/x86/kernel/setup.c      |   18 ------------------
- 2 files changed, 21 insertions(+), 18 deletions(-)
+ drivers/acpi/acpica/tbxface.c |   32 ++++++++++++++++++++++++++++++++
+ drivers/acpi/osl.c            |   22 ++++++++++++++++++++++
+ include/acpi/acpixf.h         |    4 ++++
+ include/linux/acpi.h          |    4 ++++
+ mm/memory_hotplug.c           |    8 ++++++--
+ 5 files changed, 68 insertions(+), 2 deletions(-)
 
-diff --git a/arch/x86/include/asm/setup.h b/arch/x86/include/asm/setup.h
-index b7bf350..cfdb55d 100644
---- a/arch/x86/include/asm/setup.h
-+++ b/arch/x86/include/asm/setup.h
-@@ -106,6 +106,27 @@ void *extend_brk(size_t size, size_t align);
- 	RESERVE_BRK(name, sizeof(type) * entries)
- 
- extern void probe_roms(void);
-+
-+#ifdef CONFIG_BLK_DEV_INITRD
-+static inline u64 __init get_ramdisk_image(void)
-+{
-+	u64 ramdisk_image = boot_params.hdr.ramdisk_image;
-+
-+	ramdisk_image |= (u64)boot_params.ext_ramdisk_image << 32;
-+
-+	return ramdisk_image;
-+}
-+
-+static inline u64 __init get_ramdisk_size(void)
-+{
-+	u64 ramdisk_size = boot_params.hdr.ramdisk_size;
-+
-+	ramdisk_size |= (u64)boot_params.ext_ramdisk_size << 32;
-+
-+	return ramdisk_size;
-+}
-+#endif /* CONFIG_BLK_DEV_INITRD */
-+
- #ifdef __i386__
- 
- void __init i386_start_kernel(void);
-diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-index fdb5a26..da44353 100644
---- a/arch/x86/kernel/setup.c
-+++ b/arch/x86/kernel/setup.c
-@@ -296,24 +296,6 @@ static void __init reserve_brk(void)
+diff --git a/drivers/acpi/acpica/tbxface.c b/drivers/acpi/acpica/tbxface.c
+index ecaa5e1..a025dcc 100644
+--- a/drivers/acpi/acpica/tbxface.c
++++ b/drivers/acpi/acpica/tbxface.c
+@@ -236,6 +236,38 @@ acpi_status acpi_reallocate_root_table(void)
+ 	return_ACPI_STATUS(status);
  }
  
- #ifdef CONFIG_BLK_DEV_INITRD
--
--static u64 __init get_ramdisk_image(void)
--{
--	u64 ramdisk_image = boot_params.hdr.ramdisk_image;
--
--	ramdisk_image |= (u64)boot_params.ext_ramdisk_image << 32;
--
--	return ramdisk_image;
--}
--static u64 __init get_ramdisk_size(void)
--{
--	u64 ramdisk_size = boot_params.hdr.ramdisk_size;
--
--	ramdisk_size |= (u64)boot_params.ext_ramdisk_size << 32;
--
--	return ramdisk_size;
--}
--
- #define MAX_MAP_CHUNK	(NR_FIX_BTMAPS << PAGE_SHIFT)
- static void __init relocate_initrd(void)
++/**
++ * acpi_get_table_desc - Get the acpi table descriptor of a specific table.
++ * @signature: The signature of the table to be found.
++ * @out_desc: The out returned descriptor.
++ *
++ * Iterate over acpi_gbl_root_table_list to find a specific table and then
++ * return its phys addr.
++ *
++ * NOTE: The caller has the responsibility to allocate memory for @out_desc.
++ *
++ * Return AE_OK on success, AE_NOT_FOUND if the table is not found.
++ */
++acpi_status acpi_get_table_desc(char *signature,
++				struct acpi_table_desc *out_desc)
++{
++	struct acpi_table_desc *desc;
++	int pos, count = acpi_gbl_root_table_list.current_table_count;
++
++	for (pos = 0; pos < count; pos++) {
++		desc = &acpi_gbl_root_table_list.tables[pos];
++
++		if (!ACPI_COMPARE_NAME(&desc->signature, signature))
++			continue;
++
++		memcpy(out_desc, desc, sizeof(struct acpi_table_desc));
++
++		return_ACPI_STATUS(AE_OK);
++	}
++
++	return_ACPI_STATUS(AE_NOT_FOUND);
++}
++
+ /*******************************************************************************
+  *
+  * FUNCTION:    acpi_get_table_header
+diff --git a/drivers/acpi/osl.c b/drivers/acpi/osl.c
+index dcbca3e..ec490fe 100644
+--- a/drivers/acpi/osl.c
++++ b/drivers/acpi/osl.c
+@@ -53,6 +53,7 @@
+ #include <acpi/acpi.h>
+ #include <acpi/acpi_bus.h>
+ #include <acpi/processor.h>
++#include <acpi/acpixf.h>
+ 
+ #define _COMPONENT		ACPI_OS_SERVICES
+ ACPI_MODULE_NAME("osl");
+@@ -760,6 +761,27 @@ void __init acpi_initrd_override(void *data, size_t size)
+ }
+ #endif /* CONFIG_ACPI_INITRD_TABLE_OVERRIDE */
+ 
++#ifdef CONFIG_ACPI_NUMA
++/*******************************************************************************
++ *
++ * FUNCTION:    early_acpi_firmware_srat
++ *
++ * RETURN:      Phys addr of SRAT on success, 0 on error.
++ *
++ * DESCRIPTION: Get the phys addr of SRAT provided by firmware.
++ *
++ ******************************************************************************/
++phys_addr_t __init early_acpi_firmware_srat(void)
++{
++	struct acpi_table_desc table_desc;
++
++	if (acpi_get_table_desc(ACPI_SIG_SRAT, &table_desc))
++		return 0;
++
++	return table_desc.address;
++}
++#endif	/* CONFIG_ACPI_NUMA */
++
+ static void acpi_table_taint(struct acpi_table_header *table)
  {
+ 	pr_warn(PREFIX
+diff --git a/include/acpi/acpixf.h b/include/acpi/acpixf.h
+index 99c9d7b..daa7c10 100644
+--- a/include/acpi/acpixf.h
++++ b/include/acpi/acpixf.h
+@@ -188,6 +188,10 @@ acpi_status acpi_find_root_pointer(acpi_size *rsdp_address);
+ acpi_status acpi_unload_table_id(acpi_owner_id id);
+ 
+ acpi_status
++acpi_get_table_desc(char *signature,
++		    struct acpi_table_desc *out_desc);
++
++acpi_status
+ acpi_get_table_header(acpi_string signature,
+ 		      u32 instance, struct acpi_table_header *out_table_header);
+ 
+diff --git a/include/linux/acpi.h b/include/linux/acpi.h
+index bdcb9dd..280078c 100644
+--- a/include/linux/acpi.h
++++ b/include/linux/acpi.h
+@@ -97,6 +97,10 @@ static inline phys_addr_t early_acpi_override_srat(void)
+ }
+ #endif	/* CONFIG_ACPI_INITRD_TABLE_OVERRIDE */
+ 
++#ifdef CONFIG_ACPI_NUMA
++phys_addr_t early_acpi_firmware_srat(void);
++#endif  /* CONFIG_ACPI_NUMA */
++
+ char * __acpi_map_table (unsigned long phys_addr, unsigned long size);
+ void __acpi_unmap_table(char *map, unsigned long size);
+ int early_acpi_boot_init(void);
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 2a57888..2dfb06f 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -107,8 +107,12 @@ void __init find_hotpluggable_memory(void)
+ 
+ 	/* Try to find if SRAT is overridden */
+ 	srat_paddr = early_acpi_override_srat();
+-	if (!srat_paddr)
+-		return;
++	if (!srat_paddr) {
++		/* Try to find SRAT from firmware if it wasn't overridden */
++		srat_paddr = early_acpi_firmware_srat();
++		if (!srat_paddr)
++			return;
++	}
+ 
+ 	/* Will parse SRAT and find out hotpluggable memory here */
+ }
 -- 
 1.7.1
 
