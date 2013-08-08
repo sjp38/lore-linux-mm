@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 8AB1E900002
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 10:00:49 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id B53A2900003
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 10:00:50 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 05/27] mm, numa: Sanitize task_numa_fault() callsites
-Date: Thu,  8 Aug 2013 15:00:17 +0100
-Message-Id: <1375970439-5111-6-git-send-email-mgorman@suse.de>
+Subject: [PATCH 06/27] sched, numa: Mitigate chance that same task always updates PTEs
+Date: Thu,  8 Aug 2013 15:00:18 +0100
+Message-Id: <1375970439-5111-7-git-send-email-mgorman@suse.de>
 In-Reply-To: <1375970439-5111-1-git-send-email-mgorman@suse.de>
 References: <1375970439-5111-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -15,215 +15,87 @@ Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org
 
 From: Peter Zijlstra <peterz@infradead.org>
 
-There are three callers of task_numa_fault():
+With a trace_printk("working\n"); right after the cmpxchg in
+task_numa_work() we can see that of a 4 thread process, its always the
+same task winning the race and doing the protection change.
 
- - do_huge_pmd_numa_page():
-     Accounts against the current node, not the node where the
-     page resides, unless we migrated, in which case it accounts
-     against the node we migrated to.
+This is a problem since the task doing the protection change has a
+penalty for taking faults -- it is busy when marking the PTEs. If its
+always the same task the ->numa_faults[] get severely skewed.
 
- - do_numa_page():
-     Accounts against the current node, not the node where the
-     page resides, unless we migrated, in which case it accounts
-     against the node we migrated to.
+Avoid this by delaying the task doing the protection change such that
+it is unlikely to win the privilege again.
 
- - do_pmd_numa_page():
-     Accounts not at all when the page isn't migrated, otherwise
-     accounts against the node we migrated towards.
+Before:
 
-This seems wrong to me; all three sites should have the same
-sementaics, furthermore we should accounts against where the page
-really is, we already know where the task is.
+root@interlagos:~# grep "thread 0/.*working" /debug/tracing/trace | tail -15
+      thread 0/0-3232  [022] ....   212.787402: task_numa_work: working
+      thread 0/0-3232  [022] ....   212.888473: task_numa_work: working
+      thread 0/0-3232  [022] ....   212.989538: task_numa_work: working
+      thread 0/0-3232  [022] ....   213.090602: task_numa_work: working
+      thread 0/0-3232  [022] ....   213.191667: task_numa_work: working
+      thread 0/0-3232  [022] ....   213.292734: task_numa_work: working
+      thread 0/0-3232  [022] ....   213.393804: task_numa_work: working
+      thread 0/0-3232  [022] ....   213.494869: task_numa_work: working
+      thread 0/0-3232  [022] ....   213.596937: task_numa_work: working
+      thread 0/0-3232  [022] ....   213.699000: task_numa_work: working
+      thread 0/0-3232  [022] ....   213.801067: task_numa_work: working
+      thread 0/0-3232  [022] ....   213.903155: task_numa_work: working
+      thread 0/0-3232  [022] ....   214.005201: task_numa_work: working
+      thread 0/0-3232  [022] ....   214.107266: task_numa_work: working
+      thread 0/0-3232  [022] ....   214.209342: task_numa_work: working
 
-So modify all three sites to always account; we did after all receive
-the fault; and always account to where the page is after migration,
-regardless of success.
+After:
 
-They all still differ on when they clear the PTE/PMD; ideally that
-would get sorted too.
+root@interlagos:~# grep "thread 0/.*working" /debug/tracing/trace | tail -15
+      thread 0/0-3253  [005] ....   136.865051: task_numa_work: working
+      thread 0/2-3255  [026] ....   136.965134: task_numa_work: working
+      thread 0/3-3256  [024] ....   137.065217: task_numa_work: working
+      thread 0/3-3256  [024] ....   137.165302: task_numa_work: working
+      thread 0/3-3256  [024] ....   137.265382: task_numa_work: working
+      thread 0/0-3253  [004] ....   137.366465: task_numa_work: working
+      thread 0/2-3255  [026] ....   137.466549: task_numa_work: working
+      thread 0/0-3253  [004] ....   137.566629: task_numa_work: working
+      thread 0/0-3253  [004] ....   137.666711: task_numa_work: working
+      thread 0/1-3254  [028] ....   137.766799: task_numa_work: working
+      thread 0/0-3253  [004] ....   137.866876: task_numa_work: working
+      thread 0/2-3255  [026] ....   137.966960: task_numa_work: working
+      thread 0/1-3254  [028] ....   138.067041: task_numa_work: working
+      thread 0/2-3255  [026] ....   138.167123: task_numa_work: working
+      thread 0/3-3256  [024] ....   138.267207: task_numa_work: working
 
 Signed-off-by: Peter Zijlstra <peterz@infradead.org>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/huge_memory.c | 21 ++++++++++++---------
- mm/memory.c      | 53 +++++++++++++++++++++--------------------------------
- 2 files changed, 33 insertions(+), 41 deletions(-)
+ kernel/sched/fair.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 4ebe3aa..bf59194 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1292,9 +1292,9 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- {
- 	struct page *page;
- 	unsigned long haddr = addr & HPAGE_PMD_MASK;
-+	int page_nid = -1, this_nid = numa_node_id();
- 	int target_nid;
--	int src_nid = -1;
--	bool migrated;
-+	bool migrated = false;
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 679cfcf..2a08727 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -946,6 +946,12 @@ void task_numa_work(struct callback_head *work)
+ 		return;
  
- 	spin_lock(&mm->page_table_lock);
- 	if (unlikely(!pmd_same(pmd, *pmdp)))
-@@ -1311,9 +1311,9 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		goto clear_pmdnuma;
- 
- 	get_page(page);
--	src_nid = numa_node_id();
-+	page_nid = page_to_nid(page);
- 	count_vm_numa_event(NUMA_HINT_FAULTS);
--	if (src_nid == page_to_nid(page))
-+	if (page_nid == this_nid)
- 		count_vm_numa_event(NUMA_HINT_FAULTS_LOCAL);
- 
- 	target_nid = mpol_misplaced(page, vma, haddr);
-@@ -1338,11 +1338,12 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	/* Migrate the THP to the requested node */
- 	migrated = migrate_misplaced_transhuge_page(mm, vma,
- 				pmdp, pmd, addr, page, target_nid);
--	if (!migrated)
-+	if (migrated)
-+		page_nid = target_nid;
-+	else
- 		goto check_same;
- 
--	task_numa_fault(target_nid, HPAGE_PMD_NR, true);
--	return 0;
-+	goto out;
- 
- check_same:
- 	spin_lock(&mm->page_table_lock);
-@@ -1355,8 +1356,10 @@ clear_pmdnuma:
- 	update_mmu_cache_pmd(vma, addr, pmdp);
- out_unlock:
- 	spin_unlock(&mm->page_table_lock);
--	if (src_nid != -1)
--		task_numa_fault(src_nid, HPAGE_PMD_NR, false);
+ 	/*
++	 * Delay this task enough that another task of this mm will likely win
++	 * the next time around.
++	 */
++	p->node_stamp += 2 * TICK_NSEC;
 +
-+out:
-+	if (page_nid != -1)
-+		task_numa_fault(page_nid, HPAGE_PMD_NR, migrated);
- 	return 0;
- }
++	/*
+ 	 * Do not set pte_numa if the current running node is rate-limited.
+ 	 * This loses statistics on the fault but if we are unwilling to
+ 	 * migrate to this node, it is less likely we can do useful work
+@@ -1026,7 +1032,7 @@ void task_tick_numa(struct rq *rq, struct task_struct *curr)
+ 	if (now - curr->node_stamp > period) {
+ 		if (!curr->node_stamp)
+ 			curr->numa_scan_period = sysctl_numa_balancing_scan_period_min;
+-		curr->node_stamp = now;
++		curr->node_stamp += period;
  
-diff --git a/mm/memory.c b/mm/memory.c
-index 871b881..b0307f2 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3517,12 +3517,12 @@ static int do_nonlinear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- }
- 
- int numa_migrate_prep(struct page *page, struct vm_area_struct *vma,
--				unsigned long addr, int current_nid)
-+				unsigned long addr, int page_nid)
- {
- 	get_page(page);
- 
- 	count_vm_numa_event(NUMA_HINT_FAULTS);
--	if (current_nid == numa_node_id())
-+	if (page_nid == numa_node_id())
- 		count_vm_numa_event(NUMA_HINT_FAULTS_LOCAL);
- 
- 	return mpol_misplaced(page, vma, addr);
-@@ -3533,7 +3533,7 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- {
- 	struct page *page = NULL;
- 	spinlock_t *ptl;
--	int current_nid = -1;
-+	int page_nid = -1;
- 	int target_nid;
- 	bool migrated = false;
- 
-@@ -3568,15 +3568,10 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		return 0;
- 	}
- 
--	current_nid = page_to_nid(page);
--	target_nid = numa_migrate_prep(page, vma, addr, current_nid);
-+	page_nid = page_to_nid(page);
-+	target_nid = numa_migrate_prep(page, vma, addr, page_nid);
- 	pte_unmap_unlock(ptep, ptl);
- 	if (target_nid == -1) {
--		/*
--		 * Account for the fault against the current node if it not
--		 * being replaced regardless of where the page is located.
--		 */
--		current_nid = numa_node_id();
- 		put_page(page);
- 		goto out;
- 	}
-@@ -3584,11 +3579,11 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	/* Migrate to the requested node */
- 	migrated = migrate_misplaced_page(page, target_nid);
- 	if (migrated)
--		current_nid = target_nid;
-+		page_nid = target_nid;
- 
- out:
--	if (current_nid != -1)
--		task_numa_fault(current_nid, 1, migrated);
-+	if (page_nid != -1)
-+		task_numa_fault(page_nid, 1, migrated);
- 	return 0;
- }
- 
-@@ -3603,7 +3598,6 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	unsigned long offset;
- 	spinlock_t *ptl;
- 	bool numa = false;
--	int local_nid = numa_node_id();
- 
- 	spin_lock(&mm->page_table_lock);
- 	pmd = *pmdp;
-@@ -3626,9 +3620,10 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	for (addr = _addr + offset; addr < _addr + PMD_SIZE; pte++, addr += PAGE_SIZE) {
- 		pte_t pteval = *pte;
- 		struct page *page;
--		int curr_nid = local_nid;
-+		int page_nid = -1;
- 		int target_nid;
--		bool migrated;
-+		bool migrated = false;
-+
- 		if (!pte_present(pteval))
- 			continue;
- 		if (!pte_numa(pteval))
-@@ -3650,25 +3645,19 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		if (unlikely(page_mapcount(page) != 1))
- 			continue;
- 
--		/*
--		 * Note that the NUMA fault is later accounted to either
--		 * the node that is currently running or where the page is
--		 * migrated to.
--		 */
--		curr_nid = local_nid;
--		target_nid = numa_migrate_prep(page, vma, addr,
--					       page_to_nid(page));
--		if (target_nid == -1) {
-+		page_nid = page_to_nid(page);
-+		target_nid = numa_migrate_prep(page, vma, addr, page_nid);
-+		pte_unmap_unlock(pte, ptl);
-+		if (target_nid != -1) {
-+			migrated = migrate_misplaced_page(page, target_nid);
-+			if (migrated)
-+				page_nid = target_nid;
-+		} else {
- 			put_page(page);
--			continue;
- 		}
- 
--		/* Migrate to the requested node */
--		pte_unmap_unlock(pte, ptl);
--		migrated = migrate_misplaced_page(page, target_nid);
--		if (migrated)
--			curr_nid = target_nid;
--		task_numa_fault(curr_nid, 1, migrated);
-+		if (page_nid != -1)
-+			task_numa_fault(page_nid, 1, migrated);
- 
- 		pte = pte_offset_map_lock(mm, pmdp, addr, &ptl);
- 	}
+ 		if (!time_before(jiffies, curr->mm->numa_next_scan)) {
+ 			init_task_work(work, task_numa_work); /* TODO: move this into sched_fork() */
 -- 
 1.8.1.4
 
