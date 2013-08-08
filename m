@@ -1,151 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 6F3EC6B0039
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 23:01:40 -0400 (EDT)
-From: "Moore, Robert" <robert.moore@intel.com>
-Subject: RE: [PATCH v3 00/25] Arrange hotpluggable memory as ZONE_MOVABLE.
-Date: Thu, 8 Aug 2013 03:01:20 +0000
-Message-ID: <94F2FBAB4432B54E8AACC7DFDE6C92E36FEAC85B@ORSMSX103.amr.corp.intel.com>
-References: <1375872736-4822-1-git-send-email-tangchen@cn.fujitsu.com>
- <1786839.lAdBpJ22ie@vostro.rjw.lan>
-In-Reply-To: <1786839.lAdBpJ22ie@vostro.rjw.lan>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 99B8B6B0032
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 23:41:02 -0400 (EDT)
+From: Tang Chen <tangchen@cn.fujitsu.com>
+Subject: [PATCH part1 0/5] acpica: Split acpi_gbl_root_table_list initialization into two parts.
+Date: Thu, 8 Aug 2013 11:39:31 +0800
+Message-Id: <1375933176-15003-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>, Tang Chen <tangchen@cn.fujitsu.com>
-Cc: "Zheng, Lv" <lv.zheng@intel.com>, "lenb@kernel.org" <lenb@kernel.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@elte.hu" <mingo@elte.hu>, "hpa@zytor.com" <hpa@zytor.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "tj@kernel.org" <tj@kernel.org>, "trenn@suse.de" <trenn@suse.de>, "yinghai@kernel.org" <yinghai@kernel.org>, "jiang.liu@huawei.com" <jiang.liu@huawei.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "laijs@cn.fujitsu.com" <laijs@cn.fujitsu.com>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "izumi.taku@jp.fujitsu.com" <izumi.taku@jp.fujitsu.com>, "mgorman@suse.de" <mgorman@suse.de>, "minchan@kernel.org" <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, "vasilis.liaskovitis@profitbricks.com" <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "riel@redhat.com" <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "prarit@redhat.com" <prarit@redhat.com>, "Box, David E" <david.e.box@intel.com>, "zhangyanfei@cn.fujitsu.com" <zhangyanfei@cn.fujitsu.com>, "yanghy@cn.fujitsu.com" <yanghy@cn.fujitsu.com>, "x86@kernel.org" <x86@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>
+To: robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
+Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-DQoNCj4gLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCj4gRnJvbTogUmFmYWVsIEouIFd5c29j
-a2kgW21haWx0bzpyandAc2lzay5wbF0NCj4gU2VudDogV2VkbmVzZGF5LCBBdWd1c3QgMDcsIDIw
-MTMgNDo0OSBQTQ0KPiBUbzogVGFuZyBDaGVuDQo+IENjOiBNb29yZSwgUm9iZXJ0OyBaaGVuZywg
-THY7IGxlbmJAa2VybmVsLm9yZzsgdGdseEBsaW51dHJvbml4LmRlOw0KPiBtaW5nb0BlbHRlLmh1
-OyBocGFAenl0b3IuY29tOyBha3BtQGxpbnV4LWZvdW5kYXRpb24ub3JnOyB0akBrZXJuZWwub3Jn
-Ow0KPiB0cmVubkBzdXNlLmRlOyB5aW5naGFpQGtlcm5lbC5vcmc7IGppYW5nLmxpdUBodWF3ZWku
-Y29tOw0KPiB3ZW5jeUBjbi5mdWppdHN1LmNvbTsgbGFpanNAY24uZnVqaXRzdS5jb207DQo+IGlz
-aW1hdHUueWFzdWFraUBqcC5mdWppdHN1LmNvbTsgaXp1bWkudGFrdUBqcC5mdWppdHN1LmNvbTsN
-Cj4gbWdvcm1hbkBzdXNlLmRlOyBtaW5jaGFuQGtlcm5lbC5vcmc7IG1pbmE4NkBtaW5hODYuY29t
-Ow0KPiBnb25nLmNoZW5AbGludXguaW50ZWwuY29tOyB2YXNpbGlzLmxpYXNrb3ZpdGlzQHByb2Zp
-dGJyaWNrcy5jb207DQo+IGx3b29kbWFuQHJlZGhhdC5jb207IHJpZWxAcmVkaGF0LmNvbTsgandl
-aW5lckByZWRoYXQuY29tOw0KPiBwcmFyaXRAcmVkaGF0LmNvbTsgemhhbmd5YW5mZWlAY24uZnVq
-aXRzdS5jb207IHlhbmdoeUBjbi5mdWppdHN1LmNvbTsNCj4geDg2QGtlcm5lbC5vcmc7IGxpbnV4
-LWRvY0B2Z2VyLmtlcm5lbC5vcmc7IGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc7DQo+IGxp
-bnV4LW1tQGt2YWNrLm9yZzsgbGludXgtYWNwaUB2Z2VyLmtlcm5lbC5vcmcNCj4gU3ViamVjdDog
-UmU6IFtQQVRDSCB2MyAwMC8yNV0gQXJyYW5nZSBob3RwbHVnZ2FibGUgbWVtb3J5IGFzIFpPTkVf
-TU9WQUJMRS4NCj4gDQo+IE9uIFdlZG5lc2RheSwgQXVndXN0IDA3LCAyMDEzIDA2OjUxOjUxIFBN
-IFRhbmcgQ2hlbiB3cm90ZToNCj4gPiBUaGlzIHBhdGNoLXNldCBhaW1zIHRvIHNvbHZlIHNvbWUg
-cHJvYmxlbXMgYXQgc3lzdGVtIGJvb3QgdGltZSB0bw0KPiA+IGVuaGFuY2UgbWVtb3J5IGhvdHBs
-dWcgZnVuY3Rpb25hbGl0eS4NCj4gPg0KPiA+IFtCYWNrZ3JvdW5kXQ0KPiA+DQo+ID4gVGhlIExp
-bnV4IGtlcm5lbCBjYW5ub3QgbWlncmF0ZSBwYWdlcyB1c2VkIGJ5IHRoZSBrZXJuZWwgYmVjYXVz
-ZSBvZg0KPiA+IHRoZSBrZXJuZWwgZGlyZWN0IG1hcHBpbmcuIFNpbmNlIHZhID0gcGEgKyBQQUdF
-X09GRlNFVCwgaWYgdGhlDQo+ID4gcGh5c2ljYWwgYWRkcmVzcyBpcyBjaGFuZ2VkLCB3ZSBjYW5u
-b3Qgc2ltcGx5IHVwZGF0ZSB0aGUga2VybmVsDQo+ID4gcGFnZXRhYmxlLiBPbiB0aGUgY29udHJh
-cnksIHdlIGhhdmUgdG8gdXBkYXRlIGFsbCB0aGUgcG9pbnRlcnMNCj4gPiBwb2ludGluZyB0byB0
-aGUgdmlydHVhbCBhZGRyZXNzLCB3aGljaCBpcyB2ZXJ5IGRpZmZpY3VsdCB0byBkby4NCj4gPg0K
-PiA+IEluIG9yZGVyIHRvIGRvIG1lbW9yeSBob3RwbHVnLCB3ZSBzaG91bGQgcHJldmVudCB0aGUg
-a2VybmVsIHRvIHVzZQ0KPiA+IGhvdHBsdWdnYWJsZSBtZW1vcnkuDQo+ID4NCj4gPiBJbiBBQ1BJ
-LCB0aGVyZSBpcyBhIHRhYmxlIG5hbWVkIFNSQVQoU3lzdGVtIFJlc291cmNlIEFmZmluaXR5IFRh
-YmxlKS4NCj4gPiBJdCBjb250YWlucyBzeXN0ZW0gTlVNQSBpbmZvIChDUFVzLCBtZW1vcnkgcmFu
-Z2VzLCBQWE0pLCBhbmQgYWxzbyBhDQo+ID4gZmxhZyBmaWVsZCBpbmRpY2F0aW5nIHdoaWNoIG1l
-bW9yeSByYW5nZXMgYXJlIGhvdHBsdWdnYWJsZS4NCj4gPg0KPiA+DQo+ID4gW1Byb2JsZW0gdG8g
-YmUgc29sdmVkXQ0KPiA+DQo+ID4gQXQgdGhlIHZlcnkgZWFybHkgdGltZSB3aGVuIHRoZSBzeXN0
-ZW0gaXMgYm9vdGluZywgd2UgdXNlIGEgYm9vdG1lbQ0KPiA+IGFsbG9jYXRvciwgbmFtZWQgbWVt
-YmxvY2ssIHRvIGFsbG9jYXRlIG1lbW9yeSBmb3IgdGhlIGtlcm5lbC4NCj4gPiBtZW1ibG9jayB3
-aWxsIHN0YXJ0IHRvIHdvcmsgYmVmb3JlIHRoZSBrZXJuZWwgcGFyc2UgU1JBVCwgd2hpY2ggbWVh
-bnMNCj4gPiBtZW1ibG9jayB3b24ndCBrbm93IHdoaWNoIG1lbW9yeSBpcyBob3RwbHVnZ2FibGUg
-YmVmb3JlIFNSQVQgaXMNCj4gPiBwYXJzZWQuDQo+ID4NCj4gPiBTbyBhdCB0aGlzIHRpbWUsIG1l
-bWJsb2NrIGNvdWxkIGFsbG9jYXRlIGhvdHBsdWdnYWJsZSBtZW1vcnkgZm9yIHRoZQ0KPiA+IGtl
-cm5lbCB0byB1c2UgcGVybWFuZW50bHkuIEZvciBleGFtcGxlLCB0aGUga2VybmVsIG1heSBhbGxv
-Y2F0ZQ0KPiA+IHBhZ2V0YWJsZXMgaW4gaG90cGx1Z2dhYmxlIG1lbW9yeSwgd2hpY2ggY2Fubm90
-IGJlIGZyZWVkIHdoZW4gdGhlDQo+ID4gc3lzdGVtIGlzIHVwLg0KPiA+DQo+ID4gU28gd2UgaGF2
-ZSB0byBwcmV2ZW50IG1lbWJsb2NrIGFsbG9jYXRpbmcgaG90cGx1Z2dhYmxlIG1lbW9yeSBmb3Ig
-dGhlDQo+ID4ga2VybmVsIGF0IHRoZSBlYXJseSBib290IHRpbWUuDQo+ID4NCj4gPg0KPiA+IFtF
-YXJsaWVyIHNvbHV0aW9uc10NCj4gPg0KPiA+IFdlIGhhdmUgdHJpZWQgdG8gcGFyc2UgU1JBVCBl
-YXJsaWVyLCBiZWZvcmUgbWVtYmxvY2sgaXMgcmVhZHkuIFRvIGRvDQo+ID4gdGhpcywgd2UgYWxz
-byBoYXZlIHRvIGRvIEFDUElfSU5JVFJEX1RBQkxFX09WRVJSSURFIGVhcmxpZXIuDQo+ID4gT3Ro
-ZXJ3aXNlIHRoZSBvdmVycmlkZSB0YWJsZXMgd29uJ3QgYmUgYWJsZSB0byBlZmZlY3QuDQo+ID4N
-Cj4gPiBUaGlzIGlzIG5vdCB0aGF0IGVhc3kgdG8gZG8gYmVjYXVzZSBtZW1ibG9jayBpcyByZWFk
-eSBiZWZvcmUgZGlyZWN0DQo+ID4gbWFwcGluZyBpcyBzZXR1cC4gU28gWWluZ2hhaSBzcGxpdCB0
-aGUgQUNQSV9JTklUUkRfVEFCTEVfT1ZFUlJJREUNCj4gPiBwcm9jZWR1cmUgaW50byB0d28gc3Rl
-cHM6IGZpbmQgYW5kIGNvcHkuIFBsZWFzZSByZWZlciB0byB0aGUgZm9sbG93aW5nDQo+ID4gcGF0
-Y2gtc2V0Og0KPiA+ICAgICAgICAgaHR0cHM6Ly9sa21sLm9yZy9sa21sLzIwMTMvNi8xMy81ODcN
-Cj4gPg0KPiA+IFRvIHRoaXMgc29sdXRpb24sIHRqIGdhdmUgYSBsb3Qgb2YgY29tbWVudHMgYW5k
-IHRoZSBmb2xsb3dpbmcNCj4gPiBzdWdnZXN0aW9ucy4NCj4gPg0KPiA+DQo+ID4gW1N1Z2dlc3Rp
-b24gZnJvbSB0al0NCj4gPg0KPiA+IHRqIG1haW5seSBnYXZlIHRoZSBmb2xsb3dpbmcgc3VnZ2Vz
-dGlvbnM6DQo+ID4NCj4gPiAxLiBOZWNlc3NhcnkgcmVvcmRlcmluZyBpcyBPSywgYnV0IHdlIHNo
-b3VsZCBub3QgcmVseSBvbg0KPiA+ICAgIHJlb3JkZXJpbmcgdG8gYWNoaWV2ZSB0aGUgZ29hbCBi
-ZWNhdXNlIGl0IG1ha2VzIHRoZSBrZXJuZWwNCj4gPiAgICB0b28gZnJhZ2lsZS4NCj4gPg0KPiA+
-IDIuIE1lbW9yeSBhbGxvY2F0ZWQgdG8ga2VybmVsIGZvciB0ZW1wb3JhcnkgdXNhZ2UgaXMgT0sg
-YmVjYXVzZQ0KPiA+ICAgIGl0IHdpbGwgYmUgZnJlZWQgd2hlbiB0aGUgc3lzdGVtIGlzIHVwLiBE
-b2luZyByZWxvY2F0aW9uDQo+ID4gICAgZm9yIHBlcm1hbmVudCBhbGxvY2F0ZWQgaG90cGx1Z2dh
-YmxlIG1lbW9yeSB3aWxsIG1ha2UgdGhlDQo+ID4gICAgdGhlIGtlcm5lbCBtb3JlIHJvYnVzdC4N
-Cj4gPg0KPiA+IDMuIE5lZWQgdG8gZW5oYW5jZSBtZW1ibG9jayB0byBkaXNjb3ZlciBhbmQgY29t
-cGxhaW4gaWYgYW55DQo+ID4gICAgaG90cGx1Z2dhYmxlIG1lbW9yeSBpcyBhbGxvY2F0ZWQgdG8g
-a2VybmVsLg0KPiA+DQo+ID4gQWZ0ZXIgYSBsb25nIHRoaW5raW5nLCB3ZSBjaG9vc2Ugbm90IHRv
-IGRvIHRoZSByZWxvY2F0aW9uIGZvciB0aGUNCj4gPiBmb2xsb3dpbmcgcmVhc29uczoNCj4gPg0K
-PiA+IDEuIEl0J3MgZWFzeSB0byBmaW5kIG91dCB0aGUgYWxsb2NhdGVkIGhvdHBsdWdnYWJsZSBt
-ZW1vcnkuIEJ1dA0KPiA+ICAgIG1lbWJsb2NrIHdpbGwgbWVyZ2UgdGhlIGFkam9pbmVkIHJhbmdl
-cyBvd25lZCBieSBkaWZmZXJlbnQgdXNlcnMNCj4gPiAgICBhbmQgdXNlZCBmb3IgZGlmZmVyZW50
-IHB1cnBvc2VzLiBJdCdzIGhhcmQgdG8gZmluZCB0aGUgb3duZXJzLg0KPiA+DQo+ID4gMi4gRGlm
-ZmVyZW50IG1lbW9yeSBoYXMgZGlmZmVyZW50IHdheSB0byBiZSByZWxvY2F0ZWQuIEkgdGhpbmsg
-b25lDQo+ID4gICAgZnVuY3Rpb24gZm9yIGVhY2gga2luZCBvZiBtZW1vcnkgd2lsbCBtYWtlIHRo
-ZSBjb2RlIHRvbyBtZXNzeS4NCj4gPg0KPiA+IDMuIFBhZ2V0YWJsZSBjb3VsZCBiZSBpbiBob3Rw
-bHVnZ2FibGUgbWVtb3J5LiBSZWxvY2F0aW5nIHBhZ2V0YWJsZQ0KPiA+ICAgIGlzIHRvbyBkaWZm
-aWN1bHQgYW5kIHJpc2t5LiBXZSBoYXZlIHRvIHVwZGF0ZSBhbGwgUFVELCBQTUQgcGFnZXMuDQo+
-ID4gICAgQW5kIGFsc28sIEFDUElfSU5JVFJEX1RBQkxFX09WRVJSSURFIGFuZCBwYXJzaW5nIFNS
-QVQgcHJvY2VkdXJlcw0KPiA+ICAgIGFyZSBub3QgbG9uZyBhZnRlciBwYWdldGFibGUgaXMgaW5p
-dGlhbGl6ZWQuIElmIHdlIHJlbG9jYXRlIHRoZQ0KPiA+ICAgIHBhZ2V0YWJsZSBub3QgbG9uZyBh
-ZnRlciBpdCB3YXMgaW5pdGlhbGl6ZWQsIHRoZSBjb2RlIHdpbGwgYmUNCj4gPiAgICB2ZXJ5IHVn
-bHkuDQo+ID4NCj4gPg0KPiA+IFtTb2x1dGlvbiBpbiB0aGlzIHBhdGNoLXNldF0NCj4gPg0KPiA+
-IEluIHRoaXMgcGF0Y2gtc2V0LCB3ZSBzdGlsbCBkbyB0aGUgcmVvcmRlcmluZywgYnV0IGluIGEg
-bmV3IHdheS4NCj4gPg0KPiA+IDEuIEltcHJvdmUgbWVtYmxvY2sgd2l0aCBmbGFncywgc28gdGhh
-dCBpdCBpcyBhYmxlIHRvIGRpZmZlcmVudGlhdGUNCj4gPiAgICBtZW1vcnkgcmVnaW9ucyBmb3Ig
-ZGlmZmVyZW50IHVzYWdlLiBBbmQgYWxzbyBhIE1FTUJMT0NLX0hPVFBMVUcNCj4gPiAgICBmbGFn
-IHRvIG1hcmsgaG90cGx1Z2dhYmxlIG1lbW9yeS4NCj4gPg0KPiA+IDIuIFdoZW4gbWVtYmxvY2sg
-aXMgcmVhZHkgKG1lbWJsb2NrX3g4Nl9maWxsKCkgaXMgY2FsbGVkKSwgaW5pdGlhbGl6ZQ0KPiA+
-ICAgIGFjcGlfZ2JsX3Jvb3RfdGFibGVfbGlzdCwgZnVsZmlsbCBhbGwgdGhlIEFDUEkgdGFibGVz
-JyBwaHlzIGFkZHJzLg0KPiA+ICAgIE5vdywgd2UgaGF2ZSBhbGwgdGhlIEFDUEkgdGFibGVzJyBw
-aHlzIGFkZHJzIHByb3ZpZGVkIGJ5IGZpcm13YXJlLg0KPiA+DQo+ID4gMy4gQ2hlY2sgaWYgdGhl
-cmUgaXMgYSBTUkFUIGluIGluaXRyZCBmaWxlIHVzZWQgdG8gb3ZlcnJpZGUgdGhlIG9uZQ0KPiA+
-ICAgIHByb3ZpZGVkIGJ5IGZpcm13YXJlLiBJZiBzbywgZ2V0IGl0cyBwaHlzIGFkZHIuDQo+ID4N
-Cj4gPiA0LiBJZiBubyBvdmVycmlkZSBTUkFUIGluIGluaXRyZCwgZ2V0IHRoZSBwaHlzIGFkZHIg
-b2YgdGhlIFNSQVQNCj4gPiAgICBwcm92aWRlZCBieSBmaXJtd2FyZS4NCj4gPg0KPiA+ICAgIE5v
-dywgd2UgaGF2ZSB0aGUgcGh5cyBhZGRyIG9mIHRoZSB0byBiZSB1c2VkIFNSQVQsIHRoZSBvbmUg
-aW4NCj4gPiAgICBpbml0cmQgb3IgdGhlIG9uZSBpbiBmaXJtd2FyZS4NCj4gPg0KPiA+IDUuIFBh
-cnNlIG9ubHkgdGhlIG1lbW9yeSBhZmZpbml0aWVzIGluIFNSQVQsIGZpbmQgb3V0IGFsbCB0aGUN
-Cj4gPiAgICBob3RwbHVnZ2FibGUgbWVtb3J5IHJlZ2lvbnMgYW5kIG1hcmsgdGhlbSBpbiBtZW1i
-bG9jay5tZW1vcnkgd2l0aA0KPiA+ICAgIE1FTUJMT0NLX0hPVFBMVUcgZmxhZy4NCj4gPg0KPiA+
-IDYuIFRoZSBrZXJuZWwgZ29lcyB0aHJvdWdoIHRoZSBjdXJyZW50IHBhdGguIEFueSBvdGhlciBy
-ZWxhdGVkIHBhcnRzLA0KPiA+ICAgIHN1Y2ggYXMgQUNQSV9JTklUUkRfVEFCTEVfT1ZFUlJJREUg
-cGF0aCwgdGhlIGN1cnJlbnQgcGFyc2luZyBBQ1BJDQo+ID4gICAgdGFibGVzIHBhdGhlcywgZ2xv
-YmFsIHZhcmlhYmxlIG51bWFfbWVtaW5mbywgYW5kIHNvIG9uLCBhcmUgbm90DQo+ID4gICAgbW9k
-aWZpZWQuIFRoZXkgd29yayBhcyBiZWZvcmUuDQo+ID4NCj4gPiA3LiBNYWtlIG1lbWJsb2NrIGRl
-ZmF1bHQgYWxsb2NhdG9yIHNraXAgaG90cGx1Z2dhYmxlIG1lbW9yeS4NCj4gPg0KPiA+IDguIElu
-dHJvZHVjZSBtb3ZhYmxlbm9kZSBib290IG9wdGlvbiB0byBhbGxvdyB1c2VycyB0byBlbmFibGUN
-Cj4gPiAgICBhbmQgZGlzYWJsZSB0aGlzIGZ1bmN0aW9uYWxpdHkuDQo+ID4NCj4gPg0KPiA+IElu
-IHN1bW1hcnksIGluIG9yZGVyIHRvIGdldCBob3RwbHVnZ2FibGUgbWVtb3J5IGluZm8gYXMgZWFy
-bHkgYXMNCj4gPiBwb3NzaWJsZSwgdGhpcyBwYXRjaC1zZXQgb25seSBwYXJzZSBtZW1vcnkgYWZm
-aW5pdGllcyBpbiBTUkFUIG9uZSBtb3JlDQo+ID4gdGltZSByaWdodCBhZnRlciBtZW1ibG9jayBp
-cyByZWFkeSwgYW5kIGxlYXZlIGFsbCB0aGUgb3RoZXIgcGF0aGVzDQo+ID4gdW50b3VjaGVkLiBX
-aXRoIHRoZSBob3RwbHVnZ2FibGUgbWVtb3J5IGluZm8sIHdlIGNhbiBhcnJhbmdlDQo+ID4gaG90
-cGx1Z2dhYmxlIG1lbW9yeSBpbiBaT05FX01PVkFCTEUgdG8gcHJldmVudCB0aGUga2VybmVsIHRv
-IHVzZSBpdC4NCj4gPg0KPiA+IGNoYW5nZSBsb2cgdjIgUkVTRU5EIC0+IHYzOg0KPiA+IDEuIEFz
-IFJhZmFlbCBhbmQgTHYgWmhlbmcgc3VnZ2VzdGVkLCBzcGxpdCBhY3BpIGdsb2JhbCByb290IHRh
-YmxlIGxpc3QNCj4gPiAgICBpbml0aWFsaXphdGlvbiBwcm9jZWR1cmUgaW50byB0d28gc3RlcHM6
-IGluc3RhbGwgYW5kIG92ZXJyaWRlLiBBbmQNCj4gPiAgICBkbyB0aGUgImluc3RhbGwiIHN0ZXAg
-ZWFybGllci4NCj4gDQo+IFRoaXMgbG9va3MgYSBiaXQgbW9yZSBtYW5hZ2VhYmxlIHRoYW4gYmVm
-b3JlLCBidXQgcGxlYXNlIGRvIG9uZSBtb3JlDQo+IHRoaW5nOg0KPiBQbGVhc2Ugc3BsaXQgYWxs
-IG9mIHRoZSBBQ1BJQ0EgY2hhbmdlcyBvdXQgaW50byBzZXBhcmF0ZSBwYXRjaGVzIGFuZCBwdXQN
-Cj4gdGhvc2UgcGF0Y2hlZCBpbiBmcm9udCBvZiBldmVyeXRoaW5nIGVsc2UuDQo+IA0KPiBUaGUg
-cmVhc29uIGlzIHdlIG1heSBuZWVkIHRvIG1lcmdlIHRoZW0gdGhyb3VnaCB1cHN0cmVhbSBBQ1BJ
-Q0EgYXMgdGhlDQo+IGZpcnN0IHN0ZXAgKGlmIHRoZXkgYXJlIGFjY2VwdGVkIGJ5IHRoZSBBQ1BJ
-Q0EgbWFpbnRhaW5lcnMpLg0KPiANCg0KDQpZZXMsIHdlIChBQ1BJQ0EpIHdvdWxkIGxpa2UgdG8g
-c2VlIHRoZW0gYWxsIHRvZ2V0aGVyIGluIG9uZSBwbGFjZSBzbyB0aGF0IHdlIGNhbiByZXZpZXcu
-DQpUaGFua3MsDQpCb2INCg0KDQoNCg0KPiBUaGFua3MsDQo+IFJhZmFlbA0KPiANCj4gDQo+IC0t
-DQo+IEkgc3BlYWsgb25seSBmb3IgbXlzZWxmLg0KPiBSYWZhZWwgSi4gV3lzb2NraSwgSW50ZWwg
-T3BlbiBTb3VyY2UgVGVjaG5vbG9neSBDZW50ZXIuDQo=
+[Problem]
+
+The current Linux cannot migrate pages used by the kerenl because
+of the kernel direct mapping. In Linux kernel space, va = pa + PAGE_OFFSET.
+When the pa is changed, we cannot simply update the pagetable and
+keep the va unmodified. So the kernel pages are not migratable.
+
+There are also some other issues will cause the kernel pages not migratable.
+For example, the physical address may be cached somewhere and will be used.
+It is not to update all the caches.
+
+When doing memory hotplug in Linux, we first migrate all the pages in one
+memory device somewhere else, and then remove the device. But if pages are
+used by the kernel, they are not migratable. As a result, memory used by
+the kernel cannot be hot-removed.
+
+Modifying the kernel direct mapping mechanism is too difficult to do. And
+it may cause the kernel performance down and unstable. So we use the following
+way to do memory hotplug.
+
+
+[What we are doing]
+
+In Linux, memory in one numa node is divided into several zones. One of the
+zones is ZONE_MOVABLE, which the kernel won't use.
+
+In order to implement memory hotplug in Linux, we are going to arrange all
+hotpluggable memory in ZONE_MOVABLE so that the kernel won't use these memory.
+
+To do this, we need ACPI's help.
+
+
+[How we do this]
+
+In ACPI, SRAT(System Resource Affinity Table) contains NUMA info. The memory
+affinities in SRAT record every memory range in the system, and also, flags
+specifying if the memory range is hotpluggable.
+(Please refer to ACPI spec 5.0 5.2.16)
+
+With the help of SRAT, we have to do the following two things to achieve our
+goal:
+
+1. When doing memory hot-add, allow the users arranging hotpluggable as
+   ZONE_MOVABLE.
+   (This has been done by the MOVABLE_NODE functionality in Linux.)
+
+2. when the system is booting, prevent bootmem allocator from allocating
+   hotpluggable memory for the kernel before the memory initialization
+   finishes.
+   (This is what we are going to do. And we need to do some modification in
+    ACPICA. See below.)
+
+
+[About this patch-set]
+
+There is a bootmem allocator named memblock in Linux. memblock starts to work
+at very early time, and SRAT has not been parsed. So we don't know which memory
+is hotpluggable. In order to prevent memblock from allocating hotpluggable
+memory for the kernel, we need to obtain SRAT memory affinity info earlier.
+
+In the current Linux kernel, the acpica code iterates acpi_gbl_root_table_list,
+and install all the acpi tables into it at boot time. Then, it tries to find
+if there is any override table in global array acpi_tables_addr. If any, reinstall
+the override table into acpi_gbl_root_table_list.
+
+In Linux, global array acpi_tables_addr can be fulfilled by ACPI_INITRD_TABLE_OVERRIDE
+mechanism, which allows users to specify their own ACPI tables in initrd file, and
+override the ones from firmware.
+
+The whole procedure looks like the following:
+
+setup_arch()
+ |->   ......                                     /* Setup direct mapping pagetables */
+ |->acpi_initrd_override()                        /* Store all override tables in acpi_tables_addr. */
+ |...
+ |->acpi_boot_table_init()
+    |->acpi_table_init()
+       |                                                                                  (Linux code)
+......................................................................................................
+       |                                                                                 (ACPICA code)
+       |->acpi_initialize_tables()
+          |->acpi_tb_parse_root_table()           /* Parse RSDT or XSDT, find all tables in firmware */
+             |->for (each item in acpi_gbl_root_table_list)
+                |->acpi_tb_install_table()
+                   |->   ......                   /* Install one single table */
+                   |->acpi_tb_table_override()    /* Override one single table */
+
+It does the table installation and overriding one by one.
+
+In order to find SRAT at earlier time, we want to initialize acpi_gbl_root_table_list
+earlier. But at the same time, keep ACPI_INITRD_TABLE_OVERRIDE procedure works as well.
+
+The basic idea is, split the acpi_gbl_root_table_list initialization procedure into
+two steps:
+1. Install all tables from firmware, not one by one.
+2. Override any table if necessary, not one by one.
+
+After this patch-set, it will work like this:
+
+setup_arch()
+ |->     ......                                   /* Install all tables from firmware (Step 1) */
+ |->     ......                                   /* Try to find if any override SRAT in initrd file, if yes, use it */
+ |->     ......                                   /* Use the SRAT from firmware */
+ |->     ......                                   /* memblock starts to work */
+ |->     ......
+ |->acpi_initrd_override()                        /* Initialize acpi_tables_addr with all override table. */
+ |...
+ |->     ......                                   /* Do the table override work for all tables (Step 2) */
+
+
+In order to achieve this goal, we have to split all the following functions:
+
+ACPICA:
+    acpi_tb_install_table()
+    acpi_tb_parse_root_table()
+    acpi_initialize_tables()
+
+Linux acpi:
+    acpi_table_init()
+    acpi_boot_table_init()
+
+Since ACPICA code is not just used by the Linux, so we should keep the ACPICA
+side interfaces unmodified, and introduce new functions used in Linux.
+
+
+Tang Chen (5):
+  acpi, acpica: Split acpi_tb_install_table() into two parts.
+  acpi, acpica: Call two new functions instead of
+    acpi_tb_install_table() in acpi_tb_parse_root_table().
+  acpi, acpica: Split acpi_tb_parse_root_table() into two parts.
+  acpi, acpica: Call two new functions instead of
+    acpi_tb_parse_root_table() in acpi_initialize_tables().
+  acpi, acpica: Split acpi_initialize_tables() into two parts.
+
+ drivers/acpi/acpica/actables.h |    2 +
+ drivers/acpi/acpica/tbutils.c  |  184 +++++++++++++++++++++++++++++++++++-----
+ drivers/acpi/acpica/tbxface.c  |   69 ++++++++++++++--
+ 3 files changed, 228 insertions(+), 27 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
