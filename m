@@ -1,136 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 049F7900004
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 06:17:49 -0400 (EDT)
-From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH part5 7/7] x86, numa, acpi, memory-hotplug: Make movablenode have higher priority.
-Date: Thu, 8 Aug 2013 18:16:19 +0800
-Message-Id: <1375956979-31877-8-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1375956979-31877-1-git-send-email-tangchen@cn.fujitsu.com>
-References: <1375956979-31877-1-git-send-email-tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id 3E631900002
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 06:18:09 -0400 (EDT)
+Date: Thu, 8 Aug 2013 12:18:07 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [RFC 0/3] Add madvise(..., MADV_WILLWRITE)
+Message-ID: <20130808101807.GB4325@quack.suse.cz>
+References: <cover.1375729665.git.luto@amacapital.net>
+ <20130807134058.GC12843@quack.suse.cz>
+ <520286A4.1020101@intel.com>
+ <CALCETrXAz1fc7y07LhmxNh6zA_KZB4yv57NY2MrhUwKdkypB9w@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALCETrXAz1fc7y07LhmxNh6zA_KZB4yv57NY2MrhUwKdkypB9w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
-Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Dave Hansen <dave.hansen@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Arrange hotpluggable memory as ZONE_MOVABLE will cause NUMA performance down
-because the kernel cannot use movable memory. For users who don't use memory
-hotplug and who don't want to lose their NUMA performance, they need a way to
-disable this functionality. So we improved movablecore boot option.
+On Wed 07-08-13 11:00:52, Andy Lutomirski wrote:
+> On Wed, Aug 7, 2013 at 10:40 AM, Dave Hansen <dave.hansen@intel.com> wrote:
+> > On 08/07/2013 06:40 AM, Jan Kara wrote:
+> >>   One question before I look at the patches: Why don't you use fallocate()
+> >> in your application? The functionality you require seems to be pretty
+> >> similar to it - writing to an already allocated block is usually quick.
+> >
+> > One problem I've seen is that it still costs you a fault per-page to get
+> > the PTEs in to a state where you can write to the memory.  MADV_WILLNEED
+> > will do readahead to get the page cache filled, but it still leaves the
+> > pages unmapped.  Those faults get expensive when you're trying to do a
+> > couple hundred million of them all at once.
+> 
+> I have grand plans to teach the kernel to use hardware dirty tracking
+> so that (some?) pages can be left clean and writable for long periods
+> of time.  This will be hard.
+  Right that will be tough... Although with your application you could
+require such pages to be mlocked and then I could imagine we would get away
+at least from problems with dirty page accounting.
 
-If users specify the original movablecore=nn@ss boot option, the kernel will
-arrange [ss, ss+nn) as ZONE_MOVABLE. The kernelcore=nn@ss boot option is similar
-except it specifies ZONE_NORMAL ranges.
+> Even so, the second write fault to a page tends to take only a few
+> microseconds, while the first one often blocks in fs code.
+  So you wrote blocks are already preallocated with fallocate(). If you
+also preload pages in memory with MADV_WILLNEED is there still big
+difference between the first and subsequent write fault?
 
-Now, if users specify "movablenode" in kernel commandline, the kernel will
-arrange hotpluggable memory in SRAT as ZONE_MOVABLE. And if users do this, all
-the other movablecore=nn@ss and kernelcore=nn@ss options should be ignored.
+> (mmap_sem is a different story, but I see it as a separate issue.)
+  Yeah, agreed.
 
-For those who don't want this, just specify nothing. The kernel will act as
-before.
-
-Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
----
- include/linux/memblock.h |    1 +
- mm/memblock.c            |    5 +++++
- mm/page_alloc.c          |   31 ++++++++++++++++++++++++++++---
- 3 files changed, 34 insertions(+), 3 deletions(-)
-
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index c0bd31c..e78e32f 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -64,6 +64,7 @@ int memblock_reserve(phys_addr_t base, phys_addr_t size);
- void memblock_trim_memory(phys_addr_t align);
- 
- int memblock_mark_hotplug(phys_addr_t base, phys_addr_t size);
-+bool memblock_is_hotpluggable(struct memblock_region *region);
- 
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 3ea4301..c8eb5d2 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -610,6 +610,11 @@ int __init_memblock memblock_mark_hotplug(phys_addr_t base, phys_addr_t size)
- 	return 0;
- }
- 
-+bool __init_memblock memblock_is_hotpluggable(struct memblock_region *region)
-+{
-+	return region->flags & MEMBLOCK_HOTPLUG;
-+}
-+
- /**
-  * __next_free_mem_range - next function for for_each_free_mem_range()
-  * @idx: pointer to u64 loop variable
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index b100255..86d4381 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4948,9 +4948,35 @@ static void __init find_zone_movable_pfns_for_nodes(void)
- 	nodemask_t saved_node_state = node_states[N_MEMORY];
- 	unsigned long totalpages = early_calculate_totalpages();
- 	int usable_nodes = nodes_weight(node_states[N_MEMORY]);
-+	struct memblock_type *type = &memblock.memory;
- 
-+	/* Need to find movable_zone earlier when movablenode is specified. */
-+	find_usable_zone_for_movable();
-+
-+#ifdef CONFIG_MOVABLE_NODE
- 	/*
--	 * If movablecore was specified, calculate what size of
-+	 * If movablenode is specified, ignore kernelcore and movablecore
-+	 * options.
-+	 */
-+	if (movablenode_enable_srat) {
-+		for (i = 0; i < type->cnt; i++) {
-+			if (!memblock_is_hotpluggable(&type->regions[i]))
-+				continue;
-+
-+			nid = type->regions[i].nid;
-+
-+			usable_startpfn = PFN_DOWN(type->regions[i].base);
-+			zone_movable_pfn[nid] = zone_movable_pfn[nid] ?
-+				min(usable_startpfn, zone_movable_pfn[nid]) :
-+				usable_startpfn;
-+		}
-+
-+		goto out;
-+	}
-+#endif
-+
-+	/*
-+	 * If movablecore=nn[KMG] was specified, calculate what size of
- 	 * kernelcore that corresponds so that memory usable for
- 	 * any allocation type is evenly spread. If both kernelcore
- 	 * and movablecore are specified, then the value of kernelcore
-@@ -4976,7 +5002,6 @@ static void __init find_zone_movable_pfns_for_nodes(void)
- 		goto out;
- 
- 	/* usable_startpfn is the lowest possible pfn ZONE_MOVABLE can be at */
--	find_usable_zone_for_movable();
- 	usable_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
- 
- restart:
-@@ -5067,12 +5092,12 @@ restart:
- 	if (usable_nodes && required_kernelcore > usable_nodes)
- 		goto restart;
- 
-+out:
- 	/* Align start of ZONE_MOVABLE on all nids to MAX_ORDER_NR_PAGES */
- 	for (nid = 0; nid < MAX_NUMNODES; nid++)
- 		zone_movable_pfn[nid] =
- 			roundup(zone_movable_pfn[nid], MAX_ORDER_NR_PAGES);
- 
--out:
- 	/* restore the node_state */
- 	node_states[N_MEMORY] = saved_node_state;
- }
+								Honza
 -- 
-1.7.1
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
