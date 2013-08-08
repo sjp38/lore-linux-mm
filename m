@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id C4740900003
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 10:00:53 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 061E4900008
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 10:00:54 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 09/27] sched: numa: Initialise numa_next_scan properly
-Date: Thu,  8 Aug 2013 15:00:21 +0100
-Message-Id: <1375970439-5111-10-git-send-email-mgorman@suse.de>
+Subject: [PATCH 10/27] sched: numa: Slow scan rate if no NUMA hinting faults are being recorded
+Date: Thu,  8 Aug 2013 15:00:22 +0100
+Message-Id: <1375970439-5111-11-git-send-email-mgorman@suse.de>
 In-Reply-To: <1375970439-5111-1-git-send-email-mgorman@suse.de>
 References: <1375970439-5111-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,49 +13,39 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
 Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-Scan delay logic and resets are currently initialised to start scanning
-immediately instead of delaying properly. Initialise them properly at
-fork time and catch when a new mm has been allocated.
+NUMA PTE scanning slows if a NUMA hinting fault was trapped and no page
+was migrated. For long-lived but idle processes there may be no faults
+but the scan rate will be high and just waste CPU. This patch will slow
+the scan rate for processes that are not trapping faults.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- kernel/sched/core.c | 4 ++--
- kernel/sched/fair.c | 7 +++++++
- 2 files changed, 9 insertions(+), 2 deletions(-)
+ kernel/sched/fair.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
 
-diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index b7c32cb..e148975 100644
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
-@@ -1625,8 +1625,8 @@ static void __sched_fork(struct task_struct *p)
- 
- #ifdef CONFIG_NUMA_BALANCING
- 	if (p->mm && atomic_read(&p->mm->mm_users) == 1) {
--		p->mm->numa_next_scan = jiffies;
--		p->mm->numa_next_reset = jiffies;
-+		p->mm->numa_next_scan = jiffies + msecs_to_jiffies(sysctl_numa_balancing_scan_delay);
-+		p->mm->numa_next_reset = jiffies + msecs_to_jiffies(sysctl_numa_balancing_scan_period_reset);
- 		p->mm->numa_scan_seq = 0;
- 	}
- 
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index bb5d978..2f16703 100644
+index 2f16703..056ddc9 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -900,6 +900,13 @@ void task_numa_work(struct callback_head *work)
- 	if (p->flags & PF_EXITING)
- 		return;
+@@ -975,6 +975,18 @@ void task_numa_work(struct callback_head *work)
  
-+	if (!mm->numa_next_reset || !mm->numa_next_scan) {
-+		mm->numa_next_scan = now +
-+			msecs_to_jiffies(sysctl_numa_balancing_scan_delay);
-+		mm->numa_next_reset = now +
-+			msecs_to_jiffies(sysctl_numa_balancing_scan_period_reset);
+ out:
+ 	/*
++	 * If the whole process was scanned without updates then no NUMA
++	 * hinting faults are being recorded and scan rate should be lower.
++	 */
++	if (mm->numa_scan_offset == 0 && !nr_pte_updates) {
++		p->numa_scan_period = min(p->numa_scan_period_max,
++			p->numa_scan_period << 1);
++
++		next_scan = now + msecs_to_jiffies(p->numa_scan_period);
++		mm->numa_next_scan = next_scan;
 +	}
 +
- 	/*
- 	 * Reset the scan period if enough time has gone by. Objective is that
- 	 * scanning will be reduced if pages are properly placed. As tasks
++	/*
+ 	 * It is possible to reach the end of the VMA list but the last few
+ 	 * VMAs are not guaranteed to the vma_migratable. If they are not, we
+ 	 * would find the !migratable VMA on the next scan but not reset the
 -- 
 1.8.1.4
 
