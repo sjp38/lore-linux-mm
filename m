@@ -1,41 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id CE7326B0033
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 12:41:26 -0400 (EDT)
-Received: by mail-oa0-f42.google.com with SMTP id i18so5739834oag.29
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2013 09:41:25 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1375954883-30225-5-git-send-email-tangchen@cn.fujitsu.com>
-References: <1375954883-30225-1-git-send-email-tangchen@cn.fujitsu.com>
-	<1375954883-30225-5-git-send-email-tangchen@cn.fujitsu.com>
-Date: Thu, 8 Aug 2013 09:41:25 -0700
-Message-ID: <CAE9FiQXwAkGU96Oe5YNErTXs-OHGHTAfVo4oyrF-WUZ97X7pQA@mail.gmail.com>
-Subject: Re: [PATCH part4 4/4] x86, acpi, numa, mem_hotplug: Find hotpluggable
- memory in SRAT memory affinities.
-From: Yinghai Lu <yinghai@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id B385F8D0001
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 12:49:14 -0400 (EDT)
+From: Toshi Kani <toshi.kani@hp.com>
+Subject: [PATCH] mm/hotplug: Verify hotplug memory range
+Date: Thu,  8 Aug 2013 10:47:40 -0600
+Message-Id: <1375980460-28311-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: Bob Moore <robert.moore@intel.com>, Lv Zheng <lv.zheng@intel.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Thomas Renninger <trenn@suse.de>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, mina86@mina86.com, gong.chen@linux.intel.com, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, lwoodman@redhat.com, Rik van Riel <riel@redhat.com>, jweiner@redhat.com, Prarit Bhargava <prarit@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, yanghy@cn.fujitsu.com, the arch/x86 maintainers <x86@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave@sr71.net, isimatu.yasuaki@jp.fujitsu.com, tangchen@cn.fujitsu.com, vasilis.liaskovitis@profitbricks.com, Toshi Kani <toshi.kani@hp.com>
 
-On Thu, Aug 8, 2013 at 2:41 AM, Tang Chen <tangchen@cn.fujitsu.com> wrote:
-> In ACPI SRAT(System Resource Affinity Table), there is a memory affinity for each
-> memory range in the system. In each memory affinity, there is a field indicating
-> that if the memory range is hotpluggable.
->
-> This patch parses all the memory affinities in SRAT only, and find out all the
-> hotpluggable memory ranges in the system.
+add_memory() and remove_memory() can only handle a memory range aligned
+with section.  There are problems when an unaligned range is added and
+then deleted as follows:
 
-oh, no.
+ - add_memory() with an unaligned range succeeds, but __add_pages()
+   called from add_memory() adds a whole section of pages even though
+   a given memory range is less than the section size.
+ - remove_memory() to the added unaligned range hits BUG_ON() in
+   __remove_pages().
 
-How do you make sure the SRAT's entries are right ?
-later numa_init could reject srat table if srat ranges does not cover
-e820 memmap.
+This patch changes add_memory() and remove_memory() to check if a given
+memory range is aligned with section at the beginning.  As the result,
+add_memory() fails with -EINVAL when a given range is unaligned, and
+does not add such memory range.  This prevents remove_memory() to be
+called with an unaligned range as well.  Note that remove_memory() has
+to use BUG_ON() since this function cannot fail.
 
-Also parse srat table two times looks silly.
+Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+---
+ mm/memory_hotplug.c |   22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
 
-Yinghai
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index ca1dd3a..ac182de 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1069,6 +1069,22 @@ out:
+ 	return ret;
+ }
+ 
++static int check_hotplug_memory_range(u64 start, u64 size)
++{
++	u64 start_pfn = start >> PAGE_SHIFT;
++	u64 nr_pages = size >> PAGE_SHIFT;
++
++	/* Memory range must be aligned with section */
++	if ((start_pfn & ~PAGE_SECTION_MASK) ||
++	    (nr_pages % PAGES_PER_SECTION) || (!nr_pages)) {
++		pr_err("Unsupported hotplug range: start 0x%llx, size 0x%llx\n",
++				start, size);
++		return -EINVAL;
++	}
++
++	return 0;
++}
++
+ /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
+ int __ref add_memory(int nid, u64 start, u64 size)
+ {
+@@ -1078,6 +1094,10 @@ int __ref add_memory(int nid, u64 start, u64 size)
+ 	struct resource *res;
+ 	int ret;
+ 
++	ret = check_hotplug_memory_range(start, size);
++	if (ret)
++		return ret;
++
+ 	lock_memory_hotplug();
+ 
+ 	res = register_memory_resource(start, size);
+@@ -1786,6 +1806,8 @@ void __ref remove_memory(int nid, u64 start, u64 size)
+ {
+ 	int ret;
+ 
++	BUG_ON(check_hotplug_memory_range(start, size));
++
+ 	lock_memory_hotplug();
+ 
+ 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
