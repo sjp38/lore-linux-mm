@@ -1,191 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 648EC6B0031
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 13:49:12 -0400 (EDT)
-Received: by mail-la0-f46.google.com with SMTP id eh20so2319439lab.5
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2013 10:49:10 -0700 (PDT)
-Date: Thu, 8 Aug 2013 18:51:20 +0400
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [patch 2/2] [PATCH] mm: Save soft-dirty bits on file pages
-Message-ID: <20130808145120.GA1775@moon>
-References: <20130730204154.407090410@gmail.com>
- <20130730204654.966378702@gmail.com>
- <20130807132812.60ad4bfe85127794094d385e@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id D57EC6B0031
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 14:14:42 -0400 (EDT)
+Date: Thu, 8 Aug 2013 14:14:26 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [resend] [PATCH V2] mm: vmscan: fix do_try_to_free_pages()
+ livelock
+Message-ID: <20130808181426.GI715@cmpxchg.org>
+References: <89813612683626448B837EE5A0B6A7CB3B630BE80B@SC-VEXCH4.marvell.com>
+ <20130805074146.GD10146@dhcp22.suse.cz>
+ <89813612683626448B837EE5A0B6A7CB3B630BED6B@SC-VEXCH4.marvell.com>
+ <20130806103543.GA31138@dhcp22.suse.cz>
+ <89813612683626448B837EE5A0B6A7CB3B63175BCA@SC-VEXCH4.marvell.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="r5Pyd7+fXNt84Ff3"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130807132812.60ad4bfe85127794094d385e@linux-foundation.org>
+In-Reply-To: <89813612683626448B837EE5A0B6A7CB3B63175BCA@SC-VEXCH4.marvell.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, luto@amacapital.net, xemul@parallels.com, mpm@selenic.com, xiaoguangrong@linux.vnet.ibm.com, mtosatti@redhat.com, kosaki.motohiro@gmail.com, sfr@canb.auug.org.au, peterz@infradead.org, aneesh.kumar@linux.vnet.ibm.com
+To: Lisa Du <cldu@marvell.com>
+Cc: Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Minchan Kim <minchan@kernel.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Bob Liu <lliubbo@gmail.com>, Neil Zhang <zhangwm@marvell.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Aaditya Kumar <aaditya.kumar.30@gmail.com>, "yinghan@google.com" <yinghan@google.com>, "npiggin@gmail.com" <npiggin@gmail.com>, "riel@redhat.com" <riel@redhat.com>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>
 
-
---r5Pyd7+fXNt84Ff3
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-
-On Wed, Aug 07, 2013 at 01:28:12PM -0700, Andrew Morton wrote:
+On Tue, Aug 06, 2013 at 06:42:06PM -0700, Lisa Du wrote:
+> Hi, Michal and all
+>    I'm so sorry, now I updated the review list.
+>    Thank you all for the review and comments!
 > 
-> Good god.
+> In this version:
+> Remove change ID according to Minchan's comment;
+> Reorder the check in shrink_zones according Johannes's comment.
+> Also cc to more people.
 > 
-> I wonder if these can be turned into out-of-line functions in some form
-> which humans can understand.
+> >From ff345123117394c6b9b838bf54eb935bfa879f32 Mon Sep 17 00:00:00 2001
+> From: Lisa Du <cldu@marvell.com>
+> Date: Mon, 5 Aug 2013 09:26:57 +0800
+> Subject: [PATCH] mm: vmscan: fix do_try_to_free_pages() livelock
 > 
-> or
+> This patch is based on KOSAKI's work and I add a little more
+> description, please refer https://lkml.org/lkml/2012/6/14/74.
 > 
-> #define pte_to_pgoff(pte)
-> 	frob(pte, PTE_FILE_SHIFT1, PTE_FILE_BITS1) +
-> 	frob(PTE_FILE_SHIFT2, PTE_FILE_BITS2) +
-> 	frob(PTE_FILE_SHIFT3, PTE_FILE_BITS3) +
-> 	frob(PTE_FILE_SHIFT4, PTE_FILE_BITS1 + PTE_FILE_BITS2 + PTE_FILE_BITS3)
+> Currently, I found system can enter a state that there are lots
+> of free pages in a zone but only order-0 and order-1 pages which
+> means the zone is heavily fragmented, then high order allocation
+> could make direct reclaim path's long stall(ex, 60 seconds)
+> especially in no swap and no compaciton enviroment. This problem
+> happened on v3.4, but it seems issue still lives in current tree,
+> the reason is do_try_to_free_pages enter live lock:
+> 
+> kswapd will go to sleep if the zones have been fully scanned
+> and are still not balanced. As kswapd thinks there's little point
+> trying all over again to avoid infinite loop. Instead it changes
+> order from high-order to 0-order because kswapd think order-0 is the
+> most important. Look at 73ce02e9 in detail. If watermarks are ok,
+> kswapd will go back to sleep and may leave zone->all_unreclaimable = 0.
+> It assume high-order users can still perform direct reclaim if they wish.
+> 
+> Direct reclaim continue to reclaim for a high order which is not a
+> COSTLY_ORDER without oom-killer until kswapd turn on zone->all_unreclaimble.
+> This is because to avoid too early oom-kill. So it means direct_reclaim
+> depends on kswapd to break this loop.
+> 
+> In worst case, direct-reclaim may continue to page reclaim forever
+> when kswapd sleeps forever until someone like watchdog detect and finally
+> kill the process. As described in:
+> http://thread.gmane.org/gmane.linux.kernel.mm/103737
+> 
+> We can't turn on zone->all_unreclaimable from direct reclaim path
+> because direct reclaim path don't take any lock and this way is racy.
+> Thus this patch removes zone->all_unreclaimable field completely and
+> recalculates zone reclaimable state every time.
+> 
+> Note: we can't take the idea that direct-reclaim see zone->pages_scanned
+> directly and kswapd continue to use zone->all_unreclaimable. Because, it
+> is racy. commit 929bea7c71 (vmscan: all_unreclaimable() use
+> zone->all_unreclaimable as a name) describes the detail.
+> 
+> Cc: Aaditya Kumar <aaditya.kumar.30@gmail.com>
+> Cc: Ying Han <yinghan@google.com>
+> Cc: Nick Piggin <npiggin@gmail.com>
+> Acked-by: Rik van Riel <riel@redhat.com>
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Christoph Lameter <cl@linux.com>
+> Cc: Bob Liu <lliubbo@gmail.com>
+> Cc: Neil Zhang <zhangwm@marvell.com>
+> Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>
+> Acked-by: Minchan Kim <minchan@kernel.org>
+> Reviewed-by: Michal Hocko <mhocko@suse.cz>
+> Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Hi, here is what I ended up with. Please take a look (I decided to post
-patch in the thread since it's related to the context of the mails).
+I sent an Acked-by, please keep these tags verbatim.
 
---r5Pyd7+fXNt84Ff3
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename=pte-sft-dirty-file-cleanup-2
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Signed-off-by: Lisa Du <cldu@marvell.com>
 
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: mm: Cleanup pte_to_pgoff and pgoff_to_pte helpers
+> @@ -2244,8 +2244,8 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+>  		if (global_reclaim(sc)) {
+>  			if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
+>  				continue;
+> -			if (zone->all_unreclaimable &&
+> -					sc->priority != DEF_PRIORITY)
+> +			if (sc->priority != DEF_PRIORITY &&
+> +			    !zone_reclaimable(zone))
+>  				continue;	/* Let kswapd poll it */
+>  			if (IS_ENABLED(CONFIG_COMPACTION)) {
+>  				/*
 
-Andrew asked if there a way to make pte_to_pgoff
-and pgoff_to_pte macro helpers somehow more readable.
+Yes, this is better, thanks.
 
-With this patch it should be more understandable what
-is happening with bits when they come to and from pte
-entry.
+> @@ -2901,7 +2892,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+>  			if (!populated_zone(zone))
+>  				continue;
+>  
+> -			if (zone->all_unreclaimable &&
+> +			if (!zone_reclaimable(zone) &&
+>  			    sc.priority != DEF_PRIORITY)
+>  				continue;
+>  
 
-Signed-off-by: Cyrill Gorcunov <gorcunov@openvz.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: Pavel Emelyanov <xemul@parallels.com>
-Cc: Matt Mackall <mpm@selenic.com>
-Cc: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
-Cc: Marcelo Tosatti <mtosatti@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
----
+> @@ -2980,7 +2971,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+>  			if (!populated_zone(zone))
+>  				continue;
+>  
+> -			if (zone->all_unreclaimable &&
+> +			if (!zone_reclaimable(zone) &&
+>  			    sc.priority != DEF_PRIORITY)
+>  				continue;
+>  
 
-Guys, is there a reason for "if _PAGE_BIT_FILE < _PAGE_BIT_PROTNONE"
-test present in this pgtable-2level.h file at all? I can't imagine
-where it can be false on x86.
-
- arch/x86/include/asm/pgtable-2level.h |   82 +++++++++++++++++-----------------
- 1 file changed, 41 insertions(+), 41 deletions(-)
-
-Index: linux-2.6.git/arch/x86/include/asm/pgtable-2level.h
-===================================================================
---- linux-2.6.git.orig/arch/x86/include/asm/pgtable-2level.h
-+++ linux-2.6.git/arch/x86/include/asm/pgtable-2level.h
-@@ -55,6 +55,9 @@ static inline pmd_t native_pmdp_get_and_
- #define native_pmdp_get_and_clear(xp) native_local_pmdp_get_and_clear(xp)
- #endif
- 
-+#define _mfrob(v,r,m,l)		((((v) >> (r)) & (m)) << (l))
-+#define __frob(v,r,l)		(((v) >> (r)) << (l))
-+
- #ifdef CONFIG_MEM_SOFT_DIRTY
- 
- /*
-@@ -71,31 +74,27 @@ static inline pmd_t native_pmdp_get_and_
- #define PTE_FILE_BITS2		(PTE_FILE_SHIFT3 - PTE_FILE_SHIFT2 - 1)
- #define PTE_FILE_BITS3		(PTE_FILE_SHIFT4 - PTE_FILE_SHIFT3 - 1)
- 
--#define pte_to_pgoff(pte)						\
--	((((pte).pte_low >> (PTE_FILE_SHIFT1))				\
--	  & ((1U << PTE_FILE_BITS1) - 1)))				\
--	+ ((((pte).pte_low >> (PTE_FILE_SHIFT2))			\
--	    & ((1U << PTE_FILE_BITS2) - 1))				\
--	   << (PTE_FILE_BITS1))						\
--	+ ((((pte).pte_low >> (PTE_FILE_SHIFT3))			\
--	    & ((1U << PTE_FILE_BITS3) - 1))				\
--	   << (PTE_FILE_BITS1 + PTE_FILE_BITS2))			\
--	+ ((((pte).pte_low >> (PTE_FILE_SHIFT4)))			\
--	    << (PTE_FILE_BITS1 + PTE_FILE_BITS2 + PTE_FILE_BITS3))
--
--#define pgoff_to_pte(off)						\
--	((pte_t) { .pte_low =						\
--	 ((((off)) & ((1U << PTE_FILE_BITS1) - 1)) << PTE_FILE_SHIFT1)	\
--	 + ((((off) >> PTE_FILE_BITS1)					\
--	     & ((1U << PTE_FILE_BITS2) - 1))				\
--	    << PTE_FILE_SHIFT2)						\
--	 + ((((off) >> (PTE_FILE_BITS1 + PTE_FILE_BITS2))		\
--	     & ((1U << PTE_FILE_BITS3) - 1))				\
--	    << PTE_FILE_SHIFT3)						\
--	 + ((((off) >>							\
--	      (PTE_FILE_BITS1 + PTE_FILE_BITS2 + PTE_FILE_BITS3)))	\
--	    << PTE_FILE_SHIFT4)						\
--	 + _PAGE_FILE })
-+#define PTE_FILE_MASK1		((1U << PTE_FILE_BITS1) - 1)
-+#define PTE_FILE_MASK2		((1U << PTE_FILE_BITS2) - 1)
-+#define PTE_FILE_MASK3		((1U << PTE_FILE_BITS3) - 1)
-+
-+#define PTE_FILE_LSHIFT2	(PTE_FILE_BITS1)
-+#define PTE_FILE_LSHIFT3	(PTE_FILE_BITS1 + PTE_FILE_BITS2)
-+#define PTE_FILE_LSHIFT4	(PTE_FILE_BITS1 + PTE_FILE_BITS2 + PTE_FILE_BITS3)
-+
-+#define pte_to_pgoff(pte)							    \
-+	(_mfrob((pte).pte_low, PTE_FILE_SHIFT1, PTE_FILE_MASK1, 0)		  + \
-+	 _mfrob((pte).pte_low, PTE_FILE_SHIFT2, PTE_FILE_MASK2, PTE_FILE_LSHIFT2) + \
-+	 _mfrob((pte).pte_low, PTE_FILE_SHIFT3, PTE_FILE_MASK3, PTE_FILE_LSHIFT3) + \
-+	 __frob((pte).pte_low, PTE_FILE_SHIFT4, PTE_FILE_LSHIFT4))
-+
-+#define pgoff_to_pte(off)							\
-+	((pte_t) { .pte_low =							\
-+	_mfrob(off,                0, PTE_FILE_MASK1, PTE_FILE_SHIFT1)	+	\
-+	_mfrob(off, PTE_FILE_LSHIFT2, PTE_FILE_MASK2, PTE_FILE_SHIFT2)	+	\
-+	_mfrob(off, PTE_FILE_LSHIFT3, PTE_FILE_MASK3, PTE_FILE_SHIFT3)	+	\
-+	__frob(off, PTE_FILE_LSHIFT4, PTE_FILE_SHIFT4)			+	\
-+	_PAGE_FILE })
- 
- #else /* CONFIG_MEM_SOFT_DIRTY */
- 
-@@ -115,22 +114,23 @@ static inline pmd_t native_pmdp_get_and_
- #define PTE_FILE_BITS1		(PTE_FILE_SHIFT2 - PTE_FILE_SHIFT1 - 1)
- #define PTE_FILE_BITS2		(PTE_FILE_SHIFT3 - PTE_FILE_SHIFT2 - 1)
- 
--#define pte_to_pgoff(pte)						\
--	((((pte).pte_low >> PTE_FILE_SHIFT1)				\
--	  & ((1U << PTE_FILE_BITS1) - 1))				\
--	 + ((((pte).pte_low >> PTE_FILE_SHIFT2)				\
--	     & ((1U << PTE_FILE_BITS2) - 1)) << PTE_FILE_BITS1)		\
--	 + (((pte).pte_low >> PTE_FILE_SHIFT3)				\
--	    << (PTE_FILE_BITS1 + PTE_FILE_BITS2)))
--
--#define pgoff_to_pte(off)						\
--	((pte_t) { .pte_low =						\
--	 (((off) & ((1U << PTE_FILE_BITS1) - 1)) << PTE_FILE_SHIFT1)	\
--	 + ((((off) >> PTE_FILE_BITS1) & ((1U << PTE_FILE_BITS2) - 1))	\
--	    << PTE_FILE_SHIFT2)						\
--	 + (((off) >> (PTE_FILE_BITS1 + PTE_FILE_BITS2))		\
--	    << PTE_FILE_SHIFT3)						\
--	 + _PAGE_FILE })
-+#define PTE_FILE_MASK1		((1U << PTE_FILE_BITS1) - 1)
-+#define PTE_FILE_MASK2		((1U << PTE_FILE_BITS2) - 1)
-+
-+#define PTE_FILE_LSHIFT2	(PTE_FILE_BITS1)
-+#define PTE_FILE_LSHIFT3	(PTE_FILE_BITS1 + PTE_FILE_BITS2)
-+
-+#define pte_to_pgoff(pte)							    \
-+	(_mfrob((pte).pte_low, PTE_FILE_SHIFT1, PTE_FILE_MASK1, 0)		  + \
-+	 _mfrob((pte).pte_low, PTE_FILE_SHIFT2, PTE_FILE_MASK2, PTE_FILE_LSHIFT2) + \
-+	 __frob((pte).pte_low, PTE_FILE_SHIFT3, PTE_FILE_LSHIFT3))
-+
-+#define pgoff_to_pte(off)							\
-+	((pte_t) { .pte_low =							\
-+	_mfrob(off,                0, PTE_FILE_MASK1, PTE_FILE_SHIFT1)	+	\
-+	_mfrob(off, PTE_FILE_LSHIFT2, PTE_FILE_MASK2, PTE_FILE_SHIFT2)	+	\
-+	__frob(off, PTE_FILE_LSHIFT3, PTE_FILE_SHIFT3)			+	\
-+	_PAGE_FILE })
- 
- #endif /* CONFIG_MEM_SOFT_DIRTY */
- 
-
---r5Pyd7+fXNt84Ff3--
+What about those?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
