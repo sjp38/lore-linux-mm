@@ -1,166 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 469E990001A
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 10:01:24 -0400 (EDT)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [PATCH part1 0/5] acpica: Split acpi_gbl_root_table_list initialization into two parts.
-Date: Thu, 08 Aug 2013 16:11:43 +0200
-Message-ID: <2053371.Ghfe65ct5O@vostro.rjw.lan>
-In-Reply-To: <1375933176-15003-1-git-send-email-tangchen@cn.fujitsu.com>
-References: <1375933176-15003-1-git-send-email-tangchen@cn.fujitsu.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id D1D526B0031
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 10:09:54 -0400 (EDT)
+Message-ID: <1375970993.2424.142.camel@joe-AO722>
+Subject: Re: [PATCH part2 3/4] acpi: Remove "continue" in macro
+ INVALID_TABLE().
+From: Joe Perches <joe@perches.com>
+Date: Thu, 08 Aug 2013 07:09:53 -0700
+In-Reply-To: <52038C84.4080608@cn.fujitsu.com>
+References: <1375938239-18769-1-git-send-email-tangchen@cn.fujitsu.com>
+	 <1375938239-18769-4-git-send-email-tangchen@cn.fujitsu.com>
+	 <1375939646.2424.132.camel@joe-AO722> <52038C84.4080608@cn.fujitsu.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>, robert.moore@intel.com, lv.zheng@intel.com
-Cc: lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-On Thursday, August 08, 2013 11:39:31 AM Tang Chen wrote:
-> [Problem]
-> 
-> The current Linux cannot migrate pages used by the kerenl because
-> of the kernel direct mapping. In Linux kernel space, va = pa + PAGE_OFFSET.
-> When the pa is changed, we cannot simply update the pagetable and
-> keep the va unmodified. So the kernel pages are not migratable.
-> 
-> There are also some other issues will cause the kernel pages not migratable.
-> For example, the physical address may be cached somewhere and will be used.
-> It is not to update all the caches.
-> 
-> When doing memory hotplug in Linux, we first migrate all the pages in one
-> memory device somewhere else, and then remove the device. But if pages are
-> used by the kernel, they are not migratable. As a result, memory used by
-> the kernel cannot be hot-removed.
-> 
-> Modifying the kernel direct mapping mechanism is too difficult to do. And
-> it may cause the kernel performance down and unstable. So we use the following
-> way to do memory hotplug.
-> 
-> 
-> [What we are doing]
-> 
-> In Linux, memory in one numa node is divided into several zones. One of the
-> zones is ZONE_MOVABLE, which the kernel won't use.
-> 
-> In order to implement memory hotplug in Linux, we are going to arrange all
-> hotpluggable memory in ZONE_MOVABLE so that the kernel won't use these memory.
-> 
-> To do this, we need ACPI's help.
-> 
-> 
-> [How we do this]
-> 
-> In ACPI, SRAT(System Resource Affinity Table) contains NUMA info. The memory
-> affinities in SRAT record every memory range in the system, and also, flags
-> specifying if the memory range is hotpluggable.
-> (Please refer to ACPI spec 5.0 5.2.16)
-> 
-> With the help of SRAT, we have to do the following two things to achieve our
-> goal:
-> 
-> 1. When doing memory hot-add, allow the users arranging hotpluggable as
->    ZONE_MOVABLE.
->    (This has been done by the MOVABLE_NODE functionality in Linux.)
-> 
-> 2. when the system is booting, prevent bootmem allocator from allocating
->    hotpluggable memory for the kernel before the memory initialization
->    finishes.
->    (This is what we are going to do. And we need to do some modification in
->     ACPICA. See below.)
-> 
-> 
-> [About this patch-set]
-> 
-> There is a bootmem allocator named memblock in Linux. memblock starts to work
-> at very early time, and SRAT has not been parsed. So we don't know which memory
-> is hotpluggable. In order to prevent memblock from allocating hotpluggable
-> memory for the kernel, we need to obtain SRAT memory affinity info earlier.
-> 
-> In the current Linux kernel, the acpica code iterates acpi_gbl_root_table_list,
-> and install all the acpi tables into it at boot time. Then, it tries to find
-> if there is any override table in global array acpi_tables_addr. If any, reinstall
-> the override table into acpi_gbl_root_table_list.
-> 
-> In Linux, global array acpi_tables_addr can be fulfilled by ACPI_INITRD_TABLE_OVERRIDE
-> mechanism, which allows users to specify their own ACPI tables in initrd file, and
-> override the ones from firmware.
-> 
-> The whole procedure looks like the following:
-> 
-> setup_arch()
->  |->   ......                                     /* Setup direct mapping pagetables */
->  |->acpi_initrd_override()                        /* Store all override tables in acpi_tables_addr. */
->  |...
->  |->acpi_boot_table_init()
->     |->acpi_table_init()
->        |                                                                                  (Linux code)
-> ......................................................................................................
->        |                                                                                 (ACPICA code)
->        |->acpi_initialize_tables()
->           |->acpi_tb_parse_root_table()           /* Parse RSDT or XSDT, find all tables in firmware */
->              |->for (each item in acpi_gbl_root_table_list)
->                 |->acpi_tb_install_table()
->                    |->   ......                   /* Install one single table */
->                    |->acpi_tb_table_override()    /* Override one single table */
-> 
-> It does the table installation and overriding one by one.
-> 
-> In order to find SRAT at earlier time, we want to initialize acpi_gbl_root_table_list
-> earlier. But at the same time, keep ACPI_INITRD_TABLE_OVERRIDE procedure works as well.
-> 
-> The basic idea is, split the acpi_gbl_root_table_list initialization procedure into
-> two steps:
-> 1. Install all tables from firmware, not one by one.
-> 2. Override any table if necessary, not one by one.
-> 
-> After this patch-set, it will work like this:
-> 
-> setup_arch()
->  |->     ......                                   /* Install all tables from firmware (Step 1) */
->  |->     ......                                   /* Try to find if any override SRAT in initrd file, if yes, use it */
->  |->     ......                                   /* Use the SRAT from firmware */
->  |->     ......                                   /* memblock starts to work */
->  |->     ......
->  |->acpi_initrd_override()                        /* Initialize acpi_tables_addr with all override table. */
->  |...
->  |->     ......                                   /* Do the table override work for all tables (Step 2) */
-> 
-> 
-> In order to achieve this goal, we have to split all the following functions:
-> 
-> ACPICA:
->     acpi_tb_install_table()
->     acpi_tb_parse_root_table()
->     acpi_initialize_tables()
-> 
-> Linux acpi:
->     acpi_table_init()
->     acpi_boot_table_init()
-> 
-> Since ACPICA code is not just used by the Linux, so we should keep the ACPICA
-> side interfaces unmodified, and introduce new functions used in Linux.
-> 
-> 
-> Tang Chen (5):
->   acpi, acpica: Split acpi_tb_install_table() into two parts.
->   acpi, acpica: Call two new functions instead of
->     acpi_tb_install_table() in acpi_tb_parse_root_table().
->   acpi, acpica: Split acpi_tb_parse_root_table() into two parts.
->   acpi, acpica: Call two new functions instead of
->     acpi_tb_parse_root_table() in acpi_initialize_tables().
->   acpi, acpica: Split acpi_initialize_tables() into two parts.
-> 
->  drivers/acpi/acpica/actables.h |    2 +
->  drivers/acpi/acpica/tbutils.c  |  184 +++++++++++++++++++++++++++++++++++-----
->  drivers/acpi/acpica/tbxface.c  |   69 ++++++++++++++--
->  3 files changed, 228 insertions(+), 27 deletions(-)
+On Thu, 2013-08-08 at 20:18 +0800, Tang Chen wrote:
+> Hi Joe,
 
-OK, thanks for re-organizing the patch series!
+Hello Tang.
 
-Bob, Lv, can you please review this part and let us know what you think?
+> On 08/08/2013 01:27 PM, Joe Perches wrote:
+> > On Thu, 2013-08-08 at 13:03 +0800, Tang Chen wrote:
+> >
+> >> Change it to the style like other macros:
+> >>
+> >>   #define INVALID_TABLE(x, path, name)                                    \
+> >>           do { pr_err("ACPI OVERRIDE: " x " [%s%s]\n", path, name); } while (0)
+> >
+> > Single statement macros do _not_ need to use
+> > 	"do { foo(); } while (0)"
+> > and should be written as
+> > 	"foo()"
+> 
+> OK, will remove the do {} while (0).
+> 
+> But I think we'd better keep the macro, or rename it to something
+> more meaningful. At least we can use it to avoid adding "ACPI OVERRIDE:"
+> prefix every time. Maybe this is why it is defined.
 
-Rafael
+No, it's just silly.
+
+If you really think that the #define is better, use
+something like HW_ERR does and embed that #define
+in the pr_err.
+
+#define ACPI_OVERRIDE	"ACPI OVERRIDE: "
+
+	pr_err(ACPI_OVERRIDE "Table smaller than ACPI header [%s%s]\n",
+	       cpio_path, file.name);
+
+It's only used a few times by a single file so
+I think it's unnecessary.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
