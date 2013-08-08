@@ -1,62 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id D2AA68D0001
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 04:55:33 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 9EADD900001
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 04:55:34 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH part3 0/5] acpi, acpica: Initialize acpi_gbl_root_table_list earlier and override it later.
-Date: Thu, 8 Aug 2013 16:54:01 +0800
-Message-Id: <1375952046-28490-1-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH part3 4/5] x86, acpi: Split acpi_boot_table_init() into two parts.
+Date: Thu, 8 Aug 2013 16:54:05 +0800
+Message-Id: <1375952046-28490-5-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1375952046-28490-1-git-send-email-tangchen@cn.fujitsu.com>
+References: <1375952046-28490-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-In order to prevent bootmem allocator (memblock) from allocating hotpluggable 
-memory for the kernel, we need to obtain SRAT earlier.
+This patch splits acpi_boot_table_init() into two steps,
+so that we can do each step separately in later patches.
 
-In part1 patch-set, we have split acpi_gbl_root_table_list initialization into
-two steps: install and override.
+Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+---
+ arch/x86/kernel/acpi/boot.c |    6 +++++-
+ 1 files changed, 5 insertions(+), 1 deletions(-)
 
-This patch-set will do install step earlier. This will help us to find SRAT provided 
-by firmware earlier in later patches. 
-
-The current kernel looks like this:
-
-setup_arch()
- |->acpi_initrd_override()         /* Find all tables specified by users in initrd,
- |                                    and store them in acpi_tables_addr array. */
- |......
- |->acpi_boot_table_init()         /* Find all tables in firmware and install them
-                                      into acpi_gbl_root_table_list. Check acpi_tables_addr,
-                                      if any table needs to be overrided, override it. */
-
-After this patch-set, the kernel will look like this:
-
-setup_arch()
- |->early_acpi_boot_table_init()   /* Find all tables in firmware and install them 
- |                                    into acpi_gbl_root_table_list. No override. */
- |
- |->acpi_initrd_override()         /* Find all tables specified by users in initrd,
- |                                    and store them in acpi_tables_addr array. */
- |......
- |->acpi_boot_table_init()         /* Check acpi_tables_addr, if any table needs to 
-                                      be overrided, override it. */
-
-
-Tang Chen (5):
-  x86, acpi: Call two new functions instead of acpi_initialize_tables()
-    in acpi_table_init().
-  x86, acpi: Split acpi_table_init() into two parts.
-  x86, acpi: Rename check_multiple_madt() and make it global.
-  x86, acpi: Split acpi_boot_table_init() into two parts.
-  x86, acpi: Initialize acpi golbal root table list earlier.
-
- arch/x86/kernel/acpi/boot.c |   32 ++++++++++++++++++++------------
- arch/x86/kernel/setup.c     |    8 +++++++-
- drivers/acpi/tables.c       |   29 +++++++++++++++++++++++------
- include/acpi/acpixf.h       |    4 ++++
- include/linux/acpi.h        |    4 ++++
- 5 files changed, 58 insertions(+), 19 deletions(-)
+diff --git a/arch/x86/kernel/acpi/boot.c b/arch/x86/kernel/acpi/boot.c
+index 2627a81..ddb0bc1 100644
+--- a/arch/x86/kernel/acpi/boot.c
++++ b/arch/x86/kernel/acpi/boot.c
+@@ -1529,11 +1529,15 @@ void __init acpi_boot_table_init(void)
+ 	/*
+ 	 * Initialize the ACPI boot-time table parser.
+ 	 */
+-	if (acpi_table_init()) {
++	if (acpi_table_init_firmware()) {
+ 		disable_acpi();
+ 		return;
+ 	}
+ 
++	acpi_table_init_override();
++
++	acpi_check_multiple_madt();
++
+ 	acpi_table_parse(ACPI_SIG_BOOT, acpi_parse_sbf);
+ 
+ 	/*
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
