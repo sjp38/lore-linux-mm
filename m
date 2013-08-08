@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 1952B6B0037
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id CE1E56B0038
 	for <linux-mm@kvack.org>; Wed,  7 Aug 2013 23:41:05 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH part1 3/5] acpi, acpica: Split acpi_tb_parse_root_table() into two parts.
-Date: Thu, 8 Aug 2013 11:39:34 +0800
-Message-Id: <1375933176-15003-4-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH part1 4/5] acpi, acpica: Call two new functions instead of acpi_tb_parse_root_table() in acpi_initialize_tables().
+Date: Thu, 8 Aug 2013 11:39:35 +0800
+Message-Id: <1375933176-15003-5-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1375933176-15003-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1375933176-15003-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,115 +13,55 @@ List-ID: <linux-mm.kvack.org>
 To: robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-This patch splits acpi_tb_parse_root_table() into two steps, and
-introduces two new functions:
-    acpi_tb_root_table_install() and acpi_tb_root_table_override().
-
-They are just the same as acpi_tb_parse_root_table() if they are
+The previous patch introduces two new functions:
+    acpi_tb_root_table_install() and acpi_tb_root_table_override(),
+which work just the same as acpi_tb_parse_root_table() if they are
 called in sequence.
+
+In order to split acpi_initialize_tables(), call thes two functions
+in acpi_initialize_tables(). This will keep acpi_initialize_tables()
+works as before.
 
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 ---
- drivers/acpi/acpica/tbutils.c |   57 ++++++++++++++++++++++++++++++++++++++--
- 1 files changed, 54 insertions(+), 3 deletions(-)
+ drivers/acpi/acpica/actables.h |    2 ++
+ drivers/acpi/acpica/tbxface.c  |    9 +++++++--
+ 2 files changed, 9 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/acpi/acpica/tbutils.c b/drivers/acpi/acpica/tbutils.c
-index 9bef44b..8ed9b9a 100644
---- a/drivers/acpi/acpica/tbutils.c
-+++ b/drivers/acpi/acpica/tbutils.c
-@@ -503,14 +503,16 @@ acpi_tb_get_root_table_entry(u8 *table_entry, u32 table_entry_size)
+diff --git a/drivers/acpi/acpica/actables.h b/drivers/acpi/acpica/actables.h
+index 7755e91..641796e 100644
+--- a/drivers/acpi/acpica/actables.h
++++ b/drivers/acpi/acpica/actables.h
+@@ -120,6 +120,8 @@ void
+ acpi_tb_install_table(acpi_physical_address address,
+ 		      char *signature, u32 table_index);
  
- /*******************************************************************************
-  *
-- * FUNCTION:    acpi_tb_parse_root_table
-+ * FUNCTION:    acpi_tb_root_table_install
-  *
-  * PARAMETERS:  rsdp                    - Pointer to the RSDP
-  *
-  * RETURN:      Status
-  *
-  * DESCRIPTION: This function is called to parse the Root System Description
-- *              Table (RSDT or XSDT)
-+ *              Table (RSDT or XSDT), and install all the system description
-+ *              tables defined in the root table into the global root table
-+ *              list.
-  *
-  * NOTE:        Tables are mapped (not copied) for efficiency. The FACS must
-  *              be mapped and cannot be copied because it contains the actual
-@@ -519,7 +521,7 @@ acpi_tb_get_root_table_entry(u8 *table_entry, u32 table_entry_size)
-  ******************************************************************************/
++acpi_status acpi_tb_root_table_install(acpi_physical_address rsdp_address);
++void acpi_tb_root_table_override(void);
+ acpi_status acpi_tb_parse_root_table(acpi_physical_address rsdp_address);
  
- acpi_status __init
--acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
-+acpi_tb_root_table_install(acpi_physical_address rsdp_address)
- {
- 	struct acpi_table_rsdp *rsdp;
- 	u32 table_entry_size;
-@@ -673,7 +675,31 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
- 		/* Install tables in firmware into acpi_gbl_root_table_list */
- 		acpi_tb_install_table_firmware(acpi_gbl_root_table_list.
- 					       tables[i].address, NULL, i);
-+	}
-+
-+	return_ACPI_STATUS(AE_OK);
-+}
-+
-+/*******************************************************************************
-+ *
-+ * FUNCTION:    acpi_tb_root_table_override
-+ *
-+ * PARAMETERS:  None
-+ *
-+ * RETURN:      None
-+ *
-+ * DESCRIPTION: This function is called to allow the host OS to replace any
-+ *              table that has been installed into the global root table
-+ *              list.
-+ *
-+ ******************************************************************************/
- 
-+void __init
-+acpi_tb_root_table_override(void)
-+{
-+	int i;
-+
-+	for (i = 2; i < acpi_gbl_root_table_list.current_table_count; i++) {
- 		/* Override the installed tables if any */
- 		acpi_tb_install_table_override(acpi_gbl_root_table_list.
- 					       tables[i].address, NULL, i);
-@@ -686,6 +712,31 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
- 			acpi_tb_parse_fadt(i);
- 		}
- 	}
-+}
-+
-+/*******************************************************************************
-+ *
-+ * FUNCTION:    acpi_tb_parse_root_table
-+ *
-+ * PARAMETERS:  rsdp                    - Pointer to the RSDP
-+ *
-+ * RETURN:      Status
-+ *
-+ * DESCRIPTION: This function is called to parse the Root System Description
-+ *              Table (RSDT or XSDT)
-+ *
-+ ******************************************************************************/
-+
-+acpi_status __init
-+acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
-+{
-+	acpi_status status;
-+
+ #endif				/* __ACTABLES_H__ */
+diff --git a/drivers/acpi/acpica/tbxface.c b/drivers/acpi/acpica/tbxface.c
+index ad11162..98e4cad 100644
+--- a/drivers/acpi/acpica/tbxface.c
++++ b/drivers/acpi/acpica/tbxface.c
+@@ -143,8 +143,13 @@ acpi_initialize_tables(struct acpi_table_desc * initial_table_array,
+ 	 * Root Table Array. This array contains the information of the RSDT/XSDT
+ 	 * in a common, more useable format.
+ 	 */
+-	status = acpi_tb_parse_root_table(rsdp_address);
+-	return_ACPI_STATUS(status);
 +	status = acpi_tb_root_table_install(rsdp_address);
 +	if (ACPI_FAILURE(status))
 +		return_ACPI_STATUS(status);
 +
 +	acpi_tb_root_table_override();
- 
- 	return_ACPI_STATUS(AE_OK);
++
++	return_ACPI_STATUS(AE_OK);
  }
+ 
+ /*******************************************************************************
 -- 
 1.7.1
 
