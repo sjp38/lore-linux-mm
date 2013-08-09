@@ -1,109 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id BE6AE6B0031
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 11:32:26 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <nfont@linux.vnet.ibm.com>;
-	Fri, 9 Aug 2013 20:53:52 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 865CFE0054
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 21:02:36 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r79FWFYw38404108
-	for <linux-mm@kvack.org>; Fri, 9 Aug 2013 21:02:15 +0530
-Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r79FWIWW012434
-	for <linux-mm@kvack.org>; Fri, 9 Aug 2013 21:02:18 +0530
-Message-ID: <52050B80.8010602@linux.vnet.ibm.com>
-Date: Fri, 09 Aug 2013 10:32:16 -0500
-From: Nathan Fontenot <nfont@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: [PATCH 2/2] Register bootmem pages at boot on powerpc
-References: <52050ACE.4090001@linux.vnet.ibm.com>
-In-Reply-To: <52050ACE.4090001@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id C002B6B0033
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 11:34:23 -0400 (EDT)
+Message-ID: <1376062391.10300.245.camel@misato.fc.hp.com>
+Subject: Re: [PATCH] mm/hotplug: Verify hotplug memory range
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Fri, 09 Aug 2013 09:33:11 -0600
+In-Reply-To: <5204838E.1060602@cn.fujitsu.com>
+References: <1375980460-28311-1-git-send-email-toshi.kani@hp.com>
+	 <5204838E.1060602@cn.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linuxppc-dev@lists.ozlabs.org, linux-mm <linux-mm@kvack.org>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave@sr71.net, isimatu.yasuaki@jp.fujitsu.com, vasilis.liaskovitis@profitbricks.com
 
-Register bootmem pages at boot time on powerpc.
+On Fri, 2013-08-09 at 13:52 +0800, Tang Chen wrote:
+> On 08/09/2013 12:47 AM, Toshi Kani wrote:
+> > add_memory() and remove_memory() can only handle a memory range aligned
+> > with section.  There are problems when an unaligned range is added and
+> > then deleted as follows:
+> >
+> >   - add_memory() with an unaligned range succeeds, but __add_pages()
+> >     called from add_memory() adds a whole section of pages even though
+> >     a given memory range is less than the section size.
+> >   - remove_memory() to the added unaligned range hits BUG_ON() in
+> >     __remove_pages().
+> >
+> > This patch changes add_memory() and remove_memory() to check if a given
+> > memory range is aligned with section at the beginning.  As the result,
+> > add_memory() fails with -EINVAL when a given range is unaligned, and
+> > does not add such memory range.  This prevents remove_memory() to be
+> > called with an unaligned range as well.  Note that remove_memory() has
+> > to use BUG_ON() since this function cannot fail.
+> >
+> > Signed-off-by: Toshi Kani<toshi.kani@hp.com>
+> > ---
+> >   mm/memory_hotplug.c |   22 ++++++++++++++++++++++
+> >   1 file changed, 22 insertions(+)
+> >
+> > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> > index ca1dd3a..ac182de 100644
+> > --- a/mm/memory_hotplug.c
+> > +++ b/mm/memory_hotplug.c
+> > @@ -1069,6 +1069,22 @@ out:
+> >   	return ret;
+> >   }
+> >
+> > +static int check_hotplug_memory_range(u64 start, u64 size)
+> > +{
+> > +	u64 start_pfn = start>>  PAGE_SHIFT;
+> > +	u64 nr_pages = size>>  PAGE_SHIFT;
+> > +
+> > +	/* Memory range must be aligned with section */
+> > +	if ((start_pfn&  ~PAGE_SECTION_MASK) ||
+> > +	    (nr_pages % PAGES_PER_SECTION) || (!nr_pages)) {
+> > +		pr_err("Unsupported hotplug range: start 0x%llx, size 0x%llx\n",
+> > +				start, size);
+> 
+> I think the message here should tell users that only support range aligned
+> to section. Others seems OK to me.
 
-Previous commit 46723bfa540... introduced a new config option,
-HAVE_BOOTMEM_INFO_NODE, to enable registering of bootmem pages. As a result
-the bootmem pages for powerpc are not registered since we do not define this.
-This causes a BUG_ON in put_page_bootmem() when trying to hotplug remove
-memory on powerpc.
+OK, I will change the message to something like this:
 
-This patch resolves this by doing three things;
-- define HAVE_BOOTMEM_INFO_NODE for powerpc
-- Add a routine to register bootmem via register_page_bootmem_info_node()
-  in mem_init().
-- Stub out the register_page_bootmem_memmap() routine needed for building
-  with SPARSE_VMEMMAP enabled.
+  pr_err("Section-unaligned hotplug range: start 0x%llx, size 0x%llx\n",
+                                start, size);
 
-Signed-off-by: Nathan Fontenot <nfont@linux.vnet.ibm.com>
----
- arch/powerpc/mm/init_64.c |    6 ++++++
- arch/powerpc/mm/mem.c     |    9 +++++++++
- mm/Kconfig                |    2 +-
- 3 files changed, 16 insertions(+), 1 deletion(-)
+> Reviewed-by: Tang Chen <tangchen@cn.fujitsu.com>
 
-Index: powerpc/arch/powerpc/mm/init_64.c
-===================================================================
---- powerpc.orig/arch/powerpc/mm/init_64.c
-+++ powerpc/arch/powerpc/mm/init_64.c
-@@ -300,5 +300,11 @@ void vmemmap_free(unsigned long start, u
- {
- }
+Thanks!
+-Toshi
 
-+void register_page_bootmem_memmap(unsigned long section_nr,
-+				  struct page *start_page, unsigned long size)
-+{
-+	WARN_ONCE(1, KERN_INFO
-+		  "Sparse Vmemmap not fully supported for bootmem info nodes\n");
-+}
- #endif /* CONFIG_SPARSEMEM_VMEMMAP */
 
-Index: powerpc/arch/powerpc/mm/mem.c
-===================================================================
---- powerpc.orig/arch/powerpc/mm/mem.c
-+++ powerpc/arch/powerpc/mm/mem.c
-@@ -297,12 +297,21 @@ void __init paging_init(void)
- }
- #endif /* ! CONFIG_NEED_MULTIPLE_NODES */
-
-+static void __init register_page_bootmem_info(void)
-+{
-+	int i;
-+
-+	for_each_online_node(i)
-+		register_page_bootmem_info_node(NODE_DATA(i));
-+}
-+
- void __init mem_init(void)
- {
- #ifdef CONFIG_SWIOTLB
- 	swiotlb_init(0);
- #endif
-
-+	register_page_bootmem_info();
- 	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
- 	set_max_mapnr(max_pfn);
- 	free_all_bootmem();
-Index: powerpc/mm/Kconfig
-===================================================================
---- powerpc.orig/mm/Kconfig
-+++ powerpc/mm/Kconfig
-@@ -183,7 +183,7 @@ config MEMORY_HOTPLUG_SPARSE
- config MEMORY_HOTREMOVE
- 	bool "Allow for memory hot remove"
- 	select MEMORY_ISOLATION
--	select HAVE_BOOTMEM_INFO_NODE if X86_64
-+	select HAVE_BOOTMEM_INFO_NODE if (X86_64 || PPC64)
- 	depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
- 	depends on MIGRATION
 
 
 --
