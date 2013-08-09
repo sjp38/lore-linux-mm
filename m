@@ -1,42 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 93B786B0031
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 11:59:58 -0400 (EDT)
-Received: by mail-qa0-f53.google.com with SMTP id hu14so979915qab.5
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2013 08:59:57 -0700 (PDT)
-Date: Fri, 9 Aug 2013 11:59:49 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH part2 0/4] acpi: Trivial fix and improving for memory
- hotplug.
-Message-ID: <20130809155949.GN20515@mtj.dyndns.org>
-References: <1375938239-18769-1-git-send-email-tangchen@cn.fujitsu.com>
- <1851799.n4moZnvj4u@vostro.rjw.lan>
- <520439C9.3080601@cn.fujitsu.com>
- <1792540.pdAYjdHnnL@vostro.rjw.lan>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 3D6846B0031
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 12:12:45 -0400 (EDT)
+Message-ID: <520514FB.8060502@tilera.com>
+Date: Fri, 9 Aug 2013 12:12:43 -0400
+From: Chris Metcalf <cmetcalf@tilera.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1792540.pdAYjdHnnL@vostro.rjw.lan>
+Subject: Re: [PATCH v4 1/2] workqueue: add new schedule_on_cpu_mask() API
+References: <5202CEAA.9040204@linux.vnet.ibm.com> <201308072335.r77NZJPA022490@farm-0012.internal.tilera.com> <20130809150257.GM20515@mtj.dyndns.org>
+In-Reply-To: <20130809150257.GM20515@mtj.dyndns.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, robert.moore@intel.com, lv.zheng@intel.com, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Frederic Weisbecker <fweisbec@gmail.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-On Fri, Aug 09, 2013 at 03:36:16PM +0200, Rafael J. Wysocki wrote:
-> > No, it doesn't. And this patch-set can be merged first.
-> 
-> OK, so if nobody objects, I can take patches [1,3-4/4], but I don't think I'm
-> the right maintainer to handle [2/4].
+On 8/9/2013 11:02 AM, Tejun Heo wrote:
+> Hello, Chris.
+>
+> On Wed, Aug 07, 2013 at 04:49:44PM -0400, Chris Metcalf wrote:
+>> This primitive allows scheduling work to run on a particular set of
+>> cpus described by a "struct cpumask".  This can be useful, for example,
+>> if you have a per-cpu variable that requires code execution only if the
+>> per-cpu variable has a certain value (for example, is a non-empty list).
+> So, this allows scheduling work items on !online CPUs.  Workqueue does
+> allow scheduling per-cpu work items on offline CPUs if the CPU has
+> ever been online, but the behavior when scheduling work items on cpu
+> which has never been online is undefined.  I think the interface at
+> least needs to verify that the the target cpus have been online,
+> trigger warning and mask off invalid CPUs otherwise.
 
-Given the dependencies, we'll probably need some coordination among
-trees.  It spans across ACPI, memblock and x86.  Maybe the best way to
-do it is applying the ACPI part to your tree, pulling the rest into a
-tip branch and then put everything else there.
+I could certainly make schedule_on_cpu_mask() do sanity checking, perhaps via a WARN_ON_ONCE() if offline cpus were specified, and otherwise just have it create a local struct cpumask that it and's with cpu_online_mask, suitably wrapping with get_online_cpus()/put_online_cpus().  (I'm not sure how to test if a cpu has ever been online, vs whether it's online right now.)  I don't want to unnecessarily slow down the existing schedule_on_each_cpu(), so perhaps the implementation should have a static schedule_on_cpu_mask_internal() function that is the same as my previous schedule_on_cpu_mask(), allowing schedule_on_each_cpu() to call it directly to bypass the checking.
 
-Thanks.
+That said... I wonder if it might make sense to treat this API the same as other APIs that already take a cpu?  schedule_work_on(), schedule_delayed_work_on(), and queue_delayed_work_on() all take a cpu parameter without API comment or validity checking; queue_work_on() just says "the caller must ensure [the cpu] can't go away".  Does it make sense to just add a similar comment to schedule_on_cpu_mask() rather than make this API the first to actually do cpu validity checking?
+
+Let me know; I'm happy to respin it either way.
 
 -- 
-tejun
+Chris Metcalf, Tilera Corp.
+http://www.tilera.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
