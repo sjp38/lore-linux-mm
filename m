@@ -1,69 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id D785A6B0031
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 20:46:25 -0400 (EDT)
-Received: by mail-ve0-f174.google.com with SMTP id d10so3636459vea.33
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2013 17:46:24 -0700 (PDT)
-Date: Thu, 8 Aug 2013 20:46:21 -0400
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 624636B0031
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 20:50:31 -0400 (EDT)
+Received: by mail-ve0-f175.google.com with SMTP id oy10so3630033veb.34
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2013 17:50:30 -0700 (PDT)
+Date: Thu, 8 Aug 2013 20:50:26 -0400
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 2/3] memcg: Limit the number of events registered on
- oom_control
-Message-ID: <20130809004621.GD13427@mtj.dyndns.org>
+Subject: Re: [PATCH 1/3] memcg: limit the number of thresholds per-memcg
+Message-ID: <20130809005026.GE13427@mtj.dyndns.org>
 References: <1375874907-22013-1-git-send-email-mhocko@suse.cz>
- <1375874907-22013-2-git-send-email-mhocko@suse.cz>
- <20130807130836.GB27006@htj.dyndns.org>
- <20130807133746.GI8184@dhcp22.suse.cz>
- <20130807134741.GF27006@htj.dyndns.org>
- <20130807135734.GK8184@dhcp22.suse.cz>
- <20130807144730.GB13279@dhcp22.suse.cz>
- <20130807173051.GD16343@dhcp22.suse.cz>
+ <20130807132210.GD27006@htj.dyndns.org>
+ <20130807134654.GJ8184@dhcp22.suse.cz>
+ <20130807135818.GG27006@htj.dyndns.org>
+ <20130807143727.GA13279@dhcp22.suse.cz>
+ <20130807220513.GA8068@shutemov.name>
+ <20130808144351.GD3189@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130807173051.GD16343@dhcp22.suse.cz>
+In-Reply-To: <20130808144351.GD3189@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Anton Vorontsov <anton.vorontsov@linaro.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Anton Vorontsov <anton.vorontsov@linaro.org>
 
-Hello, Michal.
+Hello,
 
-On Wed, Aug 07, 2013 at 07:30:51PM +0200, Michal Hocko wrote:
-> On Wed 07-08-13 16:47:30, Michal Hocko wrote:
-> > On Wed 07-08-13 15:57:34, Michal Hocko wrote:
-> > [...]
-> > > Hmm, OK so you think that the fd limit is sufficient already?
-> > 
-> > Hmm, that would need to touch the code as well (the register callback
-> > would need to make sure only one event is registered per cfile). But yes
-> > this way would be better. I will send a new patch once I have an idle
-> > moment.
+On Thu, Aug 08, 2013 at 04:43:51PM +0200, Michal Hocko wrote:
+> > Is it correct that you fix one local DoS by introducing a new one?
+> > With the page the !priv user can block root from registering a threshold.
+> > Is it really the way we want to fix it?
 > 
-> What do you think about the following? I am not sure about EINVAL maybe
-> there is a better way to tell userspace it is doing something wrong. I
-> would appreciate any suggestions. If this looks good I will post a
-> similar patch for vmpressure.
+> OK, I will think about it some more.
 
-I don't think it's a good idea.  Not sure it matters given that this
-isn't a very popular interface but adding this sort of rather
-arbitrary restrictions can be confusing and lead to issues in userland
-which are extremely annoying to track down.
-
-Also, in terms of layering, this is horribly misplaced.  This is low
-level event source implementation, which is not the right place to
-implement logic to protect from userland abuses / mistakes.
-
-That's the whole thing with this interface.  It's essentially
-implementing a new userland-visible notification framework.  It is a
-complex userland visible interface which takes a lot of design and
-effort to get right and cgroup core or memcg definitely is not the
-place to do anything like this.  Collectively, we are not capable
-enough to do pull things like this properly by ourselves and even if
-we were it is not the right place to do it.
-
-Given how generally broken delegating to !priv users is, I don't think
-there's anything we can or should do at this point rather than noting
-that it is broken and was a mistake.
+The only thing the patch does is replacing implicit global resource
+limit with an explicit one.  Whether that's useful or not, I don't
+know, but it doesn't really change the nature of the problem or
+actually fix anything.  The only way to fix it is rewriting the whole
+thing so that allocations are broken up per source, which I don't
+think is a good idea at this point.  I'd just add a comment noting why
+it's broken.  Given that delegating to !priv users is horribly broken
+anyway, I don't think this worsens the situation by too much anyway.
 
 Thanks.
 
