@@ -1,37 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id CFED36B0036
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 20:34:06 -0400 (EDT)
-Received: by mail-vc0-f177.google.com with SMTP id gf12so607907vcb.22
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2013 17:34:05 -0700 (PDT)
-Date: Thu, 8 Aug 2013 20:34:02 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: [HEADSUP] conflicts between cgroup/for-3.12 and memcg
-Message-ID: <20130809003402.GC13427@mtj.dyndns.org>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 84F5C6B0034
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 20:38:59 -0400 (EDT)
+Message-ID: <520439C9.3080601@cn.fujitsu.com>
+Date: Fri, 09 Aug 2013 08:37:29 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: Re: [PATCH part2 0/4] acpi: Trivial fix and improving for memory
+ hotplug.
+References: <1375938239-18769-1-git-send-email-tangchen@cn.fujitsu.com> <1851799.n4moZnvj4u@vostro.rjw.lan>
+In-Reply-To: <1851799.n4moZnvj4u@vostro.rjw.lan>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: sfr@canb.auug.org.au, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-next@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: robert.moore@intel.com, lv.zheng@intel.com, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-Hello, Stephen, Andrew.
+On 08/08/2013 10:09 PM, Rafael J. Wysocki wrote:
+> On Thursday, August 08, 2013 01:03:55 PM Tang Chen wrote:
+>> This patch-set does some trivial fix and improving in ACPI code
+>> for memory hotplug.
+>>
+>> Patch 1,3,4 have been acked.
+>>
+>> Tang Chen (4):
+>>    acpi: Print Hot-Pluggable Field in SRAT.
+>>    earlycpio.c: Fix the confusing comment of find_cpio_data().
+>>    acpi: Remove "continue" in macro INVALID_TABLE().
+>>    acpi: Introduce acpi_verify_initrd() to check if a table is invalid.
+>>
+>>   arch/x86/mm/srat.c |   11 ++++--
+>>   drivers/acpi/osl.c |   84 +++++++++++++++++++++++++++++++++++++++------------
+>>   lib/earlycpio.c    |   27 ++++++++--------
+>>   3 files changed, 85 insertions(+), 37 deletions(-)
+>
+> It looks like this part doesn't depend on the other parts, is that correct?
 
-I just applied rather invasive API update to cgroup/for-3.12, which
-led to conflicts in two files - include/net/netprio_cgroup.h and
-mm/memcontrol.c.  The former is trivial context conflict and the two
-changes conflicting are independent.  The latter contains several
-conflicts and unfortunately isn't trivial, especially the iterator
-update and the memcg patches should probably be rebased.
-
-I can hold back pushing for-3.12 into for-next until the memcg patches
-are rebased.  Would that work?
+No, it doesn't. And this patch-set can be merged first.
 
 Thanks.
-
--- 
-tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
