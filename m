@@ -1,89 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 8FFBB6B0031
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 16:33:32 -0400 (EDT)
-Date: Fri, 09 Aug 2013 16:33:26 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1376080406-4r7r3uye-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <CAMyfujfZayb8_673vkb2hdE9J_w+wPTD4aQ6TsY+aWxb9EzY8A@mail.gmail.com>
-References: <CAMyfujfZayb8_673vkb2hdE9J_w+wPTD4aQ6TsY+aWxb9EzY8A@mail.gmail.com>
-Subject: Re: [PATCH 1/1] pagemap: fix buffer overflow in add_page_map()
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 4C4FB6B0033
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 16:34:23 -0400 (EDT)
+Date: Fri, 9 Aug 2013 22:34:20 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [RFC 0/3] Add madvise(..., MADV_WILLWRITE)
+Message-ID: <20130809203420.GA1050@quack.suse.cz>
+References: <20130807134058.GC12843@quack.suse.cz>
+ <520286A4.1020101@intel.com>
+ <CALCETrXAz1fc7y07LhmxNh6zA_KZB4yv57NY2MrhUwKdkypB9w@mail.gmail.com>
+ <20130808101807.GB4325@quack.suse.cz>
+ <CALCETrX1GXr58ujqAVT5_DtOx+8GEiyb9svK-SGH9d+7SXiNqQ@mail.gmail.com>
+ <20130808185340.GA13926@quack.suse.cz>
+ <CALCETrVXTXzXAmUsmmWxwr6vK+Vux7_pUzWPYyHjxEbn3ObABg@mail.gmail.com>
+ <5204229F.8000507@intel.com>
+ <20130809075523.GA14574@quack.suse.cz>
+ <CALCETrU6j=X0KcuiNQxcsBiwD-o+PcDVbA2usV+fr+8M-1zm9Q@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <CALCETrU6j=X0KcuiNQxcsBiwD-o+PcDVbA2usV+fr+8M-1zm9Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: yonghua zheng <younghua.zheng@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Motohiro KOSAKI <kosaki.motohiro@gmail.com>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri, Aug 09, 2013 at 01:16:41PM +0800, yonghua zheng wrote:
-> Hi,
+On Fri 09-08-13 10:36:41, Andy Lutomirski wrote:
+> On Fri, Aug 9, 2013 at 12:55 AM, Jan Kara <jack@suse.cz> wrote:
+> > On Thu 08-08-13 15:58:39, Dave Hansen wrote:
+> >> I was coincidentally tracking down what I thought was a scalability
+> >> problem (turned out to be full disks :).  I noticed, though, that ext4
+> >> is about 20% slower than ext2/3 at doing write page faults (x-axis is
+> >> number of tasks):
+> >>
+> >> http://www.sr71.net/~dave/intel/page-fault-exts/cmp.html?1=ext3&2=ext4&hide=linear,threads,threads_idle,processes_idle&rollPeriod=5
+> >>
+> >> The test case is:
+> >>
+> >>       https://github.com/antonblanchard/will-it-scale/blob/master/tests/page_fault3.c
+> >   The reason is that ext2/ext3 do almost nothing in their write fault
+> > handler - they are about as fast as it can get. ext4 OTOH needs to reserve
+> > blocks for delayed allocation, setup buffers under a page etc. This is
+> > necessary if you want to make sure that if data are written via mmap, they
+> > also have space available on disk to be written to (ext2 / ext3 do not care
+> > and will just drop the data on the floor if you happen to hit ENOSPC during
+> > writeback).
 > 
-> Recently we met quite a lot of random kernel panic issues after enable
-> CONFIG_PROC_PAGE_MONITOR in kernel, after debuggint sometime we found
-> this has something to do with following bug in pagemap:
-> 
-> In struc pagemapread:
-> 
-> struct pagemapread {
->     int pos, len;
->     pagemap_entry_t *buffer;
->     bool v2;
-> };
-> 
-> pos is number of PM_ENTRY_BYTES in buffer, but len is the size of buffer,
-> it is a mistake to compare pos and len in add_page_map() for checking
+> Out of curiosity, why does ext4 need to set up buffers?  That is, as
+> long as the fs can guarantee that there is reserved space to write out
+> the page, why isn't it sufficient to just mark the page dirty and let
+> the writeback code set up the buffers?
+  Well, because we track the fact that the space is reserved in the buffer
+itself.
 
-s/add_page_map/add_to_pagemap/ ?
-
-> buffer is full or not, and this can lead to buffer overflow and random
-> kernel panic issue.
-> 
-> Correct len to be total number of PM_ENTRY_BYTES in buffer.
-> 
-> Signed-off-by: Yonghua Zheng <younghua.zheng@gmail.com>
-
-You can find coding style violation with scripts/checkpatch.pl.
-And I think this patch is worth going into -stable trees
-(maybe since 2.6.34.)
-
-The fix itself looks fine to me.
-
-Thanks,
-Naoya Horiguchi
-
-> ---
->  fs/proc/task_mmu.c |    4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index dbf61f6..cb98853 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -1116,8 +1116,8 @@ static ssize_t pagemap_read(struct file *file,
-> char __user *buf,
->          goto out_task;
-> 
->      pm.v2 = soft_dirty_cleared;
-> -    pm.len = PM_ENTRY_BYTES * (PAGEMAP_WALK_SIZE >> PAGE_SHIFT);
-> -    pm.buffer = kmalloc(pm.len, GFP_TEMPORARY);
-> +    pm.len = (PAGEMAP_WALK_SIZE >> PAGE_SHIFT);
-> +    pm.buffer = kmalloc(pm.len * PM_ENTRY_BYTES, GFP_TEMPORARY);
->      ret = -ENOMEM;
->      if (!pm.buffer)
->          goto out_task;
-> 
-> -- 
-> 1.7.9.5
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
