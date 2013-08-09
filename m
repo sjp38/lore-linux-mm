@@ -1,153 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id F37736B0031
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 10:49:24 -0400 (EDT)
-Received: by mail-vb0-f54.google.com with SMTP id q14so4091038vbe.41
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2013 07:49:23 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 6FD086B0031
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 11:01:58 -0400 (EDT)
+Message-ID: <52050474.8040608@parallels.com>
+Date: Fri, 9 Aug 2013 19:02:12 +0400
+From: Maxim Patlasov <mpatlasov@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <20130809144601.159CAE0090@blue.fi.intel.com>
-References: <1375582645-29274-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<1375582645-29274-21-git-send-email-kirill.shutemov@linux.intel.com>
-	<CACz4_2f2frTktfUusWGcaqZtTmQS8FSY0HqwXCas44EW7Q5Xsw@mail.gmail.com>
-	<CACz4_2de=zm2-VtE=dFTfYjrdma4QFX1S-ukQ_7J4DZ32q1JQQ@mail.gmail.com>
-	<CACz4_2fv1g2dRLh72gtaCYkNC6+Pp4h=R0q-taR51tejpL1gnw@mail.gmail.com>
-	<20130809144601.159CAE0090@blue.fi.intel.com>
-Date: Fri, 9 Aug 2013 07:49:23 -0700
-Message-ID: <CACz4_2cMSn1_DhVjN1ch60XDMSw1OxHjM+zh=+-iBtejgpHk8g@mail.gmail.com>
-Subject: Re: [PATCH 20/23] thp: handle file pages in split_huge_page()
-From: Ning Qu <quning@google.com>
-Content-Type: multipart/alternative; boundary=001a11339c6c68499904e384e1b8
+Subject: Re: [PATCH 10/16] fuse: Implement writepages callback
+References: <20130629172211.20175.70154.stgit@maximpc.sw.ru> <20130629174525.20175.18987.stgit@maximpc.sw.ru> <20130719165037.GA18358@tucsk.piliscsaba.szeredi.hu> <51FBD2DF.50506@parallels.com> <CAJfpegtr4+vv_ZzuM7EE7MkHPqNi4brQamg4ZOWb2Me+iG87JQ@mail.gmail.com>
+In-Reply-To: <CAJfpegtr4+vv_ZzuM7EE7MkHPqNi4brQamg4ZOWb2Me+iG87JQ@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-fsdevel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Dave Hansen <dave@sr71.net>, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: riel@redhat.com, Kirill Korotaev <dev@parallels.com>, Pavel Emelianov <xemul@parallels.com>, fuse-devel <fuse-devel@lists.sourceforge.net>, Brian Foster <bfoster@redhat.com>, Kernel Mailing List <linux-kernel@vger.kernel.org>, James Bottomley <jbottomley@parallels.com>, linux-mm@kvack.org, Al Viro <viro@zeniv.linux.org.uk>, Linux-Fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, fengguang.wu@intel.com, devel@openvz.org, Mel Gorman <mgorman@suse.de>
 
---001a11339c6c68499904e384e1b8
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Hi Miklos,
 
-Sure!
-On Aug 9, 2013 7:42 AM, "Kirill A. Shutemov" <
-kirill.shutemov@linux.intel.com> wrote:
+08/06/2013 08:25 PM, Miklos Szeredi D?D,N?DuN?:
+> On Fri, Aug 2, 2013 at 5:40 PM, Maxim Patlasov <mpatlasov@parallels.com> wrote:
+>> 07/19/2013 08:50 PM, Miklos Szeredi D?D,N?DuN?:
+>>
+>>> On Sat, Jun 29, 2013 at 09:45:29PM +0400, Maxim Patlasov wrote:
+>>>> From: Pavel Emelyanov <xemul@openvz.org>
+>>>>
+>>>> The .writepages one is required to make each writeback request carry more
+>>>> than
+>>>> one page on it. The patch enables optimized behaviour unconditionally,
+>>>> i.e. mmap-ed writes will benefit from the patch even if
+>>>> fc->writeback_cache=0.
+>>> I rewrote this a bit, so we won't have to do the thing in two passes,
+>>> which
+>>> makes it simpler and more robust.  Waiting for page writeback here is
+>>> wrong
+>>> anyway, see comment above fuse_page_mkwrite().  BTW we had a race there
+>>> because
+>>> fuse_page_mkwrite() didn't take the page lock.  I've also fixed that up
+>>> and
+>>> pushed a series containing these patches up to implementing ->writepages()
+>>> to
+>>>
+>>>     git://git.kernel.org/pub/scm/linux/kernel/git/mszeredi/fuse.git
+>>> writepages
+>>>
+>>> Passed some trivial testing but more is needed.
+>>
+>> Thanks a lot for efforts. The approach you implemented looks promising, but
+>> it introduces the following assumption: a page cannot become dirty before we
+>> have a chance to wait on fuse writeback holding the page locked. This is
+>> already true for mmap-ed writes (due to your fixes) and it seems doable for
+>> cached writes as well (like we do in fuse_perform_write). But the assumption
+>> seems to be broken in case of direct read from local fs (e.g. ext4) to a
+>> memory region mmap-ed to a file on fuse fs. See how dio_bio_submit() marks
+>> pages dirty by bio_set_pages_dirty(). I can't see any solution for this
+>> use-case. Do you?
+> Hmm.  Direct IO on an mmaped file will do get_user_pages() which will
+> do the necessary page fault magic and ->page_mkwrite() will be called.
+> At least AFAICS.
 
-> Ning Qu wrote:
-> > I just tried, and it seems working fine now without the deadlock
-> anymore. I
-> > can run some big internal test with about 40GB files in sysv shm. Just
-> move
-> > the line before the locking happens in vma_adjust, something as below,
-> the
-> > line number is not accurate because my patch is based on another tree
-> right
-> > now.
+Yes, I agree.
+
 >
-> Looks okay to me. Could you prepare real patch (description, etc.). I'll
-> add it to my patchset.
->
-> >
-> > --- a/mm/mmap.c
-> > +++ b/mm/mmap.c
-> > @@ -581,6 +581,8 @@ again:                      remove_next =3D 1 + (en=
-d >
-> > next->vm_end);
-> >                 }
-> >         }
-> >
-> > +       vma_adjust_trans_huge(vma, start, end, adjust_next);
-> > +
-> >         if (file) {
-> >                 mapping =3D file->f_mapping;
-> >                 if (!(vma->vm_flags & VM_NONLINEAR))
-> > @@ -597,8 +599,6 @@ again:                      remove_next =3D 1 + (en=
-d >
-> > next->vm_end);
-> >                 }
-> >         }
-> >
-> > -       vma_adjust_trans_huge(vma, start, end, adjust_next);
-> > -
-> >         anon_vma =3D vma->anon_vma;
-> >         if (!anon_vma && adjust_next)
-> >                 anon_vma =3D next->anon_vma;
-> >
-> >
-> > Best wishes,
-> > --
-> > Ning Qu (=E6=9B=B2=E5=AE=81) | Software Engineer | quning@google.com | =
-+1-408-418-6066
->
-> --
->  Kirill A. Shutemov
->
+> The page cannot become dirty through a memory mapping without first
+> switching the pte from read-only to read-write first.  Page accounting
+> logic relies on this too.  The other way the page can become dirty is
+> through write(2) on the fs.  But we do get notified about that too.
 
---001a11339c6c68499904e384e1b8
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Yes, that's correct, but I don't understand why you disregard two other 
+cases of marking page dirty (both related to direct AIO read from a file 
+to a memory region mmap-ed to a fuse file):
 
-<p dir=3D"ltr">Sure! </p>
-<div class=3D"gmail_quote">On Aug 9, 2013 7:42 AM, &quot;Kirill A. Shutemov=
-&quot; &lt;<a href=3D"mailto:kirill.shutemov@linux.intel.com">kirill.shutem=
-ov@linux.intel.com</a>&gt; wrote:<br type=3D"attribution"><blockquote class=
-=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padd=
-ing-left:1ex">
-Ning Qu wrote:<br>
-&gt; I just tried, and it seems working fine now without the deadlock anymo=
-re. I<br>
-&gt; can run some big internal test with about 40GB files in sysv shm. Just=
- move<br>
-&gt; the line before the locking happens in vma_adjust, something as below,=
- the<br>
-&gt; line number is not accurate because my patch is based on another tree =
-right<br>
-&gt; now.<br>
-<br>
-Looks okay to me. Could you prepare real patch (description, etc.). I&#39;l=
-l<br>
-add it to my patchset.<br>
-<br>
-&gt;<br>
-&gt; --- a/mm/mmap.c<br>
-&gt; +++ b/mm/mmap.c<br>
-&gt; @@ -581,6 +581,8 @@ again: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0remove_next =3D 1 + (end &gt;<br>
-&gt; next-&gt;vm_end);<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 }<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 }<br>
-&gt;<br>
-&gt; + =C2=A0 =C2=A0 =C2=A0 vma_adjust_trans_huge(vma, start, end, adjust_n=
-ext);<br>
-&gt; +<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (file) {<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mapping =3D fi=
-le-&gt;f_mapping;<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!(vma-&gt;=
-vm_flags &amp; VM_NONLINEAR))<br>
-&gt; @@ -597,8 +599,6 @@ again: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0remove_next =3D 1 + (end &gt;<br>
-&gt; next-&gt;vm_end);<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 }<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 }<br>
-&gt;<br>
-&gt; - =C2=A0 =C2=A0 =C2=A0 vma_adjust_trans_huge(vma, start, end, adjust_n=
-ext);<br>
-&gt; -<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 anon_vma =3D vma-&gt;anon_vma;<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!anon_vma &amp;&amp; adjust_next)<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 anon_vma =3D n=
-ext-&gt;anon_vma;<br>
-&gt;<br>
-&gt;<br>
-&gt; Best wishes,<br>
-&gt; --<br>
-&gt; Ning Qu (=E6=9B=B2=E5=AE=81) | Software Engineer | <a href=3D"mailto:q=
-uning@google.com">quning@google.com</a> | <a href=3D"tel:%2B1-408-418-6066"=
- value=3D"+14084186066">+1-408-418-6066</a><br>
-<br>
---<br>
-=C2=A0Kirill A. Shutemov<br>
-</blockquote></div>
+1. dio_bio_submit() -->
+       bio_set_pages_dirty() -->
+         set_page_dirty_lock()
 
---001a11339c6c68499904e384e1b8--
+2. dio_bio_complete() -->
+       bio_check_pages_dirty() -->
+          bio_dirty_fn() -->
+             bio_set_pages_dirty() -->
+                set_page_dirty_lock()
+
+As soon as a page became dirty through a memory mapping (exactly as you 
+explained), nothing would prevent it to be written-back. And fuse will 
+call end_page_writeback almost immediately after copying the real page 
+to a temporary one. Then dio_bio_submit may re-dirty page speculatively 
+w/o notifying fuse. And again, since then nothing would prevent it to be 
+written-back once more. Hence we can end up in more then one temporary 
+page in fuse write-back. And similar concern for dio_bio_complete() 
+re-dirty.
+
+This make me think that we do need fuse_page_is_writeback() in 
+fuse_writepages_fill(). But it shouldn't be harmful because it will 
+no-op practically always due to waiting for fuse writeback in 
+->page_mkwrite() and in course of handling write(2).
+
+Thanks,
+Maxim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
