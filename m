@@ -1,37 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id A7BE96B0033
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 03:16:27 -0400 (EDT)
-Message-ID: <1376032572.32100.17.camel@pasglop>
-Subject: Re: [PATCH 3/8] Add all memory via sysfs probe interface at once
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Fri, 09 Aug 2013 17:16:12 +1000
-In-Reply-To: <52016047.5060903@linux.vnet.ibm.com>
-References: <51F01E06.6090800@linux.vnet.ibm.com>
-	 <51F01EFB.6070207@linux.vnet.ibm.com> <20130802023259.GC1680@concordia>
-	 <51FC04C2.70100@linux.vnet.ibm.com> <20130805031326.GB5347@concordia>
-	 <52016047.5060903@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id B0FCD6B0031
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 03:22:11 -0400 (EDT)
+Date: Fri, 9 Aug 2013 09:22:07 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [HEADSUP] conflicts between cgroup/for-3.12 and memcg
+Message-ID: <20130809072207.GA16531@dhcp22.suse.cz>
+References: <20130809003402.GC13427@mtj.dyndns.org>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="PNTmBPCT7hxwcZjr"
+Content-Disposition: inline
+In-Reply-To: <20130809003402.GC13427@mtj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nathan Fontenot <nfont@linux.vnet.ibm.com>
-Cc: Michael Ellerman <michael@ellerman.id.au>, linux-mm <linux-mm@kvack.org>, isimatu.yasuaki@jp.fujitsu.com, linuxppc-dev@lists.ozlabs.org, LKML <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: sfr@canb.auug.org.au, linux-next@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 2013-08-06 at 15:44 -0500, Nathan Fontenot wrote:
-> I am planning on pulling the first two patches and sending them out
-> separate from the patch set since they are really independent of the
-> rest of the patch series.
+
+--PNTmBPCT7hxwcZjr
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+
+On Thu 08-08-13 20:34:02, Tejun Heo wrote:
+> Hello, Stephen, Andrew.
 > 
-> The remaining code I will send out for review and inclusion in
-> linux-next so it can have the proper test time as you mentioned.
+> I just applied rather invasive API update to cgroup/for-3.12, which
+> led to conflicts in two files - include/net/netprio_cgroup.h and
+> mm/memcontrol.c.  The former is trivial context conflict and the two
+> changes conflicting are independent.  The latter contains several
+> conflicts and unfortunately isn't trivial, especially the iterator
+> update and the memcg patches should probably be rebased.
+> 
+> I can hold back pushing for-3.12 into for-next until the memcg patches
+> are rebased.  Would that work?
 
-Ping ? :-)
+I have just tried to merge cgroups/for-3.12 into my memcg tree and there
+were some conflicts indeed. They are attached for reference. The
+resolving is trivial. I've just picked up HEAD as all the conflicts are
+for added resp. removed code in mmotm.
 
-Cheers,
-Ben.
+Andrew, let me know if you need a help with rebasing.
 
+HTH
+-- 
+Michal Hocko
+SUSE Labs
+
+--PNTmBPCT7hxwcZjr
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: attachment; filename="memcontrol.conflicts"
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index b73988a..c208154 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -182,6 +182,29 @@ struct mem_cgroup_per_node {
+ 	struct mem_cgroup_per_zone zoneinfo[MAX_NR_ZONES];
+ };
+ 
++<<<<<<< HEAD
++=======
++/*
++ * Cgroups above their limits are maintained in a RB-Tree, independent of
++ * their hierarchy representation
++ */
++
++struct mem_cgroup_tree_per_zone {
++	struct rb_root rb_root;
++	spinlock_t lock;
++};
++
++struct mem_cgroup_tree_per_node {
++	struct mem_cgroup_tree_per_zone rb_tree_per_zone[MAX_NR_ZONES];
++};
++
++struct mem_cgroup_tree {
++	struct mem_cgroup_tree_per_node *rb_tree_per_node[MAX_NUMNODES];
++};
++
++static struct mem_cgroup_tree soft_limit_tree __read_mostly;
++
++>>>>>>> tj-cgroups/for-3.12
+ struct mem_cgroup_threshold {
+ 	struct eventfd_ctx *eventfd;
+ 	u64 threshold;
+@@ -255,7 +278,10 @@ struct mem_cgroup {
+ 
+ 	bool		oom_lock;
+ 	atomic_t	under_oom;
++<<<<<<< HEAD
+ 	atomic_t	oom_wakeups;
++=======
++>>>>>>> tj-cgroups/for-3.12
+ 
+ 	int	swappiness;
+ 	/* OOM-Killer disable */
+@@ -323,6 +349,7 @@ struct mem_cgroup {
+ 	 */
+ 	spinlock_t soft_lock;
+ 
++<<<<<<< HEAD
+ 	/*
+ 	 * If true then this group has increased parents' children_in_excess
+ 	 * when it got over the soft limit.
+@@ -334,6 +361,8 @@ struct mem_cgroup {
+ 	/* Number of children that are in soft limit excess */
+ 	atomic_t children_in_excess;
+ 
++=======
++>>>>>>> tj-cgroups/for-3.12
+ 	struct mem_cgroup_per_node *nodeinfo[0];
+ 	/* WARNING: nodeinfo must be the last member here */
+ };
+@@ -3573,9 +3602,15 @@ __memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **_memcg, int order)
+ 	 * the page allocator. Therefore, the following sequence when backed by
+ 	 * the SLUB allocator:
+ 	 *
++<<<<<<< HEAD
+ 	 *	memcg_stop_kmem_account();
+ 	 *	kmalloc(<large_number>)
+ 	 *	memcg_resume_kmem_account();
++=======
++	 * 	memcg_stop_kmem_account();
++	 * 	kmalloc(<large_number>)
++	 * 	memcg_resume_kmem_account();
++>>>>>>> tj-cgroups/for-3.12
+ 	 *
+ 	 * would effectively ignore the fact that we should skip accounting,
+ 	 * since it will drive us directly to this function without passing
+
+--PNTmBPCT7hxwcZjr--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
