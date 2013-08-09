@@ -1,109 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 313DA6B0034
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 14:47:56 -0400 (EDT)
-Message-ID: <201308091847.r79IlstZ015094@farm-0021.internal.tilera.com>
-From: Chris Metcalf <cmetcalf@tilera.com>
-In-Reply-To: <20130809174009.GV20515@mtj.dyndns.org>
-Date: Fri, 9 Aug 2013 13:52:22 -0400
-Subject: [PATCH v6 2/2] mm: make lru_add_drain_all() selective
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 1DAA26B0031
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 14:56:42 -0400 (EDT)
+Received: by mail-lb0-f179.google.com with SMTP id v1so3441260lbd.10
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2013 11:56:40 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <000001405e70a92f-3b2a0b89-f807-45d7-af70-9e7292156dd4-000000@email.amazonses.com>
+References: <CAOtvUMc5w3zNe8ed6qX0OOM__3F_hOTqvFa1AkdXF0PHvzGZqg@mail.gmail.com>
+	<1371672168-9869-1-git-send-email-gilad@benyossef.com>
+	<0000013f61e7609b-a8d1907b-8169-4f77-ab83-a624a8d0ab4a-000000@email.amazonses.com>
+	<CAOtvUMe=QQni4Ouu=P_vh8QSb4ZdnaX_fW1twn3QFcOjYgJBGA@mail.gmail.com>
+	<000001405e70a92f-3b2a0b89-f807-45d7-af70-9e7292156dd4-000000@email.amazonses.com>
+Date: Fri, 9 Aug 2013 21:56:39 +0300
+Message-ID: <CAOtvUMdPswm3pHesXAzLYA4c7yzsXKoRoOt2T3LWBCjZ86ybpg@mail.gmail.com>
+Subject: Re: [PATCH v2 1/2] mm: make vmstat_update periodic run conditional
+From: Gilad Ben-Yossef <gilad@benyossef.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Frederic Weisbecker <fweisbec@gmail.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
+To: Christoph Lameter <cl@gentwo.org>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Frederic Weisbecker <fweisbec@gmail.com>
 
-This change makes lru_add_drain_all() only selectively interrupt
-the cpus that have per-cpu free pages that can be drained.
+On Thu, Aug 8, 2013 at 5:59 PM, Christoph Lameter <cl@gentwo.org> wrote:
+> On Thu, 8 Aug 2013, Gilad Ben-Yossef wrote:
+>
+>> vmstat_update runs from the vmstat work queue item by the workqueue
+>> kernel thread.
+>>
+>> If this code is running, it means there are at least two schedulable tasks:
+>> 1. The workqueue kernel thread, because it is running.
+>> 2. At least one more task, otherwise were were in idle and the
+>> workqueue kernel thread
+>> would not execute this work item.
+>>
+>> Unfortunately, having two schedulable tasks means we're not running
+>> tickless, so the check
+>> will never trigger - or have I've missed something obvious?
+>
+> The vmstat update is deferrable work. As such it is not required to run
+> and can be pushed off. It will not be considered for the calculation of
+> the next timer interupt. See __next_timer_interrupt().
 
-This is important in nohz mode where calling mlockall(), for
-example, otherwise will interrupt every core unnecessarily.
+Yes, I understand that. I was trying to say something else:
 
-Signed-off-by: Chris Metcalf <cmetcalf@tilera.com>
----
-v6: add Tejun's Acked-by, and add missing get/put_cpu_online to
-lru_add_drain_all().
+If the code does not consider setting the vmstat_cpus bit in the mask
+unless we are running
+on a CPU in tickless state, than we will (almost) never set
+vmstat_cpus since we will (almost)
+never be tickless in a deferrable work -
 
-v5: provide validity checking on the cpumask for schedule_on_cpu_mask.
-By providing an all-or-nothing EINVAL check, we impose the requirement
-that the calling code actually know clearly what it's trying to do.
-(Note: no change to the mm/swap.c commit)
+If there is no other task, we will be in idle and the deferreable work
+will not be scheduled since the timer will not fire.
 
-v4: don't lose possible -ENOMEM in schedule_on_each_cpu()
-(Note: no change to the mm/swap.c commit)
+If there is one task originally, the work queue gets executed in the
+work queue kernel thread, so we have two tasks so tickless will
+disengae.
 
-v3: split commit into two, one for workqueue and one for mm, though both
-should probably be taken through -mm.
+If there is more than one task tickless is not engage.
 
- mm/swap.c | 39 ++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 38 insertions(+), 1 deletion(-)
+Bottom line - we will be in active tickless mode when running a
+deferreable work item only if we happen to have fire the timer
+that scheduled the work and the previously running task happened to
+block. This is rare enough that in practice we will almost
+never be in active tickless mode when running the vmstat_update function.
 
-diff --git a/mm/swap.c b/mm/swap.c
-index 4a1d0d2..f42561a 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -405,6 +405,11 @@ static void activate_page_drain(int cpu)
- 		pagevec_lru_move_fn(pvec, __activate_page, NULL);
- }
- 
-+static bool need_activate_page_drain(int cpu)
-+{
-+	return pagevec_count(&per_cpu(activate_page_pvecs, cpu)) != 0;
-+}
-+
- void activate_page(struct page *page)
- {
- 	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
-@@ -422,6 +427,11 @@ static inline void activate_page_drain(int cpu)
- {
- }
- 
-+static bool need_activate_page_drain(int cpu)
-+{
-+	return false;
-+}
-+
- void activate_page(struct page *page)
- {
- 	struct zone *zone = page_zone(page);
-@@ -683,7 +693,34 @@ static void lru_add_drain_per_cpu(struct work_struct *dummy)
-  */
- int lru_add_drain_all(void)
- {
--	return schedule_on_each_cpu(lru_add_drain_per_cpu);
-+	cpumask_var_t mask;
-+	int cpu, rc;
-+
-+	if (!alloc_cpumask_var(&mask, GFP_KERNEL))
-+		return -ENOMEM;
-+	cpumask_clear(mask);
-+	get_online_cpus();
-+
-+	/*
-+	 * Figure out which cpus need flushing.  It's OK if we race
-+	 * with changes to the per-cpu lru pvecs, since it's no worse
-+	 * than if we flushed all cpus, since a cpu could still end
-+	 * up putting pages back on its pvec before we returned.
-+	 * And this avoids interrupting other cpus unnecessarily.
-+	 */
-+	for_each_online_cpu(cpu) {
-+		if (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
-+		    pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
-+		    pagevec_count(&per_cpu(lru_deactivate_pvecs, cpu)) ||
-+		    need_activate_page_drain(cpu))
-+			cpumask_set_cpu(cpu, mask);
-+	}
-+
-+	rc = schedule_on_cpu_mask(lru_add_drain_per_cpu, mask);
-+
-+	put_online_cpus();
-+	free_cpumask_var(mask);
-+	return rc;
- }
- 
- /*
+I hope I manage to explain myself better this time.
+
+Thanks,
+Gilad
+
+
+
 -- 
-1.8.3.1
+Gilad Ben-Yossef
+Chief Coffee Drinker
+gilad@benyossef.com
+Israel Cell: +972-52-8260388
+US Cell: +1-973-8260388
+http://benyossef.com
+
+"If you take a class in large-scale robotics, can you end up in a
+situation where the homework eats your dog?"
+ -- Jean-Baptiste Queru
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
