@@ -1,45 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 84F5C6B0034
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 20:38:59 -0400 (EDT)
-Message-ID: <520439C9.3080601@cn.fujitsu.com>
-Date: Fri, 09 Aug 2013 08:37:29 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH part2 0/4] acpi: Trivial fix and improving for memory
- hotplug.
-References: <1375938239-18769-1-git-send-email-tangchen@cn.fujitsu.com> <1851799.n4moZnvj4u@vostro.rjw.lan>
-In-Reply-To: <1851799.n4moZnvj4u@vostro.rjw.lan>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id E19446B0034
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 20:44:57 -0400 (EDT)
+Received: from epcpsbgr3.samsung.com
+ (u143.gpu120.samsung.co.kr [203.254.230.143])
+ by mailout2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTP id <0MR800J5GNEPC9C0@mailout2.samsung.com> for linux-mm@kvack.org;
+ Fri, 09 Aug 2013 09:44:56 +0900 (KST)
+From: Joonyoung Shim <jy0922.shim@samsung.com>
+Subject: [PATCH v2] Revert
+ "mm/memory-hotplug: fix lowmem count overflow when offline pages"
+Date: Fri, 09 Aug 2013 09:44:52 +0900
+Message-id: <1376009092-9676-1-git-send-email-jy0922.shim@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: robert.moore@intel.com, lv.zheng@intel.com, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, liuj97@gmail.com, kosaki.motohiro@gmail.com, b.zolnierkie@samsung.com
 
-On 08/08/2013 10:09 PM, Rafael J. Wysocki wrote:
-> On Thursday, August 08, 2013 01:03:55 PM Tang Chen wrote:
->> This patch-set does some trivial fix and improving in ACPI code
->> for memory hotplug.
->>
->> Patch 1,3,4 have been acked.
->>
->> Tang Chen (4):
->>    acpi: Print Hot-Pluggable Field in SRAT.
->>    earlycpio.c: Fix the confusing comment of find_cpio_data().
->>    acpi: Remove "continue" in macro INVALID_TABLE().
->>    acpi: Introduce acpi_verify_initrd() to check if a table is invalid.
->>
->>   arch/x86/mm/srat.c |   11 ++++--
->>   drivers/acpi/osl.c |   84 +++++++++++++++++++++++++++++++++++++++------------
->>   lib/earlycpio.c    |   27 ++++++++--------
->>   3 files changed, 85 insertions(+), 37 deletions(-)
->
-> It looks like this part doesn't depend on the other parts, is that correct?
+This reverts commit cea27eb2a202959783f81254c48c250ddd80e129
+("mm/memory-hotplug: fix lowmem count overflow when offline pages").
 
-No, it doesn't. And this patch-set can be merged first.
+The fixed bug by commit cea27eb was fixed to another way by commit
+3dcc057 ("mm: correctly update zone->managed_pages"). The commit 3dcc057
+enhances memory_hotplug.c to adjust totalhigh_pages when hot-removing
+memory, for details please refer to:
+http://marc.info/?l=linux-mm&m=136957578620221&w=2
 
-Thanks.
+So, if not revert commit cea27eb, currently causes duplicated decreasing
+of totalhigh_pages.
+
+Signed-off-by: Joonyoung Shim <jy0922.shim@samsung.com>
+Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+---
+Changes v1 -> v2:
+ - Update commit descriptions suggested by Bartlomiej.
+
+ mm/page_alloc.c | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index b100255..2b28216 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6274,10 +6274,6 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+ 		list_del(&page->lru);
+ 		rmv_page_order(page);
+ 		zone->free_area[order].nr_free--;
+-#ifdef CONFIG_HIGHMEM
+-		if (PageHighMem(page))
+-			totalhigh_pages -= 1 << order;
+-#endif
+ 		for (i = 0; i < (1 << order); i++)
+ 			SetPageReserved((page+i));
+ 		pfn += (1 << order);
+-- 
+1.8.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
