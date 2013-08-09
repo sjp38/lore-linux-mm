@@ -1,87 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 1DAA26B0031
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 14:56:42 -0400 (EDT)
-Received: by mail-lb0-f179.google.com with SMTP id v1so3441260lbd.10
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2013 11:56:40 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <000001405e70a92f-3b2a0b89-f807-45d7-af70-9e7292156dd4-000000@email.amazonses.com>
-References: <CAOtvUMc5w3zNe8ed6qX0OOM__3F_hOTqvFa1AkdXF0PHvzGZqg@mail.gmail.com>
-	<1371672168-9869-1-git-send-email-gilad@benyossef.com>
-	<0000013f61e7609b-a8d1907b-8169-4f77-ab83-a624a8d0ab4a-000000@email.amazonses.com>
-	<CAOtvUMe=QQni4Ouu=P_vh8QSb4ZdnaX_fW1twn3QFcOjYgJBGA@mail.gmail.com>
-	<000001405e70a92f-3b2a0b89-f807-45d7-af70-9e7292156dd4-000000@email.amazonses.com>
-Date: Fri, 9 Aug 2013 21:56:39 +0300
-Message-ID: <CAOtvUMdPswm3pHesXAzLYA4c7yzsXKoRoOt2T3LWBCjZ86ybpg@mail.gmail.com>
-Subject: Re: [PATCH v2 1/2] mm: make vmstat_update periodic run conditional
-From: Gilad Ben-Yossef <gilad@benyossef.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 8FFBB6B0031
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 16:33:32 -0400 (EDT)
+Date: Fri, 09 Aug 2013 16:33:26 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1376080406-4r7r3uye-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <CAMyfujfZayb8_673vkb2hdE9J_w+wPTD4aQ6TsY+aWxb9EzY8A@mail.gmail.com>
+References: <CAMyfujfZayb8_673vkb2hdE9J_w+wPTD4aQ6TsY+aWxb9EzY8A@mail.gmail.com>
+Subject: Re: [PATCH 1/1] pagemap: fix buffer overflow in add_page_map()
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@gentwo.org>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Frederic Weisbecker <fweisbec@gmail.com>
+To: yonghua zheng <younghua.zheng@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Motohiro KOSAKI <kosaki.motohiro@gmail.com>
 
-On Thu, Aug 8, 2013 at 5:59 PM, Christoph Lameter <cl@gentwo.org> wrote:
-> On Thu, 8 Aug 2013, Gilad Ben-Yossef wrote:
->
->> vmstat_update runs from the vmstat work queue item by the workqueue
->> kernel thread.
->>
->> If this code is running, it means there are at least two schedulable tasks:
->> 1. The workqueue kernel thread, because it is running.
->> 2. At least one more task, otherwise were were in idle and the
->> workqueue kernel thread
->> would not execute this work item.
->>
->> Unfortunately, having two schedulable tasks means we're not running
->> tickless, so the check
->> will never trigger - or have I've missed something obvious?
->
-> The vmstat update is deferrable work. As such it is not required to run
-> and can be pushed off. It will not be considered for the calculation of
-> the next timer interupt. See __next_timer_interrupt().
+On Fri, Aug 09, 2013 at 01:16:41PM +0800, yonghua zheng wrote:
+> Hi,
+> 
+> Recently we met quite a lot of random kernel panic issues after enable
+> CONFIG_PROC_PAGE_MONITOR in kernel, after debuggint sometime we found
+> this has something to do with following bug in pagemap:
+> 
+> In struc pagemapread:
+> 
+> struct pagemapread {
+>     int pos, len;
+>     pagemap_entry_t *buffer;
+>     bool v2;
+> };
+> 
+> pos is number of PM_ENTRY_BYTES in buffer, but len is the size of buffer,
+> it is a mistake to compare pos and len in add_page_map() for checking
 
-Yes, I understand that. I was trying to say something else:
+s/add_page_map/add_to_pagemap/ ?
 
-If the code does not consider setting the vmstat_cpus bit in the mask
-unless we are running
-on a CPU in tickless state, than we will (almost) never set
-vmstat_cpus since we will (almost)
-never be tickless in a deferrable work -
+> buffer is full or not, and this can lead to buffer overflow and random
+> kernel panic issue.
+> 
+> Correct len to be total number of PM_ENTRY_BYTES in buffer.
+> 
+> Signed-off-by: Yonghua Zheng <younghua.zheng@gmail.com>
 
-If there is no other task, we will be in idle and the deferreable work
-will not be scheduled since the timer will not fire.
+You can find coding style violation with scripts/checkpatch.pl.
+And I think this patch is worth going into -stable trees
+(maybe since 2.6.34.)
 
-If there is one task originally, the work queue gets executed in the
-work queue kernel thread, so we have two tasks so tickless will
-disengae.
-
-If there is more than one task tickless is not engage.
-
-Bottom line - we will be in active tickless mode when running a
-deferreable work item only if we happen to have fire the timer
-that scheduled the work and the previously running task happened to
-block. This is rare enough that in practice we will almost
-never be in active tickless mode when running the vmstat_update function.
-
-I hope I manage to explain myself better this time.
+The fix itself looks fine to me.
 
 Thanks,
-Gilad
+Naoya Horiguchi
 
-
-
--- 
-Gilad Ben-Yossef
-Chief Coffee Drinker
-gilad@benyossef.com
-Israel Cell: +972-52-8260388
-US Cell: +1-973-8260388
-http://benyossef.com
-
-"If you take a class in large-scale robotics, can you end up in a
-situation where the homework eats your dog?"
- -- Jean-Baptiste Queru
+> ---
+>  fs/proc/task_mmu.c |    4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index dbf61f6..cb98853 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -1116,8 +1116,8 @@ static ssize_t pagemap_read(struct file *file,
+> char __user *buf,
+>          goto out_task;
+> 
+>      pm.v2 = soft_dirty_cleared;
+> -    pm.len = PM_ENTRY_BYTES * (PAGEMAP_WALK_SIZE >> PAGE_SHIFT);
+> -    pm.buffer = kmalloc(pm.len, GFP_TEMPORARY);
+> +    pm.len = (PAGEMAP_WALK_SIZE >> PAGE_SHIFT);
+> +    pm.buffer = kmalloc(pm.len * PM_ENTRY_BYTES, GFP_TEMPORARY);
+>      ret = -ENOMEM;
+>      if (!pm.buffer)
+>          goto out_task;
+> 
+> -- 
+> 1.7.9.5
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
