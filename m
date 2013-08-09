@@ -1,65 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 3288E6B0031
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 01:16:43 -0400 (EDT)
-Received: by mail-bk0-f65.google.com with SMTP id r7so424647bkg.4
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2013 22:16:41 -0700 (PDT)
-MIME-Version: 1.0
-Date: Fri, 9 Aug 2013 13:16:41 +0800
-Message-ID: <CAMyfujfZayb8_673vkb2hdE9J_w+wPTD4aQ6TsY+aWxb9EzY8A@mail.gmail.com>
-Subject: [PATCH 1/1] pagemap: fix buffer overflow in add_page_map()
-From: yonghua zheng <younghua.zheng@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id E72306B0031
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 01:22:17 -0400 (EDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v5 0/9] extend hugepage migration
+Date: Fri,  9 Aug 2013 01:21:33 -0400
+Message-Id: <1376025702-14818-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Motohiro KOSAKI <kosaki.motohiro@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-Hi,
+Here is the 5th version of hugepage migration patchset.
+Changes in this version are as follows:
+ - removed putback_active_hugepages() as a cleanup (1/9)
+ - added code to check movability of a given hugepage (8/9)
+ - set GFP MOVABLE flag depending on the movability of hugepage (9/9).
 
-Recently we met quite a lot of random kernel panic issues after enable
-CONFIG_PROC_PAGE_MONITOR in kernel, after debuggint sometime we found
-this has something to do with following bug in pagemap:
+I feel that 8/9 and 9/9 contain some new things, so need reviews on them.
 
-In struc pagemapread:
+TODOs: (likely to be done after this work)
+ - split page table lock for pmd/pud based hugepage (maybe applicable to thp)
+ - improve alloc_migrate_target (especially in node choice)
+ - using page walker in check_range
 
-struct pagemapread {
-    int pos, len;
-    pagemap_entry_t *buffer;
-    bool v2;
-};
-
-pos is number of PM_ENTRY_BYTES in buffer, but len is the size of buffer,
-it is a mistake to compare pos and len in add_page_map() for checking
-buffer is full or not, and this can lead to buffer overflow and random
-kernel panic issue.
-
-Correct len to be total number of PM_ENTRY_BYTES in buffer.
-
-Signed-off-by: Yonghua Zheng <younghua.zheng@gmail.com>
+Thanks,
+Naoya Horiguchi
 ---
- fs/proc/task_mmu.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+GitHub:
+  git://github.com/Naoya-Horiguchi/linux.git extend_hugepage_migration.v5
 
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index dbf61f6..cb98853 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -1116,8 +1116,8 @@ static ssize_t pagemap_read(struct file *file,
-char __user *buf,
-         goto out_task;
+Test code:
+  git://github.com/Naoya-Horiguchi/test_hugepage_migration_extension.git
 
-     pm.v2 = soft_dirty_cleared;
--    pm.len = PM_ENTRY_BYTES * (PAGEMAP_WALK_SIZE >> PAGE_SHIFT);
--    pm.buffer = kmalloc(pm.len, GFP_TEMPORARY);
-+    pm.len = (PAGEMAP_WALK_SIZE >> PAGE_SHIFT);
-+    pm.buffer = kmalloc(pm.len * PM_ENTRY_BYTES, GFP_TEMPORARY);
-     ret = -ENOMEM;
-     if (!pm.buffer)
-         goto out_task;
+Naoya Horiguchi (9):
+      migrate: make core migration code aware of hugepage
+      soft-offline: use migrate_pages() instead of migrate_huge_page()
+      migrate: add hugepage migration code to migrate_pages()
+      migrate: add hugepage migration code to move_pages()
+      mbind: add hugepage migration code to mbind()
+      migrate: remove VM_HUGETLB from vma flag check in vma_migratable()
+      memory-hotplug: enable memory hotplug to handle hugepage
+      migrate: check movability of hugepage in unmap_and_move_huge_page()
+      prepare to remove /proc/sys/vm/hugepages_treat_as_movable
 
--- 
-1.7.9.5
+ Documentation/sysctl/vm.txt   |  13 +---
+ arch/arm/mm/hugetlbpage.c     |   5 ++
+ arch/arm64/mm/hugetlbpage.c   |   5 ++
+ arch/ia64/mm/hugetlbpage.c    |   5 ++
+ arch/metag/mm/hugetlbpage.c   |   5 ++
+ arch/mips/mm/hugetlbpage.c    |   5 ++
+ arch/powerpc/mm/hugetlbpage.c |  10 ++++
+ arch/s390/mm/hugetlbpage.c    |   5 ++
+ arch/sh/mm/hugetlbpage.c      |   5 ++
+ arch/sparc/mm/hugetlbpage.c   |   5 ++
+ arch/tile/mm/hugetlbpage.c    |   5 ++
+ arch/x86/mm/hugetlbpage.c     |   8 +++
+ include/linux/hugetlb.h       |  25 ++++++++
+ include/linux/mempolicy.h     |   2 +-
+ include/linux/migrate.h       |   5 --
+ mm/hugetlb.c                  | 134 +++++++++++++++++++++++++++++++++++++-----
+ mm/memory-failure.c           |  15 ++++-
+ mm/memory.c                   |  17 +++++-
+ mm/memory_hotplug.c           |  42 ++++++++++---
+ mm/mempolicy.c                |  46 +++++++++++++--
+ mm/migrate.c                  |  61 ++++++++++---------
+ mm/page_alloc.c               |  12 ++++
+ mm/page_isolation.c           |  14 +++++
+ 23 files changed, 371 insertions(+), 78 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
