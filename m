@@ -1,38 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 9E4D06B0031
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 05:37:26 -0400 (EDT)
-Date: Fri, 9 Aug 2013 18:37:24 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 17/18] mm, hugetlb: retry if we fail to allocate a
- hugepage with use_reserve
-Message-ID: <20130809093724.GA11091@lge.com>
-References: <1375075929-6119-18-git-send-email-iamjoonsoo.kim@lge.com>
- <20130729072823.GD29970@voom.fritz.box>
- <20130731053753.GM2548@lge.com>
- <20130803104302.GC19115@voom.redhat.com>
- <20130805073647.GD27240@lge.com>
- <1375834724.2134.49.camel@buesod1.americas.hpqcorp.net>
- <20130807010312.GA17110@voom.redhat.com>
- <1375839529.2134.50.camel@buesod1.americas.hpqcorp.net>
- <20130807091832.GD32449@lge.com>
- <20130809000231.GB2904@voom.fritz.box>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 022246B0033
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 05:42:41 -0400 (EDT)
+Message-ID: <5204B74B.4050805@cn.fujitsu.com>
+Date: Fri, 09 Aug 2013 17:32:59 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130809000231.GB2904@voom.fritz.box>
+Subject: Re: [PATCH part4 4/4] x86, acpi, numa, mem_hotplug: Find hotpluggable
+ memory in SRAT memory affinities.
+References: <1375954883-30225-1-git-send-email-tangchen@cn.fujitsu.com> <1375954883-30225-5-git-send-email-tangchen@cn.fujitsu.com> <CAE9FiQXwAkGU96Oe5YNErTXs-OHGHTAfVo4oyrF-WUZ97X7pQA@mail.gmail.com>
+In-Reply-To: <CAE9FiQXwAkGU96Oe5YNErTXs-OHGHTAfVo4oyrF-WUZ97X7pQA@mail.gmail.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Gibson <david@gibson.dropbear.id.au>
-Cc: Davidlohr Bueso <davidlohr@hp.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
+To: Yinghai Lu <yinghai@kernel.org>
+Cc: Bob Moore <robert.moore@intel.com>, Lv Zheng <lv.zheng@intel.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Thomas Renninger <trenn@suse.de>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, mina86@mina86.com, gong.chen@linux.intel.com, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, lwoodman@redhat.com, Rik van Riel <riel@redhat.com>, jweiner@redhat.com, Prarit Bhargava <prarit@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, yanghy@cn.fujitsu.com, the arch/x86 maintainers <x86@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>
 
-> I once attempted an approach involving an atomic counter of the number
-> of "in flight" hugepages, only retrying when it's non zero.  Working
-> out a safe ordering for all the updates to get all the cases right
-> made my brain melt though, and I never got it working.
+On 08/09/2013 12:41 AM, Yinghai Lu wrote:
+> On Thu, Aug 8, 2013 at 2:41 AM, Tang Chen<tangchen@cn.fujitsu.com>  wrote:
+>> In ACPI SRAT(System Resource Affinity Table), there is a memory affinity for each
+>> memory range in the system. In each memory affinity, there is a field indicating
+>> that if the memory range is hotpluggable.
+>>
+>> This patch parses all the memory affinities in SRAT only, and find out all the
+>> hotpluggable memory ranges in the system.
+>
+> oh, no.
+>
+> How do you make sure the SRAT's entries are right ?
+> later numa_init could reject srat table if srat ranges does not cover
+> e820 memmap.
 
-I sent v2 few seconds before. My new approach is similar as yours.
-Could you review my patches to save my brain to be melted? :)
+In numa_meminfo_cover_memory(), it checks if SRAT covers the e820 ranges.
+And it uses
+     e820ram = max_pfn - absent_pages_in_range(0, max_pfn)
+to calculate the e820 ram size.
+
+Since max_pfn is initialized before memblock.memory is fulfilled, I think
+we can also do this check at earlier time.
+
+>
+> Also parse srat table two times looks silly.
+
+By parsing SRAT twice, I can avoid memory allocation for acpi_tables_addr
+in acpi_initrd_override_copy() procedure at such an early time. This memory
+could also be in hotpluggable area.
+
+I think, parsing SRAT memory affinities one more time is clean, no memory
+allocation, no global variable initialization. All the current numa init
+pathes will work as before.
 
 Thanks.
 
