@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 66D91900003
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id CD0F8900001
 	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 01:22:23 -0400 (EDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 9/9] prepare to remove /proc/sys/vm/hugepages_treat_as_movable
-Date: Fri,  9 Aug 2013 01:21:42 -0400
-Message-Id: <1376025702-14818-10-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 4/9] migrate: add hugepage migration code to move_pages()
+Date: Fri,  9 Aug 2013 01:21:37 -0400
+Message-Id: <1376025702-14818-5-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1376025702-14818-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1376025702-14818-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,143 +13,109 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 Cc: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-Now we have extended hugepage migration and it's opened to many users
-of page migration, which is a good reason to consider hugepage as movable.
-So we can go to the direction to remove this parameter. In order to
-allow userspace to prepare for the removal, let's leave this sysctl handler
-as noop for a while.
+This patch extends move_pages() to handle vma with VM_HUGETLB set.
+We will be able to migrate hugepage with move_pages(2) after
+applying the enablement patch which comes later in this series.
 
-Note that hugepage migration is available only for the architectures
-which implement hugepage on a pmd basis. On the other architectures,
-allocating hugepages from MOVABLE is not a good idea because it can
-break memory hotremove (which expects that all pages of ZONE_MOVABLE are
-movable.) So we choose GFP flags in accordance with mobility of hugepage.
+We avoid getting refcount on tail pages of hugepage, because unlike thp,
+hugepage is not split and we need not care about races with splitting.
 
-ChangeLog v5:
- - choose GFP flags in accordance with mobility of hugepage
+And migration of larger (1GB for x86_64) hugepage are not enabled.
+
+ChangeLog v4:
+ - use get_page instead of get_page_foll
+ - add comment in follow_page_mask
 
 ChangeLog v3:
- - use WARN_ON_ONCE
+ - revert introducing migrate_movable_pages
+ - follow_page_mask(FOLL_GET) returns NULL for tail pages
+ - use isolate_huge_page
 
 ChangeLog v2:
- - shift to noop function instead of completely removing the parameter
- - rename patch title
+ - updated description and renamed patch title
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Acked-by: Andi Kleen <ak@linux.intel.com>
 Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- Documentation/sysctl/vm.txt | 13 ++-----------
- mm/hugetlb.c                | 26 +++++++++++++++-----------
- 2 files changed, 17 insertions(+), 22 deletions(-)
+ mm/memory.c  | 17 +++++++++++++++--
+ mm/migrate.c | 13 +++++++++++--
+ 2 files changed, 26 insertions(+), 4 deletions(-)
 
-diff --git v3.11-rc3.orig/Documentation/sysctl/vm.txt v3.11-rc3/Documentation/sysctl/vm.txt
-index 36ecc26..6e211a1 100644
---- v3.11-rc3.orig/Documentation/sysctl/vm.txt
-+++ v3.11-rc3/Documentation/sysctl/vm.txt
-@@ -200,17 +200,8 @@ fragmentation index is <= extfrag_threshold. The default value is 500.
+diff --git v3.11-rc3.orig/mm/memory.c v3.11-rc3/mm/memory.c
+index 1ce2e2a..7ec1252 100644
+--- v3.11-rc3.orig/mm/memory.c
++++ v3.11-rc3/mm/memory.c
+@@ -1496,7 +1496,8 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
+ 	if (pud_none(*pud))
+ 		goto no_page_table;
+ 	if (pud_huge(*pud) && vma->vm_flags & VM_HUGETLB) {
+-		BUG_ON(flags & FOLL_GET);
++		if (flags & FOLL_GET)
++			goto out;
+ 		page = follow_huge_pud(mm, address, pud, flags & FOLL_WRITE);
+ 		goto out;
+ 	}
+@@ -1507,8 +1508,20 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
+ 	if (pmd_none(*pmd))
+ 		goto no_page_table;
+ 	if (pmd_huge(*pmd) && vma->vm_flags & VM_HUGETLB) {
+-		BUG_ON(flags & FOLL_GET);
+ 		page = follow_huge_pmd(mm, address, pmd, flags & FOLL_WRITE);
++		if (flags & FOLL_GET) {
++			/*
++			 * Refcount on tail pages are not well-defined and
++			 * shouldn't be taken. The caller should handle a NULL
++			 * return when trying to follow tail pages.
++			 */
++			if (PageHead(page))
++				get_page(page);
++			else {
++				page = NULL;
++				goto out;
++			}
++		}
+ 		goto out;
+ 	}
+ 	if ((flags & FOLL_NUMA) && pmd_numa(*pmd))
+diff --git v3.11-rc3.orig/mm/migrate.c v3.11-rc3/mm/migrate.c
+index 3ec47d3..d313737 100644
+--- v3.11-rc3.orig/mm/migrate.c
++++ v3.11-rc3/mm/migrate.c
+@@ -1092,7 +1092,11 @@ static struct page *new_page_node(struct page *p, unsigned long private,
  
- hugepages_treat_as_movable
+ 	*result = &pm->status;
  
--This parameter is only useful when kernelcore= is specified at boot time to
--create ZONE_MOVABLE for pages that may be reclaimed or migrated. Huge pages
--are not movable so are not normally allocated from ZONE_MOVABLE. A non-zero
--value written to hugepages_treat_as_movable allows huge pages to be allocated
--from ZONE_MOVABLE.
--
--Once enabled, the ZONE_MOVABLE is treated as an area of memory the huge
--pages pool can easily grow or shrink within. Assuming that applications are
--not running that mlock() a lot of memory, it is likely the huge pages pool
--can grow to the size of ZONE_MOVABLE by repeatedly entering the desired value
--into nr_hugepages and triggering page reclaim.
-+This parameter is obsolete and planned to be removed. The value has no effect
-+on kernel's behavior.
- 
- ==============================================================
- 
-diff --git v3.11-rc3.orig/mm/hugetlb.c v3.11-rc3/mm/hugetlb.c
-index 3121915..b888873 100644
---- v3.11-rc3.orig/mm/hugetlb.c
-+++ v3.11-rc3/mm/hugetlb.c
-@@ -34,7 +34,6 @@
- #include "internal.h"
- 
- const unsigned long hugetlb_zero = 0, hugetlb_infinity = ~0UL;
--static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
- unsigned long hugepages_treat_as_movable;
- 
- int hugetlb_max_hstate __read_mostly;
-@@ -535,6 +534,15 @@ static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
- 	return page;
- }
- 
-+/* Movability of hugepages depends on migration support. */
-+static inline int htlb_alloc_mask(struct hstate *h)
-+{
-+	if (hugepage_migration_support(h))
-+		return GFP_HIGHUSER_MOVABLE;
+-	return alloc_pages_exact_node(pm->node,
++	if (PageHuge(p))
++		return alloc_huge_page_node(page_hstate(compound_head(p)),
++					pm->node);
 +	else
-+		return GFP_HIGHUSER;
-+}
-+
- static struct page *dequeue_huge_page_vma(struct hstate *h,
- 				struct vm_area_struct *vma,
- 				unsigned long address, int avoid_reserve)
-@@ -550,7 +558,7 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
- retry_cpuset:
- 	cpuset_mems_cookie = get_mems_allowed();
- 	zonelist = huge_zonelist(vma, address,
--					htlb_alloc_mask, &mpol, &nodemask);
-+					htlb_alloc_mask(h), &mpol, &nodemask);
- 	/*
- 	 * A child process with MAP_PRIVATE mappings created by their parent
- 	 * have no page reserves. This check ensures that reservations are
-@@ -566,7 +574,7 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
- 
- 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
- 						MAX_NR_ZONES - 1, nodemask) {
--		if (cpuset_zone_allowed_softwall(zone, htlb_alloc_mask)) {
-+		if (cpuset_zone_allowed_softwall(zone, htlb_alloc_mask(h))) {
- 			page = dequeue_huge_page_node(h, zone_to_nid(zone));
- 			if (page) {
- 				if (!avoid_reserve)
-@@ -723,7 +731,7 @@ static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
- 		return NULL;
- 
- 	page = alloc_pages_exact_node(nid,
--		htlb_alloc_mask|__GFP_COMP|__GFP_THISNODE|
-+		htlb_alloc_mask(h)|__GFP_COMP|__GFP_THISNODE|
- 						__GFP_REPEAT|__GFP_NOWARN,
- 		huge_page_order(h));
- 	if (page) {
-@@ -948,12 +956,12 @@ static struct page *alloc_buddy_huge_page(struct hstate *h, int nid)
- 	spin_unlock(&hugetlb_lock);
- 
- 	if (nid == NUMA_NO_NODE)
--		page = alloc_pages(htlb_alloc_mask|__GFP_COMP|
-+		page = alloc_pages(htlb_alloc_mask(h)|__GFP_COMP|
- 				   __GFP_REPEAT|__GFP_NOWARN,
- 				   huge_page_order(h));
- 	else
- 		page = alloc_pages_exact_node(nid,
--			htlb_alloc_mask|__GFP_COMP|__GFP_THISNODE|
-+			htlb_alloc_mask(h)|__GFP_COMP|__GFP_THISNODE|
- 			__GFP_REPEAT|__GFP_NOWARN, huge_page_order(h));
- 
- 	if (page && arch_prepare_hugepage(page)) {
-@@ -2132,11 +2140,7 @@ int hugetlb_treat_movable_handler(struct ctl_table *table, int write,
- 			void __user *buffer,
- 			size_t *length, loff_t *ppos)
- {
--	proc_dointvec(table, write, buffer, length, ppos);
--	if (hugepages_treat_as_movable)
--		htlb_alloc_mask = GFP_HIGHUSER_MOVABLE;
--	else
--		htlb_alloc_mask = GFP_HIGHUSER;
-+	WARN_ON_ONCE("This knob is obsolete and has no effect. It is scheduled for removal.\n");
- 	return 0;
++		return alloc_pages_exact_node(pm->node,
+ 				GFP_HIGHUSER_MOVABLE | GFP_THISNODE, 0);
  }
  
+@@ -1152,6 +1156,11 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
+ 				!migrate_all)
+ 			goto put_and_set;
+ 
++		if (PageHuge(page)) {
++			isolate_huge_page(page, &pagelist);
++			goto put_and_set;
++		}
++
+ 		err = isolate_lru_page(page);
+ 		if (!err) {
+ 			list_add_tail(&page->lru, &pagelist);
+@@ -1174,7 +1183,7 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
+ 		err = migrate_pages(&pagelist, new_page_node,
+ 				(unsigned long)pm, MIGRATE_SYNC, MR_SYSCALL);
+ 		if (err)
+-			putback_lru_pages(&pagelist);
++			putback_movable_pages(&pagelist);
+ 	}
+ 
+ 	up_read(&mm->mmap_sem);
 -- 
 1.8.3.1
 
