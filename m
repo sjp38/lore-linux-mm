@@ -1,135 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id B0FCD6B0031
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 03:22:11 -0400 (EDT)
-Date: Fri, 9 Aug 2013 09:22:07 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [HEADSUP] conflicts between cgroup/for-3.12 and memcg
-Message-ID: <20130809072207.GA16531@dhcp22.suse.cz>
-References: <20130809003402.GC13427@mtj.dyndns.org>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 92A466B0031
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 03:55:31 -0400 (EDT)
+Date: Fri, 9 Aug 2013 09:55:23 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [RFC 0/3] Add madvise(..., MADV_WILLWRITE)
+Message-ID: <20130809075523.GA14574@quack.suse.cz>
+References: <cover.1375729665.git.luto@amacapital.net>
+ <20130807134058.GC12843@quack.suse.cz>
+ <520286A4.1020101@intel.com>
+ <CALCETrXAz1fc7y07LhmxNh6zA_KZB4yv57NY2MrhUwKdkypB9w@mail.gmail.com>
+ <20130808101807.GB4325@quack.suse.cz>
+ <CALCETrX1GXr58ujqAVT5_DtOx+8GEiyb9svK-SGH9d+7SXiNqQ@mail.gmail.com>
+ <20130808185340.GA13926@quack.suse.cz>
+ <CALCETrVXTXzXAmUsmmWxwr6vK+Vux7_pUzWPYyHjxEbn3ObABg@mail.gmail.com>
+ <5204229F.8000507@intel.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="PNTmBPCT7hxwcZjr"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130809003402.GC13427@mtj.dyndns.org>
+In-Reply-To: <5204229F.8000507@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: sfr@canb.auug.org.au, linux-next@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Andy Lutomirski <luto@amacapital.net>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-kernel@vger.kernel.org
 
-
---PNTmBPCT7hxwcZjr
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-
-On Thu 08-08-13 20:34:02, Tejun Heo wrote:
-> Hello, Stephen, Andrew.
+On Thu 08-08-13 15:58:39, Dave Hansen wrote:
+> I was coincidentally tracking down what I thought was a scalability
+> problem (turned out to be full disks :).  I noticed, though, that ext4
+> is about 20% slower than ext2/3 at doing write page faults (x-axis is
+> number of tasks):
 > 
-> I just applied rather invasive API update to cgroup/for-3.12, which
-> led to conflicts in two files - include/net/netprio_cgroup.h and
-> mm/memcontrol.c.  The former is trivial context conflict and the two
-> changes conflicting are independent.  The latter contains several
-> conflicts and unfortunately isn't trivial, especially the iterator
-> update and the memcg patches should probably be rebased.
+> http://www.sr71.net/~dave/intel/page-fault-exts/cmp.html?1=ext3&2=ext4&hide=linear,threads,threads_idle,processes_idle&rollPeriod=5
 > 
-> I can hold back pushing for-3.12 into for-next until the memcg patches
-> are rebased.  Would that work?
+> The test case is:
+> 
+> 	https://github.com/antonblanchard/will-it-scale/blob/master/tests/page_fault3.c
+  The reason is that ext2/ext3 do almost nothing in their write fault
+handler - they are about as fast as it can get. ext4 OTOH needs to reserve
+blocks for delayed allocation, setup buffers under a page etc. This is
+necessary if you want to make sure that if data are written via mmap, they
+also have space available on disk to be written to (ext2 / ext3 do not care
+and will just drop the data on the floor if you happen to hit ENOSPC during
+writeback).
 
-I have just tried to merge cgroups/for-3.12 into my memcg tree and there
-were some conflicts indeed. They are attached for reference. The
-resolving is trivial. I've just picked up HEAD as all the conflicts are
-for added resp. removed code in mmotm.
+I'm not saying ext4 write fault path cannot possibly be optimized (noone
+seriously looked into that AFAIK so there may well be some low hanging
+fruit) but it will always be slower than ext2/3. A more meaningful
+comparison would be with filesystems like XFS which make similar guarantees
+regarding data safety.
 
-Andrew, let me know if you need a help with rebasing.
-
-HTH
+								Honza
 -- 
-Michal Hocko
-SUSE Labs
-
---PNTmBPCT7hxwcZjr
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="memcontrol.conflicts"
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index b73988a..c208154 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -182,6 +182,29 @@ struct mem_cgroup_per_node {
- 	struct mem_cgroup_per_zone zoneinfo[MAX_NR_ZONES];
- };
- 
-+<<<<<<< HEAD
-+=======
-+/*
-+ * Cgroups above their limits are maintained in a RB-Tree, independent of
-+ * their hierarchy representation
-+ */
-+
-+struct mem_cgroup_tree_per_zone {
-+	struct rb_root rb_root;
-+	spinlock_t lock;
-+};
-+
-+struct mem_cgroup_tree_per_node {
-+	struct mem_cgroup_tree_per_zone rb_tree_per_zone[MAX_NR_ZONES];
-+};
-+
-+struct mem_cgroup_tree {
-+	struct mem_cgroup_tree_per_node *rb_tree_per_node[MAX_NUMNODES];
-+};
-+
-+static struct mem_cgroup_tree soft_limit_tree __read_mostly;
-+
-+>>>>>>> tj-cgroups/for-3.12
- struct mem_cgroup_threshold {
- 	struct eventfd_ctx *eventfd;
- 	u64 threshold;
-@@ -255,7 +278,10 @@ struct mem_cgroup {
- 
- 	bool		oom_lock;
- 	atomic_t	under_oom;
-+<<<<<<< HEAD
- 	atomic_t	oom_wakeups;
-+=======
-+>>>>>>> tj-cgroups/for-3.12
- 
- 	int	swappiness;
- 	/* OOM-Killer disable */
-@@ -323,6 +349,7 @@ struct mem_cgroup {
- 	 */
- 	spinlock_t soft_lock;
- 
-+<<<<<<< HEAD
- 	/*
- 	 * If true then this group has increased parents' children_in_excess
- 	 * when it got over the soft limit.
-@@ -334,6 +361,8 @@ struct mem_cgroup {
- 	/* Number of children that are in soft limit excess */
- 	atomic_t children_in_excess;
- 
-+=======
-+>>>>>>> tj-cgroups/for-3.12
- 	struct mem_cgroup_per_node *nodeinfo[0];
- 	/* WARNING: nodeinfo must be the last member here */
- };
-@@ -3573,9 +3602,15 @@ __memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **_memcg, int order)
- 	 * the page allocator. Therefore, the following sequence when backed by
- 	 * the SLUB allocator:
- 	 *
-+<<<<<<< HEAD
- 	 *	memcg_stop_kmem_account();
- 	 *	kmalloc(<large_number>)
- 	 *	memcg_resume_kmem_account();
-+=======
-+	 * 	memcg_stop_kmem_account();
-+	 * 	kmalloc(<large_number>)
-+	 * 	memcg_resume_kmem_account();
-+>>>>>>> tj-cgroups/for-3.12
- 	 *
- 	 * would effectively ignore the fact that we should skip accounting,
- 	 * since it will drive us directly to this function without passing
-
---PNTmBPCT7hxwcZjr--
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
