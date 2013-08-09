@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 11EE76B0039
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 465AA6B003B
 	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 05:27:13 -0400 (EDT)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH v2 08/20] mm, hugetlb: region manipulation functions take resv_map rather list_head
-Date: Fri,  9 Aug 2013 18:26:26 +0900
-Message-Id: <1376040398-11212-9-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v2 06/20] mm, hugetlb: return a reserved page to a reserved pool if failed
+Date: Fri,  9 Aug 2013 18:26:24 +0900
+Message-Id: <1376040398-11212-7-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,127 +13,77 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-To change a protection method for region tracking to find grained one,
-we pass the resv_map, instead of list_head, to region manipulation
-functions. This doesn't introduce any functional change, and it is just
-for preparing a next step.
+If we fail with a reserved page, just calling put_page() is not sufficient,
+because put_page() invoke free_huge_page() at last step and it doesn't
+know whether a page comes from a reserved pool or not. So it doesn't do
+anything related to reserved count. This makes reserve count lower
+than how we need, because reserve count already decrease in
+dequeue_huge_page_vma(). This patch fix this situation.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 8751e2c..d9cabf6 100644
+index 6c8eec2..3f834f1 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -150,8 +150,9 @@ struct file_region {
- 	long to;
- };
+@@ -572,6 +572,7 @@ retry_cpuset:
+ 				if (!vma_has_reserves(vma, chg))
+ 					break;
  
--static long region_add(struct list_head *head, long f, long t)
-+static long region_add(struct resv_map *resv, long f, long t)
- {
-+	struct list_head *head = &resv->regions;
- 	struct file_region *rg, *nrg, *trg;
++				SetPagePrivate(page);
+ 				h->resv_huge_pages--;
+ 				break;
+ 			}
+@@ -626,15 +627,20 @@ static void free_huge_page(struct page *page)
+ 	int nid = page_to_nid(page);
+ 	struct hugepage_subpool *spool =
+ 		(struct hugepage_subpool *)page_private(page);
++	bool restore_reserve;
  
- 	/* Locate the region we are either in or before. */
-@@ -186,8 +187,9 @@ static long region_add(struct list_head *head, long f, long t)
- 	return 0;
- }
+ 	set_page_private(page, 0);
+ 	page->mapping = NULL;
+ 	BUG_ON(page_count(page));
+ 	BUG_ON(page_mapcount(page));
++	restore_reserve = PagePrivate(page);
  
--static long region_chg(struct list_head *head, long f, long t)
-+static long region_chg(struct resv_map *resv, long f, long t)
- {
-+	struct list_head *head = &resv->regions;
- 	struct file_region *rg, *nrg;
- 	long chg = 0;
+ 	spin_lock(&hugetlb_lock);
+ 	hugetlb_cgroup_uncharge_page(hstate_index(h),
+ 				     pages_per_huge_page(h), page);
++	if (restore_reserve)
++		h->resv_huge_pages++;
++
+ 	if (h->surplus_huge_pages_node[nid] && huge_page_order(h) < MAX_ORDER) {
+ 		/* remove the page from active list */
+ 		list_del(&page->lru);
+@@ -2616,6 +2622,8 @@ retry_avoidcopy:
+ 	spin_lock(&mm->page_table_lock);
+ 	ptep = huge_pte_offset(mm, address & huge_page_mask(h));
+ 	if (likely(pte_same(huge_ptep_get(ptep), pte))) {
++		ClearPagePrivate(new_page);
++
+ 		/* Break COW */
+ 		huge_ptep_clear_flush(vma, address, ptep);
+ 		set_huge_pte_at(mm, address, ptep,
+@@ -2727,6 +2735,7 @@ retry:
+ 					goto retry;
+ 				goto out;
+ 			}
++			ClearPagePrivate(page);
  
-@@ -235,8 +237,9 @@ static long region_chg(struct list_head *head, long f, long t)
- 	return chg;
- }
+ 			spin_lock(&inode->i_lock);
+ 			inode->i_blocks += blocks_per_huge_page(h);
+@@ -2773,8 +2782,10 @@ retry:
+ 	if (!huge_pte_none(huge_ptep_get(ptep)))
+ 		goto backout;
  
--static long region_truncate(struct list_head *head, long end)
-+static long region_truncate(struct resv_map *resv, long end)
- {
-+	struct list_head *head = &resv->regions;
- 	struct file_region *rg, *trg;
- 	long chg = 0;
- 
-@@ -265,8 +268,9 @@ static long region_truncate(struct list_head *head, long end)
- 	return chg;
- }
- 
--static long region_count(struct list_head *head, long f, long t)
-+static long region_count(struct resv_map *resv, long f, long t)
- {
-+	struct list_head *head = &resv->regions;
- 	struct file_region *rg;
- 	long chg = 0;
- 
-@@ -392,7 +396,7 @@ void resv_map_release(struct kref *ref)
- 	struct resv_map *resv_map = container_of(ref, struct resv_map, refs);
- 
- 	/* Clear out any active regions before we release the map. */
--	region_truncate(&resv_map->regions, 0);
-+	region_truncate(resv_map, 0);
- 	kfree(resv_map);
- }
- 
-@@ -1099,7 +1103,7 @@ static long vma_needs_reservation(struct hstate *h,
- 		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
- 		struct resv_map *resv = vma_resv_map(vma);
- 
--		err = region_chg(&resv->regions, idx, idx + 1);
-+		err = region_chg(resv, idx, idx + 1);
- 		if (err < 0)
- 			return err;
- 		return 0;
-@@ -1121,9 +1125,8 @@ static void vma_commit_reservation(struct hstate *h,
- 		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
- 		struct resv_map *resv = vma_resv_map(vma);
- 
--		/* Mark this page used in the map. */
--		region_add(&resv->regions, idx, idx + 1);
--	}
-+	idx = vma_hugecache_offset(h, vma, addr);
-+	region_add(resv, idx, idx + 1);
- }
- 
- static struct page *alloc_huge_page(struct vm_area_struct *vma,
-@@ -2211,7 +2214,7 @@ static void hugetlb_vm_op_close(struct vm_area_struct *vma)
- 		end = vma_hugecache_offset(h, vma, vma->vm_end);
- 
- 		reserve = (end - start) -
--			region_count(&resv->regions, start, end);
-+			region_count(resv, start, end);
- 
- 		resv_map_put(vma);
- 
-@@ -3091,7 +3094,7 @@ int hugetlb_reserve_pages(struct inode *inode,
- 	if (!vma || vma->vm_flags & VM_MAYSHARE) {
- 		resv_map = inode->i_mapping->private_data;
- 
--		chg = region_chg(&resv_map->regions, from, to);
-+		chg = region_chg(resv_map, from, to);
- 
- 	} else {
- 		resv_map = resv_map_alloc();
-@@ -3137,7 +3140,7 @@ int hugetlb_reserve_pages(struct inode *inode,
- 	 * else has to be done for private mappings here
- 	 */
- 	if (!vma || vma->vm_flags & VM_MAYSHARE)
--		region_add(&resv_map->regions, from, to);
-+		region_add(resv_map, from, to);
- 	return 0;
- out_err:
- 	if (vma)
-@@ -3153,7 +3156,7 @@ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
- 	struct hugepage_subpool *spool = subpool_inode(inode);
- 
- 	if (resv_map)
--		chg = region_truncate(&resv_map->regions, offset);
-+		chg = region_truncate(resv_map, offset);
- 	spin_lock(&inode->i_lock);
- 	inode->i_blocks -= (blocks_per_huge_page(h) * freed);
- 	spin_unlock(&inode->i_lock);
+-	if (anon_rmap)
++	if (anon_rmap) {
++		ClearPagePrivate(page);
+ 		hugepage_add_new_anon_rmap(page, vma, address);
++	}
+ 	else
+ 		page_dup_rmap(page);
+ 	new_pte = make_huge_pte(vma, page, ((vma->vm_flags & VM_WRITE)
 -- 
 1.7.9.5
 
