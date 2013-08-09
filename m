@@ -1,57 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 022246B0033
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 05:42:41 -0400 (EDT)
-Message-ID: <5204B74B.4050805@cn.fujitsu.com>
-Date: Fri, 09 Aug 2013 17:32:59 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH part4 4/4] x86, acpi, numa, mem_hotplug: Find hotpluggable
- memory in SRAT memory affinities.
-References: <1375954883-30225-1-git-send-email-tangchen@cn.fujitsu.com> <1375954883-30225-5-git-send-email-tangchen@cn.fujitsu.com> <CAE9FiQXwAkGU96Oe5YNErTXs-OHGHTAfVo4oyrF-WUZ97X7pQA@mail.gmail.com>
-In-Reply-To: <CAE9FiQXwAkGU96Oe5YNErTXs-OHGHTAfVo4oyrF-WUZ97X7pQA@mail.gmail.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id A5A0C6B0033
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 06:22:34 -0400 (EDT)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout1.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0MR900DB4E4XUP80@mailout1.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 09 Aug 2013 11:22:32 +0100 (BST)
+From: Krzysztof Kozlowski <k.kozlowski@samsung.com>
+Subject: [RFC PATCH v2 0/4] mm: reclaim zbud pages on migration and compaction
+Date: Fri, 09 Aug 2013 12:22:16 +0200
+Message-id: <1376043740-10576-1-git-send-email-k.kozlowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yinghai Lu <yinghai@kernel.org>
-Cc: Bob Moore <robert.moore@intel.com>, Lv Zheng <lv.zheng@intel.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Thomas Renninger <trenn@suse.de>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, mina86@mina86.com, gong.chen@linux.intel.com, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, lwoodman@redhat.com, Rik van Riel <riel@redhat.com>, jweiner@redhat.com, Prarit Bhargava <prarit@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, yanghy@cn.fujitsu.com, the arch/x86 maintainers <x86@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Dave Hansen <dave.hansen@intel.com>, Krzysztof Kozlowski <k.kozlowski@samsung.com>
 
-On 08/09/2013 12:41 AM, Yinghai Lu wrote:
-> On Thu, Aug 8, 2013 at 2:41 AM, Tang Chen<tangchen@cn.fujitsu.com>  wrote:
->> In ACPI SRAT(System Resource Affinity Table), there is a memory affinity for each
->> memory range in the system. In each memory affinity, there is a field indicating
->> that if the memory range is hotpluggable.
->>
->> This patch parses all the memory affinities in SRAT only, and find out all the
->> hotpluggable memory ranges in the system.
->
-> oh, no.
->
-> How do you make sure the SRAT's entries are right ?
-> later numa_init could reject srat table if srat ranges does not cover
-> e820 memmap.
+Hi,
 
-In numa_meminfo_cover_memory(), it checks if SRAT covers the e820 ranges.
-And it uses
-     e820ram = max_pfn - absent_pages_in_range(0, max_pfn)
-to calculate the e820 ram size.
+Currently zbud pages are not movable and they cannot be allocated from CMA
+region. These patches try to address the problem by:
+1. Adding a new form of reclaim of zbud pages.
+2. Reclaiming zbud pages during migration and compaction.
+3. Allocating zbud pages with __GFP_RECLAIMABLE flag.
 
-Since max_pfn is initialized before memblock.memory is fulfilled, I think
-we can also do this check at earlier time.
+This reclaim process is different than zbud_reclaim_page(). It acts more
+like swapoff() by trying to unuse pages stored in zbud page and bring
+them back to memory. The standard zbud_reclaim_page() on the other hand
+tries to write them back.
 
->
-> Also parse srat table two times looks silly.
+One of patches introduces PageZbud() function which identifies zbud pages
+my page->_mapcount. Dave Hansen proposed aliasing PG_zbud=PG_slab but in
+such case patch would be more intrusive.
 
-By parsing SRAT twice, I can avoid memory allocation for acpi_tables_addr
-in acpi_initrd_override_copy() procedure at such an early time. This memory
-could also be in hotpluggable area.
+Any ideas for a better solution are welcome.
 
-I think, parsing SRAT memory affinities one more time is clean, no memory
-allocation, no global variable initialization. All the current numa init
-pathes will work as before.
+TODO-s:
+1. Migrate zbud pages directly instead of reclaiming.
 
-Thanks.
+Changes since v1:
+1. Rebased against v3.11-rc4-103-g6c2580c.
+2. Remove rebalance_lists() to fix reinserting zbud page after zbud_free.
+   This function was added because similar code was present in
+   zbud_free/zbud_alloc/zbud_reclaim_page but it turns out that there
+   is no benefit in generalizing this code.
+   (suggested by Seth Jennings)
+3. Remove BUG_ON checks for first/last chunks during free and reclaim.
+   (suggested by Seth Jennings)
+4. Use page->_mapcount==-127 instead of new PG_zbud flag.
+   (suggested by Dave Hansen)
+5. Fix invalid dereference of pointer to compact_control in page_alloc.c.
+6. Fix lost return value in try_to_unuse() in swapfile.c (this fixes
+   hang when swapoff was interrupted e.g. by CTRL+C).
+
+
+Best regards,
+Krzysztof Kozlowski
+
+
+Krzysztof Kozlowski (4):
+  zbud: use page ref counter for zbud pages
+  mm: split code for unusing swap entries from try_to_unuse
+  mm: use mapcount for identifying zbud pages
+  mm: reclaim zbud pages on migration and compaction
+
+ include/linux/mm.h       |   23 +++
+ include/linux/swapfile.h |    2 +
+ include/linux/zbud.h     |   11 +-
+ mm/compaction.c          |   20 ++-
+ mm/internal.h            |    1 +
+ mm/page_alloc.c          |    6 +
+ mm/swapfile.c            |  356 ++++++++++++++++++++++++----------------------
+ mm/zbud.c                |  247 +++++++++++++++++++++++---------
+ mm/zswap.c               |   57 +++++++-
+ 9 files changed, 476 insertions(+), 247 deletions(-)
+
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
