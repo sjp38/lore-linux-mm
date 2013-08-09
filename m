@@ -1,91 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 206FF6B0070
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 05:27:18 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 9E4D06B0031
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 05:37:26 -0400 (EDT)
+Date: Fri, 9 Aug 2013 18:37:24 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH v2 20/20] mm, hugetlb: remove a hugetlb_instantiation_mutex
-Date: Fri,  9 Aug 2013 18:26:38 +0900
-Message-Id: <1376040398-11212-21-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 17/18] mm, hugetlb: retry if we fail to allocate a
+ hugepage with use_reserve
+Message-ID: <20130809093724.GA11091@lge.com>
+References: <1375075929-6119-18-git-send-email-iamjoonsoo.kim@lge.com>
+ <20130729072823.GD29970@voom.fritz.box>
+ <20130731053753.GM2548@lge.com>
+ <20130803104302.GC19115@voom.redhat.com>
+ <20130805073647.GD27240@lge.com>
+ <1375834724.2134.49.camel@buesod1.americas.hpqcorp.net>
+ <20130807010312.GA17110@voom.redhat.com>
+ <1375839529.2134.50.camel@buesod1.americas.hpqcorp.net>
+ <20130807091832.GD32449@lge.com>
+ <20130809000231.GB2904@voom.fritz.box>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130809000231.GB2904@voom.fritz.box>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: David Gibson <david@gibson.dropbear.id.au>
+Cc: Davidlohr Bueso <davidlohr@hp.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
 
-Now, we have prepared to have an infrastructure in order to remove a this
-awkward mutex which serialize all faulting tasks, so remove it.
+> I once attempted an approach involving an atomic counter of the number
+> of "in flight" hugepages, only retrying when it's non zero.  Working
+> out a safe ordering for all the updates to get all the cases right
+> made my brain melt though, and I never got it working.
 
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+I sent v2 few seconds before. My new approach is similar as yours.
+Could you review my patches to save my brain to be melted? :)
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 0501fe5..f2c3a51 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -2504,9 +2504,7 @@ static int unmap_ref_private(struct mm_struct *mm, struct vm_area_struct *vma,
- 
- /*
-  * Hugetlb_cow() should be called with page lock of the original hugepage held.
-- * Called with hugetlb_instantiation_mutex held and pte_page locked so we
-- * cannot race with other handlers or page migration.
-- * Keep the pte_same checks anyway to make transition from the mutex easier.
-+ * Called with pte_page locked so we cannot race with page migration.
-  */
- static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
- 			unsigned long address, pte_t *ptep, pte_t pte,
-@@ -2844,7 +2842,6 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	int ret;
- 	struct page *page = NULL;
- 	struct page *pagecache_page = NULL;
--	static DEFINE_MUTEX(hugetlb_instantiation_mutex);
- 	struct hstate *h = hstate_vma(vma);
- 
- 	address &= huge_page_mask(h);
-@@ -2864,17 +2861,9 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	if (!ptep)
- 		return VM_FAULT_OOM;
- 
--	/*
--	 * Serialize hugepage allocation and instantiation, so that we don't
--	 * get spurious allocation failures if two CPUs race to instantiate
--	 * the same page in the page cache.
--	 */
--	mutex_lock(&hugetlb_instantiation_mutex);
- 	entry = huge_ptep_get(ptep);
--	if (huge_pte_none(entry)) {
--		ret = hugetlb_no_page(mm, vma, address, ptep, flags);
--		goto out_mutex;
--	}
-+	if (huge_pte_none(entry))
-+		return hugetlb_no_page(mm, vma, address, ptep, flags);
- 
- 	ret = 0;
- 
-@@ -2887,10 +2876,8 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	 * consumed.
- 	 */
- 	if ((flags & FAULT_FLAG_WRITE) && !huge_pte_write(entry)) {
--		if (vma_needs_reservation(h, vma, address) < 0) {
--			ret = VM_FAULT_OOM;
--			goto out_mutex;
--		}
-+		if (vma_needs_reservation(h, vma, address) < 0)
-+			return VM_FAULT_OOM;
- 
- 		if (!(vma->vm_flags & VM_MAYSHARE))
- 			pagecache_page = hugetlbfs_pagecache_page(h,
-@@ -2939,9 +2926,6 @@ out_page_table_lock:
- 		unlock_page(page);
- 	put_page(page);
- 
--out_mutex:
--	mutex_unlock(&hugetlb_instantiation_mutex);
--
- 	return ret;
- }
- 
--- 
-1.7.9.5
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
