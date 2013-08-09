@@ -1,73 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id E72306B0031
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 15D866B0033
 	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 01:22:17 -0400 (EDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v5 0/9] extend hugepage migration
-Date: Fri,  9 Aug 2013 01:21:33 -0400
-Message-Id: <1376025702-14818-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 1/9] migrate: make core migration code aware of hugepage
+Date: Fri,  9 Aug 2013 01:21:34 -0400
+Message-Id: <1376025702-14818-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1376025702-14818-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1376025702-14818-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 Cc: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-Here is the 5th version of hugepage migration patchset.
-Changes in this version are as follows:
- - removed putback_active_hugepages() as a cleanup (1/9)
- - added code to check movability of a given hugepage (8/9)
- - set GFP MOVABLE flag depending on the movability of hugepage (9/9).
+Before enabling each user of page migration to support hugepage,
+this patch enables the list of pages for migration to link not only
+LRU pages, but also hugepages. As a result, putback_movable_pages()
+and migrate_pages() can handle both of LRU pages and hugepages.
 
-I feel that 8/9 and 9/9 contain some new things, so need reviews on them.
+ChangeLog v5:
+ - remove putback_active_hugepages
 
-TODOs: (likely to be done after this work)
- - split page table lock for pmd/pud based hugepage (maybe applicable to thp)
- - improve alloc_migrate_target (especially in node choice)
- - using page walker in check_range
+ChangeLog v4:
+ - make some macros return 'do {} while(0)'
+ - use more readable variable name
 
-Thanks,
-Naoya Horiguchi
+ChangeLog v3:
+ - revert introducing migrate_movable_pages
+ - add isolate_huge_page
+
+ChangeLog v2:
+ - move code removing VM_HUGETLB from vma_migratable check into a
+   separate patch
+ - hold hugetlb_lock in putback_active_hugepage
+ - update comment near the definition of hugetlb_lock
+
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Acked-by: Andi Kleen <ak@linux.intel.com>
+Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Acked-by: Hillf Danton <dhillf@gmail.com>
 ---
-GitHub:
-  git://github.com/Naoya-Horiguchi/linux.git extend_hugepage_migration.v5
+ include/linux/hugetlb.h |  4 ++++
+ mm/hugetlb.c            | 23 ++++++++++++++++++++++-
+ mm/migrate.c            | 10 +++++++++-
+ 3 files changed, 35 insertions(+), 2 deletions(-)
 
-Test code:
-  git://github.com/Naoya-Horiguchi/test_hugepage_migration_extension.git
-
-Naoya Horiguchi (9):
-      migrate: make core migration code aware of hugepage
-      soft-offline: use migrate_pages() instead of migrate_huge_page()
-      migrate: add hugepage migration code to migrate_pages()
-      migrate: add hugepage migration code to move_pages()
-      mbind: add hugepage migration code to mbind()
-      migrate: remove VM_HUGETLB from vma flag check in vma_migratable()
-      memory-hotplug: enable memory hotplug to handle hugepage
-      migrate: check movability of hugepage in unmap_and_move_huge_page()
-      prepare to remove /proc/sys/vm/hugepages_treat_as_movable
-
- Documentation/sysctl/vm.txt   |  13 +---
- arch/arm/mm/hugetlbpage.c     |   5 ++
- arch/arm64/mm/hugetlbpage.c   |   5 ++
- arch/ia64/mm/hugetlbpage.c    |   5 ++
- arch/metag/mm/hugetlbpage.c   |   5 ++
- arch/mips/mm/hugetlbpage.c    |   5 ++
- arch/powerpc/mm/hugetlbpage.c |  10 ++++
- arch/s390/mm/hugetlbpage.c    |   5 ++
- arch/sh/mm/hugetlbpage.c      |   5 ++
- arch/sparc/mm/hugetlbpage.c   |   5 ++
- arch/tile/mm/hugetlbpage.c    |   5 ++
- arch/x86/mm/hugetlbpage.c     |   8 +++
- include/linux/hugetlb.h       |  25 ++++++++
- include/linux/mempolicy.h     |   2 +-
- include/linux/migrate.h       |   5 --
- mm/hugetlb.c                  | 134 +++++++++++++++++++++++++++++++++++++-----
- mm/memory-failure.c           |  15 ++++-
- mm/memory.c                   |  17 +++++-
- mm/memory_hotplug.c           |  42 ++++++++++---
- mm/mempolicy.c                |  46 +++++++++++++--
- mm/migrate.c                  |  61 ++++++++++---------
- mm/page_alloc.c               |  12 ++++
- mm/page_isolation.c           |  14 +++++
- 23 files changed, 371 insertions(+), 78 deletions(-)
+diff --git v3.11-rc3.orig/include/linux/hugetlb.h v3.11-rc3/include/linux/hugetlb.h
+index c2b1801..bc8d837 100644
+--- v3.11-rc3.orig/include/linux/hugetlb.h
++++ v3.11-rc3/include/linux/hugetlb.h
+@@ -66,6 +66,8 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to,
+ 						vm_flags_t vm_flags);
+ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed);
+ int dequeue_hwpoisoned_huge_page(struct page *page);
++bool isolate_huge_page(struct page *page, struct list_head *list);
++void putback_active_hugepage(struct page *page);
+ void copy_huge_page(struct page *dst, struct page *src);
+ 
+ #ifdef CONFIG_ARCH_WANT_HUGE_PMD_SHARE
+@@ -134,6 +136,8 @@ static inline int dequeue_hwpoisoned_huge_page(struct page *page)
+ 	return 0;
+ }
+ 
++#define isolate_huge_page(p, l) false
++#define putback_active_hugepage(p)	do {} while (0)
+ static inline void copy_huge_page(struct page *dst, struct page *src)
+ {
+ }
+diff --git v3.11-rc3.orig/mm/hugetlb.c v3.11-rc3/mm/hugetlb.c
+index 83aff0a..649771c 100644
+--- v3.11-rc3.orig/mm/hugetlb.c
++++ v3.11-rc3/mm/hugetlb.c
+@@ -48,7 +48,8 @@ static unsigned long __initdata default_hstate_max_huge_pages;
+ static unsigned long __initdata default_hstate_size;
+ 
+ /*
+- * Protects updates to hugepage_freelists, nr_huge_pages, and free_huge_pages
++ * Protects updates to hugepage_freelists, hugepage_activelist, nr_huge_pages,
++ * free_huge_pages, and surplus_huge_pages.
+  */
+ DEFINE_SPINLOCK(hugetlb_lock);
+ 
+@@ -3431,3 +3432,23 @@ int dequeue_hwpoisoned_huge_page(struct page *hpage)
+ 	return ret;
+ }
+ #endif
++
++bool isolate_huge_page(struct page *page, struct list_head *list)
++{
++	VM_BUG_ON(!PageHead(page));
++	if (!get_page_unless_zero(page))
++		return false;
++	spin_lock(&hugetlb_lock);
++	list_move_tail(&page->lru, list);
++	spin_unlock(&hugetlb_lock);
++	return true;
++}
++
++void putback_active_hugepage(struct page *page)
++{
++	VM_BUG_ON(!PageHead(page));
++	spin_lock(&hugetlb_lock);
++	list_move_tail(&page->lru, &(page_hstate(page))->hugepage_activelist);
++	spin_unlock(&hugetlb_lock);
++	put_page(page);
++}
+diff --git v3.11-rc3.orig/mm/migrate.c v3.11-rc3/mm/migrate.c
+index 6f0c244..b44a067 100644
+--- v3.11-rc3.orig/mm/migrate.c
++++ v3.11-rc3/mm/migrate.c
+@@ -100,6 +100,10 @@ void putback_movable_pages(struct list_head *l)
+ 	struct page *page2;
+ 
+ 	list_for_each_entry_safe(page, page2, l, lru) {
++		if (unlikely(PageHuge(page))) {
++			putback_active_hugepage(page);
++			continue;
++		}
+ 		list_del(&page->lru);
+ 		dec_zone_page_state(page, NR_ISOLATED_ANON +
+ 				page_is_file_cache(page));
+@@ -1025,7 +1029,11 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+ 		list_for_each_entry_safe(page, page2, from, lru) {
+ 			cond_resched();
+ 
+-			rc = unmap_and_move(get_new_page, private,
++			if (PageHuge(page))
++				rc = unmap_and_move_huge_page(get_new_page,
++						private, page, pass > 2, mode);
++			else
++				rc = unmap_and_move(get_new_page, private,
+ 						page, pass > 2, mode);
+ 
+ 			switch(rc) {
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
