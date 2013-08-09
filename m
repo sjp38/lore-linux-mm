@@ -1,104 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 0F5076B0031
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 13:38:26 -0400 (EDT)
-Message-ID: <201308091738.r79HcPKE003698@farm-0021.internal.tilera.com>
-In-Reply-To: <20130809163029.GT20515@mtj.dyndns.org>
-From: Chris Metcalf <cmetcalf@tilera.com>
-Date: Wed, 7 Aug 2013 16:52:22 -0400
-Subject: [PATCH v5 2/2] mm: make lru_add_drain_all() selective
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id D35BF6B0031
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 13:40:14 -0400 (EDT)
+Received: by mail-qc0-f172.google.com with SMTP id a1so1870533qcx.17
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2013 10:40:13 -0700 (PDT)
+Date: Fri, 9 Aug 2013 13:40:09 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v5 1/2] workqueue: add new schedule_on_cpu_mask() API
+Message-ID: <20130809174009.GV20515@mtj.dyndns.org>
+References: <20130809163029.GT20515@mtj.dyndns.org>
+ <201308091738.r79HcBY7003695@farm-0021.internal.tilera.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201308091738.r79HcBY7003695@farm-0021.internal.tilera.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Frederic Weisbecker <fweisbec@gmail.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
+To: Chris Metcalf <cmetcalf@tilera.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Frederic Weisbecker <fweisbec@gmail.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-This change makes lru_add_drain_all() only selectively interrupt
-the cpus that have per-cpu free pages that can be drained.
+On Wed, Aug 07, 2013 at 04:49:44PM -0400, Chris Metcalf wrote:
+> This primitive allows scheduling work to run on a particular set of
+> cpus described by a "struct cpumask".  This can be useful, for example,
+> if you have a per-cpu variable that requires code execution only if the
+> per-cpu variable has a certain value (for example, is a non-empty list).
+> 
+> Signed-off-by: Chris Metcalf <cmetcalf@tilera.com>
 
-This is important in nohz mode where calling mlockall(), for
-example, otherwise will interrupt every core unnecessarily.
+ Acked-by: Tejun Heo <tj@kernel.org>
 
-Signed-off-by: Chris Metcalf <cmetcalf@tilera.com>
----
-v5: provide validity checking on the cpumask for schedule_on_cpu_mask
-By providing an all-or-nothing EINVAL check, we impose the requirement
-that the calling code actually know clearly what it's trying to do.
-(Note: no change to the mm/swap.c commit)
+Please feel free to route with the second patch.
 
-v4: don't lose possible -ENOMEM in schedule_on_each_cpu()
-(Note: no change to the mm/swap.c commit)
+Thanks!
 
-v3: split commit into two, one for workqueue and one for mm, though both
-should probably be taken through -mm.
-
- mm/swap.c | 37 ++++++++++++++++++++++++++++++++++++-
- 1 file changed, 36 insertions(+), 1 deletion(-)
-
-diff --git a/mm/swap.c b/mm/swap.c
-index 4a1d0d2..d4a862b 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -405,6 +405,11 @@ static void activate_page_drain(int cpu)
- 		pagevec_lru_move_fn(pvec, __activate_page, NULL);
- }
- 
-+static bool need_activate_page_drain(int cpu)
-+{
-+	return pagevec_count(&per_cpu(activate_page_pvecs, cpu)) != 0;
-+}
-+
- void activate_page(struct page *page)
- {
- 	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
-@@ -422,6 +427,11 @@ static inline void activate_page_drain(int cpu)
- {
- }
- 
-+static bool need_activate_page_drain(int cpu)
-+{
-+	return false;
-+}
-+
- void activate_page(struct page *page)
- {
- 	struct zone *zone = page_zone(page);
-@@ -683,7 +693,32 @@ static void lru_add_drain_per_cpu(struct work_struct *dummy)
-  */
- int lru_add_drain_all(void)
- {
--	return schedule_on_each_cpu(lru_add_drain_per_cpu);
-+	cpumask_var_t mask;
-+	int cpu, rc;
-+
-+	if (!alloc_cpumask_var(&mask, GFP_KERNEL))
-+		return -ENOMEM;
-+	cpumask_clear(mask);
-+
-+	/*
-+	 * Figure out which cpus need flushing.  It's OK if we race
-+	 * with changes to the per-cpu lru pvecs, since it's no worse
-+	 * than if we flushed all cpus, since a cpu could still end
-+	 * up putting pages back on its pvec before we returned.
-+	 * And this avoids interrupting other cpus unnecessarily.
-+	 */
-+	for_each_online_cpu(cpu) {
-+		if (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
-+		    pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
-+		    pagevec_count(&per_cpu(lru_deactivate_pvecs, cpu)) ||
-+		    need_activate_page_drain(cpu))
-+			cpumask_set_cpu(cpu, mask);
-+	}
-+
-+	rc = schedule_on_cpu_mask(lru_add_drain_per_cpu, mask);
-+
-+	free_cpumask_var(mask);
-+	return rc;
- }
- 
- /*
 -- 
-1.8.3.1
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
