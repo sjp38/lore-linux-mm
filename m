@@ -1,51 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 6CBB96B0031
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2013 21:00:36 -0400 (EDT)
-Received: by mail-vb0-f46.google.com with SMTP id p13so3743878vbe.33
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2013 18:00:35 -0700 (PDT)
-Date: Thu, 8 Aug 2013 21:00:32 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCHSET cgroup/for-3.12] cgroup: make cgroup_event specific to
- memcg
-Message-ID: <20130809010032.GA14792@mtj.dyndns.org>
-References: <20130805162958.GF19631@mtj.dyndns.org>
- <20130805191641.GA24003@dhcp22.suse.cz>
- <20130805194431.GD23751@mtj.dyndns.org>
- <20130806155804.GC31138@dhcp22.suse.cz>
- <20130806161509.GB10779@mtj.dyndns.org>
- <20130807121836.GF8184@dhcp22.suse.cz>
- <20130807124321.GA27006@htj.dyndns.org>
- <20130807132613.GH8184@dhcp22.suse.cz>
- <20130807133645.GE27006@htj.dyndns.org>
- <5203081C.8050403@huawei.com>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 3288E6B0031
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 01:16:43 -0400 (EDT)
+Received: by mail-bk0-f65.google.com with SMTP id r7so424647bkg.4
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2013 22:16:41 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5203081C.8050403@huawei.com>
+Date: Fri, 9 Aug 2013 13:16:41 +0800
+Message-ID: <CAMyfujfZayb8_673vkb2hdE9J_w+wPTD4aQ6TsY+aWxb9EzY8A@mail.gmail.com>
+Subject: [PATCH 1/1] pagemap: fix buffer overflow in add_page_map()
+From: yonghua zheng <younghua.zheng@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Zefan <lizefan@huawei.com>
-Cc: Michal Hocko <mhocko@suse.cz>, hannes@cmpxchg.org, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Motohiro KOSAKI <kosaki.motohiro@gmail.com>
 
-Hello, Li.
+Hi,
 
-On Thu, Aug 08, 2013 at 10:53:16AM +0800, Li Zefan wrote:
-> I would like to see this happen. I have a feeling that we're deprecating
-> features a bit aggressively without providing alternatives.
+Recently we met quite a lot of random kernel panic issues after enable
+CONFIG_PROC_PAGE_MONITOR in kernel, after debuggint sometime we found
+this has something to do with following bug in pagemap:
 
-I'd rework it prolly next week but this has to go one way or another.
-There's no way we're implementing userland interface this complex in
-cgroup proper.  It is a gross layering violation.  We don't implement
-userland visible interface this complex in low level subsystems.  It's
-wrong both in principle and leads to all sorts of problems in practice
-like ending up worrying about userland abuses in memcg event source
-implementation, which is utterly bonkers if you ask me.
+In struc pagemapread:
 
-Thanks.
+struct pagemapread {
+    int pos, len;
+    pagemap_entry_t *buffer;
+    bool v2;
+};
+
+pos is number of PM_ENTRY_BYTES in buffer, but len is the size of buffer,
+it is a mistake to compare pos and len in add_page_map() for checking
+buffer is full or not, and this can lead to buffer overflow and random
+kernel panic issue.
+
+Correct len to be total number of PM_ENTRY_BYTES in buffer.
+
+Signed-off-by: Yonghua Zheng <younghua.zheng@gmail.com>
+---
+ fs/proc/task_mmu.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index dbf61f6..cb98853 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -1116,8 +1116,8 @@ static ssize_t pagemap_read(struct file *file,
+char __user *buf,
+         goto out_task;
+
+     pm.v2 = soft_dirty_cleared;
+-    pm.len = PM_ENTRY_BYTES * (PAGEMAP_WALK_SIZE >> PAGE_SHIFT);
+-    pm.buffer = kmalloc(pm.len, GFP_TEMPORARY);
++    pm.len = (PAGEMAP_WALK_SIZE >> PAGE_SHIFT);
++    pm.buffer = kmalloc(pm.len * PM_ENTRY_BYTES, GFP_TEMPORARY);
+     ret = -ENOMEM;
+     if (!pm.buffer)
+         goto out_task;
 
 -- 
-tejun
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
