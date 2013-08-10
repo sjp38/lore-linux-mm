@@ -1,123 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 434FF6B0031
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2013 21:39:21 -0400 (EDT)
-Received: by mail-ve0-f171.google.com with SMTP id pa12so4462013veb.16
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2013 18:39:20 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id F08E06B0031
+	for <linux-mm@kvack.org>; Sat, 10 Aug 2013 01:22:36 -0400 (EDT)
+Received: by mail-wg0-f43.google.com with SMTP id z12so4098037wgg.10
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2013 22:22:35 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20130809155309.71d93380425ef8e19c0ff44c@linux-foundation.org>
-References: <1375829050-12654-1-git-send-email-hannes@cmpxchg.org>
-	<20130809155309.71d93380425ef8e19c0ff44c@linux-foundation.org>
-Date: Fri, 9 Aug 2013 18:39:20 -0700
-Message-ID: <CAAxz3Xsn_m5CxudayR+ChTZhS04rGChK+9QM2SWwt1vV_1aDdA@mail.gmail.com>
-Subject: Re: [patch 0/9] mm: thrash detection-based file cache sizing v3
-From: Ozgun Erdogan <ozgun@citusdata.com>
-Content-Type: multipart/alternative; boundary=047d7b6d88c8c69c9c04e38df58f
+In-Reply-To: <CACQD4-6_AmsDu6q_ChaiTCZNZ6zghJdWzZTmD1JQhLCkfMeeNA@mail.gmail.com>
+References: <CACQD4-6_AmsDu6q_ChaiTCZNZ6zghJdWzZTmD1JQhLCkfMeeNA@mail.gmail.com>
+From: Ning Qu <quning@google.com>
+Date: Fri, 9 Aug 2013 22:22:14 -0700
+Message-ID: <CACz4_2csQVrBqcfFTwbjgxCkEDY-Q6Ta4f5dVemM==ae4U8U2Q@mail.gmail.com>
+Subject: Re: [PATCH] thp: Fix deadlock situation in vma_adjust with huge page
+ in page cache.
+Content-Type: multipart/alternative; boundary=001a11c23c7e2d5c1004e39114b2
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Metin Doslu <metin@citusdata.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-fsdevel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Dave Hansen <dave@sr71.net>, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Ning Qu <quning@google.com>
 
---047d7b6d88c8c69c9c04e38df58f
-Content-Type: text/plain; charset=ISO-8859-1
-
-Hi Andrew,
-
-One common use case where this is really helpful is in data analytics.
-Assume that you regularly analyze some chunk of data, say one month's
-worth, and you run SQL queries or MapReduce jobs on this data. Let's also
-assume you want to serve the current month's data from memory.
-
-Going with an example, let's say data for March takes 60% of total memory.
-You run queries over that data, and it gets pulled into the active list.
-Comes next month, you want to query April's data (which again holds 60% of
-memory). Since analytic queries sequentially walk over data, April's data
-never becomes active, doesn't get pulled into memory, and you're stuck with
-serving queries from disk.
-
-To overcome this issue, you could regularly drop the page cache, or advise
-customers to provision clusters whose cumulative memory is 2x the working
-set. Neither are that ideal. My understanding is that this patch resolves
-this issue, but then again my knowledge of the Linux memory manager is
-pretty limited. So please call off if I'm off here.
-
-Thanks,
-Ozgun
-
-
-On Fri, Aug 9, 2013 at 3:53 PM, Andrew Morton <akpm@linux-foundation.org>wrote:
-
-> On Tue,  6 Aug 2013 18:44:01 -0400 Johannes Weiner <hannes@cmpxchg.org>
-> wrote:
->
-> > This series solves the problem by maintaining a history of pages
-> > evicted from the inactive list, enabling the VM to tell streaming IO
-> > from thrashing and rebalance the page cache lists when appropriate.
->
-> Looks nice. The lack of testing results is conspicuous ;)
->
-> It only really solves the problem in the case where
->
->         size-of-inactive-list < size-of-working-set < size-of-total-memory
->
-> yes?  In fact less than that, because the active list presumably
-> doesn't get shrunk to zero (how far *can* it go?).  I wonder how many
-> workloads fit into those constraints in the real world.
->
->
-
---047d7b6d88c8c69c9c04e38df58f
-Content-Type: text/html; charset=ISO-8859-1
+--001a11c23c7e2d5c1004e39114b2
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 
-<div dir=3D"ltr"><div>Hi Andrew,<br><br></div>One common use case where thi=
-s is really helpful is in data analytics. Assume that you regularly analyze=
- some chunk of data, say one month&#39;s worth, and you run SQL queries or =
-MapReduce jobs on this data. Let&#39;s also assume you want to serve the cu=
-rrent month&#39;s data from memory.<br>
-<br><div><div>Going with an example, let&#39;s say data for March takes 60%=
- of total memory. You run queries over that data, and it gets pulled into t=
-he active list. Comes next month, you want to query April&#39;s data (which=
- again holds 60% of memory). Since analytic queries sequentially walk over =
-data, April&#39;s data never becomes active, doesn&#39;t get pulled into me=
-mory, and you&#39;re stuck with serving queries from disk.<br>
-<br>To overcome this issue, you could regularly drop the page cache, or adv=
-ise customers to provision clusters whose cumulative memory is 2x the worki=
-ng set. Neither are that ideal. My understanding is that this patch resolve=
-s this issue, but then again my knowledge of the Linux memory manager is pr=
-etty limited. So please call off if I&#39;m off here.<br>
-<br></div><div>Thanks,<br></div><div>Ozgun<br></div></div></div><div class=
-=3D"gmail_extra"><br><br><div class=3D"gmail_quote">On Fri, Aug 9, 2013 at =
-3:53 PM, Andrew Morton <span dir=3D"ltr">&lt;<a href=3D"mailto:akpm@linux-f=
-oundation.org" target=3D"_blank">akpm@linux-foundation.org</a>&gt;</span> w=
-rote:<br>
-<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
-x #ccc solid;padding-left:1ex"><div class=3D"im">On Tue, =A06 Aug 2013 18:4=
-4:01 -0400 Johannes Weiner &lt;<a href=3D"mailto:hannes@cmpxchg.org">hannes=
-@cmpxchg.org</a>&gt; wrote:<br>
+Oh, sorry about that. Let me see what's going on here.
 
-<br>
-&gt; This series solves the problem by maintaining a history of pages<br>
-&gt; evicted from the inactive list, enabling the VM to tell streaming IO<b=
-r>
-&gt; from thrashing and rebalance the page cache lists when appropriate.<br=
+Best wishes,
+--=20
+Ning Qu (=E6=9B=B2=E5=AE=81) | Software Engineer | quning@google.com | +1-4=
+08-418-6066
+
+
+On Fri, Aug 9, 2013 at 2:34 PM, Ning Qu <quning@google.com> wrote:
+
+> In vma_adjust, the current code grabs i_mmap_mutex before calling
+> vma_adjust_trans_huge. This used to be fine until huge page in page
+> cache comes in. The problem is the underlying function
+> split_file_huge_page will also grab the i_mmap_mutex before splitting
+> the huge page in page cache. Obviously this is causing deadlock
+> situation.
 >
-<br>
-</div>Looks nice. The lack of testing results is conspicuous ;)<br>
-<br>
-It only really solves the problem in the case where<br>
-<br>
-=A0 =A0 =A0 =A0 size-of-inactive-list &lt; size-of-working-set &lt; size-of=
--total-memory<br>
-<br>
-yes? =A0In fact less than that, because the active list presumably<br>
-doesn&#39;t get shrunk to zero (how far *can* it go?). =A0I wonder how many=
-<br>
-workloads fit into those constraints in the real world.<br>
-<br>
-</blockquote></div><br></div>
+> This fix is to move the vma_adjust_trans_huge before grab the lock for
+> file, the same as what the function is currently doing for anonymous
+> memory. Tested, everything works fine so far.
+>
+> Signed-off-by: Ning Qu <quning@google.com>
+> ---
+>  mm/mmap.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+>
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 519ce78..accf1b3 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -750,6 +750,8 @@ again: remove_next =3D 1 + (end > next->vm_end);
+>   }
+>   }
+>
+> + vma_adjust_trans_huge(vma, start, end, adjust_next);
+> +
+>   if (file) {
+>   mapping =3D file->f_mapping;
+>   if (!(vma->vm_flags & VM_NONLINEAR)) {
+> @@ -773,8 +775,6 @@ again: remove_next =3D 1 + (end > next->vm_end);
+>   }
+>   }
+>
+> - vma_adjust_trans_huge(vma, start, end, adjust_next);
+> -
+>   anon_vma =3D vma->anon_vma;
+>   if (!anon_vma && adjust_next)
+>   anon_vma =3D next->anon_vma;
+> --
+> 1.8.3
+>
 
---047d7b6d88c8c69c9c04e38df58f--
+--001a11c23c7e2d5c1004e39114b2
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr">Oh, sorry about that. Let me see what&#39;s going on here.=
+</div><div class=3D"gmail_extra"><br clear=3D"all"><div><div><div>Best wish=
+es,<br></div><div><span style=3D"border-collapse:collapse;font-family:arial=
+,sans-serif;font-size:13px">--=C2=A0<br>
+
+<span style=3D"border-collapse:collapse;font-family:sans-serif;line-height:=
+19px"><span style=3D"border-top-width:2px;border-right-width:0px;border-bot=
+tom-width:0px;border-left-width:0px;border-top-style:solid;border-right-sty=
+le:solid;border-bottom-style:solid;border-left-style:solid;border-top-color=
+:rgb(213,15,37);border-right-color:rgb(213,15,37);border-bottom-color:rgb(2=
+13,15,37);border-left-color:rgb(213,15,37);padding-top:2px;margin-top:2px">=
+Ning Qu (=E6=9B=B2=E5=AE=81)<font color=3D"#555555">=C2=A0|</font></span><s=
+pan style=3D"color:rgb(85,85,85);border-top-width:2px;border-right-width:0p=
+x;border-bottom-width:0px;border-left-width:0px;border-top-style:solid;bord=
+er-right-style:solid;border-bottom-style:solid;border-left-style:solid;bord=
+er-top-color:rgb(51,105,232);border-right-color:rgb(51,105,232);border-bott=
+om-color:rgb(51,105,232);border-left-color:rgb(51,105,232);padding-top:2px;=
+margin-top:2px">=C2=A0Software Engineer |</span><span style=3D"color:rgb(85=
+,85,85);border-top-width:2px;border-right-width:0px;border-bottom-width:0px=
+;border-left-width:0px;border-top-style:solid;border-right-style:solid;bord=
+er-bottom-style:solid;border-left-style:solid;border-top-color:rgb(0,153,57=
+);border-right-color:rgb(0,153,57);border-bottom-color:rgb(0,153,57);border=
+-left-color:rgb(0,153,57);padding-top:2px;margin-top:2px">=C2=A0<a href=3D"=
+mailto:quning@google.com" style=3D"color:rgb(0,0,204)" target=3D"_blank">qu=
+ning@google.com</a>=C2=A0|</span><span style=3D"color:rgb(85,85,85);border-=
+top-width:2px;border-right-width:0px;border-bottom-width:0px;border-left-wi=
+dth:0px;border-top-style:solid;border-right-style:solid;border-bottom-style=
+:solid;border-left-style:solid;border-top-color:rgb(238,178,17);border-righ=
+t-color:rgb(238,178,17);border-bottom-color:rgb(238,178,17);border-left-col=
+or:rgb(238,178,17);padding-top:2px;margin-top:2px">=C2=A0<a value=3D"+16502=
+143877" style=3D"color:rgb(0,0,204)">+1-408-418-6066</a></span></span></spa=
+n></div>
+
+</div></div>
+<br><br><div class=3D"gmail_quote">On Fri, Aug 9, 2013 at 2:34 PM, Ning Qu =
+<span dir=3D"ltr">&lt;<a href=3D"mailto:quning@google.com" target=3D"_blank=
+">quning@google.com</a>&gt;</span> wrote:<br><blockquote class=3D"gmail_quo=
+te" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"=
+>
+
+In vma_adjust, the current code grabs i_mmap_mutex before calling<br>
+vma_adjust_trans_huge. This used to be fine until huge page in page<br>
+cache comes in. The problem is the underlying function<br>
+split_file_huge_page will also grab the i_mmap_mutex before splitting<br>
+the huge page in page cache. Obviously this is causing deadlock<br>
+situation.<br>
+<br>
+This fix is to move the vma_adjust_trans_huge before grab the lock for<br>
+file, the same as what the function is currently doing for anonymous<br>
+memory. Tested, everything works fine so far.<br>
+<br>
+Signed-off-by: Ning Qu &lt;<a href=3D"mailto:quning@google.com">quning@goog=
+le.com</a>&gt;<br>
+---<br>
+=C2=A0mm/mmap.c | 4 ++--<br>
+=C2=A01 file changed, 2 insertions(+), 2 deletions(-)<br>
+<br>
+diff --git a/mm/mmap.c b/mm/mmap.c<br>
+index 519ce78..accf1b3 100644<br>
+--- a/mm/mmap.c<br>
++++ b/mm/mmap.c<br>
+@@ -750,6 +750,8 @@ again: remove_next =3D 1 + (end &gt; next-&gt;vm_end);<=
+br>
+=C2=A0 }<br>
+=C2=A0 }<br>
+<br>
++ vma_adjust_trans_huge(vma, start, end, adjust_next);<br>
++<br>
+=C2=A0 if (file) {<br>
+=C2=A0 mapping =3D file-&gt;f_mapping;<br>
+=C2=A0 if (!(vma-&gt;vm_flags &amp; VM_NONLINEAR)) {<br>
+@@ -773,8 +775,6 @@ again: remove_next =3D 1 + (end &gt; next-&gt;vm_end);<=
+br>
+=C2=A0 }<br>
+=C2=A0 }<br>
+<br>
+- vma_adjust_trans_huge(vma, start, end, adjust_next);<br>
+-<br>
+=C2=A0 anon_vma =3D vma-&gt;anon_vma;<br>
+=C2=A0 if (!anon_vma &amp;&amp; adjust_next)<br>
+=C2=A0 anon_vma =3D next-&gt;anon_vma;<br>
+<span class=3D"HOEnZb"><font color=3D"#888888">--<br>
+1.8.3<br>
+</font></span></blockquote></div><br></div>
+
+--001a11c23c7e2d5c1004e39114b2--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
