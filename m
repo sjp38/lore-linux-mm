@@ -1,64 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id ECA726B0031
-	for <linux-mm@kvack.org>; Sat, 10 Aug 2013 02:28:52 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id fz6so1238970pac.17
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2013 23:28:52 -0700 (PDT)
-From: Ning Qu <quning@gmail.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Subject: [PATCH] thp: Fix deadlock situation in vma_adjust with huge page in page cache
-Date: Fri, 9 Aug 2013 23:28:49 -0700
-Message-Id: <93894D4C-57FA-46B5-9141-4EFADEB7009E@gmail.com>
-Mime-Version: 1.0 (Mac OS X Mail 6.5 \(1508\))
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 64E7B6B0031
+	for <linux-mm@kvack.org>; Sat, 10 Aug 2013 12:47:45 -0400 (EDT)
+Received: by mail-ob0-f180.google.com with SMTP id up14so7404580obb.39
+        for <linux-mm@kvack.org>; Sat, 10 Aug 2013 09:47:44 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CAMyfujeC_p-2cJteayPnA82wPRvoL2ekDNB6bd38d76v7Gb+6w@mail.gmail.com>
+References: <CAMyfujfZayb8_673vkb2hdE9J_w+wPTD4aQ6TsY+aWxb9EzY8A@mail.gmail.com>
+ <1376080406-4r7r3uye-mutt-n-horiguchi@ah.jp.nec.com> <CAMyfujeC_p-2cJteayPnA82wPRvoL2ekDNB6bd38d76v7Gb+6w@mail.gmail.com>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Sat, 10 Aug 2013 12:47:24 -0400
+Message-ID: <CAHGf_=odM+yTTLvqwEw8MztkFEf_kjxvixDqn3g4hpCed4fEzQ@mail.gmail.com>
+Subject: Re: [PATCH 1/1] pagemap: fix buffer overflow in add_page_map()
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-fsdevel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Dave Hansen <dave@sr71.net>, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Ning Qu <quning@google.com>
+To: yonghua zheng <younghua.zheng@gmail.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-In vma_adjust, the current code grabs i_mmap_mutex before calling
-vma_adjust_trans_huge. This used to be fine until huge page in page
-cache comes in. The problem is the underlying function
-split_file_huge_page will also grab the i_mmap_mutex before splitting
-the huge page in page cache. Obviously this is causing deadlock
-situation.
+On Fri, Aug 9, 2013 at 8:49 PM, yonghua zheng <younghua.zheng@gmail.com> wrote:
+> Update the patch according to Naoya's comment, I also run
+> ./scripts/checkpatch.pl, and it passed ;D.
+>
+> From 96826b0fdf9ec6d6e16c2c595f371dbb841250f7 Mon Sep 17 00:00:00 2001
+> From: Yonghua Zheng <younghua.zheng@gmail.com>
+> Date: Mon, 5 Aug 2013 12:12:24 +0800
+> Subject: [PATCH 1/1] pagemap: fix buffer overflow in add_to_pagemap()
+>
+> In struc pagemapread:
+>
+> struct pagemapread {
+>     int pos, len;
+>     pagemap_entry_t *buffer;
+>     bool v2;
+> };
+>
+> pos is number of PM_ENTRY_BYTES in buffer, but len is the size of buffer,
+> it is a mistake to compare pos and len in add_to_pagemap() for checking
+> buffer is full or not, and this can lead to buffer overflow and random
+> kernel panic issue.
+>
+> Correct len to be total number of PM_ENTRY_BYTES in buffer.
+>
+> Signed-off-by: Yonghua Zheng <younghua.zheng@gmail.com>
 
-This fix is to move the vma_adjust_trans_huge before grab the lock for
-file, the same as what the function is currently doing for anonymous
-memory.
-
-Tested, everything works fine so far.
-
-Signed-off-by: Ning Qu <quning@google.com>
----
-mm/mmap.c | 4 ++--
-1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 519ce78..accf1b3 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -750,6 +750,8 @@ again:			remove_next = 1 + (end > next->vm_end);
-		}
-	}
-
-+	vma_adjust_trans_huge(vma, start, end, adjust_next);
-+
-	if (file) {
-		mapping = file->f_mapping;
-		if (!(vma->vm_flags & VM_NONLINEAR)) {
-@@ -773,8 +775,6 @@ again:			remove_next = 1 + (end > next->vm_end);
-		}
-	}
-
--	vma_adjust_trans_huge(vma, start, end, adjust_next);
--
-	anon_vma = vma->anon_vma;
-	if (!anon_vma && adjust_next)
-		anon_vma = next->anon_vma;
--- 
-1.8.3
-
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
