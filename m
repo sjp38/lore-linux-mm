@@ -1,50 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 64E7B6B0031
-	for <linux-mm@kvack.org>; Sat, 10 Aug 2013 12:47:45 -0400 (EDT)
-Received: by mail-ob0-f180.google.com with SMTP id up14so7404580obb.39
-        for <linux-mm@kvack.org>; Sat, 10 Aug 2013 09:47:44 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAMyfujeC_p-2cJteayPnA82wPRvoL2ekDNB6bd38d76v7Gb+6w@mail.gmail.com>
-References: <CAMyfujfZayb8_673vkb2hdE9J_w+wPTD4aQ6TsY+aWxb9EzY8A@mail.gmail.com>
- <1376080406-4r7r3uye-mutt-n-horiguchi@ah.jp.nec.com> <CAMyfujeC_p-2cJteayPnA82wPRvoL2ekDNB6bd38d76v7Gb+6w@mail.gmail.com>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Sat, 10 Aug 2013 12:47:24 -0400
-Message-ID: <CAHGf_=odM+yTTLvqwEw8MztkFEf_kjxvixDqn3g4hpCed4fEzQ@mail.gmail.com>
-Subject: Re: [PATCH 1/1] pagemap: fix buffer overflow in add_page_map()
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 586CB6B0031
+	for <linux-mm@kvack.org>; Sat, 10 Aug 2013 13:48:27 -0400 (EDT)
+Message-ID: <1376156903.2156.30.camel@dabdike.int.hansenpartnership.com>
+Subject: Re: [patch 1/2] [PATCH] mm: Save soft-dirty bits on swapped pages
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+Date: Sat, 10 Aug 2013 10:48:23 -0700
+In-Reply-To: <20130807132156.e97bbcc3d543cf88d5a0997d@linux-foundation.org>
+References: <20130730204154.407090410@gmail.com>
+	 <20130730204654.844299768@gmail.com>
+	 <20130807132156.e97bbcc3d543cf88d5a0997d@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-15"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: yonghua zheng <younghua.zheng@gmail.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Cyrill Gorcunov <gorcunov@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, luto@amacapital.net, gorcunov@openvz.org, xemul@parallels.com, mpm@selenic.com, xiaoguangrong@linux.vnet.ibm.com, mtosatti@redhat.com, kosaki.motohiro@gmail.com, sfr@canb.auug.org.au, peterz@infradead.org, aneesh.kumar@linux.vnet.ibm.com
 
-On Fri, Aug 9, 2013 at 8:49 PM, yonghua zheng <younghua.zheng@gmail.com> wrote:
-> Update the patch according to Naoya's comment, I also run
-> ./scripts/checkpatch.pl, and it passed ;D.
->
-> From 96826b0fdf9ec6d6e16c2c595f371dbb841250f7 Mon Sep 17 00:00:00 2001
-> From: Yonghua Zheng <younghua.zheng@gmail.com>
-> Date: Mon, 5 Aug 2013 12:12:24 +0800
-> Subject: [PATCH 1/1] pagemap: fix buffer overflow in add_to_pagemap()
->
-> In struc pagemapread:
->
-> struct pagemapread {
->     int pos, len;
->     pagemap_entry_t *buffer;
->     bool v2;
-> };
->
-> pos is number of PM_ENTRY_BYTES in buffer, but len is the size of buffer,
-> it is a mistake to compare pos and len in add_to_pagemap() for checking
-> buffer is full or not, and this can lead to buffer overflow and random
-> kernel panic issue.
->
-> Correct len to be total number of PM_ENTRY_BYTES in buffer.
->
-> Signed-off-by: Yonghua Zheng <younghua.zheng@gmail.com>
+On Wed, 2013-08-07 at 13:21 -0700, Andrew Morton wrote:
+> On Wed, 31 Jul 2013 00:41:55 +0400 Cyrill Gorcunov <gorcunov@gmail.com> wrote:
+> 
+> > Andy Lutomirski reported that in case if a page with _PAGE_SOFT_DIRTY
+> > bit set get swapped out, the bit is getting lost and no longer
+> > available when pte read back.
+> > 
+> > To resolve this we introduce _PTE_SWP_SOFT_DIRTY bit which is
+> > saved in pte entry for the page being swapped out. When such page
+> > is to be read back from a swap cache we check for bit presence
+> > and if it's there we clear it and restore the former _PAGE_SOFT_DIRTY
+> > bit back.
+> > 
+> > One of the problem was to find a place in pte entry where we can
+> > save the _PTE_SWP_SOFT_DIRTY bit while page is in swap. The
+> > _PAGE_PSE was chosen for that, it doesn't intersect with swap
+> > entry format stored in pte.
+> 
+> So the implication is that if another architecture wants to support
+> this (and, realistically, wants to support CRIU),
 
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To be clear, CRIU is usable for basic checkpoint/restore without soft
+dirty.  It's using CRIU as an engine for process migration between nodes
+that won't work efficiently without soft dirty.  What happens without
+soft dirty is that we have to freeze the source process state, transfer
+the bits and then begin execution on the target ... that means the
+process can be suspended for minutes (and means that customers notice
+and your SLAs get blown).  Using soft dirty, we can iteratively build up
+the process image on the target while the source process is still
+executing meaning the actual transfer between source and target takes
+only seconds (when the delta is small enough, we freeze the source,
+transfer the remaining changed bits and begin on the target).
+
+James
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
