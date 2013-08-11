@@ -1,100 +1,123 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: Testing results of zswap
-Date: Tue, 6 Aug 2013 19:37:49 +0800
-Message-ID: <20340.5151529752$1375789096@news.gmane.org>
-References: <CAA_GA1fiEJYxqAZ1c0BneuftB5g8d+2_mYBj=4iE=1EcYaTx7w@mail.gmail.com>
+Subject: Re: [PATCH v2] mm/hotplug: Verify hotplug memory range
+Date: Mon, 12 Aug 2013 07:37:22 +0800
+Message-ID: <40126.9620554105$1376264273@news.gmane.org>
+References: <1376162252-26074-1-git-send-email-toshi.kani@hp.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
-Content-Type: multipart/mixed; boundary="5vNYLRcllDrimb99"
+Content-Type: text/plain; charset=us-ascii
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1V6faX-0001D4-CT
-	for glkm-linux-mm-2@m.gmane.org; Tue, 06 Aug 2013 13:38:05 +0200
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id A6BF16B0038
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 07:38:03 -0400 (EDT)
+	id 1V8fCg-00045a-VA
+	for glkm-linux-mm-2@m.gmane.org; Mon, 12 Aug 2013 01:37:43 +0200
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 03BE36B0033
+	for <linux-mm@kvack.org>; Sun, 11 Aug 2013 19:37:39 -0400 (EDT)
 Received: from /spool/local
 	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 6 Aug 2013 21:31:08 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 3D9093578050
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2013 21:37:56 +1000 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r76BM2Fj4653452
-	for <linux-mm@kvack.org>; Tue, 6 Aug 2013 21:22:07 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r76Bboto021906
-	for <linux-mm@kvack.org>; Tue, 6 Aug 2013 21:37:50 +1000
+	Mon, 12 Aug 2013 09:30:38 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 637FA2CE804D
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 09:37:26 +1000 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7BNbFpV56164382
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 09:37:15 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r7BNbOwu001420
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 09:37:25 +1000
 Content-Disposition: inline
-In-Reply-To: <CAA_GA1fiEJYxqAZ1c0BneuftB5g8d+2_mYBj=4iE=1EcYaTx7w@mail.gmail.com>
+In-Reply-To: <1376162252-26074-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, bob.liu@oracle.com, Mel Gorman <mgorman@suse.de>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, dave@sr71.net, isimatu.yasuaki@jp.fujitsu.com, tangchen@cn.fujitsu.com, vasilis.liaskovitis@profitbricks.com, Toshi Kani <toshi.kani@hp.com>
 
-
---5vNYLRcllDrimb99
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-
-On Thu, Jun 27, 2013 at 10:03:52AM +0800, Bob Liu wrote:
->Hi All,
+On Sat, Aug 10, 2013 at 01:17:32PM -0600, Toshi Kani wrote:
+>add_memory() and remove_memory() can only handle a memory range aligned
+>with section.  There are problems when an unaligned range is added and
+>then deleted as follows:
 >
->These days I have been testing zswap.
->I found that the total ram size of my testing machine effected the
->testing result.
+> - add_memory() with an unaligned range succeeds, but __add_pages()
+>   called from add_memory() adds a whole section of pages even though
+>   a given memory range is less than the section size.
+> - remove_memory() to the added unaligned range hits BUG_ON() in
+>   __remove_pages().
 >
->If I limit  RAM size to 2G using "mem=", the performance of zswap is
->very disappointing,
->But if I use larger RAM size such as 8G, the performance is much better.
->Even with RAM size 8G, zswap will slow down the speed of parallelio.
+>This patch changes add_memory() and remove_memory() to check if a given
+>memory range is aligned with section at the beginning.  As the result,
+>add_memory() fails with -EINVAL when a given range is unaligned, and
+>does not add such memory range.  This prevents remove_memory() to be
+>called with an unaligned range as well.  Note that remove_memory() has
+>to use BUG_ON() since this function cannot fail.
 >
->I run the testing(mmtest-0.10 with
->config-global-dhp__parallelio-memcachetest) after the default
->distribution booted every time.
+>Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+>Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>Reviewed-by: Tang Chen <tangchen@cn.fujitsu.com>
+
+Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+
+>---
+>v2: Updated the error message.
 >
-
-Hi Bob,
-
-I see improvement against v3.11-rc1 w/ 2G memory.
-
-
---5vNYLRcllDrimb99
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename=test
-
-                                          nozswap2                      zswap2
-                                         nozswap2G                     zswap2G
-Ops memcachetest-0M             12731.00 (  0.00%)          11561.00 ( -9.19%)
-Ops memcachetest-201M           11373.00 (  0.00%)          11084.00 ( -2.54%)
-Ops memcachetest-672M           11350.00 (  0.00%)          10910.00 ( -3.88%)
-Ops memcachetest-1142M          11057.00 (  0.00%)          11060.00 (  0.03%)
-Ops io-duration-0M                  0.00 (  0.00%)              0.00 (  0.00%)
-Ops io-duration-201M                4.00 (  0.00%)              5.00 (-25.00%)
-Ops io-duration-672M                9.00 (  0.00%)              7.00 ( 22.22%)
-Ops io-duration-1142M              11.00 (  0.00%)             13.00 (-18.18%)
-Ops swaptotal-0M                  451.00 (  0.00%)          26208.00 (-5711.09%)
-Ops swaptotal-201M             158775.00 (  0.00%)          37548.00 ( 76.35%)
-Ops swaptotal-672M             139599.00 (  0.00%)          42514.00 ( 69.55%)
-Ops swaptotal-1142M            137789.00 (  0.00%)          34580.00 ( 74.90%)
-Ops swapin-0M                     451.00 (  0.00%)          11830.00 (-2523.06%)
-Ops swapin-201M                 29082.00 (  0.00%)          16169.00 ( 44.40%)
-Ops swapin-672M                 26611.00 (  0.00%)          19574.00 ( 26.44%)
-Ops swapin-1142M                27238.00 (  0.00%)          15625.00 ( 42.64%)
-Ops minorfaults-0M             557891.00 (  0.00%)         575357.00 ( -3.13%)
-Ops minorfaults-201M           743922.00 (  0.00%)         595238.00 ( 19.99%)
-Ops minorfaults-672M           727870.00 (  0.00%)         653777.00 ( 10.18%)
-Ops minorfaults-1142M          722946.00 (  0.00%)         595093.00 ( 17.68%)
-Ops majorfaults-0M                116.00 (  0.00%)           4053.00 (-3393.97%)
-Ops majorfaults-201M             4251.00 (  0.00%)           4412.00 ( -3.79%)
-Ops majorfaults-672M             3854.00 (  0.00%)           4971.00 (-28.98%)
-Ops majorfaults-1142M            3910.00 (  0.00%)           4033.00 ( -3.15%)
-
-
---5vNYLRcllDrimb99--
+>---
+> mm/memory_hotplug.c |   22 ++++++++++++++++++++++
+> 1 file changed, 22 insertions(+)
+>
+>diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>index ca1dd3a..3bb1f39 100644
+>--- a/mm/memory_hotplug.c
+>+++ b/mm/memory_hotplug.c
+>@@ -1069,6 +1069,22 @@ out:
+> 	return ret;
+> }
+>
+>+static int check_hotplug_memory_range(u64 start, u64 size)
+>+{
+>+	u64 start_pfn = start >> PAGE_SHIFT;
+>+	u64 nr_pages = size >> PAGE_SHIFT;
+>+
+>+	/* Memory range must be aligned with section */
+>+	if ((start_pfn & ~PAGE_SECTION_MASK) ||
+>+	    (nr_pages % PAGES_PER_SECTION) || (!nr_pages)) {
+>+		pr_err("Section-unaligned hotplug range: start 0x%llx, size 0x%llx\n",
+>+				start, size);
+>+		return -EINVAL;
+>+	}
+>+
+>+	return 0;
+>+}
+>+
+> /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
+> int __ref add_memory(int nid, u64 start, u64 size)
+> {
+>@@ -1078,6 +1094,10 @@ int __ref add_memory(int nid, u64 start, u64 size)
+> 	struct resource *res;
+> 	int ret;
+>
+>+	ret = check_hotplug_memory_range(start, size);
+>+	if (ret)
+>+		return ret;
+>+
+> 	lock_memory_hotplug();
+>
+> 	res = register_memory_resource(start, size);
+>@@ -1786,6 +1806,8 @@ void __ref remove_memory(int nid, u64 start, u64 size)
+> {
+> 	int ret;
+>
+>+	BUG_ON(check_hotplug_memory_range(start, size));
+>+
+> 	lock_memory_hotplug();
+>
+> 	/*
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
