@@ -1,116 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id EF0316B0033
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 09:21:40 -0400 (EDT)
-Message-ID: <1376313688.2457.2.camel@buesod1.americas.hpqcorp.net>
-Subject: Re: [PATCH v2 02/20] mm, hugetlb: change variable name reservations
- to resv
-From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Mon, 12 Aug 2013 06:21:28 -0700
-In-Reply-To: <1376040398-11212-3-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com>
-	 <1376040398-11212-3-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id BB5346B0032
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 09:23:32 -0400 (EDT)
+Date: Mon, 12 Aug 2013 09:23:10 -0400
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: [PATCH v2 0/4] zcache: a compressed file page cache
+Message-ID: <20130812132310.GB3318@phenom.dumpdata.com>
+References: <1375788977-12105-1-git-send-email-bob.liu@oracle.com>
+ <20130806135800.GC1048@kroah.com>
+ <52010714.2090707@oracle.com>
+ <20130812121908.GA3196@phenom.dumpdata.com>
+ <20130812123002.GA23773@hacker.(null)>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20130812123002.GA23773@hacker.(null)>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Bob Liu <bob.liu@oracle.com>, Greg KH <gregkh@linuxfoundation.org>, Bob Liu <lliubbo@gmail.com>, linux-mm@kvack.org, ngupta@vflare.org, akpm@linux-foundation.org, sjenning@linux.vnet.ibm.com, riel@redhat.com, mgorman@suse.de, kyungmin.park@samsung.com, p.sarna@partner.samsung.com, barry.song@csr.com, penberg@kernel.org
 
-On Fri, 2013-08-09 at 18:26 +0900, Joonsoo Kim wrote:
-> 'reservations' is so long name as a variable and we use 'resv_map'
-> to represent 'struct resv_map' in other place. To reduce confusion and
-> unreadability, change it.
-> 
-> Reviewed-by: Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> 
+On Mon, Aug 12, 2013 at 08:30:02PM +0800, Wanpeng Li wrote:
+> On Mon, Aug 12, 2013 at 08:19:08AM -0400, Konrad Rzeszutek Wilk wrote:
+> >On Tue, Aug 06, 2013 at 10:24:20PM +0800, Bob Liu wrote:
+> >> Hi Greg,
+> >>=20
+> >> On 08/06/2013 09:58 PM, Greg KH wrote:
+> >> > On Tue, Aug 06, 2013 at 07:36:13PM +0800, Bob Liu wrote:
+> >> >> Dan Magenheimer extended zcache supporting both file pages and an=
+onymous pages.
+> >> >> It's located in drivers/staging/zcache now. But the current versi=
+on of zcache is
+> >> >> too complicated to be merged into upstream.
+> >> >=20
+> >> > Really?  If this is so, I'll just go delete zcache now, I don't wa=
+nt to
+> >> > lug around dead code that will never be merged.
+> >> >=20
+> >>=20
+> >> Zcache in staging have a zbud allocation which is almost the same as
+> >> mm/zbud.c but with different API and have a frontswap backend like
+> >> mm/zswap.c.
+> >> So I'd prefer reuse mm/zbud.c and mm/zswap.c for a generic memory
+> >> compression solution.
+> >> Which means in that case, zcache in staging =3D mm/zswap.c + mm/zcac=
+he.c +
+> >> mm/zbud.c.
+> >>=20
+> >> But I'm not sure if there are any existing users of zcache in stagin=
+g,
+> >> if not I can delete zcache from staging in my next version of this
+> >> mm/zcache.c series.
+> >
+> >I think the Samsung folks are using it (zcache).
+> >
+>=20
+> Hi Konrad,
+>=20
+> If there are real users using ramster? And if Xen project using zcache
+> and ramster in staging tree?=20
 
-Reviewed-by: Davidlohr Bueso <davidlohr@hp.com>
+The Xen Project has an tmem API implementation which allows the 'tmem'
+driver (drivers/xen/tmem.c) to use it. The Linux tmem driver implements
+both frontswap and cleancache APIs. That means if a guest is running unde=
+r
+Xen it has the same benefits as if it was running baremetal and using
+zswap + zcache3 (what Bob posted, which is the cleancache backend) or
+the old zcache2 (staging/zcache).
 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index d971233..12b6581 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1095,9 +1095,9 @@ static long vma_needs_reservation(struct hstate *h,
->  	} else  {
->  		long err;
->  		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
-> -		struct resv_map *reservations = vma_resv_map(vma);
-> +		struct resv_map *resv = vma_resv_map(vma);
->  
-> -		err = region_chg(&reservations->regions, idx, idx + 1);
-> +		err = region_chg(&resv->regions, idx, idx + 1);
->  		if (err < 0)
->  			return err;
->  		return 0;
-> @@ -1115,10 +1115,10 @@ static void vma_commit_reservation(struct hstate *h,
->  
->  	} else if (is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
->  		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
-> -		struct resv_map *reservations = vma_resv_map(vma);
-> +		struct resv_map *resv = vma_resv_map(vma);
->  
->  		/* Mark this page used in the map. */
-> -		region_add(&reservations->regions, idx, idx + 1);
-> +		region_add(&resv->regions, idx, idx + 1);
->  	}
->  }
->  
-> @@ -2168,7 +2168,7 @@ out:
->  
->  static void hugetlb_vm_op_open(struct vm_area_struct *vma)
->  {
-> -	struct resv_map *reservations = vma_resv_map(vma);
-> +	struct resv_map *resv = vma_resv_map(vma);
->  
->  	/*
->  	 * This new VMA should share its siblings reservation map if present.
-> @@ -2178,34 +2178,34 @@ static void hugetlb_vm_op_open(struct vm_area_struct *vma)
->  	 * after this open call completes.  It is therefore safe to take a
->  	 * new reference here without additional locking.
->  	 */
-> -	if (reservations)
-> -		kref_get(&reservations->refs);
-> +	if (resv)
-> +		kref_get(&resv->refs);
->  }
->  
->  static void resv_map_put(struct vm_area_struct *vma)
->  {
-> -	struct resv_map *reservations = vma_resv_map(vma);
-> +	struct resv_map *resv = vma_resv_map(vma);
->  
-> -	if (!reservations)
-> +	if (!resv)
->  		return;
-> -	kref_put(&reservations->refs, resv_map_release);
-> +	kref_put(&resv->refs, resv_map_release);
->  }
->  
->  static void hugetlb_vm_op_close(struct vm_area_struct *vma)
->  {
->  	struct hstate *h = hstate_vma(vma);
-> -	struct resv_map *reservations = vma_resv_map(vma);
-> +	struct resv_map *resv = vma_resv_map(vma);
->  	struct hugepage_subpool *spool = subpool_vma(vma);
->  	unsigned long reserve;
->  	unsigned long start;
->  	unsigned long end;
->  
-> -	if (reservations) {
-> +	if (resv) {
->  		start = vma_hugecache_offset(h, vma, vma->vm_start);
->  		end = vma_hugecache_offset(h, vma, vma->vm_end);
->  
->  		reserve = (end - start) -
-> -			region_count(&reservations->regions, start, end);
-> +			region_count(&resv->regions, start, end);
->  
->  		resv_map_put(vma);
->  
+One way to think about is that the compression, deduplication, etc are
+all hoisted in the hypervisor while each of the guests pipes the
+pages up/down using hypercalls.
 
+Xen Project does not need to use zcache2 (staging/zcache) as it can
+get the same benefits from using tmem. Thought if the user wanted they
+can certainly use it and bypass tmem and either load zcache2 or zswap
+and zcache3 (the one Bob posted).
+
+In regards to "real users using RAMster"  - I am surmising you are
+wondering whether Oracle is offering this as a supported product to
+customers?  The answer to that is no at this time as it is still in
+development and we would want it to be out of that before Oracle
+supports it in its distributions.
+
+Now "would want" and the reality of what can be done right now
+is a bit disjoint.
+
+I think that the next step is concentrating on making zswap awesome
+and also make the zcache3 (the patches that Bob posted) in shape to
+be merged in mm.
+
+It would be fantastic if folks took a look at the patches and gave
+comments.
+
+Thanks!
+
+P.S.
+Greg, since the Samsung folks are not using it, and we (Oracle) can
+patch our distro kernel to provide sm=F6rg=E5sbord of zcache2, zswap
+and zcache3, even zcache1 if needed. I think it is safe to
+delete staging/zcache and focus on getting the zcache3 (Bob's
+patchset) upstream.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
