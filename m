@@ -1,106 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 5D07F6B0036
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 19:05:34 -0400 (EDT)
-Date: Mon, 12 Aug 2013 16:05:32 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/1] pagemap: fix buffer overflow in add_page_map()
-Message-Id: <20130812160532.da47cac556196bf9c4356a83@linux-foundation.org>
-In-Reply-To: <CAMyfujfZayb8_673vkb2hdE9J_w+wPTD4aQ6TsY+aWxb9EzY8A@mail.gmail.com>
-References: <CAMyfujfZayb8_673vkb2hdE9J_w+wPTD4aQ6TsY+aWxb9EzY8A@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 64C626B0034
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 19:24:57 -0400 (EDT)
+Message-ID: <1376349843.3978.1.camel@pasglop>
+Subject: Re: mm/slab: ppc: ubi: kmalloc_slab WARNING / PPC + UBI driver
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Tue, 13 Aug 2013 09:24:03 +1000
+In-Reply-To: <5208C1CD.3040601@gmail.com>
+References: <51F8F827.6020108@gmail.com>
+	 <20130731173434.GA27470@blackmetal.musicnaut.iki.fi>
+	 <5208C1CD.3040601@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: yonghua zheng <younghua.zheng@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Motohiro KOSAKI <kosaki.motohiro@gmail.com>
+To: Wladislav Wiebe <wladislav.kw@gmail.com>
+Cc: Aaro Koskinen <aaro.koskinen@iki.fi>, dedekind1@gmail.com, dwmw2@infradead.org, penberg@kernel.org, linux-mm@kvack.org, linux-mtd@lists.infradead.org, cl@linux.com, linuxppc-dev@lists.ozlabs.org
 
-On Fri, 9 Aug 2013 13:16:41 +0800 yonghua zheng <younghua.zheng@gmail.com> wrote:
+On Mon, 2013-08-12 at 13:06 +0200, Wladislav Wiebe wrote:
+> Hi guys,
+> 
+> we got the real root cause of the allocation issue:
+> 
+> Subject: [PATCH 1/1] of: fdt: fix memory initialization for expanded DT
+> 
+> Already existing property flags are filled wrong for properties created from
+> initial FDT. This could cause problems if this DYNAMIC device-tree functions
+> are used later, i.e. properties are attached/detached/replaced. Simply dumping
+> flags from the running system show, that some initial static (not allocated via
+> kzmalloc()) nodes are marked as dynamic.
 
-> Hi,
+This should go into stable as well...
+
+> I putted some debug extensions to property_proc_show(..) :
+> ..
+> +       if (OF_IS_DYNAMIC(pp))
+> +               pr_err("DEBUG: xxx : OF_IS_DYNAMIC\n");
+> +       if (OF_IS_DETACHED(pp))
+> +               pr_err("DEBUG: xxx : OF_IS_DETACHED\n");
 > 
-> Recently we met quite a lot of random kernel panic issues after enable
-> CONFIG_PROC_PAGE_MONITOR in kernel, after debuggint sometime we found
-> this has something to do with following bug in pagemap:
+> when you operate on the nodes (e.g.: ~$ cat /proc/device-tree/*some_node*) you
+> will see that those flags are filled wrong, basically in most cases it will dump
+> a DYNAMIC or DETACHED status, which is in not true.
+> (BTW. this OF_IS_DETACHED is a own define for debug purposes which which just
+> make a test_bit(OF_DETACHED, &x->_flags)
 > 
-> In struc pagemapread:
+> If nodes are dynamic kernel is allowed to kfree() them. But it will crash
+> attempting to do so on the nodes from FDT -- they are not allocated via
+> kzmalloc().
 > 
-> struct pagemapread {
->     int pos, len;
->     pagemap_entry_t *buffer;
->     bool v2;
-> };
-> 
-> pos is number of PM_ENTRY_BYTES in buffer, but len is the size of buffer,
-> it is a mistake to compare pos and len in add_page_map() for checking
-> buffer is full or not, and this can lead to buffer overflow and random
-> kernel panic issue.
-> 
-> Correct len to be total number of PM_ENTRY_BYTES in buffer.
-> 
-> Signed-off-by: Yonghua Zheng <younghua.zheng@gmail.com>
+> Signed-off-by: Wladislav Wiebe <wladislav.kw@gmail.com>
 > ---
->  fs/proc/task_mmu.c |    4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
+>  drivers/of/fdt.c |    2 ++
+>  1 files changed, 2 insertions(+), 0 deletions(-)
 > 
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index dbf61f6..cb98853 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -1116,8 +1116,8 @@ static ssize_t pagemap_read(struct file *file,
-> char __user *buf,
->          goto out_task;
+> diff --git a/drivers/of/fdt.c b/drivers/of/fdt.c
+> index 6bb7cf2..b10ba00 100644
+> --- a/drivers/of/fdt.c
+> +++ b/drivers/of/fdt.c
+> @@ -392,6 +392,8 @@ static void __unflatten_device_tree(struct boot_param_header *blob,
+>  	mem = (unsigned long)
+>  		dt_alloc(size + 4, __alignof__(struct device_node));
 > 
->      pm.v2 = soft_dirty_cleared;
-> -    pm.len = PM_ENTRY_BYTES * (PAGEMAP_WALK_SIZE >> PAGE_SHIFT);
-> -    pm.buffer = kmalloc(pm.len, GFP_TEMPORARY);
-> +    pm.len = (PAGEMAP_WALK_SIZE >> PAGE_SHIFT);
-> +    pm.buffer = kmalloc(pm.len * PM_ENTRY_BYTES, GFP_TEMPORARY);
->      ret = -ENOMEM;
->      if (!pm.buffer)
->          goto out_task;
+> +	memset((void *)mem, 0, size);
+> +
+>  	((__be32 *)mem)[size / 4] = cpu_to_be32(0xdeadbeef);
+> 
+>  	pr_debug("  unflattening %lx...\n", mem);
+> -- 1.7.1
+> 
+> This is committed to the mainline - hope it comes in soon.
+> 
+> Thanks & BR,
+> Wladislav Wiebe
+> 
+> 
+> On 31/07/13 19:34, Aaro Koskinen wrote:
+> > Hi,
+> > 
+> > On Wed, Jul 31, 2013 at 01:42:31PM +0200, Wladislav Wiebe wrote:
+> >> DEBUG: xxx kmalloc_slab, requested 'size' = 8388608, KMALLOC_MAX_SIZE = 4194304
+> > [...]
+> >> [ccd3be60] [c0099fd4] kmalloc_slab+0x48/0xe8 (unreliable)
+> >> [ccd3be70] [c00ae650] __kmalloc+0x20/0x1b4
+> >> [ccd3be90] [c00d46f4] seq_read+0x2a4/0x540
+> >> [ccd3bee0] [c00fe09c] proc_reg_read+0x5c/0x90
+> >> [ccd3bef0] [c00b4e1c] vfs_read+0xa4/0x150
+> >> [ccd3bf10] [c00b500c] SyS_read+0x4c/0x84
+> >> [ccd3bf40] [c000be80] ret_from_syscall+0x0/0x3c
+> > 
+> > It seems some procfs file is trying to dump 8 MB at a single go. You
+> > need to fix that to return data in smaller chunks. What file is it?
+> > 
+> > A.
+> > 
+> 
+> _______________________________________________
+> Linuxppc-dev mailing list
+> Linuxppc-dev@lists.ozlabs.org
+> https://lists.ozlabs.org/listinfo/linuxppc-dev
 
-Yes, that's a bug.  I'd propose this addition to your fix:
-
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: pagemap-fix-buffer-overflow-in-add_page_map-fix
-
-document pagemapread.pos and .len units, fix PM_ENTRY_BYTES definition
-
-Cc: Yonghua Zheng <younghua.zheng@gmail.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- fs/proc/task_mmu.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff -puN fs/proc/task_mmu.c~pagemap-fix-buffer-overflow-in-add_page_map-fix fs/proc/task_mmu.c
---- a/fs/proc/task_mmu.c~pagemap-fix-buffer-overflow-in-add_page_map-fix
-+++ a/fs/proc/task_mmu.c
-@@ -868,7 +868,7 @@ typedef struct {
- } pagemap_entry_t;
- 
- struct pagemapread {
--	int pos, len;
-+	int pos, len;		/* units: PM_ENTRY_BYTES, not bytes */
- 	pagemap_entry_t *buffer;
- 	bool v2;
- };
-@@ -876,7 +876,7 @@ struct pagemapread {
- #define PAGEMAP_WALK_SIZE	(PMD_SIZE)
- #define PAGEMAP_WALK_MASK	(PMD_MASK)
- 
--#define PM_ENTRY_BYTES      sizeof(u64)
-+#define PM_ENTRY_BYTES      sizeof(pagemap_entry_t)
- #define PM_STATUS_BITS      3
- #define PM_STATUS_OFFSET    (64 - PM_STATUS_BITS)
- #define PM_STATUS_MASK      (((1LL << PM_STATUS_BITS) - 1) << PM_STATUS_OFFSET)
-_
-
-
-btw, your email client wordwraps the patches and replaces tabs with
-spaces.  Please fix that up for next time?  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
