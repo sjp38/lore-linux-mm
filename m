@@ -1,44 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 06BB16B0036
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 10:26:03 -0400 (EDT)
-Received: by mail-pb0-f50.google.com with SMTP id uo5so6867663pbc.37
-        for <linux-mm@kvack.org>; Mon, 12 Aug 2013 07:26:03 -0700 (PDT)
-Message-ID: <5208F06C.8090206@gmail.com>
-Date: Mon, 12 Aug 2013 22:25:48 +0800
-From: Tang Chen <imtangchen@gmail.com>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id E27A46B0034
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 10:39:15 -0400 (EDT)
+Received: by mail-ve0-f169.google.com with SMTP id db10so5656834veb.14
+        for <linux-mm@kvack.org>; Mon, 12 Aug 2013 07:39:14 -0700 (PDT)
+Date: Mon, 12 Aug 2013 10:39:10 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH part5 1/7] x86: get pg_data_t's memory from other node
+Message-ID: <20130812143910.GH15892@htj.dyndns.org>
+References: <1375956979-31877-1-git-send-email-tangchen@cn.fujitsu.com>
+ <1375956979-31877-2-git-send-email-tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH part2 3/4] acpi: Remove "continue" in macro INVALID_TABLE().
-References: <1375938239-18769-1-git-send-email-tangchen@cn.fujitsu.com> <1375938239-18769-4-git-send-email-tangchen@cn.fujitsu.com> <1375939646.2424.132.camel@joe-AO722> <52038C84.4080608@cn.fujitsu.com> <1375970993.2424.142.camel@joe-AO722> <20130812142119.GF15892@htj.dyndns.org>
-In-Reply-To: <20130812142119.GF15892@htj.dyndns.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1375956979-31877-2-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Joe Perches <joe@perches.com>, Tang Chen <tangchen@cn.fujitsu.com>, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-On 08/12/2013 10:21 PM, Tejun Heo wrote:
-> On Thu, Aug 08, 2013 at 07:09:53AM -0700, Joe Perches wrote:
->> If you really think that the #define is better, use
->> something like HW_ERR does and embed that #define
->> in the pr_err.
->>
->> #define ACPI_OVERRIDE	"ACPI OVERRIDE: "
->>
->> 	pr_err(ACPI_OVERRIDE "Table smaller than ACPI header [%s%s]\n",
->> 	       cpio_path, file.name);
->>
->> It's only used a few times by a single file so
->> I think it's unnecessary.
->
-> I agree with Joe here.  Just doing normal pr_err() should be enough.
-> You can use pr_fmt() to add headers but given that we aren't talking
-> about huge number of printks, that probably is an overkill too.
+Hello,
 
-OK, followed.
+The subject is a bit misleading.  Maybe it should say "allow getting
+..." rather than "get ..."?
+
+On Thu, Aug 08, 2013 at 06:16:13PM +0800, Tang Chen wrote:
+....
+> A node could have several memory devices. And the device who holds node
+> data should be hot-removed in the last place. But in NUMA level, we don't
+> know which memory_block (/sys/devices/system/node/nodeX/memoryXXX) belongs
+> to which memory device. We only have node. So we can only do node hotplug.
+> 
+> But in virtualization, developers are now developing memory hotplug in qemu,
+> which support a single memory device hotplug. So a whole node hotplug will
+> not satisfy virtualization users.
+> 
+> So at last, we concluded that we'd better do memory hotplug and local node
+> things (local node node data, pagetable, vmemmap, ...) in two steps.
+> Please refer to https://lkml.org/lkml/2013/6/19/73
+
+I suppose the above three paragraphs are trying to say
+
+* A hotpluggable NUMA node may be composed of multiple memory devices
+  which individually are hot-pluggable.
+
+* pg_data_t and page tables the serving a NUMA node may be located in
+  the same node they're serving; however, if the node is composed of
+  multiple hotpluggable memory devices, the device containing them
+  should be the last one to be removed.
+
+* For physical memory hotplug, whole NUMA node hotunplugging is fine;
+  however, in virtualizied environments, finer grained hotunplugging
+  is desirable; unfortunately, there currently is no way to which
+  specific memory device pg_data_t and page tables are allocated
+  inside making it impossible to order unpluggings of memory devices
+  of a NUMA node.  To avoid the ordering problem while allowing
+  removal of subset fo a NUMA node, it has been decided that pg_data_t
+  and page tables should be allocated on a different non-hotpluggable
+  NUMA node.
+
+Am I following it correctly?  If so, can you please update the
+description?  It's quite confusing.  Also, the decision seems rather
+poorly made.  It should be trivial to allocate memory for pg_data_t
+and page tables in one end of the NUMA node and just record the
+boundary to distinguish between the area which can be removed any time
+and the other which can only be removed as a unit as the last step.
 
 Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
