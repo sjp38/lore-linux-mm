@@ -1,40 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id 2F3C96B0032
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 04:55:02 -0400 (EDT)
-Received: by mail-pb0-f48.google.com with SMTP id ma3so6561842pbc.35
-        for <linux-mm@kvack.org>; Mon, 12 Aug 2013 01:55:01 -0700 (PDT)
-Message-ID: <5208A2D7.7090102@gmail.com>
-Date: Mon, 12 Aug 2013 16:54:47 +0800
-From: Tang Chen <imtangchen@gmail.com>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id DF88A6B0032
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 05:24:00 -0400 (EDT)
+Date: Mon, 12 Aug 2013 11:23:53 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: perf, percpu: panic in account_event
+Message-ID: <20130812092353.GC27162@twins.programming.kicks-ass.net>
+References: <520016D6.8010603@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH part5 0/7] Arrange hotpluggable memory as ZONE_MOVABLE.
-References: <1375956979-31877-1-git-send-email-tangchen@cn.fujitsu.com> <20130809163220.GU20515@mtj.dyndns.org>
-In-Reply-To: <20130809163220.GU20515@mtj.dyndns.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <520016D6.8010603@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org, imtangchen@gmail.com
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: paulus@samba.org, Ingo Molnar <mingo@kernel.org>, acme@ghostprotocols.net, Tejun Heo <tj@kernel.org>, cl@linux-foundation.org, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, trinity@vger.kernel.org
 
-On 08/10/2013 12:32 AM, Tejun Heo wrote:
-> Hello,
->
-> On Thu, Aug 08, 2013 at 06:16:12PM +0800, Tang Chen wrote:
->> In previous parts' patches, we have obtained SRAT earlier enough, right after
->> memblock is ready. So this patch-set does the following things:
-> Can you please set up a git branch with all patches?
->
-> Thanks.
+On Mon, Aug 05, 2013 at 05:19:18PM -0400, Sasha Levin wrote:
+> Hi all,
+> 
+> While fuzzing with trinity inside a KVM tools guest running latest -next kernel,
+> I've stumbled on the following spew.
+> 
+> It seems to happen on the following line in account_event():
+> 
+> 	if (event->attr.freq)
+> 		atomic_inc(&per_cpu(perf_freq_events, cpu));  <--- here
+> 
 
-Please refer to :
+Right, Frederic even send a fix for this already. I suppose holidays got
+in the way of getting it merged quickly though, sorry for that.
 
-https://github.com/imtangchen/linux movablenode-boot-option
-
-It contains all 5 parts patches.
-
-Thanks.
+Merged his fix, will hopefully get it into tip soon.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
