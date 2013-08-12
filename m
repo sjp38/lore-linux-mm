@@ -1,126 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id B288F6B0034
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 15:36:01 -0400 (EDT)
-From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH] mm/hotplug: Remove stop_machine() from try_offline_node()
-Date: Mon, 12 Aug 2013 13:34:31 -0600
-Message-Id: <1376336071-9128-1-git-send-email-toshi.kani@hp.com>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 210D76B0032
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 16:10:52 -0400 (EDT)
+Subject: Re: Performance regression from switching lock to rw-sem for
+ anon-vma tree
+From: Tim Chen <tim.c.chen@linux.intel.com>
+In-Reply-To: <20130812185247.GA20451@gmail.com>
+References: <20130629071245.GA5084@gmail.com>
+	 <1372710497.22432.224.camel@schen9-DESK> <20130702064538.GB3143@gmail.com>
+	 <1373997195.22432.297.camel@schen9-DESK> <20130723094513.GA24522@gmail.com>
+	 <20130723095124.GW27075@twins.programming.kicks-ass.net>
+	 <20130723095306.GA26174@gmail.com> <1375143209.22432.419.camel@schen9-DESK>
+	 <1375833325.2134.36.camel@buesod1.americas.hpqcorp.net>
+	 <1375836988.22432.435.camel@schen9-DESK> <20130812185247.GA20451@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 12 Aug 2013 13:10:50 -0700
+Message-ID: <1376338250.22432.440.camel@schen9-DESK>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, rjw@sisk.pl, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, tangchen@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, liwanp@linux.vnet.ibm.com, Toshi Kani <toshi.kani@hp.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Davidlohr Bueso <davidlohr@hp.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, "Shi, Alex" <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-lock_device_hotplug() serializes hotplug & online/offline operations.
-The lock is held in common sysfs online/offline interfaces and ACPI
-hotplug code paths.
+On Mon, 2013-08-12 at 20:52 +0200, Ingo Molnar wrote:
+> * Tim Chen <tim.c.chen@linux.intel.com> wrote:
+> 
+> > On Tue, 2013-08-06 at 16:55 -0700, Davidlohr Bueso wrote:
+> > 
+> > > I got good numbers, recovering the performance drop I noticed with the
+> > > i_mmap_mutex to rwsem patches.
+> > 
+> > That's good.  I remembered that the earlier version of the patch not 
+> > only recovered the performance drop, but also provide some boost when 
+> > you switch from i_mmap_mutex to rwsem for aim7.  Do you see similar 
+> > boost with this version?
+> > 
+> > >  Looking forward to a more upstreamable
+> > > patchset that deals with this work, including the previous patches.
+> > > 
+> > > One thing that's bugging me about this series though is the huge amount
+> > > of duplicated code being introduced to rwsems from mutexes. We can share
+> > > common functionality such as mcs locking (perhaps in a new file under
+> > > lib/), can_spin_on_owner() and owner_running(), perhaps moving those
+> > > functions into sheduler code, were AFAIK they were originally.
+> > 
+> > I think that MCS locking is worth breaking out as its
+> > own library.  After we've done that, the rest of
+> > the duplication are minimal. It is easier
+> > to keep them separate as there are some rwsem 
+> > specific logic that may require tweaking
+> > to can_spin_on_owner and owner_running.  
+> 
+> That's what I would strongly suggest to be the approach of these patches: 
+> first the MCS locking factoring out, then changes in rwsem behavior.
+> 
+> I'd suggest the librarization should be done using inlines or so, so that 
+> we don't touch the current (pretty good) mutex.o code generation. I.e. 
+> code library only on the source code level.
+> 
+> Done that way we could also apply the librarization first, without having 
+> to worry about performance aspects. Having the code shared will also make 
+> sure that an improvement to the mutex slowpaths automatically carries over 
+> into rwems and vice versa.
 
-try_offline_node() off-lines a node if all memory sections and cpus
-are removed on the node.  It is called from acpi_processor_remove()
-and acpi_memory_remove_memory()->remove_memory() paths, both of which
-are in the ACPI hotplug code.
+Ingo and Davidlohr,
 
-try_offline_node() calls stop_machine() to stop all cpus while checking
-all cpu status with the assumption that the caller is not protected from
-CPU hotplug or CPU online/offline operations.  However, the caller is
-always serialized with lock_device_hotplug().  Also, the code needs to
-be properly serialized with a lock, not by stopping all cpus at a random
-place with stop_machine().
+Thanks for your feedbacks.  I'll spin off a set of new patches to
+incorporate your suggestions later.
 
-This patch removes the use of stop_machine() in try_offline_node() and
-adds comments to try_offline_node() and remove_memory() that
-lock_device_hotplug() is required.
-
-Signed-off-by: Toshi Kani <toshi.kani@hp.com>
----
- mm/memory_hotplug.c |   31 ++++++++++++++++++++++---------
- 1 file changed, 22 insertions(+), 9 deletions(-)
-
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index ca1dd3a..0b4b0f7 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1674,9 +1674,8 @@ static int is_memblock_offlined_cb(struct memory_block *mem, void *arg)
- 	return ret;
- }
- 
--static int check_cpu_on_node(void *data)
-+static int check_cpu_on_node(pg_data_t *pgdat)
- {
--	struct pglist_data *pgdat = data;
- 	int cpu;
- 
- 	for_each_present_cpu(cpu) {
-@@ -1691,10 +1690,9 @@ static int check_cpu_on_node(void *data)
- 	return 0;
- }
- 
--static void unmap_cpu_on_node(void *data)
-+static void unmap_cpu_on_node(pg_data_t *pgdat)
- {
- #ifdef CONFIG_ACPI_NUMA
--	struct pglist_data *pgdat = data;
- 	int cpu;
- 
- 	for_each_possible_cpu(cpu)
-@@ -1703,10 +1701,11 @@ static void unmap_cpu_on_node(void *data)
- #endif
- }
- 
--static int check_and_unmap_cpu_on_node(void *data)
-+static int check_and_unmap_cpu_on_node(pg_data_t *pgdat)
- {
--	int ret = check_cpu_on_node(data);
-+	int ret;
- 
-+	ret = check_cpu_on_node(pgdat);
- 	if (ret)
- 		return ret;
- 
-@@ -1715,11 +1714,18 @@ static int check_and_unmap_cpu_on_node(void *data)
- 	 * the cpu_to_node() now.
- 	 */
- 
--	unmap_cpu_on_node(data);
-+	unmap_cpu_on_node(pgdat);
- 	return 0;
- }
- 
--/* offline the node if all memory sections of this node are removed */
-+/**
-+ * try_offline_node
-+ *
-+ * Offline a node if all memory sections and cpus of the node are removed.
-+ *
-+ * NOTE: The caller must call lock_device_hotplug() to serialize hotplug
-+ * and online/offline operations before this call.
-+ */
- void try_offline_node(int nid)
- {
- 	pg_data_t *pgdat = NODE_DATA(nid);
-@@ -1745,7 +1751,7 @@ void try_offline_node(int nid)
- 		return;
- 	}
- 
--	if (stop_machine(check_and_unmap_cpu_on_node, pgdat, NULL))
-+	if (check_and_unmap_cpu_on_node(pgdat))
- 		return;
- 
- 	/*
-@@ -1782,6 +1788,13 @@ void try_offline_node(int nid)
- }
- EXPORT_SYMBOL(try_offline_node);
- 
-+/**
-+ * remove_memory
-+ *
-+ * NOTE: The caller must call lock_device_hotplug() to serialize hotplug
-+ * and online/offline operations before this call, as required by
-+ * try_offline_node().
-+ */
- void __ref remove_memory(int nid, u64 start, u64 size)
- {
- 	int ret;
+Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
