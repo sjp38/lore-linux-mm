@@ -1,53 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 8806F6B0062
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 18:37:27 -0400 (EDT)
-Date: Mon, 12 Aug 2013 15:37:25 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 2/2] [PATCH] mm: Save soft-dirty bits on file pages
-Message-Id: <20130812153725.6ac5135a86994e4d766723f9@linux-foundation.org>
-In-Reply-To: <CALCETrUXOoKrOAXhvd=GcK3YpBNWr2rk2ArBBgekXDv9yj7sNg@mail.gmail.com>
-References: <20130730204154.407090410@gmail.com>
-	<20130730204654.966378702@gmail.com>
-	<20130807132812.60ad4bfe85127794094d385e@linux-foundation.org>
-	<20130808145120.GA1775@moon>
-	<20130812145720.3b722b066fe1bd77291331e5@linux-foundation.org>
-	<CALCETrUXOoKrOAXhvd=GcK3YpBNWr2rk2ArBBgekXDv9yj7sNg@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id CA4DE6B006E
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 18:44:13 -0400 (EDT)
+Message-ID: <5209653A.2040303@intel.com>
+Date: Mon, 12 Aug 2013 15:44:10 -0700
+From: Dave Hansen <dave.hansen@intel.com>
+MIME-Version: 1.0
+Subject: Re: [RFC 0/3] Add madvise(..., MADV_WILLWRITE)
+References: <cover.1375729665.git.luto@amacapital.net> <20130807134058.GC12843@quack.suse.cz> <520286A4.1020101@intel.com> <CALCETrXAz1fc7y07LhmxNh6zA_KZB4yv57NY2MrhUwKdkypB9w@mail.gmail.com> <20130808101807.GB4325@quack.suse.cz> <CALCETrX1GXr58ujqAVT5_DtOx+8GEiyb9svK-SGH9d+7SXiNqQ@mail.gmail.com> <20130808185340.GA13926@quack.suse.cz> <CALCETrVXTXzXAmUsmmWxwr6vK+Vux7_pUzWPYyHjxEbn3ObABg@mail.gmail.com> <5204229F.8000507@intel.com> <20130809075523.GA14574@quack.suse.cz>
+In-Reply-To: <20130809075523.GA14574@quack.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Cyrill Gorcunov <gorcunov@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xemul@parallels.com, mpm@selenic.com, xiaoguangrong@linux.vnet.ibm.com, mtosatti@redhat.com, kosaki.motohiro@gmail.com, sfr@canb.auug.org.au, peterz@infradead.org, aneesh.kumar@linux.vnet.ibm.com, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Jan Kara <jack@suse.cz>
+Cc: Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, 12 Aug 2013 15:28:06 -0700 Andy Lutomirski <luto@amacapital.net> wrote:
-
-> > +#define _mfrob(v,r,m,l)                ((((v) >> (r)) & (m)) << (l))
-> > +#define __frob(v,r,l)          (((v) >> (r)) << (l))
-> > +
-> >  #ifdef CONFIG_MEM_SOFT_DIRTY
-> >
+On 08/09/2013 12:55 AM, Jan Kara wrote:
+> On Thu 08-08-13 15:58:39, Dave Hansen wrote:
+>> I was coincidentally tracking down what I thought was a scalability
+>> problem (turned out to be full disks :).  I noticed, though, that ext4
+>> is about 20% slower than ext2/3 at doing write page faults (x-axis is
+>> number of tasks):
+>>
+>> http://www.sr71.net/~dave/intel/page-fault-exts/cmp.html?1=ext3&2=ext4&hide=linear,threads,threads_idle,processes_idle&rollPeriod=5
+>>
+>> The test case is:
+>>
+>> 	https://github.com/antonblanchard/will-it-scale/blob/master/tests/page_fault3.c
+>   The reason is that ext2/ext3 do almost nothing in their write fault
+> handler - they are about as fast as it can get. ext4 OTOH needs to reserve
+> blocks for delayed allocation, setup buffers under a page etc. This is
+> necessary if you want to make sure that if data are written via mmap, they
+> also have space available on disk to be written to (ext2 / ext3 do not care
+> and will just drop the data on the floor if you happen to hit ENOSPC during
+> writeback).
 > 
-> If I'm understanding this right, the idea is to take the bits in the
-> range a..b of v and stick them at c..d, where a-b == c-d.  Would it
-> make sense to change this to look something like
-> 
-> #define __frob(v, inmsb, inlsb, outlsb) ((v >> inlsb) & ((1<<(inmsb -
-> inlsb + 1)-1) << outlsb)
-> 
-> For extra fun, there could be an __unfrob macro that takes the same
-> inmsg, inlsb, outlsb parameters but undoes it so that it's (more)
-> clear that the operations that are supposed to be inverses are indeed
-> inverses.
+> I'm not saying ext4 write fault path cannot possibly be optimized (noone
+> seriously looked into that AFAIK so there may well be some low hanging
+> fruit) but it will always be slower than ext2/3. A more meaningful
+> comparison would be with filesystems like XFS which make similar guarantees
+> regarding data safety.
 
-hm, I seem to remember writing
-drivers/net/ethernet/3com/3c59x.c:BFINS() and BFEXT() shortly after the
-invention of the electronic computer.
+ext4 beats xfs from what I can tell.  I ran with fewer steps to make the
+testing faster, which is to blame for the stair-stepping, btw...
 
-I'm kinda surprised that we don't already have something like this in
-kernel.h or somewhere - there's surely a ton of code which does such
-things.
+ http://www.sr71.net/~dave/intel/page-fault-exts/cmp.html?1=ext3&2=ext4&3=xfs&hide=linear,threads,threads_idle,processes_idle
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
