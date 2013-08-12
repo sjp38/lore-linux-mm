@@ -1,107 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id BB5346B0032
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 09:23:32 -0400 (EDT)
-Date: Mon, 12 Aug 2013 09:23:10 -0400
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCH v2 0/4] zcache: a compressed file page cache
-Message-ID: <20130812132310.GB3318@phenom.dumpdata.com>
-References: <1375788977-12105-1-git-send-email-bob.liu@oracle.com>
- <20130806135800.GC1048@kroah.com>
- <52010714.2090707@oracle.com>
- <20130812121908.GA3196@phenom.dumpdata.com>
- <20130812123002.GA23773@hacker.(null)>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20130812123002.GA23773@hacker.(null)>
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 058546B0032
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 09:31:34 -0400 (EDT)
+Message-ID: <1376314277.3364.0.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH v2 04/20] mm, hugetlb: remove useless check about
+ mapping type
+From: Davidlohr Bueso <davidlohr@hp.com>
+Date: Mon, 12 Aug 2013 06:31:17 -0700
+In-Reply-To: <1376040398-11212-5-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com>
+	 <1376040398-11212-5-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Bob Liu <bob.liu@oracle.com>, Greg KH <gregkh@linuxfoundation.org>, Bob Liu <lliubbo@gmail.com>, linux-mm@kvack.org, ngupta@vflare.org, akpm@linux-foundation.org, sjenning@linux.vnet.ibm.com, riel@redhat.com, mgorman@suse.de, kyungmin.park@samsung.com, p.sarna@partner.samsung.com, barry.song@csr.com, penberg@kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
 
-On Mon, Aug 12, 2013 at 08:30:02PM +0800, Wanpeng Li wrote:
-> On Mon, Aug 12, 2013 at 08:19:08AM -0400, Konrad Rzeszutek Wilk wrote:
-> >On Tue, Aug 06, 2013 at 10:24:20PM +0800, Bob Liu wrote:
-> >> Hi Greg,
-> >>=20
-> >> On 08/06/2013 09:58 PM, Greg KH wrote:
-> >> > On Tue, Aug 06, 2013 at 07:36:13PM +0800, Bob Liu wrote:
-> >> >> Dan Magenheimer extended zcache supporting both file pages and an=
-onymous pages.
-> >> >> It's located in drivers/staging/zcache now. But the current versi=
-on of zcache is
-> >> >> too complicated to be merged into upstream.
-> >> >=20
-> >> > Really?  If this is so, I'll just go delete zcache now, I don't wa=
-nt to
-> >> > lug around dead code that will never be merged.
-> >> >=20
-> >>=20
-> >> Zcache in staging have a zbud allocation which is almost the same as
-> >> mm/zbud.c but with different API and have a frontswap backend like
-> >> mm/zswap.c.
-> >> So I'd prefer reuse mm/zbud.c and mm/zswap.c for a generic memory
-> >> compression solution.
-> >> Which means in that case, zcache in staging =3D mm/zswap.c + mm/zcac=
-he.c +
-> >> mm/zbud.c.
-> >>=20
-> >> But I'm not sure if there are any existing users of zcache in stagin=
-g,
-> >> if not I can delete zcache from staging in my next version of this
-> >> mm/zcache.c series.
-> >
-> >I think the Samsung folks are using it (zcache).
-> >
->=20
-> Hi Konrad,
->=20
-> If there are real users using ramster? And if Xen project using zcache
-> and ramster in staging tree?=20
+On Fri, 2013-08-09 at 18:26 +0900, Joonsoo Kim wrote:
+> is_vma_resv_set(vma, HPAGE_RESV_OWNER) implys that this mapping is
+> for private. So we don't need to check whether this mapping is for
+> shared or not.
+> 
+> This patch is just for clean-up.
+> 
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-The Xen Project has an tmem API implementation which allows the 'tmem'
-driver (drivers/xen/tmem.c) to use it. The Linux tmem driver implements
-both frontswap and cleancache APIs. That means if a guest is running unde=
-r
-Xen it has the same benefits as if it was running baremetal and using
-zswap + zcache3 (what Bob posted, which is the cleancache backend) or
-the old zcache2 (staging/zcache).
+Reviewed-by: Davidlohr Bueso <davidlohr@hp.com>
 
-One way to think about is that the compression, deduplication, etc are
-all hoisted in the hypervisor while each of the guests pipes the
-pages up/down using hypercalls.
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index ea1ae0a..c017c52 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -2544,8 +2544,7 @@ retry_avoidcopy:
+>  	 * at the time of fork() could consume its reserves on COW instead
+>  	 * of the full address range.
+>  	 */
+> -	if (!(vma->vm_flags & VM_MAYSHARE) &&
+> -			is_vma_resv_set(vma, HPAGE_RESV_OWNER) &&
+> +	if (is_vma_resv_set(vma, HPAGE_RESV_OWNER) &&
+>  			old_page != pagecache_page)
+>  		outside_reserve = 1;
+>  
 
-Xen Project does not need to use zcache2 (staging/zcache) as it can
-get the same benefits from using tmem. Thought if the user wanted they
-can certainly use it and bypass tmem and either load zcache2 or zswap
-and zcache3 (the one Bob posted).
-
-In regards to "real users using RAMster"  - I am surmising you are
-wondering whether Oracle is offering this as a supported product to
-customers?  The answer to that is no at this time as it is still in
-development and we would want it to be out of that before Oracle
-supports it in its distributions.
-
-Now "would want" and the reality of what can be done right now
-is a bit disjoint.
-
-I think that the next step is concentrating on making zswap awesome
-and also make the zcache3 (the patches that Bob posted) in shape to
-be merged in mm.
-
-It would be fantastic if folks took a look at the patches and gave
-comments.
-
-Thanks!
-
-P.S.
-Greg, since the Samsung folks are not using it, and we (Oracle) can
-patch our distro kernel to provide sm=F6rg=E5sbord of zcache2, zswap
-and zcache3, even zcache1 if needed. I think it is safe to
-delete staging/zcache and focus on getting the zcache3 (Bob's
-patchset) upstream.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
