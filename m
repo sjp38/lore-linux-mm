@@ -1,34 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 7DBEA6B0032
-	for <linux-mm@kvack.org>; Sun, 11 Aug 2013 19:56:33 -0400 (EDT)
-Date: Mon, 12 Aug 2013 01:56:31 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [patch 9/9] mm: workingset: keep shadow entries in check
-Message-ID: <20130811235631.GO19750@two.firstfloor.org>
-References: <1375829050-12654-1-git-send-email-hannes@cmpxchg.org>
- <1375829050-12654-10-git-send-email-hannes@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1375829050-12654-10-git-send-email-hannes@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 9EE346B0032
+	for <linux-mm@kvack.org>; Sun, 11 Aug 2013 20:19:27 -0400 (EDT)
+Message-ID: <1376266763.32100.144.camel@pasglop>
+Subject: Re: [PATCH 2/2] Register bootmem pages at boot on powerpc
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Mon, 12 Aug 2013 10:19:23 +1000
+In-Reply-To: <52050B80.8010602@linux.vnet.ibm.com>
+References: <52050ACE.4090001@linux.vnet.ibm.com>
+	 <52050B80.8010602@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Ozgun Erdogan <ozgun@citusdata.com>, Metin Doslu <metin@citusdata.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Nathan Fontenot <nfont@linux.vnet.ibm.com>
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm <linux-mm@kvack.org>
 
+On Fri, 2013-08-09 at 10:32 -0500, Nathan Fontenot wrote:
 
-I really like the idea of using the spare slots in the radix tree
-for something useful. It's amazing we haven't used that before.
+> +void register_page_bootmem_memmap(unsigned long section_nr,
+> +				  struct page *start_page, unsigned long size)
+> +{
+> +	WARN_ONCE(1, KERN_INFO
+> +		  "Sparse Vmemmap not fully supported for bootmem info nodes\n");
+> +}
+>  #endif /* CONFIG_SPARSEMEM_VMEMMAP */
 
-I wonder if with some clever encoding even more information could be fit?
+But SPARSEMEM_VMEMMAP is our default on ppc64 pseries ... and you are
+select'ing the new option, so it looks like we are missing something
+here...
 
-e.g. I assume you don't really need all bits of the refault distance,
-just a good enough approximation.
+Can you tell me a bit more, the above makes me nervous...
 
--Andi
--- 
-ak@linux.intel.com -- Speaking for myself only.
+Cheers,
+Ben.
+
+> Index: powerpc/arch/powerpc/mm/mem.c
+> ===================================================================
+> --- powerpc.orig/arch/powerpc/mm/mem.c
+> +++ powerpc/arch/powerpc/mm/mem.c
+> @@ -297,12 +297,21 @@ void __init paging_init(void)
+>  }
+>  #endif /* ! CONFIG_NEED_MULTIPLE_NODES */
+> 
+> +static void __init register_page_bootmem_info(void)
+> +{
+> +	int i;
+> +
+> +	for_each_online_node(i)
+> +		register_page_bootmem_info_node(NODE_DATA(i));
+> +}
+> +
+>  void __init mem_init(void)
+>  {
+>  #ifdef CONFIG_SWIOTLB
+>  	swiotlb_init(0);
+>  #endif
+> 
+> +	register_page_bootmem_info();
+>  	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
+>  	set_max_mapnr(max_pfn);
+>  	free_all_bootmem();
+> Index: powerpc/mm/Kconfig
+> ===================================================================
+> --- powerpc.orig/mm/Kconfig
+> +++ powerpc/mm/Kconfig
+> @@ -183,7 +183,7 @@ config MEMORY_HOTPLUG_SPARSE
+>  config MEMORY_HOTREMOVE
+>  	bool "Allow for memory hot remove"
+>  	select MEMORY_ISOLATION
+> -	select HAVE_BOOTMEM_INFO_NODE if X86_64
+> +	select HAVE_BOOTMEM_INFO_NODE if (X86_64 || PPC64)
+>  	depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
+>  	depends on MIGRATION
+> 
+> 
+> _______________________________________________
+> Linuxppc-dev mailing list
+> Linuxppc-dev@lists.ozlabs.org
+> https://lists.ozlabs.org/listinfo/linuxppc-dev
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
