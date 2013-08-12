@@ -1,126 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Date: Mon, 12 Aug 2013 12:49:50 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC PATCH v2 0/4] mm: reclaim zbud pages on migration and
- compaction
-Message-ID: <20130812034950.GB18832@bbox>
-References: <1376043740-10576-1-git-send-email-k.kozlowski@samsung.com>
- <20130812022535.GA18832@bbox>
- <20130812031647.GB8043@kvack.org>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 4D7A86B0032
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 02:33:33 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id x10so3027895pdj.1
+        for <linux-mm@kvack.org>; Sun, 11 Aug 2013 23:33:32 -0700 (PDT)
+Message-ID: <520881AD.1020800@gmail.com>
+Date: Mon, 12 Aug 2013 14:33:17 +0800
+From: Tang Chen <imtangchen@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130812031647.GB8043@kvack.org>
+Subject: Re: [PATCH part5 0/7] Arrange hotpluggable memory as ZONE_MOVABLE.
+References: <1375956979-31877-1-git-send-email-tangchen@cn.fujitsu.com> <20130809163220.GU20515@mtj.dyndns.org>
+In-Reply-To: <20130809163220.GU20515@mtj.dyndns.org>
+Content-Type: multipart/alternative;
+ boundary="------------080605040401010200060007"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin LaHaise <bcrl@kvack.org>
-Cc: Krzysztof Kozlowski <k.kozlowski@samsung.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Dave Hansen <dave.hansen@intel.com>, guz.fnst@cn.fujitsu.com
+To: Tejun Heo <tj@kernel.org>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-Hello Benjamin,
+This is a multi-part message in MIME format.
+--------------080605040401010200060007
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 
-On Sun, Aug 11, 2013 at 11:16:47PM -0400, Benjamin LaHaise wrote:
-> Hello Minchan,
-> 
-> On Mon, Aug 12, 2013 at 11:25:35AM +0900, Minchan Kim wrote:
-> > Hello,
-> > 
-> > On Fri, Aug 09, 2013 at 12:22:16PM +0200, Krzysztof Kozlowski wrote:
-> > > Hi,
-> > > 
-> > > Currently zbud pages are not movable and they cannot be allocated from CMA
-> > > region. These patches try to address the problem by:
-> > 
-> > The zcache, zram and GUP pages for memory-hotplug and/or CMA are
-> > same situation.
-> > 
-> > > 1. Adding a new form of reclaim of zbud pages.
-> > > 2. Reclaiming zbud pages during migration and compaction.
-> > > 3. Allocating zbud pages with __GFP_RECLAIMABLE flag.
-> > 
-> > So I'd like to solve it with general approach.
-> > 
-> > Each subsystem or GUP caller who want to pin pages long time should
-> > create own migration handler and register the page into pin-page
-> > control subsystem like this.
-> > 
-> > driver/foo.c
-> > 
-> > int foo_migrate(struct page *page, void *private);
-> > 
-> > static struct pin_page_owner foo_migrate = {
-> >         .migrate = foo_migrate;
-> > };
-> > 
-> > int foo_allocate()
-> > {
-> >         struct page *newpage = alloc_pages();
-> >         set_pinned_page(newpage, &foo_migrate);
-> > }
-> > 
-> > And in compaction.c or somewhere where want to move/reclaim the page,
-> > general VM can ask to owner if it founds it's pinned page.
-> > 
-> > mm/compaction.c
-> > 
-> >         if (PagePinned(page)) {
-> >                 struct pin_page_info *info = get_page_pin_info(page);
-> >                 info->migrate(page);
-> >                 
-> >         }
-> > 
-> > Only hurdle for that is that we should introduce a new page flag and
-> > I believe if we all agree this approch, we can find a solution at last.
-> > 
-> > What do you think?
-> 
-> I don't like this approach.  There will be too many collisions in the 
-> hash that's been implemented (read: I don't think you can get away with 
+On 08/10/2013 12:32 AM, Tejun Heo wrote:
+> Hello,
+>
+> On Thu, Aug 08, 2013 at 06:16:12PM +0800, Tang Chen wrote:
+>> In previous parts' patches, we have obtained SRAT earlier enough, right after
+>> memblock is ready. So this patch-set does the following things:
+> Can you please set up a git branch with all patches?
+Hi tj,
 
-Yeb. That's why I'd like to change it with radix tree of pfn as
-I mentioned as comment(just used hash for fast prototyping without big
-considering).
+Please refer to the following tree:
+https://github.com/imtangchen/linux movablenode-boot-option
 
-> a naive implementation for core infrastructure that has to suite all 
-> users), you've got a global spin lock, and it doesn't take into account 
+It contains all 5 parts patches.
 
-I think batching-drain of pinned page would be sufficient for avoiding
-global spinlock problem because we have been used it with page-allocator
-which is one of most critical hotpath.
+Thanks.
 
-> NUMA issues.  The address space migratepage method doesn't have those 
+>
+>
 
-NUMA issues? Could you elaborate it a bit?
 
-> issues (at least where it is usable as in aio's use-case).
-> 
-> If you're going to go down this path, you'll have to decide if *all* users 
-> of pinned pages are going to have to subscribe to supporting the un-pinning 
-> of pages, and that means taking a real hard look at how O_DIRECT pins pages.  
-> Once you start thinking about that, you'll find that addressing the 
-> performance concerns is going to be an essential part of any design work to 
-> be done in this area.
+--------------080605040401010200060007
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 
-True. The patch I included just shows the cocnept so I didn't consider any
-performance critical part but if we all agree this arpproch does make sense
-and we can implement little overhead, I will step into next phase to enhance
-performance.
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    On 08/10/2013 12:32 AM, Tejun Heo wrote:
+    <blockquote cite="mid:20130809163220.GU20515@mtj.dyndns.org"
+      type="cite">
+      <pre wrap="">Hello,
 
-Thanks for the input, Ben!
+On Thu, Aug 08, 2013 at 06:16:12PM +0800, Tang Chen wrote:
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">In previous parts' patches, we have obtained SRAT earlier enough, right after
+memblock is ready. So this patch-set does the following things:
+</pre>
+      </blockquote>
+      <pre wrap="">
+Can you please set up a git branch with all patches?</pre>
+    </blockquote>
+    Hi tj,<br>
+    <br>
+    Please refer to the following tree:<br>
+    <meta http-equiv="content-type" content="text/html;
+      charset=ISO-8859-1">
+    <a href="https://github.com/imtangchen/linux">https://github.com/imtangchen/linux</a>
+    movablenode-boot-option<br>
+    <br>
+    It contains all 5 parts patches.<br>
+    <br>
+    Thanks.<br>
+    <br>
+    <blockquote cite="mid:20130809163220.GU20515@mtj.dyndns.org"
+      type="cite">
+      <pre wrap="">
 
-> 
-> 		-ben
-> -- 
-> "Thought is the essence of where you are now."
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
--- 
-Kind regards,
-Minchan Kim
+</pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+
+--------------080605040401010200060007--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
