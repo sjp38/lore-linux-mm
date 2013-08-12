@@ -1,8 +1,11 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2] mm/hotplug: Verify hotplug memory range
-Date: Mon, 12 Aug 2013 07:37:22 +0800
-Message-ID: <40126.9620554105$1376264273@news.gmane.org>
-References: <1376162252-26074-1-git-send-email-toshi.kani@hp.com>
+Subject: Re: [PATCH v2 0/4] zcache: a compressed file page cache
+Date: Mon, 12 Aug 2013 20:30:02 +0800
+Message-ID: <19830.7898747318$1376310629@news.gmane.org>
+References: <1375788977-12105-1-git-send-email-bob.liu@oracle.com>
+ <20130806135800.GC1048@kroah.com>
+ <52010714.2090707@oracle.com>
+ <20130812121908.GA3196@phenom.dumpdata.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -10,109 +13,68 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1V8fCg-00045a-VA
-	for glkm-linux-mm-2@m.gmane.org; Mon, 12 Aug 2013 01:37:43 +0200
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 03BE36B0033
-	for <linux-mm@kvack.org>; Sun, 11 Aug 2013 19:37:39 -0400 (EDT)
+	id 1V8rGL-0002Qg-PZ
+	for glkm-linux-mm-2@m.gmane.org; Mon, 12 Aug 2013 14:30:18 +0200
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 47F736B0032
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 08:30:15 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 12 Aug 2013 09:30:38 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 637FA2CE804D
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 09:37:26 +1000 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7BNbFpV56164382
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 09:37:15 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r7BNbOwu001420
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 09:37:25 +1000
+	Mon, 12 Aug 2013 17:54:28 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 762BD394004E
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 17:59:58 +0530 (IST)
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7CCVLx139452692
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 18:01:24 +0530
+Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7CCU3Uk015358
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 18:00:04 +0530
 Content-Disposition: inline
-In-Reply-To: <1376162252-26074-1-git-send-email-toshi.kani@hp.com>
+In-Reply-To: <20130812121908.GA3196@phenom.dumpdata.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, dave@sr71.net, isimatu.yasuaki@jp.fujitsu.com, tangchen@cn.fujitsu.com, vasilis.liaskovitis@profitbricks.com, Toshi Kani <toshi.kani@hp.com>
+To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: Bob Liu <bob.liu@oracle.com>, Greg KH <gregkh@linuxfoundation.org>, Bob Liu <lliubbo@gmail.com>, linux-mm@kvack.org, ngupta@vflare.org, akpm@linux-foundation.org, sjenning@linux.vnet.ibm.com, riel@redhat.com, mgorman@suse.de, kyungmin.park@samsung.com, p.sarna@partner.samsung.com, barry.song@csr.com, penberg@kernel.org
 
-On Sat, Aug 10, 2013 at 01:17:32PM -0600, Toshi Kani wrote:
->add_memory() and remove_memory() can only handle a memory range aligned
->with section.  There are problems when an unaligned range is added and
->then deleted as follows:
+On Mon, Aug 12, 2013 at 08:19:08AM -0400, Konrad Rzeszutek Wilk wrote:
+>On Tue, Aug 06, 2013 at 10:24:20PM +0800, Bob Liu wrote:
+>> Hi Greg,
+>> 
+>> On 08/06/2013 09:58 PM, Greg KH wrote:
+>> > On Tue, Aug 06, 2013 at 07:36:13PM +0800, Bob Liu wrote:
+>> >> Dan Magenheimer extended zcache supporting both file pages and anonymous pages.
+>> >> It's located in drivers/staging/zcache now. But the current version of zcache is
+>> >> too complicated to be merged into upstream.
+>> > 
+>> > Really?  If this is so, I'll just go delete zcache now, I don't want to
+>> > lug around dead code that will never be merged.
+>> > 
+>> 
+>> Zcache in staging have a zbud allocation which is almost the same as
+>> mm/zbud.c but with different API and have a frontswap backend like
+>> mm/zswap.c.
+>> So I'd prefer reuse mm/zbud.c and mm/zswap.c for a generic memory
+>> compression solution.
+>> Which means in that case, zcache in staging = mm/zswap.c + mm/zcache.c +
+>> mm/zbud.c.
+>> 
+>> But I'm not sure if there are any existing users of zcache in staging,
+>> if not I can delete zcache from staging in my next version of this
+>> mm/zcache.c series.
 >
-> - add_memory() with an unaligned range succeeds, but __add_pages()
->   called from add_memory() adds a whole section of pages even though
->   a given memory range is less than the section size.
-> - remove_memory() to the added unaligned range hits BUG_ON() in
->   __remove_pages().
+>I think the Samsung folks are using it (zcache).
 >
->This patch changes add_memory() and remove_memory() to check if a given
->memory range is aligned with section at the beginning.  As the result,
->add_memory() fails with -EINVAL when a given range is unaligned, and
->does not add such memory range.  This prevents remove_memory() to be
->called with an unaligned range as well.  Note that remove_memory() has
->to use BUG_ON() since this function cannot fail.
->
->Signed-off-by: Toshi Kani <toshi.kani@hp.com>
->Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->Reviewed-by: Tang Chen <tangchen@cn.fujitsu.com>
 
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Hi Konrad,
 
->---
->v2: Updated the error message.
->
->---
-> mm/memory_hotplug.c |   22 ++++++++++++++++++++++
-> 1 file changed, 22 insertions(+)
->
->diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->index ca1dd3a..3bb1f39 100644
->--- a/mm/memory_hotplug.c
->+++ b/mm/memory_hotplug.c
->@@ -1069,6 +1069,22 @@ out:
-> 	return ret;
-> }
->
->+static int check_hotplug_memory_range(u64 start, u64 size)
->+{
->+	u64 start_pfn = start >> PAGE_SHIFT;
->+	u64 nr_pages = size >> PAGE_SHIFT;
->+
->+	/* Memory range must be aligned with section */
->+	if ((start_pfn & ~PAGE_SECTION_MASK) ||
->+	    (nr_pages % PAGES_PER_SECTION) || (!nr_pages)) {
->+		pr_err("Section-unaligned hotplug range: start 0x%llx, size 0x%llx\n",
->+				start, size);
->+		return -EINVAL;
->+	}
->+
->+	return 0;
->+}
->+
-> /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
-> int __ref add_memory(int nid, u64 start, u64 size)
-> {
->@@ -1078,6 +1094,10 @@ int __ref add_memory(int nid, u64 start, u64 size)
-> 	struct resource *res;
-> 	int ret;
->
->+	ret = check_hotplug_memory_range(start, size);
->+	if (ret)
->+		return ret;
->+
-> 	lock_memory_hotplug();
->
-> 	res = register_memory_resource(start, size);
->@@ -1786,6 +1806,8 @@ void __ref remove_memory(int nid, u64 start, u64 size)
-> {
-> 	int ret;
->
->+	BUG_ON(check_hotplug_memory_range(start, size));
->+
-> 	lock_memory_hotplug();
->
-> 	/*
->
+If there are real users using ramster? And if Xen project using zcache
+and ramster in staging tree? 
+
+Regards,
+Wanpeng Li 
+
 >--
 >To unsubscribe, send a message with 'unsubscribe linux-mm' in
 >the body to majordomo@kvack.org.  For more info on Linux MM,
