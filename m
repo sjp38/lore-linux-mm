@@ -1,119 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id DCC356B0032
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 14:23:31 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id fa1so7859208pad.19
-        for <linux-mm@kvack.org>; Mon, 12 Aug 2013 11:23:31 -0700 (PDT)
-Message-ID: <52092811.3020105@gmail.com>
-Date: Tue, 13 Aug 2013 02:23:13 +0800
-From: Tang Chen <imtangchen@gmail.com>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id E8B166B0032
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 14:52:52 -0400 (EDT)
+Received: by mail-ea0-f180.google.com with SMTP id h10so3641675eaj.39
+        for <linux-mm@kvack.org>; Mon, 12 Aug 2013 11:52:51 -0700 (PDT)
+Date: Mon, 12 Aug 2013 20:52:47 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: Performance regression from switching lock to rw-sem for
+ anon-vma tree
+Message-ID: <20130812185247.GA20451@gmail.com>
+References: <20130629071245.GA5084@gmail.com>
+ <1372710497.22432.224.camel@schen9-DESK>
+ <20130702064538.GB3143@gmail.com>
+ <1373997195.22432.297.camel@schen9-DESK>
+ <20130723094513.GA24522@gmail.com>
+ <20130723095124.GW27075@twins.programming.kicks-ass.net>
+ <20130723095306.GA26174@gmail.com>
+ <1375143209.22432.419.camel@schen9-DESK>
+ <1375833325.2134.36.camel@buesod1.americas.hpqcorp.net>
+ <1375836988.22432.435.camel@schen9-DESK>
 MIME-Version: 1.0
-Subject: Re: [PATCH part5 0/7] Arrange hotpluggable memory as ZONE_MOVABLE.
-References: <1375956979-31877-1-git-send-email-tangchen@cn.fujitsu.com> <20130812145016.GI15892@htj.dyndns.org> <5208FBBC.2080304@zytor.com> <20130812152343.GK15892@htj.dyndns.org> <52090D7F.6060600@gmail.com> <20130812164650.GN15892@htj.dyndns.org>
-In-Reply-To: <20130812164650.GN15892@htj.dyndns.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1375836988.22432.435.camel@schen9-DESK>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org, "Luck, Tony (tony.luck@intel.com)" <tony.luck@intel.com>
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Davidlohr Bueso <davidlohr@hp.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, "Shi, Alex" <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-On 08/13/2013 12:46 AM, Tejun Heo wrote:
-> Hello, Tang.
-......
->
->> But, different users have different ways to use memory hotplug.
->>
->> Hotswaping any particular chunk of memory is the goal we will reach
->> finally. But it is on specific hardware. In most current machines, we
->> can use movable node to manage resource in node unit.
->>
->> And also, without this movablenode boot option, the MOVABLE_NODE
->> functionality, which is already in the kernel, will not be able to
->> work. All nodes has kernel memory means no movable node.
->>
->> So, how about this: Just like MOVABLE_NODE functionality, introduce
->> a new config option. When we have better solutions for memory hotplug,
->> we shutoff or remove the config and related code.
->>
->> For now, at least make movable node work.
 
-Hi tj,
-cc hpa,
+* Tim Chen <tim.c.chen@linux.intel.com> wrote:
 
-I explained above because hpa said he thought the whole approach is
-wrong. I think node hotplug is meaningful for users. And without this
-patch-set, MOVABLE_NODE means nothing. This is all above.
+> On Tue, 2013-08-06 at 16:55 -0700, Davidlohr Bueso wrote:
+> 
+> > I got good numbers, recovering the performance drop I noticed with the
+> > i_mmap_mutex to rwsem patches.
+> 
+> That's good.  I remembered that the earlier version of the patch not 
+> only recovered the performance drop, but also provide some boost when 
+> you switch from i_mmap_mutex to rwsem for aim7.  Do you see similar 
+> boost with this version?
+> 
+> >  Looking forward to a more upstreamable
+> > patchset that deals with this work, including the previous patches.
+> > 
+> > One thing that's bugging me about this series though is the huge amount
+> > of duplicated code being introduced to rwsems from mutexes. We can share
+> > common functionality such as mcs locking (perhaps in a new file under
+> > lib/), can_spin_on_owner() and owner_running(), perhaps moving those
+> > functions into sheduler code, were AFAIK they were originally.
+> 
+> I think that MCS locking is worth breaking out as its
+> own library.  After we've done that, the rest of
+> the duplication are minimal. It is easier
+> to keep them separate as there are some rwsem 
+> specific logic that may require tweaking
+> to can_spin_on_owner and owner_running.  
 
-Since you replied his email in previous emails, I just replied to
-answer both of you. Sorry for the misunderstanding. :)
+That's what I would strongly suggest to be the approach of these patches: 
+first the MCS locking factoring out, then changes in rwsem behavior.
 
->
-> We are talking completely past each other.  I'll just try to clarify
-> what I was saying.  Can you please do the same?  Let's re-sync on the
-> discussion.
->
-> * Adding an option to tell the kernel to try to stay away from
->    hotpluggable nodes is fine.  I have no problem with that at all.
+I'd suggest the librarization should be done using inlines or so, so that 
+we don't touch the current (pretty good) mutex.o code generation. I.e. 
+code library only on the source code level.
 
-Agreed.
+Done that way we could also apply the librarization first, without having 
+to worry about performance aspects. Having the code shared will also make 
+sure that an improvement to the mutex slowpaths automatically carries over 
+into rwems and vice versa.
 
->
-> * The patchsets upto this point have been somehow trying to reorder
->    operations shomehow such that *no* memory allocation happens before
->    memblock is populated with hotplug information.
+Thanks,
 
-Yes, this is exactly what I want to do.
-
->
-> * However, we already *know* that the memory the kernel image is
->    occupying won't be removeable.  It's highly likely that the amount
->    of memory allocation before NUMA / hotplug information is fully
->    populated is pretty small.  Also, it's highly likely that small
->    amount of memory right after the kernel image is contained in the
->    same NUMA node, so if we allocate memory close to the kernel image,
->    it's likely that we don't contaminate hotpluggable node.  We're
->    talking about few megs at most right after the kernel image.  I
->    can't see how that would make any noticeable difference.
-
-This point, I don't quite agree. What you said is highly likely, but
-not definitely. Users may find they lost hotpluggable memory.
-
-The node the kernel resides in won't be removable. This is agreed.
-But I still want SRAT earlier for the following reasons:
-
-1. For a production provided to users, the firmware specified how
-    many nodes are hotpluggable. When the system is up, if users
-    found they lost movable nodes, I think it could be messy.
-
-2. Reorder SRAT parsing earlier is not that difficult to do. The
-    only procedures reordered are acpi tables initialization and
-    acpi_initrd_override. The acpi part patches are being reviewed.
-    And it is better solution. If possible, I think we should do it.
-
-In summary, I don't want early memory allocation with hotpluggable
-memory to be opportunistic.
-
->
-> * Once hotplug information is available, allocation can happen as
->    usual and the kernel can report the nodes which are actually
->    hotpluggable - marked as hotpluggable by the firmware&&  didn't get
->    contaminated during early alloc&&  didn't get overflow allocations
->    afterwards.  Note that we need such mechanism no matter what as the
->    kernel image can be loaded into hotpluggable nodes and reporting
->    that to userland is the only thing the kernel can do for cases like
->    that short of denying memory unplug on such nodes.
-
-Agreed.
-
->
-> The whole thing would be a lot simpler and generic.  It doesn't even
-> have to care about which mechanism is being used to acquire all those
-> information.  What am I missing here?
-
-Sorry for the misunderstanding.
-
-Thanks. :)
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
