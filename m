@@ -1,40 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id D78256B0033
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 09:51:51 -0400 (EDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <93894D4C-57FA-46B5-9141-4EFADEB7009E@gmail.com>
-References: <93894D4C-57FA-46B5-9141-4EFADEB7009E@gmail.com>
-Subject: RE: [PATCH] thp: Fix deadlock situation in vma_adjust with huge page
- in page cache
-Content-Transfer-Encoding: 7bit
-Message-Id: <20130812135509.DDF5FE0090@blue.fi.intel.com>
-Date: Mon, 12 Aug 2013 16:55:09 +0300 (EEST)
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id A8B766B0033
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 10:15:56 -0400 (EDT)
+Received: by mail-vb0-f50.google.com with SMTP id x14so5752983vbb.37
+        for <linux-mm@kvack.org>; Mon, 12 Aug 2013 07:15:55 -0700 (PDT)
+Date: Mon, 12 Aug 2013 10:15:51 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH part2 1/4] acpi: Print Hot-Pluggable Field in SRAT.
+Message-ID: <20130812141551.GD15892@htj.dyndns.org>
+References: <1375938239-18769-1-git-send-email-tangchen@cn.fujitsu.com>
+ <1375938239-18769-2-git-send-email-tangchen@cn.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1375938239-18769-2-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ning Qu <quning@gmail.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-fsdevel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Dave Hansen <dave@sr71.net>, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Ning Qu <quning@google.com>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-Ning Qu wrote:
-> In vma_adjust, the current code grabs i_mmap_mutex before calling
-> vma_adjust_trans_huge. This used to be fine until huge page in page
-> cache comes in. The problem is the underlying function
-> split_file_huge_page will also grab the i_mmap_mutex before splitting
-> the huge page in page cache. Obviously this is causing deadlock
-> situation.
-> 
-> This fix is to move the vma_adjust_trans_huge before grab the lock for
-> file, the same as what the function is currently doing for anonymous
-> memory.
-> 
-> Tested, everything works fine so far.
-> 
-> Signed-off-by: Ning Qu <quning@google.com>
+On Thu, Aug 08, 2013 at 01:03:56PM +0800, Tang Chen wrote:
+> +	pr_info("SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]%s\n",
+> +		node, pxm,
+> +		(unsigned long long) start, (unsigned long long) end - 1,
+> +		hotpluggable ? " Hot Pluggable" : "");
 
-Thanks, applied.
+Wouldn't it be better to just print "hotplug"?
+
+Thanks.
 
 -- 
- Kirill A. Shutemov
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
