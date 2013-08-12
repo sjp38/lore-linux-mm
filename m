@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id E27A46B0034
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 10:39:15 -0400 (EDT)
-Received: by mail-ve0-f169.google.com with SMTP id db10so5656834veb.14
-        for <linux-mm@kvack.org>; Mon, 12 Aug 2013 07:39:14 -0700 (PDT)
-Date: Mon, 12 Aug 2013 10:39:10 -0400
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 8FCFE6B0037
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 10:50:21 -0400 (EDT)
+Received: by mail-vb0-f46.google.com with SMTP id p13so5797592vbe.19
+        for <linux-mm@kvack.org>; Mon, 12 Aug 2013 07:50:20 -0700 (PDT)
+Date: Mon, 12 Aug 2013 10:50:16 -0400
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH part5 1/7] x86: get pg_data_t's memory from other node
-Message-ID: <20130812143910.GH15892@htj.dyndns.org>
+Subject: Re: [PATCH part5 0/7] Arrange hotpluggable memory as ZONE_MOVABLE.
+Message-ID: <20130812145016.GI15892@htj.dyndns.org>
 References: <1375956979-31877-1-git-send-email-tangchen@cn.fujitsu.com>
- <1375956979-31877-2-git-send-email-tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1375956979-31877-2-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1375956979-31877-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tang Chen <tangchen@cn.fujitsu.com>
@@ -21,50 +20,44 @@ Cc: robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tg
 
 Hello,
 
-The subject is a bit misleading.  Maybe it should say "allow getting
-..." rather than "get ..."?
-
-On Thu, Aug 08, 2013 at 06:16:13PM +0800, Tang Chen wrote:
-....
-> A node could have several memory devices. And the device who holds node
-> data should be hot-removed in the last place. But in NUMA level, we don't
-> know which memory_block (/sys/devices/system/node/nodeX/memoryXXX) belongs
-> to which memory device. We only have node. So we can only do node hotplug.
+On Thu, Aug 08, 2013 at 06:16:12PM +0800, Tang Chen wrote:
+> [How we do this]
 > 
-> But in virtualization, developers are now developing memory hotplug in qemu,
-> which support a single memory device hotplug. So a whole node hotplug will
-> not satisfy virtualization users.
+> In ACPI, SRAT(System Resource Affinity Table) contains NUMA info. The memory
+> affinities in SRAT record every memory range in the system, and also, flags
+> specifying if the memory range is hotpluggable.
+> (Please refer to ACPI spec 5.0 5.2.16)
 > 
-> So at last, we concluded that we'd better do memory hotplug and local node
-> things (local node node data, pagetable, vmemmap, ...) in two steps.
-> Please refer to https://lkml.org/lkml/2013/6/19/73
+> With the help of SRAT, we have to do the following two things to achieve our
+> goal:
+> 
+> 1. When doing memory hot-add, allow the users arranging hotpluggable as
+>    ZONE_MOVABLE.
+>    (This has been done by the MOVABLE_NODE functionality in Linux.)
+> 
+> 2. when the system is booting, prevent bootmem allocator from allocating
+>    hotpluggable memory for the kernel before the memory initialization
+>    finishes.
+>    (This is what we are going to do. See below.)
 
-I suppose the above three paragraphs are trying to say
+I think it's in a much better shape than before but there still are a
+couple things bothering me.
 
-* A hotpluggable NUMA node may be composed of multiple memory devices
-  which individually are hot-pluggable.
+* Why can't it be opportunistic?  It's silly, for example, to fail
+  boot because ACPI tells the kernel that all memory is hotpluggable
+  especially as there'd be plenty of memory sitting around doing
+  nothing and failing to boot is one of the most grave failure mode.
+  The HOTPLUG flag can be advisory, right?  Try to allocate
+  !hotpluggable memory first, but if that fails, ignore it and
+  allocate from anywhere, much like the try_nid allocations.
 
-* pg_data_t and page tables the serving a NUMA node may be located in
-  the same node they're serving; however, if the node is composed of
-  multiple hotpluggable memory devices, the device containing them
-  should be the last one to be removed.
-
-* For physical memory hotplug, whole NUMA node hotunplugging is fine;
-  however, in virtualizied environments, finer grained hotunplugging
-  is desirable; unfortunately, there currently is no way to which
-  specific memory device pg_data_t and page tables are allocated
-  inside making it impossible to order unpluggings of memory devices
-  of a NUMA node.  To avoid the ordering problem while allowing
-  removal of subset fo a NUMA node, it has been decided that pg_data_t
-  and page tables should be allocated on a different non-hotpluggable
-  NUMA node.
-
-Am I following it correctly?  If so, can you please update the
-description?  It's quite confusing.  Also, the decision seems rather
-poorly made.  It should be trivial to allocate memory for pg_data_t
-and page tables in one end of the NUMA node and just record the
-boundary to distinguish between the area which can be removed any time
-and the other which can only be removed as a unit as the last step.
+* Similar to the point hpa raised.  If this can be made opportunistic,
+  do we need the strict reordering to discover things earlier?
+  Shouldn't it be possible to configure memblock to allocate close to
+  the kernel image until hotplug and numa information is available?
+  For most sane cases, the memory allocated will be contained in
+  non-hotpluggable node anyway and in case they aren't hotplug
+  wouldn't work but the system will boot and function perfectly fine.
 
 Thanks.
 
