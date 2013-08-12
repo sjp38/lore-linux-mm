@@ -1,53 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id CA4DE6B006E
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 18:44:13 -0400 (EDT)
-Message-ID: <5209653A.2040303@intel.com>
-Date: Mon, 12 Aug 2013 15:44:10 -0700
-From: Dave Hansen <dave.hansen@intel.com>
-MIME-Version: 1.0
-Subject: Re: [RFC 0/3] Add madvise(..., MADV_WILLWRITE)
-References: <cover.1375729665.git.luto@amacapital.net> <20130807134058.GC12843@quack.suse.cz> <520286A4.1020101@intel.com> <CALCETrXAz1fc7y07LhmxNh6zA_KZB4yv57NY2MrhUwKdkypB9w@mail.gmail.com> <20130808101807.GB4325@quack.suse.cz> <CALCETrX1GXr58ujqAVT5_DtOx+8GEiyb9svK-SGH9d+7SXiNqQ@mail.gmail.com> <20130808185340.GA13926@quack.suse.cz> <CALCETrVXTXzXAmUsmmWxwr6vK+Vux7_pUzWPYyHjxEbn3ObABg@mail.gmail.com> <5204229F.8000507@intel.com> <20130809075523.GA14574@quack.suse.cz>
-In-Reply-To: <20130809075523.GA14574@quack.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 5D07F6B0036
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 19:05:34 -0400 (EDT)
+Date: Mon, 12 Aug 2013 16:05:32 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/1] pagemap: fix buffer overflow in add_page_map()
+Message-Id: <20130812160532.da47cac556196bf9c4356a83@linux-foundation.org>
+In-Reply-To: <CAMyfujfZayb8_673vkb2hdE9J_w+wPTD4aQ6TsY+aWxb9EzY8A@mail.gmail.com>
+References: <CAMyfujfZayb8_673vkb2hdE9J_w+wPTD4aQ6TsY+aWxb9EzY8A@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-kernel@vger.kernel.org
+To: yonghua zheng <younghua.zheng@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Motohiro KOSAKI <kosaki.motohiro@gmail.com>
 
-On 08/09/2013 12:55 AM, Jan Kara wrote:
-> On Thu 08-08-13 15:58:39, Dave Hansen wrote:
->> I was coincidentally tracking down what I thought was a scalability
->> problem (turned out to be full disks :).  I noticed, though, that ext4
->> is about 20% slower than ext2/3 at doing write page faults (x-axis is
->> number of tasks):
->>
->> http://www.sr71.net/~dave/intel/page-fault-exts/cmp.html?1=ext3&2=ext4&hide=linear,threads,threads_idle,processes_idle&rollPeriod=5
->>
->> The test case is:
->>
->> 	https://github.com/antonblanchard/will-it-scale/blob/master/tests/page_fault3.c
->   The reason is that ext2/ext3 do almost nothing in their write fault
-> handler - they are about as fast as it can get. ext4 OTOH needs to reserve
-> blocks for delayed allocation, setup buffers under a page etc. This is
-> necessary if you want to make sure that if data are written via mmap, they
-> also have space available on disk to be written to (ext2 / ext3 do not care
-> and will just drop the data on the floor if you happen to hit ENOSPC during
-> writeback).
+On Fri, 9 Aug 2013 13:16:41 +0800 yonghua zheng <younghua.zheng@gmail.com> wrote:
+
+> Hi,
 > 
-> I'm not saying ext4 write fault path cannot possibly be optimized (noone
-> seriously looked into that AFAIK so there may well be some low hanging
-> fruit) but it will always be slower than ext2/3. A more meaningful
-> comparison would be with filesystems like XFS which make similar guarantees
-> regarding data safety.
+> Recently we met quite a lot of random kernel panic issues after enable
+> CONFIG_PROC_PAGE_MONITOR in kernel, after debuggint sometime we found
+> this has something to do with following bug in pagemap:
+> 
+> In struc pagemapread:
+> 
+> struct pagemapread {
+>     int pos, len;
+>     pagemap_entry_t *buffer;
+>     bool v2;
+> };
+> 
+> pos is number of PM_ENTRY_BYTES in buffer, but len is the size of buffer,
+> it is a mistake to compare pos and len in add_page_map() for checking
+> buffer is full or not, and this can lead to buffer overflow and random
+> kernel panic issue.
+> 
+> Correct len to be total number of PM_ENTRY_BYTES in buffer.
+> 
+> Signed-off-by: Yonghua Zheng <younghua.zheng@gmail.com>
+> ---
+>  fs/proc/task_mmu.c |    4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index dbf61f6..cb98853 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -1116,8 +1116,8 @@ static ssize_t pagemap_read(struct file *file,
+> char __user *buf,
+>          goto out_task;
+> 
+>      pm.v2 = soft_dirty_cleared;
+> -    pm.len = PM_ENTRY_BYTES * (PAGEMAP_WALK_SIZE >> PAGE_SHIFT);
+> -    pm.buffer = kmalloc(pm.len, GFP_TEMPORARY);
+> +    pm.len = (PAGEMAP_WALK_SIZE >> PAGE_SHIFT);
+> +    pm.buffer = kmalloc(pm.len * PM_ENTRY_BYTES, GFP_TEMPORARY);
+>      ret = -ENOMEM;
+>      if (!pm.buffer)
+>          goto out_task;
 
-ext4 beats xfs from what I can tell.  I ran with fewer steps to make the
-testing faster, which is to blame for the stair-stepping, btw...
+Yes, that's a bug.  I'd propose this addition to your fix:
 
- http://www.sr71.net/~dave/intel/page-fault-exts/cmp.html?1=ext3&2=ext4&3=xfs&hide=linear,threads,threads_idle,processes_idle
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: pagemap-fix-buffer-overflow-in-add_page_map-fix
+
+document pagemapread.pos and .len units, fix PM_ENTRY_BYTES definition
+
+Cc: Yonghua Zheng <younghua.zheng@gmail.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ fs/proc/task_mmu.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff -puN fs/proc/task_mmu.c~pagemap-fix-buffer-overflow-in-add_page_map-fix fs/proc/task_mmu.c
+--- a/fs/proc/task_mmu.c~pagemap-fix-buffer-overflow-in-add_page_map-fix
++++ a/fs/proc/task_mmu.c
+@@ -868,7 +868,7 @@ typedef struct {
+ } pagemap_entry_t;
+ 
+ struct pagemapread {
+-	int pos, len;
++	int pos, len;		/* units: PM_ENTRY_BYTES, not bytes */
+ 	pagemap_entry_t *buffer;
+ 	bool v2;
+ };
+@@ -876,7 +876,7 @@ struct pagemapread {
+ #define PAGEMAP_WALK_SIZE	(PMD_SIZE)
+ #define PAGEMAP_WALK_MASK	(PMD_MASK)
+ 
+-#define PM_ENTRY_BYTES      sizeof(u64)
++#define PM_ENTRY_BYTES      sizeof(pagemap_entry_t)
+ #define PM_STATUS_BITS      3
+ #define PM_STATUS_OFFSET    (64 - PM_STATUS_BITS)
+ #define PM_STATUS_MASK      (((1LL << PM_STATUS_BITS) - 1) << PM_STATUS_OFFSET)
+_
 
 
+btw, your email client wordwraps the patches and replaces tabs with
+spaces.  Please fix that up for next time?  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
