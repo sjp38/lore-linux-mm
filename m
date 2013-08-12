@@ -1,89 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 9EE346B0032
-	for <linux-mm@kvack.org>; Sun, 11 Aug 2013 20:19:27 -0400 (EDT)
-Message-ID: <1376266763.32100.144.camel@pasglop>
-Subject: Re: [PATCH 2/2] Register bootmem pages at boot on powerpc
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Mon, 12 Aug 2013 10:19:23 +1000
-In-Reply-To: <52050B80.8010602@linux.vnet.ibm.com>
-References: <52050ACE.4090001@linux.vnet.ibm.com>
-	 <52050B80.8010602@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 162696B0032
+	for <linux-mm@kvack.org>; Sun, 11 Aug 2013 21:55:09 -0400 (EDT)
+From: Lisa Du <cldu@marvell.com>
+Date: Sun, 11 Aug 2013 18:46:08 -0700
+Subject: [resend] [PATCH V3] mm: vmscan: fix do_try_to_free_pages() livelock
+Message-ID: <89813612683626448B837EE5A0B6A7CB3B631767D7@SC-VEXCH4.marvell.com>
+References: <89813612683626448B837EE5A0B6A7CB3B630BE80B@SC-VEXCH4.marvell.com>
+ <20130805074146.GD10146@dhcp22.suse.cz>
+ <89813612683626448B837EE5A0B6A7CB3B630BED6B@SC-VEXCH4.marvell.com>
+ <20130806103543.GA31138@dhcp22.suse.cz>
+ <89813612683626448B837EE5A0B6A7CB3B63175BCA@SC-VEXCH4.marvell.com>
+ <20130808181426.GI715@cmpxchg.org>
+In-Reply-To: <20130808181426.GI715@cmpxchg.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nathan Fontenot <nfont@linux.vnet.ibm.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm <linux-mm@kvack.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Minchan Kim <minchan@kernel.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Bob Liu <lliubbo@gmail.com>, Neil Zhang <zhangwm@marvell.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Aaditya Kumar <aaditya.kumar.30@gmail.com>, "yinghan@google.com" <yinghan@google.com>, "npiggin@gmail.com" <npiggin@gmail.com>, "riel@redhat.com" <riel@redhat.com>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Fri, 2013-08-09 at 10:32 -0500, Nathan Fontenot wrote:
-
-> +void register_page_bootmem_memmap(unsigned long section_nr,
-> +				  struct page *start_page, unsigned long size)
-> +{
-> +	WARN_ONCE(1, KERN_INFO
-> +		  "Sparse Vmemmap not fully supported for bootmem info nodes\n");
-> +}
->  #endif /* CONFIG_SPARSEMEM_VMEMMAP */
-
-But SPARSEMEM_VMEMMAP is our default on ppc64 pseries ... and you are
-select'ing the new option, so it looks like we are missing something
-here...
-
-Can you tell me a bit more, the above makes me nervous...
-
-Cheers,
-Ben.
-
-> Index: powerpc/arch/powerpc/mm/mem.c
-> ===================================================================
-> --- powerpc.orig/arch/powerpc/mm/mem.c
-> +++ powerpc/arch/powerpc/mm/mem.c
-> @@ -297,12 +297,21 @@ void __init paging_init(void)
->  }
->  #endif /* ! CONFIG_NEED_MULTIPLE_NODES */
-> 
-> +static void __init register_page_bootmem_info(void)
-> +{
-> +	int i;
-> +
-> +	for_each_online_node(i)
-> +		register_page_bootmem_info_node(NODE_DATA(i));
-> +}
-> +
->  void __init mem_init(void)
->  {
->  #ifdef CONFIG_SWIOTLB
->  	swiotlb_init(0);
->  #endif
-> 
-> +	register_page_bootmem_info();
->  	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
->  	set_max_mapnr(max_pfn);
->  	free_all_bootmem();
-> Index: powerpc/mm/Kconfig
-> ===================================================================
-> --- powerpc.orig/mm/Kconfig
-> +++ powerpc/mm/Kconfig
-> @@ -183,7 +183,7 @@ config MEMORY_HOTPLUG_SPARSE
->  config MEMORY_HOTREMOVE
->  	bool "Allow for memory hot remove"
->  	select MEMORY_ISOLATION
-> -	select HAVE_BOOTMEM_INFO_NODE if X86_64
-> +	select HAVE_BOOTMEM_INFO_NODE if (X86_64 || PPC64)
->  	depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
->  	depends on MIGRATION
-> 
-> 
-> _______________________________________________
-> Linuxppc-dev mailing list
-> Linuxppc-dev@lists.ozlabs.org
-> https://lists.ozlabs.org/listinfo/linuxppc-dev
-
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+In this version:
+Reorder the check in pgdat_balanced according Johannes's comment.
