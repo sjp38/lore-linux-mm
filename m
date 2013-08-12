@@ -1,151 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 2C2FF6B0032
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 14:15:54 -0400 (EDT)
-Date: Mon, 12 Aug 2013 14:15:48 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1376331348-jsc6hffx-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <CAMyfujeC_p-2cJteayPnA82wPRvoL2ekDNB6bd38d76v7Gb+6w@mail.gmail.com>
-References: <CAMyfujfZayb8_673vkb2hdE9J_w+wPTD4aQ6TsY+aWxb9EzY8A@mail.gmail.com>
- <1376080406-4r7r3uye-mutt-n-horiguchi@ah.jp.nec.com>
- <CAMyfujeC_p-2cJteayPnA82wPRvoL2ekDNB6bd38d76v7Gb+6w@mail.gmail.com>
-Subject: Re: [PATCH 1/1] pagemap: fix buffer overflow in add_page_map()
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id DCC356B0032
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 14:23:31 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id fa1so7859208pad.19
+        for <linux-mm@kvack.org>; Mon, 12 Aug 2013 11:23:31 -0700 (PDT)
+Message-ID: <52092811.3020105@gmail.com>
+Date: Tue, 13 Aug 2013 02:23:13 +0800
+From: Tang Chen <imtangchen@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH part5 0/7] Arrange hotpluggable memory as ZONE_MOVABLE.
+References: <1375956979-31877-1-git-send-email-tangchen@cn.fujitsu.com> <20130812145016.GI15892@htj.dyndns.org> <5208FBBC.2080304@zytor.com> <20130812152343.GK15892@htj.dyndns.org> <52090D7F.6060600@gmail.com> <20130812164650.GN15892@htj.dyndns.org>
+In-Reply-To: <20130812164650.GN15892@htj.dyndns.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: yonghua zheng <younghua.zheng@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Motohiro KOSAKI <kosaki.motohiro@gmail.com>
+To: Tejun Heo <tj@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org, "Luck, Tony (tony.luck@intel.com)" <tony.luck@intel.com>
 
-On Sat, Aug 10, 2013 at 08:49:34AM +0800, yonghua zheng wrote:
-> Update the patch according to Naoya's comment, I also run
-> ./scripts/checkpatch.pl, and it passed ;D.
-
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-
-# Sorry if I missed something, but I guess that your MTA might replace tabs
-# with spaces. Documentation/email-clients.txt can be helpful to solve it.
-
-> 
-> From 96826b0fdf9ec6d6e16c2c595f371dbb841250f7 Mon Sep 17 00:00:00 2001
-> From: Yonghua Zheng <younghua.zheng@gmail.com>
-> Date: Mon, 5 Aug 2013 12:12:24 +0800
-> Subject: [PATCH 1/1] pagemap: fix buffer overflow in add_to_pagemap()
-> 
-> In struc pagemapread:
-> 
-> struct pagemapread {
->     int pos, len;
->     pagemap_entry_t *buffer;
->     bool v2;
-> };
-> 
-> pos is number of PM_ENTRY_BYTES in buffer, but len is the size of buffer,
-> it is a mistake to compare pos and len in add_to_pagemap() for checking
-> buffer is full or not, and this can lead to buffer overflow and random
-> kernel panic issue.
-> 
-> Correct len to be total number of PM_ENTRY_BYTES in buffer.
-> 
-> Signed-off-by: Yonghua Zheng <younghua.zheng@gmail.com>
-> 
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index dbf61f6..cb98853 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -1116,8 +1116,8 @@ static ssize_t pagemap_read(struct file *file,
-> char __user *buf,
->          goto out_task;
-> 
->      pm.v2 = soft_dirty_cleared;
-> -    pm.len = PM_ENTRY_BYTES * (PAGEMAP_WALK_SIZE >> PAGE_SHIFT);
-> -    pm.buffer = kmalloc(pm.len, GFP_TEMPORARY);
-> +    pm.len = (PAGEMAP_WALK_SIZE >> PAGE_SHIFT);
-> +    pm.buffer = kmalloc(pm.len * PM_ENTRY_BYTES, GFP_TEMPORARY);
->      ret = -ENOMEM;
->      if (!pm.buffer)
->          goto out_task;
-> -- 
-> 1.7.9.5
-> 
-> On Sat, Aug 10, 2013 at 4:33 AM, Naoya Horiguchi
-> <n-horiguchi@ah.jp.nec.com> wrote:
-> > On Fri, Aug 09, 2013 at 01:16:41PM +0800, yonghua zheng wrote:
-> >> Hi,
-> >>
-> >> Recently we met quite a lot of random kernel panic issues after enable
-> >> CONFIG_PROC_PAGE_MONITOR in kernel, after debuggint sometime we found
-> >> this has something to do with following bug in pagemap:
-> >>
-> >> In struc pagemapread:
-> >>
-> >> struct pagemapread {
-> >>     int pos, len;
-> >>     pagemap_entry_t *buffer;
-> >>     bool v2;
-> >> };
-> >>
-> >> pos is number of PM_ENTRY_BYTES in buffer, but len is the size of buffer,
-> >> it is a mistake to compare pos and len in add_page_map() for checking
-> >
-> > s/add_page_map/add_to_pagemap/ ?
-> >
-> >> buffer is full or not, and this can lead to buffer overflow and random
-> >> kernel panic issue.
-> >>
-> >> Correct len to be total number of PM_ENTRY_BYTES in buffer.
-> >>
-> >> Signed-off-by: Yonghua Zheng <younghua.zheng@gmail.com>
-> >
-> > You can find coding style violation with scripts/checkpatch.pl.
-> > And I think this patch is worth going into -stable trees
-> > (maybe since 2.6.34.)
-> >
-> > The fix itself looks fine to me.
-> >
-> > Thanks,
-> > Naoya Horiguchi
-> >
-> >> ---
-> >>  fs/proc/task_mmu.c |    4 ++--
-> >>  1 file changed, 2 insertions(+), 2 deletions(-)
-> >>
-> >> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> >> index dbf61f6..cb98853 100644
-> >> --- a/fs/proc/task_mmu.c
-> >> +++ b/fs/proc/task_mmu.c
-> >> @@ -1116,8 +1116,8 @@ static ssize_t pagemap_read(struct file *file,
-> >> char __user *buf,
-> >>          goto out_task;
-> >>
-> >>      pm.v2 = soft_dirty_cleared;
-> >> -    pm.len = PM_ENTRY_BYTES * (PAGEMAP_WALK_SIZE >> PAGE_SHIFT);
-> >> -    pm.buffer = kmalloc(pm.len, GFP_TEMPORARY);
-> >> +    pm.len = (PAGEMAP_WALK_SIZE >> PAGE_SHIFT);
-> >> +    pm.buffer = kmalloc(pm.len * PM_ENTRY_BYTES, GFP_TEMPORARY);
-> >>      ret = -ENOMEM;
-> >>      if (!pm.buffer)
-> >>          goto out_task;
-> >>
-> >> --
-> >> 1.7.9.5
-> >>
-> >> --
-> >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> >> the body to majordomo@kvack.org.  For more info on Linux MM,
-> >> see: http://www.linux-mm.org/ .
-> >> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> >>
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+On 08/13/2013 12:46 AM, Tejun Heo wrote:
+> Hello, Tang.
+......
 >
+>> But, different users have different ways to use memory hotplug.
+>>
+>> Hotswaping any particular chunk of memory is the goal we will reach
+>> finally. But it is on specific hardware. In most current machines, we
+>> can use movable node to manage resource in node unit.
+>>
+>> And also, without this movablenode boot option, the MOVABLE_NODE
+>> functionality, which is already in the kernel, will not be able to
+>> work. All nodes has kernel memory means no movable node.
+>>
+>> So, how about this: Just like MOVABLE_NODE functionality, introduce
+>> a new config option. When we have better solutions for memory hotplug,
+>> we shutoff or remove the config and related code.
+>>
+>> For now, at least make movable node work.
+
+Hi tj,
+cc hpa,
+
+I explained above because hpa said he thought the whole approach is
+wrong. I think node hotplug is meaningful for users. And without this
+patch-set, MOVABLE_NODE means nothing. This is all above.
+
+Since you replied his email in previous emails, I just replied to
+answer both of you. Sorry for the misunderstanding. :)
+
+>
+> We are talking completely past each other.  I'll just try to clarify
+> what I was saying.  Can you please do the same?  Let's re-sync on the
+> discussion.
+>
+> * Adding an option to tell the kernel to try to stay away from
+>    hotpluggable nodes is fine.  I have no problem with that at all.
+
+Agreed.
+
+>
+> * The patchsets upto this point have been somehow trying to reorder
+>    operations shomehow such that *no* memory allocation happens before
+>    memblock is populated with hotplug information.
+
+Yes, this is exactly what I want to do.
+
+>
+> * However, we already *know* that the memory the kernel image is
+>    occupying won't be removeable.  It's highly likely that the amount
+>    of memory allocation before NUMA / hotplug information is fully
+>    populated is pretty small.  Also, it's highly likely that small
+>    amount of memory right after the kernel image is contained in the
+>    same NUMA node, so if we allocate memory close to the kernel image,
+>    it's likely that we don't contaminate hotpluggable node.  We're
+>    talking about few megs at most right after the kernel image.  I
+>    can't see how that would make any noticeable difference.
+
+This point, I don't quite agree. What you said is highly likely, but
+not definitely. Users may find they lost hotpluggable memory.
+
+The node the kernel resides in won't be removable. This is agreed.
+But I still want SRAT earlier for the following reasons:
+
+1. For a production provided to users, the firmware specified how
+    many nodes are hotpluggable. When the system is up, if users
+    found they lost movable nodes, I think it could be messy.
+
+2. Reorder SRAT parsing earlier is not that difficult to do. The
+    only procedures reordered are acpi tables initialization and
+    acpi_initrd_override. The acpi part patches are being reviewed.
+    And it is better solution. If possible, I think we should do it.
+
+In summary, I don't want early memory allocation with hotpluggable
+memory to be opportunistic.
+
+>
+> * Once hotplug information is available, allocation can happen as
+>    usual and the kernel can report the nodes which are actually
+>    hotpluggable - marked as hotpluggable by the firmware&&  didn't get
+>    contaminated during early alloc&&  didn't get overflow allocations
+>    afterwards.  Note that we need such mechanism no matter what as the
+>    kernel image can be loaded into hotpluggable nodes and reporting
+>    that to userland is the only thing the kernel can do for cases like
+>    that short of denying memory unplug on such nodes.
+
+Agreed.
+
+>
+> The whole thing would be a lot simpler and generic.  It doesn't even
+> have to care about which mechanism is being used to acquire all those
+> information.  What am I missing here?
+
+Sorry for the misunderstanding.
+
+Thanks. :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
