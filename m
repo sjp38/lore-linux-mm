@@ -1,79 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id B6F506B0034
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 11:53:12 -0400 (EDT)
-Received: by mail-pd0-f178.google.com with SMTP id w10so3557574pde.23
-        for <linux-mm@kvack.org>; Mon, 12 Aug 2013 08:53:11 -0700 (PDT)
-From: Haojian Zhuang <haojian.zhuang@gmail.com>
-Subject: [PATCH] mm: vmscan: decrease cma pages from nr_reclaimed
-Date: Mon, 12 Aug 2013 23:51:01 +0800
-Message-Id: <1376322661-20917-1-git-send-email-haojian.zhuang@gmail.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 03FE26B0034
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 12:01:17 -0400 (EDT)
+Date: Mon, 12 Aug 2013 12:00:59 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 8/9] mm: thrash detection-based file cache sizing
+Message-ID: <20130812160059.GQ715@cmpxchg.org>
+References: <1375829050-12654-1-git-send-email-hannes@cmpxchg.org>
+ <1375829050-12654-9-git-send-email-hannes@cmpxchg.org>
+ <20130809154943.1663e5f04999e1979886246c@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130809154943.1663e5f04999e1979886246c@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: m.szyprowski@samsung.com, linux-mm@kvack.org, akpm@linux-foundation.org, mgorman@suse.de
-Cc: Haojian Zhuang <haojian.zhuang@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Ozgun Erdogan <ozgun@citusdata.com>, Metin Doslu <metin@citusdata.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-shrink_page_list() reclaims the pages. But the statistical data may
-be inaccurate since some pages are CMA pages. If kernel needs to
-reclaim unmovable memory (GFP_KERNEL flag), free CMA pages should not
-be counted in nr_reclaimed pages.
+On Fri, Aug 09, 2013 at 03:49:43PM -0700, Andrew Morton wrote:
+> On Tue,  6 Aug 2013 18:44:09 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
+> 
+> > To accomplish this, a per-zone counter is increased every time a page
+> > is evicted and a snapshot of that counter is stored as shadow entry in
+> > the page's now empty page cache radix tree slot.
+> 
+> How do you handle wraparound of that counter on 32-bit machines?
 
-Signed-off-by: Haojian Zhuang <haojian.zhuang@gmail.com>
----
- mm/vmscan.c | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+The distance between two time stamps is an unsigned subtraction, so
+it's accurate even when the counter has wrapped between them.
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 2cff0d4..0cbe393 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -720,6 +720,10 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 	unsigned long nr_reclaimed = 0;
- 	unsigned long nr_writeback = 0;
- 	unsigned long nr_immediate = 0;
-+#ifdef CONFIG_CMA
-+	/* Number of pages freed with MIGRATE_CMA type */
-+	unsigned long nr_reclaimed_cma = 0;
-+#endif
- 
- 	cond_resched();
- 
-@@ -987,6 +991,11 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 					 * leave it off the LRU).
- 					 */
- 					nr_reclaimed++;
-+#ifdef CONFIG_CMA
-+					if (get_pageblock_migratetype(page) ==
-+						MIGRATE_CMA)
-+						nr_reclaimed_cma++;
-+#endif
- 					continue;
- 				}
- 			}
-@@ -1005,6 +1014,10 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		__clear_page_locked(page);
- free_it:
- 		nr_reclaimed++;
-+#ifdef CONFIG_CMA
-+		if (get_pageblock_migratetype(page) == MIGRATE_CMA)
-+			nr_reclaimed_cma++;
-+#endif
- 
- 		/*
- 		 * Is there need to periodically free_page_list? It would
-@@ -1044,6 +1057,10 @@ keep:
- 	*ret_nr_unqueued_dirty += nr_unqueued_dirty;
- 	*ret_nr_writeback += nr_writeback;
- 	*ret_nr_immediate += nr_immediate;
-+#ifdef CONFIG_CMA
-+	if (allocflags_to_migratetype(sc->gfp_mask) == MIGRATE_UNMOVABLE)
-+		nr_reclaimed -= nr_reclaimed_cma;
-+#endif
- 	return nr_reclaimed;
- }
- 
--- 
-1.8.1.2
+The per-zone counter lapping shadow entries is possible but not very
+likely because the shadow pages are reclaimed when more than
+2*global_dirtyable_memory() of them exist.  And usually they are
+refaulted or reclaimed along with the inode before that happens.
+
+There is an unlikely case where some shadow entries make it into an
+inode and then that same inode is evicting and refaulting pages in
+another area, which increases the counter while not producing an
+excess of shadow entries.  Should the counter lap these inactive
+shadow entries, the worst case is that a refault will incorrectly
+interpret them as recently evicted and deactivate a page for every
+such entry.  Which would at worst be a "regression" to how the code
+was for a long time, where every reclaim run also always deactivated
+some pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
