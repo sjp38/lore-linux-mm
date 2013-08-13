@@ -1,26 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Date: Tue, 13 Aug 2013 16:21:30 +0000
-From: Christoph Lameter <cl@gentwo.org>
-Subject: Re: [RFC 0/3] Pin page control subsystem
-In-Reply-To: <1376377502-28207-1-git-send-email-minchan@kernel.org>
-Message-ID: <00000140787b6191-ae3f2eb1-515e-48a1-8e64-502772af4700-000000@email.amazonses.com>
-References: <1376377502-28207-1-git-send-email-minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 20FC56B0032
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2013 12:44:09 -0400 (EDT)
+Message-ID: <520A622B.7020900@zytor.com>
+Date: Tue, 13 Aug 2013 09:43:23 -0700
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [patch 2/2] [PATCH] mm: Save soft-dirty bits on file pages
+References: <20130730204154.407090410@gmail.com> <20130730204654.966378702@gmail.com> <20130807132812.60ad4bfe85127794094d385e@linux-foundation.org> <20130808145120.GA1775@moon> <20130812145720.3b722b066fe1bd77291331e5@linux-foundation.org> <CALCETrUXOoKrOAXhvd=GcK3YpBNWr2rk2ArBBgekXDv9yj7sNg@mail.gmail.com> <20130813050213.GA2869@moon> <520A4D5F.6020401@zytor.com> <20130813153703.GE2869@moon>
+In-Reply-To: <20130813153703.GE2869@moon>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, k.kozlowski@samsung.com, Seth Jennings <sjenning@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, guz.fnst@cn.fujitsu.com, Benjamin LaHaise <bcrl@kvack.org>, Dave Hansen <dave.hansen@intel.com>, lliubbo@gmail.com, aquini@redhat.com, Rik van Riel <riel@redhat.com>
+To: Cyrill Gorcunov <gorcunov@gmail.com>
+Cc: Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xemul@parallels.com, mpm@selenic.com, xiaoguangrong@linux.vnet.ibm.com, mtosatti@redhat.com, kosaki.motohiro@gmail.com, sfr@canb.auug.org.au, peterz@infradead.org, aneesh.kumar@linux.vnet.ibm.com, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>
 
-On Tue, 13 Aug 2013, Minchan Kim wrote:
+On 08/13/2013 08:37 AM, Cyrill Gorcunov wrote:
+>>
+>> Does it actually matter, generated-code-wise, or is the compiler smart
+>> enough to figure it out?  The reason I'm asking is because it makes the
+> 
+> gcc-4.7.2 is smart enough to suppress useless masking (ie ((1u << 31) - 1))
+> completely but I don't know if this can be assumed for all gcc series.
+> 
 
-> VM sometime want to migrate and/or reclaim pages for CMA, memory-hotplug,
-> THP and so on but at the moment, it could handle only userspace pages
-> so if above example subsystem have pinned a some page in a range VM want
-> to migrate, migration is failed so above exmaple couldn't work well.
+I would be highly surprised if it wasn't the case for any gcc we care about.
 
-Dont we have the mmu_notifiers that could help in that case? You could get
-a callback which could prepare the pages for migration?
+	-hpa
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
