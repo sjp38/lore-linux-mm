@@ -1,65 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 524706B0032
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2013 01:02:17 -0400 (EDT)
-Received: by mail-la0-f52.google.com with SMTP id fq13so5365895lab.25
-        for <linux-mm@kvack.org>; Mon, 12 Aug 2013 22:02:15 -0700 (PDT)
-Date: Tue, 13 Aug 2013 09:02:13 +0400
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [patch 2/2] [PATCH] mm: Save soft-dirty bits on file pages
-Message-ID: <20130813050213.GA2869@moon>
-References: <20130730204154.407090410@gmail.com>
- <20130730204654.966378702@gmail.com>
- <20130807132812.60ad4bfe85127794094d385e@linux-foundation.org>
- <20130808145120.GA1775@moon>
- <20130812145720.3b722b066fe1bd77291331e5@linux-foundation.org>
- <CALCETrUXOoKrOAXhvd=GcK3YpBNWr2rk2ArBBgekXDv9yj7sNg@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 598786B0032
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2013 01:15:58 -0400 (EDT)
+Message-ID: <5209C0CE.2080000@zytor.com>
+Date: Mon, 12 Aug 2013 22:14:54 -0700
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALCETrUXOoKrOAXhvd=GcK3YpBNWr2rk2ArBBgekXDv9yj7sNg@mail.gmail.com>
+Subject: Re: [PATCH part5 0/7] Arrange hotpluggable memory as ZONE_MOVABLE.
+References: <1375956979-31877-1-git-send-email-tangchen@cn.fujitsu.com> <20130812145016.GI15892@htj.dyndns.org> <5208FBBC.2080304@zytor.com> <20130812152343.GK15892@htj.dyndns.org> <52090D7F.6060600@gmail.com> <20130812164650.GN15892@htj.dyndns.org> <52092811.3020105@gmail.com> <20130812202029.GB8288@mtj.dyndns.org> <3908561D78D1C84285E8C5FCA982C28F31CB74A1@ORSMSX106.amr.corp.intel.com> <20130812205456.GC8288@mtj.dyndns.org> <3908561D78D1C84285E8C5FCA982C28F31CB7552@ORSMSX106.amr.corp.intel.com>
+In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F31CB7552@ORSMSX106.amr.corp.intel.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xemul@parallels.com, mpm@selenic.com, xiaoguangrong@linux.vnet.ibm.com, mtosatti@redhat.com, kosaki.motohiro@gmail.com, sfr@canb.auug.org.au, peterz@infradead.org, aneesh.kumar@linux.vnet.ibm.com, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
+To: "Luck, Tony" <tony.luck@intel.com>
+Cc: Tejun Heo <tj@kernel.org>, Tang Chen <imtangchen@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, "Moore, Robert" <robert.moore@intel.com>, "Zheng, Lv" <lv.zheng@intel.com>, "rjw@sisk.pl" <rjw@sisk.pl>, "lenb@kernel.org" <lenb@kernel.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@elte.hu" <mingo@elte.hu>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "trenn@suse.de" <trenn@suse.de>, "yinghai@kernel.org" <yinghai@kernel.org>, "jiang.liu@huawei.com" <jiang.liu@huawei.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "laijs@cn.fujitsu.com" <laijs@cn.fujitsu.com>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "izumi.taku@jp.fujitsu.com" <izumi.taku@jp.fujitsu.com>, "mgorman@suse.de" <mgorman@suse.de>, "minchan@kernel.org" <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, "vasilis.liaskovitis@profitbricks.com" <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "riel@redhat.com" <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "prarit@redhat.com" <prarit@redhat.com>, "zhangyanfei@cn.fujitsu.com" <zhangyanfei@cn.fujitsu.com>, "yanghy@cn.fujitsu.com" <yanghy@cn.fujitsu.com>, "x86@kernel.org" <x86@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>
 
-On Mon, Aug 12, 2013 at 03:28:06PM -0700, Andy Lutomirski wrote:
-> >
-> > You could have #undefed _mfrob and __frob after using them, but whatever.
-
-Sure, for some reason I forgot to do that. Will send update on top.
-
-> > I saved this patch to wave at the x86 guys for 3.12.  I plan to merge
-> > mm-save-soft-dirty-bits-on-file-pages.patch for 3.11.
-> >
-> >> Guys, is there a reason for "if _PAGE_BIT_FILE < _PAGE_BIT_PROTNONE"
-> >> test present in this pgtable-2level.h file at all? I can't imagine
-> >> where it can be false on x86.
-> >
-> > I doubt if "Guys" read this.  x86 maintainers cc'ed.
-
-Thanks!
-
-> > +#define _mfrob(v,r,m,l)                ((((v) >> (r)) & (m)) << (l))
-> > +#define __frob(v,r,l)          (((v) >> (r)) << (l))
-> > +
-> >  #ifdef CONFIG_MEM_SOFT_DIRTY
+On 08/12/2013 02:11 PM, Luck, Tony wrote:
 > 
-> If I'm understanding this right, the idea is to take the bits in the
-> range a..b of v and stick them at c..d, where a-b == c-d.  Would it
-> make sense to change this to look something like
+> Just an idle, slightly related, question.  Will a 64-bit X86 kernel work if the physical
+> load address is >4GB?  That would get it away from the fragmented bits of
+> address space and into vast tracts of same-node-ness.
 > 
-> #define __frob(v, inmsb, inlsb, outlsb) ((v >> inlsb) & ((1<<(inmsb -
-> inlsb + 1)-1) << outlsb)
 
-There is a case when you don't need a mask completely. And because this
-pte conversion is on hot path and time critical I kept generated code
-as it was (even if that lead to slightly less clear source code).
+It will, although not until very recently.  However, there is some fixed
+memory required < 1 MB, so this may lock down two nodes.
 
-> For extra fun, there could be an __unfrob macro that takes the same
-> inmsg, inlsb, outlsb parameters but undoes it so that it's (more)
-> clear that the operations that are supposed to be inverses are indeed
-> inverses.
+	-hpa
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
