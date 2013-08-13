@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id C40D86B0032
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2013 19:06:56 -0400 (EDT)
-Message-ID: <201308132306.r7DN6stA029051@farm-0021.internal.tilera.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 1BDA36B0033
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2013 19:07:06 -0400 (EDT)
+Message-ID: <201308132307.r7DN74M5029053@farm-0021.internal.tilera.com>
 From: Chris Metcalf <cmetcalf@tilera.com>
+Date: Tue, 13 Aug 2013 18:53:32 -0400
 In-Reply-To: <520AAF9C.1050702@tilera.com>
-Date: Tue, 13 Aug 2013 18:51:44 -0400
-Subject: [PATCH v7 1/2] workqueue: add schedule_on_each_cpu_cond
+Subject: [PATCH v7 2/2] mm: make lru_add_drain_all() selective
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -14,8 +14,11 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Frederic Weisbecker <fweisbec@gmail.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-This API supports running work on a subset of the online
-cpus determined by a callback function.
+This change makes lru_add_drain_all() only selectively interrupt
+the cpus that have per-cpu free pages that can be drained.
+
+This is important in nohz mode where calling mlockall(), for
+example, otherwise will interrupt every core unnecessarily.
 
 Signed-off-by: Chris Metcalf <cmetcalf@tilera.com>
 ---
@@ -36,96 +39,62 @@ v4: don't lose possible -ENOMEM in schedule_on_each_cpu()
 v3: split commit into two, one for workqueue and one for mm, though both
 should probably be taken through -mm.
 
- include/linux/workqueue.h |  3 +++
- kernel/workqueue.c        | 54 +++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 57 insertions(+)
+ mm/swap.c | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/workqueue.h b/include/linux/workqueue.h
-index a0ed78a..c5ee29f 100644
---- a/include/linux/workqueue.h
-+++ b/include/linux/workqueue.h
-@@ -17,6 +17,7 @@ struct workqueue_struct;
- 
- struct work_struct;
- typedef void (*work_func_t)(struct work_struct *work);
-+typedef bool (*work_cond_func_t)(void *data, int cpu);
- void delayed_work_timer_fn(unsigned long __data);
- 
- /*
-@@ -471,6 +472,8 @@ extern void drain_workqueue(struct workqueue_struct *wq);
- extern void flush_scheduled_work(void);
- 
- extern int schedule_on_each_cpu(work_func_t func);
-+extern int schedule_on_each_cpu_cond(work_func_t func, work_cond_func_t cond,
-+				     void *data);
- 
- int execute_in_process_context(work_func_t fn, struct execute_work *);
- 
-diff --git a/kernel/workqueue.c b/kernel/workqueue.c
-index f02c4a4..5c5b534 100644
---- a/kernel/workqueue.c
-+++ b/kernel/workqueue.c
-@@ -2999,6 +2999,60 @@ int schedule_on_each_cpu(work_func_t func)
+diff --git a/mm/swap.c b/mm/swap.c
+index 4a1d0d2..fe3a488 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -405,6 +405,11 @@ static void activate_page_drain(int cpu)
+ 		pagevec_lru_move_fn(pvec, __activate_page, NULL);
  }
  
- /**
-+ * schedule_on_each_cpu_cond - execute a function synchronously on each
-+ *   online CPU if requested by a condition callback.
-+ * @func: the function to call
-+ * @cond: the callback function to determine whether to schedule the work
-+ * @data: opaque data passed to the callback function
-+ *
-+ * schedule_on_each_cpu_cond() calls @cond for each online cpu (in the
-+ * context of the current cpu), and for each cpu for which @cond returns
-+ * true, it executes @func using the system workqueue.  The function
-+ * blocks until all CPUs on which work was scheduled have completed.
-+ * schedule_on_each_cpu_cond() is very slow.
-+ *
-+ * The @cond callback is called in the same context as the original
-+ * call to schedule_on_each_cpu_cond().
-+ *
-+ * RETURNS:
-+ * 0 on success, -errno on failure.
-+ */
-+int schedule_on_each_cpu_cond(work_func_t func,
-+			      work_cond_func_t cond, void *data)
++static bool need_activate_page_drain(int cpu)
 +{
-+	int cpu;
-+	struct work_struct __percpu *works;
-+
-+	works = alloc_percpu(struct work_struct);
-+	if (!works)
-+		return -ENOMEM;
-+
-+	get_online_cpus();
-+
-+	for_each_online_cpu(cpu) {
-+		struct work_struct *work = per_cpu_ptr(works, cpu);
-+
-+		if (cond(data, cpu)) {
-+			INIT_WORK(work, func);
-+			schedule_work_on(cpu, work);
-+		} else {
-+			work->entry.next = NULL;
-+		}
-+	}
-+
-+	for_each_online_cpu(cpu) {
-+		struct work_struct *work = per_cpu_ptr(works, cpu);
-+
-+		if (work->entry.next)
-+			flush_work(work);
-+	}
-+
-+	put_online_cpus();
-+	free_percpu(works);
-+	return 0;
++	return pagevec_count(&per_cpu(activate_page_pvecs, cpu)) != 0;
 +}
 +
-+/**
-  * flush_scheduled_work - ensure that any scheduled work has run to completion.
-  *
-  * Forces execution of the kernel-global workqueue and blocks until its
+ void activate_page(struct page *page)
+ {
+ 	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
+@@ -422,6 +427,11 @@ static inline void activate_page_drain(int cpu)
+ {
+ }
+ 
++static bool need_activate_page_drain(int cpu)
++{
++	return false;
++}
++
+ void activate_page(struct page *page)
+ {
+ 	struct zone *zone = page_zone(page);
+@@ -673,6 +683,14 @@ void lru_add_drain(void)
+ 	put_cpu();
+ }
+ 
++static bool lru_add_drain_cond(void *data, int cpu)
++{
++	return pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
++		pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
++		pagevec_count(&per_cpu(lru_deactivate_pvecs, cpu)) ||
++		need_activate_page_drain(cpu);
++}
++
+ static void lru_add_drain_per_cpu(struct work_struct *dummy)
+ {
+ 	lru_add_drain();
+@@ -683,7 +701,8 @@ static void lru_add_drain_per_cpu(struct work_struct *dummy)
+  */
+ int lru_add_drain_all(void)
+ {
+-	return schedule_on_each_cpu(lru_add_drain_per_cpu);
++	return schedule_on_each_cpu_cond(lru_add_drain_per_cpu,
++					 lru_add_drain_cond, NULL);
+ }
+ 
+ /*
 -- 
 1.8.3.1
 
