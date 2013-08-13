@@ -1,56 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 1909B6B0032
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2013 16:15:13 -0400 (EDT)
-Date: Tue, 13 Aug 2013 13:15:10 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/3] mm: use zone_end_pfn() instead of
- zone_start_pfn+spanned_pages
-Message-Id: <20130813131510.59ef74bce81d9352f8590218@linux-foundation.org>
-In-Reply-To: <52020EE4.1090606@huawei.com>
-References: <52020EE4.1090606@huawei.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 5B2C36B0032
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2013 16:20:19 -0400 (EDT)
+Received: by mail-ve0-f175.google.com with SMTP id oy10so7098940veb.34
+        for <linux-mm@kvack.org>; Tue, 13 Aug 2013 13:20:18 -0700 (PDT)
+Date: Tue, 13 Aug 2013 16:19:58 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v4 2/2] mm: make lru_add_drain_all() selective
+Message-ID: <20130813201958.GA28996@mtj.dyndns.org>
+References: <5202CEAA.9040204@linux.vnet.ibm.com>
+ <201308072335.r77NZZwl022494@farm-0012.internal.tilera.com>
+ <20130812140520.c6a2255d2176a690fadf9ba7@linux-foundation.org>
+ <52099187.80301@tilera.com>
+ <20130813123512.3d6865d8bf4689c05d44738c@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130813123512.3d6865d8bf4689c05d44738c@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Cody P Schafer <cody@linux.vnet.ibm.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Chris Metcalf <cmetcalf@tilera.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Frederic Weisbecker <fweisbec@gmail.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-On Wed, 7 Aug 2013 17:09:56 +0800 Xishi Qiu <qiuxishi@huawei.com> wrote:
+Hello,
 
-> Use "zone_end_pfn()" instead of "zone->zone_start_pfn + zone->spanned_pages".
-> Simplify the code, no functional change.
+On Tue, Aug 13, 2013 at 12:35:12PM -0700, Andrew Morton wrote:
+> I don't know how lots-of-kmallocs compares with alloc_percpu()
+> performance-wise.
 
-This doesn't compile.
+If this is actually performance sensitive, the logical thing to do
+would be pre-allocating per-cpu buffers instead of depending on
+dynamic allocation.  Do the invocations need to be stackable?
 
-mm/memory_hotplug.c: In function 'shrink_zone_span':
-mm/memory_hotplug.c:518: error: called object 'zone_end_pfn' is not a function
+> That being said, the `cpumask_var_t mask' which was added to
+> lru_add_drain_all() is unneeded - it's just a temporary storage which
+> can be eliminated by creating a schedule_on_each_cpu_cond() or whatever
+> which is passed a function pointer of type `bool (*call_needed)(int
+> cpu, void *data)'.
 
->  kernel/power/snapshot.c |   12 ++++++------
->  mm/memory_hotplug.c     |    4 ++--
+I'd really like to avoid that.  Decision callbacks tend to get abused
+quite often and it's rather sad to do that because cpumask cannot be
+prepared and passed around.  Can't it just preallocate all necessary
+resources?
 
-It's only two files - did you test it?
+Thanks.
 
-I couldn't see any vaguely acceptable way of renaming the variables to
-fix this, so I did a hack which permits us to keep the current naming.
-Any better ideas?
-
---- a/mm/memory_hotplug.c~mm-use-zone_end_pfn-instead-of-zone_start_pfnspanned_pages-fix
-+++ a/mm/memory_hotplug.c
-@@ -514,8 +514,9 @@ static int find_biggest_section_pfn(int
- static void shrink_zone_span(struct zone *zone, unsigned long start_pfn,
- 			     unsigned long end_pfn)
- {
--	unsigned long zone_start_pfn =  zone->zone_start_pfn;
--	unsigned long zone_end_pfn = zone_end_pfn(zone);
-+	unsigned long zone_start_pfn = zone->zone_start_pfn;
-+	unsigned long z = zone_end_pfn(zone); /* zone_end_pfn namespace clash */
-+	unsigned long zone_end_pfn = z;
- 	unsigned long pfn;
- 	struct mem_section *ms;
- 	int nid = zone_to_nid(zone);
-_
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
