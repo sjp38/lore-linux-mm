@@ -1,58 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 8609C6B0032
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2013 02:15:50 -0400 (EDT)
-Message-ID: <5209CEC1.8070908@cn.fujitsu.com>
-Date: Tue, 13 Aug 2013 14:14:25 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH part5 0/7] Arrange hotpluggable memory as ZONE_MOVABLE.
-References: <1375956979-31877-1-git-send-email-tangchen@cn.fujitsu.com> <20130812145016.GI15892@htj.dyndns.org> <5208FBBC.2080304@zytor.com> <20130812152343.GK15892@htj.dyndns.org> <52090D7F.6060600@gmail.com> <20130812164650.GN15892@htj.dyndns.org>
-In-Reply-To: <20130812164650.GN15892@htj.dyndns.org>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 04DE96B0032
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2013 03:05:01 -0400 (EDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [RFC 0/3] Pin page control subsystem
+Date: Tue, 13 Aug 2013 16:04:59 +0900
+Message-Id: <1376377502-28207-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Tang Chen <imtangchen@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org, "Luck, Tony (tony.luck@intel.com)" <tony.luck@intel.com>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, k.kozlowski@samsung.com, Seth Jennings <sjenning@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, guz.fnst@cn.fujitsu.com, Benjamin LaHaise <bcrl@kvack.org>, Dave Hansen <dave.hansen@intel.com>, lliubbo@gmail.com, aquini@redhat.com, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>
 
-On 08/13/2013 12:46 AM, Tejun Heo wrote:
-......
->
-> * Adding an option to tell the kernel to try to stay away from
->    hotpluggable nodes is fine.  I have no problem with that at all.
->
-> * The patchsets upto this point have been somehow trying to reorder
->    operations shomehow such that *no* memory allocation happens before
->    memblock is populated with hotplug information.
->
-> * However, we already *know* that the memory the kernel image is
->    occupying won't be removeable.  It's highly likely that the amount
->    of memory allocation before NUMA / hotplug information is fully
->    populated is pretty small.  Also, it's highly likely that small
->    amount of memory right after the kernel image is contained in the
->    same NUMA node, so if we allocate memory close to the kernel image,
->    it's likely that we don't contaminate hotpluggable node.  We're
->    talking about few megs at most right after the kernel image.  I
->    can't see how that would make any noticeable difference.
->
-> * Once hotplug information is available, allocation can happen as
->    usual and the kernel can report the nodes which are actually
->    hotpluggable - marked as hotpluggable by the firmware&&  didn't get
->    contaminated during early alloc&&  didn't get overflow allocations
->    afterwards.  Note that we need such mechanism no matter what as the
->    kernel image can be loaded into hotpluggable nodes and reporting
->    that to userland is the only thing the kernel can do for cases like
->    that short of denying memory unplug on such nodes.
->
+!! NOTICE !!
+It's totally untested patchset so please AVOID real testing.
+I'd like to show just concept and want to discuss it on very early stage.
+(so there isn't enough description but I guess code is very simple so
+not a big problem to understand the intention).
 
-Hi tj, hpa, luck, yinghai,
+This patchset is for solving *kernel* pinpage migration problem more
+general. Now, zswap, zram and z* family, not sure upcoming what
+solution are using memory don't live in harmony with VM.
+(I don't remember ballon compaction but we might be able to unify
+ballon compaction with this.)
 
-So if all of you agree on the idea above from tj, I think
-we can do it in this way. Will update the patches to allocate
-memory near kernel image before SRAT is parsed.
+VM sometime want to migrate and/or reclaim pages for CMA, memory-hotplug,
+THP and so on but at the moment, it could handle only userspace pages
+so if above example subsystem have pinned a some page in a range VM want
+to migrate, migration is failed so above exmaple couldn't work well.
 
-Thanks.
+This patchset is for basic facility for the role.
+
+patch 1 introduces a new page flags and patch 2 introduce pinpage control
+subsystem. So, subsystems want to control pinpage should implement own
+pinpage_xxx functions because each subsystem would have other character
+so what kinds of data structure for managing pinpage information depends
+on them. Otherwise, they can use general functions defined in pinpage
+subsystem. patch 3 hacks migration.c so that migration is
+aware of pinpage now and migrate them with pinpage subsystem.
+
+It exposes new rule that users of pinpage control subsystem shouldn't use
+struct page->flags and struct page->lru field freely because lru field
+is used for migration.c and flags field is used for lock_page in pinpage
+control subsystem. I think it's not a big problem because subsystem can
+use other fields of the page descriptor, instead.
+
+This patch's limitation is that it couldn't apply user space pages
+although I'd REALLY REALLY like to unify them.
+IOW, it couldn't handle long pin page by get_user_pages.
+Basic hurdle is that how to handle nesting cases caused by that
+several subsystem pin on same page with GUP but they could have 
+different migrate methods. It could add rather complexity and overhead
+but I'm not sure it's worth because proved culprit until now is AIO
+ring pages and Gu and Benjamin have approached it with another way
+so I'd like to hear their opinions.
+
+Minchan Kim (3):
+  mm: Introduce new page flag
+  pinpage control subsystem
+  mm: migrate pinned page
+
+ include/linux/page-flags.h |    2 +
+ include/linux/pinpage.h    |   39 +++++++++++++
+ mm/Makefile                |    2 +-
+ mm/compaction.c            |   26 ++++++++-
+ mm/migrate.c               |   58 ++++++++++++++++---
+ mm/page_alloc.c            |    1 +
+ mm/pinpage.c               |  134 ++++++++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 252 insertions(+), 10 deletions(-)
+ create mode 100644 include/linux/pinpage.h
+ create mode 100644 mm/pinpage.c
+
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
