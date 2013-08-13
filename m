@@ -1,57 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 5DCE46B0032
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2013 10:39:03 -0400 (EDT)
-Received: by mail-ye0-f171.google.com with SMTP id l10so2375314yen.16
-        for <linux-mm@kvack.org>; Tue, 13 Aug 2013 07:39:02 -0700 (PDT)
-Date: Tue, 13 Aug 2013 10:38:56 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH part5 0/7] Arrange hotpluggable memory as ZONE_MOVABLE.
-Message-ID: <20130813143856.GA26596@mtj.dyndns.org>
-References: <1375956979-31877-1-git-send-email-tangchen@cn.fujitsu.com>
- <20130812145016.GI15892@htj.dyndns.org>
- <5208FBBC.2080304@zytor.com>
- <20130812152343.GK15892@htj.dyndns.org>
- <52090D7F.6060600@gmail.com>
- <20130812164650.GN15892@htj.dyndns.org>
- <5209CEC1.8070908@cn.fujitsu.com>
- <520A02DE.1010908@cn.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <520A02DE.1010908@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id D72536B0034
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2013 10:46:04 -0400 (EDT)
+Message-ID: <1376405088.10300.384.camel@misato.fc.hp.com>
+Subject: Re: [PATCH] mm/hotplug: Remove stop_machine() from
+ try_offline_node()
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Tue, 13 Aug 2013 08:44:48 -0600
+In-Reply-To: <3940091.8hz2Z6IIgz@vostro.rjw.lan>
+References: <1376336071-9128-1-git-send-email-toshi.kani@hp.com>
+	 <3940091.8hz2Z6IIgz@vostro.rjw.lan>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: Tang Chen <imtangchen@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org, "Luck, Tony (tony.luck@intel.com)" <tony.luck@intel.com>
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, tangchen@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, liwanp@linux.vnet.ibm.com
 
-Hello, Tang.
-
-On Tue, Aug 13, 2013 at 05:56:46PM +0800, Tang Chen wrote:
-> 1. Introduce a memblock.current_limit_low to limit the lowest address
->    that memblock can use.
+On Tue, 2013-08-13 at 13:41 +0200, Rafael J. Wysocki wrote:
+> On Monday, August 12, 2013 01:34:31 PM Toshi Kani wrote:
+> > lock_device_hotplug() serializes hotplug & online/offline operations.
+> > The lock is held in common sysfs online/offline interfaces and ACPI
+> > hotplug code paths.
+> > 
+> > try_offline_node() off-lines a node if all memory sections and cpus
+> > are removed on the node.  It is called from acpi_processor_remove()
+> > and acpi_memory_remove_memory()->remove_memory() paths, both of which
+> > are in the ACPI hotplug code.
+> > 
+> > try_offline_node() calls stop_machine() to stop all cpus while checking
+> > all cpu status with the assumption that the caller is not protected from
+> > CPU hotplug or CPU online/offline operations.  However, the caller is
+> > always serialized with lock_device_hotplug().  Also, the code needs to
+> > be properly serialized with a lock, not by stopping all cpus at a random
+> > place with stop_machine().
+> > 
+> > This patch removes the use of stop_machine() in try_offline_node() and
+> > adds comments to try_offline_node() and remove_memory() that
+> > lock_device_hotplug() is required.
+> > 
+> > Signed-off-by: Toshi Kani <toshi.kani@hp.com>
 > 
-> 2. Make memblock be able to allocate memory from low to high.
-> 
-> 3. Get kernel image address on x86, and set memblock.current_limit_low
->    to it before SRAT is parsed. Then we achieve the goal.
-> 
-> 4. Reset it to 0, and make memblock allocate memory form high to low.
-> 
-> How do you think of this, or do you have any better idea ?
+> Acked-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 
-Yes, something like that.  Maybe have something like
-memblock_set_alloc_range(low, high, low_to_high) in memblock?  Once
-NUMA info is available arch code can call memblock_set_alloc_range(0,
-0, false) to reset it to the default behavior.
+Thanks!
+-Toshi
 
-> Thanks for your patient and help. :)
-
-Heh, sorry about all the roundabouts.  Your persistence is much
-appreciated. :)
-
--- 
-tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
