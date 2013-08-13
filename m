@@ -1,41 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 1655C6B0032
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2013 02:01:14 -0400 (EDT)
-Message-ID: <5209CBA1.2080009@iki.fi>
-Date: Tue, 13 Aug 2013 09:01:05 +0300
-From: Pekka Enberg <penberg@iki.fi>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 8609C6B0032
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2013 02:15:50 -0400 (EDT)
+Message-ID: <5209CEC1.8070908@cn.fujitsu.com>
+Date: Tue, 13 Aug 2013 14:14:25 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 4/4] mm: add WasActive page flag
-References: <1375788977-12105-1-git-send-email-bob.liu@oracle.com> <1375788977-12105-5-git-send-email-bob.liu@oracle.com>
-In-Reply-To: <1375788977-12105-5-git-send-email-bob.liu@oracle.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH part5 0/7] Arrange hotpluggable memory as ZONE_MOVABLE.
+References: <1375956979-31877-1-git-send-email-tangchen@cn.fujitsu.com> <20130812145016.GI15892@htj.dyndns.org> <5208FBBC.2080304@zytor.com> <20130812152343.GK15892@htj.dyndns.org> <52090D7F.6060600@gmail.com> <20130812164650.GN15892@htj.dyndns.org>
+In-Reply-To: <20130812164650.GN15892@htj.dyndns.org>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: linux-mm@kvack.org, gregkh@linuxfoundation.org, ngupta@vflare.org, akpm@linux-foundation.org, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, riel@redhat.com, mgorman@suse.de, kyungmin.park@samsung.com, p.sarna@partner.samsung.com, barry.song@csr.com, penberg@kernel.org, Bob Liu <bob.liu@oracle.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Tang Chen <imtangchen@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org, "Luck, Tony (tony.luck@intel.com)" <tony.luck@intel.com>
 
-On 8/6/13 2:36 PM, Bob Liu wrote:
-> Zcache could be ineffective if the compressed memory pool is full with
-> compressed inactive file pages and most of them will be never used again.
+On 08/13/2013 12:46 AM, Tejun Heo wrote:
+......
 >
-> So we pick up pages from active file list only, those pages would probably be
-> accessed again. Compress them in memory can reduce the latency significantly
-> compared with rereading from disk.
+> * Adding an option to tell the kernel to try to stay away from
+>    hotpluggable nodes is fine.  I have no problem with that at all.
 >
-> When a file page is shrinked from active file list to inactive file list,
-> PageActive flag is also cleared.
-> So adding an extra WasActive page flag for zcache to know whether the file page
-> was shrinked from the active list.
+> * The patchsets upto this point have been somehow trying to reorder
+>    operations shomehow such that *no* memory allocation happens before
+>    memblock is populated with hotplug information.
 >
-> Signed-off-by: Bob Liu <bob.liu@oracle.com>
+> * However, we already *know* that the memory the kernel image is
+>    occupying won't be removeable.  It's highly likely that the amount
+>    of memory allocation before NUMA / hotplug information is fully
+>    populated is pretty small.  Also, it's highly likely that small
+>    amount of memory right after the kernel image is contained in the
+>    same NUMA node, so if we allocate memory close to the kernel image,
+>    it's likely that we don't contaminate hotpluggable node.  We're
+>    talking about few megs at most right after the kernel image.  I
+>    can't see how that would make any noticeable difference.
+>
+> * Once hotplug information is available, allocation can happen as
+>    usual and the kernel can report the nodes which are actually
+>    hotpluggable - marked as hotpluggable by the firmware&&  didn't get
+>    contaminated during early alloc&&  didn't get overflow allocations
+>    afterwards.  Note that we need such mechanism no matter what as the
+>    kernel image can be loaded into hotpluggable nodes and reporting
+>    that to userland is the only thing the kernel can do for cases like
+>    that short of denying memory unplug on such nodes.
+>
 
-Using a page flag for this seems like an ugly hack to me.
-Can we rearrange the code so that vmscan notifies zcache
-*before* the active page flag is cleared...?
+Hi tj, hpa, luck, yinghai,
 
-                 Pekka
+So if all of you agree on the idea above from tj, I think
+we can do it in this way. Will update the patches to allocate
+memory near kernel image before SRAT is parsed.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
