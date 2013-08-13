@@ -1,102 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 1BDA36B0033
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2013 19:07:06 -0400 (EDT)
-Message-ID: <201308132307.r7DN74M5029053@farm-0021.internal.tilera.com>
-From: Chris Metcalf <cmetcalf@tilera.com>
-Date: Tue, 13 Aug 2013 18:53:32 -0400
-In-Reply-To: <520AAF9C.1050702@tilera.com>
-Subject: [PATCH v7 2/2] mm: make lru_add_drain_all() selective
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id ABB0A6B0032
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2013 19:10:22 -0400 (EDT)
+Date: Tue, 13 Aug 2013 18:10:20 -0500
+From: Nathan Zimmer <nzimmer@sgi.com>
+Subject: Re: [RFC v3 0/5] Transparent on-demand struct page initialization
+	embedded in the buddy allocator
+Message-ID: <20130813231020.GA22667@asylum.americas.sgi.com>
+References: <1375465467-40488-1-git-send-email-nzimmer@sgi.com> <1376344480-156708-1-git-send-email-nzimmer@sgi.com> <CA+55aFwTQLexJkf67P0b7Z7cw8fePjdDSdA4SOkM+Jf+kBPYEA@mail.gmail.com> <520A6DFC.1070201@sgi.com> <CA+55aFwRHdQ_f6ryUU1yWkW1Qz8cG958jLZuyhd_YdOq4-rfRA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFwRHdQ_f6ryUU1yWkW1Qz8cG958jLZuyhd_YdOq4-rfRA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Frederic Weisbecker <fweisbec@gmail.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Mike Travis <travis@sgi.com>, Nathan Zimmer <nzimmer@sgi.com>, Peter Anvin <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Robin Holt <holt@sgi.com>, Rob Landley <rob@landley.net>, Daniel J Blueman <daniel@numascale-asia.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Yinghai Lu <yinghai@kernel.org>, Mel Gorman <mgorman@suse.de>
 
-This change makes lru_add_drain_all() only selectively interrupt
-the cpus that have per-cpu free pages that can be drained.
+On Tue, Aug 13, 2013 at 10:51:37AM -0700, Linus Torvalds wrote:
+> I realize that benchmarking cares, and yes, I also realize that some
+> benchmarks actually want to reboot the machine between some runs just
+> to get repeatability, but if you're benchmarking a 16TB machine I'm
+> guessing any serious benchmark that actually uses that much memory is
+> going to take many hours to a few days to run anyway? Having some way
+> to wait until the memory is all done (which might even be just a silly
+> shell script that does "ps" and waits for the kernel threads to all go
+> away) isn't going to kill the benchmark - and the benchmark itself
+> will then not have to worry about hittinf the "oops, I need to
+> initialize 2GB of RAM now because I hit an uninitialized page".
+> 
+I am not overly concerned with cost having to setup a page struct on first
+touch but what I need to avoid is adding more permanent cost to page faults
+on a system that is already "primed".
 
-This is important in nohz mode where calling mlockall(), for
-example, otherwise will interrupt every core unnecessarily.
+> Ok, so I don't know all the issues, and in many ways I don't even
+> really care. You could do it other ways, I don't think this is a big
+> deal. The part I hate is the runtime hook into the core MM page
+> allocation code, so I'm just throwing out any random thing that comes
+> to my mind that could be used to avoid that part.
+> 
 
-Signed-off-by: Chris Metcalf <cmetcalf@tilera.com>
----
-v7: try a version with callbacks instead of cpu masks.
-Either this or v6 seem like reasonable solutions.
+The only mm structure we are adding to is a new flag in page->flags.
+That didn't seem too much.
 
-v6: add Tejun's Acked-by, and add missing get/put_cpu_online to
-lru_add_drain_all().
+I had hoped to restrict the core mm changes to check_new_page and
+free_pages_check but I haven't gotten there yet.
 
-v5: provide validity checking on the cpumask for schedule_on_cpu_mask.
-By providing an all-or-nothing EINVAL check, we impose the requirement
-that the calling code actually know clearly what it's trying to do.
-(Note: no change to the mm/swap.c commit)
+Not putting on uninitialized pages on to the lru would work but then I 
+would be concerned over any calculations based on totalpages.  I might be
+too paranoid there but having that be incorrect until after a system is booted
+worries me.
 
-v4: don't lose possible -ENOMEM in schedule_on_each_cpu()
-(Note: no change to the mm/swap.c commit)
 
-v3: split commit into two, one for workqueue and one for mm, though both
-should probably be taken through -mm.
-
- mm/swap.c | 21 ++++++++++++++++++++-
- 1 file changed, 20 insertions(+), 1 deletion(-)
-
-diff --git a/mm/swap.c b/mm/swap.c
-index 4a1d0d2..fe3a488 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -405,6 +405,11 @@ static void activate_page_drain(int cpu)
- 		pagevec_lru_move_fn(pvec, __activate_page, NULL);
- }
- 
-+static bool need_activate_page_drain(int cpu)
-+{
-+	return pagevec_count(&per_cpu(activate_page_pvecs, cpu)) != 0;
-+}
-+
- void activate_page(struct page *page)
- {
- 	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
-@@ -422,6 +427,11 @@ static inline void activate_page_drain(int cpu)
- {
- }
- 
-+static bool need_activate_page_drain(int cpu)
-+{
-+	return false;
-+}
-+
- void activate_page(struct page *page)
- {
- 	struct zone *zone = page_zone(page);
-@@ -673,6 +683,14 @@ void lru_add_drain(void)
- 	put_cpu();
- }
- 
-+static bool lru_add_drain_cond(void *data, int cpu)
-+{
-+	return pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
-+		pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
-+		pagevec_count(&per_cpu(lru_deactivate_pvecs, cpu)) ||
-+		need_activate_page_drain(cpu);
-+}
-+
- static void lru_add_drain_per_cpu(struct work_struct *dummy)
- {
- 	lru_add_drain();
-@@ -683,7 +701,8 @@ static void lru_add_drain_per_cpu(struct work_struct *dummy)
-  */
- int lru_add_drain_all(void)
- {
--	return schedule_on_each_cpu(lru_add_drain_per_cpu);
-+	return schedule_on_each_cpu_cond(lru_add_drain_per_cpu,
-+					 lru_add_drain_cond, NULL);
- }
- 
- /*
--- 
-1.8.3.1
+Nate
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
