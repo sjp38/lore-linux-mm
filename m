@@ -1,144 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 0E5A66B0032
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 21:46:20 -0400 (EDT)
-Date: Mon, 12 Aug 2013 21:46:17 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1376358377-9jx2v1w2-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20130812214936.GA6373@redhat.com>
-References: <1376322204-20659-1-git-send-email-j.glisse@gmail.com>
- <1376343400-jbl12uc3-mutt-n-horiguchi@ah.jp.nec.com>
- <20130812214936.GA6373@redhat.com>
-Subject: Re: [PATCH] mm: fix special swap entry handling on copy mm
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 624EC6B0032
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 21:53:15 -0400 (EDT)
+Message-ID: <52099187.80301@tilera.com>
+Date: Mon, 12 Aug 2013 21:53:11 -0400
+From: Chris Metcalf <cmetcalf@tilera.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v4 2/2] mm: make lru_add_drain_all() selective
+References: <5202CEAA.9040204@linux.vnet.ibm.com> <201308072335.r77NZZwl022494@farm-0012.internal.tilera.com> <20130812140520.c6a2255d2176a690fadf9ba7@linux-foundation.org>
+In-Reply-To: <20130812140520.c6a2255d2176a690fadf9ba7@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: j.glisse@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Frederic Weisbecker <fweisbec@gmail.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-On Mon, Aug 12, 2013 at 05:49:37PM -0400, Jerome Glisse wrote:
-> On Mon, Aug 12, 2013 at 05:36:40PM -0400, Naoya Horiguchi wrote:
-> > Hi Jerome,
-> > 
-> > On Mon, Aug 12, 2013 at 11:43:24AM -0400, j.glisse@gmail.com wrote:
-> > > From: Jerome Glisse <jglisse@redhat.com>
-> > > 
-> > > Prior to this copy_one_pte will never reach the special swap file
-> > > handling code because swap_duplicate will return invalid value.
-> > > 
-> > > Note this is not fatal so nothing bad ever happen because of that.
-> > > Reason is that copy_pte_range would break of its loop and call
-> > > add_swap_count_continuation which would see its a special swap
-> > > file and return 0 triggering copy_pte_range to try again. Because
-> > > we try again there is a huge chance that the temporarily special
-> > > migration pte is now again valid and pointing to a new valid page.
-> > > 
-> > > This patch just split handling of special swap entry from regular
-> > > one inside copy_one_pte.
-> > > 
-> > > (Note i spotted that while reading code i haven't tested my theory.)
-> > > 
-> > > Signed-off-by: Jerome Glisse <jglisse@redhat.com>
-> > 
-> > non_swap_entry() means not only migration entry, but also hwpoison entry,
-> > so it seems to me that simply moving the swap_duplicate() into the
-> > if(!non_swap_entry) block can change the behavior for hwpoison entry.
-> > Would it be nice to add check for such a case?
-> > 
-> > Thanks,
-> > Naoya Horiguchi
-> 
-> Well if my reading of the code is right for hwpoison entry current code will
-> loop indefinitly inside the kernel on fork if one entry is set to hwpoison.
-
-(Sorry if I missed something, but) __swap_duplicate always returns
--EINVAL if non_swap_entry is true and then swap_duplicate returns 0.
-So copy_one_pte() doesn't return at if (swap_duplicate(entry) < 0)
-block for non_swap_entry. So ...
-
-> > > Prior to this copy_one_pte will never reach the special swap file
-> > > handling code because swap_duplicate will return invalid value.
-
-this seems not correct to me.
-Could you explain more about this point?
-(Maybe I don't understand the terminology "special swap file"...)
-
-> My patch does not handle hwpoison because it seems useless as there is nothing
-> to do for hwpoison pte beside giving setting the new pte to hwpoison to. So
-> the fork child will also have a pte with hwpoison. My patch do just that.
-
-Yes, just copying hwpoison entry looks a right behavior to me.
-
-Thanks,
-Naoya Horiguchi
-
-> So change in behavior is current kernel loop indefinitly in kernel with hwpoison
-> pte on fork, vs child get hwpoison pte with my patch. Meaning that both child
-> and father can live as long as they dont access the hwpoisoned ptes.
-> 
-> > 
-> > > ---
-> > >  mm/memory.c | 26 +++++++++++++-------------
-> > >  1 file changed, 13 insertions(+), 13 deletions(-)
-> > > 
-> > > diff --git a/mm/memory.c b/mm/memory.c
-> > > index 1ce2e2a..9f907dd 100644
-> > > --- a/mm/memory.c
-> > > +++ b/mm/memory.c
-> > > @@ -833,20 +833,20 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
-> > >  		if (!pte_file(pte)) {
-> > >  			swp_entry_t entry = pte_to_swp_entry(pte);
-> > >  
-> > > -			if (swap_duplicate(entry) < 0)
-> > > -				return entry.val;
-> > > -
-> > > -			/* make sure dst_mm is on swapoff's mmlist. */
-> > > -			if (unlikely(list_empty(&dst_mm->mmlist))) {
-> > > -				spin_lock(&mmlist_lock);
-> > > -				if (list_empty(&dst_mm->mmlist))
-> > > -					list_add(&dst_mm->mmlist,
-> > > -						 &src_mm->mmlist);
-> > > -				spin_unlock(&mmlist_lock);
-> > > -			}
-> > > -			if (likely(!non_swap_entry(entry)))
-> > > +			if (likely(!non_swap_entry(entry))) {
-> > > +				if (swap_duplicate(entry) < 0)
-> > > +					return entry.val;
-> > > +
-> > > +				/* make sure dst_mm is on swapoff's mmlist. */
-> > > +				if (unlikely(list_empty(&dst_mm->mmlist))) {
-> > > +					spin_lock(&mmlist_lock);
-> > > +					if (list_empty(&dst_mm->mmlist))
-> > > +						list_add(&dst_mm->mmlist,
-> > > +							 &src_mm->mmlist);
-> > > +					spin_unlock(&mmlist_lock);
-> > > +				}
-> > >  				rss[MM_SWAPENTS]++;
-> > > -			else if (is_migration_entry(entry)) {
-> > > +			} else if (is_migration_entry(entry)) {
-> > >  				page = migration_entry_to_page(entry);
-> > >  
-> > >  				if (PageAnon(page))
-> > > -- 
-> > > 1.8.3.1
-> > > 
-> > > --
-> > > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > > see: http://www.linux-mm.org/ .
-> > > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> > >
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+On 8/12/2013 5:05 PM, Andrew Morton wrote:
+> On Wed, 7 Aug 2013 16:52:22 -0400 Chris Metcalf <cmetcalf@tilera.com> wrote:
 >
+>> This change makes lru_add_drain_all() only selectively interrupt
+>> the cpus that have per-cpu free pages that can be drained.
+>>
+>> This is important in nohz mode where calling mlockall(), for
+>> example, otherwise will interrupt every core unnecessarily.
+>>
+>> ...
+>>
+>> --- a/mm/swap.c
+>> +++ b/mm/swap.c
+>> @@ -405,6 +405,11 @@ static void activate_page_drain(int cpu)
+>>  		pagevec_lru_move_fn(pvec, __activate_page, NULL);
+>>  }
+>>  
+>> +static bool need_activate_page_drain(int cpu)
+>> +{
+>> +	return pagevec_count(&per_cpu(activate_page_pvecs, cpu)) != 0;
+>> +}
+>> +
+>>  void activate_page(struct page *page)
+>>  {
+>>  	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
+>> @@ -422,6 +427,11 @@ static inline void activate_page_drain(int cpu)
+>>  {
+>>  }
+>>  
+>> +static bool need_activate_page_drain(int cpu)
+>> +{
+>> +	return false;
+>> +}
+>> +
+>>  void activate_page(struct page *page)
+>>  {
+>>  	struct zone *zone = page_zone(page);
+>> @@ -683,7 +693,32 @@ static void lru_add_drain_per_cpu(struct work_struct *dummy)
+>>   */
+>>  int lru_add_drain_all(void)
+>>  {
+>> -	return schedule_on_each_cpu(lru_add_drain_per_cpu);
+>> +	cpumask_var_t mask;
+>> +	int cpu, rc;
+>> +
+>> +	if (!alloc_cpumask_var(&mask, GFP_KERNEL))
+>> +		return -ENOMEM;
+> Newly adding a GFP_KERNEL allocation attempt into lru_add_drain_all()
+> is dangerous and undesirable.  I took a quick look at all the callsites
+> and didn't immediately see a bug, but it's hard because they're
+> splattered all over the place.  It would be far better if we were to
+> not do this.
+
+I think it should be safe, given that we already did alloc_percpu() to do
+schedule_on_each_cpu(), and that is documented as doing GFP_KERNEL allocation
+(pcpu_create_chunk will call alloc_pages with GFP_KERNEL).
+
+> Rather than tossing this hang-grenade in there we should at a reluctant
+> minimum change lru_add_drain_all() to take a gfp_t argument and then
+> carefully review and update the callers.
+>
+>> +	cpumask_clear(mask);
+>> +
+>> +	/*
+>> +	 * Figure out which cpus need flushing.  It's OK if we race
+>> +	 * with changes to the per-cpu lru pvecs, since it's no worse
+>> +	 * than if we flushed all cpus, since a cpu could still end
+>> +	 * up putting pages back on its pvec before we returned.
+>> +	 * And this avoids interrupting other cpus unnecessarily.
+>> +	 */
+>> +	for_each_online_cpu(cpu) {
+>> +		if (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
+>> +		    pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
+>> +		    pagevec_count(&per_cpu(lru_deactivate_pvecs, cpu)) ||
+>> +		    need_activate_page_drain(cpu))
+>> +			cpumask_set_cpu(cpu, mask);
+>> +	}
+>> +
+>> +	rc = schedule_on_cpu_mask(lru_add_drain_per_cpu, mask);
+> And it seems pretty easy to avoid the allocation.  Create a single
+> cpumask at boot (or, preferably, at compile-time) and whenever we add a
+> page to a drainable pagevec, do
+>
+> 	cpumask_set_cpu(smp_processor_id(), global_cpumask);
+>
+> and to avoid needlessly dirtying a cacheline,
+>
+> 	if (!cpu_isset(smp_processor_id(), global_cpumask))
+> 		cpumask_set_cpu(smp_processor_id(), global_cpumask);
+>
+>
+> This means that lru_add_drain_all() will need to clear the mask at some
+> point and atomicity issues arise.  It would be better to do the
+> clearing within schedule_on_cpu_mask() itself, using
+> cpumask_test_and_clear_cpu().
+
+The atomicity issue isn't that big a deal (given that the drain is
+racy anyway, you just need to make sure to do cpumask_set_cpu after
+the pagevec_add), but you do need to clear the cpumask before doing
+the actual drain, and that either means inflicting that semantics
+on schedule_on_cpu_mask(), which seems a little unnatural, or else
+doing a copy of the mask, which gets us back to where we started
+with GFP_KERNEL allocations.
+
+Alternately, you could imagine a workqueue API that just took a function
+pointer that returned for each cpu whether or not to schedule work on
+that cpu:
+
+  typedef bool (*check_work_func_t)(void *data, int cpu);
+  schedule_on_some_cpus(work_func_t func, check_work_func_t checker, void *data);
+
+For the lru stuff we wouldn't need to use a "data" pointer but I'd include
+it since it's cheap, pretty standard, and makes the API more general.
+
+Or, I suppose, one other possibility is just a compile-time struct
+cpumask that we guard with a lock.  It seems a bit like overkill for
+the very common case of not specifying CPUMASK_OFFSTACK.
+
+All that said, I still tend to like the simple cpumask data-driven approach,
+assuming you're comfortable with the possible GFP_KERNEL allocation.
+
+> Also, what's up with the get_online_cpus() handling? 
+> schedule_on_each_cpu() does it, lru_add_drain_all() does not do it and
+> the schedule_on_cpu_mask() documentation forgot to mention it.
+
+The missing get_online_cpus() for lru_add_drain_all() is in v6 of the
+patch from Aug 9 (v5 had Tejun's feedback for doing validity-checking
+on the schedule_on_cpu_mask() mask argument, and v6 added his Ack
+and the missing get/put_online_cpus).
+
+schedule_on_each_cpu() obviously uses get/put_online_cpus and needs it;
+I would argue that there's no need to mention it in the docs for
+schedule_on_cpu_mask() since if you're going to pass the cpu_online_mask
+you'd better know that you should get/put_online_cpus().
+
+-- 
+Chris Metcalf, Tilera Corp.
+http://www.tilera.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
