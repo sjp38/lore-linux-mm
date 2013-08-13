@@ -1,47 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id A92576B0032
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2013 11:59:23 -0400 (EDT)
-Message-ID: <0000014078672ca0-b0ac80d0-e47f-4e87-aee0-d879eed081ff-000000@email.amazonses.com>
-Date: Tue, 13 Aug 2013 15:59:22 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: [3.12 3/3] seq_file: Use kmalloc_large for page sized allocation
-References: <20130813154940.741769876@linux.com>
+Date: Tue, 13 Aug 2013 16:21:30 +0000
+From: Christoph Lameter <cl@gentwo.org>
+Subject: Re: [RFC 0/3] Pin page control subsystem
+In-Reply-To: <1376377502-28207-1-git-send-email-minchan@kernel.org>
+Message-ID: <00000140787b6191-ae3f2eb1-515e-48a1-8e64-502772af4700-000000@email.amazonses.com>
+References: <1376377502-28207-1-git-send-email-minchan@kernel.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, k.kozlowski@samsung.com, Seth Jennings <sjenning@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, guz.fnst@cn.fujitsu.com, Benjamin LaHaise <bcrl@kvack.org>, Dave Hansen <dave.hansen@intel.com>, lliubbo@gmail.com, aquini@redhat.com, Rik van Riel <riel@redhat.com>
 
-There is no point in using the slab allocation functions for
-large page order allocation. Use kmalloc_large().
+On Tue, 13 Aug 2013, Minchan Kim wrote:
 
-This fixes the warning about large allocs but it will still cause
-large contiguous allocs that could fail because of memory fragmentation.
+> VM sometime want to migrate and/or reclaim pages for CMA, memory-hotplug,
+> THP and so on but at the moment, it could handle only userspace pages
+> so if above example subsystem have pinned a some page in a range VM want
+> to migrate, migration is failed so above exmaple couldn't work well.
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
-
-Index: linux/fs/seq_file.c
-===================================================================
---- linux.orig/fs/seq_file.c	2013-07-31 10:39:03.050472030 -0500
-+++ linux/fs/seq_file.c	2013-07-31 10:39:03.050472030 -0500
-@@ -136,7 +136,7 @@ static int traverse(struct seq_file *m,
- Eoverflow:
- 	m->op->stop(m, p);
- 	kfree(m->buf);
--	m->buf = kmalloc(m->size <<= 1, GFP_KERNEL);
-+	m->buf = kmalloc_large(m->size <<= 1, GFP_KERNEL);
- 	return !m->buf ? -ENOMEM : -EAGAIN;
- }
- 
-@@ -232,7 +232,7 @@ ssize_t seq_read(struct file *file, char
- 			goto Fill;
- 		m->op->stop(m, p);
- 		kfree(m->buf);
--		m->buf = kmalloc(m->size <<= 1, GFP_KERNEL);
-+		m->buf = kmalloc_large(m->size <<= 1, GFP_KERNEL);
- 		if (!m->buf)
- 			goto Enomem;
- 		m->count = 0;
+Dont we have the mmu_notifiers that could help in that case? You could get
+a callback which could prepare the pages for migration?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
