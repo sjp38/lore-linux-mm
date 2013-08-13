@@ -1,8 +1,8 @@
 Return-Path: <owner-linux-mm@kvack.org>
 From: Minchan Kim <minchan@kernel.org>
-Subject: [RFC 2/3] pinpage control subsystem
-Date: Tue, 13 Aug 2013 16:05:01 +0900
-Message-Id: <1376377502-28207-3-git-send-email-minchan@kernel.org>
+Subject: [RFC 3/3] mm: migrate pinned page
+Date: Tue, 13 Aug 2013 16:05:02 +0900
+Message-Id: <1376377502-28207-4-git-send-email-minchan@kernel.org>
 In-Reply-To: <1376377502-28207-1-git-send-email-minchan@kernel.org>
 References: <1376377502-28207-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -12,211 +12,152 @@ Cc: linux-mm@kvack.org, k.kozlowski@samsung.com, Seth Jennings <sjenning@linux.v
 
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- include/linux/pinpage.h |   39 ++++++++++++++
- mm/Makefile             |    2 +-
- mm/pinpage.c            |  134 +++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 174 insertions(+), 1 deletion(-)
- create mode 100644 include/linux/pinpage.h
- create mode 100644 mm/pinpage.c
+ mm/compaction.c |   26 +++++++++++++++++++++++--
+ mm/migrate.c    |   58 ++++++++++++++++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 75 insertions(+), 9 deletions(-)
 
-diff --git a/include/linux/pinpage.h b/include/linux/pinpage.h
-new file mode 100644
-index 0000000..42fbdc7
---- /dev/null
-+++ b/include/linux/pinpage.h
-@@ -0,0 +1,39 @@
-+#ifndef _LINUX_PINPAGE_H
-+#define _LINUX_PINPAGE_H
-+
-+#include <linux/radix-tree.h>
-+
-+/*
-+ * NOTE : pinpage_system user shouldn't use page->lru and page->flags
-+ * fields.
-+ */
-+struct pinpage_system {
-+	struct radix_tree_root page_tree;
-+	spinlock_t tree_lock;
-+
-+	int (*create_subsys)(struct pinpage_system *psys);
-+	int (*destroy_subsys)(struct pinpage_system *psys);
-+	int (*migrate)(struct pinpage_system *psys, struct page *page,
-+			struct page *newpage);
-+	int (*add_page)(struct pinpage_system *psys, struct page *page,
-+			void *private);
-+	int (*del_page)(struct pinpage_system *psys, struct page *page);
-+	int (*find_page)(struct pinpage_system *psys, struct page *page);
-+
-+	struct list_head list;
-+};
-+
-+extern int general_create_subsys(struct pinpage_system *psys);
-+extern int general_destroy_subsys(struct pinpage_system *psys);
-+extern int general_add_page(struct pinpage_system *psys, struct page *page,
-+			void *private);
-+extern int general_del_page(struct pinpage_system *psys, struct page *page);
-+extern int general_find_page(struct pinpage_system *psys, struct page *page);
-+
-+extern int set_pinpage(struct pinpage_system *psys, struct page *page,
-+		void *private);
-+extern int register_pinpage(struct pinpage_system *psys);
-+extern int migrate_pinpage(struct page *page, struct page *newpage);
-+
-+#endif
-+
-diff --git a/mm/Makefile b/mm/Makefile
-index f008033..bf4a2d9 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -5,7 +5,7 @@
- mmu-y			:= nommu.o
- mmu-$(CONFIG_MMU)	:= fremap.o highmem.o madvise.o memory.o mincore.o \
- 			   mlock.o mmap.o mprotect.o mremap.o msync.o rmap.o \
--			   vmalloc.o pagewalk.o pgtable-generic.o
-+			   vmalloc.o pagewalk.o pgtable-generic.o pinpage.o
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 05ccb4c..16b80e6 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -396,8 +396,10 @@ static void acct_isolated(struct zone *zone, bool locked, struct compact_control
+ 	struct page *page;
+ 	unsigned int count[2] = { 0, };
  
- ifdef CONFIG_CROSS_MEMORY_ATTACH
- mmu-$(CONFIG_MMU)	+= process_vm_access.o
-diff --git a/mm/pinpage.c b/mm/pinpage.c
-new file mode 100644
-index 0000000..0833204
---- /dev/null
-+++ b/mm/pinpage.c
-@@ -0,0 +1,134 @@
-+#include <linux/mm.h>
-+#include <linux/slab.h>
-+#include <linux/pinpage.h>
-+#include <linux/pagemap.h>
-+
-+static DEFINE_SPINLOCK(pinpage_system_lock);
-+static LIST_HEAD(pinpage_system_list);
-+
-+struct pinpage_info {
-+	unsigned long pfn;
-+	void *private;
-+};
-+
-+int general_create_subsys(struct pinpage_system *psys)
-+{
-+	INIT_RADIX_TREE(&psys->page_tree, GFP_KERNEL);
-+	spin_lock_init(&psys->tree_lock);
-+	return 0;
-+}
-+EXPORT_SYMBOL(general_create_subsys);
-+
-+int general_destroy_subsys(struct pinpage_system *psys)
-+{
-+	return 0;
-+}
-+EXPORT_SYMBOL(general_destroy_subsys);
-+
-+int general_add_page(struct pinpage_system *psys, struct page *page,
-+			void *private)
-+{
-+	int ret = -ENOMEM;
-+	unsigned long pfn = page_to_pfn(page);
-+	struct pinpage_info *pinfo = kmalloc(sizeof(pinfo), GFP_KERNEL);
-+	if (!pinfo)
-+		return ret;
-+
-+	pinfo->pfn = pfn;
-+	pinfo->private = private;
-+
-+	spin_lock(&psys->tree_lock);
-+	ret = radix_tree_insert(&psys->page_tree, pfn, pinfo);
-+	spin_unlock(&psys->tree_lock);
-+	return ret;
-+}
-+EXPORT_SYMBOL(general_add_page);
-+
-+int general_del_page(struct pinpage_system *psys, struct page *page)
-+{
-+	struct pinpage_info *pinfo;
-+	spin_lock(&psys->tree_lock);
-+	pinfo = radix_tree_lookup(&psys->page_tree, page_to_pfn(page));
-+	if (!pinfo) {
-+		spin_unlock(&psys->tree_lock);
-+		return -EINVAL;
+-	list_for_each_entry(page, &cc->migratepages, lru)
+-		count[!!page_is_file_cache(page)]++;
++	list_for_each_entry(page, &cc->migratepages, lru) {
++		if (!PagePin(page))
++			count[!!page_is_file_cache(page)]++;
 +	}
-+	radix_tree_delete(&psys->page_tree, page_to_pfn(page));
-+	spin_unlock(&psys->tree_lock);
-+	return 0;
-+}
-+EXPORT_SYMBOL(general_del_page);
+ 
+ 	/* If locked we can use the interrupt unsafe versions */
+ 	if (locked) {
+@@ -535,6 +537,25 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+ 		}
+ 
+ 		/*
++		 * Pinned kernel page(ex, zswap) could be isolated.
++		 */
++		if (PagePin(page)) {
++			if (!get_page_unless_zero(page))
++				continue;
++			/*
++			 * Subsystem want to use pinpage should not
++			 * use page->lru feild.
++			 */
++			VM_BUG_ON(!list_empty(&page->lru));
++			if (!trylock_page(page)) {
++				put_page(page);
++				continue;
++			}
 +
-+int general_find_page(struct pinpage_system *psys, struct page *page)
-+{
-+	struct pinpage_info *pinfo;
-+	spin_lock(&psys->tree_lock);
-+	pinfo = radix_tree_lookup(&psys->page_tree, page_to_pfn(page));
-+	spin_unlock(&psys->tree_lock);
-+	return pinfo ? 1 : 0;
-+}
-+EXPORT_SYMBOL(general_find_page);
-+
-+int set_pinpage(struct pinpage_system *psys, struct page *page, void *private)
-+{
-+	int ret;
-+	ret = psys->add_page(psys, page, private);
-+	if (!ret) {
-+		lock_page(page);
-+		/* Doesn't allow nesting */
-+		VM_BUG_ON(PagePin(page));
-+		SetPagePin(page);
-+		unlock_page(page);
-+	}
-+	return ret;
-+}
-+EXPORT_SYMBOL(set_pinpage);
-+
-+int clear_pinpage(struct pinpage_system *psys, struct page *page)
-+{
-+	int ret;
-+	ret = psys->del_page(psys, page);
-+	if (!ret) {
-+		lock_page(page);
-+		ClearPagePin(page);
-+		unlock_page(page);
-+	}
-+	return ret;
-+}
-+EXPORT_SYMBOL(clear_pinpage);
-+
-+int register_pinpage(struct pinpage_system *psys)
-+{
-+	/* register pinpage_subsystem to global list */	
-+	spin_lock(&pinpage_system_lock);
-+	list_add(&psys->list, &pinpage_system_list);
-+	spin_unlock(&pinpage_system_lock);
-+	return psys->create_subsys(psys);
-+}
-+EXPORT_SYMBOL(register_pinpage);
-+
-+int unregister_pinpage(struct pinpage_system *psys)
-+{
-+	/* register pinpage_subsystem to global list */	
-+	spin_lock(&pinpage_system_lock);
-+	list_del(&psys->list);
-+	spin_unlock(&pinpage_system_lock);
-+	return psys->destroy_subsys(psys);
-+}
-+EXPORT_SYMBOL(unregister_pinpage);
-+
-+int migrate_pinpage(struct page *page, struct page *newpage)
-+{
-+	int err = 0;
-+	struct pinpage_system *psys;
-+
-+	spin_lock(&pinpage_system_lock);
-+	list_for_each_entry(psys, &pinpage_system_list, list) {
-+		if (psys->find_page(psys, page)) {
-+			err = psys->migrate(psys, page, newpage);
-+			break;
++			goto isolated;
 +		}
++
++		/*
+ 		 * Check may be lockless but that's ok as we recheck later.
+ 		 * It's possible to migrate LRU pages and balloon pages
+ 		 * Skip any other type of page
+@@ -601,6 +622,7 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+ 		/* Successfully isolated */
+ 		cc->finished_update_migrate = true;
+ 		del_page_from_lru_list(page, lruvec, page_lru(page));
++isolated:
+ 		list_add(&page->lru, migratelist);
+ 		cc->nr_migratepages++;
+ 		nr_isolated++;
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 6f0c244..4d28049 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -36,6 +36,7 @@
+ #include <linux/hugetlb_cgroup.h>
+ #include <linux/gfp.h>
+ #include <linux/balloon_compaction.h>
++#include <linux/pinpage.h>
+ 
+ #include <asm/tlbflush.h>
+ 
+@@ -101,12 +102,17 @@ void putback_movable_pages(struct list_head *l)
+ 
+ 	list_for_each_entry_safe(page, page2, l, lru) {
+ 		list_del(&page->lru);
+-		dec_zone_page_state(page, NR_ISOLATED_ANON +
+-				page_is_file_cache(page));
+-		if (unlikely(balloon_page_movable(page)))
+-			balloon_page_putback(page);
+-		else
+-			putback_lru_page(page);
++		if (!PagePin(page)) {
++			dec_zone_page_state(page, NR_ISOLATED_ANON +
++					page_is_file_cache(page));
++			if (unlikely(balloon_page_movable(page)))
++				balloon_page_putback(page);
++			else
++				putback_lru_page(page);
++		} else {
++			unlock_page(page);
++			put_page(page);
++		}
+ 	}
+ }
+ 
+@@ -855,6 +861,39 @@ out:
+ 	return rc;
+ }
+ 
++static int unmap_and_move_pinpage(new_page_t get_new_page,
++			unsigned long private, struct page *page, int force,
++			enum migrate_mode mode)
++{
++	int *result = NULL;
++	int rc = 0;
++	struct page *newpage = get_new_page(page, private, &result);
++	if (!newpage)
++		return -ENOMEM;
++
++	VM_BUG_ON(!PageLocked(page));
++	if (page_count(page) == 1) {
++		/* page was freed from under us. So we are done. */
++		goto out;
 +	}
-+	spin_unlock(&pinpage_system_lock);
-+	return err;
++
++	rc = migrate_pinpage(page, newpage);
++out:
++	if (rc != -EAGAIN) {
++		list_del(&page->lru);
++		unlock_page(page);
++		put_page(page);
++	}
++
++	if (result) {
++		if (rc)
++			*result = rc;
++		else
++			*result = page_to_nid(newpage);
++	}
++	return rc;
++
 +}
+ /*
+  * Obtain the lock on page, remove all ptes and migrate the page
+  * to the newly allocated page in newpage.
+@@ -1025,8 +1064,13 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+ 		list_for_each_entry_safe(page, page2, from, lru) {
+ 			cond_resched();
+ 
+-			rc = unmap_and_move(get_new_page, private,
++			if (PagePin(page)) {
++				rc = unmap_and_move_pinpage(get_new_page, private,
+ 						page, pass > 2, mode);
++			} else {
++				rc = unmap_and_move(get_new_page, private,
++					page, pass > 2, mode);
++			}
+ 
+ 			switch(rc) {
+ 			case -ENOMEM:
 -- 
 1.7.9.5
 
