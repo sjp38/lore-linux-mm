@@ -1,60 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 4160B6B0032
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2013 09:51:09 -0400 (EDT)
-Message-ID: <520A39A4.6090407@oracle.com>
-Date: Tue, 13 Aug 2013 21:50:28 +0800
-From: Bob Liu <bob.liu@oracle.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2 4/4] mm: add WasActive page flag
-References: <1375788977-12105-1-git-send-email-bob.liu@oracle.com> <1375788977-12105-5-git-send-email-bob.liu@oracle.com> <5209CBA1.2080009@iki.fi>
-In-Reply-To: <5209CBA1.2080009@iki.fi>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Date: Tue, 13 Aug 2013 10:23:38 -0400
+From: Benjamin LaHaise <bcrl@kvack.org>
+Subject: Re: [RFC 0/3] Pin page control subsystem
+Message-ID: <20130813142338.GD13330@kvack.org>
+References: <1376377502-28207-1-git-send-email-minchan@kernel.org> <1376387202.31048.2.camel@AMDC1943>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1376387202.31048.2.camel@AMDC1943>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@iki.fi>
-Cc: Bob Liu <lliubbo@gmail.com>, linux-mm@kvack.org, gregkh@linuxfoundation.org, ngupta@vflare.org, akpm@linux-foundation.org, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, riel@redhat.com, mgorman@suse.de, kyungmin.park@samsung.com, p.sarna@partner.samsung.com, barry.song@csr.com, penberg@kernel.org
+To: Krzysztof Kozlowski <k.kozlowski@samsung.com>
+Cc: Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Seth Jennings <sjenning@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, guz.fnst@cn.fujitsu.com, Dave Hansen <dave.hansen@intel.com>, lliubbo@gmail.com, aquini@redhat.com, Rik van Riel <riel@redhat.com>, Tomasz Stanislawski <t.stanislaws@samsung.com>
 
-Hi Pekka,
-
-On 08/13/2013 02:01 PM, Pekka Enberg wrote:
-> On 8/6/13 2:36 PM, Bob Liu wrote:
->> Zcache could be ineffective if the compressed memory pool is full with
->> compressed inactive file pages and most of them will be never used again.
->>
->> So we pick up pages from active file list only, those pages would
->> probably be
->> accessed again. Compress them in memory can reduce the latency
->> significantly
->> compared with rereading from disk.
->>
->> When a file page is shrinked from active file list to inactive file list,
->> PageActive flag is also cleared.
->> So adding an extra WasActive page flag for zcache to know whether the
->> file page
->> was shrinked from the active list.
->>
->> Signed-off-by: Bob Liu <bob.liu@oracle.com>
+On Tue, Aug 13, 2013 at 11:46:42AM +0200, Krzysztof Kozlowski wrote:
+> Hi Minchan,
 > 
-
-Thank you so much for your review!
-
-> Using a page flag for this seems like an ugly hack to me.
-> Can we rearrange the code so that vmscan notifies zcache
-> *before* the active page flag is cleared...?
-
-Yep, adding a page flag is not a good idea.
-I'm looking at whether there is other way to notify zcache.
-
-BTW: Could you please give some feedback too about other zcache patches?
-
+> On wto, 2013-08-13 at 16:04 +0900, Minchan Kim wrote:
+> > patch 2 introduce pinpage control
+> > subsystem. So, subsystems want to control pinpage should implement own
+> > pinpage_xxx functions because each subsystem would have other character
+> > so what kinds of data structure for managing pinpage information depends
+> > on them. Otherwise, they can use general functions defined in pinpage
+> > subsystem. patch 3 hacks migration.c so that migration is
+> > aware of pinpage now and migrate them with pinpage subsystem.
 > 
->                 Pekka
+> I wonder why don't we use page->mapping and a_ops? Is there any
+> disadvantage of such mapping/a_ops?
+
+That's what the pending aio patches do, and I think this is a better 
+approach for those use-cases that the technique works for.
+
+The biggest problem I see with the pinpage approach is that it's based on a
+single page at a time.  I'd venture a guess that many pinned pages are done 
+in groups of pages, not single ones.
+
+		-ben
+
+> Best regards,
+> Krzysztof
 
 -- 
-Regards,
--Bob
+"Thought is the essence of where you are now."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
