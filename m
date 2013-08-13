@@ -1,61 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 9C75F6B0032
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2013 19:51:10 -0400 (EDT)
-Received: by mail-qe0-f50.google.com with SMTP id q19so4640413qeb.23
-        for <linux-mm@kvack.org>; Tue, 13 Aug 2013 16:51:09 -0700 (PDT)
-Date: Tue, 13 Aug 2013 19:51:04 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v7 2/2] mm: make lru_add_drain_all() selective
-Message-ID: <20130813235104.GK28996@mtj.dyndns.org>
-References: <520AAF9C.1050702@tilera.com>
- <201308132307.r7DN74M5029053@farm-0021.internal.tilera.com>
- <20130813232904.GJ28996@mtj.dyndns.org>
- <520AC4F7.9090604@tilera.com>
+Date: Wed, 14 Aug 2013 08:54:25 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC 0/3] Pin page control subsystem
+Message-ID: <20130813235425.GA2271@bbox>
+References: <1376377502-28207-1-git-send-email-minchan@kernel.org>
+ <1376387202.31048.2.camel@AMDC1943>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <520AC4F7.9090604@tilera.com>
+In-Reply-To: <1376387202.31048.2.camel@AMDC1943>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Metcalf <cmetcalf@tilera.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Frederic Weisbecker <fweisbec@gmail.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
+To: Krzysztof Kozlowski <k.kozlowski@samsung.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Seth Jennings <sjenning@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, guz.fnst@cn.fujitsu.com, Benjamin LaHaise <bcrl@kvack.org>, Dave Hansen <dave.hansen@intel.com>, lliubbo@gmail.com, aquini@redhat.com, Rik van Riel <riel@redhat.com>, Tomasz Stanislawski <t.stanislaws@samsung.com>
 
-On Tue, Aug 13, 2013 at 07:44:55PM -0400, Chris Metcalf wrote:
-> int lru_add_drain_all(void)
-> {
->         static struct cpumask mask;
+Hello Krzysztof,
 
-Instead of cpumask,
-
->         static DEFINE_MUTEX(lock);
-
-you can DEFINE_PER_CPU(struct work_struct, ...).
-
->         for_each_online_cpu(cpu) {
->                 if (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
->                     pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
->                     pagevec_count(&per_cpu(lru_deactivate_pvecs, cpu)) ||
->                     need_activate_page_drain(cpu))
->                         cpumask_set_cpu(cpu, &mask);
-
-and schedule the work items directly.
-
->         }
+On Tue, Aug 13, 2013 at 11:46:42AM +0200, Krzysztof Kozlowski wrote:
+> Hi Minchan,
 > 
->         rc = schedule_on_cpu_mask(lru_add_drain_per_cpu, &mask);
+> On wto, 2013-08-13 at 16:04 +0900, Minchan Kim wrote:
+> > patch 2 introduce pinpage control
+> > subsystem. So, subsystems want to control pinpage should implement own
+> > pinpage_xxx functions because each subsystem would have other character
+> > so what kinds of data structure for managing pinpage information depends
+> > on them. Otherwise, they can use general functions defined in pinpage
+> > subsystem. patch 3 hacks migration.c so that migration is
+> > aware of pinpage now and migrate them with pinpage subsystem.
+> 
+> I wonder why don't we use page->mapping and a_ops? Is there any
+> disadvantage of such mapping/a_ops?
 
-Open coding flushing can be a bit bothersome but you can create a
-per-cpu workqueue and schedule work items on it and then flush the
-workqueue instead too.
+Most concern of the approach is how to handle nested pin case.
+For example, driver A and driver B pin same file-backed page
+conincidently by get_user_pages.
+For the migration, we needs following operations.
 
-No matter how flushing is implemented, the path wouldn't have any
-memory allocation, which I thought was the topic of the thread, no?
+1. [buffer]'s migrate_page for the file-backed page
+2. [driver A]'s migrate_page 
+3. [driver B]'s migrate_page
 
-Thanks.
+But the page's mapping is only one. How can we handle it?
+
+If we give up pinpage subsystem unifying userspace pages(ex, GUP)
+and kernel space pages(ex, zswap, zram and zcache), we can go
+address_space's migatepages but we might lost abstraction so that
+all of users should implement own pinpage manager. It's not hard,
+I guess but it's more error-prone and not maintainable for the future.
+
+> 
+> Best regards,
+> Krzysztof
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
-tejun
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
