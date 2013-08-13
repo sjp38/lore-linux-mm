@@ -1,96 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id CBF676B0032
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2013 15:45:02 -0400 (EDT)
-Message-ID: <1376423094.32758.1.camel@buesod1.americas.hpqcorp.net>
-Subject: [PATCH] hugepage: mention libhugetlbfs in doc
-From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Tue, 13 Aug 2013 12:44:54 -0700
-Content-Type: text/plain; charset="UTF-8"
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 1909B6B0032
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2013 16:15:13 -0400 (EDT)
+Date: Tue, 13 Aug 2013 13:15:10 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/3] mm: use zone_end_pfn() instead of
+ zone_start_pfn+spanned_pages
+Message-Id: <20130813131510.59ef74bce81d9352f8590218@linux-foundation.org>
+In-Reply-To: <52020EE4.1090606@huawei.com>
+References: <52020EE4.1090606@huawei.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, "Chandramouleeswaran, Aswin" <aswin@hp.com>, davidlohr@hp.com
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Cody P Schafer <cody@linux.vnet.ibm.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-From: Davidlohr Bueso <davidlohr@hp.com>
+On Wed, 7 Aug 2013 17:09:56 +0800 Xishi Qiu <qiuxishi@huawei.com> wrote:
 
-Explicitly mention/recommend using the libhugetlbfs test cases
-when changing related kernel code. Developers that are unaware
-of the project can easily miss this and introduce potential
-regressions that may or may not be caught by community review.
+> Use "zone_end_pfn()" instead of "zone->zone_start_pfn + zone->spanned_pages".
+> Simplify the code, no functional change.
 
-Also do some cleanups that make the document visually easier to
-view at a first glance.
+This doesn't compile.
 
-Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
----
- Documentation/vm/hugetlbpage.txt | 25 ++++++++++++-------------
- 1 file changed, 12 insertions(+), 13 deletions(-)
+mm/memory_hotplug.c: In function 'shrink_zone_span':
+mm/memory_hotplug.c:518: error: called object 'zone_end_pfn' is not a function
 
-diff --git a/Documentation/vm/hugetlbpage.txt b/Documentation/vm/hugetlbpage.txt
-index 4ac359b..bdd4bb9 100644
---- a/Documentation/vm/hugetlbpage.txt
-+++ b/Documentation/vm/hugetlbpage.txt
-@@ -165,6 +165,7 @@ which function as described above for the default huge page-sized case.
- 
- 
- Interaction of Task Memory Policy with Huge Page Allocation/Freeing
-+===================================================================
- 
- Whether huge pages are allocated and freed via the /proc interface or
- the /sysfs interface using the nr_hugepages_mempolicy attribute, the NUMA
-@@ -229,6 +230,7 @@ resulting effect on persistent huge page allocation is as follows:
-    of huge pages over all on-lines nodes with memory.
- 
- Per Node Hugepages Attributes
-+=============================
- 
- A subset of the contents of the root huge page control directory in sysfs,
- described above, will be replicated under each the system device of each
-@@ -258,6 +260,7 @@ applied, from which node the huge page allocation will be attempted.
- 
- 
- Using Huge Pages
-+================
- 
- If the user applications are going to request huge pages using mmap system
- call, then it is required that system administrator mount a file system of
-@@ -296,20 +299,16 @@ calls, though the mount of filesystem will be required for using mmap calls
- without MAP_HUGETLB.  For an example of how to use mmap with MAP_HUGETLB see
- map_hugetlb.c.
- 
--*******************************************************************
-+Examples
-+========
- 
--/*
-- * map_hugetlb: see tools/testing/selftests/vm/map_hugetlb.c
-- */
-+1) map_hugetlb: see tools/testing/selftests/vm/map_hugetlb.c
- 
--*******************************************************************
-+2) hugepage-shm:  see tools/testing/selftests/vm/hugepage-shm.c
- 
--/*
-- * hugepage-shm:  see tools/testing/selftests/vm/hugepage-shm.c
-- */
-+3) hugepage-mmap:  see tools/testing/selftests/vm/hugepage-mmap.c
- 
--*******************************************************************
--
--/*
-- * hugepage-mmap:  see tools/testing/selftests/vm/hugepage-mmap.c
-- */
-+4) The libhugetlbfs (http://libhugetlbfs.sourceforge.net) library provides a
-+   wide range of userspace tools to help with huge page usability, environment
-+   setup, and control. Furthermore it provides useful test cases that should be
-+   used when modifying code to ensure no regressions are introduced.
--- 
-1.7.11.7
+>  kernel/power/snapshot.c |   12 ++++++------
+>  mm/memory_hotplug.c     |    4 ++--
 
+It's only two files - did you test it?
 
+I couldn't see any vaguely acceptable way of renaming the variables to
+fix this, so I did a hack which permits us to keep the current naming.
+Any better ideas?
+
+--- a/mm/memory_hotplug.c~mm-use-zone_end_pfn-instead-of-zone_start_pfnspanned_pages-fix
++++ a/mm/memory_hotplug.c
+@@ -514,8 +514,9 @@ static int find_biggest_section_pfn(int
+ static void shrink_zone_span(struct zone *zone, unsigned long start_pfn,
+ 			     unsigned long end_pfn)
+ {
+-	unsigned long zone_start_pfn =  zone->zone_start_pfn;
+-	unsigned long zone_end_pfn = zone_end_pfn(zone);
++	unsigned long zone_start_pfn = zone->zone_start_pfn;
++	unsigned long z = zone_end_pfn(zone); /* zone_end_pfn namespace clash */
++	unsigned long zone_end_pfn = z;
+ 	unsigned long pfn;
+ 	struct mem_section *ms;
+ 	int nid = zone_to_nid(zone);
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
