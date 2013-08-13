@@ -1,80 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 1D2956B0032
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2013 18:07:07 -0400 (EDT)
-Received: by mail-qe0-f43.google.com with SMTP id k5so4737049qej.30
-        for <linux-mm@kvack.org>; Tue, 13 Aug 2013 15:07:06 -0700 (PDT)
-Date: Tue, 13 Aug 2013 18:07:00 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v4 2/2] mm: make lru_add_drain_all() selective
-Message-ID: <20130813220700.GC28996@mtj.dyndns.org>
-References: <5202CEAA.9040204@linux.vnet.ibm.com>
- <201308072335.r77NZZwl022494@farm-0012.internal.tilera.com>
- <20130812140520.c6a2255d2176a690fadf9ba7@linux-foundation.org>
- <52099187.80301@tilera.com>
- <20130813123512.3d6865d8bf4689c05d44738c@linux-foundation.org>
- <20130813201958.GA28996@mtj.dyndns.org>
- <20130813133135.3b580af557d1457e4ee8331a@linux-foundation.org>
- <20130813210719.GB28996@mtj.dyndns.org>
- <20130813141621.3f1c3415901d4236942ee736@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 86A506B0032
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2013 18:13:53 -0400 (EDT)
+Message-ID: <520AAF9C.1050702@tilera.com>
+Date: Tue, 13 Aug 2013 18:13:48 -0400
+From: Chris Metcalf <cmetcalf@tilera.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130813141621.3f1c3415901d4236942ee736@linux-foundation.org>
+Subject: Re: [PATCH v4 2/2] mm: make lru_add_drain_all() selective
+References: <5202CEAA.9040204@linux.vnet.ibm.com> <201308072335.r77NZZwl022494@farm-0012.internal.tilera.com> <20130812140520.c6a2255d2176a690fadf9ba7@linux-foundation.org> <52099187.80301@tilera.com> <20130813123512.3d6865d8bf4689c05d44738c@linux-foundation.org> <20130813201958.GA28996@mtj.dyndns.org> <20130813133135.3b580af557d1457e4ee8331a@linux-foundation.org> <520A9E4A.2050203@tilera.com> <20130813141329.c55deccf462f3ad49129bbca@linux-foundation.org>
+In-Reply-To: <20130813141329.c55deccf462f3ad49129bbca@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Chris Metcalf <cmetcalf@tilera.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Frederic Weisbecker <fweisbec@gmail.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
+Cc: Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Frederic Weisbecker <fweisbec@gmail.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-Hello,
+On 8/13/2013 5:13 PM, Andrew Morton wrote:
+> On Tue, 13 Aug 2013 16:59:54 -0400 Chris Metcalf <cmetcalf@tilera.com> wrote:
+>
+>>> Then again, why does this patchset exist?  It's a performance
+>>> optimisation so presumably someone cares.  But not enough to perform
+>>> actual measurements :(
+>> The patchset exists because of the difference between zero overhead on
+>> cpus that don't have drainable lrus, and non-zero overhead.  This turns
+>> out to be important on workloads where nohz cores are handling 10 Gb
+>> traffic in userspace and really, really don't want to be interrupted,
+>> or they drop packets on the floor.
+> But what is the effect of the patchset?  Has it been tested against the
+> problematic workload(s)?
 
-On Tue, Aug 13, 2013 at 02:16:21PM -0700, Andrew Morton wrote:
-> I've yet to see any evidence that callback APIs have been abused and
-> I've yet to see any reasoning which makes me believe that this one will
-> be abused.
+Yes.  The result is that syscalls such as mlockall(), which otherwise interrupt
+every core, don't interrupt the cores that are running purely in userspace.
+Since they are purely in userspace they don't have any drainable pagevecs,
+so the patchset means they don't get interrupted and don't drop packets.
 
-Well, off the top of my head.
+I implemented this against Linux 2.6.38 and our home-grown version of nohz
+cpusets back in July 2012, and we have been shipping it to customers since then.
 
-* In general, it's clunkier.  Callbacks become artificial boundaries
-  across which context has to be carried over explicitly.  It often
-  involves packing data into a temporary struct.  The artificial
-  barrier also generally makes the logic more difficult to follow.
-  This is pretty general problem with callback based interface and why
-  many programming languages / conventions prefer iterator style
-  interface over callback based ones.  It makes the code a lot easier
-  to organize around the looping construct.  Here, it isn't as
-  pronounced because the thing naturally requires a callback anyway.
+>>>> the logical thing to do
+>>>> would be pre-allocating per-cpu buffers instead of depending on
+>>>> dynamic allocation.  Do the invocations need to be stackable?
+>>> schedule_on_each_cpu() calls should if course happen concurrently, and
+>>> there's the question of whether we wish to permit async
+>>> schedule_on_each_cpu().  Leaving the calling CPU twiddling thumbs until
+>>> everyone has finished is pretty sad if the caller doesn't want that.
+>>>
+>>>>> That being said, the `cpumask_var_t mask' which was added to
+>>>>> lru_add_drain_all() is unneeded - it's just a temporary storage which
+>>>>> can be eliminated by creating a schedule_on_each_cpu_cond() or whatever
+>>>>> which is passed a function pointer of type `bool (*call_needed)(int
+>>>>> cpu, void *data)'.
+>>>> I'd really like to avoid that.  Decision callbacks tend to get abused
+>>>> quite often and it's rather sad to do that because cpumask cannot be
+>>>> prepared and passed around.  Can't it just preallocate all necessary
+>>>> resources?
+>>> I don't recall seeing such abuse.  It's a very common and powerful
+>>> tool, and not implementing it because some dummy may abuse it weakens
+>>> the API for all non-dummies.  That allocation is simply unneeded.
+>> The problem with a callback version is that it's not clear that
+>> it helps with Andrew's original concern about allocation.  In
+>> schedule_on_each_cpu() we need to track which cpus we scheduled work
+>> on so that we can flush_work() after all the work has been scheduled.
+>> Even with a callback approach, we'd still end up wanting to record
+>> the results of the callback in the first pass so that we could
+>> properly flush_work() on the second pass.  Given that, having the
+>> caller just create the cpumask in the first place makes more sense.
+> Nope.  schedule_on_each_cpu() can just continue to do
+>
+> 	for_each_cpu(cpu, mask)
+> 		flush_work(per_cpu_ptr(works, cpu));
+>
+> lru_add_drain_all() can do that as well.  An optimisation would be to
+> tag the unused works as not-needing-flush.  Set work.entry,next to
+> NULL, for example.
 
-* From the API itself, it often isn't clear what restrictions the
-  context the callback is called under would have.  It sure is partly
-  documentation problem but is pretty easy to get wrong inadvertantly
-  as the code evolves and can be difficult to spot as the context
-  isn't apparent.
+Good point - we already have a per-cpu data structure sitting there
+handy, so we might as well use it rather than allocating another cpumask.
 
-Moving away from callbacks started with higher level languages but the
-kernel sure is on the boat too where possible.  This one is muddier as
-the interface is async in nature but still it's at least partially
-applicable.
+>> As Andrew suggests, we could also just have an asynchronous version
+>> of schedule_on_each_cpu(), but I don't know if that's beneficial
+>> enough to the swap code to make it worthwhile, or if it's tricky
+>> enough on the workqueue side to make it not worthwhile; it does seem
+>> like we would need to rethink the work_struct allocation, and
+>> e.g. avoid re-issuing the flush to a cpu that hadn't finished the
+>> previous flush, etc.  Potentially tricky, particularly if
+>> lru_add_drain_all() doesn't care about performance in the first place.
+> lru_add_drain_all() wants synchronous behavior.  I don't know how much
+> call there would be for an async schedule_on_each_cpu_cond().
 
-> >  It feels a bit silly to me to push the API
-> > that way when doing so doesn't even solve the allocation problem.
-> 
-> It removes the need to perform a cpumask allocation in
-> lru_add_drain_all().
-
-But that doesn't really solve anything, does it?
-
-> >  It doesn't really buy us much while making the interface more complex.
-> 
-> It's a superior interface.
-
-It is more flexible but at the same time clunkier.  I wouldn't call it
-superior and the flexibility doesn't buy us much here.
-
-Thanks.
+Let me work up a patchset using callbacks, and we can look at that as
+an example and see how it feels for both workqueue.c and swap.c. 
 
 -- 
-tejun
+Chris Metcalf, Tilera Corp.
+http://www.tilera.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
