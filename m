@@ -1,123 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 126886B0032
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 21:35:57 -0400 (EDT)
-Date: Tue, 13 Aug 2013 10:35:59 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v2] mm: vmscan: decrease cma pages from nr_reclaimed
-Message-ID: <20130813013559.GB3101@bbox>
-References: <52092FB5.3060300@intel.com>
- <1376356062-25200-1-git-send-email-haojian.zhuang@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 0E5A66B0032
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 21:46:20 -0400 (EDT)
+Date: Mon, 12 Aug 2013 21:46:17 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1376358377-9jx2v1w2-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20130812214936.GA6373@redhat.com>
+References: <1376322204-20659-1-git-send-email-j.glisse@gmail.com>
+ <1376343400-jbl12uc3-mutt-n-horiguchi@ah.jp.nec.com>
+ <20130812214936.GA6373@redhat.com>
+Subject: Re: [PATCH] mm: fix special swap entry handling on copy mm
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <1376356062-25200-1-git-send-email-haojian.zhuang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Haojian Zhuang <haojian.zhuang@gmail.com>
-Cc: dave.hansen@intel.com, m.szyprowski@samsung.com, akpm@linux-foundation.org, mgorman@suse.de, linux-mm@kvack.org
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: j.glisse@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello,
-
-On Tue, Aug 13, 2013 at 09:07:42AM +0800, Haojian Zhuang wrote:
-> shrink_page_list() reclaims the pages. But the statistical data may
-> be inaccurate since some pages are CMA pages. If kernel needs to
-> reclaim unmovable memory (GFP_KERNEL flag), free CMA pages should not
-> be counted in nr_reclaimed pages.
-
-Please write description as following as.
-
-1. What's the problem?
-2. So what's the user effect?
-3. How to fix it?
-
-I will try.
-
-Now, VM reclaims CMA pages although memory pressure happens by kernel
-memory request(ex, GFP_KERNEL). The problem is that VM can't allocate
-new page from just freed CMA area for kernel memory request so that
-reclaiming CMA pages when kernel memory space is short is pointless and
-it would reclaim too excessive CMA pages without any progress.
-
-This patch fixes ....
-
+On Mon, Aug 12, 2013 at 05:49:37PM -0400, Jerome Glisse wrote:
+> On Mon, Aug 12, 2013 at 05:36:40PM -0400, Naoya Horiguchi wrote:
+> > Hi Jerome,
+> > 
+> > On Mon, Aug 12, 2013 at 11:43:24AM -0400, j.glisse@gmail.com wrote:
+> > > From: Jerome Glisse <jglisse@redhat.com>
+> > > 
+> > > Prior to this copy_one_pte will never reach the special swap file
+> > > handling code because swap_duplicate will return invalid value.
+> > > 
+> > > Note this is not fatal so nothing bad ever happen because of that.
+> > > Reason is that copy_pte_range would break of its loop and call
+> > > add_swap_count_continuation which would see its a special swap
+> > > file and return 0 triggering copy_pte_range to try again. Because
+> > > we try again there is a huge chance that the temporarily special
+> > > migration pte is now again valid and pointing to a new valid page.
+> > > 
+> > > This patch just split handling of special swap entry from regular
+> > > one inside copy_one_pte.
+> > > 
+> > > (Note i spotted that while reading code i haven't tested my theory.)
+> > > 
+> > > Signed-off-by: Jerome Glisse <jglisse@redhat.com>
+> > 
+> > non_swap_entry() means not only migration entry, but also hwpoison entry,
+> > so it seems to me that simply moving the swap_duplicate() into the
+> > if(!non_swap_entry) block can change the behavior for hwpoison entry.
+> > Would it be nice to add check for such a case?
+> > 
+> > Thanks,
+> > Naoya Horiguchi
 > 
-> v2:
-> * Remove #ifdef CONFIG_CMA. Use IS_ENABLED() & is_migrate_cma() instead.
+> Well if my reading of the code is right for hwpoison entry current code will
+> loop indefinitly inside the kernel on fork if one entry is set to hwpoison.
 
-But I don't like your approach.
+(Sorry if I missed something, but) __swap_duplicate always returns
+-EINVAL if non_swap_entry is true and then swap_duplicate returns 0.
+So copy_one_pte() doesn't return at if (swap_duplicate(entry) < 0)
+block for non_swap_entry. So ...
 
-IMHO, better fix is we should filter out it from the beginnig.
-Look at isolate_lru_pages with isolate_mode. When we select victim pages,
-we shouldn't select CMA pages if memory pressure happens by GFP_KERNEL.
-It would avoid unnecessary CPU overhead and reclaiming.
+> > > Prior to this copy_one_pte will never reach the special swap file
+> > > handling code because swap_duplicate will return invalid value.
 
-Thanks.
+this seems not correct to me.
+Could you explain more about this point?
+(Maybe I don't understand the terminology "special swap file"...)
 
+> My patch does not handle hwpoison because it seems useless as there is nothing
+> to do for hwpoison pte beside giving setting the new pte to hwpoison to. So
+> the fork child will also have a pte with hwpoison. My patch do just that.
+
+Yes, just copying hwpoison entry looks a right behavior to me.
+
+Thanks,
+Naoya Horiguchi
+
+> So change in behavior is current kernel loop indefinitly in kernel with hwpoison
+> pte on fork, vs child get hwpoison pte with my patch. Meaning that both child
+> and father can live as long as they dont access the hwpoisoned ptes.
 > 
-> Signed-off-by: Haojian Zhuang <haojian.zhuang@gmail.com>
-> ---
->  mm/vmscan.c | 14 ++++++++++++++
->  1 file changed, 14 insertions(+)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 2cff0d4..414f74f 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -720,6 +720,9 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  	unsigned long nr_reclaimed = 0;
->  	unsigned long nr_writeback = 0;
->  	unsigned long nr_immediate = 0;
-> +	/* Number of pages freed with MIGRATE_CMA type */
-> +	unsigned long nr_reclaimed_cma = 0;
-> +	int mt = 0;
->  
->  	cond_resched();
->  
-> @@ -987,6 +990,9 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  					 * leave it off the LRU).
->  					 */
->  					nr_reclaimed++;
-> +					mt = get_pageblock_migratetype(page);
-> +					if (is_migrate_cma(mt))
-> +						nr_reclaimed_cma++;
->  					continue;
->  				}
->  			}
-> @@ -1005,6 +1011,9 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  		__clear_page_locked(page);
->  free_it:
->  		nr_reclaimed++;
-> +		mt = get_pageblock_migratetype(page);
-> +		if (is_migrate_cma(mt))
-> +			nr_reclaimed_cma++;
->  
->  		/*
->  		 * Is there need to periodically free_page_list? It would
-> @@ -1044,6 +1053,11 @@ keep:
->  	*ret_nr_unqueued_dirty += nr_unqueued_dirty;
->  	*ret_nr_writeback += nr_writeback;
->  	*ret_nr_immediate += nr_immediate;
-> +	if (IS_ENABLED(CONFIG_CMA)) {
-> +		mt = allocflags_to_migratetype(sc->gfp_mask);
-> +		if (mt == MIGRATE_UNMOVABLE)
-> +			nr_reclaimed -= nr_reclaimed_cma;
-> +	}
->  	return nr_reclaimed;
->  }
->  
-> -- 
-> 1.8.1.2
+> > 
+> > > ---
+> > >  mm/memory.c | 26 +++++++++++++-------------
+> > >  1 file changed, 13 insertions(+), 13 deletions(-)
+> > > 
+> > > diff --git a/mm/memory.c b/mm/memory.c
+> > > index 1ce2e2a..9f907dd 100644
+> > > --- a/mm/memory.c
+> > > +++ b/mm/memory.c
+> > > @@ -833,20 +833,20 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+> > >  		if (!pte_file(pte)) {
+> > >  			swp_entry_t entry = pte_to_swp_entry(pte);
+> > >  
+> > > -			if (swap_duplicate(entry) < 0)
+> > > -				return entry.val;
+> > > -
+> > > -			/* make sure dst_mm is on swapoff's mmlist. */
+> > > -			if (unlikely(list_empty(&dst_mm->mmlist))) {
+> > > -				spin_lock(&mmlist_lock);
+> > > -				if (list_empty(&dst_mm->mmlist))
+> > > -					list_add(&dst_mm->mmlist,
+> > > -						 &src_mm->mmlist);
+> > > -				spin_unlock(&mmlist_lock);
+> > > -			}
+> > > -			if (likely(!non_swap_entry(entry)))
+> > > +			if (likely(!non_swap_entry(entry))) {
+> > > +				if (swap_duplicate(entry) < 0)
+> > > +					return entry.val;
+> > > +
+> > > +				/* make sure dst_mm is on swapoff's mmlist. */
+> > > +				if (unlikely(list_empty(&dst_mm->mmlist))) {
+> > > +					spin_lock(&mmlist_lock);
+> > > +					if (list_empty(&dst_mm->mmlist))
+> > > +						list_add(&dst_mm->mmlist,
+> > > +							 &src_mm->mmlist);
+> > > +					spin_unlock(&mmlist_lock);
+> > > +				}
+> > >  				rss[MM_SWAPENTS]++;
+> > > -			else if (is_migration_entry(entry)) {
+> > > +			} else if (is_migration_entry(entry)) {
+> > >  				page = migration_entry_to_page(entry);
+> > >  
+> > >  				if (PageAnon(page))
+> > > -- 
+> > > 1.8.3.1
+> > > 
+> > > --
+> > > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > > see: http://www.linux-mm.org/ .
+> > > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> > >
 > 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
 > the body to majordomo@kvack.org.  For more info on Linux MM,
 > see: http://www.linux-mm.org/ .
 > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
