@@ -1,52 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id D72536B0034
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2013 10:46:04 -0400 (EDT)
-Message-ID: <1376405088.10300.384.camel@misato.fc.hp.com>
-Subject: Re: [PATCH] mm/hotplug: Remove stop_machine() from
- try_offline_node()
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Tue, 13 Aug 2013 08:44:48 -0600
-In-Reply-To: <3940091.8hz2Z6IIgz@vostro.rjw.lan>
-References: <1376336071-9128-1-git-send-email-toshi.kani@hp.com>
-	 <3940091.8hz2Z6IIgz@vostro.rjw.lan>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 687E16B0034
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2013 11:02:11 -0400 (EDT)
+Date: Tue, 13 Aug 2013 08:01:36 -0700
+From: tip-bot for Jianguo Wu <tipbot@zytor.com>
+Message-ID: <tip-d4f5228c01c130ff2c1f9240f1de22a5dfc61554@git.kernel.org>
+Reply-To: mingo@kernel.org, hpa@zytor.com, linux-kernel@vger.kernel.org,
+        wangchen@cn.fujitsu.com, wujianguo@huawei.com, tglx@linutronix.de,
+        iamjoonsoo.kim@lge.com, guohanjun@huawei.com, linux-mm@kvack.org
+In-Reply-To: <5209A173.3090600@huawei.com>
+References: <5209A173.3090600@huawei.com>
+Subject: [tip:x86/mm] mm: Remove unused variable idx0 in __early_ioremap()
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, tangchen@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, liwanp@linux.vnet.ibm.com
+To: linux-tip-commits@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, hpa@zytor.com, mingo@kernel.org, wangchen@cn.fujitsu.com, wujianguo@huawei.com, tglx@linutronix.de, iamjoonsoo.kim@lge.com, guohanjun@huawei.com, linux-mm@kvack.org
 
-On Tue, 2013-08-13 at 13:41 +0200, Rafael J. Wysocki wrote:
-> On Monday, August 12, 2013 01:34:31 PM Toshi Kani wrote:
-> > lock_device_hotplug() serializes hotplug & online/offline operations.
-> > The lock is held in common sysfs online/offline interfaces and ACPI
-> > hotplug code paths.
-> > 
-> > try_offline_node() off-lines a node if all memory sections and cpus
-> > are removed on the node.  It is called from acpi_processor_remove()
-> > and acpi_memory_remove_memory()->remove_memory() paths, both of which
-> > are in the ACPI hotplug code.
-> > 
-> > try_offline_node() calls stop_machine() to stop all cpus while checking
-> > all cpu status with the assumption that the caller is not protected from
-> > CPU hotplug or CPU online/offline operations.  However, the caller is
-> > always serialized with lock_device_hotplug().  Also, the code needs to
-> > be properly serialized with a lock, not by stopping all cpus at a random
-> > place with stop_machine().
-> > 
-> > This patch removes the use of stop_machine() in try_offline_node() and
-> > adds comments to try_offline_node() and remove_memory() that
-> > lock_device_hotplug() is required.
-> > 
-> > Signed-off-by: Toshi Kani <toshi.kani@hp.com>
-> 
-> Acked-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+Commit-ID:  d4f5228c01c130ff2c1f9240f1de22a5dfc61554
+Gitweb:     http://git.kernel.org/tip/d4f5228c01c130ff2c1f9240f1de22a5dfc61554
+Author:     Jianguo Wu <wujianguo@huawei.com>
+AuthorDate: Tue, 13 Aug 2013 11:01:07 +0800
+Committer:  Ingo Molnar <mingo@kernel.org>
+CommitDate: Tue, 13 Aug 2013 11:46:36 +0200
 
-Thanks!
--Toshi
+mm: Remove unused variable idx0 in __early_ioremap()
 
+After commit:
+
+   8827247ffcc ("x86: don't define __this_fixmap_does_not_exist()")
+
+variable idx0 is no longer needed, so just remove it.
+
+Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: <linux-mm@kvack.org>
+Cc: <wangchen@cn.fujitsu.com>
+Cc: Hanjun Guo <guohanjun@huawei.com>
+Link: http://lkml.kernel.org/r/5209A173.3090600@huawei.com
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+---
+ arch/x86/mm/ioremap.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
+index 0215e2c..799580c 100644
+--- a/arch/x86/mm/ioremap.c
++++ b/arch/x86/mm/ioremap.c
+@@ -487,7 +487,7 @@ __early_ioremap(resource_size_t phys_addr, unsigned long size, pgprot_t prot)
+ 	unsigned long offset;
+ 	resource_size_t last_addr;
+ 	unsigned int nrpages;
+-	enum fixed_addresses idx0, idx;
++	enum fixed_addresses idx;
+ 	int i, slot;
+ 
+ 	WARN_ON(system_state != SYSTEM_BOOTING);
+@@ -540,8 +540,7 @@ __early_ioremap(resource_size_t phys_addr, unsigned long size, pgprot_t prot)
+ 	/*
+ 	 * Ok, go for it..
+ 	 */
+-	idx0 = FIX_BTMAP_BEGIN - NR_FIX_BTMAPS*slot;
+-	idx = idx0;
++	idx = FIX_BTMAP_BEGIN - NR_FIX_BTMAPS*slot;
+ 	while (nrpages > 0) {
+ 		early_set_fixmap(idx, phys_addr, prot);
+ 		phys_addr += PAGE_SIZE;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
