@@ -1,66 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 3EEB06B0032
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 15:43:50 -0400 (EDT)
-Date: Wed, 14 Aug 2013 12:43:48 -0700
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: [RFC][PATCH] drivers: base: dynamic memory block creation
-Message-ID: <20130814194348.GB10469@kroah.com>
-References: <1376508705-3188-1-git-send-email-sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 840BC6B0032
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 15:55:47 -0400 (EDT)
+Received: by mail-qe0-f48.google.com with SMTP id 9so5238727qea.21
+        for <linux-mm@kvack.org>; Wed, 14 Aug 2013 12:55:46 -0700 (PDT)
+Date: Wed, 14 Aug 2013 15:55:41 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH part5 0/7] Arrange hotpluggable memory as ZONE_MOVABLE.
+Message-ID: <20130814195541.GH28628@htj.dyndns.org>
+References: <20130812145016.GI15892@htj.dyndns.org>
+ <52090225.6070208@gmail.com>
+ <20130812154623.GL15892@htj.dyndns.org>
+ <52090AF6.6020206@gmail.com>
+ <20130812162247.GM15892@htj.dyndns.org>
+ <520914D5.7080501@gmail.com>
+ <20130812180758.GA8288@mtj.dyndns.org>
+ <520BC950.1030806@gmail.com>
+ <20130814182342.GG28628@htj.dyndns.org>
+ <520BDD2F.2060909@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1376508705-3188-1-git-send-email-sjenning@linux.vnet.ibm.com>
+In-Reply-To: <520BDD2F.2060909@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Dave Hansen <dave@sr71.net>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Lai Jiangshan <laijs@cn.fujitsu.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Tang Chen <imtangchen@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-On Wed, Aug 14, 2013 at 02:31:45PM -0500, Seth Jennings wrote:
-> Large memory systems (~1TB or more) experience boot delays on the order
-> of minutes due to the initializing the memory configuration part of
-> sysfs at /sys/devices/system/memory/.
+Hello,
 
-Are you sure that is the problem area?  Have you run perf on it?
-
-> ppc64 has a normal memory block size of 256M (however sometimes as low
-> as 16M depending on the system LMB size), and (I think) x86 is 128M.  With
-> 1TB of RAM and a 256M block size, that's 4k memory blocks with 20 sysfs
-> entries per block that's around 80k items that need be created at boot
-> time in sysfs.  Some systems go up to 16TB where the issue is even more
-> severe.
-
-The x86 developers are working with larger memory sizes and they haven't
-seen the problem in this area, for them it's in other places, as I
-referred to in my other email.
-
-> This patch provides a means by which users can prevent the creation of
-> the memory block attributes at boot time, yet still dynamically create
-> them if they are needed.
+On Wed, Aug 14, 2013 at 03:40:31PM -0400, KOSAKI Motohiro wrote:
+> I don't agree it. Please look at other kernel options. A lot of these don't
+> follow you. These behave as direction, not advise.
 > 
-> This patch creates a new boot parameter, "largememory" that will prevent
-> memory_dev_init() from creating all of the memory block sysfs attributes
-> at boot time.  Instead, a new root attribute "show" will allow
-> the dynamic creation of the memory block devices.
-> Another new root attribute "present" shows the memory blocks present in
-> the system; the valid inputs for the "show" attribute.
+> I mean the fallback should be implemented at turning on default the feature.
 
-You never documented any of these abi changes, which is a requirement
-(not that I'm agreeing that a boot parameter is ok...)
+Yeah, some options are "please try this" and others "do this or fail".
+There's no frigging fundamental rule there.
 
-> There was a significant amount of refactoring to allow for this but
-> IMHO, the code is much easier to understand now.
+> I don't read whole discussion and I don't quite understand why no kernel
+> place controlling is relevant. Every unpluggable node is suitable for
+> kernel. If you mean current kernel placement logic don't care plugging,
+> that's a bug.
+> 
+> If we aim to hot remove, we have to have either kernel relocation or
+> hotplug awre kernel placement at boot time.
 
-Care to refactor things first, with no logical changes, and then make
-your changes in a follow-on patch, so that people can actually find what
-you changed in the patch?
+What if all nodes are hot pluggable?  Are we moving the kernel
+dynamically then?
 
-Remember, a series of patches please, not one big "refactor and change
-it all" patch.
+> >Failing to boot is *way* worse reporting mechanism than almost
+> >everything else.  If the sysadmin is willing to risk machines failing
+> >to come up, she would definitely be willing to check whether which
+> >memory areas are actually hotpluggable too, right?
+> 
+> No. see above. Your opinion is not pragmatic useful.
 
-thanks,
+No, what you're saying doesn't make any sense.  There are multiple
+ways to report when something doesn't work.  Failing to boot is *one*
+of them and not a very good one.  Here, for practical reasons, the end
+result may differ depending on the specifics of the configuration, so
+more detailed reporting is necessary anyway, so why do you insist on
+failing the boot?  In what world is it a good thing for the machine to
+fail boot after bios or kernel update?
 
-greg k-h
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
