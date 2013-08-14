@@ -1,41 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 51E0A6B0089
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 05:15:45 -0400 (EDT)
-Message-ID: <520B4A76.8050903@huawei.com>
-Date: Wed, 14 Aug 2013 17:14:30 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 49D2E6B0083
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 05:50:20 -0400 (EDT)
+Received: by mail-ee0-f46.google.com with SMTP id c13so4720189eek.5
+        for <linux-mm@kvack.org>; Wed, 14 Aug 2013 02:50:18 -0700 (PDT)
+Date: Wed, 14 Aug 2013 11:50:14 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH -mm] mm: Unify pte_to_pgoff and pgoff_to_pte helpers
+Message-ID: <20130814095014.GA10849@gmail.com>
+References: <20130814070059.GJ2869@moon>
+ <520B303D.2090206@zytor.com>
+ <20130814072453.GK2869@moon>
+ <520B3240.6030208@zytor.com>
+ <20130814003336.0fb2a275.akpm@linux-foundation.org>
+ <20130814074333.GM2869@moon>
+ <20130814010856.0098398b.akpm@linux-foundation.org>
+ <20130814082000.GN2869@moon>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: skip the page buddy block instead of one page
-References: <520B0B75.4030708@huawei.com> <20130814085711.GK2296@suse.de>
-In-Reply-To: <20130814085711.GK2296@suse.de>
-Content-Type: text/plain; charset="ISO-8859-15"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130814082000.GN2869@moon>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, Minchan Kim <minchan@kernel.org>, aquini@redhat.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Cyrill Gorcunov <gorcunov@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@amacapital.net>, Pavel Emelyanov <xemul@parallels.com>, Matt Mackall <mpm@selenic.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Marcelo Tosatti <mtosatti@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Peter Zijlstra <peterz@infradead.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>
 
-On 2013/8/14 16:57, Mel Gorman wrote:
 
-> On Wed, Aug 14, 2013 at 12:45:41PM +0800, Xishi Qiu wrote:
->> A large free page buddy block will continue many times, so if the page 
->> is free, skip the whole page buddy block instead of one page.
->>
->> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
-> 
-> page_order cannot be used unless zone->lock is held which is not held in
-> this path. Acquiring the lock would prevent parallel allocations from the
-> buddy allocator (per-cpu allocator would be ok except for refills).  I expect
-> it would not be a good tradeoff to acquire the lock just to use page_order.
-> 
-> Nak.
-> 
+* Cyrill Gorcunov <gorcunov@gmail.com> wrote:
 
-Oh, you are right, we must hold zone->lock first.
+> On Wed, Aug 14, 2013 at 01:08:56AM -0700, Andrew Morton wrote:
+> > > 
+> > > > Can it be written in C with types and proper variable names and such
+> > > > radical stuff?
+> > > 
+> > > Could you elaborate? You mean inline helper or macro with type checks?
+> > 
+> > /*
+> >  * description goes here
+> >  */
+> > static inline pteval_t pte_bfop(pteval_t val, int rightshift, ...)
+> > {
+> > 	...
+> > }
+> > 
+> > So much better!  We really should only implement code in a macro if it
+> > *has* to be done as a macro and I don't think that's the case here?
+> 
+> Well, I'll have to check if it really doesn't generate additional 
+> instructions in generated code, since it's hotpath. I'll ping back once 
+> things are done.
+
+An __always_inline should never do that.
 
 Thanks,
-Xishi Qiu
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
