@@ -1,69 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id 94EDC6B0032
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 13:18:34 -0400 (EDT)
-Message-ID: <520BBBE7.7020302@tilera.com>
-Date: Wed, 14 Aug 2013 13:18:31 -0400
-From: Chris Metcalf <cmetcalf@tilera.com>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id AD87F6B0034
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 13:40:43 -0400 (EDT)
+Date: Wed, 14 Aug 2013 19:40:39 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [Bug] Reproducible data corruption on i5-3340M: Please revert
+ 53a59fc67!
+Message-ID: <20130814174039.GA24033@dhcp22.suse.cz>
+References: <52050382.9060802@gmail.com>
+ <520BB225.8030807@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v7 2/2] mm: make lru_add_drain_all() selective
-References: <520AAF9C.1050702@tilera.com> <201308132307.r7DN74M5029053@farm-0021.internal.tilera.com> <20130813232904.GJ28996@mtj.dyndns.org> <520AC215.4050803@tilera.com> <20130813234629.4ce2ec70.akpm@linux-foundation.org> <520BAA5B.9070407@tilera.com> <20130814165723.GE28628@htj.dyndns.org>
-In-Reply-To: <20130814165723.GE28628@htj.dyndns.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <520BB225.8030807@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Frederic Weisbecker <fweisbec@gmail.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
+To: Ben Tebulin <tebulin@googlemail.com>
+Cc: mgorman@suse.de, hannes@cmpxchg.org, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 8/14/2013 12:57 PM, Tejun Heo wrote:
-> Hello, Chris.
->
-> On Wed, Aug 14, 2013 at 12:03:39PM -0400, Chris Metcalf wrote:
->> Tejun, I don't know if you have a better idea for how to mark a
->> work_struct as being "not used" so we can set and test it here.
->> Is setting entry.next to NULL good?  Should we offer it as an API
->> in the workqueue header?
-> Maybe simply defining a static cpumask would be cleaner?
+[Let's CC some more people]
 
-I think you're right, actually.  Andrew, Tejun, how does this look?
+On Wed 14-08-13 18:36:53, Ben Tebulin wrote:
+> Hello Michal, Johannes, Balbir, Kamezawa and Mailing lists!
 
+Hi,
 
-static DEFINE_PER_CPU(struct work_struct, lru_add_drain_work);
+> Since v3.7.2 on two independent machines a very specific Git repository
+> fails in 9/10 cases on git-fsck due to an SHA1/memory failures. This
+> only occurs on a very specific repository and can be reproduced stably
+> on two independent laptops. Git mailing list ran out of ideas and for me 
+> this looks like some very exotic kernel issue.
+> 
+> After a _very long session of rebooting and bisecting_ the Linux kernel
+> (fortunately I had a SSD and ccache!) I was able to pinpoint the cause
+> to the following patch:
+> 
+> *"mm: limit mmu_gather batching to fix soft lockups on !CONFIG_PREEMPT"*
+>   787f7301074ccd07a3e82236ca41eefd245f4e07 linux stable    [1]
+>   53a59fc67f97374758e63a9c785891ec62324c81 upstream commit [2]
 
-void lru_add_drain_all(void)
-{
-        static DEFINE_MUTEX(lock);
-        static struct cpumask has_work;
-        int cpu;
+Thanks for bisecting this up!
 
-        mutex_lock(&lock);
-        get_online_cpus();
-        cpumask_clear(&has_work);
+I will look into this but I find it really strange. The patch only
+limits the number of batched pages to be freed. This might happen even
+without the patch, albeit less likely, when a new batch cannot be
+allocated.
+That being said, I do not see anything obviously wrong with the patch
+itself. Maybe we are not flushing those pages properly in some corner
+case which doesn't trigger normally. I will have to look at it but I
+really think this just exhibits a subtle bug in batch pages freeing.
 
-        for_each_online_cpu(cpu) {
-                struct work_struct *work = &per_cpu(lru_add_drain_work, cpu);
+I have no objection to revert the patch for now until we find out what
+is really going on.
 
-                if (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
-                    pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
-                    pagevec_count(&per_cpu(lru_deactivate_pvecs, cpu)) ||
-                    need_activate_page_drain(cpu)) {
-                        INIT_WORK(work, lru_add_drain_per_cpu);
-                        schedule_work_on(cpu, work);
-                        cpumask_set_cpu(cpu, &has_work);
-                }
-        }
-
-        for_each_cpu(cpu, &has_work)
-                flush_work(&per_cpu(lru_add_drain_work, cpu));
-
-        put_online_cpus();
-        mutex_unlock(&lock);
-}
+> More details are available in my previous discussion on the Git mailing:
+> 
+>    http://thread.gmane.org/gmane.comp.version-control.git/231872
+> 
+> Never had any hardware/stability issues _at all_ with these machines. 
+> Only one repo out of 112 is affected. It's a git-svn clone and even 
+> recreated copies out of svn do trigger the same failure.
+> 
+> I was able to bisect this error to this very specific commit. 
+> Furthermore: Reverting this commit in 3.9.11 still solves the error. 
+> 
+> I assume this is a regression of the Linux kernel (not Git) and would 
+> kindly ask you to revert the afore mentioned commits.
+> 
+> Thanks!
+> - Ben
+> 
+> 
+> I'm not subscribed - please CC me.
+> 
+> [1] https://git.kernel.org/cgit/linux/kernel/git/stable/linux-stable.git/commit/?id=787f7301074ccd07a3e82236ca41eefd245f4e07
+> [2] https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=53a59fc67f97374758e63a9c785891ec62324c81
+> 
 
 -- 
-Chris Metcalf, Tilera Corp.
-http://www.tilera.com
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
