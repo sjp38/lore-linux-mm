@@ -1,69 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 334916B0032
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 19:22:27 -0400 (EDT)
-Date: Wed, 14 Aug 2013 16:22:25 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 00/20] mm, hugetlb: remove a
- hugetlb_instantiation_mutex
-Message-Id: <20130814162225.5f1107bd44b11df41703b3d6@linux-foundation.org>
-In-Reply-To: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id C350B6B0032
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 19:35:20 -0400 (EDT)
+Message-ID: <1376523242.10300.403.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v2] mm/hotplug: Verify hotplug memory range
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Wed, 14 Aug 2013 17:34:02 -0600
+In-Reply-To: <20130814150901.cd430738912a893d74769e1b@linux-foundation.org>
+References: <1376162252-26074-1-git-send-email-toshi.kani@hp.com>
+	 <20130814150901.cd430738912a893d74769e1b@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, dave@sr71.net, isimatu.yasuaki@jp.fujitsu.com, tangchen@cn.fujitsu.com, vasilis.liaskovitis@profitbricks.com
 
-On Fri,  9 Aug 2013 18:26:18 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+On Wed, 2013-08-14 at 15:09 -0700, Andrew Morton wrote:
+> On Sat, 10 Aug 2013 13:17:32 -0600 Toshi Kani <toshi.kani@hp.com> wrote:
+> 
+> > add_memory() and remove_memory() can only handle a memory range aligned
+> > with section.  There are problems when an unaligned range is added and
+> > then deleted as follows:
+> > 
+> >  - add_memory() with an unaligned range succeeds, but __add_pages()
+> >    called from add_memory() adds a whole section of pages even though
+> >    a given memory range is less than the section size.
+> >  - remove_memory() to the added unaligned range hits BUG_ON() in
+> >    __remove_pages().
+> > 
+> > This patch changes add_memory() and remove_memory() to check if a given
+> > memory range is aligned with section at the beginning.  As the result,
+> > add_memory() fails with -EINVAL when a given range is unaligned, and
+> > does not add such memory range.  This prevents remove_memory() to be
+> > called with an unaligned range as well.  Note that remove_memory() has
+> > to use BUG_ON() since this function cannot fail.
+> > 
+> > ...
+> >
+> > --- a/mm/memory_hotplug.c
+> > +++ b/mm/memory_hotplug.c
+> > @@ -1069,6 +1069,22 @@ out:
+> >  	return ret;
+> >  }
+> >  
+> > +static int check_hotplug_memory_range(u64 start, u64 size)
+> > +{
+> > +	u64 start_pfn = start >> PAGE_SHIFT;
+> > +	u64 nr_pages = size >> PAGE_SHIFT;
+> > +
+> > +	/* Memory range must be aligned with section */
+> > +	if ((start_pfn & ~PAGE_SECTION_MASK) ||
+> > +	    (nr_pages % PAGES_PER_SECTION) || (!nr_pages)) {
+> > +		pr_err("Section-unaligned hotplug range: start 0x%llx, size 0x%llx\n",
+> > +				start, size);
+> 
+> Printing a u64 is problematic.  Here you assume that u64 is implemented
+> as unsigned long long.  But it can be implemented as unsigned long, by
+> architectures which use include/asm-generic/int-l64.h.  Such an
+> architecture will generate a compile warning here, but I can't
+> immediately find a Kconfig combination which will make that happen.
 
-> Without a hugetlb_instantiation_mutex, if parallel fault occur, we can
-> fail to allocate a hugepage, because many threads dequeue a hugepage
-> to handle a fault of same address. This makes reserved pool shortage
-> just for a little while and this cause faulting thread to get a SIGBUS
-> signal, although there are enough hugepages.
-> 
-> To solve this problem, we already have a nice solution, that is,
-> a hugetlb_instantiation_mutex. This blocks other threads to dive into
-> a fault handler. This solve the problem clearly, but it introduce
-> performance degradation, because it serialize all fault handling.
->     
-> Now, I try to remove a hugetlb_instantiation_mutex to get rid of
-> performance problem reported by Davidlohr Bueso [1].
-> 
-> This patchset consist of 4 parts roughly.
-> 
-> Part 1. (1-6) Random fix and clean-up. Enhancing error handling.
-> 	
-> 	These can be merged into mainline separately.
-> 
-> Part 2. (7-9) Protect region tracking via it's own spinlock, instead of
-> 	the hugetlb_instantiation_mutex.
-> 	
-> 	Breaking dependency on the hugetlb_instantiation_mutex for
-> 	tracking a region is also needed by other approaches like as
-> 	'table mutexes', so these can be merged into mainline separately.
-> 
-> Part 3. (10-13) Clean-up.
-> 	
-> 	IMO, these make code really simple, so these are worth to go into
-> 	mainline separately, regardless success of my approach.
-> 
-> Part 4. (14-20) Remove a hugetlb_instantiation_mutex.
-> 	
-> 	Almost patches are just for clean-up to error handling path.
-> 	In patch 19, retry approach is implemented that if faulted thread
-> 	failed to allocate a hugepage, it continue to run a fault handler
-> 	until there is no concurrent thread having a hugepage. This causes
-> 	threads who want to get a last hugepage to be serialized, so
-> 	threads don't get a SIGBUS if enough hugepage exist.
-> 	In patch 20, remove a hugetlb_instantiation_mutex.
+Oh, I see.  Should I add the casting below and resend it to you?
 
-I grabbed the first six easy ones.  I'm getting a bit cross-eyed from
-all the reviewing lately so I'll wait and see if someone else takes an
-interest in the other patches, sorry.
+                (unsigned long long)start, (unsigned long long)size);
+
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
