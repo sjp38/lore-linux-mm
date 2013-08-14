@@ -1,73 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id C350B6B0032
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 19:35:20 -0400 (EDT)
-Message-ID: <1376523242.10300.403.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v2] mm/hotplug: Verify hotplug memory range
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Wed, 14 Aug 2013 17:34:02 -0600
-In-Reply-To: <20130814150901.cd430738912a893d74769e1b@linux-foundation.org>
-References: <1376162252-26074-1-git-send-email-toshi.kani@hp.com>
-	 <20130814150901.cd430738912a893d74769e1b@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id E1DBE6B0032
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 19:40:54 -0400 (EDT)
+Date: Wed, 14 Aug 2013 16:40:52 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v5 0/9] extend hugepage migration
+Message-Id: <20130814164052.2ccdd5bdf7ab56deeba88e68@linux-foundation.org>
+In-Reply-To: <1376025702-14818-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1376025702-14818-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, dave@sr71.net, isimatu.yasuaki@jp.fujitsu.com, tangchen@cn.fujitsu.com, vasilis.liaskovitis@profitbricks.com
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Wed, 2013-08-14 at 15:09 -0700, Andrew Morton wrote:
-> On Sat, 10 Aug 2013 13:17:32 -0600 Toshi Kani <toshi.kani@hp.com> wrote:
+On Fri,  9 Aug 2013 01:21:33 -0400 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+
+> Here is the 5th version of hugepage migration patchset.
+> Changes in this version are as follows:
+>  - removed putback_active_hugepages() as a cleanup (1/9)
+>  - added code to check movability of a given hugepage (8/9)
+>  - set GFP MOVABLE flag depending on the movability of hugepage (9/9).
 > 
-> > add_memory() and remove_memory() can only handle a memory range aligned
-> > with section.  There are problems when an unaligned range is added and
-> > then deleted as follows:
-> > 
-> >  - add_memory() with an unaligned range succeeds, but __add_pages()
-> >    called from add_memory() adds a whole section of pages even though
-> >    a given memory range is less than the section size.
-> >  - remove_memory() to the added unaligned range hits BUG_ON() in
-> >    __remove_pages().
-> > 
-> > This patch changes add_memory() and remove_memory() to check if a given
-> > memory range is aligned with section at the beginning.  As the result,
-> > add_memory() fails with -EINVAL when a given range is unaligned, and
-> > does not add such memory range.  This prevents remove_memory() to be
-> > called with an unaligned range as well.  Note that remove_memory() has
-> > to use BUG_ON() since this function cannot fail.
-> > 
-> > ...
-> >
-> > --- a/mm/memory_hotplug.c
-> > +++ b/mm/memory_hotplug.c
-> > @@ -1069,6 +1069,22 @@ out:
-> >  	return ret;
-> >  }
-> >  
-> > +static int check_hotplug_memory_range(u64 start, u64 size)
-> > +{
-> > +	u64 start_pfn = start >> PAGE_SHIFT;
-> > +	u64 nr_pages = size >> PAGE_SHIFT;
-> > +
-> > +	/* Memory range must be aligned with section */
-> > +	if ((start_pfn & ~PAGE_SECTION_MASK) ||
-> > +	    (nr_pages % PAGES_PER_SECTION) || (!nr_pages)) {
-> > +		pr_err("Section-unaligned hotplug range: start 0x%llx, size 0x%llx\n",
-> > +				start, size);
+> I feel that 8/9 and 9/9 contain some new things, so need reviews on them.
 > 
-> Printing a u64 is problematic.  Here you assume that u64 is implemented
-> as unsigned long long.  But it can be implemented as unsigned long, by
-> architectures which use include/asm-generic/int-l64.h.  Such an
-> architecture will generate a compile warning here, but I can't
-> immediately find a Kconfig combination which will make that happen.
+> TODOs: (likely to be done after this work)
+>  - split page table lock for pmd/pud based hugepage (maybe applicable to thp)
+>  - improve alloc_migrate_target (especially in node choice)
+>  - using page walker in check_range
 
-Oh, I see.  Should I add the casting below and resend it to you?
+This is a pretty large and complex patchset.  I skimmed the patches
+(and have one trivial comment) then queued them up for a bit of
+testing.  I've asked Mel if he can find time to review the changes
+(please).
 
-                (unsigned long long)start, (unsigned long long)size);
+btw, it would be helpful if this [patch 0/n] had a decent overview of
+the patch series - what are the objectives, how were they achieved,
+what value they have to our users, testing results, etc.
 
-Thanks,
--Toshi
+mm-prepare-to-remove-proc-sys-vm-hugepages_treat_as_movable.patch had a
+conflict with
+http://ozlabs.org/~akpm/mmots/broken-out/mm-hugetlb-move-up-the-code-which-check-availability-of-free-huge-page.patch
+which I resolved in the obvious manner.  Please check that from a
+runtime perspective.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
