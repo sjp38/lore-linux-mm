@@ -1,46 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 09EFF6B0032
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 00:46:13 -0400 (EDT)
-Message-ID: <520B0B75.4030708@huawei.com>
-Date: Wed, 14 Aug 2013 12:45:41 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
-MIME-Version: 1.0
-Subject: [PATCH] mm: skip the page buddy block instead of one page
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 8DA2C6B0032
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 01:51:10 -0400 (EDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH v6 0/5] zram/zsmalloc promotion
+Date: Wed, 14 Aug 2013 14:51:09 +0900
+Message-Id: <1376459474-6495-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, riel@redhat.com, Minchan Kim <minchan@kernel.org>, aquini@redhat.com
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Xishi Qiu <qiuxishi@huawei.com>
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Luigi Semenzato <semenzato@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan@kernel.org>
 
-A large free page buddy block will continue many times, so if the page 
-is free, skip the whole page buddy block instead of one page.
+It's 5th trial of zram/zsmalloc promotion.
+[patch 5, zram: promote zram from staging] explains why we need zram.
 
-Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
----
- mm/compaction.c |    5 +++--
- 1 files changed, 3 insertions(+), 2 deletions(-)
+Main reason to block promotion is there was no review of zsmalloc part
+while Jens already acked zram part.
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 05ccb4c..874bae1 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -520,9 +520,10 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
- 			goto next_pageblock;
- 
- 		/* Skip if free */
--		if (PageBuddy(page))
-+		if (PageBuddy(page)) {
-+			low_pfn += (1 << page_order(page)) - 1;
- 			continue;
--
-+		}
- 		/*
- 		 * For async migration, also only scan in MOVABLE blocks. Async
- 		 * migration is optimistic to see if the minimum amount of work
+At that time, zsmalloc was used for zram, zcache and zswap so everybody
+wanted to make it general and at last, Mel reviewed it.
+Most of review was related to zswap dumping mechanism which can pageout
+compressed page into swap in runtime and zswap gives up using zsmalloc
+and invented a new wheel, zbud. Other reviews were not major.
+http://lkml.indiana.edu/hypermail/linux/kernel/1304.1/04334.html
+
+Zcache don't use zsmalloc either so only zsmalloc user is zram now.
+So I think there is no concern any more.
+
+Patch 1 adds new Kconfig for zram to use page table method instead
+of copy. Andrew suggested it.
+
+Patch 2 adds lots of commnt for zsmalloc.
+
+Patch 3 moves zsmalloc under driver/staging/zram because zram is only
+user for zram now.
+
+Patch 4 makes unmap_kernel_range exportable function because zsmalloc
+have used map_vm_area which is already exported function but zsmalloc
+need to use unmap_kernel_range and it should be built with module.
+
+Patch 5 moves zram from driver/staging to driver/blocks, finally.
+
+It touches mm, staging, blocks so I am not sure who is right position
+maintainer so I will Cc Andrw, Jens and Greg.
+
+This patch is based on next-20130813.
+
+Thanks.
+
+Minchan Kim (4):
+  zsmalloc: add Kconfig for enabling page table method
+  zsmalloc: move it under zram
+  mm: export unmap_kernel_range
+  zram: promote zram from staging
+
+Nitin Cupta (1):
+  zsmalloc: add more comment
+
+ drivers/block/Kconfig                    |    2 +
+ drivers/block/Makefile                   |    1 +
+ drivers/block/zram/Kconfig               |   37 +
+ drivers/block/zram/Makefile              |    3 +
+ drivers/block/zram/zram.txt              |   71 ++
+ drivers/block/zram/zram_drv.c            |  987 +++++++++++++++++++++++++++
+ drivers/block/zram/zsmalloc.c            | 1084 ++++++++++++++++++++++++++++++
+ drivers/staging/Kconfig                  |    4 -
+ drivers/staging/Makefile                 |    2 -
+ drivers/staging/zram/Kconfig             |   25 -
+ drivers/staging/zram/Makefile            |    3 -
+ drivers/staging/zram/zram.txt            |   77 ---
+ drivers/staging/zram/zram_drv.c          |  984 ---------------------------
+ drivers/staging/zram/zram_drv.h          |  125 ----
+ drivers/staging/zsmalloc/Kconfig         |   10 -
+ drivers/staging/zsmalloc/Makefile        |    3 -
+ drivers/staging/zsmalloc/zsmalloc-main.c | 1063 -----------------------------
+ drivers/staging/zsmalloc/zsmalloc.h      |   43 --
+ include/linux/zram.h                     |  123 ++++
+ include/linux/zsmalloc.h                 |   52 ++
+ mm/vmalloc.c                             |    1 +
+ 21 files changed, 2361 insertions(+), 2339 deletions(-)
+ create mode 100644 drivers/block/zram/Kconfig
+ create mode 100644 drivers/block/zram/Makefile
+ create mode 100644 drivers/block/zram/zram.txt
+ create mode 100644 drivers/block/zram/zram_drv.c
+ create mode 100644 drivers/block/zram/zsmalloc.c
+ delete mode 100644 drivers/staging/zram/Kconfig
+ delete mode 100644 drivers/staging/zram/Makefile
+ delete mode 100644 drivers/staging/zram/zram.txt
+ delete mode 100644 drivers/staging/zram/zram_drv.c
+ delete mode 100644 drivers/staging/zram/zram_drv.h
+ delete mode 100644 drivers/staging/zsmalloc/Kconfig
+ delete mode 100644 drivers/staging/zsmalloc/Makefile
+ delete mode 100644 drivers/staging/zsmalloc/zsmalloc-main.c
+ delete mode 100644 drivers/staging/zsmalloc/zsmalloc.h
+ create mode 100644 include/linux/zram.h
+ create mode 100644 include/linux/zsmalloc.h
+
 -- 
-1.7.1
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
