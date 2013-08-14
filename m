@@ -1,64 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id DC0036B0033
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 16:35:47 -0400 (EDT)
-Date: Wed, 14 Aug 2013 13:35:46 -0700
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: [RFC][PATCH] drivers: base: dynamic memory block creation
-Message-ID: <20130814203546.GA6200@kroah.com>
-References: <1376508705-3188-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <20130814194348.GB10469@kroah.com>
- <520BE30D.3070401@sr71.net>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id A35B76B0032
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 16:40:32 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nfont@linux.vnet.ibm.com>;
+	Thu, 15 Aug 2013 02:03:00 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 7997F3940059
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 02:10:18 +0530 (IST)
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7EKflGo35389572
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 02:11:50 +0530
+Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7EKeMCf029378
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 02:10:22 +0530
+Message-ID: <520BEB31.6090103@linux.vnet.ibm.com>
+Date: Wed, 14 Aug 2013 15:40:17 -0500
+From: Nathan Fontenot <nfont@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <520BE30D.3070401@sr71.net>
+Subject: Re: [RFC][PATCH] drivers: base: dynamic memory block creation
+References: <1376508705-3188-1-git-send-email-sjenning@linux.vnet.ibm.com>
+In-Reply-To: <1376508705-3188-1-git-send-email-sjenning@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Lai Jiangshan <laijs@cn.fujitsu.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dave Hansen <dave@sr71.net>, Cody P Schafer <cody@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Lai Jiangshan <laijs@cn.fujitsu.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Aug 14, 2013 at 01:05:33PM -0700, Dave Hansen wrote:
-> On 08/14/2013 12:43 PM, Greg Kroah-Hartman wrote:
-> > On Wed, Aug 14, 2013 at 02:31:45PM -0500, Seth Jennings wrote:
-> >> ppc64 has a normal memory block size of 256M (however sometimes as low
-> >> as 16M depending on the system LMB size), and (I think) x86 is 128M.  With
-> >> 1TB of RAM and a 256M block size, that's 4k memory blocks with 20 sysfs
-> >> entries per block that's around 80k items that need be created at boot
-> >> time in sysfs.  Some systems go up to 16TB where the issue is even more
-> >> severe.
-> > 
-> > The x86 developers are working with larger memory sizes and they haven't
-> > seen the problem in this area, for them it's in other places, as I
-> > referred to in my other email.
+On 08/14/2013 02:31 PM, Seth Jennings wrote:
+> Large memory systems (~1TB or more) experience boot delays on the order
+> of minutes due to the initializing the memory configuration part of
+> sysfs at /sys/devices/system/memory/.
+
+With the previous work that has been done in the memory sysfs layout
+I think you need machines with 8 or 16+ TB of memory to see boot delays
+that are measured in minutes. The boot delay is there, and with larger
+memory systems in he future it will only get worse.
+
 > 
-> The SGI guys don't run normal distro kernels and don't turn on memory
-> hotplug, so they don't see this.  I do the same in my testing of
-> large-memory x86 systems to speed up my boots.  I'll go stick it back in
-> there and see if I can generate some numbers for a 1TB machine.
+> ppc64 has a normal memory block size of 256M (however sometimes as low
+> as 16M depending on the system LMB size), and (I think) x86 is 128M.  With
+> 1TB of RAM and a 256M block size, that's 4k memory blocks with 20 sysfs
+> entries per block that's around 80k items that need be created at boot
+> time in sysfs.  Some systems go up to 16TB where the issue is even more
+> severe.
 > 
-> But, the problem on x86 is at _worst_ 1/8 of the problem on ppc64 since
-> the SECTION_SIZE is so 8x bigger by default.
-> 
-> Also, the cost of creating sections on ppc is *MUCH* higher than x86
-> when amortized across the number of pages that you're initializing.  A
-> section on ppc64 has to be created for each (2^24/2^16)=256 pages while
-> one on x86 is created for each (2^27/2^12)=32768 pages.
-> 
-> Thus, x86 folks with our small pages and large sections tend to be
-> focused on per-page costs.  The ppc folks with their small sections and
-> larger pages tend to be focused on the per-section costs.
 
-Ah, thanks for the explaination, now it makes more sense why they are
-both optimizing in different places.
+It should also be pointed out that the number of sysfs entries created on
+16+ TB system is 100k+. At his scale it is not really human readable to
+list all of the entries. The amount of resources used to create all of the
+uderlying structures for each of the entries starts to add up also.
 
-But a "cleanup" patch first, and then the "change the logic to go
-faster" would be better here, so that we can review what is really
-happening.
+I think an approach such as this makes the sysfs memory layout more
+human readable and saves on resources.
 
-thanks,
-
-greg k-h
+-Nathan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
