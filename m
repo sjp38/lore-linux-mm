@@ -1,117 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 9C0F76B0033
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 14:15:49 -0400 (EDT)
-Received: by mail-ie0-f178.google.com with SMTP id f4so13227317iea.37
-        for <linux-mm@kvack.org>; Wed, 14 Aug 2013 11:15:48 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 709B66B0032
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 14:22:05 -0400 (EDT)
+Received: by mail-ve0-f174.google.com with SMTP id d10so7877972vea.5
+        for <linux-mm@kvack.org>; Wed, 14 Aug 2013 11:22:04 -0700 (PDT)
+Message-ID: <520BCADE.2040109@gmail.com>
+Date: Wed, 14 Aug 2013 14:22:22 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20130814174050.GN2296@suse.de>
-References: <1376459736-7384-1-git-send-email-minchan@kernel.org>
-	<20130814174050.GN2296@suse.de>
-Date: Wed, 14 Aug 2013 11:15:48 -0700
-Message-ID: <CAA25o9R+hERxP_bR5KdJM0=GjyaZpEbeVszgE0jWrQhGqep3LA@mail.gmail.com>
-Subject: Re: [PATCH v6 0/5] zram/zsmalloc promotion
-From: Luigi Semenzato <semenzato@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH part5 0/7] Arrange hotpluggable memory as ZONE_MOVABLE.
+References: <1375956979-31877-1-git-send-email-tangchen@cn.fujitsu.com> <20130812145016.GI15892@htj.dyndns.org> <52090225.6070208@gmail.com> <20130812154623.GL15892@htj.dyndns.org> <52090AF6.6020206@gmail.com> <20130812162247.GM15892@htj.dyndns.org> <520914D5.7080501@gmail.com> <52091A10.4030501@zytor.com>
+In-Reply-To: <52091A10.4030501@zytor.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Sonny Rao <sonnyrao@google.com>, Stephen Barber <smbarber@google.com>
-Cc: Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Tang Chen <imtangchen@gmail.com>, Tejun Heo <tj@kernel.org>, Tang Chen <tangchen@cn.fujitsu.com>, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org, kosaki.motohiro@gmail.com
 
-On Wed, Aug 14, 2013 at 10:40 AM, Mel Gorman <mgorman@suse.de> wrote:
-> On Wed, Aug 14, 2013 at 02:55:31PM +0900, Minchan Kim wrote:
->> It's 6th trial of zram/zsmalloc promotion.
->> [patch 5, zram: promote zram from staging] explains why we need zram.
+(8/12/13 1:23 PM), H. Peter Anvin wrote:
+> On 08/12/2013 10:01 AM, Tang Chen wrote:
+>>>
+>>>> I'm just thinking of a more extreme case. For example, if a machine
+>>>> has only one node hotpluggable, and the kernel resides in that node.
+>>>> Then the system has no hotpluggable node.
+>>>
+>>> Yeah, sure, then there's no way that node can be hotpluggable and the
+>>> right thing to do is booting up the machine and informing the userland
+>>> that memory is not hotpluggable.
+>>>
+>>>> If we can prevent the kernel from using hotpluggable memory, in such
+>>>> a machine, users can still do memory hotplug.
+>>>>
+>>>> I wanted to do it as generic as possible. But yes, finding out the
+>>>> nodes the kernel resides in and make it unhotpluggable can work.
+>>>
+>>> Short of being able to remap memory under the kernel, I don't think
+>>> this can be very generic and as a compromise trying to keep as many
+>>> hotpluggable nodes as possible doesn't sound too bad.
 >>
->> Main reason to block promotion is there was no review of zsmalloc part
->> while Jens already acked zram part.
->>
->> At that time, zsmalloc was used for zram, zcache and zswap so everybody
->> wanted to make it general and at last, Mel reviewed it.
->> Most of review was related to zswap dumping mechanism which can pageout
->> compressed page into swap in runtime and zswap gives up using zsmalloc
->> and invented a new wheel, zbud. Other reviews were not major.
->> http://lkml.indiana.edu/hypermail/linux/kernel/1304.1/04334.html
+>> I think making one of the node hotpluggable is better. But OK, it is
+>> no big deal. There won't be such machine in reality, I think. :)
 >>
 >
-> zsmalloc has unpredictable performance characteristics when reclaiming
-> a single page when it was used to back zswap. I felt the unpredictable
-> performance characteristics would make it close to impossible to support
-> for normal server workloads. It would appear to work well until there were
-> massive stalls and I do not think this was ever properly investigated. At one
-> point I would have been happy if zsmalloc could be tuned to store only store
-> 2 compressed pages  per physical page but cannot remember why that proposal
-> was never implemented (or if it was and I missed it or forgot). I expected
-> it would change over time but there were no follow-ups that I'm aware of.
->
-> I do not believe this is a problem for zram as such because I do not
-> think it ever writes back to disk and is immune from the unpredictable
-> performance characteristics problem. The problem for zram using zsmalloc
-> is OOM killing. If it's used for swap then there is no guarantee that
-> killing processes frees memory and that could result in an OOM storm.
-> Of course there is no guarantee that memory is freed with zbud either but
-> you are guaranteed that freeing 50%+1 of the compressed pages will free a
-> single physical page. The characteristics for zsmalloc are much more severe.
-> This might be managable in an applicance with very careful control of the
-> applications that are running but not for general servers or desktops.
+> The user may very well have configured a system with mirrored memory for
+> the kernel node as that will be non-hotpluggable, but not for the
+> others.  One can wonder how much that actually buys in real life, but
+> still...
 
-We are running zram in a large number of laptops (all Chromebooks,
-which now account for 20 to 25% of all sub-$300 laptops sold in the
-USA) and haven't seen this problem.
-
-To be fair, we limit the zram disk size to 1.5 x physical RAM (1 x
-physical RAM on some systems) and Chrome automatically closes tabs
-(i.e. shuts down processes) before the zram device is full.  When
-processes quit, their swap space is freed and in practice most of it
-is reclaimed, possibly all of it.
-
-> If it's used for something like tmpfs then it becomes much worse. Normal
-> tmpfs without swap can lockup if tmpfs is allowed to fill memory. In a
-> sane configuration, lockups will be avoided and deleting a tmpfs file is
-> guaranteed to free memory. When zram is used to back tmpfs, there is no
-> guarantee that any memory is freed due to fragmentation of the compressed
-> pages. The only way to recover the memory may be to kill applications
-> holding tmpfs files open and then delete them which is fairly drastic
-> action in a normal server environment.
->
-> These are the sort of reason why I feel that zram has limited cases where
-> it is safe to use and zswap has a wider range of applications. At least
-> I would be very unhappy to try supporting zram in the field for normal
-> servers. zswap should be able to replace the functionality of zram+swap
-> by backing zswap with a pseudo block device that rejects all writes. I
-> do not know why this never happened but guess the zswap people never were
-> interested and the zram people never tried.
-
-Stephen (on the To: list), who is an intern here, is trying that just now.
-
-> Why was the pseudo device
-> to avoid writebacks never implemented? Why was the underlying allocator
-> not made pluggable to optionally use zsmalloc when the user did not care
-> that it had terrible writeback characteristics?
->
-> zswap cannot replicate zram+tmpfs but I also think that such a configuration
-> is a bad idea anyway. As zram is already being deployed then it might get
-> promoted anyway but personally I think compressed memory continues to be
-> a tragic story.
-
-This may be exceedingly negative.  I don't doubt that there is tragedy
-attached to it (is any part of the kernel immune to that?) but we are
-using compression and it makes a substantial difference to many
-people, sometimes the difference between a useless and a usable system
-for their workloads.  I would hope that this compensates for the
-tragedy.
-
-https://groups.google.com/forum/#!topic/chromebook-central/r27r3ZcchhM%5B1-25-false%5D
-
-We currently use zram because it was available in 3.4 and earlier.  We
-understand some of its limitations, so we're now experimenting with
-zswap.  But zram is still perfectly usable in our environment and
-possibly others, and it's small and seems well isolated, thus it
-should be relatively easy to maintain.
-
-> --
-> Mel Gorman
-> SUSE Labs
+Note. Such system is much cheaper than full memory mirroring system. That's
+one of reason why server vendors are interesting in hot plugging.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
