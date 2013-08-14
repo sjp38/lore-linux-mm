@@ -1,117 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 9BD7A6B0068
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 03:01:03 -0400 (EDT)
-Received: by mail-la0-f54.google.com with SMTP id ea20so6540663lab.13
-        for <linux-mm@kvack.org>; Wed, 14 Aug 2013 00:01:01 -0700 (PDT)
-Date: Wed, 14 Aug 2013 11:00:59 +0400
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: [PATCH -mm] mm: Unify pte_to_pgoff and pgoff_to_pte helpers
-Message-ID: <20130814070059.GJ2869@moon>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 1E3736B0069
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 03:07:00 -0400 (EDT)
+Date: Wed, 14 Aug 2013 16:07:05 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm: skip the page buddy block instead of one page
+Message-ID: <20130814070705.GA21133@bbox>
+References: <520B0B75.4030708@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <520B0B75.4030708@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@amacapital.net>, Pavel Emelyanov <xemul@parallels.com>, Matt Mackall <mpm@selenic.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Marcelo Tosatti <mtosatti@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Peter Zijlstra <peterz@infradead.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, riel@redhat.com, aquini@redhat.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Use unified pte_bfop helper to manipulate bits in pte/pgoff bitfield.
+Hello,
 
-Signed-off-by: Cyrill Gorcunov <gorcunov@openvz.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Pavel Emelyanov <xemul@parallels.com>
-Cc: Matt Mackall <mpm@selenic.com>
-Cc: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
-Cc: Marcelo Tosatti <mtosatti@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@elte.hu>
----
- arch/x86/include/asm/pgtable-2level.h |   51 ++++++++++++++++++----------------
- 1 file changed, 27 insertions(+), 24 deletions(-)
+On Wed, Aug 14, 2013 at 12:45:41PM +0800, Xishi Qiu wrote:
+> A large free page buddy block will continue many times, so if the page 
+> is free, skip the whole page buddy block instead of one page.
+> 
+> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
 
-Index: linux-2.6.git/arch/x86/include/asm/pgtable-2level.h
-===================================================================
---- linux-2.6.git.orig/arch/x86/include/asm/pgtable-2level.h
-+++ linux-2.6.git/arch/x86/include/asm/pgtable-2level.h
-@@ -55,8 +55,11 @@ static inline pmd_t native_pmdp_get_and_
- #define native_pmdp_get_and_clear(xp) native_local_pmdp_get_and_clear(xp)
- #endif
- 
--#define _mfrob(v,r,m,l)		((((v) >> (r)) & (m)) << (l))
--#define __frob(v,r,l)		(((v) >> (r)) << (l))
-+/*
-+ * For readable bitfield manipulations.
-+ */
-+#define PTE_FILE_NOMASK		(-1U)
-+#define pte_bfop(v,r,m,l)	((((v) >> (r)) & (m)) << (l))
- 
- #ifdef CONFIG_MEM_SOFT_DIRTY
- 
-@@ -82,18 +85,18 @@ static inline pmd_t native_pmdp_get_and_
- #define PTE_FILE_LSHIFT3	(PTE_FILE_BITS1 + PTE_FILE_BITS2)
- #define PTE_FILE_LSHIFT4	(PTE_FILE_BITS1 + PTE_FILE_BITS2 + PTE_FILE_BITS3)
- 
--#define pte_to_pgoff(pte)							    \
--	(_mfrob((pte).pte_low, PTE_FILE_SHIFT1, PTE_FILE_MASK1, 0)		  + \
--	 _mfrob((pte).pte_low, PTE_FILE_SHIFT2, PTE_FILE_MASK2, PTE_FILE_LSHIFT2) + \
--	 _mfrob((pte).pte_low, PTE_FILE_SHIFT3, PTE_FILE_MASK3, PTE_FILE_LSHIFT3) + \
--	 __frob((pte).pte_low, PTE_FILE_SHIFT4, PTE_FILE_LSHIFT4))
--
--#define pgoff_to_pte(off)							\
--	((pte_t) { .pte_low =							\
--	_mfrob(off,                0, PTE_FILE_MASK1, PTE_FILE_SHIFT1)	+	\
--	_mfrob(off, PTE_FILE_LSHIFT2, PTE_FILE_MASK2, PTE_FILE_SHIFT2)	+	\
--	_mfrob(off, PTE_FILE_LSHIFT3, PTE_FILE_MASK3, PTE_FILE_SHIFT3)	+	\
--	__frob(off, PTE_FILE_LSHIFT4, PTE_FILE_SHIFT4)			+	\
-+#define pte_to_pgoff(pte)								  \
-+	(pte_bfop((pte).pte_low, PTE_FILE_SHIFT1, PTE_FILE_MASK1, 0)			+ \
-+	 pte_bfop((pte).pte_low, PTE_FILE_SHIFT2, PTE_FILE_MASK2, PTE_FILE_LSHIFT2)	+ \
-+	 pte_bfop((pte).pte_low, PTE_FILE_SHIFT3, PTE_FILE_MASK3, PTE_FILE_LSHIFT3)	+ \
-+	 pte_bfop((pte).pte_low, PTE_FILE_SHIFT4, PTE_FILE_NOMASK, PTE_FILE_LSHIFT4))
-+
-+#define pgoff_to_pte(off)							  \
-+	((pte_t) { .pte_low =							  \
-+	pte_bfop(off,                0, PTE_FILE_MASK1, PTE_FILE_SHIFT1)	+ \
-+	pte_bfop(off, PTE_FILE_LSHIFT2, PTE_FILE_MASK2, PTE_FILE_SHIFT2)	+ \
-+	pte_bfop(off, PTE_FILE_LSHIFT3, PTE_FILE_MASK3, PTE_FILE_SHIFT3)	+ \
-+	pte_bfop(off, PTE_FILE_LSHIFT4, PTE_FILE_NOMASK, PTE_FILE_SHIFT4)	+ \
- 	_PAGE_FILE })
- 
- #else /* CONFIG_MEM_SOFT_DIRTY */
-@@ -120,16 +123,16 @@ static inline pmd_t native_pmdp_get_and_
- #define PTE_FILE_LSHIFT2	(PTE_FILE_BITS1)
- #define PTE_FILE_LSHIFT3	(PTE_FILE_BITS1 + PTE_FILE_BITS2)
- 
--#define pte_to_pgoff(pte)							    \
--	(_mfrob((pte).pte_low, PTE_FILE_SHIFT1, PTE_FILE_MASK1, 0)		  + \
--	 _mfrob((pte).pte_low, PTE_FILE_SHIFT2, PTE_FILE_MASK2, PTE_FILE_LSHIFT2) + \
--	 __frob((pte).pte_low, PTE_FILE_SHIFT3, PTE_FILE_LSHIFT3))
--
--#define pgoff_to_pte(off)							\
--	((pte_t) { .pte_low =							\
--	_mfrob(off,                0, PTE_FILE_MASK1, PTE_FILE_SHIFT1)	+	\
--	_mfrob(off, PTE_FILE_LSHIFT2, PTE_FILE_MASK2, PTE_FILE_SHIFT2)	+	\
--	__frob(off, PTE_FILE_LSHIFT3, PTE_FILE_SHIFT3)			+	\
-+#define pte_to_pgoff(pte)								  \
-+	(pte_bfop((pte).pte_low, PTE_FILE_SHIFT1, PTE_FILE_MASK1, 0)			+ \
-+	 pte_bfop((pte).pte_low, PTE_FILE_SHIFT2, PTE_FILE_MASK2, PTE_FILE_LSHIFT2)	+ \
-+	 pte_bfop((pte).pte_low, PTE_FILE_SHIFT3, PTE_FILE_NOMASK, PTE_FILE_LSHIFT3))
-+
-+#define pgoff_to_pte(off)							  \
-+	((pte_t) { .pte_low =							  \
-+	pte_bfop(off,                0, PTE_FILE_MASK1, PTE_FILE_SHIFT1)	+ \
-+	pte_bfop(off, PTE_FILE_LSHIFT2, PTE_FILE_MASK2, PTE_FILE_SHIFT2)	+ \
-+	pte_bfop(off, PTE_FILE_LSHIFT3, PTE_FILE_NOMASK, PTE_FILE_SHIFT3)	+ \
- 	_PAGE_FILE })
- 
- #endif /* CONFIG_MEM_SOFT_DIRTY */
+
+Nitpick is it could change nr_scanned's result so that COMPACMIGRATE_SCANNED
+of vmstat could be smaller than old. It means that compaction efficiency would
+pretend to be better than old and if something on userspace have been depends
+on it, it would be broken. But I don't know such usecase so I will pass the
+decision to others. Anyway, I suppose this patch.
+If it's real concern, we can fix it with increasing nr_scanned by page_order.
+
+Thanks.
+
+Acked-by: Minchan Kim <minchan@kernel.org>
+
+> ---
+>  mm/compaction.c |    5 +++--
+>  1 files changed, 3 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 05ccb4c..874bae1 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -520,9 +520,10 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+>  			goto next_pageblock;
+>  
+>  		/* Skip if free */
+> -		if (PageBuddy(page))
+> +		if (PageBuddy(page)) {
+> +			low_pfn += (1 << page_order(page)) - 1;
+>  			continue;
+> -
+> +		}
+>  		/*
+>  		 * For async migration, also only scan in MOVABLE blocks. Async
+>  		 * migration is optimistic to see if the minimum amount of work
+> -- 
+> 1.7.1
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
