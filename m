@@ -1,55 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 3BF0B6B0033
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 17:07:03 -0400 (EDT)
-Date: Wed, 14 Aug 2013 14:07:00 -0700
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 329296B0032
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 17:13:00 -0400 (EDT)
+Date: Wed, 14 Aug 2013 14:12:58 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH v8] mm: make lru_add_drain_all() selective
-Message-Id: <20130814140700.5fee193b193a529e72fa5a37@linux-foundation.org>
-In-Reply-To: <20130814205029.GN28628@htj.dyndns.org>
+Message-Id: <20130814141258.6289d9926944245befffa3af@linux-foundation.org>
+In-Reply-To: <201308142029.r7EKTMRw023404@farm-0002.internal.tilera.com>
 References: <20130814200748.GI28628@htj.dyndns.org>
 	<201308142029.r7EKTMRw023404@farm-0002.internal.tilera.com>
-	<20130814134430.50cb8d609643620b00ab3705@linux-foundation.org>
-	<20130814205029.GN28628@htj.dyndns.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Chris Metcalf <cmetcalf@tilera.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Frederic Weisbecker <fweisbec@gmail.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
+To: Chris Metcalf <cmetcalf@tilera.com>
+Cc: Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Frederic Weisbecker <fweisbec@gmail.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-On Wed, 14 Aug 2013 16:50:29 -0400 Tejun Heo <tj@kernel.org> wrote:
+On Wed, 14 Aug 2013 16:22:18 -0400 Chris Metcalf <cmetcalf@tilera.com> wrote:
 
-> On Wed, Aug 14, 2013 at 01:44:30PM -0700, Andrew Morton wrote:
-> > > +static bool need_activate_page_drain(int cpu)
-> > > +{
-> > > +	return pagevec_count(&per_cpu(activate_page_pvecs, cpu)) != 0;
-> > > +}
-> > 
-> > static int need_activate_page_drain(int cpu)
-> > {
-> > 	return pagevec_count(&per_cpu(activate_page_pvecs, cpu));
-> > }
-> > 
-> > would be shorter and faster.  bool rather sucks that way.  It's a
-> > performance-vs-niceness thing.  I guess one has to look at the call
-> > frequency when deciding.
+> This change makes lru_add_drain_all() only selectively interrupt
+> the cpus that have per-cpu free pages that can be drained.
 > 
-> "!= 0" can be dropped but I'm fairly sure the compiler would be able
-> to figure out that the type conversion can be skipped.  It's a trivial
-> optimization.
+> This is important in nohz mode where calling mlockall(), for
+> example, otherwise will interrupt every core unnecessarily.
 
-The != 0 can surely be removed and that shouldn't make any difference
-to generated code.
+Changelog isn't very informative.  I added this:
 
-The compiler will always need to do the int-to-bool conversion and
-that's overhead which is added by using bool.
+: This is important on workloads where nohz cores are handling 10 Gb traffic
+: in userspace.  Those CPUs do not enter the kernel and place pages into LRU
+: pagevecs and they really, really don't want to be interrupted, or they
+: drop packets on the floor.
 
-It's possible that the compiler will optmise away the int-to-bool
-conversion when inlining this function into a callsite.  I don't know
-whether the compiler _does_ do this and it will be version dependent.
-
+to attempt to describe the rationale for the patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
