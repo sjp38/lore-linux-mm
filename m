@@ -1,52 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id E69F96B0032
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 14:03:35 -0400 (EDT)
-Received: by mail-ve0-f178.google.com with SMTP id ox1so7962352veb.37
-        for <linux-mm@kvack.org>; Wed, 14 Aug 2013 11:03:34 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id C99F66B0032
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 14:15:28 -0400 (EDT)
+Received: by mail-vb0-f49.google.com with SMTP id w16so7908917vbb.36
+        for <linux-mm@kvack.org>; Wed, 14 Aug 2013 11:15:27 -0700 (PDT)
+Message-ID: <520BC950.1030806@gmail.com>
+Date: Wed, 14 Aug 2013 14:15:44 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20130814174039.GA24033@dhcp22.suse.cz>
-References: <52050382.9060802@gmail.com>
-	<520BB225.8030807@gmail.com>
-	<20130814174039.GA24033@dhcp22.suse.cz>
-Date: Wed, 14 Aug 2013 11:03:32 -0700
-Message-ID: <CA+55aFwAz7GdcB6nC0Th42y8eAM591sKO1=mYh5SWgyuDdHzcA@mail.gmail.com>
-Subject: Re: [Bug] Reproducible data corruption on i5-3340M: Please revert 53a59fc67!
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH part5 0/7] Arrange hotpluggable memory as ZONE_MOVABLE.
+References: <1375956979-31877-1-git-send-email-tangchen@cn.fujitsu.com> <20130812145016.GI15892@htj.dyndns.org> <52090225.6070208@gmail.com> <20130812154623.GL15892@htj.dyndns.org> <52090AF6.6020206@gmail.com> <20130812162247.GM15892@htj.dyndns.org> <520914D5.7080501@gmail.com> <20130812180758.GA8288@mtj.dyndns.org>
+In-Reply-To: <20130812180758.GA8288@mtj.dyndns.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Ben Tebulin <tebulin@googlemail.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: Tang Chen <imtangchen@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org, kosaki.motohiro@gmail.com
 
-On Wed, Aug 14, 2013 at 10:40 AM, Michal Hocko <mhocko@suse.cz> wrote:
->>
->> After a _very long session of rebooting and bisecting_ the Linux kernel
->> (fortunately I had a SSD and ccache!) I was able to pinpoint the cause
->> to the following patch:
->>
->> *"mm: limit mmu_gather batching to fix soft lockups on !CONFIG_PREEMPT"*
->>   787f7301074ccd07a3e82236ca41eefd245f4e07 linux stable    [1]
->>   53a59fc67f97374758e63a9c785891ec62324c81 upstream commit [2]
+(8/12/13 2:07 PM), Tejun Heo wrote:
+> Hey,
 >
-> Thanks for bisecting this up!
+> On Tue, Aug 13, 2013 at 01:01:09AM +0800, Tang Chen wrote:
+>> Sorry for the misunderstanding.
+>>
+>> I was trying to answer your question: "Why can't the kenrel allocate
+>> hotpluggable memory opportunistic ?".
 >
-> I will look into this but I find it really strange.
+> I've used the wrong word, I was meaning best-effort, which is the only
+> thing we can do anyway given that we have no control over where the
+> kernel image is linked in relation to NUMA nodes.
+>
+>> If the kernel has any opportunity to allocate hotpluggable memory in
+>> SRAT, then the kernel should tell users which memory is hotpluggable.
+>>
+>> But in what way ?  I think node is the best for now. But a node could
+>> have a lot of memory. If the kernel uses only a little memory, we will
+>> lose the whole movable node, which I don't want to do.
+>>
+>> So, I don't want to allow the kenrel allocating hotpluggable memory
+>> opportunistic.
+>
+> What I was saying was that the kernel should try !hotpluggable memory
+> first then fall back to hotpluggable memory instead of failing boot as
+> nothing really is worse than failing to boot.
 
-We had a TLB invalidation bug in the case when we ran out of page
-slots (and limiting the mmu_gather batching basically forcesd an early
-case of that).
+I don't follow this. We need to think why memory hotplug is necessary.
+Because system reboot is unacceptable on several critical services. Then,
+if someone set wrong boot option, systems SHOULD fail to boot. At that time,
+admin have a chance to fix their mistake. In the other hand, after running
+production service, they have no chance to fix the mistake. In general, default
+boot option should have a fallback and non-default option should not have a
+fallback. That's a fundamental rule.
 
-It was fixed in commit e6c495a96ce02574e765d5140039a64c8d4e8c9e ("mm:
-fix the TLB range flushed when __tlb_remove_page() runs out of
-slots"), and that doesn't seem to have been marked for stable
-(probably because the commit message makes everytbody reading it think
-it's limited to ARC).
-
-Ben, can you try back-porting that commit from mainline and see if
-that fixes things?
-
-                 Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
