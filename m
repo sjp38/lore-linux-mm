@@ -1,46 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 6817C6B0032
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 17:54:53 -0400 (EDT)
-Date: Wed, 14 Aug 2013 17:54:25 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1376517265-8yi1139t-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1375956979-31877-6-git-send-email-tangchen@cn.fujitsu.com>
-References: <1375956979-31877-1-git-send-email-tangchen@cn.fujitsu.com>
- <1375956979-31877-6-git-send-email-tangchen@cn.fujitsu.com>
-Subject: Re: [PATCH part5 5/7] memblock, mem_hotplug: Make memblock skip
- hotpluggable regions by default.
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id BBBBB6B0033
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 18:09:03 -0400 (EDT)
+Date: Wed, 14 Aug 2013 15:09:01 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] mm/hotplug: Verify hotplug memory range
+Message-Id: <20130814150901.cd430738912a893d74769e1b@linux-foundation.org>
+In-Reply-To: <1376162252-26074-1-git-send-email-toshi.kani@hp.com>
+References: <1376162252-26074-1-git-send-email-toshi.kani@hp.com>
 Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, dave@sr71.net, isimatu.yasuaki@jp.fujitsu.com, tangchen@cn.fujitsu.com, vasilis.liaskovitis@profitbricks.com
 
-On Thu, Aug 08, 2013 at 06:16:17PM +0800, Tang Chen wrote:
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-...
-> @@ -719,6 +723,10 @@ void __init_memblock __next_free_mem_range_rev(u64 *idx, int nid,
->  		if (nid != MAX_NUMNODES && nid != memblock_get_region_node(m))
->  			continue;
+On Sat, 10 Aug 2013 13:17:32 -0600 Toshi Kani <toshi.kani@hp.com> wrote:
+
+> add_memory() and remove_memory() can only handle a memory range aligned
+> with section.  There are problems when an unaligned range is added and
+> then deleted as follows:
+> 
+>  - add_memory() with an unaligned range succeeds, but __add_pages()
+>    called from add_memory() adds a whole section of pages even though
+>    a given memory range is less than the section size.
+>  - remove_memory() to the added unaligned range hits BUG_ON() in
+>    __remove_pages().
+> 
+> This patch changes add_memory() and remove_memory() to check if a given
+> memory range is aligned with section at the beginning.  As the result,
+> add_memory() fails with -EINVAL when a given range is unaligned, and
+> does not add such memory range.  This prevents remove_memory() to be
+> called with an unaligned range as well.  Note that remove_memory() has
+> to use BUG_ON() since this function cannot fail.
+> 
+> ...
+>
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1069,6 +1069,22 @@ out:
+>  	return ret;
+>  }
 >  
-> +		/* skip hotpluggable memory regions */
-> +		if (m->flags & MEMBLOCK_HOTPLUG)
-> +			continue;
+> +static int check_hotplug_memory_range(u64 start, u64 size)
+> +{
+> +	u64 start_pfn = start >> PAGE_SHIFT;
+> +	u64 nr_pages = size >> PAGE_SHIFT;
 > +
->  		/* scan areas before each reservation for intersection */
->  		for ( ; ri >= 0; ri--) {
->  			struct memblock_region *r = &rsv->regions[ri];
-> -- 
+> +	/* Memory range must be aligned with section */
+> +	if ((start_pfn & ~PAGE_SECTION_MASK) ||
+> +	    (nr_pages % PAGES_PER_SECTION) || (!nr_pages)) {
+> +		pr_err("Section-unaligned hotplug range: start 0x%llx, size 0x%llx\n",
+> +				start, size);
 
-Why don't you add this also in __next_free_mem_range()?
+Printing a u64 is problematic.  Here you assume that u64 is implemented
+as unsigned long long.  But it can be implemented as unsigned long, by
+architectures which use include/asm-generic/int-l64.h.  Such an
+architecture will generate a compile warning here, but I can't
+immediately find a Kconfig combination which will make that happen.
 
-Thanks,
-Naoya Horiguchi
+> +		return -EINVAL;
+> +	}
+> +
+> +	return 0;
+> +}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
