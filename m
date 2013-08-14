@@ -1,76 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 688396B008A
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 06:34:50 -0400 (EDT)
-From: Andrey Vagin <avagin@openvz.org>
-Subject: [PATCH] kmemcg: don't allocate extra memory for root memcg_cache_params
-Date: Wed, 14 Aug 2013 14:31:21 +0400
-Message-Id: <1376476281-26559-1-git-send-email-avagin@openvz.org>
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 337EB6B0095
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 07:06:05 -0400 (EDT)
+Received: by mail-ea0-f169.google.com with SMTP id z7so4798820eaf.28
+        for <linux-mm@kvack.org>; Wed, 14 Aug 2013 04:06:03 -0700 (PDT)
+Date: Wed, 14 Aug 2013 13:05:56 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [RFC v3 0/5] Transparent on-demand struct page initialization
+ embedded in the buddy allocator
+Message-ID: <20130814110556.GH10849@gmail.com>
+References: <1375465467-40488-1-git-send-email-nzimmer@sgi.com>
+ <1376344480-156708-1-git-send-email-nzimmer@sgi.com>
+ <CA+55aFwTQLexJkf67P0b7Z7cw8fePjdDSdA4SOkM+Jf+kBPYEA@mail.gmail.com>
+ <520A6DFC.1070201@sgi.com>
+ <CA+55aFwRHdQ_f6ryUU1yWkW1Qz8cG958jLZuyhd_YdOq4-rfRA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFwRHdQ_f6ryUU1yWkW1Qz8cG958jLZuyhd_YdOq4-rfRA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Andrey Vagin <avagin@openvz.org>, Glauber Costa <glommer@openvz.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Mike Travis <travis@sgi.com>, Nathan Zimmer <nzimmer@sgi.com>, Peter Anvin <hpa@zytor.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Robin Holt <holt@sgi.com>, Rob Landley <rob@landley.net>, Daniel J Blueman <daniel@numascale-asia.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Yinghai Lu <yinghai@kernel.org>, Mel Gorman <mgorman@suse.de>
 
-The memcg_cache_params structure contains the common part and the union,
-which represents two different types of data: one for root cashes and
-another for child caches.
 
-The size of child data is fixed. The size of the memcg_caches array is
-calculated in runtime.
+* Linus Torvalds <torvalds@linux-foundation.org> wrote:
 
-Currently the size of memcg_cache_params for root caches is calculated
-incorrectly, because it includes the size of parameters for child caches.
+> [...]
+> 
+> Ok, so I don't know all the issues, and in many ways I don't even really 
+> care. You could do it other ways, I don't think this is a big deal. The 
+> part I hate is the runtime hook into the core MM page allocation code, 
+> so I'm just throwing out any random thing that comes to my mind that 
+> could be used to avoid that part.
 
-ssize_t size = memcg_caches_array_size(num_groups);
-size *= sizeof(void *);
+So, my hope was that it's possible to have a single, simple, zero-cost 
+runtime check [zero cost for already initialized pages], because it can be 
+merged into already existing page flag mask checks present here and 
+executed for every freshly allocated page:
 
-size += sizeof(struct memcg_cache_params);
+static inline int check_new_page(struct page *page)
+{
+        if (unlikely(page_mapcount(page) |
+                (page->mapping != NULL)  |
+                (atomic_read(&page->_count) != 0)  |
+                (page->flags & PAGE_FLAGS_CHECK_AT_PREP) |
+                (mem_cgroup_bad_page_check(page)))) {
+                bad_page(page);
+                return 1;
+        }
+        return 0;
+}
 
-Cc: Glauber Costa <glommer@openvz.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Balbir Singh <bsingharora@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Andrey Vagin <avagin@openvz.org>
----
- mm/memcontrol.c | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+We already run this for every new page allocated and the initialization 
+check could hide in PAGE_FLAGS_CHECK_AT_PREP in a zero-cost fashion.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index c5792a5..d69a10b 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3140,7 +3140,7 @@ int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
- 		ssize_t size = memcg_caches_array_size(num_groups);
- 
- 		size *= sizeof(void *);
--		size += sizeof(struct memcg_cache_params);
-+		size += sizeof(offsetof(struct memcg_cache_params, memcg_caches));
- 
- 		s->memcg_params = kzalloc(size, GFP_KERNEL);
- 		if (!s->memcg_params) {
-@@ -3183,13 +3183,16 @@ int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
- int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
- 			 struct kmem_cache *root_cache)
- {
--	size_t size = sizeof(struct memcg_cache_params);
-+	size_t size;
- 
- 	if (!memcg_kmem_enabled())
- 		return 0;
- 
--	if (!memcg)
-+	if (!memcg) {
-+		size = offsetof(struct memcg_cache_params, memcg_caches);
- 		size += memcg_limited_groups_array_size * sizeof(void *);
-+	} else
-+		size = sizeof(struct memcg_cache_params);
- 
- 	s->memcg_params = kzalloc(size, GFP_KERNEL);
- 	if (!s->memcg_params)
--- 
-1.8.3.1
+I'd not do any of the ensure_page_is_initialized() or 
+__expand_page_initialization() complications in this patch-set - each page 
+head represents itself and gets iterated when check_new_page() is done.
+
+During regular bootup we'd initialize like before, except we don't set up 
+the page heads but memset() them to zero. With each page head 32 bytes 
+this would mean 8 GB of page head memory to clear per 1 TB - with 16 TB 
+that's 128 GB to clear - that ought to be possible to do rather quickly, 
+perhaps with some smart SMP cross-call approach that makes sure that each 
+memset is done in a node-local fashion. [*]
+
+Such an approach should IMO be far smaller and less invasive than the 
+patches presented so far: it should be below 100 lines or so.
+
+I don't know why there's such a big difference between the theory I 
+outlined and the invasive patch-set implemented so far in practice, 
+perhaps I'm missing some complication. I was trying to probe that 
+difference, before giving up on the idea and punting back to the async 
+hotplug-ish approach which would obviously work well too.
+
+All in one, I think async init just hides the real problem - there's no 
+way memory init should take this long.
+
+Thanks,
+
+	Ingo
+
+[*] alternatively maybe the main performance problem is that node-local 
+    memory is set up on a remote (boot) node? In that case I'd try to
+    optimize it by migrating the memory init code's current node by using
+    set_cpus_allowed() to live migrate from node to node, tracking the 
+    node whose struct page array is being initialized.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
