@@ -1,73 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 840BC6B0032
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 15:55:47 -0400 (EDT)
-Received: by mail-qe0-f48.google.com with SMTP id 9so5238727qea.21
-        for <linux-mm@kvack.org>; Wed, 14 Aug 2013 12:55:46 -0700 (PDT)
-Date: Wed, 14 Aug 2013 15:55:41 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH part5 0/7] Arrange hotpluggable memory as ZONE_MOVABLE.
-Message-ID: <20130814195541.GH28628@htj.dyndns.org>
-References: <20130812145016.GI15892@htj.dyndns.org>
- <52090225.6070208@gmail.com>
- <20130812154623.GL15892@htj.dyndns.org>
- <52090AF6.6020206@gmail.com>
- <20130812162247.GM15892@htj.dyndns.org>
- <520914D5.7080501@gmail.com>
- <20130812180758.GA8288@mtj.dyndns.org>
- <520BC950.1030806@gmail.com>
- <20130814182342.GG28628@htj.dyndns.org>
- <520BDD2F.2060909@gmail.com>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 306DC6B0032
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 16:05:39 -0400 (EDT)
+Message-ID: <520BE30D.3070401@sr71.net>
+Date: Wed, 14 Aug 2013 13:05:33 -0700
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <520BDD2F.2060909@gmail.com>
+Subject: Re: [RFC][PATCH] drivers: base: dynamic memory block creation
+References: <1376508705-3188-1-git-send-email-sjenning@linux.vnet.ibm.com> <20130814194348.GB10469@kroah.com>
+In-Reply-To: <20130814194348.GB10469@kroah.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Tang Chen <imtangchen@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Lai Jiangshan <laijs@cn.fujitsu.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hello,
-
-On Wed, Aug 14, 2013 at 03:40:31PM -0400, KOSAKI Motohiro wrote:
-> I don't agree it. Please look at other kernel options. A lot of these don't
-> follow you. These behave as direction, not advise.
+On 08/14/2013 12:43 PM, Greg Kroah-Hartman wrote:
+> On Wed, Aug 14, 2013 at 02:31:45PM -0500, Seth Jennings wrote:
+>> ppc64 has a normal memory block size of 256M (however sometimes as low
+>> as 16M depending on the system LMB size), and (I think) x86 is 128M.  With
+>> 1TB of RAM and a 256M block size, that's 4k memory blocks with 20 sysfs
+>> entries per block that's around 80k items that need be created at boot
+>> time in sysfs.  Some systems go up to 16TB where the issue is even more
+>> severe.
 > 
-> I mean the fallback should be implemented at turning on default the feature.
+> The x86 developers are working with larger memory sizes and they haven't
+> seen the problem in this area, for them it's in other places, as I
+> referred to in my other email.
 
-Yeah, some options are "please try this" and others "do this or fail".
-There's no frigging fundamental rule there.
+The SGI guys don't run normal distro kernels and don't turn on memory
+hotplug, so they don't see this.  I do the same in my testing of
+large-memory x86 systems to speed up my boots.  I'll go stick it back in
+there and see if I can generate some numbers for a 1TB machine.
 
-> I don't read whole discussion and I don't quite understand why no kernel
-> place controlling is relevant. Every unpluggable node is suitable for
-> kernel. If you mean current kernel placement logic don't care plugging,
-> that's a bug.
-> 
-> If we aim to hot remove, we have to have either kernel relocation or
-> hotplug awre kernel placement at boot time.
+But, the problem on x86 is at _worst_ 1/8 of the problem on ppc64 since
+the SECTION_SIZE is so 8x bigger by default.
 
-What if all nodes are hot pluggable?  Are we moving the kernel
-dynamically then?
+Also, the cost of creating sections on ppc is *MUCH* higher than x86
+when amortized across the number of pages that you're initializing.  A
+section on ppc64 has to be created for each (2^24/2^16)=256 pages while
+one on x86 is created for each (2^27/2^12)=32768 pages.
 
-> >Failing to boot is *way* worse reporting mechanism than almost
-> >everything else.  If the sysadmin is willing to risk machines failing
-> >to come up, she would definitely be willing to check whether which
-> >memory areas are actually hotpluggable too, right?
-> 
-> No. see above. Your opinion is not pragmatic useful.
-
-No, what you're saying doesn't make any sense.  There are multiple
-ways to report when something doesn't work.  Failing to boot is *one*
-of them and not a very good one.  Here, for practical reasons, the end
-result may differ depending on the specifics of the configuration, so
-more detailed reporting is necessary anyway, so why do you insist on
-failing the boot?  In what world is it a good thing for the machine to
-fail boot after bios or kernel update?
-
-Thanks.
-
--- 
-tejun
+Thus, x86 folks with our small pages and large sections tend to be
+focused on per-page costs.  The ppc folks with their small sections and
+larger pages tend to be focused on the per-section costs.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
