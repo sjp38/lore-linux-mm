@@ -1,101 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id B70DE6B0032
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 12:16:47 -0400 (EDT)
-Date: Wed, 14 Aug 2013 17:16:42 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: skip the page buddy block instead of one page
-Message-ID: <20130814161642.GM2296@suse.de>
-References: <520B0B75.4030708@huawei.com>
- <20130814085711.GK2296@suse.de>
- <20130814155205.GA2706@gmail.com>
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 4EB6D6B0033
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 12:18:02 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id r10so6604000pdi.13
+        for <linux-mm@kvack.org>; Wed, 14 Aug 2013 09:18:01 -0700 (PDT)
+Date: Thu, 15 Aug 2013 01:17:53 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v6 0/5] zram/zsmalloc promotion
+Message-ID: <20130814161753.GB2706@gmail.com>
+References: <1376459736-7384-1-git-send-email-minchan@kernel.org>
+ <CAA25o9Q1KVHEzdeXJFe9A8K9MULysq_ShWrUBZM4-h=5vmaQ8w@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130814155205.GA2706@gmail.com>
+In-Reply-To: <CAA25o9Q1KVHEzdeXJFe9A8K9MULysq_ShWrUBZM4-h=5vmaQ8w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, aquini@redhat.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Luigi Semenzato <semenzato@google.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Mel Gorman <mgorman@suse.de>
 
-On Thu, Aug 15, 2013 at 12:52:29AM +0900, Minchan Kim wrote:
-> Hi Mel,
-> 
-> On Wed, Aug 14, 2013 at 09:57:11AM +0100, Mel Gorman wrote:
-> > On Wed, Aug 14, 2013 at 12:45:41PM +0800, Xishi Qiu wrote:
-> > > A large free page buddy block will continue many times, so if the page 
-> > > is free, skip the whole page buddy block instead of one page.
-> > > 
-> > > Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
-> > 
-> > page_order cannot be used unless zone->lock is held which is not held in
-> > this path. Acquiring the lock would prevent parallel allocations from the
-> 
-> Argh, I missed that. And it seems you already pointed it out long time ago
-> someone try to do same things if I remember correctly. :(
+Hi Luigi,
 
-It feels familiar but I do not remember why.
+On Wed, Aug 14, 2013 at 08:53:31AM -0700, Luigi Semenzato wrote:
+> During earlier discussions of zswap there was a plan to make it work
+> with zsmalloc as an option instead of zbud. Does zbud work for
 
-> But let's think about it more.
-> 
-> It's always not right because CMA and memory-hotplug already isolated
-> free pages in the range to MIGRATE_ISOLATE right before starting migration
-> so we could use page_order safely in those contexts even if we don't hold
-> zone->lock.
->  
+AFAIR, it was not an optoin but zsmalloc was must but there were
+several objections because zswap's notable feature is to dump
+compressed object to real swap storage. For that, zswap needs to
+store bounded objects in a zpage so that dumping could be bounded, too.
+Otherwise, it could encounter OOM easily.
 
-Both of those are teh corner cases. Neither operation happen frequently
-in comparison to something like THP allocations for example. I think an
-optimisation along those lines is marginal at best.
+> compression factors better than 2:1?  I have the impression (maybe
+> wrong) that it does not.  In our use of zram (Chrome OS) typical
 
-> In addition, it's likely to have many free pages in case of CMA because CMA
-> makes MIGRATE_CMA fallback of MIGRATE_MOVABLE to minimize number of migrations.
-> Even CMA area was full, it could have many free pages once driver who is
-> CMA area's owner releases the CMA area. So, the bigger CMA space is,
-> the bigger patch's benefit is. And it could help memory-hotplug, too.
-> 
-> Only problem is normal compaction. The worst case is just skipping
-> pageblock_nr_pages, for instace, 4M(of course, it depends on configuration).
-> but we can make the race window very small by dobule checking PageBuddy.
-> Still, it could make the race theoretically but I think it's really really
-> unlikely and still enhance compaction overhead withtout holding the lock.
-> Even if the race happens, normal compaction's customers(ex, THP) doesn't
-> have critical result and just fallback. So I think it isn't not bad tradeoff.
-> 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 05ccb4c..2341d52 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -520,8 +520,18 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
->  			goto next_pageblock;
->  
->  		/* Skip if free */
-> -		if (PageBuddy(page))
-> +		if (PageBuddy(page)) {
-> +			/*
-> +			 * page_order is racy without zone->lock but worst case
-> +			 * by the racing is just skipping pageblock_nr_pages.
-> +			 * but even the race is really unlikely by double
-> +			 * check of PageBuddy.
-> +			 */
-> +			unsigned long order = page_order(page);
-> +			if (PageBuddy(page))
-> +				low_pfn += (1 << order) - 1;
->  			continue;
-> +		}
->  
+Since zswap changed allocator from zsmalloc to zbud, I didn't follow
+because I had no interest of low compressoin ratio allocator so
+I have no idea of status of zswap at a moment but I guess it would be
+still 2:1.
 
-Even if the page is still page buddy, there is no guarantee that it's
-the same page order as the first read. It could have be currently
-merging with adjacent buddies for example. There is also a really
-small race that a page was freed, allocated with some number stuffed
-into page->private and freed again before the second PageBuddy check.
-It's a bit of a hand grenade. How much of a performance benefit is there
-from this patch?
+> overall compression ratios are between 2.5:1 and 3:1.  We would hate
+> to waste that memory if we switch to zswap.
 
+If you have real swap storage, zswap might be better although I have
+no number but real swap is money for embedded system and it has sudden
+garbage collection on firmware side if we use eMMC or SSD so that it
+could affect system latency. Morever, if we start to use real swap,
+maybe we should encrypt the data and it would be severe overhead(CPU
+and Power).
+
+And what I am considering after promoting for zram feature is
+asynchronous I/O and it's possible because zram is block device.
+
+Thanks!
 -- 
-Mel Gorman
-SUSE Labs
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
