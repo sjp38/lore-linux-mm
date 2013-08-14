@@ -1,51 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 9E5BA6B0032
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 14:35:21 -0400 (EDT)
-Received: by mail-vb0-f52.google.com with SMTP id f12so66243vbg.11
-        for <linux-mm@kvack.org>; Wed, 14 Aug 2013 11:35:20 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id D2B8F6B0033
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 14:36:07 -0400 (EDT)
+Date: Wed, 14 Aug 2013 20:36:04 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm: memcontrol: fix handling of swapaccount parameter
+Message-ID: <20130814183604.GE24033@dhcp22.suse.cz>
+References: <1376486495-21457-1-git-send-email-gergely@risko.hu>
 MIME-Version: 1.0
-In-Reply-To: <20130814182756.GD24033@dhcp22.suse.cz>
-References: <52050382.9060802@gmail.com>
-	<520BB225.8030807@gmail.com>
-	<20130814174039.GA24033@dhcp22.suse.cz>
-	<CA+55aFwAz7GdcB6nC0Th42y8eAM591sKO1=mYh5SWgyuDdHzcA@mail.gmail.com>
-	<20130814182756.GD24033@dhcp22.suse.cz>
-Date: Wed, 14 Aug 2013 11:35:20 -0700
-Message-ID: <CA+55aFxB6Wyj3G3Ju8E7bjH-706vi3vysuATUZ13h1tdYbCbnQ@mail.gmail.com>
-Subject: Re: [Bug] Reproducible data corruption on i5-3340M: Please revert 53a59fc67!
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1376486495-21457-1-git-send-email-gergely@risko.hu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Ben Tebulin <tebulin@googlemail.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>
+To: Gergely Risko <gergely@risko.hu>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org
 
-On Wed, Aug 14, 2013 at 11:28 AM, Michal Hocko <mhocko@suse.cz> wrote:
->
-> OK that would suggest the issue has been introduced by 597e1c35:
-> (mm/mmu_gather: enable tlb flush range in generic mmu_gather) in 3.6
-> which is not 3.7 when Ben started seeing the issue but this definitely
-> smells like a bug that would be amplified by the bisected patch.
+On Wed 14-08-13 15:21:35, Gergely Risko wrote:
+> Fixed swap accounting option parsing to enable if called without argument.
 
-Yes, the bug was originally introduced in 597e1c35, but in practice it
-never happened, because the force_flush case would not ever really
-trigger unless __get_free_pages(GFP_NOWAIT) returned NULL.
+We used to have [no]swapaccount but that one has been removed by a2c8990a
+(memsw: remove noswapaccount kernel parameter) so I do not think that
+swapaccount without any given value makes much sense these days.
 
-Which is *very* rare.
+> Signed-off-by: Gergely Risko <gergely@risko.hu>
+> ---
+>  mm/memcontrol.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index c290a1c..8ec2507 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -6970,13 +6970,13 @@ struct cgroup_subsys mem_cgroup_subsys = {
+>  static int __init enable_swap_account(char *s)
+>  {
+>  	/* consider enabled if no parameter or 1 is given */
+> -	if (!strcmp(s, "1"))
+> +	if (*s++ != '=' || !*s || !strcmp(s, "1"))
+>  		really_do_swap_account = 1;
+>  	else if (!strcmp(s, "0"))
+>  		really_do_swap_account = 0;
+>  	return 1;
+>  }
+> -__setup("swapaccount=", enable_swap_account);
+> +__setup("swapaccount", enable_swap_account);
+>  
+>  static void __init memsw_file_init(void)
+>  {
+> -- 
+> 1.8.3.2
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-So the commit that Ben bisected things down to wasn't the one that
-really introduced the bug, but it was the one that made
-tlb_next_batch() much more likely to return failure, which in turn
-made it much easier to *expose* the bug.
-
-NOTE! I still absolutely want Ben to actually test that fix (ie
-backport commit e6c495a96ce0 to his tree), because without testing
-this is all just theoretical, and there might be other things hiding
-here. But it makes sense to me, and I think this already-known bug
-explains the symptoms.
-
-                    Linus
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
