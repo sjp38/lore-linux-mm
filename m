@@ -1,80 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 010E86B005C
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 02:48:53 -0400 (EDT)
-Date: Tue, 13 Aug 2013 23:46:29 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v7 2/2] mm: make lru_add_drain_all() selective
-Message-Id: <20130813234629.4ce2ec70.akpm@linux-foundation.org>
-In-Reply-To: <520AC215.4050803@tilera.com>
-References: <520AAF9C.1050702@tilera.com>
-	<201308132307.r7DN74M5029053@farm-0021.internal.tilera.com>
-	<20130813232904.GJ28996@mtj.dyndns.org>
-	<520AC215.4050803@tilera.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 9BD7A6B0068
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 03:01:03 -0400 (EDT)
+Received: by mail-la0-f54.google.com with SMTP id ea20so6540663lab.13
+        for <linux-mm@kvack.org>; Wed, 14 Aug 2013 00:01:01 -0700 (PDT)
+Date: Wed, 14 Aug 2013 11:00:59 +0400
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: [PATCH -mm] mm: Unify pte_to_pgoff and pgoff_to_pte helpers
+Message-ID: <20130814070059.GJ2869@moon>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Metcalf <cmetcalf@tilera.com>
-Cc: Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Frederic Weisbecker <fweisbec@gmail.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@amacapital.net>, Pavel Emelyanov <xemul@parallels.com>, Matt Mackall <mpm@selenic.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Marcelo Tosatti <mtosatti@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Peter Zijlstra <peterz@infradead.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>
 
-On Tue, 13 Aug 2013 19:32:37 -0400 Chris Metcalf <cmetcalf@tilera.com> wrote:
+Use unified pte_bfop helper to manipulate bits in pte/pgoff bitfield.
 
-> On 8/13/2013 7:29 PM, Tejun Heo wrote:
-> > Hello,
-> >
-> > On Tue, Aug 13, 2013 at 06:53:32PM -0400, Chris Metcalf wrote:
-> >>  int lru_add_drain_all(void)
-> >>  {
-> >> -	return schedule_on_each_cpu(lru_add_drain_per_cpu);
-> >> +	return schedule_on_each_cpu_cond(lru_add_drain_per_cpu,
-> >> +					 lru_add_drain_cond, NULL);
+Signed-off-by: Cyrill Gorcunov <gorcunov@openvz.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andy Lutomirski <luto@amacapital.net>
+Cc: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Pavel Emelyanov <xemul@parallels.com>
+Cc: Matt Mackall <mpm@selenic.com>
+Cc: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+Cc: Marcelo Tosatti <mtosatti@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@elte.hu>
+---
+ arch/x86/include/asm/pgtable-2level.h |   51 ++++++++++++++++++----------------
+ 1 file changed, 27 insertions(+), 24 deletions(-)
 
-This version looks nice to me.  It's missing the conversion of
-schedule_on_each_cpu(), but I suppose that will be pretty simple.
-
-> > It won't nest and doing it simultaneously won't buy anything, right?
-> 
-> Correct on both counts, I think.
-
-I'm glad you understood the question :(
-
-What does "nest" mean?  lru_add_drain_all() calls itself recursively,
-presumably via some ghastly alloc_percpu()->alloc_pages(GFP_KERNEL)
-route?  If that ever happens then we'd certainly want to know about it.
-Hopefully PF_MEMALLOC would prevent infinite recursion.
-
-If "nest" means something else then please enlighten me!
-
-As for "doing it simultaneously", I assume we're referring to
-concurrent execution from separate threads.  If so, why would that "buy
-us anything"?  Confused.  As long as each thread sees "all pages which
-were in pagevecs at the time I called lru_add_drain_all() get spilled
-onto the LRU" then we're good.  afaict the implementation will do this.
-
-> > Wouldn't it be better to protect it with a mutex and define all
-> > necessary resources statically (yeah, cpumask is pain in the ass and I
-> > think we should un-deprecate cpumask_t for static use cases)?  Then,
-> > there'd be no allocation to worry about on the path.
-> 
-> If allocation is a real problem on this path, I think this is probably
-
-Well as you pointed out, alloc_percpu() can already do a GFP_KERNEL
-allocation, so adding another GFP_KERNEL allocation won't cause great
-problems.  But the patchset demonstrates that the additional allocation
-isn't needed.
-
-> OK, though I don't want to speak for Andrew.  You could just guard it
-> with a trylock and any caller that tried to start it while it was
-> locked could just return happy that it was going on.
-> 
-> I'll put out a version that does that and see how that looks
-> for comparison's sake.
-
-That one's no good.  If thread A is holding the mutex, thread B will
-bale out and we broke lru_add_drain_all()'s contract, "all pages which
-...", above.
+Index: linux-2.6.git/arch/x86/include/asm/pgtable-2level.h
+===================================================================
+--- linux-2.6.git.orig/arch/x86/include/asm/pgtable-2level.h
++++ linux-2.6.git/arch/x86/include/asm/pgtable-2level.h
+@@ -55,8 +55,11 @@ static inline pmd_t native_pmdp_get_and_
+ #define native_pmdp_get_and_clear(xp) native_local_pmdp_get_and_clear(xp)
+ #endif
+ 
+-#define _mfrob(v,r,m,l)		((((v) >> (r)) & (m)) << (l))
+-#define __frob(v,r,l)		(((v) >> (r)) << (l))
++/*
++ * For readable bitfield manipulations.
++ */
++#define PTE_FILE_NOMASK		(-1U)
++#define pte_bfop(v,r,m,l)	((((v) >> (r)) & (m)) << (l))
+ 
+ #ifdef CONFIG_MEM_SOFT_DIRTY
+ 
+@@ -82,18 +85,18 @@ static inline pmd_t native_pmdp_get_and_
+ #define PTE_FILE_LSHIFT3	(PTE_FILE_BITS1 + PTE_FILE_BITS2)
+ #define PTE_FILE_LSHIFT4	(PTE_FILE_BITS1 + PTE_FILE_BITS2 + PTE_FILE_BITS3)
+ 
+-#define pte_to_pgoff(pte)							    \
+-	(_mfrob((pte).pte_low, PTE_FILE_SHIFT1, PTE_FILE_MASK1, 0)		  + \
+-	 _mfrob((pte).pte_low, PTE_FILE_SHIFT2, PTE_FILE_MASK2, PTE_FILE_LSHIFT2) + \
+-	 _mfrob((pte).pte_low, PTE_FILE_SHIFT3, PTE_FILE_MASK3, PTE_FILE_LSHIFT3) + \
+-	 __frob((pte).pte_low, PTE_FILE_SHIFT4, PTE_FILE_LSHIFT4))
+-
+-#define pgoff_to_pte(off)							\
+-	((pte_t) { .pte_low =							\
+-	_mfrob(off,                0, PTE_FILE_MASK1, PTE_FILE_SHIFT1)	+	\
+-	_mfrob(off, PTE_FILE_LSHIFT2, PTE_FILE_MASK2, PTE_FILE_SHIFT2)	+	\
+-	_mfrob(off, PTE_FILE_LSHIFT3, PTE_FILE_MASK3, PTE_FILE_SHIFT3)	+	\
+-	__frob(off, PTE_FILE_LSHIFT4, PTE_FILE_SHIFT4)			+	\
++#define pte_to_pgoff(pte)								  \
++	(pte_bfop((pte).pte_low, PTE_FILE_SHIFT1, PTE_FILE_MASK1, 0)			+ \
++	 pte_bfop((pte).pte_low, PTE_FILE_SHIFT2, PTE_FILE_MASK2, PTE_FILE_LSHIFT2)	+ \
++	 pte_bfop((pte).pte_low, PTE_FILE_SHIFT3, PTE_FILE_MASK3, PTE_FILE_LSHIFT3)	+ \
++	 pte_bfop((pte).pte_low, PTE_FILE_SHIFT4, PTE_FILE_NOMASK, PTE_FILE_LSHIFT4))
++
++#define pgoff_to_pte(off)							  \
++	((pte_t) { .pte_low =							  \
++	pte_bfop(off,                0, PTE_FILE_MASK1, PTE_FILE_SHIFT1)	+ \
++	pte_bfop(off, PTE_FILE_LSHIFT2, PTE_FILE_MASK2, PTE_FILE_SHIFT2)	+ \
++	pte_bfop(off, PTE_FILE_LSHIFT3, PTE_FILE_MASK3, PTE_FILE_SHIFT3)	+ \
++	pte_bfop(off, PTE_FILE_LSHIFT4, PTE_FILE_NOMASK, PTE_FILE_SHIFT4)	+ \
+ 	_PAGE_FILE })
+ 
+ #else /* CONFIG_MEM_SOFT_DIRTY */
+@@ -120,16 +123,16 @@ static inline pmd_t native_pmdp_get_and_
+ #define PTE_FILE_LSHIFT2	(PTE_FILE_BITS1)
+ #define PTE_FILE_LSHIFT3	(PTE_FILE_BITS1 + PTE_FILE_BITS2)
+ 
+-#define pte_to_pgoff(pte)							    \
+-	(_mfrob((pte).pte_low, PTE_FILE_SHIFT1, PTE_FILE_MASK1, 0)		  + \
+-	 _mfrob((pte).pte_low, PTE_FILE_SHIFT2, PTE_FILE_MASK2, PTE_FILE_LSHIFT2) + \
+-	 __frob((pte).pte_low, PTE_FILE_SHIFT3, PTE_FILE_LSHIFT3))
+-
+-#define pgoff_to_pte(off)							\
+-	((pte_t) { .pte_low =							\
+-	_mfrob(off,                0, PTE_FILE_MASK1, PTE_FILE_SHIFT1)	+	\
+-	_mfrob(off, PTE_FILE_LSHIFT2, PTE_FILE_MASK2, PTE_FILE_SHIFT2)	+	\
+-	__frob(off, PTE_FILE_LSHIFT3, PTE_FILE_SHIFT3)			+	\
++#define pte_to_pgoff(pte)								  \
++	(pte_bfop((pte).pte_low, PTE_FILE_SHIFT1, PTE_FILE_MASK1, 0)			+ \
++	 pte_bfop((pte).pte_low, PTE_FILE_SHIFT2, PTE_FILE_MASK2, PTE_FILE_LSHIFT2)	+ \
++	 pte_bfop((pte).pte_low, PTE_FILE_SHIFT3, PTE_FILE_NOMASK, PTE_FILE_LSHIFT3))
++
++#define pgoff_to_pte(off)							  \
++	((pte_t) { .pte_low =							  \
++	pte_bfop(off,                0, PTE_FILE_MASK1, PTE_FILE_SHIFT1)	+ \
++	pte_bfop(off, PTE_FILE_LSHIFT2, PTE_FILE_MASK2, PTE_FILE_SHIFT2)	+ \
++	pte_bfop(off, PTE_FILE_LSHIFT3, PTE_FILE_NOMASK, PTE_FILE_SHIFT3)	+ \
+ 	_PAGE_FILE })
+ 
+ #endif /* CONFIG_MEM_SOFT_DIRTY */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
