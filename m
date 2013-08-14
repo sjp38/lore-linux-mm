@@ -1,55 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id A238F6B0033
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 17:36:42 -0400 (EDT)
-Received: by mail-qe0-f54.google.com with SMTP id i11so235497qej.41
-        for <linux-mm@kvack.org>; Wed, 14 Aug 2013 14:36:41 -0700 (PDT)
-Date: Wed, 14 Aug 2013 17:36:37 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH part5 0/7] Arrange hotpluggable memory as ZONE_MOVABLE.
-Message-ID: <20130814213637.GO28628@htj.dyndns.org>
-References: <20130812162247.GM15892@htj.dyndns.org>
- <520914D5.7080501@gmail.com>
- <20130812180758.GA8288@mtj.dyndns.org>
- <520BC950.1030806@gmail.com>
- <20130814182342.GG28628@htj.dyndns.org>
- <520BDD2F.2060909@gmail.com>
- <20130814195541.GH28628@htj.dyndns.org>
- <520BE891.8090004@gmail.com>
- <20130814203538.GK28628@htj.dyndns.org>
- <520BF3E3.5030006@gmail.com>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id AB9A86B0034
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 17:37:25 -0400 (EDT)
+Received: from /spool/local
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
+	Wed, 14 Aug 2013 15:37:24 -0600
+Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id DD9C13E40044
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 15:36:58 -0600 (MDT)
+Received: from d03av05.boulder.ibm.com (d03av05.boulder.ibm.com [9.17.195.85])
+	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7ELbLXu033796
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 15:37:21 -0600
+Received: from d03av05.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av05.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r7ELbJWD007940
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 15:37:20 -0600
+Message-ID: <520BF88C.6060202@linux.vnet.ibm.com>
+Date: Wed, 14 Aug 2013 14:37:16 -0700
+From: Cody P Schafer <cody@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <520BF3E3.5030006@gmail.com>
+Subject: Re: [RFC][PATCH] drivers: base: dynamic memory block creation
+References: <1376508705-3188-1-git-send-email-sjenning@linux.vnet.ibm.com> <520BECDF.8060501@sr71.net> <20130814211454.GA17423@variantweb.net>
+In-Reply-To: <20130814211454.GA17423@variantweb.net>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Tang Chen <imtangchen@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Dave Hansen <dave@sr71.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Lai Jiangshan <laijs@cn.fujitsu.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Aug 14, 2013 at 05:17:23PM -0400, KOSAKI Motohiro wrote:
-> You haven't explain practical benefit of your opinion. As far as users have
-> no benefit, I'm never agree. Sorry.
+On 08/14/2013 02:14 PM, Seth Jennings wrote:
+>> >An existing tool would not work
+>> >with this patch (plus boot option) since it would not know how to
+>> >show/hide things.  It lets_part_  of those existing tools get reused
+>> >since they only have to be taught how to show/hide things.
+>> >
+>> >I'd find this really intriguing if you found a way to keep even the old
+>> >tools working.  Instead of having an explicit show/hide, why couldn't
+>> >you just create the entries on open(), for instance?
+> Nathan and I talked about this and I'm not sure if sysfs would support
+> such a thing, i.e. memory block creation when someone tried to cd into
+> the memory block device config.  I wouldn't know where to start on that.
+>
 
-Umm... how about being more robust and actually useable to begin with?
-What's the benefit of panicking?  Are you seriously saying that the
-admin / boot script can use the kernel boot param to tell the kernel
-to enable hotplug but can't check what nodes are hot unpluggable
-afterwards?  The admin *needs* to check which nodes are hotpluggable
-no matter how this part is handled.  How else is it gonna know which
-nodes are hotpluggable?  Magic?
-
-There's no such rule as kernel param should make the kernel panic if
-it's not happy, so please take that out of your brain.  It of course
-should be clear what the result of the kernel parameter is and
-panicking is the crudest way to do that which is good enough or even
-desriable in *some* cases.  It is not the required behavior by any
-stretch of imgination, especially when the result of the parameter may
-change due to changing circumstances.  That's an outright idiotic
-thing to do.
-
--- 
-tejun
+Also, I'd expect userspace tools might use readdir() to find out what 
+memory blocks a system has (unless they just stat("memory0"), 
+stat("memory1")...). I don't think filesystem tricks (at least within 
+sysfs) are going to let this magically be solved without breaking the 
+userspace API.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
