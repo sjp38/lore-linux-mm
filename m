@@ -1,54 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 6BB286B0033
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 19:41:02 -0400 (EDT)
-Date: Wed, 14 Aug 2013 16:41:00 -0700
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 23CD16B0032
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 19:45:11 -0400 (EDT)
+Date: Wed, 14 Aug 2013 16:45:08 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3/9] migrate: add hugepage migration code to
- migrate_pages()
-Message-Id: <20130814164100.e4ba87e694e3c6563c91bf0e@linux-foundation.org>
-In-Reply-To: <1376025702-14818-4-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1376025702-14818-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-	<1376025702-14818-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v2] mm/hotplug: Verify hotplug memory range
+Message-Id: <20130814164508.e62614c436df5eabfd504c8c@linux-foundation.org>
+In-Reply-To: <1376523242.10300.403.camel@misato.fc.hp.com>
+References: <1376162252-26074-1-git-send-email-toshi.kani@hp.com>
+	<20130814150901.cd430738912a893d74769e1b@linux-foundation.org>
+	<1376523242.10300.403.camel@misato.fc.hp.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, dave@sr71.net, isimatu.yasuaki@jp.fujitsu.com, tangchen@cn.fujitsu.com, vasilis.liaskovitis@profitbricks.com
 
-On Fri,  9 Aug 2013 01:21:36 -0400 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+On Wed, 14 Aug 2013 17:34:02 -0600 Toshi Kani <toshi.kani@hp.com> wrote:
 
-> +static void check_hugetlb_pmd_range(struct vm_area_struct *vma, pmd_t *pmd,
-> +		const nodemask_t *nodes, unsigned long flags,
-> +				    void *private)
-> +{
-> +#ifdef CONFIG_HUGETLB_PAGE
-> +	int nid;
-> +	struct page *page;
-> +
-> +	spin_lock(&vma->vm_mm->page_table_lock);
-> +	page = pte_page(huge_ptep_get((pte_t *)pmd));
-> +	nid = page_to_nid(page);
-> +	if (node_isset(nid, *nodes) == !!(flags & MPOL_MF_INVERT))
-> +		goto unlock;
-> +	/* With MPOL_MF_MOVE, we migrate only unshared hugepage. */
-> +	if (flags & (MPOL_MF_MOVE_ALL) ||
-> +	    (flags & MPOL_MF_MOVE && page_mapcount(page) == 1))
-> +		isolate_huge_page(page, private);
-> +unlock:
-> +	spin_unlock(&vma->vm_mm->page_table_lock);
-> +#else
-> +	BUG();
-> +#endif
-> +}
+> > Printing a u64 is problematic.  Here you assume that u64 is implemented
+> > as unsigned long long.  But it can be implemented as unsigned long, by
+> > architectures which use include/asm-generic/int-l64.h.  Such an
+> > architecture will generate a compile warning here, but I can't
+> > immediately find a Kconfig combination which will make that happen.
+> 
+> Oh, I see.  Should I add the casting below and resend it to you?
+> 
+>                 (unsigned long long)start, (unsigned long long)size);
 
-The function is poorly named.  What does it "check"?  And it does more
-than checking things - at actually makes alterations!
-
-Can we have a better name here please, and some docmentation explaining
-what it does and why it does it?
+I was going to leave it as-is and see if anyone else can find a way of
+triggering the warning.  But other sites in mm/memory_hotplug.c have
+the casts so I went ahead and fixed it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
