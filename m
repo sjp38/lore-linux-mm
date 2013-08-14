@@ -1,62 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id A35B76B0032
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 16:40:32 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <nfont@linux.vnet.ibm.com>;
-	Thu, 15 Aug 2013 02:03:00 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 7997F3940059
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 02:10:18 +0530 (IST)
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7EKflGo35389572
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 02:11:50 +0530
-Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7EKeMCf029378
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 02:10:22 +0530
-Message-ID: <520BEB31.6090103@linux.vnet.ibm.com>
-Date: Wed, 14 Aug 2013 15:40:17 -0500
-From: Nathan Fontenot <nfont@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] drivers: base: dynamic memory block creation
-References: <1376508705-3188-1-git-send-email-sjenning@linux.vnet.ibm.com>
-In-Reply-To: <1376508705-3188-1-git-send-email-sjenning@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 1F02F6B0032
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 16:44:33 -0400 (EDT)
+Date: Wed, 14 Aug 2013 13:44:30 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v8] mm: make lru_add_drain_all() selective
+Message-Id: <20130814134430.50cb8d609643620b00ab3705@linux-foundation.org>
+In-Reply-To: <201308142029.r7EKTMRw023404@farm-0002.internal.tilera.com>
+References: <20130814200748.GI28628@htj.dyndns.org>
+	<201308142029.r7EKTMRw023404@farm-0002.internal.tilera.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dave Hansen <dave@sr71.net>, Cody P Schafer <cody@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Lai Jiangshan <laijs@cn.fujitsu.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Chris Metcalf <cmetcalf@tilera.com>
+Cc: Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Frederic Weisbecker <fweisbec@gmail.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-On 08/14/2013 02:31 PM, Seth Jennings wrote:
-> Large memory systems (~1TB or more) experience boot delays on the order
-> of minutes due to the initializing the memory configuration part of
-> sysfs at /sys/devices/system/memory/.
+On Wed, 14 Aug 2013 16:22:18 -0400 Chris Metcalf <cmetcalf@tilera.com> wrote:
 
-With the previous work that has been done in the memory sysfs layout
-I think you need machines with 8 or 16+ TB of memory to see boot delays
-that are measured in minutes. The boot delay is there, and with larger
-memory systems in he future it will only get worse.
-
+> This change makes lru_add_drain_all() only selectively interrupt
+> the cpus that have per-cpu free pages that can be drained.
 > 
-> ppc64 has a normal memory block size of 256M (however sometimes as low
-> as 16M depending on the system LMB size), and (I think) x86 is 128M.  With
-> 1TB of RAM and a 256M block size, that's 4k memory blocks with 20 sysfs
-> entries per block that's around 80k items that need be created at boot
-> time in sysfs.  Some systems go up to 16TB where the issue is even more
-> severe.
+> This is important in nohz mode where calling mlockall(), for
+> example, otherwise will interrupt every core unnecessarily.
 > 
 
-It should also be pointed out that the number of sysfs entries created on
-16+ TB system is 100k+. At his scale it is not really human readable to
-list all of the entries. The amount of resources used to create all of the
-uderlying structures for each of the entries starts to add up also.
+I think the patch will work, but it's a bit sad to no longer gain the
+general ability to do schedule_on_some_cpus().  Oh well.
 
-I think an approach such as this makes the sysfs memory layout more
-human readable and saves on resources.
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -247,7 +247,7 @@ extern void activate_page(struct page *);
+>  extern void mark_page_accessed(struct page *);
+>  extern void lru_add_drain(void);
+>  extern void lru_add_drain_cpu(int cpu);
+> -extern int lru_add_drain_all(void);
+> +extern void lru_add_drain_all(void);
+>  extern void rotate_reclaimable_page(struct page *page);
+>  extern void deactivate_page(struct page *page);
+>  extern void swap_setup(void);
+> diff --git a/mm/swap.c b/mm/swap.c
+> index 4a1d0d2..8d19543 100644
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -405,6 +405,11 @@ static void activate_page_drain(int cpu)
+>  		pagevec_lru_move_fn(pvec, __activate_page, NULL);
+>  }
+>  
+> +static bool need_activate_page_drain(int cpu)
+> +{
+> +	return pagevec_count(&per_cpu(activate_page_pvecs, cpu)) != 0;
+> +}
 
--Nathan
+static int need_activate_page_drain(int cpu)
+{
+	return pagevec_count(&per_cpu(activate_page_pvecs, cpu));
+}
+
+would be shorter and faster.  bool rather sucks that way.  It's a
+performance-vs-niceness thing.  I guess one has to look at the call
+frequency when deciding.
+
+>  void activate_page(struct page *page)
+>  {
+>  	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
+> @@ -422,6 +427,11 @@ static inline void activate_page_drain(int cpu)
+>  {
+>  }
+>  
+> +static bool need_activate_page_drain(int cpu)
+> +{
+> +	return false;
+> +}
+> +
+>  void activate_page(struct page *page)
+>  {
+>  	struct zone *zone = page_zone(page);
+> @@ -678,12 +688,36 @@ static void lru_add_drain_per_cpu(struct work_struct *dummy)
+>  	lru_add_drain();
+>  }
+>  
+> -/*
+> - * Returns 0 for success
+> - */
+> -int lru_add_drain_all(void)
+> +static DEFINE_PER_CPU(struct work_struct, lru_add_drain_work);
+> +
+> +void lru_add_drain_all(void)
+>  {
+> -	return schedule_on_each_cpu(lru_add_drain_per_cpu);
+> +	static DEFINE_MUTEX(lock);
+> +	static struct cpumask has_work;
+> +	int cpu;
+> +
+> +	mutex_lock(&lock);
+
+This is a bit scary but I expect it will be OK - later threads will
+just twiddle thumbs while some other thread does all or most of their
+work for them.
+
+> +	get_online_cpus();
+> +	cpumask_clear(&has_work);
+> +
+> +	for_each_online_cpu(cpu) {
+> +		struct work_struct *work = &per_cpu(lru_add_drain_work, cpu);
+> +
+> +		if (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
+> +		    pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
+> +		    pagevec_count(&per_cpu(lru_deactivate_pvecs, cpu)) ||
+> +		    need_activate_page_drain(cpu)) {
+> +			INIT_WORK(work, lru_add_drain_per_cpu);
+
+This initialization is only needed once per boot but I don't see a
+convenient way of doing this.
+
+> +			schedule_work_on(cpu, work);
+> +			cpumask_set_cpu(cpu, &has_work);
+> +		}
+> +	}
+> +
+> +	for_each_cpu(cpu, &has_work)
+
+for_each_online_cpu()?
+
+> +		flush_work(&per_cpu(lru_add_drain_work, cpu));
+> +
+> +	put_online_cpus();
+> +	mutex_unlock(&lock);
+>  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
