@@ -1,54 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 8FCD16B0032
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 09:05:30 -0400 (EDT)
-Received: by mail-qc0-f180.google.com with SMTP id j10so4868511qcx.11
-        for <linux-mm@kvack.org>; Wed, 14 Aug 2013 06:05:29 -0700 (PDT)
-Date: Wed, 14 Aug 2013 09:05:26 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v7 2/2] mm: make lru_add_drain_all() selective
-Message-ID: <20130814130526.GA28628@htj.dyndns.org>
-References: <520AAF9C.1050702@tilera.com>
- <201308132307.r7DN74M5029053@farm-0021.internal.tilera.com>
- <20130813232904.GJ28996@mtj.dyndns.org>
- <520AC215.4050803@tilera.com>
- <20130813234629.4ce2ec70.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130813234629.4ce2ec70.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 2AE396B0032
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 09:21:51 -0400 (EDT)
+From: Gergely Risko <gergely@risko.hu>
+Subject: [PATCH] mm: memcontrol: fix handling of swapaccount parameter
+Date: Wed, 14 Aug 2013 15:21:35 +0200
+Message-Id: <1376486495-21457-1-git-send-email-gergely@risko.hu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Chris Metcalf <cmetcalf@tilera.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Frederic Weisbecker <fweisbec@gmail.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
+To: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: torvalds@linux-foundation.org, Gergely Risko <gergely@risko.hu>
 
-Hello,
+Fixed swap accounting option parsing to enable if called without argument.
 
-On Tue, Aug 13, 2013 at 11:46:29PM -0700, Andrew Morton wrote:
-> What does "nest" mean?  lru_add_drain_all() calls itself recursively,
-> presumably via some ghastly alloc_percpu()->alloc_pages(GFP_KERNEL)
-> route?  If that ever happens then we'd certainly want to know about it.
-> Hopefully PF_MEMALLOC would prevent infinite recursion.
-> 
-> If "nest" means something else then please enlighten me!
-> 
-> As for "doing it simultaneously", I assume we're referring to
-> concurrent execution from separate threads.  If so, why would that "buy
-> us anything"?  Confused.  As long as each thread sees "all pages which
-> were in pagevecs at the time I called lru_add_drain_all() get spilled
-> onto the LRU" then we're good.  afaict the implementation will do this.
+Signed-off-by: Gergely Risko <gergely@risko.hu>
+---
+ mm/memcontrol.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-I was wondering whether we can avoid all allocations by just
-pre-allocating all resources.  If it can't call itself if we get rid
-of all allocations && running multiple instances of them doesn't buy
-us anything, the best solution would be allocating work items
-statically and synchronize their use using a mutex.  That way the
-whole thing wouldn't need any allocation.
-
-Thanks.
-
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index c290a1c..8ec2507 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -6970,13 +6970,13 @@ struct cgroup_subsys mem_cgroup_subsys = {
+ static int __init enable_swap_account(char *s)
+ {
+ 	/* consider enabled if no parameter or 1 is given */
+-	if (!strcmp(s, "1"))
++	if (*s++ != '=' || !*s || !strcmp(s, "1"))
+ 		really_do_swap_account = 1;
+ 	else if (!strcmp(s, "0"))
+ 		really_do_swap_account = 0;
+ 	return 1;
+ }
+-__setup("swapaccount=", enable_swap_account);
++__setup("swapaccount", enable_swap_account);
+ 
+ static void __init memsw_file_init(void)
+ {
 -- 
-tejun
+1.8.3.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
