@@ -1,82 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 1777C6B0096
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 07:27:46 -0400 (EDT)
-Received: by mail-ee0-f46.google.com with SMTP id c13so4769428eek.5
-        for <linux-mm@kvack.org>; Wed, 14 Aug 2013 04:27:44 -0700 (PDT)
-Date: Wed, 14 Aug 2013 13:27:41 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [RFC v3 0/5] Transparent on-demand struct page initialization
- embedded in the buddy allocator
-Message-ID: <20130814112741.GB13772@gmail.com>
-References: <1375465467-40488-1-git-send-email-nzimmer@sgi.com>
- <1376344480-156708-1-git-send-email-nzimmer@sgi.com>
- <CA+55aFwTQLexJkf67P0b7Z7cw8fePjdDSdA4SOkM+Jf+kBPYEA@mail.gmail.com>
- <520A6DFC.1070201@sgi.com>
- <CA+55aFwRHdQ_f6ryUU1yWkW1Qz8cG958jLZuyhd_YdOq4-rfRA@mail.gmail.com>
- <20130813231020.GA22667@asylum.americas.sgi.com>
- <CA+55aFyeEK6FfNC-7SjGdYVrjiES0V7JNUG==P5p6iu+UNiAfA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 8FCD16B0032
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 09:05:30 -0400 (EDT)
+Received: by mail-qc0-f180.google.com with SMTP id j10so4868511qcx.11
+        for <linux-mm@kvack.org>; Wed, 14 Aug 2013 06:05:29 -0700 (PDT)
+Date: Wed, 14 Aug 2013 09:05:26 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v7 2/2] mm: make lru_add_drain_all() selective
+Message-ID: <20130814130526.GA28628@htj.dyndns.org>
+References: <520AAF9C.1050702@tilera.com>
+ <201308132307.r7DN74M5029053@farm-0021.internal.tilera.com>
+ <20130813232904.GJ28996@mtj.dyndns.org>
+ <520AC215.4050803@tilera.com>
+ <20130813234629.4ce2ec70.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+55aFyeEK6FfNC-7SjGdYVrjiES0V7JNUG==P5p6iu+UNiAfA@mail.gmail.com>
+In-Reply-To: <20130813234629.4ce2ec70.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Nathan Zimmer <nzimmer@sgi.com>, Mike Travis <travis@sgi.com>, Peter Anvin <hpa@zytor.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Robin Holt <holt@sgi.com>, Rob Landley <rob@landley.net>, Daniel J Blueman <daniel@numascale-asia.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Yinghai Lu <yinghai@kernel.org>, Mel Gorman <mgorman@suse.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Chris Metcalf <cmetcalf@tilera.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Frederic Weisbecker <fweisbec@gmail.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
+Hello,
 
-* Linus Torvalds <torvalds@linux-foundation.org> wrote:
-
-> On Tue, Aug 13, 2013 at 4:10 PM, Nathan Zimmer <nzimmer@sgi.com> wrote:
-> >
-> > The only mm structure we are adding to is a new flag in page->flags. 
-> > That didn't seem too much.
+On Tue, Aug 13, 2013 at 11:46:29PM -0700, Andrew Morton wrote:
+> What does "nest" mean?  lru_add_drain_all() calls itself recursively,
+> presumably via some ghastly alloc_percpu()->alloc_pages(GFP_KERNEL)
+> route?  If that ever happens then we'd certainly want to know about it.
+> Hopefully PF_MEMALLOC would prevent infinite recursion.
 > 
-> I don't agree.
+> If "nest" means something else then please enlighten me!
 > 
-> I see only downsides, and no upsides. Doing the same thing *without* the 
-> downsides seems straightforward, so I simply see no reason for any extra 
-> flags or tests at runtime.
+> As for "doing it simultaneously", I assume we're referring to
+> concurrent execution from separate threads.  If so, why would that "buy
+> us anything"?  Confused.  As long as each thread sees "all pages which
+> were in pagevecs at the time I called lru_add_drain_all() get spilled
+> onto the LRU" then we're good.  afaict the implementation will do this.
 
-The code as presented clearly looks more involved and neither simple nor 
-zero-cost - I was hoping for a much more simple approach.
+I was wondering whether we can avoid all allocations by just
+pre-allocating all resources.  If it can't call itself if we get rid
+of all allocations && running multiple instances of them doesn't buy
+us anything, the best solution would be allocating work items
+statically and synchronize their use using a mutex.  That way the
+whole thing wouldn't need any allocation.
 
-I see three solutions:
+Thanks.
 
- - Speed up the synchronous memory init code: live migrate to the node 
-   being set up via set_cpus_allowed(), to make sure the init is always 
-   fast and local.
-
-   Pros: if it solves the problem then mem init is still synchronous, 
-   deterministic and essentially equivalent to what we do today - so 
-   relatively simple and well-tested, with no 'large machine' special
-   path.
-
-   Cons: it might not be enough and we might not have scheduling
-   enabled on the affected nodes yet.
-
- - Speed up the synchronous memory init code by paralellizing the key, 
-   most expensive initialization portion of setting up the page head 
-   arrays to per node, via SMP function-calls.
-
-   Pros: by far the fastest synchronous option. (It will also test the
-   power budget and the mains fuses right during bootup.)
-
-   Cons: more complex and depends on SMP cross-calls being available at
-   mem init time. Not necessarily hotplug friendly.
-
- - Avoid the problem by punting to async mem init.
-
-   Pros: it gets us to a minimal working system quickly and leaves the 
-   memory code relatively untouched.
-
-   Disadvantages: makes memory state asynchronous and non-deterministic.
-   Stats either fluctuate shortly after bootup or have to be faked.
-
-Thanks,
-
-	Ingo
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
