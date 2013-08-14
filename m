@@ -1,83 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id DC7E06B0032
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 18:15:08 -0400 (EDT)
-Date: Wed, 14 Aug 2013 17:15:06 -0500
-From: Nathan Zimmer <nzimmer@sgi.com>
-Subject: Re: [RFC v3 0/5] Transparent on-demand struct page initialization
-	embedded in the buddy allocator
-Message-ID: <20130814221505.GA147490@asylum.americas.sgi.com>
-References: <1375465467-40488-1-git-send-email-nzimmer@sgi.com> <1376344480-156708-1-git-send-email-nzimmer@sgi.com> <CA+55aFwTQLexJkf67P0b7Z7cw8fePjdDSdA4SOkM+Jf+kBPYEA@mail.gmail.com> <520A6DFC.1070201@sgi.com> <CA+55aFwRHdQ_f6ryUU1yWkW1Qz8cG958jLZuyhd_YdOq4-rfRA@mail.gmail.com> <20130814110556.GH10849@gmail.com>
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id DE5486B0032
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 18:22:45 -0400 (EDT)
+Date: Wed, 14 Aug 2013 23:22:41 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: skip the page buddy block instead of one page
+Message-ID: <20130814222241.GQ2296@suse.de>
+References: <520B0B75.4030708@huawei.com>
+ <20130814085711.GK2296@suse.de>
+ <20130814155205.GA2706@gmail.com>
+ <20130814132602.814a88e991e29c5b93bbe22c@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20130814110556.GH10849@gmail.com>
+In-Reply-To: <20130814132602.814a88e991e29c5b93bbe22c@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Mike Travis <travis@sgi.com>, Nathan Zimmer <nzimmer@sgi.com>, Peter Anvin <hpa@zytor.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Robin Holt <holt@sgi.com>, Rob Landley <rob@landley.net>, Daniel J Blueman <daniel@numascale-asia.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Yinghai Lu <yinghai@kernel.org>, Mel Gorman <mgorman@suse.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan@kernel.org>, Xishi Qiu <qiuxishi@huawei.com>, riel@redhat.com, aquini@redhat.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Aug 14, 2013 at 01:05:56PM +0200, Ingo Molnar wrote:
+On Wed, Aug 14, 2013 at 01:26:02PM -0700, Andrew Morton wrote:
+> On Thu, 15 Aug 2013 00:52:29 +0900 Minchan Kim <minchan@kernel.org> wrote:
 > 
-> * Linus Torvalds <torvalds@linux-foundation.org> wrote:
-> 
-> > [...]
+> > On Wed, Aug 14, 2013 at 09:57:11AM +0100, Mel Gorman wrote:
+> > > On Wed, Aug 14, 2013 at 12:45:41PM +0800, Xishi Qiu wrote:
+> > > > A large free page buddy block will continue many times, so if the page 
+> > > > is free, skip the whole page buddy block instead of one page.
+> > > > 
+> > > > Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+> > > 
+> > > page_order cannot be used unless zone->lock is held which is not held in
+> > > this path. Acquiring the lock would prevent parallel allocations from the
 > > 
-> > Ok, so I don't know all the issues, and in many ways I don't even really 
-> > care. You could do it other ways, I don't think this is a big deal. The 
-> > part I hate is the runtime hook into the core MM page allocation code, 
-> > so I'm just throwing out any random thing that comes to my mind that 
-> > could be used to avoid that part.
+> > Argh, I missed that.
 > 
-> So, my hope was that it's possible to have a single, simple, zero-cost 
-> runtime check [zero cost for already initialized pages], because it can be 
-> merged into already existing page flag mask checks present here and 
-> executed for every freshly allocated page:
+> I missed it as well. And so did Xishi Qiu.
 > 
-> static inline int check_new_page(struct page *page)
-> {
->         if (unlikely(page_mapcount(page) |
->                 (page->mapping != NULL)  |
->                 (atomic_read(&page->_count) != 0)  |
->                 (page->flags & PAGE_FLAGS_CHECK_AT_PREP) |
->                 (mem_cgroup_bad_page_check(page)))) {
->                 bad_page(page);
->                 return 1;
->         }
->         return 0;
-> }
-> 
-> We already run this for every new page allocated and the initialization 
-> check could hide in PAGE_FLAGS_CHECK_AT_PREP in a zero-cost fashion.
-> 
-> I'd not do any of the ensure_page_is_initialized() or 
-> __expand_page_initialization() complications in this patch-set - each page 
-> head represents itself and gets iterated when check_new_page() is done.
-> 
-> During regular bootup we'd initialize like before, except we don't set up 
-> the page heads but memset() them to zero. With each page head 32 bytes 
-> this would mean 8 GB of page head memory to clear per 1 TB - with 16 TB 
-> that's 128 GB to clear - that ought to be possible to do rather quickly, 
-> perhaps with some smart SMP cross-call approach that makes sure that each 
-> memset is done in a node-local fashion. [*]
-> 
-> Such an approach should IMO be far smaller and less invasive than the 
-> patches presented so far: it should be below 100 lines or so.
-> 
-> I don't know why there's such a big difference between the theory I 
-> outlined and the invasive patch-set implemented so far in practice, 
-> perhaps I'm missing some complication. I was trying to probe that 
-> difference, before giving up on the idea and punting back to the async 
-> hotplug-ish approach which would obviously work well too.
-> 
+> Mel, we have a problem.  What can we do to make this code more
+> maintainable?
 
-The reason, which I failed to mention, is once we pull off a page the lru in
-either __rmqueue_fallback or __rmqueue_smallest the first thing we do with it
-is expand() or sometimes move_freepages().  These then trip over some BUG_ON and
-VM_BUG_ON.
-Those BUG_ONs are what keep causing me to delve into the ensure/expand foolishness.
+I sit in the bad man corner until I write a comment patch :/
 
-Nate
+page_order already has a comment but obviously the call site on compaction.c
+could do with a hint. As I think the consequences of this race can be
+dealt with I'm hoping Xishi Qiu will take the example I posted, fix it
+if it needs fixing, turn it into a real patch and run it through whatever
+test case led him to find this problem in the first place (HINT HINT). If
+that happens, great!  If not, I might do it myself and failing that, I'll
+post a patch adding a comment explaining why page_order is not used there.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
