@@ -1,143 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 09C476B0033
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 16:47:32 -0400 (EDT)
-Message-ID: <520BECDF.8060501@sr71.net>
-Date: Wed, 14 Aug 2013 13:47:27 -0700
-From: Dave Hansen <dave@sr71.net>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id E843B6B0032
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 16:50:44 -0400 (EDT)
+Received: by mail-qa0-f54.google.com with SMTP id bv4so1363394qab.20
+        for <linux-mm@kvack.org>; Wed, 14 Aug 2013 13:50:43 -0700 (PDT)
+Date: Wed, 14 Aug 2013 16:50:29 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v8] mm: make lru_add_drain_all() selective
+Message-ID: <20130814205029.GN28628@htj.dyndns.org>
+References: <20130814200748.GI28628@htj.dyndns.org>
+ <201308142029.r7EKTMRw023404@farm-0002.internal.tilera.com>
+ <20130814134430.50cb8d609643620b00ab3705@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] drivers: base: dynamic memory block creation
-References: <1376508705-3188-1-git-send-email-sjenning@linux.vnet.ibm.com>
-In-Reply-To: <1376508705-3188-1-git-send-email-sjenning@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130814134430.50cb8d609643620b00ab3705@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Lai Jiangshan <laijs@cn.fujitsu.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Chris Metcalf <cmetcalf@tilera.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Frederic Weisbecker <fweisbec@gmail.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-On 08/14/2013 12:31 PM, Seth Jennings wrote:
-> There was a significant amount of refactoring to allow for this but
-> IMHO, the code is much easier to understand now.
-...
->  drivers/base/memory.c  | 248 +++++++++++++++++++++++++++++++++++++------------
->  include/linux/memory.h |   1 -
->  2 files changed, 188 insertions(+), 61 deletions(-)
+Hello,
 
-Adding 120 lines of code made it easier to understand? ;)
+On Wed, Aug 14, 2013 at 01:44:30PM -0700, Andrew Morton wrote:
+> > +static bool need_activate_page_drain(int cpu)
+> > +{
+> > +	return pagevec_count(&per_cpu(activate_page_pvecs, cpu)) != 0;
+> > +}
+> 
+> static int need_activate_page_drain(int cpu)
+> {
+> 	return pagevec_count(&per_cpu(activate_page_pvecs, cpu));
+> }
+> 
+> would be shorter and faster.  bool rather sucks that way.  It's a
+> performance-vs-niceness thing.  I guess one has to look at the call
+> frequency when deciding.
 
-> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-> index 2b7813e..392ccd3 100644
-> --- a/drivers/base/memory.c
-> +++ b/drivers/base/memory.c
-> @@ -30,7 +30,7 @@ static DEFINE_MUTEX(mem_sysfs_mutex);
->  
->  #define MEMORY_CLASS_NAME	"memory"
->  
-> -static int sections_per_block;
-> +static int sections_per_block __read_mostly;
->  
->  static inline int base_memory_block_id(int section_nr)
->  {
-> @@ -47,6 +47,9 @@ static struct bus_type memory_subsys = {
->  	.offline = memory_subsys_offline,
->  };
->  
-> +static unsigned long *memblock_present;
-> +static bool largememory_enable __read_mostly;
+"!= 0" can be dropped but I'm fairly sure the compiler would be able
+to figure out that the type conversion can be skipped.  It's a trivial
+optimization.
 
-How would you see this getting used in practice?  Are you just going to
-set this by default on ppc?  Or, would you ask the distros to put it on
-the command-line by default?  Would it only affect machines larger than
-a certain size?
+> > +			schedule_work_on(cpu, work);
+> > +			cpumask_set_cpu(cpu, &has_work);
+> > +		}
+> > +	}
+> > +
+> > +	for_each_cpu(cpu, &has_work)
+> 
+> for_each_online_cpu()?
 
-This approach breaks the ABI, right?.  An existing tool would not work
-with this patch (plus boot option) since it would not know how to
-show/hide things.  It lets _part_ of those existing tools get reused
-since they only have to be taught how to show/hide things.
+That would lead to flushing work items which aren't used and may not
+have been initialized yet, no?
 
-I'd find this really intriguing if you found a way to keep even the old
-tools working.  Instead of having an explicit show/hide, why couldn't
-you just create the entries on open(), for instance?
+> > +		flush_work(&per_cpu(lru_add_drain_work, cpu));
+> > +
+> > +	put_online_cpus();
+> > +	mutex_unlock(&lock);
+> >  }
+> 
 
->  int register_memory_notifier(struct notifier_block *nb)
-> @@ -565,16 +568,13 @@ static const struct attribute_group *memory_memblk_attr_groups[] = {
->  static
->  int register_memory(struct memory_block *memory)
->  {
-> -	int error;
-> -
->  	memory->dev.bus = &memory_subsys;
->  	memory->dev.id = memory->start_section_nr / sections_per_block;
->  	memory->dev.release = memory_block_release;
->  	memory->dev.groups = memory_memblk_attr_groups;
->  	memory->dev.offline = memory->state == MEM_OFFLINE;
->  
-> -	error = device_register(&memory->dev);
-> -	return error;
-> +	return device_register(&memory->dev);
->  }
+Thanks.
 
-This kind of simplification could surely stand in its own patch.
-
->  static int init_memory_block(struct memory_block **memory,
-> @@ -582,67 +582,72 @@ static int init_memory_block(struct memory_block **memory,
->  {
->  	struct memory_block *mem;
->  	unsigned long start_pfn;
-> -	int scn_nr;
-> -	int ret = 0;
-> +	int scn_nr, ret, memblock_id;
->  
-> +	*memory = NULL;
->  	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
->  	if (!mem)
->  		return -ENOMEM;
->  
->  	scn_nr = __section_nr(section);
-> +	memblock_id = base_memory_block_id(scn_nr);
->  	mem->start_section_nr =
->  			base_memory_block_id(scn_nr) * sections_per_block;
->  	mem->end_section_nr = mem->start_section_nr + sections_per_block - 1;
->  	mem->state = state;
-> -	mem->section_count++;
->  	mutex_init(&mem->state_mutex);
->  	start_pfn = section_nr_to_pfn(mem->start_section_nr);
->  	mem->phys_device = arch_get_memory_phys_device(start_pfn);
->  
->  	ret = register_memory(mem);
-> +	if (ret) {
-> +		kfree(mem);
-> +		return ret;
-> +	}
->  
->  	*memory = mem;
-> -	return ret;
-> +	return 0;
->  }
-
-memblock_id doesn't appear to ever get used.  This also appears to
-change the conventions about where the 'memory_block' is allocated and
-freed.  It isn't immediately clear why it needed to be changed.
-
-Looking at the rest, this _really_ needs to get refactored before it's
-reviewable.
-
-> +static ssize_t memory_present_show(struct device *dev,
-> +				  struct device_attribute *attr, char *buf)
-> +{
-> +	int n_bits, ret;
-> +
-> +	n_bits = NR_MEM_SECTIONS / sections_per_block;
-> +	ret = bitmap_scnlistprintf(buf, PAGE_SIZE - 2,
-> +				memblock_present, n_bits);
-> +	buf[ret++] = '\n';
-> +	buf[ret] = '\0';
-> +
-> +	return ret;
-> +}
-
-Doesn't this break the one-value-per-file rule?
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
