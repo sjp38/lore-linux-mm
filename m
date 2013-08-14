@@ -1,53 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Date: Thu, 15 Aug 2013 01:47:05 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC 0/3] Pin page control subsystem
-Message-ID: <20130814164705.GD2706@gmail.com>
-References: <1376377502-28207-1-git-send-email-minchan@kernel.org>
- <00000140787b6191-ae3f2eb1-515e-48a1-8e64-502772af4700-000000@email.amazonses.com>
- <20130814001236.GC2271@bbox>
- <000001407dafbe92-7b2b4006-2225-4f0b-b23b-d66101a995aa-000000@email.amazonses.com>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 873866B0038
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 12:57:36 -0400 (EDT)
+Received: by mail-ve0-f171.google.com with SMTP id pa12so7853919veb.2
+        for <linux-mm@kvack.org>; Wed, 14 Aug 2013 09:57:35 -0700 (PDT)
+Date: Wed, 14 Aug 2013 12:57:23 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v7 2/2] mm: make lru_add_drain_all() selective
+Message-ID: <20130814165723.GE28628@htj.dyndns.org>
+References: <520AAF9C.1050702@tilera.com>
+ <201308132307.r7DN74M5029053@farm-0021.internal.tilera.com>
+ <20130813232904.GJ28996@mtj.dyndns.org>
+ <520AC215.4050803@tilera.com>
+ <20130813234629.4ce2ec70.akpm@linux-foundation.org>
+ <520BAA5B.9070407@tilera.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <000001407dafbe92-7b2b4006-2225-4f0b-b23b-d66101a995aa-000000@email.amazonses.com>
+In-Reply-To: <520BAA5B.9070407@tilera.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@gentwo.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, k.kozlowski@samsung.com, Seth Jennings <sjenning@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, guz.fnst@cn.fujitsu.com, Benjamin LaHaise <bcrl@kvack.org>, Dave Hansen <dave.hansen@intel.com>, lliubbo@gmail.com, aquini@redhat.com, Rik van Riel <riel@redhat.com>
+To: Chris Metcalf <cmetcalf@tilera.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Frederic Weisbecker <fweisbec@gmail.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-Hi Christoph,
+Hello, Chris.
 
-On Wed, Aug 14, 2013 at 04:36:44PM +0000, Christoph Lameter wrote:
-> On Wed, 14 Aug 2013, Minchan Kim wrote:
-> 
-> > On Tue, Aug 13, 2013 at 04:21:30PM +0000, Christoph Lameter wrote:
-> > > On Tue, 13 Aug 2013, Minchan Kim wrote:
-> > >
-> > > > VM sometime want to migrate and/or reclaim pages for CMA, memory-hotplug,
-> > > > THP and so on but at the moment, it could handle only userspace pages
-> > > > so if above example subsystem have pinned a some page in a range VM want
-> > > > to migrate, migration is failed so above exmaple couldn't work well.
-> > >
-> > > Dont we have the mmu_notifiers that could help in that case? You could get
-> > > a callback which could prepare the pages for migration?
-> >
-> > Now I'm not familiar with mmu_notifier so please could you elaborate it
-> > a bit for me to dive into that?
-> 
-> Add a notifier callback for unpinning pages to the mmu notifier subsystem
-> and then your drivers could register with the subsystem to get
-> notifications when migration needs to occur etc.
-> 
+On Wed, Aug 14, 2013 at 12:03:39PM -0400, Chris Metcalf wrote:
+> Tejun, I don't know if you have a better idea for how to mark a
+> work_struct as being "not used" so we can set and test it here.
+> Is setting entry.next to NULL good?  Should we offer it as an API
+> in the workqueue header?
 
-When I look API of mmu_notifier, it has mm_struct so I guess it works
-for only user process. Right?
-If so, I need to register it without user conext because zram, zswap
-and zcache works for only kernel side.
+Maybe simply defining a static cpumask would be cleaner?
+
+> We could wrap the whole thing in a new workqueue API too, of course
+> (schedule_on_each_cpu_cond_sequential??) but it seems better at this
+> point to wait until we find another caller with similar needs, and only
+> then factor the code into a new workqueue API.
+
+We can have e.g. __schedule_on_cpu(fn, pcpu_works) but yeah it seems a
+bit excessive at this point.
+
+Thanks.
 
 -- 
-Kind regards,
-Minchan Kim
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
