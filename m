@@ -1,45 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Date: Wed, 14 Aug 2013 16:58:36 +0000
-From: Christoph Lameter <cl@gentwo.org>
-Subject: Re: [RFC 0/3] Pin page control subsystem
-In-Reply-To: <20130814164705.GD2706@gmail.com>
-Message-ID: <000001407dc3c33b-4139d615-aecc-4745-a9b4-c84949f6a8f4-000000@email.amazonses.com>
-References: <1376377502-28207-1-git-send-email-minchan@kernel.org> <00000140787b6191-ae3f2eb1-515e-48a1-8e64-502772af4700-000000@email.amazonses.com> <20130814001236.GC2271@bbox> <000001407dafbe92-7b2b4006-2225-4f0b-b23b-d66101a995aa-000000@email.amazonses.com>
- <20130814164705.GD2706@gmail.com>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 94EDC6B0032
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 13:18:34 -0400 (EDT)
+Message-ID: <520BBBE7.7020302@tilera.com>
+Date: Wed, 14 Aug 2013 13:18:31 -0400
+From: Chris Metcalf <cmetcalf@tilera.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH v7 2/2] mm: make lru_add_drain_all() selective
+References: <520AAF9C.1050702@tilera.com> <201308132307.r7DN74M5029053@farm-0021.internal.tilera.com> <20130813232904.GJ28996@mtj.dyndns.org> <520AC215.4050803@tilera.com> <20130813234629.4ce2ec70.akpm@linux-foundation.org> <520BAA5B.9070407@tilera.com> <20130814165723.GE28628@htj.dyndns.org>
+In-Reply-To: <20130814165723.GE28628@htj.dyndns.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, k.kozlowski@samsung.com, Seth Jennings <sjenning@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, guz.fnst@cn.fujitsu.com, Benjamin LaHaise <bcrl@kvack.org>, Dave Hansen <dave.hansen@intel.com>, lliubbo@gmail.com, aquini@redhat.com, Rik van Riel <riel@redhat.com>
+To: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Frederic Weisbecker <fweisbec@gmail.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-On Thu, 15 Aug 2013, Minchan Kim wrote:
+On 8/14/2013 12:57 PM, Tejun Heo wrote:
+> Hello, Chris.
+>
+> On Wed, Aug 14, 2013 at 12:03:39PM -0400, Chris Metcalf wrote:
+>> Tejun, I don't know if you have a better idea for how to mark a
+>> work_struct as being "not used" so we can set and test it here.
+>> Is setting entry.next to NULL good?  Should we offer it as an API
+>> in the workqueue header?
+> Maybe simply defining a static cpumask would be cleaner?
 
-> When I look API of mmu_notifier, it has mm_struct so I guess it works
-> for only user process. Right?
+I think you're right, actually.  Andrew, Tejun, how does this look?
 
-Correct. A process must have mapped the pages. If you can get a
-kernel "process" to work then that process could map the pages.
 
-> If so, I need to register it without user conext because zram, zswap
-> and zcache works for only kernel side.
+static DEFINE_PER_CPU(struct work_struct, lru_add_drain_work);
 
-Hmmm... Ok but that now gets the complexity of page pinnning up to a very
-weird level. Is there some way we can have a common way to deal with the
-various ways that pinning is needed? Just off the top of my head (I may
-miss some use cases) we have
+void lru_add_drain_all(void)
+{
+        static DEFINE_MUTEX(lock);
+        static struct cpumask has_work;
+        int cpu;
 
-1. mlock from user space
-2. page pinning for reclaim
-3. Page pinning for I/O from device drivers (like f.e. the RDMA subsystem)
-4. Page pinning for low latency operations
-5. Page pinning for migration
-6. Page pinning for the perf buffers.
-7. Page pinning for cross system access (XPMEM, GRU SGI)
+        mutex_lock(&lock);
+        get_online_cpus();
+        cpumask_clear(&has_work);
 
-Now we have another subsystem wanting different semantics of pinning. Is
-there any way we can come up with a pinning mechanism that fits all use
-cases, that is easyly understandable and maintainable?
+        for_each_online_cpu(cpu) {
+                struct work_struct *work = &per_cpu(lru_add_drain_work, cpu);
+
+                if (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
+                    pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
+                    pagevec_count(&per_cpu(lru_deactivate_pvecs, cpu)) ||
+                    need_activate_page_drain(cpu)) {
+                        INIT_WORK(work, lru_add_drain_per_cpu);
+                        schedule_work_on(cpu, work);
+                        cpumask_set_cpu(cpu, &has_work);
+                }
+        }
+
+        for_each_cpu(cpu, &has_work)
+                flush_work(&per_cpu(lru_add_drain_work, cpu));
+
+        put_online_cpus();
+        mutex_unlock(&lock);
+}
+
+-- 
+Chris Metcalf, Tilera Corp.
+http://www.tilera.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
