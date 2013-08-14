@@ -1,92 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 337EB6B0095
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 07:06:05 -0400 (EDT)
-Received: by mail-ea0-f169.google.com with SMTP id z7so4798820eaf.28
-        for <linux-mm@kvack.org>; Wed, 14 Aug 2013 04:06:03 -0700 (PDT)
-Date: Wed, 14 Aug 2013 13:05:56 +0200
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 1777C6B0096
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 07:27:46 -0400 (EDT)
+Received: by mail-ee0-f46.google.com with SMTP id c13so4769428eek.5
+        for <linux-mm@kvack.org>; Wed, 14 Aug 2013 04:27:44 -0700 (PDT)
+Date: Wed, 14 Aug 2013 13:27:41 +0200
 From: Ingo Molnar <mingo@kernel.org>
 Subject: Re: [RFC v3 0/5] Transparent on-demand struct page initialization
  embedded in the buddy allocator
-Message-ID: <20130814110556.GH10849@gmail.com>
+Message-ID: <20130814112741.GB13772@gmail.com>
 References: <1375465467-40488-1-git-send-email-nzimmer@sgi.com>
  <1376344480-156708-1-git-send-email-nzimmer@sgi.com>
  <CA+55aFwTQLexJkf67P0b7Z7cw8fePjdDSdA4SOkM+Jf+kBPYEA@mail.gmail.com>
  <520A6DFC.1070201@sgi.com>
  <CA+55aFwRHdQ_f6ryUU1yWkW1Qz8cG958jLZuyhd_YdOq4-rfRA@mail.gmail.com>
+ <20130813231020.GA22667@asylum.americas.sgi.com>
+ <CA+55aFyeEK6FfNC-7SjGdYVrjiES0V7JNUG==P5p6iu+UNiAfA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+55aFwRHdQ_f6ryUU1yWkW1Qz8cG958jLZuyhd_YdOq4-rfRA@mail.gmail.com>
+In-Reply-To: <CA+55aFyeEK6FfNC-7SjGdYVrjiES0V7JNUG==P5p6iu+UNiAfA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Mike Travis <travis@sgi.com>, Nathan Zimmer <nzimmer@sgi.com>, Peter Anvin <hpa@zytor.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Robin Holt <holt@sgi.com>, Rob Landley <rob@landley.net>, Daniel J Blueman <daniel@numascale-asia.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Yinghai Lu <yinghai@kernel.org>, Mel Gorman <mgorman@suse.de>
+Cc: Nathan Zimmer <nzimmer@sgi.com>, Mike Travis <travis@sgi.com>, Peter Anvin <hpa@zytor.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Robin Holt <holt@sgi.com>, Rob Landley <rob@landley.net>, Daniel J Blueman <daniel@numascale-asia.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Yinghai Lu <yinghai@kernel.org>, Mel Gorman <mgorman@suse.de>
 
 
 * Linus Torvalds <torvalds@linux-foundation.org> wrote:
 
-> [...]
+> On Tue, Aug 13, 2013 at 4:10 PM, Nathan Zimmer <nzimmer@sgi.com> wrote:
+> >
+> > The only mm structure we are adding to is a new flag in page->flags. 
+> > That didn't seem too much.
 > 
-> Ok, so I don't know all the issues, and in many ways I don't even really 
-> care. You could do it other ways, I don't think this is a big deal. The 
-> part I hate is the runtime hook into the core MM page allocation code, 
-> so I'm just throwing out any random thing that comes to my mind that 
-> could be used to avoid that part.
+> I don't agree.
+> 
+> I see only downsides, and no upsides. Doing the same thing *without* the 
+> downsides seems straightforward, so I simply see no reason for any extra 
+> flags or tests at runtime.
 
-So, my hope was that it's possible to have a single, simple, zero-cost 
-runtime check [zero cost for already initialized pages], because it can be 
-merged into already existing page flag mask checks present here and 
-executed for every freshly allocated page:
+The code as presented clearly looks more involved and neither simple nor 
+zero-cost - I was hoping for a much more simple approach.
 
-static inline int check_new_page(struct page *page)
-{
-        if (unlikely(page_mapcount(page) |
-                (page->mapping != NULL)  |
-                (atomic_read(&page->_count) != 0)  |
-                (page->flags & PAGE_FLAGS_CHECK_AT_PREP) |
-                (mem_cgroup_bad_page_check(page)))) {
-                bad_page(page);
-                return 1;
-        }
-        return 0;
-}
+I see three solutions:
 
-We already run this for every new page allocated and the initialization 
-check could hide in PAGE_FLAGS_CHECK_AT_PREP in a zero-cost fashion.
+ - Speed up the synchronous memory init code: live migrate to the node 
+   being set up via set_cpus_allowed(), to make sure the init is always 
+   fast and local.
 
-I'd not do any of the ensure_page_is_initialized() or 
-__expand_page_initialization() complications in this patch-set - each page 
-head represents itself and gets iterated when check_new_page() is done.
+   Pros: if it solves the problem then mem init is still synchronous, 
+   deterministic and essentially equivalent to what we do today - so 
+   relatively simple and well-tested, with no 'large machine' special
+   path.
 
-During regular bootup we'd initialize like before, except we don't set up 
-the page heads but memset() them to zero. With each page head 32 bytes 
-this would mean 8 GB of page head memory to clear per 1 TB - with 16 TB 
-that's 128 GB to clear - that ought to be possible to do rather quickly, 
-perhaps with some smart SMP cross-call approach that makes sure that each 
-memset is done in a node-local fashion. [*]
+   Cons: it might not be enough and we might not have scheduling
+   enabled on the affected nodes yet.
 
-Such an approach should IMO be far smaller and less invasive than the 
-patches presented so far: it should be below 100 lines or so.
+ - Speed up the synchronous memory init code by paralellizing the key, 
+   most expensive initialization portion of setting up the page head 
+   arrays to per node, via SMP function-calls.
 
-I don't know why there's such a big difference between the theory I 
-outlined and the invasive patch-set implemented so far in practice, 
-perhaps I'm missing some complication. I was trying to probe that 
-difference, before giving up on the idea and punting back to the async 
-hotplug-ish approach which would obviously work well too.
+   Pros: by far the fastest synchronous option. (It will also test the
+   power budget and the mains fuses right during bootup.)
 
-All in one, I think async init just hides the real problem - there's no 
-way memory init should take this long.
+   Cons: more complex and depends on SMP cross-calls being available at
+   mem init time. Not necessarily hotplug friendly.
+
+ - Avoid the problem by punting to async mem init.
+
+   Pros: it gets us to a minimal working system quickly and leaves the 
+   memory code relatively untouched.
+
+   Disadvantages: makes memory state asynchronous and non-deterministic.
+   Stats either fluctuate shortly after bootup or have to be faked.
 
 Thanks,
 
 	Ingo
-
-[*] alternatively maybe the main performance problem is that node-local 
-    memory is set up on a remote (boot) node? In that case I'd try to
-    optimize it by migrating the memory init code's current node by using
-    set_cpus_allowed() to live migrate from node to node, tracking the 
-    node whose struct page array is being initialized.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
