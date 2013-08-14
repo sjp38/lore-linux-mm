@@ -1,51 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id E77766B0032
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 19:20:07 -0400 (EDT)
-Received: by mail-oa0-f44.google.com with SMTP id l20so82729oag.3
-        for <linux-mm@kvack.org>; Wed, 14 Aug 2013 16:20:07 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20130814215253.GC17423@variantweb.net>
-References: <1376508705-3188-1-git-send-email-sjenning@linux.vnet.ibm.com>
-	<20130814194348.GB10469@kroah.com>
-	<520BE30D.3070401@sr71.net>
-	<20130814203546.GA6200@kroah.com>
-	<CAE9FiQUz6Ev0nbCoSbH7E=+zeJr6GKwR4B-z8+zJTRDPeF=jeA@mail.gmail.com>
-	<20130814215253.GC17423@variantweb.net>
-Date: Wed, 14 Aug 2013 16:20:06 -0700
-Message-ID: <CAE9FiQXJ85Nr6F=mn5DgfanwNA2s55=_LyQKbXLrxfTc6yZcAQ@mail.gmail.com>
-Subject: Re: [RFC][PATCH] drivers: base: dynamic memory block creation
-From: Yinghai Lu <yinghai@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 334916B0032
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 19:22:27 -0400 (EDT)
+Date: Wed, 14 Aug 2013 16:22:25 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2 00/20] mm, hugetlb: remove a
+ hugetlb_instantiation_mutex
+Message-Id: <20130814162225.5f1107bd44b11df41703b3d6@linux-foundation.org>
+In-Reply-To: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave@sr71.net>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Lai Jiangshan <laijs@cn.fujitsu.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
 
-On Wed, Aug 14, 2013 at 2:52 PM, Seth Jennings
-<sjenning@linux.vnet.ibm.com> wrote:
-> On Wed, Aug 14, 2013 at 02:37:26PM -0700, Yinghai Lu wrote:
+On Fri,  9 Aug 2013 18:26:18 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
 
-> If I am understanding you correctly, you are suggesting we make the block size
-> a boot time tunable.  It can't be a runtime tunable since the memory blocks are
-> currently created a boot time.
+> Without a hugetlb_instantiation_mutex, if parallel fault occur, we can
+> fail to allocate a hugepage, because many threads dequeue a hugepage
+> to handle a fault of same address. This makes reserved pool shortage
+> just for a little while and this cause faulting thread to get a SIGBUS
+> signal, although there are enough hugepages.
+> 
+> To solve this problem, we already have a nice solution, that is,
+> a hugetlb_instantiation_mutex. This blocks other threads to dive into
+> a fault handler. This solve the problem clearly, but it introduce
+> performance degradation, because it serialize all fault handling.
+>     
+> Now, I try to remove a hugetlb_instantiation_mutex to get rid of
+> performance problem reported by Davidlohr Bueso [1].
+> 
+> This patchset consist of 4 parts roughly.
+> 
+> Part 1. (1-6) Random fix and clean-up. Enhancing error handling.
+> 	
+> 	These can be merged into mainline separately.
+> 
+> Part 2. (7-9) Protect region tracking via it's own spinlock, instead of
+> 	the hugetlb_instantiation_mutex.
+> 	
+> 	Breaking dependency on the hugetlb_instantiation_mutex for
+> 	tracking a region is also needed by other approaches like as
+> 	'table mutexes', so these can be merged into mainline separately.
+> 
+> Part 3. (10-13) Clean-up.
+> 	
+> 	IMO, these make code really simple, so these are worth to go into
+> 	mainline separately, regardless success of my approach.
+> 
+> Part 4. (14-20) Remove a hugetlb_instantiation_mutex.
+> 	
+> 	Almost patches are just for clean-up to error handling path.
+> 	In patch 19, retry approach is implemented that if faulted thread
+> 	failed to allocate a hugepage, it continue to run a fault handler
+> 	until there is no concurrent thread having a hugepage. This causes
+> 	threads who want to get a last hugepage to be serialized, so
+> 	threads don't get a SIGBUS if enough hugepage exist.
+> 	In patch 20, remove a hugetlb_instantiation_mutex.
 
-yes.
-
-If could make it to be tunable at run-time, could be much better.
-
->
-> On ppc64, we can't just just choose a memory block size since it must align
-> with the underlying LMB (logical memory block) size, set in the hardware ahead
-> of time.
-
-assume for x86_64, it now support 46bits physical address. so if we
-change to 2G, then
-big system will only need create (1<<15) aka 32k entries in /sys at most.
-
-Thanks
-
-Yinghai
+I grabbed the first six easy ones.  I'm getting a bit cross-eyed from
+all the reviewing lately so I'll wait and see if someone else takes an
+interest in the other patches, sorry.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
