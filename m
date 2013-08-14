@@ -1,40 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 66C516B0032
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 10:42:01 -0400 (EDT)
-Date: Wed, 14 Aug 2013 10:41:46 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 9/9] mm: workingset: keep shadow entries in check
-Message-ID: <20130814144146.GA28858@cmpxchg.org>
-References: <1375829050-12654-1-git-send-email-hannes@cmpxchg.org>
- <1375829050-12654-10-git-send-email-hannes@cmpxchg.org>
- <20130811235631.GO19750@two.firstfloor.org>
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id D75B06B0032
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 10:54:10 -0400 (EDT)
+Message-ID: <520B9A0E.4020009@fastmail.fm>
+Date: Wed, 14 Aug 2013 17:54:06 +0300
+From: Pekka Enberg <penberg@fastmail.fm>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130811235631.GO19750@two.firstfloor.org>
+Subject: Re: [3.12 1/3] Move kmallocXXX functions to common code
+References: <20130813154940.741769876@linux.com> <00000140785e1062-89326db9-3999-43c1-b081-284dd49b3d9b-000000@email.amazonses.com>
+In-Reply-To: <00000140785e1062-89326db9-3999-43c1-b081-284dd49b3d9b-000000@email.amazonses.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Ozgun Erdogan <ozgun@citusdata.com>, Metin Doslu <metin@citusdata.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-Hey Andi!
+On 08/13/2013 06:49 PM, Christoph Lameter wrote:
+> The kmalloc* functions of all slab allcoators are similar now so
+> lets move them into slab.h. This requires some function naming changes
+> in slob.
+>
+> As a results of this patch there is a common set of functions for
+> all allocators. Also means that kmalloc_large() is now available
+> in general to perform large order allocations that go directly
+> via the page allocator. kmalloc_large() can be substituted if
+> kmalloc() throws warnings because of too large allocations.
+>
+> kmalloc_large() has exactly the same semantics as kmalloc but
+> can only used for allocations > PAGE_SIZE.
+>
+> Signed-off-by: Christoph Lameter <cl@linux.com>
 
-On Mon, Aug 12, 2013 at 01:56:31AM +0200, Andi Kleen wrote:
-> 
-> I really like the idea of using the spare slots in the radix tree
-> for something useful. It's amazing we haven't used that before.
-> 
-> I wonder if with some clever encoding even more information could be fit?
+I already applied an earlier version that's now breaking linux-next.
+Can you please send incremental fixes on top of slab/next?
+I'd prefer not to rebase...
 
-What do you have in mind?
-
-> e.g. I assume you don't really need all bits of the refault distance,
-> just a good enough approximation.
-> 
-> -Andi
-> -- 
-> ak@linux.intel.com -- Speaking for myself only.
+                         Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
