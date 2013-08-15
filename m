@@ -1,53 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 4BEED6B0036
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 11:10:30 -0400 (EDT)
-Received: by mail-qe0-f53.google.com with SMTP id 1so500474qee.26
-        for <linux-mm@kvack.org>; Thu, 15 Aug 2013 08:10:29 -0700 (PDT)
-Date: Thu, 15 Aug 2013 11:10:24 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH part5 0/7] Arrange hotpluggable memory as ZONE_MOVABLE.
-Message-ID: <20130815151024.GD14606@htj.dyndns.org>
-References: <20130812164650.GN15892@htj.dyndns.org>
- <5209CEC1.8070908@cn.fujitsu.com>
- <520A02DE.1010908@cn.fujitsu.com>
- <CAE9FiQV2-OOvHZtPYSYNZz+DfhvL0e+h2HjMSW3DyqeXXvdJkA@mail.gmail.com>
- <520C947B.40407@cn.fujitsu.com>
- <20130815121900.GA14606@htj.dyndns.org>
- <520CCD41.5000508@cn.fujitsu.com>
- <CAE9FiQVArNd-voKZ1tYbwzJiN=ztXCgr-0sHwej3er02kHQvRQ@mail.gmail.com>
- <20130815144538.GC14606@htj.dyndns.org>
- <CAE9FiQUZO-j3UyhED6AOgkS8JzqUWcwsen62OdUucuNCS51ScQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 8B9C26B0034
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 11:14:18 -0400 (EDT)
+Date: Thu, 15 Aug 2013 17:14:16 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [Bug] Reproducible data corruption on i5-3340M: Please revert
+ 53a59fc67!
+Message-ID: <20130815151416.GF27864@dhcp22.suse.cz>
+References: <520BB225.8030807@gmail.com>
+ <20130814174039.GA24033@dhcp22.suse.cz>
+ <CA+55aFwAz7GdcB6nC0Th42y8eAM591sKO1=mYh5SWgyuDdHzcA@mail.gmail.com>
+ <20130814182756.GD24033@dhcp22.suse.cz>
+ <CA+55aFxB6Wyj3G3Ju8E7bjH-706vi3vysuATUZ13h1tdYbCbnQ@mail.gmail.com>
+ <520C9E78.2020401@gmail.com>
+ <CA+55aFy2D2hTc_ina1DvungsCL4WU2OTM=bnVb8sDyDcGVCBEQ@mail.gmail.com>
+ <20130815134031.GC27864@dhcp22.suse.cz>
+ <20130815144600.GD27864@dhcp22.suse.cz>
+ <20130815145332.GE27864@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAE9FiQUZO-j3UyhED6AOgkS8JzqUWcwsen62OdUucuNCS51ScQ@mail.gmail.com>
+In-Reply-To: <20130815145332.GE27864@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yinghai Lu <yinghai@kernel.org>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, Tang Chen <imtangchen@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Bob Moore <robert.moore@intel.com>, Lv Zheng <lv.zheng@intel.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Renninger <trenn@suse.de>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, Prarit Bhargava <prarit@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "yanghy@cn.fujitsu.com" <yanghy@cn.fujitsu.com>, the arch/x86 maintainers <x86@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, "Luck, Tony (tony.luck@intel.com)" <tony.luck@intel.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Ben Tebulin <tebulin@googlemail.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>
 
-On Thu, Aug 15, 2013 at 08:05:38AM -0700, Yinghai Lu wrote:
-> > It's suboptimal behavior which is chosen as trade-off to enable
-> > hotplug support and shouldn't be the default behavior just like node
-> > data and page table should be allocated on the same node by default.
-> > Why would we allocate kernel page table in low memory be default?
+On Thu 15-08-13 16:53:32, Michal Hocko wrote:
+> On Thu 15-08-13 16:46:00, Michal Hocko wrote:
+> > On Thu 15-08-13 15:40:31, Michal Hocko wrote:
+> > > On Thu 15-08-13 05:02:31, Linus Torvalds wrote:
+> > > > On Thu, Aug 15, 2013 at 2:25 AM, Ben Tebulin <tebulin@googlemail.com> wrote:
+> > > > >
+> > > > > I just cherry-picked e6c495a96ce0 into 3.9.11 and 3.7.10.
+> > > > > Unfortunately this does _not resolve_ my issue (too good to be true) :-(
+> > > > 
+> > > > Ho humm. I've found at least one other bug, but that one only affects
+> > > > hugepages. Do you perhaps have transparent hugepages enabled? But even
+> > > > then it looks quite unlikely.
+> > > 
+> > > __unmap_hugepage_range is hugetlb not THP if you had that one in mind.
+> > > And yes, it doesn't set the range which sounds buggy.
+> > 
+> > Or, did you mean tlb_remove_page called from zap_huge_pmd? That one
+> > should be safe as tlb_remove_pmd_tlb_entry sets need_flush and that
+> > means that the full range is flushed.
 > 
-> That is what my patchset want to do.
-> put page tables on the same node like node data.
-> with that, hotplug and normal case will be the same code path.
+> Dohh... But we need need_flush_all and that is not set here. So this
+> really looks buggy.
 
-Yeah, sure, when that works, that can be the default and only
-behavior.  Right now, we do want a switch to control that, right?  I'm
-not sure we have a good choice which we can choose as the only
-behavior for kernel page table.  Maybe we can implement some
-heuristics to decide whether there's enough lowmem but given how niche
-memory hotplug is, at least for now, that feels like an overkill.
-
-Thanks.
-
+This is a really dumb attempt to fix this but maybe it is worth trying
+to confirm we are really seeing this problem. It still flushes too much
+potentially but I am not sure how to find out the proper start...
+Will think about it more.
+---
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index a92012a..a16f452 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1381,7 +1381,11 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 			VM_BUG_ON(!PageHead(page));
+ 			tlb->mm->nr_ptes--;
+ 			spin_unlock(&tlb->mm->page_table_lock);
+-			tlb_remove_page(tlb, page);
++			if (!__tlb_remove_page(tlb, page)) {
++				tlb->start = 0;
++				tlb->end = addr + HPAGE_SIZE;
++				tlb_flush_mmu(tlb);
++			}
+ 		}
+ 		pte_free(tlb->mm, pgtable);
+ 		ret = 1;
 -- 
-tejun
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
