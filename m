@@ -1,9 +1,9 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id A529E6B0032
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 07:16:43 -0400 (EDT)
-Message-ID: <520CB84D.6000306@huawei.com>
-Date: Thu, 15 Aug 2013 19:15:25 +0800
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 15C056B0032
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 07:18:31 -0400 (EDT)
+Message-ID: <520CB8E3.4050202@huawei.com>
+Date: Thu, 15 Aug 2013 19:17:55 +0800
 From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH] mm: skip the page buddy block instead of one page
@@ -14,7 +14,7 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, aquini@redhat.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, aquini@redhat.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Xishi Qiu <qiuxishi@huawei.com>
 
 On 2013/8/15 17:51, Wanpeng Li wrote:
 
@@ -66,7 +66,7 @@ On 2013/8/15 17:51, Wanpeng Li wrote:
 > 
 > How much sense it make? nr_pages is still equal to itself since nr_pages can't 
 > larger than MAX_ORDER_NR_PAGES.
-> 
+>
 
 Hi Wanpeng,
 
@@ -95,23 +95,6 @@ Xishi Qiu
 >> Thanks,
 >> Xishi Qiu
 >>
->>>> so worst case is (pageblock_nr_pages - 1).
->>>> but we don't need to add CONFIG_MEMORY_ISOLATION so my suggestion
->>>> is following as.
->>>>
->>>> if (PageBuddy(page)) {
->>>> 	unsigned long order = page_order(page);
->>>> 	if (PageBuddy(page)) {
->>>> 		low_pfn += (1 << order) - 1;
->>>> 		low_pfn = min(low_pfn, end_pfn);
->>>
->>> Maybe it should be low_pfn = min(low_pfn, end_pfn - 1).
->>>
->>>
->>>> 	}
->>>> 	continue;
->>>> }
->>>>
 
 
 
