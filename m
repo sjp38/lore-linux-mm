@@ -1,79 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 772B16B0032
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 10:10:12 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id fb10so793656pad.9
-        for <linux-mm@kvack.org>; Thu, 15 Aug 2013 07:10:11 -0700 (PDT)
-Date: Thu, 15 Aug 2013 23:10:04 +0900
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id D83CE6B0032
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 10:17:00 -0400 (EDT)
+Received: by mail-pb0-f44.google.com with SMTP id xa7so761609pbc.31
+        for <linux-mm@kvack.org>; Thu, 15 Aug 2013 07:17:00 -0700 (PDT)
+Date: Thu, 15 Aug 2013 23:16:53 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: kswapd skips compaction if reclaim order drops to zero?
-Message-ID: <20130815141004.GD8437@gmail.com>
-References: <CAJd=RBBF2h_tRpbTV6OkxQOfkvKt=ebn_PbE8+r7JxAuaFZxFQ@mail.gmail.com>
- <20130815104727.GT2296@suse.de>
- <20130815134139.GC8437@gmail.com>
- <20130815135627.GX2296@suse.de>
+Subject: Re: [PATCH] mm: skip the page buddy block instead of one page
+Message-ID: <20130815141652.GE8437@gmail.com>
+References: <20130814161642.GM2296@suse.de>
+ <20130814163921.GC2706@gmail.com>
+ <20130814180012.GO2296@suse.de>
+ <520C3DD2.8010905@huawei.com>
+ <20130815024427.GA2718@gmail.com>
+ <520C4EFF.8040305@huawei.com>
+ <20130815041736.GA2592@gmail.com>
+ <20130815113019.GV2296@suse.de>
+ <20130815131935.GA8437@gmail.com>
+ <20130815134209.GW2296@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130815135627.GX2296@suse.de>
+In-Reply-To: <20130815134209.GW2296@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
-Cc: Hillf Danton <dhillf@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+Cc: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, aquini@redhat.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Aug 15, 2013 at 02:56:27PM +0100, Mel Gorman wrote:
-> On Thu, Aug 15, 2013 at 10:41:39PM +0900, Minchan Kim wrote:
-> > Hey Mel,
+On Thu, Aug 15, 2013 at 02:42:09PM +0100, Mel Gorman wrote:
+> On Thu, Aug 15, 2013 at 10:19:35PM +0900, Minchan Kim wrote:
+> > > 
+> > > Why? We're looking for pages to migrate. If the page is free and at the
+> > > maximum order then there is no point searching in the middle of a free
+> > > page.
 > > 
-> > On Thu, Aug 15, 2013 at 11:47:27AM +0100, Mel Gorman wrote:
-> > > On Thu, Aug 15, 2013 at 06:02:53PM +0800, Hillf Danton wrote:
-> > > > If the allocation order is not high, direct compaction does nothing.
-> > > > Can we skip compaction here if order drops to zero?
-> > > > 
-> > > 
-> > > If the allocation order is not high then
-> > > 
-> > > pgdat_needs_compaction == (order > 0) == false == no calling compact_pdatt
-> > > 
-> > > In the case where order is reset to 0 due to fragmentation then it does
-> > > call compact_pgdat but it does no work due to the cc->order check in
-> > > __compact_pgdat.
-> > > 
-> > 
-> > I am looking at mmotm-2013-08-07-16-55 but couldn't find cc->order
-> > check right before compact_zone in __comact_pgdat.
-> > Could you pinpoint code piece?
+> > isolate_migratepages_range API works with [low_pfn, end_pfn)
+> > and we can't guarantee page_order in normal compaction path
+> > so I'd like to limit the skipping by end_pfn conservatively.
 > > 
 > 
-> Thanks, I screwed up as that check happens too late. However, it still
-> ends up not mattering because it does this
+> Fine
 > 
-> compact_pgdat
->   -> __compact_pgdat
->     -> compact_zone
->       -> compaction_suitable
+> s/MAX_ORDER_NR_PAGES/pageblock_nr_pages/
 > 
-> For order == 0, compaction_suitable will return either COMPACT_SKIPPED
-> (if the watermarks are not met) and COMPACT_PARTIAL otherwise. Either
-> way, compaction doesn't run.
-
-In compaction_suitable, it could pass first zone_watermark_ok
-but failed second zone_watermark_ok while fragindex is -1000
-so compaction could run.
-
-And we shouldn't depend on such coincidence.
-
-
+> and take the min of it and
 > 
-> -- 
-> Mel Gorman
-> SUSE Labs
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> low_pfn = min(low_pfn, end_pfn - 1)
+
+True. That was really what I suggested to Xishi.
+Only thing we need it is just number to justify for proving the benefit.
+
+Thanks.
 
 -- 
 Kind regards,
