@@ -1,39 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id F2C906B0032
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 09:13:45 -0400 (EDT)
-Message-ID: <520CCF0A.9050206@cn.fujitsu.com>
-Date: Thu, 15 Aug 2013 20:52:26 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 865CF6B0032
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 09:19:47 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id kq13so742273pab.11
+        for <linux-mm@kvack.org>; Thu, 15 Aug 2013 06:19:46 -0700 (PDT)
+Date: Thu, 15 Aug 2013 22:19:35 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm: skip the page buddy block instead of one page
+Message-ID: <20130815131935.GA8437@gmail.com>
+References: <20130814085711.GK2296@suse.de>
+ <20130814155205.GA2706@gmail.com>
+ <20130814161642.GM2296@suse.de>
+ <20130814163921.GC2706@gmail.com>
+ <20130814180012.GO2296@suse.de>
+ <520C3DD2.8010905@huawei.com>
+ <20130815024427.GA2718@gmail.com>
+ <520C4EFF.8040305@huawei.com>
+ <20130815041736.GA2592@gmail.com>
+ <20130815113019.GV2296@suse.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH part5 0/7] Arrange hotpluggable memory as ZONE_MOVABLE.
-References: <5208FBBC.2080304@zytor.com> <20130812152343.GK15892@htj.dyndns.org> <52090D7F.6060600@gmail.com> <20130812164650.GN15892@htj.dyndns.org> <5209CEC1.8070908@cn.fujitsu.com> <520A02DE.1010908@cn.fujitsu.com> <CAE9FiQV2-OOvHZtPYSYNZz+DfhvL0e+h2HjMSW3DyqeXXvdJkA@mail.gmail.com> <520C947B.40407@cn.fujitsu.com> <20130815121900.GA14606@htj.dyndns.org> <520CCD41.5000508@cn.fujitsu.com> <20130815124925.GB14606@htj.dyndns.org>
-In-Reply-To: <20130815124925.GB14606@htj.dyndns.org>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130815113019.GV2296@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Yinghai Lu <yinghai@kernel.org>, Tang Chen <imtangchen@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Bob Moore <robert.moore@intel.com>, Lv Zheng <lv.zheng@intel.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Renninger <trenn@suse.de>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, Prarit Bhargava <prarit@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "yanghy@cn.fujitsu.com" <yanghy@cn.fujitsu.com>, the arch/x86 maintainers <x86@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, "Luck, Tony (tony.luck@intel.com)" <tony.luck@intel.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, aquini@redhat.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 08/15/2013 08:49 PM, Tejun Heo wrote:
-> Hello,
->
-> On Thu, Aug 15, 2013 at 08:44:49PM +0800, Tang Chen wrote:
->> I wanted to ask for some comment to the above solution. When I was
->> coding, I found that change the behavior of pagetable initialization
->> could be ugly. We should start from the middle of the memory, where
->> the kernel image is, but not the end of memory.
->>
->> I'm not asking for any detail comment, just seeing from the description,
->> is it acceptable ?
->
-> Hmmm... I can't really tell without knowing how ugly it gets and why.
-> Do you mind posting a draft patch so that we can have better context?
+Hi Mel,
 
-Sure. I'll try my best to post a draft patch tomorrow.
+On Thu, Aug 15, 2013 at 12:30:19PM +0100, Mel Gorman wrote:
+> On Thu, Aug 15, 2013 at 01:17:55PM +0900, Minchan Kim wrote:
+> > Hello,
+> > 
+> 
+> Well, this thread managed to get out of control for no good reason!
+> 
+> > > > <SNIP>
+> > > > So, what's the result by that?
+> > > > As I said, it's just skipping (pageblock_nr_pages -1) at worst case
+> > > 
+> > > Hi Minchan,
+> > > I mean if the private is set to a large number, it will skip 2^private 
+> > > pages, not (pageblock_nr_pages -1). I find somewhere will use page->private, 
+> > > such as fs. Here is the comment about parivate.
+> > > /* Mapping-private opaque data:
+> > >  * usually used for buffer_heads
+> > >  * if PagePrivate set; used for
+> > >  * swp_entry_t if PageSwapCache;
+> > >  * indicates order in the buddy
+> > >  * system if PG_buddy is set.
+> > >  */
+> > 
+> > Please read full thread in detail.
+> > 
+> > Mel suggested following as
+> > 
+> > if (PageBuddy(page)) {
+> >         int nr_pages = (1 << page_order(page)) - 1;
+> >         if (PageBuddy(page)) {
+> >                 nr_pages = min(nr_pages, MAX_ORDER_NR_PAGES - 1);
+> >                 low_pfn += nr_pages;
+> >                 continue;
+> >         }
+> > }
+> > 
+> > min(nr_pages, xxx) removes your concern but I think Mel's version
+> > isn't right. It should be aligned with pageblock boundary so I 
+> > suggested following.
+> > 
+> 
+> Why? We're looking for pages to migrate. If the page is free and at the
+> maximum order then there is no point searching in the middle of a free
+> page.
 
-Thanks. :)
+isolate_migratepages_range API works with [low_pfn, end_pfn)
+and we can't guarantee page_order in normal compaction path
+so I'd like to limit the skipping by end_pfn conservatively.
+
+> 
+> > if (PageBuddy(page)) {
+> > #ifdef CONFIG_MEMORY_ISOLATION
+> > 	unsigned long order = page_order(page);
+> > 	if (PageBuddy(page)) {
+> > 		low_pfn += (1 << order) - 1;
+> > 		low_pfn = min(low_pfn, end_pfn);
+> > 	}
+> > #endif
+> > 	continue;
+> > }
+> > 
+> > so worst case is (pageblock_nr_pages - 1).
+> 
+> No it isn't. The worst case it that the whole region being searched is
+> skipped. For THP allocations, it would happen to work as being the
+> pageblock boundary but it is not required by the API. I expect that
+> end_pfn is not necessarily the next pageblock boundary for CMA
+> allocations.
+
+Mel, as I said eariler, CMA and memory-hotplug don't have a race
+problem of page_order so we can consider only normal compaction path
+like high order allocation(ex, THP). So, about this race problem,
+worst case is the number of (pageblock_nr_pages - 1) skipping.
+
+> 
+> -- 
+> Mel Gorman
+> SUSE Labs
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
