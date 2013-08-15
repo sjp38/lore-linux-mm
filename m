@@ -1,11 +1,16 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 0/4] zcache: a compressed file page cache
-Date: Mon, 12 Aug 2013 20:30:02 +0800
-Message-ID: <19830.7898747318$1376310629@news.gmane.org>
-References: <1375788977-12105-1-git-send-email-bob.liu@oracle.com>
- <20130806135800.GC1048@kroah.com>
- <52010714.2090707@oracle.com>
- <20130812121908.GA3196@phenom.dumpdata.com>
+Subject: Re: [PATCH] mm: skip the page buddy block instead of one page
+Date: Thu, 15 Aug 2013 11:59:56 +0800
+Message-ID: <7660.54019700295$1376539226@news.gmane.org>
+References: <520B0B75.4030708@huawei.com>
+ <20130814085711.GK2296@suse.de>
+ <20130814155205.GA2706@gmail.com>
+ <20130814161642.GM2296@suse.de>
+ <20130814163921.GC2706@gmail.com>
+ <20130814180012.GO2296@suse.de>
+ <520C3DD2.8010905@huawei.com>
+ <20130815024427.GA2718@gmail.com>
+ <520C4EFF.8040305@huawei.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -13,68 +18,120 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1V8rGL-0002Qg-PZ
-	for glkm-linux-mm-2@m.gmane.org; Mon, 12 Aug 2013 14:30:18 +0200
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 47F736B0032
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 08:30:15 -0400 (EDT)
+	id 1V9ojR-00031J-JJ
+	for glkm-linux-mm-2@m.gmane.org; Thu, 15 Aug 2013 06:00:17 +0200
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 11EEB6B0032
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 00:00:14 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 12 Aug 2013 17:54:28 +0530
+	Thu, 15 Aug 2013 09:23:44 +0530
 Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 762BD394004E
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 17:59:58 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7CCVLx139452692
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 18:01:24 +0530
-Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7CCU3Uk015358
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2013 18:00:04 +0530
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 00777E004F
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 09:30:22 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7F41Jrd40566916
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 09:31:19 +0530
+Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7F3xvUl008988
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 09:29:58 +0530
 Content-Disposition: inline
-In-Reply-To: <20130812121908.GA3196@phenom.dumpdata.com>
+In-Reply-To: <520C4EFF.8040305@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: Bob Liu <bob.liu@oracle.com>, Greg KH <gregkh@linuxfoundation.org>, Bob Liu <lliubbo@gmail.com>, linux-mm@kvack.org, ngupta@vflare.org, akpm@linux-foundation.org, sjenning@linux.vnet.ibm.com, riel@redhat.com, mgorman@suse.de, kyungmin.park@samsung.com, p.sarna@partner.samsung.com, barry.song@csr.com, penberg@kernel.org
+Cc: Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, aquini@redhat.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Xishi Qiu <qiuxishi@huawei.com>
 
-On Mon, Aug 12, 2013 at 08:19:08AM -0400, Konrad Rzeszutek Wilk wrote:
->On Tue, Aug 06, 2013 at 10:24:20PM +0800, Bob Liu wrote:
->> Hi Greg,
->> 
->> On 08/06/2013 09:58 PM, Greg KH wrote:
->> > On Tue, Aug 06, 2013 at 07:36:13PM +0800, Bob Liu wrote:
->> >> Dan Magenheimer extended zcache supporting both file pages and anonymous pages.
->> >> It's located in drivers/staging/zcache now. But the current version of zcache is
->> >> too complicated to be merged into upstream.
->> > 
->> > Really?  If this is so, I'll just go delete zcache now, I don't want to
->> > lug around dead code that will never be merged.
->> > 
->> 
->> Zcache in staging have a zbud allocation which is almost the same as
->> mm/zbud.c but with different API and have a frontswap backend like
->> mm/zswap.c.
->> So I'd prefer reuse mm/zbud.c and mm/zswap.c for a generic memory
->> compression solution.
->> Which means in that case, zcache in staging = mm/zswap.c + mm/zcache.c +
->> mm/zbud.c.
->> 
->> But I'm not sure if there are any existing users of zcache in staging,
->> if not I can delete zcache from staging in my next version of this
->> mm/zcache.c series.
+On Thu, Aug 15, 2013 at 11:46:07AM +0800, Xishi Qiu wrote:
+>On 2013/8/15 10:44, Minchan Kim wrote:
 >
->I think the Samsung folks are using it (zcache).
+>> Hi Xishi,
+>> 
+>> On Thu, Aug 15, 2013 at 10:32:50AM +0800, Xishi Qiu wrote:
+>>> On 2013/8/15 2:00, Mel Gorman wrote:
+>>>
+>>>>>> Even if the page is still page buddy, there is no guarantee that it's
+>>>>>> the same page order as the first read. It could have be currently
+>>>>>> merging with adjacent buddies for example. There is also a really
+>>>>>> small race that a page was freed, allocated with some number stuffed
+>>>>>> into page->private and freed again before the second PageBuddy check.
+>>>>>> It's a bit of a hand grenade. How much of a performance benefit is there
+>>>>>
+>>>>> 1. Just worst case is skipping pageblock_nr_pages
+>>>>
+>>>> No, the worst case is that page_order returns a number that is
+>>>> completely garbage and low_pfn goes off the end of the zone
+>>>>
+>>>>> 2. Race is really small
+>>>>> 3. Higher order page allocation customer always have graceful fallback.
+>>>>>
+>>>
+>>> Hi Minchan, 
+>>> I think in this case, we may get the wrong value from page_order(page).
+>>>
+>>> 1. page is in page buddy
+>>>
+>>>> if (PageBuddy(page)) {
+>>>
+>>> 2. someone allocated the page, and set page->private to another value
+>>>
+>>>> 	int nr_pages = (1 << page_order(page)) - 1;
+>>>
+>>> 3. someone freed the page
+>>>
+>>>> 	if (PageBuddy(page)) {
+>>>
+>>> 4. we will skip wrong pages
+>> 
+>> So, what's the result by that?
+>> As I said, it's just skipping (pageblock_nr_pages -1) at worst case
 >
+>Hi Minchan,
+>I mean if the private is set to a large number, it will skip 2^private 
+>pages, not (pageblock_nr_pages -1). I find somewhere will use page->private, 
+>such as fs. Here is the comment about parivate.
 
-Hi Konrad,
+There is PageBuddy() check. 
 
-If there are real users using ramster? And if Xen project using zcache
-and ramster in staging tree? 
-
-Regards,
-Wanpeng Li 
-
+>/* Mapping-private opaque data:
+> * usually used for buffer_heads
+> * if PagePrivate set; used for
+> * swp_entry_t if PageSwapCache;
+> * indicates order in the buddy
+> * system if PG_buddy is set.
+> */
+>Thanks,
+>Xishi Qiu
+>
+>> and the case you mentioned is right academically and I and Mel
+>> already pointed out that. But how often could that happen in real
+>> practice? I believe such is REALLY REALLY rare.
+>> So, as Mel said, if you have some workloads to see the benefit
+>> from this patch, I think we could accept the patch.
+>> Could you try and respin with the number?
+>> I guess big contigous memory range or memory-hotplug which are
+>> full of free pages in embedded CPU which is rather slower than server
+>> or desktop side could have benefit.
+>> 
+>> Thanks.
+>> 
+>>>
+>>>> 		nr_pages = min(nr_pages, MAX_ORDER_NR_PAGES - 1);
+>>>> 		low_pfn += nr_pages;
+>>>> 		continue;
+>>>> 	}
+>>>> }
+>>>>
+>>>> It's still race-prone meaning that it really should be backed by some
+>>>> performance data justifying it.
+>>>>
+>>>
+>>>
+>>>
+>> 
+>
+>
+>
 >--
 >To unsubscribe, send a message with 'unsubscribe linux-mm' in
 >the body to majordomo@kvack.org.  For more info on Linux MM,
