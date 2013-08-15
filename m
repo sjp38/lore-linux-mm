@@ -1,50 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id F1BF96B0032
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 10:45:44 -0400 (EDT)
-Received: by mail-qa0-f45.google.com with SMTP id l18so1765100qak.18
-        for <linux-mm@kvack.org>; Thu, 15 Aug 2013 07:45:44 -0700 (PDT)
-Date: Thu, 15 Aug 2013 10:45:38 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH part5 0/7] Arrange hotpluggable memory as ZONE_MOVABLE.
-Message-ID: <20130815144538.GC14606@htj.dyndns.org>
-References: <20130812152343.GK15892@htj.dyndns.org>
- <52090D7F.6060600@gmail.com>
- <20130812164650.GN15892@htj.dyndns.org>
- <5209CEC1.8070908@cn.fujitsu.com>
- <520A02DE.1010908@cn.fujitsu.com>
- <CAE9FiQV2-OOvHZtPYSYNZz+DfhvL0e+h2HjMSW3DyqeXXvdJkA@mail.gmail.com>
- <520C947B.40407@cn.fujitsu.com>
- <20130815121900.GA14606@htj.dyndns.org>
- <520CCD41.5000508@cn.fujitsu.com>
- <CAE9FiQVArNd-voKZ1tYbwzJiN=ztXCgr-0sHwej3er02kHQvRQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 1EC486B0033
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 10:46:03 -0400 (EDT)
+Date: Thu, 15 Aug 2013 16:46:00 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [Bug] Reproducible data corruption on i5-3340M: Please revert
+ 53a59fc67!
+Message-ID: <20130815144600.GD27864@dhcp22.suse.cz>
+References: <52050382.9060802@gmail.com>
+ <520BB225.8030807@gmail.com>
+ <20130814174039.GA24033@dhcp22.suse.cz>
+ <CA+55aFwAz7GdcB6nC0Th42y8eAM591sKO1=mYh5SWgyuDdHzcA@mail.gmail.com>
+ <20130814182756.GD24033@dhcp22.suse.cz>
+ <CA+55aFxB6Wyj3G3Ju8E7bjH-706vi3vysuATUZ13h1tdYbCbnQ@mail.gmail.com>
+ <520C9E78.2020401@gmail.com>
+ <CA+55aFy2D2hTc_ina1DvungsCL4WU2OTM=bnVb8sDyDcGVCBEQ@mail.gmail.com>
+ <20130815134031.GC27864@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAE9FiQVArNd-voKZ1tYbwzJiN=ztXCgr-0sHwej3er02kHQvRQ@mail.gmail.com>
+In-Reply-To: <20130815134031.GC27864@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yinghai Lu <yinghai@kernel.org>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, Tang Chen <imtangchen@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Bob Moore <robert.moore@intel.com>, Lv Zheng <lv.zheng@intel.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Renninger <trenn@suse.de>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, Prarit Bhargava <prarit@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "yanghy@cn.fujitsu.com" <yanghy@cn.fujitsu.com>, the arch/x86 maintainers <x86@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, "Luck, Tony (tony.luck@intel.com)" <tony.luck@intel.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Ben Tebulin <tebulin@googlemail.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>
 
-Hello, Yinghai.
-
-On Thu, Aug 15, 2013 at 07:37:59AM -0700, Yinghai Lu wrote:
-> On Thu, Aug 15, 2013 at 5:44 AM, Tang Chen <tangchen@cn.fujitsu.com> wrote:
+On Thu 15-08-13 15:40:31, Michal Hocko wrote:
+> On Thu 15-08-13 05:02:31, Linus Torvalds wrote:
+> > On Thu, Aug 15, 2013 at 2:25 AM, Ben Tebulin <tebulin@googlemail.com> wrote:
+> > >
+> > > I just cherry-picked e6c495a96ce0 into 3.9.11 and 3.7.10.
+> > > Unfortunately this does _not resolve_ my issue (too good to be true) :-(
+> > 
+> > Ho humm. I've found at least one other bug, but that one only affects
+> > hugepages. Do you perhaps have transparent hugepages enabled? But even
+> > then it looks quite unlikely.
 > 
-> > Yes, the new behavior should be controlled by boot option.
-> 
-> No, should avoid boot option.
+> __unmap_hugepage_range is hugetlb not THP if you had that one in mind.
+> And yes, it doesn't set the range which sounds buggy.
 
-It's suboptimal behavior which is chosen as trade-off to enable
-hotplug support and shouldn't be the default behavior just like node
-data and page table should be allocated on the same node by default.
-Why would we allocate kernel page table in low memory be default?
-
-Thanks.
+Or, did you mean tlb_remove_page called from zap_huge_pmd? That one
+should be safe as tlb_remove_pmd_tlb_entry sets need_flush and that
+means that the full range is flushed.
 
 -- 
-tejun
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
