@@ -1,136 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 401256B0037
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 00:24:55 -0400 (EDT)
-Received: by mail-pb0-f49.google.com with SMTP id xb4so333540pbc.8
-        for <linux-mm@kvack.org>; Wed, 14 Aug 2013 21:24:54 -0700 (PDT)
-Date: Thu, 15 Aug 2013 13:24:43 +0900
+Date: Thu, 15 Aug 2013 13:48:34 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: skip the page buddy block instead of one page
-Message-ID: <20130815042434.GA3139@gmail.com>
-References: <520B0B75.4030708@huawei.com>
- <20130814085711.GK2296@suse.de>
- <20130814155205.GA2706@gmail.com>
- <20130814161642.GM2296@suse.de>
- <20130814163921.GC2706@gmail.com>
- <20130814180012.GO2296@suse.de>
- <520C3DD2.8010905@huawei.com>
- <20130815024427.GA2718@gmail.com>
- <520C4EFF.8040305@huawei.com>
- <20130815041736.GA2592@gmail.com>
+Subject: Re: [RFC 0/3] Pin page control subsystem
+Message-ID: <20130815044834.GB3139@gmail.com>
+References: <1376377502-28207-1-git-send-email-minchan@kernel.org>
+ <00000140787b6191-ae3f2eb1-515e-48a1-8e64-502772af4700-000000@email.amazonses.com>
+ <20130814001236.GC2271@bbox>
+ <000001407dafbe92-7b2b4006-2225-4f0b-b23b-d66101a995aa-000000@email.amazonses.com>
+ <20130814164705.GD2706@gmail.com>
+ <000001407dc3c33b-4139d615-aecc-4745-a9b4-c84949f6a8f4-000000@email.amazonses.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130815041736.GA2592@gmail.com>
+In-Reply-To: <000001407dc3c33b-4139d615-aecc-4745-a9b4-c84949f6a8f4-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, aquini@redhat.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@gentwo.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, k.kozlowski@samsung.com, Seth Jennings <sjenning@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, guz.fnst@cn.fujitsu.com, Benjamin LaHaise <bcrl@kvack.org>, Dave Hansen <dave.hansen@intel.com>, lliubbo@gmail.com, aquini@redhat.com, Rik van Riel <riel@redhat.com>
 
-On Thu, Aug 15, 2013 at 01:17:55PM +0900, Minchan Kim wrote:
-> Hello,
-> 
-> On Thu, Aug 15, 2013 at 11:46:07AM +0800, Xishi Qiu wrote:
-> > On 2013/8/15 10:44, Minchan Kim wrote:
-> > 
-> > > Hi Xishi,
-> > > 
-> > > On Thu, Aug 15, 2013 at 10:32:50AM +0800, Xishi Qiu wrote:
-> > >> On 2013/8/15 2:00, Mel Gorman wrote:
-> > >>
-> > >>>>> Even if the page is still page buddy, there is no guarantee that it's
-> > >>>>> the same page order as the first read. It could have be currently
-> > >>>>> merging with adjacent buddies for example. There is also a really
-> > >>>>> small race that a page was freed, allocated with some number stuffed
-> > >>>>> into page->private and freed again before the second PageBuddy check.
-> > >>>>> It's a bit of a hand grenade. How much of a performance benefit is there
-> > >>>>
-> > >>>> 1. Just worst case is skipping pageblock_nr_pages
-> > >>>
-> > >>> No, the worst case is that page_order returns a number that is
-> > >>> completely garbage and low_pfn goes off the end of the zone
-> > >>>
-> > >>>> 2. Race is really small
-> > >>>> 3. Higher order page allocation customer always have graceful fallback.
-> > >>>>
-> > >>
-> > >> Hi Minchan, 
-> > >> I think in this case, we may get the wrong value from page_order(page).
-> > >>
-> > >> 1. page is in page buddy
-> > >>
-> > >>> if (PageBuddy(page)) {
-> > >>
-> > >> 2. someone allocated the page, and set page->private to another value
-> > >>
-> > >>> 	int nr_pages = (1 << page_order(page)) - 1;
-> > >>
-> > >> 3. someone freed the page
-> > >>
-> > >>> 	if (PageBuddy(page)) {
-> > >>
-> > >> 4. we will skip wrong pages
-> > > 
-> > > So, what's the result by that?
-> > > As I said, it's just skipping (pageblock_nr_pages -1) at worst case
-> > 
-> > Hi Minchan,
-> > I mean if the private is set to a large number, it will skip 2^private 
-> > pages, not (pageblock_nr_pages -1). I find somewhere will use page->private, 
-> > such as fs. Here is the comment about parivate.
-> > /* Mapping-private opaque data:
-> >  * usually used for buffer_heads
-> >  * if PagePrivate set; used for
-> >  * swp_entry_t if PageSwapCache;
-> >  * indicates order in the buddy
-> >  * system if PG_buddy is set.
-> >  */
-> 
-> Please read full thread in detail.
-> 
-> Mel suggested following as
-> 
-> if (PageBuddy(page)) {
->         int nr_pages = (1 << page_order(page)) - 1;
->         if (PageBuddy(page)) {
->                 nr_pages = min(nr_pages, MAX_ORDER_NR_PAGES - 1);
->                 low_pfn += nr_pages;
->                 continue;
->         }
-> }
-> 
-> min(nr_pages, xxx) removes your concern but I think Mel's version
-> isn't right. It should be aligned with pageblock boundary so I 
-> suggested following.
-> 
-> if (PageBuddy(page)) {
-> #ifdef CONFIG_MEMORY_ISOLATION
-> 	unsigned long order = page_order(page);
-> 	if (PageBuddy(page)) {
-> 		low_pfn += (1 << order) - 1;
-> 		low_pfn = min(low_pfn, end_pfn);
-> 	}
-> #endif
-> 	continue;
-> }
-> 
-> so worst case is (pageblock_nr_pages - 1).
-> but we don't need to add CONFIG_MEMORY_ISOLATION so my suggestion
-> is following as.
-> 
-> if (PageBuddy(page)) {
-> 	unsigned long order = page_order(page);
-> 	if (PageBuddy(page)) {
-> 		low_pfn += (1 << order) - 1;
-> 		low_pfn = min(low_pfn, end_pfn);
+Hey Christoph,
 
-Maybe it should be low_pfn = min(low_pfn, end_pfn - 1).
-
-
-> 	}
-> 	continue;
-> }
+On Wed, Aug 14, 2013 at 04:58:36PM +0000, Christoph Lameter wrote:
+> On Thu, 15 Aug 2013, Minchan Kim wrote:
 > 
+> > When I look API of mmu_notifier, it has mm_struct so I guess it works
+> > for only user process. Right?
+> 
+> Correct. A process must have mapped the pages. If you can get a
+> kernel "process" to work then that process could map the pages.
+> 
+> > If so, I need to register it without user conext because zram, zswap
+> > and zcache works for only kernel side.
+> 
+> Hmmm... Ok but that now gets the complexity of page pinnning up to a very
+> weird level. Is there some way we can have a common way to deal with the
+> various ways that pinning is needed? Just off the top of my head (I may
+> miss some use cases) we have
+> 
+> 1. mlock from user space
+
+Now mlock pages could be migrated in case of CMA so I think it's not a
+big problem to migrate it for other cases.
+I remember You and Peter argued what's the mlock semainc of pin POV
+and as I remember correctly, Peter said mlock doesn't mean pin so
+we could migrate it but you didn't agree. Right?
+Anyway, it's off-topic but technically, it's not a problem.
+
+> 2. page pinning for reclaim
+
+Reclaiming pin a page for a while. Of course, "for a while" means
+rather vague so it could mean it's really long for someone but really
+short for others. But at least, reclaim pin should be short and
+we should try it if it's not ture.
+
+> 3. Page pinning for I/O from device drivers (like f.e. the RDMA subsystem)
+
+It's one of big concerns for me. Even several drviers might be able to pin
+a page same time. But normally most of drvier can know he will pin a page
+long time or short time so if it want to pin a page long time like aio or
+some GPU driver for zero-coyp, it should use pinpage control subsystem to
+release pin pages when VM ask.
+
+> 4. Page pinning for low latency operations
+
+I have no idea but I guess most of them pin a page during short time?
+Otherwise, they should use pinpage control subsystem, too.
+
+> 5. Page pinning for migration
+
+It's like 2. migration pin should be short.
+
+> 6. Page pinning for the perf buffers.
+
+I'm not familiar with that but my gut feeling is it will pin pages
+for a long time so it should use pinpage control subsystem.
+
+> 7. Page pinning for cross system access (XPMEM, GRU SGI)
+
+If it's really long pin, it should use pinpage control subsystem.
+
+> 
+> Now we have another subsystem wanting different semantics of pinning. Is
+> there any way we can come up with a pinning mechanism that fits all use
+> cases, that is easyly understandable and maintainable?
+
+I agree it's not easy but we should go that way rather than adding ad-hoc
+subsystem specific implementaion. If we allow subsystem specific way,
+maybe, everybody want to touch migrate.c so it would be very complicated
+and bloated, even not maintainable in future. If it goes another way
+like a_ops->migratepages, it couldn't handle complex nesting pin pages
+case so it couldn't gaurantee pinpage migraions.
+
+Most hard part is what is "for a while". It depends on system workloads
+so some system means it is 3ms while other system means it is 3s. :(
+Sigh, now I have no idea how can handle it with general.
+
+Thanks for the comment, Christoph!
+
 > 
 
 -- 
