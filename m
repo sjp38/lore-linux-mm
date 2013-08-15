@@ -1,56 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id DD4956B0032
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 10:53:33 -0400 (EDT)
-Date: Thu, 15 Aug 2013 16:53:32 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [Bug] Reproducible data corruption on i5-3340M: Please revert
- 53a59fc67!
-Message-ID: <20130815145332.GE27864@dhcp22.suse.cz>
-References: <52050382.9060802@gmail.com>
- <520BB225.8030807@gmail.com>
- <20130814174039.GA24033@dhcp22.suse.cz>
- <CA+55aFwAz7GdcB6nC0Th42y8eAM591sKO1=mYh5SWgyuDdHzcA@mail.gmail.com>
- <20130814182756.GD24033@dhcp22.suse.cz>
- <CA+55aFxB6Wyj3G3Ju8E7bjH-706vi3vysuATUZ13h1tdYbCbnQ@mail.gmail.com>
- <520C9E78.2020401@gmail.com>
- <CA+55aFy2D2hTc_ina1DvungsCL4WU2OTM=bnVb8sDyDcGVCBEQ@mail.gmail.com>
- <20130815134031.GC27864@dhcp22.suse.cz>
- <20130815144600.GD27864@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 8FF7F6B0032
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 11:03:27 -0400 (EDT)
+Date: Thu, 15 Aug 2013 10:03:25 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Subject: Re: [PATCH v6 0/5] zram/zsmalloc promotion
+Message-ID: <20130815150325.GA4729@medulla.variantweb.net>
+References: <1376459736-7384-1-git-send-email-minchan@kernel.org>
+ <CAA25o9Q1KVHEzdeXJFe9A8K9MULysq_ShWrUBZM4-h=5vmaQ8w@mail.gmail.com>
+ <20130814161753.GB2706@gmail.com>
+ <CAA_GA1da3jkOO9Y3+L6_DMmiH8wsbJJ-xcUxUK_Gh2SYPPbjoA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130815144600.GD27864@dhcp22.suse.cz>
+In-Reply-To: <CAA_GA1da3jkOO9Y3+L6_DMmiH8wsbJJ-xcUxUK_Gh2SYPPbjoA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Ben Tebulin <tebulin@googlemail.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>
+To: Bob Liu <lliubbo@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, Luigi Semenzato <semenzato@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Mel Gorman <mgorman@suse.de>
 
-On Thu 15-08-13 16:46:00, Michal Hocko wrote:
-> On Thu 15-08-13 15:40:31, Michal Hocko wrote:
-> > On Thu 15-08-13 05:02:31, Linus Torvalds wrote:
-> > > On Thu, Aug 15, 2013 at 2:25 AM, Ben Tebulin <tebulin@googlemail.com> wrote:
-> > > >
-> > > > I just cherry-picked e6c495a96ce0 into 3.9.11 and 3.7.10.
-> > > > Unfortunately this does _not resolve_ my issue (too good to be true) :-(
-> > > 
-> > > Ho humm. I've found at least one other bug, but that one only affects
-> > > hugepages. Do you perhaps have transparent hugepages enabled? But even
-> > > then it looks quite unlikely.
-> > 
-> > __unmap_hugepage_range is hugetlb not THP if you had that one in mind.
-> > And yes, it doesn't set the range which sounds buggy.
+On Thu, Aug 15, 2013 at 08:18:46AM +0800, Bob Liu wrote:
+> On Thu, Aug 15, 2013 at 12:17 AM, Minchan Kim <minchan@kernel.org> wrote:
+> > Hi Luigi,
+> >
+> > On Wed, Aug 14, 2013 at 08:53:31AM -0700, Luigi Semenzato wrote:
+> >> During earlier discussions of zswap there was a plan to make it work
+> >> with zsmalloc as an option instead of zbud. Does zbud work for
+> >
+> > AFAIR, it was not an optoin but zsmalloc was must but there were
+> > several objections because zswap's notable feature is to dump
+> > compressed object to real swap storage. For that, zswap needs to
+> > store bounded objects in a zpage so that dumping could be bounded, too.
+> > Otherwise, it could encounter OOM easily.
+> >
 > 
-> Or, did you mean tlb_remove_page called from zap_huge_pmd? That one
-> should be safe as tlb_remove_pmd_tlb_entry sets need_flush and that
-> means that the full range is flushed.
+> AFAIR, the next step of zswap should be have a modular allocation layer so that
+> users can choose zsmalloc or zbud to use.
+> 
+> Seth?
 
-Dohh... But we need need_flush_all and that is not set here. So this
-really looks buggy.
+Yes, that should be doable without too much effort, at least if you
+disregard writeback.  I believe I wrote the code so that you can make
+the registration of the eviction handler for the allocator NULL, in
+which case, zswap can just fail the store and fall back to swap. That
+reintroduces the inverse LRU issue when the pool is full, but in the
+meantime you potentially get much better effective compression.  Then
+tackle zsmalloc writeback separately.
 
--- 
-Michal Hocko
-SUSE Labs
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
