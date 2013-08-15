@@ -1,107 +1,186 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Date: Thu, 15 Aug 2013 13:48:34 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC 0/3] Pin page control subsystem
-Message-ID: <20130815044834.GB3139@gmail.com>
-References: <1376377502-28207-1-git-send-email-minchan@kernel.org>
- <00000140787b6191-ae3f2eb1-515e-48a1-8e64-502772af4700-000000@email.amazonses.com>
- <20130814001236.GC2271@bbox>
- <000001407dafbe92-7b2b4006-2225-4f0b-b23b-d66101a995aa-000000@email.amazonses.com>
- <20130814164705.GD2706@gmail.com>
- <000001407dc3c33b-4139d615-aecc-4745-a9b4-c84949f6a8f4-000000@email.amazonses.com>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 4163E6B0039
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 01:13:12 -0400 (EDT)
+Received: by mail-ve0-f180.google.com with SMTP id pb11so261590veb.39
+        for <linux-mm@kvack.org>; Wed, 14 Aug 2013 22:13:11 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <000001407dc3c33b-4139d615-aecc-4745-a9b4-c84949f6a8f4-000000@email.amazonses.com>
+In-Reply-To: <20130814134710.ff123b0ea802efa7261d7e26@linux-foundation.org>
+References: <1376476281-26559-1-git-send-email-avagin@openvz.org>
+	<20130814134710.ff123b0ea802efa7261d7e26@linux-foundation.org>
+Date: Thu, 15 Aug 2013 09:13:11 +0400
+Message-ID: <CANaxB-x7-H6yeTJ4=F4bJW=UgvvyUD_200wZG-gz9-3wYSh4hg@mail.gmail.com>
+Subject: Re: [PATCH] kmemcg: don't allocate extra memory for root memcg_cache_params
+From: Andrey Wagin <avagin@gmail.com>
+Content-Type: multipart/alternative; boundary=001a1130cec8c48a5b04e3f5871d
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@gentwo.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, k.kozlowski@samsung.com, Seth Jennings <sjenning@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, guz.fnst@cn.fujitsu.com, Benjamin LaHaise <bcrl@kvack.org>, Dave Hansen <dave.hansen@intel.com>, lliubbo@gmail.com, aquini@redhat.com, Rik van Riel <riel@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Glauber Costa <glommer@openvz.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Hey Christoph,
+--001a1130cec8c48a5b04e3f5871d
+Content-Type: text/plain; charset=ISO-8859-1
 
-On Wed, Aug 14, 2013 at 04:58:36PM +0000, Christoph Lameter wrote:
-> On Thu, 15 Aug 2013, Minchan Kim wrote:
-> 
-> > When I look API of mmu_notifier, it has mm_struct so I guess it works
-> > for only user process. Right?
-> 
-> Correct. A process must have mapped the pages. If you can get a
-> kernel "process" to work then that process could map the pages.
-> 
-> > If so, I need to register it without user conext because zram, zswap
-> > and zcache works for only kernel side.
-> 
-> Hmmm... Ok but that now gets the complexity of page pinnning up to a very
-> weird level. Is there some way we can have a common way to deal with the
-> various ways that pinning is needed? Just off the top of my head (I may
-> miss some use cases) we have
-> 
-> 1. mlock from user space
+2013/8/15 Andrew Morton <akpm@linux-foundation.org>
 
-Now mlock pages could be migrated in case of CMA so I think it's not a
-big problem to migrate it for other cases.
-I remember You and Peter argued what's the mlock semainc of pin POV
-and as I remember correctly, Peter said mlock doesn't mean pin so
-we could migrate it but you didn't agree. Right?
-Anyway, it's off-topic but technically, it's not a problem.
+> On Wed, 14 Aug 2013 14:31:21 +0400 Andrey Vagin <avagin@openvz.org> wrote:
+>
+> > The memcg_cache_params structure contains the common part and the union,
+> > which represents two different types of data: one for root cashes and
+> > another for child caches.
+> >
+> > The size of child data is fixed. The size of the memcg_caches array is
+> > calculated in runtime.
+> >
+> > Currently the size of memcg_cache_params for root caches is calculated
+> > incorrectly, because it includes the size of parameters for child caches.
+> >
+> > ssize_t size = memcg_caches_array_size(num_groups);
+> > size *= sizeof(void *);
+> >
+> > size += sizeof(struct memcg_cache_params);
+> >
+> > ...
+> >
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -3140,7 +3140,7 @@ int memcg_update_cache_size(struct kmem_cache *s,
+> int num_groups)
+> >               ssize_t size = memcg_caches_array_size(num_groups);
+> >
+> >               size *= sizeof(void *);
+> > -             size += sizeof(struct memcg_cache_params);
+> > +             size += sizeof(offsetof(struct memcg_cache_params,
+> memcg_caches));
+>
+> This looks wrong. offsetof() returns size_t, so this is equivalent to
+>
+>                 size += sizeof(size_t);
+>
 
-> 2. page pinning for reclaim
+sizeof doesn't have to be here. I will resend this patch. Thanks.
 
-Reclaiming pin a page for a while. Of course, "for a while" means
-rather vague so it could mean it's really long for someone but really
-short for others. But at least, reclaim pin should be short and
-we should try it if it's not ture.
+size += offsetof(struct memcg_cache_params, memcg_caches)
 
-> 3. Page pinning for I/O from device drivers (like f.e. the RDMA subsystem)
 
-It's one of big concerns for me. Even several drviers might be able to pin
-a page same time. But normally most of drvier can know he will pin a page
-long time or short time so if it want to pin a page long time like aio or
-some GPU driver for zero-coyp, it should use pinpage control subsystem to
-release pin pages when VM ask.
+> >               s->memcg_params = kzalloc(size, GFP_KERNEL);
+> >               if (!s->memcg_params) {
+> > @@ -3183,13 +3183,16 @@ int memcg_update_cache_size(struct kmem_cache
+> *s, int num_groups)
+> >  int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
+> >                        struct kmem_cache *root_cache)
+> >  {
+> > -     size_t size = sizeof(struct memcg_cache_params);
+> > +     size_t size;
+> >
+> >       if (!memcg_kmem_enabled())
+> >               return 0;
+> >
+> > -     if (!memcg)
+> > +     if (!memcg) {
+> > +             size = offsetof(struct memcg_cache_params, memcg_caches);
+> >               size += memcg_limited_groups_array_size * sizeof(void *);
+> > +     } else
+> > +             size = sizeof(struct memcg_cache_params);
+> >
+> >       s->memcg_params = kzalloc(size, GFP_KERNEL);
+> >       if (!s->memcg_params)
+>
+>
 
-> 4. Page pinning for low latency operations
+--001a1130cec8c48a5b04e3f5871d
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-I have no idea but I guess most of them pin a page during short time?
-Otherwise, they should use pinpage control subsystem, too.
+<div dir=3D"ltr"><br><div class=3D"gmail_extra"><br><br><div class=3D"gmail=
+_quote">2013/8/15 Andrew Morton <span dir=3D"ltr">&lt;<a href=3D"mailto:akp=
+m@linux-foundation.org" target=3D"_blank">akpm@linux-foundation.org</a>&gt;=
+</span><br>
+<blockquote class=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8ex;border-=
+left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;p=
+adding-left:1ex"><div class=3D"im">On Wed, 14 Aug 2013 14:31:21 +0400 Andre=
+y Vagin &lt;<a href=3D"mailto:avagin@openvz.org">avagin@openvz.org</a>&gt; =
+wrote:<br>
 
-> 5. Page pinning for migration
+<br>
+&gt; The memcg_cache_params structure contains the common part and the unio=
+n,<br>
+&gt; which represents two different types of data: one for root cashes and<=
+br>
+&gt; another for child caches.<br>
+&gt;<br>
+&gt; The size of child data is fixed. The size of the memcg_caches array is=
+<br>
+&gt; calculated in runtime.<br>
+&gt;<br>
+&gt; Currently the size of memcg_cache_params for root caches is calculated=
+<br>
+&gt; incorrectly, because it includes the size of parameters for child cach=
+es.<br>
+&gt;<br>
+&gt; ssize_t size =3D memcg_caches_array_size(num_groups);<br>
+&gt; size *=3D sizeof(void *);<br>
+&gt;<br>
+&gt; size +=3D sizeof(struct memcg_cache_params);<br>
+&gt;<br>
+</div>&gt; ...<br>
+<div class=3D"im">&gt;<br>
+&gt; --- a/mm/memcontrol.c<br>
+&gt; +++ b/mm/memcontrol.c<br>
+&gt; @@ -3140,7 +3140,7 @@ int memcg_update_cache_size(struct kmem_cache *s=
+, int num_groups)<br>
+&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0 ssize_t size =3D memcg_caches_array_size(n=
+um_groups);<br>
+&gt;<br>
+&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0 size *=3D sizeof(void *);<br>
+&gt; - =A0 =A0 =A0 =A0 =A0 =A0 size +=3D sizeof(struct memcg_cache_params);=
+<br>
+&gt; + =A0 =A0 =A0 =A0 =A0 =A0 size +=3D sizeof(offsetof(struct memcg_cache=
+_params, memcg_caches));<br>
+<br>
+</div>This looks wrong. offsetof() returns size_t, so this is equivalent to=
+<br>
+<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 size +=3D sizeof(size_t);<br></blockquote><=
+div><br></div><div>sizeof doesn&#39;t have to be here. I will resend this p=
+atch. Thanks.</div><div><br></div><div>size +=3D offsetof(struct memcg_cach=
+e_params, memcg_caches)<br>
+</div><div><br></div><blockquote class=3D"gmail_quote" style=3D"margin:0px =
+0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);bord=
+er-left-style:solid;padding-left:1ex">
+<div class=3D""><div class=3D"h5"><br>
+&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0 s-&gt;memcg_params =3D kzalloc(size, GFP_K=
+ERNEL);<br>
+&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!s-&gt;memcg_params) {<br>
+&gt; @@ -3183,13 +3183,16 @@ int memcg_update_cache_size(struct kmem_cache =
+*s, int num_groups)<br>
+&gt; =A0int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cach=
+e *s,<br>
+&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct kmem_cache *root=
+_cache)<br>
+&gt; =A0{<br>
+&gt; - =A0 =A0 size_t size =3D sizeof(struct memcg_cache_params);<br>
+&gt; + =A0 =A0 size_t size;<br>
+&gt;<br>
+&gt; =A0 =A0 =A0 if (!memcg_kmem_enabled())<br>
+&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0 return 0;<br>
+&gt;<br>
+&gt; - =A0 =A0 if (!memcg)<br>
+&gt; + =A0 =A0 if (!memcg) {<br>
+&gt; + =A0 =A0 =A0 =A0 =A0 =A0 size =3D offsetof(struct memcg_cache_params,=
+ memcg_caches);<br>
+&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0 size +=3D memcg_limited_groups_array_size =
+* sizeof(void *);<br>
+&gt; + =A0 =A0 } else<br>
+&gt; + =A0 =A0 =A0 =A0 =A0 =A0 size =3D sizeof(struct memcg_cache_params);<=
+br>
+&gt;<br>
+&gt; =A0 =A0 =A0 s-&gt;memcg_params =3D kzalloc(size, GFP_KERNEL);<br>
+&gt; =A0 =A0 =A0 if (!s-&gt;memcg_params)<br>
+<br>
+</div></div></blockquote></div><br></div></div>
 
-It's like 2. migration pin should be short.
-
-> 6. Page pinning for the perf buffers.
-
-I'm not familiar with that but my gut feeling is it will pin pages
-for a long time so it should use pinpage control subsystem.
-
-> 7. Page pinning for cross system access (XPMEM, GRU SGI)
-
-If it's really long pin, it should use pinpage control subsystem.
-
-> 
-> Now we have another subsystem wanting different semantics of pinning. Is
-> there any way we can come up with a pinning mechanism that fits all use
-> cases, that is easyly understandable and maintainable?
-
-I agree it's not easy but we should go that way rather than adding ad-hoc
-subsystem specific implementaion. If we allow subsystem specific way,
-maybe, everybody want to touch migrate.c so it would be very complicated
-and bloated, even not maintainable in future. If it goes another way
-like a_ops->migratepages, it couldn't handle complex nesting pin pages
-case so it couldn't gaurantee pinpage migraions.
-
-Most hard part is what is "for a while". It depends on system workloads
-so some system means it is 3ms while other system means it is 3s. :(
-Sigh, now I have no idea how can handle it with general.
-
-Thanks for the comment, Christoph!
-
-> 
-
--- 
-Kind regards,
-Minchan Kim
+--001a1130cec8c48a5b04e3f5871d--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
