@@ -1,84 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 2F1476B0071
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 16:29:01 -0400 (EDT)
-Received: by mail-oa0-f50.google.com with SMTP id i4so1389561oah.23
-        for <linux-mm@kvack.org>; Thu, 15 Aug 2013 13:29:00 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1376593564.10300.446.camel@misato.fc.hp.com>
-References: <1375956979-31877-1-git-send-email-tangchen@cn.fujitsu.com>
-	<20130812145016.GI15892@htj.dyndns.org>
-	<5208FBBC.2080304@zytor.com>
-	<20130812152343.GK15892@htj.dyndns.org>
-	<52090D7F.6060600@gmail.com>
-	<20130812164650.GN15892@htj.dyndns.org>
-	<5209CEC1.8070908@cn.fujitsu.com>
-	<520A02DE.1010908@cn.fujitsu.com>
-	<CAE9FiQV2-OOvHZtPYSYNZz+DfhvL0e+h2HjMSW3DyqeXXvdJkA@mail.gmail.com>
-	<520ADBBA.10501@cn.fujitsu.com>
-	<1376593564.10300.446.camel@misato.fc.hp.com>
-Date: Thu, 15 Aug 2013 13:28:59 -0700
-Message-ID: <CAE9FiQVeMHAqZETP3d1PsPMk9-ZOXD=BD5HaTGFFO3dZenR0CA@mail.gmail.com>
-Subject: Re: [PATCH part5 0/7] Arrange hotpluggable memory as ZONE_MOVABLE.
-From: Yinghai Lu <yinghai@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 731256B0074
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 16:43:50 -0400 (EDT)
+Date: Thu, 15 Aug 2013 13:43:48 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] memblock, numa: Binary search node id
+Message-Id: <20130815134348.bb119a7987af0bb64ed77b7b@linux-foundation.org>
+In-Reply-To: <1376545589-32129-1-git-send-email-yinghai@kernel.org>
+References: <1376545589-32129-1-git-send-email-yinghai@kernel.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, Tejun Heo <tj@kernel.org>, Tang Chen <imtangchen@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Bob Moore <robert.moore@intel.com>, Lv Zheng <lv.zheng@intel.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Renninger <trenn@suse.de>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, Prarit Bhargava <prarit@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "yanghy@cn.fujitsu.com" <yanghy@cn.fujitsu.com>, the arch/x86 maintainers <x86@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, "Luck, Tony (tony.luck@intel.com)" <tony.luck@intel.com>
+To: Yinghai Lu <yinghai@kernel.org>
+Cc: Tejun Heo <tj@kernel.org>, Russ Anderson <rja@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Aug 15, 2013 at 12:06 PM, Toshi Kani <toshi.kani@hp.com> wrote:
-> On Wed, 2013-08-14 at 09:22 +0800, Tang Chen wrote:
->> On 08/14/2013 06:33 AM, Yinghai Lu wrote:
->> ......
->> >
->> >>     relocate_initrd()
->> >
->> > size could be very big, like several hundreds mega bytes.
->> > should be anywhere, but will be freed after booting.
->> >
->> > ===>  so we should not limit it to near kernel range.
->> >
->> >>     acpi_initrd_override()
->> >
->> > should be 64 * 10 about 1M.
->> >
->> >>     reserve_crashkernel()
->> >
->> > could be under 4G, or above 4G.
->> > size could be 512M or 8G whatever.
->> >
->> > looks like
->> > should move down relocated_initrd and reserve_crashkernel.
->>
->> OK, will try to do this.
->>
->> Thank you for the explanation. :)
->
-> So, we still need reordering, and put a new requirement that all earlier
-> allocations must be small...
->
-> I think the root of this issue is that ACPI init point is not early
-> enough in the boot sequence.  If it were much earlier already, the whole
-> thing would have been very simple.  We are now trying to workaround this
-> issue in the mblock code (which itself is a fine idea), but this ACPI
-> issue still remains and similar issues may come up again in future.
->
-> For instance, ACPI SCPR/DBGP/DBG2 tables allow the OS to initialize
-> serial console/debug ports at early boot time.  The earlier it can be
-> initialized, the better this feature will be.  These tables are not
-> currently used by Linux due to a licensing issue, but it could be
-> addressed some time soon.  As platforms becoming more complex & legacy
-> free, the needs of ACPI tables will increase.
->
-> I think moving up the ACPI init point earlier is a good direction.
+On Wed, 14 Aug 2013 22:46:29 -0700 Yinghai Lu <yinghai@kernel.org> wrote:
 
-Good point.
+> Current early_pfn_to_nid() on arch that support memblock go
+> over memblock.memory one by one, so will take too many try
+> near the end.
+> 
+> We can use existing memblock_search to find the node id for
+> given pfn, that could save some time on bigger system that
+> have many entries memblock.memory array.
 
-If we put acpi_initrd_override in BRK, and can more acpi_boot_table_init()
-much early.
+Looks nice.  I wonder how much difference it makes.
+ 
+> ...
+>
+> --- linux-2.6.orig/include/linux/memblock.h
+> +++ linux-2.6/include/linux/memblock.h
+> @@ -60,6 +60,8 @@ int memblock_reserve(phys_addr_t base, p
+>  void memblock_trim_memory(phys_addr_t align);
+>  
+>  #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+> +int memblock_search_pfn_nid(unsigned long pfn, unsigned long *start_pfn,
+> +			    unsigned long  *end_pfn);
+>  void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
+>  			  unsigned long *out_end_pfn, int *out_nid);
+>  
+> Index: linux-2.6/mm/memblock.c
+> ===================================================================
+> --- linux-2.6.orig/mm/memblock.c
+> +++ linux-2.6/mm/memblock.c
+> @@ -914,6 +914,24 @@ int __init_memblock memblock_is_memory(p
+>  	return memblock_search(&memblock.memory, addr) != -1;
+>  }
+>  
+> +#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+> +int __init_memblock memblock_search_pfn_nid(unsigned long pfn,
+> +			 unsigned long *start_pfn, unsigned long *end_pfn)
+> +{
+> +	struct memblock_type *type = &memblock.memory;
+> +	int mid = memblock_search(type, (phys_addr_t)pfn << PAGE_SHIFT);
+> +
+> +	if (mid == -1)
+> +		return -1;
+> +
+> +	*start_pfn = type->regions[mid].base >> PAGE_SHIFT;
+> +	*end_pfn = (type->regions[mid].base + type->regions[mid].size)
+> +			>> PAGE_SHIFT;
+> +
+> +	return type->regions[mid].nid;
+> +}
+> +#endif
 
-Yinghai
+This function will have no callers if
+CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID=y.  That's not too bad as the
+function is __init_memblock.  But this depends on
+CONFIG_ARCH_DISCARD_MEMBLOCK.  Messy :(
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
