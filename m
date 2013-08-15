@@ -1,33 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id B78376B0032
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 05:01:06 -0400 (EDT)
-From: Gergely Risko <gergely@risko.hu>
-Subject: Re: [PATCH] mm: memcontrol: fix handling of swapaccount parameter
-References: <1376486495-21457-1-git-send-email-gergely@risko.hu>
-	<20130814183604.GE24033@dhcp22.suse.cz>
-	<20130814184956.GF24033@dhcp22.suse.cz>
-	<87ioz855o0.fsf@gergely.risko.hu>
-	<20130815074714.GA27864@dhcp22.suse.cz>
-Date: Thu, 15 Aug 2013 11:01:01 +0200
-In-Reply-To: <20130815074714.GA27864@dhcp22.suse.cz> (Michal Hocko's message
-	of "Thu, 15 Aug 2013 09:47:14 +0200")
-Message-ID: <87eh9v5nw2.fsf@gergely.risko.hu>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 696736B0032
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 05:25:17 -0400 (EDT)
+Received: by mail-wg0-f46.google.com with SMTP id k13so366788wgh.25
+        for <linux-mm@kvack.org>; Thu, 15 Aug 2013 02:25:15 -0700 (PDT)
+Message-ID: <520C9E78.2020401@gmail.com>
+Date: Thu, 15 Aug 2013 11:25:12 +0200
+From: Ben Tebulin <tebulin@googlemail.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: Re: [Bug] Reproducible data corruption on i5-3340M: Please revert
+ 53a59fc67!
+References: <52050382.9060802@gmail.com> <520BB225.8030807@gmail.com> <20130814174039.GA24033@dhcp22.suse.cz> <CA+55aFwAz7GdcB6nC0Th42y8eAM591sKO1=mYh5SWgyuDdHzcA@mail.gmail.com> <20130814182756.GD24033@dhcp22.suse.cz> <CA+55aFxB6Wyj3G3Ju8E7bjH-706vi3vysuATUZ13h1tdYbCbnQ@mail.gmail.com>
+In-Reply-To: <CA+55aFxB6Wyj3G3Ju8E7bjH-706vi3vysuATUZ13h1tdYbCbnQ@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, Andrew Morton <akpm@linux-foundation.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>
+Cc: Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>
 
-On Thu, 15 Aug 2013 09:47:14 +0200, Michal Hocko <mhocko@suse.cz> writes:
+Am 14.08.2013 20:35, schrieb Linus Torvalds:
+> Yes, the bug was originally introduced in 597e1c35, but in practice it
+> never happened, [...]
+> 
+> NOTE! I still absolutely want Ben to actually test that fix (ie
+> backport commit e6c495a96ce0 to his tree), because without testing
+> this is all just theoretical, and there might be other things hiding
+> here.[..]
 
-> Ohh, I have totally missed those left-overs. I would rather fix the doc
-> than reintroduce the handling without any value.
-
-Okay, fine with me, thanks for fixing these left-overs!
-
-Gergely
+I just cherry-picked e6c495a96ce0 into 3.9.11 and 3.7.10.
+Unfortunately this does _not resolve_ my issue (too good to be true) :-(
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
