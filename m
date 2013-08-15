@@ -1,65 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 618FD6B0071
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 03:47:16 -0400 (EDT)
-Date: Thu, 15 Aug 2013 09:47:14 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm: memcontrol: fix handling of swapaccount parameter
-Message-ID: <20130815074714.GA27864@dhcp22.suse.cz>
-References: <1376486495-21457-1-git-send-email-gergely@risko.hu>
- <20130814183604.GE24033@dhcp22.suse.cz>
- <20130814184956.GF24033@dhcp22.suse.cz>
- <87ioz855o0.fsf@gergely.risko.hu>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id BA1BA6B0039
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 04:43:59 -0400 (EDT)
+Message-ID: <520C947B.40407@cn.fujitsu.com>
+Date: Thu, 15 Aug 2013 16:42:35 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87ioz855o0.fsf@gergely.risko.hu>
+Subject: Re: [PATCH part5 0/7] Arrange hotpluggable memory as ZONE_MOVABLE.
+References: <1375956979-31877-1-git-send-email-tangchen@cn.fujitsu.com> <20130812145016.GI15892@htj.dyndns.org> <5208FBBC.2080304@zytor.com> <20130812152343.GK15892@htj.dyndns.org> <52090D7F.6060600@gmail.com> <20130812164650.GN15892@htj.dyndns.org> <5209CEC1.8070908@cn.fujitsu.com> <520A02DE.1010908@cn.fujitsu.com> <CAE9FiQV2-OOvHZtPYSYNZz+DfhvL0e+h2HjMSW3DyqeXXvdJkA@mail.gmail.com>
+In-Reply-To: <CAE9FiQV2-OOvHZtPYSYNZz+DfhvL0e+h2HjMSW3DyqeXXvdJkA@mail.gmail.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gergely Risko <gergely@risko.hu>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, Andrew Morton <akpm@linux-foundation.org>
+To: Yinghai Lu <yinghai@kernel.org>
+Cc: Tejun Heo <tj@kernel.org>, Tang Chen <imtangchen@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Bob Moore <robert.moore@intel.com>, Lv Zheng <lv.zheng@intel.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Renninger <trenn@suse.de>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, Prarit Bhargava <prarit@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "yanghy@cn.fujitsu.com" <yanghy@cn.fujitsu.com>, the arch/x86 maintainers <x86@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, "Luck, Tony (tony.luck@intel.com)" <tony.luck@intel.com>
 
-[Let's CC Andrew]
+On 08/14/2013 06:33 AM, Yinghai Lu wrote:
+......
+>
+>>     init_mem_mapping()
+>
+> Now we top and down, so initial page tables in in BRK, other page tables
+> is near the top!
 
-On Wed 14-08-13 23:22:23, Gergely Risko wrote:
-> On Wed, 14 Aug 2013 20:49:56 +0200, Michal Hocko <mhocko@suse.cz> writes:
-> 
-> > On Wed 14-08-13 20:36:04, Michal Hocko wrote:
-> >> On Wed 14-08-13 15:21:35, Gergely Risko wrote:
-> >> > Fixed swap accounting option parsing to enable if called without argument.
-> >> 
-> >> We used to have [no]swapaccount but that one has been removed by a2c8990a
-> >> (memsw: remove noswapaccount kernel parameter) so I do not think that
-> >> swapaccount without any given value makes much sense these days.
-> >
-> > Now that I am reading your changelog again it says this is a fix. Have
-> > you experienced any troubles because of the parameter semantic change?
-> 
-> Yeah, I experienced trouble, I was new to all of this containers +
-> cgroups + namespaces thingies and while trying out stuff it was totally
-> impossible for me to enable swap accounting and I didn't understand why.
-> 
-> In Debian swap accounting is off by default, even when you
-> cgroup_enable=memory.  So you have to explicitly enable swapaccounting.
-> 
-> I've found the following documentation snippets all pointing to enable
-> swap accounting by just simply adding "swapaccount" to the kernel
-> command line.  They all state that "swapaccount" is enough, no need for
-> "swapaccount=1" (actually some of them don't even mention =1 at all):
->   - make menuconfig documentation for swap accounting,
->   - /usr/share/doc/lxc/README.Debian from the lxc package,
+Hi yinghai, tj,
 
-I've submitted a report with patch
-(http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=719774)
+About the page table, the current logic is to use BRK to map the highest 
+range
+of memory. And then, use the mapped range to map the rest ranges, downwards.
 
->   - Documentation/kernel-parameters.txt:
-> 	swapaccount[=0|1]
-> 			[KNL] Enable accounting of swap in memory resource
-> 			controller if no parameter or 1 is given or disable
-> 			it if 0 is given (See Documentation/cgroups/memory.txt),
->   - the comment in the source code just above the line ("consider enabled
->     if no parameter or 1 is given").
+In alloc_low_pages():
+   57                 ret = memblock_find_in_range(min_pfn_mapped << 
+PAGE_SHIFT,
+   58                                         max_pfn_mapped << PAGE_SHIFT,
+   59                                         PAGE_SIZE * num , PAGE_SIZE);
+			......
+   63                 pfn = ret >> PAGE_SHIFT;
+			......
+   78         return __va(pfn << PAGE_SHIFT);
 
-Ohh, I have totally missed those left-overs. I would rather fix the doc
-than reintroduce the handling without any value.
----
+So if we want to allocate page tables near the kernelimage, we have to do
+the following:
+
+1. Use BRK to map a range near kernel image, let's call it range X.
+2. Calculate how much memory needed to map all the memory, let's say Y 
+Bytes.
+    Use range X to map at least Y Bytes memory near kernel image.
+3. Use the mapped memory to map all the rest memory.
+
+Does this sound OK to you guys ?
+
+Thanks.
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
