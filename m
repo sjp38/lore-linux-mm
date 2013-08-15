@@ -1,111 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 508C06B004D
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 01:46:28 -0400 (EDT)
-From: Yinghai Lu <yinghai@kernel.org>
-Subject: [PATCH] memblock, numa: Binary search node id
-Date: Wed, 14 Aug 2013 22:46:29 -0700
-Message-Id: <1376545589-32129-1-git-send-email-yinghai@kernel.org>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id C93D66B0062
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 01:52:22 -0400 (EDT)
+From: Andrey Vagin <avagin@openvz.org>
+Subject: [PATCH] kmemcg: don't allocate extra memory for root memcg_cache_params (v2)
+Date: Thu, 15 Aug 2013 09:49:00 +0400
+Message-Id: <1376545740-14297-1-git-send-email-avagin@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>
-Cc: Russ Anderson <rja@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yinghai Lu <yinghai@kernel.org>
+To: linux-mm@kvack.org
+Cc: cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Andrey Vagin <avagin@openvz.org>, Glauber Costa <glommer@openvz.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
 
-Current early_pfn_to_nid() on arch that support memblock go
-over memblock.memory one by one, so will take too many try
-near the end.
+The memcg_cache_params structure contains the common part and the union,
+which represents two different types of data: one for root cashes and
+another for child caches.
 
-We can use existing memblock_search to find the node id for
-given pfn, that could save some time on bigger system that
-have many entries memblock.memory array.
+The size of child data is fixed. The size of the memcg_caches array is
+calculated in runtime.
 
-Signed-off-by: Yinghai Lu <yinghai@kernel.org>
+Currently the size of memcg_cache_params for root caches is calculated
+incorrectly, because it includes the size of parameters for child caches.
 
+ssize_t size = memcg_caches_array_size(num_groups);
+size *= sizeof(void *);
+
+size += sizeof(struct memcg_cache_params);
+
+v2: Fix a typo in calculations
+
+Cc: Glauber Costa <glommer@openvz.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Balbir Singh <bsingharora@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Andrey Vagin <avagin@openvz.org>
 ---
- include/linux/memblock.h |    2 ++
- mm/memblock.c            |   18 ++++++++++++++++++
- mm/page_alloc.c          |   19 +++++++++----------
- 3 files changed, 29 insertions(+), 10 deletions(-)
+ mm/memcontrol.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
 
-Index: linux-2.6/include/linux/memblock.h
-===================================================================
---- linux-2.6.orig/include/linux/memblock.h
-+++ linux-2.6/include/linux/memblock.h
-@@ -60,6 +60,8 @@ int memblock_reserve(phys_addr_t base, p
- void memblock_trim_memory(phys_addr_t align);
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index c5792a5..2e47fea 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3140,7 +3140,7 @@ int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
+ 		ssize_t size = memcg_caches_array_size(num_groups);
  
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-+int memblock_search_pfn_nid(unsigned long pfn, unsigned long *start_pfn,
-+			    unsigned long  *end_pfn);
- void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
- 			  unsigned long *out_end_pfn, int *out_nid);
+ 		size *= sizeof(void *);
+-		size += sizeof(struct memcg_cache_params);
++		size += offsetof(struct memcg_cache_params, memcg_caches);
  
-Index: linux-2.6/mm/memblock.c
-===================================================================
---- linux-2.6.orig/mm/memblock.c
-+++ linux-2.6/mm/memblock.c
-@@ -914,6 +914,24 @@ int __init_memblock memblock_is_memory(p
- 	return memblock_search(&memblock.memory, addr) != -1;
- }
- 
-+#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-+int __init_memblock memblock_search_pfn_nid(unsigned long pfn,
-+			 unsigned long *start_pfn, unsigned long *end_pfn)
-+{
-+	struct memblock_type *type = &memblock.memory;
-+	int mid = memblock_search(type, (phys_addr_t)pfn << PAGE_SHIFT);
-+
-+	if (mid == -1)
-+		return -1;
-+
-+	*start_pfn = type->regions[mid].base >> PAGE_SHIFT;
-+	*end_pfn = (type->regions[mid].base + type->regions[mid].size)
-+			>> PAGE_SHIFT;
-+
-+	return type->regions[mid].nid;
-+}
-+#endif
-+
- /**
-  * memblock_is_region_memory - check if a region is a subset of memory
-  * @base: base of region to check
-Index: linux-2.6/mm/page_alloc.c
-===================================================================
---- linux-2.6.orig/mm/page_alloc.c
-+++ linux-2.6/mm/page_alloc.c
-@@ -4186,7 +4186,7 @@ int __meminit init_currently_empty_zone(
- int __meminit __early_pfn_to_nid(unsigned long pfn)
+ 		s->memcg_params = kzalloc(size, GFP_KERNEL);
+ 		if (!s->memcg_params) {
+@@ -3183,13 +3183,16 @@ int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
+ int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
+ 			 struct kmem_cache *root_cache)
  {
- 	unsigned long start_pfn, end_pfn;
--	int i, nid;
-+	int nid;
- 	/*
- 	 * NOTE: The following SMP-unsafe globals are only used early in boot
- 	 * when the kernel is running single-threaded.
-@@ -4197,15 +4197,14 @@ int __meminit __early_pfn_to_nid(unsigne
- 	if (last_start_pfn <= pfn && pfn < last_end_pfn)
- 		return last_nid;
+-	size_t size = sizeof(struct memcg_cache_params);
++	size_t size;
  
--	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid)
--		if (start_pfn <= pfn && pfn < end_pfn) {
--			last_start_pfn = start_pfn;
--			last_end_pfn = end_pfn;
--			last_nid = nid;
--			return nid;
--		}
--	/* This is a memory hole */
--	return -1;
-+	nid = memblock_search_pfn_nid(pfn, &start_pfn, &end_pfn);
-+	if (nid != -1) {
-+		last_start_pfn = start_pfn;
-+		last_end_pfn = end_pfn;
-+		last_nid = nid;
-+	}
-+
-+	return nid;
- }
- #endif /* CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID */
+ 	if (!memcg_kmem_enabled())
+ 		return 0;
  
+-	if (!memcg)
++	if (!memcg) {
++		size = offsetof(struct memcg_cache_params, memcg_caches);
+ 		size += memcg_limited_groups_array_size * sizeof(void *);
++	} else
++		size = sizeof(struct memcg_cache_params);
+ 
+ 	s->memcg_params = kzalloc(size, GFP_KERNEL);
+ 	if (!s->memcg_params)
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
