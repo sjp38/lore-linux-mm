@@ -1,44 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id D2D9A6B0032
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 19:47:04 -0400 (EDT)
-Message-ID: <1376523946.10300.404.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v2] mm/hotplug: Verify hotplug memory range
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Wed, 14 Aug 2013 17:45:46 -0600
-In-Reply-To: <20130814164508.e62614c436df5eabfd504c8c@linux-foundation.org>
-References: <1376162252-26074-1-git-send-email-toshi.kani@hp.com>
-	 <20130814150901.cd430738912a893d74769e1b@linux-foundation.org>
-	 <1376523242.10300.403.camel@misato.fc.hp.com>
-	 <20130814164508.e62614c436df5eabfd504c8c@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 210336B0032
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2013 19:50:45 -0400 (EDT)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [RFC][PATCH] drivers: base: dynamic memory block creation
+Date: Thu, 15 Aug 2013 02:01:09 +0200
+Message-ID: <5959614.447qgH8r7c@vostro.rjw.lan>
+In-Reply-To: <1376508705-3188-1-git-send-email-sjenning@linux.vnet.ibm.com>
+References: <1376508705-3188-1-git-send-email-sjenning@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, dave@sr71.net, isimatu.yasuaki@jp.fujitsu.com, tangchen@cn.fujitsu.com, vasilis.liaskovitis@profitbricks.com
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dave Hansen <dave@sr71.net>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Lai Jiangshan <laijs@cn.fujitsu.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 2013-08-14 at 16:45 -0700, Andrew Morton wrote:
-> On Wed, 14 Aug 2013 17:34:02 -0600 Toshi Kani <toshi.kani@hp.com> wrote:
+On Wednesday, August 14, 2013 02:31:45 PM Seth Jennings wrote:
+> Large memory systems (~1TB or more) experience boot delays on the order
+> of minutes due to the initializing the memory configuration part of
+> sysfs at /sys/devices/system/memory/.
 > 
-> > > Printing a u64 is problematic.  Here you assume that u64 is implemented
-> > > as unsigned long long.  But it can be implemented as unsigned long, by
-> > > architectures which use include/asm-generic/int-l64.h.  Such an
-> > > architecture will generate a compile warning here, but I can't
-> > > immediately find a Kconfig combination which will make that happen.
-> > 
-> > Oh, I see.  Should I add the casting below and resend it to you?
-> > 
-> >                 (unsigned long long)start, (unsigned long long)size);
+> ppc64 has a normal memory block size of 256M (however sometimes as low
+> as 16M depending on the system LMB size), and (I think) x86 is 128M.  With
+> 1TB of RAM and a 256M block size, that's 4k memory blocks with 20 sysfs
+> entries per block that's around 80k items that need be created at boot
+> time in sysfs.  Some systems go up to 16TB where the issue is even more
+> severe.
 > 
-> I was going to leave it as-is and see if anyone else can find a way of
-> triggering the warning.  But other sites in mm/memory_hotplug.c have
-> the casts so I went ahead and fixed it.
+> This patch provides a means by which users can prevent the creation of
+> the memory block attributes at boot time, yet still dynamically create
+> them if they are needed.
+> 
+> This patch creates a new boot parameter, "largememory" that will prevent
+> memory_dev_init() from creating all of the memory block sysfs attributes
+> at boot time.  Instead, a new root attribute "show" will allow
+> the dynamic creation of the memory block devices.
+> Another new root attribute "present" shows the memory blocks present in
+> the system; the valid inputs for the "show" attribute.
 
-Thanks!
--Toshi
+I wonder how this is going to work with the ACPI device object binding to
+memory blocks that's in 3.11-rc.
 
+That stuff will only work if the memory blocks are already there when
+acpi_memory_enable_device() runs and that is called from the ACPI namespace
+scanning code executed (1) during boot and (2) during hotplug.  So I don't
+think you can just create them on the fly at run time as a result of a
+sysfs write.
+
+Thanks,
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
