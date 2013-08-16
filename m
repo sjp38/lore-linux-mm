@@ -1,90 +1,207 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id BE85C6B0034
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2013 00:21:55 -0400 (EDT)
-Received: by mail-ob0-f180.google.com with SMTP id up14so246906obb.11
-        for <linux-mm@kvack.org>; Thu, 15 Aug 2013 21:21:54 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 3432A6B0032
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2013 00:26:53 -0400 (EDT)
+Received: by mail-ie0-f179.google.com with SMTP id c11so2824075ieb.10
+        for <linux-mm@kvack.org>; Thu, 15 Aug 2013 21:26:52 -0700 (PDT)
+Date: Fri, 16 Aug 2013 13:26:41 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v6 0/5] zram/zsmalloc promotion
+Message-ID: <20130816042641.GA2893@gmail.com>
+References: <1376459736-7384-1-git-send-email-minchan@kernel.org>
+ <20130814174050.GN2296@suse.de>
+ <20130814185820.GA2753@gmail.com>
+ <20130815171250.GA2296@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <520D89A7.7060802@cn.fujitsu.com>
-References: <1375956979-31877-1-git-send-email-tangchen@cn.fujitsu.com>
-	<20130812145016.GI15892@htj.dyndns.org>
-	<5208FBBC.2080304@zytor.com>
-	<20130812152343.GK15892@htj.dyndns.org>
-	<52090D7F.6060600@gmail.com>
-	<20130812164650.GN15892@htj.dyndns.org>
-	<5209CEC1.8070908@cn.fujitsu.com>
-	<520A02DE.1010908@cn.fujitsu.com>
-	<CAE9FiQV2-OOvHZtPYSYNZz+DfhvL0e+h2HjMSW3DyqeXXvdJkA@mail.gmail.com>
-	<520ADBBA.10501@cn.fujitsu.com>
-	<1376593564.10300.446.camel@misato.fc.hp.com>
-	<CAE9FiQVeMHAqZETP3d1PsPMk9-ZOXD=BD5HaTGFFO3dZenR0CA@mail.gmail.com>
-	<520D89A7.7060802@cn.fujitsu.com>
-Date: Thu, 15 Aug 2013 21:21:54 -0700
-Message-ID: <CAE9FiQX0cxa4+2vtFpuCbH+Tb2YsMZTRRUwynbf_ogF8LN6Smg@mail.gmail.com>
-Subject: Re: [PATCH part5 0/7] Arrange hotpluggable memory as ZONE_MOVABLE.
-From: Yinghai Lu <yinghai@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130815171250.GA2296@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>, "H. Peter Anvin" <hpa@zytor.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: Toshi Kani <toshi.kani@hp.com>, Tejun Heo <tj@kernel.org>, Tang Chen <imtangchen@gmail.com>, Bob Moore <robert.moore@intel.com>, Lv Zheng <lv.zheng@intel.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Renninger <trenn@suse.de>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, Prarit Bhargava <prarit@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "yanghy@cn.fujitsu.com" <yanghy@cn.fujitsu.com>, the arch/x86 maintainers <x86@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, "Luck, Tony (tony.luck@intel.com)" <tony.luck@intel.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Luigi Semenzato <semenzato@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On Thu, Aug 15, 2013 at 7:08 PM, Tang Chen <tangchen@cn.fujitsu.com> wrote:
-> On 08/16/2013 04:28 AM, Yinghai Lu wrote:
-> ......
->>>
->>>
->>> So, we still need reordering, and put a new requirement that all earlier
->>> allocations must be small...
->>>
->>> I think the root of this issue is that ACPI init point is not early
->>> enough in the boot sequence.  If it were much earlier already, the whole
->>> thing would have been very simple.  We are now trying to workaround this
->>> issue in the mblock code (which itself is a fine idea), but this ACPI
->>> issue still remains and similar issues may come up again in future.
->>>
->>> For instance, ACPI SCPR/DBGP/DBG2 tables allow the OS to initialize
->>> serial console/debug ports at early boot time.  The earlier it can be
->>> initialized, the better this feature will be.  These tables are not
->>> currently used by Linux due to a licensing issue, but it could be
->>> addressed some time soon.  As platforms becoming more complex&  legacy
->>>
->>> free, the needs of ACPI tables will increase.
->>>
->>> I think moving up the ACPI init point earlier is a good direction.
->>
->>
->> Good point.
->>
->> If we put acpi_initrd_override in BRK, and can more acpi_boot_table_init()
->> much early.
-...
->
-> Parsing SRAT earlier is what I want to do in the very beginning indeed. And
-> now, seems that moving the whole acpi table installation and overriding
-> earlier
-> will bring us much more benefits. I have tried this without moving up
-> acpi_initrd_override in my part1 patch-set. But not in the way Yinghai
-> mentioned
-> above.
-...
->
-> By "put acpi_initrd_override in BRK", do you mean increase the BRK by
-> default ?
+Hi Mel,
 
-Peter,
+On Thu, Aug 15, 2013 at 06:12:50PM +0100, Mel Gorman wrote:
+> On Thu, Aug 15, 2013 at 03:58:20AM +0900, Minchan Kim wrote:
+> > > <SNIP>
+> > >
+> > > I do not believe this is a problem for zram as such because I do not
+> > > think it ever writes back to disk and is immune from the unpredictable
+> > > performance characteristics problem. The problem for zram using zsmalloc
+> > > is OOM killing. If it's used for swap then there is no guarantee that
+> > > killing processes frees memory and that could result in an OOM storm.
+> > > Of course there is no guarantee that memory is freed with zbud either but
+> > > you are guaranteed that freeing 50%+1 of the compressed pages will free a
+> > > single physical page. The characteristics for zsmalloc are much more severe.
+> > > This might be managable in an applicance with very careful control of the
+> > > applications that are running but not for general servers or desktops.
+> > 
+> > Fair enough but let's think of current usecase for zram.
+> > As I said in description, most of user for zram are embedded products.
+> > So, most of them has no swap storage and hate OOM kill because OOM is
+> > already very very slow path so system slow response is really thing
+> > we want to avoid. We prefer early process kill to slow response.
+> > That's why custom low memory killer/notifier is popular in embedded side.
+> > so actually, OOM storm problem shouldn't be a big problem under
+> > well-control limited system. 
+> > 
+> 
+> Which zswap could also do if
+> 
+> a) it had a pseudo block device that failed all writes
+> b) zsmalloc was pluggable
+> 
+> I recognise this sucks because zram is already in the field but if zram
+> is promoted then zram and zswap will continue to diverge further with no
+> reconcilation in sight.
+> 
+> Part of the point of using zswap was that potentially zcache could be
+> implemented on top of it and so all file cache could be stored compressed
+> in memory. AFAIK, it's not possible to do the same thing for zram because
+> of the lack of writeback capabilities. Maybe it could be done if zram
+> could be configured to write to an underlying storage device but it may
+> be very clumsy to configure. I don't know as I never investigated it and
+> to be honest, I'm struggling to remember how I got involved anywhere near
+> zswap/zcache/zram/zwtf in the first place.
+> 
+> > > If it's used for something like tmpfs then it becomes much worse. Normal
+> > > tmpfs without swap can lockup if tmpfs is allowed to fill memory. In a
+> > > sane configuration, lockups will be avoided and deleting a tmpfs file is
+> > > guaranteed to free memory. When zram is used to back tmpfs, there is no
+> > > guarantee that any memory is freed due to fragmentation of the compressed
+> > > pages. The only way to recover the memory may be to kill applications
+> > > holding tmpfs files open and then delete them which is fairly drastic
+> > > action in a normal server environment.
+> > 
+> > Indeed.
+> > Actually, I had a plan to support zsmalloc compaction. The zsmalloc exposes
+> > handle instead of pure pointer so it could migrate some zpages to somewhere
+> > to pack in. Then, it could help above problem and OOM storm problem.
+> > Anyway, it's a totally new feature and requires many changes and experiement.
+> > Although we don't have such feature, zram is still good for many people.
+> > 
+> 
+> And is zsmalloc was pluggable for zswap then it would also benefit.
 
-Do you agree on extending BRK 256k to put copied override acpi tables?
+But zswap isn't pseudo block device so it couldn't be used for block device.
+Let say one usecase for using zram-blk.
 
-then we can find and copy them early in
-arch/x86/kernel/head64.c::x86_64_start_kernel() or
-arch/x86/kernel/head_32.S.
+1) Many embedded system don't have swap so although tmpfs can support swapout
+it's pointless still so such systems should have sane configuration to limit
+memory space so it's not only zram problem.
 
-with that we can move acpi_table init as early as possible in setup_arch().
+2) Many embedded system don't have enough memory. Let's assume short-lived
+file growing up until half of system memory once in a while. We don't want
+to write it on flash by wear-leveing issue and very slowness so we want to use
+in-memory but if we uses tmpfs, it should evict half of working set to cover
+them when the size reach peak. zram would be better choice.
 
-Thanks
+> 
+> > > These are the sort of reason why I feel that zram has limited cases where
+> > > it is safe to use and zswap has a wider range of applications. At least
+> > > I would be very unhappy to try supporting zram in the field for normal
+> > > servers. zswap should be able to replace the functionality of zram+swap
+> > > by backing zswap with a pseudo block device that rejects all writes. I
+> > 
+> > One of difference between zswap and zram is asynchronous I/O support.
+> 
+> As zram is not writing to disk, how compelling is asynchronous IO? If
+> zswap was backed by the pseudo device is there a measurable bottleneck?
 
-Yinghai
+Compression. It was really bottlneck point. I had an internal patch which
+can make zram use various compressor, not only LZO.
+The better good compressor was, the more bottlenck compressor was.
+
+> 
+> > I guess frontswap is synchronous by semantic while zram could support
+> > asynchronous I/O.
+> > 
+> > > do not know why this never happened but guess the zswap people never were
+> > > interested and the zram people never tried. Why was the pseudo device
+> > > to avoid writebacks never implemented? Why was the underlying allocator
+> > > not made pluggable to optionally use zsmalloc when the user did not care
+> > > that it had terrible writeback characteristics?
+> > 
+> > I remember you suggested to make zsmalloc with pluggable for zswap.
+> > But I don't know why zswap people didn't implement it.
+> > 
+> > > 
+> > > zswap cannot replicate zram+tmpfs but I also think that such a configuration
+> > > is a bad idea anyway. As zram is already being deployed then it might get
+> > 
+> > It seems your big concern of zsmalloc is fragmentaion so if zsmalloc can
+> > support compaction, it would mitigate the concern.
+> > 
+> 
+> Even if it supported zsmalloc I would still wonder why zswap is not using
+> it as a pluggable option :(
+> 
+> > > promoted anyway but personally I think compressed memory continues to be
+> > 
+> > I admit zram might have limitations but it has helped lots of people.
+> > It's not an imaginary scenario.
+> > 
+> 
+> I know.
+> 
+> > Please, let's not do get out of zram from kernel tree and stall it on staging
+> > forever with preventing new features. 
+> > Please, let's promote, expose it to more potential users, receive more
+> > complains from them, recruit more contributors and let's enhance.
+> > 
+> 
+> As this is already used heavily in the field and I am not responsible
+> for maintaining it I am not going to object to it being promoted. I can
+> always push that it be disabled in distribution configs as it is not
+> suitable for general workloads for reason already discussed.
+> 
+> However, I believe that the promotion will lead to zram and zswap diverging
+> further from each other, both implementing similar functionality and
+> ultimately cause greater maintenance headaches. There is a path that makes
+> zswap a functional replacement for zram and I've seen no good reason why
+> that path was not taken. Zram cannot be a functional replacment for zswap
+> as there is no obvious sane way writeback could be implemented. Continuing
+
+Then, do you think current zswap's writeback is sane way?
+I didn't raise an issue because I didn't want to be a blocker when zswap was
+promoted. Actually, I didn't like that way because I thought swap-writeback
+feature should be implemented by VM itself rather than some hooked driver
+internal logic. VM alreay has a lot information so it would handle multipe
+heterogenous swap more efficenlty like cache hierachy without LRU inversing.
+It could solve current zswap LRU inversing problem generally and help others
+who want to configure multiple swap system as well as zram.
+
+> to diverge will ultimately bite someone in the ass.
+
+Mel, current zram situation is following as.
+
+1) There are a lot users in the world.
+2) So, many valuable contributions have been in there.
+2) The new feature development of zram had stalled because Greg asserted
+   he doesn't accept new feature until promote will be done and recently,
+   he said he will remove zram in staging if anybody doesn't try to promote
+3) You are saying zram shouldn't be promote. IOW, zram should go away.
+
+Right? Then, What should we zram developers do?
+What's next step for zram which is really perfect for embedded system?
+We should really lose a chance to enhance zram although fresh zswap
+couldn't replace old zram?
+
+Mel, please consider embedded world although they are very little voice
+in this core subsystem.
+
+
+> 
+
+> -- 
+> Mel Gorman
+> SUSE Labs
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
