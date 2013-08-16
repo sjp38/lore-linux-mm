@@ -1,62 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 511FA6B0032
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2013 03:02:59 -0400 (EDT)
-Received: from list by plane.gmane.org with local (Exim 4.69)
-	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
-	id 1VAE3k-0001Bs-SO
-	for linux-mm@kvack.org; Fri, 16 Aug 2013 09:02:56 +0200
-Received: from c-50-132-41-203.hsd1.wa.comcast.net ([50.132.41.203])
-        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Fri, 16 Aug 2013 09:02:56 +0200
-Received: from eternaleye by c-50-132-41-203.hsd1.wa.comcast.net with local (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Fri, 16 Aug 2013 09:02:56 +0200
-From: Alex Elsayed <eternaleye@gmail.com>
-Subject: Re: [PATCH v6 0/5] zram/zsmalloc promotion
-Date: Fri, 16 Aug 2013 00:02:45 -0700
-Message-ID: <kukiqe$j4b$2@ger.gmane.org>
-References: <1376459736-7384-1-git-send-email-minchan@kernel.org> <CAA25o9Q1KVHEzdeXJFe9A8K9MULysq_ShWrUBZM4-h=5vmaQ8w@mail.gmail.com> <20130814161753.GB2706@gmail.com> <520d883a.a2f6420a.6f36.0d66SMTPIN_ADDED_BROKEN@mx.google.com> <20130816043556.GA6216@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7Bit
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id F26626B0032
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2013 03:55:53 -0400 (EDT)
+Received: by mail-vb0-f41.google.com with SMTP id g17so1391203vbg.14
+        for <linux-mm@kvack.org>; Fri, 16 Aug 2013 00:55:52 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CA+55aFwFx7uhtDTX5vfiYRo+keLmuvxvSFupU4nB8g1KCN-WVg@mail.gmail.com>
+References: <52050382.9060802@gmail.com>
+	<520BB225.8030807@gmail.com>
+	<20130814174039.GA24033@dhcp22.suse.cz>
+	<CA+55aFwAz7GdcB6nC0Th42y8eAM591sKO1=mYh5SWgyuDdHzcA@mail.gmail.com>
+	<20130814182756.GD24033@dhcp22.suse.cz>
+	<CA+55aFxB6Wyj3G3Ju8E7bjH-706vi3vysuATUZ13h1tdYbCbnQ@mail.gmail.com>
+	<520C9E78.2020401@gmail.com>
+	<CA+55aFy2D2hTc_ina1DvungsCL4WU2OTM=bnVb8sDyDcGVCBEQ@mail.gmail.com>
+	<CA+55aFxuUrcod=X2t2yqR_zJ4s1uaCsGB-p1oLTQrG+y+Z2PbA@mail.gmail.com>
+	<520D5ED2.9040403@gmail.com>
+	<CA+55aFwFx7uhtDTX5vfiYRo+keLmuvxvSFupU4nB8g1KCN-WVg@mail.gmail.com>
+Date: Fri, 16 Aug 2013 09:55:52 +0200
+Message-ID: <CAFLxGvyHFtEKh4x0_3Sjgus9O++48BL0hzNbKadK2JoA1k3O9Q@mail.gmail.com>
+Subject: Re: [Bug] Reproducible data corruption on i5-3340M: Please continue
+ your great work! :-)
+From: richard -rw- weinberger <richard.weinberger@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Ben Tebulin <tebulin@googlemail.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>
 
-Minchan Kim wrote:
+On Fri, Aug 16, 2013 at 2:33 AM, Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
+> I'll probably delay committing it until tomorrow, in the hope that
+> somebody using one of the other architectures will at least ack that
+> it compiles. I'm re-attaching the patch (with the two "logn" -> "long"
+> fixes) just to encourage that. Hint hint, everybody..
 
-> Hi,
-> 
-> On Fri, Aug 16, 2013 at 10:02:08AM +0800, Wanpeng Li wrote:
->> Hi Minchan,
->> On Thu, Aug 15, 2013 at 01:17:53AM +0900, Minchan Kim wrote:
->> >Hi Luigi,
->> >
->> >On Wed, Aug 14, 2013 at 08:53:31AM -0700, Luigi Semenzato wrote:
->> >If you have real swap storage, zswap might be better although I have
->> >no number but real swap is money for embedded system and it has sudden
->> >garbage collection on firmware side if we use eMMC or SSD so that it
->> >could affect system latency. Morever, if we start to use real swap,
->> >maybe we should encrypt the data and it would be severe overhead(CPU
->> >and Power).
->> >
->> 
->> Why real swap for embedded system need encrypt the data? I think there
->> is no encrypt for data against server and desktop.
-> 
-> I have used some portable device but suddenly, I lost it or was stolen.
-> A hacker can pick it up and read my swap and found my precious
-> information. I don't want it. I guess it's one of reason ChromeOS don't
-> want to use real swap.
-> 
-> https://groups.google.com/a/chromium.org/forum/#!msg/chromium-os-discuss/92Fvi4Ezego/ZvbrC3L2FG4J
+/me tested arch/um, so far everything looks good. :-)
 
-This is when you use dm-crypt. Also, as noted by others, zswap with a fake
-backing device that always returns failure (and thus never stores data on 
-disk) should behave like zram without any physical swap.
+-- 
+Thanks,
+//richard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
