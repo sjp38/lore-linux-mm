@@ -1,45 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 0E6406B0032
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2013 10:14:53 -0400 (EDT)
-Message-ID: <520E33D1.4040005@oracle.com>
-Date: Fri, 16 Aug 2013 08:14:41 -0600
-From: Khalid Aziz <khalid.aziz@oracle.com>
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 3EE956B0032
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2013 12:36:46 -0400 (EDT)
+Message-ID: <520E5517.9070606@intel.com>
+Date: Fri, 16 Aug 2013 09:36:39 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH] Fix aio performance regression for database caused
- by THP
-References: <1376590389.24607.33.camel@concerto> <20130816090425.GA2162@shutemov.name>
-In-Reply-To: <20130816090425.GA2162@shutemov.name>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [RFC v3 0/5] Transparent on-demand struct page initialization
+ embedded in the buddy allocator
+References: <1375465467-40488-1-git-send-email-nzimmer@sgi.com> <1376344480-156708-1-git-send-email-nzimmer@sgi.com>
+In-Reply-To: <1376344480-156708-1-git-send-email-nzimmer@sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>, akpm@linux-foundation.org
-Cc: aarcange@redhat.com, hannes@cmpxchg.org, mgorman@suse.de, riel@redhat.com, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nathan Zimmer <nzimmer@sgi.com>
+Cc: hpa@zytor.com, mingo@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, holt@sgi.com, rob@landley.net, travis@sgi.com, daniel@numascale-asia.com, akpm@linux-foundation.org, gregkh@linuxfoundation.org, yinghai@kernel.org, mgorman@suse.de
 
-On 08/16/2013 03:04 AM, Kirill A. Shutemov wrote:
-> On Thu, Aug 15, 2013 at 12:13:09PM -0600, Khalid Aziz wrote:
->>
->> -	if (likely(page != page_head && get_page_unless_zero(page_head))) {
->> +	/*
->> +	 * If this is a hugetlbfs page, it can not be split under
->> +	 * us. Simply increment refcount for head page
->> +	 */
->> +	if (PageHuge(page)) {
->> +		page_head = compound_head(page);
->> +		atomic_inc(&page_head->_count);
->> +		got = true;
->
-> Why not just return here and don't increase indentantion level for rest of
-> the function?
->
+Hey Nathan,
 
-Good point.
+Could you post your boot timing patches?  My machines are much smaller
+than yours, but I'm curious how things behave here as well.
 
-Andrew, I can rework the patch if you would like.
+I did some very imprecise timings (strace -t on a telnet attached to the
+serial console).  The 'struct page' initializations take about a minute
+of boot time for me to do 1TB across 8 NUMA nodes (this is a glueless
+QPI system[1]).  My _quick_ calculations look like it's 2x as fast to
+initialize node0's memory vs. the other nodes, and boot time is
+increased by a second for about every 30G of memory we add.
 
-Thanks,
-Khalid
+So even with nothing else fancy, we could get some serious improvements
+from just doing the initialization locally.
+
+[1] We call anything using pure QPI without any other circuitry for the
+NUMA interconnects to be "glueless"
+
+	
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
