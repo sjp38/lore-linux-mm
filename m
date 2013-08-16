@@ -1,47 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 15F8F6B0034
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2013 05:18:53 -0400 (EDT)
-Message-ID: <520DEE5F.70106@oracle.com>
-Date: Fri, 16 Aug 2013 17:18:23 +0800
-From: Bob Liu <bob.liu@oracle.com>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 4F96C6B0033
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2013 07:00:34 -0400 (EDT)
+Date: Fri, 16 Aug 2013 13:00:31 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [Bug] Reproducible data corruption on i5-3340M: Please continue
+ your great work! :-)
+Message-ID: <20130816110031.GA13507@dhcp22.suse.cz>
+References: <520BB225.8030807@gmail.com>
+ <20130814174039.GA24033@dhcp22.suse.cz>
+ <CA+55aFwAz7GdcB6nC0Th42y8eAM591sKO1=mYh5SWgyuDdHzcA@mail.gmail.com>
+ <20130814182756.GD24033@dhcp22.suse.cz>
+ <CA+55aFxB6Wyj3G3Ju8E7bjH-706vi3vysuATUZ13h1tdYbCbnQ@mail.gmail.com>
+ <520C9E78.2020401@gmail.com>
+ <CA+55aFy2D2hTc_ina1DvungsCL4WU2OTM=bnVb8sDyDcGVCBEQ@mail.gmail.com>
+ <CA+55aFxuUrcod=X2t2yqR_zJ4s1uaCsGB-p1oLTQrG+y+Z2PbA@mail.gmail.com>
+ <520D5ED2.9040403@gmail.com>
+ <CA+55aFwFx7uhtDTX5vfiYRo+keLmuvxvSFupU4nB8g1KCN-WVg@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v6 0/5] zram/zsmalloc promotion
-References: <1376459736-7384-1-git-send-email-minchan@kernel.org> <20130814174050.GN2296@suse.de> <20130814185820.GA2753@gmail.com> <20130815171250.GA2296@suse.de> <20130816042641.GA2893@gmail.com> <20130816083347.GD2296@suse.de> <20130816091223.GF2296@suse.de>
-In-Reply-To: <20130816091223.GF2296@suse.de>
-Content-Type: text/plain; charset=ISO-8859-15
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFwFx7uhtDTX5vfiYRo+keLmuvxvSFupU4nB8g1KCN-WVg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Luigi Semenzato <semenzato@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Ben Tebulin <tebulin@googlemail.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>
 
-Hi Mel,
-
-On 08/16/2013 05:12 PM, Mel Gorman wrote:
-> On Fri, Aug 16, 2013 at 09:33:47AM +0100, Mel Gorman wrote:
->> On Fri, Aug 16, 2013 at 01:26:41PM +0900, Minchan Kim wrote:
->> <SNIP>
->> It'll get even more entertaining if/when someone ever tries
->> to reimplement zcache although since Dan left I do not believe anyone is
->> planning to try.
+On Thu 15-08-13 17:33:28, Linus Torvalds wrote:
+> On Thu, Aug 15, 2013 at 4:05 PM, Ben Tebulin <tebulin@googlemail.com> wrote:
+> >
+> >> Ben, please test. I'm worried that the problem you see is something
+> >> even more fundamentally wrong with the whole "oops, must flush in the
+> >> middle" logic, but I'm _hoping_ this fixes it.
+> >
+> > It's gone.
+> >
+> > Really!
+> >
+> > I git-fsck'ed successfully around 30 times in a row.
+> > And even all the other things still seem to work ;-)
 > 
-> I should mention that Bob Liu did some work with zcache recently but is
-> now looking like it'll be dropped from staging. I did not look at the
-> details and I have no idea if anything else is planned with it.
-> 
+> Goodie. I think I'm just going to commit it (with the speling fixes
+> for other architectures) asap. It's bigger than I'd like, but it's a
+> lot simpler than the alternatives of trying to figure out exactly
+> which call chain got things wrong with the previous confusing model.
 
-The plan is like this:
-Zcache dropped from staging.
-As a result, for swap pages compression using zswap(zram).
-For file pages compression using my new implemention of zcache(v3)
-mm/zcache.c
+I was thinking about teaching __tlb_remove_page to update the range
+automatically from the given address.
 
-If there is requirement we can merge zswap and zcachev3 in future!
+But your patch looks good to me as well.
 
+Feel free to add
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+
+Thanks!
 -- 
-Regards,
--Bob
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
