@@ -1,64 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 24D676B0032
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2013 17:52:16 -0400 (EDT)
-Received: by mail-pb0-f49.google.com with SMTP id xb4so2469280pbc.36
-        for <linux-mm@kvack.org>; Fri, 16 Aug 2013 14:52:15 -0700 (PDT)
-From: Kevin Hilman <khilman@linaro.org>
-Subject: Re: [patch v2 3/3] mm: page_alloc: fair zone allocator policy
-References: <1375457846-21521-1-git-send-email-hannes@cmpxchg.org>
-	<1375457846-21521-4-git-send-email-hannes@cmpxchg.org>
-	<20130807145828.GQ2296@suse.de> <20130807153743.GH715@cmpxchg.org>
-	<20130808041623.GL1845@cmpxchg.org> <87haepblo2.fsf@kernel.org>
-	<20130816201814.GA26409@cmpxchg.org>
-Date: Fri, 16 Aug 2013 14:52:11 -0700
-In-Reply-To: <20130816201814.GA26409@cmpxchg.org> (Johannes Weiner's message
-	of "Fri, 16 Aug 2013 16:18:14 -0400")
-Message-ID: <8738q9b8xg.fsf@kernel.org>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 4EDEC6B0032
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2013 18:00:42 -0400 (EDT)
+Received: from /spool/local
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjennings@variantweb.net>;
+	Fri, 16 Aug 2013 23:00:41 +0100
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 9603FC9006E
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2013 18:00:36 -0400 (EDT)
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7GM0bBo156464
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2013 18:00:37 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r7GM0aVg015202
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2013 19:00:37 -0300
+Date: Fri, 16 Aug 2013 17:00:34 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Subject: Re: [PATCH v6 3/5] zsmalloc: move it under zram
+Message-ID: <20130816220034.GD7265@variantweb.net>
+References: <1376459736-7384-1-git-send-email-minchan@kernel.org>
+ <1376459736-7384-4-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1376459736-7384-4-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@surriel.com>, Andrea Arcangeli <aarcange@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, sfr@canb.auug.org.au, linux-arm-kernel@lists.infradead.org, Olof Johansson <olof@lixom.net>, Stephen Warren <swarren@wwwdotorg.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Luigi Semenzato <semenzato@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Mel Gorman <mgorman@suse.de>
 
-Johannes Weiner <hannes@cmpxchg.org> writes:
+On Wed, Aug 14, 2013 at 02:55:34PM +0900, Minchan Kim wrote:
+> This patch moves zsmalloc under zram directory because there
+> isn't any other user any more.
+> 
+> Before that, description will explain why we have needed custom
+> allocator.
+> 
+> Zsmalloc is a new slab-based memory allocator for storing
+> compressed pages.  It is designed for low fragmentation and
+> high allocation success rate on large object, but <= PAGE_SIZE
+> allocations.
 
-> Hi Kevin,
->
-> On Fri, Aug 16, 2013 at 10:17:01AM -0700, Kevin Hilman wrote:
->> Johannes Weiner <hannes@cmpxchg.org> writes:
->> > On Wed, Aug 07, 2013 at 11:37:43AM -0400, Johannes Weiner wrote:
->> > Subject: [patch] mm: page_alloc: use vmstats for fair zone allocation batching
->> >
->> > Avoid dirtying the same cache line with every single page allocation
->> > by making the fair per-zone allocation batch a vmstat item, which will
->> > turn it into batched percpu counters on SMP.
->> >
->> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
->> 
->> I bisected several boot failures on various ARM platform in
->> next-20130816 down to this patch (commit 67131f9837 in linux-next.)
->> 
->> Simply reverting it got things booting again on top of -next.  Example
->> boot crash below.
->
-> Thanks for the bisect and report!
+One things zsmalloc will probably have to address before Andrew deems it
+worthy is the "memmap peekers" issue.  I had to make this change in zbud
+before Andrew would accept it and this is one of the reasons I have yet
+to implement zsmalloc support for zswap yet.
 
-You're welcome.  Thanks for the quick fix!
+Basically, zsmalloc makes the assumption that once the kernel page
+allocator gives it a page for the pool, zsmalloc can stuff whatever
+metatdata it wants into the struct page.  The problem comes when some
+parts of the kernel do not obtain the struct page pointer via the
+allocator but via walking the memmap.  Those routines will make certain
+assumption about the state and structure of the data in the struct page,
+leading to issues.
 
-> I deref the percpu pointers before initializing them properly.  It
-> didn't trigger on x86 because the percpu offset added to the pointer
-> is big enough so that it does not fall into PFN 0, but it probably
-> ended up corrupting something...
->
-> Could you try this patch on top of linux-next instead of the revert?
+My solution for zbud was to move the metadata into the pool pages
+themselves, using the first block of each page for metadata regarding that
+page.
 
-Yup, that change fixes it.
+Andrew might also have something to say about the placement of
+zsmalloc.c.  IIRC, if it was going to be merged, he wanted it in mm/ if
+it was going to be messing around in the struct page.
 
-Tested-by: Kevin Hilman <khilman@linaro.org>
-
-Kevin
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
