@@ -1,203 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 3432A6B0032
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2013 00:26:53 -0400 (EDT)
-Received: by mail-ie0-f179.google.com with SMTP id c11so2824075ieb.10
-        for <linux-mm@kvack.org>; Thu, 15 Aug 2013 21:26:52 -0700 (PDT)
-Date: Fri, 16 Aug 2013 13:26:41 +0900
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 7F1656B0032
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2013 00:36:10 -0400 (EDT)
+Received: by mail-ie0-f169.google.com with SMTP id qd12so2831648ieb.0
+        for <linux-mm@kvack.org>; Thu, 15 Aug 2013 21:36:09 -0700 (PDT)
+Date: Fri, 16 Aug 2013 13:35:56 +0900
 From: Minchan Kim <minchan@kernel.org>
 Subject: Re: [PATCH v6 0/5] zram/zsmalloc promotion
-Message-ID: <20130816042641.GA2893@gmail.com>
+Message-ID: <20130816043556.GA6216@gmail.com>
 References: <1376459736-7384-1-git-send-email-minchan@kernel.org>
- <20130814174050.GN2296@suse.de>
- <20130814185820.GA2753@gmail.com>
- <20130815171250.GA2296@suse.de>
+ <CAA25o9Q1KVHEzdeXJFe9A8K9MULysq_ShWrUBZM4-h=5vmaQ8w@mail.gmail.com>
+ <20130814161753.GB2706@gmail.com>
+ <520d883a.a2f6420a.6f36.0d66SMTPIN_ADDED_BROKEN@mx.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130815171250.GA2296@suse.de>
+In-Reply-To: <520d883a.a2f6420a.6f36.0d66SMTPIN_ADDED_BROKEN@mx.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Luigi Semenzato <semenzato@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Luigi Semenzato <semenzato@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Mel Gorman <mgorman@suse.de>
 
-Hi Mel,
+Hi,
 
-On Thu, Aug 15, 2013 at 06:12:50PM +0100, Mel Gorman wrote:
-> On Thu, Aug 15, 2013 at 03:58:20AM +0900, Minchan Kim wrote:
-> > > <SNIP>
-> > >
-> > > I do not believe this is a problem for zram as such because I do not
-> > > think it ever writes back to disk and is immune from the unpredictable
-> > > performance characteristics problem. The problem for zram using zsmalloc
-> > > is OOM killing. If it's used for swap then there is no guarantee that
-> > > killing processes frees memory and that could result in an OOM storm.
-> > > Of course there is no guarantee that memory is freed with zbud either but
-> > > you are guaranteed that freeing 50%+1 of the compressed pages will free a
-> > > single physical page. The characteristics for zsmalloc are much more severe.
-> > > This might be managable in an applicance with very careful control of the
-> > > applications that are running but not for general servers or desktops.
-> > 
-> > Fair enough but let's think of current usecase for zram.
-> > As I said in description, most of user for zram are embedded products.
-> > So, most of them has no swap storage and hate OOM kill because OOM is
-> > already very very slow path so system slow response is really thing
-> > we want to avoid. We prefer early process kill to slow response.
-> > That's why custom low memory killer/notifier is popular in embedded side.
-> > so actually, OOM storm problem shouldn't be a big problem under
-> > well-control limited system. 
-> > 
+On Fri, Aug 16, 2013 at 10:02:08AM +0800, Wanpeng Li wrote:
+> Hi Minchan,
+> On Thu, Aug 15, 2013 at 01:17:53AM +0900, Minchan Kim wrote:
+> >Hi Luigi,
+> >
+> >On Wed, Aug 14, 2013 at 08:53:31AM -0700, Luigi Semenzato wrote:
+> >> During earlier discussions of zswap there was a plan to make it work
+> >> with zsmalloc as an option instead of zbud. Does zbud work for
+> >
+> >AFAIR, it was not an optoin but zsmalloc was must but there were
+> >several objections because zswap's notable feature is to dump
+> >compressed object to real swap storage. For that, zswap needs to
+> >store bounded objects in a zpage so that dumping could be bounded, too.
+> >Otherwise, it could encounter OOM easily.
+> >
+> >> compression factors better than 2:1?  I have the impression (maybe
+> >> wrong) that it does not.  In our use of zram (Chrome OS) typical
+> >
+> >Since zswap changed allocator from zsmalloc to zbud, I didn't follow
+> >because I had no interest of low compressoin ratio allocator so
+> >I have no idea of status of zswap at a moment but I guess it would be
+> >still 2:1.
+> >
+> >> overall compression ratios are between 2.5:1 and 3:1.  We would hate
+> >> to waste that memory if we switch to zswap.
+> >
+> >If you have real swap storage, zswap might be better although I have
+> >no number but real swap is money for embedded system and it has sudden
+> >garbage collection on firmware side if we use eMMC or SSD so that it
+> >could affect system latency. Morever, if we start to use real swap,
+> >maybe we should encrypt the data and it would be severe overhead(CPU
+> >and Power).
+> >
 > 
-> Which zswap could also do if
-> 
-> a) it had a pseudo block device that failed all writes
-> b) zsmalloc was pluggable
-> 
-> I recognise this sucks because zram is already in the field but if zram
-> is promoted then zram and zswap will continue to diverge further with no
-> reconcilation in sight.
-> 
-> Part of the point of using zswap was that potentially zcache could be
-> implemented on top of it and so all file cache could be stored compressed
-> in memory. AFAIK, it's not possible to do the same thing for zram because
-> of the lack of writeback capabilities. Maybe it could be done if zram
-> could be configured to write to an underlying storage device but it may
-> be very clumsy to configure. I don't know as I never investigated it and
-> to be honest, I'm struggling to remember how I got involved anywhere near
-> zswap/zcache/zram/zwtf in the first place.
-> 
-> > > If it's used for something like tmpfs then it becomes much worse. Normal
-> > > tmpfs without swap can lockup if tmpfs is allowed to fill memory. In a
-> > > sane configuration, lockups will be avoided and deleting a tmpfs file is
-> > > guaranteed to free memory. When zram is used to back tmpfs, there is no
-> > > guarantee that any memory is freed due to fragmentation of the compressed
-> > > pages. The only way to recover the memory may be to kill applications
-> > > holding tmpfs files open and then delete them which is fairly drastic
-> > > action in a normal server environment.
-> > 
-> > Indeed.
-> > Actually, I had a plan to support zsmalloc compaction. The zsmalloc exposes
-> > handle instead of pure pointer so it could migrate some zpages to somewhere
-> > to pack in. Then, it could help above problem and OOM storm problem.
-> > Anyway, it's a totally new feature and requires many changes and experiement.
-> > Although we don't have such feature, zram is still good for many people.
-> > 
-> 
-> And is zsmalloc was pluggable for zswap then it would also benefit.
+> Why real swap for embedded system need encrypt the data? I think there
+> is no encrypt for data against server and desktop.
 
-But zswap isn't pseudo block device so it couldn't be used for block device.
-Let say one usecase for using zram-blk.
+I have used some portable device but suddenly, I lost it or was stolen.
+A hacker can pick it up and read my swap and found my precious information.
+I don't want it. I guess it's one of reason ChromeOS don't want to use real
+swap.
 
-1) Many embedded system don't have swap so although tmpfs can support swapout
-it's pointless still so such systems should have sane configuration to limit
-memory space so it's not only zram problem.
-
-2) Many embedded system don't have enough memory. Let's assume short-lived
-file growing up until half of system memory once in a while. We don't want
-to write it on flash by wear-leveing issue and very slowness so we want to use
-in-memory but if we uses tmpfs, it should evict half of working set to cover
-them when the size reach peak. zram would be better choice.
+https://groups.google.com/a/chromium.org/forum/#!msg/chromium-os-discuss/92Fvi4Ezego/ZvbrC3L2FG4J
 
 > 
-> > > These are the sort of reason why I feel that zram has limited cases where
-> > > it is safe to use and zswap has a wider range of applications. At least
-> > > I would be very unhappy to try supporting zram in the field for normal
-> > > servers. zswap should be able to replace the functionality of zram+swap
-> > > by backing zswap with a pseudo block device that rejects all writes. I
-> > 
-> > One of difference between zswap and zram is asynchronous I/O support.
+> >And what I am considering after promoting for zram feature is
+> >asynchronous I/O and it's possible because zram is block device.
+> >
+> >Thanks!
+> >-- 
+> >Kind regards,
+> >Minchan Kim
+> >
+> >--
+> >To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> >the body to majordomo@kvack.org.  For more info on Linux MM,
+> >see: http://www.linux-mm.org/ .
+> >Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > 
-> As zram is not writing to disk, how compelling is asynchronous IO? If
-> zswap was backed by the pseudo device is there a measurable bottleneck?
-
-Compression. It was really bottlneck point. I had an internal patch which
-can make zram use various compressor, not only LZO.
-The better good compressor was, the more bottlenck compressor was.
-
-> 
-> > I guess frontswap is synchronous by semantic while zram could support
-> > asynchronous I/O.
-> > 
-> > > do not know why this never happened but guess the zswap people never were
-> > > interested and the zram people never tried. Why was the pseudo device
-> > > to avoid writebacks never implemented? Why was the underlying allocator
-> > > not made pluggable to optionally use zsmalloc when the user did not care
-> > > that it had terrible writeback characteristics?
-> > 
-> > I remember you suggested to make zsmalloc with pluggable for zswap.
-> > But I don't know why zswap people didn't implement it.
-> > 
-> > > 
-> > > zswap cannot replicate zram+tmpfs but I also think that such a configuration
-> > > is a bad idea anyway. As zram is already being deployed then it might get
-> > 
-> > It seems your big concern of zsmalloc is fragmentaion so if zsmalloc can
-> > support compaction, it would mitigate the concern.
-> > 
-> 
-> Even if it supported zsmalloc I would still wonder why zswap is not using
-> it as a pluggable option :(
-> 
-> > > promoted anyway but personally I think compressed memory continues to be
-> > 
-> > I admit zram might have limitations but it has helped lots of people.
-> > It's not an imaginary scenario.
-> > 
-> 
-> I know.
-> 
-> > Please, let's not do get out of zram from kernel tree and stall it on staging
-> > forever with preventing new features. 
-> > Please, let's promote, expose it to more potential users, receive more
-> > complains from them, recruit more contributors and let's enhance.
-> > 
-> 
-> As this is already used heavily in the field and I am not responsible
-> for maintaining it I am not going to object to it being promoted. I can
-> always push that it be disabled in distribution configs as it is not
-> suitable for general workloads for reason already discussed.
-> 
-> However, I believe that the promotion will lead to zram and zswap diverging
-> further from each other, both implementing similar functionality and
-> ultimately cause greater maintenance headaches. There is a path that makes
-> zswap a functional replacement for zram and I've seen no good reason why
-> that path was not taken. Zram cannot be a functional replacment for zswap
-> as there is no obvious sane way writeback could be implemented. Continuing
-
-Then, do you think current zswap's writeback is sane way?
-I didn't raise an issue because I didn't want to be a blocker when zswap was
-promoted. Actually, I didn't like that way because I thought swap-writeback
-feature should be implemented by VM itself rather than some hooked driver
-internal logic. VM alreay has a lot information so it would handle multipe
-heterogenous swap more efficenlty like cache hierachy without LRU inversing.
-It could solve current zswap LRU inversing problem generally and help others
-who want to configure multiple swap system as well as zram.
-
-> to diverge will ultimately bite someone in the ass.
-
-Mel, current zram situation is following as.
-
-1) There are a lot users in the world.
-2) So, many valuable contributions have been in there.
-2) The new feature development of zram had stalled because Greg asserted
-   he doesn't accept new feature until promote will be done and recently,
-   he said he will remove zram in staging if anybody doesn't try to promote
-3) You are saying zram shouldn't be promote. IOW, zram should go away.
-
-Right? Then, What should we zram developers do?
-What's next step for zram which is really perfect for embedded system?
-We should really lose a chance to enhance zram although fresh zswap
-couldn't replace old zram?
-
-Mel, please consider embedded world although they are very little voice
-in this core subsystem.
-
-
-> 
-
-> -- 
-> Mel Gorman
-> SUSE Labs
 
 -- 
 Kind regards,
