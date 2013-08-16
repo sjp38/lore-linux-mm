@@ -1,9 +1,9 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 394926B0032
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 21:53:23 -0400 (EDT)
-Message-ID: <520D85EE.4050805@oracle.com>
-Date: Fri, 16 Aug 2013 09:52:46 +0800
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 914EB6B0033
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 21:53:51 -0400 (EDT)
+Message-ID: <520D8617.4000706@oracle.com>
+Date: Fri, 16 Aug 2013 09:53:27 +0800
 From: Bob Liu <bob.liu@oracle.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH v6 0/5] zram/zsmalloc promotion
@@ -139,10 +139,10 @@ I'll take a try soon!
 > However, I believe that the promotion will lead to zram and zswap diverging
 > further from each other, both implementing similar functionality and
 > ultimately cause greater maintenance headaches. There is a path that makes
+> zswap a functional replacement for zram and I've seen no good reason why
 
 Agree! I prefer this way too!
 
-> zswap a functional replacement for zram and I've seen no good reason why
 > that path was not taken. Zram cannot be a functional replacment for zswap
 > as there is no obvious sane way writeback could be implemented. Continuing
 > to diverge will ultimately bite someone in the ass.
