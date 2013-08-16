@@ -1,79 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 790C36B0032
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2013 14:41:28 -0400 (EDT)
-Received: from /spool/local
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjennings@variantweb.net>;
-	Fri, 16 Aug 2013 12:41:27 -0600
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 59EB93E4004E
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2013 12:40:58 -0600 (MDT)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7GIf5QH071982
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2013 12:41:06 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r7GIf4Ft011158
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2013 12:41:05 -0600
-Date: Fri, 16 Aug 2013 13:41:00 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: Re: [RFC][PATCH] drivers: base: dynamic memory block creation
-Message-ID: <20130816184100.GA7265@variantweb.net>
-References: <1376508705-3188-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <5959614.447qgH8r7c@vostro.rjw.lan>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 6247F6B0032
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2013 15:01:08 -0400 (EDT)
+Date: Fri, 16 Aug 2013 14:01:06 -0500
+From: Russ Anderson <rja@sgi.com>
+Subject: Re: [PATCH] memblock, numa: Binary search node id
+Message-ID: <20130816190106.GD22182@sgi.com>
+Reply-To: Russ Anderson <rja@sgi.com>
+References: <1376545589-32129-1-git-send-email-yinghai@kernel.org> <20130815134348.bb119a7987af0bb64ed77b7b@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5959614.447qgH8r7c@vostro.rjw.lan>
+In-Reply-To: <20130815134348.bb119a7987af0bb64ed77b7b@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dave Hansen <dave@sr71.net>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Lai Jiangshan <laijs@cn.fujitsu.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Aug 15, 2013 at 02:01:09AM +0200, Rafael J. Wysocki wrote:
-> On Wednesday, August 14, 2013 02:31:45 PM Seth Jennings wrote:
-> > Large memory systems (~1TB or more) experience boot delays on the order
-> > of minutes due to the initializing the memory configuration part of
-> > sysfs at /sys/devices/system/memory/.
+On Thu, Aug 15, 2013 at 01:43:48PM -0700, Andrew Morton wrote:
+> On Wed, 14 Aug 2013 22:46:29 -0700 Yinghai Lu <yinghai@kernel.org> wrote:
+> 
+> > Current early_pfn_to_nid() on arch that support memblock go
+> > over memblock.memory one by one, so will take too many try
+> > near the end.
 > > 
-> > ppc64 has a normal memory block size of 256M (however sometimes as low
-> > as 16M depending on the system LMB size), and (I think) x86 is 128M.  With
-> > 1TB of RAM and a 256M block size, that's 4k memory blocks with 20 sysfs
-> > entries per block that's around 80k items that need be created at boot
-> > time in sysfs.  Some systems go up to 16TB where the issue is even more
-> > severe.
-> > 
-> > This patch provides a means by which users can prevent the creation of
-> > the memory block attributes at boot time, yet still dynamically create
-> > them if they are needed.
-> > 
-> > This patch creates a new boot parameter, "largememory" that will prevent
-> > memory_dev_init() from creating all of the memory block sysfs attributes
-> > at boot time.  Instead, a new root attribute "show" will allow
-> > the dynamic creation of the memory block devices.
-> > Another new root attribute "present" shows the memory blocks present in
-> > the system; the valid inputs for the "show" attribute.
+> > We can use existing memblock_search to find the node id for
+> > given pfn, that could save some time on bigger system that
+> > have many entries memblock.memory array.
 > 
-> I wonder how this is going to work with the ACPI device object binding to
-> memory blocks that's in 3.11-rc.
+> Looks nice.  I wonder how much difference it makes.
 
-Thanks for pointing this out.  Yes the walking of the memory blocks in
-this code will present a problem for the dynamic creation of memory
-blocks :/  Sounds like there are some other challenges (backward
-compatibility, no boot paramater) that I'll have to look at as well.
+Here are the timing differences for several machines.
+In each case with the patch less time was spent in __early_pfn_to_nid().
 
-Seth
 
+                        3.11-rc5        with patch      difference (%)
+                        --------        ----------      --------------
+UV1: 256 nodes  9TB:     411.66          402.47         -9.19 (2.23%)
+UV2: 255 nodes 16TB:    1141.02         1138.12         -2.90 (0.25%)
+UV2:  64 nodes  2TB:     128.15          126.53         -1.62 (1.26%)
+UV2:  32 nodes  2TB:     121.87          121.07         -0.80 (0.66%)
+                        Time in seconds.
+
+Acked-by: Russ Anderson <rja@sgi.com>
+ 
+> > ...
+> >
+> > --- linux-2.6.orig/include/linux/memblock.h
+> > +++ linux-2.6/include/linux/memblock.h
+> > @@ -60,6 +60,8 @@ int memblock_reserve(phys_addr_t base, p
+> >  void memblock_trim_memory(phys_addr_t align);
+> >  
+> >  #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+> > +int memblock_search_pfn_nid(unsigned long pfn, unsigned long *start_pfn,
+> > +			    unsigned long  *end_pfn);
+> >  void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
+> >  			  unsigned long *out_end_pfn, int *out_nid);
+> >  
+> > Index: linux-2.6/mm/memblock.c
+> > ===================================================================
+> > --- linux-2.6.orig/mm/memblock.c
+> > +++ linux-2.6/mm/memblock.c
+> > @@ -914,6 +914,24 @@ int __init_memblock memblock_is_memory(p
+> >  	return memblock_search(&memblock.memory, addr) != -1;
+> >  }
+> >  
+> > +#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+> > +int __init_memblock memblock_search_pfn_nid(unsigned long pfn,
+> > +			 unsigned long *start_pfn, unsigned long *end_pfn)
+> > +{
+> > +	struct memblock_type *type = &memblock.memory;
+> > +	int mid = memblock_search(type, (phys_addr_t)pfn << PAGE_SHIFT);
+> > +
+> > +	if (mid == -1)
+> > +		return -1;
+> > +
+> > +	*start_pfn = type->regions[mid].base >> PAGE_SHIFT;
+> > +	*end_pfn = (type->regions[mid].base + type->regions[mid].size)
+> > +			>> PAGE_SHIFT;
+> > +
+> > +	return type->regions[mid].nid;
+> > +}
+> > +#endif
 > 
-> That stuff will only work if the memory blocks are already there when
-> acpi_memory_enable_device() runs and that is called from the ACPI namespace
-> scanning code executed (1) during boot and (2) during hotplug.  So I don't
-> think you can just create them on the fly at run time as a result of a
-> sysfs write.
+> This function will have no callers if
+> CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID=y.  That's not too bad as the
+> function is __init_memblock.  But this depends on
+> CONFIG_ARCH_DISCARD_MEMBLOCK.  Messy :(
 > 
-> Thanks,
-> Rafael
-> 
+
+-- 
+Russ Anderson, OS RAS/Partitioning Project Lead  
+SGI - Silicon Graphics Inc          rja@sgi.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
