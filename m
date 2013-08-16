@@ -1,86 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id BFBE06B0032
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 22:02:30 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Fri, 16 Aug 2013 11:51:32 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 9749F3578057
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2013 12:02:20 +1000 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7G1kLig7602596
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2013 11:46:29 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r7G22ASJ017044
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2013 12:02:12 +1000
-Date: Fri, 16 Aug 2013 10:02:08 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v6 0/5] zram/zsmalloc promotion
-Message-ID: <20130816020208.GA21147@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1376459736-7384-1-git-send-email-minchan@kernel.org>
- <CAA25o9Q1KVHEzdeXJFe9A8K9MULysq_ShWrUBZM4-h=5vmaQ8w@mail.gmail.com>
- <20130814161753.GB2706@gmail.com>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id D04A76B0032
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2013 22:10:09 -0400 (EDT)
+Message-ID: <520D89A7.7060802@cn.fujitsu.com>
+Date: Fri, 16 Aug 2013 10:08:39 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130814161753.GB2706@gmail.com>
+Subject: Re: [PATCH part5 0/7] Arrange hotpluggable memory as ZONE_MOVABLE.
+References: <1375956979-31877-1-git-send-email-tangchen@cn.fujitsu.com> <20130812145016.GI15892@htj.dyndns.org> <5208FBBC.2080304@zytor.com> <20130812152343.GK15892@htj.dyndns.org> <52090D7F.6060600@gmail.com> <20130812164650.GN15892@htj.dyndns.org> <5209CEC1.8070908@cn.fujitsu.com> <520A02DE.1010908@cn.fujitsu.com> <CAE9FiQV2-OOvHZtPYSYNZz+DfhvL0e+h2HjMSW3DyqeXXvdJkA@mail.gmail.com> <520ADBBA.10501@cn.fujitsu.com> <1376593564.10300.446.camel@misato.fc.hp.com> <CAE9FiQVeMHAqZETP3d1PsPMk9-ZOXD=BD5HaTGFFO3dZenR0CA@mail.gmail.com>
+In-Reply-To: <CAE9FiQVeMHAqZETP3d1PsPMk9-ZOXD=BD5HaTGFFO3dZenR0CA@mail.gmail.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Luigi Semenzato <semenzato@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Mel Gorman <mgorman@suse.de>
+To: Yinghai Lu <yinghai@kernel.org>
+Cc: Toshi Kani <toshi.kani@hp.com>, Tejun Heo <tj@kernel.org>, Tang Chen <imtangchen@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Bob Moore <robert.moore@intel.com>, Lv Zheng <lv.zheng@intel.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Renninger <trenn@suse.de>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, Prarit Bhargava <prarit@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "yanghy@cn.fujitsu.com" <yanghy@cn.fujitsu.com>, the arch/x86 maintainers <x86@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, "Luck, Tony (tony.luck@intel.com)" <tony.luck@intel.com>
 
-Hi Minchan,
-On Thu, Aug 15, 2013 at 01:17:53AM +0900, Minchan Kim wrote:
->Hi Luigi,
+On 08/16/2013 04:28 AM, Yinghai Lu wrote:
+......
+>>
+>> So, we still need reordering, and put a new requirement that all earlier
+>> allocations must be small...
+>>
+>> I think the root of this issue is that ACPI init point is not early
+>> enough in the boot sequence.  If it were much earlier already, the whole
+>> thing would have been very simple.  We are now trying to workaround this
+>> issue in the mblock code (which itself is a fine idea), but this ACPI
+>> issue still remains and similar issues may come up again in future.
+>>
+>> For instance, ACPI SCPR/DBGP/DBG2 tables allow the OS to initialize
+>> serial console/debug ports at early boot time.  The earlier it can be
+>> initialized, the better this feature will be.  These tables are not
+>> currently used by Linux due to a licensing issue, but it could be
+>> addressed some time soon.  As platforms becoming more complex&  legacy
+>> free, the needs of ACPI tables will increase.
+>>
+>> I think moving up the ACPI init point earlier is a good direction.
 >
->On Wed, Aug 14, 2013 at 08:53:31AM -0700, Luigi Semenzato wrote:
->> During earlier discussions of zswap there was a plan to make it work
->> with zsmalloc as an option instead of zbud. Does zbud work for
+> Good point.
 >
->AFAIR, it was not an optoin but zsmalloc was must but there were
->several objections because zswap's notable feature is to dump
->compressed object to real swap storage. For that, zswap needs to
->store bounded objects in a zpage so that dumping could be bounded, too.
->Otherwise, it could encounter OOM easily.
->
->> compression factors better than 2:1?  I have the impression (maybe
->> wrong) that it does not.  In our use of zram (Chrome OS) typical
->
->Since zswap changed allocator from zsmalloc to zbud, I didn't follow
->because I had no interest of low compressoin ratio allocator so
->I have no idea of status of zswap at a moment but I guess it would be
->still 2:1.
->
->> overall compression ratios are between 2.5:1 and 3:1.  We would hate
->> to waste that memory if we switch to zswap.
->
->If you have real swap storage, zswap might be better although I have
->no number but real swap is money for embedded system and it has sudden
->garbage collection on firmware side if we use eMMC or SSD so that it
->could affect system latency. Morever, if we start to use real swap,
->maybe we should encrypt the data and it would be severe overhead(CPU
->and Power).
->
+> If we put acpi_initrd_override in BRK, and can more acpi_boot_table_init()
+> much early.
 
-Why real swap for embedded system need encrypt the data? I think there
-is no encrypt for data against server and desktop.
+Hi yinghai, toshi,
 
->And what I am considering after promoting for zram feature is
->asynchronous I/O and it's possible because zram is block device.
->
->Thanks!
->-- 
->Kind regards,
->Minchan Kim
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Since I brought up this issue, it has been a long time. And there were a 
+lot
+of different solutions came up. No solution is perfect enough for everyone.
+I have tried a lot, and most of them failed. But I think most of the things
+cannot be seen clearly without a real patch posted. Many good ideas came up
+during patch reviewing.
+
+So I think I'm going to try as many ways as possible.  :)
+
+
+Parsing SRAT earlier is what I want to do in the very beginning indeed. And
+now, seems that moving the whole acpi table installation and overriding 
+earlier
+will bring us much more benefits. I have tried this without moving up
+acpi_initrd_override in my part1 patch-set. But not in the way Yinghai 
+mentioned
+above.
+
+Seeing from the code, there are 5 pages in BRK for page tables.
+
+   81 /* need 4 4k for initial PMD_SIZE, 4k for 0-ISA_END_ADDRESS */
+   82 #define INIT_PGT_BUF_SIZE       (5 * PAGE_SIZE)
+   83 RESERVE_BRK(early_pgt_alloc, INIT_PGT_BUF_SIZE);
+
+By "put acpi_initrd_override in BRK", do you mean increase the BRK by 
+default ?
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
