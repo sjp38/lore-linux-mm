@@ -1,52 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id E77F86B0032
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2013 16:31:14 -0400 (EDT)
-Received: by mail-ye0-f173.google.com with SMTP id g12so399708yee.4
-        for <linux-mm@kvack.org>; Fri, 16 Aug 2013 13:31:13 -0700 (PDT)
-Message-ID: <520E8C13.5020406@gmail.com>
-Date: Fri, 16 Aug 2013 16:31:15 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 1433B6B0032
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2013 17:33:15 -0400 (EDT)
+Message-ID: <520E9898.7040107@wwwdotorg.org>
+Date: Fri, 16 Aug 2013 15:24:40 -0600
+From: Stephen Warren <swarren@wwwdotorg.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/hotplug: Remove stop_machine() from try_offline_node()
-References: <1376336071-9128-1-git-send-email-toshi.kani@hp.com>  <520C2D04.8060408@gmail.com> <1376584540.10300.416.camel@misato.fc.hp.com>
-In-Reply-To: <1376584540.10300.416.camel@misato.fc.hp.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: [patch v2 3/3] mm: page_alloc: fair zone allocator policy
+References: <1375457846-21521-1-git-send-email-hannes@cmpxchg.org> <1375457846-21521-4-git-send-email-hannes@cmpxchg.org> <20130807145828.GQ2296@suse.de> <20130807153743.GH715@cmpxchg.org> <20130808041623.GL1845@cmpxchg.org> <87haepblo2.fsf@kernel.org> <20130816201814.GA26409@cmpxchg.org>
+In-Reply-To: <20130816201814.GA26409@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, rjw@sisk.pl, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, tangchen@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, liwanp@linux.vnet.ibm.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Kevin Hilman <khilman@linaro.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@surriel.com>, Andrea Arcangeli <aarcange@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "sfr@canb.auug.org.au linux-arm-kernel" <linux-arm-kernel@lists.infradead.org>, Olof Johansson <olof@lixom.net>
 
->>> This patch removes the use of stop_machine() in try_offline_node() and
->>> adds comments to try_offline_node() and remove_memory() that
->>> lock_device_hotplug() is required.
+On 08/16/2013 02:18 PM, Johannes Weiner wrote:
+> Hi Kevin,
+> 
+> On Fri, Aug 16, 2013 at 10:17:01AM -0700, Kevin Hilman wrote:
+>> Johannes Weiner <hannes@cmpxchg.org> writes:
+>>> On Wed, Aug 07, 2013 at 11:37:43AM -0400, Johannes Weiner wrote:
+>>> Subject: [patch] mm: page_alloc: use vmstats for fair zone allocation batching
+>>>
+>>> Avoid dirtying the same cache line with every single page allocation
+>>> by making the fair per-zone allocation batch a vmstat item, which will
+>>> turn it into batched percpu counters on SMP.
+>>>
+>>> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 >>
->> This patch need more verbose explanation. check_cpu_on_node() traverse cpus
->> and cpu hotplug seems to use cpu_hotplug_driver_lock() instead of lock_device_hotplug().
->
-> As described:
->
-> | lock_device_hotplug() serializes hotplug & online/offline operations.
-> | The lock is held in common sysfs online/offline interfaces and ACPI
-> | hotplug code paths.
->
-> And here are their code paths.
->
-> - CPU & Mem online/offline via sysfs online
-> 	store_online()->lock_device_hotplug()
->
-> - Mem online via sysfs state:
-> 	store_mem_state()->lock_device_hotplug()
->
-> - ACPI CPU & Mem hot-add:
-> 	acpi_scan_bus_device_check()->lock_device_hotplug()
->
-> - ACPI CPU & Mem hot-delete:
-> 	acpi_scan_hot_remove()->lock_device_hotplug()
+>> I bisected several boot failures on various ARM platform in
+>> next-20130816 down to this patch (commit 67131f9837 in linux-next.)
+>>
+>> Simply reverting it got things booting again on top of -next.  Example
+>> boot crash below.
+> 
+> Thanks for the bisect and report!
+> 
+> I deref the percpu pointers before initializing them properly.  It
+> didn't trigger on x86 because the percpu offset added to the pointer
+> is big enough so that it does not fall into PFN 0, but it probably
+> ended up corrupting something...
+> 
+> Could you try this patch on top of linux-next instead of the revert?
 
-O.K.
-
+That patch,
+Tested-by: Stephen Warren <swarren@nvidia.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
