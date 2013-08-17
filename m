@@ -1,143 +1,409 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id DFD596B0034
-	for <linux-mm@kvack.org>; Sat, 17 Aug 2013 15:32:23 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 9AD4C6B0036
+	for <linux-mm@kvack.org>; Sat, 17 Aug 2013 15:32:24 -0400 (EDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 9/9] mm: thrash detection-based file cache sizing v4
-Date: Sat, 17 Aug 2013 15:31:14 -0400
-Message-Id: <1376767883-4411-1-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 6/9] mm + fs: provide shadow pages to page cache allocations
+Date: Sat, 17 Aug 2013 15:31:20 -0400
+Message-Id: <1376767883-4411-7-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1376767883-4411-1-git-send-email-hannes@cmpxchg.org>
+References: <1376767883-4411-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Ozgun Erdogan <ozgun@citusdata.com>, Metin Doslu <metin@citusdata.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Changes in version 4:
+In order to make informed placement and reclaim decisions, the page
+cache allocation requires the shadow information of refaulting pages.
 
-o Rework shrinker and shadow planting throttle.  The per-file
-  throttling created problems in production tests.  And the shrinker
-  code changed so much over the development of the series that the
-  throttling policy is no longer applicable, so just remove it, and
-  with it the extra unsigned long to track refault ratios in struct
-  inode (yay!).
+Every site that does a find_or_create()-style page cache allocation is
+converted to pass the shadow page found in the faulting slot of the
+radix tree to page_cache_alloc(), where it can be used in subsequent
+patches to influence reclaim behavior.
 
-o Remove the 'enough free pages' filter from refault detection.  This
-  never was just right for all types of zone sizes (varying watermarks
-  and lowmem reserves) and filtered too many valid refault hits.  It
-  was put in place to detect when reclaim already freed enough pages,
-  to stop deactivating more than necessary.  But reclaim advances the
-  working set time, so progress is reflected in the refault distances
-  that we check either way.  Just remove the redundant test.
-
-o Update changelog in terms of what the refault distance means and how
-  the code protects against spurious refaults that happen out of
-  order.  Suggested by Vlastimil Babka.
-
-Changes in version 3:
-
-o Drop global working set time, store zone ID in addition to
-  zone-specific timestamp in radix tree instead.  Balance zones based
-  on their own refaults only.  Based on feedback from Peter Zijlstra.
-
-o Lazily remove inodes without shadow entries from the global list to
-  reduce modifications of said list to an absolute minimum.  Global
-  list operations are now reduced to when an inode has its first cache
-  page reclaimed (rare) and when a linked inode is destroyed (rare) or
-  when the inode's shadows are shrunk to zero (rare).  Based on
-  feedback from Peter Zijlstra.
-
-o Document all interfaces properly
-
-o Split out fair allocator patches (in -mmotm)
-
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
+ drivers/staging/lustre/lustre/llite/dir.c |  2 +-
+ fs/btrfs/compression.c                    |  2 +-
+ fs/cachefiles/rdwr.c                      | 13 +++++----
+ fs/ceph/xattr.c                           |  2 +-
+ fs/logfs/readwrite.c                      |  6 ++--
+ fs/ntfs/file.c                            |  7 +++--
+ fs/splice.c                               |  6 ++--
+ include/linux/pagemap.h                   | 20 ++++++++------
+ mm/filemap.c                              | 46 +++++++++++++++++--------------
+ mm/readahead.c                            |  2 +-
+ net/ceph/pagelist.c                       |  4 +--
+ net/ceph/pagevec.c                        |  2 +-
+ 12 files changed, 61 insertions(+), 51 deletions(-)
 
-The VM maintains cached filesystem pages on two types of lists.  One
-list holds the pages recently faulted into the cache, the other list
-holds pages that have been referenced repeatedly on that first list.
-The idea is to prefer reclaiming young pages over those that have
-shown to benefit from caching in the past.  We call the recently used
-list "inactive list" and the frequently used list "active list".
-
-The tricky part of this model is finding the right balance between
-them.  A big inactive list may not leave enough room for the active
-list to protect all the frequently used pages.  A big active list may
-not leave enough room for the inactive list for a new set of
-frequently used pages, "working set", to establish itself because the
-young pages get pushed out of memory before having a chance to get
-promoted.
-
-Historically, every reclaim scan of the inactive list also took a
-smaller number of pages from the tail of the active list and moved
-them to the head of the inactive list.  This model gave established
-working sets more gracetime in the face of temporary use once streams,
-but was not satisfactory when use once streaming persisted over longer
-periods of time and the established working set was temporarily
-suspended, like a nightly backup evicting all the interactive user
-program data.
-    
-Subsequently, the rules were changed to only age active pages when
-they exceeded the amount of inactive pages, i.e. leave the working set
-alone as long as the other half of memory is easy to reclaim use once
-pages.  This works well until working set transitions exceed the size
-of half of memory and the average access distance between the pages of
-the new working set is bigger than the inactive list.  The VM will
-mistake the thrashing new working set for use once streaming, while
-the unused old working set pages are stuck on the active list.
-
-This happens on file servers and media streaming servers, where the
-popular set of files changes over time.  Even though the individual
-files might be smaller than half of memory, concurrent access to many
-of them may still result in their inter-reference distance being
-greater than half of memory.  It's also been reported as a problem on
-database workloads that switch back and forth between tables that are
-bigger than half of memory.  In these cases the VM never recognizes
-the new working set and will for the remainder of the workload thrash
-disk data which could easily live in memory.
-
-This series solves the problem by maintaining a history of pages
-evicted from the inactive list, enabling the VM to tell streaming IO
-from thrashing and rebalance the page cache lists when appropriate.
-
- drivers/staging/lustre/lustre/llite/dir.c |   2 +-
- fs/block_dev.c                            |   2 +-
- fs/btrfs/compression.c                    |   4 +-
- fs/cachefiles/rdwr.c                      |  13 +-
- fs/ceph/xattr.c                           |   2 +-
- fs/inode.c                                |   6 +-
- fs/logfs/readwrite.c                      |   6 +-
- fs/nfs/blocklayout/blocklayout.c          |   2 +-
- fs/nilfs2/inode.c                         |   4 +-
- fs/ntfs/file.c                            |   7 +-
- fs/splice.c                               |   6 +-
- include/linux/fs.h                        |   2 +
- include/linux/mm.h                        |   8 +
- include/linux/mmzone.h                    |   8 +
- include/linux/pagemap.h                   |  55 ++--
- include/linux/pagevec.h                   |   3 +
- include/linux/radix-tree.h                |   5 +-
- include/linux/shmem_fs.h                  |   1 +
- include/linux/swap.h                      |   9 +
- include/linux/writeback.h                 |   1 +
- lib/radix-tree.c                          | 105 ++------
- mm/Makefile                               |   2 +-
- mm/filemap.c                              | 264 ++++++++++++++++---
- mm/mincore.c                              |  20 +-
- mm/page-writeback.c                       |   2 +-
- mm/readahead.c                            |   8 +-
- mm/shmem.c                                | 122 +++------
- mm/swap.c                                 |  22 ++
- mm/truncate.c                             |  78 ++++--
- mm/vmscan.c                               |  62 ++++-
- mm/vmstat.c                               |   5 +
- mm/workingset.c                           | 396 ++++++++++++++++++++++++++++
- net/ceph/pagelist.c                       |   4 +-
- net/ceph/pagevec.c                        |   2 +-
- 34 files changed, 939 insertions(+), 299 deletions(-)
-
-Based on -mmotm, which includes the required page allocator fairness
-patches.  All that: http://git.cmpxchg.org/cgit/linux-jw.git/
-
-Thanks!
+diff --git a/drivers/staging/lustre/lustre/llite/dir.c b/drivers/staging/lustre/lustre/llite/dir.c
+index 2ca8c45..ac63e4d 100644
+--- a/drivers/staging/lustre/lustre/llite/dir.c
++++ b/drivers/staging/lustre/lustre/llite/dir.c
+@@ -172,7 +172,7 @@ static int ll_dir_filler(void *_hash, struct page *page0)
+ 		max_pages = 1;
+ 	}
+ 	for (npages = 1; npages < max_pages; npages++) {
+-		page = page_cache_alloc_cold(inode->i_mapping);
++		page = page_cache_alloc_cold(inode->i_mapping, NULL);
+ 		if (!page)
+ 			break;
+ 		page_pool[npages] = page;
+diff --git a/fs/btrfs/compression.c b/fs/btrfs/compression.c
+index 5ce2c0f..f23bb17 100644
+--- a/fs/btrfs/compression.c
++++ b/fs/btrfs/compression.c
+@@ -483,7 +483,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
+ 		}
+ 
+ 		page = __page_cache_alloc(mapping_gfp_mask(mapping) &
+-								~__GFP_FS);
++					  ~__GFP_FS, page);
+ 		if (!page)
+ 			break;
+ 
+diff --git a/fs/cachefiles/rdwr.c b/fs/cachefiles/rdwr.c
+index ebaff36..1b34a42 100644
+--- a/fs/cachefiles/rdwr.c
++++ b/fs/cachefiles/rdwr.c
+@@ -254,13 +254,13 @@ static int cachefiles_read_backing_file_one(struct cachefiles_object *object,
+ 	newpage = NULL;
+ 
+ 	for (;;) {
+-		backpage = find_get_page(bmapping, netpage->index);
+-		if (backpage)
++		backpage = __find_get_page(bmapping, netpage->index);
++		if (backpage && !radix_tree_exceptional_entry(backpage))
+ 			goto backing_page_already_present;
+ 
+ 		if (!newpage) {
+ 			newpage = __page_cache_alloc(cachefiles_gfp |
+-						     __GFP_COLD);
++						     __GFP_COLD, backpage);
+ 			if (!newpage)
+ 				goto nomem_monitor;
+ 		}
+@@ -499,13 +499,14 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
+ 		}
+ 
+ 		for (;;) {
+-			backpage = find_get_page(bmapping, netpage->index);
+-			if (backpage)
++			backpage = __find_get_page(bmapping, netpage->index);
++			if (backpage && !radix_tree_exceptional_entry(backpage))
+ 				goto backing_page_already_present;
+ 
+ 			if (!newpage) {
+ 				newpage = __page_cache_alloc(cachefiles_gfp |
+-							     __GFP_COLD);
++							     __GFP_COLD,
++							     backpage);
+ 				if (!newpage)
+ 					goto nomem;
+ 			}
+diff --git a/fs/ceph/xattr.c b/fs/ceph/xattr.c
+index be661d8..a5d2b86 100644
+--- a/fs/ceph/xattr.c
++++ b/fs/ceph/xattr.c
+@@ -816,7 +816,7 @@ static int ceph_sync_setxattr(struct dentry *dentry, const char *name,
+ 			return -ENOMEM;
+ 		err = -ENOMEM;
+ 		for (i = 0; i < nr_pages; i++) {
+-			pages[i] = __page_cache_alloc(GFP_NOFS);
++			pages[i] = __page_cache_alloc(GFP_NOFS, NULL);
+ 			if (!pages[i]) {
+ 				nr_pages = i;
+ 				goto out;
+diff --git a/fs/logfs/readwrite.c b/fs/logfs/readwrite.c
+index 9a59cba..67c669a 100644
+--- a/fs/logfs/readwrite.c
++++ b/fs/logfs/readwrite.c
+@@ -316,9 +316,9 @@ static struct page *logfs_get_write_page(struct inode *inode, u64 bix,
+ 	int err;
+ 
+ repeat:
+-	page = find_get_page(mapping, index);
+-	if (!page) {
+-		page = __page_cache_alloc(GFP_NOFS);
++	page = __find_get_page(mapping, index);
++	if (!page || radix_tree_exceptional_entry(page)) {
++		page = __page_cache_alloc(GFP_NOFS, page);
+ 		if (!page)
+ 			return NULL;
+ 		err = add_to_page_cache_lru(page, mapping, index, GFP_NOFS);
+diff --git a/fs/ntfs/file.c b/fs/ntfs/file.c
+index c5670b8..7aee2d1 100644
+--- a/fs/ntfs/file.c
++++ b/fs/ntfs/file.c
+@@ -413,10 +413,11 @@ static inline int __ntfs_grab_cache_pages(struct address_space *mapping,
+ 	BUG_ON(!nr_pages);
+ 	err = nr = 0;
+ 	do {
+-		pages[nr] = find_lock_page(mapping, index);
+-		if (!pages[nr]) {
++		pages[nr] = __find_lock_page(mapping, index);
++		if (!pages[nr] || radix_tree_exceptional_entry(pages[nr])) {
+ 			if (!*cached_page) {
+-				*cached_page = page_cache_alloc(mapping);
++				*cached_page = page_cache_alloc(mapping,
++								pages[nr]);
+ 				if (unlikely(!*cached_page)) {
+ 					err = -ENOMEM;
+ 					goto err_out;
+diff --git a/fs/splice.c b/fs/splice.c
+index 3b7ee65..edc54ae 100644
+--- a/fs/splice.c
++++ b/fs/splice.c
+@@ -353,12 +353,12 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
+ 		 * Page could be there, find_get_pages_contig() breaks on
+ 		 * the first hole.
+ 		 */
+-		page = find_get_page(mapping, index);
+-		if (!page) {
++		page = __find_get_page(mapping, index);
++		if (!page || radix_tree_exceptional_entry(page)) {
+ 			/*
+ 			 * page didn't exist, allocate one.
+ 			 */
+-			page = page_cache_alloc_cold(mapping);
++			page = page_cache_alloc_cold(mapping, page);
+ 			if (!page)
+ 				break;
+ 
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index db3a78b..4b24236 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -228,28 +228,32 @@ static inline void page_unfreeze_refs(struct page *page, int count)
+ }
+ 
+ #ifdef CONFIG_NUMA
+-extern struct page *__page_cache_alloc(gfp_t gfp);
++extern struct page *__page_cache_alloc(gfp_t gfp, struct page *shadow);
+ #else
+-static inline struct page *__page_cache_alloc(gfp_t gfp)
++static inline struct page *__page_cache_alloc(gfp_t gfp, struct page *shadow)
+ {
+ 	return alloc_pages(gfp, 0);
+ }
+ #endif
+ 
+-static inline struct page *page_cache_alloc(struct address_space *x)
++static inline struct page *page_cache_alloc(struct address_space *x,
++					    struct page *shadow)
+ {
+-	return __page_cache_alloc(mapping_gfp_mask(x));
++	return __page_cache_alloc(mapping_gfp_mask(x), shadow);
+ }
+ 
+-static inline struct page *page_cache_alloc_cold(struct address_space *x)
++static inline struct page *page_cache_alloc_cold(struct address_space *x,
++						 struct page *shadow)
+ {
+-	return __page_cache_alloc(mapping_gfp_mask(x)|__GFP_COLD);
++	return __page_cache_alloc(mapping_gfp_mask(x)|__GFP_COLD, shadow);
+ }
+ 
+-static inline struct page *page_cache_alloc_readahead(struct address_space *x)
++static inline struct page *page_cache_alloc_readahead(struct address_space *x,
++						      struct page *shadow)
+ {
+ 	return __page_cache_alloc(mapping_gfp_mask(x) |
+-				  __GFP_COLD | __GFP_NORETRY | __GFP_NOWARN);
++				  __GFP_COLD | __GFP_NORETRY | __GFP_NOWARN,
++				  shadow);
+ }
+ 
+ typedef int filler_t(void *, struct page *);
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 34b2f0b..d3e5578 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -538,7 +538,7 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
+ EXPORT_SYMBOL_GPL(add_to_page_cache_lru);
+ 
+ #ifdef CONFIG_NUMA
+-struct page *__page_cache_alloc(gfp_t gfp)
++struct page *__page_cache_alloc(gfp_t gfp, struct page *shadow)
+ {
+ 	int n;
+ 	struct page *page;
+@@ -917,9 +917,9 @@ struct page *find_or_create_page(struct address_space *mapping,
+ 	struct page *page;
+ 	int err;
+ repeat:
+-	page = find_lock_page(mapping, index);
+-	if (!page) {
+-		page = __page_cache_alloc(gfp_mask);
++	page = __find_lock_page(mapping, index);
++	if (!page || radix_tree_exceptional_entry(page)) {
++		page = __page_cache_alloc(gfp_mask, page);
+ 		if (!page)
+ 			return NULL;
+ 		/*
+@@ -1222,15 +1222,16 @@ EXPORT_SYMBOL(find_get_pages_tag);
+ struct page *
+ grab_cache_page_nowait(struct address_space *mapping, pgoff_t index)
+ {
+-	struct page *page = find_get_page(mapping, index);
++	struct page *page = __find_get_page(mapping, index);
+ 
+-	if (page) {
++	if (page && !radix_tree_exceptional_entry(page)) {
+ 		if (trylock_page(page))
+ 			return page;
+ 		page_cache_release(page);
+ 		return NULL;
+ 	}
+-	page = __page_cache_alloc(mapping_gfp_mask(mapping) & ~__GFP_FS);
++	page = __page_cache_alloc(mapping_gfp_mask(mapping) & ~__GFP_FS,
++				  page);
+ 	if (page && add_to_page_cache_lru(page, mapping, index, GFP_NOFS)) {
+ 		page_cache_release(page);
+ 		page = NULL;
+@@ -1304,8 +1305,9 @@ find_page:
+ 			page_cache_sync_readahead(mapping,
+ 					ra, filp,
+ 					index, last_index - index);
+-			page = find_get_page(mapping, index);
+-			if (unlikely(page == NULL))
++			page = __find_get_page(mapping, index);
++			if (unlikely(page == NULL ||
++				     radix_tree_exceptional_entry(page)))
+ 				goto no_cached_page;
+ 		}
+ 		if (PageReadahead(page)) {
+@@ -1464,7 +1466,7 @@ no_cached_page:
+ 		 * Ok, it wasn't cached, so we need to create a new
+ 		 * page..
+ 		 */
+-		page = page_cache_alloc_cold(mapping);
++		page = page_cache_alloc_cold(mapping, page);
+ 		if (!page) {
+ 			desc->error = -ENOMEM;
+ 			goto out;
+@@ -1673,18 +1675,20 @@ EXPORT_SYMBOL(generic_file_aio_read);
+  * page_cache_read - adds requested page to the page cache if not already there
+  * @file:	file to read
+  * @offset:	page index
++ * @shadow:	shadow page of the page to be added
+  *
+  * This adds the requested page to the page cache if it isn't already there,
+  * and schedules an I/O to read in its contents from disk.
+  */
+-static int page_cache_read(struct file *file, pgoff_t offset)
++static int page_cache_read(struct file *file, pgoff_t offset,
++			   struct page *shadow)
+ {
+ 	struct address_space *mapping = file->f_mapping;
+ 	struct page *page; 
+ 	int ret;
+ 
+ 	do {
+-		page = page_cache_alloc_cold(mapping);
++		page = page_cache_alloc_cold(mapping, shadow);
+ 		if (!page)
+ 			return -ENOMEM;
+ 
+@@ -1815,8 +1819,8 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 		mem_cgroup_count_vm_event(vma->vm_mm, PGMAJFAULT);
+ 		ret = VM_FAULT_MAJOR;
+ retry_find:
+-		page = find_get_page(mapping, offset);
+-		if (!page)
++		page = __find_get_page(mapping, offset);
++		if (!page || radix_tree_exceptional_entry(page))
+ 			goto no_cached_page;
+ 	}
+ 
+@@ -1859,7 +1863,7 @@ no_cached_page:
+ 	 * We're only likely to ever get here if MADV_RANDOM is in
+ 	 * effect.
+ 	 */
+-	error = page_cache_read(file, offset);
++	error = page_cache_read(file, offset, page);
+ 
+ 	/*
+ 	 * The page we want has now been added to the page cache.
+@@ -1981,9 +1985,9 @@ static struct page *__read_cache_page(struct address_space *mapping,
+ 	struct page *page;
+ 	int err;
+ repeat:
+-	page = find_get_page(mapping, index);
+-	if (!page) {
+-		page = __page_cache_alloc(gfp | __GFP_COLD);
++	page = __find_get_page(mapping, index);
++	if (!page || radix_tree_exceptional_entry(page)) {
++		page = __page_cache_alloc(gfp | __GFP_COLD, page);
+ 		if (!page)
+ 			return ERR_PTR(-ENOMEM);
+ 		err = add_to_page_cache_lru(page, mapping, index, gfp);
+@@ -2454,11 +2458,11 @@ struct page *grab_cache_page_write_begin(struct address_space *mapping,
+ 	if (flags & AOP_FLAG_NOFS)
+ 		gfp_notmask = __GFP_FS;
+ repeat:
+-	page = find_lock_page(mapping, index);
+-	if (page)
++	page = __find_lock_page(mapping, index);
++	if (page && !radix_tree_exceptional_entry(page))
+ 		goto found;
+ 
+-	page = __page_cache_alloc(gfp_mask & ~gfp_notmask);
++	page = __page_cache_alloc(gfp_mask & ~gfp_notmask, page);
+ 	if (!page)
+ 		return NULL;
+ 	status = add_to_page_cache_lru(page, mapping, index,
+diff --git a/mm/readahead.c b/mm/readahead.c
+index 0f85996..58142ef 100644
+--- a/mm/readahead.c
++++ b/mm/readahead.c
+@@ -182,7 +182,7 @@ __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
+ 		if (page && !radix_tree_exceptional_entry(page))
+ 			continue;
+ 
+-		page = page_cache_alloc_readahead(mapping);
++		page = page_cache_alloc_readahead(mapping, page);
+ 		if (!page)
+ 			break;
+ 		page->index = page_offset;
+diff --git a/net/ceph/pagelist.c b/net/ceph/pagelist.c
+index 92866be..83fb56e 100644
+--- a/net/ceph/pagelist.c
++++ b/net/ceph/pagelist.c
+@@ -32,7 +32,7 @@ static int ceph_pagelist_addpage(struct ceph_pagelist *pl)
+ 	struct page *page;
+ 
+ 	if (!pl->num_pages_free) {
+-		page = __page_cache_alloc(GFP_NOFS);
++		page = __page_cache_alloc(GFP_NOFS, NULL);
+ 	} else {
+ 		page = list_first_entry(&pl->free_list, struct page, lru);
+ 		list_del(&page->lru);
+@@ -83,7 +83,7 @@ int ceph_pagelist_reserve(struct ceph_pagelist *pl, size_t space)
+ 	space = (space + PAGE_SIZE - 1) >> PAGE_SHIFT;   /* conv to num pages */
+ 
+ 	while (space > pl->num_pages_free) {
+-		struct page *page = __page_cache_alloc(GFP_NOFS);
++		struct page *page = __page_cache_alloc(GFP_NOFS, NULL);
+ 		if (!page)
+ 			return -ENOMEM;
+ 		list_add_tail(&page->lru, &pl->free_list);
+diff --git a/net/ceph/pagevec.c b/net/ceph/pagevec.c
+index 815a224..ff76422 100644
+--- a/net/ceph/pagevec.c
++++ b/net/ceph/pagevec.c
+@@ -79,7 +79,7 @@ struct page **ceph_alloc_page_vector(int num_pages, gfp_t flags)
+ 	if (!pages)
+ 		return ERR_PTR(-ENOMEM);
+ 	for (i = 0; i < num_pages; i++) {
+-		pages[i] = __page_cache_alloc(flags);
++		pages[i] = __page_cache_alloc(flags, NULL);
+ 		if (pages[i] == NULL) {
+ 			ceph_release_page_vector(pages, i);
+ 			return ERR_PTR(-ENOMEM);
+-- 
+1.8.3.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
