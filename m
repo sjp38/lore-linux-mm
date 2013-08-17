@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 148456B0033
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id AF3BE6B0038
 	for <linux-mm@kvack.org>; Sat, 17 Aug 2013 15:32:25 -0400 (EDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 2/9] mm: shmem: save one radix tree lookup when truncating swapped pages
-Date: Sat, 17 Aug 2013 15:31:16 -0400
-Message-Id: <1376767883-4411-3-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 7/9] mm: make global_dirtyable_memory() available to other mm code
+Date: Sat, 17 Aug 2013 15:31:21 -0400
+Message-Id: <1376767883-4411-8-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1376767883-4411-1-git-send-email-hannes@cmpxchg.org>
 References: <1376767883-4411-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -13,72 +13,40 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Ozgun Erdogan <ozgun@citusdata.com>, Metin Doslu <metin@citusdata.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Page cache radix tree slots are usually stabilized by the page lock,
-but shmem's swap cookies have no such thing.  Because the overall
-truncation loop is lockless, the swap entry is currently confirmed by
-a tree lookup and then deleted by another tree lookup under the same
-tree lock region.
-
-Use radix_tree_delete_item() instead, which does the verification and
-deletion with only one lookup.  This also allows removing the
-delete-only special case from shmem_radix_tree_replace().
+Subsequent patches need a rough estimate of memory available for page
+cache.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/shmem.c | 25 ++++++++++++-------------
- 1 file changed, 12 insertions(+), 13 deletions(-)
+ include/linux/writeback.h | 1 +
+ mm/page-writeback.c       | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index c93dcd6..8510534 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -242,19 +242,17 @@ static int shmem_radix_tree_replace(struct address_space *mapping,
- 			pgoff_t index, void *expected, void *replacement)
+diff --git a/include/linux/writeback.h b/include/linux/writeback.h
+index 4e198ca..4c26df7 100644
+--- a/include/linux/writeback.h
++++ b/include/linux/writeback.h
+@@ -154,6 +154,7 @@ struct ctl_table;
+ int dirty_writeback_centisecs_handler(struct ctl_table *, int,
+ 				      void __user *, size_t *, loff_t *);
+ 
++unsigned long global_dirtyable_memory(void);
+ void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty);
+ unsigned long bdi_dirty_limit(struct backing_dev_info *bdi,
+ 			       unsigned long dirty);
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index d374b29..60376ad 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -231,7 +231,7 @@ static unsigned long highmem_dirtyable_memory(unsigned long total)
+  * Returns the global number of pages potentially available for dirty
+  * page cache.  This is the base value for the global dirty limits.
+  */
+-static unsigned long global_dirtyable_memory(void)
++unsigned long global_dirtyable_memory(void)
  {
- 	void **pslot;
--	void *item = NULL;
-+	void *item;
+ 	unsigned long x;
  
- 	VM_BUG_ON(!expected);
-+	VM_BUG_ON(!replacement);
- 	pslot = radix_tree_lookup_slot(&mapping->page_tree, index);
--	if (pslot)
--		item = radix_tree_deref_slot_protected(pslot,
--							&mapping->tree_lock);
-+	if (!pslot)
-+		return -ENOENT;
-+	item = radix_tree_deref_slot_protected(pslot, &mapping->tree_lock);
- 	if (item != expected)
- 		return -ENOENT;
--	if (replacement)
--		radix_tree_replace_slot(pslot, replacement);
--	else
--		radix_tree_delete(&mapping->page_tree, index);
-+	radix_tree_replace_slot(pslot, replacement);
- 	return 0;
- }
- 
-@@ -386,14 +384,15 @@ export:
- static int shmem_free_swap(struct address_space *mapping,
- 			   pgoff_t index, void *radswap)
- {
--	int error;
-+	void *old;
- 
- 	spin_lock_irq(&mapping->tree_lock);
--	error = shmem_radix_tree_replace(mapping, index, radswap, NULL);
-+	old = radix_tree_delete_item(&mapping->page_tree, index, radswap);
- 	spin_unlock_irq(&mapping->tree_lock);
--	if (!error)
--		free_swap_and_cache(radix_to_swp_entry(radswap));
--	return error;
-+	if (old != radswap)
-+		return -ENOENT;
-+	free_swap_and_cache(radix_to_swp_entry(radswap));
-+	return 0;
- }
- 
- /*
 -- 
 1.8.3.2
 
