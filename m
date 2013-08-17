@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 92A786B0039
-	for <linux-mm@kvack.org>; Sat, 17 Aug 2013 15:32:28 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 75DDC6B003B
+	for <linux-mm@kvack.org>; Sat, 17 Aug 2013 15:32:29 -0400 (EDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 8/9] mm: thrash detection-based file cache sizing
-Date: Sat, 17 Aug 2013 15:31:22 -0400
-Message-Id: <1376767883-4411-9-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 9/9] mm: workingset: keep shadow entries in check
+Date: Sat, 17 Aug 2013 15:31:23 -0400
+Message-Id: <1376767883-4411-10-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1376767883-4411-1-git-send-email-hannes@cmpxchg.org>
 References: <1376767883-4411-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -13,548 +13,361 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Ozgun Erdogan <ozgun@citusdata.com>, Metin Doslu <metin@citusdata.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-The VM maintains cached filesystem pages on two types of lists.  One
-list holds the pages recently faulted into the cache, the other list
-holds pages that have been referenced repeatedly on that first list.
-The idea is to prefer reclaiming young pages over those that have
-shown to benefit from caching in the past.  We call the recently used
-list "inactive list" and the frequently used list "active list".
+Previously, page cache radix tree nodes were freed after reclaim
+emptied out their page pointers.  But now reclaim stores shadow
+entries in their place, which are only reclaimed when the inodes
+themselves are reclaimed.  This is problematic for bigger files that
+are still in use after they have a significant amount of their cache
+reclaimed, without any of those pages actually refaulting.  The shadow
+entries will just sit there and waste memory.  In the worst case, the
+shadow entries will accumulate until the machine runs out of memory.
 
-The tricky part of this model is finding the right balance between
-them.  A big inactive list may not leave enough room for the active
-list to protect all the frequently used pages.  A big active list may
-not leave enough room for the inactive list for a new set of
-frequently used pages, "working set", to establish itself because the
-young pages get pushed out of memory before having a chance to get
-promoted.
-
-Historically, every reclaim scan of the inactive list also took a
-smaller number of pages from the tail of the active list and moved
-them to the head of the inactive list.  This model gave established
-working sets more gracetime in the face of temporary use once streams,
-but was not satisfactory when use once streaming persisted over longer
-periods of time and the established working set was temporarily
-suspended, like a nightly backup evicting all the interactive user
-program data.
-
-Subsequently, the rules were changed to only age active pages when
-they exceeded the amount of inactive pages, i.e. leave the working set
-alone as long as the other half of memory is easy to reclaim use once
-pages.  This works well until working set transitions exceed the size
-of half of memory and the average access distance between the pages of
-the new working set is bigger than the inactive list.  The VM will
-mistake the thrashing new working set for use once streaming, while
-the unused old working set pages are stuck on the active list.
-
-This patch solves this problem by maintaining a history of recently
-evicted file pages, which in turn allows the VM to tell used-once page
-streams from thrashing file cache.
-
-To accomplish this, a per-zone counter is increased every time a page
-is evicted and a snapshot of that counter is stored as shadow entry in
-the page's now empty page cache radix tree slot.  Upon refault of that
-page, the difference between the current value of that counter and the
-shadow entry value is called the refault distance.  It tells how many
-pages have been evicted from the zone since that page's eviction,
-which is how many page slots at most are missing from the zone's
-inactive list for this page to get accessed twice while in memory.  If
-the number of missing slots is less than or equal to the number of
-active pages, increasing the inactive list at the cost of the active
-list would give this thrashing set a chance to establish itself:
-
-eviction counter = 4
-                        evicted      inactive           active
- Page cache data:       [ a b c d ]  [ e f g h i j k ]  [ l m n ]
-  Shadow entries:         0 1 2 3
-Refault distance:         4 3 2 1
-
-When c is faulted back into memory, it is noted that at most two more
-page slots on the inactive list could have prevented the refault (it
-could be less if c is used out of order).  Thus, the active list needs
-to be challenged as it is possible that c is used more frequently than
-l, m, n.  However, there is no access frequency information available
-on active pages so the pages have to be put in direct competition with
-each other before deciding which one to keep.  Thus, 1) pages can not
-be directly reclaimed from the tail of the active list and b)
-refaulting pages can not be directly activated.  Instead, active pages
-are moved from the tail of the active list to the head of the inactive
-list and placed directly next to the refaulting pages.  This way, they
-both have the same time on the inactive list to prove which page is
-actually used more frequently without incurring unnecessary major
-faults or diluting the active page set in case the previously active
-page is in fact the more frequently used one.
-
-Also, since the refault of c could have been due to a spurious access,
-only one active page per qualifying refault is challenged.  This will
-keep the impact of outliers low but still detect if bigger groups of
-pages are refaulting.
+To get this under control, a list of inodes that contain shadow
+entries is maintained.  If the global number of shadows exceeds a
+certain threshold, a shrinker is activated that reclaims old entries
+from the mappings.  This is heavy-handed but it should not be a hot
+path and is mainly there to protect from accidentally/maliciously
+induced OOM kills.  The global list is also not a problem because the
+modifications are very rare: inodes are added once in their lifetime
+when the first shadow entry is stored (i.e. the first page reclaimed)
+and lazily removed when the inode exits.  Or if the shrinker removes
+all shadow entries.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- include/linux/mmzone.h  |   7 ++
- include/linux/pagemap.h |   2 +
- include/linux/swap.h    |   5 ++
- mm/Makefile             |   2 +-
- mm/filemap.c            |   3 +
- mm/swap.c               |   2 +
- mm/vmscan.c             |  62 +++++++++++----
- mm/vmstat.c             |   4 +
- mm/workingset.c         | 200 ++++++++++++++++++++++++++++++++++++++++++++++++
- 9 files changed, 273 insertions(+), 14 deletions(-)
- create mode 100644 mm/workingset.c
+ fs/inode.c             |   5 +-
+ include/linux/fs.h     |   1 +
+ include/linux/mmzone.h |   1 +
+ include/linux/swap.h   |   4 +
+ mm/filemap.c           |   4 +-
+ mm/truncate.c          |   2 +-
+ mm/vmstat.c            |   1 +
+ mm/workingset.c        | 196 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 8 files changed, 208 insertions(+), 6 deletions(-)
 
+diff --git a/fs/inode.c b/fs/inode.c
+index 8862b1b..b23b141 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -169,6 +169,7 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
+ 	mapping->private_data = NULL;
+ 	mapping->backing_dev_info = &default_backing_dev_info;
+ 	mapping->writeback_index = 0;
++	workingset_init_mapping(mapping);
+ 
+ 	/*
+ 	 * If the block_device provides a backing_dev_info for client
+@@ -546,9 +547,7 @@ static void evict(struct inode *inode)
+ 	 */
+ 	inode_wait_for_writeback(inode);
+ 
+-	spin_lock_irq(&inode->i_data.tree_lock);
+-	mapping_set_exiting(&inode->i_data);
+-	spin_unlock_irq(&inode->i_data.tree_lock);
++	workingset_exit_mapping(&inode->i_data);
+ 
+ 	if (op->evict_inode) {
+ 		op->evict_inode(inode);
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index ac5d84e..140ae2d 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -417,6 +417,7 @@ struct address_space {
+ 	/* Protected by tree_lock together with the radix tree */
+ 	unsigned long		nrpages;	/* number of total pages */
+ 	unsigned long		nrshadows;	/* number of shadow entries */
++	struct list_head	shadow_list;	/* list of mappings with shadows */
+ 	pgoff_t			writeback_index;/* writeback starts here */
+ 	const struct address_space_operations *a_ops;	/* methods */
+ 	unsigned long		flags;		/* error bits/gfp mask */
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index ac1ea79..56f540e 100644
+index 56f540e..747adae 100644
 --- a/include/linux/mmzone.h
 +++ b/include/linux/mmzone.h
-@@ -142,6 +142,10 @@ enum zone_stat_item {
- 	NUMA_LOCAL,		/* allocation from local node */
- 	NUMA_OTHER,		/* allocation from other node */
- #endif
-+	WORKINGSET_REFAULT,
-+	WORKINGSET_STALE,
-+	WORKINGSET_BALANCE,
-+	WORKINGSET_BALANCE_FORCE,
+@@ -146,6 +146,7 @@ enum zone_stat_item {
+ 	WORKINGSET_STALE,
+ 	WORKINGSET_BALANCE,
+ 	WORKINGSET_BALANCE_FORCE,
++	WORKINGSET_SHADOWS_RECLAIMED,
  	NR_ANON_TRANSPARENT_HUGEPAGES,
  	NR_FREE_CMA_PAGES,
  	NR_VM_ZONE_STAT_ITEMS };
-@@ -393,6 +397,9 @@ struct zone {
- 	spinlock_t		lru_lock;
- 	struct lruvec		lruvec;
- 
-+	atomic_long_t		workingset_time;
-+	long			shrink_active;
-+
- 	unsigned long		pages_scanned;	   /* since last reclaim */
- 	unsigned long		flags;		   /* zone flags, see below */
- 
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index 4b24236..c6beed2 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -232,6 +232,8 @@ extern struct page *__page_cache_alloc(gfp_t gfp, struct page *shadow);
- #else
- static inline struct page *__page_cache_alloc(gfp_t gfp, struct page *shadow)
- {
-+	if (shadow)
-+		workingset_refault(shadow);
- 	return alloc_pages(gfp, 0);
- }
- #endif
 diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 24db914..441845d 100644
+index 441845d..f18dd33eb 100644
 --- a/include/linux/swap.h
 +++ b/include/linux/swap.h
-@@ -260,6 +260,11 @@ struct swap_list_t {
- 	int next;	/* swapfile to be used next */
+@@ -261,9 +261,13 @@ struct swap_list_t {
  };
  
-+/* linux/mm/workingset.c */
-+void *workingset_eviction(struct address_space *mapping, struct page *page);
-+void workingset_refault(void *shadow);
-+void workingset_activation(struct page *page);
-+
+ /* linux/mm/workingset.c */
++void workingset_init_mapping(struct address_space *mapping);
++void workingset_exit_mapping(struct address_space *mapping);
+ void *workingset_eviction(struct address_space *mapping, struct page *page);
+ void workingset_refault(void *shadow);
+ void workingset_activation(struct page *page);
++void workingset_shadows_inc(struct address_space *mapping);
++void workingset_shadows_dec(struct address_space *mapping);
+ 
  /* linux/mm/page_alloc.c */
  extern unsigned long totalram_pages;
- extern unsigned long totalreserve_pages;
-diff --git a/mm/Makefile b/mm/Makefile
-index cd0abd8..f740427 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -17,7 +17,7 @@ obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
- 			   util.o mmzone.o vmstat.o backing-dev.o \
- 			   mm_init.o mmu_context.o percpu.o slab_common.o \
- 			   compaction.o balloon_compaction.o \
--			   interval_tree.o list_lru.o $(mmu-y)
-+			   interval_tree.o list_lru.o workingset.o $(mmu-y)
- 
- obj-y += init-mm.o
- 
 diff --git a/mm/filemap.c b/mm/filemap.c
-index d3e5578..ab4351e 100644
+index ab4351e..d47d83e 100644
 --- a/mm/filemap.c
 +++ b/mm/filemap.c
-@@ -543,6 +543,9 @@ struct page *__page_cache_alloc(gfp_t gfp, struct page *shadow)
- 	int n;
- 	struct page *page;
+@@ -132,7 +132,7 @@ void __delete_from_page_cache(struct page *page, void *shadow)
  
-+	if (shadow)
-+		workingset_refault(shadow);
-+
- 	if (cpuset_do_page_mem_spread()) {
- 		unsigned int cpuset_mems_cookie;
- 		do {
-diff --git a/mm/swap.c b/mm/swap.c
-index bf448cf..f90a331 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -482,6 +482,8 @@ void mark_page_accessed(struct page *page)
- 		else
- 			__lru_cache_activate_page(page);
- 		ClearPageReferenced(page);
-+		if (page_is_file_cache(page))
-+			workingset_activation(page);
- 	} else if (!PageReferenced(page)) {
- 		SetPageReferenced(page);
- 	}
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index dd5f67c..27a36f6 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -496,7 +496,8 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
-  * Same as remove_mapping, but if the page is removed from the mapping, it
-  * gets returned with a refcount of 0.
-  */
--static int __remove_mapping(struct address_space *mapping, struct page *page)
-+static int __remove_mapping(struct address_space *mapping, struct page *page,
-+			    bool reclaimed)
- {
- 	BUG_ON(!PageLocked(page));
- 	BUG_ON(mapping != page_mapping(page));
-@@ -542,10 +543,13 @@ static int __remove_mapping(struct address_space *mapping, struct page *page)
- 		swapcache_free(swap, page);
- 	} else {
- 		void (*freepage)(struct page *);
-+		void *shadow = NULL;
- 
- 		freepage = mapping->a_ops->freepage;
- 
--		__delete_from_page_cache(page, NULL);
-+		if (reclaimed && page_is_file_cache(page))
-+			shadow = workingset_eviction(mapping, page);
-+		__delete_from_page_cache(page, shadow);
- 		spin_unlock_irq(&mapping->tree_lock);
- 		mem_cgroup_uncharge_cache_page(page);
- 
-@@ -568,7 +572,7 @@ cannot_free:
-  */
- int remove_mapping(struct address_space *mapping, struct page *page)
- {
--	if (__remove_mapping(mapping, page)) {
-+	if (__remove_mapping(mapping, page, false)) {
- 		/*
- 		 * Unfreezing the refcount with 1 rather than 2 effectively
- 		 * drops the pagecache ref for us without requiring another
-@@ -1038,7 +1042,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 			}
- 		}
- 
--		if (!mapping || !__remove_mapping(mapping, page))
-+		if (!mapping || !__remove_mapping(mapping, page, true))
- 			goto keep_locked;
- 
- 		/*
-@@ -1746,32 +1750,64 @@ static inline int inactive_anon_is_low(struct lruvec *lruvec)
- /**
-  * inactive_file_is_low - check if file pages need to be deactivated
-  * @lruvec: LRU vector to check
-+ * @nr_to_scan: number of active pages to scan
-+ * @sc: scan parameters
-  *
-  * When the system is doing streaming IO, memory pressure here
-  * ensures that active file pages get deactivated, until more
-  * than half of the file pages are on the inactive list.
-  *
-- * Once we get to that situation, protect the system's working
-- * set from being evicted by disabling active file page aging.
-+ * Once we get to that situation, protect the system's working set
-+ * from being evicted by disabling active file page aging, until
-+ * thrashing on the inactive list suggests that a new working set is
-+ * trying to form.
-  *
-  * This uses a different ratio than the anonymous pages, because
-  * the page cache uses a use-once replacement algorithm.
-  */
--static int inactive_file_is_low(struct lruvec *lruvec)
-+static int inactive_file_is_low(struct lruvec *lruvec,
-+				unsigned long nr_to_scan,
-+				struct scan_control *sc)
- {
-+	struct zone *zone = lruvec_zone(lruvec);
- 	unsigned long inactive;
- 	unsigned long active;
- 
-+	if (global_reclaim(sc)) {
-+		if (zone->shrink_active > 0) {
-+			if (nr_to_scan) {
-+				inc_zone_state(zone, WORKINGSET_BALANCE);
-+				zone->shrink_active -= nr_to_scan;
-+			}
-+			return true;
-+		}
-+	}
-+	/*
-+	 * Make sure there is always a reasonable amount of inactive
-+	 * file pages around to keep the zone reclaimable.
-+	 *
-+	 * We could do better than requiring half of memory, but we
-+	 * need a big safety buffer until we are smarter about
-+	 * dirty/writeback pages and file readahead windows.
-+	 * Otherwise, we can end up with all pages on the inactive
-+	 * list being dirty, or trash readahead pages before use.
-+	 */
- 	inactive = get_lru_size(lruvec, LRU_INACTIVE_FILE);
- 	active = get_lru_size(lruvec, LRU_ACTIVE_FILE);
--
--	return active > inactive;
-+	if (active > inactive) {
-+		if (global_reclaim(sc) && nr_to_scan)
-+			inc_zone_state(zone, WORKINGSET_BALANCE_FORCE);
-+		return true;
-+	}
-+	return false;
- }
- 
--static int inactive_list_is_low(struct lruvec *lruvec, enum lru_list lru)
-+static int inactive_list_is_low(struct lruvec *lruvec, enum lru_list lru,
-+				unsigned long nr_to_scan,
-+				struct scan_control *sc)
- {
- 	if (is_file_lru(lru))
--		return inactive_file_is_low(lruvec);
-+		return inactive_file_is_low(lruvec, nr_to_scan, sc);
- 	else
- 		return inactive_anon_is_low(lruvec);
- }
-@@ -1780,7 +1816,7 @@ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
- 				 struct lruvec *lruvec, struct scan_control *sc)
- {
- 	if (is_active_lru(lru)) {
--		if (inactive_list_is_low(lruvec, lru))
-+		if (inactive_list_is_low(lruvec, lru, nr_to_scan, sc))
- 			shrink_active_list(nr_to_scan, lruvec, sc, lru);
+ 		slot = radix_tree_lookup_slot(&mapping->page_tree, page->index);
+ 		radix_tree_replace_slot(slot, shadow);
+-		mapping->nrshadows++;
++		workingset_shadows_inc(mapping);
+ 	} else
+ 		radix_tree_delete(&mapping->page_tree, page->index);
+ 	page->mapping = NULL;
+@@ -466,7 +466,7 @@ static int page_cache_insert(struct address_space *mapping, pgoff_t offset,
+ 		if (!radix_tree_exceptional_entry(p))
+ 			return -EEXIST;
+ 		radix_tree_replace_slot(slot, page);
+-		mapping->nrshadows--;
++		workingset_shadows_dec(mapping);
  		return 0;
  	}
-@@ -1891,7 +1927,7 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
- 	 * There is enough inactive page cache, do not reclaim
- 	 * anything from the anonymous working set right now.
+ 	return radix_tree_insert(&mapping->page_tree, offset, page);
+diff --git a/mm/truncate.c b/mm/truncate.c
+index 5c85dd4..76064a4 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -36,7 +36,7 @@ static void clear_exceptional_entry(struct address_space *mapping,
+ 	 * need verification under the tree lock.
  	 */
--	if (!inactive_file_is_low(lruvec)) {
-+	if (!inactive_file_is_low(lruvec, 0, sc)) {
- 		scan_balance = SCAN_FILE;
- 		goto out;
- 	}
+ 	if (radix_tree_delete_item(&mapping->page_tree, index, page) == page)
+-		mapping->nrshadows--;
++		workingset_shadows_dec(mapping);
+ 	spin_unlock_irq(&mapping->tree_lock);
+ }
+ 
 diff --git a/mm/vmstat.c b/mm/vmstat.c
-index ba9e46b..4fabaed 100644
+index 4fabaed..b0b8e3d 100644
 --- a/mm/vmstat.c
 +++ b/mm/vmstat.c
-@@ -739,6 +739,10 @@ const char * const vmstat_text[] = {
- 	"numa_local",
- 	"numa_other",
- #endif
-+	"workingset_refault",
-+	"workingset_stale",
-+	"workingset_balance",
-+	"workingset_balance_force",
+@@ -743,6 +743,7 @@ const char * const vmstat_text[] = {
+ 	"workingset_stale",
+ 	"workingset_balance",
+ 	"workingset_balance_force",
++	"workingset_shadows_reclaimed",
  	"nr_anon_transparent_hugepages",
  	"nr_free_cma",
  	"nr_dirty_threshold",
 diff --git a/mm/workingset.c b/mm/workingset.c
-new file mode 100644
-index 0000000..88ad7ea
---- /dev/null
+index 88ad7ea..00b2280e 100644
+--- a/mm/workingset.c
 +++ b/mm/workingset.c
-@@ -0,0 +1,200 @@
-+/*
-+ * Workingset detection
+@@ -84,6 +84,46 @@
+  * challenged without incurring major faults in case of a mistake.
+  */
+ 
++static DEFINE_PER_CPU(unsigned long, nr_shadows);
++static DEFINE_SPINLOCK(shadow_lock);
++static LIST_HEAD(shadow_mappings);
++
++/**
++ * workingset_init_mapping - prepare address space for page reclaim
++ * @mapping: address space
 + *
-+ * Copyright (C) 2013 Red Hat, Inc., Johannes Weiner
++ * Must be called when the inode is instantiated, before any page
++ * cache is populated.
 + */
-+
-+#include <linux/memcontrol.h>
-+#include <linux/writeback.h>
-+#include <linux/pagemap.h>
-+#include <linux/atomic.h>
-+#include <linux/module.h>
-+#include <linux/swap.h>
-+#include <linux/fs.h>
-+#include <linux/mm.h>
-+
-+/*
-+ *		Double CLOCK lists
-+ *
-+ * Per zone, two clock lists are maintained for file pages: the
-+ * inactive and the active list.  Freshly faulted pages start out at
-+ * the head of the inactive list and page reclaim scans pages from the
-+ * tail.  Pages that are accessed multiple times on the inactive list
-+ * are promoted to the active list, to protect them from reclaim,
-+ * whereas active pages are demoted to the inactive list when the
-+ * inactive list requires more space to detect repeatedly accessed
-+ * pages in the current workload and prevent them from thrashing:
-+ *
-+ *   fault -----------------------+
-+ *                                |
-+ *              +-------------+   |            +-------------+
-+ *   reclaim <- | inactive    | <-+-- demotion | active      | <--+
-+ *              +-------------+                +-------------+    |
-+ *                       |                                        |
-+ *                       +----------- promotion ------------------+
-+ *
-+ *
-+ *		Access frequency and refault distance
-+ *
-+ * A workload is thrashing when the distances between the first and
-+ * second access of pages that are frequently used is bigger than the
-+ * current inactive clock list size, as the pages get reclaimed before
-+ * the second access would have promoted them instead:
-+ *
-+ *    Access #: 1 2 3 4 5 6 7 8 9
-+ *     Page ID: x y b c d e f x y
-+ *                  | inactive  |
-+ *
-+ * To prevent this workload from thrashing, a bigger inactive list is
-+ * required.  And the only way the inactive list can grow on a full
-+ * zone is by taking away space from the corresponding active list.
-+ *
-+ *      +-inactive--+-active------+
-+ *  x y | b c d e f | G H I J K L |
-+ *      +-----------+-------------+
-+ *
-+ * Not every refault should lead to growing the inactive list at the
-+ * cost of the active list, however: if the access distances are
-+ * bigger than available memory overall, there is little point in
-+ * challenging the protected pages on the active list, as those
-+ * refaulting pages will not fit completely into memory.
-+ *
-+ * It is prohibitively expensive to track the access frequency of
-+ * in-core pages, but it is possible to track their refault distance,
-+ * which is the number of page slots shrunk from the inactive list
-+ * between a page's eviction and subsequent refault.  This indicates
-+ * how many page slots are missing on the inactive list in order to
-+ * prevent future thrashing of that page.  Thus, instead of comparing
-+ * access frequency to total available memory, one can compare the
-+ * refault distance to the inactive list's potential for growth: the
-+ * size of the active list.
-+ *
-+ *
-+ *		Rebalancing the lists
-+ *
-+ * Shrinking the active list has to be done carefully because the
-+ * pages on it may have vastly different access frequencies compared
-+ * to the pages on the inactive list.  Thus, pages are not reclaimed
-+ * directly from the tail of the active list, but instead moved to the
-+ * head of the inactive list.  This way, they are competing directly
-+ * with the pages that challenged their protected status.  If they are
-+ * unused, they will eventually be reclaimed, but if they are indeed
-+ * used more frequently than the challenging inactive pages, they will
-+ * be reactivated.  This allows the existing protected set to be
-+ * challenged without incurring major faults in case of a mistake.
-+ */
-+
-+static void *pack_shadow(unsigned long time, struct zone *zone)
++void workingset_init_mapping(struct address_space *mapping)
 +{
-+	time = (time << NODES_SHIFT) | zone_to_nid(zone);
-+	time = (time << ZONES_SHIFT) | zone_idx(zone);
-+	time = (time << RADIX_TREE_EXCEPTIONAL_SHIFT);
-+
-+	return (void *)(time | RADIX_TREE_EXCEPTIONAL_ENTRY);
-+}
-+
-+static void unpack_shadow(void *shadow,
-+			  struct zone **zone,
-+			  unsigned long *distance)
-+{
-+	unsigned long entry = (unsigned long)shadow;
-+	unsigned long time_of_eviction;
-+	unsigned long mask;
-+	unsigned long now;
-+	int zid, nid;
-+
-+	entry >>= RADIX_TREE_EXCEPTIONAL_SHIFT;
-+	zid = entry & ((1UL << ZONES_SHIFT) - 1);
-+	entry >>= ZONES_SHIFT;
-+	nid = entry & ((1UL << NODES_SHIFT) - 1);
-+	entry >>= NODES_SHIFT;
-+	time_of_eviction = entry;
-+
-+	*zone = NODE_DATA(nid)->node_zones + zid;
-+
-+	now = atomic_long_read(&(*zone)->workingset_time);
-+	mask = ~0UL >> (RADIX_TREE_EXCEPTIONAL_SHIFT +
-+			ZONES_SHIFT + NODES_SHIFT);
-+
-+	*distance = (now - time_of_eviction) & mask;
++	INIT_LIST_HEAD(&mapping->shadow_list);
 +}
 +
 +/**
-+ * workingset_eviction - note the eviction of a page from memory
-+ * @mapping: address space the page was backing
-+ * @page: the page being evicted
++ * workingset_exit_mapping - tell page reclaim address space is exiting
++ * @mapping: address space
 + *
-+ * Returns a shadow entry to be stored in @mapping->page_tree in place
-+ * of the evicted @page so that a later refault can be detected.  Or
-+ * %NULL when the eviction should not be remembered.
++ * Must be called before the final truncate, to prevent page reclaim
++ * from installing shadow entries behind the back of the inode
++ * teardown process.
 + */
-+void *workingset_eviction(struct address_space *mapping, struct page *page)
++void workingset_exit_mapping(struct address_space *mapping)
 +{
-+	struct zone *zone = page_zone(page);
-+	unsigned long time;
-+
-+	time = atomic_long_inc_return(&zone->workingset_time);
-+
++	spin_lock_irq(&mapping->tree_lock);
++	mapping_set_exiting(mapping);
 +	/*
-+	 * Don't store shadows in an inode that is being reclaimed.
-+	 * This is not just an optizimation, inode reclaim needs to
-+	 * empty out the radix tree or the nodes are lost, so don't
-+	 * plant shadows behind its back.
++	 * Take the mapping off the shrinker list, the final truncate
++	 * is about to remove potentially remaining shadow entries.
 +	 */
-+	if (mapping_exiting(mapping))
-+		return NULL;
-+
-+	return pack_shadow(time, zone);
-+}
-+
-+/**
-+ * workingset_refault - note the refault of a previously evicted page
-+ * @shadow: shadow entry of the evicted page
-+ *
-+ * Calculates and evaluates the refault distance of the previously
-+ * evicted page in the context of the zone it was allocated in.
-+ *
-+ * This primes page reclaim to rebalance the zone's file lists if
-+ * necessary, so it must be called before a page frame for the
-+ * refaulting page is allocated.
-+ */
-+void workingset_refault(void *shadow)
-+{
-+	unsigned long refault_distance;
-+	struct zone *zone;
-+
-+	unpack_shadow(shadow, &zone, &refault_distance);
-+
-+	inc_zone_state(zone, WORKINGSET_REFAULT);
-+
-+	/*
-+	 * Protected pages should be challenged when the refault
-+	 * distance indicates that thrashing could be stopped by
-+	 * increasing the inactive list at the cost of the active
-+	 * list.
-+	 */
-+	if (refault_distance <= zone_page_state(zone, NR_ACTIVE_FILE)) {
-+		inc_zone_state(zone, WORKINGSET_STALE);
-+		zone->shrink_active++;
++	if (!list_empty(&mapping->shadow_list)) {
++		spin_lock(&shadow_lock);
++		list_del(&mapping->shadow_list);
++		spin_unlock(&shadow_lock);
 +	}
++	spin_unlock_irq(&mapping->tree_lock);
 +}
-+EXPORT_SYMBOL(workingset_refault);
 +
-+/**
-+ * workingset_activation - note a page activation
-+ * @page: page that is being activated
-+ */
-+void workingset_activation(struct page *page)
+ static void *pack_shadow(unsigned long time, struct zone *zone)
+ {
+ 	time = (time << NODES_SHIFT) | zone_to_nid(zone);
+@@ -198,3 +238,159 @@ void workingset_activation(struct page *page)
+ 	if (zone->shrink_active > 0)
+ 		zone->shrink_active--;
+ }
++
++void workingset_shadows_inc(struct address_space *mapping)
 +{
-+	struct zone *zone = page_zone(page);
++	might_lock(&shadow_lock);
++
++	if (mapping->nrshadows == 0 && list_empty(&mapping->shadow_list)) {
++		spin_lock(&shadow_lock);
++		list_add(&mapping->shadow_list, &shadow_mappings);
++		spin_unlock(&shadow_lock);
++	}
++
++	mapping->nrshadows++;
++	this_cpu_inc(nr_shadows);
++}
++
++void workingset_shadows_dec(struct address_space *mapping)
++{
++	mapping->nrshadows--;
++	this_cpu_dec(nr_shadows);
++	/*
++	 * shadow_mappings operations are costly, so we keep the
++	 * mapping linked here even without any shadows left and
++	 * unlink it lazily in the shadow shrinker or when the inode
++	 * is destroyed.
++	 */
++}
++
++static unsigned long get_nr_old_shadows(void)
++{
++	unsigned long nr_max;
++	unsigned long nr;
++	long sum = 0;
++	int cpu;
++
++	for_each_possible_cpu(cpu)
++		sum += per_cpu(nr_shadows, cpu);
++	nr = max(sum, 0L);
 +
 +	/*
-+	 * The lists are rebalanced when the inactive list is observed
-+	 * to be too small for activations.  An activation means that
-+	 * the inactive list is now big enough again for at least one
-+	 * page, so back off further deactivation.
++	 * Every shadow entry with a refault distance bigger than the
++	 * active list is ignored and so NR_ACTIVE_FILE would be a
++	 * reasonable ceiling.  But scanning and shrinking shadow
++	 * entries is quite expensive, so be generous.
 +	 */
-+	atomic_long_inc(&zone->workingset_time);
-+	if (zone->shrink_active > 0)
-+		zone->shrink_active--;
++	nr_max = global_dirtyable_memory() * 4;
++
++	if (nr <= nr_max)
++		return 0;
++	return nr - nr_max;
 +}
++
++static unsigned long scan_mapping(struct address_space *mapping,
++				  unsigned long nr_to_scan)
++{
++	unsigned long nr_scanned = 0;
++	struct radix_tree_iter iter;
++	void **slot;
++
++	rcu_read_lock();
++restart:
++	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, 0) {
++		unsigned long nrshadows;
++		unsigned long distance;
++		struct zone *zone;
++		struct page *page;
++
++		page = radix_tree_deref_slot(slot);
++		if (unlikely(!page))
++			continue;
++		if (!radix_tree_exception(page))
++			continue;
++		if (radix_tree_deref_retry(page))
++			goto restart;
++
++		unpack_shadow(page, &zone, &distance);
++
++		if (distance <= zone_page_state(zone, NR_ACTIVE_FILE))
++			continue;
++
++		spin_lock_irq(&mapping->tree_lock);
++		if (radix_tree_delete_item(&mapping->page_tree,
++					   iter.index, page)) {
++			inc_zone_state(zone, WORKINGSET_SHADOWS_RECLAIMED);
++			workingset_shadows_dec(mapping);
++			nr_scanned++;
++		}
++		nrshadows = mapping->nrshadows;
++		spin_unlock_irq(&mapping->tree_lock);
++
++		if (nrshadows == 0)
++			break;
++
++		if (--nr_to_scan == 0)
++			break;
++	}
++	rcu_read_unlock();
++
++	return nr_scanned;
++}
++
++static unsigned long count_shadows(struct shrinker *shrink,
++				   struct shrink_control *sc)
++{
++	return get_nr_old_shadows();
++}
++
++static unsigned long scan_shadows(struct shrinker *shrink,
++				  struct shrink_control *sc)
++{
++	unsigned long nr_to_scan = sc->nr_to_scan;
++
++	do {
++		struct address_space *mapping;
++
++		spin_lock_irq(&shadow_lock);
++		if (list_empty(&shadow_mappings)) {
++			spin_unlock_irq(&shadow_lock);
++			break;
++		}
++		mapping = list_entry(shadow_mappings.prev,
++				     struct address_space,
++				     shadow_list);
++		list_move(&mapping->shadow_list, &shadow_mappings);
++		__iget(mapping->host);
++		spin_unlock_irq(&shadow_lock);
++
++		if (mapping->nrshadows)
++			nr_to_scan -= scan_mapping(mapping, nr_to_scan);
++
++		spin_lock_irq(&mapping->tree_lock);
++		if (mapping->nrshadows == 0) {
++			spin_lock(&shadow_lock);
++			list_del_init(&mapping->shadow_list);
++			spin_unlock(&shadow_lock);
++		}
++		spin_unlock_irq(&mapping->tree_lock);
++
++		iput(mapping->host);
++
++	} while (nr_to_scan && get_nr_old_shadows());
++
++	return sc->nr_to_scan - nr_to_scan;
++}
++
++static struct shrinker shadow_shrinker = {
++	.count_objects = count_shadows,
++	.scan_objects = scan_shadows,
++	.seeks = 1,
++};
++
++static int __init workingset_init(void)
++{
++	register_shrinker(&shadow_shrinker);
++	return 0;
++}
++core_initcall(workingset_init);
 -- 
 1.8.3.2
 
