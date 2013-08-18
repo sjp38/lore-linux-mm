@@ -1,282 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 66C766B003C
-	for <linux-mm@kvack.org>; Sat, 17 Aug 2013 15:32:34 -0400 (EDT)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 3/9] mm: filemap: move radix tree hole searching here
-Date: Sat, 17 Aug 2013 15:31:17 -0400
-Message-Id: <1376767883-4411-4-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1376767883-4411-1-git-send-email-hannes@cmpxchg.org>
-References: <1376767883-4411-1-git-send-email-hannes@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 0307C6B0032
+	for <linux-mm@kvack.org>; Sun, 18 Aug 2013 04:41:15 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id fa1so3521081pad.19
+        for <linux-mm@kvack.org>; Sun, 18 Aug 2013 01:41:15 -0700 (PDT)
+From: Bob Liu <lliubbo@gmail.com>
+Subject: [PATCH 0/4] mm: merge zram into zswap
+Date: Sun, 18 Aug 2013 16:40:45 +0800
+Message-Id: <1376815249-6611-1-git-send-email-bob.liu@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Ozgun Erdogan <ozgun@citusdata.com>, Metin Doslu <metin@citusdata.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, eternaleye@gmail.com, minchan@kernel.org, mgorman@suse.de, gregkh@linuxfoundation.org, akpm@linux-foundation.org, axboe@kernel.dk, sjenning@linux.vnet.ibm.com, ngupta@vflare.org, semenzato@google.com, penberg@iki.fi, sonnyrao@google.com, smbarber@google.com, konrad.wilk@oracle.com, riel@redhat.com, kmpark@infradead.org, Bob Liu <bob.liu@oracle.com>
 
-The radix tree hole searching code is only used for page cache, for
-example the readahead code trying to get a a picture of the area
-surrounding a fault.
+Both zswap and zram are used to compress anon pages in memory so as to reduce
+swap io operation. The main different is that zswap uses zbud as its allocator
+while zram uses zsmalloc. The other different is zram will create a block
+device, the user need to mkswp and swapon it.
 
-It sufficed to rely on the radix tree definition of holes, which is
-"empty tree slot".  But this is about to change, though, as shadow
-page descriptors will be stored in the page cache after the actual
-pages get evicted from memory.
+Minchan has areadly try to promote zram/zsmalloc into drivers/block/, but it may
+cause increase maintenance headaches. Since the purpose of zswap and zram are
+the same, this patch series try to merge them together as Mel suggested.
+Dropped zram from staging and extended zswap with the same feature as zram.
 
-Move the functions over to mm/filemap.c and make them native page
-cache operations, where they can later be adapted to handle the new
-definition of "page cache hole".
+zswap todo:
+Improve the writeback of zswap pool pages!
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- fs/nfs/blocklayout/blocklayout.c |  2 +-
- include/linux/pagemap.h          |  5 +++
- include/linux/radix-tree.h       |  4 ---
- lib/radix-tree.c                 | 75 ---------------------------------------
- mm/filemap.c                     | 76 ++++++++++++++++++++++++++++++++++++++++
- mm/readahead.c                   |  4 +--
- 6 files changed, 84 insertions(+), 82 deletions(-)
+Bob Liu (4):
+  drivers: staging: drop zram and zsmalloc
+  mm: promote zsmalloc to mm/
+  mm: zswap: add supporting for zsmalloc
+  mm: zswap: create a pseudo device /dev/zram0
 
-diff --git a/fs/nfs/blocklayout/blocklayout.c b/fs/nfs/blocklayout/blocklayout.c
-index e242bbf..fdb74cb 100644
---- a/fs/nfs/blocklayout/blocklayout.c
-+++ b/fs/nfs/blocklayout/blocklayout.c
-@@ -1220,7 +1220,7 @@ static u64 pnfs_num_cont_bytes(struct inode *inode, pgoff_t idx)
- 	end = DIV_ROUND_UP(i_size_read(inode), PAGE_CACHE_SIZE);
- 	if (end != NFS_I(inode)->npages) {
- 		rcu_read_lock();
--		end = radix_tree_next_hole(&mapping->page_tree, idx + 1, ULONG_MAX);
-+		end = page_cache_next_hole(mapping, idx + 1, ULONG_MAX);
- 		rcu_read_unlock();
- 	}
- 
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index e3dea75..c73130c 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -243,6 +243,11 @@ static inline struct page *page_cache_alloc_readahead(struct address_space *x)
- 
- typedef int filler_t(void *, struct page *);
- 
-+pgoff_t page_cache_next_hole(struct address_space *mapping,
-+			     pgoff_t index, unsigned long max_scan);
-+pgoff_t page_cache_prev_hole(struct address_space *mapping,
-+			     pgoff_t index, unsigned long max_scan);
-+
- extern struct page * find_get_page(struct address_space *mapping,
- 				pgoff_t index);
- extern struct page * find_lock_page(struct address_space *mapping,
-diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-index 1bf0a9c..e8be53e 100644
---- a/include/linux/radix-tree.h
-+++ b/include/linux/radix-tree.h
-@@ -227,10 +227,6 @@ radix_tree_gang_lookup(struct radix_tree_root *root, void **results,
- unsigned int radix_tree_gang_lookup_slot(struct radix_tree_root *root,
- 			void ***results, unsigned long *indices,
- 			unsigned long first_index, unsigned int max_items);
--unsigned long radix_tree_next_hole(struct radix_tree_root *root,
--				unsigned long index, unsigned long max_scan);
--unsigned long radix_tree_prev_hole(struct radix_tree_root *root,
--				unsigned long index, unsigned long max_scan);
- int radix_tree_preload(gfp_t gfp_mask);
- int radix_tree_maybe_preload(gfp_t gfp_mask);
- void radix_tree_init(void);
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index 60b202b..912e67b 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -946,81 +946,6 @@ next:
- }
- EXPORT_SYMBOL(radix_tree_range_tag_if_tagged);
- 
--
--/**
-- *	radix_tree_next_hole    -    find the next hole (not-present entry)
-- *	@root:		tree root
-- *	@index:		index key
-- *	@max_scan:	maximum range to search
-- *
-- *	Search the set [index, min(index+max_scan-1, MAX_INDEX)] for the lowest
-- *	indexed hole.
-- *
-- *	Returns: the index of the hole if found, otherwise returns an index
-- *	outside of the set specified (in which case 'return - index >= max_scan'
-- *	will be true). In rare cases of index wrap-around, 0 will be returned.
-- *
-- *	radix_tree_next_hole may be called under rcu_read_lock. However, like
-- *	radix_tree_gang_lookup, this will not atomically search a snapshot of
-- *	the tree at a single point in time. For example, if a hole is created
-- *	at index 5, then subsequently a hole is created at index 10,
-- *	radix_tree_next_hole covering both indexes may return 10 if called
-- *	under rcu_read_lock.
-- */
--unsigned long radix_tree_next_hole(struct radix_tree_root *root,
--				unsigned long index, unsigned long max_scan)
--{
--	unsigned long i;
--
--	for (i = 0; i < max_scan; i++) {
--		if (!radix_tree_lookup(root, index))
--			break;
--		index++;
--		if (index == 0)
--			break;
--	}
--
--	return index;
--}
--EXPORT_SYMBOL(radix_tree_next_hole);
--
--/**
-- *	radix_tree_prev_hole    -    find the prev hole (not-present entry)
-- *	@root:		tree root
-- *	@index:		index key
-- *	@max_scan:	maximum range to search
-- *
-- *	Search backwards in the range [max(index-max_scan+1, 0), index]
-- *	for the first hole.
-- *
-- *	Returns: the index of the hole if found, otherwise returns an index
-- *	outside of the set specified (in which case 'index - return >= max_scan'
-- *	will be true). In rare cases of wrap-around, ULONG_MAX will be returned.
-- *
-- *	radix_tree_next_hole may be called under rcu_read_lock. However, like
-- *	radix_tree_gang_lookup, this will not atomically search a snapshot of
-- *	the tree at a single point in time. For example, if a hole is created
-- *	at index 10, then subsequently a hole is created at index 5,
-- *	radix_tree_prev_hole covering both indexes may return 5 if called under
-- *	rcu_read_lock.
-- */
--unsigned long radix_tree_prev_hole(struct radix_tree_root *root,
--				   unsigned long index, unsigned long max_scan)
--{
--	unsigned long i;
--
--	for (i = 0; i < max_scan; i++) {
--		if (!radix_tree_lookup(root, index))
--			break;
--		index--;
--		if (index == ULONG_MAX)
--			break;
--	}
--
--	return index;
--}
--EXPORT_SYMBOL(radix_tree_prev_hole);
--
- /**
-  *	radix_tree_gang_lookup - perform multiple lookup on a radix tree
-  *	@root:		radix tree root
-diff --git a/mm/filemap.c b/mm/filemap.c
-index ae5cc01..e7833d2 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -688,6 +688,82 @@ int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
- }
- 
- /**
-+ * page_cache_next_hole - find the next hole (not-present entry)
-+ * @mapping: mapping
-+ * @index: index
-+ * @max_scan: maximum range to search
-+ *
-+ * Search the set [index, min(index+max_scan-1, MAX_INDEX)] for the
-+ * lowest indexed hole.
-+ *
-+ * Returns: the index of the hole if found, otherwise returns an index
-+ * outside of the set specified (in which case 'return - index >=
-+ * max_scan' will be true). In rare cases of index wrap-around, 0 will
-+ * be returned.
-+ *
-+ * page_cache_next_hole may be called under rcu_read_lock. However,
-+ * like radix_tree_gang_lookup, this will not atomically search a
-+ * snapshot of the tree at a single point in time. For example, if a
-+ * hole is created at index 5, then subsequently a hole is created at
-+ * index 10, page_cache_next_hole covering both indexes may return 10
-+ * if called under rcu_read_lock.
-+ */
-+pgoff_t page_cache_next_hole(struct address_space *mapping,
-+			     pgoff_t index, unsigned long max_scan)
-+{
-+	unsigned long i;
-+
-+	for (i = 0; i < max_scan; i++) {
-+		if (!radix_tree_lookup(&mapping->page_tree, index))
-+			break;
-+		index++;
-+		if (index == 0)
-+			break;
-+	}
-+
-+	return index;
-+}
-+EXPORT_SYMBOL(page_cache_next_hole);
-+
-+/**
-+ * page_cache_prev_hole - find the prev hole (not-present entry)
-+ * @mapping: mapping
-+ * @index: index
-+ * @max_scan: maximum range to search
-+ *
-+ * Search backwards in the range [max(index-max_scan+1, 0), index] for
-+ * the first hole.
-+ *
-+ * Returns: the index of the hole if found, otherwise returns an index
-+ * outside of the set specified (in which case 'index - return >=
-+ * max_scan' will be true). In rare cases of wrap-around, ULONG_MAX
-+ * will be returned.
-+ *
-+ * page_cache_prev_hole may be called under rcu_read_lock. However,
-+ * like radix_tree_gang_lookup, this will not atomically search a
-+ * snapshot of the tree at a single point in time. For example, if a
-+ * hole is created at index 10, then subsequently a hole is created at
-+ * index 5, page_cache_prev_hole covering both indexes may return 5 if
-+ * called under rcu_read_lock.
-+ */
-+pgoff_t page_cache_prev_hole(struct address_space *mapping,
-+			     pgoff_t index, unsigned long max_scan)
-+{
-+	unsigned long i;
-+
-+	for (i = 0; i < max_scan; i++) {
-+		if (!radix_tree_lookup(&mapping->page_tree, index))
-+			break;
-+		index--;
-+		if (index == ULONG_MAX)
-+			break;
-+	}
-+
-+	return index;
-+}
-+EXPORT_SYMBOL(page_cache_prev_hole);
-+
-+/**
-  * find_get_page - find and get a page reference
-  * @mapping: the address_space to search
-  * @offset: the page index
-diff --git a/mm/readahead.c b/mm/readahead.c
-index 829a77c..01f4cae 100644
---- a/mm/readahead.c
-+++ b/mm/readahead.c
-@@ -351,7 +351,7 @@ static pgoff_t count_history_pages(struct address_space *mapping,
- 	pgoff_t head;
- 
- 	rcu_read_lock();
--	head = radix_tree_prev_hole(&mapping->page_tree, offset - 1, max);
-+	head = page_cache_prev_hole(mapping, offset - 1, max);
- 	rcu_read_unlock();
- 
- 	return offset - 1 - head;
-@@ -430,7 +430,7 @@ ondemand_readahead(struct address_space *mapping,
- 		pgoff_t start;
- 
- 		rcu_read_lock();
--		start = radix_tree_next_hole(&mapping->page_tree, offset+1,max);
-+		start = page_cache_next_hole(mapping, offset + 1, max);
- 		rcu_read_unlock();
- 
- 		if (!start || start - offset > max)
+ drivers/staging/Kconfig                  |    4 -
+ drivers/staging/Makefile                 |    2 -
+ drivers/staging/zram/Kconfig             |   25 -
+ drivers/staging/zram/Makefile            |    3 -
+ drivers/staging/zram/zram.txt            |   77 ---
+ drivers/staging/zram/zram_drv.c          |  925 --------------------------
+ drivers/staging/zram/zram_drv.h          |  115 ----
+ drivers/staging/zsmalloc/Kconfig         |   10 -
+ drivers/staging/zsmalloc/Makefile        |    3 -
+ drivers/staging/zsmalloc/zsmalloc-main.c | 1063 -----------------------------
+ drivers/staging/zsmalloc/zsmalloc.h      |   43 --
+ include/linux/zsmalloc.h                 |   44 ++
+ mm/Kconfig                               |   51 +-
+ mm/Makefile                              |    1 +
+ mm/zsmalloc.c                            | 1068 ++++++++++++++++++++++++++++++
+ mm/zswap.c                               |  269 +++++++-
+ 16 files changed, 1418 insertions(+), 2285 deletions(-)
+ delete mode 100644 drivers/staging/zram/Kconfig
+ delete mode 100644 drivers/staging/zram/Makefile
+ delete mode 100644 drivers/staging/zram/zram.txt
+ delete mode 100644 drivers/staging/zram/zram_drv.c
+ delete mode 100644 drivers/staging/zram/zram_drv.h
+ delete mode 100644 drivers/staging/zsmalloc/Kconfig
+ delete mode 100644 drivers/staging/zsmalloc/Makefile
+ delete mode 100644 drivers/staging/zsmalloc/zsmalloc-main.c
+ delete mode 100644 drivers/staging/zsmalloc/zsmalloc.h
+ create mode 100644 include/linux/zsmalloc.h
+ create mode 100644 mm/zsmalloc.c
+
 -- 
-1.8.3.2
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
