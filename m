@@ -1,58 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 9EA5B6B0033
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2013 11:03:08 -0400 (EDT)
-Date: Mon, 19 Aug 2013 15:48:53 +0100
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 06E666B0032
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2013 11:12:58 -0400 (EDT)
+Date: Mon, 19 Aug 2013 15:58:43 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH v2 2/7] mm: munlock: remove unnecessary call to
- lru_add_drain()
-Message-ID: <20130819144853.GB23002@suse.de>
+Subject: Re: [PATCH v2 3/7] mm: munlock: batch non-THP page isolation and
+ munlock+putback using pagevec
+Message-ID: <20130819145843.GC23002@suse.de>
 References: <1376915022-12741-1-git-send-email-vbabka@suse.cz>
- <1376915022-12741-3-git-send-email-vbabka@suse.cz>
+ <1376915022-12741-4-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <1376915022-12741-3-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1376915022-12741-4-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
 Cc: Andrew Morton <akpm@linux-foundation.org>, J?rn Engel <joern@logfs.org>, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org
 
-On Mon, Aug 19, 2013 at 02:23:37PM +0200, Vlastimil Babka wrote:
-> In munlock_vma_range(), lru_add_drain() is currently called in a loop before
-> each munlock_vma_page() call.
-> This is suboptimal for performance when munlocking many pages. The benefits
-> of per-cpu pagevec for batching the LRU putback are removed since the pagevec
-> only holds at most one page from the previous loop's iteration.
+On Mon, Aug 19, 2013 at 02:23:38PM +0200, Vlastimil Babka wrote:
+> Currently, munlock_vma_range() calls munlock_vma_page on each page in a loop,
+> which results in repeated taking and releasing of the lru_lock spinlock for
+> isolating pages one by one. This patch batches the munlock operations using
+> an on-stack pagevec, so that isolation is done under single lru_lock. For THP
+> pages, the old behavior is preserved as they might be split while putting them
+> into the pagevec. After this patch, a 9% speedup was measured for munlocking
+> a 56GB large memory area with THP disabled.
 > 
-> The lru_add_drain() call also does not serve any purposes for correctness - it
-> does not even drain pagavecs of all cpu's. The munlock code already expects
-> and handles situations where a page cannot be isolated from the LRU (e.g.
-> because it is on some per-cpu pagevec).
-> 
-> The history of the (not commented) call also suggest that it appears there as
-> an oversight rather than intentionally. Before commit ff6a6da6 ("mm: accelerate
-> munlock() treatment of THP pages") the call happened only once upon entering the
-> function. The commit has moved the call into the while loope. So while the
-> other changes in the commit improved munlock performance for THP pages, it
-> introduced the abovementioned suboptimal per-cpu pagevec usage.
-> 
-> Further in history, before commit 408e82b7 ("mm: munlock use follow_page"),
-> munlock_vma_pages_range() was just a wrapper around __mlock_vma_pages_range
-> which performed both mlock and munlock depending on a flag. However, before
-> ba470de4 ("mmap: handle mlocked pages during map, remap, unmap") the function
-> handled only mlock, not munlock. The lru_add_drain call thus comes from the
-> implementation in commit b291f000 ("mlock: mlocked pages are unevictable" and
-> was intended only for mlocking, not munlocking. The original intention of
-> draining the LRU pagevec at mlock time was to ensure the pages were on the LRU
-> before the lock operation so that they could be placed on the unevictable list
-> immediately. There is very little motivation to do the same in the munlock path
-> this, particularly for every single page.
-> 
-> This patch therefore removes the call completely. After removing the call, a
-> 10% speedup was measured for munlock() of a 56GB large memory area with THP
-> disabled.
+> A new function __munlock_pagevec() is introduced that takes a pagevec and:
+> 1) It clears PageMlocked and isolates all pages under lru_lock. Zone page stats
+> can be also updated using the variant which assumes disabled interrupts.
+> 2) It finishes the munlock and lru putback on all pages under their lock_page.
+> Note that previously, lock_page covered also the PageMlocked clearing and page
+> isolation, but it is not needed for those operations.
 > 
 > Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 > Reviewed-by: Jorn Engel <joern@logfs.org>
