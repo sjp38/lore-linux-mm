@@ -1,83 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 649786B0032
-	for <linux-mm@kvack.org>; Sun, 18 Aug 2013 22:05:52 -0400 (EDT)
-Date: Mon, 19 Aug 2013 10:05:47 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: readahead: make context readahead more conservative
-Message-ID: <20130819020547.GA11775@localhost>
-References: <20130808085418.GA23970@localhost>
- <52117BED.7000909@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 4CEC26B0033
+	for <linux-mm@kvack.org>; Sun, 18 Aug 2013 22:17:52 -0400 (EDT)
+Message-ID: <52118042.30101@oracle.com>
+Date: Mon, 19 Aug 2013 10:17:38 +0800
+From: Bob Liu <bob.liu@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <52117BED.7000909@cn.fujitsu.com>
+Subject: Re: [BUG REPORT] ZSWAP: theoretical race condition issues
+References: <CAL1ERfOiT7QV4UUoKi8+gwbHc9an4rUWriufpOJOUdnTYHHEAw@mail.gmail.com>
+In-Reply-To: <CAL1ERfOiT7QV4UUoKi8+gwbHc9an4rUWriufpOJOUdnTYHHEAw@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Miao Xie <miaox@cn.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tao Ma <tm@tao.ma>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Weijie Yang <weijie.yang.kh@gmail.com>
+Cc: sjenning@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dan.magenheimer@oracle.com
 
-On Mon, Aug 19, 2013 at 09:59:09AM +0800, Miao Xie wrote:
-> Hi, everyone
+Hi Weijie,
+
+On 08/19/2013 12:14 AM, Weijie Yang wrote:
+> I found a few bugs in zswap when I review Linux-3.11-rc5, and I have
+> also some questions about it, described as following:
 > 
-> On Thu, 8 Aug 2013 16:54:18 +0800, Fengguang Wu wrote:
-> > This helps performance on moderately dense random reads on SSD.
-> > 
-> > Transaction-Per-Second numbers provided by Taobao:
-> > 
-> > 		QPS	case
-> > 		-------------------------------------------------------
-> > 		7536	disable context readahead totally
-> > w/ patch:	7129	slower size rampup and start RA on the 3rd read
-> > 		6717	slower size rampup
-> > w/o patch:	5581	unmodified context readahead
-> > 
-> > Before, readahead will be started whenever reading page N+1 when it
-> > happen to read N recently. After patch, we'll only start readahead
-> > when *three* random reads happen to access pages N, N+1, N+2. The
-> > probability of this happening is extremely low for pure random reads,
-> > unless they are very dense, which actually deserves some readahead.
-> > 
-> > Also start with a smaller readahead window. The impact to interleaved
-> > sequential reads should be small, because for a long run stream, the
-> > the small readahead window rampup phase is negletable.
-> > 
-> > The context readahead actually benefits clustered random reads on HDD
-> > whose seek cost is pretty high. However as SSD is increasingly used
-> > for random read workloads it's better for the context readahead to
-> > concentrate on interleaved sequential reads.
-> > 
-> > Another SSD rand read test from Miao
-> > 
-> >         # file size:        2GB
-> >         # read IO amount: 625MB
-> >         sysbench --test=fileio          \
-> >                 --max-requests=10000    \
-> >                 --num-threads=1         \
-> >                 --file-num=1            \
-> >                 --file-block-size=64K   \
-> >                 --file-test-mode=rndrd  \
-> >                 --file-fsync-freq=0     \
-> >                 --file-fsync-end=off    run
-> > 
-> > shows the performance of btrfs grows up from 69MB/s to 121MB/s,
-> > ext4 from 104MB/s to 121MB/s.
+> BUG:
+> 1. A race condition when reclaim a page
+> when a handle alloced from zbud, zbud considers this handle is used
+> validly by upper(zswap) and can be a candidate for reclaim.
+> But zswap has to initialize it such as setting swapentry and addding
+> it to rbtree. so there is a race condition, such as:
+> thread 0: obtain handle x from zbud_alloc
+> thread 1: zbud_reclaim_page is called
+> thread 1: callback zswap_writeback_entry to reclaim handle x
+> thread 1: get swpentry from handle x (it is random value now)
+> thread 1: bad thing may happen
+> thread 0: initialize handle x with swapentry
+
+Yes, this may happen potentially but in rare case.
+Because we have a LRU list for page frames, after Thread 0 called
+zbud_alloc the corresponding page will be add to the head of LRU
+list,While zbud_reclaim_page(Thread 1 called) is started from the tail
+of LRU list.
+
+> Of course, this situation almost never happen, it is a "theoretical
+> race condition" issue.
 > 
-> I did the same test on the hard disk recently,
-> for btrfs, there is ~5% regression(10.65MB/s -> 10.09MB/s),
-> for ext4, the performance grows up a bit.(9.98MB/s -> 10.04MB/s).
-> (I run the test for 4 times, and the above result is the average of the test.)
+> 2. Pollute swapcache data by add a pre-invalided swap page
+> when a swap_entry is invalidated, it will be reused by other anon
+> page. At the same time, zswap is reclaiming old page, pollute
+> swapcache of new page as a result, because old page and new page use
+> the same swap_entry, such as:
+> thread 1: zswap reclaim entry x
+> thread 0: zswap_frontswap_invalidate_page entry x
+> thread 0: entry x reused by other anon page
+> thread 1: add old data to swapcache of entry x
+
+I didn't get your idea here, why thread1 will add old data to entry x?
+
+> thread 0: swapcache of entry x is polluted
+> Of course, this situation almost never happen, it is another
+> "theoretical race condition" issue.
 > 
-> Any comment?
+> 3. Frontswap uses frontswap_map bitmap to track page in "backend"
+> implementation, when zswap reclaim a
+> page, the corresponding bitmap record is not cleared.
+>
 
-Thanks for the tests! Minor regressions on the HDD cases are expected.
+That's true, but I don't think it's a big problem.
+Only waste little time to search rbtree during zswap_frontswap_load().
 
-Since random read workloads are migrating to SSD as it becomes cheaper
-and larger, it seems a good tradeoff to optimize for random read
-performance on SSD.
+> 4. zswap_tree is not freed when swapoff, and it got re-kzalloc in
+> swapon, memory leak occurs.
 
-Thanks,
-Fengguang
+Nice catch! I think it should be freed in zswap_frontswap_invalidate_area().
+
+> 
+> questions:
+> 1. How about SetPageReclaim befor __swap_writepage, so that move it to
+> the tail of the inactive list?
+
+It will be added to inactive now.
+
+> 2. zswap uses GFP_KERNEL flag to alloc things in store and reclaim
+> function, does this lead to these function called recursively?
+
+Yes, that's a potential problem.
+
+> 3. for reclaiming one zbud page which contains two buddies, zswap
+> needs to alloc two pages. Does this reclaim cost-efficient?
+> 
+
+Yes, that's a problem too. And that's why we use zbud as the default
+allocator instead of zsmalloc.
+I think improving the write back path of zswap is the next important
+step for zswap.
+
+-- 
+Regards,
+-Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
