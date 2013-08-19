@@ -1,65 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id B3EC66B0032
-	for <linux-mm@kvack.org>; Sun, 18 Aug 2013 12:14:46 -0400 (EDT)
-Received: by mail-ob0-f193.google.com with SMTP id dn14so1614045obc.8
-        for <linux-mm@kvack.org>; Sun, 18 Aug 2013 09:14:45 -0700 (PDT)
-MIME-Version: 1.0
-Date: Mon, 19 Aug 2013 00:14:45 +0800
-Message-ID: <CAL1ERfOiT7QV4UUoKi8+gwbHc9an4rUWriufpOJOUdnTYHHEAw@mail.gmail.com>
-Subject: [BUG REPORT] ZSWAP: theoretical race condition issues
-From: Weijie Yang <weijie.yang.kh@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 39D766B0032
+	for <linux-mm@kvack.org>; Sun, 18 Aug 2013 20:48:20 -0400 (EDT)
+Date: Mon, 19 Aug 2013 10:48:02 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: [patch v2 3/3] mm: page_alloc: fair zone allocator policy
+Message-Id: <20130819104802.e5a8088d87ba81c5ad0d2a66@canb.auug.org.au>
+In-Reply-To: <8738q9b8xg.fsf@kernel.org>
+References: <1375457846-21521-1-git-send-email-hannes@cmpxchg.org>
+	<1375457846-21521-4-git-send-email-hannes@cmpxchg.org>
+	<20130807145828.GQ2296@suse.de>
+	<20130807153743.GH715@cmpxchg.org>
+	<20130808041623.GL1845@cmpxchg.org>
+	<87haepblo2.fsf@kernel.org>
+	<20130816201814.GA26409@cmpxchg.org>
+	<8738q9b8xg.fsf@kernel.org>
+Mime-Version: 1.0
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg="PGP-SHA256";
+ boundary="Signature=_Mon__19_Aug_2013_10_48_02_+1000_+Bohmn=Bt=ujKf6f"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: sjenning@linux.vnet.ibm.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, dan.magenheimer@oracle.com, bob.liu@oracle.com
+To: Kevin Hilman <khilman@linaro.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@surriel.com>, Andrea Arcangeli <aarcange@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Olof Johansson <olof@lixom.net>, Stephen Warren <swarren@wwwdotorg.org>
 
-I found a few bugs in zswap when I review Linux-3.11-rc5, and I have
-also some questions about it, described as following:
+--Signature=_Mon__19_Aug_2013_10_48_02_+1000_+Bohmn=Bt=ujKf6f
+Content-Type: text/plain; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-BUG:
-1. A race condition when reclaim a page
-when a handle alloced from zbud, zbud considers this handle is used
-validly by upper(zswap) and can be a candidate for reclaim.
-But zswap has to initialize it such as setting swapentry and addding
-it to rbtree. so there is a race condition, such as:
-thread 0: obtain handle x from zbud_alloc
-thread 1: zbud_reclaim_page is called
-thread 1: callback zswap_writeback_entry to reclaim handle x
-thread 1: get swpentry from handle x (it is random value now)
-thread 1: bad thing may happen
-thread 0: initialize handle x with swapentry
-Of course, this situation almost never happen, it is a "theoretical
-race condition" issue.
+Hi all,
 
-2. Pollute swapcache data by add a pre-invalided swap page
-when a swap_entry is invalidated, it will be reused by other anon
-page. At the same time, zswap is reclaiming old page, pollute
-swapcache of new page as a result, because old page and new page use
-the same swap_entry, such as:
-thread 1: zswap reclaim entry x
-thread 0: zswap_frontswap_invalidate_page entry x
-thread 0: entry x reused by other anon page
-thread 1: add old data to swapcache of entry x
-thread 0: swapcache of entry x is polluted
-Of course, this situation almost never happen, it is another
-"theoretical race condition" issue.
+On Fri, 16 Aug 2013 14:52:11 -0700 Kevin Hilman <khilman@linaro.org> wrote:
+>
+> Johannes Weiner <hannes@cmpxchg.org> writes:
+>=20
+> > On Fri, Aug 16, 2013 at 10:17:01AM -0700, Kevin Hilman wrote:
+> >> Johannes Weiner <hannes@cmpxchg.org> writes:
+> >> > On Wed, Aug 07, 2013 at 11:37:43AM -0400, Johannes Weiner wrote:
+> >> > Subject: [patch] mm: page_alloc: use vmstats for fair zone allocatio=
+n batching
+> >> >
+> >> > Avoid dirtying the same cache line with every single page allocation
+> >> > by making the fair per-zone allocation batch a vmstat item, which wi=
+ll
+> >> > turn it into batched percpu counters on SMP.
+> >> >
+> >> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> >>=20
+> >> I bisected several boot failures on various ARM platform in
+> >> next-20130816 down to this patch (commit 67131f9837 in linux-next.)
+> >>=20
+> >> Simply reverting it got things booting again on top of -next.  Example
+> >> boot crash below.
+> >
+> > Thanks for the bisect and report!
+>=20
+> You're welcome.  Thanks for the quick fix!
+>=20
+> > I deref the percpu pointers before initializing them properly.  It
+> > didn't trigger on x86 because the percpu offset added to the pointer
+> > is big enough so that it does not fall into PFN 0, but it probably
+> > ended up corrupting something...
+> >
+> > Could you try this patch on top of linux-next instead of the revert?
+>=20
+> Yup, that change fixes it.
+>=20
+> Tested-by: Kevin Hilman <khilman@linaro.org>
 
-3. Frontswap uses frontswap_map bitmap to track page in "backend"
-implementation, when zswap reclaim a
-page, the corresponding bitmap record is not cleared.
+> Tested-by: Stephen Warren <swarren@nvidia.com>
 
-4. zswap_tree is not freed when swapoff, and it got re-kzalloc in
-swapon, memory leak occurs.
+I will add that into the akpm-current tree in linux-next today (unless
+Andrew releases a new mmotm in the mean time).
 
-questions:
-1. How about SetPageReclaim befor __swap_writepage, so that move it to
-the tail of the inactive list?
-2. zswap uses GFP_KERNEL flag to alloc things in store and reclaim
-function, does this lead to these function called recursively?
-3. for reclaiming one zbud page which contains two buddies, zswap
-needs to alloc two pages. Does this reclaim cost-efficient?
+--=20
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
+
+--Signature=_Mon__19_Aug_2013_10_48_02_+1000_+Bohmn=Bt=ujKf6f
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.20 (GNU/Linux)
+
+iQIcBAEBCAAGBQJSEWtGAAoJEECxmPOUX5FEhbsP/1k6qvkvyfiYRoQYuK+QUdHc
+GWwufxhiffuxrzkvD3vBfduG/fUzyyW6yOPAc5McJN31TCfvDsh8aLf4vd/j6kDX
+O+3GFNTDjIZHTPcUvqhEId9kc9x+WhqTShk4W4Cwo9/3P2hg/1Tq1qMEgwZEH5CT
+C7BbYdu2FULnGfdmsWmGcTDRPZNY8Ko4zYwvVkK2fYOtwY+ncUZEHTVccw06VqlV
+raexUVrYa/zxtggSTG6i3qo1cGWbRHR/AO2zIuxE5AVnqe0XhoW4KmRhEQ2mAkzx
+WJNfzx97/zojPrVOwwKaQs5aklK2F4ze8d0ge46qlMaMd1NRrqauiKJVkAU/uUDI
+6bDoOJEiMnh8rOvkMhTa5jN131a+Lp0/L0uQ/sq29bsT4y6bBoPzeb3cGAOfcjSU
+oUO8odGJDoOGzvf3nEvsFyBgeYRDuY1EjWoYXM7lIYz7VPNTBGk7DbliAvFD1dVR
+kE41avq0EmdL5m54D+KNIWxBsm56V8pS5u68mxlC7ZKwyrm8gByqoAv0nV/8ofqB
+JzE6+gsNa3i1lI5PGOhwxG5JxAeWU+hxUHbstCNbv+7jHJs5t/2IK5nHhkerQHSj
+f79ONPYoCxgj3gGbeHYzVkghsrCkgI82PukQoel4mXfncbtHVRqxejhX389yh3ck
+MxJhLp/x1Qne4ddrVGRf
+=7HLW
+-----END PGP SIGNATURE-----
+
+--Signature=_Mon__19_Aug_2013_10_48_02_+1000_+Bohmn=Bt=ujKf6f--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
