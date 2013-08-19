@@ -1,77 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 1EFFF6B0033
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2013 02:05:45 -0400 (EDT)
-Received: by mail-pb0-f42.google.com with SMTP id un15so4607425pbc.1
-        for <linux-mm@kvack.org>; Sun, 18 Aug 2013 23:05:44 -0700 (PDT)
-Date: Sun, 18 Aug 2013 23:05:25 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH mmotm,next] mm: fix memcg-less page reclaim
-Message-ID: <alpine.LNX.2.00.1308182254220.1040@eggly.anvils>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 753146B0032
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2013 02:07:30 -0400 (EDT)
+Message-ID: <5211B608.2050401@oracle.com>
+Date: Mon, 19 Aug 2013 14:07:04 +0800
+From: Bob Liu <bob.liu@oracle.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH v6 0/5] zram/zsmalloc promotion
+References: <1376459736-7384-1-git-send-email-minchan@kernel.org> <20130814174050.GN2296@suse.de> <20130814185820.GA2753@gmail.com> <20130815171250.GA2296@suse.de> <20130816042641.GA2893@gmail.com> <20130816083347.GD2296@suse.de> <20130819031833.GA26832@bbox> <521197B5.8030409@oracle.com> <20130819043758.GC26832@bbox> <CAA25o9RtxNjXj8bjjwQN3tJtePj-m8MfMn0WriD8A6pN-GKdCg@mail.gmail.com>
+In-Reply-To: <CAA25o9RtxNjXj8bjjwQN3tJtePj-m8MfMn0WriD8A6pN-GKdCg@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Luigi Semenzato <semenzato@google.com>
+Cc: Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Sonny Rao <sonnyrao@google.com>, Stephen Barber <smbarber@google.com>
 
-Now that everybody loves memcg, configures it on, and would not dream
-of booting with cgroup_disable=memory, it can pass unnoticed for weeks
-that memcg-less page reclaim is completely broken.
+Hi Luigi,
 
-mmotm's "memcg: enhance memcg iterator to support predicates" replaces
-__shrink_zone()'s "do { } while (memcg);" loop by a "while (memcg) {}"
-loop: which is nicer for memcg, but does nothing for !CONFIG_MEMCG or
-cgroup_disable=memory.  Page reclaim hangs, making no progress.
+On 08/19/2013 01:29 PM, Luigi Semenzato wrote:
+> 
+> We are gearing up to evaluate zswap, but we have only ported kernels
+> up to 3.8 to our hardware, so we may be missing important patches.
+> 
+> In our experience, and with all due respect, the linux MM is a complex
+> beast, and it's difficult to predict how hard it will be for us to
+> switch to zswap.  Even with the relatively simple zram, our load
 
-Adding mem_cgroup_disabled() and once++ test there is ugly.  Ideally,
-even a !CONFIG_MEMCG build might in future have a stub root_mem_cgroup,
-which would get around this: but that's not so at present.
+I think it will be easy if zswap can also create a pseudo block device(I
+already done the simple implementation [PATCH 0/4] mm: merge zram into
+zswap), then it's transparent for original zram users.
 
-However, it appears that nothing actually dereferences the memcg pointer
-in the mem_cgroup_disabled() case, here or anywhere else that case can
-reach mem_cgroup_iter() (mem_cgroup_iter_break() is not called in
-global reclaim).
+> triggered bugs in other parts of the MM that took a fair amount of
+> work to resolve.
+> 
+> I may be wrong, but the in-memory compressed block device implemented
+> by zram seems like a simple device which uses a well-established API
+> to the rest of the kernel.  If it is removed from the kernel, will it
+> be difficult for us to carry our own patch?  Because we may have to do
+> that for a while.  Of course we would prefer it if it stayed in, at
+> least temporarily.
+> 
+> Also, could someone confirm or deny that the maximum compression ratio
+> in zbud is 2?  Because we easily achieve a 2.6-2.8 compression ratio
+> with our loads using zram with zsmalloc and LZO or snappy.  Losing
+> that memory will cause a noticeable regression, which will encourage
+> us to stick with zram.
+> 
+> I am hoping that our load is not so unusual that we are the only Linux
+> users in this situation, and that zsmalloc (or other
+> allocator-compressor with similar characteristics) will continue to
+> exist, whether it is used by zram or zswap.
+> 
+> Thanks!
+> 
 
-So, simply pass back an ordinarily-oopsing non-NULL address the first
-time, and we shall hear about it if I'm wrong.
-
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
-By all means fold in to
-memcg-enhance-memcg-iterator-to-support-predicates.patch
-
- include/linux/memcontrol.h |    3 ++-
- mm/memcontrol.c            |    6 ++++--
- 2 files changed, 6 insertions(+), 3 deletions(-)
-
---- 3.11-rc5-mm1/include/linux/memcontrol.h	2013-08-15 18:10:50.504539510 -0700
-+++ linux/include/linux/memcontrol.h	2013-08-18 12:30:58.116460318 -0700
-@@ -370,7 +370,8 @@ mem_cgroup_iter_cond(struct mem_cgroup *
- 		struct mem_cgroup_reclaim_cookie *reclaim,
- 		mem_cgroup_iter_filter cond)
- {
--	return NULL;
-+	/* first call must return non-NULL, second return NULL */
-+	return (struct mem_cgroup *)(unsigned long)!prev;
- }
- 
- static inline struct mem_cgroup *
---- 3.11-rc5-mm1/mm/memcontrol.c	2013-08-15 18:10:50.720539516 -0700
-+++ linux/mm/memcontrol.c	2013-08-18 12:29:15.352460818 -0700
-@@ -1086,8 +1086,10 @@ struct mem_cgroup *mem_cgroup_iter_cond(
- 	struct mem_cgroup *memcg = NULL;
- 	struct mem_cgroup *last_visited = NULL;
- 
--	if (mem_cgroup_disabled())
--		return NULL;
-+	if (mem_cgroup_disabled()) {
-+		/* first call must return non-NULL, second return NULL */
-+		return (struct mem_cgroup *)(unsigned long)!prev;
-+	}
- 
- 	if (!root)
- 		root = root_mem_cgroup;
+-- 
+Regards,
+-Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
