@@ -1,102 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 4CEC26B0033
-	for <linux-mm@kvack.org>; Sun, 18 Aug 2013 22:17:52 -0400 (EDT)
-Message-ID: <52118042.30101@oracle.com>
-Date: Mon, 19 Aug 2013 10:17:38 +0800
-From: Bob Liu <bob.liu@oracle.com>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id A17266B0032
+	for <linux-mm@kvack.org>; Sun, 18 Aug 2013 23:08:46 -0400 (EDT)
+Message-ID: <52118BE6.8060903@cn.fujitsu.com>
+Date: Mon, 19 Aug 2013 11:07:18 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [BUG REPORT] ZSWAP: theoretical race condition issues
-References: <CAL1ERfOiT7QV4UUoKi8+gwbHc9an4rUWriufpOJOUdnTYHHEAw@mail.gmail.com>
-In-Reply-To: <CAL1ERfOiT7QV4UUoKi8+gwbHc9an4rUWriufpOJOUdnTYHHEAw@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH part5 0/7] Arrange hotpluggable memory as ZONE_MOVABLE.
+References: <1375956979-31877-1-git-send-email-tangchen@cn.fujitsu.com> <20130812145016.GI15892@htj.dyndns.org> <5208FBBC.2080304@zytor.com> <20130812152343.GK15892@htj.dyndns.org> <52090D7F.6060600@gmail.com> <20130812164650.GN15892@htj.dyndns.org> <5209CEC1.8070908@cn.fujitsu.com> <520A02DE.1010908@cn.fujitsu.com> <CAE9FiQV2-OOvHZtPYSYNZz+DfhvL0e+h2HjMSW3DyqeXXvdJkA@mail.gmail.com> <520ADBBA.10501@cn.fujitsu.com> <1376593564.10300.446.camel@misato.fc.hp.com> <CAE9FiQVeMHAqZETP3d1PsPMk9-ZOXD=BD5HaTGFFO3dZenR0CA@mail.gmail.com> <520D89A7.7060802@cn.fujitsu.com> <CAE9FiQX0cxa4+2vtFpuCbH+Tb2YsMZTRRUwynbf_ogF8LN6Smg@mail.gmail.com>
+In-Reply-To: <CAE9FiQX0cxa4+2vtFpuCbH+Tb2YsMZTRRUwynbf_ogF8LN6Smg@mail.gmail.com>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Weijie Yang <weijie.yang.kh@gmail.com>
-Cc: sjenning@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dan.magenheimer@oracle.com
+To: Yinghai Lu <yinghai@kernel.org>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Toshi Kani <toshi.kani@hp.com>, Tejun Heo <tj@kernel.org>, Tang Chen <imtangchen@gmail.com>, Bob Moore <robert.moore@intel.com>, Lv Zheng <lv.zheng@intel.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Renninger <trenn@suse.de>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, Prarit Bhargava <prarit@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "yanghy@cn.fujitsu.com" <yanghy@cn.fujitsu.com>, the arch/x86 maintainers <x86@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, "Luck, Tony (tony.luck@intel.com)" <tony.luck@intel.com>
 
-Hi Weijie,
-
-On 08/19/2013 12:14 AM, Weijie Yang wrote:
-> I found a few bugs in zswap when I review Linux-3.11-rc5, and I have
-> also some questions about it, described as following:
-> 
-> BUG:
-> 1. A race condition when reclaim a page
-> when a handle alloced from zbud, zbud considers this handle is used
-> validly by upper(zswap) and can be a candidate for reclaim.
-> But zswap has to initialize it such as setting swapentry and addding
-> it to rbtree. so there is a race condition, such as:
-> thread 0: obtain handle x from zbud_alloc
-> thread 1: zbud_reclaim_page is called
-> thread 1: callback zswap_writeback_entry to reclaim handle x
-> thread 1: get swpentry from handle x (it is random value now)
-> thread 1: bad thing may happen
-> thread 0: initialize handle x with swapentry
-
-Yes, this may happen potentially but in rare case.
-Because we have a LRU list for page frames, after Thread 0 called
-zbud_alloc the corresponding page will be add to the head of LRU
-list,While zbud_reclaim_page(Thread 1 called) is started from the tail
-of LRU list.
-
-> Of course, this situation almost never happen, it is a "theoretical
-> race condition" issue.
-> 
-> 2. Pollute swapcache data by add a pre-invalided swap page
-> when a swap_entry is invalidated, it will be reused by other anon
-> page. At the same time, zswap is reclaiming old page, pollute
-> swapcache of new page as a result, because old page and new page use
-> the same swap_entry, such as:
-> thread 1: zswap reclaim entry x
-> thread 0: zswap_frontswap_invalidate_page entry x
-> thread 0: entry x reused by other anon page
-> thread 1: add old data to swapcache of entry x
-
-I didn't get your idea here, why thread1 will add old data to entry x?
-
-> thread 0: swapcache of entry x is polluted
-> Of course, this situation almost never happen, it is another
-> "theoretical race condition" issue.
-> 
-> 3. Frontswap uses frontswap_map bitmap to track page in "backend"
-> implementation, when zswap reclaim a
-> page, the corresponding bitmap record is not cleared.
+On 08/16/2013 12:21 PM, Yinghai Lu wrote:
+......
+>> By "put acpi_initrd_override in BRK", do you mean increase the BRK by
+>> default ?
 >
+> Peter,
+>
+> Do you agree on extending BRK 256k to put copied override acpi tables?
+>
+> then we can find and copy them early in
+> arch/x86/kernel/head64.c::x86_64_start_kernel() or
+> arch/x86/kernel/head_32.S.
 
-That's true, but I don't think it's a big problem.
-Only waste little time to search rbtree during zswap_frontswap_load().
+Hi Yinghai,
 
-> 4. zswap_tree is not freed when swapoff, and it got re-kzalloc in
-> swapon, memory leak occurs.
+If we use BRK to store acpi tables, we don't need to setup page tables.
+If we do acpi_initrd_override() in setup_arch(), after early_ioremap is
+available, we don't need to split it into find & copy. It would be much
+easier.
 
-Nice catch! I think it should be freed in zswap_frontswap_invalidate_area().
+Can you agree on doing acpi_initrd_override() in setup_arch() ?  Is it
+too late for xen ?
 
-> 
-> questions:
-> 1. How about SetPageReclaim befor __swap_writepage, so that move it to
-> the tail of the inactive list?
+Thanks.
 
-It will be added to inactive now.
-
-> 2. zswap uses GFP_KERNEL flag to alloc things in store and reclaim
-> function, does this lead to these function called recursively?
-
-Yes, that's a potential problem.
-
-> 3. for reclaiming one zbud page which contains two buddies, zswap
-> needs to alloc two pages. Does this reclaim cost-efficient?
-> 
-
-Yes, that's a problem too. And that's why we use zbud as the default
-allocator instead of zsmalloc.
-I think improving the write back path of zswap is the next important
-step for zswap.
-
--- 
-Regards,
--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
