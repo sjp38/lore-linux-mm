@@ -1,79 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 217A16B0032
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2013 13:46:45 -0400 (EDT)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjennings@variantweb.net>;
-	Mon, 19 Aug 2013 13:46:44 -0400
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 2097638C8059
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2013 13:46:39 -0400 (EDT)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7JHkekM203456
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2013 13:46:40 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r7JHkcXZ005431
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2013 14:46:40 -0300
-Date: Mon, 19 Aug 2013 12:46:34 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: Re: [PATCH 4/4] mm: zswap: create a pseudo device /dev/zram0
-Message-ID: <20130819174634.GB5703@variantweb.net>
-References: <1376815249-6611-1-git-send-email-bob.liu@oracle.com>
- <1376815249-6611-5-git-send-email-bob.liu@oracle.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id BB8F96B0032
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2013 14:29:08 -0400 (EDT)
+Date: Mon, 19 Aug 2013 14:28:58 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1376936938-d6j957y5-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20130819065450.GC28591@elgon.mountain>
+References: <20130819065450.GC28591@elgon.mountain>
+Subject: [PATCH][mmotm] mbind: add BUG_ON(!vma) in new_vma_page() (was Re: mm:
+ mbind: add hugepage migration code to mbind())
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <1376815249-6611-5-git-send-email-bob.liu@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, eternaleye@gmail.com, minchan@kernel.org, mgorman@suse.de, gregkh@linuxfoundation.org, akpm@linux-foundation.org, axboe@kernel.dk, ngupta@vflare.org, semenzato@google.com, penberg@iki.fi, sonnyrao@google.com, smbarber@google.com, konrad.wilk@oracle.com, riel@redhat.com, kmpark@infradead.org, Bob Liu <bob.liu@oracle.com>
+To: Dan Carpenter <dan.carpenter@oracle.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>
 
-On Sun, Aug 18, 2013 at 04:40:49PM +0800, Bob Liu wrote:
-> This is used to replace previous zram.
-> zram users can enable this feature, then a pseudo device will be created
-> automaticlly after kernel boot.
-> Just using "mkswp /dev/zram0; swapon /dev/zram0" to use it as a swap disk.
+Hi Dan,
+(Cc:ed MM maintainers/developers.)
+
+Thanks for reporting.
+
+On Mon, Aug 19, 2013 at 09:54:50AM +0300, Dan Carpenter wrote:
+> Hello Naoya Horiguchi,
 > 
-> The size of this pseudeo is controlled by zswap boot parameter
-> zswap.max_pool_percent.
-> disksize = (totalram_pages * zswap.max_pool_percent/100)*PAGE_SIZE.
+> This is a semi-automatic email about new static checker warnings.
+> 
+> The patch 4c5bbbd24ae1: "mm: mbind: add hugepage migration code to 
+> mbind()" from Aug 16, 2013, leads to the following Smatch complaint:
+> 
+> mm/mempolicy.c:1199 new_vma_page()
+> 	 error: we previously assumed 'vma' could be null (see line 1191)
+> 
+> mm/mempolicy.c
+>   1190	
+>   1191		while (vma) {
+>                        ^^^
+> Old check.
+> 
+>   1192			address = page_address_in_vma(page, vma);
+>   1193			if (address != -EFAULT)
+>   1194				break;
+>   1195			vma = vma->vm_next;
+>   1196		}
+>   1197	
+>   1198		if (PageHuge(page))
+>   1199			return alloc_huge_page_noerr(vma, address, 1);
+>                                                      ^^^
+> 
+> New dereference inside the call to alloc_huge_page_noerr()
+> 
+>   1200		/*
+>   1201		 * if !vma, alloc_page_vma() will use task or system default policy
 
-This /dev/zram0 will behave nothing like the block device that zram
-creates.  It only allows reads/writes to the first PAGE_SIZE area of the
-device, for mkswap to work, and then doesn't do anything for all other
-accesses.
+I think that making alloc_huge_page_noerr() return NULL for !vma is one
+possible solution. But current code looks strange to me in anther way,
+and I don't think that considering vma==NULL case is meaningful.
 
-I guess if you disabled zswap writeback, then... it would somewhat be
-the same thing.  We do need to disable zswap writeback in this case so
-that zswap does decompressed a ton of pages into the swapcache for
-writebacks that will just fail.  Since zsmalloc does not yet support the
-reclaim functionality, zswap writeback is implicitly disabled.
+When migrate_pages() is called from do_mbind(), pages in the pagelist are
+collected via check_range(). And the collected pages certainly belong to
+some vma. So it seems to me that something wrong should happen in !vma case.
+So my suggestion is to add BUG_ON(!vma) after the while loop with comments.
 
-But this is really weird conceptually since zswap is a caching layer
-that uses frontswap.  If a frontswap store fails, it will try to send
-the page to the zram0 device which will fail the write.  Then the page
-will be... put back on the active or inactive list?
+Thanks,
+Naoya Horiguchi
+------------------------------------------------------------------------
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Date: Mon, 19 Aug 2013 13:23:34 -0400
+Subject: [PATCH][mmotm] mbind: add BUG_ON(!vma) in new_vma_page()
 
-Also, using the max_pool_percent in calculating the psuedo-device size
-isn't right.  Right now, the code makes the device the max size of the
-_compressed_ pool, but the underlying swap device size is in
-_uncompressed_ pages. So you'll never be able to fill zswap sizing the
-device like this, unless every page is highly incompressible to the
-point that each compressed page effectively uses a memory pool page, in
-which case, the user shouldn't be using memory compression.
+new_vma_page() is called only by page migration called from do_mbind(),
+where pages to be migrated are queued into a pagelist by queue_pages_range().
+queue_pages_range() confirms that a queued page belongs to some vma,
+so !vma case is not supposed to be happen.
+This patch adds BUG_ON() to catch this unexpected case.
 
-This also means that this hasn't been tested in the zswap pool-is-full
-case since there is no way, in this code, to hit that case.
+Dependency:
+  "mempolicy: rename check_*range to queue_pages_*range"
+  in git//git.cmpxchg.org/linux-mmotm master
 
-In the zbud case the expected compression is 2:1 so you could just
-multiply the compressed pool size by 2 and get a good psuedo-device
-size.  With zsmalloc the expected compression is harder to determine
-since it can achieve very high effective compression ratios on highly
-compressible pages.
+Reported-by: Dan Carpenter <dan.carpenter@oracle.com>
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ mm/mempolicy.c | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
 
-Seth
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index dca5225..43a70dc 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1187,12 +1187,14 @@ static struct page *new_vma_page(struct page *page, unsigned long private, int *
+ 			break;
+ 		vma = vma->vm_next;
+ 	}
++	/*
++	 * queue_pages_range() confirms that @page belongs to some vma,
++	 * so vma shouldn't be NULL.
++	 */
++	BUG_ON(!vma);
+ 
+ 	if (PageHuge(page))
+ 		return alloc_huge_page_noerr(vma, address, 1);
+-	/*
+-	 * if !vma, alloc_page_vma() will use task or system default policy
+-	 */
+ 	return alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
+ }
+ #else
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
