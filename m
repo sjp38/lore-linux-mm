@@ -1,247 +1,238 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 14B3D6B0033
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2013 15:28:46 -0400 (EDT)
-Received: by mail-pb0-f50.google.com with SMTP id uo5so5292917pbc.23
-        for <linux-mm@kvack.org>; Mon, 19 Aug 2013 12:28:46 -0700 (PDT)
-Date: Mon, 19 Aug 2013 12:28:31 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH mmotm,next] mm: fix memcg-less page reclaim
-In-Reply-To: <20130819095136.GB3396@dhcp22.suse.cz>
-Message-ID: <alpine.LNX.2.00.1308191154230.1505@eggly.anvils>
-References: <alpine.LNX.2.00.1308182254220.1040@eggly.anvils> <20130819074407.GA3396@dhcp22.suse.cz> <20130819095136.GB3396@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id A18176B0032
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2013 15:58:44 -0400 (EDT)
+Received: by mail-lb0-f170.google.com with SMTP id r10so3435273lbi.29
+        for <linux-mm@kvack.org>; Mon, 19 Aug 2013 12:58:42 -0700 (PDT)
+Date: Mon, 19 Aug 2013 23:58:36 +0400
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: [PATCH] mm: Track vma changes with VM_SOFTDIRTY bit
+Message-ID: <20130819195836.GO23919@moon>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Pavel Emelyanov <xemul@parallels.com>, Matt Mackall <mpm@selenic.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Marcelo Tosatti <mtosatti@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Peter Zijlstra <peterz@infradead.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-On Mon, 19 Aug 2013, Michal Hocko wrote:
-> [Let's CC Johannes, Kamezewa and Kosaki]
-> 
-> On Mon 19-08-13 09:44:07, Michal Hocko wrote:
-> > On Sun 18-08-13 23:05:25, Hugh Dickins wrote:
-> [...]
-> > > Adding mem_cgroup_disabled() and once++ test there is ugly.  Ideally,
-> > > even a !CONFIG_MEMCG build might in future have a stub root_mem_cgroup,
-> > > which would get around this: but that's not so at present.
-> > > 
-> > > However, it appears that nothing actually dereferences the memcg pointer
-> > > in the mem_cgroup_disabled() case, here or anywhere else that case can
-> > > reach mem_cgroup_iter() (mem_cgroup_iter_break() is not called in
-> > > global reclaim).
-> > > 
-> > > So, simply pass back an ordinarily-oopsing non-NULL address the first
-> > > time, and we shall hear about it if I'm wrong.
-> > 
-> > This is a bit tricky but it seems like the easiest way for now. I will
-> > look at the fake root cgroup for !CONFIG_MEMCG.
-> 
-> OK, the following builds for both CONFIG_MEMCG enabled and disabled and
-> should work with cgroup_disable=memory as well as we are allocating
-> root_mem_cgroup for disabled case as well AFAICS.
-> 
-> It looks less scary than I expected. I haven't tested it yet but if you
-> think that it looks promising I will send a full patch with changelog.
+Pavel reported that in case if vma area get unmapped and
+then mapped (or expanded) in-place, the soft dirty tracker
+won't be able to recognize this situation since it works on
+pte level and ptes are get zapped on unmap, loosing soft
+dirty bit of course.
 
-Sorry, I think this is merely more complicated and wasteful than
-the two-liner I sent.  And I'd be surprised if it's handling the
-cgroup_disable=memory case correctly.
+So to resolve this situation we need to track actions
+on vma level, there VM_SOFTDIRTY flag comes in. When
+new vma area created (or old expanded) we set this bit,
+and keep it here until application calls for clearing
+soft dirty bit.
 
-I do imagine that one day a root_mem_cgroup for all may provide useful
-simplifications - avoiding many of the mem_cgroup_disabled() tests
-scattered around, for example.  But it's not obvious what fields that
-ought to have initialized; and it's not obvious how many of the
-skip-doing-this-on-root-memcg decisions should be re-evaluated
-in going that way.  It's not something to rush into.
+Thus when user space application track memory changes
+now it can detect if vma area is renewed.
 
-I don't see any point in introducing it now, solely for the
-mem_cgroup_iter_cond() loop: that's better served by my patch.
+Reported-by: Pavel Emelyanov <xemul@parallels.com>
+Signed-off-by: Cyrill Gorcunov <gorcunov@openvz.org>
+Cc: Andy Lutomirski <luto@amacapital.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Matt Mackall <mpm@selenic.com>
+Cc: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+Cc: Marcelo Tosatti <mtosatti@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+---
+ fs/exec.c          |    2 +-
+ fs/proc/task_mmu.c |   46 ++++++++++++++++++++++++++++++++++++----------
+ include/linux/mm.h |    6 ++++++
+ mm/mmap.c          |   12 +++++++++++-
+ 4 files changed, 54 insertions(+), 12 deletions(-)
 
-Sorry if my comment misled you into doing this: I meant that your iter
-loop would work naturally if everyone had a non-NULL root_mem_cgroup,
-and maybe in future that will be the case, but not now.
-
-Hugh
-
-> ---
-> From 954085db1837874f94e0249e74b5ae1b49dcb9f8 Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.cz>
-> Date: Mon, 19 Aug 2013 10:51:07 +0200
-> Subject: [PATCH] memcg: add a fake root_mem_cgroup for !CONFIG_MEMCG
-> 
-> TODO proper changelog
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> ---
->  include/linux/memcontrol.h |    8 ++++++--
->  mm/Makefile                |    3 +++
->  mm/fake_root_memcg.c       |   14 ++++++++++++++
->  mm/memcontrol.c            |   17 +++++++++++++----
->  mm/vmscan.c                |    8 ++++----
->  5 files changed, 40 insertions(+), 10 deletions(-)
->  create mode 100644 mm/fake_root_memcg.c
-> 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 8a9ed4d..1d795a8 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -25,6 +25,8 @@
->  #include <linux/jump_label.h>
->  
->  struct mem_cgroup;
-> +struct mem_cgroup *get_root_mem_cgroup(void);
-> +
->  struct page_cgroup;
->  struct page;
->  struct mm_struct;
-> @@ -370,7 +372,9 @@ mem_cgroup_iter_cond(struct mem_cgroup *root,
->  		struct mem_cgroup_reclaim_cookie *reclaim,
->  		mem_cgroup_iter_filter cond)
->  {
-> -	return NULL;
-> +	if (prev)
-> +		return NULL;
-> +	return root;
->  }
->  
->  static inline struct mem_cgroup *
-> @@ -378,7 +382,7 @@ mem_cgroup_iter(struct mem_cgroup *root,
->  		struct mem_cgroup *prev,
->  		struct mem_cgroup_reclaim_cookie *reclaim)
->  {
-> -	return NULL;
-> +	return mem_cgroup_iter_cond(root, prev, reclaim, NULL);
->  }
->  
->  static inline void mem_cgroup_iter_break(struct mem_cgroup *root,
-> diff --git a/mm/Makefile b/mm/Makefile
-> index 305d10a..fadc984 100644
-> --- a/mm/Makefile
-> +++ b/mm/Makefile
-> @@ -52,6 +52,9 @@ obj-$(CONFIG_MIGRATION) += migrate.o
->  obj-$(CONFIG_QUICKLIST) += quicklist.o
->  obj-$(CONFIG_TRANSPARENT_HUGEPAGE) += huge_memory.o
->  obj-$(CONFIG_MEMCG) += memcontrol.o page_cgroup.o vmpressure.o
-> +ifndef CONFIG_MEMCG
-> +	obj-y 		+= fake_root_memcg.o
-> +endif
->  obj-$(CONFIG_CGROUP_HUGETLB) += hugetlb_cgroup.o
->  obj-$(CONFIG_MEMORY_FAILURE) += memory-failure.o
->  obj-$(CONFIG_HWPOISON_INJECT) += hwpoison-inject.o
-> diff --git a/mm/fake_root_memcg.c b/mm/fake_root_memcg.c
-> new file mode 100644
-> index 0000000..e98bd1e
-> --- /dev/null
-> +++ b/mm/fake_root_memcg.c
-> @@ -0,0 +1,14 @@
-> +#include <linux/memcontrol.h>
-> +
-> +/* Make a type placeholder for root_mem_cgroup. */
-> +struct mem_cgroup {};
-> +
-> +/*
-> + * This is a fake root_mem_cgroup which will be used as a placeholder
-> + * for !CONFIG_MEMCG.
-> + */
-> +struct mem_cgroup root_mem_cgroup;
-> +struct mem_cgroup *get_root_mem_cgroup(void)
-> +{
-> +	return &root_mem_cgroup;
-> +}
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index b73988a..69ed11b 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -68,6 +68,11 @@ EXPORT_SYMBOL(mem_cgroup_subsys);
->  #define MEM_CGROUP_RECLAIM_RETRIES	5
->  static struct mem_cgroup *root_mem_cgroup __read_mostly;
->  
-> +struct mem_cgroup *get_root_mem_cgroup(void)
-> +{
-> +	return root_mem_cgroup;
-
-I expect that returns NULL when booted with cgroup_disable=memory.
-
-> +}
-> +
->  #ifdef CONFIG_MEMCG_SWAP
->  /* Turned on only when memory cgroup is enabled && really_do_swap_account = 1 */
->  int do_swap_account __read_mostly;
-> @@ -1109,8 +1114,12 @@ struct mem_cgroup *mem_cgroup_iter_cond(struct mem_cgroup *root,
->  	struct mem_cgroup *memcg = NULL;
->  	struct mem_cgroup *last_visited = NULL;
->  
-> -	if (mem_cgroup_disabled())
-> -		return NULL;
-> +	VM_BUG_ON(!root);
-> +	if (mem_cgroup_disabled()) {
-> +		if (prev)
-> +			return NULL;
-> +		return root;
-> +	}
->  
->  	if (!root)
->  		root = root_mem_cgroup;
-> @@ -1198,9 +1207,9 @@ void mem_cgroup_iter_break(struct mem_cgroup *root,
->  	     iter = mem_cgroup_iter(root, iter, NULL))
->  
->  #define for_each_mem_cgroup(iter)			\
-> -	for (iter = mem_cgroup_iter(NULL, NULL, NULL);	\
-> +	for (iter = mem_cgroup_iter(root_mem_cgroup, NULL, NULL);	\
->  	     iter != NULL;				\
-> -	     iter = mem_cgroup_iter(NULL, iter, NULL))
-> +	     iter = mem_cgroup_iter(root_mem_cgroup, iter, NULL))
->  
->  void __mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
->  {
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index a3bf7fd..d10b44a 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2596,7 +2596,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
->  		.may_swap = 1,
->  		.order = order,
->  		.priority = DEF_PRIORITY,
-> -		.target_mem_cgroup = NULL,
-> +		.target_mem_cgroup = get_root_mem_cgroup(),
->  		.nodemask = nodemask,
->  	};
->  	struct shrink_control shrink = {
-> @@ -2714,7 +2714,7 @@ static void age_active_anon(struct zone *zone, struct scan_control *sc)
->  	if (!total_swap_pages)
->  		return;
->  
-> -	memcg = mem_cgroup_iter(NULL, NULL, NULL);
-> +	memcg = mem_cgroup_iter(get_root_mem_cgroup(), NULL, NULL);
->  	do {
->  		struct lruvec *lruvec = mem_cgroup_zone_lruvec(zone, memcg);
->  
-> @@ -2722,7 +2722,7 @@ static void age_active_anon(struct zone *zone, struct scan_control *sc)
->  			shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
->  					   sc, LRU_ACTIVE_ANON);
->  
-> -		memcg = mem_cgroup_iter(NULL, memcg, NULL);
-> +		memcg = mem_cgroup_iter(get_root_mem_cgroup(), memcg, NULL);
->  	} while (memcg);
->  }
->  
-> @@ -2949,7 +2949,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->  		.may_swap = 1,
->  		.may_writepage = !laptop_mode,
->  		.order = order,
-> -		.target_mem_cgroup = NULL,
-> +		.target_mem_cgroup = get_root_mem_cgroup(),
->  	};
->  	count_vm_event(PAGEOUTRUN);
->  
-> -- 
-> 1.7.10.4
-> 
-> -- 
-> Michal Hocko
-> SUSE Labs
+Index: linux-2.6.git/fs/exec.c
+===================================================================
+--- linux-2.6.git.orig/fs/exec.c
++++ linux-2.6.git/fs/exec.c
+@@ -266,7 +266,7 @@ static int __bprm_mm_init(struct linux_b
+ 	BUILD_BUG_ON(VM_STACK_FLAGS & VM_STACK_INCOMPLETE_SETUP);
+ 	vma->vm_end = STACK_TOP_MAX;
+ 	vma->vm_start = vma->vm_end - PAGE_SIZE;
+-	vma->vm_flags = VM_STACK_FLAGS | VM_STACK_INCOMPLETE_SETUP;
++	vma->vm_flags = VM_SOFTDIRTY | VM_STACK_FLAGS | VM_STACK_INCOMPLETE_SETUP;
+ 	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
+ 	INIT_LIST_HEAD(&vma->anon_vma_chain);
+ 
+Index: linux-2.6.git/fs/proc/task_mmu.c
+===================================================================
+--- linux-2.6.git.orig/fs/proc/task_mmu.c
++++ linux-2.6.git/fs/proc/task_mmu.c
+@@ -740,6 +740,9 @@ static inline void clear_soft_dirty(stru
+ 		ptent = pte_file_clear_soft_dirty(ptent);
+ 	}
+ 
++	if (vma->vm_flags & VM_SOFTDIRTY)
++		vma->vm_flags &= ~VM_SOFTDIRTY;
++
+ 	set_pte_at(vma->vm_mm, addr, pte, ptent);
+ #endif
+ }
+@@ -949,13 +952,15 @@ static void pte_to_pagemap_entry(pagemap
+ 		if (is_migration_entry(entry))
+ 			page = migration_entry_to_page(entry);
+ 	} else {
+-		*pme = make_pme(PM_NOT_PRESENT(pm->v2));
++		if (vma->vm_flags & VM_SOFTDIRTY)
++			flags2 |= __PM_SOFT_DIRTY;
++		*pme = make_pme(PM_NOT_PRESENT(pm->v2) | PM_STATUS2(pm->v2, flags2));
+ 		return;
+ 	}
+ 
+ 	if (page && !PageAnon(page))
+ 		flags |= PM_FILE;
+-	if (pte_soft_dirty(pte))
++	if ((vma->vm_flags & VM_SOFTDIRTY) || pte_soft_dirty(pte))
+ 		flags2 |= __PM_SOFT_DIRTY;
+ 
+ 	*pme = make_pme(PM_PFRAME(frame) | PM_STATUS2(pm->v2, flags2) | flags);
+@@ -974,7 +979,7 @@ static void thp_pmd_to_pagemap_entry(pag
+ 		*pme = make_pme(PM_PFRAME(pmd_pfn(pmd) + offset)
+ 				| PM_STATUS2(pm->v2, pmd_flags2) | PM_PRESENT);
+ 	else
+-		*pme = make_pme(PM_NOT_PRESENT(pm->v2));
++		*pme = make_pme(PM_NOT_PRESENT(pm->v2) | PM_STATUS2(pm->v2, pmd_flags2));
+ }
+ #else
+ static inline void thp_pmd_to_pagemap_entry(pagemap_entry_t *pme, struct pagemapread *pm,
+@@ -997,7 +1002,11 @@ static int pagemap_pte_range(pmd_t *pmd,
+ 	if (vma && pmd_trans_huge_lock(pmd, vma) == 1) {
+ 		int pmd_flags2;
+ 
+-		pmd_flags2 = (pmd_soft_dirty(*pmd) ? __PM_SOFT_DIRTY : 0);
++		if ((vma->vm_flags & VM_SOFTDIRTY) || pmd_soft_dirty(*pmd))
++			pmd_flags2 = __PM_SOFT_DIRTY;
++		else
++			pmd_flags2 = 0;
++
+ 		for (; addr != end; addr += PAGE_SIZE) {
+ 			unsigned long offset;
+ 
+@@ -1015,12 +1024,17 @@ static int pagemap_pte_range(pmd_t *pmd,
+ 	if (pmd_trans_unstable(pmd))
+ 		return 0;
+ 	for (; addr != end; addr += PAGE_SIZE) {
++		int flags2;
+ 
+ 		/* check to see if we've left 'vma' behind
+ 		 * and need a new, higher one */
+ 		if (vma && (addr >= vma->vm_end)) {
+ 			vma = find_vma(walk->mm, addr);
+-			pme = make_pme(PM_NOT_PRESENT(pm->v2));
++			if (vma && (vma->vm_flags & VM_SOFTDIRTY))
++				flags2 = __PM_SOFT_DIRTY;
++			else
++				flags2 = 0;
++			pme = make_pme(PM_NOT_PRESENT(pm->v2) | PM_STATUS2(pm->v2, flags2));
+ 		}
+ 
+ 		/* check that 'vma' actually covers this address,
+@@ -1044,13 +1058,15 @@ static int pagemap_pte_range(pmd_t *pmd,
+ 
+ #ifdef CONFIG_HUGETLB_PAGE
+ static void huge_pte_to_pagemap_entry(pagemap_entry_t *pme, struct pagemapread *pm,
+-					pte_t pte, int offset)
++					pte_t pte, int offset, int flags2)
+ {
+ 	if (pte_present(pte))
+-		*pme = make_pme(PM_PFRAME(pte_pfn(pte) + offset)
+-				| PM_STATUS2(pm->v2, 0) | PM_PRESENT);
++		*pme = make_pme(PM_PFRAME(pte_pfn(pte) + offset)	|
++				PM_STATUS2(pm->v2, flags2)		|
++				PM_PRESENT);
+ 	else
+-		*pme = make_pme(PM_NOT_PRESENT(pm->v2));
++		*pme = make_pme(PM_NOT_PRESENT(pm->v2)			|
++				PM_STATUS2(pm->v2, flags2));
+ }
+ 
+ /* This function walks within one hugetlb entry in the single call */
+@@ -1059,12 +1075,22 @@ static int pagemap_hugetlb_range(pte_t *
+ 				 struct mm_walk *walk)
+ {
+ 	struct pagemapread *pm = walk->private;
++	struct vm_area_struct *vma;
+ 	int err = 0;
++	int flags2;
+ 	pagemap_entry_t pme;
+ 
++	vma = find_vma(walk->mm, addr);
++	WARN_ON_ONCE(!vma);
++
++	if (vma && (vma->vm_flags & VM_SOFTDIRTY))
++		flags2 = __PM_SOFT_DIRTY;
++	else
++		flags2 = 0;
++
+ 	for (; addr != end; addr += PAGE_SIZE) {
+ 		int offset = (addr & ~hmask) >> PAGE_SHIFT;
+-		huge_pte_to_pagemap_entry(&pme, pm, *pte, offset);
++		huge_pte_to_pagemap_entry(&pme, pm, *pte, offset, flags2);
+ 		err = add_to_pagemap(addr, &pme, pm);
+ 		if (err)
+ 			return err;
+Index: linux-2.6.git/include/linux/mm.h
+===================================================================
+--- linux-2.6.git.orig/include/linux/mm.h
++++ linux-2.6.git/include/linux/mm.h
+@@ -115,6 +115,12 @@ extern unsigned int kobjsize(const void
+ #define VM_ARCH_1	0x01000000	/* Architecture-specific flag */
+ #define VM_DONTDUMP	0x04000000	/* Do not include in the core dump */
+ 
++#ifdef CONFIG_MEM_SOFT_DIRTY
++# define VM_SOFTDIRTY	0x08000000	/* Not soft dirty clean area */
++#else
++# define VM_SOFTDIRTY	0
++#endif
++
+ #define VM_MIXEDMAP	0x10000000	/* Can contain "struct page" and pure PFN pages */
+ #define VM_HUGEPAGE	0x20000000	/* MADV_HUGEPAGE marked this vma */
+ #define VM_NOHUGEPAGE	0x40000000	/* MADV_NOHUGEPAGE marked this vma */
+Index: linux-2.6.git/mm/mmap.c
+===================================================================
+--- linux-2.6.git.orig/mm/mmap.c
++++ linux-2.6.git/mm/mmap.c
+@@ -1616,6 +1616,15 @@ out:
+ 	if (file)
+ 		uprobe_mmap(vma);
+ 
++	/*
++	 * New (or expanded) vma always get soft dirty status.
++	 * Otherwise user-space soft-dirty page tracker won't
++	 * be able to distinguish situation when vma area unmapped,
++	 * then new mapped in-place (which must be aimed as
++	 * a completely new data area).
++	 */
++	vma->vm_flags |= VM_SOFTDIRTY;
++
+ 	return addr;
+ 
+ unmap_and_free_vma:
+@@ -2663,6 +2672,7 @@ out:
+ 	mm->total_vm += len >> PAGE_SHIFT;
+ 	if (flags & VM_LOCKED)
+ 		mm->locked_vm += (len >> PAGE_SHIFT);
++	vma->vm_flags |= VM_SOFTDIRTY;
+ 	return addr;
+ }
+ 
+@@ -2930,7 +2940,7 @@ int install_special_mapping(struct mm_st
+ 	vma->vm_start = addr;
+ 	vma->vm_end = addr + len;
+ 
+-	vma->vm_flags = vm_flags | mm->def_flags | VM_DONTEXPAND;
++	vma->vm_flags = vm_flags | mm->def_flags | VM_DONTEXPAND | VM_SOFTDIRTY;
+ 	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
+ 
+ 	vma->vm_ops = &special_mapping_vmops;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
