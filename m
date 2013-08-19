@@ -1,105 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 39D766B0032
-	for <linux-mm@kvack.org>; Sun, 18 Aug 2013 20:48:20 -0400 (EDT)
-Date: Mon, 19 Aug 2013 10:48:02 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: Re: [patch v2 3/3] mm: page_alloc: fair zone allocator policy
-Message-Id: <20130819104802.e5a8088d87ba81c5ad0d2a66@canb.auug.org.au>
-In-Reply-To: <8738q9b8xg.fsf@kernel.org>
-References: <1375457846-21521-1-git-send-email-hannes@cmpxchg.org>
-	<1375457846-21521-4-git-send-email-hannes@cmpxchg.org>
-	<20130807145828.GQ2296@suse.de>
-	<20130807153743.GH715@cmpxchg.org>
-	<20130808041623.GL1845@cmpxchg.org>
-	<87haepblo2.fsf@kernel.org>
-	<20130816201814.GA26409@cmpxchg.org>
-	<8738q9b8xg.fsf@kernel.org>
-Mime-Version: 1.0
-Content-Type: multipart/signed; protocol="application/pgp-signature";
- micalg="PGP-SHA256";
- boundary="Signature=_Mon__19_Aug_2013_10_48_02_+1000_+Bohmn=Bt=ujKf6f"
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 58DC66B0032
+	for <linux-mm@kvack.org>; Sun, 18 Aug 2013 21:58:07 -0400 (EDT)
+Message-ID: <52117BED.7000909@cn.fujitsu.com>
+Date: Mon, 19 Aug 2013 09:59:09 +0800
+From: Miao Xie <miaox@cn.fujitsu.com>
+Reply-To: miaox@cn.fujitsu.com
+MIME-Version: 1.0
+Subject: Re: readahead: make context readahead more conservative
+References: <20130808085418.GA23970@localhost>
+In-Reply-To: <20130808085418.GA23970@localhost>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kevin Hilman <khilman@linaro.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@surriel.com>, Andrea Arcangeli <aarcange@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Olof Johansson <olof@lixom.net>, Stephen Warren <swarren@wwwdotorg.org>
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tao Ma <tm@tao.ma>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
---Signature=_Mon__19_Aug_2013_10_48_02_+1000_+Bohmn=Bt=ujKf6f
-Content-Type: text/plain; charset=US-ASCII
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Hi, everyone
 
-Hi all,
+On Thu, 8 Aug 2013 16:54:18 +0800, Fengguang Wu wrote:
+> This helps performance on moderately dense random reads on SSD.
+> 
+> Transaction-Per-Second numbers provided by Taobao:
+> 
+> 		QPS	case
+> 		-------------------------------------------------------
+> 		7536	disable context readahead totally
+> w/ patch:	7129	slower size rampup and start RA on the 3rd read
+> 		6717	slower size rampup
+> w/o patch:	5581	unmodified context readahead
+> 
+> Before, readahead will be started whenever reading page N+1 when it
+> happen to read N recently. After patch, we'll only start readahead
+> when *three* random reads happen to access pages N, N+1, N+2. The
+> probability of this happening is extremely low for pure random reads,
+> unless they are very dense, which actually deserves some readahead.
+> 
+> Also start with a smaller readahead window. The impact to interleaved
+> sequential reads should be small, because for a long run stream, the
+> the small readahead window rampup phase is negletable.
+> 
+> The context readahead actually benefits clustered random reads on HDD
+> whose seek cost is pretty high. However as SSD is increasingly used
+> for random read workloads it's better for the context readahead to
+> concentrate on interleaved sequential reads.
+> 
+> Another SSD rand read test from Miao
+> 
+>         # file size:        2GB
+>         # read IO amount: 625MB
+>         sysbench --test=fileio          \
+>                 --max-requests=10000    \
+>                 --num-threads=1         \
+>                 --file-num=1            \
+>                 --file-block-size=64K   \
+>                 --file-test-mode=rndrd  \
+>                 --file-fsync-freq=0     \
+>                 --file-fsync-end=off    run
+> 
+> shows the performance of btrfs grows up from 69MB/s to 121MB/s,
+> ext4 from 104MB/s to 121MB/s.
 
-On Fri, 16 Aug 2013 14:52:11 -0700 Kevin Hilman <khilman@linaro.org> wrote:
->
-> Johannes Weiner <hannes@cmpxchg.org> writes:
->=20
-> > On Fri, Aug 16, 2013 at 10:17:01AM -0700, Kevin Hilman wrote:
-> >> Johannes Weiner <hannes@cmpxchg.org> writes:
-> >> > On Wed, Aug 07, 2013 at 11:37:43AM -0400, Johannes Weiner wrote:
-> >> > Subject: [patch] mm: page_alloc: use vmstats for fair zone allocatio=
-n batching
-> >> >
-> >> > Avoid dirtying the same cache line with every single page allocation
-> >> > by making the fair per-zone allocation batch a vmstat item, which wi=
-ll
-> >> > turn it into batched percpu counters on SMP.
-> >> >
-> >> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> >>=20
-> >> I bisected several boot failures on various ARM platform in
-> >> next-20130816 down to this patch (commit 67131f9837 in linux-next.)
-> >>=20
-> >> Simply reverting it got things booting again on top of -next.  Example
-> >> boot crash below.
-> >
-> > Thanks for the bisect and report!
->=20
-> You're welcome.  Thanks for the quick fix!
->=20
-> > I deref the percpu pointers before initializing them properly.  It
-> > didn't trigger on x86 because the percpu offset added to the pointer
-> > is big enough so that it does not fall into PFN 0, but it probably
-> > ended up corrupting something...
-> >
-> > Could you try this patch on top of linux-next instead of the revert?
->=20
-> Yup, that change fixes it.
->=20
-> Tested-by: Kevin Hilman <khilman@linaro.org>
+I did the same test on the hard disk recently,
+for btrfs, there is ~5% regression(10.65MB/s -> 10.09MB/s),
+for ext4, the performance grows up a bit.(9.98MB/s -> 10.04MB/s).
+(I run the test for 4 times, and the above result is the average of the test.)
 
-> Tested-by: Stephen Warren <swarren@nvidia.com>
+Any comment?
 
-I will add that into the akpm-current tree in linux-next today (unless
-Andrew releases a new mmotm in the mean time).
+Thanks
+Miao
 
---=20
-Cheers,
-Stephen Rothwell                    sfr@canb.auug.org.au
-
---Signature=_Mon__19_Aug_2013_10_48_02_+1000_+Bohmn=Bt=ujKf6f
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.20 (GNU/Linux)
-
-iQIcBAEBCAAGBQJSEWtGAAoJEECxmPOUX5FEhbsP/1k6qvkvyfiYRoQYuK+QUdHc
-GWwufxhiffuxrzkvD3vBfduG/fUzyyW6yOPAc5McJN31TCfvDsh8aLf4vd/j6kDX
-O+3GFNTDjIZHTPcUvqhEId9kc9x+WhqTShk4W4Cwo9/3P2hg/1Tq1qMEgwZEH5CT
-C7BbYdu2FULnGfdmsWmGcTDRPZNY8Ko4zYwvVkK2fYOtwY+ncUZEHTVccw06VqlV
-raexUVrYa/zxtggSTG6i3qo1cGWbRHR/AO2zIuxE5AVnqe0XhoW4KmRhEQ2mAkzx
-WJNfzx97/zojPrVOwwKaQs5aklK2F4ze8d0ge46qlMaMd1NRrqauiKJVkAU/uUDI
-6bDoOJEiMnh8rOvkMhTa5jN131a+Lp0/L0uQ/sq29bsT4y6bBoPzeb3cGAOfcjSU
-oUO8odGJDoOGzvf3nEvsFyBgeYRDuY1EjWoYXM7lIYz7VPNTBGk7DbliAvFD1dVR
-kE41avq0EmdL5m54D+KNIWxBsm56V8pS5u68mxlC7ZKwyrm8gByqoAv0nV/8ofqB
-JzE6+gsNa3i1lI5PGOhwxG5JxAeWU+hxUHbstCNbv+7jHJs5t/2IK5nHhkerQHSj
-f79ONPYoCxgj3gGbeHYzVkghsrCkgI82PukQoel4mXfncbtHVRqxejhX389yh3ck
-MxJhLp/x1Qne4ddrVGRf
-=7HLW
------END PGP SIGNATURE-----
-
---Signature=_Mon__19_Aug_2013_10_48_02_+1000_+Bohmn=Bt=ujKf6f--
+> 
+> Tested-by: Tao Ma <tm@tao.ma>
+> Tested-by: Miao Xie <miaox@cn.fujitsu.com>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  mm/readahead.c |    8 ++++----
+>  1 file changed, 4 insertions(+), 4 deletions(-)
+> 
+> --- linux-next.orig/mm/readahead.c	2013-08-08 16:21:29.675286154 +0800
+> +++ linux-next/mm/readahead.c	2013-08-08 16:21:33.851286019 +0800
+> @@ -371,10 +371,10 @@ static int try_context_readahead(struct
+>  	size = count_history_pages(mapping, ra, offset, max);
+>  
+>  	/*
+> -	 * no history pages:
+> +	 * not enough history pages:
+>  	 * it could be a random read
+>  	 */
+> -	if (!size)
+> +	if (size <= req_size)
+>  		return 0;
+>  
+>  	/*
+> @@ -385,8 +385,8 @@ static int try_context_readahead(struct
+>  		size *= 2;
+>  
+>  	ra->start = offset;
+> -	ra->size = get_init_ra_size(size + req_size, max);
+> -	ra->async_size = ra->size;
+> +	ra->size = min(size + req_size, max);
+> +	ra->async_size = 1;
+>  
+>  	return 1;
+>  }
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
