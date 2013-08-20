@@ -1,82 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id C600D6B0032
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 00:21:20 -0400 (EDT)
-Date: Tue, 20 Aug 2013 13:21:46 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v6 3/5] zsmalloc: move it under zram
-Message-ID: <20130820042146.GR28062@bbox>
-References: <1376459736-7384-1-git-send-email-minchan@kernel.org>
- <1376459736-7384-4-git-send-email-minchan@kernel.org>
- <20130816220034.GD7265@variantweb.net>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 254E36B0032
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 00:39:06 -0400 (EDT)
+Received: by mail-ob0-f175.google.com with SMTP id xn12so6389287obc.6
+        for <linux-mm@kvack.org>; Mon, 19 Aug 2013 21:39:05 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130816220034.GD7265@variantweb.net>
+In-Reply-To: <20130819231836.GD14369@redhat.com>
+References: <20130807055157.GA32278@redhat.com>
+	<CAJd=RBCJv7=Qj6dPW2Ha=nq6JctnK3r7wYCAZTm=REVOZUNowg@mail.gmail.com>
+	<20130807153030.GA25515@redhat.com>
+	<CAJd=RBCyZU8PR7mbFUdKsWq3OH+5HccEWKMEH5u7GNHNy3esWg@mail.gmail.com>
+	<20130819231836.GD14369@redhat.com>
+Date: Tue, 20 Aug 2013 12:39:05 +0800
+Message-ID: <CAJd=RBA-UZmSTxNX63Vni+UPZBHwP4tvzE_qp1ZaHBqcNG7Fcw@mail.gmail.com>
+Subject: Re: unused swap offset / bad page map.
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Luigi Semenzato <semenzato@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Mel Gorman <mgorman@suse.de>
+To: Dave Jones <davej@redhat.com>, Hillf Danton <dhillf@gmail.com>, Linux-MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-Hello Seth,
+On Tue, Aug 20, 2013 at 7:18 AM, Dave Jones <davej@redhat.com> wrote:
+>
+> btw, anyone have thoughts on a patch something like below ?
 
-On Fri, Aug 16, 2013 at 05:00:34PM -0500, Seth Jennings wrote:
-> On Wed, Aug 14, 2013 at 02:55:34PM +0900, Minchan Kim wrote:
-> > This patch moves zsmalloc under zram directory because there
-> > isn't any other user any more.
-> > 
-> > Before that, description will explain why we have needed custom
-> > allocator.
-> > 
-> > Zsmalloc is a new slab-based memory allocator for storing
-> > compressed pages.  It is designed for low fragmentation and
-> > high allocation success rate on large object, but <= PAGE_SIZE
-> > allocations.
-> 
-> One things zsmalloc will probably have to address before Andrew deems it
-> worthy is the "memmap peekers" issue.  I had to make this change in zbud
-> before Andrew would accept it and this is one of the reasons I have yet
-> to implement zsmalloc support for zswap yet.
-> 
-> Basically, zsmalloc makes the assumption that once the kernel page
-> allocator gives it a page for the pool, zsmalloc can stuff whatever
-> metatdata it wants into the struct page.  The problem comes when some
-> parts of the kernel do not obtain the struct page pointer via the
-> allocator but via walking the memmap.  Those routines will make certain
-> assumption about the state and structure of the data in the struct page,
-> leading to issues.
+And another(sorry if message is reformatted by the mail agent,
+and it took my an hour to get the agent back to the correct format but failed,
+and thanks a lot for any howto send plain text message).
 
-All of memmap peekers should make such asummption based on pageflag
-so if zsmalloc don't need touch flag field, it should be no problem.
+Hillf
 
-In addition to that, SLUB allocator already have touched it so why not
-for zsmalloc?
+--- a/mm/memory.c Wed Aug  7 16:29:34 2013
++++ b/mm/memory.c Tue Aug 20 11:13:06 2013
+@@ -933,8 +933,10 @@ again:
+  if (progress >= 32) {
+  progress = 0;
+  if (need_resched() ||
+-    spin_needbreak(src_ptl) || spin_needbreak(dst_ptl))
++    spin_needbreak(src_ptl) || spin_needbreak(dst_ptl)) {
++     BUG_ON(entry.val);
+  break;
++ }
+  }
+  if (pte_none(*src_pte)) {
+  progress++;
+--
 
-> 
-> My solution for zbud was to move the metadata into the pool pages
-> themselves, using the first block of each page for metadata regarding that
-> page.
-> 
-> Andrew might also have something to say about the placement of
-> zsmalloc.c.  IIRC, if it was going to be merged, he wanted it in mm/ if
-> it was going to be messing around in the struct page.
 
-NP.
-
-Thanks for the review, Seth.
-
-> 
-> Seth
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+> It's really annoying to debug stuff like this and have to walk
+> over to the machine and reboot it by hand after it wedges during swapoff.
+>
+>         Dave
+>
+> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> index 6cf2e60..bbb1192 100644
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -1587,6 +1587,10 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
+>         if (!capable(CAP_SYS_ADMIN))
+>                 return -EPERM;
+>
+> +       /* If we have hit memory corruption, we could hang during swapoff, so don't even try. */
+> +       if (test_taint(TAINT_BAD_PAGE))
+> +               return -EINVAL;
+> +
+>         BUG_ON(!current->mm);
+>
+>         pathname = getname(specialfile);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
