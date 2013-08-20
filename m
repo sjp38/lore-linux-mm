@@ -1,46 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 9D8676B0032
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2013 23:24:29 -0400 (EDT)
-Message-ID: <5212E12C.5010005@asianux.com>
-Date: Tue, 20 Aug 2013 11:23:24 +0800
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id A09DB6B0032
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2013 23:28:46 -0400 (EDT)
+Message-ID: <5212E230.1060504@asianux.com>
+Date: Tue, 20 Aug 2013 11:27:44 +0800
 From: Chen Gang <gang.chen@asianux.com>
 MIME-Version: 1.0
-Subject: [PATCH] mm/backing-dev.c: check user buffer length before copy data
- to the related user buffer.
+Subject: [PATCH] mm/mremap.c: call pud_free() after fail calling pmd_alloc()
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>, Tejun Heo <tj@kernel.org>, jmoyer@redhat.com, Jens Axboe <axboe@kernel.dk>
+To: Michel Lespinasse <walken@google.com>, riel@redhat.com, Ingo Molnar <mingo@kernel.org>, linux@rasmusvillemoes.dk
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-'*lenp' may be less than "sizeof(kbuf)", need check it before the next
-copy_to_user().
+In alloc_new_pmd(), if pud_alloc() was called successfully, but
+pmd_alloc() is called by fail, in this case, need call pud_free()
+before return.
 
-pdflush_proc_obsolete() is called by sysctl which 'procname' is
-"nr_pdflush_threads", if the user passes buffer length less than
-"sizeof(kbuf)", it will cause issue.
-
+Also need include "asm/pgalloc.h" which have the declaration of
+pud_free(), or can not pass compiling.
 
 Signed-off-by: Chen Gang <gang.chen@asianux.com>
 ---
- mm/backing-dev.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+ mm/mremap.c |    5 ++++-
+ 1 files changed, 4 insertions(+), 1 deletions(-)
 
-diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index e04454c..2674671 100644
---- a/mm/backing-dev.c
-+++ b/mm/backing-dev.c
-@@ -649,7 +649,7 @@ int pdflush_proc_obsolete(struct ctl_table *table, int write,
- {
- 	char kbuf[] = "0\n";
+diff --git a/mm/mremap.c b/mm/mremap.c
+index 457d34e..f37f8a0 100644
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -24,6 +24,7 @@
+ #include <asm/uaccess.h>
+ #include <asm/cacheflush.h>
+ #include <asm/tlbflush.h>
++#include <asm/pgalloc.h>
  
--	if (*ppos) {
-+	if (*ppos || *lenp < sizeof(kbuf)) {
- 		*lenp = 0;
- 		return 0;
- 	}
+ #include "internal.h"
+ 
+@@ -61,8 +62,10 @@ static pmd_t *alloc_new_pmd(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		return NULL;
+ 
+ 	pmd = pmd_alloc(mm, pud, addr);
+-	if (!pmd)
++	if (!pmd) {
++		pud_free(mm, pud);
+ 		return NULL;
++	}
+ 
+ 	VM_BUG_ON(pmd_trans_huge(*pmd));
+ 
 -- 
 1.7.7.6
 
