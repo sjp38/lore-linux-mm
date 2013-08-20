@@ -1,100 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 5811A6B0032
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 00:17:54 -0400 (EDT)
-Message-ID: <5212EDB5.4050801@asianux.com>
-Date: Tue, 20 Aug 2013 12:16:53 +0800
-From: Chen Gang <gang.chen@asianux.com>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id C600D6B0032
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 00:21:20 -0400 (EDT)
+Date: Tue, 20 Aug 2013 13:21:46 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v6 3/5] zsmalloc: move it under zram
+Message-ID: <20130820042146.GR28062@bbox>
+References: <1376459736-7384-1-git-send-email-minchan@kernel.org>
+ <1376459736-7384-4-git-send-email-minchan@kernel.org>
+ <20130816220034.GD7265@variantweb.net>
 MIME-Version: 1.0
-Subject: [PATCH] mm/zbud.c: consider about the invalid handle value for handle
- related extern functions.
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130816220034.GD7265@variantweb.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: sjenning@linux.vnet.ibm.com
-Cc: linux-mm@kvack.org
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Luigi Semenzato <semenzato@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Mel Gorman <mgorman@suse.de>
 
-For handle related extern functions, recommend to consider about
-invalid handle value, or can not be easily used by callers.
+Hello Seth,
 
-In our case:
+On Fri, Aug 16, 2013 at 05:00:34PM -0500, Seth Jennings wrote:
+> On Wed, Aug 14, 2013 at 02:55:34PM +0900, Minchan Kim wrote:
+> > This patch moves zsmalloc under zram directory because there
+> > isn't any other user any more.
+> > 
+> > Before that, description will explain why we have needed custom
+> > allocator.
+> > 
+> > Zsmalloc is a new slab-based memory allocator for storing
+> > compressed pages.  It is designed for low fragmentation and
+> > high allocation success rate on large object, but <= PAGE_SIZE
+> > allocations.
+> 
+> One things zsmalloc will probably have to address before Andrew deems it
+> worthy is the "memmap peekers" issue.  I had to make this change in zbud
+> before Andrew would accept it and this is one of the reasons I have yet
+> to implement zsmalloc support for zswap yet.
+> 
+> Basically, zsmalloc makes the assumption that once the kernel page
+> allocator gives it a page for the pool, zsmalloc can stuff whatever
+> metatdata it wants into the struct page.  The problem comes when some
+> parts of the kernel do not obtain the struct page pointer via the
+> allocator but via walking the memmap.  Those routines will make certain
+> assumption about the state and structure of the data in the struct page,
+> leading to issues.
 
-  if need call zbud_alloc/free() multiple times, the caller need additional value to mark current status.
-  the caller can not continue call zbud_free() multiple times like kfree().
-  when call zbud_map(), the caller can not know about whether succeed or not.
+All of memmap peekers should make such asummption based on pageflag
+so if zsmalloc don't need touch flag field, it should be no problem.
 
-And NULL (or 0) should be also treated as invalid handle value, since
-the internal implementation has already assumed NULL is an invalid
-address.
+In addition to that, SLUB allocator already have touched it so why not
+for zsmalloc?
 
-  e.g. "struct zbud_header *zhdr = NULL;" in function 'zbud_alloc'.
+> 
+> My solution for zbud was to move the metadata into the pool pages
+> themselves, using the first block of each page for metadata regarding that
+> page.
+> 
+> Andrew might also have something to say about the placement of
+> zsmalloc.c.  IIRC, if it was going to be merged, he wanted it in mm/ if
+> it was going to be messing around in the struct page.
 
-At least, current interface definition still has no bugs, so the common
-patch appliers is better to keep compatible with the original interface.
+NP.
 
-And related maintainers can re-construct interface without considering
-the compatibility at a suitable time point, so the interface can be get
-additional improvement.
+Thanks for the review, Seth.
 
-  e.g. for handle's type, "void *" is more commonly used than "unsigned long".
-       can find support macros or functions in "include/linux/err.h" for "void *".
-       but can not find any support macros or functions for "unsigned long" in "./include" sub directory.
+> 
+> Seth
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-  e.g. for zbud_alloc(), can return a handle directly instead of an error code.
-
-
-Signed-off-by: Chen Gang <gang.chen@asianux.com>
----
- mm/zbud.c |   12 +++++++++---
- 1 files changed, 9 insertions(+), 3 deletions(-)
-
-diff --git a/mm/zbud.c b/mm/zbud.c
-index 9451361..b5363ea 100644
---- a/mm/zbud.c
-+++ b/mm/zbud.c
-@@ -244,8 +244,8 @@ void zbud_destroy_pool(struct zbud_pool *pool)
-  * as zbud pool pages.
-  *
-  * Return: 0 if success and handle is set, otherwise -EINVAL if the size or
-- * gfp arguments are invalid or -ENOMEM if the pool was unable to allocate
-- * a new page.
-+ * gfp arguments are invalid, or -ENOMEM if the pool was unable to allocate
-+ * a new page, or -NOSPC if no space left, also set invalid value to handle.
-  */
- int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
- 			unsigned long *handle)
-@@ -255,6 +255,8 @@ int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
- 	enum buddy bud;
- 	struct page *page;
- 
-+	*handle = 0;
-+
- 	if (size <= 0 || gfp & __GFP_HIGHMEM)
- 		return -EINVAL;
- 	if (size > PAGE_SIZE - ZHDR_SIZE_ALIGNED - CHUNK_SIZE)
-@@ -328,6 +330,9 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle)
- 	struct zbud_header *zhdr;
- 	int freechunks;
- 
-+	if (IS_ERR_OR_NULL((void *)handle))
-+		return;
-+
- 	spin_lock(&pool->lock);
- 	zhdr = handle_to_zbud_header(handle);
- 
-@@ -478,7 +483,8 @@ next:
-  * in the handle and could create temporary mappings to make the data
-  * accessible to the user.
-  *
-- * Returns: a pointer to the mapped allocation
-+ * Returns: a pointer to the mapped allocation, or an invalid value which can
-+ * be checked by IS_ERR_OR_NULL().
-  */
- void *zbud_map(struct zbud_pool *pool, unsigned long handle)
- {
 -- 
-1.7.7.6
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
