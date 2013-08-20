@@ -1,69 +1,221 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 7DF146B0032
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 19:04:21 -0400 (EDT)
-Date: Tue, 20 Aug 2013 16:04:18 -0700
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id F0A5D6B0032
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 19:07:37 -0400 (EDT)
+Date: Tue, 20 Aug 2013 16:07:35 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 1/4] mm/pgtable: Fix continue to preallocate pmds
- even if failure occurrence
-Message-Id: <20130820160418.5639c4f9975b84dc8dede014@linux-foundation.org>
-In-Reply-To: <1376981696-4312-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 2/4] mm/sparse: introduce alloc_usemap_and_memmap
+Message-Id: <20130820160735.b12fe1b3dd64b4dc146d2fa0@linux-foundation.org>
+In-Reply-To: <1376981696-4312-2-git-send-email-liwanp@linux.vnet.ibm.com>
 References: <1376981696-4312-1-git-send-email-liwanp@linux.vnet.ibm.com>
+	<1376981696-4312-2-git-send-email-liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Fengguang Wu <fengguang.wu@intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jiri Kosina <jkosina@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Fengguang Wu <fengguang.wu@intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jiri Kosina <jkosina@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yinghai Lu <yinghai@kernel.org>
 
-On Tue, 20 Aug 2013 14:54:53 +0800 Wanpeng Li <liwanp@linux.vnet.ibm.com> wrote:
+On Tue, 20 Aug 2013 14:54:54 +0800 Wanpeng Li <liwanp@linux.vnet.ibm.com> wrote:
 
-> preallocate_pmds will continue to preallocate pmds even if failure
-> occurrence, and then free all the preallocate pmds if there is
-> failure, this patch fix it by stop preallocate if failure occurrence
-> and go to free path.
->
-> ...
->
-> --- a/arch/x86/mm/pgtable.c
-> +++ b/arch/x86/mm/pgtable.c
-> @@ -196,21 +196,18 @@ static void free_pmds(pmd_t *pmds[])
->  static int preallocate_pmds(pmd_t *pmds[])
->  {
->  	int i;
-> -	bool failed = false;
->  
->  	for(i = 0; i < PREALLOCATED_PMDS; i++) {
->  		pmd_t *pmd = (pmd_t *)__get_free_page(PGALLOC_GFP);
->  		if (pmd == NULL)
-> -			failed = true;
-> +			goto err;
->  		pmds[i] = pmd;
->  	}
->  
-> -	if (failed) {
-> -		free_pmds(pmds);
-> -		return -ENOMEM;
-> -	}
-> -
->  	return 0;
-> +err:
-> +	free_pmds(pmds);
-> +	return -ENOMEM;
+> v1 -> v2:
+>  * add comments to describe alloc_usemap_and_memmap 
+> 
+> After commit 9bdac91424075("sparsemem: Put mem map for one node together."),
+> vmemmap for one node will be allocated together, its logic is similar as
+> memory allocation for pageblock flags. This patch introduce alloc_usemap_and_memmap
+> to extract the same logic of memory alloction for pageblock flags and vmemmap.
+> 
+
+9bdac91424075 was written by Yinghai.  He is an excellent reviewer, as
+long as people remember to cc him!
+
+> ---
+>  mm/sparse.c | 140 ++++++++++++++++++++++++++++--------------------------------
+>  1 file changed, 66 insertions(+), 74 deletions(-)
+> 
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index 308d503..d27db9b 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -439,6 +439,14 @@ static void __init sparse_early_mem_maps_alloc_node(struct page **map_map,
+>  					 map_count, nodeid);
 >  }
-
-Nope.  If the error path is taken, free_pmds() will free uninitialised
-items from pmds[], which is a local in pgd_alloc() and contains random
-stack junk.  The kernel will crash.
-
-You could pass an nr_pmds argument to free_pmds(), or zero out the
-remaining items on the error path.  However, although the current code
-is a bit kooky, I don't see that it is harmful in any way.
-
-> Reviewed-by: Dave Hansen <dave.hansen@linux.intel.com>
-
-Ahem.
+>  #else
+> +
+> +static void __init sparse_early_mem_maps_alloc_node(struct page **map_map,
+> +				unsigned long pnum_begin,
+> +				unsigned long pnum_end,
+> +				unsigned long map_count, int nodeid)
+> +{
+> +}
+> +
+>  static struct page __init *sparse_early_mem_map_alloc(unsigned long pnum)
+>  {
+>  	struct page *map;
+> @@ -460,6 +468,62 @@ void __attribute__((weak)) __meminit vmemmap_populate_print_last(void)
+>  {
+>  }
+>  
+> +/**
+> + *  alloc_usemap_and_memmap - memory alloction for pageblock flags and vmemmap
+> + *  @map: usemap_map for pageblock flags or mmap_map for vmemmap
+> + *  @use_map: true if memory allocated for pageblock flags, otherwise false
+> + */
+> +static void alloc_usemap_and_memmap(unsigned long **map, bool use_map)
+> +{
+> +	unsigned long pnum;
+> +	unsigned long map_count;
+> +	int nodeid_begin = 0;
+> +	unsigned long pnum_begin = 0;
+> +
+> +	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
+> +		struct mem_section *ms;
+> +
+> +		if (!present_section_nr(pnum))
+> +			continue;
+> +		ms = __nr_to_section(pnum);
+> +		nodeid_begin = sparse_early_nid(ms);
+> +		pnum_begin = pnum;
+> +		break;
+> +	}
+> +	map_count = 1;
+> +	for (pnum = pnum_begin + 1; pnum < NR_MEM_SECTIONS; pnum++) {
+> +		struct mem_section *ms;
+> +		int nodeid;
+> +
+> +		if (!present_section_nr(pnum))
+> +			continue;
+> +		ms = __nr_to_section(pnum);
+> +		nodeid = sparse_early_nid(ms);
+> +		if (nodeid == nodeid_begin) {
+> +			map_count++;
+> +			continue;
+> +		}
+> +		/* ok, we need to take cake of from pnum_begin to pnum - 1*/
+> +		if (use_map)
+> +			sparse_early_usemaps_alloc_node(map, pnum_begin, pnum,
+> +						 map_count, nodeid_begin);
+> +		else
+> +			sparse_early_mem_maps_alloc_node((struct page **)map,
+> +				pnum_begin, pnum, map_count, nodeid_begin);
+> +		/* new start, update count etc*/
+> +		nodeid_begin = nodeid;
+> +		pnum_begin = pnum;
+> +		map_count = 1;
+> +	}
+> +	/* ok, last chunk */
+> +	if (use_map)
+> +		sparse_early_usemaps_alloc_node(map, pnum_begin,
+> +				NR_MEM_SECTIONS, map_count, nodeid_begin);
+> +	else
+> +		sparse_early_mem_maps_alloc_node((struct page **)map,
+> +			pnum_begin, NR_MEM_SECTIONS, map_count, nodeid_begin);
+> +}
+> +
+>  /*
+>   * Allocate the accumulated non-linear sections, allocate a mem_map
+>   * for each and record the physical to section mapping.
+> @@ -471,11 +535,7 @@ void __init sparse_init(void)
+>  	unsigned long *usemap;
+>  	unsigned long **usemap_map;
+>  	int size;
+> -	int nodeid_begin = 0;
+> -	unsigned long pnum_begin = 0;
+> -	unsigned long usemap_count;
+>  #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
+> -	unsigned long map_count;
+>  	int size2;
+>  	struct page **map_map;
+>  #endif
+> @@ -501,82 +561,14 @@ void __init sparse_init(void)
+>  	usemap_map = alloc_bootmem(size);
+>  	if (!usemap_map)
+>  		panic("can not allocate usemap_map\n");
+> -
+> -	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
+> -		struct mem_section *ms;
+> -
+> -		if (!present_section_nr(pnum))
+> -			continue;
+> -		ms = __nr_to_section(pnum);
+> -		nodeid_begin = sparse_early_nid(ms);
+> -		pnum_begin = pnum;
+> -		break;
+> -	}
+> -	usemap_count = 1;
+> -	for (pnum = pnum_begin + 1; pnum < NR_MEM_SECTIONS; pnum++) {
+> -		struct mem_section *ms;
+> -		int nodeid;
+> -
+> -		if (!present_section_nr(pnum))
+> -			continue;
+> -		ms = __nr_to_section(pnum);
+> -		nodeid = sparse_early_nid(ms);
+> -		if (nodeid == nodeid_begin) {
+> -			usemap_count++;
+> -			continue;
+> -		}
+> -		/* ok, we need to take cake of from pnum_begin to pnum - 1*/
+> -		sparse_early_usemaps_alloc_node(usemap_map, pnum_begin, pnum,
+> -						 usemap_count, nodeid_begin);
+> -		/* new start, update count etc*/
+> -		nodeid_begin = nodeid;
+> -		pnum_begin = pnum;
+> -		usemap_count = 1;
+> -	}
+> -	/* ok, last chunk */
+> -	sparse_early_usemaps_alloc_node(usemap_map, pnum_begin, NR_MEM_SECTIONS,
+> -					 usemap_count, nodeid_begin);
+> +	alloc_usemap_and_memmap(usemap_map, true);
+>  
+>  #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
+>  	size2 = sizeof(struct page *) * NR_MEM_SECTIONS;
+>  	map_map = alloc_bootmem(size2);
+>  	if (!map_map)
+>  		panic("can not allocate map_map\n");
+> -
+> -	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
+> -		struct mem_section *ms;
+> -
+> -		if (!present_section_nr(pnum))
+> -			continue;
+> -		ms = __nr_to_section(pnum);
+> -		nodeid_begin = sparse_early_nid(ms);
+> -		pnum_begin = pnum;
+> -		break;
+> -	}
+> -	map_count = 1;
+> -	for (pnum = pnum_begin + 1; pnum < NR_MEM_SECTIONS; pnum++) {
+> -		struct mem_section *ms;
+> -		int nodeid;
+> -
+> -		if (!present_section_nr(pnum))
+> -			continue;
+> -		ms = __nr_to_section(pnum);
+> -		nodeid = sparse_early_nid(ms);
+> -		if (nodeid == nodeid_begin) {
+> -			map_count++;
+> -			continue;
+> -		}
+> -		/* ok, we need to take cake of from pnum_begin to pnum - 1*/
+> -		sparse_early_mem_maps_alloc_node(map_map, pnum_begin, pnum,
+> -						 map_count, nodeid_begin);
+> -		/* new start, update count etc*/
+> -		nodeid_begin = nodeid;
+> -		pnum_begin = pnum;
+> -		map_count = 1;
+> -	}
+> -	/* ok, last chunk */
+> -	sparse_early_mem_maps_alloc_node(map_map, pnum_begin, NR_MEM_SECTIONS,
+> -					 map_count, nodeid_begin);
+> +	alloc_usemap_and_memmap((unsigned long **)map_map, false);
+>  #endif
+>  
+>  	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
+> -- 
+> 1.8.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
