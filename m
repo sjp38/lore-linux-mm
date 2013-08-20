@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 28FE86B0032
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2013 23:59:09 -0400 (EDT)
-Message-ID: <5212E948.8000401@asianux.com>
-Date: Tue, 20 Aug 2013 11:58:00 +0800
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 6AAFB6B0033
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 00:00:13 -0400 (EDT)
+Message-ID: <5212E98E.9010902@asianux.com>
+Date: Tue, 20 Aug 2013 11:59:10 +0800
 From: Chen Gang <gang.chen@asianux.com>
 MIME-Version: 1.0
-Subject: [PATCH 2/3] fs/proc/task_mmu.c: check the return value of mpol_to_str()
-References: <5212E8DF.5020209@asianux.com> <5212E910.7030609@asianux.com>
-In-Reply-To: <5212E910.7030609@asianux.com>
+Subject: [PATCH 3/3] mm/shmem.c: check the return value of mpol_to_str()
+References: <5212E8DF.5020209@asianux.com> <5212E910.7030609@asianux.com> <5212E948.8000401@asianux.com>
+In-Reply-To: <5212E948.8000401@asianux.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -25,43 +25,39 @@ Also print related warning when the buffer space is not enough.
 
 Signed-off-by: Chen Gang <gang.chen@asianux.com>
 ---
- fs/proc/task_mmu.c |   16 ++++++++++++++--
- 1 files changed, 14 insertions(+), 2 deletions(-)
+ mm/shmem.c |   15 ++++++++++++++-
+ 1 files changed, 14 insertions(+), 1 deletions(-)
 
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index a117207..1cb7445 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -1359,7 +1359,7 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
- 	struct mm_struct *mm = vma->vm_mm;
- 	struct mm_walk walk = {};
- 	struct mempolicy *pol;
--	int n;
-+	int n, ret;
- 	char buffer[50];
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 75010ba..eb4eec8 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -886,11 +886,24 @@ redirty:
+ static void shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
+ {
+ 	char buffer[64];
++	int ret;
  
- 	if (!mm)
-@@ -1376,7 +1376,19 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
- 	walk.mm = mm;
+ 	if (!mpol || mpol->mode == MPOL_DEFAULT)
+ 		return;		/* show nothing */
  
- 	pol = get_vma_policy(task, vma, vma->vm_start);
--	mpol_to_str(buffer, sizeof(buffer), pol);
-+	ret = mpol_to_str(buffer, sizeof(buffer), pol);
+-	mpol_to_str(buffer, sizeof(buffer), mpol);
++	ret = mpol_to_str(buffer, sizeof(buffer), mpol);
 +	if (ret < 0)
 +		switch (ret) {
 +		case -ENOSPC:
-+			pr_warn("in %s: string is truncated in mpol_to_str().\n",
++			printk(KERN_WARNING
++				"in %s: string is truncated in mpol_to_str().\n",
 +				__func__);
-+			break;
 +		default:
-+			pr_err("in %s: call mpol_to_str() fail, errcode: %d. buffer: %p, size: %zu,  pol: %p\n",
-+				__func__, ret, buffer, sizeof(buffer), pol);
-+			return ret;
++			printk(KERN_ERR
++				"in %s: call mpol_to_str() fail, errcode: %d. buffer: %p, size: %zu, pol: %p\n",
++				__func__, ret, buffer, sizeof(buffer), mpol);
++			return;
 +		}
-+
- 	mpol_cond_put(pol);
  
- 	seq_printf(m, "%08lx %s", vma->vm_start, buffer);
+ 	seq_printf(seq, ",mpol=%s", buffer);
+ }
 -- 
 1.7.7.6
 
