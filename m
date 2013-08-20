@@ -1,30 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 3272D6B0032
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 13:24:47 -0400 (EDT)
-Date: Tue, 20 Aug 2013 12:24:45 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: Re: [PATCH 1/7] drivers: base: move mutex lock out of
- add_memory_section()
-Message-ID: <20130820172445.GE4151@medulla.variantweb.net>
-References: <1377018783-26756-1-git-send-email-sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 2D2686B0033
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 13:25:28 -0400 (EDT)
+Message-ID: <5213A677.4030203@infradead.org>
+Date: Tue, 20 Aug 2013 10:25:11 -0700
+From: Randy Dunlap <rdunlap@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1377018783-26756-1-git-send-email-sjenning@linux.vnet.ibm.com>
+Subject: Re: [PATCH -mm] docs: Document soft dirty behaviour for freshly created
+ memory regions
+References: <20130820153132.GK18673@moon> <5213A002.7020408@infradead.org> <20130820170105.GM18673@moon>
+In-Reply-To: <20130820170105.GM18673@moon>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Dave Hansen <dave@sr71.net>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Lai Jiangshan <laijs@cn.fujitsu.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Yinghai Lu <yinghai@kernel.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
+To: Cyrill Gorcunov <gorcunov@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andy Lutomirski <luto@amacapital.net>, Pavel Emelyanov <xemul@parallels.com>, Matt Mackall <mpm@selenic.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Marcelo Tosatti <mtosatti@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Peter Zijlstra <peterz@infradead.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Gah! Forgot the cover letter.
+On 08/20/13 10:01, Cyrill Gorcunov wrote:
+> On Tue, Aug 20, 2013 at 09:57:38AM -0700, Randy Dunlap wrote:
+>>>  
+>>> +  While in most cases tracking memory changes by #PF-s is more than enough
+>>                                                                        enough,
+> 
+> ?
 
-This patchset just seeks to clean up and refactor some things in
-memory.c for better understanding and possibly better performance due do
-a decrease in mutex acquisitions and refcount churn at boot time.  No
-functional change is intended by this set!
+Long introductory phrases usually merit a comma after them.
 
-Seth
+> 
+> For the rest -- thanks a LOT Randy, I'll update.
+> --
+
+
+
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
