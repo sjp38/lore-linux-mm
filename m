@@ -1,58 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 894536B0032
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 12:05:04 -0400 (EDT)
-Received: by mail-pd0-f178.google.com with SMTP id w10so564896pde.37
-        for <linux-mm@kvack.org>; Tue, 20 Aug 2013 09:05:03 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 6C62C6B0032
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 12:57:55 -0400 (EDT)
+Message-ID: <5213A002.7020408@infradead.org>
+Date: Tue, 20 Aug 2013 09:57:38 -0700
+From: Randy Dunlap <rdunlap@infradead.org>
 MIME-Version: 1.0
-Date: Tue, 20 Aug 2013 12:05:03 -0400
-Message-ID: <CAJLXCZTtJmQo5WnwsdQWnoMPYSxOjxU0x77J59qE-GKOL9tqbA@mail.gmail.com>
-Subject: Transparent huge page collapse and NUMA
-From: Andrew Davidoff <davidoff@qedmf.net>
+Subject: Re: [PATCH -mm] docs: Document soft dirty behaviour for freshly created
+ memory regions
+References: <20130820153132.GK18673@moon>
+In-Reply-To: <20130820153132.GK18673@moon>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Cyrill Gorcunov <gorcunov@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andy Lutomirski <luto@amacapital.net>, Pavel Emelyanov <xemul@parallels.com>, Matt Mackall <mpm@selenic.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Marcelo Tosatti <mtosatti@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Peter Zijlstra <peterz@infradead.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Hi,
+On 08/20/13 08:31, Cyrill Gorcunov wrote:
+> Signed-off-by: Cyrill Gorcunov <gorcunov@openvz.org>
+> Cc: Pavel Emelyanov <xemul@parallels.com>
+> Cc: Andy Lutomirski <luto@amacapital.net>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Matt Mackall <mpm@selenic.com>
+> Cc: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+> Cc: Marcelo Tosatti <mtosatti@redhat.com>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+> Cc: Stephen Rothwell <sfr@canb.auug.org.au>
+> Cc: Peter Zijlstra <peterz@infradead.org>
+> Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> ---
+>  Documentation/vm/soft-dirty.txt |    7 +++++++
+>  1 file changed, 7 insertions(+)
+> 
+> Index: linux-2.6.git/Documentation/vm/soft-dirty.txt
+> ===================================================================
+> --- linux-2.6.git.orig/Documentation/vm/soft-dirty.txt
+> +++ linux-2.6.git/Documentation/vm/soft-dirty.txt
+> @@ -28,6 +28,13 @@ This is so, since the pages are still ma
+>  the kernel does is finds this fact out and puts both writable and soft-dirty
+>  bits on the PTE.
+>  
+> +  While in most cases tracking memory changes by #PF-s is more than enough
+                                                                       enough,
 
-In an effort to learn more about transparent huge pages and NUMA, I
-have written a very simple C snippet that malloc()s in a loop. I am
-running this under numactl with an interleave policy across both the
-NUMA nodes in the system. To make watching allocation progress easier,
-I am malloc()ing 4k (1 page) at a time.
+> +there is still a scenario when we can loose soft dirty bit -- a task does
+                                         lose soft dirty bits -- a task
 
-If I watch node usage for the process (numa_maps) allocation looks
-correct (interleave), but then allocation will drop on one node and
-increase on another, at the same time as I see an increase in
-pages_collapsed. It appears as though pages are always migrating away
-from and to the same nodes, resulting in allocation (again, by
-examining numa_maps) being almost entirely on one node.
+> +unmap previously mapped memory region and then maps new one exactly at the
 
-This leads me to believe that khugepaged's defrag is to blame, though
-I am not certain. I tried to disable transparent huge page defrag
-completely via the following under /sys:
+   unmaps a previously mapped memory region and then maps a new one at exactly the
 
-/sys/kernel/mm/transparent_hugepage/defrag
-/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
+> +same place. When unmap called the kernel internally clears PTEs values
 
-but the same behavior persists. I am not sure if this is an indication
-that I don't know how to control transparent huge page collapse, or or
-that my issue isn't defrag/collapse related.
+               When unmap is called, the kernel internally clears PTE values
 
-Do I understand what I am seeing? Does anyone have any thoughts on this?
+> +including soft dirty bit. To notify user space application about such
+                        bits.
 
-The OS is CentOS5.8 running the Oracle Unbreakable Kernel 2,
-2.6.39-400.109.4.el5uek.
+> +memory region renewal the kernel always mark new memory regions (and
+                                           marks
 
-Further questions:
+> +expanded regions) as soft dirtified.
 
-The way I understand it, transparent_hugepage/defrag controls defrag
-on page fault, and transparent_hugepage/khugepaged/defrag controls
-maintenance defrag (time based). Is that correct?
+or:                  as soft dirty.
 
-Thanks.
-Andy
+>  
+>    This feature is actively used by the checkpoint-restore project. You
+>  can find more details about it on http://criu.org
+> --
+
+
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
