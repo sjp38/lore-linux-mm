@@ -1,59 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 64EB66B0032
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 19:29:06 -0400 (EDT)
-Date: Tue, 20 Aug 2013 16:29:03 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/backing-dev.c: check user buffer length before copy
- data to the related user buffer.
-Message-Id: <20130820162903.d5caeda1a6f119a5967a13a2@linux-foundation.org>
-In-Reply-To: <5212E12C.5010005@asianux.com>
-References: <5212E12C.5010005@asianux.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 4DE1F6B0033
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 19:39:56 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Wed, 21 Aug 2013 09:36:33 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 030BA2CE8054
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 09:39:41 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7KNdQcB8716570
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 09:39:30 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7KNdaFs015587
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 09:39:37 +1000
+Date: Wed, 21 Aug 2013 07:39:35 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 1/4] mm/pgtable: Fix continue to preallocate pmds even
+ if failure occurrence
+Message-ID: <20130820233935.GA1298@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <1376981696-4312-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <20130820160418.5639c4f9975b84dc8dede014@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130820160418.5639c4f9975b84dc8dede014@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Gang <gang.chen@asianux.com>
-Cc: Jan Kara <jack@suse.cz>, Tejun Heo <tj@kernel.org>, jmoyer@redhat.com, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Fengguang Wu <fengguang.wu@intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jiri Kosina <jkosina@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 20 Aug 2013 11:23:24 +0800 Chen Gang <gang.chen@asianux.com> wrote:
-
-> '*lenp' may be less than "sizeof(kbuf)", need check it before the next
-> copy_to_user().
-> 
-> pdflush_proc_obsolete() is called by sysctl which 'procname' is
-> "nr_pdflush_threads", if the user passes buffer length less than
-> "sizeof(kbuf)", it will cause issue.
-> 
-> ...
+On Tue, Aug 20, 2013 at 04:04:18PM -0700, Andrew Morton wrote:
+>On Tue, 20 Aug 2013 14:54:53 +0800 Wanpeng Li <liwanp@linux.vnet.ibm.com> wrote:
 >
-> --- a/mm/backing-dev.c
-> +++ b/mm/backing-dev.c
-> @@ -649,7 +649,7 @@ int pdflush_proc_obsolete(struct ctl_table *table, int write,
->  {
->  	char kbuf[] = "0\n";
->  
-> -	if (*ppos) {
-> +	if (*ppos || *lenp < sizeof(kbuf)) {
->  		*lenp = 0;
->  		return 0;
->  	}
+>> preallocate_pmds will continue to preallocate pmds even if failure
+>> occurrence, and then free all the preallocate pmds if there is
+>> failure, this patch fix it by stop preallocate if failure occurrence
+>> and go to free path.
+>>
+>> ...
+>>
+>> --- a/arch/x86/mm/pgtable.c
+>> +++ b/arch/x86/mm/pgtable.c
+>> @@ -196,21 +196,18 @@ static void free_pmds(pmd_t *pmds[])
+>>  static int preallocate_pmds(pmd_t *pmds[])
+>>  {
+>>  	int i;
+>> -	bool failed = false;
+>>  
+>>  	for(i = 0; i < PREALLOCATED_PMDS; i++) {
+>>  		pmd_t *pmd = (pmd_t *)__get_free_page(PGALLOC_GFP);
+>>  		if (pmd == NULL)
+>> -			failed = true;
+>> +			goto err;
+>>  		pmds[i] = pmd;
+>>  	}
+>>  
+>> -	if (failed) {
+>> -		free_pmds(pmds);
+>> -		return -ENOMEM;
+>> -	}
+>> -
+>>  	return 0;
+>> +err:
+>> +	free_pmds(pmds);
+>> +	return -ENOMEM;
+>>  }
+>
 
-Well sort-of.  If userspace opens /proc/sys/vm/nr_pdflush_threads and
-then does a series of one-byte reads, the kernel should return "0" on the
-first read, "\n" on the second and then EOF.
+Hi Andrew,
 
-However this usually doesn't work in /proc anyway :(
+>Nope.  If the error path is taken, free_pmds() will free uninitialised
+>items from pmds[], which is a local in pgd_alloc() and contains random
+>stack junk.  The kernel will crash.
+>
+>You could pass an nr_pmds argument to free_pmds(), or zero out the
+>remaining items on the error path.  However, although the current code
+>is a bit kooky, I don't see that it is harmful in any way.
+>
 
-akpm3:/tmp> cat /proc/sys/vm/max_map_count         
-65530
-akpm3:/tmp> dd if=/proc/sys/vm/max_map_count of=foo bs=1
-1+0 records in
-1+0 records out
-1 byte (1 B) copied, 0.00011963 s, 8.4 kB/s
-akpm3:/tmp> wc foo
-0 1 1 foo
+There is a check in free_pmds():
+
+if (pmds[i])
+	free_page((unsigned long)pmds[i]);
+
+which will avoid the issue you mentioned.
+
+In addition, the codes in pgd_alloc will skip free pmds if preallocate pmds 
+failure which will avoid free pmds twice. Am I miss something? ;-)
+
+Regards,
+Wanpeng Li 
+
+>> Reviewed-by: Dave Hansen <dave.hansen@linux.intel.com>
+>
+>Ahem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
