@@ -1,33 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id DFC206B0032
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 12:03:36 -0400 (EDT)
-Date: Tue, 20 Aug 2013 11:03:35 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 4/4] mm/vmalloc: use wrapper function get_vm_area_size
- to caculate size of vm area
-Message-ID: <20130820160335.GD4151@medulla.variantweb.net>
-References: <1376981696-4312-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1376981696-4312-4-git-send-email-liwanp@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 894536B0032
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 12:05:04 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id w10so564896pde.37
+        for <linux-mm@kvack.org>; Tue, 20 Aug 2013 09:05:03 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1376981696-4312-4-git-send-email-liwanp@linux.vnet.ibm.com>
+Date: Tue, 20 Aug 2013 12:05:03 -0400
+Message-ID: <CAJLXCZTtJmQo5WnwsdQWnoMPYSxOjxU0x77J59qE-GKOL9tqbA@mail.gmail.com>
+Subject: Transparent huge page collapse and NUMA
+From: Andrew Davidoff <davidoff@qedmf.net>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Fengguang Wu <fengguang.wu@intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jiri Kosina <jkosina@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
 
-On Tue, Aug 20, 2013 at 02:54:56PM +0800, Wanpeng Li wrote:
-> v1 -> v2:
->  * replace all the spots by function get_vm_area_size().
-> 
-> Use wrapper function get_vm_area_size to calculate size of vm area.
-> 
+Hi,
 
-Reviewed-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+In an effort to learn more about transparent huge pages and NUMA, I
+have written a very simple C snippet that malloc()s in a loop. I am
+running this under numactl with an interleave policy across both the
+NUMA nodes in the system. To make watching allocation progress easier,
+I am malloc()ing 4k (1 page) at a time.
 
-> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+If I watch node usage for the process (numa_maps) allocation looks
+correct (interleave), but then allocation will drop on one node and
+increase on another, at the same time as I see an increase in
+pages_collapsed. It appears as though pages are always migrating away
+from and to the same nodes, resulting in allocation (again, by
+examining numa_maps) being almost entirely on one node.
+
+This leads me to believe that khugepaged's defrag is to blame, though
+I am not certain. I tried to disable transparent huge page defrag
+completely via the following under /sys:
+
+/sys/kernel/mm/transparent_hugepage/defrag
+/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
+
+but the same behavior persists. I am not sure if this is an indication
+that I don't know how to control transparent huge page collapse, or or
+that my issue isn't defrag/collapse related.
+
+Do I understand what I am seeing? Does anyone have any thoughts on this?
+
+The OS is CentOS5.8 running the Oracle Unbreakable Kernel 2,
+2.6.39-400.109.4.el5uek.
+
+Further questions:
+
+The way I understand it, transparent_hugepage/defrag controls defrag
+on page fault, and transparent_hugepage/khugepaged/defrag controls
+maintenance defrag (time based). Is that correct?
+
+Thanks.
+Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
