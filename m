@@ -1,221 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id F0A5D6B0032
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 19:07:37 -0400 (EDT)
-Date: Tue, 20 Aug 2013 16:07:35 -0700
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 7B0F76B0032
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 19:16:41 -0400 (EDT)
+Date: Tue, 20 Aug 2013 16:16:39 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 2/4] mm/sparse: introduce alloc_usemap_and_memmap
-Message-Id: <20130820160735.b12fe1b3dd64b4dc146d2fa0@linux-foundation.org>
-In-Reply-To: <1376981696-4312-2-git-send-email-liwanp@linux.vnet.ibm.com>
-References: <1376981696-4312-1-git-send-email-liwanp@linux.vnet.ibm.com>
-	<1376981696-4312-2-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm: readahead: return the value which
+ force_page_cache_readahead() returns
+Message-Id: <20130820161639.69ffa65b40c5cf761bbb727c@linux-foundation.org>
+In-Reply-To: <5212E328.40804@asianux.com>
+References: <5212E328.40804@asianux.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Fengguang Wu <fengguang.wu@intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jiri Kosina <jkosina@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yinghai Lu <yinghai@kernel.org>
+To: Chen Gang <gang.chen@asianux.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Mel Gorman <mgorman@suse.de>, rientjes@google.com, sasha.levin@oracle.com, linux@rasmusvillemoes.dk, kosaki.motohiro@jp.fujitsu.com, Wu Fengguang <fengguang.wu@intel.com>, lczerner@redhat.com, linux-mm@kvack.org
 
-On Tue, 20 Aug 2013 14:54:54 +0800 Wanpeng Li <liwanp@linux.vnet.ibm.com> wrote:
+On Tue, 20 Aug 2013 11:31:52 +0800 Chen Gang <gang.chen@asianux.com> wrote:
 
-> v1 -> v2:
->  * add comments to describe alloc_usemap_and_memmap 
+> force_page_cache_readahead() may fail, so need let the related upper
+> system calls know about it by its return value.
 > 
-> After commit 9bdac91424075("sparsemem: Put mem map for one node together."),
-> vmemmap for one node will be allocated together, its logic is similar as
-> memory allocation for pageblock flags. This patch introduce alloc_usemap_and_memmap
-> to extract the same logic of memory alloction for pageblock flags and vmemmap.
+> Also let related code pass "scripts/checkpatch.pl's" checking.
 > 
+> --- a/mm/fadvise.c
+> +++ b/mm/fadvise.c
+> @@ -107,8 +107,8 @@ SYSCALL_DEFINE4(fadvise64_64, int, fd, loff_t, offset, loff_t, len, int, advice)
+>  		 * Ignore return value because fadvise() shall return
+>  		 * success even if filesystem can't retrieve a hint,
+>  		 */
 
-9bdac91424075 was written by Yinghai.  He is an excellent reviewer, as
-long as people remember to cc him!
+		^^ look.
 
-> ---
->  mm/sparse.c | 140 ++++++++++++++++++++++++++++--------------------------------
->  1 file changed, 66 insertions(+), 74 deletions(-)
-> 
-> diff --git a/mm/sparse.c b/mm/sparse.c
-> index 308d503..d27db9b 100644
-> --- a/mm/sparse.c
-> +++ b/mm/sparse.c
-> @@ -439,6 +439,14 @@ static void __init sparse_early_mem_maps_alloc_node(struct page **map_map,
->  					 map_count, nodeid);
->  }
->  #else
-> +
-> +static void __init sparse_early_mem_maps_alloc_node(struct page **map_map,
-> +				unsigned long pnum_begin,
-> +				unsigned long pnum_end,
-> +				unsigned long map_count, int nodeid)
-> +{
-> +}
-> +
->  static struct page __init *sparse_early_mem_map_alloc(unsigned long pnum)
->  {
->  	struct page *map;
-> @@ -460,6 +468,62 @@ void __attribute__((weak)) __meminit vmemmap_populate_print_last(void)
->  {
->  }
->  
-> +/**
-> + *  alloc_usemap_and_memmap - memory alloction for pageblock flags and vmemmap
-> + *  @map: usemap_map for pageblock flags or mmap_map for vmemmap
-> + *  @use_map: true if memory allocated for pageblock flags, otherwise false
-> + */
-> +static void alloc_usemap_and_memmap(unsigned long **map, bool use_map)
-> +{
-> +	unsigned long pnum;
-> +	unsigned long map_count;
-> +	int nodeid_begin = 0;
-> +	unsigned long pnum_begin = 0;
-> +
-> +	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
-> +		struct mem_section *ms;
-> +
-> +		if (!present_section_nr(pnum))
-> +			continue;
-> +		ms = __nr_to_section(pnum);
-> +		nodeid_begin = sparse_early_nid(ms);
-> +		pnum_begin = pnum;
-> +		break;
-> +	}
-> +	map_count = 1;
-> +	for (pnum = pnum_begin + 1; pnum < NR_MEM_SECTIONS; pnum++) {
-> +		struct mem_section *ms;
-> +		int nodeid;
-> +
-> +		if (!present_section_nr(pnum))
-> +			continue;
-> +		ms = __nr_to_section(pnum);
-> +		nodeid = sparse_early_nid(ms);
-> +		if (nodeid == nodeid_begin) {
-> +			map_count++;
-> +			continue;
-> +		}
-> +		/* ok, we need to take cake of from pnum_begin to pnum - 1*/
-> +		if (use_map)
-> +			sparse_early_usemaps_alloc_node(map, pnum_begin, pnum,
-> +						 map_count, nodeid_begin);
-> +		else
-> +			sparse_early_mem_maps_alloc_node((struct page **)map,
-> +				pnum_begin, pnum, map_count, nodeid_begin);
-> +		/* new start, update count etc*/
-> +		nodeid_begin = nodeid;
-> +		pnum_begin = pnum;
-> +		map_count = 1;
-> +	}
-> +	/* ok, last chunk */
-> +	if (use_map)
-> +		sparse_early_usemaps_alloc_node(map, pnum_begin,
-> +				NR_MEM_SECTIONS, map_count, nodeid_begin);
-> +	else
-> +		sparse_early_mem_maps_alloc_node((struct page **)map,
-> +			pnum_begin, NR_MEM_SECTIONS, map_count, nodeid_begin);
-> +}
-> +
->  /*
->   * Allocate the accumulated non-linear sections, allocate a mem_map
->   * for each and record the physical to section mapping.
-> @@ -471,11 +535,7 @@ void __init sparse_init(void)
->  	unsigned long *usemap;
->  	unsigned long **usemap_map;
->  	int size;
-> -	int nodeid_begin = 0;
-> -	unsigned long pnum_begin = 0;
-> -	unsigned long usemap_count;
->  #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
-> -	unsigned long map_count;
->  	int size2;
->  	struct page **map_map;
->  #endif
-> @@ -501,82 +561,14 @@ void __init sparse_init(void)
->  	usemap_map = alloc_bootmem(size);
->  	if (!usemap_map)
->  		panic("can not allocate usemap_map\n");
-> -
-> -	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
-> -		struct mem_section *ms;
-> -
-> -		if (!present_section_nr(pnum))
-> -			continue;
-> -		ms = __nr_to_section(pnum);
-> -		nodeid_begin = sparse_early_nid(ms);
-> -		pnum_begin = pnum;
-> -		break;
-> -	}
-> -	usemap_count = 1;
-> -	for (pnum = pnum_begin + 1; pnum < NR_MEM_SECTIONS; pnum++) {
-> -		struct mem_section *ms;
-> -		int nodeid;
-> -
-> -		if (!present_section_nr(pnum))
-> -			continue;
-> -		ms = __nr_to_section(pnum);
-> -		nodeid = sparse_early_nid(ms);
-> -		if (nodeid == nodeid_begin) {
-> -			usemap_count++;
-> -			continue;
-> -		}
-> -		/* ok, we need to take cake of from pnum_begin to pnum - 1*/
-> -		sparse_early_usemaps_alloc_node(usemap_map, pnum_begin, pnum,
-> -						 usemap_count, nodeid_begin);
-> -		/* new start, update count etc*/
-> -		nodeid_begin = nodeid;
-> -		pnum_begin = pnum;
-> -		usemap_count = 1;
-> -	}
-> -	/* ok, last chunk */
-> -	sparse_early_usemaps_alloc_node(usemap_map, pnum_begin, NR_MEM_SECTIONS,
-> -					 usemap_count, nodeid_begin);
-> +	alloc_usemap_and_memmap(usemap_map, true);
->  
->  #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
->  	size2 = sizeof(struct page *) * NR_MEM_SECTIONS;
->  	map_map = alloc_bootmem(size2);
->  	if (!map_map)
->  		panic("can not allocate map_map\n");
-> -
-> -	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
-> -		struct mem_section *ms;
-> -
-> -		if (!present_section_nr(pnum))
-> -			continue;
-> -		ms = __nr_to_section(pnum);
-> -		nodeid_begin = sparse_early_nid(ms);
-> -		pnum_begin = pnum;
-> -		break;
-> -	}
-> -	map_count = 1;
-> -	for (pnum = pnum_begin + 1; pnum < NR_MEM_SECTIONS; pnum++) {
-> -		struct mem_section *ms;
-> -		int nodeid;
-> -
-> -		if (!present_section_nr(pnum))
-> -			continue;
-> -		ms = __nr_to_section(pnum);
-> -		nodeid = sparse_early_nid(ms);
-> -		if (nodeid == nodeid_begin) {
-> -			map_count++;
-> -			continue;
-> -		}
-> -		/* ok, we need to take cake of from pnum_begin to pnum - 1*/
-> -		sparse_early_mem_maps_alloc_node(map_map, pnum_begin, pnum,
-> -						 map_count, nodeid_begin);
-> -		/* new start, update count etc*/
-> -		nodeid_begin = nodeid;
-> -		pnum_begin = pnum;
-> -		map_count = 1;
-> -	}
-> -	/* ok, last chunk */
-> -	sparse_early_mem_maps_alloc_node(map_map, pnum_begin, NR_MEM_SECTIONS,
-> -					 map_count, nodeid_begin);
-> +	alloc_usemap_and_memmap((unsigned long **)map_map, false);
->  #endif
->  
->  	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
-> -- 
-> 1.8.1.2
+> -		force_page_cache_readahead(mapping, f.file, start_index,
+> -					   nrpages);
+> +		ret = force_page_cache_readahead(mapping, f.file, start_index,
+> +						 nrpages);
+>  		break;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
