@@ -1,134 +1,225 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 96B0B6B0032
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 02:47:34 -0400 (EDT)
-Received: by mail-la0-f47.google.com with SMTP id eo20so20592lab.20
-        for <linux-mm@kvack.org>; Mon, 19 Aug 2013 23:47:32 -0700 (PDT)
-Date: Tue, 20 Aug 2013 10:47:30 +0400
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [PATCH 0/3] mm: mempolicy: the failure processing about
- mpol_to_str()
-Message-ID: <20130820064730.GD18673@moon>
-References: <5212E8DF.5020209@asianux.com>
- <20130820053036.GB18673@moon>
- <52130194.4030903@asianux.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <52130194.4030903@asianux.com>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id B408A6B0033
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 02:55:17 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Tue, 20 Aug 2013 12:18:48 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id F3D2CE0057
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 12:25:39 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7K6uggi39059582
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 12:26:43 +0530
+Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7K6t9MS009773
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 12:25:10 +0530
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v2 2/4] mm/sparse: introduce alloc_usemap_and_memmap
+Date: Tue, 20 Aug 2013 14:54:54 +0800
+Message-Id: <1376981696-4312-2-git-send-email-liwanp@linux.vnet.ibm.com>
+In-Reply-To: <1376981696-4312-1-git-send-email-liwanp@linux.vnet.ibm.com>
+References: <1376981696-4312-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Gang <gang.chen@asianux.com>
-Cc: Mel Gorman <mgorman@suse.de>, kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, hughd@google.com, xemul@parallels.com, rientjes@google.com, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Fengguang Wu <fengguang.wu@intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jiri Kosina <jkosina@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Tue, Aug 20, 2013 at 01:41:40PM +0800, Chen Gang wrote:
-> 
-> need "if (ret < 0)" instead of.  ;-)
+v1 -> v2:
+ * add comments to describe alloc_usemap_and_memmap 
 
-sure, it's details
+After commit 9bdac91424075("sparsemem: Put mem map for one node together."),
+vmemmap for one node will be allocated together, its logic is similar as
+memory allocation for pageblock flags. This patch introduce alloc_usemap_and_memmap
+to extract the same logic of memory alloction for pageblock flags and vmemmap.
 
-> 
-> > sure you'll have to change shmem_show_mpol statement to return int code.
-> > Won't this be more short and convenient?
-> > 
-> > 
-> 
-> Hmm... if return -ENOSPC, in common processing, it still need continue
-> (but need let outside know about the string truncation).
-> 
-> So I still suggest to give more check for it.
-
-I still don't like adding additional code like
-
-+	ret = mpol_to_str(buffer, sizeof(buffer), mpol);
-+	if (ret < 0)
-+               switch (ret) {
-+               case -ENOSPC:
-+                       printk(KERN_WARNING
-+                               "in %s: string is truncated in mpol_to_str().\n",
-+                               __func__);
-+               default:
-+                       printk(KERN_ERR
-+                               "in %s: call mpol_to_str() fail, errcode: %d. buffer: %p, size: %zu, pol: %p\n",
-+                               __func__, ret, buffer, sizeof(buffer), mpol);
-+                       return;
-+               }
-
-this code is pretty neat for debugging purpose I think but in most case (if
-only I've not missed something obvious) it simply won't be the case.
-
-Won't somthing like below do the same but with smaller code change?
-Note I've not even compiled it but it shows the idea.
+Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- fs/proc/task_mmu.c |    4 +++-
- mm/shmem.c         |   17 +++++++++--------
- 2 files changed, 12 insertions(+), 9 deletions(-)
+ mm/sparse.c | 140 ++++++++++++++++++++++++++++--------------------------------
+ 1 file changed, 66 insertions(+), 74 deletions(-)
 
-Index: linux-2.6.git/fs/proc/task_mmu.c
-===================================================================
---- linux-2.6.git.orig/fs/proc/task_mmu.c
-+++ linux-2.6.git/fs/proc/task_mmu.c
-@@ -1402,8 +1402,10 @@ static int show_numa_map(struct seq_file
- 	walk.mm = mm;
- 
- 	pol = get_vma_policy(task, vma, vma->vm_start);
--	mpol_to_str(buffer, sizeof(buffer), pol);
-+	n = mpol_to_str(buffer, sizeof(buffer), pol);
- 	mpol_cond_put(pol);
-+	if (n < 0)
-+		return n;
- 
- 	seq_printf(m, "%08lx %s", vma->vm_start, buffer);
- 
-Index: linux-2.6.git/mm/shmem.c
-===================================================================
---- linux-2.6.git.orig/mm/shmem.c
-+++ linux-2.6.git/mm/shmem.c
-@@ -883,16 +883,20 @@ redirty:
- 
- #ifdef CONFIG_NUMA
- #ifdef CONFIG_TMPFS
--static void shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
-+static int shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 308d503..d27db9b 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -439,6 +439,14 @@ static void __init sparse_early_mem_maps_alloc_node(struct page **map_map,
+ 					 map_count, nodeid);
+ }
+ #else
++
++static void __init sparse_early_mem_maps_alloc_node(struct page **map_map,
++				unsigned long pnum_begin,
++				unsigned long pnum_end,
++				unsigned long map_count, int nodeid)
++{
++}
++
+ static struct page __init *sparse_early_mem_map_alloc(unsigned long pnum)
  {
- 	char buffer[64];
-+	int ret;
- 
- 	if (!mpol || mpol->mode == MPOL_DEFAULT)
--		return;		/* show nothing */
-+		return 0;	/* show nothing */
- 
--	mpol_to_str(buffer, sizeof(buffer), mpol);
-+	ret = mpol_to_str(buffer, sizeof(buffer), mpol);
-+	if (ret < 0)
-+		return ret;
- 
- 	seq_printf(seq, ",mpol=%s", buffer);
-+	return 0;
+ 	struct page *map;
+@@ -460,6 +468,62 @@ void __attribute__((weak)) __meminit vmemmap_populate_print_last(void)
+ {
  }
  
- static struct mempolicy *shmem_get_sbmpol(struct shmem_sb_info *sbinfo)
-@@ -951,9 +955,7 @@ static struct page *shmem_alloc_page(gfp
- }
- #else /* !CONFIG_NUMA */
- #ifdef CONFIG_TMPFS
--static inline void shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
--{
--}
-+static inline int shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol) { return 0; }
- #endif /* CONFIG_TMPFS */
++/**
++ *  alloc_usemap_and_memmap - memory alloction for pageblock flags and vmemmap
++ *  @map: usemap_map for pageblock flags or mmap_map for vmemmap
++ *  @use_map: true if memory allocated for pageblock flags, otherwise false
++ */
++static void alloc_usemap_and_memmap(unsigned long **map, bool use_map)
++{
++	unsigned long pnum;
++	unsigned long map_count;
++	int nodeid_begin = 0;
++	unsigned long pnum_begin = 0;
++
++	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
++		struct mem_section *ms;
++
++		if (!present_section_nr(pnum))
++			continue;
++		ms = __nr_to_section(pnum);
++		nodeid_begin = sparse_early_nid(ms);
++		pnum_begin = pnum;
++		break;
++	}
++	map_count = 1;
++	for (pnum = pnum_begin + 1; pnum < NR_MEM_SECTIONS; pnum++) {
++		struct mem_section *ms;
++		int nodeid;
++
++		if (!present_section_nr(pnum))
++			continue;
++		ms = __nr_to_section(pnum);
++		nodeid = sparse_early_nid(ms);
++		if (nodeid == nodeid_begin) {
++			map_count++;
++			continue;
++		}
++		/* ok, we need to take cake of from pnum_begin to pnum - 1*/
++		if (use_map)
++			sparse_early_usemaps_alloc_node(map, pnum_begin, pnum,
++						 map_count, nodeid_begin);
++		else
++			sparse_early_mem_maps_alloc_node((struct page **)map,
++				pnum_begin, pnum, map_count, nodeid_begin);
++		/* new start, update count etc*/
++		nodeid_begin = nodeid;
++		pnum_begin = pnum;
++		map_count = 1;
++	}
++	/* ok, last chunk */
++	if (use_map)
++		sparse_early_usemaps_alloc_node(map, pnum_begin,
++				NR_MEM_SECTIONS, map_count, nodeid_begin);
++	else
++		sparse_early_mem_maps_alloc_node((struct page **)map,
++			pnum_begin, NR_MEM_SECTIONS, map_count, nodeid_begin);
++}
++
+ /*
+  * Allocate the accumulated non-linear sections, allocate a mem_map
+  * for each and record the physical to section mapping.
+@@ -471,11 +535,7 @@ void __init sparse_init(void)
+ 	unsigned long *usemap;
+ 	unsigned long **usemap_map;
+ 	int size;
+-	int nodeid_begin = 0;
+-	unsigned long pnum_begin = 0;
+-	unsigned long usemap_count;
+ #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
+-	unsigned long map_count;
+ 	int size2;
+ 	struct page **map_map;
+ #endif
+@@ -501,82 +561,14 @@ void __init sparse_init(void)
+ 	usemap_map = alloc_bootmem(size);
+ 	if (!usemap_map)
+ 		panic("can not allocate usemap_map\n");
+-
+-	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
+-		struct mem_section *ms;
+-
+-		if (!present_section_nr(pnum))
+-			continue;
+-		ms = __nr_to_section(pnum);
+-		nodeid_begin = sparse_early_nid(ms);
+-		pnum_begin = pnum;
+-		break;
+-	}
+-	usemap_count = 1;
+-	for (pnum = pnum_begin + 1; pnum < NR_MEM_SECTIONS; pnum++) {
+-		struct mem_section *ms;
+-		int nodeid;
+-
+-		if (!present_section_nr(pnum))
+-			continue;
+-		ms = __nr_to_section(pnum);
+-		nodeid = sparse_early_nid(ms);
+-		if (nodeid == nodeid_begin) {
+-			usemap_count++;
+-			continue;
+-		}
+-		/* ok, we need to take cake of from pnum_begin to pnum - 1*/
+-		sparse_early_usemaps_alloc_node(usemap_map, pnum_begin, pnum,
+-						 usemap_count, nodeid_begin);
+-		/* new start, update count etc*/
+-		nodeid_begin = nodeid;
+-		pnum_begin = pnum;
+-		usemap_count = 1;
+-	}
+-	/* ok, last chunk */
+-	sparse_early_usemaps_alloc_node(usemap_map, pnum_begin, NR_MEM_SECTIONS,
+-					 usemap_count, nodeid_begin);
++	alloc_usemap_and_memmap(usemap_map, true);
  
- static inline struct page *shmem_swapin(swp_entry_t swap, gfp_t gfp,
-@@ -2577,8 +2579,7 @@ static int shmem_show_options(struct seq
- 	if (!gid_eq(sbinfo->gid, GLOBAL_ROOT_GID))
- 		seq_printf(seq, ",gid=%u",
- 				from_kgid_munged(&init_user_ns, sbinfo->gid));
--	shmem_show_mpol(seq, sbinfo->mpol);
--	return 0;
-+	return shmem_show_mpol(seq, sbinfo->mpol);
- }
- #endif /* CONFIG_TMPFS */
+ #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
+ 	size2 = sizeof(struct page *) * NR_MEM_SECTIONS;
+ 	map_map = alloc_bootmem(size2);
+ 	if (!map_map)
+ 		panic("can not allocate map_map\n");
+-
+-	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
+-		struct mem_section *ms;
+-
+-		if (!present_section_nr(pnum))
+-			continue;
+-		ms = __nr_to_section(pnum);
+-		nodeid_begin = sparse_early_nid(ms);
+-		pnum_begin = pnum;
+-		break;
+-	}
+-	map_count = 1;
+-	for (pnum = pnum_begin + 1; pnum < NR_MEM_SECTIONS; pnum++) {
+-		struct mem_section *ms;
+-		int nodeid;
+-
+-		if (!present_section_nr(pnum))
+-			continue;
+-		ms = __nr_to_section(pnum);
+-		nodeid = sparse_early_nid(ms);
+-		if (nodeid == nodeid_begin) {
+-			map_count++;
+-			continue;
+-		}
+-		/* ok, we need to take cake of from pnum_begin to pnum - 1*/
+-		sparse_early_mem_maps_alloc_node(map_map, pnum_begin, pnum,
+-						 map_count, nodeid_begin);
+-		/* new start, update count etc*/
+-		nodeid_begin = nodeid;
+-		pnum_begin = pnum;
+-		map_count = 1;
+-	}
+-	/* ok, last chunk */
+-	sparse_early_mem_maps_alloc_node(map_map, pnum_begin, NR_MEM_SECTIONS,
+-					 map_count, nodeid_begin);
++	alloc_usemap_and_memmap((unsigned long **)map_map, false);
+ #endif
  
+ 	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
+-- 
+1.8.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
