@@ -1,67 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id A6E0D6B0034
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 02:55:21 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 20 Aug 2013 16:46:55 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id C30132CE8055
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 16:55:13 +1000 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7K6dGMK3014924
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 16:39:17 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r7K6tBTx012149
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 16:55:12 +1000
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v2 3/4] mm/writeback: make writeback_inodes_wb static
-Date: Tue, 20 Aug 2013 14:54:55 +0800
-Message-Id: <1376981696-4312-3-git-send-email-liwanp@linux.vnet.ibm.com>
-In-Reply-To: <1376981696-4312-1-git-send-email-liwanp@linux.vnet.ibm.com>
-References: <1376981696-4312-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 1EC766B0032
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 03:49:28 -0400 (EDT)
+Message-ID: <52131F48.1030002@asianux.com>
+Date: Tue, 20 Aug 2013 15:48:24 +0800
+From: Chen Gang <gang.chen@asianux.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/3] mm: mempolicy: the failure processing about mpol_to_str()
+References: <5212E8DF.5020209@asianux.com> <20130820053036.GB18673@moon> <52130194.4030903@asianux.com> <20130820064730.GD18673@moon>
+In-Reply-To: <20130820064730.GD18673@moon>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Fengguang Wu <fengguang.wu@intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jiri Kosina <jkosina@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: Cyrill Gorcunov <gorcunov@gmail.com>
+Cc: Mel Gorman <mgorman@suse.de>, kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, hughd@google.com, xemul@parallels.com, rientjes@google.com, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-It's not used globally and could be static.
+On 08/20/2013 02:47 PM, Cyrill Gorcunov wrote:
+> On Tue, Aug 20, 2013 at 01:41:40PM +0800, Chen Gang wrote:
+>>
+>>> sure you'll have to change shmem_show_mpol statement to return int code.
+>>> Won't this be more short and convenient?
+>>>
+>>>
+>>
+>> Hmm... if return -ENOSPC, in common processing, it still need continue
+>> (but need let outside know about the string truncation).
+>>
+>> So I still suggest to give more check for it.
+> 
+> I still don't like adding additional code like
+> 
+> +	ret = mpol_to_str(buffer, sizeof(buffer), mpol);
+> +	if (ret < 0)
+> +               switch (ret) {
+> +               case -ENOSPC:
+> +                       printk(KERN_WARNING
+> +                               "in %s: string is truncated in mpol_to_str().\n",
+> +                               __func__);
+> +               default:
+> +                       printk(KERN_ERR
+> +                               "in %s: call mpol_to_str() fail, errcode: %d. buffer: %p, size: %zu, pol: %p\n",
+> +                               __func__, ret, buffer, sizeof(buffer), mpol);
+> +                       return;
+> +               }
+> 
+> this code is pretty neat for debugging purpose I think but in most case (if
+> only I've not missed something obvious) it simply won't be the case.
+>
 
-Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
----
- fs/fs-writeback.c         | 2 +-
- include/linux/writeback.h | 2 --
- 2 files changed, 1 insertion(+), 3 deletions(-)
+For mpol_to_str(), it is for printing string, I suggest to fill buffer
+as full as possible like another printing string functions, -ENOSPC is
+not critical error, callers may can bear it, and still want to continue.
 
-diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index 87d7781..54b3c31 100644
---- a/fs/fs-writeback.c
-+++ b/fs/fs-writeback.c
-@@ -723,7 +723,7 @@ static long __writeback_inodes_wb(struct bdi_writeback *wb,
- 	return wrote;
- }
- 
--long writeback_inodes_wb(struct bdi_writeback *wb, long nr_pages,
-+static long writeback_inodes_wb(struct bdi_writeback *wb, long nr_pages,
- 				enum wb_reason reason)
- {
- 	struct wb_writeback_work work = {
-diff --git a/include/linux/writeback.h b/include/linux/writeback.h
-index 4e198ca..021b8a3 100644
---- a/include/linux/writeback.h
-+++ b/include/linux/writeback.h
-@@ -98,8 +98,6 @@ int try_to_writeback_inodes_sb(struct super_block *, enum wb_reason reason);
- int try_to_writeback_inodes_sb_nr(struct super_block *, unsigned long nr,
- 				  enum wb_reason reason);
- void sync_inodes_sb(struct super_block *);
--long writeback_inodes_wb(struct bdi_writeback *wb, long nr_pages,
--				enum wb_reason reason);
- void wakeup_flusher_threads(long nr_pages, enum wb_reason reason);
- void inode_wait_for_writeback(struct inode *inode);
- 
+For 2 callers, I still suggest to process '-ENOSPC' and continue, it is
+really not a critical error, they can continue.
+
+For the 'default' error processing:
+
+  I still suggest to 'printk' in shmem_show_mpol(), because when failure occurs, it has no return value to mark the failure to upper caller.
+  Hmm... but for show_numa_map(), may remove the 'printk', only return the error code is OK. :-)
+
+
+Thanks.
+
+> Won't somthing like below do the same but with smaller code change?
+> Note I've not even compiled it but it shows the idea.
+> ---
+>  fs/proc/task_mmu.c |    4 +++-
+>  mm/shmem.c         |   17 +++++++++--------
+>  2 files changed, 12 insertions(+), 9 deletions(-)
+> 
+> Index: linux-2.6.git/fs/proc/task_mmu.c
+> ===================================================================
+> --- linux-2.6.git.orig/fs/proc/task_mmu.c
+> +++ linux-2.6.git/fs/proc/task_mmu.c
+> @@ -1402,8 +1402,10 @@ static int show_numa_map(struct seq_file
+>  	walk.mm = mm;
+>  
+>  	pol = get_vma_policy(task, vma, vma->vm_start);
+> -	mpol_to_str(buffer, sizeof(buffer), pol);
+> +	n = mpol_to_str(buffer, sizeof(buffer), pol);
+>  	mpol_cond_put(pol);
+> +	if (n < 0)
+> +		return n;
+>  
+>  	seq_printf(m, "%08lx %s", vma->vm_start, buffer);
+>  
+> Index: linux-2.6.git/mm/shmem.c
+> ===================================================================
+> --- linux-2.6.git.orig/mm/shmem.c
+> +++ linux-2.6.git/mm/shmem.c
+> @@ -883,16 +883,20 @@ redirty:
+>  
+>  #ifdef CONFIG_NUMA
+>  #ifdef CONFIG_TMPFS
+> -static void shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
+> +static int shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
+>  {
+>  	char buffer[64];
+> +	int ret;
+>  
+>  	if (!mpol || mpol->mode == MPOL_DEFAULT)
+> -		return;		/* show nothing */
+> +		return 0;	/* show nothing */
+>  
+> -	mpol_to_str(buffer, sizeof(buffer), mpol);
+> +	ret = mpol_to_str(buffer, sizeof(buffer), mpol);
+> +	if (ret < 0)
+> +		return ret;
+>  
+>  	seq_printf(seq, ",mpol=%s", buffer);
+> +	return 0;
+>  }
+>  
+>  static struct mempolicy *shmem_get_sbmpol(struct shmem_sb_info *sbinfo)
+> @@ -951,9 +955,7 @@ static struct page *shmem_alloc_page(gfp
+>  }
+>  #else /* !CONFIG_NUMA */
+>  #ifdef CONFIG_TMPFS
+> -static inline void shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
+> -{
+> -}
+> +static inline int shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol) { return 0; }
+>  #endif /* CONFIG_TMPFS */
+>  
+>  static inline struct page *shmem_swapin(swp_entry_t swap, gfp_t gfp,
+> @@ -2577,8 +2579,7 @@ static int shmem_show_options(struct seq
+>  	if (!gid_eq(sbinfo->gid, GLOBAL_ROOT_GID))
+>  		seq_printf(seq, ",gid=%u",
+>  				from_kgid_munged(&init_user_ns, sbinfo->gid));
+> -	shmem_show_mpol(seq, sbinfo->mpol);
+> -	return 0;
+> +	return shmem_show_mpol(seq, sbinfo->mpol);
+>  }
+>  #endif /* CONFIG_TMPFS */
+>  
+> 
+> 
+
+
 -- 
-1.8.1.2
+Chen Gang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
