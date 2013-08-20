@@ -1,15 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 763516B0032
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 16:59:12 -0400 (EDT)
-Date: Tue, 20 Aug 2013 13:59:10 -0700
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 613806B0033
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 16:59:17 -0400 (EDT)
+Date: Tue, 20 Aug 2013 13:59:15 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 4/9] mm + fs: prepare for non-page entries in page cache
- radix trees
-Message-Id: <20130820135910.6e6da048131bc841404906be@linux-foundation.org>
-In-Reply-To: <1376767883-4411-5-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [patch 5/9] mm + fs: store shadow entries in page cache
+Message-Id: <20130820135915.80e05e1554597666a8e6ef88@linux-foundation.org>
+In-Reply-To: <1376767883-4411-6-git-send-email-hannes@cmpxchg.org>
 References: <1376767883-4411-1-git-send-email-hannes@cmpxchg.org>
-	<1376767883-4411-5-git-send-email-hannes@cmpxchg.org>
+	<1376767883-4411-6-git-send-email-hannes@cmpxchg.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -18,53 +17,87 @@ List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Ozgun Erdogan <ozgun@citusdata.com>, Metin Doslu <metin@citusdata.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Sat, 17 Aug 2013 15:31:18 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
+On Sat, 17 Aug 2013 15:31:19 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-> shmem mappings already contain exceptional entries where swap slot
-> information is remembered.
+> Reclaim will be leaving shadow entries in the page cache radix tree
+> upon evicting the real page.  As those pages are found from the LRU,
+> an iput() can lead to the inode being freed concurrently.  At this
+> point, reclaim must no longer install shadow pages because the inode
+> freeing code needs to ensure the page tree is really empty.
 > 
-> To be able to store eviction information for regular page cache,
-> prepare every site dealing with the radix trees directly to handle
-> entries other than pages.
+> Add an address_space flag, AS_EXITING, that the inode freeing code
+> sets under the tree lock before doing the final truncate.  Reclaim
+> will check for this flag before installing shadow pages.
 > 
-> The common lookup functions will filter out non-page entries and
-> return NULL for page cache holes, just as before.  But provide a raw
-> version of the API which returns non-page entries as well, and switch
-> shmem over to use it.
-> 
->
 > ...
 >
-> -/**
-> - * find_get_page - find and get a page reference
-> - * @mapping: the address_space to search
-> - * @offset: the page index
-> - *
-> - * Is there a pagecache struct page at the given (mapping, offset) tuple?
-> - * If yes, increment its refcount and return it; if no, return NULL.
-> - */
-> -struct page *find_get_page(struct address_space *mapping, pgoff_t offset)
-> +struct page *__find_get_page(struct address_space *mapping, pgoff_t offset)
->  {
->  	void **pagep;
->  	struct page *page;
-> @@ -812,24 +828,31 @@ out:
+> --- a/fs/inode.c
+> +++ b/fs/inode.c
+> @@ -503,6 +503,7 @@ void clear_inode(struct inode *inode)
+>  	 */
+>  	spin_lock_irq(&inode->i_data.tree_lock);
+>  	BUG_ON(inode->i_data.nrpages);
+> +	BUG_ON(inode->i_data.nrshadows);
+>  	spin_unlock_irq(&inode->i_data.tree_lock);
+>  	BUG_ON(!list_empty(&inode->i_data.private_list));
+>  	BUG_ON(!(inode->i_state & I_FREEING));
+> @@ -545,10 +546,14 @@ static void evict(struct inode *inode)
+>  	 */
+>  	inode_wait_for_writeback(inode);
 >  
->  	return page;
->  }
-> -EXPORT_SYMBOL(find_get_page);
-> +EXPORT_SYMBOL(__find_get_page);
+> +	spin_lock_irq(&inode->i_data.tree_lock);
+> +	mapping_set_exiting(&inode->i_data);
+> +	spin_unlock_irq(&inode->i_data.tree_lock);
 
-Deleting the interface documentation for a global, exported-to-modules
-function was a bit rude.
+mapping_set_exiting() is atomic and the locking here probably doesn't do
+anythng useful.
 
-And it does need documentation, to tell people that it can return the
-non-pages.
 
-Does it have the same handling of non-pages as __find_get_pages()?  It
-had better, given the naming!
-
+>  	if (op->evict_inode) {
+>  		op->evict_inode(inode);
+>  	} else {
+> -		if (inode->i_data.nrpages)
+> +		if (inode->i_data.nrpages || inode->i_data.nrshadows)
+>  			truncate_inode_pages(&inode->i_data, 0);
+>  		clear_inode(inode);
+>  	}
+> 
+> ...
 >
+> --- a/include/linux/fs.h
+> +++ b/include/linux/fs.h
+> @@ -416,6 +416,7 @@ struct address_space {
+>  	struct mutex		i_mmap_mutex;	/* protect tree, count, list */
+>  	/* Protected by tree_lock together with the radix tree */
+>  	unsigned long		nrpages;	/* number of total pages */
+> +	unsigned long		nrshadows;	/* number of shadow entries */
+>  	pgoff_t			writeback_index;/* writeback starts here */
+>  	const struct address_space_operations *a_ops;	/* methods */
+>  	unsigned long		flags;		/* error bits/gfp mask */
+
+This grows the size of the in-core inode.  There can be tremendous
+numbers of those so this was a significantly costly change.
+
+And this whole patchset contains no data which permits us to agree that
+this cost was worthwhile.
+
+> diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+> index b6854b7..db3a78b 100644
+> --- a/include/linux/pagemap.h
+> +++ b/include/linux/pagemap.h
+> @@ -25,6 +25,7 @@ enum mapping_flags {
+>  	AS_MM_ALL_LOCKS	= __GFP_BITS_SHIFT + 2,	/* under mm_take_all_locks() */
+>  	AS_UNEVICTABLE	= __GFP_BITS_SHIFT + 3,	/* e.g., ramdisk, SHM_LOCK */
+>  	AS_BALLOON_MAP  = __GFP_BITS_SHIFT + 4, /* balloon page special map */
+> +	AS_EXITING	= __GFP_BITS_SHIFT + 5, /* inode is being evicted */
+
+This is far too little documentation.  I suggest adding the complete
+rationale at the mapping_set_exiting() definition site.  Or perhaps at
+the mapping_set_exiting callsite in evict().
+
+>  };
+>  
+> 
 > ...
 >
 
