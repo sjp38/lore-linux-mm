@@ -1,10 +1,11 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 1/4] mm/pgtable: Fix continue to preallocate pmds even
- if failure occurrence
-Date: Wed, 21 Aug 2013 07:39:35 +0800
-Message-ID: <49506.71521151$1377042006@news.gmane.org>
+Subject: Re: [PATCH v2 2/4] mm/sparse: introduce alloc_usemap_and_memmap
+Date: Wed, 21 Aug 2013 11:11:43 +0800
+Message-ID: <22801.8914153383$1377054727@news.gmane.org>
 References: <1376981696-4312-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <20130820160418.5639c4f9975b84dc8dede014@linux-foundation.org>
+ <1376981696-4312-2-git-send-email-liwanp@linux.vnet.ibm.com>
+ <20130820160735.b12fe1b3dd64b4dc146d2fa0@linux-foundation.org>
+ <CAE9FiQVy2uqLm2XyStYmzxSmsw7TzrB0XDhCRLymnf+L3NPxrA@mail.gmail.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -12,96 +13,125 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1VBvWo-0004kA-Cp
-	for glkm-linux-mm-2@m.gmane.org; Wed, 21 Aug 2013 01:39:58 +0200
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 4DE1F6B0033
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 19:39:56 -0400 (EDT)
+	id 1VBypz-0003sP-Q8
+	for glkm-linux-mm-2@m.gmane.org; Wed, 21 Aug 2013 05:12:00 +0200
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 90DFC6B0032
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 23:11:54 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 21 Aug 2013 09:36:33 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 030BA2CE8054
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 09:39:41 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7KNdQcB8716570
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 09:39:30 +1000
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7KNdaFs015587
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 09:39:37 +1000
+	Wed, 21 Aug 2013 08:35:58 +0530
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 57CF3394005A
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 08:41:38 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7L3Bhtq45023318
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 08:41:44 +0530
+Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7L3Bj9a002023
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 08:41:46 +0530
 Content-Disposition: inline
-In-Reply-To: <20130820160418.5639c4f9975b84dc8dede014@linux-foundation.org>
+In-Reply-To: <CAE9FiQVy2uqLm2XyStYmzxSmsw7TzrB0XDhCRLymnf+L3NPxrA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Fengguang Wu <fengguang.wu@intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jiri Kosina <jkosina@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Yinghai Lu <yinghai@kernel.org>
+Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Fengguang Wu <fengguang.wu@intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jiri Kosina <jkosina@suse.cz>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Tue, Aug 20, 2013 at 04:04:18PM -0700, Andrew Morton wrote:
->On Tue, 20 Aug 2013 14:54:53 +0800 Wanpeng Li <liwanp@linux.vnet.ibm.com> wrote:
->
->> preallocate_pmds will continue to preallocate pmds even if failure
->> occurrence, and then free all the preallocate pmds if there is
->> failure, this patch fix it by stop preallocate if failure occurrence
->> and go to free path.
+Hi Yinghai,
+On Tue, Aug 20, 2013 at 05:02:17PM -0700, Yinghai Lu wrote:
+>On Tue, Aug 20, 2013 at 4:07 PM, Andrew Morton
+><akpm@linux-foundation.org> wrote:
+>> On Tue, 20 Aug 2013 14:54:54 +0800 Wanpeng Li <liwanp@linux.vnet.ibm.com> wrote:
 >>
->> ...
+>>> v1 -> v2:
+>>>  * add comments to describe alloc_usemap_and_memmap
+>>>
+>>> After commit 9bdac91424075("sparsemem: Put mem map for one node together."),
+>>> vmemmap for one node will be allocated together, its logic is similar as
+>>> memory allocation for pageblock flags. This patch introduce alloc_usemap_and_memmap
+>>> to extract the same logic of memory alloction for pageblock flags and vmemmap.
+>>>
 >>
->> --- a/arch/x86/mm/pgtable.c
->> +++ b/arch/x86/mm/pgtable.c
->> @@ -196,21 +196,18 @@ static void free_pmds(pmd_t *pmds[])
->>  static int preallocate_pmds(pmd_t *pmds[])
->>  {
->>  	int i;
->> -	bool failed = false;
->>  
->>  	for(i = 0; i < PREALLOCATED_PMDS; i++) {
->>  		pmd_t *pmd = (pmd_t *)__get_free_page(PGALLOC_GFP);
->>  		if (pmd == NULL)
->> -			failed = true;
->> +			goto err;
->>  		pmds[i] = pmd;
->>  	}
->>  
->> -	if (failed) {
->> -		free_pmds(pmds);
->> -		return -ENOMEM;
->> -	}
->> -
->>  	return 0;
->> +err:
->> +	free_pmds(pmds);
->> +	return -ENOMEM;
->>  }
+>> 9bdac91424075 was written by Yinghai.  He is an excellent reviewer, as
+>> long as people remember to cc him!
+>
+>could be that he forgot to use scripts/get_maintainer.pl
+>
+>or get_maintainer.pl has some problem.
 >
 
-Hi Andrew,
+Sorry for forget cc you. 
 
->Nope.  If the error path is taken, free_pmds() will free uninitialised
->items from pmds[], which is a local in pgd_alloc() and contains random
->stack junk.  The kernel will crash.
+>>
+>>> ---
+>>>  mm/sparse.c | 140 ++++++++++++++++++++++++++++--------------------------------
+>>>  1 file changed, 66 insertions(+), 74 deletions(-)
+>>>
+>>> diff --git a/mm/sparse.c b/mm/sparse.c
+>>> index 308d503..d27db9b 100644
+>>> --- a/mm/sparse.c
+>>> +++ b/mm/sparse.c
+>>> @@ -439,6 +439,14 @@ static void __init sparse_early_mem_maps_alloc_node(struct page **map_map,
+>>>                                        map_count, nodeid);
+>>>  }
+>>>  #else
+>>> +
+>>> +static void __init sparse_early_mem_maps_alloc_node(struct page **map_map,
+>>> +                             unsigned long pnum_begin,
+>>> +                             unsigned long pnum_end,
+>>> +                             unsigned long map_count, int nodeid)
+>>> +{
+>>> +}
+>>> +
+>...
+>could be avoided, if passing function pointer instead.
 >
->You could pass an nr_pmds argument to free_pmds(), or zero out the
->remaining items on the error path.  However, although the current code
->is a bit kooky, I don't see that it is harmful in any way.
+>>>  static struct page __init *sparse_early_mem_map_alloc(unsigned long pnum)
+>>>  {
+>>>       struct page *map;
+>>> @@ -460,6 +468,62 @@ void __attribute__((weak)) __meminit vmemmap_populate_print_last(void)
+>>>  {
+>>>  }
+>>>
+>>> +/**
+>>> + *  alloc_usemap_and_memmap - memory alloction for pageblock flags and vmemmap
+>>> + *  @map: usemap_map for pageblock flags or mmap_map for vmemmap
+>>> + *  @use_map: true if memory allocated for pageblock flags, otherwise false
+>>> + */
+>>> +static void alloc_usemap_and_memmap(unsigned long **map, bool use_map)
+>...
+>>> @@ -471,11 +535,7 @@ void __init sparse_init(void)
+>>>       unsigned long *usemap;
+>>>       unsigned long **usemap_map;
+>>>       int size;
+>...
+>>> -     /* ok, last chunk */
+>>> -     sparse_early_usemaps_alloc_node(usemap_map, pnum_begin, NR_MEM_SECTIONS,
+>>> -                                      usemap_count, nodeid_begin);
+>>> +     alloc_usemap_and_memmap(usemap_map, true);
+>
+>alloc_usemap_and_memmap() is somehow confusing.
+>
+>Please check if you can pass function pointer instead of true/false.
 >
 
-There is a check in free_pmds():
-
-if (pmds[i])
-	free_page((unsigned long)pmds[i]);
-
-which will avoid the issue you mentioned.
-
-In addition, the codes in pgd_alloc will skip free pmds if preallocate pmds 
-failure which will avoid free pmds twice. Am I miss something? ;-)
+sparse_early_usemaps_alloc_node and sparse_early_mem_maps_alloc_node is
+similar, however, one has a parameter unsigned long ** and the other has 
+struct page **. function pointer can't help, isn't it? ;-)
 
 Regards,
 Wanpeng Li 
 
->> Reviewed-by: Dave Hansen <dave.hansen@linux.intel.com>
+>Thanks
 >
->Ahem.
+>Yinghai
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
