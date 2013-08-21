@@ -1,99 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id D17876B005A
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 06:49:28 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Wed, 21 Aug 2013 16:11:44 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 1ADC61258055
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 16:19:09 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7LAoukw35127498
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 16:20:56 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7LAnLHB005505
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 16:19:22 +0530
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 10/20] mm, hugetlb: remove resv_map_put()
-In-Reply-To: <1376040398-11212-11-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com> <1376040398-11212-11-git-send-email-iamjoonsoo.kim@lge.com>
-Date: Wed, 21 Aug 2013 16:19:20 +0530
-Message-ID: <8761uzgvyn.fsf@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 648636B009F
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 08:11:36 -0400 (EDT)
+Message-ID: <5214AE6B.9030804@oracle.com>
+Date: Wed, 21 Aug 2013 20:11:23 +0800
+From: Bob Liu <bob.liu@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: Re: [BUG REPORT] ZSWAP: theoretical race condition issues
+References: <CAL1ERfOiT7QV4UUoKi8+gwbHc9an4rUWriufpOJOUdnTYHHEAw@mail.gmail.com> <52118042.30101@oracle.com> <20130819054742.GA28062@bbox> <CAL1ERfN+poSHZGMQR=4OFscW6QTdE_RhGXr-MwQf3f9kOn_-_g@mail.gmail.com>
+In-Reply-To: <CAL1ERfN+poSHZGMQR=4OFscW6QTdE_RhGXr-MwQf3f9kOn_-_g@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
+To: Weijie Yang <weijie.yang.kh@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, sjenning@linux.vnet.ibm.com, linux-mm@kvack.org
 
-Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
+On 08/20/2013 11:22 PM, Weijie Yang wrote:
+> 2013/8/19 Minchan Kim <minchan@kernel.org>:
+>> On Mon, Aug 19, 2013 at 10:17:38AM +0800, Bob Liu wrote:
+>>> Hi Weijie,
+>>>
+>>> On 08/19/2013 12:14 AM, Weijie Yang wrote:
+>>>> I found a few bugs in zswap when I review Linux-3.11-rc5, and I have
+>>>> also some questions about it, described as following:
+>>>>
+>>>> BUG:
+>>>> 1. A race condition when reclaim a page
+>>>> when a handle alloced from zbud, zbud considers this handle is used
+>>>> validly by upper(zswap) and can be a candidate for reclaim.
+>>>> But zswap has to initialize it such as setting swapentry and addding
+>>>> it to rbtree. so there is a race condition, such as:
+>>>> thread 0: obtain handle x from zbud_alloc
+>>>> thread 1: zbud_reclaim_page is called
+>>>> thread 1: callback zswap_writeback_entry to reclaim handle x
+>>>> thread 1: get swpentry from handle x (it is random value now)
+>>>> thread 1: bad thing may happen
+>>>> thread 0: initialize handle x with swapentry
+>>
+>> Nice catch!
+>>
+>>>
+>>> Yes, this may happen potentially but in rare case.
+>>> Because we have a LRU list for page frames, after Thread 0 called
+>>> zbud_alloc the corresponding page will be add to the head of LRU
+>>> list,While zbud_reclaim_page(Thread 1 called) is started from the tail
+>>> of LRU list.
+>>>
+>>>> Of course, this situation almost never happen, it is a "theoretical
+>>>> race condition" issue.
+>>
+>> But it's doable and we should prevent that although you feel it's rare
+>> because system could go hang. When I look at the code, Why should zbud
+>> have LRU logic instead of zswap? If I missed some history, sorry about that.
+>> But at least to me, zbud is just allocator so it should have a role
+>> to handle alloc/free object and how client of the allocator uses objects
+>> depends on the upper layer so zbud should handle LRU. If so, we wouldn't
+>> encounter this problem, either.
+>>
+>>>>
+>>>> 2. Pollute swapcache data by add a pre-invalided swap page
+>>>> when a swap_entry is invalidated, it will be reused by other anon
+>>>> page. At the same time, zswap is reclaiming old page, pollute
+>>>> swapcache of new page as a result, because old page and new page use
+>>>> the same swap_entry, such as:
+>>>> thread 1: zswap reclaim entry x
+>>>> thread 0: zswap_frontswap_invalidate_page entry x
+>>>> thread 0: entry x reused by other anon page
+>>>> thread 1: add old data to swapcache of entry x
+>>>
+>>> I didn't get your idea here, why thread1 will add old data to entry x?
+>>>
+>>>> thread 0: swapcache of entry x is polluted
+>>>> Of course, this situation almost never happen, it is another
+>>>> "theoretical race condition" issue.
+>>
+>> Don't swapcache_prepare close the race?
+>>
+> 
+> Yes, I made a mistake, there is not a race here.
+> However, I find another bug here after my more careful review. It is
+> not only "theoretical", it will happen really. as:
+> thread 1: zswap reclaim entry x (get the refcount, but not call
+> zswap_get_swap_cache_page yet)
+> thread 0: zswap_frontswap_invalidate_page entry x (finished, entry x
+> and its zbud is not freed as its refcount != 0)
+> now, the swap_map[x] = 0
+> thread 1: zswap_get_swap_cache_page called, swapcache_prepare return
+> -ENOENT because entry x is not used any more
+> zswap_get_swap_cache_page return ZSWAP_SWAPCACHE_NOMEM
+> zswap_writeback_entry do nothing except put refcount
+> now, the memory of zswap_entry x leaks and its zpage become a zombie
+> 
 
-> In following patch, I change vma_resv_map() to return resv_map
-> for all case. This patch prepares it by removing resv_map_put() which
-> doesn't works properly with following change, because it works only for
-> HPAGE_RESV_OWNER's resv_map, not for all resv_maps.
->
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 73034dd..869c3e0 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -2212,15 +2212,6 @@ static void hugetlb_vm_op_open(struct vm_area_struct *vma)
->  		kref_get(&resv->refs);
->  }
->
-> -static void resv_map_put(struct vm_area_struct *vma)
-> -{
-> -	struct resv_map *resv = vma_resv_map(vma);
-> -
-> -	if (!resv)
-> -		return;
-> -	kref_put(&resv->refs, resv_map_release);
-> -}
+Nice catch!
+How about fix like this?
 
-Why not have seperate functions to return vma_resv_map for
-HPAGE_RESV_OWNER and one for put ? That way we could have something like
+@@ -612,7 +612,10 @@ static int zswap_writeback_entry(struct zbud_pool
+*pool, unsigned long handle)
 
-resv_map_hpage_resv_owner_get()
-resv_map_hpge_resv_put() 
+ fail:
+        spin_lock(&tree->lock);
+-       zswap_entry_put(entry);
++       refcount = zswap_entry_put(entry);
++       if (refcount <= 0)
++               /* invalidate happened */
++               zswap_free_entry(tree, entry);
+        spin_unlock(&tree->lock);
+        return ret;
 
-Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
-> -
->  static void hugetlb_vm_op_close(struct vm_area_struct *vma)
->  {
->  	struct hstate *h = hstate_vma(vma);
-> @@ -2237,7 +2228,7 @@ static void hugetlb_vm_op_close(struct vm_area_struct *vma)
->  		reserve = (end - start) -
->  			region_count(resv, start, end);
->
-> -		resv_map_put(vma);
-> +		kref_put(&resv->refs, resv_map_release);
->
->  		if (reserve) {
->  			hugetlb_acct_memory(h, -reserve);
-> @@ -3164,8 +3155,8 @@ int hugetlb_reserve_pages(struct inode *inode,
->  		region_add(resv_map, from, to);
->  	return 0;
->  out_err:
-> -	if (vma)
-> -		resv_map_put(vma);
-> +	if (vma && is_vma_resv_set(vma, HPAGE_RESV_OWNER))
-> +		kref_put(&resv_map->refs, resv_map_release);
-
-for this
-
-    if (alloc)
-           resv_map_hpage_resv_put();
-
->  	return ret;
->  }
->
-> -- 
-> 1.7.9.5
+-- 
+Regards,
+-Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
