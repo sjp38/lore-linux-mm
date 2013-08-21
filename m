@@ -1,80 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id AB13A6B00A8
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 10:28:21 -0400 (EDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <alpine.DEB.2.02.1308201716510.25665@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1308201716510.25665@chino.kir.corp.google.com>
-Subject: RE: [patch] mm, thp: count thp_fault_fallback anytime thp fault fails
-Content-Transfer-Encoding: 7bit
-Message-Id: <20130821142817.8EB4BE0090@blue.fi.intel.com>
-Date: Wed, 21 Aug 2013 17:28:17 +0300 (EEST)
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id AD0E86B00A4
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 10:44:11 -0400 (EDT)
+Date: Wed, 21 Aug 2013 10:42:58 -0400
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: [PATCH 5/8] x86, brk: Make extend_brk() available with va/pa.
+Message-ID: <20130821144258.GH2593@phenom.dumpdata.com>
+References: <1377080143-28455-1-git-send-email-tangchen@cn.fujitsu.com>
+ <1377080143-28455-6-git-send-email-tangchen@cn.fujitsu.com>
+ <18d71946-6de9-4af2-a6a8-05fae51755af@email.android.com>
+ <68a532f2-e468-4aea-b42b-a444ec079c3f@email.android.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <68a532f2-e468-4aea-b42b-a444ec079c3f@email.android.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-David Rientjes wrote:
-> Currently, thp_fault_fallback in vmstat only gets incremented if a
-> hugepage allocation fails.  If current's memcg hits its limit or the page
-> fault handler returns an error, it is incorrectly accounted as a
-> successful thp_fault_alloc.
+On Wed, Aug 21, 2013 at 02:35:36PM +0200, H. Peter Anvin wrote:
+> Global symbols are inaccessible in physical mode.
+
+Even if they are embedded in the assembler code and use GLOBAL(paging_enabled) ?
+
 > 
-> Count thp_fault_fallback anytime the page fault handler falls back to
-> using regular pages and only count thp_fault_alloc when a hugepage has
-> actually been faulted.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+> This is incidentally yet another example of "PV/weird platform violence", since in their absence it would be trivial to work around this by using segmentation.
 
-It's probably a good idea, but please make the behaviour consistent in
-do_huge_pmd_wp_page() and collapse path, otherwise it doesn't make sense.
+I don't follow why it could not.
 
-And please make the patch against mm tree: do_huge_pmd_anonymous_page()
-was modified recently.
+Why can't there be a __pa_symbol(paging_enabled) that is used. Won't
+that in effect allow you to check the contents of that 'global
+constant' even when you don't have paging enabled?
 
-> ---
->  mm/huge_memory.c | 8 +++-----
->  1 file changed, 3 insertions(+), 5 deletions(-)
-> 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -801,7 +801,6 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  			zero_page = get_huge_zero_page();
->  			if (unlikely(!zero_page)) {
->  				pte_free(mm, pgtable);
-> -				count_vm_event(THP_FAULT_FALLBACK);
->  				goto out;
->  			}
->  			spin_lock(&mm->page_table_lock);
-> @@ -816,11 +815,8 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  		}
->  		page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
->  					  vma, haddr, numa_node_id(), 0);
-> -		if (unlikely(!page)) {
-> -			count_vm_event(THP_FAULT_FALLBACK);
-> +		if (unlikely(!page))
->  			goto out;
-> -		}
-> -		count_vm_event(THP_FAULT_ALLOC);
->  		if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
->  			put_page(page);
->  			goto out;
-> @@ -832,9 +828,11 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  			goto out;
->  		}
->  
-> +		count_vm_event(THP_FAULT_ALLOC);
->  		return 0;
->  	}
->  out:
-> +	count_vm_event(THP_FAULT_FALLBACK);
->  	/*
->  	 * Use __pte_alloc instead of pte_alloc_map, because we can't
->  	 * run pte_offset_map on the pmd, if an huge pmd could
-
--- 
- Kirill A. Shutemov
+> >>As mentioned above, on 32bit before paging is enabled, we have to
+> >>access variables
+> >>with pa. So introduce a "bool is_phys" parameter to extend_brk(), and
+> >>convert va
+> >>to pa is it is true.
+> >
+> >Could you do it differently? Meaning have a global symbol
+> >(paging_enabled) which will be used by most of the functions you
+> >changed in this patch and the next ones? It would naturally be enabled
+> >when paging is on and __va addresses can be used. 
+> >
+> >That could also be used in the printk case to do a BUG_ON before paging
+> >is enabled on 32bit. Or perhaps use a different code path to deal with
+> >using __pa address. 
+> >
+> >? 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
