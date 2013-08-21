@@ -1,94 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 00F086B0033
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 18:17:19 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id ld10so1299851pab.22
-        for <linux-mm@kvack.org>; Wed, 21 Aug 2013 15:17:19 -0700 (PDT)
-Date: Wed, 21 Aug 2013 15:17:17 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch v2] mm, thp: count thp_fault_fallback anytime thp fault
- fails
-In-Reply-To: <20130821142817.8EB4BE0090@blue.fi.intel.com>
-Message-ID: <alpine.DEB.2.02.1308211516580.6225@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1308201716510.25665@chino.kir.corp.google.com> <20130821142817.8EB4BE0090@blue.fi.intel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id D932F6B0032
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 18:38:03 -0400 (EDT)
+Message-ID: <1377124595.10300.594.camel@misato.fc.hp.com>
+Subject: Re: [PATCH 0/8] x86, acpi: Move acpi_initrd_override() earlier.
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Wed, 21 Aug 2013 16:36:35 -0600
+In-Reply-To: <20130821204041.GC2436@htj.dyndns.org>
+References: <1377080143-28455-1-git-send-email-tangchen@cn.fujitsu.com>
+	 <20130821130647.GB19286@mtj.dyndns.org> <5214D60A.2090309@gmail.com>
+	 <20130821153639.GA17432@htj.dyndns.org>
+	 <1377113503.10300.492.camel@misato.fc.hp.com>
+	 <20130821195410.GA2436@htj.dyndns.org>
+	 <1377116968.10300.514.camel@misato.fc.hp.com>
+	 <20130821204041.GC2436@htj.dyndns.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Zhang Yanfei <zhangyanfei.yes@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, konrad.wilk@oracle.com, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-Currently, thp_fault_fallback in vmstat only gets incremented if a
-hugepage allocation fails.  If current's memcg hits its limit or the page
-fault handler returns an error, it is incorrectly accounted as a
-successful thp_fault_alloc.
+Hello Tejun,
 
-Count thp_fault_fallback anytime the page fault handler falls back to
-using regular pages and only count thp_fault_alloc when a hugepage has
-actually been faulted.
+On Wed, 2013-08-21 at 16:40 -0400, Tejun Heo wrote:
+> On Wed, Aug 21, 2013 at 02:29:28PM -0600, Toshi Kani wrote:
+> > Platforms vendors (which care Linux) need to support the existing Linux
+> > features.  This means that they have to implement legacy interfaces on
+> > x86 until the kernel supports an alternative method.  For instance, some
+> > platforms are legacy-free and do not have legacy COM ports.  These ACPI
+> > tables were defined so that non-legacy COM ports can be described and
+> > informed to the OS.  Without this support, such platforms may have to
+> > emulate the legacy COM ports for Linux, or drop Linux support.
+> 
+> Are you seriously saying that vendors are gonna drop linux support for
+> lacking ACPI earlyprintk support?  Please...
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/huge_memory.c | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+earlyprintk is an example of the issues.  The point is that vendors are
+required to support legacy stuff for Linux.
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -825,17 +825,19 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		count_vm_event(THP_FAULT_FALLBACK);
- 		return VM_FAULT_FALLBACK;
- 	}
--	count_vm_event(THP_FAULT_ALLOC);
- 	if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
- 		put_page(page);
-+		count_vm_event(THP_FAULT_FALLBACK);
- 		return VM_FAULT_FALLBACK;
- 	}
- 	if (unlikely(__do_huge_pmd_anonymous_page(mm, vma, haddr, pmd, page))) {
- 		mem_cgroup_uncharge_page(page);
- 		put_page(page);
-+		count_vm_event(THP_FAULT_FALLBACK);
- 		return VM_FAULT_FALLBACK;
- 	}
- 
-+	count_vm_event(THP_FAULT_ALLOC);
- 	return 0;
- }
- 
-@@ -1148,7 +1150,6 @@ alloc:
- 		new_page = NULL;
- 
- 	if (unlikely(!new_page)) {
--		count_vm_event(THP_FAULT_FALLBACK);
- 		if (is_huge_zero_pmd(orig_pmd)) {
- 			ret = do_huge_pmd_wp_zero_page_fallback(mm, vma,
- 					address, pmd, orig_pmd, haddr);
-@@ -1159,9 +1160,9 @@ alloc:
- 				split_huge_page(page);
- 			put_page(page);
- 		}
-+		count_vm_event(THP_FAULT_FALLBACK);
- 		goto out;
- 	}
--	count_vm_event(THP_FAULT_ALLOC);
- 
- 	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
- 		put_page(new_page);
-@@ -1169,10 +1170,13 @@ alloc:
- 			split_huge_page(page);
- 			put_page(page);
- 		}
-+		count_vm_event(THP_FAULT_FALLBACK);
- 		ret |= VM_FAULT_OOM;
- 		goto out;
- 	}
- 
-+	count_vm_event(THP_FAULT_ALLOC);
-+
- 	if (is_huge_zero_pmd(orig_pmd))
- 		clear_huge_page(new_page, haddr, HPAGE_PMD_NR);
- 	else
+> Please take a look at the existing earlyprintk code and how compact
+> and self-contained they are.  If you want to add ACPI earlyprintk, do
+> similar stuff.  Forget about firmware blob override from initrd or
+> ACPICA.  Just implement the bare minimum to get the thing working.  Do
+> not add dependency to large body of code from earlyboot.  It's a bad
+> idea through and through.
+
+I am not saying that ACPI earlyprintk must be available at exactly the
+same point.  How early it can reasonably be is a subject of discussion.
+
+> > I think the kernel boot-up sequence should be designed in such a way
+> > that can support legacy-free and/or NUMA platforms properly.
+> 
+> Blanket statements like the above don't mean much.  There are many
+> separate stages of boot and you're talking about one of the very first
+> stages where we traditionally have always depended upon only the very
+> bare minimum of the platform both in hardware itself and configuration
+> information.  We've been doing that for *very* good reasons.  If you
+> screw up there, it's mighty tricky to figure out what went wrong
+> especially on the machines that you can't physically kick.  You're now
+> suggesting to add whole ACPI parsing including overloading from initrd
+> into that stage with pretty weak rationale.
+
+I agree that ACPI is rather complicated stuff.  But in my experience,
+the majority complication comes from ACPI namespace and methods, not
+from ACPI tables.  Do you really think ACPI table init is that risky?  I
+consider ACPI tables are part of the minimum config info, esp. for
+legacy-free platforms.
+
+> Seriously, if you want ACPI based earlyprintk, implement it in a
+> discrete minimal code which is easy to verify and won't get affected
+> when the rest of ACPI machinery is updated.  We really don't want
+> earlyboot to fail because someone screwed up ACPI or initrd handling.
+
+earlyprintk is just another example to this SRAT issue.  The local page
+table is yet another example.  My hope here is for us to be able to
+utilize ACPI tables properly without hitting this kind of ordering
+issues again and again, which requires considerable time & effort to
+address.
+
+Thanks,
+-Toshi
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
