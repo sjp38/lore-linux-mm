@@ -1,68 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 8C8436B0032
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 16:30:57 -0400 (EDT)
-Message-ID: <1377116968.10300.514.camel@misato.fc.hp.com>
-Subject: Re: [PATCH 0/8] x86, acpi: Move acpi_initrd_override() earlier.
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Wed, 21 Aug 2013 14:29:28 -0600
-In-Reply-To: <20130821195410.GA2436@htj.dyndns.org>
-References: <1377080143-28455-1-git-send-email-tangchen@cn.fujitsu.com>
-	 <20130821130647.GB19286@mtj.dyndns.org> <5214D60A.2090309@gmail.com>
-	 <20130821153639.GA17432@htj.dyndns.org>
-	 <1377113503.10300.492.camel@misato.fc.hp.com>
-	 <20130821195410.GA2436@htj.dyndns.org>
-Content-Type: text/plain; charset="UTF-8"
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 7C9A06B0032
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 16:38:07 -0400 (EDT)
+Date: Wed, 21 Aug 2013 13:38:04 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: strictlimit feature -v4
+Message-Id: <20130821133804.87ca602dd864df712e67342a@linux-foundation.org>
+In-Reply-To: <20130821135427.20334.79477.stgit@maximpc.sw.ru>
+References: <20130821135427.20334.79477.stgit@maximpc.sw.ru>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Zhang Yanfei <zhangyanfei.yes@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, konrad.wilk@oracle.com, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Maxim Patlasov <mpatlasov@parallels.com>
+Cc: riel@redhat.com, jack@suse.cz, dev@parallels.com, miklos@szeredi.hu, fuse-devel@lists.sourceforge.net, xemul@parallels.com, linux-kernel@vger.kernel.org, jbottomley@parallels.com, linux-mm@kvack.org, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, fengguang.wu@intel.com, devel@openvz.org, mgorman@suse.de
 
-Hello Tejun,
+On Wed, 21 Aug 2013 17:56:32 +0400 Maxim Patlasov <mpatlasov@parallels.com> wrote:
 
-On Wed, 2013-08-21 at 15:54 -0400, Tejun Heo wrote:
-> On Wed, Aug 21, 2013 at 01:31:43PM -0600, Toshi Kani wrote:
-> > Well, there is reason why we have earlyprintk feature today.  So, let's
-> > not debate on this feature now.  There was previous attempt to support
+> The feature prevents mistrusted filesystems to grow a large number of dirty
+> pages before throttling. For such filesystems balance_dirty_pages always
+> check bdi counters against bdi limits. I.e. even if global "nr_dirty" is under
+> "freerun", it's not allowed to skip bdi checks. The only use case for now is
+> fuse: it sets bdi max_ratio to 1% by default and system administrators are
+> supposed to expect that this limit won't be exceeded.
 > 
-> Are you saying the existing earlyprintk automatically justifies
-> addition of more complex mechanism?  The added complex of course
-> should be traded off against the benefits of gaining ACPI based early
-> boot.  You aren't gonna suggest implementing netconsole based
-> earlyprintk, right?
+> The feature is on if a BDI is marked by BDI_CAP_STRICTLIMIT flag.
+> A filesystem may set the flag when it initializes its BDI.
 
-Platforms vendors (which care Linux) need to support the existing Linux
-features.  This means that they have to implement legacy interfaces on
-x86 until the kernel supports an alternative method.  For instance, some
-platforms are legacy-free and do not have legacy COM ports.  These ACPI
-tables were defined so that non-legacy COM ports can be described and
-informed to the OS.  Without this support, such platforms may have to
-emulate the legacy COM ports for Linux, or drop Linux support.
+Now I think about it, I don't really understand the need for this
+feature.  Can you please go into some detail about the problematic
+scenarios and why they need fixing?  Including an expanded descritopn
+of the term "mistrusted filesystem"?
 
-> > this feature with ACPI tables below.  As described, it had the same
-> > ordering issue.
-> > 
-> > https://lkml.org/lkml/2012/10/8/498
-> > 
-> > There is a basic problem that when we try to use ACPI tables that
-> > extends or replaces legacy interfaces (ex. SRAT extending e820), we hit
-> > this ordering issue because ACPI is not available as early as the legacy
-> > interfaces.
-> 
-> Do we even want ACPI parsing and all that that early?  Parsing SRAT
-> early doesn't buy us much and I'm not sure whether adding ACPI
-> earlyprintk would increase or decrease debuggability during earlyboot.
-> It adds whole lot more code paths where things can go wrong while the
-> basic execution environment is unstable.  Why do that?
+Is this some theoretical happens-in-the-lab thing, or are real world
+users actually hurting due to the lack of this feature?
 
-I think the kernel boot-up sequence should be designed in such a way
-that can support legacy-free and/or NUMA platforms properly.
-
-Thanks,
--Toshi
-
+I think I'll apply it to -mm for now to get a bit of testing, but would
+very much like it if Fengguang could find time to review the
+implementation, please.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
