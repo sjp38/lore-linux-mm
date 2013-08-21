@@ -1,26 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id B24736B0044
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 05:31:14 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id F034F6B005C
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 05:54:30 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Wed, 21 Aug 2013 14:53:31 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 5582D3940053
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 15:00:59 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7L9V6FX47513760
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 15:01:06 +0530
-Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7L9V63X016865
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 15:01:08 +0530
+	Wed, 21 Aug 2013 19:37:32 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 801DD2BB0053
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 19:54:26 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7L9cT0s2883900
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 19:38:29 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7L9sPlV028316
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 19:54:26 +1000
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 05/20] mm, hugetlb: grab a page_table_lock after page_cache_release
-In-Reply-To: <1376040398-11212-6-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com> <1376040398-11212-6-git-send-email-iamjoonsoo.kim@lge.com>
-Date: Wed, 21 Aug 2013 15:01:05 +0530
-Message-ID: <87ppt7gzl2.fsf@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 06/20] mm, hugetlb: return a reserved page to a reserved pool if failed
+In-Reply-To: <1376040398-11212-7-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com> <1376040398-11212-7-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Wed, 21 Aug 2013 15:24:13 +0530
+Message-ID: <87mwobgyii.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -30,34 +30,81 @@ Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <
 
 Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
 
-> We don't need to grab a page_table_lock when we try to release a page.
-> So, defer to grab a page_table_lock.
+> If we fail with a reserved page, just calling put_page() is not sufficient,
+> because put_page() invoke free_huge_page() at last step and it doesn't
+> know whether a page comes from a reserved pool or not. So it doesn't do
+> anything related to reserved count. This makes reserve count lower
+> than how we need, because reserve count already decrease in
+> dequeue_huge_page_vma(). This patch fix this situation.
+
+You may want to document you are using PagePrivate for tracking
+reservation and why it is ok to that.
+
 >
-> Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-
-
-Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-
 >
 > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index c017c52..6c8eec2 100644
+> index 6c8eec2..3f834f1 100644
 > --- a/mm/hugetlb.c
 > +++ b/mm/hugetlb.c
-> @@ -2627,10 +2627,11 @@ retry_avoidcopy:
->  	}
->  	spin_unlock(&mm->page_table_lock);
->  	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
-> -	/* Caller expects lock to be held */
-> -	spin_lock(&mm->page_table_lock);
->  	page_cache_release(new_page);
->  	page_cache_release(old_page);
-> +
-> +	/* Caller expects lock to be held */
-> +	spin_lock(&mm->page_table_lock);
->  	return 0;
->  }
+> @@ -572,6 +572,7 @@ retry_cpuset:
+>  				if (!vma_has_reserves(vma, chg))
+>  					break;
 >
+> +				SetPagePrivate(page);
+>  				h->resv_huge_pages--;
+>  				break;
+>  			}
+> @@ -626,15 +627,20 @@ static void free_huge_page(struct page *page)
+>  	int nid = page_to_nid(page);
+>  	struct hugepage_subpool *spool =
+>  		(struct hugepage_subpool *)page_private(page);
+> +	bool restore_reserve;
+>
+>  	set_page_private(page, 0);
+>  	page->mapping = NULL;
+>  	BUG_ON(page_count(page));
+>  	BUG_ON(page_mapcount(page));
+> +	restore_reserve = PagePrivate(page);
+>
+>  	spin_lock(&hugetlb_lock);
+>  	hugetlb_cgroup_uncharge_page(hstate_index(h),
+>  				     pages_per_huge_page(h), page);
+> +	if (restore_reserve)
+> +		h->resv_huge_pages++;
+> +
+>  	if (h->surplus_huge_pages_node[nid] && huge_page_order(h) < MAX_ORDER) {
+>  		/* remove the page from active list */
+>  		list_del(&page->lru);
+> @@ -2616,6 +2622,8 @@ retry_avoidcopy:
+>  	spin_lock(&mm->page_table_lock);
+>  	ptep = huge_pte_offset(mm, address & huge_page_mask(h));
+>  	if (likely(pte_same(huge_ptep_get(ptep), pte))) {
+> +		ClearPagePrivate(new_page);
+> +
+>  		/* Break COW */
+>  		huge_ptep_clear_flush(vma, address, ptep);
+>  		set_huge_pte_at(mm, address, ptep,
+> @@ -2727,6 +2735,7 @@ retry:
+>  					goto retry;
+>  				goto out;
+>  			}
+> +			ClearPagePrivate(page);
+>
+>  			spin_lock(&inode->i_lock);
+>  			inode->i_blocks += blocks_per_huge_page(h);
+> @@ -2773,8 +2782,10 @@ retry:
+>  	if (!huge_pte_none(huge_ptep_get(ptep)))
+>  		goto backout;
+>
+> -	if (anon_rmap)
+> +	if (anon_rmap) {
+> +		ClearPagePrivate(page);
+>  		hugepage_add_new_anon_rmap(page, vma, address);
+> +	}
+>  	else
+>  		page_dup_rmap(page);
+>  	new_pte = make_huge_pte(vma, page, ((vma->vm_flags & VM_WRITE)
 > -- 
 > 1.7.9.5
 
