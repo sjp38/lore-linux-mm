@@ -1,118 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 62EEE6B0034
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 03:49:11 -0400 (EDT)
-Date: Wed, 21 Aug 2013 16:49:39 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [BUG REPORT] ZSWAP: theoretical race condition issues
-Message-ID: <20130821074939.GE3022@bbox>
-References: <CAL1ERfOiT7QV4UUoKi8+gwbHc9an4rUWriufpOJOUdnTYHHEAw@mail.gmail.com>
- <52118042.30101@oracle.com>
- <20130819054742.GA28062@bbox>
- <CAL1ERfN3AUYwWTctGBjVcgb-mwAmc15-FayLz48P1d0GzogncA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 932236B0039
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 05:24:34 -0400 (EDT)
+Message-ID: <52148730.4000709@oracle.com>
+Date: Wed, 21 Aug 2013 17:24:00 +0800
+From: Bob Liu <bob.liu@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAL1ERfN3AUYwWTctGBjVcgb-mwAmc15-FayLz48P1d0GzogncA@mail.gmail.com>
+Subject: Re: [PATCH v7 0/5] zram/zsmalloc promotion
+References: <1377065791-2959-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <1377065791-2959-1-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Weijie Yang <weijie.yang.kh@gmail.com>
-Cc: Bob Liu <bob.liu@oracle.com>, sjenning@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Luigi Semenzato <semenzato@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Mel Gorman <mgorman@suse.de>, lliubbo@gmail.com
 
-Hello,
+Hi Minchan,
 
-On Tue, Aug 20, 2013 at 11:30:29PM +0800, Weijie Yang wrote:
-> 2013/8/19 Minchan Kim <minchan@kernel.org>:
-> > On Mon, Aug 19, 2013 at 10:17:38AM +0800, Bob Liu wrote:
-> >> Hi Weijie,
-> >>
-> >> On 08/19/2013 12:14 AM, Weijie Yang wrote:
-> >> > I found a few bugs in zswap when I review Linux-3.11-rc5, and I have
-> >> > also some questions about it, described as following:
-> >> >
-> >> > BUG:
-> >> > 1. A race condition when reclaim a page
-> >> > when a handle alloced from zbud, zbud considers this handle is used
-> >> > validly by upper(zswap) and can be a candidate for reclaim.
-> >> > But zswap has to initialize it such as setting swapentry and addding
-> >> > it to rbtree. so there is a race condition, such as:
-> >> > thread 0: obtain handle x from zbud_alloc
-> >> > thread 1: zbud_reclaim_page is called
-> >> > thread 1: callback zswap_writeback_entry to reclaim handle x
-> >> > thread 1: get swpentry from handle x (it is random value now)
-> >> > thread 1: bad thing may happen
-> >> > thread 0: initialize handle x with swapentry
-> >
-> > Nice catch!
-> >
-> >>
-> >> Yes, this may happen potentially but in rare case.
-> >> Because we have a LRU list for page frames, after Thread 0 called
-> >> zbud_alloc the corresponding page will be add to the head of LRU
-> >> list,While zbud_reclaim_page(Thread 1 called) is started from the tail
-> >> of LRU list.
-> >>
-> >> > Of course, this situation almost never happen, it is a "theoretical
-> >> > race condition" issue.
-> >
-> > But it's doable and we should prevent that although you feel it's rare
-> > because system could go hang. When I look at the code, Why should zbud
-> > have LRU logic instead of zswap? If I missed some history, sorry about that.
-> > But at least to me, zbud is just allocator so it should have a role
-> > to handle alloc/free object and how client of the allocator uses objects
-> > depends on the upper layer so zbud should handle LRU. If so, we wouldn't
-> > encounter this problem, either.
-> >
-> >> >
-> >> > 2. Pollute swapcache data by add a pre-invalided swap page
-> >> > when a swap_entry is invalidated, it will be reused by other anon
-> >> > page. At the same time, zswap is reclaiming old page, pollute
-> >> > swapcache of new page as a result, because old page and new page use
-> >> > the same swap_entry, such as:
-> >> > thread 1: zswap reclaim entry x
-> >> > thread 0: zswap_frontswap_invalidate_page entry x
-> >> > thread 0: entry x reused by other anon page
-> >> > thread 1: add old data to swapcache of entry x
-> >>
-> >> I didn't get your idea here, why thread1 will add old data to entry x?
-> >>
-> >> > thread 0: swapcache of entry x is polluted
-> >> > Of course, this situation almost never happen, it is another
-> >> > "theoretical race condition" issue.
-> >
-> > Don't swapcache_prepare close the race?
+On 08/21/2013 02:16 PM, Minchan Kim wrote:
+> It's 7th trial of zram/zsmalloc promotion.
+> I rewrote cover-letter totally based on previous discussion.
 > 
-> Yes, I made a mistake, there is not a race here.
-> However, I find another bug here after my more careful review. It is
-> not only "theoretical", it will happen really. as:
-> thread 1: zswap reclaim entry x (get the refcount, but not call
-> zswap_get_swap_cache_page yet)
-> thread 0: zswap_frontswap_invalidate_page entry x (finished, entry x
-> and its zbud is not freed as its refcount != 0)
-> now, the swap_map[x] = 0
-> thread 1: zswap_get_swap_cache_page called, swapcache_prepare return
-> -ENOENT because entry x is not used any more
-> zswap_get_swap_cache_page return ZSWAP_SWAPCACHE_NOMEM
-> zswap_writeback_entry do nothing except put refcount
-> now, the memory of zswap_entry x leaks and its zpage become a zombie
-
-It makes sense to me.
-Maybe we should introduce ZSWAP_SWAPCACHE_NOENT and free the entry in
-the case. Would you mind to send patches on the problems you found?
-
+> The main reason to prevent zram promotion was no review of
+> zsmalloc part while Jens, block maintainer, already acked
+> zram part.
 > 
-> Best Regards,
-> Weijie Yang
+> At that time, zsmalloc was used for zram, zcache and zswap so
+> everybody wanted to make it general and at last, Mel reviewed it
+> when zswap was submitted to merge mainline a few month ago.
+> Most of review was related to zswap writeback mechanism which
+> can pageout compressed page in memory into real swap storage
+> in runtime and the conclusion was that zsmalloc isn't good for
+> zswap writeback so zswap borrowed zbud allocator from zcache to
+> replace zsmalloc. The zbud is bad for memory compression ratio(2)
+> but it's very predictable behavior because we can expect a zpage
+> includes just two pages as maximum. Other reviews were not major. 
+> http://lkml.indiana.edu/hypermail/linux/kernel/1304.1/04334.html
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Zcache doesn't use zsmalloc either so zsmalloc's user is only
+> zram now so this patchset moves it into zsmalloc directory.
+> Recently, Bob tried to move zsmalloc under mm directory to unify
+> zram and zswap with adding pseudo block device in zswap(It's
+> very weired to me) but he was simple ignoring zram's block device
+> (a.k.a zram-blk) feature and considered only swap usecase of zram,
+> in turn, it lose zram's good concept.
+> 
+
+Yes, I didn't notice the feature that zram can be used as a normal block
+device.
+
+
+> Mel raised an another issue in v6, "maintainance headache".
+> He claimed zswap and zram has a similar goal that is to compresss
+> swap pages so if we promote zram, maintainance headache happens
+> sometime by diverging implementaion between zswap and zram
+> so that he want to unify zram and zswap. For it, he want zswap
+> to implement pseudo block device like Bob did to emulate zram so
+> zswap can have an advantage of writeback as well as zram's benefit.
+
+If consider zram as a swap device only, I still think it's better to add
+a pseudo block device to zswap and just disable the writeback of zswap.
+
+But I have no idea of zram's block device feature.
+
+> But I wonder frontswap-based zswap's writeback is really good
+> approach for writeback POV. I think that problem isn't only
+> specific for zswap. If we want to configure multiple swap hierarchy
+> with various speed device such as RAM, NVRAM, SSD, eMMC, NAS etc,
+> it would be a general problem. So we should think of more general
+> approach. At a glance, I can see two approach.
+> 
+> First, VM could be aware of heterogeneous swap configuration
+> so it could aim for being able to configure cache hierarchy
+> among swap devices. It may need indirction layer on swap, which
+> was already talked about that way so VM can migrate a block from 
+> A to B easily. It will support various configuration with VM's
+> hints, maybe, in future.
+> http://lkml.indiana.edu/hypermail/linux/kernel/1203.3/03812.html
+> 
+> Second, as more practical solution, we could use device mapper like
+> dm-cache(https://lwn.net/Articles/540996/), which makes it very
+> flexible. Now, it supports various configruation and cache policy
+> (block size, writeback/writethrough, LRU, MFU although MQ is merged
+> now) so it would be good fit for our purpose. Even, it can make zram
+> support writeback. I tested it following as following scenario
+> in KVM 4 CPU, 1G DRAM with background 800M memory hogger, which is
+> allocates random data up to 800M.
+> 
+> 1) zram swap disk 1G, untar kernel.tgz to tmpfs, build -j 4
+>    Fail to untar due to shortage of memory space by tmpfs default size limit
+> 
+> 2) zram swap disk 1G, untar kernel.tgz to ext2 on zram-blk, build -j 4
+>    OOM happens while building the kernel but it untar successfully
+>    on ext2 based on zram-blk. The reason OOM happend is zram can not find
+>    free pages from main memory to store swap out pages although empty
+>    swap space is still enough.
+> 
+> 3) dm-cache swap disk 1G, untar kernel.tgz to ext2 on zram-blk, build -j 4
+>    dmcache consists of zram-meta 10M, zram-cache 1G and real swap storage 1G
+>    No OOM happens and successfully building done.
+> 
+> Above tests proves zram can support writeback into real swap storage
+> so that zram-cache can always have a free space. If necessary, we could
+> add new plugin in dm-cache. I see It's really flexible and well-layered
+> architecure so zram-blk's concept is good for us and it has lots of
+> potential to be enhanced by MM/FS/Block developers. 
+> 
+
+That's an exciting direction!
 
 -- 
-Kind regards,
-Minchan Kim
+Regards,
+-Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
