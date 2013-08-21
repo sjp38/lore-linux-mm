@@ -1,77 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 2EB996B00AD
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 11:00:57 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id z10so523985pdj.31
-        for <linux-mm@kvack.org>; Wed, 21 Aug 2013 08:00:56 -0700 (PDT)
-Message-ID: <5214D60A.2090309@gmail.com>
-Date: Wed, 21 Aug 2013 23:00:26 +0800
-From: Zhang Yanfei <zhangyanfei.yes@gmail.com>
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id A55FB6B00AE
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 11:05:36 -0400 (EDT)
+In-Reply-To: <20130821144258.GH2593@phenom.dumpdata.com>
+References: <1377080143-28455-1-git-send-email-tangchen@cn.fujitsu.com> <1377080143-28455-6-git-send-email-tangchen@cn.fujitsu.com> <18d71946-6de9-4af2-a6a8-05fae51755af@email.android.com> <68a532f2-e468-4aea-b42b-a444ec079c3f@email.android.com> <20130821144258.GH2593@phenom.dumpdata.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/8] x86, acpi: Move acpi_initrd_override() earlier.
-References: <1377080143-28455-1-git-send-email-tangchen@cn.fujitsu.com> <20130821130647.GB19286@mtj.dyndns.org>
-In-Reply-To: <20130821130647.GB19286@mtj.dyndns.org>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;
+ charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Subject: Re: [PATCH 5/8] x86, brk: Make extend_brk() available with va/pa.
+From: "H. Peter Anvin" <hpa@zytor.com>
+Date: Wed, 21 Aug 2013 17:04:21 +0200
+Message-ID: <025ad747-18b5-4d7a-8eea-9ba8a5b0d53c@email.android.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, konrad.wilk@oracle.com, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-Hi tejun,
 
-On 08/21/2013 09:06 PM, Tejun Heo wrote:
-> Hello,
-> 
-> On Wed, Aug 21, 2013 at 06:15:35PM +0800, Tang Chen wrote:
->> [What are we doing]
->>
->> We are trying to initialize acip tables as early as possible. But Linux kernel
->> allows users to override acpi tables by specifying their own tables in initrd.
->> So we have to do acpi_initrd_override() earlier first.
-> 
-> So, are we now back to making SRAT info as early as possible?  What
-> happened to just co-locating early allocations close to kernel image?
-> What'd be the benefit of doing this over that?
 
-We know you are trying to give the direction to make the change more natural and
-robust and very thankful for your comments. We have taken your comments and suggestions
-about co-locating early allocations close to kernel image into consideration, but
-still we found that not that easy.
+Konrad Rzeszutek Wilk <konrad.wilk@oracle.com> wrote:
+>On Wed, Aug 21, 2013 at 02:35:36PM +0200, H. Peter Anvin wrote:
+>> Global symbols are inaccessible in physical mode.
+>
+>Even if they are embedded in the assembler code and use
+>GLOBAL(paging_enabled) ?
 
-In current boot order, before we get the SRAT, we have a big consumer of early
-allocations: we are setting up the page table in top-down (The idea was proposed by HPA,
-Link: https://lkml.org/lkml/2012/10/4/701). That said, this kind of page table
-setup will make the page tables as high as possible in memory, since memory at low 
-addresses is precious (for stupid DMA devices, for things like  kexec/kdump, and so on.)
+Yes, because the address is different in physical mode.  Think about it.  You could do a *function* like:
 
-So if we are trying to make early allocations close to kernel image, we should
-rewrite the way we are setting up page table totally. That is not a easy thing
-to do.
+paging_enabled:
+	mov (%esp),%edx
+	xor %eax,%eax
+	cmpl $PAGE_OFFSET,%edx
+	setae %al
+	ret
 
-As for the benefits of the patchset, just as Tang said in this patch,
+>> 
+>> This is incidentally yet another example of "PV/weird platform
+>violence", since in their absence it would be trivial to work around
+>this by using segmentation.
+>
+>I don't follow why it could not.
+>
+>Why can't there be a __pa_symbol(paging_enabled) that is used. Won't
+>that in effect allow you to check the contents of that 'global
+>constant' even when you don't have paging enabled?
 
-* For memory hotplug, we need ACPI SRAT at early time to be aware of which memory
-  ranges are hotpluggable, and tell the kernel to try to stay away from hotpluggable
-  nodes.
+Yes.  But not once paging has been turned on.
 
-This one is the current requirement of us but may be very helpful for future change:
-
-* As suggested by Yinghai, we should allocate page tables in local node. This also
-  needs SRAT before direct mapping page tables are setup.
-
-* As mentioned by Toshi Kani <toshi.kani@hp.com>, ACPI SCPR/DBGP/DBG2 tables
-  allow the OS to initialize serial console/debug ports at early boot time. The
-  earlier it can be initialized, the better this feature will be.  These tables
-  are not currently used by Linux due to a licensing issue, but it could be
-  addressed some time soon.
-
-So we decided to firstly make ACPI override earlier and use BRK (this is obviously
-near the kernel image range) to store the found ACPI tables.
+>> >>As mentioned above, on 32bit before paging is enabled, we have to
+>> >>access variables
+>> >>with pa. So introduce a "bool is_phys" parameter to extend_brk(),
+>and
+>> >>convert va
+>> >>to pa is it is true.
+>> >
+>> >Could you do it differently? Meaning have a global symbol
+>> >(paging_enabled) which will be used by most of the functions you
+>> >changed in this patch and the next ones? It would naturally be
+>enabled
+>> >when paging is on and __va addresses can be used. 
+>> >
+>> >That could also be used in the printk case to do a BUG_ON before
+>paging
+>> >is enabled on 32bit. Or perhaps use a different code path to deal
+>with
+>> >using __pa address. 
+>> >
+>> >? 
 
 -- 
-Thanks.
-Zhang Yanfei
+Sent from my mobile phone. Please excuse brevity and lack of formatting.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
