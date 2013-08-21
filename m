@@ -1,44 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 7C9A06B0032
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 16:38:07 -0400 (EDT)
-Date: Wed, 21 Aug 2013 13:38:04 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: strictlimit feature -v4
-Message-Id: <20130821133804.87ca602dd864df712e67342a@linux-foundation.org>
-In-Reply-To: <20130821135427.20334.79477.stgit@maximpc.sw.ru>
-References: <20130821135427.20334.79477.stgit@maximpc.sw.ru>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id CA0B56B0032
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 16:40:46 -0400 (EDT)
+Received: by mail-qe0-f49.google.com with SMTP id k5so579127qej.22
+        for <linux-mm@kvack.org>; Wed, 21 Aug 2013 13:40:45 -0700 (PDT)
+Date: Wed, 21 Aug 2013 16:40:41 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 0/8] x86, acpi: Move acpi_initrd_override() earlier.
+Message-ID: <20130821204041.GC2436@htj.dyndns.org>
+References: <1377080143-28455-1-git-send-email-tangchen@cn.fujitsu.com>
+ <20130821130647.GB19286@mtj.dyndns.org>
+ <5214D60A.2090309@gmail.com>
+ <20130821153639.GA17432@htj.dyndns.org>
+ <1377113503.10300.492.camel@misato.fc.hp.com>
+ <20130821195410.GA2436@htj.dyndns.org>
+ <1377116968.10300.514.camel@misato.fc.hp.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1377116968.10300.514.camel@misato.fc.hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Maxim Patlasov <mpatlasov@parallels.com>
-Cc: riel@redhat.com, jack@suse.cz, dev@parallels.com, miklos@szeredi.hu, fuse-devel@lists.sourceforge.net, xemul@parallels.com, linux-kernel@vger.kernel.org, jbottomley@parallels.com, linux-mm@kvack.org, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, fengguang.wu@intel.com, devel@openvz.org, mgorman@suse.de
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: Zhang Yanfei <zhangyanfei.yes@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, konrad.wilk@oracle.com, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-On Wed, 21 Aug 2013 17:56:32 +0400 Maxim Patlasov <mpatlasov@parallels.com> wrote:
+Hello, Toshi.
 
-> The feature prevents mistrusted filesystems to grow a large number of dirty
-> pages before throttling. For such filesystems balance_dirty_pages always
-> check bdi counters against bdi limits. I.e. even if global "nr_dirty" is under
-> "freerun", it's not allowed to skip bdi checks. The only use case for now is
-> fuse: it sets bdi max_ratio to 1% by default and system administrators are
-> supposed to expect that this limit won't be exceeded.
-> 
-> The feature is on if a BDI is marked by BDI_CAP_STRICTLIMIT flag.
-> A filesystem may set the flag when it initializes its BDI.
+On Wed, Aug 21, 2013 at 02:29:28PM -0600, Toshi Kani wrote:
+> Platforms vendors (which care Linux) need to support the existing Linux
+> features.  This means that they have to implement legacy interfaces on
+> x86 until the kernel supports an alternative method.  For instance, some
+> platforms are legacy-free and do not have legacy COM ports.  These ACPI
+> tables were defined so that non-legacy COM ports can be described and
+> informed to the OS.  Without this support, such platforms may have to
+> emulate the legacy COM ports for Linux, or drop Linux support.
 
-Now I think about it, I don't really understand the need for this
-feature.  Can you please go into some detail about the problematic
-scenarios and why they need fixing?  Including an expanded descritopn
-of the term "mistrusted filesystem"?
+Are you seriously saying that vendors are gonna drop linux support for
+lacking ACPI earlyprintk support?  Please...
 
-Is this some theoretical happens-in-the-lab thing, or are real world
-users actually hurting due to the lack of this feature?
+Please take a look at the existing earlyprintk code and how compact
+and self-contained they are.  If you want to add ACPI earlyprintk, do
+similar stuff.  Forget about firmware blob override from initrd or
+ACPICA.  Just implement the bare minimum to get the thing working.  Do
+not add dependency to large body of code from earlyboot.  It's a bad
+idea through and through.
 
-I think I'll apply it to -mm for now to get a bit of testing, but would
-very much like it if Fengguang could find time to review the
-implementation, please.
+> I think the kernel boot-up sequence should be designed in such a way
+> that can support legacy-free and/or NUMA platforms properly.
+
+Blanket statements like the above don't mean much.  There are many
+separate stages of boot and you're talking about one of the very first
+stages where we traditionally have always depended upon only the very
+bare minimum of the platform both in hardware itself and configuration
+information.  We've been doing that for *very* good reasons.  If you
+screw up there, it's mighty tricky to figure out what went wrong
+especially on the machines that you can't physically kick.  You're now
+suggesting to add whole ACPI parsing including overloading from initrd
+into that stage with pretty weak rationale.
+
+Seriously, if you want ACPI based earlyprintk, implement it in a
+discrete minimal code which is easy to verify and won't get affected
+when the rest of ACPI machinery is updated.  We really don't want
+earlyboot to fail because someone screwed up ACPI or initrd handling.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
