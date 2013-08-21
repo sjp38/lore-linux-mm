@@ -1,62 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 48A506B0032
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 18:03:40 -0400 (EDT)
-Date: Wed, 21 Aug 2013 15:03:37 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/3] mm/shmem.c: let shmem_show_mpol() return value.
-Message-Id: <20130821150337.bad5f71869cec813e2ded90c@linux-foundation.org>
-In-Reply-To: <521424BE.8020309@asianux.com>
-References: <5212E8DF.5020209@asianux.com>
-	<20130820053036.GB18673@moon>
-	<52130194.4030903@asianux.com>
-	<20130820064730.GD18673@moon>
-	<52131F48.1030002@asianux.com>
-	<52132011.60501@asianux.com>
-	<52132432.3050308@asianux.com>
-	<20130820082516.GE18673@moon>
-	<52142422.9050209@asianux.com>
-	<52142464.8060903@asianux.com>
-	<521424BE.8020309@asianux.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 669586B0032
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 18:16:55 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id lf1so613645pab.24
+        for <linux-mm@kvack.org>; Wed, 21 Aug 2013 15:16:54 -0700 (PDT)
+Date: Wed, 21 Aug 2013 15:16:52 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: RE: [patch] mm, thp: count thp_fault_fallback anytime thp fault
+ fails
+In-Reply-To: <20130821142817.8EB4BE0090@blue.fi.intel.com>
+Message-ID: <alpine.DEB.2.02.1308211516290.6225@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1308201716510.25665@chino.kir.corp.google.com> <20130821142817.8EB4BE0090@blue.fi.intel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Gang <gang.chen@asianux.com>
-Cc: Mel Gorman <mgorman@suse.de>, kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, hughd@google.com, xemul@parallels.com, rientjes@google.com, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Cyrill Gorcunov <gorcunov@gmail.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 21 Aug 2013 10:23:58 +0800 Chen Gang <gang.chen@asianux.com> wrote:
+On Wed, 21 Aug 2013, Kirill A. Shutemov wrote:
 
-> Let shmem_show_mpol() return value, since it may fail.
+> David Rientjes wrote:
+> > Currently, thp_fault_fallback in vmstat only gets incremented if a
+> > hugepage allocation fails.  If current's memcg hits its limit or the page
+> > fault handler returns an error, it is incorrectly accounted as a
+> > successful thp_fault_alloc.
+> > 
+> > Count thp_fault_fallback anytime the page fault handler falls back to
+> > using regular pages and only count thp_fault_alloc when a hugepage has
+> > actually been faulted.
+> > 
+> > Signed-off-by: David Rientjes <rientjes@google.com>
+> 
+> It's probably a good idea, but please make the behaviour consistent in
+> do_huge_pmd_wp_page() and collapse path, otherwise it doesn't make sense.
 > 
 
-This patch has no effect.
-
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -883,16 +883,17 @@ redirty:
->  
->  #ifdef CONFIG_NUMA
->  #ifdef CONFIG_TMPFS
-> -static void shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
-> +static int shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
->  {
->  	char buffer[64];
->  
->  	if (!mpol || mpol->mode == MPOL_DEFAULT)
-> -		return;		/* show nothing */
-> +		return 0;		/* show nothing */
->  
->  	mpol_to_str(buffer, sizeof(buffer), mpol);
-
-Perhaps you meant to check the mpol_to_str() return value here.
-
->  	seq_printf(seq, ",mpol=%s", buffer);
-> +	return 0;
->  }
->  
->  static struct mempolicy *shmem_get_sbmpol(struct shmem_sb_info *sbinfo)
+The collapse path has no fallback, the allocation either succeeds or it 
+fails.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
