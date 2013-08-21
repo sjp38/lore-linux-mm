@@ -1,52 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 11E0C6B0032
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 16:49:12 -0400 (EDT)
-Date: Wed, 21 Aug 2013 16:49:01 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: unused swap offset / bad page map.
-Message-ID: <20130821204901.GA19802@redhat.com>
-References: <20130807055157.GA32278@redhat.com>
- <CAJd=RBCJv7=Qj6dPW2Ha=nq6JctnK3r7wYCAZTm=REVOZUNowg@mail.gmail.com>
- <20130807153030.GA25515@redhat.com>
- <CAJd=RBCyZU8PR7mbFUdKsWq3OH+5HccEWKMEH5u7GNHNy3esWg@mail.gmail.com>
- <20130819231836.GD14369@redhat.com>
- <CAJd=RBA-UZmSTxNX63Vni+UPZBHwP4tvzE_qp1ZaHBqcNG7Fcw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAJd=RBA-UZmSTxNX63Vni+UPZBHwP4tvzE_qp1ZaHBqcNG7Fcw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 6CD3E6B0032
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 16:58:23 -0400 (EDT)
+Date: Wed, 21 Aug 2013 13:58:21 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm, fs: avoid page allocation beyond i_size on read
+Message-Id: <20130821135821.fc8f5a2551a28c9ce9c4b049@linux-foundation.org>
+In-Reply-To: <1377103332.2738.37.camel@menhir>
+References: <1377099441-2224-1-git-send-email-kirill.shutemov@linux.intel.com>
+	<1377100012.2738.28.camel@menhir>
+	<20130821160817.940D3E0090@blue.fi.intel.com>
+	<1377103332.2738.37.camel@menhir>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Steven Whitehouse <swhiteho@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Jan Kara <jack@suse.cz>, Al Viro <viro@zeniv.linux.org.uk>, NeilBrown <neilb@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Aug 20, 2013 at 12:39:05PM +0800, Hillf Danton wrote:
- > On Tue, Aug 20, 2013 at 7:18 AM, Dave Jones <davej@redhat.com> wrote:
- > 
- > --- a/mm/memory.c Wed Aug  7 16:29:34 2013
- > +++ b/mm/memory.c Tue Aug 20 11:13:06 2013
- > @@ -933,8 +933,10 @@ again:
- >   if (progress >= 32) {
- >   progress = 0;
- >   if (need_resched() ||
- > -    spin_needbreak(src_ptl) || spin_needbreak(dst_ptl))
- > +    spin_needbreak(src_ptl) || spin_needbreak(dst_ptl)) {
- > +     BUG_ON(entry.val);
- >   break;
- > + }
- >   }
- >   if (pte_none(*src_pte)) {
- >   progress++;
+On Wed, 21 Aug 2013 17:42:12 +0100 Steven Whitehouse <swhiteho@redhat.com> wrote:
 
-didn't hit the bug_on, but got a bunch of 
+> > I don't think the change is harmful. The worst case scenario is race with
+> > write or truncate, but it's valid to return EOF in this case.
+> > 
+> > What scenario do you have in mind?
+> > 
+> 
+> 1. File open on node A
+> 2. Someone updates it on node B by extending the file
+> 3. Someone reads the file on node A beyond end of original file size,
+> but within end of new file size as updated by node B. Without the patch
+> this works, with it, it will fail. The reason being the i_size would not
+> be up to date until after readpage(s) has been called.
+> 
+> I think this is likely to be an issue for any distributed fs using
+> do_generic_file_read(), although it would certainly affect GFS2, since
+> the locking is done at page cache level,
 
-[  424.077993] swap_free: Unused swap offset entry 000187d5
-[  439.377194] swap_free: Unused swap offset entry 000187e7
-[  441.998411] swap_free: Unused swap offset entry 000187ee
-[  446.956551] swap_free: Unused swap offset entry 0000245f
+Boy, that's rather subtle.  I'm surprised that the generic filemap.c
+stuff works at all in that sort of scenario.
 
-	Dave
+Can we put the i_size check down in the no_cached_page block?  afaict
+that will solve the problem without breaking GFS2 and is more
+efficient?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
