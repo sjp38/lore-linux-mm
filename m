@@ -1,26 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id BE8EE6B0069
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 05:58:10 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id B57806B0070
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 06:13:45 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Wed, 21 Aug 2013 15:18:36 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 336281258043
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 15:27:51 +0530 (IST)
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7L9w2Pg48037968
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 15:28:02 +0530
-Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7L9w3Fr003165
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 15:28:04 +0530
+	Wed, 21 Aug 2013 20:02:29 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 473D22CE8056
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 20:13:40 +1000 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7LADTgM7668162
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 20:13:29 +1000
+Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7LADdsP008092
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 20:13:40 +1000
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 08/20] mm, hugetlb: region manipulation functions take resv_map rather list_head
-In-Reply-To: <1376040398-11212-9-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com> <1376040398-11212-9-git-send-email-iamjoonsoo.kim@lge.com>
-Date: Wed, 21 Aug 2013 15:28:03 +0530
-Message-ID: <87haejgyc4.fsf@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 09/20] mm, hugetlb: protect region tracking via newly introduced resv_map lock
+In-Reply-To: <1376040398-11212-10-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com> <1376040398-11212-10-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Wed, 21 Aug 2013 15:43:27 +0530
+Message-ID: <87eh9ngxmg.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -30,130 +30,186 @@ Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <
 
 Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
 
-> To change a protection method for region tracking to find grained one,
-> we pass the resv_map, instead of list_head, to region manipulation
-> functions. This doesn't introduce any functional change, and it is just
-> for preparing a next step.
+> There is a race condition if we map a same file on different processes.
+> Region tracking is protected by mmap_sem and hugetlb_instantiation_mutex.
+> When we do mmap, we don't grab a hugetlb_instantiation_mutex, but,
+> grab a mmap_sem. This doesn't prevent other process to modify region
+> structure, so it can be modified by two processes concurrently.
+>
+> To solve this, I introduce a lock to resv_map and make region manipulation
+> function grab a lock before they do actual work. This makes region
+> tracking safe.
 >
 > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-
-Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-
 >
+> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> index 2677c07..e29e28f 100644
+> --- a/include/linux/hugetlb.h
+> +++ b/include/linux/hugetlb.h
+> @@ -26,6 +26,7 @@ struct hugepage_subpool {
+>
+>  struct resv_map {
+>  	struct kref refs;
+> +	spinlock_t lock;
+>  	struct list_head regions;
+>  };
+>  extern struct resv_map *resv_map_alloc(void);
 > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 8751e2c..d9cabf6 100644
+> index d9cabf6..73034dd 100644
 > --- a/mm/hugetlb.c
 > +++ b/mm/hugetlb.c
-> @@ -150,8 +150,9 @@ struct file_region {
->  	long to;
->  };
->
-> -static long region_add(struct list_head *head, long f, long t)
-> +static long region_add(struct resv_map *resv, long f, long t)
->  {
-> +	struct list_head *head = &resv->regions;
+> @@ -134,15 +134,8 @@ static inline struct hugepage_subpool *subpool_vma(struct vm_area_struct *vma)
+>   * Region tracking -- allows tracking of reservations and instantiated pages
+>   *                    across the pages in a mapping.
+>   *
+> - * The region data structures are protected by a combination of the mmap_sem
+> - * and the hugetlb_instantiation_mutex.  To access or modify a region the caller
+> - * must either hold the mmap_sem for write, or the mmap_sem for read and
+> - * the hugetlb_instantiation_mutex:
+> - *
+> - *	down_write(&mm->mmap_sem);
+> - * or
+> - *	down_read(&mm->mmap_sem);
+> - *	mutex_lock(&hugetlb_instantiation_mutex);
+> + * The region data structures are embedded into a resv_map and
+> + * protected by a resv_map's lock
+>   */
+>  struct file_region {
+>  	struct list_head link;
+> @@ -155,6 +148,7 @@ static long region_add(struct resv_map *resv, long f, long t)
+>  	struct list_head *head = &resv->regions;
 >  	struct file_region *rg, *nrg, *trg;
 >
+> +	spin_lock(&resv->lock);
 >  	/* Locate the region we are either in or before. */
-> @@ -186,8 +187,9 @@ static long region_add(struct list_head *head, long f, long t)
+>  	list_for_each_entry(rg, head, link)
+>  		if (f <= rg->to)
+> @@ -184,15 +178,18 @@ static long region_add(struct resv_map *resv, long f, long t)
+>  	}
+>  	nrg->from = f;
+>  	nrg->to = t;
+> +	spin_unlock(&resv->lock);
 >  	return 0;
 >  }
 >
-> -static long region_chg(struct list_head *head, long f, long t)
-> +static long region_chg(struct resv_map *resv, long f, long t)
+>  static long region_chg(struct resv_map *resv, long f, long t)
 >  {
-> +	struct list_head *head = &resv->regions;
->  	struct file_region *rg, *nrg;
+>  	struct list_head *head = &resv->regions;
+> -	struct file_region *rg, *nrg;
+> +	struct file_region *rg, *nrg = NULL;
 >  	long chg = 0;
 >
-> @@ -235,8 +237,9 @@ static long region_chg(struct list_head *head, long f, long t)
+> +retry:
+> +	spin_lock(&resv->lock);
+>  	/* Locate the region we are before or in. */
+>  	list_for_each_entry(rg, head, link)
+>  		if (f <= rg->to)
+> @@ -202,15 +199,27 @@ static long region_chg(struct resv_map *resv, long f, long t)
+>  	 * Subtle, allocate a new region at the position but make it zero
+>  	 * size such that we can guarantee to record the reservation. */
+>  	if (&rg->link == head || t < rg->from) {
+> -		nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
+> -		if (!nrg)
+> -			return -ENOMEM;
+> +		if (!nrg) {
+> +			nrg = kmalloc(sizeof(*nrg), GFP_NOWAIT);
+
+Do we really need to have the GFP_NOWAIT allocation attempt. Why can't we simply say
+allocate and retry ? Or should resv->lock be a mutex ?
+
+> +			if (!nrg) {
+> +				spin_unlock(&resv->lock);
+> +				nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
+> +				if (!nrg) {
+> +					chg = -ENOMEM;
+> +					goto out;
+> +				}
+> +				goto retry;
+> +			}
+> +		}
+> +
+>  		nrg->from = f;
+>  		nrg->to   = f;
+>  		INIT_LIST_HEAD(&nrg->link);
+>  		list_add(&nrg->link, rg->link.prev);
+> +		nrg = NULL;
+>
+> -		return t - f;
+> +		chg = t - f;
+> +		goto out_locked;
+>  	}
+>
+>  	/* Round our left edge to the current segment if it encloses us. */
+> @@ -223,7 +232,7 @@ static long region_chg(struct resv_map *resv, long f, long t)
+>  		if (&rg->link == head)
+>  			break;
+>  		if (rg->from > t)
+> -			return chg;
+> +			goto out_locked;
+>
+>  		/* We overlap with this area, if it extends further than
+>  		 * us then we must extend ourselves.  Account for its
+> @@ -234,6 +243,11 @@ static long region_chg(struct resv_map *resv, long f, long t)
+>  		}
+>  		chg -= rg->to - rg->from;
+>  	}
+> +
+> +out_locked:
+> +	spin_unlock(&resv->lock);
+> +out:
+> +	kfree(nrg);
 >  	return chg;
 >  }
 >
-> -static long region_truncate(struct list_head *head, long end)
-> +static long region_truncate(struct resv_map *resv, long end)
->  {
-> +	struct list_head *head = &resv->regions;
+> @@ -243,12 +257,13 @@ static long region_truncate(struct resv_map *resv, long end)
 >  	struct file_region *rg, *trg;
 >  	long chg = 0;
 >
-> @@ -265,8 +268,9 @@ static long region_truncate(struct list_head *head, long end)
+> +	spin_lock(&resv->lock);
+>  	/* Locate the region we are either in or before. */
+>  	list_for_each_entry(rg, head, link)
+>  		if (end <= rg->to)
+>  			break;
+>  	if (&rg->link == head)
+> -		return 0;
+> +		goto out;
+>
+>  	/* If we are in the middle of a region then adjust it. */
+>  	if (end > rg->from) {
+> @@ -265,6 +280,9 @@ static long region_truncate(struct resv_map *resv, long end)
+>  		list_del(&rg->link);
+>  		kfree(rg);
+>  	}
+> +
+> +out:
+> +	spin_unlock(&resv->lock);
 >  	return chg;
 >  }
 >
-> -static long region_count(struct list_head *head, long f, long t)
-> +static long region_count(struct resv_map *resv, long f, long t)
->  {
-> +	struct list_head *head = &resv->regions;
+> @@ -274,6 +292,7 @@ static long region_count(struct resv_map *resv, long f, long t)
 >  	struct file_region *rg;
 >  	long chg = 0;
 >
-> @@ -392,7 +396,7 @@ void resv_map_release(struct kref *ref)
->  	struct resv_map *resv_map = container_of(ref, struct resv_map, refs);
+> +	spin_lock(&resv->lock);
+>  	/* Locate each segment we overlap with, and count that overlap. */
+>  	list_for_each_entry(rg, head, link) {
+>  		long seg_from;
+> @@ -289,6 +308,7 @@ static long region_count(struct resv_map *resv, long f, long t)
 >
->  	/* Clear out any active regions before we release the map. */
-> -	region_truncate(&resv_map->regions, 0);
-> +	region_truncate(resv_map, 0);
->  	kfree(resv_map);
+>  		chg += seg_to - seg_from;
+>  	}
+> +	spin_unlock(&resv->lock);
+>
+>  	return chg;
 >  }
+> @@ -386,6 +406,7 @@ struct resv_map *resv_map_alloc(void)
+>  		return NULL;
 >
-> @@ -1099,7 +1103,7 @@ static long vma_needs_reservation(struct hstate *h,
->  		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
->  		struct resv_map *resv = vma_resv_map(vma);
+>  	kref_init(&resv_map->refs);
+> +	spin_lock_init(&resv_map->lock);
+>  	INIT_LIST_HEAD(&resv_map->regions);
 >
-> -		err = region_chg(&resv->regions, idx, idx + 1);
-> +		err = region_chg(resv, idx, idx + 1);
->  		if (err < 0)
->  			return err;
->  		return 0;
-> @@ -1121,9 +1125,8 @@ static void vma_commit_reservation(struct hstate *h,
->  		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
->  		struct resv_map *resv = vma_resv_map(vma);
->
-> -		/* Mark this page used in the map. */
-> -		region_add(&resv->regions, idx, idx + 1);
-> -	}
-> +	idx = vma_hugecache_offset(h, vma, addr);
-> +	region_add(resv, idx, idx + 1);
->  }
->
->  static struct page *alloc_huge_page(struct vm_area_struct *vma,
-> @@ -2211,7 +2214,7 @@ static void hugetlb_vm_op_close(struct vm_area_struct *vma)
->  		end = vma_hugecache_offset(h, vma, vma->vm_end);
->
->  		reserve = (end - start) -
-> -			region_count(&resv->regions, start, end);
-> +			region_count(resv, start, end);
->
->  		resv_map_put(vma);
->
-> @@ -3091,7 +3094,7 @@ int hugetlb_reserve_pages(struct inode *inode,
->  	if (!vma || vma->vm_flags & VM_MAYSHARE) {
->  		resv_map = inode->i_mapping->private_data;
->
-> -		chg = region_chg(&resv_map->regions, from, to);
-> +		chg = region_chg(resv_map, from, to);
->
->  	} else {
->  		resv_map = resv_map_alloc();
-> @@ -3137,7 +3140,7 @@ int hugetlb_reserve_pages(struct inode *inode,
->  	 * else has to be done for private mappings here
->  	 */
->  	if (!vma || vma->vm_flags & VM_MAYSHARE)
-> -		region_add(&resv_map->regions, from, to);
-> +		region_add(resv_map, from, to);
->  	return 0;
->  out_err:
->  	if (vma)
-> @@ -3153,7 +3156,7 @@ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
->  	struct hugepage_subpool *spool = subpool_inode(inode);
->
->  	if (resv_map)
-> -		chg = region_truncate(&resv_map->regions, offset);
-> +		chg = region_truncate(resv_map, offset);
->  	spin_lock(&inode->i_lock);
->  	inode->i_blocks -= (blocks_per_huge_page(h) * freed);
->  	spin_unlock(&inode->i_lock);
+>  	return resv_map;
 > -- 
 > 1.7.9.5
 
