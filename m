@@ -1,49 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 9858D6B00B0
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 11:22:11 -0400 (EDT)
-Message-ID: <5214DB1B.6070803@redhat.com>
-Date: Wed, 21 Aug 2013 17:22:03 +0200
-From: Jerome Marchand <jmarchan@redhat.com>
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 7C02D6B00B3
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 11:24:42 -0400 (EDT)
+Date: Wed, 21 Aug 2013 18:25:39 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: Transparent huge page collapse and NUMA
+Message-ID: <20130821152538.GA17743@shutemov.name>
+References: <CAJLXCZTtJmQo5WnwsdQWnoMPYSxOjxU0x77J59qE-GKOL9tqbA@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] mm: add overcommit_kbytes sysctl variable
-References: <1376925478-15506-1-git-send-email-jmarchan@redhat.com> <1376925478-15506-2-git-send-email-jmarchan@redhat.com> <52124DE7.8070502@intel.com>
-In-Reply-To: <52124DE7.8070502@intel.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAJLXCZTtJmQo5WnwsdQWnoMPYSxOjxU0x77J59qE-GKOL9tqbA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Davidoff <davidoff@qedmf.net>
+Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>
 
-On 08/19/2013 06:55 PM, Dave Hansen wrote:
-> On 08/19/2013 08:17 AM, Jerome Marchand wrote:
->> Some applications that run on HPC clusters are designed around the
->> availability of RAM and the overcommit ratio is fine tuned to get the
->> maximum usage of memory without swapping. With growing memory, the
->> 1%-of-all-RAM grain provided by overcommit_ratio has become too coarse
->> for these workload (on a 2TB machine it represents no less than
->> 20GB).
->>
->> This patch adds the new overcommit_kbytes sysctl variable that allow a
->> much finer grain.
+On Tue, Aug 20, 2013 at 12:05:03PM -0400, Andrew Davidoff wrote:
+> Hi,
 > 
-> Instead of introducing yet another tunable, why don't we just make the
-> ratio that comes in from the user more fine-grained?
+> In an effort to learn more about transparent huge pages and NUMA, I
+> have written a very simple C snippet that malloc()s in a loop. I am
+> running this under numactl with an interleave policy across both the
+> NUMA nodes in the system. To make watching allocation progress easier,
+> I am malloc()ing 4k (1 page) at a time.
 > 
-> 	sysctl overcommit_ratio=0.2
-> 
-> We change the internal 'sysctl_overcommit_ratio' to store tenths or
-> hundreths of a percent (or whatever), then parse the input as two
-> integers.  I don't think we need fully correct floating point parsing
-> and rounding here, so it shouldn't be too much of a chore.  It'd
-> probably end up being less code than you have as it stands.
-> 
+> If I watch node usage for the process (numa_maps) allocation looks
+> correct (interleave), but then allocation will drop on one node and
+> increase on another, at the same time as I see an increase in
+> pages_collapsed. It appears as though pages are always migrating away
+> from and to the same nodes, resulting in allocation (again, by
+> examining numa_maps) being almost entirely on one node.
 
-Now that I think about it, that could break user space. Sure write access
-wouldn't be a problem (one can still write a plain integer), but a script
-that reads a fractional value when it expects an integer might not be able
-to cope with it.
+khugepaged strategy for NUMA is pretty simplistic: it tries to allocate on
+the node the first small page is belong to. See khugepaged_scan_pmd().
+It probably should be improved.
+
+> This leads me to believe that khugepaged's defrag is to blame, though
+> I am not certain. I tried to disable transparent huge page defrag
+> completely via the following under /sys:
+> 
+> /sys/kernel/mm/transparent_hugepage/defrag
+> /sys/kernel/mm/transparent_hugepage/khugepaged/defrag
+> 
+> but the same behavior persists. I am not sure if this is an indication
+> that I don't know how to control transparent huge page collapse, or or
+> that my issue isn't defrag/collapse related.
+
+defrag knob only affects whether we want to use __GFP_WAIT for huge page
+allocation, but not collapse itself. It basically means whether we want
+kernel to defrag the memory to find suitable huge page window.
+
+The only way to stop collapse fully is
+
+echo never > /sys/kernel/mm/transparent_hugepage/enabled
+
+Probably, we should introduce a knob.
+
+> 
+> Do I understand what I am seeing? Does anyone have any thoughts on this?
+> 
+> The OS is CentOS5.8 running the Oracle Unbreakable Kernel 2,
+> 2.6.39-400.109.4.el5uek.
+> 
+> Further questions:
+> 
+> The way I understand it, transparent_hugepage/defrag controls defrag
+> on page fault, and transparent_hugepage/khugepaged/defrag controls
+> maintenance defrag (time based). Is that correct?
+
+Yes.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
