@@ -1,78 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 7C02D6B00B3
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 11:24:42 -0400 (EDT)
-Date: Wed, 21 Aug 2013 18:25:39 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: Transparent huge page collapse and NUMA
-Message-ID: <20130821152538.GA17743@shutemov.name>
-References: <CAJLXCZTtJmQo5WnwsdQWnoMPYSxOjxU0x77J59qE-GKOL9tqbA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id CE4A56B00B5
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 11:36:44 -0400 (EDT)
+Received: by mail-qc0-f177.google.com with SMTP id e1so309993qcx.22
+        for <linux-mm@kvack.org>; Wed, 21 Aug 2013 08:36:43 -0700 (PDT)
+Date: Wed, 21 Aug 2013 11:36:39 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 0/8] x86, acpi: Move acpi_initrd_override() earlier.
+Message-ID: <20130821153639.GA17432@htj.dyndns.org>
+References: <1377080143-28455-1-git-send-email-tangchen@cn.fujitsu.com>
+ <20130821130647.GB19286@mtj.dyndns.org>
+ <5214D60A.2090309@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAJLXCZTtJmQo5WnwsdQWnoMPYSxOjxU0x77J59qE-GKOL9tqbA@mail.gmail.com>
+In-Reply-To: <5214D60A.2090309@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Davidoff <davidoff@qedmf.net>
-Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>
+To: Zhang Yanfei <zhangyanfei.yes@gmail.com>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>, konrad.wilk@oracle.com, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-On Tue, Aug 20, 2013 at 12:05:03PM -0400, Andrew Davidoff wrote:
-> Hi,
+Hello,
+
+On Wed, Aug 21, 2013 at 11:00:26PM +0800, Zhang Yanfei wrote:
+> In current boot order, before we get the SRAT, we have a big consumer of early
+> allocations: we are setting up the page table in top-down (The idea was proposed by HPA,
+> Link: https://lkml.org/lkml/2012/10/4/701). That said, this kind of page table
+> setup will make the page tables as high as possible in memory, since memory at low 
+> addresses is precious (for stupid DMA devices, for things like  kexec/kdump, and so on.)
+
+With huge mappings, they are fairly small, right?  And this whole
+thing needs a kernel param anyway at this point, so the allocation
+direction can be made dependent on that or huge mapping availability
+and, even with 4k mappings, we aren't talking about gigabytes of
+memory, are we?
+
+> So if we are trying to make early allocations close to kernel image, we should
+> rewrite the way we are setting up page table totally. That is not a easy thing
+> to do.
+
+It has been a while since I looked at the code so can you please
+elaborate why that is not easy?  It's pretty simple conceptually.
+
+> * For memory hotplug, we need ACPI SRAT at early time to be aware of which memory
+>   ranges are hotpluggable, and tell the kernel to try to stay away from hotpluggable
+>   nodes.
 > 
-> In an effort to learn more about transparent huge pages and NUMA, I
-> have written a very simple C snippet that malloc()s in a loop. I am
-> running this under numactl with an interleave policy across both the
-> NUMA nodes in the system. To make watching allocation progress easier,
-> I am malloc()ing 4k (1 page) at a time.
+> This one is the current requirement of us but may be very helpful for future change:
 > 
-> If I watch node usage for the process (numa_maps) allocation looks
-> correct (interleave), but then allocation will drop on one node and
-> increase on another, at the same time as I see an increase in
-> pages_collapsed. It appears as though pages are always migrating away
-> from and to the same nodes, resulting in allocation (again, by
-> examining numa_maps) being almost entirely on one node.
+> * As suggested by Yinghai, we should allocate page tables in local node. This also
+>   needs SRAT before direct mapping page tables are setup.
 
-khugepaged strategy for NUMA is pretty simplistic: it tries to allocate on
-the node the first small page is belong to. See khugepaged_scan_pmd().
-It probably should be improved.
+Does this even matter for huge mappings?
 
-> This leads me to believe that khugepaged's defrag is to blame, though
-> I am not certain. I tried to disable transparent huge page defrag
-> completely via the following under /sys:
+> * As mentioned by Toshi Kani <toshi.kani@hp.com>, ACPI SCPR/DBGP/DBG2 tables
+>   allow the OS to initialize serial console/debug ports at early boot time. The
+>   earlier it can be initialized, the better this feature will be.  These tables
+>   are not currently used by Linux due to a licensing issue, but it could be
+>   addressed some time soon.
 > 
-> /sys/kernel/mm/transparent_hugepage/defrag
-> /sys/kernel/mm/transparent_hugepage/khugepaged/defrag
-> 
-> but the same behavior persists. I am not sure if this is an indication
-> that I don't know how to control transparent huge page collapse, or or
-> that my issue isn't defrag/collapse related.
+> So we decided to firstly make ACPI override earlier and use BRK (this is obviously
+> near the kernel image range) to store the found ACPI tables.
 
-defrag knob only affects whether we want to use __GFP_WAIT for huge page
-allocation, but not collapse itself. It basically means whether we want
-kernel to defrag the memory to find suitable huge page window.
+I don't know.  The whole effort seems way overcomplicated compared to
+the benefits it would bring.  For NUMA memory hotunplug, what's the
+point of doing all this when the kernel doesn't have any control over
+where its image is gonna be?  Some megabytes at the tail aren't gonna
+make a huge difference and if you wanna do this properly, you need to
+determine the load address of the kernel considering the node
+boundaries and hotpluggability of each node, which has to happen
+before the early kernel boot code executes.  And if there's a code
+piece which does that, that might as well place the kernel image such
+that extra allocation afterwards doesn't interfere with memory
+hotunplugging.
 
-The only way to stop collapse fully is
+It looks like a lot of code changes for a mechanism which doesn't seem
+all that useful.  This code is already too late in boot sequence to be
+a proper solution so I don't see the point in pushing the coverage to
+the maximum from here.  It's kinda silly.
 
-echo never > /sys/kernel/mm/transparent_hugepage/enabled
+The last point - early init of debug facility - makes some sense but
+again how extra coverage are we talking about?  The code path between
+the two points is fairly short and the change doesn't come free.  It
+means we add more fragile firmware-specific code path before the
+execution environment is stable and get to do things like traveling
+the same code paths multiple times in different environments.  Doesn't
+seem like a win.  We want to reach stable execution environment as
+soon as possible.  Shoving whole more logic before that in the name of
+"earlier debugging" doesn't make a lot of sense.
 
-Probably, we should introduce a knob.
-
-> 
-> Do I understand what I am seeing? Does anyone have any thoughts on this?
-> 
-> The OS is CentOS5.8 running the Oracle Unbreakable Kernel 2,
-> 2.6.39-400.109.4.el5uek.
-> 
-> Further questions:
-> 
-> The way I understand it, transparent_hugepage/defrag controls defrag
-> on page fault, and transparent_hugepage/khugepaged/defrag controls
-> maintenance defrag (time based). Is that correct?
-
-Yes.
+Thanks.
 
 -- 
- Kirill A. Shutemov
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
