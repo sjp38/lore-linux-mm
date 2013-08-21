@@ -1,26 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 9C9126B0068
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 05:57:44 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id BE8EE6B0069
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 05:58:10 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Wed, 21 Aug 2013 15:21:48 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 8FD421258051
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 15:27:26 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7L9x9EC46006304
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 15:29:09 +0530
-Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7L9vd9d026786
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 15:27:39 +0530
+	Wed, 21 Aug 2013 15:18:36 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 336281258043
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 15:27:51 +0530 (IST)
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7L9w2Pg48037968
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 15:28:02 +0530
+Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7L9w3Fr003165
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 15:28:04 +0530
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 07/20] mm, hugetlb: unify region structure handling
-In-Reply-To: <1376040398-11212-8-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com> <1376040398-11212-8-git-send-email-iamjoonsoo.kim@lge.com>
-Date: Wed, 21 Aug 2013 15:27:38 +0530
-Message-ID: <87k3jfgyct.fsf@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 08/20] mm, hugetlb: region manipulation functions take resv_map rather list_head
+In-Reply-To: <1376040398-11212-9-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com> <1376040398-11212-9-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Wed, 21 Aug 2013 15:28:03 +0530
+Message-ID: <87haejgyc4.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -30,193 +30,127 @@ Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <
 
 Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
 
-> Currently, to track a reserved and allocated region, we use two different
-> ways for MAP_SHARED and MAP_PRIVATE. For MAP_SHARED, we use
-> address_mapping's private_list and, for MAP_PRIVATE, we use a resv_map.
-> Now, we are preparing to change a coarse grained lock which protect
-> a region structure to fine grained lock, and this difference hinder it.
-> So, before changing it, unify region structure handling.
+> To change a protection method for region tracking to find grained one,
+> we pass the resv_map, instead of list_head, to region manipulation
+> functions. This doesn't introduce any functional change, and it is just
+> for preparing a next step.
 >
 > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-
-As mentioned earlier kref_put is confusing because we always have
-reference count == 1 , otherwise
 
 Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
 >
-> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-> index a3f868a..9bf2c4a 100644
-> --- a/fs/hugetlbfs/inode.c
-> +++ b/fs/hugetlbfs/inode.c
-> @@ -366,7 +366,12 @@ static void truncate_hugepages(struct inode *inode, loff_t lstart)
->
->  static void hugetlbfs_evict_inode(struct inode *inode)
->  {
-> +	struct resv_map *resv_map;
-> +
->  	truncate_hugepages(inode, 0);
-> +	resv_map = (struct resv_map *)inode->i_mapping->private_data;
-> +	if (resv_map)
-> +		kref_put(&resv_map->refs, resv_map_release);
->  	clear_inode(inode);
->  }
->
-> @@ -468,6 +473,11 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
->  					umode_t mode, dev_t dev)
->  {
->  	struct inode *inode;
-> +	struct resv_map *resv_map;
-> +
-> +	resv_map = resv_map_alloc();
-> +	if (!resv_map)
-> +		return NULL;
->
->  	inode = new_inode(sb);
->  	if (inode) {
-> @@ -477,7 +487,7 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
->  		inode->i_mapping->a_ops = &hugetlbfs_aops;
->  		inode->i_mapping->backing_dev_info =&hugetlbfs_backing_dev_info;
->  		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-> -		INIT_LIST_HEAD(&inode->i_mapping->private_list);
-> +		inode->i_mapping->private_data = resv_map;
->  		info = HUGETLBFS_I(inode);
->  		/*
->  		 * The policy is initialized here even if we are creating a
-> @@ -507,7 +517,9 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
->  			break;
->  		}
->  		lockdep_annotate_inode_mutex_key(inode);
-> -	}
-> +	} else
-> +		kref_put(&resv_map->refs, resv_map_release);
-> +
->  	return inode;
->  }
->
-> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> index 6b4890f..2677c07 100644
-> --- a/include/linux/hugetlb.h
-> +++ b/include/linux/hugetlb.h
-> @@ -5,6 +5,8 @@
->  #include <linux/fs.h>
->  #include <linux/hugetlb_inline.h>
->  #include <linux/cgroup.h>
-> +#include <linux/list.h>
-> +#include <linux/kref.h>
->
->  struct ctl_table;
->  struct user_struct;
-> @@ -22,6 +24,13 @@ struct hugepage_subpool {
->  	long max_hpages, used_hpages;
->  };
->
-> +struct resv_map {
-> +	struct kref refs;
-> +	struct list_head regions;
-> +};
-> +extern struct resv_map *resv_map_alloc(void);
-> +void resv_map_release(struct kref *ref);
-> +
->  extern spinlock_t hugetlb_lock;
->  extern int hugetlb_max_hstate __read_mostly;
->  #define for_each_hstate(h) \
 > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 3f834f1..8751e2c 100644
+> index 8751e2c..d9cabf6 100644
 > --- a/mm/hugetlb.c
 > +++ b/mm/hugetlb.c
-> @@ -375,12 +375,7 @@ static void set_vma_private_data(struct vm_area_struct *vma,
->  	vma->vm_private_data = (void *)value;
+> @@ -150,8 +150,9 @@ struct file_region {
+>  	long to;
+>  };
+>
+> -static long region_add(struct list_head *head, long f, long t)
+> +static long region_add(struct resv_map *resv, long f, long t)
+>  {
+> +	struct list_head *head = &resv->regions;
+>  	struct file_region *rg, *nrg, *trg;
+>
+>  	/* Locate the region we are either in or before. */
+> @@ -186,8 +187,9 @@ static long region_add(struct list_head *head, long f, long t)
+>  	return 0;
 >  }
 >
-> -struct resv_map {
-> -	struct kref refs;
-> -	struct list_head regions;
-> -};
-> -
-> -static struct resv_map *resv_map_alloc(void)
-> +struct resv_map *resv_map_alloc(void)
+> -static long region_chg(struct list_head *head, long f, long t)
+> +static long region_chg(struct resv_map *resv, long f, long t)
 >  {
->  	struct resv_map *resv_map = kmalloc(sizeof(*resv_map), GFP_KERNEL);
->  	if (!resv_map)
-> @@ -392,7 +387,7 @@ static struct resv_map *resv_map_alloc(void)
->  	return resv_map;
+> +	struct list_head *head = &resv->regions;
+>  	struct file_region *rg, *nrg;
+>  	long chg = 0;
+>
+> @@ -235,8 +237,9 @@ static long region_chg(struct list_head *head, long f, long t)
+>  	return chg;
 >  }
 >
-> -static void resv_map_release(struct kref *ref)
-> +void resv_map_release(struct kref *ref)
+> -static long region_truncate(struct list_head *head, long end)
+> +static long region_truncate(struct resv_map *resv, long end)
 >  {
+> +	struct list_head *head = &resv->regions;
+>  	struct file_region *rg, *trg;
+>  	long chg = 0;
+>
+> @@ -265,8 +268,9 @@ static long region_truncate(struct list_head *head, long end)
+>  	return chg;
+>  }
+>
+> -static long region_count(struct list_head *head, long f, long t)
+> +static long region_count(struct resv_map *resv, long f, long t)
+>  {
+> +	struct list_head *head = &resv->regions;
+>  	struct file_region *rg;
+>  	long chg = 0;
+>
+> @@ -392,7 +396,7 @@ void resv_map_release(struct kref *ref)
 >  	struct resv_map *resv_map = container_of(ref, struct resv_map, refs);
 >
-> @@ -1092,8 +1087,9 @@ static long vma_needs_reservation(struct hstate *h,
+>  	/* Clear out any active regions before we release the map. */
+> -	region_truncate(&resv_map->regions, 0);
+> +	region_truncate(resv_map, 0);
+>  	kfree(resv_map);
+>  }
 >
->  	if (vma->vm_flags & VM_MAYSHARE) {
+> @@ -1099,7 +1103,7 @@ static long vma_needs_reservation(struct hstate *h,
 >  		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
-> -		return region_chg(&inode->i_mapping->private_list,
-> -							idx, idx + 1);
-> +		struct resv_map *resv = inode->i_mapping->private_data;
-> +
-> +		return region_chg(&resv->regions, idx, idx + 1);
+>  		struct resv_map *resv = vma_resv_map(vma);
 >
->  	} else if (!is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
->  		return 1;
-> @@ -1117,7 +1113,9 @@ static void vma_commit_reservation(struct hstate *h,
->
->  	if (vma->vm_flags & VM_MAYSHARE) {
+> -		err = region_chg(&resv->regions, idx, idx + 1);
+> +		err = region_chg(resv, idx, idx + 1);
+>  		if (err < 0)
+>  			return err;
+>  		return 0;
+> @@ -1121,9 +1125,8 @@ static void vma_commit_reservation(struct hstate *h,
 >  		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
-> -		region_add(&inode->i_mapping->private_list, idx, idx + 1);
-> +		struct resv_map *resv = inode->i_mapping->private_data;
-> +
-> +		region_add(&resv->regions, idx, idx + 1);
+>  		struct resv_map *resv = vma_resv_map(vma);
 >
->  	} else if (is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
->  		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
-> @@ -3074,6 +3072,7 @@ int hugetlb_reserve_pages(struct inode *inode,
->  	long ret, chg;
->  	struct hstate *h = hstate_inode(inode);
->  	struct hugepage_subpool *spool = subpool_inode(inode);
-> +	struct resv_map *resv_map;
+> -		/* Mark this page used in the map. */
+> -		region_add(&resv->regions, idx, idx + 1);
+> -	}
+> +	idx = vma_hugecache_offset(h, vma, addr);
+> +	region_add(resv, idx, idx + 1);
+>  }
 >
->  	/*
->  	 * Only apply hugepage reservation if asked. At fault time, an
-> @@ -3089,10 +3088,13 @@ int hugetlb_reserve_pages(struct inode *inode,
->  	 * to reserve the full area even if read-only as mprotect() may be
->  	 * called to make the mapping read-write. Assume !vma is a shm mapping
->  	 */
-> -	if (!vma || vma->vm_flags & VM_MAYSHARE)
-> -		chg = region_chg(&inode->i_mapping->private_list, from, to);
-> -	else {
-> -		struct resv_map *resv_map = resv_map_alloc();
-> +	if (!vma || vma->vm_flags & VM_MAYSHARE) {
-> +		resv_map = inode->i_mapping->private_data;
-> +
-> +		chg = region_chg(&resv_map->regions, from, to);
-> +
-> +	} else {
-> +		resv_map = resv_map_alloc();
->  		if (!resv_map)
->  			return -ENOMEM;
+>  static struct page *alloc_huge_page(struct vm_area_struct *vma,
+> @@ -2211,7 +2214,7 @@ static void hugetlb_vm_op_close(struct vm_area_struct *vma)
+>  		end = vma_hugecache_offset(h, vma, vma->vm_end);
 >
-> @@ -3135,7 +3137,7 @@ int hugetlb_reserve_pages(struct inode *inode,
+>  		reserve = (end - start) -
+> -			region_count(&resv->regions, start, end);
+> +			region_count(resv, start, end);
+>
+>  		resv_map_put(vma);
+>
+> @@ -3091,7 +3094,7 @@ int hugetlb_reserve_pages(struct inode *inode,
+>  	if (!vma || vma->vm_flags & VM_MAYSHARE) {
+>  		resv_map = inode->i_mapping->private_data;
+>
+> -		chg = region_chg(&resv_map->regions, from, to);
+> +		chg = region_chg(resv_map, from, to);
+>
+>  	} else {
+>  		resv_map = resv_map_alloc();
+> @@ -3137,7 +3140,7 @@ int hugetlb_reserve_pages(struct inode *inode,
 >  	 * else has to be done for private mappings here
 >  	 */
 >  	if (!vma || vma->vm_flags & VM_MAYSHARE)
-> -		region_add(&inode->i_mapping->private_list, from, to);
-> +		region_add(&resv_map->regions, from, to);
+> -		region_add(&resv_map->regions, from, to);
+> +		region_add(resv_map, from, to);
 >  	return 0;
 >  out_err:
 >  	if (vma)
-> @@ -3146,9 +3148,12 @@ out_err:
->  void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
->  {
->  	struct hstate *h = hstate_inode(inode);
-> -	long chg = region_truncate(&inode->i_mapping->private_list, offset);
-> +	struct resv_map *resv_map = inode->i_mapping->private_data;
-> +	long chg = 0;
+> @@ -3153,7 +3156,7 @@ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
 >  	struct hugepage_subpool *spool = subpool_inode(inode);
 >
-> +	if (resv_map)
-> +		chg = region_truncate(&resv_map->regions, offset);
+>  	if (resv_map)
+> -		chg = region_truncate(&resv_map->regions, offset);
+> +		chg = region_truncate(resv_map, offset);
 >  	spin_lock(&inode->i_lock);
 >  	inode->i_blocks -= (blocks_per_huge_page(h) * freed);
 >  	spin_unlock(&inode->i_lock);
