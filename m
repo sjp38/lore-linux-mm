@@ -1,70 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 8AF7B6B0031
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 12:08:22 -0400 (EDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <1377100012.2738.28.camel@menhir>
-References: <1377099441-2224-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1377100012.2738.28.camel@menhir>
-Subject: Re: [PATCH] mm, fs: avoid page allocation beyond i_size on read
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 92ABB6B0032
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 12:23:16 -0400 (EDT)
+Message-ID: <5214E96B.3090009@intel.com>
+Date: Wed, 21 Aug 2013 09:23:07 -0700
+From: Dave Hansen <dave.hansen@intel.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/2] mm: add overcommit_kbytes sysctl variable
+References: <1376925478-15506-1-git-send-email-jmarchan@redhat.com> <1376925478-15506-2-git-send-email-jmarchan@redhat.com> <52124DE7.8070502@intel.com> <5214DB1B.6070803@redhat.com>
+In-Reply-To: <5214DB1B.6070803@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Message-Id: <20130821160817.940D3E0090@blue.fi.intel.com>
-Date: Wed, 21 Aug 2013 19:08:17 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Whitehouse <swhiteho@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Jan Kara <jack@suse.cz>, Al Viro <viro@zeniv.linux.org.uk>, NeilBrown <neilb@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jerome Marchand <jmarchan@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Steven Whitehouse wrote:
-> Hi,
-> 
-> On Wed, 2013-08-21 at 18:37 +0300, Kirill A. Shutemov wrote:
-> > I've noticed that we allocated unneeded page for cache on read beyond
-> > i_size. Simple test case (I checked it on ramfs):
-> > 
-> > $ touch testfile
-> > $ cat testfile
-> > 
-> > It triggers 'no_cached_page' code path in do_generic_file_read().
-> > 
-> > Looks like it's regression since commit a32ea1e. Let's fix it.
-> > 
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > Acked-by: NeilBrown <neilb@suse.de>
-> > ---
-> >  mm/filemap.c | 4 ++++
-> >  1 file changed, 4 insertions(+)
-> > 
-> > diff --git a/mm/filemap.c b/mm/filemap.c
-> > index 1905f0e..b1a4d35 100644
-> > --- a/mm/filemap.c
-> > +++ b/mm/filemap.c
-> > @@ -1163,6 +1163,10 @@ static void do_generic_file_read(struct file *filp, loff_t *ppos,
-> >  		loff_t isize;
-> >  		unsigned long nr, ret;
-> >  
-> > +		isize = i_size_read(inode);
-> > +		if (!isize || index > (isize - 1) >> PAGE_CACHE_SHIFT)
-> > +			goto out;
-> > +
-> >  		cond_resched();
-> >  find_page:
-> >  		page = find_get_page(mapping, index);
-> 
-> Please don't do that... there is no reason to think that i_size will be
-> correct at that moment. Why not just get readpage(s) to return the
-> correct return code in that case?
+On 08/21/2013 08:22 AM, Jerome Marchand wrote:
+>> > Instead of introducing yet another tunable, why don't we just make the
+>> > ratio that comes in from the user more fine-grained?
+>> > 
+>> > 	sysctl overcommit_ratio=0.2
+>> > 
+>> > We change the internal 'sysctl_overcommit_ratio' to store tenths or
+>> > hundreths of a percent (or whatever), then parse the input as two
+>> > integers.  I don't think we need fully correct floating point parsing
+>> > and rounding here, so it shouldn't be too much of a chore.  It'd
+>> > probably end up being less code than you have as it stands.
+>> > 
+> Now that I think about it, that could break user space. Sure write access
+> wouldn't be a problem (one can still write a plain integer), but a script
+> that reads a fractional value when it expects an integer might not be able
+> to cope with it.
 
-I work on THP for page cache. Allocation and clearing a huge page for
-nothing is pretty expensive.
+You're right.  Something doing FOO=$(cat overcommit_ratio) and then
+trying do do arithmetic would just fail loudly.  But, it would probably
+fail silently if we create another tunable that all of a sudden returns
+0 (when the kernel is not _behaving_ like it is set to 0).
 
-I don't think the change is harmful. The worst case scenario is race with
-write or truncate, but it's valid to return EOF in this case.
+I'm not sure there's a good way out of this without breakage (or at
+least confusing) of _some_ old scripts/programs.  Either way has ups and
+downs.
 
-What scenario do you have in mind?
-
--- 
- Kirill A. Shutemov
+The existing dirty_ratio/bytes stuff just annoys me because I end up
+having to check two places whenever I go looking for it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
