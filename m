@@ -1,133 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id A9FB06B009B
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 06:43:42 -0400 (EDT)
-Message-ID: <5214998F.200@cn.fujitsu.com>
-Date: Wed, 21 Aug 2013 18:42:23 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id D17876B005A
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 06:49:28 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 21 Aug 2013 16:11:44 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 1ADC61258055
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 16:19:09 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7LAoukw35127498
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 16:20:56 +0530
+Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7LAnLHB005505
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 16:19:22 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 10/20] mm, hugetlb: remove resv_map_put()
+In-Reply-To: <1376040398-11212-11-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com> <1376040398-11212-11-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Wed, 21 Aug 2013 16:19:20 +0530
+Message-ID: <8761uzgvyn.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/8] x86, acpi: Move acpi_initrd_override() earlier.
-References: <1377080143-28455-1-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1377080143-28455-1-git-send-email-tangchen@cn.fujitsu.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: konrad.wilk@oracle.com, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, Toshi Kani <toshi.kani@hp.com>, "Luck, Tony" <tony.luck@intel.com>
-Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
 
-Hi all,
+Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
 
-This patch-set has not been fully tested. I sent them first for you
-to review. Please comment if we can agree on this solution.
+> In following patch, I change vma_resv_map() to return resv_map
+> for all case. This patch prepares it by removing resv_map_put() which
+> doesn't works properly with following change, because it works only for
+> HPAGE_RESV_OWNER's resv_map, not for all resv_maps.
+>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 73034dd..869c3e0 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -2212,15 +2212,6 @@ static void hugetlb_vm_op_open(struct vm_area_struct *vma)
+>  		kref_get(&resv->refs);
+>  }
+>
+> -static void resv_map_put(struct vm_area_struct *vma)
+> -{
+> -	struct resv_map *resv = vma_resv_map(vma);
+> -
+> -	if (!resv)
+> -		return;
+> -	kref_put(&resv->refs, resv_map_release);
+> -}
 
-Thanks.:)
+Why not have seperate functions to return vma_resv_map for
+HPAGE_RESV_OWNER and one for put ? That way we could have something like
 
-On 08/21/2013 06:15 PM, Tang Chen wrote:
-> This patch-set aims to move acpi_initrd_override() earlier on x86.
-> Some of the patches are from Yinghai's patch-set:
-> https://lkml.org/lkml/2013/6/14/561
+resv_map_hpage_resv_owner_get()
+resv_map_hpge_resv_put() 
+
+Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+
+> -
+>  static void hugetlb_vm_op_close(struct vm_area_struct *vma)
+>  {
+>  	struct hstate *h = hstate_vma(vma);
+> @@ -2237,7 +2228,7 @@ static void hugetlb_vm_op_close(struct vm_area_struct *vma)
+>  		reserve = (end - start) -
+>  			region_count(resv, start, end);
 >
-> The difference between this patch-set and Yinghai's original patch-set are:
-> 1. This patch-set doesn't split acpi_initrd_override(), but call it as a
->     whole operation at early time.
-> 2. Allocate memory from BRK to store override tables.
->     (This idea is also from Yinghai.)
+> -		resv_map_put(vma);
+> +		kref_put(&resv->refs, resv_map_release);
 >
+>  		if (reserve) {
+>  			hugetlb_acct_memory(h, -reserve);
+> @@ -3164,8 +3155,8 @@ int hugetlb_reserve_pages(struct inode *inode,
+>  		region_add(resv_map, from, to);
+>  	return 0;
+>  out_err:
+> -	if (vma)
+> -		resv_map_put(vma);
+> +	if (vma && is_vma_resv_set(vma, HPAGE_RESV_OWNER))
+> +		kref_put(&resv_map->refs, resv_map_release);
+
+for this
+
+    if (alloc)
+           resv_map_hpage_resv_put();
+
+>  	return ret;
+>  }
 >
-> [Current state]
->
-> The current Linux kernel will initialize acpi tables like the following:
->
-> 1. Find all acpi override table provided by users in initrd.
->     (Linux allows users to override acpi tables in firmware, by specifying
->     their own tables in initrd.)
->
-> 2. Use acpica code to initialize acpi global root table list and install all
->     tables into it. If any override tables exists, use it to override the one
->     provided by firmware.
->
-> Then others can parse these tables and get useful info.
->
-> Both of the two steps happen after direct mapping page tables are setup.
->
-> [Issues]
->
-> In the current Linux kernel, the initialization of acpi tables is too late for
-> new functionalities.
->
-> We have some issues about this:
->
-> * For memory hotplug, we need ACPI SRAT at early time to be aware of which memory
->    ranges are hotpluggable, and prevent bootmem allocator from allocating memory
->    for the kernel. (Kernel pages cannot be hotplugged because )
->
-> * As suggested by Yinghai Lu<yinghai@kernel.org>, we should allocate page tables
->    in local node. This also needs SRAT before direct mapping page tables are setup.
->
-> * As mentioned by Toshi Kani<toshi.kani@hp.com>, ACPI SCPR/DBGP/DBG2 tables
->    allow the OS to initialize serial console/debug ports at early boot time. The
->    earlier it can be initialized, the better this feature will be.  These tables
->    are not currently used by Linux due to a licensing issue, but it could be
->    addressed some time soon.
->
->
-> [What are we doing]
->
-> We are trying to initialize acip tables as early as possible. But Linux kernel
-> allows users to override acpi tables by specifying their own tables in initrd.
-> So we have to do acpi_initrd_override() earlier first.
->
->
-> [About this patch-set]
->
-> This patch-set aims to move acpi_initrd_override() as early as possible on x86.
-> As suggested by Yinghai, we are trying to do it like this:
->
-> On 32bit: do it in head_32.S, before paging is enabled. In this case, we can
->            access initrd with physical address without page tables.
->
-> On 64bit: do it in head_64.c, after paging is enabled but before direct mapping
->            is setup.
->
-> And also, acpi_initrd_override() needs to allocate memory for override tables.
-> But at such an early time, there is no memory allocator works. So the basic idea
-> from Yinghai is to use BRK. We will extend BRK 256KB in this patch-set.
->
->
-> Tang Chen (6):
->    x86, acpi: Move table_sigs[] to stack.
->    x86, acpi, brk: Extend BRK 256KB to store acpi override tables.
->    x86, brk: Make extend_brk() available with va/pa.
->    x86, acpi: Make acpi_initrd_override() available with va or pa.
->    x86, acpi, brk: Make early_alloc_acpi_override_tables_buf() available
->      with va/pa.
->    x86, acpi: Do acpi_initrd_override() earlier in head_32.S/head64.c.
->
-> Yinghai Lu (2):
->    x86: Make get_ramdisk_{image|size}() global.
->    x86, microcode: Use get_ramdisk_{image|size}() in microcode handling.
->
->   arch/x86/include/asm/dmi.h              |    2 +-
->   arch/x86/include/asm/setup.h            |   11 +++-
->   arch/x86/kernel/head64.c                |    4 +
->   arch/x86/kernel/head_32.S               |    4 +
->   arch/x86/kernel/microcode_intel_early.c |    8 +-
->   arch/x86/kernel/setup.c                 |   93 ++++++++++++++++------
->   arch/x86/mm/init.c                      |    2 +-
->   arch/x86/xen/enlighten.c                |    2 +-
->   arch/x86/xen/mmu.c                      |    6 +-
->   arch/x86/xen/p2m.c                      |   27 ++++---
->   drivers/acpi/osl.c                      |  130 ++++++++++++++++++++-----------
->   include/linux/acpi.h                    |    5 +-
->   12 files changed, 196 insertions(+), 98 deletions(-)
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email:<a href=mailto:"dont@kvack.org">  email@kvack.org</a>
->
+> -- 
+> 1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
