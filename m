@@ -1,217 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id B57806B0070
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 06:13:45 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Wed, 21 Aug 2013 20:02:29 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 473D22CE8056
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 20:13:40 +1000 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7LADTgM7668162
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 20:13:29 +1000
-Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7LADdsP008092
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 20:13:40 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 09/20] mm, hugetlb: protect region tracking via newly introduced resv_map lock
-In-Reply-To: <1376040398-11212-10-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com> <1376040398-11212-10-git-send-email-iamjoonsoo.kim@lge.com>
-Date: Wed, 21 Aug 2013 15:43:27 +0530
-Message-ID: <87eh9ngxmg.fsf@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 7C3FE6B0071
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 06:17:04 -0400 (EDT)
+From: Tang Chen <tangchen@cn.fujitsu.com>
+Subject: [PATCH 0/8] x86, acpi: Move acpi_initrd_override() earlier.
+Date: Wed, 21 Aug 2013 18:15:35 +0800
+Message-Id: <1377080143-28455-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
+To: konrad.wilk@oracle.com, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com
+Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
+This patch-set aims to move acpi_initrd_override() earlier on x86.
+Some of the patches are from Yinghai's patch-set:
+https://lkml.org/lkml/2013/6/14/561
 
-> There is a race condition if we map a same file on different processes.
-> Region tracking is protected by mmap_sem and hugetlb_instantiation_mutex.
-> When we do mmap, we don't grab a hugetlb_instantiation_mutex, but,
-> grab a mmap_sem. This doesn't prevent other process to modify region
-> structure, so it can be modified by two processes concurrently.
->
-> To solve this, I introduce a lock to resv_map and make region manipulation
-> function grab a lock before they do actual work. This makes region
-> tracking safe.
->
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->
-> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> index 2677c07..e29e28f 100644
-> --- a/include/linux/hugetlb.h
-> +++ b/include/linux/hugetlb.h
-> @@ -26,6 +26,7 @@ struct hugepage_subpool {
->
->  struct resv_map {
->  	struct kref refs;
-> +	spinlock_t lock;
->  	struct list_head regions;
->  };
->  extern struct resv_map *resv_map_alloc(void);
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index d9cabf6..73034dd 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -134,15 +134,8 @@ static inline struct hugepage_subpool *subpool_vma(struct vm_area_struct *vma)
->   * Region tracking -- allows tracking of reservations and instantiated pages
->   *                    across the pages in a mapping.
->   *
-> - * The region data structures are protected by a combination of the mmap_sem
-> - * and the hugetlb_instantiation_mutex.  To access or modify a region the caller
-> - * must either hold the mmap_sem for write, or the mmap_sem for read and
-> - * the hugetlb_instantiation_mutex:
-> - *
-> - *	down_write(&mm->mmap_sem);
-> - * or
-> - *	down_read(&mm->mmap_sem);
-> - *	mutex_lock(&hugetlb_instantiation_mutex);
-> + * The region data structures are embedded into a resv_map and
-> + * protected by a resv_map's lock
->   */
->  struct file_region {
->  	struct list_head link;
-> @@ -155,6 +148,7 @@ static long region_add(struct resv_map *resv, long f, long t)
->  	struct list_head *head = &resv->regions;
->  	struct file_region *rg, *nrg, *trg;
->
-> +	spin_lock(&resv->lock);
->  	/* Locate the region we are either in or before. */
->  	list_for_each_entry(rg, head, link)
->  		if (f <= rg->to)
-> @@ -184,15 +178,18 @@ static long region_add(struct resv_map *resv, long f, long t)
->  	}
->  	nrg->from = f;
->  	nrg->to = t;
-> +	spin_unlock(&resv->lock);
->  	return 0;
->  }
->
->  static long region_chg(struct resv_map *resv, long f, long t)
->  {
->  	struct list_head *head = &resv->regions;
-> -	struct file_region *rg, *nrg;
-> +	struct file_region *rg, *nrg = NULL;
->  	long chg = 0;
->
-> +retry:
-> +	spin_lock(&resv->lock);
->  	/* Locate the region we are before or in. */
->  	list_for_each_entry(rg, head, link)
->  		if (f <= rg->to)
-> @@ -202,15 +199,27 @@ static long region_chg(struct resv_map *resv, long f, long t)
->  	 * Subtle, allocate a new region at the position but make it zero
->  	 * size such that we can guarantee to record the reservation. */
->  	if (&rg->link == head || t < rg->from) {
-> -		nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
-> -		if (!nrg)
-> -			return -ENOMEM;
-> +		if (!nrg) {
-> +			nrg = kmalloc(sizeof(*nrg), GFP_NOWAIT);
+The difference between this patch-set and Yinghai's original patch-set are:
+1. This patch-set doesn't split acpi_initrd_override(), but call it as a
+   whole operation at early time.
+2. Allocate memory from BRK to store override tables.
+   (This idea is also from Yinghai.)
 
-Do we really need to have the GFP_NOWAIT allocation attempt. Why can't we simply say
-allocate and retry ? Or should resv->lock be a mutex ?
 
-> +			if (!nrg) {
-> +				spin_unlock(&resv->lock);
-> +				nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
-> +				if (!nrg) {
-> +					chg = -ENOMEM;
-> +					goto out;
-> +				}
-> +				goto retry;
-> +			}
-> +		}
-> +
->  		nrg->from = f;
->  		nrg->to   = f;
->  		INIT_LIST_HEAD(&nrg->link);
->  		list_add(&nrg->link, rg->link.prev);
-> +		nrg = NULL;
->
-> -		return t - f;
-> +		chg = t - f;
-> +		goto out_locked;
->  	}
->
->  	/* Round our left edge to the current segment if it encloses us. */
-> @@ -223,7 +232,7 @@ static long region_chg(struct resv_map *resv, long f, long t)
->  		if (&rg->link == head)
->  			break;
->  		if (rg->from > t)
-> -			return chg;
-> +			goto out_locked;
->
->  		/* We overlap with this area, if it extends further than
->  		 * us then we must extend ourselves.  Account for its
-> @@ -234,6 +243,11 @@ static long region_chg(struct resv_map *resv, long f, long t)
->  		}
->  		chg -= rg->to - rg->from;
->  	}
-> +
-> +out_locked:
-> +	spin_unlock(&resv->lock);
-> +out:
-> +	kfree(nrg);
->  	return chg;
->  }
->
-> @@ -243,12 +257,13 @@ static long region_truncate(struct resv_map *resv, long end)
->  	struct file_region *rg, *trg;
->  	long chg = 0;
->
-> +	spin_lock(&resv->lock);
->  	/* Locate the region we are either in or before. */
->  	list_for_each_entry(rg, head, link)
->  		if (end <= rg->to)
->  			break;
->  	if (&rg->link == head)
-> -		return 0;
-> +		goto out;
->
->  	/* If we are in the middle of a region then adjust it. */
->  	if (end > rg->from) {
-> @@ -265,6 +280,9 @@ static long region_truncate(struct resv_map *resv, long end)
->  		list_del(&rg->link);
->  		kfree(rg);
->  	}
-> +
-> +out:
-> +	spin_unlock(&resv->lock);
->  	return chg;
->  }
->
-> @@ -274,6 +292,7 @@ static long region_count(struct resv_map *resv, long f, long t)
->  	struct file_region *rg;
->  	long chg = 0;
->
-> +	spin_lock(&resv->lock);
->  	/* Locate each segment we overlap with, and count that overlap. */
->  	list_for_each_entry(rg, head, link) {
->  		long seg_from;
-> @@ -289,6 +308,7 @@ static long region_count(struct resv_map *resv, long f, long t)
->
->  		chg += seg_to - seg_from;
->  	}
-> +	spin_unlock(&resv->lock);
->
->  	return chg;
->  }
-> @@ -386,6 +406,7 @@ struct resv_map *resv_map_alloc(void)
->  		return NULL;
->
->  	kref_init(&resv_map->refs);
-> +	spin_lock_init(&resv_map->lock);
->  	INIT_LIST_HEAD(&resv_map->regions);
->
->  	return resv_map;
-> -- 
-> 1.7.9.5
+[Current state]
+
+The current Linux kernel will initialize acpi tables like the following:
+
+1. Find all acpi override table provided by users in initrd.
+   (Linux allows users to override acpi tables in firmware, by specifying
+   their own tables in initrd.)
+
+2. Use acpica code to initialize acpi global root table list and install all
+   tables into it. If any override tables exists, use it to override the one
+   provided by firmware.
+
+Then others can parse these tables and get useful info.
+
+Both of the two steps happen after direct mapping page tables are setup.
+
+[Issues]
+
+In the current Linux kernel, the initialization of acpi tables is too late for
+new functionalities.
+
+We have some issues about this:
+
+* For memory hotplug, we need ACPI SRAT at early time to be aware of which memory
+  ranges are hotpluggable, and prevent bootmem allocator from allocating memory
+  for the kernel. (Kernel pages cannot be hotplugged because )
+
+* As suggested by Yinghai Lu <yinghai@kernel.org>, we should allocate page tables
+  in local node. This also needs SRAT before direct mapping page tables are setup.
+
+* As mentioned by Toshi Kani <toshi.kani@hp.com>, ACPI SCPR/DBGP/DBG2 tables
+  allow the OS to initialize serial console/debug ports at early boot time. The
+  earlier it can be initialized, the better this feature will be.  These tables
+  are not currently used by Linux due to a licensing issue, but it could be
+  addressed some time soon.
+
+
+[What are we doing]
+
+We are trying to initialize acip tables as early as possible. But Linux kernel
+allows users to override acpi tables by specifying their own tables in initrd.
+So we have to do acpi_initrd_override() earlier first.
+
+
+[About this patch-set]
+
+This patch-set aims to move acpi_initrd_override() as early as possible on x86.
+As suggested by Yinghai, we are trying to do it like this:
+
+On 32bit: do it in head_32.S, before paging is enabled. In this case, we can
+          access initrd with physical address without page tables.
+
+On 64bit: do it in head_64.c, after paging is enabled but before direct mapping
+          is setup.
+
+And also, acpi_initrd_override() needs to allocate memory for override tables.
+But at such an early time, there is no memory allocator works. So the basic idea
+from Yinghai is to use BRK. We will extend BRK 256KB in this patch-set.
+
+
+Tang Chen (6):
+  x86, acpi: Move table_sigs[] to stack.
+  x86, acpi, brk: Extend BRK 256KB to store acpi override tables.
+  x86, brk: Make extend_brk() available with va/pa.
+  x86, acpi: Make acpi_initrd_override() available with va or pa.
+  x86, acpi, brk: Make early_alloc_acpi_override_tables_buf() available
+    with va/pa.
+  x86, acpi: Do acpi_initrd_override() earlier in head_32.S/head64.c.
+
+Yinghai Lu (2):
+  x86: Make get_ramdisk_{image|size}() global.
+  x86, microcode: Use get_ramdisk_{image|size}() in microcode handling.
+
+ arch/x86/include/asm/dmi.h              |    2 +-
+ arch/x86/include/asm/setup.h            |   11 +++-
+ arch/x86/kernel/head64.c                |    4 +
+ arch/x86/kernel/head_32.S               |    4 +
+ arch/x86/kernel/microcode_intel_early.c |    8 +-
+ arch/x86/kernel/setup.c                 |   93 ++++++++++++++++------
+ arch/x86/mm/init.c                      |    2 +-
+ arch/x86/xen/enlighten.c                |    2 +-
+ arch/x86/xen/mmu.c                      |    6 +-
+ arch/x86/xen/p2m.c                      |   27 ++++---
+ drivers/acpi/osl.c                      |  130 ++++++++++++++++++++-----------
+ include/linux/acpi.h                    |    5 +-
+ 12 files changed, 196 insertions(+), 98 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
