@@ -1,98 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id CE4A56B00B5
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 11:36:44 -0400 (EDT)
-Received: by mail-qc0-f177.google.com with SMTP id e1so309993qcx.22
-        for <linux-mm@kvack.org>; Wed, 21 Aug 2013 08:36:43 -0700 (PDT)
-Date: Wed, 21 Aug 2013 11:36:39 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 0/8] x86, acpi: Move acpi_initrd_override() earlier.
-Message-ID: <20130821153639.GA17432@htj.dyndns.org>
-References: <1377080143-28455-1-git-send-email-tangchen@cn.fujitsu.com>
- <20130821130647.GB19286@mtj.dyndns.org>
- <5214D60A.2090309@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5214D60A.2090309@gmail.com>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 026BC6B00B7
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 11:38:16 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] mm, fs: avoid page allocation beyond i_size on read
+Date: Wed, 21 Aug 2013 18:37:21 +0300
+Message-Id: <1377099441-2224-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yanfei <zhangyanfei.yes@gmail.com>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, konrad.wilk@oracle.com, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Jan Kara <jack@suse.cz>, Al Viro <viro@zeniv.linux.org.uk>, NeilBrown <neilb@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Hello,
+I've noticed that we allocated unneeded page for cache on read beyond
+i_size. Simple test case (I checked it on ramfs):
 
-On Wed, Aug 21, 2013 at 11:00:26PM +0800, Zhang Yanfei wrote:
-> In current boot order, before we get the SRAT, we have a big consumer of early
-> allocations: we are setting up the page table in top-down (The idea was proposed by HPA,
-> Link: https://lkml.org/lkml/2012/10/4/701). That said, this kind of page table
-> setup will make the page tables as high as possible in memory, since memory at low 
-> addresses is precious (for stupid DMA devices, for things like  kexec/kdump, and so on.)
+$ touch testfile
+$ cat testfile
 
-With huge mappings, they are fairly small, right?  And this whole
-thing needs a kernel param anyway at this point, so the allocation
-direction can be made dependent on that or huge mapping availability
-and, even with 4k mappings, we aren't talking about gigabytes of
-memory, are we?
+It triggers 'no_cached_page' code path in do_generic_file_read().
 
-> So if we are trying to make early allocations close to kernel image, we should
-> rewrite the way we are setting up page table totally. That is not a easy thing
-> to do.
+Looks like it's regression since commit a32ea1e. Let's fix it.
 
-It has been a while since I looked at the code so can you please
-elaborate why that is not easy?  It's pretty simple conceptually.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Acked-by: NeilBrown <neilb@suse.de>
+---
+ mm/filemap.c | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-> * For memory hotplug, we need ACPI SRAT at early time to be aware of which memory
->   ranges are hotpluggable, and tell the kernel to try to stay away from hotpluggable
->   nodes.
-> 
-> This one is the current requirement of us but may be very helpful for future change:
-> 
-> * As suggested by Yinghai, we should allocate page tables in local node. This also
->   needs SRAT before direct mapping page tables are setup.
-
-Does this even matter for huge mappings?
-
-> * As mentioned by Toshi Kani <toshi.kani@hp.com>, ACPI SCPR/DBGP/DBG2 tables
->   allow the OS to initialize serial console/debug ports at early boot time. The
->   earlier it can be initialized, the better this feature will be.  These tables
->   are not currently used by Linux due to a licensing issue, but it could be
->   addressed some time soon.
-> 
-> So we decided to firstly make ACPI override earlier and use BRK (this is obviously
-> near the kernel image range) to store the found ACPI tables.
-
-I don't know.  The whole effort seems way overcomplicated compared to
-the benefits it would bring.  For NUMA memory hotunplug, what's the
-point of doing all this when the kernel doesn't have any control over
-where its image is gonna be?  Some megabytes at the tail aren't gonna
-make a huge difference and if you wanna do this properly, you need to
-determine the load address of the kernel considering the node
-boundaries and hotpluggability of each node, which has to happen
-before the early kernel boot code executes.  And if there's a code
-piece which does that, that might as well place the kernel image such
-that extra allocation afterwards doesn't interfere with memory
-hotunplugging.
-
-It looks like a lot of code changes for a mechanism which doesn't seem
-all that useful.  This code is already too late in boot sequence to be
-a proper solution so I don't see the point in pushing the coverage to
-the maximum from here.  It's kinda silly.
-
-The last point - early init of debug facility - makes some sense but
-again how extra coverage are we talking about?  The code path between
-the two points is fairly short and the change doesn't come free.  It
-means we add more fragile firmware-specific code path before the
-execution environment is stable and get to do things like traveling
-the same code paths multiple times in different environments.  Doesn't
-seem like a win.  We want to reach stable execution environment as
-soon as possible.  Shoving whole more logic before that in the name of
-"earlier debugging" doesn't make a lot of sense.
-
-Thanks.
-
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 1905f0e..b1a4d35 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1163,6 +1163,10 @@ static void do_generic_file_read(struct file *filp, loff_t *ppos,
+ 		loff_t isize;
+ 		unsigned long nr, ret;
+ 
++		isize = i_size_read(inode);
++		if (!isize || index > (isize - 1) >> PAGE_CACHE_SHIFT)
++			goto out;
++
+ 		cond_resched();
+ find_page:
+ 		page = find_get_page(mapping, index);
 -- 
-tejun
+1.8.4.rc2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
