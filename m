@@ -1,49 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 6CD3E6B0032
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 16:58:23 -0400 (EDT)
-Date: Wed, 21 Aug 2013 13:58:21 -0700
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 48A506B0032
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 18:03:40 -0400 (EDT)
+Date: Wed, 21 Aug 2013 15:03:37 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm, fs: avoid page allocation beyond i_size on read
-Message-Id: <20130821135821.fc8f5a2551a28c9ce9c4b049@linux-foundation.org>
-In-Reply-To: <1377103332.2738.37.camel@menhir>
-References: <1377099441-2224-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<1377100012.2738.28.camel@menhir>
-	<20130821160817.940D3E0090@blue.fi.intel.com>
-	<1377103332.2738.37.camel@menhir>
+Subject: Re: [PATCH 2/3] mm/shmem.c: let shmem_show_mpol() return value.
+Message-Id: <20130821150337.bad5f71869cec813e2ded90c@linux-foundation.org>
+In-Reply-To: <521424BE.8020309@asianux.com>
+References: <5212E8DF.5020209@asianux.com>
+	<20130820053036.GB18673@moon>
+	<52130194.4030903@asianux.com>
+	<20130820064730.GD18673@moon>
+	<52131F48.1030002@asianux.com>
+	<52132011.60501@asianux.com>
+	<52132432.3050308@asianux.com>
+	<20130820082516.GE18673@moon>
+	<52142422.9050209@asianux.com>
+	<52142464.8060903@asianux.com>
+	<521424BE.8020309@asianux.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Whitehouse <swhiteho@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Jan Kara <jack@suse.cz>, Al Viro <viro@zeniv.linux.org.uk>, NeilBrown <neilb@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Chen Gang <gang.chen@asianux.com>
+Cc: Mel Gorman <mgorman@suse.de>, kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, hughd@google.com, xemul@parallels.com, rientjes@google.com, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Cyrill Gorcunov <gorcunov@gmail.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Wed, 21 Aug 2013 17:42:12 +0100 Steven Whitehouse <swhiteho@redhat.com> wrote:
+On Wed, 21 Aug 2013 10:23:58 +0800 Chen Gang <gang.chen@asianux.com> wrote:
 
-> > I don't think the change is harmful. The worst case scenario is race with
-> > write or truncate, but it's valid to return EOF in this case.
-> > 
-> > What scenario do you have in mind?
-> > 
+> Let shmem_show_mpol() return value, since it may fail.
 > 
-> 1. File open on node A
-> 2. Someone updates it on node B by extending the file
-> 3. Someone reads the file on node A beyond end of original file size,
-> but within end of new file size as updated by node B. Without the patch
-> this works, with it, it will fail. The reason being the i_size would not
-> be up to date until after readpage(s) has been called.
-> 
-> I think this is likely to be an issue for any distributed fs using
-> do_generic_file_read(), although it would certainly affect GFS2, since
-> the locking is done at page cache level,
 
-Boy, that's rather subtle.  I'm surprised that the generic filemap.c
-stuff works at all in that sort of scenario.
+This patch has no effect.
 
-Can we put the i_size check down in the no_cached_page block?  afaict
-that will solve the problem without breaking GFS2 and is more
-efficient?
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -883,16 +883,17 @@ redirty:
+>  
+>  #ifdef CONFIG_NUMA
+>  #ifdef CONFIG_TMPFS
+> -static void shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
+> +static int shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
+>  {
+>  	char buffer[64];
+>  
+>  	if (!mpol || mpol->mode == MPOL_DEFAULT)
+> -		return;		/* show nothing */
+> +		return 0;		/* show nothing */
+>  
+>  	mpol_to_str(buffer, sizeof(buffer), mpol);
+
+Perhaps you meant to check the mpol_to_str() return value here.
+
+>  	seq_printf(seq, ",mpol=%s", buffer);
+> +	return 0;
+>  }
+>  
+>  static struct mempolicy *shmem_get_sbmpol(struct shmem_sb_info *sbinfo)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
