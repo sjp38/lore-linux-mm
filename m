@@ -1,70 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 0980D6B0032
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 20:17:53 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id ld10so114905pab.8
-        for <linux-mm@kvack.org>; Tue, 20 Aug 2013 17:17:53 -0700 (PDT)
-Date: Tue, 20 Aug 2013 17:17:51 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, thp: count thp_fault_fallback anytime thp fault fails
-Message-ID: <alpine.DEB.2.02.1308201716510.25665@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 0A38B6B0033
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2013 20:18:30 -0400 (EDT)
+Date: Tue, 20 Aug 2013 17:18:16 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2 1/4] mm/pgtable: Fix continue to preallocate pmds
+ even if failure occurrence
+Message-Id: <20130820171816.1b759e87.akpm@linux-foundation.org>
+In-Reply-To: <5213fe45.660c420a.4066.ffffd8c7SMTPIN_ADDED_BROKEN@mx.google.com>
+References: <1376981696-4312-1-git-send-email-liwanp@linux.vnet.ibm.com>
+	<20130820160418.5639c4f9975b84dc8dede014@linux-foundation.org>
+	<5213fe45.660c420a.4066.ffffd8c7SMTPIN_ADDED_BROKEN@mx.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Fengguang Wu <fengguang.wu@intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jiri Kosina <jkosina@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Currently, thp_fault_fallback in vmstat only gets incremented if a
-hugepage allocation fails.  If current's memcg hits its limit or the page
-fault handler returns an error, it is incorrectly accounted as a
-successful thp_fault_alloc.
+On Wed, 21 Aug 2013 07:39:35 +0800 Wanpeng Li <liwanp@linux.vnet.ibm.com> wrote:
 
-Count thp_fault_fallback anytime the page fault handler falls back to
-using regular pages and only count thp_fault_alloc when a hugepage has
-actually been faulted.
+> >Nope.  If the error path is taken, free_pmds() will free uninitialised
+> >items from pmds[], which is a local in pgd_alloc() and contains random
+> >stack junk.  The kernel will crash.
+> >
+> >You could pass an nr_pmds argument to free_pmds(), or zero out the
+> >remaining items on the error path.  However, although the current code
+> >is a bit kooky, I don't see that it is harmful in any way.
+> >
+> 
+> There is a check in free_pmds():
+> 
+> if (pmds[i])
+> 	free_page((unsigned long)pmds[i]);
+> 
+> which will avoid the issue you mentioned.
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/huge_memory.c | 8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
-
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -801,7 +801,6 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 			zero_page = get_huge_zero_page();
- 			if (unlikely(!zero_page)) {
- 				pte_free(mm, pgtable);
--				count_vm_event(THP_FAULT_FALLBACK);
- 				goto out;
- 			}
- 			spin_lock(&mm->page_table_lock);
-@@ -816,11 +815,8 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		}
- 		page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
- 					  vma, haddr, numa_node_id(), 0);
--		if (unlikely(!page)) {
--			count_vm_event(THP_FAULT_FALLBACK);
-+		if (unlikely(!page))
- 			goto out;
--		}
--		count_vm_event(THP_FAULT_ALLOC);
- 		if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
- 			put_page(page);
- 			goto out;
-@@ -832,9 +828,11 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 			goto out;
- 		}
- 
-+		count_vm_event(THP_FAULT_ALLOC);
- 		return 0;
- 	}
- out:
-+	count_vm_event(THP_FAULT_FALLBACK);
- 	/*
- 	 * Use __pte_alloc instead of pte_alloc_map, because we can't
- 	 * run pte_offset_map on the pmd, if an huge pmd could
+pmds[i] is uninitialized.  It gets allocated
+on the stack in pgd_alloc() and does not get zeroed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
