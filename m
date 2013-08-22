@@ -1,35 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 585CF6B0036
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 16:35:36 -0400 (EDT)
-Received: by mail-qa0-f42.google.com with SMTP id bv4so597731qab.15
-        for <linux-mm@kvack.org>; Thu, 22 Aug 2013 13:35:35 -0700 (PDT)
-Date: Thu, 22 Aug 2013 16:35:29 -0400
-From: Tejun Heo <tj@kernel.org>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id A104B6B0032
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 17:08:07 -0400 (EDT)
+Message-ID: <1377205598.10300.715.camel@misato.fc.hp.com>
 Subject: Re: [PATCH 0/8] x86, acpi: Move acpi_initrd_override() earlier.
-Message-ID: <20130822203529.GE3490@mtj.dyndns.org>
-References: <1377113503.10300.492.camel@misato.fc.hp.com>
- <20130821195410.GA2436@htj.dyndns.org>
- <1377116968.10300.514.camel@misato.fc.hp.com>
- <20130821204041.GC2436@htj.dyndns.org>
- <1377124595.10300.594.camel@misato.fc.hp.com>
- <20130822033234.GA2413@htj.dyndns.org>
- <1377186729.10300.643.camel@misato.fc.hp.com>
- <20130822183130.GA3490@mtj.dyndns.org>
- <1377202292.10300.693.camel@misato.fc.hp.com>
- <20130822202158.GD3490@mtj.dyndns.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Thu, 22 Aug 2013 15:06:38 -0600
 In-Reply-To: <20130822202158.GD3490@mtj.dyndns.org>
+References: <20130821153639.GA17432@htj.dyndns.org>
+	 <1377113503.10300.492.camel@misato.fc.hp.com>
+	 <20130821195410.GA2436@htj.dyndns.org>
+	 <1377116968.10300.514.camel@misato.fc.hp.com>
+	 <20130821204041.GC2436@htj.dyndns.org>
+	 <1377124595.10300.594.camel@misato.fc.hp.com>
+	 <20130822033234.GA2413@htj.dyndns.org>
+	 <1377186729.10300.643.camel@misato.fc.hp.com>
+	 <20130822183130.GA3490@mtj.dyndns.org>
+	 <1377202292.10300.693.camel@misato.fc.hp.com>
+	 <20130822202158.GD3490@mtj.dyndns.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
+To: Tejun Heo <tj@kernel.org>
 Cc: Zhang Yanfei <zhangyanfei.yes@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, konrad.wilk@oracle.com, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-A bit of addition.
-
-On Thu, Aug 22, 2013 at 04:21:58PM -0400, Tejun Heo wrote:
+On Thu, 2013-08-22 at 16:21 -0400, Tejun Heo wrote:
+> On Thu, Aug 22, 2013 at 02:11:32PM -0600, Toshi Kani wrote:
+> > It's too late for the kernel image itself, but it prevents allocating
+> > kernel memory from movable ranges after that.  I'd say it solves a half
+> > of the issue this time.
+> 
 > That works if such half solution eventually leads to the full
 > solution.  This is just a distraction.  You are already too late in
 > the boot sequence.  It doesn't even qualify as a half solution.  It's
@@ -37,33 +39,41 @@ On Thu, Aug 22, 2013 at 04:21:58PM -0400, Tejun Heo wrote:
 > If you want to solve this, do that from a place where it actually is
 > solvable.
 
-Seriously, what's the end game here?  How do you guys see this
-eventually reaching full solution?  If you don't see that and this
-kinda-sorta-working solution is fine, then that's fine too but we
-aren't gonna make a lot of invasive changes for that.  If you can at
-least envision the full solution, please try to fit this effort into
-the bigger picture.
+Since some node(s) won't be ejectable, this solution is reasonable as
+the first step.  I do not think it is a distraction.  I view your
+suggestion as a distraction of supporting local page tables, though.
 
-In all possible solutions that I can think of, there needs to be
-earlier handling of SRAT informtaion before the kernel proper starts
-executing be that either the actual bootloader or earlier kernel
-serving as kexec host.  If a proper solution needs such processing
-earlier anyway, it can set up things so that either the default
-booting behavior doesn't harm hotpluggability or feed the necessary
-information to the kernel.  In both cases, doing ACPI super early in
-the booting kernel doesn't buy us anything.
+> > > > Also, how do you support local page tables without pursing SRAT early?
+> > > 
+> > > Does it even matter with huge mappings?  It's gonna be contained in a
+> > > single page anyway, right?
+> > 
+> > Are the huge mappings always used?  We cannot force user programs to use
+> > huge pages, can we?
+> 
+> Everything is a trade-off.  Should we do all this just to support the
+> off chance someone tries to use memory hotplug on a machine which
+> doesn't support huge mapping when virtually all CPUs on market
+> supports it?
 
-So, then, what the hell are we doing here with all these relocations,
-careful double execution of the same code from different execution
-contexts, worrying about initrd firmware override even before the
-kernel page table is set up?  If we're doing all those to just make
-the temporary half-assed-anyway solution minutely better, that's just
-plain stupid.
+Local page table and memory hotplug are two separate things.  That is,
+local page tables can be supported on all NUMA platforms without hotplug
+support.  Are you sure huge mapping will solve everything for all types
+of applications, and therefore local page tables won't be needed at all?
 
-Thanks.
+> > As for the maintainability, I am far more concerned with your suggestion
+> > of having a separate page table init code when SRAT is used.  This kind
+> > of divergence is a recipe of breakage.
+> 
+> I don't buy that.  The only thing which needs to change is the
+> directionality of allocation and we probably don't even need to do
+> that if huge mapping is in use.
 
--- 
-tejun
+When someone changes the page table init code, who will test it with the
+special allocation code?
+
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
