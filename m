@@ -1,116 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 3041D6B0034
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 11:34:49 -0400 (EDT)
-Subject: Re: [PATCH] mm, fs: avoid page allocation beyond i_size on read
-From: Steven Whitehouse <swhiteho@redhat.com>
-In-Reply-To: <20130822151614.2F11DE0090@blue.fi.intel.com>
-References: 
-	 <1377099441-2224-1-git-send-email-kirill.shutemov@linux.intel.com>
-	 <1377100012.2738.28.camel@menhir>
-	 <20130821160817.940D3E0090@blue.fi.intel.com>
-	 <1377103332.2738.37.camel@menhir>
-	 <20130821135821.fc8f5a2551a28c9ce9c4b049@linux-foundation.org>
-	 <1377163725.2720.18.camel@menhir>
-	 <20130822130527.71C0AE0090@blue.fi.intel.com>
-	 <1377178420.2720.51.camel@menhir>
-	 <20130822143041.EC9F1E0090@blue.fi.intel.com>
-	 <1377183565.2720.72.camel@menhir>
-	 <20130822151614.2F11DE0090@blue.fi.intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 22 Aug 2013 16:34:55 +0100
-Message-ID: <1377185695.2720.79.camel@menhir>
+	by kanga.kvack.org (Postfix) with SMTP id 79F816B0033
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 11:51:50 -0400 (EDT)
+Date: Thu, 22 Aug 2013 11:51:32 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1377186692-rqporagm-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1377164907-24801-1-git-send-email-liwanp@linux.vnet.ibm.com>
+References: <1377164907-24801-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/6] mm/hwpoison: fix lose PG_dirty flag for errors on
+ mlocked pages
 Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Jan Kara <jack@suse.cz>, Al Viro <viro@zeniv.linux.org.uk>, NeilBrown <neilb@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Tony Luck <tony.luck@intel.com>, gong.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi,
+Hi Wanpeng,
 
-On Thu, 2013-08-22 at 18:16 +0300, Kirill A. Shutemov wrote:
-> Steven Whitehouse wrote:
-> > Hi,
-> > 
-> > On Thu, 2013-08-22 at 17:30 +0300, Kirill A. Shutemov wrote:
-> > [snip]
-> > > > Andrew's proposed solution makes sense to me, and is probably the
-> > > > easiest way to solve this.
-> > > 
-> > > Move check to no_cached_page?
-> > Yes
-> > 
-> > > I don't see how it makes any difference for
-> > > page cache miss case: we anyway exclude ->readpage() if it's beyond local
-> > > i_size.
-> > > And for cache hit local i_size will be most likely cover locally cached
-> > > pages.
-> > The difference is that as the function is currently written, you cannot
-> > get to no_cached_page without first calling page_cache_sync_readahead(),
-> > i.e. ->readpages() so that i_size will have been updated, even if
-> > ->readpages() doesn't return any read-ahead pages.
-> > 
-> > I guess that it is not very obvious that a call to ->readpages is hidden
-> > in page_cache_sync_readahead() but that is the path that should in the
-> > common case provide the pages from the fs, rather than the ->readpage
-> > call thats further down do_generic_file_read()
+On Thu, Aug 22, 2013 at 05:48:22PM +0800, Wanpeng Li wrote:
+> memory_failure() store the page flag of the error page before doing unmap, 
+> and (only) if the first check with page flags at the time decided the error 
+> page is unknown, it do the second check with the stored page flag since 
+> memory_failure() does unmapping of the error pages before doing page_action(). 
+> This unmapping changes the page state, especially page_remove_rmap() (called 
+> from try_to_unmap_one()) clears PG_mlocked, so page_action() can't catch 
+> mlocked pages after that. 
 > 
-> I've checked the codepath before and to me it looks like ->readpages()
-> will not be called beyond i_size. Codepath is:
-> 
-> page_cache_sync_readahead()
->  ondemand_readahead()
->   __do_page_cache_readahead()
->    read_pages()
->     mapping->a_ops->readpages()
-> 
-> But if you check __do_page_cache_readahead():
-> 
-> 152 static int
-> 153 __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
-> 154                         pgoff_t offset, unsigned long nr_to_read,
-> 155                         unsigned long lookahead_size)
-> 156 {
-> ...
-> 163         loff_t isize = i_size_read(inode);
-> 164
-> 165         if (isize == 0)
-> 166                 goto out;
-> 167
-> 168         end_index = ((isize - 1) >> PAGE_CACHE_SHIFT);
-> ...
-> 173         for (page_idx = 0; page_idx < nr_to_read; page_idx++) {
-> 174                 pgoff_t page_offset = offset + page_idx;
-> 175
-> 176                 if (page_offset > end_index)
-> 177                         break;
-> ...
-> 193         }
-> ...
-> 200         if (ret)
-> 201                 read_pages(mapping, filp, &page_pool, ret);
-> 202         BUG_ON(!list_empty(&page_pool));
-> 203 out:
-> 204         return ret;
-> 205 }
-> 
-> Do I miss something?
-> 
+> However, memory_failure() can't handle memory errors on dirty mlocked pages 
+> correctly. try_to_unmap_one will move the dirty bit from pte to the physical 
+> page, the second check lose it since it check the stored page flag. This patch 
+> fix it by restore PG_dirty flag to stored page flag if the page is dirty.
 
-Hrm. It looks like that Andrew's proposal is not going to work then :(
+Right. And I'm guessing that the discrepancy between pte_dirty and PageDirty
+can happen on the situations rather than mlocked pages.
+Anyway, using both of page flags before and after unmapping looks right to me.
 
-The trouble is that readahead has broken silently in this one case,
-since the net result of the readahead not going ahead at this point, is
-that ->readpage will be called later on. So in the cases where it
-matters (i.e. i_size updated remotely), we'd probably not have noticed
-it before as the read will still return successfully.
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-That is real problem though... so maybe this isn't as easy as I'd first
-thought,
 
-Steve.
-
+> Testcase:
+> 
+> #define _GNU_SOURCE
+> #include <stdlib.h>
+> #include <stdio.h>
+> #include <sys/mman.h>
+> #include <sys/types.h>
+> #include <errno.h>
+> 
+> #define PAGES_TO_TEST 2
+> #define PAGE_SIZE	4096
+> 
+> int main(void)
+> {
+> 	char *mem;
+> 	int i;
+> 
+> 	mem = mmap(NULL, PAGES_TO_TEST * PAGE_SIZE,
+> 			PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_LOCKED, 0, 0);
+> 
+> 	for (i = 0; i < PAGES_TO_TEST; i++)
+> 		mem[i * PAGE_SIZE] = 'a';
+> 
+> 	if (madvise(mem, PAGES_TO_TEST * PAGE_SIZE, MADV_HWPOISON) == -1)
+> 		return -1;
+> 
+> 	return 0;
+> }
+> 
+> Before patch:
+> 
+> [  912.839247] Injecting memory failure for page 7dfb8 at 7f6b4e37b000
+> [  912.839257] MCE 0x7dfb8: clean mlocked LRU page recovery: Recovered
+> [  912.845550] MCE 0x7dfb8: clean mlocked LRU page still referenced by 1 users
+> [  912.852586] Injecting memory failure for page 7e6aa at 7f6b4e37c000
+> [  912.852594] MCE 0x7e6aa: clean mlocked LRU page recovery: Recovered
+> [  912.858936] MCE 0x7e6aa: clean mlocked LRU page still referenced by 1 users
+> 
+> After patch:
+> 
+> [  163.590225] Injecting memory failure for page 91bc2f at 7f9f5b0e5000
+> [  163.590264] MCE 0x91bc2f: dirty mlocked LRU page recovery: Recovered
+> [  163.596680] MCE 0x91bc2f: dirty mlocked LRU page still referenced by 1 users
+> [  163.603831] Injecting memory failure for page 91cdd3 at 7f9f5b0e6000
+> [  163.603852] MCE 0x91cdd3: dirty mlocked LRU page recovery: Recovered
+> [  163.610305] MCE 0x91cdd3: dirty mlocked LRU page still referenced by 1 users
+> 
+> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+> ---
+>  mm/memory-failure.c |    3 +++
+>  1 files changed, 3 insertions(+), 0 deletions(-)
+> 
+> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+> index bee58d8..e156084 100644
+> --- a/mm/memory-failure.c
+> +++ b/mm/memory-failure.c
+> @@ -1206,6 +1206,9 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
+>  	for (ps = error_states;; ps++)
+>  		if ((p->flags & ps->mask) == ps->res)
+>  			break;
+> +
+> +	page_flags |= (p->flags & (1UL << PG_dirty));
+> +
+>  	if (!ps->mask)
+>  		for (ps = error_states;; ps++)
+>  			if ((page_flags & ps->mask) == ps->res)
+> -- 
+> 1.7.7.6
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
