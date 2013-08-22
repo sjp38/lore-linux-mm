@@ -1,50 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 6B20D6B0033
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 13:00:59 -0400 (EDT)
-Date: Thu, 22 Aug 2013 13:00:37 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1377190837-ry9saqra-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1377189788-xv5ewgmb-mutt-n-horiguchi@ah.jp.nec.com>
-References: <1377164907-24801-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1377164907-24801-3-git-send-email-liwanp@linux.vnet.ibm.com>
- <1377189788-xv5ewgmb-mutt-n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 3/6] mm/hwpoison: fix num_poisoned_pages error statistics
- for thp
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 2CD776B0032
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 13:49:45 -0400 (EDT)
+Date: Thu, 22 Aug 2013 17:49:43 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 02/16] slab: change return type of kmem_getpages() to
+ struct page
+In-Reply-To: <1377161065-30552-3-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <00000140a725706c-27ed3820-ef32-4388-825a-de582055d91d-000000@email.amazonses.com>
+References: <1377161065-30552-1-git-send-email-iamjoonsoo.kim@lge.com> <1377161065-30552-3-git-send-email-iamjoonsoo.kim@lge.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Tony Luck <tony.luck@intel.com>, gong.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Aug 22, 2013 at 12:43:08PM -0400, Naoya Horiguchi wrote:
-> On Thu, Aug 22, 2013 at 05:48:24PM +0800, Wanpeng Li wrote:
-> > There is a race between hwpoison page and unpoison page, memory_failure 
-> > set the page hwpoison and increase num_poisoned_pages without hold page 
-> > lock, and one page count will be accounted against thp for num_poisoned_pages.
-> > However, unpoison can occur before memory_failure hold page lock and 
-> > split transparent hugepage, unpoison will decrease num_poisoned_pages 
-> > by 1 << compound_order since memory_failure has not yet split transparent 
-> > hugepage with page lock held. That means we account one page for hwpoison
-> > and 1 << compound_order for unpoison. This patch fix it by decrease one 
-> > account for num_poisoned_pages against no hugetlbfs pages case.
-> > 
-> > Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-> 
-> I think that a thp never becomes hwpoisoned without splitting, so "trying
-> to unpoison thp" never happens (I think that this implicit fact should be
-> commented somewhere or asserted with VM_BUG_ON().)
+On Thu, 22 Aug 2013, Joonsoo Kim wrote:
 
-> And nr_pages in unpoison_memory() can be greater than 1 for hugetlbfs page.
-> So does this patch break counting when unpoisoning free hugetlbfs pages?
+> @@ -2042,7 +2042,7 @@ static void slab_destroy_debugcheck(struct kmem_cache *cachep, struct slab *slab
+>   */
+>  static void slab_destroy(struct kmem_cache *cachep, struct slab *slabp)
+>  {
+> -	void *addr = slabp->s_mem - slabp->colouroff;
+> +	struct page *page = virt_to_head_page(slabp->s_mem);
+>
+>  	slab_destroy_debugcheck(cachep, slabp);
+>  	if (unlikely(cachep->flags & SLAB_DESTROY_BY_RCU)) {
 
-Sorry, the latter part of this remark was incorrect. Please ignore it.
+Ok so this removes slab offset management. The use of a struct page
+pointer therefore results in coloring support to be not possible anymore.
 
-- Naoya
+I would suggest to have a separate patch for coloring removal before this
+patch. It seems that the support is removed in two different patches now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
