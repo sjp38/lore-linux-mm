@@ -1,119 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id B6CBD6B0033
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 01:28:26 -0400 (EDT)
-From: Lisa Du <cldu@marvell.com>
-Date: Wed, 21 Aug 2013 22:24:07 -0700
-Subject: RE: [resend] [PATCH V3] mm: vmscan: fix do_try_to_free_pages()
- livelock
-Message-ID: <89813612683626448B837EE5A0B6A7CB3B6333D4CF@SC-VEXCH4.marvell.com>
-References: <89813612683626448B837EE5A0B6A7CB3B630BE80B@SC-VEXCH4.marvell.com>
-	<20130805074146.GD10146@dhcp22.suse.cz>
-	<89813612683626448B837EE5A0B6A7CB3B630BED6B@SC-VEXCH4.marvell.com>
-	<20130806103543.GA31138@dhcp22.suse.cz>
-	<89813612683626448B837EE5A0B6A7CB3B63175BCA@SC-VEXCH4.marvell.com>
-	<20130808181426.GI715@cmpxchg.org>
-	<89813612683626448B837EE5A0B6A7CB3B631767D7@SC-VEXCH4.marvell.com>
- <20130820151630.2a61ae9d88ea34a69e9d04bf@linux-foundation.org>
-In-Reply-To: <20130820151630.2a61ae9d88ea34a69e9d04bf@linux-foundation.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id 44C496B0033
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 01:39:19 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id w10so1431052pde.9
+        for <linux-mm@kvack.org>; Wed, 21 Aug 2013 22:39:18 -0700 (PDT)
+Date: Thu, 22 Aug 2013 13:39:09 +0800
+From: larmbr <nasa4836@gmail.com>
+Subject: [PATCH] mm/vmscan : use vmcan_swappiness( ) basing on MEMCG config
+ to elimiate unnecessary runtime cost
+Message-ID: <20130822053909.GA10775@larmbr-lcx>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Bob Liu <lliubbo@gmail.com>, Neil Zhang <zhangwm@marvell.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Aaditya Kumar <aaditya.kumar.30@gmail.com>, "yinghan@google.com" <yinghan@google.com>, "npiggin@gmail.com" <npiggin@gmail.com>, "riel@redhat.com" <riel@redhat.com>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "chunlingdu1@gmail.com" <chunlingdu1@gmail.com>
+To: linux-mm@kvack.org
+Cc: hannes@cmpxchg.org, mhocko@suse.cz, mgorman@suse.de, riel@redhat.com, bsingharora@gmail.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
 
-Pi0tLS0tT3JpZ2luYWwgTWVzc2FnZS0tLS0tDQo+RnJvbTogQW5kcmV3IE1vcnRvbiBbbWFpbHRv
-OmFrcG1AbGludXgtZm91bmRhdGlvbi5vcmddDQo+U2VudDogMjAxM8TqONTCMjHI1SA2OjE3DQo+
-VG86IExpc2EgRHUNCj5DYzogSm9oYW5uZXMgV2VpbmVyOyBNaWNoYWwgSG9ja287IGxpbnV4LW1t
-QGt2YWNrLm9yZzsgTWluY2hhbiBLaW07IEtPU0FLSSBNb3RvaGlybzsgTWVsIEdvcm1hbjsgQ2hy
-aXN0b3BoIExhbWV0ZXI7IEJvYiBMaXU7DQo+TmVpbCBaaGFuZzsgUnVzc2VsbCBLaW5nIC0gQVJN
-IExpbnV4OyBBYWRpdHlhIEt1bWFyOyB5aW5naGFuQGdvb2dsZS5jb207IG5waWdnaW5AZ21haWwu
-Y29tOyByaWVsQHJlZGhhdC5jb207DQo+a2FtZXphd2EuaGlyb3l1QGpwLmZ1aml0c3UuY29tDQo+
-U3ViamVjdDogUmU6IFtyZXNlbmRdIFtQQVRDSCBWM10gbW06IHZtc2NhbjogZml4IGRvX3RyeV90
-b19mcmVlX3BhZ2VzKCkgbGl2ZWxvY2sNCj4NCj5PbiBTdW4sIDExIEF1ZyAyMDEzIDE4OjQ2OjA4
-IC0wNzAwIExpc2EgRHUgPGNsZHVAbWFydmVsbC5jb20+IHdyb3RlOg0KPg0KPj4gSW4gdGhpcyB2
-ZXJzaW9uOg0KPj4gUmVvcmRlciB0aGUgY2hlY2sgaW4gcGdkYXRfYmFsYW5jZWQgYWNjb3JkaW5n
-IEpvaGFubmVzJ3MgY29tbWVudC4NCj4+DQo+PiA+RnJvbSA2NmE5ODU2Njc5MmI5NTRlMTg3ZGNh
-MjUxZmJlMzgxOWFlYjk3N2I5IE1vbiBTZXAgMTcgMDA6MDA6MDANCj4+ID4yMDAxDQo+PiBGcm9t
-OiBMaXNhIER1IDxjbGR1QG1hcnZlbGwuY29tPg0KPj4gRGF0ZTogTW9uLCA1IEF1ZyAyMDEzIDA5
-OjI2OjU3ICswODAwDQo+PiBTdWJqZWN0OiBbUEFUQ0hdIG1tOiB2bXNjYW46IGZpeCBkb190cnlf
-dG9fZnJlZV9wYWdlcygpIGxpdmVsb2NrDQo+Pg0KPj4gVGhpcyBwYXRjaCBpcyBiYXNlZCBvbiBL
-T1NBS0kncyB3b3JrIGFuZCBJIGFkZCBhIGxpdHRsZSBtb3JlDQo+PiBkZXNjcmlwdGlvbiwgcGxl
-YXNlIHJlZmVyIGh0dHBzOi8vbGttbC5vcmcvbGttbC8yMDEyLzYvMTQvNzQuDQo+Pg0KPj4gQ3Vy
-cmVudGx5LCBJIGZvdW5kIHN5c3RlbSBjYW4gZW50ZXIgYSBzdGF0ZSB0aGF0IHRoZXJlIGFyZSBs
-b3RzIG9mDQo+PiBmcmVlIHBhZ2VzIGluIGEgem9uZSBidXQgb25seSBvcmRlci0wIGFuZCBvcmRl
-ci0xIHBhZ2VzIHdoaWNoIG1lYW5zDQo+PiB0aGUgem9uZSBpcyBoZWF2aWx5IGZyYWdtZW50ZWQs
-IHRoZW4gaGlnaCBvcmRlciBhbGxvY2F0aW9uIGNvdWxkIG1ha2UNCj4+IGRpcmVjdCByZWNsYWlt
-IHBhdGgncyBsb25nIHN0YWxsKGV4LCA2MCBzZWNvbmRzKSBlc3BlY2lhbGx5IGluIG5vIHN3YXAN
-Cj4+IGFuZCBubyBjb21wYWNpdG9uIGVudmlyb21lbnQuIFRoaXMgcHJvYmxlbSBoYXBwZW5lZCBv
-biB2My40LCBidXQgaXQNCj4+IHNlZW1zIGlzc3VlIHN0aWxsIGxpdmVzIGluIGN1cnJlbnQgdHJl
-ZSwgdGhlIHJlYXNvbiBpcw0KPj4gZG9fdHJ5X3RvX2ZyZWVfcGFnZXMgZW50ZXIgbGl2ZSBsb2Nr
-Og0KPj4NCj4+IGtzd2FwZCB3aWxsIGdvIHRvIHNsZWVwIGlmIHRoZSB6b25lcyBoYXZlIGJlZW4g
-ZnVsbHkgc2Nhbm5lZCBhbmQgYXJlDQo+PiBzdGlsbCBub3QgYmFsYW5jZWQuIEFzIGtzd2FwZCB0
-aGlua3MgdGhlcmUncyBsaXR0bGUgcG9pbnQgdHJ5aW5nIGFsbA0KPj4gb3ZlciBhZ2FpbiB0byBh
-dm9pZCBpbmZpbml0ZSBsb29wLiBJbnN0ZWFkIGl0IGNoYW5nZXMgb3JkZXIgZnJvbQ0KPj4gaGln
-aC1vcmRlciB0byAwLW9yZGVyIGJlY2F1c2Uga3N3YXBkIHRoaW5rIG9yZGVyLTAgaXMgdGhlIG1v
-c3QNCj4+IGltcG9ydGFudC4gTG9vayBhdCA3M2NlMDJlOSBpbiBkZXRhaWwuIElmIHdhdGVybWFy
-a3MgYXJlIG9rLCBrc3dhcGQNCj4+IHdpbGwgZ28gYmFjayB0byBzbGVlcCBhbmQgbWF5IGxlYXZl
-IHpvbmUtPmFsbF91bnJlY2xhaW1hYmxlID0gMC4NCj4+IEl0IGFzc3VtZSBoaWdoLW9yZGVyIHVz
-ZXJzIGNhbiBzdGlsbCBwZXJmb3JtIGRpcmVjdCByZWNsYWltIGlmIHRoZXkgd2lzaC4NCj4+DQo+
-PiBEaXJlY3QgcmVjbGFpbSBjb250aW51ZSB0byByZWNsYWltIGZvciBhIGhpZ2ggb3JkZXIgd2hp
-Y2ggaXMgbm90IGENCj4+IENPU1RMWV9PUkRFUiB3aXRob3V0IG9vbS1raWxsZXIgdW50aWwga3N3
-YXBkIHR1cm4gb24gem9uZS0+YWxsX3VucmVjbGFpbWJsZS4NCj4+IFRoaXMgaXMgYmVjYXVzZSB0
-byBhdm9pZCB0b28gZWFybHkgb29tLWtpbGwuIFNvIGl0IG1lYW5zDQo+PiBkaXJlY3RfcmVjbGFp
-bSBkZXBlbmRzIG9uIGtzd2FwZCB0byBicmVhayB0aGlzIGxvb3AuDQo+Pg0KPj4gSW4gd29yc3Qg
-Y2FzZSwgZGlyZWN0LXJlY2xhaW0gbWF5IGNvbnRpbnVlIHRvIHBhZ2UgcmVjbGFpbSBmb3JldmVy
-DQo+PiB3aGVuIGtzd2FwZCBzbGVlcHMgZm9yZXZlciB1bnRpbCBzb21lb25lIGxpa2Ugd2F0Y2hk
-b2cgZGV0ZWN0IGFuZA0KPj4gZmluYWxseSBraWxsIHRoZSBwcm9jZXNzLiBBcyBkZXNjcmliZWQg
-aW46DQo+PiBodHRwOi8vdGhyZWFkLmdtYW5lLm9yZy9nbWFuZS5saW51eC5rZXJuZWwubW0vMTAz
-NzM3DQo+Pg0KPj4gV2UgY2FuJ3QgdHVybiBvbiB6b25lLT5hbGxfdW5yZWNsYWltYWJsZSBmcm9t
-IGRpcmVjdCByZWNsYWltIHBhdGgNCj4+IGJlY2F1c2UgZGlyZWN0IHJlY2xhaW0gcGF0aCBkb24n
-dCB0YWtlIGFueSBsb2NrIGFuZCB0aGlzIHdheSBpcyByYWN5Lg0KPg0KPkkgZG9uJ3Qgc2VlIHRo
-YXQgdGhpcyBpcyBjb3JyZWN0LiAgUGFnZSByZWNsYWltIGRvZXMgcmFjeSB0aGluZ3MgcXVpdGUg
-b2Z0ZW4sIGluIHRoZSBrbm93bGVkZ2UgdGhhdCB0aGUgZWZmZWN0cyBvZiBhIHJhY2UgYXJlDQo+
-cmVjb3ZlcmFibGUgYW5kIHNtYWxsLg0KTWF5YmUgS29zYWtpIGNhbiBnaXZlIHNvbWUgY29tbWVu
-dHMsIEkgdGhpbmsgdGhlIG1haW5seSByZWFzb24gbWF5YmUgZGlyZWN0IHJlY2xhaW0gZG9uJ3Qg
-dGFrZSBhbnkgbG9jay4NCj4NCj4+IFRodXMgdGhpcyBwYXRjaCByZW1vdmVzIHpvbmUtPmFsbF91
-bnJlY2xhaW1hYmxlIGZpZWxkIGNvbXBsZXRlbHkgYW5kDQo+PiByZWNhbGN1bGF0ZXMgem9uZSBy
-ZWNsYWltYWJsZSBzdGF0ZSBldmVyeSB0aW1lLg0KPj4NCj4+IE5vdGU6IHdlIGNhbid0IHRha2Ug
-dGhlIGlkZWEgdGhhdCBkaXJlY3QtcmVjbGFpbSBzZWUNCj4+IHpvbmUtPnBhZ2VzX3NjYW5uZWQg
-ZGlyZWN0bHkgYW5kIGtzd2FwZCBjb250aW51ZSB0byB1c2UNCj4+IHpvbmUtPmFsbF91bnJlY2xh
-aW1hYmxlLiBCZWNhdXNlLCBpdCBpcyByYWN5LiBjb21taXQgOTI5YmVhN2M3MQ0KPj4gKHZtc2Nh
-bjogYWxsX3VucmVjbGFpbWFibGUoKSB1c2UNCj4+IHpvbmUtPmFsbF91bnJlY2xhaW1hYmxlIGFz
-IGEgbmFtZSkgZGVzY3JpYmVzIHRoZSBkZXRhaWwuDQo+Pg0KPj4gQEAgLTk5LDQgKzEwMCwyMyBA
-QCBzdGF0aWMgX19hbHdheXNfaW5saW5lIGVudW0gbHJ1X2xpc3QgcGFnZV9scnUoc3RydWN0IHBh
-Z2UgKnBhZ2UpDQo+PiAgCXJldHVybiBscnU7DQo+PiAgfQ0KPj4NCj4+ICtzdGF0aWMgaW5saW5l
-IHVuc2lnbmVkIGxvbmcgem9uZV9yZWNsYWltYWJsZV9wYWdlcyhzdHJ1Y3Qgem9uZSAqem9uZSkN
-Cj4+ICt7DQo+PiArCWludCBucjsNCj4+ICsNCj4+ICsJbnIgPSB6b25lX3BhZ2Vfc3RhdGUoem9u
-ZSwgTlJfQUNUSVZFX0ZJTEUpICsNCj4+ICsJICAgICB6b25lX3BhZ2Vfc3RhdGUoem9uZSwgTlJf
-SU5BQ1RJVkVfRklMRSk7DQo+PiArDQo+PiArCWlmIChnZXRfbnJfc3dhcF9wYWdlcygpID4gMCkN
-Cj4+ICsJCW5yICs9IHpvbmVfcGFnZV9zdGF0ZSh6b25lLCBOUl9BQ1RJVkVfQU5PTikgKw0KPj4g
-KwkJICAgICAgem9uZV9wYWdlX3N0YXRlKHpvbmUsIE5SX0lOQUNUSVZFX0FOT04pOw0KPj4gKw0K
-Pj4gKwlyZXR1cm4gbnI7DQo+PiArfQ0KPj4gKw0KPj4gK3N0YXRpYyBpbmxpbmUgYm9vbCB6b25l
-X3JlY2xhaW1hYmxlKHN0cnVjdCB6b25lICp6b25lKSB7DQo+PiArCXJldHVybiB6b25lLT5wYWdl
-c19zY2FubmVkIDwgem9uZV9yZWNsYWltYWJsZV9wYWdlcyh6b25lKSAqIDY7IH0NCj4NCj5Jbmxp
-bmluZyBpcyBvZnRlbiB3cm9uZy4gIFVuaW5saW5pbmcganVzdCB0aGVzZSB0d28gZnVudGlvbnMg
-c2F2ZXMgc2V2ZXJhbCBodW5kcmVkIGJ5dGVzIG9mIHRleHQgaW4gbW0vLiAgVGhhdCdzIHRocmVl
-IG9mIHNvbWVvbmUNCj5lbHNlJ3MgY2FjaGVsaW5lcyB3aGljaCB3ZSBkaWRuJ3QgbmVlZCB0byBl
-dmljdC4NCldvdWxkIHlvdSBleHBsYWluIG1vcmUgYWJvdXQgd2h5ICJpbmxpbmUgaXMgb2Z0ZW4g
-d3JvbmciPyBUaGFua3MgYSBsb3QhDQo+DQo+QW5kIHdoYXQgdGhlIGhlY2sgaXMgdXAgd2l0aCB0
-aGF0IG1hZ2ljYWwgIjYiPyAgV2h5IG5vdCAiNyI/ICAiNDIiPw0KVGhpcyBtYWdpY2FsIG51bWJl
-ciAiNiIgd2FzIGZpcnN0IGRlZmluZWQgaW4gY29tbWl0IGQxOTA4MzYyYWUwLg0KSGksIE1pbmNo
-YW4sIGRvIHlvdSByZW1lbWJlciB3aHkgd2Ugc2V0IHRoaXMgbnVtYmVyPyBUaGFua3MhDQo+DQo+
-QXQgYSBtaW5pbXVtIGl0IG5lZWRzIGV4dGVuc2l2ZSBkb2N1bWVudGF0aW9uIHdoaWNoIGRlc2Ny
-aWJlcyB3aHkgIjYiDQo+aXMgdGhlIG9wdGltdW0gdmFsdWUgZm9yIGFsbCBtYWNoaW5lcyBhbmQg
-d29ya2xvYWRzIChnb29kIGx1Y2sgd2l0aA0KPnRoYXQpIGFuZCB3aGljaCBkZXNjcmliZXMgdGhl
-IGVmZmVjdHMgb2YgYWx0ZXJpbmcgdGhpcyBudW1iZXIgYW5kIHdoaWNoIGhlbHBzIHBlb3BsZSB1
-bmRlcnN0YW5kIHdoeSB3ZSBkaWRuJ3QgbWFrZSBpdCBhIHJ1bnRpbWUNCj50dW5hYmxlLg0KPg0K
-PkknbGwgbWVyZ2UgaXQgZm9yIHNvbWUgdGVzdGluZyAodGhlIGxhY2sgb2YgVGVzdGVkLWJ5J3Mg
-aXMgY29uc3BpY3VvdXMpIGJ1dCBJIGRvbid0IHdhbnQgdG8gcHV0IHRoYXQgcmFuZG9tICI2IiBp
-bnRvIExpbnV4IGNvcmUgTU0gaW4NCj5pdHMgY3VycmVudCBzdGF0ZS4NCkkgZGlkIHRoZSB0ZXN0
-IGluIGtlcm5lbCB2My40LCBpdCB3b3JrcyBmaW5lIGFuZCBzb2x2ZSB0aGUgZW5kbGVzcyBsb29w
-IGluIGRpcmVjdCByZWNsYWltIHBhdGgsIGJ1dCBub3QgdGVzdCB3aXRoIGxhdGVzdCBrZXJuZWwg
-dmVyc2lvbi4NCj4NCg==
+Currently, we get the vm_swappiness via vmscan_swappiness(), which
+calls global_reclaim() to check if this is a global reclaim. 
+
+Besides, the current implementation of global_reclaim() always returns 
+true for the !CONFIG_MEGCG case, and judges the other case by checking 
+whether scan_control->target_mem_cgroup is null or not.
+
+Thus, we could just use two versions of vmscan_swappiness() based on 
+MEMCG Kconfig , to eliminate the unnecessary run-time cost for 
+the !CONFIG_MEMCG at all, and to squash all memcg-related checking
+into the CONFIG_MEMCG version.
+
+Signed-off-by: Zhan Jianyu <nasa4836@gmail.com>
+---
+mm/memcontrol.c |    6 +++++-
+mm/vmscan.c     |    9 +++++++--
+2 files changed, 12 insertions(+), 3 deletions(-)
+
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index c5792a5..1290320 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1525,9 +1525,13 @@ static unsigned long mem_cgroup_margin(struct mem_cgroup *memcg)
+ 
+ int mem_cgroup_swappiness(struct mem_cgroup *memcg)
+ {
+-	struct cgroup *cgrp = memcg->css.cgroup;
++	struct cgroup *cgrp;
++
++	if (!memcg)
++		return vm_swappiness;
+ 
+ 	/* root ? */
++	cgrp = memcg->css.cgroup;
+ 	if (cgrp->parent == NULL)
+ 		return vm_swappiness;
+ 
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 2cff0d4..1de652d 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1742,12 +1742,17 @@ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
+ 	return shrink_inactive_list(nr_to_scan, lruvec, sc, lru);
+ }
+ 
++#ifdef CONFIG_MEMCG
+ static int vmscan_swappiness(struct scan_control *sc)
+ {
+-	if (global_reclaim(sc))
+-		return vm_swappiness;
+ 	return mem_cgroup_swappiness(sc->target_mem_cgroup);
+ }
++#else
++static int vmscan_swappiness(struct scan_control *sc)
++{
++	return vm_swappiness;
++}
++#endif
+ 
+ enum scan_balance {
+ 	SCAN_EQUAL,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
