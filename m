@@ -1,13 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id AE89C6B0034
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 13:53:01 -0400 (EDT)
-Date: Thu, 22 Aug 2013 17:53:00 +0000
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id D39D06B0032
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 14:00:57 -0400 (EDT)
+Date: Thu, 22 Aug 2013 18:00:56 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 05/16] slab: remove cachep in struct slab_rcu
-In-Reply-To: <1377161065-30552-6-git-send-email-iamjoonsoo.kim@lge.com>
-Message-ID: <00000140a72870a6-f7c87696-ecbc-432c-9f41-93f414c0c623-000000@email.amazonses.com>
-References: <1377161065-30552-1-git-send-email-iamjoonsoo.kim@lge.com> <1377161065-30552-6-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 09/16] slab: use __GFP_COMP flag for allocating slab
+ pages
+In-Reply-To: <1377161065-30552-10-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <00000140a72fb556-3269e81c-8829-4c26-a57f-c1bb7e40977b-000000@email.amazonses.com>
+References: <1377161065-30552-1-git-send-email-iamjoonsoo.kim@lge.com> <1377161065-30552-10-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,10 +18,31 @@ Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
 On Thu, 22 Aug 2013, Joonsoo Kim wrote:
 
-> We can get cachep using page in struct slab_rcu, so remove it.
+> If we use 'struct page' of first page as 'struct slab', there is no
+> advantage not to use __GFP_COMP. So use __GFP_COMP flag for all the cases.
 
-Ok but this means that we need to touch struct page. Additional cacheline
-in cache footprint.
+Ok that brings it in line with SLUB and SLOB.
+
+> @@ -2717,17 +2701,8 @@ static void slab_put_obj(struct kmem_cache *cachep, struct slab *slabp,
+>  static void slab_map_pages(struct kmem_cache *cache, struct slab *slab,
+>  			   struct page *page)
+>  {
+> -	int nr_pages;
+> -
+> -	nr_pages = 1;
+> -	if (likely(!PageCompound(page)))
+> -		nr_pages <<= cache->gfporder;
+> -
+> -	do {
+> -		page->slab_cache = cache;
+> -		page->slab_page = slab;
+> -		page++;
+> -	} while (--nr_pages);
+> +	page->slab_cache = cache;
+> +	page->slab_page = slab;
+>  }
+
+And saves some processing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
