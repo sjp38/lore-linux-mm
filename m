@@ -1,59 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id E78A96B0070
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 05:25:35 -0400 (EDT)
-Message-ID: <5215D90B.2050008@redhat.com>
-Date: Thu, 22 Aug 2013 11:25:31 +0200
-From: Jerome Marchand <jmarchan@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] mm: add overcommit_kbytes sysctl variable
-References: <1376925478-15506-1-git-send-email-jmarchan@redhat.com> <1376925478-15506-2-git-send-email-jmarchan@redhat.com> <52124DE7.8070502@intel.com> <5214DB1B.6070803@redhat.com> <5214E96B.3090009@intel.com>
-In-Reply-To: <5214E96B.3090009@intel.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 34E026B0070
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 05:28:39 -0400 (EDT)
+Subject: Re: [PATCH] mm, fs: avoid page allocation beyond i_size on read
+From: Steven Whitehouse <swhiteho@redhat.com>
+In-Reply-To: <20130821135821.fc8f5a2551a28c9ce9c4b049@linux-foundation.org>
+References: 
+	 <1377099441-2224-1-git-send-email-kirill.shutemov@linux.intel.com>
+	 <1377100012.2738.28.camel@menhir>
+	 <20130821160817.940D3E0090@blue.fi.intel.com>
+	 <1377103332.2738.37.camel@menhir>
+	 <20130821135821.fc8f5a2551a28c9ce9c4b049@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 22 Aug 2013 10:28:45 +0100
+Message-ID: <1377163725.2720.18.camel@menhir>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Jan Kara <jack@suse.cz>, Al Viro <viro@zeniv.linux.org.uk>, NeilBrown <neilb@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 08/21/2013 06:23 PM, Dave Hansen wrote:
-> On 08/21/2013 08:22 AM, Jerome Marchand wrote:
->>>> Instead of introducing yet another tunable, why don't we just make the
->>>> ratio that comes in from the user more fine-grained?
->>>>
->>>> 	sysctl overcommit_ratio=0.2
->>>>
->>>> We change the internal 'sysctl_overcommit_ratio' to store tenths or
->>>> hundreths of a percent (or whatever), then parse the input as two
->>>> integers.  I don't think we need fully correct floating point parsing
->>>> and rounding here, so it shouldn't be too much of a chore.  It'd
->>>> probably end up being less code than you have as it stands.
->>>>
->> Now that I think about it, that could break user space. Sure write access
->> wouldn't be a problem (one can still write a plain integer), but a script
->> that reads a fractional value when it expects an integer might not be able
->> to cope with it.
+Hi,
+
+On Wed, 2013-08-21 at 13:58 -0700, Andrew Morton wrote:
+> On Wed, 21 Aug 2013 17:42:12 +0100 Steven Whitehouse <swhiteho@redhat.com> wrote:
 > 
-> You're right.  Something doing FOO=$(cat overcommit_ratio) and then
-> trying do do arithmetic would just fail loudly.  But, it would probably
-> fail silently if we create another tunable that all of a sudden returns
-> 0 (when the kernel is not _behaving_ like it is set to 0).
+> > > I don't think the change is harmful. The worst case scenario is race with
+> > > write or truncate, but it's valid to return EOF in this case.
+> > > 
+> > > What scenario do you have in mind?
+> > > 
+> > 
+> > 1. File open on node A
+> > 2. Someone updates it on node B by extending the file
+> > 3. Someone reads the file on node A beyond end of original file size,
+> > but within end of new file size as updated by node B. Without the patch
+> > this works, with it, it will fail. The reason being the i_size would not
+> > be up to date until after readpage(s) has been called.
+> > 
+> > I think this is likely to be an issue for any distributed fs using
+> > do_generic_file_read(), although it would certainly affect GFS2, since
+> > the locking is done at page cache level,
 > 
-> I'm not sure there's a good way out of this without breakage (or at
-> least confusing) of _some_ old scripts/programs.  Either way has ups and
-> downs.
+> Boy, that's rather subtle.  I'm surprised that the generic filemap.c
+> stuff works at all in that sort of scenario.
 > 
-> The existing dirty_ratio/bytes stuff just annoys me because I end up
-> having to check two places whenever I go looking for it.
+> Can we put the i_size check down in the no_cached_page block?  afaict
+> that will solve the problem without breaking GFS2 and is more
+> efficient?
 > 
 
-Right. Then we could just use some overcommit_fine_ratio internally and
-overcommit_ratio would show and set a rounded value. I doubt that a script
-that reads 80% would notice the difference if it is actually 79.5%.
+Well I think is even more subtle, since it relies on ->readpages
+updating the file size, even if it has failed to actually read the
+required pages :-) Having said that, we do rely on ->readpages updating
+the inode size elsewhere in this function, as per the block comment
+immediately following the page_ok label. 
 
-We could also use overcommit_kbytes internally, but then overcommit_ratio
-would fluctuate if RAM ram is added/removed (e.g. memory hotplug or baloon
-driver). That might be a problem.
+This should work for GFS2 though, and I did check OCFS2 and I think it
+should work for them too,
+
+Steve.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
