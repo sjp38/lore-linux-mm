@@ -1,120 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id A866C6B0034
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 05:46:33 -0400 (EDT)
-Received: by mail-bk0-f41.google.com with SMTP id na10so587048bkb.14
-        for <linux-mm@kvack.org>; Thu, 22 Aug 2013 02:46:31 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20130804100855.GD24005@dhcp22.suse.cz>
-References: <1375357402-9811-1-git-send-email-handai.szj@taobao.com>
-	<1375358051-10306-1-git-send-email-handai.szj@taobao.com>
-	<20130801145302.GJ5198@dhcp22.suse.cz>
-	<CAFj3OHV-VCKJfe6bv4UMvv+uj4LELDXsieRZFJD06Yrdyy=XxA@mail.gmail.com>
-	<20130804100855.GD24005@dhcp22.suse.cz>
-Date: Thu, 22 Aug 2013 17:46:31 +0800
-Message-ID: <CAFj3OHXy5XkwhxKk=WNywp2pq__FD7BrSQwFkp+NZj15_k6BEQ@mail.gmail.com>
-Subject: Fwd: [PATCH V5 5/8] memcg: add per cgroup writeback pages accounting
-From: Sha Zhengju <handai.szj@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 871826B0034
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 05:48:46 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Thu, 22 Aug 2013 15:12:44 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 062CB1258053
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 15:18:23 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7M9o9PB38666260
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 15:20:10 +0530
+Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7M9mYKK019380
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 15:18:34 +0530
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: [PATCH 1/6] mm/hwpoison: fix lose PG_dirty flag for errors on mlocked pages
+Date: Thu, 22 Aug 2013 17:48:22 +0800
+Message-Id: <1377164907-24801-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Sha Zhengju <handai.szj@taobao.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Tony Luck <tony.luck@intel.com>, gong.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Hi Andrew,
+memory_failure() store the page flag of the error page before doing unmap, 
+and (only) if the first check with page flags at the time decided the error 
+page is unknown, it do the second check with the stored page flag since 
+memory_failure() does unmapping of the error pages before doing page_action(). 
+This unmapping changes the page state, especially page_remove_rmap() (called 
+from try_to_unmap_one()) clears PG_mlocked, so page_action() can't catch 
+mlocked pages after that. 
 
-After several rounds of review, parts of the memcg page accounting
-patchset is ready (leaving memcg dirty page accounting under more
-review):
+However, memory_failure() can't handle memory errors on dirty mlocked pages 
+correctly. try_to_unmap_one will move the dirty bit from pte to the physical 
+page, the second check lose it since it check the stored page flag. This patch 
+fix it by restore PG_dirty flag to stored page flag if the page is dirty.
 
-  1/8 memcg: remove MEMCG_NR_FILE_MAPPED
-  2/8 ceph: vfs __set_page_dirty_nobuffers interface instead of doing
-it inside filesystem
-  3/8 memcg: check for proper lock held in mem_cgroup_update_page_stat
-  5/8 memcg: add per cgroup writeback pages accounting
-  8/8 memcg: Document cgroup dirty/writeback memory statistics
+Testcase:
 
-But the 2/8 ceph one has been improved again and will be merged in
-ceph tree, so only the other 4 patches need to be added to -mm tree.
-I've moved the 5/8 writeback one up the stack and updated the 8/8 to
-only document writeback changes. Could you please merge them earlier?
-I'll post these updated patches soon. :)
+#define _GNU_SOURCE
+#include <stdlib.h>
+#include <stdio.h>
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <errno.h>
 
-Thank you!
+#define PAGES_TO_TEST 2
+#define PAGE_SIZE	4096
 
+int main(void)
+{
+	char *mem;
+	int i;
 
----------- Forwarded message ----------
-From: Michal Hocko <mhocko@suse.cz>
-Date: Sun, Aug 4, 2013 at 6:08 PM
-Subject: Re: [PATCH V5 5/8] memcg: add per cgroup writeback pages accounting
-To: Sha Zhengju <handai.szj@gmail.com>
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
-"linux-mm@kvack.org" <linux-mm@kvack.org>, Cgroups
-<cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com>, Glauber Costa <glommer@gmail.com>,
-Greg Thelen <gthelen@google.com>, Wu Fengguang
-<fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>,
-Sha Zhengju <handai.szj@taobao.com>
+	mem = mmap(NULL, PAGES_TO_TEST * PAGE_SIZE,
+			PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_LOCKED, 0, 0);
 
+	for (i = 0; i < PAGES_TO_TEST; i++)
+		mem[i * PAGE_SIZE] = 'a';
 
-On Sat 03-08-13 17:25:01, Sha Zhengju wrote:
-> On Thu, Aug 1, 2013 at 10:53 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> > On Thu 01-08-13 19:54:11, Sha Zhengju wrote:
-> >> From: Sha Zhengju <handai.szj@taobao.com>
-> >>
-> >> Similar to dirty page, we add per cgroup writeback pages accounting. The lock
-> >> rule still is:
-> >>         mem_cgroup_begin_update_page_stat()
-> >>         modify page WRITEBACK stat
-> >>         mem_cgroup_update_page_stat()
-> >>         mem_cgroup_end_update_page_stat()
-> >>
-> >> There're two writeback interfaces to modify: test_{clear/set}_page_writeback().
-> >> Lock order:
-> >>       --> memcg->move_lock
-> >>         --> mapping->tree_lock
-> >>
-> >> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
-> >
-> > Looks good to me. Maybe I would suggest moving this patch up the stack
-> > so that it might get merged earlier as it is simpler than dirty pages
-> > accounting. Unless you insist on having the full series merged at once.
->
-> I think the following three patches can be merged earlier:
->       1/8 memcg: remove MEMCG_NR_FILE_MAPPED
->       3/8 memcg: check for proper lock held in mem_cgroup_update_page_stat
->       5/8 memcg: add per cgroup writeback pages accounting
->
-> Do I need to resent them again for you or they're enough?
+	if (madvise(mem, PAGES_TO_TEST * PAGE_SIZE, MADV_HWPOISON) == -1)
+		return -1;
 
-This is a question for Andrew. I would go with them as they are.
+	return 0;
+}
 
-> One more word, since dirty accounting is essential to future memcg
-> dirty page throttling and it is not an optional feature now, I suspect
-> whether we can merge the following two as well and leave the overhead
-> optimization a separate series.  :p
+Before patch:
 
-I wouldn't hurry it. We need numbers for serious testing to see the
-overhead. It is still just a small step towards dirty throttling.
+[  912.839247] Injecting memory failure for page 7dfb8 at 7f6b4e37b000
+[  912.839257] MCE 0x7dfb8: clean mlocked LRU page recovery: Recovered
+[  912.845550] MCE 0x7dfb8: clean mlocked LRU page still referenced by 1 users
+[  912.852586] Injecting memory failure for page 7e6aa at 7f6b4e37c000
+[  912.852594] MCE 0x7e6aa: clean mlocked LRU page recovery: Recovered
+[  912.858936] MCE 0x7e6aa: clean mlocked LRU page still referenced by 1 users
 
->       4/5 memcg: add per cgroup dirty pages accounting
->       8/8 memcg: Document cgroup dirty/writeback memory statistics
->
-> The 2/8 ceph one still need more improvement, I'll separate it next version.
->
-> >
-> > Acked-by: Michal Hocko <mhocko@suse.cz>
->
-> Thank you.
-[...]
---
-Michal Hocko
-SUSE Labs
+After patch:
 
+[  163.590225] Injecting memory failure for page 91bc2f at 7f9f5b0e5000
+[  163.590264] MCE 0x91bc2f: dirty mlocked LRU page recovery: Recovered
+[  163.596680] MCE 0x91bc2f: dirty mlocked LRU page still referenced by 1 users
+[  163.603831] Injecting memory failure for page 91cdd3 at 7f9f5b0e6000
+[  163.603852] MCE 0x91cdd3: dirty mlocked LRU page recovery: Recovered
+[  163.610305] MCE 0x91cdd3: dirty mlocked LRU page still referenced by 1 users
 
+Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+---
+ mm/memory-failure.c |    3 +++
+ 1 files changed, 3 insertions(+), 0 deletions(-)
+
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index bee58d8..e156084 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -1206,6 +1206,9 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
+ 	for (ps = error_states;; ps++)
+ 		if ((p->flags & ps->mask) == ps->res)
+ 			break;
++
++	page_flags |= (p->flags & (1UL << PG_dirty));
++
+ 	if (!ps->mask)
+ 		for (ps = error_states;; ps++)
+ 			if ((page_flags & ps->mask) == ps->res)
 -- 
-Thanks,
-Sha
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
