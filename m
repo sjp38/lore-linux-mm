@@ -1,83 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 871776B0062
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 04:44:25 -0400 (EDT)
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH 16/16] slab: rename slab_bufctl to slab_freelist
-Date: Thu, 22 Aug 2013 17:44:25 +0900
-Message-Id: <1377161065-30552-17-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1377161065-30552-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1377161065-30552-1-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 325C46B0071
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 04:44:53 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Thu, 22 Aug 2013 18:33:34 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 075103578053
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 18:44:45 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7M8Sj2Q19464204
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 18:28:46 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7M8ih8T024792
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 18:44:44 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 12/20] mm, hugetlb: remove vma_has_reserves()
+In-Reply-To: <1376040398-11212-13-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com> <1376040398-11212-13-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Thu, 22 Aug 2013 14:14:38 +0530
+Message-ID: <87siy215e1.fsf@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
 
-Now, bufctl is not proper name to this array.
-So change it.
+Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
 
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> vma_has_reserves() can be substituted by using return value of
+> vma_needs_reservation(). If chg returned by vma_needs_reservation()
+> is 0, it means that vma has reserves. Otherwise, it means that vma don't
+> have reserves and need a hugepage outside of reserve pool. This definition
+> is perfectly same as vma_has_reserves(), so remove vma_has_reserves().
+>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 6abc069..e8ec4c5 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -2538,7 +2538,7 @@ static struct freelist *alloc_slabmgmt(struct kmem_cache *cachep,
- 	return freelist;
- }
- 
--static inline unsigned int *slab_bufctl(struct page *page)
-+static inline unsigned int *slab_freelist(struct page *page)
- {
- 	return (unsigned int *)(page->freelist);
- }
-@@ -2585,7 +2585,7 @@ static void cache_init_objs(struct kmem_cache *cachep,
- 		if (cachep->ctor)
- 			cachep->ctor(objp);
- #endif
--		slab_bufctl(page)[i] = i;
-+		slab_freelist(page)[i] = i;
- 	}
- }
- 
-@@ -2604,7 +2604,7 @@ static void *slab_get_obj(struct kmem_cache *cachep, struct page *page,
- {
- 	void *objp;
- 
--	objp = index_to_obj(cachep, page, slab_bufctl(page)[page->active]);
-+	objp = index_to_obj(cachep, page, slab_freelist(page)[page->active]);
- 	page->active++;
- #if DEBUG
- 	WARN_ON(page_to_nid(virt_to_page(objp)) != nodeid);
-@@ -2625,7 +2625,7 @@ static void slab_put_obj(struct kmem_cache *cachep, struct page *page,
- 
- 	/* Verify double free bug */
- 	for (i = page->active; i < cachep->num; i++) {
--		if (slab_bufctl(page)[i] == objnr) {
-+		if (slab_freelist(page)[i] == objnr) {
- 			printk(KERN_ERR "slab: double free detected in cache "
- 					"'%s', objp %p\n", cachep->name, objp);
- 			BUG();
-@@ -2633,7 +2633,7 @@ static void slab_put_obj(struct kmem_cache *cachep, struct page *page,
- 	}
- #endif
- 	page->active--;
--	slab_bufctl(page)[page->active] = objnr;
-+	slab_freelist(page)[page->active] = objnr;
- }
- 
- /*
-@@ -4207,7 +4207,7 @@ static void handle_slab(unsigned long *n, struct kmem_cache *c,
- 
- 		for (j = page->active; j < c->num; j++) {
- 			/* Skip freed item */
--			if (slab_bufctl(page)[j] == i) {
-+			if (slab_freelist(page)[j] == i) {
- 				active = false;
- 				break;
- 			}
--- 
-1.7.9.5
+Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+
+>
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index e6c0c77..22ceb04 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -473,39 +473,6 @@ void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
+>  		vma->vm_private_data = (void *)0;
+>  }
+>
+> -/* Returns true if the VMA has associated reserve pages */
+> -static int vma_has_reserves(struct vm_area_struct *vma, long chg)
+> -{
+> -	if (vma->vm_flags & VM_NORESERVE) {
+> -		/*
+> -		 * This address is already reserved by other process(chg == 0),
+> -		 * so, we should decreament reserved count. Without
+> -		 * decreamenting, reserve count is remained after releasing
+> -		 * inode, because this allocated page will go into page cache
+> -		 * and is regarded as coming from reserved pool in releasing
+> -		 * step. Currently, we don't have any other solution to deal
+> -		 * with this situation properly, so add work-around here.
+> -		 */
+> -		if (vma->vm_flags & VM_MAYSHARE && chg == 0)
+> -			return 1;
+> -		else
+> -			return 0;
+> -	}
+> -
+> -	/* Shared mappings always use reserves */
+> -	if (vma->vm_flags & VM_MAYSHARE)
+> -		return 1;
+> -
+> -	/*
+> -	 * Only the process that called mmap() has reserves for
+> -	 * private mappings.
+> -	 */
+> -	if (is_vma_resv_set(vma, HPAGE_RESV_OWNER))
+> -		return 1;
+> -
+> -	return 0;
+> -}
+> -
+>  static void copy_gigantic_page(struct page *dst, struct page *src)
+>  {
+>  	int i;
+> @@ -580,8 +547,7 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
+>  	 * have no page reserves. This check ensures that reservations are
+>  	 * not "stolen". The child may still get SIGKILLed
+>  	 */
+> -	if (!vma_has_reserves(vma, chg) &&
+> -			h->free_huge_pages - h->resv_huge_pages == 0)
+> +	if (chg && h->free_huge_pages - h->resv_huge_pages == 0)
+>  		return NULL;
+>
+>  	/* If reserves cannot be used, ensure enough pages are in the pool */
+> @@ -600,7 +566,7 @@ retry_cpuset:
+>  			if (page) {
+>  				if (avoid_reserve)
+>  					break;
+> -				if (!vma_has_reserves(vma, chg))
+> +				if (chg)
+>  					break;
+>
+>  				SetPagePrivate(page);
+
+Can you add a comment above both the place to explain why checking chg
+is good enough ?
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
