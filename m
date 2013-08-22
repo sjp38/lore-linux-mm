@@ -1,153 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 4B6FB6B0033
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 04:31:40 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 8C2853EE0BD
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 17:31:38 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7C05E45DE4D
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 17:31:38 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4D75F45DE50
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 17:31:38 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 38FCAE08002
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 17:31:38 +0900 (JST)
-Received: from g01jpfmpwkw03.exch.g01.fujitsu.local (g01jpfmpwkw03.exch.g01.fujitsu.local [10.0.193.57])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CC3A01DB8037
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 17:31:37 +0900 (JST)
-Message-ID: <5215CC40.5060406@jp.fujitsu.com>
-Date: Thu, 22 Aug 2013 17:30:56 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 7/7] drivers: base: refactor add_memory_section() to add_memory_block()
-References: <1377018783-26756-1-git-send-email-sjenning@linux.vnet.ibm.com> <1377018783-26756-7-git-send-email-sjenning@linux.vnet.ibm.com> <5215C9B3.4090608@jp.fujitsu.com>
-In-Reply-To: <5215C9B3.4090608@jp.fujitsu.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id CDE206B0034
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 04:44:19 -0400 (EDT)
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: [PATCH 01/16] slab: correct pfmemalloc check
+Date: Thu, 22 Aug 2013 17:44:10 +0900
+Message-Id: <1377161065-30552-2-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1377161065-30552-1-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1377161065-30552-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dave Hansen <dave@sr71.net>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Lai Jiangshan <laijs@cn.fujitsu.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Yinghai Lu <yinghai@kernel.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>
 
-(2013/08/22 17:20), Yasuaki Ishimatsu wrote:
-> (2013/08/21 2:13), Seth Jennings wrote:
->> Right now memory_dev_init() maintains the memory block pointer
->> between iterations of add_memory_section().  This is nasty.
->>
->> This patch refactors add_memory_section() to become add_memory_block().
->> The refactoring pulls the section scanning out of memory_dev_init()
->> and simplifies the signature.
->>
->> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
->> ---
->>    drivers/base/memory.c | 48 +++++++++++++++++++++---------------------------
->>    1 file changed, 21 insertions(+), 27 deletions(-)
->>
->> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
->> index 7d9d3bc..021283a 100644
->> --- a/drivers/base/memory.c
->> +++ b/drivers/base/memory.c
->> @@ -602,32 +602,31 @@ static int init_memory_block(struct memory_block **memory,
->>    	return ret;
->>    }
->>    
->> -static int add_memory_section(struct mem_section *section,
->> -			struct memory_block **mem_p)
->> +static int add_memory_block(int base_section_nr)
->>    {
->> -	struct memory_block *mem = NULL;
->> -	int scn_nr = __section_nr(section);
->> -	int ret = 0;
->> -
->> -	if (mem_p && *mem_p) {
->> -		if (scn_nr >= (*mem_p)->start_section_nr &&
->> -		    scn_nr <= (*mem_p)->end_section_nr) {
->> -			mem = *mem_p;
->> -		}
->> -	}
->> +	struct memory_block *mem;
->> +	int i, ret, section_count = 0, section_nr;
->>    
->> -	if (mem)
->> -		mem->section_count++;
->> -	else {
->> -		ret = init_memory_block(&mem, section, MEM_ONLINE);
->> -		/* store memory_block pointer for next loop */
->> -		if (!ret && mem_p)
->> -			*mem_p = mem;
->> +	for (i = base_section_nr;
->> +	     (i < base_section_nr + sections_per_block) && i < NR_MEM_SECTIONS;
->> +	     i++) {
->> +		if (!present_section_nr(i))
->> +			continue;
->> +		if (section_count == 0)
->> +			section_nr = i;
->> +		section_count++;
->>    	}
->>    
->> -	return ret;
->> +	if (section_count == 0)
->> +		return 0;
->> +	ret = init_memory_block(&mem, __nr_to_section(section_nr), MEM_ONLINE);
->> +	if (ret)
->> +		return ret;
->> +	mem->section_count = section_count;
->> +	return 0;
->>    }
->>    
->> +
->>    /*
->>     * need an interface for the VM to add new memory regions,
->>     * but without onlining it.
->> @@ -733,7 +732,6 @@ int __init memory_dev_init(void)
->>    	int ret;
->>    	int err;
->>    	unsigned long block_sz;
->> -	struct memory_block *mem = NULL;
->>    
->>    	ret = subsys_system_register(&memory_subsys, memory_root_attr_groups);
->>    	if (ret)
->> @@ -747,12 +745,8 @@ int __init memory_dev_init(void)
->>    	 * during boot and have been initialized
->>    	 */
->>    	mutex_lock(&mem_sysfs_mutex);
->> -	for (i = 0; i < NR_MEM_SECTIONS; i++) {
->> -		if (!present_section_nr(i))
->> -			continue;
->> -		/* don't need to reuse memory_block if only one per block */
->> -		err = add_memory_section(__nr_to_section(i),
->> -				 (sections_per_block == 1) ? NULL : &mem);
->> +	for (i = 0; i < NR_MEM_SECTIONS; i += sections_per_block) {
-> 
-> Why do you remove present_setcion_nr() check?
+We checked pfmemalloc by slab unit, not page unit. You can see this
+in is_slab_pfmemalloc(). So other pages don't need to be set/cleared
+pfmemalloc.
 
-Sorry for the noise. I understood.
-The check was moved into add_memory_section(). So it was removed.
+And, therefore we should check pfmemalloc in page flag of first page,
+but current implementation don't do that. virt_to_head_page(obj) just
+return 'struct page' of that object, not one of first page, since the SLAB
+don't use __GFP_COMP when CONFIG_MMU. To get 'struct page' of first page,
+we first get a slab and try to get it via virt_to_head_page(slab->s_mem).
 
-Thanks,
-Yasuaki Ishimatsu
+Cc: Mel Gorman <mgorman@suse.de>
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-> 
->> +		err = add_memory_block(i);
->>    		if (!ret)
-> 
-> Thanks,
-> Yasuaki Ishimatasu
-> 
->>    			ret = err;
->>    	}
->>
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-
+diff --git a/mm/slab.c b/mm/slab.c
+index 8ccd296..d9eae39 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -930,7 +930,8 @@ static void *__ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
+ {
+ 	if (unlikely(pfmemalloc_active)) {
+ 		/* Some pfmemalloc slabs exist, check if this is one */
+-		struct page *page = virt_to_head_page(objp);
++		struct slab *slabp = virt_to_slab(objp);
++		struct page *page = virt_to_head_page(slabp->s_mem);
+ 		if (PageSlabPfmemalloc(page))
+ 			set_obj_pfmemalloc(&objp);
+ 	}
+@@ -1770,7 +1771,7 @@ static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid)
+ 		__SetPageSlab(page + i);
+ 
+ 		if (page->pfmemalloc)
+-			SetPageSlabPfmemalloc(page + i);
++			SetPageSlabPfmemalloc(page);
+ 	}
+ 	memcg_bind_pages(cachep, cachep->gfporder);
+ 
+@@ -1803,9 +1804,10 @@ static void kmem_freepages(struct kmem_cache *cachep, void *addr)
+ 	else
+ 		sub_zone_page_state(page_zone(page),
+ 				NR_SLAB_UNRECLAIMABLE, nr_freed);
++
++	__ClearPageSlabPfmemalloc(page);
+ 	while (i--) {
+ 		BUG_ON(!PageSlab(page));
+-		__ClearPageSlabPfmemalloc(page);
+ 		__ClearPageSlab(page);
+ 		page++;
+ 	}
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
