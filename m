@@ -1,96 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 230606B0034
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 11:53:13 -0400 (EDT)
-Date: Thu, 22 Aug 2013 11:52:52 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1377186772-rb1um2cz-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1377164907-24801-2-git-send-email-liwanp@linux.vnet.ibm.com>
-References: <1377164907-24801-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1377164907-24801-2-git-send-email-liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 2/6] mm/hwpoison: don't need to hold compound lock for
- hugetlbfs page
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 5DB796B0033
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 11:53:38 -0400 (EDT)
+Message-ID: <1377186729.10300.643.camel@misato.fc.hp.com>
+Subject: Re: [PATCH 0/8] x86, acpi: Move acpi_initrd_override() earlier.
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Thu, 22 Aug 2013 09:52:09 -0600
+In-Reply-To: <20130822033234.GA2413@htj.dyndns.org>
+References: <1377080143-28455-1-git-send-email-tangchen@cn.fujitsu.com>
+	 <20130821130647.GB19286@mtj.dyndns.org> <5214D60A.2090309@gmail.com>
+	 <20130821153639.GA17432@htj.dyndns.org>
+	 <1377113503.10300.492.camel@misato.fc.hp.com>
+	 <20130821195410.GA2436@htj.dyndns.org>
+	 <1377116968.10300.514.camel@misato.fc.hp.com>
+	 <20130821204041.GC2436@htj.dyndns.org>
+	 <1377124595.10300.594.camel@misato.fc.hp.com>
+	 <20130822033234.GA2413@htj.dyndns.org>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Tony Luck <tony.luck@intel.com>, gong.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Zhang Yanfei <zhangyanfei.yes@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, konrad.wilk@oracle.com, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-On Thu, Aug 22, 2013 at 05:48:23PM +0800, Wanpeng Li wrote:
-> compound lock is introduced by commit e9da73d67("thp: compound_lock."), 
-> it is used to serialize put_page against __split_huge_page_refcount(). 
-> In addition, transparent hugepages will be splitted in hwpoison handler 
-> and just one subpage will be poisoned. There is unnecessary to hold 
-> compound lock for hugetlbfs page. This patch replace compound_trans_order 
-> by compond_order in the place where the page is hugetlbfs page.
+Hello Tejun,
+
+On Wed, 2013-08-21 at 23:32 -0400, Tejun Heo wrote:
+> On Wed, Aug 21, 2013 at 04:36:35PM -0600, Toshi Kani wrote:
+> > I agree that ACPI is rather complicated stuff.  But in my experience,
+> > the majority complication comes from ACPI namespace and methods, not
+> > from ACPI tables.  Do you really think ACPI table init is that risky?  I
+> > consider ACPI tables are part of the minimum config info, esp. for
+> > legacy-free platforms.
 > 
-> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-> ---
->  mm/memory-failure.c | 10 +++++-----
->  1 file changed, 5 insertions(+), 5 deletions(-)
+> It's just that we're talking about the very first stage of boot.  We
+> really don't do much there and pulling in ACPI code into that stage is
+> a lot by comparison.  If that's gonna happen, it needs pretty strong
+> justification.
+
+It moves up the ACPI table init code, which itself is simple.  And ACPI
+tables are defined to be pursed at early boot-time, which is why they
+exist in addition to ACPI namespace/methods.  They are similar to EFI
+memory table.  Firmware publishes tables in one way or the other.
+
+I understand that you are concerned about stability of the ACPI stuff,
+which I think is a valid point, but most of (if not all) of the
+ACPI-related issues come from ACPI namespace/methods, which is a very
+different thing.  Please do not mix up those two.  The ACPI
+namespace/methods stuff remains the same and continues to be initialized
+at very late in the boot sequence.
+
+What's making the patchset complicated is acpi_initrd_override(), which
+is intended for developers and allows overwriting ACPI bits at their own
+risk.  This feature won't be used by regular users. 
+
+> > earlyprintk is just another example to this SRAT issue.  The local page
+> > table is yet another example.  My hope here is for us to be able to
+> > utilize ACPI tables properly without hitting this kind of ordering
+> > issues again and again, which requires considerable time & effort to
+> > address.
 > 
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index 2c13aa7..5092e06 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -206,7 +206,7 @@ static int kill_proc(struct task_struct *t, unsigned long addr, int trapno,
->  #ifdef __ARCH_SI_TRAPNO
->  	si.si_trapno = trapno;
->  #endif
-> -	si.si_addr_lsb = compound_trans_order(compound_head(page)) + PAGE_SHIFT;
-> +	si.si_addr_lsb = compound_order(compound_head(page)) + PAGE_SHIFT;
->  
->  	if ((flags & MF_ACTION_REQUIRED) && t == current) {
->  		si.si_code = BUS_MCEERR_AR;
-> @@ -983,7 +983,7 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
->  static void set_page_hwpoison_huge_page(struct page *hpage)
->  {
->  	int i;
-> -	int nr_pages = 1 << compound_trans_order(hpage);
-> +	int nr_pages = 1 << compound_order(hpage);
->  	for (i = 0; i < nr_pages; i++)
->  		SetPageHWPoison(hpage + i);
->  }
-> @@ -991,7 +991,7 @@ static void set_page_hwpoison_huge_page(struct page *hpage)
->  static void clear_page_hwpoison_huge_page(struct page *hpage)
->  {
->  	int i;
-> -	int nr_pages = 1 << compound_trans_order(hpage);
-> +	int nr_pages = 1 << compound_order(hpage);
->  	for (i = 0; i < nr_pages; i++)
->  		ClearPageHWPoison(hpage + i);
->  }
-> @@ -1491,7 +1491,7 @@ static int soft_offline_huge_page(struct page *page, int flags)
->  	} else {
->  		set_page_hwpoison_huge_page(hpage);
->  		dequeue_hwpoisoned_huge_page(hpage);
-> -		atomic_long_add(1 << compound_trans_order(hpage),
-> +		atomic_long_add(1 << compound_order(hpage),
->  				&num_poisoned_pages);
->  	}
->  	return ret;
-> @@ -1551,7 +1551,7 @@ int soft_offline_page(struct page *page, int flags)
->  		if (PageHuge(page)) {
->  			set_page_hwpoison_huge_page(hpage);
->  			dequeue_hwpoisoned_huge_page(hpage);
-> -			atomic_long_add(1 << compound_trans_order(hpage),
-> +			atomic_long_add(1 << compound_order(hpage),
->  					&num_poisoned_pages);
->  		} else {
->  			SetPageHWPoison(page);
+> So, the two things brought up at this point are early parsing of SRAT,
+> which can't really solve the problem at hand anyway, 
 
-We have one more compound_trans_order() in unpoison_memory(), so could you
-replace that too?
+If you are referring the issue of kernel image location, it is a
+limitation in the current implementation, not a technical limitation.  I
+know other OS that supports movable memory and puts the kernel image
+into a movable memory with SRAT by changing the bootloader.
 
-With that change ...
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Also, how do you support local page tables without pursing SRAT early?
+
+> and earlyprintk
+> which should be implemented in minimal way which is not activated
+> unless specifically enabled with earlyprintk boot param.  Neither
+> seems to justify pulling in full ACPI into early boot, right?
+
+Initializing page tables on large systems may take a long time, and I do
+think that earlyprink needs to be available before that point.
 
 Thanks,
-Naoya Horiguchi
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
