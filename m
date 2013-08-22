@@ -1,175 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 23CE76B0034
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 05:50:50 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id ld10so1979326pab.36
-        for <linux-mm@kvack.org>; Thu, 22 Aug 2013 02:50:49 -0700 (PDT)
-From: Sha Zhengju <handai.szj@gmail.com>
-Subject: [PATCH 1/4] memcg: remove MEMCG_NR_FILE_MAPPED
-Date: Thu, 22 Aug 2013 17:50:23 +0800
-Message-Id: <1377165023-23974-1-git-send-email-handai.szj@taobao.com>
-In-Reply-To: <CAFj3OHXy5XkwhxKk=WNywp2pq__FD7BrSQwFkp+NZj15_k6BEQ@mail.gmail.com>
-References: <CAFj3OHXy5XkwhxKk=WNywp2pq__FD7BrSQwFkp+NZj15_k6BEQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 65E766B0037
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 05:51:13 -0400 (EDT)
+Date: Thu, 22 Aug 2013 11:48:53 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 9/9] mm: workingset: keep shadow entries in check
+Message-ID: <20130822094853.GC26749@cmpxchg.org>
+References: <1376767883-4411-1-git-send-email-hannes@cmpxchg.org>
+ <1376767883-4411-10-git-send-email-hannes@cmpxchg.org>
+ <20130820135924.937d93a3fd0368b48ba01189@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130820135924.937d93a3fd0368b48ba01189@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mhocko@suse.cz, kamezawa.hiroyu@jp.fujitsu.com, gthelen@google.com, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-fsdevel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Ozgun Erdogan <ozgun@citusdata.com>, Metin Doslu <metin@citusdata.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-From: Sha Zhengju <handai.szj@taobao.com>
+On Tue, Aug 20, 2013 at 01:59:24PM -0700, Andrew Morton wrote:
+> On Sat, 17 Aug 2013 15:31:23 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
+> 
+> > Previously, page cache radix tree nodes were freed after reclaim
+> > emptied out their page pointers.  But now reclaim stores shadow
+> > entries in their place, which are only reclaimed when the inodes
+> > themselves are reclaimed.  This is problematic for bigger files that
+> > are still in use after they have a significant amount of their cache
+> > reclaimed, without any of those pages actually refaulting.  The shadow
+> > entries will just sit there and waste memory.  In the worst case, the
+> > shadow entries will accumulate until the machine runs out of memory.
+> 
+> erk.  This whole patch is overhead :(
+> 
+> > To get this under control, a list of inodes that contain shadow
+> > entries is maintained.  If the global number of shadows exceeds a
+> > certain threshold, a shrinker is activated that reclaims old entries
+> > from the mappings.  This is heavy-handed but it should not be a hot
+> > path and is mainly there to protect from accidentally/maliciously
+> > induced OOM kills.  The global list is also not a problem because the
+> > modifications are very rare: inodes are added once in their lifetime
+> > when the first shadow entry is stored (i.e. the first page reclaimed)
+> > and lazily removed when the inode exits.  Or if the shrinker removes
+> > all shadow entries.
+> > 
+> > ...
+> >
+> > --- a/include/linux/fs.h
+> > +++ b/include/linux/fs.h
+> > @@ -417,6 +417,7 @@ struct address_space {
+> >  	/* Protected by tree_lock together with the radix tree */
+> >  	unsigned long		nrpages;	/* number of total pages */
+> >  	unsigned long		nrshadows;	/* number of shadow entries */
+> > +	struct list_head	shadow_list;	/* list of mappings with shadows */
+> >  	pgoff_t			writeback_index;/* writeback starts here */
+> >  	const struct address_space_operations *a_ops;	/* methods */
+> >  	unsigned long		flags;		/* error bits/gfp mask */
+> 
+> There's another 16 bytes into the inode.  Bad.
 
-While accounting memcg page stat, it's not worth to use MEMCG_NR_FILE_MAPPED
-as an extra layer of indirection because of the complexity and presumed
-performance overhead. We can use MEM_CGROUP_STAT_FILE_MAPPED directly.
+Yeah :(
 
-Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Acked-by: Michal Hocko <mhocko@suse.cz>
-Acked-by: Fengguang Wu <fengguang.wu@intel.com>
-Reviewed-by: Greg Thelen <gthelen@google.com>
----
- include/linux/memcontrol.h |   27 +++++++++++++++++++--------
- mm/memcontrol.c            |   25 +------------------------
- mm/rmap.c                  |    4 ++--
- 3 files changed, 22 insertions(+), 34 deletions(-)
+An obvious alternative to storing page eviction information in the
+page cache radix tree would be to have a separate data structure that
+scales with the number of physical pages available.
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 8a9ed4d..630bfa1 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -30,9 +30,20 @@ struct page;
- struct mm_struct;
- struct kmem_cache;
- 
--/* Stats that can be updated by kernel. */
--enum mem_cgroup_page_stat_item {
--	MEMCG_NR_FILE_MAPPED, /* # of pages charged as file rss */
-+/*
-+ * The corresponding mem_cgroup_stat_names is defined in mm/memcontrol.c,
-+ * These two lists should keep in accord with each other.
-+ */
-+enum mem_cgroup_stat_index {
-+	/*
-+	 * For MEM_CONTAINER_TYPE_ALL, usage = pagecache + rss.
-+	 */
-+	MEM_CGROUP_STAT_CACHE,		/* # of pages charged as cache */
-+	MEM_CGROUP_STAT_RSS,		/* # of pages charged as anon rss */
-+	MEM_CGROUP_STAT_RSS_HUGE,	/* # of pages charged as anon huge */
-+	MEM_CGROUP_STAT_FILE_MAPPED,	/* # of pages charged as file rss */
-+	MEM_CGROUP_STAT_SWAP,		/* # of pages, swapped out */
-+	MEM_CGROUP_STAT_NSTATS,
- };
- 
- struct mem_cgroup_reclaim_cookie {
-@@ -233,17 +244,17 @@ static inline void mem_cgroup_end_update_page_stat(struct page *page,
- }
- 
- void mem_cgroup_update_page_stat(struct page *page,
--				 enum mem_cgroup_page_stat_item idx,
-+				 enum mem_cgroup_stat_index idx,
- 				 int val);
- 
- static inline void mem_cgroup_inc_page_stat(struct page *page,
--					    enum mem_cgroup_page_stat_item idx)
-+					    enum mem_cgroup_stat_index idx)
- {
- 	mem_cgroup_update_page_stat(page, idx, 1);
- }
- 
- static inline void mem_cgroup_dec_page_stat(struct page *page,
--					    enum mem_cgroup_page_stat_item idx)
-+					    enum mem_cgroup_stat_index idx)
- {
- 	mem_cgroup_update_page_stat(page, idx, -1);
- }
-@@ -448,12 +459,12 @@ static inline bool mem_cgroup_oom_synchronize(void)
- }
- 
- static inline void mem_cgroup_inc_page_stat(struct page *page,
--					    enum mem_cgroup_page_stat_item idx)
-+					    enum mem_cgroup_stat_index idx)
- {
- }
- 
- static inline void mem_cgroup_dec_page_stat(struct page *page,
--					    enum mem_cgroup_page_stat_item idx)
-+					    enum mem_cgroup_stat_index idx)
- {
- }
- 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index b73988a..24d6d02 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -84,21 +84,6 @@ static int really_do_swap_account __initdata = 0;
- #endif
- 
- 
--/*
-- * Statistics for memory cgroup.
-- */
--enum mem_cgroup_stat_index {
--	/*
--	 * For MEM_CONTAINER_TYPE_ALL, usage = pagecache + rss.
--	 */
--	MEM_CGROUP_STAT_CACHE,		/* # of pages charged as cache */
--	MEM_CGROUP_STAT_RSS,		/* # of pages charged as anon rss */
--	MEM_CGROUP_STAT_RSS_HUGE,	/* # of pages charged as anon huge */
--	MEM_CGROUP_STAT_FILE_MAPPED,	/* # of pages charged as file rss */
--	MEM_CGROUP_STAT_SWAP,		/* # of pages, swapped out */
--	MEM_CGROUP_STAT_NSTATS,
--};
--
- static const char * const mem_cgroup_stat_names[] = {
- 	"cache",
- 	"rss",
-@@ -2255,7 +2240,7 @@ void __mem_cgroup_end_update_page_stat(struct page *page, unsigned long *flags)
- }
- 
- void mem_cgroup_update_page_stat(struct page *page,
--				 enum mem_cgroup_page_stat_item idx, int val)
-+				 enum mem_cgroup_stat_index idx, int val)
- {
- 	struct mem_cgroup *memcg;
- 	struct page_cgroup *pc = lookup_page_cgroup(page);
-@@ -2268,14 +2253,6 @@ void mem_cgroup_update_page_stat(struct page *page,
- 	if (unlikely(!memcg || !PageCgroupUsed(pc)))
- 		return;
- 
--	switch (idx) {
--	case MEMCG_NR_FILE_MAPPED:
--		idx = MEM_CGROUP_STAT_FILE_MAPPED;
--		break;
--	default:
--		BUG();
--	}
--
- 	this_cpu_add(memcg->stat->count[idx], val);
- }
- 
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 07afd48..373da2a 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1114,7 +1114,7 @@ void page_add_file_rmap(struct page *page)
- 	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
- 	if (atomic_inc_and_test(&page->_mapcount)) {
- 		__inc_zone_page_state(page, NR_FILE_MAPPED);
--		mem_cgroup_inc_page_stat(page, MEMCG_NR_FILE_MAPPED);
-+		mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
- 	}
- 	mem_cgroup_end_update_page_stat(page, &locked, &flags);
- }
-@@ -1158,7 +1158,7 @@ void page_remove_rmap(struct page *page)
- 				hpage_nr_pages(page));
- 	} else {
- 		__dec_zone_page_state(page, NR_FILE_MAPPED);
--		mem_cgroup_dec_page_stat(page, MEMCG_NR_FILE_MAPPED);
-+		mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
- 		mem_cgroup_end_update_page_stat(page, &locked, &flags);
- 	}
- 	if (unlikely(PageMlocked(page)))
--- 
-1.7.9.5
+It really depends on the workload which one's cheaper in terms of both
+memory and cpu.
+
+Workloads where the ratio between number of inodes and inode size is
+high suffer from the increased inode size, but when they have decent
+access locality within the inodes, the inodes should be evicted along
+with their pages.  So in this case there is little to no memory
+overhead from the eviction information compared to the fixed size
+separate data structure.
+
+And refault information lookup is cheaper of course when storing
+eviction information inside the cache slots.
+
+Workloads for which this model sucks are those with inode locality but
+no data locality.  The inodes stay alive and the lack of data locality
+produces many shadow entries that only the costly shrinker can get rid
+of.  Numbers aside, it was a judgement call to improve workloads with
+high data locality at the cost of those without.
+
+But I'll include a more concrete cost analysis in the submission that
+also includes more concrete details on the benefits of the series ;)
+
+> > +void workingset_shadows_inc(struct address_space *mapping)
+> > +{
+> > +	might_lock(&shadow_lock);
+> > +
+> > +	if (mapping->nrshadows == 0 && list_empty(&mapping->shadow_list)) {
+> > +		spin_lock(&shadow_lock);
+> 
+> I can't work out whether or not shadow_lock is supposed to be irq-save.
+> Some places it is, others are unobvious.
+
+It is.  The caller holds the irq-safe tree_lock, though, so no need to
+disable IRQs a second time.  I'll add documentation.
+
+> > +static unsigned long get_nr_old_shadows(void)
+> > +{
+> > +	unsigned long nr_max;
+> > +	unsigned long nr;
+> > +	long sum = 0;
+> > +	int cpu;
+> > +
+> > +	for_each_possible_cpu(cpu)
+> > +		sum += per_cpu(nr_shadows, cpu);
+> 
+> Ouch, slow.  shrink_slab() will call this repeatedly and scan_shadows()
+> calls it from a loop.  Can we use something non-deathly-slow here? 
+> Like percpu_counter_read_positive()?
+
+Finally, a usecase for percpu_counter!!  Sounds reasonable, I'll
+convert this stuff over.
+
+> > +	nr = max(sum, 0L);
+> > +
+> > +	/*
+> > +	 * Every shadow entry with a refault distance bigger than the
+> > +	 * active list is ignored and so NR_ACTIVE_FILE would be a
+> > +	 * reasonable ceiling.  But scanning and shrinking shadow
+> > +	 * entries is quite expensive, so be generous.
+> > +	 */
+> > +	nr_max = global_dirtyable_memory() * 4;
+> > +
+> > +	if (nr <= nr_max)
+> > +		return 0;
+> > +	return nr - nr_max;
+> > +}
+> > +
+> > +static unsigned long scan_mapping(struct address_space *mapping,
+> > +				  unsigned long nr_to_scan)
+> 
+> Some methodological description would be useful.
+
+Fair enough, I'll write something.
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
