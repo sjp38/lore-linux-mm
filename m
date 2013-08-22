@@ -1,60 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id F282E6B0034
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 03:23:29 -0400 (EDT)
-Received: by mail-pb0-f46.google.com with SMTP id rq2so1425331pbb.33
-        for <linux-mm@kvack.org>; Thu, 22 Aug 2013 00:23:29 -0700 (PDT)
-Message-ID: <5215BC63.6060004@gmail.com>
-Date: Thu, 22 Aug 2013 15:23:15 +0800
-From: Wang Sheng-Hui <shhuiw@gmail.com>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 0B9026B0033
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 03:24:44 -0400 (EDT)
+Date: Thu, 22 Aug 2013 16:24:51 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 10/20] mm, hugetlb: remove resv_map_put()
+Message-ID: <20130822072451.GF13415@lge.com>
+References: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1376040398-11212-11-git-send-email-iamjoonsoo.kim@lge.com>
+ <8761uzgvyn.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: [PATCH] mm: correct the comment about the value for buddy _mapcount
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <8761uzgvyn.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
 
+On Wed, Aug 21, 2013 at 04:19:20PM +0530, Aneesh Kumar K.V wrote:
+> Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
+> 
+> > In following patch, I change vma_resv_map() to return resv_map
+> > for all case. This patch prepares it by removing resv_map_put() which
+> > doesn't works properly with following change, because it works only for
+> > HPAGE_RESV_OWNER's resv_map, not for all resv_maps.
+> >
+> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> >
+> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> > index 73034dd..869c3e0 100644
+> > --- a/mm/hugetlb.c
+> > +++ b/mm/hugetlb.c
+> > @@ -2212,15 +2212,6 @@ static void hugetlb_vm_op_open(struct vm_area_struct *vma)
+> >  		kref_get(&resv->refs);
+> >  }
+> >
+> > -static void resv_map_put(struct vm_area_struct *vma)
+> > -{
+> > -	struct resv_map *resv = vma_resv_map(vma);
+> > -
+> > -	if (!resv)
+> > -		return;
+> > -	kref_put(&resv->refs, resv_map_release);
+> > -}
+> 
+> Why not have seperate functions to return vma_resv_map for
+> HPAGE_RESV_OWNER and one for put ? That way we could have something like
+> 
+> resv_map_hpage_resv_owner_get()
+> resv_map_hpge_resv_put() 
 
-Set _mapcount PAGE_BUDDY_MAPCOUNT_VALUE to make the page buddy.
-Not the magic number -2.
+Because there is no place to call this function more than once.
+IMO, in this simple case, open code is better to understand and better to
+reduce code size.
 
-Signed-off-by: Wang Sheng-Hui <shhuiw@gmail.com>
----
- mm/page_alloc.c |   11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+> 
+> Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index b100255..345f57b 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -488,8 +488,10 @@ __find_buddy_index(unsigned long page_idx, unsigned int order)
-  * (c) a page and its buddy have the same order &&
-  * (d) a page and its buddy are in the same zone.
-  *
-- * For recording whether a page is in the buddy system, we set ->_mapcount -2.
-- * Setting, clearing, and testing _mapcount -2 is serialized by zone->lock.
-+ * For recording whether a page is in the buddy system, we set ->_mapcount
-+ * PAGE_BUDDY_MAPCOUNT_VALUE.
-+ * Setting, clearing, and testing _mapcount PAGE_BUDDY_MAPCOUNT_VALUE is
-+ * serialized by zone->lock.
-  *
-  * For recording page's order, we use page_private(page).
-  */
-@@ -527,8 +529,9 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
-  * as necessary, plus some accounting needed to play nicely with other
-  * parts of the VM system.
-  * At each level, we keep a list of pages, which are heads of continuous
-- * free pages of length of (1 << order) and marked with _mapcount -2. Page's
-- * order is recorded in page_private(page) field.
-+ * free pages of length of (1 << order) and marked with _mapcount
-+ * PAGE_BUDDY_MAPCOUNT_VALUE. Page's order is recorded in page_private(page)
-+ * field.
-  * So when we are allocating or freeing one, we can derive the state of the
-  * other.  That is, if we allocate a small block, and both were
-  * free, the remainder of the region must be split into blocks.
--- 
-1.7.10.4
+Thanks :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
