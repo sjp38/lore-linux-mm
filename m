@@ -1,188 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 6F69A6B0032
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 15:24:56 -0400 (EDT)
-Date: Thu, 22 Aug 2013 15:24:50 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1377199490-b3gcxg5-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1377164907-24801-5-git-send-email-liwanp@linux.vnet.ibm.com>
-References: <1377164907-24801-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1377164907-24801-5-git-send-email-liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 5/6] mm/hwpoison: drop forward reference declarations
- __soft_offline_page()
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 4E38E6B0032
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 15:40:24 -0400 (EDT)
+Received: by mail-pb0-f53.google.com with SMTP id up15so2256886pbc.12
+        for <linux-mm@kvack.org>; Thu, 22 Aug 2013 12:40:23 -0700 (PDT)
+Message-ID: <52166909.6080104@gmail.com>
+Date: Fri, 23 Aug 2013 03:39:53 +0800
+From: Zhang Yanfei <zhangyanfei.yes@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/8] x86, acpi: Move acpi_initrd_override() earlier.
+References: <20130821130647.GB19286@mtj.dyndns.org> <5214D60A.2090309@gmail.com> <20130821153639.GA17432@htj.dyndns.org> <1377113503.10300.492.camel@misato.fc.hp.com> <20130821195410.GA2436@htj.dyndns.org> <1377116968.10300.514.camel@misato.fc.hp.com> <20130821204041.GC2436@htj.dyndns.org> <1377124595.10300.594.camel@misato.fc.hp.com> <20130822033234.GA2413@htj.dyndns.org> <1377186729.10300.643.camel@misato.fc.hp.com> <20130822183130.GA3490@mtj.dyndns.org>
+In-Reply-To: <20130822183130.GA3490@mtj.dyndns.org>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Tony Luck <tony.luck@intel.com>, gong.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Toshi Kani <toshi.kani@hp.com>, Tang Chen <tangchen@cn.fujitsu.com>, konrad.wilk@oracle.com, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-On Thu, Aug 22, 2013 at 05:48:26PM +0800, Wanpeng Li wrote:
-> Drop forward reference declarations __soft_offline_page.
-> 
-> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Hello tejun,
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+On 08/23/2013 02:31 AM, Tejun Heo wrote:
+> Hello,
+> 
+> On Thu, Aug 22, 2013 at 09:52:09AM -0600, Toshi Kani wrote:
+>> I understand that you are concerned about stability of the ACPI stuff,
+>> which I think is a valid point, but most of (if not all) of the
+>> ACPI-related issues come from ACPI namespace/methods, which is a very
+>> different thing.  Please do not mix up those two.  The ACPI
+> 
+> I have no objection to implementing self-conftained earlyprintk
+> support.  If that's all you want to do, please go ahead but do not
+> pull in initrd override or ACPICA into it.
+> 
+>> namespace/methods stuff remains the same and continues to be initialized
+>> at very late in the boot sequence.
+>>
+>> What's making the patchset complicated is acpi_initrd_override(), which
+>> is intended for developers and allows overwriting ACPI bits at their own
+>> risk.  This feature won't be used by regular users. 
+> 
+> Yeah, please forget about that in earlyboot.  It doesn't make any
+> sense to fiddle with initrd that early during boot.
 
-> ---
->  mm/memory-failure.c | 129 ++++++++++++++++++++++++++--------------------------
->  1 file changed, 64 insertions(+), 65 deletions(-)
-> 
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index 3bfb45f..0a52571 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -1498,71 +1498,6 @@ static int soft_offline_huge_page(struct page *page, int flags)
->  	return ret;
->  }
->  
-> -static int __soft_offline_page(struct page *page, int flags);
-> -
-> -/**
-> - * soft_offline_page - Soft offline a page.
-> - * @page: page to offline
-> - * @flags: flags. Same as memory_failure().
-> - *
-> - * Returns 0 on success, otherwise negated errno.
-> - *
-> - * Soft offline a page, by migration or invalidation,
-> - * without killing anything. This is for the case when
-> - * a page is not corrupted yet (so it's still valid to access),
-> - * but has had a number of corrected errors and is better taken
-> - * out.
-> - *
-> - * The actual policy on when to do that is maintained by
-> - * user space.
-> - *
-> - * This should never impact any application or cause data loss,
-> - * however it might take some time.
-> - *
-> - * This is not a 100% solution for all memory, but tries to be
-> - * ``good enough'' for the majority of memory.
-> - */
-> -int soft_offline_page(struct page *page, int flags)
-> -{
-> -	int ret;
-> -	unsigned long pfn = page_to_pfn(page);
-> -	struct page *hpage = compound_trans_head(page);
-> -
-> -	if (PageHWPoison(page)) {
-> -		pr_info("soft offline: %#lx page already poisoned\n", pfn);
-> -		return -EBUSY;
-> -	}
-> -	if (!PageHuge(page) && PageTransHuge(hpage)) {
-> -		if (PageAnon(hpage) && unlikely(split_huge_page(hpage))) {
-> -			pr_info("soft offline: %#lx: failed to split THP\n",
-> -				pfn);
-> -			return -EBUSY;
-> -		}
-> -	}
-> -
-> -	ret = get_any_page(page, pfn, flags);
-> -	if (ret < 0)
-> -		return ret;
-> -	if (ret) { /* for in-use pages */
-> -		if (PageHuge(page))
-> -			ret = soft_offline_huge_page(page, flags);
-> -		else
-> -			ret = __soft_offline_page(page, flags);
-> -	} else { /* for free pages */
-> -		if (PageHuge(page)) {
-> -			set_page_hwpoison_huge_page(hpage);
-> -			dequeue_hwpoisoned_huge_page(hpage);
-> -			atomic_long_add(1 << compound_order(hpage),
-> -					&num_poisoned_pages);
-> -		} else {
-> -			SetPageHWPoison(page);
-> -			atomic_long_inc(&num_poisoned_pages);
-> -		}
-> -	}
-> -	unset_migratetype_isolate(page, MIGRATE_MOVABLE);
-> -	return ret;
-> -}
-> -
->  static int __soft_offline_page(struct page *page, int flags)
->  {
->  	int ret;
-> @@ -1649,3 +1584,66 @@ static int __soft_offline_page(struct page *page, int flags)
->  	}
->  	return ret;
->  }
-> +
-> +/**
-> + * soft_offline_page - Soft offline a page.
-> + * @page: page to offline
-> + * @flags: flags. Same as memory_failure().
-> + *
-> + * Returns 0 on success, otherwise negated errno.
-> + *
-> + * Soft offline a page, by migration or invalidation,
-> + * without killing anything. This is for the case when
-> + * a page is not corrupted yet (so it's still valid to access),
-> + * but has had a number of corrected errors and is better taken
-> + * out.
-> + *
-> + * The actual policy on when to do that is maintained by
-> + * user space.
-> + *
-> + * This should never impact any application or cause data loss,
-> + * however it might take some time.
-> + *
-> + * This is not a 100% solution for all memory, but tries to be
-> + * ``good enough'' for the majority of memory.
-> + */
-> +int soft_offline_page(struct page *page, int flags)
-> +{
-> +	int ret;
-> +	unsigned long pfn = page_to_pfn(page);
-> +	struct page *hpage = compound_trans_head(page);
-> +
-> +	if (PageHWPoison(page)) {
-> +		pr_info("soft offline: %#lx page already poisoned\n", pfn);
-> +		return -EBUSY;
-> +	}
-> +	if (!PageHuge(page) && PageTransHuge(hpage)) {
-> +		if (PageAnon(hpage) && unlikely(split_huge_page(hpage))) {
-> +			pr_info("soft offline: %#lx: failed to split THP\n",
-> +				pfn);
-> +			return -EBUSY;
-> +		}
-> +	}
-> +
-> +	ret = get_any_page(page, pfn, flags);
-> +	if (ret < 0)
-> +		return ret;
-> +	if (ret) { /* for in-use pages */
-> +		if (PageHuge(page))
-> +			ret = soft_offline_huge_page(page, flags);
-> +		else
-> +			ret = __soft_offline_page(page, flags);
-> +	} else { /* for free pages */
-> +		if (PageHuge(page)) {
-> +			set_page_hwpoison_huge_page(hpage);
-> +			dequeue_hwpoisoned_huge_page(hpage);
-> +			atomic_long_add(1 << compound_order(hpage),
-> +					&num_poisoned_pages);
-> +		} else {
-> +			SetPageHWPoison(page);
-> +			atomic_long_inc(&num_poisoned_pages);
-> +		}
-> +	}
-> +	unset_migratetype_isolate(page, MIGRATE_MOVABLE);
-> +	return ret;
-> +}
-> -- 
-> 1.8.1.2
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+What do you mean by "earlyboot"? And also in your previous mail, I am also
+a little confused by what you said "the very first stage of boot". Does
+this mean the stage we are in head_32 or head64.c?
+
+If so, could we just do something just as Yinghai did before, that is, Split
+acpi_override into 2 parts: find and copy. And in "earlyboot", we just do
+the find, and I think that is less of risk. Or we can just do ACPI override
+earlier in setup_arch(), not pulling this process that early during boot?
+
+Thanks
+
+-- 
+Thanks.
+Zhang Yanfei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
