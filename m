@@ -1,14 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 2CD776B0032
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 13:49:45 -0400 (EDT)
-Date: Thu, 22 Aug 2013 17:49:43 +0000
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 7A10F6B0032
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 13:51:59 -0400 (EDT)
+Date: Thu, 22 Aug 2013 17:51:58 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 02/16] slab: change return type of kmem_getpages() to
- struct page
-In-Reply-To: <1377161065-30552-3-git-send-email-iamjoonsoo.kim@lge.com>
-Message-ID: <00000140a725706c-27ed3820-ef32-4388-825a-de582055d91d-000000@email.amazonses.com>
-References: <1377161065-30552-1-git-send-email-iamjoonsoo.kim@lge.com> <1377161065-30552-3-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 04/16] slab: remove nodeid in struct slab
+In-Reply-To: <1377161065-30552-5-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <00000140a7277e81-d259fd75-0dcb-4bef-9e32-d615800201a6-000000@email.amazonses.com>
+References: <1377161065-30552-1-git-send-email-iamjoonsoo.kim@lge.com> <1377161065-30552-5-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -18,21 +17,19 @@ Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
 On Thu, 22 Aug 2013, Joonsoo Kim wrote:
 
-> @@ -2042,7 +2042,7 @@ static void slab_destroy_debugcheck(struct kmem_cache *cachep, struct slab *slab
->   */
->  static void slab_destroy(struct kmem_cache *cachep, struct slab *slabp)
->  {
-> -	void *addr = slabp->s_mem - slabp->colouroff;
-> +	struct page *page = virt_to_head_page(slabp->s_mem);
+> @@ -1099,8 +1098,7 @@ static void drain_alien_cache(struct kmem_cache *cachep,
 >
->  	slab_destroy_debugcheck(cachep, slabp);
->  	if (unlikely(cachep->flags & SLAB_DESTROY_BY_RCU)) {
+>  static inline int cache_free_alien(struct kmem_cache *cachep, void *objp)
+>  {
+> -	struct slab *slabp = virt_to_slab(objp);
+> -	int nodeid = slabp->nodeid;
+> +	int nodeid = page_to_nid(virt_to_page(objp));
+>  	struct kmem_cache_node *n;
+>  	struct array_cache *alien = NULL;
+>  	int node;
 
-Ok so this removes slab offset management. The use of a struct page
-pointer therefore results in coloring support to be not possible anymore.
-
-I would suggest to have a separate patch for coloring removal before this
-patch. It seems that the support is removed in two different patches now.
+virt_to_page is a relatively expensive operation. How does this affect
+performance?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
