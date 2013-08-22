@@ -1,243 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 309456B0033
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 03:14:19 -0400 (EDT)
-Received: by mail-wi0-f177.google.com with SMTP id hq12so252086wib.10
-        for <linux-mm@kvack.org>; Thu, 22 Aug 2013 00:14:17 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id E29946B0033
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 03:22:47 -0400 (EDT)
+Date: Thu, 22 Aug 2013 09:20:41 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 4/9] mm + fs: prepare for non-page entries in page cache
+ radix trees
+Message-ID: <20130822072041.GA26749@cmpxchg.org>
+References: <1376767883-4411-1-git-send-email-hannes@cmpxchg.org>
+ <1376767883-4411-5-git-send-email-hannes@cmpxchg.org>
+ <20130820135910.6e6da048131bc841404906be@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20130822062417.GF4665@bbox>
-References: <89813612683626448B837EE5A0B6A7CB3B630BE80B@SC-VEXCH4.marvell.com>
-	<20130805074146.GD10146@dhcp22.suse.cz>
-	<89813612683626448B837EE5A0B6A7CB3B630BED6B@SC-VEXCH4.marvell.com>
-	<20130806103543.GA31138@dhcp22.suse.cz>
-	<89813612683626448B837EE5A0B6A7CB3B63175BCA@SC-VEXCH4.marvell.com>
-	<20130808181426.GI715@cmpxchg.org>
-	<89813612683626448B837EE5A0B6A7CB3B631767D7@SC-VEXCH4.marvell.com>
-	<20130820151630.2a61ae9d88ea34a69e9d04bf@linux-foundation.org>
-	<89813612683626448B837EE5A0B6A7CB3B6333D4CF@SC-VEXCH4.marvell.com>
-	<20130822062417.GF4665@bbox>
-Date: Thu, 22 Aug 2013 15:14:17 +0800
-Message-ID: <CAGbhdVz+n29eqgmvBAFt9cB7kFStNBjXAmAQWYUNTSfFtJFj7Q@mail.gmail.com>
-Subject: Re: [resend] [PATCH V3] mm: vmscan: fix do_try_to_free_pages() livelock
-From: Lisa Du <chunlingdu1@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130820135910.6e6da048131bc841404906be@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Lisa Du <cldu@marvell.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Bob Liu <lliubbo@gmail.com>, Neil Zhang <zhangwm@marvell.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Aaditya Kumar <aaditya.kumar.30@gmail.com>, "yinghan@google.com" <yinghan@google.com>, "npiggin@gmail.com" <npiggin@gmail.com>, "riel@redhat.com" <riel@redhat.com>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Ozgun Erdogan <ozgun@citusdata.com>, Metin Doslu <metin@citusdata.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, Aug 22, 2013 at 2:24 PM, Minchan Kim <minchan@kernel.org> wrote:
->
-> Hello Lisa,
->
-> Please fix your mail client.
+On Tue, Aug 20, 2013 at 01:59:10PM -0700, Andrew Morton wrote:
+> On Sat, 17 Aug 2013 15:31:18 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
+> 
+> > shmem mappings already contain exceptional entries where swap slot
+> > information is remembered.
+> > 
+> > To be able to store eviction information for regular page cache,
+> > prepare every site dealing with the radix trees directly to handle
+> > entries other than pages.
+> > 
+> > The common lookup functions will filter out non-page entries and
+> > return NULL for page cache holes, just as before.  But provide a raw
+> > version of the API which returns non-page entries as well, and switch
+> > shmem over to use it.
+> > 
+> >
+> > ...
+> >
+> > -/**
+> > - * find_get_page - find and get a page reference
+> > - * @mapping: the address_space to search
+> > - * @offset: the page index
+> > - *
+> > - * Is there a pagecache struct page at the given (mapping, offset) tuple?
+> > - * If yes, increment its refcount and return it; if no, return NULL.
+> > - */
+> > -struct page *find_get_page(struct address_space *mapping, pgoff_t offset)
+> > +struct page *__find_get_page(struct address_space *mapping, pgoff_t offset)
+> >  {
+> >  	void **pagep;
+> >  	struct page *page;
+> > @@ -812,24 +828,31 @@ out:
+> >  
+> >  	return page;
+> >  }
+> > -EXPORT_SYMBOL(find_get_page);
+> > +EXPORT_SYMBOL(__find_get_page);
+> 
+> Deleting the interface documentation for a global, exported-to-modules
+> function was a bit rude.
+> 
+> And it does need documentation, to tell people that it can return the
+> non-pages.
 
-I apologize for this, I tried to fix, seems still have issue, so
-changed to gmail.
+I didn't really delete documentation as much as moving it to the new
+find_get_page() definition (the above is a rename).  But yeah, I
+should probably add some documentation to the new function as well.
 
-If still have issue, please let me know, thanks!
->
->
-> On Wed, Aug 21, 2013 at 10:24:07PM -0700, Lisa Du wrote:
-> > >-----Original Message-----
-> > >From: Andrew Morton [mailto:akpm@linux-foundation.org]
-> > >Sent: 2013=E5=B9=B48=E6=9C=8821=E6=97=A5 6:17
-> > >To: Lisa Du
-> > >Cc: Johannes Weiner; Michal Hocko; linux-mm@kvack.org; Minchan Kim; KO=
-SAKI Motohiro; Mel Gorman; Christoph Lameter; Bob Liu;
-> > >Neil Zhang; Russell King - ARM Linux; Aaditya Kumar; yinghan@google.co=
-m; npiggin@gmail.com; riel@redhat.com;
-> > >kamezawa.hiroyu@jp.fujitsu.com
-> > >Subject: Re: [resend] [PATCH V3] mm: vmscan: fix do_try_to_free_pages(=
-) livelock
-> > >
-> > >On Sun, 11 Aug 2013 18:46:08 -0700 Lisa Du <cldu@marvell.com> wrote:
-> > >
-> > >> In this version:
-> > >> Reorder the check in pgdat_balanced according Johannes's comment.
-> > >>
-> > >> >From 66a98566792b954e187dca251fbe3819aeb977b9 Mon Sep 17 00:00:00
-> > >> >2001
-> > >> From: Lisa Du <cldu@marvell.com>
-> > >> Date: Mon, 5 Aug 2013 09:26:57 +0800
-> > >> Subject: [PATCH] mm: vmscan: fix do_try_to_free_pages() livelock
-> > >>
-> > >> This patch is based on KOSAKI's work and I add a little more
-> > >> description, please refer https://lkml.org/lkml/2012/6/14/74.
-> > >>
-> > >> Currently, I found system can enter a state that there are lots of
-> > >> free pages in a zone but only order-0 and order-1 pages which means
-> > >> the zone is heavily fragmented, then high order allocation could mak=
-e
-> > >> direct reclaim path's long stall(ex, 60 seconds) especially in no sw=
-ap
-> > >> and no compaciton enviroment. This problem happened on v3.4, but it
-> > >> seems issue still lives in current tree, the reason is
-> > >> do_try_to_free_pages enter live lock:
-> > >>
-> > >> kswapd will go to sleep if the zones have been fully scanned and are
-> > >> still not balanced. As kswapd thinks there's little point trying all
-> > >> over again to avoid infinite loop. Instead it changes order from
-> > >> high-order to 0-order because kswapd think order-0 is the most
-> > >> important. Look at 73ce02e9 in detail. If watermarks are ok, kswapd
-> > >> will go back to sleep and may leave zone->all_unreclaimable =3D 0.
-> > >> It assume high-order users can still perform direct reclaim if they =
-wish.
-> > >>
-> > >> Direct reclaim continue to reclaim for a high order which is not a
-> > >> COSTLY_ORDER without oom-killer until kswapd turn on zone->all_unrec=
-laimble.
-> > >> This is because to avoid too early oom-kill. So it means
-> > >> direct_reclaim depends on kswapd to break this loop.
-> > >>
-> > >> In worst case, direct-reclaim may continue to page reclaim forever
-> > >> when kswapd sleeps forever until someone like watchdog detect and
-> > >> finally kill the process. As described in:
-> > >> http://thread.gmane.org/gmane.linux.kernel.mm/103737
-> > >>
-> > >> We can't turn on zone->all_unreclaimable from direct reclaim path
-> > >> because direct reclaim path don't take any lock and this way is racy=
-.
-> > >
-> > >I don't see that this is correct.  Page reclaim does racy things quite=
- often, in the knowledge that the effects of a race are
-> > >recoverable and small.
-> > Maybe Kosaki can give some comments, I think the mainly reason maybe di=
-rect reclaim don't take any lock.
->
-> You have to write the problem out in detail.
-> It doesn't related to lock and race.
-> The problem is kswapd could sleep in highly-fragemented case
-> if it was woke up by high-order alloc because kswapd don't want
-> to reclaim too many pages by high-order allocation so it just
-> check order-0 pages once it try to reclaim for high order
-> allocation.
->
->          * Fragmentation may mean that the system cannot be rebalanced
->          * for high-order allocations in all zones. If twice the
->          * allocation size has been reclaimed and the zones are still
->          * not balanced then recheck the watermarks at order-0 to
->          * prevent kswapd reclaiming excessively. Assume that a
->          * process requested a high-order can direct reclaim/compact.
->          */
->         if (order && sc.nr_reclaimed >=3D 2UL << order)
->                 order =3D sc.order =3D 0;
->
-> But direct reclaim cannot meet kswapd's expectation because
-> although it has lots of free pages, it couldn't reclaim at all
-> because it has no swap device but lots of anon pages so it
-> should stop scanning and kill someone and it depends on the logic
->
->         /* top priority shrink_zones still had more to do? don't OOM, the=
-n */
->         if (global_reclaim(sc) && !all_unreclaimable(zonelist, sc))
->                 return 1;
->
-> In addtion that, all_unreclaimable is just check zone->all_unreclaimable.
-> Then, who set it? kswapd. What is kswapd doing? Sleep.
-> So, do_try_free_pages return 1, in turn, direct reclaimer think there is
-> progress so do not kill anything.
+> Does it have the same handling of non-pages as __find_get_pages()?  It
+> had better, given the naming!
 
-Thanks for the detail description for this issue! It's exactly the issue.
-
-I thought Andrew is asking "We can't turn on zone->all_unreclaimable from d=
-irect
-
-reclaim path because direct reclaim path don't take any lock and this
-way is racy."
-
-Actually I'm not very clear why turn on zone->all_unreclaimable in
-direct reclaim
-
-path is not good. This statement I just copied from the original patch
-from Kosaki.
->
->
-> It's just an example from your log and we can see more potential bugs
-> and I agree with Michal that "all_unreclaimable was just a bad idea
-> from the very beginning". It's very subtle and error-prone.
->
-> > >
-> > >> Thus this patch removes zone->all_unreclaimable field completely and
-> > >> recalculates zone reclaimable state every time.
-> > >>
-> > >> Note: we can't take the idea that direct-reclaim see
-> > >> zone->pages_scanned directly and kswapd continue to use
-> > >> zone->all_unreclaimable. Because, it is racy. commit 929bea7c71
-> > >> (vmscan: all_unreclaimable() use
-> > >> zone->all_unreclaimable as a name) describes the detail.
-> > >>
-> > >> @@ -99,4 +100,23 @@ static __always_inline enum lru_list page_lru(st=
-ruct page *page)
-> > >>    return lru;
-> > >>  }
-> > >>
-> > >> +static inline unsigned long zone_reclaimable_pages(struct zone *zon=
-e)
-> > >> +{
-> > >> +  int nr;
-> > >> +
-> > >> +  nr =3D zone_page_state(zone, NR_ACTIVE_FILE) +
-> > >> +       zone_page_state(zone, NR_INACTIVE_FILE);
-> > >> +
-> > >> +  if (get_nr_swap_pages() > 0)
-> > >> +          nr +=3D zone_page_state(zone, NR_ACTIVE_ANON) +
-> > >> +                zone_page_state(zone, NR_INACTIVE_ANON);
-> > >> +
-> > >> +  return nr;
-> > >> +}
-> > >> +
-> > >> +static inline bool zone_reclaimable(struct zone *zone) {
-> > >> +  return zone->pages_scanned < zone_reclaimable_pages(zone) * 6; }
-> > >
-> > >Inlining is often wrong.  Uninlining just these two funtions saves sev=
-eral hundred bytes of text in mm/.  That's three of someone
-> > >else's cachelines which we didn't need to evict.
-> > Would you explain more about why "inline is often wrong"? Thanks a lot!
->
-> Andrew said it increases binary size several hundred bytes.
->
-> Reclaim stuff is totally slow path in MM so normally, we don't buy such
-> bad deal. (code size VS speed)
->
-> > >
-> > >And what the heck is up with that magical "6"?  Why not "7"?  "42"?
-> > This magical number "6" was first defined in commit d1908362ae0.
-> > Hi, Minchan, do you remember why we set this number? Thanks!
->
-> Not me. It was introduced by [1] long time ago and long time ago,
-> it was just 4. I don't know who did at the first time.
-> Anyway, I agree it's very heuristic but have no idea because
-> some system might want to avoid OOM kill as slow as possible
-> because even a process killing is very critical for the system
-> while some system like android want to make OOM kill as soon as
-> possible because it prefers background process killing to system
-> slowness. So, IMHO, we would need a knob for tune.
->
-> [1] 4ff1ffb4870b007, [PATCH] oom: reclaim_mapped on oom.
-
-Thanks for the explaining!
->
->
->
-> > >
-> > >At a minimum it needs extensive documentation which describes why "6"
-> > >is the optimum value for all machines and workloads (good luck with
-> > >that) and which describes the effects of altering this number and whic=
-h helps people understand why we didn't make it a runtime
-> > >tunable.
-> > >
-> > >I'll merge it for some testing (the lack of Tested-by's is conspicuous=
-) but I don't want to put that random "6" into Linux core MM in
-> > >its current state.
-> > I did the test in kernel v3.4, it works fine and solve the endless loop=
- in direct reclaim path, but not test with latest kernel version.
-> > >
->
-> --
-> Kind regards,
-> Minchan Kim
+Yes, the only difference is single vs. multi lookup.  The underscore
+versions may return non-pages, the traditional interface filters them.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
