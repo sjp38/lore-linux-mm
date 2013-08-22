@@ -1,96 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id D2C836B0075
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 05:48:49 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Thu, 22 Aug 2013 19:40:21 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 1828F2BB0051
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 19:48:45 +1000 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7M9Wkmi56688664
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 19:32:46 +1000
-Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7M9mimB017088
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 19:48:44 +1000
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH 6/6] mm/hwpoison: centralize set PG_hwpoison flag and increase num_poisoned_pages
-Date: Thu, 22 Aug 2013 17:48:27 +0800
-Message-Id: <1377164907-24801-6-git-send-email-liwanp@linux.vnet.ibm.com>
-In-Reply-To: <1377164907-24801-1-git-send-email-liwanp@linux.vnet.ibm.com>
-References: <1377164907-24801-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 23CE76B0034
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 05:50:50 -0400 (EDT)
+Received: by mail-pa0-f49.google.com with SMTP id ld10so1979326pab.36
+        for <linux-mm@kvack.org>; Thu, 22 Aug 2013 02:50:49 -0700 (PDT)
+From: Sha Zhengju <handai.szj@gmail.com>
+Subject: [PATCH 1/4] memcg: remove MEMCG_NR_FILE_MAPPED
+Date: Thu, 22 Aug 2013 17:50:23 +0800
+Message-Id: <1377165023-23974-1-git-send-email-handai.szj@taobao.com>
+In-Reply-To: <CAFj3OHXy5XkwhxKk=WNywp2pq__FD7BrSQwFkp+NZj15_k6BEQ@mail.gmail.com>
+References: <CAFj3OHXy5XkwhxKk=WNywp2pq__FD7BrSQwFkp+NZj15_k6BEQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Tony Luck <tony.luck@intel.com>, gong.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: akpm@linux-foundation.org
+Cc: mhocko@suse.cz, kamezawa.hiroyu@jp.fujitsu.com, gthelen@google.com, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-fsdevel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
 
-soft_offline_page will invoke __soft_offline_page for in-use normal pages 
-and soft_offline_huge_page for in-use hugetlbfs pages. Both of them will 
-done the same effort as for soft offline free pages set PG_hwpoison, increase 
-num_poisoned_pages etc, this patch centralize do them in soft_offline_page.
+From: Sha Zhengju <handai.szj@taobao.com>
 
-Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+While accounting memcg page stat, it's not worth to use MEMCG_NR_FILE_MAPPED
+as an extra layer of indirection because of the complexity and presumed
+performance overhead. We can use MEM_CGROUP_STAT_FILE_MAPPED directly.
+
+Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Acked-by: Michal Hocko <mhocko@suse.cz>
+Acked-by: Fengguang Wu <fengguang.wu@intel.com>
+Reviewed-by: Greg Thelen <gthelen@google.com>
 ---
- mm/memory-failure.c | 16 ++++------------
- 1 file changed, 4 insertions(+), 12 deletions(-)
+ include/linux/memcontrol.h |   27 +++++++++++++++++++--------
+ mm/memcontrol.c            |   25 +------------------------
+ mm/rmap.c                  |    4 ++--
+ 3 files changed, 22 insertions(+), 34 deletions(-)
 
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 0a52571..3226de1 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1486,15 +1486,9 @@ static int soft_offline_huge_page(struct page *page, int flags)
- 	ret = migrate_huge_page(hpage, new_page, MPOL_MF_MOVE_ALL,
- 				MIGRATE_SYNC);
- 	put_page(hpage);
--	if (ret) {
-+	if (ret)
- 		pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
- 			pfn, ret, page->flags);
--	} else {
--		set_page_hwpoison_huge_page(hpage);
--		dequeue_hwpoisoned_huge_page(hpage);
--		atomic_long_add(1 << compound_order(hpage),
--				&num_poisoned_pages);
--	}
- 	return ret;
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 8a9ed4d..630bfa1 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -30,9 +30,20 @@ struct page;
+ struct mm_struct;
+ struct kmem_cache;
+ 
+-/* Stats that can be updated by kernel. */
+-enum mem_cgroup_page_stat_item {
+-	MEMCG_NR_FILE_MAPPED, /* # of pages charged as file rss */
++/*
++ * The corresponding mem_cgroup_stat_names is defined in mm/memcontrol.c,
++ * These two lists should keep in accord with each other.
++ */
++enum mem_cgroup_stat_index {
++	/*
++	 * For MEM_CONTAINER_TYPE_ALL, usage = pagecache + rss.
++	 */
++	MEM_CGROUP_STAT_CACHE,		/* # of pages charged as cache */
++	MEM_CGROUP_STAT_RSS,		/* # of pages charged as anon rss */
++	MEM_CGROUP_STAT_RSS_HUGE,	/* # of pages charged as anon huge */
++	MEM_CGROUP_STAT_FILE_MAPPED,	/* # of pages charged as file rss */
++	MEM_CGROUP_STAT_SWAP,		/* # of pages, swapped out */
++	MEM_CGROUP_STAT_NSTATS,
+ };
+ 
+ struct mem_cgroup_reclaim_cookie {
+@@ -233,17 +244,17 @@ static inline void mem_cgroup_end_update_page_stat(struct page *page,
  }
  
-@@ -1530,8 +1524,6 @@ static int __soft_offline_page(struct page *page, int flags)
- 	if (ret == 1) {
- 		put_page(page);
- 		pr_info("soft_offline: %#lx: invalidated\n", pfn);
--		SetPageHWPoison(page);
--		atomic_long_inc(&num_poisoned_pages);
- 		return 0;
- 	}
+ void mem_cgroup_update_page_stat(struct page *page,
+-				 enum mem_cgroup_page_stat_item idx,
++				 enum mem_cgroup_stat_index idx,
+ 				 int val);
  
-@@ -1572,11 +1564,9 @@ static int __soft_offline_page(struct page *page, int flags)
- 				lru_add_drain_all();
- 			if (!is_free_buddy_page(page))
- 				drain_all_pages();
--			SetPageHWPoison(page);
- 			if (!is_free_buddy_page(page))
- 				pr_info("soft offline: %#lx: page leaked\n",
- 					pfn);
--			atomic_long_inc(&num_poisoned_pages);
- 		}
+ static inline void mem_cgroup_inc_page_stat(struct page *page,
+-					    enum mem_cgroup_page_stat_item idx)
++					    enum mem_cgroup_stat_index idx)
+ {
+ 	mem_cgroup_update_page_stat(page, idx, 1);
+ }
+ 
+ static inline void mem_cgroup_dec_page_stat(struct page *page,
+-					    enum mem_cgroup_page_stat_item idx)
++					    enum mem_cgroup_stat_index idx)
+ {
+ 	mem_cgroup_update_page_stat(page, idx, -1);
+ }
+@@ -448,12 +459,12 @@ static inline bool mem_cgroup_oom_synchronize(void)
+ }
+ 
+ static inline void mem_cgroup_inc_page_stat(struct page *page,
+-					    enum mem_cgroup_page_stat_item idx)
++					    enum mem_cgroup_stat_index idx)
+ {
+ }
+ 
+ static inline void mem_cgroup_dec_page_stat(struct page *page,
+-					    enum mem_cgroup_page_stat_item idx)
++					    enum mem_cgroup_stat_index idx)
+ {
+ }
+ 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index b73988a..24d6d02 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -84,21 +84,6 @@ static int really_do_swap_account __initdata = 0;
+ #endif
+ 
+ 
+-/*
+- * Statistics for memory cgroup.
+- */
+-enum mem_cgroup_stat_index {
+-	/*
+-	 * For MEM_CONTAINER_TYPE_ALL, usage = pagecache + rss.
+-	 */
+-	MEM_CGROUP_STAT_CACHE,		/* # of pages charged as cache */
+-	MEM_CGROUP_STAT_RSS,		/* # of pages charged as anon rss */
+-	MEM_CGROUP_STAT_RSS_HUGE,	/* # of pages charged as anon huge */
+-	MEM_CGROUP_STAT_FILE_MAPPED,	/* # of pages charged as file rss */
+-	MEM_CGROUP_STAT_SWAP,		/* # of pages, swapped out */
+-	MEM_CGROUP_STAT_NSTATS,
+-};
+-
+ static const char * const mem_cgroup_stat_names[] = {
+ 	"cache",
+ 	"rss",
+@@ -2255,7 +2240,7 @@ void __mem_cgroup_end_update_page_stat(struct page *page, unsigned long *flags)
+ }
+ 
+ void mem_cgroup_update_page_stat(struct page *page,
+-				 enum mem_cgroup_page_stat_item idx, int val)
++				 enum mem_cgroup_stat_index idx, int val)
+ {
+ 	struct mem_cgroup *memcg;
+ 	struct page_cgroup *pc = lookup_page_cgroup(page);
+@@ -2268,14 +2253,6 @@ void mem_cgroup_update_page_stat(struct page *page,
+ 	if (unlikely(!memcg || !PageCgroupUsed(pc)))
+ 		return;
+ 
+-	switch (idx) {
+-	case MEMCG_NR_FILE_MAPPED:
+-		idx = MEM_CGROUP_STAT_FILE_MAPPED;
+-		break;
+-	default:
+-		BUG();
+-	}
+-
+ 	this_cpu_add(memcg->stat->count[idx], val);
+ }
+ 
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 07afd48..373da2a 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1114,7 +1114,7 @@ void page_add_file_rmap(struct page *page)
+ 	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
+ 	if (atomic_inc_and_test(&page->_mapcount)) {
+ 		__inc_zone_page_state(page, NR_FILE_MAPPED);
+-		mem_cgroup_inc_page_stat(page, MEMCG_NR_FILE_MAPPED);
++		mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
+ 	}
+ 	mem_cgroup_end_update_page_stat(page, &locked, &flags);
+ }
+@@ -1158,7 +1158,7 @@ void page_remove_rmap(struct page *page)
+ 				hpage_nr_pages(page));
  	} else {
- 		pr_info("soft offline: %#lx: isolation failed: %d, page count %d, type %lx\n",
-@@ -1633,7 +1623,9 @@ int soft_offline_page(struct page *page, int flags)
- 			ret = soft_offline_huge_page(page, flags);
- 		else
- 			ret = __soft_offline_page(page, flags);
--	} else { /* for free pages */
-+	}
-+
-+	if (!ret) {
- 		if (PageHuge(page)) {
- 			set_page_hwpoison_huge_page(hpage);
- 			dequeue_hwpoisoned_huge_page(hpage);
+ 		__dec_zone_page_state(page, NR_FILE_MAPPED);
+-		mem_cgroup_dec_page_stat(page, MEMCG_NR_FILE_MAPPED);
++		mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
+ 		mem_cgroup_end_update_page_stat(page, &locked, &flags);
+ 	}
+ 	if (unlikely(PageMlocked(page)))
 -- 
-1.8.1.2
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
