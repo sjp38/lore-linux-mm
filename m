@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id CCB2E6B0075
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 05:48:48 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id D2C836B0075
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 05:48:49 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Thu, 22 Aug 2013 19:45:30 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id A755D2CE805B
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 19:48:41 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7M9WXJT10158504
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 19:32:33 +1000
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7M9mehb005566
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 19:48:41 +1000
+	Thu, 22 Aug 2013 19:40:21 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 1828F2BB0051
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 19:48:45 +1000 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7M9Wkmi56688664
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 19:32:46 +1000
+Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7M9mimB017088
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 19:48:44 +1000
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH 4/6] mm/hwpoison: don't set migration type twice to avoid hold heavy contend zone->lock
-Date: Thu, 22 Aug 2013 17:48:25 +0800
-Message-Id: <1377164907-24801-4-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH 6/6] mm/hwpoison: centralize set PG_hwpoison flag and increase num_poisoned_pages
+Date: Thu, 22 Aug 2013 17:48:27 +0800
+Message-Id: <1377164907-24801-6-git-send-email-liwanp@linux.vnet.ibm.com>
 In-Reply-To: <1377164907-24801-1-git-send-email-liwanp@linux.vnet.ibm.com>
 References: <1377164907-24801-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,32 +26,69 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Tony Luck <tony.luck@intel.com>, gong.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Set pageblock migration type will hold zone->lock which is heavy contended 
-in system to avoid race. However, soft offline page will set pageblock 
-migration type twice during get page if the page is in used, not hugetlbfs 
-page and not on lru list. There is unnecessary to set the pageblock migration
-type and hold heavy contended zone->lock again if the first round get page 
-have already set the pageblock to right migration type.
+soft_offline_page will invoke __soft_offline_page for in-use normal pages 
+and soft_offline_huge_page for in-use hugetlbfs pages. Both of them will 
+done the same effort as for soft offline free pages set PG_hwpoison, increase 
+num_poisoned_pages etc, this patch centralize do them in soft_offline_page.
 
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- mm/memory-failure.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ mm/memory-failure.c | 16 ++++------------
+ 1 file changed, 4 insertions(+), 12 deletions(-)
 
 diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 6bfd51e..3bfb45f 100644
+index 0a52571..3226de1 100644
 --- a/mm/memory-failure.c
 +++ b/mm/memory-failure.c
-@@ -1413,7 +1413,8 @@ static int __get_any_page(struct page *p, unsigned long pfn, int flags)
- 	 * was free. This flag should be kept set until the source page
- 	 * is freed and PG_hwpoison on it is set.
- 	 */
--	set_migratetype_isolate(p, true);
-+	if (get_pageblock_migratetype(p) == MIGRATE_ISOLATE)
-+		set_migratetype_isolate(p, true);
- 	/*
- 	 * When the target page is a free hugepage, just remove it
- 	 * from free hugepage list.
+@@ -1486,15 +1486,9 @@ static int soft_offline_huge_page(struct page *page, int flags)
+ 	ret = migrate_huge_page(hpage, new_page, MPOL_MF_MOVE_ALL,
+ 				MIGRATE_SYNC);
+ 	put_page(hpage);
+-	if (ret) {
++	if (ret)
+ 		pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
+ 			pfn, ret, page->flags);
+-	} else {
+-		set_page_hwpoison_huge_page(hpage);
+-		dequeue_hwpoisoned_huge_page(hpage);
+-		atomic_long_add(1 << compound_order(hpage),
+-				&num_poisoned_pages);
+-	}
+ 	return ret;
+ }
+ 
+@@ -1530,8 +1524,6 @@ static int __soft_offline_page(struct page *page, int flags)
+ 	if (ret == 1) {
+ 		put_page(page);
+ 		pr_info("soft_offline: %#lx: invalidated\n", pfn);
+-		SetPageHWPoison(page);
+-		atomic_long_inc(&num_poisoned_pages);
+ 		return 0;
+ 	}
+ 
+@@ -1572,11 +1564,9 @@ static int __soft_offline_page(struct page *page, int flags)
+ 				lru_add_drain_all();
+ 			if (!is_free_buddy_page(page))
+ 				drain_all_pages();
+-			SetPageHWPoison(page);
+ 			if (!is_free_buddy_page(page))
+ 				pr_info("soft offline: %#lx: page leaked\n",
+ 					pfn);
+-			atomic_long_inc(&num_poisoned_pages);
+ 		}
+ 	} else {
+ 		pr_info("soft offline: %#lx: isolation failed: %d, page count %d, type %lx\n",
+@@ -1633,7 +1623,9 @@ int soft_offline_page(struct page *page, int flags)
+ 			ret = soft_offline_huge_page(page, flags);
+ 		else
+ 			ret = __soft_offline_page(page, flags);
+-	} else { /* for free pages */
++	}
++
++	if (!ret) {
+ 		if (PageHuge(page)) {
+ 			set_page_hwpoison_huge_page(hpage);
+ 			dequeue_hwpoisoned_huge_page(hpage);
 -- 
 1.8.1.2
 
