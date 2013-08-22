@@ -1,291 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id CD79C6B0036
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 06:59:07 -0400 (EDT)
-Date: Thu, 22 Aug 2013 12:58:56 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v5] Soft limit rework
-Message-ID: <20130822105856.GA21529@dhcp22.suse.cz>
-References: <1371557387-22434-1-git-send-email-mhocko@suse.cz>
- <20130819163512.GB712@cmpxchg.org>
- <20130820091414.GC31552@dhcp22.suse.cz>
- <20130820141339.GA31419@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 3D2CD6B0036
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 07:05:47 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Fri, 23 Aug 2013 07:59:00 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 2710C2CE8052
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 21:04:40 +1000 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7MAmQfD45744186
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 20:48:32 +1000
+Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7MB4Wlu027533
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2013 21:04:33 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 12/20] mm, hugetlb: remove vma_has_reserves()
+In-Reply-To: <20130822091747.GA22605@lge.com>
+References: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com> <1376040398-11212-13-git-send-email-iamjoonsoo.kim@lge.com> <87siy215e1.fsf@linux.vnet.ibm.com> <20130822091747.GA22605@lge.com>
+Date: Thu, 22 Aug 2013 16:34:22 +0530
+Message-ID: <87mwoa0yx5.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130820141339.GA31419@cmpxchg.org>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, Glauber Costa <glommer@gmail.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
 
-[I am mostly offline for the whole week with very limitted internet
-access so it will get longer for me to respond to emails. Sorry about
-that]
+Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
 
-On Tue 20-08-13 10:13:39, Johannes Weiner wrote:
-> On Tue, Aug 20, 2013 at 11:14:14AM +0200, Michal Hocko wrote:
-> > On Mon 19-08-13 12:35:12, Johannes Weiner wrote:
-> > > On Tue, Jun 18, 2013 at 02:09:39PM +0200, Michal Hocko wrote:
-> > > > Hi,
-> > > > 
-> > > > This is the fifth version of the patchset.
-> > > > 
-> > > > Summary of versions:
-> > > > The first version has been posted here: http://permalink.gmane.org/gmane.linux.kernel.mm/97973
-> > > > (lkml wasn't CCed at the time so I cannot find it in lwn.net
-> > > > archives). There were no major objections. 
-> > > 
-> > > Except there are.
-> > 
-> > Good to know that late... It would have been much more helpful to have
-> > such a principal feedback few months ago (this work is here since early
-> > Jun).
-> 
-> I NAKed this "integrate into reclaim but still make soft reclaim an
-> extra pass" idea the first time Ying submitted it.
+> On Thu, Aug 22, 2013 at 02:14:38PM +0530, Aneesh Kumar K.V wrote:
+>> Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
+>> 
+>> > vma_has_reserves() can be substituted by using return value of
+>> > vma_needs_reservation(). If chg returned by vma_needs_reservation()
+>> > is 0, it means that vma has reserves. Otherwise, it means that vma don't
+>> > have reserves and need a hugepage outside of reserve pool. This definition
+>> > is perfectly same as vma_has_reserves(), so remove vma_has_reserves().
+>> >
+>> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>> 
+>> Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+>
+> Thanks.
+>
+>> > @@ -580,8 +547,7 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
+>> >  	 * have no page reserves. This check ensures that reservations are
+>> >  	 * not "stolen". The child may still get SIGKILLed
+>> >  	 */
+>> > -	if (!vma_has_reserves(vma, chg) &&
+>> > -			h->free_huge_pages - h->resv_huge_pages == 0)
+>> > +	if (chg && h->free_huge_pages - h->resv_huge_pages == 0)
+>> >  		return NULL;
+>> >
+>> >  	/* If reserves cannot be used, ensure enough pages are in the pool */
+>> > @@ -600,7 +566,7 @@ retry_cpuset:
+>> >  			if (page) {
+>> >  				if (avoid_reserve)
+>> >  					break;
+>> > -				if (!vma_has_reserves(vma, chg))
+>> > +				if (chg)
+>> >  					break;
+>> >
+>> >  				SetPagePrivate(page);
+>> 
+>> Can you add a comment above both the place to explain why checking chg
+>> is good enough ?
+>
+> Yes, I can. But it will be changed to use_reserve in patch 13 and it
+> represent it's meaning perfectly. So commeting may be useless.
 
-There was a general agreement about this approach at LSF AFAIR. So it is
-really surprising hearing that from you _now_
+That should be ok, because having a comment in this patch helps in
+understanding the patch better, even though you are removing that
+later. 
 
-I do not remember the details of your previous NAK but I do remember you
-liked the series I posted before the conference. I am willing to change
-details (e.g. move big vmscan part into memcg) but I do insist on having
-soft reclaim integrated to the regular reclaim.
-
-> And no, the soft limit discussions have been going on since I first
-> submitted a rewrite as part of the reclaim integration series in
-> mid-2011.
-
-Which makes the whole story even more sad :/
-
-> We have been going back and forth on whether soft limits should behave
-> as guarantees and *protect* from reclaim.  But I thought we had since
-> agreed that implementing guarantees should be a separate effort and as
-> far as I'm concerned there is no justification for all this added code
-> just to prevent reclaiming non-excess when there is excess around.
-
-The patchset is absolutely not about guarantees anymore. It is more
-about making the current soft limit reclaim more natural. E.g. not doing
-prio-0 scans.
-
-The side effect that the isolation works better in the result is just a
-bonus. And I have to admit I like that bonus.
-
-> > > > My primary test case was a parallel kernel build with 2 groups (make
-> > > > is running with -j4 with a distribution .config in a separate cgroup
-> > > > without any hard limit) on a 8 CPU machine booted with 1GB memory.  I
-> > > > was mostly interested in 2 setups. Default - no soft limit set and - and
-> > > > 0 soft limit set to both groups.
-> > > > The first one should tell us whether the rework regresses the default
-> > > > behavior while the second one should show us improvements in an extreme
-> > > > case where both workloads are always over the soft limit.
-> > > 
-> > > Two kernel builds with 1G of memory means that reclaim is purely
-> > > trimming the cache every once in a while.  Changes in memory pressure
-> > > are not measurable up to a certain point, because whether you trim old
-> > > cache or not does not affect the build jobs.
-> > > 
-> > > Also you tested the no-softlimit case and an extreme soft limit case.
-> > > Where are the common soft limit cases?
-> > 
-> > v5.1 had some more tests. I have added soft limitted stream IO resp. kbuild vs
-> > unlimitted mem_eater loads. Have you checked those?
-> 
-> Another 0-limit test?  If you declare every single page a cgroup has
-> as being in excess of what it should have, how does reclaiming them
-> aggressively constitute bad behavior?
-
-My testing simply tries to compare the behavior before and after the
-patchset. And points out that the current soft reclaim is really
-aggressive and it doesn't have to act like that.
-
-> > [...]
-> > > > So to wrap this up. The series is still doing good and improves the soft
-> > > > limit.
-> > > 
-> > > The soft limit tree is a bunch of isolated code that's completely
-> > > straight-forward.  This is replaced by convoluted memcg iterators,
-> > > convoluted lruvec shrinkers, spreading even more memcg callbacks with
-> > > questionable semantics into already complicated generic reclaim code.
-> > 
-> > I was trying to keep the convolution into vmscan as small as possible.
-> > Maybe it can get reduced even more. I will think about it.
-> > 
-> > Predicate for memcg iterator has been added to address your concern
-> > about a potential regression with too many groups. And that looked like
-> > the least convoluting solution.
-> 
-> I suggested improving the 1st pass by propagating soft limit excess
-> through the res counters.  They are the hierarchical book keepers.  I
-> even send you patches to do this.  I don't understand why you
-> propagate soft limit excess in struct mem_cgroup and use this
-> ridiculous check_events thing to update them.  We already have the
-> per-cpu charge caches (stock) and uncharge caches to batch res_counter
-> updates.
-> 
-> Anyway, this would be a replacement for the current tree structure to
-> quickly find memcgs in excess. 
-
-Yes and I do not insist on having this per-memcg counter. I took this
-way to keep this memcg specific thing withing memcg code and do not
-pollute generic cgroup code which doesn't care about this property at
-all.
-
-> It has nothing to do with integrating it into vmscan.c.
-
-agreed
-
-> > > This series considerably worsens readability and maintainability of
-> > > both the generic reclaim code as well as the memcg counterpart of it.
-> > 
-> > I am really surprised that you are coming with this concerns that late.
-> > This code has been posted quite some ago, hasn't it? We have even had
-> > that "calm" discussion with Tejun about predicates and you were silent
-> > at the time.
-> 
-> I apologize that I was not more responsive in previous submissions,
-> this is mainly because it was hard to context switch while I was
-> focussed on the allocator fairness / thrash detection patches.
-
-Come on, Johannes! We were sitting in the same room at LSF when there
-was a general agreement about the patchset because "It is a general
-improvement and further changes might happen on top of it". You didn't
-say a word you didn't like it and consider the integration as a bad
-idea.
-
-> But you are surprised that I still object to something that I have
-> been objecting to from day one?  What exactly has changed?
-> 
-> > > The point of naturalizing the memcg code is to reduce data structures
-> > > and redundancy and to break open opaque interfaces like "do soft
-> > > reclaim and report back".  But you didn't actually reduce complexity,
-> > > you added even more opaque callbacks (should_soft_reclaim?
-> > > soft_reclaim_eligible?).  You didn't integrate soft limit into generic
-> > > reclaim code, you just made the soft limit API more complicated.
-> > 
-> > I can certainly think about simplifications. But it would be nicer if
-> > you were more specific on the "more complicated" part. The soft reclaim
-> > is a natural part of the reclaim now. Which I find as an improvement.
-> > "Do some memcg magic and get back was" a bad idea IMO.
-> 
-> It depends.  Doing memcg reclaim in generic code made sense because
-> the global data structure went and the generic code absolutely had to
-> know about memcg iteration.
-> 
-> Soft limit reclaim is something else.  If it were just a modifier of
-> the existing memcg reclaim loop, I would still put it in vmscan.c for
-> simplicity reasons.
-> 
-> But your separate soft limit reclaim pass adds quite some complication
-> to the generic code and there is no good reason for it.
-
-Does it? The whole decision is hidden within the predicate so the main
-loop doesn't have to care at all. If we ever go with another limit for
-the guarantee it would simply use a different predicate to select the
-right group.
-
-> The naming does not help to make it very natural to vmscan.c, either.
-> __shrink_zone() should be shrink_lruvecs(),
-> mem_cgroup_soft_reclaim_eligible() should be
-> mem_cgroup_soft_limit_exceeded() or something like that.
-
-I am certainly open to change naming.
-
-> SKIP_TREE should not be a kernel-wide name for anything.
-
-That would require to move the looping code inside memcg. It is question
-whether that would help readability. I do not insist on doing the memcg
-loop inside vmscan, though.
-
-> Also note that we have
-> since moved on to make lruvec the shared structure and try to steer
-> away from using memcgs outside of memcontrol.c, so I'm not really fond
-> of tying more generic code to struct mem_cgroup.
-> 
-> > Hiding the soft limit decisions into the iterators as a searching
-> > criteria doesn't sound as a totally bad idea to me. Soft limit is an
-> > additional criteria who to reclaim, isn't it?
-> 
-> Arguably it's a criteria of /how/ to reclaim any given memcg.  Making
-> it about pre-selecting memcgs is a totally different beast.
-> 
-> > Well, I could have open coded it but that would mean a more code into
-> > vmscan or getting back to "call some memcg magic and get back to me".
-> 
-> Either way sounds preferrable to having vmscan.c do a lot of things it
-> does not understand.
-> 
-> > > And, as I mentioned repeatedly in previous submissions, your benchmark
-> > > numbers don't actually say anything useful about this change.
-> > 
-> > I would really welcome suggestions for improvements. I have tried "The
-> > most interesting test case would be how it behaves if some groups are
-> > over the soft limits while others are not." with v5.1 where I had
-> > memeater unlimited and kbuild resp. stream IO being limited.
-> 
-> The workload seems better but the limit configuration is still very
-> dubious.
-> 
-> I just don't understand what your benchmarks are trying to express.
-> If you set a soft limit of 0 you declare all memory is optional but
-> then you go ahead and complain that the workload in there is
-> thrashing.  WTF?
-
-As I've already said the primary motivation was to check before and
-after state and as you can see we can do better... Although you might
-find soft_limit=0 setting artificial this setting is the easiest way to
-tell that such a group is the number one candidate for reclaim.
-
-We have users who would like to do backups or some temporary actions to
-not disturb the main workload. So stream-io resp. kbuild vs. mem_eater
-is simulating such a use case.
-
-> Kernelbuilds are not really good candidates for soft limit usage in
-> the first place, because they have a small set of heavily used pages
-> and a lot of used-once cache.
-
-It still produces the sufficient memory pressure to disturb other
-groups.
-
-> The core workingset is anything but
-> optional and you could just set the hard limit to clip all that
-> needless cache because it does not change performance whether it's
-> available or not.  Same exact thing goes for IO streamers and their
-> subset of dirty/writeback pages.
-> 
-> > > I'm against merging this upstream at this point.
-> > 
-> > Can we at least find some middle ground here? The way how the current
-> > soft limit is done is a disaster. Ditching the whole series sounds like
-> > a step back to me.
-> 
-> I'm worried about memcg madness spreading.  Memcg code is nowhere near
-> kernel core code standards and I'm really reluctant to have it spread
-> into something as delicate as vmscan.c for no good reason at all.
-> 
-> If you claim the soft limit implementation is a disaster, I would have
-> expected a real life workload to back this up but all I've seen are
-> synthetic tests with no apparent significance to reality.
-> 
-> So, no, I don't buy the "let's just do SOMETHING here" argument.
-> 
-> Let's figure out what the hell is wrong, back it up, find a solution
-> and verify it against the test case.
-
-It is basically prio-0 thing that is the disaster. And I was quite
-explicit about that. 
-
-> Memcg/cgroup code is full of overengineered solutions to problems that
-> don't exist.  It's insane and it has to stop.
-
-This code is getting rid of a big part of that over-engineering! I do
-agree there is a lot of room improvements but, hey, that is always the
-case.
-
--- 
-Michal Hocko
-SUSE Labs
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
