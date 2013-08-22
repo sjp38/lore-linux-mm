@@ -1,51 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 9B6C86B0033
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 23:02:52 -0400 (EDT)
-Date: Wed, 21 Aug 2013 23:02:42 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1377140562-vx0ifft7-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <CAPgLHd8+CD8iNZ4d7OJgc-jqd4ObgLnE0WmkGM5S98Q1TtTROQ@mail.gmail.com>
-References: <CAPgLHd8+CD8iNZ4d7OJgc-jqd4ObgLnE0WmkGM5S98Q1TtTROQ@mail.gmail.com>
-Subject: Re: [PATCH -next] mm/page_alloc.c: remove duplicated include from
- page_alloc.c
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id EA00F6B0033
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2013 23:21:29 -0400 (EDT)
+Received: by mail-oa0-f51.google.com with SMTP id h1so2576880oag.10
+        for <linux-mm@kvack.org>; Wed, 21 Aug 2013 20:21:29 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20130821204901.GA19802@redhat.com>
+References: <20130807055157.GA32278@redhat.com>
+	<CAJd=RBCJv7=Qj6dPW2Ha=nq6JctnK3r7wYCAZTm=REVOZUNowg@mail.gmail.com>
+	<20130807153030.GA25515@redhat.com>
+	<CAJd=RBCyZU8PR7mbFUdKsWq3OH+5HccEWKMEH5u7GNHNy3esWg@mail.gmail.com>
+	<20130819231836.GD14369@redhat.com>
+	<CAJd=RBA-UZmSTxNX63Vni+UPZBHwP4tvzE_qp1ZaHBqcNG7Fcw@mail.gmail.com>
+	<20130821204901.GA19802@redhat.com>
+Date: Thu, 22 Aug 2013 11:21:28 +0800
+Message-ID: <CAJd=RBBNCf5_V-nHjK0gOqS4OLMszgB7Rg_WMf4DvL-De+ZdHA@mail.gmail.com>
+Subject: Re: unused swap offset / bad page map.
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yongjun <weiyj.lk@gmail.com>
-Cc: akpm@linux-foundation.org, mgorman@suse.de, jiang.liu@huawei.com, cody@linux.vnet.ibm.com, minchan@kernel.org, yongjun_wei@trendmicro.com.cn, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Jones <davej@redhat.com>, Hillf Danton <dhillf@gmail.com>, Linux-MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-On Thu, Aug 22, 2013 at 10:47:27AM +0800, Wei Yongjun wrote:
-> From: Wei Yongjun <yongjun_wei@trendmicro.com.cn>
-> 
-> Remove duplicated include.
-> 
-> Signed-off-by: Wei Yongjun <yongjun_wei@trendmicro.com.cn>
-> ---
->  mm/page_alloc.c | 1 -
->  1 file changed, 1 deletion(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index efb2ffa..4751901 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -60,7 +60,6 @@
->  #include <linux/page-debug-flags.h>
->  #include <linux/hugetlb.h>
->  #include <linux/sched/rt.h>
-> -#include <linux/hugetlb.h>
->  
->  #include <asm/sections.h>
->  #include <asm/tlbflush.h>
-> 
+On Thu, Aug 22, 2013 at 4:49 AM, Dave Jones <davej@redhat.com> wrote:
+>
+> didn't hit the bug_on, but got a bunch of
+>
+> [  424.077993] swap_free: Unused swap offset entry 000187d5
+> [  439.377194] swap_free: Unused swap offset entry 000187e7
+> [  441.998411] swap_free: Unused swap offset entry 000187ee
+> [  446.956551] swap_free: Unused swap offset entry 0000245f
+>
+If page is reused, its swap entry is freed.
 
-That's my fault. Thank you for fixing.
+reuse_swap_page()
+  delete_from_swap_cache()
+    swapcache_free()
+      count = swap_entry_free(p, entry, SWAP_HAS_CACHE);
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+If count drops to zero, then swap_free() gives warning.
+
+
+--- a/mm/memory.c Wed Aug  7 16:29:34 2013
++++ b/mm/memory.c Thu Aug 22 10:44:32 2013
+@@ -3123,6 +3123,7 @@ static int do_swap_page(struct mm_struct
+  /* It's better to call commit-charge after rmap is established */
+  mem_cgroup_commit_charge_swapin(page, ptr);
+
++ if (!exclusive)
+  swap_free(entry);
+  if (vm_swap_full() || (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
+  try_to_free_swap(page);
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
