@@ -1,45 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 024106B0034
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 07:03:37 -0400 (EDT)
-Received: by mail-ie0-f173.google.com with SMTP id qd12so557107ieb.4
-        for <linux-mm@kvack.org>; Fri, 23 Aug 2013 04:03:37 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id A72BA6B0032
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 07:06:20 -0400 (EDT)
+Received: by mail-ie0-f181.google.com with SMTP id a14so522961iee.26
+        for <linux-mm@kvack.org>; Fri, 23 Aug 2013 04:06:20 -0700 (PDT)
 MIME-Version: 1.0
-Date: Fri, 23 Aug 2013 19:03:37 +0800
-Message-ID: <CAL1ERfPzB=CvKJ6kAq2YYTkkg-EgSOWRyfSFWkvKp8ZdQkCDxA@mail.gmail.com>
-Subject: [PATCH 1/4] zswap bugfix: memory leaks when re-swapon
+Date: Fri, 23 Aug 2013 19:06:20 +0800
+Message-ID: <CAL1ERfNdZX_j2Qg-fb9g1U4Wjv8qZwKgUX=JGGjOa6q0zOWEEA@mail.gmail.com>
+Subject: [PATCH 2/4] zswap: use GFP_NOIO instead of GFP_KERNEL
 From: Weijie Yang <weijie.yang.kh@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>, Bob Liu <bob.liu@oracle.com>, sjenning@linux.vnet.ibm.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, weijie.yang@samsung.com
+Cc: weijie.yang@samsung.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-zswap_tree is not freed when swapoff, and it got re-kzalloc in swapon,
-memory leak occurs.
-Add check statement in zswap_frontswap_init so that zswap_tree is
-inited only once.
+avoid zswap store and reclaim functions called recursively.
 
 ---
- mm/zswap.c |    5 +++++
- 1 files changed, 5 insertions(+), 0 deletions(-)
+ mm/zswap.c |    6 +++---
+ 1 files changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/mm/zswap.c b/mm/zswap.c
-index deda2b6..1cf1c07 100644
+index 1cf1c07..5f97f4f 100644
 --- a/mm/zswap.c
 +++ b/mm/zswap.c
-@@ -826,6 +826,11 @@ static void zswap_frontswap_init(unsigned type)
- {
- 	struct zswap_tree *tree;
+@@ -427,7 +427,7 @@ static int zswap_get_swap_cache_page(swp_entry_t entry,
+ 		 * Get a new page to read into from swap.
+ 		 */
+ 		if (!new_page) {
+-			new_page = alloc_page(GFP_KERNEL);
++			new_page = alloc_page(GFP_NOIO);
+ 			if (!new_page)
+ 				break; /* Out of memory */
+ 		}
+@@ -435,7 +435,7 @@ static int zswap_get_swap_cache_page(swp_entry_t entry,
+ 		/*
+ 		 * call radix_tree_preload() while we can wait.
+ 		 */
+-		err = radix_tree_preload(GFP_KERNEL);
++		err = radix_tree_preload(GFP_NOIO);
+ 		if (err)
+ 			break;
 
-+	if (zswap_trees[type]) {
-+		BUG_ON(zswap_trees[type]->rbroot != RB_ROOT);  /* invalidate_area set it */
-+		return;
-+	}
-+
- 	tree = kzalloc(sizeof(struct zswap_tree), GFP_KERNEL);
- 	if (!tree)
- 		goto err;
+@@ -628,7 +628,7 @@ static int zswap_frontswap_store(unsigned type,
+pgoff_t offset,
+ 	}
+
+ 	/* allocate entry */
+-	entry = zswap_entry_cache_alloc(GFP_KERNEL);
++	entry = zswap_entry_cache_alloc(GFP_NOIO);
+ 	if (!entry) {
+ 		zswap_reject_kmemcache_fail++;
+ 		ret = -ENOMEM;
 -- 
 1.7.0.4
 
