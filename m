@@ -1,74 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id 5FDE76B0032
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 02:16:43 -0400 (EDT)
-Date: Fri, 23 Aug 2013 15:16:53 +0900
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 5363A6B0032
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 02:35:29 -0400 (EDT)
+Date: Fri, 23 Aug 2013 15:35:39 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2 12/20] mm, hugetlb: remove vma_has_reserves()
-Message-ID: <20130823061653.GC22605@lge.com>
-References: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1376040398-11212-13-git-send-email-iamjoonsoo.kim@lge.com>
- <87siy215e1.fsf@linux.vnet.ibm.com>
- <20130822091747.GA22605@lge.com>
- <87mwoa0yx5.fsf@linux.vnet.ibm.com>
+Subject: Re: [PATCH 00/16] slab: overload struct slab over struct page to
+ reduce memory usage
+Message-ID: <20130823063539.GD22605@lge.com>
+References: <1377161065-30552-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <00000140a6ec66e5-a4d245c0-76b6-4a8b-9cf0-d941ca9e08b0-000000@email.amazonses.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87mwoa0yx5.fsf@linux.vnet.ibm.com>
+In-Reply-To: <00000140a6ec66e5-a4d245c0-76b6-4a8b-9cf0-d941ca9e08b0-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Aug 22, 2013 at 04:34:22PM +0530, Aneesh Kumar K.V wrote:
-> Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
+On Thu, Aug 22, 2013 at 04:47:25PM +0000, Christoph Lameter wrote:
+> On Thu, 22 Aug 2013, Joonsoo Kim wrote:
 > 
-> > On Thu, Aug 22, 2013 at 02:14:38PM +0530, Aneesh Kumar K.V wrote:
-> >> Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
-> >> 
-> >> > vma_has_reserves() can be substituted by using return value of
-> >> > vma_needs_reservation(). If chg returned by vma_needs_reservation()
-> >> > is 0, it means that vma has reserves. Otherwise, it means that vma don't
-> >> > have reserves and need a hugepage outside of reserve pool. This definition
-> >> > is perfectly same as vma_has_reserves(), so remove vma_has_reserves().
-> >> >
-> >> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> >> 
-> >> Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> >
-> > Thanks.
-> >
-> >> > @@ -580,8 +547,7 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
-> >> >  	 * have no page reserves. This check ensures that reservations are
-> >> >  	 * not "stolen". The child may still get SIGKILLed
-> >> >  	 */
-> >> > -	if (!vma_has_reserves(vma, chg) &&
-> >> > -			h->free_huge_pages - h->resv_huge_pages == 0)
-> >> > +	if (chg && h->free_huge_pages - h->resv_huge_pages == 0)
-> >> >  		return NULL;
-> >> >
-> >> >  	/* If reserves cannot be used, ensure enough pages are in the pool */
-> >> > @@ -600,7 +566,7 @@ retry_cpuset:
-> >> >  			if (page) {
-> >> >  				if (avoid_reserve)
-> >> >  					break;
-> >> > -				if (!vma_has_reserves(vma, chg))
-> >> > +				if (chg)
-> >> >  					break;
-> >> >
-> >> >  				SetPagePrivate(page);
-> >> 
-> >> Can you add a comment above both the place to explain why checking chg
-> >> is good enough ?
-> >
-> > Yes, I can. But it will be changed to use_reserve in patch 13 and it
-> > represent it's meaning perfectly. So commeting may be useless.
+> > And this patchset change a management method of free objects of a slab.
+> > Current free objects management method of the slab is weird, because
+> > it touch random position of the array of kmem_bufctl_t when we try to
+> > get free object. See following example.
 > 
-> That should be ok, because having a comment in this patch helps in
-> understanding the patch better, even though you are removing that
-> later. 
+> The ordering is intentional so that the most cache hot objects are removed
+> first.
 
-Okay. I will add it in next spin.
+Yes, I know.
+
+> 
+> > To get free objects, we access this array with following pattern.
+> > 6 -> 3 -> 7 -> 2 -> 5 -> 4 -> 0 -> 1 -> END
+> 
+> Because that is the inverse order of the objects being freed.
+> 
+> The cache hot effect may not be that significant since per cpu and per
+> node queues have been aded on top. So maybe we do not be so cache aware
+> anymore when actually touching struct slab.
+
+I don't change the ordering, I just change how we store that order to
+reduce cache footprint. We can simply implement this order via stack.
+
+Assume indexes of free order are 1 -> 0 -> 4.
+Currently, this order is stored in very complex way like below.
+
+struct slab's free = 4
+kmem_bufctl_t array: 1 END ACTIVE ACTIVE 0
+
+If we allocate one object, we access slab's free and index 4 of
+kmem_bufctl_t array.
+
+struct slab's free = 0
+kmem_bufctl_t array: 1 END ACTIVE ACTIVE ACTIVE
+<we get object at index 4>
+
+And then,
+
+struct slab's free = 1
+kmem_bufctl_t array: ACTIVE END ACTIVE ACTIVE ACTIVE
+<we get object at index 0>
+
+And then,
+
+struct slab's free = END
+kmem_bufctl_t array: ACTIVE ACTIVE ACTIVE ACTIVE ACTIVE
+<we get object at index 0>
+
+Following is newly implementation (stack) in same situation.
+
+struct slab's free = 0
+kmem_bufctl_t array: 4 0 1
+
+To get an one object,
+
+struct slab's free = 1
+kmem_bufctl_t array: dummy 0 1
+<we get object at index 4>
+
+And then,
+
+struct slab's free = 2
+kmem_bufctl_t array: dummy dummy 1
+<we get object at index 0>
+
+struct slab's free = 3
+kmem_bufctl_t array: dummy dummy dummy
+<we get object at index 1>
+
+The order of returned object is same as previous algorithm.
+However this algorithm sequentially accesses kmem_bufctl_t array,
+instead of randomly access. This is an advantage of this patch.
 
 Thanks.
 
