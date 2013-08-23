@@ -1,75 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 36CFB6B0032
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 10:39:09 -0400 (EDT)
-Date: Fri, 23 Aug 2013 10:38:54 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1377268734-8oq8947y-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1377253841-17620-7-git-send-email-liwanp@linux.vnet.ibm.com>
-References: <1377253841-17620-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1377253841-17620-7-git-send-email-liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 7/7] mm/hwpoison: add '#' to madvise_hwpoison
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 7C9E86B0032
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 10:57:37 -0400 (EDT)
+Received: by mail-qc0-f180.google.com with SMTP id l13so322292qcy.39
+        for <linux-mm@kvack.org>; Fri, 23 Aug 2013 07:57:36 -0700 (PDT)
+Date: Fri, 23 Aug 2013 10:57:32 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 0/8] x86, acpi: Move acpi_initrd_override() earlier.
+Message-ID: <20130823145732.GC3277@htj.dyndns.org>
+References: <1377202292.10300.693.camel@misato.fc.hp.com>
+ <20130822202158.GD3490@mtj.dyndns.org>
+ <1377205598.10300.715.camel@misato.fc.hp.com>
+ <20130822212111.GF3490@mtj.dyndns.org>
+ <1377209861.10300.756.camel@misato.fc.hp.com>
+ <20130823130440.GC10322@mtj.dyndns.org>
+ <3ee58764-21c2-4df4-9353-54799a6a3d7b@email.android.com>
+ <20130823141924.GA3277@htj.dyndns.org>
+ <bf688aac-4080-4ac6-83cd-fd66cef6ce1a@email.android.com>
+ <20130823143507.GB3277@htj.dyndns.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20130823143507.GB3277@htj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Tony Luck <tony.luck@intel.com>, gong.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Toshi Kani <toshi.kani@hp.com>, Zhang Yanfei <zhangyanfei.yes@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, konrad.wilk@oracle.com, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-On Fri, Aug 23, 2013 at 06:30:41PM +0800, Wanpeng Li wrote:
-> Add '#' to madvise_hwpoison.
-> 
-> Before patch:
-> 
-> [   95.892866] Injecting memory failure for page 19d0 at b7786000
-> [   95.893151] MCE 0x19d0: non LRU page recovery: Ignored
-> 
-> After patch:
-> 
-> [   95.892866] Injecting memory failure for page 0x19d0 at 0xb7786000
-> [   95.893151] MCE 0x19d0: non LRU page recovery: Ignored
-> 
-> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+On Fri, Aug 23, 2013 at 10:35:07AM -0400, Tejun Heo wrote:
+> Yeah, it's true that MTRRs are nasty.  On the other hand, we've been
+> doing that for over a decade and are still doing it anyway if I'm not
+> mistaken.  It probably isn't a big difference but it's still a bit sad
+> that this is likely causing small performance regression out in the
+> wild.
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Just went over the processor manual and it doesn't seem like doing the
+above would be a good idea.
 
-> ---
->  mm/madvise.c | 4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/madvise.c b/mm/madvise.c
-> index 95795df..588bb19 100644
-> --- a/mm/madvise.c
-> +++ b/mm/madvise.c
-> @@ -353,14 +353,14 @@ static int madvise_hwpoison(int bhv, unsigned long start, unsigned long end)
->  		if (ret != 1)
->  			return ret;
->  		if (bhv == MADV_SOFT_OFFLINE) {
-> -			printk(KERN_INFO "Soft offlining page %lx at %lx\n",
-> +			pr_info("Soft offlining page %#lx at %#lx\n",
->  				page_to_pfn(p), start);
->  			ret = soft_offline_page(p, MF_COUNT_INCREASED);
->  			if (ret)
->  				break;
->  			continue;
->  		}
-> -		printk(KERN_INFO "Injecting memory failure for page %lx at %lx\n",
-> +		pr_info("Injecting memory failure for page %#lx at %#lx\n",
->  		       page_to_pfn(p), start);
->  		/* Ignore return value for now */
->  		memory_failure(page_to_pfn(p), 0, MF_COUNT_INCREASED);
-> -- 
-> 1.8.1.2
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+
+  System Programming Guide, Part 1
+
+  11.11.9 Large Page Size Considerations
+
+ ... 
+ Because the memory type for a large page is cached in the TLB, the
+ processor can behave in an undefined manner if a large page is mapped
+ to a region of memory that MTRRs have mapped with multiple memory
+ types.
+ ...
+ If a large page maps to a region of memory containing different
+ MTRR-defined memory types, the PCD and PWT flags in the page-table
+ entry should be set for the most conservative memory type for that
+ range. For example, a large page used for memory mapped I/O and
+ regular memory 11-48 Vol. 3A MEMORY CACHE CONTROL
+ ...
+
+ The Pentium 4, Intel Xeon, and P6 family processors provide special
+ support for the physical memory range from 0 to 4 MBytes,
+ ...
+ Here, the processor maps the memory range as multiple 4-KByte pages
+ within the TLB. This operation insures correct behavior at the cost
+ of performance. To avoid this performance penalty, operating-system
+ software should reserve the large page option for regions of memory
+ at addresses greater than or equal to 4 MBytes.
+
+So, yeah, the current behavior seems like the right thing to do.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
