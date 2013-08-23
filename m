@@ -1,85 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id A508E6B0032
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 09:03:40 -0400 (EDT)
-Date: Fri, 23 Aug 2013 15:03:32 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH] cpuset: mm: Reduce large amounts of memory barrier
- related damage v3
-Message-ID: <20130823130332.GY31370@twins.programming.kicks-ass.net>
-References: <20120307180852.GE17697@suse.de>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 31FC36B0034
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 09:04:46 -0400 (EDT)
+Received: by mail-qa0-f51.google.com with SMTP id f11so295535qae.10
+        for <linux-mm@kvack.org>; Fri, 23 Aug 2013 06:04:45 -0700 (PDT)
+Date: Fri, 23 Aug 2013 09:04:40 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 0/8] x86, acpi: Move acpi_initrd_override() earlier.
+Message-ID: <20130823130440.GC10322@mtj.dyndns.org>
+References: <20130821204041.GC2436@htj.dyndns.org>
+ <1377124595.10300.594.camel@misato.fc.hp.com>
+ <20130822033234.GA2413@htj.dyndns.org>
+ <1377186729.10300.643.camel@misato.fc.hp.com>
+ <20130822183130.GA3490@mtj.dyndns.org>
+ <1377202292.10300.693.camel@misato.fc.hp.com>
+ <20130822202158.GD3490@mtj.dyndns.org>
+ <1377205598.10300.715.camel@misato.fc.hp.com>
+ <20130822212111.GF3490@mtj.dyndns.org>
+ <1377209861.10300.756.camel@misato.fc.hp.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120307180852.GE17697@suse.de>
+In-Reply-To: <1377209861.10300.756.camel@misato.fc.hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Miao Xie <miaox@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@redhat.com
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: Zhang Yanfei <zhangyanfei.yes@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, konrad.wilk@oracle.com, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-On Wed, Mar 07, 2012 at 06:08:52PM +0000, Mel Gorman wrote:
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index 06b145f..013d981 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -1843,18 +1843,24 @@ struct page *
->  alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
->  		unsigned long addr, int node)
->  {
-> -	struct mempolicy *pol = get_vma_policy(current, vma, addr);
-> +	struct mempolicy *pol;
->  	struct zonelist *zl;
->  	struct page *page;
-> +	unsigned int cpuset_mems_cookie;
-> +
-> +retry_cpuset:
-> +	pol = get_vma_policy(current, vma, addr);
-> +	cpuset_mems_cookie = get_mems_allowed();
->  
-> -	get_mems_allowed();
->  	if (unlikely(pol->mode == MPOL_INTERLEAVE)) {
->  		unsigned nid;
->  
->  		nid = interleave_nid(pol, vma, addr, PAGE_SHIFT + order);
->  		mpol_cond_put(pol);
->  		page = alloc_page_interleave(gfp, order, nid);
-> -		put_mems_allowed();
-> +		if (unlikely(!put_mems_allowed(cpuset_mems_cookie) && !page))
-> +			goto retry_cpuset;
-> +
->  		return page;
->  	}
->  	zl = policy_zonelist(gfp, pol, node);
+Hello, Toshi.
 
-So I think this patch is broken (still). Suppose we have an
-INTERLEAVE mempol like 0x3 and change it to 0xc.
+On Thu, Aug 22, 2013 at 04:17:41PM -0600, Toshi Kani wrote:
+> I am relatively new to Linux, so I am not a good person to elaborate
+> this.  From my experience on other OS, huge pages helped for the kernel,
+> but did not necessarily help user applications.  It depended on
+> applications, which were not niche cases.  But Linux may be different,
+> so I asked since you seemed confident.  I'd appreciate if you can point
+> us some data that endorses your statement.
 
-Original:	0x3
-Rebind Step 1:	0xf /* set bits */
-Rebind Step 2:	0xc /* clear bits */
+We are talking about the kernel linear mapping which is created during
+early boot, so if it's available and useable there's no reason not to
+use it.  Exceptions would be earlier processors which didn't do 1G
+mappings or e820 maps with a lot of holes.  For CPUs used in NUMA
+configurations, the former has been history for a bit now.  Can't be
+sure about the latter but it'd be surprising for that to affect large
+amount of memory in the systems that are of interest here.  Ooh, that
+reminds me that we probably wanna go back to 1G + MTRR mapping under
+4G.  We're currently creating a lot of mapping holes.
 
-Now look at what can happen with offset_il_node() when its ran
-concurrently with step 2:
+> My worry is that the code is unlikely tested with the special logic when
+> someone makes code changes to the page tables.  Such code can easily be
+> broken in future.
 
-  nnodes = nodes_weight(pol->v.nodes); /* observes 0xf and returns 4 */
+Well, I wouldn't consider flipping the direction of allocation to be
+particularly difficult to get right especially when compared to
+bringing in ACPI tables into the mix.
 
-  /* now we clear the actual bits */
-  
-  target = (unsigned int)off % nnodes; /* assume target >= 2 */
-  c = 0;
-  do {
-  	nid = next_node(nid, pol->v.nodes);
-	c++;
-  } while (c <= target);
+> To answer your other question/email, I believe Tang's next step is to
+> support local page tables.  This is why we think pursing SRAT earlier is
+> the right direction.
 
-  /* here nid := MAX_NUMNODES */
+Given 1G mappings, is that even a worthwhile effort?  I'm getting even
+more more skeptical.
 
+Thanks.
 
-This nid is then blindly inserted into node_zonelist() which does an
-NODE_DATA() array access out of bounds and off we go.
-
-This would suggest we put the whole seqcount thing inside
-offset_il_node().
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
