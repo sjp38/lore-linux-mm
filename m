@@ -1,47 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id CA8426B0032
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 12:11:52 -0400 (EDT)
-Received: by mail-bk0-f48.google.com with SMTP id my13so304155bkb.7
-        for <linux-mm@kvack.org>; Fri, 23 Aug 2013 09:11:51 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 8DE8A6B0034
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 12:12:12 -0400 (EDT)
+Received: by mail-vc0-f171.google.com with SMTP id ij15so560323vcb.16
+        for <linux-mm@kvack.org>; Fri, 23 Aug 2013 09:12:11 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20130822154002.ce4310d865ede3a0d30f0ce8@linux-foundation.org>
-References: <CAFj3OHXy5XkwhxKk=WNywp2pq__FD7BrSQwFkp+NZj15_k6BEQ@mail.gmail.com>
-	<1377165190-24143-1-git-send-email-handai.szj@taobao.com>
-	<20130822154002.ce4310d865ede3a0d30f0ce8@linux-foundation.org>
-Date: Sat, 24 Aug 2013 00:11:50 +0800
-Message-ID: <CAFj3OHUqv9d_0x6hMkboox=B3rPeSe5QJq_ztV+zisuymsjLdw@mail.gmail.com>
-Subject: Re: [PATCH 3/4] memcg: add per cgroup writeback pages accounting
-From: Sha Zhengju <handai.szj@gmail.com>
+In-Reply-To: <00000140abd66e64-21601d31-3ba2-42bd-8153-9f1d41fcc0d9-000000@email.amazonses.com>
+References: <1377161065-30552-1-git-send-email-iamjoonsoo.kim@lge.com>
+	<1377161065-30552-6-git-send-email-iamjoonsoo.kim@lge.com>
+	<00000140a72870a6-f7c87696-ecbc-432c-9f41-93f414c0c623-000000@email.amazonses.com>
+	<20130823065315.GG22605@lge.com>
+	<00000140ab69e6be-3b2999b6-93b4-4b22-a91f-8929aee5238f-000000@email.amazonses.com>
+	<CAAmzW4NZHXXX08tdQitwapfi8raQ-BTRry92A0jdFQkm0vaqxw@mail.gmail.com>
+	<00000140abd66e64-21601d31-3ba2-42bd-8153-9f1d41fcc0d9-000000@email.amazonses.com>
+Date: Sat, 24 Aug 2013 01:12:11 +0900
+Message-ID: <CAAmzW4N1GXbr18Ws9QDKg7ChN5RVcOW9eEv2RxWhaEoHtw=ctw@mail.gmail.com>
+Subject: Re: [PATCH 05/16] slab: remove cachep in struct slab_rcu
+From: JoonSoo Kim <js1304@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Sha Zhengju <handai.szj@taobao.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Aug 23, 2013 at 6:40 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Thu, 22 Aug 2013 17:53:10 +0800 Sha Zhengju <handai.szj@gmail.com> wrote:
+2013/8/24 Christoph Lameter <cl@linux.com>:
+> On Fri, 23 Aug 2013, JoonSoo Kim wrote:
 >
->> This patch is to add memcg routines to count writeback pages
+>> I don't get it. This patch only affect to the rcu case, because it
+>> change the code
+>> which is in kmem_rcu_free(). It doesn't touch anything in standard case.
 >
-> Well OK, but why?  What use is the feature?  In what ways are people
-> suffering due to its absence?
+> In general this patchset moves struct slab to overlay struct page. The
+> design of SLAB was (at least at some point in the past) to avoid struct
+> page references. The freelist was kept close to struct slab so that the
+> contents are in the same cache line. Moving fields to struct page will add
+> another cacheline to be referenced.
 
-My apologies for not explaining it clearly.
+I don't think so.
+We should touch the struct page in order to get the struct slab, so there is
+no additional cacheline reference.
 
-It's subset of memcg dirty page accounting(including dirty, writeback,
-nfs_unstable pages from a broad sense), which can provide a more sound
-knowledge of memcg behavior. That would be straightforward to add new
-features like memcg dirty page throttling and even memcg aware
-flushing.
-However, the dirty one is more complicated and performance senstive,
-so I need more efforts to improve it and let the writeback patch go
-first.  Afterwards I'll only focus on dirty page itself.
+And if the size of the (slab + freelist) decreases due to this patchset,
+there is more chance to be on-slab which means that the freelist is in pages
+of a slab itself. I think that it also help cache usage.
 
--- 
-Thanks,
-Sha
+> The freelist (bufctl_t) was dimensioned in such a way as to be small
+> and close cache wise to struct slab.
+
+I think that my patchset don't harm anything related to this.
+As I said, we should access the struct page before getting the struct slab,
+so the fact that freelist is far from the struct slab doesn't mean additional
+cache overhead.
+
+* Before patchset
+struct page -> struct slab (far from struct page)
+   -> the freelist (near from struct slab)
+
+* After patchset
+struct page (overload by struct slab) -> the freelist (far from struct page)
+
+Somewhow bufctl_t grew to
+> unsigned int and therefore the table became a bit large. Fundamentally
+> these are indexes into the objects in page. They really could be sized
+> again to just be single bytes as also explained in the comments in slab.c:
+> /*
+>  * kmem_bufctl_t:
+>  *
+>  * Bufctl's are used for linking objs within a slab
+>  * linked offsets.
+>  *
+>  * This implementation relies on "struct page" for locating the cache &
+>  * slab an object belongs to.
+>  * This allows the bufctl structure to be small (one int), but limits
+>  * the number of objects a slab (not a cache) can contain when off-slab
+>  * bufctls are used. The limit is the size of the largest general cache
+>  * that does not use off-slab slabs.
+>  * For 32bit archs with 4 kB pages, is this 56.
+>  * This is not serious, as it is only for large objects, when it is unwise
+>  * to have too many per slab.
+>  * Note: This limit can be raised by introducing a general cache whose size
+>  * is less than 512 (PAGE_SIZE<<3), but greater than 256.
+>  */
+>
+> For 56 objects the bufctl_t could really be reduced to an 8 bit integer
+> which would shrink the size of the table significantly and improve speed
+> by reducing cache footprint.
+>
+
+Yes, that's very good. However this is not related to this patchset.
+It can be implemented independently :)
+
+Please let me know what I am missing.
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
