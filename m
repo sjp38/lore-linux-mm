@@ -1,45 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 363976B0032
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 12:08:04 -0400 (EDT)
-Date: Fri, 23 Aug 2013 11:08:02 -0500
-From: Russ Anderson <rja@sgi.com>
-Subject: Re: [PATCH] [BUGFIX] drivers/base: fix show_mem_removable section
-	count
-Message-ID: <20130823160802.GA10988@sgi.com>
-Reply-To: Russ Anderson <rja@sgi.com>
-References: <20130823023837.GA12396@sgi.com> <52170DDE.4010103@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id CA8426B0032
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 12:11:52 -0400 (EDT)
+Received: by mail-bk0-f48.google.com with SMTP id my13so304155bkb.7
+        for <linux-mm@kvack.org>; Fri, 23 Aug 2013 09:11:51 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <52170DDE.4010103@jp.fujitsu.com>
+In-Reply-To: <20130822154002.ce4310d865ede3a0d30f0ce8@linux-foundation.org>
+References: <CAFj3OHXy5XkwhxKk=WNywp2pq__FD7BrSQwFkp+NZj15_k6BEQ@mail.gmail.com>
+	<1377165190-24143-1-git-send-email-handai.szj@taobao.com>
+	<20130822154002.ce4310d865ede3a0d30f0ce8@linux-foundation.org>
+Date: Sat, 24 Aug 2013 00:11:50 +0800
+Message-ID: <CAFj3OHUqv9d_0x6hMkboox=B3rPeSe5QJq_ztV+zisuymsjLdw@mail.gmail.com>
+Subject: Re: [PATCH 3/4] memcg: add per cgroup writeback pages accounting
+From: Sha Zhengju <handai.szj@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Yinghai Lu <yinghai@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Sha Zhengju <handai.szj@taobao.com>
 
-On Fri, Aug 23, 2013 at 04:23:10PM +0900, Yasuaki Ishimatsu wrote:
+On Fri, Aug 23, 2013 at 6:40 AM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Thu, 22 Aug 2013 17:53:10 +0800 Sha Zhengju <handai.szj@gmail.com> wrote:
 >
-> I don't think it works well.
-> mem->section_count means how many present section is in the memory_block.
-> If 0, 1, 3 and 4 sections are present in the memory_block, mem->section_count
-> is 4. In this case, is_mem_sectionremovable is called for section 2. But the
-> section is not present. So if the memory_block has hole, same problem will occur.
+>> This patch is to add memcg routines to count writeback pages
 >
-> How about keep sections_per_block loop and add following check:
->
-> 		if (!present_section_nr(mem->start_section_nr + i))
-> 			continue;
+> Well OK, but why?  What use is the feature?  In what ways are people
+> suffering due to its absence?
 
-Yes, I will make that change and resubmit the patch.
-Thanks.
+My apologies for not explaining it clearly.
 
-> Thanks,
-> Yasuaki Ishimatsu
+It's subset of memcg dirty page accounting(including dirty, writeback,
+nfs_unstable pages from a broad sense), which can provide a more sound
+knowledge of memcg behavior. That would be straightforward to add new
+features like memcg dirty page throttling and even memcg aware
+flushing.
+However, the dirty one is more complicated and performance senstive,
+so I need more efforts to improve it and let the writeback patch go
+first.  Afterwards I'll only focus on dirty page itself.
 
 -- 
-Russ Anderson, OS RAS/Partitioning Project Lead  
-SGI - Silicon Graphics Inc          rja@sgi.com
+Thanks,
+Sha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
