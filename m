@@ -1,71 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id B24BB6B0032
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 13:56:06 -0400 (EDT)
-Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjennings@variantweb.net>;
-	Fri, 23 Aug 2013 11:56:06 -0600
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id CFB633E40042
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 11:55:37 -0600 (MDT)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7NHu1bA158256
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 11:56:02 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r7NHtxHu017253
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 11:56:00 -0600
-Date: Fri, 23 Aug 2013 10:28:59 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: Re: [PATCH 1/4] zswap bugfix: memory leaks when re-swapon
-Message-ID: <20130823152859.GB5439@variantweb.net>
-References: <CAL1ERfPzB=CvKJ6kAq2YYTkkg-EgSOWRyfSFWkvKp8ZdQkCDxA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 4D5736B0032
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 14:15:53 -0400 (EDT)
+Date: Fri, 23 Aug 2013 20:15:46 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH] cpuset: mm: Reduce large amounts of memory barrier
+ related damage v3
+Message-ID: <20130823181546.GA31370@twins.programming.kicks-ass.net>
+References: <20120307180852.GE17697@suse.de>
+ <20130823130332.GY31370@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAL1ERfPzB=CvKJ6kAq2YYTkkg-EgSOWRyfSFWkvKp8ZdQkCDxA@mail.gmail.com>
+In-Reply-To: <20130823130332.GY31370@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Weijie Yang <weijie.yang.kh@gmail.com>
-Cc: Minchan Kim <minchan@kernel.org>, Bob Liu <bob.liu@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, weijie.yang@samsung.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Miao Xie <miaox@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@redhat.com
 
-On Fri, Aug 23, 2013 at 07:03:37PM +0800, Weijie Yang wrote:
-> zswap_tree is not freed when swapoff, and it got re-kzalloc in swapon,
-> memory leak occurs.
-> Add check statement in zswap_frontswap_init so that zswap_tree is
-> inited only once.
+On Fri, Aug 23, 2013 at 03:03:32PM +0200, Peter Zijlstra wrote:
+> So I think this patch is broken (still). Suppose we have an
+> INTERLEAVE mempol like 0x3 and change it to 0xc.
 > 
-> ---
->  mm/zswap.c |    5 +++++
->  1 files changed, 5 insertions(+), 0 deletions(-)
+> Original:	0x3
+> Rebind Step 1:	0xf /* set bits */
+> Rebind Step 2:	0xc /* clear bits */
 > 
-> diff --git a/mm/zswap.c b/mm/zswap.c
-> index deda2b6..1cf1c07 100644
-> --- a/mm/zswap.c
-> +++ b/mm/zswap.c
-> @@ -826,6 +826,11 @@ static void zswap_frontswap_init(unsigned type)
->  {
->  	struct zswap_tree *tree;
+> Now look at what can happen with offset_il_node() when its ran
+> concurrently with step 2:
 > 
-> +	if (zswap_trees[type]) {
-> +		BUG_ON(zswap_trees[type]->rbroot != RB_ROOT);  /* invalidate_area set it */
+>   nnodes = nodes_weight(pol->v.nodes); /* observes 0xf and returns 4 */
+> 
+>   /* now we clear the actual bits */
+>   
+>   target = (unsigned int)off % nnodes; /* assume target >= 2 */
+>   c = 0;
+>   do {
+>   	nid = next_node(nid, pol->v.nodes);
+> 	c++;
+>   } while (c <= target);
+> 
+>   /* here nid := MAX_NUMNODES */
+> 
+> 
+> This nid is then blindly inserted into node_zonelist() which does an
+> NODE_DATA() array access out of bounds and off we go.
+> 
+> This would suggest we put the whole seqcount thing inside
+> offset_il_node().
 
-Lets leave this BUG_ON() out.  If we want to make sure that the rbtree has
-been properly emptied out, we should do it in
-zswap_frontswap_invalidate_area() after the while loop and make it a
-WARN_ON() since the problem is not fatal.
+Oh bloody grrr. Its not directly related at all, the patch in question
+fixes a cpuset task_struct::mems_allowed problem while the above is a
+mempolicy issue and of course the cpuset and mempolicy code are
+completely bloody different :/
 
-Seth
+So I guess the quick and ugly solution is something like the below. 
 
-> +		return;
-> +	}
-> +
->  	tree = kzalloc(sizeof(struct zswap_tree), GFP_KERNEL);
->  	if (!tree)
->  		goto err;
-> -- 
-> 1.7.0.4
-> 
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1762,19 +1762,21 @@ unsigned slab_node(void)
+ static unsigned offset_il_node(struct mempolicy *pol,
+ 		struct vm_area_struct *vma, unsigned long off)
+ {
+-	unsigned nnodes = nodes_weight(pol->v.nodes);
+-	unsigned target;
+-	int c;
+-	int nid = -1;
++	unsigned nnodes, target;
++	int c, nid;
+ 
++again:
++	nnodes = nodes_weight(pol->v.nodes);
+ 	if (!nnodes)
+ 		return numa_node_id();
++
+ 	target = (unsigned int)off % nnodes;
+-	c = 0;
+-	do {
++	for (c = 0, nid = -1; c <= target; c++)
+ 		nid = next_node(nid, pol->v.nodes);
+-		c++;
+-	} while (c <= target);
++
++	if (unlikely((unsigned)nid >= MAX_NUMNODES))
++		goto again;
++
+ 	return nid;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
