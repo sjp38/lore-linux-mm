@@ -1,15 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 135AE6B0032
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 10:36:43 -0400 (EDT)
-Date: Fri, 23 Aug 2013 10:36:38 -0400
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 36CFB6B0032
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 10:39:09 -0400 (EDT)
+Date: Fri, 23 Aug 2013 10:38:54 -0400
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1377268598-md0gqi8g-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1377253841-17620-5-git-send-email-liwanp@linux.vnet.ibm.com>
+Message-ID: <1377268734-8oq8947y-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1377253841-17620-7-git-send-email-liwanp@linux.vnet.ibm.com>
 References: <1377253841-17620-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1377253841-17620-5-git-send-email-liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 5/7] mm/hwpoison: don't set migration type twice to
- avoid hold heavy contend zone->lock
+ <1377253841-17620-7-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 7/7] mm/hwpoison: add '#' to madvise_hwpoison
 Mime-Version: 1.0
 Content-Type: text/plain;
  charset=iso-2022-jp
@@ -20,47 +19,48 @@ List-ID: <linux-mm.kvack.org>
 To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Tony Luck <tony.luck@intel.com>, gong.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Aug 23, 2013 at 06:30:39PM +0800, Wanpeng Li wrote:
-> v1 -> v2:
-> 	* add more explanation in patch description.
+On Fri, Aug 23, 2013 at 06:30:41PM +0800, Wanpeng Li wrote:
+> Add '#' to madvise_hwpoison.
 > 
-> Set pageblock migration type will hold zone->lock which is heavy contended
-> in system to avoid race. However, soft offline page will set pageblock
-> migration type twice during get page if the page is in used, not hugetlbfs
-> page and not on lru list. There is unnecessary to set the pageblock migration
-> type and hold heavy contended zone->lock again if the first round get page
-> have already set the pageblock to right migration type.
+> Before patch:
 > 
-> The trick here is migration type is MIGRATE_ISOLATE. There are other two parts 
-> can change MIGRATE_ISOLATE except hwpoison. One is memory hoplug, however, we 
-> hold lock_memory_hotplug() which avoid race. The second is CMA which umovable 
-> page allocation requst can't fallback to. So it's safe here.
+> [   95.892866] Injecting memory failure for page 19d0 at b7786000
+> [   95.893151] MCE 0x19d0: non LRU page recovery: Ignored
+> 
+> After patch:
+> 
+> [   95.892866] Injecting memory failure for page 0x19d0 at 0xb7786000
+> [   95.893151] MCE 0x19d0: non LRU page recovery: Ignored
 > 
 > Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+
 > ---
->  mm/memory-failure.c | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
+>  mm/madvise.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
 > 
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index 297965e..f357c91 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -1426,7 +1426,8 @@ static int __get_any_page(struct page *p, unsigned long pfn, int flags)
->  	 * was free. This flag should be kept set until the source page
->  	 * is freed and PG_hwpoison on it is set.
->  	 */
-> -	set_migratetype_isolate(p, true);
-> +	if (get_pageblock_migratetype(p) == MIGRATE_ISOLATE)
-> +		set_migratetype_isolate(p, true);
-
-Do you really mean "we set MIGRATE_ISOLATE only if it's already set?"
-
-Thanks,
-Naoya Horiguchi
-
->  	/*
->  	 * When the target page is a free hugepage, just remove it
->  	 * from free hugepage list.
+> diff --git a/mm/madvise.c b/mm/madvise.c
+> index 95795df..588bb19 100644
+> --- a/mm/madvise.c
+> +++ b/mm/madvise.c
+> @@ -353,14 +353,14 @@ static int madvise_hwpoison(int bhv, unsigned long start, unsigned long end)
+>  		if (ret != 1)
+>  			return ret;
+>  		if (bhv == MADV_SOFT_OFFLINE) {
+> -			printk(KERN_INFO "Soft offlining page %lx at %lx\n",
+> +			pr_info("Soft offlining page %#lx at %#lx\n",
+>  				page_to_pfn(p), start);
+>  			ret = soft_offline_page(p, MF_COUNT_INCREASED);
+>  			if (ret)
+>  				break;
+>  			continue;
+>  		}
+> -		printk(KERN_INFO "Injecting memory failure for page %lx at %lx\n",
+> +		pr_info("Injecting memory failure for page %#lx at %#lx\n",
+>  		       page_to_pfn(p), start);
+>  		/* Ignore return value for now */
+>  		memory_failure(page_to_pfn(p), 0, MF_COUNT_INCREASED);
 > -- 
 > 1.8.1.2
 > 
