@@ -1,65 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 8A8526B0032
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 18:27:32 -0400 (EDT)
-Received: by mail-ob0-f172.google.com with SMTP id er7so1271617obc.17
-        for <linux-mm@kvack.org>; Fri, 23 Aug 2013 15:27:31 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 1C71F6B0032
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 19:25:09 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id r10so1245275pdi.28
+        for <linux-mm@kvack.org>; Fri, 23 Aug 2013 16:25:08 -0700 (PDT)
+Message-ID: <5217EF52.2010307@google.com>
+Date: Fri, 23 Aug 2013 16:25:06 -0700
+From: Stephen Barber <smbarber@google.com>
 MIME-Version: 1.0
-In-Reply-To: <CAE9FiQU0n++wSR2Xmv06DGGie0zemwrVQr9Ha7Qv+88DX3wbdA@mail.gmail.com>
-References: <20130821204041.GC2436@htj.dyndns.org>
-	<1377124595.10300.594.camel@misato.fc.hp.com>
-	<20130822033234.GA2413@htj.dyndns.org>
-	<1377186729.10300.643.camel@misato.fc.hp.com>
-	<20130822183130.GA3490@mtj.dyndns.org>
-	<1377202292.10300.693.camel@misato.fc.hp.com>
-	<20130822202158.GD3490@mtj.dyndns.org>
-	<1377205598.10300.715.camel@misato.fc.hp.com>
-	<20130822212111.GF3490@mtj.dyndns.org>
-	<1377209861.10300.756.camel@misato.fc.hp.com>
-	<20130823130440.GC10322@mtj.dyndns.org>
-	<1377274448.10300.777.camel@misato.fc.hp.com>
-	<521793BB.9080605@gmail.com>
-	<CAE9FiQXZ610BrVaXoxY70NS3CaSku7mcVFx+x34-jpYUkG2rdQ@mail.gmail.com>
-	<CAD11hGxase=mk_pYEvtYyrHTWb=u5D4XX0PJT8Ah6owtPQSRxg@mail.gmail.com>
-	<CAE9FiQU0n++wSR2Xmv06DGGie0zemwrVQr9Ha7Qv+88DX3wbdA@mail.gmail.com>
-Date: Sat, 24 Aug 2013 06:27:31 +0800
-Message-ID: <CAD11hGz0KBSkdfEu05415zK64gh+dxY6kbB1jha04ehdGoyzag@mail.gmail.com>
-Subject: Re: [PATCH 0/8] x86, acpi: Move acpi_initrd_override() earlier.
-From: chen tang <imtangchen@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: zram: hang/deadlock when used as swap
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yinghai Lu <yinghai@kernel.org>
-Cc: Zhang Yanfei <zhangyanfei.yes@gmail.com>, Toshi Kani <toshi.kani@hp.com>, Tejun Heo <tj@kernel.org>, Tang Chen <tangchen@cn.fujitsu.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Bob Moore <robert.moore@intel.com>, Lv Zheng <lv.zheng@intel.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Thomas Renninger <trenn@suse.de>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, Prarit Bhargava <prarit@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "yanghy@cn.fujitsu.com" <yanghy@cn.fujitsu.com>, the arch/x86 maintainers <x86@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: Luigi Semenzato <semenzato@google.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>
 
-Hi Yinghai,
+Hi all,
 
-2013/8/24 Yinghai Lu <yinghai@kernel.org>:
-......
->
->> 3. I'm not quite sure is there any important benefit that the kernel
->> initializes all
->>     the memory at beginning ?
->>
->> And also, the memory hotplug schedule is very tough for us. We really want the
->> movablenode functionality could be available soon. And this idea could
->> be a long way to go. So I also think this would be the next step.
->
-> uh?
-> I already tried best to help. Even spent time to produce patchset
-> to separate acpi_override find/copy, and numa_info parse early
-> and put page tables on local nodes.
->
-> Let me know what else I could help.
->
+I've been experimenting with zram on 3.11-rc6 (x86_64), and am getting a
+deadlock under certain conditions when zram is used as a swap device.
 
-Yes, we are very appreciated your help. We can see all the people working on
-this topic are very helpful. :)
+Here's my speculative diagnosis: calls into zram_slot_free_notify will
+try to down a semaphore, which has a chance of sleeping. In at least a
+few of the paths to zram_slot_free_notify, there may be some held spin
+locks (such as in swap_info_struct). This leads to a deadlock when the
+process holding the spin lock is put to sleep, since no other process
+can acquire it.
 
-I'm just saying the "boot with pxm(x), and hot-add the rest" idea could be a
-long way and need more discussion and confirmation.
+I can reproduce the deadlock almost 100% of the time by creating a large
+number of processes (~50) that are all using swap. git bisect indicates
+that things broke here:
 
-Thanks.
+commit 57ab048532c0d975538cebd4456491b5c34248f4
+Author: Jiang Liu <liuj97@gmail.com>
+Commit: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+zram: use zram->lock to protect zram_free_page() in swap free notify path
+
+
+Any insights would be much appreciated!
+
+
+Relevant call trace after hang detected:
+CPU: 1 PID: 13564 Comm: hog Tainted: G        WC   3.11.0-rc6 #3
+Hardware name: SAMSUNG Lumpy, BIOS Google_Lumpy.2.111.0 03/18/2012
+task: ffff88013f308000 ti: ffff88012ea60000 task.ti: ffff88012ea60000
+RIP: 0010:[<ffffffff81211768>]  [<ffffffff81211768>] delay_tsc+0x19/0x50
+RSP: 0000:ffff88012ea617f8  EFLAGS: 00000206
+RAX: 00000000ac4c158b RBX: ffffffff814e7b1c RCX: 00000000ac4c153f
+RDX: 0000000000000023 RSI: 0000000000000001 RDI: 0000000000000001
+RBP: ffff88012ea617f8 R08: 0000000000000002 R09: 0000000000000000
+R10: ffffffff817e282b R11: ffffffff81a321d0 R12: ffff88012ea61768
+R13: ffff88014fb13740 R14: ffff88012ea60000 R15: 0000000000000046
+FS:  00007f8405cf7700(0000) GS:ffff88014fb00000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 00007f4a43ceaa08 CR3: 000000012ea46000 CR4: 00000000000407e0
+Stack:
+ ffff88012ea61808 ffffffff812116f9 ffff88012ea61838 ffffffff8121816d
+ 0000000000017588 ffff88013f095500 0000000000017588 0000000000017588
+ ffff88012ea61868 ffffffff814e70a7 ffffffff810ee1e2 ffffffff814e1a84
+Call Trace:
+ [<ffffffff812116f9>] __delay+0xf/0x11
+ [<ffffffff8121816d>] do_raw_spin_lock+0xac/0xfe
+ [<ffffffff814e70a7>] _raw_spin_lock+0x39/0x40
+ [<ffffffff810ee1e2>] ? spin_lock+0x2e/0x33
+ [<ffffffff814e1a84>] ? dump_stack+0x46/0x58
+ [<ffffffff8106f519>] ? vprintk_emit+0x3d0/0x436
+ [<ffffffff810ee1e2>] spin_lock+0x2e/0x33
+ [<ffffffff810ee245>] swap_info_get+0x5e/0x9a
+ [<ffffffff810eedab>] swapcache_free+0x14/0x3d
+ [<ffffffff810d0b06>] __remove_mapping+0x84/0xc8
+ [<ffffffff810d25f7>] shrink_page_list+0x691/0x860
+ [<ffffffff810d2cec>] shrink_inactive_list+0x240/0x3df
+ [<ffffffff810d31fd>] shrink_lruvec+0x372/0x52d
+ [<ffffffff810d3cf5>] try_to_free_pages+0x15f/0x36c
+ [<ffffffff810cb19d>] __alloc_pages_nodemask+0x323/0x54f
+ [<ffffffff810e09ad>] handle_pte_fault+0x149/0x4f8
+ [<ffffffff8102edcd>] ? __do_page_fault+0x159/0x38c
+ [<ffffffff810e0f72>] handle_mm_fault+0x99/0xbf
+ [<ffffffff8102efb6>] __do_page_fault+0x342/0x38c
+ [<ffffffff8107a53d>] ? arch_local_irq_save+0x9/0xc
+ [<ffffffff8107c7e2>] ? trace_hardirqs_on+0xd/0xf
+ [<ffffffff814e76dc>] ? _raw_spin_unlock_irq+0x2d/0x32
+ [<ffffffff8105e534>] ? finish_task_switch+0x80/0xcc
+ [<ffffffff8105e4f6>] ? finish_task_switch+0x42/0xcc
+ [<ffffffff8121275d>] ? trace_hardirqs_off_thunk+0x3a/0x3c
+ [<ffffffff8102f032>] do_page_fault+0xe/0x10
+ [<ffffffff814e7d22>] page_fault+0x22/0x30
+
+Thanks,
+Stephen
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
