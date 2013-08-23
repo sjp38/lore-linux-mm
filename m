@@ -1,72 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 1B68E6B0032
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 13:30:32 -0400 (EDT)
-Received: by mail-pb0-f42.google.com with SMTP id un15so933766pbc.1
-        for <linux-mm@kvack.org>; Fri, 23 Aug 2013 10:30:31 -0700 (PDT)
-Message-ID: <52179C14.20407@gmail.com>
-Date: Sat, 24 Aug 2013 01:29:56 +0800
-From: Zhang Yanfei <zhangyanfei.yes@gmail.com>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id BD2D26B0034
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 13:56:03 -0400 (EDT)
+Received: from /spool/local
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjennings@variantweb.net>;
+	Fri, 23 Aug 2013 11:56:02 -0600
+Received: from b01cxnp22035.gho.pok.ibm.com (b01cxnp22035.gho.pok.ibm.com [9.57.198.25])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id EAA85C90044
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 13:55:57 -0400 (EDT)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by b01cxnp22035.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7NHtxuS28639406
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 17:55:59 GMT
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r7NHtx4e007052
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 13:55:59 -0400
+Date: Fri, 23 Aug 2013 10:22:29 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Subject: Re: [PATCH 0/4] zswap bugfix: memory leaks and other problem
+Message-ID: <20130823152229.GA5439@variantweb.net>
+References: <CAL1ERfON5p1t_KskkQc_7u78Qk=kmy6nNyqsnDwriesTi2ubLA@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/8] x86, acpi: Move acpi_initrd_override() earlier.
-References: <20130822033234.GA2413@htj.dyndns.org>  <1377186729.10300.643.camel@misato.fc.hp.com>  <20130822183130.GA3490@mtj.dyndns.org>  <1377202292.10300.693.camel@misato.fc.hp.com>  <20130822202158.GD3490@mtj.dyndns.org>  <1377205598.10300.715.camel@misato.fc.hp.com>  <20130822212111.GF3490@mtj.dyndns.org>  <1377209861.10300.756.camel@misato.fc.hp.com>  <20130823130440.GC10322@mtj.dyndns.org>  <1377274448.10300.777.camel@misato.fc.hp.com>  <20130823162444.GL3277@htj.dyndns.org> <1377278016.10300.814.camel@misato.fc.hp.com>
-In-Reply-To: <1377278016.10300.814.camel@misato.fc.hp.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAL1ERfON5p1t_KskkQc_7u78Qk=kmy6nNyqsnDwriesTi2ubLA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: Tejun Heo <tj@kernel.org>, Tang Chen <tangchen@cn.fujitsu.com>, konrad.wilk@oracle.com, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Weijie Yang <weijie.yang.kh@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, Bob Liu <bob.liu@oracle.com>, weijie.yang@samsung.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Toshi,
-
-On 08/24/2013 01:13 AM, Toshi Kani wrote:
-> Hello,
+On Fri, Aug 23, 2013 at 07:26:01PM +0800, Weijie Yang wrote:
+> This patch series fix a few bugs in zswap based on Linux-3.11-rc6.
 > 
-> On Fri, 2013-08-23 at 12:24 -0400, Tejun Heo wrote:
->> On Fri, Aug 23, 2013 at 10:14:08AM -0600, Toshi Kani wrote:
->>> I still think acpi table info should be available earlier, but I do not
->>> think I can convince you on this.  This can be religious debate.
->>
->> I'm curious.  If there aren't substantial enough benefits, why would
->> you still want to pull it earlier when it brings in things like initrd
->> override and crafting the code carefully so that it's safe to execute
->> it from different address modes and so on?  Please note that x86 is
->> not ia64.  The early environment is completely different not only
->> technically but also in its diversity and suckiness.  It wasn't too
->> long ago that vendors were screwing up ACPI left and right.  It has
->> been getting better but there's a reason why, for example, we still
->> consider e820 to be the authoritative information over ACPI.
+> Corresponding mail thread see: lkml.org/lkml/2013/8/18/59 .
 > 
-> Firmware generates tables, and provides them via some interface.  Memory
-> map table can be provided via e820 or EFI memory map.  Memory topology
-> table is provided via ACPI.  I agree to prioritize one table over the
-> other when there is overlap.  But in the end, it is the firmware that
-> generates the tables.  Because it is provided via ACPI does not make it
-> suddenly unreliable.  I think table info from e820/EFI/ACPI should be
-> available at the same time.  To me, it makes more sense to use the
-> hotplug info to initialize memblock than try to find a way to workaround
-> without it.  
+> These issues fixed are:
+>  1. memory leaks when re-swapon
+>  2. potential problem which store and reclaim functions is called recursively
+>  3. memory leaks when invalidate and reclaim occur simultaneously
+>  4. unnecessary page scanning
 
-Yeah, agreed. But sigh.... on x86, we have ACPI initrd override, so we still
-cannot convince Tj....
+Thanks for the patches!
 
-I think we will continue to be in that way to find a
-> workaround in this direction. 
+Patches 2-4 have whitespace corruption (line wrapping) probably caused
+by your mail agent.  You might check Documentation/email-clients.txt on
+how to prevent this.
+
+Seth
+
 > 
-> I came from ia64 background, and am not very familiar with x86.  So, you
-> may be very right about that x86 is different.  I also agree that initrd
-> is making it unnecessarily complicated.  We may see some initial issues,
-> but my hope is that the code gets matured over the time.
+> Issues discussed in that mail thread NOT fixed as it happens rarely or
+> not a big problem:
+>  1. a "theoretical race condition" when reclaim page
+>  when a handle alloced from zbud, zbud considers this handle is used
+> validly by upper(zswap) and can be a candidate for reclaim.
+>  But zswap has to initialize it such as setting swapentry and adding
+> it to rbtree. so there is a race condition, such as:
+>  thread 0: obtain handle x from zbud_alloc
+>  thread 1: zbud_reclaim_page is called
+>  thread 1: callback zswap_writeback_entry to reclaim handle x
+>  thread 1: get swpentry from handle x (it is random value now)
+>  thread 1: bad thing may happen
+>  thread 0: initialize handle x with swapentry
 > 
-> Thanks,
-> -Toshi
+> 2. frontswap_map bitmap not cleared after zswap reclaim
+>  Frontswap uses frontswap_map bitmap to track page in "backend" implementation,
+>  when zswap reclaim a page, the corresponding bitmap record is not cleared.
 > 
-
-
--- 
-Thanks.
-Zhang Yanfei
+> mm/zswap.c |   35 ++++++++++++++++++++++++-----------
+>   1 files changed, 24 insertions(+), 11 deletions(-)
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
