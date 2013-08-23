@@ -1,69 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id EA5FF6B0032
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 13:15:06 -0400 (EDT)
-Message-ID: <1377278016.10300.814.camel@misato.fc.hp.com>
-Subject: Re: [PATCH 0/8] x86, acpi: Move acpi_initrd_override() earlier.
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Fri, 23 Aug 2013 11:13:36 -0600
-In-Reply-To: <20130823162444.GL3277@htj.dyndns.org>
-References: <20130822033234.GA2413@htj.dyndns.org>
-	 <1377186729.10300.643.camel@misato.fc.hp.com>
-	 <20130822183130.GA3490@mtj.dyndns.org>
-	 <1377202292.10300.693.camel@misato.fc.hp.com>
-	 <20130822202158.GD3490@mtj.dyndns.org>
-	 <1377205598.10300.715.camel@misato.fc.hp.com>
-	 <20130822212111.GF3490@mtj.dyndns.org>
-	 <1377209861.10300.756.camel@misato.fc.hp.com>
-	 <20130823130440.GC10322@mtj.dyndns.org>
-	 <1377274448.10300.777.camel@misato.fc.hp.com>
-	 <20130823162444.GL3277@htj.dyndns.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 5D97E6B0032
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 13:17:39 -0400 (EDT)
+Date: Fri, 23 Aug 2013 18:16:05 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [BUG] ARM64: Create 4K page size mmu memory map at init time
+ will trigger exception.
+Message-ID: <20130823171605.GH10971@arm.com>
+References: <BFAC7FA8F7636E45AB9ECBAC17346F3434557683@SZXEML508-MBS.china.huawei.com>
+ <20130822161614.GE1352@arm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130822161614.GE1352@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Zhang Yanfei <zhangyanfei.yes@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, konrad.wilk@oracle.com, robert.moore@intel.com, lv.zheng@intel.com, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, yanghy@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: "Leizhen (ThunderTown, Euler)" <thunder.leizhen@huawei.com>
+Cc: Russell King <linux@arm.linux.org.uk>, "Liujiang (Gerry)" <jiang.liu@huawei.com>, Will Deacon <Will.Deacon@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Huxinwei <huxinwei@huawei.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Lizefan <lizefan@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-Hello,
-
-On Fri, 2013-08-23 at 12:24 -0400, Tejun Heo wrote:
-> On Fri, Aug 23, 2013 at 10:14:08AM -0600, Toshi Kani wrote:
-> > I still think acpi table info should be available earlier, but I do not
-> > think I can convince you on this.  This can be religious debate.
+On Thu, Aug 22, 2013 at 05:16:14PM +0100, Catalin Marinas wrote:
+> On Thu, Aug 22, 2013 at 04:35:29AM +0100, Leizhen (ThunderTown, Euler) wrote:
+> > This problem is on ARM64. When CONFIG_ARM64_64K_PAGES is not opened, the memory
+> > map size can be 2M(section) and 4K(PAGE). First, OS will create map for pgd
+> > (level 1 table) and level 2 table which in swapper_pg_dir. Then, OS register
+> > mem block into memblock.memory according to memory node in fdt, like memory@0,
+> > and create map in setup_arch-->paging_init. If all mem block start address and
+> > size is integral multiple of 2M, there is no problem, because we will create 2M
+> > section size map whose entries locate in level 2 table. But if it is not
+> > integral multiple of 2M, we should create level 3 table, which granule is 4K.
+> > Now, current implementtion is call early_alloc-->memblock_alloc to alloc memory
+> > for level 3 table. This function will find a 4K free memory which locate in
+> > memblock.memory tail(high address), but paging_init is create map from low
+> > address to high address, so new alloced memory is not mapped, write page talbe
+> > entry to it will trigger exception.
 > 
-> I'm curious.  If there aren't substantial enough benefits, why would
-> you still want to pull it earlier when it brings in things like initrd
-> override and crafting the code carefully so that it's safe to execute
-> it from different address modes and so on?  Please note that x86 is
-> not ia64.  The early environment is completely different not only
-> technically but also in its diversity and suckiness.  It wasn't too
-> long ago that vendors were screwing up ACPI left and right.  It has
-> been getting better but there's a reason why, for example, we still
-> consider e820 to be the authoritative information over ACPI.
+> I see how this can happen. There is a memblock_set_current_limit to
+> PGDIR_SIZE (1GB, we have a pre-allocated pmd) and in my tests I had at
+> least 1GB of RAM which got mapped first and didn't have this problem.
+> I'll come up with a patch tomorrow.
 
-Firmware generates tables, and provides them via some interface.  Memory
-map table can be provided via e820 or EFI memory map.  Memory topology
-table is provided via ACPI.  I agree to prioritize one table over the
-other when there is overlap.  But in the end, it is the firmware that
-generates the tables.  Because it is provided via ACPI does not make it
-suddenly unreliable.  I think table info from e820/EFI/ACPI should be
-available at the same time.  To me, it makes more sense to use the
-hotplug info to initialize memblock than try to find a way to workaround
-without it.  I think we will continue to be in that way to find a
-workaround in this direction. 
+Could you please try this patch?
 
-I came from ia64 background, and am not very familiar with x86.  So, you
-may be very right about that x86 is different.  I also agree that initrd
-is making it unnecessarily complicated.  We may see some initial issues,
-but my hope is that the code gets matured over the time.
-
-Thanks,
--Toshi
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+-------------------------8<---------------------------------------
