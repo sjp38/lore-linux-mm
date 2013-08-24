@@ -1,119 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id E62CC6B0032
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 19:56:22 -0400 (EDT)
-Received: by mail-ob0-f173.google.com with SMTP id ta17so1333566obb.32
-        for <linux-mm@kvack.org>; Fri, 23 Aug 2013 16:56:22 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 36D116B0032
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 20:19:53 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id y10so1262024pdj.22
+        for <linux-mm@kvack.org>; Fri, 23 Aug 2013 17:19:52 -0700 (PDT)
+Date: Sat, 24 Aug 2013 09:19:43 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: zram: hang/deadlock when used as swap
+Message-ID: <20130824001943.GA2708@gmail.com>
+References: <5217EF52.2010307@google.com>
 MIME-Version: 1.0
-In-Reply-To: <20130823215243.GD11391@mtj.dyndns.org>
-References: <1377202292.10300.693.camel@misato.fc.hp.com>
-	<20130822202158.GD3490@mtj.dyndns.org>
-	<1377205598.10300.715.camel@misato.fc.hp.com>
-	<20130822212111.GF3490@mtj.dyndns.org>
-	<1377209861.10300.756.camel@misato.fc.hp.com>
-	<20130823130440.GC10322@mtj.dyndns.org>
-	<1377274448.10300.777.camel@misato.fc.hp.com>
-	<521793BB.9080605@gmail.com>
-	<1377282543.10300.820.camel@misato.fc.hp.com>
-	<CAD11hGzaK1Y1J7vQUOCQg8O767479qXQnYWm_72nPEK+E+TrHg@mail.gmail.com>
-	<20130823215243.GD11391@mtj.dyndns.org>
-Date: Sat, 24 Aug 2013 07:56:21 +0800
-Message-ID: <CAD11hGyuT9s9LnEnBjaw9hZH+ABicUC-krP7AupJg8PXjOm=LQ@mail.gmail.com>
-Subject: Re: [PATCH 0/8] x86, acpi: Move acpi_initrd_override() earlier.
-From: chen tang <imtangchen@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5217EF52.2010307@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Toshi Kani <toshi.kani@hp.com>, Zhang Yanfei <zhangyanfei.yes@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Bob Moore <robert.moore@intel.com>, Lv Zheng <lv.zheng@intel.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, Prarit Bhargava <prarit@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "yanghy@cn.fujitsu.com" <yanghy@cn.fujitsu.com>, the arch/x86 maintainers <x86@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>
+To: Stephen Barber <smbarber@google.com>
+Cc: linux-mm@kvack.org, Luigi Semenzato <semenzato@google.com>, David Rientjes <rientjes@google.com>
 
-Hi tj,
+Hello,
 
-2013/8/24 Tejun Heo <tj@kernel.org>:
-> Hello,
->
-> On Sat, Aug 24, 2013 at 05:37:48AM +0800, chen tang wrote:
->> We have read the comments from Yinghai. Reordering relocated_initrd and
->> reserve_crashkernel is doable, and the most difficult part is change the page
->> tables initialization logic. And as Zhang has mentioned above, we are not sure
->> if this could be acceptable.
->
-> Maybe I'm missing something but why is that so hard?  All it does is
-> allocating memory in a different place.  Why is that so complicated?
-> Can somebody please elaborate the issues here?  If it is actually
-> hairy, where does the hairiness come from?  Is it an inherent problem
-> or just an issue with how the code is organized currently?
+On Fri, Aug 23, 2013 at 04:25:06PM -0700, Stephen Barber wrote:
+> Hi all,
+> 
+> I've been experimenting with zram on 3.11-rc6 (x86_64), and am getting a
+> deadlock under certain conditions when zram is used as a swap device.
+> 
+> Here's my speculative diagnosis: calls into zram_slot_free_notify will
+> try to down a semaphore, which has a chance of sleeping. In at least a
+> few of the paths to zram_slot_free_notify, there may be some held spin
+> locks (such as in swap_info_struct). This leads to a deadlock when the
+> process holding the spin lock is put to sleep, since no other process
+> can acquire it.
+> 
+> I can reproduce the deadlock almost 100% of the time by creating a large
+> number of processes (~50) that are all using swap. git bisect indicates
+> that things broke here:
+> 
+> commit 57ab048532c0d975538cebd4456491b5c34248f4
+> Author: Jiang Liu <liuj97@gmail.com>
+> Commit: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> zram: use zram->lock to protect zram_free_page() in swap free notify path
+> 
+> 
+> Any insights would be much appreciated!
 
-Your idea is doable, and we are doing it now. I think it is just an issue
-with how to organize the code.
+Could you apply this in recent linux-next?
+[1] a0c516cbfc, zram: don't grab mutex in zram_slot_free_noity
 
-The main problem is like Yinghai said, memory hotplug kernel and regular
-kernel won't be able to share the code. We use a boot option to control it.
+> 
+> 
+> Relevant call trace after hang detected:
+> CPU: 1 PID: 13564 Comm: hog Tainted: G        WC   3.11.0-rc6 #3
+> Hardware name: SAMSUNG Lumpy, BIOS Google_Lumpy.2.111.0 03/18/2012
+> task: ffff88013f308000 ti: ffff88012ea60000 task.ti: ffff88012ea60000
+> RIP: 0010:[<ffffffff81211768>]  [<ffffffff81211768>] delay_tsc+0x19/0x50
+> RSP: 0000:ffff88012ea617f8  EFLAGS: 00000206
+> RAX: 00000000ac4c158b RBX: ffffffff814e7b1c RCX: 00000000ac4c153f
+> RDX: 0000000000000023 RSI: 0000000000000001 RDI: 0000000000000001
+> RBP: ffff88012ea617f8 R08: 0000000000000002 R09: 0000000000000000
+> R10: ffffffff817e282b R11: ffffffff81a321d0 R12: ffff88012ea61768
+> R13: ffff88014fb13740 R14: ffff88012ea60000 R15: 0000000000000046
+> FS:  00007f8405cf7700(0000) GS:ffff88014fb00000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 00007f4a43ceaa08 CR3: 000000012ea46000 CR4: 00000000000407e0
+> Stack:
+>  ffff88012ea61808 ffffffff812116f9 ffff88012ea61838 ffffffff8121816d
+>  0000000000017588 ffff88013f095500 0000000000017588 0000000000017588
+>  ffff88012ea61868 ffffffff814e70a7 ffffffff810ee1e2 ffffffff814e1a84
+> Call Trace:
+>  [<ffffffff812116f9>] __delay+0xf/0x11
+>  [<ffffffff8121816d>] do_raw_spin_lock+0xac/0xfe
+>  [<ffffffff814e70a7>] _raw_spin_lock+0x39/0x40
+>  [<ffffffff810ee1e2>] ? spin_lock+0x2e/0x33
+>  [<ffffffff814e1a84>] ? dump_stack+0x46/0x58
+>  [<ffffffff8106f519>] ? vprintk_emit+0x3d0/0x436
+>  [<ffffffff810ee1e2>] spin_lock+0x2e/0x33
+>  [<ffffffff810ee245>] swap_info_get+0x5e/0x9a
+>  [<ffffffff810eedab>] swapcache_free+0x14/0x3d
+>  [<ffffffff810d0b06>] __remove_mapping+0x84/0xc8
+>  [<ffffffff810d25f7>] shrink_page_list+0x691/0x860
+>  [<ffffffff810d2cec>] shrink_inactive_list+0x240/0x3df
+>  [<ffffffff810d31fd>] shrink_lruvec+0x372/0x52d
+>  [<ffffffff810d3cf5>] try_to_free_pages+0x15f/0x36c
+>  [<ffffffff810cb19d>] __alloc_pages_nodemask+0x323/0x54f
+>  [<ffffffff810e09ad>] handle_pte_fault+0x149/0x4f8
+>  [<ffffffff8102edcd>] ? __do_page_fault+0x159/0x38c
+>  [<ffffffff810e0f72>] handle_mm_fault+0x99/0xbf
+>  [<ffffffff8102efb6>] __do_page_fault+0x342/0x38c
+>  [<ffffffff8107a53d>] ? arch_local_irq_save+0x9/0xc
+>  [<ffffffff8107c7e2>] ? trace_hardirqs_on+0xd/0xf
+>  [<ffffffff814e76dc>] ? _raw_spin_unlock_irq+0x2d/0x32
+>  [<ffffffff8105e534>] ? finish_task_switch+0x80/0xcc
+>  [<ffffffff8105e4f6>] ? finish_task_switch+0x42/0xcc
+>  [<ffffffff8121275d>] ? trace_hardirqs_off_thunk+0x3a/0x3c
+>  [<ffffffff8102f032>] do_page_fault+0xe/0x10
+>  [<ffffffff814e7d22>] page_fault+0x22/0x30
+> 
+> Thanks,
+> Stephen
 
-And I'll send a patch-set next week and then we can see how it goes.
-
-......
->> And as tj concerned about the stability of the kernel boot sequence, then how
->> about this:
->
-> I guess my answer remains the same.  Why?  What actual benefits does
-> doing so buy us and why is changing the allocation direction, which
-> conceptually is extremely simple, so complicated?  What you guys are
-> trying to do adds significant amount of complexity and convolution,
-> which in itself doesn't necessarily disqualify the changes but it
-> needs good enough justifications.
->
-> I get that you guys want it but I still fail to see why.  It *can't*
-> be proper solution to the hotplug issue.  We don't want earlyprintk to
-> involve huge chunk of logic and the benefits of node-affine page
-> tables for kernel linear mapping seem dubious.  So, what do we gain by
-> doing this?  What am I missing here?
->
-
-Sorry for the unclear description. To summaries, the whole picture is:
-
-We are going to provide a system with some nodes hotpluggable, not all.
-These nodes are movable nodes, with only ZONE_MOVABLE. So we need
-a way to ensure the movable nodes have ZONE_MOVABLE only.
-
-We want SRAT earlier because before it is parsed, memblock starts to
-allocate memory for kernel, which won't be in ZONE_MOVABLE.
-
-It is just that simple. You are not missing anything here, I think.
-
-My suggestion is parsing SRAT earlier:
-1. The nodes kernel resides in will be un-movable.
-2. The nodes with un-hotpluggable memory in SRAT will be un-movable.
-3. The nodes full of hotpluggable memory in SRAT will be movable nodes.
-
-No offence, but seeing from me, it is a solution. The only thing it could buy
-me is that I can achieve the goal. I was trying my best to avoid bad influence
-to other code.
-And other things, early_printk, and local node page table are some other
-cases that also need acpi tables earlier.
-
-That is exactly all the things I want to do. That is all I have, and I
-don't have
-anything new here.
-
-I read the whole series, and I understand your points:
-1. Even if move SRAT earlier, it is too late. It should be done in
-bootloader and
-    kexec/kdump.
-2. Doing so will make boot sequence more complicated and error-prone.
-3. early_printk and local node page table won't by us so much when
-using huge page.
-
-...maybe some other points, I won't elaborate them all.
-
-Since we have discussed so much, I don't want debate more. We are working on
-patch-set according to your idea, and I also agree it is doable. I
-have no objection to
-your idea. Sending this patch-set is just one of my another try. So,
-let's see how
-it will go next week. :)
-
-Thank you all for your comments and patient. :)
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
