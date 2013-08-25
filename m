@@ -1,13 +1,11 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 3/6] mm/hwpoison: fix num_poisoned_pages error statistics
- for thp
-Date: Fri, 23 Aug 2013 12:24:44 +0800
-Message-ID: <7854.0604016327$1377231904@news.gmane.org>
-References: <1377164907-24801-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1377164907-24801-3-git-send-email-liwanp@linux.vnet.ibm.com>
- <1377189788-xv5ewgmb-mutt-n-horiguchi@ah.jp.nec.com>
- <5216a46f.a800310a.2351.ffffa95cSMTPIN_ADDED_BROKEN@mx.google.com>
- <1377228430-o4j77sme-mutt-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v2 5/7] mm/hwpoison: don't set migration type twice to
+ avoid hold heavy contend zone->lock
+Date: Mon, 26 Aug 2013 07:23:42 +0800
+Message-ID: <12011.4330588423$1377473054@news.gmane.org>
+References: <1377253841-17620-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1377253841-17620-5-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1377268598-md0gqi8g-mutt-n-horiguchi@ah.jp.nec.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -15,174 +13,81 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1VCivg-0006yy-6A
-	for glkm-linux-mm-2@m.gmane.org; Fri, 23 Aug 2013 06:24:56 +0200
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id A5A946B0089
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 00:24:53 -0400 (EDT)
+	id 1VDjfC-0005Tl-JY
+	for glkm-linux-mm-2@m.gmane.org; Mon, 26 Aug 2013 01:24:06 +0200
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 7B9726B0033
+	for <linux-mm@kvack.org>; Sun, 25 Aug 2013 19:24:03 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Fri, 23 Aug 2013 09:46:49 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 0410A3940053
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 09:54:37 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7N4QIM343515956
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 09:56:18 +0530
-Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7N4OkgH030941
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2013 09:54:46 +0530
+	Mon, 26 Aug 2013 09:13:28 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 208B93578051
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 09:23:54 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7PNNXHD66912390
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 09:23:43 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7PNNh3x026874
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 09:23:44 +1000
 Content-Disposition: inline
-In-Reply-To: <1377228430-o4j77sme-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1377268598-md0gqi8g-mutt-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Tony Luck <tony.luck@intel.com>, gong.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Naoya,
-On Thu, Aug 22, 2013 at 11:27:10PM -0400, Naoya Horiguchi wrote:
->Hi Wanpeng,
->
->On Fri, Aug 23, 2013 at 07:52:40AM +0800, Wanpeng Li wrote:
->> Hi Naoya,
->> On Thu, Aug 22, 2013 at 12:43:08PM -0400, Naoya Horiguchi wrote:
->> >On Thu, Aug 22, 2013 at 05:48:24PM +0800, Wanpeng Li wrote:
->> >> There is a race between hwpoison page and unpoison page, memory_failure 
->> >> set the page hwpoison and increase num_poisoned_pages without hold page 
->> >> lock, and one page count will be accounted against thp for num_poisoned_pages.
->> >> However, unpoison can occur before memory_failure hold page lock and 
->> >> split transparent hugepage, unpoison will decrease num_poisoned_pages 
->> >> by 1 << compound_order since memory_failure has not yet split transparent 
->> >> hugepage with page lock held. That means we account one page for hwpoison
->> >> and 1 << compound_order for unpoison. This patch fix it by decrease one 
->> >> account for num_poisoned_pages against no hugetlbfs pages case.
->> >> 
->> >> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->> >
->> >I think that a thp never becomes hwpoisoned without splitting, so "trying
->> >to unpoison thp" never happens (I think that this implicit fact should be
+On Fri, Aug 23, 2013 at 10:36:38AM -0400, Naoya Horiguchi wrote:
+>On Fri, Aug 23, 2013 at 06:30:39PM +0800, Wanpeng Li wrote:
+>> v1 -> v2:
+>> 	* add more explanation in patch description.
 >> 
->> There is a race window here for hwpoison thp: 
->
->OK, thanks for great explanation (it's worth written in description.)
->And I found my previous comment was comletely pointless, sorry :(
->
-
-Ah, ok, I will fold them in the patch description. ;-)
-
->> 				A	  			 									B
->> 		memory_failue 
->> 		TestSetPageHWPoison(p);
->> 		if (PageHuge(p))
->> 			nr_pages = 1 << compound_order(hpage);
->> 		else 
->> 			nr_pages = 1;
->> 		atomic_long_add(nr_pages, &num_poisoned_pages);	
->> 																unpoison_memory
->> 																nr_pages = 1<< compound_trans_order(page;)
+>> Set pageblock migration type will hold zone->lock which is heavy contended
+>> in system to avoid race. However, soft offline page will set pageblock
+>> migration type twice during get page if the page is in used, not hugetlbfs
+>> page and not on lru list. There is unnecessary to set the pageblock migration
+>> type and hold heavy contended zone->lock again if the first round get page
+>> have already set the pageblock to right migration type.
 >> 
->> 																if(TestClearPageHWPoison(p))
->> 																	atomic_long_sub(nr_pages, &num_poisoned_pages);
->> 		lock page 
->> 		if (!PageHWPoison(p))
->> 			unlock page and return 
->> 		hwpoison_user_mappings
->> 		if (PageTransHuge(hpage))
->> 			split_huge_page(hpage);
->
->When this race happens, our expectation is that num_poisoned_pages is
->increased by 1 because finally thread A succeeds to hwpoison one normal page.
->So thread B should fail to unpoison without clearing PageHWPoison nor
->decreasing num_poisoned_pages.  My suggestion is inserting a PageTransHuge
->check before doing TestClearPageHWPoison like follows:
->
->diff --git a/mm/memory-failure.c b/mm/memory-failure.c
->index 1cb3b7d..f551b72 100644
->--- a/mm/memory-failure.c
->+++ b/mm/memory-failure.c
->@@ -1336,6 +1336,16 @@ int unpoison_memory(unsigned long pfn)
-> 		return 0;
-> 	}
->
->+	/*
->+	 * unpoison_memory() can encounter thp only when the thp is being
->+	 * worked by memory_failure() and the page lock is not held yet.
->+	 * In such case, we yield to memory_failure() and make unpoison fail.
->+	 */
->+	if (PageTransHuge(page)) {
->+		pr_info("MCE: Memory failure is now running on %#lx\n", pfn);
->+		return 0;
->+	}
->+
-
-Looks reasonable to me, I will fold it in my patch. ;-)
-
-> 	nr_pages = 1 << compound_trans_order(page);
->
-> 	if (!get_page_unless_zero(page)) {
->
->
->I think that replacing atomic_long_sub() with atomic_long_dec() still
->has a meaning, so you don't have to drop that.
->
-
-Agreed.
-
+>> The trick here is migration type is MIGRATE_ISOLATE. There are other two parts 
+>> can change MIGRATE_ISOLATE except hwpoison. One is memory hoplug, however, we 
+>> hold lock_memory_hotplug() which avoid race. The second is CMA which umovable 
+>> page allocation requst can't fallback to. So it's safe here.
 >> 
->> We increase one page count, however, decrease 1 << compound_trans_order.
->> The compound_trans_order you mentioned is used here for thp, that's why 
->> I don't drop it in patch 2/6.
->
->I don't think that we have to use compound_trans_order() any more, because
->with the above change we don't calculate nr_pages any more for thp.
->We can reduce the cost to lock/unlock compound_lock as described in 2/6.
->
-
-Agreed.
-
->> >commented somewhere or asserted with VM_BUG_ON().)
+>> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+>> ---
+>>  mm/memory-failure.c | 3 ++-
+>>  1 file changed, 2 insertions(+), 1 deletion(-)
 >> 
->> I will add the VM_BUG_ON() in unpoison_memory after lock page in next
->> version.
+>> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+>> index 297965e..f357c91 100644
+>> --- a/mm/memory-failure.c
+>> +++ b/mm/memory-failure.c
+>> @@ -1426,7 +1426,8 @@ static int __get_any_page(struct page *p, unsigned long pfn, int flags)
+>>  	 * was free. This flag should be kept set until the source page
+>>  	 * is freed and PG_hwpoison on it is set.
+>>  	 */
+>> -	set_migratetype_isolate(p, true);
+>> +	if (get_pageblock_migratetype(p) == MIGRATE_ISOLATE)
+>> +		set_migratetype_isolate(p, true);
 >
->Sorry, my previous suggestion didn't make sense.
+>Do you really mean "we set MIGRATE_ISOLATE only if it's already set?"
 >
 
-Agreed.
+Ouch, it's my fault, I will fix it in next version. ;-)
 
 Regards,
 Wanpeng Li 
 
->Thank you!
+>Thanks,
 >Naoya Horiguchi
 >
->> >And nr_pages in unpoison_memory() can be greater than 1 for hugetlbfs page.
->> >So does this patch break counting when unpoisoning free hugetlbfs pages?
->> >
->> >Thanks,
->> >Naoya Horiguchi
->> >
->> >> ---
->> >>  mm/memory-failure.c | 2 +-
->> >>  1 file changed, 1 insertion(+), 1 deletion(-)
->> >> 
->> >> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
->> >> index 5092e06..6bfd51e 100644
->> >> --- a/mm/memory-failure.c
->> >> +++ b/mm/memory-failure.c
->> >> @@ -1350,7 +1350,7 @@ int unpoison_memory(unsigned long pfn)
->> >>  			return 0;
->> >>  		}
->> >>  		if (TestClearPageHWPoison(p))
->> >> -			atomic_long_sub(nr_pages, &num_poisoned_pages);
->> >> +			atomic_long_dec(&num_poisoned_pages);
->> >>  		pr_info("MCE: Software-unpoisoned free page %#lx\n", pfn);
->> >>  		return 0;
->> >>  	}
->> >> -- 
->> >> 1.8.1.2
->> >>
+>>  	/*
+>>  	 * When the target page is a free hugepage, just remove it
+>>  	 * from free hugepage list.
+>> -- 
+>> 1.8.1.2
 >> 
 >> --
 >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
