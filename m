@@ -1,88 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 1D59E6B0033
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 05:08:47 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id F18096B0033
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 09:01:48 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 27 Aug 2013 06:02:55 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 457F73578050
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 19:08:41 +1000 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7Q98Up22163154
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 19:08:30 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r7Q98eUe008080
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 19:08:40 +1000
-Date: Mon, 26 Aug 2013 17:08:38 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v4 9/10] mm/hwpoison: change permission of
- corrupt-pfn/unpoison-pfn to 0400
-Message-ID: <20130826090837.GA6543@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1377506774-5377-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1377506774-5377-9-git-send-email-liwanp@linux.vnet.ibm.com>
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Mon, 26 Aug 2013 18:25:09 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id F1E491258059
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 18:31:28 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7QD1ZYQ20709536
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 18:31:36 +0530
+Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7QD1b05011266
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 18:31:38 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 03/20] mm, hugetlb: fix subpool accounting handling
+In-Reply-To: <20130822074752.GH13415@lge.com>
+References: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com> <1376040398-11212-4-git-send-email-iamjoonsoo.kim@lge.com> <87vc2zgzpn.fsf@linux.vnet.ibm.com> <20130822065038.GA13415@lge.com> <87y57u19ur.fsf@linux.vnet.ibm.com> <20130822074752.GH13415@lge.com>
+Date: Mon, 26 Aug 2013 18:31:35 +0530
+Message-ID: <871u5gehcg.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="opJtzjQTFsWo+cga"
-Content-Disposition: inline
-In-Reply-To: <1377506774-5377-9-git-send-email-liwanp@linux.vnet.ibm.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Tony Luck <tony.luck@intel.com>, gong.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
 
+Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
 
---opJtzjQTFsWo+cga
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-
-On Mon, Aug 26, 2013 at 04:46:13PM +0800, Wanpeng Li wrote:
->Hwpoison inject doesn't implement read method for corrupt-pfn/unpoison-pfn
->attributes:
+> On Thu, Aug 22, 2013 at 12:38:12PM +0530, Aneesh Kumar K.V wrote:
+>> Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
+>> 
+>> > Hello, Aneesh.
+>> >
+>> > First of all, thank you for review!
+>> >
+>> > On Wed, Aug 21, 2013 at 02:58:20PM +0530, Aneesh Kumar K.V wrote:
+>> >> Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
+>> >> 
+>> >> > If we alloc hugepage with avoid_reserve, we don't dequeue reserved one.
+>> >> > So, we should check subpool counter when avoid_reserve.
+>> >> > This patch implement it.
+>> >> 
+>> >> Can you explain this better ? ie, if we don't have a reservation in the
+>> >> area chg != 0. So why look at avoid_reserve. 
+>> >
+>> > We don't consider avoid_reserve when chg != 0.
+>> > Look at following code.
+>> >
+>> > +       if (chg || avoid_reserve)
+>> > +               if (hugepage_subpool_get_pages(spool, 1))
+>> >
+>> > It means that if chg != 0, we skip to check avoid_reserve.
+>> 
+>> when whould be avoid_reserve == 1 and chg == 0 ?
 >
-># cat /sys/kernel/debug/hwpoison/corrupt-pfn 
->cat: /sys/kernel/debug/hwpoison/corrupt-pfn: Permission denied
-># cat /sys/kernel/debug/hwpoison/unpoison-pfn 
->cat: /sys/kernel/debug/hwpoison/unpoison-pfn: Permission denied
->
->This patch change the permission of corrupt-pfn/unpoison-pfn to 0400.
->
->Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->---
-> mm/hwpoison-inject.c | 4 ++--
-> 1 file changed, 2 insertions(+), 2 deletions(-)
->
->diff --git a/mm/hwpoison-inject.c b/mm/hwpoison-inject.c
->index 3a61efc..8b77bfd 100644
->--- a/mm/hwpoison-inject.c
->+++ b/mm/hwpoison-inject.c
->@@ -88,12 +88,12 @@ static int pfn_inject_init(void)
-> 	 * hardware status change, hence do not require hardware support.
-> 	 * They are mainly for testing hwpoison in software level.
-> 	 */
->-	dentry = debugfs_create_file("corrupt-pfn", 0600, hwpoison_dir,
->+	dentry = debugfs_create_file("corrupt-pfn", 0400, hwpoison_dir,
-> 					  NULL, &hwpoison_fops);
-> 	if (!dentry)
-> 		goto fail;
->
->-	dentry = debugfs_create_file("unpoison-pfn", 0600, hwpoison_dir,
->+	dentry = debugfs_create_file("unpoison-pfn", 0400, hwpoison_dir,
-> 				     NULL, &unpoison_fops);
-> 	if (!dentry)
-> 		goto fail;
->-- 
->1.8.1.2
+> In this case, we should do hugepage_subpool_get_pages(), since we don't
+> get a reserved page due to avoid_reserve.
 
-Fix this patch: 
+As per off-list discussion we had around this, please add additional
+information in commit message explaining when we have
+avoid_reserve == 1 and chg == 0
 
+Something like the below copied from call site.
 
+	 /* If the process that created a MAP_PRIVATE mapping is about to
+	  * perform a COW due to a shared page count, attempt to satisfy
+	  * the allocation without using the existing reserves
+          */
 
+Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
---opJtzjQTFsWo+cga
-Content-Type: text/x-diff; charset=us-ascii
-Content-Disposition: attachment; filename="0009-9.patch"
+-aneesh
 
-
---opJtzjQTFsWo+cga--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
