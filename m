@@ -1,40 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 164496B003D
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 17:49:46 -0400 (EDT)
-Received: by mail-lb0-f180.google.com with SMTP id q8so1845648lbi.25
-        for <linux-mm@kvack.org>; Mon, 26 Aug 2013 14:49:44 -0700 (PDT)
-Date: Tue, 27 Aug 2013 01:49:40 +0400
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: unused swap offset / bad page map.
-Message-ID: <20130826214940.GA7416@moon>
-References: <20130823032127.GA5098@redhat.com>
- <CAJd=RBArkh3sKVoOJUZBLngXtJubjx4-a3G6s7Tn0N=Pr1gU4g@mail.gmail.com>
- <20130823035344.GB5098@redhat.com>
- <CAJd=RBBtY-nJfo9nzG5gtgcvB2bz+sxpK5kX33o1sLeLhvEU1Q@mail.gmail.com>
- <20130826190757.GB27768@redhat.com>
- <20130826201846.GA23724@moon>
- <20130826203702.GA15407@redhat.com>
- <20130826204203.GB23724@moon>
- <20130826213754.GN3814@moon>
- <20130826214244.GA21146@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130826214244.GA21146@redhat.com>
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 8C7116B0044
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 17:50:01 -0400 (EDT)
+Date: Mon, 26 Aug 2013 14:49:59 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] [BUGFIX] drivers/base: fix show_mem_removable to
+ handle missing sections
+Message-Id: <20130826144959.52fd24cd2833929168ee7e35@linux-foundation.org>
+In-Reply-To: <20130823162317.GB10988@sgi.com>
+References: <20130823162317.GB10988@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>
-Cc: Hillf Danton <dhillf@gmail.com>, Linux-MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Russ Anderson <rja@sgi.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Yinghai Lu <yinghai@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-On Mon, Aug 26, 2013 at 05:42:44PM -0400, Dave Jones wrote:
+On Fri, 23 Aug 2013 11:23:17 -0500 Russ Anderson <rja@sgi.com> wrote:
+
+> "cat /sys/devices/system/memory/memory*/removable" crashed the system.
 > 
-> Yeah, for reproducing this bug, I'd stick to running it as a user, without --dangerous.
-> you might still hit a few fairly-easy to trigger warn-on/printks. I run with
-> this applied: http://paste.fedoraproject.org/34960/55323613/raw/ to make things
-> a little less noisy.
+> The problem is that show_mem_removable() is passing a
+> bad pfn to is_mem_section_removable(), which causes
+> if (!node_online(page_to_nid(page))) to blow up.
+> Why is it passing in a bad pfn?
+> 
+> show_mem_removable() will loop sections_per_block times.
+> sections_per_block is 16, but mem->section_count is 8,
+> indicating holes in this memory block.  Checking that
+> the memory section is present before checking to see
+> if the memory section is removable fixes the problem.
 
-Ah, thanks, pulling it in. Btw, have you seen this problem earlier than -rc4 at all?
+The patch textually applies to 3.10, 3.9 and perhaps earlier.  Should
+it be applied to earlier kernels?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
