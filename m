@@ -1,122 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 839EA6B003B
-	for <linux-mm@kvack.org>; Sun, 25 Aug 2013 21:19:17 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 26 Aug 2013 06:42:40 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 3E00EE0053
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 06:49:45 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7Q1KoeR39059546
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 06:50:50 +0530
-Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7Q1JAY2011498
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 06:49:10 +0530
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v3 8/8] mm/hwpoison: fix memory failure still hold reference count after unpoison empty zero page 
-Date: Mon, 26 Aug 2013 09:18:51 +0800
-Message-Id: <1377479931-7430-8-git-send-email-liwanp@linux.vnet.ibm.com>
-In-Reply-To: <1377479931-7430-1-git-send-email-liwanp@linux.vnet.ibm.com>
-References: <1377479931-7430-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id C282F6B0033
+	for <linux-mm@kvack.org>; Sun, 25 Aug 2013 23:45:54 -0400 (EDT)
+Received: by mail-ob0-f175.google.com with SMTP id xn12so2797021obc.34
+        for <linux-mm@kvack.org>; Sun, 25 Aug 2013 20:45:54 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20130823035344.GB5098@redhat.com>
+References: <20130807055157.GA32278@redhat.com>
+	<CAJd=RBCJv7=Qj6dPW2Ha=nq6JctnK3r7wYCAZTm=REVOZUNowg@mail.gmail.com>
+	<20130807153030.GA25515@redhat.com>
+	<CAJd=RBCyZU8PR7mbFUdKsWq3OH+5HccEWKMEH5u7GNHNy3esWg@mail.gmail.com>
+	<20130819231836.GD14369@redhat.com>
+	<CAJd=RBA-UZmSTxNX63Vni+UPZBHwP4tvzE_qp1ZaHBqcNG7Fcw@mail.gmail.com>
+	<20130821204901.GA19802@redhat.com>
+	<CAJd=RBBNCf5_V-nHjK0gOqS4OLMszgB7Rg_WMf4DvL-De+ZdHA@mail.gmail.com>
+	<20130823032127.GA5098@redhat.com>
+	<CAJd=RBArkh3sKVoOJUZBLngXtJubjx4-a3G6s7Tn0N=Pr1gU4g@mail.gmail.com>
+	<20130823035344.GB5098@redhat.com>
+Date: Mon, 26 Aug 2013 11:45:53 +0800
+Message-ID: <CAJd=RBBtY-nJfo9nzG5gtgcvB2bz+sxpK5kX33o1sLeLhvEU1Q@mail.gmail.com>
+Subject: Re: unused swap offset / bad page map.
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Tony Luck <tony.luck@intel.com>, gong.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: Dave Jones <davej@redhat.com>, Hillf Danton <dhillf@gmail.com>, Linux-MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-madvise hwpoison inject will poison the read-only empty zero page if there is 
-no write access before poison. Empty zero page reference count will be increased 
-for hwpoison, subsequent poison zero page will return directly since page has
-already been set PG_hwpoison, however, page reference count is still increased 
-by get_user_pages_fast. The unpoison process will unpoison the empty zero page 
-and decrease the reference count successfully for the fist time, however, 
-subsequent unpoison empty zero page will return directly since page has already 
-been unpoisoned and without decrease the page reference count of empty zero page.
-This patch fix it by decrease page reference count for empty zero page which has 
-already been unpoisoned and page count > 1.
+On Fri, Aug 23, 2013 at 11:53 AM, Dave Jones <davej@redhat.com> wrote:
+>
+> It actually seems worse, seems I can trigger it even easier now, as if
+> there's a leak.
+>
+Can you please try the new fix for TLB flush?
 
-Testcase:
-
-#define _GNU_SOURCE
-#include <stdlib.h>
-#include <stdio.h>
-#include <sys/mman.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/types.h>
-#include <errno.h>
-
-#define PAGES_TO_TEST 3
-#define PAGE_SIZE	4096
-
-int main(void)
-{
-	char *mem;
-	int i;
-
-	mem = mmap(NULL, PAGES_TO_TEST * PAGE_SIZE,
-			PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
-
-	if (madvise(mem, PAGES_TO_TEST * PAGE_SIZE, MADV_HWPOISON) == -1)
-		return -1;
-	
-	munmap(mem, PAGES_TO_TEST * PAGE_SIZE);
-
-	return 0;
-}
-
-Add printk to dump page reference count:
-
-[   93.075959] Injecting memory failure for page 0x19d0 at 0xb77d8000
-[   93.076207] MCE 0x19d0: non LRU page recovery: Ignored
-[   93.076209] pfn 0x19d0, page count = 1 after memory failure
-[   93.076220] Injecting memory failure for page 0x19d0 at 0xb77d9000
-[   93.076221] MCE 0x19d0: already hardware poisoned
-[   93.076222] pfn 0x19d0, page count = 2 after memory failure
-[   93.076224] Injecting memory failure for page 0x19d0 at 0xb77da000
-[   93.076224] MCE 0x19d0: already hardware poisoned
-[   93.076225] pfn 0x19d0, page count = 3 after memory failure
-
-Before patch:
-
-[  139.197474] MCE: Software-unpoisoned page 0x19d0
-[  139.197479] pfn 0x19d0, page count = 2 after unpoison memory
-[  150.478130] MCE: Page was already unpoisoned 0x19d0
-[  150.478135] pfn 0x19d0, page count = 2 after unpoison memory
-[  151.548288] MCE: Page was already unpoisoned 0x19d0
-[  151.548292] pfn 0x19d0, page count = 2 after unpoison memory
-
-After patch:
-
-[  116.022122] MCE: Software-unpoisoned page 0x19d0
-[  116.022127] pfn 0x19d0, page count = 2 after unpoison memory
-[  117.256163] MCE: Page was already unpoisoned 0x19d0
-[  117.256167] pfn 0x19d0, page count = 1 after unpoison memory
-[  117.917772] MCE: Page was already unpoisoned 0x19d0
-[  117.917777] pfn 0x19d0, page count = 1 after unpoison memory
-
-Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
----
- mm/memory-failure.c | 2 ++
- 1 file changed, 2 insertions(+)
-
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index ca714ac..fb687fd 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1335,6 +1335,8 @@ int unpoison_memory(unsigned long pfn)
- 	page = compound_head(p);
- 
- 	if (!PageHWPoison(p)) {
-+		if (pfn == my_zero_pfn(0) && page_count(p) > 1)
-+			put_page(p);
- 		pr_info("MCE: Page was already unpoisoned %#lx\n", pfn);
- 		return 0;
- 	}
--- 
-1.8.1.2
+commit  2b047252d087be7f2ba
+Fix TLB gather virtual address range invalidation corner cases
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
