@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 101AB6B0039
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 04:46:33 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id EC62D6B0039
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 04:46:35 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 26 Aug 2013 14:10:30 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id A329BE0055
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 14:17:02 +0530 (IST)
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7Q8m35442795242
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 14:18:03 +0530
-Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7Q8kRQg013826
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 14:16:27 +0530
+	Mon, 26 Aug 2013 18:32:55 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 8411B357804E
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 18:46:30 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7Q8ULL057540680
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 18:30:27 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7Q8kOtM025140
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 18:46:24 +1000
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v4 5/10] mm/hwpoison: don't set migration type twice to avoid hold heavy contend zone->lock
-Date: Mon, 26 Aug 2013 16:46:09 +0800
-Message-Id: <1377506774-5377-5-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v4 3/10] mm/hwpoison: fix race against poison thp
+Date: Mon, 26 Aug 2013 16:46:07 +0800
+Message-Id: <1377506774-5377-3-git-send-email-liwanp@linux.vnet.ibm.com>
 In-Reply-To: <1377506774-5377-1-git-send-email-liwanp@linux.vnet.ibm.com>
 References: <1377506774-5377-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -27,41 +27,67 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Tony Luck <tony.luck@intel.com>, gong.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
 v1 -> v2:
- * add more explanation in patch description.
-v2 -> v3:
- * set MIGRATE_ISOLATE only if it's not set. 
+ * unpoison thp fail  
 
-Set pageblock migration type will hold zone->lock which is heavy contended
-in system to avoid race. However, soft offline page will set pageblock
-migration type twice during get page if the page is in used, not hugetlbfs
-page and not on lru list. There is unnecessary to set the pageblock migration
-type and hold heavy contended zone->lock again if the first round get page
-have already set the pageblock to right migration type.
+There is a race between hwpoison page and unpoison page, memory_failure
+set the page hwpoison and increase num_poisoned_pages without hold page
+lock, and one page count will be accounted against thp for num_poisoned_pages.
+However, unpoison can occur before memory_failure hold page lock and
+split transparent hugepage, unpoison will decrease num_poisoned_pages
+by 1 << compound_order since memory_failure has not yet split transparent
+hugepage with page lock held. That means we account one page for hwpoison
+and 1 << compound_order for unpoison. This patch fix it by inserting a 
+PageTransHuge check before doing TestClearPageHWPoison, unpoison failed 
+without clearing PageHWPoison and decreasing num_poisoned_pages.
 
-The trick here is migration type is MIGRATE_ISOLATE. There are other two parts 
-can change MIGRATE_ISOLATE except hwpoison. One is memory hoplug, however, we 
-hold lock_memory_hotplug() which avoid race. The second is CMA which umovable 
-page allocation requst can't fallback to. So it's safe here.
 
+            A                                                 	B
+    	memory_failue
+        TestSetPageHWPoison(p);
+        if (PageHuge(p))
+            nr_pages = 1 << compound_order(hpage);
+        else
+            nr_pages = 1;
+        atomic_long_add(nr_pages, &num_poisoned_pages);
+															unpoison_memory
+															nr_pages = 1<< compound_trans_order(page);
+															if(TestClearPageHWPoison(p))
+																atomic_long_sub(nr_pages, &num_poisoned_pages);
+        lock page
+        if (!PageHWPoison(p))
+        	unlock page and return
+        hwpoison_user_mappings
+        if (PageTransHuge(hpage))
+        	split_huge_page(hpage);
+
+
+Suggested-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- mm/memory-failure.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ mm/memory-failure.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
 
 diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 297965e..f357c91 100644
+index 5a4f4d6..a6c4752 100644
 --- a/mm/memory-failure.c
 +++ b/mm/memory-failure.c
-@@ -1426,7 +1426,8 @@ static int __get_any_page(struct page *p, unsigned long pfn, int flags)
- 	 * was free. This flag should be kept set until the source page
- 	 * is freed and PG_hwpoison on it is set.
- 	 */
--	set_migratetype_isolate(p, true);
-+	if (get_pageblock_migratetype(p) != MIGRATE_ISOLATE)
-+		set_migratetype_isolate(p, true);
- 	/*
- 	 * When the target page is a free hugepage, just remove it
- 	 * from free hugepage list.
+@@ -1339,6 +1339,16 @@ int unpoison_memory(unsigned long pfn)
+ 		return 0;
+ 	}
+ 
++	/*
++	 * unpoison_memory() can encounter thp only when the thp is being
++	 * worked by memory_failure() and the page lock is not held yet.
++	 * In such case, we yield to memory_failure() and make unpoison fail.
++	 */
++	if (PageTransHuge(page)) {
++		pr_info("MCE: Memory failure is now running on %#lx\n", pfn);
++			return 0;
++	}
++
+ 	nr_pages = 1 << compound_order(page);
+ 
+ 	if (!get_page_unless_zero(page)) {
 -- 
 1.8.1.2
 
