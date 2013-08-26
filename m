@@ -1,80 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id A81296B0033
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 09:52:06 -0400 (EDT)
-Received: by mail-we0-f177.google.com with SMTP id q55so2717344wes.22
-        for <linux-mm@kvack.org>; Mon, 26 Aug 2013 06:52:05 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 9B4936B0033
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 10:09:56 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Mon, 26 Aug 2013 19:30:42 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id A8C6E394005A
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 19:39:40 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7QEBRUC35913852
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 19:41:27 +0530
+Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7QE9n92017068
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 19:39:50 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 17/20] mm, hugetlb: move up anon_vma_prepare()
+In-Reply-To: <1376040398-11212-18-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com> <1376040398-11212-18-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Mon, 26 Aug 2013 19:39:48 +0530
+Message-ID: <87k3j8czmb.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <CAJd=RBBbJMWox5yJaNzW_jUdDfKfWe-Y7d1riYdN6huQStxzcA@mail.gmail.com>
-References: <CAJd=RBBbJMWox5yJaNzW_jUdDfKfWe-Y7d1riYdN6huQStxzcA@mail.gmail.com>
-From: Michal Suchanek <hramrach@gmail.com>
-Date: Mon, 26 Aug 2013 15:51:24 +0200
-Message-ID: <CAOMqctQyS2SFraqJpzE0sRFcihFpMHRhT+3QuZhxft=SUXYVDw@mail.gmail.com>
-Subject: Re: doing lots of disk writes causes oom killer to kill processes
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
 
-On 12 March 2013 03:15, Hillf Danton <dhillf@gmail.com> wrote:
->>On 11 March 2013 13:15, Michal Suchanek <hramrach@gmail.com> wrote:
->>>On 8 February 2013 17:31, Michal Suchanek <hramrach@gmail.com> wrote:
->>> Hello,
->>>
->>> I am dealing with VM disk images and performing something like wiping
->>> free space to prepare image for compressing and storing on server or
->>> copying it to external USB disk causes
->>>
->>> 1) system lockup in order of a few tens of seconds when all CPU cores
->>> are 100% used by system and the machine is basicaly unusable
->>>
->>> 2) oom killer killing processes
->>>
->>> This all on system with 8G ram so there should be plenty space to work with.
->>>
->>> This happens with kernels 3.6.4 or 3.7.1
->>>
->>> With earlier kernel versions (some 3.0 or 3.2 kernels) this was not a
->>> problem even with less ram.
->>>
->>> I have  vm.swappiness = 0 set for a long  time already.
->>>
->>>
->>I did some testing with 3.7.1 and with swappiness as much as 75 the
->>kernel still causes all cores to loop somewhere in system when writing
->>lots of data to disk.
->>
->>With swappiness as much as 90 processes still get killed on large disk writes.
->>
->>Given that the max is 100 the interval in which mm works at all is
->>going to be very narrow, less than 10% of the paramater range. This is
->>a severe regression as is the cpu time consumed by the kernel.
->>
->>The io scheduler is the default cfq.
->>
->>If you have any idea what to try other than downgrading to an earlier
->>unaffected kernel I would like to hear.
->>
-> Can you try commit 3cf23841b4b7(mm/vmscan.c: avoid possible
-> deadlock caused by too_many_isolated())?
+Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
+
+> If we fail with a allocated hugepage, we need some effort to recover
+> properly. So, it is better not to allocate a hugepage as much as possible.
+> So move up anon_vma_prepare() which can be failed in OOM situation.
 >
-> Or try 3.8 and/or 3.9, additionally?
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+
+Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+
 >
-
-Hello,
-
-with deadline IO scheduler I experience this issue less often but it
-still happens.
-
-I am on 3.9.6 Debian kernel so 3.8 did not fix this problem.
-
-Do you have some idea what to log so that useful information about the
-lockup is gathered?
-
-Thanks
-
-Michal
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 2372f75..7e9a651 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -2520,6 +2520,17 @@ retry_avoidcopy:
+>  	spin_unlock(&mm->page_table_lock);
+>
+>  	/*
+> +	 * When the original hugepage is shared one, it does not have
+> +	 * anon_vma prepared.
+> +	 */
+> +	if (unlikely(anon_vma_prepare(vma))) {
+> +		page_cache_release(old_page);
+> +		/* Caller expects lock to be held */
+> +		spin_lock(&mm->page_table_lock);
+> +		return VM_FAULT_OOM;
+> +	}
+> +
+> +	/*
+>  	 * If the process that created a MAP_PRIVATE mapping is about to
+>  	 * perform a COW due to a shared page count, attempt to satisfy
+>  	 * the allocation without using the existing reserves. The pagecache
+> @@ -2578,18 +2589,6 @@ retry_avoidcopy:
+>  		return VM_FAULT_SIGBUS;
+>  	}
+>
+> -	/*
+> -	 * When the original hugepage is shared one, it does not have
+> -	 * anon_vma prepared.
+> -	 */
+> -	if (unlikely(anon_vma_prepare(vma))) {
+> -		page_cache_release(new_page);
+> -		page_cache_release(old_page);
+> -		/* Caller expects lock to be held */
+> -		spin_lock(&mm->page_table_lock);
+> -		return VM_FAULT_OOM;
+> -	}
+> -
+>  	copy_user_huge_page(new_page, old_page, address, vma,
+>  			    pages_per_huge_page(h));
+>  	__SetPageUptodate(new_page);
+> -- 
+> 1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
