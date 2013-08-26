@@ -1,100 +1,138 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 5/7] mm/hwpoison: don't set migration type twice to
- avoid hold heavy contend zone->lock
-Date: Mon, 26 Aug 2013 07:23:42 +0800
-Message-ID: <12011.4330588423$1377473054@news.gmane.org>
-References: <1377253841-17620-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1377253841-17620-5-git-send-email-liwanp@linux.vnet.ibm.com>
- <1377268598-md0gqi8g-mutt-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v4 9/10] mm/hwpoison: change permission of
+ corrupt-pfn/unpoison-pfn to 0400
+Date: Mon, 26 Aug 2013 17:08:38 +0800
+Message-ID: <26481.5340204679$1377508138@news.gmane.org>
+References: <1377506774-5377-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1377506774-5377-9-git-send-email-liwanp@linux.vnet.ibm.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/mixed; boundary="opJtzjQTFsWo+cga"
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1VDjfC-0005Tl-JY
-	for glkm-linux-mm-2@m.gmane.org; Mon, 26 Aug 2013 01:24:06 +0200
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 7B9726B0033
-	for <linux-mm@kvack.org>; Sun, 25 Aug 2013 19:24:03 -0400 (EDT)
+	id 1VDsn3-0001lJ-AE
+	for glkm-linux-mm-2@m.gmane.org; Mon, 26 Aug 2013 11:08:49 +0200
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 1D59E6B0033
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 05:08:47 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 26 Aug 2013 09:13:28 +1000
+	Tue, 27 Aug 2013 06:02:55 +1000
 Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 208B93578051
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 09:23:54 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7PNNXHD66912390
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 09:23:43 +1000
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7PNNh3x026874
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 09:23:44 +1000
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 457F73578050
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 19:08:41 +1000 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7Q98Up22163154
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 19:08:30 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r7Q98eUe008080
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 19:08:40 +1000
 Content-Disposition: inline
-In-Reply-To: <1377268598-md0gqi8g-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1377506774-5377-9-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Tony Luck <tony.luck@intel.com>, gong.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Tony Luck <tony.luck@intel.com>, gong.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Aug 23, 2013 at 10:36:38AM -0400, Naoya Horiguchi wrote:
->On Fri, Aug 23, 2013 at 06:30:39PM +0800, Wanpeng Li wrote:
->> v1 -> v2:
->> 	* add more explanation in patch description.
->> 
->> Set pageblock migration type will hold zone->lock which is heavy contended
->> in system to avoid race. However, soft offline page will set pageblock
->> migration type twice during get page if the page is in used, not hugetlbfs
->> page and not on lru list. There is unnecessary to set the pageblock migration
->> type and hold heavy contended zone->lock again if the first round get page
->> have already set the pageblock to right migration type.
->> 
->> The trick here is migration type is MIGRATE_ISOLATE. There are other two parts 
->> can change MIGRATE_ISOLATE except hwpoison. One is memory hoplug, however, we 
->> hold lock_memory_hotplug() which avoid race. The second is CMA which umovable 
->> page allocation requst can't fallback to. So it's safe here.
->> 
->> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->> ---
->>  mm/memory-failure.c | 3 ++-
->>  1 file changed, 2 insertions(+), 1 deletion(-)
->> 
->> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
->> index 297965e..f357c91 100644
->> --- a/mm/memory-failure.c
->> +++ b/mm/memory-failure.c
->> @@ -1426,7 +1426,8 @@ static int __get_any_page(struct page *p, unsigned long pfn, int flags)
->>  	 * was free. This flag should be kept set until the source page
->>  	 * is freed and PG_hwpoison on it is set.
->>  	 */
->> -	set_migratetype_isolate(p, true);
->> +	if (get_pageblock_migratetype(p) == MIGRATE_ISOLATE)
->> +		set_migratetype_isolate(p, true);
+
+--opJtzjQTFsWo+cga
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+
+On Mon, Aug 26, 2013 at 04:46:13PM +0800, Wanpeng Li wrote:
+>Hwpoison inject doesn't implement read method for corrupt-pfn/unpoison-pfn
+>attributes:
 >
->Do you really mean "we set MIGRATE_ISOLATE only if it's already set?"
+># cat /sys/kernel/debug/hwpoison/corrupt-pfn 
+>cat: /sys/kernel/debug/hwpoison/corrupt-pfn: Permission denied
+># cat /sys/kernel/debug/hwpoison/unpoison-pfn 
+>cat: /sys/kernel/debug/hwpoison/unpoison-pfn: Permission denied
 >
-
-Ouch, it's my fault, I will fix it in next version. ;-)
-
-Regards,
-Wanpeng Li 
-
->Thanks,
->Naoya Horiguchi
+>This patch change the permission of corrupt-pfn/unpoison-pfn to 0400.
 >
->>  	/*
->>  	 * When the target page is a free hugepage, just remove it
->>  	 * from free hugepage list.
->> -- 
->> 1.8.1.2
->> 
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->>
+>Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+>---
+> mm/hwpoison-inject.c | 4 ++--
+> 1 file changed, 2 insertions(+), 2 deletions(-)
+>
+>diff --git a/mm/hwpoison-inject.c b/mm/hwpoison-inject.c
+>index 3a61efc..8b77bfd 100644
+>--- a/mm/hwpoison-inject.c
+>+++ b/mm/hwpoison-inject.c
+>@@ -88,12 +88,12 @@ static int pfn_inject_init(void)
+> 	 * hardware status change, hence do not require hardware support.
+> 	 * They are mainly for testing hwpoison in software level.
+> 	 */
+>-	dentry = debugfs_create_file("corrupt-pfn", 0600, hwpoison_dir,
+>+	dentry = debugfs_create_file("corrupt-pfn", 0400, hwpoison_dir,
+> 					  NULL, &hwpoison_fops);
+> 	if (!dentry)
+> 		goto fail;
+>
+>-	dentry = debugfs_create_file("unpoison-pfn", 0600, hwpoison_dir,
+>+	dentry = debugfs_create_file("unpoison-pfn", 0400, hwpoison_dir,
+> 				     NULL, &unpoison_fops);
+> 	if (!dentry)
+> 		goto fail;
+>-- 
+>1.8.1.2
+
+Fix this patch: 
+
+
+
+
+--opJtzjQTFsWo+cga
+Content-Type: text/x-diff; charset=us-ascii
+Content-Disposition: attachment; filename="0009-9.patch"
+
+>From 615b965ad33e4a18a8b977243024ef5911d2272c Mon Sep 17 00:00:00 2001
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Date: Mon, 26 Aug 2013 11:44:50 +0800
+Subject: [PATCH v4 9/10] mm/hwpoison: change permission of corrupt-pfn/unpoison-pfn to 0200 
+
+Hwpoison inject doesn't implement read method for corrupt-pfn/unpoison-pfn
+attributes:
+
+# cat /sys/kernel/debug/hwpoison/corrupt-pfn 
+cat: /sys/kernel/debug/hwpoison/corrupt-pfn: Permission denied
+# cat /sys/kernel/debug/hwpoison/unpoison-pfn 
+cat: /sys/kernel/debug/hwpoison/unpoison-pfn: Permission denied
+
+This patch change the permission of corrupt-pfn/unpoison-pfn to 0200.
+
+Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+---
+ mm/hwpoison-inject.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/hwpoison-inject.c b/mm/hwpoison-inject.c
+index 3a61efc..8b77bfd 100644
+--- a/mm/hwpoison-inject.c
++++ b/mm/hwpoison-inject.c
+@@ -88,12 +88,12 @@ static int pfn_inject_init(void)
+ 	 * hardware status change, hence do not require hardware support.
+ 	 * They are mainly for testing hwpoison in software level.
+ 	 */
+-	dentry = debugfs_create_file("corrupt-pfn", 0600, hwpoison_dir,
++	dentry = debugfs_create_file("corrupt-pfn", 0200, hwpoison_dir,
+ 					  NULL, &hwpoison_fops);
+ 	if (!dentry)
+ 		goto fail;
+ 
+-	dentry = debugfs_create_file("unpoison-pfn", 0600, hwpoison_dir,
++	dentry = debugfs_create_file("unpoison-pfn", 0200, hwpoison_dir,
+ 				     NULL, &unpoison_fops);
+ 	if (!dentry)
+ 		goto fail;
+-- 
+1.8.1.2
+
+
+--opJtzjQTFsWo+cga--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
