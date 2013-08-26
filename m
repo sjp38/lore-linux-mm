@@ -1,108 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id E84386B0033
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 09:46:43 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 26 Aug 2013 23:38:09 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id EA2863578051
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 23:46:38 +1000 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7QDUZpt4456856
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 23:30:35 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r7QDkbQH015143
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 23:46:38 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 14/20] mm, hugetlb: call vma_needs_reservation before entering alloc_huge_page()
-In-Reply-To: <87vc2sd15e.fsf@linux.vnet.ibm.com>
-References: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com> <1376040398-11212-15-git-send-email-iamjoonsoo.kim@lge.com> <87vc2sd15e.fsf@linux.vnet.ibm.com>
-Date: Mon, 26 Aug 2013 19:16:33 +0530
-Message-ID: <87mwo4d0p2.fsf@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id A81296B0033
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 09:52:06 -0400 (EDT)
+Received: by mail-we0-f177.google.com with SMTP id q55so2717344wes.22
+        for <linux-mm@kvack.org>; Mon, 26 Aug 2013 06:52:05 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <CAJd=RBBbJMWox5yJaNzW_jUdDfKfWe-Y7d1riYdN6huQStxzcA@mail.gmail.com>
+References: <CAJd=RBBbJMWox5yJaNzW_jUdDfKfWe-Y7d1riYdN6huQStxzcA@mail.gmail.com>
+From: Michal Suchanek <hramrach@gmail.com>
+Date: Mon, 26 Aug 2013 15:51:24 +0200
+Message-ID: <CAOMqctQyS2SFraqJpzE0sRFcihFpMHRhT+3QuZhxft=SUXYVDw@mail.gmail.com>
+Subject: Re: doing lots of disk writes causes oom killer to kill processes
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> writes:
-
-> Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
+On 12 March 2013 03:15, Hillf Danton <dhillf@gmail.com> wrote:
+>>On 11 March 2013 13:15, Michal Suchanek <hramrach@gmail.com> wrote:
+>>>On 8 February 2013 17:31, Michal Suchanek <hramrach@gmail.com> wrote:
+>>> Hello,
+>>>
+>>> I am dealing with VM disk images and performing something like wiping
+>>> free space to prepare image for compressing and storing on server or
+>>> copying it to external USB disk causes
+>>>
+>>> 1) system lockup in order of a few tens of seconds when all CPU cores
+>>> are 100% used by system and the machine is basicaly unusable
+>>>
+>>> 2) oom killer killing processes
+>>>
+>>> This all on system with 8G ram so there should be plenty space to work with.
+>>>
+>>> This happens with kernels 3.6.4 or 3.7.1
+>>>
+>>> With earlier kernel versions (some 3.0 or 3.2 kernels) this was not a
+>>> problem even with less ram.
+>>>
+>>> I have  vm.swappiness = 0 set for a long  time already.
+>>>
+>>>
+>>I did some testing with 3.7.1 and with swappiness as much as 75 the
+>>kernel still causes all cores to loop somewhere in system when writing
+>>lots of data to disk.
+>>
+>>With swappiness as much as 90 processes still get killed on large disk writes.
+>>
+>>Given that the max is 100 the interval in which mm works at all is
+>>going to be very narrow, less than 10% of the paramater range. This is
+>>a severe regression as is the cpu time consumed by the kernel.
+>>
+>>The io scheduler is the default cfq.
+>>
+>>If you have any idea what to try other than downgrading to an earlier
+>>unaffected kernel I would like to hear.
+>>
+> Can you try commit 3cf23841b4b7(mm/vmscan.c: avoid possible
+> deadlock caused by too_many_isolated())?
 >
->> In order to validate that this failure is reasonable, we need to know
->> whether allocation request is for reserved or not on caller function.
->> So moving vma_needs_reservation() up to the caller of alloc_huge_page().
->> There is no functional change in this patch and following patch use
->> this information.
->>
->> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->>
->> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->> index 8dff972..bc666cf 100644
->> --- a/mm/hugetlb.c
->> +++ b/mm/hugetlb.c
->> @@ -1110,13 +1110,11 @@ static void vma_commit_reservation(struct hstate *h,
->>  }
->>
->>  static struct page *alloc_huge_page(struct vm_area_struct *vma,
->> -				    unsigned long addr, int avoid_reserve)
->> +				    unsigned long addr, int use_reserve)
->>  {
->>  	struct hugepage_subpool *spool = subpool_vma(vma);
->>  	struct hstate *h = hstate_vma(vma);
->>  	struct page *page;
->> -	long chg;
->> -	bool use_reserve;
->>  	int ret, idx;
->>  	struct hugetlb_cgroup *h_cg;
->>
->> @@ -1129,10 +1127,6 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
->>  	 * need pages and subpool limit allocated allocated if no reserve
->>  	 * mapping overlaps.
->>  	 */
->> -	chg = vma_needs_reservation(h, vma, addr);
->> -	if (chg < 0)
->> -		return ERR_PTR(-ENOMEM);
->> -	use_reserve = (!chg && !avoid_reserve);
->>  	if (!use_reserve)
->>  		if (hugepage_subpool_get_pages(spool, 1))
->>  			return ERR_PTR(-ENOSPC);
->> @@ -2504,6 +2498,8 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
->>  	struct hstate *h = hstate_vma(vma);
->>  	struct page *old_page, *new_page;
->>  	int outside_reserve = 0;
->> +	long chg;
->> +	bool use_reserve;
->>  	unsigned long mmun_start;	/* For mmu_notifiers */
->>  	unsigned long mmun_end;		/* For mmu_notifiers */
->>
->> @@ -2535,7 +2531,17 @@ retry_avoidcopy:
->>
->>  	/* Drop page_table_lock as buddy allocator may be called */
->>  	spin_unlock(&mm->page_table_lock);
->> -	new_page = alloc_huge_page(vma, address, outside_reserve);
->> +	chg = vma_needs_reservation(h, vma, address);
->> +	if (chg == -ENOMEM) {
->
-> why not 
->
->     if (chg < 0) ?
->
-> Should we try to unmap the page from child and avoid cow here ?. May be
-> with outside_reserve = 1 we will never have vma_needs_reservation fail.
-> Any how it would be nice to document why this error case is different
-> from alloc_huge_page error case.
+> Or try 3.8 and/or 3.9, additionally?
 >
 
-I guess patch  16 address this . So if we do if (chg < 0) we are good
-here.
+Hello,
 
-Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+with deadline IO scheduler I experience this issue less often but it
+still happens.
 
--aneesh
+I am on 3.9.6 Debian kernel so 3.8 did not fix this problem.
+
+Do you have some idea what to log so that useful information about the
+lockup is gathered?
+
+Thanks
+
+Michal
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
