@@ -1,79 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id F18096B0033
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 09:01:48 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 814566B0033
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 09:09:58 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 26 Aug 2013 18:25:09 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id F1E491258059
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 18:31:28 +0530 (IST)
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7QD1ZYQ20709536
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 18:31:36 +0530
-Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7QD1b05011266
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 18:31:38 +0530
+	Mon, 26 Aug 2013 22:58:37 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id AAB242BB0053
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 23:09:43 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7QD9W353408226
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 23:09:32 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7QD9fbr001303
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 23:09:42 +1000
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 03/20] mm, hugetlb: fix subpool accounting handling
-In-Reply-To: <20130822074752.GH13415@lge.com>
-References: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com> <1376040398-11212-4-git-send-email-iamjoonsoo.kim@lge.com> <87vc2zgzpn.fsf@linux.vnet.ibm.com> <20130822065038.GA13415@lge.com> <87y57u19ur.fsf@linux.vnet.ibm.com> <20130822074752.GH13415@lge.com>
-Date: Mon, 26 Aug 2013 18:31:35 +0530
-Message-ID: <871u5gehcg.fsf@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 13/20] mm, hugetlb: mm, hugetlb: unify chg and avoid_reserve to use_reserve
+In-Reply-To: <1376040398-11212-14-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com> <1376040398-11212-14-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Mon, 26 Aug 2013 18:39:35 +0530
+Message-ID: <87y57od2eo.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
 
 Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
 
-> On Thu, Aug 22, 2013 at 12:38:12PM +0530, Aneesh Kumar K.V wrote:
->> Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
->> 
->> > Hello, Aneesh.
->> >
->> > First of all, thank you for review!
->> >
->> > On Wed, Aug 21, 2013 at 02:58:20PM +0530, Aneesh Kumar K.V wrote:
->> >> Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
->> >> 
->> >> > If we alloc hugepage with avoid_reserve, we don't dequeue reserved one.
->> >> > So, we should check subpool counter when avoid_reserve.
->> >> > This patch implement it.
->> >> 
->> >> Can you explain this better ? ie, if we don't have a reservation in the
->> >> area chg != 0. So why look at avoid_reserve. 
->> >
->> > We don't consider avoid_reserve when chg != 0.
->> > Look at following code.
->> >
->> > +       if (chg || avoid_reserve)
->> > +               if (hugepage_subpool_get_pages(spool, 1))
->> >
->> > It means that if chg != 0, we skip to check avoid_reserve.
->> 
->> when whould be avoid_reserve == 1 and chg == 0 ?
+> Currently, we have two variable to represent whether we can use reserved
+> page or not, chg and avoid_reserve, respectively. With aggregating these,
+> we can have more clean code. This makes no functinoal difference.
 >
-> In this case, we should do hugepage_subpool_get_pages(), since we don't
-> get a reserved page due to avoid_reserve.
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 22ceb04..8dff972 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -531,8 +531,7 @@ static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
+>
+>  static struct page *dequeue_huge_page_vma(struct hstate *h,
+>  				struct vm_area_struct *vma,
+> -				unsigned long address, int avoid_reserve,
+> -				long chg)
+> +				unsigned long address, bool use_reserve)
+>  {
+>  	struct page *page = NULL;
+>  	struct mempolicy *mpol;
+> @@ -546,12 +545,10 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
+>  	 * A child process with MAP_PRIVATE mappings created by their parent
+>  	 * have no page reserves. This check ensures that reservations are
+>  	 * not "stolen". The child may still get SIGKILLed
+> +	 * Or, when parent process do COW, we cannot use reserved page.
+> +	 * In this case, ensure enough pages are in the pool.
+>  	 */
+> -	if (chg && h->free_huge_pages - h->resv_huge_pages == 0)
+> -		return NULL;
 
-As per off-list discussion we had around this, please add additional
-information in commit message explaining when we have
-avoid_reserve == 1 and chg == 0
+This hunk would be much easier if you were changing. 
 
-Something like the below copied from call site.
+	if (!vma_has_reserves(vma) &&
+			h->free_huge_pages - h->resv_huge_pages == 0)
+		goto err;
 
-	 /* If the process that created a MAP_PRIVATE mapping is about to
-	  * perform a COW due to a shared page count, attempt to satisfy
-	  * the allocation without using the existing reserves
-          */
+ie, !vma_has_reserves(vma) == !use_reserve.
+
+So may be a patch rearragment would help ?. But neverthless. 
 
 Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
--aneesh
+> -
+> -	/* If reserves cannot be used, ensure enough pages are in the pool */
+> -	if (avoid_reserve && h->free_huge_pages - h->resv_huge_pages == 0)
+> +	if (!use_reserve && h->free_huge_pages - h->resv_huge_pages == 0)
+>  		return NULL;
+
+
+
+>
+>  retry_cpuset:
+> @@ -564,9 +561,7 @@ retry_cpuset:
+>  		if (cpuset_zone_allowed_softwall(zone, htlb_alloc_mask)) {
+>  			page = dequeue_huge_page_node(h, zone_to_nid(zone));
+>  			if (page) {
+> -				if (avoid_reserve)
+> -					break;
+> -				if (chg)
+> +				if (!use_reserve)
+>  					break;
+>
+>  				SetPagePrivate(page);
+> @@ -1121,6 +1116,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+>  	struct hstate *h = hstate_vma(vma);
+>  	struct page *page;
+>  	long chg;
+> +	bool use_reserve;
+>  	int ret, idx;
+>  	struct hugetlb_cgroup *h_cg;
+>
+> @@ -1136,18 +1132,19 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+>  	chg = vma_needs_reservation(h, vma, addr);
+>  	if (chg < 0)
+>  		return ERR_PTR(-ENOMEM);
+> -	if (chg || avoid_reserve)
+> +	use_reserve = (!chg && !avoid_reserve);
+> +	if (!use_reserve)
+>  		if (hugepage_subpool_get_pages(spool, 1))
+>  			return ERR_PTR(-ENOSPC);
+>
+>  	ret = hugetlb_cgroup_charge_cgroup(idx, pages_per_huge_page(h), &h_cg);
+>  	if (ret) {
+> -		if (chg || avoid_reserve)
+> +		if (!use_reserve)
+>  			hugepage_subpool_put_pages(spool, 1);
+>  		return ERR_PTR(-ENOSPC);
+>  	}
+>  	spin_lock(&hugetlb_lock);
+> -	page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve, chg);
+> +	page = dequeue_huge_page_vma(h, vma, addr, use_reserve);
+>  	if (!page) {
+>  		spin_unlock(&hugetlb_lock);
+>  		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
+> @@ -1155,7 +1152,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+>  			hugetlb_cgroup_uncharge_cgroup(idx,
+>  						       pages_per_huge_page(h),
+>  						       h_cg);
+> -			if (chg || avoid_reserve)
+> +			if (!use_reserve)
+>  				hugepage_subpool_put_pages(spool, 1);
+>  			return ERR_PTR(-ENOSPC);
+>  		}
+> -- 
+> 1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
