@@ -1,52 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 6DDDB6B0039
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 16:46:06 -0400 (EDT)
-Received: by mail-vb0-f50.google.com with SMTP id x14so2379801vbb.23
-        for <linux-mm@kvack.org>; Mon, 26 Aug 2013 13:46:05 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CA+55aFw_bhMOP73owFHRFHZDAYEdWgF9j-502Aq9tZe3tEfmwg@mail.gmail.com>
-References: <20130807153030.GA25515@redhat.com>
-	<CAJd=RBCyZU8PR7mbFUdKsWq3OH+5HccEWKMEH5u7GNHNy3esWg@mail.gmail.com>
-	<20130819231836.GD14369@redhat.com>
-	<CAJd=RBA-UZmSTxNX63Vni+UPZBHwP4tvzE_qp1ZaHBqcNG7Fcw@mail.gmail.com>
-	<20130821204901.GA19802@redhat.com>
-	<CAJd=RBBNCf5_V-nHjK0gOqS4OLMszgB7Rg_WMf4DvL-De+ZdHA@mail.gmail.com>
-	<20130823032127.GA5098@redhat.com>
-	<CAJd=RBArkh3sKVoOJUZBLngXtJubjx4-a3G6s7Tn0N=Pr1gU4g@mail.gmail.com>
-	<20130823035344.GB5098@redhat.com>
-	<CAJd=RBBtY-nJfo9nzG5gtgcvB2bz+sxpK5kX33o1sLeLhvEU1Q@mail.gmail.com>
-	<20130826190757.GB27768@redhat.com>
-	<CA+55aFw_bhMOP73owFHRFHZDAYEdWgF9j-502Aq9tZe3tEfmwg@mail.gmail.com>
-Date: Mon, 26 Aug 2013 13:46:05 -0700
-Message-ID: <CA+55aFwQbJbR3xij1+iGbvj3EQggF9NLGAfDbmA54FkKz9xfew@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id A44756B003B
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 17:37:57 -0400 (EDT)
+Received: by mail-lb0-f179.google.com with SMTP id v1so2869730lbd.10
+        for <linux-mm@kvack.org>; Mon, 26 Aug 2013 14:37:55 -0700 (PDT)
+Date: Tue, 27 Aug 2013 01:37:54 +0400
+From: Cyrill Gorcunov <gorcunov@gmail.com>
 Subject: Re: unused swap offset / bad page map.
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Message-ID: <20130826213754.GN3814@moon>
+References: <20130821204901.GA19802@redhat.com>
+ <CAJd=RBBNCf5_V-nHjK0gOqS4OLMszgB7Rg_WMf4DvL-De+ZdHA@mail.gmail.com>
+ <20130823032127.GA5098@redhat.com>
+ <CAJd=RBArkh3sKVoOJUZBLngXtJubjx4-a3G6s7Tn0N=Pr1gU4g@mail.gmail.com>
+ <20130823035344.GB5098@redhat.com>
+ <CAJd=RBBtY-nJfo9nzG5gtgcvB2bz+sxpK5kX33o1sLeLhvEU1Q@mail.gmail.com>
+ <20130826190757.GB27768@redhat.com>
+ <20130826201846.GA23724@moon>
+ <20130826203702.GA15407@redhat.com>
+ <20130826204203.GB23724@moon>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130826204203.GB23724@moon>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>, Hillf Danton <dhillf@gmail.com>, Linux-MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>
+To: Dave Jones <davej@redhat.com>
+Cc: Hillf Danton <dhillf@gmail.com>, Linux-MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Mon, Aug 26, 2013 at 1:15 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
->
-> So I'm almost likely to think that we are more likely to have
-> something wrong in the messy magical special cases.
+On Tue, Aug 27, 2013 at 12:42:03AM +0400, Cyrill Gorcunov wrote:
+> On Mon, Aug 26, 2013 at 04:37:02PM -0400, Dave Jones wrote:
+> > 
+> > Try adding the -C64 to the invocation in scripts/test-multi.sh,
+> > and perhaps up'ing the NR_PROCESSES variable there too.
+> 
+> Thanks! I'll ping you if I manage to crash my instance.
 
-Of course, the good news would be if it actually ends up being the
-soft-dirty stuff, and bisection hits something recent.
+So trinity tained kernel, but definitely not in place I'm interested.
 
-So maybe I'm overly pessimistic. That messy swap_map[] code really
-_is_ messy, but at the same time it should also be pretty well-tested.
-I don't think it's been touched in years.
+[  320.904506] raw_sendmsg: trinity-child14 forgot to set AF_INET. Fix it!
+[  329.570812] ------------[ cut here ]------------
+[  329.571650] WARNING: CPU: 0 PID: 1982 at kernel/lockdep.c:3552 check_flags+0x18a/0x1c1()
+[  329.571650] DEBUG_LOCKS_WARN_ON(current->softirqs_enabled)
+[  329.571650] Modules linked in:
+[  329.571650] CPU: 0 PID: 1982 Comm: trinity-child4 Not tainted 3.11.0-rc6-dirty #386
+[  329.571650] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
+[  329.571650]  0000000000000009 ffff88001ee03b10 ffffffff8157ac8a 0000000000000006
+[  329.571650]  ffff88001ee03b60 ffff88001ee03b50 ffffffff81045bb2 ffffffff81583840
+[  329.571650]  ffffffff81092620 ffff880002b48000 0000000000000046 ffffffff81a2f750
+[  329.571650] Call Trace:
+[  329.571650]  <IRQ>  [<ffffffff8157ac8a>] dump_stack+0x4f/0x84
+[  329.571650]  [<ffffffff81045bb2>] warn_slowpath_common+0x81/0x9b
+[  329.571650]  [<ffffffff81583840>] ? ftrace_call+0x5/0x2f
+[  329.571650]  [<ffffffff81092620>] ? check_flags+0x18a/0x1c1
+[  329.571650]  [<ffffffff81045c6f>] warn_slowpath_fmt+0x46/0x48
+[  329.571650]  [<ffffffff81045c2e>] ? warn_slowpath_fmt+0x5/0x48
+[  329.571650]  [<ffffffff81092620>] check_flags+0x18a/0x1c1
+[  329.571650]  [<ffffffff81093595>] lock_is_held+0x30/0x5f
+[  329.571650]  [<ffffffff810eb19e>] rcu_read_lock_held+0x36/0x38
+[  329.571650]  [<ffffffff810f1b92>] perf_tp_event+0x92/0x220
+[  329.571650]  [<ffffffff810f1d0e>] ? perf_tp_event+0x20e/0x220
+[  329.571650]  [<ffffffff81049f6c>] ? __local_bh_enable+0x9a/0x9e
+[  329.571650]  [<ffffffff810712f3>] ? get_parent_ip+0x3f/0x3f
+[  329.571650]  [<ffffffff81049f6c>] ? __local_bh_enable+0x9a/0x9e
+[  329.571650]  [<ffffffff810e3af1>] perf_ftrace_function_call+0xce/0xdc
 
-That said, google does find "swap_free: Unused swap offset entry"
-reports from over the years. Most of them seem to be single-bit
-errors, though (ie when the entry is 00000100 or similar I'm more
-inclined to blame a bit error - in contrast your values look like
-"real" swap entries).
+	...
 
-            Linus
+(since my config pretty similar to yours I tried to run trinity without
+ kernel recompilation. At first i loaded swap space with crap data
+
+[root@ovz trinity]# free 
+             total       used       free     shared    buffers     cached
+Mem:        493228     480188      13040          0       2912      12112
+-/+ buffers/cache:     465164      28064
+Swap:      2063356    1741304     322052
+
+then run it as
+
+[root@ovz trinity]# ./trinity -C64 --dangerous)
+
+I'll continue tomorrow with your config and test-multi.sh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
