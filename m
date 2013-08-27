@@ -1,61 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 87CF26B005C
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 03:58:12 -0400 (EDT)
-Date: Tue, 27 Aug 2013 16:58:38 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2 14/20] mm, hugetlb: call vma_needs_reservation before
- entering alloc_huge_page()
-Message-ID: <20130827075838.GC6795@lge.com>
-References: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1376040398-11212-15-git-send-email-iamjoonsoo.kim@lge.com>
- <87vc2sd15e.fsf@linux.vnet.ibm.com>
- <87mwo4d0p2.fsf@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 977AF6B005A
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 04:05:40 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Tue, 27 Aug 2013 17:54:14 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 5F87E2CE804C
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 18:05:35 +1000 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7R85Gue41615538
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 18:05:24 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r7R85QHg001034
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 18:05:27 +1000
+Date: Tue, 27 Aug 2013 16:05:23 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 3/3] mm/hwpoison: fix return value of madvise_hwpoison
+Message-ID: <20130827080523.GA22375@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <1377571171-9958-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1377571171-9958-3-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1377574096-y8hxgzdw-mutt-n-horiguchi@ah.jp.nec.com>
+ <521c1f3f.813d320a.6ba7.5a17SMTPIN_ADDED_BROKEN@mx.google.com>
+ <1377574896-5k1diwl4-mutt-n-horiguchi@ah.jp.nec.com>
+ <20130827073701.GA23035@gchen.bj.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87mwo4d0p2.fsf@linux.vnet.ibm.com>
+In-Reply-To: <20130827073701.GA23035@gchen.bj.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
+To: Chen Gong <gong.chen@linux.intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-> >> @@ -2504,6 +2498,8 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
-> >>  	struct hstate *h = hstate_vma(vma);
-> >>  	struct page *old_page, *new_page;
-> >>  	int outside_reserve = 0;
-> >> +	long chg;
-> >> +	bool use_reserve;
-> >>  	unsigned long mmun_start;	/* For mmu_notifiers */
-> >>  	unsigned long mmun_end;		/* For mmu_notifiers */
-> >>
-> >> @@ -2535,7 +2531,17 @@ retry_avoidcopy:
-> >>
-> >>  	/* Drop page_table_lock as buddy allocator may be called */
-> >>  	spin_unlock(&mm->page_table_lock);
-> >> -	new_page = alloc_huge_page(vma, address, outside_reserve);
-> >> +	chg = vma_needs_reservation(h, vma, address);
-> >> +	if (chg == -ENOMEM) {
-> >
-> > why not 
-> >
-> >     if (chg < 0) ?
-> >
-> > Should we try to unmap the page from child and avoid cow here ?. May be
-> > with outside_reserve = 1 we will never have vma_needs_reservation fail.
-> > Any how it would be nice to document why this error case is different
-> > from alloc_huge_page error case.
-> >
-> 
-> I guess patch  16 address this . So if we do if (chg < 0) we are good
-> here.
+Hi Chen,
+On Tue, Aug 27, 2013 at 03:37:01AM -0400, Chen Gong wrote:
+>On Mon, Aug 26, 2013 at 11:41:36PM -0400, Naoya Horiguchi wrote:
+>> Date: Mon, 26 Aug 2013 23:41:36 -0400
+>> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>> To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+>> Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen
+>>  <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Tony Luck
+>>  <tony.luck@intel.com>, gong.chen@linux.intel.com, linux-mm@kvack.org,
+>>  linux-kernel@vger.kernel.org
+>> Subject: Re: [PATCH v2 3/3] mm/hwpoison: fix return value of
+>>  madvise_hwpoison
+>> User-Agent: Mutt 1.5.21 (2010-09-15)
+>> 
+>> On Tue, Aug 27, 2013 at 11:38:27AM +0800, Wanpeng Li wrote:
+>> > Hi Naoya,
+>> > On Mon, Aug 26, 2013 at 11:28:16PM -0400, Naoya Horiguchi wrote:
+>> > >On Tue, Aug 27, 2013 at 10:39:31AM +0800, Wanpeng Li wrote:
+>> > >> The return value outside for loop is always zero which means madvise_hwpoison 
+>> > >> return success, however, this is not truth for soft_offline_page w/ failure
+>> > >> return value.
+>> > >
+>> > >I don't understand what you want to do for what reason. Could you clarify
+>> > >those?
+>> > 
+>> > int ret is defined in two place in madvise_hwpoison. One is out of for
+>> > loop and its value is always zero(zero means success for madvise), the 
+>> > other one is in for loop. The soft_offline_page function maybe return 
+>> > -EBUSY and break, however, the ret out of for loop is return which means 
+>> > madvise_hwpoison success. 
+>> 
+>> Oh, I see. Thanks.
+>> 
+>I don't think such change is a good idea. The original code is obviously
+>easy to confuse people. Why not removing redundant local variable?
+>
 
-Okay! I will change it.
+I think the trick here is get_user_pages_fast will return the number of
+pages pinned. It is always 1 in madvise_hwpoison, the return value of
+memory_failure is ignored. Therefore we still need to reset ret to 0
+before return madvise_hwpoison.
 
-> 
-> Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-
-Thanks.
+Regards,
+Wanpeng Li
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
