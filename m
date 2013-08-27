@@ -1,125 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 2ED556B0044
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 04:19:21 -0400 (EDT)
-Date: Tue, 27 Aug 2013 04:07:05 -0400
-From: Chen Gong <gong.chen@linux.intel.com>
-Subject: Re: [PATCH v2 3/3] mm/hwpoison: fix return value of madvise_hwpoison
-Message-ID: <20130827080704.GB23035@gchen.bj.intel.com>
-References: <1377571171-9958-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1377571171-9958-3-git-send-email-liwanp@linux.vnet.ibm.com>
- <1377574096-y8hxgzdw-mutt-n-horiguchi@ah.jp.nec.com>
- <521c1f3f.813d320a.6ba7.5a17SMTPIN_ADDED_BROKEN@mx.google.com>
- <1377574896-5k1diwl4-mutt-n-horiguchi@ah.jp.nec.com>
- <20130827073701.GA23035@gchen.bj.intel.com>
- <20130827080523.GA22375@hacker.(null)>
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 6FEEB6B0044
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 04:37:21 -0400 (EDT)
+Received: by mail-la0-f51.google.com with SMTP id es20so3185437lab.24
+        for <linux-mm@kvack.org>; Tue, 27 Aug 2013 01:37:19 -0700 (PDT)
+Date: Tue, 27 Aug 2013 12:37:18 +0400
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: unused swap offset / bad page map.
+Message-ID: <20130827083718.GC7416@moon>
+References: <CAJd=RBBNCf5_V-nHjK0gOqS4OLMszgB7Rg_WMf4DvL-De+ZdHA@mail.gmail.com>
+ <20130823032127.GA5098@redhat.com>
+ <CAJd=RBArkh3sKVoOJUZBLngXtJubjx4-a3G6s7Tn0N=Pr1gU4g@mail.gmail.com>
+ <20130823035344.GB5098@redhat.com>
+ <CAJd=RBBtY-nJfo9nzG5gtgcvB2bz+sxpK5kX33o1sLeLhvEU1Q@mail.gmail.com>
+ <20130826190757.GB27768@redhat.com>
+ <CA+55aFw_bhMOP73owFHRFHZDAYEdWgF9j-502Aq9tZe3tEfmwg@mail.gmail.com>
+ <CA+55aFwQbJbR3xij1+iGbvj3EQggF9NLGAfDbmA54FkKz9xfew@mail.gmail.com>
+ <alpine.LNX.2.00.1308261448490.4982@eggly.anvils>
+ <20130826222833.GA24320@redhat.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="qcHopEYAB45HaUaB"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130827080523.GA22375@hacker.(null)>
+In-Reply-To: <20130826222833.GA24320@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Jones <davej@redhat.com>
+Cc: Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>, Linux-MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelyanov <xemul@parallels.com>
 
+On Mon, Aug 26, 2013 at 06:28:33PM -0400, Dave Jones wrote:
+>  > 
+>  > I've not tried matching up bits with Dave's reports, and just going
+>  > into a meeting now, but this patch looks worth a try: probably Cyrill
+>  > can improve it meanwhile to what he actually wants there (I'm
+>  > surprised anything special is needed for just moving a pte).
+>  > 
+>  > Hugh
+>  > 
+>  > --- 3.11-rc7/mm/mremap.c	2013-07-14 17:10:16.640003652 -0700
+>  > +++ linux/mm/mremap.c	2013-08-26 14:46:14.460027627 -0700
+>  > @@ -126,7 +126,7 @@ static void move_ptes(struct vm_area_str
+>  >  			continue;
+>  >  		pte = ptep_get_and_clear(mm, old_addr, old_pte);
+>  >  		pte = move_pte(pte, new_vma->vm_page_prot, old_addr, new_addr);
+>  > -		set_pte_at(mm, new_addr, new_pte, pte_mksoft_dirty(pte));
+>  > +		set_pte_at(mm, new_addr, new_pte, pte);
+>  >  	}
+> 
+> I'll give this a shot once I'm done with the bisect.
 
---qcHopEYAB45HaUaB
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+I managed to trigger the issue as well. The patch below fixes it.
+Dave, could you please give it a shot once time permit?
 
-On Tue, Aug 27, 2013 at 04:05:23PM +0800, Wanpeng Li wrote:
-> Date: Tue, 27 Aug 2013 16:05:23 +0800
-> From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-> To: Chen Gong <gong.chen@linux.intel.com>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton
->  <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Fengguang
->  Wu <fengguang.wu@intel.com>, Tony Luck <tony.luck@intel.com>,
->  linux-mm@kvack.org, linux-kernel@vger.kernel.org
-> Subject: Re: [PATCH v2 3/3] mm/hwpoison: fix return value of
->  madvise_hwpoison
-> User-Agent: Mutt/1.5.21 (2010-09-15)
->=20
-> Hi Chen,
-> On Tue, Aug 27, 2013 at 03:37:01AM -0400, Chen Gong wrote:
-> >On Mon, Aug 26, 2013 at 11:41:36PM -0400, Naoya Horiguchi wrote:
-> >> Date: Mon, 26 Aug 2013 23:41:36 -0400
-> >> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> >> To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-> >> Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen
-> >>  <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Tony Lu=
-ck
-> >>  <tony.luck@intel.com>, gong.chen@linux.intel.com, linux-mm@kvack.org,
-> >>  linux-kernel@vger.kernel.org
-> >> Subject: Re: [PATCH v2 3/3] mm/hwpoison: fix return value of
-> >>  madvise_hwpoison
-> >> User-Agent: Mutt 1.5.21 (2010-09-15)
-> >>=20
-> >> On Tue, Aug 27, 2013 at 11:38:27AM +0800, Wanpeng Li wrote:
-> >> > Hi Naoya,
-> >> > On Mon, Aug 26, 2013 at 11:28:16PM -0400, Naoya Horiguchi wrote:
-> >> > >On Tue, Aug 27, 2013 at 10:39:31AM +0800, Wanpeng Li wrote:
-> >> > >> The return value outside for loop is always zero which means madv=
-ise_hwpoison=20
-> >> > >> return success, however, this is not truth for soft_offline_page =
-w/ failure
-> >> > >> return value.
-> >> > >
-> >> > >I don't understand what you want to do for what reason. Could you c=
-larify
-> >> > >those?
-> >> >=20
-> >> > int ret is defined in two place in madvise_hwpoison. One is out of f=
-or
-> >> > loop and its value is always zero(zero means success for madvise), t=
-he=20
-> >> > other one is in for loop. The soft_offline_page function maybe retur=
-n=20
-> >> > -EBUSY and break, however, the ret out of for loop is return which m=
-eans=20
-> >> > madvise_hwpoison success.=20
-> >>=20
-> >> Oh, I see. Thanks.
-> >>=20
-> >I don't think such change is a good idea. The original code is obviously
-> >easy to confuse people. Why not removing redundant local variable?
-> >
->=20
-> I think the trick here is get_user_pages_fast will return the number of
-> pages pinned. It is always 1 in madvise_hwpoison, the return value of
-> memory_failure is ignored. Therefore we still need to reset ret to 0
-> before return madvise_hwpoison.
->=20
-> Regards,
-> Wanpeng Li
->=20
-It looks like the original author wrote in that way deliberately but
-botching it. FWIW, I just think its harmness is more than good.
+Pavel, I kept 'make it dirty on move' logic, but i'm somehow doubt
+in it, won't plain pte copying (as in Hugh's patch) work of us?
+---
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: [PATCH] mm: move_ptes -- Set soft dirty bit depending on pte type
 
---qcHopEYAB45HaUaB
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
+Dave reported corrupted swap entries
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
+ | [ 4588.541886] swap_free: Unused swap offset entry 00002d15
+ | [ 4588.541952] BUG: Bad page map in process trinity-kid12  pte:005a2a80 pmd:22c01f067
 
-iQIcBAEBAgAGBQJSHF4oAAoJEI01n1+kOSLHZAkP+gLNWq5DcaaG1Gi82xp0b9xO
-u0BkDux5P0cfyz0B8BIIET7njzx4Ip+GLAxsduuN7y4KvqFwitoxSGXZEvsg/sd1
-j1GVT3J5mjc0gPld5y9DO4EN1TL7KQxI/iASbNZDBtQkAtzhGxX/DRcO5kiF77SL
-QnufNdp7uK1G/Xp8uOeTlU/WWGFnOWLsGn2ShHuwDRLSZejUFqX2/giU1kfHfB6C
-NtUcRF8eE3BX1cAiRrHlCEtwswB4F99zERYmRvErUxnK7+NCzagAdGOkup5i4GSY
-YcTw4XLyjx65KRZuyev11BOm2mcTXiGIF3SQLyBo8v8JuXm3+3UVJ6vcRAwbMzCP
-Fp62Y6/8Mh80tjYGP85TSST1a/JS3SHeCtLfVsX61EqSSr8qAe82qlhoh8wrfX+x
-YFCGd+0ufa48P+SfSrlicl8DXou8ayXJHawXjPjC2xlho1W/29v6xl/NBdwq/u+D
-sIF2A00s9BP8+Gs51zveNI4I7QMnWmxTImqhj6RRHkLIts6CVwSi4kIF7niOSwE1
-1qFsEreAjDnCRm5j074bAfFz6XIIJ0re5FTdzkzdDnWWp/m6/VW/ZgibY2IBeLvH
-j/9kzrXkebPbD2iazCTRd0KGkUflBKlpKyShU4Ahcbm9Q+WoMxFUB+6wXgGjB1cM
-C7ijSB+WSEZhmEpyMXF4
-=HLph
------END PGP SIGNATURE-----
+and Hugh pointed that in move_ptes _PAGE_SOFT_DIRTY bit
+set regardless the type of entry pte consists of. The
+trick here is that -- when we carry soft dirty status
+in swap entries we are to use _PAGE_SWP_SOFT_DIRTY instead,
+because this is the only place in pte which can be used
+for own needs without intersecting with bits owned by
+swap entry type/offset.
 
---qcHopEYAB45HaUaB--
+Reported-by: Dave Jones <davej@redhat.com>
+Signed-off-by: Cyrill Gorcunov <gorcunov@openvz.org>
+Cc: Pavel Emelyanov <xemul@parallels.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Hillf Danton <dhillf@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+---
+ mm/mremap.c |   21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)
+
+Index: linux-2.6.git/mm/mremap.c
+===================================================================
+--- linux-2.6.git.orig/mm/mremap.c
++++ linux-2.6.git/mm/mremap.c
+@@ -15,6 +15,7 @@
+ #include <linux/swap.h>
+ #include <linux/capability.h>
+ #include <linux/fs.h>
++#include <linux/swapops.h>
+ #include <linux/highmem.h>
+ #include <linux/security.h>
+ #include <linux/syscalls.h>
+@@ -69,6 +70,23 @@ static pmd_t *alloc_new_pmd(struct mm_st
+ 	return pmd;
+ }
+ 
++static pte_t move_soft_dirty_pte(pte_t pte)
++{
++	/*
++	 * Set soft dirty bit so we can notice
++	 * in userspace the ptes were moved.
++	 */
++#ifdef CONFIG_MEM_SOFT_DIRTY
++	if (pte_present(pte))
++		pte = pte_mksoft_dirty(pte);
++	else if (is_swap_pte(pte))
++		pte = pte_swp_mksoft_dirty(pte);
++	else if (pte_file(pte))
++		pte = pte_file_mksoft_dirty(pte);
++#endif
++	return pte;
++}
++
+ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
+ 		unsigned long old_addr, unsigned long old_end,
+ 		struct vm_area_struct *new_vma, pmd_t *new_pmd,
+@@ -126,7 +144,8 @@ static void move_ptes(struct vm_area_str
+ 			continue;
+ 		pte = ptep_get_and_clear(mm, old_addr, old_pte);
+ 		pte = move_pte(pte, new_vma->vm_page_prot, old_addr, new_addr);
+-		set_pte_at(mm, new_addr, new_pte, pte_mksoft_dirty(pte));
++		pte = move_soft_dirty_pte(pte);
++		set_pte_at(mm, new_addr, new_pte, pte);
+ 	}
+ 
+ 	arch_leave_lazy_mmu_mode();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
