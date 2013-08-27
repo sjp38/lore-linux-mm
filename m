@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 977AF6B005A
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 04:05:40 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id E2E936B005C
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 04:05:45 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 27 Aug 2013 17:54:14 +1000
+	Tue, 27 Aug 2013 17:58:27 +1000
 Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 5F87E2CE804C
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 18:05:35 +1000 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7R85Gue41615538
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 18:05:24 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r7R85QHg001034
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 18:05:27 +1000
-Date: Tue, 27 Aug 2013 16:05:23 +0800
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 147A22BB0055
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 18:05:41 +1000 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7R85UYH8978712
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 18:05:30 +1000
+Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7R85ecO009154
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 18:05:40 +1000
+Date: Tue, 27 Aug 2013 16:02:29 +0800
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Subject: Re: [PATCH v2 3/3] mm/hwpoison: fix return value of madvise_hwpoison
-Message-ID: <20130827080523.GA22375@hacker.(null)>
+Message-ID: <20130827080229.GA20495@hacker.(null)>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 References: <1377571171-9958-1-git-send-email-liwanp@linux.vnet.ibm.com>
  <1377571171-9958-3-git-send-email-liwanp@linux.vnet.ibm.com>
@@ -33,22 +33,10 @@ In-Reply-To: <20130827073701.GA23035@gchen.bj.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Chen Gong <gong.chen@linux.intel.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 Hi Chen,
 On Tue, Aug 27, 2013 at 03:37:01AM -0400, Chen Gong wrote:
->On Mon, Aug 26, 2013 at 11:41:36PM -0400, Naoya Horiguchi wrote:
->> Date: Mon, 26 Aug 2013 23:41:36 -0400
->> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
->> To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->> Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen
->>  <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Tony Luck
->>  <tony.luck@intel.com>, gong.chen@linux.intel.com, linux-mm@kvack.org,
->>  linux-kernel@vger.kernel.org
->> Subject: Re: [PATCH v2 3/3] mm/hwpoison: fix return value of
->>  madvise_hwpoison
->> User-Agent: Mutt 1.5.21 (2010-09-15)
->> 
 >> On Tue, Aug 27, 2013 at 11:38:27AM +0800, Wanpeng Li wrote:
 >> > Hi Naoya,
 >> > On Mon, Aug 26, 2013 at 11:28:16PM -0400, Naoya Horiguchi wrote:
@@ -73,12 +61,12 @@ On Tue, Aug 27, 2013 at 03:37:01AM -0400, Chen Gong wrote:
 >
 
 I think the trick here is get_user_pages_fast will return the number of
-pages pinned. It is always 1 in madvise_hwpoison, the return value of
-memory_failure is ignored. Therefore we still need to reset ret to 0
-before return madvise_hwpoison.
+pages pinned. It is always 1 in madvise_hwpoison, the return value of 
+memory_failure is ignored. Therefore we still need to reset ret to 0 
+before return madvise_hwpoison. 
 
 Regards,
-Wanpeng Li
+Wanpeng Li 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
