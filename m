@@ -1,99 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id BE9F26B0037
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 20:13:41 -0400 (EDT)
-Date: Mon, 26 Aug 2013 20:13:31 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1377562411-p6y80mvs-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20130826133658.GA357@larmbr-lcx>
-References: <20130826133658.GA357@larmbr-lcx>
-Subject: Re: [PATCH RESEND] mm/vmscan : use vmcan_swappiness( ) basing on
- MEMCG config to elimiate unnecessary runtime cost
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 457816B0039
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 20:21:12 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Tue, 27 Aug 2013 10:09:58 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 33EF33578052
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 10:21:07 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7R0KujO44040282
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 10:20:56 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7R0L6o3001182
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 10:21:07 +1000
+Date: Tue, 27 Aug 2013 08:21:05 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH v4 8/10] mm/hwpoison: fix memory failure still hold
+ reference count after unpoison empty zero page
+Message-ID: <20130827002105.GA20736@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <1377506774-5377-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1377506774-5377-8-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1377531937-15nx3q8e-mutt-n-horiguchi@ah.jp.nec.com>
+ <20130826232604.GA12498@hacker.(null)>
+ <1377562349-97tgdeoj-mutt-n-horiguchi@ah.jp.nec.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <1377562349-97tgdeoj-mutt-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: larmbr <nasa4836@gmail.com>
-Cc: linux-mm@kvack.org, hannes@cmpxchg.org, mhocko@suse.cz, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, mgorman@suse.de, riel@redhat.com, linux-kernel@vger.kernel.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Tony Luck <tony.luck@intel.com>, gong.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Please fix a typo in subject line (which affects how easy we can access
-paticular patches later with grepping subject lines.)
-
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-
-On Mon, Aug 26, 2013 at 09:36:58PM +0800, larmbr wrote:
-> Currently, we get the vm_swappiness via vmscan_swappiness(), which
-> calls global_reclaim() to check if this is a global reclaim. 
-> 
-> Besides, the current implementation of global_reclaim() always returns 
-> true for the !CONFIG_MEGCG case, and judges the other case by checking 
-> whether scan_control->target_mem_cgroup is null or not.
-> 
-> Thus, we could just use two versions of vmscan_swappiness() based on 
-> MEMCG Kconfig , to eliminate the unnecessary run-time cost for 
-> the !CONFIG_MEMCG at all, and to squash all memcg-related checking
-> into the CONFIG_MEMCG version.
-> 
-> Signed-off-by: Zhan Jianyu <nasa4836@gmail.com>
-> ---
-> mm/memcontrol.c |    6 +++++-
-> mm/vmscan.c     |    9 +++++++--
-> 2 files changed, 12 insertions(+), 3 deletions(-)
-> 
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index c5792a5..1290320 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1525,9 +1525,13 @@ static unsigned long mem_cgroup_margin(struct mem_cgroup *memcg)
->  
->  int mem_cgroup_swappiness(struct mem_cgroup *memcg)
->  {
-> -	struct cgroup *cgrp = memcg->css.cgroup;
-> +	struct cgroup *cgrp;
-> +
-> +	if (!memcg)
-> +		return vm_swappiness;
->  
->  	/* root ? */
-> +	cgrp = memcg->css.cgroup;
->  	if (cgrp->parent == NULL)
->  		return vm_swappiness;
->  
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 2cff0d4..1de652d 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1742,12 +1742,17 @@ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
->  	return shrink_inactive_list(nr_to_scan, lruvec, sc, lru);
->  }
->  
-> +#ifdef CONFIG_MEMCG
->  static int vmscan_swappiness(struct scan_control *sc)
->  {
-> -	if (global_reclaim(sc))
-> -		return vm_swappiness;
->  	return mem_cgroup_swappiness(sc->target_mem_cgroup);
->  }
-> +#else
-> +static int vmscan_swappiness(struct scan_control *sc)
-> +{
-> +	return vm_swappiness;
-> +}
-> +#endif
->  
->  enum scan_balance {
->  	SCAN_EQUAL,
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Hi Naoya,
+On Mon, Aug 26, 2013 at 08:12:29PM -0400, Naoya Horiguchi wrote:
+>Hi Wanpeng,
 >
+>On Tue, Aug 27, 2013 at 07:26:04AM +0800, Wanpeng Li wrote:
+>> Hi Naoya,
+>> On Mon, Aug 26, 2013 at 11:45:37AM -0400, Naoya Horiguchi wrote:
+>> >On Mon, Aug 26, 2013 at 04:46:12PM +0800, Wanpeng Li wrote:
+>> >> madvise hwpoison inject will poison the read-only empty zero page if there is 
+>> >> no write access before poison. Empty zero page reference count will be increased 
+>> >> for hwpoison, subsequent poison zero page will return directly since page has
+>> >> already been set PG_hwpoison, however, page reference count is still increased 
+>> >> by get_user_pages_fast. The unpoison process will unpoison the empty zero page 
+>> >> and decrease the reference count successfully for the fist time, however, 
+>> >> subsequent unpoison empty zero page will return directly since page has already 
+>> >> been unpoisoned and without decrease the page reference count of empty zero page.
+>> >> This patch fix it by decrease page reference count for empty zero page which has 
+>> >> already been unpoisoned and page count > 1.
+>> >
+>> >I guess that fixing on the madvise side looks reasonable to me, because this
+>> >refcount mismatch happens only when we poison with madvise(). The root cause
+>> >is that we can get refcount multiple times on a page, even if memory_failure()
+>> >or soft_offline_page() can do its work only once.
+>> >
+>> 
+>> I think this just happen in read-only before poison case against empty
+>> zero page. 
+>
+>OK. I agree.
+>
+>> Hi Andrew,
+>> 
+>> I see you have already merged the patch, which method you prefer? 
+>>
+>> >How about making madvise_hwpoison() put a page and return immediately
+>> >(without calling memory_failure() or soft_offline_page()) when the page
+>> >is already hwpoisoned? 
+>> >I hope it also helps us avoid meaningless printk flood.
+>> >
+>> 
+>> Btw, Naoya, how about patch 10/10, any input are welcome! ;-)
+>
+>No objection if you (and Andrew) decide to go with current approach.
+
+Andrew prefer your method, I will resend the patch w/ your suggested-by. ;-)
+
+>But I think that if we shift to fix this problem in madvise(),
+>we don't need 10/10 any more. So it looks simpler to me.
+
+I don't think it's same issue. There is just one page in my test case.
+#define PAGES_TO_TEST 1
+If I miss something?
+
+Regards,
+Wanpeng Li 
+
+>
+>Thanks,
+>Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
