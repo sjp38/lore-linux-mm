@@ -1,104 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id A9FBC6B0033
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 21:31:19 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 8E26C6B0036
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 21:31:21 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 27 Aug 2013 11:28:01 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 9A7932CE8051
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 11:31:14 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7R1F94G62718148
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 11:15:10 +1000
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7R1VDiF013619
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 11:31:13 +1000
+	Tue, 27 Aug 2013 06:51:34 +0530
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 0CEEBE0054
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 07:01:52 +0530 (IST)
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7R1VDRQ40173694
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 07:01:13 +0530
+Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7R1VFV9022689
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 07:01:16 +0530
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH 1/3] mm/hwpoison: fix memory failure still hold reference count after unpoison empty zero page
-Date: Tue, 27 Aug 2013 09:30:52 +0800
-Message-Id: <1377567054-32442-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH 2/3] mm/hwpoison: change permission of corrupt-pfn/unpoison-pfn to 0200
+Date: Tue, 27 Aug 2013 09:30:53 +0800
+Message-Id: <1377567054-32442-2-git-send-email-liwanp@linux.vnet.ibm.com>
+In-Reply-To: <1377567054-32442-1-git-send-email-liwanp@linux.vnet.ibm.com>
+References: <1377567054-32442-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Tony Luck <tony.luck@intel.com>, gong.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-madvise hwpoison inject will poison the read-only empty zero page if there is 
-no write access before poison. Empty zero page reference count will be increased 
-for hwpoison, subsequent poison zero page will return directly since page has
-already been set PG_hwpoison, however, page reference count is still increased 
-by get_user_pages_fast. The unpoison process will unpoison the empty zero page 
-and decrease the reference count successfully for the fist time, however, 
-subsequent unpoison empty zero page will return directly since page has already 
-been unpoisoned and without decrease the page reference count of empty zero page.
-This patch fix it by make madvise_hwpoison() put a page and return immediately
-(without calling memory_failure() or soft_offline_page()) when the page is already 
-hwpoisoned.
+Hwpoison inject doesn't implement read method for corrupt-pfn/unpoison-pfn
+attributes:
 
-Testcase:
+# cat /sys/kernel/debug/hwpoison/corrupt-pfn
+cat: /sys/kernel/debug/hwpoison/corrupt-pfn: Permission denied
+# cat /sys/kernel/debug/hwpoison/unpoison-pfn
+cat: /sys/kernel/debug/hwpoison/unpoison-pfn: Permission denied
 
-#define _GNU_SOURCE
-#include <stdlib.h>
-#include <stdio.h>
-#include <sys/mman.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/types.h>
-#include <errno.h>
+This patch change the permission of corrupt-pfn/unpoison-pfn to 0200.
 
-#define PAGES_TO_TEST 3
-#define PAGE_SIZE	4096
-
-int main(void)
-{
-	char *mem;
-	int i;
-
-	mem = mmap(NULL, PAGES_TO_TEST * PAGE_SIZE,
-			PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
-
-	if (madvise(mem, PAGES_TO_TEST * PAGE_SIZE, MADV_HWPOISON) == -1)
-		return -1;
-	
-	munmap(mem, PAGES_TO_TEST * PAGE_SIZE);
-
-	return 0;
-}
-
-Add printk to dump page reference count:
-
-[   93.075959] Injecting memory failure for page 0x19d0 at 0xb77d8000
-[   93.076207] MCE 0x19d0: non LRU page recovery: Ignored
-[   93.076209] pfn 0x19d0, page count = 1 after memory failure
-[   93.076220] Injecting memory failure for page 0x19d0 at 0xb77d9000
-[   93.076221] MCE 0x19d0: already hardware poisoned
-[   93.076222] pfn 0x19d0, page count = 2 after memory failure
-[   93.076224] Injecting memory failure for page 0x19d0 at 0xb77da000
-[   93.076224] MCE 0x19d0: already hardware poisoned
-[   93.076225] pfn 0x19d0, page count = 3 after memory failure
-
-Suggested-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- mm/madvise.c | 4 ++++
- 1 file changed, 4 insertions(+)
+ mm/hwpoison-inject.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/mm/madvise.c b/mm/madvise.c
-index 212f5f1..0956ae9 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -352,6 +352,10 @@ static int madvise_hwpoison(int bhv, unsigned long start, unsigned long end)
- 		int ret = get_user_pages_fast(start, 1, 0, &p);
- 		if (ret != 1)
- 			return ret;
-+		if (PageHWPoison(p)) {
-+			put_page(p);
-+			continue;
-+		}
- 		if (bhv == MADV_SOFT_OFFLINE) {
- 			pr_info("Soft offlining page %#lx at %#lx\n",
- 				page_to_pfn(p), start);
+diff --git a/mm/hwpoison-inject.c b/mm/hwpoison-inject.c
+index 3a61efc..afc2daa 100644
+--- a/mm/hwpoison-inject.c
++++ b/mm/hwpoison-inject.c
+@@ -88,12 +88,12 @@ static int pfn_inject_init(void)
+ 	 * hardware status change, hence do not require hardware support.
+ 	 * They are mainly for testing hwpoison in software level.
+ 	 */
+-	dentry = debugfs_create_file("corrupt-pfn", 0600, hwpoison_dir,
++	dentry = debugfs_create_file("corrupt-pfn", 0200, hwpoison_dir,
+ 					  NULL, &hwpoison_fops);
+ 	if (!dentry)
+ 		goto fail;
+ 
+-	dentry = debugfs_create_file("unpoison-pfn", 0600, hwpoison_dir,
++	dentry = debugfs_create_file("unpoison-pfn", 0200, hwpoison_dir,
+ 				     NULL, &unpoison_fops);
+ 	if (!dentry)
+ 		goto fail;
 -- 
 1.8.1.2
 
