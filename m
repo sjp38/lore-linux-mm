@@ -1,17 +1,10 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v4 8/10] mm/hwpoison: fix memory failure still hold
- reference count after unpoison empty zero page
-Date: Tue, 27 Aug 2013 09:48:20 +0800
-Message-ID: <23692.85320533$1377568120@news.gmane.org>
-References: <1377506774-5377-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1377506774-5377-8-git-send-email-liwanp@linux.vnet.ibm.com>
- <1377531937-15nx3q8e-mutt-n-horiguchi@ah.jp.nec.com>
- <20130826232604.GA12498@hacker.(null)>
- <1377562349-97tgdeoj-mutt-n-horiguchi@ah.jp.nec.com>
- <521bf0fc.4950320a.76ab.0f2dSMTPIN_ADDED_BROKEN@mx.google.com>
- <1377564414-igez3xdx-mutt-n-horiguchi@ah.jp.nec.com>
- <521bfe37.83892b0a.1b94.2e7cSMTPIN_ADDED_BROKEN@mx.google.com>
- <1377567253-wwcptjmf-mutt-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v2 3/3] mm/hwpoison: fix return value of madvise_hwpoison
+Date: Tue, 27 Aug 2013 11:38:27 +0800
+Message-ID: <7333.30707666955$1377574724@news.gmane.org>
+References: <1377571171-9958-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1377571171-9958-3-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1377574096-y8hxgzdw-mutt-n-horiguchi@ah.jp.nec.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -19,115 +12,72 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1VE8OV-0000Mp-Td
-	for glkm-linux-mm-2@m.gmane.org; Tue, 27 Aug 2013 03:48:32 +0200
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 7A8EE6B0033
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 21:48:29 -0400 (EDT)
+	id 1VEA73-0000uf-4v
+	for glkm-linux-mm-2@m.gmane.org; Tue, 27 Aug 2013 05:38:37 +0200
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id ED45C6B004D
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2013 23:38:34 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 27 Aug 2013 11:39:54 +1000
+	Tue, 27 Aug 2013 13:24:53 +1000
 Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 773D9357804E
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 11:48:24 +1000 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7R1mDNP43581454
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 11:48:13 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r7R1mMYK007875
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 11:48:23 +1000
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id A2CEA3578051
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 13:38:30 +1000 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7R3cJuS60555330
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 13:38:19 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r7R3cTn8030983
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 13:38:30 +1000
 Content-Disposition: inline
-In-Reply-To: <1377567253-wwcptjmf-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1377574096-y8hxgzdw-mutt-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Tony Luck <tony.luck@intel.com>, gong.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Aug 26, 2013 at 09:34:13PM -0400, Naoya Horiguchi wrote:
->On Tue, Aug 27, 2013 at 09:17:29AM +0800, Wanpeng Li wrote:
->> On Mon, Aug 26, 2013 at 08:46:54PM -0400, Naoya Horiguchi wrote:
->> >On Tue, Aug 27, 2013 at 08:21:05AM +0800, Wanpeng Li wrote:
->> >> Hi Naoya,
->> >> On Mon, Aug 26, 2013 at 08:12:29PM -0400, Naoya Horiguchi wrote:
->> >> >Hi Wanpeng,
->> >> >
->> >> >On Tue, Aug 27, 2013 at 07:26:04AM +0800, Wanpeng Li wrote:
->> >> >> Hi Naoya,
->> >> >> On Mon, Aug 26, 2013 at 11:45:37AM -0400, Naoya Horiguchi wrote:
->> >> >> >On Mon, Aug 26, 2013 at 04:46:12PM +0800, Wanpeng Li wrote:
->> >> >> >> madvise hwpoison inject will poison the read-only empty zero page if there is 
->> >> >> >> no write access before poison. Empty zero page reference count will be increased 
->> >> >> >> for hwpoison, subsequent poison zero page will return directly since page has
->> >> >> >> already been set PG_hwpoison, however, page reference count is still increased 
->> >> >> >> by get_user_pages_fast. The unpoison process will unpoison the empty zero page 
->> >> >> >> and decrease the reference count successfully for the fist time, however, 
->> >> >> >> subsequent unpoison empty zero page will return directly since page has already 
->> >> >> >> been unpoisoned and without decrease the page reference count of empty zero page.
->> >> >> >> This patch fix it by decrease page reference count for empty zero page which has 
->> >> >> >> already been unpoisoned and page count > 1.
->> >> >> >
->> >> >> >I guess that fixing on the madvise side looks reasonable to me, because this
->> >> >> >refcount mismatch happens only when we poison with madvise(). The root cause
->> >> >> >is that we can get refcount multiple times on a page, even if memory_failure()
->> >> >> >or soft_offline_page() can do its work only once.
->> >> >> >
->> >> >> 
->> >> >> I think this just happen in read-only before poison case against empty
->> >> >> zero page. 
->> >> >
->> >> >OK. I agree.
->> >> >
->> >> >> Hi Andrew,
->> >> >> 
->> >> >> I see you have already merged the patch, which method you prefer? 
->> >> >>
->> >> >> >How about making madvise_hwpoison() put a page and return immediately
->> >> >> >(without calling memory_failure() or soft_offline_page()) when the page
->> >> >> >is already hwpoisoned? 
->> >> >> >I hope it also helps us avoid meaningless printk flood.
->> >> >> >
->> >> >> 
->> >> >> Btw, Naoya, how about patch 10/10, any input are welcome! ;-)
->> >> >
->> >> >No objection if you (and Andrew) decide to go with current approach.
->> >> 
->> >> Andrew prefer your method, I will resend the patch w/ your suggested-by. ;-)
->> >
->> >Thanks you :)
->> >
->> >> >But I think that if we shift to fix this problem in madvise(),
->> >> >we don't need 10/10 any more. So it looks simpler to me.
->> >> 
->> >> I don't think it's same issue. There is just one page in my test case.
->> >> #define PAGES_TO_TEST 1
->> >> If I miss something?
->> >
->> >Ah, OK.
->> 
->> I complete do it in madvise codes, however, the bug mentioned in patch
->> 10/10 is still there. ;-)
->> 
->> >
->> >BTW, in my understanding, zero pages are not exist physically (I mean that
->> >no real page is allocated to store 4096 bytes of 0.) So there can't happen
->> >any real MCE SRAO on zero page. So one possible solution might be that we
->> >completely ignore all of madvise(MADV_HWPOISON) over zero pages.
->> 
->> What's the userland visible difference against mmap w/o write access before poison 
->> you expect?
+Hi Naoya,
+On Mon, Aug 26, 2013 at 11:28:16PM -0400, Naoya Horiguchi wrote:
+>On Tue, Aug 27, 2013 at 10:39:31AM +0800, Wanpeng Li wrote:
+>> The return value outside for loop is always zero which means madvise_hwpoison 
+>> return success, however, this is not truth for soft_offline_page w/ failure
+>> return value.
 >
->In this case the userland is a test program like mce-test, so my expectation
->is that the test program shouldn't detect false test failures when it
->accidentally calls madvise(MADV_HWPOISON) on zero pages, because there's no
->real test target associated with such testcases. So I think just returning
->with success return code without doing anything looks good.
+>I don't understand what you want to do for what reason. Could you clarify
+>those?
 
-Ok, I will fix it in this way. ;-)
+int ret is defined in two place in madvise_hwpoison. One is out of for
+loop and its value is always zero(zero means success for madvise), the 
+other one is in for loop. The soft_offline_page function maybe return 
+-EBUSY and break, however, the ret out of for loop is return which means 
+madvise_hwpoison success. 
 
 Regards,
 Wanpeng Li 
 
+>
+>> 
+>> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+>> ---
+>>  mm/madvise.c | 2 +-
+>>  1 file changed, 1 insertion(+), 1 deletion(-)
+>> 
+>> diff --git a/mm/madvise.c b/mm/madvise.c
+>> index a20764c..19b71e4 100644
+>> --- a/mm/madvise.c
+>> +++ b/mm/madvise.c
+>> @@ -359,7 +359,7 @@ static int madvise_hwpoison(int bhv, unsigned long start, unsigned long end)
+>>  				page_to_pfn(p), start);
+>>  			ret = soft_offline_page(p, MF_COUNT_INCREASED);
+>>  			if (ret)
+>> -				break;
+>> +				return ret;
+>>  			continue;
+>>  		}
+>>  		pr_info("Injecting memory failure for page %#lx at %#lx\n",
+>
+>This seems to introduce no behavioral change.
 >
 >Thanks,
 >Naoya Horiguchi
