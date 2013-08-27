@@ -1,60 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 909EA6B0033
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 18:06:06 -0400 (EDT)
-Date: Tue, 27 Aug 2013 16:06:04 -0600
-From: Jonathan Corbet <corbet@lwn.net>
-Subject: Re: [PATCH 07/16] slab: overloading the RCU head over the LRU for
- RCU free
-Message-ID: <20130827160604.5ca4161c@lwn.net>
-In-Reply-To: <1377161065-30552-8-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1377161065-30552-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<1377161065-30552-8-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 4107E6B0037
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 18:24:24 -0400 (EDT)
+Date: Tue, 27 Aug 2013 15:24:21 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2 7/7] mm: munlock: manual pte walk in fast path
+ instead of follow_page_mask()
+Message-Id: <20130827152421.4f546507364eb9da7fd5add0@linux-foundation.org>
+In-Reply-To: <1376915022-12741-8-git-send-email-vbabka@suse.cz>
+References: <1376915022-12741-1-git-send-email-vbabka@suse.cz>
+	<1376915022-12741-8-git-send-email-vbabka@suse.cz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: =?ISO-8859-1?Q?J=F6rn?= Engel <joern@logfs.org>, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org
 
-On Thu, 22 Aug 2013 17:44:16 +0900
-Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+On Mon, 19 Aug 2013 14:23:42 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
 
-> With build-time size checking, we can overload the RCU head over the LRU
-> of struct page to free pages of a slab in rcu context. This really help to
-> implement to overload the struct slab over the struct page and this
-> eventually reduce memory usage and cache footprint of the SLAB.
+> Currently munlock_vma_pages_range() calls follow_page_mask() to obtain each
+> struct page. This entails repeated full page table translations and page table
+> lock taken for each page separately.
+> 
+> This patch attempts to avoid the costly follow_page_mask() where possible, by
+> iterating over ptes within single pmd under single page table lock. The first
+> pte is obtained by get_locked_pte() for non-THP page acquired by the initial
+> follow_page_mask(). The latter function is also used as a fallback in case
+> simple pte_present() and vm_normal_page() are not sufficient to obtain the
+> struct page.
 
-So I'm taking a look at this, trying to figure out what's actually in
-struct page while this stuff is going on without my head exploding.  A
-couple of questions come to mind.
+mm/mlock.c: In function 'munlock_vma_pages_range':
+mm/mlock.c:388: warning: 'pmd_end' may be used uninitialized in this function
 
->  static void kmem_rcu_free(struct rcu_head *head)
->  {
-> -	struct slab_rcu *slab_rcu = (struct slab_rcu *)head;
-> -	struct kmem_cache *cachep = slab_rcu->page->slab_cache;
-> +	struct kmem_cache *cachep;
-> +	struct page *page;
->  
-> -	kmem_freepages(cachep, slab_rcu->page);
-> +	page = container_of((struct list_head *)head, struct page, lru);
-> +	cachep = page->slab_cache;
-> +
-> +	kmem_freepages(cachep, page);
->  }
+As far as I can tell, this is notabug, but I'm not at all confident in
+that - the protocol for locals `pte' and `pmd_end' is bizarre.
 
-Is there a reason why you don't add the rcu_head structure as another field
-in that union alongside lru rather than playing casting games here?  This
-stuff is hard enough to follow as it is without adding that into the mix.
-
-The other question I had is: this field also overlays slab_page.  I guess
-that, by the time RCU comes into play, there will be no further use of
-slab_page?  It might be nice to document that somewhere if it's the case.
-
-Thanks,
-
-jon
+The function is fantastically hard to follow and deserves to be dragged
+outside, shot repeatedly then burned.  Could you please, as a matter of
+some urgency, take a look at rewriting the entire thing so that it is
+less than completely insane?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
