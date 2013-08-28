@@ -1,72 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 2D51C6B0036
-	for <linux-mm@kvack.org>; Wed, 28 Aug 2013 13:11:06 -0400 (EDT)
-Message-ID: <521E2F03.6040806@redhat.com>
-Date: Wed, 28 Aug 2013 13:10:27 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id DEA116B0033
+	for <linux-mm@kvack.org>; Wed, 28 Aug 2013 14:42:24 -0400 (EDT)
+Date: Wed, 28 Aug 2013 11:42:20 -0700
+From: Stephen Boyd <sboyd@codeaurora.org>
+Subject: Re: mmotm 2013-08-27-16-51 uploaded
+Message-ID: <20130828184218.GB19754@codeaurora.org>
+References: <20130827235227.99DB95A41D6@corp2gmr1-2.hot.corp.google.com>
+ <521D494F.1010507@codeaurora.org>
+ <20130827182616.f9396ed6.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH -v3] sched, numa: Use {cpu, pid} to create task groups
- for shared faults
-References: <1373901620-2021-1-git-send-email-mgorman@suse.de> <20130730113857.GR3008@twins.programming.kicks-ass.net> <20130731150751.GA15144@twins.programming.kicks-ass.net> <51F93105.8020503@hp.com> <20130802164715.GP27162@twins.programming.kicks-ass.net> <20130828164100.GS10002@twins.programming.kicks-ass.net>
-In-Reply-To: <20130828164100.GS10002@twins.programming.kicks-ass.net>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130827182616.f9396ed6.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Don Morris <don.morris@hp.com>, Mel Gorman <mgorman@suse.de>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, voice.shen@atmel.com, Russell King - ARM Linux <linux@arm.linux.org.uk>
 
-On 08/28/2013 12:41 PM, Peter Zijlstra wrote:
-> On Fri, Aug 02, 2013 at 06:47:15PM +0200, Peter Zijlstra wrote:
->> Subject: sched, numa: Use {cpu, pid} to create task groups for shared faults
->> From: Peter Zijlstra <peterz@infradead.org>
->> Date: Tue Jul 30 10:40:20 CEST 2013
->>
->> A very simple/straight forward shared fault task grouping
->> implementation.
->>
->> Signed-off-by: Peter Zijlstra <peterz@infradead.org>
+On 08/27, Andrew Morton wrote:
+> On Tue, 27 Aug 2013 17:50:23 -0700 Stephen Boyd <sboyd@codeaurora.org> wrote:
 > 
-> So Rik and me found a possible issue with this -- although in the end it
-> turned out to be a userspace 'feature' instead.
+> > On 08/27/13 16:52, akpm@linux-foundation.org wrote:
+> > > * kernel-time-sched_clockc-correct-the-comparison-parameter-of-mhz.patch
+> > >
+> > 
+> > I believe Russell nacked this change[1]? This should probably be dropped
+> > unless there's been more discussion. Or maybe reworked into a comment in
+> > the code that doesn't lead to the same change again.
+> > 
+> > [1] https://lkml.org/lkml/2013/8/7/95
 > 
-> It might be possible for a COW page to be 'shared' and thus get a
-> last_cpupid set from another process. When we break cow and reuse the
-> now private and writable page might still have this last_cpupid and thus
-> cause a shared fault and form grouping.
-> 
-> Something like the below resets the last_cpupid field on reuse much like
-> fresh COW copies will have.
-> 
-> There might be something that avoids the above scenario but I'm too
-> tired to come up with anything.
+> Well OK, but the code looks totally wrong.  Care to send a comment patch
+> so the next confused person doesn't "fix" it?
 
-I believe this is a real bug.
+Sure, how about this?
 
-It can be avoided by either -1ing out the cpupid like you do, or
-using the current process's cpupid, when we re-use an old page
-in do_wp_page.
+---8<----
+From: Stephen Boyd <sboyd@codeaurora.org>
+Subject: [PATCH] sched_clock: Document 4Mhz vs 1Mhz decision
 
-Acked-by: Rik van Riel <riel@redhat.com>
+Bo Shen sent a patch to change this to 1Mhz instead of 4Mhz but
+according to Russell King the use of 4Mhz was intentional. Add a
+comment to this effect so that others don't try to change the
+code as well.
 
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2730,6 +2730,9 @@ static int do_wp_page(struct mm_struct *
->  		get_page(dirty_page);
->  
->  reuse:
-> +		if (old_page)
-> +			page_cpupid_xchg_last(old_page, (1 << LAST_CPUPID_SHIFT) - 1);
-> +
->  		flush_cache_page(vma, address, pte_pfn(orig_pte));
->  		entry = pte_mkyoung(orig_pte);
->  		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-> 
+Signed-off-by: Stephen Boyd <sboyd@codeaurora.org>
+---
+ kernel/time/sched_clock.c | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-
+diff --git a/kernel/time/sched_clock.c b/kernel/time/sched_clock.c
+index a326f27..1e9e298 100644
+--- a/kernel/time/sched_clock.c
++++ b/kernel/time/sched_clock.c
+@@ -128,6 +128,10 @@ void __init setup_sched_clock(u32 (*read)(void), int bits, unsigned long rate)
+ 	clocks_calc_mult_shift(&cd.mult, &cd.shift, rate, NSEC_PER_SEC, 0);
+ 
+ 	r = rate;
++	/*
++	 * Use 4MHz instead of 1MHz so that things like 1.832Mhz show as
++	 * 1832Khz
++	 */
+ 	if (r >= 4000000) {
+ 		r /= 1000000;
+ 		r_unit = 'M';
 -- 
-All rights reversed
+The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum,
+hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
