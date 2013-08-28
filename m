@@ -1,191 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id E0C5A6B0036
-	for <linux-mm@kvack.org>; Wed, 28 Aug 2013 04:03:28 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 28 Aug 2013 13:24:08 +0530
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 69BC33940063
-	for <linux-mm@kvack.org>; Wed, 28 Aug 2013 13:33:05 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7S84rHF15532050
-	for <linux-mm@kvack.org>; Wed, 28 Aug 2013 13:34:54 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7S83DYA006217
-	for <linux-mm@kvack.org>; Wed, 28 Aug 2013 13:33:14 +0530
-Date: Wed, 28 Aug 2013 16:03:11 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 00/11] x86, memblock: Allocate memory near kernel image
- before SRAT parsed.
-Message-ID: <20130828080311.GA608@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1377596268-31552-1-git-send-email-tangchen@cn.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1377596268-31552-1-git-send-email-tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id B9BE86B0033
+	for <linux-mm@kvack.org>; Wed, 28 Aug 2013 04:38:01 -0400 (EDT)
+Received: by mail-pd0-f174.google.com with SMTP id y13so6041878pdi.33
+        for <linux-mm@kvack.org>; Wed, 28 Aug 2013 01:38:01 -0700 (PDT)
+From: Alexey Kardashevskiy <aik@ozlabs.ru>
+Subject: [PATCH v9 00/13] KVM: PPC: IOMMU in-kernel handling of VFIO
+Date: Wed, 28 Aug 2013 18:37:37 +1000
+Message-Id: <1377679070-3515-1-git-send-email-aik@ozlabs.ru>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: linuxppc-dev@lists.ozlabs.org
+Cc: Alexey Kardashevskiy <aik@ozlabs.ru>, David Gibson <david@gibson.dropbear.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Gleb Natapov <gleb@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Graf <agraf@suse.de>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kvm-ppc@vger.kernel.org, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>
 
-Hi Tang,
-On Tue, Aug 27, 2013 at 05:37:37PM +0800, Tang Chen wrote:
->This patch-set is based on tj's suggestion, and not fully tested. 
->Just for review and discussion.
->
->
->[Problem]
->
->The current Linux cannot migrate pages used by the kerenl because
->of the kernel direct mapping. In Linux kernel space, va = pa + PAGE_OFFSET.
->When the pa is changed, we cannot simply update the pagetable and
->keep the va unmodified. So the kernel pages are not migratable.
->
->There are also some other issues will cause the kernel pages not migratable.
->For example, the physical address may be cached somewhere and will be used.
->It is not to update all the caches.
->
->When doing memory hotplug in Linux, we first migrate all the pages in one
->memory device somewhere else, and then remove the device. But if pages are
->used by the kernel, they are not migratable. As a result, memory used by
->the kernel cannot be hot-removed.
->
->Modifying the kernel direct mapping mechanism is too difficult to do. And
->it may cause the kernel performance down and unstable. So we use the following
->way to do memory hotplug.
->
->
->[What we are doing]
->
->In Linux, memory in one numa node is divided into several zones. One of the
->zones is ZONE_MOVABLE, which the kernel won't use.
->
->In order to implement memory hotplug in Linux, we are going to arrange all
->hotpluggable memory in ZONE_MOVABLE so that the kernel won't use these memory.
->To do this, we need ACPI's help.
->
->In ACPI, SRAT(System Resource Affinity Table) contains NUMA info. The memory
->affinities in SRAT record every memory range in the system, and also, flags
->specifying if the memory range is hotpluggable.
->(Please refer to ACPI spec 5.0 5.2.16)
->
->With the help of SRAT, we have to do the following two things to achieve our
->goal:
->
->1. When doing memory hot-add, allow the users arranging hotpluggable as
->   ZONE_MOVABLE.
->   (This has been done by the MOVABLE_NODE functionality in Linux.)
->
->2. when the system is booting, prevent bootmem allocator from allocating
->   hotpluggable memory for the kernel before the memory initialization
->   finishes.
->
->The problem 2 is the key problem we are going to solve. But before solving it,
->we need some preparation. Please see below.
->
->
->[Preparation]
->
->Bootloader has to load the kernel image into memory. And this memory must be 
->unhotpluggable. We cannot prevent this anyway. So in a memory hotplug system, 
->we can assume any node the kernel resides in is not hotpluggable.
->
->Before SRAT is parsed, we don't know which memory ranges are hotpluggable. But
->memblock has already started to work. In the current kernel, memblock allocates 
->the following memory before SRAT is parsed:
->
->setup_arch()
-> |->memblock_x86_fill()            /* memblock is ready */
-> |......
-> |->early_reserve_e820_mpc_new()   /* allocate memory under 1MB */
-> |->reserve_real_mode()            /* allocate memory under 1MB */
-> |->init_mem_mapping()             /* allocate page tables, about 2MB to map 1GB memory */
-> |->dma_contiguous_reserve()       /* specified by user, should be low */
-> |->setup_log_buf()                /* specified by user, several mega bytes */
-> |->relocate_initrd()              /* could be large, but will be freed after boot, should reorder */
-> |->acpi_initrd_override()         /* several mega bytes */
-> |->reserve_crashkernel()          /* could be large, should reorder */
-> |......
-> |->initmem_init()                 /* Parse SRAT */
->
->According to Tejun's advice, before SRAT is parsed, we should try our best to
->allocate memory near the kernel image. Since the whole node the kernel resides 
->in won't be hotpluggable, and for a modern server, a node may have at least 16GB
->memory, allocating several mega bytes memory around the kernel image won't cross
->to hotpluggable memory.
->
->
->[About this patch-set]
->
->So this patch-set does the following:
->
->1. Make memblock be able to allocate memory from low address to high address.
+This accelerates VFIO DMA operations on POWER by moving them
+into kernel.
 
-I want to know if there is fragmentation degree difference here?
+This depends on VFIO external API patch which is on its way to upstream.
 
-Regards,
-Wanpeng Li 
+Changes:
+v9:
+* replaced the "link logical bus number to IOMMU group" ioctl to KVM
+with a KVM device doing the same thing, i.e. the actual changes are in
+these 3 patches:
+  KVM: PPC: reserve a capability and KVM device type for realmode VFIO
+  KVM: PPC: remove warning from kvmppc_core_destroy_vm
+  KVM: PPC: Add support for IOMMU in-kernel handling
 
->   Also introduce low limit to prevent memblock allocating memory too low.
->
->2. Improve init_mem_mapping() to support allocate page tables from low address 
->   to high address.
->
->3. Introduce "movablenode" boot option to enable and disable this functionality.
->
->PS: Reordering of relocate_initrd() and reserve_crashkernel() has not been done 
->    yet. acpi_initrd_override() needs to access initrd with virtual address. So 
->    relocate_initrd() must be done before acpi_initrd_override().
->
->
->Tang Chen (11):
->  memblock: Rename current_limit to current_limit_high in memblock.
->  memblock: Rename memblock_set_current_limit() to
->    memblock_set_current_limit_high().
->  memblock: Introduce lowest limit in memblock.
->  memblock: Introduce memblock_set_current_limit_low() to set lower
->    limit of memblock.
->  memblock: Introduce allocation order to memblock.
->  memblock: Improve memblock to support allocation from lower address.
->  x86, memblock: Set lowest limit for memblock_alloc_base_nid().
->  x86, acpi, memblock: Use __memblock_alloc_base() in
->    acpi_initrd_override()
->  mem-hotplug: Introduce movablenode boot option to {en|dis}able using
->    SRAT.
->  x86, mem-hotplug: Support initialize page tables from low to high.
->  x86, mem_hotplug: Allocate memory near kernel image before SRAT is
->    parsed.
->
-> Documentation/kernel-parameters.txt |   15 ++++
-> arch/arm/mm/mmu.c                   |    2 +-
-> arch/arm64/mm/mmu.c                 |    4 +-
-> arch/microblaze/mm/init.c           |    2 +-
-> arch/powerpc/mm/40x_mmu.c           |    4 +-
-> arch/powerpc/mm/44x_mmu.c           |    2 +-
-> arch/powerpc/mm/fsl_booke_mmu.c     |    4 +-
-> arch/powerpc/mm/hash_utils_64.c     |    4 +-
-> arch/powerpc/mm/init_32.c           |    4 +-
-> arch/powerpc/mm/ppc_mmu_32.c        |    4 +-
-> arch/powerpc/mm/tlb_nohash.c        |    4 +-
-> arch/unicore32/mm/mmu.c             |    2 +-
-> arch/x86/kernel/setup.c             |   41 ++++++++++-
-> arch/x86/mm/init.c                  |  119 ++++++++++++++++++++++++--------
-> drivers/acpi/osl.c                  |    4 +-
-> include/linux/memblock.h            |   33 ++++++++--
-> include/linux/memory_hotplug.h      |    5 ++
-> mm/memblock.c                       |  131 +++++++++++++++++++++++++++++-----
-> mm/memory_hotplug.c                 |    9 +++
-> mm/nobootmem.c                      |    4 +-
-> 20 files changed, 320 insertions(+), 77 deletions(-)
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+* moved some VFIO external API bits to a separate patch to reduce the size
+of the "KVM: PPC: Add support for IOMMU in-kernel handling" patch
+
+* fixed code style problems reported by checkpatch.pl.
+
+v8:
+* fixed comments about capabilities numbers
+
+v7:
+* rebased on v3.11-rc3.
+* VFIO external user API will go through VFIO tree so it is
+excluded from this series.
+* As nobody ever reacted on "hashtable: add hash_for_each_possible_rcu_notrace()",
+Ben suggested to push it via his tree so I included it to the series.
+* realmode_(get|put)_page is reworked.
+
+More details in the individual patch comments.
+
+Alexey Kardashevskiy (13):
+  KVM: PPC: POWERNV: move iommu_add_device earlier
+  hashtable: add hash_for_each_possible_rcu_notrace()
+  KVM: PPC: reserve a capability number for multitce support
+  KVM: PPC: reserve a capability and KVM device type for realmode VFIO
+  powerpc: Prepare to support kernel handling of IOMMU map/unmap
+  powerpc: add real mode support for dma operations on powernv
+  KVM: PPC: enable IOMMU_API for KVM_BOOK3S_64 permanently
+  KVM: PPC: Add support for multiple-TCE hcalls
+  powerpc/iommu: rework to support realmode
+  KVM: PPC: remove warning from kvmppc_core_destroy_vm
+  KVM: PPC: add trampolines for VFIO external API
+  KVM: PPC: Add support for IOMMU in-kernel handling
+  KVM: PPC: Add hugepage support for IOMMU in-kernel handling
+
+ Documentation/virtual/kvm/api.txt                  |  26 +
+ .../virtual/kvm/devices/spapr_tce_iommu.txt        |  37 ++
+ arch/powerpc/include/asm/iommu.h                   |  18 +-
+ arch/powerpc/include/asm/kvm_host.h                |  38 ++
+ arch/powerpc/include/asm/kvm_ppc.h                 |  16 +-
+ arch/powerpc/include/asm/machdep.h                 |  12 +
+ arch/powerpc/include/asm/pgtable-ppc64.h           |   2 +
+ arch/powerpc/include/uapi/asm/kvm.h                |   8 +
+ arch/powerpc/kernel/iommu.c                        | 243 +++++----
+ arch/powerpc/kvm/Kconfig                           |   1 +
+ arch/powerpc/kvm/book3s_64_vio.c                   | 597 ++++++++++++++++++++-
+ arch/powerpc/kvm/book3s_64_vio_hv.c                | 408 +++++++++++++-
+ arch/powerpc/kvm/book3s_hv.c                       |  42 +-
+ arch/powerpc/kvm/book3s_hv_rmhandlers.S            |   8 +-
+ arch/powerpc/kvm/book3s_pr_papr.c                  |  35 ++
+ arch/powerpc/kvm/powerpc.c                         |   4 +
+ arch/powerpc/mm/init_64.c                          |  50 +-
+ arch/powerpc/platforms/powernv/pci-ioda.c          |  57 +-
+ arch/powerpc/platforms/powernv/pci-p5ioc2.c        |   2 +-
+ arch/powerpc/platforms/powernv/pci.c               |  75 ++-
+ arch/powerpc/platforms/powernv/pci.h               |   3 +-
+ arch/powerpc/platforms/pseries/iommu.c             |   8 +-
+ include/linux/hashtable.h                          |  15 +
+ include/linux/kvm_host.h                           |   1 +
+ include/linux/mm.h                                 |  14 +
+ include/linux/page-flags.h                         |   4 +-
+ include/uapi/linux/kvm.h                           |   3 +
+ virt/kvm/kvm_main.c                                |   5 +
+ 28 files changed, 1564 insertions(+), 168 deletions(-)
+ create mode 100644 Documentation/virtual/kvm/devices/spapr_tce_iommu.txt
+
+-- 
+1.8.4.rc4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
