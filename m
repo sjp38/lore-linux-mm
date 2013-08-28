@@ -1,73 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id DEA116B0033
-	for <linux-mm@kvack.org>; Wed, 28 Aug 2013 14:42:24 -0400 (EDT)
-Date: Wed, 28 Aug 2013 11:42:20 -0700
-From: Stephen Boyd <sboyd@codeaurora.org>
-Subject: Re: mmotm 2013-08-27-16-51 uploaded
-Message-ID: <20130828184218.GB19754@codeaurora.org>
-References: <20130827235227.99DB95A41D6@corp2gmr1-2.hot.corp.google.com>
- <521D494F.1010507@codeaurora.org>
- <20130827182616.f9396ed6.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 3CF116B0033
+	for <linux-mm@kvack.org>; Wed, 28 Aug 2013 15:28:03 -0400 (EDT)
+Date: Wed, 28 Aug 2013 19:28:02 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v2 1/2] mm: make vmstat_update periodic run conditional
+In-Reply-To: <CAOtvUMdPswm3pHesXAzLYA4c7yzsXKoRoOt2T3LWBCjZ86ybpg@mail.gmail.com>
+Message-ID: <00000140c6659902-f76c4733-ff61-47d9-b0d2-69fd04253aa3-000000@email.amazonses.com>
+References: <CAOtvUMc5w3zNe8ed6qX0OOM__3F_hOTqvFa1AkdXF0PHvzGZqg@mail.gmail.com> <1371672168-9869-1-git-send-email-gilad@benyossef.com> <0000013f61e7609b-a8d1907b-8169-4f77-ab83-a624a8d0ab4a-000000@email.amazonses.com> <CAOtvUMe=QQni4Ouu=P_vh8QSb4ZdnaX_fW1twn3QFcOjYgJBGA@mail.gmail.com>
+ <000001405e70a92f-3b2a0b89-f807-45d7-af70-9e7292156dd4-000000@email.amazonses.com> <CAOtvUMdPswm3pHesXAzLYA4c7yzsXKoRoOt2T3LWBCjZ86ybpg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130827182616.f9396ed6.akpm@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, voice.shen@atmel.com, Russell King - ARM Linux <linux@arm.linux.org.uk>
+To: Gilad Ben-Yossef <gilad@benyossef.com>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Frederic Weisbecker <fweisbec@gmail.com>
 
-On 08/27, Andrew Morton wrote:
-> On Tue, 27 Aug 2013 17:50:23 -0700 Stephen Boyd <sboyd@codeaurora.org> wrote:
-> 
-> > On 08/27/13 16:52, akpm@linux-foundation.org wrote:
-> > > * kernel-time-sched_clockc-correct-the-comparison-parameter-of-mhz.patch
-> > >
-> > 
-> > I believe Russell nacked this change[1]? This should probably be dropped
-> > unless there's been more discussion. Or maybe reworked into a comment in
-> > the code that doesn't lead to the same change again.
-> > 
-> > [1] https://lkml.org/lkml/2013/8/7/95
-> 
-> Well OK, but the code looks totally wrong.  Care to send a comment patch
-> so the next confused person doesn't "fix" it?
+On Fri, 9 Aug 2013, Gilad Ben-Yossef wrote:
 
-Sure, how about this?
+> If the code does not consider setting the vmstat_cpus bit in the mask
+> unless we are running
+> on a CPU in tickless state, than we will (almost) never set
+> vmstat_cpus since we will (almost)
+> never be tickless in a deferrable work -
 
----8<----
-From: Stephen Boyd <sboyd@codeaurora.org>
-Subject: [PATCH] sched_clock: Document 4Mhz vs 1Mhz decision
+Sorry never got around to answering this one. Not sure what to do about
+it.
 
-Bo Shen sent a patch to change this to 1Mhz instead of 4Mhz but
-according to Russell King the use of 4Mhz was intentional. Add a
-comment to this effect so that others don't try to change the
-code as well.
+How about this: Disable the vmstats when there is no diff to handle
+instead?  This means that the OS was quiet during the earlier period. That
+way you have an independent criteria for switching vmstat work off from
+tickless. Would even work when there are multiple processes running on the
+processor if none of them causes counter updates.
 
-Signed-off-by: Stephen Boyd <sboyd@codeaurora.org>
----
- kernel/time/sched_clock.c | 4 ++++
- 1 file changed, 4 insertions(+)
-
-diff --git a/kernel/time/sched_clock.c b/kernel/time/sched_clock.c
-index a326f27..1e9e298 100644
---- a/kernel/time/sched_clock.c
-+++ b/kernel/time/sched_clock.c
-@@ -128,6 +128,10 @@ void __init setup_sched_clock(u32 (*read)(void), int bits, unsigned long rate)
- 	clocks_calc_mult_shift(&cd.mult, &cd.shift, rate, NSEC_PER_SEC, 0);
- 
- 	r = rate;
-+	/*
-+	 * Use 4MHz instead of 1MHz so that things like 1.832Mhz show as
-+	 * 1832Khz
-+	 */
- 	if (r >= 4000000) {
- 		r /= 1000000;
- 		r_unit = 'M';
--- 
-The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum,
-hosted by The Linux Foundation
+In the meantime there are additional patches for the vmstat function
+pending for merge from me (not related to the conditional running of
+vmstat but may make it easier to implement). So if you want to do any work
+then please on top of the newer release available from Andrew's tree.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
