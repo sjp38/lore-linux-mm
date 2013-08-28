@@ -1,88 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id AF9706B0033
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2013 22:01:51 -0400 (EDT)
-From: Lisa Du <cldu@marvell.com>
-Date: Tue, 27 Aug 2013 18:58:48 -0700
-Subject: RE: [resend] [PATCH V3] mm: vmscan: fix do_try_to_free_pages()
- livelock
-Message-ID: <89813612683626448B837EE5A0B6A7CB3B633DFBF8@SC-VEXCH4.marvell.com>
-References: <89813612683626448B837EE5A0B6A7CB3B630BE80B@SC-VEXCH4.marvell.com>
-	<20130805074146.GD10146@dhcp22.suse.cz>
-	<89813612683626448B837EE5A0B6A7CB3B630BED6B@SC-VEXCH4.marvell.com>
-	<20130806103543.GA31138@dhcp22.suse.cz>
-	<89813612683626448B837EE5A0B6A7CB3B63175BCA@SC-VEXCH4.marvell.com>
-	<20130808181426.GI715@cmpxchg.org>
-	<89813612683626448B837EE5A0B6A7CB3B631767D7@SC-VEXCH4.marvell.com>
- <20130827124307.63259439a80042bd81f27684@linux-foundation.org>
-In-Reply-To: <20130827124307.63259439a80042bd81f27684@linux-foundation.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 08A786B0033
+	for <linux-mm@kvack.org>; Wed, 28 Aug 2013 02:35:36 -0400 (EDT)
+Date: Wed, 28 Aug 2013 15:36:06 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 07/16] slab: overloading the RCU head over the LRU for
+ RCU free
+Message-ID: <20130828063605.GD6795@lge.com>
+References: <1377161065-30552-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1377161065-30552-8-git-send-email-iamjoonsoo.kim@lge.com>
+ <20130827160604.5ca4161c@lwn.net>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130827160604.5ca4161c@lwn.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Minchan Kim <minchan@kernel.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Bob Liu <lliubbo@gmail.com>, Neil Zhang <zhangwm@marvell.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Aaditya Kumar <aaditya.kumar.30@gmail.com>, "yinghan@google.com" <yinghan@google.com>, "npiggin@gmail.com" <npiggin@gmail.com>, "riel@redhat.com" <riel@redhat.com>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>
+To: Jonathan Corbet <corbet@lwn.net>
+Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Pi0tLS0tT3JpZ2luYWwgTWVzc2FnZS0tLS0tDQo+RnJvbTogQW5kcmV3IE1vcnRvbiBbbWFpbHRv
-OmFrcG1AbGludXgtZm91bmRhdGlvbi5vcmddDQo+U2VudDogMjAxM8TqONTCMjjI1SAzOjQzDQo+
-VG86IExpc2EgRHUNCj5DYzogSm9oYW5uZXMgV2VpbmVyOyBNaWNoYWwgSG9ja287IGxpbnV4LW1t
-QGt2YWNrLm9yZzsgTWluY2hhbiBLaW07IEtPU0FLSSBNb3RvaGlybzsgTWVsIEdvcm1hbjsgQ2hy
-aXN0b3BoIExhbWV0ZXI7IEJvYiBMaXU7DQo+TmVpbCBaaGFuZzsgUnVzc2VsbCBLaW5nIC0gQVJN
-IExpbnV4OyBBYWRpdHlhIEt1bWFyOyB5aW5naGFuQGdvb2dsZS5jb207IG5waWdnaW5AZ21haWwu
-Y29tOyByaWVsQHJlZGhhdC5jb207DQo+a2FtZXphd2EuaGlyb3l1QGpwLmZ1aml0c3UuY29tDQo+
-U3ViamVjdDogUmU6IFtyZXNlbmRdIFtQQVRDSCBWM10gbW06IHZtc2NhbjogZml4IGRvX3RyeV90
-b19mcmVlX3BhZ2VzKCkgbGl2ZWxvY2sNCj4NCj5PbiBTdW4sIDExIEF1ZyAyMDEzIDE4OjQ2OjA4
-IC0wNzAwIExpc2EgRHUgPGNsZHVAbWFydmVsbC5jb20+IHdyb3RlOg0KPg0KPj4gVGhpcyBwYXRj
-aCBpcyBiYXNlZCBvbiBLT1NBS0kncyB3b3JrIGFuZCBJIGFkZCBhIGxpdHRsZSBtb3JlDQo+PiBk
-ZXNjcmlwdGlvbiwgcGxlYXNlIHJlZmVyIGh0dHBzOi8vbGttbC5vcmcvbGttbC8yMDEyLzYvMTQv
-NzQuDQo+Pg0KPj4gQ3VycmVudGx5LCBJIGZvdW5kIHN5c3RlbSBjYW4gZW50ZXIgYSBzdGF0ZSB0
-aGF0IHRoZXJlIGFyZSBsb3RzIG9mDQo+PiBmcmVlIHBhZ2VzIGluIGEgem9uZSBidXQgb25seSBv
-cmRlci0wIGFuZCBvcmRlci0xIHBhZ2VzIHdoaWNoIG1lYW5zDQo+PiB0aGUgem9uZSBpcyBoZWF2
-aWx5IGZyYWdtZW50ZWQsIHRoZW4gaGlnaCBvcmRlciBhbGxvY2F0aW9uIGNvdWxkIG1ha2UNCj4+
-IGRpcmVjdCByZWNsYWltIHBhdGgncyBsb25nIHN0YWxsKGV4LCA2MCBzZWNvbmRzKSBlc3BlY2lh
-bGx5IGluIG5vIHN3YXANCj4+IGFuZCBubyBjb21wYWNpdG9uIGVudmlyb21lbnQuIFRoaXMgcHJv
-YmxlbSBoYXBwZW5lZCBvbiB2My40LCBidXQgaXQNCj4+IHNlZW1zIGlzc3VlIHN0aWxsIGxpdmVz
-IGluIGN1cnJlbnQgdHJlZSwgdGhlIHJlYXNvbiBpcw0KPj4gZG9fdHJ5X3RvX2ZyZWVfcGFnZXMg
-ZW50ZXIgbGl2ZSBsb2NrOg0KPj4NCj4+IGtzd2FwZCB3aWxsIGdvIHRvIHNsZWVwIGlmIHRoZSB6
-b25lcyBoYXZlIGJlZW4gZnVsbHkgc2Nhbm5lZCBhbmQgYXJlDQo+PiBzdGlsbCBub3QgYmFsYW5j
-ZWQuIEFzIGtzd2FwZCB0aGlua3MgdGhlcmUncyBsaXR0bGUgcG9pbnQgdHJ5aW5nIGFsbA0KPj4g
-b3ZlciBhZ2FpbiB0byBhdm9pZCBpbmZpbml0ZSBsb29wLiBJbnN0ZWFkIGl0IGNoYW5nZXMgb3Jk
-ZXIgZnJvbQ0KPj4gaGlnaC1vcmRlciB0byAwLW9yZGVyIGJlY2F1c2Uga3N3YXBkIHRoaW5rIG9y
-ZGVyLTAgaXMgdGhlIG1vc3QNCj4+IGltcG9ydGFudC4gTG9vayBhdCA3M2NlMDJlOSBpbiBkZXRh
-aWwuIElmIHdhdGVybWFya3MgYXJlIG9rLCBrc3dhcGQNCj4+IHdpbGwgZ28gYmFjayB0byBzbGVl
-cCBhbmQgbWF5IGxlYXZlIHpvbmUtPmFsbF91bnJlY2xhaW1hYmxlID0gMC4NCj4+IEl0IGFzc3Vt
-ZSBoaWdoLW9yZGVyIHVzZXJzIGNhbiBzdGlsbCBwZXJmb3JtIGRpcmVjdCByZWNsYWltIGlmIHRo
-ZXkgd2lzaC4NCj4+DQo+PiBEaXJlY3QgcmVjbGFpbSBjb250aW51ZSB0byByZWNsYWltIGZvciBh
-IGhpZ2ggb3JkZXIgd2hpY2ggaXMgbm90IGENCj4+IENPU1RMWV9PUkRFUiB3aXRob3V0IG9vbS1r
-aWxsZXIgdW50aWwga3N3YXBkIHR1cm4gb24gem9uZS0+YWxsX3VucmVjbGFpbWJsZS4NCj4+IFRo
-aXMgaXMgYmVjYXVzZSB0byBhdm9pZCB0b28gZWFybHkgb29tLWtpbGwuIFNvIGl0IG1lYW5zDQo+
-PiBkaXJlY3RfcmVjbGFpbSBkZXBlbmRzIG9uIGtzd2FwZCB0byBicmVhayB0aGlzIGxvb3AuDQo+
-Pg0KPj4gSW4gd29yc3QgY2FzZSwgZGlyZWN0LXJlY2xhaW0gbWF5IGNvbnRpbnVlIHRvIHBhZ2Ug
-cmVjbGFpbSBmb3JldmVyDQo+PiB3aGVuIGtzd2FwZCBzbGVlcHMgZm9yZXZlciB1bnRpbCBzb21l
-b25lIGxpa2Ugd2F0Y2hkb2cgZGV0ZWN0IGFuZA0KPj4gZmluYWxseSBraWxsIHRoZSBwcm9jZXNz
-LiBBcyBkZXNjcmliZWQgaW46DQo+PiBodHRwOi8vdGhyZWFkLmdtYW5lLm9yZy9nbWFuZS5saW51
-eC5rZXJuZWwubW0vMTAzNzM3DQo+Pg0KPj4gV2UgY2FuJ3QgdHVybiBvbiB6b25lLT5hbGxfdW5y
-ZWNsYWltYWJsZSBmcm9tIGRpcmVjdCByZWNsYWltIHBhdGgNCj4+IGJlY2F1c2UgZGlyZWN0IHJl
-Y2xhaW0gcGF0aCBkb24ndCB0YWtlIGFueSBsb2NrIGFuZCB0aGlzIHdheSBpcyByYWN5Lg0KPj4g
-VGh1cyB0aGlzIHBhdGNoIHJlbW92ZXMgem9uZS0+YWxsX3VucmVjbGFpbWFibGUgZmllbGQgY29t
-cGxldGVseSBhbmQNCj4+IHJlY2FsY3VsYXRlcyB6b25lIHJlY2xhaW1hYmxlIHN0YXRlIGV2ZXJ5
-IHRpbWUuDQo+Pg0KPj4gTm90ZTogd2UgY2FuJ3QgdGFrZSB0aGUgaWRlYSB0aGF0IGRpcmVjdC1y
-ZWNsYWltIHNlZQ0KPj4gem9uZS0+cGFnZXNfc2Nhbm5lZCBkaXJlY3RseSBhbmQga3N3YXBkIGNv
-bnRpbnVlIHRvIHVzZQ0KPj4gem9uZS0+YWxsX3VucmVjbGFpbWFibGUuIEJlY2F1c2UsIGl0IGlz
-IHJhY3kuIGNvbW1pdCA5MjliZWE3YzcxDQo+PiAodm1zY2FuOiBhbGxfdW5yZWNsYWltYWJsZSgp
-IHVzZQ0KPj4gem9uZS0+YWxsX3VucmVjbGFpbWFibGUgYXMgYSBuYW1lKSBkZXNjcmliZXMgdGhl
-IGRldGFpbC4NCj4NCj5JIGRpZCB0aGlzIHRvIGZpeCB0aGUgYnVpbGQ6DQo+DQo+LS0tIGEvbW0v
-bWlncmF0ZS5jfm1tLXZtc2Nhbi1maXgtZG9fdHJ5X3RvX2ZyZWVfcGFnZXMtbGl2ZWxvY2stZml4
-LTINCj4rKysgYS9tbS9taWdyYXRlLmMNCj5AQCAtMTQ3MSw3ICsxNDcxLDcgQEAgc3RhdGljIGJv
-b2wgbWlncmF0ZV9iYWxhbmNlZF9wZ2RhdChzdHJ1Yw0KPiAJCWlmICghcG9wdWxhdGVkX3pvbmUo
-em9uZSkpDQo+IAkJCWNvbnRpbnVlOw0KPg0KPi0JCWlmICh6b25lLT5hbGxfdW5yZWNsYWltYWJs
-ZSkNCj4rCQlpZiAoIXpvbmVfcmVjbGFpbWFibGUoem9uZSkpDQo+IAkJCWNvbnRpbnVlOw0KPg0K
-PiAJCS8qIEF2b2lkIHdha2luZyBrc3dhcGQgYnkgYWxsb2NhdGluZyBwYWdlc190b19taWdyYXRl
-IHBhZ2VzLiAqLw0KPg0KPlBsZWFzZSByZXZpZXcgYW5kIHJ1bnRpbWUgdGVzdCBpdD8NClRoaXMg
-c2hvdWxkIGJlIHJlYXNvbmFibGUsIEknbSBzb3JyeSB0aGF0IEkgb25seSBoYXZlIHRoZSB2My40
-IGVudmlyb25tZW50Lg0KQW5kIHYzLjQgZG9lc24ndCBoYXZlIHRoaXMgZnVuY3Rpb24uDQo=
+Hello,
+
+On Tue, Aug 27, 2013 at 04:06:04PM -0600, Jonathan Corbet wrote:
+> On Thu, 22 Aug 2013 17:44:16 +0900
+> Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> 
+> > With build-time size checking, we can overload the RCU head over the LRU
+> > of struct page to free pages of a slab in rcu context. This really help to
+> > implement to overload the struct slab over the struct page and this
+> > eventually reduce memory usage and cache footprint of the SLAB.
+> 
+> So I'm taking a look at this, trying to figure out what's actually in
+> struct page while this stuff is going on without my head exploding.  A
+> couple of questions come to mind.
+> 
+> >  static void kmem_rcu_free(struct rcu_head *head)
+> >  {
+> > -	struct slab_rcu *slab_rcu = (struct slab_rcu *)head;
+> > -	struct kmem_cache *cachep = slab_rcu->page->slab_cache;
+> > +	struct kmem_cache *cachep;
+> > +	struct page *page;
+> >  
+> > -	kmem_freepages(cachep, slab_rcu->page);
+> > +	page = container_of((struct list_head *)head, struct page, lru);
+> > +	cachep = page->slab_cache;
+> > +
+> > +	kmem_freepages(cachep, page);
+> >  }
+> 
+> Is there a reason why you don't add the rcu_head structure as another field
+> in that union alongside lru rather than playing casting games here?  This
+> stuff is hard enough to follow as it is without adding that into the mix.
+
+One reason is that the SLUB is already playing this games :)
+And the struct page shouldn't be enlarged unintentionally when the size of
+the rcu_head is changed.
+
+> 
+> The other question I had is: this field also overlays slab_page.  I guess
+> that, by the time RCU comes into play, there will be no further use of
+> slab_page?  It might be nice to document that somewhere if it's the case.
+
+Ah..... I did a mistake in previous patch (06/16). We should leave an object
+on slab_page until rcu finish the work since rcu_head is overloaded over it.
+
+If I remove that patch, this patch has a problem you mentioned. But I think
+that a fix is simple. Moving the slab_page to another union field in the
+struct slab prio to this patch solves the problem you mentioned.
+
+Thanks for pointing that!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
