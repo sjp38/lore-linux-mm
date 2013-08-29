@@ -1,41 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 488866B0039
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2013 17:08:11 -0400 (EDT)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: [PATCH 0/3] ACPI / hotplug / mm: Rework mutual exclusion between hibernation and memory hotplug
-Date: Thu, 29 Aug 2013 23:12:53 +0200
-Message-ID: <9589253.Co8jZpnWdd@vostro.rjw.lan>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+Message-ID: <1377812836.1928.135.camel@joe-AO722>
+Subject: slab: krealloc with GFP_ZERO defect
+From: Joe Perches <joe@perches.com>
+Date: Thu, 29 Aug 2013 14:47:16 -0700
+Content-Type: text/plain; charset="ISO-8859-1"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ACPI Devel Maling List <linux-acpi@vger.kernel.org>
-Cc: Toshi Kani <toshi.kani@hp.com>, LKML <linux-kernel@vger.kernel.org>, Linux PM list <linux-pm@vger.kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>
 
-Hi All,
+This sequence can return non-zeroed memory from the
+padding area of the original allocation.
 
-One thing that bothers me quite a bit about memory hotplug is that
-lock_hotplug_memory() acquires pm_mutex which is kind of a blunt thing
-and has a huge potential for deadlocks.
+	ptr = kzalloc(foo, GFP_KERNEL);
+	if (!ptr)
+		...
+	new_ptr = krealloc(ptr, foo + bar, GFP_KERNEL | __GFP_ZERO);
 
-This can be avoided if device_hotplug_lock is held around hibernation,
-which is not too difficult to make happen and hence the following patch
-series.
+If the realloc size is within the first actual allocation
+then the additional memory is not zeroed.
 
-[1/3] ACPI: Acquire device_hotplug_lock before acpi_scan_lock (this is
-      necessary, because hibernation acquires acpi_scan_lock in linux-next).
+If the realloc size is not within the original allocation
+size, any non-zeroed padding from the original allocation
+is overwriting newly allocated zeroed memory.
 
-[2/3] PM / hibernate: Allocate memory bitmaps after freezing user space
-      processes (the reason why is explained in the changelog).
+Maybe someone more familiar with the alignment & padding can
+add the proper memset(,0,) for the __GFP_ZERO cases and also
+optimize kmalloc_track_caller to not use __GFP_ZERO, memcpy
+the current (non padded) size and zero the newly returned
+remainder if necessary.
 
-[3/3] Rework mutual exclusion between hibernation and memory hotplug.
+from: mm/util.c
+---------------------------
+static __always_inline void *__do_krealloc(const void *p, size_t new_size,
+					   gfp_t flags)
+{
+	void *ret;
+	size_t ks = 0;
 
-On top of linux-pm.git/linux-next.
+	if (p)
+		ks = ksize(p);
 
-Thanks,
-Rafael
+	if (ks >= new_size)
+		return (void *)p;
+
+	ret = kmalloc_track_caller(new_size, flags);
+	if (ret && p)
+		memcpy(ret, p, ks);
+
+	return ret;
+}
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
