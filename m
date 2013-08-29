@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 16EE56B0036
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id A17776B0038
 	for <linux-mm@kvack.org>; Thu, 29 Aug 2013 17:08:10 -0400 (EDT)
 From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: [PATCH 2/3] PM / hibernate: Create memory bitmaps after freezing user space
-Date: Thu, 29 Aug 2013 23:17:48 +0200
-Message-ID: <10303295.iNF2gTh50Q@vostro.rjw.lan>
+Subject: [PATCH 1/3] ACPI / scan: Change ordering of locks for device hotplug
+Date: Thu, 29 Aug 2013 23:15:56 +0200
+Message-ID: <1752041.76DW3TEE1A@vostro.rjw.lan>
 In-Reply-To: <9589253.Co8jZpnWdd@vostro.rjw.lan>
 References: <9589253.Co8jZpnWdd@vostro.rjw.lan>
 MIME-Version: 1.0
@@ -18,198 +18,106 @@ Cc: Toshi Kani <toshi.kani@hp.com>, LKML <linux-kernel@vger.kernel.org>, Linux P
 
 From: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 
-The hibernation core uses special memory bitmaps during image
-creation and restoration and traditionally those bitmaps are
-allocated before freezing tasks, because in the past GFP_KERNEL
-allocations might not work after all tasks had been frozen.
+Change the ordering of device hotplug locks in scan.c so that
+acpi_scan_lock is always acquired after device_hotplug_lock.
 
-However, this is an anachronism, because hibernation_snapshot()
-now calls hibernate_preallocate_memory() which allocates memory
-for the image upfront anyway, so the memory bitmaps may be
-allocated after freezing user space safely.
-
-For this reason, move all of the create_basic_memory_bitmaps()
-calls after freeze_processes() and all of the corresponding
-free_basic_memory_bitmaps() calls before thaw_processes().
-
-This will allow us to hold device_hotplug_lock around hibernation
-without the need to worry about freezing issues with user space
-processes attempting to acquire it via sysfs attributes after the
-creation of memory bitmaps and before the freezing of tasks.
+This will make it possible to use device_hotplug_lock around some
+code paths that acquire acpi_scan_lock safely (most importantly
+system suspend and hibernation).  Apart from that, acpi_scan_lock
+is platform-specific and device_hotplug_lock is general, so the
+new ordering appears to be more appropriate from the overall
+design viewpoint.
 
 Signed-off-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 ---
- kernel/power/hibernate.c |   41 +++++++++++++++++++----------------------
- kernel/power/user.c      |   22 ++++++++++++----------
- 2 files changed, 31 insertions(+), 32 deletions(-)
+ drivers/acpi/scan.c |   15 ++++++---------
+ 1 file changed, 6 insertions(+), 9 deletions(-)
 
-Index: linux-pm/kernel/power/hibernate.c
+Index: linux-pm/drivers/acpi/scan.c
 ===================================================================
---- linux-pm.orig/kernel/power/hibernate.c
-+++ linux-pm/kernel/power/hibernate.c
-@@ -644,22 +644,22 @@ int hibernate(void)
- 	if (error)
- 		goto Exit;
- 
--	/* Allocate memory management structures */
--	error = create_basic_memory_bitmaps();
--	if (error)
--		goto Exit;
--
- 	printk(KERN_INFO "PM: Syncing filesystems ... ");
- 	sys_sync();
- 	printk("done.\n");
- 
- 	error = freeze_processes();
- 	if (error)
--		goto Free_bitmaps;
-+		goto Exit;
-+
-+	/* Allocate memory management structures */
-+	error = create_basic_memory_bitmaps();
-+	if (error)
-+		goto Thaw;
- 
- 	error = hibernation_snapshot(hibernation_mode == HIBERNATION_PLATFORM);
- 	if (error || freezer_test_done)
--		goto Thaw;
-+		goto Free_bitmaps;
- 
- 	if (in_suspend) {
- 		unsigned int flags = 0;
-@@ -682,14 +682,13 @@ int hibernate(void)
- 		pr_debug("PM: Image restored successfully.\n");
+--- linux-pm.orig/drivers/acpi/scan.c
++++ linux-pm/drivers/acpi/scan.c
+@@ -204,8 +204,6 @@ static int acpi_scan_hot_remove(struct a
+ 		return -EINVAL;
  	}
  
-+ Free_bitmaps:
-+	free_basic_memory_bitmaps();
-  Thaw:
- 	thaw_processes();
- 
- 	/* Don't bother checking whether freezer_test_done is true */
- 	freezer_test_done = false;
+-	lock_device_hotplug();
 -
-- Free_bitmaps:
--	free_basic_memory_bitmaps();
-  Exit:
- 	pm_notifier_call_chain(PM_POST_HIBERNATION);
- 	pm_restore_console();
-@@ -806,21 +805,19 @@ static int software_resume(void)
- 	pm_prepare_console();
- 	error = pm_notifier_call_chain(PM_RESTORE_PREPARE);
- 	if (error)
--		goto close_finish;
+ 	/*
+ 	 * Carry out two passes here and ignore errors in the first pass,
+ 	 * because if the devices in question are memory blocks and
+@@ -236,9 +234,6 @@ static int acpi_scan_hot_remove(struct a
+ 					    ACPI_UINT32_MAX,
+ 					    acpi_bus_online_companions, NULL,
+ 					    NULL, NULL);
 -
--	error = create_basic_memory_bitmaps();
--	if (error)
--		goto close_finish;
-+		goto Close_Finish;
+-			unlock_device_hotplug();
+-
+ 			put_device(&device->dev);
+ 			return -EBUSY;
+ 		}
+@@ -249,8 +244,6 @@ static int acpi_scan_hot_remove(struct a
  
- 	pr_debug("PM: Preparing processes for restore.\n");
- 	error = freeze_processes();
--	if (error) {
--		swsusp_close(FMODE_READ);
--		goto Done;
--	}
-+	if (error)
-+		goto Close_Finish;
+ 	acpi_bus_trim(device);
  
- 	pr_debug("PM: Loading hibernation image.\n");
+-	unlock_device_hotplug();
+-
+ 	/* Device node has been unregistered. */
+ 	put_device(&device->dev);
+ 	device = NULL;
+@@ -289,6 +282,7 @@ static void acpi_bus_device_eject(void *
+ 	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
+ 	int error;
  
-+	error = create_basic_memory_bitmaps();
-+	if (error)
-+		goto Thaw;
-+
- 	error = swsusp_read(&flags);
- 	swsusp_close(FMODE_READ);
- 	if (!error)
-@@ -828,9 +825,9 @@ static int software_resume(void)
++	lock_device_hotplug();
+ 	mutex_lock(&acpi_scan_lock);
  
- 	printk(KERN_ERR "PM: Failed to load hibernation image, recovering.\n");
- 	swsusp_free();
--	thaw_processes();
-- Done:
- 	free_basic_memory_bitmaps();
-+ Thaw:
-+	thaw_processes();
-  Finish:
- 	pm_notifier_call_chain(PM_POST_RESTORE);
- 	pm_restore_console();
-@@ -840,7 +837,7 @@ static int software_resume(void)
- 	mutex_unlock(&pm_mutex);
- 	pr_debug("PM: Hibernation image not present or could not be loaded.\n");
- 	return error;
--close_finish:
-+ Close_Finish:
- 	swsusp_close(FMODE_READ);
- 	goto Finish;
+ 	acpi_bus_get_device(handle, &device);
+@@ -312,6 +306,7 @@ static void acpi_bus_device_eject(void *
+ 
+  out:
+ 	mutex_unlock(&acpi_scan_lock);
++	unlock_device_hotplug();
+ 	return;
+ 
+  err_out:
+@@ -326,8 +321,8 @@ static void acpi_scan_bus_device_check(a
+ 	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
+ 	int error;
+ 
+-	mutex_lock(&acpi_scan_lock);
+ 	lock_device_hotplug();
++	mutex_lock(&acpi_scan_lock);
+ 
+ 	if (ost_source != ACPI_NOTIFY_BUS_CHECK) {
+ 		acpi_bus_get_device(handle, &device);
+@@ -353,9 +348,9 @@ static void acpi_scan_bus_device_check(a
+ 		kobject_uevent(&device->dev.kobj, KOBJ_ONLINE);
+ 
+  out:
+-	unlock_device_hotplug();
+ 	acpi_evaluate_hotplug_ost(handle, ost_source, ost_code, NULL);
+ 	mutex_unlock(&acpi_scan_lock);
++	unlock_device_hotplug();
  }
-Index: linux-pm/kernel/power/user.c
-===================================================================
---- linux-pm.orig/kernel/power/user.c
-+++ linux-pm/kernel/power/user.c
-@@ -60,11 +60,6 @@ static int snapshot_open(struct inode *i
- 		error = -ENOSYS;
- 		goto Unlock;
- 	}
--	if(create_basic_memory_bitmaps()) {
--		atomic_inc(&snapshot_device_available);
--		error = -ENOMEM;
--		goto Unlock;
--	}
- 	nonseekable_open(inode, filp);
- 	data = &snapshot_state;
- 	filp->private_data = data;
-@@ -90,10 +85,9 @@ static int snapshot_open(struct inode *i
- 		if (error)
- 			pm_notifier_call_chain(PM_POST_RESTORE);
- 	}
--	if (error) {
--		free_basic_memory_bitmaps();
-+	if (error)
- 		atomic_inc(&snapshot_device_available);
--	}
-+
- 	data->frozen = 0;
- 	data->ready = 0;
- 	data->platform_support = 0;
-@@ -111,11 +105,11 @@ static int snapshot_release(struct inode
- 	lock_system_sleep();
  
- 	swsusp_free();
--	free_basic_memory_bitmaps();
- 	data = filp->private_data;
- 	free_all_swap_pages(data->swap);
- 	if (data->frozen) {
- 		pm_restore_gfp_mask();
-+		free_basic_memory_bitmaps();
- 		thaw_processes();
- 	}
- 	pm_notifier_call_chain(data->mode == O_RDONLY ?
-@@ -220,14 +214,22 @@ static long snapshot_ioctl(struct file *
- 		printk("done.\n");
+ static void acpi_scan_bus_check(void *context)
+@@ -446,6 +441,7 @@ void acpi_bus_hot_remove_device(void *co
+ 	acpi_handle handle = device->handle;
+ 	int error;
  
- 		error = freeze_processes();
--		if (!error)
-+		if (error)
-+			break;
-+
-+		error = create_basic_memory_bitmaps();
-+		if (error)
-+			thaw_processes();
-+		else
- 			data->frozen = 1;
-+
- 		break;
++	lock_device_hotplug();
+ 	mutex_lock(&acpi_scan_lock);
  
- 	case SNAPSHOT_UNFREEZE:
- 		if (!data->frozen || data->ready)
- 			break;
- 		pm_restore_gfp_mask();
-+		free_basic_memory_bitmaps();
- 		thaw_processes();
- 		data->frozen = 0;
- 		break;
+ 	error = acpi_scan_hot_remove(device);
+@@ -455,6 +451,7 @@ void acpi_bus_hot_remove_device(void *co
+ 					  NULL);
+ 
+ 	mutex_unlock(&acpi_scan_lock);
++	unlock_device_hotplug();
+ 	kfree(context);
+ }
+ EXPORT_SYMBOL(acpi_bus_hot_remove_device);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
