@@ -1,139 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 3AF856B0032
-	for <linux-mm@kvack.org>; Wed, 28 Aug 2013 22:42:30 -0400 (EDT)
-Received: by mail-oa0-f52.google.com with SMTP id f4so8883210oah.11
-        for <linux-mm@kvack.org>; Wed, 28 Aug 2013 19:42:29 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAE9FiQU34RC+4uLpeza4PAAK-1CWu82WQ=rhaM_NNj_TVv0EMg@mail.gmail.com>
-References: <1376981696-4312-1-git-send-email-liwanp@linux.vnet.ibm.com>
-	<1376981696-4312-2-git-send-email-liwanp@linux.vnet.ibm.com>
-	<20130820160735.b12fe1b3dd64b4dc146d2fa0@linux-foundation.org>
-	<CAE9FiQVy2uqLm2XyStYmzxSmsw7TzrB0XDhCRLymnf+L3NPxrA@mail.gmail.com>
-	<52142ffe.84c0440a.57e5.02acSMTPIN_ADDED_BROKEN@mx.google.com>
-	<CAE9FiQW1c3-d+iMebRK6JyHCpMt8mjga-TnsfTuVsC1bQZqsYA@mail.gmail.com>
-	<52146c58.a3e2440a.0f5a.ffffed8dSMTPIN_ADDED_BROKEN@mx.google.com>
-	<CAE9FiQVWVzO93RM_QT-Qp+5jJUEiw=5OOD_454fCjgQ5p9-b3g@mail.gmail.com>
-	<521600cc.22ab440a.2703.53f1SMTPIN_ADDED_BROKEN@mx.google.com>
-	<CAE9FiQXrpZU8DCFoF6NuaOoqwGFGcQfnHV7vdWWPfyAymCCGnQ@mail.gmail.com>
-	<CAE9FiQU34RC+4uLpeza4PAAK-1CWu82WQ=rhaM_NNj_TVv0EMg@mail.gmail.com>
-Date: Wed, 28 Aug 2013 19:42:29 -0700
-Message-ID: <CAE9FiQVPmjxCzOCPQWz4=6JwzB-Vn5YMtOEd-G97SvEgoY3RQg@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 1931D6B0032
+	for <linux-mm@kvack.org>; Wed, 28 Aug 2013 22:51:38 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Thu, 29 Aug 2013 12:37:49 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 4912B2CE804C
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2013 12:51:31 +1000 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7T2pEXu7602674
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2013 12:51:20 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r7T2pN2b014750
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2013 12:51:25 +1000
+Date: Thu, 29 Aug 2013 10:51:22 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Subject: Re: [PATCH v2 2/4] mm/sparse: introduce alloc_usemap_and_memmap
-From: Yinghai Lu <yinghai@kernel.org>
-Content-Type: multipart/mixed; boundary=047d7bfea09a9d9f5a04e50d0e79
+Message-ID: <20130829025122.GA451@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <20130820160735.b12fe1b3dd64b4dc146d2fa0@linux-foundation.org>
+ <CAE9FiQVy2uqLm2XyStYmzxSmsw7TzrB0XDhCRLymnf+L3NPxrA@mail.gmail.com>
+ <52142ffe.84c0440a.57e5.02acSMTPIN_ADDED_BROKEN@mx.google.com>
+ <CAE9FiQW1c3-d+iMebRK6JyHCpMt8mjga-TnsfTuVsC1bQZqsYA@mail.gmail.com>
+ <52146c58.a3e2440a.0f5a.ffffed8dSMTPIN_ADDED_BROKEN@mx.google.com>
+ <CAE9FiQVWVzO93RM_QT-Qp+5jJUEiw=5OOD_454fCjgQ5p9-b3g@mail.gmail.com>
+ <521600cc.22ab440a.2703.53f1SMTPIN_ADDED_BROKEN@mx.google.com>
+ <CAE9FiQXrpZU8DCFoF6NuaOoqwGFGcQfnHV7vdWWPfyAymCCGnQ@mail.gmail.com>
+ <CAE9FiQU34RC+4uLpeza4PAAK-1CWu82WQ=rhaM_NNj_TVv0EMg@mail.gmail.com>
+ <CAE9FiQVPmjxCzOCPQWz4=6JwzB-Vn5YMtOEd-G97SvEgoY3RQg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAE9FiQVPmjxCzOCPQWz4=6JwzB-Vn5YMtOEd-G97SvEgoY3RQg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: Yinghai Lu <yinghai@kernel.org>
 Cc: Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Fengguang Wu <fengguang.wu@intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jiri Kosina <jkosina@suse.cz>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
---047d7bfea09a9d9f5a04e50d0e79
-Content-Type: text/plain; charset=ISO-8859-1
-
-On Wed, Aug 28, 2013 at 7:34 PM, Yinghai Lu <yinghai@kernel.org> wrote:
-> On Wed, Aug 28, 2013 at 7:18 PM, Yinghai Lu <yinghai@kernel.org> wrote:
->> please change to function pointer to
->> void  (*alloc_func)(void *data,
->>                                  unsigned long pnum_begin,
->>                                  unsigned long pnum_end,
->>                                  unsigned long map_count, int nodeid)
+Hi Yinghai,
+On Wed, Aug 28, 2013 at 07:42:29PM -0700, Yinghai Lu wrote:
+>On Wed, Aug 28, 2013 at 7:34 PM, Yinghai Lu <yinghai@kernel.org> wrote:
+>> On Wed, Aug 28, 2013 at 7:18 PM, Yinghai Lu <yinghai@kernel.org> wrote:
+>>> please change to function pointer to
+>>> void  (*alloc_func)(void *data,
+>>>                                  unsigned long pnum_begin,
+>>>                                  unsigned long pnum_end,
+>>>                                  unsigned long map_count, int nodeid)
+>>>
+>>> pnum_begin, pnum_end, map_coun, nodeid, should not be in the struct.
 >>
->> pnum_begin, pnum_end, map_coun, nodeid, should not be in the struct.
+>> looks like that is what is your first version did.
+>>
+>> I updated it a little bit. please check it.
+>>
 >
-> looks like that is what is your first version did.
+>removed more lines.
+
+Thanks for your great work!
+
+The fixed patch looks good to me. If this is the last fix and I can
+ignore http://marc.info/?l=linux-mm&m=137774271220239&w=2?
+
+Regards,
+Wanpeng Li 
+
 >
-> I updated it a little bit. please check it.
->
+>Yinghai
 
-removed more lines.
-
-Yinghai
-
---047d7bfea09a9d9f5a04e50d0e79
-Content-Type: application/octet-stream; name="0001-sparse_v3.patch"
-Content-Disposition: attachment; filename="0001-sparse_v3.patch"
-Content-Transfer-Encoding: base64
-X-Attachment-Id: f_hkxdae1d1
-
-RnJvbSBhNzhlMTJhOWZmMzFmMmE3M2I4NzE0NWNlN2FkOTQzYTBmNzEyNzA4IE1vbiBTZXAgMTcg
-MDA6MDA6MDAgMjAwMQ0KRnJvbTogV2FucGVuZyBMaSA8bGl3YW5wQGxpbnV4LnZuZXQuaWJtLmNv
-bT4NCkRhdGU6IFdlZCwgMjEgQXVnIDIwMTMgMTU6MjM6MDggKzA4MDANClN1YmplY3Q6IFtQQVRD
-SF0gbW0vc3BhcnNlOiBpbnRyb2R1Y2UgYWxsb2NfdXNlbWFwX2FuZF9tZW1tYXAgZml4IA0KDQpQ
-YXNzIGZ1bmN0aW9uIHBvaW50ZXIgdG8gYWxsb2NfdXNlbWFwX2FuZF9tZW1tYXAoKSBpbnN0ZWFk
-IG9mIHRydWUvZmFsc2UuIA0KDQpTaWduZWQtb2ZmLWJ5OiBXYW5wZW5nIExpIDxsaXdhbnBAbGlu
-dXgudm5ldC5pYm0uY29tPg0KLS0tDQogbW0vc3BhcnNlLmMgfCAgIDU0ICsrKysrKysrKysrKysr
-KysrKysrKysrKystLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQ0KIDEgZmlsZXMgY2hhbmdl
-ZCwgMjUgaW5zZXJ0aW9ucygrKSwgMjkgZGVsZXRpb25zKC0pDQoNCmRpZmYgLS1naXQgYS9tbS9z
-cGFyc2UuYyBiL21tL3NwYXJzZS5jDQppbmRleCA1NWU1NzUyLi4wNmFkZjNjIDEwMDY0NA0KLS0t
-IGEvbW0vc3BhcnNlLmMNCisrKyBiL21tL3NwYXJzZS5jDQpAQCAtMzM5LDE0ICszMzksMTUgQEAg
-c3RhdGljIHZvaWQgX19pbml0IGNoZWNrX3VzZW1hcF9zZWN0aW9uX25yKGludCBuaWQsIHVuc2ln
-bmVkIGxvbmcgKnVzZW1hcCkNCiB9DQogI2VuZGlmIC8qIENPTkZJR19NRU1PUllfSE9UUkVNT1ZF
-ICovDQogDQotc3RhdGljIHZvaWQgX19pbml0IHNwYXJzZV9lYXJseV91c2VtYXBzX2FsbG9jX25v
-ZGUodW5zaWduZWQgbG9uZyoqdXNlbWFwX21hcCwNCitzdGF0aWMgdm9pZCBfX2luaXQgc3BhcnNl
-X2Vhcmx5X3VzZW1hcHNfYWxsb2Nfbm9kZSh2b2lkICpkYXRhLA0KIAkJCQkgdW5zaWduZWQgbG9u
-ZyBwbnVtX2JlZ2luLA0KIAkJCQkgdW5zaWduZWQgbG9uZyBwbnVtX2VuZCwNCiAJCQkJIHVuc2ln
-bmVkIGxvbmcgdXNlbWFwX2NvdW50LCBpbnQgbm9kZWlkKQ0KIHsNCiAJdm9pZCAqdXNlbWFwOw0K
-IAl1bnNpZ25lZCBsb25nIHBudW07DQorCXVuc2lnbmVkIGxvbmcgKip1c2VtYXBfbWFwID0gKHVu
-c2lnbmVkIGxvbmcgKiopZGF0YTsNCiAJaW50IHNpemUgPSB1c2VtYXBfc2l6ZSgpOw0KIA0KIAl1
-c2VtYXAgPSBzcGFyc2VfZWFybHlfdXNlbWFwc19hbGxvY19wZ2RhdF9zZWN0aW9uKE5PREVfREFU
-QShub2RlaWQpLA0KIAkJCQkJCQkgIHNpemUgKiB1c2VtYXBfY291bnQpOw0KQEAgLTQzMCwyMyAr
-NDMyLDE1IEBAIHZvaWQgX19pbml0IHNwYXJzZV9tZW1fbWFwc19wb3B1bGF0ZV9ub2RlKHN0cnVj
-dCBwYWdlICoqbWFwX21hcCwNCiAjZW5kaWYgLyogIUNPTkZJR19TUEFSU0VNRU1fVk1FTU1BUCAq
-Lw0KIA0KICNpZmRlZiBDT05GSUdfU1BBUlNFTUVNX0FMTE9DX01FTV9NQVBfVE9HRVRIRVINCi1z
-dGF0aWMgdm9pZCBfX2luaXQgc3BhcnNlX2Vhcmx5X21lbV9tYXBzX2FsbG9jX25vZGUoc3RydWN0
-IHBhZ2UgKiptYXBfbWFwLA0KK3N0YXRpYyB2b2lkIF9faW5pdCBzcGFyc2VfZWFybHlfbWVtX21h
-cHNfYWxsb2Nfbm9kZSh2b2lkICpkYXRhLA0KIAkJCQkgdW5zaWduZWQgbG9uZyBwbnVtX2JlZ2lu
-LA0KIAkJCQkgdW5zaWduZWQgbG9uZyBwbnVtX2VuZCwNCiAJCQkJIHVuc2lnbmVkIGxvbmcgbWFw
-X2NvdW50LCBpbnQgbm9kZWlkKQ0KIHsNCisJc3RydWN0IHBhZ2UgKiptYXBfbWFwID0gKHN0cnVj
-dCBwYWdlICoqKWRhdGE7DQogCXNwYXJzZV9tZW1fbWFwc19wb3B1bGF0ZV9ub2RlKG1hcF9tYXAs
-IHBudW1fYmVnaW4sIHBudW1fZW5kLA0KIAkJCQkJIG1hcF9jb3VudCwgbm9kZWlkKTsNCiB9DQog
-I2Vsc2UNCi0NCi1zdGF0aWMgdm9pZCBfX2luaXQgc3BhcnNlX2Vhcmx5X21lbV9tYXBzX2FsbG9j
-X25vZGUoc3RydWN0IHBhZ2UgKiptYXBfbWFwLA0KLQkJCQl1bnNpZ25lZCBsb25nIHBudW1fYmVn
-aW4sDQotCQkJCXVuc2lnbmVkIGxvbmcgcG51bV9lbmQsDQotCQkJCXVuc2lnbmVkIGxvbmcgbWFw
-X2NvdW50LCBpbnQgbm9kZWlkKQ0KLXsNCi19DQotDQogc3RhdGljIHN0cnVjdCBwYWdlIF9faW5p
-dCAqc3BhcnNlX2Vhcmx5X21lbV9tYXBfYWxsb2ModW5zaWduZWQgbG9uZyBwbnVtKQ0KIHsNCiAJ
-c3RydWN0IHBhZ2UgKm1hcDsNCkBAIC00NzEsOSArNDY2LDEwIEBAIHZvaWQgX19hdHRyaWJ1dGVf
-Xygod2VhaykpIF9fbWVtaW5pdCB2bWVtbWFwX3BvcHVsYXRlX3ByaW50X2xhc3Qodm9pZCkNCiAv
-KioNCiAgKiAgYWxsb2NfdXNlbWFwX2FuZF9tZW1tYXAgLSBtZW1vcnkgYWxsb2N0aW9uIGZvciBw
-YWdlYmxvY2sgZmxhZ3MgYW5kIHZtZW1tYXANCiAgKiAgQG1hcDogdXNlbWFwX21hcCBmb3IgcGFn
-ZWJsb2NrIGZsYWdzIG9yIG1tYXBfbWFwIGZvciB2bWVtbWFwDQotICogIEB1c2VfbWFwOiB0cnVl
-IGlmIG1lbW9yeSBhbGxvY2F0ZWQgZm9yIHBhZ2VibG9jayBmbGFncywgb3RoZXJ3aXNlIGZhbHNl
-DQogICovDQotc3RhdGljIHZvaWQgYWxsb2NfdXNlbWFwX2FuZF9tZW1tYXAodW5zaWduZWQgbG9u
-ZyAqKm1hcCwgYm9vbCB1c2VfbWFwKQ0KK3N0YXRpYyB2b2lkIGFsbG9jX3VzZW1hcF9hbmRfbWVt
-bWFwKHZvaWQgKCphbGxvY19mdW5jKQ0KKwkJCQkodm9pZCAqKiwgdW5zaWduZWQgbG9uZywgdW5z
-aWduZWQgbG9uZywNCisJCQkJdW5zaWduZWQgbG9uZywgaW50KSwgdm9pZCAqZGF0YSkNCiB7DQog
-CXVuc2lnbmVkIGxvbmcgcG51bTsNCiAJdW5zaWduZWQgbG9uZyBtYXBfY291bnQ7DQpAQCAtNTA0
-LDI0ICs1MDAsMTYgQEAgc3RhdGljIHZvaWQgYWxsb2NfdXNlbWFwX2FuZF9tZW1tYXAodW5zaWdu
-ZWQgbG9uZyAqKm1hcCwgYm9vbCB1c2VfbWFwKQ0KIAkJCWNvbnRpbnVlOw0KIAkJfQ0KIAkJLyog
-b2ssIHdlIG5lZWQgdG8gdGFrZSBjYWtlIG9mIGZyb20gcG51bV9iZWdpbiB0byBwbnVtIC0gMSov
-DQotCQlpZiAodXNlX21hcCkNCi0JCQlzcGFyc2VfZWFybHlfdXNlbWFwc19hbGxvY19ub2RlKG1h
-cCwgcG51bV9iZWdpbiwgcG51bSwNCi0JCQkJCQkgbWFwX2NvdW50LCBub2RlaWRfYmVnaW4pOw0K
-LQkJZWxzZQ0KLQkJCXNwYXJzZV9lYXJseV9tZW1fbWFwc19hbGxvY19ub2RlKChzdHJ1Y3QgcGFn
-ZSAqKiltYXAsDQotCQkJCXBudW1fYmVnaW4sIHBudW0sIG1hcF9jb3VudCwgbm9kZWlkX2JlZ2lu
-KTsNCisJCWFsbG9jX2Z1bmMoZGF0YSwgcG51bV9iZWdpbiwgcG51bSwNCisJCQkJCW1hcF9jb3Vu
-dCwgbm9kZWlkX2JlZ2luKTsNCiAJCS8qIG5ldyBzdGFydCwgdXBkYXRlIGNvdW50IGV0YyovDQog
-CQlub2RlaWRfYmVnaW4gPSBub2RlaWQ7DQogCQlwbnVtX2JlZ2luID0gcG51bTsNCiAJCW1hcF9j
-b3VudCA9IDE7DQogCX0NCiAJLyogb2ssIGxhc3QgY2h1bmsgKi8NCi0JaWYgKHVzZV9tYXApDQot
-CQlzcGFyc2VfZWFybHlfdXNlbWFwc19hbGxvY19ub2RlKG1hcCwgcG51bV9iZWdpbiwNCi0JCQkJ
-TlJfTUVNX1NFQ1RJT05TLCBtYXBfY291bnQsIG5vZGVpZF9iZWdpbik7DQotCWVsc2UNCi0JCXNw
-YXJzZV9lYXJseV9tZW1fbWFwc19hbGxvY19ub2RlKChzdHJ1Y3QgcGFnZSAqKiltYXAsDQotCQkJ
-cG51bV9iZWdpbiwgTlJfTUVNX1NFQ1RJT05TLCBtYXBfY291bnQsIG5vZGVpZF9iZWdpbik7DQor
-CWFsbG9jX2Z1bmMoZGF0YSwgcG51bV9iZWdpbiwgTlJfTUVNX1NFQ1RJT05TLA0KKwkJCQkJbWFw
-X2NvdW50LCBub2RlaWRfYmVnaW4pOw0KIH0NCiANCiAvKg0KQEAgLTU2MSwxNCArNTUzLDE2IEBA
-IHZvaWQgX19pbml0IHNwYXJzZV9pbml0KHZvaWQpDQogCXVzZW1hcF9tYXAgPSBhbGxvY19ib290
-bWVtKHNpemUpOw0KIAlpZiAoIXVzZW1hcF9tYXApDQogCQlwYW5pYygiY2FuIG5vdCBhbGxvY2F0
-ZSB1c2VtYXBfbWFwXG4iKTsNCi0JYWxsb2NfdXNlbWFwX2FuZF9tZW1tYXAodXNlbWFwX21hcCwg
-dHJ1ZSk7DQorCWFsbG9jX3VzZW1hcF9hbmRfbWVtbWFwKHNwYXJzZV9lYXJseV91c2VtYXBzX2Fs
-bG9jX25vZGUsDQorCQkJCQkJKHZvaWQgKil1c2VtYXBfbWFwKTsNCiANCiAjaWZkZWYgQ09ORklH
-X1NQQVJTRU1FTV9BTExPQ19NRU1fTUFQX1RPR0VUSEVSDQogCXNpemUyID0gc2l6ZW9mKHN0cnVj
-dCBwYWdlICopICogTlJfTUVNX1NFQ1RJT05TOw0KIAltYXBfbWFwID0gYWxsb2NfYm9vdG1lbShz
-aXplMik7DQogCWlmICghbWFwX21hcCkNCiAJCXBhbmljKCJjYW4gbm90IGFsbG9jYXRlIG1hcF9t
-YXBcbiIpOw0KLQlhbGxvY191c2VtYXBfYW5kX21lbW1hcCgodW5zaWduZWQgbG9uZyAqKiltYXBf
-bWFwLCBmYWxzZSk7DQorCWFsbG9jX3VzZW1hcF9hbmRfbWVtbWFwKHNwYXJzZV9lYXJseV9tZW1f
-bWFwc19hbGxvY19ub2RlLA0KKwkJCQkJCSh2b2lkICopbWFwX21hcCk7DQogI2VuZGlmDQogDQog
-CWZvciAocG51bSA9IDA7IHBudW0gPCBOUl9NRU1fU0VDVElPTlM7IHBudW0rKykgew0KLS0gDQox
-LjcuNy42DQoNCg==
---047d7bfea09a9d9f5a04e50d0e79--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
