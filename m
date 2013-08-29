@@ -1,11 +1,17 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 00/11] x86, memblock: Allocate memory near kernel image
- before SRAT parsed.
-Date: Thu, 29 Aug 2013 09:36:57 +0800
-Message-ID: <13064.9114995778$1377740247@news.gmane.org>
-References: <1377596268-31552-1-git-send-email-tangchen@cn.fujitsu.com>
- <20130828151909.GE9295@htj.dyndns.org>
- <521EA44E.1020205@cn.fujitsu.com>
+Subject: Re: [PATCH v2 2/4] mm/sparse: introduce alloc_usemap_and_memmap
+Date: Thu, 29 Aug 2013 10:51:22 +0800
+Message-ID: <32944.619577802$1377744707@news.gmane.org>
+References: <20130820160735.b12fe1b3dd64b4dc146d2fa0@linux-foundation.org>
+ <CAE9FiQVy2uqLm2XyStYmzxSmsw7TzrB0XDhCRLymnf+L3NPxrA@mail.gmail.com>
+ <52142ffe.84c0440a.57e5.02acSMTPIN_ADDED_BROKEN@mx.google.com>
+ <CAE9FiQW1c3-d+iMebRK6JyHCpMt8mjga-TnsfTuVsC1bQZqsYA@mail.gmail.com>
+ <52146c58.a3e2440a.0f5a.ffffed8dSMTPIN_ADDED_BROKEN@mx.google.com>
+ <CAE9FiQVWVzO93RM_QT-Qp+5jJUEiw=5OOD_454fCjgQ5p9-b3g@mail.gmail.com>
+ <521600cc.22ab440a.2703.53f1SMTPIN_ADDED_BROKEN@mx.google.com>
+ <CAE9FiQXrpZU8DCFoF6NuaOoqwGFGcQfnHV7vdWWPfyAymCCGnQ@mail.gmail.com>
+ <CAE9FiQU34RC+4uLpeza4PAAK-1CWu82WQ=rhaM_NNj_TVv0EMg@mail.gmail.com>
+ <CAE9FiQVPmjxCzOCPQWz4=6JwzB-Vn5YMtOEd-G97SvEgoY3RQg@mail.gmail.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -13,64 +19,61 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1VErAg-0003GF-7h
-	for glkm-linux-mm-2@m.gmane.org; Thu, 29 Aug 2013 03:37:14 +0200
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id 183176B0032
-	for <linux-mm@kvack.org>; Wed, 28 Aug 2013 21:37:12 -0400 (EDT)
+	id 1VEsKi-0005bz-Be
+	for glkm-linux-mm-2@m.gmane.org; Thu, 29 Aug 2013 04:51:40 +0200
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 1931D6B0032
+	for <linux-mm@kvack.org>; Wed, 28 Aug 2013 22:51:38 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Thu, 29 Aug 2013 11:25:55 +1000
+	Thu, 29 Aug 2013 12:37:49 +1000
 Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 9A1A72CE8055
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2013 11:37:05 +1000 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7T1andu33423468
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2013 11:36:54 +1000
-Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7T1axRv030470
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2013 11:37:00 +1000
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 4912B2CE804C
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2013 12:51:31 +1000 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7T2pEXu7602674
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2013 12:51:20 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r7T2pN2b014750
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2013 12:51:25 +1000
 Content-Disposition: inline
-In-Reply-To: <521EA44E.1020205@cn.fujitsu.com>
+In-Reply-To: <CAE9FiQVPmjxCzOCPQWz4=6JwzB-Vn5YMtOEd-G97SvEgoY3RQg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: Tejun Heo <tj@kernel.org>, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Yinghai Lu <yinghai@kernel.org>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Fengguang Wu <fengguang.wu@intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jiri Kosina <jkosina@suse.cz>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-Hi Tang,
-On Thu, Aug 29, 2013 at 09:30:54AM +0800, Tang Chen wrote:
->On 08/28/2013 11:19 PM, Tejun Heo wrote:
->......
->>Doesn't apply to -master, -next or tip.  Again, can you please include
->>which tree and git commit the patches are against in the patch
->>description?  How is one supposed to know on top of which tree you're
->>working?  It is in your benefit to make things easier for the prosepct
->>reviewers.  Trying to guess and apply the patches to different devel
->>branches and failing isn't productive and frustates your prospect
->>reviewers who would of course have negative pre-perception going into
->>the review and this isn't the first time this issue was raised either.
+Hi Yinghai,
+On Wed, Aug 28, 2013 at 07:42:29PM -0700, Yinghai Lu wrote:
+>On Wed, Aug 28, 2013 at 7:34 PM, Yinghai Lu <yinghai@kernel.org> wrote:
+>> On Wed, Aug 28, 2013 at 7:18 PM, Yinghai Lu <yinghai@kernel.org> wrote:
+>>> please change to function pointer to
+>>> void  (*alloc_func)(void *data,
+>>>                                  unsigned long pnum_begin,
+>>>                                  unsigned long pnum_end,
+>>>                                  unsigned long map_count, int nodeid)
+>>>
+>>> pnum_begin, pnum_end, map_coun, nodeid, should not be in the struct.
+>>
+>> looks like that is what is your first version did.
+>>
+>> I updated it a little bit. please check it.
 >>
 >
->Hi tj,
->
->Sorry for the trouble. Please refer to the following branch:
->
->https://github.com/imtangchen/linux.git  movablenode-boot-option
->
+>removed more lines.
 
-Could you post your testcase? So I can test it on x86 and powerpc machines.
+Thanks for your great work!
+
+The fixed patch looks good to me. If this is the last fix and I can
+ignore http://marc.info/?l=linux-mm&m=137774271220239&w=2?
 
 Regards,
 Wanpeng Li 
 
->Thanks.
 >
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>Yinghai
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
