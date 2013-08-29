@@ -1,13 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id A17776B0038
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2013 17:08:10 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id 488866B0039
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2013 17:08:11 -0400 (EDT)
 From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: [PATCH 1/3] ACPI / scan: Change ordering of locks for device hotplug
-Date: Thu, 29 Aug 2013 23:15:56 +0200
-Message-ID: <1752041.76DW3TEE1A@vostro.rjw.lan>
-In-Reply-To: <9589253.Co8jZpnWdd@vostro.rjw.lan>
-References: <9589253.Co8jZpnWdd@vostro.rjw.lan>
+Subject: [PATCH 0/3] ACPI / hotplug / mm: Rework mutual exclusion between hibernation and memory hotplug
+Date: Thu, 29 Aug 2013 23:12:53 +0200
+Message-ID: <9589253.Co8jZpnWdd@vostro.rjw.lan>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7Bit
 Content-Type: text/plain; charset="utf-8"
@@ -16,108 +14,28 @@ List-ID: <linux-mm.kvack.org>
 To: ACPI Devel Maling List <linux-acpi@vger.kernel.org>
 Cc: Toshi Kani <toshi.kani@hp.com>, LKML <linux-kernel@vger.kernel.org>, Linux PM list <linux-pm@vger.kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, linux-mm@kvack.org
 
-From: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+Hi All,
 
-Change the ordering of device hotplug locks in scan.c so that
-acpi_scan_lock is always acquired after device_hotplug_lock.
+One thing that bothers me quite a bit about memory hotplug is that
+lock_hotplug_memory() acquires pm_mutex which is kind of a blunt thing
+and has a huge potential for deadlocks.
 
-This will make it possible to use device_hotplug_lock around some
-code paths that acquire acpi_scan_lock safely (most importantly
-system suspend and hibernation).  Apart from that, acpi_scan_lock
-is platform-specific and device_hotplug_lock is general, so the
-new ordering appears to be more appropriate from the overall
-design viewpoint.
+This can be avoided if device_hotplug_lock is held around hibernation,
+which is not too difficult to make happen and hence the following patch
+series.
 
-Signed-off-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
----
- drivers/acpi/scan.c |   15 ++++++---------
- 1 file changed, 6 insertions(+), 9 deletions(-)
+[1/3] ACPI: Acquire device_hotplug_lock before acpi_scan_lock (this is
+      necessary, because hibernation acquires acpi_scan_lock in linux-next).
 
-Index: linux-pm/drivers/acpi/scan.c
-===================================================================
---- linux-pm.orig/drivers/acpi/scan.c
-+++ linux-pm/drivers/acpi/scan.c
-@@ -204,8 +204,6 @@ static int acpi_scan_hot_remove(struct a
- 		return -EINVAL;
- 	}
- 
--	lock_device_hotplug();
--
- 	/*
- 	 * Carry out two passes here and ignore errors in the first pass,
- 	 * because if the devices in question are memory blocks and
-@@ -236,9 +234,6 @@ static int acpi_scan_hot_remove(struct a
- 					    ACPI_UINT32_MAX,
- 					    acpi_bus_online_companions, NULL,
- 					    NULL, NULL);
--
--			unlock_device_hotplug();
--
- 			put_device(&device->dev);
- 			return -EBUSY;
- 		}
-@@ -249,8 +244,6 @@ static int acpi_scan_hot_remove(struct a
- 
- 	acpi_bus_trim(device);
- 
--	unlock_device_hotplug();
--
- 	/* Device node has been unregistered. */
- 	put_device(&device->dev);
- 	device = NULL;
-@@ -289,6 +282,7 @@ static void acpi_bus_device_eject(void *
- 	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
- 	int error;
- 
-+	lock_device_hotplug();
- 	mutex_lock(&acpi_scan_lock);
- 
- 	acpi_bus_get_device(handle, &device);
-@@ -312,6 +306,7 @@ static void acpi_bus_device_eject(void *
- 
-  out:
- 	mutex_unlock(&acpi_scan_lock);
-+	unlock_device_hotplug();
- 	return;
- 
-  err_out:
-@@ -326,8 +321,8 @@ static void acpi_scan_bus_device_check(a
- 	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
- 	int error;
- 
--	mutex_lock(&acpi_scan_lock);
- 	lock_device_hotplug();
-+	mutex_lock(&acpi_scan_lock);
- 
- 	if (ost_source != ACPI_NOTIFY_BUS_CHECK) {
- 		acpi_bus_get_device(handle, &device);
-@@ -353,9 +348,9 @@ static void acpi_scan_bus_device_check(a
- 		kobject_uevent(&device->dev.kobj, KOBJ_ONLINE);
- 
-  out:
--	unlock_device_hotplug();
- 	acpi_evaluate_hotplug_ost(handle, ost_source, ost_code, NULL);
- 	mutex_unlock(&acpi_scan_lock);
-+	unlock_device_hotplug();
- }
- 
- static void acpi_scan_bus_check(void *context)
-@@ -446,6 +441,7 @@ void acpi_bus_hot_remove_device(void *co
- 	acpi_handle handle = device->handle;
- 	int error;
- 
-+	lock_device_hotplug();
- 	mutex_lock(&acpi_scan_lock);
- 
- 	error = acpi_scan_hot_remove(device);
-@@ -455,6 +451,7 @@ void acpi_bus_hot_remove_device(void *co
- 					  NULL);
- 
- 	mutex_unlock(&acpi_scan_lock);
-+	unlock_device_hotplug();
- 	kfree(context);
- }
- EXPORT_SYMBOL(acpi_bus_hot_remove_device);
+[2/3] PM / hibernate: Allocate memory bitmaps after freezing user space
+      processes (the reason why is explained in the changelog).
+
+[3/3] Rework mutual exclusion between hibernation and memory hotplug.
+
+On top of linux-pm.git/linux-next.
+
+Thanks,
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
