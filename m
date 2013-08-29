@@ -1,27 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 1B4206B0032
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2013 05:45:29 -0400 (EDT)
-Date: Thu, 29 Aug 2013 11:45:25 +0200
-From: Peter Zijlstra <peterz@infradead.org>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id EED056B0032
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2013 06:57:02 -0400 (EDT)
+Date: Thu, 29 Aug 2013 11:56:57 +0100
+From: Mel Gorman <mgorman@suse.de>
 Subject: Re: [PATCH] cpuset: mm: Reduce large amounts of memory barrier
  related damage v3
-Message-ID: <20130829094525.GY10002@twins.programming.kicks-ass.net>
+Message-ID: <20130829105656.GD22421@suse.de>
 References: <20120307180852.GE17697@suse.de>
  <20130823130332.GY31370@twins.programming.kicks-ass.net>
  <20130823181546.GA31370@twins.programming.kicks-ass.net>
  <20130829092828.GB22421@suse.de>
  <20130829094342.GX10002@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
 In-Reply-To: <20130829094342.GX10002@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
+To: Peter Zijlstra <peterz@infradead.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Miao Xie <miaox@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@redhat.com
 
 On Thu, Aug 29, 2013 at 11:43:42AM +0200, Peter Zijlstra wrote:
+> On Thu, Aug 29, 2013 at 10:28:29AM +0100, Mel Gorman wrote:
+> > On Fri, Aug 23, 2013 at 08:15:46PM +0200, Peter Zijlstra wrote:
+> > > On Fri, Aug 23, 2013 at 03:03:32PM +0200, Peter Zijlstra wrote:
+> > > > So I think this patch is broken (still).
+> > 
+> > I am assuming the lack of complaints is that it is not a heavily executed
+> > path. I expect that you (and Rik) are hitting this as part of automatic
+> > NUMA balancing. Still a bug, just slightly less urgent if NUMA balancing
+> > is the reproduction case.
+> 
+> I thought it was, we crashed somewhere suspiciously close, but no. You
+> need shared mpols for this to actually trigger and the NUMA stuff
+> doesn't use that.
+> 
+
+Ah, so this is a red herring?
+
+> > > +	if (unlikely((unsigned)nid >= MAX_NUMNODES))
+> > > +		goto again;
+> > > +
+> > 
+> > MAX_NUMNODES is unrelated to anything except that it might prevent a crash
+> > and even then nr_online_nodes is probably what you wanted and even that
+> > assumes the NUMA node numbering is contiguous. 
+> 
+> I used whatever nodemask.h did to detect end-of-bitmap and they use
+> MAX_NUMNODES. See __next_node() and for_each_node() like.
+> 
+
+The check does prevent us going off the end of the bitmap but does not
+necessarily return an online node.
+
+> MAX_NUMNODES doesn't assume contiguous numbers since its the actual size
+> of the bitmap, nr_online_nodes would hoever.
+> 
+
+I intended to say nr_node_ids, the same size as buffers such as the
+task_numa_buffers. If we ever return a nid > nr_node_ids here then
+task_numa_fault would corrupt memory. However, it should be possible for
+node_weight to exceed nr_node_ids except maybe during node hot-remove so
+it's not the problem.
+
+> > The real concern is whether
+> > the updated mask is an allowed target for the updated memory policy. If
+> > it's not then "nid" can be pointing off the deep end somewhere.  With this
+> > conversion to a for loop there is race after you check nnodes where target
+> > gets set to 0 and then return a nid of -1 which I suppose will just blow
+> > up differently but it's fixable.
+> 
+> But but but, I did i <= target, which will match when target == 0 so
+> you'll get at least a single iteration and nid will be set.
+> 
+
+True.
+
+> > This? Untested. Fixes implicit types while it's there. Note the use of
+> > first node and (c < target) to guarantee nid gets set and that the first
+> > potential node is still used as an interleave target.
+> > 
 > > diff --git a/mm/mempolicy.c b/mm/mempolicy.c
 > > index 7431001..ae880c3 100644
 > > --- a/mm/mempolicy.c
@@ -67,9 +126,12 @@ On Thu, Aug 29, 2013 at 11:43:42AM +0200, Peter Zijlstra wrote:
 > a node that isn't actually part of the mask anymore -- a race is a race
 > anyway.
 
-Oh more importantly, if nid does indeed end up being >= MAX_NUMNODES as
-is possible with next_node() the node_isset() test will be out-of-bounds
-and can crash itself.
+Yeah and as long as it's < nr_node_ids it should be ok within the task
+numa fault handling as well.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
