@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 687F06B0032
-	for <linux-mm@kvack.org>; Wed, 28 Aug 2013 22:18:30 -0400 (EDT)
-Received: by mail-oa0-f49.google.com with SMTP id i7so160457oag.36
-        for <linux-mm@kvack.org>; Wed, 28 Aug 2013 19:18:29 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 08B126B0032
+	for <linux-mm@kvack.org>; Wed, 28 Aug 2013 22:34:46 -0400 (EDT)
+Received: by mail-ob0-f182.google.com with SMTP id wo10so7709312obc.27
+        for <linux-mm@kvack.org>; Wed, 28 Aug 2013 19:34:46 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <521600cc.22ab440a.2703.53f1SMTPIN_ADDED_BROKEN@mx.google.com>
+In-Reply-To: <CAE9FiQXrpZU8DCFoF6NuaOoqwGFGcQfnHV7vdWWPfyAymCCGnQ@mail.gmail.com>
 References: <1376981696-4312-1-git-send-email-liwanp@linux.vnet.ibm.com>
 	<1376981696-4312-2-git-send-email-liwanp@linux.vnet.ibm.com>
 	<20130820160735.b12fe1b3dd64b4dc146d2fa0@linux-foundation.org>
@@ -15,14 +15,133 @@ References: <1376981696-4312-1-git-send-email-liwanp@linux.vnet.ibm.com>
 	<52146c58.a3e2440a.0f5a.ffffed8dSMTPIN_ADDED_BROKEN@mx.google.com>
 	<CAE9FiQVWVzO93RM_QT-Qp+5jJUEiw=5OOD_454fCjgQ5p9-b3g@mail.gmail.com>
 	<521600cc.22ab440a.2703.53f1SMTPIN_ADDED_BROKEN@mx.google.com>
-Date: Wed, 28 Aug 2013 19:18:29 -0700
-Message-ID: <CAE9FiQXrpZU8DCFoF6NuaOoqwGFGcQfnHV7vdWWPfyAymCCGnQ@mail.gmail.com>
+	<CAE9FiQXrpZU8DCFoF6NuaOoqwGFGcQfnHV7vdWWPfyAymCCGnQ@mail.gmail.com>
+Date: Wed, 28 Aug 2013 19:34:45 -0700
+Message-ID: <CAE9FiQU34RC+4uLpeza4PAAK-1CWu82WQ=rhaM_NNj_TVv0EMg@mail.gmail.com>
 Subject: Re: [PATCH v2 2/4] mm/sparse: introduce alloc_usemap_and_memmap
 From: Yinghai Lu <yinghai@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: multipart/mixed; boundary=e89a8ff1ceb6008a8904e50cf311
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Cc: Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Fengguang Wu <fengguang.wu@intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jiri Kosina <jkosina@suse.cz>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Thu, Aug 22, 2013 at 5:14 AM, Wanpeng Li <liwanp@linux.vnet.ibm.com> wrote:
+--e89a8ff1ceb6008a8904e50cf311
+Content-Type: text/plain; charset=ISO-8859-1
+
+On Wed, Aug 28, 2013 at 7:18 PM, Yinghai Lu <yinghai@kernel.org> wrote:
+> please change to function pointer to
+> void  (*alloc_func)(void *data,
+>                                  unsigned long pnum_begin,
+>                                  unsigned long pnum_end,
+>                                  unsigned long map_count, int nodeid)
+>
+> pnum_begin, pnum_end, map_coun, nodeid, should not be in the struct.
+
+looks like that is what is your first version did.
+
+I updated it a little bit. please check it.
+
+Thanks
+
+Yinghai
+
+--e89a8ff1ceb6008a8904e50cf311
+Content-Type: application/octet-stream; name="0001-sparse_v2.patch"
+Content-Disposition: attachment; filename="0001-sparse_v2.patch"
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_hkxd0k530
+
+RnJvbSBhNzhlMTJhOWZmMzFmMmE3M2I4NzE0NWNlN2FkOTQzYTBmNzEyNzA4IE1vbiBTZXAgMTcg
+MDA6MDA6MDAgMjAwMQ0KRnJvbTogV2FucGVuZyBMaSA8bGl3YW5wQGxpbnV4LnZuZXQuaWJtLmNv
+bT4NCkRhdGU6IFdlZCwgMjEgQXVnIDIwMTMgMTU6MjM6MDggKzA4MDANClN1YmplY3Q6IFtQQVRD
+SF0gbW0vc3BhcnNlOiBpbnRyb2R1Y2UgYWxsb2NfdXNlbWFwX2FuZF9tZW1tYXAgZml4IA0KDQpQ
+YXNzIGZ1bmN0aW9uIHBvaW50ZXIgdG8gYWxsb2NfdXNlbWFwX2FuZF9tZW1tYXAoKSBpbnN0ZWFk
+IG9mIHRydWUvZmFsc2UuIA0KDQpTaWduZWQtb2ZmLWJ5OiBXYW5wZW5nIExpIDxsaXdhbnBAbGlu
+dXgudm5ldC5pYm0uY29tPg0KLS0tDQogbW0vc3BhcnNlLmMgfCAgIDU0ICsrKysrKysrKysrKysr
+KysrKysrKysrKystLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQ0KIDEgZmlsZXMgY2hhbmdl
+ZCwgMjUgaW5zZXJ0aW9ucygrKSwgMjkgZGVsZXRpb25zKC0pDQoNCmRpZmYgLS1naXQgYS9tbS9z
+cGFyc2UuYyBiL21tL3NwYXJzZS5jDQppbmRleCA1NWU1NzUyLi4wNmFkZjNjIDEwMDY0NA0KLS0t
+IGEvbW0vc3BhcnNlLmMNCisrKyBiL21tL3NwYXJzZS5jDQpAQCAtMzM5LDE0ICszMzksMTYgQEAg
+c3RhdGljIHZvaWQgX19pbml0IGNoZWNrX3VzZW1hcF9zZWN0aW9uX25yKGludCBuaWQsIHVuc2ln
+bmVkIGxvbmcgKnVzZW1hcCkNCiB9DQogI2VuZGlmIC8qIENPTkZJR19NRU1PUllfSE9UUkVNT1ZF
+ICovDQogDQotc3RhdGljIHZvaWQgX19pbml0IHNwYXJzZV9lYXJseV91c2VtYXBzX2FsbG9jX25v
+ZGUodW5zaWduZWQgbG9uZyoqdXNlbWFwX21hcCwNCitzdGF0aWMgdm9pZCBfX2luaXQgc3BhcnNl
+X2Vhcmx5X3VzZW1hcHNfYWxsb2Nfbm9kZSh2b2lkICoqdXNlbWFwX21hcCwNCiAJCQkJIHVuc2ln
+bmVkIGxvbmcgcG51bV9iZWdpbiwNCiAJCQkJIHVuc2lnbmVkIGxvbmcgcG51bV9lbmQsDQogCQkJ
+CSB1bnNpZ25lZCBsb25nIHVzZW1hcF9jb3VudCwgaW50IG5vZGVpZCkNCiB7DQogCXZvaWQgKnVz
+ZW1hcDsNCiAJdW5zaWduZWQgbG9uZyBwbnVtOw0KKwl1bnNpZ25lZCBsb25nICoqbWFwOw0KIAlp
+bnQgc2l6ZSA9IHVzZW1hcF9zaXplKCk7DQorCW1hcCA9ICh1bnNpZ25lZCBsb25nICoqKSB1c2Vt
+YXBfbWFwOw0KIA0KIAl1c2VtYXAgPSBzcGFyc2VfZWFybHlfdXNlbWFwc19hbGxvY19wZ2RhdF9z
+ZWN0aW9uKE5PREVfREFUQShub2RlaWQpLA0KIAkJCQkJCQkgIHNpemUgKiB1c2VtYXBfY291bnQp
+Ow0KQEAgLTM1OCw5ICszNjAsOSBAQCBzdGF0aWMgdm9pZCBfX2luaXQgc3BhcnNlX2Vhcmx5X3Vz
+ZW1hcHNfYWxsb2Nfbm9kZSh1bnNpZ25lZCBsb25nKip1c2VtYXBfbWFwLA0KIAlmb3IgKHBudW0g
+PSBwbnVtX2JlZ2luOyBwbnVtIDwgcG51bV9lbmQ7IHBudW0rKykgew0KIAkJaWYgKCFwcmVzZW50
+X3NlY3Rpb25fbnIocG51bSkpDQogCQkJY29udGludWU7DQotCQl1c2VtYXBfbWFwW3BudW1dID0g
+dXNlbWFwOw0KKwkJbWFwW3BudW1dID0gdXNlbWFwOw0KIAkJdXNlbWFwICs9IHNpemU7DQotCQlj
+aGVja191c2VtYXBfc2VjdGlvbl9ucihub2RlaWQsIHVzZW1hcF9tYXBbcG51bV0pOw0KKwkJY2hl
+Y2tfdXNlbWFwX3NlY3Rpb25fbnIobm9kZWlkLCBtYXBbcG51bV0pOw0KIAl9DQogfQ0KIA0KQEAg
+LTQzMCwyMyArNDMyLDE2IEBAIHZvaWQgX19pbml0IHNwYXJzZV9tZW1fbWFwc19wb3B1bGF0ZV9u
+b2RlKHN0cnVjdCBwYWdlICoqbWFwX21hcCwNCiAjZW5kaWYgLyogIUNPTkZJR19TUEFSU0VNRU1f
+Vk1FTU1BUCAqLw0KIA0KICNpZmRlZiBDT05GSUdfU1BBUlNFTUVNX0FMTE9DX01FTV9NQVBfVE9H
+RVRIRVINCi1zdGF0aWMgdm9pZCBfX2luaXQgc3BhcnNlX2Vhcmx5X21lbV9tYXBzX2FsbG9jX25v
+ZGUoc3RydWN0IHBhZ2UgKiptYXBfbWFwLA0KK3N0YXRpYyB2b2lkIF9faW5pdCBzcGFyc2VfZWFy
+bHlfbWVtX21hcHNfYWxsb2Nfbm9kZSh2b2lkICoqbWFwX21hcCwNCiAJCQkJIHVuc2lnbmVkIGxv
+bmcgcG51bV9iZWdpbiwNCiAJCQkJIHVuc2lnbmVkIGxvbmcgcG51bV9lbmQsDQogCQkJCSB1bnNp
+Z25lZCBsb25nIG1hcF9jb3VudCwgaW50IG5vZGVpZCkNCiB7DQotCXNwYXJzZV9tZW1fbWFwc19w
+b3B1bGF0ZV9ub2RlKG1hcF9tYXAsIHBudW1fYmVnaW4sIHBudW1fZW5kLA0KKwlzdHJ1Y3QgcGFn
+ZSAqKm1hcCA9IChzdHJ1Y3QgcGFnZSAqKiltYXBfbWFwOw0KKwlzcGFyc2VfbWVtX21hcHNfcG9w
+dWxhdGVfbm9kZShtYXAsIHBudW1fYmVnaW4sIHBudW1fZW5kLA0KIAkJCQkJIG1hcF9jb3VudCwg
+bm9kZWlkKTsNCiB9DQogI2Vsc2UNCi0NCi1zdGF0aWMgdm9pZCBfX2luaXQgc3BhcnNlX2Vhcmx5
+X21lbV9tYXBzX2FsbG9jX25vZGUoc3RydWN0IHBhZ2UgKiptYXBfbWFwLA0KLQkJCQl1bnNpZ25l
+ZCBsb25nIHBudW1fYmVnaW4sDQotCQkJCXVuc2lnbmVkIGxvbmcgcG51bV9lbmQsDQotCQkJCXVu
+c2lnbmVkIGxvbmcgbWFwX2NvdW50LCBpbnQgbm9kZWlkKQ0KLXsNCi19DQotDQogc3RhdGljIHN0
+cnVjdCBwYWdlIF9faW5pdCAqc3BhcnNlX2Vhcmx5X21lbV9tYXBfYWxsb2ModW5zaWduZWQgbG9u
+ZyBwbnVtKQ0KIHsNCiAJc3RydWN0IHBhZ2UgKm1hcDsNCkBAIC00NzEsOSArNDY2LDEwIEBAIHZv
+aWQgX19hdHRyaWJ1dGVfXygod2VhaykpIF9fbWVtaW5pdCB2bWVtbWFwX3BvcHVsYXRlX3ByaW50
+X2xhc3Qodm9pZCkNCiAvKioNCiAgKiAgYWxsb2NfdXNlbWFwX2FuZF9tZW1tYXAgLSBtZW1vcnkg
+YWxsb2N0aW9uIGZvciBwYWdlYmxvY2sgZmxhZ3MgYW5kIHZtZW1tYXANCiAgKiAgQG1hcDogdXNl
+bWFwX21hcCBmb3IgcGFnZWJsb2NrIGZsYWdzIG9yIG1tYXBfbWFwIGZvciB2bWVtbWFwDQotICog
+IEB1c2VfbWFwOiB0cnVlIGlmIG1lbW9yeSBhbGxvY2F0ZWQgZm9yIHBhZ2VibG9jayBmbGFncywg
+b3RoZXJ3aXNlIGZhbHNlDQogICovDQotc3RhdGljIHZvaWQgYWxsb2NfdXNlbWFwX2FuZF9tZW1t
+YXAodW5zaWduZWQgbG9uZyAqKm1hcCwgYm9vbCB1c2VfbWFwKQ0KK3N0YXRpYyB2b2lkIGFsbG9j
+X3VzZW1hcF9hbmRfbWVtbWFwKHZvaWQgKCphbGxvY19mdW5jKQ0KKwkJCQkodm9pZCAqKiwgdW5z
+aWduZWQgbG9uZywgdW5zaWduZWQgbG9uZywNCisJCQkJdW5zaWduZWQgbG9uZywgaW50KSwgdm9p
+ZCAqKm1hcCkNCiB7DQogCXVuc2lnbmVkIGxvbmcgcG51bTsNCiAJdW5zaWduZWQgbG9uZyBtYXBf
+Y291bnQ7DQpAQCAtNTA0LDI0ICs1MDAsMTYgQEAgc3RhdGljIHZvaWQgYWxsb2NfdXNlbWFwX2Fu
+ZF9tZW1tYXAodW5zaWduZWQgbG9uZyAqKm1hcCwgYm9vbCB1c2VfbWFwKQ0KIAkJCWNvbnRpbnVl
+Ow0KIAkJfQ0KIAkJLyogb2ssIHdlIG5lZWQgdG8gdGFrZSBjYWtlIG9mIGZyb20gcG51bV9iZWdp
+biB0byBwbnVtIC0gMSovDQotCQlpZiAodXNlX21hcCkNCi0JCQlzcGFyc2VfZWFybHlfdXNlbWFw
+c19hbGxvY19ub2RlKG1hcCwgcG51bV9iZWdpbiwgcG51bSwNCi0JCQkJCQkgbWFwX2NvdW50LCBu
+b2RlaWRfYmVnaW4pOw0KLQkJZWxzZQ0KLQkJCXNwYXJzZV9lYXJseV9tZW1fbWFwc19hbGxvY19u
+b2RlKChzdHJ1Y3QgcGFnZSAqKiltYXAsDQotCQkJCXBudW1fYmVnaW4sIHBudW0sIG1hcF9jb3Vu
+dCwgbm9kZWlkX2JlZ2luKTsNCisJCWFsbG9jX2Z1bmMobWFwLCBwbnVtX2JlZ2luLCBwbnVtLA0K
+KwkJCQkJbWFwX2NvdW50LCBub2RlaWRfYmVnaW4pOw0KIAkJLyogbmV3IHN0YXJ0LCB1cGRhdGUg
+Y291bnQgZXRjKi8NCiAJCW5vZGVpZF9iZWdpbiA9IG5vZGVpZDsNCiAJCXBudW1fYmVnaW4gPSBw
+bnVtOw0KIAkJbWFwX2NvdW50ID0gMTsNCiAJfQ0KIAkvKiBvaywgbGFzdCBjaHVuayAqLw0KLQlp
+ZiAodXNlX21hcCkNCi0JCXNwYXJzZV9lYXJseV91c2VtYXBzX2FsbG9jX25vZGUobWFwLCBwbnVt
+X2JlZ2luLA0KLQkJCQlOUl9NRU1fU0VDVElPTlMsIG1hcF9jb3VudCwgbm9kZWlkX2JlZ2luKTsN
+Ci0JZWxzZQ0KLQkJc3BhcnNlX2Vhcmx5X21lbV9tYXBzX2FsbG9jX25vZGUoKHN0cnVjdCBwYWdl
+ICoqKW1hcCwNCi0JCQlwbnVtX2JlZ2luLCBOUl9NRU1fU0VDVElPTlMsIG1hcF9jb3VudCwgbm9k
+ZWlkX2JlZ2luKTsNCisJYWxsb2NfZnVuYyhtYXAsIHBudW1fYmVnaW4sIE5SX01FTV9TRUNUSU9O
+UywNCisJCQkJCW1hcF9jb3VudCwgbm9kZWlkX2JlZ2luKTsNCiB9DQogDQogLyoNCkBAIC01NjEs
+MTQgKzU1MywxNiBAQCB2b2lkIF9faW5pdCBzcGFyc2VfaW5pdCh2b2lkKQ0KIAl1c2VtYXBfbWFw
+ID0gYWxsb2NfYm9vdG1lbShzaXplKTsNCiAJaWYgKCF1c2VtYXBfbWFwKQ0KIAkJcGFuaWMoImNh
+biBub3QgYWxsb2NhdGUgdXNlbWFwX21hcFxuIik7DQotCWFsbG9jX3VzZW1hcF9hbmRfbWVtbWFw
+KHVzZW1hcF9tYXAsIHRydWUpOw0KKwlhbGxvY191c2VtYXBfYW5kX21lbW1hcChzcGFyc2VfZWFy
+bHlfdXNlbWFwc19hbGxvY19ub2RlLA0KKwkJCQkJCSh2b2lkICoqKXVzZW1hcF9tYXApOw0KIA0K
+ICNpZmRlZiBDT05GSUdfU1BBUlNFTUVNX0FMTE9DX01FTV9NQVBfVE9HRVRIRVINCiAJc2l6ZTIg
+PSBzaXplb2Yoc3RydWN0IHBhZ2UgKikgKiBOUl9NRU1fU0VDVElPTlM7DQogCW1hcF9tYXAgPSBh
+bGxvY19ib290bWVtKHNpemUyKTsNCiAJaWYgKCFtYXBfbWFwKQ0KIAkJcGFuaWMoImNhbiBub3Qg
+YWxsb2NhdGUgbWFwX21hcFxuIik7DQotCWFsbG9jX3VzZW1hcF9hbmRfbWVtbWFwKCh1bnNpZ25l
+ZCBsb25nICoqKW1hcF9tYXAsIGZhbHNlKTsNCisJYWxsb2NfdXNlbWFwX2FuZF9tZW1tYXAoc3Bh
+cnNlX2Vhcmx5X21lbV9tYXBzX2FsbG9jX25vZGUsDQorCQkJCQkJKHZvaWQgKiopbWFwX21hcCk7
+DQogI2VuZGlmDQogDQogCWZvciAocG51bSA9IDA7IHBudW0gPCBOUl9NRU1fU0VDVElPTlM7IHBu
+dW0rKykgew0KLS0gDQoxLjcuNy42DQoNCg==
+--e89a8ff1ceb6008a8904e50cf311--
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
