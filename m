@@ -1,149 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 7FCB36B0032
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2013 03:52:15 -0400 (EDT)
-Received: by mail-wg0-f41.google.com with SMTP id b12so930524wgh.4
-        for <linux-mm@kvack.org>; Thu, 29 Aug 2013 00:52:13 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 91F786B0032
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2013 05:28:39 -0400 (EDT)
+Date: Thu, 29 Aug 2013 10:28:29 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] cpuset: mm: Reduce large amounts of memory barrier
+ related damage v3
+Message-ID: <20130829092828.GB22421@suse.de>
+References: <20120307180852.GE17697@suse.de>
+ <20130823130332.GY31370@twins.programming.kicks-ass.net>
+ <20130823181546.GA31370@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
-Reply-To: sedat.dilek@gmail.com
-In-Reply-To: <C2D7FE5348E1B147BCA15975FBA23075140FA3@IN01WEMBXA.internal.synopsys.com>
-References: <CA+icZUXuw7QBn4CPLLuiVUjHin0m6GRdbczGw=bZY+Z60sXNow@mail.gmail.com>
-	<CA+icZUVbUD1tUa_ORtn_ZZebpp3gXXHGAcNe0NdYPXPMPoABuA@mail.gmail.com>
-	<1372192414.1888.8.camel@buesod1.americas.hpqcorp.net>
-	<CA+icZUXgOd=URJBH5MGAZKdvdkMpFt+5mRxtzuDzq_vFHpoc2A@mail.gmail.com>
-	<1372202983.1888.22.camel@buesod1.americas.hpqcorp.net>
-	<521DE5D7.4040305@synopsys.com>
-	<CA+icZUUrZG8pYqKcHY3DcYAuuw=vbdUvs6ZXDq5meBMjj6suFg@mail.gmail.com>
-	<C2D7FE5348E1B147BCA15975FBA23075140FA3@IN01WEMBXA.internal.synopsys.com>
-Date: Thu, 29 Aug 2013 09:52:13 +0200
-Message-ID: <CA+icZUUn-r8iq6TVMAKmgJpQm4FhOE4b4QN_Yy=1L=0Up=rkBA@mail.gmail.com>
-Subject: Re: ipc-msg broken again on 3.11-rc7? (was Re: linux-next: Tree for
- Jun 21 [ BROKEN ipc/ipc-msg ])
-From: Sedat Dilek <sedat.dilek@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20130823181546.GA31370@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Cc: Davidlohr Bueso <davidlohr.bueso@hp.com>, linux-next <linux-next@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Manfred Spraul <manfred@colorfullife.com>, Jonathan Gonzalez <jgonzalez@linets.cl>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Miao Xie <miaox@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@redhat.com
 
-On Thu, Aug 29, 2013 at 9:21 AM, Vineet Gupta
-<Vineet.Gupta1@synopsys.com> wrote:
-> On 08/29/2013 08:34 AM, Sedat Dilek wrote:
->> On Wed, Aug 28, 2013 at 1:58 PM, Vineet Gupta
->> <Vineet.Gupta1@synopsys.com> wrote:
->>> Hi David,
->>>
->>> On 06/26/2013 04:59 AM, Davidlohr Bueso wrote:
->>>> On Tue, 2013-06-25 at 23:41 +0200, Sedat Dilek wrote:
->>>>> On Tue, Jun 25, 2013 at 10:33 PM, Davidlohr Bueso
->>>>> <davidlohr.bueso@hp.com> wrote:
->>>>>> On Tue, 2013-06-25 at 18:10 +0200, Sedat Dilek wrote:
->>>>>> [...]
->>>>>>
->>>>>>> I did some more testing with Linux-Testing-Project (release:
->>>>>>> ltp-full-20130503) and next-20130624 (Monday) which has still the
->>>>>>> issue, here.
->>>>>>>
->>>>>>> If I revert the mentioned two commits from my local
->>>>>>> revert-ipc-next20130624-5089fd1c6a6a-ab9efc2d0db5 GIT repo, everything
->>>>>>> is fine.
->>>>>>>
->>>>>>> I have tested the LTP ***IPC*** and ***SYSCALLS*** testcases.
->>>>>>>
->>>>>>>    root# ./runltp -f ipc
->>>>>>>
->>>>>>>    root# ./runltp -f syscalls
->>>>>> These are nice test cases!
->>>>>>
->>>>>> So I was able to reproduce the issue with LTP and manually running
->>>>>> msgctl08. We seemed to be racing at find_msg(), so take to q_perm lock
->>>>>> before calling it. The following changes fixes the issue and passes all
->>>>>> 'runltp -f syscall' tests, could you give it a try?
->>>>>>
->>>>> Cool, that fixes the issues here.
->>>>>
->>>>> Building with fakeroot & make deb-pkg is now OK, again.
->>>>>
->>>>> The syscalls/msgctl08 test-case ran successfully!
->>>> Andrew, could you pick this one up? I've made the patch on top of
->>>> 3.10.0-rc7-next-20130625
->>> LTP msgctl08 hangs on 3.11-rc7 (ARC port) with some of my local changes. I
->>> bisected it, sigh... didn't look at this thread earlier :-( and landed into this.
->>>
->>> ------------->8------------------------------------
->>> 3dd1f784ed6603d7ab1043e51e6371235edf2313 is the first bad commit
->>> commit 3dd1f784ed6603d7ab1043e51e6371235edf2313
->>> Author: Davidlohr Bueso <davidlohr.bueso@hp.com>
->>> Date:   Mon Jul 8 16:01:17 2013 -0700
->>>
->>>     ipc,msg: shorten critical region in msgsnd
->>>
->>>     do_msgsnd() is another function that does too many things with the ipc
->>>     object lock acquired.  Take it only when needed when actually updating
->>>     msq.
->>> ------------->8------------------------------------
->>>
->>> If I revert 3dd1f784ed66 and 9ad66ae "ipc: remove unused functions" - the test
->>> passes. I can confirm that linux-next also has the issue (didn't try the revert
->>> there though).
->>>
->>> 1. arc 3.11-rc7 config attached (UP + PREEMPT)
->>> 2. dmesg prints "msgmni has been set to 479"
->>> 3. LTP output (this is slightly dated source, so prints might vary)
->>>
->>> ------------->8------------------------------------
->>> <<<test_start>>>
->>> tag=msgctl08 stime=1377689180
->>> cmdline="msgctl08"
->>> contacts=""
->>> analysis=exit
->>> initiation_status="ok"
->>> <<<test_output>>>
->>> ------------->8-------- hung here ------------------
->>>
->>>
->>> Let me know if you need more data/test help.
->>>
->> Cannot say much to your constellation as I had the issue on x86-64 and
->> Linux-next.
->> But I have just seen a post-v3.11-rc7 IPC-fix in [1].
->>
->> I have here a v3.11-rc7 kernel with drm-intel-nightly on top... did not run LTP.
->
-> Not sure what you mean - I'd posted that Im seeing the issue on ARC Linux (an FPGA
-> board) 3.11-rc7 as well as linux-next of yesterday.
->
+On Fri, Aug 23, 2013 at 08:15:46PM +0200, Peter Zijlstra wrote:
+> On Fri, Aug 23, 2013 at 03:03:32PM +0200, Peter Zijlstra wrote:
+> > So I think this patch is broken (still).
 
-I am not saying there is no issue, but I have no possibility to test
-for ARC arch.
+I am assuming the lack of complaints is that it is not a heavily executed
+path. I expect that you (and Rik) are hitting this as part of automatic
+NUMA balancing. Still a bug, just slightly less urgent if NUMA balancing
+is the reproduction case.
 
->> Which LTP release do you use?
->
-> The LTP build I generally use is from a 2007 based sources (lazy me). However I
-> knew this would come up so before posting, I'd built the latest from buildroot and
-> ran the msgctl08 from there standalone and it did the same thing.
->
+> > Suppose we have an
+> > INTERLEAVE mempol like 0x3 and change it to 0xc.
+> > 
+> > Original:	0x3
+> > Rebind Step 1:	0xf /* set bits */
+> > Rebind Step 2:	0xc /* clear bits */
+> > 
+> > Now look at what can happen with offset_il_node() when its ran
+> > concurrently with step 2:
+> > 
+> >   nnodes = nodes_weight(pol->v.nodes); /* observes 0xf and returns 4 */
+> > 
+> >   /* now we clear the actual bits */
+> >   
+> >   target = (unsigned int)off % nnodes; /* assume target >= 2 */
+> >   c = 0;
+> >   do {
+> >   	nid = next_node(nid, pol->v.nodes);
+> > 	c++;
+> >   } while (c <= target);
+> > 
+> >   /* here nid := MAX_NUMNODES */
+> > 
+> > 
+> > This nid is then blindly inserted into node_zonelist() which does an
+> > NODE_DATA() array access out of bounds and off we go.
+> > 
+> > This would suggest we put the whole seqcount thing inside
+> > offset_il_node().
+> 
+> Oh bloody grrr. Its not directly related at all, the patch in question
+> fixes a cpuset task_struct::mems_allowed problem while the above is a
+> mempolicy issue and of course the cpuset and mempolicy code are
+> completely bloody different :/
+> 
+> So I guess the quick and ugly solution is something like the below. 
+> 
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -1762,19 +1762,21 @@ unsigned slab_node(void)
+>  static unsigned offset_il_node(struct mempolicy *pol,
+>  		struct vm_area_struct *vma, unsigned long off)
+>  {
+> -	unsigned nnodes = nodes_weight(pol->v.nodes);
+> -	unsigned target;
+> -	int c;
+> -	int nid = -1;
+> +	unsigned nnodes, target;
+> +	int c, nid;
+>  
+> +again:
+> +	nnodes = nodes_weight(pol->v.nodes);
+>  	if (!nnodes)
+>  		return numa_node_id();
+> +
+>  	target = (unsigned int)off % nnodes;
+> -	c = 0;
+> -	do {
+> +	for (c = 0, nid = -1; c <= target; c++)
+>  		nid = next_node(nid, pol->v.nodes);
+> -		c++;
+> -	} while (c <= target);
+> +
+> +	if (unlikely((unsigned)nid >= MAX_NUMNODES))
+> +		goto again;
+> +
 
-Try always latest LTP-stable (03-May-2013 is what I tried). AFAICS a
-new release is planned soon.
+MAX_NUMNODES is unrelated to anything except that it might prevent a crash
+and even then nr_online_nodes is probably what you wanted and even that
+assumes the NUMA node numbering is contiguous. The real concern is whether
+the updated mask is an allowed target for the updated memory policy. If
+it's not then "nid" can be pointing off the deep end somewhere.  With this
+conversion to a for loop there is race after you check nnodes where target
+gets set to 0 and then return a nid of -1 which I suppose will just blow
+up differently but it's fixable.
 
->> Might be good to attach your kernel-config for followers?
->
-> It was already there in my orig msg - you probably missed it.
->
+This? Untested. Fixes implicit types while it's there. Note the use of
+first node and (c < target) to guarantee nid gets set and that the first
+potential node is still used as an interleave target.
 
-I have got that response from you only :-).
-
->> [1] http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=368ae537e056acd3f751fa276f48423f06803922
->
-> I tried linux-next of today, same deal - msgctl08 still hangs.
->
-
-That above fix [1] in Linus-tree is also in next-20130828.
-
-Hope Davidlohr and fellows can help you.
-
-- Sedat -
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 7431001..ae880c3 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1755,22 +1755,24 @@ unsigned slab_node(void)
+ }
+ 
+ /* Do static interleaving for a VMA with known offset. */
+-static unsigned offset_il_node(struct mempolicy *pol,
++static unsigned int offset_il_node(struct mempolicy *pol,
+ 		struct vm_area_struct *vma, unsigned long off)
+ {
+-	unsigned nnodes = nodes_weight(pol->v.nodes);
+-	unsigned target;
+-	int c;
+-	int nid = -1;
++	unsigned int nr_nodes, target;
++	int i, nid;
+ 
+-	if (!nnodes)
++again:
++	nr_nodes = nodes_weight(pol->v.nodes);
++	if (!nr_nodes)
+ 		return numa_node_id();
+-	target = (unsigned int)off % nnodes;
+-	c = 0;
+-	do {
++	target = (unsigned int)off % nr_nodes;
++	for (i = 0, nid = first_node(pol->v.nodes); i < target; i++)
+ 		nid = next_node(nid, pol->v.nodes);
+-		c++;
+-	} while (c <= target);
++
++	/* Policy nodemask can potentially update in parallel */
++	if (unlikely(!node_isset(nid, pol->v.nodes)))
++		goto again;
++
+ 	return nid;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
