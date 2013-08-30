@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 218176B0037
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 08:39:30 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 5740F6B003A
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 08:40:23 -0400 (EDT)
 Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Fri, 30 Aug 2013 13:39:29 +0100
+	Fri, 30 Aug 2013 06:40:22 -0600
 Received: from b01cxnp22033.gho.pok.ibm.com (b01cxnp22033.gho.pok.ibm.com [9.57.198.23])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 9C9A438C8047
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 08:39:27 -0400 (EDT)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by b01cxnp22033.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7UCdRek34341070
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 12:39:27 GMT
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r7UCdQXq020836
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 08:39:27 -0400
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 4E42538C8045
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 08:40:20 -0400 (EDT)
+Received: from d01av05.pok.ibm.com (d01av05.pok.ibm.com [9.56.224.195])
+	by b01cxnp22033.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7UCeKWh27983934
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 12:40:20 GMT
+Received: from d01av05.pok.ibm.com (loopback [127.0.0.1])
+	by d01av05.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r7UCeJJn012995
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 08:40:19 -0400
 From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Subject: [RFC PATCH v3 06/35] mm: Add helpers to retrieve node region and zone
- region for a given page
-Date: Fri, 30 Aug 2013 18:05:30 +0530
-Message-ID: <20130830123527.24352.30907.stgit@srivatsabhat.in.ibm.com>
+Subject: [RFC PATCH v3 07/35] mm: Add data-structures to describe memory
+ regions within the zones' freelists
+Date: Fri, 30 Aug 2013 18:06:23 +0530
+Message-ID: <20130830123545.24352.10470.stgit@srivatsabhat.in.ibm.com>
 In-Reply-To: <20130830123303.24352.18732.stgit@srivatsabhat.in.ibm.com>
 References: <20130830123303.24352.18732.stgit@srivatsabhat.in.ibm.com>
 MIME-Version: 1.0
@@ -30,126 +30,171 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, mgorman@suse.de, hannes@cmpxchg.org, tony.luck@intel.com, matthew.garrett@nebula.com, dave@sr71.net, riel@redhat.com, arjan@linux.intel.com, srinivas.pandruvada@linux.intel.com, willy@linux.intel.com, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl
 Cc: gargankita@gmail.com, paulmck@linux.vnet.ibm.com, amit.kachhap@linaro.org, svaidy@linux.vnet.ibm.com, andi@firstfloor.org, isimatu.yasuaki@jp.fujitsu.com, santosh.shilimkar@ti.com, kosaki.motohiro@gmail.com, srivatsa.bhat@linux.vnet.ibm.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Given a page, we would like to have an efficient mechanism to find out
-the node memory region and the zone memory region to which it belongs.
+In order to influence page allocation decisions (i.e., to make page-allocation
+region-aware), we need to be able to distinguish pageblocks belonging to
+different zone memory regions within the zones' (buddy) freelists.
 
-Since the node is assumed to be divided into equal-sized node memory
-regions, the node memory region can be obtained by simply right-shifting
-the page's pfn by 'MEM_REGION_SHIFT'.
+So, within every freelist in a zone, provide pointers to describe the
+boundaries of zone memory regions and counters to track the number of free
+pageblocks within each region.
 
-But finding the corresponding zone memory region's index in the zone is
-not that straight-forward. To have a O(1) algorithm to find it out, define a
-zone_region_idx[] array to store the zone memory region indices for every
-node memory region.
-
-To illustrate, consider the following example:
-
-	|<----------------------Node---------------------->|
-	 __________________________________________________
-	|      Node mem reg 0 	 |      Node mem reg 1     |  (Absolute region
-	|________________________|_________________________|   boundaries)
-
-	 __________________________________________________
-	|    ZONE_DMA   |	    ZONE_NORMAL		   |
-	|               |                                  |
-	|<--- ZMR 0 --->|<-ZMR0->|<-------- ZMR 1 -------->|
-	|_______________|________|_________________________|
-
-
-In the above figure,
-
-Node mem region 0:
-------------------
-This region corresponds to the first zone mem region in ZONE_DMA and also
-the first zone mem region in ZONE_NORMAL. Hence its index array would look
-like this:
-    node_regions[0].zone_region_idx[ZONE_DMA]     == 0
-    node_regions[0].zone_region_idx[ZONE_NORMAL]  == 0
-
-
-Node mem region 1:
-------------------
-This region corresponds to the second zone mem region in ZONE_NORMAL. Hence
-its index array would look like this:
-    node_regions[1].zone_region_idx[ZONE_NORMAL]  == 1
-
-
-Using this index array, we can quickly obtain the zone memory region to
-which a given page belongs.
+Also, fixup the references to the freelist's list_head inside struct free_area.
 
 Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
 ---
 
- include/linux/mm.h     |   24 ++++++++++++++++++++++++
- include/linux/mmzone.h |    7 +++++++
- mm/page_alloc.c        |    1 +
- 3 files changed, 32 insertions(+)
+ include/linux/mmzone.h |   17 ++++++++++++++++-
+ mm/compaction.c        |    2 +-
+ mm/page_alloc.c        |   23 ++++++++++++-----------
+ mm/vmstat.c            |    2 +-
+ 4 files changed, 30 insertions(+), 14 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 18fdec4..52329d1 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -723,6 +723,30 @@ static inline struct zone *page_zone(const struct page *page)
- 	return &NODE_DATA(page_to_nid(page))->node_zones[page_zonenum(page)];
- }
- 
-+static inline int page_node_region_id(const struct page *page,
-+				      const pg_data_t *pgdat)
-+{
-+	return (page_to_pfn(page) - pgdat->node_start_pfn) >> MEM_REGION_SHIFT;
-+}
-+
-+/**
-+ * Return the index of the zone memory region to which the page belongs.
-+ *
-+ * Given a page, find the absolute (node) memory region as well as the zone to
-+ * which it belongs. Then find the region within the zone that corresponds to
-+ * that node memory region, and return its index.
-+ */
-+static inline int page_zone_region_id(const struct page *page)
-+{
-+	pg_data_t *pgdat = NODE_DATA(page_to_nid(page));
-+	enum zone_type z_num = page_zonenum(page);
-+	unsigned long node_region_idx;
-+
-+	node_region_idx = page_node_region_id(page, pgdat);
-+
-+	return pgdat->node_regions[node_region_idx].zone_region_idx[z_num];
-+}
-+
- #ifdef SECTION_IN_PAGE_FLAGS
- static inline void set_page_section(struct page *page, unsigned long section)
- {
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 010ab5b..76d9ed2 100644
+index 76d9ed2..201ab42 100644
 --- a/include/linux/mmzone.h
 +++ b/include/linux/mmzone.h
-@@ -726,6 +726,13 @@ struct node_mem_region {
- 	unsigned long end_pfn;
- 	unsigned long present_pages;
- 	unsigned long spanned_pages;
+@@ -83,8 +83,23 @@ static inline int get_pageblock_migratetype(struct page *page)
+ 	return get_pageblock_flags_group(page, PB_migrate, PB_migrate_end);
+ }
+ 
++struct mem_region_list {
++	struct list_head	*page_block;
++	unsigned long		nr_free;
++};
++
++struct free_list {
++	struct list_head	list;
 +
 +	/*
-+	 * A physical (node) region could be split across multiple zones.
-+	 * Store the indices of the corresponding regions of each such
-+	 * zone for this physical (node) region.
++	 * Demarcates pageblocks belonging to different regions within
++	 * this freelist.
 +	 */
-+	int zone_region_idx[MAX_NR_ZONES];
- 	struct pglist_data *pgdat;
++	struct mem_region_list	mr_list[MAX_NR_ZONE_REGIONS];
++};
++
+ struct free_area {
+-	struct list_head	free_list[MIGRATE_TYPES];
++	struct free_list	free_list[MIGRATE_TYPES];
+ 	unsigned long		nr_free;
  };
  
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 05ccb4c..13912f5 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -858,7 +858,7 @@ static int compact_finished(struct zone *zone,
+ 		struct free_area *area = &zone->free_area[order];
+ 
+ 		/* Job done if page is free of the right migratetype */
+-		if (!list_empty(&area->free_list[cc->migratetype]))
++		if (!list_empty(&area->free_list[cc->migratetype].list))
+ 			return COMPACT_PARTIAL;
+ 
+ 		/* Job done if allocation would set block type */
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 05cedbb..8ffd47b 100644
+index 8ffd47b..fd6436d0 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -4877,6 +4877,7 @@ static void __meminit init_zone_memory_regions(struct pglist_data *pgdat)
- 			zone_region->present_pages =
- 					zone_region->spanned_pages - absent;
+@@ -602,12 +602,13 @@ static inline void __free_one_page(struct page *page,
+ 		higher_buddy = higher_page + (buddy_idx - combined_idx);
+ 		if (page_is_buddy(higher_page, higher_buddy, order + 1)) {
+ 			list_add_tail(&page->lru,
+-				&zone->free_area[order].free_list[migratetype]);
++				&zone->free_area[order].free_list[migratetype].list);
+ 			goto out;
+ 		}
+ 	}
  
-+			node_region->zone_region_idx[zone_idx(z)] = idx;
- 			idx++;
+-	list_add(&page->lru, &zone->free_area[order].free_list[migratetype]);
++	list_add(&page->lru,
++		&zone->free_area[order].free_list[migratetype].list);
+ out:
+ 	zone->free_area[order].nr_free++;
+ }
+@@ -829,7 +830,7 @@ static inline void expand(struct zone *zone, struct page *page,
+ 			continue;
+ 		}
+ #endif
+-		list_add(&page[size].lru, &area->free_list[migratetype]);
++		list_add(&page[size].lru, &area->free_list[migratetype].list);
+ 		area->nr_free++;
+ 		set_page_order(&page[size], high);
+ 	}
+@@ -891,10 +892,10 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
+ 	/* Find a page of the appropriate size in the preferred list */
+ 	for (current_order = order; current_order < MAX_ORDER; ++current_order) {
+ 		area = &(zone->free_area[current_order]);
+-		if (list_empty(&area->free_list[migratetype]))
++		if (list_empty(&area->free_list[migratetype].list))
+ 			continue;
+ 
+-		page = list_entry(area->free_list[migratetype].next,
++		page = list_entry(area->free_list[migratetype].list.next,
+ 							struct page, lru);
+ 		list_del(&page->lru);
+ 		rmv_page_order(page);
+@@ -966,7 +967,7 @@ int move_freepages(struct zone *zone,
+ 
+ 		order = page_order(page);
+ 		list_move(&page->lru,
+-			  &zone->free_area[order].free_list[migratetype]);
++			  &zone->free_area[order].free_list[migratetype].list);
+ 		set_freepage_migratetype(page, migratetype);
+ 		page += 1 << order;
+ 		pages_moved += 1 << order;
+@@ -1073,10 +1074,10 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+ 				break;
+ 
+ 			area = &(zone->free_area[current_order]);
+-			if (list_empty(&area->free_list[migratetype]))
++			if (list_empty(&area->free_list[migratetype].list))
+ 				continue;
+ 
+-			page = list_entry(area->free_list[migratetype].next,
++			page = list_entry(area->free_list[migratetype].list.next,
+ 					struct page, lru);
+ 			area->nr_free--;
+ 
+@@ -1320,7 +1321,7 @@ void mark_free_pages(struct zone *zone)
  		}
  
+ 	for_each_migratetype_order(order, t) {
+-		list_for_each(curr, &zone->free_area[order].free_list[t]) {
++		list_for_each(curr, &zone->free_area[order].free_list[t].list) {
+ 			unsigned long i;
+ 
+ 			pfn = page_to_pfn(list_entry(curr, struct page, lru));
+@@ -3146,7 +3147,7 @@ void show_free_areas(unsigned int filter)
+ 
+ 			types[order] = 0;
+ 			for (type = 0; type < MIGRATE_TYPES; type++) {
+-				if (!list_empty(&area->free_list[type]))
++				if (!list_empty(&area->free_list[type].list))
+ 					types[order] |= 1 << type;
+ 			}
+ 		}
+@@ -4002,7 +4003,7 @@ static void __meminit zone_init_free_lists(struct zone *zone)
+ {
+ 	int order, t;
+ 	for_each_migratetype_order(order, t) {
+-		INIT_LIST_HEAD(&zone->free_area[order].free_list[t]);
++		INIT_LIST_HEAD(&zone->free_area[order].free_list[t].list);
+ 		zone->free_area[order].nr_free = 0;
+ 	}
+ }
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 20c2ef4..0451957 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -862,7 +862,7 @@ static void pagetypeinfo_showfree_print(struct seq_file *m,
+ 
+ 			area = &(zone->free_area[order]);
+ 
+-			list_for_each(curr, &area->free_list[mtype])
++			list_for_each(curr, &area->free_list[mtype].list)
+ 				freecount++;
+ 			seq_printf(m, "%6lu ", freecount);
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
