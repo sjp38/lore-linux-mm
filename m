@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 10C2D6B0075
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 09:28:07 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id 4C5B96B0096
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 09:28:25 -0400 (EDT)
 Received: from /spool/local
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Fri, 30 Aug 2013 07:28:06 -0600
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 807123E40062
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 07:28:03 -0600 (MDT)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7UDS3sT135158
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 07:28:03 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r7UDS1ac029798
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 07:28:02 -0600
+	Fri, 30 Aug 2013 14:28:24 +0100
+Received: from b01cxnp22036.gho.pok.ibm.com (b01cxnp22036.gho.pok.ibm.com [9.57.198.26])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 239A238C8087
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 09:28:20 -0400 (EDT)
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by b01cxnp22036.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7UDSJP510420300
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 13:28:19 GMT
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r7UDSI3U020850
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 10:28:19 -0300
 From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Subject: [RFC PATCH v3 32/35] mm: Modify move_freepages() to handle pages in
- the region allocator properly
-Date: Fri, 30 Aug 2013 18:54:06 +0530
-Message-ID: <20130830132404.4947.36588.stgit@srivatsabhat.in.ibm.com>
+Subject: [RFC PATCH v3 33/35] mm: Never change migratetypes of pageblocks
+ during freepage stealing
+Date: Fri, 30 Aug 2013 18:54:23 +0530
+Message-ID: <20130830132421.4947.9280.stgit@srivatsabhat.in.ibm.com>
 In-Reply-To: <20130830131221.4947.99764.stgit@srivatsabhat.in.ibm.com>
 References: <20130830131221.4947.99764.stgit@srivatsabhat.in.ibm.com>
 MIME-Version: 1.0
@@ -30,69 +30,87 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, mgorman@suse.de, hannes@cmpxchg.org, tony.luck@intel.com, matthew.garrett@nebula.com, dave@sr71.net, riel@redhat.com, arjan@linux.intel.com, srinivas.pandruvada@linux.intel.com, willy@linux.intel.com, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl
 Cc: gargankita@gmail.com, paulmck@linux.vnet.ibm.com, svaidy@linux.vnet.ibm.com, andi@firstfloor.org, isimatu.yasuaki@jp.fujitsu.com, santosh.shilimkar@ti.com, kosaki.motohiro@gmail.com, srivatsa.bhat@linux.vnet.ibm.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-There are situations in which the memory management subsystem needs to move
-pages from one migratetype to another, such as when setting up the per-zone
-migrate reserves (where freepages are moved from MIGRATE_MOVABLE to
-MIGRATE_RESERVE freelists).
+We would like to keep large chunks of memory (of the size of memory regions)
+populated by allocations of a single migratetype. This helps in influencing
+allocation/reclaim decisions at a per-migratetype basis, which would also
+automatically respect memory region boundaries.
 
-But the existing code that does freepage movement is unaware of the region
-allocator. In other words, it always assumes that the freepages that it is
-moving are always in the buddy page allocator's freelists. But with the
-introduction of the region allocator, the freepages could instead reside
-in the region allocator as well. So teach move_freepages() to check whether
-the pages are in the buddy page allocator's freelists or the region
-allocator and handle the two cases appropriately.
+For example, if a region is known to contain only MIGRATE_UNMOVABLE pages,
+we can skip trying targeted compaction on that region. Similarly, if a region
+has only MIGRATE_MOVABLE pages, then the likelihood of successful targeted
+evacuation of that region is higher, as opposed to having a few unmovable
+pages embedded in a region otherwise containing mostly movable allocations.
+Thus, it is beneficial to try and keep memory allocations homogeneous (in
+terms of the migratetype) in region-sized chunks of memory.
 
-The region allocator is designed in such a way that it always allocates
-or receives entire memory regions as a single unit. To retain these
-semantics during freepage movement, we first move all the pages of that
-region from the region allocator to the MIGRATE_MOVABLE buddy freelist
-and then move the requested page(s) from MIGRATE_MOVABLE to the required
-migratetype.
+Changing the migratetypes of pageblocks during freepage stealing comes in the
+way of this effort, since it fragments the ownership of memory segments.
+So never change the ownership of pageblocks during freepage stealing.
 
 Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
 ---
 
- mm/page_alloc.c |   18 +++++++++++++++++-
- 1 file changed, 17 insertions(+), 1 deletion(-)
+ mm/page_alloc.c |   36 ++++++++++--------------------------
+ 1 file changed, 10 insertions(+), 26 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index fc530ff..3ce0c61 100644
+index 3ce0c61..e303351 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1557,7 +1557,7 @@ int move_freepages(struct zone *zone,
- 	struct page *page;
- 	unsigned long order;
- 	struct free_area *area;
--	int pages_moved = 0, old_mt;
-+	int pages_moved = 0, old_mt, region_id;
+@@ -1648,14 +1648,16 @@ static void change_pageblock_range(struct page *pageblock_page,
+ /*
+  * If breaking a large block of pages, move all free pages to the preferred
+  * allocation list. If falling back for a reclaimable kernel allocation, be
+- * more aggressive about taking ownership of free pages.
++ * more aggressive about borrowing the free pages.
+  *
+- * On the other hand, never change migration type of MIGRATE_CMA pageblocks
+- * nor move CMA pages to different free lists. We don't want unmovable pages
+- * to be allocated from MIGRATE_CMA areas.
++ * On the other hand, never move CMA pages to different free lists. We don't
++ * want unmovable pages to be allocated from MIGRATE_CMA areas.
+  *
+- * Returns the new migratetype of the pageblock (or the same old migratetype
+- * if it was unchanged).
++ * Also, we *NEVER* change the pageblock migratetype of any block of memory.
++ * (IOW, we only try to _loan_ the freepages from a fallback list, but never
++ * try to _own_ them.)
++ *
++ * Returns the migratetype of the fallback list.
+  */
+ static int try_to_steal_freepages(struct zone *zone, struct page *page,
+ 				  int start_type, int fallback_type)
+@@ -1665,28 +1667,10 @@ static int try_to_steal_freepages(struct zone *zone, struct page *page,
+ 	if (is_migrate_cma(fallback_type))
+ 		return fallback_type;
  
- #ifndef CONFIG_HOLES_IN_ZONE
- 	/*
-@@ -1584,7 +1584,23 @@ int move_freepages(struct zone *zone,
- 			continue;
- 		}
+-	/* Take ownership for orders >= pageblock_order */
+-	if (current_order >= pageblock_order) {
+-		change_pageblock_range(page, current_order, start_type);
+-		return start_type;
+-	}
+-
+ 	if (current_order >= pageblock_order / 2 ||
+ 	    start_type == MIGRATE_RECLAIMABLE ||
+-	    page_group_by_mobility_disabled) {
+-		int pages;
+-
+-		pages = move_freepages_block(zone, page, start_type);
+-
+-		/* Claim the whole block if over half of it is free */
+-		if (pages >= (1 << (pageblock_order-1)) ||
+-				page_group_by_mobility_disabled) {
+-
+-			set_pageblock_migratetype(page, start_type);
+-			return start_type;
+-		}
+-
+-	}
++	    page_group_by_mobility_disabled)
++		move_freepages_block(zone, page, start_type);
  
-+		/*
-+		 * If the page is in the region allocator, we first move the
-+		 * region to the MIGRATE_MOVABLE buddy freelists and then move
-+		 * that page to the freelist of the requested migratetype.
-+		 * This is because the region allocator operates on whole region-
-+		 * sized chunks, whereas here we want to move pages in much
-+		 * smaller chunks.
-+		 */
- 		order = page_order(page);
-+		if (page_in_region_allocator(page)) {
-+			region_id = page_zone_region_id(page);
-+			__del_from_region_allocator(zone, order, MIGRATE_MOVABLE,
-+						    region_id);
-+
-+			continue; /* Try this page again from the buddy-list */
-+		}
-+
- 		old_mt = get_freepage_migratetype(page);
- 		area = &zone->free_area[order];
- 		move_page_freelist(page, &area->free_list[old_mt],
+ 	return fallback_type;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
