@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 210C56B0033
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2013 23:38:45 -0400 (EDT)
-Message-ID: <522013B9.3040609@huawei.com>
-Date: Fri, 30 Aug 2013 11:38:33 +0800
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 79E2D6B0033
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2013 23:41:33 -0400 (EDT)
+Message-ID: <5220143A.808@huawei.com>
+Date: Fri, 30 Aug 2013 11:40:42 +0800
 From: Jianguo Wu <wujianguo@huawei.com>
 MIME-Version: 1.0
-Subject: [PATCH 2/5] mm/sparse: use N_MEMORY instead of N_HIGH_MEMORY
+Subject: [PATCH 3/5] mm/vmemmap: use N_MEMORY instead of N_HIGH_MEMORY
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, laijs@cn.fujitsu.com
-Cc: Wen Congyang <wency@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Johannes Weiner <hannes@cmpxchg.org>, davem@davemloft.net, ben@decadent.org.uk, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 Since commit 8219fc48a(mm: node_states: introduce N_MEMORY),
 we introduced N_MEMORY, now N_MEMORY stands for the nodes that has any memory,
@@ -23,22 +23,22 @@ we should use N_MEMORY instead.
 
 Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
 ---
- mm/sparse.c |    2 +-
+ mm/sparse-vmemmap.c |    2 +-
  1 files changed, 1 insertions(+), 1 deletions(-)
 
-diff --git a/mm/sparse.c b/mm/sparse.c
-index 308d503..8519d6a 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -64,7 +64,7 @@ static struct mem_section noinline __init_refok *sparse_index_alloc(int nid)
- 				   sizeof(struct mem_section);
- 
+diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
+index 27eeab3..ca8f46b 100644
+--- a/mm/sparse-vmemmap.c
++++ b/mm/sparse-vmemmap.c
+@@ -52,7 +52,7 @@ void * __meminit vmemmap_alloc_block(unsigned long size, int node)
  	if (slab_is_available()) {
--		if (node_state(nid, N_HIGH_MEMORY))
-+		if (node_state(nid, N_MEMORY))
- 			section = kzalloc_node(array_size, GFP_KERNEL, nid);
- 		else
- 			section = kzalloc(array_size, GFP_KERNEL);
+ 		struct page *page;
+ 
+-		if (node_state(node, N_HIGH_MEMORY))
++		if (node_state(node, N_MEMORY))
+ 			page = alloc_pages_node(
+ 				node, GFP_KERNEL | __GFP_ZERO | __GFP_REPEAT,
+ 				get_order(size));
 -- 
 1.7.1
 
