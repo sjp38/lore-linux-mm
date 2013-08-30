@@ -1,120 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id A88506B0036
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 06:27:02 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id lj1so2162992pab.29
-        for <linux-mm@kvack.org>; Fri, 30 Aug 2013 03:27:02 -0700 (PDT)
-Message-ID: <5220736E.5050503@ozlabs.ru>
-Date: Fri, 30 Aug 2013 20:26:54 +1000
-From: Alexey Kardashevskiy <aik@ozlabs.ru>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 12A076B0033
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 07:56:53 -0400 (EDT)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [PATCH 2/4] mm/acpi: use NUMA_NO_NODE
+Date: Fri, 30 Aug 2013 14:07:37 +0200
+Message-ID: <1489693.CsKFcLgBvu@vostro.rjw.lan>
+In-Reply-To: <521FF494.6000504@huawei.com>
+References: <521FF494.6000504@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v9 00/13] KVM: PPC: IOMMU in-kernel handling of VFIO
-References: <1377679070-3515-1-git-send-email-aik@ozlabs.ru>
-In-Reply-To: <1377679070-3515-1-git-send-email-aik@ozlabs.ru>
-Content-Type: text/plain; charset=KOI8-R
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexey Kardashevskiy <aik@ozlabs.ru>, Gleb Natapov <gleb@redhat.com>
-Cc: linuxppc-dev@lists.ozlabs.org, David Gibson <david@gibson.dropbear.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Graf <agraf@suse.de>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kvm-ppc@vger.kernel.org, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>
+To: Jianguo Wu <wujianguo@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, lenb@kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 08/28/2013 06:37 PM, Alexey Kardashevskiy wrote:
-> This accelerates VFIO DMA operations on POWER by moving them
-> into kernel.
+On Friday, August 30, 2013 09:25:40 AM Jianguo Wu wrote:
+> Use more appropriate NUMA_NO_NODE instead of -1
 > 
-> This depends on VFIO external API patch which is on its way to upstream.
+> Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
+
+I'll queue this up for 3.13.
+
+Thanks,
+Rafael
+
+
+> ---
+>  drivers/acpi/acpi_memhotplug.c |    2 +-
+>  drivers/acpi/numa.c            |    4 ++--
+>  2 files changed, 3 insertions(+), 3 deletions(-)
 > 
-> Changes:
-> v9:
-> * replaced the "link logical bus number to IOMMU group" ioctl to KVM
-> with a KVM device doing the same thing, i.e. the actual changes are in
-> these 3 patches:
->   KVM: PPC: reserve a capability and KVM device type for realmode VFIO
->   KVM: PPC: remove warning from kvmppc_core_destroy_vm
->   KVM: PPC: Add support for IOMMU in-kernel handling
+> diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
+> index 999adb5..c00a3a7 100644
+> --- a/drivers/acpi/acpi_memhotplug.c
+> +++ b/drivers/acpi/acpi_memhotplug.c
+> @@ -281,7 +281,7 @@ static void acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
+>  		if (!info->enabled)
+>  			continue;
+>  
+> -		if (nid < 0)
+> +		if (nid == NUMA_NO_NODE)
+>  			nid = memory_add_physaddr_to_nid(info->start_addr);
+>  
+>  		acpi_unbind_memory_blocks(info, handle);
+> diff --git a/drivers/acpi/numa.c b/drivers/acpi/numa.c
+> index 33e609f..09f79a2 100644
+> --- a/drivers/acpi/numa.c
+> +++ b/drivers/acpi/numa.c
+> @@ -73,7 +73,7 @@ int acpi_map_pxm_to_node(int pxm)
+>  {
+>  	int node = pxm_to_node_map[pxm];
+>  
+> -	if (node < 0) {
+> +	if (node == NUMA_NO_NODE) {
+>  		if (nodes_weight(nodes_found_map) >= MAX_NUMNODES)
+>  			return NUMA_NO_NODE;
+>  		node = first_unset_node(nodes_found_map);
+> @@ -334,7 +334,7 @@ int acpi_get_pxm(acpi_handle h)
+>  
+>  int acpi_get_node(acpi_handle *handle)
+>  {
+> -	int pxm, node = -1;
+> +	int pxm, node = NUMA_NO_NODE;
+>  
+>  	pxm = acpi_get_pxm(handle);
+>  	if (pxm >= 0 && pxm < MAX_PXM_DOMAINS)
 > 
-> * moved some VFIO external API bits to a separate patch to reduce the size
-> of the "KVM: PPC: Add support for IOMMU in-kernel handling" patch
-> 
-> * fixed code style problems reported by checkpatch.pl.
-> 
-> v8:
-> * fixed comments about capabilities numbers
-> 
-> v7:
-> * rebased on v3.11-rc3.
-> * VFIO external user API will go through VFIO tree so it is
-> excluded from this series.
-> * As nobody ever reacted on "hashtable: add hash_for_each_possible_rcu_notrace()",
-> Ben suggested to push it via his tree so I included it to the series.
-> * realmode_(get|put)_page is reworked.
-> 
-> More details in the individual patch comments.
-> 
-> Alexey Kardashevskiy (13):
->   KVM: PPC: POWERNV: move iommu_add_device earlier
->   hashtable: add hash_for_each_possible_rcu_notrace()
->   KVM: PPC: reserve a capability number for multitce support
->   KVM: PPC: reserve a capability and KVM device type for realmode VFIO
-
-
-Hi Gleb!
-
-Could you please review and pick (if they are ok) the two "capability"
-patches from above?
-
-It would be cool if you also looked at "KVM: PPC: Add support for IOMMU
-in-kernel handling", the part about KVM device for SPAPR TCE IOMMU table.
-
-Thanks!
-
-
-
->   powerpc: Prepare to support kernel handling of IOMMU map/unmap
->   powerpc: add real mode support for dma operations on powernv
->   KVM: PPC: enable IOMMU_API for KVM_BOOK3S_64 permanently
->   KVM: PPC: Add support for multiple-TCE hcalls
->   powerpc/iommu: rework to support realmode
->   KVM: PPC: remove warning from kvmppc_core_destroy_vm
->   KVM: PPC: add trampolines for VFIO external API
->   KVM: PPC: Add support for IOMMU in-kernel handling
->   KVM: PPC: Add hugepage support for IOMMU in-kernel handling
-> 
->  Documentation/virtual/kvm/api.txt                  |  26 +
->  .../virtual/kvm/devices/spapr_tce_iommu.txt        |  37 ++
->  arch/powerpc/include/asm/iommu.h                   |  18 +-
->  arch/powerpc/include/asm/kvm_host.h                |  38 ++
->  arch/powerpc/include/asm/kvm_ppc.h                 |  16 +-
->  arch/powerpc/include/asm/machdep.h                 |  12 +
->  arch/powerpc/include/asm/pgtable-ppc64.h           |   2 +
->  arch/powerpc/include/uapi/asm/kvm.h                |   8 +
->  arch/powerpc/kernel/iommu.c                        | 243 +++++----
->  arch/powerpc/kvm/Kconfig                           |   1 +
->  arch/powerpc/kvm/book3s_64_vio.c                   | 597 ++++++++++++++++++++-
->  arch/powerpc/kvm/book3s_64_vio_hv.c                | 408 +++++++++++++-
->  arch/powerpc/kvm/book3s_hv.c                       |  42 +-
->  arch/powerpc/kvm/book3s_hv_rmhandlers.S            |   8 +-
->  arch/powerpc/kvm/book3s_pr_papr.c                  |  35 ++
->  arch/powerpc/kvm/powerpc.c                         |   4 +
->  arch/powerpc/mm/init_64.c                          |  50 +-
->  arch/powerpc/platforms/powernv/pci-ioda.c          |  57 +-
->  arch/powerpc/platforms/powernv/pci-p5ioc2.c        |   2 +-
->  arch/powerpc/platforms/powernv/pci.c               |  75 ++-
->  arch/powerpc/platforms/powernv/pci.h               |   3 +-
->  arch/powerpc/platforms/pseries/iommu.c             |   8 +-
->  include/linux/hashtable.h                          |  15 +
->  include/linux/kvm_host.h                           |   1 +
->  include/linux/mm.h                                 |  14 +
->  include/linux/page-flags.h                         |   4 +-
->  include/uapi/linux/kvm.h                           |   3 +
->  virt/kvm/kvm_main.c                                |   5 +
->  28 files changed, 1564 insertions(+), 168 deletions(-)
->  create mode 100644 Documentation/virtual/kvm/devices/spapr_tce_iommu.txt
-> 
-
-
 -- 
-Alexey
+I speak only for myself.
+Rafael J. Wysocki, Intel Open Source Technology Center.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
