@@ -1,88 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 8D8D96B0033
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 03:41:57 -0400 (EDT)
-Received: by mail-ea0-f174.google.com with SMTP id z15so719002ead.19
-        for <linux-mm@kvack.org>; Fri, 30 Aug 2013 00:41:56 -0700 (PDT)
-Date: Fri, 30 Aug 2013 09:41:52 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 5/5] mm/cgroup: use N_MEMORY instead of N_HIGH_MEMORY
-Message-ID: <20130830074152.GA28658@dhcp22.suse.cz>
-References: <52201539.8050003@huawei.com>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 3134D6B0033
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 04:19:44 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id bg4so2031806pad.4
+        for <linux-mm@kvack.org>; Fri, 30 Aug 2013 01:19:43 -0700 (PDT)
+Message-ID: <52205597.3090609@synopsys.com>
+Date: Fri, 30 Aug 2013 13:49:35 +0530
+From: Vineet Gupta <vineetg76@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <52201539.8050003@huawei.com>
+Subject: Re: ipc-msg broken again on 3.11-rc7? (was Re: linux-next: Tree for
+ Jun 21 [ BROKEN ipc/ipc-msg ])
+References: <CA+icZUXuw7QBn4CPLLuiVUjHin0m6GRdbczGw=bZY+Z60sXNow@mail.gmail.com> <CA+icZUVbUD1tUa_ORtn_ZZebpp3gXXHGAcNe0NdYPXPMPoABuA@mail.gmail.com> <1372192414.1888.8.camel@buesod1.americas.hpqcorp.net> <CA+icZUXgOd=URJBH5MGAZKdvdkMpFt+5mRxtzuDzq_vFHpoc2A@mail.gmail.com> <1372202983.1888.22.camel@buesod1.americas.hpqcorp.net> <521DE5D7.4040305@synopsys.com> <CA+icZUUrZG8pYqKcHY3DcYAuuw=vbdUvs6ZXDq5meBMjj6suFg@mail.gmail.com> <C2D7FE5348E1B147BCA15975FBA23075140FA3@IN01WEMBXA.internal.synopsys.com> <CA+icZUUn-r8iq6TVMAKmgJpQm4FhOE4b4QN_Yy=1L=0Up=rkBA@mail.gmail.com>
+In-Reply-To: <CA+icZUUn-r8iq6TVMAKmgJpQm4FhOE4b4QN_Yy=1L=0Up=rkBA@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jianguo Wu <wujianguo@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, tj@kernel.org, laijs@cn.fujitsu.com, cgroups@vger.kernel.org, containers@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wen Congyang <wency@cn.fujitsu.com>
+To: sedat.dilek@gmail.com
+Cc: linus Torvalds <torvalds@linux-foundation.org>, Davidlohr Bueso <davidlohr.bueso@hp.com>, linux-next <linux-next@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Manfred Spraul <manfred@colorfullife.com>, Jonathan Gonzalez <jgonzalez@linets.cl>
 
-On Fri 30-08-13 11:44:57, Jianguo Wu wrote:
-> Since commit 8219fc48a(mm: node_states: introduce N_MEMORY),
+Ping ?
 
-But this very same commit also says:
-"
-    A.example 2) mm/page_cgroup.c use N_HIGH_MEMORY twice:
-    
-        One is in page_cgroup_init(void):
-                for_each_node_state(nid, N_HIGH_MEMORY) {
-    
-        It means if the node have memory, we will allocate page_cgroup map for
-        the node. We should use N_MEMORY instead here to gaim more clearly.
-    
-        The second using is in alloc_page_cgroup():
-                if (node_state(nid, N_HIGH_MEMORY))
-                        addr = vzalloc_node(size, nid);
-    
-        It means if the node has high or normal memory that can be allocated
-        from kernel. We should keep N_HIGH_MEMORY here, and it will be better
-        if the "any memory" semantic of N_HIGH_MEMORY is removed.
-"
+It seems 3.11 is pretty close to releasing but we stil have LTP msgctl08 causing a
+hang (atleast on ARC) for both linux-next 20130829 as well as Linus tree.
 
-Which to me sounds like N_HIGH_MEMORY should be kept here. To be honest,
-the distinction is not entirely clear to me. It was supposed to make
-code cleaner but it apparently causes confusion.
+So far, I haven't seemed to have drawn attention of people involved.
 
-It would also help if you CCed Lai Jiangshan who has introduced this
-distinction. CCed now.
+-Vineet
 
-I wasn't CCed on the rest of the series but if you do the same
-conversion, please make sure that this is not the case for others as
-well.
+On 08/29/2013 01:22 PM, Sedat Dilek wrote:
+> On Thu, Aug 29, 2013 at 9:21 AM, Vineet Gupta
+> <Vineet.Gupta1@synopsys.com> wrote:
+>> On 08/29/2013 08:34 AM, Sedat Dilek wrote:
+>>> On Wed, Aug 28, 2013 at 1:58 PM, Vineet Gupta
+>>> <Vineet.Gupta1@synopsys.com> wrote:
+>>>> Hi David,
+>>>>
 
-> we introduced N_MEMORY, now N_MEMORY stands for the nodes that has any memory,
-> and N_HIGH_MEMORY stands for the nodes that has normal or high memory.
+[....]
+
+>>>> LTP msgctl08 hangs on 3.11-rc7 (ARC port) with some of my local changes. I
+>>>> bisected it, sigh... didn't look at this thread earlier :-( and landed into this.
+>>>>
+>>>> ------------->8------------------------------------
+>>>> 3dd1f784ed6603d7ab1043e51e6371235edf2313 is the first bad commit
+>>>> commit 3dd1f784ed6603d7ab1043e51e6371235edf2313
+>>>> Author: Davidlohr Bueso <davidlohr.bueso@hp.com>
+>>>> Date:   Mon Jul 8 16:01:17 2013 -0700
+>>>>
+>>>>     ipc,msg: shorten critical region in msgsnd
+>>>>
+>>>>     do_msgsnd() is another function that does too many things with the ipc
+>>>>     object lock acquired.  Take it only when needed when actually updating
+>>>>     msq.
+>>>> ------------->8------------------------------------
+>>>>
+>>>> If I revert 3dd1f784ed66 and 9ad66ae "ipc: remove unused functions" - the test
+>>>> passes. I can confirm that linux-next also has the issue (didn't try the revert
+>>>> there though).
+>>>>
+>>>> 1. arc 3.11-rc7 config attached (UP + PREEMPT)
+>>>> 2. dmesg prints "msgmni has been set to 479"
+>>>> 3. LTP output (this is slightly dated source, so prints might vary)
+>>>>
+>>>> ------------->8------------------------------------
+>>>> <<<test_start>>>
+>>>> tag=msgctl08 stime=1377689180
+>>>> cmdline="msgctl08"
+>>>> contacts=""
+>>>> analysis=exit
+>>>> initiation_status="ok"
+>>>> <<<test_output>>>
+>>>> ------------->8-------- hung here ------------------
+>>>>
+>>>>
+>>>> Let me know if you need more data/test help.
+>>>>
+>>> Cannot say much to your constellation as I had the issue on x86-64 and
+>>> Linux-next.
+>>> But I have just seen a post-v3.11-rc7 IPC-fix in [1].
+>>>
+>>> I have here a v3.11-rc7 kernel with drm-intel-nightly on top... did not run LTP.
+>>
+>> Not sure what you mean - I'd posted that Im seeing the issue on ARC Linux (an FPGA
+>> board) 3.11-rc7 as well as linux-next of yesterday.
+>>
 > 
-> The code here need to handle with the nodes which have memory,
-> we should use N_MEMORY instead.
+> I am not saying there is no issue, but I have no possibility to test
+> for ARC arch.
 > 
-> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
-> ---
->  mm/page_cgroup.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
+>>> Which LTP release do you use?
+>>
+>> The LTP build I generally use is from a 2007 based sources (lazy me). However I
+>> knew this would come up so before posting, I'd built the latest from buildroot and
+>> ran the msgctl08 from there standalone and it did the same thing.
+>>
 > 
-> diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-> index 6d757e3..f6f7603 100644
-> --- a/mm/page_cgroup.c
-> +++ b/mm/page_cgroup.c
-> @@ -116,7 +116,7 @@ static void *__meminit alloc_page_cgroup(size_t size, int nid)
->  		return addr;
->  	}
->  
-> -	if (node_state(nid, N_HIGH_MEMORY))
-> +	if (node_state(nid, N_MEMORY))
->  		addr = vzalloc_node(size, nid);
->  	else
->  		addr = vzalloc(size);
-> -- 
-> 1.7.1
+> Try always latest LTP-stable (03-May-2013 is what I tried). AFAICS a
+> new release is planned soon.
 > 
+>>> Might be good to attach your kernel-config for followers?
+>>
+>> It was already there in my orig msg - you probably missed it.
+>>
 > 
-
--- 
-Michal Hocko
-SUSE Labs
+> I have got that response from you only :-).
+> 
+>>> [1] http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=368ae537e056acd3f751fa276f48423f06803922
+>>
+>> I tried linux-next of today, same deal - msgctl08 still hangs.
+>>
+> 
+> That above fix [1] in Linus-tree is also in next-20130828.
+> 
+> Hope Davidlohr and fellows can help you.
+> 
+> - Sedat -
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
