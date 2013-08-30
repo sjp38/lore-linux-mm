@@ -1,61 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 776586B0033
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 12:58:27 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id AF3316B0036
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 12:58:29 -0400 (EDT)
 From: Alex Thorlton <athorlton@sgi.com>
-Subject: [RFC PATCH] Increase locking granularity in THP page fault code
-Date: Fri, 30 Aug 2013 11:58:16 -0500
-Message-Id: <1377881897-138063-1-git-send-email-athorlton@sgi.com>
+Subject: [RFC PATCH] Change THP code to use pud_page(pud)->ptl lock page_table_lock
+Date: Fri, 30 Aug 2013 11:58:17 -0500
+Message-Id: <1377881897-138063-2-git-send-email-athorlton@sgi.com>
+In-Reply-To: <1377881897-138063-1-git-send-email-athorlton@sgi.com>
+References: <1377881897-138063-1-git-send-email-athorlton@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Robin Holt <robinmholt@gmail.com>, Alex Thorlton <athorlton@sgi.com>, linux-mm@kvack.org
 
-We have a threaded page fault scaling test that is performing very
-poorly due to the use of the page_table_lock in the THP fault code
-path. By replacing the page_table_lock with the ptl on the pud_page
-(need CONFIG_SPLIT_PTLOCKS for this to work), we're able to increase
-the granularity of the locking here by a factor of 512, i.e. instead
-of locking all 256TB of addressable memory, we only lock the 512GB that
-is handled by a single pud_page.
+This patch changes out the page_table_lock for the pud_page ptl in the
+THP fault path; pretty self-explanatory.  I got lazy and commented out
+the spinlock assertion in follow_trans_huge_pmd instead of digging up
+the pud_page ptl in this function.  This is just a proof of concept, so
+I didn't feel that it was too important to keep around for now. 
 
-The test I'm running creates 512 threads, pins each thread to a cpu, has
-the threads allocate 512mb of memory each and then touch the first byte
-of each 4k chunk of the allocated memory.  Here are the timings from
-this test on 3.11-rc7, clean, THP on:
-
-real	22m50.904s
-user	15m26.072s
-sys	11430m19.120s
-
-And here are the timings with my modified kernel, THP on:
-
-real	0m37.018s
-user	21m39.164s
-sys	155m9.132s
-
-As you can see, we get a huge performance boost by locking a more
-targeted chunk of memory instead of locking the whole page table.  At
-this point, I'm comfortable saying that there are obvious benefits to
-increasing the granularity of the locking, but I'm not sure that I've
-done this in the best way possible.  Mainly, I'm not positive that using
-the pud_page lock actually protects everything that we're concerned
-about locking here.  I'm hoping that everyone can provide some input
-on whether or not this seems like a reasonable move to make and, if so,
-confirm that I've locked things appropriately.
-
-As a side note, we still have some pretty significant scaling issues
-with this test, both with THP on, and off.  I'm cleaning up the locking
-here first as this is causing the biggest performance hit.
-
-Alex Thorlton (1):
-  Change THP code to use pud_page(pud)->ptl lock instead of
-    page_table_lock
-
+---
  mm/huge_memory.c | 4 ++--
  mm/memory.c      | 6 +++---
  2 files changed, 5 insertions(+), 5 deletions(-)
 
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index a92012a..d3b34e2f 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1240,10 +1240,10 @@ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
+ 				   pmd_t *pmd,
+ 				   unsigned int flags)
+ {
+-	struct mm_struct *mm = vma->vm_mm;
++//	struct mm_struct *mm = vma->vm_mm;
+ 	struct page *page = NULL;
+ 
+-	assert_spin_locked(&mm->page_table_lock);
++//	assert_spin_locked(&mm->page_table_lock);
+ 
+ 	if (flags & FOLL_WRITE && !pmd_write(*pmd))
+ 		goto out;
+diff --git a/mm/memory.c b/mm/memory.c
+index af84bc0..5b4e910 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1527,15 +1527,15 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
+ 			split_huge_page_pmd(vma, address, pmd);
+ 			goto split_fallthrough;
+ 		}
+-		spin_lock(&mm->page_table_lock);
++		spin_lock(&pud_page(*pud)->ptl);
+ 		if (likely(pmd_trans_huge(*pmd))) {
+ 			if (unlikely(pmd_trans_splitting(*pmd))) {
+-				spin_unlock(&mm->page_table_lock);
++				spin_unlock(&pud_page(*pud)->ptl);
+ 				wait_split_huge_page(vma->anon_vma, pmd);
+ 			} else {
+ 				page = follow_trans_huge_pmd(vma, address,
+ 							     pmd, flags);
+-				spin_unlock(&mm->page_table_lock);
++				spin_unlock(&pud_page(*pud)->ptl);
+ 				*page_mask = HPAGE_PMD_NR - 1;
+ 				goto out;
+ 			}
 -- 
 1.7.12.4
 
