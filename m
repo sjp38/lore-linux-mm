@@ -1,89 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id D8FCA6B0033
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 13:58:17 -0400 (EDT)
-Date: Fri, 30 Aug 2013 13:57:45 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1377885465-j6jllnaq-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1377881897-138063-2-git-send-email-athorlton@sgi.com>
-References: <1377881897-138063-1-git-send-email-athorlton@sgi.com>
- <1377881897-138063-2-git-send-email-athorlton@sgi.com>
-Subject: Re: [RFC PATCH] Change THP code to use pud_page(pud)->ptl lock
- page_table_lock
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 1FF746B0036
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 13:58:44 -0400 (EDT)
+Date: Fri, 30 Aug 2013 20:58:35 +0300
+From: Gleb Natapov <gleb@redhat.com>
+Subject: Re: [PATCH v9 00/13] KVM: PPC: IOMMU in-kernel handling of VFIO
+Message-ID: <20130830175835.GF10142@redhat.com>
+References: <1377679070-3515-1-git-send-email-aik@ozlabs.ru>
+ <5220736E.5050503@ozlabs.ru>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <5220736E.5050503@ozlabs.ru>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Thorlton <athorlton@sgi.com>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Robin Holt <robinmholt@gmail.com>, linux-mm@kvack.org
+To: Alexey Kardashevskiy <aik@ozlabs.ru>
+Cc: linuxppc-dev@lists.ozlabs.org, David Gibson <david@gibson.dropbear.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Graf <agraf@suse.de>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kvm-ppc@vger.kernel.org, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>
 
-Hi Alex,
-
-I'm interested in the same issue, and posted patches a few hours ago
-too (Cc:ed you.) It can be interesting/helpful for you.
-
-On Fri, Aug 30, 2013 at 11:58:17AM -0500, Alex Thorlton wrote:
-> This patch changes out the page_table_lock for the pud_page ptl in the
-> THP fault path; pretty self-explanatory.  I got lazy and commented out
-> the spinlock assertion in follow_trans_huge_pmd instead of digging up
-> the pud_page ptl in this function.  This is just a proof of concept, so
-> I didn't feel that it was too important to keep around for now. 
+On Fri, Aug 30, 2013 at 08:26:54PM +1000, Alexey Kardashevskiy wrote:
+> On 08/28/2013 06:37 PM, Alexey Kardashevskiy wrote:
+> > This accelerates VFIO DMA operations on POWER by moving them
+> > into kernel.
+> > 
+> > This depends on VFIO external API patch which is on its way to upstream.
+> > 
+> > Changes:
+> > v9:
+> > * replaced the "link logical bus number to IOMMU group" ioctl to KVM
+> > with a KVM device doing the same thing, i.e. the actual changes are in
+> > these 3 patches:
+> >   KVM: PPC: reserve a capability and KVM device type for realmode VFIO
+> >   KVM: PPC: remove warning from kvmppc_core_destroy_vm
+> >   KVM: PPC: Add support for IOMMU in-kernel handling
+> > 
+> > * moved some VFIO external API bits to a separate patch to reduce the size
+> > of the "KVM: PPC: Add support for IOMMU in-kernel handling" patch
+> > 
+> > * fixed code style problems reported by checkpatch.pl.
+> > 
+> > v8:
+> > * fixed comments about capabilities numbers
+> > 
+> > v7:
+> > * rebased on v3.11-rc3.
+> > * VFIO external user API will go through VFIO tree so it is
+> > excluded from this series.
+> > * As nobody ever reacted on "hashtable: add hash_for_each_possible_rcu_notrace()",
+> > Ben suggested to push it via his tree so I included it to the series.
+> > * realmode_(get|put)_page is reworked.
+> > 
+> > More details in the individual patch comments.
+> > 
+> > Alexey Kardashevskiy (13):
+> >   KVM: PPC: POWERNV: move iommu_add_device earlier
+> >   hashtable: add hash_for_each_possible_rcu_notrace()
+> >   KVM: PPC: reserve a capability number for multitce support
+> >   KVM: PPC: reserve a capability and KVM device type for realmode VFIO
 > 
-> ---
->  mm/huge_memory.c | 4 ++--
->  mm/memory.c      | 6 +++---
->  2 files changed, 5 insertions(+), 5 deletions(-)
 > 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index a92012a..d3b34e2f 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -1240,10 +1240,10 @@ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
->  				   pmd_t *pmd,
->  				   unsigned int flags)
->  {
-> -	struct mm_struct *mm = vma->vm_mm;
-> +//	struct mm_struct *mm = vma->vm_mm;
->  	struct page *page = NULL;
->  
-> -	assert_spin_locked(&mm->page_table_lock);
-> +//	assert_spin_locked(&mm->page_table_lock);
->  
->  	if (flags & FOLL_WRITE && !pmd_write(*pmd))
->  		goto out;
-> diff --git a/mm/memory.c b/mm/memory.c
-> index af84bc0..5b4e910 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1527,15 +1527,15 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
->  			split_huge_page_pmd(vma, address, pmd);
->  			goto split_fallthrough;
->  		}
-> -		spin_lock(&mm->page_table_lock);
-> +		spin_lock(&pud_page(*pud)->ptl);
->  		if (likely(pmd_trans_huge(*pmd))) {
->  			if (unlikely(pmd_trans_splitting(*pmd))) {
-> -				spin_unlock(&mm->page_table_lock);
-> +				spin_unlock(&pud_page(*pud)->ptl);
->  				wait_split_huge_page(vma->anon_vma, pmd);
->  			} else {
->  				page = follow_trans_huge_pmd(vma, address,
->  							     pmd, flags);
-> -				spin_unlock(&mm->page_table_lock);
-> +				spin_unlock(&pud_page(*pud)->ptl);
->  				*page_mask = HPAGE_PMD_NR - 1;
->  				goto out;
->  			}
+> Hi Gleb!
+> 
+> Could you please review and pick (if they are ok) the two "capability"
+> patches from above?
+> 
+> It would be cool if you also looked at "KVM: PPC: Add support for IOMMU
+> in-kernel handling", the part about KVM device for SPAPR TCE IOMMU table.
+> 
+> Thanks!
+Will do it next week.
 
-I think that other ptl holders should use pud_page->ptl rather than
-mm->page_table_lock. Otherwise we have a race that other threads can
-change *pmd when running on this code.
+> 
+> 
+> 
+> >   powerpc: Prepare to support kernel handling of IOMMU map/unmap
+> >   powerpc: add real mode support for dma operations on powernv
+> >   KVM: PPC: enable IOMMU_API for KVM_BOOK3S_64 permanently
+> >   KVM: PPC: Add support for multiple-TCE hcalls
+> >   powerpc/iommu: rework to support realmode
+> >   KVM: PPC: remove warning from kvmppc_core_destroy_vm
+> >   KVM: PPC: add trampolines for VFIO external API
+> >   KVM: PPC: Add support for IOMMU in-kernel handling
+> >   KVM: PPC: Add hugepage support for IOMMU in-kernel handling
+> > 
+> >  Documentation/virtual/kvm/api.txt                  |  26 +
+> >  .../virtual/kvm/devices/spapr_tce_iommu.txt        |  37 ++
+> >  arch/powerpc/include/asm/iommu.h                   |  18 +-
+> >  arch/powerpc/include/asm/kvm_host.h                |  38 ++
+> >  arch/powerpc/include/asm/kvm_ppc.h                 |  16 +-
+> >  arch/powerpc/include/asm/machdep.h                 |  12 +
+> >  arch/powerpc/include/asm/pgtable-ppc64.h           |   2 +
+> >  arch/powerpc/include/uapi/asm/kvm.h                |   8 +
+> >  arch/powerpc/kernel/iommu.c                        | 243 +++++----
+> >  arch/powerpc/kvm/Kconfig                           |   1 +
+> >  arch/powerpc/kvm/book3s_64_vio.c                   | 597 ++++++++++++++++++++-
+> >  arch/powerpc/kvm/book3s_64_vio_hv.c                | 408 +++++++++++++-
+> >  arch/powerpc/kvm/book3s_hv.c                       |  42 +-
+> >  arch/powerpc/kvm/book3s_hv_rmhandlers.S            |   8 +-
+> >  arch/powerpc/kvm/book3s_pr_papr.c                  |  35 ++
+> >  arch/powerpc/kvm/powerpc.c                         |   4 +
+> >  arch/powerpc/mm/init_64.c                          |  50 +-
+> >  arch/powerpc/platforms/powernv/pci-ioda.c          |  57 +-
+> >  arch/powerpc/platforms/powernv/pci-p5ioc2.c        |   2 +-
+> >  arch/powerpc/platforms/powernv/pci.c               |  75 ++-
+> >  arch/powerpc/platforms/powernv/pci.h               |   3 +-
+> >  arch/powerpc/platforms/pseries/iommu.c             |   8 +-
+> >  include/linux/hashtable.h                          |  15 +
+> >  include/linux/kvm_host.h                           |   1 +
+> >  include/linux/mm.h                                 |  14 +
+> >  include/linux/page-flags.h                         |   4 +-
+> >  include/uapi/linux/kvm.h                           |   3 +
+> >  virt/kvm/kvm_main.c                                |   5 +
+> >  28 files changed, 1564 insertions(+), 168 deletions(-)
+> >  create mode 100644 Documentation/virtual/kvm/devices/spapr_tce_iommu.txt
+> > 
+> 
+> 
+> -- 
+> Alexey
 
-Thanks,
-Naoya Horiguchi
+--
+			Gleb.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
