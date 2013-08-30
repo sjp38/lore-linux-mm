@@ -1,125 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 1FF746B0036
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 13:58:44 -0400 (EDT)
-Date: Fri, 30 Aug 2013 20:58:35 +0300
-From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: [PATCH v9 00/13] KVM: PPC: IOMMU in-kernel handling of VFIO
-Message-ID: <20130830175835.GF10142@redhat.com>
-References: <1377679070-3515-1-git-send-email-aik@ozlabs.ru>
- <5220736E.5050503@ozlabs.ru>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 527116B0033
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 15:58:54 -0400 (EDT)
+Subject: =?utf-8?q?Re=3A_=5Bpatch_0=2F7=5D_improve_memcg_oom_killer_robustness_v2?=
+Date: Fri, 30 Aug 2013 21:58:52 +0200
+From: "azurIt" <azurit@pobox.sk>
+References: <1375549200-19110-1-git-send-email-hannes@cmpxchg.org> <20130803170831.GB23319@cmpxchg.org>
+In-Reply-To: <20130803170831.GB23319@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5220736E.5050503@ozlabs.ru>
+Message-Id: <20130830215852.3E5D3D66@pobox.sk>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexey Kardashevskiy <aik@ozlabs.ru>
-Cc: linuxppc-dev@lists.ozlabs.org, David Gibson <david@gibson.dropbear.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Graf <agraf@suse.de>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kvm-ppc@vger.kernel.org, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>
+To: =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
+Cc: =?utf-8?q?Andrew_Morton?= <akpm@linux-foundation.org>, =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>, =?utf-8?q?David_Rientjes?= <rientjes@google.com>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, =?utf-8?q?KOSAKI_Motohiro?= <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri, Aug 30, 2013 at 08:26:54PM +1000, Alexey Kardashevskiy wrote:
-> On 08/28/2013 06:37 PM, Alexey Kardashevskiy wrote:
-> > This accelerates VFIO DMA operations on POWER by moving them
-> > into kernel.
-> > 
-> > This depends on VFIO external API patch which is on its way to upstream.
-> > 
-> > Changes:
-> > v9:
-> > * replaced the "link logical bus number to IOMMU group" ioctl to KVM
-> > with a KVM device doing the same thing, i.e. the actual changes are in
-> > these 3 patches:
-> >   KVM: PPC: reserve a capability and KVM device type for realmode VFIO
-> >   KVM: PPC: remove warning from kvmppc_core_destroy_vm
-> >   KVM: PPC: Add support for IOMMU in-kernel handling
-> > 
-> > * moved some VFIO external API bits to a separate patch to reduce the size
-> > of the "KVM: PPC: Add support for IOMMU in-kernel handling" patch
-> > 
-> > * fixed code style problems reported by checkpatch.pl.
-> > 
-> > v8:
-> > * fixed comments about capabilities numbers
-> > 
-> > v7:
-> > * rebased on v3.11-rc3.
-> > * VFIO external user API will go through VFIO tree so it is
-> > excluded from this series.
-> > * As nobody ever reacted on "hashtable: add hash_for_each_possible_rcu_notrace()",
-> > Ben suggested to push it via his tree so I included it to the series.
-> > * realmode_(get|put)_page is reworked.
-> > 
-> > More details in the individual patch comments.
-> > 
-> > Alexey Kardashevskiy (13):
-> >   KVM: PPC: POWERNV: move iommu_add_device earlier
-> >   hashtable: add hash_for_each_possible_rcu_notrace()
-> >   KVM: PPC: reserve a capability number for multitce support
-> >   KVM: PPC: reserve a capability and KVM device type for realmode VFIO
-> 
-> 
-> Hi Gleb!
-> 
-> Could you please review and pick (if they are ok) the two "capability"
-> patches from above?
-> 
-> It would be cool if you also looked at "KVM: PPC: Add support for IOMMU
-> in-kernel handling", the part about KVM device for SPAPR TCE IOMMU table.
-> 
-> Thanks!
-Will do it next week.
+>Hi azur,
+>
+>here is the x86-only rollup of the series for 3.2.
+>
+>Thanks!
+>Johannes
+>---
 
-> 
-> 
-> 
-> >   powerpc: Prepare to support kernel handling of IOMMU map/unmap
-> >   powerpc: add real mode support for dma operations on powernv
-> >   KVM: PPC: enable IOMMU_API for KVM_BOOK3S_64 permanently
-> >   KVM: PPC: Add support for multiple-TCE hcalls
-> >   powerpc/iommu: rework to support realmode
-> >   KVM: PPC: remove warning from kvmppc_core_destroy_vm
-> >   KVM: PPC: add trampolines for VFIO external API
-> >   KVM: PPC: Add support for IOMMU in-kernel handling
-> >   KVM: PPC: Add hugepage support for IOMMU in-kernel handling
-> > 
-> >  Documentation/virtual/kvm/api.txt                  |  26 +
-> >  .../virtual/kvm/devices/spapr_tce_iommu.txt        |  37 ++
-> >  arch/powerpc/include/asm/iommu.h                   |  18 +-
-> >  arch/powerpc/include/asm/kvm_host.h                |  38 ++
-> >  arch/powerpc/include/asm/kvm_ppc.h                 |  16 +-
-> >  arch/powerpc/include/asm/machdep.h                 |  12 +
-> >  arch/powerpc/include/asm/pgtable-ppc64.h           |   2 +
-> >  arch/powerpc/include/uapi/asm/kvm.h                |   8 +
-> >  arch/powerpc/kernel/iommu.c                        | 243 +++++----
-> >  arch/powerpc/kvm/Kconfig                           |   1 +
-> >  arch/powerpc/kvm/book3s_64_vio.c                   | 597 ++++++++++++++++++++-
-> >  arch/powerpc/kvm/book3s_64_vio_hv.c                | 408 +++++++++++++-
-> >  arch/powerpc/kvm/book3s_hv.c                       |  42 +-
-> >  arch/powerpc/kvm/book3s_hv_rmhandlers.S            |   8 +-
-> >  arch/powerpc/kvm/book3s_pr_papr.c                  |  35 ++
-> >  arch/powerpc/kvm/powerpc.c                         |   4 +
-> >  arch/powerpc/mm/init_64.c                          |  50 +-
-> >  arch/powerpc/platforms/powernv/pci-ioda.c          |  57 +-
-> >  arch/powerpc/platforms/powernv/pci-p5ioc2.c        |   2 +-
-> >  arch/powerpc/platforms/powernv/pci.c               |  75 ++-
-> >  arch/powerpc/platforms/powernv/pci.h               |   3 +-
-> >  arch/powerpc/platforms/pseries/iommu.c             |   8 +-
-> >  include/linux/hashtable.h                          |  15 +
-> >  include/linux/kvm_host.h                           |   1 +
-> >  include/linux/mm.h                                 |  14 +
-> >  include/linux/page-flags.h                         |   4 +-
-> >  include/uapi/linux/kvm.h                           |   3 +
-> >  virt/kvm/kvm_main.c                                |   5 +
-> >  28 files changed, 1564 insertions(+), 168 deletions(-)
-> >  create mode 100644 Documentation/virtual/kvm/devices/spapr_tce_iommu.txt
-> > 
-> 
-> 
-> -- 
-> Alexey
 
---
-			Gleb.
+Johannes,
+
+unfortunately, one problem arises: I have (again) cgroup which cannot be deleted :( it's a user who had very high memory usage and was reaching his limit very often. Do you need any info which i can gather now?
+
+azur
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
