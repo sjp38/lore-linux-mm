@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 203056B0080
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 09:25:29 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id 68A5D6B0089
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 09:25:56 -0400 (EDT)
 Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Fri, 30 Aug 2013 09:25:28 -0400
-Received: from b01cxnp23033.gho.pok.ibm.com (b01cxnp23033.gho.pok.ibm.com [9.57.198.28])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 4C5726E8048
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 09:25:25 -0400 (EDT)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by b01cxnp23033.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7UDPPDi22085644
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 13:25:25 GMT
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r7UDPNnv003284
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 09:25:24 -0400
+	Fri, 30 Aug 2013 07:25:55 -0600
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 830F019D8043
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 07:25:53 -0600 (MDT)
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7UDPrlY125480
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 07:25:53 -0600
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r7UDSjPs019038
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 07:28:46 -0600
 From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Subject: [RFC PATCH v3 24/35] mm: Propagate the sorted-buddy bias for picking
- free regions, to region allocator
-Date: Fri, 30 Aug 2013 18:51:25 +0530
-Message-ID: <20130830132123.4947.26449.stgit@srivatsabhat.in.ibm.com>
+Subject: [RFC PATCH v3 25/35] mm: Fix vmstat to also account for freepages in
+ the region allocator
+Date: Fri, 30 Aug 2013 18:51:50 +0530
+Message-ID: <20130830132143.4947.71496.stgit@srivatsabhat.in.ibm.com>
 In-Reply-To: <20130830131221.4947.99764.stgit@srivatsabhat.in.ibm.com>
 References: <20130830131221.4947.99764.stgit@srivatsabhat.in.ibm.com>
 MIME-Version: 1.0
@@ -30,79 +30,43 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, mgorman@suse.de, hannes@cmpxchg.org, tony.luck@intel.com, matthew.garrett@nebula.com, dave@sr71.net, riel@redhat.com, arjan@linux.intel.com, srinivas.pandruvada@linux.intel.com, willy@linux.intel.com, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl
 Cc: gargankita@gmail.com, paulmck@linux.vnet.ibm.com, svaidy@linux.vnet.ibm.com, andi@firstfloor.org, isimatu.yasuaki@jp.fujitsu.com, santosh.shilimkar@ti.com, kosaki.motohiro@gmail.com, srivatsa.bhat@linux.vnet.ibm.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The sorted-buddy page allocator keeps the buddy freelists sorted region-wise,
-and tries to pick lower numbered regions while allocating pages. The idea is
-to allocate regions in the increasing order of region number.
-
-Propagate the same bias to the region allocator as well. That is, make it
-favor lower numbered regions while allocating regions to the page allocator.
-To do this efficiently, add a bitmap to represent the regions in the region
-allocator, and use bitmap operations to manage these regions and to pick the
-lowest numbered free region efficiently.
+Currently vmstat considers only the freepages present in the buddy freelists
+of the page allocator. But with the newly introduced region allocator in
+place, freepages could be present in the region allocator as well. So teach
+vmstat to take them into consideration when reporting free memory.
 
 Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
 ---
 
- include/linux/mmzone.h |    1 +
- mm/page_alloc.c        |   19 ++++++++++++++++++-
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ mm/vmstat.c |    8 ++++++++
+ 1 file changed, 8 insertions(+)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index c2956dd..8c6e9f1 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -125,6 +125,7 @@ struct mem_region {
- struct region_allocator {
- 	struct mem_region	region[MAX_NR_ZONE_REGIONS];
- 	int			next_region;
-+	DECLARE_BITMAP(ralloc_mask, MAX_NR_ZONE_REGIONS);
- };
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 924babc..8cb7a10 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -829,6 +829,8 @@ static void frag_show_print(struct seq_file *m, pg_data_t *pgdat,
+ {
+ 	int i, order, t;
+ 	struct free_area *area;
++	struct free_area_region *reg_area;
++	struct region_allocator *reg_alloc;
  
- struct pglist_data;
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 78ae8f6..7e82872a 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -934,7 +934,7 @@ static void add_to_region_allocator(struct zone *z, struct free_list *free_list,
- 	struct free_area_region *reg_area;
- 	struct list_head *ralloc_list;
- 	unsigned long nr_pages;
--	int order;
-+	int order, *next_region;
+ 	seq_printf(m, "Node %d, zone %8s \n", pgdat->node_id, zone->name);
  
- 	if (WARN_ON(list_empty(&free_list->list)))
- 		return;
-@@ -951,6 +951,13 @@ static void add_to_region_allocator(struct zone *z, struct free_list *free_list,
- 
- 	WARN_ON(reg_area->nr_free != 0);
- 	reg_area->nr_free += nr_pages;
+@@ -845,6 +847,12 @@ static void frag_show_print(struct seq_file *m, pg_data_t *pgdat,
+ 				nr_free +=
+ 					area->free_list[t].mr_list[i].nr_free;
+ 			}
 +
-+	set_bit(region_id, reg_alloc->ralloc_mask);
-+	next_region = &reg_alloc->next_region;
++			/* Add up freepages in the region allocator as well */
++			reg_alloc = &zone->region_allocator;
++			reg_area = &reg_alloc->region[i].region_area[order];
++			nr_free += reg_area->nr_free;
 +
-+	if ((*next_region < 0) ||
-+			(*next_region > 0 && region_id < *next_region))
-+		*next_region = region_id;
- }
- 
- /* Delete freepages from the region allocator and add them to buddy freelists */
-@@ -981,6 +988,16 @@ static int del_from_region_allocator(struct zone *zone, unsigned int order,
- 	reg_area->nr_free -= nr_pages;
- 	WARN_ON(reg_area->nr_free != 0);
- 
-+	/* Pick a new next_region */
-+	clear_bit(next_region, reg_alloc->ralloc_mask);
-+	next_region = find_first_bit(reg_alloc->ralloc_mask,
-+				     MAX_NR_ZONE_REGIONS);
-+
-+	if (next_region >= MAX_NR_ZONE_REGIONS)
-+		next_region = -1; /* No free regions available */
-+
-+	reg_alloc->next_region = next_region;
-+
- 	return 0;
- }
- 
+ 			seq_printf(m, "%6lu ", nr_free);
+ 		}
+ 		seq_putc(m, '\n');
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
