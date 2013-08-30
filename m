@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 4C5B96B0096
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 09:28:25 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 3AF1F6B009A
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 09:28:32 -0400 (EDT)
 Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Fri, 30 Aug 2013 14:28:24 +0100
-Received: from b01cxnp22036.gho.pok.ibm.com (b01cxnp22036.gho.pok.ibm.com [9.57.198.26])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 239A238C8087
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 09:28:20 -0400 (EDT)
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by b01cxnp22036.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7UDSJP510420300
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 13:28:19 GMT
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r7UDSI3U020850
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 10:28:19 -0300
+	Fri, 30 Aug 2013 07:28:31 -0600
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id A7AD53E40026
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 07:27:29 -0600 (MDT)
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7UDRTo6210556
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 07:27:29 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r7UDRS39014114
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 07:27:29 -0600
 From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Subject: [RFC PATCH v3 33/35] mm: Never change migratetypes of pageblocks
- during freepage stealing
-Date: Fri, 30 Aug 2013 18:54:23 +0530
-Message-ID: <20130830132421.4947.9280.stgit@srivatsabhat.in.ibm.com>
+Subject: [RFC PATCH v3 30/35] mm: Provide a mechanism to check if a given page
+ is in the region allocator
+Date: Fri, 30 Aug 2013 18:53:31 +0530
+Message-ID: <20130830132329.4947.99949.stgit@srivatsabhat.in.ibm.com>
 In-Reply-To: <20130830131221.4947.99764.stgit@srivatsabhat.in.ibm.com>
 References: <20130830131221.4947.99764.stgit@srivatsabhat.in.ibm.com>
 MIME-Version: 1.0
@@ -30,87 +30,60 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, mgorman@suse.de, hannes@cmpxchg.org, tony.luck@intel.com, matthew.garrett@nebula.com, dave@sr71.net, riel@redhat.com, arjan@linux.intel.com, srinivas.pandruvada@linux.intel.com, willy@linux.intel.com, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl
 Cc: gargankita@gmail.com, paulmck@linux.vnet.ibm.com, svaidy@linux.vnet.ibm.com, andi@firstfloor.org, isimatu.yasuaki@jp.fujitsu.com, santosh.shilimkar@ti.com, kosaki.motohiro@gmail.com, srivatsa.bhat@linux.vnet.ibm.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-We would like to keep large chunks of memory (of the size of memory regions)
-populated by allocations of a single migratetype. This helps in influencing
-allocation/reclaim decisions at a per-migratetype basis, which would also
-automatically respect memory region boundaries.
-
-For example, if a region is known to contain only MIGRATE_UNMOVABLE pages,
-we can skip trying targeted compaction on that region. Similarly, if a region
-has only MIGRATE_MOVABLE pages, then the likelihood of successful targeted
-evacuation of that region is higher, as opposed to having a few unmovable
-pages embedded in a region otherwise containing mostly movable allocations.
-Thus, it is beneficial to try and keep memory allocations homogeneous (in
-terms of the migratetype) in region-sized chunks of memory.
-
-Changing the migratetypes of pageblocks during freepage stealing comes in the
-way of this effort, since it fragments the ownership of memory segments.
-So never change the ownership of pageblocks during freepage stealing.
+With the introduction of the region allocator, a freepage can be either
+in one of the buddy freelists or in the region allocator. In cases where we
+want to move freepages to a given migratetype's freelists, we will need to
+know where they were originally located. So provide a helper to distinguish
+whether the freepage resides in the region allocator or the buddy freelists.
 
 Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
 ---
 
- mm/page_alloc.c |   36 ++++++++++--------------------------
- 1 file changed, 10 insertions(+), 26 deletions(-)
+ mm/page_alloc.c |   31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 3ce0c61..e303351 100644
+index a62730b..3f49ca8 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1648,14 +1648,16 @@ static void change_pageblock_range(struct page *pageblock_page,
- /*
-  * If breaking a large block of pages, move all free pages to the preferred
-  * allocation list. If falling back for a reclaimable kernel allocation, be
-- * more aggressive about taking ownership of free pages.
-+ * more aggressive about borrowing the free pages.
-  *
-- * On the other hand, never change migration type of MIGRATE_CMA pageblocks
-- * nor move CMA pages to different free lists. We don't want unmovable pages
-- * to be allocated from MIGRATE_CMA areas.
-+ * On the other hand, never move CMA pages to different free lists. We don't
-+ * want unmovable pages to be allocated from MIGRATE_CMA areas.
-  *
-- * Returns the new migratetype of the pageblock (or the same old migratetype
-- * if it was unchanged).
-+ * Also, we *NEVER* change the pageblock migratetype of any block of memory.
-+ * (IOW, we only try to _loan_ the freepages from a fallback list, but never
-+ * try to _own_ them.)
-+ *
-+ * Returns the migratetype of the fallback list.
-  */
- static int try_to_steal_freepages(struct zone *zone, struct page *page,
- 				  int start_type, int fallback_type)
-@@ -1665,28 +1667,10 @@ static int try_to_steal_freepages(struct zone *zone, struct page *page,
- 	if (is_migrate_cma(fallback_type))
- 		return fallback_type;
- 
--	/* Take ownership for orders >= pageblock_order */
--	if (current_order >= pageblock_order) {
--		change_pageblock_range(page, current_order, start_type);
--		return start_type;
--	}
--
- 	if (current_order >= pageblock_order / 2 ||
- 	    start_type == MIGRATE_RECLAIMABLE ||
--	    page_group_by_mobility_disabled) {
--		int pages;
--
--		pages = move_freepages_block(zone, page, start_type);
--
--		/* Claim the whole block if over half of it is free */
--		if (pages >= (1 << (pageblock_order-1)) ||
--				page_group_by_mobility_disabled) {
--
--			set_pageblock_migratetype(page, start_type);
--			return start_type;
--		}
--
--	}
-+	    page_group_by_mobility_disabled)
-+		move_freepages_block(zone, page, start_type);
- 
- 	return fallback_type;
+@@ -1047,6 +1047,37 @@ static int del_from_region_allocator(struct zone *zone, unsigned int order,
  }
+ 
+ /*
++ * Return 1 if the page is in the region allocator, else return 0
++ * (which usually means that the page is in the buddy freelists).
++ */
++static int page_in_region_allocator(struct page *page)
++{
++	struct region_allocator *reg_alloc;
++	struct free_area_region *reg_area;
++	int order, region_id;
++
++	/* We keep only MAX_ORDER-1 pages in the region allocator */
++	order = page_order(page);
++	if (order != MAX_ORDER-1)
++		return 0;
++
++	/*
++	 * It is sufficient to check if (any of) the pages belonging to
++	 * that region are in the region allocator, because a page resides
++	 * in the region allocator if and only if all the pages of that
++	 * region are also in the region allocator.
++	 */
++	region_id = page_zone_region_id(page);
++	reg_alloc = &page_zone(page)->region_allocator;
++	reg_area = &reg_alloc->region[region_id].region_area[order];
++
++	if (reg_area->nr_free)
++		return 1;
++
++	return 0;
++}
++
++/*
+  * Freeing function for a buddy system allocator.
+  *
+  * The concept of a buddy system is to maintain direct-mapped table
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
