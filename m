@@ -1,97 +1,242 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 34B356B0037
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 04:43:23 -0400 (EDT)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout1.w1.samsung.com
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 62EB46B0039
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 04:43:28 -0400 (EDT)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout3.w1.samsung.com
  (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MSC00IZB5JWMI90@mailout1.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 30 Aug 2013 09:43:21 +0100 (BST)
+ 17 2011)) with ESMTP id <0MSC00FVQ5K8X990@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 30 Aug 2013 09:43:26 +0100 (BST)
 From: Krzysztof Kozlowski <k.kozlowski@samsung.com>
-Subject: [RFC PATCH 0/4] mm: migrate zbud pages
-Date: Fri, 30 Aug 2013 10:42:52 +0200
-Message-id: <1377852176-30970-1-git-send-email-k.kozlowski@samsung.com>
+Subject: [RFC PATCH 1/4] zbud: use page ref counter for zbud pages
+Date: Fri, 30 Aug 2013 10:42:53 +0200
+Message-id: <1377852176-30970-2-git-send-email-k.kozlowski@samsung.com>
+In-reply-to: <1377852176-30970-1-git-send-email-k.kozlowski@samsung.com>
+References: <1377852176-30970-1-git-send-email-k.kozlowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: Bob Liu <bob.liu@oracle.com>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Dave Hansen <dave.hansen@intel.com>, Minchan Kim <minchan@kernel.org>, Krzysztof Kozlowski <k.kozlowski@samsung.com>
+Cc: Bob Liu <bob.liu@oracle.com>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Dave Hansen <dave.hansen@intel.com>, Minchan Kim <minchan@kernel.org>, Krzysztof Kozlowski <k.kozlowski@samsung.com>, Tomasz Stanislawski <t.stanislaws@samsung.com>
 
-Hi,
+Use page reference counter for zbud pages. The ref counter replaces
+zbud_header.under_reclaim flag and ensures that zbud page won't be freed
+when zbud_free() is called during reclaim. It allows implementation of
+additional reclaim paths.
 
-Currently zbud pages are not movable and they cannot be allocated from CMA
-region. These patches add migration of zbud pages.
+The page count is incremented when:
+ - a handle is created and passed to zswap (in zbud_alloc()),
+ - user-supplied eviction callback is called (in zbud_reclaim_page()).
 
-The zbud migration code utilizes mapping so many exceptions to migrate
-code was added. It can be replaced for example with pin page
-control subsystem:
-http://article.gmane.org/gmane.linux.kernel.mm/105308
-In such case the zbud migration code (zbud_migrate_page()) can be safely
-re-used.
+Signed-off-by: Krzysztof Kozlowski <k.kozlowski@samsung.com>
+Signed-off-by: Tomasz Stanislawski <t.stanislaws@samsung.com>
+Reviewed-by: Bob Liu <bob.liu@oracle.com>
+---
+ mm/zbud.c |   97 +++++++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 52 insertions(+), 45 deletions(-)
 
-
-Patch "[PATCH 3/4] mm: use indirect zbud handle and radix tree" changes zbud
-handle to support migration. Now the handle is an index in radix tree and
-zbud_map() maps it to proper virtual address. This exposes race conditions,
-some of them are discussed already here:
-http://article.gmane.org/gmane.linux.kernel.mm/105988
-
-Races are fixed by adding internal map count for each zbud handle.
-The map count is increased on zbud_map() call.
-
-Some races between writeback and invalidate still exist. In such case a message
-can be seen in logs:
-  zbud: error: could not lookup handle 13810 in tree
-Patches from discussion above may resolve it.
-
-I have considered using "pgoff_t offset" as handle but it prevented storing
-duplicate pages in zswap.
-
-
-Patch "[PATCH 2/4] mm: use mapcount for identifying zbud pages" introduces
-PageZbud() function which identifies zbud pages by page->_mapcount.
-Dave Hansen proposed aliasing PG_zbud=PG_slab but in such case patch
-would be more intrusive.
-
-Any ideas for a better solution are welcome.
-
-
-This patch set is based on v3.11-rc7-30-g41615e8.
-
-
-This is continuation of my previous work: reclaiming zbud pages on migration
-and compaction. However it current solution is completely different so I am not
-attaching previous changelog.
-Previous patches can be found here:
- * [RFC PATCH v2 0/4] mm: reclaim zbud pages on migration and compaction
-   http://article.gmane.org/gmane.linux.kernel.mm/105153
- * [RFC PATCH 0/4] mm: reclaim zbud pages on migration and compaction
-   http://article.gmane.org/gmane.linux.kernel.mm/104801
-
-One patch from previous work is re-used along with minor changes:
-"[PATCH 1/4] zbud: use page ref counter for zbud pages"
- * Add missing spin_unlock in zbud_reclaim_page().
- * Decrease pool->pages_nr in zbud_free(), not when putting page. This also
-removes the need of holding lock while call to put_zbud_page().
-
-
-Best regards,
-Krzysztof Kozlowski
-
-
-Krzysztof Kozlowski (4):
-  zbud: use page ref counter for zbud pages
-  mm: use mapcount for identifying zbud pages
-  mm: use indirect zbud handle and radix tree
-  mm: migrate zbud pages
-
- include/linux/mm.h   |   23 +++
- include/linux/zbud.h |    3 +-
- mm/compaction.c      |    7 +
- mm/migrate.c         |   17 +-
- mm/zbud.c            |  552 +++++++++++++++++++++++++++++++++++++++++---------
- mm/zswap.c           |   28 ++-
- 6 files changed, 525 insertions(+), 105 deletions(-)
-
+diff --git a/mm/zbud.c b/mm/zbud.c
+index ad1e781..aa9a15c 100644
+--- a/mm/zbud.c
++++ b/mm/zbud.c
+@@ -109,7 +109,6 @@ struct zbud_header {
+ 	struct list_head lru;
+ 	unsigned int first_chunks;
+ 	unsigned int last_chunks;
+-	bool under_reclaim;
+ };
+ 
+ /*****************
+@@ -138,16 +137,9 @@ static struct zbud_header *init_zbud_page(struct page *page)
+ 	zhdr->last_chunks = 0;
+ 	INIT_LIST_HEAD(&zhdr->buddy);
+ 	INIT_LIST_HEAD(&zhdr->lru);
+-	zhdr->under_reclaim = 0;
+ 	return zhdr;
+ }
+ 
+-/* Resets the struct page fields and frees the page */
+-static void free_zbud_page(struct zbud_header *zhdr)
+-{
+-	__free_page(virt_to_page(zhdr));
+-}
+-
+ /*
+  * Encodes the handle of a particular buddy within a zbud page
+  * Pool lock should be held as this function accesses first|last_chunks
+@@ -188,6 +180,31 @@ static int num_free_chunks(struct zbud_header *zhdr)
+ 	return NCHUNKS - zhdr->first_chunks - zhdr->last_chunks - 1;
+ }
+ 
++/*
++ * Increases ref count for zbud page.
++ */
++static void get_zbud_page(struct zbud_header *zhdr)
++{
++	get_page(virt_to_page(zhdr));
++}
++
++/*
++ * Decreases ref count for zbud page and frees the page if it reaches 0
++ * (no external references, e.g. handles).
++ *
++ * Returns 1 if page was freed and 0 otherwise.
++ */
++static int put_zbud_page(struct zbud_header *zhdr)
++{
++	struct page *page = virt_to_page(zhdr);
++	if (put_page_testzero(page)) {
++		free_hot_cold_page(page, 0);
++		return 1;
++	}
++	return 0;
++}
++
++
+ /*****************
+  * API Functions
+ *****************/
+@@ -250,7 +267,7 @@ void zbud_destroy_pool(struct zbud_pool *pool)
+ int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
+ 			unsigned long *handle)
+ {
+-	int chunks, i, freechunks;
++	int chunks, i;
+ 	struct zbud_header *zhdr = NULL;
+ 	enum buddy bud;
+ 	struct page *page;
+@@ -273,6 +290,7 @@ int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
+ 				bud = FIRST;
+ 			else
+ 				bud = LAST;
++			get_zbud_page(zhdr);
+ 			goto found;
+ 		}
+ 	}
+@@ -284,6 +302,10 @@ int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
+ 		return -ENOMEM;
+ 	spin_lock(&pool->lock);
+ 	pool->pages_nr++;
++	/*
++	 * We will be using zhdr instead of page, so
++	 * don't increase the page count.
++	 */
+ 	zhdr = init_zbud_page(page);
+ 	bud = FIRST;
+ 
+@@ -295,7 +317,7 @@ found:
+ 
+ 	if (zhdr->first_chunks == 0 || zhdr->last_chunks == 0) {
+ 		/* Add to unbuddied list */
+-		freechunks = num_free_chunks(zhdr);
++		int freechunks = num_free_chunks(zhdr);
+ 		list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
+ 	} else {
+ 		/* Add to buddied list */
+@@ -326,7 +348,6 @@ found:
+ void zbud_free(struct zbud_pool *pool, unsigned long handle)
+ {
+ 	struct zbud_header *zhdr;
+-	int freechunks;
+ 
+ 	spin_lock(&pool->lock);
+ 	zhdr = handle_to_zbud_header(handle);
+@@ -337,26 +358,19 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle)
+ 	else
+ 		zhdr->first_chunks = 0;
+ 
+-	if (zhdr->under_reclaim) {
+-		/* zbud page is under reclaim, reclaim will free */
+-		spin_unlock(&pool->lock);
+-		return;
+-	}
+-
+ 	/* Remove from existing buddy list */
+ 	list_del(&zhdr->buddy);
+ 
+ 	if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
+-		/* zbud page is empty, free */
+ 		list_del(&zhdr->lru);
+-		free_zbud_page(zhdr);
+ 		pool->pages_nr--;
+ 	} else {
+ 		/* Add to unbuddied list */
+-		freechunks = num_free_chunks(zhdr);
++		int freechunks = num_free_chunks(zhdr);
+ 		list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
+ 	}
+ 
++	put_zbud_page(zhdr);
+ 	spin_unlock(&pool->lock);
+ }
+ 
+@@ -400,7 +414,7 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle)
+  */
+ int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
+ {
+-	int i, ret, freechunks;
++	int i, ret;
+ 	struct zbud_header *zhdr;
+ 	unsigned long first_handle = 0, last_handle = 0;
+ 
+@@ -411,11 +425,24 @@ int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
+ 		return -EINVAL;
+ 	}
+ 	for (i = 0; i < retries; i++) {
++		if (list_empty(&pool->lru)) {
++			/*
++			 * LRU was emptied during evict calls in previous
++			 * iteration but put_zbud_page() returned 0 meaning
++			 * that someone still holds the page. This may
++			 * happen when some other mm mechanism increased
++			 * the page count.
++			 * In such case we succedded with reclaim.
++			 */
++			spin_unlock(&pool->lock);
++			return 0;
++		}
+ 		zhdr = list_tail_entry(&pool->lru, struct zbud_header, lru);
++		/* Move this last element to beginning of LRU */
+ 		list_del(&zhdr->lru);
+-		list_del(&zhdr->buddy);
++		list_add(&zhdr->lru, &pool->lru);
+ 		/* Protect zbud page against free */
+-		zhdr->under_reclaim = true;
++		get_zbud_page(zhdr);
+ 		/*
+ 		 * We need encode the handles before unlocking, since we can
+ 		 * race with free that will set (first|last)_chunks to 0
+@@ -440,29 +467,9 @@ int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
+ 				goto next;
+ 		}
+ next:
+-		spin_lock(&pool->lock);
+-		zhdr->under_reclaim = false;
+-		if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
+-			/*
+-			 * Both buddies are now free, free the zbud page and
+-			 * return success.
+-			 */
+-			free_zbud_page(zhdr);
+-			pool->pages_nr--;
+-			spin_unlock(&pool->lock);
++		if (put_zbud_page(zhdr))
+ 			return 0;
+-		} else if (zhdr->first_chunks == 0 ||
+-				zhdr->last_chunks == 0) {
+-			/* add to unbuddied list */
+-			freechunks = num_free_chunks(zhdr);
+-			list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
+-		} else {
+-			/* add to buddied list */
+-			list_add(&zhdr->buddy, &pool->buddied);
+-		}
+-
+-		/* add to beginning of LRU */
+-		list_add(&zhdr->lru, &pool->lru);
++		spin_lock(&pool->lock);
+ 	}
+ 	spin_unlock(&pool->lock);
+ 	return -EAGAIN;
 -- 
 1.7.9.5
 
