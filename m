@@ -1,67 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 5134F6B0033
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 04:46:46 -0400 (EDT)
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Subject: Re: ipc-msg broken again on 3.11-rc7?
-Date: Fri, 30 Aug 2013 08:46:39 +0000
-Message-ID: <C2D7FE5348E1B147BCA15975FBA230751411CB@IN01WEMBXA.internal.synopsys.com>
-References: <CA+icZUXuw7QBn4CPLLuiVUjHin0m6GRdbczGw=bZY+Z60sXNow@mail.gmail.com>
- <CA+icZUVbUD1tUa_ORtn_ZZebpp3gXXHGAcNe0NdYPXPMPoABuA@mail.gmail.com>
- <1372192414.1888.8.camel@buesod1.americas.hpqcorp.net>
- <CA+icZUXgOd=URJBH5MGAZKdvdkMpFt+5mRxtzuDzq_vFHpoc2A@mail.gmail.com>
- <1372202983.1888.22.camel@buesod1.americas.hpqcorp.net>
- <521DE5D7.4040305@synopsys.com>
- <CA+icZUUrZG8pYqKcHY3DcYAuuw=vbdUvs6ZXDq5meBMjj6suFg@mail.gmail.com>
- <C2D7FE5348E1B147BCA15975FBA23075140FA3@IN01WEMBXA.internal.synopsys.com>
- <CA+icZUUn-r8iq6TVMAKmgJpQm4FhOE4b4QN_Yy=1L=0Up=rkBA@mail.gmail.com>
- <52205597.3090609@synopsys.com>
- <CA+icZUW=YXMC_2Qt=cYYz6w_fVW8TS4=Pvbx7BGtzjGt+31rLQ@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 4DE186B0033
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 04:49:58 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Fri, 30 Aug 2013 18:46:37 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 7C2092CE8055
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 18:49:53 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7U8nggw4194762
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 18:49:42 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7U8nquu023149
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 18:49:52 +1000
+Date: Fri, 30 Aug 2013 16:49:49 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm/vmalloc: use help function to get vmalloc area size
+Message-ID: <20130830084949.GA11778@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <52205B09.4020800@huawei.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <52205B09.4020800@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "sedat.dilek@gmail.com" <sedat.dilek@gmail.com>
-Cc: linus Torvalds <torvalds@linux-foundation.org>, Davidlohr Bueso <davidlohr.bueso@hp.com>, linux-next <linux-next@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Manfred
- Spraul <manfred@colorfullife.com>, Jonathan Gonzalez <jgonzalez@linets.cl>
+To: Jianguo Wu <wujianguo@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, zhangyanfei@cn.fujitsu.com, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 08/30/2013 01:57 PM, Sedat Dilek wrote:=0A=
-> On Fri, Aug 30, 2013 at 10:19 AM, Vineet Gupta <vineetg76@gmail.com> wrot=
-e:=0A=
->> Ping ?=0A=
->>=0A=
->> It seems 3.11 is pretty close to releasing but we stil have LTP msgctl08=
- causing a=0A=
->> hang (atleast on ARC) for both linux-next 20130829 as well as Linus tree=
-.=0A=
->>=0A=
->> So far, I haven't seemed to have drawn attention of people involved.=0A=
->>=0A=
-> =0A=
-> Hi Vineet,=0A=
-> =0A=
-> I remember fakeroot was an another good test-case for me to test this=0A=
-> IPC breakage.=0A=
-> Attached is my build-script for Linux-next (tested with Debian/Ubuntu).=
-=0A=
-> ( Cannot say if you can play with it in your environment. )=0A=
-=0A=
-Hi Sedat,=0A=
-=0A=
-I have a simpler buildroot based rootfs (initramfs based) and LTP is run of=
-f of=0A=
-NFS, although running of a local storage doesn't make a difference.=0A=
-=0A=
-For me msgctl08 standalone (w/o hassle of running full LTP) is enough to tr=
-igger=0A=
-it consistently.=0A=
-=0A=
-P.S. sorry my sender address kept flipping - mailer was broken !=0A=
-=0A=
--Vineet=0A=
-=0A=
+On Fri, Aug 30, 2013 at 04:42:49PM +0800, Jianguo Wu wrote:
+>Use get_vm_area_size() to get vmalloc area's actual size without guard page.
+>
+
+Do you see this?
+
+http://marc.info/?l=linux-mm&m=137698172417316&w=2
+
+>Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
+>---
+> mm/vmalloc.c |   12 ++++++------
+> 1 files changed, 6 insertions(+), 6 deletions(-)
+>
+>diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+>index 13a5495..abe13bc 100644
+>--- a/mm/vmalloc.c
+>+++ b/mm/vmalloc.c
+>@@ -1263,7 +1263,7 @@ void unmap_kernel_range(unsigned long addr, unsigned long size)
+> int map_vm_area(struct vm_struct *area, pgprot_t prot, struct page ***pages)
+> {
+> 	unsigned long addr = (unsigned long)area->addr;
+>-	unsigned long end = addr + area->size - PAGE_SIZE;
+>+	unsigned long end = addr + get_vm_area_size(area);
+> 	int err;
+>
+> 	err = vmap_page_range(addr, end, prot, *pages);
+>@@ -1558,7 +1558,7 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+> 	unsigned int nr_pages, array_size, i;
+> 	gfp_t nested_gfp = (gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO;
+>
+>-	nr_pages = (area->size - PAGE_SIZE) >> PAGE_SHIFT;
+>+	nr_pages = get_vm_area_size(area) >> PAGE_SHIFT;
+> 	array_size = (nr_pages * sizeof(struct page *));
+>
+> 	area->nr_pages = nr_pages;
+>@@ -1990,7 +1990,7 @@ long vread(char *buf, char *addr, unsigned long count)
+>
+> 		vm = va->vm;
+> 		vaddr = (char *) vm->addr;
+>-		if (addr >= vaddr + vm->size - PAGE_SIZE)
+>+		if (addr >= vaddr + get_vm_area_size(vm))
+> 			continue;
+> 		while (addr < vaddr) {
+> 			if (count == 0)
+>@@ -2000,7 +2000,7 @@ long vread(char *buf, char *addr, unsigned long count)
+> 			addr++;
+> 			count--;
+> 		}
+>-		n = vaddr + vm->size - PAGE_SIZE - addr;
+>+		n = vaddr + get_vm_area_size(vm) - addr;
+> 		if (n > count)
+> 			n = count;
+> 		if (!(vm->flags & VM_IOREMAP))
+>@@ -2072,7 +2072,7 @@ long vwrite(char *buf, char *addr, unsigned long count)
+>
+> 		vm = va->vm;
+> 		vaddr = (char *) vm->addr;
+>-		if (addr >= vaddr + vm->size - PAGE_SIZE)
+>+		if (addr >= vaddr + get_vm_area_size(vm))
+> 			continue;
+> 		while (addr < vaddr) {
+> 			if (count == 0)
+>@@ -2081,7 +2081,7 @@ long vwrite(char *buf, char *addr, unsigned long count)
+> 			addr++;
+> 			count--;
+> 		}
+>-		n = vaddr + vm->size - PAGE_SIZE - addr;
+>+		n = vaddr + get_vm_area_size(vm) - addr;
+> 		if (n > count)
+> 			n = count;
+> 		if (!(vm->flags & VM_IOREMAP)) {
+>-- 
+>1.7.1
+>
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
