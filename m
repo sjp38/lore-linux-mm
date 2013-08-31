@@ -1,77 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id BA7F06B0032
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 20:39:41 -0400 (EDT)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [PATCH 3/3] PM / hibernate / memory hotplug: Rework mutual exclusion
-Date: Sat, 31 Aug 2013 02:50:28 +0200
-Message-ID: <10694845.eNMHLsAUoG@vostro.rjw.lan>
-In-Reply-To: <1377909312.10300.908.camel@misato.fc.hp.com>
-References: <9589253.Co8jZpnWdd@vostro.rjw.lan> <1984629.rbRksDyNff@vostro.rjw.lan> <1377909312.10300.908.camel@misato.fc.hp.com>
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 4AF276B0037
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 20:55:45 -0400 (EDT)
+Message-ID: <52213EBD.8060609@huawei.com>
+Date: Sat, 31 Aug 2013 08:54:21 +0800
+From: Jianguo Wu <wujianguo@huawei.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+Subject: Re: [PATCH 4/4] mm/arch: use NUMA_NODE
+References: <521FFE3B.7040801@huawei.com>
+In-Reply-To: <521FFE3B.7040801@huawei.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: ACPI Devel Maling List <linux-acpi@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux PM list <linux-pm@vger.kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linux-s390@vger.kernel.org, sparclinux@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org
 
-On Friday, August 30, 2013 06:35:12 PM Toshi Kani wrote:
-> On Sat, 2013-08-31 at 02:39 +0200, Rafael J. Wysocki wrote:
-> > On Friday, August 30, 2013 06:23:19 PM Toshi Kani wrote:
-> > > On Thu, 2013-08-29 at 23:18 +0200, Rafael J. Wysocki wrote:
-> > > > From: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
-> > > > 
-> > > > Since all of the memory hotplug operations have to be carried out
-> > > > under device_hotplug_lock, they won't need to acquire pm_mutex if
-> > > > device_hotplug_lock is held around hibernation.
-> > > > 
-> > > > For this reason, make the hibernation code acquire
-> > > > device_hotplug_lock after freezing user space processes and
-> > > > release it before thawing them.  At the same tim drop the
-> > > > lock_system_sleep() and unlock_system_sleep() calls from
-> > > > lock_memory_hotplug() and unlock_memory_hotplug(), respectively.
-> > > > 
-> > > > Signed-off-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
-> > > > ---
-> > > >  kernel/power/hibernate.c |    4 ++++
-> > > >  kernel/power/user.c      |    2 ++
-> > > >  mm/memory_hotplug.c      |    4 ----
-> > > >  3 files changed, 6 insertions(+), 4 deletions(-)
-> > > > 
-> > > > Index: linux-pm/kernel/power/hibernate.c
-> > > > ===================================================================
-> > > > --- linux-pm.orig/kernel/power/hibernate.c
-> > > > +++ linux-pm/kernel/power/hibernate.c
-> > > > @@ -652,6 +652,7 @@ int hibernate(void)
-> > > >  	if (error)
-> > > >  		goto Exit;
-> > > >  
-> > > > +	lock_device_hotplug();
-> > > 
-> > > Since hibernate() can be called from sysfs, do you think the tool may
-> > > see this as a circular dependency with p_active again?  This shouldn't
-> > > be a problem in practice, though.
-> > 
-> > /sys/power/state isn't a device attribute even and is never removed, so it
-> > would be very sad and disappointing if lockdep reported that as a circular
-> > dependency.  The deadlock is surely not possible here anyway.
+Cc linux-mm@kvack.org
+
+On 2013/8/30 10:06, Jianguo Wu wrote:
+
+> Use more appropriate NUMA_NO_NODE instead of -1 in some archs' module_alloc()
 > 
-> Agreed.  The code looks good otherwise, and this is a nice cleanup.  If
-> it is OK to ignore the possible warning from the tool (which I do not
-> know the rule here),
+> Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
+> ---
+>  arch/arm/kernel/module.c    |    2 +-
+>  arch/arm64/kernel/module.c  |    2 +-
+>  arch/mips/kernel/module.c   |    2 +-
+>  arch/parisc/kernel/module.c |    2 +-
+>  arch/s390/kernel/module.c   |    2 +-
+>  arch/sparc/kernel/module.c  |    2 +-
+>  arch/x86/kernel/module.c    |    2 +-
+>  7 files changed, 7 insertions(+), 7 deletions(-)
+> 
+> diff --git a/arch/arm/kernel/module.c b/arch/arm/kernel/module.c
+> index 85c3fb6..8f4cff3 100644
+> --- a/arch/arm/kernel/module.c
+> +++ b/arch/arm/kernel/module.c
+> @@ -40,7 +40,7 @@
+>  void *module_alloc(unsigned long size)
+>  {
+>  	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
+> -				GFP_KERNEL, PAGE_KERNEL_EXEC, -1,
+> +				GFP_KERNEL, PAGE_KERNEL_EXEC, NUMA_NO_NODE,
+>  				__builtin_return_address(0));
+>  }
+>  #endif
+> diff --git a/arch/arm64/kernel/module.c b/arch/arm64/kernel/module.c
+> index ca0e3d5..8f898bd 100644
+> --- a/arch/arm64/kernel/module.c
+> +++ b/arch/arm64/kernel/module.c
+> @@ -29,7 +29,7 @@
+>  void *module_alloc(unsigned long size)
+>  {
+>  	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
+> -				    GFP_KERNEL, PAGE_KERNEL_EXEC, -1,
+> +				    GFP_KERNEL, PAGE_KERNEL_EXEC, NUMA_NO_NODE,
+>  				    __builtin_return_address(0));
+>  }
+>  
+> diff --git a/arch/mips/kernel/module.c b/arch/mips/kernel/module.c
+> index 977a623..b507e07 100644
+> --- a/arch/mips/kernel/module.c
+> +++ b/arch/mips/kernel/module.c
+> @@ -46,7 +46,7 @@ static DEFINE_SPINLOCK(dbe_lock);
+>  void *module_alloc(unsigned long size)
+>  {
+>  	return __vmalloc_node_range(size, 1, MODULE_START, MODULE_END,
+> -				GFP_KERNEL, PAGE_KERNEL, -1,
+> +				GFP_KERNEL, PAGE_KERNEL, NUMA_NO_NODE,
+>  				__builtin_return_address(0));
+>  }
+>  #endif
+> diff --git a/arch/parisc/kernel/module.c b/arch/parisc/kernel/module.c
+> index 2a625fb..50dfafc 100644
+> --- a/arch/parisc/kernel/module.c
+> +++ b/arch/parisc/kernel/module.c
+> @@ -219,7 +219,7 @@ void *module_alloc(unsigned long size)
+>  	 * init_data correctly */
+>  	return __vmalloc_node_range(size, 1, VMALLOC_START, VMALLOC_END,
+>  				    GFP_KERNEL | __GFP_HIGHMEM,
+> -				    PAGE_KERNEL_RWX, -1,
+> +				    PAGE_KERNEL_RWX, NUMA_NO_NODE,
+>  				    __builtin_return_address(0));
+>  }
+>  
+> diff --git a/arch/s390/kernel/module.c b/arch/s390/kernel/module.c
+> index 7845e15..b89b591 100644
+> --- a/arch/s390/kernel/module.c
+> +++ b/arch/s390/kernel/module.c
+> @@ -50,7 +50,7 @@ void *module_alloc(unsigned long size)
+>  	if (PAGE_ALIGN(size) > MODULES_LEN)
+>  		return NULL;
+>  	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
+> -				    GFP_KERNEL, PAGE_KERNEL, -1,
+> +				    GFP_KERNEL, PAGE_KERNEL, NUMA_NO_NODE,
+>  				    __builtin_return_address(0));
+>  }
+>  #endif
+> diff --git a/arch/sparc/kernel/module.c b/arch/sparc/kernel/module.c
+> index 4435488..97655e0 100644
+> --- a/arch/sparc/kernel/module.c
+> +++ b/arch/sparc/kernel/module.c
+> @@ -29,7 +29,7 @@ static void *module_map(unsigned long size)
+>  	if (PAGE_ALIGN(size) > MODULES_LEN)
+>  		return NULL;
+>  	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
+> -				GFP_KERNEL, PAGE_KERNEL, -1,
+> +				GFP_KERNEL, PAGE_KERNEL, NUMA_NO_NODE,
+>  				__builtin_return_address(0));
+>  }
+>  #else
+> diff --git a/arch/x86/kernel/module.c b/arch/x86/kernel/module.c
+> index 216a4d7..18be189 100644
+> --- a/arch/x86/kernel/module.c
+> +++ b/arch/x86/kernel/module.c
+> @@ -49,7 +49,7 @@ void *module_alloc(unsigned long size)
+>  		return NULL;
+>  	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
+>  				GFP_KERNEL | __GFP_HIGHMEM, PAGE_KERNEL_EXEC,
+> -				-1, __builtin_return_address(0));
+> +				NUMA_NO_NODE, __builtin_return_address(0));
+>  }
+>  
+>  #ifdef CONFIG_X86_32
 
-Well, if it complains, we'll just need to add some annotations to this.
-The code is correct I believe.
 
-> feel free to add my ack to patch 2/3 and 3/3 as well.
-
-I will, thanks!
-
-
--- 
-I speak only for myself.
-Rafael J. Wysocki, Intel Open Source Technology Center.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
