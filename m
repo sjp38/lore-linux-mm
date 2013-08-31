@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id A781C6B0032
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 20:19:10 -0400 (EDT)
-Message-ID: <1377908257.10300.896.camel@misato.fc.hp.com>
-Subject: Re: [PATCH 1/3] ACPI / scan: Change ordering of locks for device
- hotplug
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 89FB16B0032
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 20:24:51 -0400 (EDT)
+Message-ID: <1377908599.10300.901.camel@misato.fc.hp.com>
+Subject: Re: [PATCH 3/3] PM / hibernate / memory hotplug: Rework mutual
+ exclusion
 From: Toshi Kani <toshi.kani@hp.com>
-Date: Fri, 30 Aug 2013 18:17:37 -0600
-In-Reply-To: <1752041.76DW3TEE1A@vostro.rjw.lan>
+Date: Fri, 30 Aug 2013 18:23:19 -0600
+In-Reply-To: <1562298.ZjRvhqQzT7@vostro.rjw.lan>
 References: <9589253.Co8jZpnWdd@vostro.rjw.lan>
-	 <1752041.76DW3TEE1A@vostro.rjw.lan>
+	 <1562298.ZjRvhqQzT7@vostro.rjw.lan>
 Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
@@ -18,26 +18,42 @@ List-ID: <linux-mm.kvack.org>
 To: "Rafael J. Wysocki" <rjw@sisk.pl>
 Cc: ACPI Devel Maling List <linux-acpi@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux PM list <linux-pm@vger.kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, linux-mm@kvack.org
 
-On Thu, 2013-08-29 at 23:15 +0200, Rafael J. Wysocki wrote:
+On Thu, 2013-08-29 at 23:18 +0200, Rafael J. Wysocki wrote:
 > From: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 > 
-> Change the ordering of device hotplug locks in scan.c so that
-> acpi_scan_lock is always acquired after device_hotplug_lock.
+> Since all of the memory hotplug operations have to be carried out
+> under device_hotplug_lock, they won't need to acquire pm_mutex if
+> device_hotplug_lock is held around hibernation.
 > 
-> This will make it possible to use device_hotplug_lock around some
-> code paths that acquire acpi_scan_lock safely (most importantly
-> system suspend and hibernation).  Apart from that, acpi_scan_lock
-> is platform-specific and device_hotplug_lock is general, so the
-> new ordering appears to be more appropriate from the overall
-> design viewpoint.
+> For this reason, make the hibernation code acquire
+> device_hotplug_lock after freezing user space processes and
+> release it before thawing them.  At the same tim drop the
+> lock_system_sleep() and unlock_system_sleep() calls from
+> lock_memory_hotplug() and unlock_memory_hotplug(), respectively.
 > 
 > Signed-off-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+> ---
+>  kernel/power/hibernate.c |    4 ++++
+>  kernel/power/user.c      |    2 ++
+>  mm/memory_hotplug.c      |    4 ----
+>  3 files changed, 6 insertions(+), 4 deletions(-)
+> 
+> Index: linux-pm/kernel/power/hibernate.c
+> ===================================================================
+> --- linux-pm.orig/kernel/power/hibernate.c
+> +++ linux-pm/kernel/power/hibernate.c
+> @@ -652,6 +652,7 @@ int hibernate(void)
+>  	if (error)
+>  		goto Exit;
+>  
+> +	lock_device_hotplug();
 
-Acked-by: Toshi Kani <toshi.kani@hp.com>
+Since hibernate() can be called from sysfs, do you think the tool may
+see this as a circular dependency with p_active again?  This shouldn't
+be a problem in practice, though.
 
 Thanks,
 -Toshi
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
