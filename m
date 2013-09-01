@@ -1,120 +1,101 @@
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm/vmalloc: use help function to get vmalloc area size
-Date: Fri, 30 Aug 2013 16:49:49 +0800
-Message-ID: <2335.31695926121$1377852612@news.gmane.org>
-References: <52205B09.4020800@huawei.com>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Mime-Version: 1.0
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id C51C06B0032
+	for <linux-mm@kvack.org>; Sun,  1 Sep 2013 07:27:39 -0400 (EDT)
+Date: Sun, 1 Sep 2013 14:27:29 +0300
+From: Gleb Natapov <gleb@redhat.com>
+Subject: Re: [PATCH v9 04/13] KVM: PPC: reserve a capability and KVM device
+ type for realmode VFIO
+Message-ID: <20130901112729.GI22899@redhat.com>
+References: <1377679070-3515-1-git-send-email-aik@ozlabs.ru>
+ <1377679070-3515-5-git-send-email-aik@ozlabs.ru>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Return-path: <owner-linux-mm@kvack.org>
-Received: from kanga.kvack.org ([205.233.56.17])
-	by plane.gmane.org with esmtp (Exim 4.69)
-	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1VFKP2-00052f-9g
-	for glkm-linux-mm-2@m.gmane.org; Fri, 30 Aug 2013 10:50:00 +0200
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 4DE186B0033
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 04:49:58 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Fri, 30 Aug 2013 18:46:37 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 7C2092CE8055
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 18:49:53 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r7U8nggw4194762
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 18:49:42 +1000
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r7U8nquu023149
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2013 18:49:52 +1000
 Content-Disposition: inline
-In-Reply-To: <52205B09.4020800@huawei.com>
+In-Reply-To: <1377679070-3515-5-git-send-email-aik@ozlabs.ru>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jianguo Wu <wujianguo@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, zhangyanfei@cn.fujitsu.com, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Alexey Kardashevskiy <aik@ozlabs.ru>
+Cc: linuxppc-dev@lists.ozlabs.org, David Gibson <david@gibson.dropbear.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Graf <agraf@suse.de>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kvm-ppc@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Aug 30, 2013 at 04:42:49PM +0800, Jianguo Wu wrote:
->Use get_vm_area_size() to get vmalloc area's actual size without guard page.
->
+On Wed, Aug 28, 2013 at 06:37:41PM +1000, Alexey Kardashevskiy wrote:
+> This reserves a capability number for upcoming support
+> of VFIO-IOMMU DMA operations in real mode.
+> 
+> This reserves a number for a new "SPAPR TCE IOMMU" KVM device
+> which is going to manage lifetime of SPAPR TCE IOMMU object.
+> 
+> This defines an attribute of the "SPAPR TCE IOMMU" KVM device
+> which is going to be used for initialization.
+> 
+> Signed-off-by: Alexey Kardashevskiy <aik@ozlabs.ru>
+> 
+> ---
+> Changes:
+> v9:
+> * KVM ioctl is replaced with "SPAPR TCE IOMMU" KVM device type with
+> KVM_DEV_SPAPR_TCE_IOMMU_ATTR_LINKAGE attribute
+> 
+> 2013/08/15:
+> * fixed mistype in comments
+> * fixed commit message which says what uses ioctls 0xad and 0xae
+> 
+> 2013/07/16:
+> * changed the number
+> 
+> 2013/07/11:
+> * changed order in a file, added comment about a gap in ioctl number
+> ---
+>  arch/powerpc/include/uapi/asm/kvm.h | 8 ++++++++
+>  include/uapi/linux/kvm.h            | 2 ++
+>  2 files changed, 10 insertions(+)
+> 
+> diff --git a/arch/powerpc/include/uapi/asm/kvm.h b/arch/powerpc/include/uapi/asm/kvm.h
+> index 0fb1a6e..c1ae1e5 100644
+> --- a/arch/powerpc/include/uapi/asm/kvm.h
+> +++ b/arch/powerpc/include/uapi/asm/kvm.h
+> @@ -511,4 +511,12 @@ struct kvm_get_htab_header {
+>  #define  KVM_XICS_MASKED		(1ULL << 41)
+>  #define  KVM_XICS_PENDING		(1ULL << 42)
+>  
+> +/* SPAPR TCE IOMMU device specification */
+> +struct kvm_create_spapr_tce_iommu_linkage {
+> +	__u64 liobn;
+> +	__u32 fd;
+> +	__u32 flags;
+> +};
+> +#define KVM_DEV_SPAPR_TCE_IOMMU_ATTR_LINKAGE	0
+> +
+>  #endif /* __LINUX_KVM_POWERPC_H */
+> diff --git a/include/uapi/linux/kvm.h b/include/uapi/linux/kvm.h
+> index 99c2533..9d20630 100644
+> --- a/include/uapi/linux/kvm.h
+> +++ b/include/uapi/linux/kvm.h
+> @@ -668,6 +668,7 @@ struct kvm_ppc_smmu_info {
+>  #define KVM_CAP_IRQ_XICS 92
+>  #define KVM_CAP_ARM_EL1_32BIT 93
+>  #define KVM_CAP_SPAPR_MULTITCE 94
+> +#define KVM_CAP_SPAPR_TCE_IOMMU 95
+>  
+You do not need capability to check for a device support. Device API
+supports checking for that with KVM_CREATE_DEVICE_TEST flag to
+KVM_CREATE_DEVICE ioctl.
 
-Do you see this?
+>  #ifdef KVM_CAP_IRQ_ROUTING
+>  
+> @@ -843,6 +844,7 @@ struct kvm_device_attr {
+>  #define KVM_DEV_TYPE_FSL_MPIC_20	1
+>  #define KVM_DEV_TYPE_FSL_MPIC_42	2
+>  #define KVM_DEV_TYPE_XICS		3
+> +#define KVM_DEV_TYPE_SPAPR_TCE_IOMMU	4
+>  
+>  /*
+>   * ioctls for VM fds
+> -- 
+> 1.8.4.rc4
 
-http://marc.info/?l=linux-mm&m=137698172417316&w=2
-
->Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
->---
-> mm/vmalloc.c |   12 ++++++------
-> 1 files changed, 6 insertions(+), 6 deletions(-)
->
->diff --git a/mm/vmalloc.c b/mm/vmalloc.c
->index 13a5495..abe13bc 100644
->--- a/mm/vmalloc.c
->+++ b/mm/vmalloc.c
->@@ -1263,7 +1263,7 @@ void unmap_kernel_range(unsigned long addr, unsigned long size)
-> int map_vm_area(struct vm_struct *area, pgprot_t prot, struct page ***pages)
-> {
-> 	unsigned long addr = (unsigned long)area->addr;
->-	unsigned long end = addr + area->size - PAGE_SIZE;
->+	unsigned long end = addr + get_vm_area_size(area);
-> 	int err;
->
-> 	err = vmap_page_range(addr, end, prot, *pages);
->@@ -1558,7 +1558,7 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
-> 	unsigned int nr_pages, array_size, i;
-> 	gfp_t nested_gfp = (gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO;
->
->-	nr_pages = (area->size - PAGE_SIZE) >> PAGE_SHIFT;
->+	nr_pages = get_vm_area_size(area) >> PAGE_SHIFT;
-> 	array_size = (nr_pages * sizeof(struct page *));
->
-> 	area->nr_pages = nr_pages;
->@@ -1990,7 +1990,7 @@ long vread(char *buf, char *addr, unsigned long count)
->
-> 		vm = va->vm;
-> 		vaddr = (char *) vm->addr;
->-		if (addr >= vaddr + vm->size - PAGE_SIZE)
->+		if (addr >= vaddr + get_vm_area_size(vm))
-> 			continue;
-> 		while (addr < vaddr) {
-> 			if (count == 0)
->@@ -2000,7 +2000,7 @@ long vread(char *buf, char *addr, unsigned long count)
-> 			addr++;
-> 			count--;
-> 		}
->-		n = vaddr + vm->size - PAGE_SIZE - addr;
->+		n = vaddr + get_vm_area_size(vm) - addr;
-> 		if (n > count)
-> 			n = count;
-> 		if (!(vm->flags & VM_IOREMAP))
->@@ -2072,7 +2072,7 @@ long vwrite(char *buf, char *addr, unsigned long count)
->
-> 		vm = va->vm;
-> 		vaddr = (char *) vm->addr;
->-		if (addr >= vaddr + vm->size - PAGE_SIZE)
->+		if (addr >= vaddr + get_vm_area_size(vm))
-> 			continue;
-> 		while (addr < vaddr) {
-> 			if (count == 0)
->@@ -2081,7 +2081,7 @@ long vwrite(char *buf, char *addr, unsigned long count)
-> 			addr++;
-> 			count--;
-> 		}
->-		n = vaddr + vm->size - PAGE_SIZE - addr;
->+		n = vaddr + get_vm_area_size(vm) - addr;
-> 		if (n > count)
-> 			n = count;
-> 		if (!(vm->flags & VM_IOREMAP)) {
->-- 
->1.7.1
->
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+--
+			Gleb.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
