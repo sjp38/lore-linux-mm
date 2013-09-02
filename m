@@ -1,69 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id C96CC6B0036
-	for <linux-mm@kvack.org>; Mon,  2 Sep 2013 08:34:09 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id BC5AB6B0031
+	for <linux-mm@kvack.org>; Mon,  2 Sep 2013 08:35:54 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 2 Sep 2013 17:53:31 +0530
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 5BDEF1258053
-	for <linux-mm@kvack.org>; Mon,  2 Sep 2013 18:03:59 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r82CZiBc35979332
-	for <linux-mm@kvack.org>; Mon, 2 Sep 2013 18:05:45 +0530
-Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r82CXvGI006857
-	for <linux-mm@kvack.org>; Mon, 2 Sep 2013 18:03:57 +0530
+	Mon, 2 Sep 2013 17:59:42 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 9DA0B394004E
+	for <linux-mm@kvack.org>; Mon,  2 Sep 2013 18:05:38 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r82CbYjc45809790
+	for <linux-mm@kvack.org>; Mon, 2 Sep 2013 18:07:34 +0530
+Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r82CZmv6012830
+	for <linux-mm@kvack.org>; Mon, 2 Sep 2013 18:05:49 +0530
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH 3/4] mm/hwpoison: fix false report 2nd try page recovery
-Date: Mon,  2 Sep 2013 20:33:43 +0800
-Message-Id: <1378125224-12794-3-git-send-email-liwanp@linux.vnet.ibm.com>
-In-Reply-To: <1378125224-12794-1-git-send-email-liwanp@linux.vnet.ibm.com>
-References: <1378125224-12794-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH 1/3] mm/vmalloc: don't set area->caller twice
+Date: Mon,  2 Sep 2013 20:35:43 +0800
+Message-Id: <1378125345-13228-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Tony Luck <tony.luck@intel.com>, gong.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-If the page is poisoned by software inject w/ MF_COUNT_INCREASED flag, there
-is a false report 2nd try page recovery which is not truth, this patch fix it
-by report first try free buddy page recovery if MF_COUNT_INCREASED is set.
-
-Before patch:
-
-[  346.332041] Injecting memory failure at pfn 200010
-[  346.332189] MCE 0x200010: free buddy, 2nd try page recovery: Delayed
-
-After patch:
-
-[  297.742600] Injecting memory failure at pfn 200010
-[  297.742941] MCE 0x200010: free buddy page recovery: Delayed
+The caller address has already been set in set_vmalloc_vm(), there's no need 
+to set it again in __vmalloc_area_node.
 
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- mm/memory-failure.c |    6 ++++--
- 1 files changed, 4 insertions(+), 2 deletions(-)
+ mm/vmalloc.c | 1 -
+ 1 file changed, 1 deletion(-)
 
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index b114570..6293164 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1114,8 +1114,10 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
- 			 * shake_page could have turned it free.
- 			 */
- 			if (is_free_buddy_page(p)) {
--				action_result(pfn, "free buddy, 2nd try",
--						DELAYED);
-+				if (flags & MF_COUNT_INCREASED)
-+					action_result(pfn, "free buddy", DELAYED);
-+				else
-+					action_result(pfn, "free buddy, 2nd try", DELAYED);
- 				return 0;
- 			}
- 			action_result(pfn, "non LRU", IGNORED);
--- 
-1.7.5.4
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 1074543..d78d117 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1566,7 +1566,6 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+                pages = kmalloc_node(array_size, nested_gfp, node);
+        }
+        area->pages = pages;
+-       area->caller = caller;
+        if (!area->pages) {
+                remove_vm_area(area->addr);
+                kfree(area);
+--
+1.8.1.2
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
