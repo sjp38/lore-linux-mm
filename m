@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 833AB6B0034
-	for <linux-mm@kvack.org>; Mon,  2 Sep 2013 08:34:05 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id C96CC6B0036
+	for <linux-mm@kvack.org>; Mon,  2 Sep 2013 08:34:09 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 2 Sep 2013 22:20:10 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id F33AA2CE8052
-	for <linux-mm@kvack.org>; Mon,  2 Sep 2013 22:34:00 +1000 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r82CHdQV10617140
-	for <linux-mm@kvack.org>; Mon, 2 Sep 2013 22:17:39 +1000
-Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r82CXxnQ028564
-	for <linux-mm@kvack.org>; Mon, 2 Sep 2013 22:34:00 +1000
+	Mon, 2 Sep 2013 17:53:31 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 5BDEF1258053
+	for <linux-mm@kvack.org>; Mon,  2 Sep 2013 18:03:59 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r82CZiBc35979332
+	for <linux-mm@kvack.org>; Mon, 2 Sep 2013 18:05:45 +0530
+Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r82CXvGI006857
+	for <linux-mm@kvack.org>; Mon, 2 Sep 2013 18:03:57 +0530
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH 4/4] mm/hwpoison: fix the lack of one reference count against poisoned page 
-Date: Mon,  2 Sep 2013 20:33:44 +0800
-Message-Id: <1378125224-12794-4-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH 3/4] mm/hwpoison: fix false report 2nd try page recovery
+Date: Mon,  2 Sep 2013 20:33:43 +0800
+Message-Id: <1378125224-12794-3-git-send-email-liwanp@linux.vnet.ibm.com>
 In-Reply-To: <1378125224-12794-1-git-send-email-liwanp@linux.vnet.ibm.com>
 References: <1378125224-12794-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,53 +26,44 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Tony Luck <tony.luck@intel.com>, gong.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-The lack of one reference count against poisoned page for hwpoison_inject w/o 
-hwpoison_filter enabled result in hwpoison detect -1 users still referenced 
-the page, however, the number should be 0 except the poison handler held one 
-after successfully unmap. This patch fix it by hold one referenced count against 
-poisoned page for hwpoison_inject w/ and w/o hwpoison_filter enabled.
+If the page is poisoned by software inject w/ MF_COUNT_INCREASED flag, there
+is a false report 2nd try page recovery which is not truth, this patch fix it
+by report first try free buddy page recovery if MF_COUNT_INCREASED is set.
 
 Before patch:
 
-[   71.902112] Injecting memory failure at pfn 224706
-[   71.902137] MCE 0x224706: dirty LRU page recovery: Failed
-[   71.902138] MCE 0x224706: dirty LRU page still referenced by -1 users
+[  346.332041] Injecting memory failure at pfn 200010
+[  346.332189] MCE 0x200010: free buddy, 2nd try page recovery: Delayed
 
 After patch:
 
-[   94.710860] Injecting memory failure at pfn 215b68
-[   94.710885] MCE 0x215b68: dirty LRU page recovery: Recovered
+[  297.742600] Injecting memory failure at pfn 200010
+[  297.742941] MCE 0x200010: free buddy page recovery: Delayed
 
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- mm/hwpoison-inject.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ mm/memory-failure.c |    6 ++++--
+ 1 files changed, 4 insertions(+), 2 deletions(-)
 
-diff --git a/mm/hwpoison-inject.c b/mm/hwpoison-inject.c
-index afc2daa..4c84678 100644
---- a/mm/hwpoison-inject.c
-+++ b/mm/hwpoison-inject.c
-@@ -20,8 +20,6 @@ static int hwpoison_inject(void *data, u64 val)
- 	if (!capable(CAP_SYS_ADMIN))
- 		return -EPERM;
- 
--	if (!hwpoison_filter_enable)
--		goto inject;
- 	if (!pfn_valid(pfn))
- 		return -ENXIO;
- 
-@@ -33,6 +31,9 @@ static int hwpoison_inject(void *data, u64 val)
- 	if (!get_page_unless_zero(hpage))
- 		return 0;
- 
-+	if (!hwpoison_filter_enable)
-+		goto inject;
-+
- 	if (!PageLRU(p) && !PageHuge(p))
- 		shake_page(p, 0);
- 	/*
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index b114570..6293164 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -1114,8 +1114,10 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
+ 			 * shake_page could have turned it free.
+ 			 */
+ 			if (is_free_buddy_page(p)) {
+-				action_result(pfn, "free buddy, 2nd try",
+-						DELAYED);
++				if (flags & MF_COUNT_INCREASED)
++					action_result(pfn, "free buddy", DELAYED);
++				else
++					action_result(pfn, "free buddy, 2nd try", DELAYED);
+ 				return 0;
+ 			}
+ 			action_result(pfn, "non LRU", IGNORED);
 -- 
-1.8.1.2
+1.7.5.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
