@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 027136B0034
-	for <linux-mm@kvack.org>; Mon,  2 Sep 2013 08:35:55 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 7B5EE6B0036
+	for <linux-mm@kvack.org>; Mon,  2 Sep 2013 08:36:00 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 2 Sep 2013 22:28:31 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 3E96F2BB0052
-	for <linux-mm@kvack.org>; Mon,  2 Sep 2013 22:35:51 +1000 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r82CJUvE33882336
-	for <linux-mm@kvack.org>; Mon, 2 Sep 2013 22:19:30 +1000
-Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r82CZoAx030740
-	for <linux-mm@kvack.org>; Mon, 2 Sep 2013 22:35:50 +1000
+	Mon, 2 Sep 2013 17:56:41 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 27203E005A
+	for <linux-mm@kvack.org>; Mon,  2 Sep 2013 18:06:37 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r82CbfYr35979426
+	for <linux-mm@kvack.org>; Mon, 2 Sep 2013 18:07:41 +0530
+Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r82CZsxK013116
+	for <linux-mm@kvack.org>; Mon, 2 Sep 2013 18:05:54 +0530
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH 2/3] mm/vmalloc: don't warning vmalloc allocation failure twice
-Date: Mon,  2 Sep 2013 20:35:44 +0800
-Message-Id: <1378125345-13228-2-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH 3/3] mm/vmalloc: move VM_UNINITIALIZED just before show_numa_info
+Date: Mon,  2 Sep 2013 20:35:45 +0800
+Message-Id: <1378125345-13228-3-git-send-email-liwanp@linux.vnet.ibm.com>
 In-Reply-To: <1378125345-13228-1-git-send-email-liwanp@linux.vnet.ibm.com>
 References: <1378125345-13228-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,27 +26,45 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Don't warning twice in __vmalloc_area_node and __vmalloc_node_range if 
-__vmalloc_area_node allocation failure.
+The VM_UNINITIALIZED/VM_UNLIST flag introduced by commit f5252e00(mm: avoid 
+null pointer access in vm_struct via /proc/vmallocinfo) is used to avoid 
+accessing the pages field with unallocated page when show_numa_info() is 
+called. This patch move the check just before show_numa_info in order that 
+some messages still can be dumped via /proc/vmallocinfo.
 
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- mm/vmalloc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/vmalloc.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
 
 diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index ee41cc6..e324d38 100644
+index e3ec8b4..c4720cd 100644
 --- a/mm/vmalloc.c
 +++ b/mm/vmalloc.c
-@@ -1635,7 +1635,7 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
+@@ -2590,11 +2590,6 @@ static int s_show(struct seq_file *m, void *p)
  
- 	addr = __vmalloc_area_node(area, gfp_mask, prot, node, caller);
- 	if (!addr)
--		goto fail;
-+		return NULL;
+ 	v = va->vm;
  
- 	/*
- 	 * In this function, newly allocated vm_struct has VM_UNINITIALIZED
+-	/* Pair with smp_wmb() in clear_vm_uninitialized_flag() */
+-	smp_rmb();
+-	if (v->flags & VM_UNINITIALIZED)
+-		return 0;
+-
+ 	seq_printf(m, "0x%pK-0x%pK %7ld",
+ 		v->addr, v->addr + v->size, v->size);
+ 
+@@ -2622,6 +2617,11 @@ static int s_show(struct seq_file *m, void *p)
+ 	if (v->flags & VM_VPAGES)
+ 		seq_printf(m, " vpages");
+ 
++	/* Pair with smp_wmb() in clear_vm_uninitialized_flag() */
++	smp_rmb();
++	if (v->flags & VM_UNINITIALIZED)
++		return;
++
+ 	show_numa_info(m, v);
+ 	seq_putc(m, '\n');
+ 	return 0;
 -- 
 1.8.1.2
 
