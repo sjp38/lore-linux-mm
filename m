@@ -1,36 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 253C86B0031
-	for <linux-mm@kvack.org>; Mon,  2 Sep 2013 07:36:24 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 60B416B0031
+	for <linux-mm@kvack.org>; Mon,  2 Sep 2013 07:43:18 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <CACz4_2eY3cniz6mV-Nwi6jBEEOfETJs1GXrjHBppr=Grjnwiqw@mail.gmail.com>
-References: <1375582645-29274-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1375582645-29274-6-git-send-email-kirill.shutemov@linux.intel.com>
- <CACz4_2eY3cniz6mV-Nwi6jBEEOfETJs1GXrjHBppr=Grjnwiqw@mail.gmail.com>
-Subject: Re: [PATCH 05/23] thp: represent file thp pages in meminfo and
- friends
-Content-Transfer-Encoding: 7bit
-Message-Id: <20130902113616.6C750E0090@blue.fi.intel.com>
-Date: Mon,  2 Sep 2013 14:36:16 +0300 (EEST)
+Subject: [PATCH] mm: fix accounting on page_remove_rmap()
+Date: Mon,  2 Sep 2013 14:43:11 +0300
+Message-Id: <1378122191-15479-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ning Qu <quning@google.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ning Qu <quning@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Ning Qu wrote:
-> Hi, Kirill
-> 
-> I believe there is a typo in your previous commit, but you didn't include
-> it in this series of patch set. Below is the link for the commit. I think
-> you are trying to decrease the value NR_ANON_PAGES in page_remove_rmap, but
-> it is currently adding the value instead when using __mod_zone_page_state.Let
-> me know if you would like to fix it in your commit or you want another
-> patch from me. Thanks!
+There's typo in page_remove_rmap(): we increase NR_ANON_PAGES counter
+instead of decreasing it. Let's fix this.
 
-The patch is already in Andrew's tree. I'll send a fix for that. Thanks.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reported-by: Ning Qu <quning@google.com>
+---
+ mm/rmap.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 52cc59a..6219f07 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1156,7 +1156,7 @@ void page_remove_rmap(struct page *page)
+ 			__dec_zone_page_state(page,
+ 					      NR_ANON_TRANSPARENT_HUGEPAGES);
+ 		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES,
+-				hpage_nr_pages(page));
++				-hpage_nr_pages(page));
+ 	} else {
+ 		__dec_zone_page_state(page, NR_FILE_MAPPED);
+ 		mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
 -- 
- Kirill A. Shutemov
+1.8.4.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
