@@ -1,35 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id EBE796B0031
-	for <linux-mm@kvack.org>; Mon,  2 Sep 2013 06:53:32 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id CEDD76B0031
+	for <linux-mm@kvack.org>; Mon,  2 Sep 2013 06:56:05 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <1377883120-5280-3-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1377883120-5280-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1377883120-5280-3-git-send-email-n-horiguchi@ah.jp.nec.com>
-Subject: RE: [PATCH 2/2] thp: support split page table lock
+In-Reply-To: <1378093542-31971-1-git-send-email-bob.liu@oracle.com>
+References: <1378093542-31971-1-git-send-email-bob.liu@oracle.com>
+Subject: RE: [PATCH 1/2] mm: thp: cleanup: mv alloc_hugepage to better place
 Content-Transfer-Encoding: 7bit
-Message-Id: <20130902105327.AE4D4E0090@blue.fi.intel.com>
-Date: Mon,  2 Sep 2013 13:53:27 +0300 (EEST)
+Message-Id: <20130902105540.EBADBE0090@blue.fi.intel.com>
+Date: Mon,  2 Sep 2013 13:55:40 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, kirill.shutemov@linux.intel.com, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Alex Thorlton <athorlton@sgi.com>, linux-kernel@vger.kernel.org
+To: Bob Liu <lliubbo@gmail.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, aarcange@redhat.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, konrad.wilk@oracle.com, davidoff@qedmf.net, Bob Liu <bob.liu@oracle.com>
 
-Naoya Horiguchi wrote:
-> Thp related code also uses per process mm->page_table_lock now. So making
-> it fine-grained can provide better performance.
+Bob Liu wrote:
+> Move alloc_hugepage to better place, no need for a seperate #ifndef CONFIG_NUMA
 > 
-> This patch makes thp support split page table lock which makes us use
-> page->ptl of the pages storing "pmd_trans_huge" pmds.
+> Signed-off-by: Bob Liu <bob.liu@oracle.com>
 
-Hm. So, you use page->ptl only when you deal with thp pages, otherwise
-mm->page_table_lock, right?
-
-It looks inconsistent to me. Does it mean we have to take both locks on
-split and collapse paths? I'm not sure if it's safe to take only
-page->ptl for alloc path. Probably not.
-
-Why not to use new locking for pmd everywhere?
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
 -- 
  Kirill A. Shutemov
