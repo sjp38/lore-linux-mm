@@ -1,52 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id BC5AB6B0031
-	for <linux-mm@kvack.org>; Mon,  2 Sep 2013 08:35:54 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 027136B0034
+	for <linux-mm@kvack.org>; Mon,  2 Sep 2013 08:35:55 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 2 Sep 2013 17:59:42 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 9DA0B394004E
-	for <linux-mm@kvack.org>; Mon,  2 Sep 2013 18:05:38 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r82CbYjc45809790
-	for <linux-mm@kvack.org>; Mon, 2 Sep 2013 18:07:34 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r82CZmv6012830
-	for <linux-mm@kvack.org>; Mon, 2 Sep 2013 18:05:49 +0530
+	Mon, 2 Sep 2013 22:28:31 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 3E96F2BB0052
+	for <linux-mm@kvack.org>; Mon,  2 Sep 2013 22:35:51 +1000 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r82CJUvE33882336
+	for <linux-mm@kvack.org>; Mon, 2 Sep 2013 22:19:30 +1000
+Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r82CZoAx030740
+	for <linux-mm@kvack.org>; Mon, 2 Sep 2013 22:35:50 +1000
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH 1/3] mm/vmalloc: don't set area->caller twice
-Date: Mon,  2 Sep 2013 20:35:43 +0800
-Message-Id: <1378125345-13228-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH 2/3] mm/vmalloc: don't warning vmalloc allocation failure twice
+Date: Mon,  2 Sep 2013 20:35:44 +0800
+Message-Id: <1378125345-13228-2-git-send-email-liwanp@linux.vnet.ibm.com>
+In-Reply-To: <1378125345-13228-1-git-send-email-liwanp@linux.vnet.ibm.com>
+References: <1378125345-13228-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-The caller address has already been set in set_vmalloc_vm(), there's no need 
-to set it again in __vmalloc_area_node.
+Don't warning twice in __vmalloc_area_node and __vmalloc_node_range if 
+__vmalloc_area_node allocation failure.
 
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- mm/vmalloc.c | 1 -
- 1 file changed, 1 deletion(-)
+ mm/vmalloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 1074543..d78d117 100644
+index ee41cc6..e324d38 100644
 --- a/mm/vmalloc.c
 +++ b/mm/vmalloc.c
-@@ -1566,7 +1566,6 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
-                pages = kmalloc_node(array_size, nested_gfp, node);
-        }
-        area->pages = pages;
--       area->caller = caller;
-        if (!area->pages) {
-                remove_vm_area(area->addr);
-                kfree(area);
---
+@@ -1635,7 +1635,7 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
+ 
+ 	addr = __vmalloc_area_node(area, gfp_mask, prot, node, caller);
+ 	if (!addr)
+-		goto fail;
++		return NULL;
+ 
+ 	/*
+ 	 * In this function, newly allocated vm_struct has VM_UNINITIALIZED
+-- 
 1.8.1.2
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
