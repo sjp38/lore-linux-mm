@@ -1,77 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 077AB6B0034
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 02:16:39 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 3 Sep 2013 16:02:41 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id AFB733578057
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 16:16:32 +1000 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r836GL3c66060486
-	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 16:16:21 +1000
-Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r836GVbu004027
-	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 16:16:32 +1000
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v3 3/3] mm/vmalloc: revert "mm/vmalloc.c: check VM_UNINITIALIZED flag in s_show instead of show_numa_info"
-Date: Tue,  3 Sep 2013 14:16:13 +0800
-Message-Id: <1378188973-22351-3-git-send-email-liwanp@linux.vnet.ibm.com>
-In-Reply-To: <1378188973-22351-1-git-send-email-liwanp@linux.vnet.ibm.com>
-References: <1378188973-22351-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 651D96B0032
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 02:39:08 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id AB7243EE0C3
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 15:39:06 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9EE0F45DE54
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 15:39:06 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8276B45DE5E
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 15:39:06 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 757D11DB8040
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 15:39:06 +0900 (JST)
+Received: from g01jpfmpwkw03.exch.g01.fujitsu.local (g01jpfmpwkw03.exch.g01.fujitsu.local [10.0.193.57])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id F1E3BE08001
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 15:39:05 +0900 (JST)
+Message-ID: <522583DE.709@jp.fujitsu.com>
+Date: Tue, 3 Sep 2013 15:38:22 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [RFC PATCH v3 09/35] mm: Track the freepage migratetype of pages
+ accurately
+References: <20130830131221.4947.99764.stgit@srivatsabhat.in.ibm.com> <20130830131635.4947.81565.stgit@srivatsabhat.in.ibm.com>
+In-Reply-To: <20130830131635.4947.81565.stgit@srivatsabhat.in.ibm.com>
+Content-Type: text/plain; charset="UTF-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+Cc: akpm@linux-foundation.org, mgorman@suse.de, hannes@cmpxchg.org, tony.luck@intel.com, matthew.garrett@nebula.com, dave@sr71.net, riel@redhat.com, arjan@linux.intel.com, srinivas.pandruvada@linux.intel.com, willy@linux.intel.com, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl, gargankita@gmail.com, paulmck@linux.vnet.ibm.com, svaidy@linux.vnet.ibm.com, andi@firstfloor.org, santosh.shilimkar@ti.com, kosaki.motohiro@gmail.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Changelog:
- *v2 -> v3: revert commit d157a558 directly
+(2013/08/30 22:16), Srivatsa S. Bhat wrote:
+> Due to the region-wise ordering of the pages in the buddy allocator's
+> free lists, whenever we want to delete a free pageblock from a free list
+> (for ex: when moving blocks of pages from one list to the other), we need
+> to be able to tell the buddy allocator exactly which migratetype it belongs
+> to. For that purpose, we can use the page's freepage migratetype (which is
+> maintained in the page's ->index field).
+>
+> So, while splitting up higher order pages into smaller ones as part of buddy
+> operations, keep the new head pages updated with the correct freepage
+> migratetype information (because we depend on tracking this info accurately,
+> as outlined above).
+>
+> Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
+> ---
+>
+>   mm/page_alloc.c |    7 +++++++
+>   1 file changed, 7 insertions(+)
+>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 398b62c..b4b1275 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -947,6 +947,13 @@ static inline void expand(struct zone *zone, struct page *page,
+>   		add_to_freelist(&page[size], &area->free_list[migratetype]);
+>   		area->nr_free++;
+>   		set_page_order(&page[size], high);
+> +
+> +		/*
+> +		 * Freepage migratetype is tracked using the index field of the
+> +		 * first page of the block. So we need to update the new first
+> +		 * page, when changing the page order.
+> +		 */
+> +		set_freepage_migratetype(&page[size], migratetype);
+>   	}
+>   }
+>
+>
 
-The VM_UNINITIALIZED/VM_UNLIST flag introduced by commit f5252e00(mm: avoid
-null pointer access in vm_struct via /proc/vmallocinfo) is used to avoid
-accessing the pages field with unallocated page when show_numa_info() is
-called. This patch move the check just before show_numa_info in order that
-some messages still can be dumped via /proc/vmallocinfo. This patch revert 
-commit d157a558 (mm/vmalloc.c: check VM_UNINITIALIZED flag in s_show instead 
-of show_numa_info);
+It this patch a bug fix patch?
+If so, I want you to split the patch from the patch-set.
 
-Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
----
- mm/vmalloc.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+Thanks,
+Yasuaki Ishimatsu
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index e3ec8b4..5368b17 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -2562,6 +2562,11 @@ static void show_numa_info(struct seq_file *m, struct vm_struct *v)
- 		if (!counters)
- 			return;
- 
-+		/* Pair with smp_wmb() in clear_vm_uninitialized_flag() */
-+		smp_rmb();
-+		if (v->flags & VM_UNINITIALIZED)
-+			return;
-+
- 		memset(counters, 0, nr_node_ids * sizeof(unsigned int));
- 
- 		for (nr = 0; nr < v->nr_pages; nr++)
-@@ -2590,11 +2595,6 @@ static int s_show(struct seq_file *m, void *p)
- 
- 	v = va->vm;
- 
--	/* Pair with smp_wmb() in clear_vm_uninitialized_flag() */
--	smp_rmb();
--	if (v->flags & VM_UNINITIALIZED)
--		return 0;
--
- 	seq_printf(m, "0x%pK-0x%pK %7ld",
- 		v->addr, v->addr + v->size, v->size);
- 
--- 
-1.8.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
