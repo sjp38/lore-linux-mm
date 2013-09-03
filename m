@@ -1,115 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id CE35C6B0034
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 12:02:53 -0400 (EDT)
-Message-ID: <5226082A.1050104@parallels.com>
-Date: Tue, 3 Sep 2013 20:02:50 +0400
-From: Maxim Patlasov <mpatlasov@parallels.com>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id D1E256B0031
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 12:13:46 -0400 (EDT)
+Received: by mail-wi0-f174.google.com with SMTP id hj3so2216266wib.13
+        for <linux-mm@kvack.org>; Tue, 03 Sep 2013 09:13:45 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 10/16] fuse: Implement writepages callback
-References: <20130629172211.20175.70154.stgit@maximpc.sw.ru> <20130629174525.20175.18987.stgit@maximpc.sw.ru> <20130719165037.GA18358@tucsk.piliscsaba.szeredi.hu> <51FBD2DF.50506@parallels.com> <CAJfpegtr4+vv_ZzuM7EE7MkHPqNi4brQamg4ZOWb2Me+iG87JQ@mail.gmail.com> <52050474.8040608@parallels.com> <20130830101207.GD19636@tucsk.piliscsaba.szeredi.hu> <5220B12A.1060008@parallels.com> <20130903103132.GA7191@tucsk.piliscsaba.szeredi.hu>
-In-Reply-To: <20130903103132.GA7191@tucsk.piliscsaba.szeredi.hu>
-Content-Type: text/plain; charset="UTF-8"; format=flowed
-Content-Transfer-Encoding: 8bit
+Reply-To: sedat.dilek@gmail.com
+In-Reply-To: <1378216808-2564-1-git-send-email-manfred@colorfullife.com>
+References: <1378216808-2564-1-git-send-email-manfred@colorfullife.com>
+Date: Tue, 3 Sep 2013 18:13:45 +0200
+Message-ID: <CA+icZUUdnK3Kc9OFNjcEsZYigbyytsFk90_HaqqUWh9cvq5+0w@mail.gmail.com>
+Subject: Re: [PATCH] ipc/msg.c: Fix lost wakeup in msgsnd().
+From: Sedat Dilek <sedat.dilek@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: riel@redhat.com, Kirill Korotaev <dev@parallels.com>, Pavel Emelianov <xemul@parallels.com>, fuse-devel <fuse-devel@lists.sourceforge.net>, Brian Foster <bfoster@redhat.com>, Kernel Mailing List <linux-kernel@vger.kernel.org>, James Bottomley <jbottomley@parallels.com>, linux-mm@kvack.org, Al Viro <viro@zeniv.linux.org.uk>, Linux-Fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, fengguang.wu@intel.com, devel@openvz.org, Mel Gorman <mgorman@suse.de>
+To: Manfred Spraul <manfred@colorfullife.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Davidlohr Bueso <dave.bueso@gmail.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, linux-next <linux-next@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Jonathan Gonzalez <jgonzalez@linets.cl>, Vineet Gupta <Vineet.Gupta1@synopsys.com>
 
-09/03/2013 02:31 PM, Miklos Szeredi D?D,N?DuN?:
-> On Fri, Aug 30, 2013 at 06:50:18PM +0400, Maxim Patlasov wrote:
->> Hi Miklos,
->>
->> 08/30/2013 02:12 PM, Miklos Szeredi D?D,N?DuN?:
->>> On Fri, Aug 09, 2013 at 07:02:12PM +0400, Maxim Patlasov wrote:
->>>> 08/06/2013 08:25 PM, Miklos Szeredi D?D,N?DuN?:
->>>>> Hmm.  Direct IO on an mmaped file will do get_user_pages() which will
->>>>> do the necessary page fault magic and ->page_mkwrite() will be called.
->>>>> At least AFAICS.
->>>> Yes, I agree.
->>>>
->>>>> The page cannot become dirty through a memory mapping without first
->>>>> switching the pte from read-only to read-write first.  Page accounting
->>>>> logic relies on this too.  The other way the page can become dirty is
->>>>> through write(2) on the fs.  But we do get notified about that too.
->>>> Yes, that's correct, but I don't understand why you disregard two
->>>> other cases of marking page dirty (both related to direct AIO read
->>> >from a file to a memory region mmap-ed to a fuse file):
->>>> 1. dio_bio_submit() -->
->>>>        bio_set_pages_dirty() -->
->>>>          set_page_dirty_lock()
->>>>
->>>> 2. dio_bio_complete() -->
->>>>        bio_check_pages_dirty() -->
->>>>           bio_dirty_fn() -->
->>>>              bio_set_pages_dirty() -->
->>>>                 set_page_dirty_lock()
->>>>
->>>> As soon as a page became dirty through a memory mapping (exactly as
->>>> you explained), nothing would prevent it to be written-back. And
->>>> fuse will call end_page_writeback almost immediately after copying
->>>> the real page to a temporary one. Then dio_bio_submit may re-dirty
->>>> page speculatively w/o notifying fuse. And again, since then nothing
->>>> would prevent it to be written-back once more. Hence we can end up
->>>> in more then one temporary page in fuse write-back. And similar
->>>> concern for dio_bio_complete() re-dirty.
->>>>
->>>> This make me think that we do need fuse_page_is_writeback() in
->>>> fuse_writepages_fill(). But it shouldn't be harmful because it will
->>>> no-op practically always due to waiting for fuse writeback in
->>>> ->page_mkwrite() and in course of handling write(2).
->>> The problem is: if we need it in ->writepages, we need it in ->writepage too.
->>> And that's where we can't have it because it would deadlock in reclaim.
->> I thought we're protected from the deadlock by the following chunk
->> (in the very beginning of fuse_writepage):
->>
->>> +	if (fuse_page_is_writeback(inode, page->index)) {
->>> +		if (wbc->sync_mode != WB_SYNC_ALL) {
->>> +			redirty_page_for_writepage(wbc, page);
->>> +			return 0;
->>> +		}
->>> +		fuse_wait_on_page_writeback(inode, page->index);
->>> +	}
->> Because reclaimer will never call us with WB_SYNC_ALL. Did I miss
->> something?
-> Yeah, we could have that in ->writepage() too.  And apparently that would work,
-> reclaim would just leave us alone.
+On Tue, Sep 3, 2013 at 4:00 PM, Manfred Spraul <manfred@colorfullife.com> wrote:
+> The check if the queue is full and adding current to the wait queue of pending
+> msgsnd() operations (ss_add()) must be atomic.
 >
-> Then there's sync(2) which does do WB_SYNC_ALL. Yet for an unprivileged fuse
-> mount we don't want ->writepages() to block because that's a quite clear DoS
-> issue.
+> Otherwise:
+> - the thread that performs msgsnd() finds a full queue and decides to sleep.
+> - the thread that performs msgrcv() calls first reads all messages from the
+>   queue and then sleep, because the queue is empty.
 
-Yes, I agree, but those cases (when sync(2) coincides with a page under 
-fuse writeback originated by flusher coinciding with those direct AIO 
-read redirty) should be very rare. I'd suggest to go on and put up with 
-it for now: unprivileged users won't be able to use writeback_cache 
-option until sysad enables allow_wbcache in fusermount.
+reads -> sleeps
 
+> - the msgrcv() calls do not perform any wakeups, because the msgsnd() task
+>   has not yet called ss_add().
+> - then the msgsnd()-thread first calls ss_add() and then sleeps.
+> Net result: msgsnd() and msgrcv() both sleep forever.
 >
-> So we are left with this:
 
-Yes. May we implement it as a separate fix after inclusion of this 
-patch-set?
+I don't know what and why "net result" - net in sense of networking?
 
+> Observed with msgctl08 from ltp with a preemptible kernel.
 >
->>> There's a way to work around this:
->>>
->>>     - if the request is still in queue, just update it with the contents of
->>>       the new page
->>>
->>>     - if the request already in userspace, create a new reqest, but only let
->>>       userspace have it once the previous request for the same page
->>>       completes, so the ordering is not messed up
->>>
->>> But that's a lot of hairy code.
->> Is it exactly how NFS solves similar problem?
-> NFS will apparently just block if there's a request outstanding and we are in
-> WB_SYNC_ALL mode.  Which is somewhat simpler.
 
-Yes, indeed.
+...on ARC arch (that sounds funny somehow).
 
-Thanks,
-Maxim
+> Fix: Call ipc_lock_object() before performing the check.
+>
+> The patch also moves security_msg_queue_msgsnd() under ipc_lock_object:
+> - msgctl(IPC_SET) explicitely mentions that it tries to expunge any pending
+>   operations that are not allowed anymore with the new permissions.
+>   If security_msg_queue_msgsnd() is called without locks, then there might be
+>   races.
+> - it makes the patch much simpler.
+>
+> Reported-by: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+> Signed-off-by: Manfred Spraul <manfred@colorfullife.com>
+
+I guess this is missing a "CC: stable" as Vineet reported against
+Linux v3.11-rc7 (and should enter v3.11.1)?
+
+- Sedat -
+
+> ---
+>  ipc/msg.c | 12 +++++-------
+>  1 file changed, 5 insertions(+), 7 deletions(-)
+>
+> diff --git a/ipc/msg.c b/ipc/msg.c
+> index 9f29d9e..b65fdf1 100644
+> --- a/ipc/msg.c
+> +++ b/ipc/msg.c
+> @@ -680,16 +680,18 @@ long do_msgsnd(int msqid, long mtype, void __user *mtext,
+>                 goto out_unlock1;
+>         }
+>
+> +       ipc_lock_object(&msq->q_perm);
+> +
+>         for (;;) {
+>                 struct msg_sender s;
+>
+>                 err = -EACCES;
+>                 if (ipcperms(ns, &msq->q_perm, S_IWUGO))
+> -                       goto out_unlock1;
+> +                       goto out_unlock0;
+>
+>                 err = security_msg_queue_msgsnd(msq, msg, msgflg);
+>                 if (err)
+> -                       goto out_unlock1;
+> +                       goto out_unlock0;
+>
+>                 if (msgsz + msq->q_cbytes <= msq->q_qbytes &&
+>                                 1 + msq->q_qnum <= msq->q_qbytes) {
+> @@ -699,10 +701,9 @@ long do_msgsnd(int msqid, long mtype, void __user *mtext,
+>                 /* queue full, wait: */
+>                 if (msgflg & IPC_NOWAIT) {
+>                         err = -EAGAIN;
+> -                       goto out_unlock1;
+> +                       goto out_unlock0;
+>                 }
+>
+> -               ipc_lock_object(&msq->q_perm);
+>                 ss_add(msq, &s);
+>
+>                 if (!ipc_rcu_getref(msq)) {
+> @@ -730,10 +731,7 @@ long do_msgsnd(int msqid, long mtype, void __user *mtext,
+>                         goto out_unlock0;
+>                 }
+>
+> -               ipc_unlock_object(&msq->q_perm);
+>         }
+> -
+> -       ipc_lock_object(&msq->q_perm);
+>         msq->q_lspid = task_tgid_vnr(current);
+>         msq->q_stime = get_seconds();
+>
+> --
+> 1.8.3.1
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
