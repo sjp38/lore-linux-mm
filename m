@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 5FC406B0034
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 03:02:02 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id E21456B0036
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 03:02:03 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 3 Sep 2013 16:53:18 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id CBB512CE805D
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 17:01:57 +1000 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r836jheE48693480
-	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 16:45:43 +1000
-Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8371tac027945
-	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 17:01:56 +1000
+	Tue, 3 Sep 2013 12:20:27 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 4DC98E004F
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 12:32:41 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8373nOp29950050
+	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 12:33:49 +0530
+Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8371vWB011664
+	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 12:31:58 +0530
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v4 3/4] mm/vmalloc: revert "mm/vmalloc.c: check VM_UNINITIALIZED flag in s_show instead of show_numa_info"
-Date: Tue,  3 Sep 2013 15:01:45 +0800
-Message-Id: <1378191706-29696-3-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v4 4/4] mm/vmalloc: don't assume vmap_area w/o VM_VM_AREA flag is vm_map_ram allocation 
+Date: Tue,  3 Sep 2013 15:01:46 +0800
+Message-Id: <1378191706-29696-4-git-send-email-liwanp@linux.vnet.ibm.com>
 In-Reply-To: <1378191706-29696-1-git-send-email-liwanp@linux.vnet.ibm.com>
 References: <1378191706-29696-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,50 +26,57 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Changelog:
- *v2 -> v3: revert commit d157a558 directly
+There is a race window between vmap_area free and show vmap_area information.
 
-The VM_UNINITIALIZED/VM_UNLIST flag introduced by commit f5252e00(mm: avoid
-null pointer access in vm_struct via /proc/vmallocinfo) is used to avoid
-accessing the pages field with unallocated page when show_numa_info() is
-called. This patch move the check just before show_numa_info in order that
-some messages still can be dumped via /proc/vmallocinfo. This patch revert 
-commit d157a558 (mm/vmalloc.c: check VM_UNINITIALIZED flag in s_show instead 
-of show_numa_info);
+	A                                                B
+
+remove_vm_area
+spin_lock(&vmap_area_lock);
+va->flags &= ~VM_VM_AREA;
+spin_unlock(&vmap_area_lock);
+						spin_lock(&vmap_area_lock);
+						if (va->flags & (VM_LAZY_FREE | VM_LAZY_FREEZING))
+							return 0;
+						if (!(va->flags & VM_VM_AREA)) {
+							seq_printf(m, "0x%pK-0x%pK %7ld vm_map_ram\n",
+								(void *)va->va_start, (void *)va->va_end,
+								va->va_end - va->va_start);
+							return 0;
+						}
+free_unmap_vmap_area(va);
+	flush_cache_vunmap
+	free_unmap_vmap_area_noflush
+		unmap_vmap_area
+		free_vmap_area_noflush
+			va->flags |= VM_LAZY_FREE 
+
+The assumption is introduced by commit: d4033afd(mm, vmalloc: iterate vmap_area_list, 
+instead of vmlist, in vmallocinfo()). This patch fix it by drop the assumption and 
+keep not dump vm_map_ram allocation information as the logic before that commit.
 
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- mm/vmalloc.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ mm/vmalloc.c | 7 -------
+ 1 file changed, 7 deletions(-)
 
 diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index e3ec8b4..5368b17 100644
+index 5368b17..62b7932 100644
 --- a/mm/vmalloc.c
 +++ b/mm/vmalloc.c
-@@ -2562,6 +2562,11 @@ static void show_numa_info(struct seq_file *m, struct vm_struct *v)
- 		if (!counters)
- 			return;
+@@ -2586,13 +2586,6 @@ static int s_show(struct seq_file *m, void *p)
+ 	if (va->flags & (VM_LAZY_FREE | VM_LAZY_FREEING))
+ 		return 0;
  
-+		/* Pair with smp_wmb() in clear_vm_uninitialized_flag() */
-+		smp_rmb();
-+		if (v->flags & VM_UNINITIALIZED)
-+			return;
-+
- 		memset(counters, 0, nr_node_ids * sizeof(unsigned int));
- 
- 		for (nr = 0; nr < v->nr_pages; nr++)
-@@ -2590,11 +2595,6 @@ static int s_show(struct seq_file *m, void *p)
- 
+-	if (!(va->flags & VM_VM_AREA)) {
+-		seq_printf(m, "0x%pK-0x%pK %7ld vm_map_ram\n",
+-			(void *)va->va_start, (void *)va->va_end,
+-					va->va_end - va->va_start);
+-		return 0;
+-	}
+-
  	v = va->vm;
  
--	/* Pair with smp_wmb() in clear_vm_uninitialized_flag() */
--	smp_rmb();
--	if (v->flags & VM_UNINITIALIZED)
--		return 0;
--
  	seq_printf(m, "0x%pK-0x%pK %7ld",
- 		v->addr, v->addr + v->size, v->size);
- 
 -- 
 1.8.1.2
 
