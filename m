@@ -1,142 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id A49446B0032
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 04:22:04 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 846466B0032
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 04:38:21 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 3 Sep 2013 18:10:36 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id EDF3A2CE8053
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 18:21:56 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8385YFS46137558
-	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 18:05:34 +1000
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r838LtUe010792
-	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 18:21:56 +1000
-Date: Tue, 3 Sep 2013 16:21:53 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 2/4] mm/hwpoison: fix miss catch transparent huge page
-Message-ID: <20130903082153.GB4995@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1378165006-19435-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1378165006-19435-2-git-send-email-liwanp@linux.vnet.ibm.com>
- <20130903031519.GA31018@gchen.bj.intel.com>
- <52256342.4ad52a0a.2e24.ffff8c60SMTPIN_ADDED_BROKEN@mx.google.com>
- <20130903080425.GA32295@gchen.bj.intel.com>
+	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
+	Tue, 3 Sep 2013 13:58:59 +0530
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id E7D281258052
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 14:08:03 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r838c42Q45154348
+	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 14:08:04 +0530
+Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r838c50e016020
+	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 14:08:06 +0530
+Message-ID: <52259F09.30409@linux.vnet.ibm.com>
+Date: Tue, 03 Sep 2013 14:04:17 +0530
+From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130903080425.GA32295@gchen.bj.intel.com>
+Subject: Re: [RFC PATCH v3 06/35] mm: Add helpers to retrieve node region
+ and zone region for a given page
+References: <20130830131221.4947.99764.stgit@srivatsabhat.in.ibm.com> <20130830131542.4947.76970.stgit@srivatsabhat.in.ibm.com> <52257A1A.2040200@jp.fujitsu.com>
+In-Reply-To: <52257A1A.2040200@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Gong <gong.chen@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: akpm@linux-foundation.org, mgorman@suse.de, hannes@cmpxchg.org, tony.luck@intel.com, matthew.garrett@nebula.com, dave@sr71.net, riel@redhat.com, arjan@linux.intel.com, srinivas.pandruvada@linux.intel.com, willy@linux.intel.com, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl, gargankita@gmail.com, paulmck@linux.vnet.ibm.com, svaidy@linux.vnet.ibm.com, andi@firstfloor.org, santosh.shilimkar@ti.com, kosaki.motohiro@gmail.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Sep 03, 2013 at 04:04:25AM -0400, Chen Gong wrote:
->On Tue, Sep 03, 2013 at 12:18:58PM +0800, Wanpeng Li wrote:
->> Date: Tue, 3 Sep 2013 12:18:58 +0800
->> From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->> To: Chen Gong <gong.chen@linux.intel.com>
->> Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen
->>  <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Naoya
->>  Horiguchi <n-horiguchi@ah.jp.nec.com>, Tony Luck <tony.luck@intel.com>,
->>  linux-mm@kvack.org, linux-kernel@vger.kernel.org
->> Subject: Re: [PATCH v2 2/4] mm/hwpoison: fix miss catch transparent huge
->>  page
->> User-Agent: Mutt/1.5.21 (2010-09-15)
->> 
->> On Mon, Sep 02, 2013 at 11:15:19PM -0400, Chen Gong wrote:
->> >On Tue, Sep 03, 2013 at 07:36:44AM +0800, Wanpeng Li wrote:
->> >> Date: Tue,  3 Sep 2013 07:36:44 +0800
->> >> From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->> >> To: Andrew Morton <akpm@linux-foundation.org>
->> >> Cc: Andi Kleen <andi@firstfloor.org>, Fengguang Wu
->> >>  <fengguang.wu@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
->> >>  Tony Luck <tony.luck@intel.com>, gong.chen@linux.intel.com,
->> >>  linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li
->> >>  <liwanp@linux.vnet.ibm.com>
->> >> Subject: [PATCH v2 2/4] mm/hwpoison: fix miss catch transparent huge page 
->> >> X-Mailer: git-send-email 1.7.5.4
->> >> 
->> >> Changelog:
->> >>  *v1 -> v2: reverse PageTransHuge(page) && !PageHuge(page) check 
->> >> 
->> >> PageTransHuge() can't guarantee the page is transparent huge page since it 
->> >> return true for both transparent huge and hugetlbfs pages. This patch fix 
->> >> it by check the page is also !hugetlbfs page.
->> >> 
->> >> Before patch:
->> >> 
->> >> [  121.571128] Injecting memory failure at pfn 23a200
->> >> [  121.571141] MCE 0x23a200: huge page recovery: Delayed
->> >> [  140.355100] MCE: Memory failure is now running on 0x23a200
->> >> 
->> >> After patch:
->> >> 
->> >> [   94.290793] Injecting memory failure at pfn 23a000
->> >> [   94.290800] MCE 0x23a000: huge page recovery: Delayed
->> >> [  105.722303] MCE: Software-unpoisoned page 0x23a000
->> >> 
->> >> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->> >> ---
->> >>  mm/memory-failure.c | 2 +-
->> >>  1 file changed, 1 insertion(+), 1 deletion(-)
->> >> 
->> >> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
->> >> index e28ee77..b114570 100644
->> >> --- a/mm/memory-failure.c
->> >> +++ b/mm/memory-failure.c
->> >> @@ -1349,7 +1349,7 @@ int unpoison_memory(unsigned long pfn)
->> >>  	 * worked by memory_failure() and the page lock is not held yet.
->> >>  	 * In such case, we yield to memory_failure() and make unpoison fail.
->> >>  	 */
->> >> -	if (PageTransHuge(page)) {
->> >> +	if (!PageHuge(page) && PageTransHuge(page)) {
->> >>  		pr_info("MCE: Memory failure is now running on %#lx\n", pfn);
->> >>  			return 0;
->> >>  	}
->> >
->> >Not sure which git tree should be used to apply this patch series? I assume
->> >this patch series follows this link: https://lkml.org/lkml/2013/8/26/76.
->> >
->> 
->> mmotm tree or linux-next. ;-)
->> 
->> >In unpoison_memory we already have
->> >        if (PageHuge(page)) {
->> >                ...
->> >                return 0;
->> >        }
->> >so it looks like this patch is redundant.
->> 
->> - Do you aware there is condition before go to this check?
->> - Do you also analysis why the check can't catch the hugetlbfs page
->>   through the dump information?
->> 
->
->Looks like we use different trees. After checking your working tree,
->your patch is right. So just ignore my words above. FWIW, please be
+On 09/03/2013 11:26 AM, Yasuaki Ishimatsu wrote:
+> (2013/08/30 22:15), Srivatsa S. Bhat wrote:
+>> Given a page, we would like to have an efficient mechanism to find out
+>> the node memory region and the zone memory region to which it belongs.
+>>
+>> Since the node is assumed to be divided into equal-sized node memory
+>> regions, the node memory region can be obtained by simply right-shifting
+>> the page's pfn by 'MEM_REGION_SHIFT'.
+>>
+>> But finding the corresponding zone memory region's index in the zone is
+>> not that straight-forward. To have a O(1) algorithm to find it out,
+>> define a
+>> zone_region_idx[] array to store the zone memory region indices for every
+>> node memory region.
+>>
+>> To illustrate, consider the following example:
+>>
+>>     |<----------------------Node---------------------->|
+>>      __________________________________________________
+>>     |      Node mem reg 0      |      Node mem reg 1     |  (Absolute
+>> region
+>>     |________________________|_________________________|   boundaries)
+>>
+>>      __________________________________________________
+>>     |    ZONE_DMA   |        ZONE_NORMAL           |
+>>     |               |                                  |
+>>     |<--- ZMR 0 --->|<-ZMR0->|<-------- ZMR 1 -------->|
+>>     |_______________|________|_________________________|
+>>
+>>
+>> In the above figure,
+>>
+>> Node mem region 0:
+>> ------------------
+>> This region corresponds to the first zone mem region in ZONE_DMA and also
+>> the first zone mem region in ZONE_NORMAL. Hence its index array would
+>> look
+>> like this:
+>>      node_regions[0].zone_region_idx[ZONE_DMA]     == 0
+>>      node_regions[0].zone_region_idx[ZONE_NORMAL]  == 0
+>>
+>>
+>> Node mem region 1:
+>> ------------------
+>> This region corresponds to the second zone mem region in ZONE_NORMAL.
+>> Hence
+>> its index array would look like this:
+>>      node_regions[1].zone_region_idx[ZONE_NORMAL]  == 1
+>>
+>>
+>> Using this index array, we can quickly obtain the zone memory region to
+>> which a given page belongs.
+>>
+>> Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
+>> ---
+>>
+>>   include/linux/mm.h     |   24 ++++++++++++++++++++++++
+>>   include/linux/mmzone.h |    7 +++++++
+>>   mm/page_alloc.c        |    1 +
+>>   3 files changed, 32 insertions(+)
+>>
+>> diff --git a/include/linux/mm.h b/include/linux/mm.h
+>> index 18fdec4..52329d1 100644
+>> --- a/include/linux/mm.h
+>> +++ b/include/linux/mm.h
+>> @@ -723,6 +723,30 @@ static inline struct zone *page_zone(const struct
+>> page *page)
+>>       return
+>> &NODE_DATA(page_to_nid(page))->node_zones[page_zonenum(page)];
+>>   }
+>>
+>> +static inline int page_node_region_id(const struct page *page,
+>> +                      const pg_data_t *pgdat)
+>> +{
+>> +    return (page_to_pfn(page) - pgdat->node_start_pfn) >>
+>> MEM_REGION_SHIFT;
+>> +}
+>> +
+>> +/**
+>> + * Return the index of the zone memory region to which the page belongs.
+>> + *
+>> + * Given a page, find the absolute (node) memory region as well as
+>> the zone to
+>> + * which it belongs. Then find the region within the zone that
+>> corresponds to
+>> + * that node memory region, and return its index.
+>> + */
+>> +static inline int page_zone_region_id(const struct page *page)
+>> +{
+>> +    pg_data_t *pgdat = NODE_DATA(page_to_nid(page));
+>> +    enum zone_type z_num = page_zonenum(page);
+>> +    unsigned long node_region_idx;
+>> +
+>> +    node_region_idx = page_node_region_id(page, pgdat);
+>> +
+>> +    return pgdat->node_regions[node_region_idx].zone_region_idx[z_num];
+>> +}
+>> +
+>>   #ifdef SECTION_IN_PAGE_FLAGS
+>>   static inline void set_page_section(struct page *page, unsigned long
+>> section)
+>>   {
+>> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+>> index 010ab5b..76d9ed2 100644
+>> --- a/include/linux/mmzone.h
+>> +++ b/include/linux/mmzone.h
+>> @@ -726,6 +726,13 @@ struct node_mem_region {
+>>       unsigned long end_pfn;
+>>       unsigned long present_pages;
+>>       unsigned long spanned_pages;
+> 
+>> +
+>> +    /*
+>> +     * A physical (node) region could be split across multiple zones.
+>> +     * Store the indices of the corresponding regions of each such
+>> +     * zone for this physical (node) region.
+>> +     */
+>> +    int zone_region_idx[MAX_NR_ZONES];
+> 
+> You should initialize the zone_region_id[] as negative value.
 
-Thanks. 
+Oh, I missed that.
 
->polite and give a positive response.
->
+> If the zone_region_id is initialized as 0, region 0 belongs to all zones.
+> 
 
-It's my fault, sorry for that. 
+In fact, if it is initialized as zero, every node region will appear to
+map to every zone's first zone-mem-region. But luckily, since we never index
+the zone_region_idx[] array with incorrect zone-number, I didn't encounter
+any wrong values in practice. But thanks for pointing it out, I'll fix it.
 
 Regards,
-Wanpeng Li 
-
->> Regards,
->> Wanpeng Li 
->> 
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Srivatsa S. Bhat
 
 
 --
