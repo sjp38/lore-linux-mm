@@ -1,98 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id B88786B0032
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 01:33:45 -0400 (EDT)
-Message-ID: <52257478.7070305@asianux.com>
-Date: Tue, 03 Sep 2013 13:32:40 +0800
-From: Chen Gang <gang.chen@asianux.com>
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 5F14D6B0032
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 01:35:17 -0400 (EDT)
+Message-ID: <52257502.5010405@cn.fujitsu.com>
+Date: Tue, 03 Sep 2013 13:34:58 +0800
+From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/shmem.c: check the return value of mpol_to_str()
-References: <5212E8DF.5020209@asianux.com> <20130820053036.GB18673@moon> <52130194.4030903@asianux.com> <20130820064730.GD18673@moon> <52131F48.1030002@asianux.com> <52132011.60501@asianux.com> <52132432.3050308@asianux.com> <20130820082516.GE18673@moon> <52142422.9050209@asianux.com> <52142464.8060903@asianux.com> <521424BE.8020309@asianux.com> <20130821150337.bad5f71869cec813e2ded90c@linux-foundation.org> <521560BB.30006@asianux.com> <5215639D.1080202@asianux.com>
-In-Reply-To: <5215639D.1080202@asianux.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH v2 1/3] mm/vmalloc: don't set area->caller twice
+References: <1378177220-26218-1-git-send-email-liwanp@linux.vnet.ibm.com>
+In-Reply-To: <1378177220-26218-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, hughd@google.com, xemul@parallels.com, rientjes@google.com, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Cyrill Gorcunov <gorcunov@gmail.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello Maintainers:
-
-Please help check this patch, when you have time.
-
-If it need additional test, please let me know, I should try (better to
-provide some suggestions for test).
-
-
-Thanks.
-
-On 08/22/2013 09:04 AM, Chen Gang wrote:
-> mpol_to_str() may fail, and not fill the buffer (e.g. -EINVAL), so need
-> check about it, or buffer may not be zero based, and next seq_printf()
-> will cause issue.
+On 09/03/2013 11:00 AM, Wanpeng Li wrote:
+> Changelog:
+>  * rebase against mmotm tree
 > 
-> Also need let shmem_show_mpol() return value, since it may fail.
+> The caller address has already been set in set_vmalloc_vm(), there's no need
+> to set it again in __vmalloc_area_node.
 > 
-> Signed-off-by: Chen Gang <gang.chen@asianux.com>
-> Reviewed-by: Cyrill Gorcunov <gorcunov@gmail.com>
+> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+
+Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+
 > ---
->  mm/shmem.c |   16 ++++++++++------
->  1 files changed, 10 insertions(+), 6 deletions(-)
+>  mm/vmalloc.c |    1 -
+>  1 files changed, 0 insertions(+), 1 deletions(-)
 > 
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index f00c1c1..b4d44db 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -883,16 +883,20 @@ redirty:
->  
->  #ifdef CONFIG_NUMA
->  #ifdef CONFIG_TMPFS
-> -static void shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
-> +static int shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
->  {
->  	char buffer[64];
-> +	int ret;
->  
->  	if (!mpol || mpol->mode == MPOL_DEFAULT)
-> -		return;		/* show nothing */
-> +		return 0;		/* show nothing */
->  
-> -	mpol_to_str(buffer, sizeof(buffer), mpol);
-> +	ret = mpol_to_str(buffer, sizeof(buffer), mpol);
-> +	if (ret < 0)
-> +		return ret;
->  
->  	seq_printf(seq, ",mpol=%s", buffer);
-> +	return 0;
->  }
->  
->  static struct mempolicy *shmem_get_sbmpol(struct shmem_sb_info *sbinfo)
-> @@ -951,8 +955,9 @@ static struct page *shmem_alloc_page(gfp_t gfp,
->  }
->  #else /* !CONFIG_NUMA */
->  #ifdef CONFIG_TMPFS
-> -static inline void shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
-> +static inline int shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
->  {
-> +	return 0;
->  }
->  #endif /* CONFIG_TMPFS */
->  
-> @@ -2555,8 +2560,7 @@ static int shmem_show_options(struct seq_file *seq, struct dentry *root)
->  	if (!gid_eq(sbinfo->gid, GLOBAL_ROOT_GID))
->  		seq_printf(seq, ",gid=%u",
->  				from_kgid_munged(&init_user_ns, sbinfo->gid));
-> -	shmem_show_mpol(seq, sbinfo->mpol);
-> -	return 0;
-> +	return shmem_show_mpol(seq, sbinfo->mpol);
->  }
->  #endif /* CONFIG_TMPFS */
->  
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 1074543..d78d117 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -1566,7 +1566,6 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+>  		pages = kmalloc_node(array_size, nested_gfp, node);
+>  	}
+>  	area->pages = pages;
+> -	area->caller = caller;
+>  	if (!area->pages) {
+>  		remove_vm_area(area->addr);
+>  		kfree(area);
 > 
 
 
 -- 
-Chen Gang
+Thanks.
+Zhang Yanfei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
