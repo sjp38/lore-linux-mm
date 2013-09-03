@@ -1,156 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id AC6356B0032
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 17:56:24 -0400 (EDT)
-Received: by mail-wi0-f182.google.com with SMTP id ez12so3235463wid.15
-        for <linux-mm@kvack.org>; Tue, 03 Sep 2013 14:56:23 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 5CCA96B0032
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 18:35:31 -0400 (EDT)
+Date: Tue, 3 Sep 2013 18:35:16 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] memcg: fix multiple large threshold notifications
+Message-ID: <20130903223516.GB1412@cmpxchg.org>
+References: <1377994002-1857-1-git-send-email-gthelen@google.com>
 MIME-Version: 1.0
-Reply-To: sedat.dilek@gmail.com
-In-Reply-To: <52260F45.6040702@colorfullife.com>
-References: <1378216808-2564-1-git-send-email-manfred@colorfullife.com>
-	<CA+icZUUdnK3Kc9OFNjcEsZYigbyytsFk90_HaqqUWh9cvq5+0w@mail.gmail.com>
-	<52260F45.6040702@colorfullife.com>
-Date: Tue, 3 Sep 2013 23:56:23 +0200
-Message-ID: <CA+icZUUThSZTRTfyLUfutoAHCmkMr1p0MQh7013JY8cto1schA@mail.gmail.com>
-Subject: Re: [PATCH] ipc/msg.c: Fix lost wakeup in msgsnd().
-From: Sedat Dilek <sedat.dilek@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1377994002-1857-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Manfred Spraul <manfred@colorfullife.com>
-Cc: Greg KH <greg@kroah.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Davidlohr Bueso <dave.bueso@gmail.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, linux-next <linux-next@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Jonathan Gonzalez <jgonzalez@linets.cl>, Vineet Gupta <Vineet.Gupta1@synopsys.com>
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Sep 3, 2013 at 6:33 PM, Manfred Spraul <manfred@colorfullife.com> wrote:
-> Hi Sedat,
->
->
-> On 09/03/2013 06:13 PM, Sedat Dilek wrote:
->>
->> On Tue, Sep 3, 2013 at 4:00 PM, Manfred Spraul <manfred@colorfullife.com>
->> wrote:
->>>
->>> The check if the queue is full and adding current to the wait queue of
->>> pending
->>> msgsnd() operations (ss_add()) must be atomic.
->>>
->>> Otherwise:
->>> - the thread that performs msgsnd() finds a full queue and decides to
->>> sleep.
->>> - the thread that performs msgrcv() calls first reads all messages from
->>> the
->>>    queue and then sleep, because the queue is empty.
->>
->> reads -> sleeps
->
-> Correct.
->
->>> - the msgrcv() calls do not perform any wakeups, because the msgsnd()
->>> task
->>>    has not yet called ss_add().
->>> - then the msgsnd()-thread first calls ss_add() and then sleeps.
->>> Net result: msgsnd() and msgrcv() both sleep forever.
->>>
->> I don't know what and why "net result" - net in sense of networking?
->
-> http://en.wiktionary.org/wiki/net#Adjective
-> I.e.: Ignore/remove the "Net".
->
->
->>> Observed with msgctl08 from ltp with a preemptible kernel.
->>>
->> ...on ARC arch (that sounds funny somehow).
->>
->>> Fix: Call ipc_lock_object() before performing the check.
->>>
->>> The patch also moves security_msg_queue_msgsnd() under ipc_lock_object:
->>> - msgctl(IPC_SET) explicitely mentions that it tries to expunge any
->>> pending
->>>    operations that are not allowed anymore with the new permissions.
->>>    If security_msg_queue_msgsnd() is called without locks, then there
->>> might be
->>>    races.
->>> - it makes the patch much simpler.
->>>
->>> Reported-by: Vineet Gupta <Vineet.Gupta1@synopsys.com>
->>> Signed-off-by: Manfred Spraul <manfred@colorfullife.com>
->>
->> I guess this is missing a "CC: stable" as Vineet reported against
->> Linux v3.11-rc7 (and should enter v3.11.1)?
->
-> Yes. I didn't notice that Linus already released 3.11.
->
+On Sat, Aug 31, 2013 at 05:06:42PM -0700, Greg Thelen wrote:
+> A memory cgroup with (1) multiple threshold notifications and (2) at
+> least one threshold >=2G was not reliable.  Specifically the
+> notifications would either not fire or would not fire in the proper
+> order.
+> 
+> The __mem_cgroup_threshold() signaling logic depends on keeping 64 bit
+> thresholds in sorted order.  mem_cgroup_usage_register_event() sorts
+> them with compare_thresholds(), which returns the difference of two 64
+> bit thresholds as an int.  If the difference is positive but has
+> bit[31] set, then sort() treats the difference as negative and breaks
+> sort order.
+> 
+> This fix compares the two arbitrary 64 bit thresholds returning the
+> classic -1, 0, 1 result.
+> 
+> The test below sets two notifications (at 0x1000 and 0x81001000):
+>   cd /sys/fs/cgroup/memory
+>   mkdir x
+>   for x in 4096 2164264960; do
+>     cgroup_event_listener x/memory.usage_in_bytes $x | sed "s/^/$x listener:/" &
+>   done
+>   echo $$ > x/cgroup.procs
+>   anon_leaker 500M
+> 
+> v3.11-rc7 fails to signal the 4096 event listener:
+>   Leaking...
+>   Done leaking pages.
+> 
+> Patched v3.11-rc7 properly notifies:
+>   Leaking...
+>   4096 listener:2013:8:31:14:13:36
+>   Done leaking pages.
+> 
+> The fixed bug is old.  It appears to date back to the introduction of
+> memcg threshold notifications in v2.6.34-rc1-116-g2e72b6347c94 "memcg:
+> implement memory thresholds"
+> 
+> Signed-off-by: Greg Thelen <gthelen@google.com>
 
-Linus pushed your patch upstream... with typos fixed and "CC: stable #3.11".
-Thanks to all involved people!
-
-- Sedat -
-
-[1] http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=bebcb928c820d0ee83aca4b192adc195e43e66a2
-
-> --
->     Manfred
->
->> - Sedat -
->>
->>> ---
->>>   ipc/msg.c | 12 +++++-------
->>>   1 file changed, 5 insertions(+), 7 deletions(-)
->>>
->>> diff --git a/ipc/msg.c b/ipc/msg.c
->>> index 9f29d9e..b65fdf1 100644
->>> --- a/ipc/msg.c
->>> +++ b/ipc/msg.c
->>> @@ -680,16 +680,18 @@ long do_msgsnd(int msqid, long mtype, void __user
->>> *mtext,
->>>                  goto out_unlock1;
->>>          }
->>>
->>> +       ipc_lock_object(&msq->q_perm);
->>> +
->>>          for (;;) {
->>>                  struct msg_sender s;
->>>
->>>                  err = -EACCES;
->>>                  if (ipcperms(ns, &msq->q_perm, S_IWUGO))
->>> -                       goto out_unlock1;
->>> +                       goto out_unlock0;
->>>
->>>                  err = security_msg_queue_msgsnd(msq, msg, msgflg);
->>>                  if (err)
->>> -                       goto out_unlock1;
->>> +                       goto out_unlock0;
->>>
->>>                  if (msgsz + msq->q_cbytes <= msq->q_qbytes &&
->>>                                  1 + msq->q_qnum <= msq->q_qbytes) {
->>> @@ -699,10 +701,9 @@ long do_msgsnd(int msqid, long mtype, void __user
->>> *mtext,
->>>                  /* queue full, wait: */
->>>                  if (msgflg & IPC_NOWAIT) {
->>>                          err = -EAGAIN;
->>> -                       goto out_unlock1;
->>> +                       goto out_unlock0;
->>>                  }
->>>
->>> -               ipc_lock_object(&msq->q_perm);
->>>                  ss_add(msq, &s);
->>>
->>>                  if (!ipc_rcu_getref(msq)) {
->>> @@ -730,10 +731,7 @@ long do_msgsnd(int msqid, long mtype, void __user
->>> *mtext,
->>>                          goto out_unlock0;
->>>                  }
->>>
->>> -               ipc_unlock_object(&msq->q_perm);
->>>          }
->>> -
->>> -       ipc_lock_object(&msq->q_perm);
->>>          msq->q_lspid = task_tgid_vnr(current);
->>>          msq->q_stime = get_seconds();
->>>
->>> --
->>> 1.8.3.1
->>>
->
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
