@@ -1,24 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 7A3A36B0032
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 03:41:29 -0400 (EDT)
-Date: Tue, 3 Sep 2013 16:42:21 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id E4C106B0033
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 03:42:11 -0400 (EDT)
+Message-ID: <522592BF.1090102@cn.fujitsu.com>
+Date: Tue, 03 Sep 2013 15:41:51 +0800
+From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+MIME-Version: 1.0
 Subject: Re: [PATCH v4 4/4] mm/vmalloc: don't assume vmap_area w/o VM_VM_AREA
  flag is vm_map_ram allocation
-Message-ID: <20130903074221.GA30920@lge.com>
-References: <1378191706-29696-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1378191706-29696-4-git-send-email-liwanp@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+References: <1378191706-29696-1-git-send-email-liwanp@linux.vnet.ibm.com> <1378191706-29696-4-git-send-email-liwanp@linux.vnet.ibm.com>
 In-Reply-To: <1378191706-29696-4-git-send-email-liwanp@linux.vnet.ibm.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Sep 03, 2013 at 03:01:46PM +0800, Wanpeng Li wrote:
+On 09/03/2013 03:01 PM, Wanpeng Li wrote:
 > There is a race window between vmap_area free and show vmap_area information.
 > 
 > 	A                                                B
@@ -26,6 +25,9 @@ On Tue, Sep 03, 2013 at 03:01:46PM +0800, Wanpeng Li wrote:
 > remove_vm_area
 > spin_lock(&vmap_area_lock);
 > va->flags &= ~VM_VM_AREA;
+
+Here we also do: va->vm = NULL; And see below....
+
 > spin_unlock(&vmap_area_lock);
 > 						spin_lock(&vmap_area_lock);
 > 						if (va->flags & (VM_LAZY_FREE | VM_LAZY_FREEZING))
@@ -68,22 +70,21 @@ On Tue, Sep 03, 2013 at 03:01:46PM +0800, Wanpeng Li wrote:
 > -	}
 > -
 >  	v = va->vm;
+
+If we remove the if test above, in the window you said above, va->vm is NULL,
+but below we will still try to access the members of this vm_struct, which
+will cause problems...
+
+Correct me if I am wrong, please.
+
 >  
 >  	seq_printf(m, "0x%pK-0x%pK %7ld",
+> 
 
-Hello, Wanpeng.
 
-Did you test this patch?
-
-I guess that, With this patch, if there are some vm_map areas,
-null pointer deference would occurs, since va->vm may be null for it.
-
-And with this patch, if this race really occur, null pointer deference
-would occurs too, since va->vm is set to null in remove_vm_area().
-
-I think that this is not a right fix for this possible race.
-
+-- 
 Thanks.
+Zhang Yanfei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
