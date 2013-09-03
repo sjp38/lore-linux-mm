@@ -1,65 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id BF2206B0032
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 08:55:10 -0400 (EDT)
-From: Christian Hesse <mail@eworm.de>
-Subject: [PATCH 1/1] fix typos in Documentation/vm/zswap.txt
-Date: Tue,  3 Sep 2013 14:54:14 +0200
-Message-Id: <1378212854-15296-1-git-send-email-mail@eworm.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id F10D46B0032
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 10:00:29 -0400 (EDT)
+Received: by mail-bk0-f53.google.com with SMTP id d7so2187564bkh.12
+        for <linux-mm@kvack.org>; Tue, 03 Sep 2013 07:00:28 -0700 (PDT)
+From: Manfred Spraul <manfred@colorfullife.com>
+Subject: [PATCH] ipc/msg.c: Fix lost wakeup in msgsnd().
+Date: Tue,  3 Sep 2013 16:00:08 +0200
+Message-Id: <1378216808-2564-1-git-send-email-manfred@colorfullife.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, Christian Hesse <mail@eworm.de>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Davidlohr Bueso <dave.bueso@gmail.com>, Sedat Dilek <sedat.dilek@gmail.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, linux-next <linux-next@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Jonathan Gonzalez <jgonzalez@linets.cl>, Vineet Gupta <Vineet.Gupta1@synopsys.com>, Manfred Spraul <manfred@colorfullife.com>
 
+The check if the queue is full and adding current to the wait queue of pending
+msgsnd() operations (ss_add()) must be atomic.
+
+Otherwise:
+- the thread that performs msgsnd() finds a full queue and decides to sleep.
+- the thread that performs msgrcv() calls first reads all messages from the
+  queue and then sleep, because the queue is empty.
+- the msgrcv() calls do not perform any wakeups, because the msgsnd() task
+  has not yet called ss_add().
+- then the msgsnd()-thread first calls ss_add() and then sleeps.
+Net result: msgsnd() and msgrcv() both sleep forever.
+
+Observed with msgctl08 from ltp with a preemptible kernel.
+
+Fix: Call ipc_lock_object() before performing the check.
+
+The patch also moves security_msg_queue_msgsnd() under ipc_lock_object:
+- msgctl(IPC_SET) explicitely mentions that it tries to expunge any pending
+  operations that are not allowed anymore with the new permissions.
+  If security_msg_queue_msgsnd() is called without locks, then there might be
+  races.
+- it makes the patch much simpler.
+
+Reported-by: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Signed-off-by: Manfred Spraul <manfred@colorfullife.com>
 ---
- Documentation/vm/zswap.txt | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ ipc/msg.c | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)
 
-diff --git a/Documentation/vm/zswap.txt b/Documentation/vm/zswap.txt
-index 7e492d8..00c3d31 100644
---- a/Documentation/vm/zswap.txt
-+++ b/Documentation/vm/zswap.txt
-@@ -8,7 +8,7 @@ significant performance improvement if reads from the compressed cache are
- faster than reads from a swap device.
+diff --git a/ipc/msg.c b/ipc/msg.c
+index 9f29d9e..b65fdf1 100644
+--- a/ipc/msg.c
++++ b/ipc/msg.c
+@@ -680,16 +680,18 @@ long do_msgsnd(int msqid, long mtype, void __user *mtext,
+ 		goto out_unlock1;
+ 	}
  
- NOTE: Zswap is a new feature as of v3.11 and interacts heavily with memory
--reclaim.  This interaction has not be fully explored on the large set of
-+reclaim.  This interaction has not been fully explored on the large set of
- potential configurations and workloads that exist.  For this reason, zswap
- is a work in progress and should be considered experimental.
++	ipc_lock_object(&msq->q_perm);
++
+ 	for (;;) {
+ 		struct msg_sender s;
  
-@@ -23,7 +23,7 @@ Some potential benefits:
- A A A  drastically reducing life-shortening writes.
+ 		err = -EACCES;
+ 		if (ipcperms(ns, &msq->q_perm, S_IWUGO))
+-			goto out_unlock1;
++			goto out_unlock0;
  
- Zswap evicts pages from compressed cache on an LRU basis to the backing swap
--device when the compressed pool reaches it size limit.  This requirement had
-+device when the compressed pool reaches its size limit.  This requirement had
- been identified in prior community discussions.
+ 		err = security_msg_queue_msgsnd(msq, msg, msgflg);
+ 		if (err)
+-			goto out_unlock1;
++			goto out_unlock0;
  
- To enabled zswap, the "enabled" attribute must be set to 1 at boot time.  e.g.
-@@ -37,7 +37,7 @@ the backing swap device in the case that the compressed pool is full.
+ 		if (msgsz + msq->q_cbytes <= msq->q_qbytes &&
+ 				1 + msq->q_qnum <= msq->q_qbytes) {
+@@ -699,10 +701,9 @@ long do_msgsnd(int msqid, long mtype, void __user *mtext,
+ 		/* queue full, wait: */
+ 		if (msgflg & IPC_NOWAIT) {
+ 			err = -EAGAIN;
+-			goto out_unlock1;
++			goto out_unlock0;
+ 		}
  
- Zswap makes use of zbud for the managing the compressed memory pool.  Each
- allocation in zbud is not directly accessible by address.  Rather, a handle is
--return by the allocation routine and that handle must be mapped before being
-+returned by the allocation routine and that handle must be mapped before being
- accessed.  The compressed memory pool grows on demand and shrinks as compressed
- pages are freed.  The pool is not preallocated.
+-		ipc_lock_object(&msq->q_perm);
+ 		ss_add(msq, &s);
  
-@@ -56,7 +56,7 @@ in the swap_map goes to 0) the swap code calls the zswap invalidate function,
- via frontswap, to free the compressed entry.
+ 		if (!ipc_rcu_getref(msq)) {
+@@ -730,10 +731,7 @@ long do_msgsnd(int msqid, long mtype, void __user *mtext,
+ 			goto out_unlock0;
+ 		}
  
- Zswap seeks to be simple in its policies.  Sysfs attributes allow for one user
--controlled policies:
-+controlled policy:
- * max_pool_percent - The maximum percentage of memory that the compressed
-     pool can occupy.
+-		ipc_unlock_object(&msq->q_perm);
+ 	}
+-
+-	ipc_lock_object(&msq->q_perm);
+ 	msq->q_lspid = task_tgid_vnr(current);
+ 	msq->q_stime = get_seconds();
  
 -- 
-1.8.4
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
