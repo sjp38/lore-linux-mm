@@ -1,82 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 651D96B0032
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 02:39:08 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id AB7243EE0C3
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 15:39:06 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9EE0F45DE54
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 15:39:06 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8276B45DE5E
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 15:39:06 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 757D11DB8040
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 15:39:06 +0900 (JST)
-Received: from g01jpfmpwkw03.exch.g01.fujitsu.local (g01jpfmpwkw03.exch.g01.fujitsu.local [10.0.193.57])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id F1E3BE08001
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 15:39:05 +0900 (JST)
-Message-ID: <522583DE.709@jp.fujitsu.com>
-Date: Tue, 3 Sep 2013 15:38:22 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [RFC PATCH v3 09/35] mm: Track the freepage migratetype of pages
- accurately
-References: <20130830131221.4947.99764.stgit@srivatsabhat.in.ibm.com> <20130830131635.4947.81565.stgit@srivatsabhat.in.ibm.com>
-In-Reply-To: <20130830131635.4947.81565.stgit@srivatsabhat.in.ibm.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 85B256B0032
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 03:01:59 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Tue, 3 Sep 2013 12:21:19 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id C4202E004F
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 12:32:37 +0530 (IST)
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8373fn845678620
+	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 12:33:41 +0530
+Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8371sso021883
+	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 12:31:54 +0530
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v4 2/4] mm/vmalloc: revert "mm/vmalloc.c: emit the failure message before return"
+Date: Tue,  3 Sep 2013 15:01:44 +0800
+Message-Id: <1378191706-29696-2-git-send-email-liwanp@linux.vnet.ibm.com>
+In-Reply-To: <1378191706-29696-1-git-send-email-liwanp@linux.vnet.ibm.com>
+References: <1378191706-29696-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, mgorman@suse.de, hannes@cmpxchg.org, tony.luck@intel.com, matthew.garrett@nebula.com, dave@sr71.net, riel@redhat.com, arjan@linux.intel.com, srinivas.pandruvada@linux.intel.com, willy@linux.intel.com, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl, gargankita@gmail.com, paulmck@linux.vnet.ibm.com, svaidy@linux.vnet.ibm.com, andi@firstfloor.org, santosh.shilimkar@ti.com, kosaki.motohiro@gmail.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-(2013/08/30 22:16), Srivatsa S. Bhat wrote:
-> Due to the region-wise ordering of the pages in the buddy allocator's
-> free lists, whenever we want to delete a free pageblock from a free list
-> (for ex: when moving blocks of pages from one list to the other), we need
-> to be able to tell the buddy allocator exactly which migratetype it belongs
-> to. For that purpose, we can use the page's freepage migratetype (which is
-> maintained in the page's ->index field).
->
-> So, while splitting up higher order pages into smaller ones as part of buddy
-> operations, keep the new head pages updated with the correct freepage
-> migratetype information (because we depend on tracking this info accurately,
-> as outlined above).
->
-> Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
-> ---
->
->   mm/page_alloc.c |    7 +++++++
->   1 file changed, 7 insertions(+)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 398b62c..b4b1275 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -947,6 +947,13 @@ static inline void expand(struct zone *zone, struct page *page,
->   		add_to_freelist(&page[size], &area->free_list[migratetype]);
->   		area->nr_free++;
->   		set_page_order(&page[size], high);
-> +
-> +		/*
-> +		 * Freepage migratetype is tracked using the index field of the
-> +		 * first page of the block. So we need to update the new first
-> +		 * page, when changing the page order.
-> +		 */
-> +		set_freepage_migratetype(&page[size], migratetype);
->   	}
->   }
->
->
+Changelog:
+ *v2 -> v3: revert commit 46c001a2 directly
 
-It this patch a bug fix patch?
-If so, I want you to split the patch from the patch-set.
+Don't warning twice in __vmalloc_area_node and __vmalloc_node_range if
+__vmalloc_area_node allocation failure. This patch revert commit 46c001a2
+(mm/vmalloc.c: emit the failure message before return).
 
-Thanks,
-Yasuaki Ishimatsu
+Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+---
+ mm/vmalloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index d78d117..e3ec8b4 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1635,7 +1635,7 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
+ 
+ 	addr = __vmalloc_area_node(area, gfp_mask, prot, node, caller);
+ 	if (!addr)
+-		goto fail;
++		return NULL;
+ 
+ 	/*
+ 	 * In this function, newly allocated vm_struct has VM_UNINITIALIZED
+-- 
+1.8.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
