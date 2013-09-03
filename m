@@ -1,99 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 7FA8D6B0036
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 7D8DB6B0034
 	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 06:37:47 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 3 Sep 2013 16:00:59 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 57F0A394004E
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 16:07:30 +0530 (IST)
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r83AdSqm42139744
-	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 16:09:28 +0530
-Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r83AbflW030513
-	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 16:07:41 +0530
+	Tue, 3 Sep 2013 15:56:07 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 67C12E0053
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 16:08:22 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r83AdQ2V36896850
+	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 16:09:27 +0530
+Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r83AbYWv022635
+	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 16:07:35 +0530
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v5 4/4] mm/vmalloc: fix show vmap_area information race with vmap_area tear down 
-Date: Tue,  3 Sep 2013 18:37:28 +0800
-Message-Id: <1378204648-28392-4-git-send-email-liwanp@linux.vnet.ibm.com>
-In-Reply-To: <1378204648-28392-1-git-send-email-liwanp@linux.vnet.ibm.com>
-References: <1378204648-28392-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v5 1/4] mm/vmalloc: don't set area->caller twice
+Date: Tue,  3 Sep 2013 18:37:25 +0800
+Message-Id: <1378204648-28392-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
 Changelog:
- *v4 -> v5: return directly for !VM_VM_AREA case and remove (VM_LAZY_FREE | VM_LAZY_FREEING) check 
+ *v1 -> v2: rebase against mmotm tree
 
-There is a race window between vmap_area tear down and show vmap_area information.
+The caller address has already been set in set_vmalloc_vm(), there's no need
+to set it again in __vmalloc_area_node.
 
-	A                                                B
-
-remove_vm_area
-spin_lock(&vmap_area_lock);
-va->vm = NULL;
-va->flags &= ~VM_VM_AREA;
-spin_unlock(&vmap_area_lock);
-						spin_lock(&vmap_area_lock);
-						if (va->flags & (VM_LAZY_FREE | VM_LAZY_FREEZING))
-							return 0;
-						if (!(va->flags & VM_VM_AREA)) {
-							seq_printf(m, "0x%pK-0x%pK %7ld vm_map_ram\n",
-								(void *)va->va_start, (void *)va->va_end,
-								va->va_end - va->va_start);
-							return 0;
-						}
-free_unmap_vmap_area(va);
-	flush_cache_vunmap
-	free_unmap_vmap_area_noflush
-		unmap_vmap_area
-		free_vmap_area_noflush
-			va->flags |= VM_LAZY_FREE 
-
-The assumption !VM_VM_AREA represents vm_map_ram allocation is introduced by 
-commit: d4033afd(mm, vmalloc: iterate vmap_area_list, instead of vmlist, in 
-vmallocinfo()). However, !VM_VM_AREA also represents vmap_area is being tear 
-down in race window mentioned above. This patch fix it by don't dump any 
-information for !VM_VM_AREA case and also remove (VM_LAZY_FREE | VM_LAZY_FREEING)
-check since they are not possible for !VM_VM_AREA case.
-
-Suggested-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- mm/vmalloc.c | 15 ++++++---------
- 1 file changed, 6 insertions(+), 9 deletions(-)
+ mm/vmalloc.c | 1 -
+ 1 file changed, 1 deletion(-)
 
 diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 5368b17..9b75028 100644
+index 1074543..d78d117 100644
 --- a/mm/vmalloc.c
 +++ b/mm/vmalloc.c
-@@ -2582,16 +2582,13 @@ static int s_show(struct seq_file *m, void *p)
- {
- 	struct vmap_area *va = p;
- 	struct vm_struct *v;
--
--	if (va->flags & (VM_LAZY_FREE | VM_LAZY_FREEING))
--		return 0;
--
--	if (!(va->flags & VM_VM_AREA)) {
--		seq_printf(m, "0x%pK-0x%pK %7ld vm_map_ram\n",
--			(void *)va->va_start, (void *)va->va_end,
--					va->va_end - va->va_start);
-+
-+	/*
-+	 * s_show can encounter race with remove_vm_area, !VM_VM_AREA on
-+	 * behalf of vmap area is being tear down or vm_map_ram allocation.
-+	 */
-+	if (!(va->flags & VM_VM_AREA))
- 		return 0;
--	}
- 
- 	v = va->vm;
- 
+@@ -1566,7 +1566,6 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+ 		pages = kmalloc_node(array_size, nested_gfp, node);
+ 	}
+ 	area->pages = pages;
+-	area->caller = caller;
+ 	if (!area->pages) {
+ 		remove_vm_area(area->addr);
+ 		kfree(area);
 -- 
 1.8.1.2
 
