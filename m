@@ -1,97 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id B33606B0032
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 06:01:20 -0400 (EDT)
-Date: Tue, 3 Sep 2013 12:01:17 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] memcg: fix multiple large threshold notifications
-Message-ID: <20130903100117.GA14914@dhcp22.suse.cz>
-References: <1377994002-1857-1-git-send-email-gthelen@google.com>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 3AE246B0033
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 06:17:00 -0400 (EDT)
+Received: by mail-bk0-f52.google.com with SMTP id e11so1997322bkh.39
+        for <linux-mm@kvack.org>; Tue, 03 Sep 2013 03:16:58 -0700 (PDT)
+Message-ID: <5225B716.3090708@colorfullife.com>
+Date: Tue, 03 Sep 2013 12:16:54 +0200
+From: Manfred Spraul <manfred@colorfullife.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1377994002-1857-1-git-send-email-gthelen@google.com>
+Subject: Re: ipc-msg broken again on 3.11-rc7?
+References: <CA+icZUXuw7QBn4CPLLuiVUjHin0m6GRdbczGw=bZY+Z60sXNow@mail.gmail.com> <CA+icZUUn-r8iq6TVMAKmgJpQm4FhOE4b4QN_Yy=1L=0Up=rkBA@mail.gmail.com> <52205597.3090609@synopsys.com> <CA+icZUW=YXMC_2Qt=cYYz6w_fVW8TS4=Pvbx7BGtzjGt+31rLQ@mail.gmail.com> <C2D7FE5348E1B147BCA15975FBA230751411CB@IN01WEMBXA.internal.synopsys.com> <CALE5RAvaa4bb-9xAnBe07Yp2n+Nn4uGEgqpLrKMuOE8hhZv00Q@mail.gmail.com> <CAMJEocr1SgxQw0bEzB3Ti9bvRY74TE5y9e+PLUsAL1mJbK=-ew@mail.gmail.com> <CA+55aFy8tbBpac57fU4CN3jMDz46kCKT7+7GCpb18CscXuOnGA@mail.gmail.com> <C2D7FE5348E1B147BCA15975FBA230751413F4@IN01WEMBXA.internal.synopsys.com> <5224BCF6.2080401@colorfullife.com> <C2D7FE5348E1B147BCA15975FBA23075141642@IN01WEMBXA.internal.synopsys.com> <5225A466.2080303@colorfullife.com> <C2D7FE5348E1B147BCA15975FBA2307514165E@IN01WEMBXA.internal.synopsys.com> <5225AA8D.6080403@colorfullife.com> <C2D7FE5348E1B147BCA15975FBA2307514168F@IN01WEMBXA.internal.synopsys.com>
+In-Reply-To: <C2D7FE5348E1B147BCA15975FBA2307514168F@IN01WEMBXA.internal.synopsys.com>
+Content-Type: multipart/mixed;
+ boundary="------------030608050605010303060001"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Davidlohr Bueso <dave.bueso@gmail.com>, Sedat Dilek <sedat.dilek@gmail.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, linux-next <linux-next@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Jonathan Gonzalez <jgonzalez@linets.cl>
 
-On Sat 31-08-13 17:06:42, Greg Thelen wrote:
-> A memory cgroup with (1) multiple threshold notifications and (2) at
-> least one threshold >=2G was not reliable.  Specifically the
-> notifications would either not fire or would not fire in the proper
-> order.
-> 
-> The __mem_cgroup_threshold() signaling logic depends on keeping 64 bit
-> thresholds in sorted order.  mem_cgroup_usage_register_event() sorts
-> them with compare_thresholds(), which returns the difference of two 64
-> bit thresholds as an int.  If the difference is positive but has
-> bit[31] set, then sort() treats the difference as negative and breaks
-> sort order.
-> 
-> This fix compares the two arbitrary 64 bit thresholds returning the
-> classic -1, 0, 1 result.
-> 
-> The test below sets two notifications (at 0x1000 and 0x81001000):
->   cd /sys/fs/cgroup/memory
->   mkdir x
->   for x in 4096 2164264960; do
->     cgroup_event_listener x/memory.usage_in_bytes $x | sed "s/^/$x listener:/" &
->   done
->   echo $$ > x/cgroup.procs
->   anon_leaker 500M
-> 
-> v3.11-rc7 fails to signal the 4096 event listener:
->   Leaking...
->   Done leaking pages.
-> 
-> Patched v3.11-rc7 properly notifies:
->   Leaking...
->   4096 listener:2013:8:31:14:13:36
->   Done leaking pages.
-> 
-> The fixed bug is old.  It appears to date back to the introduction of
-> memcg threshold notifications in v2.6.34-rc1-116-g2e72b6347c94 "memcg:
-> implement memory thresholds"
-> 
-> Signed-off-by: Greg Thelen <gthelen@google.com>
+This is a multi-part message in MIME format.
+--------------030608050605010303060001
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+Hi Vineet,
 
-I guess this qualifies to the stable tree.
+On 09/03/2013 11:51 AM, Vineet Gupta wrote:
+> On 09/03/2013 02:53 PM, Manfred Spraul wrote:
+>>
+>> The access to msq->q_cbytes is not protected.
+>>
+>> Vineet, could you try to move the test for free space after ipc_lock?
+>> I.e. the lock must not get dropped between testing for free space and
+>> enqueueing the messages.
+> Hmm, the code movement is not trivial. I broke even the simplest of cases (patch
+> attached). This includes the additional change which Linus/Davidlohr had asked for.
+The attached patch should work. Could you try it?
 
-Thanks!
+--
+     Manfred
 
-> ---
->  mm/memcontrol.c | 8 +++++++-
->  1 file changed, 7 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 0878ff7..aa44621 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -5616,7 +5616,13 @@ static int compare_thresholds(const void *a, const void *b)
->  	const struct mem_cgroup_threshold *_a = a;
->  	const struct mem_cgroup_threshold *_b = b;
->  
-> -	return _a->threshold - _b->threshold;
-> +	if (_a->threshold > _b->threshold)
-> +		return 1;
-> +
-> +	if (_a->threshold < _b->threshold)
-> +		return -1;
-> +
-> +	return 0;
->  }
->  
->  static int mem_cgroup_oom_notify_cb(struct mem_cgroup *memcg)
-> -- 
-> 1.8.4
-> 
+--------------030608050605010303060001
+Content-Type: text/plain; charset=UTF-8;
+ name="patch-ipcmsg-wip"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+ filename="patch-ipcmsg-wip"
 
--- 
-Michal Hocko
-SUSE Labs
+diff --git a/ipc/msg.c b/ipc/msg.c
+index 9f29d9e..b65fdf1 100644
+--- a/ipc/msg.c
++++ b/ipc/msg.c
+@@ -680,16 +680,18 @@ long do_msgsnd(int msqid, long mtype, void __user *mtext,
+ 		goto out_unlock1;
+ 	}
+ 
++	ipc_lock_object(&msq->q_perm);
++
+ 	for (;;) {
+ 		struct msg_sender s;
+ 
+ 		err = -EACCES;
+ 		if (ipcperms(ns, &msq->q_perm, S_IWUGO))
+-			goto out_unlock1;
++			goto out_unlock0;
+ 
+ 		err = security_msg_queue_msgsnd(msq, msg, msgflg);
+ 		if (err)
+-			goto out_unlock1;
++			goto out_unlock0;
+ 
+ 		if (msgsz + msq->q_cbytes <= msq->q_qbytes &&
+ 				1 + msq->q_qnum <= msq->q_qbytes) {
+@@ -699,10 +701,9 @@ long do_msgsnd(int msqid, long mtype, void __user *mtext,
+ 		/* queue full, wait: */
+ 		if (msgflg & IPC_NOWAIT) {
+ 			err = -EAGAIN;
+-			goto out_unlock1;
++			goto out_unlock0;
+ 		}
+ 
+-		ipc_lock_object(&msq->q_perm);
+ 		ss_add(msq, &s);
+ 
+ 		if (!ipc_rcu_getref(msq)) {
+@@ -730,10 +731,7 @@ long do_msgsnd(int msqid, long mtype, void __user *mtext,
+ 			goto out_unlock0;
+ 		}
+ 
+-		ipc_unlock_object(&msq->q_perm);
+ 	}
+-
+-	ipc_lock_object(&msq->q_perm);
+ 	msq->q_lspid = task_tgid_vnr(current);
+ 	msq->q_stime = get_seconds();
+ 
+
+--------------030608050605010303060001--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
