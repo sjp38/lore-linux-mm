@@ -1,107 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 7CBF76B0034
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 00:19:11 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 3 Sep 2013 14:10:27 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 137133578055
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 14:19:07 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r834Io9A1048836
-	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 14:18:55 +1000
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r834J07w015462
-	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 14:19:01 +1000
-Date: Tue, 3 Sep 2013 12:18:58 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 2/4] mm/hwpoison: fix miss catch transparent huge page
-Message-ID: <20130903041858.GA3543@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1378165006-19435-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1378165006-19435-2-git-send-email-liwanp@linux.vnet.ibm.com>
- <20130903031519.GA31018@gchen.bj.intel.com>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 06A386B0032
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 00:55:02 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 3E10F3EE0C8
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 13:55:01 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2FC6F45DE4E
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 13:55:01 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 153FD45DDCF
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 13:55:01 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E500D1DB8042
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 13:55:00 +0900 (JST)
+Received: from g01jpfmpwkw02.exch.g01.fujitsu.local (g01jpfmpwkw02.exch.g01.fujitsu.local [10.0.193.56])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 59F0C1DB8038
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 13:55:00 +0900 (JST)
+Message-ID: <52256B67.50205@jp.fujitsu.com>
+Date: Tue, 3 Sep 2013 13:53:59 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130903031519.GA31018@gchen.bj.intel.com>
+Subject: Re: [RFC PATCH v3 04/35] mm: Initialize node memory regions during
+ boot
+References: <20130830131221.4947.99764.stgit@srivatsabhat.in.ibm.com> <20130830131504.4947.86008.stgit@srivatsabhat.in.ibm.com> <52242E1D.4020406@jp.fujitsu.com> <5224CE37.2070908@linux.vnet.ibm.com>
+In-Reply-To: <5224CE37.2070908@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Gong <gong.chen@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+Cc: akpm@linux-foundation.org, mgorman@suse.de, hannes@cmpxchg.org, tony.luck@intel.com, matthew.garrett@nebula.com, dave@sr71.net, riel@redhat.com, arjan@linux.intel.com, srinivas.pandruvada@linux.intel.com, willy@linux.intel.com, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl, gargankita@gmail.com, paulmck@linux.vnet.ibm.com, svaidy@linux.vnet.ibm.com, andi@firstfloor.org, santosh.shilimkar@ti.com, kosaki.motohiro@gmail.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Sep 02, 2013 at 11:15:19PM -0400, Chen Gong wrote:
->On Tue, Sep 03, 2013 at 07:36:44AM +0800, Wanpeng Li wrote:
->> Date: Tue,  3 Sep 2013 07:36:44 +0800
->> From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->> To: Andrew Morton <akpm@linux-foundation.org>
->> Cc: Andi Kleen <andi@firstfloor.org>, Fengguang Wu
->>  <fengguang.wu@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
->>  Tony Luck <tony.luck@intel.com>, gong.chen@linux.intel.com,
->>  linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li
->>  <liwanp@linux.vnet.ibm.com>
->> Subject: [PATCH v2 2/4] mm/hwpoison: fix miss catch transparent huge page 
->> X-Mailer: git-send-email 1.7.5.4
->> 
->> Changelog:
->>  *v1 -> v2: reverse PageTransHuge(page) && !PageHuge(page) check 
->> 
->> PageTransHuge() can't guarantee the page is transparent huge page since it 
->> return true for both transparent huge and hugetlbfs pages. This patch fix 
->> it by check the page is also !hugetlbfs page.
->> 
->> Before patch:
->> 
->> [  121.571128] Injecting memory failure at pfn 23a200
->> [  121.571141] MCE 0x23a200: huge page recovery: Delayed
->> [  140.355100] MCE: Memory failure is now running on 0x23a200
->> 
->> After patch:
->> 
->> [   94.290793] Injecting memory failure at pfn 23a000
->> [   94.290800] MCE 0x23a000: huge page recovery: Delayed
->> [  105.722303] MCE: Software-unpoisoned page 0x23a000
->> 
->> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->> ---
->>  mm/memory-failure.c | 2 +-
->>  1 file changed, 1 insertion(+), 1 deletion(-)
->> 
->> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
->> index e28ee77..b114570 100644
->> --- a/mm/memory-failure.c
->> +++ b/mm/memory-failure.c
->> @@ -1349,7 +1349,7 @@ int unpoison_memory(unsigned long pfn)
->>  	 * worked by memory_failure() and the page lock is not held yet.
->>  	 * In such case, we yield to memory_failure() and make unpoison fail.
->>  	 */
->> -	if (PageTransHuge(page)) {
->> +	if (!PageHuge(page) && PageTransHuge(page)) {
->>  		pr_info("MCE: Memory failure is now running on %#lx\n", pfn);
->>  			return 0;
->>  	}
+(2013/09/03 2:43), Srivatsa S. Bhat wrote:
+> On 09/02/2013 11:50 AM, Yasuaki Ishimatsu wrote:
+>> (2013/08/30 22:15), Srivatsa S. Bhat wrote:
+>>> Initialize the node's memory-regions structures with the information
+>>> about
+>>> the region-boundaries, at boot time.
+>>>
+>>> Based-on-patch-by: Ankita Garg <gargankita@gmail.com>
+>>> Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
+>>> ---
+>>>
+>>>    include/linux/mm.h |    4 ++++
+>>>    mm/page_alloc.c    |   28 ++++++++++++++++++++++++++++
+>>>    2 files changed, 32 insertions(+)
+>>>
+>>> diff --git a/include/linux/mm.h b/include/linux/mm.h
+>>> index f022460..18fdec4 100644
+>>> --- a/include/linux/mm.h
+>>> +++ b/include/linux/mm.h
+>>> @@ -627,6 +627,10 @@ static inline pte_t maybe_mkwrite(pte_t pte,
+>>> struct vm_area_struct *vma)
+>>>    #define LAST_NID_MASK        ((1UL << LAST_NID_WIDTH) - 1)
+>>>    #define ZONEID_MASK        ((1UL << ZONEID_SHIFT) - 1)
+>>>
+>>> +/* Hard-code memory region size to be 512 MB for now. */
+>>> +#define MEM_REGION_SHIFT    (29 - PAGE_SHIFT)
+>>> +#define MEM_REGION_SIZE        (1UL << MEM_REGION_SHIFT)
+>>> +
+>>>    static inline enum zone_type page_zonenum(const struct page *page)
+>>>    {
+>>>        return (page->flags >> ZONES_PGSHIFT) & ZONES_MASK;
+>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>>> index b86d7e3..bb2d5d4 100644
+>>> --- a/mm/page_alloc.c
+>>> +++ b/mm/page_alloc.c
+>>> @@ -4809,6 +4809,33 @@ static void __init_refok
+>>> alloc_node_mem_map(struct pglist_data *pgdat)
+>>>    #endif /* CONFIG_FLAT_NODE_MEM_MAP */
+>>>    }
+>>>
+>>> +static void __meminit init_node_memory_regions(struct pglist_data
+>>> *pgdat)
+>>> +{
+>>> +    int nid = pgdat->node_id;
+>>> +    unsigned long start_pfn = pgdat->node_start_pfn;
+>>> +    unsigned long end_pfn = start_pfn + pgdat->node_spanned_pages;
+>>> +    struct node_mem_region *region;
+>>> +    unsigned long i, absent;
+>>> +    int idx;
+>>> +
+>>> +    for (i = start_pfn, idx = 0; i < end_pfn;
+>>> +                i += region->spanned_pages, idx++) {
+>>> +
+>>
+>>> +        region = &pgdat->node_regions[idx];
+>>
+>> It seems that overflow easily occurs.
+>> node_regions[] has 256 entries and MEM_REGION_SIZE is 512MiB. So if
+>> the pgdat has more than 128 GiB, overflow will occur. Am I wrong?
+>>
 >
->Not sure which git tree should be used to apply this patch series? I assume
->this patch series follows this link: https://lkml.org/lkml/2013/8/26/76.
+> No, you are right. It should be made dynamic to accommodate larger
+> memory. I just used that value as a placeholder, since my focus was to
+> demonstrate what algorithms and designs could be developed on top of
+> this infrastructure, to help shape memory allocations. But certainly
+> this needs to be modified to be flexible enough to work with any memory
+> size. Thank you for your review!
+
+Thank you for your explanation. I understood it.
+
+Thanks,
+Yasuaki Ishimatsu
+
+>
+> Regards,
+> Srivatsa S. Bhat
+>
+>>
+>>> +        region->pgdat = pgdat;
+>>> +        region->start_pfn = i;
+>>> +        region->spanned_pages = min(MEM_REGION_SIZE, end_pfn - i);
+>>> +        region->end_pfn = region->start_pfn + region->spanned_pages;
+>>> +
+>>> +        absent = __absent_pages_in_range(nid, region->start_pfn,
+>>> +                         region->end_pfn);
+>>> +
+>>> +        region->present_pages = region->spanned_pages - absent;
+>>> +    }
+>>> +
+>>> +    pgdat->nr_node_regions = idx;
+>>> +}
+>>> +
+>>>    void __paginginit free_area_init_node(int nid, unsigned long
+>>> *zones_size,
+>>>            unsigned long node_start_pfn, unsigned long *zholes_size)
+>>>    {
+>>> @@ -4837,6 +4864,7 @@ void __paginginit free_area_init_node(int nid,
+>>> unsigned long *zones_size,
+>>>
+>>>        free_area_init_core(pgdat, start_pfn, end_pfn,
+>>>                    zones_size, zholes_size);
+>>> +    init_node_memory_regions(pgdat);
+>>>    }
+>>>
+>>>    #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+>>>
+>>
+>>
 >
 
-mmotm tree or linux-next. ;-)
-
->In unpoison_memory we already have
->        if (PageHuge(page)) {
->                ...
->                return 0;
->        }
->so it looks like this patch is redundant.
-
-- Do you aware there is condition before go to this check?
-- Do you also analysis why the check can't catch the hugetlbfs page
-  through the dump information?
-
-Regards,
-Wanpeng Li 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
