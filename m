@@ -1,12 +1,13 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 2/4] mm/hwpoison: fix miss catch transparent huge page
-Date: Tue, 3 Sep 2013 16:21:53 +0800
-Message-ID: <11884.0019604706$1378196536@news.gmane.org>
-References: <1378165006-19435-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1378165006-19435-2-git-send-email-liwanp@linux.vnet.ibm.com>
- <20130903031519.GA31018@gchen.bj.intel.com>
- <52256342.4ad52a0a.2e24.ffff8c60SMTPIN_ADDED_BROKEN@mx.google.com>
- <20130903080425.GA32295@gchen.bj.intel.com>
+Subject: Re: [PATCH v4 4/4] mm/vmalloc: don't assume vmap_area w/o VM_VM_AREA
+ flag is vm_map_ram allocation
+Date: Tue, 3 Sep 2013 17:08:22 +0800
+Message-ID: <49575.1546616249$1378199336@news.gmane.org>
+References: <1378191706-29696-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1378191706-29696-4-git-send-email-liwanp@linux.vnet.ibm.com>
+ <20130903074221.GA30920@lge.com>
+ <52259541.86a02b0a.2e56.ffffde93SMTPIN_ADDED_BROKEN@mx.google.com>
+ <20130903085959.GB30920@lge.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -14,135 +15,137 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1VGlsG-0008UB-RA
-	for glkm-linux-mm-2@m.gmane.org; Tue, 03 Sep 2013 10:22:09 +0200
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id A49446B0032
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 04:22:04 -0400 (EDT)
+	id 1VGmbL-0007IO-Ln
+	for glkm-linux-mm-2@m.gmane.org; Tue, 03 Sep 2013 11:08:43 +0200
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 3EA866B0032
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 05:08:40 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 3 Sep 2013 18:10:36 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id EDF3A2CE8053
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 18:21:56 +1000 (EST)
+	Tue, 3 Sep 2013 18:54:39 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 389832BB0051
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 19:08:31 +1000 (EST)
 Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8385YFS46137558
-	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 18:05:34 +1000
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8398EFr10093054
+	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 19:08:20 +1000
 Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r838LtUe010792
-	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 18:21:56 +1000
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8398OAg031718
+	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 19:08:25 +1000
 Content-Disposition: inline
-In-Reply-To: <20130903080425.GA32295@gchen.bj.intel.com>
+In-Reply-To: <20130903085959.GB30920@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Gong <gong.chen@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Sep 03, 2013 at 04:04:25AM -0400, Chen Gong wrote:
->On Tue, Sep 03, 2013 at 12:18:58PM +0800, Wanpeng Li wrote:
->> Date: Tue, 3 Sep 2013 12:18:58 +0800
->> From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->> To: Chen Gong <gong.chen@linux.intel.com>
->> Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen
->>  <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Naoya
->>  Horiguchi <n-horiguchi@ah.jp.nec.com>, Tony Luck <tony.luck@intel.com>,
->>  linux-mm@kvack.org, linux-kernel@vger.kernel.org
->> Subject: Re: [PATCH v2 2/4] mm/hwpoison: fix miss catch transparent huge
->>  page
->> User-Agent: Mutt/1.5.21 (2010-09-15)
->> 
->> On Mon, Sep 02, 2013 at 11:15:19PM -0400, Chen Gong wrote:
->> >On Tue, Sep 03, 2013 at 07:36:44AM +0800, Wanpeng Li wrote:
->> >> Date: Tue,  3 Sep 2013 07:36:44 +0800
->> >> From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->> >> To: Andrew Morton <akpm@linux-foundation.org>
->> >> Cc: Andi Kleen <andi@firstfloor.org>, Fengguang Wu
->> >>  <fengguang.wu@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
->> >>  Tony Luck <tony.luck@intel.com>, gong.chen@linux.intel.com,
->> >>  linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li
->> >>  <liwanp@linux.vnet.ibm.com>
->> >> Subject: [PATCH v2 2/4] mm/hwpoison: fix miss catch transparent huge page 
->> >> X-Mailer: git-send-email 1.7.5.4
+On Tue, Sep 03, 2013 at 05:59:59PM +0900, Joonsoo Kim wrote:
+>On Tue, Sep 03, 2013 at 03:51:39PM +0800, Wanpeng Li wrote:
+>> On Tue, Sep 03, 2013 at 04:42:21PM +0900, Joonsoo Kim wrote:
+>> >On Tue, Sep 03, 2013 at 03:01:46PM +0800, Wanpeng Li wrote:
+>> >> There is a race window between vmap_area free and show vmap_area information.
 >> >> 
->> >> Changelog:
->> >>  *v1 -> v2: reverse PageTransHuge(page) && !PageHuge(page) check 
+>> >> 	A                                                B
 >> >> 
->> >> PageTransHuge() can't guarantee the page is transparent huge page since it 
->> >> return true for both transparent huge and hugetlbfs pages. This patch fix 
->> >> it by check the page is also !hugetlbfs page.
+>> >> remove_vm_area
+>> >> spin_lock(&vmap_area_lock);
+>> >> va->flags &= ~VM_VM_AREA;
+>> >> spin_unlock(&vmap_area_lock);
+>> >> 						spin_lock(&vmap_area_lock);
+>> >> 						if (va->flags & (VM_LAZY_FREE | VM_LAZY_FREEZING))
+>> >> 							return 0;
+>> >> 						if (!(va->flags & VM_VM_AREA)) {
+>> >> 							seq_printf(m, "0x%pK-0x%pK %7ld vm_map_ram\n",
+>> >> 								(void *)va->va_start, (void *)va->va_end,
+>> >> 								va->va_end - va->va_start);
+>> >> 							return 0;
+>> >> 						}
+>> >> free_unmap_vmap_area(va);
+>> >> 	flush_cache_vunmap
+>> >> 	free_unmap_vmap_area_noflush
+>> >> 		unmap_vmap_area
+>> >> 		free_vmap_area_noflush
+>> >> 			va->flags |= VM_LAZY_FREE 
 >> >> 
->> >> Before patch:
->> >> 
->> >> [  121.571128] Injecting memory failure at pfn 23a200
->> >> [  121.571141] MCE 0x23a200: huge page recovery: Delayed
->> >> [  140.355100] MCE: Memory failure is now running on 0x23a200
->> >> 
->> >> After patch:
->> >> 
->> >> [   94.290793] Injecting memory failure at pfn 23a000
->> >> [   94.290800] MCE 0x23a000: huge page recovery: Delayed
->> >> [  105.722303] MCE: Software-unpoisoned page 0x23a000
+>> >> The assumption is introduced by commit: d4033afd(mm, vmalloc: iterate vmap_area_list, 
+>> >> instead of vmlist, in vmallocinfo()). This patch fix it by drop the assumption and 
+>> >> keep not dump vm_map_ram allocation information as the logic before that commit.
 >> >> 
 >> >> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 >> >> ---
->> >>  mm/memory-failure.c | 2 +-
->> >>  1 file changed, 1 insertion(+), 1 deletion(-)
+>> >>  mm/vmalloc.c | 7 -------
+>> >>  1 file changed, 7 deletions(-)
 >> >> 
->> >> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
->> >> index e28ee77..b114570 100644
->> >> --- a/mm/memory-failure.c
->> >> +++ b/mm/memory-failure.c
->> >> @@ -1349,7 +1349,7 @@ int unpoison_memory(unsigned long pfn)
->> >>  	 * worked by memory_failure() and the page lock is not held yet.
->> >>  	 * In such case, we yield to memory_failure() and make unpoison fail.
->> >>  	 */
->> >> -	if (PageTransHuge(page)) {
->> >> +	if (!PageHuge(page) && PageTransHuge(page)) {
->> >>  		pr_info("MCE: Memory failure is now running on %#lx\n", pfn);
->> >>  			return 0;
->> >>  	}
+>> >> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+>> >> index 5368b17..62b7932 100644
+>> >> --- a/mm/vmalloc.c
+>> >> +++ b/mm/vmalloc.c
+>> >> @@ -2586,13 +2586,6 @@ static int s_show(struct seq_file *m, void *p)
+>> >>  	if (va->flags & (VM_LAZY_FREE | VM_LAZY_FREEING))
+>> >>  		return 0;
+>> >>  
+>> >> -	if (!(va->flags & VM_VM_AREA)) {
+>> >> -		seq_printf(m, "0x%pK-0x%pK %7ld vm_map_ram\n",
+>> >> -			(void *)va->va_start, (void *)va->va_end,
+>> >> -					va->va_end - va->va_start);
+>> >> -		return 0;
+>> >> -	}
+>> >> -
+>> >>  	v = va->vm;
+>> >>  
+>> >>  	seq_printf(m, "0x%pK-0x%pK %7ld",
 >> >
->> >Not sure which git tree should be used to apply this patch series? I assume
->> >this patch series follows this link: https://lkml.org/lkml/2013/8/26/76.
+>> >Hello, Wanpeng.
 >> >
 >> 
->> mmotm tree or linux-next. ;-)
+>> Hi Joonsoo and Yanfei,
 >> 
->> >In unpoison_memory we already have
->> >        if (PageHuge(page)) {
->> >                ...
->> >                return 0;
->> >        }
->> >so it looks like this patch is redundant.
+>> >Did you test this patch?
+>> >
+>> >I guess that, With this patch, if there are some vm_map areas,
+>> >null pointer deference would occurs, since va->vm may be null for it.
+>> >
+>> >And with this patch, if this race really occur, null pointer deference
+>> >would occurs too, since va->vm is set to null in remove_vm_area().
+>> >
+>> >I think that this is not a right fix for this possible race.
+>> >
 >> 
->> - Do you aware there is condition before go to this check?
->> - Do you also analysis why the check can't catch the hugetlbfs page
->>   through the dump information?
+>> How about append below to this patch?
 >> 
+>> if (va->vm)
+>> 	v = va->vm;
+>> else 
+>> 	return 0;
 >
->Looks like we use different trees. After checking your working tree,
->your patch is right. So just ignore my words above. FWIW, please be
-
-Thanks. 
-
->polite and give a positive response.
+>Hello,
+>
+>I think that appending below code is better to represent it's purpose.
+>Maybe some comment is needed.
+>
+>	/* blablabla */
+>	if (!(va->flags & VM_VM_AREA))
+>		return 0;
 >
 
-It's my fault, sorry for that. 
+Looks reasonable to me. ;-)
+
+>And maybe we can remove below code snippet, since
+>either VM_LAZY_FREE or VM_LAZY_FREEING is not possible for !VM_VM_AREA case.
+>
+>	if (va->flags & (VM_LAZY_FREE | VM_LAZY_FREEING))
+>		return 0;
+>
+
+Agreed.
+
+I will fold these in my patch and add your suggested-by. Thanks.
 
 Regards,
 Wanpeng Li 
 
->> Regards,
->> Wanpeng Li 
->> 
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
+>Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
