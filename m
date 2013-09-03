@@ -1,56 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 17B0A6B0034
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 04:57:16 -0400 (EDT)
-Received: by mail-bk0-f50.google.com with SMTP id mz11so1956791bkb.37
-        for <linux-mm@kvack.org>; Tue, 03 Sep 2013 01:57:14 -0700 (PDT)
-Message-ID: <5225A466.2080303@colorfullife.com>
-Date: Tue, 03 Sep 2013 10:57:10 +0200
-From: Manfred Spraul <manfred@colorfullife.com>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id A2C4D6B0034
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 04:59:07 -0400 (EDT)
+Date: Tue, 3 Sep 2013 17:59:59 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v4 4/4] mm/vmalloc: don't assume vmap_area w/o VM_VM_AREA
+ flag is vm_map_ram allocation
+Message-ID: <20130903085959.GB30920@lge.com>
+References: <1378191706-29696-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1378191706-29696-4-git-send-email-liwanp@linux.vnet.ibm.com>
+ <20130903074221.GA30920@lge.com>
+ <52259541.86a02b0a.2e56.ffffde93SMTPIN_ADDED_BROKEN@mx.google.com>
 MIME-Version: 1.0
-Subject: Re: ipc-msg broken again on 3.11-rc7?
-References: <CA+icZUXuw7QBn4CPLLuiVUjHin0m6GRdbczGw=bZY+Z60sXNow@mail.gmail.com> <1372202983.1888.22.camel@buesod1.americas.hpqcorp.net> <521DE5D7.4040305@synopsys.com> <CA+icZUUrZG8pYqKcHY3DcYAuuw=vbdUvs6ZXDq5meBMjj6suFg@mail.gmail.com> <C2D7FE5348E1B147BCA15975FBA23075140FA3@IN01WEMBXA.internal.synopsys.com> <CA+icZUUn-r8iq6TVMAKmgJpQm4FhOE4b4QN_Yy=1L=0Up=rkBA@mail.gmail.com> <52205597.3090609@synopsys.com> <CA+icZUW=YXMC_2Qt=cYYz6w_fVW8TS4=Pvbx7BGtzjGt+31rLQ@mail.gmail.com> <C2D7FE5348E1B147BCA15975FBA230751411CB@IN01WEMBXA.internal.synopsys.com> <CALE5RAvaa4bb-9xAnBe07Yp2n+Nn4uGEgqpLrKMuOE8hhZv00Q@mail.gmail.com> <CAMJEocr1SgxQw0bEzB3Ti9bvRY74TE5y9e+PLUsAL1mJbK=-ew@mail.gmail.com> <CA+55aFy8tbBpac57fU4CN3jMDz46kCKT7+7GCpb18CscXuOnGA@mail.gmail.com> <C2D7FE5348E1B147BCA15975FBA230751413F4@IN01WEMBXA.internal.synopsys.com> <5224BCF6.2080401@colorfullife.com> <C2D7FE5348E1B147BCA15975FBA23075141642@IN01WEMBXA.internal.synopsys.com>
-In-Reply-To: <C2D7FE5348E1B147BCA15975FBA23075141642@IN01WEMBXA.internal.synopsys.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <52259541.86a02b0a.2e56.ffffde93SMTPIN_ADDED_BROKEN@mx.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Davidlohr Bueso <dave.bueso@gmail.com>, Sedat Dilek <sedat.dilek@gmail.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, linux-next <linux-next@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Jonathan Gonzalez <jgonzalez@linets.cl>
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 09/03/2013 10:44 AM, Vineet Gupta wrote:
->> b) Could you check that it is not just a performance regression?
->>       Does ./msgctl08 1000 16 hang, too?
-> Nope that doesn't hang. The minimal configuration that hangs reliably is msgctl
-> 50000 2
->
-> With this config there are 3 processes.
-> ...
->    555   554 root     S     1208  0.4   0  0.0 ./msgctl08 50000 2
->    554   551 root     S     1208  0.4   0  0.0 ./msgctl08 50000 2
->    551   496 root     S     1208  0.4   0  0.0 ./msgctl08 50000 2
-> ...
->
-> [ARCLinux]$ cat /proc/551/stack
-> [<80aec3c6>] do_wait+0xa02/0xc94
-> [<80aecad2>] SyS_wait4+0x52/0xa4
-> [<80ae24fc>] ret_from_system_call+0x0/0x4
->
-> [ARCLinux]$ cat /proc/555/stack
-> [<80c2950e>] SyS_msgrcv+0x252/0x420
-> [<80ae24fc>] ret_from_system_call+0x0/0x4
->
-> [ARCLinux]$ cat /proc/554/stack
-> [<80c28c82>] do_msgsnd+0x116/0x35c
-> [<80ae24fc>] ret_from_system_call+0x0/0x4
->
-> Is this a case of lost wakeup or some such. I'm running with some more diagnostics
-> and will report soon ...
-What is the output of ipcs -q? Is the queue full or empty when it hangs?
-I.e. do we forget to wake up a receiver or forget to wake up a sender?
+On Tue, Sep 03, 2013 at 03:51:39PM +0800, Wanpeng Li wrote:
+> On Tue, Sep 03, 2013 at 04:42:21PM +0900, Joonsoo Kim wrote:
+> >On Tue, Sep 03, 2013 at 03:01:46PM +0800, Wanpeng Li wrote:
+> >> There is a race window between vmap_area free and show vmap_area information.
+> >> 
+> >> 	A                                                B
+> >> 
+> >> remove_vm_area
+> >> spin_lock(&vmap_area_lock);
+> >> va->flags &= ~VM_VM_AREA;
+> >> spin_unlock(&vmap_area_lock);
+> >> 						spin_lock(&vmap_area_lock);
+> >> 						if (va->flags & (VM_LAZY_FREE | VM_LAZY_FREEZING))
+> >> 							return 0;
+> >> 						if (!(va->flags & VM_VM_AREA)) {
+> >> 							seq_printf(m, "0x%pK-0x%pK %7ld vm_map_ram\n",
+> >> 								(void *)va->va_start, (void *)va->va_end,
+> >> 								va->va_end - va->va_start);
+> >> 							return 0;
+> >> 						}
+> >> free_unmap_vmap_area(va);
+> >> 	flush_cache_vunmap
+> >> 	free_unmap_vmap_area_noflush
+> >> 		unmap_vmap_area
+> >> 		free_vmap_area_noflush
+> >> 			va->flags |= VM_LAZY_FREE 
+> >> 
+> >> The assumption is introduced by commit: d4033afd(mm, vmalloc: iterate vmap_area_list, 
+> >> instead of vmlist, in vmallocinfo()). This patch fix it by drop the assumption and 
+> >> keep not dump vm_map_ram allocation information as the logic before that commit.
+> >> 
+> >> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+> >> ---
+> >>  mm/vmalloc.c | 7 -------
+> >>  1 file changed, 7 deletions(-)
+> >> 
+> >> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> >> index 5368b17..62b7932 100644
+> >> --- a/mm/vmalloc.c
+> >> +++ b/mm/vmalloc.c
+> >> @@ -2586,13 +2586,6 @@ static int s_show(struct seq_file *m, void *p)
+> >>  	if (va->flags & (VM_LAZY_FREE | VM_LAZY_FREEING))
+> >>  		return 0;
+> >>  
+> >> -	if (!(va->flags & VM_VM_AREA)) {
+> >> -		seq_printf(m, "0x%pK-0x%pK %7ld vm_map_ram\n",
+> >> -			(void *)va->va_start, (void *)va->va_end,
+> >> -					va->va_end - va->va_start);
+> >> -		return 0;
+> >> -	}
+> >> -
+> >>  	v = va->vm;
+> >>  
+> >>  	seq_printf(m, "0x%pK-0x%pK %7ld",
+> >
+> >Hello, Wanpeng.
+> >
+> 
+> Hi Joonsoo and Yanfei,
+> 
+> >Did you test this patch?
+> >
+> >I guess that, With this patch, if there are some vm_map areas,
+> >null pointer deference would occurs, since va->vm may be null for it.
+> >
+> >And with this patch, if this race really occur, null pointer deference
+> >would occurs too, since va->vm is set to null in remove_vm_area().
+> >
+> >I think that this is not a right fix for this possible race.
+> >
+> 
+> How about append below to this patch?
+> 
+> if (va->vm)
+> 	v = va->vm;
+> else 
+> 	return 0;
 
---
-     Manfred
+Hello,
+
+I think that appending below code is better to represent it's purpose.
+Maybe some comment is needed.
+
+	/* blablabla */
+	if (!(va->flags & VM_VM_AREA))
+		return 0;
+
+And maybe we can remove below code snippet, since
+either VM_LAZY_FREE or VM_LAZY_FREEING is not possible for !VM_VM_AREA case.
+
+	if (va->flags & (VM_LAZY_FREE | VM_LAZY_FREEING))
+		return 0;
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
