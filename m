@@ -1,97 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id F10D46B0032
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 10:00:29 -0400 (EDT)
-Received: by mail-bk0-f53.google.com with SMTP id d7so2187564bkh.12
-        for <linux-mm@kvack.org>; Tue, 03 Sep 2013 07:00:28 -0700 (PDT)
-From: Manfred Spraul <manfred@colorfullife.com>
-Subject: [PATCH] ipc/msg.c: Fix lost wakeup in msgsnd().
-Date: Tue,  3 Sep 2013 16:00:08 +0200
-Message-Id: <1378216808-2564-1-git-send-email-manfred@colorfullife.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id CE13A6B0032
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 10:15:43 -0400 (EDT)
+Date: Tue, 3 Sep 2013 14:15:42 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 0/4] slab: implement byte sized indexes for the freelist
+ of a slab
+In-Reply-To: <1378111138-30340-1-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <00000140e42dcd61-00e6cf6a-457c-48bd-8bf7-830133923564-000000@email.amazonses.com>
+References: <CAAmzW4N1GXbr18Ws9QDKg7ChN5RVcOW9eEv2RxWhaEoHtw=ctw@mail.gmail.com> <1378111138-30340-1-git-send-email-iamjoonsoo.kim@lge.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Davidlohr Bueso <dave.bueso@gmail.com>, Sedat Dilek <sedat.dilek@gmail.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, linux-next <linux-next@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Jonathan Gonzalez <jgonzalez@linets.cl>, Vineet Gupta <Vineet.Gupta1@synopsys.com>, Manfred Spraul <manfred@colorfullife.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The check if the queue is full and adding current to the wait queue of pending
-msgsnd() operations (ss_add()) must be atomic.
+On Mon, 2 Sep 2013, Joonsoo Kim wrote:
 
-Otherwise:
-- the thread that performs msgsnd() finds a full queue and decides to sleep.
-- the thread that performs msgrcv() calls first reads all messages from the
-  queue and then sleep, because the queue is empty.
-- the msgrcv() calls do not perform any wakeups, because the msgsnd() task
-  has not yet called ss_add().
-- then the msgsnd()-thread first calls ss_add() and then sleeps.
-Net result: msgsnd() and msgrcv() both sleep forever.
+> This patchset implements byte sized indexes for the freelist of a slab.
+>
+> Currently, the freelist of a slab consist of unsigned int sized indexes.
+> Most of slabs have less number of objects than 256, so much space is wasted.
+> To reduce this overhead, this patchset implements byte sized indexes for
+> the freelist of a slab. With it, we can save 3 bytes for each objects.
+>
+> This introduce one likely branch to functions used for setting/getting
+> objects to/from the freelist, but we may get more benefits from
+> this change.
+>
+> Below is some numbers of 'cat /proc/slabinfo' related to my previous posting
+> and this patchset.
 
-Observed with msgctl08 from ltp with a preemptible kernel.
-
-Fix: Call ipc_lock_object() before performing the check.
-
-The patch also moves security_msg_queue_msgsnd() under ipc_lock_object:
-- msgctl(IPC_SET) explicitely mentions that it tries to expunge any pending
-  operations that are not allowed anymore with the new permissions.
-  If security_msg_queue_msgsnd() is called without locks, then there might be
-  races.
-- it makes the patch much simpler.
-
-Reported-by: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Signed-off-by: Manfred Spraul <manfred@colorfullife.com>
----
- ipc/msg.c | 12 +++++-------
- 1 file changed, 5 insertions(+), 7 deletions(-)
-
-diff --git a/ipc/msg.c b/ipc/msg.c
-index 9f29d9e..b65fdf1 100644
---- a/ipc/msg.c
-+++ b/ipc/msg.c
-@@ -680,16 +680,18 @@ long do_msgsnd(int msqid, long mtype, void __user *mtext,
- 		goto out_unlock1;
- 	}
- 
-+	ipc_lock_object(&msq->q_perm);
-+
- 	for (;;) {
- 		struct msg_sender s;
- 
- 		err = -EACCES;
- 		if (ipcperms(ns, &msq->q_perm, S_IWUGO))
--			goto out_unlock1;
-+			goto out_unlock0;
- 
- 		err = security_msg_queue_msgsnd(msq, msg, msgflg);
- 		if (err)
--			goto out_unlock1;
-+			goto out_unlock0;
- 
- 		if (msgsz + msq->q_cbytes <= msq->q_qbytes &&
- 				1 + msq->q_qnum <= msq->q_qbytes) {
-@@ -699,10 +701,9 @@ long do_msgsnd(int msqid, long mtype, void __user *mtext,
- 		/* queue full, wait: */
- 		if (msgflg & IPC_NOWAIT) {
- 			err = -EAGAIN;
--			goto out_unlock1;
-+			goto out_unlock0;
- 		}
- 
--		ipc_lock_object(&msq->q_perm);
- 		ss_add(msq, &s);
- 
- 		if (!ipc_rcu_getref(msq)) {
-@@ -730,10 +731,7 @@ long do_msgsnd(int msqid, long mtype, void __user *mtext,
- 			goto out_unlock0;
- 		}
- 
--		ipc_unlock_object(&msq->q_perm);
- 	}
--
--	ipc_lock_object(&msq->q_perm);
- 	msq->q_lspid = task_tgid_vnr(current);
- 	msq->q_stime = get_seconds();
- 
--- 
-1.8.3.1
+You  may also want to run some performance tests. The cache footprint
+should also be reduced with this patchset and therefore performance should
+be better.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
