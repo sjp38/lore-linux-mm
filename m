@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 5CCA96B0032
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 18:35:31 -0400 (EDT)
-Date: Tue, 3 Sep 2013 18:35:16 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id 078766B0032
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 18:42:40 -0400 (EDT)
+Date: Wed, 4 Sep 2013 00:45:11 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
 Subject: Re: [PATCH] memcg: fix multiple large threshold notifications
-Message-ID: <20130903223516.GB1412@cmpxchg.org>
+Message-ID: <20130903214511.GA7529@shutemov.name>
 References: <1377994002-1857-1-git-send-email-gthelen@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -14,7 +14,7 @@ In-Reply-To: <1377994002-1857-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 On Sat, Aug 31, 2013 at 05:06:42PM -0700, Greg Thelen wrote:
 > A memory cgroup with (1) multiple threshold notifications and (2) at
@@ -56,7 +56,10 @@ On Sat, Aug 31, 2013 at 05:06:42PM -0700, Greg Thelen wrote:
 > 
 > Signed-off-by: Greg Thelen <gthelen@google.com>
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
