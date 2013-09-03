@@ -1,59 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 151986B0032
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 16:49:02 -0400 (EDT)
-Date: Tue, 3 Sep 2013 16:48:50 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 0/7] improve memcg oom killer robustness v2
-Message-ID: <20130903204850.GA1412@cmpxchg.org>
-References: <1375549200-19110-1-git-send-email-hannes@cmpxchg.org>
- <20130803170831.GB23319@cmpxchg.org>
- <20130830215852.3E5D3D66@pobox.sk>
- <20130902123802.5B8E8CB1@pobox.sk>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 59C876B0032
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 16:52:39 -0400 (EDT)
+Date: Tue, 03 Sep 2013 16:52:20 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1378241540-5f6r7wl-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1377883120-5280-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1377883120-5280-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1377883120-5280-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 2/2] thp: support split page table lock
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20130902123802.5B8E8CB1@pobox.sk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: azurIt <azurit@pobox.sk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, kirill.shutemov@linux.intel.com, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Alex Thorlton <athorlton@sgi.com>, linux-kernel@vger.kernel.org
 
-Hello azur,
+> diff --git v3.11-rc3.orig/mm/huge_memory.c v3.11-rc3/mm/huge_memory.c
+> index 243e710..3cb29e1 100644
+> --- v3.11-rc3.orig/mm/huge_memory.c
+> +++ v3.11-rc3/mm/huge_memory.c
+...
+> @@ -864,14 +868,17 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+>  	pmd_t pmd;
+>  	pgtable_t pgtable;
+>  	int ret;
+> +	spinlock_t *uninitialized_var(dst_ptl), *uninitialized_var(src_ptl);
+>  
+>  	ret = -ENOMEM;
+>  	pgtable = pte_alloc_one(dst_mm, addr);
+>  	if (unlikely(!pgtable))
+>  		goto out;
+>  
+> -	spin_lock(&dst_mm->page_table_lock);
+> -	spin_lock_nested(&src_mm->page_table_lock, SINGLE_DEPTH_NESTING);
+> +	dst_ptl = huge_pmd_lockptr(dst_mm, dst_ptl);
+> +	src_ptl = huge_pmd_lockptr(src_mm, src_ptl);
 
-On Mon, Sep 02, 2013 at 12:38:02PM +0200, azurIt wrote:
-> >>Hi azur,
-> >>
-> >>here is the x86-only rollup of the series for 3.2.
-> >>
-> >>Thanks!
-> >>Johannes
-> >>---
-> >
-> >
-> >Johannes,
-> >
-> >unfortunately, one problem arises: I have (again) cgroup which cannot be deleted :( it's a user who had very high memory usage and was reaching his limit very often. Do you need any info which i can gather now?
+I found one mistake. This should be:
 
-Did the OOM killer go off in this group?
++	dst_ptl = huge_pmd_lockptr(dst_mm, dst_pmd);
++	src_ptl = huge_pmd_lockptr(src_mm, src_pmd);
 
-Was there a warning in the syslog ("Fixing unhandled memcg OOM
-context")?
+Thanks,
+Naoya Horiguchi
 
-If it happens again, could you check if there are tasks left in the
-cgroup?  And provide /proc/<pid>/stack of the hung task trying to
-delete the cgroup?
-
-> Now i can definitely confirm that problem is NOT fixed :( it happened again but i don't have any data because i already disabled all debug output.
-
-Which debug output?
-
-Do you still have access to the syslog?
-
-It's possible that, as your system does not deadlock on the OOMing
-cgroup anymore, you hit a separate bug...
-
-Thanks!
+> +	spin_lock(dst_ptl);
+> +	spin_lock_nested(src_ptl, SINGLE_DEPTH_NESTING);
+>  
+>  	ret = -EAGAIN;
+>  	pmd = *src_pmd;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
