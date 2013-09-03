@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 236FE6B0032
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 06:37:46 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 7FA8D6B0036
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 06:37:47 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 3 Sep 2013 20:26:57 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 0D5BB2BB0054
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 20:37:40 +1000 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r83AbT6i196942
-	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 20:37:29 +1000
-Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r83Abdqq012569
-	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 20:37:39 +1000
+	Tue, 3 Sep 2013 16:00:59 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 57F0A394004E
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 16:07:30 +0530 (IST)
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r83AdSqm42139744
+	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 16:09:28 +0530
+Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r83AbflW030513
+	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 16:07:41 +0530
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v5 3/4] mm/vmalloc: revert "mm/vmalloc.c: check VM_UNINITIALIZED flag in s_show instead of show_numa_info"
-Date: Tue,  3 Sep 2013 18:37:27 +0800
-Message-Id: <1378204648-28392-3-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v5 4/4] mm/vmalloc: fix show vmap_area information race with vmap_area tear down 
+Date: Tue,  3 Sep 2013 18:37:28 +0800
+Message-Id: <1378204648-28392-4-git-send-email-liwanp@linux.vnet.ibm.com>
 In-Reply-To: <1378204648-28392-1-git-send-email-liwanp@linux.vnet.ibm.com>
 References: <1378204648-28392-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -27,49 +27,72 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
 Changelog:
- *v2 -> v3: revert commit d157a558 directly
+ *v4 -> v5: return directly for !VM_VM_AREA case and remove (VM_LAZY_FREE | VM_LAZY_FREEING) check 
 
-The VM_UNINITIALIZED/VM_UNLIST flag introduced by commit f5252e00(mm: avoid
-null pointer access in vm_struct via /proc/vmallocinfo) is used to avoid
-accessing the pages field with unallocated page when show_numa_info() is
-called. This patch move the check just before show_numa_info in order that
-some messages still can be dumped via /proc/vmallocinfo. This patch revert 
-commit d157a558 (mm/vmalloc.c: check VM_UNINITIALIZED flag in s_show instead 
-of show_numa_info);
+There is a race window between vmap_area tear down and show vmap_area information.
 
-Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+	A                                                B
+
+remove_vm_area
+spin_lock(&vmap_area_lock);
+va->vm = NULL;
+va->flags &= ~VM_VM_AREA;
+spin_unlock(&vmap_area_lock);
+						spin_lock(&vmap_area_lock);
+						if (va->flags & (VM_LAZY_FREE | VM_LAZY_FREEZING))
+							return 0;
+						if (!(va->flags & VM_VM_AREA)) {
+							seq_printf(m, "0x%pK-0x%pK %7ld vm_map_ram\n",
+								(void *)va->va_start, (void *)va->va_end,
+								va->va_end - va->va_start);
+							return 0;
+						}
+free_unmap_vmap_area(va);
+	flush_cache_vunmap
+	free_unmap_vmap_area_noflush
+		unmap_vmap_area
+		free_vmap_area_noflush
+			va->flags |= VM_LAZY_FREE 
+
+The assumption !VM_VM_AREA represents vm_map_ram allocation is introduced by 
+commit: d4033afd(mm, vmalloc: iterate vmap_area_list, instead of vmlist, in 
+vmallocinfo()). However, !VM_VM_AREA also represents vmap_area is being tear 
+down in race window mentioned above. This patch fix it by don't dump any 
+information for !VM_VM_AREA case and also remove (VM_LAZY_FREE | VM_LAZY_FREEING)
+check since they are not possible for !VM_VM_AREA case.
+
+Suggested-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- mm/vmalloc.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ mm/vmalloc.c | 15 ++++++---------
+ 1 file changed, 6 insertions(+), 9 deletions(-)
 
 diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index e3ec8b4..5368b17 100644
+index 5368b17..9b75028 100644
 --- a/mm/vmalloc.c
 +++ b/mm/vmalloc.c
-@@ -2562,6 +2562,11 @@ static void show_numa_info(struct seq_file *m, struct vm_struct *v)
- 		if (!counters)
- 			return;
- 
-+		/* Pair with smp_wmb() in clear_vm_uninitialized_flag() */
-+		smp_rmb();
-+		if (v->flags & VM_UNINITIALIZED)
-+			return;
-+
- 		memset(counters, 0, nr_node_ids * sizeof(unsigned int));
- 
- 		for (nr = 0; nr < v->nr_pages; nr++)
-@@ -2590,11 +2595,6 @@ static int s_show(struct seq_file *m, void *p)
- 
- 	v = va->vm;
- 
--	/* Pair with smp_wmb() in clear_vm_uninitialized_flag() */
--	smp_rmb();
--	if (v->flags & VM_UNINITIALIZED)
+@@ -2582,16 +2582,13 @@ static int s_show(struct seq_file *m, void *p)
+ {
+ 	struct vmap_area *va = p;
+ 	struct vm_struct *v;
+-
+-	if (va->flags & (VM_LAZY_FREE | VM_LAZY_FREEING))
 -		return 0;
 -
- 	seq_printf(m, "0x%pK-0x%pK %7ld",
- 		v->addr, v->addr + v->size, v->size);
+-	if (!(va->flags & VM_VM_AREA)) {
+-		seq_printf(m, "0x%pK-0x%pK %7ld vm_map_ram\n",
+-			(void *)va->va_start, (void *)va->va_end,
+-					va->va_end - va->va_start);
++
++	/*
++	 * s_show can encounter race with remove_vm_area, !VM_VM_AREA on
++	 * behalf of vmap area is being tear down or vm_map_ram allocation.
++	 */
++	if (!(va->flags & VM_VM_AREA))
+ 		return 0;
+-	}
+ 
+ 	v = va->vm;
  
 -- 
 1.8.1.2
