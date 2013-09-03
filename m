@@ -1,53 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id EB2736B0033
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 03:01:59 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 5FC406B0034
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 03:02:02 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 3 Sep 2013 12:21:57 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 290CC394004D
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 12:31:42 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8371ob848234574
-	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 12:31:51 +0530
-Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8371q2w029030
-	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 12:31:52 +0530
+	Tue, 3 Sep 2013 16:53:18 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id CBB512CE805D
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 17:01:57 +1000 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r836jheE48693480
+	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 16:45:43 +1000
+Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8371tac027945
+	for <linux-mm@kvack.org>; Tue, 3 Sep 2013 17:01:56 +1000
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v4 1/4] mm/vmalloc: don't set area->caller twice
-Date: Tue,  3 Sep 2013 15:01:43 +0800
-Message-Id: <1378191706-29696-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v4 3/4] mm/vmalloc: revert "mm/vmalloc.c: check VM_UNINITIALIZED flag in s_show instead of show_numa_info"
+Date: Tue,  3 Sep 2013 15:01:45 +0800
+Message-Id: <1378191706-29696-3-git-send-email-liwanp@linux.vnet.ibm.com>
+In-Reply-To: <1378191706-29696-1-git-send-email-liwanp@linux.vnet.ibm.com>
+References: <1378191706-29696-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
 Changelog:
- *v1 -> v2: rebase against mmotm tree
+ *v2 -> v3: revert commit d157a558 directly
 
-The caller address has already been set in set_vmalloc_vm(), there's no need
-to set it again in __vmalloc_area_node.
+The VM_UNINITIALIZED/VM_UNLIST flag introduced by commit f5252e00(mm: avoid
+null pointer access in vm_struct via /proc/vmallocinfo) is used to avoid
+accessing the pages field with unallocated page when show_numa_info() is
+called. This patch move the check just before show_numa_info in order that
+some messages still can be dumped via /proc/vmallocinfo. This patch revert 
+commit d157a558 (mm/vmalloc.c: check VM_UNINITIALIZED flag in s_show instead 
+of show_numa_info);
 
-Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- mm/vmalloc.c | 1 -
- 1 file changed, 1 deletion(-)
+ mm/vmalloc.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
 
 diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 1074543..d78d117 100644
+index e3ec8b4..5368b17 100644
 --- a/mm/vmalloc.c
 +++ b/mm/vmalloc.c
-@@ -1566,7 +1566,6 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
- 		pages = kmalloc_node(array_size, nested_gfp, node);
- 	}
- 	area->pages = pages;
--	area->caller = caller;
- 	if (!area->pages) {
- 		remove_vm_area(area->addr);
- 		kfree(area);
+@@ -2562,6 +2562,11 @@ static void show_numa_info(struct seq_file *m, struct vm_struct *v)
+ 		if (!counters)
+ 			return;
+ 
++		/* Pair with smp_wmb() in clear_vm_uninitialized_flag() */
++		smp_rmb();
++		if (v->flags & VM_UNINITIALIZED)
++			return;
++
+ 		memset(counters, 0, nr_node_ids * sizeof(unsigned int));
+ 
+ 		for (nr = 0; nr < v->nr_pages; nr++)
+@@ -2590,11 +2595,6 @@ static int s_show(struct seq_file *m, void *p)
+ 
+ 	v = va->vm;
+ 
+-	/* Pair with smp_wmb() in clear_vm_uninitialized_flag() */
+-	smp_rmb();
+-	if (v->flags & VM_UNINITIALIZED)
+-		return 0;
+-
+ 	seq_printf(m, "0x%pK-0x%pK %7ld",
+ 		v->addr, v->addr + v->size, v->size);
+ 
 -- 
 1.8.1.2
 
