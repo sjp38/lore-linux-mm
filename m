@@ -1,72 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 4D0886B0032
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 22:07:07 -0400 (EDT)
-Message-ID: <5226957F.2060704@cn.fujitsu.com>
-Date: Wed, 04 Sep 2013 10:05:51 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id C2E0E6B0032
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 22:18:03 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Wed, 4 Sep 2013 07:37:19 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 4B7731258052
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2013 07:47:52 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r842HqsD48824564
+	for <linux-mm@kvack.org>; Wed, 4 Sep 2013 07:47:53 +0530
+Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r842HrPb021776
+	for <linux-mm@kvack.org>; Wed, 4 Sep 2013 07:47:54 +0530
+Date: Wed, 4 Sep 2013 10:17:46 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH 0/4] slab: implement byte sized indexes for the freelist
+ of a slab
+Message-ID: <20130904021746.GA13186@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <CAAmzW4N1GXbr18Ws9QDKg7ChN5RVcOW9eEv2RxWhaEoHtw=ctw@mail.gmail.com>
+ <1378111138-30340-1-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 07/11] x86, memblock: Set lowest limit for memblock_alloc_base_nid().
-References: <1377596268-31552-1-git-send-email-tangchen@cn.fujitsu.com>  <1377596268-31552-8-git-send-email-tangchen@cn.fujitsu.com> <1378255041.10300.931.camel@misato.fc.hp.com>
-In-Reply-To: <1378255041.10300.931.camel@misato.fc.hp.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1378111138-30340-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 09/04/2013 08:37 AM, Toshi Kani wrote:
-> On Tue, 2013-08-27 at 17:37 +0800, Tang Chen wrote:
->> memblock_alloc_base_nid() is a common API of memblock. And it calls
->> memblock_find_in_range_node() with %start = 0, which means it has no
->> limit for the lowest address by default.
->>
->> 	memblock_find_in_range_node(0, max_addr, size, align, nid);
->>
->> Since we introduced current_limit_low to memblock, if we have no limit
->> for the lowest address or we are not sure, we should pass
->> MEMBLOCK_ALLOC_ACCESSIBLE to %start so that it will be limited by the
->> default low limit.
->>
->> dma_contiguous_reserve() and setup_log_buf() will eventually call
->> memblock_alloc_base_nid() to allocate memory. So if the allocation order
->> is from low to high, they will allocate memory from the lowest limit
->> to higher memory.
+Hi Joonsoo,
+On Mon, Sep 02, 2013 at 05:38:54PM +0900, Joonsoo Kim wrote:
+>This patchset implements byte sized indexes for the freelist of a slab.
 >
-> This requires the callers to use MEMBLOCK_ALLOC_ACCESSIBLE instead of 0.
-> Is there a good way to make sure that all callers will follow this rule
-> going forward?  Perhaps, memblock_find_in_range_node() should emit some
-> message if 0 is passed when current_order is low to high and the boot
-> option is specified?
+>Currently, the freelist of a slab consist of unsigned int sized indexes.
+>Most of slabs have less number of objects than 256, so much space is wasted.
+>To reduce this overhead, this patchset implements byte sized indexes for
+>the freelist of a slab. With it, we can save 3 bytes for each objects.
+>
+>This introduce one likely branch to functions used for setting/getting
+>objects to/from the freelist, but we may get more benefits from
+>this change.
+>
+>Below is some numbers of 'cat /proc/slabinfo' related to my previous posting
+>and this patchset.
+>
+>
+>* Before *
+># name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab> : tunables [snip...]
+>kmalloc-512          525    640    512    8    1 : tunables   54   27    0 : slabdata     80     80      0   
+>kmalloc-256          210    210    256   15    1 : tunables  120   60    0 : slabdata     14     14      0   
+>kmalloc-192         1016   1040    192   20    1 : tunables  120   60    0 : slabdata     52     52      0   
+>kmalloc-96           560    620    128   31    1 : tunables  120   60    0 : slabdata     20     20      0   
+>kmalloc-64          2148   2280     64   60    1 : tunables  120   60    0 : slabdata     38     38      0   
+>kmalloc-128          647    682    128   31    1 : tunables  120   60    0 : slabdata     22     22      0   
+>kmalloc-32         11360  11413     32  113    1 : tunables  120   60    0 : slabdata    101    101      0   
+>kmem_cache           197    200    192   20    1 : tunables  120   60    0 : slabdata     10     10      0   
+>
+>* After my previous posting(overload struct slab over struct page) *
+># name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab> : tunables [snip...]
+>kmalloc-512          527    600    512    8    1 : tunables   54   27    0 : slabdata     75     75      0   
+>kmalloc-256          210    210    256   15    1 : tunables  120   60    0 : slabdata     14     14      0   
+>kmalloc-192         1040   1040    192   20    1 : tunables  120   60    0 : slabdata     52     52      0   
+>kmalloc-96           750    750    128   30    1 : tunables  120   60    0 : slabdata     25     25      0   
+>kmalloc-64          2773   2773     64   59    1 : tunables  120   60    0 : slabdata     47     47      0   
+>kmalloc-128          660    690    128   30    1 : tunables  120   60    0 : slabdata     23     23      0   
+>kmalloc-32         11200  11200     32  112    1 : tunables  120   60    0 : slabdata    100    100      0   
+>kmem_cache           197    200    192   20    1 : tunables  120   60    0 : slabdata     10     10      0   
+>
+>kmem_caches consisting of objects less than or equal to 128 byte have one more
+>objects in a slab. You can see it at objperslab.
 
-How about set this as the default rule:
+I think there is one less objects in a slab after observing objperslab.
 
-	When using from low to high order, always allocate memory from
-	current_limit_low.
-
-So far, I think only movablenode boot option will use this order.
+Regards,
+Wanpeng Li 
 
 >
-> Similarly, I wonder if we should have a check to the allocation size to
-> make sure that all allocations will stay small in this case.
+>We can improve further with this patchset.
 >
-
-We can check the size. But what is the stragety after we found that the 
-size
-is too large ?  Do we refuse to allocate memory ?  I don't think so.
-
-I think only relocate_initrd() and reserve_crachkernel() could allocate 
-large
-memory. reserve_crachkernel() is easy to reorder, but reordering 
-relocate_initrd()
-is difficult because acpi_initrd_override() need to access to it with va.
-
-I think on most servers, we don't need to do relocate_initrd(). initrd 
-will be
-loaded to mapped memory in normal situation. Can we just leave it there ?
-
-Thanks.
+>* My previous posting + this patchset *
+># name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab> : tunables [snip...]
+>kmalloc-512          521    648    512    8    1 : tunables   54   27    0 : slabdata     81     81      0
+>kmalloc-256          208    208    256   16    1 : tunables  120   60    0 : slabdata     13     13      0
+>kmalloc-192         1029   1029    192   21    1 : tunables  120   60    0 : slabdata     49     49      0
+>kmalloc-96           529    589    128   31    1 : tunables  120   60    0 : slabdata     19     19      0
+>kmalloc-64          2142   2142     64   63    1 : tunables  120   60    0 : slabdata     34     34      0
+>kmalloc-128          660    682    128   31    1 : tunables  120   60    0 : slabdata     22     22      0
+>kmalloc-32         11716  11780     32  124    1 : tunables  120   60    0 : slabdata     95     95      0
+>kmem_cache           197    210    192   21    1 : tunables  120   60    0 : slabdata     10     10      0
+>
+>kmem_caches consisting of objects less than or equal to 256 byte have
+>one or more objects than before. In the case of kmalloc-32, we have 12 more
+>objects, so 384 bytes (12 * 32) are saved and this is roughly 9% saving of
+>memory. Of couse, this percentage decreases as the number of objects
+>in a slab decreases.
+>
+>Please let me know expert's opions :)
+>Thanks.
+>
+>This patchset comes from a Christoph's idea.
+>https://lkml.org/lkml/2013/8/23/315
+>
+>Patches are on top of my previous posting.
+>https://lkml.org/lkml/2013/8/22/137
+>
+>Joonsoo Kim (4):
+>  slab: factor out calculate nr objects in cache_estimate
+>  slab: introduce helper functions to get/set free object
+>  slab: introduce byte sized index for the freelist of a slab
+>  slab: make more slab management structure off the slab
+>
+> mm/slab.c |  138 +++++++++++++++++++++++++++++++++++++++++++++----------------
+> 1 file changed, 103 insertions(+), 35 deletions(-)
+>
+>-- 
+>1.7.9.5
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
