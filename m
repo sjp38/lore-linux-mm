@@ -1,87 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id C84D26B0031
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2013 11:24:00 -0400 (EDT)
-Message-ID: <1378308138.10300.948.camel@misato.fc.hp.com>
-Subject: Re: [PATCH 07/11] x86, memblock: Set lowest limit for
- memblock_alloc_base_nid().
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Wed, 04 Sep 2013 09:22:18 -0600
-In-Reply-To: <5226957F.2060704@cn.fujitsu.com>
-References: <1377596268-31552-1-git-send-email-tangchen@cn.fujitsu.com>
-	  <1377596268-31552-8-git-send-email-tangchen@cn.fujitsu.com>
-	 <1378255041.10300.931.camel@misato.fc.hp.com>
-	 <5226957F.2060704@cn.fujitsu.com>
-Content-Type: text/plain; charset="UTF-8"
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id B94B46B0031
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2013 12:32:28 -0400 (EDT)
+Date: Wed, 04 Sep 2013 12:32:10 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1378312330-afoa3r2y-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <87li3dvz3k.fsf@linux.vnet.ibm.com>
+References: <1377883120-5280-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1377883120-5280-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <87li3dvz3k.fsf@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/2] hugetlbfs: support split page table lock
 Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, kirill.shutemov@linux.intel.com, Alex Thorlton <athorlton@sgi.com>, linux-kernel@vger.kernel.org
 
-On Wed, 2013-09-04 at 10:05 +0800, Tang Chen wrote:
-> On 09/04/2013 08:37 AM, Toshi Kani wrote:
-> > On Tue, 2013-08-27 at 17:37 +0800, Tang Chen wrote:
-> >> memblock_alloc_base_nid() is a common API of memblock. And it calls
-> >> memblock_find_in_range_node() with %start = 0, which means it has no
-> >> limit for the lowest address by default.
-> >>
-> >> 	memblock_find_in_range_node(0, max_addr, size, align, nid);
-> >>
-> >> Since we introduced current_limit_low to memblock, if we have no limit
-> >> for the lowest address or we are not sure, we should pass
-> >> MEMBLOCK_ALLOC_ACCESSIBLE to %start so that it will be limited by the
-> >> default low limit.
-> >>
-> >> dma_contiguous_reserve() and setup_log_buf() will eventually call
-> >> memblock_alloc_base_nid() to allocate memory. So if the allocation order
-> >> is from low to high, they will allocate memory from the lowest limit
-> >> to higher memory.
+Hi Aneesh,
+
+On Wed, Sep 04, 2013 at 12:43:19PM +0530, Aneesh Kumar K.V wrote:
+> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
+> 
+> > Currently all of page table handling by hugetlbfs code are done under
+> > mm->page_table_lock. So when a process have many threads and they heavily
+> > access to the memory, lock contention happens and impacts the performance.
 > >
-> > This requires the callers to use MEMBLOCK_ALLOC_ACCESSIBLE instead of 0.
-> > Is there a good way to make sure that all callers will follow this rule
-> > going forward?  Perhaps, memblock_find_in_range_node() should emit some
-> > message if 0 is passed when current_order is low to high and the boot
-> > option is specified?
-> 
-> How about set this as the default rule:
-> 
-> 	When using from low to high order, always allocate memory from
-> 	current_limit_low.
-> 
-> So far, I think only movablenode boot option will use this order.
-
-Sounds good to me.
-
-> > Similarly, I wonder if we should have a check to the allocation size to
-> > make sure that all allocations will stay small in this case.
+> > This patch makes hugepage support split page table lock so that we use
+> > page->ptl of the leaf node of page table tree which is pte for normal pages
+> > but can be pmd and/or pud for hugepages of some architectures.
 > >
+> > ChangeLog v2:
+> >  - add split ptl on other archs missed in v1
+> >
+> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > ---
+> >  arch/powerpc/mm/hugetlbpage.c |  6 ++-
+> >  arch/tile/mm/hugetlbpage.c    |  6 ++-
+> >  include/linux/hugetlb.h       | 20 ++++++++++
+> >  mm/hugetlb.c                  | 92 ++++++++++++++++++++++++++-----------------
+> >  mm/mempolicy.c                |  5 ++-
+> >  mm/migrate.c                  |  4 +-
+> >  mm/rmap.c                     |  2 +-
+> >  7 files changed, 90 insertions(+), 45 deletions(-)
+> >
+> > diff --git v3.11-rc3.orig/arch/powerpc/mm/hugetlbpage.c v3.11-rc3/arch/powerpc/mm/hugetlbpage.c
+> > index d67db4b..7e56cb7 100644
+> > --- v3.11-rc3.orig/arch/powerpc/mm/hugetlbpage.c
+> > +++ v3.11-rc3/arch/powerpc/mm/hugetlbpage.c
+> > @@ -124,6 +124,7 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
+> >  {
+> >  	struct kmem_cache *cachep;
+> >  	pte_t *new;
+> > +	spinlock_t *ptl;
+> >
+> >  #ifdef CONFIG_PPC_FSL_BOOK3E
+> >  	int i;
+> > @@ -141,7 +142,8 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
+> >  	if (! new)
+> >  		return -ENOMEM;
+> >
+> > -	spin_lock(&mm->page_table_lock);
+> > +	ptl = huge_pte_lockptr(mm, new);
+> > +	spin_lock(ptl);
 > 
-> We can check the size. But what is the stragety after we found that the 
-> size
-> is too large ?  Do we refuse to allocate memory ?  I don't think so.
-
-We can just add a log message.  No need to fail.
-
-> I think only relocate_initrd() and reserve_crachkernel() could allocate 
-> large
-> memory. reserve_crachkernel() is easy to reorder, but reordering 
-> relocate_initrd()
-> is difficult because acpi_initrd_override() need to access to it with va.
 > 
-> I think on most servers, we don't need to do relocate_initrd(). initrd 
-> will be
-> loaded to mapped memory in normal situation. Can we just leave it there ?
+> Are you sure we can do that for ppc ?
+> 	new = kmem_cache_zalloc(cachep, GFP_KERNEL|__GFP_REPEAT);
 
-Since this approach relies on the assumption that all allocations are
-small enough, it would be nice to have a way to verify if it remains
-true.  How about we measure a total amount of allocations while the
-order is low to high, and log it when switched to high to low?  This
-way, we can easily monitor the usage.
+Ah, thanks. new is not a pointer to one full page occupied by page
+table entries, so trying to use struct page of it is totally wrong.
+
+> The page for new(pte_t) could be shared right ? which mean a deadlock ?
+
+Yes, that's disastrous.
+
+> May be you should do it at the pmd level itself for ppc
+
+Yes, that's possible, but I simply drop the changes in __hugepte_alloc()
+for now because this lock seems to protect us from the race between concurrent
+calls of __hugepte_alloc(), not between allocation and read/write access.
+Split ptl is used to avoid race between read/write accesses, so I think
+that using different types of locks here is not dangerous.
+# I guess that that's why we now use mm->page_table_lock for __pte_alloc()
+# and its family even if USE_SPLIT_PTLOCKS is true.
+
+A bit off-topic, but I found that we have a bogus comment on
+hugetlb_free_pgd_range in arch/powerpc/mm/hugetlbpage.c saying
+"Must be called with pagetable lock held."
+This seems not true because the caller free_pgtables() and its
+callers (unmap_region() and exit_mmap()) never hold it.
+I guess that it's just copied from free_pgd_range() and it's also
+false for this function. I'll post a patch to remove this later.
+
+Anyway, thank you for valuable comments!
 
 Thanks,
--Toshi
+Naoya Horiguchi
+
+> >  #ifdef CONFIG_PPC_FSL_BOOK3E
+> >  	/*
+> >  	 * We have multiple higher-level entries that point to the same
+> > @@ -174,7 +176,7 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
+> >  #endif
+> >  	}
+> >  #endif
+> > -	spin_unlock(&mm->page_table_lock);
+> > +	spin_unlock(ptl);
+> >  	return 0;
+> >  }
+> >
+> 
+> 
+> -aneesh
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
