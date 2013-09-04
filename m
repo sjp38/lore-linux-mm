@@ -1,62 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 382726B0032
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 23:38:16 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 4 Sep 2013 09:00:04 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 54BCD1258052
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2013 09:08:04 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r843c44j48824464
-	for <linux-mm@kvack.org>; Wed, 4 Sep 2013 09:08:05 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r843c6vG005561
-	for <linux-mm@kvack.org>; Wed, 4 Sep 2013 09:08:06 +0530
-Date: Wed, 4 Sep 2013 11:38:04 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 00/16] slab: overload struct slab over struct page to
- reduce memory usage
-Message-ID: <20130904033804.GA825@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1377161065-30552-1-git-send-email-iamjoonsoo.kim@lge.com>
- <00000140a6ec66e5-a4d245c0-76b6-4a8b-9cf0-d941ca9e08b0-000000@email.amazonses.com>
- <20130823063539.GD22605@lge.com>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 980E56B0032
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2013 00:03:37 -0400 (EDT)
+From: Manomugdha Biswas <MBiswas@ixiacom.com>
+Subject: /proc/pid/maps
+Date: Wed, 4 Sep 2013 04:03:31 +0000
+Message-ID: <8F59616961A3BD458BB4F59E7102BA0467BEFFFA@CH1PRD0611MB444.namprd06.prod.outlook.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130823063539.GD22605@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tang Chen <tangchen@cn.fujitsu.com>, Toshi Kani <toshi.kani@hp.com>, "rjw@sisk.pl" <rjw@sisk.pl>, "lenb@kernel.org" <lenb@kernel.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@elte.hu" <mingo@elte.hu>, "hpa@zytor.com" <hpa@zytor.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "tj@kernel.org" <tj@kernel.org>, "trenn@suse.de" <trenn@suse.de>, "yinghai@kernel.org" <yinghai@kernel.org>, "jiang.liu@huawei.com" <jiang.liu@huawei.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "laijs@cn.fujitsu.com" <laijs@cn.fujitsu.com>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "izumi.taku@jp.fujitsu.com" <izumi.taku@jp.fujitsu.com>, "mgorman@suse.de" <mgorman@suse.de>, "minchan@kernel.org" <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, "vasilis.liaskovitis@profitbricks.com" <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "riel@redhat.com" <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "prarit@redhat.com" <prarit@redhat.com>, "zhangyanfei@cn.fujitsu.com" <zhangyanfei@cn.fujitsu.com>, "x86@kernel.org" <x86@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>
 
-Hi Joonsoo,
-On Fri, Aug 23, 2013 at 03:35:39PM +0900, Joonsoo Kim wrote:
->On Thu, Aug 22, 2013 at 04:47:25PM +0000, Christoph Lameter wrote:
->> On Thu, 22 Aug 2013, Joonsoo Kim wrote:
->
-[...]
->struct slab's free = END
->kmem_bufctl_t array: ACTIVE ACTIVE ACTIVE ACTIVE ACTIVE
-><we get object at index 0>
->
-
-Is there a real item for END in kmem_bufctl_t array as you mentioned above?
-I think the kmem_bufctl_t array doesn't include that and the last step is 
-not present. 
-
-Regards,
-Wanpeng Li 
-
-[...]
-
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+SGksDQpJIGFtIHJ1bm5pbmcgYW4gYXBwbGljYXRpb24gYW5kIG9ic2VydmluZyBhIG1lbW9yeSBs
+ZWFrLiBJIHRvb2sgdHdvIHNuYXBzaG90cyBvZiDigJxtYXBz4oCdLiBPbmUgaXMgYmVmb3JlIHN0
+YXJ0aW5nIHRoZSBhY3Rpb24gd2hpY2ggaXMgY2F1c2luZyBtZW1vcnkgbGVhayBhbmQgYW5vdGhl
+ciBpcyBhZnRlciBtZW1vcnkgbGVhay4NCg0KRm9sbG93aW5nIGFyZSB0aGUgc25hcHNob3RzOg0K
+DQpCZWZvcmU6DQo9PT09PT09DQojIGNhdCAvcHJvYy80ODEvbWFwcw0KMGZiYTkwMDAtMGZjZGYw
+MDAgci14cCAwMDAwMDAwMCAwMDowYSAzNzEgICAgICAgIC9saWIvbGliYy0yLjMuMy5zbw0KMGZj
+ZGYwMDAtMGZjZTkwMDAgLS0tcCAwMDEzNjAwMCAwMDowYSAzNzEgICAgICAgIC9saWIvbGliYy0y
+LjMuMy5zbw0KMGZjZTkwMDAtMGZjZjMwMDAgcnd4cCAwMDEzMDAwMCAwMDowYSAzNzEgICAgICAg
+IC9saWIvbGliYy0yLjMuMy5zbw0KMGZjZjMwMDAtMGZjZjYwMDAgcnd4cCAwZmNmMzAwMCAwMDow
+MCAwDQowZmQwNjAwMC0wZmQxOTAwMCByLXhwIDAwMDAwMDAwIDAwOjBhIDQ2NiAgICAgICAgL2xp
+Yi9saWJnY2Nfcy5zby4xDQowZmQxOTAwMC0wZmQyNjAwMCAtLS1wIDAwMDEzMDAwIDAwOjBhIDQ2
+NiAgICAgICAgL2xpYi9saWJnY2Nfcy5zby4xDQowZmQyNjAwMC0wZmQyYTAwMCByd3hwIDAwMDEw
+MDAwIDAwOjBhIDQ2NiAgICAgICAgL2xpYi9saWJnY2Nfcy5zby4xDQowZmQzYTAwMC0wZmRhZDAw
+MCByLXhwIDAwMDAwMDAwIDAwOjBhIDQ1NSAgICAgICAgL2xpYi9saWJtLTIuMy4zLnNvDQowZmRh
+ZDAwMC0wZmRiYTAwMCAtLS1wIDAwMDczMDAwIDAwOjBhIDQ1NSAgICAgICAgL2xpYi9saWJtLTIu
+My4zLnNvDQowZmRiYTAwMC0wZmRjMDAwMCByd3hwIDAwMDcwMDAwIDAwOjBhIDQ1NSAgICAgICAg
+L2xpYi9saWJtLTIuMy4zLnNvDQowZmRkMDAwMC0wZmVjNjAwMCByLXhwIDAwMDAwMDAwIDAwOjBh
+IDQ1OSAgICAgICAgL2xpYi9saWJzdGRjKysuc28uNi4wLjkNCjBmZWM2MDAwLTBmZWQwMDAwIC0t
+LXAgMDAwZjYwMDAgMDA6MGEgNDU5ICAgICAgICAvbGliL2xpYnN0ZGMrKy5zby42LjAuOQ0KMGZl
+ZDAwMDAtMGZlZGIwMDAgcnd4cCAwMDBmMDAwMCAwMDowYSA0NTkgICAgICAgIC9saWIvbGlic3Rk
+YysrLnNvLjYuMC45DQowZmVkYjAwMC0wZmVlMjAwMCByd3hwIDBmZWRiMDAwIDAwOjAwIDANCjBm
+ZWYyMDAwLTBmZWZlMDAwIHIteHAgMDAwMDAwMDAgMDA6MGEgNTE0ICAgICAgICAvdXNyL2xpYi9s
+aWJpeG1sLnNvDQowZmVmZTAwMC0wZmYwMjAwMCAtLS1wIDAwMDBjMDAwIDAwOjBhIDUxNCAgICAg
+ICAgL3Vzci9saWIvbGliaXhtbC5zbw0KMGZmMDIwMDAtMGZmMGUwMDAgcnd4cCAwMDAwMDAwMCAw
+MDowYSA1MTQgICAgICAgIC91c3IvbGliL2xpYml4bWwuc28NCjBmZjBlMDAwLTBmZjBmMDAwIHJ3
+eHAgMGZmMGUwMDAgMDA6MDAgMA0KMGZmMWYwMDAtMGZmMmQwMDAgci14cCAwMDAwMDAwMCAwMDow
+YSAzNjEgICAgICAgIC9saWIvbGlicHRocmVhZC0wLjEwLnNvDQowZmYyZDAwMC0wZmYyZjAwMCAt
+LS1wIDAwMDBlMDAwIDAwOjBhIDM2MSAgICAgICAgL2xpYi9saWJwdGhyZWFkLTAuMTAuc28NCjBm
+ZjJmMDAwLTBmZjNlMDAwIHJ3eHAgMDAwMDAwMDAgMDA6MGEgMzYxICAgICAgICAvbGliL2xpYnB0
+aHJlYWQtMC4xMC5zbw0KMGZmM2UwMDAtMGZmODAwMDAgcnd4cCAwZmYzZTAwMCAwMDowMCAwDQow
+ZmY5MDAwMC0wZmY5NTAwMCByLXhwIDAwMDAwMDAwIDAwOjBhIDM2OCAgICAgICAgL2xpYi9saWJj
+cnlwdC0yLjMuMy5zbw0KMGZmOTUwMDAtMGZmYTAwMDAgLS0tcCAwMDAwNTAwMCAwMDowYSAzNjgg
+ICAgICAgIC9saWIvbGliY3J5cHQtMi4zLjMuc28NCjBmZmEwMDAwLTBmZmE1MDAwIHJ3eHAgMDAw
+MDAwMDAgMDA6MGEgMzY4ICAgICAgICAvbGliL2xpYmNyeXB0LTIuMy4zLnNvDQowZmZhNTAwMC0w
+ZmZjYzAwMCByd3hwIDBmZmE1MDAwIDAwOjAwIDANCjBmZmRjMDAwLTBmZmUwMDAwIHIteHAgMDAw
+MDAwMDAgMDA6MGEgNTEwICAgICAgICAvdXNyL2xpYi9saWJlcnJoYW5kLnNvDQowZmZlMDAwMC0w
+ZmZlYzAwMCAtLS1wIDAwMDA0MDAwIDAwOjBhIDUxMCAgICAgICAgL3Vzci9saWIvbGliZXJyaGFu
+ZC5zbw0KMGZmZWMwMDAtMGZmZjAwMDAgcnd4cCAwMDAwMDAwMCAwMDowYSA1MTAgICAgICAgIC91
+c3IvbGliL2xpYmVycmhhbmQuc28NCjEwMDAwMDAwLTEwMWIyMDAwIHIteHAgMDAwMDAwMDAgMDA6
+MGEgMTY4NSAgICAgICAvb3B0L2JncGQvYmluL2JncGQNCjEwMWMyMDAwLTEwMWQxMDAwIHJ3eHAg
+MDAxYjIwMDAgMDA6MGEgMTY4NSAgICAgICAvb3B0L2JncGQvYmluL2JncGQNCjEwMWQxMDAwLTE1
+N2NjMDAwIHJ3eHAgMTAxZDEwMDAgMDA6MDAgMA0KMzAwMDAwMDAtMzAwMTYwMDAgci14cCAwMDAw
+MDAwMCAwMDowYSAzNTcgICAgICAgIC9saWIvbGQtMi4zLjMuc28NCjMwMDE2MDAwLTMwMDE5MDAw
+IHJ3LXAgMzAwMTYwMDAgMDA6MDAgMA0KMzAwMTkwMDAtMzAwMjIwMDAgcnctcyAwMDAwMDAwMCAw
+MDowNiAwICAgICAgICAgIC9TWVNWMDI0ZjgyM2YgKGRlbGV0ZWQpDQozMDAyMjAwMC0zMDAyMzAw
+MCBydy1zIDAwMDAwMDAwIDAwOjA2IDE2Mzg0NSAgICAgL1NZU1YwMDAxZWQyMyAoZGVsZXRlZCkN
+CjMwMDI2MDAwLTMwMDI3MDAwIHJ3eHAgMDAwMTYwMDAgMDA6MGEgMzU3ICAgICAgICAvbGliL2xk
+LTIuMy4zLnNvDQo3ZmVmZjAwMC04MDAwMDAwMCByd3hwIDdmZWZmMDAwIDAwOjAwIDANCg0KQWZ0
+ZXI6DQo9PT09PQ0KIyBjYXQgL3Byb2MvNDgxL21hcHMNCjBmYmE5MDAwLTBmY2RmMDAwIHIteHAg
+MDAwMDAwMDAgMDA6MGEgMzcxICAgICAgICAvbGliL2xpYmMtMi4zLjMuc28NCjBmY2RmMDAwLTBm
+Y2U5MDAwIC0tLXAgMDAxMzYwMDAgMDA6MGEgMzcxICAgICAgICAvbGliL2xpYmMtMi4zLjMuc28N
+CjBmY2U5MDAwLTBmY2YzMDAwIHJ3eHAgMDAxMzAwMDAgMDA6MGEgMzcxICAgICAgICAvbGliL2xp
+YmMtMi4zLjMuc28NCjBmY2YzMDAwLTBmY2Y2MDAwIHJ3eHAgMGZjZjMwMDAgMDA6MDAgMA0KMGZk
+MDYwMDAtMGZkMTkwMDAgci14cCAwMDAwMDAwMCAwMDowYSA0NjYgICAgICAgIC9saWIvbGliZ2Nj
+X3Muc28uMQ0KMGZkMTkwMDAtMGZkMjYwMDAgLS0tcCAwMDAxMzAwMCAwMDowYSA0NjYgICAgICAg
+IC9saWIvbGliZ2NjX3Muc28uMQ0KMGZkMjYwMDAtMGZkMmEwMDAgcnd4cCAwMDAxMDAwMCAwMDow
+YSA0NjYgICAgICAgIC9saWIvbGliZ2NjX3Muc28uMQ0KMGZkM2EwMDAtMGZkYWQwMDAgci14cCAw
+MDAwMDAwMCAwMDowYSA0NTUgICAgICAgIC9saWIvbGlibS0yLjMuMy5zbw0KMGZkYWQwMDAtMGZk
+YmEwMDAgLS0tcCAwMDA3MzAwMCAwMDowYSA0NTUgICAgICAgIC9saWIvbGlibS0yLjMuMy5zbw0K
+MGZkYmEwMDAtMGZkYzAwMDAgcnd4cCAwMDA3MDAwMCAwMDowYSA0NTUgICAgICAgIC9saWIvbGli
+bS0yLjMuMy5zbw0KMGZkZDAwMDAtMGZlYzYwMDAgci14cCAwMDAwMDAwMCAwMDowYSA0NTkgICAg
+ICAgIC9saWIvbGlic3RkYysrLnNvLjYuMC45DQowZmVjNjAwMC0wZmVkMDAwMCAtLS1wIDAwMGY2
+MDAwIDAwOjBhIDQ1OSAgICAgICAgL2xpYi9saWJzdGRjKysuc28uNi4wLjkNCjBmZWQwMDAwLTBm
+ZWRiMDAwIHJ3eHAgMDAwZjAwMDAgMDA6MGEgNDU5ICAgICAgICAvbGliL2xpYnN0ZGMrKy5zby42
+LjAuOQ0KMGZlZGIwMDAtMGZlZTIwMDAgcnd4cCAwZmVkYjAwMCAwMDowMCAwDQowZmVmMjAwMC0w
+ZmVmZTAwMCByLXhwIDAwMDAwMDAwIDAwOjBhIDUxNCAgICAgICAgL3Vzci9saWIvbGliaXhtbC5z
+bw0KMGZlZmUwMDAtMGZmMDIwMDAgLS0tcCAwMDAwYzAwMCAwMDowYSA1MTQgICAgICAgIC91c3Iv
+bGliL2xpYml4bWwuc28NCjBmZjAyMDAwLTBmZjBlMDAwIHJ3eHAgMDAwMDAwMDAgMDA6MGEgNTE0
+ICAgICAgICAvdXNyL2xpYi9saWJpeG1sLnNvDQowZmYwZTAwMC0wZmYwZjAwMCByd3hwIDBmZjBl
+MDAwIDAwOjAwIDANCjBmZjFmMDAwLTBmZjJkMDAwIHIteHAgMDAwMDAwMDAgMDA6MGEgMzYxICAg
+ICAgICAvbGliL2xpYnB0aHJlYWQtMC4xMC5zbw0KMGZmMmQwMDAtMGZmMmYwMDAgLS0tcCAwMDAw
+ZTAwMCAwMDowYSAzNjEgICAgICAgIC9saWIvbGlicHRocmVhZC0wLjEwLnNvDQowZmYyZjAwMC0w
+ZmYzZTAwMCByd3hwIDAwMDAwMDAwIDAwOjBhIDM2MSAgICAgICAgL2xpYi9saWJwdGhyZWFkLTAu
+MTAuc28NCjBmZjNlMDAwLTBmZjgwMDAwIHJ3eHAgMGZmM2UwMDAgMDA6MDAgMA0KMGZmOTAwMDAt
+MGZmOTUwMDAgci14cCAwMDAwMDAwMCAwMDowYSAzNjggICAgICAgIC9saWIvbGliY3J5cHQtMi4z
+LjMuc28NCjBmZjk1MDAwLTBmZmEwMDAwIC0tLXAgMDAwMDUwMDAgMDA6MGEgMzY4ICAgICAgICAv
+bGliL2xpYmNyeXB0LTIuMy4zLnNvDQowZmZhMDAwMC0wZmZhNTAwMCByd3hwIDAwMDAwMDAwIDAw
+OjBhIDM2OCAgICAgICAgL2xpYi9saWJjcnlwdC0yLjMuMy5zbw0KMGZmYTUwMDAtMGZmY2MwMDAg
+cnd4cCAwZmZhNTAwMCAwMDowMCAwDQowZmZkYzAwMC0wZmZlMDAwMCByLXhwIDAwMDAwMDAwIDAw
+OjBhIDUxMCAgICAgICAgL3Vzci9saWIvbGliZXJyaGFuZC5zbw0KMGZmZTAwMDAtMGZmZWMwMDAg
+LS0tcCAwMDAwNDAwMCAwMDowYSA1MTAgICAgICAgIC91c3IvbGliL2xpYmVycmhhbmQuc28NCjBm
+ZmVjMDAwLTBmZmYwMDAwIHJ3eHAgMDAwMDAwMDAgMDA6MGEgNTEwICAgICAgICAvdXNyL2xpYi9s
+aWJlcnJoYW5kLnNvDQoxMDAwMDAwMC0xMDFiMjAwMCByLXhwIDAwMDAwMDAwIDAwOjBhIDE2ODUg
+ICAgICAgL29wdC9iZ3BkL2Jpbi9iZ3BkDQoxMDFjMjAwMC0xMDFkMTAwMCByd3hwIDAwMWIyMDAw
+IDAwOjBhIDE2ODUgICAgICAgL29wdC9iZ3BkL2Jpbi9iZ3BkDQoxMDFkMTAwMC0xN2EyNTAwMCBy
+d3hwIDEwMWQxMDAwIDAwOjAwIDANCjMwMDAwMDAwLTMwMDE2MDAwIHIteHAgMDAwMDAwMDAgMDA6
+MGEgMzU3ICAgICAgICAvbGliL2xkLTIuMy4zLnNvDQozMDAxNjAwMC0zMDAxOTAwMCBydy1wIDMw
+MDE2MDAwIDAwOjAwIDANCjMwMDE5MDAwLTMwMDIyMDAwIHJ3LXMgMDAwMDAwMDAgMDA6MDYgMCAg
+ICAgICAgICAvU1lTVjAyNGY4MjNmIChkZWxldGVkKQ0KMzAwMjIwMDAtMzAwMjMwMDAgcnctcyAw
+MDAwMDAwMCAwMDowNiAxNjM4NDUgICAgIC9TWVNWMDAwMWVkMjMgKGRlbGV0ZWQpDQozMDAyNjAw
+MC0zMDAyNzAwMCByd3hwIDAwMDE2MDAwIDAwOjBhIDM1NyAgICAgICAgL2xpYi9sZC0yLjMuMy5z
+bw0KN2ZlZmYwMDAtODAwMDAwMDAgcnd4cCA3ZmVmZjAwMCAwMDowMCAwDQoNCk15IGFwcGxpY2F0
+aW9ucyBuYW1lIGlzIOKAnC9vcHQvYmdwZC9iaW4vYmdwZOKAnS4gDQoNCkl0IGlzIHNlZW4gdGhh
+dCB0aGUgcmVkIG1hcmtlZCBzZWN0aW9uIGlzIGNvbnN1bWluZyB0aGUgbWVtb3J5LiBXaG8gaXMg
+Y29uc3VtaW5nIHRoaXMgbWVtb3J5Pw0KDQpSZWdhcmRzLA0KTWFubw0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
