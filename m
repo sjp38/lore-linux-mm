@@ -1,110 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 53C396B0031
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2013 15:42:06 -0400 (EDT)
-Message-ID: <1378323618.10300.981.camel@misato.fc.hp.com>
-Subject: Re: [PATCH 11/11] x86, mem_hotplug: Allocate memory near kernel
- image before SRAT is parsed.
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Wed, 04 Sep 2013 13:40:18 -0600
-In-Reply-To: <1377596268-31552-12-git-send-email-tangchen@cn.fujitsu.com>
-References: <1377596268-31552-1-git-send-email-tangchen@cn.fujitsu.com>
-	 <1377596268-31552-12-git-send-email-tangchen@cn.fujitsu.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 3E15C6B0031
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2013 19:26:02 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id lf1so1103600pab.10
+        for <linux-mm@kvack.org>; Wed, 04 Sep 2013 16:26:01 -0700 (PDT)
+Date: Wed, 4 Sep 2013 16:25:59 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm, compaction: periodically schedule when freeing pages
+Message-ID: <alpine.DEB.2.02.1309041625060.29607@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 2013-08-27 at 17:37 +0800, Tang Chen wrote:
-> After memblock is ready, before SRAT is parsed, we should allocate memory
-> near the kernel image. So this patch does the following:
-> 
-> 1. After memblock is ready, make memblock allocate memory from low address
->    to high, and set the lowest limit to the end of kernel image.
-> 2. After SRAT is parsed, make memblock behave as default, allocate memory
->    from high address to low, and reset the lowest limit to 0.
-> 
-> This behavior is controlled by movablenode boot option.
-> 
-> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-> Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-> ---
->  arch/x86/kernel/setup.c |   37 +++++++++++++++++++++++++++++++++++++
->  1 files changed, 37 insertions(+), 0 deletions(-)
-> 
-> diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-> index fa7b5f0..0b35bbd 100644
-> --- a/arch/x86/kernel/setup.c
-> +++ b/arch/x86/kernel/setup.c
-> @@ -1087,6 +1087,31 @@ void __init setup_arch(char **cmdline_p)
->  	trim_platform_memory_ranges();
->  	trim_low_memory_range();
->  
-> +#ifdef CONFIG_MOVABLE_NODE
-> +	if (movablenode_enable_srat) {
-> +		/*
-> +		 * Memory used by the kernel cannot be hot-removed because Linux cannot
-> +		 * migrate the kernel pages. When memory hotplug is enabled, we should
-> +		 * prevent memblock from allocating memory for the kernel.
-> +		 *
-> +		 * ACPI SRAT records all hotpluggable memory ranges. But before SRAT is
-> +		 * parsed, we don't know about it.
-> +		 *
-> +		 * The kernel image is loaded into memory at very early time. We cannot
-> +		 * prevent this anyway. So on NUMA system, we set any node the kernel
-> +		 * resides in as un-hotpluggable.
-> +		 *
-> +		 * Since on modern servers, one node could have double-digit gigabytes
-> +		 * memory, we can assume the memory around the kernel image is also
+We've been getting warnings about an excessive amount of time spent
+allocating pages for migration during memory compaction without
+scheduling.  isolate_freepages_block() already periodically checks for
+contended locks or the need to schedule, but isolate_freepages() never
+does.
 
-Memory hotplug can be supported on virtualized environments, and we
-should allow using SRAT on them as a next step.  In such environments,
-memory hotplug will be performed on per memory device object basis for
-workload balancing, and double-digit gigabytes is unlikely the case for
-now.  So, I'd suggest it should instead state that all allocations are
-kept small until SRAT is pursed.
+When a zone is massively long and no suitable targets can be found, this
+iteration can be quite expensive without ever doing cond_resched().
 
-> +		 * un-hotpluggable. So before SRAT is parsed, just allocate memory near
-> +		 * the kernel image to try the best to keep the kernel away from
-> +		 * hotpluggable memory.
-> +		 */
-> +		memblock_set_current_order(MEMBLOCK_ORDER_LOW_TO_HIGH);
-> +		memblock_set_current_limit_low(__pa_symbol(_end));
-> +	}
-> +#endif /* CONFIG_MOVABLE_NODE */
+Check periodically for the need to reschedule while the compaction free
+scanner iterates.
 
-Should the above block be put into init_mem_mapping() since it is
-memblock initialization?  It is good to have some concise comments here,
-though.
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/compaction.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
 
-> +
->  	init_mem_mapping();
->  
->  	early_trap_pf_init();
-> @@ -1127,6 +1152,18 @@ void __init setup_arch(char **cmdline_p)
->  	early_acpi_boot_init();
->  
->  	initmem_init();
-> +
-> +#ifdef CONFIG_MOVABLE_NODE
-> +	if (movablenode_enable_srat) {
-> +		/*
-> +		 * When ACPI SRAT is parsed, which is done in initmem_init(), set
-> +		 * memblock back to the default behavior.
-> +		 */
-> +		memblock_set_current_order(MEMBLOCK_ORDER_DEFAULT);
-> +		memblock_set_current_limit_low(0);
-> +	}
-> +#endif /* CONFIG_MOVABLE_NODE */
-
-Similarly, should this block be put into initmem_init() with some
-comment here?
-
-Thanks,
--Toshi
+diff --git a/mm/compaction.c b/mm/compaction.c
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -677,6 +677,13 @@ static void isolate_freepages(struct zone *zone,
+ 					pfn -= pageblock_nr_pages) {
+ 		unsigned long isolated;
+ 
++		/*
++		 * This can iterate a massively long zone without finding any
++		 * suitable migration targets, so periodically check if we need
++		 * to schedule.
++		 */
++		cond_resched();
++
+ 		if (!pfn_valid(pfn))
+ 			continue;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
