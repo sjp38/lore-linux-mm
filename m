@@ -1,95 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id DD5376B0033
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2013 06:43:08 -0400 (EDT)
-Message-ID: <52270E5F.4000600@huawei.com>
-Date: Wed, 4 Sep 2013 18:41:35 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id EE2666B0032
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2013 07:57:44 -0400 (EDT)
+Date: Wed, 4 Sep 2013 13:57:41 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 0/7] improve memcg oom killer robustness v2
+Message-ID: <20130904115741.GA28285@dhcp22.suse.cz>
+References: <1375549200-19110-1-git-send-email-hannes@cmpxchg.org>
+ <20130803170831.GB23319@cmpxchg.org>
+ <20130830215852.3E5D3D66@pobox.sk>
+ <20130902123802.5B8E8CB1@pobox.sk>
+ <20130903204850.GA1412@cmpxchg.org>
+ <20130904114523.A9F0173C@pobox.sk>
 MIME-Version: 1.0
-Subject: [PATCH 1/2] mm/arch: use __free_reserved_page() to simplify the code
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130904114523.A9F0173C@pobox.sk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: plagnioj@jcrosoft.com, tomi.valkeinen@ti.com, james.hogan@imgtec.com, monstr@monstr.eu, benh@kernel.crashing.org, paulus@samba.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: Xishi Qiu <qiuxishi@huawei.com>, microblaze-uclinux@itee.uq.edu.au, linuxppc-dev@lists.ozlabs.org, linux-fbdev@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: azurIt <azurit@pobox.sk>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Use __free_reserved_page() to simplify the code in arch.
+On Wed 04-09-13 11:45:23, azurIt wrote:
+[...]
+> My script has just detected (and killed) another freezed cgroup. I
+> must say that i'm not 100% sure that cgroup was really freezed but it
+> has 99% or more memory usage for at least 30 seconds (well, or it has
+> 99% memory usage in both two cases the script was checking it). Here
+> are stacks of processes inside it before they were killed:
+[...]
+> pid: 26536
+> stack:
+> [<ffffffff81080a45>] refrigerator+0x95/0x160
+> [<ffffffff8106ac2b>] get_signal_to_deliver+0x1cb/0x540
+> [<ffffffff8100188b>] do_signal+0x6b/0x750
+> [<ffffffff81001fc5>] do_notify_resume+0x55/0x80
+> [<ffffffff815cb662>] retint_signal+0x3d/0x7b
+> [<ffffffffffffffff>] 0xffffffffffffffff
 
-It used split_page() in consistent_alloc()/__dma_alloc_coherent()/dma_alloc_coherent(),
-so page->_count == 1, and we can free it safely.
+[...]
 
-__free_reserved_page()
-	ClearPageReserved()
-	init_page_count()  // it won't change the value
-	__free_page()
-
-Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
----
- arch/metag/kernel/dma.c           |    4 +---
- arch/microblaze/mm/consistent.c   |    7 ++-----
- arch/powerpc/mm/dma-noncoherent.c |    4 +---
- 3 files changed, 4 insertions(+), 11 deletions(-)
-
-diff --git a/arch/metag/kernel/dma.c b/arch/metag/kernel/dma.c
-index 8c00ded..db589ad 100644
---- a/arch/metag/kernel/dma.c
-+++ b/arch/metag/kernel/dma.c
-@@ -305,9 +305,7 @@ void dma_free_coherent(struct device *dev, size_t size,
- 
- 			if (pfn_valid(pfn)) {
- 				struct page *page = pfn_to_page(pfn);
--				ClearPageReserved(page);
--
--				__free_page(page);
-+				__free_reserved_page(page);
- 				continue;
- 			}
- 		}
-diff --git a/arch/microblaze/mm/consistent.c b/arch/microblaze/mm/consistent.c
-index 5226b09..dbbf224 100644
---- a/arch/microblaze/mm/consistent.c
-+++ b/arch/microblaze/mm/consistent.c
-@@ -176,8 +176,7 @@ void consistent_free(size_t size, void *vaddr)
- 	page = virt_to_page(vaddr);
- 
- 	do {
--		ClearPageReserved(page);
--		__free_page(page);
-+		__free_reserved_page(page);
- 		page++;
- 	} while (size -= PAGE_SIZE);
- #else
-@@ -194,9 +193,7 @@ void consistent_free(size_t size, void *vaddr)
- 			pte_clear(&init_mm, (unsigned int)vaddr, ptep);
- 			if (pfn_valid(pfn)) {
- 				page = pfn_to_page(pfn);
--
--				ClearPageReserved(page);
--				__free_page(page);
-+				__free_reserved_page(page);
- 			}
- 		}
- 		vaddr += PAGE_SIZE;
-diff --git a/arch/powerpc/mm/dma-noncoherent.c b/arch/powerpc/mm/dma-noncoherent.c
-index 6747eec..7b6c107 100644
---- a/arch/powerpc/mm/dma-noncoherent.c
-+++ b/arch/powerpc/mm/dma-noncoherent.c
-@@ -287,9 +287,7 @@ void __dma_free_coherent(size_t size, void *vaddr)
- 			pte_clear(&init_mm, addr, ptep);
- 			if (pfn_valid(pfn)) {
- 				struct page *page = pfn_to_page(pfn);
--
--				ClearPageReserved(page);
--				__free_page(page);
-+				__free_reserved_page(page);
- 			}
- 		}
- 		addr += PAGE_SIZE;
+This task is sitting in the refigerator which means it has been frozen
+by the freezer cgroup most probably. I am not familiar with the
+implementation but my recollection is that you have to thaw that group
+in order the killed process can pass away.
 -- 
-1.7.1
-
-
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
