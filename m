@@ -1,114 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 980E56B0032
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2013 00:03:37 -0400 (EDT)
-From: Manomugdha Biswas <MBiswas@ixiacom.com>
-Subject: /proc/pid/maps
-Date: Wed, 4 Sep 2013 04:03:31 +0000
-Message-ID: <8F59616961A3BD458BB4F59E7102BA0467BEFFFA@CH1PRD0611MB444.namprd06.prod.outlook.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id 836826B0032
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2013 02:30:13 -0400 (EDT)
+Received: by mail-oa0-f50.google.com with SMTP id i4so8079779oah.9
+        for <linux-mm@kvack.org>; Tue, 03 Sep 2013 23:30:12 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <20130903230611.GE1412@cmpxchg.org>
+References: <CANkm-FgvMU-e0uxSvdV1+T5CbEdTCrj=2LVYnVEOALF8myoMxw@mail.gmail.com>
+ <20130903230611.GE1412@cmpxchg.org>
+From: Alexander R <aleromex@gmail.com>
+Date: Wed, 4 Sep 2013 10:29:41 +0400
+Message-ID: <CANkm-FhyZHXD1bRK-DgunYWYWJHYEAktBCzVkDzVqgXrCQBu-g@mail.gmail.com>
+Subject: Re: The scan_unevictable_pages sysctl/node-interface has been disabled
+Content-Type: multipart/alternative; boundary=047d7b47207c0e5ea404e588f02e
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>, Toshi Kani <toshi.kani@hp.com>, "rjw@sisk.pl" <rjw@sisk.pl>, "lenb@kernel.org" <lenb@kernel.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@elte.hu" <mingo@elte.hu>, "hpa@zytor.com" <hpa@zytor.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "tj@kernel.org" <tj@kernel.org>, "trenn@suse.de" <trenn@suse.de>, "yinghai@kernel.org" <yinghai@kernel.org>, "jiang.liu@huawei.com" <jiang.liu@huawei.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "laijs@cn.fujitsu.com" <laijs@cn.fujitsu.com>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "izumi.taku@jp.fujitsu.com" <izumi.taku@jp.fujitsu.com>, "mgorman@suse.de" <mgorman@suse.de>, "minchan@kernel.org" <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, "vasilis.liaskovitis@profitbricks.com" <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "riel@redhat.com" <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "prarit@redhat.com" <prarit@redhat.com>, "zhangyanfei@cn.fujitsu.com" <zhangyanfei@cn.fujitsu.com>, "x86@kernel.org" <x86@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org
 
-SGksDQpJIGFtIHJ1bm5pbmcgYW4gYXBwbGljYXRpb24gYW5kIG9ic2VydmluZyBhIG1lbW9yeSBs
-ZWFrLiBJIHRvb2sgdHdvIHNuYXBzaG90cyBvZiDigJxtYXBz4oCdLiBPbmUgaXMgYmVmb3JlIHN0
-YXJ0aW5nIHRoZSBhY3Rpb24gd2hpY2ggaXMgY2F1c2luZyBtZW1vcnkgbGVhayBhbmQgYW5vdGhl
-ciBpcyBhZnRlciBtZW1vcnkgbGVhay4NCg0KRm9sbG93aW5nIGFyZSB0aGUgc25hcHNob3RzOg0K
-DQpCZWZvcmU6DQo9PT09PT09DQojIGNhdCAvcHJvYy80ODEvbWFwcw0KMGZiYTkwMDAtMGZjZGYw
-MDAgci14cCAwMDAwMDAwMCAwMDowYSAzNzEgICAgICAgIC9saWIvbGliYy0yLjMuMy5zbw0KMGZj
-ZGYwMDAtMGZjZTkwMDAgLS0tcCAwMDEzNjAwMCAwMDowYSAzNzEgICAgICAgIC9saWIvbGliYy0y
-LjMuMy5zbw0KMGZjZTkwMDAtMGZjZjMwMDAgcnd4cCAwMDEzMDAwMCAwMDowYSAzNzEgICAgICAg
-IC9saWIvbGliYy0yLjMuMy5zbw0KMGZjZjMwMDAtMGZjZjYwMDAgcnd4cCAwZmNmMzAwMCAwMDow
-MCAwDQowZmQwNjAwMC0wZmQxOTAwMCByLXhwIDAwMDAwMDAwIDAwOjBhIDQ2NiAgICAgICAgL2xp
-Yi9saWJnY2Nfcy5zby4xDQowZmQxOTAwMC0wZmQyNjAwMCAtLS1wIDAwMDEzMDAwIDAwOjBhIDQ2
-NiAgICAgICAgL2xpYi9saWJnY2Nfcy5zby4xDQowZmQyNjAwMC0wZmQyYTAwMCByd3hwIDAwMDEw
-MDAwIDAwOjBhIDQ2NiAgICAgICAgL2xpYi9saWJnY2Nfcy5zby4xDQowZmQzYTAwMC0wZmRhZDAw
-MCByLXhwIDAwMDAwMDAwIDAwOjBhIDQ1NSAgICAgICAgL2xpYi9saWJtLTIuMy4zLnNvDQowZmRh
-ZDAwMC0wZmRiYTAwMCAtLS1wIDAwMDczMDAwIDAwOjBhIDQ1NSAgICAgICAgL2xpYi9saWJtLTIu
-My4zLnNvDQowZmRiYTAwMC0wZmRjMDAwMCByd3hwIDAwMDcwMDAwIDAwOjBhIDQ1NSAgICAgICAg
-L2xpYi9saWJtLTIuMy4zLnNvDQowZmRkMDAwMC0wZmVjNjAwMCByLXhwIDAwMDAwMDAwIDAwOjBh
-IDQ1OSAgICAgICAgL2xpYi9saWJzdGRjKysuc28uNi4wLjkNCjBmZWM2MDAwLTBmZWQwMDAwIC0t
-LXAgMDAwZjYwMDAgMDA6MGEgNDU5ICAgICAgICAvbGliL2xpYnN0ZGMrKy5zby42LjAuOQ0KMGZl
-ZDAwMDAtMGZlZGIwMDAgcnd4cCAwMDBmMDAwMCAwMDowYSA0NTkgICAgICAgIC9saWIvbGlic3Rk
-YysrLnNvLjYuMC45DQowZmVkYjAwMC0wZmVlMjAwMCByd3hwIDBmZWRiMDAwIDAwOjAwIDANCjBm
-ZWYyMDAwLTBmZWZlMDAwIHIteHAgMDAwMDAwMDAgMDA6MGEgNTE0ICAgICAgICAvdXNyL2xpYi9s
-aWJpeG1sLnNvDQowZmVmZTAwMC0wZmYwMjAwMCAtLS1wIDAwMDBjMDAwIDAwOjBhIDUxNCAgICAg
-ICAgL3Vzci9saWIvbGliaXhtbC5zbw0KMGZmMDIwMDAtMGZmMGUwMDAgcnd4cCAwMDAwMDAwMCAw
-MDowYSA1MTQgICAgICAgIC91c3IvbGliL2xpYml4bWwuc28NCjBmZjBlMDAwLTBmZjBmMDAwIHJ3
-eHAgMGZmMGUwMDAgMDA6MDAgMA0KMGZmMWYwMDAtMGZmMmQwMDAgci14cCAwMDAwMDAwMCAwMDow
-YSAzNjEgICAgICAgIC9saWIvbGlicHRocmVhZC0wLjEwLnNvDQowZmYyZDAwMC0wZmYyZjAwMCAt
-LS1wIDAwMDBlMDAwIDAwOjBhIDM2MSAgICAgICAgL2xpYi9saWJwdGhyZWFkLTAuMTAuc28NCjBm
-ZjJmMDAwLTBmZjNlMDAwIHJ3eHAgMDAwMDAwMDAgMDA6MGEgMzYxICAgICAgICAvbGliL2xpYnB0
-aHJlYWQtMC4xMC5zbw0KMGZmM2UwMDAtMGZmODAwMDAgcnd4cCAwZmYzZTAwMCAwMDowMCAwDQow
-ZmY5MDAwMC0wZmY5NTAwMCByLXhwIDAwMDAwMDAwIDAwOjBhIDM2OCAgICAgICAgL2xpYi9saWJj
-cnlwdC0yLjMuMy5zbw0KMGZmOTUwMDAtMGZmYTAwMDAgLS0tcCAwMDAwNTAwMCAwMDowYSAzNjgg
-ICAgICAgIC9saWIvbGliY3J5cHQtMi4zLjMuc28NCjBmZmEwMDAwLTBmZmE1MDAwIHJ3eHAgMDAw
-MDAwMDAgMDA6MGEgMzY4ICAgICAgICAvbGliL2xpYmNyeXB0LTIuMy4zLnNvDQowZmZhNTAwMC0w
-ZmZjYzAwMCByd3hwIDBmZmE1MDAwIDAwOjAwIDANCjBmZmRjMDAwLTBmZmUwMDAwIHIteHAgMDAw
-MDAwMDAgMDA6MGEgNTEwICAgICAgICAvdXNyL2xpYi9saWJlcnJoYW5kLnNvDQowZmZlMDAwMC0w
-ZmZlYzAwMCAtLS1wIDAwMDA0MDAwIDAwOjBhIDUxMCAgICAgICAgL3Vzci9saWIvbGliZXJyaGFu
-ZC5zbw0KMGZmZWMwMDAtMGZmZjAwMDAgcnd4cCAwMDAwMDAwMCAwMDowYSA1MTAgICAgICAgIC91
-c3IvbGliL2xpYmVycmhhbmQuc28NCjEwMDAwMDAwLTEwMWIyMDAwIHIteHAgMDAwMDAwMDAgMDA6
-MGEgMTY4NSAgICAgICAvb3B0L2JncGQvYmluL2JncGQNCjEwMWMyMDAwLTEwMWQxMDAwIHJ3eHAg
-MDAxYjIwMDAgMDA6MGEgMTY4NSAgICAgICAvb3B0L2JncGQvYmluL2JncGQNCjEwMWQxMDAwLTE1
-N2NjMDAwIHJ3eHAgMTAxZDEwMDAgMDA6MDAgMA0KMzAwMDAwMDAtMzAwMTYwMDAgci14cCAwMDAw
-MDAwMCAwMDowYSAzNTcgICAgICAgIC9saWIvbGQtMi4zLjMuc28NCjMwMDE2MDAwLTMwMDE5MDAw
-IHJ3LXAgMzAwMTYwMDAgMDA6MDAgMA0KMzAwMTkwMDAtMzAwMjIwMDAgcnctcyAwMDAwMDAwMCAw
-MDowNiAwICAgICAgICAgIC9TWVNWMDI0ZjgyM2YgKGRlbGV0ZWQpDQozMDAyMjAwMC0zMDAyMzAw
-MCBydy1zIDAwMDAwMDAwIDAwOjA2IDE2Mzg0NSAgICAgL1NZU1YwMDAxZWQyMyAoZGVsZXRlZCkN
-CjMwMDI2MDAwLTMwMDI3MDAwIHJ3eHAgMDAwMTYwMDAgMDA6MGEgMzU3ICAgICAgICAvbGliL2xk
-LTIuMy4zLnNvDQo3ZmVmZjAwMC04MDAwMDAwMCByd3hwIDdmZWZmMDAwIDAwOjAwIDANCg0KQWZ0
-ZXI6DQo9PT09PQ0KIyBjYXQgL3Byb2MvNDgxL21hcHMNCjBmYmE5MDAwLTBmY2RmMDAwIHIteHAg
-MDAwMDAwMDAgMDA6MGEgMzcxICAgICAgICAvbGliL2xpYmMtMi4zLjMuc28NCjBmY2RmMDAwLTBm
-Y2U5MDAwIC0tLXAgMDAxMzYwMDAgMDA6MGEgMzcxICAgICAgICAvbGliL2xpYmMtMi4zLjMuc28N
-CjBmY2U5MDAwLTBmY2YzMDAwIHJ3eHAgMDAxMzAwMDAgMDA6MGEgMzcxICAgICAgICAvbGliL2xp
-YmMtMi4zLjMuc28NCjBmY2YzMDAwLTBmY2Y2MDAwIHJ3eHAgMGZjZjMwMDAgMDA6MDAgMA0KMGZk
-MDYwMDAtMGZkMTkwMDAgci14cCAwMDAwMDAwMCAwMDowYSA0NjYgICAgICAgIC9saWIvbGliZ2Nj
-X3Muc28uMQ0KMGZkMTkwMDAtMGZkMjYwMDAgLS0tcCAwMDAxMzAwMCAwMDowYSA0NjYgICAgICAg
-IC9saWIvbGliZ2NjX3Muc28uMQ0KMGZkMjYwMDAtMGZkMmEwMDAgcnd4cCAwMDAxMDAwMCAwMDow
-YSA0NjYgICAgICAgIC9saWIvbGliZ2NjX3Muc28uMQ0KMGZkM2EwMDAtMGZkYWQwMDAgci14cCAw
-MDAwMDAwMCAwMDowYSA0NTUgICAgICAgIC9saWIvbGlibS0yLjMuMy5zbw0KMGZkYWQwMDAtMGZk
-YmEwMDAgLS0tcCAwMDA3MzAwMCAwMDowYSA0NTUgICAgICAgIC9saWIvbGlibS0yLjMuMy5zbw0K
-MGZkYmEwMDAtMGZkYzAwMDAgcnd4cCAwMDA3MDAwMCAwMDowYSA0NTUgICAgICAgIC9saWIvbGli
-bS0yLjMuMy5zbw0KMGZkZDAwMDAtMGZlYzYwMDAgci14cCAwMDAwMDAwMCAwMDowYSA0NTkgICAg
-ICAgIC9saWIvbGlic3RkYysrLnNvLjYuMC45DQowZmVjNjAwMC0wZmVkMDAwMCAtLS1wIDAwMGY2
-MDAwIDAwOjBhIDQ1OSAgICAgICAgL2xpYi9saWJzdGRjKysuc28uNi4wLjkNCjBmZWQwMDAwLTBm
-ZWRiMDAwIHJ3eHAgMDAwZjAwMDAgMDA6MGEgNDU5ICAgICAgICAvbGliL2xpYnN0ZGMrKy5zby42
-LjAuOQ0KMGZlZGIwMDAtMGZlZTIwMDAgcnd4cCAwZmVkYjAwMCAwMDowMCAwDQowZmVmMjAwMC0w
-ZmVmZTAwMCByLXhwIDAwMDAwMDAwIDAwOjBhIDUxNCAgICAgICAgL3Vzci9saWIvbGliaXhtbC5z
-bw0KMGZlZmUwMDAtMGZmMDIwMDAgLS0tcCAwMDAwYzAwMCAwMDowYSA1MTQgICAgICAgIC91c3Iv
-bGliL2xpYml4bWwuc28NCjBmZjAyMDAwLTBmZjBlMDAwIHJ3eHAgMDAwMDAwMDAgMDA6MGEgNTE0
-ICAgICAgICAvdXNyL2xpYi9saWJpeG1sLnNvDQowZmYwZTAwMC0wZmYwZjAwMCByd3hwIDBmZjBl
-MDAwIDAwOjAwIDANCjBmZjFmMDAwLTBmZjJkMDAwIHIteHAgMDAwMDAwMDAgMDA6MGEgMzYxICAg
-ICAgICAvbGliL2xpYnB0aHJlYWQtMC4xMC5zbw0KMGZmMmQwMDAtMGZmMmYwMDAgLS0tcCAwMDAw
-ZTAwMCAwMDowYSAzNjEgICAgICAgIC9saWIvbGlicHRocmVhZC0wLjEwLnNvDQowZmYyZjAwMC0w
-ZmYzZTAwMCByd3hwIDAwMDAwMDAwIDAwOjBhIDM2MSAgICAgICAgL2xpYi9saWJwdGhyZWFkLTAu
-MTAuc28NCjBmZjNlMDAwLTBmZjgwMDAwIHJ3eHAgMGZmM2UwMDAgMDA6MDAgMA0KMGZmOTAwMDAt
-MGZmOTUwMDAgci14cCAwMDAwMDAwMCAwMDowYSAzNjggICAgICAgIC9saWIvbGliY3J5cHQtMi4z
-LjMuc28NCjBmZjk1MDAwLTBmZmEwMDAwIC0tLXAgMDAwMDUwMDAgMDA6MGEgMzY4ICAgICAgICAv
-bGliL2xpYmNyeXB0LTIuMy4zLnNvDQowZmZhMDAwMC0wZmZhNTAwMCByd3hwIDAwMDAwMDAwIDAw
-OjBhIDM2OCAgICAgICAgL2xpYi9saWJjcnlwdC0yLjMuMy5zbw0KMGZmYTUwMDAtMGZmY2MwMDAg
-cnd4cCAwZmZhNTAwMCAwMDowMCAwDQowZmZkYzAwMC0wZmZlMDAwMCByLXhwIDAwMDAwMDAwIDAw
-OjBhIDUxMCAgICAgICAgL3Vzci9saWIvbGliZXJyaGFuZC5zbw0KMGZmZTAwMDAtMGZmZWMwMDAg
-LS0tcCAwMDAwNDAwMCAwMDowYSA1MTAgICAgICAgIC91c3IvbGliL2xpYmVycmhhbmQuc28NCjBm
-ZmVjMDAwLTBmZmYwMDAwIHJ3eHAgMDAwMDAwMDAgMDA6MGEgNTEwICAgICAgICAvdXNyL2xpYi9s
-aWJlcnJoYW5kLnNvDQoxMDAwMDAwMC0xMDFiMjAwMCByLXhwIDAwMDAwMDAwIDAwOjBhIDE2ODUg
-ICAgICAgL29wdC9iZ3BkL2Jpbi9iZ3BkDQoxMDFjMjAwMC0xMDFkMTAwMCByd3hwIDAwMWIyMDAw
-IDAwOjBhIDE2ODUgICAgICAgL29wdC9iZ3BkL2Jpbi9iZ3BkDQoxMDFkMTAwMC0xN2EyNTAwMCBy
-d3hwIDEwMWQxMDAwIDAwOjAwIDANCjMwMDAwMDAwLTMwMDE2MDAwIHIteHAgMDAwMDAwMDAgMDA6
-MGEgMzU3ICAgICAgICAvbGliL2xkLTIuMy4zLnNvDQozMDAxNjAwMC0zMDAxOTAwMCBydy1wIDMw
-MDE2MDAwIDAwOjAwIDANCjMwMDE5MDAwLTMwMDIyMDAwIHJ3LXMgMDAwMDAwMDAgMDA6MDYgMCAg
-ICAgICAgICAvU1lTVjAyNGY4MjNmIChkZWxldGVkKQ0KMzAwMjIwMDAtMzAwMjMwMDAgcnctcyAw
-MDAwMDAwMCAwMDowNiAxNjM4NDUgICAgIC9TWVNWMDAwMWVkMjMgKGRlbGV0ZWQpDQozMDAyNjAw
-MC0zMDAyNzAwMCByd3hwIDAwMDE2MDAwIDAwOjBhIDM1NyAgICAgICAgL2xpYi9sZC0yLjMuMy5z
-bw0KN2ZlZmYwMDAtODAwMDAwMDAgcnd4cCA3ZmVmZjAwMCAwMDowMCAwDQoNCk15IGFwcGxpY2F0
-aW9ucyBuYW1lIGlzIOKAnC9vcHQvYmdwZC9iaW4vYmdwZOKAnS4gDQoNCkl0IGlzIHNlZW4gdGhh
-dCB0aGUgcmVkIG1hcmtlZCBzZWN0aW9uIGlzIGNvbnN1bWluZyB0aGUgbWVtb3J5LiBXaG8gaXMg
-Y29uc3VtaW5nIHRoaXMgbWVtb3J5Pw0KDQpSZWdhcmRzLA0KTWFubw0K
+--047d7b47207c0e5ea404e588f02e
+Content-Type: text/plain; charset=UTF-8
+
+Hi,
+yes, I've this message in dmesg output. I don't know what to do with it :)
+What must I to do? Or, what must i've more than this, message?
+
+
+On Wed, Sep 4, 2013 at 3:06 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+
+> On Tue, Sep 03, 2013 at 11:53:24PM +0400, Alexander R wrote:
+> > [2000266.127978] nr_pdflush_threads exported in /proc is scheduled for
+> > removal
+> > [2000266.128022] sysctl: The scan_unevictable_pages sysctl/node-interface
+> > has been disabled for lack of a legitimate use case.  If you have one,
+> > please send an email to linux-mm@kvack.org.
+>
+> Well, do you have one? :-)
+>
+> Or is this just leftover in a script somewhere?
+>
+
+--047d7b47207c0e5ea404e588f02e
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div><div>Hi,<br></div>yes, I&#39;ve this message in dmesg=
+ output. I don&#39;t know what to do with it :)<br></div>What must I to do?=
+ Or, what must i&#39;ve more than this, message?<br></div><div class=3D"gma=
+il_extra">
+
+<br><br><div class=3D"gmail_quote">On Wed, Sep 4, 2013 at 3:06 AM, Johannes=
+ Weiner <span dir=3D"ltr">&lt;<a href=3D"mailto:hannes@cmpxchg.org" target=
+=3D"_blank">hannes@cmpxchg.org</a>&gt;</span> wrote:<br><blockquote class=
+=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padd=
+ing-left:1ex">
+
+<div class=3D"HOEnZb"><div class=3D"h5">On Tue, Sep 03, 2013 at 11:53:24PM =
++0400, Alexander R wrote:<br>
+&gt; [2000266.127978] nr_pdflush_threads exported in /proc is scheduled for=
+<br>
+&gt; removal<br>
+&gt; [2000266.128022] sysctl: The scan_unevictable_pages sysctl/node-interf=
+ace<br>
+&gt; has been disabled for lack of a legitimate use case. =C2=A0If you have=
+ one,<br>
+&gt; please send an email to <a href=3D"mailto:linux-mm@kvack.org">linux-mm=
+@kvack.org</a>.<br>
+<br>
+</div></div>Well, do you have one? :-)<br>
+<br>
+Or is this just leftover in a script somewhere?<br>
+</blockquote></div><br></div>
+
+--047d7b47207c0e5ea404e588f02e--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
