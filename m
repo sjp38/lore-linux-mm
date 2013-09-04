@@ -1,48 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 6625C6B0032
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2013 04:33:07 -0400 (EDT)
-Date: Wed, 4 Sep 2013 17:33:05 +0900
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 9B3AF6B0032
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2013 04:44:33 -0400 (EDT)
+Date: Wed, 4 Sep 2013 17:44:30 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 0/4] slab: implement byte sized indexes for the freelist
- of a slab
-Message-ID: <20130904083305.GC16355@lge.com>
-References: <CAAmzW4N1GXbr18Ws9QDKg7ChN5RVcOW9eEv2RxWhaEoHtw=ctw@mail.gmail.com>
- <1378111138-30340-1-git-send-email-iamjoonsoo.kim@lge.com>
- <00000140e42dcd61-00e6cf6a-457c-48bd-8bf7-830133923564-000000@email.amazonses.com>
+Subject: Re: [PATCH v2 19/20] mm, hugetlb: retry if failed to allocate and
+ there is concurrent user
+Message-ID: <20130904084430.GD16355@lge.com>
+References: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1376040398-11212-20-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <00000140e42dcd61-00e6cf6a-457c-48bd-8bf7-830133923564-000000@email.amazonses.com>
+In-Reply-To: <1376040398-11212-20-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
 
-On Tue, Sep 03, 2013 at 02:15:42PM +0000, Christoph Lameter wrote:
-> On Mon, 2 Sep 2013, Joonsoo Kim wrote:
+On Fri, Aug 09, 2013 at 06:26:37PM +0900, Joonsoo Kim wrote:
+> If parallel fault occur, we can fail to allocate a hugepage,
+> because many threads dequeue a hugepage to handle a fault of same address.
+> This makes reserved pool shortage just for a little while and this cause
+> faulting thread who can get hugepages to get a SIGBUS signal.
 > 
-> > This patchset implements byte sized indexes for the freelist of a slab.
-> >
-> > Currently, the freelist of a slab consist of unsigned int sized indexes.
-> > Most of slabs have less number of objects than 256, so much space is wasted.
-> > To reduce this overhead, this patchset implements byte sized indexes for
-> > the freelist of a slab. With it, we can save 3 bytes for each objects.
-> >
-> > This introduce one likely branch to functions used for setting/getting
-> > objects to/from the freelist, but we may get more benefits from
-> > this change.
-> >
-> > Below is some numbers of 'cat /proc/slabinfo' related to my previous posting
-> > and this patchset.
+> To solve this problem, we already have a nice solution, that is,
+> a hugetlb_instantiation_mutex. This blocks other threads to dive into
+> a fault handler. This solve the problem clearly, but it introduce
+> performance degradation, because it serialize all fault handling.
 > 
-> You  may also want to run some performance tests. The cache footprint
-> should also be reduced with this patchset and therefore performance should
-> be better.
+> Now, I try to remove a hugetlb_instantiation_mutex to get rid of
+> performance degradation. For achieving it, at first, we should ensure that
+> no one get a SIGBUS if there are enough hugepages.
+> 
+> For this purpose, if we fail to allocate a new hugepage when there is
+> concurrent user, we return just 0, instead of VM_FAULT_SIGBUS. With this,
+> these threads defer to get a SIGBUS signal until there is no
+> concurrent user, and so, we can ensure that no one get a SIGBUS if there
+> are enough hugepages.
+> 
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> 
 
-Yes, I did a hackbench test today, but I'm not ready for posting it.
-The performance is improved for my previous posting and futher improvement is
-founded by this patchset. Perhaps I will post it tomorrow.
+Hello, David.
+May I ask to you to review this one?
+I guess that you already thought about the various race condition,
+so I think that you are the most appropriate reviewer to this patch. :)
 
 Thanks.
 
