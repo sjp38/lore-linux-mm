@@ -1,11 +1,8 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 00/16] slab: overload struct slab over struct page to
- reduce memory usage
-Date: Wed, 4 Sep 2013 11:38:04 +0800
-Message-ID: <38558.9823745706$1378265907@news.gmane.org>
-References: <1377161065-30552-1-git-send-email-iamjoonsoo.kim@lge.com>
- <00000140a6ec66e5-a4d245c0-76b6-4a8b-9cf0-d941ca9e08b0-000000@email.amazonses.com>
- <20130823063539.GD22605@lge.com>
+Subject: Re: [patch] mm, compaction: periodically schedule when freeing pages
+Date: Thu, 5 Sep 2013 08:50:22 +0800
+Message-ID: <45898.4541859992$1378342246@news.gmane.org>
+References: <alpine.DEB.2.02.1309041625060.29607@chino.kir.corp.google.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -13,51 +10,71 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1VH3v9-0004Ll-QJ
-	for glkm-linux-mm-2@m.gmane.org; Wed, 04 Sep 2013 05:38:20 +0200
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 382726B0032
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2013 23:38:16 -0400 (EDT)
+	id 1VHNmP-0004YL-J8
+	for glkm-linux-mm-2@m.gmane.org; Thu, 05 Sep 2013 02:50:37 +0200
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 9CD756B0031
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2013 20:50:35 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 4 Sep 2013 09:00:04 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 54BCD1258052
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2013 09:08:04 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r843c44j48824464
-	for <linux-mm@kvack.org>; Wed, 4 Sep 2013 09:08:05 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r843c6vG005561
-	for <linux-mm@kvack.org>; Wed, 4 Sep 2013 09:08:06 +0530
+	Thu, 5 Sep 2013 10:36:35 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 4642B2BB0052
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2013 10:50:25 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r850Y9QX55115880
+	for <linux-mm@kvack.org>; Thu, 5 Sep 2013 10:34:10 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r850oNSj009840
+	for <linux-mm@kvack.org>; Thu, 5 Sep 2013 10:50:24 +1000
 Content-Disposition: inline
-In-Reply-To: <20130823063539.GD22605@lge.com>
+In-Reply-To: <alpine.DEB.2.02.1309041625060.29607@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi Joonsoo,
-On Fri, Aug 23, 2013 at 03:35:39PM +0900, Joonsoo Kim wrote:
->On Thu, Aug 22, 2013 at 04:47:25PM +0000, Christoph Lameter wrote:
->> On Thu, 22 Aug 2013, Joonsoo Kim wrote:
+On Wed, Sep 04, 2013 at 04:25:59PM -0700, David Rientjes wrote:
+>We've been getting warnings about an excessive amount of time spent
+>allocating pages for migration during memory compaction without
+>scheduling.  isolate_freepages_block() already periodically checks for
+>contended locks or the need to schedule, but isolate_freepages() never
+>does.
 >
-[...]
->struct slab's free = END
->kmem_bufctl_t array: ACTIVE ACTIVE ACTIVE ACTIVE ACTIVE
-><we get object at index 0>
+>When a zone is massively long and no suitable targets can be found, this
+>iteration can be quite expensive without ever doing cond_resched().
+>
+>Check periodically for the need to reschedule while the compaction free
+>scanner iterates.
 >
 
-Is there a real item for END in kmem_bufctl_t array as you mentioned above?
-I think the kmem_bufctl_t array doesn't include that and the last step is 
-not present. 
+Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Regards,
-Wanpeng Li 
-
-[...]
-
+>Signed-off-by: David Rientjes <rientjes@google.com>
+>---
+> mm/compaction.c | 7 +++++++
+> 1 file changed, 7 insertions(+)
+>
+>diff --git a/mm/compaction.c b/mm/compaction.c
+>--- a/mm/compaction.c
+>+++ b/mm/compaction.c
+>@@ -677,6 +677,13 @@ static void isolate_freepages(struct zone *zone,
+> 					pfn -= pageblock_nr_pages) {
+> 		unsigned long isolated;
+>
+>+		/*
+>+		 * This can iterate a massively long zone without finding any
+>+		 * suitable migration targets, so periodically check if we need
+>+		 * to schedule.
+>+		 */
+>+		cond_resched();
+>+
+> 		if (!pfn_valid(pfn))
+> 			continue;
+>
+>
+>--
 >To unsubscribe, send a message with 'unsubscribe linux-mm' in
 >the body to majordomo@kvack.org.  For more info on Linux MM,
 >see: http://www.linux-mm.org/ .
