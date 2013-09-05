@@ -1,82 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id A96836B0033
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2013 05:53:34 -0400 (EDT)
-Date: Thu, 5 Sep 2013 11:53:31 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 0/7] improve memcg oom killer robustness v2
-Message-ID: <20130905095331.GA9702@dhcp22.suse.cz>
-References: <1375549200-19110-1-git-send-email-hannes@cmpxchg.org>
- <20130803170831.GB23319@cmpxchg.org>
- <20130830215852.3E5D3D66@pobox.sk>
- <20130902123802.5B8E8CB1@pobox.sk>
- <20130903204850.GA1412@cmpxchg.org>
- <20130904114523.A9F0173C@pobox.sk>
- <20130904115741.GA28285@dhcp22.suse.cz>
- <20130904141000.0F910EFA@pobox.sk>
- <20130904122632.GB28285@dhcp22.suse.cz>
- <20130905111430.CB1392B4@pobox.sk>
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id 3F71C6B0031
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2013 06:12:52 -0400 (EDT)
+Received: by mail-pb0-f45.google.com with SMTP id mc17so1590346pbc.18
+        for <linux-mm@kvack.org>; Thu, 05 Sep 2013 03:12:51 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130905111430.CB1392B4@pobox.sk>
+In-Reply-To: <CAOMqctQyS2SFraqJpzE0sRFcihFpMHRhT+3QuZhxft=SUXYVDw@mail.gmail.com>
+References: <CAJd=RBBbJMWox5yJaNzW_jUdDfKfWe-Y7d1riYdN6huQStxzcA@mail.gmail.com>
+ <CAOMqctQyS2SFraqJpzE0sRFcihFpMHRhT+3QuZhxft=SUXYVDw@mail.gmail.com>
+From: Michal Suchanek <hramrach@gmail.com>
+Date: Thu, 5 Sep 2013 12:12:10 +0200
+Message-ID: <CAOMqctQ+XchmXk_Xno6ViAoZF-tHFPpDWoy7LVW1nooa+ywbmg@mail.gmail.com>
+Subject: Re: doing lots of disk writes causes oom killer to kill processes
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: azurIt <azurit@pobox.sk>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Hillf Danton <dhillf@gmail.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Thu 05-09-13 11:14:30, azurIt wrote:
-[...]
-> My script detected another freezed cgroup today, sending stacks. Is
-> there anything interesting?
+Hello
 
-3 tasks are sleeping and waiting for somebody to take an action to
-resolve memcg OOM. The memcg oom killer is enabled for that group?  If
-yes, which task has been selected to be killed? You can find that in oom
-report in dmesg.
-
-I can see a way how this might happen. If the killed task happened to
-allocate a memory while it is exiting then it would get to the oom
-condition again without freeing any memory so nobody waiting on the
-memcg_oom_waitq gets woken. We have a report like that: 
-https://lkml.org/lkml/2013/7/31/94
-
-The issue got silent in the meantime so it is time to wake it up.
-It would be definitely good to see what happened in your case though.
-If any of the bellow tasks was the oom victim then it is very probable
-this is the same issue.
-
-> pid: 1031
-[...]
-> stack:
-> [<ffffffff8110f255>] mem_cgroup_oom_synchronize+0x165/0x190
-> [<ffffffff810d269e>] pagefault_out_of_memory+0xe/0x120
-> [<ffffffff81026f5e>] mm_fault_error+0x9e/0x150
-> [<ffffffff81027414>] do_page_fault+0x404/0x490
-> [<ffffffff815cb7bf>] page_fault+0x1f/0x30
-> [<ffffffffffffffff>] 0xffffffffffffffff
-[...]
-> pid: 1036
-> stack:
-> [<ffffffff8110f255>] mem_cgroup_oom_synchronize+0x165/0x190
-> [<ffffffff810d269e>] pagefault_out_of_memory+0xe/0x120
-> [<ffffffff81026f5e>] mm_fault_error+0x9e/0x150
-> [<ffffffff81027414>] do_page_fault+0x404/0x490
-> [<ffffffff815cb7bf>] page_fault+0x1f/0x30
-> [<ffffffffffffffff>] 0xffffffffffffffff
+On 26 August 2013 15:51, Michal Suchanek <hramrach@gmail.com> wrote:
+> On 12 March 2013 03:15, Hillf Danton <dhillf@gmail.com> wrote:
+>>>On 11 March 2013 13:15, Michal Suchanek <hramrach@gmail.com> wrote:
+>>>>On 8 February 2013 17:31, Michal Suchanek <hramrach@gmail.com> wrote:
+>>>> Hello,
+>>>>
+>>>> I am dealing with VM disk images and performing something like wiping
+>>>> free space to prepare image for compressing and storing on server or
+>>>> copying it to external USB disk causes
+>>>>
+>>>> 1) system lockup in order of a few tens of seconds when all CPU cores
+>>>> are 100% used by system and the machine is basicaly unusable
+>>>>
+>>>> 2) oom killer killing processes
+>>>>
+>>>> This all on system with 8G ram so there should be plenty space to work with.
+>>>>
+>>>> This happens with kernels 3.6.4 or 3.7.1
+>>>>
+>>>> With earlier kernel versions (some 3.0 or 3.2 kernels) this was not a
+>>>> problem even with less ram.
+>>>>
+>>>> I have  vm.swappiness = 0 set for a long  time already.
+>>>>
+>>>>
+>>>I did some testing with 3.7.1 and with swappiness as much as 75 the
+>>>kernel still causes all cores to loop somewhere in system when writing
+>>>lots of data to disk.
+>>>
+>>>With swappiness as much as 90 processes still get killed on large disk writes.
+>>>
+>>>Given that the max is 100 the interval in which mm works at all is
+>>>going to be very narrow, less than 10% of the paramater range. This is
+>>>a severe regression as is the cpu time consumed by the kernel.
+>>>
+>>>The io scheduler is the default cfq.
+>>>
+>>>If you have any idea what to try other than downgrading to an earlier
+>>>unaffected kernel I would like to hear.
+>>>
+>> Can you try commit 3cf23841b4b7(mm/vmscan.c: avoid possible
+>> deadlock caused by too_many_isolated())?
+>>
+>> Or try 3.8 and/or 3.9, additionally?
+>>
 >
-> pid: 1038
-> stack:
-> [<ffffffff8110f255>] mem_cgroup_oom_synchronize+0x165/0x190
-> [<ffffffff810d269e>] pagefault_out_of_memory+0xe/0x120
-> [<ffffffff81026f5e>] mm_fault_error+0x9e/0x150
-> [<ffffffff81027414>] do_page_fault+0x404/0x490
-> [<ffffffff815cb7bf>] page_fault+0x1f/0x30
-> [<ffffffffffffffff>] 0xffffffffffffffff
+> Hello,
+>
+> with deadline IO scheduler I experience this issue less often but it
+> still happens.
+>
+> I am on 3.9.6 Debian kernel so 3.8 did not fix this problem.
+>
+> Do you have some idea what to log so that useful information about the
+> lockup is gathered?
+>
 
--- 
-Michal Hocko
-SUSE Labs
+This appears to be fixed in vanilla 3.11 kernel.
+
+I still get short intermittent lockups and cpu usage spikes up to 20%
+on a core but nowhere near the minute+ long lockups with all cores
+100% on earlier kernels.
+
+Thanks
+
+Michal
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
