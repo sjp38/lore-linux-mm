@@ -1,167 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 7A61B6B0031
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2013 14:10:23 -0400 (EDT)
-Date: Thu, 5 Sep 2013 21:10:10 +0300
-From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: [PATCH v9 12/13] KVM: PPC: Add support for IOMMU in-kernel
- handling
-Message-ID: <20130905181010.GE13021@redhat.com>
-References: <1377679070-3515-1-git-send-email-aik@ozlabs.ru>
- <1377679841-3822-1-git-send-email-aik@ozlabs.ru>
- <20130901120609.GJ22899@redhat.com>
- <52240295.7050608@ozlabs.ru>
- <20130903105315.GY22899@redhat.com>
- <522607D8.4070408@ozlabs.ru>
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 555226B0031
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2013 16:05:40 -0400 (EDT)
+Received: by mail-wg0-f44.google.com with SMTP id b12so1063222wgh.23
+        for <linux-mm@kvack.org>; Thu, 05 Sep 2013 13:05:38 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <522607D8.4070408@ozlabs.ru>
+In-Reply-To: <20130827235227.99DB95A41D6@corp2gmr1-2.hot.corp.google.com>
+References: <20130827235227.99DB95A41D6@corp2gmr1-2.hot.corp.google.com>
+Date: Thu, 5 Sep 2013 13:05:38 -0700
+Message-ID: <CAGa+x85d-RWYPkmTVapzcYFEzPhUU7YLJHZVGK0cGc=AudYubQ@mail.gmail.com>
+Subject: Re: mmotm 2013-08-27-16-51 uploaded
+From: Kevin Hilman <khilman@linaro.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexey Kardashevskiy <aik@ozlabs.ru>
-Cc: linuxppc-dev@lists.ozlabs.org, David Gibson <david@gibson.dropbear.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Graf <agraf@suse.de>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kvm-ppc@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: mm-commits@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, vbabka@suse.cz, Olof Johansson <olof@lixom.net>
 
-On Wed, Sep 04, 2013 at 02:01:28AM +1000, Alexey Kardashevskiy wrote:
-> On 09/03/2013 08:53 PM, Gleb Natapov wrote:
-> > On Mon, Sep 02, 2013 at 01:14:29PM +1000, Alexey Kardashevskiy wrote:
-> >> On 09/01/2013 10:06 PM, Gleb Natapov wrote:
-> >>> On Wed, Aug 28, 2013 at 06:50:41PM +1000, Alexey Kardashevskiy wrote:
-> >>>> This allows the host kernel to handle H_PUT_TCE, H_PUT_TCE_INDIRECT
-> >>>> and H_STUFF_TCE requests targeted an IOMMU TCE table without passing
-> >>>> them to user space which saves time on switching to user space and back.
-> >>>>
-> >>>> Both real and virtual modes are supported. The kernel tries to
-> >>>> handle a TCE request in the real mode, if fails it passes the request
-> >>>> to the virtual mode to complete the operation. If it a virtual mode
-> >>>> handler fails, the request is passed to user space.
-> >>>>
-> >>>> The first user of this is VFIO on POWER. Trampolines to the VFIO external
-> >>>> user API functions are required for this patch.
-> >>>>
-> >>>> This adds a "SPAPR TCE IOMMU" KVM device to associate a logical bus
-> >>>> number (LIOBN) with an VFIO IOMMU group fd and enable in-kernel handling
-> >>>> of map/unmap requests. The device supports a single attribute which is
-> >>>> a struct with LIOBN and IOMMU fd. When the attribute is set, the device
-> >>>> establishes the connection between KVM and VFIO.
-> >>>>
-> >>>> Tests show that this patch increases transmission speed from 220MB/s
-> >>>> to 750..1020MB/s on 10Gb network (Chelsea CXGB3 10Gb ethernet card).
-> >>>>
-> >>>> Signed-off-by: Paul Mackerras <paulus@samba.org>
-> >>>> Signed-off-by: Alexey Kardashevskiy <aik@ozlabs.ru>
-> >>>>
-> >>>> ---
-> >>>>
-> >>>> Changes:
-> >>>> v9:
-> >>>> * KVM_CAP_SPAPR_TCE_IOMMU ioctl to KVM replaced with "SPAPR TCE IOMMU"
-> >>>> KVM device
-> >>>> * release_spapr_tce_table() is not shared between different TCE types
-> >>>> * reduced the patch size by moving VFIO external API
-> >>>> trampolines to separate patche
-> >>>> * moved documentation from Documentation/virtual/kvm/api.txt to
-> >>>> Documentation/virtual/kvm/devices/spapr_tce_iommu.txt
-> >>>>
-> >>>> v8:
-> >>>> * fixed warnings from check_patch.pl
-> >>>>
-> >>>> 2013/07/11:
-> >>>> * removed multiple #ifdef IOMMU_API as IOMMU_API is always enabled
-> >>>> for KVM_BOOK3S_64
-> >>>> * kvmppc_gpa_to_hva_and_get also returns host phys address. Not much sense
-> >>>> for this here but the next patch for hugepages support will use it more.
-> >>>>
-> >>>> 2013/07/06:
-> >>>> * added realmode arch_spin_lock to protect TCE table from races
-> >>>> in real and virtual modes
-> >>>> * POWERPC IOMMU API is changed to support real mode
-> >>>> * iommu_take_ownership and iommu_release_ownership are protected by
-> >>>> iommu_table's locks
-> >>>> * VFIO external user API use rewritten
-> >>>> * multiple small fixes
-> >>>>
-> >>>> 2013/06/27:
-> >>>> * tce_list page is referenced now in order to protect it from accident
-> >>>> invalidation during H_PUT_TCE_INDIRECT execution
-> >>>> * added use of the external user VFIO API
-> >>>>
-> >>>> 2013/06/05:
-> >>>> * changed capability number
-> >>>> * changed ioctl number
-> >>>> * update the doc article number
-> >>>>
-> >>>> 2013/05/20:
-> >>>> * removed get_user() from real mode handlers
-> >>>> * kvm_vcpu_arch::tce_tmp usage extended. Now real mode handler puts there
-> >>>> translated TCEs, tries realmode_get_page() on those and if it fails, it
-> >>>> passes control over the virtual mode handler which tries to finish
-> >>>> the request handling
-> >>>> * kvmppc_lookup_pte() now does realmode_get_page() protected by BUSY bit
-> >>>> on a page
-> >>>> * The only reason to pass the request to user mode now is when the user mode
-> >>>> did not register TCE table in the kernel, in all other cases the virtual mode
-> >>>> handler is expected to do the job
-> >>>> ---
-> >>>>  .../virtual/kvm/devices/spapr_tce_iommu.txt        |  37 +++
-> >>>>  arch/powerpc/include/asm/kvm_host.h                |   4 +
-> >>>>  arch/powerpc/kvm/book3s_64_vio.c                   | 310 ++++++++++++++++++++-
-> >>>>  arch/powerpc/kvm/book3s_64_vio_hv.c                | 122 ++++++++
-> >>>>  arch/powerpc/kvm/powerpc.c                         |   1 +
-> >>>>  include/linux/kvm_host.h                           |   1 +
-> >>>>  virt/kvm/kvm_main.c                                |   5 +
-> >>>>  7 files changed, 477 insertions(+), 3 deletions(-)
-> >>>>  create mode 100644 Documentation/virtual/kvm/devices/spapr_tce_iommu.txt
-> >>>>
-> >>>> diff --git a/Documentation/virtual/kvm/devices/spapr_tce_iommu.txt b/Documentation/virtual/kvm/devices/spapr_tce_iommu.txt
-> >>>> new file mode 100644
-> >>>> index 0000000..4bc8fc3
-> >>>> --- /dev/null
-> >>>> +++ b/Documentation/virtual/kvm/devices/spapr_tce_iommu.txt
-> >>>> @@ -0,0 +1,37 @@
-> >>>> +SPAPR TCE IOMMU device
-> >>>> +
-> >>>> +Capability: KVM_CAP_SPAPR_TCE_IOMMU
-> >>>> +Architectures: powerpc
-> >>>> +
-> >>>> +Device type supported: KVM_DEV_TYPE_SPAPR_TCE_IOMMU
-> >>>> +
-> >>>> +Groups:
-> >>>> +  KVM_DEV_SPAPR_TCE_IOMMU_ATTR_LINKAGE
-> >>>> +  Attributes: single attribute with pair { LIOBN, IOMMU fd}
-> >>>> +
-> >>>> +This is completely made up device which provides API to link
-> >>>> +logical bus number (LIOBN) and IOMMU group. The user space has
-> >>>> +to create a new SPAPR TCE IOMMU device per a logical bus.
-> >>>> +
-> >>> Why not have one device that can handle multimple links?
-> >>
-> >>
-> >> I can do that. If I make it so, it won't even look as a device at all, just
-> >> some weird interface to KVM but ok. What bothers me is it is just a
-> > May be I do not understand usage pattern here. Why do you feel that device
-> > that can handle multiple links is worse than device per link? How many logical
-> > buses is there usually? How often they created/destroyed? I am not insisting
-> > on the change, just trying to understand why you do not like it.
-> 
-> 
-> Is it usually one PCI host bus adapter per IOMMU group which is usually
-> one PCI card or 2-3 cards if it is a legacy PCI-X, and they are created
-> when QEMU-KVM starts. Not many. And they live till KVM ends.
-> 
-> My point is why would I want to put all links to one device? It all is just
-> a matter of taste and nothing more. Or I am missing something but I do not
-> see what. If it is all about making thing to be kosher/halal/orthodox, then
-> I have more stuff to do, like reworking the emulated TCEs. But if is it for
-> (I do not know, just guessing) performance or something like that - then
-> I'll fix it, I just need to know what I am fixing.
-> 
-Each device creates an fd, if you can have a lot of them eventually this
-will be a bottleneck. You are saying this is not the case, so lets go
-with proposed interface.
- 
---
-			Gleb.
+On Tue, Aug 27, 2013 at 4:52 PM,  <akpm@linux-foundation.org> wrote:
+
+> This mmotm tree contains the following patches against 3.11-rc7:
+> (patches marked "*" will be included in linux-next)
+
+[...]
+
+> * mm-munlock-manual-pte-walk-in-fast-path-instead-of-follow_page_mask.patch
+
+As has already been pointed out[1], this one introduced a new warning
+in -next (also lovingly acknowledged in the mmotm series file[2]) and
+it seems that Vlastimil has posted an updated version[3].  Any plans
+to pick up the new version for -next (or at least drop the one causing
+the new warning?)
+
+Kevin
+
+
+[1] http://marc.info/?l=linux-mm&m=137764226521459&w=2
+[2] http://www.ozlabs.org/~akpm/mmotm/series
+[2] http://marc.info/?l=linux-mm&m=137778135631351&w=2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
