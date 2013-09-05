@@ -1,86 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 5D6C66B0034
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2013 04:08:53 -0400 (EDT)
-Message-ID: <52283BAA.8080807@huawei.com>
-Date: Thu, 5 Sep 2013 16:07:06 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 430976B0036
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2013 04:09:28 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Thu, 5 Sep 2013 13:30:02 +0530
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 191361258043
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2013 13:39:19 +0530 (IST)
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8589I8f42664178
+	for <linux-mm@kvack.org>; Thu, 5 Sep 2013 13:39:18 +0530
+Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8589K30015492
+	for <linux-mm@kvack.org>; Thu, 5 Sep 2013 13:39:20 +0530
+Date: Thu, 5 Sep 2013 16:09:19 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2] mm/thp: fix stale comments of
+ transparent_hugepage_flags
+Message-ID: <20130905080919.GA21036@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <5228397B.9000502@huawei.com>
 MIME-Version: 1.0
-Subject: [PATCH 2/2] mm: use pgdat_end_pfn() to simplify the code in others
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5228397B.9000502@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Cody P Schafer <cody@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Xishi Qiu <qiuxishi@huawei.com>
+To: Jianguo Wu <wujianguo@huawei.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, kirill.shutemov@linux.intel.com, Mel Gorman <mgorman@suse.de>, xiaoguangrong@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Use "pgdat_end_pfn()" instead of "pgdat->node_start_pfn + pgdat->node_spanned_pages".
-Simplify the code, no functional change.
+On Thu, Sep 05, 2013 at 03:57:47PM +0800, Jianguo Wu wrote:
+>Changelog:
+> *v1 -> v2: also update the stale comments about default transparent
+>hugepage support pointed by Wanpeng Li.
+>
+>Since commit 13ece886d9(thp: transparent hugepage config choice),
+>transparent hugepage support is disabled by default, and
+>TRANSPARENT_HUGEPAGE_ALWAYS is configured when TRANSPARENT_HUGEPAGE=y.
+>
+>And since commit d39d33c332(thp: enable direct defrag), defrag is
+>enable for all transparent hugepage page faults by default, not only in
+>MADV_HUGEPAGE regions.
+>
 
-Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
----
- fs/proc/kcore.c     |    3 +--
- mm/bootmem.c        |    2 +-
- mm/memory_hotplug.c |    9 ++++-----
- 3 files changed, 6 insertions(+), 8 deletions(-)
+Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-diff --git a/fs/proc/kcore.c b/fs/proc/kcore.c
-index 06ea155..a5b4412 100644
---- a/fs/proc/kcore.c
-+++ b/fs/proc/kcore.c
-@@ -255,8 +255,7 @@ static int kcore_update_ram(void)
- 	end_pfn = 0;
- 	for_each_node_state(nid, N_MEMORY) {
- 		unsigned long node_end;
--		node_end  = NODE_DATA(nid)->node_start_pfn +
--			NODE_DATA(nid)->node_spanned_pages;
-+		node_end = node_end_pfn(nid);
- 		if (end_pfn < node_end)
- 			end_pfn = node_end;
- 	}
-diff --git a/mm/bootmem.c b/mm/bootmem.c
-index 6ab7744..95b528c 100644
---- a/mm/bootmem.c
-+++ b/mm/bootmem.c
-@@ -784,7 +784,7 @@ void * __init __alloc_bootmem_node_high(pg_data_t *pgdat, unsigned long size,
- 		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
- 
- 	/* update goal according ...MAX_DMA32_PFN */
--	end_pfn = pgdat->node_start_pfn + pgdat->node_spanned_pages;
-+	end_pfn = pgdat_end_pfn(pgdat);
- 
- 	if (end_pfn > MAX_DMA32_PFN + (128 >> (20 - PAGE_SHIFT)) &&
- 	    (goal >> PAGE_SHIFT) < MAX_DMA32_PFN) {
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index ca1dd3a..0ca2c8d 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -368,8 +368,7 @@ out_fail:
- static void grow_pgdat_span(struct pglist_data *pgdat, unsigned long start_pfn,
- 			    unsigned long end_pfn)
- {
--	unsigned long old_pgdat_end_pfn =
--		pgdat->node_start_pfn + pgdat->node_spanned_pages;
-+	unsigned long old_pgdat_end_pfn = pgdat_end_pfn(pgdat);
- 
- 	if (!pgdat->node_spanned_pages || start_pfn < pgdat->node_start_pfn)
- 		pgdat->node_start_pfn = start_pfn;
-@@ -581,9 +580,9 @@ static void shrink_zone_span(struct zone *zone, unsigned long start_pfn,
- static void shrink_pgdat_span(struct pglist_data *pgdat,
- 			      unsigned long start_pfn, unsigned long end_pfn)
- {
--	unsigned long pgdat_start_pfn =  pgdat->node_start_pfn;
--	unsigned long pgdat_end_pfn =
--		pgdat->node_start_pfn + pgdat->node_spanned_pages;
-+	unsigned long pgdat_start_pfn = pgdat->node_start_pfn;
-+	unsigned long p = pgdat_end_pfn(pgdat); /* pgdat_end_pfn namespace clash */
-+	unsigned long pgdat_end_pfn = p;
- 	unsigned long pfn;
- 	struct mem_section *ms;
- 	int nid = pgdat->node_id;
--- 
-1.7.1
-
+>Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
+>---
+> mm/huge_memory.c |   12 ++++++------
+> 1 files changed, 6 insertions(+), 6 deletions(-)
+>
+>diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+>index a92012a..0e42a70 100644
+>--- a/mm/huge_memory.c
+>+++ b/mm/huge_memory.c
+>@@ -26,12 +26,12 @@
+> #include <asm/pgalloc.h>
+> #include "internal.h"
+>
+>-/*
+>- * By default transparent hugepage support is enabled for all mappings
+>- * and khugepaged scans all mappings. Defrag is only invoked by
+>- * khugepaged hugepage allocations and by page faults inside
+>- * MADV_HUGEPAGE regions to avoid the risk of slowing down short lived
+>- * allocations.
+>+/* By default transparent hugepage support is disabled in order that avoid
+>+ * to risk increase the memory footprint of applications without a guaranteed
+>+ * benefit. When transparent hugepage support is enabled, is for all mappings,
+>+ * and khugepaged scans all mappings.
+>+ * Defrag is invoked by khugepaged hugepage allocations and by page faults
+>+ * for all hugepage allocations.
+>  */
+> unsigned long transparent_hugepage_flags __read_mostly =
+> #ifdef CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS
+>-- 
+>1.7.1
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
