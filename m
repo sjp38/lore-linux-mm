@@ -1,88 +1,209 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 345746B0031
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2013 02:55:54 -0400 (EDT)
-Date: Thu, 5 Sep 2013 15:55:52 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 0/4] slab: implement byte sized indexes for the freelist
- of a slab
-Message-ID: <20130905065552.GA6384@lge.com>
-References: <CAAmzW4N1GXbr18Ws9QDKg7ChN5RVcOW9eEv2RxWhaEoHtw=ctw@mail.gmail.com>
- <1378111138-30340-1-git-send-email-iamjoonsoo.kim@lge.com>
- <00000140e42dcd61-00e6cf6a-457c-48bd-8bf7-830133923564-000000@email.amazonses.com>
- <20130904083305.GC16355@lge.com>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 3246F6B0031
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2013 03:27:19 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Thu, 5 Sep 2013 12:46:34 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 98C751258053
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2013 12:57:09 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r857R9EM46465132
+	for <linux-mm@kvack.org>; Thu, 5 Sep 2013 12:57:10 +0530
+Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r857RApT013644
+	for <linux-mm@kvack.org>; Thu, 5 Sep 2013 12:57:10 +0530
+Date: Thu, 5 Sep 2013 15:27:08 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm/thp: fix comments in transparent_hugepage_flags
+Message-ID: <20130905072708.GA15294@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <1378301422-9468-1-git-send-email-wujianguo@huawei.com>
+ <5227e870.ab42320a.62d4.3d12SMTPIN_ADDED_BROKEN@mx.google.com>
+ <5227F4B6.40009@huawei.com>
+ <20130905033704.GA18909@hacker.(null)>
+ <52280058.5070803@huawei.com>
+ <52280f92.e72b320a.2501.6de1SMTPIN_ADDED_BROKEN@mx.google.com>
+ <522825E4.7080404@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20130904083305.GC16355@lge.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <522825E4.7080404@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jianguo Wu <wujianguo@huawei.com>
+Cc: Jianguo Wu <wujianguo106@gmail.com>, akpm@linux-foundation.org, aarcange@redhat.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, xiaoguangrong@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Sep 04, 2013 at 05:33:05PM +0900, Joonsoo Kim wrote:
-> On Tue, Sep 03, 2013 at 02:15:42PM +0000, Christoph Lameter wrote:
-> > On Mon, 2 Sep 2013, Joonsoo Kim wrote:
-> > 
-> > > This patchset implements byte sized indexes for the freelist of a slab.
-> > >
-> > > Currently, the freelist of a slab consist of unsigned int sized indexes.
-> > > Most of slabs have less number of objects than 256, so much space is wasted.
-> > > To reduce this overhead, this patchset implements byte sized indexes for
-> > > the freelist of a slab. With it, we can save 3 bytes for each objects.
-> > >
-> > > This introduce one likely branch to functions used for setting/getting
-> > > objects to/from the freelist, but we may get more benefits from
-> > > this change.
-> > >
-> > > Below is some numbers of 'cat /proc/slabinfo' related to my previous posting
-> > > and this patchset.
-> > 
-> > You  may also want to run some performance tests. The cache footprint
-> > should also be reduced with this patchset and therefore performance should
-> > be better.
-> 
-> Yes, I did a hackbench test today, but I'm not ready for posting it.
-> The performance is improved for my previous posting and futher improvement is
-> founded by this patchset. Perhaps I will post it tomorrow.
-> 
+Hi Jianguo,
+On Thu, Sep 05, 2013 at 02:34:12PM +0800, Jianguo Wu wrote:
+>On 2013/9/5 12:58, Wanpeng Li wrote:
+>
+>> Hi Jianguo,
+>> On Thu, Sep 05, 2013 at 11:54:00AM +0800, Jianguo Wu wrote:
+>>> On 2013/9/5 11:37, Wanpeng Li wrote:
+>>>
+>>>> On Thu, Sep 05, 2013 at 11:04:22AM +0800, Jianguo Wu wrote:
+>>>>> Hi Wanpeng,
+>>>>>
+>>>>> On 2013/9/5 10:11, Wanpeng Li wrote:
+>>>>>
+>>>>>> Hi Jianguo,
+>>>>>> On Wed, Sep 04, 2013 at 09:30:22PM +0800, Jianguo Wu wrote:
+>>>>>>> Since commit d39d33c332(thp: enable direct defrag), defrag is enable
+>>>>>>> for all transparent hugepage page faults by default, not only in
+>>>>>>> MADV_HUGEPAGE regions.
+>>>>>>>
+>>>>>>> Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
+>>>>>>> ---
+>>>>>>> mm/huge_memory.c | 6 ++----
+>>>>>>> 1 file changed, 2 insertions(+), 4 deletions(-)
+>>>>>>>
+>>>>>>> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+>>>>>>> index a92012a..abf047e 100644
+>>>>>>> --- a/mm/huge_memory.c
+>>>>>>> +++ b/mm/huge_memory.c
+>>>>>>> @@ -28,10 +28,8 @@
+>>>>>>>
+>>>>>>> /*
+>>>>>>>  * By default transparent hugepage support is enabled for all mappings
+>>>>>>
+>>>>>> This is also stale. TRANSPARENT_HUGEPAGE_ALWAYS is not configured by default in
+>>>>>> order that avoid to risk increase the memory footprint of applications w/o a 
+>>>>>> guaranteed benefit.
+>>>>>>
+>>>>>
+>>>>> Right, how about this:
+>>>>>
+>>>>> By default transparent hugepage support is disabled in order that avoid to risk
+>>>>
+>>>> I don't think it's disabled. TRANSPARENT_HUGEPAGE_MADVISE is configured
+>>>> by default.
+>>>>
+>>>
+>>> Hi Wanpeng,
+>>>
+>>> We have TRANSPARENT_HUGEPAGE and TRANSPARENT_HUGEPAGE_ALWAYS/TRANSPARENT_HUGEPAGE_MADVISE,
+>>> TRANSPARENT_HUGEPAGE_ALWAYS or TRANSPARENT_HUGEPAGE_MADVISE is configured only if TRANSPARENT_HUGEPAGE
+>>> is configured.
+>>>
+>>> By default, TRANSPARENT_HUGEPAGE=n, and TRANSPARENT_HUGEPAGE_ALWAYS is configured when TRANSPARENT_HUGEPAGE=y.
+>>>
+>>> commit 13ece886d9(thp: transparent hugepage config choice):
+>>>
+>>> config TRANSPARENT_HUGEPAGE
+>>> -       bool "Transparent Hugepage Support" if EMBEDDED
+>>> +       bool "Transparent Hugepage Support"
+>>>        depends on X86 && MMU
+>>> -       default y
+>>>
+>>> +choice
+>>> +       prompt "Transparent Hugepage Support sysfs defaults"
+>>> +       depends on TRANSPARENT_HUGEPAGE
+>>> +       default TRANSPARENT_HUGEPAGE_ALWAYS
+>>>
+>> 
+>> mmotm tree:
+>> 
+>> grep 'TRANSPARENT_HUGEPAGE' .config
+>> CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE=y
+>> CONFIG_TRANSPARENT_HUGEPAGE=y
+>> # CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS is not set
+>> CONFIG_TRANSPARENT_HUGEPAGE_MADVISE=y
+>> 
+>> distro:
+>> 
+>> grep 'TRANSPARENT_HUGEPAGE' config-3.8.0-26-generic 
+>> CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE=y
+>> CONFIG_TRANSPARENT_HUGEPAGE=y
+>> # CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS is not set
+>> CONFIG_TRANSPARENT_HUGEPAGE_MADVISE=y
+>> 
+>
+>Hi Wanpeng,
+>
+>I'm a little confused, at mm/Kconfig, TRANSPARENT_HUGEPAGE is not configured by default.
+>
+>and in x86_64, linus tree:
+>
+>$make defconfig
+>$grep 'TRANSPARENT_HUGEPAGE' .config
+>CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE=y
+># CONFIG_TRANSPARENT_HUGEPAGE is not set
+>
 
-Here are the results from both patchsets on my 4 cpus machine.
+Ah, ok, maybe distro enable them.
 
-* Before *
+Regards,
+Wanpeng Li 
 
- Performance counter stats for 'perf bench sched messaging -g 50 -l 1000' (10 runs):
-
-       238,309,671 cache-misses                                                  ( +-  0.40% )
-
-      12.010172090 seconds time elapsed                                          ( +-  0.21% )
-
-* After my previous posting *
-
- Performance counter stats for 'perf bench sched messaging -g 50 -l 1000' (10 runs):
-
-       229,945,138 cache-misses                                                  ( +-  0.23% )
-
-      11.627897174 seconds time elapsed                                          ( +-  0.14% )
-
-
-* After my previous posting + this patchset *
-
- Performance counter stats for 'perf bench sched messaging -g 50 -l 1000' (10 runs):
-
-       218,640,472 cache-misses                                                  ( +-  0.42% )
-
-      11.504999837 seconds time elapsed                                          ( +-  0.21% )
-
-
-
-cache-misses are reduced whenever applying each patchset, roughly 5% respectively.
-And elapsed times are also improved by 3.1% and 4.2% to baseline, respectively.
-
-I think that all patchsets deserve to be merged, since it reduces memory usage and
-also improves performance. :)
-
-Thanks.
+>Do i misunderstand something herei 1/4 ?
+>
+>Thanks
+>
+>> 
+>>> Thanks,
+>>> Jianguo Wu
+>>>
+>>>> Regards,
+>>>> Wanpeng Li 
+>>>>
+>>>>> increase the memory footprint of applications w/o a guaranteed benefit, and
+>>>>> khugepaged scans all mappings when transparent hugepage enabled.
+>>>>> Defrag is invoked by khugepaged hugepage allocations and by page faults for all
+>>>>> hugepage allocations.
+>>>>>
+>>>>> Thanks,
+>>>>> Jianguo Wu
+>>>>>
+>>>>>> Regards,
+>>>>>> Wanpeng Li 
+>>>>>>
+>>>>>>> - * and khugepaged scans all mappings. Defrag is only invoked by
+>>>>>>> - * khugepaged hugepage allocations and by page faults inside
+>>>>>>> - * MADV_HUGEPAGE regions to avoid the risk of slowing down short lived
+>>>>>>> - * allocations.
+>>>>>>> + * and khugepaged scans all mappings. Defrag is invoked by khugepaged
+>>>>>>> + * hugepage allocations and by page faults for all hugepage allocations.
+>>>>>>>  */
+>>>>>>> unsigned long transparent_hugepage_flags __read_mostly =
+>>>>>>> #ifdef CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS
+>>>>>>> -- 
+>>>>>>> 1.8.1.2
+>>>>>>>
+>>>>>>> --
+>>>>>>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>>>>>>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>>>>>>> see: http://www.linux-mm.org/ .
+>>>>>>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>>>>>>
+>>>>>> --
+>>>>>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>>>>>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>>>>>> see: http://www.linux-mm.org/ .
+>>>>>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>>>>>>
+>>>>>>
+>>>>>
+>>>>>
+>>>>
+>>>>
+>>>> .
+>>>>
+>>>
+>>>
+>> 
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>> 
+>> 
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
