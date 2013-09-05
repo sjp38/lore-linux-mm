@@ -1,153 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 8A5106B0031
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2013 05:16:38 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 4FACD6B0031
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2013 05:18:27 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Thu, 5 Sep 2013 19:09:10 +1000
+	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Thu, 5 Sep 2013 19:06:58 +1000
 Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 0B0D03578050
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2013 19:16:21 +1000 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r859039g6488514
-	for <linux-mm@kvack.org>; Thu, 5 Sep 2013 19:00:05 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r859GHpY011532
-	for <linux-mm@kvack.org>; Thu, 5 Sep 2013 19:16:18 +1000
-Date: Thu, 5 Sep 2013 17:16:15 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 05/11] memblock: Introduce allocation order to memblock.
-Message-ID: <20130905091615.GB15294@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1377596268-31552-1-git-send-email-tangchen@cn.fujitsu.com>
- <1377596268-31552-6-git-send-email-tangchen@cn.fujitsu.com>
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id DEA3E2CE804D
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2013 19:18:22 +1000 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r85927Tt57999420
+	for <linux-mm@kvack.org>; Thu, 5 Sep 2013 19:02:07 +1000
+Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r859ILtM025735
+	for <linux-mm@kvack.org>; Thu, 5 Sep 2013 19:18:22 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/2] hugetlbfs: support split page table lock
+In-Reply-To: <1378312330-afoa3r2y-mutt-n-horiguchi@ah.jp.nec.com>
+References: <1377883120-5280-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1377883120-5280-2-git-send-email-n-horiguchi@ah.jp.nec.com> <87li3dvz3k.fsf@linux.vnet.ibm.com> <1378312330-afoa3r2y-mutt-n-horiguchi@ah.jp.nec.com>
+Date: Thu, 05 Sep 2013 14:48:18 +0530
+Message-ID: <87d2onwrs5.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1377596268-31552-6-git-send-email-tangchen@cn.fujitsu.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, kirill.shutemov@linux.intel.com, Alex Thorlton <athorlton@sgi.com>, linux-kernel@vger.kernel.org
 
-Hi Tang,
-On Tue, Aug 27, 2013 at 05:37:42PM +0800, Tang Chen wrote:
->The Linux kernel cannot migrate pages used by the kernel. As a result, kernel
->pages cannot be hot-removed. So we cannot allocate hotpluggable memory for
->the kernel.
->
->ACPI SRAT (System Resource Affinity Table) contains the memory hotplug info.
->But before SRAT is parsed, memblock has already started to allocate memory
->for the kernel. So we need to prevent memblock from doing this.
->
->In a memory hotplug system, any numa node the kernel resides in should
->be unhotpluggable. And for a modern server, each node could have at least
->16GB memory. So memory around the kernel image is highly likely unhotpluggable.
->
->So the basic idea is: Allocate memory from the end of the kernel image and
->to the higher memory. Since memory allocation before SRAT is parsed won't
->be too much, it could highly likely be in the same node with kernel image.
->
->The current memblock can only allocate memory from high address to low.
->So this patch introduces the allocation order to memblock. It could be
->used to tell memblock to allocate memory from high to low or from low
->to high.
->
->Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
->Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
->---
-> include/linux/memblock.h |   15 +++++++++++++++
-> mm/memblock.c            |   13 +++++++++++++
-> 2 files changed, 28 insertions(+), 0 deletions(-)
->
->diff --git a/include/linux/memblock.h b/include/linux/memblock.h
->index cabd685..f233c1f 100644
->--- a/include/linux/memblock.h
->+++ b/include/linux/memblock.h
->@@ -19,6 +19,11 @@
->
-> #define INIT_MEMBLOCK_REGIONS	128
->
->+/* Allocation order. */
+Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
 
-How about replace "Allocation order" by "Allocation sequence". 
+> Hi Aneesh,
+>
+> On Wed, Sep 04, 2013 at 12:43:19PM +0530, Aneesh Kumar K.V wrote:
+>> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
+>> 
+>> > Currently all of page table handling by hugetlbfs code are done under
+>> > mm->page_table_lock. So when a process have many threads and they heavily
+>> > access to the memory, lock contention happens and impacts the performance.
+>> >
+>> > This patch makes hugepage support split page table lock so that we use
+>> > page->ptl of the leaf node of page table tree which is pte for normal pages
+>> > but can be pmd and/or pud for hugepages of some architectures.
+>> >
+>> > ChangeLog v2:
+>> >  - add split ptl on other archs missed in v1
+>> >
+>> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>> > ---
+>> >  arch/powerpc/mm/hugetlbpage.c |  6 ++-
+>> >  arch/tile/mm/hugetlbpage.c    |  6 ++-
+>> >  include/linux/hugetlb.h       | 20 ++++++++++
+>> >  mm/hugetlb.c                  | 92 ++++++++++++++++++++++++++-----------------
+>> >  mm/mempolicy.c                |  5 ++-
+>> >  mm/migrate.c                  |  4 +-
+>> >  mm/rmap.c                     |  2 +-
+>> >  7 files changed, 90 insertions(+), 45 deletions(-)
+>> >
+>> > diff --git v3.11-rc3.orig/arch/powerpc/mm/hugetlbpage.c v3.11-rc3/arch/powerpc/mm/hugetlbpage.c
+>> > index d67db4b..7e56cb7 100644
+>> > --- v3.11-rc3.orig/arch/powerpc/mm/hugetlbpage.c
+>> > +++ v3.11-rc3/arch/powerpc/mm/hugetlbpage.c
+>> > @@ -124,6 +124,7 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
+>> >  {
+>> >  	struct kmem_cache *cachep;
+>> >  	pte_t *new;
+>> > +	spinlock_t *ptl;
+>> >
+>> >  #ifdef CONFIG_PPC_FSL_BOOK3E
+>> >  	int i;
+>> > @@ -141,7 +142,8 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
+>> >  	if (! new)
+>> >  		return -ENOMEM;
+>> >
+>> > -	spin_lock(&mm->page_table_lock);
+>> > +	ptl = huge_pte_lockptr(mm, new);
+>> > +	spin_lock(ptl);
+>> 
+>> 
+>> Are you sure we can do that for ppc ?
+>> 	new = kmem_cache_zalloc(cachep, GFP_KERNEL|__GFP_REPEAT);
+>
+> Ah, thanks. new is not a pointer to one full page occupied by page
+> table entries, so trying to use struct page of it is totally wrong.
+>
+>> The page for new(pte_t) could be shared right ? which mean a deadlock ?
+>
+> Yes, that's disastrous.
+>
+>> May be you should do it at the pmd level itself for ppc
 
-The "Allocation order" is ambiguity.
+The pgd page also cannot be used because pgd also comes from kmem
+cache.
 
-Regards,
-Wanpeng Li 
+>
+> Yes, that's possible, but I simply drop the changes in __hugepte_alloc()
+> for now because this lock seems to protect us from the race between concurrent
+> calls of __hugepte_alloc(), not between allocation and read/write access.
+> Split ptl is used to avoid race between read/write accesses, so I think
+> that using different types of locks here is not dangerous.
+> # I guess that that's why we now use mm->page_table_lock for __pte_alloc()
+> # and its family even if USE_SPLIT_PTLOCKS is true.
 
->+#define MEMBLOCK_ORDER_HIGH_TO_LOW	0
->+#define MEMBLOCK_ORDER_LOW_TO_HIGH	1
->+#define MEMBLOCK_ORDER_DEFAULT		MEMBLOCK_ORDER_HIGH_TO_LOW
->+
-> struct memblock_region {
-> 	phys_addr_t base;
-> 	phys_addr_t size;
->@@ -35,6 +40,7 @@ struct memblock_type {
-> };
->
-> struct memblock {
->+	int current_order;	/* allocate from higher or lower address */
-> 	phys_addr_t current_limit_low;	/* lower boundary of accessable range */
-> 	phys_addr_t current_limit_high;	/* upper boundary of accessable range */
-> 	struct memblock_type memory;
->@@ -174,6 +180,15 @@ static inline void memblock_dump_all(void)
-> }
->
-> /**
->+ * memblock_set_current_order - Set the current allocation order to allow
->+ *                         allocating memory from higher to lower address or
->+ *                         from lower to higher address
->+ * @order: In which order to allocate memory. Could be
->+ *         MEMBLOCK_ORDER_{HIGH_TO_LOW|LOW_TO_HIGH}
->+ */
->+void memblock_set_current_order(int order);
->+
->+/**
->  * memblock_set_current_limit_low - Set the current allocation lower limit to
->  *                         allow limiting allocations to what is currently
->  *                         accessible during boot
->diff --git a/mm/memblock.c b/mm/memblock.c
->index 54c1c2e..8f1e2d4 100644
->--- a/mm/memblock.c
->+++ b/mm/memblock.c
->@@ -32,6 +32,7 @@ struct memblock memblock __initdata_memblock = {
-> 	.reserved.cnt		= 1,	/* empty dummy entry */
-> 	.reserved.max		= INIT_MEMBLOCK_REGIONS,
->
->+	.current_order		= MEMBLOCK_ORDER_DEFAULT,
-> 	.current_limit_low	= 0,
-> 	.current_limit_high	= MEMBLOCK_ALLOC_ANYWHERE,
-> };
->@@ -989,6 +990,18 @@ void __init_memblock memblock_trim_memory(phys_addr_t align)
-> 	}
-> }
->
->+void __init_memblock memblock_set_current_order(int order)
->+{
->+	if (order != MEMBLOCK_ORDER_HIGH_TO_LOW &&
->+	    order != MEMBLOCK_ORDER_LOW_TO_HIGH) {
->+		pr_warn("memblock: Failed to set allocation order. "
->+			"Invalid order type: %d\n", order);
->+		return;
->+	}
->+
->+	memblock.current_order = order;
->+}
->+
-> void __init_memblock memblock_set_current_limit_low(phys_addr_t limit)
-> {
-> 	memblock.current_limit_low = limit;
->-- 
->1.7.1
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+A simpler approach could be to make huge_pte_lockptr arch
+specific and leave it as mm->page_table_lock for ppc 
+
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
