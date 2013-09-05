@@ -1,1123 +1,414 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 17C766B0034
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2013 17:28:15 -0400 (EDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 2/2] thp: support split page table lock
-Date: Thu,  5 Sep 2013 17:27:46 -0400
-Message-Id: <1378416466-30913-3-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1378416466-30913-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1378416466-30913-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 089276B0031
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2013 17:53:45 -0400 (EDT)
+Received: by mail-vb0-f48.google.com with SMTP id w16so1607476vbf.35
+        for <linux-mm@kvack.org>; Thu, 05 Sep 2013 14:53:45 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1375582645-29274-4-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1375582645-29274-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1375582645-29274-4-git-send-email-kirill.shutemov@linux.intel.com>
+From: Ning Qu <quning@google.com>
+Date: Thu, 5 Sep 2013 14:53:24 -0700
+Message-ID: <CACz4_2fJPngXwijEQcmVYB67u_4QDDJkpiyCv4K0iCFdmPsDuA@mail.gmail.com>
+Subject: Re: [PATCH 03/23] thp: compile-time and sysfs knob for thp pagecache
+Content-Type: multipart/alternative; boundary=001a11c2c158ba3eed04e5a9f455
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, kirill.shutemov@linux.intel.com, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Alex Thorlton <athorlton@sgi.com>, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Thp related code also uses per process mm->page_table_lock now.
-So making it fine-grained can provide better performance.
+--001a11c2c158ba3eed04e5a9f455
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
-This patch makes thp support split page table lock by using page->ptl
-of the pages storing "pmd_trans_huge" pmds.
+One minor question inline.
 
-Some functions like pmd_trans_huge_lock() and page_check_address_pmd()
-are expected by their caller to pass back the pointer of ptl, so this
-patch adds to those functions new arguments for that. Rather than that,
-this patch gives only straightforward replacement.
+Best wishes,
+--=20
+Ning Qu (=E6=9B=B2=E5=AE=81) | Software Engineer | quning@google.com | +1-4=
+08-418-6066
 
-ChangeLog v3:
- - fixed argument of huge_pmd_lockptr() in copy_huge_pmd()
- - added missing declaration of ptl in do_huge_pmd_anonymous_page()
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
----
- arch/powerpc/mm/pgtable_64.c |   8 +-
- arch/s390/mm/pgtable.c       |   4 +-
- arch/sparc/mm/tlb.c          |   4 +-
- fs/proc/task_mmu.c           |  17 +++--
- include/linux/huge_mm.h      |  11 +--
- include/linux/mm.h           |   3 +
- mm/huge_memory.c             | 171 ++++++++++++++++++++++++++-----------------
- mm/memcontrol.c              |  14 ++--
- mm/memory.c                  |  15 ++--
- mm/migrate.c                 |   8 +-
- mm/mprotect.c                |   5 +-
- mm/pgtable-generic.c         |  10 +--
- mm/rmap.c                    |  11 ++-
- 13 files changed, 162 insertions(+), 119 deletions(-)
+On Sat, Aug 3, 2013 at 7:17 PM, Kirill A. Shutemov <
+kirill.shutemov@linux.intel.com> wrote:
 
-diff --git v3.11-rc3.orig/arch/powerpc/mm/pgtable_64.c v3.11-rc3/arch/powerpc/mm/pgtable_64.c
-index 536eec72..f9177eb 100644
---- v3.11-rc3.orig/arch/powerpc/mm/pgtable_64.c
-+++ v3.11-rc3/arch/powerpc/mm/pgtable_64.c
-@@ -605,7 +605,7 @@ void pmdp_splitting_flush(struct vm_area_struct *vma,
- 
- #ifdef CONFIG_DEBUG_VM
- 	WARN_ON(!pmd_trans_huge(*pmdp));
--	assert_spin_locked(&vma->vm_mm->page_table_lock);
-+	assert_spin_locked(huge_pmd_lockptr(vma->vm_mm, pmdp));
- #endif
- 
- #ifdef PTE_ATOMIC_UPDATES
-@@ -643,7 +643,7 @@ void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
- 				pgtable_t pgtable)
- {
- 	pgtable_t *pgtable_slot;
--	assert_spin_locked(&mm->page_table_lock);
-+	assert_spin_locked(huge_pmd_lockptr(mm, pmdp));
- 	/*
- 	 * we store the pgtable in the second half of PMD
- 	 */
-@@ -663,7 +663,7 @@ pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
- 	pgtable_t pgtable;
- 	pgtable_t *pgtable_slot;
- 
--	assert_spin_locked(&mm->page_table_lock);
-+	assert_spin_locked(huge_pmd_lockptr(mm, pmdp));
- 	pgtable_slot = (pgtable_t *)pmdp + PTRS_PER_PMD;
- 	pgtable = *pgtable_slot;
- 	/*
-@@ -687,7 +687,7 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
- {
- #ifdef CONFIG_DEBUG_VM
- 	WARN_ON(!pmd_none(*pmdp));
--	assert_spin_locked(&mm->page_table_lock);
-+	assert_spin_locked(huge_pmd_lockptr(mm, pmdp));
- 	WARN_ON(!pmd_trans_huge(pmd));
- #endif
- 	return set_pte_at(mm, addr, pmdp_ptep(pmdp), pmd_pte(pmd));
-diff --git v3.11-rc3.orig/arch/s390/mm/pgtable.c v3.11-rc3/arch/s390/mm/pgtable.c
-index a8154a1..d6c6b5c 100644
---- v3.11-rc3.orig/arch/s390/mm/pgtable.c
-+++ v3.11-rc3/arch/s390/mm/pgtable.c
-@@ -1170,7 +1170,7 @@ void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
- {
- 	struct list_head *lh = (struct list_head *) pgtable;
- 
--	assert_spin_locked(&mm->page_table_lock);
-+	assert_spin_locked(huge_pmd_lockptr(mm, pmdp));
- 
- 	/* FIFO */
- 	if (!mm->pmd_huge_pte)
-@@ -1186,7 +1186,7 @@ pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
- 	pgtable_t pgtable;
- 	pte_t *ptep;
- 
--	assert_spin_locked(&mm->page_table_lock);
-+	assert_spin_locked(huge_pmd_lockptr(mm, pmdp));
- 
- 	/* FIFO */
- 	pgtable = mm->pmd_huge_pte;
-diff --git v3.11-rc3.orig/arch/sparc/mm/tlb.c v3.11-rc3/arch/sparc/mm/tlb.c
-index 7a91f28..cca3bed 100644
---- v3.11-rc3.orig/arch/sparc/mm/tlb.c
-+++ v3.11-rc3/arch/sparc/mm/tlb.c
-@@ -193,7 +193,7 @@ void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
- {
- 	struct list_head *lh = (struct list_head *) pgtable;
- 
--	assert_spin_locked(&mm->page_table_lock);
-+	assert_spin_locked(huge_pmd_lockptr(mm, pmdp));
- 
- 	/* FIFO */
- 	if (!mm->pmd_huge_pte)
-@@ -208,7 +208,7 @@ pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
- 	struct list_head *lh;
- 	pgtable_t pgtable;
- 
--	assert_spin_locked(&mm->page_table_lock);
-+	assert_spin_locked(huge_pmd_lockptr(mm, pmdp));
- 
- 	/* FIFO */
- 	pgtable = mm->pmd_huge_pte;
-diff --git v3.11-rc3.orig/fs/proc/task_mmu.c v3.11-rc3/fs/proc/task_mmu.c
-index dbf61f6..e23c882 100644
---- v3.11-rc3.orig/fs/proc/task_mmu.c
-+++ v3.11-rc3/fs/proc/task_mmu.c
-@@ -503,11 +503,11 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- 	struct mem_size_stats *mss = walk->private;
- 	struct vm_area_struct *vma = mss->vma;
- 	pte_t *pte;
--	spinlock_t *ptl;
-+	spinlock_t *uninitialized_var(ptl);
- 
--	if (pmd_trans_huge_lock(pmd, vma) == 1) {
-+	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
- 		smaps_pte_entry(*(pte_t *)pmd, addr, HPAGE_PMD_SIZE, walk);
--		spin_unlock(&walk->mm->page_table_lock);
-+		spin_unlock(ptl);
- 		mss->anonymous_thp += HPAGE_PMD_SIZE;
- 		return 0;
- 	}
-@@ -980,10 +980,11 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- 	pte_t *pte;
- 	int err = 0;
- 	pagemap_entry_t pme = make_pme(PM_NOT_PRESENT(pm->v2));
-+	spinlock_t *uninitialized_var(ptl);
- 
- 	/* find the first VMA at or above 'addr' */
- 	vma = find_vma(walk->mm, addr);
--	if (vma && pmd_trans_huge_lock(pmd, vma) == 1) {
-+	if (vma && pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
- 		int pmd_flags2;
- 
- 		pmd_flags2 = (pmd_soft_dirty(*pmd) ? __PM_SOFT_DIRTY : 0);
-@@ -997,7 +998,7 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- 			if (err)
- 				break;
- 		}
--		spin_unlock(&walk->mm->page_table_lock);
-+		spin_unlock(ptl);
- 		return err;
- 	}
- 
-@@ -1276,13 +1277,13 @@ static int gather_pte_stats(pmd_t *pmd, unsigned long addr,
- 		unsigned long end, struct mm_walk *walk)
- {
- 	struct numa_maps *md;
--	spinlock_t *ptl;
-+	spinlock_t *uninitialized_var(ptl);
- 	pte_t *orig_pte;
- 	pte_t *pte;
- 
- 	md = walk->private;
- 
--	if (pmd_trans_huge_lock(pmd, md->vma) == 1) {
-+	if (pmd_trans_huge_lock(pmd, md->vma, &ptl) == 1) {
- 		pte_t huge_pte = *(pte_t *)pmd;
- 		struct page *page;
- 
-@@ -1290,7 +1291,7 @@ static int gather_pte_stats(pmd_t *pmd, unsigned long addr,
- 		if (page)
- 			gather_stats(page, md, pte_dirty(huge_pte),
- 				     HPAGE_PMD_SIZE/PAGE_SIZE);
--		spin_unlock(&walk->mm->page_table_lock);
-+		spin_unlock(ptl);
- 		return 0;
- 	}
- 
-diff --git v3.11-rc3.orig/include/linux/huge_mm.h v3.11-rc3/include/linux/huge_mm.h
-index b60de92..1faf757 100644
---- v3.11-rc3.orig/include/linux/huge_mm.h
-+++ v3.11-rc3/include/linux/huge_mm.h
-@@ -54,7 +54,8 @@ enum page_check_address_pmd_flag {
- extern pmd_t *page_check_address_pmd(struct page *page,
- 				     struct mm_struct *mm,
- 				     unsigned long address,
--				     enum page_check_address_pmd_flag flag);
-+				     enum page_check_address_pmd_flag flag,
-+				     spinlock_t **ptl);
- 
- #define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
- #define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
-@@ -133,14 +134,14 @@ extern void __vma_adjust_trans_huge(struct vm_area_struct *vma,
- 				    unsigned long end,
- 				    long adjust_next);
- extern int __pmd_trans_huge_lock(pmd_t *pmd,
--				 struct vm_area_struct *vma);
-+				 struct vm_area_struct *vma, spinlock_t **ptl);
- /* mmap_sem must be held on entry */
- static inline int pmd_trans_huge_lock(pmd_t *pmd,
--				      struct vm_area_struct *vma)
-+				struct vm_area_struct *vma, spinlock_t **ptl)
- {
- 	VM_BUG_ON(!rwsem_is_locked(&vma->vm_mm->mmap_sem));
- 	if (pmd_trans_huge(*pmd))
--		return __pmd_trans_huge_lock(pmd, vma);
-+		return __pmd_trans_huge_lock(pmd, vma, ptl);
- 	else
- 		return 0;
- }
-@@ -219,7 +220,7 @@ static inline void vma_adjust_trans_huge(struct vm_area_struct *vma,
- {
- }
- static inline int pmd_trans_huge_lock(pmd_t *pmd,
--				      struct vm_area_struct *vma)
-+				struct vm_area_struct *vma, spinlock_t **ptl)
- {
- 	return 0;
- }
-diff --git v3.11-rc3.orig/include/linux/mm.h v3.11-rc3/include/linux/mm.h
-index f022460..9219f43 100644
---- v3.11-rc3.orig/include/linux/mm.h
-+++ v3.11-rc3/include/linux/mm.h
-@@ -1251,6 +1251,8 @@ static inline pmd_t *pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long a
- } while (0)
- #define pte_lock_deinit(page)	((page)->mapping = NULL)
- #define pte_lockptr(mm, pmd)	({(void)(mm); __pte_lockptr(pmd_page(*(pmd)));})
-+#define huge_pmd_lockptr(mm, pmdp) \
-+		({(void)(mm); __pte_lockptr(virt_to_page(pmdp)); })
- #else	/* !USE_SPLIT_PTLOCKS */
- /*
-  * We use mm->page_table_lock to guard all pagetable pages of the mm.
-@@ -1258,6 +1260,7 @@ static inline pmd_t *pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long a
- #define pte_lock_init(page)	do {} while (0)
- #define pte_lock_deinit(page)	do {} while (0)
- #define pte_lockptr(mm, pmd)	({(void)(pmd); &(mm)->page_table_lock;})
-+#define huge_pmd_lockptr(mm, pmdp) ({(void)(pmd); &(mm)->page_table_lock; })
- #endif /* USE_SPLIT_PTLOCKS */
- 
- static inline void pgtable_page_ctor(struct page *page)
-diff --git v3.11-rc3.orig/mm/huge_memory.c v3.11-rc3/mm/huge_memory.c
-index 243e710..20fd1dd 100644
---- v3.11-rc3.orig/mm/huge_memory.c
-+++ v3.11-rc3/mm/huge_memory.c
-@@ -705,6 +705,7 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
- 					struct page *page)
- {
- 	pgtable_t pgtable;
-+	spinlock_t *ptl;
- 
- 	VM_BUG_ON(!PageCompound(page));
- 	pgtable = pte_alloc_one(mm, haddr);
-@@ -719,9 +720,10 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
- 	 */
- 	__SetPageUptodate(page);
- 
--	spin_lock(&mm->page_table_lock);
-+	ptl = huge_pmd_lockptr(mm, pmd);
-+	spin_lock(ptl);
- 	if (unlikely(!pmd_none(*pmd))) {
--		spin_unlock(&mm->page_table_lock);
-+		spin_unlock(ptl);
- 		mem_cgroup_uncharge_page(page);
- 		put_page(page);
- 		pte_free(mm, pgtable);
-@@ -733,7 +735,7 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
- 		set_pmd_at(mm, haddr, pmd, entry);
- 		add_mm_counter(mm, MM_ANONPAGES, HPAGE_PMD_NR);
- 		mm->nr_ptes++;
--		spin_unlock(&mm->page_table_lock);
-+		spin_unlock(ptl);
- 	}
- 
- 	return 0;
-@@ -761,6 +763,7 @@ static inline struct page *alloc_hugepage(int defrag)
- }
- #endif
- 
-+/* Caller must hold page table lock. */
- static bool set_huge_zero_page(pgtable_t pgtable, struct mm_struct *mm,
- 		struct vm_area_struct *vma, unsigned long haddr, pmd_t *pmd,
- 		struct page *zero_page)
-@@ -795,6 +798,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 			pgtable_t pgtable;
- 			struct page *zero_page;
- 			bool set;
-+			spinlock_t *ptl;
- 			pgtable = pte_alloc_one(mm, haddr);
- 			if (unlikely(!pgtable))
- 				return VM_FAULT_OOM;
-@@ -804,10 +808,11 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 				count_vm_event(THP_FAULT_FALLBACK);
- 				goto out;
- 			}
--			spin_lock(&mm->page_table_lock);
-+			ptl = huge_pmd_lockptr(mm, pmd);
-+			spin_lock(ptl);
- 			set = set_huge_zero_page(pgtable, mm, vma, haddr, pmd,
- 					zero_page);
--			spin_unlock(&mm->page_table_lock);
-+			spin_unlock(ptl);
- 			if (!set) {
- 				pte_free(mm, pgtable);
- 				put_huge_zero_page();
-@@ -864,14 +869,17 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 	pmd_t pmd;
- 	pgtable_t pgtable;
- 	int ret;
-+	spinlock_t *uninitialized_var(dst_ptl), *uninitialized_var(src_ptl);
- 
- 	ret = -ENOMEM;
- 	pgtable = pte_alloc_one(dst_mm, addr);
- 	if (unlikely(!pgtable))
- 		goto out;
- 
--	spin_lock(&dst_mm->page_table_lock);
--	spin_lock_nested(&src_mm->page_table_lock, SINGLE_DEPTH_NESTING);
-+	dst_ptl = huge_pmd_lockptr(dst_mm, dst_pmd);
-+	src_ptl = huge_pmd_lockptr(src_mm, src_pmd);
-+	spin_lock(dst_ptl);
-+	spin_lock_nested(src_ptl, SINGLE_DEPTH_NESTING);
- 
- 	ret = -EAGAIN;
- 	pmd = *src_pmd;
-@@ -880,7 +888,7 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 		goto out_unlock;
- 	}
- 	/*
--	 * mm->page_table_lock is enough to be sure that huge zero pmd is not
-+	 * When page table lock is held, the huge zero pmd should not be
- 	 * under splitting since we don't split the page itself, only pmd to
- 	 * a page table.
- 	 */
-@@ -901,8 +909,8 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 	}
- 	if (unlikely(pmd_trans_splitting(pmd))) {
- 		/* split huge page running from under us */
--		spin_unlock(&src_mm->page_table_lock);
--		spin_unlock(&dst_mm->page_table_lock);
-+		spin_unlock(src_ptl);
-+		spin_unlock(dst_ptl);
- 		pte_free(dst_mm, pgtable);
- 
- 		wait_split_huge_page(vma->anon_vma, src_pmd); /* src_vma */
-@@ -922,8 +930,8 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 
- 	ret = 0;
- out_unlock:
--	spin_unlock(&src_mm->page_table_lock);
--	spin_unlock(&dst_mm->page_table_lock);
-+	spin_unlock(src_ptl);
-+	spin_unlock(dst_ptl);
- out:
- 	return ret;
- }
-@@ -936,8 +944,9 @@ void huge_pmd_set_accessed(struct mm_struct *mm,
- {
- 	pmd_t entry;
- 	unsigned long haddr;
-+	spinlock_t *ptl = huge_pmd_lockptr(mm, pmd);
- 
--	spin_lock(&mm->page_table_lock);
-+	spin_lock(ptl);
- 	if (unlikely(!pmd_same(*pmd, orig_pmd)))
- 		goto unlock;
- 
-@@ -947,7 +956,7 @@ void huge_pmd_set_accessed(struct mm_struct *mm,
- 		update_mmu_cache_pmd(vma, address, pmd);
- 
- unlock:
--	spin_unlock(&mm->page_table_lock);
-+	spin_unlock(ptl);
- }
- 
- static int do_huge_pmd_wp_zero_page_fallback(struct mm_struct *mm,
-@@ -960,6 +969,7 @@ static int do_huge_pmd_wp_zero_page_fallback(struct mm_struct *mm,
- 	int i, ret = 0;
- 	unsigned long mmun_start;	/* For mmu_notifiers */
- 	unsigned long mmun_end;		/* For mmu_notifiers */
-+	spinlock_t *ptl;
- 
- 	page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
- 	if (!page) {
-@@ -980,7 +990,8 @@ static int do_huge_pmd_wp_zero_page_fallback(struct mm_struct *mm,
- 	mmun_end   = haddr + HPAGE_PMD_SIZE;
- 	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
- 
--	spin_lock(&mm->page_table_lock);
-+	ptl = huge_pmd_lockptr(mm, pmd);
-+	spin_lock(ptl);
- 	if (unlikely(!pmd_same(*pmd, orig_pmd)))
- 		goto out_free_page;
- 
-@@ -1007,7 +1018,7 @@ static int do_huge_pmd_wp_zero_page_fallback(struct mm_struct *mm,
- 	}
- 	smp_wmb(); /* make pte visible before pmd */
- 	pmd_populate(mm, pmd, pgtable);
--	spin_unlock(&mm->page_table_lock);
-+	spin_unlock(ptl);
- 	put_huge_zero_page();
- 	inc_mm_counter(mm, MM_ANONPAGES);
- 
-@@ -1017,7 +1028,7 @@ static int do_huge_pmd_wp_zero_page_fallback(struct mm_struct *mm,
- out:
- 	return ret;
- out_free_page:
--	spin_unlock(&mm->page_table_lock);
-+	spin_unlock(ptl);
- 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
- 	mem_cgroup_uncharge_page(page);
- 	put_page(page);
-@@ -1037,6 +1048,7 @@ static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
- 	struct page **pages;
- 	unsigned long mmun_start;	/* For mmu_notifiers */
- 	unsigned long mmun_end;		/* For mmu_notifiers */
-+	spinlock_t *ptl;
- 
- 	pages = kmalloc(sizeof(struct page *) * HPAGE_PMD_NR,
- 			GFP_KERNEL);
-@@ -1077,7 +1089,8 @@ static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
- 	mmun_end   = haddr + HPAGE_PMD_SIZE;
- 	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
- 
--	spin_lock(&mm->page_table_lock);
-+	ptl = huge_pmd_lockptr(mm, pmd);
-+	spin_lock(ptl);
- 	if (unlikely(!pmd_same(*pmd, orig_pmd)))
- 		goto out_free_pages;
- 	VM_BUG_ON(!PageHead(page));
-@@ -1103,7 +1116,7 @@ static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
- 	smp_wmb(); /* make pte visible before pmd */
- 	pmd_populate(mm, pmd, pgtable);
- 	page_remove_rmap(page);
--	spin_unlock(&mm->page_table_lock);
-+	spin_unlock(ptl);
- 
- 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
- 
-@@ -1114,7 +1127,7 @@ static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
- 	return ret;
- 
- out_free_pages:
--	spin_unlock(&mm->page_table_lock);
-+	spin_unlock(ptl);
- 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
- 	mem_cgroup_uncharge_start();
- 	for (i = 0; i < HPAGE_PMD_NR; i++) {
-@@ -1134,12 +1147,13 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	unsigned long haddr;
- 	unsigned long mmun_start;	/* For mmu_notifiers */
- 	unsigned long mmun_end;		/* For mmu_notifiers */
-+	spinlock_t *ptl = huge_pmd_lockptr(mm, pmd);
- 
- 	VM_BUG_ON(!vma->anon_vma);
- 	haddr = address & HPAGE_PMD_MASK;
- 	if (is_huge_zero_pmd(orig_pmd))
- 		goto alloc;
--	spin_lock(&mm->page_table_lock);
-+	spin_lock(ptl);
- 	if (unlikely(!pmd_same(*pmd, orig_pmd)))
- 		goto out_unlock;
- 
-@@ -1155,7 +1169,7 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		goto out_unlock;
- 	}
- 	get_page(page);
--	spin_unlock(&mm->page_table_lock);
-+	spin_unlock(ptl);
- alloc:
- 	if (transparent_hugepage_enabled(vma) &&
- 	    !transparent_hugepage_debug_cow())
-@@ -1200,11 +1214,11 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	mmun_end   = haddr + HPAGE_PMD_SIZE;
- 	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
- 
--	spin_lock(&mm->page_table_lock);
-+	spin_lock(ptl);
- 	if (page)
- 		put_page(page);
- 	if (unlikely(!pmd_same(*pmd, orig_pmd))) {
--		spin_unlock(&mm->page_table_lock);
-+		spin_unlock(ptl);
- 		mem_cgroup_uncharge_page(new_page);
- 		put_page(new_page);
- 		goto out_mn;
-@@ -1225,13 +1239,13 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		}
- 		ret |= VM_FAULT_WRITE;
- 	}
--	spin_unlock(&mm->page_table_lock);
-+	spin_unlock(ptl);
- out_mn:
- 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
- out:
- 	return ret;
- out_unlock:
--	spin_unlock(&mm->page_table_lock);
-+	spin_unlock(ptl);
- 	return ret;
- }
- 
-@@ -1240,11 +1254,8 @@ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
- 				   pmd_t *pmd,
- 				   unsigned int flags)
- {
--	struct mm_struct *mm = vma->vm_mm;
- 	struct page *page = NULL;
- 
--	assert_spin_locked(&mm->page_table_lock);
--
- 	if (flags & FOLL_WRITE && !pmd_write(*pmd))
- 		goto out;
- 
-@@ -1295,8 +1306,9 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	int target_nid;
- 	int current_nid = -1;
- 	bool migrated;
-+	spinlock_t *ptl = huge_pmd_lockptr(mm, pmdp);
- 
--	spin_lock(&mm->page_table_lock);
-+	spin_lock(ptl);
- 	if (unlikely(!pmd_same(pmd, *pmdp)))
- 		goto out_unlock;
- 
-@@ -1314,17 +1326,17 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	}
- 
- 	/* Acquire the page lock to serialise THP migrations */
--	spin_unlock(&mm->page_table_lock);
-+	spin_unlock(ptl);
- 	lock_page(page);
- 
- 	/* Confirm the PTE did not while locked */
--	spin_lock(&mm->page_table_lock);
-+	spin_lock(ptl);
- 	if (unlikely(!pmd_same(pmd, *pmdp))) {
- 		unlock_page(page);
- 		put_page(page);
- 		goto out_unlock;
- 	}
--	spin_unlock(&mm->page_table_lock);
-+	spin_unlock(ptl);
- 
- 	/* Migrate the THP to the requested node */
- 	migrated = migrate_misplaced_transhuge_page(mm, vma,
-@@ -1336,7 +1348,7 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	return 0;
- 
- check_same:
--	spin_lock(&mm->page_table_lock);
-+	spin_lock(ptl);
- 	if (unlikely(!pmd_same(pmd, *pmdp)))
- 		goto out_unlock;
- clear_pmdnuma:
-@@ -1345,7 +1357,7 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	VM_BUG_ON(pmd_numa(*pmdp));
- 	update_mmu_cache_pmd(vma, addr, pmdp);
- out_unlock:
--	spin_unlock(&mm->page_table_lock);
-+	spin_unlock(ptl);
- 	if (current_nid != -1)
- 		task_numa_fault(current_nid, HPAGE_PMD_NR, false);
- 	return 0;
-@@ -1355,8 +1367,9 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 		 pmd_t *pmd, unsigned long addr)
- {
- 	int ret = 0;
-+	spinlock_t *uninitialized_var(ptl);
- 
--	if (__pmd_trans_huge_lock(pmd, vma) == 1) {
-+	if (__pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
- 		struct page *page;
- 		pgtable_t pgtable;
- 		pmd_t orig_pmd;
-@@ -1371,7 +1384,7 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 		pgtable = pgtable_trans_huge_withdraw(tlb->mm, pmd);
- 		if (is_huge_zero_pmd(orig_pmd)) {
- 			tlb->mm->nr_ptes--;
--			spin_unlock(&tlb->mm->page_table_lock);
-+			spin_unlock(ptl);
- 			put_huge_zero_page();
- 		} else {
- 			page = pmd_page(orig_pmd);
-@@ -1380,7 +1393,7 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
- 			VM_BUG_ON(!PageHead(page));
- 			tlb->mm->nr_ptes--;
--			spin_unlock(&tlb->mm->page_table_lock);
-+			spin_unlock(ptl);
- 			tlb_remove_page(tlb, page);
- 		}
- 		pte_free(tlb->mm, pgtable);
-@@ -1394,13 +1407,14 @@ int mincore_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 		unsigned char *vec)
- {
- 	int ret = 0;
-+	spinlock_t *uninitialized_var(ptl);
- 
--	if (__pmd_trans_huge_lock(pmd, vma) == 1) {
-+	if (__pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
- 		/*
- 		 * All logical pages in the range are present
- 		 * if backed by a huge page.
- 		 */
--		spin_unlock(&vma->vm_mm->page_table_lock);
-+		spin_unlock(ptl);
- 		memset(vec, 1, (end - addr) >> PAGE_SHIFT);
- 		ret = 1;
- 	}
-@@ -1415,6 +1429,7 @@ int move_huge_pmd(struct vm_area_struct *vma, struct vm_area_struct *new_vma,
- {
- 	int ret = 0;
- 	pmd_t pmd;
-+	spinlock_t *uninitialized_var(ptl);
- 
- 	struct mm_struct *mm = vma->vm_mm;
- 
-@@ -1433,12 +1448,12 @@ int move_huge_pmd(struct vm_area_struct *vma, struct vm_area_struct *new_vma,
- 		goto out;
- 	}
- 
--	ret = __pmd_trans_huge_lock(old_pmd, vma);
-+	ret = __pmd_trans_huge_lock(old_pmd, vma, &ptl);
- 	if (ret == 1) {
- 		pmd = pmdp_get_and_clear(mm, old_addr, old_pmd);
- 		VM_BUG_ON(!pmd_none(*new_pmd));
- 		set_pmd_at(mm, new_addr, new_pmd, pmd_mksoft_dirty(pmd));
--		spin_unlock(&mm->page_table_lock);
-+		spin_unlock(ptl);
- 	}
- out:
- 	return ret;
-@@ -1449,8 +1464,9 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 	int ret = 0;
-+	spinlock_t *uninitialized_var(ptl);
- 
--	if (__pmd_trans_huge_lock(pmd, vma) == 1) {
-+	if (__pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
- 		pmd_t entry;
- 		entry = pmdp_get_and_clear(mm, addr, pmd);
- 		if (!prot_numa) {
-@@ -1466,7 +1482,7 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 			}
- 		}
- 		set_pmd_at(mm, addr, pmd, entry);
--		spin_unlock(&vma->vm_mm->page_table_lock);
-+		spin_unlock(ptl);
- 		ret = 1;
- 	}
- 
-@@ -1480,12 +1496,14 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-  * Note that if it returns 1, this routine returns without unlocking page
-  * table locks. So callers must unlock them.
-  */
--int __pmd_trans_huge_lock(pmd_t *pmd, struct vm_area_struct *vma)
-+int __pmd_trans_huge_lock(pmd_t *pmd, struct vm_area_struct *vma,
-+			  spinlock_t **ptl)
- {
--	spin_lock(&vma->vm_mm->page_table_lock);
-+	*ptl = huge_pmd_lockptr(vma->vm_mm, pmd);
-+	spin_lock(*ptl);
- 	if (likely(pmd_trans_huge(*pmd))) {
- 		if (unlikely(pmd_trans_splitting(*pmd))) {
--			spin_unlock(&vma->vm_mm->page_table_lock);
-+			spin_unlock(*ptl);
- 			wait_split_huge_page(vma->anon_vma, pmd);
- 			return -1;
- 		} else {
-@@ -1494,14 +1512,23 @@ int __pmd_trans_huge_lock(pmd_t *pmd, struct vm_area_struct *vma)
- 			return 1;
- 		}
- 	}
--	spin_unlock(&vma->vm_mm->page_table_lock);
-+	spin_unlock(*ptl);
- 	return 0;
- }
- 
-+/*
-+ * This function returns whether a given @page is mapped onto the @address
-+ * in the virtual space of @mm.
-+ *
-+ * When it's true, this function returns *pmd with holding the page table lock
-+ * and passing it back to the caller via @ptl.
-+ * If it's false, returns NULL without holding the page table lock.
-+ */
- pmd_t *page_check_address_pmd(struct page *page,
- 			      struct mm_struct *mm,
- 			      unsigned long address,
--			      enum page_check_address_pmd_flag flag)
-+			      enum page_check_address_pmd_flag flag,
-+			      spinlock_t **ptl)
- {
- 	pmd_t *pmd, *ret = NULL;
- 
-@@ -1511,10 +1538,12 @@ pmd_t *page_check_address_pmd(struct page *page,
- 	pmd = mm_find_pmd(mm, address);
- 	if (!pmd)
- 		goto out;
-+	*ptl = huge_pmd_lockptr(mm, pmd);
-+	spin_lock(*ptl);
- 	if (pmd_none(*pmd))
--		goto out;
-+		goto unlock;
- 	if (pmd_page(*pmd) != page)
--		goto out;
-+		goto unlock;
- 	/*
- 	 * split_vma() may create temporary aliased mappings. There is
- 	 * no risk as long as all huge pmd are found and have their
-@@ -1524,12 +1553,15 @@ pmd_t *page_check_address_pmd(struct page *page,
- 	 */
- 	if (flag == PAGE_CHECK_ADDRESS_PMD_NOTSPLITTING_FLAG &&
- 	    pmd_trans_splitting(*pmd))
--		goto out;
-+		goto unlock;
- 	if (pmd_trans_huge(*pmd)) {
- 		VM_BUG_ON(flag == PAGE_CHECK_ADDRESS_PMD_SPLITTING_FLAG &&
- 			  !pmd_trans_splitting(*pmd));
- 		ret = pmd;
-+		goto out;
- 	}
-+unlock:
-+	spin_unlock(*ptl);
- out:
- 	return ret;
- }
-@@ -1541,14 +1573,15 @@ static int __split_huge_page_splitting(struct page *page,
- 	struct mm_struct *mm = vma->vm_mm;
- 	pmd_t *pmd;
- 	int ret = 0;
-+	spinlock_t *uninitialized_var(ptl);
- 	/* For mmu_notifiers */
- 	const unsigned long mmun_start = address;
- 	const unsigned long mmun_end   = address + HPAGE_PMD_SIZE;
- 
- 	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
--	spin_lock(&mm->page_table_lock);
-+
- 	pmd = page_check_address_pmd(page, mm, address,
--				     PAGE_CHECK_ADDRESS_PMD_NOTSPLITTING_FLAG);
-+				PAGE_CHECK_ADDRESS_PMD_NOTSPLITTING_FLAG, &ptl);
- 	if (pmd) {
- 		/*
- 		 * We can't temporarily set the pmd to null in order
-@@ -1559,8 +1592,8 @@ static int __split_huge_page_splitting(struct page *page,
- 		 */
- 		pmdp_splitting_flush(vma, address, pmd);
- 		ret = 1;
-+		spin_unlock(ptl);
- 	}
--	spin_unlock(&mm->page_table_lock);
- 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
- 
- 	return ret;
-@@ -1694,10 +1727,10 @@ static int __split_huge_page_map(struct page *page,
- 	int ret = 0, i;
- 	pgtable_t pgtable;
- 	unsigned long haddr;
-+	spinlock_t *uninitialized_var(ptl);
- 
--	spin_lock(&mm->page_table_lock);
- 	pmd = page_check_address_pmd(page, mm, address,
--				     PAGE_CHECK_ADDRESS_PMD_SPLITTING_FLAG);
-+				PAGE_CHECK_ADDRESS_PMD_SPLITTING_FLAG, &ptl);
- 	if (pmd) {
- 		pgtable = pgtable_trans_huge_withdraw(mm, pmd);
- 		pmd_populate(mm, &_pmd, pgtable);
-@@ -1752,8 +1785,8 @@ static int __split_huge_page_map(struct page *page,
- 		pmdp_invalidate(vma, address, pmd);
- 		pmd_populate(mm, pmd, pgtable);
- 		ret = 1;
-+		spin_unlock(ptl);
- 	}
--	spin_unlock(&mm->page_table_lock);
- 
- 	return ret;
- }
-@@ -2314,7 +2347,7 @@ static void collapse_huge_page(struct mm_struct *mm,
- 	mmun_start = address;
- 	mmun_end   = address + HPAGE_PMD_SIZE;
- 	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
--	spin_lock(&mm->page_table_lock); /* probably unnecessary */
-+	spin_lock(ptl); /* probably unnecessary */
- 	/*
- 	 * After this gup_fast can't run anymore. This also removes
- 	 * any huge TLB entry from the CPU so we won't allow
-@@ -2322,7 +2355,7 @@ static void collapse_huge_page(struct mm_struct *mm,
- 	 * to avoid the risk of CPU bugs in that area.
- 	 */
- 	_pmd = pmdp_clear_flush(vma, address, pmd);
--	spin_unlock(&mm->page_table_lock);
-+	spin_unlock(ptl);
- 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
- 
- 	spin_lock(ptl);
-@@ -2331,7 +2364,7 @@ static void collapse_huge_page(struct mm_struct *mm,
- 
- 	if (unlikely(!isolated)) {
- 		pte_unmap(pte);
--		spin_lock(&mm->page_table_lock);
-+		spin_lock(ptl);
- 		BUG_ON(!pmd_none(*pmd));
- 		/*
- 		 * We can only use set_pmd_at when establishing
-@@ -2339,7 +2372,7 @@ static void collapse_huge_page(struct mm_struct *mm,
- 		 * points to regular pagetables. Use pmd_populate for that
- 		 */
- 		pmd_populate(mm, pmd, pmd_pgtable(_pmd));
--		spin_unlock(&mm->page_table_lock);
-+		spin_unlock(ptl);
- 		anon_vma_unlock_write(vma->anon_vma);
- 		goto out;
- 	}
-@@ -2364,13 +2397,13 @@ static void collapse_huge_page(struct mm_struct *mm,
- 	 */
- 	smp_wmb();
- 
--	spin_lock(&mm->page_table_lock);
-+	spin_lock(ptl);
- 	BUG_ON(!pmd_none(*pmd));
- 	page_add_new_anon_rmap(new_page, vma, address);
- 	pgtable_trans_huge_deposit(mm, pmd, pgtable);
- 	set_pmd_at(mm, address, pmd, _pmd);
- 	update_mmu_cache_pmd(vma, address, pmd);
--	spin_unlock(&mm->page_table_lock);
-+	spin_unlock(ptl);
- 
- 	*hpage = NULL;
- 
-@@ -2698,6 +2731,7 @@ void __split_huge_page_pmd(struct vm_area_struct *vma, unsigned long address,
- 	struct page *page;
- 	struct mm_struct *mm = vma->vm_mm;
- 	unsigned long haddr = address & HPAGE_PMD_MASK;
-+	spinlock_t *ptl;
- 	unsigned long mmun_start;	/* For mmu_notifiers */
- 	unsigned long mmun_end;		/* For mmu_notifiers */
- 
-@@ -2706,22 +2740,23 @@ void __split_huge_page_pmd(struct vm_area_struct *vma, unsigned long address,
- 	mmun_start = haddr;
- 	mmun_end   = haddr + HPAGE_PMD_SIZE;
- 	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
--	spin_lock(&mm->page_table_lock);
-+	ptl = huge_pmd_lockptr(mm, pmd);
-+	spin_lock(ptl);
- 	if (unlikely(!pmd_trans_huge(*pmd))) {
--		spin_unlock(&mm->page_table_lock);
-+		spin_unlock(ptl);
- 		mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
- 		return;
- 	}
- 	if (is_huge_zero_pmd(*pmd)) {
- 		__split_huge_zero_page_pmd(vma, haddr, pmd);
--		spin_unlock(&mm->page_table_lock);
-+		spin_unlock(ptl);
- 		mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
- 		return;
- 	}
- 	page = pmd_page(*pmd);
- 	VM_BUG_ON(!page_count(page));
- 	get_page(page);
--	spin_unlock(&mm->page_table_lock);
-+	spin_unlock(ptl);
- 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
- 
- 	split_huge_page(page);
-diff --git v3.11-rc3.orig/mm/memcontrol.c v3.11-rc3/mm/memcontrol.c
-index 00a7a66..3949444 100644
---- v3.11-rc3.orig/mm/memcontrol.c
-+++ v3.11-rc3/mm/memcontrol.c
-@@ -6591,12 +6591,12 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
- {
- 	struct vm_area_struct *vma = walk->private;
- 	pte_t *pte;
--	spinlock_t *ptl;
-+	spinlock_t *uninitialized_var(ptl);
- 
--	if (pmd_trans_huge_lock(pmd, vma) == 1) {
-+	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
- 		if (get_mctgt_type_thp(vma, addr, *pmd, NULL) == MC_TARGET_PAGE)
- 			mc.precharge += HPAGE_PMD_NR;
--		spin_unlock(&vma->vm_mm->page_table_lock);
-+		spin_unlock(ptl);
- 		return 0;
- 	}
- 
-@@ -6769,7 +6769,7 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
- 	int ret = 0;
- 	struct vm_area_struct *vma = walk->private;
- 	pte_t *pte;
--	spinlock_t *ptl;
-+	spinlock_t *uninitialized_var(ptl);
- 	enum mc_target_type target_type;
- 	union mc_target target;
- 	struct page *page;
-@@ -6785,9 +6785,9 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
- 	 *    to be unlocked in __split_huge_page_splitting(), where the main
- 	 *    part of thp split is not executed yet.
- 	 */
--	if (pmd_trans_huge_lock(pmd, vma) == 1) {
-+	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
- 		if (mc.precharge < HPAGE_PMD_NR) {
--			spin_unlock(&vma->vm_mm->page_table_lock);
-+			spin_unlock(ptl);
- 			return 0;
- 		}
- 		target_type = get_mctgt_type_thp(vma, addr, *pmd, &target);
-@@ -6804,7 +6804,7 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
- 			}
- 			put_page(page);
- 		}
--		spin_unlock(&vma->vm_mm->page_table_lock);
-+		spin_unlock(ptl);
- 		return 0;
- 	}
- 
-diff --git v3.11-rc3.orig/mm/memory.c v3.11-rc3/mm/memory.c
-index aa3b994..8c97ef0 100644
---- v3.11-rc3.orig/mm/memory.c
-+++ v3.11-rc3/mm/memory.c
-@@ -1529,20 +1529,21 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
- 			split_huge_page_pmd(vma, address, pmd);
- 			goto split_fallthrough;
- 		}
--		spin_lock(&mm->page_table_lock);
-+		ptl = huge_pmd_lockptr(mm, pmd);
-+		spin_lock(ptl);
- 		if (likely(pmd_trans_huge(*pmd))) {
- 			if (unlikely(pmd_trans_splitting(*pmd))) {
--				spin_unlock(&mm->page_table_lock);
-+				spin_unlock(ptl);
- 				wait_split_huge_page(vma->anon_vma, pmd);
- 			} else {
- 				page = follow_trans_huge_pmd(vma, address,
- 							     pmd, flags);
--				spin_unlock(&mm->page_table_lock);
-+				spin_unlock(ptl);
- 				*page_mask = HPAGE_PMD_NR - 1;
- 				goto out;
- 			}
- 		} else
--			spin_unlock(&mm->page_table_lock);
-+			spin_unlock(ptl);
- 		/* fall through */
- 	}
- split_fallthrough:
-@@ -3607,17 +3608,17 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	pte_t *pte, *orig_pte;
- 	unsigned long _addr = addr & PMD_MASK;
- 	unsigned long offset;
--	spinlock_t *ptl;
-+	spinlock_t *ptl = huge_pmd_lockptr(mm, pmdp);
- 	bool numa = false;
- 	int local_nid = numa_node_id();
- 
--	spin_lock(&mm->page_table_lock);
-+	spin_lock(ptl);
- 	pmd = *pmdp;
- 	if (pmd_numa(pmd)) {
- 		set_pmd_at(mm, _addr, pmdp, pmd_mknonnuma(pmd));
- 		numa = true;
- 	}
--	spin_unlock(&mm->page_table_lock);
-+	spin_unlock(ptl);
- 
- 	if (!numa)
- 		return 0;
-diff --git v3.11-rc3.orig/mm/migrate.c v3.11-rc3/mm/migrate.c
-index c69a9c7..1e1e9f2 100644
---- v3.11-rc3.orig/mm/migrate.c
-+++ v3.11-rc3/mm/migrate.c
-@@ -1659,6 +1659,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 	struct page *new_page = NULL;
- 	struct mem_cgroup *memcg = NULL;
- 	int page_lru = page_is_file_cache(page);
-+	spinlock_t *ptl;
- 
- 	/*
- 	 * Don't migrate pages that are mapped in multiple processes.
-@@ -1699,9 +1700,10 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 	WARN_ON(PageLRU(new_page));
- 
- 	/* Recheck the target PMD */
--	spin_lock(&mm->page_table_lock);
-+	ptl = huge_pmd_lockptr(mm, pmd);
-+	spin_lock(ptl);
- 	if (unlikely(!pmd_same(*pmd, entry))) {
--		spin_unlock(&mm->page_table_lock);
-+		spin_unlock(ptl);
- 
- 		/* Reverse changes made by migrate_page_copy() */
- 		if (TestClearPageActive(new_page))
-@@ -1746,7 +1748,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 	 * before it's fully transferred to the new page.
- 	 */
- 	mem_cgroup_end_migration(memcg, page, new_page, true);
--	spin_unlock(&mm->page_table_lock);
-+	spin_unlock(ptl);
- 
- 	unlock_page(new_page);
- 	unlock_page(page);
-diff --git v3.11-rc3.orig/mm/mprotect.c v3.11-rc3/mm/mprotect.c
-index 94722a4..c65c390 100644
---- v3.11-rc3.orig/mm/mprotect.c
-+++ v3.11-rc3/mm/mprotect.c
-@@ -116,9 +116,10 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- static inline void change_pmd_protnuma(struct mm_struct *mm, unsigned long addr,
- 				       pmd_t *pmd)
- {
--	spin_lock(&mm->page_table_lock);
-+	spinlock_t *ptl = huge_pmd_lockptr(mm, pmd);
-+	spin_lock(ptl);
- 	set_pmd_at(mm, addr & PMD_MASK, pmd, pmd_mknuma(*pmd));
--	spin_unlock(&mm->page_table_lock);
-+	spin_unlock(ptl);
- }
- #else
- static inline void change_pmd_protnuma(struct mm_struct *mm, unsigned long addr,
-diff --git v3.11-rc3.orig/mm/pgtable-generic.c v3.11-rc3/mm/pgtable-generic.c
-index e1a6e4f..8e49928 100644
---- v3.11-rc3.orig/mm/pgtable-generic.c
-+++ v3.11-rc3/mm/pgtable-generic.c
-@@ -124,11 +124,10 @@ void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
- 
- #ifndef __HAVE_ARCH_PGTABLE_DEPOSIT
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+/* The caller must hold page table lock */
- void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
- 				pgtable_t pgtable)
- {
--	assert_spin_locked(&mm->page_table_lock);
--
- 	/* FIFO */
- 	if (!mm->pmd_huge_pte)
- 		INIT_LIST_HEAD(&pgtable->lru);
-@@ -141,13 +140,14 @@ void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
- 
- #ifndef __HAVE_ARCH_PGTABLE_WITHDRAW
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
--/* no "address" argument so destroys page coloring of some arch */
-+/*
-+ * no "address" argument so destroys page coloring of some arch
-+ * The caller must hold page table lock.
-+ */
- pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
- {
- 	pgtable_t pgtable;
- 
--	assert_spin_locked(&mm->page_table_lock);
--
- 	/* FIFO */
- 	pgtable = mm->pmd_huge_pte;
- 	if (list_empty(&pgtable->lru))
-diff --git v3.11-rc3.orig/mm/rmap.c v3.11-rc3/mm/rmap.c
-index eccec58..798f6ae 100644
---- v3.11-rc3.orig/mm/rmap.c
-+++ v3.11-rc3/mm/rmap.c
-@@ -666,24 +666,24 @@ int page_referenced_one(struct page *page, struct vm_area_struct *vma,
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 	int referenced = 0;
-+	spinlock_t *uninitialized_var(ptl);
- 
- 	if (unlikely(PageTransHuge(page))) {
- 		pmd_t *pmd;
- 
--		spin_lock(&mm->page_table_lock);
- 		/*
- 		 * rmap might return false positives; we must filter
- 		 * these out using page_check_address_pmd().
- 		 */
- 		pmd = page_check_address_pmd(page, mm, address,
--					     PAGE_CHECK_ADDRESS_PMD_FLAG);
-+					PAGE_CHECK_ADDRESS_PMD_FLAG, &ptl);
- 		if (!pmd) {
--			spin_unlock(&mm->page_table_lock);
-+			spin_unlock(ptl);
- 			goto out;
- 		}
- 
- 		if (vma->vm_flags & VM_LOCKED) {
--			spin_unlock(&mm->page_table_lock);
-+			spin_unlock(ptl);
- 			*mapcount = 0;	/* break early from loop */
- 			*vm_flags |= VM_LOCKED;
- 			goto out;
-@@ -692,10 +692,9 @@ int page_referenced_one(struct page *page, struct vm_area_struct *vma,
- 		/* go ahead even if the pmd is pmd_trans_splitting() */
- 		if (pmdp_clear_flush_young_notify(vma, address, pmd))
- 			referenced++;
--		spin_unlock(&mm->page_table_lock);
-+		spin_unlock(ptl);
- 	} else {
- 		pte_t *pte;
--		spinlock_t *ptl;
- 
- 		/*
- 		 * rmap might return false positives; we must filter
--- 
-1.8.3.1
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+>
+> For now, TRANSPARENT_HUGEPAGE_PAGECACHE is only implemented for x86_64.
+>
+> Radix tree perload overhead can be significant on BASE_SMALL systems, so
+> let's add dependency on !BASE_SMALL.
+>
+> /sys/kernel/mm/transparent_hugepage/page_cache is runtime knob for the
+> feature. It's enabled by default if TRANSPARENT_HUGEPAGE_PAGECACHE is
+> enabled.
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  Documentation/vm/transhuge.txt |  9 +++++++++
+>  include/linux/huge_mm.h        |  9 +++++++++
+>  mm/Kconfig                     | 12 ++++++++++++
+>  mm/huge_memory.c               | 23 +++++++++++++++++++++++
+>  4 files changed, 53 insertions(+)
+>
+> diff --git a/Documentation/vm/transhuge.txt
+> b/Documentation/vm/transhuge.txt
+> index 4a63953..4cc15c4 100644
+> --- a/Documentation/vm/transhuge.txt
+> +++ b/Documentation/vm/transhuge.txt
+> @@ -103,6 +103,15 @@ echo always
+> >/sys/kernel/mm/transparent_hugepage/enabled
+>  echo madvise >/sys/kernel/mm/transparent_hugepage/enabled
+>  echo never >/sys/kernel/mm/transparent_hugepage/enabled
+>
+> +If TRANSPARENT_HUGEPAGE_PAGECACHE is enabled kernel will use huge pages =
+in
+> +page cache if possible. It can be disable and re-enabled via sysfs:
+> +
+> +echo 0 >/sys/kernel/mm/transparent_hugepage/page_cache
+> +echo 1 >/sys/kernel/mm/transparent_hugepage/page_cache
+> +
+> +If it's disabled kernel will not add new huge pages to page cache and
+> +split them on mapping, but already mapped pages will stay intakt.
+> +
+>  It's also possible to limit defrag efforts in the VM to generate
+>  hugepages in case they're not immediately free to madvise regions or
+>  to never try to defrag memory and simply fallback to regular pages
+> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+> index 3935428..1534e1e 100644
+> --- a/include/linux/huge_mm.h
+> +++ b/include/linux/huge_mm.h
+> @@ -40,6 +40,7 @@ enum transparent_hugepage_flag {
+>         TRANSPARENT_HUGEPAGE_DEFRAG_FLAG,
+>         TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG,
+>         TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG,
+> +       TRANSPARENT_HUGEPAGE_PAGECACHE,
+>         TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG,
+>  #ifdef CONFIG_DEBUG_VM
+>         TRANSPARENT_HUGEPAGE_DEBUG_COW_FLAG,
+> @@ -229,4 +230,12 @@ static inline int do_huge_pmd_numa_page(struct
+> mm_struct *mm, struct vm_area_str
+>
+>  #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+>
+> +static inline bool transparent_hugepage_pagecache(void)
+> +{
+> +       if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE))
+> +               return false;
+> +       if (!(transparent_hugepage_flags & (1<<TRANSPARENT_HUGEPAGE_FLAG)=
+))
+>
+
+Here, I suppose we should test the  TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG as
+well? E.g.
+        if (!(transparent_hugepage_flags &
+              ((1<<TRANSPARENT_HUGEPAGE_FLAG) |
+               (1<<TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG))))
+
++               return false;
+> +       return transparent_hugepage_flags &
+> (1<<TRANSPARENT_HUGEPAGE_PAGECACHE);
+> +}
+>  #endif /* _LINUX_HUGE_MM_H */
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index 256bfd0..1e30ee8 100644
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -420,6 +420,18 @@ choice
+>           benefit.
+>  endchoice
+>
+> +config TRANSPARENT_HUGEPAGE_PAGECACHE
+> +       bool "Transparent Hugepage Support for page cache"
+> +       depends on X86_64 && TRANSPARENT_HUGEPAGE
+> +       # avoid radix tree preload overhead
+> +       depends on !BASE_SMALL
+> +       default y
+> +       help
+> +         Enabling the option adds support hugepages for file-backed
+> +         mappings. It requires transparent hugepage support from
+> +         filesystem side. For now, the only filesystem which supports
+> +         hugepages is ramfs.
+> +
+>  config CROSS_MEMORY_ATTACH
+>         bool "Cross Memory Support"
+>         depends on MMU
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index d96d921..523946c 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -42,6 +42,9 @@ unsigned long transparent_hugepage_flags __read_mostly =
+=3D
+>  #endif
+>         (1<<TRANSPARENT_HUGEPAGE_DEFRAG_FLAG)|
+>         (1<<TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG)|
+> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE
+> +       (1<<TRANSPARENT_HUGEPAGE_PAGECACHE)|
+> +#endif
+>         (1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG);
+>
+>  /* default scan 8*512 pte (or vmas) every 30 second */
+> @@ -362,6 +365,23 @@ static ssize_t defrag_store(struct kobject *kobj,
+>  static struct kobj_attribute defrag_attr =3D
+>         __ATTR(defrag, 0644, defrag_show, defrag_store);
+>
+> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE
+> +static ssize_t page_cache_show(struct kobject *kobj,
+> +               struct kobj_attribute *attr, char *buf)
+> +{
+> +       return single_flag_show(kobj, attr, buf,
+> +                               TRANSPARENT_HUGEPAGE_PAGECACHE);
+> +}
+> +static ssize_t page_cache_store(struct kobject *kobj,
+> +               struct kobj_attribute *attr, const char *buf, size_t coun=
+t)
+> +{
+> +       return single_flag_store(kobj, attr, buf, count,
+> +                                TRANSPARENT_HUGEPAGE_PAGECACHE);
+> +}
+> +static struct kobj_attribute page_cache_attr =3D
+> +       __ATTR(page_cache, 0644, page_cache_show, page_cache_store);
+> +#endif
+> +
+>  static ssize_t use_zero_page_show(struct kobject *kobj,
+>                 struct kobj_attribute *attr, char *buf)
+>  {
+> @@ -397,6 +417,9 @@ static struct kobj_attribute debug_cow_attr =3D
+>  static struct attribute *hugepage_attr[] =3D {
+>         &enabled_attr.attr,
+>         &defrag_attr.attr,
+> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE
+> +       &page_cache_attr.attr,
+> +#endif
+>         &use_zero_page_attr.attr,
+>  #ifdef CONFIG_DEBUG_VM
+>         &debug_cow_attr.attr,
+> --
+> 1.8.3.2
+>
+>
+
+--001a11c2c158ba3eed04e5a9f455
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr">One minor question inline.<br><div class=3D"gmail_extra"><=
+br clear=3D"all"><div><div><div>Best wishes,<br></div><div><span style=3D"b=
+order-collapse:collapse;font-family:arial,sans-serif;font-size:13px">--=C2=
+=A0<br><span style=3D"border-collapse:collapse;font-family:sans-serif;line-=
+height:19px"><span style=3D"border-width:2px 0px 0px;border-style:solid;bor=
+der-color:rgb(213,15,37);padding-top:2px;margin-top:2px">Ning Qu (=E6=9B=B2=
+=E5=AE=81)<font color=3D"#555555">=C2=A0|</font></span><span style=3D"color=
+:rgb(85,85,85);border-width:2px 0px 0px;border-style:solid;border-color:rgb=
+(51,105,232);padding-top:2px;margin-top:2px">=C2=A0Software Engineer |</spa=
+n><span style=3D"color:rgb(85,85,85);border-width:2px 0px 0px;border-style:=
+solid;border-color:rgb(0,153,57);padding-top:2px;margin-top:2px">=C2=A0<a h=
+ref=3D"mailto:quning@google.com" style=3D"color:rgb(0,0,204)" target=3D"_bl=
+ank">quning@google.com</a>=C2=A0|</span><span style=3D"color:rgb(85,85,85);=
+border-width:2px 0px 0px;border-style:solid;border-color:rgb(238,178,17);pa=
+dding-top:2px;margin-top:2px">=C2=A0<a value=3D"+16502143877" style=3D"colo=
+r:rgb(0,0,204)">+1-408-418-6066</a></span></span></span></div>
+
+</div></div>
+<br><br><div class=3D"gmail_quote">On Sat, Aug 3, 2013 at 7:17 PM, Kirill A=
+. Shutemov <span dir=3D"ltr">&lt;<a href=3D"mailto:kirill.shutemov@linux.in=
+tel.com" target=3D"_blank">kirill.shutemov@linux.intel.com</a>&gt;</span> w=
+rote:<br>
+
+<blockquote class=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8ex;border-=
+left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;p=
+adding-left:1ex">From: &quot;Kirill A. Shutemov&quot; &lt;<a href=3D"mailto=
+:kirill.shutemov@linux.intel.com">kirill.shutemov@linux.intel.com</a>&gt;<b=
+r>
+
+
+<br>
+For now, TRANSPARENT_HUGEPAGE_PAGECACHE is only implemented for x86_64.<br>
+<br>
+Radix tree perload overhead can be significant on BASE_SMALL systems, so<br=
+>
+let&#39;s add dependency on !BASE_SMALL.<br>
+<br>
+/sys/kernel/mm/transparent_hugepage/page_cache is runtime knob for the<br>
+feature. It&#39;s enabled by default if TRANSPARENT_HUGEPAGE_PAGECACHE is<b=
+r>
+enabled.<br>
+<br>
+Signed-off-by: Kirill A. Shutemov &lt;<a href=3D"mailto:kirill.shutemov@lin=
+ux.intel.com">kirill.shutemov@linux.intel.com</a>&gt;<br>
+---<br>
+=C2=A0Documentation/vm/transhuge.txt | =C2=A09 +++++++++<br>
+=C2=A0include/linux/huge_mm.h =C2=A0 =C2=A0 =C2=A0 =C2=A0| =C2=A09 ++++++++=
++<br>
+=C2=A0mm/Kconfig =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 | 12 ++++++++++++<br>
+=C2=A0mm/huge_memory.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 | 2=
+3 +++++++++++++++++++++++<br>
+=C2=A04 files changed, 53 insertions(+)<br>
+<br>
+diff --git a/Documentation/vm/transhuge.txt b/Documentation/vm/transhuge.tx=
+t<br>
+index 4a63953..4cc15c4 100644<br>
+--- a/Documentation/vm/transhuge.txt<br>
++++ b/Documentation/vm/transhuge.txt<br>
+@@ -103,6 +103,15 @@ echo always &gt;/sys/kernel/mm/transparent_hugepage/en=
+abled<br>
+=C2=A0echo madvise &gt;/sys/kernel/mm/transparent_hugepage/enabled<br>
+=C2=A0echo never &gt;/sys/kernel/mm/transparent_hugepage/enabled<br>
+<br>
++If TRANSPARENT_HUGEPAGE_PAGECACHE is enabled kernel will use huge pages in=
+<br>
++page cache if possible. It can be disable and re-enabled via sysfs:<br>
++<br>
++echo 0 &gt;/sys/kernel/mm/transparent_hugepage/page_cache<br>
++echo 1 &gt;/sys/kernel/mm/transparent_hugepage/page_cache<br>
++<br>
++If it&#39;s disabled kernel will not add new huge pages to page cache and<=
+br>
++split them on mapping, but already mapped pages will stay intakt.<br>
++<br>
+=C2=A0It&#39;s also possible to limit defrag efforts in the VM to generate<=
+br>
+=C2=A0hugepages in case they&#39;re not immediately free to madvise regions=
+ or<br>
+=C2=A0to never try to defrag memory and simply fallback to regular pages<br=
+>
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h<br>
+index 3935428..1534e1e 100644<br>
+--- a/include/linux/huge_mm.h<br>
++++ b/include/linux/huge_mm.h<br>
+@@ -40,6 +40,7 @@ enum transparent_hugepage_flag {<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 TRANSPARENT_HUGEPAGE_DEFRAG_FLAG,<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG,<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG,<br=
+>
++ =C2=A0 =C2=A0 =C2=A0 TRANSPARENT_HUGEPAGE_PAGECACHE,<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG,<br>
+=C2=A0#ifdef CONFIG_DEBUG_VM<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 TRANSPARENT_HUGEPAGE_DEBUG_COW_FLAG,<br>
+@@ -229,4 +230,12 @@ static inline int do_huge_pmd_numa_page(struct mm_stru=
+ct *mm, struct vm_area_str<br>
+<br>
+=C2=A0#endif /* CONFIG_TRANSPARENT_HUGEPAGE */<br>
+<br>
++static inline bool transparent_hugepage_pagecache(void)<br>
++{<br>
++ =C2=A0 =C2=A0 =C2=A0 if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE_PAGECACH=
+E))<br>
++ =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return false;<br>
++ =C2=A0 =C2=A0 =C2=A0 if (!(transparent_hugepage_flags &amp; (1&lt;&lt;TRA=
+NSPARENT_HUGEPAGE_FLAG)))<br></blockquote><div><br></div><div>Here, I suppo=
+se we should test the =C2=A0TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG as well? E.g=
+.</div><div><div>
+
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!(transparent_hugepage_flags &amp;</div><di=
+v>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 ((1&lt;&lt;TRANSPARENT_H=
+UGEPAGE_FLAG) |</div><div>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0(1&lt;&lt;TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG))))</div></div><div><br>=
+</div><blockquote class=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8ex;b=
+order-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:s=
+olid;padding-left:1ex">
+
+
++ =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return false;<br>
++ =C2=A0 =C2=A0 =C2=A0 return transparent_hugepage_flags &amp; (1&lt;&lt;TR=
+ANSPARENT_HUGEPAGE_PAGECACHE);<br>
++}<br>
+=C2=A0#endif /* _LINUX_HUGE_MM_H */<br>
+diff --git a/mm/Kconfig b/mm/Kconfig<br>
+index 256bfd0..1e30ee8 100644<br>
+--- a/mm/Kconfig<br>
++++ b/mm/Kconfig<br>
+@@ -420,6 +420,18 @@ choice<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 benefit.<br>
+=C2=A0endchoice<br>
+<br>
++config TRANSPARENT_HUGEPAGE_PAGECACHE<br>
++ =C2=A0 =C2=A0 =C2=A0 bool &quot;Transparent Hugepage Support for page cac=
+he&quot;<br>
++ =C2=A0 =C2=A0 =C2=A0 depends on X86_64 &amp;&amp; TRANSPARENT_HUGEPAGE<br=
+>
++ =C2=A0 =C2=A0 =C2=A0 # avoid radix tree preload overhead<br>
++ =C2=A0 =C2=A0 =C2=A0 depends on !BASE_SMALL<br>
++ =C2=A0 =C2=A0 =C2=A0 default y<br>
++ =C2=A0 =C2=A0 =C2=A0 help<br>
++ =C2=A0 =C2=A0 =C2=A0 =C2=A0 Enabling the option adds support hugepages fo=
+r file-backed<br>
++ =C2=A0 =C2=A0 =C2=A0 =C2=A0 mappings. It requires transparent hugepage su=
+pport from<br>
++ =C2=A0 =C2=A0 =C2=A0 =C2=A0 filesystem side. For now, the only filesystem=
+ which supports<br>
++ =C2=A0 =C2=A0 =C2=A0 =C2=A0 hugepages is ramfs.<br>
++<br>
+=C2=A0config CROSS_MEMORY_ATTACH<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 bool &quot;Cross Memory Support&quot;<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 depends on MMU<br>
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c<br>
+index d96d921..523946c 100644<br>
+--- a/mm/huge_memory.c<br>
++++ b/mm/huge_memory.c<br>
+@@ -42,6 +42,9 @@ unsigned long transparent_hugepage_flags __read_mostly =
+=3D<br>
+=C2=A0#endif<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 (1&lt;&lt;TRANSPARENT_HUGEPAGE_DEFRAG_FLAG)|<br=
+>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 (1&lt;&lt;TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGE=
+D_FLAG)|<br>
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE<br>
++ =C2=A0 =C2=A0 =C2=A0 (1&lt;&lt;TRANSPARENT_HUGEPAGE_PAGECACHE)|<br>
++#endif<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 (1&lt;&lt;TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FL=
+AG);<br>
+<br>
+=C2=A0/* default scan 8*512 pte (or vmas) every 30 second */<br>
+@@ -362,6 +365,23 @@ static ssize_t defrag_store(struct kobject *kobj,<br>
+=C2=A0static struct kobj_attribute defrag_attr =3D<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 __ATTR(defrag, 0644, defrag_show, defrag_store)=
+;<br>
+<br>
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE<br>
++static ssize_t page_cache_show(struct kobject *kobj,<br>
++ =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 struct kobj_attribute *a=
+ttr, char *buf)<br>
++{<br>
++ =C2=A0 =C2=A0 =C2=A0 return single_flag_show(kobj, attr, buf,<br>
++ =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 TRANSPARENT_HUGEPAGE_PAGECACHE);<br>
++}<br>
++static ssize_t page_cache_store(struct kobject *kobj,<br>
++ =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 struct kobj_attribute *a=
+ttr, const char *buf, size_t count)<br>
++{<br>
++ =C2=A0 =C2=A0 =C2=A0 return single_flag_store(kobj, attr, buf, count,<br>
++ =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0TRANSPARENT_HUGEPAGE_PAGECACHE);<br>
++}<br>
++static struct kobj_attribute page_cache_attr =3D<br>
++ =C2=A0 =C2=A0 =C2=A0 __ATTR(page_cache, 0644, page_cache_show, page_cache=
+_store);<br>
++#endif<br>
++<br>
+=C2=A0static ssize_t use_zero_page_show(struct kobject *kobj,<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 struct kobj_attribu=
+te *attr, char *buf)<br>
+=C2=A0{<br>
+@@ -397,6 +417,9 @@ static struct kobj_attribute debug_cow_attr =3D<br>
+=C2=A0static struct attribute *hugepage_attr[] =3D {<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 &amp;enabled_attr.attr,<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 &amp;defrag_attr.attr,<br>
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE<br>
++ =C2=A0 =C2=A0 =C2=A0 &amp;page_cache_attr.attr,<br>
++#endif<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 &amp;use_zero_page_attr.attr,<br>
+=C2=A0#ifdef CONFIG_DEBUG_VM<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 &amp;debug_cow_attr.attr,<br>
+<span class=3D""><font color=3D"#888888">--<br>
+1.8.3.2<br>
+<br>
+</font></span></blockquote></div><br></div></div>
+
+--001a11c2c158ba3eed04e5a9f455--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
