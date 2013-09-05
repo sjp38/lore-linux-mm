@@ -1,135 +1,180 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 61EA16B0033
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2013 02:29:15 -0400 (EDT)
-Received: by mail-yh0-f73.google.com with SMTP id z20so88374yhz.2
-        for <linux-mm@kvack.org>; Wed, 04 Sep 2013 23:29:14 -0700 (PDT)
-From: Greg Thelen <gthelen@google.com>
-Subject: [PATCH 2/2 v3] memcg: support hierarchical memory.numa_stats
-Date: Wed,  4 Sep 2013 23:28:59 -0700
-Message-Id: <1378362539-18100-2-git-send-email-gthelen@google.com>
-In-Reply-To: <1378362539-18100-1-git-send-email-gthelen@google.com>
-References: <1378362539-18100-1-git-send-email-gthelen@google.com>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 63CCD6B0031
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2013 02:41:16 -0400 (EDT)
+Message-ID: <522825E4.7080404@huawei.com>
+Date: Thu, 5 Sep 2013 14:34:12 +0800
+From: Jianguo Wu <wujianguo@huawei.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm/thp: fix comments in transparent_hugepage_flags
+References: <1378301422-9468-1-git-send-email-wujianguo@huawei.com> <5227e870.ab42320a.62d4.3d12SMTPIN_ADDED_BROKEN@mx.google.com> <5227F4B6.40009@huawei.com> <20130905033704.GA18909@hacker.(null)> <52280058.5070803@huawei.com> <52280f92.e72b320a.2501.6de1SMTPIN_ADDED_BROKEN@mx.google.com>
+In-Reply-To: <52280f92.e72b320a.2501.6de1SMTPIN_ADDED_BROKEN@mx.google.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: hughd@google.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Jianguo Wu <wujianguo106@gmail.com>, akpm@linux-foundation.org, aarcange@redhat.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, xiaoguangrong@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Ying Han <yinghan@google.com>
+On 2013/9/5 12:58, Wanpeng Li wrote:
 
-The memory.numa_stat file was not hierarchical.  Memory charged to the
-children was not shown in parent's numa_stat.
+> Hi Jianguo,
+> On Thu, Sep 05, 2013 at 11:54:00AM +0800, Jianguo Wu wrote:
+>> On 2013/9/5 11:37, Wanpeng Li wrote:
+>>
+>>> On Thu, Sep 05, 2013 at 11:04:22AM +0800, Jianguo Wu wrote:
+>>>> Hi Wanpeng,
+>>>>
+>>>> On 2013/9/5 10:11, Wanpeng Li wrote:
+>>>>
+>>>>> Hi Jianguo,
+>>>>> On Wed, Sep 04, 2013 at 09:30:22PM +0800, Jianguo Wu wrote:
+>>>>>> Since commit d39d33c332(thp: enable direct defrag), defrag is enable
+>>>>>> for all transparent hugepage page faults by default, not only in
+>>>>>> MADV_HUGEPAGE regions.
+>>>>>>
+>>>>>> Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
+>>>>>> ---
+>>>>>> mm/huge_memory.c | 6 ++----
+>>>>>> 1 file changed, 2 insertions(+), 4 deletions(-)
+>>>>>>
+>>>>>> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+>>>>>> index a92012a..abf047e 100644
+>>>>>> --- a/mm/huge_memory.c
+>>>>>> +++ b/mm/huge_memory.c
+>>>>>> @@ -28,10 +28,8 @@
+>>>>>>
+>>>>>> /*
+>>>>>>  * By default transparent hugepage support is enabled for all mappings
+>>>>>
+>>>>> This is also stale. TRANSPARENT_HUGEPAGE_ALWAYS is not configured by default in
+>>>>> order that avoid to risk increase the memory footprint of applications w/o a 
+>>>>> guaranteed benefit.
+>>>>>
+>>>>
+>>>> Right, how about this:
+>>>>
+>>>> By default transparent hugepage support is disabled in order that avoid to risk
+>>>
+>>> I don't think it's disabled. TRANSPARENT_HUGEPAGE_MADVISE is configured
+>>> by default.
+>>>
+>>
+>> Hi Wanpeng,
+>>
+>> We have TRANSPARENT_HUGEPAGE and TRANSPARENT_HUGEPAGE_ALWAYS/TRANSPARENT_HUGEPAGE_MADVISE,
+>> TRANSPARENT_HUGEPAGE_ALWAYS or TRANSPARENT_HUGEPAGE_MADVISE is configured only if TRANSPARENT_HUGEPAGE
+>> is configured.
+>>
+>> By default, TRANSPARENT_HUGEPAGE=n, and TRANSPARENT_HUGEPAGE_ALWAYS is configured when TRANSPARENT_HUGEPAGE=y.
+>>
+>> commit 13ece886d9(thp: transparent hugepage config choice):
+>>
+>> config TRANSPARENT_HUGEPAGE
+>> -       bool "Transparent Hugepage Support" if EMBEDDED
+>> +       bool "Transparent Hugepage Support"
+>>        depends on X86 && MMU
+>> -       default y
+>>
+>> +choice
+>> +       prompt "Transparent Hugepage Support sysfs defaults"
+>> +       depends on TRANSPARENT_HUGEPAGE
+>> +       default TRANSPARENT_HUGEPAGE_ALWAYS
+>>
+> 
+> mmotm tree:
+> 
+> grep 'TRANSPARENT_HUGEPAGE' .config
+> CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE=y
+> CONFIG_TRANSPARENT_HUGEPAGE=y
+> # CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS is not set
+> CONFIG_TRANSPARENT_HUGEPAGE_MADVISE=y
+> 
+> distro:
+> 
+> grep 'TRANSPARENT_HUGEPAGE' config-3.8.0-26-generic 
+> CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE=y
+> CONFIG_TRANSPARENT_HUGEPAGE=y
+> # CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS is not set
+> CONFIG_TRANSPARENT_HUGEPAGE_MADVISE=y
+> 
 
-This change adds the "hierarchical_" stats to the existing stats.  The
-new hierarchical stats include the sum of all children's values in
-addition to the value of the memcg.
+Hi Wanpeng,
 
-Tested: Create cgroup a, a/b and run workload under b.  The values of
-b are included in the "hierarchical_*" under a.
+I'm a little confused, at mm/Kconfig, TRANSPARENT_HUGEPAGE is not configured by default.
 
-$ cd /sys/fs/cgroup
-$ echo 1 > memory.use_hierarchy
-$ mkdir a a/b
+and in x86_64, linus tree:
 
-Run workload in a/b:
-$ (echo $BASHPID >> a/b/cgroup.procs && cat /some/file && bash) &
+$make defconfig
+$grep 'TRANSPARENT_HUGEPAGE' .config
+CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE=y
+# CONFIG_TRANSPARENT_HUGEPAGE is not set
 
-The hierarchical_ fields in parent (a) show use of workload in a/b:
-$ cat a/memory.numa_stat
-total=0 N0=0 N1=0 N2=0 N3=0
-file=0 N0=0 N1=0 N2=0 N3=0
-anon=0 N0=0 N1=0 N2=0 N3=0
-unevictable=0 N0=0 N1=0 N2=0 N3=0
-hierarchical_total=61 N0=0 N1=41 N2=20 N3=0
-hierarchical_file=14 N0=0 N1=0 N2=14 N3=0
-hierarchical_anon=47 N0=0 N1=41 N2=6 N3=0
-hierarchical_unevictable=0 N0=0 N1=0 N2=0 N3=0
+Do i misunderstand something herei 1/4 ?
 
-The workload memory usage:
-$ cat a/b/memory.numa_stat
-total=73 N0=0 N1=41 N2=32 N3=0
-file=14 N0=0 N1=0 N2=14 N3=0
-anon=59 N0=0 N1=41 N2=18 N3=0
-unevictable=0 N0=0 N1=0 N2=0 N3=0
-hierarchical_total=73 N0=0 N1=41 N2=32 N3=0
-hierarchical_file=14 N0=0 N1=0 N2=14 N3=0
-hierarchical_anon=59 N0=0 N1=41 N2=18 N3=0
-hierarchical_unevictable=0 N0=0 N1=0 N2=0 N3=0
+Thanks
 
-Signed-off-by: Ying Han <yinghan@google.com>
-Signed-off-by: Greg Thelen <gthelen@google.com>
----
-Changelog since v2:
-- reworded Documentation/cgroup/memory.txt
-- updated commit description
+> 
+>> Thanks,
+>> Jianguo Wu
+>>
+>>> Regards,
+>>> Wanpeng Li 
+>>>
+>>>> increase the memory footprint of applications w/o a guaranteed benefit, and
+>>>> khugepaged scans all mappings when transparent hugepage enabled.
+>>>> Defrag is invoked by khugepaged hugepage allocations and by page faults for all
+>>>> hugepage allocations.
+>>>>
+>>>> Thanks,
+>>>> Jianguo Wu
+>>>>
+>>>>> Regards,
+>>>>> Wanpeng Li 
+>>>>>
+>>>>>> - * and khugepaged scans all mappings. Defrag is only invoked by
+>>>>>> - * khugepaged hugepage allocations and by page faults inside
+>>>>>> - * MADV_HUGEPAGE regions to avoid the risk of slowing down short lived
+>>>>>> - * allocations.
+>>>>>> + * and khugepaged scans all mappings. Defrag is invoked by khugepaged
+>>>>>> + * hugepage allocations and by page faults for all hugepage allocations.
+>>>>>>  */
+>>>>>> unsigned long transparent_hugepage_flags __read_mostly =
+>>>>>> #ifdef CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS
+>>>>>> -- 
+>>>>>> 1.8.1.2
+>>>>>>
+>>>>>> --
+>>>>>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>>>>>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>>>>>> see: http://www.linux-mm.org/ .
+>>>>>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>>>>>
+>>>>> --
+>>>>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>>>>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>>>>> see: http://www.linux-mm.org/ .
+>>>>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>>>>>
+>>>>>
+>>>>
+>>>>
+>>>
+>>>
+>>> .
+>>>
+>>
+>>
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+> 
 
- Documentation/cgroups/memory.txt | 10 +++++++---
- mm/memcontrol.c                  | 16 ++++++++++++++++
- 2 files changed, 23 insertions(+), 3 deletions(-)
 
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-index 2a33306..d6d6479 100644
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -571,15 +571,19 @@ an memcg since the pages are allowed to be allocated from any physical
- node.  One of the use cases is evaluating application performance by
- combining this information with the application's CPU allocation.
- 
--We export "total", "file", "anon" and "unevictable" pages per-node for
--each memcg.  The ouput format of memory.numa_stat is:
-+Each memcg's numa_stat file includes "total", "file", "anon" and "unevictable"
-+per-node page counts including "hierarchical_<counter>" which sums of all
-+hierarchical children's values in addition to the memcg's own value.
-+
-+The ouput format of memory.numa_stat is:
- 
- total=<total pages> N0=<node 0 pages> N1=<node 1 pages> ...
- file=<total file pages> N0=<node 0 pages> N1=<node 1 pages> ...
- anon=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
- unevictable=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
-+hierarchical_<counter>=<counter pages> N0=<node 0 pages> N1=<node 1 pages> ...
- 
--And we have total = file + anon + unevictable.
-+The "total" count is sum of file + anon + unevictable.
- 
- 6. Hierarchy support
- 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 4d2b037..0e5be30 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -5394,6 +5394,7 @@ static int memcg_numa_stat_show(struct cgroup *cont, struct cftype *cft,
- 	int nid;
- 	unsigned long nr;
- 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
-+	struct mem_cgroup *iter;
- 
- 	for (stat = stats; stat->name; stat++) {
- 		nr = mem_cgroup_nr_lru_pages(memcg, stat->lru_mask);
-@@ -5406,6 +5407,21 @@ static int memcg_numa_stat_show(struct cgroup *cont, struct cftype *cft,
- 		seq_putc(m, '\n');
- 	}
- 
-+	for (stat = stats; stat->name; stat++) {
-+		nr = 0;
-+		for_each_mem_cgroup_tree(iter, memcg)
-+			nr += mem_cgroup_nr_lru_pages(iter, stat->lru_mask);
-+		seq_printf(m, "hierarchical_%s=%lu", stat->name, nr);
-+		for_each_node_state(nid, N_MEMORY) {
-+			nr = 0;
-+			for_each_mem_cgroup_tree(iter, memcg)
-+				nr += mem_cgroup_node_nr_lru_pages(
-+					iter, nid, stat->lru_mask);
-+			seq_printf(m, " N%d=%lu", nid, nr);
-+		}
-+		seq_putc(m, '\n');
-+	}
-+
- 	return 0;
- }
- #endif /* CONFIG_NUMA */
--- 
-1.8.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
