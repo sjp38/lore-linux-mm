@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 1DA286B0031
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2013 03:58:36 -0400 (EDT)
-Message-ID: <5228397B.9000502@huawei.com>
-Date: Thu, 5 Sep 2013 15:57:47 +0800
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id CFEB86B0031
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2013 04:08:34 -0400 (EDT)
+Message-ID: <52283AF9.2080606@huawei.com>
+Date: Thu, 5 Sep 2013 16:04:09 +0800
 From: Jianguo Wu <wujianguo@huawei.com>
 MIME-Version: 1.0
-Subject: [PATCH v2] mm/thp: fix stale comments of transparent_hugepage_flags
+Subject: [PATCH v2][RESEND] mm/thp: fix stale comments of transparent_hugepage_flags
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -28,24 +28,23 @@ MADV_HUGEPAGE regions.
 
 Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
 ---
- mm/huge_memory.c |   12 ++++++------
- 1 files changed, 6 insertions(+), 6 deletions(-)
+ mm/huge_memory.c |   11 ++++++-----
+ 1 files changed, 6 insertions(+), 5 deletions(-)
 
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index a92012a..0e42a70 100644
+index a92012a..90ce6de 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -26,12 +26,12 @@
- #include <asm/pgalloc.h>
+@@ -27,11 +27,12 @@
  #include "internal.h"
  
--/*
+ /*
 - * By default transparent hugepage support is enabled for all mappings
 - * and khugepaged scans all mappings. Defrag is only invoked by
 - * khugepaged hugepage allocations and by page faults inside
 - * MADV_HUGEPAGE regions to avoid the risk of slowing down short lived
 - * allocations.
-+/* By default transparent hugepage support is disabled in order that avoid
++ * By default transparent hugepage support is disabled in order that avoid
 + * to risk increase the memory footprint of applications without a guaranteed
 + * benefit. When transparent hugepage support is enabled, is for all mappings,
 + * and khugepaged scans all mappings.
