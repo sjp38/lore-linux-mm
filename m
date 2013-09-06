@@ -1,55 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 7A9036B0031
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2013 06:48:08 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 67CC46B0031
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2013 07:34:04 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <1378416466-30913-3-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1378416466-30913-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1378416466-30913-3-git-send-email-n-horiguchi@ah.jp.nec.com>
-Subject: RE: [PATCH 2/2] thp: support split page table lock
+In-Reply-To: <CACz4_2fJPngXwijEQcmVYB67u_4QDDJkpiyCv4K0iCFdmPsDuA@mail.gmail.com>
+References: <1375582645-29274-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1375582645-29274-4-git-send-email-kirill.shutemov@linux.intel.com>
+ <CACz4_2fJPngXwijEQcmVYB67u_4QDDJkpiyCv4K0iCFdmPsDuA@mail.gmail.com>
+Subject: Re: [PATCH 03/23] thp: compile-time and sysfs knob for thp pagecache
 Content-Transfer-Encoding: 7bit
-Message-Id: <20130906104803.0F39CE0090@blue.fi.intel.com>
-Date: Fri,  6 Sep 2013 13:48:03 +0300 (EEST)
+Message-Id: <20130906113358.6D8EEE0090@blue.fi.intel.com>
+Date: Fri,  6 Sep 2013 14:33:58 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, kirill.shutemov@linux.intel.com, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Alex Thorlton <athorlton@sgi.com>, linux-kernel@vger.kernel.org
+To: Ning Qu <quning@google.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Naoya Horiguchi wrote:
-> Thp related code also uses per process mm->page_table_lock now.
-> So making it fine-grained can provide better performance.
+Ning Qu wrote:
+> One minor question inline.
 > 
-> This patch makes thp support split page table lock by using page->ptl
-> of the pages storing "pmd_trans_huge" pmds.
+> Best wishes,
+> -- 
+> Ning Qu (ae?2a(R)?) | Software Engineer | quning@google.com | +1-408-418-6066
 > 
-> Some functions like pmd_trans_huge_lock() and page_check_address_pmd()
-> are expected by their caller to pass back the pointer of ptl, so this
-> patch adds to those functions new arguments for that. Rather than that,
-> this patch gives only straightforward replacement.
 > 
-> ChangeLog v3:
->  - fixed argument of huge_pmd_lockptr() in copy_huge_pmd()
->  - added missing declaration of ptl in do_huge_pmd_anonymous_page()
+> On Sat, Aug 3, 2013 at 7:17 PM, Kirill A. Shutemov <
+> kirill.shutemov@linux.intel.com> wrote:
 > 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> >
+> > For now, TRANSPARENT_HUGEPAGE_PAGECACHE is only implemented for x86_64.
+> >
+> > Radix tree perload overhead can be significant on BASE_SMALL systems, so
+> > let's add dependency on !BASE_SMALL.
+> >
+> > /sys/kernel/mm/transparent_hugepage/page_cache is runtime knob for the
+> > feature. It's enabled by default if TRANSPARENT_HUGEPAGE_PAGECACHE is
+> > enabled.
+> >
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > ---
+> >  Documentation/vm/transhuge.txt |  9 +++++++++
+> >  include/linux/huge_mm.h        |  9 +++++++++
+> >  mm/Kconfig                     | 12 ++++++++++++
+> >  mm/huge_memory.c               | 23 +++++++++++++++++++++++
+> >  4 files changed, 53 insertions(+)
+> >
+> > diff --git a/Documentation/vm/transhuge.txt
+> > b/Documentation/vm/transhuge.txt
+> > index 4a63953..4cc15c4 100644
+> > --- a/Documentation/vm/transhuge.txt
+> > +++ b/Documentation/vm/transhuge.txt
+> > @@ -103,6 +103,15 @@ echo always
+> > >/sys/kernel/mm/transparent_hugepage/enabled
+> >  echo madvise >/sys/kernel/mm/transparent_hugepage/enabled
+> >  echo never >/sys/kernel/mm/transparent_hugepage/enabled
+> >
+> > +If TRANSPARENT_HUGEPAGE_PAGECACHE is enabled kernel will use huge pages in
+> > +page cache if possible. It can be disable and re-enabled via sysfs:
+> > +
+> > +echo 0 >/sys/kernel/mm/transparent_hugepage/page_cache
+> > +echo 1 >/sys/kernel/mm/transparent_hugepage/page_cache
+> > +
+> > +If it's disabled kernel will not add new huge pages to page cache and
+> > +split them on mapping, but already mapped pages will stay intakt.
+> > +
+> >  It's also possible to limit defrag efforts in the VM to generate
+> >  hugepages in case they're not immediately free to madvise regions or
+> >  to never try to defrag memory and simply fallback to regular pages
+> > diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+> > index 3935428..1534e1e 100644
+> > --- a/include/linux/huge_mm.h
+> > +++ b/include/linux/huge_mm.h
+> > @@ -40,6 +40,7 @@ enum transparent_hugepage_flag {
+> >         TRANSPARENT_HUGEPAGE_DEFRAG_FLAG,
+> >         TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG,
+> >         TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG,
+> > +       TRANSPARENT_HUGEPAGE_PAGECACHE,
+> >         TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG,
+> >  #ifdef CONFIG_DEBUG_VM
+> >         TRANSPARENT_HUGEPAGE_DEBUG_COW_FLAG,
+> > @@ -229,4 +230,12 @@ static inline int do_huge_pmd_numa_page(struct
+> > mm_struct *mm, struct vm_area_str
+> >
+> >  #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+> >
+> > +static inline bool transparent_hugepage_pagecache(void)
+> > +{
+> > +       if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE))
+> > +               return false;
+> > +       if (!(transparent_hugepage_flags & (1<<TRANSPARENT_HUGEPAGE_FLAG)))
+> >
+> 
+> Here, I suppose we should test the  TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG as
+> well? E.g.
+>         if (!(transparent_hugepage_flags &
+>               ((1<<TRANSPARENT_HUGEPAGE_FLAG) |
+>                (1<<TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG))))
+> 
+> +               return false;
 
-Generally, looks good. Few notes:
-
-I believe you need to convert __pte_alloc() to new locking. Not sure about
-__pte_alloc_kernel().
-Have you check all rest mm->page_table_lock, that they shouldn't be
-converted to new locking?
-
-You use uninitialized_var() a lot. It's ugly. I've check few places
-(task_mmu.c, copy_huge_pmd) and have found a reason why we need it there.
-Why?
-
-You often do
-
-+       ptl = huge_pmd_lockptr(mm, pmd);
-+       spin_lock(ptl);
-
-Should we have a helper to combine them? huge_pmd_lock()?
+You're right. Fixed.
 
 -- 
  Kirill A. Shutemov
