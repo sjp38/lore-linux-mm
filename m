@@ -1,80 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id CA49E6B0031
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2013 02:42:08 -0400 (EDT)
-Message-ID: <5229792F.9000803@oracle.com>
-Date: Fri, 06 Sep 2013 14:41:51 +0800
-From: Bob Liu <bob.liu@oracle.com>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 2CBDF6B0031
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2013 02:57:25 -0400 (EDT)
+Date: Fri, 6 Sep 2013 09:57:15 +0300
+From: Gleb Natapov <gleb@redhat.com>
+Subject: Re: [PATCH v9 12/13] KVM: PPC: Add support for IOMMU in-kernel
+ handling
+Message-ID: <20130906065715.GG13021@redhat.com>
+References: <1377679070-3515-1-git-send-email-aik@ozlabs.ru>
+ <1377679841-3822-1-git-send-email-aik@ozlabs.ru>
+ <20130901120609.GJ22899@redhat.com>
+ <52240295.7050608@ozlabs.ru>
+ <20130903105315.GY22899@redhat.com>
+ <1378353909.4321.126.camel@pasglop>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 4/4] mm/zswap: use GFP_NOIO instead of GFP_KERNEL
-References: <000601ceaac0$5be39f90$13aadeb0$%yang@samsung.com>
-In-Reply-To: <000601ceaac0$5be39f90$13aadeb0$%yang@samsung.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1378353909.4321.126.camel@pasglop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Weijie Yang <weijie.yang@samsung.com>
-Cc: sjenning@linux.vnet.ibm.com, minchan@kernel.org, weijie.yang.kh@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Alexey Kardashevskiy <aik@ozlabs.ru>, linuxppc-dev@lists.ozlabs.org, David Gibson <david@gibson.dropbear.id.au>, Paul Mackerras <paulus@samba.org>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Graf <agraf@suse.de>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kvm-ppc@vger.kernel.org, linux-mm@kvack.org
 
-
-On 09/06/2013 01:16 PM, Weijie Yang wrote:
-> To avoid zswap store and reclaim functions called recursively,
-> use GFP_NOIO instead of GFP_KERNEL
+On Thu, Sep 05, 2013 at 02:05:09PM +1000, Benjamin Herrenschmidt wrote:
+> On Tue, 2013-09-03 at 13:53 +0300, Gleb Natapov wrote:
+> > > Or supporting all IOMMU links (and leaving emulated stuff as is) in on
+> > > "device" is the last thing I have to do and then you'll ack the patch?
+> > > 
+> > I am concerned more about API here. Internal implementation details I
+> > leave to powerpc experts :)
 > 
-
-The reason of using GFP_KERNEL in write back path is we want to try our
-best to move those pages from zswap to real swap device.
-
-I think it would be better to keep GFP_KERNEL flag but find some other
-ways to skip zswap/zswap_frontswap_store() if zswap write back is in
-progress.
-
-What I can think of currently is adding a mutex to zswap, take that
-mutex when zswap write back happens and check the mutex in
-zswap_frontswap_store().
-
-
-> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
-> ---
->  mm/zswap.c |    6 +++---
->  1 file changed, 3 insertions(+), 3 deletions(-)
+> So Gleb, I want to step in for a bit here.
 > 
-> diff --git a/mm/zswap.c b/mm/zswap.c
-> index cc40e6a..3d05ed8 100644
-> --- a/mm/zswap.c
-> +++ b/mm/zswap.c
-> @@ -427,7 +427,7 @@ static int zswap_get_swap_cache_page(swp_entry_t entry,
->  		 * Get a new page to read into from swap.
->  		 */
->  		if (!new_page) {
-> -			new_page = alloc_page(GFP_KERNEL);
-> +			new_page = alloc_page(GFP_NOIO);
->  			if (!new_page)
->  				break; /* Out of memory */
->  		}
-> @@ -435,7 +435,7 @@ static int zswap_get_swap_cache_page(swp_entry_t entry,
->  		/*
->  		 * call radix_tree_preload() while we can wait.
->  		 */
-> -		err = radix_tree_preload(GFP_KERNEL);
-> +		err = radix_tree_preload(GFP_NOIO);
->  		if (err)
->  			break;
->  
-> @@ -636,7 +636,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
->  	}
->  
->  	/* allocate entry */
-> -	entry = zswap_entry_cache_alloc(GFP_KERNEL);
-> +	entry = zswap_entry_cache_alloc(GFP_NOIO);
->  	if (!entry) {
->  		zswap_reject_kmemcache_fail++;
->  		ret = -ENOMEM;
+> While I understand that the new KVM device API is all nice and shiny and that this
+> whole thing should probably have been KVM devices in the first place (had they
+> existed or had we been told back then), the point is, the API for handling
+> HW IOMMUs that Alexey is trying to add is an extension of an existing mechanism
+> used for emulated IOMMUs.
 > 
+> The internal data structure is shared, and fundamentally, by forcing him to
+> use that new KVM device for the "new stuff", we create a oddball API with
+> an ioctl for one type of iommu and a KVM device for the other, which makes
+> the implementation a complete mess in the kernel (and you should care :-)
+> 
+Is it unfixable mess? Even if Alexey will do what you suggested earlier?
 
--- 
-Regards,
--Bob
+  - Convert *both* existing TCE objects to the new
+      KVM_CREATE_DEVICE, and have some backward compat code for the old one.
+
+The point is implementation usually can be changed, but for API it is
+much harder to do so.
+
+> So for something completely new, I would tend to agree with you. However, I
+> still think that for this specific case, we should just plonk-in the original
+> ioctl proposed by Alexey and be done with it.
+> 
+Do you think this is the last extension to IOMMU code, or we will see
+more and will use same justification to continue adding ioctls?
+
+--
+			Gleb.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
