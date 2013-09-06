@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id CD33C6B0033
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2013 01:17:21 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 56E766B0034
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2013 01:17:57 -0400 (EDT)
 Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
- by mailout1.samsung.com
+ by mailout4.samsung.com
  (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MSO00GCVUOE9PP0@mailout1.samsung.com> for
- linux-mm@kvack.org; Fri, 06 Sep 2013 14:17:19 +0900 (KST)
+ 17 2011)) with ESMTP id <0MSO001FPUPM5NE0@mailout4.samsung.com> for
+ linux-mm@kvack.org; Fri, 06 Sep 2013 14:17:56 +0900 (KST)
 From: Weijie Yang <weijie.yang@samsung.com>
-Subject: [PATCH v2 4/4] mm/zswap: use GFP_NOIO instead of GFP_KERNEL
+Subject: [PATCH v2 3/4] mm/zswap: avoid unnecessary page scanning
 Date: Fri, 06 Sep 2013 13:16:45 +0800
-Message-id: <000601ceaac0$5be39f90$13aadeb0$%yang@samsung.com>
+Message-id: <000701ceaac0$71c43590$554ca0b0$%yang@samsung.com>
 MIME-version: 1.0
 Content-type: text/plain; charset=utf-8
 Content-transfer-encoding: 7bit
@@ -20,45 +20,29 @@ List-ID: <linux-mm.kvack.org>
 To: sjenning@linux.vnet.ibm.com
 Cc: minchan@kernel.org, bob.liu@oracle.com, weijie.yang.kh@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-To avoid zswap store and reclaim functions called recursively,
-use GFP_NOIO instead of GFP_KERNEL
+add SetPageReclaim before __swap_writepage so that page can be moved to the
+tail of the inactive list, which can avoid unnecessary page scanning as this
+page was reclaimed by swap subsystem before.
 
 Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
 ---
- mm/zswap.c |    6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ mm/zswap.c |    3 +++
+ 1 file changed, 3 insertions(+)
 
 diff --git a/mm/zswap.c b/mm/zswap.c
-index cc40e6a..3d05ed8 100644
+index 1be7b90..cc40e6a 100644
 --- a/mm/zswap.c
 +++ b/mm/zswap.c
-@@ -427,7 +427,7 @@ static int zswap_get_swap_cache_page(swp_entry_t entry,
- 		 * Get a new page to read into from swap.
- 		 */
- 		if (!new_page) {
--			new_page = alloc_page(GFP_KERNEL);
-+			new_page = alloc_page(GFP_NOIO);
- 			if (!new_page)
- 				break; /* Out of memory */
- 		}
-@@ -435,7 +435,7 @@ static int zswap_get_swap_cache_page(swp_entry_t entry,
- 		/*
- 		 * call radix_tree_preload() while we can wait.
- 		 */
--		err = radix_tree_preload(GFP_KERNEL);
-+		err = radix_tree_preload(GFP_NOIO);
- 		if (err)
- 			break;
- 
-@@ -636,7 +636,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+@@ -556,6 +556,9 @@ static int zswap_writeback_entry(struct zbud_pool *pool, unsigned long handle)
+ 		SetPageUptodate(page);
  	}
  
- 	/* allocate entry */
--	entry = zswap_entry_cache_alloc(GFP_KERNEL);
-+	entry = zswap_entry_cache_alloc(GFP_NOIO);
- 	if (!entry) {
- 		zswap_reject_kmemcache_fail++;
- 		ret = -ENOMEM;
++	/* move it to the tail of the inactive list after end_writeback */
++	SetPageReclaim(page);
++
+ 	/* start writeback */
+ 	__swap_writepage(page, &wbc, end_swap_bio_write);
+ 	page_cache_release(page);
 -- 
 1.7.10.4
 
