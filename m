@@ -1,91 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 377BF6B0031
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2013 04:58:26 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Fri, 6 Sep 2013 14:18:50 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 52CF2394004E
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2013 14:28:02 +0530 (IST)
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r868wC6h47775846
-	for <linux-mm@kvack.org>; Fri, 6 Sep 2013 14:28:12 +0530
-Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r868wCGJ000367
-	for <linux-mm@kvack.org>; Fri, 6 Sep 2013 14:28:13 +0530
-Date: Fri, 6 Sep 2013 16:58:11 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 00/11] x86, memblock: Allocate memory near kernel image
- before SRAT parsed.
-Message-ID: <20130906085811.GA31315@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1377596268-31552-1-git-send-email-tangchen@cn.fujitsu.com>
- <20130904192215.GG26609@mtj.dyndns.org>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id B546C6B0031
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2013 06:45:36 -0400 (EDT)
+Received: by mail-pd0-f176.google.com with SMTP id q10so3068615pdj.7
+        for <linux-mm@kvack.org>; Fri, 06 Sep 2013 03:45:36 -0700 (PDT)
+Message-ID: <5229B248.7030002@ozlabs.ru>
+Date: Fri, 06 Sep 2013 20:45:28 +1000
+From: Alexey Kardashevskiy <aik@ozlabs.ru>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130904192215.GG26609@mtj.dyndns.org>
+Subject: Re: [PATCH v9 12/13] KVM: PPC: Add support for IOMMU in-kernel handling
+References: <1377679070-3515-1-git-send-email-aik@ozlabs.ru> <1377679841-3822-1-git-send-email-aik@ozlabs.ru> <20130901120609.GJ22899@redhat.com> <52240295.7050608@ozlabs.ru> <20130903105315.GY22899@redhat.com> <1378353909.4321.126.camel@pasglop> <20130906065715.GG13021@redhat.com>
+In-Reply-To: <20130906065715.GG13021@redhat.com>
+Content-Type: text/plain; charset=KOI8-R
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Gleb Natapov <gleb@redhat.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, linuxppc-dev@lists.ozlabs.org, David Gibson <david@gibson.dropbear.id.au>, Paul Mackerras <paulus@samba.org>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Graf <agraf@suse.de>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kvm-ppc@vger.kernel.org, linux-mm@kvack.org
 
-Hi Tejun,
-On Wed, Sep 04, 2013 at 03:22:15PM -0400, Tejun Heo wrote:
->Hello,
->
->On Tue, Aug 27, 2013 at 05:37:37PM +0800, Tang Chen wrote:
->> 1. Make memblock be able to allocate memory from low address to high address.
->>    Also introduce low limit to prevent memblock allocating memory too low.
->> 
->> 2. Improve init_mem_mapping() to support allocate page tables from low address 
->>    to high address.
->> 
->> 3. Introduce "movablenode" boot option to enable and disable this functionality.
->> 
->> PS: Reordering of relocate_initrd() and reserve_crashkernel() has not been done 
->>     yet. acpi_initrd_override() needs to access initrd with virtual address. So 
->>     relocate_initrd() must be done before acpi_initrd_override().
->
->I'm expectedly happier with this approach but some overall review
->points.
->
->* I think patch splitting went a bit too far.  e.g. it doesn't make
->  much sense or helps anything to split "introduction of a param" from
->  "the param doing something".
->
->* I think it's a lot more complex than necessary.  Just implement a
->  single function - memblock_alloc_bottom_up(@start) where specifying
->  MEMBLOCK_ALLOC_ANYWHERE restores top down behavior and do
->  memblock_alloc_bottom_up(end_of_kernel) early during boot.  If the
->  bottom up mode is set, just try allocating bottom up from the
->  specified address and if that fails do normal top down allocation.
->  No need to meddle with the callers.  The only change necessary
->  (well, aside from the reordering) outside memblock is adding two
->  calls to the above function.
->
->* I don't think "order" is the right word here.  "direction" probably
->  fits a lot better.
+On 09/06/2013 04:57 PM, Gleb Natapov wrote:
+> On Thu, Sep 05, 2013 at 02:05:09PM +1000, Benjamin Herrenschmidt wrote:
+>> On Tue, 2013-09-03 at 13:53 +0300, Gleb Natapov wrote:
+>>>> Or supporting all IOMMU links (and leaving emulated stuff as is) in on
+>>>> "device" is the last thing I have to do and then you'll ack the patch?
+>>>>
+>>> I am concerned more about API here. Internal implementation details I
+>>> leave to powerpc experts :)
+>>
+>> So Gleb, I want to step in for a bit here.
+>>
+>> While I understand that the new KVM device API is all nice and shiny and that this
+>> whole thing should probably have been KVM devices in the first place (had they
+>> existed or had we been told back then), the point is, the API for handling
+>> HW IOMMUs that Alexey is trying to add is an extension of an existing mechanism
+>> used for emulated IOMMUs.
+>>
+>> The internal data structure is shared, and fundamentally, by forcing him to
+>> use that new KVM device for the "new stuff", we create a oddball API with
+>> an ioctl for one type of iommu and a KVM device for the other, which makes
+>> the implementation a complete mess in the kernel (and you should care :-)
+>>
+> Is it unfixable mess? Even if Alexey will do what you suggested earlier?
+> 
+>   - Convert *both* existing TCE objects to the new
+>       KVM_CREATE_DEVICE, and have some backward compat code for the old one.
+> 
+> The point is implementation usually can be changed, but for API it is
+> much harder to do so.
+> 
+>> So for something completely new, I would tend to agree with you. However, I
+>> still think that for this specific case, we should just plonk-in the original
+>> ioctl proposed by Alexey and be done with it.
+>>
+> Do you think this is the last extension to IOMMU code, or we will see
+> more and will use same justification to continue adding ioctls?
 
-What's the root reason memblock alloc from high to low? To reduce 
-fragmentation or ...
 
-Regards,
-Wanpeng Li 
+Ok. I give up :) I implemented KVM device the way you suggested. Could you
+please have a look? It is "[PATCH v10 12/13] KVM: PPC: Add support for
+IOMMU in-kernel handling", attached to this thread. Thanks!
 
->
->Thanks.
->
->-- 
->tejun
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+
+-- 
+Alexey
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
