@@ -1,73 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id B49226B0033
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2013 13:15:46 -0400 (EDT)
-Date: Fri, 06 Sep 2013 13:15:28 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1378487728-70p8rvt-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20130906164625.353B1E0090@blue.fi.intel.com>
-References: <1378416466-30913-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1378416466-30913-3-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20130906104803.0F39CE0090@blue.fi.intel.com>
- <1378484835-8552fpnd-mutt-n-horiguchi@ah.jp.nec.com>
- <20130906164625.353B1E0090@blue.fi.intel.com>
-Subject: Re: [PATCH 2/2] thp: support split page table lock
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id AF2036B0032
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2013 13:30:42 -0400 (EDT)
+Received: from /spool/local
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjennings@variantweb.net>;
+	Fri, 6 Sep 2013 18:30:41 +0100
+Received: from b01cxnp22036.gho.pok.ibm.com (b01cxnp22036.gho.pok.ibm.com [9.57.198.26])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 7FBBC38C8080
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2013 13:30:33 -0400 (EDT)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by b01cxnp22036.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r86HUWta36110476
+	for <linux-mm@kvack.org>; Fri, 6 Sep 2013 17:30:32 GMT
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r86HUVxw008634
+	for <linux-mm@kvack.org>; Fri, 6 Sep 2013 13:30:32 -0400
+Date: Fri, 6 Sep 2013 12:30:27 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Subject: Re: [RFC PATCH 0/4] mm: migrate zbud pages
+Message-ID: <20130906173027.GA3741@variantweb.net>
+References: <1377852176-30970-1-git-send-email-k.kozlowski@samsung.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <1377852176-30970-1-git-send-email-k.kozlowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Alex Thorlton <athorlton@sgi.com>, linux-kernel@vger.kernel.org
+To: Krzysztof Kozlowski <k.kozlowski@samsung.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Dave Hansen <dave.hansen@intel.com>, Minchan Kim <minchan@kernel.org>
 
-On Fri, Sep 06, 2013 at 07:46:25PM +0300, Kirill A. Shutemov wrote:
-> Naoya Horiguchi wrote:
-> > Hi Kirill,
-> > 
-> > On Fri, Sep 06, 2013 at 01:48:03PM +0300, Kirill A. Shutemov wrote:
-> > > Naoya Horiguchi wrote:
-> > > > Thp related code also uses per process mm->page_table_lock now.
-> > > > So making it fine-grained can provide better performance.
-> > > > 
-> > > > This patch makes thp support split page table lock by using page->ptl
-> > > > of the pages storing "pmd_trans_huge" pmds.
-> > > > 
-> > > > Some functions like pmd_trans_huge_lock() and page_check_address_pmd()
-> > > > are expected by their caller to pass back the pointer of ptl, so this
-> > > > patch adds to those functions new arguments for that. Rather than that,
-> > > > this patch gives only straightforward replacement.
-> > > > 
-> > > > ChangeLog v3:
-> > > >  - fixed argument of huge_pmd_lockptr() in copy_huge_pmd()
-> > > >  - added missing declaration of ptl in do_huge_pmd_anonymous_page()
-> > > > 
-> > > > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > > 
-> > > Generally, looks good. Few notes:
-> > > 
-> > > I believe you need to convert __pte_alloc() to new locking. Not sure about
-> > > __pte_alloc_kernel().
-> > > Have you check all rest mm->page_table_lock, that they shouldn't be
-> > > converted to new locking?
-> > 
-> > I thought that keeping __pte_alloc() using mm->page_table_lock was safe
-> > because it uses bare mm->page_table_lock instead of pte_lockptr() even
-> > before this patchset, but not 100% sure.
-> > __pte_alloc() (and its family) are used in normal page path, so if it's
-> > not safe, we've lived with unsafe code for very long (maybe since 2005).
-> > Anyway, converting __pte_alloc() into split ptl could improve performance
-> > (though we need testing to know what amount), so I'll try that.
+On Fri, Aug 30, 2013 at 10:42:52AM +0200, Krzysztof Kozlowski wrote:
+> Hi,
 > 
-> No, before the patch mm->page_table_lock is what we need: it serializes
-> setting up pmd, not adding pte to pmd and it's subject to change with new
-> locking model.
+> Currently zbud pages are not movable and they cannot be allocated from CMA
+> region. These patches add migration of zbud pages.
 
-OK, I see. This is a todo for the next post.
-Thank you for explanation.
+Hey Krzysztof,
 
-Naoya
+Thanks for the patches.  I haven't had time to look at them yet but wanted to
+let you know that I plan to early next week.
+
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
