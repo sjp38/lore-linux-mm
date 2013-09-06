@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 6894F6B003A
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2013 02:32:05 -0400 (EDT)
-Message-ID: <522976DC.8080301@oracle.com>
-Date: Fri, 06 Sep 2013 14:31:56 +0800
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id CA49E6B0031
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2013 02:42:08 -0400 (EDT)
+Message-ID: <5229792F.9000803@oracle.com>
+Date: Fri, 06 Sep 2013 14:41:51 +0800
 From: Bob Liu <bob.liu@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 3/4] mm/zswap: avoid unnecessary page scanning
-References: <000701ceaac0$71c43590$554ca0b0$%yang@samsung.com>
-In-Reply-To: <000701ceaac0$71c43590$554ca0b0$%yang@samsung.com>
+Subject: Re: [PATCH v2 4/4] mm/zswap: use GFP_NOIO instead of GFP_KERNEL
+References: <000601ceaac0$5be39f90$13aadeb0$%yang@samsung.com>
+In-Reply-To: <000601ceaac0$5be39f90$13aadeb0$%yang@samsung.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -18,32 +18,58 @@ Cc: sjenning@linux.vnet.ibm.com, minchan@kernel.org, weijie.yang.kh@gmail.com, l
 
 
 On 09/06/2013 01:16 PM, Weijie Yang wrote:
-> add SetPageReclaim before __swap_writepage so that page can be moved to the
-> tail of the inactive list, which can avoid unnecessary page scanning as this
-> page was reclaimed by swap subsystem before.
+> To avoid zswap store and reclaim functions called recursively,
+> use GFP_NOIO instead of GFP_KERNEL
 > 
+
+The reason of using GFP_KERNEL in write back path is we want to try our
+best to move those pages from zswap to real swap device.
+
+I think it would be better to keep GFP_KERNEL flag but find some other
+ways to skip zswap/zswap_frontswap_store() if zswap write back is in
+progress.
+
+What I can think of currently is adding a mutex to zswap, take that
+mutex when zswap write back happens and check the mutex in
+zswap_frontswap_store().
+
+
 > Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
-
-Reviewed-by: Bob Liu <bob.liu@oracle.com>
-
 > ---
->  mm/zswap.c |    3 +++
->  1 file changed, 3 insertions(+)
+>  mm/zswap.c |    6 +++---
+>  1 file changed, 3 insertions(+), 3 deletions(-)
 > 
 > diff --git a/mm/zswap.c b/mm/zswap.c
-> index 1be7b90..cc40e6a 100644
+> index cc40e6a..3d05ed8 100644
 > --- a/mm/zswap.c
 > +++ b/mm/zswap.c
-> @@ -556,6 +556,9 @@ static int zswap_writeback_entry(struct zbud_pool *pool, unsigned long handle)
->  		SetPageUptodate(page);
+> @@ -427,7 +427,7 @@ static int zswap_get_swap_cache_page(swp_entry_t entry,
+>  		 * Get a new page to read into from swap.
+>  		 */
+>  		if (!new_page) {
+> -			new_page = alloc_page(GFP_KERNEL);
+> +			new_page = alloc_page(GFP_NOIO);
+>  			if (!new_page)
+>  				break; /* Out of memory */
+>  		}
+> @@ -435,7 +435,7 @@ static int zswap_get_swap_cache_page(swp_entry_t entry,
+>  		/*
+>  		 * call radix_tree_preload() while we can wait.
+>  		 */
+> -		err = radix_tree_preload(GFP_KERNEL);
+> +		err = radix_tree_preload(GFP_NOIO);
+>  		if (err)
+>  			break;
+>  
+> @@ -636,7 +636,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
 >  	}
 >  
-> +	/* move it to the tail of the inactive list after end_writeback */
-> +	SetPageReclaim(page);
-> +
->  	/* start writeback */
->  	__swap_writepage(page, &wbc, end_swap_bio_write);
->  	page_cache_release(page);
+>  	/* allocate entry */
+> -	entry = zswap_entry_cache_alloc(GFP_KERNEL);
+> +	entry = zswap_entry_cache_alloc(GFP_NOIO);
+>  	if (!entry) {
+>  		zswap_reject_kmemcache_fail++;
+>  		ret = -ENOMEM;
 > 
 
 -- 
