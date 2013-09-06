@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 0FC436B0032
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2013 11:48:06 -0400 (EDT)
-Date: Fri, 6 Sep 2013 15:48:04 +0000
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 594D56B0033
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2013 11:49:46 -0400 (EDT)
+Date: Fri, 6 Sep 2013 15:49:45 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [REPOST PATCH 1/4] slab: factor out calculate nr objects in
- cache_estimate
-In-Reply-To: <1378447067-19832-2-git-send-email-iamjoonsoo.kim@lge.com>
-Message-ID: <00000140f3f56efb-1b2035a6-b81f-433f-aa2d-d1af50018b6a-000000@email.amazonses.com>
-References: <1378447067-19832-1-git-send-email-iamjoonsoo.kim@lge.com> <1378447067-19832-2-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: [REPOST PATCH 2/4] slab: introduce helper functions to get/set
+ free object
+In-Reply-To: <1378447067-19832-3-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <00000140f3f6fe2d-ded4181c-05bf-47f9-8aa6-983102fdddc6-000000@email.amazonses.com>
+References: <1378447067-19832-1-git-send-email-iamjoonsoo.kim@lge.com> <1378447067-19832-3-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -18,14 +18,11 @@ Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
 On Fri, 6 Sep 2013, Joonsoo Kim wrote:
 
->  	}
->  	*num = nr_objs;
-> -	*left_over = slab_size - nr_objs*buffer_size - mgmt_size;
-> +	*left_over = slab_size - (nr_objs * buffer_size) - mgmt_size;
->  }
+> In the following patches, to get/set free objects from the freelist
+> is changed so that simple casting doesn't work for it. Therefore,
+> introduce helper functions.
 
-What is the point of this change? Drop it.
-
+Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
