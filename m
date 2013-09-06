@@ -1,53 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 43F046B0033
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2013 01:19:25 -0400 (EDT)
-Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
- by mailout3.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MSO00AH9USA6OK0@mailout3.samsung.com> for
- linux-mm@kvack.org; Fri, 06 Sep 2013 14:19:23 +0900 (KST)
-From: Weijie Yang <weijie.yang@samsung.com>
-Subject: [PATCH v2 1/4] mm/zswap: bugfix: memory leak when re-swapon
-Date: Fri, 06 Sep 2013 13:16:45 +0800
-Message-id: <000901ceaac0$a5f28420$f1d78c60$%yang@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=utf-8
-Content-transfer-encoding: 7bit
-Content-language: zh-cn
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id E63E16B0034
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2013 01:19:58 -0400 (EDT)
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: [PATCH v3 03/20] mm, hugetlb: fix subpool accounting handling
+Date: Fri,  6 Sep 2013 14:19:56 +0900
+Message-Id: <1378444797-3353-1-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <520c10e8.1kKQVx1mpwqXywyM%akpm@linux-foundation.org>
+References: <520c10e8.1kKQVx1mpwqXywyM%akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: sjenning@linux.vnet.ibm.com
-Cc: minchan@kernel.org, bob.liu@oracle.com, weijie.yang.kh@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-zswap_tree is not freed when swapoff, and it got re-kmalloc in swapon,
-so memory-leak occurs.
+There is a case that we attempt to allocate a hugepage with chg = 0 and
+avoid_reserve = 1. Although chg = 0 means that it has a reserved hugepage,
+we wouldn't use it, since avoid_reserve = 1 represents that we don't want
+to allocate a hugepage from a reserved pool. This happens when the parent
+process that created a MAP_PRIVATE mapping is about to perform a COW due to
+a shared page count and it attempt to satisfy the allocation without using
+the existing reserves.
 
-Modify: free memory of zswap_tree in zswap_frontswap_invalidate_area().
+In this case, we would not dequeue a reserved hugepage and, instead, try
+to allocate a new hugepage. Therefore, we should check subpool counter
+for a new hugepage. This patch implement it.
 
-Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
+Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- mm/zswap.c |    4 ++++
- 1 file changed, 4 insertions(+)
+Replenishing commit message and adding reviewed-by tag.
 
-diff --git a/mm/zswap.c b/mm/zswap.c
-index deda2b6..cbd9578 100644
---- a/mm/zswap.c
-+++ b/mm/zswap.c
-@@ -816,6 +816,10 @@ static void zswap_frontswap_invalidate_area(unsigned type)
- 	}
- 	tree->rbroot = RB_ROOT;
- 	spin_unlock(&tree->lock);
-+
-+	zbud_destroy_pool(tree->pool);
-+	kfree(tree);
-+	zswap_trees[type] = NULL;
- }
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 12b6581..ea1ae0a 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1144,13 +1144,14 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 	chg = vma_needs_reservation(h, vma, addr);
+ 	if (chg < 0)
+ 		return ERR_PTR(-ENOMEM);
+-	if (chg)
+-		if (hugepage_subpool_get_pages(spool, chg))
++	if (chg || avoid_reserve)
++		if (hugepage_subpool_get_pages(spool, 1))
+ 			return ERR_PTR(-ENOSPC);
  
- static struct zbud_ops zswap_zbud_ops = {
+ 	ret = hugetlb_cgroup_charge_cgroup(idx, pages_per_huge_page(h), &h_cg);
+ 	if (ret) {
+-		hugepage_subpool_put_pages(spool, chg);
++		if (chg || avoid_reserve)
++			hugepage_subpool_put_pages(spool, 1);
+ 		return ERR_PTR(-ENOSPC);
+ 	}
+ 	spin_lock(&hugetlb_lock);
+@@ -1162,7 +1163,8 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 			hugetlb_cgroup_uncharge_cgroup(idx,
+ 						       pages_per_huge_page(h),
+ 						       h_cg);
+-			hugepage_subpool_put_pages(spool, chg);
++			if (chg || avoid_reserve)
++				hugepage_subpool_put_pages(spool, 1);
+ 			return ERR_PTR(-ENOSPC);
+ 		}
+ 		spin_lock(&hugetlb_lock);
 -- 
-1.7.10.4
-
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
