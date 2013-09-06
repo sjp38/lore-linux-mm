@@ -1,41 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id B17776B0031
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2013 23:32:28 -0400 (EDT)
-Message-ID: <52294C9D.1080808@cn.fujitsu.com>
-Date: Fri, 06 Sep 2013 11:31:41 +0800
-From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: [PATCH] mm/mmap.c: Remove unnecessary pgoff assignment
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 5000F6B0031
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2013 01:16:43 -0400 (EDT)
+Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
+ by mailout4.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0MSO006LAUNM2P90@mailout4.samsung.com> for
+ linux-mm@kvack.org; Fri, 06 Sep 2013 14:16:41 +0900 (KST)
+From: Weijie Yang <weijie.yang@samsung.com>
+Subject: [PATCH v2 0/4] mm/zswap bugfix: memory leaks and other problems
+Date: Fri, 06 Sep 2013 13:15:08 +0800
+Message-id: <000501ceaac0$4568ec70$d03ac550$%yang@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8
+Content-transfer-encoding: 7bit
+Content-language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: sjenning@linux.vnet.ibm.com
+Cc: minchan@kernel.org, bob.liu@oracle.com, weijie.yang.kh@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-We never access variable pgoff later, so the assignment is
-redundant. Remove it. 
+This patch series fix a few bugs in zswap based on Linux-3.11.
 
-Signed-off-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
----
- mm/mmap.c |    1 - 
- 1 files changed, 0 insertions(+), 1 deletions(-)
+v1 --> v2
+	- free memory in zswap_frontswap_invalidate_area (in patch 1)
+	- fix whitespace corruption (line wrapping)
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index f9c97d1..db44f6a 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1570,7 +1570,6 @@ munmap_back:
-                WARN_ON_ONCE(addr != vma->vm_start);
+Corresponding mail thread: https://lkml.org/lkml/2013/8/18/59
+
+These issues fixed/optimized are:
+
+ 1. memory leaks when re-swapon
  
-                addr = vma->vm_start;
--               pgoff = vma->vm_pgoff;
-                vm_flags = vma->vm_flags;
-        } else if (vm_flags & VM_SHARED) {
-                if (unlikely(vm_flags & (VM_GROWSDOWN|VM_GROWSUP)))
--- 
-1.7.1
+ 2. memory leaks when invalidate and reclaim occur concurrently
+ 
+ 3. avoid unnecessary page scanning
+ 
+ 4. use GFP_NOIO instead of GFP_KERNEL to avoid zswap store and reclaim 
+functions called recursively
+
+Issues discussed in that mail thread NOT fixed as it happens rarely or
+not a big problem:
+
+ 1. a "theoretical race condition" when reclaim page
+	When a handle alloced from zbud, zbud considers this handle is used
+validly by upper(zswap) and can be a candidate for reclaim. But zswap has
+to initialize it such as setting swapentry and adding it to rbtree.
+so there is a race condition, such as:
+ thread 0: obtain handle x from zbud_alloc
+ thread 1: zbud_reclaim_page is called
+ thread 1: callback zswap_writeback_entry to reclaim handle x
+ thread 1: get swpentry from handle x (it is random value now)
+ thread 1: bad thing may happen
+ thread 0: initialize handle x with swapentry
+
+2. frontswap_map bitmap not cleared after zswap reclaim
+	Frontswap uses frontswap_map bitmap to track page in "backend" implementation,
+when zswap reclaim a page, the corresponding bitmap record is not cleared.
+
+ mm/zswap.c |   34 +++++++++++++++++++++++-----------
+ 1 file changed, 23 insertions(+), 11 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
