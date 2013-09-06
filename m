@@ -1,96 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id D48C76B0031
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id D53106B0033
 	for <linux-mm@kvack.org>; Fri,  6 Sep 2013 01:57:46 -0400 (EDT)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [REPOST PATCH 1/4] slab: factor out calculate nr objects in cache_estimate
-Date: Fri,  6 Sep 2013 14:57:44 +0900
-Message-Id: <1378447067-19832-2-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1378447067-19832-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1378447067-19832-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [REPOST PATCH 0/4] slab: implement byte sized indexes for the freelist of a slab
+Date: Fri,  6 Sep 2013 14:57:43 +0900
+Message-Id: <1378447067-19832-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-This logic is not simple to understand so that making separate function
-helping readability. Additionally, we can use this change in the
-following patch which implement for freelist to have another sized index
-in according to nr objects.
+* THIS IS JUST REPOSTED ACCORDING TO MAINTAINER'S REQUEST *
 
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+* Changes from original post
+Correct the position of the results.
+Attach more results about cache-misses and elapsed time on a hackbench test.
 
-diff --git a/mm/slab.c b/mm/slab.c
-index f3868fe..9d4bad5 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -565,9 +565,31 @@ static inline struct array_cache *cpu_cache_get(struct kmem_cache *cachep)
- 	return cachep->array[smp_processor_id()];
- }
- 
--static size_t slab_mgmt_size(size_t nr_objs, size_t align)
-+static int calculate_nr_objs(size_t slab_size, size_t buffer_size,
-+				size_t idx_size, size_t align)
- {
--	return ALIGN(nr_objs * sizeof(unsigned int), align);
-+	int nr_objs;
-+	size_t freelist_size;
-+
-+	/*
-+	 * Ignore padding for the initial guess. The padding
-+	 * is at most @align-1 bytes, and @buffer_size is at
-+	 * least @align. In the worst case, this result will
-+	 * be one greater than the number of objects that fit
-+	 * into the memory allocation when taking the padding
-+	 * into account.
-+	 */
-+	nr_objs = slab_size / (buffer_size + idx_size);
-+
-+	/*
-+	 * This calculated number will be either the right
-+	 * amount, or one greater than what we want.
-+	 */
-+	freelist_size = slab_size - nr_objs * buffer_size;
-+	if (freelist_size < ALIGN(nr_objs * idx_size, align))
-+		nr_objs--;
-+
-+	return nr_objs;
- }
- 
- /*
-@@ -600,28 +622,12 @@ static void cache_estimate(unsigned long gfporder, size_t buffer_size,
- 		nr_objs = slab_size / buffer_size;
- 
- 	} else {
--		/*
--		 * Ignore padding for the initial guess. The padding
--		 * is at most @align-1 bytes, and @buffer_size is at
--		 * least @align. In the worst case, this result will
--		 * be one greater than the number of objects that fit
--		 * into the memory allocation when taking the padding
--		 * into account.
--		 */
--		nr_objs = (slab_size) / (buffer_size + sizeof(unsigned int));
--
--		/*
--		 * This calculated number will be either the right
--		 * amount, or one greater than what we want.
--		 */
--		if (slab_mgmt_size(nr_objs, align) + nr_objs*buffer_size
--		       > slab_size)
--			nr_objs--;
--
--		mgmt_size = slab_mgmt_size(nr_objs, align);
-+		nr_objs = calculate_nr_objs(slab_size, buffer_size,
-+					sizeof(unsigned int), align);
-+		mgmt_size = ALIGN(nr_objs * sizeof(unsigned int), align);
- 	}
- 	*num = nr_objs;
--	*left_over = slab_size - nr_objs*buffer_size - mgmt_size;
-+	*left_over = slab_size - (nr_objs * buffer_size) - mgmt_size;
- }
- 
- #if DEBUG
+-----------------------------------------------------
+This patchset implements byte sized indexes for the freelist of a slab.
+
+Currently, the freelist of a slab consist of unsigned int sized indexes.
+Most of slabs have less number of objects than 256, so much space is wasted.
+To reduce this overhead, this patchset implements byte sized indexes for
+the freelist of a slab. With it, we can save 3 bytes for each objects.
+
+This introduce one likely branch to functions used for setting/getting
+objects to/from the freelist, but we may get more benefits from
+this change.
+
+Below is some numbers of 'cat /proc/slabinfo' related to my previous posting
+and this patchset.
+
+
+* Before *
+# name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab> : tunables [snip...]
+kmalloc-512          527    600    512    8    1 : tunables   54   27    0 : slabdata     75     75      0   
+kmalloc-256          210    210    256   15    1 : tunables  120   60    0 : slabdata     14     14      0   
+kmalloc-192         1040   1040    192   20    1 : tunables  120   60    0 : slabdata     52     52      0   
+kmalloc-96           750    750    128   30    1 : tunables  120   60    0 : slabdata     25     25      0   
+kmalloc-64          2773   2773     64   59    1 : tunables  120   60    0 : slabdata     47     47      0   
+kmalloc-128          660    690    128   30    1 : tunables  120   60    0 : slabdata     23     23      0   
+kmalloc-32         11200  11200     32  112    1 : tunables  120   60    0 : slabdata    100    100      0   
+kmem_cache           197    200    192   20    1 : tunables  120   60    0 : slabdata     10     10      0   
+
+* After my previous posting(overload struct slab over struct page) *
+# name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab> : tunables [snip...]
+kmalloc-512          525    640    512    8    1 : tunables   54   27    0 : slabdata     80     80      0   
+kmalloc-256          210    210    256   15    1 : tunables  120   60    0 : slabdata     14     14      0   
+kmalloc-192         1016   1040    192   20    1 : tunables  120   60    0 : slabdata     52     52      0   
+kmalloc-96           560    620    128   31    1 : tunables  120   60    0 : slabdata     20     20      0   
+kmalloc-64          2148   2280     64   60    1 : tunables  120   60    0 : slabdata     38     38      0   
+kmalloc-128          647    682    128   31    1 : tunables  120   60    0 : slabdata     22     22      0   
+kmalloc-32         11360  11413     32  113    1 : tunables  120   60    0 : slabdata    101    101      0   
+kmem_cache           197    200    192   20    1 : tunables  120   60    0 : slabdata     10     10      0   
+
+kmem_caches consisting of objects less than or equal to 128 byte have one more
+objects in a slab. You can see it at objperslab.
+
+We can improve further with this patchset.
+
+* My previous posting + this patchset *
+# name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab> : tunables [snip...]
+kmalloc-512          521    648    512    8    1 : tunables   54   27    0 : slabdata     81     81      0
+kmalloc-256          208    208    256   16    1 : tunables  120   60    0 : slabdata     13     13      0
+kmalloc-192         1029   1029    192   21    1 : tunables  120   60    0 : slabdata     49     49      0
+kmalloc-96           529    589    128   31    1 : tunables  120   60    0 : slabdata     19     19      0
+kmalloc-64          2142   2142     64   63    1 : tunables  120   60    0 : slabdata     34     34      0
+kmalloc-128          660    682    128   31    1 : tunables  120   60    0 : slabdata     22     22      0
+kmalloc-32         11716  11780     32  124    1 : tunables  120   60    0 : slabdata     95     95      0
+kmem_cache           197    210    192   21    1 : tunables  120   60    0 : slabdata     10     10      0
+
+kmem_caches consisting of objects less than or equal to 256 byte have
+one or more objects than before. In the case of kmalloc-32, we have 11 more
+objects, so 352 bytes (11 * 32) are saved and this is roughly 9% saving of
+memory. Of couse, this percentage decreases as the number of objects
+in a slab decreases.
+
+
+
+Here are the performance results on my 4 cpus machine.
+
+* Before *
+
+ Performance counter stats for 'perf bench sched messaging -g 50 -l 1000' (10 runs):
+
+       238,309,671 cache-misses                                                  ( +-  0.40% )
+
+      12.010172090 seconds time elapsed                                          ( +-  0.21% )
+
+* After my previous posting *
+
+ Performance counter stats for 'perf bench sched messaging -g 50 -l 1000' (10 runs):
+
+       229,945,138 cache-misses                                                  ( +-  0.23% )
+
+      11.627897174 seconds time elapsed                                          ( +-  0.14% )
+
+* My previous posting + this patchset *
+
+ Performance counter stats for 'perf bench sched messaging -g 50 -l 1000' (10 runs):
+
+       218,640,472 cache-misses                                                  ( +-  0.42% )
+
+      11.504999837 seconds time elapsed                                          ( +-  0.21% )
+
+
+cache-misses are reduced by each patchset, roughly 5% respectively.
+And elapsed times are also improved by 3.1% and 4.2% to baseline, respectively.
+
+I think that all patchsets deserve to be merged, since it reduces memory usage and
+also improves performance. :)
+
+Please let me know expert's opinions :)
+Thanks.
+
+This patchset comes from a Christoph's idea.
+https://lkml.org/lkml/2013/8/23/315
+
+Patches are on top of my previous posting.
+https://lkml.org/lkml/2013/8/22/137
+
+Joonsoo Kim (4):
+  slab: factor out calculate nr objects in cache_estimate
+  slab: introduce helper functions to get/set free object
+  slab: introduce byte sized index for the freelist of a slab
+  slab: make more slab management structure off the slab
+
+ mm/slab.c |  138 +++++++++++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 103 insertions(+), 35 deletions(-)
+
 -- 
 1.7.9.5
 
