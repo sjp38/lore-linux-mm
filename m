@@ -1,39 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 066876B0032
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2013 11:54:06 -0400 (EDT)
-In-Reply-To: <20130906151526.GA22423@mtj.dyndns.org>
-References: <1377596268-31552-1-git-send-email-tangchen@cn.fujitsu.com> <20130904192215.GG26609@mtj.dyndns.org> <52299935.0302450a.26c9.ffffb240SMTPIN_ADDED_BROKEN@mx.google.com> <20130906151526.GA22423@mtj.dyndns.org>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 660136B0032
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2013 11:58:19 -0400 (EDT)
+Date: Fri, 6 Sep 2013 15:58:18 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [REPOST PATCH 3/4] slab: introduce byte sized index for the
+ freelist of a slab
+In-Reply-To: <1378447067-19832-4-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <00000140f3fed229-f49b95d4-7087-476f-b2c9-37846749aad6-000000@email.amazonses.com>
+References: <1378447067-19832-1-git-send-email-iamjoonsoo.kim@lge.com> <1378447067-19832-4-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
- charset=UTF-8
-Content-Transfer-Encoding: 8bit
-Subject: Re: [PATCH 00/11] x86, memblock: Allocate memory near kernel image before SRAT parsed.
-From: "H. Peter Anvin" <hpa@zytor.com>
-Date: Fri, 06 Sep 2013 08:47:45 -0700
-Message-ID: <157310e1-f8cb-4184-b58d-63cf9fa611ee@email.android.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Specifically there are a bunch of things which need to be below a certain address (which one varies.)
+On Fri, 6 Sep 2013, Joonsoo Kim wrote:
 
-Tejun Heo <tj@kernel.org> wrote:
->Hello, Wanpeng.
->
->On Fri, Sep 06, 2013 at 04:58:11PM +0800, Wanpeng Li wrote:
->> What's the root reason memblock alloc from high to low? To reduce 
->> fragmentation or ...
->
->Because low memory tends to be more precious, it's just easier to pack
->everything towards the top so that we don't have to worry about which
->zone to use for allocation and fallback logic.
->
->Thanks.
+> Currently, the freelist of a slab consist of unsigned int sized indexes.
+> Most of slabs have less number of objects than 256, since restriction
+> for page order is at most 1 in default configuration. For example,
+> consider a slab consisting of 32 byte sized objects on two continous
+> pages. In this case, 256 objects is possible and these number fit to byte
+> sized indexes. 256 objects is maximum possible value in default
+> configuration, since 32 byte is minimum object size in the SLAB.
+> (8192 / 32 = 256). Therefore, if we use byte sized index, we can save
+> 3 bytes for each object.
 
--- 
-Sent from my mobile phone.  Please pardon brevity and lack of formatting.
+Ok then why is the patch making slab do either byte sized or int sized
+indexes? Seems that you could do a clean cutover?
+
+
+As you said: The mininum object size is 32 bytes for slab. 32 * 256 =
+8k. So we are fine unless the page size is > 8k. This is true for IA64 and
+powerpc only I believe. The page size can be determined at compile time
+and depending on that page size you could then choose a different size for
+the indexes. Or the alternative is to increase the minimum slab object size.
+A 16k page size would require a 64 byte minimum allocation. But thats no
+good I guess. byte sized or short int sized index support would be enough.
+
+> This introduce one likely branch to functions used for setting/getting
+> objects to/from the freelist, but we may get more benefits from
+> this change.
+
+Lets not do that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
