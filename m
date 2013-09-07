@@ -1,137 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 720E06B0034
-	for <linux-mm@kvack.org>; Sat,  7 Sep 2013 11:32:40 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id v10so4489621pde.10
-        for <linux-mm@kvack.org>; Sat, 07 Sep 2013 08:32:39 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 3571E6B0031
+	for <linux-mm@kvack.org>; Sat,  7 Sep 2013 17:32:22 -0400 (EDT)
+Message-ID: <522B9B5D.4010207@oracle.com>
+Date: Sat, 07 Sep 2013 17:32:13 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <1378093542-31971-2-git-send-email-bob.liu@oracle.com>
-References: <1378093542-31971-1-git-send-email-bob.liu@oracle.com>
-	<1378093542-31971-2-git-send-email-bob.liu@oracle.com>
-Date: Sat, 7 Sep 2013 11:32:39 -0400
-Message-ID: <CAJLXCZR10krfoT7CCW7BTgZRqjTRYTPMS5AMksm2dVso5nswCg@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm: thp: khugepaged: add policy for finding target node
-From: Andrew Davidoff <davidoff@qedmf.net>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: mm: gpf in find_vma
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, aarcange@redhat.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, konrad.wilk@oracle.com, Bob Liu <bob.liu@oracle.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, walken@google.com, riel@redhat.com, hughd@google.com, khlebnikov@openvz.org, trinity@vger.kernel.org
 
-On Sun, Sep 1, 2013 at 11:45 PM, Bob Liu <lliubbo@gmail.com> wrote:
->
-> Reported-by: Andrew Davidoff <davidoff@qedmf.net>
-> Signed-off-by: Bob Liu <bob.liu@oracle.com>
+Hi all,
 
-Tested-by: Andrew Davidoff <davidoff@qedmf.net>
+While fuzzing with trinity inside a KVM tools guest, running latest -next kernel, I've
+stumbled on the following:
 
-> ---
->  mm/huge_memory.c |   50 +++++++++++++++++++++++++++++++++++++++++---------
->  1 file changed, 41 insertions(+), 9 deletions(-)
->
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 7448cf9..86c7f0d 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -2144,7 +2144,33 @@ static void khugepaged_alloc_sleep(void)
->                         msecs_to_jiffies(khugepaged_alloc_sleep_millisecs));
->  }
->
-> +static int khugepaged_node_load[MAX_NUMNODES];
->  #ifdef CONFIG_NUMA
-> +static int last_khugepaged_target_node = NUMA_NO_NODE;
-> +static int khugepaged_find_target_node(void)
-> +{
-> +       int i, target_node = 0, max_value = 1;
-> +
-> +       /* find first node with most normal pages hit */
-> +       for (i = 0; i < MAX_NUMNODES; i++)
-> +               if (khugepaged_node_load[i] > max_value) {
-> +                       max_value = khugepaged_node_load[i];
-> +                       target_node = i;
-> +               }
-> +
-> +       /* do some balance if several nodes have the same hit number */
-> +       if (target_node <= last_khugepaged_target_node) {
-> +               for (i = last_khugepaged_target_node + 1; i < MAX_NUMNODES; i++)
-> +                       if (max_value == khugepaged_node_load[i]) {
-> +                               target_node = i;
-> +                               break;
-> +                       }
-> +       }
-> +
-> +       last_khugepaged_target_node = target_node;
-> +       return target_node;
-> +}
-> +
->  static bool khugepaged_prealloc_page(struct page **hpage, bool *wait)
->  {
->         if (IS_ERR(*hpage)) {
-> @@ -2178,9 +2204,8 @@ static struct page
->          * mmap_sem in read mode is good idea also to allow greater
->          * scalability.
->          */
-> -       *hpage  = alloc_hugepage_vma(khugepaged_defrag(), vma, address,
-> -                                     node, __GFP_OTHER_NODE);
-> -
-> +       *hpage = alloc_pages_exact_node(node, alloc_hugepage_gfpmask(
-> +                       khugepaged_defrag(), __GFP_OTHER_NODE), HPAGE_PMD_ORDER);
->         /*
->          * After allocating the hugepage, release the mmap_sem read lock in
->          * preparation for taking it in write mode.
-> @@ -2196,6 +2221,11 @@ static struct page
->         return *hpage;
->  }
->  #else
-> +static int khugepaged_find_target_node(void)
-> +{
-> +       return 0;
-> +}
-> +
->  static inline struct page *alloc_hugepage(int defrag)
->  {
->         return alloc_pages(alloc_hugepage_gfpmask(defrag, 0),
-> @@ -2405,6 +2435,7 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
->         if (pmd_trans_huge(*pmd))
->                 goto out;
->
-> +       memset(khugepaged_node_load, 0, sizeof(khugepaged_node_load));
->         pte = pte_offset_map_lock(mm, pmd, address, &ptl);
->         for (_address = address, _pte = pte; _pte < pte+HPAGE_PMD_NR;
->              _pte++, _address += PAGE_SIZE) {
-> @@ -2421,12 +2452,11 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
->                 if (unlikely(!page))
->                         goto out_unmap;
->                 /*
-> -                * Chose the node of the first page. This could
-> -                * be more sophisticated and look at more pages,
-> -                * but isn't for now.
-> +                * Chose the node of most normal pages hit, record this
-> +                * informaction to khugepaged_node_load[]
->                  */
-> -               if (node == NUMA_NO_NODE)
-> -                       node = page_to_nid(page);
-> +               node = page_to_nid(page);
-> +               khugepaged_node_load[node]++;
->                 VM_BUG_ON(PageCompound(page));
->                 if (!PageLRU(page) || PageLocked(page) || !PageAnon(page))
->                         goto out_unmap;
-> @@ -2441,9 +2471,11 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
->                 ret = 1;
->  out_unmap:
->         pte_unmap_unlock(pte, ptl);
-> -       if (ret)
-> +       if (ret) {
-> +               node = khugepaged_find_target_node();
->                 /* collapse_huge_page will return with the mmap_sem released */
->                 collapse_huge_page(mm, address, hpage, vma, node);
-> +       }
->  out:
->         return ret;
->  }
-> --
-> 1.7.10.4
->
+[13600.008029] general protection fault: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+[13600.010235] Modules linked in:
+[13600.010742] CPU: 30 PID: 26329 Comm: kworker/u128:2 Tainted: G        W 
+3.11.0-next-20130906-sasha #3985
+[13600.012301] task: ffff880e54630000 ti: ffff880e52380000 task.ti: ffff880e52380000
+[13600.013553] RIP: 0010:[<ffffffff81258b82>]  [<ffffffff81258b82>] find_vma+0x12/0x70
+[13600.014929] RSP: 0018:ffff880e52381c38  EFLAGS: 00010282
+[13600.016808] RAX: f0000040f0000040 RBX: 00007fffffffe000 RCX: ffff880e54630000
+[13600.016808] RDX: 0000000000000000 RSI: 00007fffffffe000 RDI: ffff880000000000
+[13600.016808] RBP: ffff880e52381c38 R08: 0000000000000017 R09: ffff880e52381d70
+[13600.016808] R10: ffff880e52381d70 R11: 0000000000000007 R12: ffff880e54630000
+[13600.016808] R13: ffff880000000000 R14: 000000000000000f R15: 0000000000000000
+[13600.016808] FS:  0000000000000000(0000) GS:ffff880fe3200000(0000) knlGS:0000000000000000
+[13600.016808] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[13600.016808] CR2: 0000000004a66678 CR3: 0000000e520fe000 CR4: 00000000000006e0
+[13600.016808] Stack:
+[13600.016808]  ffff880e52381c68 ffffffff8125a36b ffff880fb7d373c8 ffff880fb6f82238
+[13600.016808]  ffff880e54630000 ffff880000000000 ffff880e52381d28 ffffffff8125622d
+[13600.016808]  ffff880e52381c98 ffffffff84109b7c 00000000b7d373c8 ffff880e52380010
+[13600.016808] Call Trace:
+[13600.016808]  [<ffffffff8125a36b>] find_extend_vma+0x2b/0x90
+[13600.016808]  [<ffffffff8125622d>] __get_user_pages+0xdd/0x630
+[13600.016808]  [<ffffffff84109b7c>] ? _raw_spin_unlock_irqrestore+0x7c/0xa0
+[13600.016808]  [<ffffffff81256832>] get_user_pages+0x52/0x60
+[13600.016808]  [<ffffffff812adecc>] get_arg_page+0x5c/0x100
+[13600.016808]  [<ffffffff812ade58>] ? get_user_arg_ptr+0x58/0x70
+[13600.016808]  [<ffffffff812ae084>] copy_strings+0x114/0x260
+[13600.016808]  [<ffffffff812ae21b>] copy_strings_kernel+0x4b/0x60
+[13600.016808]  [<ffffffff812b0203>] do_execve_common+0x2f3/0x4d0
+[13600.016808]  [<ffffffff812b001c>] ? do_execve_common+0x10c/0x4d0
+[13600.016808]  [<ffffffff812b04a7>] do_execve+0x37/0x40
+[13600.016808]  [<ffffffff81140721>] ____call_usermodehelper+0x111/0x130
+[13600.016808]  [<ffffffff8115f270>] ? schedule_tail+0x30/0xb0
+[13600.016808]  [<ffffffff81140610>] ? __call_usermodehelper+0xb0/0xb0
+[13600.016808]  [<ffffffff841125ec>] ret_from_fork+0x7c/0xb0
+[13600.016808]  [<ffffffff81140610>] ? __call_usermodehelper+0xb0/0xb0
+[13600.016808] Code: 40 20 83 f0 01 83 e0 01 eb 09 0f 1f 80 00 00 00 00 31 c0 c9 c3 0f 1f 40 00 55 
+48 89 e5 66 66 66 66 90 48 8b 47 10 48 85 c0 74 0b <48> 39 70 08 76 05 48 3b 30 73 4d 48 8b 57 08 31 
+c0 48 85 d2 74
+[13600.016808] RIP  [<ffffffff81258b82>] find_vma+0x12/0x70
+[13600.016808]  RSP <ffff880e52381c38>
+
+The disassembly is:
+
+         /* Check the cache first. */
+         /* (Cache hit rate is typically around 35%.) */
+         vma = ACCESS_ONCE(mm->mmap_cache);
+      1f9:       48 8b 47 10             mov    0x10(%rdi),%rax
+         if (!(vma && vma->vm_end > addr && vma->vm_start <= addr)) {
+      1fd:       48 85 c0                test   %rax,%rax
+      200:       74 0b                   je     20d <find_vma+0x1d>
+      202:       48 39 70 08             cmp    %rsi,0x8(%rax)		<--- here
+      206:       76 05                   jbe    20d <find_vma+0x1d>
+      208:       48 3b 30                cmp    (%rax),%rsi
+      20b:       73 4d                   jae    25a <find_vma+0x6a>
+
+
+Note that I've started seeing this when I started testing with 64 vcpus.
+
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
