@@ -1,72 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id ACC4E6B0031
-	for <linux-mm@kvack.org>; Sat,  7 Sep 2013 04:25:16 -0400 (EDT)
-Received: by mail-ea0-f176.google.com with SMTP id q16so2053035ead.35
-        for <linux-mm@kvack.org>; Sat, 07 Sep 2013 01:25:15 -0700 (PDT)
-Message-ID: <522AE146.1020707@gmail.com>
-Date: Sat, 07 Sep 2013 10:18:14 +0200
-From: Marco Stornelli <marco.stornelli@gmail.com>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 576686B0031
+	for <linux-mm@kvack.org>; Sat,  7 Sep 2013 11:31:56 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id fb10so4559580pad.9
+        for <linux-mm@kvack.org>; Sat, 07 Sep 2013 08:31:55 -0700 (PDT)
 MIME-Version: 1.0
-Subject: [PATCH 03/19] pramfs: export xip_file_fault
-Content-Type: text/plain; charset=ISO-8859-15
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1378093542-31971-1-git-send-email-bob.liu@oracle.com>
+References: <1378093542-31971-1-git-send-email-bob.liu@oracle.com>
+Date: Sat, 7 Sep 2013 11:31:55 -0400
+Message-ID: <CAJLXCZS4ywM_khTCH4RrU5QiZRosJA8CJBCR2pC7MMDMuF00Fw@mail.gmail.com>
+Subject: Re: [PATCH 1/2] mm: thp: cleanup: mv alloc_hugepage to better place
+From: Andrew Davidoff <davidoff@qedmf.net>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-fsdevel@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vladimir Davydov <vdavydov@parallels.com>
+To: Bob Liu <lliubbo@gmail.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, aarcange@redhat.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, konrad.wilk@oracle.com, Bob Liu <bob.liu@oracle.com>
 
-Export xip_file_fault to modules.
+On Sun, Sep 1, 2013 at 11:45 PM, Bob Liu <lliubbo@gmail.com> wrote:
+> Move alloc_hugepage to better place, no need for a seperate #ifndef CONFIG_NUMA
+>
+> Signed-off-by: Bob Liu <bob.liu@oracle.com>
 
-Signed-off-by: Marco Stornelli <marco.stornelli@gmail.com>
----
- include/linux/fs.h |    2 ++
- mm/filemap_xip.c   |    3 ++-
- 2 files changed, 4 insertions(+), 1 deletions(-)
+Tested-by: Andrew Davidoff <davidoff@qedmf.net>
 
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 3b4cd82..1f61e07 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -41,6 +41,7 @@ struct kobject;
- struct pipe_inode_info;
- struct poll_table_struct;
- struct kstatfs;
-+struct vm_fault;
- struct vm_area_struct;
- struct vfsmount;
- struct cred;
-@@ -2445,6 +2446,7 @@ extern int nonseekable_open(struct inode * inode, struct file * filp);
- #ifdef CONFIG_FS_XIP
- extern ssize_t xip_file_read(struct file *filp, char __user *buf, size_t len,
- 			     loff_t *ppos);
-+extern int xip_file_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
- extern int xip_file_mmap(struct file * file, struct vm_area_struct * vma);
- extern ssize_t xip_file_write(struct file *filp, const char __user *buf,
- 			      size_t len, loff_t *ppos);
-diff --git a/mm/filemap_xip.c b/mm/filemap_xip.c
-index 28fe26b..50bbc5d 100644
---- a/mm/filemap_xip.c
-+++ b/mm/filemap_xip.c
-@@ -219,7 +219,7 @@ retry:
-  *
-  * This function is derived from filemap_fault, but used for execute in place
-  */
--static int xip_file_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
-+int xip_file_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
- {
- 	struct file *file = vma->vm_file;
- 	struct address_space *mapping = file->f_mapping;
-@@ -303,6 +303,7 @@ out:
- 	}
- }
- 
-+EXPORT_SYMBOL_GPL(xip_file_fault);
- static const struct vm_operations_struct xip_file_vm_ops = {
- 	.fault	= xip_file_fault,
- 	.page_mkwrite	= filemap_page_mkwrite,
--- 
-1.7.3.4
+> ---
+>  mm/huge_memory.c |   14 ++++++--------
+>  1 file changed, 6 insertions(+), 8 deletions(-)
+>
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index a92012a..7448cf9 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -753,14 +753,6 @@ static inline struct page *alloc_hugepage_vma(int defrag,
+>                                HPAGE_PMD_ORDER, vma, haddr, nd);
+>  }
+>
+> -#ifndef CONFIG_NUMA
+> -static inline struct page *alloc_hugepage(int defrag)
+> -{
+> -       return alloc_pages(alloc_hugepage_gfpmask(defrag, 0),
+> -                          HPAGE_PMD_ORDER);
+> -}
+> -#endif
+> -
+>  static bool set_huge_zero_page(pgtable_t pgtable, struct mm_struct *mm,
+>                 struct vm_area_struct *vma, unsigned long haddr, pmd_t *pmd,
+>                 struct page *zero_page)
+> @@ -2204,6 +2196,12 @@ static struct page
+>         return *hpage;
+>  }
+>  #else
+> +static inline struct page *alloc_hugepage(int defrag)
+> +{
+> +       return alloc_pages(alloc_hugepage_gfpmask(defrag, 0),
+> +                          HPAGE_PMD_ORDER);
+> +}
+> +
+>  static struct page *khugepaged_alloc_hugepage(bool *wait)
+>  {
+>         struct page *hpage;
+> --
+> 1.7.10.4
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
